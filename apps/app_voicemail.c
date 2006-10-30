@@ -6399,7 +6399,7 @@ out:
 #endif
 			mail_expunge(vms.mailstream);
 	}
-	/*  before we delete the state, we should copy pertainent info
+	/*  before we delete the state, we should copy pertinent info
 	 *  back to the persistent model */
 	vmstate_delete(&vms);
 #endif
@@ -8110,6 +8110,7 @@ void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 {
 	if (delimiter)
 		delimiter = delim;
+
 	if (option_debug > 4) {
 		ast_log(LOG_DEBUG, "Delimiter set to %c and mailbox %s\n",delim, mailbox);
 		if (attributes & LATT_NOINFERIORS)
@@ -8126,7 +8127,6 @@ void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 
 void mm_lsub(MAILSTREAM * stream, int delimiter, char *mailbox, long attributes)
 {
-
 	if (option_debug > 4) {
 		ast_log(LOG_DEBUG, "Delimiter set to %c and mailbox %s\n",delimiter, mailbox);
 		if (attributes & LATT_NOINFERIORS)
