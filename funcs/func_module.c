@@ -59,7 +59,7 @@ static struct ast_custom_function ifmodule_function = {
 	.syntax = "IFMODULE(<modulename.so>)",
 	.read = ifmodule_read,
 	.desc = "Checks if a module is loaded. Use the full module name\n"
-		"as shown by the list in \"show modules\". \n"
+		"as shown by the list in \"module list\". \n"
 		"Returns \"1\" if module exists in memory, otherwise \"0\".\n",
 };
 
