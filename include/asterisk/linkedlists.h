@@ -354,6 +354,7 @@ struct {								\
   previous entry, if any).
  */
 #define AST_LIST_REMOVE_CURRENT(head, field)						\
+	__new_prev->field.next = NULL;							\
 	__new_prev = __list_prev;							\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
