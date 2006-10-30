@@ -1198,6 +1198,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* RTP Extension present */
 		hdrlen += 4;
 		hdrlen += (ntohl(rtpheader[3]) & 0xffff) << 2;
+		if (option_debug) {
+			int profile;
+			profile = (ntohl(rtpheader[3]) & 0xffff0000) >> 16;
+			if (profile == 0x505a)
+				ast_log(LOG_DEBUG, "Found Zfone extension in RTP stream - zrtp - not supported.\n");
+			else
+				ast_log(LOG_DEBUG, "Found unknown RTP Extensions %x\n", profile);
+		}
 	}
 
 	if (res < hdrlen) {
