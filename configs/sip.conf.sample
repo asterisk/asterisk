@@ -192,10 +192,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; host is either a host name defined in DNS or the name of a section defined
 ; below.
 ;
-; A similar effect can be achieved by adding a "contact" option in a peer section.
+; A similar effect can be achieved by adding a "callbackextension" option in a peer section.
 ; this is equivalent to having the following line in the general section:
 ;
-;	register => username:secret@host/contact
+;	register => username:secret@host/callbackextension
 ;
 ; and more readable because you don't have to write the parameters in two places
 ; (note that the "port" is ignored - this is a bug that should be fixed).
@@ -450,7 +450,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             sendrpid
 ;                             outboundproxy
 ;                             rfc2833compensate
-;                             contact
+;                             callbackextension
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
@@ -479,7 +479,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;host=sip.provider1.com
 ;username=4015552299		; how your provider knows you
 ;secret=youwillneverguessit
-;contact=123			; tell asterisk to register as username:secret@host/contact
+;callbackextension=123		; Register with this server and require calls coming back to this extension
 
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP devices

@@ -1125,7 +1125,7 @@ struct sip_registry {
 		AST_STRING_FIELD(hostname);	/*!< Domain or host we register to */
 		AST_STRING_FIELD(secret);	/*!< Password in clear text */	
 		AST_STRING_FIELD(md5secret);	/*!< Password in md5 */
-		AST_STRING_FIELD(contact);	/*!< Contact extension */
+		AST_STRING_FIELD(callback);	/*!< Contact extension */
 		AST_STRING_FIELD(random);
 	);
 	int portno;			/*!<  Optional port override */
@@ -4413,7 +4413,7 @@ static int sip_register(char *value, int lineno)
 	char username[256] = "";
 	char *hostname=NULL, *secret=NULL, *authuser=NULL;
 	char *porta=NULL;
-	char *contact=NULL;
+	char *callback=NULL;
 
 	if (!value)
 		return -1;
@@ -4435,11 +4435,11 @@ static int sip_register(char *value, int lineno)
 			*authuser++ = '\0';
 	}
 	/* split host[:port][/contact] */
-	contact = strchr(hostname, '/');
-	if (contact)
-		*contact++ = '\0';
-	if (ast_strlen_zero(contact))
-		contact = "s";
+	callback = strchr(hostname, '/');
+	if (callback)
+		*callback++ = '\0';
+	if (ast_strlen_zero(callback))
+		callback = "s";
 	porta = strchr(hostname, ':');
 	if (porta) {
 		*porta++ = '\0';
@@ -4462,7 +4462,7 @@ static int sip_register(char *value, int lineno)
 
 	regobjs++;
 	ASTOBJ_INIT(reg);
-	ast_string_field_set(reg, contact, contact);
+	ast_string_field_set(reg, callback, callback);
 	if (username)
 		ast_string_field_set(reg, username, username);
 	if (hostname)
@@ -7156,7 +7156,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		if (!ast_strlen_zero(r->username))
 			ast_string_field_set(p, username, r->username);
 		/* Save extension in packet */
-		ast_string_field_set(p, exten, r->contact);
+		if (!ast_strlen_zero(r->callback))
+			ast_string_field_set(p, exten, r->callback);
 
 		/*
 		  check which address we should use in our contact header 
@@ -15643,7 +15644,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	time_t regseconds = 0;
 	struct ast_flags peerflags[2] = {{(0)}};
 	struct ast_flags mask[2] = {{(0)}};
-	char contact[256] = "";
+	char callback[256] = "";
 
 
 	if (!realtime)
@@ -15779,8 +15780,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->language, v->value, sizeof(peer->language));
 		} else if (!strcasecmp(v->name, "regexten")) {
 			ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
-		} else if (!strcasecmp(v->name, "contact")) {
-			ast_copy_string(contact, v->value, sizeof(contact));
+		} else if (!strcasecmp(v->name, "callbackextension")) {
+			ast_copy_string(callback, v->value, sizeof(callback));
 		} else if (!strcasecmp(v->name, "call-limit")) {
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
@@ -15873,10 +15874,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		reg_source_db(peer);
 	ASTOBJ_UNMARK(peer);
 	ast_free_ha(oldha);
-	if (!ast_strlen_zero(contact)) { /* build string from peer info */
+	if (!ast_strlen_zero(callback)) { /* build string from peer info */
 		char *reg_string;
 
-		asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, contact);
+		asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, callback);
 		if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
 			free(reg_string);
