@@ -8112,14 +8112,14 @@ void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 		delimiter = delim;
 	if (option_debug > 4) {
 		ast_log(LOG_DEBUG, "Delimiter set to %c and mailbox %s\n",delim, mailbox);
-	if (attributes & LATT_NOINFERIORS)
-		ast_log(LOG_DEBUG, "no inferiors\n");
-	if (attributes & LATT_NOSELECT)
-		ast_log(LOG_DEBUG, "no select\n");
-	if (attributes & LATT_MARKED)
-		ast_log(LOG_DEBUG, "marked\n");
-	if (attributes & LATT_UNMARKED)
-		ast_log(LOG_DEBUG, "unmarked\n");
+		if (attributes & LATT_NOINFERIORS)
+			ast_log(LOG_DEBUG, "no inferiors\n");
+		if (attributes & LATT_NOSELECT)
+			ast_log(LOG_DEBUG, "no select\n");
+		if (attributes & LATT_MARKED)
+			ast_log(LOG_DEBUG, "marked\n");
+		if (attributes & LATT_UNMARKED)
+			ast_log(LOG_DEBUG, "unmarked\n");
 	}
 }
 
@@ -8129,14 +8129,14 @@ void mm_lsub(MAILSTREAM * stream, int delimiter, char *mailbox, long attributes)
 
 	if (option_debug > 4) {
 		ast_log(LOG_DEBUG, "Delimiter set to %c and mailbox %s\n",delimiter, mailbox);
-	if (attributes & LATT_NOINFERIORS)
-		ast_log(LOG_DEBUG, "no inferiors\n");
-	if (attributes & LATT_NOSELECT)
-		ast_log(LOG_DEBUG, "no select\n");
-	if (attributes & LATT_MARKED)
-		ast_log(LOG_DEBUG, "marked\n");
-	if (attributes & LATT_UNMARKED)
-		ast_log(LOG_DEBUG, "unmarked\n");
+		if (attributes & LATT_NOINFERIORS)
+			ast_log(LOG_DEBUG, "no inferiors\n");
+		if (attributes & LATT_NOSELECT)
+			ast_log(LOG_DEBUG, "no select\n");
+		if (attributes & LATT_MARKED)
+			ast_log(LOG_DEBUG, "marked\n");
+		if (attributes & LATT_UNMARKED)
+			ast_log(LOG_DEBUG, "unmarked\n");
 	}
 }
 
