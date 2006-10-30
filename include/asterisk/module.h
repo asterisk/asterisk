@@ -77,9 +77,9 @@ enum ast_module_load_result {
 enum ast_module_load_result ast_load_resource(const char *resource_name);
 
 /*! 
- * \brief Unloads a module.
+ * \brief Unload a module.
  * \param resource_name The name of the module to unload.
- * \param unload_mode The force flag. This should be set using one of the AST_FORCE flags.
+ * \param ast_module_unload_mode The force flag. This should be set using one of the AST_FORCE flags.
  *
  * This function unloads a module.  It will only unload modules that are not in
  * use (usecount not zero), unless #AST_FORCE_FIRM or #AST_FORCE_HARD is 

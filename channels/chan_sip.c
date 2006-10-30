@@ -678,7 +678,7 @@ struct sip_history {
 
 AST_LIST_HEAD_NOLOCK(sip_history_head, sip_history); /*!< history list, entry in sip_pvt */
 
-/*! \brief sip_auth: Creadentials for authentication to other SIP services */
+/*! \brief sip_auth: Credentials for authentication to other SIP services */
 struct sip_auth {
 	char realm[AST_MAX_EXTENSION];  /*!< Realm in which these credentials are valid */
 	char username[256];             /*!< Username */

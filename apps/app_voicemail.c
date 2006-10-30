@@ -936,6 +936,7 @@ static int make_file(char *dest, int len, char *dir, int num)
 
 /*! \brief basically mkdir -p $dest/$context/$ext/$folder
  * \param dest    String. base directory.
+ * \param len     Length of dest.
  * \param context String. Ignored if is null or empty string.
  * \param ext     String. Ignored if is null or empty string.
  * \param folder  String. Ignored if is null or empty string. 

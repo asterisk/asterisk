@@ -22,7 +22,7 @@
  * - See \ref LockDef
  */
 
-/* \page LockDef Asterisk thread locking models
+/*! \page LockDef Asterisk thread locking models
  *
  * This file provides different implementation of the functions,
  * depending on the platform, the use of DEBUG_THREADS, and the way

@@ -801,6 +801,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **chan, int n, int *f
 /*! \brief Waits for input on a group of channels
    Wait for input on an array of channels for a given # of milliseconds. 
 	\return Return channel with activity, or NULL if none has activity.  
+	\param chan an array of pointers to channels
+	\param n number of channels that are to be waited upon
 	\param ms time "ms" is modified in-place, if applicable */
 struct ast_channel *ast_waitfor_n(struct ast_channel **chan, int n, int *ms);
 
@@ -928,9 +930,11 @@ struct ast_channel *ast_walk_channel_by_exten_locked(const struct ast_channel *c
 int ast_waitfordigit(struct ast_channel *c, int ms);
 
 /*! \brief Wait for a digit
- Same as ast_waitfordigit() with audio fd for outputing read audio and ctrlfd to monitor for reading. 
+ Same as ast_waitfordigit() with audio fd for outputting read audio and ctrlfd to monitor for reading. 
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
+ * \param audiofd audio file descriptor to write to if audio frames are received
+ * \param ctrlfd control file descriptor to monitor for reading
  * \return Returns 1 if ctrlfd becomes available */
 int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd);
 
@@ -1014,7 +1018,7 @@ int ast_str2cause(const char *name) attribute_pure;
 
 /*! Gives the string form of a given channel state */
 /*! 
- * \param state state to get the name of
+ * \param ast_channel_state state to get the name of
  * Give a name to a state 
  * Returns the text form of the binary state given
  */
@@ -1344,6 +1348,7 @@ int ast_channel_whisper_start(struct ast_channel *chan);
 /*!
   \brief Feed an audio frame into the whisper buffer on a channel
   \param chan The channel to whisper onto
+  \param f The frame to to whisper onto chan
   \return 0 for success, non-zero for failure
  */
 int ast_channel_whisper_feed(struct ast_channel *chan, struct ast_frame *f);
