@@ -8464,13 +8464,13 @@ static void *ss7_linkset(void *data)
 				}
 				switch (x) {
 				case ZT_EVENT_OVERRUN:
-					ast_log(LOG_ERROR, "Overrun detected!\n");
+					ast_log(LOG_DEBUG, "Overrun detected!\n");
 					break;
 				case ZT_EVENT_BADFCS:
-					ast_log(LOG_ERROR, "Bad FCS!\n");
+					ast_log(LOG_DEBUG, "Bad FCS\n");
 					break;
 				case ZT_EVENT_ABORT:
-					ast_log(LOG_ERROR, "HDLC Abort!\n");
+					ast_log(LOG_DEBUG, "HDLC Abort\n");
 					break;
 				case ZT_EVENT_ALARM:
 					ast_log(LOG_ERROR, "Alarm on link!\n");
