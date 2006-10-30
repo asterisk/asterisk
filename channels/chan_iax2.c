@@ -8084,11 +8084,12 @@ static void *network_thread(void *ignore)
 				continue;
 			
 			f->sentyet++;
-			/* Send a copy immediately -- errors here are ok, so don't bother locking */
+			ast_mutex_lock(&iaxsl[f->callno]);
 			if (iaxs[f->callno]) {
 				send_packet(f);
 				count++;
 			} 
+			ast_mutex_unlock(&iaxsl[f->callno]);
 			if (f->retries < 0) {
 				/* This is not supposed to be retransmitted */
 				AST_LIST_REMOVE(&iaxq.queue, f, list);
