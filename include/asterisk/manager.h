@@ -124,6 +124,7 @@ struct ast_variable *astman_get_variables(struct message *m);
 void astman_send_error(struct mansession *s, struct message *m, char *error);
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
 void astman_send_ack(struct mansession *s, struct message *m, char *msg);
+void astman_send_listack(struct mansession *s, struct message *m, char *msg, char *listflag);
 
 void astman_append(struct mansession *s, const char *fmt, ...)
         __attribute__ ((format (printf, 2, 3)));

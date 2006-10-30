@@ -736,13 +736,15 @@ void astman_append(struct mansession *s, const char *fmt, ...)
  * XXX MSG_MOREDATA should go to a header file.
  */
 #define MSG_MOREDATA	((char *)astman_send_response)
-void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
+static void astman_send_response_full(struct mansession *s, struct message *m, char *resp, char *msg, char *listflag)
 {
 	char *id = astman_get_header(m,"ActionID");
 
 	astman_append(s, "Response: %s\r\n", resp);
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n", id);
+	if (listflag)
+		astman_append(s, "Eventlist: %s\r\n", listflag);	/* Start, complete, cancelled */
 	if (msg == MSG_MOREDATA)
 		return;
 	else if (msg)
@@ -751,19 +753,29 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 		astman_append(s, "\r\n");
 }
 
+void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
+{
+	astman_send_response_full(s, m, resp, msg, NULL);
+}
+
 void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
-	astman_send_response(s, m, "Error", error);
+	astman_send_response_full(s, m, "Error", error, NULL);
 }
 
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
 {
-	astman_send_response(s, m, "Success", msg);
+	astman_send_response_full(s, m, "Success", msg, NULL);
 }
 
 static void astman_start_ack(struct mansession *s, struct message *m)
 {
-	astman_send_response(s, m, "Success", MSG_MOREDATA);
+	astman_send_response_full(s, m, "Success", MSG_MOREDATA, NULL);
+}
+
+void astman_send_listack(struct mansession *s, struct message *m, char *msg, char *listflag)
+{
+	astman_send_response_full(s, m, "Success", msg, listflag);
 }
 
 
