@@ -633,16 +633,11 @@ int clean_up_bc(struct misdn_bchannel *bc)
 	
 	cb_log(2, stack->port, "$$$ Cleaning up bc with stid :%x pid:%d\n", bc->b_stid, bc->pid);
 	
-	manager_bchannel_deactivate(bc);
-
-
 	manager_ec_disable(bc);
 
+	manager_bchannel_deactivate(bc);
 
 	mISDN_write_frame(stack->midev, buff, bc->layer_id|FLG_MSG_TARGET|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
-	
-	/*mISDN_clear_stack(stack->midev, bc->b_stid);*/
-
 	
 	bc->b_stid = 0;
 	bc_state_change(bc, BCHAN_CLEANED);
@@ -1014,6 +1009,7 @@ int setup_bc(struct misdn_bchannel *bc)
 		mISDN_write_frame(midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 		
 		bc_state_change(bc,BCHAN_ERROR);
+		cb_event(EVENT_BCHAN_ERROR, bc, glob_mgr->user_data);
 		return(-EINVAL);
 	}
 
@@ -1024,6 +1020,7 @@ int setup_bc(struct misdn_bchannel *bc)
 		mISDN_write_frame(midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 		
 		bc_state_change(bc,BCHAN_ERROR);
+		cb_event(EVENT_BCHAN_ERROR, bc, glob_mgr->user_data);
 		return(-EINVAL);
 	}
 
@@ -1036,6 +1033,8 @@ int setup_bc(struct misdn_bchannel *bc)
 		mISDN_write_frame(midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 		
 		bc_state_change(bc,BCHAN_ERROR);
+		cb_event(EVENT_BCHAN_ERROR, bc, glob_mgr->user_data);
+		return (-EINVAL);
 	}
 
 	manager_bchannel_activate(bc);
@@ -1467,7 +1466,7 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 		case EVENT_SETUP_ACKNOWLEDGE:
 
 		setup_bc(bc);
-		
+
 		case EVENT_SETUP:
 			
 		{
@@ -1511,21 +1510,6 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 	return 0;
 }
 
-int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
-{
-  
-	struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1);
-	
-	
-	if (!bc) {
-		cb_log(0, stack->port, " --> !! lib: No free channel!\n");
-		return -1;
-	}
-  
-	cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
-	bc->l3_id=frm->dinfo;
-	return 0;
-}
 
 int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 {
@@ -1534,9 +1518,15 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 	switch (frm->prim) {
 	case CC_NEW_CR|INDICATION:
 		cb_log(7, stack->port, " --> lib: NEW_CR Ind with l3id:%x on this port.\n",frm->dinfo);
-		if (handle_new_process(stack, frm) <0) {
+
+		struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1);
+		if (!bc) {
+			cb_log(0, stack->port, " --> !! lib: No free channel!\n");
 			return -1;
 		}
+  
+		cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
+		bc->l3_id=frm->dinfo;
 		return 1;
 	case CC_NEW_CR|CONFIRM:
 		return 1;
@@ -1787,18 +1777,26 @@ handle_event_nt(void *dat, void *arg)
       
 		case CC_SETUP|INDICATION:
 		{
-			iframe_t frm; /* fake te frm to add callref to global callreflist */
-			frm.dinfo = hh->dinfo;
-			frm.addr=stack->upper_id;
-			frm.prim = CC_NEW_CR|INDICATION;
-			
-			if (handle_cr(stack, &frm)< 0) {
+			struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1);
+			if (!bc) 
+			ERR_NO_CHANNEL:
+			{
 				msg_t *dmsg;
 				cb_log(4, stack->port, "Patch from MEIDANIS:Sending RELEASE_COMPLETE %x (No free Chan for you..)\n", hh->dinfo);
 				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
 				stack->nst.manager_l3(&stack->nst, dmsg);
 				free_msg(msg);
 				return 0;
+			}
+  
+			cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",hh->dinfo);
+			bc->l3_id=hh->dinfo;
+
+			if (bc->channel<=0) {
+				bc->channel=find_free_chan_in_stack(stack,0);
+
+				if (bc->channel<=0)
+					goto ERR_NO_CHANNEL;
 			}
 		}
 		break;
