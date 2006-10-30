@@ -13343,7 +13343,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if (res) {
 
 					/* Unlock locks so ast_hangup can do its magic */
-					ast_mutex_unlock(&c->lock);
+					ast_channel_unlock(c);
 					sip_pvt_unlock(p);
 					ast_hangup(c);
 					sip_pvt_lock(p);
