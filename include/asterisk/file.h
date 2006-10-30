@@ -218,7 +218,7 @@ int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
 
 /*! Waits for a stream to stop or digit to be pressed */
 /*!
- * \param c channel to waitstram on
+ * \param c channel to waitstream on
  * \param breakon string of DTMF digits to break upon
  * Begins playback of a stream...
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
@@ -228,7 +228,7 @@ int ast_waitstream(struct ast_channel *c, const char *breakon);
 
 /*! Waits for a stream to stop or digit matching a valid one digit exten to be pressed */
 /*!
- * \param c channel to waitstram on
+ * \param c channel to waitstream on
  * \param context string of context to match digits to break upon
  * Begins playback of a stream...
  * Wait for a stream to stop or for any one of a valid extension digit to arrive,  Returns 0 
@@ -238,7 +238,7 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context);
 
 /*! Same as waitstream but allows stream to be forwarded or rewound */
 /*!
- * \param c channel to waitstram on
+ * \param c channel to waitstream on
  * \param breakon string of DTMF digits to break upon
  * \param forward DTMF digit to fast forward upon
  * \param rewind DTMF digit to rewind upon

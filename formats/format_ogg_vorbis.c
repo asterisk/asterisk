@@ -250,7 +250,8 @@ static int ogg_vorbis_rewrite(struct ast_filestream *s,
 
 /*!
  * \brief Write out any pending encoded data.
- * \param s A OGG/Vorbis filestream.
+ * \param s An OGG/Vorbis filestream.
+ * \param f The file to write to.
  */
 static void write_stream(struct vorbis_desc *s, FILE *f)
 {
@@ -276,9 +277,9 @@ static void write_stream(struct vorbis_desc *s, FILE *f)
 
 /*!
  * \brief Write audio data from a frame to an OGG/Vorbis filestream.
- * \param fs A OGG/Vorbis filestream.
- * \param f An frame containing audio to be written to the filestream.
- * \return -1 ifthere was an error, 0 on success.
+ * \param fs An OGG/Vorbis filestream.
+ * \param f A frame containing audio to be written to the filestream.
+ * \return -1 if there was an error, 0 on success.
  */
 static int ogg_vorbis_write(struct ast_filestream *fs, struct ast_frame *f)
 {

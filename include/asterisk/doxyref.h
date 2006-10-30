@@ -119,7 +119,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \ref cdr_drivers
  * \arg \ref Config_cdr CDR configuration files
  *
- *  \verbinclude cdr.txt
+ * \verbinclude cdrdriver.txt
  */
 
 /*! \page AstREADME README - the general administrator introduction
@@ -427,14 +427,11 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 
 /*! \page SoundFiles Sound files
  *  \section SecSound Asterisk Sound files
- *  Asterisk includes a large amount of sound files. Many of these
+ *  Asterisk includes a large number of sound files. Many of these
  *  are used by applications and demo scripts within asterisk.
  *
  *  Additional sound files are available in the asterisk-addons
- *  repository on cvs.digium.com
- * 
- *  \section SoundList List of included sound files
- *  \verbinclude sounds.txt
+ *  repository on svn.digium.com
  */
 
 /*! \addtogroup cdr_drivers Module: CDR Drivers
