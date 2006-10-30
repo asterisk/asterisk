@@ -519,7 +519,7 @@ static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing r
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
-static int match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
+static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
 static int global_relaxdtmf;			/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;
@@ -9186,7 +9186,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	if (ast_strlen_zero(of))
 		return AUTH_SUCCESSFUL;
 
-	if (match_auth_username) {
+	if (global_match_auth_username) {
 		/*
 		 * XXX This is experimental code to grab the search key from the
 		 * Auth header's username instead of the 'From' name, if available.
@@ -10244,7 +10244,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(fd, "  Videosupport:           %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
-	ast_cli(fd, "  MatchAuthUsername:      %s\n", match_auth_username ? "Yes" : "No");
+	ast_cli(fd, "  MatchAuthUsername:      %s\n", global_match_auth_username ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Allow subscriptions:    %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
 	ast_cli(fd, "  Allow overlap dialing:  %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) ? "Yes" : "No");
@@ -15966,6 +15966,7 @@ static int reload_config(enum channelreloadreason reason)
 	autocreatepeer = DEFAULT_AUTOCREATEPEER;
 	global_autoframing = 0;
 	global_allowguest = DEFAULT_ALLOWGUEST;
+	global_match_auth_username = FALSE;		/*!< Match auth username if available instead of From: Default off. */
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	global_rtpkeepalive = 0;
@@ -16106,7 +16107,7 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
-			match_auth_username = ast_true(v->value);
+			global_match_auth_username = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "pedantic")) {
