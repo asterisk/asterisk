@@ -8753,12 +8753,24 @@ static void *ss7_linkset(void *data)
 
 static void zt_ss7_message(struct ss7 *ss7, char *s)
 {
-	ast_verbose("%s", s);
+	int i;
+
+	for (i = 0; i < NUM_SPANS; i++)
+		if (linksets[i].ss7 == ss7)
+			break;
+
+	ast_verbose("[%d] %s", i, s);
 }
 
 static void zt_ss7_error(struct ss7 *ss7, char *s)
 {
-	ast_log(LOG_ERROR, "%s", s);
+	int i;
+
+	for (i = 0; i < NUM_SPANS; i++)
+		if (linksets[i].ss7 == ss7)
+			break;
+
+	ast_log(LOG_ERROR, "[%d] %s", i, s);
 }
 #endif /* HAVE_SS7 */
 
