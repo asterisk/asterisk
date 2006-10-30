@@ -655,18 +655,25 @@ int ast_unregister_translator(struct ast_translator *t)
 {
 	char tmp[80];
 	struct ast_translator *u;
+	int found = 0;
+
 	AST_LIST_LOCK(&translators);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_LIST_REMOVE_CURRENT(&translators, list);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
+			found = 1;
 			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
-	rebuild_matrix(0);
+
+	if (found)
+		rebuild_matrix(0);
+
 	AST_LIST_UNLOCK(&translators);
+
 	return (u ? 0 : -1);
 }
 
@@ -776,6 +783,11 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 		   to this format, remove it from the result */
 		if (!tr_matrix[src_audio][powerof(x)].step)
 			res &= ~x;
+
+		/* now check the opposite direction */
+		if (!tr_matrix[powerof(x)][src_audio].step)
+			res &= ~x;
+
 	}
 
 	/* For a given source video format, traverse the list of
@@ -795,6 +807,10 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 		/* if we don't have a translation path from the src
 		   to this format, remove it from the result */
 		if (!tr_matrix[src_video][powerof(x)].step)
+			res &= ~x;
+
+		/* now check the opposite direction */
+		if (!tr_matrix[powerof(x)][src_video].step)
 			res &= ~x;
 	}
 
