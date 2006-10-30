@@ -632,7 +632,7 @@ if test "${PG_CONFIG}" != No; then
    [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
    if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
-      PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz -lcrypt"
+      PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
       PGSQL_INCLUDE="-I${PGSQL_includedir}"
       PBX_PGSQL=1
    fi
