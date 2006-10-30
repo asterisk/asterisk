@@ -9453,6 +9453,8 @@ static int sip_show_users(int fd, int argc, char *argv[])
 
 static char mandescr_show_peers[] = 
 "Description: Lists SIP peers in text format with details on current status.\n"
+"Peerlist will follow as separate events, followed by a final event called\n"
+"PeerlistComplete.\n"
 "Variables: \n"
 "  ActionID: <id>	Action ID for this transaction. Will be returned.\n";
 
@@ -9468,12 +9470,13 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 
-	astman_send_ack(s, m, "Peer status list will follow");
+	astman_send_listack(s, m, "Peer status list will follow", "start");
 	/* List the peers in separate manager events */
 	_sip_show_peers(-1, &total, s, m, 3, a);
 	/* Send final confirmation */
 	astman_append(s,
 	"Event: PeerlistComplete\r\n"
+	"EventList: Complete\r\n"
 	"ListItems: %d\r\n"
 	"%s"
 	"\r\n", total, idtext);
