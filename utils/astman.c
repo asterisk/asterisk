@@ -226,6 +226,8 @@ static struct event {
 	{ "Unlink", event_ignore },
 	{ "StatusComplete", event_ignore },
 	{ "Dial", event_ignore },
+	{ "PeerStatus", event_ignore },
+	{ "MessageWaiting", event_ignore },
 	{ "Newcallerid", event_ignore }
 };
 

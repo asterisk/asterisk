@@ -374,6 +374,7 @@ static const char *get_cid_name(char *name, int namelen, struct ast_channel *cha
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 {
 	manager_event(EVENT_FLAG_CALL, "Dial", 
+			   "SubEvent: Begin\r\n"
 			   "Source: %s\r\n"
 			   "Destination: %s\r\n"
 			   "CallerIDNum: %s\r\n"
@@ -384,6 +385,15 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 			   S_OR(src->cid.cid_name, "<unknown>"), src->uniqueid,
 			   dst->uniqueid);
 }
+
+static void senddialendevent(const struct ast_channel *src, const char *dialstatus)
+{
+	manager_event(EVENT_FLAG_CALL, "Dial",
+			   		"SubEvent: End\r\n"
+					"Channel: %s\r\n"
+					"DialStatus: %s\r\n",
+					src->name, dialstatus);
+}	
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
 {
@@ -1635,6 +1645,7 @@ out:
 	ast_channel_early_bridge(chan, NULL);
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
+	senddialendevent(chan, status);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
