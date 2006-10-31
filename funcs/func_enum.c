@@ -65,6 +65,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	char dest[256] = "", tmp[2] = "", num[AST_MAX_EXTENSION] = "";
 	struct ast_module_user *u;
 	char *s, *p;
+	unsigned int record = 1;
 
 	buf[0] = '\0';
 
@@ -88,7 +89,10 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 		args.zone = "e164.arpa";
 
 	if (!args.options)
-		args.options = "1";
+		args.options = "";
+
+	if (args.record)
+		record = atoi(args.record);
 
 	/* strip any '-' signs from number */
 	for (s = p = args.number; *s; s++) {
@@ -100,7 +104,7 @@ static int function_enum(struct ast_channel *chan, char *cmd, char *data,
 	}
 
 	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone,
-			   args.options);
+			   args.options, record);
 
 	p = strchr(dest, ':');
 	if (p && strcasecmp(tech, "ALL"))

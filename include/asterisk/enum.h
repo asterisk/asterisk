@@ -35,9 +35,11 @@
                        If you need any record, then set it to empty string
 	\param maxtech  Max length
 	\param suffix   Zone suffix (if is NULL then use enum.conf 'search' variable)
-	\param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list
+	\param options  Options ('c' to count number of NAPTR RR)
+	\param record   The position of required RR in the answer list
 */
-int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
+int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, 
+		int maxtech, char* suffix, char* options, unsigned int record);
 
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel
