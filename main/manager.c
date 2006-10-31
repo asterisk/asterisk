@@ -1429,6 +1429,45 @@ static int action_status(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_sendtext[] =
+"Description: Sends A Text Message while in a call.\n"
+"Variables: (Names marked with * are required)\n"
+"       *Channel: Channel to send message to\n"
+"       *Message: Message to send\n"
+"       ActionID: Optional Action id for message matching.\n";
+
+static int action_sendtext(struct mansession *s, struct message *m)
+{
+	struct ast_channel *c = NULL;
+	char *name = astman_get_header(m, "Channel");
+	char *textmsg = astman_get_header(m, "Message");
+	int res = 0;
+
+	if (!ast_strlen_zero(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	if (!ast_strlen_zero(textmsg)) {
+		astman_send_error(s, m, "No Message specified");
+		return 0;
+	}
+
+	c = ast_get_channel_by_name_locked(name);
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+
+	ast_mutex_unlock(&c->lock);
+	res = ast_sendtext(c, textmsg);
+	if (res > 0) {
+		astman_send_ack(s, m, "Success");
+	} else {
+		astman_send_error(s, m, "Failure");
+	}
+	return res;
+}
+
 static char mandescr_redirect[] =
 "Description: Redirect (transfer) a call.\n"
 "Variables: (Names marked with * are required)\n"
@@ -2761,6 +2800,7 @@ int init_manager(void)
 		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
 		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
+		ast_manager_register2("SendText", EVENT_FLAG_CALL, action_sendtext, "Send text message to channel", mandescr_sendtext);
 		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 
