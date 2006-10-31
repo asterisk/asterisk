@@ -5330,7 +5330,8 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 			if (rport && *(rport+6) == '=') 
 				rport = NULL;		/* We already have a parameter to rport */
 
-			if (rport && ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_ALWAYS) {
+			/* Check rport if NAT=yes or NAT=rfc3581 (which is the default setting)  */
+			if (rport && ((ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_ALWAYS) || (ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_RFC3581))) {
 				/* We need to add received port - rport */
 				char tmp[256], *end;
 
@@ -5347,9 +5348,6 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 				}
 
 				/* Add rport to first VIA header if requested */
-				/* Whoo hoo!  Now we can indicate port address translation too!  Just
-				   another RFC (RFC3581). I'll leave the original comments in for
-				   posterity.  */
 				snprintf(new, sizeof(new), "%s;received=%s;rport=%d",
 					tmp, ast_inet_ntoa(p->recv.sin_addr),
 					ntohs(p->recv.sin_port));

@@ -255,7 +255,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ;nat=no				; Global NAT settings  (Affects all peers and users)
                                 ; yes = Always ignore info and assume NAT
-                                ; no = Use NAT mode only according to RFC3581 
+                                ; no = Use NAT mode only according to RFC3581 (;rport)
                                 ; never = Never attempt NAT mode or RFC3581 support
 				; route = Assume NAT, don't send rport 
 				; (work around more UNIDEN bugs)
