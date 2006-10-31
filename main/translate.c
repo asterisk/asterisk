@@ -523,7 +523,7 @@ static int show_translation_deprecated(int fd, int argc, char *argv[])
 			longest = curlen;
 	}
 	for (x = -1; x < SHOW_TRANS; x++) {
-		char line[80];
+		char line[120];
 		char *buf = line;
 		size_t left = sizeof(line) - 1;	/* one initial space */
 		/* next 2 lines run faster than using ast_build_string() */
@@ -591,7 +591,7 @@ static int show_translation(int fd, int argc, char *argv[])
 			longest = curlen;
 	}
 	for (x = -1; x < SHOW_TRANS; x++) {
-		char line[80];
+		char line[120];
 		char *buf = line;
 		size_t left = sizeof(line) - 1;	/* one initial space */
 		/* next 2 lines run faster than using ast_build_string() */
