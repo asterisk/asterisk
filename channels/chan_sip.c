@@ -6664,6 +6664,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0, ignore))) {
 				sip_cancel_destroy(p);
+
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_FAILED:
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
