@@ -3936,7 +3936,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 				if (rport && *(rport+6) == '=') 
 					rport = NULL;		/* We already have a parameter to rport */
 
-				if (rport && (ast_test_flag(p, SIP_NAT) == SIP_NAT_ALWAYS)) {
+				if (rport && ((ast_test_flag(p, SIP_NAT) == SIP_NAT_ALWAYS) || (ast_test_flag(p, SIP_NAT) == SIP_NAT_RFC3581))) {
 					/* We need to add received port - rport */
 					ast_copy_string(tmp, oh, sizeof(tmp));
 
