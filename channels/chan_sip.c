@@ -6363,6 +6363,7 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 	add_t38_sdp(&req, p);
 	/* Use this as the basis */
 	initialize_initreq(p, &req);
+	ast_set_flag(&p->flags[0], SIP_OUTGOING);		/* Change direction of this dialog */
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
