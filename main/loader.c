@@ -871,23 +871,17 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 	return total_mod_loaded;
 }
 
+/*! \brief Check if module exists */
 int ast_module_check(char *name)
 {
 	struct ast_module *cur;
-	int unlock = -1;
-	int res = 0;
 
 	if (ast_strlen_zero(name))
 		return 0;       /* FALSE */
 
-	if (ast_mutex_trylock(&module_list.lock))
-		unlock = 0;
-	AST_LIST_TRAVERSE(&module_list, cur, entry)
-	if (!res && !strcasecmp(name, cur->resource))
-		res = 1;
-	if (unlock)
-		AST_LIST_UNLOCK(&module_list);
-	return res;
+	cur = find_resource(name, 1);
+
+	return (cur != NULL);
 }
 
 
