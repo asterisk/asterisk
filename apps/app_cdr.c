@@ -20,7 +20,7 @@
  * 
  * \brief Applications connected with CDR engine
  *
- * Martin Pycko <martinp@digium.com>
+ * \author Martin Pycko <martinp@digium.com>
  *
  * \ingroup applications
  */
