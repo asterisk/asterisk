@@ -108,6 +108,7 @@ struct ast_translator {
 	struct ast_module *module;	/* opaque reference to the parent module */
 
 	int cost;			/*!< Cost in milliseconds for encoding/decoding 1 second of sound */
+	int active;			/*!< Whether this translator should be used or not */
 	AST_LIST_ENTRY(ast_translator) list;	/*!< link field */
 };
 
@@ -165,6 +166,24 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *modul
  * \return 0 on success, -1 on failure
  */
 int ast_unregister_translator(struct ast_translator *t);
+
+/*!
+ * \brief Activate a previously deactivated translator
+ * \param t translator to activate
+ * \return nothing
+ *
+ * Enables the specified translator for use.
+ */
+void ast_translator_activate(struct ast_translator *t);
+
+/*!
+ * \brief Deactivate a translator
+ * \param t translator to deactivate
+ * \return nothing
+ *
+ * Disables the specified translator from being used.
+ */
+void ast_translator_deactivate(struct ast_translator *t);
 
 /*!
  * \brief Chooses the best translation path
