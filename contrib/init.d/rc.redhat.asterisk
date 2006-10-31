@@ -3,7 +3,7 @@
 #
 # asterisk    Starts, Stops and Reloads Asterisk.
 #
-# chkconfig: 2345 40 60
+# chkconfig: 2345 90 60
 # description: Asterisk PBX and telephony daemon.
 # processname: asterisk
 # pidfile: /var/run/asterisk.pid
