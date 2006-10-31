@@ -220,8 +220,6 @@ static struct ast_jb_conf global_jbconf;
 
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
-static int usecnt = 0;
-
 
 #define RTP 	1
 #define NO_RTP	0
@@ -3353,9 +3351,6 @@ static int sip_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->tech_pvt = NULL;
 
-	ast_atomic_fetchadd_int(&usecnt, -1);
-	ast_update_use_count();
-
 	/* Do not destroy this pvt until we have timeout or
 	   get an answer to the BYE or INVITE/CANCEL 
 	   If we get no answer during retransmit period, drop the call anyway.
@@ -3867,8 +3862,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_strlen_zero(i->language))
 		ast_string_field_set(tmp, language, i->language);
 	i->owner = tmp;
-	ast_atomic_fetchadd_int(&usecnt, 1);
-	ast_update_use_count();
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 
