@@ -387,7 +387,7 @@ static int enum_callback(void *context, unsigned char *answer, int len, unsigned
 }
 
 /*! \brief ENUM lookup */
-int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options)
+int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options, unsigned int record)
 {
 	struct enum_context context;
 	char tmp[259 + 512];
@@ -412,7 +412,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	context.tech = tech;
 	context.techlen = techlen;
 	context.options = 0;
-	context.position = 1;
+	context.position = record;
 	context.naptr_rrs = NULL;
 	context.naptr_rrs_count = 0;
 
@@ -420,12 +420,11 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		if (*options == 'c') {
 			context.options = ENUMLOOKUP_OPTIONS_COUNT;
 			context.position = 0;
-		} else {
-			context.position = atoi(options);
-			if (context.position < 1)
-				context.position = 1;
 		}
 	}
+
+	ast_log(LOG_DEBUG, "ast_get_enum(): n='%s', tech='%s', suffix='%s', options='%d', record='%d'\n",
+			number, tech, suffix, context.options, context.position);
 
 	if (pos > 128)
 		pos = 128;
@@ -466,25 +465,34 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	if (chan && ast_autoservice_start(chan) < 0)
 		return -1;
 
-	for (;;) {
-		ast_mutex_lock(&enumlock);
-		if (version != enumver) {
-			/* Ooh, a reload... */
-			s = toplevs;
-			version = enumver;
-		} else {
-			s = s->next;
-		}
-		ast_copy_string(tmp + newpos, suffix ? suffix : s->toplev, sizeof(tmp) - newpos);
-		ast_mutex_unlock(&enumlock);
-		if (!s)
-			break;
+	if(suffix) {
+		ast_copy_string(tmp + newpos, suffix, sizeof(tmp) - newpos);
 		ret = ast_search_dns(&context, tmp, C_IN, T_NAPTR, enum_callback);
-		if (ret > 0)
-			break;
-		if (suffix != NULL)
-			break;
+		ast_log(LOG_DEBUG, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
+	} else {
+		ret = -1;		/* this is actually dead code since the demise of app_enum.c */
+		for (;;) {
+			ast_mutex_lock(&enumlock);
+			if (version != enumver) {
+				/* Ooh, a reload... */
+				s = toplevs;
+				version = enumver;
+			} else {
+				s = s->next;
+			}
+			ast_mutex_unlock(&enumlock);
+
+			if (!s)
+				break;
+	
+			ast_copy_string(tmp + newpos, s->toplev, sizeof(tmp) - newpos);
+			ret = ast_search_dns(&context, tmp, C_IN, T_NAPTR, enum_callback);
+			ast_log(LOG_DEBUG, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
+			if (ret > 0)
+				break;
+		}
 	}
+
 	if (ret < 0) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
