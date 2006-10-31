@@ -6578,9 +6578,6 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0, ignore))) {
 				sip_cancel_destroy(p);
 
-				/* Make sure we copy flags, so that NAT settings apply */
-				ast_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
-
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_FAILED:
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
