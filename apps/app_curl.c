@@ -94,7 +94,6 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 {
 	CURL *curl;
 
-	curl_global_init(CURL_GLOBAL_ALL);
 	curl = curl_easy_init();
 
 	if (!curl) {
@@ -224,6 +223,7 @@ int unload_module(void)
 	res |= ast_unregister_application(app);
 
 	STANDARD_HANGUP_LOCALUSERS;
+	curl_global_cleanup();
 	
 	return res;
 }
@@ -232,6 +232,7 @@ int load_module(void)
 {
 	int res;
 
+	curl_global_init(CURL_GLOBAL_ALL);
 	res = ast_custom_function_register(&acf_curl);
 	res |= ast_register_application(app, curl_exec, synopsis, descrip);
 
