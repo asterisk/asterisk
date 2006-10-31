@@ -781,13 +781,14 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 
 		/* if we don't have a translation path from the src
 		   to this format, remove it from the result */
-		if (!tr_matrix[src_audio][powerof(x)].step)
+		if (!tr_matrix[src_audio][powerof(x)].step) {
 			res &= ~x;
+			continue;
+		}
 
 		/* now check the opposite direction */
 		if (!tr_matrix[powerof(x)][src_audio].step)
 			res &= ~x;
-
 	}
 
 	/* For a given source video format, traverse the list of
@@ -806,8 +807,10 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 
 		/* if we don't have a translation path from the src
 		   to this format, remove it from the result */
-		if (!tr_matrix[src_video][powerof(x)].step)
+		if (!tr_matrix[src_video][powerof(x)].step) {
 			res &= ~x;
+			continue;
+		}
 
 		/* now check the opposite direction */
 		if (!tr_matrix[powerof(x)][src_video].step)
