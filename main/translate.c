@@ -650,64 +650,57 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		return -1;
 	}
 
-	if (!t->seen) {
-		t->seen = 1;
-
-		if (!t->buf_size) {
-			ast_log(LOG_WARNING, "empty buf size, you need to supply one\n");
-			return -1;
-		}
-
-		t->module = mod;
-		if (t->plc_samples) {
-			if (t->buffer_samples < t->plc_samples) {
-				ast_log(LOG_WARNING, "plc_samples %d buffer_samples %d\n",
-					t->plc_samples, t->buffer_samples);
-				return -1;
-			}
-			if (t->dstfmt != AST_FORMAT_SLINEAR)
-				ast_log(LOG_WARNING, "plc_samples %d format %x\n",
-					t->plc_samples, t->dstfmt);
-		}
-		t->srcfmt = powerof(t->srcfmt);
-		t->dstfmt = powerof(t->dstfmt);
-		/* XXX maybe check that it is not existing yet ? */
-		if (t->srcfmt >= MAX_FORMAT) {
-			ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
-			return -1;
-		}
-		if (t->dstfmt >= MAX_FORMAT) {
-			ast_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", ast_getformatname(t->dstfmt));
-			return -1;
-		}
-		if (t->buf_size) {
-			/*
-			 * Align buf_size properly, rounding up to the machine-specific
-			 * alignment for pointers.
-			 */
-			struct _test_align { void *a, *b; } p;
-			int align = (char *)&p.b - (char *)&p.a;
-			t->buf_size = ((t->buf_size + align - 1) / align) * align;
-		}
-		if (t->frameout == NULL)
-			t->frameout = default_frameout;
-  
-		calc_cost(t, 1);
+	if (!t->buf_size) {
+		ast_log(LOG_WARNING, "empty buf size, you need to supply one\n");
+		return -1;
 	}
 
+	t->module = mod;
+	if (t->plc_samples) {
+		if (t->buffer_samples < t->plc_samples) {
+			ast_log(LOG_WARNING, "plc_samples %d buffer_samples %d\n",
+				t->plc_samples, t->buffer_samples);
+			return -1;
+		}
+		if (t->dstfmt != AST_FORMAT_SLINEAR)
+			ast_log(LOG_WARNING, "plc_samples %d format %x\n",
+				t->plc_samples, t->dstfmt);
+	}
+	t->srcfmt = powerof(t->srcfmt);
+	t->dstfmt = powerof(t->dstfmt);
+	/* XXX maybe check that it is not existing yet ? */
+	if (t->srcfmt >= MAX_FORMAT) {
+		ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
+		return -1;
+	}
+	if (t->dstfmt >= MAX_FORMAT) {
+		ast_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", ast_getformatname(t->dstfmt));
+		return -1;
+	}
+	if (t->buf_size) {
+               /*
+		* Align buf_size properly, rounding up to the machine-specific
+		* alignment for pointers.
+		*/
+		struct _test_align { void *a, *b; } p;
+		int align = (char *)&p.b - (char *)&p.a;
+		t->buf_size = ((t->buf_size + align - 1) / align) * align;
+	}
+	if (t->frameout == NULL)
+		t->frameout = default_frameout;
+  
+	calc_cost(t, 1);
 	if (option_verbose > 1) {
 		char tmp[80];
 		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n",
-			    term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
-			    ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
+			term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
+			ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
 	}
-
+	AST_LIST_LOCK(&translators);
 	if (!added_cli) {
 		ast_cli_register_multiple(cli_translate, sizeof(cli_translate) / sizeof(struct ast_cli_entry));
 		added_cli++;
 	}
-
-	AST_LIST_LOCK(&translators);
 
 	/* find any existing translators that provide this same srcfmt/dstfmt,
 	   and put this one in order based on cost */
@@ -727,9 +720,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		AST_LIST_INSERT_HEAD(&translators, t, list);
 
 	rebuild_matrix(0);
-
 	AST_LIST_UNLOCK(&translators);
-
 	return 0;
 }
 

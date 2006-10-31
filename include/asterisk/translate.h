@@ -108,7 +108,6 @@ struct ast_translator {
 	struct ast_module *module;	/* opaque reference to the parent module */
 
 	int cost;			/*!< Cost in milliseconds for encoding/decoding 1 second of sound */
-	int seen;			/*!< If we have seen this translator before (optimize re-registration) */
 	AST_LIST_ENTRY(ast_translator) list;	/*!< link field */
 };
 
