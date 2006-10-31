@@ -8150,8 +8150,10 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	build_contact(p);
 	peer = find_peer(name, NULL, 1);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
+		/* Peer fails ACL check */
 		if (peer)
 			ASTOBJ_UNREF(peer, sip_destroy_peer);
+		peer = NULL;
 	}
 	if (peer) {
 		/* Set Frame packetization */
