@@ -1443,11 +1443,12 @@ static int action_sendtext(struct mansession *s, struct message *m)
 	char *textmsg = astman_get_header(m, "Message");
 	int res = 0;
 
-	if (!ast_strlen_zero(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if (!ast_strlen_zero(textmsg)) {
+
+	if (ast_strlen_zero(textmsg)) {
 		astman_send_error(s, m, "No Message specified");
 		return 0;
 	}
@@ -1458,13 +1459,14 @@ static int action_sendtext(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	ast_mutex_unlock(&c->lock);
 	res = ast_sendtext(c, textmsg);
-	if (res > 0) {
+	ast_mutex_unlock(&c->lock);
+	
+	if (res > 0)
 		astman_send_ack(s, m, "Success");
-	} else {
+	else
 		astman_send_error(s, m, "Failure");
-	}
+	
 	return res;
 }
 
