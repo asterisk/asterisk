@@ -524,12 +524,12 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1))
 		return RESULT_SHOWUSAGE;
 
-	if (argc > 6 && !ast_strlen_zero(argv[8]))
+	if (argc > 6 && !ast_strlen_zero(argv[6]))
 		fwd = argv[6];
 	else
 		fwd = "#";
 
-	if (argc > 7 && !ast_strlen_zero(argv[8]))
+	if (argc > 7 && !ast_strlen_zero(argv[7]))
 		rev = argv[7];
 	else
 		rev = "*";
