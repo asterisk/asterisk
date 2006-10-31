@@ -651,6 +651,8 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 	}
 
 	if (!t->seen) {
+		t->seen = 1;
+
 		if (!t->buf_size) {
 			ast_log(LOG_WARNING, "empty buf size, you need to supply one\n");
 			return -1;
@@ -691,8 +693,6 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 			t->frameout = default_frameout;
   
 		calc_cost(t, 1);
-
-		t->seen = 1;
 	}
 
 	if (option_verbose > 1) {
