@@ -1153,7 +1153,8 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 /* 	Extra sounds needed:
  	1F: feminin 'one'
 	ve: 'and'
-	2hundred: 2 hundred
+	1hundred: 1 hundred
+	2hundred: 2 hundreds
 	2thousands: 2 thousand 
 	thousands: plural of 'thousand'
 	3sF 'Smichut forms (female)
@@ -1244,11 +1245,13 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			num = num % 10;
 			if (num>0) state=2;
 		} else if (num < 200) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			snprintf(fn, sizeof(fn), "digits/1hundred");
 			num = num - 100;
+			state=2;
 		} else if (num < 300) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
-			num = num - 100;
+			snprintf(fn, sizeof(fn), "digits/2hundred");
+			num = num - 200;
+			state=2;
 		} else if (num < 1000) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 			state=1;
