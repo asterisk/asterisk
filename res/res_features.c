@@ -1527,10 +1527,11 @@ static void post_manager_event(const char *s, char *parkingexten, struct ast_cha
 /*! \brief Take care of parked calls and unpark them if needed */
 static void *do_parking_thread(void *ignore)
 {
+	char parkingslot[AST_MAX_EXTENSION];
 	fd_set rfds, efds;	/* results from previous select, to be preserved across loops. */
+
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
-	char parkingslot[AST_MAX_EXTENSION];
 
 	for (;;) {
 		struct parkeduser *pu, *pl, *pt = NULL;
