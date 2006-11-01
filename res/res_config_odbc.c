@@ -448,7 +448,7 @@ struct config_odbc_obj {
 	char filename[128];
 	char category[128];
 	char var_name[128];
-	char var_val[128];
+	char var_val[1024]; /* changed from 128 to 1024 via bug 8251 */
 	SQLINTEGER err;
 };
 
