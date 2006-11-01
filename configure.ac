@@ -1,3 +1,4 @@
+w
 # Process this file with autoconf to produce a configure script.
 #
 # Make sure we use autoconf 2.60 to generate the "configure" script,
@@ -128,11 +129,18 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_CXXCPP
+AC_PROG_LD
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
+
+GNU_LD=0
+if test "x$with_gnu_ld" = "xyes" ; then
+   GNU_LD=1
+fi
+AC_SUBST(GNU_LD)
 
 AC_PATH_PROG([GREP], [grep], :)
 AC_PATH_PROG([AR], [ar], :)
