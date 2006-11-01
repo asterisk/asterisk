@@ -4276,6 +4276,7 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 	int res;
 	int x=0;
 	char req[1024];
+	const char *dundiargs;
 	struct ast_app *dial;
 	
 	if (!strncasecmp(context, "macro-", 6)) {
@@ -4313,7 +4314,9 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 	}
 	if (x < res) {
 		/* Got a hit! */
-		snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
+		dundiargs = pbx_builtin_getvar_helper(chan, "DUNDIDIALARGS");
+		snprintf(req, sizeof(req), "%s/%s||%s", results[x].tech, results[x].dest, 
+			S_OR(dundiargs, ""));
 		dial = pbx_findapp("Dial");
 		if (dial)
 			res = pbx_exec(chan, dial, req);

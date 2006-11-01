@@ -696,6 +696,12 @@ DUNDiLookup() uses the following variables
 ${DUNDTECH}	* The Technology of the result from a call to DUNDiLookup()
 ${DUNDDEST}	* The Destination of the result from a call to DUNDiLookup()
 
+The DUNDi dialplan switch uses the following variables
+---------------------------------------------------------
+${DUNDIDIALARGS}   Settings this variable allows you to provide options to be
+                   passed to the Dial application for calls being placed using
+		   the DUNDi switch.
+
 The Zaptel channel sets the following variables:
 ---------------------------------------------------------
 ${ANI2}			* The ANI2 Code provided by the network on the incoming call. 
