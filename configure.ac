@@ -152,6 +152,7 @@ AC_PATH_PROG([DIRNAME], [dirname], :)
 AC_PATH_PROG([SHELL], [sh], :)
 AC_PATH_PROG([LN], [ln], :)
 AC_PATH_PROG([DOT], [dot], :)
+AC_PATH_PROG([STRIP], [strip], :)
 
 AC_LANG(C)
 

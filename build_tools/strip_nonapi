@@ -20,7 +20,7 @@ FILTER="grep -v -e ^ast_ -e ^_ast_ -e ^__ast_ -e ^astman_ -e ^pbx_"
 case "${OSARCH}" in
     linux-gnu)
 	nm ${1} | grep -e " T " | cut -d" " -f3 | ${FILTER} > striplist
-	sed -e "s/^/-N /" striplist | xargs strip ${1}
+	sed -e "s/^/-N /" striplist | xargs ${STRIP} ${1}
 	rm -f striplist
 	;;
     *)
