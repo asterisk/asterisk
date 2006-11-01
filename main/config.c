@@ -62,11 +62,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *extconfig_conf = "extconfig.conf";
 
-/* Growable string buffer */
-static char *comment_buffer;   /* this will be a comment collector.*/
-static int   comment_buffer_size;  /* the amount of storage so far alloc'd for the comment_buffer */
+/*! Growable string buffer */
+static char *comment_buffer;   /*!< this will be a comment collector.*/
+static int   comment_buffer_size;  /*!< the amount of storage so far alloc'd for the comment_buffer */
 
-static char *lline_buffer;    /* A buffer for stuff behind the ; */
+static char *lline_buffer;    /*!< A buffer for stuff behind the ; */
 static int  lline_buffer_size;
 
 
@@ -79,15 +79,16 @@ struct ast_comment {
 
 static void CB_INIT(void)
 {
-	if( !comment_buffer ) {
-		comment_buffer = (char*)malloc(CB_INCR);
+	if (!comment_buffer) {
+		comment_buffer = ast_malloc(CB_INCR);
+		if (!comment_buffer)
+			return;
 		comment_buffer[0] = 0;
 		comment_buffer_size = CB_INCR;
-		lline_buffer = (char*)malloc(CB_INCR);
+		lline_buffer = ast_malloc(CB_INCR);
 		lline_buffer[0] = 0;
 		lline_buffer_size = CB_INCR;
-		
-	}  else {
+	} else {
 		comment_buffer[0] = 0;
 		lline_buffer[0] = 0;
 	}
@@ -95,42 +96,42 @@ static void CB_INIT(void)
 
 static void  CB_ADD(char *str)
 {
-	char *x = (str);
 	int rem = comment_buffer_size - strlen(comment_buffer) - 1;
-	int siz = strlen(x);
-	if( rem < siz+1 )
-	{
-		comment_buffer = (char*)realloc(comment_buffer,comment_buffer_size+CB_INCR+siz+1);
+	int siz = strlen(str);
+	if (rem < siz+1) {
+		comment_buffer = ast_realloc(comment_buffer, comment_buffer_size + CB_INCR + siz + 1);
+		if (!comment_buffer)
+			return;
 		comment_buffer_size += CB_INCR+siz+1;
 	}
-	strcat(comment_buffer,x);
+	strcat(comment_buffer,str);
 }
 
 static void  CB_ADD_LEN(char *str, int len)
 {
-	char *x = (str);
-	int cbl = strlen(comment_buffer)+1;
+	int cbl = strlen(comment_buffer) + 1;
 	int rem = comment_buffer_size - cbl;
-	if( rem < len+1 )
-	{
-		comment_buffer = (char*)realloc(comment_buffer,comment_buffer_size+CB_INCR+len+1);
+	if (rem < len+1) {
+		comment_buffer = ast_realloc(comment_buffer, comment_buffer_size + CB_INCR + len + 1);
+		if (!comment_buffer)
+			return;
 		comment_buffer_size += CB_INCR+len+1;
 	}
-	strncat(comment_buffer,x,len);
+	strncat(comment_buffer,str,len);
 	comment_buffer[cbl+len-1] = 0;
 }
 
 static void  LLB_ADD(char *str)
 {
-	char *x = (str);
 	int rem = lline_buffer_size - strlen(lline_buffer) - 1;
-	int siz = strlen(x);
-	if( rem < siz+1 )
-	{
-		lline_buffer = (char*)realloc(lline_buffer,lline_buffer_size+CB_INCR+siz+1);
-		lline_buffer_size += CB_INCR+siz+1;
+	int siz = strlen(str);
+	if (rem < siz+1) {
+		lline_buffer = ast_realloc(lline_buffer, lline_buffer_size + CB_INCR + siz + 1);
+		if (!lline_buffer)
+			return;
+		lline_buffer_size += CB_INCR + siz + 1;
 	}
-	strcat(lline_buffer,x);
+	strcat(lline_buffer,str);
 }
 
 static void CB_RESET(void )  
@@ -143,7 +144,7 @@ static void CB_RESET(void )
 
 static struct ast_comment *ALLOC_COMMENT(const char *buffer)
 { 
-	struct ast_comment *x = (struct ast_comment *)calloc(1,sizeof(struct ast_comment)+strlen(buffer)+1);
+	struct ast_comment *x = ast_calloc(1,sizeof(struct ast_comment)+strlen(buffer)+1);
 	strcpy(x->cmt, buffer);
 	return x;
 }
@@ -165,7 +166,7 @@ static struct ast_config_engine *config_engine_list;
 
 struct ast_category {
 	char name[80];
-	int ignored;			/* do not let user of the config see this category */
+	int ignored;			/*!< do not let user of the config see this category */
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_variable *root;
@@ -177,7 +178,7 @@ struct ast_config {
 	struct ast_category *root;
 	struct ast_category *last;
 	struct ast_category *current;
-	struct ast_category *last_browse;		/* used to cache the last category supplied via category_browse */
+	struct ast_category *last_browse;		/*!< used to cache the last category supplied via category_browse */
 	int include_level;
 	int max_include_level;
 };
