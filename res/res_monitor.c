@@ -233,6 +233,23 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 	return res;
 }
 
+/*
+ * The file format extensions that Asterisk uses are not all the same as that
+ * which soxmix expects.  This function ensures that the format used as the
+ * extension on the filename is something soxmix will understand.
+ */
+static const char *get_soxmix_format(const char *format)
+{
+	const char *res = format;
+
+	if (!strcasecmp(format,"ulaw"))
+		res = "ul";
+	if (!strcasecmp(format,"alaw"))
+		res = "al";
+	
+	return res;
+}
+
 /* Stop monitoring a channel */
 int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 {
@@ -275,7 +292,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 		if (chan->monitor->joinfiles && !ast_strlen_zero(chan->monitor->filename_base)) {
 			char tmp[1024];
 			char tmp2[1024];
-			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
+			const char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
 			char *dir = directory ? "" : ast_config_AST_MONITOR_DIR;
@@ -285,6 +302,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
 			if (ast_strlen_zero(execute)) { 
 				execute = "nice -n 19 soxmix";
+				format = get_soxmix_format(format);
 				delfiles = 1;
 			} 
 			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
