@@ -1658,6 +1658,8 @@ static int gtalk_load_config(void)
 	struct ast_codec_pref prefs;
 	struct aji_client_container *clients;
 	struct gtalk_candidate *global_candidates = NULL;
+	struct hostent *hp;
+	struct ast_hostent ahp;
 
 	cfg = ast_config_load(GOOGLE_CONFIG);
 	if (!cfg)
@@ -1681,6 +1683,13 @@ static int gtalk_load_config(void)
 			ast_parse_allow_disallow(&prefs, &global_capability, var->value, 1);
 		else if (!strcasecmp(var->name, "context"))
 			ast_copy_string(context, var->value, sizeof(context));
+		else if (!strcasecmp(var->name, "bindaddr")) {
+			if (!(hp = ast_gethostbyname(var->value, &ahp))) {
+				ast_log(LOG_WARNING, "Invalid address: %s\n", var->value);
+			} else {
+				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
+			}
+		}
 /*  Idea to allow for custom candidates  */
 /*
 		else if (!strcasecmp(var->name, "candidate")) {
