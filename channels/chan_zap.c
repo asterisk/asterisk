@@ -11656,7 +11656,7 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 	int y;
 	int found_pseudo = 0;
 
-	while(v) {
+	for (; v; v = v->next) {
 		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
 			continue;
 
@@ -12320,7 +12320,6 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 			} 
 		} else if (!skipchannels)
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
-		v = v->next;
 	}
 	if (!found_pseudo && reload == 0) {
 		/* Make sure pseudo isn't a member of any groups if
