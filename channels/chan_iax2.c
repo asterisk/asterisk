@@ -4982,18 +4982,10 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		ast_log(LOG_NOTICE, "Empty registration from %s\n", ast_inet_ntoa(sin->sin_addr));
 		return -1;
 	}
-	/* We release the lock for the call to prevent a deadlock, but it's okay because
-	   only the current thread could possibly make it go away or make changes */
-	ast_mutex_unlock(&iaxsl[callno]);
+
 	/* SLD: first call to lookup peer during registration */
 	p = find_peer(peer, 1);
-	ast_mutex_lock(&iaxsl[callno]);
 
-	if (!iaxs[callno]) {
-		/* Call has disappeared */
-		ast_mutex_unlock(&iaxsl[callno]);
-		return -1;
-	}
 	if (!p) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, ast_inet_ntoa(sin->sin_addr));
@@ -5634,6 +5626,11 @@ static int update_registry(const char *name, struct sockaddr_in *sin, int callno
 		/* Verify that the host is really there */
 		iax2_poke_peer(p, callno);
 	}		
+
+	/* Make sure our call still exists, an INVAL at the right point may make it go away */
+	if (!iaxs[callno])
+		return 0;
+
 	/* Store socket fd */
 	p->sockfd = fd;
 	/* Setup the expiry */
@@ -8076,13 +8073,19 @@ static void *network_thread(void *ignore)
 			if (f->sentyet)
 				continue;
 			
+			/* Try to lock the pvt, if we can't... don't fret - defer it till later */
+			if (ast_mutex_trylock(&iaxsl[f->callno]))
+				continue;
+
 			f->sentyet++;
-			ast_mutex_lock(&iaxsl[f->callno]);
+
 			if (iaxs[f->callno]) {
 				send_packet(f);
 				count++;
 			} 
+
 			ast_mutex_unlock(&iaxsl[f->callno]);
+
 			if (f->retries < 0) {
 				/* This is not supposed to be retransmitted */
 				AST_LIST_REMOVE(&iaxq.queue, f, list);
@@ -8728,15 +8731,8 @@ static void prune_users(void)
 
 static void destroy_peer(struct iax2_peer *peer)
 {
-	int x;
 	ast_free_ha(peer->ha);
-	for (x=0;x<IAX_MAX_CALLS;x++) {
-		ast_mutex_lock(&iaxsl[x]);
-		if (iaxs[x] && (iaxs[x]->peerpoke == peer)) {
-			iax2_destroy(x);
-		}
-		ast_mutex_unlock(&iaxsl[x]);
-	}
+
 	/* Delete it, it needs to disappear */
 	if (peer->expire > -1)
 		ast_sched_del(sched, peer->expire);
@@ -8744,10 +8740,14 @@ static void destroy_peer(struct iax2_peer *peer)
 		ast_sched_del(sched, peer->pokeexpire);
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);
+
 	register_peer_exten(peer, 0);
+
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
+
 	ast_string_field_free_pools(peer);
+
 	free(peer);
 }
 
