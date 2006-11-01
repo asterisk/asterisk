@@ -99,6 +99,7 @@ static int adsipark;
 
 static int transferdigittimeout;
 static int featuredigittimeout;
+static int comebacktoorigin = 1;
 
 static int atxfernoanswertimeout;
 
@@ -1529,6 +1530,7 @@ static void *do_parking_thread(void *ignore)
 	fd_set rfds, efds;	/* results from previous select, to be preserved across loops. */
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
+	char parkingslot[AST_MAX_EXTENSION];
 
 	for (;;) {
 		struct parkeduser *pu, *pl, *pt = NULL;
@@ -1573,7 +1575,14 @@ static void *do_parking_thread(void *ignore)
 						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), ast_free, registrar);
 					}
-					set_c_e_p(chan, parking_con_dial, peername, 1);
+					if (comebacktoorigin) { 
+								set_c_e_p(chan, parking_con_dial, peername, 1);
+					} else {
+							ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
+							snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
+							pbx_builtin_setvar_helper(pu->chan, "PARKINGSLOT", parkingslot);
+							set_c_e_p(chan, "parkedcallstimeout", peername, 1);
+							}
 				} else {
 					/* They've been waiting too long, send them back to where they came.  Theoretically they
 					   should have their original extensions and such, but we copy to be on the safe side */
@@ -2112,6 +2121,7 @@ static int load_config(void)
 	parking_stop = 750;
 	parkfindnext = 0;
 	adsipark = 0;
+	comebacktoorigin = 1;
 	parkaddhints = 0;
 
 	transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
@@ -2179,6 +2189,8 @@ static int load_config(void)
 			ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
 		} else if (!strcasecmp(var->name, "pickupexten")) {
 			ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
+		} else if (!strcasecmp(var->name, "comebacktoorigin")) {
+			comebacktoorigin = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "parkedmusicclass")) {
 			ast_copy_string(parkmohclass, var->value, sizeof(parkmohclass));
 		}
