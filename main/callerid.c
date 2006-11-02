@@ -286,13 +286,9 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 	int res;
 	int x;
 	short *buf;
-	short *obuf;
 
-	if (!(buf = ast_calloc(1, 2 * len + cid->oldlen))) {
-		return -1;
-	}
+	buf = alloca(2 * len + cid->oldlen);
 
-	obuf = buf;
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
 
@@ -300,7 +296,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 
 	while (mylen >= 160) {
-	b = b2 = 0 ;
+		b = b2 = 0;
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 
@@ -527,7 +523,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 		cid->oldlen = mylen * 2;
 	} else
 		cid->oldlen = 0;
-	free(obuf);
+	
 	return 0;
 }
 
@@ -540,24 +536,19 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 	int res;
 	int x;
 	short *buf;
-	short *obuf;
 
-	if (!(buf = ast_calloc(1, 2 * len + cid->oldlen))) {
-		return -1;
-	}
+	buf = alloca(2 * len + cid->oldlen);
 
-	obuf = buf;
 	memcpy(buf, cid->oldstuff, cid->oldlen);
 	mylen += cid->oldlen/2;
 
 	for (x=0;x<len;x++) 
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
-	while(mylen >= 160) {
+	while (mylen >= 160) {
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
 			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
-			free(obuf);
 			return -1;
 		}
 		buf += (olen - mylen);
@@ -591,7 +582,6 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 			case 4: /* Retrieve message */
 				if (cid->pos >= 128) {
 					ast_log(LOG_WARNING, "Caller ID too long???\n");
-					free(obuf);
 					return -1;
 				}
 				cid->rawdata[cid->pos++] = b;
@@ -677,7 +667,6 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 					strcpy(cid->name, "");
 					cid->flags |= CID_UNKNOWN_NAME;
 				}
-				free(obuf);
 				return 1;
 				break;
 			default:
@@ -690,7 +679,6 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 		cid->oldlen = mylen * 2;
 	} else
 		cid->oldlen = 0;
-	free(obuf);
 	return 0;
 }
 
