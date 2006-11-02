@@ -6096,6 +6096,12 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Ok, let's start working with codec selection here */
 	capability = ast_translate_available_formats(p->jointcapability, p->prefcodec);
 
+	/* If there are no audio formats left to offer, punt */
+	if (!(capability & AST_FORMAT_AUDIO_MASK)) {
+		ast_log(LOG_WARNING, "No audio format found to offer.\n");
+		return -1;
+	}
+
 	if (option_debug > 1) {
 		char codecbuf[BUFSIZ];
 		ast_log(LOG_DEBUG, "** Our capability: %s Video flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), ast_test_flag(&p->flags[0], SIP_NOVIDEO) ? "True" : "False");
