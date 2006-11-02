@@ -300,12 +300,13 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 
 	while (mylen >= 160) {
-	b = b2 = 0 ;
+		b = b2 = 0;
 		olen = mylen;
 		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
 
 		if (mylen < 0) {
 			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			free(obuf);
 			return -1;
 		}
 
@@ -313,6 +314,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 
 		if (res < 0) {
 			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			free(obuf);
 			return -1;
 		}
 
@@ -384,6 +386,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 					cid->len = b;
 					if ( (cid->len+2) >= sizeof( cid->rawdata ) ) {
 						ast_log(LOG_WARNING, "too long caller id string\n" ) ;
+						free(obuf);
 						return -1;
 					}
 					cid->rawdata[cid->pos++] = b;
@@ -406,6 +409,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 					cid->sawflag = 12;
 					if ( cid->crc != 0 ) {
 						ast_log(LOG_WARNING, "crc checksum error\n" ) ;
+						free(obuf);
 						return -1;
 					} 
 					/* extract caller id data */
@@ -515,6 +519,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 							break ;
 						}
 					}
+					free(obuf);
 					return 1;
 					break;
 				default:
@@ -563,6 +568,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 		buf += (olen - mylen);
 		if (res < 0) {
 			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			free(obuf);
 			return -1;
 		}
 		if (res == 1) {
