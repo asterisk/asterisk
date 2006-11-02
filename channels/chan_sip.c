@@ -1940,7 +1940,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->owner = p;
 	pkt->seqno = seqno;
 	if (resp)
-		ast_set_flag(pkt->flags, FLAG_RESPONSE);
+		ast_set_flag(pkt, FLAG_RESPONSE);
 	pkt->data[len] = '\0';
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
