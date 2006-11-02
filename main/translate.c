@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_RECALC 200 /* max sample recalc */
 
 /*! \brief the list of translators */
-static AST_LIST_HEAD_STATIC(translators, ast_translator);
+static AST_RWLIST_HEAD_STATIC(translators, ast_translator);
 
 struct translator_path {
 	struct ast_translator *step;	/*!< Next step translator */
@@ -256,7 +256,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 	source = powerof(source);
 	dest = powerof(dest);
 	
-	AST_LIST_LOCK(&translators);
+	AST_RWLIST_RDLOCK(&translators);
 
 	while (source != dest) {
 		struct ast_trans_pvt *cur;
@@ -264,14 +264,14 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 		if (!t) {
 			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
 				ast_getformatname(source), ast_getformatname(dest));
-			AST_LIST_UNLOCK(&translators);
+			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
 		if (!(cur = newpvt(t))) {
 			ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
 			if (head)
 				ast_translator_free_path(head);	
-			AST_LIST_UNLOCK(&translators);
+			AST_RWLIST_UNLOCK(&translators);
 			return NULL;
 		}
 		if (!head)
@@ -284,7 +284,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 		source = cur->t->dstfmt;
 	}
 
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 	return head;
 }
 
@@ -426,7 +426,7 @@ static void rebuild_matrix(int samples)
 	bzero(tr_matrix, sizeof(tr_matrix));
 
 	/* first, compute all direct costs */
-	AST_LIST_TRAVERSE(&translators, t, list) {
+	AST_RWLIST_TRAVERSE(&translators, t, list) {
 		if (!t->active)
 			continue;
 
@@ -494,8 +494,6 @@ static int show_translation(int fd, int argc, char *argv[])
 
 	if (argc > 5)
 		return RESULT_SHOWUSAGE;
-
-	AST_LIST_LOCK(&translators);	
 	
 	if (argv[3] && !strcasecmp(argv[3], "recalc")) {
 		z = argv[4] ? atoi(argv[4]) : 1;
@@ -510,8 +508,12 @@ static int show_translation(int fd, int argc, char *argv[])
 			z = MAX_RECALC;
 		}
 		ast_cli(fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
+		AST_RWLIST_WRLOCK(&translators);
 		rebuild_matrix(z);
+		AST_RWLIST_UNLOCK(&translators);
 	}
+
+	AST_RWLIST_RDLOCK(&translators);
 
 	ast_cli(fd, "         Translation times between formats (in milliseconds) for one second of data\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
@@ -551,7 +553,7 @@ static int show_translation(int fd, int argc, char *argv[])
 		ast_build_string(&buf, &left, "\n");
 		ast_cli(fd, line);			
 	}
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 	return RESULT_SUCCESS;
 }
 
@@ -639,28 +641,28 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		added_cli++;
 	}
 
-	AST_LIST_LOCK(&translators);
+	AST_RWLIST_WRLOCK(&translators);
 
 	/* find any existing translators that provide this same srcfmt/dstfmt,
 	   and put this one in order based on cost */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if ((u->srcfmt == t->srcfmt) &&
 		    (u->dstfmt == t->dstfmt) &&
 		    (u->cost > t->cost)) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&translators, t, list);
+			AST_RWLIST_INSERT_BEFORE_CURRENT(&translators, t, list);
 			t = NULL;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	/* if no existing translator was found for this format combination,
 	   add it to the beginning of the list */
 	if (t)
-		AST_LIST_INSERT_HEAD(&translators, t, list);
+		AST_RWLIST_INSERT_HEAD(&translators, t, list);
 
 	rebuild_matrix(0);
 
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 
 	return 0;
 }
@@ -672,40 +674,40 @@ int ast_unregister_translator(struct ast_translator *t)
 	struct ast_translator *u;
 	int found = 0;
 
-	AST_LIST_LOCK(&translators);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
+	AST_RWLIST_WRLOCK(&translators);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
-			AST_LIST_REMOVE_CURRENT(&translators, list);
+			AST_RWLIST_REMOVE_CURRENT(&translators, list);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
 			found = 1;
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	if (found)
 		rebuild_matrix(0);
 
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 
 	return (u ? 0 : -1);
 }
 
 void ast_translator_activate(struct ast_translator *t)
 {
-	AST_LIST_LOCK(&translators);
+	AST_RWLIST_WRLOCK(&translators);
 	t->active = 1;
 	rebuild_matrix(0);
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 }
 
 void ast_translator_deactivate(struct ast_translator *t)
 {
-	AST_LIST_LOCK(&translators);
+	AST_RWLIST_WRLOCK(&translators);
 	t->active = 0;
 	rebuild_matrix(0);
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 }
 
 /*! \brief Calculate our best translator source format, given costs, and a desired destination */
@@ -728,7 +730,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		*srcs = *dst = cur;
 		return 0;
 	} else {	/* No, we will need to translate */
-		AST_LIST_LOCK(&translators);
+		AST_RWLIST_RDLOCK(&translators);
 		for (cur = 1, y = 0; y < MAX_FORMAT; cur <<= 1, y++) {
 			if (! (cur & *dst))
 				continue;
@@ -746,7 +748,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 				}
 			}
 		}
-		AST_LIST_UNLOCK(&translators);
+		AST_RWLIST_UNLOCK(&translators);
 		if (best > -1) {
 			*srcs = best;
 			*dst = bestdst;
@@ -764,12 +766,12 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src)
 	src = powerof(src);
 	dest = powerof(dest);
 
-	AST_LIST_LOCK(&translators);
+	AST_RWLIST_RDLOCK(&translators);
 
 	if (tr_matrix[src][dest].step)
 		res = tr_matrix[src][dest].multistep + 1;
 
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 
 	return res;
 }
@@ -794,7 +796,7 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	if (src_video)
 		src_video = powerof(src_video);
 
-	AST_LIST_LOCK(&translators);
+	AST_RWLIST_RDLOCK(&translators);
 
 	/* For a given source audio format, traverse the list of
 	   known audio formats to determine whether there exists
@@ -848,7 +850,7 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 			res &= ~x;
 	}
 
-	AST_LIST_UNLOCK(&translators);
+	AST_RWLIST_UNLOCK(&translators);
 
 	return res;
 }
