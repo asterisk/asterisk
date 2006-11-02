@@ -1279,7 +1279,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
 				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
 				int debug);
-static int add_sdp(struct sip_request *resp, struct sip_pvt *p);
+static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p);
 static void do_setnat(struct sip_pvt *p, int natflags);
 
 /*--- Authentication stuff */
@@ -2870,12 +2870,21 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	res = update_call_counter(p, INC_CALL_RINGING);
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
-		p->jointcapability = p->capability;
-		p->t38.jointcapability = p->t38.capability;
-		if (option_debug)
-			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
-		transmit_invite(p, SIP_INVITE, 1, 2);
-		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
+		p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
+
+		/* If there are no audio formats left to offer, punt */
+		if (!(p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
+			ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
+			res = -1;
+		} else {
+			p->t38.jointcapability = p->t38.capability;
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
+			transmit_invite(p, SIP_INVITE, 1, 2);
+
+			/* Initialize auto-congest time */
+			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
+		}
 	}
 	return res;
 }
@@ -6027,7 +6036,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 }
 
 /*! \brief Add Session Description Protocol message */
-static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
+static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
 	int len = 0;
 	int alreadysent = 0;
@@ -6069,7 +6078,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
-		return -1;
+		return AST_FAILURE;
 	}
 
 	/* Set RTP Session ID and version */
@@ -6093,14 +6102,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		dest.sin_port = sin.sin_port;
 	}
 
-	/* Ok, let's start working with codec selection here */
-	capability = ast_translate_available_formats(p->jointcapability, p->prefcodec);
+	capability = p->jointcapability;
 
-	/* If there are no audio formats left to offer, punt */
-	if (!(capability & AST_FORMAT_AUDIO_MASK)) {
-		ast_log(LOG_WARNING, "No audio format found to offer.\n");
-		return -1;
-	}
 
 	if (option_debug > 1) {
 		char codecbuf[BUFSIZ];
@@ -6282,7 +6285,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_log(LOG_DEBUG, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, BUFSIZ, capability));
 	}
 
-	return 0;
+	return AST_SUCCESS;
 }
 
 /*! \brief Used for 200 OK and 183 early media */
