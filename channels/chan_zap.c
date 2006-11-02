@@ -7925,7 +7925,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	if (p->guardtime && (time(NULL) < p->guardtime)) 
 		return 0;
 
-	if (p->locallyblocked || p->remotelyblocked || !p->inservice)
+	if (p->locallyblocked || p->remotelyblocked)
 		return 0;
 		
 	/* If no owner definitely available */
@@ -8697,7 +8697,9 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				ast_log(LOG_DEBUG, "Blocking CIC %d\n", e->blo.cic);
+				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 1;
+				ast_mutex_unlock(&p->lock);
 				isup_bla(linkset->ss7, e->blo.cic);
 				break;
 			case ISUP_EVENT_UBL:
@@ -8708,7 +8710,9 @@ static void *ss7_linkset(void *data)
 				}
 				p = linkset->pvts[chanpos];
 				ast_log(LOG_DEBUG, "Unblocking CIC %d\n", e->ubl.cic);
+				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 0;
+				ast_mutex_unlock(&p->lock);
 				isup_uba(linkset->ss7, e->ubl.cic);
 				break;
 			case ISUP_EVENT_CON:
@@ -11471,6 +11475,7 @@ static int handle_ss7_block_cic(int fd, int argc, char *argv[])
 static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
 {
 	int linkset, cic;
+	int i, blocked = -1;
 	if (argc == 5)
 		linkset = atoi(argv[3]);
 	else
@@ -11493,10 +11498,22 @@ static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 	}
 
-	ast_mutex_lock(&linksets[linkset-1].lock);
-	isup_ubl(linksets[linkset-1].ss7, cic);
-	ast_mutex_unlock(&linksets[linkset-1].lock);
-	ast_cli(fd, "Sent blocking request for linkset %d on CIC %d\n", linkset, cic);
+	for (i = 0; i < linksets[linkset-1].numchans; i++) {
+		if (linksets[linkset-1].pvts[i]->cic == cic) {
+			blocked = linksets[linkset-1].pvts[i]->locallyblocked;
+			if (blocked) {
+				ast_mutex_lock(&linksets[linkset-1].pvts[i]->lock);
+				linksets[linkset-1].pvts[i]->locallyblocked = 0;
+				ast_mutex_unlock(&linksets[linkset-1].pvts[i]->lock);
+				ast_mutex_lock(&linksets[linkset-1].lock);
+				isup_ubl(linksets[linkset-1].ss7, cic);
+				ast_mutex_unlock(&linksets[linkset-1].lock);
+			}
+		}
+	}
+
+	if (blocked > 0)
+		ast_cli(fd, "Sent unblocking request for linkset %d on CIC %d\n", linkset, cic);
 	return RESULT_SUCCESS;
 }
 
