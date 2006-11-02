@@ -2612,7 +2612,7 @@ static char trace_usage[] =
 "       Enables H.323 stack tracing for debugging purposes\n";
 
 static char no_trace_usage[] =
-"Usage: h.323 no trace\n"
+"Usage: h.323 trace off\n"
 "       Disables H.323 stack tracing for debugging purposes\n";
 
 static char debug_usage[] =
@@ -2620,7 +2620,7 @@ static char debug_usage[] =
 "       Enables H.323 debug output\n";
 
 static char no_debug_usage[] =
-"Usage: h.323 no debug\n"
+"Usage: h.323 debug off\n"
 "       Disables H.323 debug output\n";
 
 static char show_cycle_usage[] =
@@ -2639,22 +2639,32 @@ static char h323_reload_usage[] =
 "Usage: h323 reload\n"
 "       Reloads H.323 configuration from h323.conf\n";
 
+static struct ast_cli_entry cli_h323_no_trace_deprecated = {
+	{ { "h.323", "no", "trace", NULL },
+	h323_no_trace, "Disable H.323 Stack Tracing",
+	no_trace_usage };
+
+static struct ast_cli_entry cli_h323_no_debug_deprecated = {
+	{ { "h.323", "no", "debug", NULL },
+	h323_no_debug, "Disable H.323 debug",
+	no_debug_usage };
+
 static struct ast_cli_entry cli_h323[] = {
 	{ { "h.323", "trace", NULL },
 	h323_do_trace, "Enable H.323 Stack Tracing",
 	trace_usage },
 
-	{ { "h.323", "no", "trace", NULL },
+	{ { "h.323", "trace", "off", NULL },
 	h323_no_trace, "Disable H.323 Stack Tracing",
-	no_trace_usage },
+	no_trace_usage, NULL, cli_h323_no_trace_deprecated },
 
 	{ { "h.323", "debug", NULL },
 	h323_do_debug, "Enable H.323 debug",
 	debug_usage },
 
-	{ { "h.323", "no", "debug", NULL },
+	{ { "h.323", "debug", "off", NULL },
 	h323_no_debug, "Disable H.323 debug",
-	no_debug_usage },
+	no_debug_usage, NULL, cli_h323_no_debug_deprecated },
 
 	{ { "h.323", "gk", "cycle", NULL },
 	h323_gk_cycle, "Manually re-register with the Gatekeper",

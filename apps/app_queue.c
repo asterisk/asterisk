@@ -4390,11 +4390,6 @@ static char qam_cmd_usage[] =
 static char qrm_cmd_usage[] =
 "Usage: queue remove member <channel> from <queue>\n";
 
-static struct ast_cli_entry cli_show_queues_deprecated = {
-	{ "show", "queues", NULL },
-	queue_show, NULL,
-	NULL, NULL };
-
 static struct ast_cli_entry cli_show_queue_deprecated = {
 	{ "show", "queue", NULL },
 	queue_show, NULL,
@@ -4411,6 +4406,11 @@ static struct ast_cli_entry cli_remove_queue_member_deprecated = {
 	NULL, complete_queue_remove_member };
 
 static struct ast_cli_entry cli_queue[] = {
+	/* Deprecated */
+	{ { "show", "queues", NULL },
+	queue_show, NULL,
+	NULL, NULL },
+
 	{ { "queue", "show", NULL },
 	queue_show, "Show status of a specified queue",
 	queue_show_usage, complete_queue, &cli_show_queue_deprecated },

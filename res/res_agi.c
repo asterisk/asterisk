@@ -2114,7 +2114,7 @@ static struct ast_cli_entry cli_agi[] = {
 	agi_do_debug, "Enable AGI debugging",
 	debug_usage },
 
-	{ { "agi", "nodebug", NULL },
+	{ { "agi", "debug", "off", NULL },
 	agi_no_debug, "Disable AGI debugging",
 	no_debug_usage, NULL, &cli_agi_no_debug_deprecated },
 
