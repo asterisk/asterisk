@@ -8511,6 +8511,9 @@ static void *ss7_linkset(void *data)
 				ast_verbose("--- SS7 Up ---\n");
 				ss7_reset_linkset(linkset);
 				break;
+			case SS7_EVENT_DOWN:
+				ast_verbose("--- SS7 Down ---\n");
+				break;
 			case MTP2_LINK_UP:
 				ast_log(LOG_DEBUG, "MTP2 link up\n");
 				break;
