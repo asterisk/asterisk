@@ -875,10 +875,8 @@ void ast_verbose(const char *fmt, ...)
 	if (complete) {
 		if (msgcnt < MAX_MSG_QUEUE) {
 			/* Allocate new structure */
-			if ((m = malloc(sizeof(*m)))) {
-				m->msg = NULL;
+			if ((m = calloc(1, sizeof(*m))))
 				msgcnt++;
-			}
 		} else {
 			/* Recycle the oldest entry */
 			m = list;
@@ -887,7 +885,6 @@ void ast_verbose(const char *fmt, ...)
 				free(m->msg);
 		}
 		if (m) {
-			m->msg = NULL;
 			m->msg = strdup(stuff);
 			if (m->msg) {
 				if (last)

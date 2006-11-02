@@ -772,6 +772,10 @@ static int moh_scan_files(struct mohclass *class) {
 		if ((strlen(files_dirent->d_name) < 4) || ((strlen(files_dirent->d_name) + dirnamelen) >= MAX_MOHFILE_LEN))
 			continue;
 
+		/* Skip files that start with a dot */
+		if (files_dirent->d_name[0] == '.')
+			continue;
+
 		snprintf(filepath, MAX_MOHFILE_LEN, "%s/%s", class->dir, files_dirent->d_name);
 
 		if (stat(filepath, &statbuf))
