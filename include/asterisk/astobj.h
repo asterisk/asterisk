@@ -100,14 +100,14 @@ extern "C" {
 
 /*! \brief Lock an ASTOBJ for reading.
  */
-#define ASTOBJ_RDLOCK(object) ast_mutex_lock(&(object)->_lock)
+#define ASTOBJ_RDLOCK(object) ast_rwlock_rdlock(&(object)->_lock)
 
 /*! \brief Lock an ASTOBJ for writing.
  */
-#define ASTOBJ_WRLOCK(object) ast_mutex_lock(&(object)->_lock)
+#define ASTOBJ_WRLOCK(object) ast_rwlock_wrlock(&(object)->_lock)
 
 /*! \brief Unlock a locked object. */
-#define ASTOBJ_UNLOCK(object) ast_mutex_unlock(&(object)->_lock)
+#define ASTOBJ_UNLOCK(object) ast_rwlock_unlock(&(object)->_lock)
 
 #ifdef ASTOBJ_CONTAINER_HASHMODEL 
 #define __ASTOBJ_HASH(type,hashes) \
@@ -124,7 +124,7 @@ extern "C" {
  * \param hashes The number of containers the object can be present in.
  *
  * This macro adds components to a struct to make it an ASTOBJ.  This macro
- * differs from ASTOBJ_COMPONENTS_FULL in that it does not create a mutex for
+ * differs from ASTOBJ_COMPONENTS_FULL in that it does not create a rwlock for
  * locking.
  *
  * <b>Sample Usage:</b>
@@ -173,7 +173,7 @@ extern "C" {
  */
 #define ASTOBJ_COMPONENTS(type) \
 	ASTOBJ_COMPONENTS_NOLOCK(type); \
-	ast_mutex_t _lock; 
+	ast_rwlock_t _lock; 
 	
 /*! \brief Add ASTOBJ components to a struct (with locking support).
  *
@@ -193,7 +193,7 @@ extern "C" {
  */
 #define ASTOBJ_COMPONENTS_FULL(type,namelen,hashes) \
 	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,namelen,hashes); \
-	ast_mutex_t _lock; 
+	ast_rwlock_t _lock; 
 
 /*! \brief Increment an object reference count.
  * \param object A pointer to the object to operate on.
@@ -226,7 +226,7 @@ extern "C" {
 			ast_log(LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
 		ASTOBJ_UNLOCK(object); \
 		if (newcount == 0) { \
-			ast_mutex_destroy(&(object)->_lock); \
+			ast_rwlock_destroy(&(object)->_lock); \
 			destructor((object)); \
 		} \
 		(object) = NULL; \
@@ -264,7 +264,7 @@ extern "C" {
  */
 #define ASTOBJ_INIT(object) \
 	do { \
-		ast_mutex_init(&(object)->_lock); \
+		ast_rwlock_init(&(object)->_lock); \
 		object->name[0] = '\0'; \
 		object->refcount = 1; \
 	} while(0)
@@ -274,14 +274,14 @@ extern "C" {
 
 /*! \brief Lock an ASTOBJ_CONTAINER for reading.
  */
-#define ASTOBJ_CONTAINER_RDLOCK(container) ast_mutex_lock(&(container)->_lock)
+#define ASTOBJ_CONTAINER_RDLOCK(container) ast_rwlock_rdlock(&(container)->_lock)
 
 /*! \brief Lock an ASTOBJ_CONTAINER for writing. 
  */
-#define ASTOBJ_CONTAINER_WRLOCK(container) ast_mutex_lock(&(container)->_lock)
+#define ASTOBJ_CONTAINER_WRLOCK(container) ast_rwlock_wrlock(&(container)->_lock)
 
 /*! \brief Unlock an ASTOBJ_CONTAINER. */
-#define ASTOBJ_CONTAINER_UNLOCK(container) ast_mutex_unlock(&(container)->_lock)
+#define ASTOBJ_CONTAINER_UNLOCK(container) ast_rwlock_unlock(&(container)->_lock)
 
 #ifdef ASTOBJ_CONTAINER_HASHMODEL
 #error "Hash model for object containers not yet implemented!"
@@ -330,7 +330,7 @@ extern "C" {
  */
 #define ASTOBJ_CONTAINER_INIT_FULL(container,hashes,buckets) \
 	do { \
-		ast_mutex_init(&(container)->_lock); \
+		ast_rwlock_init(&(container)->_lock); \
 	} while(0)
 	
 /*! \brief Destroy a container.
@@ -347,7 +347,7 @@ extern "C" {
  */
 #define ASTOBJ_CONTAINER_DESTROY_FULL(container,hashes,buckets) \
 	do { \
-		ast_mutex_destroy(&(container)->_lock); \
+		ast_rwlock_destroy(&(container)->_lock); \
 	} while(0)
 
 /*! \brief Iterate through the objects in a container.
@@ -728,7 +728,7 @@ extern "C" {
  * \endcode
  */
 #define ASTOBJ_CONTAINER_COMPONENTS(type) \
-	ast_mutex_t _lock; \
+	ast_rwlock_t _lock; \
 	ASTOBJ_CONTAINER_COMPONENTS_NOLOCK(type)
 
 /*! \brief Initialize a container.
