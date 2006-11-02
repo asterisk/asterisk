@@ -280,6 +280,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 		buf += (olen - mylen);
 		if (res < 0) {
 			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			free(obuf);
 			return -1;
 		}
 		if (res == 1) {
