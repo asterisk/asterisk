@@ -139,10 +139,10 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #define WELCOME_MESSAGE \
 	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2006 Digium, Inc. and others.\n"); \
 	ast_verbose("Created by Mark Spencer <markster@digium.com>\n"); \
-	ast_verbose("Asterisk comes with ABSOLUTELY NO WARRANTY; type 'show warranty' for details.\n"); \
+	ast_verbose("Asterisk comes with ABSOLUTELY NO WARRANTY; type 'core show warranty' for details.\n"); \
 	ast_verbose("This is free software, with components licensed under the GNU General Public\n"); \
 	ast_verbose("License version 2 and other licenses; you are welcome to redistribute it under\n"); \
-	ast_verbose("certain conditions. Type 'show license' for details.\n"); \
+	ast_verbose("certain conditions. Type 'core show license' for details.\n"); \
 	ast_verbose("=========================================================================\n")
 
 /*! \defgroup main_options Main Configuration Options
@@ -291,7 +291,7 @@ struct thread_list_t {
 static AST_LIST_HEAD_STATIC(thread_list, thread_list_t);
 
 static char show_threads_help[] =
-"Usage: show threads\n"
+"Usage: core show threads\n"
 "       List threads currently active in the system.\n";
 
 void ast_register_thread(char *name)
@@ -531,7 +531,7 @@ static int handle_show_profile(int fd, int argc, char *argv[])
 }
 
 static char show_version_files_help[] = 
-"Usage: file list version [like <pattern>]\n"
+"Usage: core show file version [like <pattern>]\n"
 "       Lists the revision numbers of the files used to build this copy of Asterisk.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
 
@@ -1359,15 +1359,15 @@ static char bang_help[] =
 "       Executes a given shell command\n";
 
 static char show_warranty_help[] =
-"Usage: show warranty\n"
+"Usage: core show warranty\n"
 "	Shows the warranty (if any) for this copy of Asterisk.\n";
 
 static char show_license_help[] =
-"Usage: show license\n"
+"Usage: core show license\n"
 "	Shows the license(s) for this copy of Asterisk.\n";
 
 static char version_help[] =
-"Usage: show version\n"
+"Usage: core show version\n"
 "       Shows Asterisk version information.\n";
 
 static int handle_version(int fd, int argc, char *argv[])
@@ -1566,15 +1566,15 @@ static struct ast_cli_entry cli_asterisk[] = {
 	handle_restart_when_convenient, "Restart Asterisk at empty call volume",
 	restart_when_convenient_help },
 
-	{ { "show", "warranty", NULL },
+	{ { "core", "show", "warranty", NULL },
 	show_warranty, "Show the warranty (if any) for this copy of Asterisk",
 	show_warranty_help },
 
-	{ { "show", "license", NULL },
+	{ { "core", "show", "license", NULL },
 	show_license, "Show the license(s) for this copy of Asterisk",
 	show_license_help },
 
-	{ { "show", "version", NULL },
+	{ { "core", "show", "version", NULL },
 	handle_version, "Display version info",
 	version_help },
 
@@ -1583,19 +1583,19 @@ static struct ast_cli_entry cli_asterisk[] = {
 	bang_help },
 
 #if !defined(LOW_MEMORY)
-	{ { "file", "list", "version", NULL },
+	{ { "core", "show", "file", "version", NULL },
 	handle_show_version_files, "List versions of files used to build Asterisk",
 	show_version_files_help, complete_show_version_files, &cli_show_version_files_deprecated },
 
-	{ { "show", "threads", NULL },
+	{ { "core", "show", "threads", NULL },
 	handle_show_threads, "Show running threads",
 	show_threads_help },
 
-	{ { "profile", "list", NULL },
+	{ { "core", "show", "profile", NULL },
 	handle_show_profile, "Display profiling info",
 	NULL, NULL, &cli_show_profile_deprecated },
 
-	{ { "profile", "clear", NULL },
+	{ { "core", "clear", "profile", NULL },
 	handle_show_profile, "Clear profiling info",
 	NULL, NULL, &cli_clear_profile_deprecated },
 #endif /* ! LOW_MEMORY */

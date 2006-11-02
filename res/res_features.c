@@ -1927,7 +1927,7 @@ static struct ast_cli_entry cli_show_features_deprecated = {
 	NULL };
 
 static struct ast_cli_entry cli_features[] = {
-	{ { "feature", "list", NULL },
+	{ { "feature", "show", NULL },
 	handle_showfeatures, "Lists configured features",
 	showfeatures_help, NULL, &cli_show_features_deprecated },
 

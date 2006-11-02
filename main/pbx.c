@@ -2966,25 +2966,25 @@ void ast_unregister_switch(struct ast_switch *sw)
  * Help for CLI commands ...
  */
 static char show_applications_help[] =
-"Usage: core list applications [{like|describing} <text>]\n"
+"Usage: core show applications [{like|describing} <text>]\n"
 "       List applications which are currently available.\n"
 "       If 'like', <text> will be a substring of the app name\n"
 "       If 'describing', <text> will be a substring of the description\n";
 
 static char show_functions_help[] =
-"Usage: core list functions [like <text>]\n"
+"Usage: core show functions [like <text>]\n"
 "       List builtin functions, optionally only those matching a given string\n";
 
 static char show_switches_help[] =
-"Usage: core list switches\n"
+"Usage: core show switches\n"
 "       List registered switches\n";
 
 static char show_hints_help[] =
-"Usage: core list hints\n"
+"Usage: core show hints\n"
 "       List registered hints\n";
 
 static char show_globals_help[] =
-"Usage: core list globals\n"
+"Usage: core show globals\n"
 "       List current global dialplan variables and their values\n";
 
 static char show_application_help[] =
@@ -2996,7 +2996,7 @@ static char show_function_help[] =
 "       Describe a particular dialplan function.\n";
 
 static char show_dialplan_help[] =
-"Usage: dialplan show [exten@][context]\n"
+"Usage: core show dialplan [exten@][context]\n"
 "       Show dialplan\n";
 
 static char set_global_help[] =
@@ -3731,23 +3731,23 @@ static struct ast_cli_entry cli_set_global_deprecated = {
         NULL };
 
 static struct ast_cli_entry pbx_cli[] = {
-	{ { "core", "list", "applications", NULL },
+	{ { "core", "show", "applications", NULL },
 	handle_show_applications, "Shows registered dialplan applications",
 	show_applications_help, complete_show_applications, &cli_show_applications_deprecated },
 
-	{ { "core", "list", "functions", NULL },
+	{ { "core", "show", "functions", NULL },
 	handle_show_functions, "Shows registered dialplan functions",
 	show_functions_help, NULL, &cli_show_functions_deprecated },
 
-	{ { "core", "list", "switches", NULL },
+	{ { "core", "show", "switches", NULL },
 	handle_show_switches, "Show alternative switches",
 	show_switches_help, NULL, &cli_show_switches_deprecated },
 
-	{ { "core", "list", "hints", NULL },
+	{ { "core", "show", "hints", NULL },
 	handle_show_hints, "Show dialplan hints",
 	show_hints_help, NULL, &cli_show_hints_deprecated },
 
-	{ { "core", "list", "globals", NULL },
+	{ { "core", "show", "globals", NULL },
 	handle_show_globals, "Show global dialplan variables",
 	show_globals_help, NULL, &cli_show_globals_deprecated },
 

@@ -3866,12 +3866,12 @@ static int reload_queues(void)
 	return 1;
 }
 
-static int __queues_show(struct mansession *s, int manager, int fd, int argc, char **argv, int queue_show)
+static int __queues_show(struct mansession *s, int manager, int fd, int argc, char **argv)
 {
 	struct call_queue *q;
 	struct queue_ent *qe;
 	struct member *mem;
-	int pos;
+	int pos, queue_show;
 	time_t now;
 	char max_buf[80];
 	char *max;
@@ -3880,7 +3880,11 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 	char *term = manager ? "\r\n" : "\n";
 
 	time(&now);
-	if ((!queue_show && argc != 2) || (queue_show && argc != 3))
+	if (argc == 2)
+		queue_show = 0;
+	else if (argc == 3)
+		queue_show = 1;
+	else
 		return RESULT_SHOWUSAGE;
 
 	/* We only want to load realtime queues when a specific queue is asked for. */
@@ -3994,14 +3998,9 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 	return RESULT_SUCCESS;
 }
 
-static int queue_list(int fd, int argc, char **argv)
-{
-	return __queues_show(NULL, 0, fd, argc, argv, 0);
-}
-
 static int queue_show(int fd, int argc, char **argv)
 {
-	return __queues_show(NULL, 0, fd, argc, argv, 1);
+	return __queues_show(NULL, 0, fd, argc, argv);
 }
 
 static char *complete_queue(const char *line, const char *word, int pos, int state)
@@ -4028,9 +4027,9 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
  */
 static int manager_queues_show( struct mansession *s, struct message *m )
 {
-	char *a[] = { "queue", "list" };
+	char *a[] = { "queue", "show" };
 
-	__queues_show(s, 1, -1, 2, a, 0);
+	__queues_show(s, 1, -1, 2, a);
 	astman_append(s, "\r\n\r\n");	/* Properly terminate Manager output */
 
 	return RESULT_SUCCESS;
@@ -4381,10 +4380,6 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 	return NULL;
 }
 
-static char queue_list_usage[] =
-"Usage: queue list\n"
-"       Provides summary information on call queues.\n";
-
 static char queue_show_usage[] =
 "Usage: queue show\n"
 "       Provides summary information on a specified queue.\n";
@@ -4397,7 +4392,7 @@ static char qrm_cmd_usage[] =
 
 static struct ast_cli_entry cli_show_queues_deprecated = {
 	{ "show", "queues", NULL },
-	queue_list, NULL,
+	queue_show, NULL,
 	NULL, NULL };
 
 static struct ast_cli_entry cli_show_queue_deprecated = {
@@ -4416,10 +4411,6 @@ static struct ast_cli_entry cli_remove_queue_member_deprecated = {
 	NULL, complete_queue_remove_member };
 
 static struct ast_cli_entry cli_queue[] = {
-	{ { "queue", "list", NULL },
-	queue_list, "Show status of queues",
-	queue_list_usage, NULL, &cli_show_queues_deprecated },
-
 	{ { "queue", "show", NULL },
 	queue_show, "Show status of a specified queue",
 	queue_show_usage, complete_queue, &cli_show_queue_deprecated },

@@ -1040,11 +1040,11 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 }
 
 static char show_endpoints_usage[] = 
-"Usage: mgcp endpoint list\n"
+"Usage: mgcp show endpoints\n"
 "       Lists all endpoints known to the MGCP (Media Gateway Control Protocol) subsystem.\n";
 
 static char audit_endpoint_usage[] = 
-"Usage: mgcp endpoint audit <endpointid>\n"
+"Usage: mgcp audit endpoint <endpointid>\n"
 "       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
 "       mgcp debug MUST be on to see the results of this command.\n";
 
@@ -1053,12 +1053,13 @@ static char debug_usage[] =
 "       Enables dumping of MGCP packets for debugging purposes\n";
 
 static char no_debug_usage[] = 
-"Usage: mgcp nodebug\n"
+"Usage: mgcp debug off\n"
 "       Disables dumping of MGCP packets for debugging purposes\n";
 
 static char mgcp_reload_usage[] =
 "Usage: mgcp reload\n"
-"       Reloads MGCP configuration from mgcp.conf\n";
+"       Reloads MGCP configuration from mgcp.conf\n"
+"       Deprecated:  please use 'reload chan_mgcp.so' instead.\n";
 
 static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 {
@@ -1122,7 +1123,7 @@ static int mgcp_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int mgcp_no_debug_deprecated(int fd, int argc, char *argv[])
+static int mgcp_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -1131,46 +1132,22 @@ static int mgcp_no_debug_deprecated(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int mgcp_no_debug(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	mgcpdebug = 0;
-	ast_cli(fd, "MGCP Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
-static struct ast_cli_entry cli_mgcp_no_debug_deprecated = {
-	{ "mgcp", "no", "debug", NULL },
-	mgcp_no_debug_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_mgcp_audit_endpoint_deprecated = {
-	{ "mgcp", "audit", "endpoint", NULL },
-	mgcp_audit_endpoint, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_mgcp_show_endpoints_deprecated = {
-	{ "mgcp", "show", "endpoints", NULL },
-	mgcp_show_endpoints, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_mgcp[] = {
-	{ { "mgcp", "endpoint", "audit", NULL },
+	{ { "mgcp", "audit", "endpoint", NULL },
 	mgcp_audit_endpoint, "Audit specified MGCP endpoint",
-	audit_endpoint_usage, NULL, &cli_mgcp_audit_endpoint_deprecated },
+	audit_endpoint_usage },
 
-	{ { "mgcp", "endpoint", "list", NULL },
+	{ { "mgcp", "show", "endpoints", NULL },
 	mgcp_show_endpoints, "List defined MGCP endpoints",
-	show_endpoints_usage, NULL, &cli_mgcp_show_endpoints_deprecated },
+	show_endpoints_usage },
 
 	{ { "mgcp", "debug", NULL },
 	mgcp_do_debug, "Enable MGCP debugging",
 	debug_usage },
 
-	{ { "mgcp", "nodebug", NULL },
+	{ { "mgcp", "debug", "off", NULL },
 	mgcp_no_debug, "Disable MGCP debugging",
-	no_debug_usage, NULL, &cli_mgcp_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "mgcp", "reload", NULL },
 	mgcp_reload, "Reload MGCP configuration",
@@ -4305,6 +4282,12 @@ static int mgcp_do_reload(void)
 
 static int mgcp_reload(int fd, int argc, char *argv[])
 {
+	static int deprecated = 0;
+	if (!deprecated && argc > 0) {
+		ast_log(LOG_WARNING, "'mgcp reload' is deprecated.  Please use 'reload chan_mgcp.so' instead.\n");
+		deprecated = 1;
+	}
+
 	ast_mutex_lock(&mgcp_reload_lock);
 	if (mgcp_reloading) {
 		ast_verbose("Previous mgcp reload not yet done\n");

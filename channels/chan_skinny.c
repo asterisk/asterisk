@@ -1758,19 +1758,9 @@ static int skinny_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int skinny_no_debug_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 3) {
-		return RESULT_SHOWUSAGE;
-	}
-	skinnydebug = 0;
-	ast_cli(fd, "Skinny Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
 static int skinny_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2) {
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
 	}
 	skinnydebug = 0;
@@ -1959,11 +1949,11 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 }
 
 static char show_devices_usage[] =
-"Usage: skinny list devices\n"
+"Usage: skinny show devices\n"
 "       Lists all devices known to the Skinny subsystem.\n";
 
 static char show_lines_usage[] =
-"Usage: skinny list lines\n"
+"Usage: skinny show lines\n"
 "       Lists all lines known to the Skinny subsystem.\n";
 
 static char debug_usage[] =
@@ -1971,44 +1961,29 @@ static char debug_usage[] =
 "       Enables dumping of Skinny packets for debugging purposes\n";
 
 static char no_debug_usage[] =
-"Usage: skinny nodebug\n"
+"Usage: skinny no debug\n"
 "       Disables dumping of Skinny packets for debugging purposes\n";
 
 static char reset_usage[] =
 "Usage: skinny reset <DeviceId|all> [restart]\n"
 "       Causes a Skinny device to reset itself, optionally with a full restart\n";
 
-static struct ast_cli_entry cli_skinny_show_devices_deprecated = {
-	{ "skinny", "show", "devices", NULL },
-	skinny_show_devices, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_skinny_show_lines_deprecated = {
-	{ "skinny", "show", "lines", NULL },
-	skinny_show_lines, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_skinny_no_debug_deprecated = {
-	{ "skinny", "no", "debug", NULL },
-	skinny_no_debug_deprecated, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_skinny[] = {
-	{ { "skinny", "list", "devices", NULL },
+	{ { "skinny", "show", "devices", NULL },
 	skinny_show_devices, "List defined Skinny devices",
-	show_devices_usage, NULL, &cli_skinny_show_devices_deprecated },
+	show_devices_usage },
 
-	{ { "skinny", "list", "lines", NULL },
+	{ { "skinny", "show", "lines", NULL },
 	skinny_show_lines, "List defined Skinny lines per device",
-	show_lines_usage, NULL, &cli_skinny_show_lines_deprecated },
+	show_lines_usage },
 
 	{ { "skinny", "debug", NULL },
 	skinny_do_debug, "Enable Skinny debugging",
 	debug_usage },
 
-	{ { "skinny", "nodebug", NULL },
+	{ { "skinny", "no", "debug", NULL },
 	skinny_no_debug, "Disable Skinny debugging",
-	no_debug_usage, NULL, &cli_skinny_no_debug_deprecated },
+	no_debug_usage },
 
 	{ { "skinny", "reset", NULL },
 	skinny_reset_device, "Reset Skinny device(s)",

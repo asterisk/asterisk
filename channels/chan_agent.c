@@ -1721,11 +1721,11 @@ static int agents_show_online(int fd, int argc, char **argv)
 
 
 static char show_agents_usage[] = 
-"Usage: agent list\n"
+"Usage: agent show\n"
 "       Provides summary information on agents.\n";
 
 static char show_agents_online_usage[] =
-"Usage: agent list online\n"
+"Usage: agent show online\n"
 "	Provides a list of all online agents.\n";
 
 static char agent_logoff_usage[] =
@@ -1744,11 +1744,11 @@ static struct ast_cli_entry cli_show_agents_online_deprecated = {
 	NULL, NULL };
 
 static struct ast_cli_entry cli_agents[] = {
-	{ { "agent", "list", NULL },
+	{ { "agent", "show", NULL },
 	agents_show, "Show status of agents",
 	show_agents_usage, NULL, &cli_show_agents_deprecated },
 
-	{ { "agent", "list", "online" },
+	{ { "agent", "show", "online" },
 	agents_show_online, "Show all online agents",
 	show_agents_online_usage, NULL, &cli_show_agents_online_deprecated },
 

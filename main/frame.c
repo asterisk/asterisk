@@ -685,7 +685,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 }
 
 static char frame_show_codecs_usage[] =
-"Usage: core list codecs [audio|video|image]\n"
+"Usage: core show codecs [audio|video|image]\n"
 "       Displays codec mapping\n";
 
 static int show_codec_n_deprecated(int fd, int argc, char *argv[])
@@ -991,19 +991,19 @@ static struct ast_cli_entry cli_show_frame_stats = {
 #endif
 
 static struct ast_cli_entry my_clis[] = {
-	{ { "core", "list", "codecs", NULL },
+	{ { "core", "show", "codecs", NULL },
 	show_codecs, "Displays a list of codecs",
 	frame_show_codecs_usage, NULL, &cli_show_codecs },
 
-	{ { "core", "list", "codecs", "audio", NULL },
+	{ { "core", "show", "audio", "codecs", NULL },
 	show_codecs, "Displays a list of audio codecs",
 	frame_show_codecs_usage, NULL, &cli_show_audio_codecs },
 
-	{ { "core", "list", "codecs", "video", NULL },
+	{ { "core", "show", "video", "codecs", NULL },
 	show_codecs, "Displays a list of video codecs",
 	frame_show_codecs_usage, NULL, &cli_show_video_codecs },
 
-	{ { "core", "list", "codecs", "image", NULL },
+	{ { "core", "show", "image", "codecs", NULL },
 	show_codecs, "Displays a list of image codecs",
 	frame_show_codecs_usage, NULL, &cli_show_image_codecs },
 

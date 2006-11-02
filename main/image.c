@@ -212,9 +212,9 @@ struct ast_cli_entry cli_show_image_formats_deprecated = {
 	NULL };
 
 struct ast_cli_entry cli_image[] = {
-	{ { "file", "list", "formats", "image" },
+	{ { "core", "show", "image", "formats" },
 	show_image_formats, "Displays image formats",
-	"Usage: file list formats image\n"
+	"Usage: core show image formats\n"
 	"       displays currently registered image formats (if any)\n", NULL, &cli_show_image_formats_deprecated },
 };
 

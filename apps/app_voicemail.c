@@ -6645,11 +6645,11 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 }
 
 static char voicemail_show_users_help[] =
-"Usage: voicemail list users [for <context>]\n"
+"Usage: voicemail show users [for <context>]\n"
 "       Lists all mailboxes currently set up\n";
 
 static char voicemail_show_zones_help[] =
-"Usage: voicemail list zones\n"
+"Usage: voicemail show zones\n"
 "       Lists zone message formats\n";
 
 static int handle_voicemail_show_users(int fd, int argc, char *argv[])
@@ -6766,11 +6766,11 @@ static struct ast_cli_entry cli_show_voicemail_zones_deprecated = {
 	NULL, NULL };
 
 static struct ast_cli_entry cli_voicemail[] = {
-	{ { "voicemail", "list", "users", NULL },
+	{ { "voicemail", "show", "users", NULL },
 	handle_voicemail_show_users, "List defined voicemail boxes",
 	voicemail_show_users_help, complete_voicemail_show_users, &cli_show_voicemail_users_deprecated },
 
-	{ { "voicemail", "list", "zones", NULL },
+	{ { "voicemail", "show", "zones", NULL },
 	handle_voicemail_show_zones, "List zone message formats",
 	voicemail_show_zones_help, NULL, &cli_show_voicemail_zones_deprecated },
 };

@@ -1206,11 +1206,11 @@ static struct ast_cli_entry cli_moh[] = {
 	moh_cli, "Music On Hold",
 	"Music On Hold" },
 
-	{ { "moh", "list", "classes"},
+	{ { "moh", "show", "classes"},
 	moh_classes_show, "List MOH classes",
 	"Lists all MOH classes", NULL, &cli_moh_classes_show_deprecated },
 
-	{ { "moh", "list", "files"},
+	{ { "moh", "show", "files"},
 	cli_files_show, "List MOH file-based classes",
 	"Lists all loaded file-based MOH classes and their files", NULL, &cli_moh_files_show_deprecated },
 };

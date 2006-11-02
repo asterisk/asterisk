@@ -1154,7 +1154,7 @@ static int show_file_formats(int fd, int argc, char *argv[])
 }
 
 char show_file_formats_usage[] = 
-"Usage: core list file formats\n"
+"Usage: core show file formats\n"
 "       Displays currently registered file formats (if any)\n";
 
 struct ast_cli_entry cli_show_file_formats_deprecated = {
@@ -1163,7 +1163,7 @@ struct ast_cli_entry cli_show_file_formats_deprecated = {
 	NULL };
 
 struct ast_cli_entry cli_file[] = {
-	{ { "file", "list", "formats" },
+	{ { "core", "show", "file", "formats" },
 	show_file_formats, "Displays file formats",
 	show_file_formats_usage, NULL, &cli_show_file_formats_deprecated },
 };

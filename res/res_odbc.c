@@ -338,19 +338,14 @@ static int odbc_show_command(int fd, int argc, char **argv)
 }
 
 static char show_usage[] =
-"Usage: odbc list [<class>]\n"
+"Usage: odbc show [<class>]\n"
 "       List settings of a particular ODBC class.\n"
 "       or, if not specified, all classes.\n";
 
-static struct ast_cli_entry cli_odbc_show_deprecated = {
-	{ "odbc", "show", NULL },
-	odbc_show_command, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_odbc[] = {
-	{ { "odbc", "list", NULL },
+	{ { "odbc", "show", NULL },
 	odbc_show_command, "List ODBC DSN(s)",
-	show_usage, NULL, &cli_odbc_show_deprecated },
+	show_usage },
 };
 
 static int odbc_register_class(struct odbc_class *class, int connect)

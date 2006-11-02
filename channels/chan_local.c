@@ -626,18 +626,13 @@ static int locals_show(int fd, int argc, char **argv)
 }
 
 static char show_locals_usage[] = 
-"Usage: local list channels\n"
+"Usage: local show channels\n"
 "       Provides summary information on active local proxy channels.\n";
 
-static struct ast_cli_entry cli_local_show_channels_deprecated = {
-	{ "local", "show", "channels", NULL },
-	locals_show, NULL,
-	NULL };
-
 static struct ast_cli_entry cli_local[] = {
-	{ { "local", "list", "channels", NULL },
+	{ { "local", "show", "channels", NULL },
 	locals_show, "List status of local channels",
-	show_locals_usage, NULL, &cli_local_show_channels_deprecated },
+	show_locals_usage },
 };
 
 /*! \brief Load module into PBX, register channel */

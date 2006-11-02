@@ -289,11 +289,11 @@ static char *complete_channeltypes(const char *line, const char *word, int pos, 
 }
 
 static char show_channeltypes_usage[] =
-"Usage: channeltype list\n"
+"Usage: core show channeltypes\n"
 "       Lists available channel types registered in your Asterisk server.\n";
 
 static char show_channeltype_usage[] =
-"Usage: channeltype show <name>\n"
+"Usage: core show channeltype <name>\n"
 "	Show details about the specified channel type, <name>.\n";
 
 static struct ast_cli_entry cli_show_channeltypes_deprecated = {
@@ -307,11 +307,11 @@ static struct ast_cli_entry cli_show_channeltype_deprecated = {
 	NULL, complete_channeltypes };
 
 static struct ast_cli_entry cli_channel[] = {
-	{ { "channeltype", "list", NULL },
+	{ { "core", "show", "channeltypes", NULL },
 	show_channeltypes, "List available channel types",
 	show_channeltypes_usage, NULL, &cli_show_channeltypes_deprecated },
 
-	{ { "channeltype", "show", NULL },
+	{ { "core", "show", "channeltype", NULL },
 	show_channeltype, "Give more details on that channel type",
 	show_channeltype_usage, complete_channeltypes, &cli_show_channeltype_deprecated },
 };
