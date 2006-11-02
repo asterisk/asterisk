@@ -759,8 +759,8 @@ struct sip_auth {
 #define SIP_PAGE2_INC_RINGING		(1 << 19)	/*!< Did this connection increment the counter of in-use calls? */
 #define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< T38 Fax Passthrough Support */
 #define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< 20: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< 21: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< 22: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< 21: T38 Fax Passthrough Support (not implemented) */
+#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< 22: T38 Fax Passthrough Support (not implemented) */
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
 #define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 23)	/*!< 23: One directional hold */
 #define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 24)	/*!< 24: Inactive  */
@@ -6108,10 +6108,12 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_log(LOG_DEBUG, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
 	}
 	
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_RTP)) {
 		ast_build_string(&m_audio_next, &m_audio_left, " %d", 191);
 		ast_build_string(&a_audio_next, &a_audio_left, "a=rtpmap:%d %s/%d\r\n", 191, "t38", 8000);
 	}
+#endif
 
 	/* Check if we need video in this call */
 	if ((capability & AST_FORMAT_VIDEO_MASK) && !ast_test_flag(&p->flags[0], SIP_NOVIDEO)) {
@@ -10012,8 +10014,10 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  T38 pt UDPTL : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)?"Yes":"No");
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 		ast_cli(fd, "  T38 pt RTP   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_RTP)?"Yes":"No");
 		ast_cli(fd, "  T38 pt TCP   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_TCP)?"Yes":"No");
+#endif
 		ast_cli(fd, "  CanReinvite  : %s\n", ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)?"Yes":"No");
 		ast_cli(fd, "  PromiscRedir : %s\n", ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)?"Yes":"No");
 		ast_cli(fd, "  User=Phone   : %s\n", ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)?"Yes":"No");
@@ -10271,8 +10275,10 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
 	ast_cli(fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
 	ast_cli(fd, "  T38 fax pt UDPTL:       %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL) ? "Yes" : "No");
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	ast_cli(fd, "  T38 fax pt RTP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP) ? "Yes" : "No");
 	ast_cli(fd, "  T38 fax pt TCP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP) ? "Yes" : "No");
+#endif
 	ast_cli(fd, "  RFC2833 Compensation:   %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE) ? "Yes" : "No");
 	ast_cli(fd, "  Jitterbuffer enabled:   %s\n", ast_test_flag(&global_jbconf, AST_JB_ENABLED) ? "Yes" : "No");
 	ast_cli(fd, "  Jitterbuffer forced:    %s\n", ast_test_flag(&global_jbconf, AST_JB_FORCED) ? "Yes" : "No");
@@ -15282,12 +15288,14 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "t38pt_udptl")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	} else if (!strcasecmp(v->name, "t38pt_rtp")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_RTP);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 	} else if (!strcasecmp(v->name, "t38pt_tcp")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_TCP);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
+#endif
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
@@ -15559,10 +15567,12 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 				user->maxcallbitrate = default_maxcallbitrate;
  		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
 			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
 			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
 			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
+#endif
 		}
 	}
 	ast_copy_flags(&user->flags[0], &userflags[0], mask[0].flags);
@@ -15854,10 +15864,12 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->maxcallbitrate = default_maxcallbitrate;
 		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
 		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
+#endif
 		}
 	}
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
@@ -16234,6 +16246,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 			}
+#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 		} else if (!strcasecmp(v->name, "t38pt_rtp")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP);
@@ -16242,6 +16255,7 @@ static int reload_config(enum channelreloadreason reason)
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP);
 			}
+#endif
 		} else if (!strcasecmp(v->name, "rfc2833compensate")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE);
