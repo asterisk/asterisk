@@ -614,6 +614,70 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
 
+typedef pthread_rwlock_t ast_rwlock_t;
+
+static inline int ast_rwlock_init(ast_rwlock_t *prwlock)
+{
+	pthread_rwlockattr_t attr;
+
+	pthread_rwlockattr_init(&attr);
+
+#ifdef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP
+	pthread_rwlockattr_setkind_np(&attr, PTHREAD_RWLOCK_PREFER_WRITER_NP);
+#endif
+
+	return pthread_rwlock_init(prwlock, &attr);
+}
+
+static inline int ast_rwlock_destroy(ast_rwlock_t *prwlock)
+{
+	return pthread_rwlock_destroy(prwlock);
+}
+
+static inline int ast_rwlock_unlock(ast_rwlock_t *prwlock)
+{
+	return pthread_rwlock_unlock(prwlock);
+}
+
+static inline int ast_rwlock_rdlock(ast_rwlock_t *prwlock)
+{
+	return pthread_rwlock_rdlock(prwlock);
+}
+
+static inline int ast_rwlock_tryrdlock(ast_rwlock_t *prwlock)
+{
+	return pthread_rwlock_tryrdlock(prwlock);
+}
+
+static inline int ast_rwlock_wrlock(ast_rwlock_t *prwlock)
+{
+	return pthread_rwlock_wrlock(prwlock);
+}
+
+static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
+{
+	return pthread_rwlock_trywrlock(prwlock);
+}
+
+/* Statically declared read/write locks */
+
+#ifndef HAVE_PTHREAD_RWLOCK_INITIALIZER
+#define __AST_RWLOCK_DEFINE(scope, rwlock) \
+static void  __attribute__ ((constructor)) init_##rwlock(void) \
+{ \
+        ast_rwlock_init(&rwlock); \
+} \
+static void  __attribute__ ((destructor)) fini_##rwlock(void) \
+{ \
+        ast_mutex_destroy(&rwlock); \
+}
+#else
+#define __AST_RWLOCK_DEFINE(scope, rwlock) \
+        scope ast_rwlock_t rwlock = AST_RWLOCK_INIT_VALUE
+#endif
+
+#define AST_RWLOCK_DEFINE_STATIC(rwlock) __AST_RWLOCK_DEFINE(static, rwlock)
+
 /*
  * Initial support for atomic instructions.
  * For platforms that have it, use the native cpu instruction to

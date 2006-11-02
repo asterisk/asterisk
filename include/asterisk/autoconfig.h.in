@@ -316,6 +316,18 @@
 /* Define to indicate the ${PRI_DESCRIP} library version */
 #undef HAVE_PRI_VERSION
 
+/* Define if your system has the PTHREAD_RWLOCK_INITIALIZER headers. */
+#undef HAVE_PTHREAD_RWLOCK_INITIALIZER
+
+/* Define PTHREAD_RWLOCK_INITIALIZER headers version */
+#undef HAVE_PTHREAD_RWLOCK_INITIALIZER_VERSION
+
+/* Define if your system has the PTHREAD_RWLOCK_PREFER_WRITER_NP headers. */
+#undef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP
+
+/* Define PTHREAD_RWLOCK_PREFER_WRITER_NP headers version */
+#undef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP_VERSION
+
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
 
