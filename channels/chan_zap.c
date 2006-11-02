@@ -10644,10 +10644,12 @@ static int action_zaprestart(struct mansession *s, struct message *m)
 
 static int zap_show_channels(int fd, int argc, char **argv)
 {
-#define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
-#define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s\n"
+#define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s\n"
+#define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s\n"
 	struct zt_pvt *tmp = NULL;
 	char tmps[20] = "";
+	char statestr[20] = "";
+	char blockstr[20] = "";
 	ast_mutex_t *lock;
 	struct zt_pvt *start;
 #ifdef HAVE_PRI
@@ -10683,9 +10685,9 @@ static int zap_show_channels(int fd, int argc, char **argv)
 
 	ast_mutex_lock(lock);
 #ifdef HAVE_PRI
-	ast_cli(fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MOH Interpret");
+	ast_cli(fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
 #else
-	ast_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret");
+	ast_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
 #endif	
 	
 	tmp = start;
@@ -10694,7 +10696,22 @@ static int zap_show_channels(int fd, int argc, char **argv)
 			snprintf(tmps, sizeof(tmps), "%d", tmp->channel);
 		} else
 			ast_copy_string(tmps, "pseudo", sizeof(tmps));
-		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret);
+
+		if (tmp->locallyblocked)
+			blockstr[0] = 'L';
+		else
+			blockstr[0] = ' ';
+
+		if (tmp->remotelyblocked)
+			blockstr[1] = 'R';
+		else
+			blockstr[1] = ' ';
+
+		blockstr[2] = '\0';
+
+		snprintf(statestr, sizeof(statestr), "%s", tmp->inservice ? "In Service" : "Out of Service");
+
+		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr);
 		tmp = tmp->next;
 	}
 	ast_mutex_unlock(lock);
