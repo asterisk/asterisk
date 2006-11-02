@@ -826,14 +826,13 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 	int l3_id;
 	int i;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
-	int free_chan;
   
 	if (stack->nt) {
-		free_chan = find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0);
-		if (!free_chan) return -1;
+		if (!find_free_chan_in_stack(stack, bc, bc->channel_preselected ? bc->channel : 0))
+			return -1;
 		/*bc->channel=free_chan;*/
 		
-		cb_log(4,stack->port, " -->  found channel: %d\n",free_chan);
+		cb_log(4,stack->port, " -->  found channel: %d\n", bc->channel);
     
 		for (i=0; i <= MAXPROCS; i++)
 			if (stack->procids[i]==0) break;
@@ -859,10 +858,10 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 	} else { 
 		if (stack->ptp || bc->te_choose_channel) {
 			/* we know exactly which channels are in use */
-			free_chan = find_free_chan_in_stack(stack, bc, bc->channel_preselected?bc->channel:0);
-			if (!free_chan) return -1;
+			if (!find_free_chan_in_stack(stack, bc, bc->channel_preselected ? bc->channel : 0))
+				return -1;
 			/*bc->channel=free_chan;*/
-			cb_log(2,stack->port, " -->  found channel: %d\n",free_chan);
+			cb_log(2,stack->port, " -->  found channel: %d\n", bc->channel);
 		} else {
 			/* other phones could have made a call also on this port (ptmp) */
 			bc->channel=0xff;
@@ -1498,8 +1497,7 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 			
 		{
 			if (bc->channel == 0xff) {
-				bc->channel=find_free_chan_in_stack(stack, bc,  0);
-				if (!bc->channel) {
+				if (!find_free_chan_in_stack(stack, bc, 0)) {
 					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
 					break;
 				}
@@ -1801,9 +1799,7 @@ handle_event_nt(void *dat, void *arg)
 			bc->l3_id=hh->dinfo;
 
 			if (bc->channel<=0) {
-				bc->channel=find_free_chan_in_stack(stack,0,0);
-
-				if (bc->channel<=0)
+				if (!find_free_chan_in_stack(stack, bc, 0))
 					goto ERR_NO_CHANNEL;
 			}
 		}
@@ -2042,8 +2038,7 @@ handle_event_nt(void *dat, void *arg)
 
 					} else {
 
-						bc->channel = find_free_chan_in_stack(stack, bc, 0);
-						if (!bc->channel) {
+						if (!find_free_chan_in_stack(stack, bc, 0)) {
 							cb_log(0, stack->port, " No free channel at the moment\n");
 					
 							msg_t *dmsg;
@@ -3232,8 +3227,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 
 		if (stack->nt) {
 			if (bc->channel <=0 ) { /*  else we have the channel already */
-				bc->channel = find_free_chan_in_stack(stack, bc, 0);
-				if (!bc->channel) {
+				if (!find_free_chan_in_stack(stack, bc, 0)) {
 					cb_log(0, stack->port, " No free channel at the moment\n");
 					
 					err=-ENOCHAN;
