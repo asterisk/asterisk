@@ -338,12 +338,12 @@ static int odbc_show_command(int fd, int argc, char **argv)
 }
 
 static char show_usage[] =
-"Usage: odbc list [<class>]\n"
+"Usage: odbc show [<class>]\n"
 "       List settings of a particular ODBC class.\n"
 "       or, if not specified, all classes.\n";
 
 static struct ast_cli_entry cli_odbc[] = {
-	{ { "odbc", "list", NULL },
+	{ { "odbc", "show", NULL },
 	odbc_show_command, "List ODBC DSN(s)",
 	show_usage },
 };

@@ -10929,7 +10929,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 /*! \brief Disable SIP Debugging in CLI */
 static int sip_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 	ast_cli(fd, "SIP Debugging Disabled\n");
@@ -10950,7 +10950,7 @@ static int sip_do_history(int fd, int argc, char *argv[])
 /*! \brief Disable SIP History logging (CLI) */
 static int sip_no_history(int fd, int argc, char *argv[])
 {
-	if (argc != 2) {
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
 	}
 	recordhistory = FALSE;
@@ -11151,7 +11151,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 }
 	
 static char show_domains_usage[] = 
-"Usage: sip list domains\n"
+"Usage: sip show domains\n"
 "       Lists all configured SIP local domains.\n"
 "       Asterisk only responds to SIP messages to local domains.\n";
 
@@ -11161,7 +11161,7 @@ static char notify_usage[] =
 "       Message types are defined in sip_notify.conf\n";
 
 static char show_users_usage[] = 
-"Usage: sip list users [like <pattern>]\n"
+"Usage: sip show users [like <pattern>]\n"
 "       Lists all known SIP users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
@@ -11171,12 +11171,12 @@ static char show_user_usage[] =
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
 static char show_inuse_usage[] = 
-"Usage: sip list inuse [all]\n"
+"Usage: sip show inuse [all]\n"
 "       List all SIP users and peers usage counters and limits.\n"
 "       Add option \"all\" to show all devices, not only those with a limit.\n";
 
 static char show_channels_usage[] = 
-"Usage: sip list channels\n"
+"Usage: sip show channels\n"
 "       Lists all currently active SIP channels.\n";
 
 static char show_channel_usage[] = 
@@ -11188,7 +11188,7 @@ static char show_history_usage[] =
 "       Provides detailed dialog history on a given SIP channel.\n";
 
 static char show_peers_usage[] = 
-"Usage: sip list peers [like <pattern>]\n"
+"Usage: sip show peers [like <pattern>]\n"
 "       Lists all known SIP peers.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
@@ -11203,7 +11203,7 @@ static char prune_realtime_usage[] =
 "       Optional regular expression pattern is used to filter the objects.\n";
 
 static char show_reg_usage[] =
-"Usage: sip list registry\n"
+"Usage: sip show registry\n"
 "       Lists all registration requests and status.\n";
 
 static char debug_usage[] = 
@@ -11216,11 +11216,11 @@ static char debug_usage[] =
 "       Require peer to be registered.\n";
 
 static char no_debug_usage[] = 
-"Usage: sip nodebug\n"
+"Usage: sip debug off\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
 static char no_history_usage[] = 
-"Usage: sip nohistory\n"
+"Usage: sip history off\n"
 "       Disables recording of SIP dialog history for debugging purposes\n";
 
 static char history_usage[] = 
@@ -11230,18 +11230,19 @@ static char history_usage[] =
 
 static char sip_reload_usage[] =
 "Usage: sip reload\n"
-"       Reloads SIP configuration from sip.conf\n";
+"       Reloads SIP configuration from sip.conf\n"
+"       Deprecated:  please use 'reload chan_sip.so'\n";
 
 static char show_subscriptions_usage[] =
-"Usage: sip list subscriptions\n" 
+"Usage: sip show subscriptions\n" 
 "       Lists active SIP subscriptions for extension states\n";
 
 static char show_objects_usage[] =
-"Usage: sip list objects\n" 
+"Usage: sip show objects\n" 
 "       Lists status of known SIP objects\n";
 
 static char show_settings_usage[] = 
-"Usage: sip list settings\n"
+"Usage: sip show settings\n"
 "       Provides detailed list of the configuration of the SIP channel.\n";
 
 /*! \brief Read SIP header (dialplan function) */
@@ -16954,6 +16955,11 @@ static int sip_do_reload(enum channelreloadreason reason)
 /*! \brief Force reload of module from cli */
 static int sip_reload(int fd, int argc, char *argv[])
 {
+	static int deprecated = 0;
+	if (!deprecated && argc > 0) {
+		ast_log(LOG_WARNING, "\"sip reload\" is deprecated.  Please use 'reload chan_sip.so' instead.\n");
+		deprecated = 1;
+	}
 
 	ast_mutex_lock(&sip_reload_lock);
 	if (sip_reloading) 
@@ -16979,39 +16985,39 @@ static int reload(void)
 
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
-	{ { "sip", "list", "channels", NULL },
+	{ { "sip", "show", "channels", NULL },
 	sip_show_channels, "List active SIP channels",
 	show_channels_usage },
 
-	{ { "sip", "list", "domains", NULL },
+	{ { "sip", "show", "domains", NULL },
 	sip_show_domains, "List our local SIP domains.",
 	show_domains_usage },
 
-	{ { "sip", "list", "inuse", NULL },
+	{ { "sip", "show", "inuse", NULL },
 	sip_show_inuse, "List all inuse/limits",
 	show_inuse_usage },
 
-	{ { "sip", "list", "objects", NULL },
+	{ { "sip", "show", "objects", NULL },
 	sip_show_objects, "List all SIP object allocations",
 	show_objects_usage },
 
-	{ { "sip", "list", "peers", NULL },
+	{ { "sip", "show", "peers", NULL },
 	sip_show_peers, "List defined SIP peers",
 	show_peers_usage },
 
-	{ { "sip", "list", "registry", NULL },
+	{ { "sip", "show", "registry", NULL },
 	sip_show_registry, "List SIP registration status",
 	show_reg_usage },
 
 	{ { "sip", "show", "settings", NULL },
-	sip_show_settings, "List SIP global settings",
+	sip_show_settings, "Show SIP global settings",
 	show_settings_usage },
 
-	{ { "sip", "list", "subscriptions", NULL },
+	{ { "sip", "show", "subscriptions", NULL },
 	sip_show_subscriptions, "List active SIP subscriptions",
 	show_subscriptions_usage },
 
-	{ { "sip", "list", "users", NULL },
+	{ { "sip", "show", "users", NULL },
 	sip_show_users, "List defined SIP users",
 	show_users_usage },
 
@@ -17059,7 +17065,7 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_do_debug, "Enable SIP debugging on Peername",
 	debug_usage, complete_sip_debug_peer },
 
-	{ { "sip", "nodebug", NULL },
+	{ { "sip", "debug", "off", NULL },
 	sip_no_debug, "Disable SIP debugging",
 	no_debug_usage },
 
@@ -17067,7 +17073,7 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_do_history, "Enable SIP history",
 	history_usage },
 
-	{ { "sip", "nohistory", NULL },
+	{ { "sip", "history", "off", NULL },
 	sip_no_history, "Disable SIP history",
 	no_history_usage },
 

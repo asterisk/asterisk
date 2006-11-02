@@ -4478,7 +4478,7 @@ static int iax2_do_jb_debug(int fd, int argc, char *argv[])
 
 static int iax2_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 0;
 	ast_cli(fd, "IAX2 Debugging Disabled\n");
@@ -4487,7 +4487,7 @@ static int iax2_no_debug(int fd, int argc, char *argv[])
 
 static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	iaxtrunkdebug = 0;
 	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
@@ -4496,11 +4496,10 @@ static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
 
 static int iax2_no_jb_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-	jb_debug_output("\n");
-	ast_cli(fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	iaxtrunkdebug = 0;
+	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -9639,7 +9638,7 @@ static struct ast_switch iax2_switch =
 };
 
 static char show_stats_usage[] =
-"Usage: iax2 list stats\n"
+"Usage: iax2 show stats\n"
 "       Display statistics on IAX channel driver.\n";
 
 static char set_mtu_usage[] =
@@ -9650,7 +9649,7 @@ static char set_mtu_usage[] =
 "       This is substantially below the IP mtu. Try 1240 on ethernets.\n"
 "       Must be 172 or greater for G.711 samples.\n"; 
 static char show_cache_usage[] =
-"Usage: iax2 list cache\n"
+"Usage: iax2 show cache\n"
 "       Display currently cached IAX Dialplan results.\n";
 
 static char show_peer_usage[] =
@@ -9673,34 +9672,34 @@ static char show_prov_usage[] =
 "       fields will be provisioned as empty fields.\n";
 
 static char show_users_usage[] = 
-"Usage: iax2 list users [like <pattern>]\n"
+"Usage: iax2 show users [like <pattern>]\n"
 "       Lists all known IAX2 users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
 static char show_channels_usage[] = 
-"Usage: iax2 list channels\n"
+"Usage: iax2 show channels\n"
 "       Lists all currently active IAX channels.\n";
 
 static char show_netstats_usage[] = 
-"Usage: iax2 list netstats\n"
+"Usage: iax2 show netstats\n"
 "       Lists network status for all currently active IAX channels.\n";
 
 static char show_threads_usage[] = 
-"Usage: iax2 list threads\n"
+"Usage: iax2 show threads\n"
 "       Lists status of IAX helper threads\n";
 
 static char show_peers_usage[] = 
-"Usage: iax2 list peers [registered] [like <pattern>]\n"
+"Usage: iax2 show peers [registered] [like <pattern>]\n"
 "       Lists all known IAX2 peers.\n"
 "       Optional 'registered' argument lists only peers with known addresses.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
 static char show_firmware_usage[] = 
-"Usage: iax2 list firmware\n"
+"Usage: iax2 show firmware\n"
 "       Lists all known IAX firmware images.\n";
 
 static char show_reg_usage[] =
-"Usage: iax2 list registry\n"
+"Usage: iax2 show registry\n"
 "       Lists all registration requests and status.\n";
 
 static char debug_usage[] = 
@@ -9746,35 +9745,35 @@ static char iax2_test_jitter_usage[] =
 #endif /* IAXTESTS */
 
 static struct ast_cli_entry cli_iax2[] = {
-	{ { "iax2", "list", "cache", NULL },
+	{ { "iax2", "show", "cache", NULL },
 	iax2_show_cache, "Display IAX cached dialplan",
 	show_cache_usage },
 
-	{ { "iax2", "list", "channels", NULL },
+	{ { "iax2", "show", "channels", NULL },
 	iax2_show_channels, "List active IAX channels",
 	show_channels_usage },
 
-	{ { "iax2", "list", "firmware", NULL },
+	{ { "iax2", "show", "firmware", NULL },
 	iax2_show_firmware, "List available IAX firmwares",
 	show_firmware_usage },
 
-	{ { "iax2", "list", "netstats", NULL },
+	{ { "iax2", "show", "netstats", NULL },
 	iax2_show_netstats, "List active IAX channel netstats",
 	show_netstats_usage },
 
-	{ { "iax2", "list", "peers", NULL },
+	{ { "iax2", "show", "peers", NULL },
 	iax2_show_peers, "List defined IAX peers",
 	show_peers_usage },
 
-	{ { "iax2", "list", "registry", NULL },
+	{ { "iax2", "show", "registry", NULL },
 	iax2_show_registry, "Display IAX registration status",
 	show_reg_usage },
 
-	{ { "iax2", "list", "stats", NULL },
+	{ { "iax2", "show", "stats", NULL },
 	iax2_show_stats, "Display IAX statistics",
 	show_stats_usage },
 
-	{ { "iax2", "list", "threads", NULL },
+	{ { "iax2", "show", "threads", NULL },
 	iax2_show_threads, "Display IAX helper thread info",
 	show_threads_usage },
 
@@ -9782,7 +9781,7 @@ static struct ast_cli_entry cli_iax2[] = {
 	iax2_set_mtu, "Set the IAX systemwide trunking MTU",
 	set_mtu_usage, NULL, NULL },
 
-	{ { "iax2", "list", "users", NULL },
+	{ { "iax2", "show", "users", NULL },
 	iax2_show_users, "List defined IAX users",
 	show_users_usage },
 
@@ -9810,15 +9809,15 @@ static struct ast_cli_entry cli_iax2[] = {
 	iax2_do_jb_debug, "Enable IAX jitterbuffer debugging",
 	debug_jb_usage },
 
-	{ { "iax2", "nodebug", NULL },
+	{ { "iax2", "debug", "off", NULL },
 	iax2_no_debug, "Disable IAX debugging",
 	no_debug_usage },
 
-	{ { "iax2", "nodebug", "trunk", NULL },
+	{ { "iax2", "debug", "trunk", "off", NULL },
 	iax2_no_trunk_debug, "Disable IAX trunk debugging",
 	no_debug_trunk_usage },
 
-	{ { "iax2", "nodebug", "jb", NULL },
+	{ { "iax2", "debug", "jb", "off", NULL },
 	iax2_no_jb_debug, "Disable IAX jitterbuffer debugging",
 	no_debug_jb_usage },
 

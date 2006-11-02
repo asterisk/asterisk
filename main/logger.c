@@ -570,11 +570,11 @@ static char logger_rotate_help[] =
 "       Rotates and Reopens the log files.\n";
 
 static char logger_show_channels_help[] =
-"Usage: logger list channels\n"
+"Usage: logger show channels\n"
 "       List configured logger channels.\n";
 
 static struct ast_cli_entry cli_logger[] = {
-	{ { "logger", "list", "channels", NULL }, 
+	{ { "logger", "show", "channels", NULL }, 
 	handle_logger_show_channels, "List configured log channels",
 	logger_show_channels_help },
 

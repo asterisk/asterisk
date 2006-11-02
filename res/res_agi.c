@@ -95,7 +95,7 @@ static char *descrip =
 "variable to \"no\" before executing the AGI application.\n"
 "  Using 'EAGI' provides enhanced AGI, with incoming audio available out of band\n"
 "on file descriptor 3\n\n"
-"  Use the CLI command 'agi list' to list available agi commands\n"
+"  Use the CLI command 'agi show' to list available agi commands\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
 "                    text string, one of SUCCESS | FAILED | HANGUP\n";
@@ -2085,7 +2085,7 @@ static int deadagi_exec(struct ast_channel *chan, void *data)
 }
 
 static char showagi_help[] =
-"Usage: agi list [topic]\n"
+"Usage: agi show [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
 "       information on the given command.  If called without a\n"
 "       topic, it provides a list of AGI commands.\n";
@@ -2104,7 +2104,7 @@ static struct ast_cli_entry cli_agi[] = {
 	agi_no_debug, "Disable AGI debugging",
 	no_debug_usage },
 
-	{ { "agi", "list", NULL },
+	{ { "agi", "show", NULL },
 	handle_showagi, "List AGI commands or specific help",
 	showagi_help },
 

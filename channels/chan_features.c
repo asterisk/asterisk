@@ -531,11 +531,11 @@ static int features_show(int fd, int argc, char **argv)
 }
 
 static char show_features_usage[] = 
-"Usage: feature list channels\n"
+"Usage: feature show channels\n"
 "       Provides summary information on feature channels.\n";
 
 static struct ast_cli_entry cli_features[] = {
-	{ { "feature", "list", "channels", NULL },
+	{ { "feature", "show", "channels", NULL },
 	features_show, "List status of feature channels",
 	show_features_usage },
 };

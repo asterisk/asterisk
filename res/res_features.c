@@ -1932,7 +1932,7 @@ static char showparked_help[] =
 "       Lists currently parked calls.\n";
 
 static struct ast_cli_entry cli_features[] = {
-	{ { "feature", "list", NULL },
+	{ { "feature", "show", NULL },
 	handle_showfeatures, "Lists configured features",
 	showfeatures_help },
 

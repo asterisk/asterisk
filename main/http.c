@@ -895,11 +895,11 @@ int ast_http_reload(void)
 }
 
 static char show_http_help[] =
-"Usage: http list status\n"
+"Usage: http show status\n"
 "       Lists status of internal HTTP engine\n";
 
 static struct ast_cli_entry cli_http[] = {
-	{ { "http", "list", "status", NULL },
+	{ { "http", "show", "status", NULL },
 	handle_show_http, "Display HTTP server status",
 	show_http_help },
 };

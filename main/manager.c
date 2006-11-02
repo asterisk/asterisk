@@ -552,21 +552,21 @@ static char showmancmd_help[] =
 "	Shows the detailed description for a specific Asterisk manager interface command.\n";
 
 static char showmancmds_help[] =
-"Usage: manager list commands\n"
+"Usage: manager show commands\n"
 "	Prints a listing of all the available Asterisk manager interface commands.\n";
 
 static char showmanconn_help[] =
-"Usage: manager list connected\n"
+"Usage: manager show connected\n"
 "	Prints a listing of the users that are currently connected to the\n"
 "Asterisk manager interface.\n";
 
 static char showmaneventq_help[] =
-"Usage: manager list eventq\n"
+"Usage: manager show eventq\n"
 "	Prints a listing of all events pending in the Asterisk manger\n"
 "event queue.\n";
 
 static char showmanagers_help[] =
-"Usage: manager list users\n"
+"Usage: manager show users\n"
 "       Prints a listing of all managers that are currently configured on that\n"
 " system.\n";
 
@@ -579,19 +579,19 @@ static struct ast_cli_entry cli_manager[] = {
 	handle_showmancmd, "Show a manager interface command",
 	showmancmd_help, complete_show_mancmd },
 
-	{ { "manager", "list", "commands", NULL },
+	{ { "manager", "show", "commands", NULL },
 	handle_showmancmds, "List manager interface commands",
 	showmancmds_help },
 
-	{ { "manager", "list", "connected", NULL },
+	{ { "manager", "show", "connected", NULL },
 	handle_showmanconn, "List connected manager interface users",
 	showmanconn_help },
 
-	{ { "manager", "list", "eventq", NULL },
+	{ { "manager", "show", "eventq", NULL },
 	handle_showmaneventq, "List manager interface queued events",
 	showmaneventq_help },
 
-	{ { "manager", "list", "users", NULL },
+	{ { "manager", "show", "users", NULL },
 	handle_showmanagers, "List configured manager users",
 	showmanagers_help, NULL, NULL },
 

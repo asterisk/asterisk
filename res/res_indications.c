@@ -64,7 +64,7 @@ static char help_remove_indication[] =
 "       Remove the given indication from the country.\n";
 
 static char help_show_indications[] =
-"Usage: indication list [<country> ...]\n"
+"Usage: indication show [<country> ...]\n"
 "       Display either a condensed for of all country/indications, or the\n"
 "       indications for the specified countries.\n";
 
@@ -354,7 +354,7 @@ static struct ast_cli_entry cli_indications[] = {
 	handle_remove_indication, "Remove the given indication from the country",
 	help_remove_indication, NULL },
 
-	{ { "indication", "list", NULL },
+	{ { "indication", "show", NULL },
 	handle_show_indications, "Display a list of all countries/indications",
 	help_show_indications },
 };

@@ -556,7 +556,7 @@ static int init_keys(int fd, int argc, char *argv[])
 }
 
 static char show_key_usage[] =
-"Usage: keys list\n"
+"Usage: keys show\n"
 "       Displays information about RSA keys known by Asterisk\n";
 
 static char init_keys_usage[] =
@@ -564,7 +564,7 @@ static char init_keys_usage[] =
 "       Initializes private keys (by reading in pass code from the user)\n";
 
 static struct ast_cli_entry cli_crypto[] = {
-	{ { "keys", "list", NULL },
+	{ { "keys", "show", NULL },
 	show_keys, "Displays RSA key information",
 	show_key_usage },
 

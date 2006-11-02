@@ -76,11 +76,11 @@ void ast_cli(int fd, char *fmt, ...)
 static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
 
 static char load_help[] = 
-"Usage: module load <module name>\n"
+"Usage: load <module name>\n"
 "       Loads the specified module into Asterisk.\n";
 
 static char unload_help[] = 
-"Usage: module unload [-f|-h] <module name>\n"
+"Usage: unload [-f|-h] <module name>\n"
 "       Unloads the specified module from Asterisk. The -f\n"
 "       option causes the module to be unloaded even if it is\n"
 "       in use (may cause a crash) and the -h module causes the\n"
@@ -94,32 +94,32 @@ static char help_help[] =
 "       topic, it provides a list of commands.\n";
 
 static char chanlist_help[] = 
-"Usage: channel list [concise|verbose]\n"
+"Usage: core show channels [concise|verbose]\n"
 "       Lists currently defined channels and some information about them. If\n"
 "       'concise' is specified, the format is abridged and in a more easily\n"
 "       machine parsable format. If 'verbose' is specified, the output includes\n"
 "       more and longer fields.\n";
 
 static char reload_help[] = 
-"Usage: module reload [module ...]\n"
+"Usage: reload [module ...]\n"
 "       Reloads configuration files for all listed modules which support\n"
 "       reloading, or for all supported modules if none are listed.\n";
 
 static char verbose_help[] = 
-"Usage: core verbose <level>\n"
+"Usage: core set verbose <level>\n"
 "       Sets level of verbose messages to be displayed.  0 means\n"
 "       no messages should be displayed. Equivalent to -v[v[v...]]\n"
 "       on startup\n";
 
 static char debug_help[] = 
-"Usage: core debug <level> [filename]\n"
+"Usage: core set debug <level> [filename]\n"
 "       Sets level of core debug messages to be displayed.  0 means\n"
 "       no messages should be displayed.  Equivalent to -d[d[d...]]\n"
 "       on startup.  If filename is specified, debugging will be\n"
 "       limited to just that file.\n";
 
 static char nodebug_help[] = 
-"Usage: core nodebug\n"
+"Usage: core set no debug\n"
 "       Turns off core debug messages.\n";
 
 static char logger_mute_help[] = 
@@ -133,17 +133,17 @@ static char softhangup_help[] =
 "       the next time the driver reads or writes from the channel\n";
 
 static char group_show_channels_help[] = 
-"Usage: group list channels [pattern]\n"
+"Usage: group show channels [pattern]\n"
 "       Lists all currently active channels with channel group(s) specified.\n"
 "       Optional regular expression pattern is matched to group names for each\n"
 "       channel.\n";
 
 static int handle_load(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	if (ast_load_resource(argv[2])) {
-		ast_cli(fd, "Unable to load module %s\n", argv[2]);
+	if (ast_load_resource(argv[1])) {
+		ast_cli(fd, "Unable to load module %s\n", argv[1]);
 		return RESULT_FAILURE;
 	}
 	return RESULT_SUCCESS;
@@ -153,10 +153,10 @@ static int handle_reload(int fd, int argc, char *argv[])
 {
 	int x;
 	int res;
-	if (argc < 2)
+	if (argc < 1)
 		return RESULT_SHOWUSAGE;
-	if (argc > 2) { 
-		for (x=2;x<argc;x++) {
+	if (argc > 1) { 
+		for (x=1;x<argc;x++) {
 			res = ast_module_reload(argv[x]);
 			switch(res) {
 			case 0:
@@ -300,9 +300,9 @@ static int handle_unload(int fd, int argc, char *argv[])
 {
 	int x;
 	int force=AST_FORCE_SOFT;
-	if (argc < 3)
+	if (argc < 2)
 		return RESULT_SHOWUSAGE;
-	for (x=2;x<argc;x++) {
+	for (x=1;x<argc;x++) {
 		if (argv[x][0] == '-') {
 			switch(argv[x][1]) {
 			case 'f':
@@ -341,11 +341,11 @@ static int modlist_modentry(const char *module, const char *description, int use
 }
 
 static char modlist_help[] =
-"Usage: module list [like keyword]\n"
+"Usage: core show modules [like keyword]\n"
 "       Shows Asterisk modules currently in use, and usage statistics.\n";
 
 static char uptime_help[] =
-"Usage: show uptime [seconds]\n"
+"Usage: core show uptime [seconds]\n"
 "       Shows Asterisk uptime information.\n"
 "       The seconds word returns the uptime in seconds only.\n";
 
@@ -866,7 +866,7 @@ static char *complete_fn(const char *line, const char *word, int pos, int state)
 	char *c;
 	char filename[256];
 
-	if (pos != 2)
+	if (pos != 1)
 		return NULL;
 	
 	if (word[0] == '/')
@@ -967,35 +967,35 @@ static struct ast_cli_entry builtins[] = {
 };
 
 static struct ast_cli_entry cli_cli[] = {
-	{ { "channel", "list", NULL },
+	{ { "core", "show", "channels", NULL },
 	handle_chanlist, "Display information on channels",
 	chanlist_help, complete_show_channels },
 
-	{ { "channel", "show", NULL },
+	{ { "core", "show" "channel", NULL },
 	handle_showchan, "Display information on a specific channel",
 	showchan_help, complete_ch_3 },
 
-	{ { "channel", "debug", NULL },
+	{ { "core", "debug", "channel", NULL },
 	handle_debugchan, "Enable debugging on a channel",
 	debugchan_help, complete_ch_3 },
 
-	{ { "channel", "nodebug", NULL },
+	{ { "core", "no", "debug", "channel", NULL },
 	handle_nodebugchan, "Disable debugging on a channel",
 	nodebugchan_help, complete_ch_3 },
 
-	{ { "core", "debug", NULL },
+	{ { "core", "set", "debug", NULL },
 	handle_debug, "Set level of debug chattiness",
 	debug_help },
 
-	{ { "core", "nodebug", NULL },
+	{ { "core", "set", "no", "debug", NULL },
 	handle_nodebug, "Turns off debug chattiness",
 	nodebug_help },
 
-	{ { "core", "verbose", NULL },
+	{ { "core", "set", "verbose", NULL },
 	handle_verbose, "Set level of verboseness",
 	verbose_help },
 
-	{ { "group", "list", "channels", NULL },
+	{ { "group", "show", "channels", NULL },
 	group_show_channels, "Display active channels with group(s)",
 	group_show_channels_help },
 
@@ -1007,27 +1007,27 @@ static struct ast_cli_entry cli_cli[] = {
 	handle_logger_mute, "Toggle logging output to a console",
 	logger_mute_help },
 
-	{ { "module", "list", NULL },
+	{ { "core", "show", "modules", NULL },
 	handle_modlist, "List modules and info",
 	modlist_help },
 
-	{ { "module", "list", "like", NULL },
+	{ { "core", "show", "modules", "like", NULL },
 	handle_modlist, "List modules and info",
 	modlist_help, complete_mod_4 },
 
-	{ { "module", "load", NULL },
+	{ { "load", NULL },
 	handle_load, "Load a module by name",
 	load_help, complete_fn },
 
-	{ { "module", "reload", NULL },
+	{ { "reload", NULL },
 	handle_reload, "Reload configuration",
 	reload_help, complete_mod_3 },
 
-	{ { "module", "unload", NULL },
+	{ { "unload", NULL },
 	handle_unload, "Unload a module by name",
 	unload_help, complete_mod_3_nr },
 
- 	{ { "show", "uptime", NULL },
+ 	{ { "core", "show", "uptime", NULL },
 	handle_showuptime, "Show uptime information",
 	uptime_help },
 
