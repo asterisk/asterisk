@@ -672,6 +672,7 @@ static void  __attribute__ ((destructor)) fini_##rwlock(void) \
         ast_mutex_destroy(&rwlock); \
 }
 #else
+#define AST_RWLOCK_INIT_VALUE PTHREAD_RWLOCK_INITIALIZER
 #define __AST_RWLOCK_DEFINE(scope, rwlock) \
         scope ast_rwlock_t rwlock = AST_RWLOCK_INIT_VALUE
 #endif
