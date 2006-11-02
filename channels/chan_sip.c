@@ -1289,7 +1289,8 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->next = p->packets;
 	pkt->owner = p;
 	pkt->seqno = seqno;
-	pkt->flags = resp;
+	if (resp)
+		ast_set_flag(pkt->flags, FLAG_RESPONSE);
 	pkt->data[len] = '\0';
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
