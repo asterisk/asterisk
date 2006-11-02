@@ -1146,7 +1146,7 @@ static int udptl_do_debug(int fd, int argc, char *argv[])
 
 static int udptl_nodebug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	udptldebug = 0;
 	ast_cli(fd,"UDPTL Debugging Disabled\n");
@@ -1158,7 +1158,7 @@ static char debug_usage[] =
   "       Enable dumping of all UDPTL packets to and from host.\n";
 
 static char nodebug_usage[] =
-  "Usage: udptl nodebug\n"
+  "Usage: udptl debug off\n"
   "       Disable all UDPTL debugging\n";
 
 static struct ast_cli_entry cli_udptl[] = {
@@ -1170,9 +1170,9 @@ static struct ast_cli_entry cli_udptl[] = {
 	udptl_do_debug, "Enable UDPTL debugging on IP",
 	debug_usage },
 
-	{ { "udptl", "nodebug", NULL },
+	{ { "udptl", "debug", "off", NULL },
 	udptl_nodebug, "Disable UDPTL debugging",
-	nodebug_usage, NULL, NULL },
+	nodebug_usage },
 };
 
 void ast_udptl_reload(void)

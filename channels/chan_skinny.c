@@ -1981,7 +1981,7 @@ static struct ast_cli_entry cli_skinny[] = {
 	skinny_do_debug, "Enable Skinny debugging",
 	debug_usage },
 
-	{ { "skinny", "no", "debug", NULL },
+	{ { "skinny", "debug", "off", NULL },
 	skinny_no_debug, "Disable Skinny debugging",
 	no_debug_usage },
 

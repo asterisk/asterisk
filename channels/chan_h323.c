@@ -2757,7 +2757,7 @@ static struct ast_cli_entry cli_h323[] = {
 	h323_do_trace, "Enable H.323 Stack Tracing",
 	trace_usage, NULL, &cli_h323_trace_deprecated },
 
-	{ { "h323", "no", "trace", NULL },
+	{ { "h323", "trace", "off", NULL },
 	h323_no_trace, "Disable H.323 Stack Tracing",
 	no_trace_usage, NULL, &cli_h323_no_trace_deprecated },
 
@@ -2765,11 +2765,11 @@ static struct ast_cli_entry cli_h323[] = {
 	h323_do_debug, "Enable H.323 debug",
 	debug_usage, NULL, &cli_h323_debug_deprecated },
 
-	{ { "h323", "no", "debug", NULL },
+	{ { "h323", "debug", "off", NULL },
 	h323_no_debug, "Disable H.323 debug",
 	no_debug_usage, NULL, &cli_h323_no_debug_deprecated },
 
-	{ { "h323", "gk", "cycle", NULL },
+	{ { "h323", "cycle", "gk", NULL },
 	h323_gk_cycle, "Manually re-register with the Gatekeper",
 	show_cycle_usage, NULL, &cli_h323_gk_cycle_deprecated },
 

@@ -3293,7 +3293,7 @@ static int rtcp_do_stats(int fd, int argc, char *argv[]) {
 
 static int rtp_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	rtpdebug = 0;
 	ast_cli(fd,"RTP Debugging Disabled\n");
@@ -3302,7 +3302,7 @@ static int rtp_no_debug(int fd, int argc, char *argv[])
 
 static int rtcp_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	rtcpdebug = 0;
 	ast_cli(fd,"RTCP Debugging Disabled\n");
@@ -3311,7 +3311,7 @@ static int rtcp_no_debug(int fd, int argc, char *argv[])
 
 static int rtcp_no_stats(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	rtcpstats = 0;
 	ast_cli(fd,"RTCP Stats Disabled\n");
@@ -3330,10 +3330,10 @@ static int stun_do_debug(int fd, int argc, char *argv[])
    
 static int stun_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	stundebug = 0;
-	ast_cli(fd,"STUN Debugging Disabled\n");
+	ast_cli(fd, "STUN Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -3342,7 +3342,7 @@ static char debug_usage[] =
   "       Enable dumping of all RTP packets to and from host.\n";
 
 static char no_debug_usage[] =
-  "Usage: rtp nodebug\n"
+  "Usage: rtp debug off\n"
   "       Disable all RTP debugging\n";
 
 static char stun_debug_usage[] =
@@ -3350,7 +3350,7 @@ static char stun_debug_usage[] =
   "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
 
 static char stun_no_debug_usage[] =
-  "Usage: stun nodebug\n"
+  "Usage: stun debug off\n"
   "       Disable STUN debugging\n";
 
 static char rtcp_debug_usage[] =
@@ -3358,7 +3358,7 @@ static char rtcp_debug_usage[] =
   "       Enable dumping of all RTCP packets to and from host.\n";
   
 static char rtcp_no_debug_usage[] =
-  "Usage: rtcp nodebug\n"
+  "Usage: rtcp debug off\n"
   "       Disable all RTCP debugging\n";
 
 static char rtcp_stats_usage[] =
@@ -3366,7 +3366,7 @@ static char rtcp_stats_usage[] =
   "       Enable dumping of RTCP stats.\n";
   
 static char rtcp_no_stats_usage[] =
-  "Usage: rtcp nostats\n"
+  "Usage: rtcp stats off\n"
   "       Disable all RTCP stats\n";
 
 static struct ast_cli_entry cli_rtp[] = {
@@ -3378,7 +3378,7 @@ static struct ast_cli_entry cli_rtp[] = {
 	rtp_do_debug, "Enable RTP debugging",
 	debug_usage },
 
-	{ { "rtp", "nodebug", NULL },
+	{ { "rtp", "debug", "off", NULL },
 	rtp_no_debug, "Disable RTP debugging",
 	no_debug_usage },
 
@@ -3390,7 +3390,7 @@ static struct ast_cli_entry cli_rtp[] = {
 	rtcp_do_debug, "Enable RTCP debugging",
 	rtcp_debug_usage },
 
-	{ { "rtcp", "nodebug", NULL },
+	{ { "rtcp", "debug", "off", NULL },
 	rtcp_no_debug, "Disable RTCP debugging",
 	rtcp_no_debug_usage },
 
@@ -3398,7 +3398,7 @@ static struct ast_cli_entry cli_rtp[] = {
 	rtcp_do_stats, "Enable RTCP stats",
 	rtcp_stats_usage },
 
-	{ { "rtcp", "nostats", NULL },
+	{ { "rtcp", "stats", "off", NULL },
 	rtcp_no_stats, "Disable RTCP stats",
 	rtcp_no_stats_usage },
 
@@ -3406,7 +3406,7 @@ static struct ast_cli_entry cli_rtp[] = {
 	stun_do_debug, "Enable STUN debugging",
 	stun_debug_usage },
 
-	{ { "stun", "nodebug", NULL },
+	{ { "stun", "debug", "off", NULL },
 	stun_no_debug, "Disable STUN debugging",
 	stun_no_debug_usage },
 };

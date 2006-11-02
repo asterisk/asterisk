@@ -103,7 +103,7 @@ static char debug_usage[] =
 "       Enables dumping of Jabber packets for debugging purposes.\n";
 
 static char no_debug_usage[] = 
-"Usage: jabber no debug\n" 
+"Usage: jabber debug off\n" 
 "       Disables dumping of Jabber packets for debugging purposes.\n";
 
 static char reload_usage[] = 
@@ -128,7 +128,7 @@ static struct ast_cli_entry aji_cli[] = {
 	aji_show_clients, "Show state of clients and components",
 	debug_usage },
 
-	{ { "jabber", "no", "debug", NULL},
+	{ { "jabber", "debug", "off", NULL},
 	aji_no_debug, "Disable Jabber debug",
 	no_debug_usage },
 
