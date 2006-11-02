@@ -177,7 +177,7 @@ struct ast_app {
 	int (*execute)(struct ast_channel *chan, void *data);
 	const char *synopsis;			/*!< Synopsis text for 'show applications' */
 	const char *description;		/*!< Description (help text) for 'show application &lt;name&gt;' */
-	AST_LIST_ENTRY(ast_app) list;		/*!< Next app in list */
+	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
 	struct module *module;			/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
 };
@@ -198,7 +198,7 @@ struct ast_hint {
 	struct ast_exten *exten;	/*!< Extension */
 	int laststate; 			/*!< Last known state */
 	struct ast_state_cb *callbacks;	/*!< Callback list for this extension */
-	AST_LIST_ENTRY(ast_hint) list;	/*!< Pointer to next hint in list */
+	AST_RWLIST_ENTRY(ast_hint) list;/*!< Pointer to next hint in list */
 };
 
 static const struct cfextension_states {
@@ -246,7 +246,7 @@ static int autofallthrough = 1;
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
 
-static AST_LIST_HEAD_STATIC(acf_root, ast_custom_function);
+static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
 
 /*! \brief Declaration of builtin applications */
 static struct pbx_builtin {
@@ -461,7 +461,7 @@ static struct pbx_builtin {
 static struct ast_context *contexts = NULL;
 AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
-static AST_LIST_HEAD_STATIC(apps, ast_app);
+static AST_RWLIST_HEAD_STATIC(apps, ast_app);
 
 static AST_LIST_HEAD_STATIC(switches, ast_switch);
 
@@ -472,7 +472,7 @@ static int stateid = 1;
    function will take the locks in conlock/hints order, so any other
    paths that require both locks must also take them in that order.
 */
-static AST_LIST_HEAD_STATIC(hints, ast_hint);
+static AST_RWLIST_HEAD_STATIC(hints, ast_hint);
 struct ast_state_cb *statecbs = NULL;
 
 /*
@@ -520,12 +520,12 @@ struct ast_app *pbx_findapp(const char *app)
 {
 	struct ast_app *tmp;
 
-	AST_LIST_LOCK(&apps);
-	AST_LIST_TRAVERSE(&apps, tmp, list) {
+	AST_RWLIST_RDLOCK(&apps);
+	AST_RWLIST_TRAVERSE(&apps, tmp, list) {
 		if (!strcasecmp(tmp->name, app))
 			break;
 	}
-	AST_LIST_UNLOCK(&apps);
+	AST_RWLIST_UNLOCK(&apps);
 
 	return tmp;
 }
@@ -1220,14 +1220,14 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
 
-	AST_LIST_LOCK(&acf_root);
-	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
+	AST_RWLIST_RDLOCK(&acf_root);
+	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
 		if (!like || strstr(acf->name, argv[4])) {
 			count_acf++;
 			ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
 		}
 	}
-	AST_LIST_UNLOCK(&acf_root);
+	AST_RWLIST_UNLOCK(&acf_root);
 
 	ast_cli(fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
 
@@ -1298,14 +1298,14 @@ static char *complete_show_function(const char *line, const char *word, int pos,
 	int wordlen = strlen(word);
 
 	/* case-insensitive for convenience in this 'complete' function */
-	AST_LIST_LOCK(&acf_root);
-	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
+	AST_RWLIST_RDLOCK(&acf_root);
+	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
  		if (!strncasecmp(word, acf->name, wordlen) && ++which > state) {
  			ret = strdup(acf->name);
 			break;
 		}
 	}
-	AST_LIST_UNLOCK(&acf_root);
+	AST_RWLIST_UNLOCK(&acf_root);
 
 	return ret;
 }
@@ -1314,12 +1314,12 @@ struct ast_custom_function *ast_custom_function_find(const char *name)
 {
 	struct ast_custom_function *acf = NULL;
 
-	AST_LIST_LOCK(&acf_root);
-	AST_LIST_TRAVERSE(&acf_root, acf, acflist) {
+	AST_RWLIST_RDLOCK(&acf_root);
+	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
 		if (!strcmp(name, acf->name))
 			break;
 	}
-	AST_LIST_UNLOCK(&acf_root);
+	AST_RWLIST_UNLOCK(&acf_root);
 
 	return acf;
 }
@@ -1331,17 +1331,17 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	if (!acf)
 		return -1;
 
-	AST_LIST_LOCK(&acf_root);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
+	AST_RWLIST_WRLOCK(&acf_root);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
 		if (cur == acf) {
-			AST_LIST_REMOVE_CURRENT(&acf_root, acflist);
+			AST_RWLIST_REMOVE_CURRENT(&acf_root, acflist);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&acf_root);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&acf_root);
 
 	return acf ? 0 : -1;
 }
@@ -1353,26 +1353,28 @@ int ast_custom_function_register(struct ast_custom_function *acf)
 	if (!acf)
 		return -1;
 
-	AST_LIST_LOCK(&acf_root);
+	AST_RWLIST_WRLOCK(&acf_root);
 
-	if (ast_custom_function_find(acf->name)) {
-		ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
-		AST_LIST_UNLOCK(&acf_root);
-		return -1;
+	AST_RWLIST_TRAVERSE(&acf_root, cur, acflist) {
+		if (!strcmp(acf->name, cur->name)) {
+			ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
+			AST_RWLIST_UNLOCK(&acf_root);
+			return -1;
+		}
 	}
 
 	/* Store in alphabetical order */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
 		if (strcasecmp(acf->name, cur->name) < 0) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&acf_root, acf, acflist);
+			AST_RWLIST_INSERT_BEFORE_CURRENT(&acf_root, acf, acflist);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END
 	if (!cur)
-		AST_LIST_INSERT_TAIL(&acf_root, acf, acflist);
+		AST_RWLIST_INSERT_TAIL(&acf_root, acf, acflist);
 
-	AST_LIST_UNLOCK(&acf_root);
+	AST_RWLIST_UNLOCK(&acf_root);
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
@@ -1871,9 +1873,9 @@ void ast_hint_state_changed(const char *device)
 {
 	struct ast_hint *hint;
 
-	AST_LIST_LOCK(&hints);
+	AST_RWLIST_RDLOCK(&hints);
 
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		struct ast_state_cb *cblist;
 		char buf[AST_MAX_EXTENSION];
 		char *parse = buf;
@@ -1907,7 +1909,7 @@ void ast_hint_state_changed(const char *device)
 		hint->laststate = state;	/* record we saw the change */
 	}
 
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 }
 
 /*! \brief  ast_extension_state_add: Add watcher for extension states */
@@ -1920,19 +1922,19 @@ int ast_extension_state_add(const char *context, const char *exten,
 
 	/* If there's no context and extension:  add callback to statecbs list */
 	if (!context && !exten) {
-		AST_LIST_LOCK(&hints);
+		AST_RWLIST_WRLOCK(&hints);
 
 		for (cblist = statecbs; cblist; cblist = cblist->next) {
 			if (cblist->callback == callback) {
 				cblist->data = data;
-				AST_LIST_UNLOCK(&hints);
+				AST_RWLIST_UNLOCK(&hints);
 				return 0;
 			}
 		}
 
 		/* Now insert the callback */
 		if (!(cblist = ast_calloc(1, sizeof(*cblist)))) {
-			AST_LIST_UNLOCK(&hints);
+			AST_RWLIST_UNLOCK(&hints);
 			return -1;
 		}
 		cblist->id = 0;
@@ -1942,7 +1944,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 		cblist->next = statecbs;
 		statecbs = cblist;
 
-		AST_LIST_UNLOCK(&hints);
+		AST_RWLIST_UNLOCK(&hints);
 		return 0;
 	}
 
@@ -1956,22 +1958,22 @@ int ast_extension_state_add(const char *context, const char *exten,
 	}
 
 	/* Find the hint in the list of hints */
-	AST_LIST_LOCK(&hints);
+	AST_RWLIST_WRLOCK(&hints);
 
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->exten == e)
 			break;
 	}
 
 	if (!hint) {
 		/* We have no hint, sorry */
-		AST_LIST_UNLOCK(&hints);
+		AST_RWLIST_UNLOCK(&hints);
 		return -1;
 	}
 
 	/* Now insert the callback in the callback list  */
 	if (!(cblist = ast_calloc(1, sizeof(*cblist)))) {
-		AST_LIST_UNLOCK(&hints);
+		AST_RWLIST_UNLOCK(&hints);
 		return -1;
 	}
 	cblist->id = stateid++;		/* Unique ID for this callback */
@@ -1981,7 +1983,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	cblist->next = hint->callbacks;
 	hint->callbacks = cblist;
 
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 	return cblist->id;
 }
 
@@ -1994,7 +1996,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	if (!id && !callback)
 		return -1;
 
-	AST_LIST_LOCK(&hints);
+	AST_RWLIST_WRLOCK(&hints);
 
 	if (!id) {	/* id == 0 is a callback without extension */
 		for (p_cur = &statecbs; *p_cur; p_cur = &(*p_cur)->next) {
@@ -2003,7 +2005,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 		}
 	} else { /* callback with extension, find the callback based on ID */
 		struct ast_hint *hint;
-		AST_LIST_TRAVERSE(&hints, hint, list) {
+		AST_RWLIST_TRAVERSE(&hints, hint, list) {
 			for (p_cur = &hint->callbacks; *p_cur; p_cur = &(*p_cur)->next) {
 				if ((*p_cur)->id == id)
 					break;
@@ -2018,7 +2020,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 		free(cur);
 		ret = 0;
 	}
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 	return ret;
 }
 
@@ -2030,12 +2032,12 @@ static int ast_add_hint(struct ast_exten *e)
 	if (!e)
 		return -1;
 
-	AST_LIST_LOCK(&hints);
+	AST_RWLIST_WRLOCK(&hints);
 
 	/* Search if hint exists, do nothing */
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->exten == e) {
-			AST_LIST_UNLOCK(&hints);
+			AST_RWLIST_UNLOCK(&hints);
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 			return -1;
@@ -2046,15 +2048,15 @@ static int ast_add_hint(struct ast_exten *e)
 		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 
 	if (!(hint = ast_calloc(1, sizeof(*hint)))) {
-		AST_LIST_UNLOCK(&hints);
+		AST_RWLIST_UNLOCK(&hints);
 		return -1;
 	}
 	/* Initialize and insert new item at the top */
 	hint->exten = e;
 	hint->laststate = ast_extension_state2(e);
-	AST_LIST_INSERT_HEAD(&hints, hint, list);
+	AST_RWLIST_INSERT_HEAD(&hints, hint, list);
 
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 	return 0;
 }
 
@@ -2064,15 +2066,15 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	struct ast_hint *hint;
 	int res = -1;
 
-	AST_LIST_LOCK(&hints);
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	AST_RWLIST_WRLOCK(&hints);
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->exten == oe) {
 	    		hint->exten = ne;
 			res = 0;
 			break;
 		}
 	}
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 
 	return res;
 }
@@ -2088,8 +2090,8 @@ static int ast_remove_hint(struct ast_exten *e)
 	if (!e)
 		return -1;
 
-	AST_LIST_LOCK(&hints);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&hints, hint, list) {
+	AST_RWLIST_WRLOCK(&hints);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&hints, hint, list) {
 		if (hint->exten == e) {
 			cbprev = NULL;
 			cblist = hint->callbacks;
@@ -2101,14 +2103,14 @@ static int ast_remove_hint(struct ast_exten *e)
 				free(cbprev);
 	    		}
 	    		hint->callbacks = NULL;
-			AST_LIST_REMOVE_CURRENT(&hints, list);
+			AST_RWLIST_REMOVE_CURRENT(&hints, list);
 	    		free(hint);
 	   		res = 0;
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&hints);
 
 	return res;
 }
@@ -2812,11 +2814,11 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	char tmps[80];
 	int length;
 
-	AST_LIST_LOCK(&apps);
-	AST_LIST_TRAVERSE(&apps, tmp, list) {
+	AST_RWLIST_WRLOCK(&apps);
+	AST_RWLIST_TRAVERSE(&apps, tmp, list) {
 		if (!strcasecmp(app, tmp->name)) {
 			ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
-			AST_LIST_UNLOCK(&apps);
+			AST_RWLIST_UNLOCK(&apps);
 			return -1;
 		}
 	}
@@ -2824,7 +2826,7 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	length = sizeof(*tmp) + strlen(app) + 1;
 
 	if (!(tmp = ast_calloc(1, length))) {
-		AST_LIST_UNLOCK(&apps);
+		AST_RWLIST_UNLOCK(&apps);
 		return -1;
 	}
 
@@ -2834,20 +2836,20 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	tmp->description = description;
 
 	/* Store in alphabetical order */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
 		if (strcasecmp(tmp->name, cur->name) < 0) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&apps, tmp, list);
+			AST_RWLIST_INSERT_BEFORE_CURRENT(&apps, tmp, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END
 	if (!cur)
-		AST_LIST_INSERT_TAIL(&apps, tmp, list);
+		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
 
 	if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered application '%s'\n", term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
 
-	AST_LIST_UNLOCK(&apps);
+	AST_RWLIST_UNLOCK(&apps);
 
 	return 0;
 }
@@ -2940,14 +2942,14 @@ static char *complete_show_application(const char *line, const char *word, int p
 	int wordlen = strlen(word);
 
 	/* return the n-th [partial] matching entry */
-	AST_LIST_LOCK(&apps);
-	AST_LIST_TRAVERSE(&apps, a, list) {
+	AST_RWLIST_RDLOCK(&apps);
+	AST_RWLIST_TRAVERSE(&apps, a, list) {
 		if (!strncasecmp(word, a->name, wordlen) && ++which > state) {
 			ret = strdup(a->name);
 			break;
 		}
 	}
-	AST_LIST_UNLOCK(&apps);
+	AST_RWLIST_UNLOCK(&apps);
 
 	return ret;
 }
@@ -2961,8 +2963,8 @@ static int handle_show_application(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	/* ... go through all applications ... */
-	AST_LIST_LOCK(&apps);
-	AST_LIST_TRAVERSE(&apps, a, list) {
+	AST_RWLIST_RDLOCK(&apps);
+	AST_RWLIST_TRAVERSE(&apps, a, list) {
 		/* ... compare this application name with all arguments given
 		 * to 'show application' command ... */
 		for (app = 3; app < argc; app++) {
@@ -3011,7 +3013,7 @@ static int handle_show_application(int fd, int argc, char *argv[])
 			}
 		}
 	}
-	AST_LIST_UNLOCK(&apps);
+	AST_RWLIST_UNLOCK(&apps);
 
 	/* we found at least one app? no? */
 	if (no_registered_app) {
@@ -3030,14 +3032,15 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	int watchers;
 	struct ast_state_cb *watcher;
 
-	if (AST_LIST_EMPTY(&hints)) {
+	AST_RWLIST_RDLOCK(&hints);
+	if (AST_RWLIST_EMPTY(&hints)) {
 		ast_cli(fd, "There are no registered dialplan hints\n");
+		AST_RWLIST_UNLOCK(&hints);
 		return RESULT_SUCCESS;
 	}
 	/* ... we have hints ... */
 	ast_cli(fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
-	AST_LIST_LOCK(&hints);
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		watchers = 0;
 		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
 			watchers++;
@@ -3050,7 +3053,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	}
 	ast_cli(fd, "----------------\n");
 	ast_cli(fd, "- %d hints registered\n", num);
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 	return RESULT_SUCCESS;
 }
 
@@ -3083,11 +3086,11 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	int total_match = 0; 	/* Number of matches in like clause */
 	int total_apps = 0; 	/* Number of apps registered */
 
-	AST_LIST_LOCK(&apps);
+	AST_RWLIST_RDLOCK(&apps);
 
-	if (AST_LIST_EMPTY(&apps)) {
+	if (AST_RWLIST_EMPTY(&apps)) {
 		ast_cli(fd, "There are no registered applications\n");
-		AST_LIST_UNLOCK(&apps);
+		AST_RWLIST_UNLOCK(&apps);
 		return -1;
 	}
 
@@ -3105,7 +3108,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		ast_cli(fd, "    -= Matching Asterisk Applications =-\n");
 	}
 
-	AST_LIST_TRAVERSE(&apps, a, list) {
+	AST_RWLIST_TRAVERSE(&apps, a, list) {
 		int printapp = 0;
 		total_apps++;
 		if (like) {
@@ -3140,7 +3143,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		ast_cli(fd, "    -= %d Applications Matching =-\n",total_match);
 	}
 
-	AST_LIST_UNLOCK(&apps);
+	AST_RWLIST_UNLOCK(&apps);
 
 	return RESULT_SUCCESS;
 }
@@ -3744,19 +3747,19 @@ int ast_unregister_application(const char *app)
 {
 	struct ast_app *tmp;
 
-	AST_LIST_LOCK(&apps);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&apps, tmp, list) {
+	AST_RWLIST_WRLOCK(&apps);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, tmp, list) {
 		if (!strcasecmp(app, tmp->name)) {
 			unreference_cached_app(tmp);
-			AST_LIST_REMOVE_CURRENT(&apps, list);
+			AST_RWLIST_REMOVE_CURRENT(&apps, list);
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
 			free(tmp);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&apps);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&apps);
 
 	return tmp ? 0 : -1;
 }
@@ -3846,10 +3849,10 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	   other code paths that use this order
 	*/
 	ast_mutex_lock(&conlock);
-	AST_LIST_LOCK(&hints);
+	AST_RWLIST_WRLOCK(&hints);
 
 	/* preserve all watchers for hints associated with this registrar */
-	AST_LIST_TRAVERSE(&hints, hint, list) {
+	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
 			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
 			if (!(this = ast_calloc(1, length)))
@@ -3897,7 +3900,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	while ((this = AST_LIST_REMOVE_HEAD(&store, list))) {
 		exten = ast_hint_extension(NULL, this->context, this->exten);
 		/* Find the hint in the list of hints */
-		AST_LIST_TRAVERSE(&hints, hint, list) {
+		AST_RWLIST_TRAVERSE(&hints, hint, list) {
 			if (hint->exten == exten)
 				break;
 		}
@@ -3922,7 +3925,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 		free(this);
 	}
 
-	AST_LIST_UNLOCK(&hints);
+	AST_RWLIST_UNLOCK(&hints);
 	ast_mutex_unlock(&conlock);
 
 	return;
