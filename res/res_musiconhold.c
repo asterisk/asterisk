@@ -780,6 +780,10 @@ static int moh_scan_files(struct mohclass *class) {
 		if ((strlen(files_dirent->d_name) < 4))
 			continue;
 
+		/* Skip files that starts with a dot */
+		if (files_dirent->d_name[0] == '.')
+			continue;
+
 		/* Skip files without extensions... they are not audio */
 		if (!strchr(files_dirent->d_name, '.'))
 			continue;
