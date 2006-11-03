@@ -25,6 +25,8 @@ AC_REVISION($Revision$)
 case "${host_os}" in
      freebsd*)
      ac_default_prefix=/usr/local
+     CPPFLAGS=-I/usr/local/include
+     LDFLAGS=-L/usr/local/lib
      ;;
      *)
      ac_default_prefix=/usr
