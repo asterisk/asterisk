@@ -343,6 +343,13 @@ static void hanguptree(struct dial_localuser *outgoing, struct ast_channel *exce
 	} \
 } while (0)
 
+/* free the buffer if allocated, and set the pointer to the second arg */
+#define S_REPLACE(s, new_val)		\
+	do {				\
+		if (s)			\
+			free(s);	\
+		s = (new_val);		\
+	} while (0)
 
 static int onedigit_goto(struct ast_channel *chan, const char *context, char exten, int pri) 
 {
@@ -537,13 +544,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					}
 
 					if (in->cid.cid_ani) {
-						if (c->cid.cid_ani)
-							free(c->cid.cid_ani);
-						c->cid.cid_ani = ast_strdup(in->cid.cid_ani);
+						S_REPLACE(c->cid.cid_ani, ast_strdup(in->cid.cid_ani));
 					}
-					if (c->cid.cid_rdnis) 
-						free(c->cid.cid_rdnis);
-					c->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
+					S_REPLACE(c->cid.cid_rdnis, ast_strdup(S_OR(in->macroexten, in->exten)));
 					if (ast_call(c, tmpchan, 0)) {
 						ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 						ast_clear_flag(o, DIAL_STILLGOING);	
@@ -1148,17 +1151,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tmp->chan->data = "(Outgoing Line)";
 		tmp->chan->whentohangup = 0;
 
-		if (tmp->chan->cid.cid_num)
-			free(tmp->chan->cid.cid_num);
-		tmp->chan->cid.cid_num = ast_strdup(chan->cid.cid_num);
-
-		if (tmp->chan->cid.cid_name)
-			free(tmp->chan->cid.cid_name);
-		tmp->chan->cid.cid_name = ast_strdup(chan->cid.cid_name);
-
-		if (tmp->chan->cid.cid_ani)
-			free(tmp->chan->cid.cid_ani);
-		tmp->chan->cid.cid_ani = ast_strdup(chan->cid.cid_ani);
+		S_REPLACE(tmp->chan->cid.cid_num, ast_strdup(chan->cid.cid_num));
+		S_REPLACE(tmp->chan->cid.cid_name, ast_strdup(chan->cid.cid_name));
+		S_REPLACE(tmp->chan->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
+		S_REPLACE(tmp->chan->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
 		
 		/* Copy language from incoming to outgoing */
 		ast_string_field_set(tmp->chan, language, chan->language);
@@ -1166,8 +1162,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tmp->chan->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tmp->chan->musicclass))
 			ast_string_field_set(tmp->chan, musicclass, chan->musicclass);
-		/* XXX don't we free previous values ? */
-		tmp->chan->cid.cid_rdnis = ast_strdup(chan->cid.cid_rdnis);
 		/* Pass callingpres setting */
 		tmp->chan->cid.cid_pres = chan->cid.cid_pres;
 		/* Pass type of number */
