@@ -105,13 +105,10 @@ static char context[AST_MAX_EXTENSION] = "default";
 
 /* Default language */
 static char language[MAX_LANGUAGE] = "";
-static int usecnt =0;
 
 static int gruntdetect_timeout = 3600000; /* Grunt detect timeout is 1hr. */
 
 static const int prefformat = AST_FORMAT_SLINEAR;
-
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of vpb_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -2095,11 +2092,6 @@ static int vpb_hangup(struct ast_channel *ast)
 		p->vad = NULL;
 	}
 
-	ast_mutex_lock(&usecnt_lock); {
-		usecnt--;
-	} ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
-
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup complete\n", ast->name);
 
@@ -2686,10 +2678,6 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		me->lastgrunt  = ast_tvnow(); /* Assume at least one grunt tone seen now. */
 		me->lastplay  = ast_tvnow(); /* Assume at least one grunt tone seen now. */
 
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if ((me->mode != MODE_FXO)&&(state != AST_STATE_UP)){
 				vpb_answer(tmp);
