@@ -111,8 +111,14 @@ int ast_manager_unregister( char *action );
 	\param event	Event name
 	\param contents	Contents of event
 */
-int manager_event(int category, const char *event, const char *contents, ...)
-	__attribute__ ((format (printf, 3,4)));
+/* XXX the parser in gcc 2.95 gets confused if you don't put a space
+ * between the last arg before VA_ARGS and the comma */
+#define manager_event(category, event, contents , ...)	\
+        __manager_event(category, event, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
+
+int __manager_event(int category, const char *event,
+		const char *file, int line, const char *func, const char *contents, ...)
+	__attribute__ ((format (printf, 6,7)));
 
 /*! Get header from mananger transaction */
 char *astman_get_header(struct message *m, char *var);

@@ -110,12 +110,13 @@ static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;	/* the accept socket */
 static int displayconnects = 1;
 static int timestampevents = 0;
-static int numberevents = 1;
 static int httptimeout = 60;
 
 static pthread_t accept_thread_ptr;	/*!< the accept thread */
 static int block_sockets = 0;
 static int num_sessions = 0;
+
+static int manager_debug;	/*!< enable some debugging code in the manager */
 
 AST_THREADSTORAGE(manager_event_buf);
 #define MANAGER_EVENT_BUF_INITSIZE   256
@@ -425,6 +426,21 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_mandebug(int fd, int argc, char *argv[])
+{
+	if (argc == 2)
+		ast_cli(fd, "manager debug is %s\n", manager_debug? "on" : "off");
+	else if (argc == 3) {
+		if (!strcasecmp(argv[2], "on"))
+			manager_debug = 1;
+		else if (!strcasecmp(argv[2], "off"))
+			manager_debug = 0;
+		else
+			return RESULT_SHOWUSAGE;
+	}
+	return RESULT_SUCCESS;
+}
+
 static int handle_showmanager(int fd, int argc, char *argv[])
 {
 	struct ast_manager_user *user = NULL;
@@ -598,6 +614,10 @@ static struct ast_cli_entry cli_manager[] = {
 	{ { "manager", "show", "user", NULL },
 	handle_showmanager, "Display information on a specific manager user",
 	showmanager_help, NULL, NULL },
+
+	{ { "manager", "debug", NULL },
+	handle_mandebug, "Show, enable, disable debugging of the manager code",
+	"Usage: manager debug [on|off]\n	Show, enable, disable debugging of the manager code.\n", NULL, NULL },
 };
 
 /*
@@ -2189,7 +2209,8 @@ static int append_event(const char *str, int category)
 }
 
 /*! \brief  manager_event: Send AMI event to client */
-int manager_event(int category, const char *event, const char *fmt, ...)
+int __manager_event(int category, const char *event,
+	const char *file, int line, const char *func, const char *fmt, ...)
 {
 	struct mansession *s;
 	char auth[80];
@@ -2214,11 +2235,13 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 				"Timestamp: %ld.%06lu\r\n",
 				 now.tv_sec, (unsigned long) now.tv_usec);
 	}
-	if (numberevents) {
+	if (manager_debug) {
 		static int seq;
 		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
 				"SequenceNumber: %d\r\n",
 				 ast_atomic_fetchadd_int(&seq, 1));
+		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
+				"File: %s\r\nLine: %d\r\nFunc: %s\r\n", file, line, func);
 	}
 
 	va_start(ap, fmt);
@@ -2844,8 +2867,8 @@ int init_manager(void)
 	if ((val = ast_variable_retrieve(cfg, "general", "timestampevents")))
 		timestampevents = ast_true(val);
 
-	if ((val = ast_variable_retrieve(cfg, "general", "numberevents")))
-		numberevents = ast_true(val);
+	if ((val = ast_variable_retrieve(cfg, "general", "debug")))
+		manager_debug = ast_true(val);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "httptimeout")))
 		newhttptimeout = atoi(val);
