@@ -5879,6 +5879,10 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 
 	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))
 		*min_packet_size = fmt.cur_ms;
+
+	/* Our first codec packetization processed cannot be zero */
+	if ((*min_packet_size)==0 && fmt.cur_ms)
+		*min_packet_size = fmt.cur_ms;
 }
 
 /*! \brief Get Max T.38 Transmission rate from T38 capabilities */
