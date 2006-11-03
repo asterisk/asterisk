@@ -866,10 +866,6 @@ static char *skinny_cxmodes[] = {
 static struct sched_context *sched;
 static struct io_context *io;
 
-/* usage count and locking */
-static int usecnt = 0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
@@ -2754,10 +2750,6 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
 
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
 		ast_string_field_set(tmp, call_forward, l->call_forward);
