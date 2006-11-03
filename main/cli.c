@@ -416,15 +416,16 @@ static int handle_showuptime(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/* core show modules [like keyword] */
 static int handle_modlist(int fd, int argc, char *argv[])
 {
 	char *like = "";
-	if (argc == 3)
+	if (argc != 3 && argc != 5)
 		return RESULT_SHOWUSAGE;
-	else if (argc >= 4) {
-		if (strcmp(argv[2],"like")) 
+	else if (argc == 5) {
+		if (strcmp(argv[3],"like")) 
 			return RESULT_SHOWUSAGE;
-		like = argv[3];
+		like = argv[4];
 	}
 		
 	ast_mutex_lock(&climodentrylock);
@@ -438,6 +439,7 @@ static int handle_modlist(int fd, int argc, char *argv[])
 #undef MODLIST_FORMAT
 #undef MODLIST_FORMAT2
 
+/* core show channels [concise|verbose] */
 static int handle_chanlist(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
@@ -454,10 +456,12 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 	int durh, durm, durs;
 	int numchans = 0, concise = 0, verbose = 0;
 
-	concise = (argc == 3 && (!strcasecmp(argv[2],"concise")));
-	verbose = (argc == 3 && (!strcasecmp(argv[2],"verbose")));
+	if (argc == 4) {
+		concise = !strcasecmp(argv[2],"concise");
+		verbose = !strcasecmp(argv[2],"verbose");
+	}
 
-	if (argc < 2 || argc > 3 || (argc == 3 && !concise && !verbose))
+	if (argc < 3 || argc > 4 || (argc == 4 && !concise && !verbose))
 		return RESULT_SHOWUSAGE;
 
 	if (!concise && !verbose)
