@@ -540,26 +540,25 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					ast_clear_flag(o, DIAL_STILLGOING);	
 					handle_cause(cause, &num);
 				} else {
+					char *new_cid_num, *new_cid_name;
+					struct ast_channel *src;
+
 					ast_rtp_make_compatible(c, in, single);
-					if (c->cid.cid_num)
-						free(c->cid.cid_num);
-					c->cid.cid_num = NULL;
-					if (c->cid.cid_name)
-						free(c->cid.cid_name);
-					c->cid.cid_name = NULL;
-
 					if (ast_test_flag(o, OPT_FORCECLID)) {
-						c->cid.cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
-						ast_string_field_set(c, accountcode, winner->accountcode);
-						c->cdrflags = winner->cdrflags;
+						new_cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
+						new_cid_name = NULL; /* XXX no name ? */
+						src = winner;
 					} else {
-						c->cid.cid_num = ast_strdup(in->cid.cid_num);
-						c->cid.cid_name = ast_strdup(in->cid.cid_name);
-						ast_string_field_set(c, accountcode, in->accountcode);
-						c->cdrflags = in->cdrflags;
+						new_cid_num = ast_strdup(in->cid.cid_num);
+						new_cid_name = ast_strdup(in->cid.cid_name);
+						src = in;
 					}
+					ast_string_field_set(c, accountcode, src->accountcode);
+					c->cdrflags = src->cdrflags;
+					S_REPLACE(c->cid.cid_num, new_cid_num);
+					S_REPLACE(c->cid.cid_name, new_cid_name);
 
-					if (in->cid.cid_ani) {
+					if (in->cid.cid_ani) { /* XXX or maybe unconditional ? */
 						S_REPLACE(c->cid.cid_ani, ast_strdup(in->cid.cid_ani));
 					}
 					S_REPLACE(c->cid.cid_rdnis, ast_strdup(S_OR(in->macroexten, in->exten)));
