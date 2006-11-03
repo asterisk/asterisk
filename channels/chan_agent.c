@@ -937,11 +937,6 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 	ast_setstate(tmp, state);
 	tmp->tech_pvt = p;
 	p->owner = tmp;
-	/* XXX: this needs fixing */
-#if 0
-	ast_atomic_fetchadd_int(&__mod_desc->usecnt, +1);
-#endif
-	ast_update_use_count();
 	tmp->priority = 1;
 	/* Wake up and wait for other applications (by definition the login app)
 	 * to release this channel). Takes ownership of the agent channel
