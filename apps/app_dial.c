@@ -710,7 +710,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				return NULL;
 			}
 
-			if (f && (f->frametype == AST_FRAME_DTMF)) {
+			/* now f is guaranteed non-NULL */
+			if (f->frametype == AST_FRAME_DTMF) {
 				if (ast_test_flag(peerflags, OPT_DTMF_EXIT)) {
 					const char *context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
 					if (onedigit_goto(in, context, (char) f->subclass, 1)) {
@@ -736,7 +737,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 			}
 
 			/* Forward HTML stuff */
-			if (single && f && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML)) 
+			if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML)) 
 				if(ast_channel_sendhtml(outgoing->chan, f->subclass, f->data, f->datalen) == -1)
 					ast_log(LOG_WARNING, "Unable to send URL\n");
 			
