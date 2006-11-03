@@ -1076,6 +1076,7 @@ struct sip_peer {
 	char mohinterpret[MAX_MUSICCLASS];/*!<  Music on Hold class */
 	char mohsuggest[MAX_MUSICCLASS];/*!<  Music on Hold class */
 	char useragent[256];		/*!<  User agent in SIP request (saved from registration) */
+	char register_from_hdr[256];	/*!<  'From' header received in REGISTER */
 	struct ast_codec_pref prefs;	/*!<  codec prefs */
 	int lastmsgssent;
 	time_t	lastmsgcheck;		/*!<  Last time we checked for MWI */
@@ -7603,6 +7604,7 @@ static int set_address_from_contact(struct sip_pvt *pvt)
 
 
 /*! \brief Parse contact header and save registration (peer registration) */
+/* XXX it actually does a bit more than this e.g. useragent */
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *peer, struct sip_request *req)
 {
 	char contact[BUFSIZ]; 
@@ -7729,6 +7731,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_copy_string(peer->useragent, useragent, sizeof(peer->useragent));
 		if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n", peer->useragent, peer->name);  
+	}
+	{ const char *from = get_header(req, "From");
+		if (!ast_strlen_zero(from))
+			get_calleridname(from, peer->register_from_hdr, sizeof(peer->register_from_hdr));
 	}
 	return PARSE_REGISTER_UPDATE;
 }
@@ -9026,6 +9032,11 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		ast_verbose("Found peer '%s' for '%s' from %s:%d\n",
 			peer->name, of, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 
+#if 0	/* this is done for users, why not for peers ? */
+	/* copy channel vars */
+	p->chanvars = copy_vars(peer->chanvars);
+	p->prefs = peer->prefs;
+#endif
 	/* XXX what about p->prefs = peer->prefs; ? */
 	/* Set Frame packetization */
 	if (p->rtp) {
@@ -9599,6 +9610,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			"VideoSupport: %s\r\n"
 			"ACL: %s\r\n"
 			"Status: %s\r\n"
+			"RegisterFrom: %s\r\n"
 			"RealtimeDevice: %s\r\n\r\n", 
 			idtext,
 			iterator->name, 
@@ -9609,6 +9621,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
 			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status,
+			iterator->register_from_hdr,
 			realtimepeers ? (ast_test_flag(&iterator->flags[0], SIP_REALTIME) ? "yes":"no") : "no");
 		}
 
