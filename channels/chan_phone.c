@@ -96,15 +96,12 @@ static char context[AST_MAX_EXTENSION] = "default";
 
 /* Default language */
 static char language[MAX_LANGUAGE] = "";
-static int usecnt =0;
 
 static int echocancel = AEC_OFF;
 
 static int silencesupression = 0;
 
 static int prefformat = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW;
-
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of phone_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -391,12 +388,6 @@ static int phone_hangup(struct ast_channel *ast)
 	p->dialtone = 0;
 	memset(p->ext, 0, sizeof(p->ext));
 	((struct phone_pvt *)(ast->tech_pvt))->owner = NULL;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	if (usecnt < 0) 
-		ast_log(LOG_WARNING, "Usecnt < 0???\n");
-	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
 	ast->tech_pvt = NULL;
@@ -888,10 +879,6 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->cid.cid_name = ast_strdup(i->cid_name);
 
 		i->owner = tmp;
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (state == AST_STATE_RING) {
 				ioctl(tmp->fds[0], PHONE_RINGBACK);
@@ -972,10 +959,6 @@ static void phone_check_exception(struct phone_pvt *i)
 			if (i->mode == MODE_IMMEDIATE) {
 				phone_new(i, AST_STATE_RING, i->context);
 			} else if (i->mode == MODE_DIALTONE) {
-				ast_mutex_lock(&usecnt_lock);
-				usecnt++;
-				ast_mutex_unlock(&usecnt_lock);
-				ast_update_use_count();
 				/* Reset the extension */
 				i->ext[0] = '\0';
 				/* Play the dialtone */
@@ -985,10 +968,6 @@ static void phone_check_exception(struct phone_pvt *i)
 				ioctl(i->fd, PHONE_PLAY_START);
 				i->lastformat = -1;
 			} else if (i->mode == MODE_SIGMA) {
-				ast_mutex_lock(&usecnt_lock);
-				usecnt++;
-				ast_mutex_unlock(&usecnt_lock);
-				ast_update_use_count();
 				/* Reset the extension */
 				i->ext[0] = '\0';
 				/* Play the dialtone */
@@ -996,12 +975,6 @@ static void phone_check_exception(struct phone_pvt *i)
 				ioctl(i->fd, PHONE_DIALTONE);
 			}
 		} else {
-			if (i->dialtone) {
-				ast_mutex_lock(&usecnt_lock);
-				usecnt--;
-				ast_mutex_unlock(&usecnt_lock);
-				ast_update_use_count();
-			}
 			memset(i->ext, 0, sizeof(i->ext));
 			if (i->cpt)
 			{
