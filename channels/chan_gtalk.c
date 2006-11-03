@@ -165,9 +165,6 @@ struct gtalk_container {
 static const char desc[] = "Gtalk Channel";
 static const char type[] = "Gtalk";
 
-static int usecnt = 0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
 AST_MUTEX_DEFINE_STATIC(gtalklock); /*!< Protect the interface list (of gtalk_pvt's) */
@@ -952,9 +949,6 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	if (!ast_strlen_zero(client->musicclass))
 		ast_string_field_set(tmp, musicclass, client->musicclass);
 	i->owner = tmp;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
@@ -1456,9 +1450,6 @@ static int gtalk_hangup(struct ast_channel *ast)
 	ast_mutex_unlock(&p->lock);
 
 	gtalk_free_pvt(client, p);
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
 
 	return 0;
 }
