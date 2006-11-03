@@ -318,30 +318,47 @@ static void hanguptree(struct dial_localuser *outgoing, struct ast_channel *exce
 
 #define AST_MAX_WATCHERS 256
 
-#define HANDLE_CAUSE(cause, chan) do { \
-	switch(cause) { \
-	case AST_CAUSE_BUSY: \
-		if (chan->cdr) \
-			ast_cdr_busy(chan->cdr); \
-		numbusy++; \
-		break; \
-	case AST_CAUSE_CONGESTION: \
-		if (chan->cdr) \
-			ast_cdr_failed(chan->cdr); \
-		numcongestion++; \
-		break; \
-	case AST_CAUSE_UNREGISTERED: \
-		if (chan->cdr) \
-			ast_cdr_failed(chan->cdr); \
-		numnochan++; \
-		break; \
-	case AST_CAUSE_NORMAL_CLEARING: \
-		break; \
-	default: \
-		numnochan++; \
-		break; \
-	} \
-} while (0)
+/*
+ * argument to handle_cause() and other functions.
+ */
+struct cause_args {
+	struct ast_channel *chan;
+	int busy;
+	int congestion;
+	int nochan;
+};
+
+static void handle_cause(int cause, struct cause_args *num)
+{
+	struct ast_cdr *cdr = num->chan->cdr;
+
+	switch(cause) {
+	case AST_CAUSE_BUSY:
+		if (cdr)
+			ast_cdr_busy(cdr);
+		num->busy++;
+		break;
+
+	case AST_CAUSE_CONGESTION:
+		if (cdr)
+			ast_cdr_failed(cdr);
+		num->congestion++;
+		break;
+
+	case AST_CAUSE_UNREGISTERED:
+		if (cdr)
+			ast_cdr_failed(cdr);
+		num->nochan++;
+		break;
+
+	case AST_CAUSE_NORMAL_CLEARING:
+		break;
+
+	default:
+		num->nochan++;
+		break;
+	}
+}
 
 /* free the buffer if allocated, and set the pointer to the second arg */
 #define S_REPLACE(s, new_val)		\
@@ -402,12 +419,11 @@ static void senddialendevent(const struct ast_channel *src, const char *dialstat
 					src->name, dialstatus);
 }	
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize,
+	const struct cause_args *num_in, int priority_jump, int *result)
 {
-	int numbusy = busystart;
-	int numcongestion = congestionstart;
-	int numnochan = nochanstart;
-	int prestart = busystart + congestionstart + nochanstart;
+	struct cause_args num = *num_in;
+	int prestart = num.busy + num.congestion + num.nochan;
 	int orig = *to;
 	struct ast_channel *peer = NULL;
 	/* single is set if only one destination is enabled */
@@ -436,20 +452,20 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 			numlines++;
 		}
 		if (pos == 1) {	/* only the input channel is available */
-			if (numlines == (numbusy + numcongestion + numnochan)) {
+			if (numlines == (num.busy + num.congestion + num.nochan)) {
 				if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
-				if (numbusy)
+					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, num.busy, num.congestion, num.nochan);
+				if (num.busy)
 					strcpy(status, "BUSY");	
-				else if (numcongestion)
+				else if (num.congestion)
 					strcpy(status, "CONGESTION");
-				else if (numnochan)
+				else if (num.nochan)
 					strcpy(status, "CHANUNAVAIL");
 				if (ast_opt_priority_jumping || priority_jump)
 					ast_goto_if_exists(in, in->context, in->exten, in->priority + 101);
 			} else {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
+					ast_verbose(VERBOSE_PREFIX_3 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, num.busy, num.congestion, num.nochan);
 			}
 			*to = 0;
 			return NULL;
@@ -522,7 +538,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				}
 				if (!c) {
 					ast_clear_flag(o, DIAL_STILLGOING);	
-					HANDLE_CAUSE(cause, in);
+					handle_cause(cause, &num);
 				} else {
 					ast_rtp_make_compatible(c, in, single);
 					if (c->cid.cid_num)
@@ -552,7 +568,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						ast_clear_flag(o, DIAL_STILLGOING);	
 						ast_hangup(c);
 						c = o->chan = NULL;
-						numnochan++;
+						num.nochan++;
 					} else {
 						senddialevent(in, c);
 						/* After calling, set callerid to extension */
@@ -572,7 +588,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 				ast_hangup(c);
 				c = o->chan = NULL;
 				ast_clear_flag(o, DIAL_STILLGOING);
-				HANDLE_CAUSE(in->hangupcause, in);
+				handle_cause(in->hangupcause, &num);
 				continue;
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
@@ -605,7 +621,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag(o, DIAL_STILLGOING);	
-					HANDLE_CAUSE(AST_CAUSE_BUSY, in);
+					handle_cause(AST_CAUSE_BUSY, &num);
 					break;
 				case AST_CONTROL_CONGESTION:
 					if (option_verbose > 2)
@@ -614,7 +630,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 					ast_hangup(c);
 					c = o->chan = NULL;
 					ast_clear_flag(o, DIAL_STILLGOING);
-					HANDLE_CAUSE(AST_CAUSE_CONGESTION, in);
+					handle_cause(AST_CAUSE_CONGESTION, &num);
 					break;
 				case AST_CONTROL_RINGING:
 					if (option_verbose > 2)
@@ -785,15 +801,13 @@ static int valid_priv_reply(struct ast_flags *opts, int res)
 
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
 {
-	int res = -1;
+	int res = -1;	/* default: error */
 	struct ast_module_user *u;
-	char *rest, *cur;
-	struct dial_localuser *outgoing = NULL;
+	char *rest, *cur;	/* scan the list of destinations */
+	struct dial_localuser *outgoing = NULL;	/* list of destinations */
 	struct ast_channel *peer;
-	int to;
-	int numbusy = 0;
-	int numcongestion = 0;
-	int numnochan = 0;
+	int to;	/* timeout */
+	struct cause_args num = { chan, 0, 0, 0 };
 	int cause;
 	char numsubst[AST_MAX_EXTENSION];
 	char cidname[AST_MAX_EXTENSION];
@@ -1092,7 +1106,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
 			ast_log(LOG_WARNING, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, ast_cause2str(cause));
-			HANDLE_CAUSE(cause, chan);
+			handle_cause(cause, &num);
 			if (!rest)	/* we are on the last destination */
 				chan->hangupcause = cause;
 			continue;
@@ -1137,7 +1151,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				cause = AST_CAUSE_CONGESTION;
 			}
 			if (!tmp->chan) {
-				HANDLE_CAUSE(cause, chan);
+				handle_cause(cause, &num);
 				continue;
 			}
 		}
@@ -1242,7 +1256,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, ast_test_flag(&opts, OPT_PRIORITY_JUMP), &result);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), &num, ast_test_flag(&opts, OPT_PRIORITY_JUMP), &result);
 	
 	if (!peer) {
 		if (result) {
