@@ -65,9 +65,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char tdesc[] = "Feature Proxy Channel Driver";
 
-static int usecnt =0;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
 struct feature_sub {
@@ -487,10 +484,6 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	p->subs[index].owner = tmp;
 	if (!p->owner)
 		p->owner = tmp;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
 	return tmp;
 }
 
