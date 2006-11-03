@@ -539,11 +539,12 @@ static int aji_act_hook(void *data, int type, iks *node)
 									iks *x = NULL;
 									x = iks_new("auth");
 									if (x) {
-										iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
 										int len = strlen(client->jid->user) + strlen(client->password) + 3;
 										/* XXX Check return values XXX */
 										char *s = ast_malloc(80 + len);
 										char *base64 = ast_malloc(80 + len * 2);
+
+										iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
 										iks_insert_attrib(x, "mechanism", "PLAIN");
 										sprintf(s, "%c%s%c%s", 0, client->jid->user, 0, client->password);
 										ast_base64encode(base64, (const unsigned char *) s, len, len * 2);
@@ -708,8 +709,9 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
 	if (!buddy) {
-		ast_verbose("Someone.... %s tried to register but they aren't allowed\n", pak->from->partial);
 		iks *iq = NULL, *query = NULL, *error = NULL, *notacceptable = NULL;
+
+		ast_verbose("Someone.... %s tried to register but they aren't allowed\n", pak->from->partial);
 		iq = iks_new("iq");
 		query = iks_new("query");
 		error = iks_new("error");
