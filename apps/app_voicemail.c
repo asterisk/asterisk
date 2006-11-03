@@ -2544,12 +2544,14 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
+	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, frombox);
 
 	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
 
 	recipmsgnum = last_message_index(recip, todir) + 1;
 	if (recipmsgnum < recip->maxmsg) {
+		make_file(topath, sizeof(topath), todir, recipmsgnum);
 		COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
