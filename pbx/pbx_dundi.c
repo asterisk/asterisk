@@ -392,26 +392,26 @@ static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sin)
 static void reset_global_eid(void)
 {
 #if defined(SIOCGIFHWADDR)
-	int x,s;
+	int s, x = 0;
 	char eid_str[20];
 	struct ifreq ifr;
 
 	s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s > 0) {
-		x = 0;
-		for(x=0;x<10;x++) {
-			memset(&ifr, 0, sizeof(ifr));
-			snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
-			if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
-				memcpy(&global_eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(global_eid));
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
-				close(s);
-				return;
-			}
-        }
-		close(s);
+	if (s < 0)
+		return;
+	for (x = 0; x < 10; x++) {
+		memset(&ifr, 0, sizeof(ifr));
+		snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "eth%d", x);
+		if (ioctl(s, SIOCGIFHWADDR, &ifr))
+			continue;
+		memcpy(&global_eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(global_eid));
+		if (option_debug) {
+			ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", 
+				dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
+		}
+		break;
 	}
+	close(s);
 #else
 #if defined(ifa_broadaddr) && !defined(SOLARIS)
 	char eid_str[20];
