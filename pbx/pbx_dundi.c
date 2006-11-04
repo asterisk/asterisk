@@ -3610,19 +3610,16 @@ static void dundi_precache_full(void)
 	AST_LIST_TRAVERSE(&mappings, cur, list) {
 		ast_log(LOG_NOTICE, "Should precache context '%s'\n", cur->dcontext);
 		ast_lock_contexts();
-		con = ast_walk_contexts(NULL);
-		while (con) {
-			if (!strcasecmp(cur->lcontext, ast_get_context_name(con))) {
-				/* Found the match, now queue them all up */
-				ast_lock_context(con);
-				e = ast_walk_context_extensions(con, NULL);
-				while (e) {
-					reschedule_precache(ast_get_extension_name(e), cur->dcontext, 0);
-					e = ast_walk_context_extensions(con, e);
-				}
-				ast_unlock_context(con);
-			}
-			con = ast_walk_contexts(con);
+		con = NULL;
+		while ((con = ast_walk_contexts(con))) {
+			if (strcasecmp(cur->lcontext, ast_get_context_name(con)))
+				continue;
+			/* Found the match, now queue them all up */
+			ast_lock_context(con);
+			e = NULL;
+			while ((e = ast_walk_context_extensions(con, e)))
+				reschedule_precache(ast_get_extension_name(e), cur->dcontext, 0);
+			ast_unlock_context(con);
 		}
 		ast_unlock_contexts();
 	}
