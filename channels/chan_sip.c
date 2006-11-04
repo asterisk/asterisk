@@ -3043,23 +3043,11 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of users only for incoming calls */
-	if (!outgoing) {
-		if (global_limitonpeers == FALSE && (u = find_user(name, 1)))  {
+	if (global_limitonpeers == FALSE && !outgoing && (u = find_user(name, 1)))  {
 			inuse = &u->inUse;
 			call_limit = &u->call_limit;
 			inringing = NULL;
-		} else {
-			/* If limitonpeers is on, we only apply the limits to the
-				peer part of the type=friend. This is mainly to
-				help the queue system */
-			p = find_peer(name, NULL, 1);	/* Check the peer */
-			if (p != NULL) {
-				inuse = &p->inUse;
-				call_limit = &p->call_limit;
-				inringing = &p->inRinging;
-			}
-		}
-	} else if ( (p = find_peer(fup->peername, NULL, 1) ) ) { /* Try to find peer */
+	} else if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, 1) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
