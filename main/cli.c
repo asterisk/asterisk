@@ -244,7 +244,7 @@ static int handle_debug(int fd, int argc, char *argv[])
 		if (sscanf(argv[4], "%d", &newlevel) != 1)
 			return RESULT_SHOWUSAGE;
 
-		if (argc == 4) {
+		if (argc == 6) {
 			debug_filename[0] = '\0';
 		} else {
 			filename = argv[4];
