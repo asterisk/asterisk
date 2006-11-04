@@ -13869,27 +13869,20 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		pbx_builtin_setvar_helper(current.chan2, "SIPTRANSFER", "yes");
 		/* One for the new channel */
 		pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER", "yes");
-		if (p->refer->referred_by)
-			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
-		if (p->refer->referred_by)
 		/* Attended transfer to remote host, prepare headers for the INVITE */
-		pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
+		if (p->refer->referred_by) 
+			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
 	}
-	/* Generate an URI-encoded string */
+	/* Generate a Replaces string to be used in the INVITE during attended transfer */
 	if (p->refer->replaces_callid && !ast_strlen_zero(p->refer->replaces_callid)) {
 		char tempheader[BUFSIZ];
-		char tempheader2[BUFSIZ];
 		snprintf(tempheader, sizeof(tempheader), "%s%s%s%s%s", p->refer->replaces_callid, 
 				p->refer->replaces_callid_totag ? ";to-tag=" : "", 
 				p->refer->replaces_callid_totag, 
 				p->refer->replaces_callid_fromtag ? ";from-tag=" : "",
 				p->refer->replaces_callid_fromtag);
-
-		/* Convert it to URL encoding, also convert reserved strings */
-		ast_uri_encode(tempheader, tempheader2, sizeof(tempheader2), 1);
-
 		if (current.chan2)
-			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REPLACES", tempheader2);
+			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REPLACES", tempheader);
 	}
 	/* Must release lock now, because it will not longer
     	   be accessible after the transfer! */
@@ -13901,7 +13894,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	/* FAKE ringing if not attended transfer */
 	if (!p->refer->attendedtransfer)
-		transmit_notify_with_sipfrag(p, seqno, "183 Ringing", FALSE);
+		transmit_notify_with_sipfrag(p, seqno, "183 Ringing", FALSE); 
 		
 	/* For blind transfer, this will lead to a new call */
 	/* For attended transfer to remote host, this will lead to
@@ -13915,7 +13908,6 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		   * Let the new channel masq into this channel
 		   Please add that code here :-)
 		*/
-		transmit_response(p, "202 Accepted", req);
 		p->refer->status = REFER_FAILED;
 		transmit_notify_with_sipfrag(p, seqno, "503 Service Unavailable (can't handle one-legged xfers)", TRUE);
 		ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
