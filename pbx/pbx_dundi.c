@@ -4512,7 +4512,6 @@ static int reload(void)
 
 static int load_module(void)
 {
-	int res = 0;
 	struct sockaddr_in sin;
 
 	dundi_set_output(dundi_debug_output);
@@ -4526,23 +4525,22 @@ static int load_module(void)
 	io = io_context_create();
 	sched = sched_context_create();
 	
-	if (!io || !sched) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
+	if (!io || !sched)
+		return AST_MODULE_LOAD_FAILURE;
 
-	if(set_config("dundi.conf",&sin))
+	if (set_config("dundi.conf", &sin))
 		return AST_MODULE_LOAD_DECLINE;
 
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	
 	if (netsocket < 0) {
 		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
-	if (bind(netsocket,(struct sockaddr *)&sin, sizeof(sin))) {
-		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
-		return -1;
+	if (bind(netsocket, (struct sockaddr *) &sin, sizeof(sin))) {
+		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", 
+			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
+		return AST_MODULE_LOAD_FAILURE;
 	}
 
 	if (option_verbose > 1)
@@ -4555,18 +4553,20 @@ static int load_module(void)
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		close(netsocket);
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
-
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-
-	ast_cli_register_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
+	
+	ast_cli_register_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(*cli_dundi));
 	if (ast_register_switch(&dundi_switch))
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
-	ast_custom_function_register(&dundi_function); 
+	ast_custom_function_register(&dundi_function);
 	
-	return res;
+	if (option_verbose > 1) {
+		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", 
+			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	}
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Distributed Universal Number Discovery (DUNDi)",
