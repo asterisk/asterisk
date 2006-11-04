@@ -6041,6 +6041,38 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 		ast_build_string(a_buf, a_size, "a=fmtp:%d 0-16\r\n", rtp_code);
 }
 
+/*! \brief Set all IP media addresses for this call 
+	\note called from add_sdp()
+*/
+static void get_our_media_address(struct sip_pvt *p, int needvideo, struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *dest, struct sockaddr_in *vdest)
+{
+	/* First, get our address */
+	ast_rtp_get_us(p->rtp, sin);
+	if (p->vrtp)
+		ast_rtp_get_us(p->vrtp, vsin);
+
+	/* Now, try to figure out where we want them to send data */
+	/* Is this a re-invite to move the media out, then use the original offer from caller  */
+	if (p->redirip.sin_addr.s_addr) {	/* If we have a redirection IP, use it */
+		dest->sin_port = p->redirip.sin_port;
+		dest->sin_addr = p->redirip.sin_addr;
+	} else {
+		dest->sin_addr = p->ourip;
+		dest->sin_port = sin->sin_port;
+	}
+	if (needvideo) {
+		/* Determine video destination */
+		if (p->vredirip.sin_addr.s_addr) {
+			vdest->sin_addr = p->vredirip.sin_addr;
+			vdest->sin_port = p->vredirip.sin_port;
+		} else {
+			vdest->sin_addr = p->ourip;
+			vdest->sin_port = vsin->sin_port;
+		}
+	}
+
+}
+
 /*! \brief Add Session Description Protocol message */
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
@@ -6086,6 +6118,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return AST_FAILURE;
 	}
+	/* XXX We should not change properties in the SIP dialog until 
+		we have acceptance of the offer if this is a re-invite */
 
 	/* Set RTP Session ID and version */
 	if (!p->sessionid) {
@@ -6094,22 +6128,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	} else
 		p->sessionversion++;
 
-	/* Get our addresses */
-	ast_rtp_get_us(p->rtp, &sin);
-	if (p->vrtp)
-		ast_rtp_get_us(p->vrtp, &vsin);
-
-	/* Is this a re-invite to move the media out, then use the original offer from caller  */
-	if (p->redirip.sin_addr.s_addr) {
-		dest.sin_port = p->redirip.sin_port;
-		dest.sin_addr = p->redirip.sin_addr;
-	} else {
-		dest.sin_addr = p->ourip;
-		dest.sin_port = sin.sin_port;
-	}
-
 	capability = p->jointcapability;
-
 
 	if (option_debug > 1) {
 		char codecbuf[BUFSIZ];
@@ -6133,19 +6152,13 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		} else if (option_debug > 1)
 			ast_log(LOG_DEBUG, "This call needs video offers, but there's no video support enabled!\n");
 	}
-		
 
+	/* Get our media addresses */
+	get_our_media_address(p, needvideo, &sin, &vsin, &dest, &vdest);
+		
 	/* Ok, we need video. Let's add what we need for video and set codecs.
 	   Video is handled differently than audio since we can not transcode. */
 	if (needvideo) {
-		/* Determine video destination */
-		if (p->vredirip.sin_addr.s_addr) {
-			vdest.sin_addr = p->vredirip.sin_addr;
-			vdest.sin_port = p->vredirip.sin_port;
-		} else {
-			vdest.sin_addr = p->ourip;
-			vdest.sin_port = vsin.sin_port;
-		}
 		ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 
 		/* Build max bitrate string */
