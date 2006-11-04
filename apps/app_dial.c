@@ -921,15 +921,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	struct ast_bridge_config config;
 	unsigned int calldurationlimit = 0;
-	long timelimit = 0;
-	long play_warning = 0;
-	long warning_freq = 0;
-	const char *warning_sound = NULL;
-	const char *end_sound = NULL;
-	const char *start_sound = NULL;
 	char *dtmfcalled = NULL, *dtmfcalling = NULL;
 	char status[256];
-	int play_to_caller = 0, play_to_callee = 0;
 	int sentringing = 0, moh = 0;
 	const char *outbound_group = NULL;
 	int result = 0;
@@ -1603,13 +1596,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		
 		if (!res) {
-			struct ast_bridge_config config;
-
-			memset(&config,0,sizeof(struct ast_bridge_config));
-			if (play_to_caller)
-				ast_set_flag(&(config.features_caller), AST_FEATURE_PLAY_WARNING);
-			if (play_to_callee)
-				ast_set_flag(&(config.features_callee), AST_FEATURE_PLAY_WARNING);
 			if (ast_test_flag(peerflags, OPT_CALLEE_TRANSFER))
 				ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
 			if (ast_test_flag(peerflags, OPT_CALLER_TRANSFER))
@@ -1627,12 +1613,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (ast_test_flag(peerflags, OPT_CALLER_PARK))
 				ast_set_flag(&(config.features_caller), AST_FEATURE_PARKCALL);
 
-			config.timelimit = timelimit;
-			config.play_warning = play_warning;
-			config.warning_freq = warning_freq;
-			config.warning_sound = warning_sound;
-			config.end_sound = end_sound;
-			config.start_sound = start_sound;
 			if (moh) {
 				moh = 0;
 				ast_moh_stop(chan);
