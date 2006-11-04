@@ -419,6 +419,97 @@ static void senddialendevent(const struct ast_channel *src, const char *dialstat
 					src->name, dialstatus);
 }	
 
+/* helper function for wait_for_answer() */
+static void do_forward(struct dial_localuser *o,
+	struct cause_args *num, struct ast_flags *peerflags, int single)
+{
+	char tmpchan[256];
+	struct ast_channel *c = o->chan; /* the winner */
+	struct ast_channel *in = num->chan; /* the input channel */
+	char *stuff;
+	char *tech;
+	int cause;
+
+	ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
+	if ((stuff = strchr(tmpchan, '/'))) {
+		*stuff++ = '\0';
+		tech = tmpchan;
+	} else {
+		const char *forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
+		snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
+		stuff = tmpchan;
+		tech = "Local";
+	}
+	/* Before processing channel, go ahead and check for forwarding */
+	o->forwards++;
+	if (o->forwards < AST_MAX_FORWARDS) {
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
+		/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
+		if (ast_test_flag(peerflags, OPT_IGNORE_FORWARDING)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", in->name, tech, stuff);
+			c = o->chan = NULL;
+			cause = AST_CAUSE_BUSY;
+		} else {
+			/* Setup parameters */
+			c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+			if (!c)
+				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+			else
+				ast_channel_inherit_variables(in, o->chan);
+		}
+	} else {
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", c->name);
+		cause = AST_CAUSE_CONGESTION;
+		c = o->chan = NULL;
+	}
+	if (!c) {
+		ast_clear_flag(o, DIAL_STILLGOING);	
+		handle_cause(cause, num);
+	} else {
+		char *new_cid_num, *new_cid_name;
+		struct ast_channel *src;
+
+		ast_rtp_make_compatible(c, in, single);
+		if (ast_test_flag(o, OPT_FORCECLID)) {
+			new_cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
+			new_cid_name = NULL; /* XXX no name ? */
+			src = c;	/* XXX possible bug in previous code, which used 'winner' ? it may have changed */
+		} else {
+			new_cid_num = ast_strdup(in->cid.cid_num);
+			new_cid_name = ast_strdup(in->cid.cid_name);
+			src = in;
+		}
+		ast_string_field_set(c, accountcode, src->accountcode);
+		c->cdrflags = src->cdrflags;
+		S_REPLACE(c->cid.cid_num, new_cid_num);
+		S_REPLACE(c->cid.cid_name, new_cid_name);
+
+		if (in->cid.cid_ani) { /* XXX or maybe unconditional ? */
+			S_REPLACE(c->cid.cid_ani, ast_strdup(in->cid.cid_ani));
+		}
+		S_REPLACE(c->cid.cid_rdnis, ast_strdup(S_OR(in->macroexten, in->exten)));
+		if (ast_call(c, tmpchan, 0)) {
+			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+			ast_clear_flag(o, DIAL_STILLGOING);	
+			ast_hangup(c);
+			c = o->chan = NULL;
+			num->nochan++;
+		} else {
+			senddialevent(in, c);
+			/* After calling, set callerid to extension */
+			if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID)) {
+				char cidname[AST_MAX_EXTENSION];
+				ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
+			}
+		}
+	}
+	/* Hangup the original channel now, in case we needed it */
+	ast_hangup(c);
+}
+
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize,
 	const struct cause_args *num_in, int priority_jump, int *result)
 {
@@ -495,90 +586,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 			}
 			if (c != winner)
 				continue;
+			/* here, o->chan == c == winner */
 			if (!ast_strlen_zero(c->call_forward)) {
-				char tmpchan[256];
-				char *stuff;
-				char *tech;
-				int cause;
-
-				ast_copy_string(tmpchan, c->call_forward, sizeof(tmpchan));
-				if ((stuff = strchr(tmpchan, '/'))) {
-					*stuff++ = '\0';
-					tech = tmpchan;
-				} else {
-					const char *forward_context = pbx_builtin_getvar_helper(c, "FORWARD_CONTEXT");
-					snprintf(tmpchan, sizeof(tmpchan), "%s@%s", c->call_forward, forward_context ? forward_context : c->context);
-					stuff = tmpchan;
-					tech = "Local";
-				}
-				/* Before processing channel, go ahead and check for forwarding */
-				o->forwards++;
-				if (o->forwards < AST_MAX_FORWARDS) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, c->name);
-					/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
-					if (ast_test_flag(peerflags, OPT_IGNORE_FORWARDING)) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", in->name, tech, stuff);
-						c = o->chan = NULL;
-						cause = AST_CAUSE_BUSY;
-					} else {
-						/* Setup parameters */
-						c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
-						if (!c)
-							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-						else
-							ast_channel_inherit_variables(in, o->chan);
-					}
-				} else {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", c->name);
-					cause = AST_CAUSE_CONGESTION;
-					c = o->chan = NULL;
-				}
-				if (!c) {
-					ast_clear_flag(o, DIAL_STILLGOING);	
-					handle_cause(cause, &num);
-				} else {
-					char *new_cid_num, *new_cid_name;
-					struct ast_channel *src;
-
-					ast_rtp_make_compatible(c, in, single);
-					if (ast_test_flag(o, OPT_FORCECLID)) {
-						new_cid_num = ast_strdup(S_OR(in->macroexten, in->exten));
-						new_cid_name = NULL; /* XXX no name ? */
-						src = winner;
-					} else {
-						new_cid_num = ast_strdup(in->cid.cid_num);
-						new_cid_name = ast_strdup(in->cid.cid_name);
-						src = in;
-					}
-					ast_string_field_set(c, accountcode, src->accountcode);
-					c->cdrflags = src->cdrflags;
-					S_REPLACE(c->cid.cid_num, new_cid_num);
-					S_REPLACE(c->cid.cid_name, new_cid_name);
-
-					if (in->cid.cid_ani) { /* XXX or maybe unconditional ? */
-						S_REPLACE(c->cid.cid_ani, ast_strdup(in->cid.cid_ani));
-					}
-					S_REPLACE(c->cid.cid_rdnis, ast_strdup(S_OR(in->macroexten, in->exten)));
-					if (ast_call(c, tmpchan, 0)) {
-						ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
-						ast_clear_flag(o, DIAL_STILLGOING);	
-						ast_hangup(c);
-						c = o->chan = NULL;
-						num.nochan++;
-					} else {
-						senddialevent(in, c);
-						/* After calling, set callerid to extension */
-						if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID)) {
-							char cidname[AST_MAX_EXTENSION];
-							ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
-						}
-					}
-				}
-				/* Hangup the original channel now, in case we needed it */
-				ast_hangup(winner);
+				do_forward(o, &num, peerflags, single);
 				continue;
 			}
 			f = ast_read(winner);
