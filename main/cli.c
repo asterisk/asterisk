@@ -181,7 +181,7 @@ static int handle_verbose(int fd, int argc, char *argv[])
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
 
-	if (!strcasecmp(argv[2], "atleast"))
+	if (!strcasecmp(argv[3], "atleast"))
 		atleast = 1;
 
 	if (!atleast) {
@@ -219,7 +219,7 @@ static int handle_debug(int fd, int argc, char *argv[])
 	if ((argc < 3) || (argc > 5))
 		return RESULT_SHOWUSAGE;
 
-	if (!strcasecmp(argv[2], "atleast"))
+	if (!strcasecmp(argv[3], "atleast"))
 		atleast = 1;
 
 	if (!atleast) {
