@@ -247,7 +247,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		return launch_netscript(script, argv, fds, efd, opid);
 	
 	if (script[0] != '/') {
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_AGI_DIR, script);
+		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_AGI_DIR, script);
 		script = tmp;
 	}
 	if (pipe(toast)) {
@@ -686,7 +686,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 
 /*--- handle_saynumber: Say number in various language syntaxes ---*/
 /* Need to add option for gender here as well. Coders wanted */
-/* While waiting, we're sending a (char *) NULL.  */
+/* While waiting, we're sending a NULL.  */
 static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
@@ -695,7 +695,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, agi->audio, agi->ctrl);
+	res = ast_say_number_full(chan, num, argv[3], chan->language, NULL, agi->audio, agi->ctrl);
 	if (res == 1)
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
@@ -1989,7 +1989,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	struct ast_module_user *u;
 	char *argv[MAX_ARGS];
 	char buf[2048]="";
-	char *tmp = (char *)buf;
+	char *tmp = buf;
 	int argc = 0;
 	int fds[2];
 	int efd = -1;
