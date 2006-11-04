@@ -198,6 +198,7 @@ switchtype=national
 ; sf_txrx:        Receive audio/COR AND Transmit audio/PTT on an SF interface
 ;                 (2-way)
 ; sf_rxtx:        Same as sf_txrx (for our dyslexic friends)
+; ss7:            Signalling System 7
 ;
 signalling=fxo_ls
 ;
@@ -656,40 +657,38 @@ immediate=no
 ;context=default
 ;channel => 1 
 
-; Signaling type SS7
-signalling = ss7
-
+; ---------------- Options for use with signalling=ss7 -----------------
 ; Variant of SS7 signaling:
 ; Options are itu and ansi
-ss7type = itu
+;ss7type = itu
 
 ; All settings apply to linkset 1
-linkset = 1
+;linkset = 1
 
 ; Point code of the linkset.  For ITU, this is the decimal number
 ; format of the point code.  For ANSI, this can either be in decimal
 ; number format or in the xxx.xxx.xxx format
-pointcode = 1
+;pointcode = 1
 
 ; Point code of node adjacent to this signaling link (Possibly the STP between you and
 ; your destination).  Point code format follows the same rules as above.
-adjpointcode = 2
+;adjpointcode = 2
 
 ; Default point code that you would like to assign to outgoing messages (in case of
 ; routing through STPs, or using A links).  Point code format follows the same rules
 ; as above.
-defaultdpc = 3
+;defaultdpc = 3
 
 ; Begin CIC (Circuit indication codes) count with this number
-cicbeginswith = 1
+;cicbeginswith = 1
 
 ; What the MTP3 network indicator bits should be set to.  Choices are
 ; national, national_spare, international, international_spare
-networkindicator=international
+;networkindicator=international
 
 ; First signaling channel
-sigchan = 48
+;sigchan = 48
 
 ; Channels to associate with CICs on this linkset
-channel = 25-47
-
+;channel = 25-47
+; ----------------- SS7 Options ----------------------------------------
