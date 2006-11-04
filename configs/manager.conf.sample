@@ -5,7 +5,7 @@
 ;
 ; This configuration file is read every time someone logs in
 ;
-; Use the "manager list commands" at the CLI to list available manager commands
+; Use the "manager show commands" at the CLI to list available manager commands
 ; and their authorization levels.
 ;
 ; "manager show command <command>" will show a help text.
@@ -14,7 +14,7 @@
 ; Note that you should not enable the AMI on a public IP address. If needed,
 ; block this TCP port with iptables (or another FW software) and reach it
 ; with IPsec, SSH, or SSL vpn tunnel.  You can also make the manager 
-; interface available over http if Asterisk's http server is enabled in
+; interface available over http/https if Asterisk's http server is enabled in
 ; http.conf and if both "enabled" and "webenabled" are set to yes in
 ; this file.  Both default to no.  httptimeout provides the maximum 
 ; timeout in seconds before a web based session is discarded.  The 
@@ -32,6 +32,8 @@ bindaddr = 0.0.0.0
 ;
 ;timestampevents = yes
 
+; debug = on	; enable some debugging info in AMI messages (default off).
+		; Also accessible through the "manager debug" CLI command.
 ;[mark]
 ;secret = mysecret
 ;deny=0.0.0.0/0.0.0.0
