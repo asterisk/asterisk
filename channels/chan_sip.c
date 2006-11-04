@@ -516,7 +516,7 @@ static int global_limitonpeers;		/*!< Match call limit on peers only */
 static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing requests */
-static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
+static int global_srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
@@ -2762,7 +2762,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	}
 	hostn = peername;
 	portno = port ? atoi(port) : STANDARD_SIP_PORT;
-	if (srvlookup) {
+	if (global_srvlookup) {
 		char service[MAXHOSTNAMELEN];
 		int tportno;
 		int ret;
@@ -10312,7 +10312,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
 	ast_cli(fd, "  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)");
 	ast_cli(fd, "  MWI NOTIFY mime type:   %s\n", default_notifymime);
-	ast_cli(fd, "  DNS SRV lookup:         %s\n", srvlookup ? "Yes" : "No");
+	ast_cli(fd, "  DNS SRV lookup:         %s\n", global_srvlookup ? "Yes" : "No");
 	ast_cli(fd, "  Pedantic SIP support:   %s\n", pedanticsipchecking ? "Yes" : "No");
 	ast_cli(fd, "  Reg. min duration       %d secs\n", min_expiry);
 	ast_cli(fd, "  Reg. max duration:      %d secs\n", max_expiry);
@@ -15762,7 +15762,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->expire = -1;
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
 				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
-					if (ast_get_ip_or_srv(&peer->addr, v->value, srvlookup ? "_sip._udp" : NULL)) {
+					if (ast_get_ip_or_srv(&peer->addr, v->value, global_srvlookup ? "_sip._udp" : NULL)) {
 						ASTOBJ_UNREF(peer, sip_destroy_peer);
 						return NULL;
 					}
@@ -15955,7 +15955,7 @@ static int reload_config(enum channelreloadreason reason)
 	outboundproxyip.sin_port = htons(STANDARD_SIP_PORT);
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	ourport = STANDARD_SIP_PORT;
-	srvlookup = DEFAULT_SRVLOOKUP;
+	global_srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
 	global_tos_video = DEFAULT_TOS_VIDEO;
@@ -16121,7 +16121,7 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			if (ast_get_ip_or_srv(&outboundproxyip, v->value, srvlookup ? "_sip._udp" : NULL) < 0)
+			if (ast_get_ip_or_srv(&outboundproxyip, v->value, global_srvlookup ? "_sip._udp" : NULL) < 0)
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "outboundproxyport")) {
 			/* Port needs to be after IP */
@@ -16131,8 +16131,8 @@ static int reload_config(enum channelreloadreason reason)
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
 			global_match_auth_username = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "srvlookup")) {
-			srvlookup = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "global_srvlookup")) {
+			global_srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "pedantic")) {
 			pedanticsipchecking = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
