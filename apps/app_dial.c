@@ -963,9 +963,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 
 	if (ast_test_flag(&opts, OPT_OPERMODE)) {
-		if (ast_strlen_zero(opt_args[OPT_ARG_OPERMODE]))
-			opermode = 1;
-		else opermode = atoi(opt_args[OPT_ARG_OPERMODE]);
+		opermode = ast_strlen_zero(opt_args[OPT_ARG_OPERMODE]) ? 1 : atoi(opt_args[OPT_ARG_OPERMODE]);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Setting operator services mode to %d.\n", opermode);
 	}
@@ -1304,6 +1302,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	} else {
 		const char *number;
 		time_t end_time, answer_time = time(NULL);
+		char toast[80];	/* buffer to set variables */
 
 		strcpy(status, "ANSWER");
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
@@ -1541,41 +1540,40 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 
 			if (!res && (macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
-					char *macro_transfer_dest;
+				char *macro_transfer_dest;
 
-					if (!strcasecmp(macro_result, "BUSY")) {
-						ast_copy_string(status, macro_result, sizeof(status));
-						if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
-							if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
-								ast_set_flag(peerflags, OPT_GO_ON);
-							}
-						} else
+				if (!strcasecmp(macro_result, "BUSY")) {
+					ast_copy_string(status, macro_result, sizeof(status));
+					if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
+						if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
 							ast_set_flag(peerflags, OPT_GO_ON);
-						res = -1;
-					} else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
-						ast_copy_string(status, macro_result, sizeof(status));
-						ast_set_flag(peerflags, OPT_GO_ON);	
-						res = -1;
-					} else if (!strcasecmp(macro_result, "CONTINUE")) {
-						/* hangup peer and keep chan alive assuming the macro has changed 
-						   the context / exten / priority or perhaps 
-						   the next priority in the current exten is desired.
-						*/
-						ast_set_flag(peerflags, OPT_GO_ON);	
-						res = -1;
-					} else if (!strcasecmp(macro_result, "ABORT")) {
-						/* Hangup both ends unless the caller has the g flag */
-						res = -1;
-					} else if (!strncasecmp(macro_result, "GOTO:", 5) && (macro_transfer_dest = ast_strdupa(macro_result + 5))) {
-						res = -1;
-						/* perform a transfer to a new extension */
-						if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
-							replace_macro_delimiter(macro_transfer_dest);
-							if (!ast_parseable_goto(chan, macro_transfer_dest))
-								ast_set_flag(peerflags, OPT_GO_ON);
-
 						}
+					} else
+						ast_set_flag(peerflags, OPT_GO_ON);
+					res = -1;
+				} else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
+					ast_copy_string(status, macro_result, sizeof(status));
+					ast_set_flag(peerflags, OPT_GO_ON);	
+					res = -1;
+				} else if (!strcasecmp(macro_result, "CONTINUE")) {
+					/* hangup peer and keep chan alive assuming the macro has changed 
+					   the context / exten / priority or perhaps 
+					   the next priority in the current exten is desired.
+					*/
+					ast_set_flag(peerflags, OPT_GO_ON);	
+					res = -1;
+				} else if (!strcasecmp(macro_result, "ABORT")) {
+					/* Hangup both ends unless the caller has the g flag */
+					res = -1;
+				} else if (!strncasecmp(macro_result, "GOTO:", 5) && (macro_transfer_dest = ast_strdupa(macro_result + 5))) {
+					res = -1;
+					/* perform a transfer to a new extension */
+					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
+						replace_macro_delimiter(macro_transfer_dest);
+						if (!ast_parseable_goto(chan, macro_transfer_dest))
+							ast_set_flag(peerflags, OPT_GO_ON);
 					}
+				}
 			}
 		}
 
@@ -1595,7 +1593,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 		}
 		
-		if (!res) {
+		if (res) {	/* some error */
+			res = -1;
+			end_time = time(NULL);
+		} else {
 			if (ast_test_flag(peerflags, OPT_CALLEE_TRANSFER))
 				ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
 			if (ast_test_flag(peerflags, OPT_CALLER_TRANSFER))
@@ -1630,9 +1631,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				res = -1;
 				goto done;
 			}
-			if (opermode && (!strncmp(chan->name,"Zap",3)) &&
-				(!strncmp(peer->name,"Zap",3)))
-			{
+			if (opermode && !strncmp(chan->name,"Zap",3) && !strncmp(peer->name,"Zap",3)) {
+				/* XXX what's this special handling for Zap <-> Zap ? */
 				struct oprmode oprmode;
 
 				oprmode.peer = peer;
@@ -1642,22 +1642,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					AST_OPTION_OPRMODE,&oprmode,sizeof(struct oprmode),0);
 			}
 			res = ast_bridge_call(chan,peer,&config);
-			time(&end_time);
-			{
-				char toast[80];
-				snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
-				pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
-			}
-		} else {
-			time(&end_time);
-			res = -1;
+			end_time = time(NULL);
+			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
+			pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
 		}
-		{
-			char toast[80];
-			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
-			pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
-		}
-		
+
+		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
+		pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
+
 		if (res != AST_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
 				chan->hangupcause = peer->hangupcause;
