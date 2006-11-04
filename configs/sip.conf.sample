@@ -125,6 +125,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; for peers and users as well
 ;callevents=no			; generate manager events when sip ua 
 				; performs events (e.g. hold)
+;limitpeersonly=no		; Apply all call limits ("limit=") only to peers, never
+				; to users. This improves handling of call limits
+				; and device states in certain situations. The user part
+				; of a type=friend will still be affected by the call
+				; limit, but Asterisk will only use one object for
+				; counting the simultaneous calls.
 ;alwaysauthreject = yes		; When an incoming INVITE or REGISTER is to be rejected,
  		    		; for any reason, always reject with '401 Unauthorized'
  				; instead of letting the requester know whether there was

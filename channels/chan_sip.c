@@ -512,6 +512,7 @@ static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
 /* Global settings only apply to the channel */
+static int global_limitonpeers;		/*!< Match call limit on peers only */
 static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing requests */
@@ -3042,16 +3043,29 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of users only for incoming calls */
-	if (!outgoing && (u = find_user(name, 1)) ) {
-		inuse = &u->inUse;
-		call_limit = &u->call_limit;
-		inringing = NULL;
+	if (!outgoing) {
+		if (global_limitonpeers == FALSE && (u = find_user(name, 1)))  {
+			inuse = &u->inUse;
+			call_limit = &u->call_limit;
+			inringing = NULL;
+		} else {
+			/* If limitonpeers is on, we only apply the limits to the
+				peer part of the type=friend. This is mainly to
+				help the queue system */
+			p = find_peer(name, NULL, 1);	/* Check the peer */
+			if (p != NULL) {
+				inuse = &p->inUse;
+				call_limit = &p->call_limit;
+				inringing = &p->inRinging;
+			}
+		}
 	} else if ( (p = find_peer(fup->peername, NULL, 1) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
 		ast_copy_string(name, fup->peername, sizeof(name));
-	} else {
+	} 
+	if (!p && !u) {
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "%s is not a local device, no call limit\n", name);
 		return 0;
@@ -10271,6 +10285,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
  	ast_cli(fd, "  Always auth rejects:    %s\n", global_alwaysauthreject ? "Yes" : "No");
+	ast_cli(fd, "  Call limit peers only:  %s\n", global_limitonpeers ? "Yes" : "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
 	ast_cli(fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
@@ -15966,6 +15981,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_regcontext[0] = '\0';
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
+	global_limitonpeers = FALSE;		/*!< Match call limit on peers only */
 	global_alwaysauthreject = 0;
 	global_allowsubscribe = FALSE;
 	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
@@ -16090,6 +16106,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "limitpeersonly")) {
+			global_limitonpeers = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			global_alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mohinterpret") 
