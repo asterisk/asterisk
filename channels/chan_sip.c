@@ -1248,7 +1248,7 @@ static int __sip_autodestruct(void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static void sip_cancel_destroy(struct sip_pvt *p);
 static void sip_destroy(struct sip_pvt *p);
-static void __sip_destroy(struct sip_pvt *p, int lockowner);
+static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int reset);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
@@ -2917,7 +2917,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 }
 
 /*! \brief Execute destruction of SIP dialog structure, release memory */
-static void __sip_destroy(struct sip_pvt *p, int lockowner)
+static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
@@ -2980,14 +2980,16 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	}
 
 	/* Lock dialog list before removing ourselves from the list */
-	ast_mutex_lock(&dialoglock);
+	if (lockdialoglist)
+		ast_mutex_lock(&dialoglock);
 	for (prev = NULL, cur = dialoglist; cur; prev = cur, cur = cur->next) {
 		if (cur == p) {
 			UNLINK(cur, dialoglist, prev);
 			break;
 		}
 	}
-	ast_mutex_unlock(&dialoglock);
+	if (lockdialoglist)
+		ast_mutex_unlock(&dialoglock);
 	if (!cur) {
 		ast_log(LOG_WARNING, "Trying to destroy \"%s\", not found in dialog list?!?! \n", p->callid);
 		return;
@@ -3136,7 +3138,7 @@ static void sip_destroy(struct sip_pvt *p)
 {
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Destroying SIP dialog %s\n", p->callid);
-	__sip_destroy(p, 1);
+	__sip_destroy(p, TRUE, TRUE);
 }
 
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
@@ -6263,7 +6265,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	if (min_audio_packet_size)
 		ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
-
 	if (min_video_packet_size)
 		ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
 
@@ -14863,7 +14864,7 @@ restartsearch:
 			if (ast_test_flag(&sip->flags[0], SIP_NEEDDESTROY) && !sip->packets &&
 			    !sip->owner) {
 				sip_pvt_unlock(sip);
-				__sip_destroy(sip, 1);
+				__sip_destroy(sip, TRUE, FALSE);
 				goto restartsearch;
 			}
 			sip_pvt_unlock(sip);
