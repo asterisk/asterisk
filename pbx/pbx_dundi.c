@@ -4506,7 +4506,10 @@ static int unload_module(void)
 static int reload(void)
 {
 	struct sockaddr_in sin;
-	set_config("dundi.conf",&sin);
+
+	if (set_config("dundi.conf", &sin))
+		return -1;
+
 	return 0;
 }
 
@@ -4549,8 +4552,7 @@ static int load_module(void)
 	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
 	
-	res = start_network_thread();
-	if (res) {
+	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		close(netsocket);
 		return AST_MODULE_LOAD_FAILURE;
