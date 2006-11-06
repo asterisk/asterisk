@@ -60,6 +60,28 @@
 #define AST_MAX_MANHEADERS 80
 #define AST_MAX_MANHEADER_LEN 256
 
+/* Manager Helper Function */
+typedef int (*manager_hook_t)(int, const char *, char *); 
+
+struct manager_custom_hook {
+	/*! Identifier */
+	char *file;
+	/*! helper function */
+	manager_hook_t helper;
+	/*! Linked list information */
+	AST_RWLIST_ENTRY(manager_custom_hook) list;
+};
+
+/*! Add a custom hook to be called when an event is fired */
+/*! \param hook struct manager_custom_hook object to add
+*/
+void ast_manager_register_hook(struct manager_custom_hook *hook);
+
+/*! Delete a custom hook to be called when an event is fired */
+/*! \param hook struct manager_custom_hook object to delete
+*/
+void ast_manager_unregister_hook(struct manager_custom_hook *hook);
+
 struct mansession;
 
 struct message {
