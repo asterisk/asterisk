@@ -69,6 +69,8 @@ char *find_var(const char *varname) /* the list should be pretty short, if there
 void set_var(const char *varname, const char *varval)
 {
 	struct varz *t = calloc(1,sizeof(struct varz));
+	if (!t)
+		return;
 	strcpy(t->varname, varname);
 	strcpy(t->varval, varval);
 	t->next = global_varlist;
