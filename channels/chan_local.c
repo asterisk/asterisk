@@ -313,7 +313,7 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int local_indicate(struct ast_channel *ast, int condition, const void *data, size_t datalen)
 {
 	struct local_pvt *p = ast->tech_pvt;
-	int res = -1;
+	int res = 0;
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound;
 
