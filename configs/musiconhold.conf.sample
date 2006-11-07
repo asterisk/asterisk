@@ -2,41 +2,18 @@
 ; Music on Hold -- Sample Configuration
 ;
 
-;[samplemp3]
-;mode=quietmp3
-;directory=/var/lib/asterisk/mohmp3
-;
 ; valid mode options:
+; files		-- read files from a directory in any Asterisk supported 
+;		   media format
 ; quietmp3 	-- default 
 ; mp3 		-- loud
 ; mp3nb		-- unbuffered
 ; quietmp3nb	-- quiet unbuffered
 ; custom	-- run a custom application (See examples below)
-; files		-- read files from a directory in any Asterisk supported 
-;		   media format. (See examples below)
 
-;[manual]
-;mode=custom
-; Note that with mode=custom, a directory is not required, such as when reading
-; from a stream.
-;directory=/var/lib/asterisk/mohmp3
-;application=/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
-
-;[ulawstream]
-;mode=custom
-;application=/usr/bin/streamplayer 192.168.100.52 888
-;format=ulaw
-
-; mpg123 on Solaris does not always exit properly; madplay may be a better
-; choice
-;[solaris]
-;mode=custom
-;directory=/var/lib/asterisk/mohmp3
-;application=/site/sw/bin/madplay -Q -o raw:- --mono -R 8000 -a -12
-;
-
-;
+; =========
 ; File-based (native) music on hold
+; =========
 ;
 ; This plays files directly from the specified directory, no external
 ; processes are required. Files are played in normal sorting order
@@ -63,3 +40,27 @@ directory=/var/lib/asterisk/moh
 ;mode=files
 ;directory=/var/lib/asterisk/moh
 ;random=yes 	; Play the files in a random order
+
+
+; =========
+; Other (non-native) playback methods
+; =========
+
+;[manual]
+;mode=custom
+; Note that with mode=custom, a directory is not required, such as when reading
+; from a stream.
+;directory=/var/lib/asterisk/mohmp3
+;application=/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
+
+;[ulawstream]
+;mode=custom
+;application=/usr/bin/streamplayer 192.168.100.52 888
+;format=ulaw
+
+; mpg123 on Solaris does not always exit properly; madplay may be a better
+; choice
+;[solaris]
+;mode=custom
+;directory=/var/lib/asterisk/mohmp3
+;application=/site/sw/bin/madplay -Q -o raw:- --mono -R 8000 -a -12
