@@ -449,6 +449,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 {
 	struct ast_channel *tmp;
 	int x,y;
+	char *b2 = 0;
 	if (!p->subchan) {
 		ast_log(LOG_WARNING, "Called upon channel with no subchan:(\n");
 		return NULL;
@@ -457,24 +458,29 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		ast_log(LOG_WARNING, "Called to put index %d already there!\n", index);
 		return NULL;
 	}
-	tmp = ast_channel_alloc(0);
-	if (!tmp) {
-		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
-		return NULL;
-	}
-	tmp->tech = &features_tech;
+	/* figure out what you want the name to be */
 	for (x=1;x<4;x++) {
-		ast_string_field_build(tmp, name, "Feature/%s/%s-%d", p->tech, p->dest, x);
+		if (b2)
+			free(b2);
+		b2 = ast_safe_string_alloc("Feature/%s/%s-%d", p->tech, p->dest, x);
 		for (y=0;y<3;y++) {
 			if (y == index)
 				continue;
-			if (p->subs[y].owner && !strcasecmp(p->subs[y].owner->name, tmp->name))
+			if (p->subs[y].owner && !strcasecmp(p->subs[y].owner->name, b2))
 				break;
 		}
 		if (y >= 3)
 			break;
 	}
-	ast_setstate(tmp, state);
+	tmp = ast_channel_alloc(0, state, 0,0, b2);
+	/* free up the name, it was copied into the channel name */
+	if (b2)
+		free(b2);
+	if (!tmp) {
+		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
+		return NULL;
+	}
+	tmp->tech = &features_tech;
 	tmp->writeformat = p->subchan->writeformat;
 	tmp->rawwriteformat = p->subchan->rawwriteformat;
 	tmp->readformat = p->subchan->readformat;

@@ -892,15 +892,11 @@ ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr
 	return result;
 }
 
-void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
+void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 				    ast_string_field *fields, int num_fields,
-				    int index, const char *format, ...)
+				    int index, const char *format, va_list ap1, va_list ap2)
 {
 	size_t needed;
-	va_list ap1, ap2;
-
-	va_start(ap1, format);
-	va_start(ap2, format);		/* va_copy does not exist on FreeBSD */
 
 	needed = vsnprintf(mgr->pool->base + mgr->used, mgr->space, format, ap1) + 1;
 
@@ -921,7 +917,20 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	fields[index] = mgr->pool->base + mgr->used;
 	mgr->used += needed;
 	mgr->space -= needed;
+}
 
+void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
+				    ast_string_field *fields, int num_fields,
+				    int index, const char *format, ...)
+{
+	va_list ap1, ap2;
+
+	va_start(ap1, format);
+	va_start(ap2, format);		/* va_copy does not exist on FreeBSD */
+
+	__ast_string_field_index_build_va(mgr, fields, num_fields, index, format, ap1, ap2);
+
+	va_end(ap1);
 	va_end(ap2);
 }
 

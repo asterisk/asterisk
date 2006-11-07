@@ -2626,7 +2626,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	if (option_verbose > 3)
 		ast_verbose("%s: New call for context [%s]\n",me->dev,context);
 	    
-	tmp = ast_channel_alloc(1);
+	tmp = ast_channel_alloc(1, state, 0, 0, me->dev);
 	if (tmp) {
 		if (use_ast_ind == 1){
 			tmp->tech = &vpb_tech_indicate;
@@ -2635,8 +2635,6 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 			tmp->tech = &vpb_tech;
 		}
 
-		ast_string_field_set(tmp, name, me->dev);
-		
 		tmp->callgroup = me->callgroup;
 		tmp->pickupgroup = me->pickupgroup;
 	       
@@ -2647,7 +2645,6 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 		tmp->nativeformats = prefformat;
 		tmp->rawreadformat = AST_FORMAT_SLINEAR;
 		tmp->rawwriteformat =  AST_FORMAT_SLINEAR;
-		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
 			cid_name[0] = '\0';

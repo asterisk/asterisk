@@ -895,8 +895,13 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	struct ast_channel *tmp;
 	int fmt;
 	int what;
+	char *n2;
 
-	tmp = ast_channel_alloc(1);
+	if (title)
+		n2 = title;
+	else
+		n2 = i->us;
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "Gtalk/%s-%04lx", n2, ast_random() & 0xffff);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate Gtalk channel structure!\n");
 		return NULL;
@@ -914,11 +919,6 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		what = global_capability;
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
 	fmt = ast_best_codec(tmp->nativeformats);
-
-	if (title)
-		ast_string_field_build(tmp, name, "Gtalk/%s-%04lx", title, ast_random() & 0xffff);
-	else
-		ast_string_field_build(tmp, name, "Gtalk/%s-%04lx", i->us, ast_random() & 0xffff);
 
 	if (i->rtp) {
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
@@ -951,11 +951,14 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	i->owner = tmp;
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-	ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+	/* Don't use ast_set_callerid() here because it will
+	 * generate a needless NewCallerID event */
+	tmp->cid.cid_num = ast_strdup(l->cid_num);
+	tmp->cid.cid_ani = ast_strdup(l->cid_num);
+	tmp->cid.cid_name = ast_strdup(l->cid_name);
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;
-	ast_setstate(tmp, state);
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {

@@ -990,11 +990,10 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 {
 	struct ast_channel *c;
 
-	c = ast_channel_alloc(1);
+	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "OSS/%s", o->device + 5);
 	if (c == NULL)
 		return NULL;
 	c->tech = &oss_tech;
-	ast_string_field_build(c, name, "OSS/%s", o->device + 5);
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
 	c->fds[0] = o->sounddev;	/* -1 if device closed, override later */
@@ -1009,12 +1008,15 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		ast_copy_string(c->exten, ext, sizeof(c->exten));
 	if (!ast_strlen_zero(o->language))
 		ast_string_field_set(c, language, o->language);
-	ast_set_callerid(c, o->cid_num, o->cid_name, o->cid_num);
+	/* Don't use ast_set_callerid() here because it will
+	 * generate a needless NewCallerID event */
+	c->cid.cid_num = ast_strdup(o->cid_num);
+	c->cid.cid_ani = ast_strdup(o->cid_num);
+	c->cid.cid_name = ast_strdup(o->cid_name);
 	if (!ast_strlen_zero(ext))
 		c->cid.cid_dnid = ast_strdup(ext);
 
 	o->owner = c;
-	ast_setstate(c, state);
 	ast_jb_configure(c, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {

@@ -29,6 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <sys/time.h>
 #include <signal.h>
@@ -330,6 +331,21 @@ static int ast_check_hangup_locked(struct ast_channel *chan)
 	return res;
 }
 
+/*! \brief printf the string into a correctly sized mallocd buffer, and return the buffer */
+char *ast_safe_string_alloc(const char *fmt, ...)
+{
+	char *b2,buf[1];
+	int len;
+
+	va_list args;
+	va_start(args, fmt);
+	len = vsnprintf(buf, 1, fmt, args);
+	b2 = ast_malloc(len+1);
+	vsnprintf(b2, len+1,  fmt, args);
+	va_end(args);
+	return b2;
+}
+
 /*! \brief Initiate system shutdown */
 void ast_begin_shutdown(int hangup)
 {
@@ -608,12 +624,13 @@ static const struct ast_channel_tech null_tech = {
 };
 
 /*! \brief Create a new channel structure */
-struct ast_channel *ast_channel_alloc(int needqueue)
+struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *name_fmt, ...)
 {
 	struct ast_channel *tmp;
 	int x;
 	int flags;
 	struct varshead *headp;
+	va_list ap1, ap2;
 
 	/* If shutting down, don't allocate any new channels */
 	if (shutting_down) {
@@ -671,10 +688,10 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	/* And timing pipe */
 	tmp->fds[AST_TIMING_FD] = tmp->timingfd;
 	ast_string_field_set(tmp, name, "**Unknown**");
-	
+
 	/* Initial state */
-	tmp->_state = AST_STATE_DOWN;
-	
+	tmp->_state = state;
+
 	tmp->streamid = -1;
 	
 	tmp->fin = global_fin;
@@ -688,6 +705,37 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 			(long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
 	}
 
+	if (!ast_strlen_zero(name_fmt)) {
+		/* Almost every channel is calling this function, and setting the name via the ast_string_field_build() call.
+		 * And they all use slightly different formats for their name string.
+		 * This means, to set the name here, we have to accept variable args, and call the string_field_build from here.
+		 * This means, that the stringfields must have a routine that takes the va_lists directly, and 
+		 * uses them to build the string, instead of forming the va_lists internally from the vararg ... list.
+		 * This new function was written so this can be accomplished.
+		 */
+		va_start(ap1, name_fmt);
+		va_start(ap2, name_fmt);
+		ast_string_field_build_va(tmp, name, name_fmt, ap1, ap2);
+		va_end(ap1);
+		va_end(ap2);
+
+		/* and now, since the channel structure is built, and has its name, let's call the
+		 * manager event generator with this Newchannel event. This is the proper and correct
+		 * place to make this call, but you sure do have to pass a lot of data into this func
+		 * to do it here!
+		 */
+		manager_event(EVENT_FLAG_CALL, "Newchannel",
+			      "Channel: %s\r\n"
+			      "State: %s\r\n"
+			      "CallerIDNum: %s\r\n"
+			      "CallerIDName: %s\r\n"
+			      "Uniqueid: %s\r\n",
+			      tmp->name, ast_state2str(state),
+			      S_OR(cid_num, "<unknown>"),
+			      S_OR(cid_name, "<unknown>"),
+			      tmp->uniqueid);
+	}
+	
 	headp = &tmp->varshead;
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 	
@@ -2858,19 +2906,8 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		
 		if (!(c = chan->tech->requester(type, capabilities | videoformat, data, cause)))
 			return NULL;
-
-		if (c->_state == AST_STATE_DOWN) {
-			manager_event(EVENT_FLAG_CALL, "Newchannel",
-				      "Channel: %s\r\n"
-				      "State: %s\r\n"
-				      "CallerIDNum: %s\r\n"
-				      "CallerIDName: %s\r\n"
-				      "Uniqueid: %s\r\n",
-				      c->name, ast_state2str(c->_state),
-				      S_OR(c->cid.cid_num, "<unknown>"),
-				      S_OR(c->cid.cid_name, "<unknown>"),
-				      c->uniqueid);
-		}
+		
+		/* no need to generate a Newchannel event here; it is done in the channel_alloc call */
 		return c;
 	}
 
@@ -3518,8 +3555,9 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state state)
 
 	chan->_state = state;
 	ast_device_state_changed_literal(chan->name);
+	/* setstate used to conditionally report Newchannel; this is no more */
 	manager_event(EVENT_FLAG_CALL,
-		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
+		      "Newstate",
 		      "Channel: %s\r\n"
 		      "State: %s\r\n"
 		      "CallerIDNum: %s\r\n"

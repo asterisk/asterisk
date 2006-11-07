@@ -3775,10 +3775,22 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	int fmt;
 	int what;
 	int needvideo = 0;
+	{
+		const char *my_name;	/* pick a good name */
 	
-	sip_pvt_unlock(i);
-	/* Don't hold a sip pvt lock while we allocate a channel */
-	tmp = ast_channel_alloc(1);
+		if (title)
+			my_name = title;
+		else if ( (my_name = strchr(i->fromdomain,':')) )
+			my_name++;	/* skip ':' */
+		else
+			my_name = i->fromdomain;
+
+		sip_pvt_unlock(i);
+		/* Don't hold a sip pvt lock while we allocate a channel */
+
+		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "SIP/%s-%08x", my_name, (int)(long) i);
+
+	}
 	sip_pvt_lock(i);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
@@ -3829,16 +3841,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 
 
-	{
-		const char *my_name;	/* pick a good name */
-		if (title)
-			my_name = title;
-		else if ( (my_name = strchr(i->fromdomain,':')) )
-			my_name++;	/* skip ':' */
-		else
-			my_name = i->fromdomain;
-		ast_string_field_build(tmp, name, "SIP/%s-%08x", my_name, (int)(long) i);
-	}
 
 	if (ast_test_flag(&i->flags[0], SIP_DTMF) ==  SIP_DTMF_INBAND) {
 		i->vad = ast_dsp_new();
@@ -3880,7 +3882,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 
 	/* Don't use ast_set_callerid() here because it will
-	 * generate a NewCallerID event before the NewChannel event */
+	 * generate an unnecessary NewCallerID event  */
 	tmp->cid.cid_num = ast_strdup(i->cid_num);
 	tmp->cid.cid_ani = ast_strdup(i->cid_num);
 	tmp->cid.cid_name = ast_strdup(i->cid_name);
@@ -3897,7 +3899,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
 	if (!ast_strlen_zero(i->callid))
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
-	ast_setstate(tmp, state);
 	if (i->rtp)
 		ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN && ast_pbx_start(tmp)) {
@@ -12517,8 +12518,8 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		/* Chan2m: The transferer, chan1m: The transferee */
 	pthread_t th;
 
-	transferee = ast_channel_alloc(0);
-	transferer = ast_channel_alloc(0);
+	transferee = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "Parking/%s", chan1->name);
+	transferer = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "SIPPeer/%s", chan2->name);
 	if ((!transferer) || (!transferee)) {
 		if (transferee) {
 			transferee->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
@@ -12530,7 +12531,6 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		}
 		return -1;
 	}
-	ast_string_field_build(transferee, name,  "Parking/%s", chan1->name);
 
 	/* Make formats okay */
 	transferee->readformat = chan1->readformat;
@@ -12546,7 +12546,6 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		
 	/* We make a clone of the peer channel too, so we can play
 	   back the announcement */
-	ast_string_field_build(transferer, name, "SIPPeer/%s", chan2->name);
 
 	/* Make formats okay */
 	transferer->readformat = chan2->readformat;

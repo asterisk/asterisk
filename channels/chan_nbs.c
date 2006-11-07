@@ -233,17 +233,15 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc(1);
+	tmp = ast_channel_alloc(1, state, 0, 0, "NBS/%s", i->stream);
 	if (tmp) {
 		tmp->tech = &nbs_tech;
-		ast_string_field_build(tmp, name, "NBS/%s", i->stream);
 		tmp->fds[0] = nbs_fd(i->nbs);
 		tmp->nativeformats = prefformat;
 		tmp->rawreadformat = prefformat;
 		tmp->rawwriteformat = prefformat;
 		tmp->writeformat = prefformat;
 		tmp->readformat = prefformat;
-		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;

@@ -2699,7 +2699,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 	struct skinny_device *d = l->parent;
 	int fmt;
 
-	tmp = ast_channel_alloc(1);
+	tmp = ast_channel_alloc(1, state, l->cid_num, l->cid_name, "Skinny/%s@%s-%d", l->name, d->name, callnums);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
@@ -2731,11 +2731,9 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		fmt = ast_best_codec(tmp->nativeformats);
 		if (skinnydebug)
 			ast_verbose("skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
-		ast_string_field_build(tmp, name, "Skinny/%s@%s-%d", l->name, d->name, sub->callid);
 		if (sub->rtp) {
 			tmp->fds[0] = ast_rtp_fd(sub->rtp);
 		}
-		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
 		}
@@ -2757,7 +2755,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		ast_copy_string(tmp->exten, l->exten, sizeof(tmp->exten));
 
 		/* Don't use ast_set_callerid() here because it will
-		 * generate a NewCallerID event before the NewChannel event */
+		 * generate a needless NewCallerID event */
 		tmp->cid.cid_num = ast_strdup(l->cid_num);
 		tmp->cid.cid_ani = ast_strdup(l->cid_num);
 		tmp->cid.cid_name = ast_strdup(l->cid_name);

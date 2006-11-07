@@ -835,10 +835,9 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 {
 	struct ast_channel *tmp;
 	struct phone_codec_data codec;
-	tmp = ast_channel_alloc(1);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "Phone/%s", i->dev + 5);
 	if (tmp) {
 		tmp->tech = cur_tech;
-		ast_string_field_build(tmp, name, "Phone/%s", i->dev + 5);
 		tmp->fds[0] = i->fd;
 		/* XXX Switching formats silently causes kernel panics XXX */
 		if (i->mode == MODE_FXS &&
@@ -860,7 +859,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 			tmp->rawreadformat = prefformat;
 			tmp->rawwriteformat = prefformat;
 		}
-		ast_setstate(tmp, state);
+		/* no need to call ast_setstate: the channel_alloc already did its job */
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->tech_pvt = i;

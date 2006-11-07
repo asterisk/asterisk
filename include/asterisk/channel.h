@@ -579,7 +579,7 @@ int ast_setstate(struct ast_channel *chan, enum ast_channel_state);
 	by default set to the "default" context and
 	extension "s"
  */
-struct ast_channel *ast_channel_alloc(int needalertpipe);
+struct ast_channel *ast_channel_alloc(int needalertpipe, int state, const char *cid_num, const char *cid_name, const char *name_fmt, ...);
 
 /*! \brief Queue an outgoing frame */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
@@ -1105,6 +1105,12 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 void ast_deactivate_generator(struct ast_channel *chan);
 
 void ast_set_callerid(struct ast_channel *chan, const char *cidnum, const char *cidname, const char *ani);
+
+
+/*! return a mallocd string with the result of sprintf of the fmt and following args */
+char *ast_safe_string_alloc(const char *fmt, ...);
+
+
 
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);

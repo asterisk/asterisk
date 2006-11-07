@@ -3103,14 +3103,25 @@ static void update_name(struct ast_channel *tmp, int port, int c)
 static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char *exten, char *callerid, int format, int port, int c)
 {
 	struct ast_channel *tmp;
+	char *cid_name = 0, *cid_num = 0;
+	int chan_offset=0;
+	int tmp_port = misdn_cfg_get_next_port(0);
+
+	for (; tmp_port > 0; tmp_port=misdn_cfg_get_next_port(tmp_port)) {
+	if (tmp_port == port) break;
+		chan_offset+=misdn_lib_port_is_pri(tmp_port)?30:2;	
+	}
+	if (c<0) c=0;
+
 	
-	tmp = ast_channel_alloc(1);
+	if (callerid) 
+		ast_callerid_parse(callerid, &cid_name, &cid_num);
+
+	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
 	
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dad:%s oad:%s\n",exten,callerid);
 		
-		update_name(tmp,port,c);
-	
 		tmp->nativeformats = prefformat;
 
 		tmp->readformat = format;
@@ -3141,7 +3152,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
       
 			ast_callerid_parse(callerid, &cid_name, &cid_num);
 			/* Don't use ast_set_callerid() here because it will
-			 * generate a NewCallerID event before the NewChannel event */
+			 * generate a needless NewCallerID event */
 			tmp->cid.cid_num = ast_strdup(cid_num);
 			tmp->cid.cid_ani = ast_strdup(cid_num);
 			tmp->cid.cid_name = ast_strdup(cid_name);
@@ -3155,7 +3166,6 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 			
 		}
 		
-		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		else

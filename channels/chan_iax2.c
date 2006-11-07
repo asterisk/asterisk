@@ -3265,12 +3265,11 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 
 	/* Don't hold call lock */
 	ast_mutex_unlock(&iaxsl[callno]);
-	tmp = ast_channel_alloc(1);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "IAX2/%s-%d", i->host, i->callno);
 	ast_mutex_lock(&iaxsl[callno]);
 	if (!tmp)
 		return NULL;
 	tmp->tech = &iax2_tech;
-	ast_string_field_build(tmp, name, "IAX2/%s-%d", i->host, i->callno);
 	/* We can support any format by default, until we get restricted */
 	tmp->nativeformats = capability;
 	tmp->readformat = ast_best_codec(capability);
@@ -3304,7 +3303,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 	i->owner = tmp;
 	i->capability = capability;
-	ast_setstate(tmp, state);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -6112,10 +6110,9 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 	struct iax_dual *d;
 	struct ast_channel *chan1m, *chan2m;
 	pthread_t th;
-	chan1m = ast_channel_alloc(0);
-	chan2m = ast_channel_alloc(0);
+	chan1m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "Parking/%s", chan1->name);
+	chan2m = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "IAXPeer/%s",chan2->name);
 	if (chan2m && chan1m) {
-		ast_string_field_build(chan1m, name, "Parking/%s", chan1->name);
 		/* Make formats okay */
 		chan1m->readformat = chan1->readformat;
 		chan1m->writeformat = chan1->writeformat;
@@ -6127,7 +6124,6 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		
 		/* We make a clone of the peer channel too, so we can play
 		   back the announcement */
-		ast_string_field_build(chan2m, name, "IAXPeer/%s",chan2->name);
 		/* Make formats okay */
 		chan2m->readformat = chan2->readformat;
 		chan2m->writeformat = chan2->writeformat;

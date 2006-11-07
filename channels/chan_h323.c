@@ -1006,17 +1006,27 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const char *host)
 {
 	struct ast_channel *ch;
+	char *cid_num, *cid_name;
 	int fmt;
 
+	if (!ast_strlen_zero(pvt->options.cid_num))
+		cid_num = pvt->options.cid_num;
+	else
+		cid_num = pvt->cd.call_source_e164;
+
+	if (!ast_strlen_zero(pvt->options.cid_name))
+		cid_name = pvt->options.cid_name;
+	else
+		cid_name = pvt->cd.call_source_name;
+	
 	/* Don't hold a oh323_pvt lock while we allocate a chanel */
 	ast_mutex_unlock(&pvt->lock);
-	ch = ast_channel_alloc(1);
+	ch = ast_channel_alloc(1, state, cid_num, cid_name, "H323/%s", host);
 	/* Update usage counter */
 	ast_module_ref(ast_module_info->self);
 	ast_mutex_lock(&pvt->lock);
 	if (ch) {
 		ch->tech = &oh323_tech;
-		ast_string_field_build(ch, name, "H323/%s", host);
 		if (!(fmt = pvt->jointcapability) && !(fmt = pvt->options.capability))
 			fmt = global_options.capability;
 		ch->nativeformats = ast_codec_choose(&pvt->options.prefs, fmt, 1)/* | (pvt->jointcapability & AST_FORMAT_VIDEO_MASK)*/;
@@ -1065,18 +1075,11 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		}
 
 		/* Don't use ast_set_callerid() here because it will
-		 * generate a NewCallerID event before the NewChannel event */
-		if (!ast_strlen_zero(pvt->options.cid_num)) {
-			ch->cid.cid_num = ast_strdup(pvt->options.cid_num);
-			ch->cid.cid_ani = ast_strdup(pvt->options.cid_num);
-		} else {
-			ch->cid.cid_num = ast_strdup(pvt->cd.call_source_e164);
-			ch->cid.cid_ani = ast_strdup(pvt->cd.call_source_e164);
-		}
-		if (!ast_strlen_zero(pvt->options.cid_name))
-			ch->cid.cid_name = ast_strdup(pvt->options.cid_name);
-		else
-			ch->cid.cid_name = ast_strdup(pvt->cd.call_source_name);
+		 * generate a needless NewCallerID event */
+		ch->cid.cid_num = ast_strdup(cid_num);
+		ch->cid.cid_ani = ast_strdup(cid_num);
+		ch->cid.cid_name = ast_strdup(cid_name);
+
 		if (pvt->cd.redirect_reason >= 0) {
 			ch->cid.cid_rdnis = ast_strdup(pvt->cd.redirect_number);
 			pbx_builtin_setvar_helper(ch, "PRIREDIRECTREASON", redirectingreason2str(pvt->cd.redirect_reason));
@@ -1089,7 +1092,6 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		}
 		if (pvt->cd.transfer_capability >= 0)
 			ch->transfercapability = pvt->cd.transfer_capability;
-		ast_setstate(ch, state);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(ch)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);

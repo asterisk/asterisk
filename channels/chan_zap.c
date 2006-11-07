@@ -5482,12 +5482,35 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	int res;
 	int x,y;
 	int features;
+	char *b2 = 0;
 	ZT_PARAMS ps;
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
 		return NULL;
 	}
-	if (!(tmp = ast_channel_alloc(0)))
+	y = 1;
+	do {
+		if (b2)
+			free(b2);
+#ifdef HAVE_PRI
+		if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
+			b2 = ast_safe_string_alloc("Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+		else
+#endif
+		if (i->channel == CHAN_PSEUDO)
+			b2 = ast_safe_string_alloc("Zap/pseudo-%d", ast_random());
+		else	
+			b2 = ast_safe_string_alloc("Zap/%d-%d", i->channel, y);
+		for (x = 0; x < 3; x++) {
+			if ((index != x) && i->subs[x].owner && !strcasecmp(b2, i->subs[x].owner->name))
+				break;
+		}
+		y++;
+	} while (x < 3);
+	tmp = ast_channel_alloc(0, state, 0, 0, b2);
+	if (b2) /*!> b2 can be freed now, it's been copied into the channel structure */
+		free(b2);
+	if (!tmp)
 		return NULL;
 	tmp->tech = &zap_tech;
 	ps.channo = i->channel;
@@ -5506,23 +5529,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		else
 			deflaw = AST_FORMAT_ULAW;
 	}
-	y = 1;
-	do {
-#ifdef HAVE_PRI
-		if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-			ast_string_field_build(tmp, name, "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
-		else
-#endif
-		if (i->channel == CHAN_PSEUDO)
-			ast_string_field_build(tmp, name, "Zap/pseudo-%d", ast_random());
-		else	
-			ast_string_field_build(tmp, name, "Zap/%d-%d", i->channel, y);
-		for (x = 0; x < 3; x++) {
-			if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
-				break;
-		}
-		y++;
-	} while (x < 3);
 	tmp->fds[0] = i->subs[index].zfd;
 	tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
 	/* Start out assuming ulaw since it's smaller :) */
@@ -5613,9 +5619,9 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	if (!ast_strlen_zero(i->dnid))
 		tmp->cid.cid_dnid = ast_strdup(i->dnid);
 
-#ifdef PRI_ANI
 	/* Don't use ast_set_callerid() here because it will
-	 * generate a NewCallerID event before the NewChannel event */
+	 * generate a needless NewCallerID event */
+#ifdef PRI_ANI
 	tmp->cid.cid_num = ast_strdup(i->cid_num);
 	tmp->cid.cid_name = ast_strdup(i->cid_name);
 	if (!ast_strlen_zero(i->cid_ani))
@@ -5642,7 +5648,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	i->fake_event = 0;
 	/* Assure there is no confmute on this channel */
 	zt_confmute(i, 0);
-	ast_setstate(tmp, state);
 	/* Configure the new channel jb */
 	ast_jb_configure(tmp, &global_jbconf);
 	if (startpbx) {

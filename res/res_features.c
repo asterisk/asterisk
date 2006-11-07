@@ -190,14 +190,13 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	goto_on_transfer = ast_strdupa(val);
 
-	if (!(xferchan = ast_channel_alloc(0)))
+	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan->name)))
 		return;
 
 	for (x = goto_on_transfer; x && *x; x++) {
 		if (*x == '^')
 			*x = '|';
 	}
-	ast_string_field_set(xferchan, name, chan->name);
 	/* Make formats okay */
 	xferchan->readformat = chan->readformat;
 	xferchan->writeformat = chan->writeformat;
@@ -442,12 +441,10 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	struct ast_frame *f;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	if (!(chan = ast_channel_alloc(0))) {
+	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "Parked/%s",rchan->name))) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
 	}
-	/* Let us keep track of the channel name */
-	ast_string_field_build(chan, name, "Parked/%s",rchan->name);
 
 	/* Make formats okay */
 	chan->readformat = rchan->readformat;
@@ -828,12 +825,11 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		return -1;
 	}
 
-	xferchan = ast_channel_alloc(0);
+	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "Transfered/%s", transferee->name);
 	if (!xferchan) {
 		ast_hangup(newchan);
 		return -1;
 	}
-	ast_string_field_build(xferchan, name, "Transfered/%s", transferee->name);
 	/* Make formats okay */
 	xferchan->readformat = transferee->readformat;
 	xferchan->writeformat = transferee->writeformat;

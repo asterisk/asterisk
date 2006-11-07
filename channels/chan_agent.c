@@ -905,7 +905,10 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		return NULL;
 	}
 #endif	
-	tmp = ast_channel_alloc(0);
+	if (p->pending)
+		tmp = ast_channel_alloc(0, state, 0, 0, "Agent/P%s-%d", p->agent, ast_random() & 0xffff);
+	else
+		tmp = ast_channel_alloc(0, state, 0, 0, "Agent/%s", p->agent);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate agent channel structure\n");
 		return NULL;
@@ -929,12 +932,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		tmp->readformat = AST_FORMAT_SLINEAR;
 		tmp->rawreadformat = AST_FORMAT_SLINEAR;
 	}
-	if (p->pending)
-		ast_string_field_build(tmp, name, "Agent/P%s-%d", p->agent, ast_random() & 0xffff);
-	else
-		ast_string_field_build(tmp, name, "Agent/%s", p->agent);
 	/* Safe, agentlock already held */
-	ast_setstate(tmp, state);
 	tmp->tech_pvt = p;
 	p->owner = tmp;
 	tmp->priority = 1;
