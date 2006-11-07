@@ -297,6 +297,8 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 			/* initialize */
 			memset(state, 0, sizeof(struct moh_files_state));
 			state->class = class;
+			if (ast_test_flag(state->class, MOH_RANDOMIZE))
+				state->pos = rand() % class->total_files;
 		}
 
 		state->origwfmt = chan->writeformat;
