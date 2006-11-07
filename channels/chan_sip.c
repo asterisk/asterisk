@@ -4399,10 +4399,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		transmit_response_using_temp(callid, sin, 1, intended_method, req, "501 Method Not Implemented");
 		if (option_debug > 1 )
 			ast_log(LOG_DEBUG, "Got a request with unsupported SIP method.\n");
-	} else if (intended_method != SIP_RESPONSE) {
+	} else if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK) {
 		/* This is a request outside of a dialog that we don't know about */
 		transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
-		if (option_debug > 1 && intended_method == SIP_RESPONSE)
+		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "That's odd...  Got a request in unknown dialog. Callid %s\n", callid ? callid : "<unknown>");
 	}
 	/* We do not respond to responses for dialogs that we don't know about, we just drop
