@@ -3240,9 +3240,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_mutex_unlock(&iflock);
 
 	/* If this is a response and we have ignoring of out of dialog responses turned on, then drop it */
+	/* ...and never respond to a SIP ACK message */
 	if (!sip_methods[intended_method].can_create) {
 		/* Can't create dialog */
-		if (intended_method != SIP_RESPONSE)
+		if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK)
 			transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
 	} else if (sip_methods[intended_method].can_create == 2) {
 		char *response = "481 Call leg/transaction does not exist";
