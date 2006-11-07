@@ -8528,7 +8528,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 
 			if (!match) {
 				sip_pvt_unlock(sip_pvt_ptr);
-				break;
+				continue;
 			}
 
 			if (option_debug > 3 && totag)				 
