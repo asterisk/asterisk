@@ -783,11 +783,10 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct ast_channel *tmp = NULL;
 	
-	if (!(tmp = ast_channel_alloc(1)))
+	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "ALSA/%s", indevname)))
 		return NULL;
 
 	tmp->tech = &alsa_tech;
-	ast_string_field_build(tmp, name, "ALSA/%s", indevname);
 	tmp->fds[0] = readdev;
 	tmp->nativeformats = AST_FORMAT_SLINEAR;
 	tmp->readformat = AST_FORMAT_SLINEAR;
@@ -800,7 +799,6 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	if (!ast_strlen_zero(language))
 		ast_string_field_set(tmp, language, language);
 	p->owner = tmp;
-	ast_setstate(tmp, state);
 	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
 	ast_mutex_unlock(&usecnt_lock);

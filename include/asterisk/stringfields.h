@@ -168,6 +168,22 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 				    int index, const char *format, ...);
 
 /*!
+  \internal
+  \brief Set a field to a complex (built) value
+  \param mgr Pointer to the pool manager structure
+  \param fields Pointer to the first entry of the field array
+  \param num_fields Number of fields in the array
+  \param index Index position of the field within the structure
+  \param format printf-style format string
+  \param args va_list of the args for the format_string
+  \param args_again a copy of the first va_list for the sake of bsd not having a copy routine
+  \return nothing
+*/
+void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
+				    ast_string_field *fields, int num_fields,
+				    int index, const char *format, va_list a1, va_list a2);
+
+/*!
   \brief Declare a string field
   \param name The field name
 */
@@ -276,6 +292,18 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	__ast_string_field_index_build(&(x)->__field_mgr, &(x)->__begin_field[0], ast_string_field_count(x), index, fmt, args)
 
 /*!
+  \brief Set a field to a complex (built) value with prebuilt va_lists.
+  \param x Pointer to a structure containing fields
+  \param index Index position of the field within the structure
+  \param fmt printf-style format string
+  \param args1 Arguments for format string in va_list format
+  \param args2 a second copy of the va_list for the sake of bsd, with no va_list copy operation
+  \return nothing
+*/
+#define ast_string_field_index_build_va(x, index, fmt, args1, args2) \
+	__ast_string_field_index_build_va(&(x)->__field_mgr, &(x)->__begin_field[0], ast_string_field_count(x), index, fmt, args1, args2)
+
+/*!
   \brief Set a field to a complex (built) value
   \param x Pointer to a structure containing fields
   \param field Name of the field to set
@@ -285,6 +313,17 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 */
 #define ast_string_field_build(x, field, fmt, args...) \
 	ast_string_field_index_build(x, ast_string_field_index(x, field), fmt, args)
+
+/*!
+  \brief Set a field to a complex (built) value
+  \param x Pointer to a structure containing fields
+  \param field Name of the field to set
+  \param fmt printf-style format string
+  \param argslist a va_list of the args
+  \return nothing
+*/
+#define ast_string_field_build_va(x, field, fmt, args1, args2) \
+	ast_string_field_index_build_va(x, ast_string_field_index(x, field), fmt, args1, args2)
 
 /*!
   \brief Free a field's value.
