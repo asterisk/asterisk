@@ -450,6 +450,19 @@ int ast_getformatbyname(const char *name);
  */
 char *ast_codec2str(int codec);
 
+/*! \page ast_smooth
+The ast_smoother interface was designed specifically
+to take frames of variant sizes and produce frames of a single expected
+size, precisely what you want to do.
+
+The basic interface is:
+
+- Initialize with ast_smoother_new()
+- Queue input frames with ast_smoother_feed()
+- Get output frames with ast_smoother_read()
+- when you're done, free the structure with ast_smoother_free()
+- Also see ast_smoother_test_flag(), ast_smoother_set_flags(), ast_smoother_get_flags(), ast_smoother_reset()
+*/
 struct ast_smoother;
 
 struct ast_format_list *ast_get_format_list_index(int index);
