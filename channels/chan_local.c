@@ -317,14 +317,22 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound;
 
-	/* Queue up a frame representing the indication as a control frame */
-	ast_mutex_lock(&p->lock);
-	isoutbound = IS_OUTBOUND(ast, p);
-	f.subclass = condition;
-	f.data = (void*)data;
-	f.datalen = datalen;
-	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_mutex_unlock(&p->lock);
+	/* If this is an MOH hold or unhold, do it on the Local channel versus real channel */
+	if (condition == AST_CONTROL_HOLD) {
+		ast_moh_start(ast, data, NULL);
+	} else if (condition == AST_CONTROL_UNHOLD) {
+		ast_moh_stop(ast);
+	} else {
+		/* Queue up a frame representing the indication as a control frame */
+		ast_mutex_lock(&p->lock);
+		isoutbound = IS_OUTBOUND(ast, p);
+		f.subclass = condition;
+		f.data = (void*)data;
+		f.datalen = datalen;
+		res = local_queue_frame(p, isoutbound, &f, ast);
+		ast_mutex_unlock(&p->lock);
+	}
+
 	return res;
 }
 
