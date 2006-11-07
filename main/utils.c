@@ -604,6 +604,21 @@ int ast_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
+/*!
+ * Try to write string, but wait no more than ms milliseconds before timing out.
+ *
+ * \note The code assumes that the file descriptor has NONBLOCK set,
+ * so there is only one system call made to do a write, unless we actually
+ * have a need to wait.  This way, we get better performance.
+ * If the descriptor is blocking, all assumptions on the guaranteed
+ * detail do not apply anymore.
+ * Also note that in the current implementation, the delay is per-write,
+ * so you still have no guarantees, anyways.
+ * Fortunately the routine is only used in a few places (cli.c, manager.c,
+ * res_agi.c) so it is reasonably easy to check how it behaves there.
+ *
+ * XXX We either need to fix the code, or fix the documentation.
+ */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {
 	/* Try to write string, but wait no more than ms milliseconds
