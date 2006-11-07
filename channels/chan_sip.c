@@ -4310,8 +4310,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	} else if( sip_methods[intended_method].can_create == CAN_CREATE_DIALOG_UNSUPPORTED_METHOD) {
 		/* A method we do not support, let's take it on the volley */
 		transmit_response_using_temp(callid, sin, 1, intended_method, req, "501 Method Not Implemented");
-	} else if (intended_method != SIP_RESPONSE) {
-		/* This is a request outside of a dialog that we don't know about */
+	} else if (intended_method != SIP_RESPONSE && intended_method != SIP_ACK) {
+		/* This is a request outside of a dialog that we don't know about 
+			...never reply to an ACK!
+		*/
 		transmit_response_using_temp(callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
 	}
 	/* We do not respond to responses for dialogs that we don't know about, we just drop
