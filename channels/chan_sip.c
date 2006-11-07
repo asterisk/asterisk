@@ -8413,7 +8413,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(const char *callid, const char *t
 
 			if (!match) {
 				ast_mutex_unlock(&sip_pvt_ptr->lock);
-				break;
+				continue;
 			}
 
 			if (option_debug > 3 && totag)				 
