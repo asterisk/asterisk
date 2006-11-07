@@ -447,13 +447,13 @@ static int handle_show_profile(int fd, int argc, char *argv[])
 
 	min = 0;
 	max = prof_data->entries;
-	if  (argc >= 3) { /* specific entries */
-		if (isdigit(argv[2][0])) {
-			min = atoi(argv[2]);
-			if (argc == 4 && strcmp(argv[3], "-"))
-				max = atoi(argv[3]);
+	if  (argc > 3) { /* specific entries */
+		if (isdigit(argv[3][0])) {
+			min = atoi(argv[3]);
+			if (argc == 5 && strcmp(argv[4], "-"))
+				max = atoi(argv[4]);
 		} else
-			search = argv[2];
+			search = argv[3];
 	}
 	if (max > prof_data->entries)
 		max = prof_data->entries;
