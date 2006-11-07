@@ -2590,6 +2590,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 				      c->cid.cid_num ? c->cid.cid_num : "<unknown>",
 				      c->cid.cid_name ? c->cid.cid_name : "<unknown>",
 				      c->uniqueid);
+			ast_set_flag(c, AST_FLAG_NOTNEW);
 		}
 		return c;
 	}
@@ -3253,7 +3254,7 @@ int ast_setstate(struct ast_channel *chan, int state)
 	chan->_state = state;
 	ast_device_state_changed_literal(chan->name);
 	manager_event(EVENT_FLAG_CALL,
-		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
+		      (oldstate == AST_STATE_DOWN && !ast_test_flag(chan, AST_FLAG_NOTNEW)) ? "Newchannel" : "Newstate",
 		      "Channel: %s\r\n"
 		      "State: %s\r\n"
 		      "CallerID: %s\r\n"

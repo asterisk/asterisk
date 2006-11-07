@@ -435,6 +435,7 @@ struct ast_channel {
 						   so when ->priority is set, it will get incremented before
 						   finding the next priority to run
 						*/
+#define AST_FLAG_NOTNEW 	(1 << 10)	/*!< see bug:7855 incorrect Newchannel event generation */
 /* @} */
 
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
