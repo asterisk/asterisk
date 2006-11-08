@@ -129,9 +129,9 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_CXXCPP
-# If you get complaints that the following macro is undefined, you probably
-# need to install libtool, as that is what package provides it.
-AC_PROG_LD
+# This macro is just copied into our local acinclude.m4 from libtool.m4 so that
+# the developers regenerating the configure script don't have to install libtool.
+AST_PROG_LD
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LN_S
