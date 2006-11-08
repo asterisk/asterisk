@@ -2898,24 +2898,27 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 
 	res = update_call_counter(p, INC_CALL_RINGING);
-	if ( res != -1 ) {
-		p->callingpres = ast->cid.cid_pres;
-		p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
 
-		/* If there are no audio formats left to offer, punt */
-		if (!(p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
-			ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
-			res = -1;
-		} else {
-			p->t38.jointcapability = p->t38.capability;
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
-			transmit_invite(p, SIP_INVITE, 1, 2);
+	if (res == -1)
+		return res;
 
-			/* Initialize auto-congest time */
-			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
-		}
+	p->callingpres = ast->cid.cid_pres;
+	p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
+	
+	/* If there are no audio formats left to offer, punt */
+	if (!(p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
+		ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
+		res = -1;
+	} else {
+		p->t38.jointcapability = p->t38.capability;
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
+		transmit_invite(p, SIP_INVITE, 1, 2);
+		
+		/* Initialize auto-congest time */
+		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
 	}
+
 	return res;
 }
 
