@@ -13554,13 +13554,7 @@ int unload_module()
 		while (p) {
 			pl = p;
 			p = p->next;
-			/* Free associated memory */
-			ast_mutex_destroy(&pl->lock);
-			if (pl->chanvars) {
-				ast_variables_destroy(pl->chanvars);
-				pl->chanvars = NULL;
-			}
-			free(pl);
+			__sip_destroy(p, 1);
 		}
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);
