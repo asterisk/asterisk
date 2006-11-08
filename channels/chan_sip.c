@@ -6108,6 +6108,8 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, struct socka
 
 }
 
+#define SDP_SAMPLE_RATE(x) (x == AST_FORMAT_G722) ? 16000 : 8000
+
 /*! \brief Add Session Description Protocol message */
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
@@ -6232,31 +6234,33 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		Note that p->prefcodec can include video codecs, so mask them out
 	 */
 	if (capability & p->prefcodec) {
-		add_codec_to_sdp(p, p->prefcodec & AST_FORMAT_AUDIO_MASK, 8000,
+		int codec = p->prefcodec & AST_FORMAT_AUDIO_MASK;
+
+		add_codec_to_sdp(p, codec, SDP_SAMPLE_RATE(codec),
 				 &m_audio_next, &m_audio_left,
 				 &a_audio_next, &a_audio_left,
 				 debug, &min_audio_packet_size);
-		alreadysent |= p->prefcodec & AST_FORMAT_AUDIO_MASK;
+		alreadysent |= codec;
 	}
 
 	/* Start by sending our preferred audio codecs */
 	for (x = 0; x < 32; x++) {
-		int pref_codec;
+		int codec;
 
-		if (!(pref_codec = ast_codec_pref_index(&p->prefs, x)))
+		if (!(codec = ast_codec_pref_index(&p->prefs, x)))
 			break; 
 
-		if (!(capability & pref_codec))
+		if (!(capability & codec))
 			continue;
 
-		if (alreadysent & pref_codec)
+		if (alreadysent & codec)
 			continue;
 
-		add_codec_to_sdp(p, pref_codec, 8000,
+		add_codec_to_sdp(p, codec, SDP_SAMPLE_RATE(codec),
 				 &m_audio_next, &m_audio_left,
 				 &a_audio_next, &a_audio_left,
 				 debug, &min_audio_packet_size);
-		alreadysent |= pref_codec;
+		alreadysent |= codec;
 	}
 
 	/* Now send any other common audio and video codecs, and non-codec formats: */
@@ -6268,7 +6272,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			continue;
 
 		if (x <= AST_FORMAT_MAX_AUDIO)
-			add_codec_to_sdp(p, x, 8000,
+			add_codec_to_sdp(p, x, SDP_SAMPLE_RATE(x),
 					 &m_audio_next, &m_audio_left,
 					 &a_audio_next, &a_audio_left,
 					 debug, &min_audio_packet_size);
