@@ -16,13 +16,31 @@
  * at the top of the source tree.
  */
 
-/*
-*
-* streamplayer.c
-*
-* A utility for reading from a stream
-* 
-*/
+/*!
+ * \file
+ * \author Russell Bryant <russell@digium.com>
+ * 
+ * \brief A utility for reading from a raw TCP stream
+ *
+ * This application is intended for use when a raw TCP stream is desired to be
+ * used as a music on hold source for Asterisk.  Some devices are capable of
+ * taking some kind of audio input and provide it as a raw TCP stream over the
+ * network, which is what inspired someone to fund this to be written.
+ * However, it would certainly be possible to write your own server application
+ * to provide music over a TCP stream from a centralized location.
+ *
+ * This application is quite simple.  It just reads the data from the TCP
+ * stream and dumps it straight to stdout.  Due to the way Asterisk handles
+ * music on hold sources, this application checks to make sure writing
+ * to stdout will not be a blocking operation before doing so.  If so, the data
+ * is just thrown away.  This ensures that the stream will continue to be
+ * serviced, even if Asterisk is not currently using the source.
+ *
+ * \todo Update this application to be able to connect to a stream via HTTP,
+ * since that is the #1 most requested feature, and it would be quite useful.
+ * A lot of people think that is what this is for and email me when it does
+ * not work.  :)
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,7 +66,7 @@ int main(int argc, char *argv[])
 	struct timeval tv;
 
 	if (argc != 3) {
-		fprintf(stderr, "streamplayer -- A utility for reading from a stream.\n");
+		fprintf(stderr, "streamplayer -- A utility for reading from a raw TCP stream.\n");
 		fprintf(stderr, "Written for use with Asterisk (http://www.asterisk.org)\n");
 		fprintf(stderr, "Copyright (C) 2005 -- Russell Bryant -- Digium, Inc.\n\n");
 		fprintf(stderr, "Usage: ./streamplayer <ip> <port>\n");
