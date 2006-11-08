@@ -1606,6 +1606,11 @@ static void unref_user(struct sip_user *user)
 	ASTOBJ_UNREF(user, sip_destroy_user);
 }
 
+static void unref_registry(struct sip_registry *reg)
+{
+	ASTOBJ_UNREF(reg, sip_registry_destroy);
+}
+
 /*! \brief Interface structure with callbacks used to connect to UDPTL module*/
 static struct ast_udptl_protocol sip_udptl = {
 	type: "SIP",
@@ -2981,7 +2986,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->registry) {
 		if (p->registry->call == p)
 			p->registry->call = NULL;
-		ASTOBJ_UNREF(p->registry, sip_registry_destroy);
+		unref_registry(p->registry);
 	}
 
 	/* Unlink us from the owner if we have one */
@@ -4512,7 +4517,7 @@ static int sip_register(char *value, int lineno)
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
-	ASTOBJ_UNREF(reg,sip_registry_destroy);
+	unref_registry(reg);
 	return 0;
 }
 
@@ -7070,7 +7075,7 @@ static int sip_reregister(void *data)
 
 	r->expire = -1;
 	__sip_do_register(r);
-	ASTOBJ_UNREF(r, sip_registry_destroy);
+	unref_registry(r);
 	return 0;
 }
 
@@ -7102,7 +7107,7 @@ static int sip_reg_timeout(void *data)
 		   in the single SIP manager thread. */
 		p = r->call;
 		if (p->registry)
-			ASTOBJ_UNREF(p->registry, sip_registry_destroy);
+			unref_registry(p->registry);
 		r->call = NULL;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
@@ -7121,7 +7126,7 @@ static int sip_reg_timeout(void *data)
 		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	}
 	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
-	ASTOBJ_UNREF(r, sip_registry_destroy);
+	unref_registry(r);
 	return 0;
 }
 
@@ -12021,7 +12026,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 		/* Schedule re-registration before we expire */
 		r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
-		ASTOBJ_UNREF(r, sip_registry_destroy);
+		unref_registry(r);
 	}
 	return 1;
 }
