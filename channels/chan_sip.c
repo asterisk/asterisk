@@ -13554,7 +13554,7 @@ int unload_module()
 		while (p) {
 			pl = p;
 			p = p->next;
-			__sip_destroy(p, 1);
+			__sip_destroy(pl, 1);
 		}
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);
