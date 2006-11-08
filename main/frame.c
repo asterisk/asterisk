@@ -612,7 +612,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 	ast_cli(fd, "--------------------------------------------------------------------------------\n");
 	if ((argc == 3) || (!strcasecmp(argv[3],"audio"))) {
 		found = 1;
-		for (i=0;i<12;i++) {
+		for (i=0;i<13;i++) {
 			snprintf(hex,25,"(0x%x)",1<<i);
 			ast_cli(fd, "%11u (1 << %2d) %10s  audio   %8s   (%s)\n",1 << i,i,hex,ast_getformatname(1<<i),ast_codec2str(1<<i));
 		}
