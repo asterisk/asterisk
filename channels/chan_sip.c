@@ -1415,8 +1415,6 @@ static int sip_poke_peer(struct sip_peer *peer);
 static void set_peer_defaults(struct sip_peer *peer);
 static struct sip_peer *temp_peer(const char *name);
 static void register_peer_exten(struct sip_peer *peer, int onoff);
-static void sip_destroy_peer(struct sip_peer *peer);
-static void sip_destroy_user(struct sip_user *user);
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime);
 static struct sip_user *find_user(const char *name, int realtime);
 static int sip_poke_peer_s(void *data);
@@ -1591,6 +1589,21 @@ static void sip_pvt_lock(struct sip_pvt *pvt)
 static void sip_pvt_unlock(struct sip_pvt *pvt)
 {
 	ast_mutex_unlock(&pvt->pvt_lock);
+}
+
+/*!
+ * helper functions to unreference various types of objects.
+ * By handling them this way, we don't have to declare the
+ * destructor on each call, which removes the chance of errors.
+ */
+static void unref_peer(struct sip_peer *peer)
+{
+	ASTOBJ_UNREF(peer, sip_destroy_peer);
+}
+
+static void unref_user(struct sip_user *user)
+{
+	ASTOBJ_UNREF(user, sip_destroy_user);
 }
 
 /*! \brief Interface structure with callbacks used to connect to UDPTL module*/
@@ -1992,7 +2005,7 @@ static int __sip_autodestruct(void *data)
 
 	if (p->subscribed == MWI_NOTIFICATION)
 		if (p->relatedpeer)
-			ASTOBJ_UNREF(p->relatedpeer,sip_destroy_peer);	/* Remove link to peer. If it's realtime, make sure it's gone from memory) */
+			unref_peer(p->relatedpeer);	/* Remove link to peer. If it's realtime, make sure it's gone from memory) */
 
 	/* Reset schedule ID */
 	p->autokillid = -1;
@@ -2768,7 +2781,7 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 
 	if (peer) {
 		int res = create_addr_from_peer(dialog, peer);
-		ASTOBJ_UNREF(peer, sip_destroy_peer);
+		unref_peer(peer);
 		return res;
 	}
 	hostn = peername;
@@ -3101,9 +3114,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			if (*inuse >= *call_limit) {
 				ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 				if (u)
-					ASTOBJ_UNREF(u, sip_destroy_user);
+					unref_user(u);
 				else
-					ASTOBJ_UNREF(p, sip_destroy_peer);
+					unref_peer(p);
 				return -1; 
 			}
 		}
@@ -3138,9 +3151,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	}
 	if (p) {
 		ast_device_state_changed("SIP/%s", p->name);
-		ASTOBJ_UNREF(p, sip_destroy_peer);
+		unref_peer(p);
 	} else /* u must be set */
-		ASTOBJ_UNREF(u, sip_destroy_user);
+		unref_user(u);
 	return 0;
 }
 
@@ -7495,7 +7508,7 @@ static int expire_register(void *data)
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
 		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);	/* Remove from peer list */
-		ASTOBJ_UNREF(peer, sip_destroy_peer);		/* Remove from memory */
+		unref_peer(peer);		/* Remove from memory */
 	}
 
 	return 0;
@@ -8188,7 +8201,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		/* Peer fails ACL check */
 		if (peer)
-			ASTOBJ_UNREF(peer, sip_destroy_peer);
+			unref_peer(peer);
 		peer = NULL;
 	}
 	if (peer) {
@@ -8307,7 +8320,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		}
 	}
 	if (peer)
-		ASTOBJ_UNREF(peer, sip_destroy_peer);
+		unref_peer(peer);
 
 	return res;
 }
@@ -8951,7 +8964,7 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 		if (debug)
 			ast_verbose("Found user '%s' for '%s', but fails host access\n",
 				user->name, of);
-		ASTOBJ_UNREF(user,sip_destroy_user);
+		unref_user(user);
 		return AUTH_DONT_KNOW;
 	}
 	if (debug)
@@ -9027,7 +9040,7 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 			p->vrtp = NULL;
 		}
 	}
-	ASTOBJ_UNREF(user, sip_destroy_user);
+	unref_user(user);
 	return res;
 }
 
@@ -9148,7 +9161,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		if (p->t38.peercapability)
 			p->t38.jointcapability &= p->t38.peercapability;
 	}
-	ASTOBJ_UNREF(peer, sip_destroy_peer);
+	unref_peer(peer);
 	return res;
 }
 
@@ -9868,7 +9881,7 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 					ASTOBJ_CONTAINER_LINK(&peerl, peer);
 				} else
 					ast_cli(fd, "Peer '%s' pruned.\n", name);
-				ASTOBJ_UNREF(peer, sip_destroy_peer);
+				unref_peer(peer);
 			} else
 				ast_cli(fd, "Peer '%s' not found.\n", name);
 		}
@@ -9879,7 +9892,7 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 					ASTOBJ_CONTAINER_LINK(&userl, user);
 				} else
 					ast_cli(fd, "User '%s' pruned.\n", name);
-				ASTOBJ_UNREF(user, sip_destroy_user);
+				unref_user(user);
 			} else
 				ast_cli(fd, "User '%s' not found.\n", name);
 		}
@@ -10103,7 +10116,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
  				ast_cli(fd, "                 %s = %s\n", v->name, v->value);
 		}
 		ast_cli(fd,"\n");
-		ASTOBJ_UNREF(peer,sip_destroy_peer);
+		unref_peer(peer);
 	} else  if (peer && type == 1) { /* manager listing */
 		char buf[256];
 		astman_append(s, "Channeltype: SIP\r\n");
@@ -10177,7 +10190,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 			}
 		}
 
-		ASTOBJ_UNREF(peer,sip_destroy_peer);
+		unref_peer(peer);
 
 	} else {
 		ast_cli(fd,"Peer %s not found.\n", argv[3]);
@@ -10232,7 +10245,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
  				ast_cli(fd, "                 %s = %s\n", v->name, v->value);
 		}
 		ast_cli(fd,"\n");
-		ASTOBJ_UNREF(user,sip_destroy_user);
+		unref_user(user);
 	} else {
 		ast_cli(fd,"User %s not found.\n", argv[3]);
 		ast_cli(fd,"\n");
@@ -10877,7 +10890,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 			ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 		} else
 			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
-		ASTOBJ_UNREF(peer,sip_destroy_peer);
+		unref_peer(peer);
 	} else
 		ast_cli(fd, "No such peer '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
@@ -11425,7 +11438,7 @@ static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, cha
 		}
 	}
 
-	ASTOBJ_UNREF(peer, sip_destroy_peer);
+	unref_peer(peer);
 
 	return 0;
 }
@@ -14178,7 +14191,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		transmit_response(p, "403 Forbidden (policy)", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 		if (authpeer)
-			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
+			unref_peer(authpeer);
 		return 0;
 	}
 
@@ -14200,7 +14213,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		transmit_response(p, "404 Not Found", req);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		if (authpeer)
-			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
+			unref_peer(authpeer);
 		return 0;
 	}
 
@@ -14210,7 +14223,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 		if (authpeer)	/* We do not need the authpeer any more */
-			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
+			unref_peer(authpeer);
 
 		/* Header from Xten Eye-beam Accept: multipart/related, application/rlmi+xml, application/pidf+xml, application/xpidf+xml */
 		/* Polycom phones only handle xpidf+xml, even if they say they can
@@ -14241,7 +14254,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ast_log(LOG_DEBUG, "Received SIP mailbox subscription for unknown format: %s\n", accept);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			if (authpeer)
-				ASTOBJ_UNREF(authpeer,sip_destroy_peer);
+				unref_peer(authpeer);
 			return 0;
 		}
 		/* Looks like they actually want a mailbox status 
@@ -14254,7 +14267,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
 			if (authpeer)
-				ASTOBJ_UNREF(authpeer,sip_destroy_peer);
+				unref_peer(authpeer);
 			return 0;
 		}
 
@@ -14271,7 +14284,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_log(LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		if (authpeer)
-			ASTOBJ_UNREF(authpeer,sip_destroy_peer);
+			unref_peer(authpeer);
 		return 0;
 	}
 
@@ -14919,7 +14932,7 @@ restartsearch:
 			ASTOBJ_WRLOCK(peer);
 			sip_send_mwi_to_peer(peer);
 			ASTOBJ_UNLOCK(peer);
-			ASTOBJ_UNREF(peer,sip_destroy_peer);
+			unref_peer(peer);
 		} else {
 			/* Reset where we come from */
 			lastpeernum = -1;
@@ -15106,7 +15119,7 @@ static int sip_devicestate(void *data)
 			/* there is no address, it's unavailable */
 			res = AST_DEVICE_UNAVAILABLE;
 		}
-		ASTOBJ_UNREF(p,sip_destroy_peer);
+		unref_peer(p);
 	} else {
 		hp = ast_gethostbyname(host, &ahp);
 		if (hp)
@@ -15787,7 +15800,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
 				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
 					if (ast_get_ip_or_srv(&peer->addr, v->value, global_srvlookup ? "_sip._udp" : NULL)) {
-						ASTOBJ_UNREF(peer, sip_destroy_peer);
+						unref_peer(peer);
 						return NULL;
 					}
 				}
@@ -15801,7 +15814,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			}
 		} else if (!strcasecmp(v->name, "defaultip")) {
 			if (ast_get_ip(&peer->defaddr, v->value)) {
-				ASTOBJ_UNREF(peer, sip_destroy_peer);
+				unref_peer(peer);
 				return NULL;
 			}
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
@@ -16323,7 +16336,7 @@ static int reload_config(enum channelreloadreason reason)
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (peer) {
 						ASTOBJ_CONTAINER_LINK(&peerl,peer);
-						ASTOBJ_UNREF(peer, sip_destroy_peer);
+						unref_peer(peer);
 						peer_count++;
 					}
 				}
@@ -16383,7 +16396,7 @@ static int reload_config(enum channelreloadreason reason)
 				user = build_user(cat, ast_variable_browse(cfg, cat), 0);
 				if (user) {
 					ASTOBJ_CONTAINER_LINK(&userl,user);
-					ASTOBJ_UNREF(user, sip_destroy_user);
+					unref_user(user);
 					user_count++;
 				}
 			}
@@ -16391,7 +16404,7 @@ static int reload_config(enum channelreloadreason reason)
 				peer = build_peer(cat, ast_variable_browse(cfg, cat), NULL, 0);
 				if (peer) {
 					ASTOBJ_CONTAINER_LINK(&peerl,peer);
-					ASTOBJ_UNREF(peer, sip_destroy_peer);
+					unref_peer(peer);
 					peer_count++;
 				}
 			}
