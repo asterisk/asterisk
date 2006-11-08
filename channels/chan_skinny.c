@@ -420,7 +420,10 @@ struct displaytext_message {
 	char text[40];
 };
 
+#define CLEAR_NOTIFY_MESSAGE  0x0115
+#define CLEAR_PROMPT_MESSAGE  0x0113
 #define CLEAR_DISPLAY_MESSAGE 0x009A
+
 #define CAPABILITIES_REQ_MESSAGE 0x009B
 
 #define REGISTER_REJ_MESSAGE 0x009D
@@ -4249,7 +4252,10 @@ static void *skinny_session(void *data)
 		}
 	}
 	ast_log(LOG_NOTICE, "Skinny Session returned: %s\n", strerror(errno));
-	destroy_session(s);
+
+	if (s) 
+		destroy_session(s);
+	
 	return 0;
 }
 
@@ -4356,17 +4362,19 @@ static int restart_monitor(void)
 static struct ast_channel *skinny_request(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
+	
 	struct skinny_line *l;
 	struct ast_channel *tmpc = NULL;
 	char tmp[256];
 	char *dest = data;
 
 	oldformat = format;
-	format &= default_capability;
-	if (!format) {
+	
+	if (!(format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1))) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
-		return NULL;
-	}
+		return NULL;	
+	}		
+
 	ast_copy_string(tmp, dest, sizeof(tmp));
 	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_NOTICE, "Skinny channels require a device\n");
