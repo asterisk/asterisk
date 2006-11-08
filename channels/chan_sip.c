@@ -1109,8 +1109,7 @@ struct sip_peer {
 	int pokeexpire;			/*!<  When to expire poke (qualify= checking) */
 	int lastms;			/*!<  How long last response took (in ms), or -1 for no response */
 	int maxms;			/*!<  Max ms we will accept for the host to be up, 0 to not monitor */
-	struct timeval ps;		/*!<  Ping send time */
-	
+	struct timeval ps;		/*!<  Time for sending SIP OPTION in sip_pke_peer() */
 	struct sockaddr_in defaddr;	/*!<  Default IP address, used until registration */
 	struct ast_ha *ha;		/*!<  Access control list */
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
@@ -1577,15 +1576,13 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
-/*!
- * Helper functions to lock/unlock pvt, hiding the
- * underlying locking mechanism.
- */
+/*! \brief Helper function to lock, hiding the underlying locking mechanism.  */
 static void sip_pvt_lock(struct sip_pvt *pvt)
 {
 	ast_mutex_lock(&pvt->pvt_lock);
 }
 
+/*! \brief Helper function to unlock pvt, hiding the underlying locking mechanism. */
 static void sip_pvt_unlock(struct sip_pvt *pvt)
 {
 	ast_mutex_unlock(&pvt->pvt_lock);
@@ -5638,6 +5635,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		set_destination(p, p->route->hop);
 		add_route(req, is_strict ? p->route->next : p->route);
 	}
+	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	ot = get_header(orig, "To");
 	of = get_header(orig, "From");
@@ -5670,7 +5668,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "CSeq", tmp);
 
 	add_header(req, "User-Agent", global_useragent);
-	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
@@ -6694,6 +6691,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
 
 	add_header(req, "Via", p->via);
+	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	/* Build Remote Party-ID and From */
@@ -6709,7 +6707,6 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", global_useragent);
-	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
@@ -7270,12 +7267,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 
 	build_via(p);
 	add_header(&req, "Via", p->via);
+	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	add_header(&req, "From", from);
 	add_header(&req, "To", to);
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
 	add_header(&req, "User-Agent", global_useragent);
-	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	
 	if (auth) 	/* Add auth header */
