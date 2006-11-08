@@ -17216,13 +17216,7 @@ static int unload_module(void)
 	while (p) {
 		pl = p;
 		p = p->next;
-		/* Free associated memory */
-		ast_mutex_destroy(&pl->pvt_lock);
-		if (pl->chanvars) {
-			ast_variables_destroy(pl->chanvars);
-			pl->chanvars = NULL;
-		}
-		free(pl);
+		__sip_destroy(pl, TRUE, TRUE);
 	}
 	dialoglist = NULL;
 	ast_mutex_unlock(&dialoglock);
