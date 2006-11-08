@@ -129,6 +129,8 @@ AC_PROG_CC
 AC_PROG_CXX
 AC_PROG_CPP
 AC_PROG_CXXCPP
+# If you get complaints that the following macro is undefined, you probably
+# need to install libtool, as that is what package provides it.
 AC_PROG_LD
 AC_PROG_AWK
 AC_PROG_INSTALL
