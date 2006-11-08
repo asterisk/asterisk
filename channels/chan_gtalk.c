@@ -895,7 +895,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	struct ast_channel *tmp;
 	int fmt;
 	int what;
-	char *n2;
+	const char *n2;
 
 	if (title)
 		n2 = title;
@@ -953,9 +953,9 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
-	tmp->cid.cid_num = ast_strdup(l->cid_num);
-	tmp->cid.cid_ani = ast_strdup(l->cid_num);
-	tmp->cid.cid_name = ast_strdup(l->cid_name);
+	tmp->cid.cid_num = ast_strdup(i->cid_num);
+	tmp->cid.cid_ani = ast_strdup(i->cid_num);
+	tmp->cid.cid_name = ast_strdup(i->cid_name);
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
 		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;

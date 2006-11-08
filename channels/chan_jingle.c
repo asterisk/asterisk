@@ -754,7 +754,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	struct ast_channel *tmp;
 	int fmt;
 	int what;
-	char *str;
+	const char *str;
 
 	if (title)
 		str = title;
