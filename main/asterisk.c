@@ -1323,7 +1323,7 @@ static char version_help[] =
 
 static int handle_version(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, "Asterisk %s built by %s @ %s on a %s running %s on %s\n",
 		ASTERISK_VERSION, ast_build_user, ast_build_hostname,
