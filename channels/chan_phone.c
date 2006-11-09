@@ -49,7 +49,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Still use some IXJ specific stuff */
 #include <linux/version.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
 # include <linux/compiler.h>
+#endif
 #endif
 #include <linux/ixjuser.h>
 
