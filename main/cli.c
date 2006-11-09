@@ -828,12 +828,12 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	now = ast_tvnow();
-	c = ast_get_channel_by_name_locked(argv[2]);
+	c = ast_get_channel_by_name_locked(argv[3]);
 	if (!c) {
-		ast_cli(fd, "%s is not a known channel\n", argv[2]);
+		ast_cli(fd, "%s is not a known channel\n", argv[3]);
 		return RESULT_SUCCESS;
 	}
 	if(c->cdr) {
@@ -922,7 +922,7 @@ static char *complete_show_channels(const char *line, const char *word, int pos,
 {
 	static char *choices[] = { "concise", "verbose", NULL };
 
-	return (pos != 2) ? NULL : ast_cli_complete(word, choices, state);
+	return (pos != 3) ? NULL : ast_cli_complete(word, choices, state);
 }
 
 char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos)
@@ -1128,7 +1128,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	{ { "core", "show" "channel", NULL },
 	handle_showchan, "Display information on a specific channel",
-	showchan_help, complete_ch_3, &cli_show_channel_deprecated },
+	showchan_help, complete_ch_4, &cli_show_channel_deprecated },
 
 	{ { "core", "debug", "channel", NULL },
 	handle_debugchan, "Enable debugging on a channel",
