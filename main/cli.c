@@ -657,18 +657,18 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 	int is_all;
 
 	/* 'debug channel {all|chan_id}' */
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	is_all = !strcasecmp("all", argv[2]);
+	is_all = !strcasecmp("all", argv[3]);
 	if (is_all) {
 		global_fin |= DEBUGCHAN_FLAG;
 		global_fout |= DEBUGCHAN_FLAG;
 		c = ast_channel_walk_locked(NULL);
 	} else {
-		c = ast_get_channel_by_name_locked(argv[2]);
+		c = ast_get_channel_by_name_locked(argv[3]);
 		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[2]);
+			ast_cli(fd, "No such channel %s\n", argv[3]);
 	}
 	while (c) {
 		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
