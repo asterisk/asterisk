@@ -12694,6 +12694,10 @@ static int reload(void)
 	return 0;
 }
 
+/* This is a workaround so that menuselect displays a proper description
+ * AST_MODULE_INFO(, , "Zapata Telephony"
+ */
+
 #ifdef ZAPATA_PRI
 #define tdesc "Zapata Telephony w/PRI"
 #else

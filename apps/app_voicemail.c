@@ -8765,6 +8765,10 @@ static void get_mailbox_delimiter(MAILSTREAM *stream) {
 }
 
 #endif /* IMAP_STORAGE */
+
+/* This is a workaround so that menuselect displays a proper description
+ * AST_MODULE_INFO(, , "Comedian Mail (Voicemail System)"
+ */
  
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, tdesc,
 		.load = load_module,
