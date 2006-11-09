@@ -405,9 +405,9 @@ static int handle_showuptime(int fd, int argc, char *argv[])
 {
 	/* 'show uptime [seconds]' */
 	time_t curtime = time(NULL);
-	int printsec = (argc == 3 && !strcasecmp(argv[2],"seconds"));
+	int printsec = (argc == 4 && !strcasecmp(argv[3],"seconds"));
 
-	if (argc != 2 && !printsec)
+	if (argc != 3 && !printsec)
 		return RESULT_SHOWUSAGE;
 	if (ast_startuptime)
 		print_uptimestr(fd, curtime - ast_startuptime, "System uptime", printsec);
