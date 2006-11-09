@@ -855,6 +855,11 @@ static char *complete_ch_4(const char *line, const char *word, int pos, int stat
 	return ast_complete_channels(line, word, pos, state, 3);
 }
 
+static char *complete_ch_5(const char *line, const char *word, int pos, int state)
+{
+	return ast_complete_channels(line, word, pos, state, 4);
+}
+
 static char *complete_mod_3_nr(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 2, 0);
@@ -986,11 +991,11 @@ static struct ast_cli_entry cli_cli[] = {
 
 	{ { "core", "debug", "channel", NULL },
 	handle_debugchan, "Enable debugging on a channel",
-	debugchan_help, complete_ch_3 },
+	debugchan_help, complete_ch_4 },
 
 	{ { "core", "no", "debug", "channel", NULL },
 	handle_nodebugchan, "Disable debugging on a channel",
-	nodebugchan_help, complete_ch_3 },
+	nodebugchan_help, complete_ch_5 },
 
 	{ { "core", "set", "debug", NULL },
 	handle_debug, "Set level of debug chattiness",
