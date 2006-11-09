@@ -4121,8 +4121,11 @@ int load_module(void)
 		return 0;
 	}
 	
-	
-	misdn_cfg_init(max_ports);
+	if (misdn_cfg_init(max_ports)<0) {
+		ast_log(LOG_ERROR, "Unable to initialize mISDN Config System\n");
+		return 0;
+	}
+
 	g_config_initialized=1;
 	
 	misdn_debug = (int *)malloc(sizeof(int) * (max_ports+1));

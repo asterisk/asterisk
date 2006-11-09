@@ -727,7 +727,7 @@ void misdn_cfg_destroy (void)
 	ast_mutex_destroy(&config_mutex);
 }
 
-void misdn_cfg_init (int this_max_ports)
+int misdn_cfg_init (int this_max_ports)
 {
 	char config[] = "misdn.conf";
 	char *cat, *p;
@@ -737,7 +737,7 @@ void misdn_cfg_init (int this_max_ports)
 
 	if (!(cfg = AST_LOAD_CFG(config))) {
 		ast_log(LOG_WARNING,"no misdn.conf ?\n");
-		return;
+		return -1;
 	}
 
 	misdn_cfg_lock();
@@ -783,4 +783,6 @@ void misdn_cfg_init (int this_max_ports)
 
 	misdn_cfg_unlock();
 	AST_DESTROY_CFG(cfg);
+
+	return 0;
 }
