@@ -1,7 +1,7 @@
 #!/bin/sh
 
 get_description() {
-	TDESC=`grep -m 1 -e AST_MODULE_INFO ${1} | cut -d '"' -f 2`
+	TDESC=`grep -e AST_MODULE_INFO ${1} | head -n 1 | cut -d '"' -f 2`
 }
 
 process_dir() {
