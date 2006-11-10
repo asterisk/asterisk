@@ -3124,7 +3124,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	switch (remove_from_queue(args.queuename, args.interface)) {
 	case RES_OKAY:
 		ast_queue_log(args.queuename, chan->uniqueid, args.interface, "REMOVEMEMBER", "%s", "");
-		ast_log(LOG_DEBUG, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
+		ast_log(LOG_NOTICE, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
 		res = 0;
 		break;
