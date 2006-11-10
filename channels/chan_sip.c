@@ -10561,10 +10561,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
 			} else {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
-				if (ignore)
-					transmit_response(p, "403 Forbidden", req);
-				else
-					transmit_response_reliable(p, "403 Forbidden", req, 1);
+				transmit_response_reliable(p, "403 Forbidden", req, 1);
 			}
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			p->theirtag[0] = '\0'; /* Forget their to-tag, we'll get a new one */
@@ -10593,10 +10590,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (res) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
-				if (ignore)
-					transmit_response(p, "480 Temporarily Unavailable (Call limit)", req);
-				else
-					transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
+				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			}
 			return 0;
@@ -10609,20 +10603,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		build_contact(p);
 
 		if (gotdest) {
-			if (gotdest < 0) {
-				if (ignore)
-					transmit_response(p, "404 Not Found", req);
-				else
-					transmit_response_reliable(p, "404 Not Found", req, 1);
-				update_call_counter(p, DEC_CALL_LIMIT);
-			} else {
-				if (ignore)
-					transmit_response(p, "484 Address Incomplete", req);
-				else
-					transmit_response_reliable(p, "484 Address Incomplete", req, 1);
-				update_call_counter(p, DEC_CALL_LIMIT);
-			}
+			if (gotdest < 0)
+				transmit_response_reliable(p, "404 Not Found", req, 1);
+			else
+				transmit_response_reliable(p, "484 Address Incomplete", req, 1);
+			update_call_counter(p, DEC_CALL_LIMIT);
 			ast_set_flag(p, SIP_NEEDDESTROY);		
+			return 0;
 		} else {
 			/* If no extension was specified, use the s one */
 			if (ast_strlen_zero(p->exten))
@@ -10728,19 +10715,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	} else {
 		if (p && !ast_test_flag(p, SIP_NEEDDESTROY) && !ignore) {
 			if (!p->jointcapability) {
-				if (ignore)
-					transmit_response(p, "488 Not Acceptable Here (codec error)", req);
-				else
-					transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req, 1);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
+				transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req, 1);
 			} else {
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
-				if (ignore)
-					transmit_response(p, "503 Unavailable", req);
-				else
-					transmit_response_reliable(p, "503 Unavailable", req, 1);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
+				transmit_response_reliable(p, "503 Unavailable", req, 1);
 			}
+			ast_set_flag(p, SIP_NEEDDESTROY);	
 		}
 	}
 	return res;
