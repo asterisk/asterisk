@@ -2643,15 +2643,13 @@ static char h323_reload_usage[] =
 
 static struct ast_cli_entry cli_h323_no_trace_deprecated = {
 	{ "h.323", "no", "trace", NULL },
-	  h323_no_trace, "Disable H.323 Stack Tracing",
-	  no_trace_usage };
-};
+	h323_no_trace, "Disable H.323 Stack Tracing",
+	no_trace_usage };
 
 static struct ast_cli_entry cli_h323_no_debug_deprecated = {
 	{ "h.323", "no", "debug", NULL },
-	  h323_no_debug, "Disable H.323 debug",
-	  no_debug_usage };
-};
+	h323_no_debug, "Disable H.323 debug",
+	no_debug_usage };
 
 static struct ast_cli_entry cli_h323_debug_deprecated = {
 	{ "h.323", "debug", NULL },
@@ -2671,23 +2669,23 @@ static struct ast_cli_entry cli_h323_gk_cycle_deprecated = {
 static struct ast_cli_entry cli_h323[] = {
 	{ { "h323", "set", "trace", NULL },
 	h323_do_trace, "Enable H.323 Stack Tracing",
-	trace_usage, NULL, cli_h323_trace_deprecated },
+	trace_usage, NULL, &cli_h323_trace_deprecated },
 
 	{ { "h323", "set", "trace", "off", NULL },
 	h323_no_trace, "Disable H.323 Stack Tracing",
-	no_trace_usage, NULL, cli_h323_no_trace_deprecated },
+	no_trace_usage, NULL, &cli_h323_no_trace_deprecated },
 
 	{ { "h323", "set", "debug", NULL },
 	h323_do_debug, "Enable H.323 debug",
-	debug_usage, NULL, cli_h323_debug_deprecated },
+	debug_usage, NULL, &cli_h323_debug_deprecated },
 
 	{ { "h323", "set", "debug", "off", NULL },
 	h323_no_debug, "Disable H.323 debug",
-	no_debug_usage, NULL, cli_h323_no_debug_deprecated },
+	no_debug_usage, NULL, &cli_h323_no_debug_deprecated },
 
 	{ { "h323", "cycle", "gk", NULL },
 	h323_gk_cycle, "Manually re-register with the Gatekeper",
-	show_cycle_usage, NULL, cli_h323_gk_cycle_deprecated },
+	show_cycle_usage, NULL, &cli_h323_gk_cycle_deprecated },
 
 	{ { "h323", "hangup", NULL },
 	h323_ep_hangup, "Manually try to hang up a call",
