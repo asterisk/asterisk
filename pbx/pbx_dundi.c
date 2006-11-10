@@ -1991,7 +1991,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		return 1;
 	}
 	if (res < sizeof(struct dundi_hdr)) {
-		ast_log(LOG_WARNING, "midget packet received (%d of %ld min)\n", res, sizeof(struct dundi_hdr));
+		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct dundi_hdr));
 		return 1;
 	}
 	buf[res] = '\0';
