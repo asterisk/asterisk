@@ -658,7 +658,8 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 
 	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		context = argv[0];
-		exten = strsep(&context, "@");
+		if (!ast_strlen_zero(argv[0]))
+			exten = strsep(&context, "@");
 		if (ast_strlen_zero(context))
 			context = ast_strdupa(chan->context);
 		if (argc > 1)
