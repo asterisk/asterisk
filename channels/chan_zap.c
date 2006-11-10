@@ -577,8 +577,8 @@ static struct zt_pvt {
 	unsigned int firstradio:1;
 	unsigned int hanguponpolarityswitch:1;
 	unsigned int hardwaredtmf:1;
-	unsigned int hidecallerid;
-	unsigned int hidecalleridname;      /*!< Hide just the name not the number for legacy PBX use */
+	unsigned int hidecallerid:1;
+	unsigned int hidecalleridname:1;      /*!< Hide just the name not the number for legacy PBX use */
 	unsigned int ignoredtmf:1;
 	unsigned int immediate:1;			/*!< Answer before getting digits? */
 	unsigned int inalarm:1;
