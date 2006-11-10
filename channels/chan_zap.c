@@ -238,6 +238,8 @@ static int callwaitingcallerid = 0;
 
 static int hidecallerid = 0;
 
+static int hidecalleridname = 0;
+
 static int restrictcid = 0;
 
 static int use_callingpres = 0;
@@ -576,6 +578,7 @@ static struct zt_pvt {
 	unsigned int hanguponpolarityswitch:1;
 	unsigned int hardwaredtmf:1;
 	unsigned int hidecallerid;
+	unsigned int hidecalleridname;      /*!< Hide just the name not the number for legacy PBX use */
 	unsigned int ignoredtmf:1;
 	unsigned int immediate:1;			/*!< Answer before getting digits? */
 	unsigned int inalarm:1;
@@ -2078,6 +2081,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			c++;
 		else
 			c = dest;
+		if (!p->hidecalleridname)
+			n = ast->cid.cid_name;
+		else
+			n = NULL;
 		if (!p->hidecallerid) {
 			l = ast->cid.cid_num;
 			n = ast->cid.cid_name;
@@ -10553,6 +10560,8 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 				echotraining = 0;
 		} else if (!strcasecmp(v->name, "hidecallerid")) {
 			hidecallerid = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "hidecalleridname")) {
+			hidecalleridname = ast_true(v->value);
  		} else if (!strcasecmp(v->name, "pulsedial")) {
  			pulse = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callreturn")) {
