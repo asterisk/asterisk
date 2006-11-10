@@ -1759,7 +1759,7 @@ static int skinny_do_debug(int fd, int argc, char *argv[])
 
 static int skinny_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3) {
+	if (argc != 4) {
 		return RESULT_SHOWUSAGE;
 	}
 	skinnydebug = 0;
@@ -1956,11 +1956,11 @@ static char show_lines_usage[] =
 "       Lists all lines known to the Skinny subsystem.\n";
 
 static char debug_usage[] =
-"Usage: skinny debug\n"
+"Usage: skinny set debug\n"
 "       Enables dumping of Skinny packets for debugging purposes\n";
 
 static char no_debug_usage[] =
-"Usage: skinny no debug\n"
+"Usage: skinny set debug off\n"
 "       Disables dumping of Skinny packets for debugging purposes\n";
 
 static char reset_usage[] =
@@ -1976,11 +1976,11 @@ static struct ast_cli_entry cli_skinny[] = {
 	skinny_show_lines, "List defined Skinny lines per device",
 	show_lines_usage },
 
-	{ { "skinny", "debug", NULL },
+	{ { "skinny", "set", "debug", NULL },
 	skinny_do_debug, "Enable Skinny debugging",
 	debug_usage },
 
-	{ { "skinny", "debug", "off", NULL },
+	{ { "skinny", "set", "debug", "off", NULL },
 	skinny_no_debug, "Disable Skinny debugging",
 	no_debug_usage },
 

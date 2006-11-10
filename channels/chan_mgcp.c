@@ -1054,11 +1054,11 @@ static char audit_endpoint_usage[] =
 "       mgcp debug MUST be on to see the results of this command.\n";
 
 static char debug_usage[] = 
-"Usage: mgcp debug\n"
+"Usage: mgcp set debug\n"
 "       Enables dumping of MGCP packets for debugging purposes\n";
 
 static char no_debug_usage[] = 
-"Usage: mgcp debug off\n"
+"Usage: mgcp set debug off\n"
 "       Disables dumping of MGCP packets for debugging purposes\n";
 
 static char mgcp_reload_usage[] =
@@ -1121,7 +1121,7 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 
 static int mgcp_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	mgcpdebug = 1;
 	ast_cli(fd, "MGCP Debugging Enabled\n");
@@ -1130,7 +1130,7 @@ static int mgcp_do_debug(int fd, int argc, char *argv[])
 
 static int mgcp_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	mgcpdebug = 0;
 	ast_cli(fd, "MGCP Debugging Disabled\n");
@@ -1146,11 +1146,11 @@ static struct ast_cli_entry cli_mgcp[] = {
 	mgcp_show_endpoints, "List defined MGCP endpoints",
 	show_endpoints_usage },
 
-	{ { "mgcp", "debug", NULL },
+	{ { "mgcp", "set", "debug", NULL },
 	mgcp_do_debug, "Enable MGCP debugging",
 	debug_usage },
 
-	{ { "mgcp", "debug", "off", NULL },
+	{ { "mgcp", "set", "debug", "off", NULL },
 	mgcp_no_debug, "Disable MGCP debugging",
 	no_debug_usage },
 
