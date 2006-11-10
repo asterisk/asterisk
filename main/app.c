@@ -105,25 +105,45 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
  *  \param maxlen How many digits to read (maximum)
  *  \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
  *      "ludicrous time" (essentially never times out) */
-int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout)
+int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
 {
-	int res,to,fto;
+	int res = 0, to, fto;
+	char *front, *filename;
+
 	/* XXX Merge with full version? XXX */
+	
 	if (maxlen)
 		s[0] = '\0';
-	if (prompt) {
-		res = ast_streamfile(c, prompt, c->language);
-		if (res < 0)
+
+	if (ast_strlen_zero(prompt))
+		return -1;
+
+	filename = ast_strdupa(prompt);
+	while ((front = strsep(&filename, "&"))) {
+		res = ast_streamfile(c, front, c->language);
+		if (res)
+			continue;
+		if (ast_strlen_zero(filename)) {
+			/* set timeouts for the last prompt */
+			fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
+			to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
+
+			if (timeout > 0) 
+				fto = to = timeout;
+			if (timeout < 0) 
+				fto = to = 1000000000;
+		} else {
+			/* there is more than one prompt, so
+			   get rid of the long timeout between 
+			   prompts, and make it 50ms */
+			fto = 50;
+			to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
+		}
+		res = ast_readstring(c, s, maxlen, to, fto, "#");
+		if (!ast_strlen_zero(s))
 			return res;
 	}
-	fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
-	to = c->pbx ? c->pbx->dtimeout * 1000 : 2000;
-
-	if (timeout > 0) 
-		fto = to = timeout;
-	if (timeout < 0) 
-		fto = to = 1000000000;
-	res = ast_readstring(c, s, maxlen, to, fto, "#");
+	
 	return res;
 }
 

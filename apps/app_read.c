@@ -62,10 +62,10 @@ static char *app = "Read";
 static char *synopsis = "Read a variable";
 
 static char *descrip = 
-"  Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n"
+"  Read(variable[|filename[&filename2...]][|maxdigits][|option][|attempts][|timeout])\n\n"
 "Reads a #-terminated string of digits a certain number of times from the\n"
 "user in to the given variable.\n"
-"  filename   -- file to play before reading digits or tone with option i\n"
+"  filename   -- file(s) to play before reading digits or tone with option i\n"
 "  maxdigits  -- maximum acceptable number of digits. Stops reading after\n"
 "                maxdigits have been entered (without requiring the user to\n"
 "                press the '#' key).\n"
