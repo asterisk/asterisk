@@ -10518,8 +10518,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* This is a call to ourself.  Send ourselves an error code and stop
 		   processing immediately, as SIP really has no good mechanism for
 		   being able to call yourself */
-		transmit_response(p, "482 Loop Detected", req);
-		/* We do NOT destroy p here, so that our response will be accepted */
+		transmit_response_reliable(p, "482 Loop Detected", req, 1);
+		if (!p->lastinvite)
+			ast_set_flag(p, SIP_NEEDDESTROY);	
 		return 0;
 	}
 	if (!ignore) {
