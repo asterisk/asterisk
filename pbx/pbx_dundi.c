@@ -330,31 +330,28 @@ static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct 
 			  ((trans->dtrans == (ntohs(hdr->strans) & 32767)) && (!hdr->dtrans))) /* We match their destination */) {
 			  if (hdr->strans)
 				  trans->dtrans = ntohs(hdr->strans) & 32767;
-			  break;
+			  return trans;
 		}
 	}
-	if (!trans) {
-		switch(hdr->cmdresp & 0x7f) {
-		case DUNDI_COMMAND_DPDISCOVER:
-		case DUNDI_COMMAND_EIDQUERY:
-		case DUNDI_COMMAND_PRECACHERQ:
-		case DUNDI_COMMAND_REGREQ:
-		case DUNDI_COMMAND_NULL:
-		case DUNDI_COMMAND_ENCRYPT:
-			if (hdr->strans) {	
-				/* Create new transaction */
-				trans = create_transaction(NULL);
-				if (trans) {
-					memcpy(&trans->addr, sin, sizeof(trans->addr));
-					trans->dtrans = ntohs(hdr->strans) & 32767;
-				} else
-					ast_log(LOG_WARNING, "Out of memory!\n");
-			}
+	
+	switch(hdr->cmdresp & 0x7f) {
+	case DUNDI_COMMAND_DPDISCOVER:
+	case DUNDI_COMMAND_EIDQUERY:
+	case DUNDI_COMMAND_PRECACHERQ:
+	case DUNDI_COMMAND_REGREQ:
+	case DUNDI_COMMAND_NULL:
+	case DUNDI_COMMAND_ENCRYPT:
+		if (!hdr->strans)
 			break;
-		default:
+		/* Create new transaction */
+		if (!(trans = create_transaction(NULL)))
 			break;
-		}
+		memcpy(&trans->addr, sin, sizeof(trans->addr));
+		trans->dtrans = ntohs(hdr->strans) & 32767;
+	default:
+		break;
 	}
+	
 	return trans;
 }
 
@@ -1985,8 +1982,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int res;
 	struct dundi_hdr *h;
 	char buf[MAX_PACKET_SIZE];
-	socklen_t len;
-	len = sizeof(sin);
+	socklen_t len = sizeof(sin);
+	
 	res = recvfrom(netsocket, buf, sizeof(buf) - 1, 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -1994,11 +1991,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		return 1;
 	}
 	if (res < sizeof(struct dundi_hdr)) {
-		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int)sizeof(struct dundi_hdr));
+		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(struct dundi_hdr));
 		return 1;
 	}
 	buf[res] = '\0';
-	h = (struct dundi_hdr *)buf;
+	h = (struct dundi_hdr *) buf;
 	if (dundidebug)
 		dundi_showframe(h, 1, &sin, res - sizeof(struct dundi_hdr));
 	AST_LIST_LOCK(&peers);
@@ -2777,22 +2774,23 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 	tid = get_trans_id();
 	if (tid < 1)
 		return NULL;
-	trans = ast_calloc(1, sizeof(*trans));
-	if (trans) {
-		if (global_storehistory) {
-			trans->start = ast_tvnow();
-			ast_set_flag(trans, FLAG_STOREHIST);
-		}
-		trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
-		trans->autokillid = -1;
-		if (p) {
-			apply_peer(trans, p);
-			if (!p->sentfullkey)
-				ast_set_flag(trans, FLAG_SENDFULLKEY);
-		}
-		trans->strans = tid;
-		AST_LIST_INSERT_HEAD(&alltrans, trans, all);
+	if (!(trans = ast_calloc(1, sizeof(*trans))))
+		return NULL;
+
+	if (global_storehistory) {
+		trans->start = ast_tvnow();
+		ast_set_flag(trans, FLAG_STOREHIST);
 	}
+	trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
+	trans->autokillid = -1;
+	if (p) {
+		apply_peer(trans, p);
+		if (!p->sentfullkey)
+			ast_set_flag(trans, FLAG_SENDFULLKEY);
+	}
+	trans->strans = tid;
+	AST_LIST_INSERT_HEAD(&alltrans, trans, all);
+	
 	return trans;
 }
 
