@@ -1972,6 +1972,7 @@ static int __sip_autodestruct(void *data)
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else
 		sip_destroy(p);
 	return 0;
