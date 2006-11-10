@@ -3202,6 +3202,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	case RES_OKAY:
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Removed interface '%s' from queue '%s'\n", args.interface, args.queuename);
+		ast_queue_log(args.queuename, chan->uniqueid, args.interface, "REMOVEMEMBER", "%s", "");
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "REMOVED");
 		res = 0;
 		break;
@@ -3276,6 +3277,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 
 	switch (add_to_queue(args.queuename, args.interface, args.membername, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
+		ast_queue_log(args.queuename, chan->uniqueid, args.interface, "ADDMEMBER", "%s", "");
 		ast_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", args.interface, args.queuename);
 		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "ADDED");
 		res = 0;
@@ -4365,6 +4367,7 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
 
 	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members)) {
 	case RES_OKAY:
+		ast_queue_log(queuename, "MANAGER", interface, "ADDMEMBER", "%s", "");
 		astman_send_ack(s, m, "Added interface to queue");
 		break;
 	case RES_EXISTS:
@@ -4395,6 +4398,7 @@ static int manager_remove_queue_member(struct mansession *s, struct message *m)
 
 	switch (remove_from_queue(queuename, interface)) {
 	case RES_OKAY:
+		ast_queue_log(queuename, "MANAGER", interface, "REMOVEMEMBER", "%s", "");
 		astman_send_ack(s, m, "Removed interface from queue");
 		break;
 	case RES_EXISTS:
@@ -4473,6 +4477,7 @@ static int handle_queue_add_member(int fd, int argc, char *argv[])
 
 	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
+		ast_queue_log(queuename, "CLI", interface, "ADDMEMBER", "%s", "");
 		ast_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
 		return RESULT_SUCCESS;
 	case RES_EXISTS:
@@ -4535,6 +4540,7 @@ static int handle_queue_remove_member(int fd, int argc, char *argv[])
 
 	switch (remove_from_queue(queuename, interface)) {
 	case RES_OKAY:
+		ast_queue_log(queuename, "CLI", interface, "REMOVEMEMBER", "%s", "");
 		ast_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
 		return RESULT_SUCCESS;
 	case RES_EXISTS:
