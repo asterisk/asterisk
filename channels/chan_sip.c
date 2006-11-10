@@ -6711,21 +6711,21 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
 
-/*! \brief Build REFER/INVITE/OPTIONS message and transmit it */
+/*! \brief Build REFER/INVITE/OPTIONS message and transmit it 
+	\param init 0 = Prepare request within dialog, 1= prepare request, new branch, 2= prepare new request and new dialog. do_proxy_auth calls this with init!=2
+	*/
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 {
 	struct sip_request req;
 	
 	req.method = sipmethod;
-	if (init) {		/* Seems like init always is 2 */
-		/* Bump branch even on initial requests */
+	if (init) {/* Bump branch even on initial requests */
 		p->branch ^= ast_random();
 		build_via(p);
-		if (init > 1)
-			initreqprep(&req, p, sipmethod);
-		else
-			reqprep(&req, p, sipmethod, 0, 1);
-	} else
+	}
+	if (init > 1)
+		initreqprep(&req, p, sipmethod);
+	else
 		reqprep(&req, p, sipmethod, 0, 1);
 		
 	if (p->options && p->options->auth)
