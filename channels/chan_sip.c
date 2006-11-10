@@ -1259,7 +1259,7 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static void sip_cancel_destroy(struct sip_pvt *p);
 static void sip_destroy(struct sip_pvt *p);
 static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
-static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int reset);
+static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static int auto_congest(void *nothing);
@@ -2054,7 +2054,7 @@ static void sip_cancel_destroy(struct sip_pvt *p)
 }
 
 /*! \brief Acknowledges receipt of a packet and stops retransmission */
-static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int reset)
+static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur, *prev = NULL;
 
@@ -2082,8 +2082,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod, int
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 				ast_sched_del(sched, cur->retransid);
 			}
-			if (!reset)
-				free(cur);
+			free(cur);
 			break;
 		}
 	}
@@ -2106,7 +2105,7 @@ static void __sip_pretend_ack(struct sip_pvt *p)
 		}
 		cur = p->packets;
 		method = (cur->method) ? cur->method : find_sip_method(cur->data);
-		__sip_ack(p, cur->seqno, ast_test_flag(cur, FLAG_RESPONSE), method, FALSE);
+		__sip_ack(p, cur->seqno, ast_test_flag(cur, FLAG_RESPONSE), method);
 	}
 }
 
@@ -11832,9 +11831,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 491: /* Pending */
-		/* we have to wait a while, then retransmit */
-		/* Transmission is rescheduled, so everything should be taken care of.
-			We should support the retry-after at some point */
+		/* we really should have to wait a while, then retransmit */
+			/* We should support the retry-after at some point */
+		/* At this point, we treat this as a congestion */
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		break;
 
 	case 501: /* Not implemented */
@@ -12118,7 +12121,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	if ((resp >= 100) && (resp <= 199))
 		__sip_semi_ack(p, seqno, 0, sipmethod);
 	else
-		__sip_ack(p, seqno, 0, sipmethod, resp == 491 ? TRUE : FALSE);
+		__sip_ack(p, seqno, 0, sipmethod);
 
 	/* Get their tag if we haven't already */
 	if (ast_strlen_zero(p->theirtag) || (resp >= 200)) {
@@ -14602,7 +14605,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
 			p->pendinginvite = 0;
-			__sip_ack(p, seqno, FLAG_RESPONSE, 0, FALSE);
+			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
 			if (find_sdp(req)) {
 				if (process_sdp(p, req))
 					return -1;
