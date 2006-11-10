@@ -10644,9 +10644,10 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 	int port = 0;
 	char *p, *arg;
 
-	if (argc != 4)
+	/* sip set debug ip <ip> */
+	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	p = arg = argv[3];
+	p = arg = argv[4];
 	strsep(&p, ":");
 	if (p)
 		port = atoi(p);
@@ -10671,9 +10672,9 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 static int sip_do_debug_peer(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
-	if (argc != 4)
+	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	peer = find_peer(argv[3], NULL, 1);
+	peer = find_peer(argv[4], NULL, 1);
 	if (peer) {
 		if (peer->addr.sin_addr.s_addr) {
 			debugaddr.sin_family = AF_INET;
@@ -10682,10 +10683,10 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
 			ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 		} else
-			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
+			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[4]);
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
 	} else
-		ast_cli(fd, "No such peer '%s'\n", argv[3]);
+		ast_cli(fd, "No such peer '%s'\n", argv[4]);
 	return RESULT_SUCCESS;
 }
 
@@ -10693,12 +10694,12 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
 	int oldsipdebug = sipdebug_console;
-	if (argc != 2) {
-		if (argc != 4) 
+	if (argc != 4) {
+		if (argc != 5) 
 			return RESULT_SHOWUSAGE;
-		else if (strcmp(argv[2], "ip") == 0)
+		else if (strcmp(argv[3], "ip") == 0)
 			return sip_do_debug_ip(fd, argc, argv);
-		else if (strcmp(argv[2], "peer") == 0)
+		else if (strcmp(argv[3], "peer") == 0)
 			return sip_do_debug_peer(fd, argc, argv);
 		else
 			return RESULT_SHOWUSAGE;
@@ -10768,7 +10769,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 /*! \brief Disable SIP Debugging in CLI */
 static int sip_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 	ast_cli(fd, "SIP Debugging Disabled\n");
@@ -11064,8 +11065,7 @@ static char history_usage[] =
 
 static char sip_reload_usage[] =
 "Usage: sip reload\n"
-"       Reloads SIP configuration from sip.conf\n"
-"       Deprecated:  please use 'reload chan_sip.so'\n";
+"       Reloads SIP configuration from sip.conf\n";
 
 static char show_subscriptions_usage[] =
 "Usage: sip show subscriptions\n" 
@@ -16784,12 +16784,6 @@ static int sip_do_reload(enum channelreloadreason reason)
 /*! \brief Force reload of module from cli */
 static int sip_reload(int fd, int argc, char *argv[])
 {
-	static int deprecated = 0;
-	if (!deprecated && argc > 0) {
-		ast_log(LOG_WARNING, "\"sip reload\" is deprecated.  Please use 'reload chan_sip.so' instead.\n");
-		deprecated = 1;
-	}
-
 	ast_mutex_lock(&sip_reload_lock);
 	if (sip_reloading) 
 		ast_verbose("Previous SIP reload not yet done\n");
@@ -16881,19 +16875,19 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_prune_realtime, "Prune cached Realtime user(s)",
 	prune_realtime_usage, complete_sip_prune_realtime_user },
 
-	{ { "sip", "debug", NULL },
+	{ { "sip", "set", "debug", NULL },
 	sip_do_debug, "Enable SIP debugging",
 	debug_usage },
 
-	{ { "sip", "debug", "ip", NULL },
+	{ { "sip", "set", "debug", "ip", NULL },
 	sip_do_debug, "Enable SIP debugging on IP",
 	debug_usage },
 
-	{ { "sip", "debug", "peer", NULL },
+	{ { "sip", "set", "debug", "peer", NULL },
 	sip_do_debug, "Enable SIP debugging on Peername",
 	debug_usage, complete_sip_debug_peer },
 
-	{ { "sip", "debug", "off", NULL },
+	{ { "sip", "set", "debug", "off", NULL },
 	sip_no_debug, "Disable SIP debugging",
 	no_debug_usage },
 
