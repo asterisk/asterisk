@@ -13109,7 +13109,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* If pedantic is on, we need to check the tags. If they're different, this is
 	   	in fact a forked call through a SIP proxy somewhere. */
 		transmit_response(p, "482 Loop Detected", req);
-		/* We do NOT destroy p here, so that our response will be accepted */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return 0;
 	}
 	
@@ -13118,6 +13118,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		transmit_response(p, "491 Request Pending", req);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
+		/* Don't destroy dialog here */
 		return 0;
 	}
 
