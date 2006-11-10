@@ -13331,14 +13331,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 
 		if (!replace_id && gotdest) {	/* No matching extension found */
-			if (gotdest == 1 && ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP)) {
+			if (gotdest == 1 && ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWOVERLAP))
 				transmit_response_reliable(p, "484 Address Incomplete", req);
-				update_call_counter(p, DEC_CALL_LIMIT);
-			} else {
+			else
 				transmit_response_reliable(p, "404 Not Found", req);
-				update_call_counter(p, DEC_CALL_LIMIT);
-			}
+			update_call_counter(p, DEC_CALL_LIMIT);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return 0;
 		} else {
 			/* If no extension was specified, use the s one */
 			/* Basically for calling to IP/Host name only */
