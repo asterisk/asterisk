@@ -2090,7 +2090,6 @@ static int ast_remove_hint(struct ast_exten *e)
 	if (!e)
 		return -1;
 
-	AST_RWLIST_WRLOCK(&hints);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&hints, hint, list) {
 		if (hint->exten == e) {
 			cbprev = NULL;
@@ -2110,7 +2109,6 @@ static int ast_remove_hint(struct ast_exten *e)
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END
-	AST_RWLIST_UNLOCK(&hints);
 
 	return res;
 }
