@@ -2012,9 +2012,6 @@ static int __sip_autodestruct(void *data)
 	/* Reset schedule ID */
 	p->autokillid = -1;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Auto destroying SIP dialog '%s'\n", p->callid);
-	append_history(p, "AutoDestroy", "%s", p->callid);
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
@@ -2022,8 +2019,14 @@ static int __sip_autodestruct(void *data)
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
-	} else 
-		sip_destroy(p);
+		append_history(p, "ReferBYE", "Sending BYE on transferer call leg %s", p->callid);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+	} else {
+		append_history(p, "AutoDestroy", "%s", p->callid);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Auto destroying SIP dialog '%s'\n", p->callid);
+		sip_destroy(p);		/* Go ahead and destroy dialog. All attempts to recover is done */
+	}
 	return 0;
 }
 
