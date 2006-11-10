@@ -2726,9 +2726,8 @@ static struct ast_cli_entry cli_h323_trace_deprecated =
 
 static struct ast_cli_entry cli_h323_no_trace_deprecated =
 	{ "h.323", "no", "trace", NULL },
-	  h323_no_trace, "Disable H.323 Stack Tracing",
-	  no_trace_usage };
-};
+	h323_no_trace, "Disable H.323 Stack Tracing",
+	no_trace_usage };
 
 static struct ast_cli_entry cli_h323_debug_deprecated =
 	{ { "h.323", "debug", NULL },
@@ -2737,9 +2736,8 @@ static struct ast_cli_entry cli_h323_debug_deprecated =
 
 static struct ast_cli_entry cli_h323_no_debug_deprecated =
 	{ "h.323", "no", "debug", NULL },
-	  h323_no_debug, "Disable H.323 debug",
-	  no_debug_usage };
-};
+	h323_no_debug, "Disable H.323 debug",
+	no_debug_usage };
 
 static struct ast_cli_entry cli_h323_gk_cycle_deprecated =
 	{ { "h.323", "gk", "cycle", NULL },
