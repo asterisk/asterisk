@@ -1969,10 +1969,11 @@ static int __sip_autodestruct(void *data)
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
 	} else if (p->refer) {
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
-	} else {
+	} else
 		sip_destroy(p);
-	}
 	return 0;
 }
 
