@@ -206,33 +206,6 @@ static int handle_reload(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_set_verbose_deprecated(int fd, int argc, char *argv[])
-{
-	int val = 0;
-	int oldval = option_verbose;
-
-	/* "set verbose [atleast] N" */
-	if (argc == 3)
-		option_verbose = atoi(argv[2]);
-	else if (argc == 4) {
-		if (strcasecmp(argv[2], "atleast"))
-			return RESULT_SHOWUSAGE;
-		val = atoi(argv[3]);
-		if (val > option_verbose)
-			option_verbose = val;
-	} else
-		return RESULT_SHOWUSAGE;
-
-	if (oldval != option_verbose && option_verbose > 0)
-		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
-	else if (oldval > 0 && option_verbose > 0)
-		ast_cli(fd, "Verbosity is at least %d\n", option_verbose);
-	else if (oldval > 0 && option_verbose == 0)
-		ast_cli(fd, "Verbosity is now OFF\n");
-
-	return RESULT_SUCCESS;
-}
-
 static int handle_verbose(int fd, int argc, char *argv[])
 {
 	int oldval = option_verbose;
@@ -1122,41 +1095,6 @@ static struct ast_cli_entry cli_debug_channel_deprecated = {
 	{ "debug", "channel", NULL },
 	handle_debugchan_deprecated, NULL,
 	NULL, complete_ch_3 };
-
-static struct ast_cli_entry cli_debug_level_deprecated = {
-	{ "debug", "level", NULL },
-	handle_debuglevel_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_set_debug_deprecated = {
-	{ "set", "debug", NULL },
-	handle_set_debug_deprecated, NULL,
-	NULL, NULL, &cli_debug_level_deprecated };
-
-static struct ast_cli_entry cli_set_verbose_deprecated = {
-	{ "set", "verbose", NULL },
-	handle_set_verbose_deprecated, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_channel_deprecated = {
-	{ "show", "channel", NULL },
-	handle_showchan, NULL,
-	NULL, complete_ch_3 };
-
-static struct ast_cli_entry cli_show_channels_deprecated = {
-	{ "show", "channels", NULL },
-	handle_chanlist, NULL,
-	NULL, complete_show_channels };
-
-static struct ast_cli_entry cli_show_modules_deprecated = {
-	{ "show", "modules", NULL },
-	handle_modlist, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_show_modules_like_deprecated = {
-	{ "show", "modules", "like", NULL },
-	handle_modlist, NULL,
-	NULL, complete_mod_4 };
 
 static struct ast_cli_entry cli_module_load_deprecated = {
 	{ "load", NULL },
