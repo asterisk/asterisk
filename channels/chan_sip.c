@@ -4660,7 +4660,9 @@ static int find_sdp(struct sip_request *req)
 	for (x = 0; x < (req->lines - 2); x++) {
 		if (!strncasecmp(req->line[x], boundary, strlen(boundary)) &&
 		    !strcasecmp(req->line[x + 1], "Content-Type: application/sdp")) {
-			req->sdp_start = x + 2;
+			x += 2;
+			req->sdp_start = x;
+
 			/* search for the end of the body part */
 			for ( ; x < req->lines; x++) {
 				if (!strncasecmp(req->line[x], boundary, strlen(boundary)))
