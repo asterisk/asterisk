@@ -59,6 +59,8 @@ char *term_color_code(char *outbuf, int fgcolor, int bgcolor, int maxout);
 
 char *term_strip(char *outbuf, char *inbuf, int maxout);
 
+void term_filter_escapes(char *line);
+
 char *term_prompt(char *outbuf, const char *inbuf, int maxout);
 
 char *term_prep(void);

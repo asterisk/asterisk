@@ -716,8 +716,10 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 			va_start(ap, fmt);
 			res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
 			va_end(ap);
-			if (res != AST_DYNSTR_BUILD_FAILED)
+			if (res != AST_DYNSTR_BUILD_FAILED) {
+				term_filter_escapes(buf->str);
 				fputs(buf->str, stdout);
+			}
 		}
 		return;
 	}
@@ -781,7 +783,8 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 					term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 					term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-
+				/*filter to the console!*/
+				term_filter_escapes(buf->str);
 				ast_console_puts_mutable(buf->str);
 				
 				va_start(ap, fmt);
@@ -892,6 +895,9 @@ void ast_verbose(const char *fmt, ...)
 
 	if (res == AST_DYNSTR_BUILD_FAILED)
 		return;
+	
+	/* filter out possibly hazardous escape sequences */
+	term_filter_escapes(buf->str);
 
 	AST_LIST_LOCK(&verbosers);
 	AST_LIST_TRAVERSE(&verbosers, v, list)
