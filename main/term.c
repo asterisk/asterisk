@@ -264,6 +264,34 @@ char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 	return outbuf;
 }
 
+
+/* filter escape sequences */
+void term_filter_escapes(char *line)
+ {
+	 int i;
+   
+	 for (i=0; i < strlen(line); i++) {
+		 if (line[i] == ESC) {					 
+			 if (line[i+1] == '\x5b') {
+				 switch (line[i+2]) {
+				 	case '\x30':
+						 break;
+					 case '\x31':
+						 break;
+					 case '\x33':
+						 break;
+					 default:
+						 /* replace ESC with a space */
+						 line[i] = ' ';
+				 }
+			 } else {
+				 /* replace ESC with a space */
+				 line[i] = ' ';
+			 }
+		 } 
+	 }
+ }
+
 char *term_prep(void)
 {
 	return prepdata;
