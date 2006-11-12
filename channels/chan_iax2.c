@@ -9347,9 +9347,6 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 
 	buf[0] = '\0';
 
-	if (chan->tech != &iax2_tech)
-		return buf;
-
 	if (!(peername = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Memory Error!\n");
 		return ret;
@@ -9357,7 +9354,10 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {
-	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
+	        unsigned short callno;
+		if (chan->tech != &iax2_tech)
+			return buf;
+		callno = PTR_TO_CALLNO(chan->tech_pvt);	
 		ast_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
 		return buf;
 	}
