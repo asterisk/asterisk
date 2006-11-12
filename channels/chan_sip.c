@@ -4373,6 +4373,19 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 
 		if (option_debug > 4 )
 			ast_log(LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
+
+		/* All messages must always have From: tag */
+		if (ast_strlen_zero(fromtag)) {
+			if (option_debug > 4 ) 
+				ast_log(LOG_DEBUG, "%s request has no from tag, dropping callid: %s from: %s\n", sip_methods[req->method].text , callid, from );
+			return NULL;
+		}
+		/* reject requests that must always have a To: tag */
+		if (ast_strlen_zero(totag) && (req->method == SIP_ACK || req->method == SIP_BYE || req->method == SIP_INFO )) {
+			if (option_debug > 4) 
+				ast_log(LOG_DEBUG, "%s must have a to tag. dropping callid: %s from: %s\n", sip_methods[req->method].text , callid, from );
+			return NULL;
+		}
 	}
 
 	dialoglist_lock();
