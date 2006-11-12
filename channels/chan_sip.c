@@ -4964,7 +4964,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				}
 			}
 			if (framing && last_rtpmap_codec) {
-				if (p->autoframing || global_autoframing) {
+				if (p->autoframing) {
 					struct ast_codec_pref *pref = ast_rtp_codec_getpref(p->rtp);
 					int codec_n;
 					int format = 0;
@@ -10123,6 +10123,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		print_codec_to_cli(fd, &peer->prefs);
 		ast_cli(fd, ")\n");
 
+		ast_cli(fd, "  Auto-Framing:  %s \n", peer->autoframing ? "Yes" : "No");
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n",status);
@@ -10257,6 +10258,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
 		print_codec_to_cli(fd, &user->prefs);
 		ast_cli(fd, ")\n");
 
+		ast_cli(fd, "  Auto-Framing:  %s \n", user->autoframing ? "Yes" : "No");
 		if (user->chanvars) {
  			ast_cli(fd, "  Variables    :\n");
 			for (v = user->chanvars ; v ; v = v->next)
@@ -10379,6 +10381,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
 	ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
 	ast_cli(fd, "  Max Call Bitrate:       %d kbps\r\n", default_maxcallbitrate);
+	ast_cli(fd, "  Auto-Framing:           %s \r\n", global_autoframing ? "Yes" : "No");
 	ast_cli(fd, "\nDefault Settings:\n");
 	ast_cli(fd, "-----------------\n");
 	ast_cli(fd, "  Context:                %s\n", default_context);
@@ -15559,6 +15562,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	user->capability = global_capability;
 	user->allowtransfer = global_allowtransfer;
 	user->maxcallbitrate = default_maxcallbitrate;
+	user->autoframing = global_autoframing;
 	user->prefs = default_prefs;
 	/* set default context */
 	strcpy(user->context, default_context);
@@ -15672,6 +15676,7 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->rtpholdtimeout = global_rtpholdtimeout;
 	peer->rtpkeepalive = global_rtpkeepalive;
 	peer->allowtransfer = global_allowtransfer;
+	peer->autoframing = global_autoframing;
 	strcpy(peer->vmexten, default_vmexten);
 	peer->secret[0] = '\0';
 	peer->md5secret[0] = '\0';
