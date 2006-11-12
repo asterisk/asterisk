@@ -4862,22 +4862,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	if (vhp)
 		memcpy(&vsin.sin_addr, vhp->h_addr, sizeof(vsin.sin_addr));
-		
-	if (p->rtp) {
-		if (portno > 0) {
-			sin.sin_port = htons(portno);
-			ast_rtp_set_peer(p->rtp, &sin);
-			if (debug)
-				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-		} else {
-			ast_rtp_stop(p->rtp);
-			if (debug)
-				ast_verbose("Peer doesn't provide audio\n");
-		}
-	}
-	/* Setup video port number */
-	if (vportno != -1)
-		vsin.sin_port = htons(vportno);
 
 	/* Setup UDPTL port number */
 	if (p->udptl) {
@@ -4892,6 +4876,28 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_log(LOG_DEBUG, "Peer doesn't provide T.38 UDPTL\n");
 		}
 	}
+
+		
+	if (p->rtp) {
+		if (portno > 0) {
+			sin.sin_port = htons(portno);
+			ast_rtp_set_peer(p->rtp, &sin);
+			if (debug)
+				ast_verbose("Peer audio RTP is at port %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		} else {
+			if (udptlportno > 0) {
+				if (debug)
+					ast_verbose("Got T.38 Re-invite without audio. Keeping RTP active during T.38 session. Callid %s\n", p->callid);
+			} else {
+				ast_rtp_stop(p->rtp);
+				if (debug)
+					ast_verbose("Peer doesn't provide audio. Callid %s\n", p->callid);
+			}
+		}
+	}
+	/* Setup video port number */
+	if (vportno != -1)
+		vsin.sin_port = htons(vportno);
 
 	/* Next, scan through each "a=rtpmap:" line, noting each
 	 * specified RTP payload type (with corresponding MIME subtype):
@@ -13479,7 +13485,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 									transmit_response(p, "488 Not acceptable here", req);
 								else
 									transmit_response_reliable(p, "488 Not acceptable here", req);
-								sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+							
 							}
 						} else {
 							/* The other side is already setup for T.38 most likely so we need to acknowledge this too */
@@ -13497,7 +13503,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						p->t38.state = T38_DISABLED;
 						if (option_debug > 1)
 							ast_log(LOG_DEBUG,"T38 state changed to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
-						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+
+						if (!p->lastinvite) /* Only destroy if this is *not* a re-invite */
+							sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 					}
 				} else {
 					/* we are not bridged in a call */
@@ -13524,7 +13532,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 								transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
 							else
 								transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
-							sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 							sendok = FALSE;
 						} 
 						/* No bridged peer with T38 enabled*/
