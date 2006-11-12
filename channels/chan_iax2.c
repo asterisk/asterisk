@@ -9502,14 +9502,14 @@ static int function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, cha
 	struct iax2_peer *peer;
 	char *peername, *colname;
 
-	if (chan->tech != &iax2_tech)
-		return -1;
-
 	peername = ast_strdupa(data);
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {
-	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
+	        unsigned short callno;
+		if (chan->tech != &iax2_tech)
+			return -1;
+		callno = PTR_TO_CALLNO(chan->tech_pvt);	
 		ast_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? ast_inet_ntoa(iaxs[callno]->addr.sin_addr) : "", len);
 		return 0;
 	}
