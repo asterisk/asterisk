@@ -4931,10 +4931,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (debug)
 					ast_verbose("Got unsupported a:crypto in SDP offer \n");
 				breakout = TRUE;
-			} else if (!strncasecmp(a, "ptime:", (size_t) 6)) {
-				if (debug)
-					ast_verbose("Got unsupported a:ptime in SDP offer \n");
-				breakout = TRUE;
 			}
 			if (breakout)	/* We have a match, skip to next header */
 				continue;
@@ -16561,6 +16557,11 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 	return 0;
 }
 
+/*! \brief Handle T38 reinvite 
+	\todo Make sure we don't destroy the call if we can't handle the re-invite. 
+	Nothing should be changed until we have processed the SDP and know that we
+	can handle it.
+*/
 static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt, int reinvite)
 {
 	struct sip_pvt *p;
@@ -16572,12 +16573,21 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 	
 	/* Setup everything on the other side like offered/responded from first side */
 	sip_pvt_lock(p);
+
+	/*! \todo check if this is not set earlier when setting up the PVT. If not
+		maybe it should move there. */
 	p->t38.jointcapability = p->t38.peercapability = pvt->t38.jointcapability;
+
 	ast_udptl_set_far_max_datagram(p->udptl, ast_udptl_get_local_max_datagram(pvt->udptl));
 	ast_udptl_set_local_max_datagram(p->udptl, ast_udptl_get_local_max_datagram(pvt->udptl));
 	ast_udptl_set_error_correction_scheme(p->udptl, ast_udptl_get_error_correction_scheme(pvt->udptl));
 	
 	if (reinvite) {		/* If we are handling sending re-invite to the other side of the bridge */
+		/*! \note The SIP_CAN_REINVITE flag is for RTP media redirects,
+			not really T38 re-invites which are different. In this
+			case it's used properly, to see if we can reinvite over
+			NAT 
+		*/
 		if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE) && ast_test_flag(&pvt->flags[0], SIP_CAN_REINVITE)) {
 			ast_udptl_get_peer(pvt->udptl, &p->udptlredirip);
 			flag =1;
