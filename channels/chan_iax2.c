@@ -4222,30 +4222,22 @@ static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
 
 static int iax2_show_firmware(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-15.15s %-15.15s\n"
-#if !defined(__FreeBSD__)
-#define FORMAT "%-15.15s  %-15d %-15d\n"
-#else /* __FreeBSD__ */
-#define FORMAT "%-15.15s  %-15d %-15d\n" /* XXX 2.95 ? */
-#endif /* __FreeBSD__ */
 	struct iax_firmware *cur = NULL;
 
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
 
+	ast_cli(fd, "%-15.15s  %-15.15s %-15.15s\n", "Device", "Version", "Size");
 	AST_LIST_LOCK(&firmwares);
-	
-	ast_cli(fd, FORMAT2, "Device", "Version", "Size");
-	AST_LIST_TRAVERSE(&firmwares, cur, list)
-		if ((argc == 3) || (!strcasecmp(argv[3], (char *)cur->fwh->devname))) 
-			ast_cli(fd, FORMAT, cur->fwh->devname, ntohs(cur->fwh->version),
-				(int)ntohl(cur->fwh->datalen));
-
+	AST_LIST_TRAVERSE(&firmwares, cur, list) {
+		if ((argc == 3) || (!strcasecmp(argv[3], (char *)cur->fwh->devname)))  {
+			ast_cli(fd, "%-15.15s  %-15d %-15d\n", cur->fwh->devname, 
+				ntohs(cur->fwh->version), (int)ntohl(cur->fwh->datalen));
+		}
+	}
 	AST_LIST_UNLOCK(&firmwares);
 
 	return RESULT_SUCCESS;
-#undef FORMAT
-#undef FORMAT2
 }
 
 /* JDG: callback to display iax peers in manager */
