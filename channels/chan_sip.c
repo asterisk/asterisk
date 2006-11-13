@@ -1930,23 +1930,18 @@ static int retrans_pkt(void *data)
 			ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
 		}
 	}
-	/* In any case, go ahead and remove the packet */
+	/* Remove the packet */
 	for (prev = NULL, cur = pkt->owner->packets; cur; prev = cur, cur = cur->next) {
-		if (cur == pkt)
-			break;
+		if (cur == pkt) {
+			UNLINK(cur, pkt->owner->packets, prev);
+			sip_pvt_unlock(pkt->owner);
+			free(pkt);
+			return 0;
+		}
 	}
-	if (cur) {
-		if (prev)
-			prev->next = cur->next;
-		else
-			pkt->owner->packets = cur->next;
-		sip_pvt_unlock(pkt->owner);
-		free(cur);
-		pkt = NULL;
-	} else
-		ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
-	if (pkt)
-		sip_pvt_unlock(pkt->owner);
+	/* error case */
+	ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
+	sip_pvt_unlock(pkt->owner);
 	return 0;
 }
 
