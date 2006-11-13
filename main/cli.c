@@ -1308,6 +1308,7 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 		AST_LIST_LOCK(&helpers);
 		AST_LIST_REMOVE(&helpers, e, list);
 		AST_LIST_UNLOCK(&helpers);
+		free(e->_full_cmd);
 	}
 	return 0;
 }
