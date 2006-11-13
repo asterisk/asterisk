@@ -10753,7 +10753,7 @@ static void sip_dump_history(struct sip_pvt *dialog)
 {
 	int x = 0;
 	struct sip_history *hist;
-	static errmsg = 0;
+	static int errmsg = 0;
 
 	if (!dialog)
 		return;
@@ -14058,7 +14058,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	int res;
 	struct ast_channel *bridged_to;
 	
-	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_test_flag(req, SIP_PKT_IGNORE))
+	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
+	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner)
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 
 	copy_request(&p->initreq, req);
