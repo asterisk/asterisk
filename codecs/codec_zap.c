@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define BUFFER_SAMPLES	8000
 
 static unsigned int global_useplc = 0;
+static int cardsmode = 0;
 
 struct format_map {
 	unsigned int map[32][32];
@@ -127,7 +128,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		ztp->fake = 1;
 		ztp->f.frametype = AST_FRAME_VOICE;
 		ztp->f.subclass = 0;
-		ztp->f.samples = 160;
+		ztp->f.samples = (hdr->srcfmt == ZT_FORMAT_G729A || hdr->dstfmt == ZT_FORMAT_G729A) ? 160: 240;
 		ztp->f.data = NULL;
 		ztp->f.offset = 0;
 		ztp->f.datalen = 0;
@@ -231,7 +232,7 @@ static int zap_new(struct ast_trans_pvt *pvt)
 	return zap_translate(pvt, pvt->t->dstfmt, pvt->t->srcfmt);
 }
 
-static struct ast_frame *fakesrc_sample(void)
+static struct ast_frame *g729_fakesrc_sample()
 {
 	/* Don't bother really trying to test hardware ones. */
 	static struct ast_frame f = {
@@ -243,38 +244,53 @@ static struct ast_frame *fakesrc_sample(void)
 	return &f;
 }
 
+static struct ast_frame *g723_fakesrc_sample()
+{
+	/* Don't bother really trying to test hardware ones. */
+	static struct ast_frame f = {
+		.frametype = AST_FRAME_VOICE,
+		.samples = 240,
+		.src = __PRETTY_FUNCTION__
+	};
+
+	return &f;
+}
+
 static int register_translator(int dst, int src)
 {
 	struct translator *zt;
 	int res;
-
-	if (!(zt = ast_calloc(1, sizeof(*zt))))
-		return -1;
-
-	snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s", 
-		 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
-	zt->t.srcfmt = (1 << src);
-	zt->t.dstfmt = (1 << dst);
-	zt->t.newpvt = zap_new;
-	zt->t.framein = zap_framein;
-	zt->t.frameout = zap_frameout;
-	zt->t.destroy = zap_destroy;
-	zt->t.sample = fakesrc_sample;
-	zt->t.useplc = global_useplc;
-	zt->t.buf_size = BUFFER_SAMPLES * 2;
-	zt->t.desc_size = sizeof(struct pvt);
-	if ((res = ast_register_translator(&zt->t))) {
-		free(zt);
+	
+	if (!((cardsmode  == 1 && (dst == 8 || src == 8)) || (cardsmode == 2 && (dst == 0 || src == 0)) || (cardsmode == 0))) {
 		return -1;
 	}
-
-	AST_LIST_LOCK(&translators);
-	AST_LIST_INSERT_HEAD(&translators, zt, entry);
-	AST_LIST_UNLOCK(&translators);
-
-	global_format_map.map[dst][src] = 1;
-
-	return res;
+		if (!(zt = ast_calloc(1, sizeof(*zt))))
+			return -1;
+	
+		snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s", 
+			 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
+		zt->t.srcfmt = (1 << src);
+		zt->t.dstfmt = (1 << dst);
+		zt->t.newpvt = zap_new;
+		zt->t.framein = zap_framein;
+		zt->t.frameout = zap_frameout;
+		zt->t.destroy = zap_destroy;
+		zt->t.sample = (dst == 8 || src == 8) ? g729_fakesrc_sample() : g723_fakesrc_sample();
+		zt->t.useplc = global_useplc;
+		zt->t.buf_size = BUFFER_SAMPLES * 2;
+		zt->t.desc_size = sizeof(struct pvt);
+		if ((res = ast_register_translator(&zt->t))) {
+			free(zt);
+			return -1;
+		}
+	
+		AST_LIST_LOCK(&translators);
+		AST_LIST_INSERT_HEAD(&translators, zt, entry);
+		AST_LIST_UNLOCK(&translators);
+	
+		global_format_map.map[dst][src] = 1;
+	
+		return res;
 }
 
 static void drop_translator(int dst, int src)
@@ -315,6 +331,7 @@ static void parse_config(void)
 {
 	struct ast_variable *var;
 	struct ast_config *cfg = ast_config_load("codecs.conf");
+	cardsmode = 0;
 
 	if (!cfg)
 		return;
@@ -326,6 +343,16 @@ static void parse_config(void)
 			       ast_verbose(VERBOSE_PREFIX_3 "codec_zap: %susing generic PLC\n",
 					   global_useplc ? "" : "not ");
 	       }
+	}
+	for (var = ast_variable_browse(cfg, "transcoder_card"); var; var = var->next) {
+		if (!strcasecmp(var->name, "mode")) {
+			if(strstr(var->value, "g729"))
+				cardsmode = 1;
+			else if(strstr(var->value, "g723"))
+				cardsmode = 2;
+			else if(strstr(var->value, "mixed"))
+				cardsmode = 0;
+		}
 	}
 
 	ast_config_destroy(cfg);
