@@ -108,6 +108,7 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 
 				ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+				stmt = NULL;
 
 				obj->up = 0;
 				/*
