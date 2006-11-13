@@ -10708,7 +10708,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
 	int oldsipdebug = sipdebug_console;
-	if (argc != 4) {
+	if (argc != 3) {
 		if (argc != 5) 
 			return RESULT_SHOWUSAGE;
 		else if (strcmp(argv[3], "ip") == 0)
@@ -10716,6 +10716,30 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 		else if (strcmp(argv[3], "peer") == 0)
 			return sip_do_debug_peer(fd, argc, argv);
 		else
+			return RESULT_SHOWUSAGE;
+	}
+	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	memset(&debugaddr, 0, sizeof(debugaddr));
+	ast_cli(fd, "SIP Debugging %senabled\n", oldsipdebug ? "re-" : "");
+	return RESULT_SUCCESS;
+}
+
+static int sip_do_debug_deprecated(int fd, int argc, char *argv[])
+{
+	int oldsipdebug = sipdebug_console;
+	char *newargv[6] = { "sip", "set", "debug", NULL };
+	if (argc != 2) {
+		if (argc != 4) 
+			return RESULT_SHOWUSAGE;
+		else if (strcmp(argv[2], "ip") == 0) {
+			newargv[3] = argv[2];
+			newargv[4] = argv[3];
+			return sip_do_debug_ip(fd, argc + 1, newargv);
+		} else if (strcmp(argv[2], "peer") == 0) {
+			newargv[3] = argv[2];
+			newargv[4] = argv[3];
+			return sip_do_debug_peer(fd, argc + 1, newargv);
+		} else
 			return RESULT_SHOWUSAGE;
 	}
 	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
@@ -10784,6 +10808,15 @@ static int sip_notify(int fd, int argc, char *argv[])
 static int sip_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	ast_cli(fd, "SIP Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
+
+static int sip_no_debug_deprecated(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
 	ast_cli(fd, "SIP Debugging Disabled\n");
@@ -11056,16 +11089,16 @@ static char show_reg_usage[] =
 "       Lists all registration requests and status.\n";
 
 static char debug_usage[] = 
-"Usage: sip debug\n"
+"Usage: sip set debug\n"
 "       Enables dumping of SIP packets for debugging purposes\n\n"
-"       sip debug ip <host[:PORT]>\n"
+"       sip set debug ip <host[:PORT]>\n"
 "       Enables dumping of SIP packets to and from host.\n\n"
-"       sip debug peer <peername>\n"
+"       sip set debug peer <peername>\n"
 "       Enables dumping of SIP packets to and from host.\n"
 "       Require peer to be registered.\n";
 
 static char no_debug_usage[] = 
-"Usage: sip debug off\n"
+"Usage: sip set debug off\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
 static char no_history_usage[] = 
@@ -16838,6 +16871,16 @@ static int reload(void)
 	return sip_reload(0, 0, NULL);
 }
 
+static struct ast_cli_entry cli_sip_debug_deprecated =
+	{ { "sip", "debug", NULL },
+	sip_do_debug_deprecated, "Enable SIP debugging",
+	debug_usage };
+
+static struct ast_cli_entry cli_sip_no_debug_deprecated =
+	{ { "sip", "no", "debug", NULL },
+	sip_no_debug_deprecated, "Disable SIP debugging",
+	debug_usage };
+
 static struct ast_cli_entry cli_sip[] = {
 	{ { "sip", "show", "channels", NULL },
 	sip_show_channels, "List active SIP channels",
@@ -16909,7 +16952,7 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "set", "debug", NULL },
 	sip_do_debug, "Enable SIP debugging",
-	debug_usage },
+	debug_usage, NULL, &cli_sip_debug_deprecated },
 
 	{ { "sip", "set", "debug", "ip", NULL },
 	sip_do_debug, "Enable SIP debugging on IP",
@@ -16921,7 +16964,7 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "set", "debug", "off", NULL },
 	sip_no_debug, "Disable SIP debugging",
-	no_debug_usage },
+	no_debug_usage, NULL, &cli_sip_no_debug_deprecated },
 
 	{ { "sip", "history", NULL },
 	sip_do_history, "Enable SIP history",

@@ -481,7 +481,7 @@ static int modlist_modentry(const char *module, const char *description, int use
 }
 
 static char modlist_help[] =
-"Usage: core show modules [like keyword]\n"
+"Usage: module show [like <keyword>]\n"
 "       Shows Asterisk modules currently in use, and usage statistics.\n";
 
 static char uptime_help[] =
