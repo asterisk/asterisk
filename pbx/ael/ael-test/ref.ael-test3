@@ -2,17 +2,17 @@
 (If you find progress and other non-error messages irritating, you can use -q to suppress them)
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
-LOG: lev:2 file:pbx_ael.c  line:3941 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:pbx_ael.c  line:3948 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3970 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:3977 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
 LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include1.ael2, 78 chars
 LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include2.ael2, 98 chars
 LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include3.ael2, 57 chars
 LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include5.ael2, 56 chars
 LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include4.ael2, 87 chars
 LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./telemarket_torture.ael2, 28036 chars
-LOG: lev:2 file:pbx_ael.c  line:3956 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3985 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 14-34: The macro std-exten does not end with a return; I will insert one.
-LOG: lev:3 file:pbx_ael.c  line:1378 func: check_goto  Warning: file ./extensions.ael, line 17-17: It's bad form to have a goto in a macro to a target outside the macro!
+LOG: lev:3 file:pbx_ael.c  line:1380 func: check_goto  Warning: file ./extensions.ael, line 17-17: It's bad form to have a goto in a macro to a target outside the macro!
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 36-59: The macro std-priv-exten_1 does not end with a return; I will insert one.
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 62-85: The macro std-priv-exten_2 does not end with a return; I will insert one.
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 88-111: The macro std-priv-exten_3 does not end with a return; I will insert one.
@@ -93,11 +93,8 @@ LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./e
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 2030-2048: The macro ciddial2 does not end with a return; I will insert one.
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 2050-2065: The macro callerid-liar does not end with a return; I will insert one.
 LOG: lev:3 file:pbx_ael.c  line:712 func: check_macro_returns  Warning: file ./extensions.ael, line 2067-2072: The macro callerid-bad does not end with a return; I will insert one.
-LOG: lev:3 file:pbx_ael.c  line:863 func: check_includes  Warning: file ./extensions.ael, line 2748-2752: The included context 'parkedcalls' cannot be found.
-LOG: lev:3 file:pbx_ael.c  line:863 func: check_includes  Warning: file ./extensions.ael, line 2955-2958: The included context 'parkedcalls' cannot be found.
-LOG: lev:3 file:pbx_ael.c  line:863 func: check_includes  Warning: file ./extensions.ael, line 3006-3013: The included context 'parkedcalls' cannot be found.
-LOG: lev:2 file:pbx_ael.c  line:3959 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3961 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3964 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3967 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:479 func: main  172 contexts, 858 extensions, 2406 priorities
+LOG: lev:2 file:pbx_ael.c  line:3988 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3990 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3993 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:3996 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:483 func: main  172 contexts, 858 extensions, 2406 priorities
