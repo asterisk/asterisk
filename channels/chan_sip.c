@@ -2062,38 +2062,33 @@ static void sip_cancel_destroy(struct sip_pvt *p)
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur, *prev = NULL;
-
-	/* Just in case... */
-	char *msg;
-	int res = FALSE;
-
-	msg = sip_methods[sipmethod].text;
+	const char *msg = "Not Found";	/* used only for debugging */
 
 	sip_pvt_lock(p);
 	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
-		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
-			((ast_test_flag(cur, FLAG_RESPONSE)) || 
-			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
+		if (cur->seqno != seqno || ast_test_flag(cur, FLAG_RESPONSE) != resp)
+			continue;
+		if (ast_test_flag(cur, FLAG_RESPONSE) || cur->method == sipmethod) {
+			msg = "Found";
 			if (!resp && (seqno == p->pendinginvite)) {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
 			}
-			/* this is our baby */
-			res = TRUE;
-			UNLINK(cur, p->packets, prev);
 			if (cur->retransid > -1) {
 				if (sipdebug && option_debug > 3)
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 				ast_sched_del(sched, cur->retransid);
 			}
+			UNLINK(cur, p->packets, prev);
 			free(cur);
 			break;
 		}
 	}
 	sip_pvt_unlock(p);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
+		ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n",
+			p->callid, resp ? "Response" : "Request", seqno, msg);
 }
 
 /*! \brief Pretend to ack all packets
