@@ -10073,7 +10073,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		print_group(fd, peer->pickupgroup, 0);
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
-		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
+		ast_cli(fd, "  LastMsgsSent : %d/%d\n", (peer->lastmsgssent & 0x7fff0000) >> 16, peer->lastmsgssent & 0xffff);
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
@@ -14766,12 +14766,12 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	peer->lastmsgcheck = time(NULL);
 	
 	/* Return now if it's the same thing we told them last time */
-	if (((newmsgs << 8) | (oldmsgs)) == peer->lastmsgssent) {
+	if (((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs)) == peer->lastmsgssent) {
 		return 0;
 	}
 	
 	
-	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
+	peer->lastmsgssent = ((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs));
 
 	if (peer->mwipvt) {
 		/* Base message on subscription */
