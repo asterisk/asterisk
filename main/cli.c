@@ -1622,17 +1622,21 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	}
 	if (lock)
 		AST_LIST_LOCK(&helpers);
-	while( !ret && (e = cli_next(&i)) ) {
+	while ((e = cli_next(&i))) {
 		int lc = strlen(e->_full_cmd);
 		if (e->_full_cmd[0] != '_' && lc > 0 && matchlen <= lc &&
 				!strncasecmp(matchstr, e->_full_cmd, matchlen)) {
 			/* Found initial part, return a copy of the next word... */
-			if (e->cmda[argindex] && ++matchnum > state)
+			if (e->cmda[argindex] && ++matchnum > state) {
 				ret = strdup(e->cmda[argindex]); /* we need a malloced string */
-		} else if (e->generator && !strncasecmp(matchstr, e->_full_cmd, lc) && matchstr[lc] < 33) {
+				break;
+			}
+		} else if (!strncasecmp(matchstr, e->_full_cmd, lc) && matchstr[lc] < 33) {
 			/* We have a command in its entirity within us -- theoretically only one
 			   command can have this occur */
-			ret = e->generator(matchstr, word, argindex, state);
+			if (e->generator)
+				ret = e->generator(matchstr, word, argindex, state);
+			break;
 		}
 	}
 	if (lock)
