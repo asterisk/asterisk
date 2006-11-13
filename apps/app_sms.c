@@ -1046,7 +1046,7 @@ static void sms_nextoutgoing (sms_t * h)
 		unsigned char p = 2;
 		h->omsg[0] = 0x91;		  /* SMS_DATA */
 		if (h->smsc) {			 /* deliver */
-			h->omsg[p++] = (more ? 4 : 0);
+			h->omsg[p++] = (more ? 4 : 0) + ((h->udhl > 0) ? 0x40 : 0);
 			p += packaddress (h->omsg + p, h->oa);
 			h->omsg[p++] = h->pid;
 			h->omsg[p++] = h->dcs;
