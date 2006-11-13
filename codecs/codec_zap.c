@@ -275,7 +275,7 @@ static int register_translator(int dst, int src)
 		zt->t.framein = zap_framein;
 		zt->t.frameout = zap_frameout;
 		zt->t.destroy = zap_destroy;
-		zt->t.sample = (dst == 8 || src == 8) ? g729_fakesrc_sample() : g723_fakesrc_sample();
+		zt->t.sample = (dst == 8 || src == 8) ? g729_fakesrc_sample : g723_fakesrc_sample;
 		zt->t.useplc = global_useplc;
 		zt->t.buf_size = BUFFER_SAMPLES * 2;
 		zt->t.desc_size = sizeof(struct pvt);
