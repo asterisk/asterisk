@@ -10835,7 +10835,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 	struct ast_channel *bridged_to;
 	char iabuf[INET_ADDRSTRLEN];
 	
-	if (p->pendinginvite && !ast_test_flag(p, SIP_OUTGOING) && !ignore)
+	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
+	if (p->pendinginvite && !ast_test_flag(p, SIP_OUTGOING) && !ignore && !p->owner)
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
 
 	copy_request(&p->initreq, req);
