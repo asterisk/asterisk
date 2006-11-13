@@ -60,6 +60,7 @@ struct odbc_class
 	char dsn[80];
 	char username[80];
 	char password[80];
+	char sanitysql[256];
 	SQLHENV env;
 	unsigned int haspool:1;         /* Boolean - TDS databases need this */
 	unsigned int limit:10;          /* Gives a limit of 1023 maximum */
@@ -115,17 +116,12 @@ SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_c
 				 * While this isn't the best way to try to correct an error, this won't automatically
 				 * fail when the statement handle invalidates.
 				 */
-				/* XXX Actually, it might, if we're using a non-pooled connection. Possible race here. XXX */
-				odbc_obj_disconnect(obj);
-				odbc_obj_connect(obj);
+				ast_odbc_sanity_check(obj);
 				continue;
 			}
 			break;
-		} else {
-			ast_log(LOG_WARNING, "SQL Prepare failed.  Attempting a reconnect...\n");
-			odbc_obj_disconnect(obj);
-			odbc_obj_connect(obj);
-		}
+		} else if (attempt == 0)
+			ast_odbc_sanity_check(obj);
 	}
 
 	return stmt;
@@ -179,6 +175,9 @@ int ast_odbc_sanity_check(struct odbc_obj *obj)
 	SQLHSTMT stmt;
 	int res = 0;
 
+	if (obj->parent->sanitysql)
+		test_sql = obj->parent->sanitysql;
+
 	if (obj->up) {
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -210,7 +209,7 @@ static int load_odbc_config(void)
 	static char *cfg = "res_odbc.conf";
 	struct ast_config *config;
 	struct ast_variable *v;
-	char *cat, *dsn, *username, *password;
+	char *cat, *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit;
 	int connect = 0, res = 0;
 
@@ -229,7 +228,7 @@ static int load_odbc_config(void)
 			}
 		} else {
 			/* Reset all to defaults for each class of odbc connections */
-			dsn = username = password = NULL;
+			dsn = username = password = sanitysql = NULL;
 			enabled = 1;
 			connect = 0;
 			pooling = 0;
@@ -258,6 +257,8 @@ static int load_odbc_config(void)
 					username = v->value;
 				} else if (!strcasecmp(v->name, "password")) {
 					password = v->value;
+				} else if (!strcasecmp(v->name, "sanitysql")) {
+					sanitysql = v->value;
 				}
 			}
 
@@ -277,6 +278,8 @@ static int load_odbc_config(void)
 					ast_copy_string(new->username, username, sizeof(new->username));
 				if (password)
 					ast_copy_string(new->password, password, sizeof(new->password));
+				if (sanitysql)
+					ast_copy_string(new->sanitysql, sanitysql, sizeof(new->sanitysql));
 
 				SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);
 				res = SQLSetEnvAttr(new->env, SQL_ATTR_ODBC_VERSION, (void *) SQL_OV_ODBC3, 0);
@@ -524,7 +527,7 @@ static int reload(void)
 	static char *cfg = "res_odbc.conf";
 	struct ast_config *config;
 	struct ast_variable *v;
-	char *cat, *dsn, *username, *password;
+	char *cat, *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit;
 	int connect = 0, res = 0;
 
@@ -547,7 +550,7 @@ static int reload(void)
 				}
 			} else {
 				/* Reset all to defaults for each class of odbc connections */
-				dsn = username = password = NULL;
+				dsn = username = password = sanitysql = NULL;
 				enabled = 1;
 				connect = 0;
 				pooling = 0;
@@ -575,6 +578,8 @@ static int reload(void)
 						username = v->value;
 					} else if (!strcasecmp(v->name, "password")) {
 						password = v->value;
+					} else if (!strcasecmp(v->name, "sanitysql")) {
+						sanitysql = v->value;
 					}
 				}
 
@@ -606,6 +611,8 @@ static int reload(void)
 						ast_copy_string(new->username, username, sizeof(new->username));
 					if (password)
 						ast_copy_string(new->password, password, sizeof(new->password));
+					if (sanitysql)
+						ast_copy_string(new->sanitysql, sanitysql, sizeof(new->sanitysql));
 
 					if (!class) {
 						SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &new->env);

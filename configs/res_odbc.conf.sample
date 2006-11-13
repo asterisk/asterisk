@@ -15,6 +15,10 @@ dsn => asterisk
 ;username => myuser
 ;password => mypass
 pre-connect => yes
+; What should we execute to ensure that our connection is still alive?  The
+; statement should return a non-zero value in the first field of its first
+; record.  The default is "select 1".
+;sanitysql => select 1
 
 
 [mysql2]
@@ -35,7 +39,7 @@ limit => 5
 username => oscar
 password => thegrouch
 pre-connect => yes
-
+sanitysql => select count(*) from systables
 
 
 
