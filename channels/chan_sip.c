@@ -10753,12 +10753,16 @@ static void sip_dump_history(struct sip_pvt *dialog)
 {
 	int x = 0;
 	struct sip_history *hist;
+	static errmsg = 0;
 
 	if (!dialog)
 		return;
 
 	if (!option_debug && !sipdebug) {
-		ast_log(LOG_NOTICE, "You must have debugging enabled (SIP or Asterisk) in order to dump SIP history.\n");
+		if (!errmsg) {
+			ast_log(LOG_NOTICE, "You must have debugging enabled (SIP or Asterisk) in order to dump SIP history.\n");
+			errmsg = 1;
+		}
 		return;
 	}
 
