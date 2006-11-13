@@ -408,7 +408,7 @@ static int modlist_modentry(const char *module, const char *description, int use
 }
 
 static char modlist_help[] =
-"Usage: core show modules [like keyword]\n"
+"Usage: module show [like keyword]\n"
 "       Shows Asterisk modules currently in use, and usage statistics.\n";
 
 static char uptime_help[] =
@@ -487,12 +487,12 @@ static int handle_showuptime(int fd, int argc, char *argv[])
 static int handle_modlist(int fd, int argc, char *argv[])
 {
 	char *like = "";
-	if (argc != 3 && argc != 5)
+	if (argc != 2 && argc != 4)
 		return RESULT_SHOWUSAGE;
-	else if (argc == 5) {
-		if (strcmp(argv[3],"like")) 
+	else if (argc == 4) {
+		if (strcmp(argv[2],"like")) 
 			return RESULT_SHOWUSAGE;
-		like = argv[4];
+		like = argv[3];
 	}
 		
 	ast_mutex_lock(&climodentrylock);
