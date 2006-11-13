@@ -905,7 +905,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							new_buf = comment_p + 1;
 					}
 				}
-				if( comment && !process_buf )
+				if( withcomments && comment && !process_buf )
 				{
 					CB_ADD(buf);  /* the whole line is a comment, store it */
 				}
