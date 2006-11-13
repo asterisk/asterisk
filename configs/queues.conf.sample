@@ -254,6 +254,8 @@ monitor-type = MixMonitor
 ; no     - callers cannot join a queue with no members
 ; strict - callers cannot join a queue with no members or only unavailable
 ;          members
+; loose  - same as strict, but paused queue members do not count as unavailable
+;          
 ;
 ; ----------------------- TYPE MIXMONITOR OPTIONS -----------------------------
 ;

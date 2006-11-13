@@ -338,6 +338,7 @@ static AST_LIST_HEAD_STATIC(interfaces, member_interface);
 /* values used in multi-bit flags in call_queue */
 #define QUEUE_EMPTY_NORMAL 1
 #define QUEUE_EMPTY_STRICT 2
+#define QUEUE_EMPTY_LOOSE 3
 #define ANNOUNCEHOLDTIME_ALWAYS 1
 #define ANNOUNCEHOLDTIME_ONCE 2
 #define QUEUE_EVENT_VARIABLES 3
@@ -488,6 +489,7 @@ static inline void insert_entry(struct call_queue *q, struct queue_ent *prev, st
 enum queue_member_status {
 	QUEUE_NO_MEMBERS,
 	QUEUE_NO_REACHABLE_MEMBERS,
+	QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS,
 	QUEUE_NORMAL
 };
 
@@ -501,18 +503,22 @@ static enum queue_member_status get_member_status(struct call_queue *q, int max_
 		if (max_penalty && (member->penalty > max_penalty))
 			continue;
 
-		if (member->paused) continue;
-
 		switch (member->status) {
 		case AST_DEVICE_INVALID:
 			/* nothing to do */
 			break;
 		case AST_DEVICE_UNAVAILABLE:
-			result = QUEUE_NO_REACHABLE_MEMBERS;
+			if (result != QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS) 
+				result = QUEUE_NO_REACHABLE_MEMBERS;
 			break;
 		default:
-			ast_mutex_unlock(&q->lock);
-			return QUEUE_NORMAL;
+			if (member->paused) {
+				result = QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS;
+			} else {
+				ast_mutex_unlock(&q->lock);
+				return QUEUE_NORMAL;
+			}
+			break;
 		}
 	}
 	
@@ -903,14 +909,18 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			q->strategy = QUEUE_STRATEGY_RINGALL;
 		}
 	} else if (!strcasecmp(param, "joinempty")) {
-		if (!strcasecmp(val, "strict"))
+		if (!strcasecmp(val, "loose"))
+			q->joinempty = QUEUE_EMPTY_LOOSE;
+		else if (!strcasecmp(val, "strict"))
 			q->joinempty = QUEUE_EMPTY_STRICT;
 		else if (ast_true(val))
 			q->joinempty = QUEUE_EMPTY_NORMAL;
 		else
 			q->joinempty = 0;
 	} else if (!strcasecmp(param, "leavewhenempty")) {
-		if (!strcasecmp(val, "strict"))
+		if (!strcasecmp(val, "loose"))
+			q->leavewhenempty = QUEUE_EMPTY_LOOSE;
+		else if (!strcasecmp(val, "strict"))
 			q->leavewhenempty = QUEUE_EMPTY_STRICT;
 		else if (ast_true(val))
 			q->leavewhenempty = QUEUE_EMPTY_NORMAL;
@@ -1189,7 +1199,9 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	stat = get_member_status(q, qe->max_penalty);
 	if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
 		*reason = QUEUE_JOINEMPTY;
-	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
+	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS))
+		*reason = QUEUE_JOINUNAVAIL;
+	else if ((q->joinempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
 		*reason = QUEUE_JOINUNAVAIL;
 	else if (q->maxlen && (q->count >= q->maxlen))
 		*reason = QUEUE_FULL;
@@ -2207,7 +2219,13 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		}
 
 		/* leave the queue if no reachable agents, if enabled */
-		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
+		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
+			*reason = QUEUE_LEAVEUNAVAIL;
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+			leave_queue(qe);
+			break;
+		}
+		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
 			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
 			leave_queue(qe);
@@ -3532,7 +3550,13 @@ check_turns:
 				}
 
 				/* leave the queue if no reachable agents, if enabled */
-				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
+				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
+					record_abandoned(&qe);
+					reason = QUEUE_LEAVEUNAVAIL;
+					res = 0;
+					break;
+				}
+				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 					record_abandoned(&qe);
 					reason = QUEUE_LEAVEUNAVAIL;
 					res = 0;

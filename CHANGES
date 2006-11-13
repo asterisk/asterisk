@@ -59,3 +59,5 @@ Changes since Asterisk 1.4-beta was branched:
     setqueueentryvar options for each queue, see queues.conf.sample for details.
   * Brazilian Portuguese (pt-BR) in VM, and say.c was added via patch from cfassoni.
   * CID matching information is now shown when doing 'dialplan show'.
+  * app_queue now has a 'loose' option which is almost exactly like 'strict' except it
+     does not count paused queue members as unavailable.
