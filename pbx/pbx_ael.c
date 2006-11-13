@@ -859,7 +859,7 @@ static void check_includes(pval *includes)
 		char *incl_context = p4->u1.str;
 		/* find a matching context name */
 		struct pval *that_other_context = find_context(incl_context);
-		if (!that_other_context&&strcmp(incl_context,"parkedcalls")!=0) {
+		if (!that_other_context && strcmp(incl_context, "parkedcalls") != 0) {
 			ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The included context '%s' cannot be found.\n",
 					includes->filename, includes->startline, includes->endline, incl_context);
 			warns++;
