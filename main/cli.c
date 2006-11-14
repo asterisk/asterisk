@@ -982,7 +982,9 @@ static char *complete_mod_3_nr(const char *line, const char *word, int pos, int 
 
 static char *complete_mod_3(const char *line, const char *word, int pos, int state)
 {
-	return ast_module_helper(line, word, pos, state, 2, 1);
+	if (pos < 2)
+		return NULL;
+	return ast_module_helper(line, word, pos, state, pos, 1);
 }
 
 static char *complete_fn(const char *line, const char *word, int pos, int state)
