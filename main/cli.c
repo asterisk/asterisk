@@ -127,19 +127,9 @@ static char group_show_channels_help[] =
 "       Optional regular expression pattern is matched to group names for each\n"
 "       channel.\n";
 
-static int handle_load_deprecated(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	if (ast_load_resource(argv[1])) {
-		ast_cli(fd, "Unable to load module %s\n", argv[1]);
-		return RESULT_FAILURE;
-	}
-	return RESULT_SUCCESS;
-}
-
 static int handle_load(int fd, int argc, char *argv[])
 {
+	/* "module load <mod>" */
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	if (ast_load_resource(argv[2])) {
@@ -147,6 +137,12 @@ static int handle_load(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 	return RESULT_SUCCESS;
+}
+
+static int handle_load_deprecated(int fd, int argc, char *argv[])
+{
+	/* I know it is nasty, but they do look very similar, and we never access argv[0] */
+	return handle_load(fd, argc+1, argv - 1);
 }
 
 static int handle_reload_deprecated(int fd, int argc, char *argv[])
