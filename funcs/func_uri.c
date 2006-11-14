@@ -74,14 +74,14 @@ static int uridecode(struct ast_channel *chan, char *cmd, char *data,
 
 static struct ast_custom_function urldecode_function = {
 	.name = "URIDECODE",
-	.synopsis = "Decodes an URI-encoded string.",
+	.synopsis = "Decodes a URI-encoded string according to RFC 2396.",
 	.syntax = "URIDECODE(<data>)",
 	.read = uridecode,
 };
 
 static struct ast_custom_function urlencode_function = {
 	.name = "URIENCODE",
-	.synopsis = "Encodes a string to URI-safe encoding.",
+	.synopsis = "Encodes a string to URI-safe encoding according to RFC 2396.",
 	.syntax = "URIENCODE(<data>)",
 	.read = uriencode,
 };
