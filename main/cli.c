@@ -1662,7 +1662,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 			 * Run the generator if one is available. In any case we are done.
 			 */
 			if (e->generator)
-				ret = e->generator(matchstr, word, argindex, state);
+				ret = e->generator(matchstr, word, argindex, state - matchnum);
 			else if (e->command) {	/* new style command */
 				/* prepare fake arguments for the generator.
 				 * argv[-1] is the cli entry we use,
