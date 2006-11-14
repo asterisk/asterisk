@@ -1246,7 +1246,9 @@ static int retrans_pkt(void *data)
 			ast_mutex_unlock(&pkt->owner->owner->lock);
 		} else {
 			/* If no channel owner, destroy now */
-			ast_set_flag(pkt->owner, SIP_NEEDDESTROY);	
+			/* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
+			if (pkt->method != SIP_OPTIONS)
+				ast_set_flag(pkt->owner, SIP_NEEDDESTROY);	
 		}
 	}
 	/* In any case, go ahead and remove the packet */
@@ -9968,7 +9970,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 			ast_sched_del(sched, peer->pokeexpire);
 		if (sipmethod == SIP_INVITE)	/* Does this really happen? */
 			transmit_request(p, SIP_ACK, seqno, 0, 0);
-		ast_set_flag(p, SIP_NEEDDESTROY);	
+		ast_set_flag(p, SIP_NEEDDESTROY);
 
 		/* Try again eventually */
 		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
@@ -11691,7 +11693,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		peer->call = NULL;
 		return 0;
 	}
-	if (peer->call > 0) {
+	if (peer->call) {
 		if (sipdebug)
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
 		sip_destroy(peer->call);
