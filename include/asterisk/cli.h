@@ -85,7 +85,7 @@ void ast_cli(int fd, char *fmt, ...)
 	int new_setdebug(int fd, int argc, char *argv[]);
 
 	...
-	/* this is how we create the entry to register */
+	// this is how we create the entry to register 
 	NEW_CLI(new_setdebug, "short description")
 	...
 
