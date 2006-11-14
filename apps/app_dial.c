@@ -822,14 +822,15 @@ static int valid_priv_reply(struct ast_flags *opts, int res)
 static int do_timelimit(struct ast_channel *chan, struct ast_bridge_config *config,
 	char *parse, unsigned int *calldurationlimit)
 {
+	char *stringp = ast_strdupa(parse);
 	char *limit_str, *warning_str, *warnfreq_str;
 	const char *var;
 	int play_to_caller=0,play_to_callee=0;
 	int delta;
 
-	limit_str = strsep(&warnfreq_str, ":");
-	warning_str = strsep(&warnfreq_str, ":");
-	warnfreq_str = parse;
+	limit_str = strsep(&stringp, ":");
+	warning_str = strsep(&stringp, ":");
+	warnfreq_str = strsep(&stringp, ":");
 
 	config->timelimit = atol(limit_str);
 	if (warning_str)
