@@ -193,7 +193,7 @@ static int handle_verbose(int fd, int argc, char *argv[])
 	case CLI_GENERATE:
 		a = (struct ast_cli_args *)argv[0];
 		if (a->pos > e->args)
-			return NULL;
+			return (int)NULL;
 		return (int)ast_cli_complete(a->word, choices, a->n);
 	}
 	/* all the above return, so we proceed with the handler.
@@ -255,7 +255,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 	case CLI_GENERATE:
 		a = (struct ast_cli_args *)argv[0];
 		if (a->pos > e->args)
-			return NULL;
+			return (int)NULL;
 		return (int)ast_cli_complete(a->word, choices, a->n);
 	}
 	/* all the above return, so we proceed with the handler.
@@ -302,20 +302,6 @@ done:
 		}
 	}
 
-	return RESULT_SUCCESS;
-}
-
-static int handle_nodebug(int fd, int argc, char *argv[])
-{
-	int oldval = option_debug;
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-
-	option_debug = 0;
-	debug_filename[0] = '\0';
-
-	if (oldval > 0)
-		ast_cli(fd, "Core debug is now OFF\n");
 	return RESULT_SUCCESS;
 }
 
