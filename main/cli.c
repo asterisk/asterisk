@@ -402,11 +402,6 @@ static int modlist_modentry(const char *module, const char *description, int use
 	return 0;
 }
 
-static char uptime_help[] =
-"Usage: core show uptime [seconds]\n"
-"       Shows Asterisk uptime information.\n"
-"       The seconds word returns the uptime in seconds only.\n";
-
 static void print_uptimestr(int fd, time_t timeval, const char *prefix, int printsec)
 {
 	int x; /* the main part - years, weeks, etc. */
@@ -461,12 +456,33 @@ static void print_uptimestr(int fd, time_t timeval, const char *prefix, int prin
 
 static int handle_showuptime(int fd, int argc, char *argv[])
 {
-	/* 'show uptime [seconds]' */
-	time_t curtime = time(NULL);
-	int printsec = (argc == 4 && !strcasecmp(argv[3],"seconds"));
+	struct ast_cli_entry *e = (struct ast_cli_entry *)argv[-1];
+	time_t curtime;
+	int printsec;
+	struct ast_cli_args *a;
 
-	if (argc != 3 && !printsec)
+	switch (argc) {
+        case CLI_CMD_STRING:
+		return (int)"core show uptime";
+
+	case CLI_USAGE:
+		return (int)
+			"Usage: core show uptime [seconds]\n"
+			"       Shows Asterisk uptime information.\n"
+			"       The seconds word returns the uptime in seconds only.\n";
+
+	case CLI_GENERATE:
+		a = (struct ast_cli_args *)argv[0];
+		return (int)((a->pos > e->args || a->n > 0) ? NULL : "seconds");
+	}
+	/* regular handler */
+	if (argc == e->args+1 && !strcasecmp(argv[e->args],"seconds"))
+		printsec = 1;
+	else if (argc == e->args)
+		printsec = 0;
+	else
 		return RESULT_SHOWUSAGE;
+	curtime = time(NULL);
 	if (ast_startuptime)
 		print_uptimestr(fd, curtime - ast_startuptime, "System uptime", printsec);
 	if (ast_lastreloadtime)
@@ -1169,9 +1185,7 @@ static struct ast_cli_entry cli_cli[] = {
 	handle_unload, "Unload a module by name",
 	unload_help, complete_mod_3_nr, &cli_module_unload_deprecated },
 
- 	{ { "core", "show", "uptime", NULL },
-	handle_showuptime, "Show uptime information",
-	uptime_help },
+	NEW_CLI(handle_showuptime, "Show uptime information"),
 
 	{ { "soft", "hangup", NULL },
 	handle_softhangup, "Request a hangup on a given channel",
