@@ -105,12 +105,6 @@ static char reload_help[] =
 "       Reloads configuration files for all listed modules which support\n"
 "       reloading, or for all supported modules if none are listed.\n";
 
-static char verbose_help[] = 
-"Usage: core set verbose <level>\n"
-"       Sets level of verbose messages to be displayed.  0 means\n"
-"       no messages should be displayed. Equivalent to -v[v[v...]]\n"
-"       on startup\n";
-
 static char logger_mute_help[] = 
 "Usage: logger mute\n"
 "       Disables logging output to the current console, making it possible to\n"
@@ -148,13 +142,14 @@ static int handle_load_deprecated(int fd, int argc, char *argv[])
 static int handle_reload(int fd, int argc, char *argv[])
 {
 	/* "module reload [mod_1 ... mod_N]" */
-	int x;
-	int res;
-	if (argc < 2)
-		return RESULT_SHOWUSAGE;
-	if (argc > 2) { 
-		for (x = 2; x < argc; x++) {
-			res = ast_module_reload(argv[x]);
+	struct ast_cli_entry *e = (struct ast_cli_entry *)argv[-1];
+
+	if (argc == e->args)
+		ast_module_reload(NULL);
+	else {
+		int x;
+		for (x = e->args; x < argc; x++) {
+			int res = ast_module_reload(argv[x]);
 			switch(res) {
 			case 0:
 				ast_cli(fd, "No such module '%s'\n", argv[x]);
@@ -164,8 +159,7 @@ static int handle_reload(int fd, int argc, char *argv[])
 				break;
 			}
 		}
-	} else
-		ast_module_reload(NULL);
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -176,29 +170,53 @@ static int handle_reload_deprecated(int fd, int argc, char *argv[])
 
 static int handle_verbose(int fd, int argc, char *argv[])
 {
+	/* "core set verbose [atleast] <n>" */
 	int oldval = option_verbose;
 	int newlevel;
 	int atleast = 0;
+	struct ast_cli_entry *e = (struct ast_cli_entry *)argv[-1];
+	static char *choices[] = { "off", "atleast", NULL };
+	struct ast_cli_args *a;
 
-	if ((argc < 4) || (argc > 5))
+	switch (argc) {
+	case CLI_CMD_STRING:
+		return (int)"core set verbose";
+
+	case CLI_USAGE:
+		return (int)
+			"Usage: core set verbose [atleast] <level>\n"
+			"       core set verbose off\n"
+			"       Sets level of verbose messages to be displayed.  0 or off means\n"
+			"       no messages should be displayed. Equivalent to -v[v[v...]]\n"
+			"       on startup\n";
+
+	case CLI_GENERATE:
+		a = (struct ast_cli_args *)argv[0];
+		if (a->pos > e->args)
+			return NULL;
+		return (int)ast_cli_complete(a->word, choices, a->n);
+	}
+	/* all the above return, so we proceed with the handler.
+	 * we are guaranteed to be called with argc >= e->args;
+	 */
+
+	if (argc < e->args + 1)
 		return RESULT_SHOWUSAGE;
 
-	if (!strcasecmp(argv[3], "atleast"))
+	if (argc == e->args + 1 && !strcasecmp(argv[e->args], "off")) {
+		newlevel = 0;
+		goto done;
+	}
+	if (!strcasecmp(argv[e->args], "atleast"))
 		atleast = 1;
+	if (argc != e->args + atleast + 1)
+		return RESULT_SHOWUSAGE;
+	if (sscanf(argv[e->args + atleast], "%d", &newlevel) != 1)
+		return RESULT_SHOWUSAGE;
 
-	if (!atleast) {
-		if (argc > 4)
-			return RESULT_SHOWUSAGE;
-
-		option_verbose = atoi(argv[3]);
-	} else {
-		if (argc < 5)
-			return RESULT_SHOWUSAGE;
-
-		newlevel = atoi(argv[4]);
-		if (newlevel > option_verbose)
-			option_verbose = newlevel;
-        }
+done:
+	if (!atleast || newlevel > option_verbose)
+		option_verbose = newlevel;
 	if (oldval > 0 && option_verbose == 0)
 		ast_cli(fd, "Verbosity is now OFF\n");
 	else if (option_verbose > 0) {
@@ -1112,9 +1130,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	NEW_CLI(handle_set_debug, "Set level of debug chattiness"),
 
-	{ { "core", "set", "verbose", NULL },
-	handle_verbose, "Set level of verboseness",
-	verbose_help },
+	NEW_CLI(handle_verbose, "Set level of verboseness"),
 
 	{ { "group", "show", "channels", NULL },
 	group_show_channels, "Display active channels with group(s)",
