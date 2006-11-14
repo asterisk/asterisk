@@ -274,7 +274,7 @@ static int handle_set_debug(int fd, int argc, char *argv[])
 	}
 	if (!strcasecmp(argv[e->args], "atleast"))
 		atleast = 1;
-	if (argc > e->args + atleast + 2)
+	if (argc < e->args + atleast + 1 || argc > e->args + atleast + 2)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[e->args + atleast], "%d", &newlevel) != 1)
 		return RESULT_SHOWUSAGE;
@@ -1675,7 +1675,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 					.fake = "-",
 					.line = matchstr, .word = word,
 					.pos = argindex,
-					.n = state };
+					.n = state - matchnum };
 				char *args[] = { (char *)e, (char *)&a, NULL };
 				ret = (char *)e->handler(-1, CLI_GENERATE, args + 1);
 			}
