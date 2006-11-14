@@ -145,31 +145,9 @@ static int handle_load_deprecated(int fd, int argc, char *argv[])
 	return handle_load(fd, argc+1, argv - 1);
 }
 
-static int handle_reload_deprecated(int fd, int argc, char *argv[])
-{
-	int x;
-	int res;
-	if (argc < 1)
-		return RESULT_SHOWUSAGE;
-	if (argc > 1) { 
-		for (x = 1; x < argc; x++) {
-			res = ast_module_reload(argv[x]);
-			switch(res) {
-			case 0:
-				ast_cli(fd, "No such module '%s'\n", argv[x]);
-				break;
-			case 1:
-				ast_cli(fd, "Module '%s' does not support reload\n", argv[x]);
-				break;
-			}
-		}
-	} else
-		ast_module_reload(NULL);
-	return RESULT_SUCCESS;
-}
-
 static int handle_reload(int fd, int argc, char *argv[])
 {
+	/* "module reload [mod_1 ... mod_N]" */
 	int x;
 	int res;
 	if (argc < 2)
@@ -189,6 +167,11 @@ static int handle_reload(int fd, int argc, char *argv[])
 	} else
 		ast_module_reload(NULL);
 	return RESULT_SUCCESS;
+}
+
+static int handle_reload_deprecated(int fd, int argc, char *argv[])
+{
+	return handle_reload(fd, argc+1, argv-1);	/* see comment in handle_load_deprecated() */
 }
 
 static int handle_verbose(int fd, int argc, char *argv[])
@@ -326,36 +309,9 @@ static int handle_logger_mute(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_unload_deprecated(int fd, int argc, char *argv[])
-{
-	int x;
-	int force = AST_FORCE_SOFT;
-	if (argc < 2)
-		return RESULT_SHOWUSAGE;
-	for (x = 1; x < argc; x++) {
-		if (argv[x][0] == '-') {
-			switch(argv[x][1]) {
-			case 'f':
-				force = AST_FORCE_FIRM;
-				break;
-			case 'h':
-				force = AST_FORCE_HARD;
-				break;
-			default:
-				return RESULT_SHOWUSAGE;
-			}
-		} else if (x != argc - 1) 
-			return RESULT_SHOWUSAGE;
-		else if (ast_unload_resource(argv[x], force)) {
-			ast_cli(fd, "Unable to unload resource %s\n", argv[x]);
-			return RESULT_FAILURE;
-		}
-	}
-	return RESULT_SUCCESS;
-}
-
 static int handle_unload(int fd, int argc, char *argv[])
 {
+	/* "module unload mod_1 [mod_2 .. mod_N]" */
 	int x;
 	int force = AST_FORCE_SOFT;
 	if (argc < 3)
@@ -380,6 +336,11 @@ static int handle_unload(int fd, int argc, char *argv[])
 		}
 	}
 	return RESULT_SUCCESS;
+}
+
+static int handle_unload_deprecated(int fd, int argc, char *argv[])
+{
+	return handle_unload(fd, argc+1, argv - 1); /* see commment in handle_load_deprecated() */
 }
 
 #define MODLIST_FORMAT  "%-30s %-40.40s %-10d\n"
