@@ -44,9 +44,11 @@ void ast_cli(int fd, char *fmt, ...)
 
 #define AST_CLI_COMPLETE_EOF	"_EOF_"
 
-/*!
+/*! \page CLI_command_api CLI command API
+
    CLI commands are described by a struct ast_cli_entry that contains
    all the components for their implementation.
+
    In the "old-style" format, the record must contain:
    - a NULL-terminated array of words constituting the command, e.g.
 	{ "set", "debug", "on", NULL },
@@ -66,11 +68,13 @@ void ast_cli(int fd, char *fmt, ...)
    In the "new-style" format, all the above functionalities are implemented
    by a single function, and the arguments tell which output is required.
 
-   NOTE: ideally, the new-style handler would have a different prototype,
+   \note \b Note: ideally, the new-style handler would have a different prototype,
    i.e. something like
+
 	int new_setdebug(const struct ast_cli *e, int function,
 	    int fd, int argc, char *argv[],	// handler args
 	    int n, int pos, const char *line, const char *word // -complete args)
+
    but at this moment we want to help the transition from old-style to new-style
    functions so we keep the same interface and override some of the traditional
    arguments.
@@ -81,7 +85,7 @@ void ast_cli(int fd, char *fmt, ...)
 	int new_setdebug(int fd, int argc, char *argv[]);
 
 	...
-	// this is how we create the entry to register
+	/* this is how we create the entry to register */
 	NEW_CLI(new_setdebug, "short description")
 	...
 
@@ -128,10 +132,12 @@ static int test_new_cli(int fd, int argc, char *argv[])
 }
 
 \endcode
- *
+ 
  */
 
-/*! \brief calling arguments for new-style handlers */
+/*! \brief calling arguments for new-style handlers 
+	See \ref CLI_command_API
+*/
 enum ast_cli_fn {
 	CLI_USAGE = -1,		/* return the usage string */
 	CLI_CMD_STRING = -2,	/* return the command string */
@@ -140,10 +146,13 @@ enum ast_cli_fn {
 
 typedef int (*old_cli_fn)(int fd, int argc, char *argv[]);
 
-/*! \brief descriptor for a cli entry */
+/*! \brief descriptor for a cli entry 
+	See \ref CLI_command_API
+ */
 struct ast_cli_entry {
 	char * const cmda[AST_MAX_CMD_LEN];	/*!< words making up the command.
 		* set the first entry to NULL for a new-style entry. */
+
 	/*! Handler for the command (fd for output, # of args, argument list).
 	  Returns RESULT_SHOWUSAGE for improper arguments.
 	  argv[] has argc 'useful' entries, and an additional NULL entry
@@ -153,8 +162,10 @@ struct ast_cli_entry {
 	  that this memory is deallocated after the handler returns.
 	 */
 	int (*handler)(int fd, int argc, char *argv[]);
+
 	const char *summary; /*!< Summary of the command (< 60 characters) */
 	const char *usage; /*!< Detailed usage information */
+
 	/*! Generate the n-th (starting from 0) possible completion
 	  for a given 'word' following 'line' in position 'pos'.
 	  'line' and 'word' must not be modified.
@@ -165,17 +176,19 @@ struct ast_cli_entry {
 	 */
 	char *(*generator)(const char *line, const char *word, int pos, int n);
 	struct ast_cli_entry *deprecate_cmd;
+
 	int inuse; /*!< For keeping track of usage */
 	struct module *module;	/*!< module this belongs to */
-	char *_full_cmd;	/* built at load time from cmda[] */
-	/* This gets set in ast_cli_register()
+	char *_full_cmd;	/*!< built at load time from cmda[] */
+
+	/*! \brief This gets set in ast_cli_register()
 	  It then gets set to something different when the deprecated command
 	  is run for the first time (ie; after we warn the user that it's deprecated)
 	 */
 	int args;		/*!< number of non-null entries in cmda */
 	char *command;		/*!< command, non-null for new-style entries */
 	int deprecated;
-	char *_deprecated_by;	/* copied from the "parent" _full_cmd, on deprecated commands */
+	char *_deprecated_by;	/*!< copied from the "parent" _full_cmd, on deprecated commands */
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };
