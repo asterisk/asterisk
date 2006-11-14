@@ -2678,7 +2678,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_copy_flags(&dialog->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 	ast_copy_flags(&dialog->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 	dialog->capability = peer->capability;
-	if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) && dialog->vrtp) {
+	if ((!ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) || !(dialog->capability & AST_FORMAT_VIDEO_MASK)) && dialog->vrtp) {
 		ast_rtp_destroy(dialog->vrtp);
 		dialog->vrtp = NULL;
 	}
@@ -9068,7 +9068,7 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 			p->t38.jointcapability &= p->t38.peercapability;
 		p->maxcallbitrate = user->maxcallbitrate;
 		/* If we do not support video, remove video from call structure */
-		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
+		if ((!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) || !(p->capability & AST_FORMAT_VIDEO_MASK)) && p->vrtp) {
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
@@ -9182,7 +9182,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		if (p->peercapability)
 			p->jointcapability &= p->peercapability;
 		p->maxcallbitrate = peer->maxcallbitrate;
-		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && p->vrtp) {
+		if ((!ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) || !(p->capability & AST_FORMAT_VIDEO_MASK)) && p->vrtp) {
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
