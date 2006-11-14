@@ -771,8 +771,6 @@ struct sip_auth {
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
 #define SIP_PKT_WITH_TOTAG	(1 << 1)	/*!< This packet has a to-tag */
 #define SIP_PKT_IGNORE 		(1 << 2)	/*!< This is a re-transmit, ignore it */
-#define SIP_PKT_IGNORE_RESP	(1 << 3)	/*!< Resp ignore - ??? */
-#define SIP_PKT_IGNORE_REQ	(1 << 4)	/*!< Req ignore - ??? */
 
 /* T.38 set of flags */
 #define T38FAX_FILL_BIT_REMOVAL		(1 << 0)	/*!< Default: 0 (unset)*/
@@ -14510,7 +14508,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
 			ast_set_flag(req, SIP_PKT_IGNORE);
-			ast_set_flag(req, SIP_PKT_IGNORE_RESP);
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
 		}
 	
@@ -14548,7 +14545,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		   respond appropriately.  We do this if we receive a repeat of
 		   the last sequence number  */
 		ast_set_flag(req, SIP_PKT_IGNORE);
-		ast_set_flag(req, SIP_PKT_IGNORE_REQ);
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
 	}
