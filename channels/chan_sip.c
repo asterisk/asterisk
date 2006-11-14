@@ -1925,7 +1925,10 @@ static int retrans_pkt(void *data)
 			ast_channel_unlock(pkt->owner->owner);
 		} else {
 			/* If no channel owner, destroy now */
-			ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
+
+			/* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
+			if (pkt->method != SIP_OPTIONS)
+				ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
 		}
 	}
 	/* Remove the packet */
