@@ -2446,9 +2446,11 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	ast_free_ha(peer->ha);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT))
 		apeerobjs--;
-	else if (ast_test_flag(&peer->flags[0], SIP_REALTIME))
+	else if (ast_test_flag(&peer->flags[0], SIP_REALTIME)) {
 		rpeerobjs--;
-	else
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG,"-REALTIME- peer Destroyed. Name: %s. Realtime Peer objects: %d\n", peer->name, rpeerobjs);
+	} else
 		speerobjs--;
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
@@ -2510,12 +2512,16 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		return NULL;
 	}
 
+
 	/* Peer found in realtime, now build it in memory */
 	peer = build_peer(newpeername, var, NULL, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
 	if (!peer) {
 		ast_variables_destroy(var);
 		return NULL;
 	}
+
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG,"-REALTIME- loading peer from database to memory. Name: %s. Peer objects: %d\n", peer->name, rpeerobjs);
 
 	if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
 		/* Cache peer */
@@ -7529,6 +7535,9 @@ static int expire_register(void *data)
 	/* Do we need to release this peer from memory? 
 		Only for realtime peers and autocreated peers
 	*/
+	if (option_debug > 2 && ast_test_flag(&peer->flags[0], SIP_REALTIME))
+		ast_log(LOG_DEBUG,"-REALTIME- peer expired registration. Name: %s. Realtime peer objects now %d\n", peer->name, rpeerobjs);
+
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
 		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);	/* Remove from peer list */
@@ -15755,9 +15764,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (!(peer = ast_calloc(1, sizeof(*peer))))
 			return NULL;
 
-		if (realtime)
+		if (realtime) {
 			rpeerobjs++;
-		else
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG,"-REALTIME- peer built. Name: %s. Peer objects: %d\n", peer->name, rpeerobjs);
+		} else
 			speerobjs++;
 		ASTOBJ_INIT(peer);
 	}
