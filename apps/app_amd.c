@@ -151,8 +151,8 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			maximumNumberOfWords = atoi(args.argMaximumNumberOfWords);
 		if (!ast_strlen_zero(args.argSilenceThreshold))
 			silenceThreshold = atoi(args.argSilenceThreshold);
-	} else
-		ast_log(LOG_NOTICE, "AMD using the default parameters.\n");
+	} else if (option_debug)
+		ast_log(LOG_DEBUG, "AMD using the default parameters.\n");
 
 	/* Now we're ready to roll! */
 	if (option_verbose > 2)
