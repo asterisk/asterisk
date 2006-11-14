@@ -44,9 +44,106 @@ void ast_cli(int fd, char *fmt, ...)
 
 #define AST_CLI_COMPLETE_EOF	"_EOF_"
 
-/*! \brief A command line entry */
+/*!
+   CLI commands are described by a struct ast_cli_entry that contains
+   all the components for their implementation.
+   In the "old-style" format, the record must contain:
+   - a NULL-terminated array of words constituting the command, e.g.
+	{ "set", "debug", "on", NULL },
+   - a summary string (short) and a usage string (longer);
+   - a handler which implements the command itself, invoked with
+     a file descriptor and argc/argv as typed by the user
+   - a 'generator' function which, given a partial string, can
+     generate legal completions for it.
+   An example is
+
+	int old_setdebug(int fd, int argc, char *argv[]);
+	char *dbg_complete(const char *line, const char *word, int pos, int n);
+
+	{ { "set", "debug", "on", NULL }, do_setdebug, "Enable debugging",
+	set_debug_usage, dbg_complete },
+
+   In the "new-style" format, all the above functionalities are implemented
+   by a single function, and the arguments tell which output is required.
+
+   NOTE: ideally, the new-style handler would have a different prototype,
+   i.e. something like
+	int new_setdebug(const struct ast_cli *e, int function,
+	    int fd, int argc, char *argv[],	// handler args
+	    int n, int pos, const char *line, const char *word // -complete args)
+   but at this moment we want to help the transition from old-style to new-style
+   functions so we keep the same interface and override some of the traditional
+   arguments.
+
+   To help the transition, a new-style entry has the same interface as the old one,
+   but it is declared as follows:
+
+	int new_setdebug(int fd, int argc, char *argv[]);
+
+	...
+	// this is how we create the entry to register
+	NEW_CLI(new_setdebug, "short description")
+	...
+
+   Called with the default arguments (argc > 0), the new_handler implements
+   the command as before.
+   A negative argc indicates one of the other functions, namely
+   generate the usage string, the full command, or implement the generator.
+   As a trick to extend the interface while being backward compatible,
+   argv[-1] points to a struct ast_cli_args, and, for the generator,
+   argv[0] is really a pointer to a struct ast_cli_args.
+   The return string is obtained by casting the result to char *
+
+   An example of new-style handler is the following
+
+\code
+static int test_new_cli(int fd, int argc, char *argv[])
+{
+        struct ast_cli_entry *e = (struct ast_cli_entry *)argv[-1];
+        struct ast_cli_args *a;
+	static char *choices = { "one", "two", "three", NULL };
+
+        switch(argc) {
+        case CLI_USAGE:
+                return (int)
+			"Usage: do this well <arg>\n"
+			"	typically multiline with body indented\n";
+
+        case CLI_CMD_STRING:
+                return (int)"do this well";
+
+        case CLI_GENERATE:
+                a = (struct ast_cli_args *)argv[0];
+                if (a->pos > e->args)
+                        return NULL;
+        	return ast_cli_complete(a->word, choices, a->n);
+
+        default:        
+                // we are guaranteed to be called with argc >= e->args;
+                if (argc > e->args + 1) // we accept one extra argument
+                        return RESULT_SHOWUSAGE;
+                ast_cli(fd, "done this well for %s\n", e->args[argc-1]);
+                return RESULT_SUCCESS;
+        }
+}
+
+\endcode
+ *
+ */
+
+/*! \brief calling arguments for new-style handlers */
+enum ast_cli_fn {
+	CLI_USAGE = -1,		/* return the usage string */
+	CLI_CMD_STRING = -2,	/* return the command string */
+	CLI_GENERATE = -3,	/* behave as 'generator', remap argv to struct ast_cli_args */
+};
+
+typedef int (*old_cli_fn)(int fd, int argc, char *argv[]);
+
+/*! \brief descriptor for a cli entry */
 struct ast_cli_entry {
-	char * const cmda[AST_MAX_CMD_LEN];
+	char * const cmda[AST_MAX_CMD_LEN];	/*!< words making up the command.
+		* set the first entry to NULL for a new-style entry. */
 	/*! Handler for the command (fd for output, # of args, argument list).
 	  Returns RESULT_SHOWUSAGE for improper arguments.
 	  argv[] has argc 'useful' entries, and an additional NULL entry
@@ -56,10 +153,8 @@ struct ast_cli_entry {
 	  that this memory is deallocated after the handler returns.
 	 */
 	int (*handler)(int fd, int argc, char *argv[]);
-	/*! Summary of the command (< 60 characters) */
-	const char *summary;
-	/*! Detailed usage information */
-	const char *usage;
+	const char *summary; /*!< Summary of the command (< 60 characters) */
+	const char *usage; /*!< Detailed usage information */
 	/*! Generate the n-th (starting from 0) possible completion
 	  for a given 'word' following 'line' in position 'pos'.
 	  'line' and 'word' must not be modified.
@@ -70,22 +165,34 @@ struct ast_cli_entry {
 	 */
 	char *(*generator)(const char *line, const char *word, int pos, int n);
 	struct ast_cli_entry *deprecate_cmd;
-	/*! For keeping track of usage */
-	int inuse;
-	struct module *module;	/*! module this belongs to */
+	int inuse; /*!< For keeping track of usage */
+	struct module *module;	/*!< module this belongs to */
 	char *_full_cmd;	/* built at load time from cmda[] */
 	/* This gets set in ast_cli_register()
 	  It then gets set to something different when the deprecated command
 	  is run for the first time (ie; after we warn the user that it's deprecated)
 	 */
+	int args;		/*!< number of non-null entries in cmda */
+	char *command;		/*!< command, non-null for new-style entries */
 	int deprecated;
 	char *_deprecated_by;	/* copied from the "parent" _full_cmd, on deprecated commands */
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };
 
+#define NEW_CLI(fn, txt)	{ .handler = (old_cli_fn)fn, .summary = txt }
+
+/* argument for new-style CLI handler */
+struct ast_cli_args {
+	char fake[4];		/* a fake string, in the first position, for safety */
+	const char *line;	/* the current input line */
+	const char *word;	/* the word we want to complete */
+	int pos;		/* position of the word to complete */
+	int n;			/* the iteration count (n-th entry we generate) */
+};
+
 /*!
- * \brief Helper function to generate cli entries from a NULL-terminated array.
+ * Helper function to generate cli entries from a NULL-terminated array.
  * Returns the n-th matching entry from the array, or NULL if not found.
  * Can be used to implement generate() for static entries as below
  * (in this example we complete the word in position 2):
