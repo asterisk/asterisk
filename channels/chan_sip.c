@@ -1631,14 +1631,16 @@ static const char *referstatus2str(enum referstatus rstatus)
 	a dialog */
 static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 {
-	if (p->initreq.headers && option_debug) {
-		ast_log(LOG_DEBUG, "Initializing already initialized SIP dialog %s (presumably reinvite)\n", p->callid);
+	if (option_debug) {
+		if (p->initreq.headers)
+			ast_log(LOG_DEBUG, "Initializing already initialized SIP dialog %s (presumably reinvite)\n", p->callid);
+		ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	}
 	/* Use this as the basis */
 	copy_request(&p->initreq, req);
 	parse_request(&p->initreq);
 	if (ast_test_flag(req, SIP_PKT_DEBUG))
-		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		ast_verbose("Initreq: %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 }
 
 
