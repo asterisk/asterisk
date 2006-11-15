@@ -1378,8 +1378,10 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 				continue;
 			/* we are in case match_type == -1 and mismatch on last word */
 		}
-		if (cand == NULL || y > matchlen)	/* remember the candidate */
+		if (y > matchlen) {	/* remember the candidate */
+			matchlen = y;
 			cand = e;
+		}
 	}
 	return e ? e : cand;
 }
