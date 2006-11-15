@@ -75,10 +75,6 @@ void ast_cli(int fd, char *fmt, ...)
 
 static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
 
-static char load_help[] = 
-"Usage: module load <module name>\n"
-"       Loads the specified module into Asterisk.\n";
-
 static char help_help[] =
 "Usage: help [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
@@ -108,22 +104,56 @@ static char group_show_channels_help[] =
 "       Optional regular expression pattern is matched to group names for each\n"
 "       channel.\n";
 
-static int handle_load(int fd, int argc, char *argv[])
+static char *complete_fn(const char *word, int state)
 {
-	/* "module load <mod>" */
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	if (ast_load_resource(argv[2])) {
-		ast_cli(fd, "Unable to load module %s\n", argv[2]);
-		return RESULT_FAILURE;
-	}
-	return RESULT_SUCCESS;
+	char *c;
+	char filename[256];
+
+	if (word[0] == '/')
+		ast_copy_string(filename, word, sizeof(filename));
+	else
+		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
+
+	/* XXX the following function is not reentrant, so we better not use it */
+	c = filename_completion_function(filename, state);
+	
+	if (c && word[0] != '/')
+		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
+	
+	return c ? strdup(c) : c;
 }
 
-static int handle_load_deprecated(int fd, int argc, char *argv[])
+static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	/* I know it is nasty, but they do look very similar, and we never access argv[0] */
-	return handle_load(fd, argc+1, argv - 1);
+	/* "module load <mod>" */
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "module load";
+		e->usage =
+			"Usage: module load <module name>\n"
+			"       Loads the specified module into Asterisk.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		if (a->argc != e->args + 1)
+			return NULL;
+		return complete_fn(a->word, a->n);
+	}
+	if (a->argc != e->args + 1)
+		return CLI_SHOWUSAGE;
+	if (ast_load_resource(a->argv[e->args])) {
+		ast_cli(a->fd, "Unable to load module %s\n", a->argv[e->args]);
+		return CLI_FAILURE;
+	}
+	return CLI_SUCCESS;
+}
+
+static char *handle_load_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_load(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "load";
+	return res;
 }
 
 static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -944,26 +974,6 @@ static char *complete_ch_5(const char *line, const char *word, int pos, int stat
 	return ast_complete_channels(line, word, pos, state, 4);
 }
 
-static char *complete_fn(const char *line, const char *word, int pos, int state)
-{
-	char *c;
-	char filename[256];
-
-	if (pos != 1)
-		return NULL;
-	
-	if (word[0] == '/')
-		ast_copy_string(filename, word, sizeof(filename));
-	else
-		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
-	
-	c = filename_completion_function(filename, state);
-	
-	if (c && word[0] != '/')
-		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
-	
-	return c ? strdup(c) : c;
-}
 
 static int group_show_channels(int fd, int argc, char *argv[])
 {
@@ -1050,12 +1060,7 @@ static struct ast_cli_entry builtins[] = {
 };
 
 static struct ast_cli_entry cli_debug_channel_deprecated = NEW_CLI(handle_debugchan_deprecated, "Enable debugging on channel");
-
-static struct ast_cli_entry cli_module_load_deprecated = {
-	{ "load", NULL },
-	handle_load_deprecated, NULL,
-	NULL, complete_fn };
-
+static struct ast_cli_entry cli_module_load_deprecated = NEW_CLI(handle_load_deprecated, "Load a module");
 static struct ast_cli_entry cli_module_reload_deprecated = NEW_CLI(handle_reload_deprecated, "reload modules by name");
 static struct ast_cli_entry cli_module_unload_deprecated = NEW_CLI(handle_unload_deprecated, "unload modules by name");
 
@@ -1092,9 +1097,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	NEW_CLI(handle_modlist, "List modules and info"),
 
-	{ { "module", "load", NULL },
-	handle_load, "Load a module by name",
-	load_help, complete_fn, &cli_module_load_deprecated },
+	NEW_CLI(handle_load, "Load a module by name", .deprecate_cmd = &cli_module_load_deprecated),
 
 	NEW_CLI(handle_reload, "Reload configuration", .deprecate_cmd = &cli_module_reload_deprecated),
 
