@@ -301,6 +301,7 @@ struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
 
 	v = cat->root;
 	cat->root = NULL;
+	cat->last = NULL;
 
 	return v;
 }
