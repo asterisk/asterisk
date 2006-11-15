@@ -81,13 +81,6 @@ static char help_help[] =
 "       information on the given command. If called without a\n"
 "       topic, it provides a list of commands.\n";
 
-static char chanlist_help[] = 
-"Usage: core show channels [concise|verbose]\n"
-"       Lists currently defined channels and some information about them. If\n"
-"       'concise' is specified, the format is abridged and in a more easily\n"
-"       machine parsable format. If 'verbose' is specified, the output includes\n"
-"       more and longer fields.\n";
-
 static char logger_mute_help[] = 
 "Usage: logger mute\n"
 "       Disables logging output to the current console, making it possible to\n"
@@ -537,8 +530,7 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 #undef MODLIST_FORMAT
 #undef MODLIST_FORMAT2
 
-/* core show channels [concise|verbose] */
-static int handle_chanlist(int fd, int argc, char *argv[])
+static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
 #define FORMAT_STRING2 "%-20.20s %-20.20s %-7.7s %-30.30s\n"
@@ -553,12 +545,38 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 	int duration;
 	int durh, durm, durs;
 	int numchans = 0, concise = 0, verbose = 0;
+	int fd, argc;
+	char **argv;
 
-	concise = (argc == 4 && (!strcasecmp(argv[3],"concise")));
-	verbose = (argc == 4 && (!strcasecmp(argv[3],"verbose")));
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show channels";
+		e->usage =
+			"Usage: core show channels [concise|verbose]\n"
+			"       Lists currently defined channels and some information about them. If\n"
+			"       'concise' is specified, the format is abridged and in a more easily\n"
+			"       machine parsable format. If 'verbose' is specified, the output includes\n"
+			"       more and longer fields.\n";
+		return NULL;
 
-	if (argc < 3 || argc > 4 || (argc == 4 && !concise && !verbose))
-		return RESULT_SHOWUSAGE;
+	case CLI_GENERATE: {
+		static char *choices[] = { "concise", "verbose", NULL };
+		return (a->pos != e->args) ? NULL : ast_cli_complete(a->word, choices, a->n);
+		}
+	}
+	fd = a->fd;
+	argc = a->argc;
+	argv = a->argv;
+
+	if (a->argc == e->args + 1) {
+		if (!strcasecmp(argv[3],"concise"))
+			concise = 1;
+		else if (!strcasecmp(argv[3],"verbose"))
+			verbose = 1;
+		else
+			return CLI_SHOWUSAGE;
+	} else if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
 
 	if (!concise && !verbose)
 		ast_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
@@ -621,7 +639,7 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		else
 			ast_cli(fd, "%d active call%s\n", ast_active_calls(), ESS(ast_active_calls()));
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 	
 #undef FORMAT_STRING
 #undef FORMAT_STRING2
@@ -931,13 +949,6 @@ char *ast_cli_complete(const char *word, char *const choices[], int state)
 	return NULL;
 }
 
-static char *complete_show_channels(const char *line, const char *word, int pos, int state)
-{
-	static char *choices[] = { "concise", "verbose", NULL };
-
-	return (pos != 3) ? NULL : ast_cli_complete(word, choices, state);
-}
-
 char *ast_complete_channels(const char *line, const char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c = NULL;
@@ -1068,9 +1079,7 @@ static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
 	NEW_CLI(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 
-	{ { "core", "show", "channels", NULL },
-	handle_chanlist, "Display information on channels",
-	chanlist_help, complete_show_channels },
+	NEW_CLI(handle_chanlist, "Display information on channels"),
 
 	{ { "core", "show", "channel", NULL },
 	handle_showchan, "Display information on a specific channel",
