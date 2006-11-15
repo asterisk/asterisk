@@ -148,6 +148,7 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	}
 	for (x = e->args; x < a->argc; x++) {
 		int res = ast_module_reload(a->argv[x]);
+		/* XXX reload has multiple error returns, including -1 on error and 2 on success */
 		switch(res) {
 		case 0:
 			ast_cli(a->fd, "No such module '%s'\n", a->argv[x]);
@@ -603,10 +604,6 @@ static char showchan_help[] =
 "Usage: core show channel <channel>\n"
 "       Shows lots of information about the specified channel.\n";
 
-static char debugchan_help[] = 
-"Usage: core set debug channel <channel> [off]\n"
-"       Enables/disables debugging on a specific channel.\n";
-
 static char commandcomplete_help[] = 
 "Usage: _command complete \"<line>\" text state\n"
 "       This function is used internally to help with command completion and should.\n"
@@ -745,18 +742,35 @@ static int handle_debugchan_deprecated(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_core_set_debug_channel(int fd, int argc, char *argv[])
+static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *c = NULL;
 	int is_all, is_off = 0;
 
-	/* 'core set debug channel {all|chan_id}' */
-	if (argc == 6 && strcmp(argv[5], "off") == 0)
-		is_off = 1;
-	else if (argc != 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core set debug channel";
+		e->usage =
+			"Usage: core set debug channel <all|channel> [off]\n"
+			"       Enables/disables debugging on all or on a specific channel.\n";
+		return NULL;
 
-	is_all = !strcasecmp("all", argv[4]);
+	case CLI_GENERATE:
+		/* XXX remember to handle the optional "off" */
+		if (a->pos != e->args)
+			return NULL;
+		return a->n == 0 ? strdup("all") : ast_complete_channels(a->line, a->word, a->pos, a->n - 1, e->args);
+	}
+	/* 'core set debug channel {all|chan_id}' */
+	if (a->argc == e->args + 2) {
+		if (!strcasecmp(a->argv[e->args + 1], "off"))
+			is_off = 1;
+		else
+			return CLI_SHOWUSAGE;
+	} else if (a->argc != e->args + 1)
+		return CLI_SHOWUSAGE;
+
+	is_all = !strcasecmp("all", a->argv[e->args]);
 	if (is_all) {
 		if (is_off) {
 			global_fin &= ~DEBUGCHAN_FLAG;
@@ -767,9 +781,9 @@ static int handle_core_set_debug_channel(int fd, int argc, char *argv[])
 		}
 		c = ast_channel_walk_locked(NULL);
 	} else {
-		c = ast_get_channel_by_name_locked(argv[4]);
+		c = ast_get_channel_by_name_locked(a->argv[e->args]);
 		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[4]);
+			ast_cli(a->fd, "No such channel %s\n", a->argv[e->args]);
 	}
 	while (c) {
 		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
@@ -780,47 +794,33 @@ static int handle_core_set_debug_channel(int fd, int argc, char *argv[])
 				c->fin |= DEBUGCHAN_FLAG;
 				c->fout |= DEBUGCHAN_FLAG;
 			}
-			ast_cli(fd, "Debugging %s on channel %s\n", is_off ? "disabled" : "enabled", c->name);
+			ast_cli(a->fd, "Debugging %s on channel %s\n", is_off ? "disabled" : "enabled", c->name);
 		}
 		ast_channel_unlock(c);
 		if (!is_all)
 			break;
 		c = ast_channel_walk_locked(c);
 	}
-	ast_cli(fd, "Debugging on new channels is %s\n", is_off ? "disabled" : "enabled");
+	ast_cli(a->fd, "Debugging on new channels is %s\n", is_off ? "disabled" : "enabled");
 	return RESULT_SUCCESS;
 }
 
-static int handle_nodebugchan_deprecated(int fd, int argc, char *argv[])
+static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_channel *c=NULL;
-	int is_all;
-	/* 'no debug channel {all|chan_id}' */
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	is_all = !strcasecmp("all", argv[3]);
-	if (is_all) {
-		global_fin &= ~DEBUGCHAN_FLAG;
-		global_fout &= ~DEBUGCHAN_FLAG;
-		c = ast_channel_walk_locked(NULL);
-	} else {
-		c = ast_get_channel_by_name_locked(argv[3]);
-		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[3]);
+	char *res;
+	if (cmd == CLI_HANDLER) {
+		if (a->argc != e->args + 1)
+			return CLI_SHOWUSAGE;
+		/* pretend we have an extra "off" at the end. We can do this as the array
+		 * is NULL terminated so we overwrite that entry.
+		 */
+		a->argv[e->args+1] = "off";
+		a->argc++;
 	}
-	while(c) {
-		if ((c->fin & DEBUGCHAN_FLAG) || (c->fout & DEBUGCHAN_FLAG)) {
-			c->fin &= ~DEBUGCHAN_FLAG;
-			c->fout &= ~DEBUGCHAN_FLAG;
-			ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
-		}
-		ast_channel_unlock(c);
-		if (!is_all)
-			break;
-		c = ast_channel_walk_locked(c);
-	}
-	ast_cli(fd, "Debugging on new channels is disabled\n");
-	return RESULT_SUCCESS;
+	res = handle_core_set_debug_channel(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "no debug channel";
+	return res;
 }
 		
 static int handle_showchan(int fd, int argc, char *argv[])
@@ -1086,9 +1086,7 @@ static struct ast_cli_entry cli_module_unload_deprecated = NEW_CLI(handle_unload
 
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
-	{ { "no", "debug", "channel", NULL },
-	handle_nodebugchan_deprecated, NULL,
-	NULL, complete_ch_4 },
+	NEW_CLI(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 
 	{ { "core", "show", "channels", NULL },
 	handle_chanlist, "Display information on channels",
@@ -1098,9 +1096,8 @@ static struct ast_cli_entry cli_cli[] = {
 	handle_showchan, "Display information on a specific channel",
 	showchan_help, complete_ch_4 },
 
-	{ { "core", "set", "debug", "channel", NULL },
-	handle_core_set_debug_channel, "Enable/disable debugging on a channel",
-	debugchan_help, complete_ch_5, &cli_debug_channel_deprecated },
+	NEW_CLI(handle_core_set_debug_channel, "Enable/disable debugging on a channel",
+		.deprecate_cmd = &cli_debug_channel_deprecated),
 
 	NEW_CLI(handle_set_debug, "Set level of debug chattiness"),
 
@@ -1225,8 +1222,10 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 				continue;
 			/* we are in case match_type == -1 and mismatch on last word */
 		}
-		if (cand == NULL || y > matchlen)	/* remember the candidate */
+		if (y > matchlen) {	/* remember the candidate */
+			matchlen = y;
 			cand = e;
+		}
 	}
 	return e ? e : cand;
 }
