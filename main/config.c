@@ -974,7 +974,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	if ((f = fopen(fn, "w"))) {
 #endif	    
 		if (option_verbose > 1)
-			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
+			ast_verbose(VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
 		fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
@@ -1027,9 +1027,9 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			ast_verbose("Saved\n");
 	} else {
 		if (option_debug)
-			printf("Unable to open for writing: %s\n", fn);
+			ast_log(LOG_DEBUG, "Unable to open for writing: %s\n", fn);
 		if (option_verbose > 1)
-			printf( "Unable to write (%s)", strerror(errno));
+			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
 		return -1;
 	}
 	fclose(f);
