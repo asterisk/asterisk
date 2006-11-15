@@ -266,28 +266,26 @@ char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 
 /* filter escape sequences */
 void term_filter_escapes(char *line)
- {
-	 int i;
-   
-	 for (i = 0; i < strlen(line); i++) {
+{
+	int i;
+	int len = strlen(line);
+
+	for (i = 0; i < len; i++) {
 		if (line[i] != ESC)
 			continue;
-		if (line[i + 1] == '\x5b') {
+		if ((i < (len - 2)) &&
+		    (line[i + 1] == 0x5B)) {
 			switch (line[i + 2]) {
-		 	case '\x30':
-			case '\x31':
-			case '\x33':
-				break;
-			default:
-				/* replace ESC with a space */
-				line[i] = ' ';
+		 	case 0x30:
+			case 0x31:
+			case 0x33:
+				continue;
 			}
-		} else {
-			/* replace ESC with a space */
-			line[i] = ' ';
 		}
-	 }
- }
+		/* replace ESC with a space */
+		line[i] = ' ';
+	}
+}
 
 char *term_prep(void)
 {
