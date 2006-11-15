@@ -1485,21 +1485,21 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 			continue;
 
 		M_BOOL("autoanswer", o->autoanswer)
-			M_BOOL("autohangup", o->autohangup)
-			M_BOOL("overridecontext", o->overridecontext)
-			M_STR("device", o->device)
-			M_UINT("frags", o->frags)
-			M_UINT("debug", oss_debug)
-			M_UINT("queuesize", o->queuesize)
-			M_STR("context", o->ctx)
-			M_STR("language", o->language)
-			M_STR("mohinterpret", o->mohinterpret)
-			M_STR("extension", o->ext)
-			M_F("mixer", store_mixer(o, v->value))
-			M_F("callerid", store_callerid(o, v->value))
-			M_F("boost", store_boost(o, v->value))
-			M_END(;
-			);
+		M_BOOL("autohangup", o->autohangup)
+		M_BOOL("overridecontext", o->overridecontext)
+		M_STR("device", o->device)
+		M_UINT("frags", o->frags)
+		M_UINT("debug", oss_debug)
+		M_UINT("queuesize", o->queuesize)
+		M_STR("context", o->ctx)
+		M_STR("language", o->language)
+		M_STR("mohinterpret", o->mohinterpret)
+		M_STR("extension", o->ext)
+		M_F("mixer", store_mixer(o, v->value))
+		M_F("callerid", store_callerid(o, v->value))
+		M_F("boost", store_boost(o, v->value))
+
+		M_END(/* */);
 	}
 	if (ast_strlen_zero(o->device))
 		ast_copy_string(o->device, DEV_DSP, sizeof(o->device));
