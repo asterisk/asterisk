@@ -79,14 +79,6 @@ static char load_help[] =
 "Usage: module load <module name>\n"
 "       Loads the specified module into Asterisk.\n";
 
-static char unload_help[] = 
-"Usage: module unload [-f|-h] <module name>\n"
-"       Unloads the specified module from Asterisk. The -f\n"
-"       option causes the module to be unloaded even if it is\n"
-"       in use (may cause a crash) and the -h module causes the\n"
-"       module to be unloaded even if the module says it cannot, \n"
-"       which almost always will cause a crash.\n";
-
 static char help_help[] =
 "Usage: help [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
@@ -99,11 +91,6 @@ static char chanlist_help[] =
 "       'concise' is specified, the format is abridged and in a more easily\n"
 "       machine parsable format. If 'verbose' is specified, the output includes\n"
 "       more and longer fields.\n";
-
-static char reload_help[] = 
-"Usage: module reload [module ...]\n"
-"       Reloads configuration files for all listed modules which support\n"
-"       reloading, or for all supported modules if none are listed.\n";
 
 static char logger_mute_help[] = 
 "Usage: logger mute\n"
@@ -139,33 +126,46 @@ static int handle_load_deprecated(int fd, int argc, char *argv[])
 	return handle_load(fd, argc+1, argv - 1);
 }
 
-static int handle_reload(int fd, int argc, char *argv[])
+static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	/* "module reload [mod_1 ... mod_N]" */
-	struct ast_cli_entry *e = (struct ast_cli_entry *)argv[-1];
+	int x;
 
-	if (argc == e->args)
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "module reload";
+		e->usage =
+			"Usage: module reload [module ...]\n"
+			"       Reloads configuration files for all listed modules which support\n"
+			"       reloading, or for all supported modules if none are listed.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 1);
+	}
+	if (a->argc == e->args) {
 		ast_module_reload(NULL);
-	else {
-		int x;
-		for (x = e->args; x < argc; x++) {
-			int res = ast_module_reload(argv[x]);
-			switch(res) {
-			case 0:
-				ast_cli(fd, "No such module '%s'\n", argv[x]);
-				break;
-			case 1:
-				ast_cli(fd, "Module '%s' does not support reload\n", argv[x]);
-				break;
-			}
+		return CLI_SUCCESS;
+	}
+	for (x = e->args; x < a->argc; x++) {
+		int res = ast_module_reload(a->argv[x]);
+		switch(res) {
+		case 0:
+			ast_cli(a->fd, "No such module '%s'\n", a->argv[x]);
+			break;
+		case 1:
+			ast_cli(a->fd, "Module '%s' does not support reload\n", a->argv[x]);
+			break;
 		}
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_reload_deprecated(int fd, int argc, char *argv[])
+static char *handle_reload_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	return handle_reload(fd, argc+1, argv-1);	/* see comment in handle_load_deprecated() */
+	char *s = handle_reload(e, cmd, a);
+	if (cmd == CLI_INIT)		/* override command name */
+		e->command = "reload";
+	return s;
 }
 
 static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -310,38 +310,59 @@ static int handle_logger_mute(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_unload(int fd, int argc, char *argv[])
+static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	/* "module unload mod_1 [mod_2 .. mod_N]" */
 	int x;
 	int force = AST_FORCE_SOFT;
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
-	for (x = 2; x < argc; x++) {
-		if (argv[x][0] == '-') {
-			switch(argv[x][1]) {
-			case 'f':
-				force = AST_FORCE_FIRM;
-				break;
-			case 'h':
-				force = AST_FORCE_HARD;
-				break;
-			default:
-				return RESULT_SHOWUSAGE;
-			}
-		} else if (x != argc - 1) 
-			return RESULT_SHOWUSAGE;
-		else if (ast_unload_resource(argv[x], force)) {
-			ast_cli(fd, "Unable to unload resource %s\n", argv[x]);
-			return RESULT_FAILURE;
+	char *s;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "module unload";
+		e->usage =
+			"Usage: module unload [-f|-h] <module_1> [<module_2> ... ]\n"
+			"       Unloads the specified module from Asterisk. The -f\n"
+			"       option causes the module to be unloaded even if it is\n"
+			"       in use (may cause a crash) and the -h module causes the\n"
+			"       module to be unloaded even if the module says it cannot, \n"
+			"       which almost always will cause a crash.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
+	}
+	if (a->argc < e->args + 1)
+		return CLI_SHOWUSAGE;
+	x = e->args;	/* first argument */
+	s = a->argv[x];
+	if (s[0] == '-') {
+		if (s[1] == 'f')
+			force = AST_FORCE_FIRM;
+		else if (s[1] == 'h')
+			force = AST_FORCE_HARD;
+		else
+			return CLI_SHOWUSAGE;
+		if (a->argc < e->args + 2)	/* need at least one module name */
+			return CLI_SHOWUSAGE;
+		x++;	/* skip this argument */
+	}
+
+	for (; x < a->argc; x++) {
+		if (ast_unload_resource(a->argv[x], force)) {
+			ast_cli(a->fd, "Unable to unload resource %s\n", a->argv[x]);
+			return CLI_FAILURE;
 		}
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_unload_deprecated(int fd, int argc, char *argv[])
+static char *handle_unload_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	return handle_unload(fd, argc+1, argv - 1); /* see commment in handle_load_deprecated() */
+	char *res = handle_unload(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "unload";	/* XXX override */
+	return res;
 }
 
 #define MODLIST_FORMAT  "%-30s %-40.40s %-10d\n"
@@ -945,23 +966,6 @@ static char *complete_ch_5(const char *line, const char *word, int pos, int stat
 	return ast_complete_channels(line, word, pos, state, 4);
 }
 
-static char *complete_mod_2(const char *line, const char *word, int pos, int state)
-{
-	return ast_module_helper(line, word, pos, state, 1, 1);
-}
-
-static char *complete_mod_3_nr(const char *line, const char *word, int pos, int state)
-{
-	return ast_module_helper(line, word, pos, state, 2, 0);
-}
-
-static char *complete_mod_3(const char *line, const char *word, int pos, int state)
-{
-	if (pos < 2)
-		return NULL;
-	return ast_module_helper(line, word, pos, state, pos, 1);
-}
-
 static char *complete_fn(const char *line, const char *word, int pos, int state)
 {
 	char *c;
@@ -1077,15 +1081,8 @@ static struct ast_cli_entry cli_module_load_deprecated = {
 	handle_load_deprecated, NULL,
 	NULL, complete_fn };
 
-static struct ast_cli_entry cli_module_reload_deprecated = {
-	{ "reload", NULL },
-	handle_reload_deprecated, NULL,
-	NULL, complete_mod_2 };
-
-static struct ast_cli_entry cli_module_unload_deprecated = {
-	{ "unload", NULL },
-	handle_unload_deprecated, NULL,
-	NULL, complete_mod_2 };
+static struct ast_cli_entry cli_module_reload_deprecated = NEW_CLI(handle_reload_deprecated, "reload modules by name");
+static struct ast_cli_entry cli_module_unload_deprecated = NEW_CLI(handle_unload_deprecated, "unload modules by name");
 
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
@@ -1127,13 +1124,9 @@ static struct ast_cli_entry cli_cli[] = {
 	handle_load, "Load a module by name",
 	load_help, complete_fn, &cli_module_load_deprecated },
 
-	{ { "module", "reload", NULL },
-	handle_reload, "Reload configuration",
-	reload_help, complete_mod_3, &cli_module_reload_deprecated },
+	NEW_CLI(handle_reload, "Reload configuration", .deprecate_cmd = &cli_module_reload_deprecated),
 
-	{ { "module", "unload", NULL },
-	handle_unload, "Unload a module by name",
-	unload_help, complete_mod_3_nr, &cli_module_unload_deprecated },
+	NEW_CLI(handle_unload, "Unload a module by name", .deprecate_cmd = &cli_module_unload_deprecated ),
 
 	NEW_CLI(handle_showuptime, "Show uptime information"),
 
