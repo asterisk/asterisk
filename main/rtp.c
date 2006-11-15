@@ -949,7 +949,8 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				ast_verbose("Received a BYE from %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 			break;
 		default:
-			ast_log(LOG_NOTICE, "Unknown RTCP packet (pt=%d) received from %s:%d\n", pt, ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Unknown RTCP packet (pt=%d) received from %s:%d\n", pt, ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 			break;
 		}
 		position += (length + 1);
