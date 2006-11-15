@@ -295,6 +295,10 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct local_pvt *p = newchan->tech_pvt;
+
+	if (!p)
+		return -1;
+
 	ast_mutex_lock(&p->lock);
 
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
