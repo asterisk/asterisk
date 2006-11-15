@@ -4435,9 +4435,22 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			transmit_response_using_temp(callid, sin, 1, intended_method, req, "489 Bad event");
 		} else {
 			/* Ok, time to create a new SIP dialog object, a pvt */
-			if ((p = sip_alloc(callid, sin, 1, intended_method))) 
+			if ((p = sip_alloc(callid, sin, 1, intended_method)))  {
 				/* Ok, we've created a dialog, let's go and process it */
 				sip_pvt_lock(p);
+			} else {
+				/* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
+					getting a dialog from sip_alloc. 
+	
+					Without a dialog we can't retransmit and handle ACKs and all that, but at least
+					send an error message.
+	
+					Sorry, we apologize for the inconvienience
+				*/
+				transmit_response_using_temp(callid, sin, 1, intended_method, req, "500 Server internal error");
+				if (option_debug > 3)
+					ast_log(LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+			}
 		}
 		return p;
 	} else if( sip_methods[intended_method].can_create == CAN_CREATE_DIALOG_UNSUPPORTED_METHOD) {
