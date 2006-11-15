@@ -3263,6 +3263,19 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		p = sip_alloc(callid, sin, 1, intended_method);
 		if (p)
 			ast_mutex_lock(&p->lock);
+		else {
+			/* We have a memory or file/socket error (can't allocate RTP sockets or something) so we're not
+				getting a dialog from sip_alloc. 
+
+				Without a dialog we can't retransmit and handle ACKs and all that, but at least
+				send an error message.
+
+				Sorry, we apologize for the inconvienience
+			*/
+			transmit_response_using_temp(callid, sin, 1, intended_method, req, "500 Server internal error");
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+		}
 	}
 
 	return p;
