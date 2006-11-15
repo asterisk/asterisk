@@ -15108,6 +15108,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 		- registered, no call			AST_DEVICE_NOT_INUSE
 		- registered, active calls		AST_DEVICE_INUSE
 		- registered, call limit reached	AST_DEVICE_BUSY
+		- registered, onhold			AST_DEVICE_ONHOLD
+		- registered, ringing			AST_DEVICE_RINGING
+
 	For peers without call limit:
 		- not registered			AST_DEVICE_UNAVAILABLE
 		- registered				AST_DEVICE_NOT_INUSE
