@@ -2556,7 +2556,7 @@ static int sip_answer(struct ast_channel *ast)
 		ast_setstate(ast, AST_STATE_UP);
 		if (option_debug)
 			ast_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
-		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, 1);
+		res = transmit_response_with_sdp(p, "200 OK", &p->initreq, 2);
 	}
 	ast_mutex_unlock(&p->lock);
 	return res;
