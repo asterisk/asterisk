@@ -704,7 +704,10 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			ast_verbose(VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
-		fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
+		if (strcmp(configfile, fn))
+			fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
+		else
+			fprintf(f, ";! Filename: %s\n", configfile);
 		fprintf(f, ";! Generator: %s\n", generator);
 		fprintf(f, ";! Creation Date: %s", date);
 		fprintf(f, ";!\n");
