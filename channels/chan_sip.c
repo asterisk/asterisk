@@ -5866,6 +5866,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, const
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
 	add_header_contentLength(&resp, 0);
+	append_history(p, "AuthChal", "Auth challenge sent for %s - nc %d", p->username, p->noncecount);
 	return send_response(p, &resp, reliable, seqno);
 }
 
@@ -8094,20 +8095,22 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 			if (sipdebug)
 				ast_log(LOG_NOTICE, "Correct auth, but based on stale nonce received from '%s'\n", get_header(req, "To"));
 			/* We got working auth token, based on stale nonce . */
-			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 1);
+			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, TRUE);
 		} else {
 			/* Everything was wrong, so give the device one more try with a new challenge */
 			if (sipdebug)
 				ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
-			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
+			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, FALSE);
 		}
 
 		/* Schedule auto destroy in 32 seconds */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return AUTH_CHALLENGE_SENT;
 	} 
-	if (good_response)
+	if (good_response) {
+		append_history(p, "AuthOK", "Auth challenge succesful for %s", username);
 		return AUTH_SUCCESSFUL;
+	}
 
 	/* Ok, we have a bad username/secret pair */
 	/* Challenge again, and again, and again */
@@ -11247,6 +11250,8 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else
 		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"", username, p->realm, uri, p->nonce, resp_hash, p->opaque);
 
+	append_history(p, "AuthResp", "Auth response sent for %s in realm %s - nc %d", username, p->realm, p->noncecount);
+
 	return 0;
 }
 	
@@ -13274,6 +13279,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	   a re-invite in an existing dialog */
 
 	if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+		int newcall = (p->initreq.headers ? TRUE : FALSE);
+
 		sip_cancel_destroy(p);
 		/* This also counts as a pending invite */
 		p->pendinginvite = seqno;
@@ -13283,7 +13290,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (!p->owner) {	/* Not a re-invite */
 			if (debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
-			append_history(p, "Invite", "New call: %s", p->callid);
+			if (newcall)
+				append_history(p, "Invite", "New call: %s", p->callid);
 			parse_ok_contact(p, req);
 		} else {	/* Re-invite on existing call */
 			ast_clear_flag(&p->flags[0], SIP_OUTGOING);	/* This is now an inbound dialog */
@@ -14754,7 +14762,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	if (!lockretry) {
 		ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", S_OR(p->owner->name, "- no channel name ??? - "));
 		ast_log(LOG_ERROR, "SIP transaction failed: %s \n", p->callid);
-		transmit_response(p, "503 Server error", &req);	/* We must respond according to RFC 3261 sec 12.2 */
+		if (req.method != SIP_ACK)
+			transmit_response(p, "503 Server error", &req);	/* We must respond according to RFC 3261 sec 12.2 */
 		/* XXX We could add retry-after to make sure they come back */
 		append_history(p, "LockFail", "Owner lock failed, transaction failed.");
 		return 1;
