@@ -2482,7 +2482,7 @@ static int sip_hangup(struct ast_channel *ast)
 					/* Do we need a timer here if we don't hear from them at all? */
 				} else {
 					/* Send a new request: CANCEL */
-					transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
+					transmit_request(p, SIP_CANCEL, p->ocseq, 1, 0);
 					/* Actually don't destroy us yet, wait for the 487 on our original 
 					   INVITE, but do set an autodestruct just in case we never get it. */
 				}
@@ -9649,7 +9649,7 @@ static void check_pendings(struct sip_pvt *p)
 	if (ast_test_flag(p, SIP_PENDINGBYE)) {
 		/* if we can't BYE, then this is really a pending CANCEL */
 		if (!ast_test_flag(p, SIP_CAN_BYE))
-			transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
+			transmit_request(p, SIP_CANCEL, p->ocseq, 1, 0);
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		else 
