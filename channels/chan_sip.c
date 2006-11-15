@@ -1634,7 +1634,8 @@ static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 	if (option_debug) {
 		if (p->initreq.headers)
 			ast_log(LOG_DEBUG, "Initializing already initialized SIP dialog %s (presumably reinvite)\n", p->callid);
-		ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
+		else
+			ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	}
 	/* Use this as the basis */
 	copy_request(&p->initreq, req);
@@ -13287,6 +13288,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		check_via(p, req);
 
 		copy_request(&p->initreq, req);		/* Save this INVITE as the transaction basis */
+		if (sipdebug && option_debug)
+			ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 		if (!p->owner) {	/* Not a re-invite */
 			if (debug)
 				ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
@@ -14096,6 +14099,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 
 	copy_request(&p->initreq, req);
+	if (sipdebug && option_debug)
+		ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	check_via(p, req);
 	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 
@@ -14215,6 +14220,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_verbose("Creating new subscription\n");
 
 		copy_request(&p->initreq, req);
+		if (option_debug > 3 && sipdebug)
+			ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 		check_via(p, req);
 	} else if (ast_test_flag(req, SIP_PKT_DEBUG) && ast_test_flag(req, SIP_PKT_IGNORE))
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
@@ -14443,9 +14450,9 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 	enum check_auth_result res;
 
 	/* Use this as the basis */
-	if (ast_test_flag(req, SIP_PKT_DEBUG))
-		ast_verbose("Using latest REGISTER request as basis request\n");
 	copy_request(&p->initreq, req);
+	if (option_debug > 3 && sipdebug)
+		ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	check_via(p, req);
 	if ((res = register_verify(p, sin, req, e)) < 0) {
 		const char *reason = "";
@@ -14612,6 +14619,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			} else if (req->method != SIP_ACK) {
 				transmit_response(p, "481 Call/Transaction Does Not Exist", req);
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Got ACK for unknown dialog... strange.\n");
 			}
 			return res;
 		}
