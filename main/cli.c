@@ -539,11 +539,6 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
 	struct ast_channel *c = NULL;
-	char durbuf[10] = "-";
-	char locbuf[40];
-	char appdata[40];
-	int duration;
-	int durh, durm, durs;
 	int numchans = 0, concise = 0, verbose = 0;
 	int fd, argc;
 	char **argv;
@@ -586,18 +581,18 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	while ((c = ast_channel_walk_locked(c)) != NULL) {
 		struct ast_channel *bc = ast_bridged_channel(c);
+		char durbuf[10] = "-";
+
 		if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
-			duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+			int duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
 			if (verbose) {
-				durh = duration / 3600;
-				durm = (duration % 3600) / 60;
-				durs = duration % 60;
+				int durh = duration / 3600;
+				int durm = (duration % 3600) / 60;
+				int durs = duration % 60;
 				snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
 			} else {
 				snprintf(durbuf, sizeof(durbuf), "%d", duration);
 			}				
-		} else {
-			durbuf[0] = '\0';
 		}
 		if (concise) {
 			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
@@ -617,14 +612,13 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			        S_OR(c->accountcode, ""),
 				bc ? bc->name : "(None)");
 		} else {
+			char locbuf[40] = "(None)";
+			char appdata[40] = "(None)";
+
 			if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
 				snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
-			else
-				strcpy(locbuf, "(None)");
 			if (c->appl)
-				snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, c->data ? c->data : "");
-			else
-				strcpy(appdata, "(None)");
+				snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, S_OR(c->data, ""));
 			ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
 		}
 		numchans++;
