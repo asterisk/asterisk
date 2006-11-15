@@ -120,6 +120,8 @@ void ast_variable_append(struct ast_category *category, struct ast_variable *var
 	else
 		category->root = variable;
 	category->last = variable;
+	while (category->last->next)
+		category->last = category->last->next;
 }
 
 void ast_variables_destroy(struct ast_variable *v)
