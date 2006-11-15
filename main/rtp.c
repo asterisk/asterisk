@@ -1456,7 +1456,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	struct ast_rtp_protocol *destpr = NULL, *srcpr = NULL;
 	enum ast_rtp_get_result audio_dest_res = AST_RTP_GET_FAILED, video_dest_res = AST_RTP_GET_FAILED;
 	enum ast_rtp_get_result audio_src_res = AST_RTP_GET_FAILED, video_src_res = AST_RTP_GET_FAILED;
-	int srccodec;
+	int srccodec, nat_active = 0;
 
 	/* Lock channels */
 	ast_channel_lock(c0);
@@ -1512,8 +1512,10 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	/* Consider empty media as non-existant */
 	if (audio_src_res == AST_RTP_TRY_NATIVE && !srcp->them.sin_addr.s_addr)
 		srcp = NULL;
+	if (srcp && (srcp->nat || ast_test_flag(srcp, FLAG_NAT_ACTIVE)))
+		nat_active = 1;
 	/* Bridge media early */
-	if (destpr->set_rtp_peer(c0, srcp, vsrcp, srccodec, srcp ? ast_test_flag(srcp, FLAG_NAT_ACTIVE) : 0))
+	if (destpr->set_rtp_peer(c0, srcp, vsrcp, srccodec, nat_active))
 		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
 	ast_channel_unlock(c0);
 	if (c1)
