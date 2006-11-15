@@ -830,12 +830,13 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		errno = 0;
 		bfile = fopen(fn, "r");
 		if (!bfile || (fs = get_filestream(f, bfile)) == NULL ||
-			open_wrapper(fs) ) {
+		    open_wrapper(fs) ) {
 			ast_log(LOG_WARNING, "Unable to open %s\n", fn);
-			fclose(bfile);
-			free(fn);
 			if (fs)
 				free(fs);
+			if (bfile)
+				fclose(bfile);
+			free(fn);
 			continue;
 		}
 		/* found it */
