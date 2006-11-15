@@ -708,40 +708,6 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_debugchan_deprecated(int fd, int argc, char *argv[])
-{
-	struct ast_channel *c=NULL;
-	int is_all;
-
-	/* 'debug channel {all|chan_id}' */
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-
-	is_all = !strcasecmp("all", argv[3]);
-	if (is_all) {
-		global_fin |= DEBUGCHAN_FLAG;
-		global_fout |= DEBUGCHAN_FLAG;
-		c = ast_channel_walk_locked(NULL);
-	} else {
-		c = ast_get_channel_by_name_locked(argv[3]);
-		if (c == NULL)
-			ast_cli(fd, "No such channel %s\n", argv[3]);
-	}
-	while (c) {
-		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
-			c->fin |= DEBUGCHAN_FLAG;
-			c->fout |= DEBUGCHAN_FLAG;
-			ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
-		}
-		ast_channel_unlock(c);
-		if (!is_all)
-			break;
-		c = ast_channel_walk_locked(c);
-	}
-	ast_cli(fd, "Debugging on new channels is enabled\n");
-	return RESULT_SUCCESS;
-}
-
 static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *c = NULL;
@@ -803,6 +769,18 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 	}
 	ast_cli(a->fd, "Debugging on new channels is %s\n", is_off ? "disabled" : "enabled");
 	return RESULT_SUCCESS;
+}
+
+static char *handle_debugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res;
+
+	if (cmd == CLI_HANDLER && a->argc != e->args + 1)
+		return CLI_SHOWUSAGE;
+	res = handle_core_set_debug_channel(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "debug channel";
+	return res;
 }
 
 static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1071,10 +1049,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { NULL }, NULL, NULL, NULL }
 };
 
-static struct ast_cli_entry cli_debug_channel_deprecated = {
-	{ "debug", "channel", NULL },
-	handle_debugchan_deprecated, NULL,
-	NULL, complete_ch_3 };
+static struct ast_cli_entry cli_debug_channel_deprecated = NEW_CLI(handle_debugchan_deprecated, "Enable debugging on channel");
 
 static struct ast_cli_entry cli_module_load_deprecated = {
 	{ "load", NULL },
