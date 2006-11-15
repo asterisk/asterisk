@@ -38,6 +38,10 @@ void ast_cli(int fd, char *fmt, ...)
 #define RESULT_SHOWUSAGE	1
 #define RESULT_FAILURE		2
 
+#define CLI_SUCCESS	(char *)RESULT_SUCCESS
+#define CLI_SHOWUSAGE	(char *)RESULT_SHOWUSAGE
+#define CLI_FAILURE	(char *)RESULT_FAILURE
+
 #define AST_MAX_CMD_LEN 	16
 
 #define AST_MAX_ARGS 64
@@ -67,67 +71,44 @@ void ast_cli(int fd, char *fmt, ...)
 
    In the "new-style" format, all the above functionalities are implemented
    by a single function, and the arguments tell which output is required.
+   The prototype is the following:
 
-   \note \b Note: ideally, the new-style handler would have a different prototype,
-   i.e. something like
-
-	int new_setdebug(const struct ast_cli *e, int function,
-	    int fd, int argc, char *argv[],	// handler args
-	    int n, int pos, const char *line, const char *word // -complete args)
-
-   but at this moment we want to help the transition from old-style to new-style
-   functions so we keep the same interface and override some of the traditional
-   arguments.
-
-   To help the transition, a new-style entry has the same interface as the old one,
-   but it is declared as follows:
-
-	int new_setdebug(int fd, int argc, char *argv[]);
+	char *new_setdebug(const struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 	...
 	// this is how we create the entry to register 
 	NEW_CLI(new_setdebug, "short description")
 	...
 
-   Called with the default arguments (argc > 0), the new_handler implements
-   the command as before.
-   A negative argc indicates one of the other functions, namely
-   generate the usage string, the full command, or implement the generator.
-   As a trick to extend the interface while being backward compatible,
-   argv[-1] points to a struct ast_cli_args, and, for the generator,
-   argv[0] is really a pointer to a struct ast_cli_args.
-   The return string is obtained by casting the result to char *
+   To help the transition, we make the pointer to the struct ast_cli_entry
+   available to old-style handlers via argv[-1].
 
    An example of new-style handler is the following
 
 \code
-static int test_new_cli(int fd, int argc, char *argv[])
+static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-        struct ast_cli_entry *e = (struct ast_cli_entry *)argv[-1];
-        struct ast_cli_args *a;
 	static char *choices = { "one", "two", "three", NULL };
 
-        switch(argc) {
-        case CLI_USAGE:
-                return (int)
+        switch (cmd) {
+        case CLI_INIT:
+		e->command = "do this well";
+                e->usage =
 			"Usage: do this well <arg>\n"
 			"	typically multiline with body indented\n";
-
-        case CLI_CMD_STRING:
-                return (int)"do this well";
+		return NULL;
 
         case CLI_GENERATE:
-                a = (struct ast_cli_args *)argv[0];
                 if (a->pos > e->args)
                         return NULL;
         	return ast_cli_complete(a->word, choices, a->n);
 
         default:        
                 // we are guaranteed to be called with argc >= e->args;
-                if (argc > e->args + 1) // we accept one extra argument
-                        return RESULT_SHOWUSAGE;
-                ast_cli(fd, "done this well for %s\n", e->args[argc-1]);
-                return RESULT_SUCCESS;
+                if (a->argc > e->args + 1) // we accept one extra argument
+                        return CLI_SHOWUSAGE;
+                ast_cli(a->fd, "done this well for %s\n", e->args[argc-1]);
+                return CLI_SUCCESS;
         }
 }
 
@@ -139,12 +120,25 @@ static int test_new_cli(int fd, int argc, char *argv[])
 	See \ref CLI_command_API
 */
 enum ast_cli_fn {
-	CLI_USAGE = -1,		/* return the usage string */
-	CLI_CMD_STRING = -2,	/* return the command string */
+	CLI_INIT = -2,		/* return the usage string */
 	CLI_GENERATE = -3,	/* behave as 'generator', remap argv to struct ast_cli_args */
+	CLI_HANDLER = -4,	/* run the normal handler */
 };
 
+/* argument for new-style CLI handler */
+struct ast_cli_args {
+	int fd;
+	int argc;
+	char **argv;
+	const char *line;	/* the current input line */
+	const char *word;	/* the word we want to complete */
+	int pos;		/* position of the word to complete */
+	int n;			/* the iteration count (n-th entry we generate) */
+};
+
+struct ast_cli_entry;
 typedef int (*old_cli_fn)(int fd, int argc, char *argv[]);
+typedef char *(*new_cli_fn)(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*! \brief descriptor for a cli entry 
 	See \ref CLI_command_API
@@ -161,10 +155,10 @@ struct ast_cli_entry {
 	  You can overwrite argv or the strings it points to, but remember
 	  that this memory is deallocated after the handler returns.
 	 */
-	int (*handler)(int fd, int argc, char *argv[]);
+	old_cli_fn handler;
 
 	const char *summary; /*!< Summary of the command (< 60 characters) */
-	const char *usage; /*!< Detailed usage information */
+	char *usage; /*!< Detailed usage information */
 
 	/*! Generate the n-th (starting from 0) possible completion
 	  for a given 'word' following 'line' in position 'pos'.
@@ -188,21 +182,13 @@ struct ast_cli_entry {
 	int args;		/*!< number of non-null entries in cmda */
 	char *command;		/*!< command, non-null for new-style entries */
 	int deprecated;
+	new_cli_fn new_handler;
 	char *_deprecated_by;	/*!< copied from the "parent" _full_cmd, on deprecated commands */
 	/*! For linking */
 	AST_LIST_ENTRY(ast_cli_entry) list;
 };
 
-#define NEW_CLI(fn, txt)	{ .handler = (old_cli_fn)fn, .summary = txt }
-
-/* argument for new-style CLI handler */
-struct ast_cli_args {
-	char fake[4];		/* a fake string, in the first position, for safety */
-	const char *line;	/* the current input line */
-	const char *word;	/* the word we want to complete */
-	int pos;		/* position of the word to complete */
-	int n;			/* the iteration count (n-th entry we generate) */
-};
+#define NEW_CLI(fn, txt)	{ .new_handler = fn, .summary = txt }
 
 /*!
  * Helper function to generate cli entries from a NULL-terminated array.
