@@ -4063,7 +4063,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		long duration = 0;
 
 		RETRIEVE(dir, curmsg);
-		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context, record_gain, &duration, vms);
+		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, vms);
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 #ifdef IMAP_STORAGE
