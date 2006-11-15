@@ -3474,7 +3474,7 @@ static int queue_l2l3(msg_t *msg)
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 {  
 
-	if (frm->dinfo==(signed long)0xffffffff && frm->prim==(PH_DATA|CONFIRM)) {
+	if (frm->dinfo==0xffffffff && frm->prim==(PH_DATA|CONFIRM)) {
 		cb_log(0,0,"SERIOUS BUG, dinfo == 0xffffffff, prim == PH_DATA | CONFIRM !!!!\n");
 	}
 
