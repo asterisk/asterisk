@@ -24,8 +24,8 @@
 #ifndef _ASTERISK_OSP_H
 #define _ASTERISK_OSP_H
 
-#define AST_OSP_SUCCESS		((char*)"SUCCESS")		/* Return status, success */
-#define AST_OSP_FAILED		((char*)"FAILED")		/* Return status, failed */
-#define AST_OSP_ERROR		((char*)"ERROR")		/* Return status, error */
+#define AST_OSP_SUCCESS	((char*)"SUCCESS")	/* Return status, success */
+#define AST_OSP_FAILED	((char*)"FAILED")	/* Return status, failed */
+#define AST_OSP_ERROR	((char*)"ERROR")	/* Return status, error */
 
 #endif /* _ASTERISK_OSP_H */
