@@ -266,6 +266,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; route = Assume NAT, don't send rport 
 				; (work around more UNIDEN bugs)
 
+;----------------------------------- MEDIA HANDLING --------------------------------
+; By default, Asterisk tries to re-invite the audio to an optimal path. If there's
+; no reason for Asterisk to stay in the media path, the media will be redirected.
+; This does not really work with in the case where Asterisk is outside and have
+; clients on the inside of a NAT. In that case, you want to set canreinvite=nonat
+;
 ;canreinvite=yes		; Asterisk by default tries to redirect the
 				; RTP media stream (audio) to go directly from
 				; the caller to the callee.  Some devices do not
