@@ -48,7 +48,7 @@ static char *app_cut = "Cut";
 static char *cut_synopsis = "Splits a variable's contents using the specified delimiter";
 
 static char *cut_descrip =
-"  Cut(newvar=varname,delimiter,fieldspec): This applicaiton will split the\n"
+"  Cut(newvar=varname,delimiter,fieldspec): This application will split the\n"
 "contents of a variable based on the given delimeter and store the result in\n"
 "a new variable.\n"
 "Parameters:\n"
@@ -66,7 +66,7 @@ static char *app_sort_descrip =
 "  Sort(newvar=key1:val1[,key2:val2[[...],keyN:valN]]): This application will\n"
 "sort the list provided in ascending order. The result will be stored in the\n"
 "specified variable name.\n"
-"  This applicaiton has been deprecated in favor of the SORT function.\n";
+"  This application has been deprecated in favor of the SORT function.\n";
 
 STANDARD_LOCAL_USER;
 
