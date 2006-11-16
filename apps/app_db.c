@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \todo XXX Remove this application after 1.4 is relased */
 static char *d_descrip =
-"  DBdel(family/key): This applicaiton will delete a key from the Asterisk\n"
+"  DBdel(family/key): This application will delete a key from the Asterisk\n"
 "database.\n"
 "  This application has been DEPRECATED in favor of the DB_DELETE function.\n";
 
