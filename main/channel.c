@@ -4193,7 +4193,7 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 	return 0;
 }
 
-ast_group_t ast_get_group(char *s)
+ast_group_t ast_get_group(const char *s)
 {
 	char *piece;
 	char *c;

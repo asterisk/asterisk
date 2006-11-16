@@ -112,13 +112,13 @@ static int func_channel_write(struct ast_channel *chan, char *function,
 		locked_string_field_set(chan, musicclass, value);
 	else if (!strcasecmp(data, "tonezone")) {
 		struct tone_zone *new_zone;
-		if (!(new_zone = ast_get_indication_zone(data))) {
-			ast_log(LOG_ERROR, "Unknown country code for tonezone. Check indications.conf for available country codes.\n");
+		if (!(new_zone = ast_get_indication_zone(value))) {
+			ast_log(LOG_ERROR, "Unknown country code '%s' for tonezone. Check indications.conf for available country codes.\n", value);
 			ret = -1;	
 		} else 
 			chan->zone = new_zone;
 	} else if (!strcasecmp(data, "callgroup"))
-		chan->callgroup = ast_get_group(data);
+		chan->callgroup = ast_get_group(value);
 	else if (!strcasecmp(data, "txgain")) {
 		sscanf(value, "%hhd", &gainset);
 		ast_channel_setoption(chan, AST_OPTION_TXGAIN, &gainset, sizeof(gainset), 0);

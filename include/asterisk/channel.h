@@ -1323,7 +1323,7 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 									ast_set_flag(c, AST_FLAG_BLOCKING); \
 									} }
 
-ast_group_t ast_get_group(char *s);
+ast_group_t ast_get_group(const char *s);
 
 /*! \brief print call- and pickup groups into buffer */
 char *ast_print_group(char *buf, int buflen, ast_group_t group);
