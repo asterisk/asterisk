@@ -974,12 +974,6 @@ static char *complete_ch_4(const char *line, const char *word, int pos, int stat
 	return ast_complete_channels(line, word, pos, state, 3);
 }
 
-static char *complete_ch_5(const char *line, const char *word, int pos, int state)
-{
-	return ast_complete_channels(line, word, pos, state, 4);
-}
-
-
 static int group_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
