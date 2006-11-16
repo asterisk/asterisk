@@ -528,6 +528,7 @@ static struct zt_distRings drings;
 
 struct distRingData {
 	int ring[3];
+	int range;
 };
 struct ringContextData {
 	char contextData[AST_MAX_CONTEXT];
@@ -6609,17 +6610,29 @@ static void *ss_thread(void *data)
 						if (option_verbose > 2)
 							/* this only shows up if you have n of the dring patterns filled in */
 							ast_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
-	
 						for (counter = 0; counter < 3; counter++) {
 							/* Check to see if the rings we received match any of the ones in zapata.conf for this
 							channel */
 							distMatches = 0;
 							for (counter1 = 0; counter1 < 3; counter1++) {
-								if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
-								(p->drings.ringnum[counter].ring[counter1]-10)) {
+								if (p->drings.ringnum[counter].range == 0) {
+									p->drings.ringnum[counter].range = 10;
+                                                        	}
+								ast_verbose( VERBOSE_PREFIX_3 "Ring pattern check range: %d\n", p->drings.ringnum[counter].range);
+								if (p->drings.ringnum[counter].ring[counter1] == -1) {
+									ast_verbose( VERBOSE_PREFIX_3 "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
+									curRingData[counter1]);
+									distMatches++;
+								}
+								else if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range) &&
+								    curRingData[counter1] >= (p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range)) {
+									ast_verbose( VERBOSE_PREFIX_3 "Ring pattern matched in range: %d to %d\n",
+									(p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range),
+									(p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range));
 									distMatches++;
 								}
 							}
+
 							if (distMatches == 3) {
 								/* The ring matches, set the context to whatever is for distinctive ring.. */
 								ast_copy_string(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context));
@@ -6791,8 +6804,20 @@ static void *ss_thread(void *data)
 								p->drings.ringnum[counter].ring[2]);
 						distMatches = 0;
 						for (counter1 = 0; counter1 < 3; counter1++) {
-							if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
-							(p->drings.ringnum[counter].ring[counter1]-10)) {
+							if (p->drings.ringnum[counter].range == 0) {
+								p->drings.ringnum[counter].range = 10;
+							}
+							ast_verbose( VERBOSE_PREFIX_3 "Ring pattern check range: %d\n", p->drings.ringnum[counter].range);
+							if (p->drings.ringnum[counter].ring[counter1] == -1) {
+								ast_verbose( VERBOSE_PREFIX_3 "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
+								curRingData[counter1]);
+								distMatches++;
+							}
+							else if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range) &&
+							    curRingData[counter1] >= (p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range)) {
+								ast_verbose( VERBOSE_PREFIX_3 "Ring pattern matched in range: %d to %d\n",
+								(p->drings.ringnum[counter].ring[counter1] - p->drings.ringnum[counter].range),
+								(p->drings.ringnum[counter].ring[counter1] + p->drings.ringnum[counter].range));
 								distMatches++;
 							}
 						}
@@ -11698,6 +11723,7 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 	struct zt_pvt *tmp;
 	char *ringc;
 	int y;
+	int range;
 	int found_pseudo = 0;
 
 	for (; v; v = v->next) {
@@ -11726,6 +11752,15 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 			ast_copy_string(drings.ringContext[1].contextData,v->value,sizeof(drings.ringContext[1].contextData));
 		} else if (!strcasecmp(v->name, "dring3context")) {
 			ast_copy_string(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData));
+		} else if (!strcasecmp(v->name, "dring1range")) {
+			range = atoi(v->value);
+			drings.ringnum[0].range = range;
+		} else if (!strcasecmp(v->name, "dring2range")) {
+			range = atoi(v->value);
+			drings.ringnum[1].range = range;
+		} else if (!strcasecmp(v->name, "dring3range")) {
+			range = atoi(v->value);
+			drings.ringnum[2].range = range;
 		} else if (!strcasecmp(v->name, "dring1")) {
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);

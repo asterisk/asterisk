@@ -649,10 +649,17 @@ immediate=no
 ;  You can see the dringX patterns is to set any one of the dringXcontext fields
 ;  and they will be printed on the console when an inbound call comes in.
 ;
+;  dringXrange is used to change the acceptable ranges for "tone offsets".  Defaults to 10.
+;  Note: a range of 0 is NOT what you might expect - it instead forces it to the default.
+;  A range of -1 will force it to always match.
+;  Anything lower than -1 would presumably cause it to never match.
+;
 ;dring1=95,0,0 
 ;dring1context=internal1 
+;dring1range=10
 ;dring2=325,95,0 
 ;dring2context=internal2 
+;dring2range=10
 ; If no pattern is matched here is where we go.
 ;context=default
 ;channel => 1 
