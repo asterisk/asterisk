@@ -6615,9 +6615,6 @@ static void *ss_thread(void *data)
 							channel */
 							distMatches = 0;
 							for (counter1 = 0; counter1 < 3; counter1++) {
-								if (p->drings.ringnum[counter].range == 0) {
-									p->drings.ringnum[counter].range = 10;
-                                                        	}
 								ast_verbose( VERBOSE_PREFIX_3 "Ring pattern check range: %d\n", p->drings.ringnum[counter].range);
 								if (p->drings.ringnum[counter].ring[counter1] == -1) {
 									ast_verbose( VERBOSE_PREFIX_3 "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
@@ -6804,9 +6801,6 @@ static void *ss_thread(void *data)
 								p->drings.ringnum[counter].ring[2]);
 						distMatches = 0;
 						for (counter1 = 0; counter1 < 3; counter1++) {
-							if (p->drings.ringnum[counter].range == 0) {
-								p->drings.ringnum[counter].range = 10;
-							}
 							ast_verbose( VERBOSE_PREFIX_3 "Ring pattern check range: %d\n", p->drings.ringnum[counter].range);
 							if (p->drings.ringnum[counter].ring[counter1] == -1) {
 								ast_verbose( VERBOSE_PREFIX_3 "Pattern ignore (-1) detected, so matching pattern %d regardless.\n",
@@ -11723,7 +11717,6 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 	struct zt_pvt *tmp;
 	char *ringc;
 	int y;
-	int range;
 	int found_pseudo = 0;
 
 	for (; v; v = v->next) {
@@ -11753,14 +11746,20 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 		} else if (!strcasecmp(v->name, "dring3context")) {
 			ast_copy_string(drings.ringContext[2].contextData,v->value,sizeof(drings.ringContext[2].contextData));
 		} else if (!strcasecmp(v->name, "dring1range")) {
-			range = atoi(v->value);
-			drings.ringnum[0].range = range;
+			drings.ringnum[0].range = atoi(v->value);
+			/* 10 is a nice default. */
+			if (drings.ringnum[0].range == 0)
+				drings.ringnum[0].range = 10;
 		} else if (!strcasecmp(v->name, "dring2range")) {
-			range = atoi(v->value);
-			drings.ringnum[1].range = range;
+			drings.ringnum[1].range = atoi(v->value);
+			/* 10 is a nice default. */
+			if (drings.ringnum[1].range == 0)
+				drings.ringnum[1].range = 10;
 		} else if (!strcasecmp(v->name, "dring3range")) {
-			range = atoi(v->value);
-			drings.ringnum[2].range = range;
+			drings.ringnum[2].range = atoi(v->value);
+			/* 10 is a nice default. */
+			if (drings.ringnum[2].range == 0)
+				drings.ringnum[2].range = 10;
 		} else if (!strcasecmp(v->name, "dring1")) {
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
