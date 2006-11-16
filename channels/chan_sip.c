@@ -238,6 +238,21 @@ enum sip_result {
 	AST_FAILURE = -1,
 };
 
+/*! \brief States for the INVITE transaction, not the dialog 
+	\note this is for the INVITE that sets up the dialog
+*/
+enum invitestates {
+	INV_NONE = 0,	/*!< No state at all, maybe not an INVITE dialog */
+	INV_CALLING,	/*!< Invite sent, no answer */
+	INV_PROCEEDING,	/*!< We got 1xx message */
+	INV_EARLY_MEDIA, /*!< We got 18x message with to-tag back */
+	INV_COMPLETED,	/*!< Got final response with error. Wait for ACK, then CONFIRMED */
+	INV_CONFIRMED,	/*!< Confirmed response - we've got an ack (Incoming calls only) */
+	INV_TERMINATED,	/*!< Transaction done - either successful (AST_STATE_UP) or failed, but done 
+				The only way out of this is a BYE from one side */
+	INV_CANCELLED	/*!< Transaction cancelled by client or server in non-terminated state */
+};
+
 /* Do _NOT_ make any changes to this enum, or the array following it;
    if you think you are doing the right thing, you are probably
    not doing the right thing. If you think there are changes
@@ -699,7 +714,7 @@ struct sip_auth {
 #define SIP_REALTIME		(1 << 11)	/*!< Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< Direction of the last transaction in this dialog */
-#define SIP_CAN_BYE		(1 << 14)	/*!< Can we send BYE on this dialog? */
+#define SIP_FREE_BIT		(1 << 14)	/*!< ---- */
 #define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< Do not hangup at first ast_hangup */
 #define SIP_DTMF		(3 << 16)	/*!< DTMF Support: four settings, uses two bits */
 #define SIP_DTMF_RFC2833	(0 << 16)	/*!< DTMF Support: RTP DTMF - "rfc2833" */
@@ -870,6 +885,7 @@ struct sip_refer {
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 struct sip_pvt {
 	ast_mutex_t pvt_lock;			/*!< Dialog private lock */
+	enum invitestates invitestate;		/*!< Track state of SIP_INVITEs */
 	int method;				/*!< SIP method that opened this dialog */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(callid);	/*!< Global CallID */
@@ -2915,6 +2931,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
 		transmit_invite(p, SIP_INVITE, 1, 2);
+		p->invitestate = INV_CALLING;
 		
 		/* Initialize auto-congest time */
 		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
@@ -3417,7 +3434,8 @@ static int sip_hangup(struct ast_channel *ast)
 				__sip_pretend_ack(p);
 
 				/* if we can't send right now, mark it pending */
-				if (!ast_test_flag(&p->flags[0], SIP_CAN_BYE)) {
+				if (p->invitestate == INV_CALLING) {
+					/* We can't send anything in CALLING state */
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 					/* Do we need a timer here if we don't hear from them at all? */
 				} else {
@@ -7466,6 +7484,9 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
 	struct sip_request resp;
+
+	if (sipmethod == SIP_ACK)
+		p->invitestate = INV_CONFIRMED;
 
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
 	add_header_contentLength(&resp, 0);
@@ -11646,7 +11667,7 @@ static void check_pendings(struct sip_pvt *p)
 {
 	if (ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 		/* if we can't BYE, then this is really a pending CANCEL */
-		if (!ast_test_flag(&p->flags[0], SIP_CAN_BYE))
+		if (p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA)
 			transmit_request(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
@@ -11697,6 +11718,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	if (resp > 100 && resp < 200 && resp != 180 && resp != 183)
 		resp = 183;
 
+ 	/* Any response between 100 and 199 is PROCEEDING */
+ 	if (resp >= 100 && resp < 200 && p->invitestate == INV_CALLING)
+ 		p->invitestate = INV_PROCEEDING;
+ 
+ 	/* Final response, not 200 ? */
+ 	if (resp >= 300 && (p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA ))
+ 		p->invitestate = INV_COMPLETED;
+ 		
+
 	switch (resp) {
 	case 100:	/* Trying */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE))
@@ -11714,13 +11744,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			}
 		}
 		if (find_sdp(req)) {
+			p->invitestate = INV_EARLY_MEDIA;
 			res = process_sdp(p, req);
 			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
-		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
 
@@ -11729,13 +11759,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
+			p->invitestate = INV_EARLY_MEDIA;
 			res = process_sdp(p, req);
 			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
 		}
-		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
 
@@ -11833,8 +11863,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
+		p->invitestate = INV_TERMINATED;
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
-		ast_set_flag(&p->flags[0], SIP_CAN_BYE);
 		check_pendings(p);
 		break;
 
@@ -13441,6 +13471,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "%s: New call is still down.... Trying... \n", c->name);
 			transmit_response(p, "100 Trying", req);
+			p->invitestate = INV_PROCEEDING;
 			ast_setstate(c, AST_STATE_RING);
 			if (strcmp(p->exten, ast_pickup_ext())) {	/* Call to extension -start pbx on this call */
 				enum ast_pbx_result res;
@@ -13450,6 +13481,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				switch(res) {
 				case AST_PBX_FAILED:
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
+					p->invitestate = INV_COMPLETED;
 					if (ast_test_flag(req, SIP_PKT_IGNORE))
 						transmit_response(p, "503 Unavailable", req);
 					else
@@ -13457,6 +13489,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					break;
 				case AST_PBX_CALL_LIMIT:
 					ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
+					p->invitestate = INV_COMPLETED;
 					if (ast_test_flag(req, SIP_PKT_IGNORE))
 						transmit_response(p, "480 Temporarily Unavailable", req);
 					else
@@ -13493,6 +13526,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					ast_setstate(c, AST_STATE_DOWN);
 					c->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 				}
+				p->invitestate = INV_COMPLETED;
 				ast_hangup(c);
 				sip_pvt_lock(p);
 				c = NULL;
@@ -13500,9 +13534,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			break;
 		case AST_STATE_RING:
 			transmit_response(p, "100 Trying", req);
+			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_RINGING:
 			transmit_response(p, "180 Ringing", req);
+			p->invitestate = INV_PROCEEDING;
 			break;
 		case AST_STATE_UP:
 			if (option_debug > 1)
@@ -13588,6 +13624,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
 
 			}
+			p->invitestate = INV_TERMINATED;
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
@@ -13608,6 +13645,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response(p, msg, req);
 			else
 				transmit_response_reliable(p, msg, req);
+			p->invitestate = INV_COMPLETED;
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		}
 	}
@@ -14063,6 +14101,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		
 	check_via(p, req);
 	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+	p->invitestate = INV_CANCELLED;
 	
 	if (p->owner && p->owner->_state == AST_STATE_UP) {
 		/* This call is up, cancel is ignored, we need a bye */
@@ -14095,8 +14134,10 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	struct ast_channel *bridged_to;
 	
 	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
-	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner)
+	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner) 
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
+
+	p->invitestate = INV_TERMINATED;
 
 	copy_request(&p->initreq, req);
 	if (sipdebug && option_debug)
@@ -14667,6 +14708,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	case SIP_ACK:
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
+			p->invitestate = INV_CONFIRMED;
 			p->pendinginvite = 0;
 			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
 			if (find_sdp(req)) {
