@@ -2619,6 +2619,11 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct sip_pvt *p = newchan->tech_pvt;
+	if (!p) {
+		ast_log(LOG_WARNING, "No pvt after masquerade. Strange things may happen\n");
+		return -1;
+	}
+
 	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
