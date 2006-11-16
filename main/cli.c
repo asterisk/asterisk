@@ -1640,7 +1640,7 @@ int ast_cli_command(int fd, const char *s)
 		AST_LIST_LOCK(&helpers);
 		e = find_cli(args + 1, 0);
 		if (e)
-			e->inuse++;
+			ast_atomic_fetchadd_int(&e->inuse, 1);
 		AST_LIST_UNLOCK(&helpers);
 		if (e) {
 			int res;
