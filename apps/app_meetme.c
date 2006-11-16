@@ -2953,6 +2953,10 @@ static int slastate(const char *data)
 
 	/* Find conference */
 	sla = sla2 = ASTOBJ_CONTAINER_FIND(&slas, data);
+
+	if (!sla2)
+		return AST_DEVICE_INVALID;
+
 	ASTOBJ_UNREF(sla2, sla_destroy);
 
 	if (option_debug)
