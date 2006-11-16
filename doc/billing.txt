@@ -64,13 +64,13 @@ In some cases, uniqueid is appended:
       This needs to be enabled in the source code at compile time
 
 
-ONE IMPORTANT NOTE: If you are trying to collect records on IAX to IAX calls
-you need to be aware that by default, IAX will attempt to transfer calls
-in this situation (if DTMF is not required).  When the transfer is completed
-the call is dumped from the middle machine and thus the call detail records
-will report a short call time.  If you want detailed records you must
-turn off IAX transfer, but unless your servers are very close together, you
-will definitely get a latency hit from doing so.
+NOTE: If you use IAX2 channels for your calls, and allow 'full' transfers
+(not media-only transfers), then when the calls is transferred the server
+in the middle will no longer be involved in the signaling path, and thus
+will not generate accurate CDRs for that call. If you can, use media-only
+transfers with IAX2 to avoid this problem, or turn off transfers completely
+(although this can result in a media latency increase since the media packets
+have to traverse the middle server(s) in the call).
 
 ____________________________________
 CDR Variables
@@ -100,21 +100,6 @@ ${CDR(uniqueid)}		The channel's unique id.
 ${CDR(userfield)}		The channels uses specified field.
 
 In addition, you can set your own extra variables by using Set(CDR(name)=value).
-
-______________________________
-cdr_csv2
-------------------------------
-
-This module is an experimental new cdr module to demonstrate the cdr vars.
-usage(
-
-*) Create a file called cdr.conf and place it in your /etc/asterisk (or wherever your config files are) in the [cdr_csv2] section.
-*) Add an entry called format to indicate any format you want for the output.
-
-The following format string will emulate the regular cdr file format:
-[cdr_csv2]
-
-format => "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration)}","${CDR(billsec)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
-
-You can put anything you want as the value of format including new cdr vars you make up or any global variables.
-
+These variables can be output into a text-format CDR by using the cdr_custom
+CDR driver; see the cdr_custom.conf.sample file in the configs directory for
+an example of how to do this.
