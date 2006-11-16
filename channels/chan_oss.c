@@ -1284,35 +1284,32 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	return CLI_SUCCESS;
 }
 
-static int __console_mute_unmute(int mute)
+static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
+	static char *choices[] = { "mute", "unmute", NULL };
+	char *s;
 	
-	o->mute = mute;
-	return RESULT_SUCCESS;
+	if (cmd == CLI_INIT) {
+		e->command = "console";
+		e->usage =
+			"Usage: console [mute|unmute]\n"
+			"       Mute/unmute the microphone.\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE)
+		return (a->pos != e->args) ? NULL : ast_cli_complete(a->word, choices, a->n);
+
+	if (a->argc != e->args+1)
+		return CLI_SHOWUSAGE;
+	s = a->argv[e->args];
+	if (!strcasecmp(s, "mute"))
+		o->mute = 1;
+	else if (!strcasecmp(s, "unmute"))
+		o->mute = 0;
+	else
+		return CLI_SHOWUSAGE;
+	return CLI_SUCCESS;
 }
-
-static int console_mute(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-
-	return __console_mute_unmute(1);
-}
-
-static char mute_usage[] =
-	"Usage: console mute\nMutes the microphone\n";
-
-static int console_unmute(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-
-	return __console_mute_unmute(0);
-}
-
-static char unmute_usage[] =
-	"Usage: console unmute\nUnmutes the microphone\n";
 
 static int console_transfer(int fd, int argc, char *argv[])
 {
@@ -1415,15 +1412,7 @@ static struct ast_cli_entry cli_oss[] = {
 	NEW_CLI(console_hangup, "Hangup a call on the console"),
 	NEW_CLI(console_flash, "Flash a call on the console"),
 	NEW_CLI(console_dial, "Dial an extension on the console"),
-
-	{ { "console", "mute", NULL },
-	console_mute, "Disable mic input",
-	mute_usage },
-
-	{ { "console", "unmute", NULL },
-	console_unmute, "Enable mic input",
-	unmute_usage },
-
+	NEW_CLI(console_mute, "Disable/Enable mic input"),
 	{ { "console", "transfer", NULL },
 	console_transfer, "Transfer a call to a different extension",
 	transfer_usage },
