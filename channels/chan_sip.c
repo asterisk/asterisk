@@ -515,6 +515,7 @@ static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 /* Global settings only apply to the channel */
 static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
+static int global_notifyhold;		/*!< Send notifications on hold */
 static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing requests */
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
@@ -5153,7 +5154,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					"Uniqueid: %s\r\n",
 					p->owner->name, 
 					p->owner->uniqueid);
-			sip_peer_hold(p, 0);
+			if (global_notifyhold)
+				sip_peer_hold(p, 0);
 		} 
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
 	} else if (!sin.sin_addr.s_addr || sendonly ) {
@@ -5171,7 +5173,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
 		else if (sendonly == 2)	/* Inactive stream */
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
-		sip_peer_hold(p, 1);
+		if (global_notifyhold)
+			sip_peer_hold(p, 1);
 	}
 	
 	return 0;
@@ -10186,6 +10189,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
 	ast_cli(fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
 	ast_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
+	ast_cli(fd, "  Notify hold state:      %s\n", global_notifyhold ? "Yes" : "No");
 	ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
 	ast_cli(fd, "  Max Call Bitrate:       %d kbps\r\n", default_maxcallbitrate);
 	ast_cli(fd, "  Auto-Framing:           %s \r\n", global_autoframing ? "Yes" : "No");
@@ -15879,6 +15883,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_regcontext[0] = '\0';
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
+	global_notifyhold = FALSE;
 	global_alwaysauthreject = 0;
 	global_allowsubscribe = FALSE;
 	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
@@ -16002,6 +16007,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "notifyhold")) {
+			global_notifyhold = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			global_alwaysauthreject = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "mohinterpret") 
