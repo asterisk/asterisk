@@ -1649,9 +1649,16 @@ int ast_cli_command(int fd, const char *s)
 			 */
 			args[0] = (char *)e;
 			if (e->new_handler) {	/* new style */
+				char *retval;
 				struct ast_cli_args a = {
 					.fd = fd, .argc = x, .argv = args+1 };
-				res = (int)e->new_handler(e, CLI_HANDLER, &a);
+				retval = e->new_handler(e, CLI_HANDLER, &a);
+				if (retval == CLI_SUCCESS)
+					res = RESULT_SUCCESS;
+				else if (retval == CLI_SHOWUSAGE)
+					res = RESULT_SHOWUSAGE;
+				else
+					res = RESULT_FAILURE;
 			} else {		/* old style */
 				res = e->handler(fd, x, args + 1);
 			}
@@ -1662,6 +1669,9 @@ int ast_cli_command(int fd, const char *s)
 				else
 					ast_cli(fd, "Invalid usage, but no usage information available.\n");
 				break;
+			case RESULT_FAILURE:
+				ast_cli(fd, "Command '%s' failed.\n", s);
+				/* FALLTHROUGH */
 			default:
 				AST_LIST_LOCK(&helpers);
 				if (e->deprecated == 1) {
