@@ -67,7 +67,7 @@ static char *synopsis = "Place a call and connect to the current channel";
 
 static char *descrip =
 "  Dial(Technology/resource[&Tech2/resource2...][|timeout][|options][|URL]):\n"
-"This applicaiton will place calls to one or more specified channels. As soon\n"
+"This application will place calls to one or more specified channels. As soon\n"
 "as one of the requested channels answers, the originating channel will be\n"
 "answered, if it has not already been answered. These two channels will then\n"
 "be active in a bridged call. All other channels that were requested will then\n"
