@@ -1062,28 +1062,43 @@ static struct ast_channel *oss_request(const char *type, int format, void *data,
 	return c;
 }
 
-static int console_autoanswer(int fd, int argc, char *argv[])
+static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
+	static char *choices[] = { "on", "off", NULL };
 
-	if (argc == 2) {
-		ast_cli(fd, "Auto answer is %s.\n", o->autoanswer ? "on" : "off");
-		return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console autoanswer";
+		e->usage =
+			"Usage: console autoanswer [on|off]\n"
+			"       Enables or disables autoanswer feature.  If used without\n"
+			"       argument, displays the current on/off status of autoanswer.\n"
+			"       The default value of autoanswer is in 'oss.conf'.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return (a->pos != e->args + 1) ? NULL : ast_cli_complete(a->word, choices, a->n);
 	}
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+
+	if (a->argc == e->args) {
+		ast_cli(a->fd, "Auto answer is %s.\n", o->autoanswer ? "on" : "off");
+		return CLI_SUCCESS;
+	}
+	if (a->argc != e->args + 1)
+		return CLI_SHOWUSAGE;
 	if (o == NULL) {
 		ast_log(LOG_WARNING, "Cannot find device %s (should not happen!)\n",
 		    oss_active);
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	}
-	if (!strcasecmp(argv[2], "on"))
-		o->autoanswer = -1;
-	else if (!strcasecmp(argv[2], "off"))
+	if (!strcasecmp(a->argv[e->args], "on"))
+		o->autoanswer = 1;
+	else if (!strcasecmp(a->argv[e->args], "off"))
 		o->autoanswer = 0;
 	else
-		return RESULT_SHOWUSAGE;
-	return RESULT_SUCCESS;
+		return CLI_SHOWUSAGE;
+	return CLI_SUCCESS;
 }
 
 static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
@@ -1093,57 +1108,63 @@ static char *autoanswer_complete(const char *line, const char *word, int pos, in
 	return (pos != 3) ? NULL : ast_cli_complete(word, choices, state);
 }
 
-static char autoanswer_usage[] =
-	"Usage: console autoanswer [on|off]\n"
-	"       Enables or disables autoanswer feature.  If used without\n"
-	"       argument, displays the current on/off status of autoanswer.\n"
-	"       The default value of autoanswer is in 'oss.conf'.\n";
-
 /*
  * answer command from the console
  */
-static int console_answer(int fd, int argc, char *argv[])
+static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console answer";
+		e->usage =
+			"Usage: console answer\n"
+			"       Answers an incoming call on the console (OSS) channel.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;	/* no completion */
+	}
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
 	if (!o->owner) {
-		ast_cli(fd, "No one is calling us\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "No one is calling us\n");
+		return CLI_FAILURE;
 	}
 	o->hookstate = 1;
 	o->cursound = -1;
 	o->nosound = 0;
 	ast_queue_frame(o->owner, &f);
-#if 0
-	/* XXX do we really need it ? considering we shut down immediately... */
-	ring(o, AST_CONTROL_ANSWER);
-#endif
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
-
-static char answer_usage[] =
-	"Usage: console answer\n"
-	"       Answers an incoming call on the console (OSS) channel.\n";
 
 /*
  * concatenate all arguments into a single string. argv is NULL-terminated
  * so we can use it right away
  */
-static int console_sendtext(int fd, int argc, char *argv[])
+static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 	char buf[TEXT_SIZE];
 
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
+	if (cmd == CLI_INIT) {
+		e->command = "console send text";
+		e->usage =
+			"Usage: console send text <message>\n"
+			"       Sends a text message for display on the remote terminal.\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE)
+		return NULL;
+
+	if (a->argc < e->args + 1)
+		return CLI_SHOWUSAGE;
 	if (!o->owner) {
-		ast_cli(fd, "Not in a call\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Not in a call\n");
+		return CLI_FAILURE;
 	}
-	ast_join(buf, sizeof(buf) - 1, argv + 3);
+	ast_join(buf, sizeof(buf) - 1, a->argv + e->args);
 	if (!ast_strlen_zero(buf)) {
 		struct ast_frame f = { 0, };
 		int i = strlen(buf);
@@ -1154,85 +1175,100 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		f.datalen = i + 1;
 		ast_queue_frame(o->owner, &f);
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char sendtext_usage[] =
-	"Usage: console send text <message>\n"
-	"       Sends a text message for display on the remote terminal.\n";
-
-static int console_hangup(int fd, int argc, char *argv[])
+static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	if (cmd == CLI_INIT) {
+		e->command = "console hangup";
+		e->usage =
+			"Usage: console hangup\n"
+			"       Hangs up any call currently placed on the console.\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE)
+		return NULL;
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
 	o->cursound = -1;
 	o->nosound = 0;
 	if (!o->owner && !o->hookstate) { /* XXX maybe only one ? */
-		ast_cli(fd, "No call to hang up\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "No call to hang up\n");
+		return CLI_FAILURE;
 	}
 	o->hookstate = 0;
 	if (o->owner)
 		ast_queue_hangup(o->owner);
 	setformat(o, O_CLOSE);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char hangup_usage[] =
-	"Usage: console hangup\n"
-	"       Hangs up any call currently placed on the console.\n";
-
-static int console_flash(int fd, int argc, char *argv[])
+static char *console_flash(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH };
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	if (cmd == CLI_INIT) {
+		e->command = "console flash";
+		e->usage =
+			"Usage: console flash\n"
+			"       Flashes the call currently placed on the console.\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE)
+		return NULL;
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
 	o->cursound = -1;
 	o->nosound = 0;				/* when cursound is -1 nosound must be 0 */
 	if (!o->owner) {			/* XXX maybe !o->hookstate too ? */
-		ast_cli(fd, "No call to flash\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "No call to flash\n");
+		return CLI_FAILURE;
 	}
 	o->hookstate = 0;
 	if (o->owner)				/* XXX must be true, right ? */
 		ast_queue_frame(o->owner, &f);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char flash_usage[] =
-	"Usage: console flash\n"
-	"       Flashes the call currently placed on the console.\n";
-
-static int console_dial(int fd, int argc, char *argv[])
+static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *s = NULL, *mye = NULL, *myc = NULL;
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
-	if (argc != 2 && argc != 3)
-		return RESULT_SHOWUSAGE;
+	if (cmd == CLI_INIT) {
+		e->command = "console dial";
+		e->usage =
+			"Usage: console dial [extension[@context]]\n"
+			"       Dials a given extension (and context if specified)\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE)
+		return NULL;
+
+	if (a->argc > e->args + 1)
+		return CLI_SHOWUSAGE;
 	if (o->owner) {	/* already in a call */
 		int i;
 		struct ast_frame f = { AST_FRAME_DTMF, 0 };
 
-		if (argc == 1) {	/* argument is mandatory here */
-			ast_cli(fd, "Already in a call. You can only dial digits until you hangup.\n");
-			return RESULT_FAILURE;
+		if (a->argc == e->args) {	/* argument is mandatory here */
+			ast_cli(a->fd, "Already in a call. You can only dial digits until you hangup.\n");
+			return CLI_FAILURE;
 		}
-		s = argv[2];
+		s = a->argv[e->args];
 		/* send the string one char at a time */
 		for (i = 0; i < strlen(s); i++) {
 			f.subclass = s[i];
 			ast_queue_frame(o->owner, &f);
 		}
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	}
 	/* if we have an argument split it into extension and context */
-	if (argc == 3)
-		s = ast_ext_ctx(argv[2], &mye, &myc);
+	if (a->argc == e->args + 1)
+		s = ast_ext_ctx(a->argv[e->args], &mye, &myc);
 	/* supply default values if needed */
 	if (mye == NULL)
 		mye = o->ext;
@@ -1242,15 +1278,11 @@ static int console_dial(int fd, int argc, char *argv[])
 		o->hookstate = 1;
 		oss_new(o, mye, myc, AST_STATE_RINGING);
 	} else
-		ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
+		ast_cli(a->fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	if (s)
 		free(s);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
-
-static char dial_usage[] =
-	"Usage: console dial [extension[@context]]\n"
-	"       Dials a given extension (and context if specified)\n";
 
 static int __console_mute_unmute(int mute)
 {
@@ -1379,21 +1411,10 @@ static int do_boost(int fd, int argc, char *argv[])
 }
 
 static struct ast_cli_entry cli_oss[] = {
-	{ { "console", "answer", NULL },
-	console_answer, "Answer an incoming console call",
-	answer_usage },
-
-	{ { "console", "hangup", NULL },
-	console_hangup, "Hangup a call on the console",
-	hangup_usage },
-
-	{ { "console", "flash", NULL },
-	console_flash, "Flash a call on the console",
-	flash_usage },
-
-	{ { "console", "dial", NULL },
-	console_dial, "Dial an extension on the console",
-	dial_usage },
+	NEW_CLI(console_answer, "Answer an incoming console call"),
+	NEW_CLI(console_hangup, "Hangup a call on the console"),
+	NEW_CLI(console_flash, "Flash a call on the console"),
+	NEW_CLI(console_dial, "Dial an extension on the console"),
 
 	{ { "console", "mute", NULL },
 	console_mute, "Disable mic input",
@@ -1407,13 +1428,8 @@ static struct ast_cli_entry cli_oss[] = {
 	console_transfer, "Transfer a call to a different extension",
 	transfer_usage },
 
-	{ { "console", "send", "text", NULL },
-	console_sendtext, "Send text to the remote device",
-	sendtext_usage },
-
-	{ { "console", "autoanswer", NULL },
-	console_autoanswer, "Sets/displays autoanswer",
-	autoanswer_usage, autoanswer_complete },
+	NEW_CLI(console_sendtext, "Send text to the remote device"),
+	NEW_CLI(console_autoanswer, "Sets/displays autoanswer"),
 
 	{ { "console", "boost", NULL },
 	do_boost, "Sets/displays mic boost in dB",
