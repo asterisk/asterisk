@@ -3507,6 +3507,11 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	}
 	p = newchan->tech_pvt;
 
+	if (!p) {
+		ast_log(LOG_WARNING, "No pvt after masquerade. Strange things may happen\n");
+		return -1;
+	}
+
 	ast_mutex_lock(&p->lock);
 	append_history(p, "Masq", "Old channel: %s\n", oldchan->name);
 	append_history(p, "Masq (cont)", "...new owner: %s\n", newchan->name);
