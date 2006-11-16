@@ -1441,7 +1441,10 @@ static char *parse_args(const char *s, int *argc, char *argv[], int max, int *tr
 	int quoted = 0;
 	int escaped = 0;
 	int whitespace = 1;
+	int dummy = 0;
 
+	if (trailingwhitespace == NULL)
+		trailingwhitespace = &dummy;
 	*trailingwhitespace = 0;
 	if (s == NULL)	/* invalid, though! */
 		return NULL;
@@ -1573,7 +1576,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	int tws = 0;
 	char *dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws);
 
-	if (!dup)	/* error */
+	if (!dup)	/* malloc error */
 		return NULL;
 	argindex = (!ast_strlen_zero(word) && x>0) ? x-1 : x;
 	/* rebuild the command, ignore tws */
@@ -1629,64 +1632,63 @@ int ast_cli_command(int fd, const char *s)
 	char *args[AST_MAX_ARGS + 1];
 	struct ast_cli_entry *e;
 	int x;
-	char *dup;
-	int tws;
-	
-	if (!(dup = parse_args(s, &x, args + 1, AST_MAX_ARGS, &tws)))
+	int res;
+	char *dup = parse_args(s, &x, args + 1, AST_MAX_ARGS, NULL);
+
+	if (dup == NULL)
 		return -1;
 
-	/* We need at least one entry, or ignore */
-	if (x > 0) {
-		AST_LIST_LOCK(&helpers);
-		e = find_cli(args + 1, 0);
-		if (e)
-			ast_atomic_fetchadd_int(&e->inuse, 1);
-		AST_LIST_UNLOCK(&helpers);
-		if (e) {
-			int res;
-			/* within calling the handler, argv[-1] contains a pointer
-			 * to the cli entry, and the array is null-terminated
-			 */
-			args[0] = (char *)e;
-			if (e->new_handler) {	/* new style */
-				char *retval;
-				struct ast_cli_args a = {
-					.fd = fd, .argc = x, .argv = args+1 };
-				retval = e->new_handler(e, CLI_HANDLER, &a);
-				if (retval == CLI_SUCCESS)
-					res = RESULT_SUCCESS;
-				else if (retval == CLI_SHOWUSAGE)
-					res = RESULT_SHOWUSAGE;
-				else
-					res = RESULT_FAILURE;
-			} else {		/* old style */
-				res = e->handler(fd, x, args + 1);
-			}
-			switch (res) {
-			case RESULT_SHOWUSAGE:
-				if (e->usage)
-					ast_cli(fd, "%s", e->usage);
-				else
-					ast_cli(fd, "Invalid usage, but no usage information available.\n");
-				break;
-			case RESULT_FAILURE:
-				ast_cli(fd, "Command '%s' failed.\n", s);
-				/* FALLTHROUGH */
-			default:
-				AST_LIST_LOCK(&helpers);
-				if (e->deprecated == 1) {
-					ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
-					e->deprecated = 2;
-				}
-				AST_LIST_UNLOCK(&helpers);
-				break;
-			}
-		} else 
-			ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(args + 1));
-		if (e)
-			ast_atomic_fetchadd_int(&e->inuse, -1);
+	if (x < 1)	/* We need at least one entry, otherwise ignore */
+		goto done;
+
+	AST_LIST_LOCK(&helpers);
+	e = find_cli(args + 1, 0);
+	if (e)
+		ast_atomic_fetchadd_int(&e->inuse, 1);
+	AST_LIST_UNLOCK(&helpers);
+	if (e == NULL) {
+		ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(args + 1));
+		goto done;
 	}
+	/*
+	 * Within the handler, argv[-1] contains a pointer to the ast_cli_entry.
+	 * Remember that the array returned by parse_args is NULL-terminated.
+	 */
+	args[0] = (char *)e;
+
+	if (!e->new_handler)	/* old style */
+		res = e->handler(fd, x, args + 1);
+	else {
+		struct ast_cli_args a = {
+			.fd = fd, .argc = x, .argv = args+1 };
+		char *retval = e->new_handler(e, CLI_HANDLER, &a);
+
+		if (retval == CLI_SUCCESS)
+			res = RESULT_SUCCESS;
+		else if (retval == CLI_SHOWUSAGE)
+			res = RESULT_SHOWUSAGE;
+		else
+			res = RESULT_FAILURE;
+	}
+	switch (res) {
+	case RESULT_SHOWUSAGE:
+		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
+		break;
+
+	case RESULT_FAILURE:
+		ast_cli(fd, "Command '%s' failed.\n", s);
+		/* FALLTHROUGH */
+	default:
+		AST_LIST_LOCK(&helpers);
+		if (e->deprecated == 1) {
+			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
+			e->deprecated = 2;
+		}
+		AST_LIST_UNLOCK(&helpers);
+		break;
+	}
+	ast_atomic_fetchadd_int(&e->inuse, -1);
+done:
 	free(dup);
-	
 	return 0;
 }
