@@ -203,6 +203,9 @@ static int local_answer(struct ast_channel *ast)
 	int isoutbound;
 	int res = -1;
 
+	if (!p)
+		return -1;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
@@ -276,6 +279,9 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	int res = -1;
 	int isoutbound;
 
+	if (!p)
+		return -1;
+
 	/* Just queue for delivery to the other side */
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
@@ -321,6 +327,9 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound;
 
+	if (!p)
+		return -1;
+
 	/* If this is an MOH hold or unhold, do it on the Local channel versus real channel */
 	if (condition == AST_CONTROL_HOLD) {
 		ast_moh_start(ast, data, NULL);
@@ -347,6 +356,9 @@ static int local_digit_begin(struct ast_channel *ast, char digit)
 	struct ast_frame f = { AST_FRAME_DTMF_BEGIN, };
 	int isoutbound;
 
+	if (!p)
+		return -1;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
@@ -362,6 +374,9 @@ static int local_digit_end(struct ast_channel *ast, char digit)
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF_END, };
 	int isoutbound;
+
+	if (!p)
+		return -1;
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
@@ -379,6 +394,9 @@ static int local_sendtext(struct ast_channel *ast, const char *text)
 	struct ast_frame f = { AST_FRAME_TEXT, };
 	int isoutbound;
 
+	if (!p)
+		return -1;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.data = (char *) text;
@@ -395,6 +413,9 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	struct ast_frame f = { AST_FRAME_HTML, };
 	int isoutbound;
 
+	if (!p)
+		return -1;
+	
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = subclass;
@@ -413,6 +434,9 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	int res;
 	struct ast_var_t *varptr = NULL, *new;
 	size_t len, namelen;
+
+	if (!p)
+		return -1;
 	
 	ast_mutex_lock(&p->lock);
 
@@ -453,6 +477,9 @@ static int local_hangup(struct ast_channel *ast)
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct ast_channel *ochan = NULL;
 	int glaredetect = 0;
+
+	if (!p)
+		return -1;
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
