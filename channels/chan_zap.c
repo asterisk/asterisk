@@ -7320,8 +7320,9 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 		} else {
 			if (si->totalchans == 31) { /* if it's an E1 */
 				pris[*span].dchannels[0] = 16 + offset;
-			} else {
-				pris[*span].dchannels[0] = 24 + offset;
+			} else { /* T1 or BRI: D Channel is the last Channel */
+				pris[*span].dchannels[0] = 
+					si->totalchans + offset;
 			}
 			pris[*span].dchanavail[0] |= DCHAN_PROVISIONED;
 			pris[*span].offset = offset;
