@@ -1036,7 +1036,7 @@ static struct ast_cli_entry cli_cli[] = {
 /*!
  * Some regexp characters in cli arguments are reserved and used as separators.
  */
-static const char cli_rsvd[] = "[]{}|*";
+static const char cli_rsvd[] = "[]{}|*%";
 
 /*!
  * initialize the _full_cmd string and related parameters,
@@ -1111,6 +1111,12 @@ static struct ast_cli_entry *cli_next(struct cli_iterator *i)
  * match a word in the CLI entry.
  * returns -1 on mismatch, 0 on match of an optional word,
  * 1 on match of a full word.
+ *
+ * The pattern can be
+ *   any_word		match for equal
+ *   [foo|bar|baz]	optionally, one of these words
+ *   {foo|bar|baz}	exactly, one of these words
+ *   %			any word
  */
 static int word_match(const char *cmd, const char *cli_word)
 {
@@ -1123,6 +1129,10 @@ static int word_match(const char *cmd, const char *cli_word)
 		return (strcasecmp(cmd, cli_word) == 0) ? 1 : -1;
 	/* regexp match, takes [foo|bar] or {foo|bar} */
 	l = strlen(cmd);
+	/* wildcard match - will extend in the future */
+	if (l > 0 && cli_word[0] == '%') {
+		return 1;	/* wildcard */
+	}
 	pos = strcasestr(cli_word, cmd);
 	if (pos == NULL) /* not found, say ok if optional */
 		return cli_word[0] == '[' ? 0 : -1;
@@ -1158,8 +1168,13 @@ static char *is_prefix(const char *word, const char *token,
 		return (pos != 0) ? NULL : strdup(token);
 	}
 	/* now handle regexp match */
+
+	/* Wildcard always matches, so we never do is_prefix on them */
+
 	t1 = ast_strdupa(token + 1);	/* copy, skipping first char */
 	while (pos >= 0 && (s = strsep(&t1, cli_rsvd)) && *s) {
+		if (*s == '%')	/* wildcard */
+			continue;
 		if (strncasecmp(s, word, lw))	/* no match */
 			continue;
 		(*actual)++;
@@ -1608,7 +1623,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 				break;
 		}
 
-		if (src < argindex)	/* not a match */
+		if (src != argindex)	/* not a match */
 			continue;
 		ret = is_prefix(argv[src], e->cmda[dst], state - matchnum, &n);
 		matchnum += n;	/* this many matches here */
