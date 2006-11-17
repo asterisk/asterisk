@@ -1427,7 +1427,6 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		if (l > 5)
 			l = 5;
 		/* XXX watch out, should stop to the non-generator parts */
-		ast_verbose("'%s' '%s' at %d\n", a->line + l, a->word, a->n);
 		return __ast_cli_generator(a->line + l, a->word, a->n, 0);
 	}
 	if (a->argc == 1)
