@@ -1100,13 +1100,6 @@ static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
-static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
-{
-	static char *choices[] = { "on", "off", NULL };
-
-	return (pos != 3) ? NULL : ast_cli_complete(word, choices, state);
-}
-
 /*
  * answer command from the console
  */
