@@ -425,7 +425,7 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "module show";
+		e->command = "module show [like]";
 		e->usage =
 			"Usage: module show [like keyword]\n"
 			"       Shows Asterisk modules currently in use, and usage statistics.\n";
@@ -433,8 +433,6 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	case CLI_GENERATE:
 		if (a->pos == e->args)
-			return a->n == 0 ? strdup("like") : NULL;
-		else if (a->pos == e->args+1 && strcasestr(a->line," like "))
 			return ast_module_helper(a->line, a->word, a->pos, a->n, a->pos, 0);
 		else
 			return NULL;
@@ -442,10 +440,10 @@ static char *handle_modlist(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	/* all the above return, so we proceed with the handler.
 	 * we are guaranteed to have argc >= e->args
 	 */
-	if (a->argc == e->args)
+	if (a->argc == e->args - 1)
 		like = "";
-	else if (a->argc == e->args + 2 && !strcmp(a->argv[e->args],"like"))
-		like = a->argv[e->args + 1];
+	else if (a->argc == e->args + 1 && !strcasecmp(a->argv[e->args-1], "like") )
+		like = a->argv[e->args];
 	else
 		return CLI_SHOWUSAGE;
 		
