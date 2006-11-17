@@ -200,16 +200,18 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	int fd = a->fd;
 	int argc = a->argc;
 	char **argv = a->argv;
+	int *dst;
+	char *what;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core set verbose [off|atleast]";
+		e->command = "core set {debug|verbose} [off|atleast]";
 		e->usage =
-			"Usage: core set verbose [atleast] <level>\n"
-			"       core set verbose off\n"
-			"       Sets level of verbose messages to be displayed.  0 or off means\n"
-			"       no messages should be displayed. Equivalent to -v[v[v...]]\n"
-			"       on startup\n";
+			"Usage: core set {debug|verbose} [atleast] <level>\n"
+			"       core set {debug|verbose} off\n"
+			"       Sets level of debug or verbose messages to be displayed.\n"
+			"	0 or off means no messages should be displayed.\n"
+			"	Equivalent to -d[d[...]] or -v[v[v...]] on startup\n";
 		return NULL;
 
 	case CLI_GENERATE:
@@ -221,7 +223,13 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 
 	if (argc < e->args)
 		return CLI_SHOWUSAGE;
-
+	if (!strcasecmp(argv[e->args - 2], "debug")) {
+		dst = &option_debug;
+		what = "Core debug";
+	} else {
+		dst = &option_verbose;
+		what = "Verbosity";
+	}
 	if (argc == e->args && !strcasecmp(argv[e->args - 1], "off")) {
 		newlevel = 0;
 		goto done;
@@ -234,83 +242,15 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 
 done:
-	if (!atleast || newlevel > option_verbose)
-		option_verbose = newlevel;
-	if (oldval > 0 && option_verbose == 0)
-		ast_cli(fd, "Verbosity is now OFF\n");
-	else if (option_verbose > 0) {
-		if (oldval == option_verbose)
-			ast_cli(fd, "Verbosity is at least %d\n", option_verbose);
+	if (!atleast || newlevel > *dst)
+		*dst = newlevel;
+	if (oldval > 0 && *dst == 0)
+		ast_cli(fd, "%s is now OFF\n", what);
+	else if (*dst > 0) {
+		if (oldval == *dst)
+			ast_cli(fd, "%s is at least %d\n", what, *dst);
 		else
-			ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
-	}
-
-	return CLI_SUCCESS;
-}
-
-static char *handle_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
-{
-	int oldval = option_debug;
-	int newlevel;
-	int atleast = 0;
-	char *filename = '\0';
-	int fd = a->fd;
-	int argc = a->argc;
-	char **argv = a->argv;
-
-	switch (cmd) {
-	case CLI_INIT:
-		e->command = "core set debug [off|atleast]";
-		e->usage =
-			"Usage: core set debug [atleast] <level> [filename]\n"
-			"       core set debug off\n"
-			"       Sets level of core debug messages to be displayed. 0 or 'off' means\n"
-			"       no messages should be displayed.  Equivalent to -d[d[d...]]\n"
-			"       on startup.  If filename is specified, debugging will be\n"
-			"       limited to just that file.\n";
-		return NULL;
-
-	case CLI_GENERATE:
-		return NULL;
-	}
-	if (argc < e->args)
-		return CLI_SHOWUSAGE;
-
-	if (argc == e->args && !strcasecmp(argv[e->args-1], "off")) {
-		newlevel = 0;
-		goto done;
-	}
-	if (!strcasecmp(argv[e->args-1], "atleast"))
-		atleast = 1;
-	if (argc < e->args + atleast || argc > e->args + atleast + 1)
-		return CLI_SHOWUSAGE;
-	if (sscanf(argv[e->args + atleast-1], "%d", &newlevel) != 1)
-		return CLI_SHOWUSAGE;
-
-	if (argc == e->args + atleast) {
-		debug_filename[0] = '\0';
-	} else {
-		ast_copy_string(debug_filename, argv[e->args + atleast], sizeof(debug_filename));
-	}
-
-done:
-	if (!atleast || newlevel > option_debug)
-		option_debug = newlevel;
-
-	if (oldval > 0 && option_debug == 0)
-		ast_cli(fd, "Core debug is now OFF\n");
-	else if (option_debug > 0) {
-		if (filename) {
-			if (oldval == option_debug)
-				ast_cli(fd, "Core debug is at least %d, file '%s'\n", option_debug, filename);
-			else
-				ast_cli(fd, "Core debug was %d and is now %d, file '%s'\n", oldval, option_debug, filename);
-		} else {
-			if (oldval == option_debug)
-				ast_cli(fd, "Core debug is at least %d\n", option_debug);
-			else
-				ast_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
-		}
+			ast_cli(fd, "%s was %d and is now %d\n", what, oldval, *dst);
 	}
 
 	return CLI_SUCCESS;
@@ -1064,9 +1004,7 @@ static struct ast_cli_entry cli_cli[] = {
 	NEW_CLI(handle_core_set_debug_channel, "Enable/disable debugging on a channel",
 		.deprecate_cmd = &cli_debug_channel_deprecated),
 
-	NEW_CLI(handle_set_debug, "Set level of debug chattiness"),
-
-	NEW_CLI(handle_verbose, "Set level of verboseness"),
+	NEW_CLI(handle_verbose, "Set level of debug/verbose chattiness"),
 
 	{ { "group", "show", "channels", NULL },
 	group_show_channels, "Display active channels with group(s)",
