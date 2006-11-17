@@ -982,7 +982,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_mutex_unlock(&f->lock);
 
 		if (targs.followmeflags.flags & FOLLOWMEFLAG_STATUSMSG) 
-			ast_stream_and_wait(chan, targs.statusprompt, chan->language, "");
+			ast_stream_and_wait(chan, targs.statusprompt, "");
 
 		snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
 		duration = 5;
@@ -1022,7 +1022,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		if (targs.status != 100) {
 			ast_moh_stop(chan);
 			if (targs.followmeflags.flags & FOLLOWMEFLAG_UNREACHABLEMSG) 
-				ast_stream_and_wait(chan, targs.sorryprompt, chan->language, "");
+				ast_stream_and_wait(chan, targs.sorryprompt, "");
 			res = 0;
 		} else {
 			caller = chan;

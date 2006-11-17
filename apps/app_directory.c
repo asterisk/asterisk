@@ -282,17 +282,17 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 #endif
 
 	if (ast_fileexists(fn, NULL, chan->language) > 0) {
-		res = ast_stream_and_wait(chan, fn, chan->language, AST_DIGIT_ANY);
+		res = ast_stream_and_wait(chan, fn, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		/* If Option 'e' was specified, also read the extension number with the name */
 		if (readext) {
-			ast_stream_and_wait(chan, "vm-extension", chan->language, AST_DIGIT_ANY);
+			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	} else {
 		res = ast_say_character_str(chan, S_OR(name, ext), AST_DIGIT_ANY, chan->language);
 		if (!ast_strlen_zero(name) && readext) {
-			ast_stream_and_wait(chan, "vm-extension", chan->language, AST_DIGIT_ANY);
+			ast_stream_and_wait(chan, "vm-extension", AST_DIGIT_ANY);
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	}
@@ -303,7 +303,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 
 	for (loop = 3 ; loop > 0; loop--) {
 		if (!res)
-			res = ast_stream_and_wait(chan, "dir-instr", chan->language, AST_DIGIT_ANY);
+			res = ast_stream_and_wait(chan, "dir-instr", AST_DIGIT_ANY);
 		if (!res)
 			res = ast_waitfordigit(chan, 3000);
 		ast_stopstream(chan);
@@ -622,7 +622,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 
 	for (;;) {
 		if (!res)
-			res = ast_stream_and_wait(chan, dirintro, chan->language, AST_DIGIT_ANY);
+			res = ast_stream_and_wait(chan, dirintro, AST_DIGIT_ANY);
 		ast_stopstream(chan);
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);

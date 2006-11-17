@@ -3599,17 +3599,17 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	}
 	
 	if (!strcmp(sound,"timeleft")) {	/* Queue support */
-		ast_stream_and_wait(chan, "vm-youhave", chan->language, "");
+		ast_stream_and_wait(chan, "vm-youhave", "");
 		if (min) {
 			ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, NULL);
-			ast_stream_and_wait(chan, "queue-minutes", chan->language, "");
+			ast_stream_and_wait(chan, "queue-minutes", "");
 		}
 		if (sec) {
 			ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, NULL);
-			ast_stream_and_wait(chan, "queue-seconds", chan->language, "");
+			ast_stream_and_wait(chan, "queue-seconds", "");
 		}
 	} else {
-		ast_stream_and_wait(chan, sound, chan->language, "");
+		ast_stream_and_wait(chan, sound, "");
 	}
 
 	ast_autoservice_stop(peer);
