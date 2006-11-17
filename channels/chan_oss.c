@@ -1065,11 +1065,10 @@ static struct ast_channel *oss_request(const char *type, int format, void *data,
 static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
-	static char *choices[] = { "on", "off", NULL };
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "console autoanswer";
+		e->command = "console autoanswer [on|off]";
 		e->usage =
 			"Usage: console autoanswer [on|off]\n"
 			"       Enables or disables autoanswer feature.  If used without\n"
@@ -1078,23 +1077,23 @@ static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;
 
 	case CLI_GENERATE:
-		return (a->pos != e->args + 1) ? NULL : ast_cli_complete(a->word, choices, a->n);
+		return NULL;
 	}
 
-	if (a->argc == e->args) {
+	if (a->argc == e->args - 1) {
 		ast_cli(a->fd, "Auto answer is %s.\n", o->autoanswer ? "on" : "off");
 		return CLI_SUCCESS;
 	}
-	if (a->argc != e->args + 1)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
 	if (o == NULL) {
 		ast_log(LOG_WARNING, "Cannot find device %s (should not happen!)\n",
 		    oss_active);
 		return CLI_FAILURE;
 	}
-	if (!strcasecmp(a->argv[e->args], "on"))
+	if (!strcasecmp(a->argv[e->args-1], "on"))
 		o->autoanswer = 1;
-	else if (!strcasecmp(a->argv[e->args], "off"))
+	else if (!strcasecmp(a->argv[e->args - 1], "off"))
 		o->autoanswer = 0;
 	else
 		return CLI_SHOWUSAGE;
@@ -1287,21 +1286,20 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
-	static char *choices[] = { "mute", "unmute", NULL };
 	char *s;
 	
 	if (cmd == CLI_INIT) {
-		e->command = "console";
+		e->command = "console {mute|unmute}";
 		e->usage =
-			"Usage: console [mute|unmute]\n"
+			"Usage: console {mute|unmute}\n"
 			"       Mute/unmute the microphone.\n";
 		return NULL;
 	} else if (cmd == CLI_GENERATE)
-		return (a->pos != e->args) ? NULL : ast_cli_complete(a->word, choices, a->n);
+		return NULL;
 
-	if (a->argc != e->args+1)
+	if (a->argc != e->args)
 		return CLI_SHOWUSAGE;
-	s = a->argv[e->args];
+	s = a->argv[e->args-1];
 	if (!strcasecmp(s, "mute"))
 		o->mute = 1;
 	else if (!strcasecmp(s, "unmute"))
