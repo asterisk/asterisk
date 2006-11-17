@@ -197,14 +197,13 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	int oldval = option_verbose;
 	int newlevel;
 	int atleast = 0;
-	static char *choices[] = { "off", "atleast", NULL };
 	int fd = a->fd;
 	int argc = a->argc;
 	char **argv = a->argv;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core set verbose";
+		e->command = "core set verbose [off|atleast]";
 		e->usage =
 			"Usage: core set verbose [atleast] <level>\n"
 			"       core set verbose off\n"
@@ -214,26 +213,24 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;
 
 	case CLI_GENERATE:
-		if (a->pos > e->args)
-			return NULL;
-		return ast_cli_complete(a->word, choices, a->n);
+		return NULL;
 	}
 	/* all the above return, so we proceed with the handler.
 	 * we are guaranteed to be called with argc >= e->args;
 	 */
 
-	if (argc < e->args + 1)
+	if (argc < e->args)
 		return CLI_SHOWUSAGE;
 
-	if (argc == e->args + 1 && !strcasecmp(argv[e->args], "off")) {
+	if (argc == e->args && !strcasecmp(argv[e->args - 1], "off")) {
 		newlevel = 0;
 		goto done;
 	}
-	if (!strcasecmp(argv[e->args], "atleast"))
+	if (!strcasecmp(argv[e->args-1], "atleast"))
 		atleast = 1;
-	if (argc != e->args + atleast + 1)
+	if (argc != e->args + atleast)
 		return CLI_SHOWUSAGE;
-	if (sscanf(argv[e->args + atleast], "%d", &newlevel) != 1)
+	if (sscanf(argv[e->args + atleast - 1], "%d", &newlevel) != 1)
 		return CLI_SHOWUSAGE;
 
 done:
@@ -257,14 +254,13 @@ static char *handle_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	int newlevel;
 	int atleast = 0;
 	char *filename = '\0';
-	static char *choices[] = { "off", "atleast", NULL };
 	int fd = a->fd;
 	int argc = a->argc;
 	char **argv = a->argv;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core set debug";
+		e->command = "core set debug [off|atleast]";
 		e->usage =
 			"Usage: core set debug [atleast] <level> [filename]\n"
 			"       core set debug off\n"
@@ -275,32 +271,26 @@ static char *handle_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 		return NULL;
 
 	case CLI_GENERATE:
-		if (a->pos > e->args)
-			return NULL;
-		return ast_cli_complete(a->word, choices, a->n);
+		return NULL;
 	}
-	/* all the above return, so we proceed with the handler.
-	 * we are guaranteed to be called with argc >= e->args;
-	 */
-
-	if (argc < e->args + 1)
+	if (argc < e->args)
 		return CLI_SHOWUSAGE;
 
-	if (argc == e->args + 1 && !strcasecmp(argv[e->args], "off")) {
+	if (argc == e->args && !strcasecmp(argv[e->args-1], "off")) {
 		newlevel = 0;
 		goto done;
 	}
-	if (!strcasecmp(argv[e->args], "atleast"))
+	if (!strcasecmp(argv[e->args-1], "atleast"))
 		atleast = 1;
-	if (argc < e->args + atleast + 1 || argc > e->args + atleast + 2)
+	if (argc < e->args + atleast || argc > e->args + atleast + 1)
 		return CLI_SHOWUSAGE;
-	if (sscanf(argv[e->args + atleast], "%d", &newlevel) != 1)
+	if (sscanf(argv[e->args + atleast-1], "%d", &newlevel) != 1)
 		return CLI_SHOWUSAGE;
 
-	if (argc == e->args + atleast + 1) {
+	if (argc == e->args + atleast) {
 		debug_filename[0] = '\0';
 	} else {
-		ast_copy_string(debug_filename, argv[e->args + atleast + 1], sizeof(debug_filename));
+		ast_copy_string(debug_filename, argv[e->args + atleast], sizeof(debug_filename));
 	}
 
 done:
@@ -545,7 +535,7 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core show channels";
+		e->command = "core show channels [concise|verbose]";
 		e->usage =
 			"Usage: core show channels [concise|verbose]\n"
 			"       Lists currently defined channels and some information about them. If\n"
@@ -554,23 +544,21 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			"       more and longer fields.\n";
 		return NULL;
 
-	case CLI_GENERATE: {
-		static char *choices[] = { "concise", "verbose", NULL };
-		return (a->pos != e->args) ? NULL : ast_cli_complete(a->word, choices, a->n);
-		}
+	case CLI_GENERATE:
+		return NULL;
 	}
 	fd = a->fd;
 	argc = a->argc;
 	argv = a->argv;
 
-	if (a->argc == e->args + 1) {
-		if (!strcasecmp(argv[3],"concise"))
+	if (a->argc == e->args) {
+		if (!strcasecmp(argv[e->args-1],"concise"))
 			concise = 1;
-		else if (!strcasecmp(argv[3],"verbose"))
+		else if (!strcasecmp(argv[e->args-1],"verbose"))
 			verbose = 1;
 		else
 			return CLI_SHOWUSAGE;
-	} else if (a->argc != e->args)
+	} else if (a->argc != e->args - 1)
 		return CLI_SHOWUSAGE;
 
 	if (!concise && !verbose)
@@ -1107,18 +1095,40 @@ static struct ast_cli_entry cli_cli[] = {
 	softhangup_help, complete_ch_3 },
 };
 
+/*!
+ * Some regexp characters in cli arguments are reserved and used as separators.
+ */
+static const char cli_rsvd[] = "[]{}|*";
+
+/*!
+ * initialize the _full_cmd string and related parameters,
+ * return 0 on success, -1 on error.
+ */
+static int set_full_cmd(struct ast_cli_entry *e)
+{
+	int i;
+	char buf[80];
+
+	ast_join(buf, sizeof(buf), e->cmda);
+	e->_full_cmd = strdup(buf);
+	if (!e->_full_cmd) {
+		ast_log(LOG_WARNING, "-- cannot allocate <%s>\n", buf);
+		return -1;
+	}
+	e->cmdlen = strcspn(e->_full_cmd, cli_rsvd);
+	for (i = 0; e->cmda[i]; i++)
+		;
+	e->args = i;
+	return 0;
+}
+
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
 void ast_builtins_init(void)
 {
 	struct ast_cli_entry *e;
 
-	for (e = builtins; e->cmda[0] != NULL; e++) {
-		char buf[80];
-		ast_join(buf, sizeof(buf), e->cmda);
-		e->_full_cmd = strdup(buf);
-		if (!e->_full_cmd)
-			ast_log(LOG_WARNING, "-- cannot allocate <%s>\n", buf);
-	}
+	for (e = builtins; e->cmda[0] != NULL; e++)
+		set_full_cmd(e);
 
 	ast_cli_register_multiple(cli_cli, sizeof(cli_cli) / sizeof(struct ast_cli_entry));
 }
@@ -1160,11 +1170,76 @@ static struct ast_cli_entry *cli_next(struct cli_iterator *i)
 }
 
 /*!
+ * match a word in the CLI entry.
+ * returns -1 on mismatch, 0 on match of an optional word,
+ * 1 on match of a full word.
+ */
+static int word_match(const char *cmd, const char *cli_word)
+{
+	int l;
+	char *pos;
+
+	if (ast_strlen_zero(cmd) || ast_strlen_zero(cli_word))
+		return -1;
+	if (!strchr(cli_rsvd, cli_word[0])) /* normal match */
+		return (strcasecmp(cmd, cli_word) == 0) ? 1 : -1;
+	/* regexp match, takes [foo|bar] or {foo|bar} */
+	l = strlen(cmd);
+	pos = strcasestr(cli_word, cmd);
+	if (pos == NULL) /* not found, say ok if optional */
+		return cli_word[0] == '[' ? 0 : -1;
+	if (pos == cli_word)	/* no valid match at the beginning */
+		return -1;
+	if (strchr(cli_rsvd, pos[-1]) && strchr(cli_rsvd, pos[l]))
+		return 1;	/* valid match */
+	return -1;	/* not found */
+}
+
+/*! \brief if word is a valid prefix for token, returns the pos-th
+ * match as a malloced string, or NULL otherwise.
+ * Always tell in *actual how many matches we got.
+ */
+static char *is_prefix(const char *word, const char *token,
+	int pos, int *actual)
+{
+	int lw;
+	char *s, *t1;
+
+	*actual = 0;
+	if (ast_strlen_zero(token))
+		return NULL;
+	if (ast_strlen_zero(word))
+		word = "";	/* dummy */
+	lw = strlen(word);
+	if (strcspn(word, cli_rsvd) != lw)
+		return NULL;	/* no match if word has reserved chars */
+	if (strchr(cli_rsvd, token[0]) == NULL) {	/* regular match */
+		if (strncasecmp(token, word, lw))	/* no match */
+			return NULL;
+		*actual = 1;
+		return (pos != 0) ? NULL : strdup(token);
+	}
+	/* now handle regexp match */
+	t1 = ast_strdupa(token + 1);	/* copy, skipping first char */
+	while (pos >= 0 && (s = strsep(&t1, cli_rsvd)) && *s) {
+		if (strncasecmp(s, word, lw))	/* no match */
+			continue;
+		(*actual)++;
+		if (pos-- == 0)
+			return strdup(s);
+	}
+	return NULL;
+}
+
+/*!
  * \brief locate a cli command in the 'helpers' list (which must be locked).
  * exact has 3 values:
  *      0       returns if the search key is equal or longer than the entry.
+ *		note that trailing optional arguments are skipped.
  *      -1      true if the mismatch is on the last word XXX not true!
  *      1       true only on complete, exact match.
+ *
+ * The search compares word by word taking care of regexps in e->cmda
  */
 static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 {
@@ -1173,32 +1248,37 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 	struct cli_iterator i = { NULL, NULL};
 
 	while( (e = cli_next(&i)) ) {
-		int y;
-		for (y = 0 ; cmds[y] && e->cmda[y]; y++) {
-			if (strcasecmp(e->cmda[y], cmds[y]))
+		/* word-by word regexp comparison */
+		char * const *src = cmds;
+		char * const *dst = e->cmda;
+		int n = 0;
+		for (;; dst++, src += n) {
+			n = word_match(*src, *dst);
+			if (n < 0)
 				break;
 		}
-		if (e->cmda[y] == NULL) {	/* no more words in candidate */
-			if (cmds[y] == NULL)	/* this is an exact match, cannot do better */
+		if (ast_strlen_zero(*dst) || ((*dst)[0] == '[' && ast_strlen_zero(dst[1]))) {
+			/* no more words in 'e' */
+			if (ast_strlen_zero(*src))	/* exact match, cannot do better */
 				break;
-			/* here the search key is longer than the candidate */
+			/* Here, cmds has more words than the entry 'e' */
 			if (match_type != 0)	/* but we look for almost exact match... */
 				continue;	/* so we skip this one. */
 			/* otherwise we like it (case 0) */
-		} else {			/* still words in candidate */
-			if (cmds[y] == NULL)	/* search key is shorter, not good */
+		} else {	/* still words in 'e' */
+			if (ast_strlen_zero(*src))
+				continue; /* cmds is shorter than 'e', not good */
+			/* Here we have leftover words in cmds and 'e',
+			 * but there is a mismatch. We only accept this one if match_type == -1
+			 * and this is the last word for both.
+			 */
+			if (match_type != -1 || !ast_strlen_zero(src[1]) ||
+			    !ast_strlen_zero(dst[1]))	/* not the one we look for */
 				continue;
-			/* if we get here, both words exist but there is a mismatch */
-			if (match_type == 0)	/* not the one we look for */
-				continue;
-			if (match_type == 1)	/* not the one we look for */
-				continue;
-			if (cmds[y+1] != NULL || e->cmda[y+1] != NULL)	/* not the one we look for */
-				continue;
-			/* we are in case match_type == -1 and mismatch on last word */
+			/* good, we are in case match_type == -1 and mismatch on last word */
 		}
-		if (y > matchlen) {	/* remember the candidate */
-			matchlen = y;
+		if (src - cmds > matchlen) {	/* remember the candidate */
+			matchlen = src - cmds;
 			cand = e;
 		}
 	}
@@ -1251,7 +1331,6 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 {
 	struct ast_cli_entry *cur;
-	char fulle[80] ="";
 	int i, lf, ret = -1;
 
 	if (e->handler == NULL) {	/* new style entry, run the handler to init fields */
@@ -1274,22 +1353,20 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 		}
 		*dst++ = NULL;
 	}
-	for (i = 0; e->cmda[i]; i++)
-		;
-	e->args = i;
-	ast_join(fulle, sizeof(fulle), e->cmda);
+	if (set_full_cmd(e))
+		goto done;
 	AST_LIST_LOCK(&helpers);
 	
 	if (find_cli(e->cmda, 1)) {
 		AST_LIST_UNLOCK(&helpers);
-		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
+		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", e->_full_cmd);
+		free(e->_full_cmd);
+		e->_full_cmd = NULL;
 		goto done;
 	}
-	e->_full_cmd = ast_strdup(fulle);
-	if (!e->_full_cmd)
-		goto done;
-
-	if (ed) {
+	if (!ed) {
+		e->deprecated = 0;
+	} else {
 		e->deprecated = 1;
 		e->summary = ed->summary;
 		e->usage = ed->usage;
@@ -1299,16 +1376,14 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 		   To show command B, you just need to always use ed->_full_cmd.
 		 */
 		e->_deprecated_by = S_OR(ed->_deprecated_by, ed->_full_cmd);
-	} else {
-		e->deprecated = 0;
 	}
 
-	lf = strlen(fulle);
+	lf = e->cmdlen;
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&helpers, cur, list) {
-		int len = strlen(cur->_full_cmd);
+		int len = cur->cmdlen;
 		if (lf < len)
 			len = lf;
-		if (strncasecmp(fulle, cur->_full_cmd, len) < 0) {
+		if (strncasecmp(e->_full_cmd, cur->_full_cmd, len) < 0) {
 			AST_LIST_INSERT_BEFORE_CURRENT(&helpers, e, list); 
 			break;
 		}
@@ -1390,7 +1465,7 @@ static int help1(int fd, char *match[], int locked)
 			continue;
 		if (match && strncasecmp(matchstr, e->_full_cmd, len))
 			continue;
-		ast_cli(fd, "%25.25s  %s\n", e->_full_cmd, S_OR(e->summary, "<no description available>"));
+		ast_cli(fd, "%30.30s %s\n", e->_full_cmd, S_OR(e->summary, "<no description available>"));
 		found++;
 	}
 	AST_LIST_UNLOCK(&helpers);
@@ -1558,6 +1633,9 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 	return match_list;
 }
 
+/*
+ * generate the entry at position 'state'
+ */
 static char *__ast_cli_generator(const char *text, const char *word, int state, int lock)
 {
 	char *argv[AST_MAX_ARGS];
@@ -1584,15 +1662,24 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	if (lock)
 		AST_LIST_LOCK(&helpers);
 	while ( (e = cli_next(&i)) ) {
-		int lc = strlen(e->_full_cmd);
-		if (e->_full_cmd[0] != '_' && lc > 0 && matchlen <= lc &&
-				!strncasecmp(matchstr, e->_full_cmd, matchlen)) {
-			/* Found initial part, return a copy of the next word... */
-			if (e->cmda[argindex] && ++matchnum > state) {
-				ret = strdup(e->cmda[argindex]); /* we need a malloced string */
+		/* XXX repeated code */
+		int src = 0, dst = 0, n = 0;
+		for (;; dst++, src += n) {
+			n = word_match(argv[src], e->cmda[dst]);
+			if (n < 0)
 				break;
-			}
-		} else if (!strncasecmp(matchstr, e->_full_cmd, lc) && matchstr[lc] < 33) {
+		}
+
+		if (src < argindex)	/* not a match */
+			continue;
+		ret = is_prefix(argv[src], e->cmda[dst], state - matchnum, &n);
+		matchnum += n;	/* this many matches here */
+		if (ret) {
+			if (matchnum > state)
+				break;
+			free(ret);
+			ret = NULL;
+		} else if (ast_strlen_zero(e->cmda[dst])) {
 			/* This entry is a prefix of the command string entered
 			 * (only one entry in the list should have this property).
 			 * Run the generator if one is available. In any case we are done.
