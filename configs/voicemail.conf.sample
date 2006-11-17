@@ -66,7 +66,11 @@ maxlogins=3
 
 ; If you need to have an external program, i.e. /usr/bin/myapp
 ; called when a voicemail password is changed, uncomment this:
+; Note: If this is set, the password will NOT be changed in voicemail.conf
+; If you would like to also change the password in voicemail.conf, use
+; the externpassnotify option below instead.
 ;externpass=/usr/bin/myapp
+;externpassnotify=/usr/bin/myapp
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
 ; The character set for voicemail messages can be specified here

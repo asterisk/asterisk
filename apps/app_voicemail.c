@@ -402,6 +402,10 @@ static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
 
+#define PWDCHANGE_INTERNAL (1 << 1)
+#define PWDCHANGE_EXTERNAL (1 << 2)
+static int pwdchange = PWDCHANGE_INTERNAL;
+
 #if ODBC_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
 #elif IMAP_STORAGE
@@ -5741,10 +5745,11 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		if (++tries == 3)
 			return -1;
 	}
-	if (ast_strlen_zero(ext_pass_cmd)) 
-		vm_change_password(vmu,newpassword);
-	else 
-		vm_change_password_shell(vmu,newpassword);
+	if (pwdchange & PWDCHANGE_INTERNAL)
+		vm_change_password(vmu, newpassword);
+	if ((pwdchange & PWDCHANGE_EXTERNAL) && !ast_strlen_zero(ext_pass_cmd))
+		vm_change_password_shell(vmu, newpassword);
+
 	if (option_debug)
 		ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 	cmd = ast_play_and_wait(chan, vm_passchanged);
@@ -5844,10 +5849,11 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				cmd = ast_play_and_wait(chan, vm_mismatch);
 				break;
 			}
-			if (ast_strlen_zero(ext_pass_cmd)) 
-				vm_change_password(vmu,newpassword);
-			else 
-				vm_change_password_shell(vmu,newpassword);
+			if (pwdchange & PWDCHANGE_INTERNAL)
+				vm_change_password(vmu, newpassword);
+			if ((pwdchange & PWDCHANGE_EXTERNAL) && !ast_strlen_zero(ext_pass_cmd))
+				vm_change_password_shell(vmu, newpassword);
+
 			if (option_debug)
 				ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 			cmd = ast_play_and_wait(chan, vm_passchanged);
@@ -7176,7 +7182,12 @@ static int load_config(void)
 		/* External password changing command */
 		if ((extpc = ast_variable_retrieve(cfg, "general", "externpass"))) {
 			ast_copy_string(ext_pass_cmd,extpc,sizeof(ext_pass_cmd));
+			pwdchange = PWDCHANGE_EXTERNAL;
+		} else if ((extpc = ast_variable_retrieve(cfg, "general", "externpassnotify"))) {
+			ast_copy_string(ext_pass_cmd,extpc,sizeof(ext_pass_cmd));
+			pwdchange = PWDCHANGE_EXTERNAL | PWDCHANGE_INTERNAL;
 		}
+
 #ifdef IMAP_STORAGE
 		/* IMAP server address */
 		if ((imap_server = ast_variable_retrieve(cfg, "general", "imapserver"))) {
