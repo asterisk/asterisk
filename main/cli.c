@@ -75,12 +75,6 @@ void ast_cli(int fd, char *fmt, ...)
 
 static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
 
-static char help_help[] =
-"Usage: help [topic]\n"
-"       When called with a topic as an argument, displays usage\n"
-"       information on the given command. If called without a\n"
-"       topic, it provides a list of commands.\n";
-
 static char logger_mute_help[] = 
 "Usage: logger mute\n"
 "       Disables logging output to the current console, making it possible to\n"
@@ -949,20 +943,6 @@ static int group_show_channels(int fd, int argc, char *argv[])
 #undef FORMAT_STRING
 }
 
-static int handle_help(int fd, int argc, char *argv[]);
-
-static char * complete_help(const char *text, const char *word, int pos, int state)
-{
-	/* skip first 4 or 5 chars, "help "*/
-	int l = strlen(text);
-
-	if (l > 5)
-		l = 5;
-	text += l;
-	/* XXX watch out, should stop to the non-generator parts */
-	return __ast_cli_generator(text, word, state, 0);
-}
-
 /* XXX Nothing in this array can currently be deprecated...
    You have to change the way find_cli works in order to remove this array
    I recommend doing this eventually...
@@ -989,6 +969,8 @@ static struct ast_cli_entry cli_module_load_deprecated = NEW_CLI(handle_load_dep
 static struct ast_cli_entry cli_module_reload_deprecated = NEW_CLI(handle_reload_deprecated, "reload modules by name");
 static struct ast_cli_entry cli_module_unload_deprecated = NEW_CLI(handle_unload_deprecated, "unload modules by name");
 
+static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
 	NEW_CLI(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
@@ -1008,9 +990,7 @@ static struct ast_cli_entry cli_cli[] = {
 	group_show_channels, "Display active channels with group(s)",
 	group_show_channels_help },
 
-	{ { "help", NULL },
-	handle_help, "Display help list, or specific help on a command",
-	help_help, complete_help },
+	NEW_CLI(handle_help, "Display help list, or specific help on a command"),
 
 	{ { "logger", "mute", NULL },
 	handle_logger_mute, "Toggle logging output to a console",
@@ -1388,12 +1368,12 @@ void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 }
 
 
-/*! \brief helper for help_workhorse and final part of
- * handle_help. if locked = 0 it's just help_workhorse,
+/*! \brief helper for final part of
+ * handle_help. if locked = 0 it's just "help_workhorse",
  * otherwise assume the list is already locked and print
  * an error message if not found.
  */
-static int help1(int fd, char *match[], int locked)
+static char *help1(int fd, char *match[], int locked)
 {
 	char matchstr[80] = "";
 	struct ast_cli_entry *e;
@@ -1419,36 +1399,49 @@ static int help1(int fd, char *match[], int locked)
 		ast_cli(fd, "%30.30s %s\n", e->_full_cmd, S_OR(e->summary, "<no description available>"));
 		found++;
 	}
-	AST_LIST_UNLOCK(&helpers);
+	if (!locked)
+		AST_LIST_UNLOCK(&helpers);
 	if (!locked && !found && matchstr[0])
 		ast_cli(fd, "No such command '%s'.\n", matchstr);
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int help_workhorse(int fd, char *match[])
-{
-	return help1(fd, match, 0 /* do not print errors */);
-}
-
-static int handle_help(int fd, int argc, char *argv[])
+static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char fullcmd[80];
-	struct ast_cli_entry *e;
+	struct ast_cli_entry *my_e;
 
-	if (argc < 1)
-		return RESULT_SHOWUSAGE;
-	if (argc == 1)
-		return help_workhorse(fd, NULL);
+	if (cmd == CLI_INIT) {
+		e->command = "help";
+		e->usage =
+			"Usage: help [topic]\n"
+			"       When called with a topic as an argument, displays usage\n"
+			"       information on the given command. If called without a\n"
+			"       topic, it provides a list of commands.\n";
+		return NULL;
+
+	} else if (cmd == CLI_GENERATE) {
+		/* skip first 4 or 5 chars, "help " */
+		int l = strlen(a->line);
+
+		if (l > 5)
+			l = 5;
+		/* XXX watch out, should stop to the non-generator parts */
+		ast_verbose("'%s' '%s' at %d\n", a->line + l, a->word, a->n);
+		return __ast_cli_generator(a->line + l, a->word, a->n, 0);
+	}
+	if (a->argc == 1)
+		return help1(a->fd, NULL, 0);
 
 	AST_LIST_LOCK(&helpers);
-	e = find_cli(argv + 1, 1);	/* try exact match first */
-	if (!e)
-		return help1(fd, argv + 1, 1 /* locked */);
-	if (e->usage)
-		ast_cli(fd, "%s", e->usage);
+	my_e = find_cli(a->argv + 1, 1);	/* try exact match first */
+	if (!my_e)
+		return help1(a->fd, a->argv + 1, 1 /* locked */);
+	if (my_e->usage)
+		ast_cli(a->fd, "%s", my_e->usage);
 	else {
-		ast_join(fullcmd, sizeof(fullcmd), argv+1);
-		ast_cli(fd, "No help text available for '%s'.\n", fullcmd);
+		ast_join(fullcmd, sizeof(fullcmd), a->argv+1);
+		ast_cli(a->fd, "No help text available for '%s'.\n", fullcmd);
 	}
 	AST_LIST_UNLOCK(&helpers);
 	return RESULT_SUCCESS;
@@ -1584,6 +1577,17 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 	return match_list;
 }
 
+/*! \brief returns true if there are more words to match */
+static int more_words (char * const *dst)
+{
+	int i;
+	for (i = 0; dst[i]; i++) {
+		if (dst[i][0] != '[')
+			return -1;
+	}
+	return 0;
+}
+	
 /*
  * generate the entry at position 'state'
  */
@@ -1621,7 +1625,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 				break;
 		}
 
-		if (src != argindex)	/* not a match */
+		if (src != argindex && more_words(e->cmda + dst))	/* not a match */
 			continue;
 		ret = is_prefix(argv[src], e->cmda[dst], state - matchnum, &n);
 		matchnum += n;	/* this many matches here */
