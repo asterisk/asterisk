@@ -426,6 +426,10 @@ struct zt_ss7 {
 	int linkstate[NUM_DCHANS];
 	int numchans;
 	int type;
+	enum {
+		LINKSET_STATE_DOWN = 0,
+		LINKSET_STATE_UP
+	} state;
 	struct ss7 *ss7;
 	struct zt_pvt *pvts[MAX_CHANNELS];				/*!< Member channel pvt structs */
 };
@@ -8536,10 +8540,18 @@ static void *ss7_linkset(void *data)
 			switch (e->e) {
 			case SS7_EVENT_UP:
 				ast_verbose("--- SS7 Up ---\n");
-				ss7_reset_linkset(linkset);
+				if (linkset->state != LINKSET_STATE_UP)
+					ss7_reset_linkset(linkset);
+				linkset->state = LINKSET_STATE_UP;
 				break;
 			case SS7_EVENT_DOWN:
 				ast_verbose("--- SS7 Down ---\n");
+				linkset->state = LINKSET_STATE_DOWN;
+				for (i = 0; i < linkset->numchans; i++) {
+					struct zt_pvt *p = linkset->pvts[i];
+					if (p)
+						p->inalarm = 1;
+				}
 				break;
 			case MTP2_LINK_UP:
 				ast_log(LOG_DEBUG, "MTP2 link up\n");
