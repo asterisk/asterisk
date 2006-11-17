@@ -4461,6 +4461,27 @@ static int manager_pause_queue_member(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int manager_queue_log_custom(struct mansession *s, struct message *m)
+{
+	char *queuename, *event, *message, *interface, *uniqueid;
+
+	queuename = astman_get_header(m, "Queue");
+	uniqueid = astman_get_header(m, "UniqueId");
+	interface = astman_get_header(m, "Interface");
+	event = astman_get_header(m, "Event");
+	message = astman_get_header(m, "Message");
+
+	if (ast_strlen_zero(queuename) || ast_strlen_zero(event)) {
+		astman_send_error(s, m, "Need 'Queue' and 'Event' parameters.");
+		return 0;
+	}
+
+	ast_queue_log(queuename, S_OR(uniqueid, "NONE"), interface, event, "%s", message);
+	astman_send_ack(s, m, "Event added successfully");
+
+	return 0;
+}
+
 static int handle_queue_add_member(int fd, int argc, char *argv[])
 {
 	char *queuename, *interface, *membername;
@@ -4648,6 +4669,7 @@ static int unload_module(void)
 	res |= ast_manager_unregister("QueueAdd");
 	res |= ast_manager_unregister("QueueRemove");
 	res |= ast_manager_unregister("QueuePause");
+	res |= ast_manager_unregister("QueueLog");
 	res |= ast_unregister_application(app_aqm);
 	res |= ast_unregister_application(app_rqm);
 	res |= ast_unregister_application(app_pqm);
@@ -4686,6 +4708,7 @@ static int load_module(void)
 	res |= ast_manager_register("QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue.");
 	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
 	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
+	res |= ast_manager_register("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom, "Adds custom entry in queue_log");
 	res |= ast_custom_function_register(&queuevar_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);
