@@ -1917,7 +1917,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 		numparked++;
 	}
 	ast_mutex_unlock(&parking_lock);
-	ast_cli(fd, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
+	ast_cli(fd, "%d parked call%s.\n", numparked, ESS(numparked));
 
 
 	return RESULT_SUCCESS;

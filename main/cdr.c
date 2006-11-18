@@ -984,10 +984,10 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 				nextbatchtime = ast_sched_when(sched, cdr_sched);
 			ast_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
 			ast_cli(fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
-			ast_cli(fd, "CDR current batch size: %d record%s\n", cnt, (cnt != 1) ? "s" : "");
-			ast_cli(fd, "CDR maximum batch size: %d record%s\n", batchsize, (batchsize != 1) ? "s" : "");
-			ast_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, (batchtime != 1) ? "s" : "");
-			ast_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, (nextbatchtime != 1) ? "s" : "");
+			ast_cli(fd, "CDR current batch size: %d record%s\n", cnt, ESS(cnt));
+			ast_cli(fd, "CDR maximum batch size: %d record%s\n", batchsize, ESS(batchsize));
+			ast_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, ESS(batchtime));
+			ast_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, ESS(nextbatchtime));
 		}
 		AST_LIST_LOCK(&be_list);
 		AST_LIST_TRAVERSE(&be_list, beitem, list) {

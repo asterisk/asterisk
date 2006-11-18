@@ -88,7 +88,7 @@ static int cli_realtime_update(int fd, int argc, char **argv) {
 		return RESULT_SUCCESS;
 	}
 
-       ast_cli(fd, "Updated %d RealTime record%s.\n", res, (res != 1) ? "s" : "");
+       ast_cli(fd, "Updated %d RealTime record%s.\n", res, ESS(res));
 
 	return RESULT_SUCCESS;
 }
