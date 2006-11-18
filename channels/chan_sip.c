@@ -8925,11 +8925,12 @@ static char *get_calleridname(const char *input, char *output, size_t outputsize
 	if (!end || end == input)	/* we require a part in brackets */
 		return NULL;
 
-	/* move away from "<" */
-	end--;
+	end--; /* move just before "<" */
 
-	/* we found "name" */
-	if (tmp && tmp < end) {
+	if (tmp && tmp <= end) {
+		/* The quote (tmp) precedes the bracket (end+1).
+		 * Find the matching quote and return the content.
+		 */
 		end = strchr(tmp+1, '"');
 		if (!end)
 			return NULL;
@@ -8939,7 +8940,7 @@ static char *get_calleridname(const char *input, char *output, size_t outputsize
 			bytes = maxbytes;
 		ast_copy_string(output, tmp + 1, bytes);
 	} else {
-		/* we didn't find "name" */
+		/* No quoted string, or it is inside brackets. */
 		/* clear the empty characters in the begining*/
 		input = ast_skip_blanks(input);
 		/* clear the empty characters in the end */
