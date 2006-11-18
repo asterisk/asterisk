@@ -48,6 +48,13 @@ void ast_cli(int fd, char *fmt, ...)
 
 #define AST_CLI_COMPLETE_EOF	"_EOF_"
 
+/*!
+ * In many cases we need to print singular or plural
+ * words depending on a count. This macro helps us e.g.
+ *     printf("we have %d object%s", n, ESS(n));
+ */
+#define ESS(x) ((x) == 1 ? "" : "s")
+
 /*! \page CLI_command_api CLI command API
 
    CLI commands are described by a struct ast_cli_entry that contains

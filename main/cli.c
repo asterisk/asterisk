@@ -341,7 +341,6 @@ static void print_uptimestr(int fd, time_t timeval, const char *prefix, int prin
 #define DAY (HOUR*24)
 #define WEEK (DAY*7)
 #define YEAR (DAY*365)
-#define ESS(x) ((x == 1) ? "" : "s")	/* plural suffix */
 #define NEEDCOMMA(x) ((x)? ",": "")	/* define if we need a comma */
 	if (timeval < 0)	/* invalid, nothing to show */
 		return;
@@ -938,7 +937,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 	if (havepattern)
 		regfree(&regexbuf);
 
-	ast_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	ast_cli(fd, "%d active channel%s\n", numchans, ESS(numchans));
 	return RESULT_SUCCESS;
 #undef FORMAT_STRING
 }
