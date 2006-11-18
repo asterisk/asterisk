@@ -1902,6 +1902,9 @@ static int action_timeout(struct mansession *s, struct message *m)
 	return 0;
 }
 
+/*!
+ * Send any applicable events to the client listening on this socket
+ */
 static int process_events(struct mansession *s)
 {
 	int ret = 0;
@@ -1994,6 +1997,7 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Invalid/unknown command");
 	if (ret)
 		return ret;
+	/* Once done with our message, deliver any pending events */
 	return process_events(s);
 }
 
@@ -2046,6 +2050,9 @@ static int get_input(struct mansession *s, char *output)
 		ast_mutex_unlock(&s->__lock);
 	}
 	if (res < 0) {
+		/* If we get a signal from some other thread (typically because
+		 * there are new events queued), return 0 to notify the caller.
+		 */
 		if (errno == EINTR)
 			return 0;
 		ast_log(LOG_WARNING, "poll() returned error: %s\n", strerror(errno));
@@ -2065,6 +2072,12 @@ static int get_input(struct mansession *s, char *output)
 }
 
 /*! \brief The body of the individual manager session.
+ * Call get_input() to read one line at a time
+ * (or be woken up on new events), collect the lines in a
+ * message until found an empty line, and execute the request.
+ * In any case, deliver events asynchronously through process_events()
+ * (called from here if no line is available, or at the end of
+ * process_message(). )
  */
 static void *session_do(void *data)
 {
