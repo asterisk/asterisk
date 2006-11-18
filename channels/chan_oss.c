@@ -530,7 +530,7 @@ static int soundcard_writeframe(struct chan_oss_pvt *o, short *data)
 		return 0;
 	}
 	o->w_errors = 0;
-	return write(o->sounddev, ((void *) data), FRAME_SIZE * 2);
+	return write(o->sounddev, (void *)data, FRAME_SIZE * 2);
 }
 
 /*
@@ -559,10 +559,8 @@ static void send_sound(struct chan_oss_pvt *o)
 		l = s->samplen - l_sampsent;	/* # of available samples */
 		if (l > 0) {
 			start = l_sampsent % s->datalen;	/* source offset */
-			if (l > FRAME_SIZE - ofs)	/* don't overflow the frame */
-				l = FRAME_SIZE - ofs;
-			if (l > s->datalen - start)	/* don't overflow the source */
-				l = s->datalen - start;
+			l = MIN(l, FRAME_SIZE - ofs);	/* don't overflow the frame */
+			l = MIN(l, s->datalen - start);	/* don't overflow the source */
 			bcopy(s->data + start, myframe + ofs, l * 2);
 			if (0)
 				ast_log(LOG_WARNING, "send_sound sound %d/%d of %d into %d\n", l_sampsent, l, s->samplen, ofs);
@@ -572,8 +570,7 @@ static void send_sound(struct chan_oss_pvt *o)
 
 			l += s->silencelen;
 			if (l > 0) {
-				if (l > FRAME_SIZE - ofs)
-					l = FRAME_SIZE - ofs;
+				l = MIN(l, FRAME_SIZE - ofs);
 				bcopy(silence, myframe + ofs, l * 2);
 				l_sampsent += l;
 			} else {			/* silence is over, restart sound if loop */
@@ -605,6 +602,7 @@ static void *sound_thread(void *arg)
 	for (;;) {
 		fd_set rfds, wfds;
 		int maxfd, res;
+		struct timeval *to = NULL, t;
 
 		FD_ZERO(&rfds);
 		FD_ZERO(&wfds);
@@ -620,13 +618,19 @@ static void *sound_thread(void *arg)
 				maxfd = MAX(o->sounddev, maxfd);
 			}
 			if (o->cursound > -1) {
-				FD_SET(o->sounddev, &wfds);
-				maxfd = MAX(o->sounddev, maxfd);
+				/*
+				 * We would like to use select here, but the device
+				 * is always writable, so this would become busy wait.
+				 * So we rather set a timeout to 1/2 of the frame size.
+				 */
+				t.tv_sec = 0;
+				t.tv_usec = (1000000 * FRAME_SIZE) / (5 * DEFAULT_SAMPLE_RATE);
+				to = &t;
 			}
 		}
 		/* ast_select emulates linux behaviour in terms of timeout handling */
-		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, NULL);
-		if (res < 1) {
+		res = ast_select(maxfd + 1, &rfds, &wfds, NULL, to);
+		if (res < 0) {
 			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
 			sleep(1);
 			continue;
@@ -650,7 +654,7 @@ static void *sound_thread(void *arg)
 		if (o->sounddev > -1) {
 			if (FD_ISSET(o->sounddev, &rfds))	/* read and ignore errors */
 				read(o->sounddev, ign, sizeof(ign));
-			if (FD_ISSET(o->sounddev, &wfds))
+			if (to != NULL)			/* maybe it is possible to write */
 				send_sound(o);
 		}
 	}
