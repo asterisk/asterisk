@@ -6,3 +6,14 @@ Manager:
 * The CallerID fields across Manager events have now been made more
   consistent. CallerID Number will be sent as CallerIDNum and CallerID
   Name will be sent as CallerIDName wherever used.
+
+AEL:
+
+* Macros are now implemented underneath with the Gosub() application.
+  Heaven Help You if you wrote code depending on any aspect of this!
+  Previous to 1.6, macros were implemented with the Macro() app, which
+  provided a nice feature of auto-returning. The compiler will do its
+  best to insert a Return() app call at the end of your macro if you did
+  not include it, but really, you should make sure that all execution
+  paths within your macros end in "return;".
+
