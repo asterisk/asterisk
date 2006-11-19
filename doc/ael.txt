@@ -102,7 +102,9 @@ extension, and a subroutine. It has arguments like a subroutine
 might. A macro call can be made within an extension, and the
 individual statements there are executed until it ends. At this point,
 execution returns to the next statement after the macro call. Macros
-can call other macros. And they work just like function calls.
+can call other macros. And they work just like function calls. In 1.2,
+and 1.4, they are implemented underneath with the Macro() application.
+In 1.6 and up, they are implemented with the Gosub() application.
 
 Applications
 ------------
@@ -981,7 +983,7 @@ Macros
 
 A macro is defined in its own block like this. The arguments to the
 macro are specified with the name of the macro. They are then referred
-to by that same name. A catch block can be specified to catch special
+to by that same name. A catch block can be specified to 'catch' special
 extensions.
 
 
