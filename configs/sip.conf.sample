@@ -119,7 +119,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 
 ;compactheaders = yes		; send compact sip headers.
 ;
-;videosupport=yes		; Turn on support for SIP video
+;videosupport=yes		; Turn on support for SIP video. You need to turn this on
+				; in the this section to get any video support at all.
+				; You can turn it off on a per peer basis if the general
+				; video support is enabled, but you can't enable it for
+				; one peer only without enabling in the general section.
 ;maxcallbitrate=384		; Maximum bitrate for video calls (default 384 kb/s)
 				; Videosupport and maxcallbitrate is settable
 				; for peers and users as well
