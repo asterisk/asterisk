@@ -97,7 +97,7 @@ static int pickup_by_exten(struct ast_channel *chan, char *exten, char *context)
 
 	while ((target = ast_channel_walk_locked(target))) {
 		if (!strcasecmp(target->exten, exten) &&
-		    !strcasecmp(target->context, context) &&
+		    !strcasecmp(target->dialcontext, context) &&
 		    can_pickup(target)) {
 			res = pickup_do(chan, target);
 			ast_channel_unlock(target);
