@@ -4297,6 +4297,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, struct sip_request *req, char *msg)
 {
 	struct sip_pvt *p = alloca(sizeof(*p));
+	struct sip_history *hist = NULL;
 
 	memset(p, 0, sizeof(*p));
 
@@ -4321,6 +4322,11 @@ static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, i
 	ast_copy_string(p->callid, callid, sizeof(p->callid));
 
 	__transmit_response(p, msg, req, 0);
+
+	while ((hist = p->history)) {
+		p->history = p->history->next;
+		free(hist);
+	}
 
 	return 0;
 }
