@@ -2941,7 +2941,8 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 	ast_channel_lock(chan);
 	/* Remove the callback from the IO context */
 	ast_io_remove(rtp->io, iod[0]);
-	ast_io_remove(rtp->io, iod[1]);
+	if (iod[1])
+		ast_io_remove(rtp->io, iod[1]);
 	/* Restore file descriptors */
 	chan->fds[0] = fds[0];
 	chan->fds[1] = fds[1];
@@ -2958,7 +2959,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	struct ast_frame *fr = NULL;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = {NULL, };
 	int p0_fds[2] = {-1, -1}, p1_fds[2] = {-1, -1};
-	int *p0_iod[2] = {NULL, }, *p1_iod[2] = {NULL, };
+	int *p0_iod[2] = {NULL, NULL}, *p1_iod[2] = {NULL, NULL};
 	int p0_callback = 0, p1_callback = 0;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 
