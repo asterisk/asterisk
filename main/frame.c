@@ -188,6 +188,8 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 			/* Optimize by sending the frame we just got
 			   on the next read, thus eliminating the douple
 			   copy */
+			if (swap)
+				ast_swapcopy_samples(f->data, f->data, f->samples);
 			s->opt = f;
 			return 0;
 		} else {
@@ -198,6 +200,8 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 				   we were unable to optimize because there was still
 				   some cruft left over.  Lets just drop the cruft so
 				   we can move to a fully optimized path */
+				if (swap)
+					ast_swapcopy_samples(f->data, f->data, f->samples);
 				s->len = 0;
 				s->opt = f;
 				return 0;
