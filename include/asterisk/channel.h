@@ -385,6 +385,7 @@ struct ast_channel {
 	char macrocontext[AST_MAX_CONTEXT];		/*!< Macro: Current non-macro context. See app_macro.c */
 	char macroexten[AST_MAX_EXTENSION];		/*!< Macro: Current non-macro extension. See app_macro.c */
 	int macropriority;				/*!< Macro: Current non-macro priority. See app_macro.c */
+	char dialcontext[AST_MAX_CONTEXT];              /*!< Dial: Extension context that we were called from */
 
 	struct ast_pbx *pbx;				/*!< PBX private structure for this channel */
 	int amaflags;					/*!< Set BEFORE PBX is started to determine AMA flags */
