@@ -1098,8 +1098,13 @@ static int retrieve_file(char *dir, int msgnum)
 						fd = -1;
 						continue;
 					}
-					if (fd > -1)
-						fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+					if (fd > -1) {
+						if ((fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) == -1) {
+							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
+							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+							goto yuck;
+						}
+					}
 				}
 				if (fdm) {
 					memset(fdm, 0, fdlen);
