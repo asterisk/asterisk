@@ -2909,7 +2909,7 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 }
 
 /*! \brief Helper function to switch a channel and RTP stream into callback mode */
-static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int *fds, int **iod)
+static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int **iod)
 {
 	/* If we need DTMF or we have no IO structure, then we can't do direct callback */
 	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) || !rtp->io)
@@ -2921,22 +2921,20 @@ static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, in
 		rtp->ioid = NULL;
 	}
 
-	/* Steal the file descriptors from the channel and stash them away */
-	fds[0] = chan->fds[0];
-	fds[1] = chan->fds[1];
+	/* Steal the file descriptors from the channel */
 	chan->fds[0] = -1;
 	chan->fds[1] = -1;
 
 	/* Now, fire up callback mode */
-	iod[0] = ast_io_add(rtp->io, fds[0], p2p_rtp_callback, AST_IO_IN, rtp);
-	if (fds[1] >= 0)
-		iod[1] = ast_io_add(rtp->io, fds[1], p2p_rtp_callback, AST_IO_IN, rtp);
+	iod[0] = ast_io_add(rtp->io, ast_rtp_fd(rtp), p2p_rtp_callback, AST_IO_IN, rtp);
+	if (rtp->rtcp)
+		iod[1] = ast_io_add(rtp->io, ast_rtcp_fd(rtp), p2p_rtp_callback, AST_IO_IN, rtp);
 
 	return 1;
 }
 
 /*! \brief Helper function to switch a channel and RTP stream out of callback mode */
-static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, int *fds, int **iod)
+static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, int **iod)
 {
 	ast_channel_lock(chan);
 	/* Remove the callback from the IO context */
@@ -2944,12 +2942,12 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 	if (iod[1])
 		ast_io_remove(rtp->io, iod[1]);
 	/* Restore file descriptors */
-	chan->fds[0] = fds[0];
-	chan->fds[1] = fds[1];
+	chan->fds[0] = ast_rtp_fd(rtp);
+	chan->fds[1] = ast_rtcp_fd(rtp);
 	ast_channel_unlock(chan);
 	/* Restore callback mode if previously used */
 	if (ast_test_flag(rtp, FLAG_CALLBACK_MODE))
-	    rtp->ioid = ast_io_add(rtp->io, rtp->s, rtpread, AST_IO_IN, rtp);
+	    rtp->ioid = ast_io_add(rtp->io, ast_rtp_fd(rtp), rtpread, AST_IO_IN, rtp);
 	return 0;
 }
 
@@ -2958,7 +2956,6 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 {
 	struct ast_frame *fr = NULL;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = {NULL, };
-	int p0_fds[2] = {-1, -1}, p1_fds[2] = {-1, -1};
 	int *p0_iod[2] = {NULL, NULL}, *p1_iod[2] = {NULL, NULL};
 	int p0_callback = 0, p1_callback = 0;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
@@ -2976,8 +2973,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	}
 
 	/* Activate callback modes if possible */
-	p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
-	p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
+	p0_callback = p2p_callback_enable(c0, p0, &p0_iod[0]);
+	p1_callback = p2p_callback_enable(c1, p1, &p1_iod[0]);
 
 	/* Now let go of the channel locks and be on our way */
 	ast_channel_unlock(c0);
@@ -3030,9 +3027,9 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 				/* If we are going on hold, then break callback mode and P2P bridging */
 				if (fr->subclass == AST_CONTROL_HOLD) {
 					if (p0_callback)
-						p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
+						p0_callback = p2p_callback_disable(c0, p0, &p0_iod[0]);
 					if (p1_callback)
-						p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
+						p1_callback = p2p_callback_disable(c1, p1, &p1_iod[0]);
 					p0->bridged = NULL;
 					p1->bridged = NULL;
 					if (vp0) {
@@ -3051,8 +3048,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 						ast_clear_flag(vp1, FLAG_P2P_SENT_MARK);
 						vp1->bridged = vp0;
 					}
-					p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
-					p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
+					p0_callback = p2p_callback_enable(c0, p0, &p0_iod[0]);
+					p1_callback = p2p_callback_enable(c1, p1, &p1_iod[0]);
 				}
 				ast_indicate(other, fr->subclass);
 				ast_frfree(fr);
@@ -3081,9 +3078,9 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 
 	/* If we are totally avoiding the core, then restore our link to it */
 	if (p0_callback)
-		p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
+		p0_callback = p2p_callback_disable(c0, p0, &p0_iod[0]);
 	if (p1_callback)
-		p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
+		p1_callback = p2p_callback_disable(c1, p1, &p1_iod[0]);
 
 	/* Break out of the direct bridge */
 	p0->bridged = NULL;
