@@ -1102,6 +1102,7 @@ static int retrieve_file(char *dir, int msgnum)
 						if ((fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) == -1) {
 							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
 							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+							ast_odbc_release_obj(obj);
 							goto yuck;
 						}
 					}
