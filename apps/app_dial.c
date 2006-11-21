@@ -505,9 +505,9 @@ static void do_forward(struct dial_localuser *o,
 				ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 			}
 		}
+		/* Hangup the original channel now, in case we needed it */
+		ast_hangup(c);
 	}
-	/* Hangup the original channel now, in case we needed it */
-	ast_hangup(c);
 }
 
 /* argument used for some functions. */
