@@ -419,7 +419,12 @@ static void senddialendevent(const struct ast_channel *src, const char *dialstat
 					src->name, dialstatus);
 }	
 
-/* helper function for wait_for_answer() */
+/*!
+ * helper function for wait_for_answer()
+ *
+ * XXX this code is highly suspicious, as it essentially overwrites
+ * the outgoing channel without properly deleting it.
+ */
 static void do_forward(struct dial_localuser *o,
 	struct cause_args *num, struct ast_flags *peerflags, int single)
 {
@@ -504,9 +509,9 @@ static void do_forward(struct dial_localuser *o,
 				char cidname[AST_MAX_EXTENSION];
 				ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 			}
+			/* Hangup the original channel now, in case we needed it */
+			ast_hangup(c);
 		}
-		/* Hangup the original channel now, in case we needed it */
-		ast_hangup(c);
 	}
 }
 
