@@ -1705,7 +1705,7 @@ const char *ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code,
 			if (isAstFormat &&
 			    (code == AST_FORMAT_G726_AAL2) &&
 			    (options & AST_RTP_OPT_G726_NONSTANDARD))
-				return "AAL2-G726-32";
+				return "G726-32";
 			else
 				return mimeTypes[i].subtype;
 		}
