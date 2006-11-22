@@ -1013,6 +1013,29 @@ static void child_handler(int sig)
 	signal(sig, child_handler);
 }
 
+/*! \brief Set maximum open files */
+static void set_ulimit(int value)
+{
+	struct rlimit l = {0, 0};
+	
+	if (value <= 0) {
+		ast_log(LOG_WARNING, "Unable to change max files open to invalid value %i\n",value);
+		return;
+	}
+	
+	l.rlim_cur = value;
+	l.rlim_max = value;
+	
+	if (setrlimit(RLIMIT_NOFILE, &l)) {
+		ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n",strerror(errno));
+		return;
+	}
+	
+	ast_log(LOG_NOTICE, "Setting max files open to %d\n",value);
+	
+	return;
+}
+
 /*! \brief Set an X-term or screen title */
 static void set_title(char *text)
 {
@@ -2293,6 +2316,9 @@ static void ast_readconfig(void)
 			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
 			}
+		/* Set the maximum amount of open files */
+		} else if (!strcasecmp(v->name, "maxfiles")) {
+			set_ulimit(atoi(v->value));
 		/* What user to run as */
 		} else if (!strcasecmp(v->name, "runuser")) {
 			ast_copy_string(ast_config_AST_RUN_USER, v->value, sizeof(ast_config_AST_RUN_USER));
