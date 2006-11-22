@@ -1981,6 +1981,10 @@ static int process_message(struct mansession *s, struct message *m)
 		return 0;
 	}
 
+	if (!s->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
+		astman_send_error(s, m, "Permission denied");
+		return 0;
+	}
 	/* XXX should we protect the list navigation ? */
 	for (tmp = first_action ; tmp; tmp = tmp->next) {
 		if (!strcasecmp(action, tmp->action)) {
