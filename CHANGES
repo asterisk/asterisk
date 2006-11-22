@@ -61,5 +61,5 @@ Changes since Asterisk 1.4-beta was branched:
   * CID matching information is now shown when doing 'dialplan show'.
   * app_queue now has a 'loose' option which is almost exactly like 'strict' except it
      does not count paused queue members as unavailable.
-  * Added maxfiles option which allows you to specify what Asterisk should set as the
-     maximum number of open files when it loads.
+  * Added maxfiles option to options section of asterisk.conf which allows you to specify
+     what Asterisk should set as the maximum number of open files when it loads.
