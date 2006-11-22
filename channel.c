@@ -355,8 +355,11 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan, *last=NULL;
 
-	if (option_debug)
+	if (option_debug && tech && tech->type )
 		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
+	else if (option_debug)
+		ast_log(LOG_DEBUG, "Unregistering channel, tech is NULL!!!\n");
+		
 
 	ast_mutex_lock(&chlock);
 
@@ -3502,10 +3505,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		if (!ast_tvzero(nexteventts)) {
 			now = ast_tvnow();
 			to = ast_tvdiff_ms(nexteventts, now);
-			if (to <= 0) {
+			if (to <= 0 && !config->timelimit) {	
 				res = AST_BRIDGE_COMPLETE;
 				break;
-			}
+			}	
+				
 		}
 
 		if (config->timelimit) {
@@ -3525,7 +3529,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				break;
 			}
 			
-			if (!to) {
+			if (to <= 0) {
 				if (time_left_ms >= 5000) {
 					/* force the time left to round up if appropriate */
 					if (caller_warning && config->warning_sound && config->play_warning)
@@ -3537,8 +3541,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				}
 				if (config->warning_freq) {
 					nexteventts = ast_tvadd(nexteventts, ast_samp2tv(config->warning_freq, 1000));
-				} else
+				}
+					
+				if ( (!config->warning_freq) ||  ( config->timelimit - ast_tvdiff_ms(nexteventts, config->start_time) < 0)) {
 					nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
+				}
 			}
 		}
 
@@ -3636,8 +3643,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o1nativeformats = c1->nativeformats;
 		}
 		res = ast_generic_bridge(c0, c1, config, fo, rc, nexteventts);
-		if (res != AST_BRIDGE_RETRY)
-			break;
 	}
 
 	c0->_bridge = NULL;
