@@ -14549,7 +14549,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
-	struct sip_request resp;
 	const char *cmd;
 	const char *cseq;
 	const char *useragent;
@@ -14560,9 +14559,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int debug = sip_debug_test_pvt(p);
 	char *e;
 	int error = 0;
-
-	/* Clear out potential response */
-	memset(&resp, 0, sizeof(resp));
 
 	/* Get Method and Cseq */
 	cseq = get_header(req, "Cseq");
@@ -17119,6 +17115,7 @@ static int sip_do_reload(enum channelreloadreason reason)
 			sip_destroy(iterator->call);
 		}
 		ASTOBJ_UNLOCK(iterator);
+	
 	} while(0));
 
 	/* Then, actually destroy users and registry */
