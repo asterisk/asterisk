@@ -11180,7 +11180,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
-	struct sip_request resp;
 	char *cmd;
 	char *cseq;
 	char *useragent;
@@ -11193,9 +11192,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int debug = sip_debug_test_pvt(p);
 	char *e;
 	int error = 0;
-
-	/* Clear out potential response */
-	memset(&resp, 0, sizeof(resp));
 
 	/* Get Method and Cseq */
 	cseq = get_header(req, "Cseq");
@@ -13390,7 +13386,9 @@ static int sip_do_reload(void)
 			sip_destroy(iterator->call);
 		}
 		ASTOBJ_UNLOCK(iterator);
+	
 	} while(0));
+
 
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
