@@ -69,6 +69,7 @@ languageprefix = yes | no			; Should language code be last component of sound fi
 	       	       				; when off, sound files are searched as <path>/<lang>/<file>
 						; when on, sound files are search as <lang>/<path>/<file>
 						; (only affects relative paths for sound files)
+maxlimit = <value>				; Maximum number open files for the Asterisk process
 
 [files]
 ; Changing the following lines may compromise your security
