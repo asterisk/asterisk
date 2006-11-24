@@ -172,6 +172,7 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 				}
 				l = plc_fillin(pvt->plc, dst + pvt->samples, l);
 				pvt->samples += l;
+				pvt->datalen = pvt->samples * 2;	/* SLIN has 2bytes for 1sample */
 			}
 			return 0;
 		}
