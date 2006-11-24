@@ -2261,7 +2261,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		case INC_CALL_LIMIT:
 			if (*call_limit > 0 ) {
 				if (*inuse >= *call_limit) {
-					ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+					ast_log(LOG_NOTICE, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 					if (u)
 						ASTOBJ_UNREF(u,sip_destroy_user);
 					else
@@ -11110,7 +11110,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 			char iabuf[INET_ADDRSTRLEN];
 
-			ast_log(LOG_ERROR, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension\n", p->exten, p->context, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+			ast_log(LOG_NOTICE, "Got SUBSCRIBE for extension %s@%s from %s, but there is no hint for that extension\n", p->exten, p->context, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 			transmit_response(p, "404 Not found", req);
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
