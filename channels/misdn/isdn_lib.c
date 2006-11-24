@@ -434,10 +434,10 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 {
 	int i;
 
-	cb_log(1,stack->port,"find_free_chan: req_chan:%d\n",channel);
+	cb_log(5,stack->port,"find_free_chan: req_chan:%d\n",channel);
 
 	if (channel < 0 || channel > MAX_BCHANS) {
-		cb_log(4, stack->port, " !! out of bound call to find_free_chan_in_stack! (ch:%d)\n", channel);
+		cb_log(0, stack->port, " !! out of bound call to find_free_chan_in_stack! (ch:%d)\n", channel);
 		return 0;
 	}
 	
@@ -446,7 +446,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	for (i = 0; i < stack->b_num; i++) {
 		if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
 			if (!stack->channels[i]) {
-				cb_log (1, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
+				cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
 				stack->channels[i] = 1;
 				bc->channel=i+1;
 				cb_event(EVENT_NEW_CHANNEL, bc, NULL);
@@ -455,7 +455,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 		}
 	}
 
-	cb_log (4, stack->port, " !! NO FREE CHAN IN STACK\n");
+	cb_log (1, stack->port, " !! NO FREE CHAN IN STACK\n");
 	dump_chan_list(stack);
   
 	return 0;
@@ -1677,8 +1677,6 @@ int misdn_lib_port_up(int port, int check)
 	     stack;
 	     stack=stack->next) {
 		
-		if ( !stack->ptp && !check) return 1;
-		
 		if (stack->port == port) {
 
 			if (stack->blocked) {
@@ -1696,7 +1694,7 @@ int misdn_lib_port_up(int port, int check)
 					return 0;
 				}
 			} else {
-				if ( stack->l1link)
+				if ( !check || stack->l1link )
 					return 1;
 				else {
 					cb_log(0,port, "Port down PMP\n");
@@ -2034,7 +2032,7 @@ handle_event_nt(void *dat, void *arg)
 						if (stack->ptp) 
 							set_chan_in_stack(stack, bc->channel);
 						else 
-							cb_log(0,stack->port," --> PTMP but channel requested\n");
+							cb_log(3,stack->port," --> PTMP but channel requested\n");
 
 					} else {
 
@@ -3195,7 +3193,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	}
 	
 	cb_log(1, stack->port, "I SEND:%s oad:%s dad:%s pid:%d\n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad, bc->pid);
-	cb_log(1, stack->port, " --> bc_state:%s\n",bc_state2str(bc->bc_state));
+	cb_log(4, stack->port, " --> bc_state:%s\n",bc_state2str(bc->bc_state));
 	misdn_lib_log_ies(bc);
 	
 	switch (event) {
@@ -4218,7 +4216,7 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
-	cb_log(1, stack?stack->port:0,"ec_enable\n");
+	cb_log(4, stack?stack->port:0,"ec_enable\n");
 
 	if (!misdn_cap_is_speech(bc->capability)) {
 		cb_log(1, stack?stack->port:0, " --> no speech? cannot enable EC\n");
@@ -4226,7 +4224,7 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 	}
 
 	if (bc->ec_enable) {
-		cb_log(1, stack?stack->port:0,"Sending Control ECHOCAN_ON taps:%d training:%d\n",bc->ec_deftaps, bc->ec_training);
+		cb_log(3, stack?stack->port:0,"Sending Control ECHOCAN_ON taps:%d training:%d\n",bc->ec_deftaps, bc->ec_training);
 	
 		switch (bc->ec_deftaps) {
 		case 4:
@@ -4262,7 +4260,7 @@ void manager_ec_disable(struct misdn_bchannel *bc)
 {
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
-	cb_log(1, stack?stack->port:0,"ec_disable\n");
+	cb_log(4, stack?stack->port:0," --> ec_disable\n");
 
 	if (!misdn_cap_is_speech(bc->capability)) {
 		cb_log(1, stack?stack->port:0, " --> no speech? cannot disable EC\n");
@@ -4270,7 +4268,7 @@ void manager_ec_disable(struct misdn_bchannel *bc)
 	}
 
 	if ( ! bc->ec_enable) {
-		cb_log(1, stack?stack->port:0, "Sending Control ECHOCAN_OFF\n");
+		cb_log(3, stack?stack->port:0, "Sending Control ECHOCAN_OFF\n");
 		manager_ph_control(bc,  ECHOCAN_OFF, 0);
 	}
 }
@@ -4287,7 +4285,7 @@ void misdn_join_conf(struct misdn_bchannel *bc, int conf_id)
 	manager_ph_control(bc, CMX_RECEIVE_OFF, 0);
 	manager_ph_control(bc, CMX_CONF_JOIN, conf_id);
 
-	cb_log(1,bc->port, "Joining bc:%x in conf:%d\n",bc->addr,conf_id);
+	cb_log(3,bc->port, "Joining bc:%x in conf:%d\n",bc->addr,conf_id);
 
 	char data[16];
 	int len=15;
@@ -4305,13 +4303,13 @@ void misdn_split_conf(struct misdn_bchannel *bc, int conf_id)
 	manager_ph_control(bc, CMX_RECEIVE_ON, 0);
 	manager_ph_control(bc, CMX_CONF_SPLIT, conf_id);
 
-	cb_log(1,bc->port, "Splitting bc:%x in conf:%d\n",bc->addr,conf_id);
+	cb_log(4,bc->port, "Splitting bc:%x in conf:%d\n",bc->addr,conf_id);
 }
 
 void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) {
 	int conf_id=bc1->pid +1;
 
-	cb_log(1, bc1->port, "I Send: BRIDGE from:%d to:%d\n",bc1->port,bc2->port);
+	cb_log(4, bc1->port, "I Send: BRIDGE from:%d to:%d\n",bc1->port,bc2->port);
 	
 	struct misdn_bchannel *bc_list[]={
 		bc1,bc2,NULL
@@ -4320,7 +4318,7 @@ void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) 
 		
 	for (bc=bc_list; *bc;  bc++) { 
 		(*bc)->conf_id=conf_id;
-		cb_log(1, (*bc)->port, " --> bc_addr:%x\n",(*bc)->addr);
+		cb_log(4, (*bc)->port, " --> bc_addr:%x\n",(*bc)->addr);
 	
 		switch((*bc)->bc_state) {
 			case BCHAN_ACTIVATED:
@@ -4355,7 +4353,7 @@ void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel 
 
 void misdn_lib_echo(struct misdn_bchannel *bc, int onoff)
 {
-	cb_log(1,bc->port, " --> ECHO %s\n", onoff?"ON":"OFF");
+	cb_log(3,bc->port, " --> ECHO %s\n", onoff?"ON":"OFF");
 	manager_ph_control(bc, onoff?CMX_ECHO_ON:CMX_ECHO_OFF, 0);
 }
 
