@@ -1094,9 +1094,12 @@ static char *substring(const char *value, int offset, int length, char *workspac
 	return ret;
 }
 
-/*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
-      functions in the dialplan
-  ---*/
+/*! \brief  Support for Asterisk built-in variables and functions in the dialplan
+
+\note	See also
+	- \ref AstVar	Channel variables
+	- \ref AstCauses The HANGUPCAUSE variable
+ */
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	const char not_found = '\0';

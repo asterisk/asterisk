@@ -135,9 +135,67 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  *  \verbinclude video.txt
  */
 
-/*! \page AstVar Global channel variables
- * \section globchan Global Channel Variables
+/*! \page AstVar Globally predefined channel variables
+ * \section globchan Globally predefined channel variables
+ *
+ * More and more of these variables are being replaced by dialplan functions.
+ * Some still exist though and some that does still exist needs to move to
+ * dialplan functions.
+ *
+ * See also
+ * - \ref pbx_retrieve_variable()
+ * - \ref AstChanVar
+ *
  *  \verbinclude channelvariables.txt
+
+ */
+
+/*! \page AstChanVar Asterisk Dialplan Variables
+ *	Asterisk Dialplan variables are divided into three groups:
+ *	- Predefined global variables, handled by the PBX core
+ *	- Global variables, that exist for the duration of the pbx execution
+ *	- Channel variables, that exist during a channel
+ *
+ * Global variables are reachable in all channels, all of the time.
+ * Channel variables are only reachable within the channel.
+ *
+ * For more information on the predefined variables, see \ref AstVar
+ * 
+ * Global and Channel variables:
+ * - Names are Case insensitive
+ * - Names that start with a character, but are alphanumeric
+ * - Global variables are defined and reached with the GLOBAL() dialplan function
+ *   and the set application, like
+ *
+ * 	exten => 1234,1,set(GLOBAL(myvariable)=tomteluva)
+ *
+ * 	- \ref func_global.c
+ *
+ * - Channel variables are defined with the set() dialplan application
+ *
+ *	exten => 1234,1,set(xmasattribute=tomtegröt)
+ *
+ * - Some channels also supports setting channel variables with the \b setvar=
+ *   configuraiton option for a device or line.
+ *
+ * \section AstChanVar_globalvars Global Variables
+ * Global variables can also be set in the [globals] section of extensions.conf. The
+ * setting \b clearglobalvars in extensions.conf [general] section affects whether
+ * or not the global variables defined in \b globals are reset at dialplan reload.
+ * 
+ * There are CLI commands to change and read global variables. This can be handy
+ * to reset counters at midnight from an external script.
+ *
+ * \section AstChanVar_devnotes Developer notes
+ * Variable handling is managed within \ref pbx.c
+ * You need to include pbx.h to reach these functions.
+ *	- \ref pbx_builtin_setvar_helper()
+ * 	- \ref pbx_builtin_getvar_helper()
+ *
+ * The variables is a linked list stored in the channel data structure
+ * with the list starting at varshead in struct ast_channel
+ * 
+ *
  */
 
 /*! \page AstENUM ENUM
@@ -209,7 +267,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude features.conf.sample
  */
 
-/*! \page Config_followme followme.conf 
+/*! \page Config_followme Followme: An application for simple follow-me calls
  * \section followmeconf Followme.conf
  * - See app_followme.c
  * \verbinclude followme.conf.sample

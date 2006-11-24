@@ -84,6 +84,11 @@
 
 */
 
+/*! \page AstFileDesc File descriptors 
+	Asterisk File descriptors are connected to each channel (see \ref Def_Channel)
+	in the \ref ast_channel structure.
+*/
+
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
 
@@ -336,8 +341,8 @@ struct ast_channel {
 		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
 	);
 	
-	/*! \brief File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  */
-	int fds[AST_MAX_FDS];			
+	/*! \brief File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  See \ref AstFileDesc */
+	int fds[AST_MAX_FDS];	
 
 	void *music_state;				/*!< Music State*/
 	void *generatordata;				/*!< Current generator data if there is any */
@@ -351,12 +356,11 @@ struct ast_channel {
 	struct ast_channel *masqr;			/*!< Who we are masquerading as */
 	int cdrflags;					/*!< Call Detail Record Flags */
 
-	/*! \brief Whether or not we have been hung up...  Do not set this value
-	    directly, use ast_softhangup */
-	int _softhangup;
+	int _softhangup;				/*!< Whether or not we have been hung up...  Do not set this value
+	    							directly, use ast_softhangup() */
 	time_t	whentohangup;				/*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;				/*!< If anyone is blocking, this is them */
-	ast_mutex_t lock;				/*!< Lock, can be used to lock a channel for some operations */
+	ast_mutex_t lock;				/*!< Lock, can be used to lock a channel for some operations - see ast_channel_lock() */
 	const char *blockproc;				/*!< Procedure causing blocking */
 
 	const char *appl;				/*!< Current application */
@@ -373,7 +377,7 @@ struct ast_channel {
 	int (*timingfunc)(void *data);
 	void *timingdata;
 
-	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate */
+	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate() */
 	int rings;					/*!< Number of rings so far */
 	struct ast_callerid cid;			/*!< Caller ID, name, presentation etc */
 	char dtmfq[AST_MAX_EXTENSION];			/*!< Any/all queued DTMF characters */
@@ -397,17 +401,16 @@ struct ast_channel {
 
 	struct ast_channel_monitor *monitor;		/*!< Channel monitoring */
 
-	/*! Track the read/written samples for monitor use */
-	unsigned long insmpl;
-	unsigned long outsmpl;
+	unsigned long insmpl;				/*!< Track the read/written samples for monitor use */
+	unsigned long outsmpl;				/*!< Track the read/written samples for monitor use */
 
-	/* Frames in/out counters. The high bit is a debug mask, so
-	 * the counter is only in the remaining bits
-	 */
-	unsigned int fin;
-	unsigned int fout;
+	unsigned int fin;				/*!< Frames in counters. The high bit is a debug mask, so
+	 						 * the counter is only in the remaining bits */
+	unsigned int fout;				/*!< Frames out counters. The high bit is a debug mask, so
+	 						 * the counter is only in the remaining bits */
 	int hangupcause;				/*!< Why is the channel hanged up. See causes.h */
-	struct varshead varshead;			/*!< A linked list for channel variables */
+	struct varshead varshead;			/*!< A linked list for channel variables 
+								(see \ref AstChanVar ) */
 	ast_group_t callgroup;				/*!< Call group for call pickups */
 	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
 	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
