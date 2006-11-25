@@ -11575,7 +11575,7 @@ static int handle_ss7_show_linkset(int fd, int argc, char *argv[])
 	if (linksets[linkset-1].ss7)
 		ss7 = linksets[linkset-1];
 
-	if (
+	ast_cli(fd, "SS7 linkset %d status: %s\n", linkset, (ss7->state == LINKSET_STATE_UP) ? "Up" : "Down");
 
 	return RESULT_SUCCESS;
 }
@@ -11600,7 +11600,7 @@ static const char ss7_unblock_cic_help[] =
 #if 0
 static const char ss7_show_linkset_help[] = 
 	"Usage: ss7 show linkset <span>\n"
-	"       Disables debugging on a given SS7 linkset\n";
+	"       Shows the status of an SS7 linkset.\n";
 #endif
 
 static struct ast_cli_entry zap_ss7_cli[] = {
@@ -11614,7 +11614,7 @@ static struct ast_cli_entry zap_ss7_cli[] = {
 	  "Disables SS7 debugging on a linkset", ss7_unblock_cic_help, NULL },
 #if 0
 	{ { "ss7", "show", "linkset", NULL }, handle_ss7_show_linkset,
-	  "Disables SS7 debugging on a linkset", ss7_show_linkset_help, NULL },
+	  "Shows the status of a linkset", ss7_show_linkset_help, NULL },
 #endif
 };
 #endif /* HAVE_SS7 */
