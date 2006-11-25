@@ -8380,7 +8380,7 @@ static void ss7_reset_linkset(struct zt_ss7 *linkset)
 	startcic = linkset->pvts[0]->cic;
 
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i+1] && ((linkset->pvts[i+1]->cic - linkset->pvts[i]->cic) == 1) && (endcic - startcic < 31)) {
+		if (linkset->pvts[i+1] && ((linkset->pvts[i+1]->cic - linkset->pvts[i]->cic) == 1) && (linkset->pvts[i]->cic - startcic < 31)) {
 			continue;
 		} else {
 			endcic = linkset->pvts[i]->cic;
