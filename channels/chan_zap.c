@@ -11556,7 +11556,6 @@ static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-#if 0
 static int handle_ss7_show_linkset(int fd, int argc, char *argv[])
 {
 	int linkset;
@@ -11573,13 +11572,12 @@ static int handle_ss7_show_linkset(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 	}
 	if (linksets[linkset-1].ss7)
-		ss7 = linksets[linkset-1];
+		ss7 = &linksets[linkset-1];
 
 	ast_cli(fd, "SS7 linkset %d status: %s\n", linkset, (ss7->state == LINKSET_STATE_UP) ? "Up" : "Down");
 
 	return RESULT_SUCCESS;
 }
-#endif
 
 static const char ss7_debug_help[] = 
 	"Usage: ss7 debug linkset <linkset>\n"
@@ -11597,11 +11595,9 @@ static const char ss7_unblock_cic_help[] =
 	"Usage: ss7 unblock cic <linkset> <CIC>\n"
 	"       Sends a remote unblocking request for the given CIC on the specified linkset\n";
 
-#if 0
 static const char ss7_show_linkset_help[] = 
 	"Usage: ss7 show linkset <span>\n"
 	"       Shows the status of an SS7 linkset.\n";
-#endif
 
 static struct ast_cli_entry zap_ss7_cli[] = {
 	{ { "ss7", "debug", "linkset", NULL }, handle_ss7_debug,
@@ -11612,10 +11608,8 @@ static struct ast_cli_entry zap_ss7_cli[] = {
 	  "Disables SS7 debugging on a linkset", ss7_block_cic_help, NULL },
 	{ { "ss7", "unblock", "cic", NULL }, handle_ss7_unblock_cic,
 	  "Disables SS7 debugging on a linkset", ss7_unblock_cic_help, NULL },
-#if 0
 	{ { "ss7", "show", "linkset", NULL }, handle_ss7_show_linkset,
 	  "Shows the status of a linkset", ss7_show_linkset_help, NULL },
-#endif
 };
 #endif /* HAVE_SS7 */
 
