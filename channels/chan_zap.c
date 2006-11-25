@@ -10568,23 +10568,23 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static const char pri_debug_help[] = 
+static char pri_debug_help[] = 
 	"Usage: pri debug span <span>\n"
 	"       Enables debugging on a given PRI span\n";
 	
-static const char pri_no_debug_help[] = 
+static char pri_no_debug_help[] = 
 	"Usage: pri no debug span <span>\n"
 	"       Disables debugging on a given PRI span\n";
 
-static const char pri_really_debug_help[] = 
+static char pri_really_debug_help[] = 
 	"Usage: pri intensive debug span <span>\n"
 	"       Enables debugging down to the Q.921 level\n";
 
-static const char pri_show_span_help[] = 
+static char pri_show_span_help[] = 
 	"Usage: pri show span <span>\n"
 	"       Displays PRI Information on a given PRI span\n";
 
-static const char pri_show_spans_help[] = 
+static char pri_show_spans_help[] = 
 	"Usage: pri show spans\n"
 	"       Displays PRI Information\n";
 
@@ -11579,23 +11579,23 @@ static int handle_ss7_show_linkset(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static const char ss7_debug_help[] = 
+static char ss7_debug_help[] = 
 	"Usage: ss7 debug linkset <linkset>\n"
 	"       Enables debugging on a given SS7 linkset\n";
 	
-static const char ss7_no_debug_help[] = 
+static char ss7_no_debug_help[] = 
 	"Usage: ss7 no debug linkset <span>\n"
 	"       Disables debugging on a given SS7 linkset\n";
 
-static const char ss7_block_cic_help[] = 
+static char ss7_block_cic_help[] = 
 	"Usage: ss7 block cic <linkset> <CIC>\n"
 	"       Sends a remote blocking request for the given CIC on the specified linkset\n";
 
-static const char ss7_unblock_cic_help[] = 
+static char ss7_unblock_cic_help[] = 
 	"Usage: ss7 unblock cic <linkset> <CIC>\n"
 	"       Sends a remote unblocking request for the given CIC on the specified linkset\n";
 
-static const char ss7_show_linkset_help[] = 
+static char ss7_show_linkset_help[] = 
 	"Usage: ss7 show linkset <span>\n"
 	"       Shows the status of an SS7 linkset.\n";
 
