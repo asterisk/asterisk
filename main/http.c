@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * in or out the DO_SSL macro.
  * We declare most of ssl support variables unconditionally,
  * because their number is small and this simplifies the code.
+ * XXX this eventually goes into a generic header file.
  */
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
 #define	DO_SSL	/* comment in/out if you want to support ssl */
@@ -103,7 +104,13 @@ struct server_args {
 	int is_ssl;		/* is this an SSL accept ? */
 	int accept_fd;
 	pthread_t master;
+	void *(*accept_fn)(void *);	/* the function in charge of doing the accept */
+	void *(*worker_fn)(void *);	/* the function in charge of doing the actual work */
+	const char *name;
 };
+
+static void *http_root(void *arg);
+static void *httpd_helper_thread(void *arg);
 
 /*!
  * we have up to two accepting threads, one for http, one for https
@@ -112,12 +119,18 @@ static struct server_args http_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.is_ssl = 0,
+	.name = "http server",
+	.accept_fn = http_root,
+	.worker_fn = httpd_helper_thread,
 };
 
 static struct server_args https_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
 	.is_ssl = 1,
+	.name = "https server",
+	.accept_fn = http_root,
+	.worker_fn = httpd_helper_thread,
 };
 
 static struct ast_http_uri *uris;	/*!< list of supported handlers */
@@ -471,7 +484,7 @@ static int ssl_close(void *cookie)
 }
 #endif	/* DO_SSL */
 
-static void *ast_httpd_helper_thread(void *data)
+static void *httpd_helper_thread(void *data)
 {
 	char buf[4096];
 	char cookie[4096];
@@ -667,7 +680,7 @@ static void *http_root(void *data)
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			
-		if (ast_pthread_create_background(&launched, &attr, ast_httpd_helper_thread, ser)) {
+		if (ast_pthread_create_background(&launched, &attr, desc->worker_fn, ser)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(ser->fd);
 			free(ser);
@@ -721,7 +734,12 @@ static int ssl_setup(void)
 #endif
 }
 
-static void http_server_start(struct server_args *desc)
+/*!
+ * This is a generic (re)start routine for a TCP server,
+ * which does the socket/bind/listen and starts a thread for handling
+ * accept().
+ */
+static void server_start(struct server_args *desc)
 {
 	int flags;
 	int x = 1;
@@ -729,7 +747,7 @@ static void http_server_start(struct server_args *desc)
 	/* Do nothing if nothing has changed */
 	if (!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Nothing changed in http\n");
+			ast_log(LOG_DEBUG, "Nothing changed in %s\n", desc->name);
 		return;
 	}
 	
@@ -748,33 +766,33 @@ static void http_server_start(struct server_args *desc)
 	/* If there's no new server, stop here */
 	if (desc->sin.sin_family == 0)
 		return;
-	
-	
+
 	desc->accept_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (desc->accept_fd < 0) {
-		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
+		ast_log(LOG_WARNING, "Unable to allocate socket for %s: %s\n",
+			desc->name, strerror(errno));
 		return;
 	}
 	
 	setsockopt(desc->accept_fd, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
 	if (bind(desc->accept_fd, (struct sockaddr *)&desc->sin, sizeof(desc->sin))) {
-		ast_log(LOG_NOTICE, "Unable to bind http server to %s:%d: %s\n",
+		ast_log(LOG_NOTICE, "Unable to bind %s to %s:%d: %s\n",
+			desc->name,
 			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
 			strerror(errno));
 		goto error;
 	}
 	if (listen(desc->accept_fd, 10)) {
-		ast_log(LOG_NOTICE, "Unable to listen!\n");
-		close(desc->accept_fd);
-		desc->accept_fd = -1;
-		return;
+		ast_log(LOG_NOTICE, "Unable to listen for %s!\n", desc->name);
+		goto error;
 	}
 	flags = fcntl(desc->accept_fd, F_GETFL);
 	fcntl(desc->accept_fd, F_SETFL, flags | O_NONBLOCK);
-	if (ast_pthread_create_background(&desc->master, NULL, http_root, desc)) {
-		ast_log(LOG_NOTICE, "Unable to launch http server on %s:%d: %s\n",
-				ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
-				strerror(errno));
+	if (ast_pthread_create_background(&desc->master, NULL, desc->accept_fn, desc)) {
+		ast_log(LOG_NOTICE, "Unable to launch %s on %s:%d: %s\n",
+			desc->name,
+			ast_inet_ntoa(desc->sin.sin_addr), ntohs(desc->sin.sin_port),
+			strerror(errno));
 		goto error;
 	}
 	return;
@@ -794,8 +812,10 @@ static int __ast_http_load(int reload)
 	struct ast_hostent ahp;
 	char newprefix[MAX_PREFIX];
 
+	/* default values */
 	memset(&http_desc.sin, 0, sizeof(http_desc.sin));
 	http_desc.sin.sin_port = htons(8088);
+
 	memset(&https_desc.sin, 0, sizeof(https_desc.sin));
 	https_desc.sin.sin_port = htons(8089);
 	strcpy(newprefix, DEFAULT_PREFIX);
@@ -854,9 +874,9 @@ static int __ast_http_load(int reload)
 	if (strcmp(prefix, newprefix))
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
 	enablestatic = newenablestatic;
-	http_server_start(&http_desc);
+	server_start(&http_desc);
 	if (ssl_setup())
-		http_server_start(&https_desc);
+		server_start(&https_desc);
 	return 0;
 }
 
