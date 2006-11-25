@@ -1027,6 +1027,7 @@ static void free_cid(struct ast_callerid *cid)
 		free(cid->cid_ani);
 	if (cid->cid_rdnis)
 		free(cid->cid_rdnis);
+	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = cid->cid_rdnis = NULL;
 }
 
 /*! \brief Free a channel structure */
