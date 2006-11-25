@@ -2474,6 +2474,7 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 	return 0;
 }
 
+/*! \brief Write RTP packet with audio or video media frames into UDP packet */
 static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
 {
 	unsigned char *rtpheader;
@@ -2659,11 +2660,10 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_rtp_raw_write(rtp, f, codec);
 	} else {
 	        /* Don't buffer outgoing frames; send them one-per-packet: */
-		if (_f->offset < hdrlen) {
-			f = ast_frdup(_f);
-		} else {
+		if (_f->offset < hdrlen) 
+			f = ast_frdup(_f);	/*! \bug XXX this might never be free'd. Why do we do this? */
+		else
 			f = _f;
-		}
 		ast_rtp_raw_write(rtp, f, codec);
 	}
 		
@@ -2850,7 +2850,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 	return AST_BRIDGE_FAILED;
 }
 
-/*! \brief P2P RTP/RTCP Callback */
+/*! \brief peer 2 peer RTP mode  RTP/RTCP Callback */
 static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 {
 	int res = 0, hdrlen = 12;
@@ -2951,7 +2951,12 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 	return 0;
 }
 
-/*! \brief Bridge loop for partial native bridge (packet2packet) */
+/*! \brief Bridge loop for partial native bridge (packet2packet) 
+
+	In p2p mode, Asterisk is a very basic RTP proxy, just forwarding whatever
+	rtp/rtcp we get in to the channel. 
+	\note this currently only works for Audio
+*/
 static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast_channel *c1, struct ast_rtp *p0, struct ast_rtp *p1, int timeoutms, int flags, struct ast_frame **fo, struct ast_channel **rc, void *pvt0, void *pvt1)
 {
 	struct ast_frame *fr = NULL;
