@@ -130,7 +130,7 @@ static struct ast_custom_function cdr_function = {
 "  values, when the 'u' option is passed, but formatted as YYYY-MM-DD HH:MM:SS\n"
 "  otherwise.  Similarly, disposition and amaflags will return their raw\n"
 "  integral values.\n",
-"  Here is a list of all the available cdr field names:\n",
+"  Here is a list of all the available cdr field names:\n"
 "    clid          lastdata       disposition\n"
 "    src           start          amaflags\n"
 "    dst           answer         accountcode\n"
@@ -141,7 +141,16 @@ static struct ast_custom_function cdr_function = {
 "  userfield, and amaflags. You may, however,  supply\n"
 "  a name not on the above list, and create your own\n"
 "  variable, whose value can be changed with this function,\n"
-"  and this variable will be stored on the cdr.\n",
+"  and this variable will be stored on the cdr.\n"
+"   raw values for disposition:\n"
+"       1 = NO ANSWER\n"
+"	2 = BUSY\n"
+"	3 = FAILED\n"
+"	4 = ANSWERED\n"
+"    raw values for amaflags:\n"
+"       1 = OMIT\n"
+"       2 = BILLING\n"
+"       3 = DOCUMENTATION\n",
 };
 
 static int unload_module(void)
