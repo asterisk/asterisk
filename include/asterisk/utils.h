@@ -218,6 +218,16 @@ static force_inline void ast_slinear_saturated_divide(short *input, short *value
 
 int test_for_thread_safety(void);
 
+/*!
+ * \brief thread-safe replacement for inet_ntoa().
+ *
+ * \note It is very important to note that even though this is a thread-safe
+ *       replacement for inet_ntoa(), it is *not* reentrant.  In a single
+ *       thread, the result from a previous call to this function is no longer
+ *       valid once it is called again.  If the result from multiple calls to
+ *       this function need to be kept or used at once, then the result must be
+ *       copied to a local buffer before calling this function again.
+ */
 const char *ast_inet_ntoa(struct in_addr ia);
 
 #ifdef inet_ntoa

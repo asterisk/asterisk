@@ -21,7 +21,20 @@
  * \author Russell Bryant <russell@digium.com>
  *
  * \brief Definitions to aid in the use of thread local storage
-*/
+ *
+ * The POSIX threads (pthreads) API provides the ability to define thread
+ * specific data.  The functions and structures defined here are intended
+ * to centralize the code that is commonly used when using thread local
+ * storage.
+ *
+ * The motivation for using this code in Asterisk is for situations where
+ * storing data on a thread-specific basis can provide some amount of
+ * performance benefit.  For example, there are some call types in Asterisk
+ * where ast_frame structures must be allocated very rapidly (easily 50, 100,
+ * 200 times a second).  Instead of doing the equivalent of that many calls
+ * to malloc() and free() per second, thread local storage is used to keep a
+ * list of unused frame structures so that they can be continuously reused.
+ */
 
 #ifndef ASTERISK_THREADSTORAGE_H
 #define ASTERISK_THREADSTORAGE_H
