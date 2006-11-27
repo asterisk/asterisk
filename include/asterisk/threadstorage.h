@@ -19,8 +19,12 @@
 /*!
  * \file threadstorage.h
  * \author Russell Bryant <russell@digium.com>
- *
  * \brief Definitions to aid in the use of thread local storage
+ */
+
+/*!
+ * \page AstThreadStorage The Asterisk Thread Storage API
+ *
  *
  * The POSIX threads (pthreads) API provides the ability to define thread
  * specific data.  The functions and structures defined here are intended
@@ -34,6 +38,8 @@
  * 200 times a second).  Instead of doing the equivalent of that many calls
  * to malloc() and free() per second, thread local storage is used to keep a
  * list of unused frame structures so that they can be continuously reused.
+ *
+ * - \ref threadstorage.h
  */
 
 #ifndef ASTERISK_THREADSTORAGE_H
@@ -86,7 +92,7 @@ struct ast_threadstorage {
  *
  * Example usage:
  * \code
- * AST_THREADSTORAGE(my_buf, my_init, my_cleanup);
+ * AST_THREADSTORAGE_CUSTOM(my_buf, my_init, my_cleanup);
  * \endcode
  */
 #define AST_THREADSTORAGE_CUSTOM(name, c_init, c_cleanup) \

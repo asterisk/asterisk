@@ -40,7 +40,6 @@
  *  \arg \ref AstENUM : The IETF way to redirect from phone numbers to VoIP calls
  *  \arg \ref AstHTTP
  *  \arg \ref AstSpeech
- *  \arg \ref DataStores
  *  \arg \ref ConfigFiles
  *  \arg \ref SoundFiles included in the Asterisk distribution
  *  \arg \ref AstCREDITS : A Thank You to contributors
@@ -65,6 +64,10 @@
 /*! \page AstAPI Asterisk API
  *  \section Asteriskapi Asterisk API
  *  Some generic documents on the Asterisk architecture
+ *
+ *  \arg \ref AstThreadStorage
+ *  \arg \ref DataStores
+ *
  *  \subsection model_txt Generic Model
  *  \verbinclude model.txt
  *  \subsection channel_txt Channels
