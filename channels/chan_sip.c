@@ -12331,7 +12331,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE) {
 				/* First we ACK */
 				transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-					ast_log(LOG_WARNING, "INVITE with REPLACEs failed to '%s'\n", get_header(&p->initreq, "From"));
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Got 481 on Invite. Assuming INVITE with REPLACEs failed to '%s'\n", get_header(&p->initreq, "From"));
 				if (owner)
 					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
