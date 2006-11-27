@@ -403,20 +403,20 @@ static int scan_service(char *fn, time_t now, time_t atime)
 					return now;
 				} else {
 					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
-					free_outgoing(o);
 					remove_from_queue(o, "Expired");
+					free_outgoing(o);
 					return 0;
 				}
 			} else {
+				remove_from_queue(o, "Failed");
 				free_outgoing(o);
 				ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
 				fclose(f);
-				remove_from_queue(o, "Failed");
 			}
 		} else {
+			remove_from_queue(o, "Failed");
 			free_outgoing(o);
 			ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
-			remove_from_queue(o, "Failed");
 		}
 	} else
 		ast_log(LOG_WARNING, "Out of memory :(\n");
