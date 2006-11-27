@@ -205,7 +205,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
 		}
-		state->save_pos = state->pos + 1;
+		state->save_pos = state->pos;
 	}
 }
 
@@ -216,32 +216,29 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	int tries;
 
 	if (state->save_pos) {
-		state->pos = state->save_pos - 1;
+		state->pos = state->save_pos;
 		state->save_pos = 0;
-	} else {
+	}
+
+	state->samples = 0;
+	if (chan->stream) {
+		ast_closestream(chan->stream);
+		chan->stream = NULL;
+		state->pos++;
+		state->pos %= state->class->total_files;
+	}
+
+	if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
 		/* Try 20 times to find something good */
-		for (tries=0;tries < 20;tries++) {
-			state->samples = 0;
-			if (chan->stream) {
-				ast_closestream(chan->stream);
-				chan->stream = NULL;
-				state->pos++;
-			}
-
-			if (ast_test_flag(state->class, MOH_RANDOMIZE))
-				state->pos = ast_random();
-
-			state->pos %= state->class->total_files;
+		for (tries = 0; tries < 20; tries++) {
+			state->pos = rand() % state->class->total_files;
 
 			/* check to see if this file's format can be opened */
 			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
-
 		}
 	}
 
-	state->pos = state->pos % state->class->total_files;
-	
 	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
 		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
