@@ -92,6 +92,7 @@ struct server_instance {
 	SSL *ssl;	/* ssl state */
 #endif
 	struct sockaddr_in requestor;
+	struct server_args *parent;
 };
 
 /*!
@@ -483,14 +484,14 @@ static int ssl_close(void *cookie)
 }
 #endif	/* DO_SSL */
 
-static void *httpd_helper_thread(void *data)
+/*!
+ * creates a FILE * from the fd passed by the accept thread.
+ * This operation is potentially expensive (certificate verification),
+ * so we do it in the child thread context.
+ */
+static void *make_file_from_fd(void *data)
 {
-	char buf[4096];
-	char cookie[4096];
 	struct server_instance *ser = data;
-	struct ast_variable *var, *prev=NULL, *vars=NULL;
-	char *uri, *c, *title=NULL;
-	int status = 200, contentlength = 0;
 
 	/*
 	 * open a FILE * as appropriate.
@@ -523,8 +524,20 @@ static void *httpd_helper_thread(void *data)
 	if (!ser->f) {
 		close(ser->fd);
 		ast_log(LOG_WARNING, "FILE * open failed!\n");
-		goto done;
+		free(ser);
+		return NULL;
 	}
+	return ser->parent->worker_fn(ser);
+}
+
+static void *httpd_helper_thread(void *data)
+{
+	char buf[4096];
+	char cookie[4096];
+	struct server_instance *ser = data;
+	struct ast_variable *var, *prev=NULL, *vars=NULL;
+	char *uri, *c, *title=NULL;
+	int status = 200, contentlength = 0;
 
 	if (!fgets(buf, sizeof(buf), ser->f))
 		goto done;
@@ -674,12 +687,13 @@ static void *http_root(void *data)
 		fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 		ser->fd = fd;
 		ser->is_ssl = desc->is_ssl;
+		ser->parent = desc;
 		memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
 
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			
-		if (ast_pthread_create_background(&launched, &attr, desc->worker_fn, ser)) {
+		if (ast_pthread_create_background(&launched, &attr, make_file_from_fd, ser)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(ser->fd);
 			free(ser);
