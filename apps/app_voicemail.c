@@ -6970,22 +6970,13 @@ static int handle_voicemail_show_users(int fd, int argc, char *argv[])
 			}
 		}
 		AST_LIST_TRAVERSE(&users, vmu, list) {
-			char dirname[256];
-			DIR *vmdir;
-			struct dirent *vment;
-			int vmcount = 0;
-			char count[12];
+			int newmsgs = 0, oldmsgs = 0;
+			char count[12], tmp[256] = "";
 
 			if ((argc == 3) || ((argc == 5) && !strcmp(argv[4],vmu->context))) {
-				make_dir(dirname, 255, vmu->context, vmu->mailbox, "INBOX");
-				if ((vmdir = opendir(dirname))) {
-					/* No matter what the format of VM, there will always be a .txt file for each message. */
-					while ((vment = readdir(vmdir)))
-						if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
-							vmcount++;
-					closedir(vmdir);
-				}
-				snprintf(count,sizeof(count),"%d",vmcount);
+				snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
+				inboxcount(tmp, &newmsgs, &oldmsgs);
+				snprintf(count,sizeof(count),"%d",newmsgs);
 				ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			}
 		}
