@@ -137,10 +137,6 @@ struct mansession {
 	struct sockaddr_in sin;
 	/*! TCP socket */
 	int fd;
-	/*! Whether or not we're busy doing an action */
-	int busy;
-	/*! Whether or not we're "dead" */
-	int dead;
 	/*! Whether an HTTP manager is in use */
 	int inuse;
 	/*! Whether an HTTP session should be destroyed */
@@ -1167,8 +1163,6 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		if (!s->send_events)
 			s->send_events = -1;
 		/* Once waitevent is called, always queue events from now on */
-		if (s->busy == 1)
-			s->busy = 2;
 	}
 	ast_mutex_unlock(&s->__lock);
 	s->waiting_thread = pthread_self();
@@ -1880,7 +1874,6 @@ static int process_events(struct mansession *s)
 	int ret = 0;
 	ast_mutex_lock(&s->__lock);
 	if (s->fd > -1) {
-		s->busy--;
 		if (!s->eventq)
 			s->eventq = master_eventq;
 		while(s->eventq->next) {
@@ -1980,9 +1973,6 @@ static int process_message(struct mansession *s, struct message *m)
 		} else
 			astman_send_error(s, m, "Authentication Required");
 	} else {
-		ast_mutex_lock(&s->__lock);
-		s->busy++;
-		ast_mutex_unlock(&s->__lock);
 		while (tmp) { 		
 			if (!strcasecmp(action, tmp->action)) {
 				if ((s->writeperm & tmp->authority) == tmp->authority) {
@@ -2039,8 +2029,6 @@ static int get_input(struct mansession *s, char *output)
 		ast_mutex_unlock(&s->__lock);
 		if (res < 0) {
 			if (errno == EINTR) {
-				if (s->dead)
-					return -1;
 				return 0;
 			}
 			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
