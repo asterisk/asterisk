@@ -824,6 +824,7 @@ static int __ast_http_load(int reload)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	char newprefix[MAX_PREFIX];
+	int have_sslbindaddr = 0;
 
 	/* default values */
 	memset(&http_desc.sin, 0, sizeof(http_desc.sin));
@@ -862,10 +863,16 @@ static int __ast_http_load(int reload)
 				newenablestatic = ast_true(v->value);
 			else if (!strcasecmp(v->name, "bindport"))
 				http_desc.sin.sin_port = htons(atoi(v->value));
-			else if (!strcasecmp(v->name, "bindaddr")) {
+			else if (!strcasecmp(v->name, "sslbindaddr")) {
+				if ((hp = ast_gethostbyname(v->value, &ahp))) {
+					memcpy(&https_desc.sin.sin_addr, hp->h_addr, sizeof(https_desc.sin.sin_addr));
+					have_sslbindaddr = 1;
+				} else {
+					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
+				}
+			} else if (!strcasecmp(v->name, "bindaddr")) {
 				if ((hp = ast_gethostbyname(v->value, &ahp))) {
 					memcpy(&http_desc.sin.sin_addr, hp->h_addr, sizeof(http_desc.sin.sin_addr));
-					memcpy(&https_desc.sin.sin_addr, hp->h_addr, sizeof(https_desc.sin.sin_addr));
 				} else {
 					ast_log(LOG_WARNING, "Invalid bind address '%s'\n", v->value);
 				}
@@ -882,6 +889,8 @@ static int __ast_http_load(int reload)
 		}
 		ast_config_destroy(cfg);
 	}
+	if (!have_sslbindaddr)
+		https_desc.sin.sin_addr = http_desc.sin.sin_addr;
 	if (enabled)
 		http_desc.sin.sin_family = https_desc.sin.sin_family = AF_INET;
 	if (strcmp(prefix, newprefix))

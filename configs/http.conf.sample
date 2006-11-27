@@ -28,10 +28,13 @@ bindaddr=127.0.0.1
 ;
 ;prefix=asterisk
 
-; HTTPS support: you need to enable it, define the port to use,
+; HTTPS support. In addition to enabled=yes, you need to
+; explicitly enable ssl, define the port to use,
 ; and have a certificate somewhere.
 ; sslenable=yes		; enable ssl - default no.
 ; sslbindport=4433	; port to use - default is 8089
+; sslbindaddr=0.0.0.0	; address to bind to - default is bindaddr.
+;
 ; sslcert=/tmp/foo.pem	; path to the certificate
 ;
 ; To produce a certificate you can e.g. use openssl
