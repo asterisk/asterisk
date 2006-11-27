@@ -72,7 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #ifdef DO_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-SSL_CTX* ssl_ctx;
+static SSL_CTX* ssl_ctx;
 #endif /* DO_SSL */
 
 /* SSL support */
@@ -92,7 +92,6 @@ struct server_instance {
 	SSL *ssl;	/* ssl state */
 #endif
 	struct sockaddr_in requestor;
-	ast_http_callback callback;
 };
 
 /*!
