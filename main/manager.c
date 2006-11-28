@@ -271,7 +271,7 @@ static struct eventqent *grab_last(void)
  * Purge unused events. Remove elements from the head
  * as long as their usecount is 0 and there is a next element.
  */
-static void purge_unused(void)
+static void purge_events(void)
 {
 	struct eventqent *ev;
 
@@ -2136,6 +2136,32 @@ static void *session_do(void *data)
 	return NULL;
 }
 
+/*! \brief remove at most n_max stale session from the list. */
+static void purge_sessions(int n_max)
+{
+	struct mansession *s;
+	time_t now = time(NULL);
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
+		if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
+			ast_verbose("destroy session[2] %lx now %lu to %lu\n",
+				s->managerid, (unsigned long)now, (unsigned long)s->sessiontimeout);
+			AST_LIST_REMOVE_CURRENT(&sessions, list);
+			ast_atomic_fetchadd_int(&num_sessions, -1);
+			if (s->authenticated && (option_verbose > 1) && displayconnects) {
+				ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
+					s->username, ast_inet_ntoa(s->sin.sin_addr));
+			}
+			free_session(s);	/* XXX outside ? */
+			if (--n_max <= 0)
+				break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&sessions);
+}
+
 /*! \brief The thread accepting connections on the manager interface port.
  * As a side effect, it purges stale sessions, one per each iteration,
  * which is at least every 5 seconds.
@@ -2149,40 +2175,20 @@ static void *accept_thread(void *ignore)
 
 	for (;;) {
 		struct mansession *s;
-		time_t now = time(NULL);
 		int as;
 		struct sockaddr_in sin;
 		socklen_t sinlen;
 		struct protoent *p;
 		int flags;
-		struct pollfd pfds[1];
 
-		AST_LIST_LOCK(&sessions);
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
-			if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
-				ast_verbose("destroy session[2] %lx now %lu to %lu\n",
-					s->managerid, (unsigned long)now, (unsigned long)s->sessiontimeout);
-				AST_LIST_REMOVE_CURRENT(&sessions, list);
-				ast_atomic_fetchadd_int(&num_sessions, -1);
-				if (s->authenticated && (option_verbose > 1) && displayconnects) {
-					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
-						s->username, ast_inet_ntoa(s->sin.sin_addr));
-				}
-				free_session(s);	/* XXX outside ? */
-				break;
-			}
-		}
-		AST_LIST_TRAVERSE_SAFE_END
-		AST_LIST_UNLOCK(&sessions);
-		purge_unused();
+		purge_sessions(1);
+		purge_events();
 
-		sinlen = sizeof(sin);
-		pfds[0].fd = asock;
-		pfds[0].events = POLLIN;
 		/* Wait for something to happen, but timeout every few seconds so
 		   we can ditch any old manager sessions */
-		if (poll(pfds, 1, 5000) < 1)
+		if (ast_wait_for_input(asock, 5000) < 1)
 			continue;
+		sinlen = sizeof(sin);
 		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
 		if (as < 0) {
 			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
