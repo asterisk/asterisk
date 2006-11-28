@@ -124,10 +124,12 @@ AST_THREADSTORAGE(manager_event_buf);
 AST_THREADSTORAGE(astman_append_buf);
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
-/*! \brief Descriptor for an AMI session, either a regular one
- * or one over http.
- * For AMI sessions, the entry is created upon a connect, and destroyed
- * with the socket.
+/*!
+ * Descriptor for a manager session, either on the AMI socket or over HTTP.
+ * AMI session have managerid == 0; the entry is created upon a connect,
+ * and destroyed with the socket.
+ * HTTP sessions have managerid != 0, the value is used as a search key
+ * to lookup sessions (using the mansession_id cookie).
  */
 struct mansession {
 	pthread_t ms_t;		/*!< Execution thread, basically useless */
@@ -1246,10 +1248,10 @@ static int action_login(struct mansession *s, struct message *m)
 	s->authenticated = 1;
 	if (option_verbose > 1) {
 		if (displayconnects) {
-			ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+			ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 		}
 	}
-	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 	astman_send_ack(s, m, "Authentication accepted");
 	return 0;
 }
@@ -2427,7 +2429,11 @@ static char *contenttype[] = {
 	[FORMAT_XML] =  "xml",
 };
 
-/* locate an http session in the list using the cookie as a key */
+/*!
+ * locate an http session in the list. The search key (ident) is
+ * the value of the mansession_id cookie (0 is not valid and means
+ * a session on the AMI socket).
+ */
 static struct mansession *find_session(unsigned long ident)
 {
 	struct mansession *s;
@@ -2438,7 +2444,7 @@ static struct mansession *find_session(unsigned long ident)
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_mutex_lock(&s->__lock);
-		if (s->sessiontimeout && (s->managerid == ident) && !s->needdestroy) {
+		if (s->managerid == ident && !s->needdestroy) {
 			ast_atomic_fetchadd_int(&s->inuse, 1);
 			break;
 		}
@@ -2640,7 +2646,7 @@ static char *generic_http_callback(enum output_format format,
 	char **title, int *contentlength)
 {
 	struct mansession *s = NULL;
-	unsigned long ident = 0;
+	unsigned long ident = 0; /* invalid, so find_session will fail if not set through the cookie */
 	char workspace[1024];
 	size_t len = sizeof(workspace);
 	int blastaway = 0;
