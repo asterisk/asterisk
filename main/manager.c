@@ -736,6 +736,15 @@ struct ast_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
+/*!
+ * helper function to send a string to the socket.
+ * Return -1 on error (e.g. buffer full).
+ */
+static int send_string(struct mansession *s, char *string)
+{
+	return ast_carefulwrite(s->fd, string, strlen(string), s->writetimeout);
+}
+
 /*
  * utility functions for creating AMI replies
  */
@@ -752,8 +761,9 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	va_end(ap);
 
 	if (s->fd > -1)
-		ast_carefulwrite(s->fd, buf->str, strlen(buf->str), s->writetimeout);
+		send_string(s, buf->str);
 	else {
+		ast_verbose("fd == -1 in astman_append, should not happen\n");
 		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
 			return;
 
@@ -1591,7 +1601,7 @@ static int action_command(struct mansession *s, struct message *m)
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
-	ast_cli_command(s->fd, cmd);
+	ast_cli_command(s->fd, cmd);	/* XXX need to change this to use a FILE * */
 	astman_append(s, "--END COMMAND--\r\n\r\n");
 	return 0;
 }
@@ -1905,7 +1915,9 @@ static int action_timeout(struct mansession *s, struct message *m)
 }
 
 /*!
- * Send any applicable events to the client listening on this socket
+ * Send any applicable events to the client listening on this socket.
+ * Wait only for a finite time on each event, and drop all events whether
+ * they are successfully sent or not.
  */
 static int process_events(struct mansession *s)
 {
@@ -1917,11 +1929,11 @@ static int process_events(struct mansession *s)
 
 		while ( (eqe = NEW_EVENT(s)) ) {
 			ref_event(eqe);
-			if ((s->authenticated && (s->readperm & eqe->category) == eqe->category) &&
-			    ((s->send_events & eqe->category) == eqe->category)) {
-				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata,
-						strlen(eqe->eventdata), s->writetimeout) < 0)
-					ret = -1;
+			if (!ret && s->authenticated &&
+			    (s->readperm & eqe->category) == eqe->category &&
+			    (s->send_events & eqe->category) == eqe->category) {
+				if (send_string(s, eqe->eventdata) < 0)
+					ret = -1;	/* don't send more */
 			}
 			s->last_ev = unref_event(s->last_ev);
 		}
@@ -2016,7 +2028,6 @@ static int process_message(struct mansession *s, struct message *m)
  */
 static int get_input(struct mansession *s, char *output)
 {
-	struct pollfd fds[1];
 	int res, x;
 	int maxlen = sizeof(s->inbuf) - 1;
 	char *src = s->inbuf;
@@ -2040,8 +2051,6 @@ static int get_input(struct mansession *s, char *output)
 		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", ast_inet_ntoa(s->sin.sin_addr), src);
 		s->inlen = 0;
 	}
-	fds[0].fd = s->fd;
-	fds[0].events = POLLIN;
 	res = 0;
 	while (res == 0) {
 		/* XXX do we really need this locking ? */
@@ -2049,7 +2058,7 @@ static int get_input(struct mansession *s, char *output)
 		s->waiting_thread = pthread_self();
 		ast_mutex_unlock(&s->__lock);
 
-		res = poll(fds, 1, -1);	/* return 0 on timeout ? */
+		res = ast_wait_for_input(s->fd, -1);	/* return 0 on timeout ? */
 
 		ast_mutex_lock(&s->__lock);
 		s->waiting_thread = AST_PTHREADT_NULL;
