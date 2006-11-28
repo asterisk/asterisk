@@ -139,7 +139,7 @@ struct mansession {
 	int fd;			/*!< descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
 	int inuse;		/*!< number of HTTP sessions using this entry */
 	int needdestroy;	/*!< Whether an HTTP session should be destroyed */
-	pthread_t waiting_thread;	/*!< Whether an HTTP session has someone waiting on events */
+	pthread_t waiting_thread;	/*!< Sleeping thread using this descriptor */
 	unsigned long managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
 	time_t sessiontimeout;	/*!< Session timeout if HTTP */
 	struct ast_dynamic_str *outputstr;	/*!< Output from manager interface */
@@ -1110,15 +1110,14 @@ static char mandescr_waitevent[] =
 "a manager event is queued.  Once WaitEvent has been called on an HTTP manager\n"
 "session, events will be generated and queued.\n"
 "Variables: \n"
-"   Timeout: Maximum time to wait for events\n";
+"   Timeout: Maximum time (in seconds) to wait for events, -1 means forever.\n";
 
 static int action_waitevent(struct mansession *s, struct message *m)
 {
 	char *timeouts = astman_get_header(m, "Timeout");
-	int timeout = -1, max;
+	int timeout = -1;
 	int x;
 	int needexit = 0;
-	time_t now;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 
@@ -1127,31 +1126,46 @@ static int action_waitevent(struct mansession *s, struct message *m)
 
 	if (!ast_strlen_zero(timeouts)) {
 		sscanf(timeouts, "%i", &timeout);
+		if (timeout < -1)
+			timeout = -1;
+		/* XXX maybe put an upper bound, or prevent the use of 0 ? */
 	}
 
 	ast_mutex_lock(&s->__lock);
-	if (s->waiting_thread != AST_PTHREADT_NULL) {
+	if (s->waiting_thread != AST_PTHREADT_NULL)
 		pthread_kill(s->waiting_thread, SIGURG);
-	}
-	if (s->sessiontimeout) {
-		time(&now);
-		max = s->sessiontimeout - now - 10;
-		if (max < 0)
+
+	if (s->managerid) { /* AMI-over-HTTP session */
+		/*
+		 * Make sure the timeout is within the expire time of the session,
+		 * as the client will likely abort the request if it does not see
+		 * data coming after some amount of time.
+		 */
+		time_t now = time(NULL);
+		int max = s->sessiontimeout - now - 10;
+
+		if (max < 0)	/* We are already late. Strange but possible. */
 			max = 0;
-		if ((timeout < 0) || (timeout > max))
+		if (timeout < 0 || timeout > max)
 			timeout = max;
-		if (!s->send_events)
+		if (!s->send_events)	/* make sure we record events */
 			s->send_events = -1;
-		/* Once waitevent is called, always queue events from now on */
 	}
 	ast_mutex_unlock(&s->__lock);
-	s->waiting_thread = pthread_self();
+
+	/* XXX should this go inside the lock ? */
+	s->waiting_thread = pthread_self();	/* let new events wake up this thread */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
-	for (x=0; ((x < timeout) || (timeout < 0)); x++) {
+
+	for (x=0; x < timeout || timeout < 0; x++) {
 		ast_mutex_lock(&s->__lock);
 		if (NEW_EVENT(s))
 			needexit = 1;
+		/* We can have multiple HTTP session point to the same mansession entry.
+		 * The way we deal with it is not very nice: newcomers kick out the previous
+		 * HTTP session. XXX this needs to be improved.
+		 */
 		if (s->waiting_thread != pthread_self())
 			needexit = 1;
 		if (s->needdestroy)
@@ -1171,8 +1185,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 	ast_mutex_lock(&s->__lock);
 	if (s->waiting_thread == pthread_self()) {
 		struct eventqent *eqe;
-		astman_send_response(s, m, "Success", "Waiting for Event...");
-		/* Only show events if we're the most recent waiter */
+		astman_send_response(s, m, "Success", "Waiting for Event completed.");
 		while ( (eqe = NEW_EVENT(s)) ) {
 			ref_event(eqe);
 			if (((s->readperm & eqe->category) == eqe->category) &&
