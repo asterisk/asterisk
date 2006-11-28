@@ -2000,7 +2000,7 @@ static int process_message(struct mansession *s, struct message *m)
 		}
 	}
 	if (!tmp)
-		astman_send_error(s, m, "Invalid/unknown command");
+		astman_send_error(s, m, "Invalid/unknown command. Use Action: ListCommands to show available commands.");
 	if (ret)
 		return ret;
 	/* Once done with our message, deliver any pending events */
