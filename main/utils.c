@@ -975,27 +975,29 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len,
 	struct ast_threadstorage *ts, int append, const char *fmt, va_list ap)
 {
-	int res;
+	int res, need;
 	int offset = (append && (*buf)->len) ? strlen((*buf)->str) : 0;
 
 	res = vsnprintf((*buf)->str + offset, (*buf)->len - offset, fmt, ap);
 
+	need = res + offset + 1;
 	/* Check to see if there was not enough space in the string buffer to prepare
 	 * the string.  Also, if a maximum length is present, make sure the current
 	 * length is less than the maximum before increasing the size. */
-	if ((res + offset + 1) > (*buf)->len && (max_len ? ((*buf)->len < max_len) : 1)) {
+	if (need > (*buf)->len && (max_len == 0 || (*buf)->len < max_len) ) {
 		/* Set the new size of the string buffer to be the size needed
 		 * to hold the resulting string (res) plus one byte for the
 		 * terminating '\0'.  If this size is greater than the max, set
 		 * the new length to be the maximum allowed. */
-		if (max_len)
-			(*buf)->len = ((res + offset + 1) < max_len) ? (res + offset + 1) : max_len;
-		else
-			(*buf)->len = res + offset + 1;
+		if (max_len && max_len < need)
+			need = max_len;
 
-		if (!(*buf = ast_realloc(*buf, (*buf)->len + sizeof(*(*buf)))))
+		*buf = ast_realloc(*buf, need + sizeof(struct ast_dynamic_str));
+		if (*buf == NULL)
 			return AST_DYNSTR_BUILD_FAILED;
+		(*buf)->len = need;
 
+		/* Truncate the previous attempt. XXX this should be unconditional */
 		if (append)
 			(*buf)->str[offset] = '\0';
 
