@@ -2770,7 +2770,7 @@ static char *generic_http_callback(enum output_format format,
 		/* always return something even if len == 0 */
 		if ((buf = ast_calloc(1, len+1))) {
 			if (!s->outputstr)
-				s->outputstr = ast_calloc(1, sizeof(*s->outputstr));
+				s->outputstr = ast_dynamic_str_create(len+1);
 			if (len > 0 && s->outputstr) {
 				lseek(s->fd, 0, SEEK_SET);
 				read(s->fd, buf, len);
