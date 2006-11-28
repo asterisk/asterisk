@@ -232,7 +232,7 @@ static int zap_new(struct ast_trans_pvt *pvt)
 	return zap_translate(pvt, pvt->t->dstfmt, pvt->t->srcfmt);
 }
 
-static struct ast_frame *g729_fakesrc_sample()
+static struct ast_frame *g729_fakesrc_sample(void)
 {
 	/* Don't bother really trying to test hardware ones. */
 	static struct ast_frame f = {
@@ -244,7 +244,7 @@ static struct ast_frame *g729_fakesrc_sample()
 	return &f;
 }
 
-static struct ast_frame *g723_fakesrc_sample()
+static struct ast_frame *g723_fakesrc_sample(void)
 {
 	/* Don't bother really trying to test hardware ones. */
 	static struct ast_frame f = {
