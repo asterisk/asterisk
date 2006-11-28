@@ -2767,10 +2767,11 @@ static char *generic_http_callback(enum output_format format,
 		char *buf;
 		off_t len = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
 
-		if (len > 0 && (buf = ast_calloc(1, len+1))) {
+		/* always return something even if len == 0 */
+		if ((buf = ast_calloc(1, len+1))) {
 			if (!s->outputstr)
 				s->outputstr = ast_calloc(1, sizeof(*s->outputstr));
-			if (s->outputstr) {
+			if (len > 0 && s->outputstr) {
 				lseek(s->fd, 0, SEEK_SET);
 				read(s->fd, buf, len);
 				if (0)
