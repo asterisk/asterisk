@@ -1149,7 +1149,7 @@ static int action_waitevent(struct mansession *s, struct message *m)
 		ast_mutex_unlock(&s->__lock);
 		if (needexit)
 			break;
-		if (!s->inuse && s->fd > 0) {	/* AMI session */
+		if (s->managerid == 0) {	/* AMI session */
 			if (ast_wait_for_input(s->fd, 1000))
 				break;
 		} else {	/* HTTP session */
