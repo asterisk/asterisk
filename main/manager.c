@@ -142,7 +142,6 @@ struct mansession {
 	pthread_t waiting_thread;	/*!< Sleeping thread using this descriptor */
 	unsigned long managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
 	time_t sessiontimeout;	/*!< Session timeout if HTTP */
-	struct ast_dynamic_str *outputstr;	/*!< Output from manager interface */
 	char username[80];	/*!< Logged in username */
 	char challenge[10];	/*!< Authentication challenge */
 	int authenticated;	/*!< Authentication status */
@@ -669,8 +668,6 @@ static void free_session(struct mansession *s)
 	struct eventqent *eqe = s->last_ev;
 	if (s->fd > -1)
 		close(s->fd);
-	if (s->outputstr)
-		free(s->outputstr);
 	ast_mutex_destroy(&s->__lock);
 	free(s);
 	unref_event(eqe);
@@ -762,13 +759,8 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 
 	if (s->fd > -1)
 		send_string(s, buf->str);
-	else {
+	else
 		ast_verbose("fd == -1 in astman_append, should not happen\n");
-		if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr))))
-			return;
-
-		ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);
-	}
 }
 
 /*! \note NOTE: XXX this comment is unclear and possibly wrong.
@@ -2765,19 +2757,30 @@ static char *generic_http_callback(enum output_format format,
 	}
 	if (s->fd > -1) {	/* have temporary output */
 		char *buf;
-		off_t len = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
+		off_t l = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
 
 		/* always return something even if len == 0 */
-		if ((buf = ast_calloc(1, len+1))) {
-			if (!s->outputstr)
-				s->outputstr = ast_dynamic_str_create(len+1);
-			if (len > 0 && s->outputstr) {
+		if ((buf = ast_calloc(1, l+1))) {
+			char *tmp;
+			if (l > 0) {
 				lseek(s->fd, 0, SEEK_SET);
-				read(s->fd, buf, len);
-				if (0)
-					ast_verbose("--- fd %d has %d bytes ---\n%s\n---\n", s->fd, (int)len, buf);
-				ast_dynamic_str_append(&s->outputstr, 0, "%s", buf);
+				read(s->fd, buf, l);
 			}
+			if (format == FORMAT_XML || format == FORMAT_HTML)
+				tmp = xml_translate(buf, params, format);
+			else
+				tmp = buf;
+			if (tmp) {
+				retval = malloc(strlen(workspace) + strlen(tmp) + 128);
+				if (retval) {
+					strcpy(retval, workspace);
+					strcpy(retval + strlen(retval), tmp);
+					c = retval + strlen(retval);
+					len = 120;
+				}
+			}
+			if (tmp != buf)
+				free(tmp);
 			free(buf);
 		}
 		close(s->fd);
@@ -2785,26 +2788,6 @@ static char *generic_http_callback(enum output_format format,
 		unlink(template);
 	}
 
-	if (s->outputstr) {
-		char *tmp;
-		if (format == FORMAT_XML || format == FORMAT_HTML)
-			tmp = xml_translate(s->outputstr->str, params, format);
-		else
-			tmp = s->outputstr->str;
-		if (tmp) {
-			retval = malloc(strlen(workspace) + strlen(tmp) + 128);
-			if (retval) {
-				strcpy(retval, workspace);
-				strcpy(retval + strlen(retval), tmp);
-				c = retval + strlen(retval);
-				len = 120;
-			}
-		}
-		if (tmp != s->outputstr->str)
-			free(tmp);
-		free(s->outputstr);
-		s->outputstr = NULL;
-	}
 	/* Still okay because c would safely be pointing to workspace even
 	   if retval failed to allocate above */
 	if (format == FORMAT_XML) {
