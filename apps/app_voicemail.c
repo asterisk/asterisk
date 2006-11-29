@@ -8472,15 +8472,16 @@ void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
 
 	if(option_debug > 3)
 		ast_log(LOG_DEBUG, "Entering callback mm_login\n");
-	ast_copy_string(user, mb->user,sizeof(user));
+
+	ast_copy_string(user, mb->user, MAILTMPLEN);
 
 	/* We should only do this when necessary */
 	if (!ast_strlen_zero(authpassword)) {
-		ast_copy_string(pwd, authpassword, sizeof(pwd));
+		ast_copy_string(pwd, authpassword, MAILTMPLEN);
 	} else {
 		AST_LIST_TRAVERSE(&users, vmu, list) {
 			if(!strcasecmp(mb->user, vmu->imapuser)) {
-				ast_copy_string(pwd, vmu->imappassword, sizeof(pwd));
+				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
 				break;
 			}
 		}
