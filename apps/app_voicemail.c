@@ -4673,7 +4673,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	if(option_debug > 2)
 		ast_log(LOG_DEBUG,"Before init_mailstream, user is %s\n",vmu->imapuser);
 	ret = init_mailstream(vms, box);
-	if (ret != 0) {
+	if (ret != 0 || !vms->mailstream) {
 		ast_log (LOG_ERROR,"Could not initialize mailstream\n");
 		return -1;
 	}
