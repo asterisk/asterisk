@@ -1463,6 +1463,8 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			f = _f;
 		}
 		ast_rtp_raw_write(rtp, f, codec);
+		if (f != _f)
+			ast_frfree(f);
 	}
 		
 	return 0;
