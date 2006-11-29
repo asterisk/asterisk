@@ -2990,8 +2990,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "p2p-rtp-bridge: Oooh, something is weird, backing out\n");
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
@@ -3001,8 +3001,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 				res = AST_BRIDGE_RETRY;
 				break;
 			}
-			if (option_debug)
-				ast_log(LOG_NOTICE, "Ooh, empty read...\n");
+			if (option_debug > 2)
+				ast_log(LOG_NOTICE, "p2p-rtp-bridge: Ooh, empty read...\n");
 			if (ast_check_hangup(c0) || ast_check_hangup(c1))
 				break;
 			continue;
@@ -3010,15 +3010,15 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		/* Read in frame from channel */
 		fr = ast_read(who);
 		other = (who == c0) ? c1 : c0;
-		/* Dependong on the frame we may need to break out of our bridge */
+		/* Depending on the frame we may need to break out of our bridge */
 		if (!fr || ((fr->frametype == AST_FRAME_DTMF) &&
 			    ((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) |
 			    ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1)))) {
 			/* Record received frame and who */
 			*fo = fr;
 			*rc = who;
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Oooh, got a %s\n", fr ? "digit" : "hangup");
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "p2p-rtp-bridge: Ooh, got a %s\n", fr ? "digit" : "hangup");
 			res = AST_BRIDGE_COMPLETE;
 			break;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
@@ -3047,8 +3047,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			} else {
 				*fo = fr;
 				*rc = who;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "p2p-rtp-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
 				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
@@ -3156,7 +3156,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	codec1 = pr1->get_codec ? pr1->get_codec(c1) : 0;
 	if (codec0 && codec1 && !(codec0 & codec1)) {
 		/* Hey, we can't do native bridging if both parties speak different codecs */
-		if (option_debug)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
