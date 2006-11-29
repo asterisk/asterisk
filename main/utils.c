@@ -997,16 +997,8 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
 			return AST_DYNSTR_BUILD_FAILED;
 		(*buf)->len = need;
 
-		/* Truncate the previous attempt.  This is only needed for the
-		 * append operation because if the write is from the beginning,
-		 * it will get automatically overwritten when this function
-		 * gets called again.  When appending, if this was not done,
-		 * this function would be called over and over again, because
-		 * each attempt would be appending more and more partial
-		 * strings, never having enough space to finish.
-		 */ 
-		if (append)
-			(*buf)->str[offset] = '\0';
+		/* Truncate the partial write. */
+		(*buf)->str[offset] = '\0';
 
 		if (ts)
 			pthread_setspecific(ts->key, *buf);
