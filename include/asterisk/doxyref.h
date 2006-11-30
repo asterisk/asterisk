@@ -67,6 +67,7 @@
  *
  *  \arg \ref AstThreadStorage
  *  \arg \ref DataStores
+ *  \arg \ref AstExtState
  *
  *  \subsection model_txt Generic Model
  *  \verbinclude model.txt

@@ -20,7 +20,50 @@
  *
  * \brief Device state management
  *
+ *
  * \author Mark Spencer <markster@digium.com> 
+ */
+/*! \page AstExtState Extension and device states in Asterisk
+ *
+ *	Asterisk has an internal system that reports states
+ *	for an extension. By using the dialplan priority -1,
+ *	also called a \b hint, a connection can be made from an
+ *	extension to one or many devices. The state of the extension
+ *	now depends on the combined state of the devices.
+ *
+ *	The device state is basically based on the current calls.
+ *	If the devicestate engine can find a call from or to the
+ *	device, it's in use.
+ *	
+ *	Some channel drivers implement a callback function for 
+ *	a better level of reporting device states. The SIP channel
+ *	has a complicated system for this, which is improved 
+ *	by adding call limits to the configuration.
+ * 
+ *	Functions that want to check the status of an extension
+ *	register themself as a \b watcher.
+ *	Watchers in this system can subscribe either to all extensions
+ *	or just a specific extensions.
+ *
+ *	For non-device related states, there's an API called
+ *	devicestateproviders. This is an extendable system for
+ *	delivering state information from outside sources or
+ *	functions within Asterisk. Currently we have providers
+ *	for app_meetme.c - the conference bridge - and call
+ *	parking (metermaids).
+ *
+ *	There are manly three subscribers to extension states 
+ *	within Asterisk:
+ *	- AMI, the manager interface
+ *	- app_queue.c - the Queue dialplan application
+ *	- SIP subscriptions, a.k.a. "blinking lamps" or 
+ *	  "buddy lists"
+ *
+ *	None of these handle user states, like an IM presense
+ *	system. res_jabber.c can subscribe and watch such states
+ *	in jabber/xmpp based systems.
+ *
+ *	
  */
 
 #include "asterisk.h"
@@ -69,7 +112,7 @@ static AST_LIST_HEAD_STATIC(devstate_provs, devstate_prov);
 /*! \brief  A device state watcher (callback) */
 struct devstate_cb {
 	void *data;
-	ast_devstate_cb_type callback;
+	ast_devstate_cb_type callback;	/*!< Where to report when state changes */
 	AST_LIST_ENTRY(devstate_cb) list;
 };
 
