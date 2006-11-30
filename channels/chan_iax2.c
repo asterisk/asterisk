@@ -6988,7 +6988,7 @@ retryowner:
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
 						if (iax_park(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->owner)) {
 							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
-						} else {
+						} else if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
 							if (option_debug)
 								ast_log(LOG_DEBUG, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 						}
