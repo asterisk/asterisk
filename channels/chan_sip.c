@@ -7347,7 +7347,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_string_field_set(p, domain, r->domain);
 		ast_string_field_set(p, opaque, r->opaque);
 		ast_string_field_set(p, qop, r->qop);
-		p->noncecount = r->noncecount++;
+		r->noncecount++;
+		p->noncecount = r->noncecount;
 
 		memset(digest,0,sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
