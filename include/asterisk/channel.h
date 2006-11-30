@@ -143,6 +143,8 @@ enum ast_bridge_result {
 
 typedef unsigned long long ast_group_t;
 
+/*! \todo Add an explanation of an Asterisk generator 
+*/
 struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
 	void (*release)(struct ast_channel *chan, void *data);
@@ -274,8 +276,8 @@ struct ast_channel_tech {
 	int (* func_channel_write)(struct ast_channel *chan, char *function, char *data, const char *value);
 };
 
-struct ast_channel_spy_list;
-struct ast_channel_whisper_buffer;
+struct ast_channel_spy_list;	/*!< \todo Add explanation here */
+struct ast_channel_whisper_buffer;	/*!< \todo Add explanation here */
 
 #define	DEBUGCHAN_FLAG  0x80000000
 #define	FRAMECOUNT_INC(x)	( ((x) & DEBUGCHAN_FLAG) | ((x++) & ~DEBUGCHAN_FLAG) )
@@ -492,6 +494,7 @@ enum {
 	AST_FEATURE_PARKCALL =     (1 << 5),
 };
 
+/*! \brief bridge configuration */
 struct ast_bridge_config {
 	struct ast_flags features_caller;
 	struct ast_flags features_callee;
@@ -750,7 +753,7 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout);
 int ast_indicate(struct ast_channel *chan, int condition);
 
 /*! \brief Indicates condition of channel, with payload
- * \note Indicate a condition such as AST_CONTROL_BUSY, AST_CONTROL_RINGING, or AST_CONTROL_CONGESTION on a channel
+ * \note Indicate a condition such as AST_CONTROL_HOLD with payload being music on hold class
  * \param chan channel to change the indication
  * \param condition which condition to indicate on the channel
  * \param data pointer to payload data
@@ -817,14 +820,12 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
 
 /*! \brief Reads a frame
  * \param chan channel to read a frame from
-	Read a frame.  
-	\return Returns a frame, or NULL on error.  If it returns NULL, you
-		best just stop reading frames and assume the channel has been
-		disconnected. */
+ * \return Returns a frame, or NULL on error.  If it returns NULL, you
+	best just stop reading frames and assume the channel has been
+	disconnected. */
 struct ast_frame *ast_read(struct ast_channel *chan);
 
 /*! \brief Reads a frame, returning AST_FRAME_NULL frame if audio. 
- * Read a frame. 
  	\param chan channel to read a frame from
 	\return  Returns a frame, or NULL on error.  If it returns NULL, you
 		best just stop reading frames and assume the channel has been
@@ -892,7 +893,20 @@ int ast_recvchar(struct ast_channel *chan, int timeout);
  */
 int ast_senddigit(struct ast_channel *chan, char digit);
 
+/*! \brief Send a DTMF digit to a channel
+ * Send a DTMF digit to a channel.
+ * \param chan channel to act upon
+ * \param digit the DTMF digit to send, encoded in ASCII
+ * \return Returns 0 on success, -1 on failure
+ */
 int ast_senddigit_begin(struct ast_channel *chan, char digit);
+/*! \brief Send a DTMF digit to a channel
+
+ * Send a DTMF digit to a channel.
+ * \param chan channel to act upon
+ * \param digit the DTMF digit to send, encoded in ASCII
+ * \return Returns 0 on success, -1 on failure
+ */
 int ast_senddigit_end(struct ast_channel *chan, char digit);
 
 /*! \brief Receives a text string from a channel
@@ -1350,7 +1364,7 @@ struct ast_variable *ast_channeltype_list(void);
   audio samples, and then to mix in audio from the whisper buffer if it
   is available.
 
-  Note: This function performs no locking; you must hold the channel's lock before
+  \note Note: This function performs no locking; you must hold the channel's lock before
   calling this function.
  */
 int ast_channel_whisper_start(struct ast_channel *chan);

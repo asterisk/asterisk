@@ -67,7 +67,7 @@
  *	system. res_jabber.c can subscribe and watch such states
  *	in jabber/xmpp based systems.
  *
- *	\section AstExtStateARch Architecture
+ *	\section AstDevStateArch Architecture for devicestates
  *
  *	When a channel driver or asterisk app changes state for 
  *	a watched object, it alerts the core. The core queues
@@ -84,9 +84,26 @@
  *	- Device states
  *		\arg \ref devicestate.c 
  *		\arg \ref devicestate.h 
+ *
+ *	\section AstExtStateArch Architecture for extension states
+ *	
+ *	Hints are connected to extension. If an extension changes state
+ *	it checks the hint devices. If there is a hint, the callbacks into
+ *	device states are checked. The aggregated state is set for the hint
+ *	and reported back.
+ *
  *	- Extension states
+ *		\arg \ref enum ast_extension_states
  *		\arg \ref pbx.c 
  *		\arg \ref pbx.h 
+ *	- Structures
+ *		- \ref struct ast_state_cb  Callbacks for watchers
+ *		- Callback ast_state_cb_type
+ *		- \ref struct ast_hint
+ * 	- Functions
+ *		- ast_extension_state_add()
+ *		- ast_extension_state_del()
+ *		- ast_get_hint()
  *	
  */
 

@@ -193,7 +193,9 @@ struct ast_state_cb {
 /*! \brief Structure for dial plan hints
 
   \note Hints are pointers from an extension in the dialplan to one or
-  more devices (tech/name) */
+  more devices (tech/name) 
+	- See \ref AstExtState
+*/
 struct ast_hint {
 	struct ast_exten *exten;	/*!< Extension */
 	int laststate; 			/*!< Last known state */

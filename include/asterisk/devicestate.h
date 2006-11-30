@@ -18,6 +18,8 @@
 
 /*! \file
  * \brief Device state management
+ *
+ * \arg See \ref AstExtState
  */
 
 #ifndef _ASTERISK_DEVICESTATE_H
@@ -26,25 +28,18 @@
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
-
-/*! Device is valid but channel didn't know state */
-#define AST_DEVICE_UNKNOWN	0
-/*! Device is not used */
-#define AST_DEVICE_NOT_INUSE	1
-/*! Device is in use */
-#define AST_DEVICE_INUSE	2
-/*! Device is busy */
-#define AST_DEVICE_BUSY		3
-/*! Device is invalid */
-#define AST_DEVICE_INVALID	4
-/*! Device is unavailable */
-#define AST_DEVICE_UNAVAILABLE	5
-/*! Device is ringing */
-#define AST_DEVICE_RINGING	6
-/*! Device is ringing *and* in use */
-#define AST_DEVICE_RINGINUSE	7
-/*! Device is on hold */
-#define AST_DEVICE_ONHOLD	8
+/*! @name DeviceStates */
+/*! \@{ */
+#define AST_DEVICE_UNKNOWN	0 /*!< Device is valid but channel didn't know state */
+#define AST_DEVICE_NOT_INUSE	1 /*!< Device is not used */
+#define AST_DEVICE_INUSE	2 /*!< Device is in use */
+#define AST_DEVICE_BUSY		3 /*!< Device is busy */
+#define AST_DEVICE_INVALID	4 /*!< Device is invalid */
+#define AST_DEVICE_UNAVAILABLE	5 /*!< Device is unavailable */
+#define AST_DEVICE_RINGING	6 /*!< Device is ringing */
+#define AST_DEVICE_RINGINUSE	7 /*!< Device is ringing *and* in use */
+#define AST_DEVICE_ONHOLD	8 /*!< Device is on hold */
+/*! \@} */
 
 /*! \brief Devicestate watcher call back */
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);

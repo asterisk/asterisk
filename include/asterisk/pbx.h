@@ -43,7 +43,10 @@ extern "C" {
 
 #define PRIORITY_HINT	-1	/*!< Special Priority for a hint */
 
-/*! \brief Extension states */
+/*! \brief Extension states 
+	\note States can be combined 
+	- \ref AstExtState
+*/
 enum ast_extension_states {
 	AST_EXTENSION_REMOVED = -2,	/*!< Extension removed */
 	AST_EXTENSION_DEACTIVATED = -1,	/*!< Extension hint removed */
@@ -174,6 +177,20 @@ int pbx_exec(struct ast_channel *c, struct ast_app *app, void *data);
  * \return NULL on failure, and an ast_context structure on success
  */
 struct ast_context *ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar);
+
+/*!
+ * \brief Register a new context or find an existing one
+ *
+ * \param extcontexts pointer to the ast_context structure pointer
+ * \param name name of the new context
+ * \param registrar registrar of the context
+ *
+ * This will first search for a context with your name.  If it exists already, it will not
+ * create a new one.  If it does not exist, it will create a new one with the given name
+ * and registrar.
+ *
+ * \return NULL on failure, and an ast_context structure on success
+ */
 struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar);
 
 /*!
@@ -211,6 +228,11 @@ void ast_context_destroy(struct ast_context *con, const char *registrar);
  */
 struct ast_context *ast_context_find(const char *name);
 
+/*! \brief The result codes when starting the PBX on a channel
+	with \ref ast_pbx_start()
+
+	AST_PBX_CALL_LIMIT refers to the maxcalls call limit in asterisk.conf
+ */
 enum ast_pbx_result {
 	AST_PBX_SUCCESS = 0,
 	AST_PBX_FAILED = -1,
@@ -356,7 +378,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 int ast_extension_state_del(int id, ast_state_cb_type callback);
 
 /*! 
- * \brief If an extension exists, return non-zero
+ * \brief If an extension hint exists, return non-zero
  * 
  * \param hint buffer for hint
  * \param maxlen size of hint buffer
@@ -728,7 +750,9 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
  */
 int pbx_checkcondition(const char *condition);
 
-/* Functions for returning values from structures */
+/*! @name 
+ * Functions for returning values from structures */
+/*! @{ */
 const char *ast_get_context_name(struct ast_context *con);
 const char *ast_get_extension_name(struct ast_exten *exten);
 struct ast_context *ast_get_extension_context(struct ast_exten *exten);
@@ -736,21 +760,26 @@ const char *ast_get_include_name(struct ast_include *include);
 const char *ast_get_ignorepat_name(struct ast_ignorepat *ip);
 const char *ast_get_switch_name(struct ast_sw *sw);
 const char *ast_get_switch_data(struct ast_sw *sw);
+/*! @} */
 
-/* Other extension stuff */
+/*! @name Other Extension stuff */
+/*! @{ */
 int ast_get_extension_priority(struct ast_exten *exten);
 int ast_get_extension_matchcid(struct ast_exten *e);
 const char *ast_get_extension_cidmatch(struct ast_exten *e);
 const char *ast_get_extension_app(struct ast_exten *e);
 const char *ast_get_extension_label(struct ast_exten *e);
 void *ast_get_extension_app_data(struct ast_exten *e);
+/*! @} */
 
-/* Registrar info functions ... */
+/*! @name Registrar info functions ... */
+/*! @{ */
 const char *ast_get_context_registrar(struct ast_context *c);
 const char *ast_get_extension_registrar(struct ast_exten *e);
 const char *ast_get_include_registrar(struct ast_include *i);
 const char *ast_get_ignorepat_registrar(struct ast_ignorepat *ip);
 const char *ast_get_switch_registrar(struct ast_sw *sw);
+/*! @} */
 
 /* Walking functions ... */
 struct ast_context *ast_walk_contexts(struct ast_context *con);
