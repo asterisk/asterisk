@@ -5661,7 +5661,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		ast_copy_string(p->domain, r->domain, sizeof(p->domain));
 		ast_copy_string(p->opaque, r->opaque, sizeof(p->opaque));
 		ast_copy_string(p->qop, r->qop, sizeof(p->qop));
-		p->noncecount = r->noncecount++;
+		r->noncecount++;
+		p->noncecount = r->noncecount;
 
 		memset(digest,0,sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
