@@ -18,6 +18,15 @@
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 
+/*! \file
+ * Extended AGI test application
+ *
+ * This code is released into the public domain
+ * with no warranty of any kind
+ *
+ * \ingroup agi
+ */
+
 static int read_environment(void)
 {
 	char buf[256];

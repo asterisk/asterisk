@@ -458,6 +458,7 @@ INPUT                  = ./ \
 			 codecs \
 			 formats \
 			 pbx \
+			 agi \
 			 res
 
 # If the value of the INPUT tag contains directories, you can use the 

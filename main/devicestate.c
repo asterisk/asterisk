@@ -22,6 +22,8 @@
  *
  *
  * \author Mark Spencer <markster@digium.com> 
+ *
+ *	\arg \ref AstExtState
  */
 /*! \page AstExtState Extension and device states in Asterisk
  *
@@ -59,9 +61,25 @@
  *	- SIP subscriptions, a.k.a. "blinking lamps" or 
  *	  "buddy lists"
  *
- *	None of these handle user states, like an IM presense
+ *	The CLI command "show hints" show last known state
+ *
+ *	\note None of these handle user states, like an IM presense
  *	system. res_jabber.c can subscribe and watch such states
  *	in jabber/xmpp based systems.
+ *
+ *	\section AstExtStateARch Architecture
+ *
+ *	When a channel driver or asterisk app changes state for 
+ *	a watched object, it alerts the core. The core queues
+ *	a change. When the change is processed, there's a query
+ *	sent to the channel driver/provider if there's a function
+ *	to handle that, otherwise a channel walk is issued to find
+ *	a channel that involves the object.
+ *	
+ *	The changes are queued and processed by a separate thread.
+ *	This thread calls the watchers subscribing to status 
+ *	changes for the object. For manager, this results 
+ *	in events. For SIP, NOTIFY requests.
  *
  *	
  */

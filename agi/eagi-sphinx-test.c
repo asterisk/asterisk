@@ -6,6 +6,15 @@
  *
  */
 
+/*! \file
+ * Extended AGI test application
+ *
+ * This code is released into public domain
+ * without any warranty of any kind.
+ *
+ *	\ingroup agi
+ */
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
