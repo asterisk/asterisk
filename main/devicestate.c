@@ -81,6 +81,12 @@
  *	changes for the object. For manager, this results 
  *	in events. For SIP, NOTIFY requests.
  *
+ *	- Device states
+ *		\arg \ref devicestate.c 
+ *		\arg \ref devicestate.h 
+ *	- Extension states
+ *		\arg \ref pbx.c 
+ *		\arg \ref pbx.h 
  *	
  */
 
