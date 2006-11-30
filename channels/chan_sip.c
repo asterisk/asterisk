@@ -16308,7 +16308,7 @@ static int reload_config(enum channelreloadreason reason)
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
 			global_match_auth_username = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "global_srvlookup")) {
+		} else if (!strcasecmp(v->name, "srvlookup")) {
 			global_srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "pedantic")) {
 			pedanticsipchecking = ast_true(v->value);
