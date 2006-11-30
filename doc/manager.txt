@@ -31,6 +31,15 @@ If you develop applications, please try to reuse existing manager
 headers and their interpretation. If you are unsure, discuss on
 the asterisk-dev mailing list.
 
+Device status reports
+---------------------
+Manager subscribes to extension status reports from all channels,
+to be able to generate events when an extension or device changes
+state. The level of details in these events may depend on the channel
+and device configuration. Please check each channel configuration
+file for more information. (in sip.conf, check the section on
+subscriptions and call limits)
+
 
 Command Syntax
 --------------
