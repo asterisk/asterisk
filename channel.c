@@ -2296,6 +2296,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		else
 			res = 0;
 		break;
+	case AST_FRAME_NULL:
+	case AST_FRAME_IAX:
+		/* Ignore these */
+		res = 0;
+		break;
 	default:
 		if (chan->tech->write) {
 			f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
