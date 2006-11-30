@@ -1828,12 +1828,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
 
 		memset(&config, 0, sizeof(struct ast_bridge_config));
-		ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
-		ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
-		config.timelimit = 0;
-		config.play_warning = 0;
-		config.warning_freq = 0;
-		config.warning_sound=NULL;
 		res = ast_bridge_call(chan, peer, &config);
 
 		/* Simulate the PBX hanging up */
