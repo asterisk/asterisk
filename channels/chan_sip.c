@@ -14575,7 +14575,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		error = 1;
 	}
 	if (error) {
-		if (!p->initreq.header)	/* New call */
+		if (!p->initreq.headers)	/* New call */
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	/* Make sure we destroy this dialog */
 		return -1;
 	}
