@@ -163,7 +163,6 @@ struct gtalk_container {
 };
 
 static const char desc[] = "Gtalk Channel";
-static const char type[] = "Gtalk";
 
 static int usecnt = 0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -195,7 +194,7 @@ static int gtalk_get_codec(struct ast_channel *chan);
 
 /*! \brief PBX interface structure for channel registration */
 static const struct ast_channel_tech gtalk_tech = {
-	.type = type,
+	.type = "Gtalk",
 	.description = "Gtalk Channel Driver",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.requester = gtalk_request,
@@ -223,7 +222,7 @@ static struct in_addr __ourip;
 
 /*! \brief RTP driver interface */
 static struct ast_rtp_protocol gtalk_rtp = {
-	type: "gtalk",
+	type: "Gtalk",
 	get_rtp_info: gtalk_get_rtp_peer,
 	set_rtp_peer: gtalk_set_rtp_peer,
 	get_codec: gtalk_get_codec,
@@ -922,10 +921,12 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (i->rtp) {
+		ast_rtp_setstun(i->rtp, 1);
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		tmp->fds[1] = ast_rtcp_fd(i->rtp);
 	}
 	if (i->vrtp) {
+		ast_rtp_setstun(i->rtp, 1);
 		tmp->fds[2] = ast_rtp_fd(i->vrtp);
 		tmp->fds[3] = ast_rtcp_fd(i->vrtp);
 	}
@@ -1796,7 +1797,7 @@ static int load_module(void)
 
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&gtalk_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", gtalk_tech.type);
 		return -1;
 	}
 	return 0;
