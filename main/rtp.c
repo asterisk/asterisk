@@ -183,6 +183,7 @@ static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, 
 #define FLAG_P2P_NEED_DTMF              (1 << 5)
 #define FLAG_CALLBACK_MODE              (1 << 6)
 #define FLAG_DTMF_COMPENSATE            (1 << 7)
+#define FLAG_HAS_STUN                   (1 << 8)
 
 /*!
  * \brief Structure defining an RTCP session.
@@ -543,6 +544,11 @@ void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf)
 void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate)
 {
 	ast_set2_flag(rtp, compensate ? 1 : 0, FLAG_DTMF_COMPENSATE);
+}
+
+void ast_rtp_setstun(struct ast_rtp *rtp, int stun_enable)
+{
+	ast_set2_flag(rtp, stun_enable ? 1 : 0, FLAG_HAS_STUN);
 }
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type)
@@ -2913,8 +2919,8 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 /*! \brief Helper function to switch a channel and RTP stream into callback mode */
 static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int **iod)
 {
-	/* If we need DTMF or we have no IO structure, then we can't do direct callback */
-	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) || !rtp->io)
+	/* If we need DTMF, are looking for STUN, or we have no IO structure then we can't do direct callback */
+	if (ast_test_flag(rtp, FLAG_P2P_NEED_DTMF) || ast_test_flag(rtp, FLAG_HAS_STUN) || !rtp->io)
 		return 0;
 
 	/* If the RTP structure is already in callback mode, remove it temporarily */

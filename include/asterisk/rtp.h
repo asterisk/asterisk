@@ -186,6 +186,9 @@ void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf);
 /*! \brief Compensate for devices that send RFC2833 packets all at once */
 void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate);
 
+/*! \brief Enable STUN capability */
+void ast_rtp_setstun(struct ast_rtp *rtp, int stun_enable);
+
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
 int ast_rtp_proto_register(struct ast_rtp_protocol *proto);
