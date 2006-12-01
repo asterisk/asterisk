@@ -3099,9 +3099,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 
 	/* Check the list of users only for incoming calls */
 	if (global_limitonpeers == FALSE && !outgoing && (u = find_user(name, 1)))  {
-			inuse = &u->inUse;
-			call_limit = &u->call_limit;
-			inringing = NULL;
+		inuse = &u->inUse;
+		call_limit = &u->call_limit;
+		inringing = NULL;
 	} else if ( (p = find_peer(ast_strlen_zero(fup->peername) ? name : fup->peername, NULL, 1) ) ) { /* Try to find peer */
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
@@ -3605,15 +3605,12 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 	case AST_FRAME_MODEM:
 		if (p) {
 			sip_pvt_lock(p);
-			if (p->udptl) {
-				if ((ast->_state != AST_STATE_UP) &&
-					!ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) && 
-				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
-					transmit_response_with_t38_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
-					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);
-				}
+			/* UDPTL requires two-way communication, so early media is not needed here.
+				we simply forget the frames if we get modem frames before the bridge is up.
+				Fax will re-transmit.
+			*/
+			if (p->udptl && ast->_state != AST_STATE_UP) 
 				res = ast_udptl_write(p->udptl, frame);
-			}
 			sip_pvt_unlock(p);
 		}
 		break;
@@ -16268,10 +16265,10 @@ static int reload_config(enum channelreloadreason reason)
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
+		} else if (!strcasecmp(v->name, "limitonpeers")) {
+			global_limitonpeers = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "limitpeersonly")) {
-			global_limitonpeers = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifyhold")) {
 			global_notifyhold = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
