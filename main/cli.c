@@ -1288,7 +1288,6 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	AST_LIST_LOCK(&helpers);
 	
 	if (find_cli(e->cmda, 1)) {
-		AST_LIST_UNLOCK(&helpers);
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", e->_full_cmd);
 		free(e->_full_cmd);
 		e->_full_cmd = NULL;
