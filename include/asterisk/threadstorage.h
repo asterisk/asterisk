@@ -20,6 +20,8 @@
  * \file threadstorage.h
  * \author Russell Bryant <russell@digium.com>
  * \brief Definitions to aid in the use of thread local storage
+ *
+ * \arg \ref AstThreadStorage
  */
 
 /*!
