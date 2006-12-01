@@ -1197,6 +1197,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		strcpy(status, "NOANSWER");
 		if (ast_test_flag(outgoing, OPT_MUSICBACK)) {
 			moh=1;
+			ast_indicate(chan, AST_CONTROL_PROGRESS);
 			ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK]);
 		} else if (ast_test_flag(outgoing, OPT_RINGBACK)) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
