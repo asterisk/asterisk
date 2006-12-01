@@ -57,6 +57,7 @@ export DESTDIR
 export PROC
 export SOLINK
 export STRIP
+export DOWNLOAD
 
 # even though we could use '-include makeopts' here, use a wildcard
 # lookup anyway, so that make won't try to build makeopts if it doesn't
@@ -273,14 +274,14 @@ all: _all
 	@echo " + Asterisk has successfully been built, and +"  
 	@echo " + can be installed by running:              +"
 	@echo " +                                           +"
-	@echo " +               make install                +"  
+	@echo " +               $(MAKE) install                +"  
 	@echo " +-------------------------------------------+"  
 
 _all: cleantest $(SUBDIRS)
 
 makeopts: configure
 	@echo "****"
-	@echo "**** The configure script must be executed before running 'make'."
+	@echo "**** The configure script must be executed before running '$(MAKE)'."
 	@echo "****"
 	@exit 1
 
