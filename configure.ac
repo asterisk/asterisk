@@ -155,6 +155,14 @@ AC_PATH_PROG([SHELL], [sh], :)
 AC_PATH_PROG([LN], [ln], :)
 AC_PATH_PROG([DOT], [dot], :)
 AC_PATH_PROG([STRIP], [strip], :)
+AC_PATH_PROG([WGET], [wget], :)
+if test "${WGET}" != ":" ; then
+  DOWNLOAD=${WGET}
+else
+  AC_PATH_PROG([FETCH], [fetch], [:])
+  DOWNLOAD=${FETCH}
+fi
+AC_SUBST(DOWNLOAD)
 
 AC_LANG(C)
 
