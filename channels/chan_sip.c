@@ -948,8 +948,6 @@ static struct sip_pvt {
 	time_t lastrtprx;			/*!< Last RTP received */
 	time_t lastrtptx;			/*!< Last RTP sent */
 	int rtptimeout;				/*!< RTP timeout time */
-	int rtpholdtimeout;			/*!< RTP timeout when on hold */
-	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
 	struct sockaddr_in recv;		/*!< Received as */
 	struct in_addr ourip;			/*!< Our IP */
 	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
@@ -2593,17 +2591,21 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if (dialog->rtp) {
 		ast_rtp_setdtmf(dialog->rtp, ast_test_flag(&dialog->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 		ast_rtp_setdtmfcompensate(dialog->rtp, ast_test_flag(&dialog->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
+		ast_rtp_set_rtptimeout(dialog->rtp, peer->rtptimeout);
+		ast_rtp_set_rtpholdtimeout(dialog->rtp, peer->rtpholdtimeout);
+		ast_rtp_set_rtpkeepalive(dialog->rtp, peer->rtpkeepalive);
+		/* Set Frame packetization */
+		ast_rtp_codec_setpref(dialog->rtp, &dialog->prefs);
+		dialog->autoframing = peer->autoframing;
 	}
 	if (dialog->vrtp) {
 		ast_rtp_setdtmf(dialog->vrtp, 0);
 		ast_rtp_setdtmfcompensate(dialog->vrtp, 0);
+		ast_rtp_set_rtptimeout(dialog->vrtp, peer->rtptimeout);
+		ast_rtp_set_rtpholdtimeout(dialog->vrtp, peer->rtpholdtimeout);
+		ast_rtp_set_rtpkeepalive(dialog->vrtp, peer->rtpkeepalive);
 	}
 
-	/* Set Frame packetization */
-	if (dialog->rtp) {
-		ast_rtp_codec_setpref(dialog->rtp, &dialog->prefs);
-		dialog->autoframing = peer->autoframing;
-	}
 	ast_string_field_set(dialog, peername, peer->username);
 	ast_string_field_set(dialog, authname, peer->username);
 	ast_string_field_set(dialog, username, peer->username);
@@ -2642,8 +2644,6 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		dialog->noncodeccapability &= ~AST_RTP_DTMF;
 	ast_string_field_set(dialog, context, peer->context);
 	dialog->rtptimeout = peer->rtptimeout;
-	dialog->rtpholdtimeout = peer->rtpholdtimeout;
-	dialog->rtpkeepalive = peer->rtpkeepalive;
 	if (peer->call_limit)
 		ast_set_flag(&dialog->flags[0], SIP_CALL_LIMIT);
 	dialog->maxcallbitrate = peer->maxcallbitrate;
@@ -4171,16 +4171,19 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_INFO);
 		ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		ast_rtp_settos(p->rtp, global_tos_audio);
+		ast_rtp_set_rtptimeout(p->rtp, global_rtptimeout);
+		ast_rtp_set_rtpholdtimeout(p->rtp, global_rtpholdtimeout);
+		ast_rtp_set_rtpkeepalive(p->rtp, global_rtpkeepalive);
 		if (p->vrtp) {
 			ast_rtp_settos(p->vrtp, global_tos_video);
 			ast_rtp_setdtmf(p->vrtp, 0);
 			ast_rtp_setdtmfcompensate(p->vrtp, 0);
+			ast_rtp_set_rtptimeout(p->vrtp, global_rtptimeout);
+			ast_rtp_set_rtpholdtimeout(p->vrtp, global_rtpholdtimeout);
+			ast_rtp_set_rtpkeepalive(p->vrtp, global_rtpkeepalive);
 		}
 		if (p->udptl)
 			ast_udptl_settos(p->udptl, global_tos_audio);
-		p->rtptimeout = global_rtptimeout;
-		p->rtpholdtimeout = global_rtpholdtimeout;
-		p->rtpkeepalive = global_rtpkeepalive;
 		p->maxcallbitrate = default_maxcallbitrate;
 	}
 
@@ -10184,6 +10187,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  T1 minimum:             %d\n", global_t1min);
 	ast_cli(fd, "  Relax DTMF:             %s\n", global_relaxdtmf ? "Yes" : "No");
 	ast_cli(fd, "  Compact SIP headers:    %s\n", compactheaders ? "Yes" : "No");
+	ast_cli(fd, "  RTP Keepalive:          %d %s\n", global_rtpkeepalive, global_rtpkeepalive ? "" : "(Disabled)" );
 	ast_cli(fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
 	ast_cli(fd, "  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)");
 	ast_cli(fd, "  MWI NOTIFY mime type:   %s\n", default_notifymime);
@@ -11598,6 +11602,9 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				if (bridgepvt->udptl) {
 					if (p->t38.state == T38_PEER_REINVITE) {
 						sip_handle_t38_reinvite(bridgepeer, p, 0);
+						ast_rtp_set_rtptimers_onhold(p->rtp);
+						if (p->vrtp)
+							ast_rtp_set_rtptimers_onhold(p->vrtp);	/* Turn off RTP timers while we send fax */
 					} else if (p->t38.state == T38_DISABLED && bridgepeer && (bridgepvt->t38.state == T38_ENABLED)) {
 						ast_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
 						/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
@@ -14714,23 +14721,23 @@ restartsearch:
 			    (sip->owner->_state == AST_STATE_UP) &&
 			    !sip->redirip.sin_addr.s_addr) {
 				if (sip->lastrtptx &&
-				    sip->rtpkeepalive &&
-				    (t > sip->lastrtptx + sip->rtpkeepalive)) {
+				    ast_rtp_get_rtpkeepalive(sip->rtp) &&
+				    (t > sip->lastrtptx + ast_rtp_get_rtpkeepalive(sip->rtp))) {
 					/* Need to send an empty RTP packet */
 					sip->lastrtptx = time(NULL);
 					ast_rtp_sendcng(sip->rtp, 0);
 				}
 				if (sip->lastrtprx &&
-				    (sip->rtptimeout || sip->rtpholdtimeout) &&
-				    (t > sip->lastrtprx + sip->rtptimeout)) {
+					(ast_rtp_get_rtptimeout(sip->rtp) || ast_rtp_get_rtpholdtimeout(sip->rtp)) &&
+				    (t > sip->lastrtprx + ast_rtp_get_rtptimeout(sip->rtp))) {
 					/* Might be a timeout now -- see if we're on hold */
 					struct sockaddr_in sin;
 					ast_rtp_get_peer(sip->rtp, &sin);
 					if (sin.sin_addr.s_addr || 
-					    (sip->rtpholdtimeout && 
-					     (t > sip->lastrtprx + sip->rtpholdtimeout))) {
+					    (ast_rtp_get_rtpholdtimeout(sip->rtp) &&
+					     (t > sip->lastrtprx + ast_rtp_get_rtpholdtimeout(sip->rtp)))) {
 						/* Needs a hangup */
-						if (sip->rtptimeout) {
+						if (ast_rtp_get_rtptimeout(sip->rtp)) {
 							while (sip->owner && ast_channel_trylock(sip->owner)) {
 								ast_mutex_unlock(&sip->lock);
 								usleep(1);
@@ -14751,8 +14758,12 @@ restartsearch:
 								   has already been requested and we don't want to
 								   repeatedly request hangups
 								*/
-								sip->rtptimeout = 0;
-								sip->rtpholdtimeout = 0;
+								ast_rtp_set_rtptimeout(sip->rtp, 0);
+								ast_rtp_set_rtpholdtimeout(sip->rtp, 0);
+								if (sip->vrtp) {
+									ast_rtp_set_rtptimeout(sip->vrtp, 0);
+									ast_rtp_set_rtpholdtimeout(sip->vrtp, 0);
+								}
 							}
 						}
 					}
