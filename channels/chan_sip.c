@@ -11935,9 +11935,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 481: /* Call leg does not exist */
-		/* Could be REFER or INVITE */
+		/* Could be REFER caused INVITE with replaces */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		if (p->owner)
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		break;
 
 	case 491: /* Pending */
@@ -11990,7 +11993,16 @@ static void handle_response_refer(struct sip_pvt *p, int resp, char *rest, struc
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
 		}
 		break;
+	case 481: /* Call leg does not exist */
 
+		/* A transfer with Replaces did not work */
+		/* OEJ: We should Set flag, cancel the REFER, go back
+		to original call - but right now we can't */
+		ast_log(LOG_WARNING, "Remote host can't match REFER request to call '%s'. Giving up.\n", p->callid);
+		if (p->owner)
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+		break;
 
 	case 500:   /* Server error */
 	case 501:   /* Method not implemented */
@@ -12348,21 +12360,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 481: /* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
-				/* First we ACK */
-				transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Got 481 on Invite. Assuming INVITE with REPLACEs failed to '%s'\n", get_header(&p->initreq, "From"));
-				if (owner)
-					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				handle_response_invite(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_REFER) {
-				/* A transfer with Replaces did not work */
-				/* OEJ: We should Set flag, cancel the REFER, go back
-				to original call - but right now we can't */
-				ast_log(LOG_WARNING, "Remote host can't match request %s to call '%s'. Giving up.\n", sip_methods[sipmethod].text, p->callid);
-				if (owner)
-					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);
+				handle_response_refer(p, resp, rest, req, seqno);
 			} else if (sipmethod == SIP_BYE) {
 				/* The other side has no transaction to bye,
 				just assume it's all right then */
