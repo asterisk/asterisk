@@ -244,7 +244,7 @@ enum sip_result {
 enum invitestates {
 	INV_NONE = 0,	/*!< No state at all, maybe not an INVITE dialog */
 	INV_CALLING,	/*!< Invite sent, no answer */
-	INV_PROCEEDING,	/*!< We got 1xx message */
+	INV_PROCEEDING,	/*!< We got/sent 1xx message */
 	INV_EARLY_MEDIA, /*!< We got 18x message with to-tag back */
 	INV_COMPLETED,	/*!< Got final response with error. Wait for ACK, then CONFIRMED */
 	INV_CONFIRMED,	/*!< Confirmed response - we've got an ack (Incoming calls only) */
@@ -1659,6 +1659,14 @@ static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 		ast_verbose("Initreq: %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 }
 
+/*! \brief Encapsulate setting of SIP_ALREADYGONE to be able to trace it with debugging */
+static void sip_alreadygone(struct sip_pvt *dialog)
+{
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Setting SIP_ALREADYGONE on dialog %s\n", dialog->callid);
+	ast_set_flag(&dialog->flags[0], SIP_ALREADYGONE);
+}
+
 
 /*! \brief returns true if 'name' (with optional trailing whitespace)
  * matches the sip method 'id'.
@@ -1937,7 +1945,7 @@ static int retrans_pkt(void *data)
 			sip_pvt_lock(pkt->owner);
 		}
 		if (pkt->owner->owner) {
-			ast_set_flag(&pkt->owner->flags[0], SIP_ALREADYGONE);
+			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
 			ast_queue_hangup(pkt->owner->owner);
 			ast_channel_unlock(pkt->owner->owner);
@@ -3737,6 +3745,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
+			p->invitestate = INV_EARLY_MEDIA;
 			if (!ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) ||
 			    (ast_test_flag(&p->flags[0], SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER)) {				
 				/* Send 180 ringing if out-of-band seems reasonable */
@@ -3753,7 +3762,8 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
 			transmit_response(p, "486 Busy Here", &p->initreq);
-			ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+			p->invitestate = INV_TERMINATED;
+			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
 			break;
 		}
@@ -3762,7 +3772,8 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
 			transmit_response(p, "503 Service Unavailable", &p->initreq);
-			ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+			p->invitestate = INV_TERMINATED;
+			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
 			break;
 		}
@@ -3773,6 +3784,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 		    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
 			transmit_response(p, "100 Trying", &p->initreq);
+			p->invitestate = INV_PROCEEDING;  
 			break;
 		}
 		res = -1;
@@ -3781,6 +3793,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		if ((ast->_state != AST_STATE_UP) &&
 		    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
 		    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+			p->invitestate = INV_EARLY_MEDIA;
 			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
 			ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
 			break;
@@ -11896,7 +11909,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, SIP_INVITE, 1)) {
 				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+				sip_alreadygone(p);
 				if (p->owner)
 					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			}
@@ -11910,14 +11923,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+		sip_alreadygone(p);
 		break;
 
 	case 404: /* Not found */
 		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-		ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+		sip_alreadygone(p);
 		break;
 
 	case 481: /* Call leg does not exist */
@@ -12390,7 +12403,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* Fatal response */
 				if ((option_verbose > 2) && (resp != 487))
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
-				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
 	
 				stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
@@ -12449,7 +12461,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* ACK on invite */
 				if (sipmethod == SIP_INVITE) 
 					transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-				ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+				sip_alreadygone(p);
 				if (!p->owner)
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			} else if ((resp >= 100) && (resp < 200)) {
@@ -13538,7 +13550,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						transmit_response(p, "503 Unavailable", req);	/* OEJ - Right answer? */
 					else
 						transmit_response_reliable(p, "503 Unavailable", req);
-					ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+					sip_alreadygone(p);
 					/* Unlock locks so ast_hangup can do its magic */
 					sip_pvt_unlock(p);
 					c->hangupcause = AST_CAUSE_CALL_REJECTED;
@@ -13862,7 +13874,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		transmit_response(p, "603 Declined (No dialog)", req);
 		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 			append_history(p, "Xfer", "Refer failed. Outside of dialog.");
-			ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+			sip_alreadygone(p);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		}
 		return 0;
@@ -14121,7 +14133,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 {
 		
 	check_via(p, req);
-	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+	sip_alreadygone(p);
 	p->invitestate = INV_CANCELLED;
 	
 	if (p->owner && p->owner->_state == AST_STATE_UP) {
@@ -14164,7 +14176,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	if (sipdebug && option_debug)
 		ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	check_via(p, req);
-	ast_set_flag(&p->flags[0], SIP_ALREADYGONE);	
+	sip_alreadygone(p);
 
 	/* Get RTCP quality before end of call */
 	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY) || p->owner) {
