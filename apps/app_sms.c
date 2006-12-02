@@ -119,59 +119,59 @@ static const unsigned short escapes[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-#define SMSLEN 160              /* max SMS length */
+#define SMSLEN 160              /*!< max SMS length */
 
 typedef struct sms_s
 {
-	unsigned char hangup;        /* we are done... */
-	unsigned char err;           /* set for any errors */
-	unsigned char smsc:1;        /* we are SMSC */
-	unsigned char rx:1;          /* this is a received message */
-	char queue[30];              /* queue name */
-	char oa[20];                 /* originating address */
-	char da[20];                 /* destination address */
-	time_t scts;                 /* time stamp, UTC */
-	unsigned char pid;           /* protocol ID */
-	unsigned char dcs;           /* data coding scheme */
-	short mr;                    /* message reference - actually a byte, but usde -1 for not set */
-	int udl;                     /* user data length */
-	int udhl;                    /* user data header length */
-	unsigned char srr:1;         /* Status Report request */
-	unsigned char udhi:1;        /* User Data Header required, even if length 0 */
-	unsigned char rp:1;          /* Reply Path */
-	unsigned int vp;             /* validity period in minutes, 0 for not set */
-	unsigned short ud[SMSLEN];   /* user data (message), UCS-2 coded */
-	unsigned char udh[SMSLEN];   /* user data header */
-	char cli[20];                /* caller ID */
-	unsigned char ophase;        /* phase (0-79) for 0 and 1 frequencies (1300Hz and 2100Hz) */
-	unsigned char ophasep;       /* phase (0-79) for 1200 bps */
-	unsigned char obyte;         /* byte being sent */
-	unsigned int opause;         /* silent pause before sending (in sample periods) */
-	unsigned char obitp;         /* bit in byte */
-	unsigned char osync;         /* sync bits to send */
-	unsigned char obytep;        /* byte in data */
-	unsigned char obyten;        /* bytes in data */
-	unsigned char omsg[256];     /* data buffer (out) */
-	unsigned char imsg[200];     /* data buffer (in) */
+	unsigned char hangup;        /*!< we are done... */
+	unsigned char err;           /*!< set for any errors */
+	unsigned char smsc:1;        /*!< we are SMSC */
+	unsigned char rx:1;          /*!< this is a received message */
+	char queue[30];              /*!< queue name */
+	char oa[20];                 /*!< originating address */
+	char da[20];                 /*!< destination address */
+	time_t scts;                 /*!< time stamp, UTC */
+	unsigned char pid;           /*!< protocol ID */
+	unsigned char dcs;           /*!< data coding scheme */
+	short mr;                    /*!< message reference - actually a byte, but usde -1 for not set */
+	int udl;                     /*!< user data length */
+	int udhl;                    /*!< user data header length */
+	unsigned char srr:1;         /*!< Status Report request */
+	unsigned char udhi:1;        /*!< User Data Header required, even if length 0 */
+	unsigned char rp:1;          /*!< Reply Path */
+	unsigned int vp;             /*!< validity period in minutes, 0 for not set */
+	unsigned short ud[SMSLEN];   /*!< user data (message), UCS-2 coded */
+	unsigned char udh[SMSLEN];   /*!< user data header */
+	char cli[20];                /*!< caller ID */
+	unsigned char ophase;        /*!< phase (0-79) for 0 and 1 frequencies (1300Hz and 2100Hz) */
+	unsigned char ophasep;       /*!< phase (0-79) for 1200 bps */
+	unsigned char obyte;         /*!< byte being sent */
+	unsigned int opause;         /*!< silent pause before sending (in sample periods) */
+	unsigned char obitp;         /*!< bit in byte */
+	unsigned char osync;         /*!< sync bits to send */
+	unsigned char obytep;        /*!< byte in data */
+	unsigned char obyten;        /*!< bytes in data */
+	unsigned char omsg[256];     /*!< data buffer (out) */
+	unsigned char imsg[200];     /*!< data buffer (in) */
 	signed long long ims0,
 		imc0,
 		ims1,
-		imc1;                      /* magnitude averages sin/cos 0/1 */
+		imc1;                      /*!< magnitude averages sin/cos 0/1 */
 	unsigned int idle;
-	unsigned short imag;         /* signal level */
+	unsigned short imag;         /*!< signal level */
 	unsigned char ips0,
 		ips1,
 		ipc0,
-		ipc1;                      /* phase sin/cos 0/1 */
-	unsigned char ibitl;         /* last bit */
-	unsigned char ibitc;         /* bit run length count */
-	unsigned char iphasep;       /* bit phase (0-79) for 1200 bps */
-	unsigned char ibitn;         /* bit number in byte being received */
-	unsigned char ibytev;        /* byte value being received */
-	unsigned char ibytep;        /* byte pointer in messafe */
-	unsigned char ibytec;        /* byte checksum for message */
-	unsigned char ierr;          /* error flag */
-	unsigned char ibith;         /* history of last bits */
+		ipc1;                      /*!< phase sin/cos 0/1 */
+	unsigned char ibitl;         /*!< last bit */
+	unsigned char ibitc;         /*!< bit run length count */
+	unsigned char iphasep;       /*!< bit phase (0-79) for 1200 bps */
+	unsigned char ibitn;         /*!< bit number in byte being received */
+	unsigned char ibytev;        /*!< byte value being received */
+	unsigned char ibytep;        /*!< byte pointer in messafe */
+	unsigned char ibytec;        /*!< byte checksum for message */
+	unsigned char ierr;          /*!< error flag */
+	unsigned char ibith;         /*!< history of last bits */
 	unsigned char ibitt;         /* total of 1's in last 3 bites */
 	/* more to go here */
 } sms_t;
