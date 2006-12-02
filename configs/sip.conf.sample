@@ -95,12 +95,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;language=en			; Default language setting for all users/peers
 				; This may also be set for individual users/peers
 ;relaxdtmf=yes			; Relax dtmf handling
-;rtptimeout=60			; Terminate call if 60 seconds of no RTP or RTCP activity
-				; when we're not on hold. This is to be able to hangup
-				; a call in the case of a phone disappearing from the net,
-				; like a powerloss or grandma tripping over a cable.
-;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP or RTCP activity
-				; when we're on hold (must be > rtptimeout)
 ;trustrpid = no			; If Remote-Party-ID should be trusted
 ;sendrpid = yes			; If Remote-Party-ID should be sent
 ;progressinband=never		; If we should generate in-band ringing always
@@ -162,6 +156,21 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ;regcontext=sipregistrations
 ;
+;--------------------------- RTP timers ----------------------------------------------------
+; These timers are currently used for both audio and video streams. The RTP timeouts
+; are only applied to the audio channel.
+; The settings are settable in the global section as well as per device
+;
+;rtptimeout=60			; Terminate call if 60 seconds of no RTP or RTCP activity
+				; on the audio channel
+				; when we're not on hold. This is to be able to hangup
+				; a call in the case of a phone disappearing from the net,
+				; like a powerloss or grandma tripping over a cable.
+;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP or RTCP activity
+				; on the audio channel
+				; when we're on hold (must be > rtptimeout)
+;rtpkeepalive=<secs>		; Send keepalives in the RTP stream to keep NAT open
+				; (default is off - zero)
 ;--------------------------- SIP DEBUGGING ---------------------------------------------------
 ;sipdebug = yes			; Turn on SIP debugging by default, from
 				; the moment the channel loads this configuration
@@ -206,8 +215,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ; This setting is available in the [general] section as well as in device configurations.
 ; Setting this to yes, enables T.38 fax (UDPTL) passthrough on SIP to SIP calls, provided
-; both parties have T38 support enabled in their Asterisk configuration (either general or
-; peer/user/friend sections)
+; both parties have T38 support enabled in their Asterisk configuration 
+; This has to be enabled in the general section for all devices to work. You can then
+; disable it on a per device basis. 
 ;
 ; t38pt_udptl = yes            ; Default false
 ;

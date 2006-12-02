@@ -128,6 +128,11 @@ struct ast_rtp {
 	double rxtransit;               /*!< Relative transit time for previous packet */
 	int lasttxformat;
 	int lastrxformat;
+
+	int rtptimeout;			/*!< RTP timeout time (negative or zero means disabled, negative value means temporarily disabled) */
+	int rtpholdtimeout;		/*!< RTP timeout when on hold (negative or zero means disabled, negative value means temporarily disabled). */
+	int rtpkeepalive;		/*!< Send RTP comfort noice packets for keepalive */
+
 	/* DTMF Reception Variables */
 	char resp;
 	unsigned int lasteventendseqn;
@@ -519,6 +524,53 @@ unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp)
 	* Look in RFC 3550 Section A.7 for an example*/
 	interval = rtcpinterval;
 	return interval;
+}
+
+/* \brief Put RTP timeout timers on hold during another transaction, like T.38 */
+void ast_rtp_set_rtptimers_onhold(struct ast_rtp *rtp)
+{
+	rtp->rtptimeout = (-1) * rtp->rtptimeout;
+	rtp->rtpholdtimeout = (-1) * rtp->rtpholdtimeout;
+}
+
+/*! \brief Set rtp timeout */
+void ast_rtp_set_rtptimeout(struct ast_rtp *rtp, int timeout)
+{
+	rtp->rtptimeout = timeout;
+}
+
+/*! \brief Set rtp hold timeout */
+void ast_rtp_set_rtpholdtimeout(struct ast_rtp *rtp, int timeout)
+{
+	rtp->rtpholdtimeout = timeout;
+}
+
+/*! \brief set RTP keepalive interval */
+void ast_rtp_set_rtpkeepalive(struct ast_rtp *rtp, int period)
+{
+	rtp->rtpkeepalive = period;
+}
+
+/*! \brief Get rtp timeout */
+int ast_rtp_get_rtptimeout(struct ast_rtp *rtp)
+{
+	if (rtp->rtptimeout < 0)	/* We're not checking, but remembering the setting (during T.38 transmission) */
+		return 0;
+	return rtp->rtptimeout;
+}
+
+/*! \brief Get rtp hold timeout */
+int ast_rtp_get_rtpholdtimeout(struct ast_rtp *rtp)
+{
+	if (rtp->rtptimeout < 0)	/* We're not checking, but remembering the setting (during T.38 transmission) */
+		return 0;
+	return rtp->rtpholdtimeout;
+}
+
+/*! \brief Get RTP keepalive interval */
+int ast_rtp_get_rtpkeepalive(struct ast_rtp *rtp)
+{
+	return rtp->rtpkeepalive;
 }
 
 void ast_rtp_set_data(struct ast_rtp *rtp, void *data)
