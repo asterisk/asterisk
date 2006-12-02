@@ -21,7 +21,7 @@ endif
 
 include $(ASTTOPDIR)/Makefile.rules
 
-all: #$(AGIS)
+all: $(AGIS)
 
 strcompat.c: ../main/strcompat.c
 	@cp $< $@
