@@ -81,7 +81,7 @@ static inline void gen_tones(unsigned char *buf, int len, int codec, float ddr1,
 {
 	int x;
 	float t;
-	for (x=0;x<len;x++) {
+	for (x = 0; x < len; x++) {
 		t = *cr1 * ddr1 - *ci1 * ddi1;
 		*ci1 = *cr1 * ddi1 + *ci1 * ddr1;
 		*cr1 = t;
@@ -103,7 +103,7 @@ static inline void gen_tone(unsigned char *buf, int len, int codec, float ddr1, 
 {
 	int x;
 	float t;
-	for (x=0;x<len;x++) {
+	for (x = 0; x < len; x++) {
 		t = *cr1 * ddr1 - *ci1 * ddi1;
 		*ci1 = *cr1 * ddi1 + *ci1 * ddr1;
 		*cr1 = t;
@@ -226,8 +226,8 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 		}
 		number[i] = 0;
 	} else {
-		ast_log(LOG_DEBUG, "Unknown CID protocol, start digit '%c'\n", 
-			cidstring[0]);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unknown CID protocol, start digit '%c'\n", cidstring[0]);
 		*flags = CID_UNKNOWN_NUMBER;
 	}
 }
@@ -235,11 +235,12 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 int ast_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
 {
 	int pos = 0;
-	int saslen=2400;
+	int saslen = 2400;
 	float cr1 = 1.0;
 	float ci1 = 0.0;
 	float cr2 = 1.0;
 	float ci2 = 0.0;
+
 	if (sendsas) {
 		if (len < saslen)
 			return -1;
@@ -262,12 +263,11 @@ static unsigned short calc_crc(unsigned short crc, unsigned char data)
 	for (i = 0; i < CHAR_BIT; i++) {
 		org <<= 1;
 		dst >>= 1;
-		if (org & 0x100) {
+		if (org & 0x100) 
 			dst |= 0x80;
-		}
 	}
-	data = (unsigned char)dst;
-	crc ^= (unsigned int)data << (16 - CHAR_BIT);
+	data = (unsigned char) dst;
+	crc ^= (unsigned int) data << (16 - CHAR_BIT);
 	for (j = 0; j < CHAR_BIT; j++) {
 		if (crc & 0x8000U)
 			crc = (crc << 1) ^ 0x1021U ;
@@ -290,7 +290,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 	buf = alloca(2 * len + cid->oldlen);
 
 	memcpy(buf, cid->oldstuff, cid->oldlen);
-	mylen += cid->oldlen/2;
+	mylen += cid->oldlen / 2;
 
 	for (x = 0; x < len; x++) 
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
@@ -344,24 +344,20 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 				}
 				break;
 			case 1: /* SOH */
-				if (b == 0x01) {
+				if (b == 0x01) 
 					cid->sawflag = 2;
-				}
 				break ;
 			case 2: /* HEADER */
-				if (b == 0x07) {
+				if (b == 0x07) 
 					cid->sawflag = 3;
-				}
 				break;
 			case 3: /* STX */
-				if (b == 0x02) {
+				if (b == 0x02) 
 					cid->sawflag = 4;
-				}
 				break;
 			case 4: /* SERVICE TYPE */
-				if (b == 0x40) {
+				if (b == 0x40) 
 					cid->sawflag = 5;
-				}
 				break;
 			case 5: /* Frame Length */
 				cid->sawflag = 6;
@@ -401,7 +397,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 					return -1;
 				} 
 				/* extract caller id data */
-				for (x=0; x<cid->pos;) {
+				for (x = 0; x < cid->pos;) {
 					switch (cid->rawdata[x++]) {
 					case 0x02: /* caller id  number */
 						cid->number[0] = '\0';
@@ -690,7 +686,8 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	struct tm tm;
 	char *ptr;
 	int res;
-	int i,x;
+	int i, x;
+
 	/* Get the time */
 	time(&t);
 	localtime_r(&t,&tm);
@@ -715,7 +712,8 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	} else {
 		/* Send up to 16 digits of number MAX */
 		i = strlen(number);
-		if (i > 16) i = 16;
+		if (i > 16)
+			i = 16;
 		res = snprintf(ptr, size, "\002%c", i);
 		size -= res;
 		ptr += res;
@@ -739,11 +737,12 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	} else {
 		/* Send up to 16 digits of name MAX */
 		i = strlen(name);
-		if (i > 16) i = 16;
+		if (i > 16)
+			i = 16;
 		res = snprintf(ptr, size, "\007%c", i);
 		size -= res;
 		ptr += res;
-		for (x=0;x<i;x++)
+		for (x = 0; x < i; x++)
 			ptr[x] = name[x];
 		ptr[i] = '\0';
 		ptr += i;
@@ -763,6 +762,7 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 	float cr = 1.0;
 	float ci = 0.0;
 	float scont = 0.0;
+
 	if (mdmf) {
 		/* MDMF Message waiting */
 		msg[len++] = 0x82;

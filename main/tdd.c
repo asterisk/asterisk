@@ -174,7 +174,8 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 			if (b > 0x7f)
 				continue;
 			c = tdd_decode_baudot(tdd,b);
-			if ((c < 1) || (c > 126)) continue; /* if not valid */
+			if ((c < 1) || (c > 126))
+				continue; /* if not valid */
 			break;
 		}
 	}
