@@ -52,7 +52,10 @@ MM:=$(subst -G729,-g729,$(MM))
 MM:=$(subst -G722,-g722,$(MM))
 MOH:=$(MM:MOH-%=asterisk-moh-%.tar.gz)
 MOH_TAGS:=$(MM:MOH-%=$(MOH_DIR)/.asterisk-moh-%)
+# If "fetch" is used, --continue is not a valid option.
+ifeq ($(WGET),wget)
 WGET_ARGS:=--continue
+endif
 
 all: $(CORE_SOUNDS) $(EXTRA_SOUNDS) $(MOH)
 
