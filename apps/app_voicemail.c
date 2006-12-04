@@ -8003,6 +8003,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
 				ast_stream_and_wait(chan, "vm-msgsaved", "");
+				STORE(recordfile, vmu->mailbox, vmu->context, -1, chan, vmu, fmt, duration, vms);
+				DISPOSE(recordfile, -1);
 				cmd = 't';
 				return res;
 			}
