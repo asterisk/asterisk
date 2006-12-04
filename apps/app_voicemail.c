@@ -6629,6 +6629,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 					ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
  				ast_streamfile(chan, "vm-msgsaved", chan->language);
  				ast_waitstream(chan, "");
+				STORE(recordfile, vmu->mailbox, vmu->context, -1);
+				DISPOSE(recordfile, -1);
  				cmd = 't';
  				return res;
  			}
