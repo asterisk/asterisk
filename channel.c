@@ -3648,6 +3648,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o1nativeformats = c1->nativeformats;
 		}
 		res = ast_generic_bridge(c0, c1, config, fo, rc, nexteventts);
+		if (res != AST_BRIDGE_RETRY && fo)
+			break;
 	}
 
 	c0->_bridge = NULL;
