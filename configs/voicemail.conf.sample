@@ -87,6 +87,12 @@ maxlogins=3
 ;fromstring=The Asterisk PBX
 ; Permit finding entries for forward/compose from the directory
 ;usedirectory=yes
+; Voicemail can be stored in a database using the ODBC driver.
+; The value of odbcstorage is the database connection configured
+; in res_odbc.conf.
+;odbcstorage=asterisk
+; The default table for ODBC voicemail storage is voicemessages.
+;odbctable=voicemessages
 ;
 ; Change the from, body and/or subject, variables:
 ;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM,
