@@ -8,8 +8,11 @@ the build system, including any libraries Net-SNMP depends on.
 Note that on some (many?) Linux-distributions the dependency list in
 the net-snmp-devel list is not complete, and additional RPMs will need
 to be installed.  This is typically seen as attempts to build res_snmp
-as net-snmp-devel is available, but then failures to find certain
-libraries.
+as net-snmp-devel is available, but then fails to find certain
+libraries.  The packages may include the following:
+	* bzip2-devel
+	* lm_sensors-devel
+	* newt-devel
 
 SNMP support comes in two varieties -- as a sub-agent to a running SNMP
 daemon using the AgentX protocol, or as a full standalone agent.  If
