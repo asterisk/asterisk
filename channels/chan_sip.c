@@ -10153,7 +10153,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if ((resp >= 300) && (resp < 700)) {
 				if ((option_verbose > 2) && (resp != 487))
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
-				ast_set_flag(p, SIP_ALREADYGONE);	
 				if (p->rtp) {
 					/* Immediately stop RTP */
 					ast_rtp_stop(p->rtp);
@@ -11439,7 +11438,7 @@ retrylock:
 				goto retrylock;
 		}
 		if (!lockretry) {
-			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s! \n", p->owner->name);
+			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
 			ast_log(LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
 			ast_log(LOG_ERROR, "BAD! BAD! BAD!\n");
 			return 1;
