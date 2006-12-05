@@ -1126,6 +1126,7 @@ static int retrieve_file(char *dir, int msgnum)
 								ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 								unlink(full_fn);
 								SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+								ast_odbc_release_obj(obj);
 								goto yuck;
 							}
 						}
