@@ -298,17 +298,17 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 	while (mylen >= 160) {
 		b = b2 = 0;
 		olen = mylen;
-		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
+		res = fsk_serial(&cid->fskd, buf, &mylen, &b);
 
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			ast_log(LOG_ERROR, "fsk_serial made mylen < 0 (%d)\n", mylen);
 			return -1;
 		}
 
 		buf += (olen - mylen);
 
 		if (res < 0) {
-			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			ast_log(LOG_NOTICE, "fsk_serial failed\n");
 			return -1;
 		}
 
@@ -538,14 +538,14 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
 	while (mylen >= 160) {
 		olen = mylen;
-		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
+		res = fsk_serial(&cid->fskd, buf, &mylen, &b);
 		if (mylen < 0) {
-			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			ast_log(LOG_ERROR, "fsk_serial made mylen < 0 (%d)\n", mylen);
 			return -1;
 		}
 		buf += (olen - mylen);
 		if (res < 0) {
-			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			ast_log(LOG_NOTICE, "fsk_serial failed\n");
 			return -1;
 		}
 		if (res == 1) {

@@ -104,7 +104,7 @@ static double coef_out[NBW][8] = {
 
 
 /*! Band-pass filter for MARK frequency */
-static inline float filtroM(fsk_data *fskd,float in)
+static inline float filterM(fsk_data *fskd,float in)
 {
 	int i, j;
 	double s;
@@ -123,7 +123,7 @@ static inline float filtroM(fsk_data *fskd,float in)
 }
 
 /*! Band-pass filter for SPACE frequency */
-static inline float filtroS(fsk_data *fskd,float in)
+static inline float filterS(fsk_data *fskd,float in)
 {
 	int i, j;
 	double s;
@@ -142,7 +142,7 @@ static inline float filtroS(fsk_data *fskd,float in)
 }
 
 /*! Low-pass filter for demodulated data */
-static inline float filtroL(fsk_data *fskd,float in)
+static inline float filterL(fsk_data *fskd,float in)
 {
 	int i, j;
 	double s;
@@ -164,18 +164,18 @@ static inline float filtroL(fsk_data *fskd,float in)
 	return s;
 }
 
-static inline int demodulador(fsk_data *fskd, float *retval, float x)
+static inline int demodulator(fsk_data *fskd, float *retval, float x)
 {
 	float xS,xM;
 
 	fskd->cola_in[fskd->pcola] = x;
 	
-	xS = filtroS(fskd,x);
-	xM = filtroM(fskd,x);
+	xS = filterS(fskd,x);
+	xM = filterM(fskd,x);
 
-	fskd->cola_filtro[fskd->pcola] = xM-xS;
+	fskd->cola_filter[fskd->pcola] = xM-xS;
 
-	x = filtroL(fskd,xM*xM - xS*xS);
+	x = filterL(fskd,xM*xM - xS*xS);
 	
 	fskd->cola_demod[fskd->pcola++] = x;
 	fskd->pcola &=  (NCOLA-1);
@@ -197,7 +197,7 @@ static int get_bit_raw(fsk_data *fskd, short *buffer, int *len)
 	spb2 = spb/2.;
 
 	for (f = 0;;) {
-		if (demodulador(fskd, &x, GET_SAMPLE))
+		if (demodulator(fskd, &x, GET_SAMPLE))
 			return -1;
 		if ((x * fskd->x0) < 0) {	/* Transition */
 			if (!f) {
@@ -219,7 +219,7 @@ static int get_bit_raw(fsk_data *fskd, short *buffer, int *len)
 	return f;
 }
 
-int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte)
+int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 {
 	int a;
 	int i,j,n1,r;
@@ -242,9 +242,9 @@ int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		just start sending a start bit with nothing preceding it at the beginning
 		of a transmission (what a LOSING design), we cant do it this elegantly */
 		/*
-		if (demodulador(zap,&x1)) return(-1);
+		if (demodulator(zap,&x1)) return(-1);
 		for(;;) {
-			if (demodulador(zap,&x2)) return(-1);
+			if (demodulator(zap,&x2)) return(-1);
 			if (x1>0 && x2<0) break;
 			x1 = x2;
 		}
@@ -253,7 +253,7 @@ int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		beginning of a start bit in the TDD sceanario. It just looks for sufficient
 		level to maybe, perhaps, guess, maybe that its maybe the beginning of
 		a start bit, perhaps. This whole thing stinks! */
-		if (demodulador(fskd, &fskd->x1, GET_SAMPLE))
+		if (demodulator(fskd, &fskd->x1, GET_SAMPLE))
 			return -1;
 		samples++;
 		for(;;) {
@@ -263,7 +263,7 @@ search_startbit2:
 				return 0;
 			}
 			samples++;
-			if (demodulador(fskd, &fskd->x2, GET_SAMPLE))
+			if (demodulator(fskd, &fskd->x2, GET_SAMPLE))
 				return(-1);
 #if 0
 			printf("x2  =  %5.5f ", fskd->x2);
@@ -279,7 +279,7 @@ search_startbit3:
 			return 0;
 		}
 		for(;i;i--) {
-			if (demodulador(fskd, &fskd->x1, GET_SAMPLE))
+			if (demodulator(fskd, &fskd->x1, GET_SAMPLE))
 				return(-1); 
 #if 0
 			printf("x1 = %5.5f ", fskd->x1);
@@ -320,7 +320,7 @@ getbyte:
 	a >>= j;
 
 	/* We read parity bit (if exists) and check parity */
-	if (fskd->paridad) {
+	if (fskd->parity) {
 		olen = *len;
 		i = get_bit_raw(fskd, buffer, len); 
 		buffer += (olen - *len);
@@ -328,7 +328,7 @@ getbyte:
 			return(-1);
 		if (i)
 			n1++;
-		if (fskd->paridad == 1) {	/* parity=1 (even) */
+		if (fskd->parity == 1) {	/* parity=1 (even) */
 			if (n1&1)
 				a |= 0x100;		/* error */
 		} else {			/* parity=2 (odd) */

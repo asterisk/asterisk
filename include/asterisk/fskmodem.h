@@ -35,7 +35,7 @@ typedef struct {
 	float spb;	/*!< Samples / Bit */
 	int nbit;	/*!< Number of Data Bits (5,7,8) */
 	float nstop;	/*!< Number of Stop Bits 1,1.5,2  */
-	int paridad;	/*!< Parity 0=none 1=even 2=odd */
+	int parity;	/*!< Parity 0=none 1=even 2=odd */
 	int hdlc;	/*!< Modo Packet */
 	float x0;
 	float x1;
@@ -53,7 +53,7 @@ typedef struct {
 	int state;
 	int pcola;			/*!< Pointer to data queues */
 	float cola_in[NCOLA];		/*!< Queue of input samples */
-	float cola_filtro[NCOLA];	/*!< Queue of samples after filters */
+	float cola_filter[NCOLA];	/*!< Queue of samples after filters */
 	float cola_demod[NCOLA];	/*!< Queue of demodulated samples */
 } fsk_data;
 
@@ -66,6 +66,6 @@ typedef struct {
    \arg 1: An output byte was received and stored in outbyte
    \arg -1: An error occured in the transmission
    He must be called with at least 80 bytes of buffer. */
-int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte);
+int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte);
 
 #endif /* _ASTERISK_FSKMODEM_H */
