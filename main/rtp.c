@@ -3142,7 +3142,34 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 
 /*! \brief Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
-	of Asterisk. */
+	of Asterisk. 
+*/
+/*! \page AstRTPbridge The Asterisk RTP bridge 
+	The RTP bridge is called from the channel drivers that are using the RTP
+	subsystem in Asterisk - like SIP, H.323 and Jingle/Google Talk.
+
+	This bridge aims to offload the Asterisk server by setting up
+	the media stream directly between the endpoints, keeping the
+	signalling in Asterisk.
+
+	It checks with the channel driver, using a callback function, if
+	there are possibilities for a remote bridge.
+
+	If this fails, the bridge hands off to the core bridge. Reasons
+	can be NAT support needed, DTMF features in audio needed by
+	the PBX for transfers or spying/monitoring on channels.
+
+	If transcoding is needed - we can't do a remote bridge.
+	If only NAT support is needed, we're using Asterisk in
+	RTP proxy mode with the p2p RTP bridge, basically
+	forwarding incoming audio packets to the outbound
+	stream on a network level.
+
+	References:
+	- ast_rtp_bridge()
+	- ast_channel_early_bridge()
+	- ast_channel_bridge()
+*/
 enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct ast_rtp *p0 = NULL, *p1 = NULL;		/* Audio RTP Channels */

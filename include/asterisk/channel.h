@@ -81,7 +81,38 @@
 	\arg translate.h - Transcoding support functions
 	\arg \ref channel_drivers - Implemented channel drivers
 	\arg \ref Def_Frame Asterisk Multimedia Frames
+	\arg \ref Def_Bridge
 
+*/
+/*! \page Def_Bridge Asterisk Channel Bridges
+
+	In Asterisk, there's several media bridges. 
+
+	The Core bridge handles two channels (a "phone call") and bridge
+	them together.
+	
+	The conference bridge (meetme) handles several channels simultaneosly
+	with the support of an external timer (zaptel timer). This is used
+	not only by the Conference application (meetme) but also by the
+	page application and the SLA system introduced in 1.4.
+	The conference bridge does not handle video.
+
+	When two channels of the same type connect, the channel driver
+	or the media subsystem used by the channel driver (i.e. RTP)
+	can create a native bridge without sending media through the
+	core.
+
+	Native briding can be disabled by a number of reasons,
+	like DTMF being needed by the core or codecs being incompatible
+	so a transcoding module is needed.
+
+References:
+        - ast_channel_early_bridge()
+        - ast_channel_bridge()
+	- app_meetme.c
+	- \ref AstRTPbridge
+        - ast_rtp_bridge() 
+	- \ref Def_Channel
 */
 
 /*! \page AstFileDesc File descriptors 

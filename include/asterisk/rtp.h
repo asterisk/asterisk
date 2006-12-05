@@ -48,7 +48,10 @@ extern "C" {
 /*! Maximum RTP-specific code */
 #define AST_RTP_MAX             	AST_RTP_CISCO_DTMF
 
+/*! Maxmum number of payload defintions for a RTP session */
 #define MAX_RTP_PT			256
+
+#define FLAG_3389_WARNING		(1 << 0)
 
 enum ast_rtp_options {
 	AST_RTP_OPT_G726_NONSTANDARD = (1 << 0),
@@ -65,6 +68,8 @@ enum ast_rtp_get_result {
 
 struct ast_rtp;
 
+/*! \brief This is the structure that binds a channel (SIP/Jingle/H.323) to the RTP subsystem 
+*/
 struct ast_rtp_protocol {
 	/*! Get RTP struct, or NULL if unwilling to transfer */
 	enum ast_rtp_get_result (* const get_rtp_info)(struct ast_channel *chan, struct ast_rtp **rtp);
@@ -78,8 +83,7 @@ struct ast_rtp_protocol {
 };
 
 
-#define FLAG_3389_WARNING		(1 << 0)
-
+/*! RTP callback structure */
 typedef int (*ast_rtp_callback)(struct ast_rtp *rtp, struct ast_frame *f, void *data);
 
 /*!
@@ -122,11 +126,13 @@ void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
 struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp);
 
+/*! Destroy RTP session */
 void ast_rtp_destroy(struct ast_rtp *rtp);
 
 void ast_rtp_reset(struct ast_rtp *rtp);
 
-void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username);
+/*! Stop RTP session, do not destroy structure */
+void ast_rtp_stop(struct ast_rtp *rtp);
 
 void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback);
 
@@ -189,10 +195,18 @@ void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate);
 /*! \brief Enable STUN capability */
 void ast_rtp_setstun(struct ast_rtp *rtp, int stun_enable);
 
+/*! \brief Send STUN request (??) */
+void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username);
+
+/*! \brief The RTP bridge.
+	\arg \ref AstRTPbridge
+*/
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
+/*! \brief Register an RTP channel client */
 int ast_rtp_proto_register(struct ast_rtp_protocol *proto);
 
+/*! \brief Unregister an RTP channel client */
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto);
 
 int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, int media);
@@ -201,22 +215,22 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
            having to send a re-invite later */
 int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1);
 
-void ast_rtp_stop(struct ast_rtp *rtp);
 
-/*! \brief Return RTCP quality string */
-char *ast_rtp_get_quality(struct ast_rtp *rtp);
 
 /*! \brief Send an H.261 fast update request. Some devices need this rather than the XML message  in SIP */
 int ast_rtcp_send_h261fur(void *data);
 
-void ast_rtp_init(void);
+char *ast_rtp_get_quality(struct ast_rtp *rtp);              /*! \brief Return RTCP quality string */
+void ast_rtp_init(void);                                      /*! Initialize RTP subsystem */
+int ast_rtp_reload(void);                                     /*! reload rtp configuration */
 
-int ast_rtp_reload(void);
-
+/*! Set codec preference */
 int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs);
 
+/*! Get codec preference */
 struct ast_codec_pref *ast_rtp_codec_getpref(struct ast_rtp *rtp);
 
+/*! get format from predefined dynamic payload format */
 int ast_rtp_codec_getformat(int pt);
 
 /*! \brief Set rtp timeout */
