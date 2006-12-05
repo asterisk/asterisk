@@ -2159,7 +2159,7 @@ static const char* descrip4 =
 "	OSPFINISHSTATUS The status of the OSP Finish attempt as a text string, one of\n"
 "		SUCCESS | FAILED | ERROR \n";
 
-static const char osp_usage[] =
+static char osp_usage[] =
 "Usage: osp show\n"
 "       Displays information on Open Settlement Protocol support\n";
 
