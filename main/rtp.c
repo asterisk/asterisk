@@ -1408,6 +1408,7 @@ static struct {
 	{{1, AST_FORMAT_H263}, "video", "H263"},
 	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
 	{{1, AST_FORMAT_H264}, "video", "H264"},
+	{{1, AST_FORMAT_T140}, "text", "T140"},
 };
 
 /* Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
@@ -1439,6 +1440,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[97] = {1, AST_FORMAT_ILBC},
 	[99] = {1, AST_FORMAT_H264},
 	[101] = {0, AST_RTP_DTMF},
+	[102] = {0, AST_FORMAT_T140},	/* Real time text chat */
 	[110] = {1, AST_FORMAT_SPEEX},
 	[111] = {1, AST_FORMAT_G726},
 	[112] = {1, AST_FORMAT_G726_AAL2},

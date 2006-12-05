@@ -52,7 +52,7 @@ struct ast_codec_pref {
 	\arg \b VIDEO:	Video data, subclass is codec (AST_FORMAT_*)
 	\arg \b DTMF:	A DTMF digit, subclass is the digit
 	\arg \b IMAGE:	Image transport, mostly used in IAX
-	\arg \b TEXT:	Text messages
+	\arg \b TEXT:	Text messages and character by character (real time text)
 	\arg \b HTML:	URL's and web pages
 	\arg \b MODEM:	Modulated data encodings, such as T.38 and V.150
 	\arg \b IAX:	Private frame type for the IAX protocol
@@ -261,6 +261,10 @@ extern struct ast_frame ast_null_frame;
 /*! Maximum video format */
 #define AST_FORMAT_MAX_VIDEO	(1 << 24)
 #define AST_FORMAT_VIDEO_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
+/*! T.140 Text format - ITU T.140, RFC 4351*/
+#define AST_FORMAT_T140		(1 << 25)
+#define AST_FORMAT_MAX_TEXT	(1 << 26)
+#define AST_FORMAT_TEXT_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
 
 enum ast_control_frame_type {
 	AST_CONTROL_HANGUP = 1,		/*!< Other end has hungup */
