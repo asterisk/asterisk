@@ -19,7 +19,6 @@
 /*! \file
  * \brief FSK Modem Support
  * \note Includes code and algorithms from the Zapata library.
- * \todo Translate Emiliano Zapata's spanish comments to english, please.
  */
 
 #ifndef _ASTERISK_FSKMODEM_H
@@ -42,20 +41,20 @@ typedef struct {
 	float x1;
 	float x2;
 	float cont;
-	int bw;				/*!< Ancho de Banda */
+	int bw;				/*!< Bandwidth */
 	double fmxv[8],fmyv[8];		/*!< filter stuff for M filter */
 	int	fmp;			/*!< pointer for M filter */
 	double fsxv[8],fsyv[8];		/*!< filter stuff for S filter */
 	int	fsp;			/*!< pointer for S filter */
 	double flxv[8],flyv[8];		/*!< filter stuff for L filter */
 	int	flp;			/*!< pointer for L filter */
-	int f_mark_idx;			/*!< Indice de frecuencia de marca (f_M-500)/5 */
-	int f_space_idx;		/*!< Indice de frecuencia de espacio (f_S-500)/5 */
+	int f_mark_idx;			/*!< Mark frequency index (f_M-500)/5 */
+	int f_space_idx;		/*!< Space frequency index (f_S-500)/5 */
 	int state;
-	int pcola;			/*!< Puntero de las colas de datos */
-	float cola_in[NCOLA];		/*!< Cola de muestras de entrada */
-	float cola_filtro[NCOLA];	/*!< Cola de muestras tras filtros */
-	float cola_demod[NCOLA];	/*!< Cola de muestras demoduladas */
+	int pcola;			/*!< Pointer to data queues */
+	float cola_in[NCOLA];		/*!< Queue of input samples */
+	float cola_filtro[NCOLA];	/*!< Queue of samples after filters */
+	float cola_demod[NCOLA];	/*!< Queue of demodulated samples */
 } fsk_data;
 
 /* \brief Retrieve a serial byte into outbyte.
