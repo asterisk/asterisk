@@ -142,6 +142,7 @@ static struct vmstate *vmstates = NULL;
 /* Don't modify these here; set your umask at runtime instead */
 #define	VOICEMAIL_DIR_MODE	0777
 #define	VOICEMAIL_FILE_MODE	0666
+#define	CHUNKSIZE	65536
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
 #define ASTERISK_USERNAME "asterisk"
@@ -1099,6 +1100,7 @@ static int retrieve_file(char *dir, int msgnum)
 				goto yuck;
 			}
 			if (!strcasecmp(coltitle, "recording")) {
+				off_t offset;
 				res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize2);
 				fdlen = colsize2;
 				if (fd > -1) {
@@ -1109,24 +1111,26 @@ static int retrieve_file(char *dir, int msgnum)
 						fd = -1;
 						continue;
 					}
-					if (fd > -1) {
-						if ((fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) == -1) {
+					/* Read out in small chunks */
+					for (offset = 0; offset < colsize2; offset += CHUNKSIZE) {
+						/* +1 because SQLGetData likes null-terminating binary data */
+						if ((fdm = mmap(NULL, CHUNKSIZE + 1, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == (void *)-1) {
 							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
 							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 							ast_odbc_release_obj(obj);
 							goto yuck;
+						} else {
+							res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, CHUNKSIZE + 1, NULL);
+							munmap(fdm, 0);
+							if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+								ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+								unlink(full_fn);
+								SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+								goto yuck;
+							}
 						}
 					}
-				}
-				if (fdm) {
-					memset(fdm, 0, fdlen);
-					res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize2);
-					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-						ast_odbc_release_obj(obj);
-						goto yuck;
-					}
+					truncate(full_fn, fdlen);
 				}
 			} else {
 				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
@@ -1147,8 +1151,6 @@ static int retrieve_file(char *dir, int msgnum)
 yuck:	
 	if (f)
 		fclose(f);
-	if (fdm)
-		munmap(fdm, fdlen);
 	if (fd > -1)
 		close(fd);
 	return x - 1;
