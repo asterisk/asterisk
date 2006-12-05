@@ -263,8 +263,9 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_VIDEO_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
 /*! T.140 Text format - ITU T.140, RFC 4351*/
 #define AST_FORMAT_T140		(1 << 25)
+/*! Maximum text mask */
 #define AST_FORMAT_MAX_TEXT	(1 << 26)
-#define AST_FORMAT_TEXT_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
+#define AST_FORMAT_TEXT_MASK   (((1 << 27)-1) & ~(AST_FORMAT_AUDIO_MASK) & ~(AST_FORMAT_VIDEO_MASK)))
 
 enum ast_control_frame_type {
 	AST_CONTROL_HANGUP = 1,		/*!< Other end has hungup */

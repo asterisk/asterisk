@@ -130,7 +130,7 @@ static struct ast_format_list AST_FORMAT_LIST[] = {					/*!< Bit number: comment
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, AST_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format" },
-	{ 0, AST_FORMAT_T140, "t140", "Passthrough T.140 Realtime Text" },
+	{ 1, AST_FORMAT_T140, "t140", "Passthrough T.140 Realtime Text" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, AST_FORMAT_MAX_TEXT, "maxtext", "Maximum text format" },
