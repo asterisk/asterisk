@@ -3183,6 +3183,11 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 			if (ch->other_ch) ch->other_ch->other_ch=ch;
 		}
 	}
+
+	tmp=pbx_builtin_getvar_helper(chan,"MISDN_ADDRESS_COMPLETE");
+	if (tmp && (atoi(tmp) == 1)) {
+		bc->sending_complete=1;
+	}
 }
  
 void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
@@ -3192,6 +3197,11 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	chan_misdn_log(3,bc->port," --> EXPORT_PID: pid:%d\n",bc->pid);
 	sprintf(tmp,"%d",bc->pid);
 	pbx_builtin_setvar_helper(chan,"_MISDN_PID",tmp);
+
+	if (bc->sending_complete) {
+		sprintf(tmp,"%d",bc->sending_complete);
+		pbx_builtin_setvar_helper(chan,"MISDN_ADDRESS_COMPLETE",tmp);
+	}
 }
 
 
