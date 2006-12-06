@@ -1336,7 +1336,7 @@ static int console_transfer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char transfer_usage[] =
+static const char transfer_usage[] =
 	"Usage: console transfer <extension>[@context]\n"
 	"       Transfers the currently connected call to the given extension (and\n"
 	"context if specified)\n";
@@ -1363,7 +1363,7 @@ static int console_active(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char active_usage[] =
+static const char active_usage[] =
 	"Usage: console active [device]\n"
 	"       If used without a parameter, displays which device is the current\n"
 	"console.  If a device is specified, the console sound device is changed to\n"

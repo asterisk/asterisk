@@ -1947,23 +1947,23 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char show_devices_usage[] =
+static const char show_devices_usage[] =
 "Usage: skinny show devices\n"
 "       Lists all devices known to the Skinny subsystem.\n";
 
-static char show_lines_usage[] =
+static const char show_lines_usage[] =
 "Usage: skinny show lines\n"
 "       Lists all lines known to the Skinny subsystem.\n";
 
-static char debug_usage[] =
+static const char debug_usage[] =
 "Usage: skinny set debug\n"
 "       Enables dumping of Skinny packets for debugging purposes\n";
 
-static char no_debug_usage[] =
+static const char no_debug_usage[] =
 "Usage: skinny set debug off\n"
 "       Disables dumping of Skinny packets for debugging purposes\n";
 
-static char reset_usage[] =
+static const char reset_usage[] =
 "Usage: skinny reset <DeviceId|all> [restart]\n"
 "       Causes a Skinny device to reset itself, optionally with a full restart\n";
 

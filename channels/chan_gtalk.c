@@ -225,11 +225,11 @@ static struct ast_rtp_protocol gtalk_rtp = {
 	get_codec: gtalk_get_codec,
 };
 
-static char debug_usage[] = 
+static const char debug_usage[] = 
 "Usage: gtalk show channels\n" 
 "       Shows current state of the Gtalk channels.\n";
 
-static char reload_usage[] = 
+static const char reload_usage[] = 
 "Usage: gtalk reload\n" 
 "       Reload gtalk channel driver.\n";
 

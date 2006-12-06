@@ -399,7 +399,7 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 	return 0;
 }
 
-static char show_provisioning_usage[] = 
+static const char show_provisioning_usage[] = 
 "Usage: iax list provisioning [template]\n"
 "       Lists all known IAX provisioning templates or a\n"
 "       specific one if specified.\n";

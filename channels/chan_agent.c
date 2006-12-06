@@ -1712,15 +1712,15 @@ static int agents_show_online(int fd, int argc, char **argv)
 
 
 
-static char show_agents_usage[] = 
+static const char show_agents_usage[] = 
 "Usage: agent show\n"
 "       Provides summary information on agents.\n";
 
-static char show_agents_online_usage[] =
+static const char show_agents_online_usage[] =
 "Usage: agent show online\n"
 "	Provides a list of all online agents.\n";
 
-static char agent_logoff_usage[] =
+static const char agent_logoff_usage[] =
 "Usage: agent logoff <channel> [soft]\n"
 "       Sets an agent as no longer logged in.\n"
 "       If 'soft' is specified, do not hangup existing calls.\n";

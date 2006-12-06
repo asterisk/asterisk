@@ -916,7 +916,7 @@ static int console_answer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char sendtext_usage[] =
+static const char sendtext_usage[] =
 	"Usage: console send text <message>\n"
 	"       Sends a text message for display on the remote terminal.\n";
 
@@ -961,7 +961,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char answer_usage[] =
+static const char answer_usage[] =
 	"Usage: console answer\n"
 	"       Answers an incoming call on the console (ALSA) channel.\n";
 
@@ -993,7 +993,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char hangup_usage[] =
+static const char hangup_usage[] =
 	"Usage: console hangup\n"
 	"       Hangs up any call currently placed on the console.\n";
 
@@ -1054,7 +1054,7 @@ static int console_dial(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char dial_usage[] =
+static const char dial_usage[] =
 	"Usage: console dial [extension[@context]]\n"
 	"       Dials a given extension (and context if specified)\n";
 

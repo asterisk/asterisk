@@ -529,7 +529,7 @@ static int features_show(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-static char show_features_usage[] = 
+static const char show_features_usage[] = 
 "Usage: feature show channels\n"
 "       Provides summary information on feature channels.\n";
 

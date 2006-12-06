@@ -659,7 +659,7 @@ static int locals_show(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-static char show_locals_usage[] = 
+static const char show_locals_usage[] = 
 "Usage: local show channels\n"
 "       Provides summary information on active local proxy channels.\n";
 
