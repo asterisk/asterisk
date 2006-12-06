@@ -66,7 +66,7 @@ static int parse_config(void);
 static int pgsql_reconnect(const char *database);
 static int realtime_pgsql_status(int fd, int argc, char **argv);
 
-static char cli_realtime_pgsql_status_usage[] =
+static const char cli_realtime_pgsql_status_usage[] =
 	"Usage: realtime pgsql status\n"
 	"       Shows connection information for the Postgresql RealTime driver\n";
 

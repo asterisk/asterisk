@@ -1306,11 +1306,11 @@ static int handle_dbdeltree(struct ast_channel *chan, AGI *agi, int argc, char *
 	return RESULT_SUCCESS;
 }
 
-static char debug_usage[] = 
+static const char debug_usage[] = 
 "Usage: agi debug\n"
 "       Enables dumping of AGI transactions for debugging purposes\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] = 
 "Usage: agi nodebug\n"
 "       Disables dumping of AGI transactions for debugging purposes\n";
 

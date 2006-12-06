@@ -132,7 +132,7 @@ static char *complete_ulimit(const char *line, const char *word, int pos, int st
 	return NULL;
 }
 
-static char ulimit_usage[] =
+static const char ulimit_usage[] =
 "Usage: ulimit {-d|-l|-f|-m|-s|-t|-u|-v|-c|-n} [<num>]\n"
 "       Shows or sets the corresponding resource limit.\n"
 "         -d  Process data segment [readonly]\n"

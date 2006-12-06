@@ -93,11 +93,11 @@ static int cli_realtime_update(int fd, int argc, char **argv) {
 	return RESULT_SUCCESS;
 }
 
-static char cli_realtime_load_usage[] =
+static const char cli_realtime_load_usage[] =
 "Usage: realtime load <family> <colmatch> <value>\n"
 "       Prints out a list of variables using the RealTime driver.\n";
 
-static char cli_realtime_update_usage[] =
+static const char cli_realtime_update_usage[] =
 "Usage: realtime update <family> <colmatch> <value>\n"
 "       Update a single variable using the RealTime driver.\n";
 

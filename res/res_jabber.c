@@ -98,19 +98,19 @@ static int aji_register_transport(void *data, ikspak *pak);
 static int aji_register_transport2(void *data, ikspak *pak);
 */
 
-static char debug_usage[] = 
+static const char debug_usage[] = 
 "Usage: jabber debug\n" 
 "       Enables dumping of Jabber packets for debugging purposes.\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] = 
 "Usage: jabber debug off\n" 
 "       Disables dumping of Jabber packets for debugging purposes.\n";
 
-static char reload_usage[] = 
+static const char reload_usage[] = 
 "Usage: jabber reload\n" 
 "       Enables reloading of Jabber module.\n";
 
-static char test_usage[] = 
+static const char test_usage[] = 
 "Usage: jabber test [client]\n" 
 "       Sends test message for debugging purposes.  A specific client\n"
 "       as configured in jabber.conf can be optionally specified.\n";

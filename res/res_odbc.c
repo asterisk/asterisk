@@ -341,7 +341,7 @@ static int odbc_show_command(int fd, int argc, char **argv)
 	return 0;
 }
 
-static char show_usage[] =
+static const char show_usage[] =
 "Usage: odbc show [<class>]\n"
 "       List settings of a particular ODBC class.\n"
 "       or, if not specified, all classes.\n";
