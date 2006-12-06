@@ -165,7 +165,7 @@ struct ast_cli_entry {
 	old_cli_fn handler;
 
 	const char *summary; /*!< Summary of the command (< 60 characters) */
-	char *usage; /*!< Detailed usage information */
+	const char *usage; /*!< Detailed usage information */
 
 	/*! Generate the n-th (starting from 0) possible completion
 	  for a given 'word' following 'line' in position 'pos'.
