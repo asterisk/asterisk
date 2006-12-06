@@ -105,9 +105,7 @@ struct eventqent {
 
 static AST_LIST_HEAD_STATIC(all_events, eventqent);
 
-static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
-static int asock = -1;	/* the accept socket */
 static int displayconnects = 1;
 static int timestampevents = 0;
 static int httptimeout = 60;
@@ -2138,11 +2136,39 @@ static int get_input(struct mansession *s, char *output)
  */
 static void *session_do(void *data)
 {
-	struct mansession *s = data;
 	struct message m;	/* XXX watch out, this is 20k of memory! */
+	struct server_instance *ser = data;
+	struct mansession *s = ast_calloc(1, sizeof(*s));
+	int flags;
 
+	if (s == NULL)
+		goto done;
+
+	s->writetimeout = 100;
+	s->waiting_thread = AST_PTHREADT_NULL;
+
+	flags = fcntl(ser->fd, F_GETFL);
+	if (!block_sockets) /* make sure socket is non-blocking */
+		flags |= O_NONBLOCK;
+	else
+		flags &= ~O_NONBLOCK;
+	fcntl(ser->fd, F_SETFL, flags);
+
+	ast_mutex_init(&s->__lock);
+	s->send_events = -1;
+	/* these fields duplicate those in the 'ser' structure */
+	s->fd = ser->fd;
+	s->f = ser->f;
+	s->sin = ser->requestor;
+
+	ast_atomic_fetchadd_int(&num_sessions, 1);
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_INSERT_HEAD(&sessions, s, list);
+	AST_LIST_UNLOCK(&sessions);
+	/* Hook to the tail of the event queue */
+	s->last_ev = grab_last();
 	ast_mutex_lock(&s->__lock);
-	s->f = fdopen(s->fd, "w+");
+	s->f = ser->f;
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
 	ast_mutex_unlock(&s->__lock);
 	memset(&m, 0, sizeof(m));
@@ -2176,6 +2202,9 @@ static void *session_do(void *data)
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 	}
 	destroy_session(s);
+
+done:
+	free(ser);
 	return NULL;
 }
 
@@ -2203,80 +2232,6 @@ static void purge_sessions(int n_max)
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&sessions);
-}
-
-/*! \brief The thread accepting connections on the manager interface port.
- * As a side effect, it purges stale sessions, one per each iteration,
- * which is at least every 5 seconds.
- */
-static void *accept_thread(void *ignore)
-{
-	pthread_attr_t attr;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-	for (;;) {
-		struct mansession *s;
-		int as;
-		struct sockaddr_in sin;
-		socklen_t sinlen;
-		struct protoent *p;
-		int flags;
-
-		purge_sessions(1);
-		purge_events();
-
-		/* Wait for something to happen, but timeout every few seconds so
-		   we can ditch any old manager sessions */
-		if (ast_wait_for_input(asock, 5000) < 1)
-			continue;
-		sinlen = sizeof(sin);
-		as = accept(asock, (struct sockaddr *)&sin, &sinlen);
-		if (as < 0) {
-			ast_log(LOG_NOTICE, "Accept returned -1: %s\n", strerror(errno));
-			continue;
-		}
-		p = getprotobyname("tcp");
-		if (p) {
-			int arg = 1;
-			if( setsockopt(as, p->p_proto, TCP_NODELAY, (char *)&arg, sizeof(arg) ) < 0 ) {
-				ast_log(LOG_WARNING, "Failed to set manager tcp connection to TCP_NODELAY mode: %s\n", strerror(errno));
-			}
-		}
-		s = ast_calloc(1, sizeof(*s));	/* allocate a new record */
-		if (!s) {
-			close(as);
-			continue;
-		}
-
-
-		s->sin = sin;
-		s->writetimeout = 100;
-		s->waiting_thread = AST_PTHREADT_NULL;
-
-		flags = fcntl(as, F_GETFL);
-		if (!block_sockets) /* For safety, make sure socket is non-blocking */
-			flags |= O_NONBLOCK;
-		else
-			flags &= ~O_NONBLOCK;
-		fcntl(as, F_SETFL, flags);
-
-		ast_mutex_init(&s->__lock);
-		s->fd = as;
-		s->send_events = -1;
-
-		ast_atomic_fetchadd_int(&num_sessions, 1);
-		AST_LIST_LOCK(&sessions);
-		AST_LIST_INSERT_HEAD(&sessions, s, list);
-		AST_LIST_UNLOCK(&sessions);
-		/* Hook to the tail of the event queue */
-		s->last_ev = grab_last();
-		if (ast_pthread_create_background(&s->ms_t, &attr, session_do, s))
-			destroy_session(s);
-	}
-	pthread_attr_destroy(&attr);
-	return NULL;
 }
 
 /*
@@ -2904,16 +2859,33 @@ struct ast_http_uri managerxmluri = {
 static int registered = 0;
 static int webregged = 0;
 
+/*! \brief cleanup code called at each iteration of server_root,
+ * guaranteed to happen every 5 seconds at most
+ */
+static void purge_old_stuff(void *data)
+{
+	purge_sessions(1);
+	purge_events();
+}
+
+static struct server_args ami_desc = {
+        .accept_fd = -1,
+        .master = AST_PTHREADT_NULL,
+        .is_ssl = 0, 
+        .poll_timeout = 5000,	/* wake up every 5 seconds */
+	.periodic_fn = purge_old_stuff,
+        .name = "AMI server",
+        .accept_fn = server_root,	/* thread doing the accept() */
+        .worker_fn = session_do,	/* thread handling the session */
+};
+
 int init_manager(void)
 {
 	struct ast_config *cfg = NULL;
 	const char *val;
 	char *cat = NULL;
-	int oldportno = portno;
-	static struct sockaddr_in ba;
-	int x = 1;
-	int flags;
 	int webenabled = 0;
+	int enabled = 0;
 	int newhttptimeout = 60;
 	struct ast_manager_user *user = NULL;
 
@@ -2986,26 +2958,16 @@ int init_manager(void)
 	if ((val = ast_variable_retrieve(cfg, "general", "httptimeout")))
 		newhttptimeout = atoi(val);
 
-	memset(&ba, 0, sizeof(ba));
-	ba.sin_family = AF_INET;
-	ba.sin_port = htons(portno);
+	memset(&ami_desc.sin, 0, sizeof(struct sockaddr_in));
+	if (enabled)
+		ami_desc.sin.sin_family = AF_INET;
+	ami_desc.sin.sin_port = htons(portno);
 
 	if ((val = ast_variable_retrieve(cfg, "general", "bindaddr"))) {
-		if (!inet_aton(val, &ba.sin_addr)) {
+		if (!inet_aton(val, &ami_desc.sin.sin_addr)) {
 			ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
-			memset(&ba.sin_addr, 0, sizeof(ba.sin_addr));
+			memset(&ami_desc.sin.sin_addr, 0, sizeof(ami_desc.sin.sin_addr));
 		}
-	}
-
-
-	if ((asock > -1) && ((portno != oldportno) || !enabled)) {
-#if 0
-		/* Can't be done yet */
-		close(asock);
-		asock = -1;
-#else
-		ast_log(LOG_WARNING, "Unable to change management port / enabled\n");
-#endif
 	}
 
 	AST_LIST_LOCK(&users);
@@ -3107,35 +3069,7 @@ int init_manager(void)
 	if (newhttptimeout > 0)
 		httptimeout = newhttptimeout;
 
-	/* If not enabled, do nothing */
-	if (!enabled)
-		return 0;
-
-	if (asock < 0) {
-		asock = socket(AF_INET, SOCK_STREAM, 0);
-		if (asock < 0) {
-			ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
-			return -1;
-		}
-		setsockopt(asock, SOL_SOCKET, SO_REUSEADDR, &x, sizeof(x));
-		if (bind(asock, (struct sockaddr *)&ba, sizeof(ba))) {
-			ast_log(LOG_WARNING, "Unable to bind socket: %s\n", strerror(errno));
-			close(asock);
-			asock = -1;
-			return -1;
-		}
-		if (listen(asock, 2)) {
-			ast_log(LOG_WARNING, "Unable to listen on socket: %s\n", strerror(errno));
-			close(asock);
-			asock = -1;
-			return -1;
-		}
-		flags = fcntl(asock, F_GETFL);
-		fcntl(asock, F_SETFL, flags | O_NONBLOCK);
-		if (option_verbose)
-			ast_verbose("Asterisk Management interface listening on port %d\n", portno);
-		ast_pthread_create_background(&accept_thread_ptr, NULL, accept_thread, NULL);
-	}
+	server_start(&ami_desc);
 	return 0;
 }
 
