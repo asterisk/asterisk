@@ -1966,7 +1966,7 @@ static int misdn_indication(struct ast_channel *ast, int cond)
 		chan_misdn_log(1, p->bc->port, " --> *\tUNHOLD pid:%d\n",p->bc?p->bc->pid:-1);
 		break;
 	default:
-		ast_log(LOG_NOTICE, " --> * Unknown Indication:%d pid:%d\n",cond,p->bc?p->bc->pid:-1);
+		chan_misdn_log(1, p->bc->port, " --> * Unknown Indication:%d pid:%d\n",cond,p->bc?p->bc->pid:-1);
 	}
   
 	return 0;
@@ -3936,7 +3936,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				int ret=write(ch->pipe[1], bc->bframe, bc->bframe_len);
 				
 				if (ret<=0) {
-					chan_misdn_log(-1, bc->port, "Write returned <=0 (err=%s)\n",strerror(errno));
+					chan_misdn_log(-1, bc->port, "Write returned <=0 (err=%s) --> hanging up channel\n",strerror(errno));
+
+					stop_bc_tones(ch);
+					hangup_chan(ch);
+					release_chan(bc);
 				}
 			} else {
 				chan_misdn_log(1, bc->port, "Wripe Pipe full!\n");
@@ -4092,7 +4096,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 				
 	default:
-		ast_log(LOG_NOTICE, "Got Unknown Event\n");
+		chan_misdn_log(1,0, "Got Unknown Event\n");
 		break;
 	}
 	
@@ -4350,7 +4354,7 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 		misdn_lib_send_facility(ch->bc, FACILITY_CALLDEFLECT, tok);
 		
 	} else {
-		ast_log(LOG_WARNING, "Unknown Facility: %s\n",tok);
+		chan_misdn_log(1, ch->bc->port, "Unknown Facility: %s\n",tok);
 	}
 	
 	return 0;
