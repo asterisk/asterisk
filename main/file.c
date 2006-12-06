@@ -1156,7 +1156,7 @@ static int show_file_formats(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-char show_file_formats_usage[] = 
+static const char show_file_formats_usage[] = 
 "Usage: core show file formats\n"
 "       Displays currently registered file formats (if any)\n";
 

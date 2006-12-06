@@ -2631,71 +2631,71 @@ static int dundi_show_precache(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static char debug_usage[] = 
+static const char debug_usage[] = 
 "Usage: dundi debug\n"
 "       Enables dumping of DUNDi packets for debugging purposes\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] = 
 "Usage: dundi no debug\n"
 "       Disables dumping of DUNDi packets for debugging purposes\n";
 
-static char store_history_usage[] = 
+static const char store_history_usage[] = 
 "Usage: dundi store history\n"
 "       Enables storing of DUNDi requests and times for debugging\n"
 "purposes\n";
 
-static char no_store_history_usage[] = 
+static const char no_store_history_usage[] = 
 "Usage: dundi no store history\n"
 "       Disables storing of DUNDi requests and times for debugging\n"
 "purposes\n";
 
-static char show_peers_usage[] = 
+static const char show_peers_usage[] = 
 "Usage: dundi show peers\n"
 "       Lists all known DUNDi peers.\n";
 
-static char show_trans_usage[] = 
+static const char show_trans_usage[] = 
 "Usage: dundi show trans\n"
 "       Lists all known DUNDi transactions.\n";
 
-static char show_mappings_usage[] = 
+static const char show_mappings_usage[] = 
 "Usage: dundi show mappings\n"
 "       Lists all known DUNDi mappings.\n";
 
-static char show_precache_usage[] = 
+static const char show_precache_usage[] = 
 "Usage: dundi show precache\n"
 "       Lists all known DUNDi scheduled precache updates.\n";
 
-static char show_entityid_usage[] = 
+static const char show_entityid_usage[] = 
 "Usage: dundi show entityid\n"
 "       Displays the global entityid for this host.\n";
 
-static char show_peer_usage[] = 
+static const char show_peer_usage[] = 
 "Usage: dundi show peer [peer]\n"
 "       Provide a detailed description of a specifid DUNDi peer.\n";
 
-static char show_requests_usage[] = 
+static const char show_requests_usage[] = 
 "Usage: dundi show requests\n"
 "       Lists all known pending DUNDi requests.\n";
 
-static char lookup_usage[] =
+static const char lookup_usage[] =
 "Usage: dundi lookup <number>[@context] [bypass]\n"
 "       Lookup the given number within the given DUNDi context\n"
 "(or e164 if none is specified).  Bypasses cache if 'bypass'\n"
 "keyword is specified.\n";
 
-static char precache_usage[] =
+static const char precache_usage[] =
 "Usage: dundi precache <number>[@context]\n"
 "       Lookup the given number within the given DUNDi context\n"
 "(or e164 if none is specified) and precaches the results to any\n"
 "upstream DUNDi push servers.\n";
 
-static char query_usage[] =
+static const char query_usage[] =
 "Usage: dundi query <entity>[@context]\n"
 "       Attempts to retrieve contact information for a specific\n"
 "DUNDi entity identifier (EID) within a given DUNDi context (or\n"
 "e164 if none is specified).\n";
 
-static char flush_usage[] =
+static const char flush_usage[] =
 "Usage: dundi flush [stats]\n"
 "       Flushes DUNDi answer cache, used primarily for debug.  If\n"
 "'stats' is present, clears timer statistics instead of normal\n"

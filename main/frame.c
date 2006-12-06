@@ -648,7 +648,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 }
 
-static char frame_show_codecs_usage[] =
+static const char frame_show_codecs_usage[] =
 "Usage: core show codecs [audio|video|image]\n"
 "       Displays codec mapping\n";
 
@@ -877,7 +877,7 @@ static int show_frame_stats(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char frame_stats_usage[] =
+static const char frame_stats_usage[] =
 "Usage: core show frame stats\n"
 "       Displays debugging statistics from framer\n";
 #endif

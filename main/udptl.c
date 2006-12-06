@@ -1153,11 +1153,11 @@ static int udptl_nodebug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char debug_usage[] =
+static const char debug_usage[] =
   "Usage: udptl debug [ip host[:port]]\n"
   "       Enable dumping of all UDPTL packets to and from host.\n";
 
-static char nodebug_usage[] =
+static const char nodebug_usage[] =
   "Usage: udptl debug off\n"
   "       Disable all UDPTL debugging\n";
 

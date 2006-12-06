@@ -289,11 +289,11 @@ static char *complete_channeltypes(const char *line, const char *word, int pos, 
 	return ret;
 }
 
-static char show_channeltypes_usage[] =
+static const char show_channeltypes_usage[] =
 "Usage: core show channeltypes\n"
 "       Lists available channel types registered in your Asterisk server.\n";
 
-static char show_channeltype_usage[] =
+static const char show_channeltype_usage[] =
 "Usage: core show channeltype <name>\n"
 "	Show details about the specified channel type, <name>.\n";
 

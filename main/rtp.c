@@ -3412,35 +3412,35 @@ static int stun_no_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char debug_usage[] =
+static const char debug_usage[] =
   "Usage: rtp debug [ip host[:port]]\n"
   "       Enable dumping of all RTP packets to and from host.\n";
 
-static char no_debug_usage[] =
+static const char no_debug_usage[] =
   "Usage: rtp debug off\n"
   "       Disable all RTP debugging\n";
 
-static char stun_debug_usage[] =
+static const char stun_debug_usage[] =
   "Usage: stun debug\n"
   "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
 
-static char stun_no_debug_usage[] =
+static const char stun_no_debug_usage[] =
   "Usage: stun debug off\n"
   "       Disable STUN debugging\n";
 
-static char rtcp_debug_usage[] =
+static const char rtcp_debug_usage[] =
   "Usage: rtcp debug [ip host[:port]]\n"
   "       Enable dumping of all RTCP packets to and from host.\n";
   
-static char rtcp_no_debug_usage[] =
+static const char rtcp_no_debug_usage[] =
   "Usage: rtcp debug off\n"
   "       Disable all RTCP debugging\n";
 
-static char rtcp_stats_usage[] =
+static const char rtcp_stats_usage[] =
   "Usage: rtcp stats\n"
   "       Enable dumping of RTCP stats.\n";
   
-static char rtcp_no_stats_usage[] =
+static const char rtcp_no_stats_usage[] =
   "Usage: rtcp stats off\n"
   "       Disable all RTCP stats\n";
 

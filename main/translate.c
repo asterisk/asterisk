@@ -558,7 +558,7 @@ static int show_translation(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char show_trans_usage[] =
+static const char show_trans_usage[] =
 "Usage: core show translation [recalc] [<recalc seconds>]\n"
 "       Displays known codec translators and the cost associated\n"
 "with each conversion.  If the argument 'recalc' is supplied along\n"
