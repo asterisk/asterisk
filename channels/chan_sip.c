@@ -9827,12 +9827,23 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
 		transmit_request(p, SIP_ACK, seqno, 0, 0);
 		break;
+	case 487: /* Cancelled transaction */
+		/* We have sent CANCEL on an outbound INVITE 
+			This transaction is already scheduled to be killed by sip_hangup().
+		*/
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		if (p->owner && !ignore)
+			ast_queue_hangup(p->owner);
+		else if (!ignore)
+			update_call_counter(p, DEC_CALL_LIMIT);
+		break;
 	case 491: /* Pending */
 		/* we have to wait a while, then retransmit */
 		/* Transmission is rescheduled, so everything should be taken care of.
 			We should support the retry-after at some point */
 		break;
 	case 501: /* Not implemented */
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
 		if (p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		break;
@@ -10140,6 +10151,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 
 			break;
+		case 487:
+			if (sipmethod == SIP_INVITE)
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			break;
 		case 491: /* Pending */
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
@@ -10175,12 +10190,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 603: /* Decline */
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
-					break;
-				case 487:
-					/* channel now destroyed - dec the inUse counter */
-					if (owner)
-						ast_queue_hangup(p->owner);
-					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
 				case 482: /* SIP is incapable of performing a hairpin call, which
 				             is yet another failure of not having a layer 2 (again, YAY
