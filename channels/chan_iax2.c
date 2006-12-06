@@ -238,19 +238,19 @@ static pthread_t schedthreadid = AST_PTHREADT_NULL;
 AST_MUTEX_DEFINE_STATIC(sched_lock);
 static ast_cond_t sched_cond;
 
-enum {
+enum iax2_state {
 	IAX_STATE_STARTED = 		(1 << 0),
 	IAX_STATE_AUTHENTICATED = 	(1 << 1),
 	IAX_STATE_TBD = 		(1 << 2),
 	IAX_STATE_UNCHANGED = 		(1 << 3),
-} iax2_state;
+};
 
 struct iax2_context {
 	char context[AST_MAX_CONTEXT];
 	struct iax2_context *next;
 };
 
-enum {
+enum iax2_flags {
 	IAX_HASCALLERID = 	(1 << 0),	/*!< CallerID has been specified */
 	IAX_DELME =		(1 << 1),	/*!< Needs to be deleted */
 	IAX_TEMPONLY =		(1 << 2),	/*!< Temporary (realtime) */
@@ -276,7 +276,7 @@ enum {
 	IAX_TRUNKTIMESTAMPS =	(1 << 22),	/*!< Send trunk timestamps */
 	IAX_TRANSFERMEDIA = 	(1 << 23),      /*!< When doing IAX2 transfers, transfer media only */
 	IAX_MAXAUTHREQ =        (1 << 24),      /*!< Maximum outstanding AUTHREQ restriction is in place */
-} iax2_flags;
+};
 
 static int global_rtautoclear = 120;
 
