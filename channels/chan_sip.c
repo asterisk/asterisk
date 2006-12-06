@@ -11943,7 +11943,16 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		break;
-
+	case 487: /* Cancelled transaction */
+		/* We have sent CANCEL on an outbound INVITE 
+			This transaction is already scheduled to be killed by sip_hangup().
+		*/
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+			ast_queue_hangup(p->owner);
+		else if (!ast_test_flag(req, SIP_PKT_IGNORE))
+			update_call_counter(p, DEC_CALL_LIMIT);
+		break;
 	case 491: /* Pending */
 		/* we really should have to wait a while, then retransmit */
 			/* We should support the retry-after at some point */
@@ -11955,6 +11964,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 501: /* Not implemented */
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
 		if (p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		break;
@@ -12377,6 +12387,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* Guessing that this is not an important request */
 			}
 			break;
+		case 487:
+			if (sipmethod == SIP_INVITE)
+				handle_response_invite(p, resp, rest, req, seqno);
+			break;
 		case 491: /* Pending */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
@@ -12421,12 +12435,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 603: /* Decline */
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
-					break;
-				case 487:	/* Response on INVITE that has been CANCELled */
-					/* channel now destroyed - dec the inUse counter */
-					if (owner)
-						ast_queue_hangup(p->owner);
-					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
 				case 482: /*
 					\note SIP is incapable of performing a hairpin call, which
