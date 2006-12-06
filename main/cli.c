@@ -75,17 +75,17 @@ void ast_cli(int fd, char *fmt, ...)
 
 static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
 
-static char logger_mute_help[] = 
+static const char logger_mute_help[] = 
 "Usage: logger mute\n"
 "       Disables logging output to the current console, making it possible to\n"
 "       gather information without being disturbed by scrolling lines.\n";
 
-static char softhangup_help[] =
+static const char softhangup_help[] =
 "Usage: soft hangup <channel>\n"
 "       Request that a channel be hung up. The hangup takes effect\n"
 "       the next time the driver reads or writes from the channel\n";
 
-static char group_show_channels_help[] = 
+static const char group_show_channels_help[] = 
 "Usage: group show channels [pattern]\n"
 "       Lists all currently active channels with channel group(s) specified.\n"
 "       Optional regular expression pattern is matched to group names for each\n"
@@ -561,21 +561,21 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #undef VERBOSE_FORMAT_STRING2
 }
 
-static char showchan_help[] = 
+static const char showchan_help[] = 
 "Usage: core show channel <channel>\n"
 "       Shows lots of information about the specified channel.\n";
 
-static char commandcomplete_help[] = 
+static const char commandcomplete_help[] = 
 "Usage: _command complete \"<line>\" text state\n"
 "       This function is used internally to help with command completion and should.\n"
 "       never be called by the user directly.\n";
 
-static char commandnummatches_help[] = 
+static const char commandnummatches_help[] = 
 "Usage: _command nummatches \"<line>\" text \n"
 "       This function is used internally to help with command completion and should.\n"
 "       never be called by the user directly.\n";
 
-static char commandmatchesarray_help[] = 
+static const char commandmatchesarray_help[] = 
 "Usage: _command matchesarray \"<line>\" text \n"
 "       This function is used internally to help with command completion and should.\n"
 "       never be called by the user directly.\n";

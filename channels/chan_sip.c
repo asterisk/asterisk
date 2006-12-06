@@ -11302,63 +11302,63 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	return 0;
 }
 	
-static char show_domains_usage[] = 
+static const char show_domains_usage[] = 
 "Usage: sip show domains\n"
 "       Lists all configured SIP local domains.\n"
 "       Asterisk only responds to SIP messages to local domains.\n";
 
-static char notify_usage[] =
+static const char notify_usage[] =
 "Usage: sip notify <type> <peer> [<peer>...]\n"
 "       Send a NOTIFY message to a SIP peer or peers\n"
 "       Message types are defined in sip_notify.conf\n";
 
-static char show_users_usage[] = 
+static const char show_users_usage[] = 
 "Usage: sip show users [like <pattern>]\n"
 "       Lists all known SIP users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
-static char show_user_usage[] =
+static const char show_user_usage[] =
 "Usage: sip show user <name> [load]\n"
 "       Shows all details on one SIP user and the current status.\n"
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
-static char show_inuse_usage[] = 
+static const char show_inuse_usage[] = 
 "Usage: sip show inuse [all]\n"
 "       List all SIP users and peers usage counters and limits.\n"
 "       Add option \"all\" to show all devices, not only those with a limit.\n";
 
-static char show_channels_usage[] = 
+static const char show_channels_usage[] = 
 "Usage: sip show channels\n"
 "       Lists all currently active SIP channels.\n";
 
-static char show_channel_usage[] = 
+static const char show_channel_usage[] = 
 "Usage: sip show channel <channel>\n"
 "       Provides detailed status on a given SIP channel.\n";
 
-static char show_history_usage[] = 
+static const char show_history_usage[] = 
 "Usage: sip show history <channel>\n"
 "       Provides detailed dialog history on a given SIP channel.\n";
 
-static char show_peers_usage[] = 
+static const char show_peers_usage[] = 
 "Usage: sip show peers [like <pattern>]\n"
 "       Lists all known SIP peers.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
-static char show_peer_usage[] =
+static const char show_peer_usage[] =
 "Usage: sip show peer <name> [load]\n"
 "       Shows all details on one SIP peer and the current status.\n"
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
-static char prune_realtime_usage[] =
+static const char prune_realtime_usage[] =
 "Usage: sip prune realtime [peer|user] [<name>|all|like <pattern>]\n"
 "       Prunes object(s) from the cache.\n"
 "       Optional regular expression pattern is used to filter the objects.\n";
 
-static char show_reg_usage[] =
+static const char show_reg_usage[] =
 "Usage: sip show registry\n"
 "       Lists all registration requests and status.\n";
 
-static char debug_usage[] = 
+static const char debug_usage[] = 
 "Usage: sip debug\n"
 "       Enables dumping of SIP packets for debugging purposes\n\n"
 "       sip debug ip <host[:PORT]>\n"
@@ -11367,32 +11367,32 @@ static char debug_usage[] =
 "       Enables dumping of SIP packets to and from host.\n"
 "       Require peer to be registered.\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] = 
 "Usage: sip debug off\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
-static char no_history_usage[] = 
+static const char no_history_usage[] = 
 "Usage: sip history off\n"
 "       Disables recording of SIP dialog history for debugging purposes\n";
 
-static char history_usage[] = 
+static const char history_usage[] = 
 "Usage: sip history\n"
 "       Enables recording of SIP dialog history for debugging purposes.\n"
 "Use 'sip show history' to view the history of a call number.\n";
 
-static char sip_reload_usage[] =
+static const char sip_reload_usage[] =
 "Usage: sip reload\n"
 "       Reloads SIP configuration from sip.conf\n";
 
-static char show_subscriptions_usage[] =
+static const char show_subscriptions_usage[] =
 "Usage: sip show subscriptions\n" 
 "       Lists active SIP subscriptions for extension states\n";
 
-static char show_objects_usage[] =
+static const char show_objects_usage[] =
 "Usage: sip show objects\n" 
 "       Lists status of known SIP objects\n";
 
-static char show_settings_usage[] = 
+static const char show_settings_usage[] = 
 "Usage: sip show settings\n"
 "       Provides detailed list of the configuration of the SIP channel.\n";
 

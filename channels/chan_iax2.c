@@ -9639,109 +9639,109 @@ static struct ast_switch iax2_switch =
 	matchmore:		iax2_matchmore,
 };
 
-static char show_stats_usage[] =
+static const char show_stats_usage[] =
 "Usage: iax2 show stats\n"
 "       Display statistics on IAX channel driver.\n";
 
-static char set_mtu_usage[] =
+static const char set_mtu_usage[] =
 "Usage: iax2 set mtu <value>\n"
 "       Set the system-wide IAX IP mtu to <value> bytes net or zero to disable.\n"
 "       Disabling means that the operating system must handle fragmentation of UDP packets\n"
 "       when the IAX2 trunk packet exceeds the UDP payload size.\n"
 "       This is substantially below the IP mtu. Try 1240 on ethernets.\n"
 "       Must be 172 or greater for G.711 samples.\n"; 
-static char show_cache_usage[] =
+static const char show_cache_usage[] =
 "Usage: iax2 show cache\n"
 "       Display currently cached IAX Dialplan results.\n";
 
-static char show_peer_usage[] =
+static const char show_peer_usage[] =
 "Usage: iax2 show peer <name>\n"
 "       Display details on specific IAX peer\n";
 
-static char prune_realtime_usage[] =
+static const char prune_realtime_usage[] =
 "Usage: iax2 prune realtime [<peername>|all]\n"
 "       Prunes object(s) from the cache\n";
 
-static char iax2_reload_usage[] =
+static const char iax2_reload_usage[] =
 "Usage: iax2 reload\n"
 "       Reloads IAX configuration from iax.conf\n";
 
-static char show_prov_usage[] =
+static const char show_prov_usage[] =
 "Usage: iax2 provision <host> <template> [forced]\n"
 "       Provisions the given peer or IP address using a template\n"
 "       matching either 'template' or '*' if the template is not\n"
 "       found.  If 'forced' is specified, even empty provisioning\n"
 "       fields will be provisioned as empty fields.\n";
 
-static char show_users_usage[] = 
+static const char show_users_usage[] = 
 "Usage: iax2 show users [like <pattern>]\n"
 "       Lists all known IAX2 users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
-static char show_channels_usage[] = 
+static const char show_channels_usage[] = 
 "Usage: iax2 show channels\n"
 "       Lists all currently active IAX channels.\n";
 
-static char show_netstats_usage[] = 
+static const char show_netstats_usage[] = 
 "Usage: iax2 show netstats\n"
 "       Lists network status for all currently active IAX channels.\n";
 
-static char show_threads_usage[] = 
+static const char show_threads_usage[] = 
 "Usage: iax2 show threads\n"
 "       Lists status of IAX helper threads\n";
 
-static char show_peers_usage[] = 
+static const char show_peers_usage[] = 
 "Usage: iax2 show peers [registered] [like <pattern>]\n"
 "       Lists all known IAX2 peers.\n"
 "       Optional 'registered' argument lists only peers with known addresses.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
-static char show_firmware_usage[] = 
+static const char show_firmware_usage[] = 
 "Usage: iax2 show firmware\n"
 "       Lists all known IAX firmware images.\n";
 
-static char show_reg_usage[] =
+static const char show_reg_usage[] =
 "Usage: iax2 show registry\n"
 "       Lists all registration requests and status.\n";
 
-static char debug_usage[] = 
+static const char debug_usage[] = 
 "Usage: iax2 set debug\n"
 "       Enables dumping of IAX packets for debugging purposes\n";
 
-static char no_debug_usage[] = 
+static const char no_debug_usage[] = 
 "Usage: iax2 set debug off\n"
 "       Disables dumping of IAX packets for debugging purposes\n";
 
-static char debug_trunk_usage[] =
+static const char debug_trunk_usage[] =
 "Usage: iax2 set debug trunk\n"
 "       Requests current status of IAX trunking\n";
 
-static char no_debug_trunk_usage[] =
+static const char no_debug_trunk_usage[] =
 "Usage: iax2 set debug trunk off\n"
 "       Requests current status of IAX trunking\n";
 
-static char debug_jb_usage[] =
+static const char debug_jb_usage[] =
 "Usage: iax2 set debug jb\n"
 "       Enables jitterbuffer debugging information\n";
 
-static char no_debug_jb_usage[] =
+static const char no_debug_jb_usage[] =
 "Usage: iax2 set debug jb off\n"
 "       Disables jitterbuffer debugging information\n";
 
-static char iax2_test_losspct_usage[] =
+static const char iax2_test_losspct_usage[] =
 "Usage: iax2 test losspct <percentage>\n"
 "       For testing, throws away <percentage> percent of incoming packets\n";
 
 #ifdef IAXTESTS
-static char iax2_test_late_usage[] =
+static const char iax2_test_late_usage[] =
 "Usage: iax2 test late <ms>\n"
 "       For testing, count the next frame as <ms> ms late\n";
 
-static char iax2_test_resync_usage[] =
+static const char iax2_test_resync_usage[] =
 "Usage: iax2 test resync <ms>\n"
 "       For testing, adjust all future frames by <ms> ms\n";
 
-static char iax2_test_jitter_usage[] =
+static const char iax2_test_jitter_usage[] =
 "Usage: iax2 test jitter <ms> <pct>\n"
 "       For testing, simulate maximum jitter of +/- <ms> on <pct> percentage of packets. If <pct> is not specified, adds jitter to all packets.\n";
 #endif /* IAXTESTS */

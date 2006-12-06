@@ -10568,23 +10568,23 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char pri_debug_help[] = 
+static const char pri_debug_help[] = 
 	"Usage: pri debug span <span>\n"
 	"       Enables debugging on a given PRI span\n";
 	
-static char pri_no_debug_help[] = 
+static const char pri_no_debug_help[] = 
 	"Usage: pri no debug span <span>\n"
 	"       Disables debugging on a given PRI span\n";
 
-static char pri_really_debug_help[] = 
+static const char pri_really_debug_help[] = 
 	"Usage: pri intensive debug span <span>\n"
 	"       Enables debugging down to the Q.921 level\n";
 
-static char pri_show_span_help[] = 
+static const char pri_show_span_help[] = 
 	"Usage: pri show span <span>\n"
 	"       Displays PRI Information on a given PRI span\n";
 
-static char pri_show_spans_help[] = 
+static const char pri_show_spans_help[] = 
 	"Usage: pri show spans\n"
 	"       Displays PRI Information\n";
 
@@ -10990,23 +10990,23 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 #undef FORMAT2
 }
 
-static char show_channels_usage[] =
+static const char show_channels_usage[] =
 	"Usage: zap show channels\n"
 	"	Shows a list of available channels\n";
 
-static char show_channel_usage[] =
+static const char show_channel_usage[] =
 	"Usage: zap show channel <chan num>\n"
 	"	Detailed information about a given channel\n";
 
-static char zap_show_status_usage[] =
+static const char zap_show_status_usage[] =
 	"Usage: zap show status\n"
 	"       Shows a list of Zaptel cards with status\n";
 
-static char destroy_channel_usage[] =
+static const char destroy_channel_usage[] =
 	"Usage: zap destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 
-static char zap_restart_usage[] =
+static const char zap_restart_usage[] =
 	"Usage: zap restart\n"
 	"	Restarts the zaptel channels: destroys them all and then\n"
 	"	re-reads them from zapata.conf.\n"

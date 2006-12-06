@@ -289,7 +289,7 @@ struct thread_list_t {
 
 static AST_LIST_HEAD_STATIC(thread_list, thread_list_t);
 
-static char show_threads_help[] =
+static const char show_threads_help[] =
 "Usage: core show threads\n"
 "       List threads currently active in the system.\n";
 
@@ -483,7 +483,7 @@ static int handle_show_profile(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static char show_version_files_help[] = 
+static const char show_version_files_help[] = 
 "Usage: core show file version [like <pattern>]\n"
 "       Lists the revision numbers of the files used to build this copy of Asterisk.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
@@ -1296,51 +1296,51 @@ static int remoteconsolehandler(char *s)
 	return ret;
 }
 
-static char abort_halt_help[] = 
+static const char abort_halt_help[] = 
 "Usage: abort shutdown\n"
 "       Causes Asterisk to abort an executing shutdown or restart, and resume normal\n"
 "       call operations.\n";
 
-static char shutdown_now_help[] = 
+static const char shutdown_now_help[] = 
 "Usage: stop now\n"
 "       Shuts down a running Asterisk immediately, hanging up all active calls .\n";
 
-static char shutdown_gracefully_help[] = 
+static const char shutdown_gracefully_help[] = 
 "Usage: stop gracefully\n"
 "       Causes Asterisk to not accept new calls, and exit when all\n"
 "       active calls have terminated normally.\n";
 
-static char shutdown_when_convenient_help[] = 
+static const char shutdown_when_convenient_help[] = 
 "Usage: stop when convenient\n"
 "       Causes Asterisk to perform a shutdown when all active calls have ended.\n";
 
-static char restart_now_help[] = 
+static const char restart_now_help[] = 
 "Usage: restart now\n"
 "       Causes Asterisk to hangup all calls and exec() itself performing a cold\n"
 "       restart.\n";
 
-static char restart_gracefully_help[] = 
+static const char restart_gracefully_help[] = 
 "Usage: restart gracefully\n"
 "       Causes Asterisk to stop accepting new calls and exec() itself performing a cold\n"
 "       restart when all active calls have ended.\n";
 
-static char restart_when_convenient_help[] = 
+static const char restart_when_convenient_help[] = 
 "Usage: restart when convenient\n"
 "       Causes Asterisk to perform a cold restart when all active calls have ended.\n";
 
-static char bang_help[] =
+static const char bang_help[] =
 "Usage: !<command>\n"
 "       Executes a given shell command\n";
 
-static char show_warranty_help[] =
+static const char show_warranty_help[] =
 "Usage: core show warranty\n"
 "	Shows the warranty (if any) for this copy of Asterisk.\n";
 
-static char show_license_help[] =
+static const char show_license_help[] =
 "Usage: core show license\n"
 "	Shows the license(s) for this copy of Asterisk.\n";
 
-static char version_help[] =
+static const char version_help[] =
 "Usage: core show version\n"
 "       Shows Asterisk version information.\n";
 
