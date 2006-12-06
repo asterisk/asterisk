@@ -6938,11 +6938,11 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static char voicemail_show_users_help[] =
+static const char voicemail_show_users_help[] =
 "Usage: voicemail show users [for <context>]\n"
 "       Lists all mailboxes currently set up\n";
 
-static char voicemail_show_zones_help[] =
+static const char voicemail_show_zones_help[] =
 "Usage: voicemail show zones\n"
 "       Lists zone message formats\n";
 

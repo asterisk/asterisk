@@ -900,11 +900,11 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 	return NULL;
 }
 	
-static char meetme_usage[] =
+static const char meetme_usage[] =
 "Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 "       Executes a command for the conference or on a conferee\n";
 
-static char sla_show_usage[] =
+static const char sla_show_usage[] =
 "Usage: sla show\n"
 "       Lists status of all shared line appearances\n";
 

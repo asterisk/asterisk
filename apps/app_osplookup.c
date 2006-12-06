@@ -146,7 +146,7 @@ struct osp_provider {
 
 /* Call ID */
 struct osp_callid {
-	char buf[OSPC_CALLID_MAXSIZE];		/* Call ID string */
+	unsigned char buf[OSPC_CALLID_MAXSIZE];		/* Call ID string */
 	unsigned int len;					/* Call ID length */
 };
 
@@ -2159,7 +2159,7 @@ static const char* descrip4 =
 "	OSPFINISHSTATUS The status of the OSP Finish attempt as a text string, one of\n"
 "		SUCCESS | FAILED | ERROR \n";
 
-static char osp_usage[] =
+static const char osp_usage[] =
 "Usage: osp show\n"
 "       Displays information on Open Settlement Protocol support\n";
 

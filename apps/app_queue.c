@@ -4633,14 +4633,14 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 	return NULL;
 }
 
-static char queue_show_usage[] =
+static const char queue_show_usage[] =
 "Usage: queue show\n"
 "       Provides summary information on a specified queue.\n";
 
-static char qam_cmd_usage[] =
+static const char qam_cmd_usage[] =
 "Usage: queue add member <channel> to <queue> [penalty <penalty>]\n";
 
-static char qrm_cmd_usage[] =
+static const char qrm_cmd_usage[] =
 "Usage: queue remove member <channel> from <queue>\n";
 
 static struct ast_cli_entry cli_queue[] = {
