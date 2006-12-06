@@ -136,6 +136,7 @@ struct mansession {
 	ast_mutex_t __lock;	/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
 				/* XXX need to document which fields it is protecting */
 	struct sockaddr_in sin;	/*!< address we are connecting from */
+	FILE *f;		/*!< fdopen() on the underlying fd */
 	int fd;			/*!< descriptor used for output. Either the socket (AMI) or a temporary file (HTTP) */
 	int inuse;		/*!< number of HTTP sessions using this entry */
 	int needdestroy;	/*!< Whether an HTTP session should be destroyed */
@@ -666,8 +667,8 @@ static void ref_event(struct eventqent *e)
 static void free_session(struct mansession *s)
 {
 	struct eventqent *eqe = s->last_ev;
-	if (s->fd > -1)
-		close(s->fd);
+	if (s->f != NULL)
+		fclose(s->f);
 	ast_mutex_destroy(&s->__lock);
 	free(s);
 	unref_event(eqe);
@@ -739,7 +740,30 @@ struct ast_variable *astman_get_variables(struct message *m)
  */
 static int send_string(struct mansession *s, char *string)
 {
-	return ast_carefulwrite(s->fd, string, strlen(string), s->writetimeout);
+	int len = strlen(string);	/* residual length */
+	char *src = string;
+	struct timeval start = ast_tvnow();
+	int n = 0;
+
+	for (;;) {
+		int elapsed;
+		struct pollfd fd;
+		n = fwrite(src, 1, len, s->f);	/* try to write the string, non blocking */
+		if (n == len /* ok */ || n < 0 /* error */)
+			break;
+		len -= n;	/* skip already written data */
+		src += n;
+		fd.fd = s->fd;
+		fd.events = POLLOUT;
+		n = -1;		/* error marker */
+		elapsed = ast_tvdiff_ms(ast_tvnow(), start);
+		if (elapsed > s->writetimeout)
+			break;
+		if (poll(&fd, 1, s->writetimeout - elapsed) < 1)
+			break;
+	}
+	fflush(s->f);
+	return n < 0 ? -1 : 0;
 }
 
 /*
@@ -757,7 +781,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
 	va_end(ap);
 
-	if (s->fd > -1)
+	if (s->f != NULL)
 		send_string(s, buf->str);
 	else
 		ast_verbose("fd == -1 in astman_append, should not happen\n");
@@ -1602,11 +1626,24 @@ static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
 	char *id = astman_get_header(m, "ActionID");
+	char *buf;
+	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
+	int fd = mkstemp(template);
+	off_t l;
+
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
-	ast_cli_command(s->fd, cmd);	/* XXX need to change this to use a FILE * */
+	ast_cli_command(fd, cmd);	/* XXX need to change this to use a FILE * */
+	l = lseek(fd, 0, SEEK_END);	/* how many chars available */
+	buf = alloca(l+1);
+	lseek(fd, 0, SEEK_SET);
+	read(fd, buf, l);
+	buf[l] = '\0';
+	close(fd);
+	unlink(template);
+	astman_append(s, buf);
 	astman_append(s, "--END COMMAND--\r\n\r\n");
 	return 0;
 }
@@ -1929,7 +1966,7 @@ static int process_events(struct mansession *s)
 	int ret = 0;
 
 	ast_mutex_lock(&s->__lock);
-	if (s->fd > -1) {
+	if (s->f != NULL) {
 		struct eventqent *eqe;
 
 		while ( (eqe = NEW_EVENT(s)) ) {
@@ -2079,7 +2116,7 @@ static int get_input(struct mansession *s, char *output)
 		return -1;
 	}
 	ast_mutex_lock(&s->__lock);
-	res = read(s->fd, src + s->inlen, maxlen - s->inlen);
+	res = fread(src + s->inlen, 1, maxlen - s->inlen, s->f);
 	if (res < 1)
 		res = -1;	/* error return */
 	else {
@@ -2105,6 +2142,7 @@ static void *session_do(void *data)
 	struct message m;	/* XXX watch out, this is 20k of memory! */
 
 	ast_mutex_lock(&s->__lock);
+	s->f = fdopen(s->fd, "w+");
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
 	ast_mutex_unlock(&s->__lock);
 	memset(&m, 0, sizeof(m));
@@ -2738,6 +2776,7 @@ static char *generic_http_callback(enum output_format format,
 	}
 
 	s->fd = mkstemp(template);	/* create a temporary file for command output */
+	s->f = fdopen(s->fd, "w+");
 
 	if (process_message(s, &m)) {
 		if (s->authenticated) {
@@ -2755,16 +2794,16 @@ static char *generic_http_callback(enum output_format format,
 		}
 		s->needdestroy = 1;
 	}
-	if (s->fd > -1) {	/* have temporary output */
+	if (s->f != NULL) {	/* have temporary output */
 		char *buf;
-		off_t l = lseek(s->fd, 0, SEEK_END);	/* how many chars available */
+		off_t l = fseek(s->f, 0, SEEK_END);	/* how many chars available */
 
 		/* always return something even if len == 0 */
 		if ((buf = ast_calloc(1, l+1))) {
 			char *tmp;
 			if (l > 0) {
-				lseek(s->fd, 0, SEEK_SET);
-				read(s->fd, buf, l);
+				fseek(s->f, 0, SEEK_SET);
+				fread(buf, 1, l, s->f);
 			}
 			if (format == FORMAT_XML || format == FORMAT_HTML)
 				tmp = xml_translate(buf, params, format);
@@ -2783,7 +2822,8 @@ static char *generic_http_callback(enum output_format format,
 				free(tmp);
 			free(buf);
 		}
-		close(s->fd);
+		fclose(s->f);
+		s->f = NULL;
 		s->fd = -1;
 		unlink(template);
 	}
