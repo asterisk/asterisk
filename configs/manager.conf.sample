@@ -26,6 +26,18 @@ enabled = no
 port = 5038
 ;httptimeout = 60
 bindaddr = 0.0.0.0
+
+; Parameters that control AMI over TLS. ("enabled" must be set too).
+; You can open a connection to this socket with e.g.
+;
+;	openssl s_client -connect my_host:5039
+;
+;   sslenable=no		; set to YES to enable it
+;   sslbindport=5039		; the port to bind to
+;   sslbindaddr=0.0.0.0		; address to bind to, default to bindaddr
+;   sslcert=/tmp/asterisk.pem	; path to the certificate.
+
+
 ;displayconnects = yes
 ;
 ; Add a Unix epoch timestamp to events (not action responses)

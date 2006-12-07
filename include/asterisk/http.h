@@ -60,8 +60,20 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #else
-typedef struct {} SSL;	/* so we can define a pointer to it */
+/* declare dummy types so we can define a pointer to them */
+typedef struct {} SSL;
+typedef struct {} SSL_CTX;
 #endif /* DO_SSL */
+
+/* SSL support */  
+#define AST_CERTFILE "asterisk.pem"
+
+struct tls_config {
+	int enabled;
+	char *certfile;
+	char *cipher;
+	SSL_CTX *ssl_ctx;
+};
 
 /*!
  * The following code implements a generic mechanism for starting
@@ -111,7 +123,7 @@ struct server_instance {
 struct server_args {
 	struct sockaddr_in sin;
 	struct sockaddr_in oldsin;
-	int is_ssl;		/* is this an SSL accept ? */
+	struct tls_config *tls_cfg;	/* points to the SSL configuration if any */
 	int accept_fd;
 	int poll_timeout;
 	pthread_t master;
@@ -123,7 +135,7 @@ struct server_args {
 
 void *server_root(void *);
 void server_start(struct server_args *desc);
-int ssl_setup(void);
+int ssl_setup(struct tls_config *cfg);
 
 /*! \brief HTTP Callbacks take the socket, the method and the path as arguments and should
    return the content, allocated with malloc().  Status should be changed to reflect

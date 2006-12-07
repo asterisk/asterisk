@@ -2079,12 +2079,17 @@ static int get_input(struct mansession *s, char *output)
 	 * Look for \r\n within the buffer. If found, copy to the output
 	 * buffer and return, trimming the \r\n (not used afterwards).
 	 */
-	for (x = 1; x < s->inlen; x++) {
-		if (src[x] != '\n' || src[x-1] != '\r')
+	for (x = 0; x < s->inlen; x++) {
+		int cr;	/* set if we have \r */
+		if (src[x] == '\r' && x+1 < s->inlen && src[x+1] == '\n')
+			cr = 2;	/* Found. Update length to include \r\n */
+		else if (src[x] == '\n')
+			cr = 1;	/* also accept \n only */
+		else
 			continue;
-		x++;	/* Found. Update length to include \r\n */
-		memmove(output, src, x-2);	/*... but trim \r\n */
-		output[x-2] = '\0';		/* terminate the string */
+		memmove(output, src, x);	/*... but trim \r\n */
+		output[x] = '\0';		/* terminate the string */
+		x += cr;			/* number of bytes used */
 		s->inlen -= x;			/* remaining size */
 		memmove(src, src + x, s->inlen); /* remove used bytes */
 		return 1;
@@ -2871,13 +2876,24 @@ static void purge_old_stuff(void *data)
 	purge_events();
 }
 
+struct tls_config ami_tls_cfg;
 static struct server_args ami_desc = {
         .accept_fd = -1,
         .master = AST_PTHREADT_NULL,
-        .is_ssl = 0, 
+        .tls_cfg = NULL, 
         .poll_timeout = 5000,	/* wake up every 5 seconds */
 	.periodic_fn = purge_old_stuff,
         .name = "AMI server",
+        .accept_fn = server_root,	/* thread doing the accept() */
+        .worker_fn = session_do,	/* thread handling the session */
+};
+
+static struct server_args amis_desc = {
+        .accept_fd = -1,
+        .master = AST_PTHREADT_NULL,
+        .tls_cfg = &ami_tls_cfg, 
+        .poll_timeout = -1,	/* the other does the periodic cleanup */
+        .name = "AMI TLS server",
         .accept_fn = server_root,	/* thread doing the accept() */
         .worker_fn = session_do,	/* thread handling the session */
 };
@@ -2890,6 +2906,9 @@ int init_manager(void)
 	int webenabled = 0;
 	int enabled = 0;
 	int newhttptimeout = 60;
+	int have_sslbindaddr = 0;
+	struct hostent *hp;
+	struct ast_hostent ahp;
 	struct ast_manager_user *user = NULL;
 
 	if (!registered) {
@@ -2930,6 +2949,42 @@ int init_manager(void)
 		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
 	}
+
+	/* default values */
+	memset(&amis_desc.sin, 0, sizeof(amis_desc.sin));
+	amis_desc.sin.sin_port = htons(5039);
+
+	ami_tls_cfg.enabled = 0;
+	if (ami_tls_cfg.certfile)
+		free(ami_tls_cfg.certfile);
+	ami_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
+	if (ami_tls_cfg.cipher)
+		free(ami_tls_cfg.cipher);
+	ami_tls_cfg.cipher = ast_strdup("");
+
+	/* XXX change this into a loop on  ast_variable_browse(cfg, "general"); */
+
+	if ((val = ast_variable_retrieve(cfg, "general", "sslenable")))
+		ami_tls_cfg.enabled = ast_true(val);
+	if ((val = ast_variable_retrieve(cfg, "general", "sslbindport")))
+		amis_desc.sin.sin_port = htons(atoi(val));
+	if ((val = ast_variable_retrieve(cfg, "general", "sslbindaddr"))) {
+		if ((hp = ast_gethostbyname(val, &ahp))) {
+			memcpy(&amis_desc.sin.sin_addr, hp->h_addr, sizeof(amis_desc.sin.sin_addr));
+			have_sslbindaddr = 1;
+		} else {
+			ast_log(LOG_WARNING, "Invalid bind address '%s'\n", val);
+		}
+	}
+	if ((val = ast_variable_retrieve(cfg, "general", "sslcert"))) {
+		free(ami_tls_cfg.certfile);
+		ami_tls_cfg.certfile = ast_strdup(val);
+	}
+	if ((val = ast_variable_retrieve(cfg, "general", "sslcipher"))) {
+		free(ami_tls_cfg.cipher);
+		ami_tls_cfg.cipher = ast_strdup(val);
+	}
+
 	val = ast_variable_retrieve(cfg, "general", "enabled");
 	if (val)
 		enabled = ast_true(val);
@@ -2972,7 +3027,12 @@ int init_manager(void)
 			memset(&ami_desc.sin.sin_addr, 0, sizeof(ami_desc.sin.sin_addr));
 		}
 	}
+	if (!have_sslbindaddr)
+		amis_desc.sin.sin_addr = ami_desc.sin.sin_addr;
+	if (ami_tls_cfg.enabled)
+		amis_desc.sin.sin_family = AF_INET;
 
+	
 	AST_LIST_LOCK(&users);
 
 	while ((cat = ast_category_browse(cfg, cat))) {
@@ -3073,6 +3133,8 @@ int init_manager(void)
 		httptimeout = newhttptimeout;
 
 	server_start(&ami_desc);
+	if (ssl_setup(amis_desc.tls_cfg))
+		server_start(&amis_desc);
 	return 0;
 }
 

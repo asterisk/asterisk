@@ -73,26 +73,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *
  * We declare most of ssl support variables unconditionally,
  * because their number is small and this simplifies the code.
- *
- * NOTE: the ssl-support variables (ssl_ctx, do_ssl, certfile, cipher)
- * and their setup should be moved to a more central place, e.g. asterisk.conf
- * and the source files that processes it. Similarly, ssl_setup() should
- * be run earlier in the startup process so modules have it available.
  */
 
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
 #define	DO_SSL	/* comment in/out if you want to support ssl */
 #endif
 
-#ifdef DO_SSL
-static SSL_CTX* ssl_ctx;
-#endif /* DO_SSL */
-
-/* SSL support */
-#define AST_CERTFILE "asterisk.pem"
-static int do_ssl;
-static char *certfile;
-static char *cipher;
+static struct tls_config http_tls_cfg;
 
 static void *httpd_helper_thread(void *arg);
 
@@ -102,7 +89,7 @@ static void *httpd_helper_thread(void *arg);
 static struct server_args http_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
-	.is_ssl = 0,
+	.tls_cfg = NULL,
 	.poll_timeout = -1,
 	.name = "http server",
 	.accept_fn = server_root,
@@ -112,7 +99,7 @@ static struct server_args http_desc = {
 static struct server_args https_desc = {
 	.accept_fd = -1,
 	.master = AST_PTHREADT_NULL,
-	.is_ssl = 1,
+	.tls_cfg = &http_tls_cfg,
 	.poll_timeout = -1,
 	.name = "https server",
 	.accept_fn = server_root,
@@ -250,7 +237,7 @@ static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struc
 			ast_inet_ntoa(http_desc.oldsin.sin_addr));
 	ast_build_string(&c, &reslen, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 			ntohs(http_desc.oldsin.sin_port));
-	if (do_ssl)
+	if (http_tls_cfg.enabled)
 		ast_build_string(&c, &reslen, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 			ntohs(https_desc.oldsin.sin_port));
 	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
@@ -482,10 +469,10 @@ static void *make_file_from_fd(void *data)
 	/*
 	 * open a FILE * as appropriate.
 	 */
-	if (!ser->parent->is_ssl)
+	if (!ser->parent->tls_cfg)
 		ser->f = fdopen(ser->fd, "w+");
 #ifdef DO_SSL
-	else if ( (ser->ssl = SSL_new(ssl_ctx)) ) {
+	else if ( (ser->ssl = SSL_new(ser->parent->tls_cfg->ssl_ctx)) ) {
 		SSL_set_fd(ser->ssl, ser->fd);
 		if (SSL_accept(ser->ssl) == 0)
 			ast_verbose(" error setting up ssl connection");
@@ -702,32 +689,32 @@ char *ast_http_setcookie(const char *var, const char *val, int expires, char *bu
 	return buf;
 }
 
-int ssl_setup(void)
+int ssl_setup(struct tls_config *cfg)
 {
 #ifndef DO_SSL
-	do_ssl = 0;
+	cfg->enabled = 0;
 	return 0;
 #else
-	if (!do_ssl)
+	if (!cfg->enabled)
 		return 0;
 	SSL_load_error_strings();
 	SSLeay_add_ssl_algorithms();
-	ssl_ctx = SSL_CTX_new( SSLv23_server_method() );
-	if (!ast_strlen_zero(certfile)) {
-		if (SSL_CTX_use_certificate_file(ssl_ctx, certfile, SSL_FILETYPE_PEM) == 0 ||
-		    SSL_CTX_use_PrivateKey_file(ssl_ctx, certfile, SSL_FILETYPE_PEM) == 0 ||
-		    SSL_CTX_check_private_key(ssl_ctx) == 0 ) {
-			ast_verbose("ssl cert error <%s>", certfile);
+	cfg->ssl_ctx = SSL_CTX_new( SSLv23_server_method() );
+	if (!ast_strlen_zero(cfg->certfile)) {
+		if (SSL_CTX_use_certificate_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
+		    SSL_CTX_use_PrivateKey_file(cfg->ssl_ctx, cfg->certfile, SSL_FILETYPE_PEM) == 0 ||
+		    SSL_CTX_check_private_key(cfg->ssl_ctx) == 0 ) {
+			ast_verbose("ssl cert error <%s>", cfg->certfile);
 			sleep(2);
-			do_ssl = 0;
+			cfg->enabled = 0;
 			return 0;
 		}
 	}
-	if (!ast_strlen_zero(cipher)) {
-		if (SSL_CTX_set_cipher_list(ssl_ctx, cipher) == 0 ) {
-			ast_verbose("ssl cipher error <%s>", cipher);
+	if (!ast_strlen_zero(cfg->cipher)) {
+		if (SSL_CTX_set_cipher_list(cfg->ssl_ctx, cfg->cipher) == 0 ) {
+			ast_verbose("ssl cipher error <%s>", cfg->cipher);
 			sleep(2);
-			do_ssl = 0;
+			cfg->enabled = 0;
 			return 0;
 		}
 	}
@@ -824,13 +811,13 @@ static int __ast_http_load(int reload)
 	strcpy(newprefix, DEFAULT_PREFIX);
 	cfg = ast_config_load("http.conf");
 
-	do_ssl = 0;
-	if (certfile)
-		free(certfile);
-	certfile = ast_strdup(AST_CERTFILE);
-	if (cipher)
-		free(cipher);
-	cipher = ast_strdup("");
+	http_tls_cfg.enabled = 0;
+	if (http_tls_cfg.certfile)
+		free(http_tls_cfg.certfile);
+	http_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
+	if (http_tls_cfg.cipher)
+		free(http_tls_cfg.cipher);
+	http_tls_cfg.cipher = ast_strdup("");
 
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
@@ -838,15 +825,15 @@ static int __ast_http_load(int reload)
 			if (!strcasecmp(v->name, "enabled"))
 				enabled = ast_true(v->value);
 			else if (!strcasecmp(v->name, "sslenable"))
-				do_ssl = ast_true(v->value);
+				http_tls_cfg.enabled = ast_true(v->value);
 			else if (!strcasecmp(v->name, "sslbindport"))
 				https_desc.sin.sin_port = htons(atoi(v->value));
 			else if (!strcasecmp(v->name, "sslcert")) {
-				free(certfile);
-				certfile = ast_strdup(v->value);
+				free(http_tls_cfg.certfile);
+				http_tls_cfg.certfile = ast_strdup(v->value);
 			} else if (!strcasecmp(v->name, "sslcipher")) {
-				free(cipher);
-				cipher = ast_strdup(v->value);
+				free(http_tls_cfg.cipher);
+				http_tls_cfg.cipher = ast_strdup(v->value);
 			}
 			else if (!strcasecmp(v->name, "enablestatic"))
 				newenablestatic = ast_true(v->value);
@@ -886,7 +873,7 @@ static int __ast_http_load(int reload)
 		ast_copy_string(prefix, newprefix, sizeof(prefix));
 	enablestatic = newenablestatic;
 	server_start(&http_desc);
-	if (ssl_setup())
+	if (ssl_setup(https_desc.tls_cfg))
 		server_start(&https_desc);
 	return 0;
 }
@@ -904,7 +891,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 		ast_cli(fd, "Server Enabled and Bound to %s:%d\n\n",
 			ast_inet_ntoa(http_desc.oldsin.sin_addr),
 			ntohs(http_desc.oldsin.sin_port));
-		if (do_ssl)
+		if (http_tls_cfg.enabled)
 			ast_cli(fd, "HTTPS Server Enabled and Bound to %s:%d\n\n",
 				ast_inet_ntoa(https_desc.oldsin.sin_addr),
 				ntohs(https_desc.oldsin.sin_port));
