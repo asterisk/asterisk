@@ -242,6 +242,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
 		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
+		state->pos %= state->class->total_files;
 		return -1;
 	}
 
