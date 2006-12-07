@@ -1669,6 +1669,7 @@ static void *fast_originate(void *data)
 	int res;
 	int reason = 0;
 	struct ast_channel *chan = NULL;
+	char requested_channel[AST_CHANNEL_NAME];
 
 	if (!ast_strlen_zero(in->app)) {
 		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1,
@@ -1682,18 +1683,20 @@ static void *fast_originate(void *data)
 			in->vars, in->account, &chan);
 	}
 
+	if (!chan)
+		snprintf(requested_channel, AST_CHANNEL_NAME, "%s/%s", in->tech, in->data);	
 	/* Tell the manager what happened with the channel */
-	manager_event(EVENT_FLAG_CALL,
-		res ? "OriginateFailure" : "OriginateSuccess",
+	manager_event(EVENT_FLAG_CALL, "OriginateResponse",
 		"%s"
-		"Channel: %s/%s\r\n"
+		"Response: %s\r\n"
+		"Channel: %s\r\n"
 		"Context: %s\r\n"
 		"Exten: %s\r\n"
 		"Reason: %d\r\n"
 		"Uniqueid: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n",
-		in->idtext, in->tech, in->data, in->context, in->exten, reason,
+		in->idtext, res ? "Failure" : "Success", chan ? chan->name : requested_channel, in->context, in->exten, reason, 
 		chan ? chan->uniqueid : "<null>",
 		S_OR(in->cid_num, "<unknown>"),
 		S_OR(in->cid_name, "<unknown>")
