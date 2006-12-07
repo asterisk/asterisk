@@ -337,3 +337,5 @@ Changes since Asterisk 1.2:
          2. chan_modem_* and related modules are gone because the kernel support for those interfaces is old, buggy and unsupported
     * New Utils:
          1. aelparse -- compile .ael files outside of asterisk
+    * New manager events:
+         1. OriginateResponse event comes to replace OriginateSuccess and OriginateFailure

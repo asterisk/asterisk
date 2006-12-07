@@ -247,6 +247,10 @@ Manager:
   also been deprecated in favor of the already existing MeetmeTalking event
   with a "Status" of "on" or "off" added.
 
+* OriginateFailure and OriginateSuccess events were replaced by event
+  OriginateResponse with a header named "Response" to indicate success or
+  failure
+
 Variables:
 
 * The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},
