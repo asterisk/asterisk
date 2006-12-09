@@ -141,7 +141,7 @@ static struct ast_codec_pref prefs;
 static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
 
 
-/*! \brief Maximum transimission unit for the UDP packet in the trunk not to be
+/*! \brief Maximum transmission unit for the UDP packet in the trunk not to be
     fragmented. This is based on 1516 - ethernet - ip - udp - iax minus one g711 frame = 1240 */
 #define MAX_TRUNK_MTU 1240 
 
@@ -488,7 +488,7 @@ struct chan_iax2_pvt {
 	/*! Next outgoing timestamp if everything is good */
 	unsigned int nextpred;
 	/*! True if the last voice we transmitted was not silence/CNG */
-	int notsilenttx;
+	unsigned int notsilenttx:1;
 	/*! Ping time */
 	unsigned int pingtime;
 	/*! Max time for initial response */
@@ -593,7 +593,7 @@ struct chan_iax2_pvt {
 	enum iax_transfer_state transferring;
 	/*! Transfer identifier */
 	int transferid;
-	/*! Who we are IAX transfering to */
+	/*! Who we are IAX transferring to */
 	struct sockaddr_in transfer;
 	/*! What's the new call number for the transfer */
 	unsigned short transfercallno;
@@ -740,7 +740,7 @@ static void jb_error_output(const char *fmt, ...)
 	char buf[1024];
 
 	va_start(args, fmt);
-	vsnprintf(buf, 1024, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
 	ast_log(LOG_ERROR, buf);
@@ -752,7 +752,7 @@ static void jb_warning_output(const char *fmt, ...)
 	char buf[1024];
 
 	va_start(args, fmt);
-	vsnprintf(buf, 1024, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
 	ast_log(LOG_WARNING, buf);
@@ -764,15 +764,48 @@ static void jb_debug_output(const char *fmt, ...)
 	char buf[1024];
 
 	va_start(args, fmt);
-	vsnprintf(buf, 1024, fmt, args);
+	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
 	ast_verbose(buf);
 }
 
-/* XXX We probably should use a mutex when working with this XXX */
+/*!
+ * \brief an array of iax2 pvt structures
+ *
+ * The container for active chan_iax2_pvt structures is implemented as an
+ * array for extremely quick direct access to the correct pvt structure
+ * based on the local call number.  The local call number is used as the
+ * index into the array where the associated pvt structure is stored.
+ */
 static struct chan_iax2_pvt *iaxs[IAX_MAX_CALLS];
+/*!
+ * \brief chan_iax2_pvt structure locks
+ *
+ * These locks are used when accessing a pvt structure in the iaxs array.
+ * The index used here is the same as used in the iaxs array.  It is the
+ * local call number for the associated pvt struct.
+ */
 static ast_mutex_t iaxsl[IAX_MAX_CALLS];
+/*!
+ * \brief The last time a call number was used
+ *
+ * It is important to know the last time that a call number was used locally so
+ * that it is not used again too soon.  The reason for this is the same as the
+ * reason that the TCP protocol state machine requires a "TIME WAIT" state.
+ *
+ * For example, say that a call is up.  Then, the remote side sends a HANGUP,
+ * which we respond to with an ACK.  However, there is no way to know whether
+ * the ACK made it there successfully.  If it were to get lost, the remote
+ * side may retransmit the HANGUP.  If in the meantime, this call number has
+ * been reused locally, given the right set of circumstances, this retransmitted
+ * HANGUP could potentially improperly hang up the new session.  So, to avoid
+ * this potential issue, we must wait a specified timeout period before reusing
+ * a local call number.
+ *
+ * The specified time that we must wait before reusing a local call number is
+ * defined as MIN_REUSE_TIME, with a default of 60 seconds.
+ */
 static struct timeval lastused[IAX_MAX_CALLS];
 
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
@@ -1580,7 +1613,7 @@ static int __do_deliver(void *data)
 
 static int handle_error(void)
 {
-	/* XXX Ideally we should figure out why an error occured and then abort those
+	/* XXX Ideally we should figure out why an error occurred and then abort those
 	   rather than continuing to try.  Unfortunately, the published interface does
 	   not seem to work XXX */
 #if 0
@@ -3840,7 +3873,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 
 	/* Bail here if this is an "interp" frame; we don't want or need to send these placeholders out
 	 * (the endpoint should detect the lost packet itself).  But, we want to do this here, so that we
-	 * increment the "predicted timestamps" for voice, if we're predecting */
+	 * increment the "predicted timestamps" for voice, if we're predicting */
 	if(f->frametype == AST_FRAME_VOICE && f->datalen == 0)
 	    return 0;
 
