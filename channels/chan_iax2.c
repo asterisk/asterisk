@@ -678,18 +678,22 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 static void destroy_peer(struct iax2_peer *peer);
 static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
 
-#define IAX_IOSTATE_IDLE		0
-#define IAX_IOSTATE_READY		1
-#define IAX_IOSTATE_PROCESSING	2
-#define IAX_IOSTATE_SCHEDREADY	3
+enum iax2_thread_iostate {
+	IAX_IOSTATE_IDLE,
+	IAX_IOSTATE_READY,
+	IAX_IOSTATE_PROCESSING,
+	IAX_IOSTATE_SCHEDREADY,
+};
 
-#define IAX_TYPE_POOL    1
-#define IAX_TYPE_DYNAMIC 2
+enum iax2_thread_type {
+	IAX_THREAD_TYPE_POOL,
+	IAX_THREAD_TYPE_DYNAMIC,
+};
 
 struct iax2_thread {
 	AST_LIST_ENTRY(iax2_thread) list;
-	int type;
-	int iostate;
+	enum iax2_thread_type type;
+	enum iax2_thread_iostate iostate;
 #ifdef SCHED_MULTITHREADED
 	void (*schedfunc)(void *);
 	void *scheddata;
@@ -889,7 +893,7 @@ static struct iax2_thread *find_idle_thread(void)
 			thread = ast_calloc(1, sizeof(*thread));
 			if (thread != NULL) {
 				thread->threadnum = iaxdynamicthreadcount;
-				thread->type = IAX_TYPE_DYNAMIC;
+				thread->type = IAX_THREAD_TYPE_DYNAMIC;
 				ast_mutex_init(&thread->lock);
 				ast_cond_init(&thread->cond, NULL);
 				if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
@@ -4221,7 +4225,7 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 	ast_cli(fd, "Active Threads:\n");
 	AST_LIST_LOCK(&active_list);
 	AST_LIST_TRAVERSE(&active_list, thread, list) {
-		if (thread->type == IAX_TYPE_DYNAMIC)
+		if (thread->type == IAX_THREAD_TYPE_DYNAMIC)
 			type = 'D';
 		else
 			type = 'P';
@@ -7658,7 +7662,7 @@ static void *iax2_process_thread(void *data)
 	for(;;) {
 		/* Wait for something to signal us to be awake */
 		ast_mutex_lock(&thread->lock);
-		if (thread->type == IAX_TYPE_DYNAMIC) {
+		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
 			/* Wait to be signalled or time out */
 			tv = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
 			ts.tv_sec = tv.tv_sec;
@@ -7694,6 +7698,7 @@ static void *iax2_process_thread(void *data)
 #ifdef SCHED_MULTITHREADED
 			thread->schedfunc(thread->scheddata);
 #endif		
+		default:
 			break;
 		}
 		time(&thread->checktime);
@@ -7708,7 +7713,7 @@ static void *iax2_process_thread(void *data)
 		AST_LIST_UNLOCK(&active_list);
 
 		/* Go back into our respective list */
-		if (thread->type == IAX_TYPE_DYNAMIC) {
+		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
 			AST_LIST_LOCK(&dynamic_list);
 			AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
 			AST_LIST_UNLOCK(&dynamic_list);
@@ -8157,7 +8162,7 @@ static int start_network_thread(void)
 	for (x = 0; x < iaxthreadcount; x++) {
 		struct iax2_thread *thread = ast_calloc(1, sizeof(struct iax2_thread));
 		if (thread) {
-			thread->type = IAX_TYPE_POOL;
+			thread->type = IAX_THREAD_TYPE_POOL;
 			thread->threadnum = ++threadcount;
 			ast_mutex_init(&thread->lock);
 			ast_cond_init(&thread->cond, NULL);
