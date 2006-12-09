@@ -433,11 +433,11 @@ struct iax2_registry {
 	int messages;				/*!< Message count, low 8 bits = new, high 8 bits = old */
 	int callno;				/*!< Associated call number if applicable */
 	struct sockaddr_in us;			/*!< Who the server thinks we are */
-	struct iax2_registry *next;
 	struct ast_dnsmgr_entry *dnsmgr;	/*!< DNS refresh manager */
+	AST_LIST_ENTRY(iax2_registry) entry;
 };
 
-static struct iax2_registry *registrations;
+static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
 
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
 #define MIN_RETRY_TIME		100
@@ -4329,9 +4329,9 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 	char perceived[80];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
-	for (reg = registrations;reg;reg = reg->next) {
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		if (reg->us.sin_addr.s_addr) 
 			snprintf(perceived, sizeof(perceived), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
@@ -4341,7 +4341,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 					(reg->dnsmgr) ? "Y" : "N", 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
-	AST_LIST_UNLOCK(&peers);
+	AST_LIST_UNLOCK(&registrations);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -5488,9 +5488,9 @@ static int iax2_register(char *value, int lineno)
 	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 	reg->addr.sin_family = AF_INET;
 	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
-	reg->next = registrations;
-	reg->callno = 0;
-	registrations = reg;
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_INSERT_HEAD(&registrations, reg, entry);
+	AST_LIST_UNLOCK(&registrations);
 	
 	return 0;
 }
@@ -8700,35 +8700,32 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 
 static void delete_users(void)
 {
-	struct iax2_user *user = NULL;
-	struct iax2_peer *peer = NULL;
-	struct iax2_registry *reg, *regl;
+	struct iax2_user *user;
+	struct iax2_peer *peer;
+	struct iax2_registry *reg;
 
 	AST_LIST_LOCK(&users);
 	AST_LIST_TRAVERSE(&users, user, entry)
 		ast_set_flag(user, IAX_DELME);
 	AST_LIST_UNLOCK(&users);
 
-	for (reg = registrations;reg;) {
-		regl = reg;
-		reg = reg->next;
-		if (regl->expire > -1) {
-			ast_sched_del(sched, regl->expire);
-		}
-		if (regl->callno) {
-			/* XXX Is this a potential lock?  I don't think so, but you never know */
-			ast_mutex_lock(&iaxsl[regl->callno]);
-			if (iaxs[regl->callno]) {
-				iaxs[regl->callno]->reg = NULL;
-				iax2_destroy(regl->callno);
+	AST_LIST_LOCK(&registrations);
+	while ((reg = AST_LIST_REMOVE_HEAD(&registrations, entry))) {
+		if (reg->expire > -1)
+			ast_sched_del(sched, reg->expire);
+		if (reg->callno) {
+			ast_mutex_lock(&iaxsl[reg->callno]);
+			if (iaxs[reg->callno]) {
+				iaxs[reg->callno]->reg = NULL;
+				iax2_destroy(reg->callno);
 			}
-			ast_mutex_unlock(&iaxsl[regl->callno]);
+			ast_mutex_unlock(&iaxsl[reg->callno]);
 		}
-		if (regl->dnsmgr)
-			ast_dnsmgr_release(regl->dnsmgr);
-		free(regl);
+		if (reg->dnsmgr)
+			ast_dnsmgr_release(reg->dnsmgr);
+		free(reg);
 	}
-	registrations = NULL;
+	AST_LIST_UNLOCK(&registrations);
 
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, entry)
@@ -9176,7 +9173,7 @@ static int reload_config(void)
 {
 	char *config = "iax.conf";
 	struct iax2_registry *reg;
-	struct iax2_peer *peer = NULL;
+	struct iax2_peer *peer;
 
 	strcpy(accountcode, "");
 	strcpy(language, "");
@@ -9190,14 +9187,17 @@ static int reload_config(void)
 	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
 	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
 	delete_users();
-	set_config(config,1);
+	set_config(config, 1);
 	prune_peers();
 	prune_users();
 	trunk_timed = trunk_untimed = 0; 
 	trunk_nmaxmtu = trunk_maxmtu = 0; 
 
-	for (reg = registrations; reg; reg = reg->next)
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_TRAVERSE(&registrations, reg, entry)
 		iax2_do_register(reg);
+	AST_LIST_UNLOCK(&registrations);
+
 	/* Qualify hosts, too */
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, entry)
@@ -10043,9 +10043,11 @@ static int load_module(void)
 	} else if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
 
-	for (reg = registrations; reg; reg = reg->next)
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_TRAVERSE(&registrations, reg, entry)
 		iax2_do_register(reg);
-
+	AST_LIST_UNLOCK(&registrations);	
+	
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, entry) {
 		if (peer->sockfd < 0)
