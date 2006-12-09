@@ -1087,10 +1087,6 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	}
 		
 	tmp->prefs = prefs;
-	tmp->callno = 0;
-	tmp->peercallno = 0;
-	tmp->transfercallno = 0;
-	tmp->bridgecallno = 0;
 	tmp->pingid = -1;
 	tmp->lagid = -1;
 	tmp->autoid = -1;
@@ -6280,36 +6276,156 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	return 1;
 }
 
+static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, struct sockaddr_in *sin, int sockfd,
+	struct iax_frame *fr)
+{
+	unsigned char metatype;
+	struct ast_iax2_meta_trunk_mini *mtm;
+	struct ast_iax2_meta_trunk_hdr *mth;
+	struct ast_iax2_meta_trunk_entry *mte;
+	struct iax2_trunk_peer *tpeer;
+	unsigned int ts;
+	void *ptr;
+	struct timeval rxtrunktime;
+	struct ast_frame f = { 0, };
+
+	if (packet_len < sizeof(*meta)) {
+		ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a meta frame but is too short\n", 
+			ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+		return 1;
+	}
+
+	if (meta->metacmd != IAX_META_TRUNK)
+		return 1;
+
+	if (packet_len < (sizeof(*meta) + sizeof(*mth))) {
+		ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", packet_len,
+			sizeof(*meta) + sizeof(*mth));
+		return 1;
+	}
+	mth = (struct ast_iax2_meta_trunk_hdr *)(meta->data);
+	ts = ntohl(mth->ts);
+	metatype = meta->cmddata;
+	packet_len -= (sizeof(*meta) + sizeof(*mth));
+	ptr = mth->data;
+	tpeer = find_tpeer(sin, sockfd);
+	if (!tpeer) {
+		ast_log(LOG_WARNING, "Unable to accept trunked packet from '%s:%d': No matching peer\n", 
+			ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+		return 1;
+	}
+	tpeer->trunkact = ast_tvnow();
+	if (!ts || ast_tvzero(tpeer->rxtrunktime))
+		tpeer->rxtrunktime = tpeer->trunkact;
+	rxtrunktime = tpeer->rxtrunktime;
+	ast_mutex_unlock(&tpeer->lock);
+	while (packet_len >= sizeof(*mte)) {
+		/* Process channels */
+		unsigned short callno, trunked_ts, len;
+
+		if (metatype == IAX_META_TRUNK_MINI) {
+			mtm = (struct ast_iax2_meta_trunk_mini *) ptr;
+			ptr += sizeof(*mtm);
+			packet_len -= sizeof(*mtm);
+			len = ntohs(mtm->len);
+			callno = ntohs(mtm->mini.callno);
+			trunked_ts = ntohs(mtm->mini.ts);
+		} else if (metatype == IAX_META_TRUNK_SUPERMINI) {
+			mte = (struct ast_iax2_meta_trunk_entry *)ptr;
+			ptr += sizeof(*mte);
+			packet_len -= sizeof(*mte);
+			len = ntohs(mte->len);
+			callno = ntohs(mte->callno);
+			trunked_ts = 0;
+		} else {
+			ast_log(LOG_WARNING, "Unknown meta trunk cmd from '%s:%d': dropping\n", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			break;
+		}
+		/* Stop if we don't have enough data */
+		if (len > packet_len)
+			break;
+		fr->callno = find_callno(callno & ~IAX_FLAG_FULL, 0, sin, NEW_PREVENT, 1, sockfd);
+		if (!fr->callno)
+			continue;
+
+		ast_mutex_lock(&iaxsl[fr->callno]);
+
+		/* If it's a valid call, deliver the contents.  If not, we
+		   drop it, since we don't have a scallno to use for an INVAL */
+		/* Process as a mini frame */
+		f.frametype = AST_FRAME_VOICE;
+		if (!iaxs[fr->callno]) {
+			/* drop it */
+		} else if (iaxs[fr->callno]->voiceformat == 0) {
+			ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
+			iax2_vnak(fr->callno);
+		} else {
+			f.subclass = iaxs[fr->callno]->voiceformat;
+			f.datalen = len;
+			if (f.datalen >= 0) {
+				if (f.datalen)
+					f.data = ptr;
+				else
+					f.data = NULL;
+				if (trunked_ts)
+					fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | (trunked_ts & 0xffff);
+				else
+					fr->ts = fix_peerts(&rxtrunktime, fr->callno, ts);
+				/* Don't pass any packets until we're started */
+				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
+					struct iax_frame *duped_fr;
+
+					/* Common things */
+					f.src = "IAX2";
+					f.mallocd = 0;
+					f.offset = 0;
+					if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
+						f.samples = ast_codec_get_samples(&f);
+					else
+						f.samples = 0;
+					fr->outoforder = 0;
+					iax_frame_wrap(fr, &f);
+					duped_fr = iaxfrdup2(fr);
+					if (duped_fr)
+						schedule_delivery(duped_fr, 1, 1, &fr->ts);
+					if (iaxs[fr->callno]->last < fr->ts)
+						iaxs[fr->callno]->last = fr->ts;
+				}
+			} else {
+				ast_log(LOG_WARNING, "Datalen < 0?\n");
+			}
+		}
+		ast_mutex_unlock(&iaxsl[fr->callno]);
+		ptr += len;
+		packet_len -= len;
+	}
+
+	return 1;
+}
+
 static int socket_process(struct iax2_thread *thread)
 {
 	struct sockaddr_in sin;
 	int res;
 	int updatehistory=1;
 	int new = NEW_PREVENT;
-	void *ptr;
 	int dcallno = 0;
 	struct ast_iax2_full_hdr *fh = (struct ast_iax2_full_hdr *)thread->buf;
 	struct ast_iax2_mini_hdr *mh = (struct ast_iax2_mini_hdr *)thread->buf;
 	struct ast_iax2_meta_hdr *meta = (struct ast_iax2_meta_hdr *)thread->buf;
 	struct ast_iax2_video_hdr *vh = (struct ast_iax2_video_hdr *)thread->buf;
-	struct ast_iax2_meta_trunk_hdr *mth;
-	struct ast_iax2_meta_trunk_entry *mte;
-	struct ast_iax2_meta_trunk_mini *mtm;
 	struct iax_frame *fr;
 	struct iax_frame *cur;
 	struct ast_frame f;
 	struct ast_channel *c;
 	struct iax2_dpcache *dp;
 	struct iax2_peer *peer;
-	struct iax2_trunk_peer *tpeer;
-	struct timeval rxtrunktime;
 	struct iax_ies ies;
 	struct iax_ie_data ied0, ied1;
 	int format;
 	int fd;
 	int exists;
 	int minivid = 0;
-	unsigned int ts;
 	char empty[32]="";		/* Safety measure */
 	struct iax_frame *duped_fr;
 	char host_pref_buf[128];
@@ -6339,123 +6455,8 @@ static int socket_process(struct iax2_thread *thread)
 		/* This is a video frame, get call number */
 		fr->callno = find_callno(ntohs(vh->callno) & ~0x8000, dcallno, &sin, new, 1, fd);
 		minivid = 1;
-	} else if ((meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000)) {
-		unsigned char metatype;
-
-		if (res < sizeof(*meta)) {
-			ast_log(LOG_WARNING, "Rejecting packet from '%s.%d' that is flagged as a meta frame but is too short\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-			return 1;
-		}
-
-		/* This is a meta header */
-		switch(meta->metacmd) {
-		case IAX_META_TRUNK:
-			if (res < (sizeof(*meta) + sizeof(*mth))) {
-				ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", res,
-					sizeof(*meta) + sizeof(*mth));
-				return 1;
-			}
-			mth = (struct ast_iax2_meta_trunk_hdr *)(meta->data);
-			ts = ntohl(mth->ts);
-			metatype = meta->cmddata;
-			res -= (sizeof(*meta) + sizeof(*mth));
-			ptr = mth->data;
-			tpeer = find_tpeer(&sin, fd);
-			if (!tpeer) {
-				ast_log(LOG_WARNING, "Unable to accept trunked packet from '%s:%d': No matching peer\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-				return 1;
-			}
-			tpeer->trunkact = ast_tvnow();
-			if (!ts || ast_tvzero(tpeer->rxtrunktime))
-				tpeer->rxtrunktime = tpeer->trunkact;
-			rxtrunktime = tpeer->rxtrunktime;
-			ast_mutex_unlock(&tpeer->lock);
-			while(res >= sizeof(*mte)) {
-				/* Process channels */
-				unsigned short callno, trunked_ts, len;
-
-				if (metatype == IAX_META_TRUNK_MINI) {
-					mtm = (struct ast_iax2_meta_trunk_mini *)ptr;
-					ptr += sizeof(*mtm);
-					res -= sizeof(*mtm);
-					len = ntohs(mtm->len);
-					callno = ntohs(mtm->mini.callno);
-					trunked_ts = ntohs(mtm->mini.ts);
-				} else if (metatype == IAX_META_TRUNK_SUPERMINI) {
-					mte = (struct ast_iax2_meta_trunk_entry *)ptr;
-					ptr += sizeof(*mte);
-					res -= sizeof(*mte);
-					len = ntohs(mte->len);
-					callno = ntohs(mte->callno);
-					trunked_ts = 0;
-				} else {
-					ast_log(LOG_WARNING, "Unknown meta trunk cmd from '%s:%d': dropping\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-					break;
-				}
-				/* Stop if we don't have enough data */
-				if (len > res)
-					break;
-				fr->callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, 1, fd);
-				if (fr->callno) {
-					ast_mutex_lock(&iaxsl[fr->callno]);
-					/* If it's a valid call, deliver the contents.  If not, we
-					   drop it, since we don't have a scallno to use for an INVAL */
-					/* Process as a mini frame */
-					f.frametype = AST_FRAME_VOICE;
-					if (iaxs[fr->callno]) {
-						if (iaxs[fr->callno]->voiceformat > 0) {
-							f.subclass = iaxs[fr->callno]->voiceformat;
-							f.datalen = len;
-							if (f.datalen >= 0) {
-								if (f.datalen)
-									f.data = ptr;
-								else
-									f.data = NULL;
-								if(trunked_ts) {
-									fr->ts = (iaxs[fr->callno]->last & 0xFFFF0000L) | (trunked_ts & 0xffff);
-								} else
-									fr->ts = fix_peerts(&rxtrunktime, fr->callno, ts);
-								/* Don't pass any packets until we're started */
-								if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED)) {
-									/* Common things */
-									f.src = "IAX2";
-									f.mallocd = 0;
-									f.offset = 0;
-									if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
-										f.samples = ast_codec_get_samples(&f);
-									else
-										f.samples = 0;
-									fr->outoforder = 0;
-									iax_frame_wrap(fr, &f);
-									duped_fr = iaxfrdup2(fr);
-									if (duped_fr) {
-										schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
-									}
-									if (iaxs[fr->callno]->last < fr->ts) {
-										iaxs[fr->callno]->last = fr->ts;
-#if 1
-										if (option_debug && iaxdebug)
-											ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
-#endif
-									}
-								}
-							} else {
-								ast_log(LOG_WARNING, "Datalen < 0?\n");
-							}
-						} else {
-							ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
-							iax2_vnak(fr->callno);
-						}
-					}
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-				}
-				ptr += len;
-				res -= len;
-			}
-			
-		}
-		return 1;
-	}
+	} else if ((meta->zeros == 0) && !(ntohs(meta->metacmd) & 0x8000))
+		return socket_process_meta(res, meta, &sin, fd, fr);
 
 #ifdef DEBUG_SUPPORT
 	if (iaxdebug && (res >= sizeof(*fh)))
