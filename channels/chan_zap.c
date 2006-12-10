@@ -3749,8 +3749,11 @@ static int attempt_transfer(struct zt_pvt *p)
 		   stop if now if appropriate */
 		if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
 			ast_queue_control(p->subs[SUB_THREEWAY].owner, AST_CONTROL_UNHOLD);
-		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
+		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(ast_bridged_channel(p->subs[SUB_REAL].owner), AST_CONTROL_RINGING);
+		}
+		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RING) {
+			tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, ZT_TONE_RINGTONE);
 		}
 		if (p->subs[SUB_REAL].owner->cdr) {
 			/* Move CDR from second channel to current one */
@@ -3774,8 +3777,12 @@ static int attempt_transfer(struct zt_pvt *p)
 		unalloc_sub(p, SUB_THREEWAY);
 	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 		ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
-		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)
+		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), AST_CONTROL_RINGING);
+		}
+		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RING) {
+			tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
+		}
 		if (p->subs[SUB_THREEWAY].owner->cdr) {
 			/* Move CDR from second channel to current one */
 			p->subs[SUB_REAL].owner->cdr = 
