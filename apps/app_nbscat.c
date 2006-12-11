@@ -68,16 +68,26 @@ static int NBScatplay(int fd)
 {
 	int res;
 	int x;
+	sigset_t fullset, oldset;
+
+	sigfillset(&fullset);
+	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
+
 	res = fork();
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Fork failed\n");
-	if (res)
+	if (res) {
+		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
+	}
+	signal(SIGPIPE, SIG_DFL);
+	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
 
 	dup2(fd, STDOUT_FILENO);
-	for (x=0;x<256;x++) {
+	for (x = STDERR_FILENO + 1; x < 1024; x++) {
 		if (x != STDOUT_FILENO)
 			close(x);
 	}
@@ -85,7 +95,7 @@ static int NBScatplay(int fd)
 	execl(NBSCAT, "nbscat8k", "-d", (char *)NULL);
 	execl(LOCAL_NBSCAT, "nbscat8k", "-d", (char *)NULL);
 	ast_log(LOG_WARNING, "Execute of nbscat8k failed\n");
-	return -1;
+	_exit(0);
 }
 
 static int timed_read(int fd, void *data, int datalen)

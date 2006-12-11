@@ -130,19 +130,26 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 #ifdef __PPC__ 
 	char c;
 #endif
+	sigset_t fullset, oldset;
+
+	sigfillset(&fullset);
+	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
 
         res = fork();
         if (res < 0)
                 ast_log(LOG_WARNING, "Fork failed\n");
-        if (res)
+        if (res) {
+		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
                 return res;
+	}
         for (x=0;x<256;x++) {
                 if (x != fd)
                         close(x);
         }
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
-
+	signal(SIGPIPE, SIG_DFL);
+	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
 /*IAS */
 #ifdef __PPC__  
 	for( x=0; x<length; x+=2)
