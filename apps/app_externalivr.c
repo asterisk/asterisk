@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -262,9 +263,13 @@ static int app_exec(struct ast_channel *chan, void *data)
 		.finishlist = AST_LIST_HEAD_INIT_VALUE,
 	};
 	struct ivr_localuser *u = &foo;
+	sigset_t fullset, oldset;
 
 	lu = ast_module_user_add(chan);
-	
+
+	sigfillset(&fullset);
+	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
+
 	u->abort_current_sound = 0;
 	u->chan = chan;
 	
@@ -313,6 +318,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 		/* child process */
 		int i;
 
+		signal(SIGPIPE, SIG_DFL);
+		pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+
 		if (ast_opt_high_priority)
 			ast_set_priority(0);
 
@@ -335,6 +343,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 		int ready_fd;
 		int waitfds[2] = { child_errors_fd, child_commands_fd };
 		struct ast_channel *rchan;
+
+		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
 		close(child_stdin[0]);
 		child_stdin[0] = 0;

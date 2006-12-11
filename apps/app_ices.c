@@ -65,15 +65,27 @@ static int icesencode(char *filename, int fd)
 {
 	int res;
 	int x;
+	sigset_t fullset, oldset;
+
+	sigfillset(&fullset);
+	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
+
 	res = fork();
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Fork failed\n");
-	if (res)
+	if (res) {
+		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
+	}
+
+	/* Stop ignoring PIPE */
+	signal(SIGPIPE, SIG_DFL);
+	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+
 	if (ast_opt_high_priority)
 		ast_set_priority(0);
 	dup2(fd, STDIN_FILENO);
-	for (x=STDERR_FILENO + 1;x<256;x++) {
+	for (x=STDERR_FILENO + 1;x<1024;x++) {
 		if ((x != STDIN_FILENO) && (x != STDOUT_FILENO))
 			close(x);
 	}
@@ -84,7 +96,7 @@ static int icesencode(char *filename, int fd)
 	/* As a last-ditch effort, try to use PATH */
 	execlp("ices", "ices", filename, (char *)NULL);
 	ast_log(LOG_WARNING, "Execute of ices failed\n");
-	return -1;
+	_exit(0);
 }
 
 static int ices_exec(struct ast_channel *chan, void *data)
