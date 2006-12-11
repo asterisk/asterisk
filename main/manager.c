@@ -2599,7 +2599,7 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 		else if (strchr("&\"<>", in[x]))
 			escaped++;
 	}
-	len = (size_t) (strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
+	len = (size_t) (1 + strlen(in) + colons * 5 + breaks * (40 + strlen(dest) + strlen(objtype)) + escaped * 10); /* foo="bar", "<response type=\"object\" id=\"dest\"", "&amp;" */
 	out = ast_malloc(len);
 	if (!out)
 		return NULL;
