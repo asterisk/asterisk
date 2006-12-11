@@ -115,14 +115,16 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 	if (maxlen)
 		s[0] = '\0';
 
-	if (ast_strlen_zero(prompt))
-		return -1;
+	if (!prompt)
+		prompt="";
 
 	filename = ast_strdupa(prompt);
 	while ((front = strsep(&filename, "&"))) {
-		res = ast_streamfile(c, front, c->language);
-		if (res)
-			continue;
+		if (!ast_strlen_zero(front)) {
+			res = ast_streamfile(c, front, c->language);
+			if (res)
+				continue;
+		}
 		if (ast_strlen_zero(filename)) {
 			/* set timeouts for the last prompt */
 			fto = c->pbx ? c->pbx->rtimeout * 1000 : 6000;
