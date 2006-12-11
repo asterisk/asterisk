@@ -154,7 +154,7 @@ static int gen_nextfile(struct gen_state *state)
 		if (state->current) {
 			file_to_stream = state->current->filename;
 		} else {
-			file_to_stream = "silence-10";
+			file_to_stream = "silence/10";
 			u->playing_silence = 1;
 		}
 
