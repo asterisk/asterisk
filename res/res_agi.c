@@ -234,7 +234,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	int audio[2];
 	int x;
 	int res;
-	sigset_t signal_set;
+	sigset_t signal_set, old_set;
 	
 	if (!strncasecmp(script, "agi://", 6))
 		return launch_netscript(script, argv, fds, efd, opid);
@@ -276,6 +276,10 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 			return -1;
 		}
 	}
+
+	/* Block SIGHUP during the fork - prevents a race */
+	sigfillset(&signal_set);
+	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
 	pid = fork();
 	if (pid < 0) {
 		ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
@@ -293,9 +297,18 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		} else {
 			close(STDERR_FILENO + 1);
 		}
-		
+
+		/* Before we unblock our signals, return our trapped signals back to the defaults */
+		signal(SIGHUP, SIG_DFL);
+		signal(SIGCHLD, SIG_DFL);
+		signal(SIGINT, SIG_DFL);
+		signal(SIGURG, SIG_DFL);
+		signal(SIGTERM, SIG_DFL);
+		signal(SIGPIPE, SIG_DFL);
+		signal(SIGXFSZ, SIG_DFL);
+
 		/* unblock important signal handlers */
-		if (sigfillset(&signal_set) || pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
+		if (pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
 			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
 			_exit(1);
 		}
@@ -310,6 +323,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		fprintf(stderr, "Failed to execute '%s': %s\n", script, strerror(errno));
 		_exit(1);
 	}
+	pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 	if (option_verbose > 2) 
 		ast_verbose(VERBOSE_PREFIX_3 "Launched AGI Script %s\n", script);
 	fds[0] = toast[0];

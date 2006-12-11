@@ -31,6 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "asterisk.h"
 
@@ -258,9 +259,13 @@ static int app_exec(struct ast_channel *chan, void *data)
 	FILE *child_commands = NULL;
 	FILE *child_errors = NULL;
 	FILE *child_events = NULL;
+	sigset_t fullset, oldset;
 
 	LOCAL_USER_ADD(u);
-	
+
+	sigfillset(&fullset);
+	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
+
 	AST_LIST_HEAD_INIT(&u->playlist);
 	AST_LIST_HEAD_INIT(&u->finishlist);
 	u->abort_current_sound = 0;
@@ -314,6 +319,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 		/* child process */
 		int i;
 
+		signal(SIGPIPE, SIG_DFL);
+		pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+
 		if (option_highpriority)
 			ast_set_priority(0);
 
@@ -336,6 +344,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 		int ready_fd;
 		int waitfds[2] = { child_errors_fd, child_commands_fd };
 		struct ast_channel *rchan;
+
+		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
 		close(child_stdin[0]);
 		child_stdin[0] = 0;

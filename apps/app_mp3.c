@@ -67,15 +67,25 @@ static int mp3play(char *filename, int fd)
 {
 	int res;
 	int x;
+	sigset_t fullset, oldset;
+
+	sigfillset(&fullset);
+	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
+
 	res = fork();
 	if (res < 0) 
 		ast_log(LOG_WARNING, "Fork failed\n");
-	if (res)
+	if (res) {
+		pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 		return res;
+	}
 	if (option_highpriority)
 		ast_set_priority(0);
+	signal(SIGPIPE, SIG_DFL);
+	pthread_sigmask(SIG_UNBLOCK, &fullset, NULL);
+
 	dup2(fd, STDOUT_FILENO);
-	for (x=0;x<256;x++) {
+	for (x=STDERR_FILENO + 1;x<256;x++) {
 		if (x != STDOUT_FILENO)
 			close(x);
 	}
@@ -97,7 +107,7 @@ static int mp3play(char *filename, int fd)
 	    execlp("mpg123", "mpg123", "-q", "-s", "-f", "8192", "--mono", "-r", "8000", filename, (char *)NULL);
 	}
 	ast_log(LOG_WARNING, "Execute of mpg123 failed\n");
-	return -1;
+	_exit(0);
 }
 
 static int timed_read(int fd, void *data, int datalen, int timeout)

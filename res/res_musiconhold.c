@@ -326,6 +326,7 @@ static int spawn_mp3(struct mohclass *class)
 	int argc = 0;
 	DIR *dir = NULL;
 	struct dirent *de;
+	sigset_t signal_set, old_set;
 
 	
 	if (!strcasecmp(class->dir, "nodir")) {
@@ -426,6 +427,11 @@ static int spawn_mp3(struct mohclass *class)
 	if (time(NULL) - class->start < respawn_time) {
 		sleep(respawn_time - (time(NULL) - class->start));
 	}
+
+	/* Block signals during the fork() */
+	sigfillset(&signal_set);
+	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
+
 	time(&class->start);
 	class->pid = fork();
 	if (class->pid < 0) {
@@ -439,6 +445,10 @@ static int spawn_mp3(struct mohclass *class)
 
 		if (option_highpriority)
 			ast_set_priority(0);
+
+		/* Reset ignored signals back to default */
+		signal(SIGPIPE, SIG_DFL);
+		pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL);
 
 		close(fds[0]);
 		/* Stdout goes to pipe */
@@ -466,6 +476,7 @@ static int spawn_mp3(struct mohclass *class)
 		_exit(1);
 	} else {
 		/* Parent */
+		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 		close(fds[1]);
 	}
 	return fds[0];
