@@ -1950,7 +1950,7 @@ bailoutandtrynormal:
 		if (!conf->users)
 			ast_device_state_changed("meetme:%s", conf->confno);
 		if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
-			st_device_state_changed("SLA:%s", conf->confno + 4);
+			ast_device_state_changed("SLA:%s", conf->confno + 4);
 
 		if (AST_LIST_EMPTY(&conf->userlist)) {
 			/* close this one when no more users and no references*/
