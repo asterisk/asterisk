@@ -730,7 +730,7 @@
 
 ; Silence directory
 
-%1.gsm%1 seconds of silence
+%1.gsm%1 second of silence
 
 %2.gsm%2 seconds of silence
 
