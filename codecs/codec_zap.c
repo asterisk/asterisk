@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/options.h"
 #include "asterisk/module.h"
+#include "asterisk/cli.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
@@ -59,6 +60,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static unsigned int global_useplc = 0;
 static int cardsmode = 0;
+
+static int totalchannels = 0;
+static int channelsinuse = 0;
+AST_MUTEX_DEFINE_STATIC(channelcount);
+
+
+static const char show_transcoder_usage[] =
+"Usage: show transcoder\n"
+"       Displays transcoder utilization.\n";
+
+static int show_transcoder(int fd, int argc, char *argv[]);
+
+static struct ast_cli_entry transcoder_cli[] = {
+	{ { "show", "transcoder", NULL},
+	show_transcoder, "Displays transcoder utilization.",
+	show_transcoder_usage }
+};
 
 struct format_map {
 	unsigned int map[32][32];
@@ -83,6 +101,14 @@ struct pvt {
 	struct zt_transcode_header *hdr;
 	struct ast_frame f;
 };
+
+static int show_transcoder(int fd, int argc, char *argv[])
+{
+	ast_mutex_lock(&channelcount);
+	ast_verbose("%d of %d channels are currently in use.\n",channelsinuse, totalchannels);
+	ast_mutex_unlock(&channelcount);
+	return RESULT_SUCCESS;
+}
 
 static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
@@ -141,7 +167,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 #ifdef DEBUG_TRANSCODE
 			ztp->totalms += hdr->dstsamples;
 			if ((ztp->totalms - ztp->lasttotalms) > 8000) {
-				printf("Whee %p, %d (%d to %d)\n", ztp, hdr->dstlen, ztp->lasttotalms, ztp->totalms);
+				ast_verbose("Whee %p, %d (%d to %d)\n", ztp, hdr->dstlen, ztp->lasttotalms, ztp->totalms);
 				ztp->lasttotalms = ztp->totalms;
 			}
 #endif
@@ -172,8 +198,16 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 static void zap_destroy(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
+	unsigned int x;
 
+	x = ZT_TCOP_RELEASE;
+	if (ioctl(ztp->fd, ZT_TRANSCODE_OP, &x))
+		ast_log(LOG_WARNING, "Failed to release transcoder channel: %s\n", strerror(errno));
+				
 	munmap(ztp->hdr, sizeof(*ztp->hdr));
+	ast_mutex_lock(&channelcount);
+	channelsinuse++; 
+	ast_mutex_lock(&channelcount);
 	close(ztp->fd);
 }
 
@@ -229,6 +263,9 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 static int zap_new(struct ast_trans_pvt *pvt)
 {
+	ast_mutex_lock(&channelcount);
+	channelsinuse--; 
+	ast_mutex_lock(&channelcount);
 	return zap_translate(pvt, pvt->t->dstfmt, pvt->t->srcfmt);
 }
 
@@ -394,6 +431,9 @@ static int find_transcoders(void)
 	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
+		ast_mutex_lock(&channelcount);
+		totalchannels += info.numchannels;
+		ast_mutex_lock(&channelcount);
 		build_translators(&map, info.dstfmts, info.srcfmts);
 	}
 	close(fd);
@@ -429,15 +469,17 @@ static int reload(void)
 static int unload_module(void)
 {
 	unregister_translators();
-
+	ast_cli_unregister_multiple(transcoder_cli, sizeof(transcoder_cli) / sizeof(struct ast_cli_entry));
 	return 0;
 }
 
 static int load_module(void)
 {
+	ast_mutex_init(&channelcount);
 	parse_config();
-	find_transcoders();
 
+	find_transcoders();
+	ast_cli_register_multiple(transcoder_cli, sizeof(transcoder_cli) / sizeof(struct ast_cli_entry));
 	return 0;
 }
 
