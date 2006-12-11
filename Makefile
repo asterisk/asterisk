@@ -553,10 +553,19 @@ clean:
 datafiles: all
 	if [ x`$(ID) -un` = xroot ]; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/silence
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
+	done
+	for x in sounds/silence/*.gsm; do \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/silence ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
