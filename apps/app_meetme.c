@@ -1945,6 +1945,13 @@ bailoutandtrynormal:
 			conf->markedusers--;
 		/* Remove ourselves from the list */
 		AST_LIST_REMOVE(&conf->userlist, user, list);
+
+		/* Change any states */
+		if (!conf->users)
+			ast_device_state_changed("meetme:%s", conf->confno);
+		if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
+			st_device_state_changed("SLA:%s", conf->confno + 4);
+
 		if (AST_LIST_EMPTY(&conf->userlist)) {
 			/* close this one when no more users and no references*/
 			if (!conf->refcount)
@@ -1953,12 +1960,6 @@ bailoutandtrynormal:
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
-
-		/* This device changed state now */
-		if (!conf->users)	/* If there are no more members */
-			ast_device_state_changed("meetme:%s", conf->confno);
-		if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
-			ast_device_state_changed("SLA:%s", conf->confno + 4);
 	}
 	free(user);
 	AST_LIST_UNLOCK(&confs);
