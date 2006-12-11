@@ -425,12 +425,6 @@ static int acf_strftime(struct ast_channel *chan, char *cmd, char *parse,
 
 	buf[0] = '\0';
 
-	if (ast_strlen_zero(parse)) {
-		ast_log(LOG_ERROR,
-				"Asterisk function STRFTIME() requires an argument.\n");
-		return -1;
-	}
-
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	ast_get_time_t(args.epoch, &epochi, time(NULL), NULL);
