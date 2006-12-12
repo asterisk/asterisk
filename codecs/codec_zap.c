@@ -154,7 +154,7 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 		ztp->fake = 1;
 		ztp->f.frametype = AST_FRAME_VOICE;
 		ztp->f.subclass = 0;
-		ztp->f.samples = (hdr->srcfmt == ZT_FORMAT_G729A || hdr->dstfmt == ZT_FORMAT_G729A) ? 160: 240;
+		ztp->f.samples = 240;
 		ztp->f.data = NULL;
 		ztp->f.offset = 0;
 		ztp->f.datalen = 0;
@@ -206,8 +206,8 @@ static void zap_destroy(struct ast_trans_pvt *pvt)
 				
 	munmap(ztp->hdr, sizeof(*ztp->hdr));
 	ast_mutex_lock(&channelcount);
-	channelsinuse++; 
-	ast_mutex_lock(&channelcount);
+	channelsinuse--; 
+	ast_mutex_unlock(&channelcount);
 	close(ztp->fd);
 }
 
@@ -264,24 +264,12 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 static int zap_new(struct ast_trans_pvt *pvt)
 {
 	ast_mutex_lock(&channelcount);
-	channelsinuse--; 
-	ast_mutex_lock(&channelcount);
+	channelsinuse++; 
+	ast_mutex_unlock(&channelcount);
 	return zap_translate(pvt, pvt->t->dstfmt, pvt->t->srcfmt);
 }
 
-static struct ast_frame *g729_fakesrc_sample(void)
-{
-	/* Don't bother really trying to test hardware ones. */
-	static struct ast_frame f = {
-		.frametype = AST_FRAME_VOICE,
-		.samples = 160,
-		.src = __PRETTY_FUNCTION__
-	};
-
-	return &f;
-}
-
-static struct ast_frame *g723_fakesrc_sample(void)
+static struct ast_frame *fakesrc_sample(void)
 {
 	/* Don't bother really trying to test hardware ones. */
 	static struct ast_frame f = {
@@ -297,37 +285,34 @@ static int register_translator(int dst, int src)
 {
 	struct translator *zt;
 	int res;
-	
-	if (!((cardsmode  == 1 && (dst == 8 || src == 8)) || (cardsmode == 2 && (dst == 0 || src == 0)) || (cardsmode == 0))) {
+
+	if (!(zt = ast_calloc(1, sizeof(*zt))))
+		return -1;
+
+	snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s", 
+		 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
+	zt->t.srcfmt = (1 << src);
+	zt->t.dstfmt = (1 << dst);
+	zt->t.newpvt = zap_new;
+	zt->t.framein = zap_framein;
+	zt->t.frameout = zap_frameout;
+	zt->t.destroy = zap_destroy;
+	zt->t.sample = fakesrc_sample;
+	zt->t.useplc = global_useplc;
+	zt->t.buf_size = BUFFER_SAMPLES * 2;
+	zt->t.desc_size = sizeof(struct pvt);
+	if ((res = ast_register_translator(&zt->t))) {
+		free(zt);
 		return -1;
 	}
-		if (!(zt = ast_calloc(1, sizeof(*zt))))
-			return -1;
-	
-		snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s", 
-			 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
-		zt->t.srcfmt = (1 << src);
-		zt->t.dstfmt = (1 << dst);
-		zt->t.newpvt = zap_new;
-		zt->t.framein = zap_framein;
-		zt->t.frameout = zap_frameout;
-		zt->t.destroy = zap_destroy;
-		zt->t.sample = (dst == 8 || src == 8) ? g729_fakesrc_sample : g723_fakesrc_sample;
-		zt->t.useplc = global_useplc;
-		zt->t.buf_size = BUFFER_SAMPLES * 2;
-		zt->t.desc_size = sizeof(struct pvt);
-		if ((res = ast_register_translator(&zt->t))) {
-			free(zt);
-			return -1;
-		}
-	
-		AST_LIST_LOCK(&translators);
-		AST_LIST_INSERT_HEAD(&translators, zt, entry);
-		AST_LIST_UNLOCK(&translators);
-	
-		global_format_map.map[dst][src] = 1;
-	
-		return res;
+
+	AST_LIST_LOCK(&translators);
+	AST_LIST_INSERT_HEAD(&translators, zt, entry);
+	AST_LIST_UNLOCK(&translators);
+
+	global_format_map.map[dst][src] = 1;
+
+	return res;
 }
 
 static void drop_translator(int dst, int src)
@@ -433,7 +418,7 @@ static int find_transcoders(void)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
 		ast_mutex_lock(&channelcount);
 		totalchannels += info.numchannels;
-		ast_mutex_lock(&channelcount);
+		ast_mutex_unlock(&channelcount);
 		build_translators(&map, info.dstfmts, info.srcfmts);
 	}
 	close(fd);
