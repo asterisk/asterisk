@@ -105,7 +105,6 @@ struct eventqent {
 
 static AST_LIST_HEAD_STATIC(all_events, eventqent);
 
-static int portno = DEFAULT_MANAGER_PORT;
 static int displayconnects = 1;
 static int timestampevents = 0;
 static int httptimeout = 60;
@@ -2910,6 +2909,7 @@ int init_manager(void)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct ast_manager_user *user = NULL;
+	struct ast_variable *var;
 
 	if (!registered) {
 		/* Register default actions */
@@ -2942,7 +2942,6 @@ int init_manager(void)
 		/* Append placeholder event so master_eventq never runs dry */
 		append_event("Event: Placeholder\r\n\r\n", 0);
 	}
-	portno = DEFAULT_MANAGER_PORT;
 	displayconnects = 1;
 	cfg = ast_config_load("manager.conf");
 	if (!cfg) {
@@ -2951,8 +2950,10 @@ int init_manager(void)
 	}
 
 	/* default values */
+	memset(&ami_desc.sin, 0, sizeof(struct sockaddr_in));
 	memset(&amis_desc.sin, 0, sizeof(amis_desc.sin));
 	amis_desc.sin.sin_port = htons(5039);
+	ami_desc.sin.sin_port = htons(DEFAULT_MANAGER_PORT);
 
 	ami_tls_cfg.enabled = 0;
 	if (ami_tls_cfg.certfile)
@@ -2962,71 +2963,54 @@ int init_manager(void)
 		free(ami_tls_cfg.cipher);
 	ami_tls_cfg.cipher = ast_strdup("");
 
-	/* XXX change this into a loop on  ast_variable_browse(cfg, "general"); */
-
-	if ((val = ast_variable_retrieve(cfg, "general", "sslenable")))
-		ami_tls_cfg.enabled = ast_true(val);
-	if ((val = ast_variable_retrieve(cfg, "general", "sslbindport")))
-		amis_desc.sin.sin_port = htons(atoi(val));
-	if ((val = ast_variable_retrieve(cfg, "general", "sslbindaddr"))) {
-		if ((hp = ast_gethostbyname(val, &ahp))) {
-			memcpy(&amis_desc.sin.sin_addr, hp->h_addr, sizeof(amis_desc.sin.sin_addr));
-			have_sslbindaddr = 1;
+	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
+		val = var->value;
+		if (!strcasecmp(var->name, "ssenable"))
+			ami_tls_cfg.enabled = ast_true(val);
+		else if (!strcasecmp(var->name, "ssbindport"))
+			amis_desc.sin.sin_port = htons(atoi(val));
+		else if (!strcasecmp(var->name, "ssbindaddr")) {
+			if ((hp = ast_gethostbyname(val, &ahp))) {
+				memcpy(&amis_desc.sin.sin_addr, hp->h_addr, sizeof(amis_desc.sin.sin_addr));
+				have_sslbindaddr = 1;
+			} else {
+				ast_log(LOG_WARNING, "Invalid bind address '%s'\n", val);
+			}
+		} else if (!strcasecmp(var->name, "sslcert")) {
+			free(ami_tls_cfg.certfile);
+			ami_tls_cfg.certfile = ast_strdup(val);
+		} else if (!strcasecmp(var->name, "sslcipher")) {
+			free(ami_tls_cfg.cipher);
+			ami_tls_cfg.cipher = ast_strdup(val);
+		} else if (!strcasecmp(var->name, "enabled")) {
+			enabled = ast_true(val);
+		} else if (!strcasecmp(var->name, "block-sockets")) {
+			block_sockets = ast_true(val);
+		} else if (!strcasecmp(var->name, "webenabled")) {
+			webenabled = ast_true(val);
+		} else if (!strcasecmp(var->name, "port")) {
+			ami_desc.sin.sin_port = htons(atoi(val));
+		} else if (!strcasecmp(var->name, "bindaddr")) {
+			if (!inet_aton(val, &ami_desc.sin.sin_addr)) {
+				ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
+				memset(&ami_desc.sin.sin_addr, 0, sizeof(ami_desc.sin.sin_addr));
+			}
+		} else if (!strcasecmp(var->name, "displayconnects")) {
+			displayconnects = ast_true(val);
+		} else if (!strcasecmp(var->name, "timestampevents")) {
+			timestampevents = ast_true(val);
+		} else if (!strcasecmp(var->name, "debug")) {
+			manager_debug = ast_true(val);
+		} else if (!strcasecmp(var->name, "httptimeout")) {
+			newhttptimeout = atoi(val);
 		} else {
-			ast_log(LOG_WARNING, "Invalid bind address '%s'\n", val);
-		}
-	}
-	if ((val = ast_variable_retrieve(cfg, "general", "sslcert"))) {
-		free(ami_tls_cfg.certfile);
-		ami_tls_cfg.certfile = ast_strdup(val);
-	}
-	if ((val = ast_variable_retrieve(cfg, "general", "sslcipher"))) {
-		free(ami_tls_cfg.cipher);
-		ami_tls_cfg.cipher = ast_strdup(val);
+			ast_log(LOG_NOTICE, "Invalid keyword <%s> = <%s> in manager.conf [general]\n",
+				var->name, val);
+		}	
 	}
 
-	val = ast_variable_retrieve(cfg, "general", "enabled");
-	if (val)
-		enabled = ast_true(val);
-
-	val = ast_variable_retrieve(cfg, "general", "block-sockets");
-	if (val)
-		block_sockets = ast_true(val);
-
-	val = ast_variable_retrieve(cfg, "general", "webenabled");
-	if (val)
-		webenabled = ast_true(val);
-
-	if ((val = ast_variable_retrieve(cfg, "general", "port"))) {
-		if (sscanf(val, "%d", &portno) != 1) {
-			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
-			portno = DEFAULT_MANAGER_PORT;
-		}
-	}
-
-	if ((val = ast_variable_retrieve(cfg, "general", "displayconnects")))
-		displayconnects = ast_true(val);
-
-	if ((val = ast_variable_retrieve(cfg, "general", "timestampevents")))
-		timestampevents = ast_true(val);
-
-	if ((val = ast_variable_retrieve(cfg, "general", "debug")))
-		manager_debug = ast_true(val);
-
-	if ((val = ast_variable_retrieve(cfg, "general", "httptimeout")))
-		newhttptimeout = atoi(val);
-
-	memset(&ami_desc.sin, 0, sizeof(struct sockaddr_in));
 	if (enabled)
 		ami_desc.sin.sin_family = AF_INET;
-	ami_desc.sin.sin_port = htons(portno);
-
-	if ((val = ast_variable_retrieve(cfg, "general", "bindaddr"))) {
-		if (!inet_aton(val, &ami_desc.sin.sin_addr)) {
-			ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
-			memset(&ami_desc.sin.sin_addr, 0, sizeof(ami_desc.sin.sin_addr));
-		}
-	}
 	if (!have_sslbindaddr)
 		amis_desc.sin.sin_addr = ami_desc.sin.sin_addr;
 	if (ami_tls_cfg.enabled)
@@ -3036,7 +3020,6 @@ int init_manager(void)
 	AST_LIST_LOCK(&users);
 
 	while ((cat = ast_category_browse(cfg, cat))) {
-		struct ast_variable *var = NULL;
 
 		if (!strcasecmp(cat, "general"))
 			continue;
