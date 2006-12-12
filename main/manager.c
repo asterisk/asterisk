@@ -2603,6 +2603,7 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 	if (!out)
 		return NULL;
 	tmp = out;
+	*tmp = '\0';
 	/* we want to stop when we find an empty line */
 	while (in && *in) {
 		val = strsep(&in, "\r\n");	/* mark start and end of line */
