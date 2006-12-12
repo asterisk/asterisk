@@ -102,21 +102,6 @@ ${CDR(uniqueid)}		The channel's unique id.
 ${CDR(userfield)}		The channels uses specified field.
 
 In addition, you can set your own extra variables by using Set(CDR(name)=value).
-
-______________________________
-cdr_csv2
-------------------------------
-
-This module is an experimental new cdr module to demonstrate the cdr vars.
-usage(
-
-*) Create a file called cdr.conf and place it in your /etc/asterisk (or wherever your config files are) in the [cdr_csv2] section.
-*) Add an entry called format to indicate any format you want for the output.
-
-The following format string will emulate the regular cdr file format:
-[cdr_csv2]
-
-format => "${CDR(clid)}","${CDR(src)}","${CDR(dst)}","${CDR(dcontext)}","${CDR(channel)}","${CDR(dstchannel)}","${CDR(lastapp)}","${CDR(lastdata)}","${CDR(start)}","${CDR(answer)}","${CDR(end)}","${CDR(duration)}","${CDR(billsec)}","${CDR(disposition)}","${CDR(amaflags)}","${CDR(accountcode)}","${CDR(uniqueid)}","${CDR(userfield)}"
-
-You can put anything you want as the value of format incuding new cdr vars you make up or any global variables.
-
+These variables can be output into a text-format CDR by using the cdr_custom
+CDR driver; see the cdr_custom.conf.sample file in the configs directory for
+an example of how to do this.

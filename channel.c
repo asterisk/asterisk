@@ -355,8 +355,11 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan, *last=NULL;
 
-	if (option_debug)
+	if (option_debug && tech && tech->type )
 		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
+	else if (option_debug)
+		ast_log(LOG_DEBUG, "Unregistering channel, tech is NULL!!!\n");
+		
 
 	ast_mutex_lock(&chlock);
 
@@ -732,43 +735,34 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 					       const char *context, const char *exten)
 {
 	const char *msg = prev ? "deadlock" : "initial deadlock";
-	int retries, done;
+	int retries;
 	struct ast_channel *c;
 
 	for (retries = 0; retries < 10; retries++) {
+		int done;
+
 		ast_mutex_lock(&chlock);
 		for (c = channels; c; c = c->next) {
-			if (!prev) {
-				/* want head of list */
-				if (!name && !exten)
-					break;
-				if (name) {
-					/* want match by full name */
-					if (!namelen) {
-						if (!strcasecmp(c->name, name))
-							break;
-						else
-							continue;
-					}
-					/* want match by name prefix */
-					if (!strncasecmp(c->name, name, namelen))
-						break;
-				} else if (exten) {
-					/* want match by context and exten */
-					if (context && (strcasecmp(c->context, context) &&
-							strcasecmp(c->macrocontext, context)))
-						continue;
-					/* match by exten */
-					if (strcasecmp(c->exten, exten) &&
-					    strcasecmp(c->macroexten, exten))
-						continue;
-					else
-						break;
-				}
-			} else if (c == prev) { /* found, return c->next */
+			if (prev) {	/* look for next item */
+				if (c != prev)	/* not this one */
+					continue;
+				/* found, prepare to return c->next */
 				c = c->next;
-				break;
 			}
+			if (name) { /* want match by name */
+				if ((!namelen && strcasecmp(c->name, name)) ||
+				    (namelen && strncasecmp(c->name, name, namelen)))
+					continue;	/* name match failed */
+			} else if (exten) {
+				if (context && strcasecmp(c->context, context) &&
+				    strcasecmp(c->macrocontext, context))
+					continue;	/* context match failed */
+				if (strcasecmp(c->exten, exten) &&
+				    strcasecmp(c->macroexten, exten))
+					continue;	/* exten match failed */
+			}
+			/* if we get here, c points to the desired record */
+			break;
 		}
 		/* exit if chan not found or mutex acquired successfully */
 		done = (c == NULL) || (ast_mutex_trylock(&c->lock) == 0);
@@ -2302,6 +2296,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		else
 			res = 0;
 		break;
+	case AST_FRAME_NULL:
+	case AST_FRAME_IAX:
+		/* Ignore these */
+		res = 0;
+		break;
 	default:
 		if (chan->tech->write) {
 			f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
@@ -2590,6 +2589,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 				      c->cid.cid_num ? c->cid.cid_num : "<unknown>",
 				      c->cid.cid_name ? c->cid.cid_name : "<unknown>",
 				      c->uniqueid);
+			ast_set_flag(c, AST_FLAG_NOTNEW);
 		}
 		return c;
 	}
@@ -3253,7 +3253,7 @@ int ast_setstate(struct ast_channel *chan, int state)
 	chan->_state = state;
 	ast_device_state_changed_literal(chan->name);
 	manager_event(EVENT_FLAG_CALL,
-		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
+		      (oldstate == AST_STATE_DOWN && !ast_test_flag(chan, AST_FLAG_NOTNEW)) ? "Newchannel" : "Newstate",
 		      "Channel: %s\r\n"
 		      "State: %s\r\n"
 		      "CallerID: %s\r\n"
@@ -3510,10 +3510,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		if (!ast_tvzero(nexteventts)) {
 			now = ast_tvnow();
 			to = ast_tvdiff_ms(nexteventts, now);
-			if (to <= 0) {
+			if (to <= 0 && !config->timelimit) {	
 				res = AST_BRIDGE_COMPLETE;
 				break;
-			}
+			}	
+				
 		}
 
 		if (config->timelimit) {
@@ -3533,7 +3534,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				break;
 			}
 			
-			if (!to) {
+			if (to <= 0) {
 				if (time_left_ms >= 5000) {
 					/* force the time left to round up if appropriate */
 					if (caller_warning && config->warning_sound && config->play_warning)
@@ -3545,8 +3546,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				}
 				if (config->warning_freq) {
 					nexteventts = ast_tvadd(nexteventts, ast_samp2tv(config->warning_freq, 1000));
-				} else
+				}
+					
+				if ( (!config->warning_freq) ||  ( config->timelimit - ast_tvdiff_ms(nexteventts, config->start_time) < 0)) {
 					nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
+				}
 			}
 		}
 
@@ -3644,7 +3648,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o1nativeformats = c1->nativeformats;
 		}
 		res = ast_generic_bridge(c0, c1, config, fo, rc, nexteventts);
-		if (res != AST_BRIDGE_RETRY)
+		if (res != AST_BRIDGE_RETRY && fo)
 			break;
 	}
 

@@ -63,7 +63,7 @@ static char *p_descrip =
 "  This application has been deprecated in favor of the DB function.\n";
 
 static char *d_descrip =
-"  DBdel(family/key): This applicaiton will delete a key from the Asterisk\n"
+"  DBdel(family/key): This application will delete a key from the Asterisk\n"
 "database.\n";
 
 static char *dt_descrip =

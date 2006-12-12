@@ -440,11 +440,11 @@ void ast_cdr_free(struct ast_cdr *cdr)
 		next = cdr->next;
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED) && !ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
+			ast_log(LOG_NOTICE, "CDR on channel '%s' not posted\n", chan);
 		if (ast_tvzero(cdr->end))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
+			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks end\n", chan);
 		if (ast_tvzero(cdr->start))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks start\n", chan);
 
 		ast_cdr_free_vars(cdr, 0);
 		free(cdr);
@@ -806,11 +806,11 @@ static void post_cdr(struct ast_cdr *cdr)
 	while (cdr) {
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
-			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			ast_log(LOG_NOTICE, "CDR on channel '%s' already posted\n", chan);
 		if (ast_tvzero(cdr->end))
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
+			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks end\n", chan);
 		if (ast_tvzero(cdr->start)) {
-			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks start\n", chan);
 			cdr->disposition = AST_CDR_FAILED;
 		} else
 			cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;

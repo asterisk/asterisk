@@ -65,7 +65,7 @@ endif
 #
 # PGSQL stuff...  Autoconf anyone??
 #
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include/libpq-fe.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
   MODS+=cdr_pgsql.so
 endif
 

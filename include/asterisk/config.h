@@ -181,7 +181,6 @@ void ast_category_rename(struct ast_category *cat, const char *name);
 
 struct ast_variable *ast_variable_new(const char *name, const char *value);
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
-int ast_variable_delete(struct ast_config *cfg, char *category, char *variable, char *value);
 
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 

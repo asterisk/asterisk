@@ -91,7 +91,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "far_alerting", MISDN_CFG_FAR_ALERTING, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "reject_cause", MISDN_CFG_REJECT_CAUSE, MISDN_CTYPE_INT, "21", NONE },
-	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "yes", NONE },
+	{ "block_on_alarm", MISDN_CFG_ALARM_BLOCK, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "hdlc", MISDN_CFG_HDLC, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "context", MISDN_CFG_CONTEXT, MISDN_CTYPE_STR, "default", NONE },
 	{ "language", MISDN_CFG_LANGUAGE, MISDN_CTYPE_STR, "en", NONE },
@@ -727,7 +727,7 @@ void misdn_cfg_destroy (void)
 	ast_mutex_destroy(&config_mutex);
 }
 
-void misdn_cfg_init (int this_max_ports)
+int misdn_cfg_init (int this_max_ports)
 {
 	char config[] = "misdn.conf";
 	char *cat, *p;
@@ -737,7 +737,7 @@ void misdn_cfg_init (int this_max_ports)
 
 	if (!(cfg = AST_LOAD_CFG(config))) {
 		ast_log(LOG_WARNING,"no misdn.conf ?\n");
-		return;
+		return -1;
 	}
 
 	misdn_cfg_lock();
@@ -783,4 +783,6 @@ void misdn_cfg_init (int this_max_ports)
 
 	misdn_cfg_unlock();
 	AST_DESTROY_CFG(cfg);
+
+	return 0;
 }

@@ -190,7 +190,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
 		}
-		state->save_pos = state->pos + 1;
+		state->save_pos = state->pos;
 	}
 }
 
@@ -201,35 +201,33 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	int tries;
 
 	if (state->save_pos) {
-		state->pos = state->save_pos - 1;
+		state->pos = state->save_pos;
 		state->save_pos = 0;
-	} else {
+	}
+
+	state->samples = 0;
+	if (chan->stream) {
+		ast_closestream(chan->stream);
+		chan->stream = NULL;
+		state->pos++;
+		state->pos %= state->class->total_files;
+	}
+
+	if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
 		/* Try 20 times to find something good */
-		for (tries=0;tries < 20;tries++) {
-			state->samples = 0;
-			if (chan->stream) {
-				ast_closestream(chan->stream);
-				chan->stream = NULL;
-				state->pos++;
-			}
-
-			if (ast_test_flag(state->class, MOH_RANDOMIZE))
-				state->pos = rand();
-
-			state->pos %= state->class->total_files;
+		for (tries = 0; tries < 20; tries++) {
+			state->pos = rand() % state->class->total_files;
 
 			/* check to see if this file's format can be opened */
 			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
-
 		}
 	}
 
-	state->pos = state->pos % state->class->total_files;
-	
 	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
 		ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", state->class->filearray[state->pos], strerror(errno));
 		state->pos++;
+		state->pos %= state->class->total_files;
 		return -1;
 	}
 
@@ -297,6 +295,8 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 			/* initialize */
 			memset(state, 0, sizeof(struct moh_files_state));
 			state->class = class;
+			if (ast_test_flag(state->class, MOH_RANDOMIZE))
+				state->pos = rand() % class->total_files;
 		}
 
 		state->origwfmt = chan->writeformat;
@@ -326,6 +326,7 @@ static int spawn_mp3(struct mohclass *class)
 	int argc = 0;
 	DIR *dir = NULL;
 	struct dirent *de;
+	sigset_t signal_set, old_set;
 
 	
 	if (!strcasecmp(class->dir, "nodir")) {
@@ -426,6 +427,11 @@ static int spawn_mp3(struct mohclass *class)
 	if (time(NULL) - class->start < respawn_time) {
 		sleep(respawn_time - (time(NULL) - class->start));
 	}
+
+	/* Block signals during the fork() */
+	sigfillset(&signal_set);
+	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
+
 	time(&class->start);
 	class->pid = fork();
 	if (class->pid < 0) {
@@ -439,6 +445,10 @@ static int spawn_mp3(struct mohclass *class)
 
 		if (option_highpriority)
 			ast_set_priority(0);
+
+		/* Reset ignored signals back to default */
+		signal(SIGPIPE, SIG_DFL);
+		pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL);
 
 		close(fds[0]);
 		/* Stdout goes to pipe */
@@ -466,6 +476,7 @@ static int spawn_mp3(struct mohclass *class)
 		_exit(1);
 	} else {
 		/* Parent */
+		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 		close(fds[1]);
 	}
 	return fds[0];

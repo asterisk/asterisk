@@ -120,6 +120,8 @@ void ast_variable_append(struct ast_category *category, struct ast_variable *var
 	else
 		category->root = variable;
 	category->last = variable;
+	while (category->last->next)
+		category->last = category->last->next;
 }
 
 void ast_variables_destroy(struct ast_variable *v)
@@ -301,6 +303,7 @@ struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
 
 	v = cat->root;
 	cat->root = NULL;
+	cat->last = NULL;
 
 	return v;
 }
@@ -698,10 +701,13 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	if ((f = fopen(fn, "w"))) {
 #endif	    
 		if (option_verbose > 1)
-			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
+			ast_verbose(VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
-		fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
+		if (strcmp(configfile, fn))
+			fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
+		else
+			fprintf(f, ";! Filename: %s\n", configfile);
 		fprintf(f, ";! Generator: %s\n", generator);
 		fprintf(f, ";! Creation Date: %s", date);
 		fprintf(f, ";!\n");
@@ -731,9 +737,9 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		}
 	} else {
 		if (option_debug)
-			printf("Unable to open for writing: %s\n", fn);
+			ast_log(LOG_DEBUG, "Unable to open for writing: %s\n", fn);
 		if (option_verbose > 1)
-			printf( "Unable to write (%s)", strerror(errno));
+			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
 		return -1;
 	}
 	fclose(f);

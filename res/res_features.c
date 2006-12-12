@@ -1774,12 +1774,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
 
 		memset(&config, 0, sizeof(struct ast_bridge_config));
-		ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
-		ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
-		config.timelimit = 0;
-		config.play_warning = 0;
-		config.warning_freq = 0;
-		config.warning_sound=NULL;
 		res = ast_bridge_call(chan, peer, &config);
 
 		/* Simulate the PBX hanging up */
@@ -2058,7 +2052,8 @@ static int load_config(void)
 		ast_unregister_features();
 		var = ast_variable_browse(cfg, "applicationmap");
 		while(var) {
-			char *tmp_val=strdup(var->value);
+			char *tmp_val_orig=strdup(var->value);
+			char *tmp_val = tmp_val_orig;
 			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
@@ -2075,7 +2070,7 @@ static int load_config(void)
 
 			if (!(app && strlen(app)) || !(exten && strlen(exten)) || !(party && strlen(party)) || !(var->name && strlen(var->name))) {
 				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
-				free(tmp_val);
+				free(tmp_val_orig);
 				var = var->next;
 				continue;
 			}
@@ -2090,7 +2085,7 @@ static int load_config(void)
 				}
 				if (!feature) {
 					ast_log(LOG_NOTICE, "Malloc failed at feature mapping\n");
-					free(tmp_val);
+					free(tmp_val_orig);
 					var = var->next;
 					continue;
 				}
@@ -2099,7 +2094,6 @@ static int load_config(void)
 				ast_copy_string(feature->sname,var->name,FEATURE_SNAME_LEN);
 				ast_copy_string(feature->app,app,FEATURE_APP_LEN);
 				ast_copy_string(feature->exten, exten,FEATURE_EXTEN_LEN);
-				free(tmp_val);
 				
 				if (app_args) 
 					ast_copy_string(feature->app_args,app_args,FEATURE_APP_ARGS_LEN);
@@ -2114,6 +2108,7 @@ static int load_config(void)
 					ast_set_flag(feature,AST_FEATURE_FLAG_CALLEE);
 				else {
 					ast_log(LOG_NOTICE, "Invalid party specification for feature '%s', must be caller, or callee\n", var->name);
+					free(tmp_val_orig);
 					var = var->next;
 					continue;
 				}
@@ -2121,6 +2116,7 @@ static int load_config(void)
 				ast_register_feature(feature);
 				
 				if (option_verbose >=1) ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
+				free(tmp_val_orig);
 			}
 			var = var->next;
 		}	 

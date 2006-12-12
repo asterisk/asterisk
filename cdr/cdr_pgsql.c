@@ -64,8 +64,8 @@ static int connected = 0;
 
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
-PGconn		*conn;
-PGresult	*result;
+PGconn		*conn = NULL;
+PGresult	*result = NULL;
 
 static int pgsql_log(struct ast_cdr *cdr)
 {

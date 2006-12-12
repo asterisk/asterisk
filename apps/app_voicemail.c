@@ -77,6 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define COMMAND_TIMEOUT 5000
 #define	VOICEMAIL_DIR_MODE	0700
 #define	VOICEMAIL_FILE_MODE	0600
+#define	CHUNKSIZE	65536
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
 #define ASTERISK_USERNAME "asterisk"
@@ -925,6 +926,7 @@ static int retrieve_file(char *dir, int msgnum)
 				goto yuck;
 			}
 			if (!strcasecmp(coltitle, "recording")) {
+				off_t offset;
 				res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize);
 				fdlen = colsize;
 				if (fd > -1) {
@@ -935,17 +937,25 @@ static int retrieve_file(char *dir, int msgnum)
 						fd = -1;
 						continue;
 					}
-					if (fd > -1)
-						fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-				}
-				if (fdm) {
-					memset(fdm, 0, fdlen);
-					res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
-					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-						ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-						goto yuck;
+					/* Read out in small chunks */
+					for (offset = 0; offset < colsize; offset += CHUNKSIZE) {
+						/* +1 because SQLGetData likes null-terminating binary data */
+						if ((fdm = mmap(NULL, CHUNKSIZE + 1, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == -1) {
+							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
+							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+							goto yuck;
+						} else {
+							res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, CHUNKSIZE + 1, NULL);
+							munmap(fdm, 0);
+							if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+								ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+								unlink(full_fn);
+								SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+								goto yuck;
+							}
+						}
 					}
+					truncate(full_fn, fdlen);
 				}
 			} else {
 				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
@@ -964,8 +974,6 @@ static int retrieve_file(char *dir, int msgnum)
 yuck:	
 	if (f)
 		fclose(f);
-	if (fdm)
-		munmap(fdm, fdlen);
 	if (fd > -1)
 		close(fd);
 	return x - 1;
@@ -2749,7 +2757,7 @@ static int adsi_logo(unsigned char *buf)
 {
 	int bytes = 0;
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_CENT, 0, "Comedian Mail", "");
-	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_CENT, 0, "(C)2002 LSS, Inc.", "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_CENT, 0, "(C)2002-2006 Digium, Inc.", "");
 	return bytes;
 }
 
@@ -3277,12 +3285,11 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 	return res;
 }
 
-static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfts,
-			     char *context, signed char record_gain)
+static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfmts,
+			     char *context, signed char record_gain, long *duration)
 {
 	int cmd = 0;
 	int retries = 0;
-	int duration = 0;
 	signed char zero_gain = 0;
 
 	while ((cmd >= 0) && (cmd != 't') && (cmd != '*')) {
@@ -3290,15 +3297,66 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			retries = 0;
 		switch (cmd) {
 		case '1': 
-			/* prepend a message to the current message and return */
+			/* prepend a message to the current message, update the metadata and return */
 		{
-			char file[200];
-			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
+			char msgfile[PATH_MAX];
+			char textfile[PATH_MAX];
+			int prepend_duration = 0;
+			struct ast_config *msg_cfg;
+			char *duration_str;
+
+			make_file(msgfile, sizeof(msgfile), curdir, curmsg);
+			strcpy(textfile, msgfile);
+			strncat(textfile, ".txt", sizeof(textfile) - 1);
+			*duration = 0;
+
+			/* if we can't read the message metadata, stop now */
+			if (!(msg_cfg = ast_config_load(textfile))) {
+				cmd = 0;
+				break;
+			}
+
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
-			cmd = ast_play_and_prepend(chan, NULL, file, 0, vmfmts, &duration, 1, silencethreshold, maxsilence);
+
+			cmd = ast_play_and_prepend(chan, NULL, msgfile, 0, vmfmts, &prepend_duration, 1, silencethreshold, maxsilence);
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
+
+			
+			if ((duration_str = ast_variable_retrieve(msg_cfg, "message", "duration")))
+				*duration = atoi(duration_str);
+
+			if (prepend_duration) {
+				struct ast_variable *var, *prev = NULL, *varlist;
+				struct ast_category *msg_cat;
+
+				*duration += prepend_duration;
+				msg_cat = ast_category_get(msg_cfg, "message");
+				varlist = ast_category_detach_variables(msg_cat);
+				for (var = varlist; var; prev = var, var = var->next) {
+					if (!strcmp(var->name, "duration")) {
+						if (!prev)
+							varlist = var->next;
+						else
+							prev->next = var->next;
+						free(var);
+						break;
+					}
+				}
+				/* need enough space for a maximum-length message duration */
+				duration_str = alloca(12);
+				snprintf(duration_str, 11, "%ld", *duration);
+				if ((var = ast_variable_new("duration", duration_str))) {
+					ast_variable_append(msg_cat, varlist);
+					ast_variable_append(msg_cat, var);
+					config_text_file_save(textfile, msg_cfg, "app_voicemail");
+					STORE(curdir, vmu->mailbox, context, curmsg);
+				}
+			}
+
+			ast_config_destroy(msg_cfg);
+
 			break;
 		}
 		case '2': 
@@ -3509,11 +3567,13 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		cmd = leave_voicemail(chan, mailbox, &leave_options);
 	} else {
 		/* Forward VoiceMail */
+		long duration = 0;
+
 		RETRIEVE(dir, curmsg);
-		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context, record_gain);
+		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context, record_gain, &duration);
 		if (!cmd) {
 			while (!res && vmtmp) {
-				copy_message(chan, sender, 0, curmsg, 0, vmtmp, fmt);
+				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt);
 	
 				saved_messages++;
 				vmfree = vmtmp;
@@ -5711,22 +5771,13 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 			}
 		}
 		while (vmu) {
-			char dirname[256];
-			DIR *vmdir;
-			struct dirent *vment;
-			int vmcount = 0;
-			char count[12];
+			int newmsgs = 0, oldmsgs = 0;
+			char count[12], tmp[256] = "";
 
 			if ((argc == 3) || ((argc == 5) && !strcmp(argv[4],vmu->context))) {
-				make_dir(dirname, 255, vmu->context, vmu->mailbox, "INBOX");
-				if ((vmdir = opendir(dirname))) {
-					/* No matter what the format of VM, there will always be a .txt file for each message. */
-					while ((vment = readdir(vmdir)))
-						if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
-							vmcount++;
-					closedir(vmdir);
-				}
-				snprintf(count,sizeof(count),"%d",vmcount);
+				snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
+				messagecount(tmp, &newmsgs, &oldmsgs);
+				snprintf(count,sizeof(count),"%d",newmsgs);
 				ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			}
 			vmu = vmu->next;

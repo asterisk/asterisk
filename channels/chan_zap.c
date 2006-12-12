@@ -3339,7 +3339,7 @@ static int attempt_transfer(struct zt_pvt *p)
 		   stop if now if appropriate */
 		if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
 			ast_moh_stop(ast_bridged_channel(p->subs[SUB_THREEWAY].owner));
-		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
+		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(ast_bridged_channel(p->subs[SUB_REAL].owner), AST_CONTROL_RINGING);
 		}
 		if (p->subs[SUB_REAL].owner->cdr) {
@@ -3363,7 +3363,7 @@ static int attempt_transfer(struct zt_pvt *p)
 		ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 		unalloc_sub(p, SUB_THREEWAY);
 	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
-		if (p->subs[SUB_REAL].owner->_state == AST_STATE_RINGING) {
+		if (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_RINGING) {
 			ast_indicate(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), AST_CONTROL_RINGING);
 		}
 		ast_moh_stop(ast_bridged_channel(p->subs[SUB_THREEWAY].owner));
@@ -4853,11 +4853,10 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			}
 #endif
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
-			if (chan->_state != AST_STATE_UP) {
-				if ((chan->_state != AST_STATE_RING) ||
-					((p->sig != SIG_FXSKS) &&
+			if (chan->_state != AST_STATE_UP && chan->_state != AST_STATE_RING) {
+				if ((p->sig != SIG_FXSKS) &&
 					 (p->sig != SIG_FXSLS) &&
-					 (p->sig != SIG_FXSGS)))
+					 (p->sig != SIG_FXSGS))
 					ast_setstate(chan, AST_STATE_RINGING);
 			}
 			break;
@@ -6268,7 +6267,9 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXOLS:
 		case SIG_FXOGS:
 		case SIG_FXOKS:
-		        zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+			res = zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+			if (res && (errno == EBUSY))
+				break;
 			if (i->cidspill) {
 				/* Cancel VMWI spill */
 				free(i->cidspill);

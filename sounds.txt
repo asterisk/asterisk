@@ -728,3 +728,25 @@
 
 %spy-zap.gsm%Zap
 
+; Silence directory
+
+%1.gsm%1 second of silence
+
+%2.gsm%2 seconds of silence
+
+%3.gsm%3 seconds of silence
+
+%4.gsm%4 seconds of silence
+
+%5.gsm%5 seconds of silence
+
+%6.gsm%6 seconds of silence
+
+%7.gsm%7 seconds of silence
+
+%8.gsm%8 seconds of silence
+
+%9.gsm%9 seconds of silence
+
+%10.gsm%10 seconds of silence
+

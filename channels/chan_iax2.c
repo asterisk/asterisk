@@ -410,6 +410,7 @@ struct iax2_registry {
 };
 
 static struct iax2_registry *registrations;
+AST_MUTEX_DEFINE_STATIC(reg_lock);
 
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
 #define MIN_RETRY_TIME		100
@@ -4399,8 +4400,8 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
+	ast_mutex_lock(&reg_lock);
 	for (reg = registrations;reg;reg = reg->next) {
 		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->addr.sin_addr), ntohs(reg->addr.sin_port));
 		if (reg->us.sin_addr.s_addr) 
@@ -4410,7 +4411,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 		ast_cli(fd, FORMAT, host, 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
-	ast_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&reg_lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -5624,9 +5625,11 @@ static int iax2_register(char *value, int lineno)
 		reg->addr.sin_family = AF_INET;
 		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
+		ast_mutex_lock(&reg_lock);
 		reg->next = registrations;
 		reg->callno = 0;
 		registrations = reg;
+		ast_mutex_unlock(&reg_lock);
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
@@ -7110,7 +7113,7 @@ retryowner:
 					if (!strcmp(ies.called_number, ast_parking_ext())) {
 						if (iax_park(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->owner)) {
 							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
-						} else
+						} else if (ast_bridged_channel(iaxs[fr->callno]->owner))
 							ast_log(LOG_DEBUG, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 					} else {
 						if (ast_async_goto(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->context, ies.called_number, 1))
@@ -8582,6 +8585,7 @@ static void delete_users(void)
 		user = user->next;
 	}
 	ast_mutex_unlock(&userl.lock);
+	ast_mutex_lock(&reg_lock);
 	for (reg = registrations;reg;) {
 		regl = reg;
 		reg = reg->next;
@@ -8600,6 +8604,7 @@ static void delete_users(void)
 		free(regl);
 	}
 	registrations = NULL;
+	ast_mutex_unlock(&reg_lock);
 	ast_mutex_lock(&peerl.lock);
 	for (peer=peerl.peers;peer;) {
 		/* Assume all will be deleted, and we'll find out for sure later */
@@ -8976,8 +8981,10 @@ static int reload_config(void)
 	set_config(config,1);
 	prune_peers();
 	prune_users();
+	ast_mutex_lock(&reg_lock);
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
+	ast_mutex_unlock(&reg_lock);
 	/* Qualify hosts, too */
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
@@ -9347,9 +9354,6 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 
 	buf[0] = '\0';
 
-	if (chan->tech != &iax2_tech)
-		return buf;
-
 	if (!(peername = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Memory Error!\n");
 		return ret;
@@ -9357,7 +9361,10 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {
-	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
+	        unsigned short callno;
+		if (chan->tech != &iax2_tech)
+			return buf;
+		callno = PTR_TO_CALLNO(chan->tech_pvt);	
 		ast_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
 		return buf;
 	}
@@ -9742,8 +9749,10 @@ int load_module(void)
 		ast_netsock_release(netsock);
 	}
 
+	ast_mutex_lock(&reg_lock);
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
+	ast_mutex_unlock(&reg_lock);
 	ast_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (peer->sockfd < 0)
