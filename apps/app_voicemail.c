@@ -2428,7 +2428,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		ast_log(LOG_WARNING, "Unable to store '%s' (can't create temporary file)\n", fn);
 		return -1;
 	} else {
-		make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, (!ast_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : NULL), (!ast_strlen_zero(chan->cid.cid_name) ? chan->cid.cid_name : NULL), fn, fmt, duration, 1, chan, NULL, 1);
+		make_email_file(p, myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), fn, fmt, duration, 1, chan, NULL, 1);
 		/* read mail file to memory */		
 		len = ftell(p);
 		rewind(p);
@@ -2658,7 +2658,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
 	ast_unlock_path(todir);
-	notify_new_message(chan, recip, recipmsgnum, duration, fmt, (!ast_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : NULL), (!ast_strlen_zero(chan->cid.cid_name) ? chan->cid.cid_name : NULL));
+	notify_new_message(chan, recip, recipmsgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 	
 	return 0;
 }
@@ -3080,7 +3080,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				chan->exten,
 				chan->priority,
 				chan->name,
-				ast_callerid_merge(callerid, sizeof(callerid), (!ast_strlen_zero(chan->cid.cid_name) ? chan->cid.cid_name : NULL), (!ast_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : NULL), "Unknown"),
+				ast_callerid_merge(callerid, sizeof(callerid), S_OR(chan->cid.cid_name, NULL), S_OR(chan->cid.cid_num, NULL), "Unknown"),
 				date, (long)time(NULL),
 				category ? category : ""); 
 		} else
@@ -3142,7 +3142,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #endif
 					if (ast_fileexists(fn, NULL, NULL)) {
 						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms);
-						notify_new_message(chan, vmu, msgnum, duration, fmt, (!ast_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : NULL), (!ast_strlen_zero(chan->cid.cid_name) ? chan->cid.cid_name : NULL));
+						notify_new_message(chan, vmu, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 						DISPOSE(dir, msgnum);
 					}
 				}
@@ -4135,7 +4135,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
 				attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
 				/* NULL category for IMAP storage */
-				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, (!ast_strlen_zero(chan->cid.cid_num) ? chan->cid.cid_num : NULL), (!ast_strlen_zero(chan->cid.cid_name) ? chan->cid.cid_name : NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
+				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
 
 #else
 				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt);
