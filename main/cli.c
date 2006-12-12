@@ -1598,12 +1598,16 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	char *ret = NULL;
 	char matchstr[80] = "";
 	int tws = 0;
+	/* Split the argument into an array of words */
 	char *dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws);
 
 	if (!dup)	/* malloc error */
 		return NULL;
+
+	/* Compute the index of the last argument (could be an empty string) */
 	argindex = (!ast_strlen_zero(word) && x>0) ? x-1 : x;
-	/* rebuild the command, ignore tws */
+
+	/* rebuild the command, ignore terminating white space and flatten space */
 	ast_join(matchstr, sizeof(matchstr)-1, argv);
 	matchlen = strlen(matchstr);
 	if (tws) {
@@ -1616,7 +1620,12 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	while ( (e = cli_next(&i)) ) {
 		/* XXX repeated code */
 		int src = 0, dst = 0, n = 0;
-		for (;; dst++, src += n) {
+
+		/*
+		 * Try to match words, up to and excluding the last word, which
+		 * is either a blank or something that we want to extend.
+		 */
+		for (;src < argindex; dst++, src += n) {
 			n = word_match(argv[src], e->cmda[dst]);
 			if (n < 0)
 				break;
@@ -1627,12 +1636,17 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 		ret = is_prefix(argv[src], e->cmda[dst], state - matchnum, &n);
 		matchnum += n;	/* this many matches here */
 		if (ret) {
+			/*
+			 * argv[src] is a valid prefix of the next word in this
+			 * command. If this is also the correct entry, return it.
+			 */
 			if (matchnum > state)
 				break;
 			free(ret);
 			ret = NULL;
 		} else if (ast_strlen_zero(e->cmda[dst])) {
-			/* This entry is a prefix of the command string entered
+			/*
+			 * This entry is a prefix of the command string entered
 			 * (only one entry in the list should have this property).
 			 * Run the generator if one is available. In any case we are done.
 			 */
