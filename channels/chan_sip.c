@@ -811,7 +811,7 @@ struct sip_auth {
 #define T38FAX_RATE_12000			(1 << 12)	/*!< 12000 bps t38FaxRate */
 #define T38FAX_RATE_14400			(1 << 13)	/*!< 14400 bps t38FaxRate */
 
-/*!< This is default: NO MMR and JBIG trancoding, NO fill bit removal, transferredTCF TCF, UDP FEC, Version 0 and 9600 max fax rate */
+/*!< This is default: NO MMR and JBIG transcoding, NO fill bit removal, transferredTCF TCF, UDP FEC, Version 0 and 9600 max fax rate */
 static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600;
 
 #define sipdebug		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG)
@@ -841,7 +841,7 @@ struct t38properties {
 enum referstatus {
         REFER_IDLE,                    /*!< No REFER is in progress */
         REFER_SENT,                    /*!< Sent REFER to transferee */
-        REFER_RECEIVED,                /*!< Received REFER from transferer */
+        REFER_RECEIVED,                /*!< Received REFER from transferrer */
         REFER_CONFIRMED,               /*!< Refer confirmed with a 100 TRYING */
         REFER_ACCEPTED,                /*!< Accepted by transferee */
         REFER_RINGING,                 /*!< Target Ringing */
@@ -1159,7 +1159,7 @@ struct sip_registry {
 	int refresh;			/*!< How often to refresh */
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
 	enum sipregistrystate regstate;	/*!< Registration state (see above) */
-	time_t regtime;		/*!< Last succesful registration time */
+	time_t regtime;		/*!< Last successful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/*!< Who the server thinks we are */
@@ -1179,7 +1179,7 @@ static struct ast_peer_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_peer);
 } peerl;
 
-/*! \brief  The register list: Other SIP proxys we register with and place calls to */
+/*! \brief  The register list: Other SIP proxies we register with and place calls to */
 static struct ast_register_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_registry);
 	int recheck;
@@ -2872,7 +2872,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	struct sip_pvt *p;
 	struct varshead *headp;
 	struct ast_var_t *current;
-	const char *referer = NULL;   /* SIP refererer */	
+	const char *referer = NULL;   /* SIP referrer */	
 
 	p = ast->tech_pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
@@ -2895,7 +2895,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 			/* This is a transfered call */
 			p->options->transfer = 1;
 		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REFERER")) {
-			/* This is the referer */
+			/* This is the referrer */
 			referer = ast_var_value(current);
 		} else if (!strcasecmp(ast_var_name(current), "SIPTRANSFER_REPLACES")) {
 			/* We're replacing a call. */
@@ -3082,9 +3082,9 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
  * This will cause unexpected behaviour in subscriptions, since a "friend"
  * is *two* devices in Asterisk, not one.
  *
- * Thought: For realtime, we should propably update storage with inuse counter... 
+ * Thought: For realtime, we should probably update storage with inuse counter... 
  *
- * \return 0 if call is ok (no call limit, below treshold)
+ * \return 0 if call is ok (no call limit, below threshold)
  *	-1 on rejection of call
  *		
  */
@@ -3244,7 +3244,7 @@ static int hangup_sip2cause(int cause)
 			return AST_CAUSE_NO_ANSWER;
 		case 484:	/* Address incomplete */
 			return AST_CAUSE_INVALID_NUMBER_FORMAT;
-		case 485:	/* Ambigous */
+		case 485:	/* Ambiguous */
 			return AST_CAUSE_UNALLOCATED;
 		case 486:	/* Busy everywhere */
 			return AST_CAUSE_BUSY;

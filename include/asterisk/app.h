@@ -127,7 +127,7 @@ int ast_safe_system(const char *s);
  * Normally, Asterisk has a SIGCHLD handler that is cleaning up all zombie
  * processes from forking elsewhere in Asterisk.  However, if you want to
  * wait*() on the process to retrieve information about it's exit status,
- * then this signal handler needs to be temporaraly replaced.
+ * then this signal handler needs to be temporarily replaced.
  *
  * Code that executes this function *must* call ast_unreplace_sigchld()
  * after it is finished doing the wait*().

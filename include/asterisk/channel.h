@@ -91,7 +91,7 @@
 	The Core bridge handles two channels (a "phone call") and bridge
 	them together.
 	
-	The conference bridge (meetme) handles several channels simultaneosly
+	The conference bridge (meetme) handles several channels simultaneously
 	with the support of an external timer (zaptel timer). This is used
 	not only by the Conference application (meetme) but also by the
 	page application and the SLA system introduced in 1.4.
@@ -679,7 +679,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *s
  * \param format requested channel format
  * \param data data to pass to the channel requester
  * \param timeout maximum amount of time to wait for an answer
- * \param reason why unsuccessful (if unsuceessful)
+ * \param reason why unsuccessful (if unsuccessful)
  * \param cidnum Caller-ID Number
  * \param cidname Caller-ID Name
  * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
@@ -745,7 +745,7 @@ int ast_check_hangup(struct ast_channel *chan);
  * This function compares a offset from current time with the absolute time 
  * out on a channel (when to hang up). If the absolute time out on a channel
  * is earlier than current time plus the offset, it returns 1, if the two
- * time values are equal, it return 0, otherwise, it retturn -1.
+ * time values are equal, it return 0, otherwise, it return -1.
  */
 int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
 
@@ -802,7 +802,7 @@ int ast_indicate_data(struct ast_channel *chan, int condition, const void *data,
   \return Returns < 0 on  failure, 0 if nothing ever arrived, and the # of ms remaining otherwise */
 int ast_waitfor(struct ast_channel *chan, int ms);
 
-/*! \brief Wait for a specied amount of time, looking for hangups 
+/*! \brief Wait for a specified amount of time, looking for hangups 
  * \param chan channel to wait for
  * \param ms length of time in milliseconds to sleep
  * Waits for a specified amount of time, servicing the channel as required.
@@ -810,7 +810,7 @@ int ast_waitfor(struct ast_channel *chan, int ms);
  */
 int ast_safe_sleep(struct ast_channel *chan, int ms);
 
-/*! \brief Wait for a specied amount of time, looking for hangups and a condition argument 
+/*! \brief Wait for a specified amount of time, looking for hangups and a condition argument 
  * \param chan channel to wait for
  * \param ms length of time in milliseconds to sleep
  * \param cond a function pointer for testing continue condition
@@ -893,7 +893,7 @@ int ast_prod(struct ast_channel *chan);
 int ast_set_read_format(struct ast_channel *chan, int format);
 
 /*! \brief Sets write format on channel chan
- * Set write format for channel to whichever compoent of "format" is best. 
+ * Set write format for channel to whichever component of "format" is best. 
  * \param chan channel to change
  * \param format new format for writing
  * \return Returns 0 on success, -1 on failure
@@ -1078,7 +1078,7 @@ char *ast_state2str(enum ast_channel_state);
  * \param transfercapability transfercapabilty to get the name of
  * Give a name to a transfercapbility
  * See above
- * Returns the text form of the binary transfer capbility
+ * Returns the text form of the binary transfer capbaility
  */
 char *ast_transfercapability2str(int transfercapability) attribute_const;
 
@@ -1129,7 +1129,6 @@ int ast_channel_sendurl(struct ast_channel *channel, const char *url);
    being DTMF-deferred */
 int ast_channel_defer_dtmf(struct ast_channel *chan);
 
-/*! Undeos a defer */
 /*! Undo defer.  ast_read will return any dtmf characters that were queued */
 void ast_channel_undefer_dtmf(struct ast_channel *chan);
 
@@ -1150,7 +1149,7 @@ int ast_shutting_down(void);
 /*! Activate a given generator */
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params);
 
-/*! Deactive an active generator */
+/*! Deactivate an active generator */
 void ast_deactivate_generator(struct ast_channel *chan);
 
 void ast_set_callerid(struct ast_channel *chan, const char *cidnum, const char *cidname, const char *ani);
@@ -1196,7 +1195,7 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 int ast_transfer(struct ast_channel *chan, char *dest);
 
 /*!	\brief  Start masquerading a channel
-	XXX This is a seriously wacked out operation.  We're essentially putting the guts of
+	XXX This is a seriously whacked out operation.  We're essentially putting the guts of
            the clone channel into the original channel.  Start by killing off the original
            channel's backend.   I'm not sure we're going to keep this function, because
            while the features are nice, the cost is very high in terms of pure nastiness. XXX

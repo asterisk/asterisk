@@ -156,7 +156,7 @@ struct ast_app *pbx_findapp(const char *app);
  * \param data the data passed into the app
  *
  * This application executes an application on a given channel.  It
- * saves the stack and executes the given appliation passing in
+ * saves the stack and executes the given application passing in
  * the given data.
  *
  * \return 0 on success, and -1 on failure
