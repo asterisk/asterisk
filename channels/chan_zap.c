@@ -118,7 +118,7 @@ static struct ast_jb_conf default_jbconf =
 };
 static struct ast_jb_conf global_jbconf;
 
-#if !defined(ZT_SIG_EM_E1) || (defined(HAVE_PRI) && !defined(ZT_SIG_HARDHDLC))
+#if !defined(ZT_TCOP_RELEASE) || (defined(HAVE_PRI) && !defined(ZT_SIG_HARDHDLC))
 #error "Your zaptel is too old.  Please update"
 #endif
 
