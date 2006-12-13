@@ -3422,13 +3422,9 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 }
 
 /*! \brief Send ack once */
-static void manager_dpsendack(struct mansession *s, struct message *m, int *sentack)
+static void manager_dpsendack(struct mansession *s, struct message *m)
 {
- 	if (*sentack)
-		return;
 	astman_send_listack(s, m, "DialPlan list will follow", "start");
-	*sentack = 1;
-	return;
 }
 
 /*! \brief Show dialplan extensions
@@ -3440,7 +3436,6 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 {
 	struct ast_context *c;
 	int res=0, old_total_exten = dpc->total_exten;
-	int sentpositivemanagerack = 0;
 
 	if (ast_strlen_zero(exten))
 		exten = NULL;
@@ -3503,8 +3498,8 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 				int prio = ast_get_extension_priority(p);
 
 				dpc->total_prio++;
-				dpc->total_items++;
-				manager_dpsendack(s, m, &sentpositivemanagerack);
+				if (!dpc->total_items++)
+					manager_dpsendack(s, m);
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
 				astman_append(s, "Context: %s\r\nExtension: %s\r\n", ast_get_context_name(c), ast_get_extension_name(e) );
 
@@ -3527,8 +3522,8 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 				/* Check all includes for the requested extension */
 				manager_show_dialplan_helper(s, m, actionidtext, ast_get_include_name(i), exten, dpc, i);
 			} else {
-				dpc->total_items++;
-				manager_dpsendack(s, m, &sentpositivemanagerack);
+				if (!dpc->total_items++)
+					manager_dpsendack(s, m);
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
 				astman_append(s, "Context: %s\r\nIncludeContext: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_include_name(i), ast_get_include_registrar(i));
 				astman_append(s, "\r\n");
@@ -3544,8 +3539,8 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 
 			snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
 			if (!exten || ast_extension_match(ignorepat, exten)) {
-				dpc->total_items++;
-				manager_dpsendack(s, m, &sentpositivemanagerack);
+				if (!dpc->total_items++)
+					manager_dpsendack(s, m);
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
 				astman_append(s, "Context: %s\r\nIgnorePattern: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ipname, ast_get_ignorepat_registrar(ip));
 				astman_append(s, "\r\n");
@@ -3554,8 +3549,8 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 		if (!rinclude) {
 			struct ast_sw *sw = NULL;
 			while ( (sw = ast_walk_context_switches(c, sw)) ) {
-				dpc->total_items++;
-				manager_dpsendack(s, m, &sentpositivemanagerack);
+				if (!dpc->total_items++)
+					manager_dpsendack(s, m);
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
 				astman_append(s, "Context: %s\r\nSwitch: %s/%s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_registrar(sw));	
 				astman_append(s, "\r\n");
