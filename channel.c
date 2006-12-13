@@ -39,7 +39,7 @@
 #include <zaptel.h>
 #endif /* __linux__ */
 #ifndef ZT_TIMERPING
-#error "You need newer zaptel!  Please cvs update zaptel"
+#error "You need newer zaptel!  Please svn update zaptel"
 #endif
 #endif
 
@@ -3351,7 +3351,10 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		if (bridge_end.tv_sec) {
 			to = ast_tvdiff_ms(bridge_end, ast_tvnow());
 			if (to <= 0) {
-				res = AST_BRIDGE_COMPLETE;
+				if (config->timelimit)
+					res = AST_BRIDGE_RETRY;
+				else
+ 					res = AST_BRIDGE_COMPLETE;
 				break;
 			}
 		} else
