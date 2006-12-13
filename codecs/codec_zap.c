@@ -62,7 +62,8 @@ static unsigned int global_useplc = 0;
 static int cardsmode = 0;
 
 static int totalchannels = 0;
-static int channelsinuse = 0;
+static int complexinuse = 0;
+static int simpleinuse = 0;
 AST_MUTEX_DEFINE_STATIC(channelcount);
 
 
@@ -89,11 +90,12 @@ struct translator {
 	AST_LIST_ENTRY(translator) entry;
 };
 
-static AST_LIST_HEAD_STATIC(translators, translator);
+static AST_LIST_HEAD_STATIC(zap_translators, translator);
 
 struct pvt {
 	int fd;
 	int fake;
+	int inuse;
 #ifdef DEBUG_TRANSCODE
 	int totalms;
 	int lasttotalms;
@@ -102,10 +104,25 @@ struct pvt {
 	struct ast_frame f;
 };
 
+static void activate_translator(int simple);
+static void deactivate_translator(int simple);
+
+
 static int show_transcoder(int fd, int argc, char *argv[])
 {
 	ast_mutex_lock(&channelcount);
-	ast_verbose("%d of %d channels are currently in use.\n",channelsinuse, totalchannels);
+	if (!totalchannels) { 
+		ast_verbose("No transcoder card registered\n");
+		ast_mutex_unlock(&channelcount);
+		return RESULT_SUCCESS;
+	}
+	if(!cardsmode)             
+		ast_verbose("%d/%d encoders/decoders of %d channels (G.729a / G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+	else if (cardsmode == 1)
+		ast_verbose("%d/%d encoders/decoders of %d channels (G.729a) are in use.\n",complexinuse, simpleinuse, totalchannels);
+	else if (cardsmode == 2)
+		ast_verbose("%d/%d encoders/decoders of %d channels (G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+
 	ast_mutex_unlock(&channelcount);
 	return RESULT_SUCCESS;
 }
@@ -121,7 +138,20 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		pvt->samples = f->samples;
 		return 0;
 	}
-
+	if(!ztp->inuse) {
+		ast_mutex_lock(&channelcount);
+		if(pvt->t->dstfmt == 8 || pvt->t->dstfmt == 0 ) {
+			complexinuse++;
+			if(complexinuse == totalchannels)
+				deactivate_translator(0);
+		} else {
+			simpleinuse++;
+			if(simpleinuse == totalchannels)
+				deactivate_translator(1);
+		}
+		ast_mutex_unlock(&channelcount);
+		ztp->inuse = 1;
+	}
 	if (!hdr->srclen)
 		/* Copy at front of buffer */
 		hdr->srcoffset = 0;
@@ -205,9 +235,19 @@ static void zap_destroy(struct ast_trans_pvt *pvt)
 		ast_log(LOG_WARNING, "Failed to release transcoder channel: %s\n", strerror(errno));
 				
 	munmap(ztp->hdr, sizeof(*ztp->hdr));
-	ast_mutex_lock(&channelcount);
-	channelsinuse--; 
-	ast_mutex_unlock(&channelcount);
+	if(ztp->inuse) {
+		ast_mutex_lock(&channelcount);
+		if(pvt->t->dstfmt == 8 || pvt->t->dstfmt == 0) {
+			if(complexinuse == totalchannels)
+				activate_translator(0);
+			complexinuse--;
+		} else {
+			if(simpleinuse == totalchannels)
+				activate_translator(1);
+			simpleinuse--;
+		}
+		ast_mutex_unlock(&channelcount);
+	}
 	close(ztp->fd);
 }
 
@@ -263,9 +303,6 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 static int zap_new(struct ast_trans_pvt *pvt)
 {
-	ast_mutex_lock(&channelcount);
-	channelsinuse++; 
-	ast_mutex_unlock(&channelcount);
 	return zap_translate(pvt, pvt->t->dstfmt, pvt->t->srcfmt);
 }
 
@@ -288,7 +325,8 @@ static int register_translator(int dst, int src)
 
 	if (!(zt = ast_calloc(1, sizeof(*zt))))
 		return -1;
-
+	if (!((cardsmode  == 1 && (dst == 8 || src == 8)) || (cardsmode == 2 && (dst == 0 || src == 0)) || (cardsmode == 0)))
+		return -1;
 	snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s", 
 		 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
 	zt->t.srcfmt = (1 << src);
@@ -306,9 +344,9 @@ static int register_translator(int dst, int src)
 		return -1;
 	}
 
-	AST_LIST_LOCK(&translators);
-	AST_LIST_INSERT_HEAD(&translators, zt, entry);
-	AST_LIST_UNLOCK(&translators);
+	AST_LIST_LOCK(&zap_translators);
+	AST_LIST_INSERT_HEAD(&zap_translators, zt, entry);
+	AST_LIST_UNLOCK(&zap_translators);
 
 	global_format_map.map[dst][src] = 1;
 
@@ -319,34 +357,76 @@ static void drop_translator(int dst, int src)
 {
 	struct translator *cur;
 
-	AST_LIST_LOCK(&translators);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, cur, entry) {
+	AST_LIST_LOCK(&zap_translators);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&zap_translators, cur, entry) {
 		if (cur->t.srcfmt != src)
 			continue;
 
 		if (cur->t.dstfmt != dst)
 			continue;
 
-		AST_LIST_REMOVE_CURRENT(&translators, entry);
+		AST_LIST_REMOVE_CURRENT(&zap_translators, entry);
 		ast_unregister_translator(&cur->t);
 		free(cur);
 		global_format_map.map[dst][src] = 0;
 		break;
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&translators);
+	AST_LIST_UNLOCK(&zap_translators);
 }
 
 static void unregister_translators(void)
 {
 	struct translator *cur;
 
-	AST_LIST_LOCK(&translators);
-	while ((cur = AST_LIST_REMOVE_HEAD(&translators, entry))) {
+	AST_LIST_LOCK(&zap_translators);
+	while ((cur = AST_LIST_REMOVE_HEAD(&zap_translators, entry))) {
 		ast_unregister_translator(&cur->t);
 		free(cur);
 	}
-	AST_LIST_UNLOCK(&translators);
+	AST_LIST_UNLOCK(&zap_translators);
+}
+
+
+static void activate_translator(int simple)
+{
+	struct translator *cur;
+
+	AST_LIST_LOCK(&zap_translators);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&zap_translators, cur, entry) {
+		if(!simple) {
+			if (cur->t.dstfmt == 0 || cur->t.dstfmt == 8) {
+				ast_translator_activate(&cur->t);
+			}
+		} else {
+			if(cur->t.dstfmt == 2 || cur->t.dstfmt == 3) {
+				ast_translator_activate(&cur->t);
+			}
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&zap_translators);
+}
+
+
+static void deactivate_translator(int simple)
+{
+	struct translator *cur;
+
+	AST_LIST_LOCK(&zap_translators);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&zap_translators, cur, entry) {
+		if(!simple) {
+			if (cur->t.dstfmt == 0 || cur->t.dstfmt == 8) {
+				ast_translator_deactivate(&cur->t);
+			}
+		} else {
+			if(cur->t.dstfmt == 2 || cur->t.dstfmt == 3) {
+				ast_translator_deactivate(&cur->t);
+			}
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&zap_translators);
 }
 
 static void parse_config(void)
@@ -380,7 +460,7 @@ static void parse_config(void)
 	ast_config_destroy(cfg);
 }
 
-static void build_translators(struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
+static int build_translators(struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
 {
 	unsigned int src, dst;
 
@@ -397,8 +477,11 @@ static void build_translators(struct format_map *map, unsigned int dstfmts, unsi
 
 			if (!register_translator(dst, src))
 				map->map[dst][src] = 1;
+			else
+				return 0;
 		}
 	}
+	return 1;
 }
 
 static int find_transcoders(void)
@@ -416,10 +499,12 @@ static int find_transcoders(void)
 	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
-		ast_mutex_lock(&channelcount);
-		totalchannels += info.numchannels;
-		ast_mutex_unlock(&channelcount);
-		build_translators(&map, info.dstfmts, info.srcfmts);
+
+		if(build_translators(&map, info.dstfmts, info.srcfmts)) {
+			ast_mutex_lock(&channelcount);
+			totalchannels += info.numchannels;
+			ast_mutex_unlock(&channelcount);
+		}
 	}
 	close(fd);
 
@@ -432,7 +517,9 @@ static int find_transcoders(void)
 				drop_translator(x, y);
 		}
 	}
-
+	ast_mutex_lock(&channelcount);
+	totalchannels = totalchannels/2;
+	ast_mutex_unlock(&channelcount);
 	return 0;
 }
 
@@ -443,10 +530,10 @@ static int reload(void)
 	parse_config();
 	find_transcoders();
 
-	AST_LIST_LOCK(&translators);
-	AST_LIST_TRAVERSE(&translators, cur, entry)
+	AST_LIST_LOCK(&zap_translators);
+	AST_LIST_TRAVERSE(&zap_translators, cur, entry)
 		cur->t.useplc = global_useplc;
-	AST_LIST_UNLOCK(&translators);
+	AST_LIST_UNLOCK(&zap_translators);
 
 	return 0;
 }
