@@ -3431,8 +3431,12 @@ static void manager_dpsendack(struct mansession *s, struct message *m, int *sent
 	return;
 }
 
-/*! \brief Show dialplan extensions */
-static int manager_show_dialplan_helper(struct mansession *s, struct message *m, char *actionidtext, char *context, char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude)
+/*! \brief Show dialplan extensions
+ * XXX this function is similar but not exactly the same as the CLI's
+ * show dialplan. Must check whether the difference is intentional or not.
+ */
+static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
+	const char *actionidtext, const char *context, char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude)
 {
 	struct ast_context *c;
 	int res=0, old_total_exten = dpc->total_exten;
@@ -3453,137 +3457,115 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 		return -1;
 	}
 
-	/* walk all contexts ... */
-	for (c = ast_walk_contexts(NULL); c ; c = ast_walk_contexts(c)) {
-		/* show this context? */
-		if (!context ||
-			!strcmp(ast_get_context_name(c), context)) {
-			dpc->context_existence = 1;
+	c = NULL;		/* walk all contexts ... */
+	while ( (c = ast_walk_contexts(c)) ) {
+		struct ast_exten *e;
+		struct ast_include *i;
+		struct ast_ignorepat *ip;
 
+		if (context && strcmp(ast_get_context_name(c), context) != 0)
+			continue;	/* not the name we want */
+
+		dpc->context_existence = 1;
+
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "manager_show_dialplan: Found Context: %s \n", ast_get_context_name(c));
+
+		if (ast_lock_context(c)) {	/* failed to lock */
 			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "manager_show_dialplan: Found Context: %s \n", ast_get_context_name(c));
-
-			/* try to lock context before walking in ... */
-			if (!ast_lock_context(c)) {
-				struct ast_exten *e;
-				struct ast_include *i;
-				struct ast_ignorepat *ip;
-				struct ast_sw *sw;
-				char buf[256], buf2[256];
-
-				/* walk extensions in context  */
-				for (e = ast_walk_context_extensions(c, NULL); e; e = ast_walk_context_extensions(c, e)) {
-					struct ast_exten *p;
-					int prio;
-
-					/* looking for extension? is this our extension? */
-					if (exten &&
-						!ast_extension_match(ast_get_extension_name(e), exten))
-					{
-						if (option_debug > 2)
-							ast_log(LOG_DEBUG, "manager_show_dialplan: Skipping extension %s\n", ast_get_extension_name(e));
-						/* we are looking for extension and it's not our
- 						 * extension, so skip to next extension */
-						continue;
-					}
-					if (option_debug > 2)
-						ast_log(LOG_DEBUG, "manager_show_dialplan: Found Extension: %s \n", ast_get_extension_name(e));
-
-					dpc->extension_existence = 1;
-
-					/* may we print context info? */	
-					dpc->total_context++;
-					dpc->total_prio++;
-
-					/* write extension name and first peer */	
-					bzero(buf, sizeof(buf));		
-				
-					dpc->total_items++;
-					manager_dpsendack(s, m, &sentpositivemanagerack);
-					astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
-					astman_append(s, "Context: %s\r\nExtension: %s\r\n", ast_get_context_name(c), ast_get_extension_name(e) );
-
-					prio = ast_get_extension_priority(e);
-					if (prio == PRIORITY_HINT) {
-						astman_append(s, "Priority: hint\r\nApplication: %s\r\n", ast_get_extension_app(e));
-					} else {
-						astman_append(s, "Priority: %d\r\nApplication: %s\r\nAppData: %s\r\n", prio, ast_get_extension_app(e), (char *) ast_get_extension_app_data(e));
-					}
-					astman_append(s, "Registrar: %s\r\n\r\n", ast_get_extension_registrar(e));
-
-					dpc->total_exten++;
-
-					/* walk next extension peers */
-					for (p=ast_walk_extension_priorities(e, e); p; p=ast_walk_extension_priorities(e, p)) {
-						dpc->total_prio++;
-						bzero((void *)buf2, sizeof(buf2));
-						bzero((void *)buf, sizeof(buf));
-						dpc->total_items++;
-						manager_dpsendack(s, m, &sentpositivemanagerack);
-						astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
-						astman_append(s, "Context: %s\r\nExtension: %s\r\n", ast_get_context_name(c), ast_get_extension_name(e) );
-
-						if (ast_get_extension_label(p))
-							astman_append(s, "ExtensionLabel: %s\r\n", ast_get_extension_label(p));
-						prio = ast_get_extension_priority(p);
-						if (prio == PRIORITY_HINT) {
-							astman_append(s, "Priority: hint\r\nApplication: %s\r\n", ast_get_extension_app(p));
-						} else {
-							astman_append(s, "Priority: %d\r\nApplication: %s\r\nAppData: %s\r\n", prio, ast_get_extension_app(p), (char *) ast_get_extension_app_data(p));
-						}
-						astman_append(s, "Registrar: %s\r\n\r\n", ast_get_extension_registrar(e));
-					}
-				}
-
-				/* walk included and write info ... */
-				for (i = ast_walk_context_includes(c, NULL); i; i = ast_walk_context_includes(c, i)) {
-					if (exten) {
-						/* Check all includes for the requested extension */
-						manager_show_dialplan_helper(s, m, actionidtext, (char *)ast_get_include_name(i), exten, dpc, i);
-					} else {
-						dpc->total_items++;
-						manager_dpsendack(s, m, &sentpositivemanagerack);
-						astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
-						astman_append(s, "Context: %s\r\nIncludeContext: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_include_name(i), ast_get_include_registrar(i));
-						astman_append(s, "\r\n");
-						if (option_debug > 2)
-							ast_log(LOG_DEBUG, "manager_show_dialplan: Found Included context: %s \n", buf);
-					}
-				}
-
-				/* walk ignore patterns and write info ... */
-				for (ip=ast_walk_context_ignorepats(c, NULL); ip; ip=ast_walk_context_ignorepats(c, ip)) {
-					const char *ipname = ast_get_ignorepat_name(ip);
-					char ignorepat[AST_MAX_EXTENSION];
-
-					snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
-					if ((!exten) || ast_extension_match(ignorepat, exten)) {
-						dpc->total_items++;
-						manager_dpsendack(s, m, &sentpositivemanagerack);
-						astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
-						astman_append(s, "Context: %s\r\nIgnorePattern: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ipname, ast_get_ignorepat_registrar(ip));
-						astman_append(s, "\r\n");
-					}
-				}
-				if (!rinclude) {
-					for (sw = ast_walk_context_switches(c, NULL); sw; sw = ast_walk_context_switches(c, sw)) {
-						dpc->total_items++;
-						manager_dpsendack(s, m, &sentpositivemanagerack);
-						astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
-						astman_append(s, "Context: %s\r\nSwitch: %s/%s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_registrar(sw));	
-						astman_append(s, "\r\n");
-						if (option_debug > 2)
-							ast_log(LOG_DEBUG, "manager_show_dialplan: Found Switch : %s \n", buf);
-					}
-				}
-	
-				ast_unlock_context(c);
-
-			} else if (option_debug > 2) {
 				ast_log(LOG_DEBUG, "manager_show_dialplan: Failed to lock context\n");
+			continue;
+		}
+
+		/* XXX note- an empty context is not printed */
+		e = NULL;		/* walk extensions in context  */
+		while ( (e = ast_walk_context_extensions(c, e)) ) {
+			struct ast_exten *p;
+
+			/* looking for extension? is this our extension? */
+			if (exten && !ast_extension_match(ast_get_extension_name(e), exten)) {
+				/* not the one we are looking for, continue */
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "manager_show_dialplan: Skipping extension %s\n", ast_get_extension_name(e));
+				continue;
+			}
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "manager_show_dialplan: Found Extension: %s \n", ast_get_extension_name(e));
+
+			dpc->extension_existence = 1;
+
+			/* may we print context info? */	
+			dpc->total_context++;
+			dpc->total_exten++;
+
+			p = NULL;		/* walk next extension peers */
+			while ( (p = ast_walk_extension_priorities(e, p)) ) {
+				int prio = ast_get_extension_priority(p);
+
+				dpc->total_prio++;
+				dpc->total_items++;
+				manager_dpsendack(s, m, &sentpositivemanagerack);
+				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
+				astman_append(s, "Context: %s\r\nExtension: %s\r\n", ast_get_context_name(c), ast_get_extension_name(e) );
+
+				/* XXX maybe make this conditional, if p != e ? */
+				if (ast_get_extension_label(p))
+					astman_append(s, "ExtensionLabel: %s\r\n", ast_get_extension_label(p));
+
+				if (prio == PRIORITY_HINT) {
+					astman_append(s, "Priority: hint\r\nApplication: %s\r\n", ast_get_extension_app(p));
+				} else {
+					astman_append(s, "Priority: %d\r\nApplication: %s\r\nAppData: %s\r\n", prio, ast_get_extension_app(p), (char *) ast_get_extension_app_data(p));
+				}
+				astman_append(s, "Registrar: %s\r\n\r\n", ast_get_extension_registrar(e));
 			}
 		}
-	} 
+
+		i = NULL;		/* walk included and write info ... */
+		while ( (i = ast_walk_context_includes(c, i)) ) {
+			if (exten) {
+				/* Check all includes for the requested extension */
+				manager_show_dialplan_helper(s, m, actionidtext, ast_get_include_name(i), exten, dpc, i);
+			} else {
+				dpc->total_items++;
+				manager_dpsendack(s, m, &sentpositivemanagerack);
+				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
+				astman_append(s, "Context: %s\r\nIncludeContext: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_include_name(i), ast_get_include_registrar(i));
+				astman_append(s, "\r\n");
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "manager_show_dialplan: Found Included context: %s \n", ast_get_include_name(i));
+			}
+		}
+
+		ip = NULL;	/* walk ignore patterns and write info ... */
+		while ( (ip = ast_walk_context_ignorepats(c, ip)) ) {
+			const char *ipname = ast_get_ignorepat_name(ip);
+			char ignorepat[AST_MAX_EXTENSION];
+
+			snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
+			if (!exten || ast_extension_match(ignorepat, exten)) {
+				dpc->total_items++;
+				manager_dpsendack(s, m, &sentpositivemanagerack);
+				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
+				astman_append(s, "Context: %s\r\nIgnorePattern: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ipname, ast_get_ignorepat_registrar(ip));
+				astman_append(s, "\r\n");
+			}
+		}
+		if (!rinclude) {
+			struct ast_sw *sw = NULL;
+			while ( (sw = ast_walk_context_switches(c, sw)) ) {
+				dpc->total_items++;
+				manager_dpsendack(s, m, &sentpositivemanagerack);
+				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
+				astman_append(s, "Context: %s\r\nSwitch: %s/%s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_registrar(sw));	
+				astman_append(s, "\r\n");
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "manager_show_dialplan: Found Switch : %s \n", ast_get_switch_name(sw));
+			}
+		}
+
+		ast_unlock_context(c);
+	}
 	ast_unlock_contexts();
 
 	if (dpc->total_exten == old_total_exten) {
@@ -3609,7 +3591,8 @@ static int manager_show_dialplan(struct mansession *s, struct message *m)
 
 	if (id && !ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
-
+	else
+		idtext[0] = '\0';
 
 	memset(&counters, 0, sizeof(counters));
 
