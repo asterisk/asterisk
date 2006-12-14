@@ -177,7 +177,6 @@ static int ast_rtcp_write_rr(void *data);
 static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp);
 static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp);
 int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit);
-static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, int len);
 
 #define FLAG_3389_WARNING		(1 << 0)
 #define FLAG_NAT_ACTIVE			(3 << 1)
@@ -908,10 +907,6 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		}
 	}
 
-	/* If we are P2P bridged to another RTP stream, send it directly over */
-	if (ast_rtp_get_bridged(rtp) && !bridge_p2p_rtcp_write(rtp, rtcpheader, res))
-		return &ast_null_frame;
-
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
 
@@ -1063,35 +1058,6 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 		rtp->rtcp->maxrxjitter = rtp->rxjitter;
 	if (rtp->rtcp && rtp->rxjitter < rtp->rtcp->minrxjitter)
 		rtp->rtcp->minrxjitter = rtp->rxjitter;
-}
-
-/*! \brief Perform a Packet2Packet RTCP write */
-static int bridge_p2p_rtcp_write(struct ast_rtp *rtp, unsigned int *rtcpheader, int len)
-{
-	struct ast_rtp *bridged = ast_rtp_get_bridged(rtp);
-	int res = 0;
-
-	/* If RTCP is not present on the bridged RTP session, then ignore this */
-	if (!bridged->rtcp)
-		return 0;
-
-	/* Send the data out */
-	res = sendto(bridged->rtcp->s, (void *)rtcpheader, len, 0, (struct sockaddr *)&bridged->rtcp->them, sizeof(bridged->rtcp->them));
-	if (res < 0) {
-		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "RTCP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), strerror(errno));
-		}
-		else if ((((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug)) && (option_debug || rtpdebug)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "RTCP NAT: Can't write RTCP to private address %s:%d, waiting for other end to send first...\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port));
-		}
-	} else if (rtp_debug_test_addr(&bridged->rtcp->them)) {
-		if (option_verbose)
-			ast_verbose("Sent RTCP P2P packet to %s:%d (len %-6.6u)\n", ast_inet_ntoa(bridged->rtcp->them.sin_addr), ntohs(bridged->rtcp->them.sin_port), len);
-		}
-
-	return 0;
 }
 
 /*! \brief Perform a Packet2Packet RTP write */
@@ -2948,39 +2914,6 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 	return 1;
 }
 
-/*! \brief P2P RTCP Callback */
-static int p2p_rtcp_callback(int *id, int fd, short events, void *cbdata)
-{
-	int res = 0;
-	struct sockaddr_in sin;
-	socklen_t len;
-	unsigned int *header;
-	struct ast_rtp *rtp = cbdata;
-	struct ast_rtcp *rtcp = NULL;
-
-	if (!rtp || !(rtcp = rtp->rtcp))
-		return 1;
-
-	len = sizeof(sin);
-	if ((res = recvfrom(fd, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET, 0, (struct sockaddr *)&sin, &len)) < 0)
-		return 1;
-
-	header = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
-	
-	if ((rtp->nat) &&
-	    ((rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
-	     (rtcp->them.sin_port != sin.sin_port))) {
-		rtcp->them = sin;
-		if (option_debug || rtpdebug)
-			ast_log(LOG_DEBUG, "P2P RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtcp->them.sin_addr), ntohs(rtcp->them.sin_port));
-	}
-	
-	if (ast_rtp_get_bridged(rtp))
-		bridge_p2p_rtcp_write(rtp, header, res);
-	
-	return 1;
-}
-
 /*! \brief Helper function to switch a channel and RTP stream into callback mode */
 static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int **iod)
 {
@@ -2996,12 +2929,9 @@ static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, in
 
 	/* Steal the file descriptors from the channel */
 	chan->fds[0] = -1;
-	chan->fds[1] = -1;
 
 	/* Now, fire up callback mode */
 	iod[0] = ast_io_add(rtp->io, ast_rtp_fd(rtp), p2p_rtp_callback, AST_IO_IN, rtp);
-	if (rtp->rtcp)
-		iod[1] = ast_io_add(rtp->io, ast_rtcp_fd(rtp), p2p_rtcp_callback, AST_IO_IN, rtp);
 
 	return 1;
 }
@@ -3014,18 +2944,14 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 	/* Remove the callback from the IO context */
 	ast_io_remove(rtp->io, iod[0]);
 
-	if (iod[1])
-		ast_io_remove(rtp->io, iod[1]);
-
 	/* Restore file descriptors */
 	chan->fds[0] = ast_rtp_fd(rtp);
-	chan->fds[1] = ast_rtcp_fd(rtp);
 	ast_channel_unlock(chan);
 
 	/* Restore callback mode if previously used */
 	if (ast_test_flag(rtp, FLAG_CALLBACK_MODE))
 		rtp->ioid = ast_io_add(rtp->io, ast_rtp_fd(rtp), rtpread, AST_IO_IN, rtp);
-	
+
 	return 0;
 }
 
