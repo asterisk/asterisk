@@ -667,9 +667,15 @@ int set_chan_in_stack(struct misdn_stack *stack, int channel)
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
 	if (channel >=1 ) {
-		stack->channels[channel-1] = 1;
+		if (!stack->channels[channel-1])
+			stack->channels[channel-1] = 1;
+		else {
+			cb_log(0,stack->port,"channel already in use:%d\n", channel );
+			return -1;
+		}
 	} else {
 		cb_log(0,stack->port,"couldn't set channel %d in\n", channel );
+		return -1;
 	}
   
 	return 0;
@@ -1479,7 +1485,13 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 			}  
 
 			if (bc->channel >0 && bc->channel<255) {
-				set_chan_in_stack(stack ,bc->channel);
+				int ret=set_chan_in_stack(stack ,bc->channel);
+				if (event == EVENT_SETUP && ret<0){
+					/* empty bchannel */
+					bc->channel=0;
+					bc->out_cause=44;
+					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+				}
 			}
 
 #if 0
@@ -2024,9 +2036,16 @@ handle_event_nt(void *dat, void *arg)
 			switch (event) {
 				case EVENT_SETUP:
 					if (bc->channel>0 && bc->channel<255) {
+						if (stack->ptp)  {
+							int ret=set_chan_in_stack(stack, bc->channel);
+							if (event==EVENT_SETUP && ret<0){
+								/* empty bchannel */
+								bc->channel=0;
+								bc->out_cause=44;
+								misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+							}
 
-						if (stack->ptp) 
-							set_chan_in_stack(stack, bc->channel);
+						}
 						else 
 							cb_log(3,stack->port," --> PTMP but channel requested\n");
 
