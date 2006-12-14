@@ -162,7 +162,7 @@ void ast_rtp_pt_clear(struct ast_rtp* rtp);
 void ast_rtp_pt_default(struct ast_rtp* rtp);
 
 /*! \brief Copy payload types between RTP structures */
-void ast_rtp_pt_copy(struct ast_rtp *dest, const struct ast_rtp *src);
+void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src);
 
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt);
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,

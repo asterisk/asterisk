@@ -160,10 +160,13 @@ struct ast_rtp {
 	struct io_context *io;
 	void *data;
 	ast_rtp_callback callback;
+
+	ast_mutex_t payload_lock;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
 	int rtp_lookup_code_cache_isAstFormat; /*!< a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
+
 	struct ast_rtcp *rtcp;
 	struct ast_codec_pref pref;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
@@ -1416,8 +1419,11 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
 {
 	int i;
+
 	if (!rtp)
 		return;
+
+	ast_mutex_lock(&rtp->payload_lock);
 
 	for (i = 0; i < MAX_RTP_PT; ++i) {
 		rtp->current_RTP_PT[i].isAstFormat = 0;
@@ -1427,11 +1433,15 @@ void ast_rtp_pt_clear(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_isAstFormat = 0;
 	rtp->rtp_lookup_code_cache_code = 0;
 	rtp->rtp_lookup_code_cache_result = 0;
+
+	ast_mutex_unlock(&rtp->payload_lock);
 }
 
 void ast_rtp_pt_default(struct ast_rtp* rtp) 
 {
 	int i;
+
+	ast_mutex_lock(&rtp->payload_lock);
 
 	/* Initialize to default payload types */
 	for (i = 0; i < MAX_RTP_PT; ++i) {
@@ -1442,11 +1452,16 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_isAstFormat = 0;
 	rtp->rtp_lookup_code_cache_code = 0;
 	rtp->rtp_lookup_code_cache_result = 0;
+
+	ast_mutex_unlock(&rtp->payload_lock);
 }
 
-void ast_rtp_pt_copy(struct ast_rtp *dest, const struct ast_rtp *src)
+void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
 {
 	unsigned int i;
+
+	ast_mutex_lock(&dest->payload_lock);
+	ast_mutex_lock(&src->payload_lock);
 
 	for (i=0; i < MAX_RTP_PT; ++i) {
 		dest->current_RTP_PT[i].isAstFormat = 
@@ -1457,6 +1472,9 @@ void ast_rtp_pt_copy(struct ast_rtp *dest, const struct ast_rtp *src)
 	dest->rtp_lookup_code_cache_isAstFormat = 0;
 	dest->rtp_lookup_code_cache_code = 0;
 	dest->rtp_lookup_code_cache_result = 0;
+
+	ast_mutex_unlock(&src->payload_lock);
+	ast_mutex_unlock(&dest->payload_lock);
 }
 
 /*! \brief Get channel driver interface structure */
@@ -1622,11 +1640,12 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
  */
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) 
 {
-	if (pt < 0 || pt > MAX_RTP_PT) 
+	if (pt < 0 || pt > MAX_RTP_PT || static_RTP_PT[pt].code == 0) 
 		return; /* bogus payload type */
 
-	if (static_RTP_PT[pt].code != 0) 
-		rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
+	ast_mutex_lock(&rtp->payload_lock);
+	rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
+	ast_mutex_unlock(&rtp->payload_lock);
 } 
 
 /*! \brief Make a note of a RTP payload type (with MIME type) that was seen in
@@ -1640,6 +1659,8 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return; /* bogus payload type */
+	
+	ast_mutex_lock(&rtp->payload_lock);
 
 	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
 		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
@@ -1649,17 +1670,24 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 			    mimeTypes[i].payloadType.isAstFormat &&
 			    (options & AST_RTP_OPT_G726_NONSTANDARD))
 				rtp->current_RTP_PT[pt].code = AST_FORMAT_G726_AAL2;
-			return;
+			break;
 		}
 	}
+
+	ast_mutex_unlock(&rtp->payload_lock);
+
+	return;
 } 
 
 /*! \brief Return the union of all of the codecs that were set by rtp_set...() calls 
  * They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
-			     int* astFormats, int* nonAstFormats) {
+				 int* astFormats, int* nonAstFormats)
+{
 	int pt;
-
+	
+	ast_mutex_lock(&rtp->payload_lock);
+	
 	*astFormats = *nonAstFormats = 0;
 	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
 		if (rtp->current_RTP_PT[pt].isAstFormat) {
@@ -1668,6 +1696,10 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			*nonAstFormats |= rtp->current_RTP_PT[pt].code;
 		}
 	}
+	
+	ast_mutex_unlock(&rtp->payload_lock);
+	
+	return;
 }
 
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
@@ -1675,28 +1707,35 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 	struct rtpPayloadType result;
 
 	result.isAstFormat = result.code = 0;
+
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return result; /* bogus payload type */
 
 	/* Start with negotiated codecs */
+	ast_mutex_lock(&rtp->payload_lock);
 	result = rtp->current_RTP_PT[pt];
+	ast_mutex_unlock(&rtp->payload_lock);
 
 	/* If it doesn't exist, check our static RTP type list, just in case */
 	if (!result.code) 
 		result = static_RTP_PT[pt];
+
 	return result;
 }
 
 /*! \brief Looks up an RTP code out of our *static* outbound list */
-int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int code) {
+int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int code)
+{
+	int pt = 0;
 
-	int pt;
+	ast_mutex_lock(&rtp->payload_lock);
 
 	if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
 		code == rtp->rtp_lookup_code_cache_code) {
-
 		/* Use our cached mapping, to avoid the overhead of the loop below */
-		return rtp->rtp_lookup_code_cache_result;
+		pt = rtp->rtp_lookup_code_cache_result;
+		ast_mutex_unlock(&rtp->payload_lock);
+		return pt;
 	}
 
 	/* Check the dynamic list first */
@@ -1705,6 +1744,7 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
 			rtp->rtp_lookup_code_cache_code = code;
 			rtp->rtp_lookup_code_cache_result = pt;
+			ast_mutex_unlock(&rtp->payload_lock);
 			return pt;
 		}
 	}
@@ -1715,9 +1755,13 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
   			rtp->rtp_lookup_code_cache_code = code;
 			rtp->rtp_lookup_code_cache_result = pt;
+			ast_mutex_unlock(&rtp->payload_lock);
 			return pt;
 		}
 	}
+
+	ast_mutex_unlock(&rtp->payload_lock);
+
 	return -1;
 }
 
@@ -1827,6 +1871,9 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	
 	if (!(rtp = ast_calloc(1, sizeof(*rtp))))
 		return NULL;
+
+	ast_mutex_init(&rtp->payload_lock);
+
 	rtp->them.sin_family = AF_INET;
 	rtp->us.sin_family = AF_INET;
 	rtp->s = rtp_socket();
@@ -2048,6 +2095,9 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		free(rtp->rtcp);
 		rtp->rtcp=NULL;
 	}
+
+	ast_mutex_destroy(&rtp->payload_lock);
+
 	free(rtp);
 }
 
