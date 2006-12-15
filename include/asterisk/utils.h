@@ -32,10 +32,10 @@
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
 #include <limits.h>
+#include <string.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/time.h"
-#include "asterisk/strings.h"
 #include "asterisk/logger.h"
 #include "asterisk/compiler.h"
 
@@ -540,4 +540,5 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
  */
 void ast_enable_packet_fragmentation(int sock);
 
+#include "asterisk/strings.h"
 #endif /* _ASTERISK_UTILS_H */
