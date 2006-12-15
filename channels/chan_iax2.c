@@ -8098,7 +8098,7 @@ static void *network_thread(void *ignore)
 {
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
-	int res, count;
+	int res, count, wakeup;
 	struct iax_frame *f;
 
 	if (timingfd > -1)
@@ -8109,13 +8109,16 @@ static void *network_thread(void *ignore)
 		   sent, and scheduling retransmissions if appropriate */
 		AST_LIST_LOCK(&iaxq.queue);
 		count = 0;
+		wakeup = -1;
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&iaxq.queue, f, list) {
 			if (f->sentyet)
 				continue;
 			
 			/* Try to lock the pvt, if we can't... don't fret - defer it till later */
-			if (ast_mutex_trylock(&iaxsl[f->callno]))
+			if (ast_mutex_trylock(&iaxsl[f->callno])) {
+				wakeup = 1;
 				continue;
+			}
 
 			f->sentyet++;
 
@@ -8146,7 +8149,7 @@ static void *network_thread(void *ignore)
 			ast_log(LOG_DEBUG, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
 
 		/* Now do the IO, and run scheduled tasks */
-		res = ast_io_wait(io, -1);
+		res = ast_io_wait(io, wakeup);
 		if (res >= 0) {
 			if (res >= 20 && option_debug)
 				ast_log(LOG_DEBUG, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
