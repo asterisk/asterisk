@@ -160,13 +160,11 @@ struct ast_rtp {
 	struct io_context *io;
 	void *data;
 	ast_rtp_callback callback;
-
-	ast_mutex_t payload_lock;
+	ast_mutex_t bridge_lock;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
 	int rtp_lookup_code_cache_isAstFormat; /*!< a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
-
 	struct ast_rtcp *rtcp;
 	struct ast_codec_pref pref;
 	struct ast_rtp *bridged;        /*!< Who we are Packet bridged to */
@@ -1014,9 +1012,8 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 }
 
 /*! \brief Perform a Packet2Packet RTP write */
-static int bridge_p2p_rtp_write(struct ast_rtp *rtp, unsigned int *rtpheader, int len, int hdrlen)
+static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, unsigned int *rtpheader, int len, int hdrlen)
 {
-	struct ast_rtp *bridged = ast_rtp_get_bridged(rtp);
 	int res = 0, payload = 0, bridged_payload = 0, version, padding, mark, ext;
 	struct rtpPayloadType rtpPT;
 	unsigned int seqno;
@@ -1083,6 +1080,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	unsigned int timestamp;
 	unsigned int *rtpheader;
 	struct rtpPayloadType rtpPT;
+	struct ast_rtp *bridged = NULL;
 	
 	/* If time is up, kill it */
 	if (rtp->send_digit)
@@ -1144,7 +1142,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	}
 
 	/* If we are bridged to another RTP stream, send direct */
-	if (ast_rtp_get_bridged(rtp) && !bridge_p2p_rtp_write(rtp, rtpheader, res, hdrlen))
+	if ((bridged = ast_rtp_get_bridged(rtp)) && !bridge_p2p_rtp_write(rtp, bridged, rtpheader, res, hdrlen))
 		return &ast_null_frame;
 
 	if (version != 2)
@@ -1362,7 +1360,7 @@ void ast_rtp_pt_clear(struct ast_rtp* rtp)
 	if (!rtp)
 		return;
 
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 
 	for (i = 0; i < MAX_RTP_PT; ++i) {
 		rtp->current_RTP_PT[i].isAstFormat = 0;
@@ -1373,14 +1371,14 @@ void ast_rtp_pt_clear(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_code = 0;
 	rtp->rtp_lookup_code_cache_result = 0;
 
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 }
 
 void ast_rtp_pt_default(struct ast_rtp* rtp) 
 {
 	int i;
 
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 
 	/* Initialize to default payload types */
 	for (i = 0; i < MAX_RTP_PT; ++i) {
@@ -1392,15 +1390,15 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_code = 0;
 	rtp->rtp_lookup_code_cache_result = 0;
 
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 }
 
 void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
 {
 	unsigned int i;
 
-	ast_mutex_lock(&dest->payload_lock);
-	ast_mutex_lock(&src->payload_lock);
+	ast_mutex_lock(&dest->bridge_lock);
+	ast_mutex_lock(&src->bridge_lock);
 
 	for (i=0; i < MAX_RTP_PT; ++i) {
 		dest->current_RTP_PT[i].isAstFormat = 
@@ -1412,8 +1410,8 @@ void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
 	dest->rtp_lookup_code_cache_code = 0;
 	dest->rtp_lookup_code_cache_result = 0;
 
-	ast_mutex_unlock(&src->payload_lock);
-	ast_mutex_unlock(&dest->payload_lock);
+	ast_mutex_unlock(&src->bridge_lock);
+	ast_mutex_unlock(&dest->bridge_lock);
 }
 
 /*! \brief Get channel driver interface structure */
@@ -1582,9 +1580,9 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 	if (pt < 0 || pt > MAX_RTP_PT || static_RTP_PT[pt].code == 0) 
 		return; /* bogus payload type */
 
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 	rtp->current_RTP_PT[pt] = static_RTP_PT[pt];
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 } 
 
 /*! \brief Make a note of a RTP payload type (with MIME type) that was seen in
@@ -1599,7 +1597,7 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return; /* bogus payload type */
 	
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 
 	for (i = 0; i < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++i) {
 		if (strcasecmp(mimeSubtype, mimeTypes[i].subtype) == 0 &&
@@ -1613,7 +1611,7 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp *rtp, int pt,
 		}
 	}
 
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 
 	return;
 } 
@@ -1625,7 +1623,7 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 {
 	int pt;
 	
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 	
 	*astFormats = *nonAstFormats = 0;
 	for (pt = 0; pt < MAX_RTP_PT; ++pt) {
@@ -1636,7 +1634,7 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 		}
 	}
 	
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 	
 	return;
 }
@@ -1651,9 +1649,9 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 		return result; /* bogus payload type */
 
 	/* Start with negotiated codecs */
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 	result = rtp->current_RTP_PT[pt];
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 
 	/* If it doesn't exist, check our static RTP type list, just in case */
 	if (!result.code) 
@@ -1667,13 +1665,13 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 {
 	int pt = 0;
 
-	ast_mutex_lock(&rtp->payload_lock);
+	ast_mutex_lock(&rtp->bridge_lock);
 
 	if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
 		code == rtp->rtp_lookup_code_cache_code) {
 		/* Use our cached mapping, to avoid the overhead of the loop below */
 		pt = rtp->rtp_lookup_code_cache_result;
-		ast_mutex_unlock(&rtp->payload_lock);
+		ast_mutex_unlock(&rtp->bridge_lock);
 		return pt;
 	}
 
@@ -1683,7 +1681,7 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
 			rtp->rtp_lookup_code_cache_code = code;
 			rtp->rtp_lookup_code_cache_result = pt;
-			ast_mutex_unlock(&rtp->payload_lock);
+			ast_mutex_unlock(&rtp->bridge_lock);
 			return pt;
 		}
 	}
@@ -1694,12 +1692,12 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 			rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
   			rtp->rtp_lookup_code_cache_code = code;
 			rtp->rtp_lookup_code_cache_result = pt;
-			ast_mutex_unlock(&rtp->payload_lock);
+			ast_mutex_unlock(&rtp->bridge_lock);
 			return pt;
 		}
 	}
 
-	ast_mutex_unlock(&rtp->payload_lock);
+	ast_mutex_unlock(&rtp->bridge_lock);
 
 	return -1;
 }
@@ -1810,7 +1808,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	if (!(rtp = ast_calloc(1, sizeof(*rtp))))
 		return NULL;
 
-	ast_mutex_init(&rtp->payload_lock);
+	ast_mutex_init(&rtp->bridge_lock);
 
 	rtp->them.sin_family = AF_INET;
 	rtp->us.sin_family = AF_INET;
@@ -1940,7 +1938,13 @@ void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 
 struct ast_rtp *ast_rtp_get_bridged(struct ast_rtp *rtp)
 {
-	return rtp->bridged;
+	struct ast_rtp *bridged = NULL;
+
+	ast_mutex_lock(&rtp->bridge_lock);
+	bridged = rtp->bridged;
+	ast_mutex_unlock(&rtp->bridge_lock);
+
+	return bridged;
 }
 
 void ast_rtp_stop(struct ast_rtp *rtp)
@@ -2033,7 +2037,7 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		rtp->rtcp=NULL;
 	}
 
-	ast_mutex_destroy(&rtp->payload_lock);
+	ast_mutex_destroy(&rtp->bridge_lock);
 
 	free(rtp);
 }
@@ -2869,7 +2873,7 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 	struct sockaddr_in sin;
 	socklen_t len;
 	unsigned int *header;
-	struct ast_rtp *rtp = cbdata;
+	struct ast_rtp *rtp = cbdata, *bridged = NULL;
 
 	if (!rtp)
 		return 1;
@@ -2892,8 +2896,8 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 	}
 
 	/* Write directly out to other RTP stream if bridged */
-	if (ast_rtp_get_bridged(rtp))
-		bridge_p2p_rtp_write(rtp, header, res, hdrlen);
+	if ((bridged = ast_rtp_get_bridged(rtp)))
+		bridge_p2p_rtp_write(rtp, bridged, header, res, hdrlen);
 
 	return 1;
 }
@@ -2940,6 +2944,16 @@ static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, i
 	return 0;
 }
 
+/*! \brief Helper function that sets what an RTP structure is bridged to */
+static void p2p_set_bridge(struct ast_rtp *rtp0, struct ast_rtp *rtp1)
+{
+	ast_mutex_lock(&rtp0->bridge_lock);
+	rtp0->bridged = rtp1;
+	ast_mutex_unlock(&rtp0->bridge_lock);
+
+	return;
+}
+
 /*! \brief Bridge loop for partial native bridge (packet2packet) */
 static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast_channel *c1, struct ast_rtp *p0, struct ast_rtp *p1, int timeoutms, int flags, struct ast_frame **fo, struct ast_channel **rc, void *pvt0, void *pvt1)
 {
@@ -2952,9 +2966,9 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 
 	/* Okay, setup each RTP structure to do P2P forwarding */
 	ast_clear_flag(p0, FLAG_P2P_SENT_MARK);
-	p0->bridged = p1;
+	p2p_set_bridge(p0, p1);
 	ast_clear_flag(p1, FLAG_P2P_SENT_MARK);
-	p1->bridged = p0;
+	p2p_set_bridge(p1, p0);
 
 	/* Activate callback modes if possible */
 	p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
@@ -3013,14 +3027,14 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 						p0_callback = p2p_callback_disable(c0, p0, &p0_fds[0], &p0_iod[0]);
 					if (p1_callback)
 						p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
-					p0->bridged = NULL;
-					p1->bridged = NULL;
+					p2p_set_bridge(p0, NULL);
+					p2p_set_bridge(p1, NULL);
 				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
 					/* If we are off hold, then go back to callback mode and P2P bridging */
 					ast_clear_flag(p0, FLAG_P2P_SENT_MARK);
-					p0->bridged = p1;
+					p2p_set_bridge(p0, p1);
 					ast_clear_flag(p1, FLAG_P2P_SENT_MARK);
-					p1->bridged = p0;
+					p2p_set_bridge(p1, p0);
 					p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
 					p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
 				}
@@ -3055,8 +3069,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		p1_callback = p2p_callback_disable(c1, p1, &p1_fds[0], &p1_iod[0]);
 
 	/* Break out of the direct bridge */
-	p0->bridged = NULL;
-	p1->bridged = NULL;
+	p2p_set_bridge(p0, NULL);
+	p2p_set_bridge(p1, NULL);
 
 	return res;
 }
