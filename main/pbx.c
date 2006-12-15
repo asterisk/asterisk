@@ -4878,7 +4878,15 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 	pthread_attr_t attr;
 
 	if (sync) {
-		LOAD_OH(oh);
+		oh.context = context;
+		oh.exten = exten;
+		oh.priority = priority;
+		oh.cid_num = cid_num;
+		oh.cid_name = cid_name;
+		oh.account = account;
+		oh.vars = vars;
+		oh.parent_channel = NULL;
+
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (channel) {
 			*channel = chan;
