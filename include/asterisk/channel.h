@@ -1143,12 +1143,6 @@ void ast_deactivate_generator(struct ast_channel *chan);
 
 void ast_set_callerid(struct ast_channel *chan, const char *cidnum, const char *cidname, const char *ani);
 
-
-/*! return a mallocd string with the result of sprintf of the fmt and following args */
-char *ast_safe_string_alloc(const char *fmt, ...);
-
-
-
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);
 /*! Stop a tone from playing */

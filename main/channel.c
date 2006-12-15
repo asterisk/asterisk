@@ -331,21 +331,6 @@ static int ast_check_hangup_locked(struct ast_channel *chan)
 	return res;
 }
 
-/*! \brief printf the string into a correctly sized mallocd buffer, and return the buffer */
-char *ast_safe_string_alloc(const char *fmt, ...)
-{
-	char *b2,buf[1];
-	int len;
-
-	va_list args;
-	va_start(args, fmt);
-	len = vsnprintf(buf, 1, fmt, args);
-	b2 = ast_malloc(len+1);
-	vsnprintf(b2, len+1,  fmt, args);
-	va_end(args);
-	return b2;
-}
-
 /*! \brief Initiate system shutdown */
 void ast_begin_shutdown(int hangup)
 {
