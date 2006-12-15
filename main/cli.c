@@ -59,14 +59,14 @@ AST_THREADSTORAGE(ast_cli_buf);
 void ast_cli(int fd, char *fmt, ...)
 {
 	int res;
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 	va_list ap;
 
-	if (!(buf = ast_dynamic_str_thread_get(&ast_cli_buf, AST_CLI_INITLEN)))
+	if (!(buf = ast_str_thread_get(&ast_cli_buf, AST_CLI_INITLEN)))
 		return;
 
 	va_start(ap, fmt);
-	res = ast_dynamic_str_thread_set_va(&buf, 0, &ast_cli_buf, fmt, ap);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
 	if (res != AST_DYNSTR_BUILD_FAILED)

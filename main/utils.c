@@ -976,13 +976,13 @@ int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
  * core handler for dynamic strings.
  * This is not meant to be called directly, but rather through the
  * various wrapper macros
- *	ast_dynamic_str_set(...)
- *	ast_dynamic_str_append(...)
- *	ast_dynamic_str_thread_set(...)
- *	ast_dynamic_str_thread_append(...)
+ *	ast_str_set(...)
+ *	ast_str_append(...)
+ *	ast_str_set_va(...)
+ *	ast_str_append_va(...)
  */
-int __ast_dyn_str_helper(struct ast_dynamic_str **buf, size_t max_len,
-	struct ast_threadstorage *ts, int append, const char *fmt, va_list ap)
+int __ast_str_helper(struct ast_str **buf, size_t max_len,
+	int append, const char *fmt, va_list ap)
 {
 	int res, need;
 	int offset = (append && (*buf)->len) ? (*buf)->used : 0;
@@ -1005,17 +1005,17 @@ int __ast_dyn_str_helper(struct ast_dynamic_str **buf, size_t max_len,
 			need = max_len;
 
 		/* We can only realloc malloc'ed space. */
-		if ((*buf)->type != DS_MALLOC)
+		if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
 			return AST_DYNSTR_BUILD_FAILED;
-		*buf = ast_realloc(*buf, need + sizeof(struct ast_dynamic_str));
+		*buf = ast_realloc(*buf, need + sizeof(struct ast_str));
 		if (*buf == NULL) /* XXX watch out, we leak memory here */
 			return AST_DYNSTR_BUILD_FAILED;
 		(*buf)->len = need;
 
 		(*buf)->str[offset] = '\0';	/* Truncate the partial write. */
 
-		if (ts)
-			pthread_setspecific(ts->key, *buf);
+		if ((*buf)->ts != DS_ALLOCA)
+			pthread_setspecific((*buf)->ts->key, *buf);
 
 		/* va_end() and va_start() must be done before calling
 		 * vsnprintf() again. */

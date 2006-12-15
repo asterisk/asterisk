@@ -769,13 +769,13 @@ static int send_string(struct mansession *s, char *string)
 void astman_append(struct mansession *s, const char *fmt, ...)
 {
 	va_list ap;
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 
-	if (!(buf = ast_dynamic_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE)))
+	if (!(buf = ast_str_thread_get(&astman_append_buf, ASTMAN_APPEND_BUF_INITSIZE)))
 		return;
 
 	va_start(ap, fmt);
-	ast_dynamic_str_thread_set_va(&buf, 0, &astman_append_buf, fmt, ap);
+	ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
 	if (s->f != NULL)
@@ -2277,39 +2277,39 @@ int __manager_event(int category, const char *event,
 	char tmp[4096] = "";
 	va_list ap;
 	struct timeval now;
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 
 	/* Abort if there aren't any manager sessions */
 	if (!num_sessions)
 		return 0;
 
-	if (!(buf = ast_dynamic_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE)))
+	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE)))
 		return -1;
 
-	ast_dynamic_str_thread_set(&buf, 0, &manager_event_buf,
+	ast_str_set(&buf, 0,
 			"Event: %s\r\nPrivilege: %s\r\n",
 			 event, authority_to_str(category, auth, sizeof(auth)));
 
 	if (timestampevents) {
 		now = ast_tvnow();
-		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
+		ast_str_append(&buf, 0,
 				"Timestamp: %ld.%06lu\r\n",
 				 now.tv_sec, (unsigned long) now.tv_usec);
 	}
 	if (manager_debug) {
 		static int seq;
-		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
+		ast_str_append(&buf, 0,
 				"SequenceNumber: %d\r\n",
 				 ast_atomic_fetchadd_int(&seq, 1));
-		ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf,
+		ast_str_append(&buf, 0,
 				"File: %s\r\nLine: %d\r\nFunc: %s\r\n", file, line, func);
 	}
 
 	va_start(ap, fmt);
-	ast_dynamic_str_thread_append_va(&buf, 0, &manager_event_buf, fmt, ap);
+	ast_str_append_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
-	ast_dynamic_str_thread_append(&buf, 0, &manager_event_buf, "\r\n");
+	ast_str_append(&buf, 0, "\r\n");
 
 	append_event(buf->str, category);
 

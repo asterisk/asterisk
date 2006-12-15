@@ -267,50 +267,45 @@ struct ast_realloca {
  * One should never declare a variable with this type, but only a pointer
  * to it, e.g.
  *
- *	struct ast_dynamic_str *ds;
+ *	struct ast_str *ds;
  *
  * The pointer can be initialized with the following:
  *
- *	ds = ast_dynamic_str_create(init_len);
+ *	ds = ast_str_create(init_len);
  *		creates a malloc()'ed dynamic string;
  *
- *	ds = ast_dynamic_str_alloca(init_len);
+ *	ds = ast_str_alloca(init_len);
  *		creates a string on the stack (not very dynamic!).
  *
- *	ds = ast_dynamic_str_thread_get(ts, init_len)
+ *	ds = ast_str_thread_get(ts, init_len)
  *		creates a malloc()'ed dynamic string associated to
  *		the thread-local storage key ts
  *
  * Finally, the string can be manipulated with the following:
  *
- *	ast_dynamic_str_set(&buf, max_len, ts, fmt, ...)
- *	ast_dynamic_str_append(&buf, max_len, ts, fmt, ...)
- *	ast_dynamic_str_thread_set(&buf, max_len, ts, fmt, ...)
- *	ast_dynamic_str_thread_append(&buf, max_len, ts, fmt, ...)
+ *	ast_str_set(&buf, max_len, ts, fmt, ...)
+ *	ast_str_append(&buf, max_len, ts, fmt, ...)
  *
  * and their varargs format.
  *
  * \arg max_len The maximum allowed length, reallocating if needed.
  * 	0 means unlimited, -1 means "at most the available space"
- *
- * XXX the [_thread] variants can be removed if we save the ts in the
- * string descriptor.
  */
-
-/*! \brief type of storage used for dynamic string */
-enum dynstr_type {
-	DS_MALLOC = 1,
-	DS_ALLOCA = 2,
-	DS_STATIC = 3,	/* XXX not supported yet */
-};
 
 /*! \brief The descriptor of a dynamic string
  *  XXX storage will be optimized later if needed
+ * We use the ts field to indicate the type of storage.
+ * Three special constants indicate malloc, alloca() or static
+ * variables, all other values indicate a
+ * struct ast_threadstorage pointer.
  */
-struct ast_dynamic_str {
+struct ast_str {
 	size_t len;	/*!< The current maximum length of the string */
 	size_t used;	/*!< Amount of space used */
-	enum dynstr_type type;	/*!< What kind of storage is this ? */
+	struct ast_threadstorage *ts;	/*!< What kind of storage is this ? */
+#define DS_MALLOC	((struct ast_threadstorage *)1)
+#define DS_ALLOCA	((struct ast_threadstorage *)2)
+#define DS_STATIC	((struct ast_threadstorage *)3)	/* not supported yet */
 	char str[0];	/*!< The string buffer */
 };
 
@@ -326,28 +321,28 @@ struct ast_dynamic_str {
  *       be free()'d after it is no longer needed.
  */
 AST_INLINE_API(
-struct ast_dynamic_str * attribute_malloc ast_dynamic_str_create(size_t init_len),
+struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 {
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 
 	if (!(buf = ast_calloc(1, sizeof(*buf) + init_len)))
 		return NULL;
 	
 	buf->len = init_len;
 	buf->used = 0;
-	buf->type = DS_MALLOC;
+	buf->ts = DS_MALLOC;
 
 	return buf;
 }
 )
 
-#define ast_dynamic_str_alloca(init_len)		\
+#define ast_str_alloca(init_len)			\
 	({						\
-		struct ast_dynamic_str *buf;		\
+		struct ast_str *buf;			\
 		buf = alloca(sizeof(*buf) + init_len);	\
 		buf->len = init_len;			\
 		buf->used = 0;				\
-		buf->type = DS_ALLOCA;			\
+		buf->ts = DS_ALLOCA;			\
 		buf->str[0] = '\0';			\
 		(buf);					\
 	})
@@ -376,19 +371,19 @@ struct ast_dynamic_str * attribute_malloc ast_dynamic_str_create(size_t init_len
  * ...
  * void my_func(const char *fmt, ...)
  * {
- *      struct ast_dynamic_str *buf;
+ *      struct ast_str *buf;
  *
- *      if (!(buf = ast_dynamic_str_thread_get(&my_str, MY_STR_INIT_SIZE)))
+ *      if (!(buf = ast_str_thread_get(&my_str, MY_STR_INIT_SIZE)))
  *           return;
  *      ...
  * }
  * \endcode
  */
 AST_INLINE_API(
-struct ast_dynamic_str *ast_dynamic_str_thread_get(struct ast_threadstorage *ts,
+struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 	size_t init_len),
 {
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 
 	if (!(buf = ast_threadstorage_get(ts, sizeof(*buf) + init_len)))
 		return NULL;
@@ -396,7 +391,7 @@ struct ast_dynamic_str *ast_dynamic_str_thread_get(struct ast_threadstorage *ts,
 	if (!buf->len) {
 		buf->len = init_len;
 		buf->used = 0;
-		buf->type = DS_MALLOC;
+		buf->ts = ts;
 	}
 
 	return buf;
@@ -404,9 +399,9 @@ struct ast_dynamic_str *ast_dynamic_str_thread_get(struct ast_threadstorage *ts,
 )
 
 /*!
- * \brief Error codes from __ast_dyn_str_helper()
+ * \brief Error codes from __ast_str_helper()
  * The undelying processing to manipulate dynamic string is done
- * by __ast_dyn_str_helper(), which can return a success, a
+ * by __ast_str_helper(), which can return a success, a
  * permanent failure (e.g. no memory), or a temporary one (when
  * the string needs to be reallocated, and we must run va_start()
  * again; XXX this convoluted interface is only here because
@@ -418,46 +413,43 @@ enum {
 	 *  are undefined */
 	AST_DYNSTR_BUILD_FAILED = -1,
 	/*! The buffer size for the dynamic string had to be increased, and
-	 *  ast_dynamic_str_thread_build_va() needs to be called again after
+	 *  __ast_str_helper() needs to be called again after
 	 *  a va_end() and va_start().
 	 */
 	AST_DYNSTR_BUILD_RETRY = -2
 };
 
 /*!
- * \brief Set a thread locally stored dynamic string from a va_list
+ * \brief Set a dynamic string from a va_list
  *
- * \arg buf This is the address of a pointer to an ast_dynamic_str which should
- *      have been retrieved using ast_dynamic_str_thread_get.  It will need to
+ * \arg buf This is the address of a pointer to a struct ast_str.
+ *	If it is retrieved using ast_str_thread_get, the
+	struct ast_threadstorage pointer will need to
  *      be updated in the case that the buffer has to be reallocated to
  *      accommodate a longer string than what it currently has space for.
  * \arg max_len This is the maximum length to allow the string buffer to grow
  *      to.  If this is set to 0, then there is no maximum length.
- * \arg ts This is a pointer to the thread storage structure declared by using
- *      the AST_THREADSTORAGE macro.  If declared with 
- *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be 
- *      (&my_buf).
  * \arg fmt This is the format string (printf style)
  * \arg ap This is the va_list
  *
  * \return The return value of this function is the same as that of the printf
  *         family of functions.
  *
- * Example usage:
+ * Example usage (the first part is only for thread-local storage)
  * \code
  * AST_THREADSTORAGE(my_str, my_str_init);
  * #define MY_STR_INIT_SIZE   128
  * ...
  * void my_func(const char *fmt, ...)
  * {
- *      struct ast_dynamic_str *buf;
+ *      struct ast_str *buf;
  *      va_list ap;
  *
- *      if (!(buf = ast_dynamic_str_thread_get(&my_str, MY_STR_INIT_SIZE)))
+ *      if (!(buf = ast_str_thread_get(&my_str, MY_STR_INIT_SIZE)))
  *           return;
  *      ...
  *      va_start(fmt, ap);
- *      ast_dynamic_str_thread_set_va(&buf, 0, &my_str, fmt, ap);
+ *      ast_str_set_va(&buf, 0, fmt, ap);
  *      va_end(ap);
  * 
  *      printf("This is the string we just built: %s\n", buf->str);
@@ -468,11 +460,11 @@ enum {
  * \note: the following two functions must be implemented as macros
  *	because we must do va_end()/va_start() on the original arguments.
  */
-#define ast_dynamic_str_thread_set_va(buf, max_len, ts, fmt, ap)	\
+#define ast_str_set_va(buf, max_len, fmt, ap)			\
 	({								\
 		int __res;						\
-		while ((__res = __ast_dyn_str_helper(buf, max_len,	\
-			ts, 0, fmt, ap)) == AST_DYNSTR_BUILD_RETRY) {	\
+		while ((__res = __ast_str_helper(buf, max_len,		\
+			0, fmt, ap)) == AST_DYNSTR_BUILD_RETRY) {	\
 			va_end(ap);					\
 			va_start(ap, fmt);				\
 		}							\
@@ -480,17 +472,15 @@ enum {
 	})
 
 /*!
- * \brief Append to a thread local dynamic string using a va_list
+ * \brief Append to a dynamic string using a va_list
  *
- * The arguments, return values, and usage of this are the same as those for
- * ast_dynamic_str_thread_set_va().  However, instead of setting a new value
- * for the string, this will append to the current value.
+ * Same as ast_str_set_va(), but append to the current content.
  */
-#define ast_dynamic_str_thread_append_va(buf, max_len, ts, fmt, ap)	\
+#define ast_str_append_va(buf, max_len, fmt, ap)		\
 	({								\
 		int __res;						\
-		while ((__res = __ast_dyn_str_helper(buf, max_len,	\
-			ts, 1, fmt, ap)) == AST_DYNSTR_BUILD_RETRY) {	\
+		while ((__res = __ast_str_helper(buf, max_len,		\
+			1, fmt, ap)) == AST_DYNSTR_BUILD_RETRY) {	\
 			va_end(ap);					\
 			va_start(ap, fmt);				\
 		}							\
@@ -498,10 +488,10 @@ enum {
 	})
 
 /*!
- * \brief Core functionality of ast_dynamic_str_[thread_](set|append)_va
+ * \brief Core functionality of ast_str_(set|append)_va
  *
  * The arguments to this function are the same as those described for
- * ast_dynamic_str_thread_set_va except for an addition argument, append.
+ * ast_str_set_va except for an addition argument, append.
  * If append is non-zero, this will append to the current string instead of
  * writing over it.
  *
@@ -520,58 +510,35 @@ enum {
  *       through calling one of the other functions or macros defined in this
  *       file.
  */
-int __ast_dyn_str_helper(struct ast_dynamic_str **buf, size_t max_len,
-	struct ast_threadstorage *ts, int append, const char *fmt, va_list ap);
+int __ast_str_helper(struct ast_str **buf, size_t max_len,
+	int append, const char *fmt, va_list ap);
 
 /*!
- * \brief Set a thread locally stored dynamic string using variable arguments
+ * \brief Set a dynamic string using variable arguments
  *
- * \arg buf This is the address of a pointer to an ast_dynamic_str which should
- *      have been retrieved using ast_dynamic_str_thread_get.  It will need to
+ * \arg buf This is the address of a pointer to a struct ast_str which should
+ *      have been retrieved using ast_str_thread_get.  It will need to
  *      be updated in the case that the buffer has to be reallocated to
  *      accomodate a longer string than what it currently has space for.
  * \arg max_len This is the maximum length to allow the string buffer to grow
  *      to.  If this is set to 0, then there is no maximum length.
- * \arg ts This is a pointer to the thread storage structure declared by using
- *      the AST_THREADSTORAGE macro.  If declared with 
- *      AST_THREADSTORAGE(my_buf, my_buf_init), then this argument would be 
- *      (&my_buf).
+ *	If set to -1, we are bound to the current maximum length.
  * \arg fmt This is the format string (printf style)
  *
  * \return The return value of this function is the same as that of the printf
  *         family of functions.
  *
- * Example usage:
- * \code
- * AST_THREADSTORAGE(my_str, my_str_init);
- * #define MY_STR_INIT_SIZE   128
- * ...
- * void my_func(int arg1, int arg2)
- * {
- *      struct ast_dynamic_str *buf;
- *      va_list ap;
- *
- *      if (!(buf = ast_dynamic_str_thread_get(&my_str, MY_STR_INIT_SIZE)))
- *           return;
- *      ...
- *      ast_dynamic_str_thread_set(&buf, 0, &my_str, "arg1: %d  arg2: %d\n",
- *           arg1, arg2);
- * 
- *      printf("This is the string we just built: %s\n", buf->str);
- *      ...
- * }
- * \endcode
+ * All the rest is the same as ast_str_set_va()
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_set(
-	struct ast_dynamic_str **buf, size_t max_len, 
-	struct ast_threadstorage *ts, const char *fmt, ...),
+int __attribute__ ((format (printf, 3, 4))) ast_str_set(
+	struct ast_str **buf, size_t max_len, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
 
 	va_start(ap, fmt);
-	res = ast_dynamic_str_thread_set_va(buf, max_len, ts, fmt, ap);
+	res = ast_str_set_va(buf, max_len, fmt, ap);
 	va_end(ap);
 
 	return res;
@@ -582,70 +549,17 @@ int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_set(
  * \brief Append to a thread local dynamic string
  *
  * The arguments, return values, and usage of this function are the same as
- * ast_dynamic_str_thread_set().  However, instead of setting a new value for
- * the string, this function appends to the current value.
+ * ast_str_set(), but the new data is appended to the current value.
  */
 AST_INLINE_API(
-int __attribute__ ((format (printf, 4, 5))) ast_dynamic_str_thread_append(
-	struct ast_dynamic_str **buf, size_t max_len, 
-	struct ast_threadstorage *ts, const char *fmt, ...),
+int __attribute__ ((format (printf, 3, 4))) ast_str_append(
+	struct ast_str **buf, size_t max_len, const char *fmt, ...),
 {
 	int res;
 	va_list ap;
 
 	va_start(ap, fmt);
-	res = ast_dynamic_str_thread_append_va(buf, max_len, ts, fmt, ap);
-	va_end(ap);
-
-	return res;
-}
-)
-
-/*!
- * \brief Set a dynamic string
- *
- * \arg buf This is the address of a pointer to an ast_dynamic_str.  It will
- *      need to be updated in the case that the buffer has to be reallocated to
- *      accommodate a longer string than what it currently has space for.
- * \arg max_len This is the maximum length to allow the string buffer to grow
- *      to.  If this is set to 0, then there is no maximum length.
- *
- * \return The return value of this function is the same as that of the printf
- *         family of functions.
- */
-AST_INLINE_API(
-int __attribute__ ((format (printf, 3, 4))) ast_dynamic_str_set(
-	struct ast_dynamic_str **buf, size_t max_len,
-	const char *fmt, ...),
-{
-	int res;
-	va_list ap;
-	
-	va_start(ap, fmt);
-	res = ast_dynamic_str_thread_set_va(buf, max_len, NULL, fmt, ap);
-	va_end(ap);
-
-	return res;
-}
-)
-
-/*!
- * \brief Append to a dynamic string
- *
- * The arguments, return values, and usage of this function are the same as
- * ast_dynamic_str_set().  However, this function appends to the string instead
- * of setting a new value.
- */
-AST_INLINE_API(
-int __attribute__ ((format (printf, 3, 4))) ast_dynamic_str_append(
-	struct ast_dynamic_str **buf, size_t max_len,
-	const char *fmt, ...),
-{
-	int res;
-	va_list ap;
-	
-	va_start(ap, fmt);
-	res = ast_dynamic_str_thread_append_va(buf, max_len, NULL, fmt, ap);
+	res = ast_str_append_va(buf, max_len, fmt, ap);
 	va_end(ap);
 
 	return res;

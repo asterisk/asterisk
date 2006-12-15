@@ -695,14 +695,14 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
 	struct logchannel *chan;
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 	time_t t;
 	struct tm tm;
 	char date[256];
 
 	va_list ap;
 
-	if (!(buf = ast_dynamic_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
+	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;
 
 	if (AST_LIST_EMPTY(&logchannels))
@@ -714,7 +714,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		if (level != __LOG_VERBOSE) {
 			int res;
 			va_start(ap, fmt);
-			res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
+			res = ast_str_set_va(&buf, BUFSIZ, fmt, ap); /* XXX BUFSIZ ? */
 			va_end(ap);
 			if (res != AST_DYNSTR_BUILD_FAILED) {
 				term_filter_escapes(buf->str);
@@ -775,7 +775,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 			if (level != __LOG_VERBOSE) {
 				int res;
 				sprintf(linestr, "%d", line);
-				ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf,
+				ast_str_set(&buf, BUFSIZ,
 					"[%s] %s[%ld]: %s:%s %s: ",
 					date,
 					term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
@@ -788,7 +788,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 				ast_console_puts_mutable(buf->str);
 				
 				va_start(ap, fmt);
-				res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
+				res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
 				va_end(ap);
 				if (res != AST_DYNSTR_BUILD_FAILED)
 					ast_console_puts_mutable(buf->str);
@@ -796,7 +796,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		/* File channels */
 		} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 			int res;
-			ast_dynamic_str_thread_set(&buf, BUFSIZ, &log_buf, 
+			ast_str_set(&buf, BUFSIZ,
 				"[%s] %s[%ld] %s: ",
 				date, levels[level], (long)GETTID(), file);
 			res = fprintf(chan->fileptr, "%s", buf->str);
@@ -812,7 +812,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 				int res;
 				/* No error message, continue printing */
 				va_start(ap, fmt);
-				res = ast_dynamic_str_thread_set_va(&buf, BUFSIZ, &log_buf, fmt, ap);
+				res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
 				va_end(ap);
 				if (res != AST_DYNSTR_BUILD_FAILED) {
 					term_strip(buf->str, buf->str, buf->len);
@@ -868,7 +868,7 @@ void ast_backtrace(void)
 void ast_verbose(const char *fmt, ...)
 {
 	struct verb *v;
-	struct ast_dynamic_str *buf;
+	struct ast_str *buf;
 	int res;
 	va_list ap;
 
@@ -886,11 +886,11 @@ void ast_verbose(const char *fmt, ...)
 		fmt = datefmt;
 	}
 
-	if (!(buf = ast_dynamic_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
+	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
 		return;
 
 	va_start(ap, fmt);
-	res = ast_dynamic_str_thread_set_va(&buf, 0, &verbose_buf, fmt, ap);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
 	if (res == AST_DYNSTR_BUILD_FAILED)
