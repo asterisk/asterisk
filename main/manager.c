@@ -2759,7 +2759,7 @@ static char *generic_http_callback(enum output_format format,
 	}
 	if (s->f != NULL) {	/* have temporary output */
 		char *buf;
-		off_t l = fseek(s->f, 0, SEEK_END);	/* how many chars available */
+		int l = ftell(s->f);
 
 		/* always return something even if len == 0 */
 		if ((buf = ast_calloc(1, l+1))) {
