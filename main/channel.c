@@ -516,8 +516,10 @@ int ast_str2cause(const char *name)
 	return -1;
 }
 
-/*! \brief Gives the string form of a given channel state */
-char *ast_state2str(enum ast_channel_state state)
+/*! \brief Gives the string form of a given channel state.
+	\note This function is not reentrant.
+ */
+const char *ast_state2str(enum ast_channel_state state)
 {
 	char *buf;
 

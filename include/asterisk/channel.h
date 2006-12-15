@@ -1060,7 +1060,7 @@ int ast_str2cause(const char *name) attribute_pure;
  * Give a name to a state 
  * Returns the text form of the binary state given
  */
-char *ast_state2str(enum ast_channel_state);
+const char *ast_state2str(enum ast_channel_state);
 
 /*! Gives the string form of a given transfer capability */
 /*!
