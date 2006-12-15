@@ -449,11 +449,11 @@ static const struct cfsip_options {
 	{ SIP_OPT_SDP_ANAT,	NOT_SUPPORTED,	"sdp-anat" },
 	/* RFC3329: Security agreement mechanism */
 	{ SIP_OPT_SEC_AGREE,	NOT_SUPPORTED,	"sec_agree" },
-	/* SIMPLE events:  draft-ietf-simple-event-list-07.txt */
+	/* SIMPLE events:  RFC4662 */
 	{ SIP_OPT_EVENTLIST,	NOT_SUPPORTED,	"eventlist" },
 	/* GRUU: Globally Routable User Agent URI's */
 	{ SIP_OPT_GRUU,		NOT_SUPPORTED,	"gruu" },
-	/* Target-dialog: draft-ietf-sip-target-dialog-03.txt */
+	/* RFC4538: Target-dialog */
 	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"tdialog" },
 	/* Disable the REFER subscription, RFC 4488 */
 	{ SIP_OPT_NOREFERSUB,	NOT_SUPPORTED,	"norefersub" },
@@ -4058,6 +4058,8 @@ static const char *find_alias(const char *name, const char *_default)
 		{ "Reject-Contact",      "j" },
 		{ "Request-Disposition", "d" },
 		{ "Session-Expires",     "x" },
+		{ "Identity",            "y" },
+		{ "Identity-Info",       "n" },
 	};
 	int x;
 
