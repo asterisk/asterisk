@@ -1788,11 +1788,14 @@ retry:
 			ast_queue_hangup(owner);
 		}
 
+		AST_LIST_LOCK(&iaxq.queue);
 		AST_LIST_TRAVERSE(&iaxq.queue, cur, list) {
 			/* Cancel any pending transmissions */
 			if (cur->callno == pvt->callno) 
 				cur->retries = -1;
 		}
+		AST_LIST_UNLOCK(&iaxq.queue);
+
 		if (pvt->reg)
 			pvt->reg->callno = 0;
 		if (!owner) {
@@ -2099,8 +2102,11 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 {
 	struct iax_frame *cur;
 	int cnt = 0, dead=0, final=0;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
+	AST_LIST_LOCK(&iaxq.queue);
 	AST_LIST_TRAVERSE(&iaxq.queue, cur, list) {
 		if (cur->retries < 0)
 			dead++;
@@ -2108,6 +2114,8 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 			final++;
 		cnt++;
 	}
+	AST_LIST_UNLOCK(&iaxq.queue);
+
 	ast_cli(fd, "    IAX Statistics\n");
 	ast_cli(fd, "---------------------\n");
 	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
