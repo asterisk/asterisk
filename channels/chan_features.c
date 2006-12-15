@@ -462,7 +462,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	for (x=1;x<4;x++) {
 		if (b2)
 			free(b2);
-		b2 = ast_safe_string_alloc("Feature/%s/%s-%d", p->tech, p->dest, x);
+		asprintf(&b2, "Feature/%s/%s-%d", p->tech, p->dest, x);
 		for (y=0;y<3;y++) {
 			if (y == index)
 				continue;
