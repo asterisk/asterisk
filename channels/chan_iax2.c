@@ -7752,7 +7752,9 @@ static int iax2_do_register(struct iax2_registry *reg)
 	 * call has the pointer to IP and must be updated to the new one
 	 */
 	if (reg->dnsmgr && ast_dnsmgr_changed(reg->dnsmgr) && (reg->callno > 0)) {
+		ast_mutex_lock(&iaxsl[reg->callno]);
 		iax2_destroy(reg->callno);
+		ast_mutex_unlock(&iaxsl[reg->callno]);
 		reg->callno = 0;
 	}
 	if (!reg->addr.sin_addr.s_addr) {
@@ -7919,8 +7921,11 @@ static void __iax2_poke_noanswer(void *data)
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
 		ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 	}
-	if (peer->callno > 0)
+	if (peer->callno > 0) {
+		ast_mutex_lock(&iaxsl[peer->callno]);
 		iax2_destroy(peer->callno);
+		ast_mutex_unlock(&iaxsl[peer->callno]);
+	}
 	peer->callno = 0;
 	peer->lastms = -1;
 	/* Try again quickly */
@@ -7951,7 +7956,9 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	}
 	if (peer->callno > 0) {
 		ast_log(LOG_NOTICE, "Still have a callno...\n");
+		ast_mutex_lock(&iaxsl[peer->callno]);
 		iax2_destroy(peer->callno);
+		ast_mutex_unlock(&iaxsl[peer->callno]);
 	}
 	if (heldcall)
 		ast_mutex_unlock(&iaxsl[heldcall]);
@@ -8786,8 +8793,11 @@ static void destroy_peer(struct iax2_peer *peer)
 		ast_sched_del(sched, peer->expire);
 	if (peer->pokeexpire > -1)
 		ast_sched_del(sched, peer->pokeexpire);
-	if (peer->callno > 0)
+	if (peer->callno > 0) {
+		ast_mutex_lock(&iaxsl[peer->callno]);
 		iax2_destroy(peer->callno);
+		ast_mutex_unlock(&iaxsl[peer->callno]);
+	}
 
 	register_peer_exten(peer, 0);
 
