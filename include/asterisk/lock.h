@@ -303,8 +303,11 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 			t->reentrancy++;
 		} else {
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
-							   filename, lineno, func, mutex_name);
+					   filename, lineno, func, mutex_name);
 		}
+	} else {
+		__ast_mutex_logger("%s line %d (%s): Error: '%s' was locked here.\n",
+                                   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
 	}
 
 	return res;
