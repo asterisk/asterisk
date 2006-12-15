@@ -162,13 +162,15 @@ void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 void __ast_threadstorage_cleanup(void *);
 
 /*!
- * \brief A dynamic length string
+ * A dynamic length string. This is just a C string prefixed by a length
+ * field. len reflects the actual space allocated, while the string is
+ * NUL-terminated as a regular C string.
+ * One should never declare a variable with this type, but only a pointer
+ * to it, and use ast_dynamic_str_create() to initialize it.
  */
 struct ast_dynamic_str {
-	/* The current maximum length of the string */
-	size_t len;
-	/* The string buffer */
-	char str[0];
+	size_t len;	/*!< The current maximum length of the string */
+	char str[0];	/*!< The string buffer */
 };
 
 /*!
@@ -179,7 +181,7 @@ struct ast_dynamic_str {
  * \return This function returns a pointer to the dynamic string length.  The
  *         result will be NULL in the case of a memory allocation error.
  *
- * /note The result of this function is dynamically allocated memory, and must
+ * \note The result of this function is dynamically allocated memory, and must
  *       be free()'d after it is no longer needed.
  */
 AST_INLINE_API(
