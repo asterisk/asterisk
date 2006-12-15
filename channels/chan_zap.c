@@ -5513,13 +5513,13 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			free(b2);
 #ifdef HAVE_PRI
 		if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-			b2 = ast_safe_string_alloc("Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+			asprintf(&b2, "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
 		else
 #endif
 		if (i->channel == CHAN_PSEUDO)
-			b2 = ast_safe_string_alloc("Zap/pseudo-%d", ast_random());
+			asprintf(&b2, "Zap/pseudo-%ld", ast_random());
 		else	
-			b2 = ast_safe_string_alloc("Zap/%d-%d", i->channel, y);
+			asprintf(&b2, "Zap/%d-%d", i->channel, y);
 		for (x = 0; x < 3; x++) {
 			if ((index != x) && i->subs[x].owner && !strcasecmp(b2, i->subs[x].owner->name))
 				break;
