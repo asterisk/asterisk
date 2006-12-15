@@ -2325,6 +2325,7 @@ static int hangup_sip2cause(int cause)
 		case 502:	
 			return AST_CAUSE_DESTINATION_OUT_OF_ORDER;
 		case 503:	/* Service unavailable */
+		case 504:	/* Server timeout */
 			return AST_CAUSE_CONGESTION;
 		default:
 			return AST_CAUSE_NORMAL;
@@ -10206,6 +10207,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 400: /* Bad Request */
 				case 500: /* Server error */
 				case 503: /* Service Unavailable */
+				case 504: /* Server Timeout */
 					if (owner)
 						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 					break;
@@ -10299,6 +10301,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 603: /* Decline */
 				case 500: /* Server error */
 				case 503: /* Service Unavailable */
+				case 504: /* Server timeout */
 
 					if (sipmethod == SIP_INVITE && !ignore) {	/* re-invite failed */
 						sip_cancel_destroy(p);
