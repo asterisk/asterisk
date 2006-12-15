@@ -262,7 +262,9 @@ int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
 	int bytes=0;
 	int i,x;
 	char	c;
+	/*! Baudot letters */
 	static unsigned char lstr[31] = "\000E\nA SIU\rDRJNFCKTZLWHYPQOBG\000MXV";
+	/*! Baudot figures */
 	static unsigned char fstr[31] = "\0003\n- \00787\r$4',!:(5\")2\0006019?&\000./;";
 	/* Initial carriers (real/imaginary) */
 	float cr = 1.0;
