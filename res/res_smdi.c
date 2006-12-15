@@ -42,7 +42,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj.h"
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
-#include "asterisk/utils.h"
 #include "asterisk/options.h"
 
 /* Message expiry time in milliseconds */
