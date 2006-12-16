@@ -144,7 +144,7 @@ int ssl_setup(struct tls_config *cfg);
    The return value may include additional headers at the front and MUST include a blank 
    line with \r\n to provide separation between user headers and content (even if no
    content is specified) */
-typedef char *(*ast_http_callback)(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
+typedef struct ast_str *(*ast_http_callback)(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
 
 struct ast_http_uri {
 	struct ast_http_uri *next;
@@ -157,13 +157,11 @@ struct ast_http_uri {
 /*! \brief Link into the Asterisk HTTP server */
 int ast_http_uri_link(struct ast_http_uri *urihandler);
 
-/*! \brief Return a malloc()'d string containing an HTTP error message */
-char *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
+/*! \brief Return an ast_str malloc()'d string containing an HTTP error message */
+struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text);
 
 /*! \brief Destroy an HTTP server */
 void ast_http_uri_unlink(struct ast_http_uri *urihandler);
-
-char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, size_t buflen);
 
 int ast_http_init(void);
 int ast_http_reload(void);

@@ -336,6 +336,27 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 }
 )
 
+/*!
+ * Make space in a new string (e.g. to read in data from a file)
+ */
+AST_INLINE_API(
+int ast_str_make_space(struct ast_str **buf, size_t new_len),
+{
+	if (new_len <= (*buf)->len) 
+		return 0;	/* success */
+	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
+		return -1;	/* cannot extend */
+	*buf = ast_realloc(*buf, new_len + sizeof(struct ast_str));
+	if (*buf == NULL) /* XXX watch out, we leak memory here */
+		return -1;
+	if ((*buf)->ts != DS_MALLOC)
+		pthread_setspecific((*buf)->ts->key, *buf);
+
+        (*buf)->len = new_len;
+        return 0;
+}
+)
+
 #define ast_str_alloca(init_len)			\
 	({						\
 		struct ast_str *buf;			\

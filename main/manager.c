@@ -2491,44 +2491,58 @@ static void vars2msg(struct message *m, struct ast_variable *vars)
  * mode & 1	-> lowercase;
  * mode & 2	-> replace non-alphanumeric chars with underscore
  */
-static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mode)
+static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 {
-	for ( ; *src && *maxlen > 6; src++) {
+	/* store in a local buffer to avoid calling ast_str_append too often */
+	char buf[256];
+	char *dst = buf;
+	int space = sizeof(buf);
+	/* repeat until done and nothing to flush */
+	for ( ; *src || dst != buf ; src++) {
+		if (*src == '\0' || space < 10) {	/* flush */
+			*dst++ = '\0';
+			ast_str_append(out, 0, "%s", buf);
+			dst = buf;
+			space = sizeof(buf);
+			if (*src == '\0')
+				break;
+		}
+			
 		if ( (mode & 2) && !isalnum(*src)) {
-			*(*dst)++ = '_';
-			(*maxlen)--;
+			*dst++ = '_';
+			space--;
 			continue;
 		}
 		switch (*src) {
 		case '<':
-			strcpy(*dst, "&lt;");
-			(*dst) += 4;
-			*maxlen -= 4;
+			strcpy(dst, "&lt;");
+			dst += 4;
+			space -= 4;
 			break;
 		case '>':
-			strcpy(*dst, "&gt;");
-			(*dst) += 4;
-			*maxlen -= 4;
+			strcpy(dst, "&gt;");
+			dst += 4;
+			space -= 4;
 			break;
 		case '\"':
-			strcpy(*dst, "&quot;");
-			(*dst) += 6;
-			*maxlen -= 6;
+			strcpy(dst, "&quot;");
+			dst += 6;
+			space -= 6;
 			break;
 		case '\'':
-			strcpy(*dst, "&apos;");
-			(*dst) += 6;
-			*maxlen -= 6;
+			strcpy(dst, "&apos;");
+			dst += 6;
+			space -= 6;
 			break;
 		case '&':
-			strcpy(*dst, "&amp;");
-			(*dst) += 5;
-			*maxlen -= 5;
+			strcpy(dst, "&amp;");
+			dst += 5;
+			space -= 5;
 			break;
 
 		default:
-			*(*dst)++ = mode ? tolower(*src) : *src;
-			(*maxlen)--;
+			*dst++ = mode ? tolower(*src) : *src;
+			space--;
 		}
 	}
 }
@@ -2558,19 +2572,14 @@ static void xml_copy_escape(char **dst, size_t *maxlen, const char *src, int mod
  *   Sections (blank lines in the input) are separated by a <HR>
  *
  */
-static char *xml_translate(char *in, struct ast_variable *vars, enum output_format format)
+static void xml_translate(struct ast_str **out, char *in, struct ast_variable *vars, enum output_format format)
 {
 	struct ast_variable *v;
 	char *dest = NULL;
-	char *out, *tmp, *var, *val;
+	char *var, *val;
 	char *objtype = NULL;
-	int colons = 0;
-	int breaks = 0;
-	size_t len;
 	int in_data = 0;	/* parsing data */
-	int escaped = 0;
 	int inobj = 0;
-	int x;
 	int xml = (format == FORMAT_XML);
 
 	for (v = vars; v; v = v->next) {
@@ -2583,7 +2592,7 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 		dest = "unknown";
 	if (!objtype)
 		objtype = "generic";
-
+#if 0
 	/* determine how large is the response.
 	 * This is a heuristic - counting colons (for headers),
 	 * newlines (for extra arguments), and escaped chars.
@@ -2604,6 +2613,7 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 		return NULL;
 	tmp = out;
 	*tmp = '\0';
+#endif
 	/* we want to stop when we find an empty line */
 	while (in && *in) {
 		val = strsep(&in, "\r\n");	/* mark start and end of line */
@@ -2614,10 +2624,10 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 			ast_verbose("inobj %d in_data %d line <%s>\n", inobj, in_data, val);
 		if (ast_strlen_zero(val)) {
 			if (in_data) { /* close data */
-				ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
+				ast_str_append(out, 0, xml ? "'" : "</td></tr>\n");
 				in_data = 0;
 			}
-			ast_build_string(&tmp, &len, xml ? " /></response>\n" :
+			ast_str_append(out, 0, xml ? " /></response>\n" :
 				"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
 			inobj = 0;
 			continue;
@@ -2637,45 +2647,41 @@ static char *xml_translate(char *in, struct ast_variable *vars, enum output_form
 		}
 		if (!inobj) {
 			if (xml)
-				ast_build_string(&tmp, &len, "<response type='object' id='%s'><%s", dest, objtype);
+				ast_str_append(out, 0, "<response type='object' id='%s'><%s", dest, objtype);
 			else
-				ast_build_string(&tmp, &len, "<body>\n");
+				ast_str_append(out, 0, "<body>\n");
 			inobj = 1;
 		}
 		if (!in_data) {	/* build appropriate line start */
-			ast_build_string(&tmp, &len, xml ? " " : "<tr><td>");
-			xml_copy_escape(&tmp, &len, var, xml ? 1 | 2 : 0);
-			ast_build_string(&tmp, &len, xml ? "='" : "</td><td>");
+			ast_str_append(out, 0, xml ? " " : "<tr><td>");
+			xml_copy_escape(out, var, xml ? 1 | 2 : 0);
+			ast_str_append(out, 0, xml ? "='" : "</td><td>");
 			if (!strcmp(var, "Opaque-data"))
 				in_data = 1;
 		}
-		xml_copy_escape(&tmp, &len, val, 0);	/* data field */
+		xml_copy_escape(out, val, 0);	/* data field */
 		if (!in_data)
-			ast_build_string(&tmp, &len, xml ? "'" : "</td></tr>\n");
+			ast_str_append(out, 0, xml ? "'" : "</td></tr>\n");
 		else
-			ast_build_string(&tmp, &len, xml ? "\n" : "<br>\n");
+			ast_str_append(out, 0, xml ? "\n" : "<br>\n");
 	}
 	if (inobj)
-		ast_build_string(&tmp, &len, xml ? " /></response>\n" :
+		ast_str_append(out, 0, xml ? " /></response>\n" :
 			"<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-	return out;
 }
 
-static char *generic_http_callback(enum output_format format,
+static struct ast_str *generic_http_callback(enum output_format format,
 	struct sockaddr_in *requestor, const char *uri,
 	struct ast_variable *params, int *status,
 	char **title, int *contentlength)
 {
 	struct mansession *s = NULL;
 	unsigned long ident = 0; /* invalid, so find_session will fail if not set through the cookie */
-	char workspace[1024];
-	size_t len = sizeof(workspace);
 	int blastaway = 0;
-	char *c = workspace;
-	char *retval = NULL;
 	struct message m;
 	struct ast_variable *v;
 	char template[] = "/tmp/ast-http-XXXXXX";	/* template for temporary file */
+	struct ast_str *out = NULL;
 
 	for (v = params; v; v = v->next) {
 		if (!strcasecmp(v->name, "mansession_id")) {
@@ -2708,23 +2714,27 @@ static char *generic_http_callback(enum output_format format,
 	}
 
 	ast_mutex_unlock(&s->__lock);
-	memset(&m, 0, sizeof(m));
-	{
-		char tmp[80];
-		char cookie[128];
 
-		ast_build_string(&c, &len, "Content-type: text/%s\r\n", contenttype[format]);
-		ast_build_string(&c, &len, "Cache-Control: no-cache;\r\n");
-		sprintf(tmp, "%08lx", s->managerid);
-		ast_build_string(&c, &len, "%s\r\n", ast_http_setcookie("mansession_id", tmp, httptimeout, cookie, sizeof(cookie)));
+	out = ast_str_create(1024);
+	if (out == NULL) {
+		*status = 500;
+		goto generic_callback_out;
 	}
+	memset(&m, 0, sizeof(m));
+	ast_str_append(&out, 0,
+		"Content-type: text/%s\r\n"
+		"Cache-Control: no-cache;\r\n"
+		"Set-Cookie: mansession_id=\"%08lx\"; Version=\"1\"; Max-Age=%d\r\n"
+		"\r\n",
+			contenttype[format],
+			s->managerid, httptimeout);
 
 	if (format == FORMAT_HTML)
-		ast_build_string(&c, &len, "<title>Asterisk&trade; Manager Test Interface</title>");
+		ast_str_append(&out, 0, "<title>Asterisk&trade; Manager Test Interface</title>");
 	vars2msg(&m, params);
 
 	if (format == FORMAT_XML) {
-		ast_build_string(&c, &len, "<ajax-response>\n");
+		ast_str_append(&out, 0, "<ajax-response>\n");
 	} else if (format == FORMAT_HTML) {
 
 #define ROW_FMT	"<tr><td colspan=\"2\" bgcolor=\"#f1f1ff\">%s</td></tr>\r\n"
@@ -2733,9 +2743,9 @@ static char *generic_http_callback(enum output_format format,
 	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br> \
 	<input type=\"submit\"></form>"
 
-		ast_build_string(&c, &len, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
-		ast_build_string(&c, &len, ROW_FMT, "<h1>Manager Tester</h1>");
-		ast_build_string(&c, &len, ROW_FMT, TEST_STRING);
+		ast_str_append(&out, 0, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
+		ast_str_append(&out, 0, ROW_FMT, "<h1>Manager Tester</h1>");
+		ast_str_append(&out, 0, ROW_FMT, TEST_STRING);
 	}
 
 	s->fd = mkstemp(template);	/* create a temporary file for command output */
@@ -2763,26 +2773,12 @@ static char *generic_http_callback(enum output_format format,
 
 		/* always return something even if len == 0 */
 		if ((buf = ast_calloc(1, l+1))) {
-			char *tmp;
 			if (l > 0) {
 				fseek(s->f, 0, SEEK_SET);
 				fread(buf, 1, l, s->f);
 			}
 			if (format == FORMAT_XML || format == FORMAT_HTML)
-				tmp = xml_translate(buf, params, format);
-			else
-				tmp = buf;
-			if (tmp) {
-				retval = malloc(strlen(workspace) + strlen(tmp) + 128);
-				if (retval) {
-					strcpy(retval, workspace);
-					strcpy(retval + strlen(retval), tmp);
-					c = retval + strlen(retval);
-					len = 120;
-				}
-			}
-			if (tmp != buf)
-				free(tmp);
+				xml_translate(&out, buf, params, format);
 			free(buf);
 		}
 		fclose(s->f);
@@ -2794,9 +2790,9 @@ static char *generic_http_callback(enum output_format format,
 	/* Still okay because c would safely be pointing to workspace even
 	   if retval failed to allocate above */
 	if (format == FORMAT_XML) {
-		ast_build_string(&c, &len, "</ajax-response>\n");
+		ast_str_append(&out, 0, "</ajax-response>\n");
 	} else if (format == FORMAT_HTML)
-		ast_build_string(&c, &len, "</table></body>\r\n");
+		ast_str_append(&out, 0, "</table></body>\r\n");
 
 	ast_mutex_lock(&s->__lock);
 	/* Reset HTTP timeout.  If we're not authenticated, keep it extremely short */
@@ -2825,20 +2821,20 @@ static char *generic_http_callback(enum output_format format,
 generic_callback_out:
 	if (*status != 200)
 		return ast_http_error(500, "Server Error", NULL, "Internal Server Error (out of memory)\n");
-	return retval;
+	return out;
 }
 
-static char *manager_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *manager_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
 	return generic_http_callback(FORMAT_HTML, requestor, uri, params, status, title, contentlength);
 }
 
-static char *mxml_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *mxml_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
 	return generic_http_callback(FORMAT_XML, requestor, uri, params, status, title, contentlength);
 }
 
-static char *rawman_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *rawman_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
 	return generic_http_callback(FORMAT_RAW, requestor, uri, params, status, title, contentlength);
 }

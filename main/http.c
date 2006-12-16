@@ -148,17 +148,15 @@ static char *uri_decode(char *buf)
 	}
 	return buf;
 }
-static char *static_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
-	char result[4096];
-	char *c=result;
+	struct ast_str *result;
 	char *path;
 	char *ftype, *mtype;
 	char wkspace[80];
 	struct stat st;
 	int len;
 	int fd;
-	void *blob;
 
 	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration 
 	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
@@ -188,23 +186,22 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
 		goto out403;
-	
+
 	len = st.st_size + strlen(mtype) + 40;
-	
-	blob = malloc(len);
-	if (blob) {
-		c = blob;
-		sprintf(c, "Content-type: %s\r\n\r\n", mtype);
-		c += strlen(c);
-		*contentlength = read(fd, c, st.st_size);
-		if (*contentlength < 0) {
-			close(fd);
-			free(blob);
-			goto out403;
-		}
+	result = ast_str_create(len);
+	if (result == NULL)	/* XXX not really but... */
+		goto out403;
+
+	ast_str_append(&result, 0, "Content-type: %s\r\n\r\n", mtype);
+	*contentlength = read(fd, result->str + result->used, st.st_size);
+	if (*contentlength < 0) {
+		close(fd);
+		free(result);
+		goto out403;
 	}
+	result->used += *contentlength;
 	close(fd);
-	return blob;
+	return result;
 
 out404:
 	*status = 404;
@@ -218,44 +215,41 @@ out403:
 }
 
 
-static char *httpstatus_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *httpstatus_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
-	char result[4096];
-	size_t reslen = sizeof(result);
-	char *c=result;
+	struct ast_str *out = ast_str_create(512);
 	struct ast_variable *v;
 
-	ast_build_string(&c, &reslen,
+	if (out == NULL)
+		return out;
+
+	ast_str_append(&out, 0,
 		"\r\n"
 		"<title>Asterisk HTTP Status</title>\r\n"
 		"<body bgcolor=\"#ffffff\">\r\n"
 		"<table bgcolor=\"#f1f1f1\" align=\"center\"><tr><td bgcolor=\"#e0e0ff\" colspan=\"2\" width=\"500\">\r\n"
 		"<h2>&nbsp;&nbsp;Asterisk&trade; HTTP Status</h2></td></tr>\r\n");
 
-	ast_build_string(&c, &reslen, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
-	ast_build_string(&c, &reslen, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
+	ast_str_append(&out, 0, "<tr><td><i>Prefix</i></td><td><b>%s</b></td></tr>\r\n", prefix);
+	ast_str_append(&out, 0, "<tr><td><i>Bind Address</i></td><td><b>%s</b></td></tr>\r\n",
 			ast_inet_ntoa(http_desc.oldsin.sin_addr));
-	ast_build_string(&c, &reslen, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
+	ast_str_append(&out, 0, "<tr><td><i>Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 			ntohs(http_desc.oldsin.sin_port));
 	if (http_tls_cfg.enabled)
-		ast_build_string(&c, &reslen, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
+		ast_str_append(&out, 0, "<tr><td><i>SSL Bind Port</i></td><td><b>%d</b></td></tr>\r\n",
 			ntohs(https_desc.oldsin.sin_port));
-	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-	v = vars;
-	while(v) {
+	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+	for (v = vars; v; v = v->next) {
 		if (strncasecmp(v->name, "cookie_", 7))
-			ast_build_string(&c, &reslen, "<tr><td><i>Submitted Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
-		v = v->next;
+			ast_str_append(&out, 0, "<tr><td><i>Submitted Variable '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
 	}
-	ast_build_string(&c, &reslen, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
-	v = vars;
-	while(v) {
+	ast_str_append(&out, 0, "<tr><td colspan=\"2\"><hr></td></tr>\r\n");
+	for (v = vars; v; v = v->next) {
 		if (!strncasecmp(v->name, "cookie_", 7))
-			ast_build_string(&c, &reslen, "<tr><td><i>Cookie '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
-		v = v->next;
+			ast_str_append(&out, 0, "<tr><td><i>Cookie '%s'</i></td><td>%s</td></tr>\r\n", v->name, v->value);
 	}
-	ast_build_string(&c, &reslen, "</table><center><font size=\"-1\"><i>Asterisk and Digium are registered trademarks of Digium, Inc.</i></font></center></body>\r\n");
-	return strdup(result);
+	ast_str_append(&out, 0, "</table><center><font size=\"-1\"><i>Asterisk and Digium are registered trademarks of Digium, Inc.</i></font></center></body>\r\n");
+	return out;
 }
 
 static struct ast_http_uri statusuri = {
@@ -272,10 +266,12 @@ static struct ast_http_uri staticuri = {
 	.has_subtree = 1,
 };
 	
-char *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
+struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
 {
-	char *c = NULL;
-	asprintf(&c,
+	struct ast_str *out = ast_str_create(512);
+	if (out == NULL)
+		return out;
+	ast_str_set(&out, 0,
 		"Content-type: text/html\r\n"
 		"%s"
 		"\r\n"
@@ -289,7 +285,7 @@ char *ast_http_error(int status, const char *title, const char *extra_header, co
 		"<address>Asterisk Server</address>\r\n"
 		"</body></html>\r\n",
 			(extra_header ? extra_header : ""), status, title, title, text);
-	return c;
+	return out;
 }
 
 /*! \brief 
@@ -334,9 +330,10 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 	}
 }
 
-static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
+static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
 {
 	char *c;
+	struct ast_str *out = NULL;
 	char *params = uri;
 	struct ast_http_uri *urih=NULL;
 	int l;
@@ -395,22 +392,22 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 		}
 	}
 	if (urih) {
-		c = urih->callback(sin, uri, vars, status, title, contentlength);
+		out = urih->callback(sin, uri, vars, status, title, contentlength);
 	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
 		/* Special case: no prefix, no URI, send to /static/index.html */
-		c = ast_http_error(302, "Moved Temporarily",
+		out = ast_http_error(302, "Moved Temporarily",
 			"Location: /static/index.html\r\n",
 			"This is not the page you are looking for...");
 		*status = 302;
 		*title = strdup("Moved Temporarily");
 	} else {
-		c = ast_http_error(404, "Not Found", NULL,
+		out = ast_http_error(404, "Not Found", NULL,
 			"The requested URL was not found on this server.");
 		*status = 404;
 		*title = strdup("Not Found");
 	}
 	ast_variables_destroy(vars);
-	return c;
+	return out;
 }
 
 #ifdef DO_SSL
@@ -509,8 +506,9 @@ static void *httpd_helper_thread(void *data)
 	char cookie[4096];
 	struct server_instance *ser = data;
 	struct ast_variable *var, *prev=NULL, *vars=NULL;
-	char *uri, *c, *title=NULL;
+	char *uri, *title=NULL;
 	int status = 200, contentlength = 0;
+	struct ast_str *out = NULL;
 
 	if (!fgets(buf, sizeof(buf), ser->f))
 		goto done;
@@ -522,7 +520,7 @@ static void *httpd_helper_thread(void *data)
 	uri = ast_skip_blanks(uri);	/* Skip white space */
 
 	if (*uri) {			/* terminate at the first blank */
-		c = ast_skip_nonblanks(uri);
+		char *c = ast_skip_nonblanks(uri);
 		if (*c)
 			*c = '\0';
 	}
@@ -582,20 +580,20 @@ static void *httpd_helper_thread(void *data)
 	}
 
 	if (!*uri)
-		c = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
+		out = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
 	else if (strcasecmp(buf, "get")) 
-		c = ast_http_error(501, "Not Implemented", NULL,
+		out = ast_http_error(501, "Not Implemented", NULL,
 			"Attempt to use unimplemented / unsupported method");
 	else	/* try to serve it */
-		c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
+		out = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
 
 	/* If they aren't mopped up already, clean up the cookies */
 	if (vars)
 		ast_variables_destroy(vars);
 
-	if (!c)
-		c = ast_http_error(500, "Internal Error", NULL, "Internal Server Error");
-	if (c) {
+	if (out == NULL)
+		out = ast_http_error(500, "Internal Error", NULL, "Internal Server Error");
+	if (out) {
 		time_t t = time(NULL);
 		char timebuf[256];
 
@@ -606,18 +604,18 @@ static void *httpd_helper_thread(void *data)
 				"Connection: close\r\n",
 			status, title ? title : "OK", timebuf);
 		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
-			fprintf(ser->f, "%s", c);
+			fprintf(ser->f, "%s", out->str);
 		} else {
-			char *tmp = strstr(c, "\r\n\r\n");
+			char *tmp = strstr(out->str, "\r\n\r\n");
 
 			if (tmp) {
 				fprintf(ser->f, "Content-length: %d\r\n", contentlength);
 				/* first write the header, then the body */
-				fwrite(c, 1, (tmp + 4 - c), ser->f);
+				fwrite(out->str, 1, (tmp + 4 - out->str), ser->f);
 				fwrite(tmp + 4, 1, contentlength, ser->f);
 			}
 		}
-		free(c);
+		free(out);
 	}
 	if (title)
 		free(title);
@@ -676,17 +674,6 @@ void *server_root(void *data)
 		}
 	}
 	return NULL;
-}
-
-char *ast_http_setcookie(const char *var, const char *val, int expires, char *buf, size_t buflen)
-{
-	char *c;
-	c = buf;
-	ast_build_string(&c, &buflen, "Set-Cookie: %s=\"%s\"; Version=\"1\"", var, val);
-	if (expires)
-		ast_build_string(&c, &buflen, "; Max-Age=%d", expires);
-	ast_build_string(&c, &buflen, "\r\n");
-	return buf;
 }
 
 int ssl_setup(struct tls_config *cfg)
