@@ -38,11 +38,19 @@ endif
 
 %.o: %.c
 	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
+ifeq ($(AST_DEVMODE),yes)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(ASTCFLAGS) -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+else
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(ASTCFLAGS)
+endif
 
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
+ifeq ($(AST_DEVMODE),yes)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(ASTCFLAGS) -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+else
 	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(ASTCFLAGS)
+endif
 
 %.c: %.y
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"

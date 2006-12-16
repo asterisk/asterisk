@@ -239,10 +239,6 @@ OTHER_SUBDIRS:=utils agi
 SUBDIRS:=$(OTHER_SUBDIRS) $(MOD_SUBDIRS)
 SUBDIRS_INSTALL:=$(SUBDIRS:%=%-install)
 SUBDIRS_CLEAN:=$(SUBDIRS:%=%-clean)
-SUBDIRS_CLEAN_DEPEND:=$(SUBDIRS:%=%-clean-depend)
-MOD_SUBDIRS_DEPEND:=$(MOD_SUBDIRS:%=%-depend)
-OTHER_SUBDIRS_DEPEND:=$(OTHER_SUBDIRS:%=%-depend)
-SUBDIRS_DEPEND:=$(OTHER_SUBDIRS_DEPEND) $(MOD_SUBDIRS_DEPEND)
 SUBDIRS_UNINSTALL:=$(SUBDIRS:%=%-uninstall)
 MOD_SUBDIRS_EMBED_LDSCRIPT:=$(MOD_SUBDIRS:%=%-embed-ldscript)
 MOD_SUBDIRS_EMBED_LDFLAGS:=$(MOD_SUBDIRS:%=%-embed-ldflags)
@@ -306,7 +302,7 @@ makeopts.embed_rules: menuselect.makeopts
 	@$(MAKE) --no-print-directory $(MOD_SUBDIRS_EMBED_LDFLAGS)
 	@$(MAKE) --no-print-directory $(MOD_SUBDIRS_EMBED_LIBS)
 
-$(SUBDIRS): depend makeopts.embed_rules
+$(SUBDIRS): include/asterisk/version.h include/asterisk/build.h include/asterisk/buildopts.h defaults.h makeopts.embed_rules
 
 # ensure that all module subdirectories are processed before 'main' during
 # a parallel build, since if there are modules selected to be embedded the
@@ -348,19 +344,13 @@ include/asterisk/build.h:
 	fi
 	@rm -f $@.tmp
 
-$(SUBDIRS_CLEAN_DEPEND):
-	@$(MAKE) --no-print-directory -C $(@:-clean-depend=) clean-depend
-
 $(SUBDIRS_CLEAN):
 	@$(MAKE) --no-print-directory -C $(@:-clean=) clean
 
-clean-depend: $(SUBDIRS_CLEAN_DEPEND)
-
-clean: $(SUBDIRS_CLEAN) clean-depend
+clean: $(SUBDIRS_CLEAN)
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f include/asterisk/version.h
-	rm -f .depend
 	@$(MAKE) -C menuselect clean
 	cp -f .cleancount .lastclean
 
@@ -404,7 +394,6 @@ update:
 			grep ^C update.out | cut -b4- ; \
 		fi ; \
 		rm -f update.out; \
-		$(MAKE) clean-depend; \
 	else \
 		echo "Not under version control";  \
 	fi
@@ -636,14 +625,6 @@ config:
 		echo "We could not install init scripts for your operating system."; \
 	fi
 
-$(MOD_SUBDIRS_DEPEND):
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
-
-$(OTHER_SUBDIRS_DEPEND):
-	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" $(MAKE) --no-print-directory -C $(@:-depend=) depend
-
-depend: include/asterisk/version.h include/asterisk/buildopts.h include/asterisk/build.h defaults.h $(SUBDIRS_DEPEND)
-
 sounds:
 	$(MAKE) -C sounds all
 
@@ -703,4 +684,4 @@ menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(di
 	@echo "Generating input for menuselect ..."
 	@build_tools/prep_moduledeps > $@
 
-.PHONY: menuselect main sounds clean clean-depend dist-clean distclean all prereqs depend cleantest uninstall _uninstall uninstall-all dont-optimize $(SUBDIRS_INSTALL) $(SUBDIRS_CLEAN) $(SUBDIRS_CLEAN_DEPEND) $(SUBDIRS_DEPEND) $(SUBDIRS_UNINSTALL) $(SUBDIRS) $(MOD_SUBDIRS_EMBED_LDSCRIPT) $(MOD_SUBDIRS_EMBED_LDFLAGS) $(MOD_SUBDIRS_EMBED_LIBS)
+.PHONY: menuselect main sounds clean dist-clean distclean all prereqs cleantest uninstall _uninstall uninstall-all dont-optimize $(SUBDIRS_INSTALL) $(SUBDIRS_CLEAN) $(SUBDIRS_UNINSTALL) $(SUBDIRS) $(MOD_SUBDIRS_EMBED_LDSCRIPT) $(MOD_SUBDIRS_EMBED_LDFLAGS) $(MOD_SUBDIRS_EMBED_LIBS)

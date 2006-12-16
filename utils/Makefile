@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend all depend uninstall
+.PHONY: clean all uninstall
 
 ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted
 UTILS:=$(ALL_UTILS)
@@ -51,11 +51,9 @@ install:
 uninstall:
 	for x in $(ALL_UTILS); do rm -f $$x $(DESTDIR)$(ASTSBINDIR)/$$x; done
 
-clean-depend:
-	rm -f .depend
-
-clean: clean-depend
+clean:
 	rm -f *.o $(ALL_UTILS) check_expr
+	rm -f .*.o.d .*.oo.d
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c
 	rm -f aelparse.c aelbison.c
 
@@ -122,11 +120,6 @@ streamplayer: streamplayer.o
 muted: muted.o
 muted: LIBS+=$(AUDIO_LIBS)
 
-ifneq ($(wildcard .depend),)
-  include .depend
+ifneq ($(wildcard .*.d),)
+   include .*.d
 endif
-
-depend: .depend
-
-.depend:
-	../build_tools/mkdep $(ASTCFLAGS) `ls *.c`

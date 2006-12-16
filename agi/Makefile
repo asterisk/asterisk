@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-.PHONY: clean clean-depend all depend uninstall
+.PHONY: clean all uninstall
 
 AGIS=agi-test.agi eagi-test eagi-sphinx-test jukebox.agi
 
@@ -37,18 +37,11 @@ install: all
 uninstall:
 	for x in $(AGIS); do rm -f $(DESTDIR)$(AGI_DIR)/$$x ; done
 
-clean-depend:
-	rm -f .depend
-
-clean: clean-depend
+clean:
 	rm -f *.so *.o look eagi-test eagi-sphinx-test
+	rm -f .*.o.d .*.oo.d
 	rm -f strcompat.c
 
-ifneq ($(wildcard .depend),)
-  include .depend
+ifneq ($(wildcard .*.d),)
+   include .*.d
 endif
-
-depend: .depend
-
-.depend:
-	../build_tools/mkdep $(CFLAGS) `ls *.c`
