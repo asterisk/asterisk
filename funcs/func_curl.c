@@ -84,6 +84,21 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 
 static const char *global_useragent = "asterisk-libcurl-agent/1.0";
 
+static int curl_instance_init(void *data)
+{
+	CURL **curl = data;
+
+	if (!(*curl = curl_easy_init()))
+		return -1;
+
+	curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
+	curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
+	curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+	curl_easy_setopt(*curl, CURLOPT_USERAGENT, global_useragent);
+
+	return 0;
+}
+
 static void curl_instance_cleanup(void *data)
 {
 	CURL **curl = data;
@@ -99,15 +114,6 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 
 	if (!(curl = ast_threadstorage_get(&curl_instance, sizeof(*curl))))
 		return -1;
-
-	if (!*curl) {
-		if (!(*curl = curl_easy_init()))
-			return -1;
-		curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
-		curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
-		curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-		curl_easy_setopt(*curl, CURLOPT_USERAGENT, global_useragent);
-	}
 
 	curl_easy_setopt(*curl, CURLOPT_URL, url);
 	curl_easy_setopt(*curl, CURLOPT_WRITEDATA, (void *) chunk);
