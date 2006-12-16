@@ -1003,19 +1003,15 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 	if (need > (*buf)->len && (max_len == 0 || (*buf)->len < max_len) ) {
 		if (max_len && max_len < need)	/* truncate as needed */
 			need = max_len;
-
-		/* We can only realloc malloc'ed space. */
-		if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
+		else if (max_len == 0)	/* if unbounded, give more room for next time */
+			need += 16 + need/4;
+		if (0)	/* debugging */
+			ast_verbose("extend from %d to %d\n", (int)(*buf)->len, need);
+		if (ast_str_make_space(buf, need)) {
+			ast_verbose("failed to extend from %d to %d\n", (int)(*buf)->len, need);
 			return AST_DYNSTR_BUILD_FAILED;
-		*buf = ast_realloc(*buf, need + sizeof(struct ast_str));
-		if (*buf == NULL) /* XXX watch out, we leak memory here */
-			return AST_DYNSTR_BUILD_FAILED;
-		(*buf)->len = need;
-
+		}
 		(*buf)->str[offset] = '\0';	/* Truncate the partial write. */
-
-		if ((*buf)->ts != DS_ALLOCA)
-			pthread_setspecific((*buf)->ts->key, *buf);
 
 		/* va_end() and va_start() must be done before calling
 		 * vsnprintf() again. */
