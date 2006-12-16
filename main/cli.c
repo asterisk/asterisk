@@ -332,8 +332,7 @@ static int modlist_modentry(const char *module, const char *description, int use
 static void print_uptimestr(int fd, time_t timeval, const char *prefix, int printsec)
 {
 	int x; /* the main part - years, weeks, etc. */
-	char timestr[256]="", *s = timestr;
-	size_t maxbytes = sizeof(timestr);
+	struct ast_str *out;
 
 #define SECOND (1)
 #define MINUTE (SECOND*60)
@@ -344,40 +343,41 @@ static void print_uptimestr(int fd, time_t timeval, const char *prefix, int prin
 #define NEEDCOMMA(x) ((x)? ",": "")	/* define if we need a comma */
 	if (timeval < 0)	/* invalid, nothing to show */
 		return;
+
 	if (printsec)  {	/* plain seconds output */
-		ast_build_string(&s, &maxbytes, "%lu", (u_long)timeval);
-		timeval = 0; /* bypass the other cases */
+		ast_cli(fd, "%s: %lu\n", prefix, (u_long)timeval);
+		return;
 	}
+	out = ast_str_alloca(256);
 	if (timeval > YEAR) {
 		x = (timeval / YEAR);
 		timeval -= (x * YEAR);
-		ast_build_string(&s, &maxbytes, "%d year%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+		ast_str_append(&out, 0, "%d year%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > WEEK) {
 		x = (timeval / WEEK);
 		timeval -= (x * WEEK);
-		ast_build_string(&s, &maxbytes, "%d week%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+		ast_str_append(&out, 0, "%d week%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > DAY) {
 		x = (timeval / DAY);
 		timeval -= (x * DAY);
-		ast_build_string(&s, &maxbytes, "%d day%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+		ast_str_append(&out, 0, "%d day%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > HOUR) {
 		x = (timeval / HOUR);
 		timeval -= (x * HOUR);
-		ast_build_string(&s, &maxbytes, "%d hour%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+		ast_str_append(&out, 0, "%d hour%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > MINUTE) {
 		x = (timeval / MINUTE);
 		timeval -= (x * MINUTE);
-		ast_build_string(&s, &maxbytes, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+		ast_str_append(&out, 0, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	x = timeval;
-	if (x > 0)
-		ast_build_string(&s, &maxbytes, "%d second%s ", x, ESS(x));
-	if (timestr[0] != '\0')
-		ast_cli(fd, "%s: %s\n", prefix, timestr);
+	if (x > 0 || out->used == 0)	/* if there is nothing, print 0 seconds */
+		ast_str_append(&out, 0, "%d second%s ", x, ESS(x));
+	ast_cli(fd, "%s: %s\n", prefix, out->str);
 }
 
 static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
