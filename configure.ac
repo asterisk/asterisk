@@ -594,11 +594,11 @@ if test "${USE_NETSNMP}" != "no"; then
    if test "x${NETSNMP_DIR}" != "x"; then
       AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
       if test x"${NETSNMP_CONFIG}" = xNo; then
-         AC_MSG_NOTICE(***)
-         AC_MSG_NOTICE(*** net-snmp-config was not found in the path you specified:)
-         AC_MSG_NOTICE(*** ${NETSNMP_DIR}/bin)
-         AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-         AC_MSG_NOTICE(*** including --without-netsnmp)
+         AC_MSG_NOTICE([***])
+         AC_MSG_NOTICE([*** net-snmp-config was not found in the path you specified:])
+         AC_MSG_NOTICE([*** ${NETSNMP_DIR}/bin])
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** including --without-netsnmp])
          exit 1
       fi
    else
@@ -635,11 +635,11 @@ if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
       AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
       if test x"${PG_CONFIG}" = xNo; then
-         AC_MSG_NOTICE(***)
-         AC_MSG_NOTICE(*** pg_config was not found in the path you specified:)
-         AC_MSG_NOTICE(*** ${PGSQL_DIR}/bin)
-         AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-         AC_MSG_NOTICE(*** including --without-postgres)
+         AC_MSG_NOTICE([***])
+         AC_MSG_NOTICE([*** pg_config was not found in the path you specified:])
+         AC_MSG_NOTICE([*** ${PGSQL_DIR}/bin])
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** including --without-postgres])
          exit 1
       fi
    else
@@ -881,11 +881,11 @@ if test "${USE_ZAPTEL}" != "no"; then
 	)
       CPPFLAGS="${saved_cppflags}"
       if test "${ac_cv_zaptel_h}" = "yes"; then
-         AC_MSG_NOTICE(***)
-	 AC_MSG_NOTICE(*** The Zaptel installation on this system is too old)
-	 AC_MSG_NOTICE(*** to be useable with this version of Asterisk.)
-	 AC_MSG_NOTICE(*** Either upgrade your Zaptel installation, or run configure)
-	 AC_MSG_NOTICE(*** including --without-zaptel.)
+         AC_MSG_NOTICE([***])
+	 AC_MSG_NOTICE([*** The Zaptel installation on this system is too old])
+	 AC_MSG_NOTICE([*** to be useable with this version of Asterisk.])
+	 AC_MSG_NOTICE([*** Either upgrade your Zaptel installation, or run configure])
+	 AC_MSG_NOTICE([*** including --without-zaptel.])
 	 exit 1
       fi
    fi
