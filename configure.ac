@@ -518,10 +518,10 @@ if test "${USE_IMAP_TK}" != "no"; then
       fi
    elif test ! -z "${IMAP_TK_MANDATORY}"; then
       AC_MSG_RESULT(no) 
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The UW IMAP Toolkit installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-imap.)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The UW IMAP Toolkit installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-imap.])
       exit 1
    else
       AC_MSG_RESULT(no) 
@@ -564,10 +564,10 @@ if test "${USE_KDE}" != "no"; then
       AC_DEFINE([HAVE_LIBKDE], 1, [Define if your system has the KDE libraries.])
    elif test ! -z "${KDE_MANDATORY}"; then
       AC_MSG_RESULT(no) 
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The KDE installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-kde.)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The KDE installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-kde.])
       exit 1
    else
       AC_MSG_RESULT(no) 
@@ -600,11 +600,11 @@ if test "${USE_NETSNMP}" != "no"; then
    if test "x${NETSNMP_DIR}" != "x"; then
       AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], No, [${NETSNMP_DIR}/bin])
       if test x"${NETSNMP_CONFIG}" = xNo; then
-         AC_MSG_NOTICE(***)
-         AC_MSG_NOTICE(*** net-snmp-config was not found in the path you specified:)
-         AC_MSG_NOTICE(*** ${NETSNMP_DIR}/bin)
-         AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-         AC_MSG_NOTICE(*** including --without-netsnmp)
+         AC_MSG_NOTICE([***])
+         AC_MSG_NOTICE([*** net-snmp-config was not found in the path you specified:])
+         AC_MSG_NOTICE([*** ${NETSNMP_DIR}/bin])
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** including --without-netsnmp])
          exit 1
       fi
    else
@@ -622,18 +622,18 @@ if test x"${NETSNMP_CONFIG}" != xNo; then
       PBX_NETSNMP=1
    elif test ! -z "${NETSNMP_MANDATORY}";
    then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-netsnmp)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The Net-SNMP installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-netsnmp])
       exit 1
    fi
 elif test ! -z "${NETSNMP_MANDATORY}";
 then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The Net-SNMP installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-netsnmp)
+   AC_MSG_NOTICE([***])
+   AC_MSG_NOTICE([*** The Net-SNMP installation on this system appears to be broken.])
+   AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+   AC_MSG_NOTICE([*** including --without-netsnmp])
    exit 1
 fi
 
@@ -667,11 +667,11 @@ if test "${USE_PGSQL}" != "no"; then
    if test "x${PGSQL_DIR}" != "x"; then
       AC_PATH_TOOL([PG_CONFIG], [pg_config], No, [${PGSQL_DIR}/bin])
       if test x"${PG_CONFIG}" = xNo; then
-         AC_MSG_NOTICE(***)
-         AC_MSG_NOTICE(*** pg_config was not found in the path you specified:)
-         AC_MSG_NOTICE(*** ${PGSQL_DIR}/bin)
-         AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-         AC_MSG_NOTICE(*** including --without-postgres)
+         AC_MSG_NOTICE([***])
+         AC_MSG_NOTICE([*** pg_config was not found in the path you specified:])
+         AC_MSG_NOTICE([*** ${PGSQL_DIR}/bin])
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** including --without-postgres])
          exit 1
       fi
    else
@@ -691,18 +691,18 @@ if test "${PG_CONFIG}" != No; then
       PBX_PGSQL=1
    elif test ! -z "${PGSQL_MANDATORY}";
    then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-postgres)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The PostgreSQL installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-postgres])
       exit 1
    fi
 elif test ! -z "${PGSQL_MANDATORY}";
 then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The PostgreSQL installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-postgres)
+   AC_MSG_NOTICE([***])
+   AC_MSG_NOTICE([*** The PostgreSQL installation on this system appears to be broken.])
+   AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+   AC_MSG_NOTICE([*** including --without-postgres])
    exit 1
 fi
 
@@ -730,10 +730,10 @@ if test "${USE_PWLIB}" != "no"; then
 fi
 
 if test "${USE_PWLIB}" != "no" -a "x${ac_cv_lib_PWLIB}" != "xyes" -a ! -z "${PWLIB_MANDATORY}"; then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The PWLIB installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-pwlib)
+   AC_MSG_NOTICE([***])
+   AC_MSG_NOTICE([*** The PWLIB installation on this system appears to be broken.])
+   AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+   AC_MSG_NOTICE([*** including --without-pwlib])
    exit 1
 fi
 
@@ -754,10 +754,10 @@ if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
 		[${PWLIB_INCLUDE}], [${PWLIB_LIB}])
 fi
 if test "${USE_OPENH323}" != "no" -a "x${ac_cv_lib_OPENH323}" != "xyes" -a ! -z "${OPENH323_MANDATORY}"; then
-   AC_MSG_NOTICE(***)
-   AC_MSG_NOTICE(*** The OPENH323 installation on this system appears to be broken.)
-   AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-   AC_MSG_NOTICE(*** including --without-h323)
+   AC_MSG_NOTICE([***])
+   AC_MSG_NOTICE([*** The OPENH323 installation on this system appears to be broken.])
+   AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+   AC_MSG_NOTICE([*** including --without-h323])
    exit 1
 fi
 
@@ -823,10 +823,10 @@ if test "${USE_QT}" != "no"; then
       AC_PATH_TOOL(QTMOC, moc, No)
    elif test ! -z "${QT_MANDATORY}"; 
    then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The Qt installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-qt.)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The Qt installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-qt.])
       exit 1
    fi
 fi
@@ -912,10 +912,10 @@ if test "${USE_VPB}" != "no"; then
 	PBX_VPB=1
 	AC_DEFINE([HAVE_VPB], 1, [Define if your system has the VoiceTronix API libraries.])
    elif test ! -z "${VPB_MANDATORY}"; then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The VoiceTronix (vpb) installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-vpb.)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The VoiceTronix (vpb) installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-vpb.])
       exit 1
    fi
 fi
@@ -952,10 +952,10 @@ if test "${USE_ZAPTEL}" != "no"; then
 	AC_DEFINE([HAVE_ZAPTEL], 1, [Define if your system has the Zaptel headers.])
    elif test ! -z "${ZAPTEL_MANDATORY}"; 
    then
-      AC_MSG_NOTICE(***)
-      AC_MSG_NOTICE(*** The Zaptel installation on this system appears to be broken.)
-      AC_MSG_NOTICE(*** Either correct the installation, or run configure)
-      AC_MSG_NOTICE(*** including --without-zaptel.)
+      AC_MSG_NOTICE([***])
+      AC_MSG_NOTICE([*** The Zaptel installation on this system appears to be broken.])
+      AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+      AC_MSG_NOTICE([*** including --without-zaptel.])
       exit 1
    fi
 fi
@@ -982,11 +982,11 @@ if test "${USE_ZAPTEL}" != "no"; then
 	)
       CPPFLAGS="${saved_cppflags}"
       if test "${ac_cv_zaptel_h}" = "yes"; then
-         AC_MSG_NOTICE(***)
-	 AC_MSG_NOTICE(*** The Zaptel installation on this system is too old)
-	 AC_MSG_NOTICE(*** to be useable with this version of Asterisk.)
-	 AC_MSG_NOTICE(*** Either upgrade your Zaptel installation, or run configure)
-	 AC_MSG_NOTICE(*** including --without-zaptel.)
+         AC_MSG_NOTICE([***])
+	 AC_MSG_NOTICE([*** The Zaptel installation on this system is too old])
+	 AC_MSG_NOTICE([*** to be useable with this version of Asterisk.])
+	 AC_MSG_NOTICE([*** Either upgrade your Zaptel installation, or run configure])
+	 AC_MSG_NOTICE([*** including --without-zaptel.])
 	 exit 1
       fi
    fi
