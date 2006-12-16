@@ -43,10 +43,6 @@
 #define TZ_STRLEN_MAX	255
 /* #define DEBUG */
 
-#include "asterisk.h"
- 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
 /*LINTLIBRARY*/
 
 #include <sys/types.h>
@@ -58,9 +54,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "private.h"
 #include "tzfile.h"
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/localtime.h"
-
 
 #ifndef lint
 #ifndef NOID
