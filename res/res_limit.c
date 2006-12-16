@@ -90,13 +90,14 @@ static int my_ulimit(int fd, int argc, char **argv)
 		}
 
 		if (argc == 3) {
+			int x;
 			if (resource != RLIMIT_NOFILE && resource != RLIMIT_CORE && resource != RLIMIT_NPROC && resource != RLIMIT_FSIZE) {
 				ast_cli(fd, "Resource not permitted to be set\n");
 				return RESULT_FAILURE;
 			}
 
-			sscanf(argv[2], "%d", (int *)&rlimit.rlim_cur);
-			rlimit.rlim_max = rlimit.rlim_cur;
+			sscanf(argv[2], "%d", &x);
+			rlimit.rlim_max = rlimit.rlim_cur = x;
 			setrlimit(resource, &rlimit);
 			return RESULT_SUCCESS;
 		} else {
