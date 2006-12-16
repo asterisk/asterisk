@@ -181,6 +181,8 @@ endif
 
 ASTCFLAGS+=-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
+ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/autoconfig.h
+
 ifeq ($(AST_DEVMODE),yes)
   ASTCFLAGS+=-Werror -Wunused
 endif
