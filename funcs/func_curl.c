@@ -51,12 +51,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
+#include "asterisk/threadstorage.h"
 
 struct MemoryStruct {
 	char *memory;
 	size_t size;
 };
-
 
 static void *myrealloc(void *ptr, size_t size)
 {
@@ -82,32 +82,46 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
+static const char *global_useragent = "asterisk-libcurl-agent/1.0";
+
+static void curl_instance_cleanup(void *data)
+{
+	CURL **curl = data;
+
+	curl_easy_cleanup(*curl);
+}
+
+AST_THREADSTORAGE_CUSTOM(curl_instance, curl_instance_init, curl_instance_cleanup);
+
 static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 {
-	CURL *curl;
+	CURL **curl;
 
-	curl = curl_easy_init();
-
-	if (!curl) {
+	if (!(curl = ast_threadstorage_get(&curl_instance, sizeof(*curl))))
 		return -1;
+
+	if (!*curl) {
+		if (!(*curl = curl_easy_init()))
+			return -1;
+		curl_easy_setopt(*curl, CURLOPT_NOSIGNAL, 1);
+		curl_easy_setopt(*curl, CURLOPT_TIMEOUT, 180);
+		curl_easy_setopt(*curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+		curl_easy_setopt(*curl, CURLOPT_USERAGENT, global_useragent);
 	}
 
-	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 180);
-	curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1);
-	curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1);
-	curl_easy_setopt(curl, CURLOPT_URL, url);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)chunk);
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, "asterisk-libcurl-agent/1.0");
+	curl_easy_setopt(*curl, CURLOPT_URL, url);
+	curl_easy_setopt(*curl, CURLOPT_WRITEDATA, (void *) chunk);
 
 	if (post) {
-		curl_easy_setopt(curl, CURLOPT_POST, 1);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post);
+		curl_easy_setopt(*curl, CURLOPT_POST, 1);
+		curl_easy_setopt(*curl, CURLOPT_POSTFIELDS, post);
 	}
 
-	curl_easy_perform(curl);
-	curl_easy_cleanup(curl);
+	curl_easy_perform(*curl);
+
+	if (post)
+		curl_easy_setopt(*curl, CURLOPT_POST, 0);
+
 	return 0;
 }
 
