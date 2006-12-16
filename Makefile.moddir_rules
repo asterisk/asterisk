@@ -40,7 +40,7 @@ $(addsuffix .so,$(filter $(LOADABLE_MODS),$(CC_MODS))): %.so: %.oo
 modules.link: $(addsuffix .o,$(filter $(EMBEDDED_MODS),$(C_MODS)))
 modules.link: $(addsuffix .oo,$(filter $(EMBEDDED_MODS),$(CC_MODS)))
 
-.PHONY: clean clean-depend depend uninstall _all
+.PHONY: clean uninstall _all
 
 ifneq ($(LOADABLE_MODS),)
 _all: $(LOADABLE_MODS:%=%.so)
@@ -67,11 +67,9 @@ modules.link:
 	@for file in $(patsubst %,$(SUBDIR)/%,$(filter %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
 	@for file in $(patsubst %,$(SUBDIR)/%,$(filter-out %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
 
-clean-depend::
-	rm -f .depend
-
-clean:: clean-depend
+clean::
 	rm -f *.so *.o *.oo
+	rm -f .*.o.d .*.oo.d
 	rm -f modules.link
 
 install:: all
@@ -79,11 +77,6 @@ install:: all
 
 uninstall::
 
-ifneq ($(wildcard .depend),)
-  include .depend
+ifneq ($(wildcard .*.d),)
+   include .*.d
 endif
-
-depend: .depend
-
-.depend:
-	../build_tools/mkdep $(ASTCFLAGS) `ls *.c *.cc 2> /dev/null`
