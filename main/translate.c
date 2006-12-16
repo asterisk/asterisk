@@ -525,12 +525,9 @@ static int show_translation(int fd, int argc, char *argv[])
 			longest = curlen;
 	}
 	for (x = -1; x < SHOW_TRANS; x++) {
-		char line[120];
-		char *buf = line;
-		size_t left = sizeof(line) - 1;	/* one initial space */
-		/* next 2 lines run faster than using ast_build_string() */
-		*buf++ = ' ';
-		*buf = '\0';
+		struct ast_str *out = ast_str_alloca(120);
+		
+		ast_str_set(&out, -1, " ");
 		for (y = -1; y < SHOW_TRANS; y++) {
 			curlen = strlen(ast_getformatname(1 << (y)));
 
@@ -538,21 +535,21 @@ static int show_translation(int fd, int argc, char *argv[])
 				/* XXX 999 is a little hackish
 				   We don't want this number being larger than the shortest (or current) codec
 				   For now, that is "gsm" */
-				ast_build_string(&buf, &left, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
+				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
-				ast_build_string(&buf, &left, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
+				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
 			} else if (y == -1 && x >= 0) {
 				/* Left column - use a static size. */
-				ast_build_string(&buf, &left, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
+				ast_str_append(&out, -1, "%*s", longest, ast_getformatname(1 << (x + y + 1)) );
 			} else if (x >= 0 && y >= 0) {
-				ast_build_string(&buf, &left, "%*s", curlen + 1, "-");
+				ast_str_append(&out, -1, "%*s", curlen + 1, "-");
 			} else {
-				ast_build_string(&buf, &left, "%*s", longest, "");
+				ast_str_append(&out, -1, "%*s", longest, "");
 			}
 		}
-		ast_build_string(&buf, &left, "\n");
-		ast_cli(fd, line);			
+		ast_str_append(&out, -1, "\n");
+		ast_cli(fd, out->str);			
 	}
 	AST_RWLIST_UNLOCK(&translators);
 	return RESULT_SUCCESS;
