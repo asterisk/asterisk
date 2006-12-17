@@ -4035,141 +4035,107 @@ static int reload_queues(void)
 	return 1;
 }
 
-static int __queues_show(struct mansession *s, int manager, int fd, int argc, char **argv)
+/*! \brief direct ouput to manager or cli with proper terminator */
+static void do_print(struct mansession *s, int fd, const char *str)
+{
+	if (s)
+		astman_append(s, "%s\r\n", str);
+	else
+		ast_cli(fd, "%s\n", str);
+}
+
+static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
 {
 	struct call_queue *q;
-	struct queue_ent *qe;
-	struct member *mem;
-	int pos, queue_show;
-	time_t now;
-	char max_buf[80];
-	char *max;
-	size_t max_left;
-	float sl = 0;
-	char *term = manager ? "\r\n" : "\n";
+	struct ast_str *out = ast_str_alloca(80);
+	int found = 0;
+	time_t now = time(NULL);
 
-	time(&now);
-	if (argc == 2)
-		queue_show = 0;
-	else if (argc == 3)
-		queue_show = 1;
-	else
+	if (argc != 2 && argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	/* We only want to load realtime queues when a specific queue is asked for. */
-	if (queue_show)
+	if (argc == 3)	/* specific queue */
 		load_realtime_queue(argv[2]);
 
 	AST_LIST_LOCK(&queues);
-	if (AST_LIST_EMPTY(&queues)) {
-		AST_LIST_UNLOCK(&queues);
-		if (queue_show) {
-			if (s)
-				astman_append(s, "No such queue: %s.%s",argv[2], term);
-			else
-				ast_cli(fd, "No such queue: %s.%s",argv[2], term);
-		} else {
-			if (s)
-				astman_append(s, "No queues.%s", term);
-			else
-				ast_cli(fd, "No queues.%s", term);
-		}
-		return RESULT_SUCCESS;
-	}
 	AST_LIST_TRAVERSE(&queues, q, list) {
+		float sl;
+
 		ast_mutex_lock(&q->lock);
-		if (queue_show) {
-			if (strcasecmp(q->name, argv[2]) != 0) {
-				ast_mutex_unlock(&q->lock);
-				if (!AST_LIST_NEXT(q, list)) {
-					ast_cli(fd, "No such queue: %s.%s",argv[2], term);
-					break;
-				}
-				continue;
-			}
+		if (argc == 3 && !strcasecmp(q->name, argv[2])) {
+			ast_mutex_unlock(&q->lock);
+			continue;
 		}
-		max_buf[0] = '\0';
-		max = max_buf;
-		max_left = sizeof(max_buf);
+		found = 1;
+
+		ast_str_set(&out, 0, "%-12.12s has %d calls (max ", q->name, q->count);
 		if (q->maxlen)
-			ast_build_string(&max, &max_left, "%d", q->maxlen);
+			ast_str_append(&out, 0, "%d", q->maxlen);
 		else
-			ast_build_string(&max, &max_left, "unlimited");
+			ast_str_append(&out, 0, "unlimited");
 		sl = 0;
 		if (q->callscompleted > 0)
 			sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
-		if (s)
-			astman_append(s, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
-				q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight,
-				q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
-		else
-			ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
-				q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
-		if (q->members) {
-			if (s)
-				astman_append(s, "   Members: %s", term);
-			else
-				ast_cli(fd, "   Members: %s", term);
+		ast_str_append(&out, 0, ") in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds",
+			int2strat(q->strategy), q->holdtime, q->weight,
+			q->callscompleted, q->callsabandoned,sl,q->servicelevel);
+		do_print(s, fd, out->str);
+		if (!q->members)
+			do_print(s, fd, "   No Members");
+		else {
+			struct member *mem;
+
+			do_print(s, fd, "   Members: ");
 			for (mem = q->members; mem; mem = mem->next) {
-				max_buf[0] = '\0';
-				max = max_buf;
-				max_left = sizeof(max_buf);
+				ast_str_set(&out, 0, "      %s", mem->interface);
 				if (mem->penalty)
-					ast_build_string(&max, &max_left, " with penalty %d", mem->penalty);
-				if (mem->dynamic)
-					ast_build_string(&max, &max_left, " (dynamic)");
-				if (mem->paused)
-					ast_build_string(&max, &max_left, " (paused)");
-				ast_build_string(&max, &max_left, " (%s)", devstate2str(mem->status));
-				if (mem->calls) {
-					ast_build_string(&max, &max_left, " has taken %d calls (last was %ld secs ago)",
+					ast_str_append(&out, 0, " with penalty %d", mem->penalty);
+				ast_str_append(&out, 0, "%s%s (%s)",
+					mem->dynamic ? " (dynamic)" : "",
+					mem->paused ? " (paused)" : "",
+					devstate2str(mem->status));
+				if (mem->calls)
+					ast_str_append(&out, 0, " has taken %d calls (last was %ld secs ago)",
 						mem->calls, (long) (time(NULL) - mem->lastcall));
-				} else
-					ast_build_string(&max, &max_left, " has taken no calls yet");
-				if (s)
-					astman_append(s, "      %s%s%s", mem->interface, max_buf, term);
 				else
-					ast_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
+					ast_str_append(&out, 0, " has taken no calls yet");
+				do_print(s, fd, out->str);
 			}
-		} else if (s)
-			astman_append(s, "   No Members%s", term);
-		else	
-			ast_cli(fd, "   No Members%s", term);
-		if (q->head) {
-			pos = 1;
-			if (s)
-				astman_append(s, "   Callers: %s", term);
-			else
-				ast_cli(fd, "   Callers: %s", term);
+		}
+		if (!q->head)
+			do_print(s, fd, "   No Callers");
+		else {
+			struct queue_ent *qe;
+			int pos = 1;
+
+			do_print(s, fd, "   Callers: ");
 			for (qe = q->head; qe; qe = qe->next) {
-				if (s)
-					astman_append(s, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s",
-						pos++, qe->chan->name, (long) (now - qe->start) / 60,
-						(long) (now - qe->start) % 60, qe->prio, term);
-				else
-					ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++,
-						qe->chan->name, (long) (now - qe->start) / 60,
-						(long) (now - qe->start) % 60, qe->prio, term);
+				ast_str_set(&out, 0, "      %d. %s (wait: %ld:%2.2ld, prio: %d)",
+					pos++, qe->chan->name, (long) (now - qe->start) / 60,
+					(long) (now - qe->start) % 60, qe->prio);
+				do_print(s, fd, out->str);
 			}
-		} else if (s)
-			astman_append(s, "   No Callers%s", term);
-		else
-			ast_cli(fd, "   No Callers%s", term);
-		if (s)
-			astman_append(s, "%s", term);
-		else
-			ast_cli(fd, "%s", term);
+		}
+		do_print(s, fd, "");	/* blank line between entries */
 		ast_mutex_unlock(&q->lock);
-		if (queue_show)
+		if (argc == 3)	/* print a specific entry */
 			break;
 	}
 	AST_LIST_UNLOCK(&queues);
+	if (!found) {
+		if (argc == 3)
+			ast_str_set(&out, 0, "No such queue: %s.", argv[2]);
+		else
+			ast_str_set(&out, 0, "No queues.");
+		do_print(s, fd, out->str);
+	}
 	return RESULT_SUCCESS;
 }
 
 static int queue_show(int fd, int argc, char **argv)
 {
-	return __queues_show(NULL, 0, fd, argc, argv);
+	return __queues_show(NULL, fd, argc, argv);
 }
 
 static char *complete_queue(const char *line, const char *word, int pos, int state)
@@ -4198,7 +4164,7 @@ static int manager_queues_show( struct mansession *s, struct message *m )
 {
 	char *a[] = { "queue", "show" };
 
-	__queues_show(s, 1, -1, 2, a);
+	__queues_show(s, -1, 2, a);
 	astman_append(s, "\r\n\r\n");	/* Properly terminate Manager output */
 
 	return RESULT_SUCCESS;
