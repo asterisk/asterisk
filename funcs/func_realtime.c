@@ -49,8 +49,9 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 {
 	struct ast_variable *var, *head;
         struct ast_module_user *u;
-	char *results;
-	size_t resultslen = 0;
+	struct ast_str *out;
+	size_t resultslen;
+	int n;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
 		AST_APP_ARG(fieldmatch);
@@ -80,13 +81,17 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 		ast_module_user_remove(u);
 		return -1;
 	}
-	for (var = head; var; var = var->next)
-		resultslen += strlen(var->name) + strlen(var->value) + 2;
+	resultslen = 0;
+	n = 0;
+	for (var = head; var; n++, var = var->next)
+		resultslen += strlen(var->name) + strlen(var->value);
+	/* add space for delimiters and final '\0' */
+	resultslen += n * (strlen(args.delim1) + strlen(args.delim2)) + 1;
 
-	results = alloca(resultslen);
+	out = ast_str_alloca(resultslen);
 	for (var = head; var; var = var->next)
-		ast_build_string(&results, &resultslen, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
-	ast_copy_string(buf, results, len);
+		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
+	ast_copy_string(buf, out->str, len);
 
 	ast_module_user_remove(u);
 
