@@ -793,7 +793,7 @@ struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 	struct ast_ignorepat *ip);
 struct ast_sw *ast_walk_context_switches(struct ast_context *con, struct ast_sw *sw);
 
-int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t size);
+int pbx_builtin_serialize_variables(struct ast_channel *chan, struct ast_str **buf);
 const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name);
 void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, const char *value);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value);

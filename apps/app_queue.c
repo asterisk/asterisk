@@ -1565,13 +1565,15 @@ static void do_hang(struct callattempt *o)
 
 static char *vars2manager(struct ast_channel *chan, char *vars, size_t len)
 {
-	char *tmp = alloca(len);
+	struct ast_str *buf = ast_str_alloca(len + 1);
+	char *tmp;
 
-	if (pbx_builtin_serialize_variables(chan, tmp, len)) {
+	if (pbx_builtin_serialize_variables(chan, &buf)) {
 		int i, j;
 
 		/* convert "\n" to "\nVariable: " */
 		strcpy(vars, "Variable: ");
+		tmp = buf->str;
 
 		for (i = 0, j = 10; (i < len - 1) && (j < len - 1); i++, j++) {
 			vars[j] = tmp[i];

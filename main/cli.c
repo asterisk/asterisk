@@ -766,7 +766,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
 	struct timeval now;
-	char buf[2048];
+	struct ast_str *out = ast_str_alloca(2048);
 	char cdrtime[256];
 	char nf[256], wf[256], rf[256];
 	long elapsed_seconds=0;
@@ -837,10 +837,10 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
-	if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
-		ast_cli(fd,"      Variables:\n%s\n",buf);
-	if(c->cdr && ast_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
-		ast_cli(fd,"  CDR Variables:\n%s\n",buf);
+	if(pbx_builtin_serialize_variables(c, &out))
+		ast_cli(fd,"      Variables:\n%s\n", out->str);
+	if(c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
+		ast_cli(fd,"  CDR Variables:\n%s\n", out->str);
 	
 	ast_channel_unlock(c);
 	return RESULT_SUCCESS;
