@@ -138,10 +138,10 @@ static int colors[] = {
 };
 
 AST_THREADSTORAGE(verbose_buf);
-#define VERBOSE_BUF_INIT_SIZE   128
+#define VERBOSE_BUF_INIT_SIZE   256
 
 AST_THREADSTORAGE(log_buf);
-#define LOG_BUF_INIT_SIZE       128
+#define LOG_BUF_INIT_SIZE       256
 
 static int make_components(char *s, int lineno)
 {
