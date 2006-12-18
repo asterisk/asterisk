@@ -176,6 +176,8 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
   
+  \note This method is not recommended. New code should use ast_str_*() instead.
+
   This is a wrapper for snprintf, that properly handles the buffer pointer
   and buffer space available.
 
@@ -283,13 +285,19 @@ struct ast_realloca {
  *
  * Finally, the string can be manipulated with the following:
  *
- *	ast_str_set(&buf, max_len, ts, fmt, ...)
- *	ast_str_append(&buf, max_len, ts, fmt, ...)
+ *	ast_str_set(&buf, max_len, fmt, ...)
+ *	ast_str_append(&buf, max_len, fmt, ...)
  *
- * and their varargs format.
+ * and their varargs variant
+ *
+ *	ast_str_set_va(&buf, max_len, ap)
+ *	ast_str_append_va(&buf, max_len, ap)
  *
  * \arg max_len The maximum allowed length, reallocating if needed.
  * 	0 means unlimited, -1 means "at most the available space"
+ *
+ * \return All the functions return <0 in case of error, or the
+ *	length of the string added to the buffer otherwise.
  */
 
 /*! \brief The descriptor of a dynamic string
@@ -325,7 +333,8 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 {
 	struct ast_str *buf;
 
-	if (!(buf = ast_calloc(1, sizeof(*buf) + init_len)))
+	buf = (struct ast_str *)ast_calloc(1, sizeof(*buf) + init_len);
+	if (buf == NULL)
 		return NULL;
 	
 	buf->len = init_len;
@@ -333,6 +342,20 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 	buf->ts = DS_MALLOC;
 
 	return buf;
+}
+)
+
+/*! \brief Reset the content of a dynamic string.
+ * Useful before a series of ast_str_append.
+ */
+AST_INLINE_API(
+void ast_str_reset(struct ast_str *buf),
+{
+	if (buf) {
+		buf->used = 0;
+		if (buf->len)
+			buf->str[0] = '\0';
+	}
 }
 )
 
@@ -346,7 +369,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
 		return -1;	/* cannot extend */
-	*buf = ast_realloc(*buf, new_len + sizeof(struct ast_str));
+	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
 	if (*buf == NULL) /* XXX watch out, we leak memory here */
 		return -1;
 	if ((*buf)->ts != DS_MALLOC)
@@ -406,7 +429,8 @@ struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 {
 	struct ast_str *buf;
 
-	if (!(buf = ast_threadstorage_get(ts, sizeof(*buf) + init_len)))
+	buf = (struct ast_str *)ast_threadstorage_get(ts, sizeof(*buf) + init_len);
+	if (buf == NULL)
 		return NULL;
 	
 	if (!buf->len) {
