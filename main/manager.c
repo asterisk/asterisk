@@ -115,12 +115,6 @@ static int num_sessions = 0;
 
 static int manager_debug;	/*!< enable some debugging code in the manager */
 
-AST_THREADSTORAGE(manager_event_buf);
-#define MANAGER_EVENT_BUF_INITSIZE   256
-
-AST_THREADSTORAGE(astman_append_buf);
-#define ASTMAN_APPEND_BUF_INITSIZE   256
-
 /*!
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
  * AMI session have managerid == 0; the entry is created upon a connect,
@@ -302,24 +296,23 @@ static struct permalias {
 };
 
 /*! \brief Convert authority code to a list of options */
-static char *authority_to_str(int authority, char *res, int reslen)
+static char *authority_to_str(int authority, struct ast_str **res)
 {
 	int i;
-	char *dst = res, *sep = "";
-	size_t len = reslen;
+	char *sep = "";
 
-	res[0] = '\0';
+	(*res)->used = 0;
 	for (i = 0; i < (sizeof(perms) / sizeof(perms[0])) - 1; i++) {
 		if (authority & perms[i].num) {
-			ast_build_string(&dst, &len, "%s%s", sep, perms[i].label);
+			ast_str_append(res, 0, "%s%s", sep, perms[i].label);
 			sep = ",";
 		}
 	}
 
-	if (ast_strlen_zero(res))	/* replace empty string with something sensible */
-		ast_copy_string(res, "<none>", reslen);
+	if ((*res)->used == 0)	/* replace empty string with something sensible */
+		ast_str_append(res, 0, "<none>");
 
-	return res;
+	return (*res)->str;
 }
 
 /*! Tells you if smallstr exists inside bigstr
@@ -423,7 +416,7 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur;
-	char authority[80];
+	struct ast_str *authority = ast_str_alloca(80);
 	int num;
 
 	if (argc != 4)
@@ -435,7 +428,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 			if (!strcasecmp(cur->action, argv[num])) {
 				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
 					cur->action, cur->synopsis,
-					authority_to_str(cur->authority, authority, sizeof(authority) -1),
+					authority_to_str(cur->authority, &authority),
 					S_OR(cur->description, "") );
 			}
 		}
@@ -535,7 +528,7 @@ static int handle_showmanagers(int fd, int argc, char *argv[])
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur;
-	char authority[80];
+	struct ast_str *authority = ast_str_alloca(80);
 	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
 
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
@@ -543,7 +536,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 
 	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) /* Walk the list of actions */
-		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
+		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
 	ast_mutex_unlock(&actionlock);
 
 	return RESULT_SUCCESS;
@@ -763,7 +756,11 @@ static int send_string(struct mansession *s, char *string)
 	return n < 0 ? -1 : 0;
 }
 
-/*
+/* XXX see if it can be moved inside the function */
+AST_THREADSTORAGE(astman_append_buf);
+#define ASTMAN_APPEND_BUF_INITSIZE   256
+
+/*!
  * utility functions for creating AMI replies
  */
 void astman_append(struct mansession *s, const char *fmt, ...)
@@ -1228,13 +1225,14 @@ static char mandescr_listcommands[] =
 static int action_listcommands(struct mansession *s, struct message *m)
 {
 	struct manager_action *cur;
-	char temp[BUFSIZ];
+	struct ast_str *temp = ast_str_alloca(BUFSIZ); /* XXX very large ? */
 
 	astman_start_ack(s, m);
 	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
-			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)));
+			astman_append(s, "%s: %s (Priv: %s)\r\n",
+				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
 	}
 	ast_mutex_unlock(&actionlock);
 	astman_append(s, "\r\n");
@@ -2267,14 +2265,18 @@ static int append_event(const char *str, int category)
 	return 0;
 }
 
+/* XXX see if can be moved inside the function */
+AST_THREADSTORAGE(manager_event_buf);
+#define MANAGER_EVENT_BUF_INITSIZE   256
+
 /*! \brief  manager_event: Send AMI event to client */
 int __manager_event(int category, const char *event,
 	const char *file, int line, const char *func, const char *fmt, ...)
 {
 	struct mansession *s;
 	struct manager_custom_hook *hook;
-	char auth[80];
-	char tmp[4096] = "";
+	struct ast_str *auth = ast_str_alloca(80);
+	const char *cat_str;
 	va_list ap;
 	struct timeval now;
 	struct ast_str *buf;
@@ -2286,9 +2288,10 @@ int __manager_event(int category, const char *event,
 	if (!(buf = ast_str_thread_get(&manager_event_buf, MANAGER_EVENT_BUF_INITSIZE)))
 		return -1;
 
+	cat_str = authority_to_str(category, &auth);
 	ast_str_set(&buf, 0,
 			"Event: %s\r\nPrivilege: %s\r\n",
-			 event, authority_to_str(category, auth, sizeof(auth)));
+			 event, cat_str);
 
 	if (timestampevents) {
 		now = ast_tvnow();
@@ -2325,16 +2328,8 @@ int __manager_event(int category, const char *event,
 
 	AST_RWLIST_RDLOCK(&manager_hooks);
 	if (!AST_RWLIST_EMPTY(&manager_hooks)) {
-		char *p;
-		int len;
-		snprintf(tmp, sizeof(tmp), "event: %s\r\nprivilege: %s\r\n", event, authority_to_str(category, tmp, sizeof(tmp)));
-                len = strlen(tmp);
-                p = tmp + len;
-                va_start(ap, fmt);
-                vsnprintf(p, sizeof(tmp) - len, fmt, ap);
-                va_end(ap);
 		AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
-			hook->helper(category, event, tmp);
+			hook->helper(category, event, buf->str);
 		}
 	}
 	AST_RWLIST_UNLOCK(&manager_hooks);
