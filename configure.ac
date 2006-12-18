@@ -1,4 +1,3 @@
-w
 # Process this file with autoconf to produce a configure script.
 #
 # Make sure we use autoconf 2.60 to generate the "configure" script,
