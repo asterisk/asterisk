@@ -270,7 +270,7 @@ struct ast_channel_spy_list;
 struct ast_channel_whisper_buffer;
 
 #define	DEBUGCHAN_FLAG  0x80000000
-#define	FRAMECOUNT_INC(x)	( ((x) & DEBUGCHAN_FLAG) | ((x++) & ~DEBUGCHAN_FLAG) )
+#define	FRAMECOUNT_INC(x)	( ((x) & DEBUGCHAN_FLAG) | (((x)+1) & ~DEBUGCHAN_FLAG) )
 
 enum ast_channel_adsicpe {
 	AST_ADSI_UNKNOWN,
