@@ -17,8 +17,6 @@
  * at the top of the source tree.
  */
 
-#include "asterisk/autoconfig.h"
-
 #include <stdio.h>
 #include <popt.h>
 #include <sys/types.h>
