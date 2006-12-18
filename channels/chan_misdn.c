@@ -2393,6 +2393,10 @@ static int dialtone_indicate(struct chan_list *cl)
 	const struct tone_zone_sound *ts= NULL;
 	struct ast_channel *ast=cl->ast;
 
+	if (!ast) {
+		chan_misdn_log(0,cl->bc->port,"No Ast in dialtone_indicate\n");
+		return -1;
+	}
 
 	int nd=0;
 	misdn_cfg_get( cl->bc->port, MISDN_CFG_NODIALTONE, &nd, sizeof(nd));
@@ -2426,6 +2430,12 @@ static int hanguptone_indicate(struct chan_list *cl)
 static int stop_indicate(struct chan_list *cl)
 {
 	struct ast_channel *ast=cl->ast;
+
+	if (!ast) {
+		chan_misdn_log(0,cl->bc->port,"No Ast in stop_indicate\n");
+		return -1;
+	}
+
 	chan_misdn_log(3,cl->bc->port," --> None\n");
 	misdn_lib_tone_generator_stop(cl->bc);
 	ast_playtones_stop(ast);

@@ -666,6 +666,7 @@ int set_chan_in_stack(struct misdn_stack *stack, int channel)
 {
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
+	dump_chan_list(stack);
 	if (channel >=1 ) {
 		if (!stack->channels[channel-1])
 			stack->channels[channel-1] = 1;
@@ -1482,15 +1483,16 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
 					break;
 				}
-			}  
+			} else { 
 
-			if (bc->channel >0 && bc->channel<255) {
-				int ret=set_chan_in_stack(stack ,bc->channel);
-				if (event == EVENT_SETUP && ret<0){
-					/* empty bchannel */
-					bc->channel=0;
-					bc->out_cause=44;
-					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+				if (bc->channel >0 && bc->channel<255) {
+					int ret=set_chan_in_stack(stack ,bc->channel);
+					if (event == EVENT_SETUP && ret<0){
+						/* empty bchannel */
+						bc->channel=0;
+						bc->out_cause=44;
+						misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+					}
 				}
 			}
 
@@ -1802,12 +1804,6 @@ handle_event_nt(void *dat, void *arg)
 			cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",hh->dinfo);
 			bc->l3_id=hh->dinfo;
 
-			if (bc->channel<=0) {
-				bc->channel=find_free_chan_in_stack(stack,0);
-
-				if (bc->channel<=0)
-					goto ERR_NO_CHANNEL;
-			}
 		}
 		break;
 
@@ -2035,6 +2031,13 @@ handle_event_nt(void *dat, void *arg)
 
 			switch (event) {
 				case EVENT_SETUP:
+					if (bc->channel<=0) {
+						bc->channel=find_free_chan_in_stack(stack,0);
+		
+						if (bc->channel<=0)
+							goto ERR_NO_CHANNEL;
+					}
+
 					if (bc->channel>0 && bc->channel<255) {
 						if (stack->ptp)  {
 							int ret=set_chan_in_stack(stack, bc->channel);
