@@ -890,37 +890,42 @@ static struct iax2_thread *find_idle_thread(void)
 {
 	struct iax2_thread *thread = NULL;
 
-	/* Pop the head of the list off */
+	/* Pop the head of the idle list off */
 	AST_LIST_LOCK(&idle_list);
 	thread = AST_LIST_REMOVE_HEAD(&idle_list, list);
 	AST_LIST_UNLOCK(&idle_list);
 
-	/* If no idle thread is available from the regular list, try dynamic */
-	if (thread == NULL) {
-		AST_LIST_LOCK(&dynamic_list);
-		thread = AST_LIST_FIRST(&dynamic_list);
-		if (thread != NULL) {
-			AST_LIST_REMOVE(&dynamic_list, thread, list);
-		}
-		/* Make sure we absolutely have a thread... if not, try to make one if allowed */
-		if (thread == NULL && iaxmaxthreadcount > iaxdynamicthreadcount) {
-			/* We need to MAKE a thread! */
-			thread = ast_calloc(1, sizeof(*thread));
-			if (thread != NULL) {
-				thread->threadnum = iaxdynamicthreadcount;
-				thread->type = IAX_THREAD_TYPE_DYNAMIC;
-				ast_mutex_init(&thread->lock);
-				ast_cond_init(&thread->cond, NULL);
-				if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
-					free(thread);
-					thread = NULL;
-				} else {
-					/* All went well and the thread is up, so increment our count */
-					iaxdynamicthreadcount++;
-				}
-			}
-		}
-		AST_LIST_UNLOCK(&dynamic_list);
+	/* If we popped a thread off the idle list, just return it */
+	if (thread)
+		return thread;
+
+	/* Pop the head of the dynamic list off */
+	AST_LIST_LOCK(&dynamic_list);
+	thread = AST_LIST_REMOVE_HEAD(&dynamic_list, list);
+	AST_LIST_UNLOCK(&dynamic_list);
+
+	/* If we popped a thread off the dynamic list, just return it */
+	if (thread)
+		return thread;
+
+	/* If we can't create a new dynamic thread for any reason, return no thread at all */
+	if (iaxdynamicthreadcount >= iaxmaxthreadcount || !(thread = ast_calloc(1, sizeof(*thread))))
+		return NULL;
+
+	/* Set default values */
+	thread->threadnum = ast_atomic_fetchadd_int(&iaxdynamicthreadcount, 1);
+	thread->type = IAX_THREAD_TYPE_DYNAMIC;
+
+	/* Initialize lock and condition */
+	ast_mutex_init(&thread->lock);
+	ast_cond_init(&thread->cond, NULL);
+
+	/* Create thread and send it on it's way */
+	if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
+		ast_cond_destroy(&thread->cond);
+		ast_mutex_destroy(&thread->lock);
+		free(thread);
+		thread = NULL;
 	}
 
 	return thread;
@@ -7696,8 +7701,8 @@ static void *iax2_process_thread(void *data)
 				ast_mutex_unlock(&thread->lock);
 				AST_LIST_LOCK(&dynamic_list);
 				AST_LIST_REMOVE(&dynamic_list, thread, list);
-				iaxdynamicthreadcount--;
 				AST_LIST_UNLOCK(&dynamic_list);
+				ast_atomic_dec_and_test(&iaxdynamicthreadcount);
 				break;
 			}
 		} else {
