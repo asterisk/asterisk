@@ -871,6 +871,21 @@ static const struct ast_channel_tech iax2_tech = {
 	.fixup = iax2_fixup,
 };
 
+static void insert_idle_thread(struct iax2_thread *thread)
+{
+	if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
+		AST_LIST_LOCK(&dynamic_list);
+		AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
+		AST_LIST_UNLOCK(&dynamic_list);
+	} else {
+		AST_LIST_LOCK(&idle_list);
+		AST_LIST_INSERT_TAIL(&idle_list, thread, list);
+		AST_LIST_UNLOCK(&idle_list);
+	}
+
+	return;
+}
+
 static struct iax2_thread *find_idle_thread(void)
 {
 	struct iax2_thread *thread = NULL;
@@ -6261,15 +6276,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			if (errno != ECONNREFUSED && errno != EAGAIN)
 				ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
 			handle_error();
-			AST_LIST_LOCK(&idle_list);
-			AST_LIST_INSERT_TAIL(&idle_list, thread, list);
-			AST_LIST_UNLOCK(&idle_list);
+			insert_idle_thread(thread);
 			return 1;
 		}
 		if (test_losspct && ((100.0 * ast_random() / (RAND_MAX + 1.0)) < test_losspct)) { /* simulate random loss condition */
-			AST_LIST_LOCK(&idle_list);
-			AST_LIST_INSERT_TAIL(&idle_list, thread, list);
-			AST_LIST_UNLOCK(&idle_list);
+			insert_idle_thread(thread);
 			return 1;
 		}
 		/* Mark as ready and send on its way */
@@ -7666,10 +7677,16 @@ static void *iax2_process_thread(void *data)
 	struct iax2_thread *thread = data;
 	struct timeval tv;
 	struct timespec ts;
+	int put_into_idle = 0;
 
 	for(;;) {
 		/* Wait for something to signal us to be awake */
 		ast_mutex_lock(&thread->lock);
+
+		/* Put into idle list if applicable */
+		if (put_into_idle)
+			insert_idle_thread(thread);
+
 		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
 			/* Wait to be signalled or time out */
 			tv = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
@@ -7720,16 +7737,7 @@ static void *iax2_process_thread(void *data)
 		AST_LIST_REMOVE(&active_list, thread, list);
 		AST_LIST_UNLOCK(&active_list);
 
-		/* Go back into our respective list */
-		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
-			AST_LIST_LOCK(&dynamic_list);
-			AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
-			AST_LIST_UNLOCK(&dynamic_list);
-		} else {
-			AST_LIST_LOCK(&idle_list);
-			AST_LIST_INSERT_TAIL(&idle_list, thread, list);
-			AST_LIST_UNLOCK(&idle_list);
-		}
+		put_into_idle = 1;
 	}
 
 	return NULL;
