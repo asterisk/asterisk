@@ -1058,6 +1058,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			cur = rest;
 			if (!cur)
 				chan->hangupcause = cause;
+			free(tmp);
 			continue;
 		}
 		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
@@ -1096,6 +1097,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (!tmp->chan) {
 				HANDLE_CAUSE(cause, chan);
 				cur = rest;
+				free(tmp);
 				continue;
 			}
 		}
@@ -1163,6 +1165,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_hangup(tmp->chan);
 			tmp->chan = NULL;
 			cur = rest;
+			free(tmp);
 			continue;
 		} else {
 			senddialevent(chan, tmp->chan);
