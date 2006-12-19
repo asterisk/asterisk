@@ -1054,6 +1054,117 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 	}
 }
 
+/*! \brief returns 1 if successful, 0 or <0 if the caller should 'goto out' */
+static int setup_privacy_args(struct privacy_args *pa,
+	struct ast_flags *opts, char *opt_args[], struct ast_channel *chan)
+{
+	char callerid[60];
+	int res;
+	char *l;
+
+	if (!ast_strlen_zero(chan->cid.cid_num)) {
+		l = ast_strdupa(chan->cid.cid_num);
+		ast_shrink_phone_number(l);
+		if (ast_test_flag(opts, OPT_PRIVACY) ) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3  "Privacy DB is '%s', clid is '%s'\n",
+					     opt_args[OPT_ARG_PRIVACY], l);
+			pa->privdb_val = ast_privacy_check(opt_args[OPT_ARG_PRIVACY], l);
+		} else {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3  "Privacy Screening, clid is '%s'\n", l);
+			pa->privdb_val = AST_PRIVACY_UNKNOWN;
+		}
+	} else {
+		char *tnam, *tn2;
+
+		tnam = ast_strdupa(chan->name);
+		/* clean the channel name so slashes don't try to end up in disk file name */
+		for (tn2 = tnam; *tn2; tn2++) {
+			if (*tn2=='/')	/* any other chars to be afraid of? */
+				*tn2 = '=';
+		}
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3  "Privacy-- callerid is empty\n");
+
+		snprintf(callerid, sizeof(callerid), "NOCALLERID_%s%s", chan->exten, tnam);
+		l = callerid;
+		pa->privdb_val = AST_PRIVACY_UNKNOWN;
+	}
+	
+	ast_copy_string(pa->privcid,l,sizeof(pa->privcid));
+
+	if( strncmp(pa->privcid,"NOCALLERID",10) != 0 && ast_test_flag(opts, OPT_SCREEN_NOCLID) ) { /* if callerid is set, and ast_test_flag(&opts, OPT_SCREEN_NOCLID) is set also */  
+		if (option_verbose > 2)
+			ast_verbose( VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", pa->privcid);
+		pa->privdb_val = AST_PRIVACY_ALLOW;
+	} else if (ast_test_flag(opts, OPT_SCREEN_NOCLID) && strncmp(pa->privcid,"NOCALLERID",10) == 0 ) {
+		if (option_verbose > 2)
+			ast_verbose( VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", pa->privdb_val);
+	}
+	
+	if (pa->privdb_val == AST_PRIVACY_DENY ) {
+		ast_copy_string(pa->status, "NOANSWER", sizeof(pa->status));
+		if (option_verbose > 2)
+			ast_verbose( VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
+		return 0;
+	} else if (pa->privdb_val == AST_PRIVACY_KILL ) {
+		ast_copy_string(pa->status, "DONTCALL", sizeof(pa->status));
+		if (ast_opt_priority_jumping || ast_test_flag(opts, OPT_PRIORITY_JUMP)) {
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
+		}
+		return 0; /* Is this right? */
+	} else if (pa->privdb_val == AST_PRIVACY_TORTURE ) {
+		ast_copy_string(pa->status, "TORTURE", sizeof(pa->status));
+		if (ast_opt_priority_jumping || ast_test_flag(opts, OPT_PRIORITY_JUMP)) {
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
+		}
+		return 0; /* is this right??? */
+	} else if (pa->privdb_val == AST_PRIVACY_UNKNOWN ) {
+		/* Get the user's intro, store it in priv-callerintros/$CID, 
+		   unless it is already there-- this should be done before the 
+		   call is actually dialed  */
+
+		/* make sure the priv-callerintros dir actually exists */
+		snprintf(pa->privintro, sizeof(pa->privintro), "%s/sounds/priv-callerintros", ast_config_AST_DATA_DIR);
+		if (mkdir(pa->privintro, 0755) && errno != EEXIST) {
+			ast_log(LOG_WARNING, "privacy: can't create directory priv-callerintros: %s\n", strerror(errno));
+			return -1;
+		}
+
+		snprintf(pa->privintro,sizeof(pa->privintro), "priv-callerintros/%s", pa->privcid);
+		if (ast_fileexists(pa->privintro,NULL,NULL ) > 0 && strncmp(pa->privcid,"NOCALLERID",10) != 0) {
+			/* the DELUX version of this code would allow this caller the
+			   option to hear and retape their previously recorded intro.
+			*/
+		} else {
+			int duration; /* for feedback from play_and_wait */
+			/* the file doesn't exist yet. Let the caller submit his
+			   vocal intro for posterity */
+			/* priv-recordintro script:
+
+			   "At the tone, please say your name:"
+
+			*/
+			res = ast_play_and_record(chan, "priv-recordintro", pa->privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
+									/* don't think we'll need a lock removed, we took care of
+									   conflicts by naming the pa.privintro file */
+			if (res == -1) {
+				/* Delete the file regardless since they hung up during recording */
+				ast_filedelete(pa->privintro, NULL);
+				if (ast_fileexists(pa->privintro,NULL,NULL ) > 0 )
+					ast_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", pa->privintro);
+				else if (option_verbose > 2)
+					ast_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", pa->privintro);
+				return -1;
+			}
+			if (!ast_streamfile(chan, "vm-dialout", chan->language) )
+				ast_waitstream(chan, "");
+		}
+	}
+	return 1;	/* success */
+}
+
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
 {
 	int res = -1;	/* default: error */
@@ -1141,118 +1252,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		ast_cdr_reset(chan->cdr, NULL);
 	if (ast_test_flag(&opts, OPT_PRIVACY) && ast_strlen_zero(opt_args[OPT_ARG_PRIVACY]))
 		opt_args[OPT_ARG_PRIVACY] = ast_strdupa(chan->exten);
+
 	if (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) {
-		char callerid[60];
-		char *l = chan->cid.cid_num;	/* XXX watch out, we are overwriting it */
-		if (!ast_strlen_zero(l)) {
-			ast_shrink_phone_number(l);
-			if( ast_test_flag(&opts, OPT_PRIVACY) ) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3  "Privacy DB is '%s', clid is '%s'\n",
-						     opt_args[OPT_ARG_PRIVACY], l);
-				pa.privdb_val = ast_privacy_check(opt_args[OPT_ARG_PRIVACY], l);
-			}
-			else {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3  "Privacy Screening, clid is '%s'\n", l);
-				pa.privdb_val = AST_PRIVACY_UNKNOWN;
-			}
-		} else {
-			char *tnam, *tn2;
-
-			tnam = ast_strdupa(chan->name);
-			/* clean the channel name so slashes don't try to end up in disk file name */
-			for(tn2 = tnam; *tn2; tn2++) {
-				if( *tn2=='/')
-					*tn2 = '=';  /* any other chars to be afraid of? */
-			}
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3  "Privacy-- callerid is empty\n");
-
-			snprintf(callerid, sizeof(callerid), "NOCALLERID_%s%s", chan->exten, tnam);
-			l = callerid;
-			pa.privdb_val = AST_PRIVACY_UNKNOWN;
-		}
-		
-		ast_copy_string(pa.privcid,l,sizeof(pa.privcid));
-
-		if( strncmp(pa.privcid,"NOCALLERID",10) != 0 && ast_test_flag(&opts, OPT_SCREEN_NOCLID) ) { /* if callerid is set, and ast_test_flag(&opts, OPT_SCREEN_NOCLID) is set also */  
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", pa.privcid);
-			pa.privdb_val = AST_PRIVACY_ALLOW;
-		}
-		else if(ast_test_flag(&opts, OPT_SCREEN_NOCLID) && strncmp(pa.privcid,"NOCALLERID",10) == 0 ) {
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", pa.privdb_val);
-		}
-		
-		if(pa.privdb_val == AST_PRIVACY_DENY ) {
-			ast_copy_string(pa.status, "NOANSWER", sizeof(pa.status));
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
-			res=0;
+		res = setup_privacy_args(&pa, &opts, opt_args, chan);
+		if (res <= 0)
 			goto out;
-		}
-		else if(pa.privdb_val == AST_PRIVACY_KILL ) {
-			ast_copy_string(pa.status, "DONTCALL", sizeof(pa.status));
-			if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
-				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
-			}
-			res = 0;
-			goto out; /* Is this right? */
-		}
-		else if(pa.privdb_val == AST_PRIVACY_TORTURE ) {
-			ast_copy_string(pa.status, "TORTURE", sizeof(pa.status));
-			if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
-				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
-			}
-			res = 0;
-			goto out; /* is this right??? */
-		}
-		else if(pa.privdb_val == AST_PRIVACY_UNKNOWN ) {
-			/* Get the user's intro, store it in priv-callerintros/$CID, 
-			   unless it is already there-- this should be done before the 
-			   call is actually dialed  */
-
-			/* make sure the priv-callerintros dir actually exists */
-			snprintf(pa.privintro, sizeof(pa.privintro), "%s/sounds/priv-callerintros", ast_config_AST_DATA_DIR);
-			if (mkdir(pa.privintro, 0755) && errno != EEXIST) {
-				ast_log(LOG_WARNING, "privacy: can't create directory priv-callerintros: %s\n", strerror(errno));
-				res = -1;
-				goto out;
-			}
-
-			snprintf(pa.privintro,sizeof(pa.privintro), "priv-callerintros/%s", pa.privcid);
-			if( ast_fileexists(pa.privintro,NULL,NULL ) > 0 && strncmp(pa.privcid,"NOCALLERID",10) != 0) {
-				/* the DELUX version of this code would allow this caller the
-				   option to hear and retape their previously recorded intro.
-				*/
-			}
-			else {
-				int duration; /* for feedback from play_and_wait */
-				/* the file doesn't exist yet. Let the caller submit his
-				   vocal intro for posterity */
-				/* priv-recordintro script:
-
-				   "At the tone, please say your name:"
-
-				*/
-				res = ast_play_and_record(chan, "priv-recordintro", pa.privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
-										/* don't think we'll need a lock removed, we took care of
-										   conflicts by naming the pa.privintro file */
-				if (res == -1) {
-					/* Delete the file regardless since they hung up during recording */
-                                        ast_filedelete(pa.privintro, NULL);
-                                        if( ast_fileexists(pa.privintro,NULL,NULL ) > 0 )
-                                                ast_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", pa.privintro);
-                                        else if (option_verbose > 2)
-                                                ast_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", pa.privintro);
-					goto out;
-				}
-                                if( !ast_streamfile(chan, "vm-dialout", chan->language) )
-                                        ast_waitstream(chan, "");
-			}
-		}
+		res = -1;	/* reset default */
 	}
 
 	/* If a channel group has been specified, get it for use when we create peer channels */
