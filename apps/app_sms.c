@@ -1198,7 +1198,7 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 #else
 	f.subclass = AST_FORMAT_SLINEAR;
 #endif
-	f.datalen = len;
+	f.datalen = samples * SAMPLE2LEN;
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
 	f.data = buf;
