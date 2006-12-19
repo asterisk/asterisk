@@ -1268,6 +1268,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	rest = args.peers;
 	while ((cur = strsep(&rest, "&")) ) {
 		struct dial_localuser *tmp;
+		struct ast_channel *tc;	/* channel for this destination */
 		/* Get a technology/[device:]number pair */
 		char *number = cur;
 		char *tech = strsep(&number, "/");
@@ -1288,56 +1289,60 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		ast_copy_string(numsubst, number, sizeof(numsubst));
 		/* Request the peer */
-		tmp->chan = ast_request(tech, chan->nativeformats, numsubst, &cause);
-		if (!tmp->chan) {
+		tc = ast_request(tech, chan->nativeformats, numsubst, &cause);
+		if (!tc) {
 			/* If we can't, just go on to the next call */
-			ast_log(LOG_WARNING, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, ast_cause2str(cause));
+			ast_log(LOG_WARNING, "Unable to create channel of type '%s' (cause %d - %s)\n",
+				    tech, cause, ast_cause2str(cause));
 			handle_cause(cause, &num);
 			if (!rest)	/* we are on the last destination */
 				chan->hangupcause = cause;
 			free(tmp);
 			continue;
 		}
-		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
-		if (!ast_strlen_zero(tmp->chan->call_forward)) {
+		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
+		if (!ast_strlen_zero(tc->call_forward)) {
 			char tmpchan[256];
 			char *stuff;
 			char *tech;
-			ast_copy_string(tmpchan, tmp->chan->call_forward, sizeof(tmpchan));
+			ast_copy_string(tmpchan, tc->call_forward, sizeof(tmpchan));
 			if ((stuff = strchr(tmpchan, '/'))) {
 				*stuff++ = '\0';
 				tech = tmpchan;
 			} else {
-				snprintf(tmpchan, sizeof(tmpchan), "%s@%s", tmp->chan->call_forward, tmp->chan->context);
+				snprintf(tmpchan, sizeof(tmpchan), "%s@%s", tc->call_forward, tc->context);
 				stuff = tmpchan;
 				tech = "Local";
 			}
 			tmp->forwards++;
 			if (tmp->forwards < AST_MAX_FORWARDS) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
-				ast_hangup(tmp->chan);
-				/* If we have been told to ignore forwards, just set this channel to null and continue processing extensions normally */
+					ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n",
+					chan->name, tech, stuff, tc->name);
+				ast_hangup(tc);
+				/* If we have been told to ignore forwards, just set this channel to null
+				 * and continue processing extensions normally */
 				if (ast_test_flag(&opts, OPT_IGNORE_FORWARDING)) {
-					tmp->chan = NULL;
+					tc = NULL;
 					cause = AST_CAUSE_BUSY;
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n", chan->name, tech, stuff);
+						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' prevented.\n",
+							chan->name, tech, stuff);
 				} else {
-					tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
+					tc = ast_request(tech, chan->nativeformats, stuff, &cause);
 				}
-				if (!tmp->chan)
+				if (!tc)
 					ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 				else
-					ast_channel_inherit_variables(chan, tmp->chan);
+					ast_channel_inherit_variables(chan, tc);
 			} else {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
-				ast_hangup(tmp->chan);
-				tmp->chan = NULL;
+					ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tc->name);
+				ast_hangup(tc);
+				tc = NULL;
 				cause = AST_CAUSE_CONGESTION;
 			}
-			if (!tmp->chan) {
+			if (!tc) {
 				handle_cause(cause, &num);
 				free(tmp);
 				continue;
@@ -1345,51 +1350,46 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 
 		/* Setup outgoing SDP to match incoming one */
-		ast_rtp_make_compatible(tmp->chan, chan, !outgoing && !rest);
+		ast_rtp_make_compatible(tc, chan, !outgoing && !rest);
 		
 		/* Inherit specially named variables from parent channel */
-		ast_channel_inherit_variables(chan, tmp->chan);
+		ast_channel_inherit_variables(chan, tc);
 
-		tmp->chan->appl = "AppDial";
-		tmp->chan->data = "(Outgoing Line)";
-		tmp->chan->whentohangup = 0;
+		tc->appl = "AppDial";
+		tc->data = "(Outgoing Line)";
+		tc->whentohangup = 0;
 
-		S_REPLACE(tmp->chan->cid.cid_num, ast_strdup(chan->cid.cid_num));
-		S_REPLACE(tmp->chan->cid.cid_name, ast_strdup(chan->cid.cid_name));
-		S_REPLACE(tmp->chan->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
-		S_REPLACE(tmp->chan->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
+		S_REPLACE(tc->cid.cid_num, ast_strdup(chan->cid.cid_num));
+		S_REPLACE(tc->cid.cid_name, ast_strdup(chan->cid.cid_name));
+		S_REPLACE(tc->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
+		S_REPLACE(tc->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
 		
 		/* Copy language from incoming to outgoing */
-		ast_string_field_set(tmp->chan, language, chan->language);
-		ast_string_field_set(tmp->chan, accountcode, chan->accountcode);
-		tmp->chan->cdrflags = chan->cdrflags;
-		if (ast_strlen_zero(tmp->chan->musicclass))
-			ast_string_field_set(tmp->chan, musicclass, chan->musicclass);
-		/* Pass callingpres setting */
-		tmp->chan->cid.cid_pres = chan->cid.cid_pres;
-		/* Pass type of number */
-		tmp->chan->cid.cid_ton = chan->cid.cid_ton;
-		/* Pass type of tns */
-		tmp->chan->cid.cid_tns = chan->cid.cid_tns;
-		/* Presense of ADSI CPE on outgoing channel follows ours */
-		tmp->chan->adsicpe = chan->adsicpe;
-		/* Pass the transfer capability */
-		tmp->chan->transfercapability = chan->transfercapability;
+		ast_string_field_set(tc, language, chan->language);
+		ast_string_field_set(tc, accountcode, chan->accountcode);
+		tc->cdrflags = chan->cdrflags;
+		if (ast_strlen_zero(tc->musicclass))
+			ast_string_field_set(tc, musicclass, chan->musicclass);
+		/* Pass callingpres, type of number, tns, ADSI CPE, transfer capability */
+		tc->cid.cid_pres = chan->cid.cid_pres;
+		tc->cid.cid_ton = chan->cid.cid_ton;
+		tc->cid.cid_tns = chan->cid.cid_tns;
+		tc->adsicpe = chan->adsicpe;
+		tc->transfercapability = chan->transfercapability;
 
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)
-			ast_app_group_set_channel(tmp->chan, outbound_group);
+			ast_app_group_set_channel(tc, outbound_group);
 
 		/* Inherit context and extension */
-		ast_copy_string(tmp->chan->dialcontext, chan->context, sizeof(tmp->chan->dialcontext));
-		ast_copy_string(tmp->chan->exten, chan->exten, sizeof(tmp->chan->exten));
+		ast_copy_string(tc->dialcontext, chan->context, sizeof(tc->dialcontext));
+		ast_copy_string(tc->exten, chan->exten, sizeof(tc->exten));
 
-		/* Place the call, but don't wait on the answer */
-		res = ast_call(tmp->chan, numsubst, 0);
+		res = ast_call(tc, numsubst, 0);	/* Place the call, but don't wait on the answer */
 
 		/* Save the info in cdr's that we called them */
 		if (chan->cdr)
-			ast_cdr_setdestchan(chan->cdr, tmp->chan->name);
+			ast_cdr_setdestchan(chan->cdr, tc->name);
 
 		/* check the results of ast_call */
 		if (res) {
@@ -1398,21 +1398,22 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
-			ast_hangup(tmp->chan);
-			tmp->chan = NULL;
+			ast_hangup(tc);
+			tc = NULL;
 			free(tmp);
 			continue;
 		} else {
-			senddialevent(chan, tmp->chan);
+			senddialevent(chan, tc);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
 			if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID))
-				ast_set_callerid(tmp->chan, S_OR(chan->macroexten, chan->exten), get_cid_name(cidname, sizeof(cidname), chan), NULL);
+				ast_set_callerid(tc, S_OR(chan->macroexten, chan->exten), get_cid_name(cidname, sizeof(cidname), chan), NULL);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
 		ast_set_flag(tmp, DIAL_STILLGOING);	
+		tmp->chan = tc;
 		tmp->next = outgoing;
 		outgoing = tmp;
 		/* If this line is up, don't try anybody else */
