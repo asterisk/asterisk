@@ -80,6 +80,12 @@ static char *descrip =
 	"smsq (a separate software) is a command to generate message\n"
 	"queues and send messages.\n";
 
+/*
+ * 80 samples of a single period of the wave. At 8000 Hz, it means these
+ * are the samples of a 100 Hz signal.
+ * To pick the two carriers (1300Hz for '1' and 2100 Hz for '0') used by
+ * the modulation, we should take one every 13 and 21 samples respectively.
+ */
 static signed short wave[] = {
 	0, 392, 782, 1167, 1545, 1913, 2270, 2612, 2939, 3247, 3536, 3802, 4045, 4263, 4455, 4619, 4755, 4862, 4938, 4985,
 	5000, 4985, 4938, 4862, 4755, 4619, 4455, 4263, 4045, 3802, 3536, 3247, 2939, 2612, 2270, 1913, 1545, 1167, 782, 392,
@@ -168,11 +174,11 @@ typedef struct sms_s
 	unsigned char iphasep;       /*!< bit phase (0-79) for 1200 bps */
 	unsigned char ibitn;         /*!< bit number in byte being received */
 	unsigned char ibytev;        /*!< byte value being received */
-	unsigned char ibytep;        /*!< byte pointer in messafe */
+	unsigned char ibytep;        /*!< byte pointer in message */
 	unsigned char ibytec;        /*!< byte checksum for message */
 	unsigned char ierr;          /*!< error flag */
 	unsigned char ibith;         /*!< history of last bits */
-	unsigned char ibitt;         /* total of 1's in last 3 bites */
+	unsigned char ibitt;         /*!< total of 1's in last 3 bytes */
 	/* more to go here */
 } sms_t;
 
@@ -1105,7 +1111,7 @@ static void sms_messagerx(sms_t * h)
 {
 	sms_debug ("RX", h->imsg);
 	/* testing */
-	switch (h->imsg[0]) {
+	switch (h->imsg[0]) {	/* PROTOCOL version 1 */
 	case 0x91:						/* SMS_DATA */
 		{
 			unsigned char cause = sms_handleincoming (h);
@@ -1157,18 +1163,21 @@ static void sms_messagerx(sms_t * h)
 static void sms_messagetx(sms_t * h)
 {
 	unsigned char c = 0, p;
-	for (p = 0; p < h->omsg[1] + 2; p++)
+	int len = h->omsg[1] + 2;	/* total message length excluding checksum */
+
+	for (p = 0; p < len; p++)	/* compute checksum */
 		c += h->omsg[p];
-	h->omsg[h->omsg[1] + 2] = 0 - c;
+	h->omsg[len] = 0 - c;		/* actually, (256 - (c & 0fxx)) & 0xff) */
 	sms_debug ("TX", h->omsg);
 	h->obyte = 1;
 	h->opause = 200;
 	if (h->omsg[0] == 0x93)
-		h->opause = 2400;			/* initial message delay 300ms (for BT) */
+		h->opause = 2400;	/* initial message delay 300ms (for BT) */
 	h->obytep = 0;
 	h->obitp = 0;
-	h->osync = 80;
-	h->obyten = h->omsg[1] + 3;
+	/* Note - setting osync triggers the generator */
+	h->osync = 80;			/* 80 sync bits */
+	h->obyten = len + 1;		/* bytes to send (including checksum) */
 }
 
 static int sms_generate (struct ast_channel *chan, void *data, int len, int samples)
@@ -1198,7 +1207,7 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 #else
 	f.subclass = AST_FORMAT_SLINEAR;
 #endif
-	f.datalen = len;
+	f.datalen = samples * SAMPLE2LEN;
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
 	f.data = buf;
@@ -1490,8 +1499,16 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	}
 
 	/* Do our thing here */
-	while (ast_waitfor (chan, -1) > -1 && !h.hangup)
-	{
+	for (;;) {
+		int i = ast_waitfor(chan, -1);
+		if (i < 0) {
+			ast_log(LOG_NOTICE, "waitfor failed\n");
+			break;
+		}
+		if (h.hangup) {
+			ast_log(LOG_NOTICE, "channel hangup\n");
+			break;
+		}
 		f = ast_read (chan);
 		if (!f)
 			break;
