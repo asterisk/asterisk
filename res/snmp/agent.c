@@ -198,6 +198,7 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
     struct timeval tval;
     u_char *ret;
     int i, bit;
+	struct ast_str *out = ast_str_alloca(2048);
 
     if (header_simple_table(vp, name, length, exact, var_len, write_method, ast_active_channels()))
 		return NULL;
@@ -478,9 +479,9 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 		ret = (u_char *)&long_ret;
 		break;
 	case ASTCHANVARIABLES:
-		if (pbx_builtin_serialize_variables(chan, string_ret, sizeof(string_ret))) {
-			*var_len = strlen(string_ret);
-			ret = (u_char *)string_ret;
+		if (pbx_builtin_serialize_variables(chan, &out)) {
+			*var_len = strlen(out->str);
+			ret = (u_char *)out->str;
 		}
 		else
 			ret = NULL;
