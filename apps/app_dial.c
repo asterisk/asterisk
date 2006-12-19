@@ -288,22 +288,21 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('K', OPT_CALLER_PARK),
 });
 
-/* We define a custom "local user" structure because we
-   use it not only for keeping track of what is in use but
-   also for keeping track of who we're dialing. */
-
-struct dial_localuser {
+/*
+ * The list of active channels
+ */
+struct chanlist {
+	struct chanlist *next;
 	struct ast_channel *chan;
 	unsigned int flags;
 	int forwards;
-	struct dial_localuser *next;
 };
 
 
-static void hanguptree(struct dial_localuser *outgoing, struct ast_channel *exception)
+static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception)
 {
 	/* Hang up a tree of stuff */
-	struct dial_localuser *oo;
+	struct chanlist *oo;
 	while (outgoing) {
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception))
@@ -425,7 +424,7 @@ static void senddialendevent(const struct ast_channel *src, const char *dialstat
  * XXX this code is highly suspicious, as it essentially overwrites
  * the outgoing channel without properly deleting it.
  */
-static void do_forward(struct dial_localuser *o,
+static void do_forward(struct chanlist *o,
 	struct cause_args *num, struct ast_flags *peerflags, int single)
 {
 	char tmpchan[256];
@@ -525,7 +524,7 @@ struct privacy_args {
 };
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in,
-	struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags,
+	struct chanlist *outgoing, int *to, struct ast_flags *peerflags,
 	struct privacy_args *pa,
 	const struct cause_args *num_in, int priority_jump, int *result)
 {
@@ -545,7 +544,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	
 	
 	while (*to && !peer) {
-		struct dial_localuser *o;
+		struct chanlist *o;
 		int pos = 0;	/* how many channels do we handle */
 		int numlines = prestart;
 		struct ast_channel *winner;
@@ -1170,7 +1169,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int res = -1;	/* default: error */
 	struct ast_module_user *u;
 	char *rest, *cur;	/* scan the list of destinations */
-	struct dial_localuser *outgoing = NULL;	/* list of destinations */
+	struct chanlist *outgoing = NULL;	/* list of destinations */
 	struct ast_channel *peer;
 	int to;	/* timeout */
 	struct cause_args num = { chan, 0, 0, 0 };
@@ -1267,7 +1266,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	/* loop through the list of dial destinations */
 	rest = args.peers;
 	while ((cur = strsep(&rest, "&")) ) {
-		struct dial_localuser *tmp;
+		struct chanlist *tmp;
 		struct ast_channel *tc;	/* channel for this destination */
 		/* Get a technology/[device:]number pair */
 		char *number = cur;
