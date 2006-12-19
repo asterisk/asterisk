@@ -433,7 +433,6 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
 		if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
 			if (!stack->channels[i]) {
 				cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
-				stack->channels[i] = 1;
 				return i+1;
 			}
 		}
@@ -821,6 +820,8 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
 		if (!free_chan) return -1;
 		bc->channel=free_chan;
+
+		if (set_chan_in_stack(stack ,bc->channel)<0) return -1;
 		
 		cb_log(4,stack->port, " -->  found channel: %d\n",free_chan);
     
@@ -852,6 +853,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 			if (!free_chan) return -1;
 			bc->channel=free_chan;
 			cb_log(2,stack->port, " -->  found channel: %d\n",free_chan);
+			if (set_chan_in_stack(stack ,bc->channel)<0) return -1;
 		} else {
 			/* other phones could have made a call also on this port (ptmp) */
 			bc->channel=0xff;
@@ -1475,34 +1477,27 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 		setup_bc(bc);
 
 		case EVENT_SETUP:
-			
 		{
 			if (bc->channel == 0xff) {
 				bc->channel=find_free_chan_in_stack(stack, 0);
 				if (!bc->channel) {
 					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
-					break;
+					bc->out_cause=34;
+					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+					return -1;
 				}
-			} else { 
+			} 
 
-				if (bc->channel >0 && bc->channel<255) {
-					int ret=set_chan_in_stack(stack ,bc->channel);
-					if (event == EVENT_SETUP && ret<0){
-						/* empty bchannel */
-						bc->channel=0;
-						bc->out_cause=44;
-						misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-					}
+			if (bc->channel >0 && bc->channel<255) {
+				int ret=set_chan_in_stack(stack ,bc->channel);
+				if (event == EVENT_SETUP && ret<0){
+					/* empty bchannel */
+					bc->channel=0;
+					bc->out_cause=44;
+					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+					return -1;
 				}
 			}
-
-#if 0
-			int ret=setup_bc(bc);
-			if (ret == -EINVAL){
-				cb_log(0,bc->port,"handle_event: setup_bc failed\n");
-				misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-			}
-#endif
 		}
 		break;
 
@@ -2031,46 +2026,22 @@ handle_event_nt(void *dat, void *arg)
 
 			switch (event) {
 				case EVENT_SETUP:
-					if (bc->channel<=0) {
+					if (bc->channel<=0 || bc->channel==0xff) {
 						bc->channel=find_free_chan_in_stack(stack,0);
 		
 						if (bc->channel<=0)
 							goto ERR_NO_CHANNEL;
+					} else if (!stack->ptp) 
+						cb_log(3,stack->port," --> PTMP but channel requested\n"); 
+
+					int ret=set_chan_in_stack(stack, bc->channel);
+					if (event==EVENT_SETUP && ret<0){
+						/* empty bchannel */
+						bc->channel=0;
+						bc->out_cause=44;
+
+						goto ERR_NO_CHANNEL;
 					}
-
-					if (bc->channel>0 && bc->channel<255) {
-						if (stack->ptp)  {
-							int ret=set_chan_in_stack(stack, bc->channel);
-							if (event==EVENT_SETUP && ret<0){
-								/* empty bchannel */
-								bc->channel=0;
-								bc->out_cause=44;
-								misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-							}
-
-						}
-						else 
-							cb_log(3,stack->port," --> PTMP but channel requested\n");
-
-					} else {
-
-						bc->channel = find_free_chan_in_stack(stack, 0);
-						if (!bc->channel) {
-							cb_log(0, stack->port, " No free channel at the moment\n");
-					
-							msg_t *dmsg;
-				
-							cb_log(0, stack->port, "Releaseing call %x (No free Chan for you..)\n", hh->dinfo);
-								dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
-							stack->nst.manager_l3(&stack->nst, dmsg);
-							free_msg(msg);
-							return 0;
-						}
-						
-					}
-#if 0
-					setup_bc(bc);
-#endif
 
 					break;
 				case EVENT_RELEASE:
@@ -2614,7 +2585,12 @@ int handle_frm(msg_t *msg)
 			isdn_msg_parse_event(msgs_g,msg,bc, 0);
 			
 			/** Preprocess some Events **/
-			handle_event(bc, event, frm);
+			int ret=handle_event(bc, event, frm);
+			if (ret<0) {
+				cb_log(0,stack->port,"couldn't handle event\n");
+				free_msg(msg);
+				return 1;
+			}
 			/*  shoot up event to App: */
 			cb_log(5, stack->port, "lib Got Prim: Addr %x prim %x dinfo %x\n",frm->addr, frm->prim, frm->dinfo);
       
@@ -3228,7 +3204,13 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 				bc->channel = find_free_chan_in_stack(stack, 0);
 				if (!bc->channel) {
 					cb_log(0, stack->port, " No free channel at the moment\n");
-					
+					/*FIXME: add disconnect*/
+					err=-ENOCHAN;
+					goto ERR;
+				}
+				
+				if (set_chan_in_stack(stack ,bc->channel)<0) {
+					/*FIXME: add disconnect*/
 					err=-ENOCHAN;
 					goto ERR;
 				}
