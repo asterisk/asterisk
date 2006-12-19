@@ -104,7 +104,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 		AST_APP_ARG(field)[100];
 	);
 	SQLHSTMT stmt;
-	SQLINTEGER rows=0;
+	SQLLEN rows=0;
 
 	AST_LIST_LOCK(&queries);
 	AST_LIST_TRAVERSE(&queries, query, list) {
@@ -202,7 +202,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	);
 	SQLHSTMT stmt;
 	SQLSMALLINT colcount=0;
-	SQLINTEGER indicator;
+	SQLLEN indicator;
 
 	AST_LIST_LOCK(&queries);
 	AST_LIST_TRAVERSE(&queries, query, list) {
