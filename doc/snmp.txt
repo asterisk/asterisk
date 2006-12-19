@@ -17,7 +17,7 @@ libraries.  The packages may include the following:
 SNMP support comes in two varieties -- as a sub-agent to a running SNMP
 daemon using the AgentX protocol, or as a full standalone agent.  If
 you wish to run a full standalone agent, Asterisk must run as root in
-order to find to port 161.
+order to bind to port 161.
 
 Configuring access when running as a full agent is something that is
 left as an exercise to the reader.
