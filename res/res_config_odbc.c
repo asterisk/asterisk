@@ -72,7 +72,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
-	SQLINTEGER indicator;
+	SQLLEN indicator;
 	va_list aq;
 	
 	va_copy(aq, ap);
@@ -222,7 +222,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
-	SQLINTEGER indicator;
+	SQLLEN indicator;
 
 	va_list aq;
 	va_copy(aq, ap);
@@ -449,7 +449,7 @@ struct config_odbc_obj {
 	char category[128];
 	char var_name[128];
 	char var_val[1024]; /* changed from 128 to 1024 via bug 8251 */
-	SQLINTEGER err;
+	SQLLEN err;
 };
 
 static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
