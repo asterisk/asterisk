@@ -49,8 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "editline/readline/readline.h"
 #include "asterisk/threadstorage.h"
 
-extern unsigned long global_fin, global_fout;
-
 AST_THREADSTORAGE(ast_cli_buf);
 
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
