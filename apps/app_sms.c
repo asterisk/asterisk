@@ -46,8 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
 
-/* output using Alaw rather than linear */
-/* #define OUTALAW */
+/* #define OUTALAW */ /* enable this to output Alaw rather than linear */
 
 /* ToDo */
 /* Add full VP support */
@@ -97,6 +96,13 @@ static signed short wave[] = {
 
 #ifdef OUTALAW
 static unsigned char wavea[80];
+typedef unsigned char output_t;
+static const output_t *wave_out = wavea;	/* outgoing samples */
+#define __OUT_FMT AST_FORMAT_ALAW;
+#else
+typedef signed short output_t;
+static const output_t *wave_out = wave;	/* outgoing samples */
+#define __OUT_FMT AST_FORMAT_SLINEAR
 #endif
 
 
@@ -158,17 +164,17 @@ typedef struct sms_s
 	unsigned char obytep;        /*!< byte in data */
 	unsigned char obyten;        /*!< bytes in data */
 	unsigned char omsg[256];     /*!< data buffer (out) */
-	unsigned char imsg[200];     /*!< data buffer (in) */
+	unsigned char imsg[250];     /*!< data buffer (in) */
 	signed long long ims0,
 		imc0,
 		ims1,
 		imc1;                      /*!< magnitude averages sin/cos 0/1 */
 	unsigned int idle;
 	unsigned short imag;         /*!< signal level */
-	unsigned char ips0,
-		ips1,
-		ipc0,
-		ipc1;                      /*!< phase sin/cos 0/1 */
+	unsigned char ips0;	     /*!< phase sin for bit 0, start at  0 inc by 21 mod 80 */
+	unsigned char ips1;	     /*!< phase cos for bit 0, start at 20 inc by 21 mod 80 */
+	unsigned char ipc0;	     /*!< phase sin for bit 1, start at  0 inc by 13 mod 80 */
+	unsigned char ipc1;	     /*!< phase cos for bit 1, start at 20 inc by 13 mod 80 */
 	unsigned char ibitl;         /*!< last bit */
 	unsigned char ibitc;         /*!< bit run length count */
 	unsigned char iphasep;       /*!< bit phase (0-79) for 1200 bps */
@@ -680,22 +686,19 @@ static void sms_readfile (sms_t * h, char *fn)
 {
 	char line[1000];
 	FILE *s;
-	char dcsset = 0;				 /* if DSC set */
+	char dcsset = 0;		/* if DSC set */
 	ast_log (LOG_EVENT, "Sending %s\n", fn);
 	h->rx = h->udl = *h->oa = *h->da = h->pid = h->srr = h->udhi = h->rp = h->vp = h->udhl = 0;
 	h->mr = -1;
-	h->dcs = 0xF1;					/* normal messages class 1 */
+	h->dcs = 0xF1;			/* normal messages class 1 */
 	h->scts = time (0);
 	s = fopen (fn, "r");
-	if (s)
-	{
-		if (unlink (fn))
-		{								 /* concurrent access, we lost */
+	if (s) {
+		if (unlink (fn)) {	/* concurrent access, we lost */
 			fclose (s);
 			return;
 		}
-		while (fgets (line, sizeof (line), s))
-		{								 /* process line in file */
+		while (fgets (line, sizeof (line), s)) {	/* process line in file */
 			char *p;
 			void *pp = &p;
 			for (p = line; *p && *p != '\n' && *p != '\r'; p++);
@@ -703,26 +706,22 @@ static void sms_readfile (sms_t * h, char *fn)
 			p = line;
 			if (!*p || *p == ';')
 				continue;			  /* blank line or comment, ignore */
-			while (isalnum (*p))
-			{
+			while (isalnum (*p)) {
 				*p = tolower (*p);
 				p++;
 			}
 			while (isspace (*p))
 				*p++ = 0;
-			if (*p == '=')
-			{
+			if (*p == '=') {
 				*p++ = 0;
-				if (!strcmp (line, "ud"))
-				{						 /* parse message (UTF-8) */
+				if (!strcmp (line, "ud")) {						 /* parse message (UTF-8) */
 					unsigned char o = 0;
 					while (*p && o < SMSLEN)
 						h->ud[o++] = utf8decode(pp);
 					h->udl = o;
 					if (*p)
 						ast_log (LOG_WARNING, "UD too long in %s\n", fn);
-				} else
-				{
+				} else {
 					while (isspace (*p))
 						p++;
 					if (!strcmp (line, "oa") && strlen (p) < sizeof (h->oa))
@@ -731,8 +730,7 @@ static void sms_readfile (sms_t * h, char *fn)
 						numcpy (h->da, p);
 					else if (!strcmp (line, "pid"))
 						h->pid = atoi (p);
-					else if (!strcmp (line, "dcs"))
-					{
+					else if (!strcmp (line, "dcs")) {
 						h->dcs = atoi (p);
 						dcsset = 1;
 					} else if (!strcmp (line, "mr"))
@@ -743,16 +741,14 @@ static void sms_readfile (sms_t * h, char *fn)
 						h->vp = atoi (p);
 					else if (!strcmp (line, "rp"))
 						h->rp = (atoi (p) ? 1 : 0);
-					else if (!strcmp (line, "scts"))
-					{					 /* get date/time */
+					else if (!strcmp (line, "scts")) {	/* get date/time */
 						int Y,
 						  m,
 						  d,
 						  H,
 						  M,
 						  S;
-						if (sscanf (p, "%d-%d-%dT%d:%d:%d", &Y, &m, &d, &H, &M, &S) == 6)
-						{
+						if (sscanf (p, "%d-%d-%dT%d:%d:%d", &Y, &m, &d, &H, &M, &S) == 6) {
 							struct tm t;
 							t.tm_year = Y - 1900;
 							t.tm_mon = m - 1;
@@ -768,19 +764,14 @@ static void sms_readfile (sms_t * h, char *fn)
 					} else
 						ast_log (LOG_WARNING, "Cannot parse in %s: %s=%si\n", fn, line, p);
 				}
-			} else if (*p == '#')
-			{							 /* raw hex format */
+			} else if (*p == '#') {		/* raw hex format */
 				*p++ = 0;
-				if (*p == '#')
-				{
+				if (*p == '#') {
 					p++;
-					if (!strcmp (line, "ud"))
-					{					 /* user data */
+					if (!strcmp (line, "ud")) {	/* user data */
 						int o = 0;
-						while (*p && o < SMSLEN)
-						{
-							if (isxdigit (*p) && isxdigit (p[1]) && isxdigit (p[2]) && isxdigit (p[3]))
-							{
+						while (*p && o < SMSLEN) {
+							if (isxdigit (*p) && isxdigit (p[1]) && isxdigit (p[2]) && isxdigit (p[3])) {
 								h->ud[o++] =
 									(((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 12) +
 									(((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF)) << 8) +
@@ -794,13 +785,10 @@ static void sms_readfile (sms_t * h, char *fn)
 							ast_log (LOG_WARNING, "UD too long / invalid UCS-2 hex in %s\n", fn);
 					} else
 						ast_log (LOG_WARNING, "Only ud can use ## format, %s\n", fn);
-				} else if (!strcmp (line, "ud"))
-				{						 /* user data */
+				} else if (!strcmp (line, "ud")) {	/* user data */
 					int o = 0;
-					while (*p && o < SMSLEN)
-					{
-						if (isxdigit (*p) && isxdigit (p[1]))
-						{
+					while (*p && o < SMSLEN) {
+						if (isxdigit (*p) && isxdigit (p[1])) {
 							h->ud[o++] = (((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF));
 							p += 2;
 						} else
@@ -809,14 +797,11 @@ static void sms_readfile (sms_t * h, char *fn)
 					h->udl = o;
 					if (*p)
 						ast_log (LOG_WARNING, "UD too long / invalid UCS-1 hex in %s\n", fn);
-				} else if (!strcmp (line, "udh"))
-				{						 /* user data header */
+				} else if (!strcmp (line, "udh")) {	/* user data header */
 					unsigned char o = 0;
 					h->udhi = 1;
-					while (*p && o < SMSLEN)
-					{
-						if (isxdigit (*p) && isxdigit (p[1]))
-						{
+					while (*p && o < SMSLEN) {
+						if (isxdigit (*p) && isxdigit (p[1])) {
 							h->udh[o] = (((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF));
 							o++;
 							p += 2;
@@ -832,19 +817,15 @@ static void sms_readfile (sms_t * h, char *fn)
 				ast_log (LOG_WARNING, "Cannot parse in %s: %s\n", fn, line);
 		}
 		fclose (s);
-		if (!dcsset && packsms7 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
-		{
-			if (packsms8 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
-			{
+		if (!dcsset && packsms7 (0, h->udhl, h->udh, h->udl, h->ud) < 0) {
+			if (packsms8 (0, h->udhl, h->udh, h->udl, h->ud) < 0) {
 				if (packsms16 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
 					ast_log (LOG_WARNING, "Invalid UTF-8 message even for UCS-2 (%s)\n", fn);
-				else
-				{
+				else {
 					h->dcs = 0x08;	/* default to 16 bit */
 					ast_log (LOG_WARNING, "Sending in 16 bit format (%s)\n", fn);
 				}
-			} else
-			{
+			} else {
 				h->dcs = 0xF5;		/* default to 8 bit */
 				ast_log (LOG_WARNING, "Sending in 8 bit format (%s)\n", fn);
 			}
@@ -1032,11 +1013,13 @@ static void sms_nextoutgoing (sms_t * h)
 	char fn[100 + NAME_MAX] = "";
 	DIR *d;
 	char more = 0;
+
+	*h->da = *h->oa = '\0';			/* clear destinations */
 	ast_copy_string (fn, spool_dir, sizeof (fn));
-	mkdir (fn, 0777);				/* ensure it exists */
-	h->rx = 0;						 /* outgoing message */
+	mkdir(fn, 0777);			/* ensure it exists */
+	h->rx = 0;			 	/* outgoing message */
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? "mttx" : "motx");
-	mkdir (fn, 0777);				/* ensure it exists */
+	mkdir (fn, 0777);			/* ensure it exists */
 	d = opendir (fn);
 	if (d) {
 		struct dirent *f = readdirqueue (d, h->queue);
@@ -1184,12 +1167,7 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 {
 	struct ast_frame f = { 0 };
 #define MAXSAMPLES (800)
-#ifdef OUTALAW
-	unsigned char *buf;
-#else
-	short *buf;
-#endif
-#define SAMPLE2LEN sizeof(*buf)
+	output_t *buf;
 	sms_t *h = data;
 	int i;
 
@@ -1198,16 +1176,12 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 			 MAXSAMPLES, samples);
 		samples = MAXSAMPLES;
 	}
-	len = samples * SAMPLE2LEN + AST_FRIENDLY_OFFSET;
+	len = samples * sizeof(*buf) + AST_FRIENDLY_OFFSET;
 	buf = alloca(len);
 
 	f.frametype = AST_FRAME_VOICE;
-#ifdef OUTALAW
-	f.subclass = AST_FORMAT_ALAW;
-#else
-	f.subclass = AST_FORMAT_SLINEAR;
-#endif
-	f.datalen = samples * SAMPLE2LEN;
+	f.subclass = __OUT_FMT;
+	f.datalen = samples * sizeof(*buf);
 	f.offset = AST_FRIENDLY_OFFSET;
 	f.mallocd = 0;
 	f.data = buf;
@@ -1215,27 +1189,20 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 	f.src = "app_sms";
 	/* create a buffer containing the digital sms pattern */
 	for (i = 0; i < samples; i++) {
-#ifdef OUTALAW
-		buf[i] = wavea[0];
-#else
-		buf[i] = wave[0];
-#endif
+		buf[i] = wave_out[0];	/* default is silence */
+
 		if (h->opause)
 			h->opause--;
-		else if (h->obyten || h->osync) {								 /* sending data */
-#ifdef OUTALAW
-			buf[i] = wavea[h->ophase];
-#else
-			buf[i] = wave[h->ophase];
-#endif
-			if ((h->ophase += ((h->obyte & 1) ? 13 : 21)) >= 80)
+		else if (h->obyten || h->osync) {		/* sending data */
+			buf[i] = wave_out[h->ophase];
+			h->ophase += (h->obyte & 1) ? 13 : 21;	/* compute next phase */
+			if (h->ophase >= 80)
 				h->ophase -= 80;
-			if ((h->ophasep += 12) >= 80) {							 /* next bit */
+			if ((h->ophasep += 12) >= 80) {		/* time to send the next bit */
 				h->ophasep -= 80;
-				if (h->osync)
+				if (h->osync) {
 					h->osync--;		/* sending sync bits */
-				else {
-					h->obyte >>= 1;
+				} else {
 					h->obitp++;
 					if (h->obitp == 1)
 						h->obyte = 0; /* start bit; */
@@ -1249,7 +1216,8 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 							h->obytep = h->obyten = 0; /* sent */
 							h->osync = 10;	  /* trailing marks */
 						}
-					}
+					} else
+						h->obyte >>= 1;
 				}
 			}
 		}
@@ -1259,10 +1227,21 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 		return -1;
 	}
 	return 0;
-#undef SAMPLE2LEN
 #undef MAXSAMPLES
 }
 
+/*!
+ * Process an incoming frame, trying to detect the carrier and
+ * decode the message. The two frequencies are 1300 and 2100 Hz.
+ * The decoder detects the amplitude of the signal over the last
+ * few samples, filtering the absolute values with a lowpass filter.
+ * If the magnitude (h->imag) is large enough, multiply the signal
+ * by the two carriers, and compute the amplitudes m0 and m1.
+ * Record the current sample as '0' or '1' depending on which one is greater.
+ * The last 3 bits are stored in h->ibith, with the count of '1'
+ * bits in h->ibitt.
+ * XXX the rest is to be determined.
+ */
 static void sms_process (sms_t * h, int samples, signed short *data)
 {
 	if (h->obyten || h->osync)
@@ -1275,12 +1254,17 @@ static void sms_process (sms_t * h, int samples, signed short *data)
 			h->imag = h->imag * 7 / 8;
 		if (h->imag > 500) {
 			h->idle = 0;
+
+			/* multiply signal by the two carriers. */
 			h->ims0 = (h->ims0 * 6 + *data * wave[h->ips0]) / 7;
 			h->imc0 = (h->imc0 * 6 + *data * wave[h->ipc0]) / 7;
 			h->ims1 = (h->ims1 * 6 + *data * wave[h->ips1]) / 7;
 			h->imc1 = (h->imc1 * 6 + *data * wave[h->ipc1]) / 7;
+			/* compute the amplitudes */
 			m0 = h->ims0 * h->ims0 + h->imc0 * h->imc0;
 			m1 = h->ims1 * h->ims1 + h->imc1 * h->imc1;
+
+			/* advance the sin/cos pointers */
 			if ((h->ips0 += 21) >= 80)
 				h->ips0 -= 80;
 			if ((h->ipc0 += 21) >= 80)
@@ -1291,6 +1275,8 @@ static void sms_process (sms_t * h, int samples, signed short *data)
 				h->ipc1 -= 80;
 			{
 				char bit;
+
+				/* set new bit to 1 or 0 depending on which value is stronger */
 				h->ibith <<= 1;
 				if (m1 > m0)
 					h->ibith |= 1;
@@ -1344,7 +1330,8 @@ static void sms_process (sms_t * h, int samples, signed short *data)
 				h->hangup = 1;
 				h->err = 1;
 			}
-			if (h->ierr) {							 /* error */
+			if (h->ierr) {		/* error */
+				/* Protocol 1 */
 				h->err = 1;
 				h->omsg[0] = 0x92;  /* error */
 				h->omsg[1] = 1;
@@ -1479,11 +1466,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer (chan);
 
-#ifdef OUTALAW
-	res = ast_set_write_format (chan, AST_FORMAT_ALAW);
-#else
-	res = ast_set_write_format (chan, AST_FORMAT_SLINEAR);
-#endif
+	res = ast_set_write_format (chan, __OUT_FMT);
 	if (res >= 0)
 		res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
@@ -1510,8 +1493,10 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			break;
 		}
 		f = ast_read (chan);
-		if (!f)
+		if (!f) {
+			ast_log(LOG_NOTICE, "ast_read failed\n");
 			break;
+		}
 		if (f->frametype == AST_FRAME_VOICE) {
 			sms_process (&h, f->samples, f->data);
 		}
