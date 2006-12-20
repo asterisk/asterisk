@@ -101,7 +101,7 @@ static const output_t *wave_out = wavea;	/* outgoing samples */
 #define __OUT_FMT AST_FORMAT_ALAW;
 #else
 typedef signed short output_t;
-static const output_t *wave_out = wave;	/* outgoing samples */
+static const output_t *wave_out = wave;		/* outgoing samples */
 #define __OUT_FMT AST_FORMAT_SLINEAR
 #endif
 
@@ -714,7 +714,7 @@ static void sms_readfile (sms_t * h, char *fn)
 				*p++ = 0;
 			if (*p == '=') {
 				*p++ = 0;
-				if (!strcmp (line, "ud")) {						 /* parse message (UTF-8) */
+				if (!strcmp (line, "ud")) {	 /* parse message (UTF-8) */
 					unsigned char o = 0;
 					while (*p && o < SMSLEN)
 						h->ud[o++] = utf8decode(pp);
@@ -1007,6 +1007,46 @@ static unsigned char sms_handleincoming (sms_t * h)
 #define NAME_MAX 1024
 #endif
 
+/*! \brief compose a message for protocol 1 */
+static void sms_compose1(sms_t *h, int more)
+{
+	unsigned int p = 2;	/* next byte to write. Skip type and len */
+
+	h->omsg[0] = 0x91;		  /* SMS_DATA */
+	if (h->smsc) {			 /* deliver */
+		h->omsg[p++] = (more ? 4 : 0) + ((h->udhl > 0) ? 0x40 : 0);
+		p += packaddress (h->omsg + p, h->oa);
+		h->omsg[p++] = h->pid;
+		h->omsg[p++] = h->dcs;
+		packdate (h->omsg + p, h->scts);
+		p += 7;
+		p += packsms (h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
+	} else {			 /* submit */
+		h->omsg[p++] =
+			0x01 + (more ? 4 : 0) + (h->srr ? 0x20 : 0) + (h->rp ? 0x80 : 0) + (h->vp ? 0x10 : 0) + (h->udhi ? 0x40 : 0);
+		if (h->mr < 0)
+			h->mr = message_ref++;
+		h->omsg[p++] = h->mr;
+		p += packaddress (h->omsg + p, h->da);
+		h->omsg[p++] = h->pid;
+		h->omsg[p++] = h->dcs;
+		if (h->vp) {		 /* relative VP */
+			if (h->vp < 720)
+				h->omsg[p++] = (h->vp + 4) / 5 - 1;
+			else if (h->vp < 1440)
+				h->omsg[p++] = (h->vp - 720 + 29) / 30 + 143;
+			else if (h->vp < 43200)
+				h->omsg[p++] = (h->vp + 1439) / 1440 + 166;
+			else if (h->vp < 635040)
+				h->omsg[p++] = (h->vp + 10079) / 10080 + 192;
+			else
+				h->omsg[p++] = 255;		/* max */
+		}
+		p += packsms (h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
+	}
+	h->omsg[1] = p - 2;
+}
+
 /*! \brief find and fill in next message, or send a REL if none waiting */
 static void sms_nextoutgoing (sms_t * h)
 {          
@@ -1017,7 +1057,7 @@ static void sms_nextoutgoing (sms_t * h)
 	*h->da = *h->oa = '\0';			/* clear destinations */
 	ast_copy_string (fn, spool_dir, sizeof (fn));
 	mkdir(fn, 0777);			/* ensure it exists */
-	h->rx = 0;			 	/* outgoing message */
+	h->rx = 0;				/* outgoing message */
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? "mttx" : "motx");
 	mkdir (fn, 0777);			/* ensure it exists */
 	d = opendir (fn);
@@ -1032,46 +1072,12 @@ static void sms_nextoutgoing (sms_t * h)
 		closedir (d);
 	}
 	if (*h->da || *h->oa) {									 /* message to send */
-		unsigned char p = 2;
-		h->omsg[0] = 0x91;		  /* SMS_DATA */
-		if (h->smsc) {			 /* deliver */
-			h->omsg[p++] = (more ? 4 : 0) + ((h->udhl > 0) ? 0x40 : 0);
-			p += packaddress (h->omsg + p, h->oa);
-			h->omsg[p++] = h->pid;
-			h->omsg[p++] = h->dcs;
-			packdate (h->omsg + p, h->scts);
-			p += 7;
-			p += packsms (h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
-		} else {			 /* submit */
-			h->omsg[p++] =
-				0x01 + (more ? 4 : 0) + (h->srr ? 0x20 : 0) + (h->rp ? 0x80 : 0) + (h->vp ? 0x10 : 0) + (h->udhi ? 0x40 : 0);
-			if (h->mr < 0)
-				h->mr = message_ref++;
-			h->omsg[p++] = h->mr;
-			p += packaddress (h->omsg + p, h->da);
-			h->omsg[p++] = h->pid;
-			h->omsg[p++] = h->dcs;
-			if (h->vp) {		 /* relative VP */
-				if (h->vp < 720)
-					h->omsg[p++] = (h->vp + 4) / 5 - 1;
-				else if (h->vp < 1440)
-					h->omsg[p++] = (h->vp - 720 + 29) / 30 + 143;
-				else if (h->vp < 43200)
-					h->omsg[p++] = (h->vp + 1439) / 1440 + 166;
-				else if (h->vp < 635040)
-					h->omsg[p++] = (h->vp + 10079) / 10080 + 192;
-				else
-					h->omsg[p++] = 255;		/* max */
-			}
-			p += packsms (h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
-		}
-		h->omsg[1] = p - 2;
-		sms_messagetx (h);
+		sms_compose1(h, more);
 	} else {				 /* no message */
 		h->omsg[0] = 0x94;		  /* SMS_REL */
 		h->omsg[1] = 0;
-		sms_messagetx (h);
 	}
+	sms_messagetx (h);
 }
 
 static void sms_debug (char *dir, unsigned char *msg)
