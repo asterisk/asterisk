@@ -3085,8 +3085,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				category ? category : ""); 
 		} else
 			ast_log(LOG_WARNING, "Error opening text file for output\n");
+#ifdef IMAP_STORAGE
 		res = play_record_review(chan, NULL, tmptxtfile, vmmaxmessage, fmt, 1, vmu, &duration, NULL, options->record_gain, vms);
-				
+#else
+		res = play_record_review(chan, NULL, tmptxtfile, vmmaxmessage, fmt, 1, vmu, &duration, NULL, options->record_gain, NULL);
+#endif
+
 		if (txt) {
 			if (duration < vmminmessage) {
 				if (option_verbose > 2) 
