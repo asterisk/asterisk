@@ -88,9 +88,12 @@ struct calloutdata {
 static void *page_thread(void *data)
 {
 	struct calloutdata *cd = data;
+
 	ast_pbx_outgoing_app(cd->tech, AST_FORMAT_SLINEAR, cd->resource, 30000,
 		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL, NULL);
+
 	free(cd);
+
 	return NULL;
 }
 
@@ -102,42 +105,46 @@ static void launch_page(struct ast_channel *chan, const char *meetmeopts, const 
 	struct ast_var_t *varptr;
 	pthread_t t;
 	pthread_attr_t attr;
-	if ((cd = ast_calloc(1, sizeof(*cd)))) {
-		ast_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
-		ast_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
-		ast_copy_string(cd->tech, tech, sizeof(cd->tech));
-		ast_copy_string(cd->resource, resource, sizeof(cd->resource));
-		ast_copy_string(cd->meetmeopts, meetmeopts, sizeof(cd->meetmeopts));
 
-		AST_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
-			if (!(varname = ast_var_full_name(varptr)))
-				continue;
-			if (varname[0] == '_') {
-				struct ast_variable *newvar = NULL;
+	if (!(cd = ast_calloc(1, sizeof(*cd))))
+		return;
 
-				if (varname[1] == '_') {
-					newvar = ast_variable_new(varname, ast_var_value(varptr));
-				} else {
-					newvar = ast_variable_new(&varname[1], ast_var_value(varptr));
-				}
+	/* Copy data from our page over */
+	ast_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
+	ast_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
+	ast_copy_string(cd->tech, tech, sizeof(cd->tech));
+	ast_copy_string(cd->resource, resource, sizeof(cd->resource));
+	ast_copy_string(cd->meetmeopts, meetmeopts, sizeof(cd->meetmeopts));
+	
+	AST_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
+		struct ast_variable *newvar = NULL;
 
-				if (newvar) {
-					if (lastvar)
-						lastvar->next = newvar;
-					else
-						cd->variables = newvar;
-					lastvar = newvar;
-				}
-			}
-		}
-
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&t, &attr, page_thread, cd)) {
-			ast_log(LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
-			free(cd);
+		if (!(varname = ast_var_full_name(varptr)) || (varname[0] != '_'))
+			continue;
+			
+		if (varname[1] == '_')
+			newvar = ast_variable_new(varname, ast_var_value(varptr));
+		else
+			newvar = ast_variable_new(&varname[1], ast_var_value(varptr));
+		
+		if (newvar) {
+			if (lastvar)
+				lastvar->next = newvar;
+			else
+				cd->variables = newvar;
+			lastvar = newvar;
 		}
 	}
+
+	/* Spawn thread to handle this page */
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (ast_pthread_create(&t, &attr, page_thread, cd)) {
+		ast_log(LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
+		free(cd);
+	}
+
+	return;
 }
 
 static int page_exec(struct ast_channel *chan, void *data)
@@ -197,6 +204,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitstream(chan, "");
 	}
+
 	if (!res) {
 		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%s%sqxd", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
 			(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
