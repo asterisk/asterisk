@@ -124,7 +124,6 @@ enum misdn_chan_state {
 	/* misdn_hangup */
 	MISDN_HOLDED, /*!< if this chan is holded */
 	MISDN_HOLD_DISCONNECT, /*!< if this chan is holded */
-	MISDN_FIXUP/*!< if this chan is holded */
   
 };
 
@@ -684,7 +683,6 @@ static struct state_struct state_array[] = {
 	{MISDN_HUNGUP_FROM_MISDN,"HUNGUP_FROM_MISDN"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
 	{MISDN_HOLDED,"HOLDED"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
 	{MISDN_HOLD_DISCONNECT,"HOLD_DISCONNECT"}, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
-	{MISDN_FIXUP,"FIXUP"}, /**/
 	{MISDN_HUNGUP_FROM_AST,"HUNGUP_FROM_AST"} /* when DISCONNECT/RELEASE/REL_COMP came out of */
 	/* misdn_hangup */
 };
@@ -1831,7 +1829,6 @@ static int misdn_fixup(struct ast_channel *oldast, struct ast_channel *ast)
 	chan_misdn_log(1, p->bc?p->bc->port:0, "* IND: Got Fixup State:%s L3id:%x\n", misdn_get_ch_state(p), p->l3id);
 	
 	p->ast = ast ;
-	p->state=MISDN_FIXUP;
   
 	return 0;
 }
@@ -1998,7 +1995,6 @@ static int misdn_hangup(struct ast_channel *ast)
 	if (ast->_state == AST_STATE_RESERVED || 
 		p->state == MISDN_NOTHING || 
 		p->state == MISDN_HOLDED || 
-		p->state == MISDN_FIXUP || 
 		p->state == MISDN_HOLD_DISCONNECT ) {
 
 		CLEAN_CH:
@@ -2397,6 +2393,10 @@ static int dialtone_indicate(struct chan_list *cl)
 	const struct tone_zone_sound *ts= NULL;
 	struct ast_channel *ast=cl->ast;
 
+	if (!ast) {
+		chan_misdn_log(0,cl->bc->port,"No Ast in dialtone_indicate\n");
+		return -1;
+	}
 
 	int nd=0;
 	misdn_cfg_get( cl->bc->port, MISDN_CFG_NODIALTONE, &nd, sizeof(nd));
@@ -2430,6 +2430,12 @@ static int hanguptone_indicate(struct chan_list *cl)
 static int stop_indicate(struct chan_list *cl)
 {
 	struct ast_channel *ast=cl->ast;
+
+	if (!ast) {
+		chan_misdn_log(0,cl->bc->port,"No Ast in stop_indicate\n");
+		return -1;
+	}
+
 	chan_misdn_log(3,cl->bc->port," --> None\n");
 	misdn_lib_tone_generator_stop(cl->bc);
 	ast_playtones_stop(ast);
