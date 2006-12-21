@@ -1572,7 +1572,8 @@ int ast_hangup(struct ast_channel *chan)
 	}
 	
 	if (chan->generatordata)	/* Clear any tone stuff remaining */
-		chan->generator->release(chan, chan->generatordata);
+		if (chan->generator && chan->generator->release)
+			chan->generator->release(chan, chan->generatordata);
 	chan->generatordata = NULL;
 	chan->generator = NULL;
 	if (chan->cdr) {		/* End the CDR if it hasn't already */
