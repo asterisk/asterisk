@@ -1691,121 +1691,118 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	struct ast_module_user *u;
 	struct ast_frame *f;
 	sms_t h = { 0 };
+	unsigned char *p;
+	unsigned char *d = data;
+	int answer = 0;
 	
-	u = ast_module_user_add(chan);
-
-	h.ipc0 = h.ipc1 = 20;		  /* phase for cosine */
-	h.dcs = 0xF1;					 /* default */
 	if (!data) {
 		ast_log (LOG_ERROR, "Requires queue name at least\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
+
+	u = ast_module_user_add(chan);
+	h.ipc0 = h.ipc1 = 20;		/* phase for cosine */
+	h.dcs = 0xF1;			/* default */
 
 	if (chan->cid.cid_num)
 		ast_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
 
-	{
-		unsigned char *p;
-		unsigned char *d = data,
-			answer = 0;
-		if (!*d || *d == '|') {
-			ast_log (LOG_ERROR, "Requires queue name\n");
-			ast_module_user_remove(u);
-			return -1;
+	if (!*d || *d == '|') {
+		ast_log (LOG_ERROR, "Requires queue name\n");
+		ast_module_user_remove(u);
+		return -1;
+	}
+	for (p = d; *p && *p != '|'; p++);
+	if (p - d >= sizeof (h.queue)) {
+		ast_log (LOG_ERROR, "Queue name too long\n");
+		ast_module_user_remove(u);
+		return -1;
+	}
+	strncpy(h.queue, (char *)d, p - d);
+	if (*p == '|')
+		p++;
+	d = p;
+	for (p = (unsigned char *)h.queue; *p; p++)
+		if (!isalnum (*p))
+			*p = '-';			  /* make very safe for filenames */
+
+	while (*d && *d != '|') {
+		switch (*d) {
+		case 'a':				 /* we have to send the initial FSK sequence */
+			answer = 1;
+			break;
+		case 's':				 /* we are acting as a service centre talking to a phone */
+			h.smsc = 1;
+			break;
+		case 't':                                /* use protocol 2 ([t]wo)! couldn't use numbers *!* */
+			h.protocol = 2;
+			break;
+			/* the following apply if there is an arg3/4 and apply to the created message file */
+		case 'r':
+			h.srr = 1;
+			break;
+		case 'o':
+			h.dcs |= 4;			/* octets */
+			break;
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':				 /* set the pid for saved local message */
+			h.pid = 0x40 + (*d & 0xF);
+			break;
 		}
+		d++;
+	}
+	if (*d == '|') {
+		/* submitting a message, not taking call. */
+		/* deprecated, use smsq instead */
+		d++;
+		h.scts = time (0);
 		for (p = d; *p && *p != '|'; p++);
-		if (p - d >= sizeof (h.queue)) {
-			ast_log (LOG_ERROR, "Queue name too long\n");
-			ast_module_user_remove(u);
-			return -1;
-		}
-		strncpy(h.queue, (char *)d, p - d);
-		if (*p == '|')
-			p++;
-		d = p;
-		for (p = (unsigned char *)h.queue; *p; p++)
-			if (!isalnum (*p))
-				*p = '-';			  /* make very safe for filenames */
-ast_log(LOG_NOTICE, "sms to queue %s\n", h.queue);
-		while (*d && *d != '|') {
-			switch (*d) {
-			case 'a':				 /* we have to send the initial FSK sequence */
-				answer = 1;
-				break;
-			case 's':				 /* we are acting as a service centre talking to a phone */
-				h.smsc = 1;
-				break;
-			case 't':                                /* use protocol 2 ([t]wo)! couldn't use numbers *!* */
-				h.protocol = 2;
-				break;
-				/* the following apply if there is an arg3/4 and apply to the created message file */
-			case 'r':
-				h.srr = 1;
-				break;
-			case 'o':
-				h.dcs |= 4;			/* octets */
-				break;
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':				 /* set the pid for saved local message */
-				h.pid = 0x40 + (*d & 0xF);
-				break;
-			}
-			d++;
-		}
-		if (*d == '|') {
-			/* submitting a message, not taking call. */
-			/* deprecated, use smsq instead */
-			d++;
-			h.scts = time (0);
-			for (p = d; *p && *p != '|'; p++);
-			if (*p)
-				*p++ = 0;
-			if (strlen ((char *)d) >= sizeof (h.oa)) {
-				ast_log (LOG_ERROR, "Address too long %s\n", d);
-				return 0;
-			}
-			if (h.smsc) {
-				ast_copy_string (h.oa, (char *)d, sizeof (h.oa));
-			} else {
-				ast_copy_string (h.da, (char *)d, sizeof (h.da));
-			}
-			if (!h.smsc)
-				ast_copy_string (h.oa, h.cli, sizeof (h.oa));
-			d = p;
-			h.udl = 0;
-			while (*p && h.udl < SMSLEN)
-				h.ud[h.udl++] = utf8decode(&p);
-			if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
-				ast_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
-			if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
-				ast_log (LOG_WARNING, "Invalid 8 bit data\n");
-			if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
-				ast_log (LOG_WARNING, "Invalid 16 bit data\n");
-			h.rx = 0;				  /* sent message */
-			h.mr = -1;
-			sms_writefile (&h);
-			ast_module_user_remove(u);
+		if (*p)
+			*p++ = 0;
+		if (strlen ((char *)d) >= sizeof (h.oa)) {
+			ast_log (LOG_ERROR, "Address too long %s\n", d);
 			return 0;
 		}
-
-		if (answer) {
-			h.framenumber = 1;             /* Proto 2 */
-			/* set up SMS_EST initial message */
-			if (h.protocol == 2) {
-				h.omsg[0] = DLL2_SMS_EST;
-				h.omsg[1] = 0;
-			} else {
-				h.omsg[0] = DLL1_SMS_EST | DLL1_SMS_COMPLETE;
-				h.omsg[1] = 0;
-			}
-			sms_messagetx (&h);
+		if (h.smsc) {
+			ast_copy_string (h.oa, (char *)d, sizeof (h.oa));
+		} else {
+			ast_copy_string (h.da, (char *)d, sizeof (h.da));
 		}
+		if (!h.smsc)
+			ast_copy_string (h.oa, h.cli, sizeof (h.oa));
+		d = p;
+		h.udl = 0;
+		while (*p && h.udl < SMSLEN)
+			h.ud[h.udl++] = utf8decode(&p);
+		if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+			ast_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
+		if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+			ast_log (LOG_WARNING, "Invalid 8 bit data\n");
+		if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+			ast_log (LOG_WARNING, "Invalid 16 bit data\n");
+		h.rx = 0;				  /* sent message */
+		h.mr = -1;
+		sms_writefile (&h);
+		ast_module_user_remove(u);
+		return 0;
+	}
+
+	if (answer) {
+		h.framenumber = 1;             /* Proto 2 */
+		/* set up SMS_EST initial message */
+		if (h.protocol == 2) {
+			h.omsg[0] = DLL2_SMS_EST;
+			h.omsg[1] = 0;
+		} else {
+			h.omsg[0] = DLL1_SMS_EST | DLL1_SMS_COMPLETE;
+			h.omsg[1] = 0;
+		}
+		sms_messagetx (&h);
 	}
 
 	if (chan->_state != AST_STATE_UP)
