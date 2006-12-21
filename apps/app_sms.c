@@ -194,7 +194,8 @@ static const unsigned short escapes[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-#define SMSLEN 160              /*!< max SMS length */
+#define SMSLEN		160              /*!< max SMS length */
+#define SMSLEN_8	140              /*!< max SMS length for 8-bit char */
 
 typedef struct sms_s {
 	unsigned char hangup;        /*!< we are done... */
@@ -286,7 +287,7 @@ static char * isodate(time_t t, char *buf, int len)
 /*! \brief Reads next UCS character from NUL terminated UTF-8 string and advance pointer */
 /* for non valid UTF-8 sequences, returns character as is */
 /* Does not advance pointer for null termination */
-static long utf8decode (unsigned char **pp)
+static long utf8decode(unsigned char **pp)
 {
 	unsigned char *p = *pp;
 	if (!*p)
@@ -333,18 +334,22 @@ static long utf8decode (unsigned char **pp)
 /* The return value is the number of septets packed in to o, which is internally limited to SMSLEN */
 /* o can be null, in which case this is used to validate or count only */
 /* if the input contains invalid characters then the return value is -1 */
-static int packsms7 (unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms7(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
-	 unsigned char p = 0, b = 0, n = 0;
+	unsigned char p = 0;	/* output pointer (bytes) */
+	unsigned char b = 0;	/* bit position */
+	unsigned char n = 0;	/* output character count */
+	unsigned char dummy[SMSLEN];
+
+	if (o == NULL)		/* output to a dummy buffer if o not set */
+		o = dummy;
 
 	if (udhl) {                            /* header */
-		if (o)
-			o[p++] = udhl;
+		o[p++] = udhl;
 		b = 1;
 		n = 1;
 		while (udhl--) {
-			if (o)
-				o[p++] = *udh++;
+			o[p++] = *udh++;
 			b += 8;
 			while (b >= 7) {
 				b -= 7;
@@ -357,41 +362,41 @@ static int packsms7 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 			b = 7 - b;
 			if (++n >= SMSLEN)
 				return n;
-			};	/* filling to septet boundary */
-		}
-		if (o)
-			o[p] = 0;
-		/* message */
-		while (udl--) {
-			long u;
-			unsigned char v;
-			u = *ud++;
-			for (v = 0; v < 128 && defaultalphabet[v] != u; v++);
-			if (v == 128 && u && n + 1 < SMSLEN) {
-				for (v = 0; v < 128 && escapes[v] != u; v++);
-				if (v < 128) {	/* escaped sequence */
-				if (o)
-					o[p] |= (27 << b);
+		};	/* filling to septet boundary */
+	}
+	o[p] = 0;
+	/* message */
+	while (udl--) {
+		long u;
+		unsigned char v;
+		u = *ud++;
+		/* XXX 0 is invalid ? */
+		/* look up in defaultalphabet[]. If found, v is the 7-bit code */
+		for (v = 0; v < 128 && defaultalphabet[v] != u; v++);
+		if (v == 128 /* not found */ && u && n + 1 < SMSLEN) {
+			/* if not found, look in the escapes table (we need 2 bytes) */
+			for (v = 0; v < 128 && escapes[v] != u; v++);
+			if (v < 128) {	/* escaped sequence, esc + v */
+				/* store the low (8-b) bits in o[p], the remaining bits in o[p+1] */
+				o[p] |= (27 << b);	/* the low bits go into o[p] */ 
 				b += 7;
 				if (b >= 8) {
 					b -= 8;
 					p++;
-					if (o)
-						o[p] = (27 >> (7 - b));
+					o[p] = (27 >> (7 - b));
 				}
 				n++;
 			}
 		}
 		if (v == 128)
 			return -1;             /* invalid character */
-		if (o)
-			o[p] |= (v << b);
+		/* store, same as above */
+		o[p] |= (v << b);
 		b += 7;
 		if (b >= 8) {
 			b -= 8;
 			p++;
-			if (o)
-				o[p] = (v >> (7 - b));
+			o[p] = (v >> (7 - b));
 		}
 		if (++n >= SMSLEN)
 			return n;
@@ -399,22 +404,25 @@ static int packsms7 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 	return n;
 }
 
-/*! \brief takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using 8 bit character codes */
-/* The return value is the number of bytes packed in to o, which is internally limited to 140 */
-/* o can be null, in which case this is used to validate or count only */
-/* if the input contains invalid characters then the return value is -1 */
-static int packsms8 (unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
+/*! \brief takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud)
+ * and packs in to o using 8 bit character codes.
+ * The return value is the number of bytes packed in to o, which is internally limited to 140.
+ * o can be null, in which case this is used to validate or count only.
+ * if the input contains invalid characters then the return value is -1
+ */
+static int packsms8(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	unsigned char p = 0;
+	unsigned char dummy[SMSLEN_8];
 
+	if (o == NULL)
+		o = dummy;
 	/* header - no encoding */
 	if (udhl) {
-		if (o)
-			o[p++] = udhl;
+		o[p++] = udhl;
 		while (udhl--) {
-			if (o)
-				o[p++] = *udh++;
-			if (p >= 140)
+			o[p++] = *udh++;
+			if (p >= SMSLEN_8)
 				return p;
 		}
 	}
@@ -423,9 +431,8 @@ static int packsms8 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 		u = *ud++;
 		if (u < 0 || u > 0xFF)
 			return -1;             /* not valid */
-		if (o)
-			o[p++] = u;
-		if (p >= 140)
+		o[p++] = u;
+		if (p >= SMSLEN_8)
 			return p;
 	}
 	return p;
@@ -439,30 +446,30 @@ static int packsms8 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 	o can be null, in which case this is used to validate or count 
 	only if the input contains invalid characters then 
 	the return value is -1 */
-static int packsms16 (unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms16(unsigned char *o, int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	unsigned char p = 0;
+	unsigned char dummy[SMSLEN_8];
+
+	if (o == NULL)
+		o = dummy;
 	/* header - no encoding */
 	if (udhl) {
-		if (o)
-			o[p++] = udhl;
+		o[p++] = udhl;
 		while (udhl--) {
-			if (o)
-				o[p++] = *udh++;
-			if (p >= 140)
+			o[p++] = *udh++;
+			if (p >= SMSLEN_8)
 				return p;
 		}
 	}
 	while (udl--) {
 		long u;
 		u = *ud++;
-		if (o)
-			o[p++] = (u >> 8);
-		if (p >= 140)
+		o[p++] = (u >> 8);
+		if (p >= SMSLEN_8)
 			return p - 1;          /* could not fit last character */
-		if (o)
-			o[p++] = u;
-		if (p >= 140)
+		o[p++] = u;
+		if (p >= SMSLEN_8)
 			return p;
 	}
 	return p;
@@ -470,38 +477,40 @@ static int packsms16 (unsigned char *o, int udhl, unsigned char *udh, int udl, u
 
 /*! \brief general pack, with length and data, 
 	returns number of bytes of target used */
-static int packsms (unsigned char dcs, unsigned char *base, unsigned int udhl, unsigned char *udh, int udl, unsigned short *ud)
+static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
 	unsigned char *p = base;
-	if (udl) {
+	if (udl == 0)
+		*p++ = 0;			/* no user data */
+	else {
+		
 		int l = 0;
-		if (is7bit (dcs)) {		 /* 7 bit */
-			l = packsms7 (p + 1, udhl, udh, udl, ud);
+		if (is7bit(dcs)) {		/* 7 bit */
+			l = packsms7(p + 1, udhl, udh, udl, ud);
 			if (l < 0)
 				l = 0;
 			*p++ = l;
 			p += (l * 7 + 7) / 8;
-		} else if (is8bit (dcs)) {								 /* 8 bit */
-			l = packsms8 (p + 1, udhl, udh, udl, ud);
+		} else if (is8bit(dcs)) {	/* 8 bit */
+			l = packsms8(p + 1, udhl, udh, udl, ud);
 			if (l < 0)
 				l = 0;
 			*p++ = l;
 			p += l;
-		} else {			 /* UCS-2 */
-			l = packsms16 (p + 1, udhl, udh, udl, ud);
+		} else {			/* UCS-2 */
+			l = packsms16(p + 1, udhl, udh, udl, ud);
 			if (l < 0)
 				l = 0;
 			*p++ = l;
 			p += l;
 		}
-	} else
-		*p++ = 0;			  /* no user data */
+	}
 	return p - base;
 }
 
 
 /*! \brief pack a date and return */
-static void packdate (unsigned char *o, time_t w)
+static void packdate(unsigned char *o, time_t w)
 {
 	struct tm *t = localtime (&w);
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
@@ -542,7 +551,7 @@ static time_t unpackdate (unsigned char *i)
 /*! \brief unpacks bytes (7 bit encoding) at i, len l septets, 
 	and places in udh and ud setting udhl and udl. udh not used 
 	if udhi not set */
-static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms7(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned char b = 0, p = 0;
 	unsigned short *o = ud;
@@ -574,7 +583,7 @@ static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, i
 	while (l--) {
 		unsigned char v;
 		if (b < 2)
-			v = ((i[p] >> b) & 0x7F);
+			v = ((i[p] >> b) & 0x7F);	/* everything in one byte */
 		else
 			v = ((((i[p] >> b) + (i[p + 1] << (8 - b)))) & 0x7F);
 		b += 7;
@@ -582,6 +591,7 @@ static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, i
 			b -= 8;
 			p++;
 		}
+		/* 0x00A0 is the encoding of ESC (27) in defaultalphabet */
 		if (o > ud && o[-1] == 0x00A0 && escapes[v])
 			o[-1] = escapes[v];
 		else
@@ -593,7 +603,7 @@ static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, i
 /*! \brief unpacks bytes (8 bit encoding) at i, len l septets, 
       and places in udh and ud setting udhl and udl. udh not used 
       if udhi not set */
-static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms8(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned short *o = ud;
 	*udhl = 0;
@@ -618,7 +628,7 @@ static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, i
 /*! \brief unpacks bytes (16 bit encoding) at i, len l septets,
 	 and places in udh and ud setting udhl and udl. 
 	udh not used if udhi not set */
-static void unpacksms16 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	unsigned short *o = ud;
 	*udhl = 0;
@@ -645,7 +655,7 @@ static void unpacksms16 (unsigned char *i, unsigned char l, unsigned char *udh, 
 }
 
 /*! \brief general unpack - starts with length byte (octet or septet) and returns number of bytes used, inc length */
-static int unpacksms (unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
+static int unpacksms(unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	int l = *i++;
 	if (is7bit (dcs)) {
@@ -659,7 +669,7 @@ static int unpacksms (unsigned char dcs, unsigned char *i, unsigned char *udh, i
 }
 
 /*! \brief unpack an address from i, return byte length, unpack to o */
-static unsigned char unpackaddress (char *o, unsigned char *i)
+static unsigned char unpackaddress(char *o, unsigned char *i)
 {
 	unsigned char l = i[0],
 		p;
@@ -676,72 +686,74 @@ static unsigned char unpackaddress (char *o, unsigned char *i)
 }
 
 /*! \brief store an address at o, and return number of bytes used */
-static unsigned char packaddress (unsigned char *o, char *i)
+static unsigned char packaddress(unsigned char *o, char *i)
 {
 	unsigned char p = 2;
-	o[0] = 0;
-	if (*i == '+') {
+	o[0] = 0;		/* number of bytes */
+	if (*i == '+') {	/* record as bit 0 in byte 1 */
 		i++;
 		o[1] = 0x91;
 	} else
 		o[1] = 0x81;
-	while (*i)
-		if (isdigit (*i)) {
-			if (o[0] & 1)
-				o[p++] |= ((*i & 0xF) << 4);
-			else
-				o[p] = (*i & 0xF);
-			o[0]++;
-			i++;
-		} else
-			i++;
+	for ( ; *i ; i++) {
+		if (!isdigit (*i))	/* ignore non-digits */
+			continue;
+		if (o[0] & 1)
+			o[p++] |= ((*i & 0xF) << 4);
+		else
+			o[p] = (*i & 0xF);
+		o[0]++;
+	}
 	if (o[0] & 1)
 		o[p++] |= 0xF0;			  /* pad */
 	return p;
 }
 
 /*! \brief Log the output, and remove file */
-static void sms_log (sms_t * h, char status)
+static void sms_log(sms_t * h, char status)
 {
-	if (*h->oa || *h->da) {
-		int o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, AST_FILE_MODE);
-		if (o >= 0) {
-			char line[1000], mrs[3] = "", *p;
-			char buf[30];
-			unsigned char n;
+	int o;
 
-			if (h->mr >= 0)
-				snprintf (mrs, sizeof (mrs), "%02X", h->mr);
-			snprintf (line, sizeof (line), "%s %c%c%c%s %s %s %s ",
-				isodate(time(0), buf, sizeof(buf)),
-				status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue, *h->oa ? h->oa : "-",
-				 *h->da ? h->da : "-");
-			p = line + strlen (line);
-			for (n = 0; n < h->udl; n++)
-				if (h->ud[n] == '\\') {
-					*p++ = '\\';
-					*p++ = '\\';
-				} else if (h->ud[n] == '\n') {
-					*p++ = '\\';
-					*p++ = 'n';
-				} else if (h->ud[n] == '\r') {
-					*p++ = '\\';
-					*p++ = 'r';
-				} else if (h->ud[n] < 32 || h->ud[n] == 127)
-					*p++ = 191;
-				else
-					*p++ = h->ud[n];
-			*p++ = '\n';
-			*p = 0;
-			write (o, line, strlen (line));
-			close (o);
+	if (*h->oa == '\0' && *h->da == '\0')
+		return;
+	o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, AST_FILE_MODE);
+	if (o >= 0) {
+		char line[1000], mrs[3] = "", *p;
+		char buf[30];
+		unsigned char n;
+
+		if (h->mr >= 0)
+			snprintf (mrs, sizeof (mrs), "%02X", h->mr);
+		snprintf (line, sizeof (line), "%s %c%c%c%s %s %s %s ",
+			isodate(time(0), buf, sizeof(buf)),
+			status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue,
+			S_OR(h->oa, "-"), S_OR(h->da, "-") );
+		p = line + strlen (line);
+		for (n = 0; n < h->udl; n++) {
+			if (h->ud[n] == '\\') {
+				*p++ = '\\';
+				*p++ = '\\';
+			} else if (h->ud[n] == '\n') {
+				*p++ = '\\';
+				*p++ = 'n';
+			} else if (h->ud[n] == '\r') {
+				*p++ = '\\';
+				*p++ = 'r';
+			} else if (h->ud[n] < 32 || h->ud[n] == 127)
+				*p++ = 191;
+			else
+				*p++ = h->ud[n];
 		}
-		*h->oa = *h->da = h->udl = 0;
+		*p++ = '\n';
+		*p = 0;
+		write (o, line, strlen (line));
+		close (o);
 	}
+	*h->oa = *h->da = h->udl = 0;
 }
 
 /*! \brief parse and delete a file */
-static void sms_readfile (sms_t * h, char *fn)
+static void sms_readfile(sms_t * h, char *fn)
 {
 	char line[1000];
 	FILE *s;
@@ -900,104 +912,105 @@ static void sms_readfile (sms_t * h, char *fn)
 }
 
 /*! \brief white a received text message to a file */
-static void sms_writefile (sms_t * h)
+static void sms_writefile(sms_t * h)
 {
 	char fn[200] = "", fn2[200] = "";
 	char buf[30];
 	FILE *o;
 
-	ast_copy_string (fn, spool_dir, sizeof (fn));
-	mkdir (fn, 0777);			/* ensure it exists */
-	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
-	mkdir (fn, 0777);			/* ensure it exists */
-	ast_copy_string (fn2, fn, sizeof (fn2));
-	snprintf (fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
+	ast_copy_string(fn, spool_dir, sizeof (fn));
+	mkdir(fn, 0777);			/* ensure it exists */
+	snprintf(fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
+	mkdir(fn, 0777);			/* ensure it exists */
+	ast_copy_string(fn2, fn, sizeof (fn2));
+	snprintf(fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
 	o = fopen (fn, "w");
-	if (o) {
-		if (*h->oa)
-			fprintf (o, "oa=%s\n", h->oa);
-		if (*h->da)
-			fprintf (o, "da=%s\n", h->da);
-		if (h->udhi) {
-			unsigned int p;
-			fprintf (o, "udh#");
-			for (p = 0; p < h->udhl; p++)
-				fprintf (o, "%02X", h->udh[p]);
-			fprintf (o, "\n");
-		}
-		if (h->udl) {
-			unsigned int p;
-			for (p = 0; p < h->udl && h->ud[p] >= ' '; p++);
-			if (p < h->udl)
-				fputc (';', o);	  /* cannot use ud=, but include as a comment for human readable */
-			fprintf (o, "ud=");
-			for (p = 0; p < h->udl; p++) {
-				unsigned short v = h->ud[p];
-				if (v < 32)
-					fputc (191, o);
-				else if (v < 0x80)
-					fputc (v, o);
-				else if (v < 0x800)
-				{
-					fputc (0xC0 + (v >> 6), o);
-					fputc (0x80 + (v & 0x3F), o);
-				} else
-				{
-					fputc (0xE0 + (v >> 12), o);
-					fputc (0x80 + ((v >> 6) & 0x3F), o);
-					fputc (0x80 + (v & 0x3F), o);
-				}
-			}
-			fprintf (o, "\n");
-			for (p = 0; p < h->udl && h->ud[p] >= ' '; p++);
-			if (p < h->udl) {
-				for (p = 0; p < h->udl && h->ud[p] < 0x100; p++);
-				if (p == h->udl) {						 /* can write in ucs-1 hex */
-					fprintf (o, "ud#");
-					for (p = 0; p < h->udl; p++)
-						fprintf (o, "%02X", h->ud[p]);
-					fprintf (o, "\n");
-				} else {						 /* write in UCS-2 */
-					fprintf (o, "ud##");
-					for (p = 0; p < h->udl; p++)
-						fprintf (o, "%04X", h->ud[p]);
-					fprintf (o, "\n");
-				}
-			}
-		}
-		if (h->scts) {
-			char buf[30];
-			fprintf (o, "scts=%s\n", isodate(h->scts, buf, sizeof(buf)));
-		}
-		if (h->pid)
-			fprintf (o, "pid=%d\n", h->pid);
-		if (h->dcs != 0xF1)
-			fprintf (o, "dcs=%d\n", h->dcs);
-		if (h->vp)
-			fprintf (o, "vp=%d\n", h->vp);
-		if (h->srr)
-			fprintf (o, "srr=1\n");
-		if (h->mr >= 0)
-			fprintf (o, "mr=%d\n", h->mr);
-		if (h->rp)
-			fprintf (o, "rp=1\n");
-		fclose (o);
-		if (rename (fn, fn2))
-			unlink (fn);
-		else
-			ast_log (LOG_EVENT, "Received to %s\n", fn2);
+	if (o == NULL)
+		return;
+
+	if (*h->oa)
+		fprintf (o, "oa=%s\n", h->oa);
+	if (*h->da)
+		fprintf (o, "da=%s\n", h->da);
+	if (h->udhi) {
+		unsigned int p;
+		fprintf (o, "udh#");
+		for (p = 0; p < h->udhl; p++)
+			fprintf (o, "%02X", h->udh[p]);
+		fprintf (o, "\n");
 	}
+	if (h->udl) {
+		unsigned int p;
+		for (p = 0; p < h->udl && h->ud[p] >= ' '; p++);
+		if (p < h->udl)
+			fputc (';', o);	  /* cannot use ud=, but include as a comment for human readable */
+		fprintf (o, "ud=");
+		for (p = 0; p < h->udl; p++) {
+			unsigned short v = h->ud[p];
+			if (v < 32)
+				fputc (191, o);
+			else if (v < 0x80)
+				fputc (v, o);
+			else if (v < 0x800)
+			{
+				fputc (0xC0 + (v >> 6), o);
+				fputc (0x80 + (v & 0x3F), o);
+			} else
+			{
+				fputc (0xE0 + (v >> 12), o);
+				fputc (0x80 + ((v >> 6) & 0x3F), o);
+				fputc (0x80 + (v & 0x3F), o);
+			}
+		}
+		fprintf (o, "\n");
+		for (p = 0; p < h->udl && h->ud[p] >= ' '; p++);
+		if (p < h->udl) {
+			for (p = 0; p < h->udl && h->ud[p] < 0x100; p++);
+			if (p == h->udl) {						 /* can write in ucs-1 hex */
+				fprintf (o, "ud#");
+				for (p = 0; p < h->udl; p++)
+					fprintf (o, "%02X", h->ud[p]);
+				fprintf (o, "\n");
+			} else {						 /* write in UCS-2 */
+				fprintf (o, "ud##");
+				for (p = 0; p < h->udl; p++)
+					fprintf (o, "%04X", h->ud[p]);
+				fprintf (o, "\n");
+			}
+		}
+	}
+	if (h->scts) {
+		char buf[30];
+		fprintf (o, "scts=%s\n", isodate(h->scts, buf, sizeof(buf)));
+	}
+	if (h->pid)
+		fprintf (o, "pid=%d\n", h->pid);
+	if (h->dcs != 0xF1)
+		fprintf (o, "dcs=%d\n", h->dcs);
+	if (h->vp)
+		fprintf (o, "vp=%d\n", h->vp);
+	if (h->srr)
+		fprintf (o, "srr=1\n");
+	if (h->mr >= 0)
+		fprintf (o, "mr=%d\n", h->mr);
+	if (h->rp)
+		fprintf (o, "rp=1\n");
+	fclose (o);
+	if (rename (fn, fn2))
+		unlink (fn);
+	else
+		ast_log (LOG_EVENT, "Received to %s\n", fn2);
 }
 
 /*! \brief read dir skipping dot files... */
 static struct dirent *readdirqueue (DIR * d, char *queue)
 {
-   struct dirent *f;
-   do {
-      f = readdir (d);
-   } while (f && (*f->d_name == '.' || strncmp (f->d_name, queue, strlen (queue)) || f->d_name[strlen (queue)] != '.'));
-   return f;
+	struct dirent *f;
+	do {
+		f = readdir (d);
+	} while (f && (*f->d_name == '.' || strncmp (f->d_name, queue, strlen (queue)) || f->d_name[strlen (queue)] != '.'));
+	return f;
 }
 
 /*! \brief handle the incoming message */
@@ -1130,29 +1143,28 @@ static void sms_compose2(sms_t *h, int more)
 
 static void putdummydata_proto2 (sms_t *h);
 
-#if 1 /* XXX debugging */
-static char *sms_hexdump (unsigned char buf[], int size)
+#define MAX_DEBUG_LEN	300
+static char *sms_hexdump(unsigned char buf[], int size, char *s /* destination */)
 {
-	static char *s=NULL;
 	char *p;
 	int f;
 
-	s=(char *)realloc(s,(size*3)+1);
-	for(p=s,f=0; f<size && f<800/3; f++,p+=3) 
+	for (p=s,f=0; f<size && f < MAX_DEBUG_LEN; f++, p+=3) 
 		sprintf(p,"%02X ",(unsigned char)buf[f]);
 	return(s);
 }
-#endif
+
 
 /*! \brief sms_handleincoming_proto2: handle the incoming message */
-static int sms_handleincoming_proto2 (sms_t * h)
+static int sms_handleincoming_proto2(sms_t * h)
 {
 	int f, i, sz=0;
 	int msg, msgsz;
 	struct tm *tm;
+	char debug_buf[MAX_DEBUG_LEN * 3 + 1];
 
 	sz = h->imsg[1]+2;
-	/* ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg,sz)); */
+	/* ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg,sz, debug_buf)); */
 
 	/* Parse message body (called payload) */
 	h->scts = time (0);
@@ -1198,11 +1210,11 @@ static int sms_handleincoming_proto2 (sms_t * h)
 			break;
 		case 0x1C:      /* Notify */
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Notify#%02X=%s\n",msg,sms_hexdump(&h->imsg[f],3));
+				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Notify#%02X=%s\n",msg, sms_hexdump(&h->imsg[f],3, debug_buf));
 			break;
 		default:
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Par#%02X [%d]: %s\n",msg,msgsz,sms_hexdump(&h->imsg[f],msgsz));
+				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Par#%02X [%d]: %s\n",msg,msgsz,sms_hexdump(&h->imsg[f],msgsz, debug_buf));
 			break;
 		}
 		f+=msgsz;       /* Skip to next */
@@ -1476,7 +1488,7 @@ static void sms_messagetx(sms_t * h)
  * outgoing data are produced by this generator function, that reads from
  * the descriptor whether it has data to send and which ones.
  */
-static int sms_generate (struct ast_channel *chan, void *data, int len, int samples)
+static int sms_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct ast_frame f = { 0 };
 #define MAXSAMPLES (800)
