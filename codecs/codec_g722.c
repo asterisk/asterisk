@@ -102,7 +102,7 @@ static int lintog722_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	struct g722_encoder_pvt *tmp = pvt->pvt;
 	int16_t *src = f->data;
 
-	g722_encode(&tmp->g722, &pvt->outbuf[pvt->datalen], src, f->samples);
+	g722_encode(&tmp->g722, (uint8_t*)(&pvt->outbuf[pvt->datalen]), src, f->samples);
 	/* Since G.722 64kbps per second is one bye per sample, all of these
 	   calculations are easy */
 	pvt->samples += f->samples;
