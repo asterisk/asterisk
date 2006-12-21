@@ -59,6 +59,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
+#include "asterisk/utils.h"
+#include "asterisk/app.h"
 
 /* #define OUTALAW */ /* enable this to output Alaw rather than linear */
 
@@ -79,7 +81,8 @@ static char *app = "SMS";
 static char *synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
 
 static char *descrip =
-	"  SMS(name|[a][s][t]):  SMS handles exchange of SMS data with a call to/from SMS capable\n"
+	"  SMS(name|[a][s][t][p(d)][r][o]|addr|body):\n"
+	"SMS handles exchange of SMS data with a call to/from SMS capable\n"
 	"phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
 	"Works to ETSI ES 201 912 compatible with BT SMS PSTN service in UK\n"
 	"and Telecom Italia in Italy.\n"
@@ -91,6 +94,10 @@ static char *descrip =
 	" a: answer, i.e. send initial FSK packet.\n"
 	" s: act as service centre talking to a phone.\n"
 	" t: use protocol 2 (default used is protocol 1).\n"
+	" p(N): set the initial delay to N ms (default is 300).\n"
+	"addr and body are a deprecated format to send messages out.\n"
+	" s: set the Status Report Request (SRR) bit.\n"
+	" o: the body should be coded as octets not 7-bit symbols.\n"
 	"Messages are processed as per text file message queues.\n" 
 	"smsq (a separate software) is a command to generate message\n"
 	"queues and send messages.\n"
@@ -200,7 +207,7 @@ typedef struct sms_s {
 	time_t scts;                 /*!< time stamp, UTC */
 	unsigned char pid;           /*!< protocol ID */
 	unsigned char dcs;           /*!< data coding scheme */
-	short mr;                    /*!< message reference - actually a byte, but usde -1 for not set */
+	short mr;                    /*!< message reference - actually a byte, but use -1 for not set */
 	int udl;                     /*!< user data length */
 	int udhl;                    /*!< user data header length */
 	unsigned char srr:1;         /*!< Status Report request */
@@ -242,6 +249,7 @@ typedef struct sms_s {
 	unsigned char ibitt;         /*!< total of 1's in last 3 bytes */
 	/* more to go here */
 
+	int	opause_0;		/*!< initial delay in ms, p() option */
 	int protocol;                /*!< ETSI SMS protocol to use (passed at app call) */
 	int oseizure;                /*!< protocol 2: channel seizure bits to send */
 	int framenumber;             /*!< protocol 2: frame number (for sending ACK0 or ACK1) */
@@ -1444,7 +1452,7 @@ static void sms_messagetx(sms_t * h)
 	 * could time out. XXX make it configurable.
 	 */
 	if (h->omsg[0] == 0x93)
-		h->opause = 200;	/* XXX initial message delay 300ms (for BT) */
+		h->opause = 8 * h->opause_0;	/* initial message delay */
 	h->obytep = 0;
 	h->obitp = 0;
 	if (h->protocol == 2) {
@@ -1692,20 +1700,67 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 	}
 }
 
+/*
+ * Standard argument parsing:
+ *	- one enum for the flags we recognise,
+ *	- one enum for argument indexes
+ *	- AST_APP_OPTIONS() to drive the parsing routine
+ *	- in the function, AST_DECLARE_APP_ARGS(...) for the arguments.
+ */
+enum {
+	OPTION_BE_SMSC	= (1 << 0),	/* act as sms center */
+	OPTION_ANSWER	= (1 << 1),	/* answer on incoming calls */
+	OPTION_TWO	= (1 << 2),	/* Use Protocol Two */
+	OPTION_PAUSE	= (1 << 3),	/* pause before sending data, in ms */
+	OPTION_SRR	= (1 << 4),	/* set srr */
+	OPTION_DCS	= (1 << 5),	/* set dcs */
+} sms_flags;
+
+enum {
+	OPTION_ARG_PAUSE = 0,
+	OPTION_ARG_ARRAY_SIZE
+} sms_opt_args;
+
+AST_APP_OPTIONS(sms_options, {
+	AST_APP_OPTION('s', OPTION_BE_SMSC),
+	AST_APP_OPTION('a', OPTION_ANSWER),
+	AST_APP_OPTION('t', OPTION_TWO),
+	AST_APP_OPTION('r', OPTION_SRR),
+	AST_APP_OPTION('o', OPTION_DCS),
+	AST_APP_OPTION_ARG('p', OPTION_PAUSE, OPTION_ARG_PAUSE),
+	} );
+
 static int sms_exec (struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	struct ast_module_user *u;
-	struct ast_frame *f;
 	sms_t h = { 0 };
-	unsigned char *p;
-	unsigned char *d = data;
-	int answer = 0;
-	
+	/* argument parsing support */
+	struct ast_flags sms_flags;
+	char *parse, *sms_opts[OPTION_ARG_ARRAY_SIZE];
+	char *p;
+	AST_DECLARE_APP_ARGS(sms_args,
+                AST_APP_ARG(queue);
+                AST_APP_ARG(options);
+		AST_APP_ARG(addr);
+		AST_APP_ARG(body);
+        );
+
 	if (!data) {
 		ast_log (LOG_ERROR, "Requires queue name at least\n");
 		return -1;
 	}
+
+	parse = ast_strdupa(data);	/* create a local copy */
+	AST_STANDARD_APP_ARGS(sms_args, parse);
+	if (sms_args.argc > 1)
+		ast_app_parse_options(sms_options, &sms_flags, sms_opts, sms_args.options);
+
+	ast_verbose("sms argc %d queue <%s> opts <%s> addr <%s> body <%s>\n",
+		sms_args.argc, S_OR(sms_args.queue, ""),
+		S_OR(sms_args.options, ""),
+		S_OR(sms_args.addr, ""),
+		S_OR(sms_args.body, "") );
 
 	u = ast_module_user_add(chan);
 	h.ipc0 = h.ipc1 = 20;		/* phase for cosine */
@@ -1714,43 +1769,35 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	if (chan->cid.cid_num)
 		ast_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
 
-	if (!*d || *d == '|') {
+	if (ast_strlen_zero(sms_args.queue)) {
 		ast_log (LOG_ERROR, "Requires queue name\n");
-		ast_module_user_remove(u);
-		return -1;
+		goto done;
 	}
-	for (p = d; *p && *p != '|'; p++);
-	if (p - d >= sizeof (h.queue)) {
+	if (strlen(sms_args.queue) >= sizeof(h.queue)) {
 		ast_log (LOG_ERROR, "Queue name too long\n");
-		ast_module_user_remove(u);
-		return -1;
+		goto done;
 	}
-	strncpy(h.queue, (char *)d, p - d);
-	if (*p == '|')
-		p++;
-	d = p;
-	for (p = (unsigned char *)h.queue; *p; p++)
+	ast_copy_string(h.queue, sms_args.queue, sizeof(h.queue));
+
+	for (p = h.queue; *p; p++)
 		if (!isalnum (*p))
 			*p = '-';			  /* make very safe for filenames */
 
-	while (*d && *d != '|') {
-		switch (*d) {
-		case 'a':				 /* we have to send the initial FSK sequence */
-			answer = 1;
-			break;
-		case 's':				 /* we are acting as a service centre talking to a phone */
-			h.smsc = 1;
-			break;
-		case 't':                                /* use protocol 2 ([t]wo)! couldn't use numbers *!* */
-			h.protocol = 2;
-			break;
-			/* the following apply if there is an arg3/4 and apply to the created message file */
-		case 'r':
-			h.srr = 1;
-			break;
-		case 'o':
-			h.dcs |= 4;			/* octets */
-			break;
+	h.smsc = ast_test_flag(&sms_flags, OPTION_BE_SMSC);
+	h.protocol = ast_test_flag(&sms_flags, OPTION_TWO) ? 2 : 1;
+	if (!ast_strlen_zero(sms_opts[OPTION_ARG_PAUSE]))
+		h.opause_0 = atoi(sms_opts[OPTION_ARG_PAUSE]);
+	if (h.opause_0 < 25 || h.opause_0 > 2000)
+		h.opause_0 = 300;	/* default 300ms */
+	ast_verbose("initial delay %dms\n", h.opause_0);
+
+
+	/* the following apply if there is an arg3/4 and apply to the created message file */
+	if (ast_test_flag(&sms_flags, OPTION_SRR))
+		h.srr = 1;
+	if (ast_test_flag(&sms_flags, OPTION_DCS))
+		h.dcs = 1;
+#if 0	
 		case '1':
 		case '2':
 		case '3':
@@ -1761,45 +1808,51 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			h.pid = 0x40 + (*d & 0xF);
 			break;
 		}
-		d++;
-	}
-	if (*d == '|') {
+#endif
+	if (sms_args.argc > 2) {
+		unsigned char *up;
+
 		/* submitting a message, not taking call. */
 		/* deprecated, use smsq instead */
-		d++;
 		h.scts = time (0);
-		for (p = d; *p && *p != '|'; p++);
-		if (*p)
-			*p++ = 0;
-		if (strlen ((char *)d) >= sizeof (h.oa)) {
-			ast_log (LOG_ERROR, "Address too long %s\n", d);
-			return 0;
+		if (ast_strlen_zero(sms_args.addr) || strlen (sms_args.addr) >= sizeof (h.oa)) {
+			ast_log (LOG_ERROR, "Address too long %s\n", sms_args.addr);
+			goto done;
 		}
-		if (h.smsc) {
-			ast_copy_string (h.oa, (char *)d, sizeof (h.oa));
-		} else {
-			ast_copy_string (h.da, (char *)d, sizeof (h.da));
-		}
-		if (!h.smsc)
+		if (h.smsc)
+			ast_copy_string (h.oa, sms_args.addr, sizeof (h.oa));
+		else {
+			ast_copy_string (h.da, sms_args.addr, sizeof (h.da));
 			ast_copy_string (h.oa, h.cli, sizeof (h.oa));
-		d = p;
+		}
 		h.udl = 0;
-		while (*p && h.udl < SMSLEN)
-			h.ud[h.udl++] = utf8decode(&p);
-		if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+		if (ast_strlen_zero(sms_args.body)) {
+			ast_log (LOG_ERROR, "Missing body for %s\n", sms_args.addr);
+			goto done;
+		}
+		up = (unsigned char *)sms_args.body;
+		while (*up && h.udl < SMSLEN)
+			h.ud[h.udl++] = utf8decode(&up);
+		if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0) {
 			ast_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
-		if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+			goto done;
+		}
+		if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0) {
 			ast_log (LOG_WARNING, "Invalid 8 bit data\n");
-		if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
+			goto done;
+		}
+		if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0) {
 			ast_log (LOG_WARNING, "Invalid 16 bit data\n");
+			goto done;
+		}
 		h.rx = 0;				  /* sent message */
 		h.mr = -1;
 		sms_writefile (&h);
-		ast_module_user_remove(u);
-		return 0;
+		res = h.err;
+		goto done;
 	}
 
-	if (answer) {
+	if (ast_test_flag(&sms_flags, OPTION_ANSWER)) {
 		h.framenumber = 1;             /* Proto 2 */
 		/* set up SMS_EST initial message */
 		if (h.protocol == 2) {
@@ -1820,18 +1873,17 @@ static int sms_exec (struct ast_channel *chan, void *data)
 		res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
-		ast_module_user_remove(u);
-		return -1;
+		goto done;
 	}
 
-	if (ast_activate_generator (chan, &smsgen, &h) < 0) {
+	if ( (res = ast_activate_generator (chan, &smsgen, &h)) < 0) {
 		ast_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
-		ast_module_user_remove(u);
-		return -1;
+		goto done;
 	}
 
 	/* Do our thing here */
 	for (;;) {
+		struct ast_frame *f;
 		int i = ast_waitfor(chan, -1);
 		if (i < 0) {
 			ast_log(LOG_NOTICE, "waitfor failed\n");
@@ -1852,11 +1904,12 @@ static int sms_exec (struct ast_channel *chan, void *data)
 
 		ast_frfree (f);
 	}
+	res = h.err;	/* XXX */
 
 	sms_log (&h, '?');			  /* log incomplete message */
-
+done:
 	ast_module_user_remove(u);
-	return (h.err);
+	return (res);
 }
 
 static int unload_module(void)
