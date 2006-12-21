@@ -150,7 +150,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		}
 
 		snprintf(path, len, "%s/%s", base, filein);
-		fs = ast_writefile(path, "raw", NULL, O_CREAT|O_APPEND, 0, 0700);
+		fs = ast_writefile(path, "raw", NULL, O_CREAT|O_APPEND, 0, AST_FILE_MODE);
 		mode = DMODE_PLAY;
 		memset(&flags, 0, sizeof(flags));
 		ast_set_flag(&flags, DFLAG_PAUSE);
@@ -307,7 +307,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 						} else {
 							oflags |= O_APPEND;
 						}
-						fs = ast_writefile(path, "raw", NULL, oflags, 0, 0700);
+						fs = ast_writefile(path, "raw", NULL, oflags, 0, AST_FILE_MODE);
 						if (ast_test_flag(&flags, DFLAG_TRUNC)) {
 							ast_seekstream(fs, 0, SEEK_SET);
 							ast_clear_flag(&flags, DFLAG_TRUNC);

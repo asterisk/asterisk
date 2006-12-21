@@ -256,7 +256,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	}
 
 	/* Move onto actually creating the filestream */
-	mixmonitor->fs = ast_writefile(file_name, ext, NULL, oflags, 0, 0644);
+	mixmonitor->fs = ast_writefile(file_name, ext, NULL, oflags, 0, AST_FILE_MODE);
 	if (!mixmonitor->fs) {
 		ast_log(LOG_ERROR, "Cannot open %s.%s\n", file_name, ext);
 		free(mixmonitor);

@@ -31,6 +31,16 @@
 
 #include "asterisk/paths.h"
 
+/* Default to allowing the umask or filesystem ACLs to determine actual file
+ * creation permissions
+ */
+#ifndef AST_DIR_MODE
+#define AST_DIR_MODE 0777
+#endif
+#ifndef AST_FILE_MODE
+#define AST_FILE_MODE 0666
+#endif
+
 #define DEFAULT_LANGUAGE "en"
 
 #define DEFAULT_SAMPLE_RATE 8000

@@ -142,7 +142,7 @@ static void retrieve_file(char *dir)
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				break;
 			}
-			fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC, 0770);
+			fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC, AST_FILE_MODE);
 			if (fd < 0) {
 				ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);

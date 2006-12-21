@@ -197,7 +197,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		}
 		if (!(monitor->read_stream = ast_writefile(monitor->read_filename,
 						monitor->format, NULL,
-						O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
+						O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
 			ast_log(LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
 			free(monitor);
@@ -209,7 +209,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		}
 		if (!(monitor->write_stream = ast_writefile(monitor->write_filename,
 						monitor->format, NULL,
-						O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
+						O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
 			ast_log(LOG_WARNING, "Could not create file %s\n",
 						monitor->write_filename);
 			ast_closestream(monitor->read_stream);

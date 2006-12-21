@@ -88,7 +88,7 @@ static int cli_audio_convert(int fd, int argc, char *argv[])
 		ast_cli(fd, "'%s' is an invalid filename!\n", argv[3]);
 		goto fail_out;
 	}
-	if (!(fs_out = ast_writefile(name_out, ext_out, NULL, O_CREAT|O_TRUNC|O_WRONLY, 0, 0644))) {
+	if (!(fs_out = ast_writefile(name_out, ext_out, NULL, O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
 		ast_cli(fd, "Unable to open output file: %s\n", argv[3]);
 		goto fail_out;
 	}

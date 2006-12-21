@@ -181,7 +181,7 @@ static int load_module(void)
 
 	/* is the database there? */
 	snprintf(fn, sizeof(fn), "%s/cdr.db", ast_config_AST_LOG_DIR);
-	db = sqlite_open(fn, 0660, &zErr);
+	db = sqlite_open(fn, AST_FILE_MODE, &zErr);
 	if (!db) {
 		ast_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
 		free(zErr);

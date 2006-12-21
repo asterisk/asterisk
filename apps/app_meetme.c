@@ -2874,7 +2874,7 @@ static void *recordthread(void *args)
 			break;
 		}
 		if (!s && cnf->recordingfilename && (cnf->recordingfilename != oldrecordingfilename)) {
-			s = ast_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, 0644);
+			s = ast_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, AST_FILE_MODE);
 			oldrecordingfilename = cnf->recordingfilename;
 		}
 		

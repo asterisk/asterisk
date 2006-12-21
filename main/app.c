@@ -571,7 +571,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 	end = start = time(NULL);  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x = 0; x < fmtcnt; x++) {
-		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
+		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, O_TRUNC, 0, AST_FILE_MODE);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
 
@@ -943,7 +943,7 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	}
 
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, ast_random());
-	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
+	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, AST_FILE_MODE);
 	if (fd < 0) {
 		ast_log(LOG_ERROR, "Unable to create lock file '%s': %s\n", path, strerror(errno));
 		return AST_LOCK_PATH_NOT_FOUND;

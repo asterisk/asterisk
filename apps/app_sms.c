@@ -245,7 +245,7 @@ typedef struct sms_s {
 	int protocol;                /*!< ETSI SMS protocol to use (passed at app call) */
 	int oseizure;                /*!< protocol 2: channel seizure bits to send */
 	int framenumber;             /*!< protocol 2: frame number (for sending ACK0 or ACK1) */
-	unsigned char udtxt[SMSLEN]; /*!< user data (message), PLAIN text */
+	char udtxt[SMSLEN]; /*!< user data (message), PLAIN text */
 } sms_t;
 
 /* different types of encoding */
@@ -707,7 +707,7 @@ static unsigned char packaddress (unsigned char *o, char *i)
 static void sms_log (sms_t * h, char status)
 {
 	if (*h->oa || *h->da) {
-		int o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, 0666);
+		int o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, AST_FILE_MODE);
 		if (o >= 0) {
 			char line[1000], mrs[3] = "", *p;
 			unsigned char n;
@@ -1184,14 +1184,14 @@ static int sms_handleincoming_proto2 (sms_t * h)
 				msgsz=20-1;
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Origin#%02X=[%.*s]\n",msg,msgsz,&h->imsg[f]);
-			ast_copy_string (h->oa, &h->imsg[f], msgsz+1);
+			ast_copy_string (h->oa, (char*)(&h->imsg[f]), msgsz+1);
 			break;
 		case 0x18:      /* Destination (from TE/phone) */
 			if (msgsz>=20)
 				msgsz=20-1;
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Destination#%02X=[%.*s]\n",msg,msgsz,&h->imsg[f]);
-			ast_copy_string (h->da, &h->imsg[f], msgsz+1);
+			ast_copy_string (h->da, (char*)(&h->imsg[f]), msgsz+1);
 			break;
 		case 0x1C:      /* Notify */
 			if (option_verbose > 2)

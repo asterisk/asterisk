@@ -961,7 +961,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	if (res) {
 		fdprintf(agi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
 	} else {
-		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, 0644);
+		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, AST_FILE_MODE);
 		if (!fs) {
 			res = -1;
 			fdprintf(agi->fd, "200 result=%d (writefile)\n", res);
