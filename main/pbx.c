@@ -465,7 +465,7 @@ AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
 
-static AST_LIST_HEAD_STATIC(switches, ast_switch);
+static AST_RWLIST_HEAD_STATIC(switches, ast_switch);
 
 static int stateid = 1;
 /* WARNING:
@@ -536,12 +536,12 @@ static struct ast_switch *pbx_findswitch(const char *sw)
 {
 	struct ast_switch *asw;
 
-	AST_LIST_LOCK(&switches);
-	AST_LIST_TRAVERSE(&switches, asw, list) {
+	AST_RWLIST_RDLOCK(&switches);
+	AST_RWLIST_TRAVERSE(&switches, asw, list) {
 		if (!strcasecmp(asw->name, sw))
 			break;
 	}
-	AST_LIST_UNLOCK(&switches);
+	AST_RWLIST_UNLOCK(&switches);
 
 	return asw;
 }
@@ -2865,25 +2865,25 @@ int ast_register_switch(struct ast_switch *sw)
 {
 	struct ast_switch *tmp;
 
-	AST_LIST_LOCK(&switches);
-	AST_LIST_TRAVERSE(&switches, tmp, list) {
+	AST_RWLIST_WRLOCK(&switches);
+	AST_RWLIST_TRAVERSE(&switches, tmp, list) {
 		if (!strcasecmp(tmp->name, sw->name)) {
-			AST_LIST_UNLOCK(&switches);
+			AST_RWLIST_UNLOCK(&switches);
 			ast_log(LOG_WARNING, "Switch '%s' already found\n", sw->name);
 			return -1;
 		}
 	}
-	AST_LIST_INSERT_TAIL(&switches, sw, list);
-	AST_LIST_UNLOCK(&switches);
+	AST_RWLIST_INSERT_TAIL(&switches, sw, list);
+	AST_RWLIST_UNLOCK(&switches);
 
 	return 0;
 }
 
 void ast_unregister_switch(struct ast_switch *sw)
 {
-	AST_LIST_LOCK(&switches);
-	AST_LIST_REMOVE(&switches, sw, list);
-	AST_LIST_UNLOCK(&switches);
+	AST_RWLIST_WRLOCK(&switches);
+	AST_RWLIST_REMOVE(&switches, sw, list);
+	AST_RWLIST_UNLOCK(&switches);
 }
 
 /*
@@ -3065,19 +3065,19 @@ static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct ast_switch *sw;
 
-	AST_LIST_LOCK(&switches);
+	AST_RWLIST_RDLOCK(&switches);
 
-	if (AST_LIST_EMPTY(&switches)) {
-		AST_LIST_UNLOCK(&switches);
+	if (AST_RWLIST_EMPTY(&switches)) {
+		AST_RWLIST_UNLOCK(&switches);
 		ast_cli(fd, "There are no registered alternative switches\n");
 		return RESULT_SUCCESS;
 	}
 
 	ast_cli(fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
-	AST_LIST_TRAVERSE(&switches, sw, list)
+	AST_RWLIST_TRAVERSE(&switches, sw, list)
 		ast_cli(fd, "%s: %s\n", sw->name, sw->description);
 
-	AST_LIST_UNLOCK(&switches);
+	AST_RWLIST_UNLOCK(&switches);
 
 	return RESULT_SUCCESS;
 }
