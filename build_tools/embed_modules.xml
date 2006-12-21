@@ -8,7 +8,7 @@
 		<member name="channels" displayname="Channels" remove_on_change="channels/*.o channels/misdn/*.o">
 			<depend>gnu_ld</depend>
 		</member>
-		<member name="codecs" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/gsm/src/*.o codecs/ilbc/*.o codecs/lpc10/*.o codecs/gsm/lib/libgsm.a codecs/lpc10/liblpc10.a codecs/ilbc/libilbc.a">
+		<member name="codecs" displayname="Coders/Decoders" remove_on_change="codecs/*.o codecs/gsm/src/*.o codecs/ilbc/*.o codecs/lpc10/*.o codecs/gsm/lib/libgsm.a codecs/lpc10/liblpc10.a codecs/ilbc/libilbc.a codecs/g722/libg722.a">
 			<depend>gnu_ld</depend>
 		</member>
 		<member name="formats" displayname="File Formats" remove_on_change="formats/*.o">
