@@ -88,6 +88,8 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0644,root,root)      /var/lib/asterisk/sounds/letters/*.gsm
 %attr(0755,root,root) %dir /var/lib/asterisk/sounds/phonetic
 %attr(0644,root,root)      /var/lib/asterisk/sounds/phonetic/*.gsm
+%attr(0755,root,root) %dir /var/lib/asterisk/sounds/silence
+%attr(0644,root,root)      /var/lib/asterisk/sounds/silence/*.gsm
 %attr(0755,root,root) %dir /var/lib/asterisk/mohmp3
 %attr(0644,root,root)      /var/lib/asterisk/mohmp3/*
 %attr(0755,root,root) %dir /var/lib/asterisk/images
