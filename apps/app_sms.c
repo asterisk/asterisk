@@ -253,16 +253,6 @@ typedef struct sms_s {
 #define is8bit(dcs) (((dcs)&0xC0)?(((dcs)&4)):(((dcs)&12)==4))
 #define is16bit(dcs) (((dcs)&0xC0)?0:(((dcs)&12)==8))
 
-static void *sms_alloc (struct ast_channel *chan, void *params)
-{
-	return params;
-}
-
-static void sms_release (struct ast_channel *chan, void *data)
-{
-	return;
-}
-
 static void sms_messagetx (sms_t * h);
 
 /*! \brief copy number, skipping non digits apart from leading + */
@@ -1469,6 +1459,10 @@ static void sms_messagetx(sms_t * h)
 	h->obyten = len + 1;		/* bytes to send (including checksum) */
 }
 
+/*!
+ * outgoing data are produced by this generator function, that reads from
+ * the descriptor whether it has data to send and which ones.
+ */
 static int sms_generate (struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct ast_frame f = { 0 };
@@ -1542,6 +1536,25 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 	return 0;
 #undef MAXSAMPLES
 }
+
+/*!
+ * Just return the pointer to the descriptor that we received.
+ */
+static void *sms_alloc (struct ast_channel *chan, void *sms_t_ptr)
+{
+	return sms_t_ptr;
+}
+
+static void sms_release (struct ast_channel *chan, void *data)
+{
+	return;	/* nothing to do here. */
+}
+
+static struct ast_generator smsgen = {
+	.alloc = sms_alloc,
+	.release = sms_release,
+	.generate = sms_generate,
+};
 
 /*!
  * Process an incoming frame, trying to detect the carrier and
@@ -1678,12 +1691,6 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 		}
 	}
 }
-
-static struct ast_generator smsgen = {
-	alloc:sms_alloc,
-	release:sms_release,
-	generate:sms_generate,
-};
 
 static int sms_exec (struct ast_channel *chan, void *data)
 {
