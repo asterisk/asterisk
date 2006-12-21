@@ -129,6 +129,13 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; returning this many interpolations. This prevents interpolating throughout
 ; a long silence.
 ;
+;
+; jittertargetextra: number of milliseconds by which the new jitter buffer
+; will pad its size. the default is 40, so without modification, the new
+; jitter buffer will set its size to the jitter value plus 40 milliseconds.
+; increasing this value may help if your network normally has low jitter,
+; but occasionally has spikes.
+;
 
 jitterbuffer=no
 forcejitterbuffer=no
@@ -139,6 +146,7 @@ forcejitterbuffer=no
 ;maxexcessbuffer=80
 ;minexcessbuffer=10
 ;jittershrinkrate=1
+;jittertargetextra=40
 
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
 

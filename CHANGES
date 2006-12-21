@@ -63,3 +63,5 @@ Changes since Asterisk 1.4-beta was branched:
      does not count paused queue members as unavailable.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
+  * Added the jittertargetextra configuration option.
+

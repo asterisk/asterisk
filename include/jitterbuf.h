@@ -58,6 +58,7 @@ typedef struct jb_conf {
 	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
  	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
 	long max_contig_interp; /* the max interp frames to return in a row */
+	long target_extra ;      /* amount of additional jitterbuffer adjustment, overrides JB_TARGET_EXTRA */
 } jb_conf;
 
 typedef struct jb_info {

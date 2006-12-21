@@ -163,6 +163,7 @@ static int maxnontrunkcall = 1;
 static int maxjitterbuffer=1000;
 static int resyncthreshold=1000;
 static int maxjitterinterps=10;
+static int jittertargetextra = 40; /* number of milliseconds the new jitter buffer adds on to its size */
 static int trunkfreq = 20;
 static int authdebug = 1;
 static int autokill = 0;
@@ -1125,6 +1126,7 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	jbconf.max_jitterbuf = maxjitterbuffer;
 	jbconf.resync_threshold = resyncthreshold;
 	jbconf.max_contig_interp = maxjitterinterps;
+	jbconf.target_extra = jittertargetextra;
 	jb_setconf(tmp->jb,&jbconf);
 
 	AST_LIST_HEAD_INIT_NOLOCK(&tmp->dpentries);
@@ -8958,6 +8960,8 @@ static int set_config(char *config_file, int reload)
 			resyncthreshold = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxjitterinterps")) 
 			maxjitterinterps = atoi(v->value);
+		else if (!strcasecmp(v->name, "jittertargetextra"))
+			jittertargetextra = atoi(v->value);
 		else if (!strcasecmp(v->name, "lagrqtime")) 
 			lagrq_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxregexpire")) 

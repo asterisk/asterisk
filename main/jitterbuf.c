@@ -79,8 +79,8 @@ void jb_reset(jitterbuf *jb)
 	memset(jb, 0, sizeof(*jb));
 	jb->info.conf = s;
 
-	/* initialize length */
-	jb->info.current = jb->info.target = JB_TARGET_EXTRA; 
+	/* initialize length, using the default value */
+	jb->info.current = jb->info.target = jb->info.conf.target_extra = JB_TARGET_EXTRA;
 	jb->info.silence_begin_ts = -1; 
 }
 
@@ -547,7 +547,7 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 	dbg_cnt++;
 
 	/* target */
-	jb->info.target = jb->info.jitter + jb->info.min + JB_TARGET_EXTRA; 
+	jb->info.target = jb->info.jitter + jb->info.min + jb->info.conf.target_extra; 
 
 	/* if a hard clamp was requested, use it */
 	if ((jb->info.conf.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->info.conf.max_jitterbuf)) {
@@ -633,7 +633,7 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 		/* unless we don't have a frame, then shrink 1 frame */
 		/* every 80ms (though perhaps we can shrink even faster */
 		/* in this case) */
-		if (diff < -JB_TARGET_EXTRA && 
+		if (diff < -jb->info.conf.target_extra && 
 			((!frame && jb->info.last_adjustment + 80 < now) || 
 			(jb->info.last_adjustment + 500 < now))) {
 
@@ -711,7 +711,7 @@ static enum jb_return_code _jb_get(jitterbuf *jb, jb_frame *frameout, long now, 
 		/* jb->info.silence_begin_ts = 0; */
 
  		/* shrink interpl len every 10ms during silence */
- 		if (diff < -JB_TARGET_EXTRA &&
+ 		if (diff < -jb->info.conf.target_extra &&
  			jb->info.last_adjustment + 10 <= now) {
  			jb->info.current -= interpl;
  			jb->info.last_adjustment = now;
@@ -760,7 +760,7 @@ long jb_next(jitterbuf *jb)
 		if (next > 0) { 
 			history_get(jb);
 			/* shrink during silence */
-			if (jb->info.target - jb->info.current < -JB_TARGET_EXTRA)
+			if (jb->info.target - jb->info.current < -jb->info.conf.target_extra)
 				return jb->info.last_adjustment + 10;
 			return next + jb->info.target;
 		}
@@ -818,6 +818,16 @@ enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf)
 	jb->info.conf.max_jitterbuf = conf->max_jitterbuf;
  	jb->info.conf.resync_threshold = conf->resync_threshold;
 	jb->info.conf.max_contig_interp = conf->max_contig_interp;
+
+	/* -1 indicates use of the default JB_TARGET_EXTRA value */
+	jb->info.conf.target_extra = ( conf->target_extra == -1 )
+		? JB_TARGET_EXTRA
+		: conf->target_extra
+		;
+		
+	/* update these to match new target_extra setting */
+	jb->info.current = jb->info.conf.target_extra;
+	jb->info.target = jb->info.conf.target_extra;
 
 	return JB_OK;
 }
