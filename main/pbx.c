@@ -240,7 +240,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 
-AST_MUTEX_DEFINE_STATIC(globalslock);
+AST_RWLOCK_DEFINE_STATIC(globalslock);
 static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 static int autofallthrough = 1;
@@ -1190,7 +1190,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		if (!places[i])
 			continue;
 		if (places[i] == &globals)
-			ast_mutex_lock(&globalslock);
+			ast_rwlock_rdlock(&globalslock);
 		AST_LIST_TRAVERSE(places[i], variables, entries) {
 			if (strcasecmp(ast_var_name(variables), var)==0) {
 				s = ast_var_value(variables);
@@ -1198,7 +1198,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			}
 		}
 		if (places[i] == &globals)
-			ast_mutex_unlock(&globalslock);
+			ast_rwlock_unlock(&globalslock);
 	}
 	if (s == &not_found || s == NULL)
 		*ret = NULL;
@@ -3643,12 +3643,12 @@ static int handle_show_globals(int fd, int argc, char *argv[])
 	int i = 0;
 	struct ast_var_t *newvariable;
 
-	ast_mutex_lock(&globalslock);
+	ast_rwlock_rdlock(&globalslock);
 	AST_LIST_TRAVERSE (&globals, newvariable, entries) {
 		i++;
 		ast_cli(fd, "   %s=%s\n", ast_var_name(newvariable), ast_var_value(newvariable));
 	}
-	ast_mutex_unlock(&globalslock);
+	ast_rwlock_unlock(&globalslock);
 	ast_cli(fd, "\n    -- %d variables\n", i);
 
 	return RESULT_SUCCESS;
@@ -4661,12 +4661,12 @@ int ast_add_extension2(struct ast_context *con,
 	/* if we are adding a hint, and there are global variables, and the hint
 	   contains variable references, then expand them
 	*/
-	ast_mutex_lock(&globalslock);
+	ast_rwlock_rdlock(&globalslock);
 	if (priority == PRIORITY_HINT && AST_LIST_FIRST(&globals) && strstr(application, "${")) {
 		pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
 		application = expand_buf;
 	}
-	ast_mutex_unlock(&globalslock);
+	ast_rwlock_unlock(&globalslock);
 
 	length = sizeof(struct ast_exten);
 	length += strlen(extension) + 1;
@@ -5688,7 +5688,7 @@ const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name
 		if (!places[i])
 			continue;
 		if (places[i] == &globals)
-			ast_mutex_lock(&globalslock);
+			ast_rwlock_rdlock(&globalslock);
 		AST_LIST_TRAVERSE(places[i], variables, entries) {
 			if (!strcmp(name, ast_var_name(variables))) {
 				ret = ast_var_value(variables);
@@ -5696,7 +5696,7 @@ const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name
 			}
 		}
 		if (places[i] == &globals)
-			ast_mutex_unlock(&globalslock);
+			ast_rwlock_unlock(&globalslock);
 		if (ret)
 			break;
 	}
@@ -5724,10 +5724,10 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
 			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		if (headp == &globals)
-			ast_mutex_lock(&globalslock);
+			ast_rwlock_wrlock(&globalslock);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		if (headp == &globals)
-			ast_mutex_unlock(&globalslock);
+			ast_rwlock_unlock(&globalslock);
 	}
 }
 
@@ -5755,7 +5755,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	}
 
 	if (headp == &globals)
-		ast_mutex_lock(&globalslock);
+		ast_rwlock_wrlock(&globalslock);
 	AST_LIST_TRAVERSE (headp, newvariable, entries) {
 		if (strcasecmp(ast_var_name(newvariable), nametail) == 0) {
 			/* there is already such a variable, delete it */
@@ -5773,7 +5773,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	}
 
 	if (headp == &globals)
-		ast_mutex_unlock(&globalslock);
+		ast_rwlock_unlock(&globalslock);
 }
 
 int pbx_builtin_setvar(struct ast_channel *chan, void *data)
@@ -5851,10 +5851,10 @@ void pbx_builtin_clear_globals(void)
 {
 	struct ast_var_t *vardata;
 
-	ast_mutex_lock(&globalslock);
+	ast_rwlock_wrlock(&globalslock);
 	while ((vardata = AST_LIST_REMOVE_HEAD(&globals, entries)))
 		ast_var_delete(vardata);
-	ast_mutex_unlock(&globalslock);
+	ast_rwlock_unlock(&globalslock);
 }
 
 int pbx_checkcondition(const char *condition)
