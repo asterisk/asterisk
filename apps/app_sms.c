@@ -264,7 +264,7 @@ typedef struct sms_s {
 static void sms_messagetx (sms_t * h);
 
 /*! \brief copy number, skipping non digits apart from leading + */
-static void numcpy (char *d, char *s)
+static void numcpy(char *d, char *s)
 {
 	if (*s == '+')
 		*d++ = *s++;
@@ -277,14 +277,13 @@ static void numcpy (char *d, char *s)
 }
 
 /*! \brief static, return a date/time in ISO format */
-static char * isodate (time_t t)
+static char * isodate(time_t t, char *buf, int len)
 {
-	static char date[20];
-	strftime (date, sizeof (date), "%Y-%m-%dT%H:%M:%S", localtime (&t));
-	return date;
+	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", localtime (&t));
+	return buf;
 }
 
-/*! \brief reads next UCS character from null terminated UTF-8 string and advanced pointer */
+/*! \brief Reads next UCS character from NUL terminated UTF-8 string and advance pointer */
 /* for non valid UTF-8 sequences, returns character as is */
 /* Does not advance pointer for null termination */
 static long utf8decode (unsigned char **pp)
@@ -708,12 +707,14 @@ static void sms_log (sms_t * h, char status)
 		int o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, AST_FILE_MODE);
 		if (o >= 0) {
 			char line[1000], mrs[3] = "", *p;
+			char buf[30];
 			unsigned char n;
 
 			if (h->mr >= 0)
 				snprintf (mrs, sizeof (mrs), "%02X", h->mr);
 			snprintf (line, sizeof (line), "%s %c%c%c%s %s %s %s ",
-				 isodate (time (0)), status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue, *h->oa ? h->oa : "-",
+				isodate(time(0), buf, sizeof(buf)),
+				status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue, *h->oa ? h->oa : "-",
 				 *h->da ? h->da : "-");
 			p = line + strlen (line);
 			for (n = 0; n < h->udl; n++)
@@ -902,13 +903,15 @@ static void sms_readfile (sms_t * h, char *fn)
 static void sms_writefile (sms_t * h)
 {
 	char fn[200] = "", fn2[200] = "";
+	char buf[30];
 	FILE *o;
+
 	ast_copy_string (fn, spool_dir, sizeof (fn));
 	mkdir (fn, 0777);			/* ensure it exists */
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
 	mkdir (fn, 0777);			/* ensure it exists */
 	ast_copy_string (fn2, fn, sizeof (fn2));
-	snprintf (fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate (h->scts), seq++);
+	snprintf (fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
 	o = fopen (fn, "w");
 	if (o) {
@@ -963,8 +966,10 @@ static void sms_writefile (sms_t * h)
 				}
 			}
 		}
-		if (h->scts)
-			fprintf (o, "scts=%s\n", isodate (h->scts));
+		if (h->scts) {
+			char buf[30];
+			fprintf (o, "scts=%s\n", isodate(h->scts, buf, sizeof(buf)));
+		}
 		if (h->pid)
 			fprintf (o, "pid=%d\n", h->pid);
 		if (h->dcs != 0xF1)
@@ -1926,11 +1931,9 @@ static int unload_module(void)
 static int load_module(void)
 {
 #ifdef OUTALAW
-	{
-		int p;
-		for (p = 0; p < 80; p++)
-			wavea[p] = AST_LIN2A (wave[p]);
-	}
+	int p;
+	for (p = 0; p < 80; p++)
+		wavea[p] = AST_LIN2A (wave[p]);
 #endif
 	snprintf (log_file, sizeof (log_file), "%s/sms", ast_config_AST_LOG_DIR);
 	snprintf (spool_dir, sizeof (spool_dir), "%s/sms", ast_config_AST_SPOOL_DIR);
