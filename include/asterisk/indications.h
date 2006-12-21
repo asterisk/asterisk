@@ -46,7 +46,7 @@ struct tone_zone_sound {
 };
 
 struct tone_zone {
-	struct tone_zone* next;				/* next in list */
+	AST_RWLIST_ENTRY(tone_zone) list;
 	char country[5];				/* Country code */
 	char alias[5];					/* is this an alias? */
 	char description[40];				/* Description */

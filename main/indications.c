@@ -37,12 +37,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <math.h>
 
+#include "asterisk/lock.h"
+#include "asterisk/linkedlists.h"
 #include "asterisk/indications.h"
 #include "asterisk/frame.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
-#include "asterisk/lock.h"
 #include "asterisk/utils.h"
 
 static int midi_tohz[128] = {
@@ -103,20 +104,25 @@ struct playtones_state {
 static void playtones_release(struct ast_channel *chan, void *params)
 {
 	struct playtones_state *ps = params;
-	if (chan) {
+
+	if (chan)
 		ast_set_write_format(chan, ps->origwfmt);
-	}
-	if (ps->items) free(ps->items);
+	if (ps->items)
+		free(ps->items);
+
 	free(ps);
 }
 
 static void * playtones_alloc(struct ast_channel *chan, void *params)
 {
 	struct playtones_def *pd = params;
-	struct playtones_state *ps;
+	struct playtones_state *ps = NULL;
+
 	if (!(ps = ast_calloc(1, sizeof(*ps))))
 		return NULL;
+
 	ps->origwfmt = chan->writeformat;
+
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
 		playtones_release(NULL, ps);
@@ -128,11 +134,13 @@ static void * playtones_alloc(struct ast_channel *chan, void *params)
 		ps->items = pd->items;
 		ps->oldnpos = -1;
 	}
+
 	/* Let interrupts interrupt :) */
 	if (pd->interruptible)
 		ast_set_flag(chan, AST_FLAG_WRITE_INT);
 	else
 		ast_clear_flag(chan, AST_FLAG_WRITE_INT);
+
 	return ps;
 }
 
@@ -329,103 +337,113 @@ void ast_playtones_stop(struct ast_channel *chan)
 
 /*--------------------------------------------*/
 
-static struct tone_zone *tone_zones;
+static AST_RWLIST_HEAD_STATIC(tone_zones, tone_zone);
 static struct tone_zone *current_tonezone;
-
-/* Protect the tone_zones list (highly unlikely that two things would change
- * it at the same time, but still! */
-AST_MUTEX_DEFINE_STATIC(tzlock);
 
 struct tone_zone *ast_walk_indications(const struct tone_zone *cur)
 {
-	struct tone_zone *tz;
+	struct tone_zone *tz = NULL;
 
-	if (cur == NULL)
-		return tone_zones;
-	ast_mutex_lock(&tzlock);
-	for (tz = tone_zones; tz; tz = tz->next)
-		if (tz == cur)
-			break;
-	if (tz)
-		tz = tz->next;
-	ast_mutex_unlock(&tzlock);
+	AST_RWLIST_RDLOCK(&tone_zones);
+	/* If cur is not NULL, then we have to iterate through - otherwise just return the first entry */
+	if (cur) {
+		AST_RWLIST_TRAVERSE(&tone_zones, tz, list) {
+			if (tz == cur)
+				break;
+		}
+		tz = AST_RWLIST_NEXT(tz, list);
+	} else {
+		tz = AST_RWLIST_FIRST(&tone_zones);
+	}
+	AST_RWLIST_UNLOCK(&tone_zones);
+
 	return tz;
 }
 
 /* Set global indication country */
 int ast_set_indication_country(const char *country)
 {
-	if (country) {
-		struct tone_zone *z = ast_get_indication_zone(country);
-		if (z) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Setting default indication country to '%s'\n",country);
-			current_tonezone = z;
-			return 0;
-		}
-	}
-	return 1; /* not found */
+	struct tone_zone *zone = NULL;
+
+	/* If no country is specified or we are unable to find the zone, then return not found */
+	if (!country || !(zone = ast_get_indication_zone(country)))
+		return 1;
+	
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Setting default indication country to '%s'\n", country);
+
+	/* Protect the current tonezone using the tone_zones lock as well */
+	AST_RWLIST_WRLOCK(&tone_zones);
+	current_tonezone = zone;
+	AST_RWLIST_UNLOCK(&tone_zones);
+
+	/* Zone was found */
+	return 0;
 }
 
 /* locate tone_zone, given the country. if country == NULL, use the default country */
 struct tone_zone *ast_get_indication_zone(const char *country)
 {
-	struct tone_zone *tz;
+	struct tone_zone *tz = NULL;
 	int alias_loop = 0;
 
-	/* we need some tonezone, pick the first */
-	if (country == NULL && current_tonezone)
-		return current_tonezone;	/* default country? */
-	if (country == NULL && tone_zones)
-		return tone_zones;		/* any country? */
-	if (country == NULL)
-		return 0;	/* not a single country insight */
+	AST_RWLIST_RDLOCK(&tone_zones);
 
-	ast_mutex_lock(&tzlock);
-	do {
-		for (tz=tone_zones; tz; tz=tz->next) {
-			if (strcasecmp(country,tz->country)==0) {
-				/* tone_zone found */
-				if (tz->alias && tz->alias[0]) {
-					country = tz->alias;
+	if (!country) {
+		if (current_tonezone)
+			tz = current_tonezone;
+		else
+			tz = AST_LIST_FIRST(&tone_zones);
+	} else {
+		do {
+			AST_RWLIST_TRAVERSE(&tone_zones, tz, list) {
+				if (!strcasecmp(tz->country, country))
 					break;
-				}
-				ast_mutex_unlock(&tzlock);
-				return tz;
 			}
-		}
-	} while (++alias_loop<20 && tz);
-	ast_mutex_unlock(&tzlock);
-	if (alias_loop==20)
-		ast_log(LOG_NOTICE,"Alias loop for '%s' forcefull broken\n",country);
-	/* nothing found, sorry */
-	return 0;
+			/* If this is an alias then we have to search yet again otherwise we have found the zonezone */
+			if (tz->alias && tz->alias[0])
+				country = tz->alias;
+			else
+				break;
+		} while ((++alias_loop < 20) && tz);
+	}
+
+	AST_RWLIST_UNLOCK(&tone_zones);
+
+	/* If we reached the maximum loops to find the proper country via alias, print out a notice */
+	if (alias_loop == 20)
+		ast_log(LOG_NOTICE, "Alias loop for '%s' is bonkers\n", country);
+
+	return tz;
 }
 
 /* locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
 struct tone_zone_sound *ast_get_indication_tone(const struct tone_zone *zone, const char *indication)
 {
-	struct tone_zone_sound *ts;
+	struct tone_zone_sound *ts = NULL;
 
-	/* we need some tonezone, pick the first */
-	if (zone == NULL && current_tonezone)
-		zone = current_tonezone;	/* default country? */
-	if (zone == NULL && tone_zones)
-		zone = tone_zones;		/* any country? */
-	if (zone == NULL)
-		return 0;	/* not a single country insight */
+	AST_RWLIST_RDLOCK(&tone_zones);
 
-	ast_mutex_lock(&tzlock);
-	for (ts=zone->tones; ts; ts=ts->next) {
-		if (strcasecmp(indication,ts->name)==0) {
-			/* found indication! */
-			ast_mutex_unlock(&tzlock);
-			return ts;
+	/* If no zone is already specified we need to try to pick one */
+	if (!zone) {
+		if (current_tonezone) {
+			zone = current_tonezone;
+		} else if (!(zone = AST_LIST_FIRST(&tone_zones))) {
+			/* No zone has been found ;( */
+			AST_RWLIST_UNLOCK(&tone_zones);
+			return NULL;
 		}
 	}
-	/* nothing found, sorry */
-	ast_mutex_unlock(&tzlock);
-	return 0;
+
+	/* Look through list of tones in the zone searching for the right one */
+	for (ts = zone->tones; ts; ts = ts->next) {
+		if (!strcasecmp(ts->name, indication))
+			break;
+	}
+
+	AST_RWLIST_UNLOCK(&tone_zones);
+
+	return ts;
 }
 
 /* helper function to delete a tone_zone in its entirety */
@@ -438,8 +456,10 @@ static inline void free_zone(struct tone_zone* zone)
 		free(zone->tones);
 		zone->tones = tmp;
 	}
+
 	if (zone->ringcadence)
 		free(zone->ringcadence);
+
 	free(zone);
 }
 
@@ -448,36 +468,33 @@ static inline void free_zone(struct tone_zone* zone)
 /* add a new country, if country exists, it will be replaced. */
 int ast_register_indication_country(struct tone_zone *zone)
 {
-	struct tone_zone *tz,*pz;
+	struct tone_zone *tz = NULL;
 
-	ast_mutex_lock(&tzlock);
-	for (pz=NULL,tz=tone_zones; tz; pz=tz,tz=tz->next) {
-		if (strcasecmp(zone->country,tz->country)==0) {
-			/* tone_zone already there, replace */
-			zone->next = tz->next;
-			if (pz)
-				pz->next = zone;
-			else
-				tone_zones = zone;
-			/* if we are replacing the default zone, re-point it */
-			if (tz == current_tonezone)
-				current_tonezone = zone;
-			/* now free the previous zone */
-			free_zone(tz);
-			ast_mutex_unlock(&tzlock);
-			return 0;
-		}
+	AST_RWLIST_WRLOCK(&tone_zones);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&tone_zones, tz, list) {
+		/* If this is not the same zone, then just continue to the next entry */
+		if (strcasecmp(zone->country, tz->country))
+			continue;
+		/* If this zone we are going to remove is the current default then make the new zone the default */
+		if (tz == current_tonezone)
+			current_tonezone = zone;
+		/* Remove from the linked list */
+		AST_RWLIST_REMOVE_CURRENT(&tone_zones, list);
+		/* Finally free the zone itself */
+		free_zone(tz);
+		break;
 	}
-	/* country not there, add */
-	zone->next = NULL;
-	if (pz)
-		pz->next = zone;
-	else
-		tone_zones = zone;
-	ast_mutex_unlock(&tzlock);
+	AST_RWLIST_TRAVERSE_SAFE_END
+
+	/* Add zone to the list */
+	AST_RWLIST_INSERT_TAIL(&tone_zones, zone, list);
+
+	/* It's all over. */
+	AST_RWLIST_UNLOCK(&tone_zones);
 
 	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Registered indication country '%s'\n",zone->country);
+		ast_verbose(VERBOSE_PREFIX_3 "Registered indication country '%s'\n", zone->country);
+
 	return 0;
 }
 
@@ -485,41 +502,28 @@ int ast_register_indication_country(struct tone_zone *zone)
  * Also, all countries which are an alias for the specified country are removed. */
 int ast_unregister_indication_country(const char *country)
 {
-	struct tone_zone *tz, *pz = NULL, *tmp;
+	struct tone_zone *tz = NULL;
 	int res = -1;
 
-	ast_mutex_lock(&tzlock);
-	tz = tone_zones;
-	while (tz) {
-		if (country==NULL ||
-		    (strcasecmp(country, tz->country)==0 ||
-		     strcasecmp(country, tz->alias)==0)) {
-			/* tone_zone found, remove */
-			tmp = tz->next;
-			if (pz)
-				pz->next = tmp;
-			else
-				tone_zones = tmp;
-			/* if we are unregistering the default country, w'll notice */
-			if (tz == current_tonezone) {
-				ast_log(LOG_NOTICE,"Removed default indication country '%s'\n",tz->country);
-				current_tonezone = NULL;
-			}
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Unregistered indication country '%s'\n",tz->country);
-			free_zone(tz);
-			if (tone_zones == tz)
-				tone_zones = tmp;
-			tz = tmp;
-			res = 0;
+	AST_RWLIST_WRLOCK(&tone_zones);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&tone_zones, tz, list) {
+		if (country && (strcasecmp(country, tz->country) && strcasecmp(country, tz->alias)))
+			continue;
+		/* If this tonezone is the current default then unset it */
+		if (tz == current_tonezone) {
+			ast_log(LOG_NOTICE,"Removed default indication country '%s'\n", tz->country);
+			current_tonezone = NULL;
 		}
-		else {
-			/* next zone please */
-			pz = tz;
-			tz = tz->next;
-		}
+		/* Remove from the list */
+		AST_RWLIST_REMOVE_CURRENT(&tone_zones, list);
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Unregistered indication country '%s'\n", tz->country);
+		free_zone(tz);
+		res = 0;
 	}
-	ast_mutex_unlock(&tzlock);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&tone_zones);
+
 	return res;
 }
 
@@ -527,13 +531,13 @@ int ast_unregister_indication_country(const char *country)
  * exists, it will be replaced. */
 int ast_register_indication(struct tone_zone *zone, const char *indication, const char *tonelist)
 {
-	struct tone_zone_sound *ts,*ps;
+	struct tone_zone_sound *ts, *ps;
 
 	/* is it an alias? stop */
 	if (zone->alias[0])
 		return -1;
 
-	ast_mutex_lock(&tzlock);
+	AST_RWLIST_WRLOCK(&tone_zones);
 	for (ps=NULL,ts=zone->tones; ts; ps=ts,ts=ts->next) {
 		if (strcasecmp(indication,ts->name)==0) {
 			/* indication already there, replace */
@@ -545,20 +549,20 @@ int ast_register_indication(struct tone_zone *zone, const char *indication, cons
 	if (!ts) {
 		/* not there, we have to add */
 		if (!(ts = ast_malloc(sizeof(*ts)))) {
-			ast_mutex_unlock(&tzlock);
+			AST_RWLIST_UNLOCK(&tone_zones);
 			return -2;
 		}
 		ts->next = NULL;
 	}
 	if (!(ts->name = ast_strdup(indication)) || !(ts->data = ast_strdup(tonelist))) {
-		ast_mutex_unlock(&tzlock);
+		AST_RWLIST_UNLOCK(&tone_zones);
 		return -2;
 	}
 	if (ps)
 		ps->next = ts;
 	else
 		zone->tones = ts;
-	ast_mutex_unlock(&tzlock);
+	AST_RWLIST_UNLOCK(&tone_zones);
 	return 0;
 }
 
@@ -572,7 +576,7 @@ int ast_unregister_indication(struct tone_zone *zone, const char *indication)
 	if (zone->alias[0])
 		return -1;
 
-	ast_mutex_lock(&tzlock);
+	AST_RWLIST_WRLOCK(&tone_zones);
 	ts = zone->tones;
 	while (ts) {
 		if (strcasecmp(indication,ts->name)==0) {
@@ -595,6 +599,6 @@ int ast_unregister_indication(struct tone_zone *zone, const char *indication)
 		}
 	}
 	/* indication not found, goodbye */
-	ast_mutex_unlock(&tzlock);
+	AST_RWLIST_UNLOCK(&tone_zones);
 	return res;
 }
