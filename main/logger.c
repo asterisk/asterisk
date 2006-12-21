@@ -69,6 +69,7 @@ static int syslog_level_map[] = {
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
 #include "asterisk/threadstorage.h"
+#include "asterisk/strings.h"
 
 #if defined(__linux__) && !defined(__NR_gettid)
 #include <asm/unistd.h>
@@ -113,6 +114,27 @@ struct logchannel {
 };
 
 static AST_LIST_HEAD_STATIC(logchannels, logchannel);
+
+enum logmsgtypes {
+	LOGMSG_NORMAL = 0,
+	LOGMSG_VERBOSE,
+};
+
+struct logmsg {
+	enum logmsgtypes type;
+	char date[256];
+	int level;
+	const char *file;
+	int line;
+	const char *function;
+	AST_LIST_ENTRY(logmsg) list;
+	char str[0];
+};
+
+static AST_LIST_HEAD_STATIC(logmsgs, logmsg);
+static pthread_t logthread = AST_PTHREADT_NULL;
+static ast_cond_t logcond;
+static int close_logger_thread = 0;
 
 static FILE *eventlog = NULL;
 static FILE *qlog = NULL;
@@ -594,6 +616,166 @@ static int handle_SIGXFSZ(int sig)
 	return 0;
 }
 
+static void ast_log_vsyslog(int level, const char *file, int line, const char *function, char *str)
+{
+	char buf[BUFSIZ];
+
+	if (level >= SYSLOG_NLEVELS) {
+		/* we are locked here, so cannot ast_log() */
+		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
+		return;
+	}
+
+	if (level == __LOG_VERBOSE) {
+		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: %s", (long)GETTID(), str);
+		level = __LOG_DEBUG;
+	} else if (level == __LOG_DTMF) {
+		snprintf(buf, sizeof(buf), "DTMF[%ld]: %s", (long)GETTID(), str);
+		level = __LOG_DEBUG;
+	} else {
+		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: %s",
+			 levels[level], (long)GETTID(), file, line, function, str);
+        }
+
+        term_strip(buf, buf, strlen(buf) + 1);
+        syslog(syslog_level_map[level], "%s", buf);
+}
+
+/* Print a normal log message to the channels */
+static void logger_print_normal(struct logmsg *logmsg)
+{
+	struct logchannel *chan = NULL;
+	char buf[BUFSIZ];
+
+	AST_LIST_LOCK(&logchannels);
+
+	if (logfiles.event_log && logmsg->level == __LOG_EVENT) {
+		fprintf(eventlog, "%s asterisk[%ld]: %s", logmsg->date, (long)getpid(), logmsg->str);
+		fflush(eventlog);
+		AST_LIST_UNLOCK(&logchannels);
+		return;
+	}
+
+	if (!AST_LIST_EMPTY(&logchannels)) {
+		AST_LIST_TRAVERSE(&logchannels, chan, list) {
+			/* If the channel is disabled, then move on to the next one */
+			if (chan->disabled)
+				continue;
+			/* Check syslog channels */
+			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << logmsg->level))) {
+				ast_log_vsyslog(logmsg->level, logmsg->file, logmsg->line, logmsg->function, logmsg->str);
+			/* Console channels */
+			} else if (chan->type == LOGTYPE_CONSOLE && (chan->logmask & (1 << logmsg->level))) {
+				char linestr[128];
+				char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
+
+				/* If the level is verbose, then skip it */
+				if (logmsg->level == __LOG_VERBOSE)
+					continue;
+
+				/* Turn the numerical line number into a string */
+				snprintf(linestr, sizeof(linestr), "%d", logmsg->line);
+				/* Build string to print out */
+				snprintf(buf, sizeof(buf), "[%s] %s[%ld]: %s:%s %s: %s",
+					 logmsg->date,
+					 term_color(tmp1, levels[logmsg->level], colors[logmsg->level], 0, sizeof(tmp1)),
+					 (long)GETTID(),
+					 term_color(tmp2, logmsg->file, COLOR_BRWHITE, 0, sizeof(tmp2)),
+					 term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
+					 term_color(tmp4, logmsg->function, COLOR_BRWHITE, 0, sizeof(tmp4)),
+					 logmsg->str);
+				/* Print out */
+				ast_console_puts_mutable(buf);
+			/* File channels */
+			} else if (chan->type == LOGTYPE_FILE && (chan->logmask & (1 << logmsg->level))) {
+				int res = 0;
+
+				/* If no file pointer exists, skip it */
+				if (!chan->fileptr)
+					continue;
+				
+				/* Print out to the file */
+				res = fprintf(chan->fileptr, "[%s] %s[%ld] %s: %s",
+					      logmsg->date, levels[logmsg->level], (long)GETTID(), logmsg->file, logmsg->str);
+				if (res <= 0 && !ast_strlen_zero(logmsg->str)) {
+					fprintf(stderr, "**** Asterisk Logging Error: ***********\n");
+					if (errno == ENOMEM || errno == ENOSPC)
+						fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
+					else
+						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
+					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
+					chan->disabled = 1;
+				}
+			}
+		}
+	} else if (logmsg->level != __LOG_VERBOSE) {
+		fputs(logmsg->str, stdout);
+	}
+
+	AST_LIST_UNLOCK(&logchannels);
+
+	/* If we need to reload because of the file size, then do so */
+	if (filesize_reload_needed) {
+		reload_logger(1);
+		ast_log(LOG_EVENT, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+		if (option_verbose)
+			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
+	}
+
+	return;
+}
+
+/* Print a verbose message to the verbosers */
+static void logger_print_verbose(struct logmsg *logmsg)
+{
+	struct verb *v = NULL;
+
+	/* Iterate through the list of verbosers and pass them the log message string */
+	AST_LIST_LOCK(&verbosers);
+	AST_LIST_TRAVERSE(&verbosers, v, list)
+		v->verboser(logmsg->str);
+	AST_LIST_UNLOCK(&verbosers);
+
+	return;
+}
+
+/* Actual logging thread */
+static void *logger_thread(void *data)
+{
+	struct logmsg *next = NULL, *msg = NULL;
+
+	for (;;) {
+		/* We lock the message list, and see if any message exists... if not we wait on the condition to be signalled */
+		AST_LIST_LOCK(&logmsgs);
+		if (AST_LIST_EMPTY(&logmsgs))
+			ast_cond_wait(&logcond, &logmsgs.lock);
+		next = AST_LIST_FIRST(&logmsgs);
+		AST_LIST_HEAD_INIT_NOLOCK(&logmsgs);
+		AST_LIST_UNLOCK(&logmsgs);
+
+		/* If we should stop, then stop */
+		if (close_logger_thread)
+			break;
+
+		/* Otherwise go through and process each message in the order added */
+		while ((msg = next)) {
+			/* Get the next entry now so that we can free our current structure later */
+			next = AST_LIST_NEXT(msg, list);
+
+			/* Depending on the type, send it to the proper function */
+			if (msg->type == LOGMSG_NORMAL)
+				logger_print_normal(msg);
+			else if (msg->type == LOGMSG_VERBOSE)
+				logger_print_verbose(msg);
+
+			/* Free the data since we are done */
+			free(msg);
+		}
+	}
+
+	return NULL;
+}
+
 int init_logger(void)
 {
 	char tmp[256];
@@ -601,6 +783,13 @@ int init_logger(void)
 
 	/* auto rotate if sig SIGXFSZ comes a-knockin */
 	(void) signal(SIGXFSZ,(void *) handle_SIGXFSZ);
+
+	/* start logger thread */
+	ast_cond_init(&logcond, NULL);
+	if (ast_pthread_create(&logthread, NULL, logger_thread, NULL) < 0) {
+		ast_cond_destroy(&logcond);
+		return -1;
+	}
 
 	/* register the logger cli commands */
 	ast_cli_register_multiple(cli_logger, sizeof(cli_logger) / sizeof(struct ast_cli_entry));
@@ -635,7 +824,13 @@ int init_logger(void)
 
 void close_logger(void)
 {
-	struct logchannel *f;
+	struct logchannel *f = NULL;
+
+	/* Stop logger thread */
+	AST_LIST_LOCK(&logmsgs);
+	close_logger_thread = 1;
+	ast_cond_signal(&logcond);
+	AST_LIST_UNLOCK(&logmsgs);
 
 	AST_LIST_LOCK(&logchannels);
 
@@ -663,54 +858,26 @@ void close_logger(void)
 	return;
 }
 
-static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
-{
-	char buf[BUFSIZ];
-	char *s;
-
-	if (level >= SYSLOG_NLEVELS) {
-		/* we are locked here, so cannot ast_log() */
-		fprintf(stderr, "ast_log_vsyslog called with bogus level: %d\n", level);
-		return;
-	}
-	if (level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)GETTID());
-		level = __LOG_DEBUG;
-	} else if (level == __LOG_DTMF) {
-		snprintf(buf, sizeof(buf), "DTMF[%ld]: ", (long)GETTID());
-		level = __LOG_DEBUG;
-	} else {
-		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-			 levels[level], (long)GETTID(), file, line, function);
-	}
-	s = buf + strlen(buf);
-	vsnprintf(s, sizeof(buf) - strlen(buf), fmt, args);
-	term_strip(s, s, strlen(s) + 1);
-	syslog(syslog_level_map[level], "%s", buf);
-}
-
 /*!
  * \brief send log messages to syslog and/or the console
  */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	struct logchannel *chan;
-	struct ast_str *buf;
-	time_t t;
+	struct logmsg *logmsg = NULL;
+	struct ast_str *buf = NULL;
 	struct tm tm;
-	char date[256];
-
+	time_t t;
+	int res = 0;
 	va_list ap;
 
 	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;
 
-	if (AST_LIST_EMPTY(&logchannels))
-	{
+	if (AST_LIST_EMPTY(&logchannels)) {
 		/*
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout
-		*/
+		 */
 		if (level != __LOG_VERBOSE) {
 			int res;
 			va_start(ap, fmt);
@@ -723,7 +890,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		}
 		return;
 	}
-
+	
 	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
 	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
 	   is zero, if option_verbose is non-zero (this allows for 'level zero'
@@ -741,96 +908,48 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if ((level == __LOG_DEBUG) && !ast_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
+	/* Build string */
+	va_start(ap, fmt);
+	res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
+	va_end(ap);
+
+	/* If the build failed, then abort and free this structure */
+	if (res == AST_DYNSTR_BUILD_FAILED)
+		return;
+
+	/* Create a new logging message */
+	if (!(logmsg = ast_calloc(1, sizeof(*logmsg) + res + 1)))
+		return;
+	
+	/* Copy string over */
+	strcpy(logmsg->str, buf->str);
+
+	/* Set type to be normal */
+	logmsg->type = LOGMSG_NORMAL;
+
+	/* Create our date/time */
 	time(&t);
 	localtime_r(&t, &tm);
-	strftime(date, sizeof(date), dateformat, &tm);
+	strftime(logmsg->date, sizeof(logmsg->date), dateformat, &tm);
 
-	AST_LIST_LOCK(&logchannels);
+	/* Copy over data */
+	logmsg->level = level;
+	logmsg->file = file;
+	logmsg->line = line;
+	logmsg->function = function;
 
-	if (logfiles.event_log && level == __LOG_EVENT) {
-		va_start(ap, fmt);
-
-		fprintf(eventlog, "%s asterisk[%ld]: ", date, (long)getpid());
-		vfprintf(eventlog, fmt, ap);
-		fflush(eventlog);
-
-		va_end(ap);
-		AST_LIST_UNLOCK(&logchannels);
-		return;
+	/* If the logger thread is active, append it to the tail end of the list - otherwise skip that step */
+	if (logthread != AST_PTHREADT_NULL) {
+		AST_LIST_LOCK(&logmsgs);
+		AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+		ast_cond_signal(&logcond);
+		AST_LIST_UNLOCK(&logmsgs);
+	} else {
+		logger_print_normal(logmsg);
+		free(logmsg);
 	}
 
-	AST_LIST_TRAVERSE(&logchannels, chan, list) {
-		if (chan->disabled)
-			break;
-		/* Check syslog channels */
-		if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
-			va_start(ap, fmt);
-			ast_log_vsyslog(level, file, line, function, fmt, ap);
-			va_end(ap);
-		/* Console channels */
-		} else if ((chan->logmask & (1 << level)) && (chan->type == LOGTYPE_CONSOLE)) {
-			char linestr[128];
-			char tmp1[80], tmp2[80], tmp3[80], tmp4[80];
-
-			if (level != __LOG_VERBOSE) {
-				int res;
-				sprintf(linestr, "%d", line);
-				ast_str_set(&buf, BUFSIZ,
-					"[%s] %s[%ld]: %s:%s %s: ",
-					date,
-					term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-					(long)GETTID(),
-					term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
-					term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
-					term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
-				/*filter to the console!*/
-				term_filter_escapes(buf->str);
-				ast_console_puts_mutable(buf->str);
-				
-				va_start(ap, fmt);
-				res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
-				va_end(ap);
-				if (res != AST_DYNSTR_BUILD_FAILED)
-					ast_console_puts_mutable(buf->str);
-			}
-		/* File channels */
-		} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
-			int res;
-			ast_str_set(&buf, BUFSIZ,
-				"[%s] %s[%ld] %s: ",
-				date, levels[level], (long)GETTID(), file);
-			res = fprintf(chan->fileptr, "%s", buf->str);
-			if (res <= 0 && !ast_strlen_zero(buf->str)) {	/* Error, no characters printed */
-				fprintf(stderr,"**** Asterisk Logging Error: ***********\n");
-				if (errno == ENOMEM || errno == ENOSPC) {
-					fprintf(stderr, "Asterisk logging error: Out of disk space, can't log to log file %s\n", chan->filename);
-				} else
-					fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
-				manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
-				chan->disabled = 1;	
-			} else {
-				int res;
-				/* No error message, continue printing */
-				va_start(ap, fmt);
-				res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);
-				va_end(ap);
-				if (res != AST_DYNSTR_BUILD_FAILED) {
-					term_strip(buf->str, buf->str, buf->len);
-					fputs(buf->str, chan->fileptr);
-					fflush(chan->fileptr);
-				}
-			}
-		}
-	}
-
-	AST_LIST_UNLOCK(&logchannels);
-
-	if (filesize_reload_needed) {
-		reload_logger(1);
-		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
-		if (option_verbose)
-			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
-	}
+	return;
 }
 
 void ast_backtrace(void)
@@ -867,11 +986,31 @@ void ast_backtrace(void)
 
 void ast_verbose(const char *fmt, ...)
 {
-	struct verb *v;
-	struct ast_str *buf;
-	int res;
+	struct logmsg *logmsg = NULL;
+	struct ast_str *buf = NULL;
+	int res = 0;
 	va_list ap;
 
+	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
+		return;
+
+	/* Build string */
+	va_start(ap, fmt);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
+	va_end(ap);
+
+	/* If the build failed then we can drop this allocated message */
+	if (res == AST_DYNSTR_BUILD_FAILED)
+		return;
+
+	if (!(logmsg = ast_calloc(1, sizeof(*logmsg) + res + 1)))
+		return;
+
+	strcpy(logmsg->str, buf->str);
+
+	/* Set type */
+	logmsg->type = LOGMSG_VERBOSE;
+	
 	if (ast_opt_timestamp) {
 		time_t t;
 		struct tm tm;
@@ -886,25 +1025,16 @@ void ast_verbose(const char *fmt, ...)
 		fmt = datefmt;
 	}
 
-	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
-		return;
-
-	va_start(ap, fmt);
-	res = ast_str_set_va(&buf, 0, fmt, ap);
-	va_end(ap);
-
-	if (res == AST_DYNSTR_BUILD_FAILED)
-		return;
-	
-	/* filter out possibly hazardous escape sequences */
-	term_filter_escapes(buf->str);
-
-	AST_LIST_LOCK(&verbosers);
-	AST_LIST_TRAVERSE(&verbosers, v, list)
-		v->verboser(buf->str);
-	AST_LIST_UNLOCK(&verbosers);
-
-	ast_log(LOG_VERBOSE, "%s", buf->str);
+	/* Add to the list and poke the thread if possible */
+	if (logthread != AST_PTHREADT_NULL) {
+		AST_LIST_LOCK(&logmsgs);
+		AST_LIST_INSERT_TAIL(&logmsgs, logmsg, list);
+		ast_cond_signal(&logcond);
+		AST_LIST_UNLOCK(&logmsgs);
+	} else {
+		logger_print_verbose(logmsg);
+		free(logmsg);
+	}
 }
 
 int ast_register_verbose(void (*v)(const char *string)) 
