@@ -189,8 +189,7 @@ static const unsigned short escapes[] = {
 
 #define SMSLEN 160              /*!< max SMS length */
 
-typedef struct sms_s
-{
+typedef struct sms_s {
 	unsigned char hangup;        /*!< we are done... */
 	unsigned char err;           /*!< set for any errors */
 	unsigned char smsc:1;        /*!< we are SMSC */
@@ -1556,110 +1555,26 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
  * bits in h->ibitt.
  * XXX the rest is to be determined.
  */
-static void sms_process (sms_t * h, int samples, signed short *data)
+static void sms_process(sms_t * h, int samples, signed short *data)
 {
-#if 1
-	/* Do we really need to remain deaf while a packet is
-	 * being transmitted ?
+	int bit;
+
+	/*
+	 * Ignore incoming audio while a packet is being transmitted,
+	 * the protocol is half-duplex.
+	 * Unfortunately this means that if the outbound and incoming
+	 * transmission overlap (which is an error condition anyways),
+	 * we may miss some data and this makes debugging harder.
 	 */
 	if (h->obyten || h->osync)
-		return;						 /* sending */
-#endif
-	while (samples--) {
+		return;
+	for ( ; samples-- ; data++) {
 		unsigned long long m0, m1;
 		if (abs (*data) > h->imag)
 			h->imag = abs (*data);
 		else
 			h->imag = h->imag * 7 / 8;
-		if (h->imag > 500) {
-			h->idle = 0;
-
-			/* multiply signal by the two carriers. */
-			h->ims0 = (h->ims0 * 6 + *data * wave[h->ips0]) / 7;
-			h->imc0 = (h->imc0 * 6 + *data * wave[h->ipc0]) / 7;
-			h->ims1 = (h->ims1 * 6 + *data * wave[h->ips1]) / 7;
-			h->imc1 = (h->imc1 * 6 + *data * wave[h->ipc1]) / 7;
-			/* compute the amplitudes */
-			m0 = h->ims0 * h->ims0 + h->imc0 * h->imc0;
-			m1 = h->ims1 * h->ims1 + h->imc1 * h->imc1;
-
-			/* advance the sin/cos pointers */
-			if ((h->ips0 += 21) >= 80)
-				h->ips0 -= 80;
-			if ((h->ipc0 += 21) >= 80)
-				h->ipc0 -= 80;
-			if ((h->ips1 += 13) >= 80)
-				h->ips1 -= 80;
-			if ((h->ipc1 += 13) >= 80)
-				h->ipc1 -= 80;
-			{
-				char bit;
-
-				/* set new bit to 1 or 0 depending on which value is stronger */
-				h->ibith <<= 1;
-				if (m1 > m0)
-					h->ibith |= 1;
-				if (h->ibith & 8)
-					h->ibitt--;
-				if (h->ibith & 1)
-					h->ibitt++;
-				bit = ((h->ibitt > 1) ? 1 : 0);
-				if (bit != h->ibitl)
-					h->ibitc = 1;
-				else
-					h->ibitc++;
-				h->ibitl = bit;
-				if (!h->ibitn && h->ibitc == 4 && !bit) {
-					h->ibitn = 1;
-					h->iphasep = 0;
-				}
-				if (bit && h->ibitc == 200) {						 /* sync, restart message */
-					/* Protocol 2: empty connnection ready (I am master) */
-					if(h->framenumber<0 && h->ibytec>=160 && !memcmp(h->imsg,"UUUUUUUUUUUUUUUUUUUU",20)) {
-						h->framenumber = 1;
-						if (option_verbose > 2)
-							ast_verbose (VERBOSE_PREFIX_3 "SMS protocol 2 detected\n");
-						h->protocol = 2;
-						h->imsg[0] = 0xff;      /* special message (fake) */
-						h->imsg[1] = h->imsg[2] = 0x00;
-						h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
-						sms_messagerx (h);
-					}
-					h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
-				}
-				if (h->ibitn) {
-					h->iphasep += 12;
-					if (h->iphasep >= 80) {			 		/* next bit */
-						h->iphasep -= 80;
-						if (h->ibitn++ == 9) {		 		/* end of byte */
-							if (!bit) { /* bad stop bit */
-								ast_log(LOG_NOTICE, "bad stop bit");
-								h->ierr = 0xFF; /* unknown error */
-							} else {
-								if (h->ibytep < sizeof (h->imsg)) {
-									h->imsg[h->ibytep] = h->ibytev;
-									h->ibytec += h->ibytev;
-									h->ibytep++;
-								} else if (h->ibytep == sizeof (h->imsg)) {
-									ast_log(LOG_NOTICE, "msg too large");
-									h->ierr = 2; /* bad message length */
-								}
-								if (h->ibytep > 1 && h->ibytep == 3 + h->imsg[1] && !h->ierr) {
-									if (!h->ibytec)
-										sms_messagerx (h);
-									else {
-										ast_log(LOG_NOTICE, "bad checksum");
-										h->ierr = 1;		/* bad checksum */
-									}
-								}
-							}
-							h->ibitn = 0;
-						}
-						h->ibytev = (h->ibytev >> 1) + (bit ? 0x80 : 0);
-					}
-				}
-			}
-		} else {			 /* lost carrier */
+		if (h->imag <= 500) {		/* below [arbitrary] threahold: lost carrier */
 			if (h->idle++ == 80000) {		 /* nothing happening */
 				ast_log (LOG_NOTICE, "No data, hanging up\n");
 				h->hangup = 1;
@@ -1675,8 +1590,92 @@ static void sms_process (sms_t * h, int samples, signed short *data)
 				sms_messagetx (h);  /* send error */
 			}
 			h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
+			continue;
 		}
-		data++;
+		h->idle = 0;
+
+		/* multiply signal by the two carriers. */
+		h->ims0 = (h->ims0 * 6 + *data * wave[h->ips0]) / 7;
+		h->imc0 = (h->imc0 * 6 + *data * wave[h->ipc0]) / 7;
+		h->ims1 = (h->ims1 * 6 + *data * wave[h->ips1]) / 7;
+		h->imc1 = (h->imc1 * 6 + *data * wave[h->ipc1]) / 7;
+		/* compute the amplitudes */
+		m0 = h->ims0 * h->ims0 + h->imc0 * h->imc0;
+		m1 = h->ims1 * h->ims1 + h->imc1 * h->imc1;
+
+		/* advance the sin/cos pointers */
+		if ((h->ips0 += 21) >= 80)
+			h->ips0 -= 80;
+		if ((h->ipc0 += 21) >= 80)
+			h->ipc0 -= 80;
+		if ((h->ips1 += 13) >= 80)
+			h->ips1 -= 80;
+		if ((h->ipc1 += 13) >= 80)
+			h->ipc1 -= 80;
+
+		/* set new bit to 1 or 0 depending on which value is stronger */
+		h->ibith <<= 1;
+		if (m1 > m0)
+			h->ibith |= 1;
+		if (h->ibith & 8)
+			h->ibitt--;
+		if (h->ibith & 1)
+			h->ibitt++;
+		bit = ((h->ibitt > 1) ? 1 : 0);
+		if (bit != h->ibitl)
+			h->ibitc = 1;
+		else
+			h->ibitc++;
+		h->ibitl = bit;
+		if (!h->ibitn && h->ibitc == 4 && !bit) {
+			h->ibitn = 1;
+			h->iphasep = 0;
+		}
+		if (bit && h->ibitc == 200) {						 /* sync, restart message */
+			/* Protocol 2: empty connnection ready (I am master) */
+			if(h->framenumber<0 && h->ibytec>=160 && !memcmp(h->imsg,"UUUUUUUUUUUUUUUUUUUU",20)) {
+				h->framenumber = 1;
+				if (option_verbose > 2)
+					ast_verbose (VERBOSE_PREFIX_3 "SMS protocol 2 detected\n");
+				h->protocol = 2;
+				h->imsg[0] = 0xff;      /* special message (fake) */
+				h->imsg[1] = h->imsg[2] = 0x00;
+				h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
+				sms_messagerx (h);
+			}
+			h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
+		}
+		if (h->ibitn) {
+			h->iphasep += 12;
+			if (h->iphasep >= 80) {			 		/* next bit */
+				h->iphasep -= 80;
+				if (h->ibitn++ == 9) {		 		/* end of byte */
+					if (!bit) { /* bad stop bit */
+						ast_log(LOG_NOTICE, "bad stop bit");
+						h->ierr = 0xFF; /* unknown error */
+					} else {
+						if (h->ibytep < sizeof (h->imsg)) {
+							h->imsg[h->ibytep] = h->ibytev;
+							h->ibytec += h->ibytev;
+							h->ibytep++;
+						} else if (h->ibytep == sizeof (h->imsg)) {
+							ast_log(LOG_NOTICE, "msg too large");
+							h->ierr = 2; /* bad message length */
+						}
+						if (h->ibytep > 1 && h->ibytep == 3 + h->imsg[1] && !h->ierr) {
+							if (!h->ibytec)
+								sms_messagerx (h);
+							else {
+								ast_log(LOG_NOTICE, "bad checksum");
+								h->ierr = 1;		/* bad checksum */
+							}
+						}
+					}
+					h->ibitn = 0;
+				}
+				h->ibytev = (h->ibytev >> 1) + (bit ? 0x80 : 0);
+			}
+		}
 	}
 }
 
