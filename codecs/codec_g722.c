@@ -5,6 +5,9 @@
  *
  * Matthew Fredrickson <creslin@digium.com>
  *
+ * Special thanks to Steve Underwood for the implementation
+ * and for doing the 8khz<->g.722 direct translation code.
+ *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
  * any of the maintainers of this project for assistance;
