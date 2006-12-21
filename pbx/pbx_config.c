@@ -1482,6 +1482,8 @@ static int pbx_load_config(const char *config_file)
 					data = "";
 				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
 					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+			} else {
+				ast_log(LOG_WARNING, "==!!== Unknown directive: %s at line %d -- IGNORING!!!\n", v->name, v->lineno);
 			}
 		}
 	}
