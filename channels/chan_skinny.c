@@ -1391,7 +1391,7 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 	if (skinnydebug)
 		ast_log(LOG_VERBOSE, "writing packet type %04X (%d bytes) to socket %d\n", letohl(req->e), letohl(req->len)+8, s->fd);
 
-	if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0) {
+	if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0)) {
 		ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
 		return -1;
 	}
