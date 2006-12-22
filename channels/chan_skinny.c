@@ -1388,14 +1388,17 @@ static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 	int res = 0;
 	ast_mutex_lock(&s->lock);
 
-#if 0
 	if (skinnydebug)
-		ast_verbose("writing packet type %04X (%d bytes) to socket %d\n", letohl(req->e), letohl(req->len)+8, s->fd);
-#endif
+		ast_log(LOG_VERBOSE, "writing packet type %04X (%d bytes) to socket %d\n", letohl(req->e), letohl(req->len)+8, s->fd);
+
+	if (letohl(req->len > SKINNY_MAX_PACKET) || letohl(req->len < 0) {
+		ast_log(LOG_WARNING, "transmit_response: the length of the request is out of bounds\n");
+		return -1;
+	}
 
 	memset(s->outbuf,0,sizeof(s->outbuf));
 	memcpy(s->outbuf, req, skinny_header_size);
-	memcpy(s->outbuf+skinny_header_size, &req->data, sizeof(union skinny_data));
+	memcpy(s->outbuf+skinny_header_size, &req->data, letohl(req->len));
 
 	res = write(s->fd, s->outbuf, letohl(req->len)+8);
 
