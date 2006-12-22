@@ -258,9 +258,9 @@ typedef struct sms_s {
 } sms_t;
 
 /* different types of encoding */
-#define is7bit(dcs) (((dcs)&0xC0)?(!((dcs)&4)):(!((dcs)&12)))
-#define is8bit(dcs) (((dcs)&0xC0)?(((dcs)&4)):(((dcs)&12)==4))
-#define is16bit(dcs) (((dcs)&0xC0)?0:(((dcs)&12)==8))
+#define is7bit(dcs)	( ((dcs) & 0xC0) ? (!((dcs)&4) ) : (((dcs) & 0xc) == 0) )
+#define is8bit(dcs)	( ((dcs) & 0xC0) ? ( ((dcs)&4) ) : (((dcs) & 0xc) == 4) )
+#define is16bit(dcs)	( ((dcs) & 0xC0) ? 0             : (((dcs) & 0xc) == 8) )
 
 static void sms_messagetx (sms_t * h);
 
