@@ -1216,11 +1216,7 @@ const time_t * const	timep;
 char *buf;
 {
         struct tm tm;
-#ifdef SOLARIS
-	return asctime_r(localtime_r(timep, &tm), buf, 256);
-#else
 	return asctime_r(localtime_r(timep, &tm), buf);
-#endif
 }
 
 /*
