@@ -64,4 +64,4 @@ Changes since Asterisk 1.4-beta was branched:
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
-
+  * Added the URI redirect option for the built-in HTTP server

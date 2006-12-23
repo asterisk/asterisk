@@ -9,11 +9,6 @@
 ;
 ;enabled=yes
 ;
-; Whether Asterisk should serve static content from http-static
-; Default is no.
-;
-;enablestatic=yes
-;
 ; Address to bind to, both for HTTP and HTTPS.  Default is 0.0.0.0
 ;
 bindaddr=127.0.0.1
@@ -27,7 +22,20 @@ bindaddr=127.0.0.1
 ; requests must begin with /asterisk
 ;
 ;prefix=asterisk
-
+;
+; Whether Asterisk should serve static content from http-static
+; Default is no.
+;
+;enablestatic=yes
+;
+; Redirect one URI to another.  This is how you would set a
+; default page.  
+;   Syntax: redirect=<from here>=<to there>
+; For example, if you are using the Asterisk-gui,
+; it is convenient to enable the following redirect:
+;
+;redirect=/=/asterisk/static/config/cfgadvanced.html
+;
 ; HTTPS support. In addition to enabled=yes, you need to
 ; explicitly enable ssl, define the port to use,
 ; and have a certificate somewhere.

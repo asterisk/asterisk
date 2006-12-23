@@ -147,7 +147,7 @@ int ssl_setup(struct tls_config *cfg);
 typedef struct ast_str *(*ast_http_callback)(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
 
 struct ast_http_uri {
-	struct ast_http_uri *next;
+	AST_LIST_ENTRY(ast_http_uri) entry;
 	const char *description;
 	const char *uri;
 	int has_subtree;

@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 #include "asterisk/options.h"
 #include "asterisk/config.h"
+#include "asterisk/stringfields.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "/asterisk"
@@ -106,7 +107,7 @@ static struct server_args https_desc = {
 	.worker_fn = httpd_helper_thread,
 };
 
-static struct ast_http_uri *uris;	/*!< list of supported handlers */
+static AST_LIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handlers */
 
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
@@ -123,6 +124,16 @@ static struct {
 	{ "wav", "audio/x-wav" },
 	{ "mp3", "audio/mpeg" },
 };
+
+struct http_uri_redirect {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(target);
+		AST_STRING_FIELD(dest);
+	);
+	AST_LIST_ENTRY(http_uri_redirect) entry;
+};
+
+static AST_LIST_HEAD_STATIC(uri_redirects, http_uri_redirect);
 
 static char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 {
@@ -297,37 +308,38 @@ struct ast_str *ast_http_error(int status, const char *title, const char *extra_
  */
 int ast_http_uri_link(struct ast_http_uri *urih)
 {
-	struct ast_http_uri *prev=uris;
+	struct ast_http_uri *uri;
 	int len = strlen(urih->uri);
 
-	if (!uris || strlen(uris->uri) <= len ) {
-		urih->next = uris;
-		uris = urih;
-	} else {
-		while (prev->next && strlen(prev->next->uri) > len)
-			prev = prev->next;
-		/* Insert it here */
-		urih->next = prev->next;
-		prev->next = urih;
+	AST_LIST_LOCK(&uris);
+
+	if ( AST_LIST_EMPTY(&uris) || strlen(AST_LIST_FIRST(&uris)->uri) <= len ) {
+		AST_LIST_INSERT_HEAD(&uris, urih, entry);
+		AST_LIST_UNLOCK(&uris);
+		return 0;
 	}
+
+	AST_LIST_TRAVERSE(&uris, uri, entry) {
+		if ( AST_LIST_NEXT(uri, entry) 
+			&& strlen(AST_LIST_NEXT(uri, entry)->uri) <= len ) {
+			AST_LIST_INSERT_AFTER(&uris, uri, urih, entry);
+			AST_LIST_UNLOCK(&uris); 
+			return 0;
+		}
+	}
+
+	AST_LIST_INSERT_TAIL(&uris, urih, entry);
+
+	AST_LIST_UNLOCK(&uris);
+	
 	return 0;
 }	
 
 void ast_http_uri_unlink(struct ast_http_uri *urih)
 {
-	struct ast_http_uri *prev = uris;
-	if (!uris)
-		return;
-	if (uris == urih) {
-		uris = uris->next;
-	}
-	while(prev->next) {
-		if (prev->next == urih) {
-			prev->next = urih->next;
-			break;
-		}
-		prev = prev->next;
-	}
+	AST_LIST_LOCK(&uris);
+	AST_LIST_REMOVE(&uris, urih, entry);
+	AST_LIST_UNLOCK(&uris);
 }
 
 static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
@@ -338,6 +350,7 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 	struct ast_http_uri *urih=NULL;
 	int l;
 	struct ast_variable *vars=NULL, *v, *prev = NULL;
+	struct http_uri_redirect *redirect;
 
 	strsep(&params, "?");
 	/* Extract arguments from the request and store them in variables. */
@@ -372,12 +385,29 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 	*cookies = NULL;
 	ast_uri_decode(uri);
 
+	AST_LIST_LOCK(&uri_redirects);
+	AST_LIST_TRAVERSE(&uri_redirects, redirect, entry) {
+		if (!strcasecmp(uri, redirect->target)) {
+			char buf[512];
+			snprintf(buf, sizeof(buf), "Location: %s\r\n", redirect->dest);
+			out = ast_http_error(302, "Moved Temporarily", buf,
+				"There is no spoon...");
+			*status = 302;
+			*title = strdup("Moved Temporarily");
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&uri_redirects);
+	if (redirect)
+		goto cleanup;
+
 	/* We want requests to start with the prefix and '/' */
 	l = strlen(prefix);
 	if (l && !strncasecmp(uri, prefix, l) && uri[l] == '/') {
 		uri += l + 1;
 		/* scan registered uris to see if we match one. */
-		for (urih = uris; urih; urih = urih->next) {
+		AST_LIST_LOCK(&uris);
+		AST_LIST_TRAVERSE(&uris, urih, entry) {
 			l = strlen(urih->uri);
 			c = uri + l;	/* candidate */
 			if (strncasecmp(urih->uri, uri, l) /* no match */
@@ -390,22 +420,20 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 				break;
 			}
 		}
+		if (!urih)
+			AST_LIST_UNLOCK(&uris);
 	}
 	if (urih) {
 		out = urih->callback(sin, uri, vars, status, title, contentlength);
-	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
-		/* Special case: no prefix, no URI, send to /static/index.html */
-		out = ast_http_error(302, "Moved Temporarily",
-			"Location: /static/index.html\r\n",
-			"This is not the page you are looking for...");
-		*status = 302;
-		*title = strdup("Moved Temporarily");
+		AST_LIST_UNLOCK(&uris);
 	} else {
 		out = ast_http_error(404, "Not Found", NULL,
 			"The requested URL was not found on this server.");
 		*status = 404;
 		*title = strdup("Not Found");
 	}
+
+cleanup:
 	ast_variables_destroy(vars);
 	return out;
 }
@@ -778,6 +806,66 @@ error:
 	desc->accept_fd = -1;
 }
 
+/*!
+ * \brief Add a new URI redirect
+ * The entries in the redirect list are sorted by length, just like the list
+ * of URI handlers.
+ */
+static void add_redirect(const char *value)
+{
+	char *target, *dest;
+	struct http_uri_redirect *redirect, *cur;
+	unsigned int len;
+
+	dest = ast_strdupa(value);
+	target = strsep(&dest, "=");
+
+	if (!dest) {
+		ast_log(LOG_WARNING, "Invalid redirect '%s'\n", value);
+		return;
+	}
+
+	if (!(redirect = ast_calloc(1, sizeof(*redirect))))
+		return;
+
+	if (ast_string_field_init(redirect, 32)) {
+		free(redirect);
+		return;
+	}
+
+	ast_string_field_set(redirect, target, target);
+	ast_string_field_set(redirect, dest, dest);
+
+	AST_LIST_LOCK(&uri_redirects);
+
+	len = strlen(target);
+	if ( AST_LIST_EMPTY(&uri_redirects) 
+		|| strlen(AST_LIST_FIRST(&uri_redirects)->target) <= len ) {
+		AST_LIST_INSERT_HEAD(&uri_redirects, redirect, entry);
+		AST_LIST_UNLOCK(&uri_redirects);
+		return;
+	}
+
+	AST_LIST_TRAVERSE(&uri_redirects, cur, entry) {
+		if ( AST_LIST_NEXT(cur, entry) 
+			&& strlen(AST_LIST_NEXT(cur, entry)->target) <= len ) {
+			AST_LIST_INSERT_AFTER(&uri_redirects, cur, redirect, entry);
+			AST_LIST_UNLOCK(&uri_redirects); 
+			return;
+		}
+	}
+
+	AST_LIST_INSERT_TAIL(&uri_redirects, redirect, entry);
+
+	AST_LIST_UNLOCK(&uri_redirects);
+}
+
+static void destroy_redirect(struct http_uri_redirect *redirect)
+{
+	ast_string_field_free_all(redirect);
+	free(redirect);
+}
+
 static int __ast_http_load(int reload)
 {
 	struct ast_config *cfg;
@@ -788,6 +876,7 @@ static int __ast_http_load(int reload)
 	struct ast_hostent ahp;
 	char newprefix[MAX_PREFIX];
 	int have_sslbindaddr = 0;
+	struct http_uri_redirect *redirect;
 
 	/* default values */
 	memset(&http_desc.sin, 0, sizeof(http_desc.sin));
@@ -796,7 +885,6 @@ static int __ast_http_load(int reload)
 	memset(&https_desc.sin, 0, sizeof(https_desc.sin));
 	https_desc.sin.sin_port = htons(8089);
 	strcpy(newprefix, DEFAULT_PREFIX);
-	cfg = ast_config_load("http.conf");
 
 	http_tls_cfg.enabled = 0;
 	if (http_tls_cfg.certfile)
@@ -806,9 +894,15 @@ static int __ast_http_load(int reload)
 		free(http_tls_cfg.cipher);
 	http_tls_cfg.cipher = ast_strdup("");
 
+	AST_LIST_LOCK(&uri_redirects);
+	while ((redirect = AST_LIST_REMOVE_HEAD(&uri_redirects, entry)))
+		destroy_redirect(redirect);
+	AST_LIST_UNLOCK(&uri_redirects);
+
+	cfg = ast_config_load("http.conf");
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
-		while(v) {
+		for (; v; v = v->next) {
 			if (!strcasecmp(v->name, "enabled"))
 				enabled = ast_true(v->value);
 			else if (!strcasecmp(v->name, "sslenable"))
@@ -846,9 +940,11 @@ static int __ast_http_load(int reload)
 				} else {
 					newprefix[0] = '\0';
 				}
-					
+			} else if (!strcasecmp(v->name, "redirect")) {
+				add_redirect(v->value);
+			} else {
+				ast_log(LOG_WARNING, "Ignoring unknown option '%s' in http.conf\n", v->name);
 			}
-			v = v->next;
 		}
 		ast_config_destroy(cfg);
 	}
@@ -868,8 +964,11 @@ static int __ast_http_load(int reload)
 static int handle_show_http(int fd, int argc, char *argv[])
 {
 	struct ast_http_uri *urih;
+	struct http_uri_redirect *redirect;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	ast_cli(fd, "HTTP Server Status:\n");
 	ast_cli(fd, "Prefix: %s\n", prefix);
 	if (!http_desc.oldsin.sin_family)
@@ -883,14 +982,23 @@ static int handle_show_http(int fd, int argc, char *argv[])
 				ast_inet_ntoa(https_desc.oldsin.sin_addr),
 				ntohs(https_desc.oldsin.sin_port));
 	}
+
 	ast_cli(fd, "Enabled URI's:\n");
-	urih = uris;
-	while(urih){
+	AST_LIST_LOCK(&uris);
+	AST_LIST_TRAVERSE(&uris, urih, entry)
 		ast_cli(fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
-		urih = urih->next;
-	}
-	if (!uris)
+	if (AST_LIST_EMPTY(&uris))
 		ast_cli(fd, "None.\n");
+	AST_LIST_UNLOCK(&uris);
+
+	ast_cli(fd, "\nEnabled Redirects:\n");
+	AST_LIST_LOCK(&uri_redirects);
+	AST_LIST_TRAVERSE(&uri_redirects, redirect, entry)
+		ast_cli(fd, "  %s => %s\n", redirect->target, redirect->dest);
+	if (AST_LIST_EMPTY(&uri_redirects))
+		ast_cli(fd, "  None.\n");
+	AST_LIST_UNLOCK(&uri_redirects);
+
 	return RESULT_SUCCESS;
 }
 
