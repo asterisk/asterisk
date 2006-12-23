@@ -666,6 +666,7 @@ static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
 
 #ifndef HAVE_PTHREAD_RWLOCK_INITIALIZER
 #define __AST_RWLOCK_DEFINE(scope, rwlock) \
+        scope ast_rwlock_t rwlock; \
 static void  __attribute__ ((constructor)) init_##rwlock(void) \
 { \
         ast_rwlock_init(&rwlock); \
