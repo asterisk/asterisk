@@ -30,11 +30,11 @@ bindaddr=127.0.0.1
 ;
 ; Redirect one URI to another.  This is how you would set a
 ; default page.  
-;   Syntax: redirect=<from here>=<to there>
+;   Syntax: redirect=<from here> <to there>
 ; For example, if you are using the Asterisk-gui,
 ; it is convenient to enable the following redirect:
 ;
-;redirect=/=/asterisk/static/config/cfgadvanced.html
+;redirect = / /asterisk/static/config/cfgadvanced.html
 ;
 ; HTTPS support. In addition to enabled=yes, you need to
 ; explicitly enable ssl, define the port to use,

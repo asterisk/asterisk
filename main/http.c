@@ -817,7 +817,10 @@ static void add_redirect(const char *value)
 	unsigned int total_len;
 
 	dest = ast_strdupa(value);
-	target = strsep(&dest, "=");
+	dest = ast_skip_blanks(dest);
+	target = strsep(&dest, " ");
+	target = ast_skip_blanks(target);
+	target = strsep(&target, " "); /* trim trailing whitespace */
 
 	if (!dest) {
 		ast_log(LOG_WARNING, "Invalid redirect '%s'\n", value);
