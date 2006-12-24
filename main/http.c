@@ -126,11 +126,9 @@ static struct {
 };
 
 struct http_uri_redirect {
-	AST_DECLARE_STRING_FIELDS(
-		AST_STRING_FIELD(target);
-		AST_STRING_FIELD(dest);
-	);
 	AST_LIST_ENTRY(http_uri_redirect) entry;
+	char *dest;
+	char target[0];
 };
 
 static AST_LIST_HEAD_STATIC(uri_redirects, http_uri_redirect);
@@ -815,7 +813,8 @@ static void add_redirect(const char *value)
 {
 	char *target, *dest;
 	struct http_uri_redirect *redirect, *cur;
-	unsigned int len;
+	unsigned int target_len;
+	unsigned int total_len;
 
 	dest = ast_strdupa(value);
 	target = strsep(&dest, "=");
@@ -825,22 +824,21 @@ static void add_redirect(const char *value)
 		return;
 	}
 
-	if (!(redirect = ast_calloc(1, sizeof(*redirect))))
+	target_len = strlen(target) + 1;
+	total_len = sizeof(*redirect) + target_len + strlen(dest) + 1;
+
+	if (!(redirect = ast_calloc(1, total_len)))
 		return;
 
-	if (ast_string_field_init(redirect, 32)) {
-		free(redirect);
-		return;
-	}
-
-	ast_string_field_set(redirect, target, target);
-	ast_string_field_set(redirect, dest, dest);
+	redirect->dest = redirect->target + target_len;
+	strcpy(redirect->target, target);
+	strcpy(redirect->dest, dest);
 
 	AST_LIST_LOCK(&uri_redirects);
 
-	len = strlen(target);
+	target_len--; /* So we can compare directly with strlen() */
 	if ( AST_LIST_EMPTY(&uri_redirects) 
-		|| strlen(AST_LIST_FIRST(&uri_redirects)->target) <= len ) {
+		|| strlen(AST_LIST_FIRST(&uri_redirects)->target) <= target_len ) {
 		AST_LIST_INSERT_HEAD(&uri_redirects, redirect, entry);
 		AST_LIST_UNLOCK(&uri_redirects);
 		return;
@@ -848,7 +846,7 @@ static void add_redirect(const char *value)
 
 	AST_LIST_TRAVERSE(&uri_redirects, cur, entry) {
 		if ( AST_LIST_NEXT(cur, entry) 
-			&& strlen(AST_LIST_NEXT(cur, entry)->target) <= len ) {
+			&& strlen(AST_LIST_NEXT(cur, entry)->target) <= target_len ) {
 			AST_LIST_INSERT_AFTER(&uri_redirects, cur, redirect, entry);
 			AST_LIST_UNLOCK(&uri_redirects); 
 			return;
@@ -858,12 +856,6 @@ static void add_redirect(const char *value)
 	AST_LIST_INSERT_TAIL(&uri_redirects, redirect, entry);
 
 	AST_LIST_UNLOCK(&uri_redirects);
-}
-
-static void destroy_redirect(struct http_uri_redirect *redirect)
-{
-	ast_string_field_free_all(redirect);
-	free(redirect);
 }
 
 static int __ast_http_load(int reload)
@@ -896,7 +888,7 @@ static int __ast_http_load(int reload)
 
 	AST_LIST_LOCK(&uri_redirects);
 	while ((redirect = AST_LIST_REMOVE_HEAD(&uri_redirects, entry)))
-		destroy_redirect(redirect);
+		free(redirect);
 	AST_LIST_UNLOCK(&uri_redirects);
 
 	cfg = ast_config_load("http.conf");
