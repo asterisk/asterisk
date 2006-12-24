@@ -14241,11 +14241,11 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	} else if (p->owner) {
 		ast_queue_hangup(p->owner);
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n.");
+			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n");
 	} else {
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n.");
+			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n");
 	}
 	transmit_response(p, "200 OK", req);
 
