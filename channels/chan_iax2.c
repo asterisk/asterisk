@@ -1469,7 +1469,7 @@ static int try_firmware(char *s)
 		return -1;
 	}
 	fwh = mmap(NULL, stbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0); 
-	if (!fwh) {
+	if (fwh == (void *) -1) {
 		ast_log(LOG_WARNING, "mmap failed: %s\n", strerror(errno));
 		close(fd);
 		return -1;
