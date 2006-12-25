@@ -93,7 +93,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int tries = 1, to = 0, x = 0;
 	double tosec;
 	char *argcopy = NULL;
-	struct tone_zone_sound *ts;
+	struct ind_tone_zone_sound *ts;
 	struct ast_flags flags = {0};
 
 	 AST_DECLARE_APP_ARGS(arglist,

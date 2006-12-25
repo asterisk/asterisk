@@ -27,7 +27,7 @@
 
 #define PROGRAM "zones2indication"
 
-void print_tone_zone_sound(struct tone_zone *zone_data, const char* name, 
+void print_tone_zone_sound(struct ind_tone_zone *zone_data, const char* name, 
     int toneid) {
   int i;
   for (i=0; i<ZT_TONE_MAX; i++) {
@@ -38,7 +38,7 @@ void print_tone_zone_sound(struct tone_zone *zone_data, const char* name,
   }
 }
 
-void print_indications(struct tone_zone *zone_data) {
+void print_indications(struct ind_tone_zone *zone_data) {
   int i;
   
   printf (

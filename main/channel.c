@@ -2301,7 +2301,7 @@ int ast_indicate_data(struct ast_channel *chan, int condition, const void *data,
 		if (condition < 0)
 			ast_playtones_stop(chan);
 		else {
-			const struct tone_zone_sound *ts = NULL;
+			const struct ind_tone_zone_sound *ts = NULL;
 			switch (condition) {
 			case AST_CONTROL_RINGING:
 				ts = ast_get_indication_tone(chan->zone, "ring");
