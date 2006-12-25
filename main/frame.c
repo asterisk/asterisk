@@ -1084,7 +1084,7 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
 struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int format)
 {
 	int x, index = -1, framems = 0;
-	struct ast_format_list fmt;
+	struct ast_format_list fmt = { 0, };
 
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		if(AST_FORMAT_LIST[x].bits == format) {
