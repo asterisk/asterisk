@@ -27,6 +27,9 @@ AC_CONFIG_HEADER(include/asterisk/autoconfig.h)
 AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
+AC_GNU_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
+
 case "${host_os}" in
      freebsd*)
      ac_default_prefix=/usr/local
@@ -94,9 +97,6 @@ if test ! x"${UNAME}" = xNo; then
    PBX_OSREV=$(${UNAME} -r)
 fi
 AC_SUBST(PBX_OSREV)
-
-# This needs to be before any macros that use the C compiler
-AC_GNU_SOURCE
 
 AH_TOP(
 #ifndef ASTERISK_AUTOCONFIG_H
