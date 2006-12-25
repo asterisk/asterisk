@@ -46,6 +46,13 @@ enum
     G722_PACKED = 0x0002
 };
 
+#ifndef INT16_MAX
+#define INT16_MAX       32767
+#endif
+#ifndef INT16_MIN
+#define INT16_MIN       (-32768)
+#endif
+
 typedef struct
 {
     /*! TRUE if the operating in the special ITU test mode, with the band split filters
