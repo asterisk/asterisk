@@ -54,9 +54,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 			snprintf(buf, len, "\"%s\" <%s>", name, num);
 		} else if (!strncasecmp("name", data, 4)) {
 			ast_copy_string(buf, name, len);
-		} else if (!strncasecmp("num", data, 3) ||
-			   !strncasecmp("number", data, 6)) {
-
+		} else if (!strncasecmp("num", data, 3)) {
 			ast_copy_string(buf, num, len);
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
@@ -70,8 +68,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 			if (chan->cid.cid_name) {
 				ast_copy_string(buf, chan->cid.cid_name, len);
 			}
-		} else if (!strncasecmp("num", data, 3)
-				   || !strncasecmp("number", data, 6)) {
+		} else if (!strncasecmp("num", data, 3)) {
 			if (chan->cid.cid_num) {
 				ast_copy_string(buf, chan->cid.cid_num, len);
 			}
@@ -113,8 +110,7 @@ static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 			ast_set_callerid(chan, num, name, num);
 	} else if (!strncasecmp("name", data, 4)) {
 		ast_set_callerid(chan, NULL, value, NULL);
-	} else if (!strncasecmp("num", data, 3) ||
-		   !strncasecmp("number", data, 6)) {
+	} else if (!strncasecmp("num", data, 3)) { 
 		ast_set_callerid(chan, value, NULL, NULL);
 	} else if (!strncasecmp("ani", data, 3)) {
 		ast_set_callerid(chan, NULL, NULL, value);
