@@ -120,7 +120,6 @@ static int math(struct ast_channel *chan, char *cmd, char *parse,
 			iaction = LTEFUNCTION;
 		}
 	} else if ((op = strchr(mvalue1, '='))) {
-		iaction = GTFUNCTION;
 		*op = '\0';
 		if (*(op + 1) == '=') {
 			*++op = '\0';
