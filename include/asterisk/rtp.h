@@ -223,6 +223,7 @@ int ast_rtcp_send_h261fur(void *data);
 char *ast_rtp_get_quality(struct ast_rtp *rtp);              /*! \brief Return RTCP quality string */
 void ast_rtp_init(void);                                      /*! Initialize RTP subsystem */
 int ast_rtp_reload(void);                                     /*! reload rtp configuration */
+void ast_rtp_new_init(struct ast_rtp *rtp);
 
 /*! Set codec preference */
 int ast_rtp_codec_setpref(struct ast_rtp *rtp, struct ast_codec_pref *prefs);

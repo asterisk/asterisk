@@ -4800,10 +4800,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Initialize the temporary RTP structures we use to evaluate the offer from the peer */
 	newaudiortp = alloca(ast_rtp_alloc_size());
 	memset(newaudiortp, 0, ast_rtp_alloc_size());
+	ast_rtp_new_init(newaudiortp);
 	ast_rtp_pt_clear(newaudiortp);
 
 	newvideortp = alloca(ast_rtp_alloc_size());
 	memset(newvideortp, 0, ast_rtp_alloc_size());
+	ast_rtp_new_init(newvideortp);
 	ast_rtp_pt_clear(newvideortp);
 
 	/* Update our last rtprx when we receive an SDP, too */

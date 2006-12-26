@@ -1860,6 +1860,23 @@ static struct ast_rtcp *ast_rtcp_new(void)
 	return rtcp;
 }
 
+/*!
+ * \brief Initialize a new RTP structure.
+ *
+ */
+void ast_rtp_new_init(struct ast_rtp *rtp)
+{
+	ast_mutex_init(&rtp->bridge_lock);
+
+	rtp->them.sin_family = AF_INET;
+	rtp->us.sin_family = AF_INET;
+	rtp->ssrc = ast_random();
+	rtp->seqno = ast_random() & 0xffff;
+	ast_set_flag(rtp, FLAG_HAS_DTMF);
+
+	return;
+}
+
 struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr addr)
 {
 	struct ast_rtp *rtp;
@@ -1870,14 +1887,9 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	if (!(rtp = ast_calloc(1, sizeof(*rtp))))
 		return NULL;
 
-	ast_mutex_init(&rtp->bridge_lock);
+	ast_rtp_new_init(rtp);
 
-	rtp->them.sin_family = AF_INET;
-	rtp->us.sin_family = AF_INET;
 	rtp->s = rtp_socket();
-	rtp->ssrc = ast_random();
-	rtp->seqno = ast_random() & 0xffff;
-	ast_set_flag(rtp, FLAG_HAS_DTMF);
 	if (rtp->s < 0) {
 		free(rtp);
 		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
