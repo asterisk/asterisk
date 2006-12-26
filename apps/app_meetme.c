@@ -1979,25 +1979,21 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		if (!strcmp(confno, cnf->confno)) 
 			break;
 	}
-	if (cnf){
+	if (cnf) {
 		cnf->refcount += refcount;
 	}
 	AST_LIST_UNLOCK(&confs);
 
 	if (!cnf) {
 		char *pin = NULL, *pinadmin = NULL; /* For temp use */
-
-		cnf = ast_calloc(1, sizeof(struct ast_conference));
-		if (!cnf) {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			return NULL;
-		}
-
+		
 		var = ast_load_realtime("meetme", "confno", confno, NULL);
+
+		if (!var)
+			return NULL;
+
 		while (var) {
-			if (!strcasecmp(var->name, "confno")) {
-				ast_copy_string(cnf->confno, var->value, sizeof(cnf->confno));
-			} else if (!strcasecmp(var->name, "pin")) {
+			if (!strcasecmp(var->name, "pin")) {
 				pin = ast_strdupa(var->value);
 			} else if (!strcasecmp(var->name, "adminpin")) {
 				pinadmin = ast_strdupa(var->value);
@@ -2005,7 +2001,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 			var = var->next;
 		}
 		ast_variables_destroy(var);
-
+		
 		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount);
 	}
 
