@@ -209,6 +209,8 @@ char *ast_rtp_get_quality(struct ast_rtp *rtp);
 /*! \brief Send an H.261 fast update request. Some devices need this rather than the XML message  in SIP */
 int ast_rtcp_send_h261fur(void *data);
 
+void ast_rtp_new_init(struct ast_rtp *rtp);
+
 void ast_rtp_init(void);
 
 int ast_rtp_reload(void);
