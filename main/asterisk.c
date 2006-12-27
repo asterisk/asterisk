@@ -155,11 +155,11 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
-int option_verbose = 0;				/*!< Verbosity level */
-int option_debug = 0;				/*!< Debug level */
+int option_verbose;				/*!< Verbosity level */
+int option_debug;				/*!< Debug level */
 
-double option_maxload = 0.0;			/*!< Max load avg on system */
-int option_maxcalls = 0;			/*!< Max number of active calls */
+double option_maxload;				/*!< Max load avg on system */
+int option_maxcalls;				/*!< Max number of active calls */
 
 /*! @} */
 
@@ -186,8 +186,8 @@ static AST_LIST_HEAD_STATIC(atexits, ast_atexit);
 time_t ast_startuptime;
 time_t ast_lastreloadtime;
 
-static History *el_hist = NULL;
-static EditLine *el = NULL;
+static History *el_hist;
+static EditLine *el;
 static char *remotehostname;
 
 struct console consoles[AST_MAX_CONNECTS];
@@ -228,8 +228,8 @@ extern const char *ast_build_date;
 extern const char *ast_build_user;
 
 static char *_argv[256];
-static int shuttingdown = 0;
-static int restartnow = 0;
+static int shuttingdown;
+static int restartnow;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 
 static char randompool[256];

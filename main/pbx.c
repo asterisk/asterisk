@@ -246,7 +246,7 @@ static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 static int autofallthrough = 1;
 
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
-static int countcalls = 0;
+static int countcalls;
 
 static AST_RWLIST_HEAD_STATIC(acf_root, ast_custom_function);
 
@@ -460,7 +460,7 @@ static struct pbx_builtin {
 
 };
 
-static struct ast_context *contexts = NULL;
+static struct ast_context *contexts;
 AST_MUTEX_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
@@ -475,14 +475,14 @@ static int stateid = 1;
    paths that require both locks must also take them in that order.
 */
 static AST_RWLIST_HEAD_STATIC(hints, ast_hint);
-struct ast_state_cb *statecbs = NULL;
+struct ast_state_cb *statecbs;
 
 /*
    \note This function is special. It saves the stack so that no matter
    how many times it is called, it returns to the same place */
 int pbx_exec(struct ast_channel *c, 		/*!< Channel */
-		struct ast_app *app,		/*!< Application */
-		void *data)			/*!< Data for execution */
+	     struct ast_app *app,		/*!< Application */
+	     void *data)			/*!< Data for execution */
 {
 	int res;
 

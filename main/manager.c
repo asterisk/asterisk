@@ -106,12 +106,12 @@ struct eventqent {
 static AST_LIST_HEAD_STATIC(all_events, eventqent);
 
 static int displayconnects = 1;
-static int timestampevents = 0;
+static int timestampevents;
 static int httptimeout = 60;
 
 static pthread_t accept_thread_ptr;	/*!< the accept thread */
-static int block_sockets = 0;
-static int num_sessions = 0;
+static int block_sockets;
+static int num_sessions;
 
 static int manager_debug;	/*!< enable some debugging code in the manager */
 
@@ -173,7 +173,7 @@ struct ast_manager_user {
 static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 
 /*! \brief list of actions registered */
-static struct manager_action *first_action = NULL;
+static struct manager_action *first_action;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);

@@ -85,7 +85,7 @@ static struct enum_search {
 	struct enum_search *next;
 } *toplevs;
 
-static int enumver = 0;
+static int enumver;
 
 AST_MUTEX_DEFINE_STATIC(enumlock);
 

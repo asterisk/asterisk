@@ -57,7 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! Default AMA flag for billing records (CDR's) */
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
-char ast_default_accountcode[AST_MAX_ACCOUNT_CODE] = "";
+char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
 
 struct ast_cdr_beitem {
 	char name[20];
@@ -77,7 +77,7 @@ static struct ast_cdr_batch {
 	int size;
 	struct ast_cdr_batch_item *head;
 	struct ast_cdr_batch_item *tail;
-} *batch = NULL;
+} *batch;
 
 static struct sched_context *sched;
 static int cdr_sched = -1;

@@ -86,9 +86,9 @@ static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;
 
-static int filesize_reload_needed = 0;
+static int filesize_reload_needed;
 static int global_logmask = -1;
-static int rotatetimestamp = 0;
+static int rotatetimestamp;
 
 static struct {
 	unsigned int queue_log:1;
@@ -134,10 +134,10 @@ struct logmsg {
 static AST_LIST_HEAD_STATIC(logmsgs, logmsg);
 static pthread_t logthread = AST_PTHREADT_NULL;
 static ast_cond_t logcond;
-static int close_logger_thread = 0;
+static int close_logger_thread;
 
-static FILE *eventlog = NULL;
-static FILE *qlog = NULL;
+static FILE *eventlog;
+static FILE *qlog;
 
 static char *levels[] = {
 	"DEBUG",

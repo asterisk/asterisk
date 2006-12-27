@@ -111,7 +111,7 @@ static AST_LIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handlers
 
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
-static int enablestatic=0;
+static int enablestatic;
 
 /*! \brief Limit the kinds of files we're willing to serve up */
 static struct {
