@@ -16485,10 +16485,6 @@ static int reload_config(enum channelreloadreason reason)
 			default_maxcallbitrate = atoi(v->value);
 			if (default_maxcallbitrate < 0)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
-		} else if (!strcasecmp(v->name, "rfc2833compensate")) {	/* XXX maybe ast_set2_flags ? */
-			if (ast_true(v->value)) {
-				ast_set_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE);
-			}
 		}
 	}
 
