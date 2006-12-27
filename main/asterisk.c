@@ -142,7 +142,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
 	ast_verbose("This is free software, with components licensed under the GNU General Public\n"); \
 	ast_verbose("License version 2 and other licenses; you are welcome to redistribute it under\n"); \
 	ast_verbose("certain conditions. Type 'core show license' for details.\n"); \
-	ast_verbose("=========================================================================\n")
+	ast_verbose("=========================================================================\n"); \
+	ast_verbose("NOTE: This is a development version of Asterisk, and should not be used in\n"); \
+	ast_verbose("production installations.\n");
 
 /*! \defgroup main_options Main Configuration Options
  \brief Main configuration options from \ref Config_ast "asterisk.conf" or 
