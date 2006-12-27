@@ -11718,6 +11718,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 			char *authenticate = (resp == 401 ? "WWW-Authenticate" : "Proxy-Authenticate");
 			char *authorization = (resp == 401 ? "Authorization" : "Proxy-Authorization");
+			if (p->authtries < MAX_AUTHTRIES)
+				p->invitestate = INV_CALLING;
 			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, authenticate, authorization, SIP_INVITE, 1)) {
 				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
