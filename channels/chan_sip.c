@@ -9714,6 +9714,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (!ignore)
 			sip_cancel_destroy(p);
 		check_pendings(p);
+		ast_set_flag(p, SIP_CAN_BYE);
 		break;
 	case 180:	/* 180 Ringing */
 		if (!ignore)
