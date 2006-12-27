@@ -362,6 +362,19 @@ void * attribute_malloc _ast_calloc(size_t num, size_t len, const char *file, in
 )
 
 /*!
+ * \brief A wrapper for calloc() for use in cache pools
+ *
+ * ast_calloc_cache() is a wrapper for calloc() that will generate an Asterisk log
+ * message in the case that the allocation fails. When memory debugging is in use,
+ * the memory allocated by this function will be marked as 'cache' so it can be
+ * distinguished from normal memory allocations.
+ *
+ * The arguments and return value are the same as calloc()
+ */
+#define ast_calloc_cache(num, len) \
+	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+/*!
  * \brief A wrapper for realloc()
  *
  * ast_realloc() is a wrapper for realloc() that will generate an Asterisk log

@@ -72,6 +72,7 @@ static struct ast_region {
 	char func[40];
 	unsigned int lineno;
 	enum func_type which;
+	unsigned int cache;		/* region was allocated as part of a cache pool */
 	size_t len;
 	unsigned int fence;
 	unsigned char data[0];
@@ -92,7 +93,7 @@ AST_MUTEX_DEFINE_STATIC(showmemorylock);
 		}                                    \
 	} while (0)
 
-static inline void *__ast_alloc_region(size_t size, const enum func_type which, const char *file, int lineno, const char *func)
+static inline void *__ast_alloc_region(size_t size, const enum func_type which, const char *file, int lineno, const char *func, unsigned int cache)
 {
 	struct ast_region *reg;
 	void *ptr = NULL;
@@ -101,7 +102,7 @@ static inline void *__ast_alloc_region(size_t size, const enum func_type which, 
 
 	if (!(reg = malloc(size + sizeof(*reg) + sizeof(*fence)))) {
 		astmm_log("Memory Allocation Failure - '%d' bytes in function %s "
-			"at line %d of %s\n", (int) size, func, lineno, file);
+			  "at line %d of %s\n", (int) size, func, lineno, file);
 	}
 
 	ast_copy_string(reg->file, file, sizeof(reg->file));
@@ -109,6 +110,7 @@ static inline void *__ast_alloc_region(size_t size, const enum func_type which, 
 	reg->lineno = lineno;
 	reg->len = size;
 	reg->which = which;
+	reg->cache = cache;
 	ptr = reg->data;
 	hash = HASH(ptr);
 	reg->fence = FENCE_MAGIC;
@@ -181,7 +183,17 @@ void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, cons
 {
 	void *ptr;
 
-	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func))) 
+	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 0))) 
+		memset(ptr, 0, size * nmemb);
+
+	return ptr;
+}
+
+void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func) 
+{
+	void *ptr;
+
+	if ((ptr = __ast_alloc_region(size * nmemb, FUNC_CALLOC, file, lineno, func, 1))) 
 		memset(ptr, 0, size * nmemb);
 
 	return ptr;
@@ -189,7 +201,7 @@ void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, cons
 
 void *__ast_malloc(size_t size, const char *file, int lineno, const char *func) 
 {
-	return __ast_alloc_region(size, FUNC_MALLOC, file, lineno, func);
+	return __ast_alloc_region(size, FUNC_MALLOC, file, lineno, func, 0);
 }
 
 void __ast_free(void *ptr, const char *file, int lineno, const char *func) 
@@ -208,7 +220,7 @@ void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const 
 		return NULL;
 	}
 
-	if (!(tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func)))
+	if (!(tmp = __ast_alloc_region(size, FUNC_REALLOC, file, lineno, func, 0)))
 		return NULL;
 
 	if (len > size)
@@ -230,7 +242,7 @@ char *__ast_strdup(const char *s, const char *file, int lineno, const char *func
 		return NULL;
 
 	len = strlen(s) + 1;
-	if ((ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func)))
+	if ((ptr = __ast_alloc_region(len, FUNC_STRDUP, file, lineno, func, 0)))
 		strcpy(ptr, s);
 
 	return ptr;
@@ -247,7 +259,7 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 	len = strlen(s) + 1;
 	if (len > n)
 		len = n;
-	if ((ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func)))
+	if ((ptr = __ast_alloc_region(len, FUNC_STRNDUP, file, lineno, func, 0)))
 		strcpy(ptr, s);
 
 	return ptr;
@@ -264,7 +276,7 @@ int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, 
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	if (!(*strp = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func))) {
+	if (!(*strp = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func, 0))) {
 		va_end(ap);
 		return -1;
 	}
@@ -284,7 +296,7 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 	va_copy(ap2, ap);
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
-	if (!(*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func))) {
+	if (!(*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func, 0))) {
 		va_end(ap);
 		return -1;
 	}
@@ -299,6 +311,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 	struct ast_region *reg;
 	unsigned int x;
 	unsigned int len = 0;
+	unsigned int cache_len = 0;
 	unsigned int count = 0;
 	unsigned int *fence;
 
@@ -321,16 +334,22 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 				}
 			}
 			if (!fn || !strcasecmp(fn, reg->file)) {
-				ast_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", 
-						(int) reg->len, reg->func, reg->lineno, reg->file);
+				ast_cli(fd, "%10d bytes allocated%s in %20s at line %5d of %s\n", 
+					(int) reg->len, reg->cache ? " (cache)" : "", 
+					reg->func, reg->lineno, reg->file);
 				len += reg->len;
+				if (reg->cache)
+					cache_len += reg->len;
 				count++;
 			}
 		}
 	}
 	ast_mutex_unlock(&showmemorylock);
 	
-	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
+	if (cache_len)
+		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations", len, cache_len, count);
+	else
+		ast_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
 	
 	return RESULT_SUCCESS;
 }
@@ -341,10 +360,12 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 	int x;
 	struct ast_region *reg;
 	unsigned int len = 0;
+	unsigned int cache_len = 0;
 	int count = 0;
 	struct file_summary {
 		char fn[80];
 		int len;
+		int cache_len;
 		int count;
 		struct file_summary *next;
 	} *list = NULL, *cur;
@@ -371,6 +392,8 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 			}
 
 			cur->len += reg->len;
+			if (reg->cache)
+				cur->cache_len += reg->len;
 			cur->count++;
 		}
 	}
@@ -379,17 +402,31 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 	/* Dump the whole list */
 	for (cur = list; cur; cur = cur->next) {
 		len += cur->len;
+		cache_len += cur->cache_len;
 		count += cur->count;
-		if (fn) {
-			ast_cli(fd, "%10d bytes in %5d allocations in function '%s' of '%s'\n", 
-				cur->len, cur->count, cur->fn, fn);
+		if (cur->cache_len) {
+			if (fn) {
+				ast_cli(fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
+					cur->len, cur->cache_len, cur->count, cur->fn, fn);
+			} else {
+				ast_cli(fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
+					cur->len, cur->cache_len, cur->count, cur->fn);
+			}
 		} else {
-			ast_cli(fd, "%10d bytes in %5d allocations in file '%s'\n", 
-				cur->len, cur->count, cur->fn);
+			if (fn) {
+				ast_cli(fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
+					cur->len, cur->count, cur->fn, fn);
+			} else {
+				ast_cli(fd, "%10d bytes in %d allocations in file '%s'\n", 
+					cur->len, cur->count, cur->fn);
+			}
 		}
 	}
 
-	ast_cli(fd, "%d bytes allocated %d units total\n", len, count);
+	if (cache_len)
+		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations", len, cache_len, count);
+	else
+		ast_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
 
 	return RESULT_SUCCESS;
 }
