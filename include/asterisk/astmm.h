@@ -44,6 +44,7 @@
 #undef vasprintf
 
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
+void *__ast_calloc_cache(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
 void *__ast_malloc(size_t size, const char *file, int lineno, const char *func);
 void __ast_free(void *ptr, const char *file, int lineno, const char *func);
 void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
@@ -58,6 +59,9 @@ void __ast_mm_init(void);
 /* Provide our own definitions */
 #define calloc(a,b) \
 	__ast_calloc(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define ast_calloc_cache(a,b) \
+	__ast_calloc_cache(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 #define malloc(a) \
 	__ast_malloc(a,__FILE__, __LINE__, __PRETTY_FUNCTION__)

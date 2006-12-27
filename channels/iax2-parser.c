@@ -957,7 +957,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen)
 	}
 
 	if (!fr) {
-		if (!(fr = ast_calloc(1, sizeof(*fr) + datalen)))
+		if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen)))
 			return NULL;
 		fr->mallocd_datalen = datalen;
 	}

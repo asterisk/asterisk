@@ -301,7 +301,7 @@ static struct ast_frame *ast_frame_header_new(void)
 		}
 	}
 
-	if (!(f = ast_calloc(1, sizeof(*f))))
+	if (!(f = ast_calloc_cache(1, sizeof(*f))))
 		return NULL;
 
 	f->mallocd_hdr_len = sizeof(*f);
@@ -458,7 +458,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		AST_LIST_TRAVERSE_SAFE_END
 	}
 	if (!buf) {
-		if (!(buf = ast_calloc(1, len)))
+		if (!(buf = ast_calloc_cache(1, len)))
 			return NULL;
 		out = buf;
 		out->mallocd_hdr_len = len;
