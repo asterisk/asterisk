@@ -92,16 +92,16 @@ struct eventqent {
 	char eventdata[1];
 };
 
-static int enabled = 0;
+static int enabled;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
 static int displayconnects = 1;
-static int timestampevents = 0;
+static int timestampevents;
 static int httptimeout = 60;
 
 static pthread_t t;
-static int block_sockets = 0;
-static int num_sessions = 0;
+static int block_sockets;
+static int num_sessions;
 
 /* Protected by the sessions list lock */
 struct eventqent *master_eventq = NULL;
@@ -187,7 +187,7 @@ struct ast_manager_user {
 
 static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 
-static struct manager_action *first_action = NULL;
+static struct manager_action *first_action;
 AST_MUTEX_DEFINE_STATIC(actionlock);
 
 /*! \brief Convert authority code to string with serveral options */

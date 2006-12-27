@@ -77,17 +77,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
-static int rtpstart = 0;		/*!< First port for RTP sessions (set in rtp.conf) */
-static int rtpend = 0;			/*!< Last port for RTP sessions (set in rtp.conf) */
-static int rtpdebug = 0;		/*!< Are we debugging? */
-static int rtcpdebug = 0;		/*!< Are we debugging RTCP? */
-static int rtcpstats = 0;		/*!< Are we debugging RTCP? */
+static int rtpstart;			/*!< First port for RTP sessions (set in rtp.conf) */
+static int rtpend;			/*!< Last port for RTP sessions (set in rtp.conf) */
+static int rtpdebug;			/*!< Are we debugging? */
+static int rtcpdebug;			/*!< Are we debugging RTCP? */
+static int rtcpstats;			/*!< Are we debugging RTCP? */
 static int rtcpinterval = RTCP_DEFAULT_INTERVALMS; /*!< Time between rtcp reports in millisecs */
-static int stundebug = 0;		/*!< Are we debugging stun? */
+static int stundebug;			/*!< Are we debugging stun? */
 static struct sockaddr_in rtpdebugaddr;	/*!< Debug packets to/from this host */
 static struct sockaddr_in rtcpdebugaddr;	/*!< Debug RTCP packets to/from this host */
 #ifdef SO_NO_CHECK
-static int nochecksums = 0;
+static int nochecksums;
 #endif
 
 /*!

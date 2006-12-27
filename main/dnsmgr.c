@@ -71,7 +71,7 @@ AST_MUTEX_DEFINE_STATIC(refresh_lock);
 
 #define REFRESH_DEFAULT 300
 
-static int enabled = 0;
+static int enabled;
 static int refresh_interval;
 
 struct refresh_info {

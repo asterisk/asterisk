@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 
 #ifdef TRACE_FRAMES
-static int headers = 0;
+static int headers;
 static AST_LIST_HEAD_STATIC(headerlist, ast_frame);
 #endif
 

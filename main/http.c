@@ -65,14 +65,14 @@ struct ast_http_server_instance {
 };
 
 AST_MUTEX_DEFINE_STATIC(uris_lock);
-static struct ast_http_uri *uris = NULL;
+static struct ast_http_uri *uris;
 
 static int httpfd = -1;
 static pthread_t master = AST_PTHREADT_NULL;
 static char prefix[MAX_PREFIX];
-static int prefix_len = 0;
+static int prefix_len;
 static struct sockaddr_in oldsin;
-static int enablestatic=0;
+static int enablestatic;
 
 /*! \brief Limit the kinds of files we're willing to serve up */
 static struct {

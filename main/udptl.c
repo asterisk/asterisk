@@ -55,17 +55,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE (!FALSE)
 #endif
 
-static int udptlstart = 0;
-static int udptlend = 0;
-static int udptldebug = 0;                  /* Are we debugging? */
+static int udptlstart;
+static int udptlend;
+static int udptldebug;	                  /* Are we debugging? */
 static struct sockaddr_in udptldebugaddr;   /* Debug packets to/from this host */
 #ifdef SO_NO_CHECK
-static int nochecksums = 0;
+static int nochecksums;
 #endif
-static int udptlfectype = 0;
-static int udptlfecentries = 0;
-static int udptlfecspan = 0;
-static int udptlmaxdatagram = 0;
+static int udptlfectype;
+static int udptlfecentries;
+static int udptlfecspan;
+static int udptlmaxdatagram;
 
 #define LOCAL_FAX_MAX_DATAGRAM      400
 #define MAX_FEC_ENTRIES             5
@@ -137,7 +137,7 @@ struct ast_udptl {
 	udptl_fec_rx_buffer_t rx[UDPTL_BUF_MASK + 1];
 };
 
-static struct ast_udptl_protocol *protos = NULL;
+static struct ast_udptl_protocol *protos;
 
 static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len);
 static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len);

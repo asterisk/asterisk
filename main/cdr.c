@@ -57,7 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! Default AMA flag for billing records (CDR's) */
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
-char ast_default_accountcode[AST_MAX_ACCOUNT_CODE] = "";
+char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
 
 struct ast_cdr_beitem {
 	char name[20];

@@ -83,7 +83,7 @@ static int syslog_level_map[] = {
 
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
-static int filesize_reload_needed = 0;
+static int filesize_reload_needed;
 static int global_logmask = -1;
 
 static struct {
@@ -111,8 +111,8 @@ struct logchannel {
 
 static AST_LIST_HEAD_STATIC(logchannels, logchannel);
 
-static FILE *eventlog = NULL;
-static FILE *qlog = NULL;
+static FILE *eventlog;
+static FILE *qlog;
 
 static char *levels[] = {
 	"DEBUG",
