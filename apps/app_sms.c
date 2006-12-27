@@ -26,14 +26,12 @@
  *	ES 201 912	SMS for PSTN/ISDN
  *	TS 123 040	Technical realization of SMS
  *
- * \note 2006-09-19: ETSI ES 201 912 protocol 2 used in Italy and Spain
- *                   support added by Filippo Grassilli (Hyppo)
- *                   <http://hyppo.com> (Hyppo)
- *                   Not fully tested, under development
  * 
  * \ingroup applications
  *
  * \author Adrian Kennard (for the original protocol 1 code)
+ * \author Filippo Grassilli (Hyppo) - protocol 2 support
+ *                   Not fully tested, under development
  */
 
 #include "asterisk.h"
