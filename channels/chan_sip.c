@@ -778,10 +778,12 @@ struct sip_auth {
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
 #define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 23)	/*!< 23: One directional hold */
 #define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(1 << 24)	/*!< 24: Inactive  */
-#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)
+#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< 25: ???? */
+#define SIP_PAGE2_BUGGY_CISCO_MWI	(1 << 26)	/*!< 26: Buggy CISCO MWI fix */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
-	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE)
+	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
+	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_CISCO_MWI)
 
 /* SIP packet flags */
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
@@ -7065,7 +7067,11 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
 		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)));
-	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
+	/* Cisco has a bug in the SIP stack where it can't accept the
+		(0/0) notification. This can temporarily be disabled in
+		sip.conf with the "buggyciscomwi" option */
+	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d%s\r\n", newmsgs, oldmsgs, (ast_test_flag(&p->flags[1], SIP_PAGE2_BUGGY_CISCO_MWI) ? "" : " (0/0)"));
+
 	if (p->subscribed) {
 		if (p->expiry)
 			add_header(&req, "Subscription-State", "active");
@@ -15540,6 +15546,10 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
+		res = 1;
+	} else if (!strcasecmp(v->name, "buggyciscomwi")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_BUGGY_CISCO_MWI);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_BUGGY_CISCO_MWI);
 		res = 1;
 	} 
 
