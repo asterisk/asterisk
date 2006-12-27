@@ -15786,8 +15786,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(user->language, v->value, sizeof(user->language));
-		} else if (!strcasecmp(v->name, "mohinterpret") 
-			|| !strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
+		} else if (!strcasecmp(v->name, "mohinterpret")) {
 			ast_copy_string(user->mohinterpret, v->value, sizeof(user->mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(user->mohsuggest, v->value, sizeof(user->mohsuggest));
@@ -16065,8 +16064,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			}
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(peer->accountcode, v->value, sizeof(peer->accountcode));
-		} else if (!strcasecmp(v->name, "mohinterpret")
-			|| !strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
+		} else if (!strcasecmp(v->name, "mohinterpret")) {
 			ast_copy_string(peer->mohinterpret, v->value, sizeof(peer->mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
@@ -16356,8 +16354,7 @@ static int reload_config(enum channelreloadreason reason)
 			global_notifyhold = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "alwaysauthreject")) {
 			global_alwaysauthreject = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "mohinterpret") 
-			|| !strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
+		} else if (!strcasecmp(v->name, "mohinterpret")) {
 			ast_copy_string(default_mohinterpret, v->value, sizeof(default_mohinterpret));
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(default_mohsuggest, v->value, sizeof(default_mohsuggest));
@@ -16430,8 +16427,6 @@ static int reload_config(enum channelreloadreason reason)
 				ast_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
 			else
 				localaddr = na;
-		} else if (!strcasecmp(v->name, "localmask")) {
-			ast_log(LOG_WARNING, "Use of localmask is no long supported -- use localnet with mask syntax\n");
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) 
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
