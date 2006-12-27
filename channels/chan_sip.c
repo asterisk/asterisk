@@ -15817,14 +15817,6 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->maxcallbitrate = atoi(v->value);
 			if (user->maxcallbitrate < 0)
 				user->maxcallbitrate = default_maxcallbitrate;
- 		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
-		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-			ast_set2_flag(&user->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
-#endif
 		}
 	}
 	ast_copy_flags(&user->flags[0], &userflags[0], mask[0].flags);
@@ -16116,14 +16108,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->maxcallbitrate = atoi(v->value);
 			if (peer->maxcallbitrate < 0)
 				peer->maxcallbitrate = default_maxcallbitrate;
-		} else if (!strcasecmp(v->name, "t38pt_udptl")) {
-			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-		} else if (!strcasecmp(v->name, "t38pt_rtp")) {
-			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
-		} else if (!strcasecmp(v->name, "t38pt_tcp")) {
-			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
-#endif
 		}
 	}
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
@@ -16501,20 +16485,6 @@ static int reload_config(enum channelreloadreason reason)
 			default_maxcallbitrate = atoi(v->value);
 			if (default_maxcallbitrate < 0)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
-		} else if (!strcasecmp(v->name, "t38pt_udptl")) {	/* XXX maybe ast_set2_flags ? */
-			if (ast_true(v->value)) {
-				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL);
-			}
-#ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
-		} else if (!strcasecmp(v->name, "t38pt_rtp")) {	/* XXX maybe ast_set2_flags ? */
-			if (ast_true(v->value)) {
-				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP);
-			}
-		} else if (!strcasecmp(v->name, "t38pt_tcp")) {	/* XXX maybe ast_set2_flags ? */
-			if (ast_true(v->value)) {
-				ast_set_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_TCP);
-			}
-#endif
 		} else if (!strcasecmp(v->name, "rfc2833compensate")) {	/* XXX maybe ast_set2_flags ? */
 			if (ast_true(v->value)) {
 				ast_set_flag(&global_flags[1], SIP_PAGE2_RFC2833_COMPENSATE);
