@@ -70,7 +70,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Defaults to 100 ms
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;checkmwi=10			; Default time between mailbox checks for peers
-;buggyciscomwi=no		; Cisco SIP firmware doesn't support the MWI RFC
+;buggymwi=no			; Cisco SIP firmware doesn't support the MWI RFC
 				; fully. Enable this option to not get error messages
 				; when sending MWI to phones with this bug.
 ;vmexten=voicemail		; dialplan extension to reach mailbox sets the 
