@@ -11916,6 +11916,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* Then we AUTH */
 		ast_string_field_free(p, theirtag);	/* forget their old tag, so we don't match tags when getting response */
 		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+			if (p->authtries < MAX_AUTHTRIES)
+				p->invitestate = INV_CALLING;
 			if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, SIP_INVITE, 1)) {
 				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
