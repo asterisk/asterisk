@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * (i.e. en/digits/1.gsm, it/digits/1.gsm or default to digits/1.gsm).
  * The latter permits a language to be entirely in one directory.
  */
-int ast_language_is_prefix = 0;
+int ast_language_is_prefix = 1;
 
 static AST_LIST_HEAD_STATIC(formats, ast_format);
 

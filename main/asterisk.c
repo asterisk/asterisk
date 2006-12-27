@@ -2491,6 +2491,9 @@ int main(int argc, char *argv[])
 		ast_verbose("[ Reading Master Configuration ]\n");
 	ast_readconfig();
 
+	if (!ast_language_is_prefix && !ast_opt_remote)
+		ast_log(LOG_WARNING, "The 'languageprefix' option in asterisk.conf is deprecated; in a future release it will be removed, and your sound files will need to be organized in the 'new style' language layout.\n");
+
 	if (ast_opt_dump_core) {
 		struct rlimit l;
 		memset(&l, 0, sizeof(l));

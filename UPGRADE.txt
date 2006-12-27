@@ -17,3 +17,9 @@ AEL:
   not include it, but really, you should make sure that all execution
   paths within your macros end in "return;".
 
+Core:
+
+* The 'languageprefix' option in asterisk.conf is now deprecated, and
+  the default sound file layout for non-English sounds is the 'new
+  style' layout introduced in Asterisk 1.4 (and used by the automatic
+  sound file installer in the Makefile).
