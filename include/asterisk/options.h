@@ -122,6 +122,8 @@ extern pid_t ast_mainpid;
 extern char record_cache_dir[AST_CACHE_DIR_LEN];
 extern char debug_filename[AST_FILENAME_MAX];
 
+extern int ast_language_is_prefix;
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
