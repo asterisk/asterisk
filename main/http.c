@@ -107,7 +107,7 @@ static struct server_args https_desc = {
 	.worker_fn = httpd_helper_thread,
 };
 
-static AST_LIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handlers */
+static AST_RWLIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handlers */
 
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
@@ -309,35 +309,35 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 	struct ast_http_uri *uri;
 	int len = strlen(urih->uri);
 
-	AST_LIST_LOCK(&uris);
+	AST_RWLIST_WRLOCK(&uris);
 
-	if ( AST_LIST_EMPTY(&uris) || strlen(AST_LIST_FIRST(&uris)->uri) <= len ) {
-		AST_LIST_INSERT_HEAD(&uris, urih, entry);
-		AST_LIST_UNLOCK(&uris);
+	if ( AST_RWLIST_EMPTY(&uris) || strlen(AST_RWLIST_FIRST(&uris)->uri) <= len ) {
+		AST_RWLIST_INSERT_HEAD(&uris, urih, entry);
+		AST_RWLIST_UNLOCK(&uris);
 		return 0;
 	}
 
-	AST_LIST_TRAVERSE(&uris, uri, entry) {
-		if ( AST_LIST_NEXT(uri, entry) 
-			&& strlen(AST_LIST_NEXT(uri, entry)->uri) <= len ) {
-			AST_LIST_INSERT_AFTER(&uris, uri, urih, entry);
-			AST_LIST_UNLOCK(&uris); 
+	AST_RWLIST_TRAVERSE(&uris, uri, entry) {
+		if ( AST_RWLIST_NEXT(uri, entry) 
+			&& strlen(AST_RWLIST_NEXT(uri, entry)->uri) <= len ) {
+			AST_RWLIST_INSERT_AFTER(&uris, uri, urih, entry);
+			AST_RWLIST_UNLOCK(&uris); 
 			return 0;
 		}
 	}
 
-	AST_LIST_INSERT_TAIL(&uris, urih, entry);
+	AST_RWLIST_INSERT_TAIL(&uris, urih, entry);
 
-	AST_LIST_UNLOCK(&uris);
+	AST_RWLIST_UNLOCK(&uris);
 	
 	return 0;
 }	
 
 void ast_http_uri_unlink(struct ast_http_uri *urih)
 {
-	AST_LIST_LOCK(&uris);
-	AST_LIST_REMOVE(&uris, urih, entry);
-	AST_LIST_UNLOCK(&uris);
+	AST_RWLIST_WRLOCK(&uris);
+	AST_RWLIST_REMOVE(&uris, urih, entry);
+	AST_RWLIST_UNLOCK(&uris);
 }
 
 static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
@@ -404,8 +404,8 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 	if (l && !strncasecmp(uri, prefix, l) && uri[l] == '/') {
 		uri += l + 1;
 		/* scan registered uris to see if we match one. */
-		AST_LIST_LOCK(&uris);
-		AST_LIST_TRAVERSE(&uris, urih, entry) {
+		AST_RWLIST_RDLOCK(&uris);
+		AST_RWLIST_TRAVERSE(&uris, urih, entry) {
 			l = strlen(urih->uri);
 			c = uri + l;	/* candidate */
 			if (strncasecmp(urih->uri, uri, l) /* no match */
@@ -419,11 +419,11 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 			}
 		}
 		if (!urih)
-			AST_LIST_UNLOCK(&uris);
+			AST_RWLIST_UNLOCK(&uris);
 	}
 	if (urih) {
 		out = urih->callback(sin, uri, vars, status, title, contentlength);
-		AST_LIST_UNLOCK(&uris);
+		AST_RWLIST_UNLOCK(&uris);
 	} else {
 		out = ast_http_error(404, "Not Found", NULL,
 			"The requested URL was not found on this server.");
@@ -979,12 +979,14 @@ static int handle_show_http(int fd, int argc, char *argv[])
 	}
 
 	ast_cli(fd, "Enabled URI's:\n");
-	AST_LIST_LOCK(&uris);
-	AST_LIST_TRAVERSE(&uris, urih, entry)
-		ast_cli(fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
-	if (AST_LIST_EMPTY(&uris))
+	AST_RWLIST_RDLOCK(&uris);
+	if (AST_RWLIST_EMPTY(&uris)) {
 		ast_cli(fd, "None.\n");
-	AST_LIST_UNLOCK(&uris);
+	} else {
+		AST_RWLIST_TRAVERSE(&uris, urih, entry)
+			ast_cli(fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
+	}
+	AST_RWLIST_UNLOCK(&uris);
 
 	ast_cli(fd, "\nEnabled Redirects:\n");
 	AST_LIST_LOCK(&uri_redirects);
