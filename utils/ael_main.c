@@ -5,9 +5,6 @@
 #include <string.h>
 #include <locale.h>
 #include <ctype.h>
-#if !defined(SOLARIS) && !defined(__CYGWIN__)
-#include <err.h>
-#endif
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
