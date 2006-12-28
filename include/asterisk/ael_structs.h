@@ -2,7 +2,7 @@
 #define _ASTERISK_AEL_STRUCTS_H
 
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
-#include <err.h>
+/* #include <err.h> */
 #else
 #define quad_t int64_t
 #endif

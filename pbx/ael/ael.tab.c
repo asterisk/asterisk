@@ -1,7 +1,9 @@
-/* A Bison parser, made by GNU Bison 2.1a.  */
+/* A Bison parser, made by GNU Bison 2.3.  */
 
-/* Skeleton parser for Yacc-like parsing with Bison,
-   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+/* Skeleton implementation for Bison's Yacc-like parsers in C
+
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +20,18 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-/* As a special exception, when this file is copied by Bison into a
-   Bison output file, you may use that output file without restriction.
-   This special exception was added by the Free Software Foundation
-   in version 1.24 of Bison.  */
+/* As a special exception, you may create a larger work that contains
+   part or all of the Bison parser skeleton and distribute that work
+   under terms of your choice, so long as that work isn't itself a
+   parser generator using the skeleton or a modified version thereof
+   as a parser skeleton.  Alternatively, if you modify or redistribute
+   the parser skeleton itself, you may (at your option) remove this
+   special exception, which will cause the skeleton and the resulting
+   Bison output files to be licensed under the GNU General Public
+   License without this special exception.
+
+   This special exception was added by the Free Software Foundation in
+   version 2.2 of Bison.  */
 
 /* C LALR(1) parser skeleton written by Richard Stallman, by
    simplifying the original so-called "semantic" parser.  */
@@ -37,7 +47,7 @@
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "2.1a"
+#define YYBISON_VERSION "2.3"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -229,8 +239,8 @@ typedef union YYSTYPE
 	char	*str;		/* strings */
 	struct pval *pval;	/* full objects */
 }
-/* Line 198 of yacc.c.  */
-#line 234 "ael.tab.c"
+/* Line 193 of yacc.c.  */
+#line 244 "ael.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -274,8 +284,8 @@ static pval *nword(char *string, YYLTYPE *pos);
 static pval *update_last(pval *, YYLTYPE *);
 
 
-/* Line 221 of yacc.c.  */
-#line 279 "ael.tab.c"
+/* Line 216 of yacc.c.  */
+#line 289 "ael.tab.c"
 
 #ifdef short
 # undef short
@@ -405,8 +415,13 @@ YYID (i)
 #  ifndef YYSTACK_ALLOC_MAXIMUM
 #   define YYSTACK_ALLOC_MAXIMUM YYSIZE_MAXIMUM
 #  endif
-#  ifdef __cplusplus
-extern "C" {
+#  if (defined __cplusplus && ! defined _STDLIB_H \
+       && ! ((defined YYMALLOC || defined malloc) \
+	     && (defined YYFREE || defined free)))
+#   include <stdlib.h> /* INFRINGES ON USER NAME SPACE */
+#   ifndef _STDLIB_H
+#    define _STDLIB_H 1
+#   endif
 #  endif
 #  ifndef YYMALLOC
 #   define YYMALLOC malloc
@@ -421,9 +436,6 @@ void *malloc (YYSIZE_T); /* INFRINGES ON USER NAME SPACE */
      || defined __cplusplus || defined _MSC_VER)
 void free (void *); /* INFRINGES ON USER NAME SPACE */
 #   endif
-#  endif
-#  ifdef __cplusplus
-}
 #  endif
 # endif
 #endif /* ! defined yyoverflow || YYERROR_VERBOSE */
@@ -1029,14 +1041,14 @@ do {									  \
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_value_print (FILE *yyoutput, int yytype, const YYSTYPE * const yyvaluep, const YYLTYPE * const yylocationp, struct parse_io *parseio)
+yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, struct parse_io *parseio)
 #else
 static void
 yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp, parseio)
     FILE *yyoutput;
     int yytype;
-    const YYSTYPE * const yyvaluep;
-    const YYLTYPE * const yylocationp;
+    YYSTYPE const * const yyvaluep;
+    YYLTYPE const * const yylocationp;
     struct parse_io *parseio;
 #endif
 {
@@ -1065,14 +1077,14 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep, yylocationp, parseio)
 #if (defined __STDC__ || defined __C99__FUNC__ \
      || defined __cplusplus || defined _MSC_VER)
 static void
-yy_symbol_print (FILE *yyoutput, int yytype, const YYSTYPE * const yyvaluep, const YYLTYPE * const yylocationp, struct parse_io *parseio)
+yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, struct parse_io *parseio)
 #else
 static void
 yy_symbol_print (yyoutput, yytype, yyvaluep, yylocationp, parseio)
     FILE *yyoutput;
     int yytype;
-    const YYSTYPE * const yyvaluep;
-    const YYLTYPE * const yylocationp;
+    YYSTYPE const * const yyvaluep;
+    YYLTYPE const * const yylocationp;
     struct parse_io *parseio;
 #endif
 {
@@ -1250,7 +1262,7 @@ yytnamerr (char *yyres, const char *yystr)
 {
   if (*yystr == '"')
     {
-      size_t yyn = 0;
+      YYSIZE_T yyn = 0;
       char const *yyp = yystr;
 
       for (;;)
@@ -1297,7 +1309,7 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
 {
   int yyn = yypact[yystate];
 
-  if (! (YYPACT_NINF < yyn && yyn < YYLAST))
+  if (! (YYPACT_NINF < yyn && yyn <= YYLAST))
     return 0;
   else
     {
@@ -1335,7 +1347,7 @@ yysyntax_error (char *yyresult, int yystate, int yychar)
       int yyxbegin = yyn < 0 ? -yyn : 0;
 
       /* Stay within bounds of both yycheck and yytname.  */
-      int yychecklim = YYLAST - yyn;
+      int yychecklim = YYLAST - yyn + 1;
       int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
       int yycount = 1;
 
@@ -1427,7 +1439,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
       case 41: /* "word" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1431 "ael.tab.c"
+#line 1443 "ael.tab.c"
 	break;
       case 44: /* "objects" */
 #line 164 "ael.y"
@@ -1435,7 +1447,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1439 "ael.tab.c"
+#line 1451 "ael.tab.c"
 	break;
       case 45: /* "object" */
 #line 164 "ael.y"
@@ -1443,12 +1455,12 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1447 "ael.tab.c"
+#line 1459 "ael.tab.c"
 	break;
       case 46: /* "context_name" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1452 "ael.tab.c"
+#line 1464 "ael.tab.c"
 	break;
       case 47: /* "context" */
 #line 164 "ael.y"
@@ -1456,7 +1468,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1460 "ael.tab.c"
+#line 1472 "ael.tab.c"
 	break;
       case 49: /* "macro" */
 #line 164 "ael.y"
@@ -1464,7 +1476,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1468 "ael.tab.c"
+#line 1480 "ael.tab.c"
 	break;
       case 50: /* "globals" */
 #line 164 "ael.y"
@@ -1472,7 +1484,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1476 "ael.tab.c"
+#line 1488 "ael.tab.c"
 	break;
       case 51: /* "global_statements" */
 #line 164 "ael.y"
@@ -1480,7 +1492,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1484 "ael.tab.c"
+#line 1496 "ael.tab.c"
 	break;
       case 52: /* "assignment" */
 #line 164 "ael.y"
@@ -1488,7 +1500,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1492 "ael.tab.c"
+#line 1504 "ael.tab.c"
 	break;
       case 54: /* "arglist" */
 #line 164 "ael.y"
@@ -1496,7 +1508,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1500 "ael.tab.c"
+#line 1512 "ael.tab.c"
 	break;
       case 55: /* "elements" */
 #line 164 "ael.y"
@@ -1504,7 +1516,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1508 "ael.tab.c"
+#line 1520 "ael.tab.c"
 	break;
       case 56: /* "element" */
 #line 164 "ael.y"
@@ -1512,7 +1524,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1516 "ael.tab.c"
+#line 1528 "ael.tab.c"
 	break;
       case 57: /* "ignorepat" */
 #line 164 "ael.y"
@@ -1520,7 +1532,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1524 "ael.tab.c"
+#line 1536 "ael.tab.c"
 	break;
       case 58: /* "extension" */
 #line 164 "ael.y"
@@ -1528,7 +1540,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1532 "ael.tab.c"
+#line 1544 "ael.tab.c"
 	break;
       case 59: /* "statements" */
 #line 164 "ael.y"
@@ -1536,12 +1548,12 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1540 "ael.tab.c"
+#line 1552 "ael.tab.c"
 	break;
       case 60: /* "timerange" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1545 "ael.tab.c"
+#line 1557 "ael.tab.c"
 	break;
       case 61: /* "timespec" */
 #line 164 "ael.y"
@@ -1549,12 +1561,12 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1553 "ael.tab.c"
+#line 1565 "ael.tab.c"
 	break;
       case 62: /* "test_expr" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1558 "ael.tab.c"
+#line 1570 "ael.tab.c"
 	break;
       case 64: /* "if_like_head" */
 #line 164 "ael.y"
@@ -1562,22 +1574,22 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1566 "ael.tab.c"
+#line 1578 "ael.tab.c"
 	break;
       case 65: /* "word_list" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1571 "ael.tab.c"
+#line 1583 "ael.tab.c"
 	break;
       case 67: /* "word3_list" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1576 "ael.tab.c"
+#line 1588 "ael.tab.c"
 	break;
       case 68: /* "goto_word" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1581 "ael.tab.c"
+#line 1593 "ael.tab.c"
 	break;
       case 69: /* "switch_statement" */
 #line 164 "ael.y"
@@ -1585,7 +1597,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1589 "ael.tab.c"
+#line 1601 "ael.tab.c"
 	break;
       case 70: /* "statement" */
 #line 164 "ael.y"
@@ -1593,7 +1605,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1597 "ael.tab.c"
+#line 1609 "ael.tab.c"
 	break;
       case 75: /* "opt_else" */
 #line 164 "ael.y"
@@ -1601,7 +1613,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1605 "ael.tab.c"
+#line 1617 "ael.tab.c"
 	break;
       case 76: /* "target" */
 #line 164 "ael.y"
@@ -1609,12 +1621,12 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1613 "ael.tab.c"
+#line 1625 "ael.tab.c"
 	break;
       case 77: /* "opt_pri" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1618 "ael.tab.c"
+#line 1630 "ael.tab.c"
 	break;
       case 78: /* "jumptarget" */
 #line 164 "ael.y"
@@ -1622,7 +1634,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1626 "ael.tab.c"
+#line 1638 "ael.tab.c"
 	break;
       case 79: /* "macro_call" */
 #line 164 "ael.y"
@@ -1630,7 +1642,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1634 "ael.tab.c"
+#line 1646 "ael.tab.c"
 	break;
       case 81: /* "application_call_head" */
 #line 164 "ael.y"
@@ -1638,7 +1650,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1642 "ael.tab.c"
+#line 1654 "ael.tab.c"
 	break;
       case 83: /* "application_call" */
 #line 164 "ael.y"
@@ -1646,12 +1658,12 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1650 "ael.tab.c"
+#line 1662 "ael.tab.c"
 	break;
       case 84: /* "opt_word" */
 #line 177 "ael.y"
 	{ free((yyvaluep->str));};
-#line 1655 "ael.tab.c"
+#line 1667 "ael.tab.c"
 	break;
       case 85: /* "eval_arglist" */
 #line 164 "ael.y"
@@ -1659,7 +1671,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1663 "ael.tab.c"
+#line 1675 "ael.tab.c"
 	break;
       case 86: /* "case_statements" */
 #line 164 "ael.y"
@@ -1667,7 +1679,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1671 "ael.tab.c"
+#line 1683 "ael.tab.c"
 	break;
       case 87: /* "case_statement" */
 #line 164 "ael.y"
@@ -1675,7 +1687,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1679 "ael.tab.c"
+#line 1691 "ael.tab.c"
 	break;
       case 88: /* "macro_statements" */
 #line 164 "ael.y"
@@ -1683,7 +1695,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1687 "ael.tab.c"
+#line 1699 "ael.tab.c"
 	break;
       case 89: /* "macro_statement" */
 #line 164 "ael.y"
@@ -1691,7 +1703,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1695 "ael.tab.c"
+#line 1707 "ael.tab.c"
 	break;
       case 90: /* "switches" */
 #line 164 "ael.y"
@@ -1699,7 +1711,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1703 "ael.tab.c"
+#line 1715 "ael.tab.c"
 	break;
       case 91: /* "eswitches" */
 #line 164 "ael.y"
@@ -1707,7 +1719,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1711 "ael.tab.c"
+#line 1723 "ael.tab.c"
 	break;
       case 92: /* "switchlist" */
 #line 164 "ael.y"
@@ -1715,7 +1727,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1719 "ael.tab.c"
+#line 1731 "ael.tab.c"
 	break;
       case 93: /* "included_entry" */
 #line 164 "ael.y"
@@ -1723,7 +1735,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1727 "ael.tab.c"
+#line 1739 "ael.tab.c"
 	break;
       case 94: /* "includeslist" */
 #line 164 "ael.y"
@@ -1731,7 +1743,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1735 "ael.tab.c"
+#line 1747 "ael.tab.c"
 	break;
       case 95: /* "includes" */
 #line 164 "ael.y"
@@ -1739,7 +1751,7 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp, parseio)
 		destroy_pval((yyvaluep->pval));
 		prev_word=0;
 	};
-#line 1743 "ael.tab.c"
+#line 1755 "ael.tab.c"
 	break;
 
       default:
@@ -2911,8 +2923,8 @@ yyreduce:
     break;
 
 
-/* Line 1270 of yacc.c.  */
-#line 2916 "ael.tab.c"
+/* Line 1267 of yacc.c.  */
+#line 2928 "ael.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -3127,7 +3139,8 @@ yyreturn:
   if (yymsg != yymsgbuf)
     YYSTACK_FREE (yymsg);
 #endif
-  return yyresult;
+  /* Make sure YYID is used.  */
+  return YYID (yyresult);
 }
 
 
