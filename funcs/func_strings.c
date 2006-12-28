@@ -155,6 +155,37 @@ static struct ast_custom_function regex_function = {
 	.read = regex,
 };
 
+#define HASH_PREFIX	"~HASH~%s~"
+#define HASH_FORMAT	HASH_PREFIX "%s~"
+
+static char *app_clearhash = "ClearHash";
+static char *syn_clearhash = "Clear the keys from a specified hashname";
+static char *desc_clearhash =
+"ClearHash(<hashname>)\n"
+"  Clears all keys out of the specified hashname\n";
+
+/* This function probably should migrate to main/pbx.c, as pbx_builtin_clearvar_prefix() */
+static void clearvar_prefix(struct ast_channel *chan, const char *prefix)
+{
+	struct ast_var_t *var;
+	int len = strlen(prefix);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->varshead, var, entries) {
+		if (strncasecmp(prefix, ast_var_name(var), len) == 0) {
+			AST_LIST_REMOVE_CURRENT(&chan->varshead, entries);
+			free(var);
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+}
+
+static int exec_clearhash(struct ast_channel *chan, void *data)
+{
+	char prefix[80];
+	snprintf(prefix, sizeof(prefix), HASH_PREFIX, data ? (char *)data : "null");
+	clearvar_prefix(chan, prefix);
+	return 0;
+}
+
 static int array(struct ast_channel *chan, char *cmd, char *var,
 		 const char *value)
 {
@@ -164,12 +195,22 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 	AST_DECLARE_APP_ARGS(arg2,
 			     AST_APP_ARG(val)[100];
 	);
-	char *value2;
-	int i;
+	char *origvar = "", *value2, varname[256];
+	int i, ishash = 0;
 
 	value2 = ast_strdupa(value);
 	if (!var || !value2)
 		return -1;
+
+	if (!strcmp(cmd, "HASH")) {
+		const char *var2 = pbx_builtin_getvar_helper(chan, "~ODBCFIELDS~");
+		origvar = var;
+		if (var2)
+			var = ast_strdupa(var2);
+		else
+			return -1;
+		ishash = 1;
+	}
 
 	/* The functions this will generally be used with are SORT and ODBC_*, which
 	 * both return comma-delimited lists.  However, if somebody uses literal lists,
@@ -194,16 +235,138 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 			ast_log(LOG_DEBUG, "array set value (%s=%s)\n", arg1.var[i],
 				arg2.val[i]);
 		if (i < arg2.argc) {
-			pbx_builtin_setvar_helper(chan, arg1.var[i], arg2.val[i]);
+			if (ishash) {
+				snprintf(varname, sizeof(varname), HASH_FORMAT, origvar, arg1.var[i]);
+				pbx_builtin_setvar_helper(chan, varname, arg2.val[i]);
+			} else {
+				pbx_builtin_setvar_helper(chan, arg1.var[i], arg2.val[i]);
+			}
 		} else {
 			/* We could unset the variable, by passing a NULL, but due to
 			 * pushvar semantics, that could create some undesired behavior. */
-			pbx_builtin_setvar_helper(chan, arg1.var[i], "");
+			if (ishash) {
+				snprintf(varname, sizeof(varname), HASH_FORMAT, origvar, arg1.var[i]);
+				pbx_builtin_setvar_helper(chan, varname, "");
+			} else {
+				pbx_builtin_setvar_helper(chan, arg1.var[i], "");
+			}
 		}
 	}
 
 	return 0;
 }
+
+static int hashkeys_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_var_t *newvar;
+	int plen;
+	char prefix[80];
+	snprintf(prefix, sizeof(prefix), HASH_PREFIX, data);
+	plen = strlen(prefix);
+
+	memset(buf, 0, len);
+	AST_LIST_TRAVERSE(&chan->varshead, newvar, entries) {
+		if (strncasecmp(prefix, ast_var_name(newvar), plen) == 0) {
+			/* Copy everything after the prefix */
+			strncat(buf, ast_var_name(newvar) + plen, len);
+			/* Trim the trailing ~ */
+			buf[strlen(buf) - 1] = ',';
+		}
+	}
+	/* Trim the trailing comma */
+	buf[strlen(buf) - 1] = '\0';
+	return 0;
+}
+
+static int hash_write(struct ast_channel *chan, char *cmd, char *var, const char *value)
+{
+	char varname[256];
+	AST_DECLARE_APP_ARGS(arg,
+		AST_APP_ARG(hashname);
+		AST_APP_ARG(hashkey);
+	);
+
+	if (!strchr(var, '|')) {
+		/* Single argument version */
+		return array(chan, "HASH", var, value);
+	}
+
+	AST_STANDARD_APP_ARGS(arg, var);
+	snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg.hashkey);
+	pbx_builtin_setvar_helper(chan, varname, value);
+
+	return 0;
+}
+
+static int hash_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char varname[256];
+	const char *varvalue;
+	AST_DECLARE_APP_ARGS(arg,
+		AST_APP_ARG(hashname);
+		AST_APP_ARG(hashkey);
+	);
+
+	AST_STANDARD_APP_ARGS(arg, data);
+	if (arg.argc == 2) {
+		snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg.hashkey);
+		varvalue = pbx_builtin_getvar_helper(chan, varname);
+		if (varvalue)
+			ast_copy_string(buf, varvalue, len);
+		else
+			*buf = '\0';
+	} else if (arg.argc == 1) {
+		char colnames[4096];
+		int i;
+		AST_DECLARE_APP_ARGS(arg2,
+			AST_APP_ARG(col)[100];
+		);
+
+		/* Get column names, in no particular order */
+		hashkeys_read(chan, "HASHKEYS", arg.hashname, colnames, sizeof(colnames));
+		pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", colnames);
+
+		AST_NONSTANDARD_APP_ARGS(arg2, colnames, ',');
+		*buf = '\0';
+
+		/* Now get the corresponding column values, in exactly the same order */
+		for (i = 0; i < arg2.argc; i++) {
+			snprintf(varname, sizeof(varname), HASH_FORMAT, arg.hashname, arg2.col[i]);
+			varvalue = pbx_builtin_getvar_helper(chan, varname);
+			strncat(buf, varvalue, len);
+			strncat(buf, ",", len);
+		}
+
+		/* Strip trailing comma */
+		buf[strlen(buf) - 1] = '\0';
+	}
+
+	return 0;
+}
+
+static struct ast_custom_function hash_function = {
+	.name = "HASH",
+	.synopsis = "Implementation of a dialplan associative array",
+	.syntax = "HASH(hashname[|hashkey])",
+	.write = hash_write,
+	.read = hash_read,
+	.desc =
+		"In two argument mode, gets and sets values to corresponding keys within a named\n"
+		"associative array.  The single-argument mode will only work when assigned to from\n"
+		"a function defined by func_odbc.so.\n",
+};
+
+static struct ast_custom_function hashkeys_function = {
+	.name = "HASHKEYS",
+	.synopsis = "Retrieve the keys of a HASH()",
+	.syntax = "HASHKEYS(<hashname>)",
+	.read = hashkeys_read,
+	.desc =
+		"Returns a comma-delimited list of the current keys of an associative array\n"
+	   	"defined by the HASH() function.  Note that if you iterate over the keys of\n"
+		"the result, adding keys during iteration will cause the result of the HASHKEYS\n"
+		"function to change.\n",
+};
 
 static struct ast_custom_function array_function = {
 	.name = "ARRAY",
@@ -589,6 +752,9 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&eval_function);
 	res |= ast_custom_function_unregister(&keypadhash_function);
 	res |= ast_custom_function_unregister(&sprintf_function);
+	res |= ast_custom_function_unregister(&hashkeys_function);
+	res |= ast_custom_function_unregister(&hash_function);
+	res |= ast_unregister_application(app_clearhash);
 
 	return res;
 }
@@ -608,6 +774,9 @@ static int load_module(void)
 	res |= ast_custom_function_register(&eval_function);
 	res |= ast_custom_function_register(&keypadhash_function);
 	res |= ast_custom_function_register(&sprintf_function);
+	res |= ast_custom_function_register(&hashkeys_function);
+	res |= ast_custom_function_register(&hash_function);
+	res |= ast_register_application(app_clearhash, exec_clearhash, syn_clearhash, desc_clearhash);
 
 	return res;
 }

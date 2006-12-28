@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include "asterisk/module.h"
 #include "asterisk/file.h"
@@ -57,7 +58,8 @@ enum {
 
 struct acf_odbc_query {
 	AST_LIST_ENTRY(acf_odbc_query) list;
-	char dsn[30];
+	char readhandle[5][30];
+	char writehandle[5][30];
 	char sql_read[2048];
 	char sql_write[2048];
 	unsigned int flags;
@@ -96,7 +98,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char *t, buf[2048]="", varname[15];
-	int i;
+	int i, dsn;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
 	);
@@ -115,14 +117,6 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 
 	if (!query) {
 		ast_log(LOG_ERROR, "No such function '%s'\n", cmd);
-		AST_LIST_UNLOCK(&queries);
-		return -1;
-	}
-
-	obj = ast_odbc_request_obj(query->dsn, 0);
-
-	if (!obj) {
-		ast_log(LOG_ERROR, "No database handle available with the name of '%s' (check res_odbc.conf)\n", query->dsn);
 		AST_LIST_UNLOCK(&queries);
 		return -1;
 	}
@@ -169,7 +163,15 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 
 	AST_LIST_UNLOCK(&queries);
 
-	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, buf);
+	for (dsn = 0; dsn < 5; dsn++) {
+		if (!ast_strlen_zero(query->writehandle[dsn])) {
+			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+			if (obj)
+				stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, buf);
+		}
+		if (stmt)
+			break;
+	}
 
 	if (stmt) {
 		/* Rows affected */
@@ -195,14 +197,15 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 {
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
-	char sql[2048] = "", varname[15];
-	int res, x, buflen = 0, escapecommas;
+	char sql[2048] = "", varname[15], colnames[2048] = "";
+	int res, x, buflen = 0, escapecommas, dsn;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
 	SQLHSTMT stmt;
 	SQLSMALLINT colcount=0;
 	SQLLEN indicator;
+	SQLSMALLINT collength;
 
 	AST_LIST_LOCK(&queries);
 	AST_LIST_TRAVERSE(&queries, query, list) {
@@ -213,14 +216,6 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 	if (!query) {
 		ast_log(LOG_ERROR, "No such function '%s'\n", cmd);
-		AST_LIST_UNLOCK(&queries);
-		return -1;
-	}
-
-	obj = ast_odbc_request_obj(query->dsn, 0);
-
-	if (!obj) {
-		ast_log(LOG_ERROR, "No such DSN registered (or out of connections): %s (check res_odbc.conf)\n", query->dsn);
 		AST_LIST_UNLOCK(&queries);
 		return -1;
 	}
@@ -244,10 +239,20 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 	AST_LIST_UNLOCK(&queries);
 
-	stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
+	for (dsn = 0; dsn < 5; dsn++) {
+		if (!ast_strlen_zero(query->writehandle[dsn])) {
+			obj = ast_odbc_request_obj(query->writehandle[dsn], 0);
+			if (obj)
+				stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
+		}
+		if (stmt)
+			break;
+	}
 
 	if (!stmt) {
-		ast_odbc_release_obj(obj);
+		ast_log(LOG_ERROR, "Unable to execute query [%s]\n", sql);
+		if (obj)
+			ast_odbc_release_obj(obj);
 		return -1;
 	}
 
@@ -278,8 +283,33 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	}
 
 	for (x = 0; x < colcount; x++) {
-		int i;
-		char coldata[256];
+		int i, namelen;
+		char coldata[256], colname[256];
+
+		res = SQLDescribeCol(stmt, x + 1, (unsigned char *)colname, sizeof(colname), &collength, NULL, NULL, NULL, NULL);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || collength == 0) {
+			snprintf(colname, sizeof(colname), "field%d", x);
+		}
+
+		if (!ast_strlen_zero(colnames))
+			strncat(colnames, ",", sizeof(colnames) - 1);
+		namelen = strlen(colnames);
+
+		/* Copy data, encoding '\' and ',' for the argument parser */
+		for (i = 0; i < sizeof(colname); i++) {
+			if (escapecommas && (colname[i] == '\\' || colname[i] == ',')) {
+				colnames[namelen++] = '\\';
+			}
+			colnames[namelen++] = colname[i];
+
+			if (namelen >= sizeof(colnames) - 2) {
+				colnames[namelen >= sizeof(colnames) ? sizeof(colnames) - 1 : namelen] = '\0';
+				break;
+			}
+
+			if (colname[i] == '\0')
+				break;
+		}
 
 		buflen = strlen(buf);
 		res = SQLGetData(stmt, x + 1, SQL_CHAR, coldata, sizeof(coldata), &indicator);
@@ -314,6 +344,8 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	}
 	/* Trim trailing comma */
 	buf[buflen - 1] = '\0';
+
+	pbx_builtin_setvar_helper(chan, "~ODBCFIELDS~", colnames);
 
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
@@ -351,27 +383,68 @@ static struct ast_custom_function escape_function = {
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
 	const char *tmp;
+	int i;
 
 	if (!cfg || !catg) {
-		return -1;
+		return EINVAL;
 	}
 
 	*query = ast_calloc(1, sizeof(struct acf_odbc_query));
 	if (! (*query))
-		return -1;
+		return ENOMEM;
 
-	if ((tmp = ast_variable_retrieve(cfg, catg, "dsn"))) {
-		ast_copy_string((*query)->dsn, tmp, sizeof((*query)->dsn));
-	} else {
-		return -1;
+	if (((tmp = ast_variable_retrieve(cfg, catg, "writehandle"))) || ((tmp = ast_variable_retrieve(cfg, catg, "dsn")))) {
+		char *tmp2 = ast_strdupa(tmp);
+		AST_DECLARE_APP_ARGS(write,
+			AST_APP_ARG(dsn)[5];
+		);
+		AST_NONSTANDARD_APP_ARGS(write, tmp2, ',');
+		for (i = 0; i < 5; i++) {
+			if (!ast_strlen_zero(write.dsn[i]))
+				ast_copy_string((*query)->writehandle[i], write.dsn[i], sizeof((*query)->writehandle[i]));
+		}
 	}
 
+	if ((tmp = ast_variable_retrieve(cfg, catg, "readhandle"))) {
+		char *tmp2 = ast_strdupa(tmp);
+		AST_DECLARE_APP_ARGS(read,
+			AST_APP_ARG(dsn)[5];
+		);
+		AST_NONSTANDARD_APP_ARGS(read, tmp2, ',');
+		for (i = 0; i < 5; i++) {
+			if (!ast_strlen_zero(read.dsn[i]))
+				ast_copy_string((*query)->readhandle[i], read.dsn[i], sizeof((*query)->readhandle[i]));
+		}
+	} else {
+		/* If no separate readhandle, then use the writehandle for reading */
+		for (i = 0; i < 5; i++) {
+			if (!ast_strlen_zero((*query)->writehandle[i]))
+				ast_copy_string((*query)->readhandle[i], (*query)->writehandle[i], sizeof((*query)->readhandle[i]));
+		}
+ 	}
+
 	if ((tmp = ast_variable_retrieve(cfg, catg, "read"))) {
+		ast_log(LOG_WARNING, "Parameter 'read' is deprecated for category %s.  Please use 'readsql' instead.\n", catg);
 		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
+	} else if ((tmp = ast_variable_retrieve(cfg, catg, "readsql")))
+		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
+
+	if (!ast_strlen_zero((*query)->sql_read) && ast_strlen_zero((*query)->readhandle[0])) {
+		free(*query);
+		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for reading: %s\n", catg);
+		return EINVAL;
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
+		ast_log(LOG_WARNING, "Parameter 'write' is deprecated for category %s.  Please use 'writesql' instead.\n", catg);
 		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+	} else if ((tmp = ast_variable_retrieve(cfg, catg, "writesql")))
+		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+
+	if (!ast_strlen_zero((*query)->sql_write) && ast_strlen_zero((*query)->writehandle[0])) {
+		free(*query);
+		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for writing: %s\n", catg);
+		return EINVAL;
 	}
 
 	/* Allow escaping of embedded commas in fields to be turned off */
@@ -384,7 +457,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));
 	if (! (*query)->acf) {
 		free(*query);
-		return -1;
+		return ENOMEM;
 	}
 
 	if ((tmp = ast_variable_retrieve(cfg, catg, "prefix")) && !ast_strlen_zero(tmp)) {
@@ -396,7 +469,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	if (!((*query)->acf->name)) {
 		free((*query)->acf);
 		free(*query);
-		return -1;
+		return ENOMEM;
 	}
 
 	asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
@@ -405,7 +478,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		free((char *)(*query)->acf->name);
 		free((*query)->acf);
 		free(*query);
-		return -1;
+		return ENOMEM;
 	}
 
 	(*query)->acf->synopsis = "Runs the referenced query with the specified arguments";
@@ -432,15 +505,21 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					"${VALUE} or parsed as ${VAL1}, ${VAL2}, ... ${VALn}.\n"
 					"This function may only be set.\nSQL:\n%s\n",
 					(*query)->sql_write);
+	} else {
+		free((char *)(*query)->acf->syntax);
+		free((char *)(*query)->acf->name);
+		free((*query)->acf);
+		free(*query);
+		ast_log(LOG_WARNING, "Section %s was found, but there was no SQL to execute.  Ignoring.\n", catg);
+		return EINVAL;
 	}
 
-	/* Could be out of memory, or could be we have neither sql_read nor sql_write */
 	if (! ((*query)->acf->desc)) {
 		free((char *)(*query)->acf->syntax);
 		free((char *)(*query)->acf->name);
 		free((*query)->acf);
 		free(*query);
-		return -1;
+		return ENOMEM;
 	}
 
 	if (ast_strlen_zero((*query)->sql_read)) {
@@ -475,7 +554,7 @@ static int free_acf_query(struct acf_odbc_query *query)
 	return 0;
 }
 
-static int odbc_load_module(void)
+static int load_module(void)
 {
 	int res = 0;
 	struct ast_config *cfg;
@@ -494,10 +573,15 @@ static int odbc_load_module(void)
 	     catg;
 	     catg = ast_category_browse(cfg, catg)) {
 		struct acf_odbc_query *query = NULL;
+		int err;
 
-		if (init_acf_query(cfg, catg, &query)) {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			free_acf_query(query);
+		if ((err = init_acf_query(cfg, catg, &query))) {
+			if (err == ENOMEM)
+				ast_log(LOG_ERROR, "Out of memory\n");
+			else if (err == EINVAL)
+				ast_log(LOG_ERROR, "Invalid parameters for category %s\n", catg);
+			else
+				ast_log(LOG_ERROR, "%s (%d)\n", strerror(err), err);
 		} else {
 			AST_LIST_INSERT_HEAD(&queries, query, list);
 			ast_custom_function_register(query->acf);
@@ -505,15 +589,16 @@ static int odbc_load_module(void)
 	}
 
 	ast_config_destroy(cfg);
-	ast_custom_function_register(&escape_function);
+	res |= ast_custom_function_register(&escape_function);
 
 	AST_LIST_UNLOCK(&queries);
 	return res;
 }
 
-static int odbc_unload_module(void)
+static int unload_module(void)
 {
 	struct acf_odbc_query *query;
+	int res = 0;
 
 	AST_LIST_LOCK(&queries);
 	while (!AST_LIST_EMPTY(&queries)) {
@@ -522,10 +607,11 @@ static int odbc_unload_module(void)
 		free_acf_query(query);
 	}
 
-	ast_custom_function_unregister(&escape_function);
+	res |= ast_custom_function_unregister(&escape_function);
 
 	/* Allow any threads waiting for this lock to pass (avoids a race) */
 	AST_LIST_UNLOCK(&queries);
+	usleep(1);
 	AST_LIST_LOCK(&queries);
 
 	AST_LIST_UNLOCK(&queries);
@@ -570,16 +656,6 @@ static int reload(void)
 reload_out:
 	AST_LIST_UNLOCK(&queries);
 	return res;
-}
-
-static int unload_module(void)
-{
-	return odbc_unload_module();
-}
-
-static int load_module(void)
-{
-	return odbc_load_module();
 }
 
 /* XXX need to revise usecount - set if query_lock is set */
