@@ -64,7 +64,7 @@ struct ast_http_server_instance {
 	ast_http_callback callback;
 };
 
-AST_MUTEX_DEFINE_STATIC(uris_lock);
+AST_RWLOCK_DEFINE_STATIC(uris_lock);
 static struct ast_http_uri *uris;
 
 static int httpfd = -1;
@@ -244,7 +244,7 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 {
 	struct ast_http_uri *prev;
 
-	ast_mutex_lock(&uris_lock);
+	ast_rwlock_wrlock(&uris_lock);
 	prev = uris;
 	if (!uris || strlen(uris->uri) <= strlen(urih->uri)) {
 		urih->next = uris;
@@ -256,7 +256,7 @@ int ast_http_uri_link(struct ast_http_uri *urih)
 		urih->next = prev->next;
 		prev->next = urih;
 	}
-	ast_mutex_unlock(&uris_lock);
+	ast_rwlock_unlock(&uris_lock);
 
 	return 0;
 }	
@@ -265,9 +265,9 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 {
 	struct ast_http_uri *prev;
 
-	ast_mutex_lock(&uris_lock);
+	ast_rwlock_wrlock(&uris_lock);
 	if (!uris) {
-		ast_mutex_unlock(&uris_lock);
+		ast_rwlock_unlock(&uris_lock);
 		return;
 	}
 	prev = uris;
@@ -281,7 +281,7 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 		}
 		prev = prev->next;
 	}
-	ast_mutex_unlock(&uris_lock);
+	ast_rwlock_unlock(&uris_lock);
 }
 
 static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
@@ -329,7 +329,7 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 		if (!*uri || (*uri == '/')) {
 			if (*uri == '/')
 				uri++;
-			ast_mutex_lock(&uris_lock);
+			ast_rwlock_rdlock(&uris_lock);
 			urih = uris;
 			while(urih) {
 				len = strlen(urih->uri);
@@ -347,12 +347,12 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 				urih = urih->next;
 			}
 			if (!urih)
-				ast_mutex_unlock(&uris_lock);
+				ast_rwlock_unlock(&uris_lock);
 		}
 	}
 	if (urih) {
 		c = urih->callback(sin, uri, vars, status, title, contentlength);
-		ast_mutex_unlock(&uris_lock);
+		ast_rwlock_unlock(&uris_lock);
 	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
 		/* Special case: If no prefix, and no URI, send to /static/index.html */
 		c = ast_http_error(302, "Moved Temporarily", "Location: /static/index.html\r\n", "This is not the page you are looking for...");
@@ -688,7 +688,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 	else
 		ast_cli(fd, "Server Disabled\n\n");
 	ast_cli(fd, "Enabled URI's:\n");
-	ast_mutex_lock(&uris_lock);
+	ast_rwlock_rdlock(&uris_lock);
 	urih = uris;
 	while(urih){
 		ast_cli(fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
@@ -696,7 +696,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 	}
 	if (!uris)
 		ast_cli(fd, "None.\n");
-	ast_mutex_unlock(&uris_lock);
+	ast_rwlock_unlock(&uris_lock);
 	return RESULT_SUCCESS;
 }
 
