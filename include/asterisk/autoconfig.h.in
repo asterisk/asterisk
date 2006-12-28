@@ -250,6 +250,12 @@
 /* Define to indicate the ${PRI_DESCRIP} library */
 #undef HAVE_PRI
 
+/* Define to 1 if your system has PTHREAD_RWLOCK_INITIALIZER. */
+#undef HAVE_PTHREAD_RWLOCK_INITIALIZER
+
+/* Define to 1 if your system has PTHREAD_RWLOCK_PREFER_WRITER_NP. */
+#undef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP
+
 /* Define to 1 if the system has the type `ptrdiff_t'. */
 #undef HAVE_PTRDIFF_T
 
