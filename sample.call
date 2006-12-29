@@ -36,7 +36,7 @@ Priority: 1
 # and its arguments to be run, instead of a context
 # extension and priority
 #
-#Application: VoiceMailMain
+#Application: VoicemailMain
 #Data: 1234
 
 #
