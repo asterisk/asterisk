@@ -88,7 +88,7 @@ struct ast_smdi_mwi_queue {
  *
  * The ast_smdi_interface structure holds information on a serial port that
  * should be monitored for SMDI activity.  The structure contains a message
- * queue of messages that have been recieved on the interface.
+ * queue of messages that have been received on the interface.
  */
 struct ast_smdi_interface {
 	ASTOBJ_COMPONENTS_FULL(struct ast_smdi_interface, SMDI_MAX_FILENAME_LEN, 1);
