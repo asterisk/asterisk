@@ -285,7 +285,7 @@ static char *config = "oss.conf";	/* default config file */
 
 static int oss_debug;
 
-/*
+/*!
  * Each sound is made of 'datalen' samples of sound, repeated as needed to
  * generate 'samplen' samples of data, then followed by 'silencelen' samples
  * of silence. The loop is repeated if 'repeat' is set.
@@ -310,8 +310,9 @@ static struct sound sounds[] = {
 };
 
 
-/*
- * descriptor for one of our channels.
+/*!
+ * \brief descriptor for one of our channels.
+ *
  * There is one used for 'default' values (from the [general] entry in
  * the configuration file), and then one instance for each device
  * (the default is cloned from [general], others are only created
@@ -321,45 +322,45 @@ struct chan_oss_pvt {
 	struct chan_oss_pvt *next;
 
 	char *name;
-	/*
+	/*!
 	 * cursound indicates which in struct sound we play. -1 means nothing,
 	 * any other value is a valid sound, in which case sampsent indicates
 	 * the next sample to send in [0..samplen + silencelen]
 	 * nosound is set to disable the audio data from the channel
 	 * (so we can play the tones etc.).
 	 */
-	int sndcmd[2];				/* Sound command pipe */
-	int cursound;				/* index of sound to send */
-	int sampsent;				/* # of sound samples sent  */
-	int nosound;				/* set to block audio from the PBX */
+	int sndcmd[2];				/*!< Sound command pipe */
+	int cursound;				/*!< index of sound to send */
+	int sampsent;				/*!< # of sound samples sent  */
+	int nosound;				/*!< set to block audio from the PBX */
 
-	int total_blocks;			/* total blocks in the output device */
+	int total_blocks;			/*!< total blocks in the output device */
 	int sounddev;
 	enum { M_UNSET, M_FULL, M_READ, M_WRITE } duplex;
 	int autoanswer;
 	int autohangup;
 	int hookstate;
-	char *mixer_cmd;			/* initial command to issue to the mixer */
-	unsigned int queuesize;		/* max fragments in queue */
-	unsigned int frags;			/* parameter for SETFRAGMENT */
+	char *mixer_cmd;			/*!< initial command to issue to the mixer */
+	unsigned int queuesize;		/*!< max fragments in queue */
+	unsigned int frags;			/*!< parameter for SETFRAGMENT */
 
-	int warned;					/* various flags used for warnings */
+	int warned;					/*!< various flags used for warnings */
 #define WARN_used_blocks	1
 #define WARN_speed		2
 #define WARN_frag		4
-	int w_errors;				/* overfull in the write path */
+	int w_errors;				/*!< overfull in the write path */
 	struct timeval lastopen;
 
 	int overridecontext;
 	int mute;
 
-	/* boost support. BOOST_SCALE * 10 ^(BOOST_MAX/20) must
-	 * be representable in 16 bits to avoid overflows.
+	/*! boost support. BOOST_SCALE * 10 ^(BOOST_MAX/20) must
+	 *  be representable in 16 bits to avoid overflows.
 	 */
 #define	BOOST_SCALE	(1<<9)
-#define	BOOST_MAX	40			/* slightly less than 7 bits */
-	int boost;					/* input boost, scaled by BOOST_SCALE */
-	char device[64];			/* device to open */
+#define	BOOST_MAX	40			/*!< slightly less than 7 bits */
+	int boost;					/*!< input boost, scaled by BOOST_SCALE */
+	char device[64];			/*!< device to open */
 
 	pthread_t sthread;
 
@@ -371,15 +372,15 @@ struct chan_oss_pvt {
 	char cid_num[256];			/*XXX */
 	char mohinterpret[MAX_MUSICCLASS];
 
-	/* buffers used in oss_write */
+	/*! buffers used in oss_write */
 	char oss_write_buf[FRAME_SIZE * 2];
 	int oss_write_dst;
-	/* buffers used in oss_read - AST_FRIENDLY_OFFSET space for headers
-	 * plus enough room for a full frame
+	/*! buffers used in oss_read - AST_FRIENDLY_OFFSET space for headers
+	 *  plus enough room for a full frame
 	 */
 	char oss_read_buf[FRAME_SIZE * 2 + AST_FRIENDLY_OFFSET];
-	int readpos;				/* read position above */
-	struct ast_frame read_f;	/* returned by oss_read */
+	int readpos;				/*!< read position above */
+	struct ast_frame read_f;	/*!< returned by oss_read */
 };
 
 static struct chan_oss_pvt oss_default = {
@@ -397,7 +398,7 @@ static struct chan_oss_pvt oss_default = {
 	.boost = BOOST_SCALE,
 };
 
-static char *oss_active;	 /* the active device */
+static char *oss_active;	 /*!< the active device */
 
 static int setformat(struct chan_oss_pvt *o, int mode);
 
@@ -432,8 +433,8 @@ static const struct ast_channel_tech oss_tech = {
 	.fixup = oss_fixup,
 };
 
-/*
- * returns a pointer to the descriptor with the given name
+/*!
+ * \brief returns a pointer to the descriptor with the given name
  */
 static struct chan_oss_pvt *find_desc(char *dev)
 {
@@ -450,14 +451,16 @@ static struct chan_oss_pvt *find_desc(char *dev)
 	return o;
 }
 
-/*
- * split a string in extension-context, returns pointers to malloc'ed
- * strings.
+/* !
+ * \brief split a string in extension-context, returns pointers to malloc'ed
+ *        strings.
+ *
  * If we do not have 'overridecontext' then the last @ is considered as
  * a context separator, and the context is overridden.
  * This is usually not very necessary as you can play with the dialplan,
  * and it is nice not to need it because you have '@' in SIP addresses.
- * Return value is the buffer address.
+ *
+ * \return the buffer address.
  */
 static char *ast_ext_ctx(const char *src, char **ext, char **ctx)
 {
@@ -484,8 +487,8 @@ static char *ast_ext_ctx(const char *src, char **ext, char **ctx)
 	return *ext;
 }
 
-/*
- * Returns the number of blocks used in the audio output channel
+/*!
+ * \brief Returns the number of blocks used in the audio output channel
  */
 static int used_blocks(struct chan_oss_pvt *o)
 {
@@ -508,7 +511,7 @@ static int used_blocks(struct chan_oss_pvt *o)
 	return o->total_blocks - info.fragments;
 }
 
-/* Write an exactly FRAME_SIZE sized frame */
+/*! Write an exactly FRAME_SIZE sized frame */
 static int soundcard_writeframe(struct chan_oss_pvt *o, short *data)
 {
 	int res;
@@ -533,8 +536,9 @@ static int soundcard_writeframe(struct chan_oss_pvt *o, short *data)
 	return write(o->sounddev, (void *)data, FRAME_SIZE * 2);
 }
 
-/*
- * Handler for 'sound writable' events from the sound thread.
+/*!
+ * \brief Handler for 'sound writable' events from the sound thread.
+ *
  * Builds a frame from the high level description of the sounds,
  * and passes it to the audio device.
  * The actual sound is made of 1 or more sequences of sound samples
@@ -661,7 +665,7 @@ static void *sound_thread(void *arg)
 	return NULL;				/* Never reached */
 }
 
-/*
+/*!
  * reset and close the device if opened,
  * then open and initialize it in the desired mode,
  * trigger reads and writes so we can start using it.
@@ -785,15 +789,15 @@ static int oss_text(struct ast_channel *c, const char *text)
 	return 0;
 }
 
-/* Play ringtone 'x' on device 'o' */
+/*! \brief Play ringtone 'x' on device 'o' */
 static void ring(struct chan_oss_pvt *o, int x)
 {
 	write(o->sndcmd[1], &x, sizeof(x));
 }
 
 
-/*
- * handler for incoming calls. Either autoanswer, or start ringing
+/*!
+ * \brief handler for incoming calls. Either autoanswer, or start ringing
  */
 static int oss_call(struct ast_channel *c, char *dest, int timeout)
 {
@@ -816,8 +820,8 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 	return 0;
 }
 
-/*
- * remote side answered the phone
+/*!
+ * \brief remote side answered the phone
  */
 static int oss_answer(struct ast_channel *c)
 {
@@ -856,7 +860,7 @@ static int oss_hangup(struct ast_channel *c)
 	return 0;
 }
 
-/* used for data coming from the network */
+/*! \brief used for data coming from the network */
 static int oss_write(struct ast_channel *c, struct ast_frame *f)
 {
 	int src;
@@ -991,8 +995,8 @@ static int oss_indicate(struct ast_channel *c, int cond, const void *data, size_
 	return 0;
 }
 
-/*
- * allocate a new channel.
+/*!
+ * \brief allocate a new channel.
  */
 static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx, int state)
 {
@@ -1104,8 +1108,8 @@ static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli
 	return CLI_SUCCESS;
 }
 
-/*
- * answer command from the console
+/*!
+ * \brief answer command from the console
  */
 static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -1136,8 +1140,10 @@ static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	return CLI_SUCCESS;
 }
 
-/*
- * concatenate all arguments into a single string. argv is NULL-terminated
+/*!
+ * \brief Console send text CLI command
+ *
+ * \note concatenate all arguments into a single string. argv is NULL-terminated
  * so we can use it right away
  */
 static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -1369,8 +1375,8 @@ static const char active_usage[] =
 	"console.  If a device is specified, the console sound device is changed to\n"
 	"the device specified.\n";
 
-/*
- * store the boost factor
+/*!
+ * \brief store the boost factor
  */
 static void store_boost(struct chan_oss_pvt *o, char *s)
 {
@@ -1424,7 +1430,7 @@ static struct ast_cli_entry cli_oss[] = {
 	active_usage },
 };
 
-/*
+/*!
  * store the mixer argument from the config file, filtering possibly
  * invalid or dangerous values (the string is used as argument for
  * system("mixer %s")
@@ -1445,7 +1451,7 @@ static void store_mixer(struct chan_oss_pvt *o, char *s)
 	ast_log(LOG_WARNING, "setting mixer %s\n", s);
 }
 
-/*
+/*!
  * store the callerid components
  */
 static void store_callerid(struct chan_oss_pvt *o, char *s)
@@ -1453,7 +1459,7 @@ static void store_callerid(struct chan_oss_pvt *o, char *s)
 	ast_callerid_split(s, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
 }
 
-/*
+/*!
  * grab fields from the config file, init the descriptor and open the device.
  */
 static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
