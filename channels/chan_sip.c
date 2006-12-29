@@ -14668,7 +14668,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	p->method = req->method;	/* Find out which SIP method they are using */
 	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
-		ast_verbose("**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
 
 	if (p->icseq && (p->icseq > seqno)) {
 		if (option_debug)
