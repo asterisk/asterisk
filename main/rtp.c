@@ -3000,6 +3000,10 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 			ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+			if ((c0->masq || c0->masqr) && (fr = ast_read(c0)))
+				ast_frfree(fr);
+			if ((c1->masq || c1->masqr) && (fr = ast_read(c1)))
+				ast_frfree(fr);
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
