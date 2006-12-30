@@ -1535,7 +1535,7 @@ static void pbx_load_users(void)
 			append_interface(iface, sizeof(iface), tmp);
 		}
 		if (ast_true(ast_config_option(cfg, cat, "hasiax"))) {
-			snprintf(tmp, sizeof(tmp), "IAX/%s", cat);
+			snprintf(tmp, sizeof(tmp), "IAX2/%s", cat);
 			append_interface(iface, sizeof(iface), tmp);
 		}
 		if (ast_true(ast_config_option(cfg, cat, "hash323"))) {
