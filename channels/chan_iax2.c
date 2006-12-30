@@ -624,9 +624,7 @@ struct chan_iax2_pvt {
 static struct ast_iax2_queue {
 	AST_LIST_HEAD(, iax_frame) queue;
 	int count;
-} iaxq = {
-	.queue = AST_LIST_HEAD_INIT_VALUE
-};
+} iaxq;
 
 static AST_LIST_HEAD_STATIC(users, iax2_user);
 
@@ -9952,6 +9950,8 @@ static int __unload_module(void)
 	AST_LIST_TRAVERSE_SAFE_END
         AST_LIST_UNLOCK(&dynamic_list);
 
+	AST_LIST_HEAD_DESTROY(&iaxq.queue);
+
 	ast_netsock_release(netsock);
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		if (iaxs[x])
@@ -10024,6 +10024,8 @@ static int load_module(void)
 	ast_netsock_init(netsock);
 
 	ast_mutex_init(&waresl.lock);
+
+	AST_LIST_HEAD_INIT(&iaxq.queue);
 	
 	ast_cli_register_multiple(cli_iax2, sizeof(cli_iax2) / sizeof(struct ast_cli_entry));
 
