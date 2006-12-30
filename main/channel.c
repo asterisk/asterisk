@@ -686,10 +686,10 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 
 	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)) {
 		ast_string_field_build(tmp, uniqueid, "%li.%d", (long) time(NULL), 
-			ast_atomic_fetchadd_int(&uniqueint, 1));
+				       ast_atomic_fetchadd_int(&uniqueint, 1));
 	} else {
 		ast_string_field_build(tmp, uniqueid, "%s-%li.%d", ast_config_AST_SYSTEM_NAME, 
-			(long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
+				       (long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
 	}
 
 	if (!ast_strlen_zero(name_fmt)) {
