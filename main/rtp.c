@@ -3070,6 +3070,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "p2p-rtp-bridge: Oooh, something is weird, backing out\n");
+			/* If a masquerade needs to happen we have to try to read in a frame so that it actually happens. Without this we risk being called again and going into a loop */
 			if ((c0->masq || c0->masqr) && (fr = ast_read(c0)))
 				ast_frfree(fr);
 			if ((c1->masq || c1->masqr) && (fr = ast_read(c1)))
