@@ -95,7 +95,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
  */
 static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const char *value)
 {
-	struct odbc_obj *obj;
+	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
 	char *t, buf[2048]="", varname[15];
 	int i, dsn;
@@ -195,7 +195,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 
 static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf, size_t len)
 {
-	struct odbc_obj *obj;
+	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
 	char sql[2048] = "", varname[15], colnames[2048] = "";
 	int res, x, buflen = 0, escapecommas, dsn;
