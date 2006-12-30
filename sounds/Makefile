@@ -80,7 +80,7 @@ $(SOUNDS_DIR)/.asterisk-core-sounds-en-%: have_download
 	if test ! -f $${PACKAGE}; then $(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(CORE_SOUNDS_VERSION),,$@)-* && \
-	(cd $(SOUNDS_DIR); cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
+	(cd $(SOUNDS_DIR)/en; cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
 $(SOUNDS_DIR)/.asterisk-core-sounds-es-%: have_download
@@ -104,7 +104,7 @@ $(SOUNDS_DIR)/.asterisk-extra-sounds-en-%: have_download
 	if test ! -f $${PACKAGE}; then $(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$${PACKAGE}; fi; \
 	if test ! -f $${PACKAGE}; then exit 1; fi; \
 	rm -f $(subst -$(EXTRA_SOUNDS_VERSION),,$@)-* && \
-	(cd $(SOUNDS_DIR); cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
+	(cd $(SOUNDS_DIR)/en; cat $(PWD)/$${PACKAGE} | gzip -d | tar xf -) && \
 	touch $@
 
 $(SOUNDS_DIR)/.asterisk-extra-sounds-es-%: have_download
@@ -142,10 +142,10 @@ asterisk-moh-%.tar.gz: have_download
 dist-clean:
 	rm -f *.tar.gz
 
-$(SOUNDS_DIR) $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr:
+$(SOUNDS_DIR)/en $(MOH_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr:
 	mkdir -p $@
 
-install: $(SOUNDS_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
+install: $(SOUNDS_DIR)/en $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND_TAGS) $(EXTRA_SOUND_TAGS) $(MOH_TAGS)
 
 uninstall:
 	rm -rf $(SOUNDS_DIR)
