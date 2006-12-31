@@ -105,6 +105,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; where some buggy devices might not render it
 				; Valid values: yes, no, never Default: never
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
+				; The default user agent string also contains the Asterisk
+				; version. If you don't want to expose this, change the
+				; useragent string.
 ;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
 	                       	; Note that promiscredir when redirects are made to the
        	                	; local system will cause loops since Asterisk is incapable
