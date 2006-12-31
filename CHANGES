@@ -6,11 +6,6 @@ Changes since Asterisk 1.4-beta was branched:
     prompts within the Voicemail application by changing them in voicemail.conf
   * enable https support for builtin web server.
      See configs/http.conf.sample for details.
-  * add a new option, match_auth_username, to sip.conf,
-     to improve the matching of incoming requests.
-     If set, and the incoming request carries authentication info,
-     the username to match in the users list is taken from there
-     rather than from the From: field.
   * Argument support for Gosub application
   * MailboxExists converted to dialplan function
   * Ability to set process limits without restarting Asterisk
@@ -65,3 +60,15 @@ Changes since Asterisk 1.4-beta was branched:
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
   * Added the URI redirect option for the built-in HTTP server
+
+SIP changes
+-----------
+  * The default SIP useragent= identifier now includes the Asterisk version
+  * A new option, match_auth_username in sip.conf changes the matching of incoming requests.
+    If set, and the incoming request carries authentication info,
+    the username to match in the users list is taken from the Digest header
+    rather than from the From: field. This feature is considered experimental.
+  * The "musiconhold" and "musicclass" settings in sip.conf are now removed,
+    since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
+  * The "localmask" setting was removed in version 1.2 and the reminder about it
+    being removed is now also removed.
