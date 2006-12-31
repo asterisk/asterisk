@@ -141,6 +141,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/compiler.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
+#include "asterisk/version.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -16205,7 +16206,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
 	global_alwaysauthreject = 0;
 	global_allowsubscribe = FALSE;
-	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
+	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ASTERISK_VERSION);
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME))
 		ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
