@@ -312,6 +312,7 @@ struct ast_vm_user {
 	unsigned int flags;              /*!< VM_ flags */	
 	int saydurationm;
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
+	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
 #ifdef IMAP_STORAGE
 	char imapuser[80];	/* IMAP server login */
 	char imappassword[80];	/* IMAP server password if authpassword not defined */
@@ -511,8 +512,8 @@ static char externnotify[160];
 static struct ast_smdi_interface *smdi_iface = NULL;
 static char vmfmts[80];
 static double volgain;
-static int vmminmessage;
-static int vmmaxmessage;
+static int vmminsecs;
+static int vmmaxsecs;
 static int maxgreet;
 static int skipms;
 static int maxlogins;
@@ -561,6 +562,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
 	if (exitcontext)
 		ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
+	if (vmmaxsecs)
+		vmu->maxsecs = vmmaxsecs;
 	if (maxmsg)
 		vmu->maxmsg = maxmsg;
 	vmu->volgain = volgain;
@@ -617,6 +620,13 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->dialout, value, sizeof(vmu->dialout));
 	} else if (!strcasecmp(var, "exitcontext")) {
 		ast_copy_string(vmu->exit, value, sizeof(vmu->exit));
+	} else if (!strcasecmp(var, "maxmessage")) {
+		if (vmu->maxsecs <= 0) {
+			ast_log(LOG_WARNING, "Invalid max message length of %s. Using global value %i\n", value, vmmaxsecs);
+			vmu->maxsecs = vmmaxsecs;
+		} else {
+			vmu->maxsecs = atoi(value);
+		}
 	} else if (!strcasecmp(var, "maxmsg")) {
 		vmu->maxmsg = atoi(value);
 		if (vmu->maxmsg <= 0) {
@@ -668,6 +678,7 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 	struct ast_variable *tmp;
 	tmp = var;
 	while (tmp) {
+		ast_log(LOG_DEBUG, "Name: %s Value: %s\n", tmp->name, tmp->value);
 		if (!strcasecmp(tmp->name, "password")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
@@ -3086,15 +3097,15 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		} else
 			ast_log(LOG_WARNING, "Error opening text file for output\n");
 #ifdef IMAP_STORAGE
-		res = play_record_review(chan, NULL, tmptxtfile, vmmaxmessage, fmt, 1, vmu, &duration, NULL, options->record_gain, vms);
+		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, vms);
 #else
-		res = play_record_review(chan, NULL, tmptxtfile, vmmaxmessage, fmt, 1, vmu, &duration, NULL, options->record_gain, NULL);
+		res = play_record_review(chan, NULL, tmptxtfile, vmu->maxsecs, fmt, 1, vmu, &duration, NULL, options->record_gain, NULL);
 #endif
 
 		if (txt) {
-			if (duration < vmminmessage) {
+			if (duration < vmminsecs) {
 				if (option_verbose > 2) 
-					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
+					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
 			} else {
@@ -3157,7 +3168,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		} else if (res > 0)
 			res = 0;
 
-		if (duration < vmminmessage)
+		if (duration < vmminsecs)
 			/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		else
@@ -7271,25 +7282,50 @@ static int load_config(void)
 			astemail = ASTERISK_USERNAME;
 		ast_copy_string(serveremail, astemail, sizeof(serveremail));
 		
-		vmmaxmessage = 0;
-		if ((s = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
+		vmmaxsecs = 0;
+		if ((s = ast_variable_retrieve(cfg, "general", "maxsecs"))) {
 			if (sscanf(s, "%d", &x) == 1) {
-				vmmaxmessage = x;
+				vmmaxsecs = x;
+			} else {
+				ast_log(LOG_WARNING, "Invalid max message time length\n");
+			}
+		} else if ((s = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
+			static int maxmessage_deprecate = 0;
+			if (maxmessage_deprecate == 0) {
+				maxmessage_deprecate = 1;
+				ast_log(LOG_WARNING, "Setting 'maxmessage' has been deprecated in favor of 'maxsecs'.\n");
+			}
+			if (sscanf(s, "%d", &x) == 1) {
+				vmmaxsecs = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid max message time length\n");
 			}
 		}
 
-		vmminmessage = 0;
-		if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
+		vmminsecs = 0;
+		if ((s = ast_variable_retrieve(cfg, "general", "minsecs"))) {
 			if (sscanf(s, "%d", &x) == 1) {
-				vmminmessage = x;
-				if (maxsilence <= vmminmessage)
+				vmminsecs = x;
+				if (maxsilence <= vmminsecs)
+					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
+			} else {
+				ast_log(LOG_WARNING, "Invalid min message time length\n");
+			}
+		} else if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
+			static int maxmessage_deprecate = 0;
+			if (maxmessage_deprecate == 0) {
+				maxmessage_deprecate = 1;
+				ast_log(LOG_WARNING, "Setting 'minmessage' has been deprecated in favor of 'minsecs'.\n");
+			}
+			if (sscanf(s, "%d", &x) == 1) {
+				vmminsecs = x;
+				if (maxsilence <= vmminsecs)
 					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
 			} else {
 				ast_log(LOG_WARNING, "Invalid min message time length\n");
 			}
 		}
+
 		fmt = ast_variable_retrieve(cfg, "general", "format");
 		if (!fmt)
 			fmt = "wav";	

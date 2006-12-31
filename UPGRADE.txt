@@ -23,3 +23,11 @@ Core:
   the default sound file layout for non-English sounds is the 'new
   style' layout introduced in Asterisk 1.4 (and used by the automatic
   sound file installer in the Makefile).
+
+Applications:
+
+* The voicemail configuration values 'maxmessage' and 'minmessage' have
+  been changed to 'maxsecs' and 'minsecs' to clarify their purpose and
+  to make them more distinguishable from 'maxmsgs', which sets folder
+  size.  The old variables will continue to work in this version, albeit
+  with a deprecation warning.

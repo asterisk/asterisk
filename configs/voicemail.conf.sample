@@ -35,10 +35,10 @@ attach=yes
 ; (100) is used.  Maximum value for this option is 9999.
 ;maxmsg=100
 ; Maximum length of a voicemail message in seconds
-;maxmessage=180
+;maxsecs=180
 ; Minimum length of a voicemail message in seconds for the message to be kept
 ; The default is no minimum.
-;minmessage=3
+;minsecs=3
 ; Maximum length of greetings in seconds
 ;maxgreet=60
 ; How many milliseconds to skip forward/back when rew/ff in message playback
