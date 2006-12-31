@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <sys/types.h>
 
 #include "asterisk/module.h"
@@ -47,6 +48,9 @@ enum TypeOfFunctions {
 	MULTIPLYFUNCTION,
 	SUBTRACTFUNCTION,
 	MODULUSFUNCTION,
+	POWFUNCTION,
+	SHLEFTFUNCTION,
+	SHRIGHTFUNCTION,
 	GTFUNCTION,
 	LTFUNCTION,
 	GTEFUNCTION,
@@ -105,12 +109,18 @@ static int math(struct ast_channel *chan, char *cmd, char *parse,
 	} else if ((op = strchr(mvalue1, '%'))) {
 		iaction = MODULUSFUNCTION;
 		*op = '\0';
+	} else if ((op = strchr(mvalue1, '^'))) {
+		iaction = POWFUNCTION;
+		*op = '\0';
 	} else if ((op = strchr(mvalue1, '>'))) {
 		iaction = GTFUNCTION;
 		*op = '\0';
 		if (*(op + 1) == '=') {
 			*++op = '\0';
 			iaction = GTEFUNCTION;
+		} else if (*(op + 1) == '>') {
+			*++op = '\0';
+			iaction = SHRIGHTFUNCTION;
 		}
 	} else if ((op = strchr(mvalue1, '<'))) {
 		iaction = LTFUNCTION;
@@ -118,6 +128,9 @@ static int math(struct ast_channel *chan, char *cmd, char *parse,
 		if (*(op + 1) == '=') {
 			*++op = '\0';
 			iaction = LTEFUNCTION;
+		} else if (*(op + 1) == '<') {
+			*++op = '\0';
+			iaction = SHLEFTFUNCTION;
 		}
 	} else if ((op = strchr(mvalue1, '='))) {
 		*op = '\0';
@@ -192,6 +205,25 @@ static int math(struct ast_channel *chan, char *cmd, char *parse,
 
 			ftmp = (inum1 % inum2);
 
+			break;
+		}
+	case POWFUNCTION:
+		ftmp = pow(fnum1, fnum2);
+		break;
+	case SHLEFTFUNCTION:
+		{
+			int inum1 = fnum1;
+			int inum2 = fnum2;
+
+			ftmp = (inum1 << inum2);
+			break;
+		}
+	case SHRIGHTFUNCTION:
+		{
+			int inum1 = fnum1;
+			int inum2 = fnum2;
+
+			ftmp = (inum1 >> inum2);
 			break;
 		}
 	case GTFUNCTION:
