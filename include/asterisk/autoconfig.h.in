@@ -584,10 +584,10 @@
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
-/* Define this to indicate the ${ZAPTEL_DESCRIP} library */
+/* Define if your system has the ZAPTEL headers. */
 #undef HAVE_ZAPTEL
 
-/* Define to indicate the ${ZAPTEL_DESCRIP} library version */
+/* Define ZAPTEL headers version */
 #undef HAVE_ZAPTEL_VERSION
 
 /* Define this to indicate the ${ZLIB_DESCRIP} library */

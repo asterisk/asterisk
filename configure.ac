@@ -853,42 +853,56 @@ AC_LANG_POP
 
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
-# check for zaptel 1.4.0
-AST_C_DEFINE_CHECK([ZAPTEL], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h], [140])
-# or, try old zaptel (0.80 or so)
-AST_EXT_LIB_CHECK([ZAPTEL], [zaptel],, [zaptel.h],, [80])
+AST_C_DEFINE_CHECK([ZAPTEL], [ZT_DIAL_OP_CANCEL], [zaptel/zaptel.h])
 
-if test "${USE_ZAPTEL}" != "no"; then
-   if test "${PBX_ZAPTEL}" != "1"; then
-      AC_MSG_CHECKING(for ZT_DIAL_OP_CANCEL in zaptel.h)
-      saved_cppflags="${CPPFLAGS}"
-      if test "x${ZAPTEL_DIR}" != "x"; then
-	 CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
-      fi
-      AC_COMPILE_IFELSE(
+if test "${PBX_ZAPTEL}" = 1; then
+   AC_MSG_CHECKING(for ZT_TONE_DTMF_BASE in zaptel/zaptel.h)
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${ZAPTEL_DIR}" != "x"; then
+      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
+   fi
+   AC_COMPILE_IFELSE(
 	[
 	AC_LANG_PROGRAM(
-	[#include <zaptel.h>],
-	[int foo = ZT_DIAL_OP_CANCEL;])
+	[#include <zaptel/zaptel.h>],
+	[int foo = ZT_TONE_DTMF_BASE;])
 	],
 	[	AC_MSG_RESULT(yes) 
-		ac_cv_zaptel_h="yes" 
+		ac_cv_zaptel_vldtmf="yes" 
 	],
 	[	AC_MSG_RESULT(no) 
-		ac_cv_zaptel_h="no" 
+		ac_cv_zaptel_vldtmf="no" 
 	]
 	)
-      CPPFLAGS="${saved_cppflags}"
-      if test "${ac_cv_zaptel_h}" = "yes"; then
-         AC_MSG_NOTICE([***])
-	 AC_MSG_NOTICE([*** The Zaptel installation on this system is too old])
-	 AC_MSG_NOTICE([*** to be useable with this version of Asterisk.])
-	 AC_MSG_NOTICE([*** Either upgrade your Zaptel installation, or run configure])
-	 AC_MSG_NOTICE([*** including --without-zaptel.])
-	 exit 1
-      fi
+   CPPFLAGS="${saved_cppflags}"
+   if test "${ac_cv_zaptel_vldtmf}" = "yes"; then
+	PBX_ZAPTEL_VLDTMF=1
+   fi
+   AC_MSG_CHECKING(for ZT_TCOP_TRANSCODE in zaptel/zaptel.h)
+   saved_cppflags="${CPPFLAGS}"
+   if test "x${ZAPTEL_DIR}" != "x"; then
+      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
+   fi
+   AC_COMPILE_IFELSE(
+	[
+	AC_LANG_PROGRAM(
+	[#include <zaptel/zaptel.h>],
+	[int foo = ZT_TCOP_TRANSCODE;])
+	],
+	[	AC_MSG_RESULT(yes) 
+		ac_cv_zaptel_transcode="yes" 
+	],
+	[	AC_MSG_RESULT(no) 
+		ac_cv_zaptel_transcode="no" 
+	]
+	)
+   CPPFLAGS="${saved_cppflags}"
+   if test "${ac_cv_zaptel_transcode}" = "yes"; then
+	PBX_ZAPTEL_TRANSCODE=1
    fi
 fi
+AC_SUBST(PBX_ZAPTEL_VLDTMF)
+AC_SUBST(PBX_ZAPTEL_TRANSCODE)
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
