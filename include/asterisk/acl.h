@@ -38,13 +38,24 @@ extern "C" {
 
 struct ast_ha;
 
+/*! \brief Free host access list */
 void ast_free_ha(struct ast_ha *ha);
-struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
+
+/*! \brief Append ACL entry to host access list. */
+struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int *error);
+
+/*! \brief Check IP address with host access list */
 int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
-int ast_get_ip(struct sockaddr_in *sin, const char *value);
-int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
-int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
+
+/*! \brief Copy host access list */
 struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
+
+int ast_get_ip(struct sockaddr_in *sin, const char *value);
+
+int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
+
+int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
+
 int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
 int ast_str2tos(const char *value, unsigned int *tos);
 const char *ast_tos2str(unsigned int tos);

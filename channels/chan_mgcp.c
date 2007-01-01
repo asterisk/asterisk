@@ -3638,7 +3638,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "permit") ||
 				!strcasecmp(v->name, "deny")) {
-				gw->ha = ast_append_ha(v->name, v->value, gw->ha);
+				gw->ha = ast_append_ha(v->name, v->value, gw->ha, NULL);
 			} else if (!strcasecmp(v->name, "port")) {
 				gw->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "context")) {

@@ -2027,7 +2027,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 			} else if (!strcasecmp(v->name, "device")) {
 				ast_copy_string(d->id, v->value, sizeof(d->id));
 			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-				d->ha = ast_append_ha(v->name, v->value, d->ha);
+				d->ha = ast_append_ha(v->name, v->value, d->ha, NULL);
 			} else if (!strcasecmp(v->name, "context")) {
 				ast_copy_string(context, v->value, sizeof(context));
 			} else if (!strcasecmp(v->name, "allow")) {

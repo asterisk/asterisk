@@ -8450,7 +8450,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				peer_set_srcaddr(peer, v->value);
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
-				peer->ha = ast_append_ha(v->name, v->value, peer->ha);
+				peer->ha = ast_append_ha(v->name, v->value, peer->ha, NULL);
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
@@ -8610,7 +8610,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				}
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
-				user->ha = ast_append_ha(v->name, v->value, user->ha);
+				user->ha = ast_append_ha(v->name, v->value, user->ha, NULL);
 			} else if (!strcasecmp(v->name, "setvar")) {
 				varname = ast_strdupa(v->value);
 				if (varname && (varval = strchr(varname,'='))) {

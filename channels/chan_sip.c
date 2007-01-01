@@ -15765,7 +15765,11 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->chanvars = add_var(v->value, user->chanvars);
 		} else if (!strcasecmp(v->name, "permit") ||
 				   !strcasecmp(v->name, "deny")) {
-			user->ha = ast_append_ha(v->name, v->value, user->ha);
+			int ha_error = 0;
+
+			user->ha = ast_append_ha(v->name, v->value, user->ha, &ha_error);
+			if (ha_error)
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "allowtransfer")) {
 			user->allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "secret")) {
@@ -16023,7 +16027,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				return NULL;
 			}
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-			peer->ha = ast_append_ha(v->name, v->value, peer->ha);
+			int ha_error = 0;
+
+			peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
+			if (ha_error)
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (!realtime && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC))
 				peer->defaddr.sin_port = htons(atoi(v->value));
@@ -16405,10 +16413,14 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "localnet")) {
 			struct ast_ha *na;
-			if (!(na = ast_append_ha("d", v->value, localaddr)))
+			int ha_error;
+
+			if (!(na = ast_append_ha("d", v->value, localaddr, &ha_error)))
 				ast_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
 			else
 				localaddr = na;
+			if (ha_error)
+				ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) 
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);

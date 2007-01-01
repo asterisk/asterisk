@@ -1425,7 +1425,7 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 			}
 		} else if (!strcasecmp(v->name, "permit") ||
 					!strcasecmp(v->name, "deny")) {
-			user->ha = ast_append_ha(v->name, v->value, user->ha);
+			user->ha = ast_append_ha(v->name, v->value, user->ha, NULL);
 		}
 	}
 	if (!user->options.dtmfmode)

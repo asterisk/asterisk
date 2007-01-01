@@ -137,7 +137,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 	return ret;    			/* Return start of list */
 }
 
-struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
+struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int *error)
 {
 	struct ast_ha *ha;
 	char *nm = "255.255.255.255";
@@ -172,11 +172,15 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 			}
 		} else if (!inet_aton(nm, &ha->netmask)) {
 			ast_log(LOG_WARNING, "%s is not a valid netmask\n", nm);
+			if (error)
+				*error = 1;
 			free(ha);
 			return ret;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
 			ast_log(LOG_WARNING, "%s is not a valid IP\n", tmp);
+			if (error)
+				*error = 1;
 			free(ha);
 			return ret;
 		}
@@ -193,7 +197,8 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 			ret = ha;
 		}
 	}
-	ast_log(LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
 	return ret;
 }
 
