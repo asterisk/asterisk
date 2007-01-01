@@ -909,7 +909,7 @@ static int authenticate(struct mansession *s, struct message *m)
 			writeperm = get_perm(v->value);
 		else if (!strcasecmp(v->name, "permit") ||
 			   !strcasecmp(v->name, "deny")) {
-			ha = ast_append_ha(v->name, v->value, ha);
+			ha = ast_append_ha(v->name, v->value, ha, NULL);
 		} else if (!strcasecmp(v->name, "writetimeout")) {
 			int val = atoi(v->value);
 
