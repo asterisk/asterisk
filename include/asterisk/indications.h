@@ -34,51 +34,51 @@
 
 #include "asterisk/lock.h"
 
-struct ind_tone_zone_sound {
-	struct ind_tone_zone_sound *next;		/* next element */
-	const char *name;			/* Identifing name */
-	const char *data;			/* Actual zone description */
-	/* Description is a series of tones of the format:
+/*! \brief Description is a series of tones of the format:
 	   [!]freq1[+freq2][/duration] separated by commas.  There
 	   are no spaces.  The sequence is repeated back to the 
 	   first tone description not preceeded by !. Duration is
 	   specified in milliseconds */
+struct ind_tone_zone_sound {
+	struct ind_tone_zone_sound *next;	/*!< next element */
+	const char *name;			/*!< Identifing name */
+	const char *data;			/*!< Actual zone description */
 };
 
 struct ind_tone_zone {
 	AST_RWLIST_ENTRY(ind_tone_zone) list;
-	char country[5];				/* Country code */
-	char alias[5];					/* is this an alias? */
-	char description[40];				/* Description */
-	int  nrringcadence;				/* # registered ringcadence elements */
-	int *ringcadence;				/* Ring cadence */
-	struct ind_tone_zone_sound *tones;			/* The known tones for this zone */
+	char country[5];				/*!< Country code */
+	char alias[5];					/*!< is this an alias? */
+	char description[40];				/*!< Description */
+	int  nrringcadence;				/*!< # registered ringcadence elements */
+	int *ringcadence;				/*!< Ring cadence */
+	struct ind_tone_zone_sound *tones;		/*!< The known tones for this zone */
 };
 
-/* set the default tone country */
+/*! \brief set the default tone country */
 int ast_set_indication_country(const char *country);
 
-/* locate tone_zone, given the country. if country == NULL, use the default country */
+/*! \brief locate tone_zone, given the country. if country == NULL, use the default country */
 struct ind_tone_zone *ast_get_indication_zone(const char *country);
-/* locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
+/*! \brief locate a tone_zone_sound, given the tone_zone. if tone_zone == NULL, use the default tone_zone */
 struct ind_tone_zone_sound *ast_get_indication_tone(const struct ind_tone_zone *zone, const char *indication);
 
-/* add a new country, if country exists, it will be replaced. */
+/*! \brief add a new country, if country exists, it will be replaced. */
 int ast_register_indication_country(struct ind_tone_zone *country);
-/* remove an existing country and all its indications, country must exist */
+/*! \brief remove an existing country and all its indications, country must exist */
 int ast_unregister_indication_country(const char *country);
-/* add a new indication to a tone_zone. tone_zone must exist. if the indication already
+/*! \brief add a new indication to a tone_zone. tone_zone must exist. if the indication already
  * exists, it will be replaced. */
 int ast_register_indication(struct ind_tone_zone *zone, const char *indication, const char *tonelist);
-/* remove an existing tone_zone's indication. tone_zone must exist */
+/*! \brief remove an existing tone_zone's indication. tone_zone must exist */
 int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication);
 
-/* Start a tone-list going */
+/*! \brief Start a tone-list going */
 int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist, int interruptible);
-/*! Stop the tones from playing */
+/*! \brief Stop the tones from playing */
 void ast_playtones_stop(struct ast_channel *chan);
 
-/* support for walking through a list of indications */
+/*! \brief support for walking through a list of indications */
 struct ind_tone_zone *ast_walk_indications(const struct ind_tone_zone *cur);
 
 #if 0
