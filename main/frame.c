@@ -1143,8 +1143,9 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
    	return find_best ? ast_best_codec(formats) : 0;
 }
 
-void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing) 
+int ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing) 
 {
+	int errors = 0;
 	char *parse = NULL, *this = NULL, *psize = NULL;
 	int format = 0, framems = 0;
 
@@ -1156,11 +1157,15 @@ void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char
 			if (option_debug)
 				ast_log(LOG_DEBUG,"Packetization for codec: %s is %s\n", this, psize);
 			framems = atoi(psize);
-			if (framems < 0)
+			if (framems < 0) {
 				framems = 0;
+				errors++;
+				ast_log(LOG_WARNING, "Bad packetization value for codec %s\n", this);
+			}
 		}
 		if (!(format = ast_getformatbyname(this))) {
 			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", this);
+			errors++;
 			continue;
 		}
 
@@ -1187,6 +1192,7 @@ void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char
 			}
 		}
 	}
+	return errors;
 }
 
 static int g723_len(unsigned char buf)

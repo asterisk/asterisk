@@ -533,8 +533,9 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int f
 /*! \brief Parse an "allow" or "deny" line in a channel or device configuration 
         and update the capabilities mask and pref if provided.
 	Video codecs are not added to codec preference lists, since we can not transcode
+	\return Returns number of errors encountered during parsing
  */
-void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing);
+int ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing);
 
 /*! \brief Dump audio codec preference list into a string */
 int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);

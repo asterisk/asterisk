@@ -15806,9 +15806,13 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 				user->amaflags = format;
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
-			ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 1);
+			int error =  ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, TRUE);
+			if (error)
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
+			int error =  ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, FALSE);
+			if (error)
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
 		} else if (!strcasecmp(v->name, "autoframing")) {
 			user->autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callingpres")) {
@@ -16079,9 +16083,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
 			peer->pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "allow")) {
-			ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 1);
+			int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, TRUE);
+			if (error)
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
+			int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, FALSE);
+			if (error)
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
 		} else if (!strcasecmp(v->name, "autoframing")) {
 			peer->autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
@@ -16440,9 +16448,13 @@ static int reload_config(enum channelreloadreason reason)
 				externrefresh = 10;
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
-			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 1);
+			int error =  ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, TRUE);
+			if (error)
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 0);
+			int error =  ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, FALSE);
+			if (error)
+				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
 		} else if (!strcasecmp(v->name, "autoframing")) {
 			global_autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "allowexternaldomains")) {
