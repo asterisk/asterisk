@@ -136,7 +136,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
 #include "asterisk/astobj.h"
-#include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
@@ -1096,7 +1095,6 @@ struct sip_peer {
 	int rtpkeepalive;		/*!<  Send RTP packets for keepalive */
 	ast_group_t callgroup;		/*!<  Call group */
 	ast_group_t pickupgroup;	/*!<  Pickup group */
-	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
 	
@@ -2366,8 +2364,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		speerobjs--;
 	clear_realm_authentication(peer->auth);
 	peer->auth = NULL;
-	if (peer->dnsmgr)
-		ast_dnsmgr_release(peer->dnsmgr);
 	free(peer);
 }
 
