@@ -73,7 +73,7 @@ endif
 # Create OPTIONS variable
 OPTIONS=
 
-ASTTOPDIR:=$(shell pwd)
+ASTTOPDIR:=$(CURDIR)
 
 # Overwite config files on "make samples"
 OVERWRITE=y
