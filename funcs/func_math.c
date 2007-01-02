@@ -265,9 +265,9 @@ static int math(struct ast_channel *chan, char *cmd, char *parse,
 static struct ast_custom_function math_function = {
 	.name = "MATH",
 	.synopsis = "Performs Mathematical Functions",
-	.syntax = "MATH(<number1><op><number 2>[,<type_of_result>])",
-	.desc = "Perform calculation on number 1 to number 2. Valid ops are: \n"
-		"    +,-,/,*,%,<,>,>=,<=,==\n"
+	.syntax = "MATH(<number1><op><number2>[,<type_of_result>])",
+	.desc = "Perform calculation on number1 to number2. Valid ops are: \n"
+		"    +,-,/,*,%,<<,>>,^,<,>,>=,<=,==\n"
 		"and behave as their C equivalents.\n"
 		"<type_of_result> - wanted type of result:\n"
 		"	f, float - float(default)\n"
