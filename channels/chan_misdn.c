@@ -578,6 +578,20 @@ static int misdn_restart_port (int fd, int argc, char *argv[])
 	return 0;
 }
 
+static int misdn_restart_pid (int fd, int argc, char *argv[])
+{
+	int pid;
+  
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+  
+	pid = atoi(argv[3]);
+
+	misdn_lib_pid_restart(pid);
+
+	return 0;
+}
+
 static int misdn_port_up (int fd, int argc, char *argv[])
 {
 	int port;
@@ -1153,6 +1167,13 @@ static struct ast_cli_entry cli_restart_port =
   misdn_restart_port,
   "Restarts the given port", 
   "Usage: misdn restart port\n"
+};
+
+static struct ast_cli_entry cli_restart_pid =
+{ {"misdn","restart","pid", NULL},
+  misdn_restart_pid,
+  "Restarts the given pid", 
+  "Usage: misdn restart pid\n"
 };
 
 static struct ast_cli_entry cli_port_up =
@@ -4215,6 +4236,7 @@ int load_module(void)
 	ast_cli_register(&cli_port_block);
 	ast_cli_register(&cli_port_unblock);
 	ast_cli_register(&cli_restart_port);
+	ast_cli_register(&cli_restart_pid);
 	ast_cli_register(&cli_port_up);
 	ast_cli_register(&cli_port_down);
 	ast_cli_register(&cli_set_debug);
@@ -4280,7 +4302,7 @@ int unload_module(void)
 	ast_cli_unregister(&cli_show_stacks);
 	ast_cli_unregister(&cli_port_block);
 	ast_cli_unregister(&cli_port_unblock);
-	ast_cli_unregister(&cli_restart_port);
+	ast_cli_unregister(&cli_restart_pid);
 	ast_cli_unregister(&cli_port_up);
 	ast_cli_unregister(&cli_port_down);
 	ast_cli_unregister(&cli_set_debug);

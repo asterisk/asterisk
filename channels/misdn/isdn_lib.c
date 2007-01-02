@@ -174,6 +174,7 @@ int setup_bc(struct misdn_bchannel *bc);
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg);
 
 int misdn_lib_port_restart(int port);
+int misdn_lib_pid_restart(int pid);
 
 extern struct isdn_msg msgs_g[]; 
 
@@ -446,7 +447,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
 
 int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
-	if (channel<=0) {
+	if (channel<=0 || channel>=MAX_BCHANS) {
 		cb_log(0,stack?stack->port:0, "empty_chan_inst_stack: cannot empty channel %d\n",channel);
 		return -1;
 	}
@@ -666,7 +667,7 @@ int set_chan_in_stack(struct misdn_stack *stack, int channel)
 
 	cb_log(4,stack->port,"set_chan_in_stack: %d\n",channel);
 	dump_chan_list(stack);
-	if (channel >=1 ) {
+	if (channel >=1 && channel <= MAX_BCHANS) {
 		if (!stack->channels[channel-1])
 			stack->channels[channel-1] = 1;
 		else {
@@ -2807,7 +2808,6 @@ int handle_mgmt(msg_t *msg)
 				stack->l1link=0;
 
 			clear_l3(stack);
-			
 			break;
 
 		case SSTATUS_L2_ESTABLISHED:
@@ -3307,6 +3307,16 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		bc->need_disconnect=0;
 		bc->need_release=0;
 		bc->need_release_complete=0;
+
+		if (!stack->nt) {
+			/*create clenaup in TE*/
+			if (bc->channel>0)
+				empty_chan_in_stack(stack,bc->channel);
+			int tmpcause=bc->cause;	
+			empty_bc(bc);
+			bc->cause=tmpcause;
+			clean_up_bc(bc);
+		}
 		break;
     
 	case EVENT_CONNECT_ACKNOWLEDGE:
@@ -3556,6 +3566,15 @@ int queue_cleanup_bc(struct misdn_bchannel *bc)
 
 	return 0; 
 
+}
+
+int misdn_lib_pid_restart(int pid) 
+{
+	struct misdn_bchannel *bc=manager_find_bc_by_pid(pid);
+
+	if (bc) {
+		manager_clean_bc(bc);
+	}
 }
 
 int misdn_lib_port_restart(int port)
@@ -4042,7 +4061,7 @@ void manager_clean_bc(struct misdn_bchannel *bc )
 		empty_chan_in_stack(stack, bc->channel);
 	empty_bc(bc);
   
-	misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+	cb_event(EVENT_CLEANUP, bc, NULL); 
 }
 
 
