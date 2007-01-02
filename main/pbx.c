@@ -5507,11 +5507,12 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
+	double s;
 	int ms;
 
 	/* Wait for "n" seconds */
-	if (data && (ms = atof(data)) > 0) {
-		ms *= 1000;
+	if (data && (s = atof(data)) > 0) {
+		ms = s * 1000.0;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
