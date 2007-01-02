@@ -58,7 +58,7 @@ context => parkedcalls		; Which context parked calls are in
 ;                   application on the same channel that activated the feature. "peer"
 ;                   means run the application on the opposite channel from the one that
 ;                   has activated the feature.
-;  ActivatedBy   -> This is which channel is allowed to activated this feature. Valid
+;  ActivatedBy   -> This is which channel is allowed to activate this feature. Valid
 ;                   values are "caller", "callee", and "both". "both" is the default.
 ;                   The "caller" is the channel that executed the Dial application, while
 ;                   the "callee" is the channel called by the Dial application.
@@ -76,6 +76,8 @@ context => parkedcalls		; Which context parked calls are in
 ;   concept of dialplan flow. Examples of this would be things like Macro, Goto,
 ;   Background, WaitExten, and many more.
 ;
+; Enabling these features means that the PBX needs to stay in the media flow and
+; media will not be re-directed if DTMF is sent in the media stream.
 ;
 ; Example Usage:
 ;
@@ -86,3 +88,4 @@ context => parkedcalls		; Which context parked calls are in
 ;                                                  ;on their channel
 ;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
 ;                                                  ;on their channel
+;
