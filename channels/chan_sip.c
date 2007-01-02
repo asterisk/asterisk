@@ -9801,6 +9801,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (!ignore)
 			sip_cancel_destroy(p);
 		check_pendings(p);
+		ast_set_flag(p, SIP_CAN_BYE);
 		break;
 	case 180:	/* 180 Ringing */
 		if (!ignore)
@@ -11031,11 +11032,11 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 	} else if (p->owner) {
 		ast_queue_hangup(p->owner);
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n.");
+			ast_log(LOG_DEBUG, "Received bye, issuing owner hangup\n");
 	} else {
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n.");
+			ast_log(LOG_DEBUG, "Received bye, no owner, selfdestruct soon.\n");
 	}
 	transmit_response(p, "200 OK", req);
 
