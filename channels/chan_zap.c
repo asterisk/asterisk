@@ -1193,7 +1193,7 @@ static int zt_digit_begin(struct ast_channel *chan, char digit)
 out:
 	ast_mutex_unlock(&pvt->lock);
 
-	return 0; /* Tell Asterisk not to generate inband indications */
+	return 0;
 }
 
 static int zt_digit_end(struct ast_channel *chan, char digit)
