@@ -44,6 +44,14 @@ else
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(ASTCFLAGS)
 endif
 
+%.o: %.s
+	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
+ifeq ($(AST_DEVMODE),yes)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(ASTCFLAGS) -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+else
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(ASTCFLAGS)
+endif
+
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
 ifeq ($(AST_DEVMODE),yes)
@@ -64,7 +72,7 @@ endif
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLDFLAGS) $(SOLINK) $^ $(LIBS)
 
-%.soo: %.oo
+%.so: %.oo
 	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLDFLAGS) $(SOLINK) $^ $(LIBS)
 
