@@ -105,7 +105,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\talso in switzerland this seems to be important." },
 	{ "far_alerting", MISDN_CFG_FAR_ALERTING, MISDN_CTYPE_BOOL, "no", NONE,
 		"If we should generate ringing for chan_sip and others." },
-	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "yes", NONE,
+	{ "pmp_l1_check", MISDN_CFG_PMP_L1_CHECK, MISDN_CTYPE_BOOL, "no", NONE,
 		"This option defines, if chan_misdn should check the L1 on a PMP\n"
 		"\tbefore makeing a group call on it. The L1 may go down for PMP Ports\n"
 		"\tso we might need this.\n"

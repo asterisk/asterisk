@@ -326,6 +326,10 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
     
 		enc_ie_bearer(&setup->BEARER, msg, coding, capability, mode, rate, -1, user, nt,bc);
 	}
+
+	if (bc->sending_complete) {
+		enc_ie_complete(&setup->BEARER,msg, bc->sending_complete, nt, bc);
+	}
   
 #if DEBUG 
 	printf("Building SETUP Msg\n"); 

@@ -43,7 +43,6 @@ static void strnncpy(char *dest, char *src, int len, int dst_len)
 
 
 /* IE_COMPLETE */
-#if 0
 static void enc_ie_complete(unsigned char **ntmode, msg_t *msg, int complete, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
@@ -70,7 +69,6 @@ static void enc_ie_complete(unsigned char **ntmode, msg_t *msg, int complete, in
 		p[0] = IE_COMPLETE;
 	}
 }
-#endif
 
 static void dec_ie_complete(unsigned char *p, Q931_info_t *qi, int *complete, int nt, struct misdn_bchannel *bc)
 {
