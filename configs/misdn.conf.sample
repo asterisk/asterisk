@@ -198,9 +198,9 @@ te_choose_channel=no
 ; as well, since chan_misdn has no chance to distinguish if the L1 is down
 ; because of a lost Link or because the Provider shut it down...
 ;
-; default: yes
+; default: no
 ;
-pmp_l1_check=yes
+pmp_l1_check=no
 pp_l2_check=no
 
 

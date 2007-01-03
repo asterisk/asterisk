@@ -408,6 +408,8 @@ void isdn_lib_update_ec (struct misdn_bchannel *bc);
 void isdn_lib_stop_dtmf (struct misdn_bchannel *bc);
 
 int misdn_lib_port_restart(int port);
+int misdn_lib_pid_restart(int pid);
+
 int misdn_lib_get_port_info(int port);
 
 int misdn_lib_is_port_blocked(int port);

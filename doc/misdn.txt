@@ -39,6 +39,7 @@ Overview
 - Configuration
 - Dial and Options String
 - misdn cli commands
+- mISDN Variables
 - Debugging and sending Bugreports
 - Examples
 - Known Problems
@@ -221,6 +222,15 @@ misdn send display mISDN/1/101 "Hello World!"
 
 where 1 is the Port of the Card where the phone is plugged in, and 101 is the
 msn (callerid) of the Phone to send the text to.
+
+
+mISDN Variables
+---------------
+
+mISDN Exports/Imports a few Variables: 
+
+- MISDN_ADDRESS_COMPLETE : 	Is either set to 1 from the Provider, or you 
+				can set it to 1 to force a sending complete.
 
 
 
