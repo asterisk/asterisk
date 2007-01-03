@@ -1694,6 +1694,15 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			misdn_set_opt_exec(ast,opts);
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
+
+		/*check for bridging*/
+		int bridging;
+		misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
+		if (bridging && ch->other_ch) {
+			chan_misdn_log(0, port, "Disabling EC on both Sides\n");	
+			ch->bc->ec_enable=0;
+			ch->other_ch->bc->ec_enable=0;
+		}
 		
 		r=misdn_lib_send_event( newbc, EVENT_SETUP );
 		
@@ -1769,7 +1778,6 @@ static int misdn_answer(struct ast_channel *ast)
 	}
 	
 	p->state = MISDN_CONNECTED;
-	misdn_lib_echo(p->bc,0);
 	stop_indicate(p);
 
 	if ( ast_strlen_zero(p->bc->cad) ) {
@@ -2316,27 +2324,12 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 	if (ch1 && ch2 ) ;
 	else
 		return -1;
-  
 
 	int bridging;
 	misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
 	if (bridging) {
-		int ec;
-		misdn_cfg_get( ch1->bc->port, MISDN_CFG_ECHOCANCEL, &ec, sizeof(int));
-		if ( ec ) {
-			chan_misdn_log(2, ch1->bc->port, "Disabling Echo Cancellor when Bridged\n");
-			ch1->bc->ec_enable=0;
-			manager_ec_disable(ch1->bc);
-		}
-		misdn_cfg_get( ch2->bc->port, MISDN_CFG_ECHOCANCEL, &ec, sizeof(int));
-		if ( ec ) {
-			chan_misdn_log(2, ch2->bc->port, "Disabling Echo Cancellor when Bridged\n");
-			ch2->bc->ec_enable=0;
-			manager_ec_disable(ch2->bc); 
-		}
 		/* trying to make a mISDN_dsp conference */
 		chan_misdn_log(1, ch1->bc->port, "I SEND: Making conference with Number:%d\n", ch1->bc->pid +1);
-
 		misdn_lib_bridge(ch1->bc,ch2->bc);
 	}
 	
@@ -3229,6 +3222,11 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 		sprintf(tmp,"%d",bc->sending_complete);
 		pbx_builtin_setvar_helper(chan,"MISDN_ADDRESS_COMPLETE",tmp);
 	}
+
+	if (bc->urate) {
+		sprintf(tmp,"%d",bc->urate);
+		pbx_builtin_setvar_helper(chan,"MISDN_URATE",tmp);
+	}
 }
 
 
@@ -3243,7 +3241,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	if (event != EVENT_BCHAN_DATA && event != EVENT_TONE_GENERATE) { /*  Debug Only Non-Bchan */
 		int debuglevel=1;
-	
 		if ( event==EVENT_CLEANUP && !user_data)
 			debuglevel=5;
 
@@ -3787,8 +3784,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		misdn_lib_send_event(bc,EVENT_CONNECT_ACKNOWLEDGE);
 	
 		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
-		
-		misdn_lib_echo(bc,0);
 		stop_indicate(ch);
 
 		if (bridged && !strcasecmp(bridged->tech->type,"mISDN")) {
