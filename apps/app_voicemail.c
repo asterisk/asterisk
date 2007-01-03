@@ -1046,7 +1046,12 @@ static int retrieve_file(char *dir, int msgnum)
 		else
 			ast_copy_string(fn, dir, sizeof(fn));
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-		f = fopen(full_fn, "w+");
+		
+		if (!(f = fopen(full_fn, "w+"))) {
+		        ast_log(LOG_WARNING, "Failed to open/create '%s'\n", full_fn);
+		        goto yuck;
+		}
+		
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
 		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -2164,7 +2169,15 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 {
 	int res;
 	char fn[256];
+	char dest[256];
+
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
+
+	if (!(res = create_dirpath(dest,256,context,ext,"greet"))) {
+		ast_log(LOG_WARNING, "Failed to make directory(%s)\n", fn);
+		return -1;
+	}
+
 	RETRIEVE(fn, -1);
 	if (ast_fileexists(fn, NULL, NULL) > 0) {
 		res = ast_stream_and_wait(chan, fn, ecodes);
@@ -2841,6 +2854,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int ousemacro = 0;
 	int ouseexten = 0;
 	char dir[256], tmpdir[260];
+	char dest[256];
 	char fn[256];
 	char prefile[256]="";
 	char tempfile[256]="";
@@ -2877,17 +2891,23 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		return res;
 	}
-
 	/* Setup pre-file if appropriate */
 	if (strcmp(vmu->context, "default"))
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
 	else
 		ast_copy_string(ext_context, vmu->context, sizeof(ext_context));
-	if (ast_test_flag(options, OPT_BUSY_GREETING))
+	if (ast_test_flag(options, OPT_BUSY_GREETING)) {
+		res = create_dirpath(dest, 256, vmu->context, ext, "busy");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
-	else if (ast_test_flag(options, OPT_UNAVAIL_GREETING))
+	} else if (ast_test_flag(options, OPT_UNAVAIL_GREETING)) {
+		res = create_dirpath(dest, 256, vmu->context, ext, "unavail");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
+	}
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
+	if (!(res = create_dirpath(dest, 256, vmu->context, ext, "temp"))) {
+		ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
+		return -1;
+	}
 	RETRIEVE(tempfile, -1);
 	if (ast_fileexists(tempfile, NULL, NULL) > 0)
 		ast_copy_string(prefile, tempfile, sizeof(prefile));
@@ -4088,8 +4108,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 
 		/* Forward VoiceMail */
 		long duration = 0;
-
-		RETRIEVE(dir, curmsg);
+ 		RETRIEVE(dir, curmsg);
 		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, vms);
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
@@ -5902,11 +5921,13 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain)
 {
+	int res;
 	int cmd = 0;
 	int retries = 0;
 	int duration = 0;
 	char prefile[256]="";
 	unsigned char buf[256];
+	char dest[256];
 	int bytes=0;
 
 	if (ast_adsi_available(chan)) {
@@ -5917,8 +5938,13 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 		bytes += ast_adsi_voice_mode(buf + bytes, 0);
 		ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 	}
+
 	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
-	while (cmd >= 0 && cmd != 't') {
+	if (!(res = create_dirpath(dest, 256, vmu->context, vms->username, "temp"))) {
+		ast_log(LOG_WARNING, "Failed to create directory (%s).\n", prefile);
+		return -1;
+	}
+	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
 		RETRIEVE(prefile, -1);
