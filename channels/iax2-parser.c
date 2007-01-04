@@ -939,7 +939,7 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 	}
 }
 
-struct iax_frame *iax_frame_new(int direction, int datalen)
+struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheable)
 {
 	struct iax_frame *fr = NULL;
 
@@ -969,6 +969,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen)
 
 	fr->direction = direction;
 	fr->retrans = -1;
+	fr->cacheable = cacheable;
 	
 	if (fr->direction == DIRECTION_INGRESS)
 		ast_atomic_fetchadd_int(&iframes, 1);
@@ -996,7 +997,7 @@ void iax_frame_free(struct iax_frame *fr)
 	ast_atomic_fetchadd_int(&frames, -1);
 
 #if !defined(LOW_MEMORY)
-	if (!(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
+	if (!fr->cacheable || !(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
 		free(fr);
 		return;
 	}
