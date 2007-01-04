@@ -182,7 +182,7 @@ void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 )
 #else /* defined(DEBUG_THREADLOCALS) */
 AST_INLINE_API(
-void *__ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
+void *__ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size, const char *file, const char *function, unsigned int line),
 {
 	void *buf;
 
