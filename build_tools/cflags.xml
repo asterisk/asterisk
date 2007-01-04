@@ -5,6 +5,8 @@
 		</member>
 		<member name="DEBUG_THREADS" displayname="Enable Thread Debugging">
 		</member>
+		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
+		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
 		</member>
 		<member name="DO_CRASH" displayname="Crash on fatal errors">

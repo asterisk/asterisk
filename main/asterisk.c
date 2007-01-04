@@ -2714,6 +2714,9 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+
+	threadstorage_init();
+
 	if (load_modules(1)) {
 		printf(term_quit());
 		exit(1);

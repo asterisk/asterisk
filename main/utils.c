@@ -962,6 +962,9 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
 {
 	int res;
 	int offset = (append && (*buf)->len) ? strlen((*buf)->str) : 0;
+#if defined(DEBUG_THREADLOCALS)
+	struct ast_dynamic_str *old_buf = *buf;
+#endif /* defined(DEBUG_THREADLOCALS) */
 
 	res = vsnprintf((*buf)->str + offset, (*buf)->len - offset, fmt, ap);
 
@@ -984,8 +987,12 @@ int ast_dynamic_str_thread_build_va(struct ast_dynamic_str **buf, size_t max_len
 		if (append)
 			(*buf)->str[offset] = '\0';
 
-		if (ts)
+		if (ts) {
 			pthread_setspecific(ts->key, *buf);
+#if defined(DEBUG_THREADLOCALS)
+			__ast_threadstorage_object_replace(old_buf, *buf, (*buf)->len + sizeof(*(*buf)));
+#endif /* defined(DEBUG_THREADLOCALS) */
+		}
 
 		/* va_end() and va_start() must be done before calling
 		 * vsnprintf() again. */

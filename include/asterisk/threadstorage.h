@@ -43,6 +43,13 @@ struct ast_threadstorage {
 	void (*key_init)(void);
 };
 
+
+#if defined(DEBUG_THREADLOCALS)
+void __ast_threadstorage_object_add(void *key, size_t len, const char *file, const char *function, unsigned int line);
+void __ast_threadstorage_object_remove(void *key);
+void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len);
+#endif /* defined(DEBUG_THREADLOCALS) */
+
 /*!
  * \brief Define a thread storage variable
  *
@@ -61,6 +68,7 @@ struct ast_threadstorage {
 #define AST_THREADSTORAGE(name, name_init) \
 	AST_THREADSTORAGE_CUSTOM(name, name_init, ast_free) 
 
+#if !defined(DEBUG_THREADLOCALS)
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
@@ -71,6 +79,23 @@ static void name_init(void)                                 \
 {                                                           \
 	pthread_key_create(&(name).key, cleanup);           \
 }
+#else /* defined(DEBUG_THREADLOCALS) */
+#define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
+static void name_init(void);                                \
+static struct ast_threadstorage name = {                    \
+	.once = PTHREAD_ONCE_INIT,                          \
+	.key_init = name_init,                              \
+};                                                          \
+static void __cleanup_##name(void *data)		    \
+{							    \
+	__ast_threadstorage_object_remove(data);	    \
+	cleanup(data);					    \
+}							    \
+static void name_init(void)                                 \
+{                                                           \
+	pthread_key_create(&(name).key, __cleanup_##name);  \
+}
+#endif /* defined(DEBUG_THREADLOCALS) */
 
 /*!
  * \brief Retrieve thread storage
@@ -102,6 +127,7 @@ static void name_init(void)                                 \
  * }
  * \endcode
  */
+#if !defined(DEBUG_THREADLOCALS)
 AST_INLINE_API(
 void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 {
@@ -117,6 +143,26 @@ void *ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size),
 	return buf;
 }
 )
+#else /* defined(DEBUG_THREADLOCALS) */
+AST_INLINE_API(
+void *__ast_threadstorage_get(struct ast_threadstorage *ts, size_t init_size, const char *file, const char *function, unsigned int line),
+{
+	void *buf;
+
+	pthread_once(&ts->once, ts->key_init);
+	if (!(buf = pthread_getspecific(ts->key))) {
+		if (!(buf = ast_calloc(1, init_size)))
+			return NULL;
+		pthread_setspecific(ts->key, buf);
+		__ast_threadstorage_object_add(buf, init_size, file, function, line);
+	}
+
+	return buf;
+}
+)
+
+#define ast_threadstorage_get(ts, init_size) __ast_threadstorage_get(ts, init_size, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#endif /* defined(DEBUG_THREADLOCALS) */
 
 /*!
  * \brief A dynamic length string
@@ -184,6 +230,7 @@ struct ast_dynamic_str * attribute_malloc ast_dynamic_str_create(size_t init_len
  * }
  * \endcode
  */
+#if !defined(DEBUG_THREADLOCALS)
 AST_INLINE_API(
 struct ast_dynamic_str *ast_dynamic_str_thread_get(struct ast_threadstorage *ts,
 	size_t init_len),
@@ -199,6 +246,25 @@ struct ast_dynamic_str *ast_dynamic_str_thread_get(struct ast_threadstorage *ts,
 	return buf;
 }
 )
+#else /* defined(DEBUG_THREADLOCALS) */
+AST_INLINE_API(
+struct ast_dynamic_str *__ast_dynamic_str_thread_get(struct ast_threadstorage *ts,
+	size_t init_len, const char *file, const char *function, unsigned int line),
+{
+	struct ast_dynamic_str *buf;
+
+	if (!(buf = __ast_threadstorage_get(ts, sizeof(*buf) + init_len, file, function, line)))
+		return NULL;
+	
+	if (!buf->len)
+		buf->len = init_len;
+
+	return buf;
+}
+)
+
+#define ast_dynamic_str_thread_get(ts, init_len) __ast_dynamic_str_thread_get(ts, init_len, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#endif /* defined(DEBUG_THREADLOCALS) */ 
 
 /*!
  * \brief Error codes from ast_dynamic_str_thread_build_va()
