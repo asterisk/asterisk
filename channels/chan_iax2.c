@@ -7023,15 +7023,17 @@ retryowner2:
 						}
 					}
 				}
-				ast_mutex_lock(&dpcache_lock);
-				dp = iaxs[fr->callno]->dpentries;
-				while(dp) {
-					if (!(dp->flags & CACHE_FLAG_TRANSMITTED)) {
-						iax2_dprequest(dp, fr->callno);
+				if (iaxs[fr->callno]) {
+					ast_mutex_lock(&dpcache_lock);
+					dp = iaxs[fr->callno]->dpentries;
+					while(dp) {
+						if (!(dp->flags & CACHE_FLAG_TRANSMITTED)) {
+							iax2_dprequest(dp, fr->callno);
+						}
+						dp = dp->peer;
 					}
-					dp = dp->peer;
+					ast_mutex_unlock(&dpcache_lock);
 				}
-				ast_mutex_unlock(&dpcache_lock);
 				break;
 			case IAX_COMMAND_POKE:
 				/* Send back a pong packet with the original timestamp */
