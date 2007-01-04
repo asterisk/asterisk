@@ -333,7 +333,7 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 {
 	struct ast_str *buf;
 
-	buf = (struct ast_str *)ast_calloc(1, sizeof(*buf) + init_len);
+	buf = ast_calloc(1, sizeof(*buf) + init_len);
 	if (buf == NULL)
 		return NULL;
 	
@@ -373,7 +373,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
 		return -1;	/* cannot extend */
-	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
+	*buf = ast_realloc(*buf, new_len + sizeof(struct ast_str));
 	if (*buf == NULL) /* XXX watch out, we leak memory here */
 		return -1;
 	if ((*buf)->ts != DS_MALLOC) {
@@ -431,13 +431,14 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
  * }
  * \endcode
  */
+#if !defined(DEBUG_THREADLOCALS)
 AST_INLINE_API(
 struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 	size_t init_len),
 {
 	struct ast_str *buf;
 
-	buf = (struct ast_str *)ast_threadstorage_get(ts, sizeof(*buf) + init_len);
+	buf = ast_threadstorage_get(ts, sizeof(*buf) + init_len);
 	if (buf == NULL)
 		return NULL;
 	
@@ -450,6 +451,29 @@ struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 	return buf;
 }
 )
+#else /* defined(DEBUG_THREADLOCALS) */
+AST_INLINE_API(
+struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
+	size_t init_len, const char *file, const char *function, unsigned int line),
+{
+	struct ast_str *buf;
+
+	buf = __ast_threadstorage_get(ts, sizeof(*buf) + init_len, file, function, line);
+	if (buf == NULL)
+		return NULL;
+	
+	if (!buf->len) {
+		buf->len = init_len;
+		buf->used = 0;
+		buf->ts = ts;
+	}
+
+	return buf;
+}
+)
+
+#define ast_str_thread_get(ts, init_len) __ast_str_thread_get(ts, init_len, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#endif /* defined(DEBUG_THREADLOCALS) */
 
 /*!
  * \brief Error codes from __ast_str_helper()
