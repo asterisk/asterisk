@@ -109,7 +109,6 @@ static int displayconnects = 1;
 static int timestampevents;
 static int httptimeout = 60;
 
-static pthread_t accept_thread_ptr;	/*!< the accept thread */
 static int block_sockets;
 static int num_sessions;
 
@@ -640,10 +639,8 @@ static struct ast_cli_entry cli_manager[] = {
  */
 static struct eventqent *unref_event(struct eventqent *e)
 {
-	struct eventqent *ret = AST_LIST_NEXT(e, eq_next);
-	if (ast_atomic_dec_and_test(&e->usecount) && ret)
-		pthread_kill(accept_thread_ptr, SIGURG);
-	return ret;
+	ast_atomic_fetchadd_int(&e->usecount, -1);
+	return AST_LIST_NEXT(e, eq_next);
 }
 
 static void ref_event(struct eventqent *e)
