@@ -976,6 +976,8 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 	else
 		ast_atomic_fetchadd_int(&oframes, 1);
 	
+	ast_atomic_fetchadd_int(&frames, 1);
+
 	return fr;
 }
 
