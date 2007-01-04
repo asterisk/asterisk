@@ -49,7 +49,7 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 {
 	struct ast_variable *var, *head;
         struct ast_module_user *u;
-	char *results;
+	char *results, *result_begin;
 	size_t resultslen = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
@@ -83,10 +83,10 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 	for (var = head; var; var = var->next)
 		resultslen += strlen(var->name) + strlen(var->value) + 2;
 
-	results = alloca(resultslen);
+	result_begin = results = alloca(resultslen);
 	for (var = head; var; var = var->next)
 		ast_build_string(&results, &resultslen, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
-	ast_copy_string(buf, results, len);
+	ast_copy_string(buf, result_begin, len);
 
 	ast_module_user_remove(u);
 
