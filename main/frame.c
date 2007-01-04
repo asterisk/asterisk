@@ -304,10 +304,12 @@ static struct ast_frame *ast_frame_header_new(void)
 			return f;
 		}
 	}
-#endif
-
 	if (!(f = ast_calloc_cache(1, sizeof(*f))))
 		return NULL;
+#else
+	if (!(f = ast_calloc(1, sizeof(*f))))
+		return NULL;
+#endif
 
 	f->mallocd_hdr_len = sizeof(*f);
 #ifdef TRACE_FRAMES
