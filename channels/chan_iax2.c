@@ -917,11 +917,15 @@ static struct iax2_thread *find_idle_thread(void)
 	ast_cond_init(&thread->cond, NULL);
 
 	/* Create thread and send it on it's way */
-	if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
+	if (ast_pthread_create_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 		ast_cond_destroy(&thread->cond);
 		ast_mutex_destroy(&thread->lock);
 		free(thread);
 		thread = NULL;
+	} else {
+		AST_LIST_LOCK(&dynamic_list);
+		AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
+		AST_LIST_UNLOCK(&dynamic_list);
 	}
 
 	return thread;
@@ -8199,7 +8203,7 @@ static int start_network_thread(void)
 			thread->threadnum = ++threadcount;
 			ast_mutex_init(&thread->lock);
 			ast_cond_init(&thread->cond, NULL);
-			if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
+			if (ast_pthread_create_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 				ast_log(LOG_WARNING, "Failed to create new thread!\n");
 				free(thread);
 				thread = NULL;
