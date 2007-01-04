@@ -7122,11 +7122,13 @@ retryowner2:
 						}
 					}
 				}
-				AST_LIST_LOCK(&dpcache);
-				AST_LIST_TRAVERSE(&iaxs[fr->callno]->dpentries, dp, peer_list)
-					if (!(dp->flags & CACHE_FLAG_TRANSMITTED))
-						iax2_dprequest(dp, fr->callno);
-				AST_LIST_UNLOCK(&dpcache);
+				if (iaxs[fr->callno]) {
+					AST_LIST_LOCK(&dpcache);
+					AST_LIST_TRAVERSE(&iaxs[fr->callno]->dpentries, dp, peer_list)
+						if (!(dp->flags & CACHE_FLAG_TRANSMITTED))
+							iax2_dprequest(dp, fr->callno);
+					AST_LIST_UNLOCK(&dpcache);
+				}
 				break;
 			case IAX_COMMAND_POKE:
 				/* Send back a pong packet with the original timestamp */
