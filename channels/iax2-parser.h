@@ -101,19 +101,21 @@ struct iax_frame {
 	/* How long to wait before retrying */
 	int retrytime;
 	/* Are we received out of order?  */
-	int outoforder;
+	unsigned int outoforder:1;
 	/* Have we been sent at all yet? */
-	int sentyet;
+	unsigned int sentyet:1;
+	/* Non-zero if should be sent to transfer peer */
+	unsigned int transfer:1;
+	/* Non-zero if this is the final message */
+	unsigned int final:1;
+	/* Ingress or outgres */
+	unsigned int direction:2;
+	/* Can this frame be cached? */
+	unsigned int cacheable:1;
 	/* Outgoing Packet sequence number */
 	int oseqno;
 	/* Next expected incoming packet sequence number */
 	int iseqno;
-	/* Non-zero if should be sent to transfer peer */
-	int transfer;
-	/* Non-zero if this is the final message */
-	int final;
-	/* Ingress or outgres */
-	int direction;
 	/* Retransmission ID */
 	int retrans;
 	/* Easy linking */
@@ -153,6 +155,6 @@ int iax_get_iframes(void);
 int iax_get_oframes(void);
 
 void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f);
-struct iax_frame *iax_frame_new(int direction, int datalen);
+struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheable);
 void iax_frame_free(struct iax_frame *fr);
 #endif
