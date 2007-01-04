@@ -2897,14 +2897,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	else
 		ast_copy_string(ext_context, vmu->context, sizeof(ext_context));
 	if (ast_test_flag(options, OPT_BUSY_GREETING)) {
-		res = create_dirpath(dest, 256, vmu->context, ext, "busy");
+		res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "busy");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
 	} else if (ast_test_flag(options, OPT_UNAVAIL_GREETING)) {
-		res = create_dirpath(dest, 256, vmu->context, ext, "unavail");
+		res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "unavail");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
 	}
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
-	if (!(res = create_dirpath(dest, 256, vmu->context, ext, "temp"))) {
+	if (!(res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "temp"))) {
 		ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
 		return -1;
 	}
@@ -5940,7 +5940,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	}
 
 	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
-	if (!(res = create_dirpath(dest, 256, vmu->context, vms->username, "temp"))) {
+	if (!(res = create_dirpath(dest, sizeof(dest), vmu->context, vms->username, "temp"))) {
 		ast_log(LOG_WARNING, "Failed to create directory (%s).\n", prefile);
 		return -1;
 	}
