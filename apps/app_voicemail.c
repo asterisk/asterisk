@@ -330,10 +330,10 @@ struct vm_zone {
 struct vm_state {
 	char curbox[80];
 	char username[80];
-	char curdir[256];
-	char vmbox[256];
-	char fn[256];
-	char fn2[256];
+	char curdir[PATH_MAX];
+	char vmbox[PATH_MAX];
+	char fn[PATH_MAX];
+	char fn2[PATH_MAX];
 	int *deleted;
 	int *heard;
 	int curmsg;
@@ -762,7 +762,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	int linenum=0;
 	char inbuf[256];
 	char orig[256];
-	char currcontext[256] ="";
+	char currcontext[256] = "";
 	char tmpin[PATH_MAX];
 	char tmpout[PATH_MAX];
 	struct stat statbuf;
@@ -993,7 +993,7 @@ static int retrieve_file(char *dir, int msgnum)
 	void *fdm=NULL;
 	SQLSMALLINT colcount=0;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[PATH_MAX];
 	char fmt[80]="";
 	char *c;
 	char coltitle[256];
@@ -1005,8 +1005,8 @@ static int retrieve_file(char *dir, int msgnum)
 	SQLLEN colsize2;
 	FILE *f=NULL;
 	char rowdata[80];
-	char fn[256];
-	char full_fn[256];
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
 	char msgnums[80];
 	
 	struct odbc_obj *obj;
@@ -1153,8 +1153,8 @@ yuck:
 
 static int remove_file(char *dir, int msgnum)
 {
-	char fn[256];
-	char full_fn[256];
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
 	char msgnums[80];
 	
 	if (msgnum > -1) {
@@ -1173,7 +1173,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	int x = 0;
 	int res;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[PATH_MAX];
 	char rowdata[20];
 	
 	struct odbc_obj *obj;
@@ -1230,7 +1230,7 @@ static int message_exists(char *dir, int msgnum)
 	int x = 0;
 	int res;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[PATH_MAX];
 	char rowdata[20];
 	char msgnums[20];
 	
@@ -1294,7 +1294,7 @@ static void delete_file(char *sdir, int smsg)
 {
 	int res;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[PATH_MAX];
 	char msgnums[20];
 	
 	struct odbc_obj *obj;
@@ -1390,10 +1390,10 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	size_t fdlen = -1;
 	SQLHSTMT stmt;
 	SQLINTEGER len;
-	char sql[256];
+	char sql[PATH_MAX];
 	char msgnums[20];
-	char fn[256];
-	char full_fn[256];
+	char fn[PATH_MAX];
+	char full_fn[PATH_MAX];
 	char fmt[80]="";
 	char *c;
 	const char *context="", *macrocontext="", *callerid="", *origtime="", *duration="";
@@ -1502,7 +1502,7 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 {
 	int res;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[PATH_MAX];
 	char msgnums[20];
 	char msgnumd[20];
 	struct odbc_obj *obj;
@@ -1574,8 +1574,8 @@ static int count_messages(struct ast_vm_user *vmu, char *dir)
 
 static void rename_file(char *sfn, char *dfn)
 {
-	char stxt[256];
-	char dtxt[256];
+	char stxt[PATH_MAX];
+	char dtxt[PATH_MAX];
 	ast_filerename(sfn,dfn,NULL);
 	snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
 	snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
@@ -1634,7 +1634,7 @@ static int copy(char *infile, char *outfile)
 
 static void copy_file(char *frompath, char *topath)
 {
-	char frompath2[256],topath2[256];
+	char frompath2[PATH_MAX], topath2[PATH_MAX];
 	ast_filecopy(frompath, topath, NULL);
 	snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
 	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
@@ -1648,7 +1648,7 @@ static void copy_file(char *frompath, char *topath)
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x;
-	char fn[256];
+	char fn[PATH_MAX];
 
 	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
@@ -2044,11 +2044,11 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu, const char *category)
 {
 	char date[256];
-	char host[MAXHOSTNAMELEN]="";
+	char host[MAXHOSTNAMELEN] = "";
 	char who[256];
-	char dur[256];
+	char dur[PATH_MAX];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
-	char tmp2[256];
+	char tmp2[PATH_MAX];
 	struct tm tm;
 	FILE *p;
 
@@ -2136,12 +2136,12 @@ static int get_date(char *s, int len)
 static int invent_message(struct ast_channel *chan, char *context, char *ext, int busy, char *ecodes)
 {
 	int res;
-	char fn[256];
-	char dest[256];
+	char fn[PATH_MAX];
+	char dest[PATH_MAX];
 
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
 
-	if (!(res = create_dirpath(dest,256,context,ext,"greet"))) {
+	if (!(res = create_dirpath(dest, sizeof(dest), context, ext, "greet"))) {
 		ast_log(LOG_WARNING, "Failed to make directory(%s)\n", fn);
 		return -1;
 	}
@@ -2201,9 +2201,9 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	int x = -1;
 	int res;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[PATH_MAX];
 	char rowdata[20];
-	char tmp[256]="";
+	char tmp[PATH_MAX] = "";
 	struct odbc_obj *obj;
 	char *context;
 
@@ -2317,7 +2317,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	int nummsgs = 0;
 	int res;
 	SQLHSTMT stmt = NULL;
-	char sql[256];
+	char sql[PATH_MAX];
 	char rowdata[20];
 	if (!folder)
 		folder = "INBOX";
@@ -2388,7 +2388,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms)
 {
 	char *myserveremail = serveremail;
-	char fn[256];
+	char fn[PATH_MAX];
 	char mailbox[256];
 	char *stringp;
 	FILE *p=NULL;
@@ -2451,7 +2451,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 
 	struct ast_vm_user *vmu;
 	struct vm_state *vms_p;
-	char tmp[256]="";
+	char tmp[PATH_MAX]="";
 	char *mb, *cur;
 	char *mailboxnc; 
 	char *context;
@@ -2626,8 +2626,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 /* copy message only used by file storage */
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
 {
-	
-	char fromdir[256], todir[256], frompath[256], topath[256];
+	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
 	const char *frombox = mbox(imbox);
 	int recipmsgnum;
 
@@ -2812,7 +2811,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int newmsgs, oldmsgs;
 	struct vm_state *vms = NULL;
 #endif
-	char tmptxtfile[256], txtfile[256];
+	char txtfile[PATH_MAX], tmptxtfile[PATH_MAX];
 	char callerid[256];
 	FILE *txt;
 	char date[256];
@@ -2823,11 +2822,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int ausemacro = 0;
 	int ousemacro = 0;
 	int ouseexten = 0;
-	char dir[256], tmpdir[260];
-	char dest[256];
-	char fn[256];
-	char prefile[256]="";
-	char tempfile[256]="";
+	char dir[PATH_MAX], tmpdir[PATH_MAX];
+	char dest[PATH_MAX];
+	char fn[PATH_MAX];
+	char prefile[PATH_MAX] = "";
+	char tempfile[PATH_MAX] = "";
 	char ext_context[256] = "";
 	char fmt[80];
 	char *context;
@@ -3178,8 +3177,8 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 	/* we know max messages, so stop process when number is hit */
 
 	int x,dest;
-	char sfn[256];
-	char dfn[256];
+	char sfn[PATH_MAX];
+	char dfn[PATH_MAX];
 
 	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
@@ -3232,9 +3231,9 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	char *dir = vms->curdir;
 	char *username = vms->username;
 	char *context = vmu->context;
-	char sfn[256];
-	char dfn[256];
-	char ddir[256];
+	char sfn[PATH_MAX];
+	char dfn[PATH_MAX];
+	char ddir[PATH_MAX];
 	const char *dbox = mbox(box);
 	int x;
 	make_file(sfn, sizeof(sfn), dir, msg);
@@ -3496,7 +3495,7 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 	int bytes=0;
 	unsigned char buf[256]; 
 	char buf1[256], buf2[256];
-	char fn2[256];
+	char fn2[PATH_MAX];
 
 	char cid[256]="";
 	char *val;
@@ -3756,7 +3755,7 @@ static int get_folder(struct ast_channel *chan, int start)
 {
 	int x;
 	int d;
-	char fn[256];
+	char fn[PATH_MAX];
 	d = ast_play_and_wait(chan, "vm-press");	/* "Press" */
 	if (d)
 		return d;
@@ -3879,7 +3878,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname)
 {
-	char todir[256], fn[256], ext_context[256], *stringp;
+	char todir[PATH_MAX], fn[PATH_MAX], ext_context[PATH_MAX], *stringp;
 	int newmsgs = 0, oldmsgs = 0;
 	const char *category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
@@ -4267,7 +4266,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	int res = 0;
 	int i;
 	char *callerid, *name;
-	char prefile[256]="";
+	char prefile[PATH_MAX] = "";
 	
 
 	/* If voicemail cid is not enabled, or we didn't get cid or context from the attribute file, leave now. */
@@ -4385,7 +4384,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	char origtime[32];
 	char duration[16];
 	char category[32];
-	char todir[256];
+	char todir[PATH_MAX];
 	int res = 0;
 	char *temp;
 
@@ -5653,7 +5652,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	int tries = 0;
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
-	char prefile[256]="";
+	char prefile[PATH_MAX] = "";
 	unsigned char buf[256];
 	int bytes=0;
 
@@ -5731,7 +5730,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	int duration = 0;
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
-	char prefile[256]="";
+	char prefile[PATH_MAX] = "";
 	unsigned char buf[256];
 	int bytes=0;
 
@@ -5827,10 +5826,10 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	int cmd = 0;
 	int retries = 0;
 	int duration = 0;
-	char prefile[256]="";
+	char prefile[PATH_MAX] = "";
 	unsigned char buf[256];
-	char dest[256];
-	int bytes=0;
+	char dest[PATH_MAX];
+	int bytes = 0;
 
 	if (ast_adsi_available(chan)) {
 		bytes += adsi_logo(buf + bytes);
@@ -7636,7 +7635,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	char origtimeS[256],cidS[256],contextS[256];
 	char *header_content,*temp;
 #endif
-	char filename[256];
+	char filename[PATH_MAX];
 	struct ast_config *msg_cfg = NULL;
 	const char *origtime, *context;
 	char *cid, *name, *num;
