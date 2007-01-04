@@ -959,13 +959,17 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 		}
 		AST_LIST_TRAVERSE_SAFE_END
 	}
-#endif
-
 	if (!fr) {
 		if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen)))
 			return NULL;
 		fr->mallocd_datalen = datalen;
 	}
+#else
+	if (!(fr = ast_calloc(1, sizeof(*fr) + datalen)))
+		return NULL;
+	fr->mallocd_datalen = datalen;
+#endif
+
 
 	fr->direction = direction;
 	fr->retrans = -1;
