@@ -365,6 +365,10 @@ void ast_str_reset(struct ast_str *buf),
 AST_INLINE_API(
 int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
+#if defined(DEBUG_THREADLOCALS)
+	struct ast_str *old_buf = *buf;
+#endif /* defined(DEBUG_THREADLOCALS) */
+
 	if (new_len <= (*buf)->len) 
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
@@ -372,8 +376,12 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
 	if (*buf == NULL) /* XXX watch out, we leak memory here */
 		return -1;
-	if ((*buf)->ts != DS_MALLOC)
+	if ((*buf)->ts != DS_MALLOC) {
 		pthread_setspecific((*buf)->ts->key, *buf);
+#if defined(DEBUG_THREADLOCALS)
+		__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));
+#endif /* defined(DEBUG_THREADLOCALS) */
+	}
 
         (*buf)->len = new_len;
         return 0;
