@@ -855,24 +855,21 @@ static struct iax2_thread *find_idle_thread(void)
 	/* If no idle thread is available from the regular list, try dynamic */
 	if (thread == NULL) {
 		AST_LIST_LOCK(&dynamic_list);
-		thread = AST_LIST_FIRST(&dynamic_list);
-		if (thread != NULL) {
-			AST_LIST_REMOVE(&dynamic_list, thread, list);
-		}
+		thread = AST_LIST_REMOVE_HEAD(&dynamic_list, list);
 		/* Make sure we absolutely have a thread... if not, try to make one if allowed */
 		if (thread == NULL && iaxmaxthreadcount > iaxdynamicthreadcount) {
 			/* We need to MAKE a thread! */
-			thread = ast_calloc(1, sizeof(*thread));
-			if (thread != NULL) {
+			if ((thread = ast_calloc(1, sizeof(*thread)))) {
 				thread->threadnum = iaxdynamicthreadcount;
 				thread->type = IAX_TYPE_DYNAMIC;
 				ast_mutex_init(&thread->lock);
 				ast_cond_init(&thread->cond, NULL);
-				if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
+				if (ast_pthread_create_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 					free(thread);
 					thread = NULL;
 				} else {
 					/* All went well and the thread is up, so increment our count */
+					AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
 					iaxdynamicthreadcount++;
 				}
 			}
@@ -8110,7 +8107,7 @@ static int start_network_thread(void)
 			thread->threadnum = ++threadcount;
 			ast_mutex_init(&thread->lock);
 			ast_cond_init(&thread->cond, NULL);
-			if (ast_pthread_create(&thread->threadid, NULL, iax2_process_thread, thread)) {
+			if (ast_pthread_create_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 				ast_log(LOG_WARNING, "Failed to create new thread!\n");
 				free(thread);
 				thread = NULL;
