@@ -31,7 +31,7 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
-ifneq ($(GSM_INTERNAL),)
+ifneq ($(GSM_INTERNAL),no)
 GSM_INCLUDE:=-Igsm/inc
 $(if $(filter codec_gsm,$(EMBEDDED_MODS)),modules.link,codec_gsm.so): gsm/lib/libgsm.a
 endif
