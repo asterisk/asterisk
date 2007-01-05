@@ -1047,13 +1047,13 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 			}
 		} else if (!strcasecmp(action, "delcat")) {
 			if (!ast_strlen_zero(cat))
-				ast_category_delete(cfg, (char *) cat);
+				ast_category_delete(cfg, cat);
 		} else if (!strcasecmp(action, "update")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
-				ast_variable_update(category, (char *) var, (char *) value, (char *) match);
+				ast_variable_update(category, var, value, match);
 		} else if (!strcasecmp(action, "delete")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) && (category = ast_category_get(cfg, cat)))
-				ast_variable_delete(category, (char *) var, (char *) match);
+				ast_variable_delete(category, var, match);
 		} else if (!strcasecmp(action, "append")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) &&
 				(category = ast_category_get(cfg, cat)) &&

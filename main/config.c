@@ -425,7 +425,7 @@ struct ast_config *ast_config_new(void)
 	return config;
 }
 
-int ast_variable_delete(struct ast_category *category, char *variable, char *match)
+int ast_variable_delete(struct ast_category *category, const char *variable, const char *match)
 {
 	struct ast_variable *cur, *prev=NULL, *curn;
 	int res = -1;
@@ -474,7 +474,7 @@ int ast_variable_delete(struct ast_category *category, char *variable, char *mat
 	return res;
 }
 
-int ast_variable_update(struct ast_category *category, char *variable, char *value, char *match)
+int ast_variable_update(struct ast_category *category, const char *variable, const char *value, const char *match)
 {
 	struct ast_variable *cur, *prev=NULL, *newer;
 	newer = ast_variable_new(variable, value);
@@ -525,7 +525,7 @@ int ast_variable_update(struct ast_category *category, char *variable, char *val
 	return 0;
 }
 
-int ast_category_delete(struct ast_config *cfg, char *category)
+int ast_category_delete(struct ast_config *cfg, const char *category)
 {
 	struct ast_category *prev=NULL, *cat;
 	cat = cfg->root;

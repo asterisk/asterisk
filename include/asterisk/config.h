@@ -176,15 +176,15 @@ const char *ast_config_option(struct ast_config *cfg, const char *cat, const cha
 
 struct ast_category *ast_category_new(const char *name);
 void ast_category_append(struct ast_config *config, struct ast_category *cat);
-int ast_category_delete(struct ast_config *cfg, char *category);
+int ast_category_delete(struct ast_config *cfg, const char *category);
 void ast_category_destroy(struct ast_category *cat);
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat);
 void ast_category_rename(struct ast_category *cat, const char *name);
 
 struct ast_variable *ast_variable_new(const char *name, const char *value);
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
-int ast_variable_delete(struct ast_category *category, char *variable, char *match);
-int ast_variable_update(struct ast_category *category, char *variable, char *value, char *match);
+int ast_variable_delete(struct ast_category *category, const char *variable, const char *match);
+int ast_variable_update(struct ast_category *category, const char *variable, const char *value, const char *match);
 
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 
