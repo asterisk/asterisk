@@ -682,7 +682,6 @@ static int ourport;
 static struct in_addr __ourip;
 struct ast_hostent ahp; struct hostent *hp;
 static int skinnysock  = -1;
-static pthread_t tcp_thread;
 static pthread_t accept_t;
 static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
@@ -2938,6 +2937,7 @@ static void *accept_thread(void *ignore)
 	struct protoent *p;
 	int arg = 1;
 	pthread_attr_t attr;
+	pthread_t tcp_thread;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -2969,7 +2969,7 @@ static void *accept_thread(void *ignore)
 		sessions = s;
 		ast_mutex_unlock(&sessionlock);
 		
-		if (ast_pthread_create(&tcp_thread, NULL, skinny_session, s)) {
+		if (ast_pthread_create(&tcp_thread, &attr, skinny_session, s)) {
 			destroy_session(s);
 		}
 	}

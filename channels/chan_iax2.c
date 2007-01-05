@@ -6210,13 +6210,18 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 	struct dpreq_data *dpr;
 	dpr = malloc(sizeof(struct dpreq_data));
 	if (dpr) {
+		pthread_attr_t attr;
+
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
+
 		memset(dpr, 0, sizeof(struct dpreq_data));
 		dpr->callno = callno;
 		ast_copy_string(dpr->context, context, sizeof(dpr->context));
 		ast_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
 		if (callerid)
 			dpr->callerid = strdup(callerid);
-		if (ast_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
+		if (ast_pthread_create(&newthread, &attr, dp_lookup_thread, dpr)) {
 			ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
 		}
 	} else
@@ -6291,10 +6296,15 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 	}
 	d = malloc(sizeof(struct iax_dual));
 	if (d) {
+		pthread_attr_t attr;
+
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 		memset(d, 0, sizeof(*d));
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, NULL, iax_park_thread, d))
+		if (!ast_pthread_create(&th, &attr, iax_park_thread, d))
 			return 0;
 		free(d);
 	}
