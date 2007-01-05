@@ -2384,7 +2384,7 @@ static struct agent_pvt *find_agent(char *agentid)
 	return cur;	
 }
 
-static int function_agent(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_agent(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *parse;    
 	AST_DECLARE_APP_ARGS(args,

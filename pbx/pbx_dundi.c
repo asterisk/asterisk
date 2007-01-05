@@ -3755,7 +3755,7 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
-static int dundifunc_read(struct ast_channel *chan, char *cmd, char *num, char *buf, size_t len)
+static int dundifunc_read(struct ast_channel *chan, const char *cmd, char *num, char *buf, size_t len)
 {
 	char *context;
 	char *opts;

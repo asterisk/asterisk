@@ -144,7 +144,7 @@ static struct ast_speech_result *find_result(struct ast_speech_result *results, 
 }
 
 /*! \brief SPEECH_SCORE() Dialplan Function */
-static int speech_score(struct ast_channel *chan, char *cmd, char *data,
+static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 		       char *buf, size_t len)
 {
 	struct ast_speech_result *result = NULL;
@@ -172,7 +172,7 @@ static struct ast_custom_function speech_score_function = {
 };
 
 /*! \brief SPEECH_TEXT() Dialplan Function */
-static int speech_text(struct ast_channel *chan, char *cmd, char *data,
+static int speech_text(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
         struct ast_speech_result *result = NULL;
@@ -198,7 +198,7 @@ static struct ast_custom_function speech_text_function = {
 };
 
 /*! \brief SPEECH_GRAMMAR() Dialplan Function */
-static int speech_grammar(struct ast_channel *chan, char *cmd, char *data,
+static int speech_grammar(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
         struct ast_speech_result *result = NULL;
@@ -224,7 +224,7 @@ static struct ast_custom_function speech_grammar_function = {
 };
 
 /*! \brief SPEECH_ENGINE() Dialplan Function */
-static int speech_engine_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+static int speech_engine_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	struct ast_speech *speech = find_speech(chan);
 
@@ -247,7 +247,7 @@ static struct ast_custom_function speech_engine_function = {
 };
 
 /*! \brief SPEECH() Dialplan Function */
-static int speech_read(struct ast_channel *chan, char *cmd, char *data,
+static int speech_read(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
 	int results = 0;

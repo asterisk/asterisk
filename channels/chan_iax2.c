@@ -9589,7 +9589,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	return -1;
 }
 
-static int function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_iaxpeer(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct iax2_peer *peer;
 	char *peername, *colname;

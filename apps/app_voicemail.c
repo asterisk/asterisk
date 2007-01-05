@@ -6914,7 +6914,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int acf_mailbox_exists(struct ast_channel *chan, char *cmd, char *args, char *buf, size_t len)
+static int acf_mailbox_exists(struct ast_channel *chan, const char *cmd, char *args, char *buf, size_t len)
 {
 	struct ast_vm_user svm;
 	AST_DECLARE_APP_ARGS(arg,

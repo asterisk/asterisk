@@ -35,7 +35,7 @@ struct ast_db_entry {
 
 int ast_db_get(const char *family, const char *key, char *out, int outlen);
 
-int ast_db_put(const char *family, const char *key, char *value);
+int ast_db_put(const char *family, const char *key, const char *value);
 
 int ast_db_del(const char *family, const char *key);
 

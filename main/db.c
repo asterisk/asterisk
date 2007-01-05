@@ -142,7 +142,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 	return 0;
 }
 
-int ast_db_put(const char *family, const char *keys, char *value)
+int ast_db_put(const char *family, const char *keys, const char *value)
 {
 	char fullkey[256];
 	DBT key, data;
@@ -159,7 +159,7 @@ int ast_db_put(const char *family, const char *keys, char *value)
 	memset(&data, 0, sizeof(data));
 	key.data = fullkey;
 	key.size = fullkeylen + 1;
-	data.data = value;
+	data.data = (char *) value;
 	data.size = strlen(value) + 1;
 	res = astdb->put(astdb, &key, &data, 0);
 	astdb->sync(astdb, 0);
@@ -542,7 +542,7 @@ static int manager_dbput(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
-	res = ast_db_put(family, key, (char *) val);
+	res = ast_db_put(family, key, val);
 	if (res) {
 		astman_send_error(s, m, "Failed to update entry");
 	} else {

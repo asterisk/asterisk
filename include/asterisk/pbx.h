@@ -74,8 +74,8 @@ struct ast_custom_function {
 	const char *synopsis;		/*!< Short description for "show functions" */
 	const char *desc;		/*!< Help text that explains it all */
 	const char *syntax;		/*!< Syntax description */
-	int (*read)(struct ast_channel *, char *, char *, char *, size_t);	/*!< Read function, if read is supported */
-	int (*write)(struct ast_channel *, char *, char *, const char *);	/*!< Write function, if write is supported */
+	int (*read)(struct ast_channel *, const char *, char *, char *, size_t);	/*!< Read function, if read is supported */
+	int (*write)(struct ast_channel *, const char *, char *, const char *);		/*!< Write function, if write is supported */
 	AST_RWLIST_ENTRY(ast_custom_function) acflist;
 };
 
@@ -844,7 +844,7 @@ int ast_active_calls(void);
  *
  * \return zero on success, non-zero on failure
  */
-int ast_func_read(struct ast_channel *chan, char *function, char *workspace, size_t len);
+int ast_func_read(struct ast_channel *chan, const char *function, char *workspace, size_t len);
 
 /*!
  * \brief executes a write operation on a function
@@ -857,7 +857,7 @@ int ast_func_read(struct ast_channel *chan, char *function, char *workspace, siz
  *
  * \return zero on success, non-zero on failure
  */
-int ast_func_write(struct ast_channel *chan, char *function, const char *value);
+int ast_func_write(struct ast_channel *chan, const char *function, const char *value);
 
 void ast_hint_state_changed(const char *device);
 

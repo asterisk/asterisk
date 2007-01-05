@@ -3637,7 +3637,7 @@ check_turns:
 	return res;
 }
 
-static int queue_function_var(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int queue_function_var(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int res = -1;
 	struct call_queue *q;
@@ -3689,7 +3689,7 @@ static int queue_function_var(struct ast_channel *chan, char *cmd, char *data, c
 	return 0;
 }
 
-static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
 	struct call_queue *q;
@@ -3731,7 +3731,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 	return 0;
 }
 
-static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int queue_function_queuewaitingcount(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int count = 0;
 	struct call_queue *q;
@@ -3766,7 +3766,7 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, char *cmd,
 	return 0;
 }
 
-static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int queue_function_queuememberlist(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_module_user *u;
 	struct call_queue *q;

@@ -1407,10 +1407,11 @@ static char *func_args(char *function)
 	return args;
 }
 
-int ast_func_read(struct ast_channel *chan, char *function, char *workspace, size_t len)
+int ast_func_read(struct ast_channel *chan, const char *function, char *workspace, size_t len)
 {
-	char *args = func_args(function);
-	struct ast_custom_function *acfptr = ast_custom_function_find(function);
+	char *copy = ast_strdupa(function);
+	char *args = func_args(copy);
+	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
 
 	if (acfptr == NULL)
 		ast_log(LOG_ERROR, "Function %s not registered\n", function);
@@ -1421,10 +1422,11 @@ int ast_func_read(struct ast_channel *chan, char *function, char *workspace, siz
 	return -1;
 }
 
-int ast_func_write(struct ast_channel *chan, char *function, const char *value)
+int ast_func_write(struct ast_channel *chan, const char *function, const char *value)
 {
-	char *args = func_args(function);
-	struct ast_custom_function *acfptr = ast_custom_function_find(function);
+	char *copy = ast_strdupa(function);
+	char *args = func_args(copy);
+	struct ast_custom_function *acfptr = ast_custom_function_find(copy);
 
 	if (acfptr == NULL)
 		ast_log(LOG_ERROR, "Function %s not registered\n", function);

@@ -1395,10 +1395,6 @@ static int sip_no_debug(int fd, int argc, char *argv[]);
 static int sip_notify(int fd, int argc, char *argv[]);
 static int sip_do_history(int fd, int argc, char *argv[]);
 static int sip_no_history(int fd, int argc, char *argv[]);
-static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len);
-static int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len);
-static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len);
-static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len);
 static int sip_dtmfmode(struct ast_channel *chan, void *data);
 static int sip_addheader(struct ast_channel *chan, void *data);
 static int sip_do_reload(enum channelreloadreason reason);
@@ -11403,7 +11399,7 @@ static const char show_settings_usage[] =
 "       Provides detailed list of the configuration of the SIP channel.\n";
 
 /*! \brief Read SIP header (dialplan function) */
-static int func_header_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len) 
+static int func_header_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len) 
 {
 	struct sip_pvt *p;
 	const char *content = NULL;
@@ -11467,7 +11463,7 @@ static struct ast_custom_function sip_header_function = {
 };
 
 /*! \brief  Dial plan function to check if domain is local */
-static int func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int func_check_sipdomain(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "CHECKSIPDOMAIN requires an argument - A domain name\n");
@@ -11492,7 +11488,7 @@ static struct ast_custom_function checksipdomain_function = {
 };
 
 /*! \brief  ${SIPPEER()} Dialplan function - reads peer data */
-static int function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_sippeer(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_peer *peer;
 	char *colname;
@@ -11582,7 +11578,7 @@ struct ast_custom_function sippeer_function = {
 };
 
 /*! \brief ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static int function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct sip_pvt *p;
 
