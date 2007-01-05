@@ -39,6 +39,7 @@
 
 /*** MODULEINFO
 	<depend>zaptel_vldtmf</depend>
+	<depend>zaptel</depend>
 	<depend>tonezone</depend>
 	<use>pri</use>
 	<use>ss7</use>
