@@ -122,14 +122,14 @@ struct aji_client_container{
 	ASTOBJ_CONTAINER_COMPONENTS(struct aji_client);
 };
 
-int ast_aji_send(struct aji_client *client, char *address, char *message);
+int ast_aji_send(struct aji_client *client, const char *address, const char *message);
 int ast_aji_disconnect(struct aji_client *client);
 int ast_aji_check_roster(void);
 void ast_aji_increment_mid(char *mid);
 int ast_aji_create_chat(struct aji_client *client,char *room, char *server, char *topic);
 int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char *message);
 int ast_aji_join_chat(struct aji_client *client,char *room);
-struct aji_client *ast_aji_get_client(char *name);
+struct aji_client *ast_aji_get_client(const char *name);
 struct aji_client_container *ast_aji_get_clients(void);
 
 #endif

@@ -55,7 +55,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define JABBER_CONFIG "jabber.conf"
 
 /*-- Forward declarations */
-static int manager_jabber_send( struct mansession *s, struct message *m );
 static int aji_highest_bit(int number);
 static void aji_buddy_destroy(struct aji_buddy *obj);
 static void aji_client_destroy(struct aji_client *obj);
@@ -1371,7 +1370,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
  * \param aji_client struct , reciever, message.
  * \return 1.
  */
-int ast_aji_send(struct aji_client *client, char *address, char *message)
+int ast_aji_send(struct aji_client *client, const char *address, const char *message)
 {
 	int res = 0;
 	iks *message_packet = NULL;
@@ -2295,7 +2294,7 @@ static int aji_load_config(void)
  * \param void. 
  * \return 1.
  */
-struct aji_client *ast_aji_get_client(char *name)
+struct aji_client *ast_aji_get_client(const char *name)
 {
 	struct aji_client *client = NULL;
 
@@ -2318,13 +2317,13 @@ static char mandescr_jabber_send[] =
 "  Message:	Message to be sent to the buddy\n";
 
 /*! \brief  Send a Jabber Message via call from the Manager */
-static int manager_jabber_send( struct mansession *s, struct message *m )
+static int manager_jabber_send(struct mansession *s, const struct message *m)
 {
 	struct aji_client *client = NULL;
-	char *id = astman_get_header(m,"ActionID");
-	char *jabber = astman_get_header(m,"Jabber");
-	char *screenname = astman_get_header(m,"ScreenName");
-	char *message = astman_get_header(m,"Message");
+	const char *id = astman_get_header(m,"ActionID");
+	const char *jabber = astman_get_header(m,"Jabber");
+	const char *screenname = astman_get_header(m,"ScreenName");
+	const char *message = astman_get_header(m,"Message");
 
 	if (ast_strlen_zero(jabber)) {
 		astman_send_error(s, m, "No transport specified");

@@ -2773,12 +2773,12 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	return 0;
 }
 
-static int meetmemute(struct mansession *s, struct message *m, int mute)
+static int meetmemute(struct mansession *s, const struct message *m, int mute)
 {
 	struct ast_conference *conf;
 	struct ast_conf_user *user;
-	char *confid = astman_get_header(m, "Meetme");
-	char *userid = astman_get_header(m, "Usernum");
+	const char *confid = astman_get_header(m, "Meetme");
+	char *userid = ast_strdupa(astman_get_header(m, "Usernum"));
 	int userno;
 
 	if (ast_strlen_zero(confid)) {
@@ -2834,12 +2834,12 @@ static int meetmemute(struct mansession *s, struct message *m, int mute)
 	return 0;
 }
 
-static int action_meetmemute(struct mansession *s, struct message *m)
+static int action_meetmemute(struct mansession *s, const struct message *m)
 {
 	return meetmemute(s, m, 1);
 }
 
-static int action_meetmeunmute(struct mansession *s, struct message *m)
+static int action_meetmeunmute(struct mansession *s, const struct message *m)
 {
 	return meetmemute(s, m, 0);
 }

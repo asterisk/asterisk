@@ -1932,10 +1932,10 @@ static struct ast_cli_entry cli_features[] = {
 };
 
 /*! \brief Dump lot status */
-static int manager_parking_status( struct mansession *s, struct message *m )
+static int manager_parking_status( struct mansession *s, const struct message *m)
 {
 	struct parkeduser *cur;
-	char *id = astman_get_header(m,"ActionID");
+	const char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 
 	if (!ast_strlen_zero(id))
@@ -1979,11 +1979,11 @@ static char mandescr_park[] =
 "	*Channel2: Channel to announce park info to (and return to if timeout)\n"
 "	Timeout: Number of milliseconds to wait before callback.\n";  
 
-static int manager_park(struct mansession *s, struct message *m)
+static int manager_park(struct mansession *s, const struct message *m)
 {
-	char *channel = astman_get_header(m, "Channel");
-	char *channel2 = astman_get_header(m, "Channel2");
-	char *timeout = astman_get_header(m, "Timeout");
+	const char *channel = astman_get_header(m, "Channel");
+	const char *channel2 = astman_get_header(m, "Channel2");
+	const char *timeout = astman_get_header(m, "Timeout");
 	char buf[BUFSIZ];
 	int to = 0;
 	int res = 0;

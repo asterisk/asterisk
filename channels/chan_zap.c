@@ -10682,7 +10682,7 @@ static int zap_restart_cmd(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-static int action_zaprestart(struct mansession *s, struct message *m)
+static int action_zaprestart(struct mansession *s, const struct message *m)
 {
 	if (zap_restart() != 0) {
 		astman_send_error(s, m, "Failed rereading zaptel configuration");
@@ -11077,46 +11077,49 @@ static struct zt_pvt *find_channel(int channel)
 	return p;
 }
 
-static int action_zapdndon(struct mansession *s, struct message *m)
-{
-	 struct zt_pvt *p = NULL;
-	 char *channel = astman_get_header(m, "ZapChannel");
-	 if (ast_strlen_zero(channel)) {
-		  astman_send_error(s, m, "No channel specified");
-		  return 0;
-	 }
-	 p = find_channel(atoi(channel));
-	 if (!p) {
-		  astman_send_error(s, m, "No such channel");
-		  return 0;
-	 }
-	 p->dnd = 1;
-	 astman_send_ack(s, m, "DND Enabled");
-	 return 0;
-}
-
-static int action_zapdndoff(struct mansession *s, struct message *m)
-{
-	 struct zt_pvt *p = NULL;
-	 char *channel = astman_get_header(m, "ZapChannel");
-	 if (ast_strlen_zero(channel)) {
-		  astman_send_error(s, m, "No channel specified");
-		  return 0;
-	 }
-	 p = find_channel(atoi(channel));
-	 if (!p) {
-		  astman_send_error(s, m, "No such channel");
-		  return 0;
-	 }
-	 p->dnd = 0;
-	 astman_send_ack(s, m, "DND Disabled");
-	 return 0;
-}
-
-static int action_transfer(struct mansession *s, struct message *m)
+static int action_zapdndon(struct mansession *s, const struct message *m)
 {
 	struct zt_pvt *p = NULL;
-	char *channel = astman_get_header(m, "ZapChannel");
+	const char *channel = astman_get_header(m, "ZapChannel");
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	p = find_channel(atoi(channel));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	p->dnd = 1;
+	astman_send_ack(s, m, "DND Enabled");
+	return 0;
+}
+
+static int action_zapdndoff(struct mansession *s, const struct message *m)
+{
+	struct zt_pvt *p = NULL;
+	const char *channel = astman_get_header(m, "ZapChannel");
+
+	if (ast_strlen_zero(channel)) {
+		astman_send_error(s, m, "No channel specified");
+		return 0;
+	}
+	p = find_channel(atoi(channel));
+	if (!p) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	p->dnd = 0;
+	astman_send_ack(s, m, "DND Disabled");
+	return 0;
+}
+
+static int action_transfer(struct mansession *s, const struct message *m)
+{
+	struct zt_pvt *p = NULL;
+	const char *channel = astman_get_header(m, "ZapChannel");
+
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -11131,10 +11134,11 @@ static int action_transfer(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int action_transferhangup(struct mansession *s, struct message *m)
+static int action_transferhangup(struct mansession *s, const struct message *m)
 {
 	struct zt_pvt *p = NULL;
-	char *channel = astman_get_header(m, "ZapChannel");
+	const char *channel = astman_get_header(m, "ZapChannel");
+
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -11149,12 +11153,13 @@ static int action_transferhangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int action_zapdialoffhook(struct mansession *s, struct message *m)
+static int action_zapdialoffhook(struct mansession *s, const struct message *m)
 {
 	struct zt_pvt *p = NULL;
-	char *channel = astman_get_header(m, "ZapChannel");
-	char *number = astman_get_header(m, "Number");
+	const char *channel = astman_get_header(m, "ZapChannel");
+	const char *number = astman_get_header(m, "Number");
 	int i;
+
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -11180,10 +11185,10 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int action_zapshowchannels(struct mansession *s, struct message *m)
+static int action_zapshowchannels(struct mansession *s, const struct message *m)
 {
 	struct zt_pvt *tmp = NULL;
-	char *id = astman_get_header(m, "ActionID");
+	const char *id = astman_get_header(m, "ActionID");
 	char idText[256] = "";
 
 	astman_send_ack(s, m, "Zapata channel status will follow");

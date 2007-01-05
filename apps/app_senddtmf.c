@@ -94,10 +94,10 @@ static char mandescr_playdtmf[] =
 "	Channel: Channel name to send digit to\n"
 "	Digit: The dtmf digit to play\n";
 
-static int manager_play_dtmf(struct mansession *s, struct message *m)
+static int manager_play_dtmf(struct mansession *s, const struct message *m)
 {
-	char *channel = astman_get_header(m, "Channel");
-	char *digit = astman_get_header(m, "Digit");
+	const char *channel = astman_get_header(m, "Channel");
+	const char *digit = astman_get_header(m, "Digit");
 	struct ast_channel *chan = ast_get_channel_by_name_locked(channel);
 	
 	if (!chan) {

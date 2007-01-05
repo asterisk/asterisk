@@ -4289,7 +4289,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 {
 	return __iax2_show_peers(0, fd, NULL, argc, argv);
 }
-static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
+static int manager_iax2_show_netstats(struct mansession *s, const struct message *m)
 {
 	ast_cli_netstats(s, -1, 0);
 	astman_append(s, "\r\n");
@@ -4317,12 +4317,12 @@ static int iax2_show_firmware(int fd, int argc, char *argv[])
 }
 
 /* JDG: callback to display iax peers in manager */
-static int manager_iax2_show_peers( struct mansession *s, struct message *m )
+static int manager_iax2_show_peers(struct mansession *s, const struct message *m)
 {
 	char *a[] = { "iax2", "show", "users" };
 	int ret;
-	char *id;
-	id = astman_get_header(m,"ActionID");
+	const char *id = astman_get_header(m,"ActionID");
+
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n",id);
 	ret = __iax2_show_peers(1, -1, s, 3, a );

@@ -58,7 +58,6 @@
 
 /* Export manager structures */
 #define AST_MAX_MANHEADERS 80
-#define AST_MAX_MANHEADER_LEN 256
 
 /* Manager Helper Function */
 typedef int (*manager_hook_t)(int, const char *, char *); 
@@ -85,8 +84,8 @@ void ast_manager_unregister_hook(struct manager_custom_hook *hook);
 struct mansession;
 
 struct message {
-	int hdrcount;
-	char headers[AST_MAX_MANHEADERS][AST_MAX_MANHEADER_LEN];
+	unsigned int hdrcount;
+	const char *headers[AST_MAX_MANHEADERS];
 };
 
 struct manager_action {
@@ -99,7 +98,7 @@ struct manager_action {
 	/*! Permission required for action.  EVENT_FLAG_* */
 	int authority;
 	/*! Function to be called */
-	int (*func)(struct mansession *s, struct message *m);
+	int (*func)(struct mansession *s, const struct message *m);
 	/*! For easy linking */
 	struct manager_action *next;
 };
@@ -119,7 +118,7 @@ struct manager_action {
 int ast_manager_register2(
 	const char *action,
 	int authority,
-	int (*func)(struct mansession *s, struct message *m),
+	int (*func)(struct mansession *s, const struct message *m),
 	const char *synopsis,
 	const char *description);
 
@@ -133,34 +132,32 @@ int ast_manager_unregister( char *action );
 	\param event	Event name
 	\param contents	Contents of event
 */
+
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space
  * between the last arg before VA_ARGS and the comma */
 #define manager_event(category, event, contents , ...)	\
         __manager_event(category, event, __FILE__, __LINE__, __PRETTY_FUNCTION__, contents , ## __VA_ARGS__)
 
-int __manager_event(int category, const char *event,
-		const char *file, int line, const char *func, const char *contents, ...)
-	__attribute__ ((format (printf, 6,7)));
+int __attribute__ ((format(printf, 6, 7))) __manager_event(int category, const char *event,
+							   const char *file, int line, const char *func,
+							   const char *contents, ...);
 
 /*! Get header from mananger transaction */
-char *astman_get_header(struct message *m, char *var);
+const char *astman_get_header(const struct message *m, char *var);
 
 /*! Get a linked list of the Variable: headers */
-struct ast_variable *astman_get_variables(struct message *m);
+struct ast_variable *astman_get_variables(const struct message *m);
 
 /*! Send error in manager transaction */
-void astman_send_error(struct mansession *s, struct message *m, char *error);
-void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
-void astman_send_ack(struct mansession *s, struct message *m, char *msg);
-void astman_send_listack(struct mansession *s, struct message *m, char *msg, char *listflag);
+void astman_send_error(struct mansession *s, const struct message *m, char *error);
+void astman_send_response(struct mansession *s, const struct message *m, char *resp, char *msg);
+void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
+void astman_send_listack(struct mansession *s, const struct message *m, char *msg, char *listflag);
 
-void astman_append(struct mansession *s, const char *fmt, ...)
-        __attribute__ ((format (printf, 2, 3)));
-
+void __attribute__ ((format (printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
 /*! Called by Asterisk initialization */
 int init_manager(void);
-/*! Called by Asterisk initialization */
 int reload_manager(void);
 
 #endif /* _ASTERISK_MANAGER_H */

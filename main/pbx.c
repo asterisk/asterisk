@@ -3422,7 +3422,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 }
 
 /*! \brief Send ack once */
-static void manager_dpsendack(struct mansession *s, struct message *m)
+static void manager_dpsendack(struct mansession *s, const struct message *m)
 {
 	astman_send_listack(s, m, "DialPlan list will follow", "start");
 }
@@ -3431,8 +3431,10 @@ static void manager_dpsendack(struct mansession *s, struct message *m)
  * XXX this function is similar but not exactly the same as the CLI's
  * show dialplan. Must check whether the difference is intentional or not.
  */
-static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
-	const char *actionidtext, const char *context, char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude)
+static int manager_show_dialplan_helper(struct mansession *s, const struct message *m,
+					const char *actionidtext, const char *context,
+					const char *exten, struct dialplan_counters *dpc,
+					struct ast_include *rinclude)
 {
 	struct ast_context *c;
 	int res=0, old_total_exten = dpc->total_exten;
@@ -3574,10 +3576,10 @@ static int manager_show_dialplan_helper(struct mansession *s, struct message *m,
 }
 
 /*! \brief  Manager listing of dial plan */
-static int manager_show_dialplan(struct mansession *s, struct message *m)
+static int manager_show_dialplan(struct mansession *s, const struct message *m)
 {
-	char *exten = NULL, *context = NULL;
-	char *id = astman_get_header(m, "ActionID");
+	const char *exten, *context;
+	const char *id = astman_get_header(m, "ActionID");
 	char idtext[256];
 	int res;
 

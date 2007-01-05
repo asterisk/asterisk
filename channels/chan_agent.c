@@ -1389,9 +1389,9 @@ static force_inline int powerof(unsigned int d)
  * \returns 
  * \sa action_agent_logoff(), action_agent_callback_login(), load_module().
  */
-static int action_agents(struct mansession *s, struct message *m)
+static int action_agents(struct mansession *s, const struct message *m)
 {
-	char *id = astman_get_header(m,"ActionID");
+	const char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	char chanbuf[256];
 	struct agent_pvt *p;
@@ -1499,7 +1499,7 @@ static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long 
 
 }
 
-static int agent_logoff(char *agent, int soft)
+static int agent_logoff(const char *agent, int soft)
 {
 	struct agent_pvt *p;
 	long logintime;
@@ -1550,10 +1550,10 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
  * \returns 
  * \sa action_agents(), action_agent_callback_login(), load_module().
  */
-static int action_agent_logoff(struct mansession *s, struct message *m)
+static int action_agent_logoff(struct mansession *s, const struct message *m)
 {
-	char *agent = astman_get_header(m, "Agent");
-	char *soft_s = astman_get_header(m, "Soft"); /* "true" is don't hangup */
+	const char *agent = astman_get_header(m, "Agent");
+	const char *soft_s = astman_get_header(m, "Soft"); /* "true" is don't hangup */
 	int soft;
 	int ret; /* return value of agent_logoff */
 

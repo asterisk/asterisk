@@ -39,7 +39,6 @@
 
 #include "asterisk/md5.h"
 #include "asterisk/linkedlists.h"
-#include "asterisk/manager.h"
 
 #undef gethostbyname
 
@@ -53,6 +52,13 @@
  * _NEWT_CAST.
  */
 #define _NEWT_CAST (void *)
+
+#define DEFAULT_MANAGER_PORT 5038
+
+struct message {
+	unsigned int hdrcount;
+	char headers[MAX_HEADERS][MAX_LEN];
+};
 
 static struct ast_mansession {
 	struct sockaddr_in sin;

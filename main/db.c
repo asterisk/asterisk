@@ -522,11 +522,11 @@ struct ast_cli_entry cli_database[] = {
 	database_deltree_usage },
 };
 
-static int manager_dbput(struct mansession *s, struct message *m)
+static int manager_dbput(struct mansession *s, const struct message *m)
 {
-	char *family = astman_get_header(m, "Family");
-	char *key = astman_get_header(m, "Key");
-	char *val = astman_get_header(m, "Val");
+	const char *family = astman_get_header(m, "Family");
+	const char *key = astman_get_header(m, "Key");
+	const char *val = astman_get_header(m, "Val");
 	int res;
 
 	if (ast_strlen_zero(family)) {
@@ -542,7 +542,7 @@ static int manager_dbput(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	res = ast_db_put(family, key, val);
+	res = ast_db_put(family, key, (char *) val);
 	if (res) {
 		astman_send_error(s, m, "Failed to update entry");
 	} else {
@@ -551,12 +551,12 @@ static int manager_dbput(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int manager_dbget(struct mansession *s, struct message *m)
+static int manager_dbget(struct mansession *s, const struct message *m)
 {
-	char *id = astman_get_header(m,"ActionID");
+	const char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
-	char *family = astman_get_header(m, "Family");
-	char *key = astman_get_header(m, "Key");
+	const char *family = astman_get_header(m, "Family");
+	const char *key = astman_get_header(m, "Key");
 	char tmp[256];
 	int res;
 

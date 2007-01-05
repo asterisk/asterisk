@@ -1356,8 +1356,7 @@ static char *transfermode2str(enum transfermodes mode) attribute_const;
 static char *nat2str(int nat) attribute_const;
 static int peer_status(struct sip_peer *peer, char *status, int statuslen);
 static int sip_show_users(int fd, int argc, char *argv[]);
-static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[]);
-static int manager_sip_show_peers( struct mansession *s, struct message *m );
+static int _sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[]);
 static int sip_show_peers(int fd, int argc, char *argv[]);
 static int sip_show_objects(int fd, int argc, char *argv[]);
 static void  print_group(int fd, ast_group_t group, int crlf);
@@ -1367,10 +1366,8 @@ static void cleanup_stale_contexts(char *new, char *old);
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
 static const char *domain_mode_to_text(const enum domain_mode mode);
 static int sip_show_domains(int fd, int argc, char *argv[]);
-static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[]);
-static int manager_sip_show_peer( struct mansession *s, struct message *m);
+static int _sip_show_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[]);
 static int sip_show_peer(int fd, int argc, char *argv[]);
-static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[]);
 static int sip_show_user(int fd, int argc, char *argv[]);
 static int sip_show_registry(int fd, int argc, char *argv[]);
 static int sip_show_settings(int fd, int argc, char *argv[]);
@@ -9614,10 +9611,10 @@ static char mandescr_show_peers[] =
 
 /*! \brief  Show SIP peers in the manager API */
 /*    Inspired from chan_iax2 */
-static int manager_sip_show_peers( struct mansession *s, struct message *m )
+static int manager_sip_show_peers(struct mansession *s, const struct message *m)
 {
-	char *id = astman_get_header(m,"ActionID");
-	char *a[] = { "sip", "show", "peers" };
+	const char *id = astman_get_header(m,"ActionID");
+	const char *a[] = {"sip", "show", "peers"};
 	char idtext[256] = "";
 	int total = 0;
 
@@ -9640,11 +9637,11 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 /*! \brief  CLI Show Peers command */
 static int sip_show_peers(int fd, int argc, char *argv[])
 {
-	return _sip_show_peers(fd, NULL, NULL, NULL, argc, argv);
+	return _sip_show_peers(fd, NULL, NULL, NULL, argc, (const char **) argv);
 }
 
 /*! \brief  _sip_show_peers: Execute sip show peers command */
-static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[])
+static int _sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = FALSE;
@@ -9658,7 +9655,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	int peers_mon_offline = 0;
 	int peers_unmon_offline = 0;
 	int peers_unmon_online = 0;
-	char *id;
+	const char *id;
 	char idtext[256] = "";
 	int realtimepeers;
 
@@ -10064,11 +10061,11 @@ static char mandescr_show_peer[] =
 "  ActionID: <id>	  Optional action ID for this AMI transaction.\n";
 
 /*! \brief Show SIP peers in the manager API  */
-static int manager_sip_show_peer( struct mansession *s, struct message *m)
+static int manager_sip_show_peer(struct mansession *s, const struct message *m)
 {
-	char *id = astman_get_header(m,"ActionID");
-	char *a[4];
-	char *peer;
+	const char *id = astman_get_header(m,"ActionID");
+	const char *a[4];
+	const char *peer;
 	int ret;
 
 	peer = astman_get_header(m,"Peer");
@@ -10083,7 +10080,7 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m)
 
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n",id);
-	ret = _sip_show_peer(1, -1, s, m, 4, a );
+	ret = _sip_show_peer(1, -1, s, m, 4, a);
 	astman_append(s, "\r\n\r\n" );
 	return ret;
 }
@@ -10093,11 +10090,11 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m)
 /*! \brief Show one peer in detail */
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
-	return _sip_show_peer(0, fd, NULL, NULL, argc, argv);
+	return _sip_show_peer(0, fd, NULL, NULL, argc, (const char **) argv);
 }
 
 /*! \brief Show one peer in detail (main function) */
-static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[])
+static int _sip_show_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
 	char status[30] = "";
 	char cbuf[256];
