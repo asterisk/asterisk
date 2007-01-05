@@ -2720,10 +2720,10 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	unlink(template);
 	s->f = fdopen(s->fd, "w+");
 
-	for (x = 0; params && (x < AST_MAX_MANHEADERS); x++, params = params->next) {
-		hdrlen = strlen(params->name) + strlen(params->value) + 3;
+	for (x = 0, v = params; v && (x < AST_MAX_MANHEADERS); x++, v = v->next) {
+		hdrlen = strlen(v->name) + strlen(v->value) + 3;
 		m.headers[m.hdrcount] = alloca(hdrlen);
-		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", params->name, params->value);
+		snprintf((char *) m.headers[m.hdrcount], hdrlen, "%s: %s", v->name, v->value);
 		m.hdrcount = x + 1;
 	}
 
