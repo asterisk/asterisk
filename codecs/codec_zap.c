@@ -113,16 +113,16 @@ static int show_transcoder(int fd, int argc, char *argv[])
 {
 	ast_mutex_lock(&channelcount);
 	if (!totalchannels) { 
-		ast_verbose("No transcoder card registered\n");
+		ast_cli(fd, "No transcoder card registered\n");
 		ast_mutex_unlock(&channelcount);
 		return RESULT_SUCCESS;
 	}
 	if(!cardsmode)             
-		ast_verbose("%d/%d encoders/decoders of %d channels (G.729a / G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a / G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
 	else if (cardsmode == 1)
-		ast_verbose("%d/%d encoders/decoders of %d channels (G.729a) are in use.\n",complexinuse, simpleinuse, totalchannels);
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a) are in use.\n",complexinuse, simpleinuse, totalchannels);
 	else if (cardsmode == 2)
-		ast_verbose("%d/%d encoders/decoders of %d channels (G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
 
 	ast_mutex_unlock(&channelcount);
 	return RESULT_SUCCESS;
