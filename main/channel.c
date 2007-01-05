@@ -3876,13 +3876,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 					if (callee_warning)
 						bridge_playfile(c1, c0, config->warning_sound, t);
 				}
-				if (config->warning_freq) {
-
-					if (time_left_ms > (config->warning_freq + 5000)) {
-						nexteventts = ast_tvadd(nexteventts, ast_samp2tv(config->warning_freq, 1000));
-					}
-								
-				} else
+				if (config->warning_freq && (time_left_ms > (config->warning_freq + 5000)))
+					nexteventts = ast_tvadd(nexteventts, ast_samp2tv(config->warning_freq, 1000));
+				else
 					nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
 			}
 		}
