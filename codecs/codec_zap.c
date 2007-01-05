@@ -28,6 +28,7 @@
 
 /*** MODULEINFO
 	<depend>zaptel_transcode</depend>
+	<depend>zaptel</depend>
  ***/
 
 #include "asterisk.h"
