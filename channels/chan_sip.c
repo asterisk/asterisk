@@ -10487,12 +10487,17 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	ast_mutex_unlock(&chan2m->lock);
 	d = malloc(sizeof(struct sip_dual));
 	if (d) {
+		pthread_attr_t attr;
+
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
+
 		memset(d, 0, sizeof(*d));
 		/* Save original request for followup */
 		copy_request(&d->req, req);
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, NULL, sip_park_thread, d))
+		if (!ast_pthread_create(&th, &attr, sip_park_thread, d))
 			return 0;
 		free(d);
 	}
