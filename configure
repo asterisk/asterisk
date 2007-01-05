@@ -15385,7 +15385,7 @@ fi
          ALSA_LIB="${pbxlibdir} ${ALSA_LIB}"
 	 ALSA_INCLUDE="-I${ALSA_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${ALSA_DIR}/include"
 	 if test "xalsa/asoundlib.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${ALSA_DIR}/include/alsa/asoundlib.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -15784,7 +15784,7 @@ fi
          CURSES_LIB="${pbxlibdir} ${CURSES_LIB}"
 	 CURSES_INCLUDE="-I${CURSES_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${CURSES_DIR}/include"
 	 if test "xcurses.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${CURSES_DIR}/include/curses.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -16285,7 +16285,7 @@ fi
          IKSEMEL_LIB="${pbxlibdir} ${IKSEMEL_LIB}"
 	 IKSEMEL_INCLUDE="-I${IKSEMEL_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${IKSEMEL_DIR}/include"
 	 if test "xiksemel.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${IKSEMEL_DIR}/include/iksemel.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -16685,7 +16685,7 @@ fi
          GNUTLS_LIB="${pbxlibdir} ${GNUTLS_LIB}"
 	 GNUTLS_INCLUDE="-I${GNUTLS_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${GNUTLS_DIR}/include"
 	 if test "x" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${GNUTLS_DIR}/include/" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -17542,7 +17542,7 @@ fi
          MISDN_LIB="${pbxlibdir} ${MISDN_LIB}"
 	 MISDN_INCLUDE="-I${MISDN_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${MISDN_DIR}/include"
 	 if test "xmISDNuser/mISDNlib.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${MISDN_DIR}/include/mISDNuser/mISDNlib.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -17942,7 +17942,7 @@ fi
          ISDNNET_LIB="${pbxlibdir} ${ISDNNET_LIB}"
 	 ISDNNET_INCLUDE="-I${ISDNNET_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${ISDNNET_DIR}/include"
 	 if test "xmISDNuser/isdn_net.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${ISDNNET_DIR}/include/mISDNuser/isdn_net.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -18340,7 +18340,7 @@ fi
          SUPPSERV_LIB="${pbxlibdir} ${SUPPSERV_LIB}"
 	 SUPPSERV_INCLUDE="-I${SUPPSERV_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${SUPPSERV_DIR}/include"
 	 if test "xmISDNuser/suppserv.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${SUPPSERV_DIR}/include/mISDNuser/suppserv.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -18740,7 +18740,7 @@ fi
          NBS_LIB="${pbxlibdir} ${NBS_LIB}"
 	 NBS_INCLUDE="-I${NBS_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${NBS_DIR}/include"
 	 if test "xnbs.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${NBS_DIR}/include/nbs.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -19139,7 +19139,7 @@ fi
          NCURSES_LIB="${pbxlibdir} ${NCURSES_LIB}"
 	 NCURSES_INCLUDE="-I${NCURSES_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${NCURSES_DIR}/include"
 	 if test "xcurses.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${NCURSES_DIR}/include/curses.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -19862,7 +19862,7 @@ fi
          NEWT_LIB="${pbxlibdir} ${NEWT_LIB}"
 	 NEWT_INCLUDE="-I${NEWT_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${NEWT_DIR}/include"
 	 if test "xnewt.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${NEWT_DIR}/include/newt.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -20261,7 +20261,7 @@ fi
          UNIXODBC_LIB="${pbxlibdir} ${UNIXODBC_LIB}"
 	 UNIXODBC_INCLUDE="-I${UNIXODBC_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${UNIXODBC_DIR}/include"
 	 if test "xsql.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${UNIXODBC_DIR}/include/sql.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -20660,7 +20660,7 @@ fi
          OGG_LIB="${pbxlibdir} ${OGG_LIB}"
 	 OGG_INCLUDE="-I${OGG_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${OGG_DIR}/include"
 	 if test "x" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${OGG_DIR}/include/" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -21059,7 +21059,7 @@ fi
          OSPTK_LIB="${pbxlibdir} ${OSPTK_LIB}"
 	 OSPTK_INCLUDE="-I${OSPTK_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${OSPTK_DIR}/include"
 	 if test "xosp/osp.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${OSPTK_DIR}/include/osp/osp.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -21736,7 +21736,7 @@ fi
          OSS_LIB="${pbxlibdir} ${OSS_LIB}"
 	 OSS_INCLUDE="-I${OSS_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${OSS_DIR}/include"
 	 if test "xsoundcard.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${OSS_DIR}/include/soundcard.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -22462,7 +22462,7 @@ fi
          POPT_LIB="${pbxlibdir} ${POPT_LIB}"
 	 POPT_INCLUDE="-I${POPT_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${POPT_DIR}/include"
 	 if test "xpopt.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${POPT_DIR}/include/popt.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -22861,7 +22861,7 @@ fi
          PRI_LIB="${pbxlibdir} ${PRI_LIB}"
 	 PRI_INCLUDE="-I${PRI_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${PRI_DIR}/include"
 	 if test "xlibpri.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${PRI_DIR}/include/libpri.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -24401,7 +24401,7 @@ fi
          RADIUS_LIB="${pbxlibdir} ${RADIUS_LIB}"
 	 RADIUS_INCLUDE="-I${RADIUS_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${RADIUS_DIR}/include"
 	 if test "xradiusclient-ng.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${RADIUS_DIR}/include/radiusclient-ng.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -24800,7 +24800,7 @@ fi
          SPEEX_LIB="${pbxlibdir} ${SPEEX_LIB}"
 	 SPEEX_INCLUDE="-I${SPEEX_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${SPEEX_DIR}/include"
 	 if test "xspeex/speex.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${SPEEX_DIR}/include/speex/speex.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -25199,7 +25199,7 @@ fi
          SQLITE_LIB="${pbxlibdir} ${SQLITE_LIB}"
 	 SQLITE_INCLUDE="-I${SQLITE_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${SQLITE_DIR}/include"
 	 if test "xsqlite.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${SQLITE_DIR}/include/sqlite.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -25598,7 +25598,7 @@ fi
          OPENSSL_LIB="${pbxlibdir} ${OPENSSL_LIB}"
 	 OPENSSL_INCLUDE="-I${OPENSSL_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${OPENSSL_DIR}/include"
 	 if test "xopenssl/ssl.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${OPENSSL_DIR}/include/openssl/ssl.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -25997,7 +25997,7 @@ fi
          FREETDS_LIB="${pbxlibdir} ${FREETDS_LIB}"
 	 FREETDS_INCLUDE="-I${FREETDS_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${FREETDS_DIR}/include"
 	 if test "xtds.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${FREETDS_DIR}/include/tds.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -26413,7 +26413,7 @@ fi
          TERMCAP_LIB="${pbxlibdir} ${TERMCAP_LIB}"
 	 TERMCAP_INCLUDE="-I${TERMCAP_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${TERMCAP_DIR}/include"
 	 if test "x" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${TERMCAP_DIR}/include/" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -26812,7 +26812,7 @@ fi
          TINFO_LIB="${pbxlibdir} ${TINFO_LIB}"
 	 TINFO_INCLUDE="-I${TINFO_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${TINFO_DIR}/include"
 	 if test "x" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${TINFO_DIR}/include/" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -27215,7 +27215,7 @@ fi
          TONEZONE_LIB="${pbxlibdir} ${TONEZONE_LIB}"
 	 TONEZONE_INCLUDE="-I${TONEZONE_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${TONEZONE_DIR}/include"
 	 if test "xzaptel/tonezone.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${TONEZONE_DIR}/include/zaptel/tonezone.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -27614,7 +27614,7 @@ fi
          VORBIS_LIB="${pbxlibdir} ${VORBIS_LIB}"
 	 VORBIS_INCLUDE="-I${VORBIS_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${VORBIS_DIR}/include"
 	 if test "xvorbis/codec.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${VORBIS_DIR}/include/vorbis/codec.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
@@ -28121,7 +28121,7 @@ fi
          ZLIB_LIB="${pbxlibdir} ${ZLIB_LIB}"
 	 ZLIB_INCLUDE="-I${ZLIB_DIR}/include"
 	 saved_cppflags="${CPPFLAGS}"
-	 CPPFLAGS="${CPPFLAGS} -I${1_DIR}/include"
+	 CPPFLAGS="${CPPFLAGS} -I${ZLIB_DIR}/include"
 	 if test "xzlib.h" != "x" ; then
 	    as_ac_Header=`echo "ac_cv_header_${ZLIB_DIR}/include/zlib.h" | $as_tr_sh`
 if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
