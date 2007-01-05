@@ -749,7 +749,6 @@ static struct in_addr __ourip;
 struct ast_hostent ahp;
 struct hostent *hp;
 static int skinnysock = -1;
-static pthread_t tcp_thread;
 static pthread_t accept_t;
 static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
@@ -4271,6 +4270,7 @@ static void *accept_thread(void *ignore)
 	struct protoent *p;
 	int arg = 1;
 	pthread_attr_t attr;
+	pthread_t tcp_thread;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -4299,7 +4299,7 @@ static void *accept_thread(void *ignore)
 		sessions = s;
 		ast_mutex_unlock(&sessionlock);
 
-		if (ast_pthread_create(&tcp_thread, NULL, skinny_session, s)) {
+		if (ast_pthread_create(&tcp_thread, &attr, skinny_session, s)) {
 			destroy_session(s);
 		}
 	}
@@ -4677,13 +4677,6 @@ static int unload_module(void)
 	}
 	monitor_thread = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&monlock);
-
-	if (tcp_thread && (tcp_thread != AST_PTHREADT_STOP)) {
-		pthread_cancel(tcp_thread);
-		pthread_kill(tcp_thread, SIGURG);
-		pthread_join(tcp_thread, NULL);
-	}
-	tcp_thread = AST_PTHREADT_STOP;
 
 	ast_mutex_lock(&netlock);
 	if (accept_t && (accept_t != AST_PTHREADT_STOP)) {
