@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
@@ -2751,9 +2752,6 @@ static struct ast_str *generic_http_callback(enum output_format format,
 			contenttype[format],
 			s->managerid, httptimeout);
 
-	if (format == FORMAT_HTML)
-		ast_str_append(&out, 0, "<title>Asterisk&trade; Manager Interface</title>");
-
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "<ajax-response>\n");
 	} else if (format == FORMAT_HTML) {
@@ -2764,6 +2762,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	user <input name=\"username\"> pass <input type=\"password\" name=\"secret\"><br> \
 	<input type=\"submit\"></form>"
 
+		ast_str_append(&out, 0, "<title>Asterisk&trade; Manager Interface</title>");
 		ast_str_append(&out, 0, "<body bgcolor=\"#ffffff\"><table align=center bgcolor=\"#f1f1f1\" width=\"500\">\r\n");
 		ast_str_append(&out, 0, ROW_FMT, "<h1>Manager Tester</h1>");
 		ast_str_append(&out, 0, ROW_FMT, TEST_STRING);
@@ -2771,25 +2770,21 @@ static struct ast_str *generic_http_callback(enum output_format format,
 
 	if (s->f != NULL) {	/* have temporary output */
 		char *buf;
-		int l = ftell(s->f);
+		size_t l = ftell(s->f);
 
-		/* always return something even if len == 0 */
-		if ((buf = ast_calloc(1, l + 1))) {
-			if (l > 0) {
-				fseek(s->f, 0, SEEK_SET);
-				fread(buf, 1, l, s->f);
-			}
-			if (format == FORMAT_XML || format == FORMAT_HTML)
-				xml_translate(&out, buf, params, format);
-			free(buf);
-		}
 		fclose(s->f);
+		if (format == FORMAT_XML || format == FORMAT_HTML) {
+			if (l) {
+				if ((buf = mmap(NULL, l, PROT_READ, MAP_SHARED, s->fd, 0)))
+					xml_translate(&out, buf, params, format);
+			} else {
+				xml_translate(&out, "", params, format);
+			}
+		}
 		s->f = NULL;
 		s->fd = -1;
 	}
 
-	/* Still okay because c would safely be pointing to workspace even
-	   if retval failed to allocate above */
 	if (format == FORMAT_XML) {
 		ast_str_append(&out, 0, "</ajax-response>\n");
 	} else if (format == FORMAT_HTML)
