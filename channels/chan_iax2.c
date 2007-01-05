@@ -922,10 +922,6 @@ static struct iax2_thread *find_idle_thread(void)
 		ast_mutex_destroy(&thread->lock);
 		free(thread);
 		thread = NULL;
-	} else {
-		AST_LIST_LOCK(&dynamic_list);
-		AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
-		AST_LIST_UNLOCK(&dynamic_list);
 	}
 
 	return thread;
