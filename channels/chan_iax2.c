@@ -869,7 +869,6 @@ static struct iax2_thread *find_idle_thread(void)
 					thread = NULL;
 				} else {
 					/* All went well and the thread is up, so increment our count */
-					AST_LIST_INSERT_TAIL(&dynamic_list, thread, list);
 					iaxdynamicthreadcount++;
 				}
 			}
