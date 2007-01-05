@@ -1368,7 +1368,9 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	}
 
 	if (varname[strlen(varname) - 1] == ')') {
-		ast_func_read(c, (char *) varname, workspace, sizeof(workspace));
+		char *copy = ast_strdupa(varname);
+
+		ast_func_read(c, copy, workspace, sizeof(workspace));
 	} else {
 		pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
 	}
