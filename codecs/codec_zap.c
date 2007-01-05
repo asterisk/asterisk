@@ -142,10 +142,18 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	if(!ztp->inuse) {
 		ast_mutex_lock(&channelcount);
 		if(pvt->t->dstfmt == 8 || pvt->t->dstfmt == 0 ) {
+			if (complexinuse == totalchannels) {
+				ast_mutex_unlock(&channelcount);
+				return -1;
+			}
 			complexinuse++;
 			if(complexinuse == totalchannels)
 				deactivate_translator(0);
 		} else {
+			if (simpleinuse == totalchannels) {
+				ast_mutex_unlock(&channelcount);
+				return -1;
+			}
 			simpleinuse++;
 			if(simpleinuse == totalchannels)
 				deactivate_translator(1);
