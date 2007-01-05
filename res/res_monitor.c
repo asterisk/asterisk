@@ -474,13 +474,13 @@ static char start_monitor_action_help[] =
 "                the input and output channels together after the\n"
 "                recording is finished.\n";
 
-static int start_monitor_action(struct mansession *s, struct message *m)
+static int start_monitor_action(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = astman_get_header(m, "Channel");
-	char *fname = astman_get_header(m, "File");
-	char *format = astman_get_header(m, "Format");
-	char *mix = astman_get_header(m, "Mix");
+	const char *name = astman_get_header(m, "Channel");
+	const char *fname = astman_get_header(m, "File");
+	const char *format = astman_get_header(m, "Format");
+	const char *mix = astman_get_header(m, "Mix");
 	char *d;
 	
 	if (ast_strlen_zero(name)) {
@@ -527,10 +527,10 @@ static char stop_monitor_action_help[] =
 "  started 'Monitor' action.  The only parameter is 'Channel', the name\n"
 "  of the channel monitored.\n";
 
-static int stop_monitor_action(struct mansession *s, struct message *m)
+static int stop_monitor_action(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = astman_get_header(m, "Channel");
+	const char *name = astman_get_header(m, "Channel");
 	int res;
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -559,11 +559,11 @@ static char change_monitor_action_help[] =
 "  File        - Required.  Is the new name of the file created in the\n"
 "                monitor spool directory.\n";
 
-static int change_monitor_action(struct mansession *s, struct message *m)
+static int change_monitor_action(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *name = astman_get_header(m, "Channel");
-	char *fname = astman_get_header(m, "File");
+	const char *name = astman_get_header(m, "Channel");
+	const char *fname = astman_get_header(m, "File");
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -601,10 +601,10 @@ enum MONITOR_PAUSING_ACTION
 	MONITOR_ACTION_UNPAUSE
 };
 	  
-static int do_pause_or_unpause(struct mansession *s, struct message *m, int action)
+static int do_pause_or_unpause(struct mansession *s, const struct message *m, int action)
 {
 	struct ast_channel *c = NULL;
-	char *name = astman_get_header(m, "Channel");
+	const char *name = astman_get_header(m, "Channel");
 	
 	if (IS_NULL_STRING(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -633,7 +633,7 @@ static char pause_monitor_action_help[] =
 	" be used to control this:\n"
 	"  Channel     - Required.  Used to specify the channel to record.\n";
 
-static int pause_monitor_action(struct mansession *s, struct message *m)
+static int pause_monitor_action(struct mansession *s, const struct message *m)
 {
 	return do_pause_or_unpause(s, m, MONITOR_ACTION_PAUSE);
 }
@@ -644,7 +644,7 @@ static char unpause_monitor_action_help[] =
 	"  be used to control this:\n"
 	"  Channel     - Required.  Used to specify the channel to record.\n";
 
-static int unpause_monitor_action(struct mansession *s, struct message *m)
+static int unpause_monitor_action(struct mansession *s, const struct message *m)
 {
 	return do_pause_or_unpause(s, m, MONITOR_ACTION_UNPAUSE);
 }

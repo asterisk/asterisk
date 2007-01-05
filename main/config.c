@@ -855,7 +855,6 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
 				if ( withcomments ) {
-					ast_log(LOG_NOTICE, "moo\n");
 					CB_ADD(lline_buffer);       /* add the current lline buffer to the comment buffer */
 					lline_buffer[0] = 0;        /* erase the lline buffer */
 				}

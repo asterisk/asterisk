@@ -73,12 +73,12 @@ static char *appendcdruserfield_app = "AppendCDRUserField";
 static char *appendcdruserfield_synopsis = "Append to the CDR user field";
 
 
-static int action_setcdruserfield(struct mansession *s, struct message *m)
+static int action_setcdruserfield(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
-	char *userfield = astman_get_header(m, "UserField");
-	char *channel = astman_get_header(m, "Channel");
-	char *append = astman_get_header(m, "Append");
+	const char *userfield = astman_get_header(m, "UserField");
+	const char *channel = astman_get_header(m, "Channel");
+	const char *append = astman_get_header(m, "Append");
 
 	if (ast_strlen_zero(channel)) {
 		astman_send_error(s, m, "No Channel specified");

@@ -58,13 +58,12 @@
 
 /* Export manager structures */
 #define AST_MAX_MANHEADERS 80
-#define AST_MAX_MANHEADER_LEN 256
 
 struct mansession;
 
 struct message {
-	int hdrcount;
-	char headers[AST_MAX_MANHEADERS][AST_MAX_MANHEADER_LEN];
+	unsigned int hdrcount;
+	const char *headers[AST_MAX_MANHEADERS];
 };
 
 struct manager_action {
@@ -77,7 +76,7 @@ struct manager_action {
 	/*! Permission required for action.  EVENT_FLAG_* */
 	int authority;
 	/*! Function to be called */
-	int (*func)(struct mansession *s, struct message *m);
+	int (*func)(struct mansession *s, const struct message *m);
 	/*! For easy linking */
 	struct manager_action *next;
 };
@@ -97,7 +96,7 @@ struct manager_action {
 int ast_manager_register2(
 	const char *action,
 	int authority,
-	int (*func)(struct mansession *s, struct message *m),
+	int (*func)(struct mansession *s, const struct message *m),
 	const char *synopsis,
 	const char *description);
 
@@ -111,27 +110,23 @@ int ast_manager_unregister( char *action );
 	\param event	Event name
 	\param contents	Contents of event
 */
-int manager_event(int category, const char *event, const char *contents, ...)
-	__attribute__ ((format (printf, 3,4)));
+int __attribute__ ((format (printf, 3,4))) manager_event(int category, const char *event, const char *contents, ...);
 
 /*! Get header from mananger transaction */
-char *astman_get_header(struct message *m, char *var);
+const char *astman_get_header(const struct message *m, char *var);
 
 /*! Get a linked list of the Variable: headers */
-struct ast_variable *astman_get_variables(struct message *m);
+struct ast_variable *astman_get_variables(const struct message *m);
 
 /*! Send error in manager transaction */
-void astman_send_error(struct mansession *s, struct message *m, char *error);
-void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
-void astman_send_ack(struct mansession *s, struct message *m, char *msg);
+void astman_send_error(struct mansession *s, const struct message *m, char *error);
+void astman_send_response(struct mansession *s, const struct message *m, char *resp, char *msg);
+void astman_send_ack(struct mansession *s, const struct message *m, char *msg);
 
-void astman_append(struct mansession *s, const char *fmt, ...)
-        __attribute__ ((format (printf, 2, 3)));
-
+void __attribute__ ((format (printf, 2, 3))) astman_append(struct mansession *s, const char *fmt, ...);
 
 /*! Called by Asterisk initialization */
 int init_manager(void);
-/*! Called by Asterisk initialization */
 int reload_manager(void);
 
 #endif /* _ASTERISK_MANAGER_H */
