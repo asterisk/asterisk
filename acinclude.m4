@@ -124,11 +124,11 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
          $1_LIB="${pbxlibdir} ${$1_LIB}"
 	 $1_INCLUDE="-I${$1_DIR}/include"
 	 if test "x$4" != "x" ; then
-	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0] )
+	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0], -I${$1_DIR}/include)
 	 fi
       else
 	 if test "x$4" != "x" ; then
-            AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0] )
+            AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
 	 fi
       fi
       if test "x${$1_HEADER_FOUND}" = "x0" ; then
