@@ -93,7 +93,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 /*
  * Master control routine
  */
-static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const char *value)
+static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, const char *value)
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
@@ -193,7 +193,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	return 0;
 }
 
-static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf, size_t len)
+static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, char *buf, size_t len)
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
@@ -352,7 +352,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	return 0;
 }
 
-static int acf_escape(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_escape(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *out = buf;
 

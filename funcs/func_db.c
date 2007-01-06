@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/astdb.h"
 
-static int function_db_read(struct ast_channel *chan, char *cmd,
+static int function_db_read(struct ast_channel *chan, const char *cmd,
 			    char *parse, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -76,7 +76,7 @@ static int function_db_read(struct ast_channel *chan, char *cmd,
 	return 0;
 }
 
-static int function_db_write(struct ast_channel *chan, char *cmd, char *parse,
+static int function_db_write(struct ast_channel *chan, const char *cmd, char *parse,
 			     const char *value)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -116,7 +116,7 @@ static struct ast_custom_function db_function = {
 	.write = function_db_write,
 };
 
-static int function_db_exists(struct ast_channel *chan, char *cmd,
+static int function_db_exists(struct ast_channel *chan, const char *cmd,
 			      char *parse, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -160,7 +160,7 @@ static struct ast_custom_function db_exists_function = {
 	.read = function_db_exists,
 };
 
-static int function_db_delete(struct ast_channel *chan, char* cmd,
+static int function_db_delete(struct ast_channel *chan, const char *cmd,
 			      char *parse, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,

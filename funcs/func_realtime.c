@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static int function_realtime_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
 {
 	struct ast_variable *var, *head;
         struct ast_module_user *u;
@@ -98,7 +98,7 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 	return 0;
 }
 
-static int function_realtime_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+static int function_realtime_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
         struct ast_module_user *u;
 	int res = 0;

@@ -208,7 +208,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	return 0;
 }
 
-static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_sort_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_module_user *u;
 	int ret = -1;
@@ -234,7 +234,7 @@ static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *
 	return ret;
 }
 
-static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int ret = -1;
 	struct ast_module_user *u;

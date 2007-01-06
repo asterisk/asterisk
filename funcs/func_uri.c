@@ -44,7 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 /*! \brief uriencode: Encode URL according to RFC 2396 */
-static int uriencode(struct ast_channel *chan, char *cmd, char *data,
+static int uriencode(struct ast_channel *chan, const char *cmd, char *data,
 		     char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {
@@ -58,7 +58,7 @@ static int uriencode(struct ast_channel *chan, char *cmd, char *data,
 }
 
 /*!\brief uridecode: Decode URI according to RFC 2396 */
-static int uridecode(struct ast_channel *chan, char *cmd, char *data,
+static int uridecode(struct ast_channel *chan, const char *cmd, char *data,
 		     char *buf, size_t len)
 {
 	if (ast_strlen_zero(data)) {

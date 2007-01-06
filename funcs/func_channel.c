@@ -59,7 +59,7 @@ char *transfercapability_table[0x20] = {
 	"3K1AUDIO", "DIGITAL_W_TONES", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK",
 	"VIDEO", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK", "UNK", };
 
-static int func_channel_read(struct ast_channel *chan, char *function,
+static int func_channel_read(struct ast_channel *chan, const char *function,
 			     char *data, char *buf, size_t len)
 {
 	int ret = 0;
@@ -100,7 +100,7 @@ static int func_channel_read(struct ast_channel *chan, char *function,
 	return ret;
 }
 
-static int func_channel_write(struct ast_channel *chan, char *function,
+static int func_channel_write(struct ast_channel *chan, const char *function,
 			      char *data, const char *value)
 {
 	int ret = 0;

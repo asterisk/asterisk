@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 
-static int global_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int global_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	const char *var = pbx_builtin_getvar_helper(NULL, data);
 
@@ -50,7 +50,7 @@ static int global_read(struct ast_channel *chan, char *cmd, char *data, char *bu
 	return 0;
 }
 
-static int global_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+static int global_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
 	pbx_builtin_setvar_helper(NULL, data, value);
 

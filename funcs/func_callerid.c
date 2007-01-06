@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/callerid.h"
 
-static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
+static int callerid_read(struct ast_channel *chan, const const char *cmd, char *data,
 			 char *buf, size_t len)
 {
 	char *opt = data;
@@ -96,7 +96,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 	return 0;
 }
 
-static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
+static int callerid_write(struct ast_channel *chan, const const char *cmd, char *data,
 			  const char *value)
 {
 	if (!value)

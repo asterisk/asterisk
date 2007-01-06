@@ -763,7 +763,7 @@ static struct ast_frame *zt_exception(struct ast_channel *ast);
 static int zt_indicate(struct ast_channel *chan, int condition, const void *data, size_t datalen);
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen);
-static int zt_func_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len); 
+static int zt_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 
 static const struct ast_channel_tech zap_tech = {
 	.type = "Zap",
@@ -3249,7 +3249,7 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 	return 0;
 }
 
-static int zt_func_read(struct ast_channel *chan, char *function, char *data, char *buf, size_t len)
+static int zt_func_read(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len)
 {
 	struct zt_pvt *p = chan->tech_pvt;
 	

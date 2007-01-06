@@ -36,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static int group_count_function_read(struct ast_channel *chan, char *cmd,
+static int group_count_function_read(struct ast_channel *chan, const char *cmd,
 				     char *data, char *buf, size_t len)
 {
 	int count;
@@ -72,7 +72,7 @@ static struct ast_custom_function group_count_function = {
 };
 
 static int group_match_count_function_read(struct ast_channel *chan,
-					   char *cmd, char *data, char *buf,
+					   const char *cmd, char *data, char *buf,
 					   size_t len)
 {
 	int count;
@@ -102,7 +102,7 @@ static struct ast_custom_function group_match_count_function = {
 	.write = NULL,
 };
 
-static int group_function_read(struct ast_channel *chan, char *cmd,
+static int group_function_read(struct ast_channel *chan, const char *cmd,
 			       char *data, char *buf, size_t len)
 {
 	char varname[256];
@@ -122,7 +122,7 @@ static int group_function_read(struct ast_channel *chan, char *cmd,
 	return 0;
 }
 
-static int group_function_write(struct ast_channel *chan, char *cmd,
+static int group_function_write(struct ast_channel *chan, const char *cmd,
 				char *data, const char *value)
 {
 	char grpcat[256];
@@ -149,7 +149,7 @@ static struct ast_custom_function group_function = {
 	.write = group_function_write,
 };
 
-static int group_list_function_read(struct ast_channel *chan, char *cmd,
+static int group_list_function_read(struct ast_channel *chan, const char *cmd,
 				    char *data, char *buf, size_t len)
 {
 	struct ast_var_t *current;

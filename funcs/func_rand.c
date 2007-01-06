@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/options.h"
 
-static int acf_rand_exec(struct ast_channel *chan, char *cmd,
+static int acf_rand_exec(struct ast_channel *chan, const char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
 	struct ast_module_user *u;

@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static int isnull(struct ast_channel *chan, char *cmd, char *data,
+static int isnull(struct ast_channel *chan, const char *cmd, char *data,
 		  char *buf, size_t len)
 {
 	strcpy(buf, data && *data ? "0" : "1");
@@ -46,7 +46,7 @@ static int isnull(struct ast_channel *chan, char *cmd, char *data,
 	return 0;
 }
 
-static int exists(struct ast_channel *chan, char *cmd, char *data, char *buf,
+static int exists(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 		  size_t len)
 {
 	strcpy(buf, data && *data ? "1" : "0");
@@ -54,7 +54,7 @@ static int exists(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	return 0;
 }
 
-static int iftime(struct ast_channel *chan, char *cmd, char *data, char *buf,
+static int iftime(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 		  size_t len)
 {
 	struct ast_timing timing;
@@ -88,7 +88,7 @@ static int iftime(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	return 0;
 }
 
-static int acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf,
+static int acf_if(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 		  size_t len)
 {
 	char *expr;
@@ -116,7 +116,7 @@ static int acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf,
 	return 0;
 }
 
-static int set(struct ast_channel *chan, char *cmd, char *data, char *buf,
+static int set(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 	       size_t len)
 {
 	char *varname;

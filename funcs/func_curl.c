@@ -131,7 +131,7 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 	return 0;
 }
 
-static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *buf, size_t len)
+static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, char *buf, size_t len)
 {
 	struct ast_module_user *u;
 	struct MemoryStruct chunk = { NULL, 0 };

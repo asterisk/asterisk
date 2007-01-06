@@ -65,7 +65,7 @@ enum TypeOfResult {
 	CHAR_RESULT
 };
 
-static int math(struct ast_channel *chan, char *cmd, char *parse,
+static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		char *buf, size_t len)
 {
 	float fnum1;

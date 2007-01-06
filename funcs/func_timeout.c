@@ -40,7 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/options.h"
 
-static int timeout_read(struct ast_channel *chan, char *cmd, char *data,
+static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
 	time_t myt;
@@ -83,7 +83,7 @@ static int timeout_read(struct ast_channel *chan, char *cmd, char *data,
 	return 0;
 }
 
-static int timeout_write(struct ast_channel *chan, char *cmd, char *data,
+static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 			 const char *value)
 {
 	int x;

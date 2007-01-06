@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static int env_read(struct ast_channel *chan, char *cmd, char *data,
+static int env_read(struct ast_channel *chan, const char *cmd, char *data,
 		    char *buf, size_t len)
 {
 	char *ret = NULL;
@@ -53,7 +53,7 @@ static int env_read(struct ast_channel *chan, char *cmd, char *data,
 	return 0;
 }
 
-static int env_write(struct ast_channel *chan, char *cmd, char *data,
+static int env_write(struct ast_channel *chan, const char *cmd, char *data,
 		     const char *value)
 {
 	if (!ast_strlen_zero(data)) {
@@ -67,7 +67,7 @@ static int env_write(struct ast_channel *chan, char *cmd, char *data,
 	return 0;
 }
 
-static int stat_read(struct ast_channel *chan, char *cmd, char *data,
+static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 		     char *buf, size_t len)
 {
 	char *action;

@@ -52,7 +52,7 @@ AST_APP_OPTIONS(cdr_func_options, {
 	AST_APP_OPTION('u', OPT_UNPARSED),
 });
 
-static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
+static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 		    char *buf, size_t len)
 {
 	char *ret;
@@ -85,7 +85,7 @@ static int cdr_read(struct ast_channel *chan, char *cmd, char *parse,
 	return 0;
 }
 
-static int cdr_write(struct ast_channel *chan, char *cmd, char *parse,
+static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 		     const char *value)
 {
 	struct ast_flags flags = { 0 };

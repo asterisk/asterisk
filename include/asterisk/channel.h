@@ -301,10 +301,10 @@ struct ast_channel_tech {
 	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
 
 	/*! \brief Provide additional read items for CHANNEL() dialplan function */
-	int (* func_channel_read)(struct ast_channel *chan, char *function, char *data, char *buf, size_t len);
+	int (* func_channel_read)(struct ast_channel *chan, const char *function, char *data, char *buf, size_t len);
 
 	/*! \brief Provide additional write items for CHANNEL() dialplan function */
-	int (* func_channel_write)(struct ast_channel *chan, char *function, char *data, const char *value);
+	int (* func_channel_write)(struct ast_channel *chan, const char *function, char *data, const char *value);
 };
 
 struct ast_channel_spy_list;	/*!< \todo Add explanation here */

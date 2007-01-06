@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/options.h"
 
-static int function_fieldqty(struct ast_channel *chan, char *cmd,
+static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 			     char *parse, char *buf, size_t len)
 {
 	char *varval;
@@ -73,7 +73,7 @@ static struct ast_custom_function fieldqty_function = {
 	.read = function_fieldqty,
 };
 
-static int filter(struct ast_channel *chan, char *cmd, char *parse, char *buf,
+static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
 		  size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -105,7 +105,7 @@ static struct ast_custom_function filter_function = {
 	.read = filter,
 };
 
-static int regex(struct ast_channel *chan, char *cmd, char *parse, char *buf,
+static int regex(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
 		 size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -186,7 +186,7 @@ static int exec_clearhash(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int array(struct ast_channel *chan, char *cmd, char *var,
+static int array(struct ast_channel *chan, const char *cmd, char *var,
 		 const char *value)
 {
 	AST_DECLARE_APP_ARGS(arg1,
@@ -256,7 +256,7 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 	return 0;
 }
 
-static int hashkeys_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int hashkeys_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_var_t *newvar;
 	int plen;
@@ -278,7 +278,7 @@ static int hashkeys_read(struct ast_channel *chan, char *cmd, char *data, char *
 	return 0;
 }
 
-static int hash_write(struct ast_channel *chan, char *cmd, char *var, const char *value)
+static int hash_write(struct ast_channel *chan, const char *cmd, char *var, const char *value)
 {
 	char varname[256];
 	AST_DECLARE_APP_ARGS(arg,
@@ -298,7 +298,7 @@ static int hash_write(struct ast_channel *chan, char *cmd, char *var, const char
 	return 0;
 }
 
-static int hash_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int hash_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char varname[256];
 	const char *varvalue;
@@ -382,7 +382,7 @@ static struct ast_custom_function array_function = {
 		"entire argument, since Set can take multiple arguments itself.\n",
 };
 
-static int acf_sprintf(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int acf_sprintf(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 #define SPRINTF_FLAG	0
 #define SPRINTF_WIDTH	1
@@ -525,7 +525,7 @@ static struct ast_custom_function sprintf_function = {
 "a format specifier is not recognized.\n",
 };
 
-static int quote(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int quote(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr = buf, *dataptr = data;
 	*bufptr++ = '"';
@@ -555,7 +555,7 @@ static struct ast_custom_function quote_function = {
 };
 
 
-static int len(struct ast_channel *chan, char *cmd, char *data, char *buf,
+static int len(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 	       size_t len)
 {
 	int length = 0;
@@ -575,7 +575,7 @@ static struct ast_custom_function len_function = {
 	.read = len,
 };
 
-static int acf_strftime(struct ast_channel *chan, char *cmd, char *parse,
+static int acf_strftime(struct ast_channel *chan, const char *cmd, char *parse,
 			char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -611,7 +611,7 @@ static struct ast_custom_function strftime_function = {
 	.read = acf_strftime,
 };
 
-static int acf_strptime(struct ast_channel *chan, char *cmd, char *data,
+static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 			char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -663,7 +663,7 @@ static struct ast_custom_function strptime_function = {
 	.read = acf_strptime,
 };
 
-static int function_eval(struct ast_channel *chan, char *cmd, char *data,
+static int function_eval(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
 {
 	buf[0] = '\0';
@@ -694,7 +694,7 @@ static struct ast_custom_function eval_function = {
 	.read = function_eval,
 };
 
-static int keypadhash(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static int keypadhash(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char *bufptr, *dataptr;
 

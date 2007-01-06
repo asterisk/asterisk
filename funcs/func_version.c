@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define STRING_IT(vernum) STRING_IT2(vernum)
 #define STRING_IT2(vernum) #vernum
 
-static int acf_version_exec(struct ast_channel *chan, char *cmd,
+static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
 	struct ast_module_user *u;
