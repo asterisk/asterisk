@@ -2775,8 +2775,10 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		fclose(s->f);
 		if (format == FORMAT_XML || format == FORMAT_HTML) {
 			if (l) {
-				if ((buf = mmap(NULL, l, PROT_READ, MAP_SHARED, s->fd, 0)))
+				if ((buf = mmap(NULL, l, PROT_READ, MAP_SHARED, s->fd, 0))) {
 					xml_translate(&out, buf, params, format);
+					munmap(buf, l);
+				}
 			} else {
 				xml_translate(&out, "", params, format);
 			}
