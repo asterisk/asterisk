@@ -123,9 +123,12 @@ if test "x${PBX_$1}" != "x1" -a "${USE_$1}" != "no"; then
       if test "x${$1_DIR}" != "x"; then
          $1_LIB="${pbxlibdir} ${$1_LIB}"
 	 $1_INCLUDE="-I${$1_DIR}/include"
+	 saved_cppflags="${CPPFLAGS}"
+	 CPPFLAGS="${CPPFLAGS} -I${$1_DIR}/include"
 	 if test "x$4" != "x" ; then
-	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0], -I${$1_DIR}/include)
+	    AC_CHECK_HEADER([${$1_DIR}/include/$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
 	 fi
+	 CPPFLAGS="${saved_cppflags}"
       else
 	 if test "x$4" != "x" ; then
             AC_CHECK_HEADER([$4], [$1_HEADER_FOUND=1], [$1_HEADER_FOUND=0])
