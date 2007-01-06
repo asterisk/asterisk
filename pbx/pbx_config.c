@@ -1576,7 +1576,7 @@ static void pbx_load_users(void)
 		}
 		if (!ast_strlen_zero(iface)) {
 			/* Add hint */
-			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, strdup(""), ast_free, registrar);
+			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar);
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
 				snprintf(tmp, sizeof(tmp), "stdexten|%s|${HINT}", cat);

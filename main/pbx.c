@@ -4556,10 +4556,6 @@ static int ext_strncpy(char *dst, const char *src, int len)
 	return count;
 }
 
-static void null_datad(void *foo)
-{
-}
-
 /*! \brief add the extension in the priority chain.
  * returns 0 on success, -1 on failure
  */
@@ -4581,7 +4577,8 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		   replacement?  If so, replace, otherwise, bonk. */
 		if (!replace) {
 			ast_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s', already in use\n", tmp->exten, tmp->priority, con->name);
-			tmp->datad(tmp->data);
+			if (tmp->datad)
+				tmp->datad(tmp->data);
 			free(tmp);
 			return -1;
 		}
@@ -4599,7 +4596,8 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		if (tmp->priority == PRIORITY_HINT)
 			ast_change_hint(e,tmp);
 		/* Destroy the old one */
-		e->datad(e->data);
+		if (e->datad)
+			e->datad(e->data);
 		free(e);
 	} else {	/* Slip ourselves in just before e */
 		tmp->peer = e;
@@ -4683,8 +4681,6 @@ int ast_add_extension2(struct ast_context *con,
 		length ++;	/* just the '\0' */
 
 	/* Be optimistic:  Build the extension structure first */
-	if (datad == NULL)
-		datad = null_datad;
 	if (!(tmp = ast_calloc(1, length)))
 		return -1;
 

@@ -2285,7 +2285,7 @@ static int load_config(void)
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 		return -1;
 	}
-	res = ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), ast_free, registrar);
+	res = ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, NULL, NULL, registrar);
 	if (parkaddhints)
 		park_add_hints(parking_con, parking_start, parking_stop);
 	if (!res)
