@@ -400,6 +400,8 @@ struct ind_tone_zone *ast_get_indication_zone(const char *country)
 				if (!strcasecmp(tz->country, country))
 					break;
 			}
+			if (!tz)
+				break;
 			/* If this is an alias then we have to search yet again otherwise we have found the zonezone */
 			if (tz->alias && tz->alias[0])
 				country = tz->alias;
