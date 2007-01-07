@@ -8177,7 +8177,7 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	/* If they put someone on hold, increment the value... otherwise decrement it */
 	if (hold)
 		peer->onHold++;
-	else if (hold > 0)
+	else
 		peer->onHold--;
 
 	/* Request device state update */
