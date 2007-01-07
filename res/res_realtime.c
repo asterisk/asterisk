@@ -57,7 +57,7 @@ static int cli_realtime_load(int fd, int argc, char **argv)
 		return RESULT_FAILURE;
 	}
 
-	var = ast_load_realtime(argv[2], argv[3], argv[4], NULL);
+	var = ast_load_realtime_all(argv[2], argv[3], argv[4], NULL);
 
 	if(var) {
 		ast_cli(fd, header_format, "Column Name", "Column Value");

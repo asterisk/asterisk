@@ -128,6 +128,7 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
  * MUST be freed with ast_variables_destroy() as there is no container.
  */
 struct ast_variable *ast_load_realtime(const char *family, ...);
+struct ast_variable *ast_load_realtime_all(const char *family, ...);
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup

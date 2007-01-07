@@ -168,7 +168,12 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		indicator = 0;
 		res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
 		if (indicator == SQL_NULL_DATA)
-			continue;
+			rowdata[0] = '\0';
+		else if (ast_strlen_zero(rowdata)) {
+			/* Because we encode the empty string for a NULL, we will encode
+			 * actual empty strings as a string containing a single whitespace. */
+			ast_copy_string(rowdata, " ", sizeof(rowdata));
+		}
 
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
@@ -180,15 +185,12 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		stringp = rowdata;
 		while(stringp) {
 			chunk = strsep(&stringp, ";");
-			if (!ast_strlen_zero(ast_strip(chunk))) {
-				if (prev) {
-					prev->next = ast_variable_new(coltitle, chunk);
-					if (prev->next)
-						prev = prev->next;
-					} else 
-						prev = var = ast_variable_new(coltitle, chunk);
-					
-			}
+			if (prev) {
+				prev->next = ast_variable_new(coltitle, chunk);
+				if (prev->next)
+					prev = prev->next;
+			} else 
+				prev = var = ast_variable_new(coltitle, chunk);
 		}
 	}
 

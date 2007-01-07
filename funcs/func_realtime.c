@@ -75,7 +75,7 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	if (!args.delim2)
 		args.delim2 = "=";
 
-	head = ast_load_realtime(args.family, args.fieldmatch, args.value, NULL);
+	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, NULL);
 
 	if (!head) {
 		ast_module_user_remove(u);

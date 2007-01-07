@@ -1314,7 +1314,7 @@ struct ast_config *ast_config_load_with_comments(const char *filename)
 	return result;
 }
 
-struct ast_variable *ast_load_realtime(const char *family, ...)
+struct ast_variable *ast_load_realtime_all(const char *family, ...)
 {
 	struct ast_config_engine *eng;
 	char db[256]="";
@@ -1328,6 +1328,35 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 		res = eng->realtime_func(db, table, ap);
 	va_end(ap);
 
+	return res;
+}
+
+struct ast_variable *ast_load_realtime(const char *family, ...)
+{
+	struct ast_variable *res, *cur, *prev = NULL, *freeme = NULL;
+	va_list ap;
+
+	va_start(ap, family);
+	res = ast_load_realtime_all(family, ap);
+	va_end(ap);
+
+	/* Eliminate blank entries */
+	for (cur = res; cur; cur = cur->next) {
+		if (freeme) {
+			free(freeme);
+			freeme = NULL;
+		}
+
+		if (ast_strlen_zero(cur->value)) {
+			if (prev)
+				prev->next = cur->next;
+			else
+				res = cur->next;
+			freeme = cur;
+		} else {
+			prev = cur;
+		}
+	}
 	return res;
 }
 
