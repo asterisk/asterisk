@@ -131,7 +131,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	/* Check and parse arguments */
-	if(args.argc < 3){
+	if (args.argc < 3) {
 		return ERROR_NOARG;
 	} else {
 		char d, ds[2];
@@ -145,7 +145,19 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 			return ERROR_NOMEM;
 		}
 
-		d = args.delimiter[0] ? args.delimiter[0] : '-';
+		if (args.delimiter[0] == '\\') {
+			if (args.delimiter[1] == 'n')
+				d = '\n';
+			else if (args.delimiter[1] == 't')
+				d = '\t';
+			else if (args.delimiter[1])
+				d = args.delimiter[1];
+			else
+				d = '-';
+		} else if (args.delimiter[0])
+			d = args.delimiter[0];
+		else
+			d = '-';
 
 		/* String form of the delimiter, for use with strsep(3) */
 		snprintf(ds, sizeof(ds), "%c", d);

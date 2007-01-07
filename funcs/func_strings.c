@@ -56,6 +56,16 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 	AST_STANDARD_APP_ARGS(args, parse);
 	if (args.delim) {
 		pbx_retrieve_variable(chan, args.varname, &varval, buf, len, NULL);
+		if (args.delim[0] == '\\') {
+			if (args.delim[1] == 'n')
+				ast_copy_string(args.delim, "\n", 2);
+			else if (args.delim[1] == 't')
+				ast_copy_string(args.delim, "\t", 2);
+			else if (args.delim[1])
+				ast_copy_string(args.delim, &args.delim[1], 2);
+			else
+				ast_copy_string(args.delim, "-", 2);
+		}
 		while (strsep(&varval, args.delim))
 			fieldcount++;
 	} else {
