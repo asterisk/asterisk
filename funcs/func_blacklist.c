@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/options.h"
 
-static int blacklist_read(struct ast_channel *chan, const const char *cmd, char *data, char *buf, size_t len)
+static int blacklist_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	char blacklist[1];
 	int bl = 0;
