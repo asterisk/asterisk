@@ -5423,7 +5423,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	/* Start pessimistic */
 	char peer[256] = "";
 	char msgstatus[60];
-	int refresh = 0;
+	int refresh = 60;
 	char ourip[256] = "<Unspecified>";
 	struct sockaddr_in oldus;
 	struct sockaddr_in us;
