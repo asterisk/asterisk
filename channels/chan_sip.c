@@ -5430,21 +5430,25 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 			break;
 
 		if (!copied) {	/* Only check for empty rport in topmost via header */
-			char *rport;
+			char leftmost[256], *others, *rport;
+
+			/* Only work on leftmost value */
+			ast_copy_string(leftmost, oh, sizeof(leftmost));
+			others = strchr(leftmost, ',');
+			if (others)
+			    *others++ = '\0';
 
 			/* Find ;rport;  (empty request) */
-			rport = strstr(oh, ";rport");
+			rport = strstr(leftmost, ";rport");
 			if (rport && *(rport+6) == '=') 
 				rport = NULL;		/* We already have a parameter to rport */
 
 			/* Check rport if NAT=yes or NAT=rfc3581 (which is the default setting)  */
 			if (rport && ((ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_ALWAYS) || (ast_test_flag(&p->flags[0], SIP_NAT) == SIP_NAT_RFC3581))) {
 				/* We need to add received port - rport */
-				char tmp[256], *end;
+				char *end;
 
-				ast_copy_string(tmp, oh, sizeof(tmp));
-
-				rport = strstr(tmp, ";rport");
+				rport = strstr(leftmost, ";rport");
 
 				if (rport) {
 					end = strchr(rport + 1, ';');
@@ -5455,13 +5459,15 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const st
 				}
 
 				/* Add rport to first VIA header if requested */
-				snprintf(new, sizeof(new), "%s;received=%s;rport=%d",
-					tmp, ast_inet_ntoa(p->recv.sin_addr),
-					ntohs(p->recv.sin_port));
+				snprintf(new, sizeof(new), "%s;received=%s;rport=%d%s%s",
+					leftmost, ast_inet_ntoa(p->recv.sin_addr),
+					ntohs(p->recv.sin_port),
+					others ? "," : "", others ? others : "");
 			} else {
 				/* We should *always* add a received to the topmost via */
-				snprintf(new, sizeof(new), "%s;received=%s",
-					oh, ast_inet_ntoa(p->recv.sin_addr));
+				snprintf(new, sizeof(new), "%s;received=%s%s%s",
+					leftmost, ast_inet_ntoa(p->recv.sin_addr),
+					others ? "," : "", others ? others : "");
 			}
 			oh = new;	/* the header to copy */
 		}  /* else add the following via headers untouched */
@@ -8896,6 +8902,11 @@ static void check_via(struct sip_pvt *p, struct sip_request *req)
 	struct ast_hostent ahp;
 
 	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
+
+	/* Work on the leftmost value of the topmost Via header */
+	c = strchr(via, ',');
+	if (c)
+		*c = '\0';
 
 	/* Check for rport */
 	c = strstr(via, ";rport");
