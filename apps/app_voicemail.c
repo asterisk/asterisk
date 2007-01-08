@@ -657,7 +657,7 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 	struct ast_variable *tmp;
 	tmp = var;
 	while (tmp) {
-		if (!strcasecmp(tmp->name, "password")) {
+		if (!strcasecmp(tmp->name, "password") || !strcasecmp(tmp->name, "secret")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
 			ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
