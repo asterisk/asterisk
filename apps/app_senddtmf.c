@@ -102,7 +102,6 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 	
 	if (!chan) {
 		astman_send_error(s, m, "Channel not specified");
-		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
 	if (!digit) {
