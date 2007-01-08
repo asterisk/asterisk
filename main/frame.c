@@ -124,10 +124,11 @@ static struct ast_format_list AST_FORMAT_LIST[] = {					/*!< Bit number: comment
 	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },	
 	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},	/*!< 17: See format_jpeg.c */
 	{ 1, AST_FORMAT_PNG, "png", "PNG image"},	/*!< 18: Image format */
-	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },	/*!< 19: Video Passthrough */
-	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },	/*!< 20: Passthrough support, see format_h263.c */
-	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },	/*!< 21: See format_h263.c */
+	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },	/*!< 19: H.261 Video Passthrough */
+	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },	/*!< 20: H.263 Passthrough support, see format_h263.c */
+	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },	/*!< 21: H.263plus passthrough support See format_h263.c */
 	{ 1, AST_FORMAT_H264, "h264", "H.264 Video" },	/*!< 22: Passthrough support, see format_h263.c */
+	{ 1, AST_FORMAT_MP4_VIDEO, "mpeg4", "MPEG4 Video" }, /*!< Passthrough support for MPEG4 */
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },

@@ -258,6 +258,8 @@ extern struct ast_frame ast_null_frame;
 #define AST_FORMAT_H263_PLUS	(1 << 20)
 /*! H.264 Video */
 #define AST_FORMAT_H264		(1 << 21)
+/*! MPEG4 Video */
+#define AST_FORMAT_MP4_VIDEO	(1 << 22)
 /*! Maximum video format */
 #define AST_FORMAT_MAX_VIDEO	(1 << 24)
 #define AST_FORMAT_VIDEO_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
