@@ -11966,6 +11966,33 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		else if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			update_call_counter(p, DEC_CALL_LIMIT);
 		break;
+	case 488: /* Not acceptable here */
+		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		if (reinvite && p->udptl) {
+			/* If this is a T.38 call, we should go back to 
+			   audio. If this is an audio call - something went
+			   terribly wrong since we don't renegotiate codecs,
+			   only IP/port .
+			*/
+			p->t38.state = T38_DISABLED;
+			/* Try to reset RTP timers */
+			ast_rtp_set_rtptimers_onhold(p->rtp);
+			ast_log(LOG_ERROR, "Got error on T.38 re-invite. Bad configuration. Peer needs to have T.38 disabled.\n");
+
+			/*! \bug Is there any way we can go back to the audio call on both
+			   sides here? 
+			*/
+			/* While figuring that out, hangup the call */
+			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		} else {
+			/* We can't set up this call, so give up */
+			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		}
+		break;
 	case 491: /* Pending */
 		/* we really should have to wait a while, then retransmit */
 			/* We should support the retry-after at some point */
@@ -12404,6 +12431,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			break;
+		case 488: /* Not acceptable here - codec error */
+			if (sipmethod == SIP_INVITE)
+				handle_response_invite(p, resp, rest, req, seqno);
+			break;
 		case 491: /* Pending */
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
@@ -12460,7 +12491,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						ast_string_field_build(p->owner, call_forward,
 								       "Local/%s@%s", p->username, p->context);
 					/* Fall through */
-				case 488: /* Not acceptable here - codec error */
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
