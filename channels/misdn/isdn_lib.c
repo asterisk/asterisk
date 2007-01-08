@@ -279,7 +279,7 @@ void init_flip_bits(void)
 unsigned char * flip_buf_bits ( unsigned char * buf , int len)
 {
 	int i;
-	char * start = buf;
+	unsigned char * start = buf;
 	
 	for (i = 0 ; i < len; i++) {
 		buf[i] = flip_table[buf[i]];
@@ -2197,12 +2197,12 @@ static void misdn_save_data(int id, char *p1, int l1, char *p2, int l2)
 
 void misdn_tx_jitter(struct misdn_bchannel *bc, int len)
 {
-	char buf[4096 + mISDN_HEADER_LEN];
-	char *data=&buf[mISDN_HEADER_LEN];
+	unsigned char buf[4096 + mISDN_HEADER_LEN];
+	unsigned char *data=&buf[mISDN_HEADER_LEN];
 	iframe_t *txfrm= (iframe_t*)buf;
 	int jlen, r;
 	
-	jlen=cb_jb_empty(bc,data,len);
+	jlen=cb_jb_empty(bc,(char*)data,len);
 	
 	if (jlen) {
 #ifdef MISDN_SAVE_DATA
@@ -3988,7 +3988,7 @@ int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 			return -1;
 	}
 	
-	char buf[4096 + mISDN_HEADER_LEN];
+	unsigned char buf[4096 + mISDN_HEADER_LEN];
 	iframe_t *frm= (iframe_t*)buf;
 	int  r;
 	
@@ -4294,43 +4294,36 @@ void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) 
 	int conf_id=bc1->pid +1;
 
 	cb_log(4, bc1->port, "I Send: BRIDGE from:%d to:%d\n",bc1->port,bc2->port);
-	
-	struct misdn_bchannel *bc_list[]={
-		bc1,bc2,NULL
-	};
-	struct misdn_bchannel **bc;
-		
-	for (bc=bc_list; *bc;  *bc++) { 
-		(*bc)->conf_id=conf_id;
-		cb_log(4, (*bc)->port, " --> bc_addr:%x\n",(*bc)->addr);
-	
-		switch((*bc)->bc_state) {
-			case BCHAN_ACTIVATED:
-				misdn_join_conf(*bc,conf_id);
-				break;
-			default:
-				bc_next_state_change(*bc,BCHAN_BRIDGED);
-				break;
-		}
-	}
+
+	bc1->conf_id=conf_id;
+	cb_log(4, bc1->port, " --> bc_addr:%x\n",bc1->addr);
+	if (bc1->bc_state==BCHAN_ACTIVATED) 
+		misdn_join_conf(bc1,conf_id);
+	else
+		bc_next_state_change(bc1,BCHAN_BRIDGED);
+	/*and again*/
+	bc2->conf_id=conf_id;
+	cb_log(4, bc2->port, " --> bc_addr:%x\n",bc2->addr);
+	if (bc2->bc_state==BCHAN_ACTIVATED) 
+		misdn_join_conf(bc2,conf_id);
+	else
+		bc_next_state_change(bc2,BCHAN_BRIDGED);
+
 }
 
 void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2)
 {
+	if ( bc1->bc_state == BCHAN_BRIDGED)
+		misdn_split_conf( bc1, bc1->conf_id);
+	else 
+		cb_log( 2, bc1->port, "BC not bridged (state:%s) so not splitting it\n",bc_state2str(bc1->bc_state));
 
-	struct misdn_bchannel *bc_list[]={
-		bc1,bc2,NULL
-	};
-	struct misdn_bchannel **bc;
-		
-	for (bc=bc_list; *bc;  *bc++) { 
-		if ( (*bc)->bc_state == BCHAN_BRIDGED){
-			misdn_split_conf( *bc, (*bc)->conf_id);
-		} else {
-			cb_log( 2, (*bc)->port, "BC not bridged (state:%s) so not splitting it\n",bc_state2str((*bc)->bc_state));
-		}
-	}
-	
+	/*again*/
+
+	if ( bc2->bc_state == BCHAN_BRIDGED)
+		misdn_split_conf( bc2, bc2->conf_id);
+	else 
+		cb_log( 2, bc1->port, "BC not bridged (state:%s) so not splitting it\n",bc_state2str(bc2->bc_state));
 }
 
 

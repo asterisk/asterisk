@@ -260,7 +260,7 @@ void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capabili
 
 
 /* IE_CALL_ID */
-void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, unsigned char *callid, int callid_len, int nt, struct misdn_bchannel *bc)
+void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, char *callid, int callid_len, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -299,7 +299,7 @@ void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, unsigned char *callid, i
 	memcpy(p+2, callid, callid_len);
 }
 
-void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, unsigned char *callid, int *callid_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int *callid_len, int nt, struct misdn_bchannel *bc)
 {
 	char debug[25];
 	int i;
@@ -335,7 +335,7 @@ void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, unsigned char *callid, in
 
 
 /* IE_CALLED_PN */
-void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, unsigned char *number, int nt, struct misdn_bchannel *bc)
+void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -371,7 +371,7 @@ void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, un
 	strncpy((char *)p+3, (char *)number, strlen((char *)number));
 }
 
-void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, unsigned char *number, int number_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -400,7 +400,7 @@ void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, u
 
 
 /* IE_CALLING_PN */
-void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, unsigned char *number, int nt, struct misdn_bchannel *bc)
+void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -455,7 +455,7 @@ void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, i
 	}
 }
 
-void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, unsigned char *number, int number_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -502,7 +502,7 @@ void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, 
 
 
 /* IE_CONNECTED_PN */
-void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, unsigned char *number, int nt, struct misdn_bchannel *bc)
+void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -557,7 +557,7 @@ void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan,
 	}
 }
 
-void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, unsigned char *number, int number_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
