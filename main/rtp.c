@@ -3008,7 +3008,7 @@ static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, in
 	return 1;
 }
 #else
-static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int *fds, int **iod)
+static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int **iod)
 {
 	return 0;
 }
