@@ -90,6 +90,9 @@ static struct sockaddr_in rtcpdebugaddr;	/*!< Debug RTCP packets to/from this ho
 static int nochecksums;
 #endif
 
+/* Uncomment this to enable more intense native bridging, but note: this is currently buggy */
+/* #define P2P_INTENSE */
+
 /*!
  * \brief Structure representing a RTP session.
  *
@@ -2947,6 +2950,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 }
 
 /*! \brief P2P RTP Callback */
+#ifdef P2P_INTENSE
 static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 {
 	int res = 0, hdrlen = 12;
@@ -3003,6 +3007,12 @@ static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, in
 
 	return 1;
 }
+#else
+static int p2p_callback_enable(struct ast_channel *chan, struct ast_rtp *rtp, int *fds, int **iod)
+{
+	return 0;
+}
+#endif
 
 /*! \brief Helper function to switch a channel and RTP stream out of callback mode */
 static int p2p_callback_disable(struct ast_channel *chan, struct ast_rtp *rtp, int **iod)
