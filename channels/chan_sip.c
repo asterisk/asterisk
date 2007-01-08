@@ -6918,7 +6918,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		pidfnote = "On the phone";
 		break;
 	case AST_EXTENSION_UNAVAILABLE:
-		statestring = "confirmed";
+		statestring = "terminated";
 		local_state = NOTIFY_CLOSED;
 		pidfstate = "away";
 		pidfnote = "Unavailable";
