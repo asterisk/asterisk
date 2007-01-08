@@ -605,7 +605,7 @@ if test "${USE_NETSNMP}" != "no"; then
    fi
 fi
 if test x"${NETSNMP_CONFIG}" != xNo; then
-   NETSNMP_libs=`net-snmp-config --agent-libs`
+   NETSNMP_libs=`${NETSNMP_CONFIG} --agent-libs`
    
    AC_CHECK_LIB([netsnmp], [snmp_register_callback], AC_DEFINE_UNQUOTED([HAVE_NETSNMP], 1,
    [Define to indicate the Net-SNMP library]), [], ${NETSNMP_libs})
@@ -646,8 +646,8 @@ if test "${USE_PGSQL}" != "no"; then
    fi
 fi
 if test "${PG_CONFIG}" != No; then
-   PGSQL_libdir=`pg_config --libdir`
-   PGSQL_includedir=`pg_config --includedir`
+   PGSQL_libdir=`${PG_CONFIG} --libdir`
+   PGSQL_includedir=`${PG_CONFIG} --includedir`
    
    AC_CHECK_LIB([pq], [PQexec], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
    [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
@@ -942,12 +942,12 @@ AC_SUBST(GTK_INCLUDE)
 AC_SUBST(GTK_LIB)
 
 if test "${USE_CURL}" != "no"; then
-   AC_PATH_TOOL([CURL], [curl-config], No)
-   if test ! x"${CURL}" = xNo; then
+   AC_PATH_TOOL([CURL_CONFIG], [curl-config], No)
+   if test ! x"${CURL_CONFIG}" = xNo; then
    # check for version
-      if test $(printf "%d" 0x$(curl-config --vernum)) -ge $(printf "%d" 0x070907); then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
+      if test $(printf "%d" 0x$(${CURL_CONFIG} --vernum)) -ge $(printf "%d" 0x070907); then
+         CURL_INCLUDE=$(${CURL_CONFIG} --cflags)
+         CURL_LIB=$(${CURL_CONFIG} --libs)
          PBX_CURL=1
          AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
       fi

@@ -859,7 +859,7 @@ GTKCONFIG
 PBX_GTK
 GTK_INCLUDE
 GTK_LIB
-CURL
+CURL_CONFIG
 LTLIBOBJS'
 ac_subst_files=''
       ac_precious_vars='build_alias
@@ -20293,7 +20293,7 @@ fi
    fi
 fi
 if test x"${NETSNMP_CONFIG}" != xNo; then
-   NETSNMP_libs=`net-snmp-config --agent-libs`
+   NETSNMP_libs=`${NETSNMP_CONFIG} --agent-libs`
 
    { echo "$as_me:$LINENO: checking for snmp_register_callback in -lnetsnmp" >&5
 echo $ECHO_N "checking for snmp_register_callback in -lnetsnmp... $ECHO_C" >&6; }
@@ -23331,8 +23331,8 @@ fi
    fi
 fi
 if test "${PG_CONFIG}" != No; then
-   PGSQL_libdir=`pg_config --libdir`
-   PGSQL_includedir=`pg_config --includedir`
+   PGSQL_libdir=`${PG_CONFIG} --libdir`
+   PGSQL_includedir=`${PG_CONFIG} --includedir`
 
    { echo "$as_me:$LINENO: checking for PQexec in -lpq" >&5
 echo $ECHO_N "checking for PQexec in -lpq... $ECHO_C" >&6; }
@@ -30655,12 +30655,12 @@ if test "${USE_CURL}" != "no"; then
 set dummy ${ac_tool_prefix}curl-config; ac_word=$2
 { echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
-if test "${ac_cv_path_CURL+set}" = set; then
+if test "${ac_cv_path_CURL_CONFIG+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
-  case $CURL in
+  case $CURL_CONFIG in
   [\\/]* | ?:[\\/]*)
-  ac_cv_path_CURL="$CURL" # Let the user override the test with a path.
+  ac_cv_path_CURL_CONFIG="$CURL_CONFIG" # Let the user override the test with a path.
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
@@ -30670,7 +30670,7 @@ do
   test -z "$as_dir" && as_dir=.
   for ac_exec_ext in '' $ac_executable_extensions; do
   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_CURL="$as_dir/$ac_word$ac_exec_ext"
+    ac_cv_path_CURL_CONFIG="$as_dir/$ac_word$ac_exec_ext"
     echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -30681,10 +30681,10 @@ IFS=$as_save_IFS
   ;;
 esac
 fi
-CURL=$ac_cv_path_CURL
-if test -n "$CURL"; then
-  { echo "$as_me:$LINENO: result: $CURL" >&5
-echo "${ECHO_T}$CURL" >&6; }
+CURL_CONFIG=$ac_cv_path_CURL_CONFIG
+if test -n "$CURL_CONFIG"; then
+  { echo "$as_me:$LINENO: result: $CURL_CONFIG" >&5
+echo "${ECHO_T}$CURL_CONFIG" >&6; }
 else
   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
@@ -30692,18 +30692,18 @@ fi
 
 
 fi
-if test -z "$ac_cv_path_CURL"; then
-  ac_pt_CURL=$CURL
+if test -z "$ac_cv_path_CURL_CONFIG"; then
+  ac_pt_CURL_CONFIG=$CURL_CONFIG
   # Extract the first word of "curl-config", so it can be a program name with args.
 set dummy curl-config; ac_word=$2
 { echo "$as_me:$LINENO: checking for $ac_word" >&5
 echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6; }
-if test "${ac_cv_path_ac_pt_CURL+set}" = set; then
+if test "${ac_cv_path_ac_pt_CURL_CONFIG+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
-  case $ac_pt_CURL in
+  case $ac_pt_CURL_CONFIG in
   [\\/]* | ?:[\\/]*)
-  ac_cv_path_ac_pt_CURL="$ac_pt_CURL" # Let the user override the test with a path.
+  ac_cv_path_ac_pt_CURL_CONFIG="$ac_pt_CURL_CONFIG" # Let the user override the test with a path.
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
@@ -30713,7 +30713,7 @@ do
   test -z "$as_dir" && as_dir=.
   for ac_exec_ext in '' $ac_executable_extensions; do
   if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
-    ac_cv_path_ac_pt_CURL="$as_dir/$ac_word$ac_exec_ext"
+    ac_cv_path_ac_pt_CURL_CONFIG="$as_dir/$ac_word$ac_exec_ext"
     echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -30724,17 +30724,17 @@ IFS=$as_save_IFS
   ;;
 esac
 fi
-ac_pt_CURL=$ac_cv_path_ac_pt_CURL
-if test -n "$ac_pt_CURL"; then
-  { echo "$as_me:$LINENO: result: $ac_pt_CURL" >&5
-echo "${ECHO_T}$ac_pt_CURL" >&6; }
+ac_pt_CURL_CONFIG=$ac_cv_path_ac_pt_CURL_CONFIG
+if test -n "$ac_pt_CURL_CONFIG"; then
+  { echo "$as_me:$LINENO: result: $ac_pt_CURL_CONFIG" >&5
+echo "${ECHO_T}$ac_pt_CURL_CONFIG" >&6; }
 else
   { echo "$as_me:$LINENO: result: no" >&5
 echo "${ECHO_T}no" >&6; }
 fi
 
-  if test "x$ac_pt_CURL" = x; then
-    CURL="No"
+  if test "x$ac_pt_CURL_CONFIG" = x; then
+    CURL_CONFIG="No"
   else
     case $cross_compiling:$ac_tool_warned in
 yes:)
@@ -30746,17 +30746,17 @@ whose name does not start with the host triplet.  If you think this
 configuration is useful to you, please write to autoconf@gnu.org." >&2;}
 ac_tool_warned=yes ;;
 esac
-    CURL=$ac_pt_CURL
+    CURL_CONFIG=$ac_pt_CURL_CONFIG
   fi
 else
-  CURL="$ac_cv_path_CURL"
+  CURL_CONFIG="$ac_cv_path_CURL_CONFIG"
 fi
 
-   if test ! x"${CURL}" = xNo; then
+   if test ! x"${CURL_CONFIG}" = xNo; then
    # check for version
-      if test $(printf "%d" 0x$(curl-config --vernum)) -ge $(printf "%d" 0x070907); then
-         CURL_INCLUDE=$(${CURL} --cflags)
-         CURL_LIB=$(${CURL} --libs)
+      if test $(printf "%d" 0x$(${CURL_CONFIG} --vernum)) -ge $(printf "%d" 0x070907); then
+         CURL_INCLUDE=$(${CURL_CONFIG} --cflags)
+         CURL_LIB=$(${CURL_CONFIG} --libs)
          PBX_CURL=1
 
 cat >>confdefs.h <<\_ACEOF
@@ -31736,7 +31736,7 @@ GTKCONFIG!$GTKCONFIG$ac_delim
 PBX_GTK!$PBX_GTK$ac_delim
 GTK_INCLUDE!$GTK_INCLUDE$ac_delim
 GTK_LIB!$GTK_LIB$ac_delim
-CURL!$CURL$ac_delim
+CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
