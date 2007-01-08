@@ -67,7 +67,6 @@ static int complexinuse = 0;
 static int simpleinuse = 0;
 AST_MUTEX_DEFINE_STATIC(channelcount);
 
-
 static const char show_transcoder_usage[] =
 "Usage: show transcoder\n"
 "       Displays transcoder utilization.\n";
@@ -112,17 +111,19 @@ static void deactivate_translator(int simple);
 static int show_transcoder(int fd, int argc, char *argv[])
 {
 	ast_mutex_lock(&channelcount);
+
 	if (!totalchannels) { 
 		ast_cli(fd, "No transcoder card registered\n");
 		ast_mutex_unlock(&channelcount);
 		return RESULT_SUCCESS;
 	}
+
 	if(!cardsmode)             
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a / G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a / G.723.1 5.3 kbps) are in use.\n", complexinuse, simpleinuse, totalchannels);
 	else if (cardsmode == 1)
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a) are in use.\n",complexinuse, simpleinuse, totalchannels);
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a) are in use.\n", complexinuse, simpleinuse, totalchannels);
 	else if (cardsmode == 2)
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.723.1 5.3 kbps) are in use.\n", complexinuse, simpleinuse, totalchannels);
 
 	ast_mutex_unlock(&channelcount);
 	return RESULT_SUCCESS;
@@ -139,38 +140,17 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		pvt->samples = f->samples;
 		return 0;
 	}
-	if(!ztp->inuse) {
-		ast_mutex_lock(&channelcount);
-		if(pvt->t->dstfmt == 8 || pvt->t->dstfmt == 0 ) {
-			if (complexinuse == totalchannels) {
-				ast_mutex_unlock(&channelcount);
-				return -1;
-			}
-			complexinuse++;
-			if(complexinuse == totalchannels)
-				deactivate_translator(0);
-		} else {
-			if (simpleinuse == totalchannels) {
-				ast_mutex_unlock(&channelcount);
-				return -1;
-			}
-			simpleinuse++;
-			if(simpleinuse == totalchannels)
-				deactivate_translator(1);
-		}
-		ast_mutex_unlock(&channelcount);
-		ztp->inuse = 1;
-	}
+
 	if (!hdr->srclen)
 		/* Copy at front of buffer */
 		hdr->srcoffset = 0;
 
-	if (hdr->srclen + f->datalen > sizeof(hdr->srcdata)) {
+	if ((hdr->srclen + f->datalen) > sizeof(hdr->srcdata)) {
 		ast_log(LOG_WARNING, "Out of space for codec translation!\n");
 		return -1;
 	}
 
-	if (hdr->srclen + f->datalen + hdr->srcoffset > sizeof(hdr->srcdata)) {
+	if ((hdr->srclen + f->datalen + hdr->srcoffset) > sizeof(hdr->srcdata)) {
 		/* Very unlikely */
 		memmove(hdr->srcdata, hdr->srcdata + hdr->srcoffset, hdr->srclen);
 		hdr->srcoffset = 0;
@@ -180,7 +160,7 @@ static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 	hdr->srclen += f->datalen;
 	pvt->samples += f->samples;
 
-	return -1;
+	return 0;
 }
 
 static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
@@ -271,12 +251,12 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 	
 	if ((fd = open("/dev/zap/transcode", O_RDWR)) < 0)
 		return -1;
+
 	flags = fcntl(fd, F_GETFL);
 	if (flags > - 1) {
 		if (fcntl(fd, F_SETFL, flags | O_NONBLOCK))
 			ast_log(LOG_WARNING, "Could not set non-block mode!\n");
 	}
-	
 
 	if ((hdr = mmap(NULL, sizeof(*hdr), PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
 		ast_log(LOG_ERROR, "Memory Map failed for transcoding (%s)\n", strerror(errno));
@@ -302,6 +282,31 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 
 		return -1;
 	}
+
+	ast_mutex_lock(&channelcount);
+	if(pvt->t->dstfmt == 8 || pvt->t->dstfmt == 0 ) {
+		if (complexinuse == totalchannels) {
+			ast_mutex_unlock(&channelcount);
+			munmap(hdr, sizeof(*hdr));
+			close(fd);
+			return -1;
+		}
+		complexinuse++;
+		if(complexinuse == totalchannels)
+			deactivate_translator(0);
+	} else {
+		if (simpleinuse == totalchannels) {
+			ast_mutex_unlock(&channelcount);
+			munmap(hdr, sizeof(*hdr));
+			close(fd);
+			return -1;
+		}
+		simpleinuse++;
+		if(simpleinuse == totalchannels)
+			deactivate_translator(1);
+	}
+	ast_mutex_unlock(&channelcount);
+	ztp->inuse = 1;
 
 	ztp = pvt->pvt;
 	ztp->fd = fd;
