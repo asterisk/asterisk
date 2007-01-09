@@ -541,9 +541,24 @@ static void print_uptimestr(int fd, time_t timeval, const char *prefix, int prin
 		ast_cli(fd, "%s: %s\n", prefix, timestr);
 }
 
-static int handle_showuptime(int fd, int argc, char *argv[])
+static int handle_showuptime_deprecated(int fd, int argc, char *argv[])
 {
 	/* 'show uptime [seconds]' */
+	time_t curtime = time(NULL);
+	int printsec = (argc == 3 && !strcasecmp(argv[2],"seconds"));
+
+	if (argc != 2 && !printsec)
+		return RESULT_SHOWUSAGE;
+	if (ast_startuptime)
+		print_uptimestr(fd, curtime - ast_startuptime, "System uptime", printsec);
+	if (ast_lastreloadtime)
+		print_uptimestr(fd, curtime - ast_lastreloadtime, "Last reload", printsec);
+	return RESULT_SUCCESS;
+}
+
+static int handle_showuptime(int fd, int argc, char *argv[])
+{
+	/* 'core show uptime [seconds]' */
 	time_t curtime = time(NULL);
 	int printsec = (argc == 4 && !strcasecmp(argv[3],"seconds"));
 
@@ -1388,6 +1403,11 @@ static struct ast_cli_entry cli_module_unload_deprecated = {
 	handle_unload_deprecated, NULL,
 	NULL, complete_mod_2 };
 
+static struct ast_cli_entry cli_show_uptime_deprecated = {
+	{ "show", "uptime", NULL },
+	handle_showuptime_deprecated, "Show uptime information",
+	NULL };
+
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
 	{ { "no", "debug", "channel", NULL },
@@ -1452,7 +1472,7 @@ static struct ast_cli_entry cli_cli[] = {
 
  	{ { "core", "show", "uptime", NULL },
 	handle_showuptime, "Show uptime information",
-	uptime_help },
+	uptime_help, NULL, &cli_show_uptime_deprecated },
 
 	{ { "soft", "hangup", NULL },
 	handle_softhangup, "Request a hangup on a given channel",
