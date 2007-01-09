@@ -3406,7 +3406,8 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	/* If the call is not UP, we need to send CANCEL instead of BYE */
-	if (p->invitestate < INV_COMPLETED) {
+	/* In case of re-invites, the call might be UP even though we have an incomplete invite transaction */
+	if (p->invitestate < INV_COMPLETED && p->owner->_state != AST_STATE_UP) {
 		needcancel = TRUE;
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "Hanging up channel in state %s (not UP)\n", ast_state2str(ast->_state));
@@ -3756,7 +3757,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_BUSY:
 		if (ast->_state != AST_STATE_UP) {
 			transmit_response(p, "486 Busy Here", &p->initreq);
-			p->invitestate = INV_TERMINATED;
+			p->invitestate = INV_COMPLETED;
 			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
 			break;
@@ -3766,7 +3767,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	case AST_CONTROL_CONGESTION:
 		if (ast->_state != AST_STATE_UP) {
 			transmit_response(p, "503 Service Unavailable", &p->initreq);
-			p->invitestate = INV_TERMINATED;
+			p->invitestate = INV_COMPLETED;
 			sip_alreadygone(p);
 			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
 			break;
@@ -13267,6 +13268,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* At this point we only support REPLACES */
 			transmit_response_with_unsupported(p, "420 Bad extension (unsupported)", req, required);
 			ast_log(LOG_WARNING,"Received SIP INVITE with unsupported required extension: %s\n", required);
+			p->invitestate = INV_COMPLETED;
 			if (!p->lastinvite)
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return -1;
@@ -13281,6 +13283,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* If pedantic is on, we need to check the tags. If they're different, this is
 	   	in fact a forked call through a SIP proxy somewhere. */
 		transmit_response(p, "482 Loop Detected", req);
+		p->invitestate = INV_COMPLETED;
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return 0;
 	}
@@ -13321,6 +13324,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "500 Server Internal Error", req);
 			append_history(p, "Xfer", "INVITE/Replace Failed. Out of memory.");
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			p->invitestate = INV_COMPLETED;
 			return -1;
 		}
 
@@ -13394,6 +13398,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				sip_pvt_unlock(p->refer->refer_call);
 				ast_channel_unlock(p->refer->refer_call->owner);
 			}
+			p->invitestate = INV_COMPLETED;
 			return -1;
 		}
 	}
@@ -13446,6 +13451,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
 		if (res == AUTH_CHALLENGE_SENT)
+			p->invitestate = INV_COMPLETED;		/* Needs to restart in another INVITE transaction */
 			return 0; 
 		if (res < 0) { /* Something failed in authentication */
 			if (res == AUTH_FAKE_AUTH) {
@@ -13455,6 +13461,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
   				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req);
   			}
+			p->invitestate = INV_COMPLETED;	
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			ast_string_field_free(p, theirtag);
 			return 0;
@@ -13465,6 +13472,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (process_sdp(p, req)) {
 				/* Unacceptable codecs */
 				transmit_response_reliable(p, "488 Not acceptable here", req);
+				p->invitestate = INV_COMPLETED;	
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 				if (option_debug)
 					ast_log(LOG_DEBUG, "No compatible codecs for this SIP call.\n");
@@ -13495,6 +13503,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
 				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req);
 				sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+				p->invitestate = INV_COMPLETED;	
 			}
 			return 0;
 		}
@@ -13513,6 +13522,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_reliable(p, "484 Address Incomplete", req);
 			else
 				transmit_response_reliable(p, "404 Not Found", req);
+			p->invitestate = INV_COMPLETED;	
 			update_call_counter(p, DEC_CALL_LIMIT);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return 0;
@@ -13713,6 +13723,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						/* No bridged peer with T38 enabled*/
 					}
 				} 
+				/* Respond to normal re-invite */
 				if (sendok)
 					transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
 
@@ -14797,7 +14808,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	case SIP_ACK:
 		/* Make sure we don't ignore this */
 		if (seqno == p->pendinginvite) {
-			p->invitestate = INV_CONFIRMED;
+			p->invitestate = INV_TERMINATED;
 			p->pendinginvite = 0;
 			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
 			if (find_sdp(req)) {
