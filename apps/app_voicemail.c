@@ -1652,6 +1652,23 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
 }
 
+static char *quote(const char *from, char *to, size_t len)
+{
+	char *ptr = to;
+	*ptr++ = '"';
+	for (; ptr < to + len - 1; from++) {
+		if (*from == '"')
+			*ptr++ = '\\';
+		else if (*from == '\0')
+			break;
+		*ptr++ = *from;
+	}
+	if (ptr < to + len - 1)
+		*ptr++ = '"';
+	*ptr = '\0';
+	return to;
+}
+
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail)
 {
 	FILE *p=NULL;
@@ -1667,6 +1684,9 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
+	int len_passdata;
+	char *passdata2;
+
 	if (vmu && ast_strlen_zero(vmu->email)) {
 		ast_log(LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
@@ -1727,13 +1747,17 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
-					fprintf(p, "From: %s <%s>\n",passdata,who);
+					len_passdata = strlen(passdata) * 2 + 1;
+					passdata2 = alloca(len_passdata);
+					fprintf(p, "From: %s <%s>\n", quote(passdata, passdata2, len_passdata), who);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 				ast_channel_free(ast);
 			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
-		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
+		len_passdata = strlen(vmu->fullname) * 2 + 1;
+		passdata2 = alloca(len_passdata);
+		fprintf(p, "To: %s <%s>\n", quote(vmu->fullname, passdata2, len_passdata), vmu->email);
 
 		if (emailsubject) {
 			struct ast_channel *ast = ast_channel_alloc(0);
