@@ -1103,7 +1103,7 @@ int read_config_maps(void)
 {
 	struct ast_config *config, *configtmp;
 	struct ast_variable *v;
-	char *driver, *table, *database, *stringp;
+	char *driver, *table, *database, *stringp, *tmp;
 
 	clear_config_maps();
 
@@ -1118,6 +1118,9 @@ int read_config_maps(void)
 	for (v = ast_variable_browse(config, "settings"); v; v = v->next) {
 		stringp = v->value;
 		driver = strsep(&stringp, ",");
+
+		if ((tmp = strchr(stringp, '\"')))
+			stringp = tmp;
 
 		/* check if the database text starts with a double quote */
 		if (*stringp == '"') {
