@@ -11754,11 +11754,9 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 					return -1;
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (ast_true(v->value))
-				usedistinctiveringdetection = 1;
+			usedistinctiveringdetection = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "distinctiveringaftercid")) {
-			if (ast_true(v->value))
-				distinctiveringaftercid = 1;
+			distinctiveringaftercid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			ast_copy_string(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData));
 		} else if (!strcasecmp(v->name, "dring2context")) {
