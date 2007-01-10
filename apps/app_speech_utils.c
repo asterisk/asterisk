@@ -487,24 +487,18 @@ static int speech_processing_sound(struct ast_channel *chan, void *data)
 /*! \brief Helper function used by speech_background to playback a soundfile */
 static int speech_streamfile(struct ast_channel *chan, const char *filename, const char *preflang)
 {
-        struct ast_filestream *fs;
-        struct ast_filestream *vfs=NULL;
+        struct ast_filestream *fs = NULL;
 
-        fs = ast_openstream(chan, filename, preflang);
-        if (fs)
-                vfs = ast_openvstream(chan, filename, preflang);
-        if (fs){
-                if (ast_applystream(chan, fs))
-                        return -1;
-                if (vfs && ast_applystream(chan, vfs))
-                        return -1;
-                if (ast_playstream(fs))
-                        return -1;
-                if (vfs && ast_playstream(vfs))
-                        return -1;
-                return 0;
-        }
-        return -1;
+	if (!(fs = ast_openstream(chan, filename, preflang)))
+		return -1;
+	
+	if (ast_applystream(chan, fs))
+		return -1;
+	
+	if (ast_playstream(fs))
+		return -1;
+
+        return 0;
 }
 
 /*! \brief SpeechBackground(Sound File|Timeout) Dialplan Application */
@@ -519,7 +513,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         char dtmf[AST_MAX_EXTENSION] = "";
         time_t start, current;
         struct ast_datastore *datastore = NULL;
-        char *argv[2], *args = NULL, *filename = NULL, tmp[2] = "";
+        char *argv[2], *args = NULL, *filename_tmp = NULL, *filename = NULL, tmp[2] = "";
 
         args = ast_strdupa(data);
 
@@ -549,17 +543,9 @@ static int speech_background(struct ast_channel *chan, void *data)
         argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
         if (argc > 0) {
                 /* Yay sound file */
-                filename = argv[0];
+                filename_tmp = ast_strdupa(argv[0]);
                 if (argv[1] != NULL)
                         timeout = atoi(argv[1]);
-        }
-
-        /* Start streaming the file if possible and specified */
-        if (filename != NULL && ast_streamfile(chan, filename, chan->language)) {
-                /* An error occured while streaming */
-                ast_set_read_format(chan, oldreadformat);
-                ast_module_user_remove(u);
-                return -1;
         }
 
         /* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
@@ -568,8 +554,19 @@ static int speech_background(struct ast_channel *chan, void *data)
                 ast_speech_start(speech);
         }
 
+	/* Ensure no streams are currently running */
+	ast_stopstream(chan);
+
         /* Okay it's streaming so go into a loop grabbing frames! */
         while (done == 0) {
+		/* If the filename is null and stream is not running, start up a new sound file */
+		if ((chan->streamid == -1 && chan->timingfunc == NULL) && (filename = strsep(&filename_tmp, "&"))) {
+			/* Discard old stream information */
+			ast_stopstream(chan);
+			/* Start new stream */
+			speech_streamfile(chan, filename, chan->language);
+		}
+
                 /* Run scheduled stuff */
                 ast_sched_runq(chan->sched);
 
