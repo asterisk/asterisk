@@ -13450,9 +13450,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
-		if (res == AUTH_CHALLENGE_SENT)
+		if (res == AUTH_CHALLENGE_SENT) {
 			p->invitestate = INV_COMPLETED;		/* Needs to restart in another INVITE transaction */
-			return 0; 
+			return 0;
+		}
 		if (res < 0) { /* Something failed in authentication */
 			if (res == AUTH_FAKE_AUTH) {
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
