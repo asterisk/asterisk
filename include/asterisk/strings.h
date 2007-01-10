@@ -32,6 +32,8 @@
 #include "asterisk/utils.h"
 #include "asterisk/threadstorage.h"
 
+/* You may see casts in this header that may seem useless but they ensure this file is C++ clean */
+
 static force_inline int ast_strlen_zero(const char *s)
 {
 	return (!s || (*s == '\0'));
@@ -333,7 +335,7 @@ struct ast_str * attribute_malloc ast_str_create(size_t init_len),
 {
 	struct ast_str *buf;
 
-	buf = ast_calloc(1, sizeof(*buf) + init_len);
+	buf = (struct ast_str *)ast_calloc(1, sizeof(*buf) + init_len);
 	if (buf == NULL)
 		return NULL;
 	
@@ -373,7 +375,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		return 0;	/* success */
 	if ((*buf)->ts == DS_ALLOCA || (*buf)->ts == DS_STATIC)
 		return -1;	/* cannot extend */
-	*buf = ast_realloc(*buf, new_len + sizeof(struct ast_str));
+	*buf = (struct ast_str *)ast_realloc(*buf, new_len + sizeof(struct ast_str));
 	if (*buf == NULL) /* XXX watch out, we leak memory here */
 		return -1;
 	if ((*buf)->ts != DS_MALLOC) {
@@ -438,7 +440,7 @@ struct ast_str *ast_str_thread_get(struct ast_threadstorage *ts,
 {
 	struct ast_str *buf;
 
-	buf = ast_threadstorage_get(ts, sizeof(*buf) + init_len);
+	buf = (struct ast_str *)ast_threadstorage_get(ts, sizeof(*buf) + init_len);
 	if (buf == NULL)
 		return NULL;
 	
@@ -458,7 +460,7 @@ struct ast_str *__ast_str_thread_get(struct ast_threadstorage *ts,
 {
 	struct ast_str *buf;
 
-	buf = __ast_threadstorage_get(ts, sizeof(*buf) + init_len, file, function, line);
+	buf = (struct ast_str *)__ast_threadstorage_get(ts, sizeof(*buf) + init_len, file, function, line);
 	if (buf == NULL)
 		return NULL;
 	
