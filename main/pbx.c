@@ -1631,7 +1631,7 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 	memset(passdata, 0, datalen);
 
 	/* No variables or expressions in e->data, so why scan it? */
-	if (!strchr(e->data, '$') && !strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
+	if (e->data && !strchr(e->data, '$') && !strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
 		ast_copy_string(passdata, e->data, datalen);
 		return;
 	}
