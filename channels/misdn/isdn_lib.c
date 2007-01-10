@@ -651,7 +651,7 @@ void clear_l3(struct misdn_stack *stack)
 {
 	int i;
 
-	for (i=0; i<=stack->b_num; i++) {
+	for (i=0; i<stack->b_num; i++) {
 		if (global_state == MISDN_INITIALIZED)  {
 			cb_event(EVENT_CLEANUP, &stack->bc[i], NULL); 
 			empty_chan_in_stack(stack,i+1);
@@ -3578,6 +3578,31 @@ int misdn_lib_pid_restart(int pid)
 	return 0;
 }
 
+/*Sends Restart message for every bchnanel*/
+int misdn_lib_send_restart(int port)
+{
+	struct misdn_stack *stack=find_stack_by_port(port);
+	cb_log(0, port, "Sending Restarts on this port.\n");
+	
+	struct misdn_bchannel dummybc;
+	memset (&dummybc,0,sizeof(dummybc));
+	dummybc.port=stack->port;
+	dummybc.l3_id=MISDN_ID_DUMMY;
+	dummybc.nt=stack->nt;
+
+	int max=stack->pri?30:2;
+	int i;
+	for (i=1;i<max;i++) {
+		dummybc.channel=i;
+		cb_log(0, port, "Restarting channel %d\n",i);
+		misdn_lib_send_event(&dummybc, EVENT_RESTART);
+		/*do we need to wait before we get an EVENT_RESTART_ACK ?*/
+	}
+
+	return 0;
+}
+
+/*reinitializes the L2/L3*/
 int misdn_lib_port_restart(int port)
 {
 	struct misdn_stack *stack=find_stack_by_port(port);

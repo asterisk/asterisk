@@ -28,7 +28,7 @@
 
 
 /* support stuff */
-static void strnncpy(unsigned char *dest, unsigned char *src, int len, int dst_len)
+static void strnncpy(char *dest, unsigned char *src, int len, int dst_len)
 {
 	if (len > dst_len-1)
 		len = dst_len-1;
@@ -71,7 +71,7 @@ void enc_ie_facility(unsigned char **ntmode, msg_t *msg, unsigned char *facility
 
 
 /* facility for siemens CENTEX (known parts implemented only) */
-void enc_ie_facility_centrex(unsigned char **ntmode, msg_t *msg, unsigned char *cnip, int setup, int nt, struct misdn_bchannel *bc)
+void enc_ie_facility_centrex(unsigned char **ntmode, msg_t *msg, char *cnip, int setup, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char centrex[256];
 	int i = 0;
@@ -123,7 +123,7 @@ void enc_ie_facility_centrex(unsigned char **ntmode, msg_t *msg, unsigned char *
 	enc_ie_facility(ntmode, msg, centrex, i, nt , bc);
 }
 
-void dec_ie_facility_centrex(unsigned char *p, Q931_info_t *qi, unsigned char *centrex, int facility_len, unsigned char *cnip, int cnip_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_facility_centrex(unsigned char *p, Q931_info_t *qi, unsigned char *centrex, int facility_len, char *cnip, int cnip_len, int nt, struct misdn_bchannel *bc)
 {
 
 	int i = 0;
@@ -160,7 +160,7 @@ void dec_ie_facility_centrex(unsigned char *p, Q931_info_t *qi, unsigned char *c
 
 
 /* facility for CALL Deflect (known parts implemented only) */
-void enc_ie_facility_calldeflect(unsigned char **ntmode, msg_t *msg, unsigned char *nr, int nt, struct misdn_bchannel *bc)
+void enc_ie_facility_calldeflect(unsigned char **ntmode, msg_t *msg, char *nr, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char fac[256];
 	
@@ -204,7 +204,7 @@ void enc_ie_facility_calldeflect(unsigned char **ntmode, msg_t *msg, unsigned ch
 }
 
 
-void dec_ie_facility_calldeflect(unsigned char *p, Q931_info_t *qi, unsigned char *fac, int fac_len, unsigned char *cd_nr,  int nt, struct misdn_bchannel *bc)
+void dec_ie_facility_calldeflect(unsigned char *p, Q931_info_t *qi, unsigned char *fac, int fac_len, char *cd_nr,  int nt, struct misdn_bchannel *bc)
 {
 	*cd_nr = '\0';
 	
