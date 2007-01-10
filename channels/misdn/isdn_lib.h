@@ -414,6 +414,7 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 
 int misdn_lib_port_restart(int port);
 int misdn_lib_pid_restart(int pid);
+int misdn_lib_send_restart(int port);
 
 int misdn_lib_get_port_info(int port);
 

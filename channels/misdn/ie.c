@@ -33,7 +33,7 @@
 #define MISDN_IE_DEBG 0
 
 /* support stuff */
-static void strnncpy(unsigned char *dest, unsigned char *src, int len, int dst_len)
+static void strnncpy(char *dest, char *src, int len, int dst_len)
 {
 	if (len > dst_len-1)
 		len = dst_len-1;
@@ -310,7 +310,7 @@ void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, char *callid, int *callid
 	{
 		p = NULL;
 		if (qi->QI_ELEMENT(call_id))
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(call_id) + 1;
+			p = (unsigned char*)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(call_id) + 1;
 	}
 	if (!p)
 		return;
@@ -393,7 +393,7 @@ void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, c
 
 	*type = (p[1]&0x70) >> 4;
 	*plan = p[1] & 0xf;
-	strnncpy(number, p+2, p[0]-1, number_len);
+	strnncpy(number, (char*)p+2, p[0]-1, number_len);
 
 	if (MISDN_IE_DEBG) printf("    type=%d plan=%d number='%s'\n", *type, *plan, number);
 }
@@ -488,10 +488,10 @@ void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, 
 		}
 		*present = (p[2]&0x60) >> 5;
 		*screen = p[2] & 0x3;
-		strnncpy(number, p+3, p[0]-2, number_len);
+		strnncpy(number, (char*)p+3, p[0]-2, number_len);
 	} else
 	{
-		strnncpy(number, p+2, p[0]-1, number_len);
+		strnncpy(number, (char*)p+2, p[0]-1, number_len);
  		/* SPECIAL workarround for IBT software bug */ 
 		/* if (number[0]==0x80) */
 		/*  strcpy((char *)number, (char *)number+1); */
@@ -590,10 +590,10 @@ void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan
 		}
 		*present = (p[2]&0x60) >> 5;
 		*screen = p[2] & 0x3;
-		strnncpy(number, p+3, p[0]-2, number_len);
+		strnncpy(number, (char*)p+3, p[0]-2, number_len);
 	} else
 	{
-		strnncpy(number, p+2, p[0]-1, number_len);
+		strnncpy(number, (char*)p+2, p[0]-1, number_len);
 	}
 
 	if (MISDN_IE_DEBG) printf("    type=%d plan=%d present=%d screen=%d number='%s'\n", *type, *plan, *present, *screen, number);
@@ -760,7 +760,7 @@ void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive, int *c
 	{
 		p = NULL;
 		if (qi->QI_ELEMENT(channel_id))
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(channel_id) + 1;
+			p = (unsigned char*)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(channel_id) + 1;
 	}
 	if (!p)
 		return;
@@ -876,7 +876,7 @@ void enc_ie_date(unsigned char **ntmode, msg_t *msg, time_t ti, int nt, struct m
 
 
 /* IE_DISPLAY */
-void enc_ie_display(unsigned char **ntmode, msg_t *msg, unsigned char *display, int nt, struct misdn_bchannel *bc)
+void enc_ie_display(unsigned char **ntmode, msg_t *msg, char *display, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -907,7 +907,7 @@ void enc_ie_display(unsigned char **ntmode, msg_t *msg, unsigned char *display, 
 	strncpy((char *)p+2, (char *)display, strlen((char *)display));
 }
 
-void dec_ie_display(unsigned char *p, Q931_info_t *qi, unsigned char *display, int display_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_display(unsigned char *p, Q931_info_t *qi, char *display, int display_len, int nt, struct misdn_bchannel *bc)
 {
 	*display = '\0';
 
@@ -925,7 +925,7 @@ void dec_ie_display(unsigned char *p, Q931_info_t *qi, unsigned char *display, i
 		return;
 	}
 
-	strnncpy(display, p+1, p[0], display_len);
+	strnncpy(display, (char*)p+1, p[0], display_len);
 
 	if (MISDN_IE_DEBG) printf("    display='%s'\n", display);
 }
@@ -957,7 +957,7 @@ void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, unsigned char *keypad, in
 	strncpy((char *)p+2, (char *)keypad, strlen((char *)keypad));
 }
 
-void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, unsigned char *keypad, int keypad_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, char *keypad, int keypad_len, int nt, struct misdn_bchannel *bc)
 {
 	*keypad = '\0';
 
@@ -975,7 +975,7 @@ void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, unsigned char *keypad, int
 		return;
 	}
 
-	strnncpy(keypad, p+1, p[0], keypad_len);
+	strnncpy(keypad, (char*)p+1, p[0], keypad_len);
 
 	if (MISDN_IE_DEBG) printf("    keypad='%s'\n", keypad);
 }
@@ -1098,7 +1098,7 @@ void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *locati
 
 
 /* IE_REDIR_NR (redirecting = during MT_SETUP) */
-void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, int reason, unsigned char *number, int nt, struct misdn_bchannel *bc)
+void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int present, int screen, int reason, char *number, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -1172,7 +1172,7 @@ void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int
 	}
 }
 
-void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, int *reason, unsigned char *number, int number_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, int *screen, int *reason, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -1204,14 +1204,14 @@ void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 		if (!(p[2] & 0x80))
 		{
 			*reason = p[3] & 0x0f;
-			strnncpy(number, p+4, p[0]-3, number_len);
+			strnncpy(number,(char*)p+4, p[0]-3, number_len);
 		} else
 		{
-			strnncpy(number, p+3, p[0]-2, number_len);
+			strnncpy(number, (char*)p+3, p[0]-2, number_len);
 		}
 	} else
 	{
-		strnncpy(number, p+2, p[0]-1, number_len);
+		strnncpy(number, (char*)p+2, p[0]-1, number_len);
 	}
 
 	if (MISDN_IE_DEBG) printf("    type=%d plan=%d present=%d screen=%d reason=%d number='%s'\n", *type, *plan, *present, *screen, *reason, number);
@@ -1270,7 +1270,7 @@ void enc_ie_redir_dn(unsigned char **ntmode, msg_t *msg, int type, int plan, int
 	}
 }
 
-void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, unsigned char *number, int number_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, int *present, char *number, int number_len, int nt, struct misdn_bchannel *bc)
 {
 	*type = -1;
 	*plan = -1;
@@ -1297,10 +1297,10 @@ void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 	if (!(p[1] & 0x80))
 	{
 		*present = (p[2]&0x60) >> 5;
-		strnncpy(number, p+3, p[0]-2, number_len);
+		strnncpy(number, (char*)p+3, p[0]-2, number_len);
 	} else
 	{
-		strnncpy(number, p+2, p[0]-1, number_len);
+		strnncpy(number, (char*)p+2, p[0]-1, number_len);
 	}
 
 	if (MISDN_IE_DEBG) printf("    type=%d plan=%d present=%d number='%s'\n", *type, *plan, *present, number);
@@ -1349,7 +1349,7 @@ void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, unsigned 
 	memcpy(p+3, user, user_len);
 }
 
-void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, unsigned char *user, int *user_len, int nt, struct misdn_bchannel *bc)
+void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, char *user, int *user_len, int nt, struct misdn_bchannel *bc)
 {
 	char debug[768];
 	int i;

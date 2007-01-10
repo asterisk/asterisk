@@ -927,6 +927,22 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
 	return 0; 
 }
 
+static int misdn_send_restart(int fd, int argc, char *argv[])
+{
+	int port;
+	
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+  
+	port = atoi(argv[3]);
+ 
+ 	misdn_lib_send_restart(port);
+	
+	return 0;
+}
+
+
+
 static int misdn_send_digit (int fd, int argc, char *argv[])
 {
 	char *channame; 
@@ -1082,6 +1098,14 @@ static struct ast_cli_entry cli_send_cd =
   "Usage: misdn send calldeflect <channel> \"<nr>\" \n",
   complete_ch
 };
+
+static struct ast_cli_entry cli_send_restart=
+{ {"misdn","send","restart", NULL},
+  misdn_send_restart,
+  "Sends a restart for every bchannel on the given port", 
+  "Usage: misdn send restart <port>\n"
+};
+
 
 static struct ast_cli_entry cli_send_digit =
 { {"misdn","send","digit", NULL},
@@ -4218,6 +4242,7 @@ int load_module(void)
   
 	ast_cli_register(&cli_send_display);
 	ast_cli_register(&cli_send_cd);
+	ast_cli_register(&cli_send_restart);
 	ast_cli_register(&cli_send_digit);
 	ast_cli_register(&cli_toggle_echocancel);
 	ast_cli_register(&cli_set_tics);
@@ -4285,6 +4310,7 @@ int unload_module(void)
 	ast_cli_unregister(&cli_send_display);
 	
 	ast_cli_unregister(&cli_send_cd);
+	ast_cli_unregister(&cli_send_restart);
 	
 	ast_cli_unregister(&cli_send_digit);
 	ast_cli_unregister(&cli_toggle_echocancel);
