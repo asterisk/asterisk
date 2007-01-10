@@ -513,9 +513,9 @@ struct chan_iax2_pvt {
 	/*! timeval that we base our delivery on */
 	struct timeval rxcore;
 	/*! The jitterbuffer */
-        jitterbuf *jb;
+	jitterbuf *jb;
 	/*! active jb read scheduler id */
-        int jbid;                       
+	int jbid;                       
 	/*! LAG */
 	int lag;
 	/*! Error, as discovered by the manager */
@@ -637,22 +637,24 @@ static AST_LIST_HEAD_STATIC(peers, iax2_peer);
 
 static AST_LIST_HEAD_STATIC(firmwares, iax_firmware);
 
-/*! Extension exists */
-#define CACHE_FLAG_EXISTS		(1 << 0)
-/*! Extension is nonexistent */
-#define CACHE_FLAG_NONEXISTENT		(1 << 1)
-/*! Extension can exist */
-#define CACHE_FLAG_CANEXIST		(1 << 2)
-/*! Waiting to hear back response */
-#define CACHE_FLAG_PENDING		(1 << 3)
-/*! Timed out */
-#define CACHE_FLAG_TIMEOUT		(1 << 4)
-/*! Request transmitted */
-#define CACHE_FLAG_TRANSMITTED		(1 << 5)
-/*! Timeout */
-#define CACHE_FLAG_UNKNOWN		(1 << 6)
-/*! Matchmore */
-#define CACHE_FLAG_MATCHMORE		(1 << 7)
+enum {
+	/*! Extension exists */
+	CACHE_FLAG_EXISTS      = (1 << 0),
+	/*! Extension is nonexistent */
+	CACHE_FLAG_NONEXISTENT = (1 << 1),
+	/*! Extension can exist */
+	CACHE_FLAG_CANEXIST    = (1 << 2),
+	/*! Waiting to hear back response */
+	CACHE_FLAG_PENDING     = (1 << 3),
+	/*! Timed out */
+	CACHE_FLAG_TIMEOUT     = (1 << 4),
+	/*! Request transmitted */
+	CACHE_FLAG_TRANSMITTED = (1 << 5),
+	/*! Timeout */
+	CACHE_FLAG_UNKNOWN     = (1 << 6),
+	/*! Matchmore */
+	CACHE_FLAG_MATCHMORE   = (1 << 7),
+};
 
 struct iax2_dpcache {
 	char peercontext[AST_MAX_CONTEXT];
