@@ -1470,7 +1470,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_pbx_start(peer);
 			hanguptree(outgoing, NULL);
 			LOCAL_USER_REMOVE(u);
-			return 0;
+			return 1;
 		}
 
 		if (ast_test_flag(&opts, OPT_CALLEE_MACRO) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_MACRO])) {
@@ -1649,8 +1649,12 @@ out:
 static int dial_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_flags peerflags;
+	int res = 0;
+
 	memset(&peerflags, 0, sizeof(peerflags));
-	return dial_exec_full(chan, data, &peerflags);
+	res = dial_exec_full(chan, data, &peerflags);
+
+	return (res >= 0 ? 0 : -1);
 }
 
 static int retrydial_exec(struct ast_channel *chan, void *data)
@@ -1719,7 +1723,10 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(chan, AST_FLAG_MOH))
 			ast_moh_stop(chan);
 
-		if ((res = dial_exec_full(chan, dialdata, &peerflags)) == 0) {
+		res = dial_exec_full(chan, dialdata, &peerflags);
+		if (res == 1) {
+			break;
+		} else if (res == 0) {
 			if (ast_test_flag(&peerflags, OPT_DTMF_EXIT)) {
 				if (!(res = ast_streamfile(chan, announce, chan->language)))
 					res = ast_waitstream(chan, AST_DIGIT_ANY);
@@ -1755,7 +1762,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		ast_moh_stop(chan);
 
 	LOCAL_USER_REMOVE(u);
-	return loops ? res : 0;
+	return loops ? (res >= 0 ? 0 : -1) : 0;
 
 }
 
