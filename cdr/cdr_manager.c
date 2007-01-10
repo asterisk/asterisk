@@ -146,7 +146,7 @@ static int load_module(void)
 	int res;
 
 	/* Configuration file */
-	if(loadconfigurationfile())
+	if (!loadconfigurationfile())
 		return AST_MODULE_LOAD_DECLINE;
 	
 	res = ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
