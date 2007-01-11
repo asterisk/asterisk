@@ -186,6 +186,8 @@ char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
 
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
 
+int ast_rtp_getnat(struct ast_rtp *rtp);
+
 /*! \brief Indicate whether this RTP session is carrying DTMF or not */
 void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf);
 
