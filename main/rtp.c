@@ -591,6 +591,11 @@ void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
 	rtp->nat = nat;
 }
 
+int ast_rtp_getnat(struct ast_rtp *rtp)
+{
+	return ast_test_flag(rtp, FLAG_NAT_ACTIVE);
+}
+
 void ast_rtp_setdtmf(struct ast_rtp *rtp, int dtmf)
 {
 	ast_set2_flag(rtp, dtmf ? 1 : 0, FLAG_HAS_DTMF);
