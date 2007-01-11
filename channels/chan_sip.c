@@ -4346,6 +4346,8 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, stru
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
 	add_header(&resp, "Unsupported", unsupported);
+	add_header_contentLength(&resp, 0);
+	add_blank_header(&resp);
 	return send_response(p, &resp, 0, 0);
 }
 
