@@ -3587,12 +3587,12 @@ int misdn_lib_send_restart(int port)
 	struct misdn_bchannel dummybc;
 	memset (&dummybc,0,sizeof(dummybc));
 	dummybc.port=stack->port;
-	dummybc.l3_id=MISDN_ID_DUMMY;
+	dummybc.l3_id=MISDN_ID_GLOBAL;
 	dummybc.nt=stack->nt;
 
 	int max=stack->pri?30:2;
 	int i;
-	for (i=1;i<max;i++) {
+	for (i=1;i<=max;i++) {
 		dummybc.channel=i;
 		cb_log(0, port, "Restarting channel %d\n",i);
 		misdn_lib_send_event(&dummybc, EVENT_RESTART);
@@ -3722,6 +3722,16 @@ void manager_event_handler(void *arg)
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
 					if (bc) send_msg(glob_mgr->midev, bc, msg);
+					else  {
+						if (frm->dinfo == MISDN_ID_GLOBAL) {
+							struct misdn_bchannel dummybc;
+							memset (&dummybc,0,sizeof(dummybc));
+							dummybc.port=stack->port;
+							dummybc.l3_id=MISDN_ID_GLOBAL;
+							dummybc.nt=stack->nt;
+							send_msg(glob_mgr->midev, &dummybc, msg);
+						}
+					}
 				}
 			}
 		}
