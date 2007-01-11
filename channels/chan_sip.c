@@ -13765,7 +13765,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 					/* Chan 2: Call from Asterisk to target */
 	int res = 0;
 	struct sip_pvt *targetcall_pvt;
-	int error = 0;
 
 	/* Check if the call ID of the replaces header does exist locally */
 	if (!(targetcall_pvt = get_sip_pvt_byid_locked(transferer->refer->replaces_callid, transferer->refer->replaces_callid_totag, 
@@ -13793,37 +13792,31 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	if (!targetcall_pvt->owner) {	/* No active channel */
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "SIP attended transfer: Error: No owner of target call\n");
-		error = 1;
-	}
-	/* We have a channel, find the bridge */
-	target.chan1 = targetcall_pvt->owner;				/* Transferer to Asterisk */
-
-	if (!error) {
-		target.chan2 = ast_bridged_channel(targetcall_pvt->owner);	/* Asterisk to target */
-
-		if (!target.chan2 || !(target.chan2->_state == AST_STATE_UP || target.chan2->_state == AST_STATE_RINGING) ) {
-			/* Wrong state of new channel */
-			if (option_debug > 3) {
-				if (target.chan2) 
-					ast_log(LOG_DEBUG, "SIP attended transfer: Error: Wrong state of target call: %s\n", ast_state2str(target.chan2->_state));
-				else if (target.chan1->_state != AST_STATE_RING)
-					ast_log(LOG_DEBUG, "SIP attended transfer: Error: No target channel\n");
-				else
-					ast_log(LOG_DEBUG, "SIP attended transfer: Attempting transfer in ringing state\n");
-			}
-			if (target.chan1->_state != AST_STATE_RING)
-				error = 1;
-		}
-	}
-	if (error) {	/* Cancel transfer */
+		/* Cancel transfer */
 		transmit_notify_with_sipfrag(transferer, seqno, "503 Service Unavailable", TRUE);
 		append_history(transferer, "Xfer", "Refer failed");
-		ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);	
+		ast_clear_flag(&transferer->flags[0], SIP_GOTREFER);
 		transferer->refer->status = REFER_FAILED;
 		sip_pvt_unlock(targetcall_pvt);
 		ast_channel_unlock(current->chan1);
-		ast_channel_unlock(target.chan1);
+		ast_channel_unlock(targetcall_pvt->owner);
 		return -1;
+	}
+
+	/* We have a channel, find the bridge */
+	target.chan1 = targetcall_pvt->owner;				/* Transferer to Asterisk */
+	target.chan2 = ast_bridged_channel(targetcall_pvt->owner);	/* Asterisk to target */
+
+	if (!target.chan2 || !(target.chan2->_state == AST_STATE_UP || target.chan2->_state == AST_STATE_RINGING) ) {
+		/* Wrong state of new channel */
+		if (option_debug > 3) {
+			if (target.chan2) 
+				ast_log(LOG_DEBUG, "SIP attended transfer: Error: Wrong state of target call: %s\n", ast_state2str(target.chan2->_state));
+			else if (target.chan1->_state != AST_STATE_RING)
+				ast_log(LOG_DEBUG, "SIP attended transfer: Error: No target channel\n");
+			else
+				ast_log(LOG_DEBUG, "SIP attended transfer: Attempting transfer in ringing state\n");
+		}
 	}
 
 	/* Transfer */
