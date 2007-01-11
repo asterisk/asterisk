@@ -1615,17 +1615,21 @@ int ast_hangup(struct ast_channel *chan)
 int ast_answer(struct ast_channel *chan)
 {
 	int res = 0;
+
 	ast_channel_lock(chan);
+
 	/* You can't answer an outbound call */
 	if (ast_test_flag(chan, AST_FLAG_OUTGOING)) {
 		ast_channel_unlock(chan);
 		return 0;
 	}
+
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
 		ast_channel_unlock(chan);
 		return -1;
 	}
+
 	switch(chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
@@ -1633,6 +1637,7 @@ int ast_answer(struct ast_channel *chan)
 			res = chan->tech->answer(chan);
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
+		ast_safe_sleep(chan, 500);
 		break;
 	case AST_STATE_UP:
 		ast_cdr_answer(chan->cdr);
@@ -1640,7 +1645,9 @@ int ast_answer(struct ast_channel *chan)
 	default:
 		break;
 	}
+
 	ast_channel_unlock(chan);
+
 	return res;
 }
 
