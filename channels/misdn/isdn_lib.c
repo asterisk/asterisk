@@ -1965,7 +1965,9 @@ handle_event_nt(void *dat, void *arg)
 				cb_log(0, stack->port, "%% GOT L2 Activate Info. but we're activated already.. this l2 is faulty, blocking port\n");
 				cb_event(EVENT_PORT_ALARM, &stack->bc[0], glob_mgr->user_data);
 			}
-			
+		
+			/* when we get the L2 UP, the L1 is UP definitely too*/
+			stack->l1link = 1;
 			stack->l2link = 1;
 			stack->l2upcnt=0;
 			
@@ -2812,6 +2814,9 @@ int handle_mgmt(msg_t *msg)
 
 		case SSTATUS_L2_ESTABLISHED:
 			cb_log(3, stack->port, "MGMT: SSTATUS: L2_ESTABLISH \n");
+
+			/*when the L2 goes UP, L1 needs to be UP too*/
+			stack->l1link=1;
 			stack->l2link=1;
 			if ( !stack->ptp && !stack->nt )
 				stack->l1link=2;
