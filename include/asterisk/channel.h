@@ -758,13 +758,14 @@ int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
  */
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset);
 
-/*! \brief Answer a ringing call 
+/*! \brief Answer a channel
  * \param chan channel to answer
  * This function answers a channel and handles all necessary call
  * setup functions.
- * \return Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, non-zero on failure
  */
 int ast_answer(struct ast_channel *chan);
+int __ast_answer(struct ast_channel *chan, unsigned int delay);
 
 /*! \brief Make a call 
  * \param chan which channel to make the call on

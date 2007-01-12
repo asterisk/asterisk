@@ -5326,21 +5326,11 @@ static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 {
 	int delay = 0;
-	int res;
 
-	if (chan->_state == AST_STATE_UP)
-		delay = 0;
-	else if (!ast_strlen_zero(data))
+	if ((chan->_state != AST_STATE_UP) && !ast_strlen_zero(data))
 		delay = atoi(data);
 
-	res = ast_answer(chan);
-	if (res)
-		return res;
-
-	if (delay)
-		res = ast_safe_sleep(chan, delay);
-
-	return res;
+	return __ast_answer(chan, delay);
 }
 
 AST_APP_OPTIONS(resetcdr_opts, {

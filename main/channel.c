@@ -1612,7 +1612,7 @@ int ast_hangup(struct ast_channel *chan)
 	return res;
 }
 
-int ast_answer(struct ast_channel *chan)
+int __ast_answer(struct ast_channel *chan, unsigned int delay)
 {
 	int res = 0;
 
@@ -1637,7 +1637,8 @@ int ast_answer(struct ast_channel *chan)
 			res = chan->tech->answer(chan);
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
-		ast_safe_sleep(chan, 500);
+		if (delay)
+			ast_safe_sleep(chan, delay);
 		break;
 	case AST_STATE_UP:
 		ast_cdr_answer(chan->cdr);
@@ -1649,6 +1650,11 @@ int ast_answer(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 
 	return res;
+}
+
+int ast_answer(struct ast_channel *chan)
+{
+	return __ast_answer(chan, 500);
 }
 
 void ast_deactivate_generator(struct ast_channel *chan)
