@@ -5,7 +5,8 @@
 ;
 ; NOTE: Asterisk has to edit this file to change a user's password.  This does
 ; not currently work with the "#include <file>" directive for Asterisk
-; configuration files.  Do not use it with this configuration file.
+; configuration files, nor when using realtime static configuration.
+; Do not use them with this configuration file.
 ;
 
 [general]
