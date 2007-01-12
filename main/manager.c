@@ -2136,7 +2136,9 @@ static int do_message(struct mansession *s)
 
 	for (;;) {
 		res = get_input(s, header_buf);
-		if (res > 0) {
+		if (res == 0) {
+			continue;
+		} else if (res > 0) {
 			/* Strip trailing \r\n */
 			if (strlen(header_buf) < 2)
 				continue;
@@ -2198,10 +2200,8 @@ static void *session_do(void *data)
 	ast_mutex_unlock(&s->__lock);
 	for (;;) {
 		res = do_message(s);
-		
-		if (res == 0) {
-			continue;
-		} else if (process_events(s))
+
+		if (process_events(s))
 			break;
 	}
 	/* session is over, explain why and terminate */
