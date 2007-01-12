@@ -2139,10 +2139,6 @@ static int do_message(struct mansession *s)
 		if (res == 0) {
 			continue;
 		} else if (res > 0) {
-			/* Strip trailing \r\n */
-			if (strlen(header_buf) < 2)
-				continue;
-			header_buf[strlen(header_buf) - 2] = '\0';
 			if (ast_strlen_zero(header_buf))
 				return process_message(s, &m) ? -1 : 0;
 			else if (m.hdrcount < (AST_MAX_MANHEADERS - 1))
@@ -2200,8 +2196,7 @@ static void *session_do(void *data)
 	ast_mutex_unlock(&s->__lock);
 	for (;;) {
 		res = do_message(s);
-
-		if (process_events(s))
+		if ((res < 0) || (process_events(s)))
 			break;
 	}
 	/* session is over, explain why and terminate */
