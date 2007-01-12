@@ -265,7 +265,8 @@ static struct pbx_builtin {
 	"Answer a channel if ringing",
 	"  Answer([delay]): If the call has not been answered, this application will\n"
 	"answer it. Otherwise, it has no effect on the call. If a delay is specified,\n"
-	"Asterisk will wait this number of milliseconds before answering the call.\n"
+	"Asterisk will wait this number of milliseconds before returning to\n"
+	"the dialplan after answering the call.\n"
 	},
 
 	{ "BackGround", pbx_builtin_background,
