@@ -173,8 +173,10 @@ forcejitterbuffer=no
 ; trunkmtu = 0
 ;
 
-; Set the below option to yes to have the trunking size grow beyond the normal limit.
-; trunkrealloc=yes
+; This option defines the maximum size an IAX2 trunk can grow to. The default value is 128000 which
+; represents 40ms uncompressed linear with 200 channels. Depending on different things though
+; (codec in use and channels) you may need to make this value larger.
+; trunkmaxsize = 128000
 
 ; IAX helper threads
 

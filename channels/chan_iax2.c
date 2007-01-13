@@ -164,8 +164,12 @@ static int maxjitterbuffer=1000;
 static int resyncthreshold=1000;
 static int maxjitterinterps=10;
 static int jittertargetextra = 40; /* number of milliseconds the new jitter buffer adds on to its size */
+
+#define MAX_TRUNKDATA           640 * 200       /*!< 40ms, uncompressed linear * 200 channels */
+
 static int trunkfreq = 20;
-static int trunkrealloc = 0;
+static int trunkmaxsize = MAX_TRUNKDATA;
+
 static int authdebug = 1;
 static int autokill = 0;
 static int iaxcompat = 0;
@@ -449,7 +453,6 @@ static AST_LIST_HEAD_STATIC(registrations, iax2_registry);
 #define MIN_JITTER_BUFFER 	10
 
 #define DEFAULT_TRUNKDATA	640 * 10	/*!< 40ms, uncompressed linear * 10 channels */
-#define MAX_TRUNKDATA		640 * 200	/*!< 40ms, uncompressed linear * 200 channels */
 
 #define MAX_TIMESTAMP_SKEW	160		/*!< maximum difference between actual and predicted ts for sending */
 
@@ -3650,7 +3653,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 	if (tpeer) {
 		if (tpeer->trunkdatalen + f->datalen + 4 >= tpeer->trunkdataalloc) {
 			/* Need to reallocate space */
-			if (tpeer->trunkdataalloc < MAX_TRUNKDATA || trunkrealloc) {
+			if (tpeer->trunkdataalloc < trunkmaxsize) {
 				if (!(tmp = ast_realloc(tpeer->trunkdata, tpeer->trunkdataalloc + DEFAULT_TRUNKDATA + IAX2_TRUNK_PREFACE))) {
 					ast_mutex_unlock(&tpeer->lock);
 					return -1;
@@ -6020,7 +6023,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 #endif
 	struct timeval now;
 	if (iaxtrunkdebug)
-		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", MAX_TRUNKDATA);
+		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", trunkmaxsize);
 	gettimeofday(&now, NULL);
 	if (events & AST_IO_PRI) {
 #ifdef ZT_TIMERACK
@@ -8910,8 +8913,6 @@ static int set_config(char *config_file, int reload)
 
 	maxauthreq = 3;
 
-	trunkrealloc = 0;
-
 	v = ast_variable_browse(cfg, "general");
 
 	/* Seed initial tos value */
@@ -9054,8 +9055,10 @@ static int set_config(char *config_file, int reload)
 			else 
 				ast_log(LOG_NOTICE, "trunkmtu value out of bounds (%d) at line %d\n",
 					mtuv, v->lineno);
-		} else if (!strcasecmp(v->name, "trunkrealloc")) {
-			trunkrealloc = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "trunkmaxsize")) {
+			trunkmaxsize = atoi(v->value);
+			if (trunkmaxsize == 0)
+				trunkmaxsize = MAX_TRUNKDATA;
 		} else if (!strcasecmp(v->name, "autokill")) {
 			if (sscanf(v->value, "%d", &x) == 1) {
 				if (x >= 0)
@@ -9239,6 +9242,7 @@ static int reload_config(void)
 	strcpy(mohinterpret, "default");
 	strcpy(mohsuggest, "");
 	global_max_trunk_mtu = MAX_TRUNK_MTU;
+	trunkmaxsize = MAX_TRUNKDATA;
 	amaflags = 0;
 	delayreject = 0;
 	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
