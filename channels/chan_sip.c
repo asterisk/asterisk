@@ -16458,7 +16458,7 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		} else if (!strcasecmp(v->name, "localnet")) {
 			struct ast_ha *na;
-			int ha_error;
+			int ha_error = 0;
 
 			if (!(na = ast_append_ha("d", v->value, localaddr, &ha_error)))
 				ast_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
