@@ -347,7 +347,7 @@ enum sipregistrystate {
 	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred */
 	REG_STATE_REGSENT,	/*!< Registration request sent */
 	REG_STATE_AUTHSENT,	/*!< We have tried to authenticate */
-	REG_STATE_REGISTERED,	/*!< Registred and done */
+	REG_STATE_REGISTERED,	/*!< Registered and done */
 	REG_STATE_REJECTED,	/*!< Registration rejected */
 	REG_STATE_TIMEOUT,	/*!< Registration timed out */
 	REG_STATE_NOAUTH,	/*!< We have no accepted credentials */
@@ -12088,18 +12088,16 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		break;
 	case 403:	/* Forbidden */
 		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
-		if (global_regattempts_max)
-			p->registry->regattempts = global_regattempts_max+1;
 		ast_sched_del(sched, r->timeout);
 		r->timeout = -1;
+		r->regstate = REG_STATE_NOAUTH;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		break;
 	case 404:	/* Not found */
 		ast_log(LOG_WARNING, "Got 404 Not found on SIP register to service %s@%s, giving up\n", p->registry->username,p->registry->hostname);
-		if (global_regattempts_max)
-			p->registry->regattempts = global_regattempts_max+1;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		r->call = NULL;
+		r->regstate = REG_STATE_REJECTED;
 		ast_sched_del(sched, r->timeout);
 		r->timeout = -1;
 		break;
@@ -12130,10 +12128,9 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		break;
 	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
 		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
-		if (global_regattempts_max)
-			p->registry->regattempts = global_regattempts_max+1;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		r->call = NULL;
+		r->regstate = REG_STATE_REJECTED;
 		ast_sched_del(sched, r->timeout);
 		r->timeout = -1;
 		break;
