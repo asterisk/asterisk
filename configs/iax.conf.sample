@@ -172,6 +172,10 @@ forcejitterbuffer=no
 ;
 ; trunkmtu = 0
 ;
+
+; Set the below option to yes to have the trunking size grow beyond the normal limit.
+; trunkrealloc=yes
+
 ; IAX helper threads
 
 ; Establishes the number of iax helper threads to handle I/O.

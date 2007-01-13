@@ -165,6 +165,7 @@ static int resyncthreshold=1000;
 static int maxjitterinterps=10;
 static int jittertargetextra = 40; /* number of milliseconds the new jitter buffer adds on to its size */
 static int trunkfreq = 20;
+static int trunkrealloc = 0;
 static int authdebug = 1;
 static int autokill = 0;
 static int iaxcompat = 0;
@@ -3649,7 +3650,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 	if (tpeer) {
 		if (tpeer->trunkdatalen + f->datalen + 4 >= tpeer->trunkdataalloc) {
 			/* Need to reallocate space */
-			if (tpeer->trunkdataalloc < MAX_TRUNKDATA) {
+			if (tpeer->trunkdataalloc < MAX_TRUNKDATA || trunkrealloc) {
 				if (!(tmp = ast_realloc(tpeer->trunkdata, tpeer->trunkdataalloc + DEFAULT_TRUNKDATA + IAX2_TRUNK_PREFACE))) {
 					ast_mutex_unlock(&tpeer->lock);
 					return -1;
@@ -8909,6 +8910,8 @@ static int set_config(char *config_file, int reload)
 
 	maxauthreq = 3;
 
+	trunkrealloc = 0;
+
 	v = ast_variable_browse(cfg, "general");
 
 	/* Seed initial tos value */
@@ -9050,7 +9053,9 @@ static int set_config(char *config_file, int reload)
 				global_max_trunk_mtu = mtuv; 
 			else 
 				ast_log(LOG_NOTICE, "trunkmtu value out of bounds (%d) at line %d\n",
-					mtuv, v->lineno); 
+					mtuv, v->lineno);
+		} else if (!strcasecmp(v->name, "trunkrealloc")) {
+			trunkrealloc = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "autokill")) {
 			if (sscanf(v->value, "%d", &x) == 1) {
 				if (x >= 0)

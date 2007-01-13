@@ -60,6 +60,7 @@ Changes since Asterisk 1.4-beta was branched:
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
   * Added the URI redirect option for the built-in HTTP server
+  * Added the trunkrealloc configuration option to chan_iax2.
 
 SIP changes
 -----------
