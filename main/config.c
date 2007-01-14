@@ -1317,18 +1317,27 @@ struct ast_config *ast_config_load_with_comments(const char *filename)
 	return result;
 }
 
-struct ast_variable *ast_load_realtime_all(const char *family, ...)
+static struct ast_variable *ast_load_realtime_helper(const char *family, va_list ap)
 {
 	struct ast_config_engine *eng;
 	char db[256]="";
 	char table[256]="";
 	struct ast_variable *res=NULL;
-	va_list ap;
 
-	va_start(ap, family);
 	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
 	if (eng && eng->realtime_func) 
 		res = eng->realtime_func(db, table, ap);
+
+	return res;
+}
+
+struct ast_variable *ast_load_realtime_all(const char *family, ...)
+{
+	struct ast_variable *res;
+	va_list ap;
+
+	va_start(ap, family);
+	res = ast_load_realtime_helper(family, ap);
 	va_end(ap);
 
 	return res;
@@ -1340,7 +1349,7 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	va_list ap;
 
 	va_start(ap, family);
-	res = ast_load_realtime_all(family, ap);
+	res = ast_load_realtime_helper(family, ap);
 	va_end(ap);
 
 	/* Eliminate blank entries */
