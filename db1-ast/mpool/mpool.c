@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #include <string.h>
 #include <unistd.h>
 
-#include <db.h>
+#include "../include/db.h"
 
 #define	__MPOOLINTERFACE_PRIVATE
 #include <mpool.h>

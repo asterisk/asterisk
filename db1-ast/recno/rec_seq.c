@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)rec_seq.c	8.3 (Berkeley) 7/14/94";
 #include <stdio.h>
 #include <string.h>
 
-#include <db.h>
+#include "../include/db.h"
 #include "recno.h"
 
 /*
