@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)hash.c	8.9 (Berkeley) 6/16/94";
 #include <assert.h>
 #endif
 
-#include <db.h>
+#include "../include/db.h"
 #include "hash.h"
 #include "page.h"
 #include "extern.h"
