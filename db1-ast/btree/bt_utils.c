@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)bt_utils.c	8.8 (Berkeley) 7/20/94";
 #include <stdlib.h>
 #include <string.h>
 
-#include <db.h>
+#include "../include/db.h"
 #include "btree.h"
 
 /*
