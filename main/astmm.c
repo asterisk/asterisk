@@ -347,7 +347,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 	ast_mutex_unlock(&showmemorylock);
 	
 	if (cache_len)
-		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations", len, cache_len, count);
+		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
 	else
 		ast_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
 	
@@ -424,7 +424,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 	}
 
 	if (cache_len)
-		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations", len, cache_len, count);
+		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
 	else
 		ast_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
 
