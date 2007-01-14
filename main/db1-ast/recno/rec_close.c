@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)rec_close.c	8.6 (Berkeley) 8/18/94";
 #include <stdio.h>
 #include <unistd.h>
 
-#include <db.h>
+#include "../include/db.h"
 #include "recno.h"
 
 /*

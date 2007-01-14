@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)hsearch.c	8.4 (Berkeley) 7/21/94";
 #include <fcntl.h>
 #include <string.h>
 
-#include <db.h>
+#include "../include/db.h"
 #include "search.h"
 
 static DB *dbp = NULL;
