@@ -2678,7 +2678,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 #endif
 #ifndef IMAP_STORAGE
 /* copy message only used by file storage */
-static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
+static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir)
 {
 	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
 	const char *frombox = mbox(imbox);
@@ -2687,8 +2687,12 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	ast_log(LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
 	create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
+	
+	if (!dir)
+		make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
+	else
+		ast_copy_string(fromdir, dir, sizeof(fromdir));
 
-	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
 	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, frombox);
 
@@ -3191,7 +3195,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							context++;
 						}
 						if ((recip = find_user(&recipu, context, exten))) {
-							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
+							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir);
 							free_user(recip);
 						}
 					}
@@ -4192,7 +4196,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
 
 #else
-				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt);
+				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir);
 #endif
 				saved_messages++;
 				AST_LIST_REMOVE_CURRENT(&extensions, list);
