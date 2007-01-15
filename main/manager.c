@@ -2135,6 +2135,9 @@ static int do_message(struct mansession *s)
 	int res;
 
 	for (;;) {
+		/* Check if any events are pending and do them if needed */
+		if (process_events(s))
+			return -1;
 		res = get_input(s, header_buf);
 		if (res == 0) {
 			continue;
@@ -2195,8 +2198,7 @@ static void *session_do(void *data)
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
 	ast_mutex_unlock(&s->__lock);
 	for (;;) {
-		res = do_message(s);
-		if ((res < 0) || (process_events(s)))
+		if ((res = do_message(s)) < 0)
 			break;
 	}
 	/* session is over, explain why and terminate */
