@@ -2059,6 +2059,11 @@ static int do_message(struct mansession *s)
 	int res;
 
 	for (;;) {
+		/* Check if any events are pending and do them if needed */
+		if (s->eventq->next) {
+			if (process_events(s))
+				return -1;
+		}
 		res = get_input(s, header_buf);
 		if (res == 0) {
 			continue;
@@ -2086,14 +2091,8 @@ static void *session_do(void *data)
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");
 	ast_mutex_unlock(&s->__lock);
 	for (;;) {
-		res = do_message(s);
-		
-		if (res < 0) {
+		if ((res = do_message(s)) < 0)
 			break;
-		} else if (s->eventq->next) {
-			if (process_events(s))
-				break;
-		}
 	}
 	if (s->authenticated) {
 		if (option_verbose > 1) {
