@@ -98,9 +98,6 @@ AH_TOP(
 
 #include "asterisk/buildopts.h"
 
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
 )
 
 AH_BOTTOM(
@@ -156,6 +153,8 @@ else
   DOWNLOAD=${FETCH}
 fi
 AC_SUBST(DOWNLOAD)
+
+ACX_PTHREAD
 
 AC_LANG(C)
 

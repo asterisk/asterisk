@@ -5,9 +5,6 @@
 
 #include "asterisk/buildopts.h"
 
-#ifndef _REENTRANT
-#define _REENTRANT
-#endif
 
 
 /* Define to 1 if the `closedir' function returns void instead of `int'. */
@@ -249,6 +246,9 @@
 
 /* Define to indicate the ${PRI_DESCRIP} library */
 #undef HAVE_PRI
+
+/* Define if you have POSIX threads libraries and header files. */
+#undef HAVE_PTHREAD
 
 /* Define to 1 if your system has PTHREAD_RWLOCK_INITIALIZER. */
 #undef HAVE_PTHREAD_RWLOCK_INITIALIZER
@@ -507,6 +507,10 @@
 
 /* Define to 1 if the C compiler supports function prototypes. */
 #undef PROTOTYPES
+
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE

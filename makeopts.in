@@ -2,7 +2,7 @@
 #       the exact uppercase equivalents of the names used for
 #       dependencies in menuselect for the same package.
 
-CC=@CC@
+CC=@PTHREAD_CC@
 HOST_CC=cc
 CXX=@CXX@
 
@@ -39,6 +39,9 @@ OSREV=@PBX_OSREV@
 
 GC_CFLAGS=@GC_CFLAGS@
 GC_LDFLAGS=@GC_LDFLAGS@
+
+PTHREAD_CFLAGS=@PTHREAD_CFLAGS@
+PTHREAD_LIBS=@PTHREAD_LIBS@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
