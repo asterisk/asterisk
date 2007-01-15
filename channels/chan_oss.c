@@ -75,6 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/musiconhold.h"
+#include "asterisk/app.h"
 
 /* ringtones we use */
 #include "busy.h"
@@ -803,9 +804,25 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 {
 	struct chan_oss_pvt *o = c->tech_pvt;
 	struct ast_frame f = { 0, };
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(name);
+		AST_APP_ARG(flags);
+	);
+	char *parse = ast_strdupa(dest);
+
+	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
 
 	ast_verbose(" << Call to device '%s' dnid '%s' rdnis '%s' on console from '%s' <%s> >>\n", dest, c->cid.cid_dnid, c->cid.cid_rdnis, c->cid.cid_name, c->cid.cid_num);
-	if (o->autoanswer) {
+	if (!ast_strlen_zero(args.flags) && strcasecmp(args.flags, "answer") == 0) {
+		f.frametype = AST_FRAME_CONTROL;
+		f.subclass = AST_CONTROL_ANSWER;
+		ast_queue_frame(c, &f);
+	} else if (!ast_strlen_zero(args.flags) && strcasecmp(args.flags, "noanswer") == 0) {
+		f.frametype = AST_FRAME_CONTROL;
+		f.subclass = AST_CONTROL_RINGING;
+		ast_queue_frame(c, &f);
+		ring(o, AST_CONTROL_RING);
+	} else if (o->autoanswer) {
 		ast_verbose(" << Auto-answered >> \n");
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_ANSWER;
@@ -1045,11 +1062,19 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 static struct ast_channel *oss_request(const char *type, int format, void *data, int *cause)
 {
 	struct ast_channel *c;
-	struct chan_oss_pvt *o = find_desc(data);
+	struct chan_oss_pvt *o;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(name);
+		AST_APP_ARG(flags);
+	);
+	char *parse = ast_strdupa(data);
+
+	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
+	o = find_desc(args.name);
 
 	ast_log(LOG_WARNING, "oss_request ty <%s> data 0x%p <%s>\n", type, data, (char *) data);
 	if (o == NULL) {
-		ast_log(LOG_NOTICE, "Device %s not found\n", (char *) data);
+		ast_log(LOG_NOTICE, "Device %s not found\n", args.name);
 		/* XXX we could default to 'dsp' perhaps ? */
 		return NULL;
 	}
