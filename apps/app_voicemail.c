@@ -2349,7 +2349,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 
-static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
+static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt, char *dir)
 {
 	char fromdir[PATH_MAX], todir[PATH_MAX], frompath[PATH_MAX], topath[PATH_MAX];
 	char *frombox = mbox(imbox);
@@ -2358,8 +2358,12 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	ast_log(LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
 	create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
-  
-	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
+	
+	if (!dir)
+		make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
+	else
+		ast_copy_string(fromdir, dir, sizeof(fromdir));
+
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
 
 	if (vm_lock_path(todir))
@@ -2700,7 +2704,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							context++;
 						}
 						if ((recip = find_user(&recipu, context, exten))) {
-							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
+							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt, dir);
 							free_user(recip);
 						}
 					}
@@ -3616,7 +3620,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context, record_gain, &duration);
 		if (!cmd) {
 			while (!res && vmtmp) {
-				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt);
+				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir);
 	
 				saved_messages++;
 				vmfree = vmtmp;
