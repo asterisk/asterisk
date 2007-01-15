@@ -70,7 +70,8 @@ static int group_count_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(group)) {
 		grp = pbx_builtin_getvar_helper(chan, category);
-		strncpy(group, grp, sizeof(group) - 1);
+		if (!ast_strlen_zero(grp))
+			ast_copy_string(group, grp, sizeof(group));
 	}
 
 	count = ast_app_group_get_count(group, category);
