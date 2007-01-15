@@ -1368,6 +1368,16 @@ static char version_help[] =
 "Usage: core show version\n"
 "       Shows Asterisk version information.\n";
 
+static int handle_version_deprecated(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "Asterisk %s built by %s @ %s on a %s running %s on %s\n",
+		ASTERISK_VERSION, ast_build_user, ast_build_hostname,
+		ast_build_machine, ast_build_os, ast_build_date);
+	return RESULT_SUCCESS;
+}
+
 static int handle_version(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
@@ -1519,6 +1529,11 @@ static int show_license(int fd, int argc, char *argv[])
 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
+static struct ast_cli_entry cli_show_version_deprecated = {
+	{ "show", "version", NULL },
+	handle_version_deprecated, "Display version info",
+	version_help };
+
 #if !defined(LOW_MEMORY)
 static struct ast_cli_entry cli_show_version_files_deprecated = {
 	{ "show", "version", "files", NULL },
@@ -1574,7 +1589,7 @@ static struct ast_cli_entry cli_asterisk[] = {
 
 	{ { "core", "show", "version", NULL },
 	handle_version, "Display version info",
-	version_help },
+	version_help, NULL, &cli_show_version_deprecated },
 
 	{ { "!", NULL },
 	handle_bang, "Execute a shell command",
