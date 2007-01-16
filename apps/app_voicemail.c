@@ -1078,7 +1078,7 @@ static int retrieve_file(char *dir, int msgnum)
 			}
 			if (!strcasecmp(coltitle, "recording")) {
 				off_t offset;
-				res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize2);
+				res = SQLGetData(stmt, x + 1, SQL_BINARY, rowdata, 0, &colsize2);
 				fdlen = colsize2;
 				if (fd > -1) {
 					char tmp[1]="";
@@ -1090,15 +1090,14 @@ static int retrieve_file(char *dir, int msgnum)
 					}
 					/* Read out in small chunks */
 					for (offset = 0; offset < colsize2; offset += CHUNKSIZE) {
-						/* +1 because SQLGetData likes null-terminating binary data */
-						if ((fdm = mmap(NULL, CHUNKSIZE + 1, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == (void *)-1) {
+						if ((fdm = mmap(NULL, CHUNKSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == (void *)-1) {
 							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
 							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 							ast_odbc_release_obj(obj);
 							goto yuck;
 						} else {
-							res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, CHUNKSIZE + 1, NULL);
-							munmap(fdm, 0);
+							res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, CHUNKSIZE, NULL);
+							munmap(fdm, CHUNKSIZE);
 							if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 								ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 								unlink(full_fn);
