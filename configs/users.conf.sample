@@ -26,6 +26,10 @@ userbase = 6000
 ;
 hasvoicemail = yes
 ;
+; Set voicemail mailbox 6000 password to 1234
+;
+vmpassword = 1234
+;
 ; Create SIP Peer
 ;
 hassip = yes
@@ -61,6 +65,7 @@ pickupgroup = 1
 ;secret = 1234
 ;zapchan = 1
 ;hasvoicemail = yes
+;vmpassword = 1234
 ;hassip = yes
 ;hasiax = no
 ;hash323 = no
