@@ -84,17 +84,8 @@ Could not connect to remote socket.
 bash: echo: write error: Broken pipe
 
 5) Compile Asterisk with support for ODBC voicemail.  Go to your Asterisk
-source directory and edit apps/Makefile, and uncomment the two lines as shown
-below:
-
-#
-# If you have UnixODBC you can use ODBC voicemail
-# storage
-#
-# Uncomment to use ODBC storage
-CFLAGS+=-DUSE_ODBC_STORAGE
-# Uncomment for extended ODBC voicemail storage
-CFLAGS+=-DEXTENDED_ODBC_STORAGE
+source directory and run `make menuselect`.  Under "Voicemail Build Options",
+enable "ODBC_STORAGE".
 # See doc/README.odbcstorage for more information
 
 Recompile Asterisk and install the new version.
