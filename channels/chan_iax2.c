@@ -2884,6 +2884,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
+	struct ast_var_t *var;
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Channel is already in use (%s)?\n", c->name);
@@ -3006,6 +3007,19 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 	/* send the command using the appropriate socket for this peer */
 	iaxs[callno]->sockfd = cai.sockfd;
+
+	/* Add remote vars */
+	AST_LIST_TRAVERSE(&c->varshead, var, entries) {
+		if (!strncmp(ast_var_name(var), "~IAX2~", strlen("~IAX2~"))) {
+			char tmp[256];
+			int i;
+			/* Automatically divide the value up into sized chunks */
+			for (i = 0; i < strlen(ast_var_value(var)); i += 255 - (strlen(ast_var_name(var)) - strlen("~IAX2~") + 1)) {
+				snprintf(tmp, sizeof(tmp), "%s=%s", ast_var_name(var) + strlen("~IAX2~"), ast_var_value(var) + i);
+				iax_ie_append_str(&ied, IAX_IE_VARIABLE, tmp);
+			}
+		}
+	}
 
 	/* Transmit the string in a "NEW" request */
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
@@ -6447,6 +6461,33 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 	return 1;
 }
 
+static int acf_iaxvar_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	const char *value;
+	char tmp[256];
+	snprintf(tmp, sizeof(tmp), "~IAX2~%s", data);
+	value = pbx_builtin_getvar_helper(chan, tmp);
+	ast_copy_string(buf, value ? value : "", len);
+	return 0;
+}
+
+static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *varname, const char *value)
+{
+	char tmp[256];
+	/* Inherit forever */
+	snprintf(tmp, sizeof(tmp), "__~IAX2~%s", varname);
+	pbx_builtin_setvar_helper(chan, tmp, value);
+	return 0;
+}
+
+static struct ast_custom_function iaxvar_function = {
+	.name = "IAXVAR",
+	.synopsis = "Sets or retrieves a remote variable",
+	.syntax = "IAXVAR(<varname>)",
+	.read = acf_iaxvar_read,
+	.write = acf_iaxvar_write,
+};
+
 static int socket_process(struct iax2_thread *thread)
 {
 	struct sockaddr_in sin;
@@ -6753,6 +6794,9 @@ retryowner:
 						} else {
 							if (option_debug)
 								ast_log(LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
+							/* Free remote variables (if any) */
+							if (ies.vars)
+								ast_variables_destroy(ies.vars);
 							ast_mutex_unlock(&iaxsl[fr->callno]);
 							return 1;
 						}
@@ -6996,6 +7040,18 @@ retryowner:
 								
 								if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
 									iax2_destroy(fr->callno);
+								else if (ies.vars) {
+									struct ast_variable *var, *prev = NULL;
+									char tmp[256];
+									for (var = ies.vars; var; var = var->next) {
+										if (prev)
+											free(prev);
+										prev = var;
+										snprintf(tmp, sizeof(tmp), "__~IAX2~%s", var->name);
+										pbx_builtin_setvar_helper(c, tmp, var->value);
+									}
+									ies.vars = NULL;
+								}
 							} else {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 								/* If this is a TBD call, we're ready but now what...  */
@@ -7586,6 +7642,10 @@ retryowner2:
 				iax_ie_append_byte(&ied0, IAX_IE_IAX_UNKNOWN, f.subclass);
 				send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_UNSUPPORT, 0, ied0.buf, ied0.pos, -1);
 			}
+			/* Free remote variables (if any) */
+			if (ies.vars)
+				ast_variables_destroy(ies.vars);
+
 			/* Don't actually pass these frames along */
 			if ((f.subclass != IAX_COMMAND_ACK) && 
 			  (f.subclass != IAX_COMMAND_TXCNT) && 
@@ -10025,6 +10085,7 @@ static int __unload_module(void)
 static int unload_module(void)
 {
 	ast_custom_function_unregister(&iaxpeer_function);
+	ast_custom_function_unregister(&iaxvar_function);
 	return __unload_module();
 }
 
@@ -10038,6 +10099,7 @@ static int load_module(void)
 	struct iax2_peer *peer = NULL;
 	
 	ast_custom_function_register(&iaxpeer_function);
+	ast_custom_function_register(&iaxvar_function);
 
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);

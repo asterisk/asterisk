@@ -73,6 +73,7 @@ struct iax_ies {
 	unsigned short rr_delay;
 	unsigned int rr_dropped;
 	unsigned int rr_ooo;
+	struct ast_variable *vars;
 };
 
 #define DIRECTION_INGRESS 1

@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/frame.h"
 #include "asterisk/utils.h"
 #include "asterisk/unaligned.h"
+#include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/threadstorage.h"
 
@@ -262,6 +263,7 @@ static struct iax2_ie {
 	{ IAX_IE_RR_DELAY, "RR_DELAY", dump_short },
 	{ IAX_IE_RR_DROPPED, "RR_DROPPED", dump_int },
 	{ IAX_IE_RR_OOO, "RR_OUTOFORDER", dump_int },
+	{ IAX_IE_VARIABLE, "VARIABLE", dump_string },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -613,7 +615,8 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	/* Parse data into information elements */
 	int len;
 	int ie;
-	char tmp[256];
+	char tmp[256], *tmp2;
+	struct ast_variable *var, *var2, *prev;
 	memset(ies, 0, (int)sizeof(struct iax_ies));
 	ies->msgcount = -1;
 	ies->firmwarever = -1;
@@ -896,6 +899,35 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				errorf(tmp);
 			} else {
 				ies->rr_ooo = ntohl(get_unaligned_uint32(data + 2));
+			}
+			break;
+		case IAX_IE_VARIABLE:
+			ast_copy_string(tmp, (char *)data + 2, len + 1);
+			tmp2 = strchr(tmp, '=');
+			if (tmp2)
+				*tmp2++ = '\0';
+			else
+				tmp2 = "";
+			/* Existing variable or new variable? */
+			for (var2 = ies->vars, prev = NULL; var2; prev = var2, var2 = var2->next) {
+				if (strcmp(tmp, var2->name) == 0) {
+					int len = strlen(var2->value) + strlen(tmp2) + 1;
+					char *tmp3 = alloca(len);
+					snprintf(tmp3, len, "%s%s", var2->value, tmp2);
+					var = ast_variable_new(tmp, tmp3);
+					var->next = var2->next;
+					if (prev)
+						prev->next = var;
+					else
+						ies->vars = var;
+					free(var2);
+					break;
+				}
+			}
+			if (!var2) {
+				var = ast_variable_new(tmp, tmp2);
+				var->next = ies->vars;
+				ies->vars = var;
 			}
 			break;
 		default:

@@ -128,6 +128,7 @@
 #define IAX_IE_RR_DELAY				49		/* Max playout delay for received frames (in ms) u16 */
 #define IAX_IE_RR_DROPPED			50		/* Dropped frames (presumably by jitterbuf) u32 */
 #define IAX_IE_RR_OOO				51		/* Frames received Out of Order u32 */
+#define IAX_IE_VARIABLE				52		/* Remote variables */
 
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
