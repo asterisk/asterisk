@@ -681,6 +681,10 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		ast_log(LOG_DEBUG, "Name: %s Value: %s\n", tmp->name, tmp->value);
 		if (!strcasecmp(tmp->name, "password") || !strcasecmp(tmp->name, "secret")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
+		} else if  (!strcasecmp(tmp->name, "secret")) {
+			/* dont let secret override vmpassword */
+			if ((strlen(retval->password) == 0))
+				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));	
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
 			ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
 		} else if (!strcasecmp(tmp->name, "pager")) {
@@ -775,134 +779,87 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 
 static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 {
-	/*  There's probably a better way of doing this. */
-	/*  That's why I've put the password change in a separate function. */
-	/*  This could also be done with a database function */
-	
-	FILE *configin;
-	FILE *configout;
-	int linenum=0;
-	char inbuf[256];
-	char orig[256];
-	char currcontext[256] = "";
-	char tmpin[PATH_MAX];
-	char tmpout[PATH_MAX];
-	struct stat statbuf;
-
+	struct ast_config   *cfg=NULL;
+	struct ast_variable *var=NULL;
+	struct ast_category *cat=NULL;
+	char *category=NULL, *value=NULL, *new=NULL;
+	const char *tmp=NULL;
+	int len;
+					
 	if (!change_password_realtime(vmu, newpassword))
 		return;
 
-	snprintf(tmpin, sizeof(tmpin), "%s/voicemail.conf", ast_config_AST_CONFIG_DIR);
-	snprintf(tmpout, sizeof(tmpout), "%s/voicemail.conf.new", ast_config_AST_CONFIG_DIR);
-	configin = fopen(tmpin,"r");
-	if (configin)
-		configout = fopen(tmpout,"w+");
-	else
-		configout = NULL;
-	if (!configin || !configout) {
-		if (configin)
-			fclose(configin);
-		else
-			ast_log(LOG_WARNING, "Warning: Unable to open '%s' for reading: %s\n", tmpin, strerror(errno));
-		if (configout)
-			fclose(configout);
-		else
-			ast_log(LOG_WARNING, "Warning: Unable to open '%s' for writing: %s\n", tmpout, strerror(errno));
-			return;
+	/* check voicemail.conf */
+	if ((cfg = ast_config_load_with_comments(VOICEMAIL_CONFIG))) {
+		while ((category = ast_category_browse(cfg, category))) {
+			if (!strcasecmp(category, vmu->context)) {
+				tmp = ast_variable_retrieve(cfg, category, vmu->mailbox);
+				if (!tmp) {
+					ast_log(LOG_WARNING, "We could not find the mailbox.\n");
+					break;
+				}
+				value = strstr(tmp,",");
+				if (!value) {
+					ast_log(LOG_WARNING, "variable has bad format.\n");
+					break;
+				}
+				len  = (strlen(value) + strlen(newpassword));
+				
+				if (!(new = ast_calloc(1,len))) {
+					ast_log(LOG_WARNING, "Memory Allocation Failed.\n");
+					break;
+				}
+				sprintf(new,"%s%s", newpassword, value);
+	
+				if (!(cat = ast_category_get(cfg, category))) {
+					ast_log(LOG_WARNING, "Failed to get category structure.\n");
+					break;
+				}
+				ast_variable_update(cat, vmu->mailbox, new, NULL);
+			}
+		}
+		/* save the results */
+		reset_user_pw(vmu->context, vmu->mailbox, newpassword);
+		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
+		config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
+		if (new)
+			free(new);
+	}
+	category = NULL;
+	var = NULL;
+	/* check users.conf and update the password stored for the mailbox*/
+	/* if no vmpassword entry exists create one. */
+	if ((cfg = ast_config_load_with_comments("users.conf"))) {
+		ast_log(LOG_WARNING, "we are looking for %s\n", vmu->mailbox);
+		while ((category = ast_category_browse(cfg, category))) {
+			ast_log(LOG_WARNING, "users.conf: %s\n", category);
+			if (!strcasecmp(category, vmu->mailbox)) {
+				if (!(tmp = ast_variable_retrieve(cfg, category, "vmpassword"))) {
+					ast_log(LOG_WARNING, "looks like we need to make vmpassword!\n");
+					var = ast_variable_new("vmpassword", newpassword);
+				} 
+				if (!(new = ast_calloc(1,strlen(newpassword)))) {
+					ast_log(LOG_WARNING, "Memory Allocation Failed.\n");
+					break;
+				} 
+				sprintf(new, "%s", newpassword);
+				if (!(cat = ast_category_get(cfg, category))) {
+					ast_log(LOG_WARNING, "failed to get category!\n");
+				}
+				if (!var)		
+					ast_variable_update(cat, "vmpassword", new, NULL);
+				else
+					ast_variable_append(cat, var);
+			}
+		}
+		/* save the results and clean things up */
+		reset_user_pw(vmu->context, vmu->mailbox, newpassword);	
+		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
+		config_text_file_save("users.conf", cfg, "AppVoicemail");
+		if (new) 
+			free(new);
 	}
 
-	while (!feof(configin)) {
-		char *user = NULL, *pass = NULL, *rest = NULL, *comment = NULL, *tmpctx = NULL, *tmpctxend = NULL;
-
-		/* Read in the line */
-		if (fgets(inbuf, sizeof(inbuf), configin) == NULL)
-			continue;
-		linenum++;
-
-		/* Make a backup of it */
-		ast_copy_string(orig, inbuf, sizeof(orig));
-
-		/*
-		  Read the file line by line, split each line into a comment and command section
-		  only parse the command portion of the line
-		*/
-		if (inbuf[strlen(inbuf) - 1] == '\n')
-			inbuf[strlen(inbuf) - 1] = '\0';
-
-		if ((comment = strchr(inbuf, ';')))
-			*comment++ = '\0'; /* Now inbuf is terminated just before the comment */
-
-		if (ast_strlen_zero(inbuf)) {
-			fprintf(configout, "%s", orig);
-			continue;
-		}
-
-		/* Check for a context, first '[' to first ']' */
-		if ((tmpctx = strchr(inbuf, '['))) {
-			tmpctxend = strchr(tmpctx, ']');
-			if (tmpctxend) {
-				/* Valid context */
-				ast_copy_string(currcontext, tmpctx + 1, tmpctxend - tmpctx);
-				fprintf(configout, "%s", orig);
-				continue;
-			}
-		}
-
-		/* This isn't a context line, check for MBX => PSWD... */
-		user = inbuf;
-		if ((pass = strchr(user, '='))) {
-			/* We have a line in the form of aaaaa=aaaaaa */
-			*pass++ = '\0';
-
-			user = ast_strip(user);
-
-			if (*pass == '>')
-				*pass++ = '\0';
-
-			pass = ast_skip_blanks(pass);
-
-			/* 
-			   Since no whitespace allowed in fields, or more correctly white space
-			   inside the fields is there for a purpose, we can just terminate pass
-			   at the comma or EOL whichever comes first.
-			*/
-			if ((rest = strchr(pass, ',')))
-				*rest++ = '\0';
-		} else {
-			user = NULL;
-		}			
-
-		/* Compare user, pass AND context */
-		if (!ast_strlen_zero(user) && !strcmp(user, vmu->mailbox) &&
-			!ast_strlen_zero(pass) && !strcmp(pass, vmu->password) &&
-			!strcasecmp(currcontext, vmu->context)) {
-			/* This is the line */
-			if (rest) {
-				fprintf(configout, "%s => %s,%s", user, newpassword, rest);
-			} else {
-				fprintf(configout, "%s => %s", user, newpassword);
-			}
-			/* If there was a comment on the line print it out */
-			if (comment) {
-				fprintf(configout, ";%s\n", comment);
-			} else {
-				fprintf(configout, "\n");
-			}
-		} else {
-			/* Put it back like it was */
-			fprintf(configout, "%s", orig);
-		}
-	}
-	fclose(configin);
-	fclose(configout);
-
-	stat(tmpin, &statbuf);
-	chmod(tmpout, statbuf.st_mode);
-	chown(tmpout, statbuf.st_uid, statbuf.st_gid);
-	unlink(tmpin);
-	rename(tmpout, tmpin);
-	reset_user_pw(vmu->context, vmu->mailbox, newpassword);
-	ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 }
 
 static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
@@ -6554,6 +6511,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 						cmd = forward_message(chan, context, &vms, vmu, vmfmts, 1, record_gain);
 						if (cmd == ERROR_LOCK_PATH) {
 							res = cmd;
+							ast_log(LOG_WARNING, "forward_message failed to lock path.\n");
 							goto out;
 						}
 					} else
