@@ -945,7 +945,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		}
 #endif
 
-	if (cfg->include_level == 1 && withcomments && comment_buffer) {
+	if (cfg && cfg->include_level == 1 && withcomments && comment_buffer) {
 		free(comment_buffer);
 		free(lline_buffer);
 		comment_buffer = NULL;
