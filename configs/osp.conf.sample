@@ -5,8 +5,8 @@
 ; Asterisk OSP module.  The section "general" is reserved for global options.  
 ; All other sections describe specific OSP Providers.  The provider "default" 
 ; is used when no provider is otherwise specified. 
-:
-: The "servicepoint" and "source" parameters must be configured.  For most 
+;
+; The "servicepoint" and "source" parameters must be configured.  For most 
 ; implementations the other parameters in this file can be left unchanged.
 ;
 [general]
