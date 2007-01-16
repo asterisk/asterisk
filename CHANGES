@@ -61,6 +61,7 @@ Changes since Asterisk 1.4-beta was branched:
   * Added the jittertargetextra configuration option.
   * Added the URI redirect option for the built-in HTTP server
   * Added the trunkmaxsize configuration option to chan_iax2.
+  * Added G729 passthrough support to chan_phone for Sigma Designs boards.
 
 SIP changes
 -----------

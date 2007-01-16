@@ -98,7 +98,7 @@ static int echocancel = AEC_OFF;
 
 static int silencesupression = 0;
 
-static int prefformat = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW;
+static int prefformat = AST_FORMAT_G729A | AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW;
 
 /* Protect the interface list (of phone_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -170,7 +170,7 @@ static int phone_indicate(struct ast_channel *chan, int condition, const void *d
 static const struct ast_channel_tech phone_tech = {
 	.type = "Phone",
 	.description = tdesc,
-	.capabilities = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW,
+	.capabilities = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_G729A,
 	.requester = phone_request,
 	.send_digit_begin = phone_digit_begin,
 	.send_digit_end = phone_digit_end,
@@ -399,8 +399,17 @@ static int phone_setup(struct ast_channel *ast)
 	p = ast->tech_pvt;
 	ioctl(p->fd, PHONE_CPT_STOP);
 	/* Nothing to answering really, just start recording */
-	if (ast->rawreadformat == AST_FORMAT_G723_1) {
-		/* Prefer g723 */
+	if (ast->rawreadformat == AST_FORMAT_G729A) {
+		/* Prefer g729 */
+		ioctl(p->fd, PHONE_REC_STOP);
+		if (p->lastinput != AST_FORMAT_G729A) {
+			p->lastinput = AST_FORMAT_G729A;
+			if (ioctl(p->fd, PHONE_REC_CODEC, G729)) {
+				ast_log(LOG_WARNING, "Failed to set codec to g729\n");
+				return -1;
+			}
+		}
+        } else if (ast->rawreadformat == AST_FORMAT_G723_1) {
 		ioctl(p->fd, PHONE_REC_STOP);
 		if (p->lastinput != AST_FORMAT_G723_1) {
 			p->lastinput = AST_FORMAT_G723_1;
@@ -667,7 +676,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	}
 	if (!(frame->subclass &
-		(AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW)) && 
+		(AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_G729A)) && 
 	    p->mode != MODE_FXS) {
 		ast_log(LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
 		return -1;
@@ -684,7 +693,30 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		return 0;
 	}
 #endif	
-	if (frame->subclass == AST_FORMAT_G723_1) {
+	if (frame->subclass == AST_FORMAT_G729A) {
+		if (p->lastformat != AST_FORMAT_G729A) {
+			ioctl(p->fd, PHONE_PLAY_STOP);
+			ioctl(p->fd, PHONE_REC_STOP);
+			if (ioctl(p->fd, PHONE_PLAY_CODEC, G729)) {
+				ast_log(LOG_WARNING, "Unable to set G729 mode\n");
+				return -1;
+			}
+			if (ioctl(p->fd, PHONE_REC_CODEC, G729)) {
+				ast_log(LOG_WARNING, "Unable to set G729 mode\n");
+				return -1;
+			}
+			p->lastformat = AST_FORMAT_G729A;
+			p->lastinput = AST_FORMAT_G729A;
+			/* Reset output buffer */
+			p->obuflen = 0;
+			codecset = 1;
+		}
+		if (frame->datalen > 80) {
+			ast_log(LOG_WARNING, "Frame size too large for G.729 (%d bytes)\n", frame->datalen);
+			return -1;
+		}
+		maxfr = 80;
+        } else if (frame->subclass == AST_FORMAT_G723_1) {
 		if (p->lastformat != AST_FORMAT_G723_1) {
 			ioctl(p->fd, PHONE_PLAY_STOP);
 			ioctl(p->fd, PHONE_REC_STOP);
@@ -1214,7 +1246,7 @@ static struct ast_channel *phone_request(const char *type, int format, void *dat
 	p = iflist;
 	while(p) {
 		if (p->mode == MODE_FXS ||
-		    format & (AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW)) {
+		    format & (AST_FORMAT_G729A | AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW)) {
 		    size_t length = strlen(p->dev + 5);
     		if (strncmp(name, p->dev + 5, length) == 0 &&
     		    !isalnum(name[length])) {
@@ -1231,7 +1263,7 @@ static struct ast_channel *phone_request(const char *type, int format, void *dat
 	restart_monitor();
 	if (tmp == NULL) {
 		oldformat = format;
-		format &= (AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW);
+		format &= (AST_FORMAT_G729A | AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW);
 		if (!format) {
 			ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
 			return NULL;
@@ -1382,7 +1414,9 @@ static int load_module(void)
 		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(context, v->value, sizeof(context));
 		} else if (!strcasecmp(v->name, "format")) {
-			if (!strcasecmp(v->value, "g723.1")) {
+			if (!strcasecmp(v->value, "g729")) {
+				prefformat = AST_FORMAT_G729A;
+                        } else if (!strcasecmp(v->value, "g723.1")) {
 				prefformat = AST_FORMAT_G723_1;
 			} else if (!strcasecmp(v->value, "slinear")) {
 				if (mode == MODE_FXS)

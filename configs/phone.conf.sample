@@ -18,12 +18,14 @@ mode=immediate
 ;mode=fxo
 ;mode=sig
 ;
-; You can decide which format to use by default, "g723.1" or "slinear".
+; You can decide which format to use by default, "g723.1", "g729", or "slinear".
+; Note that g729 is only supported for Sigma Designs boards.
 ; XXX Be careful, sometimes the card causes kernel panics when running
 ; in signed linear mode for some reason... XXX
 ;
 format=slinear
 ;format=g723.1
+;format=g729
 ;
 ; And set the echo cancellation to "off", "low", "medium", and "high".
 ; This is not supported on all phones.
