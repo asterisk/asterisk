@@ -694,6 +694,12 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
 		} else if (!strcasecmp(tmp->name, "context")) {
 			ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
+#ifdef IMAP_STORAGE
+		} else if (!strcasecmp(tmp->name, "imapuser")) {
+			ast_copy_string(retval->imapuser, tmp->value, sizeof(retval->imapuser));
+		} else if (!strcasecmp(tmp->name, "imappassword")) {
+			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
+#endif
 		} else
 			apply_option(retval, tmp->name, tmp->value);
 		tmp = tmp->next;
@@ -8407,6 +8413,28 @@ static void status(MAILSTREAM *stream)
 }
 #endif
 
+static struct ast_vm_user *find_user_realtime_imapuser(const char *imapuser)
+{
+	struct ast_variable *var;
+	struct ast_vm_user *vmu;
+
+	vmu = ast_calloc(1, sizeof *vmu);
+	if (!vmu)
+		return NULL;
+	ast_set_flag(vmu, VM_ALLOCED);
+	populate_defaults(vmu);
+
+	var = ast_load_realtime("voicemail", "imapuser", imapuser, NULL);
+	if (var) {
+		apply_options_full(vmu, var);
+		ast_variables_destroy(var);
+		return vmu;
+	} else {
+		free(vmu);
+		return NULL;
+	}
+}
+
 /* Interfaces to C-client */
 
 void mm_exists(MAILSTREAM * stream, unsigned long number)
@@ -8540,6 +8568,12 @@ void mm_login(NETMBX * mb, char *user, char *pwd, long trial)
 			if(!strcasecmp(mb->user, vmu->imapuser)) {
 				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
 				break;
+			}
+		}
+		if (!vmu) {
+			if ((vmu = find_user_realtime_imapuser(mb->user))) {
+				ast_copy_string(pwd, vmu->imappassword, MAILTMPLEN);
+				free_user(vmu);
 			}
 		}
 	}
