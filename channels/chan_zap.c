@@ -11909,9 +11909,15 @@ static int process_zap(struct ast_variable *v, int reload, int skipchannels)
 		} else if (!strcasecmp(v->name, "group")) {
 			cur_group = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "callgroup")) {
-			cur_callergroup = ast_get_group(v->value);
+			if (!strcasecmp(v->value, "none"))
+				cur_callergroup = 0;
+			else
+				cur_callergroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
-			cur_pickupgroup = ast_get_group(v->value);
+			if (!strcasecmp(v->value, "none"))
+				cur_pickupgroup = 0;
+			else
+				cur_pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "immediate")) {
 			immediate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
