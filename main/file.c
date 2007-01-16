@@ -799,10 +799,9 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 			return -1;
 		if (vfs && ast_playstream(vfs))
 			return -1;
-#if 1
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (language '%s')\n", filename, preflang ? preflang : "default");
-#endif
+			ast_verbose(VERBOSE_PREFIX_3 "<%s> Playing '%s' (language '%s')\n", chan->name, filename, preflang ? preflang : "default");
+
 		return 0;
 	}
 	ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname_multiple(fmt, sizeof(fmt), chan->nativeformats), strerror(errno));
