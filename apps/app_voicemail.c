@@ -681,9 +681,9 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 		ast_log(LOG_DEBUG, "Name: %s Value: %s\n", tmp->name, tmp->value);
 		if (!strcasecmp(tmp->name, "password") || !strcasecmp(tmp->name, "secret")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-		} else if  (!strcasecmp(tmp->name, "secret")) {
+		} else if (!strcasecmp(tmp->name, "secret")) {
 			/* dont let secret override vmpassword */
-			if ((strlen(retval->password) == 0))
+			if (ast_strlen_zero(retval->password))
 				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));	
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
 			ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
@@ -803,7 +803,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					ast_log(LOG_WARNING, "variable has bad format.\n");
 					break;
 				}
-				len  = (strlen(value) + strlen(newpassword));
+				len = (strlen(value) + strlen(newpassword));
 				
 				if (!(new = ast_calloc(1,len))) {
 					ast_log(LOG_WARNING, "Memory Allocation Failed.\n");
@@ -830,21 +830,26 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	/* check users.conf and update the password stored for the mailbox*/
 	/* if no vmpassword entry exists create one. */
 	if ((cfg = ast_config_load_with_comments("users.conf"))) {
-		ast_log(LOG_WARNING, "we are looking for %s\n", vmu->mailbox);
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "we are looking for %s\n", vmu->mailbox);
 		while ((category = ast_category_browse(cfg, category))) {
-			ast_log(LOG_WARNING, "users.conf: %s\n", category);
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "users.conf: %s\n", category);
 			if (!strcasecmp(category, vmu->mailbox)) {
 				if (!(tmp = ast_variable_retrieve(cfg, category, "vmpassword"))) {
-					ast_log(LOG_WARNING, "looks like we need to make vmpassword!\n");
+					if (option_debug > 3)
+						ast_log(LOG_DEBUG, "looks like we need to make vmpassword!\n");
 					var = ast_variable_new("vmpassword", newpassword);
 				} 
 				if (!(new = ast_calloc(1,strlen(newpassword)))) {
-					ast_log(LOG_WARNING, "Memory Allocation Failed.\n");
+					if (option_debug > 3)
+						ast_log(LOG_DEBUG, "Memory Allocation Failed.\n");
 					break;
 				} 
 				sprintf(new, "%s", newpassword);
 				if (!(cat = ast_category_get(cfg, category))) {
-					ast_log(LOG_WARNING, "failed to get category!\n");
+					if (option_debug > 3)
+						ast_log(LOG_DEBUG, "failed to get category!\n");
 				}
 				if (!var)		
 					ast_variable_update(cat, "vmpassword", new, NULL);
