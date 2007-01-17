@@ -678,12 +678,11 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 	struct ast_variable *tmp;
 	tmp = var;
 	while (tmp) {
-		if (!strcasecmp(tmp->name, "password") || !strcasecmp(tmp->name, "secret")) {
+		if (!strcasecmp(tmp->name, "vmpassword")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-		} else if (!strcasecmp(tmp->name, "secret")) {
-			/* dont let secret override vmpassword */
+		} else if (!strcasecmp(tmp->name, "secret")) { /* don't overwrite vmpassword if it exists */
 			if (ast_strlen_zero(retval->password))
-				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));	
+				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
 			ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
 		} else if (!strcasecmp(tmp->name, "pager")) {
@@ -789,7 +788,6 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	struct ast_category *cat=NULL;
 	char *category=NULL, *value=NULL, *new=NULL;
 	const char *tmp=NULL;
-	int len;
 					
 	if (!change_password_realtime(vmu, newpassword))
 		return;
@@ -808,14 +806,8 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					ast_log(LOG_WARNING, "variable has bad format.\n");
 					break;
 				}
-				len = (strlen(value) + strlen(newpassword));
-				
-				if (!(new = ast_calloc(1,len))) {
-					ast_log(LOG_WARNING, "Memory Allocation Failed.\n");
-					break;
-				}
+				new = alloca((strlen(value)+strlen(newpassword)+1));
 				sprintf(new,"%s%s", newpassword, value);
-	
 				if (!(cat = ast_category_get(cfg, category))) {
 					ast_log(LOG_WARNING, "Failed to get category structure.\n");
 					break;
@@ -827,8 +819,6 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 		config_text_file_save(VOICEMAIL_CONFIG, cfg, "AppVoicemail");
-		if (new)
-			free(new);
 	}
 	category = NULL;
 	var = NULL;
@@ -846,15 +836,12 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 						ast_log(LOG_DEBUG, "looks like we need to make vmpassword!\n");
 					var = ast_variable_new("vmpassword", newpassword);
 				} 
-				if (!(new = ast_calloc(1,strlen(newpassword)))) {
-					if (option_debug > 3)
-						ast_log(LOG_DEBUG, "Memory Allocation Failed.\n");
-					break;
-				} 
+				new = alloca(strlen(newpassword)+1);
 				sprintf(new, "%s", newpassword);
 				if (!(cat = ast_category_get(cfg, category))) {
 					if (option_debug > 3)
 						ast_log(LOG_DEBUG, "failed to get category!\n");
+					break;
 				}
 				if (!var)		
 					ast_variable_update(cat, "vmpassword", new, NULL);
@@ -866,10 +853,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		reset_user_pw(vmu->context, vmu->mailbox, newpassword);	
 		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 		config_text_file_save("users.conf", cfg, "AppVoicemail");
-		if (new) 
-			free(new);
 	}
-
 }
 
 static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
