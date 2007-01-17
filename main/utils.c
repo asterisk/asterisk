@@ -653,7 +653,7 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 	char *q;
 
 	s = ast_strip(s);
-	if ((q = strchr(beg_quotes, *s))) {
+	if ((q = strchr(beg_quotes, *s)) && *q != '\0') {
 		e = s + strlen(s) - 1;
 		if (*e == *(end_quotes + (q - beg_quotes))) {
 			s++;
