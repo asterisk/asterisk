@@ -3850,11 +3850,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "SIP/%s-%08x", my_name, (int)(long) i);
 
 	}
-	sip_pvt_lock(i);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate AST channel structure for SIP channel\n");
 		return NULL;
 	}
+	sip_pvt_lock(i);
 	tmp->tech = &sip_tech;
 
 	/* Select our native format based on codec preference until we receive
