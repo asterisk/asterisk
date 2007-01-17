@@ -1116,11 +1116,11 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 				ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
 			ast_set_flag(bridged, FLAG_NAT_INACTIVE_NOWARN);
 		}
-		return -1;
+		return 0;
 	} else if (rtp_debug_test_addr(&bridged->them))
 			ast_verbose("Sent RTP P2P packet to %s:%d (type %-2.2d, len %-6.6u)\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), bridged_payload, len - hdrlen);
 
-	return -1;
+	return 0;
 }
 
 struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
