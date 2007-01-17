@@ -363,6 +363,8 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	if ((tmp = ast_variable_retrieve(cfg, catg, "dsn"))) {
 		ast_copy_string((*query)->dsn, tmp, sizeof((*query)->dsn));
 	} else {
+		free(*query);
+		*query = NULL;
 		return -1;
 	}
 
@@ -384,6 +386,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));
 	if (! (*query)->acf) {
 		free(*query);
+		*query = NULL;
 		return -1;
 	}
 
@@ -396,6 +399,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	if (!((*query)->acf->name)) {
 		free((*query)->acf);
 		free(*query);
+		*query = NULL;
 		return -1;
 	}
 
@@ -405,6 +409,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		free((char *)(*query)->acf->name);
 		free((*query)->acf);
 		free(*query);
+		*query = NULL;
 		return -1;
 	}
 
@@ -440,6 +445,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		free((char *)(*query)->acf->name);
 		free((*query)->acf);
 		free(*query);
+		*query = NULL;
 		return -1;
 	}
 
@@ -496,7 +502,6 @@ static int odbc_load_module(void)
 		struct acf_odbc_query *query = NULL;
 
 		if (init_acf_query(cfg, catg, &query)) {
-			ast_log(LOG_ERROR, "Out of memory\n");
 			free_acf_query(query);
 		} else {
 			AST_LIST_INSERT_HEAD(&queries, query, list);
