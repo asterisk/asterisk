@@ -2782,11 +2782,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	ast_mutex_unlock(&i->lock);
 	/* Don't hold a sip pvt lock while we allocate a channel */
 	tmp = ast_channel_alloc(1);
-	ast_mutex_lock(&i->lock);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate SIP channel structure\n");
 		return NULL;
 	}
+	ast_mutex_lock(&i->lock);
 	tmp->tech = &sip_tech;
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
