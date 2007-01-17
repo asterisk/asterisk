@@ -1637,8 +1637,10 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 			res = chan->tech->answer(chan);
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
+		ast_channel_unlock(chan);
 		if (delay)
 			ast_safe_sleep(chan, delay);
+		return res;
 		break;
 	case AST_STATE_UP:
 		ast_cdr_answer(chan->cdr);
