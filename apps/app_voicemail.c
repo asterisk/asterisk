@@ -680,7 +680,7 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 	while (tmp) {
 		if (!strcasecmp(tmp->name, "vmpassword")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-		} else if (!strcasecmp(tmp->name, "secret")) { /* don't overwrite vmpassword if it exists */
+		} else if (!strcasecmp(tmp->name, "secret") || !strcasecmp(tmp->name, "password")) { /* don't overwrite vmpassword if it exists */
 			if (ast_strlen_zero(retval->password))
 				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
