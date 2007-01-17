@@ -962,26 +962,25 @@ static int __schedule_action(void (*func)(void *data), void *data, const char *f
 #define schedule_action(func, data) __schedule_action(func, data, __PRETTY_FUNCTION__)
 #endif
 
+static int send_ping(void *data);
+
 static void __send_ping(void *data)
 {
 	int callno = (long)data;
 	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno])
+	if (iaxs[callno] && iaxs[callno]->pingid != -1) {
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
+		iaxs[callno]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, data);
+	}
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
 static int send_ping(void *data)
 {
-	int callno = (long)data;
-	if (iaxs[callno]) {
 #ifdef SCHED_MULTITHREADED
-		if (schedule_action(__send_ping, data))
+	if (schedule_action(__send_ping, data))
 #endif		
-			__send_ping(data);
-		return 1;
-	} else
-		return 0;
+		__send_ping(data);
 	return 0;
 }
 
@@ -997,27 +996,26 @@ static int get_encrypt_methods(const char *s)
 	return e;
 }
 
+static int send_lagrq(void *data);
+
 static void __send_lagrq(void *data)
 {
 	int callno = (long)data;
 	/* Ping only if it's real not if it's bridged */
 	ast_mutex_lock(&iaxsl[callno]);
-	if (iaxs[callno])
+	if (iaxs[callno] && iaxs[callno]->lagid != -1) {
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
+		iaxs[callno]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
+	}
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
 static int send_lagrq(void *data)
 {
-	int callno = (long)data;
-	if (iaxs[callno]) {
 #ifdef SCHED_MULTITHREADED
-		if (schedule_action(__send_lagrq, data))
+	if (schedule_action(__send_lagrq, data))
 #endif		
-			__send_lagrq(data);
-		return 1;
-	} else
-		return 0;
+		__send_lagrq(data);
 	return 0;
 }
 
