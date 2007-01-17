@@ -5056,7 +5056,7 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.samples = READ_SIZE;
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = AST_FRIENDLY_OFFSET;
-	p->subs[index].f.data = p->subs[index].buffer + AST_FRIENDLY_OFFSET/2;
+	p->subs[index].f.data = p->subs[index].buffer + AST_FRIENDLY_OFFSET / sizeof(p->subs[index].buffer[0]);
 #if 0
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Read %d of voice on %s\n", p->subs[index].f.datalen, ast->name);
