@@ -143,7 +143,8 @@ struct ast_rtp {
 	unsigned int dtmfduration;
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
-	char send_digit;
+	char sending_digit;	/* boolean - are we sending digits */
+	char send_digit;	/* digit we are sending */
 	int send_payload;
 	int send_duration;
 	int nat;
@@ -1142,7 +1143,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	struct ast_rtp *bridged = NULL;
 	
 	/* If time is up, kill it */
-	if (rtp->send_digit)
+	if (rtp->sending_digit)
 		ast_rtp_senddigit_continuation(rtp);
 
 	len = sizeof(sin);
@@ -2203,6 +2204,7 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 	}
 
 	/* Since we received a begin, we can safely store the digit and disable any compensation */
+	rtp->sending_digit = 1;
 	rtp->send_digit = digit;
 	rtp->send_payload = payload;
 
@@ -2294,6 +2296,7 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 				    ast_inet_ntoa(rtp->them.sin_addr),
 				    ntohs(rtp->them.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 	}
+	rtp->sending_digit = 0;
 	rtp->send_digit = 0;
 	/* Increment lastdigitts */
 	rtp->lastdigitts += 960;
