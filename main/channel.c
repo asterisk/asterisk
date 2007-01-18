@@ -214,7 +214,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 }
 
-static int show_channeltype(int fd, int argc, char *argv[])
+static int show_channeltype_deprecated(int fd, int argc, char *argv[])
 {
 	struct chanlist *cl = NULL;
 
@@ -267,7 +267,60 @@ static int show_channeltype(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_channeltypes(const char *line, const char *word, int pos, int state)
+static int show_channeltype(int fd, int argc, char *argv[])
+{
+	struct chanlist *cl = NULL;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (AST_LIST_LOCK(&channels)) {
+		ast_log(LOG_WARNING, "Unable to lock channel list\n");
+		return RESULT_FAILURE;
+	}
+
+	AST_LIST_TRAVERSE(&backends, cl, list) {
+		if (!strncasecmp(cl->tech->type, argv[3], strlen(cl->tech->type))) {
+			break;
+		}
+	}
+
+
+	if (!cl) {
+		ast_cli(fd, "\n%s is not a registered channel driver.\n", argv[3]);
+		AST_LIST_UNLOCK(&channels);
+		return RESULT_FAILURE;
+	}
+
+	ast_cli(fd,
+		"-- Info about channel driver: %s --\n"
+		"  Device State: %s\n"
+		"    Indication: %s\n"
+		"     Transfer : %s\n"
+		"  Capabilities: %d\n"
+		"   Digit Begin: %s\n"
+		"     Digit End: %s\n"
+		"    Send HTML : %s\n"
+		" Image Support: %s\n"
+		"  Text Support: %s\n",
+		cl->tech->type,
+		(cl->tech->devicestate) ? "yes" : "no",
+		(cl->tech->indicate) ? "yes" : "no",
+		(cl->tech->transfer) ? "yes" : "no",
+		(cl->tech->capabilities) ? cl->tech->capabilities : -1,
+		(cl->tech->send_digit_begin) ? "yes" : "no",
+		(cl->tech->send_digit_end) ? "yes" : "no",
+		(cl->tech->send_html) ? "yes" : "no",
+		(cl->tech->send_image) ? "yes" : "no",
+		(cl->tech->send_text) ? "yes" : "no"
+		
+	);
+
+	AST_LIST_UNLOCK(&channels);
+	return RESULT_SUCCESS;
+}
+
+static char *complete_channeltypes_deprecated(const char *line, const char *word, int pos, int state)
 {
 	struct chanlist *cl;
 	int which = 0;
@@ -275,6 +328,28 @@ static char *complete_channeltypes(const char *line, const char *word, int pos, 
 	char *ret = NULL;
 
 	if (pos != 2)
+		return NULL;
+
+	wordlen = strlen(word);
+
+	AST_LIST_TRAVERSE(&backends, cl, list) {
+		if (!strncasecmp(word, cl->tech->type, wordlen) && ++which > state) {
+			ret = strdup(cl->tech->type);
+			break;
+		}
+	}
+	
+	return ret;
+}
+
+static char *complete_channeltypes(const char *line, const char *word, int pos, int state)
+{
+	struct chanlist *cl;
+	int which = 0;
+	int wordlen;
+	char *ret = NULL;
+
+	if (pos != 3)
 		return NULL;
 
 	wordlen = strlen(word);
@@ -304,8 +379,8 @@ static struct ast_cli_entry cli_show_channeltypes_deprecated = {
 
 static struct ast_cli_entry cli_show_channeltype_deprecated = {
 	{ "show", "channeltype", NULL },
-	show_channeltype, NULL,
-	NULL, complete_channeltypes };
+	show_channeltype_deprecated, NULL,
+	NULL, complete_channeltypes_deprecated };
 
 static struct ast_cli_entry cli_channel[] = {
 	{ { "core", "show", "channeltypes", NULL },
