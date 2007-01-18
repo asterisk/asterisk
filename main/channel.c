@@ -218,7 +218,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 {
 	struct chanlist *cl = NULL;
 
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	
 	if (AST_LIST_LOCK(&channels)) {
@@ -227,14 +227,14 @@ static int show_channeltype(int fd, int argc, char *argv[])
 	}
 
 	AST_LIST_TRAVERSE(&backends, cl, list) {
-		if (!strncasecmp(cl->tech->type, argv[2], strlen(cl->tech->type))) {
+		if (!strncasecmp(cl->tech->type, argv[3], strlen(cl->tech->type))) {
 			break;
 		}
 	}
 
 
 	if (!cl) {
-		ast_cli(fd, "\n%s is not a registered channel driver.\n", argv[2]);
+		ast_cli(fd, "\n%s is not a registered channel driver.\n", argv[3]);
 		AST_LIST_UNLOCK(&channels);
 		return RESULT_FAILURE;
 	}
@@ -274,7 +274,7 @@ static char *complete_channeltypes(const char *line, const char *word, int pos, 
 	int wordlen;
 	char *ret = NULL;
 
-	if (pos != 2)
+	if (pos != 3)
 		return NULL;
 
 	wordlen = strlen(word);
