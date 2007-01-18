@@ -120,7 +120,7 @@ static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		return NULL;
 
 	case CLI_GENERATE:
-		if (a->argc != e->args + 1)
+		if (a->pos != e->args)
 			return NULL;
 		return complete_fn(a->word, a->n);
 	}
