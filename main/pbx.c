@@ -4750,11 +4750,13 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	if (option_debug) {
 		if (tmp->matchcid) {
-			ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s\n",
+					tmp->exten, tmp->priority, tmp->cidmatch, con->name);
 		} else {
-			ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n",
-				tmp->exten, tmp->priority, con->name);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n",
+					tmp->exten, tmp->priority, con->name);
 		}
 	}
 	if (option_verbose > 2) {

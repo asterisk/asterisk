@@ -1985,12 +1985,14 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
 		snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
 		tmpfd = mkstemp(newtmp);
-		ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
 		if (vmu->volgain < -.001 || vmu->volgain > .001) {
 			snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
 			ast_safe_system(tmpcmd);
 			attach = newtmp;
-			ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
 		}
 		fprintf(p, "--%s\r\n", bound);
 		fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\r\n", ctype, format, msgnum, format);
@@ -2027,7 +2029,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	}
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	if ((p = vm_mkftemp(tmp)) == NULL) {
@@ -4649,7 +4652,8 @@ static int init_mailstream(struct vm_state *vms, int box)
 	if(option_debug > 2)
 		ast_log (LOG_DEBUG,"vm_state user is:%s\n",vms->imapuser);
 	if (vms->mailstream == NIL || !vms->mailstream) {
-		ast_log (LOG_DEBUG,"mailstream not set.\n");
+		if (option_debug)
+			ast_log (LOG_DEBUG,"mailstream not set.\n");
 	} else {
 		stream = vms->mailstream;
 	}
@@ -6407,7 +6411,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if(option_debug > 2)
 			ast_log(LOG_DEBUG, "Checking quotas: comparing %u to %u\n",vms.quota_usage,vms.quota_limit);
 		if (vms.quota_limit && vms.quota_usage >= vms.quota_limit) {
-			ast_log(LOG_DEBUG, "*** QUOTA EXCEEDED!!\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "*** QUOTA EXCEEDED!!\n");
 			cmd = ast_play_and_wait(chan, "vm-mailboxfull");
 		}
 #endif
