@@ -100,7 +100,7 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 editline/libedit.a:
-	cd editline && test -f config.h || CFLAGS="$(PTHREAD_CFLAGS) $(ASTCFLAGS:-Werror=)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM)
+	cd editline && test -f config.h || CFLAGS="$(PTHREAD_CFLAGS) $(ASTCFLAGS:-Werror=)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM) --with-ncurses=$(NCURSES_DIR) --with-curses=$(CURSES_DIR) --with-termcap=$(TERMCAP_DIR) --with-tinfo=$(TINFO_DIR)
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a:
@@ -141,6 +141,6 @@ asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 clean::
 	rm -f asterisk
 	rm -f db1-ast/.*.d
-	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
+	@if [ -f editline/Makefile ]; then $(MAKE) -C editline clean ; fi
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean

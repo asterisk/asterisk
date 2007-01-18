@@ -34,6 +34,7 @@ esac
 PBX_$1=0
 AC_SUBST([$1_LIB])
 AC_SUBST([$1_INCLUDE])
+AC_SUBST([$1_DIR])
 AC_SUBST([PBX_$1])
 ])
 

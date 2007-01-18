@@ -59,6 +59,10 @@ export SOLINK
 export STRIP
 export DOWNLOAD
 export OSARCH
+export CURSES_DIR
+export NCURSES_DIR
+export TERMCAP_DIR
+export TINFO_DIR
 
 # even though we could use '-include makeopts' here, use a wildcard
 # lookup anyway, so that make won't try to build makeopts if it doesn't
