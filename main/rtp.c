@@ -2864,7 +2864,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			if ((fr->subclass == AST_CONTROL_HOLD) ||
 			    (fr->subclass == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass == AST_CONTROL_VIDUPDATE)) {
-				ast_indicate(other, fr->subclass);
+				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
@@ -3072,7 +3072,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 					p0_callback = p2p_callback_enable(c0, p0, &p0_fds[0], &p0_iod[0]);
 					p1_callback = p2p_callback_enable(c1, p1, &p1_fds[0], &p1_iod[0]);
 				}
-				ast_indicate(other, fr->subclass);
+				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
 				ast_frfree(fr);
 			} else {
 				*fo = fr;
