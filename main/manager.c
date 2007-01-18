@@ -887,70 +887,75 @@ static int authenticate(struct mansession *s, const struct message *m)
 		return -1;
 	while ( (cat = ast_category_browse(cfg, cat)) ) {
 		/* "general" is not a valid user */
-		if (!strcasecmp(cat, user) && strcasecmp(cat, "general"))
-			break;
-	}
-	if (!cat) {
-		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-		ast_config_destroy(cfg);
-		return -1;
-	}
-
-	/* collect parameters for the user's entry */
-	for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-		if (!strcasecmp(v->name, "secret"))
-			password = ast_strdupa(v->value);
-		else if (!strcasecmp(v->name, "read"))
-			readperm = get_perm(v->value);
-		else if (!strcasecmp(v->name, "write"))
-			writeperm = get_perm(v->value);
-		else if (!strcasecmp(v->name, "permit") ||
-			   !strcasecmp(v->name, "deny")) {
-			ha = ast_append_ha(v->name, v->value, ha, NULL);
-		} else if (!strcasecmp(v->name, "writetimeout")) {
-			int val = atoi(v->value);
-
-			if (val < 100)
-				ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
-			else
-				s->writetimeout = val;
+		if (strcasecmp(cat, user) || !strcasecmp(cat, "general"))
+			continue;
+		/* collect parameters for the user's entry */
+		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+			if (!strcasecmp(v->name, "secret"))
+				password = ast_strdupa(v->value);
+			else if (!strcasecmp(v->name, "read"))
+				readperm = get_perm(v->value);
+			else if (!strcasecmp(v->name, "write"))
+				writeperm = get_perm(v->value);
+			else if (!strcasecmp(v->name, "permit") ||
+				   !strcasecmp(v->name, "deny")) {
+				ha = ast_append_ha(v->name, v->value, ha, NULL);
+			} else if (!strcasecmp(v->name, "writetimeout")) {
+				int val = atoi(v->value);
+	
+				if (val < 100)
+					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
+				else
+					s->writetimeout = val;
+			}
 		}
 	}
-	ast_config_destroy(cfg);
-	cfg = ast_config_load("users.conf");
-	if (!cfg)
-		return -1;
-	cat = NULL;
-	while ( (cat = ast_category_browse(cfg, cat)) ) {
-		if (!strcasecmp(cat, user) && strcasecmp(cat, "general"))
-			break;
-	}
-	if (!cat) {
-		ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
-		ast_config_destroy(cfg);
-		return -1;
-	}
-	/* collect parameters for the user's entry from users.conf */
-	for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
-		if (!strcasecmp(v->name, "secret"))
-			password = ast_strdupa(v->value);
-		else if (!strcasecmp(v->name, "read"))
-			readperm = get_perm(v->value);
-		else if (!strcasecmp(v->name, "write"))
-			writeperm = get_perm(v->value);
-		else if (!strcasecmp(v->name, "permit") ||
-			   !strcasecmp(v->name, "deny")) {
-			ha = ast_append_ha(v->name, v->value, ha, NULL);
-		} else if (!strcasecmp(v->name, "writetimeout")) {
-			int val = atoi(v->value);
 
-			if (val < 100)
-				ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
-			else
-				s->writetimeout = val;
+	ast_config_destroy(cfg);
+	if (!cat) {
+		/* Didn't find the user in manager.conf, check users.conf */
+		int hasmanager = 0;
+		cfg = ast_config_load("users.conf");
+		if (!cfg)
+			return -1;
+		while ( (cat = ast_category_browse(cfg, cat)) ) {
+			if (!strcasecmp(cat, user) && strcasecmp(cat, "general"))
+				break;
+		}
+		if (!cat) {
+			ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+			ast_config_destroy(cfg);
+			return -1;
+		}
+		/* collect parameters for the user's entry from users.conf */
+		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+			if (!strcasecmp(v->name, "secret"))
+				password = ast_strdupa(v->value);
+			else if (!strcasecmp(v->name, "read"))
+				readperm = get_perm(v->value);
+			else if (!strcasecmp(v->name, "write"))
+				writeperm = get_perm(v->value);
+			else if (!strcasecmp(v->name, "permit") ||
+				   !strcasecmp(v->name, "deny")) {
+				ha = ast_append_ha(v->name, v->value, ha, NULL);
+			} else if (!strcasecmp(v->name, "writetimeout")) {
+				int val = atoi(v->value);
+	
+				if (val < 100)
+					ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
+				else
+					s->writetimeout = val;
+			} else if (!strcasecmp(v->name, "hasmanager")) {
+				hasmanager = ast_true(v->value);
+			}
+		}
+		ast_config_destroy(cfg);
+		if (!hasmanager) {
+			ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+			return -1;
 		}
 	}
-	ast_config_destroy(cfg);
+
 	}
 
 	if (ha) {
