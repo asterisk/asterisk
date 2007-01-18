@@ -1243,12 +1243,33 @@ static char *complete_mod_4(const char *line, const char *word, int pos, int sta
 	return ast_module_helper(line, word, pos, state, 3, 0);
 }
 
-static char *complete_fn(const char *line, const char *word, int pos, int state)
+static char *complete_fn_2(const char *line, const char *word, int pos, int state)
 {
 	char *c;
 	char filename[256];
 
 	if (pos != 1)
+		return NULL;
+	
+	if (word[0] == '/')
+		ast_copy_string(filename, word, sizeof(filename));
+	else
+		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
+	
+	c = filename_completion_function(filename, state);
+	
+	if (c && word[0] != '/')
+		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
+	
+	return c ? strdup(c) : c;
+}
+
+static char *complete_fn_3(const char *line, const char *word, int pos, int state)
+{
+	char *c;
+	char filename[256];
+
+	if (pos != 2)
 		return NULL;
 	
 	if (word[0] == '/')
@@ -1391,7 +1412,7 @@ static struct ast_cli_entry cli_show_modules_like_deprecated = {
 static struct ast_cli_entry cli_module_load_deprecated = {
 	{ "load", NULL },
 	handle_load_deprecated, NULL,
-	NULL, complete_fn };
+	NULL, complete_fn_2 };
 
 static struct ast_cli_entry cli_module_reload_deprecated = {
 	{ "reload", NULL },
@@ -1460,7 +1481,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	{ { "module", "load", NULL },
 	handle_load, "Load a module by name",
-	load_help, complete_fn, &cli_module_load_deprecated },
+	load_help, complete_fn_3, &cli_module_load_deprecated },
 
 	{ { "module", "reload", NULL },
 	handle_reload, "Reload configuration",
