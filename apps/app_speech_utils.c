@@ -609,7 +609,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                         /* If audio playback has stopped do a check for timeout purposes */
                         if (chan->streamid == -1 && chan->timingfunc == NULL)
                                 ast_stopstream(chan);
-                        if (chan->stream == NULL && timeout > 0 && started == 0) {
+                        if (chan->stream == NULL && timeout > 0 && started == 0 && !filename_tmp) {
 				time(&start);
 				started = 1;
                         }
