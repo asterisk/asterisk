@@ -2000,7 +2000,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 		base_encode(fname, p);
 		/* only attach if necessary */
-		if (imap && strcmp(format, "gsm")) {
+		if (imap && !strcmp(format, "gsm")) {
 			fprintf(p, "--%s\r\n", bound);
 			fprintf(p, "Content-Type: audio/x-gsm; name=\"msg%04d.%s\"\r\n", msgnum, format);
 			fprintf(p, "Content-Transfer-Encoding: base64\r\n");
@@ -4605,8 +4605,9 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 #ifdef IMAP_STORAGE
 static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int use_folder)
 {
-	char tmp[256];
-	
+	char tmp[256], *t = tmp;
+	size_t left = sizeof(tmp);
+
 	if (box == 1) {
 		ast_copy_string(vms->curbox, mbox(0), sizeof(vms->curbox));
 		sprintf(vms->vmbox, "vm-%s", mbox(1));
@@ -4615,11 +4616,20 @@ static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int use
 		snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
 	}
 
-	if (strlen(authuser) > 0) {
-		snprintf(tmp, sizeof(tmp), "{%s:%s/imap/authuser=%s/%s/user=%s}",imapserver,imapport,authuser,imapflags,vms->imapuser);
-	} else {
-		snprintf(tmp, sizeof(tmp), "{%s:%s/imap/%s/user=%s}",imapserver,imapport,imapflags,vms->imapuser);
-	}
+	/* Build up server information */
+	ast_build_string(&t, &left, "{%s:%s/imap", imapserver, imapport);
+
+	/* Add authentication user if present */
+	if (!ast_strlen_zero(authuser))
+		ast_build_string(&t, &left, "/%s", authuser);
+
+	/* Add flags if present */
+	if (!ast_strlen_zero(imapflags))
+		ast_build_string(&t, &left, "/%s", imapflags);
+
+	/* End with username */
+	ast_build_string(&t, &left, "/user=%s}", vms->imapuser);
+
 	if(box == 0 || box == 1)
 		sprintf(spec, "%s%s", tmp, use_folder? imapfolder: "INBOX");
 	else
