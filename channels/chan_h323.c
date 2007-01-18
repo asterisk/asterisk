@@ -1425,7 +1425,11 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 			}
 		} else if (!strcasecmp(v->name, "permit") ||
 					!strcasecmp(v->name, "deny")) {
-			user->ha = ast_append_ha(v->name, v->value, user->ha, NULL);
+			int ha_error = 0;
+
+			user->ha = ast_append_ha(v->name, v->value, user->ha, &ha_error);
+			if (ha_error)
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 		}
 	}
 	if (!user->options.dtmfmode)
@@ -1529,7 +1533,11 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 			peer->addr.sin_port = htons(atoi(v->value));
 		} else if (!strcasecmp(v->name, "permit") ||
 					!strcasecmp(v->name, "deny")) {
-			peer->ha = ast_append_ha(v->name, v->value, peer->ha);
+			int ha_error = 0;
+
+			peer->ha = ast_append_ha(v->name, v->value, peer->ha, &ha_error);
+			if (ha_error)
+				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
 		}
