@@ -958,6 +958,40 @@ static int authenticate(struct mansession *s, const struct message *m)
 			set_eventmask(s, events);
 		return 0;
 	}
+	ast_config_destroy(cfg);
+	cfg = ast_config_load("users.conf");
+	if (!cfg)
+		return -1;
+	cat = ast_category_browse(cfg, NULL);
+	while (cat) {
+		struct ast_variable *v;
+		const char *password = NULL;
+		int hasmanager = 0;
+		if (strcasecmp(cat, user) || !strcasecmp(cat, "general")) {
+			cat = ast_category_browse(cfg, cat);
+			continue;
+		}
+		for (v = ast_variable_browse(cfg, cat); v; v = v->next) {
+			if (!strcasecmp(v->name, "secret"))
+				password = v->value;
+			else if (!strcasecmp(v->name, "hasmanager"))
+				hasmanager = ast_true(v->value);
+		}
+		if (!hasmanager)
+			break;
+		if (!password || strcmp(password, pass)) {
+			ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
+			ast_config_destroy(cfg);
+			return -1;
+		}
+		ast_copy_string(s->username, cat, sizeof(s->username));
+		s->readperm = -1;
+		s->writeperm = -1;
+		ast_config_destroy(cfg);
+		if (events)
+			set_eventmask(s, events);
+		return 0;
+	}
 	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(s->sin.sin_addr), user);
 	ast_config_destroy(cfg);
 	return -1;
