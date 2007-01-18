@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/utils.h"
+#include "asterisk/devicestate.h"
 
 static const char *app_page= "Page";
 
@@ -61,19 +62,21 @@ static const char *page_descrip =
 "destroyed when the original caller leaves.  Valid options are:\n"
 "        d - full duplex audio\n"
 "        q - quiet, do not play beep to caller\n"
-"        r - record the page into a file (see 'r' for app_meetme)\n";
-
+"        r - record the page into a file (see 'r' for app_meetme)\n"
+"        s - only dial channel if devicestate says it is not in use\n";
 
 enum {
 	PAGE_DUPLEX = (1 << 0),
 	PAGE_QUIET = (1 << 1),
 	PAGE_RECORD = (1 << 2),
+	PAGE_SKIP = (1 << 3),
 } page_opt_flags;
 
 AST_APP_OPTIONS(page_opts, {
 	AST_APP_OPTION('d', PAGE_DUPLEX),
 	AST_APP_OPTION('q', PAGE_QUIET),
 	AST_APP_OPTION('r', PAGE_RECORD),
+	AST_APP_OPTION('s', PAGE_SKIP),
 });
 
 struct calloutdata {
@@ -187,16 +190,25 @@ static int page_exec(struct ast_channel *chan, void *data)
 		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
 
 	while ((tech = strsep(&tmp, "&"))) {
+		int state = 0;
+
 		/* don't call the originating device */
 		if (!strcasecmp(tech, originator))
 			continue;
 
-		if ((resource = strchr(tech, '/'))) {
-			*resource++ = '\0';
-			launch_page(chan, meetmeopts, tech, resource);
-		} else {
+		if (!(resource = strchr(tech, '/'))) {
 			ast_log(LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
+			continue;
 		}
+
+		/* Ensure device is not in use if skip option is enabled */
+		if (ast_test_flag(&flags, PAGE_SKIP) && (state = ast_device_state(tech)) != AST_DEVICE_NOT_INUSE) {
+			ast_log(LOG_WARNING, "Destination '%s' has device state '%s'.\n", tech, devstate2str(state));
+			continue;
+		}
+		
+		*resource++ = '\0';
+		launch_page(chan, meetmeopts, tech, resource);
 	}
 
 	if (!ast_test_flag(&flags, PAGE_QUIET)) {
