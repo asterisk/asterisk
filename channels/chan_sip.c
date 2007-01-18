@@ -2745,6 +2745,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	ast_string_field_set(dialog, username, peer->username);
 	ast_string_field_set(dialog, peersecret, peer->secret);
 	ast_string_field_set(dialog, peermd5secret, peer->md5secret);
+	ast_string_field_set(dialog, mohsuggest, peer->mohsuggest);
+	ast_string_field_set(dialog, mohinterpret, peer->mohinterpret);
 	ast_string_field_set(dialog, tohost, peer->tohost);
 	ast_string_field_set(dialog, fullcontact, peer->fullcontact);
 	if (!dialog->initreq.headers && !ast_strlen_zero(peer->fromdomain)) {
