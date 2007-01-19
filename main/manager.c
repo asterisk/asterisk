@@ -909,6 +909,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 					s->writetimeout = val;
 			}
 		}
+		break;
 	}
 
 	ast_config_destroy(cfg);
