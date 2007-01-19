@@ -297,7 +297,6 @@ static const char *descripslat =
 "other participants in the conference, all member stations are invited into\n"
 "the bridge.\n";
 
-#define CONFIG_FILE_NAME "meetme.conf"
 #define CONFIG_FILE_NAME_SLA "sla.conf"
 
 /*! \brief The MeetMe Conference object */
