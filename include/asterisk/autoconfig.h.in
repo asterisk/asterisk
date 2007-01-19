@@ -59,6 +59,12 @@
 /* Define to 1 if your GCC C compiler supports the 'unused' attribute. */
 #undef HAVE_ATTRIBUTE_unused
 
+/* Define this to indicate the ${BKTR_DESCRIP} library */
+#undef HAVE_BKTR
+
+/* Define to indicate the ${BKTR_DESCRIP} library version */
+#undef HAVE_BKTR_VERSION
+
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
@@ -584,11 +590,23 @@
 /* Define to 1 if `vfork' works. */
 #undef HAVE_WORKING_VFORK
 
-/* Define if your system has the ZAPTEL headers. */
+/* Define this to indicate the ${ZAPTEL_DESCRIP} library */
 #undef HAVE_ZAPTEL
 
-/* Define ZAPTEL headers version */
+/* Define if your system has the ZAPTEL_TRANSCODE headers. */
+#undef HAVE_ZAPTEL_TRANSCODE
+
+/* Define ZAPTEL_TRANSCODE headers version */
+#undef HAVE_ZAPTEL_TRANSCODE_VERSION
+
+/* Define to indicate the ${ZAPTEL_DESCRIP} library version */
 #undef HAVE_ZAPTEL_VERSION
+
+/* Define this to indicate the ${ZAPTEL_VLDTMF_DESCRIP} library */
+#undef HAVE_ZAPTEL_VLDTMF
+
+/* Define to indicate the ${ZAPTEL_VLDTMF_DESCRIP} library version */
+#undef HAVE_ZAPTEL_VLDTMF_VERSION
 
 /* Define this to indicate the ${ZLIB_DESCRIP} library */
 #undef HAVE_ZLIB
