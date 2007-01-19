@@ -177,6 +177,7 @@ AC_SUBST(AST_DEVMODE)
 # by the --with option name, to make things easier for the users :-)
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
+AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace support], [execinfo])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
@@ -215,6 +216,8 @@ AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
 AST_EXT_LIB_SETUP([ZAPTEL], [Zaptel], [zaptel])
+AST_EXT_LIB_SETUP([ZAPTEL_TRANSCODE], [Zaptel_transcode], [zaptel_transcode])
+AST_EXT_LIB_SETUP([ZAPTEL_VLDTMF], [Zaptel_vldtmf], [zaptel_vldtmf])
 
 # check for basic system features and functionality before
 # checking for package libraries
@@ -852,56 +855,28 @@ AC_LANG_POP
 
 AST_EXT_LIB_CHECK([ZLIB], [z], [compress], [zlib.h])
 
-AST_C_DEFINE_CHECK([ZAPTEL], [ZT_DIAL_OP_CANCEL], [zaptel/zaptel.h])
+# Check for various zaptel features and locations.
+# The version number, which goes into HAVE_ZAPTEL_VERSION,
+# will be used in the system headers to determine the location
+# of the zaptel.h header.
 
-if test "${PBX_ZAPTEL}" = 1; then
-   AC_MSG_CHECKING(for ZT_TONE_DTMF_BASE in zaptel/zaptel.h)
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${ZAPTEL_DIR}" != "x"; then
-      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
-   fi
-   AC_COMPILE_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <zaptel/zaptel.h>],
-	[int foo = ZT_TONE_DTMF_BASE;])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_zaptel_vldtmf="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_zaptel_vldtmf="no" 
-	]
-	)
-   CPPFLAGS="${saved_cppflags}"
-   if test "${ac_cv_zaptel_vldtmf}" = "yes"; then
-	PBX_ZAPTEL_VLDTMF=1
-   fi
-   AC_MSG_CHECKING(for ZT_TCOP_TRANSCODE in zaptel/zaptel.h)
-   saved_cppflags="${CPPFLAGS}"
-   if test "x${ZAPTEL_DIR}" != "x"; then
-      CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
-   fi
-   AC_COMPILE_IFELSE(
-	[
-	AC_LANG_PROGRAM(
-	[#include <zaptel/zaptel.h>],
-	[int foo = ZT_TCOP_TRANSCODE;])
-	],
-	[	AC_MSG_RESULT(yes) 
-		ac_cv_zaptel_transcode="yes" 
-	],
-	[	AC_MSG_RESULT(no) 
-		ac_cv_zaptel_transcode="no" 
-	]
-	)
-   CPPFLAGS="${saved_cppflags}"
-   if test "${ac_cv_zaptel_transcode}" = "yes"; then
-	PBX_ZAPTEL_TRANSCODE=1
-   fi
-fi
-AC_SUBST(PBX_ZAPTEL_VLDTMF)
-AC_SUBST(PBX_ZAPTEL_TRANSCODE)
+AST_C_DEFINE_CHECK([ZAPTEL], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h], [140])
+AST_C_DEFINE_CHECK([ZAPTEL], [ZT_DIAL_OP_CANCEL], [zaptel/zaptel.h], [90])
+
+# Check for VLDTMF support
+AST_C_DEFINE_CHECK([ZAPTEL_VLDTMF], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h])
+
+# Check for transcode support
+AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_TRANSCODE], [zaptel/zaptel.h])
+
+# On FreeBSD, try old zaptel (0.80 or so) and pretend we have vldtmf
+case "${host_os}" in
+    freebsd*)
+	AST_EXT_LIB_CHECK([ZAPTEL], [zaptel],, [zaptel.h],, [80])
+	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel/zaptel.h],, [90])
+	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel.h],, [80])
+	;;
+esac
 
 EDITLINE_LIB=""
 if test "x$TERMCAP_LIB" != "x" ; then
