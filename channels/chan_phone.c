@@ -156,7 +156,7 @@ static char cid_name[AST_MAX_EXTENSION];
 
 static struct ast_channel *phone_request(const char *type, int format, void *data, int *cause);
 static int phone_digit_begin(struct ast_channel *ast, char digit);
-static int phone_digit_end(struct ast_channel *ast, char digit);
+static int phone_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int phone_call(struct ast_channel *ast, char *dest, int timeout);
 static int phone_hangup(struct ast_channel *ast);
 static int phone_answer(struct ast_channel *ast);
@@ -244,12 +244,12 @@ static int phone_digit_begin(struct ast_channel *chan, char digit)
 	return 0;
 }
 
-static int phone_digit_end(struct ast_channel *ast, char digit)
+static int phone_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct phone_pvt *p;
 	int outdigit;
 	p = ast->tech_pvt;
-	ast_log(LOG_NOTICE, "Dialed %c\n", digit);
+	ast_log(LOG_DEBUG, "Dialed %c\n", digit);
 	switch(digit) {
 	case '0':
 	case '1':
@@ -280,7 +280,7 @@ static int phone_digit_end(struct ast_channel *ast, char digit)
 		ast_log(LOG_WARNING, "Unknown digit '%c'\n", digit);
 		return -1;
 	}
-	ast_log(LOG_NOTICE, "Dialed %d\n", outdigit);
+	ast_log(LOG_DEBUG, "Dialed %d\n", outdigit);
 	ioctl(p->fd, PHONE_PLAY_TONE, outdigit);
 	p->lastformat = -1;
 	return 0;
@@ -333,7 +333,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		{
 		  digit++;
 		  while (*digit)
-		    phone_digit_end(ast, *digit++);
+		    phone_digit_end(ast, *digit++, 0);
 		}
 	}
  

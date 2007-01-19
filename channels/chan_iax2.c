@@ -817,7 +817,7 @@ static int iax2_answer(struct ast_channel *c);
 static int iax2_call(struct ast_channel *c, char *dest, int timeout);
 static int iax2_devicestate(void *data);
 static int iax2_digit_begin(struct ast_channel *c, char digit);
-static int iax2_digit_end(struct ast_channel *c, char digit);
+static int iax2_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int iax2_do_register(struct iax2_registry *reg);
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 static int iax2_hangup(struct ast_channel *c);
@@ -2476,7 +2476,7 @@ static int iax2_digit_begin(struct ast_channel *c, char digit)
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_DTMF_BEGIN, digit, 0, NULL, 0, -1);
 }
 
-static int iax2_digit_end(struct ast_channel *c, char digit)
+static int iax2_digit_end(struct ast_channel *c, char digit, unsigned int duration)
 {
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_DTMF_END, digit, 0, NULL, 0, -1);
 }
@@ -6353,7 +6353,7 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 
 	if (packet_len < (sizeof(*meta) + sizeof(*mth))) {
 		ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %d min)\n", packet_len,
-			sizeof(*meta) + sizeof(*mth));
+			(int) (sizeof(*meta) + sizeof(*mth)));
 		return 1;
 	}
 	mth = (struct ast_iax2_meta_trunk_hdr *)(meta->data);
@@ -6523,7 +6523,7 @@ static int socket_process(struct iax2_thread *thread)
 	memcpy(&sin, &thread->iosin, sizeof(sin));
 
 	if (res < sizeof(*mh)) {
-		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(*mh));
+		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int) sizeof(*mh));
 		return 1;
 	}
 	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
@@ -6684,7 +6684,7 @@ static int socket_process(struct iax2_thread *thread)
 		}
 		/* A full frame */
 		if (res < sizeof(*fh)) {
-			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(*fh));
+			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, (int) sizeof(*fh));
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}

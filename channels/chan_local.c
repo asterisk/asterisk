@@ -68,7 +68,7 @@ static const char tdesc[] = "Local Proxy Channel Driver";
 
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause);
 static int local_digit_begin(struct ast_channel *ast, char digit);
-static int local_digit_end(struct ast_channel *ast, char digit);
+static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int local_call(struct ast_channel *ast, char *dest, int timeout);
 static int local_hangup(struct ast_channel *ast);
 static int local_answer(struct ast_channel *ast);
@@ -368,7 +368,7 @@ static int local_digit_begin(struct ast_channel *ast, char digit)
 	return res;
 }
 
-static int local_digit_end(struct ast_channel *ast, char digit)
+static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
@@ -381,6 +381,7 @@ static int local_digit_end(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
+	f.len = duration;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
 	

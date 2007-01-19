@@ -2067,7 +2067,7 @@ static int misdn_digit_begin(struct ast_channel *chan, char digit)
 	return 0;
 }
 
-static int misdn_digit_end(struct ast_channel *ast, char digit )
+static int misdn_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct chan_list *p;
 	

@@ -501,11 +501,9 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		strcpy((char *)out->src, f->src);
 	}
 	out->has_timing_info = f->has_timing_info;
-	if (f->has_timing_info) {
-		out->ts = f->ts;
-		out->len = f->len;
-		out->seqno = f->seqno;
-	}
+	out->ts = f->ts;
+	out->len = f->len;
+	out->seqno = f->seqno;
 	return out;
 }
 

@@ -170,7 +170,9 @@ AST_MUTEX_DEFINE_STATIC(gtalklock); /*!< Protect the interface list (of gtalk_pv
 
 /* Forward declarations */
 static struct ast_channel *gtalk_request(const char *type, int format, void *data, int *cause);
-static int gtalk_digit(struct ast_channel *ast, char digit);
+static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration);
+static int gtalk_digit_begin(struct ast_channel *ast, char digit);
+static int gtalk_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int gtalk_call(struct ast_channel *ast, char *dest, int timeout);
 static int gtalk_hangup(struct ast_channel *ast);
 static int gtalk_answer(struct ast_channel *ast);
@@ -195,8 +197,8 @@ static const struct ast_channel_tech gtalk_tech = {
 	.description = "Gtalk Channel Driver",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.requester = gtalk_request,
-	.send_digit_begin = gtalk_digit,
-	.send_digit_end = gtalk_digit,
+	.send_digit_begin = gtalk_digit_begin,
+	.send_digit_end = gtalk_digit_end,
 	.bridge = ast_rtp_bridge,
 	.call = gtalk_call,
 	.hangup = gtalk_hangup,
@@ -1338,7 +1340,17 @@ static int gtalk_indicate(struct ast_channel *ast, int condition, const void *da
 	return res;
 }
 
-static int gtalk_digit(struct ast_channel *ast, char digit)
+static int gtalk_digit_begin(struct ast_channel *chan, char digit)
+{
+	return gtalk_digit(chan, digit, 0);
+}
+
+static int gtalk_digit_end(struct ast_channel *chan, char digit, unsigned int duration)
+{
+	return gtalk_digit(chan, digit, duration);
+}
+
+static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct gtalk_pvt *p = ast->tech_pvt;
 	struct gtalk *client = p->parent;
@@ -1373,8 +1385,8 @@ static int gtalk_digit(struct ast_channel *ast, char digit)
 	iks_insert_node(gtalk, dtmf);
 
 	ast_mutex_lock(&p->lock);
-	if(ast->dtmff.frametype == AST_FRAME_DTMF) {
-		ast_verbose("Sending 250ms dtmf!\n");
+	if (ast->dtmff.frametype == AST_FRAME_DTMF) {
+		ast_log(LOG_DEBUG, "Sending 250ms dtmf!\n");
 	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN) {
 		iks_insert_attrib(dtmf, "action", "button-down");
 	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END) {

@@ -406,7 +406,7 @@ static int setformat(struct chan_oss_pvt *o, int mode);
 static struct ast_channel *oss_request(const char *type, int format, void *data
 , int *cause);
 static int oss_digit_begin(struct ast_channel *c, char digit);
-static int oss_digit_end(struct ast_channel *c, char digit);
+static int oss_digit_end(struct ast_channel *c, char digit, unsigned int duration);
 static int oss_text(struct ast_channel *c, const char *text);
 static int oss_hangup(struct ast_channel *c);
 static int oss_answer(struct ast_channel *c);
@@ -776,10 +776,11 @@ static int oss_digit_begin(struct ast_channel *c, char digit)
 	return 0;
 }
 
-static int oss_digit_end(struct ast_channel *c, char digit)
+static int oss_digit_end(struct ast_channel *c, char digit, unsigned int duration)
 {
 	/* no better use for received digits than print them */
-	ast_verbose(" << Console Received digit %c >> \n", digit);
+	ast_verbose(" << Console Received digit %c of duration %u ms >> \n", 
+		digit, duration);
 	return 0;
 }
 

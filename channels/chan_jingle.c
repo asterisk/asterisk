@@ -169,7 +169,7 @@ AST_MUTEX_DEFINE_STATIC(jinglelock); /*!< Protect the interface list (of jingle_
 /* Forward declarations */
 static struct ast_channel *jingle_request(const char *type, int format, void *data, int *cause);
 static int jingle_digit_begin(struct ast_channel *ast, char digit);
-static int jingle_digit_end(struct ast_channel *ast, char digit);
+static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int jingle_call(struct ast_channel *ast, char *dest, int timeout);
 static int jingle_hangup(struct ast_channel *ast);
 static int jingle_answer(struct ast_channel *ast);
@@ -1182,13 +1182,7 @@ static int jingle_indicate(struct ast_channel *ast, int condition, const void *d
 	return res;
 }
 
-static int jingle_digit_begin(struct ast_channel *chan, char digit)
-{
-	/* XXX Does jingle have a concept of the length of a dtmf digit ? */
-	return 0;
-}
-
-static int jingle_digit_end(struct ast_channel *ast, char digit)
+static int jingle_digit(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct jingle_pvt *p = ast->tech_pvt;
 	struct jingle *client = p->parent;
@@ -1223,9 +1217,7 @@ static int jingle_digit_end(struct ast_channel *ast, char digit)
 	iks_insert_node(jingle, dtmf);
 
 	ast_mutex_lock(&p->lock);
-	if(ast->dtmff.frametype == AST_FRAME_DTMF) {
-		ast_verbose("Sending 250ms dtmf!\n");
-	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN) {
+	if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN) {
 		iks_insert_attrib(dtmf, "action", "button-down");
 	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END) {
 		iks_insert_attrib(dtmf, "action", "button-up");
@@ -1236,6 +1228,16 @@ static int jingle_digit_end(struct ast_channel *ast, char digit)
 	iks_delete(dtmf);
 	ast_mutex_unlock(&p->lock);
 	return 0;
+}
+
+static int jingle_digit_begin(struct ast_channel *chan, char digit)
+{
+	return jingle_digit(chan, digit, 0);
+}
+
+static int jingle_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
+{
+	return jingle_digit(ast, digit, duration);
 }
 
 static int jingle_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen)

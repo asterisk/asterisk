@@ -428,7 +428,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame);
 static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, size_t datalen);
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int mgcp_senddigit_begin(struct ast_channel *ast, char digit);
-static int mgcp_senddigit_end(struct ast_channel *ast, char digit);
+static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int mgcp_devicestate(void *data);
 
 static const struct ast_channel_tech mgcp_tech = {
@@ -1282,7 +1282,7 @@ static int mgcp_senddigit_begin(struct ast_channel *ast, char digit)
 	return -1;
 }
 
-static int mgcp_senddigit_end(struct ast_channel *ast, char digit)
+static int mgcp_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	char tmp[4];

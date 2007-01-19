@@ -230,7 +230,7 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 static int agent_devicestate(void *data);
 static void agent_logoff_maintenance(struct agent_pvt *p, char *loginchan, long logintime, const char *uniqueid, char *logcommand);
 static int agent_digit_begin(struct ast_channel *ast, char digit);
-static int agent_digit_end(struct ast_channel *ast, char digit);
+static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int agent_call(struct ast_channel *ast, char *dest, int timeout);
 static int agent_hangup(struct ast_channel *ast);
 static int agent_answer(struct ast_channel *ast);
@@ -610,12 +610,12 @@ static int agent_digit_begin(struct ast_channel *ast, char digit)
 	return res;
 }
 
-static int agent_digit_end(struct ast_channel *ast, char digit)
+static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	ast_mutex_lock(&p->lock);
-	ast_senddigit_end(p->chan, digit);
+	ast_senddigit_end(p->chan, digit, duration);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }

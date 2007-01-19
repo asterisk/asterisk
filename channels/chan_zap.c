@@ -724,7 +724,7 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause);
 static int zt_digit_begin(struct ast_channel *ast, char digit);
-static int zt_digit_end(struct ast_channel *ast, char digit);
+static int zt_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int zt_sendtext(struct ast_channel *c, const char *text);
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout);
 static int zt_hangup(struct ast_channel *ast);
@@ -1170,7 +1170,7 @@ out:
 	return 0;
 }
 
-static int zt_digit_end(struct ast_channel *chan, char digit)
+static int zt_digit_end(struct ast_channel *chan, char digit, unsigned int duration)
 {
 	struct zt_pvt *pvt;
 	int res = 0;

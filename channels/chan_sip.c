@@ -1228,7 +1228,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 static int sip_transfer(struct ast_channel *ast, const char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit_begin(struct ast_channel *ast, char digit);
-static int sip_senddigit_end(struct ast_channel *ast, char digit);
+static int sip_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
 
 /*--- Transmitting responses and requests */
 static int sipsock_read(int *id, int fd, short events, void *ignore);
@@ -1250,7 +1250,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, enum xmit
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version);
-static int transmit_info_with_digit(struct sip_pvt *p, const char digit);
+static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
@@ -1495,7 +1495,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 static int add_header_contentLength(struct sip_request *req, int len);
 static int add_line(struct sip_request *req, const char *line);
 static int add_text(struct sip_request *req, const char *text);
-static int add_digit(struct sip_request *req, char digit);
+static int add_digit(struct sip_request *req, char digit, unsigned int duration);
 static int add_vidupdate(struct sip_request *req);
 static void add_route(struct sip_request *req, struct sip_route *route);
 static int copy_header(struct sip_request *req, const struct sip_request *orig, const char *field);
@@ -1561,6 +1561,30 @@ static const struct ast_channel_tech sip_tech = {
 	.send_digit_end = sip_senddigit_end,
 	.bridge = ast_rtp_bridge,
 	.early_bridge = ast_rtp_early_bridge,
+	.send_text = sip_sendtext,
+};
+
+/*! \brief This version of the sip channel tech has no send_digit_begin
+ *  callback.  This is for use with channels using SIP INFO DTMF so that
+ *  the core knows that the channel doesn't want DTMF BEGIN frames. */
+static const struct ast_channel_tech sip_tech_info = {
+	.type = "SIP",
+	.description = "Session Initiation Protocol (SIP)",
+	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
+	.requester = sip_request_call,
+	.devicestate = sip_devicestate,
+	.call = sip_call,
+	.hangup = sip_hangup,
+	.answer = sip_answer,
+	.read = sip_read,
+	.write = sip_write,
+	.write_video = sip_write,
+	.indicate = sip_indicate,
+	.transfer = sip_transfer,
+	.fixup = sip_fixup,
+	.send_digit_end = sip_senddigit_end,
+	.bridge = ast_rtp_bridge,
 	.send_text = sip_sendtext,
 };
 
@@ -3688,7 +3712,7 @@ static int sip_senddigit_begin(struct ast_channel *ast, char digit)
 
 /*! \brief Send DTMF character on SIP channel
 	within one call, we're able to transmit in many methods simultaneously */
-static int sip_senddigit_end(struct ast_channel *ast, char digit)
+static int sip_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct sip_pvt *p = ast->tech_pvt;
 	int res = 0;
@@ -3696,7 +3720,7 @@ static int sip_senddigit_end(struct ast_channel *ast, char digit)
 	sip_pvt_lock(p);
 	switch (ast_test_flag(&p->flags[0], SIP_DTMF)) {
 	case SIP_DTMF_INFO:
-		transmit_info_with_digit(p, digit);
+		transmit_info_with_digit(p, digit, duration);
 		break;
 	case SIP_DTMF_RFC2833:
 		if (p->rtp)
@@ -3857,7 +3881,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		return NULL;
 	}
 	sip_pvt_lock(i);
-	tmp->tech = &sip_tech;
+
+	if (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO)
+		tmp->tech = &sip_tech_info;
+	else
+		tmp->tech = &sip_tech;
 
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
@@ -5927,11 +5955,11 @@ static int add_text(struct sip_request *req, const char *text)
 
 /*! \brief Add DTMF INFO tone to sip message */
 /* Always adds default duration 250 ms, regardless of what came in over the line */
-static int add_digit(struct sip_request *req, char digit)
+static int add_digit(struct sip_request *req, char digit, unsigned int duration)
 {
 	char tmp[256];
 
-	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=250\r\n", digit);
+	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=%u\r\n", digit, duration);
 	add_header(req, "Content-Type", "application/dtmf-relay");
 	add_header_contentLength(req, strlen(tmp));
 	add_line(req, tmp);
@@ -7491,12 +7519,12 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 
 
 /*! \brief Send SIP INFO dtmf message, see Cisco documentation on cisco.com */
-static int transmit_info_with_digit(struct sip_pvt *p, const char digit)
+static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigned int duration)
 {
 	struct sip_request req;
 
 	reqprep(&req, p, SIP_INFO, 0, 1);
-	add_digit(&req, digit);
+	add_digit(&req, digit, duration);
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
@@ -10881,6 +10909,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	/* Need to check the media/type */
 	if (!strcasecmp(c, "application/dtmf-relay") ||
 	    !strcasecmp(c, "application/vnd.nortelnetworks.digits")) {
+		unsigned int duration = 0;
 
 		/* Try getting the "signal=" part */
 		if (ast_strlen_zero(c = get_body(req, "Signal")) && ast_strlen_zero(c = get_body(req, "d"))) {
@@ -10890,7 +10919,12 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		} else {
 			ast_copy_string(buf, c, sizeof(buf));
 		}
-	
+
+		if (!ast_strlen_zero((c = get_body(req, "Duration"))))
+			duration = atoi(c);
+		if (!duration)
+			duration = 100; /* 100 ms */
+
 		if (!p->owner) {	/* not a PBX call */
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -10928,6 +10962,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			} else if (event < 16) {
 				f.subclass = 'A' + (event - 12);
 			}
+			f.len = duration;
 			ast_queue_frame(p->owner, &f);
 			if (sipdebug)
 				ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
@@ -11428,7 +11463,7 @@ static int func_header_read(struct ast_channel *chan, const char *function, char
 	}
 
 	ast_channel_lock(chan);
-	if (chan->tech != &sip_tech) {
+	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_channel_unlock(chan);
 		return -1;
@@ -11603,7 +11638,7 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 	}
 
 	ast_channel_lock(chan);
-	if (chan->tech != &sip_tech) {
+	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_channel_unlock(chan);
 		return -1;
@@ -11851,7 +11886,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_log(LOG_WARNING, "Ooooh.. no tech!  That's REALLY bad\n");
 				break;
 			}
-			if (bridgepeer->tech == &sip_tech) {
+			if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
 				bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
 				if (bridgepvt->udptl) {
 					if (p->t38.state == T38_PEER_REINVITE) {
@@ -13654,7 +13689,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if ((bridgepeer = ast_bridged_channel(p->owner))) {
 					/* We have a bridge, and this is re-invite to switchover to T38 so we send re-invite with T38 SDP, to other side of bridge*/
 					/*! XXX: we should also check here does the other side supports t38 at all !!! XXX */
-					if (bridgepeer->tech == &sip_tech) {
+					if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
 						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
 						if (bridgepvt->t38.state == T38_DISABLED) {
 							if (bridgepvt->udptl) { /* If everything is OK with other side's udptl struct */
@@ -13708,7 +13743,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				struct ast_channel *bridgepeer = NULL;
 				struct sip_pvt *bridgepvt = NULL;
 				if ((bridgepeer = ast_bridged_channel(p->owner))) {
-					if (bridgepeer->tech == &sip_tech) {
+					if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
 						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
 						/* Does the bridged peer have T38 ? */
 						if (bridgepvt->t38.state == T38_ENABLED) {
@@ -17015,7 +17050,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	ast_channel_lock(chan);
-	if (chan->tech != &sip_tech) {
+	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
 		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
 		ast_channel_unlock(chan);
 		return 0;

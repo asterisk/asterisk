@@ -93,7 +93,7 @@ static AST_LIST_HEAD_STATIC(features, feature_pvt);
 
 static struct ast_channel *features_request(const char *type, int format, void *data, int *cause);
 static int features_digit_begin(struct ast_channel *ast, char digit);
-static int features_digit_end(struct ast_channel *ast, char digit);
+static int features_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int features_call(struct ast_channel *ast, char *dest, int timeout);
 static int features_hangup(struct ast_channel *ast);
 static int features_answer(struct ast_channel *ast);
@@ -316,7 +316,7 @@ static int features_digit_begin(struct ast_channel *ast, char digit)
 	return res;
 }
 
-static int features_digit_end(struct ast_channel *ast, char digit)
+static int features_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
@@ -326,7 +326,7 @@ static int features_digit_end(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
 	if (!x && p->subchan)
-		res = ast_senddigit_end(p->subchan, digit);
+		res = ast_senddigit_end(p->subchan, digit, duration);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }

@@ -185,7 +185,7 @@ static int nosound = 0;
 
 /* ZZ */
 static struct ast_channel *alsa_request(const char *type, int format, void *data, int *cause);
-static int alsa_digit(struct ast_channel *c, char digit);
+static int alsa_digit(struct ast_channel *c, char digit, unsigned int duration);
 static int alsa_text(struct ast_channel *c, const char *text);
 static int alsa_hangup(struct ast_channel *c);
 static int alsa_answer(struct ast_channel *c);
@@ -494,10 +494,11 @@ static int soundcard_init(void)
 	return readdev;
 }
 
-static int alsa_digit(struct ast_channel *c, char digit)
+static int alsa_digit(struct ast_channel *c, char digit, unsigned int duration)
 {
 	ast_mutex_lock(&alsalock);
-	ast_verbose(" << Console Received digit %c >> \n", digit);
+	ast_verbose(" << Console Received digit %c of duration %u ms >> \n", 
+		digit, duration);
 	ast_mutex_unlock(&alsalock);
 	return 0;
 }
