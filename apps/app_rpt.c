@@ -221,8 +221,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <sys/io.h>
 #include <math.h>
-#include <zaptel/zaptel.h>
-#include <zaptel/tonezone.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -242,6 +240,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 #include "asterisk/app.h"
+
+#include "asterisk/zapata.h"
 
 static char *app = "Rpt";
 
