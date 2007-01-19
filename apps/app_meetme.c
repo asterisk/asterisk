@@ -379,9 +379,6 @@ struct ast_sla_box {
 	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla);
 } slas;
 
-static int audio_buffers;			/*!< The number of audio buffers to be allocated on pseudo channels
-						   when in a conference
-						*/
 /*! The number of audio buffers to be allocated on pseudo channels
  *  when in a conference */
 static int audio_buffers;
