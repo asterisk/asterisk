@@ -177,6 +177,9 @@ AC_SUBST(AST_DEVMODE)
 # by the --with option name, to make things easier for the users :-)
 
 AST_EXT_LIB_SETUP([ALSA], [Advanced Linux Sound Architecture], [asound])
+
+# BKTR is used for backtrace support on platforms that do not
+# have it natively.
 AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace support], [execinfo])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
@@ -625,6 +628,8 @@ AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [-lltdl])
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
 AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
+
+AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h], [-lexecinfo])
 
 # possible places for oss definitions
 AST_EXT_LIB_CHECK([OSS], [ossaudio], [], [linux/soundcard.h])
