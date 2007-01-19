@@ -140,7 +140,7 @@ struct ast_rtp {
 	char resp;
 	unsigned int lasteventendseqn;
 	int dtmfcount;
-	unsigned int dtmfduration;
+	unsigned int dtmfsamples;
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
 	char sending_digit;	/* boolean - are we sending digits */
@@ -619,7 +619,7 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(rtp->them.sin_addr));
 		rtp->resp = 0;
-		rtp->dtmfduration = 0;
+		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
 	}
 	if (option_debug)
@@ -709,18 +709,18 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 {
 	unsigned int event;
 	unsigned int event_end;
-	unsigned int duration;
+	unsigned int samples;
 	char resp = 0;
 	struct ast_frame *f = NULL;
 
-	/* Figure out event, event end, and duration */
+	/* Figure out event, event end, and samples */
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
 	event_end = ntohl(*((unsigned int *)(data)));
 	event_end <<= 8;
 	event_end >>= 24;
-	duration = ntohl(*((unsigned int *)(data)));
-	duration &= 0xFFFF;
+	samples = ntohl(*((unsigned int *)(data)));
+	samples &= 0xFFFF;
 
 	/* Print out debug if turned on */
 	if (rtpdebug || option_debug > 2)
@@ -745,19 +745,19 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 			f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
 	} else if (event_end & 0x80 && rtp->lasteventendseqn != seqno && rtp->resp) {
 		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-		f->samples = duration;
+		f->len = ast_tvdiff_ms(ast_samp2tv(samples, 8000), ast_tv(0, 0)); /* XXX hard coded 8kHz */
 		rtp->resp = 0;
 		rtp->lasteventendseqn = seqno;
 	} else if (ast_test_flag(rtp, FLAG_DTMF_COMPENSATE) && event_end & 0x80 && rtp->lasteventendseqn != seqno) {
 		rtp->resp = resp;
 		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-		f->samples = duration;
+		f->len = ast_tvdiff_ms(ast_samp2tv(samples, 8000), ast_tv(0, 0)); /* XXX hard coded 8kHz */
 		rtp->resp = 0;
 		rtp->lasteventendseqn = seqno;
 	}
 
 	rtp->dtmfcount = dtmftimeout;
-	rtp->dtmfduration = duration;
+	rtp->dtmfsamples = samples;
 
 	return f;
 }
@@ -2000,7 +2000,7 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->lasttxformat = 0;
 	rtp->lastrxformat = 0;
 	rtp->dtmfcount = 0;
-	rtp->dtmfduration = 0;
+	rtp->dtmfsamples = 0;
 	rtp->seqno = 0;
 	rtp->rxseqno = 0;
 }
@@ -3177,6 +3177,22 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 
 	if (ast_test_flag(p1, FLAG_HAS_DTMF) && (flags & AST_BRIDGE_DTMF_CHANNEL_1)) {
 		ast_set_flag(p1, FLAG_P2P_NEED_DTMF);
+		audio_p1_res = AST_RTP_TRY_PARTIAL;
+	}
+
+	/* If both sides are not using the same method of DTMF transmission 
+	 * (ie: one is RFC2833, other is INFO... then we can not do direct media. 
+	 * --------------------------------------------------
+	 * | DTMF Mode |  HAS_DTMF  |  Accepts Begin Frames |
+	 * |-----------|------------|-----------------------|
+	 * | Inband    | False      | True                  |
+	 * | RFC2833   | True       | True                  |
+	 * | SIP Info  | False      | False                 |
+	 * --------------------------------------------------
+	 */
+	if ( (ast_test_flag(p0, FLAG_HAS_DTMF) != ast_test_flag(p1, FLAG_HAS_DTMF)) ||
+		 (!c0->tech->send_digit_begin != !c1->tech->send_digit_begin)) {
+		audio_p0_res = AST_RTP_TRY_PARTIAL;
 		audio_p1_res = AST_RTP_TRY_PARTIAL;
 	}
 
