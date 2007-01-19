@@ -881,6 +881,9 @@ case "${host_os}" in
 	AST_EXT_LIB_CHECK([ZAPTEL], [zaptel],, [zaptel.h],, [80])
 	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel/zaptel.h],, [90])
 	AST_EXT_LIB_CHECK([ZAPTEL_VLDTMF], [zaptel],, [zaptel.h],, [80])
+
+	# other case, old tonezone (0.80)
+	AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel.h], [${tonezone_extra}], [80])
 	;;
 esac
 
