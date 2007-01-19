@@ -1148,10 +1148,11 @@ static int zt_digit_begin(struct ast_channel *chan, char digit)
 		int res;
 		ZT_DIAL_OPERATION zo = {
 			.op = ZT_DIAL_OP_APPEND,
-			.dialstr[0] = 'T',
-			.dialstr[1] = digit,
-			.dialstr[2] = 0,
 		};
+
+		dialstr[0] = 'T';
+		dialstr[1] = digit;
+		dialstr[2] = '\0';
 		if ((res = ioctl(pvt->subs[SUB_REAL].zfd, ZT_DIAL, &zo)))
 			ast_log(LOG_WARNING, "Couldn't dial digit %c\n", digit);
 		else
