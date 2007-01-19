@@ -38,6 +38,7 @@
 #else
 /* newer versions install in ${PREFIX}/zaptel */
 #include <zaptel/zaptel.h>
+#include <zaptel/tonezone.h>
 #endif	/* HAVE_ZAPTEL_VERSION < 100 */
 
 #endif	/* HAVE_ZAPTEL */
