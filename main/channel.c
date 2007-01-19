@@ -37,10 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <math.h>
 
-#ifdef HAVE_ZAPTEL
-#include <sys/ioctl.h>
-#include <zaptel/zaptel.h>
-#endif
+#include "asterisk/zapata.h"
 
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
