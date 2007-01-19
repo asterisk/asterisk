@@ -28,7 +28,7 @@ AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
 AC_GNU_SOURCE
-AC_USE_SYSTEM_EXTENSIONS
+AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
 case "${host_os}" in
      freebsd*)
@@ -36,6 +36,7 @@ case "${host_os}" in
      CPPFLAGS=-I/usr/local/include
      LDFLAGS=-L/usr/local/lib
      ;;
+
      *)
      ac_default_prefix=/usr
      if test ${sysconfdir} = '${prefix}/etc'; then
@@ -127,7 +128,7 @@ AC_PROG_CPP
 AC_PROG_CXXCPP
 # This macro is just copied into our local acinclude.m4 from libtool.m4 so that
 # the developers regenerating the configure script don't have to install libtool.
-AST_PROG_LD
+AST_PROG_LD	# note, does not work on FreeBSD
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LN_S
