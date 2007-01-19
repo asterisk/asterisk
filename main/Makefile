@@ -38,6 +38,7 @@ OBJS+=stdtime/localtime.o
 OBJS+=say.o
 
 AST_LIBS += $(SSL_LIB)
+AST_LIBS += $(BKTR_LIB)
 
 ifneq ($(findstring darwin,$(OSARCH)),)
   OBJS+=poll.o
