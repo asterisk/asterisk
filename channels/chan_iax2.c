@@ -6352,7 +6352,7 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 		return 1;
 
 	if (packet_len < (sizeof(*meta) + sizeof(*mth))) {
-		ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %zd min)\n", packet_len,
+		ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %d min)\n", packet_len,
 			sizeof(*meta) + sizeof(*mth));
 		return 1;
 	}
@@ -6523,7 +6523,7 @@ static int socket_process(struct iax2_thread *thread)
 	memcpy(&sin, &thread->iosin, sizeof(sin));
 
 	if (res < sizeof(*mh)) {
-		ast_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*mh));
+		ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(*mh));
 		return 1;
 	}
 	if ((vh->zeros == 0) && (ntohs(vh->callno) & 0x8000)) {
@@ -6684,7 +6684,7 @@ static int socket_process(struct iax2_thread *thread)
 		}
 		/* A full frame */
 		if (res < sizeof(*fh)) {
-			ast_log(LOG_WARNING, "midget packet received (%d of %zd min)\n", res, sizeof(*fh));
+			ast_log(LOG_WARNING, "midget packet received (%d of %d min)\n", res, sizeof(*fh));
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
