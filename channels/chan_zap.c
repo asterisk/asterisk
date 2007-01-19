@@ -11726,9 +11726,10 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		    || !strcasecmp(v->name, "crv")
 #endif			
 			) {
+ 			int iscrv;
  			if (skipchannels)
  				continue;
- 			int iscrv = !strcasecmp(v->name, "crv");
+ 			iscrv = !strcasecmp(v->name, "crv");
  			if (build_channels(*confp, iscrv, v->value, reload, v->lineno, &found_pseudo))
  					return -1;
  		} else if (!strcasecmp(v->name, "zapchan")) {
