@@ -361,15 +361,27 @@ void ast_str_reset(struct ast_str *buf),
 }
 )
 
+/*
+ * AST_INLINE_API() is a macro that takes a block of code as an argument.
+ * Using preprocessor #directives in the argument is not supported by all
+ * compilers, and it is a bit of an obfuscation anyways, so avoid it.
+ * As a workaround, define a macro that produces either its argument
+ * or nothing, and use that instead of #ifdef/#endif within the
+ * argument to AST_INLINE_API().
+ */
+#if defined(DEBUG_THREADLOCALS)
+#define	_DB1(x)	x
+#else
+#define _DB1(x)
+#endif
+
 /*!
  * Make space in a new string (e.g. to read in data from a file)
  */
 AST_INLINE_API(
 int ast_str_make_space(struct ast_str **buf, size_t new_len),
 {
-#if defined(DEBUG_THREADLOCALS)
-	struct ast_str *old_buf = *buf;
-#endif /* defined(DEBUG_THREADLOCALS) */
+	_DB1(struct ast_str *old_buf = *buf;)
 
 	if (new_len <= (*buf)->len) 
 		return 0;	/* success */
@@ -380,9 +392,7 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		return -1;
 	if ((*buf)->ts != DS_MALLOC) {
 		pthread_setspecific((*buf)->ts->key, *buf);
-#if defined(DEBUG_THREADLOCALS)
-		__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));
-#endif /* defined(DEBUG_THREADLOCALS) */
+		_DB1(__ast_threadstorage_object_replace(old_buf, *buf, new_len + sizeof(struct ast_str));)
 	}
 
         (*buf)->len = new_len;
