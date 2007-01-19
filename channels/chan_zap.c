@@ -66,8 +66,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/ioctl.h>
 #include <math.h>
 #include <ctype.h>
-#include <zaptel/zaptel.h>
-#include <zaptel/tonezone.h>
+#include "asterisk/zapata.h"
 
 #ifdef HAVE_PRI
 #include <libpri.h>
