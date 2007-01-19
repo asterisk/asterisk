@@ -431,14 +431,14 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 	
 	if (len < sizeof(struct stun_header)) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Runt STUN packet (only %zd, wanting at least %zd)\n", len, sizeof(struct stun_header));
+			ast_log(LOG_DEBUG, "Runt STUN packet (only %d, wanting at least %d)\n", (int) len, sizeof(struct stun_header));
 		return -1;
 	}
 	if (stundebug)
 		ast_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
 	if (ntohs(hdr->msglen) > len - sizeof(struct stun_header)) {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %zd)\n", ntohs(hdr->msglen), len - sizeof(struct stun_header));
+			ast_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), (int)(len - sizeof(struct stun_header)));
 	} else
 		len = ntohs(hdr->msglen);
 	data += sizeof(struct stun_header);
@@ -446,13 +446,13 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 	while(len) {
 		if (len < sizeof(struct stun_attr)) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Runt Attribute (got %zd, expecting %zd)\n", len, sizeof(struct stun_attr));
+				ast_log(LOG_DEBUG, "Runt Attribute (got %d, expecting %d)\n", (int)len, sizeof(struct stun_attr));
 			break;
 		}
 		attr = (struct stun_attr *)data;
 		if (ntohs(attr->len) > len) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
+				ast_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), (int)len);
 			break;
 		}
 		if (stun_process_attr(&st, attr)) {
