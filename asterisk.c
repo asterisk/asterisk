@@ -1656,7 +1656,9 @@ static char *cli_complete(EditLine *el, int ch)
 				retval = CC_REFRESH;
 			}
 		}
-	free(matches);
+		for (i=0; matches[i]; i++)
+			free(matches[i]);
+		free(matches);
 	}
 
 	return (char *)(long)retval;
