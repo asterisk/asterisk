@@ -1385,9 +1385,7 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	iks_insert_node(gtalk, dtmf);
 
 	ast_mutex_lock(&p->lock);
-	if (ast->dtmff.frametype == AST_FRAME_DTMF) {
-		ast_log(LOG_DEBUG, "Sending 250ms dtmf!\n");
-	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN) {
+	if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN) {
 		iks_insert_attrib(dtmf, "action", "button-down");
 	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END) {
 		iks_insert_attrib(dtmf, "action", "button-up");
