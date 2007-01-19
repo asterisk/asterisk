@@ -590,7 +590,9 @@ static struct zt_pvt {
  */
 struct zt_chan_conf {
 	struct zt_pvt chan;
+#ifdef HAVE_PRI
 	struct zt_pri pri;
+#endif
 	ZT_PARAMS timing;
 
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
@@ -602,8 +604,8 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 	 * to 0 or equivalent
 	 */
 	struct zt_chan_conf conf = {
-		.pri = {
 #ifdef HAVE_PRI
+		.pri = {
 			.nsf = PRI_NSF_NONE,
 			.switchtype = PRI_SWITCH_NI2,
 			.dialplan = PRI_NATIONAL_ISDN + 1,
@@ -620,8 +622,8 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 			.unknownprefix = "",
 
 			.resetinterval = 3600
-#endif
 		},
+#endif
 		.chan = {
 			.context = "default",
 			.cid_num = "",
