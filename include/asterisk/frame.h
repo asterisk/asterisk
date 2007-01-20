@@ -93,6 +93,7 @@ struct ast_codec_pref {
  *
  * \note It is important that the values of each frame type are never changed,
  *       because it will break backwards compatability with older versions.
+ *       This is because these constants are transmitted directly over IAX2.
  */
 enum ast_frame_type {
 	/*! DTMF end event, subclass is the digit */
