@@ -147,13 +147,12 @@
     _date::. => date:AdBY:${SAY}
     _time::. => date:IMp:${SAY}
 
-
 [de](date-base,digit-base)
     _[n]um:0. => num:${SAY:1}
     _[n]um:X => digits/${SAY}
     _[n]um:1X => digits/${SAY}
     _[n]um:[2-9]0 => digits/${SAY}
-    _[n]um:[2-9][2-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
+    _[n]um:[2-9][1-9] => digits/${SAY:1}-and, digits/${SAY:0:1}0
     _[n]um:1XX => digits/ein, digits/hundred, num:${SAY:1}
     _[n]um:[2-9]XX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
     _[n]um:1XXX => digits/ein, digits/thousand, num:${SAY:1}
@@ -163,7 +162,8 @@
     _[n]um:XXXXXX => digits/${SAY:0:1}, digits/hundred, num:${SAY:1}
     _[n]um:1XXXXXX => digits/eine, digits/million, num:${SAY:1}
     _[n]um:[2-9]XXXXXX => digits/${SAY:0:1}, digits/millions, num:${SAY:1}
-    _[n]um:XXXXXXXX => num:${SAY:0:1}, digits/millions, num:${SAY:2}
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/millions, num:${SAY:2}
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/millions, num:${SAY:3}
 
     _datetime::. => date:AdBY 'digits/at' IMp:${SAY}
     _date::. => date:AdBY:${SAY}
