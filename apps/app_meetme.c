@@ -161,7 +161,7 @@ enum {
 enum {
 	OPT_ARG_WAITMARKED = 0,
 	OPT_ARG_ARRAY_SIZE = 1,
-} meetme_option_args;
+};
 
 AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
