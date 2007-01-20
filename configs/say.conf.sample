@@ -126,7 +126,7 @@
     _[n]um:[2-9]0 =>  digits/${SAY}
     _[n]um:[2-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
     _[n]um:1XX => digits/hundred, num:${SAY:1}
-    _[n]um:[2-9]1XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+    _[n]um:[2-9]XX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
 
     _[n]um:1XXX => digits/thousand, num:${SAY:1}
     _[n]um:[2-9]XXX => num:${SAY:0:1}, digits/thousands, num:${SAY:1}
