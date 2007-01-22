@@ -1128,7 +1128,6 @@ struct sip_peer {
 	struct ast_ha *ha;		/*!<  Access control list */
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
-	int lastmsg;
 	int autoframing;
 };
 
@@ -10214,7 +10213,6 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 
 		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
-		ast_cli(fd, "  LastMsg      : %d\n", peer->lastmsg);
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
@@ -10294,7 +10292,6 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 
 		/* - is enumerated */
 		astman_append(s, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
-		astman_append(s, "SIPLastMsg: %d\r\n", peer->lastmsg);
 		astman_append(s, "ToHost: %s\r\n", peer->tohost);
 		astman_append(s, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
 		astman_append(s, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
