@@ -497,7 +497,7 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 }
 
 /*! \brief List of current sessions */
-static AST_LIST_HEAD_STATIC(protos, ast_rtp_protocol);
+static AST_RWLIST_HEAD_STATIC(protos, ast_rtp_protocol);
 
 static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw)
 {
@@ -1491,12 +1491,12 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 {
 	struct ast_rtp_protocol *cur = NULL;
 
-	AST_LIST_LOCK(&protos);
-	AST_LIST_TRAVERSE(&protos, cur, list) {
+	AST_RWLIST_RDLOCK(&protos);
+	AST_RWLIST_TRAVERSE(&protos, cur, list) {
 		if (cur->type == chan->tech->type)
 			break;
 	}
-	AST_LIST_UNLOCK(&protos);
+	AST_RWLIST_UNLOCK(&protos);
 
 	return cur;
 }
@@ -2780,9 +2780,9 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 /*! \brief Unregister interface to channel driver */
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 {
-	AST_LIST_LOCK(&protos);
-	AST_LIST_REMOVE(&protos, proto, list);
-	AST_LIST_UNLOCK(&protos);
+	AST_RWLIST_WRLOCK(&protos);
+	AST_RWLIST_REMOVE(&protos, proto, list);
+	AST_RWLIST_UNLOCK(&protos);
 }
 
 /*! \brief Register interface to channel driver */
@@ -2790,16 +2790,16 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 {
 	struct ast_rtp_protocol *cur;
 
-	AST_LIST_LOCK(&protos);
-	AST_LIST_TRAVERSE(&protos, cur, list) {	
+	AST_RWLIST_WRLOCK(&protos);
+	AST_RWLIST_TRAVERSE(&protos, cur, list) {	
 		if (!strcmp(cur->type, proto->type)) {
 			ast_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
-			AST_LIST_UNLOCK(&protos);
+			AST_RWLIST_UNLOCK(&protos);
 			return -1;
 		}
 	}
-	AST_LIST_INSERT_HEAD(&protos, proto, list);
-	AST_LIST_UNLOCK(&protos);
+	AST_RWLIST_INSERT_HEAD(&protos, proto, list);
+	AST_RWLIST_UNLOCK(&protos);
 	
 	return 0;
 }
