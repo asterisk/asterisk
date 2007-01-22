@@ -56,6 +56,7 @@
 #include "tzfile.h"
 #include "asterisk/lock.h"
 #include "asterisk/localtime.h"
+#include "asterisk/strings.h"
 
 
 #ifndef lint
@@ -1051,7 +1052,7 @@ const char * const	zone;
 #ifdef _THREAD_SAFE
 	ast_mutex_lock(&lcl_mutex);
 #endif
-	ast_tzset(zone);
+	ast_tzset(ast_strlen_zero(zone) ? "/etc/localtime" : zone);
 	localsub(timep, 0L, p_tm, zone);
 #ifdef _THREAD_SAFE
 	ast_mutex_unlock(&lcl_mutex);
@@ -1495,8 +1496,8 @@ const char * const	zone;
 #ifdef	_THREAD_SAFE
 	ast_mutex_lock(&lcl_mutex);
 #endif
-	ast_tzset(zone);
-	mktime_return_value = time1(tmp, localsub, 0L, zone);
+	ast_tzset(!ast_strlen_zero(zone) ? zone : "/etc/localtime");
+	mktime_return_value = time1(tmp, localsub, 0L, !ast_strlen_zero(zone) ? zone : "/etc/localtime");
 #ifdef	_THREAD_SAFE
 	ast_mutex_unlock(&lcl_mutex);
 #endif
