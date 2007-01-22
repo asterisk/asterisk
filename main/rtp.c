@@ -279,7 +279,7 @@ struct stun_addr {
 
 static const char *stun_msg2str(int msg)
 {
-	switch(msg) {
+	switch (msg) {
 	case STUN_BINDREQ:
 		return "Binding Request";
 	case STUN_BINDRESP:
@@ -298,7 +298,7 @@ static const char *stun_msg2str(int msg)
 
 static const char *stun_attr2str(int msg)
 {
-	switch(msg) {
+	switch (msg) {
 	case STUN_MAPPED_ADDRESS:
 		return "Mapped Address";
 	case STUN_RESPONSE_ADDRESS:
@@ -334,8 +334,8 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
 {
 	if (stundebug)
 		ast_verbose("Found STUN Attribute %s (%04x), length %d\n",
-			stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
-	switch(ntohs(attr->attr)) {
+			    stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
+	switch (ntohs(attr->attr)) {
 	case STUN_USERNAME:
 		state->username = (const char *) (attr->value);
 		break;
@@ -345,7 +345,7 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
 	default:
 		if (stundebug)
 			ast_verbose("Ignoring STUN attribute %s (%04x), length %d\n", 
-				stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
+				    stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr), ntohs(attr->len));
 	}
 	return 0;
 }
@@ -384,13 +384,13 @@ static void append_attr_address(struct stun_attr **attr, int attrval, struct soc
 static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 {
 	return sendto(s, resp, ntohs(resp->msglen) + sizeof(*resp), 0,
-		(struct sockaddr *)dst, sizeof(*dst));
+		      (struct sockaddr *)dst, sizeof(*dst));
 }
 
 static void stun_req_id(struct stun_header *req)
 {
 	int x;
-	for (x=0;x<4;x++)
+	for (x = 0; x < 4; x++)
 		req->id.id[x] = ast_random();
 }
 
@@ -405,7 +405,7 @@ void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, c
 	unsigned char reqdata[1024];
 	int reqlen, reqleft;
 	struct stun_attr *attr;
-
+	
 	req = (struct stun_header *)reqdata;
 	stun_req_id(req);
 	reqlen = 0;
@@ -443,7 +443,7 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 		len = ntohs(hdr->msglen);
 	data += sizeof(struct stun_header);
 	memset(&st, 0, sizeof(st));
-	while(len) {
+	while (len) {
 		if (len < sizeof(struct stun_attr)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Runt Attribute (got %d, expecting %d)\n", (int)len, (int) sizeof(struct stun_attr));
@@ -475,11 +475,11 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 	resp->msglen = 0;
 	attr = (struct stun_attr *)resp->ies;
 	if (!len) {
-		switch(ntohs(hdr->msgtype)) {
+		switch (ntohs(hdr->msgtype)) {
 		case STUN_BINDREQ:
 			if (stundebug)
 				ast_verbose("STUN Bind Request, username: %s\n", 
-					st.username ? st.username : "<none>");
+					    st.username ? st.username : "<none>");
 			if (st.username)
 				append_attr_string(&attr, STUN_USERNAME, st.username, &resplen, &respleft);
 			append_attr_address(&attr, STUN_MAPPED_ADDRESS, src, &resplen, &respleft);
@@ -525,7 +525,7 @@ unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp)
 {
 	unsigned int interval;
 	/*! \todo XXX Do a more reasonable calculation on this one
-	* Look in RFC 3550 Section A.7 for an example*/
+	 * Look in RFC 3550 Section A.7 for an example*/
 	interval = rtcpinterval;
 	return interval;
 }
@@ -645,9 +645,9 @@ static inline int rtp_debug_test_addr(struct sockaddr_in *addr)
 		return 0;
 	if (rtpdebugaddr.sin_addr.s_addr) {
 		if (((ntohs(rtpdebugaddr.sin_port) != 0)
-			&& (rtpdebugaddr.sin_port != addr->sin_port))
-			|| (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-		return 0;
+		     && (rtpdebugaddr.sin_port != addr->sin_port))
+		    || (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+			return 0;
 	}
 	return 1;
 }
@@ -658,9 +658,9 @@ static inline int rtcp_debug_test_addr(struct sockaddr_in *addr)
 		return 0;
 	if (rtcpdebugaddr.sin_addr.s_addr) {
 		if (((ntohs(rtcpdebugaddr.sin_port) != 0)
-			&& (rtcpdebugaddr.sin_port != addr->sin_port))
-			|| (rtcpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-		return 0;
+		     && (rtcpdebugaddr.sin_port != addr->sin_port))
+		    || (rtcpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+			return 0;
 	}
 	return 1;
 }
@@ -788,7 +788,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	} else if (event < 17) {	/* Event 16: Hook flash */
 		resp = 'X';	
 	}
-
+	
 	if ((!(rtp->resp) && (!(event_end & 0x80))) || (rtp->resp && rtp->resp != resp)) {
 		rtp->resp = resp;
 		if (!ast_test_flag(rtp, FLAG_DTMF_COMPENSATE))
@@ -832,7 +832,7 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 			ast_inet_ntoa(rtp->them.sin_addr));
 		ast_set_flag(rtp, FLAG_3389_WARNING);
 	}
-
+	
 	/* Must have at least one byte */
 	if (!len)
 		return NULL;
@@ -1514,7 +1514,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	/* Lock channels */
 	ast_channel_lock(c0);
 	if (c1) {
-		while(ast_channel_trylock(c1)) {
+		while (ast_channel_trylock(c1)) {
 			ast_channel_unlock(c0);
 			usleep(1);
 			ast_channel_lock(c0);
@@ -1589,7 +1589,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 
 	/* Lock channels */
 	ast_channel_lock(dest);
-	while(ast_channel_trylock(src)) {
+	while (ast_channel_trylock(src)) {
 		ast_channel_unlock(dest);
 		usleep(1);
 		ast_channel_lock(dest);
@@ -2761,7 +2761,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_smoother_feed(rtp->smoother, _f);
 		}
 
-		while((f = ast_smoother_read(rtp->smoother)))
+		while ((f = ast_smoother_read(rtp->smoother)))
 			ast_rtp_raw_write(rtp, f, codec);
 	} else {
 	        /* Don't buffer outgoing frames; send them one-per-packet: */
@@ -2975,7 +2975,7 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 		return 1;
 
 	header = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
-
+	
 	/* If NAT support is turned on, then see if we need to change their address */
 	if ((rtp->nat) && 
 	    ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
@@ -2990,7 +2990,7 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 	/* Write directly out to other RTP stream if bridged */
 	if ((bridged = ast_rtp_get_bridged(rtp)))
 		bridge_p2p_rtp_write(rtp, bridged, header, res, hdrlen);
-
+	
 	return 1;
 }
 
@@ -3226,7 +3226,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 
 	/* Lock channels */
 	ast_channel_lock(c0);
-	while(ast_channel_trylock(c1)) {
+	while (ast_channel_trylock(c1)) {
 		ast_channel_unlock(c0);
 		usleep(1);
 		ast_channel_lock(c0);
@@ -3404,7 +3404,8 @@ static int rtp_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
    
-static int rtcp_do_debug(int fd, int argc, char *argv[]) {
+static int rtcp_do_debug(int fd, int argc, char *argv[])
+{
 	if (argc != 2) {
 		if (argc != 4)
 			return RESULT_SHOWUSAGE;
@@ -3416,10 +3417,10 @@ static int rtcp_do_debug(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int rtcp_do_stats(int fd, int argc, char *argv[]) {
-	if (argc != 2) {
+static int rtcp_do_stats(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	}
 	rtcpstats = 1;
 	ast_cli(fd, "RTCP Stats Enabled\n");
 	return RESULT_SUCCESS;
@@ -3454,9 +3455,8 @@ static int rtcp_no_stats(int fd, int argc, char *argv[])
 
 static int stun_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2) {
+	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	}
 	stundebug = 1;
 	ast_cli(fd, "STUN Debugging Enabled\n");
 	return RESULT_SUCCESS;
