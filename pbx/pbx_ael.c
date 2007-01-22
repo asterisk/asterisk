@@ -4052,7 +4052,6 @@ static int ael2_no_debug(int fd, int argc, char *argv[])
 
 static int ael2_reload(int fd, int argc, char *argv[])
 {
-	ast_context_destroy(NULL, registrar);
 	return (pbx_load_module());
 }
 
@@ -4097,7 +4096,6 @@ static int load_module(void)
 
 static int reload(void)
 {
-	ast_context_destroy(NULL, registrar);
 	return pbx_load_module();
 }
 
