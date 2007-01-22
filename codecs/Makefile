@@ -28,6 +28,19 @@ ifneq ($(wildcard g723.1b/coder2.c),)
   LIBG723B=g723.1b/libg723b.a
 endif
 
+ifndef WITHOUT_ZAPTEL
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
+  ifeq (${OSARCH},NetBSD)
+    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/pkg/lib
+  endif
+  ifeq (${OSARCH},FreeBSD)
+    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  endif
+  CODECS+=codec_zap.so
+endif
+endif # WITHOUT_ZAPTEL
+
+
 UI_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/speex.h)
 UIS_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/speex/speex.h)
 ULI_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/speex.h)
