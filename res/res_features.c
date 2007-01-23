@@ -1835,6 +1835,9 @@ static int park_exec(struct ast_channel *chan, void *data)
 		}
 		res = ast_bridge_call(chan, peer, &config);
 
+		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
+		ast_cdr_setdestchan(chan->cdr, peer->name);
+
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
