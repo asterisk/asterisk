@@ -113,11 +113,9 @@ static char outdevname[50] = ALSA_OUTDEV;
 static struct timeval lasttime;
 #endif
 
-static int usecnt;
 static int silencesuppression = 0;
 static int silencethreshold = 1000;
 
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 AST_MUTEX_DEFINE_STATIC(alsalock);
 
 static const char tdesc[] = "ALSA Console Channel Driver";
@@ -573,9 +571,7 @@ static int alsa_hangup(struct ast_channel *c)
 	c->tech_pvt = NULL;
 	alsa.owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
-	ast_mutex_lock(&usecnt_lock);
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_module_unref(ast_module_info->self);
 	if (hookstate) {
 		hookstate = 0;
 		if (!autoanswer) {
@@ -800,10 +796,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	if (!ast_strlen_zero(language))
 		ast_string_field_set(tmp, language, language);
 	p->owner = tmp;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
+	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {

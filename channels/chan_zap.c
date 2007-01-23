@@ -229,8 +229,6 @@ static int gendigittimeout = 8000;
 /*! \brief How long to wait for an extra digit, if there is an ambiguous match */
 static int matchdigittimeout = 3000;
 
-static int usecnt = 0;
-
 /*! \brief Protect the interface list (of zt_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
@@ -2703,8 +2701,7 @@ static int zt_hangup(struct ast_channel *ast)
 	p->oprmode = 0;
 	ast->tech_pvt = NULL;
 	ast_mutex_unlock(&p->lock);
-	ast_atomic_fetchadd_int(&usecnt, -1);
-	ast_update_use_count();
+	ast_module_unref(ast_module_info->self);
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
 
@@ -5324,8 +5321,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 	}
 
-	ast_atomic_fetchadd_int(&usecnt, 1);
-	ast_update_use_count();
+	ast_module_ref(ast_module_info->self);
 	
 	return tmp;
 }

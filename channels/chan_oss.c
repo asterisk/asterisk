@@ -281,10 +281,6 @@ END_CONFIG
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #endif
 
-
-static int usecnt;
-AST_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 static char *config = "oss.conf";	/* default config file */
 
 static int oss_debug;
@@ -842,9 +838,7 @@ static int oss_hangup(struct ast_channel *c)
 	c->tech_pvt = NULL;
 	o->owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
-	ast_mutex_lock(&usecnt_lock);	/* XXX not sure why */
-	usecnt--;
-	ast_mutex_unlock(&usecnt_lock);
+	ast_module_unref(ast_module_info->self);
 	if (o->hookstate) {
 		if (o->autoanswer || o->autohangup) {
 			/* Assume auto-hangup too */
@@ -1025,10 +1019,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		c->cid.cid_dnid = ast_strdup(ext);
 
 	o->owner = c;
-	ast_mutex_lock(&usecnt_lock);
-	usecnt++;
-	ast_mutex_unlock(&usecnt_lock);
-	ast_update_use_count();
+	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(c, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {

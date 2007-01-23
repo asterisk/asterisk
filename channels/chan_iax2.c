@@ -173,8 +173,6 @@ static int timingfd = -1;				/* Timing file descriptor */
 static struct ast_netsock_list *netsock;
 static int defaultsockfd = -1;
 
-static int usecnt = 0;
-
 int (*iax2_regfunk)(const char *username, int onoff) = NULL;
 
 /* Ethernet, etc */
@@ -1716,8 +1714,7 @@ static int iax2_predestroy(int callno)
 		c->tech_pvt = NULL;
 		ast_queue_hangup(c);
 		pvt->owner = NULL;
-		ast_atomic_fetchadd_int(&usecnt, -1);
-		ast_update_use_count();
+		ast_module_unref(ast_module_info->self);
 	}
 	return 0;
 }
@@ -3302,8 +3299,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	for (v = i->vars ; v ; v = v->next)
 		pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
-	ast_atomic_fetchadd_int(&usecnt, 1);
-	ast_update_use_count();
+	ast_module_ref(ast_module_info->self);
 	
 	return tmp;
 }
