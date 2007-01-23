@@ -2068,28 +2068,39 @@ static int process_message(struct mansession *s, const struct message *m)
 		ast_log(LOG_DEBUG, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
+		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Missing action in request");
+		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
 
 	if (!s->authenticated && strcasecmp(action, "Login") && strcasecmp(action, "Logoff") && strcasecmp(action, "Challenge")) {
+		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Permission denied");
+		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
 	ast_mutex_lock(&actionlock);	
 	for (tmp = first_action ; tmp; tmp = tmp->next) {
 		if (strcasecmp(action, tmp->action))
 			continue;
+		ast_mutex_lock(&s->__lock);
 		if ((s->writeperm & tmp->authority) == tmp->authority) {
-			if (tmp->func(s, m))	/* error */
+			if (tmp->func(s, m)) {	/* error */
+				ast_mutex_unlock(&s->__lock);
 				return -1;
+			}
 		} else
 			astman_send_error(s, m, "Permission denied");
+		ast_mutex_unlock(&s->__lock);
 		break;
 	}
 	ast_mutex_unlock(&actionlock);
-	if (!tmp)
+	if (!tmp) {
+		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Invalid/unknown command. Use Action: ListCommands to show available commands.");
+		ast_mutex_unlock(&s->__lock);
+	}
 	if (ret)
 		return ret;
 	/* Once done with our message, deliver any pending events */
