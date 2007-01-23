@@ -632,7 +632,7 @@ static int __ast_http_load(int reload)
 	char newprefix[MAX_PREFIX];
 
 	memset(&sin, 0, sizeof(sin));
-	sin.sin_port = 8088;
+	sin.sin_port = htons(8088);
 	strcpy(newprefix, DEFAULT_PREFIX);
 	cfg = ast_config_load("http.conf");
 	if (cfg) {
