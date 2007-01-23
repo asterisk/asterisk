@@ -580,6 +580,7 @@ static int alsa_hangup(struct ast_channel *c)
 	c->tech_pvt = NULL;
 	alsa.owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
+	ast_module_unref(ast_module_info->self);
 	if (hookstate) {
 		hookstate = 0;
 		if (!autoanswer) {
@@ -805,6 +806,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	if (!ast_strlen_zero(language))
 		ast_string_field_set(tmp, language, language);
 	p->owner = tmp;
+	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(tmp, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {

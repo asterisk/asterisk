@@ -2753,6 +2753,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
 
+		ast_module_ref(ast_module_info->self);
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
 		ast_string_field_set(tmp, call_forward, l->call_forward);

@@ -865,6 +865,7 @@ static int oss_hangup(struct ast_channel *c)
 	c->tech_pvt = NULL;
 	o->owner = NULL;
 	ast_verbose(" << Hangup on console >> \n");
+	ast_module_unref(ast_module_info->self);
 	if (o->hookstate) {
 		if (o->autoanswer || o->autohangup) {
 			/* Assume auto-hangup too */
@@ -1047,6 +1048,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		c->cid.cid_dnid = ast_strdup(ext);
 
 	o->owner = c;
+	ast_module_ref(ast_module_info->self);
 	ast_jb_configure(c, &global_jbconf);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(c)) {

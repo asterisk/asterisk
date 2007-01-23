@@ -952,6 +952,7 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	if (!ast_strlen_zero(client->musicclass))
 		ast_string_field_set(tmp, musicclass, client->musicclass);
 	i->owner = tmp;
+	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, client->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	/* Don't use ast_set_callerid() here because it will
@@ -1464,6 +1465,7 @@ static int gtalk_hangup(struct ast_channel *ast)
 	ast_mutex_unlock(&p->lock);
 
 	gtalk_free_pvt(client, p);
+	ast_module_unref(ast_module_info->self);
 
 	return 0;
 }

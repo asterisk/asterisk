@@ -490,6 +490,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	p->subs[index].owner = tmp;
 	if (!p->owner)
 		p->owner = tmp;
+	ast_module_ref(ast_module_info->self);
 	return tmp;
 }
 

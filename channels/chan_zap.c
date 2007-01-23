@@ -2906,6 +2906,7 @@ static int zt_hangup(struct ast_channel *ast)
 	p->oprmode = 0;
 	ast->tech_pvt = NULL;
 	ast_mutex_unlock(&p->lock);
+	ast_module_unref(ast_module_info->self);
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
 
@@ -5652,6 +5653,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 	}
 
+	ast_module_ref(ast_module_info->self);
 	return tmp;
 }
 
