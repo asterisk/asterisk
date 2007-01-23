@@ -610,7 +610,7 @@ static int ast_readaudio_callback(void *data)
 	struct ast_filestream *s = data;
 	int whennext = 0;
 
-	while(!whennext) {
+	while (!whennext) {
 		struct ast_frame *fr = s->fmt->read(s, &whennext);
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr)
@@ -1031,7 +1031,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			struct ast_frame *fr = ast_read(c);
 			if (!fr)
 				return -1;
-			switch(fr->frametype) {
+			switch (fr->frametype) {
 			case AST_FRAME_DTMF_END:
 				if (context) {
 					const char exten[2] = { fr->subclass, '\0' };
@@ -1052,7 +1052,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				}
 				break;
 			case AST_FRAME_CONTROL:
-				switch(fr->subclass) {
+				switch (fr->subclass) {
 				case AST_CONTROL_HANGUP:
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:

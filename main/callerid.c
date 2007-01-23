@@ -335,7 +335,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 				cid->skipflag = 0 ;
 
 			/* caller id retrieval */
-			switch(cid->sawflag) {
+			switch (cid->sawflag) {
 			case 0: /* DLE */
 				if (b == 0x10) {
 					cid->sawflag = 1;
@@ -552,7 +552,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 			/* Ignore invalid bytes */
 			if (b > 0xff)
 				continue;
-			switch(cid->sawflag) {
+			switch (cid->sawflag) {
 			case 0: /* Look for flag */
 				if (b == 'U')
 					cid->sawflag = 2;
@@ -599,7 +599,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 					/* MDMF */
 					/* Go through each element and process */
 					for (x = 0; x < cid->pos;) {
-						switch(cid->rawdata[x++]) {
+						switch (cid->rawdata[x++]) {
 						case 1:
 							/* Date */
 							break;
@@ -793,24 +793,24 @@ int vmwi_generate(unsigned char *buf, int active, int mdmf, int codec)
 		}
 	}
 	sum = 0;
-	for (x=0; x<len; x++)
+	for (x = 0; x < len; x++)
 		sum += msg[x];
 	sum = (256 - (sum & 255));
 	msg[len++] = sum;
 	/* Wait a half a second */
-	for (x=0; x<4000; x++)
+	for (x = 0; x < 4000; x++)
 		PUT_BYTE(0x7f);
 	/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
-	for (x=0; x<30; x++)
+	for (x = 0; x < 30; x++)
 		PUT_CLID(0x55);
 	/* Send 170ms of callerid marks */
-	for (x=0; x<170; x++)
+	for (x = 0; x < 170; x++)
 		PUT_CLID_MARKMS;
-	for (x=0; x<len; x++) {
+	for (x = 0; x < len; x++) {
 		PUT_CLID(msg[x]);
 	}
 	/* Send 50 more ms of marks */
-	for (x=0; x<50; x++)
+	for (x = 0; x < 50; x++)
 		PUT_CLID_MARKMS;
 	return bytes;
 }
@@ -829,14 +829,14 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
 	len = callerid_genmsg(msg, sizeof(msg), number, name, flags);
 	if (!callwaiting) {
 		/* Wait a half a second */
-		for (x=0; x<4000; x++)
+		for (x = 0; x < 4000; x++)
 			PUT_BYTE(0x7f);
 		/* Transmit 30 0x55's (looks like a square wave) for channel seizure */
-		for (x=0; x<30; x++)
+		for (x = 0; x < 30; x++)
 			PUT_CLID(0x55);
 	}
 	/* Send 150ms of callerid marks */
-	for (x=0; x<150; x++)
+	for (x = 0; x < 150; x++)
 		PUT_CLID_MARKMS;
 	/* Send 0x80 indicating MDMF format */
 	PUT_CLID(0x80);
@@ -844,7 +844,7 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
 	PUT_CLID(len);
 	sum = 0x80 + strlen(msg);
 	/* Put each character of message and update checksum */
-	for (x=0; x<len; x++) {
+	for (x = 0; x < len; x++) {
 		PUT_CLID(msg[x]);
 		sum += msg[x];
 	}
@@ -852,7 +852,7 @@ int callerid_generate(unsigned char *buf, const char *number, const char *name, 
 	PUT_CLID(256 - (sum & 255));
 
 	/* Send 50 more ms of marks */
-	for (x=0; x<50; x++)
+	for (x = 0; x < 50; x++)
 		PUT_CLID_MARKMS;
 	
 	return bytes;
@@ -867,8 +867,8 @@ void ast_shrink_phone_number(char *n)
 	int x, y=0;
 	int bracketed = 0;
 
-	for (x=0; n[x]; x++) {
-		switch(n[x]) {
+	for (x = 0; n[x]; x++) {
+		switch (n[x]) {
 		case '[':
 			bracketed++;
 			n[y++] = n[x];
@@ -904,7 +904,7 @@ static int ast_is_valid_string(const char *exten, const char *valid)
 
 	if (ast_strlen_zero(exten))
 		return 0;
-	for (x=0; exten[x]; x++)
+	for (x = 0; exten[x]; x++)
 		if (!strchr(valid, exten[x]))
 			return 0;
 	return 1;

@@ -1099,7 +1099,7 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 	char *c;
 	char *n;
 	
-	switch(option->action) {
+	switch (option->action) {
 	case AST_ACTION_UPONE:
 		return RES_UPONE;
 	case AST_ACTION_EXIT:
@@ -1210,8 +1210,8 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 			return -1;
 		}
 	}
-	while(!res) {
-		while(menu->options[pos].option) {
+	while (!res) {
+		while (menu->options[pos].option) {
 			if (!strcasecmp(menu->options[pos].option, exten)) {
 				res = ivr_dispatch(chan, menu->options + pos, exten, cbdata);
 				if (option_debug)

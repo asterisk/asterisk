@@ -164,7 +164,7 @@ static char *handle_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 	for (x = e->args; x < a->argc; x++) {
 		int res = ast_module_reload(a->argv[x]);
 		/* XXX reload has multiple error returns, including -1 on error and 2 on success */
-		switch(res) {
+		switch (res) {
 		case 0:
 			ast_cli(a->fd, "No such module '%s'\n", a->argv[x]);
 			break;
@@ -778,7 +778,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		ast_cli(fd, "%s is not a known channel\n", argv[3]);
 		return RESULT_SUCCESS;
 	}
-	if(c->cdr) {
+	if (c->cdr) {
 		elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
 		hour = elapsed_seconds / 3600;
 		min = (elapsed_seconds % 3600) / 60;
@@ -835,9 +835,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		( c-> data ? S_OR(c->data, "(Empty)") : "(None)"),
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
-	if(pbx_builtin_serialize_variables(c, &out))
+	if (pbx_builtin_serialize_variables(c, &out))
 		ast_cli(fd,"      Variables:\n%s\n", out->str);
-	if(c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
+	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
 		ast_cli(fd,"  CDR Variables:\n%s\n", out->str);
 	
 	ast_channel_unlock(c);
@@ -1175,7 +1175,7 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 	struct ast_cli_entry *cand = NULL, *e=NULL;
 	struct cli_iterator i = { NULL, NULL};
 
-	while( (e = cli_next(&i)) ) {
+	while ( (e = cli_next(&i)) ) {
 		/* word-by word regexp comparison */
 		char * const *src = cmds;
 		char * const *dst = e->cmda;

@@ -42,23 +42,19 @@ static inline unsigned char linear2alaw (short int linear)
     };
     
     pcm_val = linear;
-    if (pcm_val >= 0)
-    {
-        /* Sign (7th) bit = 1 */
-        mask = AMI_MASK | 0x80;
-    }
-    else
-    {
-        /* Sign bit = 0 */
-        mask = AMI_MASK;
-        pcm_val = -pcm_val;
+    if (pcm_val >= 0) {
+	    /* Sign (7th) bit = 1 */
+	    mask = AMI_MASK | 0x80;
+    } else {
+	    /* Sign bit = 0 */
+	    mask = AMI_MASK;
+	    pcm_val = -pcm_val;
     }
 
     /* Convert the scaled magnitude to segment number. */
-    for (seg = 0;  seg < 8;  seg++)
-    {
-        if (pcm_val <= seg_end[seg])
-	    break;
+    for (seg = 0;  seg < 8;  seg++) {
+	    if (pcm_val <= seg_end[seg])
+		    break;
     }
     /* Combine the sign, segment, and quantization bits. */
     return  ((seg << 4) | ((pcm_val >> ((seg)  ?  (seg + 3)  :  4)) & 0x0F)) ^ mask;
@@ -74,7 +70,7 @@ static inline short int alaw2linear (unsigned char alaw)
     i = ((alaw & 0x0F) << 4);
     seg = (((int) alaw & 0x70) >> 4);
     if (seg)
-        i = (i + 0x100) << (seg - 1);
+	    i = (i + 0x100) << (seg - 1);
     return (short int) ((alaw & 0x80)  ?  i  :  -i);
 }
 
@@ -87,15 +83,13 @@ void ast_alaw_init(void)
 	/* 
 	 *  Set up mu-law conversion table
 	 */
-	for(i = 0;i < 256;i++)
-	   {
+	for (i = 0; i < 256; i++) {
 	        __ast_alaw[i] = alaw2linear(i);
-	   }
-	  /* set up the reverse (mu-law) conversion table */
-	for(i = -32768; i < 32768; i++)
-	   {
+	}
+	/* set up the reverse (mu-law) conversion table */
+	for (i = -32768; i < 32768; i++) {
 		__ast_lin2a[((unsigned short)i) >> 3] = linear2alaw(i);
-	   }
+	}
 
 }
 

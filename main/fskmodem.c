@@ -226,7 +226,7 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 	int samples = 0;
 	int olen;
 
-	switch(fskd->state) {
+	switch (fskd->state) {
 		/* Pick up where we left off */
 	case STATE_SEARCH_STARTBIT2:
 		goto search_startbit2;
@@ -243,7 +243,7 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		of a transmission (what a LOSING design), we cant do it this elegantly */
 		/*
 		if (demodulator(zap,&x1)) return(-1);
-		for(;;) {
+		for (;;) {
 			if (demodulator(zap,&x2)) return(-1);
 			if (x1>0 && x2<0) break;
 			x1 = x2;
@@ -256,7 +256,7 @@ int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 		if (demodulator(fskd, &fskd->x1, GET_SAMPLE))
 			return -1;
 		samples++;
-		for(;;) {
+		for (;;) {
 search_startbit2:		   
 			if (!*len) {
 				fskd->state  =  STATE_SEARCH_STARTBIT2;
@@ -278,7 +278,7 @@ search_startbit3:
 			fskd->state = STATE_SEARCH_STARTBIT3;
 			return 0;
 		}
-		for(;i;i--) {
+		for (; i; i--) {
 			if (demodulator(fskd, &fskd->x1, GET_SAMPLE))
 				return(-1); 
 #if 0

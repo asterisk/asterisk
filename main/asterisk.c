@@ -670,7 +670,7 @@ int ast_safe_system(const char *s)
 		execl("/bin/sh", "/bin/sh", "-c", s, (char *) NULL);
 		_exit(1);
 	} else if (pid > 0) {
-		for(;;) {
+		for (;;) {
 			res = wait4(pid, &status, 0, &rusage);
 			if (res > -1) {
 				res = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
@@ -778,7 +778,7 @@ static void *netconsole(void *vconsole)
 		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
 	snprintf(tmp, sizeof(tmp), "%s/%ld/%s\n", hostname, (long)ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
-	for(;;) {
+	for (;;) {
 		fds[0].fd = con->fd;
 		fds[0].events = POLLIN;
 		fds[0].revents = 0;

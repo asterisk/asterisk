@@ -128,7 +128,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 			ast_copy_string(tmp, i->exts, sizeof(tmp));
 			stringp=tmp;
 			e = strsep(&stringp, "|");
-			while(e) {
+			while (e) {
 				make_filename(buf, sizeof(buf), filename, preflang, e);
 				if ((len = file_exists(buf))) {
 					found = i;

@@ -505,7 +505,7 @@ const char *ast_state2str(enum ast_channel_state state)
 {
 	char *buf;
 
-	switch(state) {
+	switch (state) {
 	case AST_STATE_DOWN:
 		return "Down";
 	case AST_STATE_RESERVED:
@@ -537,7 +537,7 @@ const char *ast_state2str(enum ast_channel_state state)
 /*! \brief Gives the string form of a given transfer capability */
 char *ast_transfercapability2str(int transfercapability)
 {
-	switch(transfercapability) {
+	switch (transfercapability) {
 	case AST_TRANS_CAP_SPEECH:
 		return "SPEECH";
 	case AST_TRANS_CAP_DIGITAL:
@@ -1627,7 +1627,7 @@ int __ast_answer(struct ast_channel *chan, unsigned int delay)
 		return -1;
 	}
 
-	switch(chan->_state) {
+	switch (chan->_state) {
 	case AST_STATE_RINGING:
 	case AST_STATE_RING:
 		if (chan->tech->answer)
@@ -1941,13 +1941,13 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			if (!f)
 				return -1;
 
-			switch(f->frametype) {
+			switch (f->frametype) {
 			case AST_FRAME_DTMF:
 				res = f->subclass;
 				ast_frfree(f);
 				return res;
 			case AST_FRAME_CONTROL:
-				switch(f->subclass) {
+				switch (f->subclass) {
 				case AST_CONTROL_HANGUP:
 					ast_frfree(f);
 					return -1;
@@ -2545,7 +2545,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	if (chan->fout & DEBUGCHAN_FLAG)
 		ast_frame_dump(chan->name, fr, ">>");
 	CHECK_BLOCKING(chan);
-	switch(fr->frametype) {
+	switch (fr->frametype) {
 	case AST_FRAME_CONTROL:
 		res = (chan->tech->indicate == NULL) ? 0 :
 			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);

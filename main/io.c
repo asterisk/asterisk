@@ -269,7 +269,7 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 		 * At least one event
 		 */
 		origcnt = ioc->fdcnt;
-		for(x = 0; x < origcnt; x++) {
+		for (x = 0; x < origcnt; x++) {
 			/* Yes, it is possible for an entry to be deleted and still have an
 			   event waiting if it occurs after the original calling id */
 			if (ioc->fds[x].revents && ioc->ior[x].id) {

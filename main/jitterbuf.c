@@ -781,7 +781,7 @@ enum jb_return_code jb_get(jitterbuf *jb, jb_frame *frameout, long now, long int
 	if (thists && thists < lastts) jb_warn("XXXX timestamp roll-back!!!\n");
 	lastts = thists;
 #endif
-	if(ret == JB_INTERP) 
+	if (ret == JB_INTERP) 
 		frameout->ms = jb->info.last_voice_ms;
 	
 	return ret;

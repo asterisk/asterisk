@@ -237,7 +237,7 @@ int ast_device_state(const char *device)
 	}
 
 	if (provider)  {
-		if(option_debug > 2)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
 		return getproviderstate(provider, number);
 	}
@@ -310,7 +310,7 @@ static int getproviderstate(const char *provider, const char *address)
 
 	AST_LIST_LOCK(&devstate_provs);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devprov, list) {
-		if(option_debug > 4)
+		if (option_debug > 4)
 			ast_log(LOG_DEBUG, "Checking provider %s with %s\n", devprov->label, provider);
 
 		if (!strcasecmp(devprov->label, provider)) {
@@ -435,7 +435,7 @@ static void *do_devstate_changes(void *data)
 	struct state_change *cur;
 
 	AST_LIST_LOCK(&state_changes);
-	for(;;) {
+	for (;;) {
 		/* the list lock will _always_ be held at this point in the loop */
 		cur = AST_LIST_REMOVE_HEAD(&state_changes, list);
 		if (cur) {

@@ -218,7 +218,7 @@ void ast_variables_destroy(struct ast_variable *v)
 {
 	struct ast_variable *vn;
 
-	while(v) {
+	while (v) {
 		vn = v;
 		v = v->next;
 		free(vn);
@@ -529,7 +529,7 @@ int ast_category_delete(struct ast_config *cfg, const char *category)
 {
 	struct ast_category *prev=NULL, *cat;
 	cat = cfg->root;
-	while(cat) {
+	while (cat) {
 		if (cat->name == category) {
 			ast_variables_destroy(cat->root);
 			if (prev) {
@@ -550,7 +550,7 @@ int ast_category_delete(struct ast_config *cfg, const char *category)
 
 	prev = NULL;
 	cat = cfg->root;
-	while(cat) {
+	while (cat) {
 		if (!strcasecmp(cat->name, category)) {
 			ast_variables_destroy(cat->root);
 			if (prev) {
@@ -579,7 +579,7 @@ void ast_config_destroy(struct ast_config *cfg)
 		return;
 
 	cat = cfg->root;
-	while(cat) {
+	while (cat) {
 		ast_variables_destroy(cat->root);
 		catn = cat;
 		cat = cat->next;
@@ -633,7 +633,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		if (withcomments && lline_buffer && lline_buffer[0] ) {
 			newcat->sameline = ALLOC_COMMENT(lline_buffer);
 		}
-		if( withcomments )
+		if ( withcomments )
 			CB_RESET();
 		
  		/* If there are options or categories to inherit from, process them now */
@@ -678,7 +678,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		/* A directive */
 		cur++;
 		c = cur;
-		while(*c && (*c > 32)) c++;
+		while (*c && (*c > 32)) c++;
 		if (*c) {
 			*c = '\0';
 			/* Find real argument */
@@ -688,7 +688,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		} else 
 			c = NULL;
 		do_include = !strcasecmp(cur, "include");
-		if(!do_include)
+		if (!do_include)
 			do_exec = !strcasecmp(cur, "exec");
 		else
 			do_exec = 0;
@@ -699,7 +699,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		if (do_include || do_exec) {
 			if (c) {
 				/* Strip off leading and trailing "'s and <>'s */
-				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
+				while ((*c == '<') || (*c == '>') || (*c == '\"')) c++;
 				/* Get rid of leading mess */
 				cur = c;
 				while (!ast_strlen_zero(cur)) {
@@ -720,9 +720,9 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 					exec_file[0] = '\0';
 				/* A #include */
 				do_include = ast_config_internal_load(cur, cfg, withcomments) ? 1 : 0;
-				if(!ast_strlen_zero(exec_file))
+				if (!ast_strlen_zero(exec_file))
 					unlink(exec_file);
-				if(!do_include)
+				if (!do_include)
 					return 0;
 
 			} else {
@@ -765,7 +765,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				if (withcomments && lline_buffer && lline_buffer[0] ) {
 					v->sameline = ALLOC_COMMENT(lline_buffer);
 				}
-				if( withcomments )
+				if ( withcomments )
 					CB_RESET();
 				
 			} else {
@@ -851,7 +851,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
 		if (option_verbose > 1)
 			ast_verbose("Found\n");
-		while(!feof(f)) {
+		while (!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
 				if ( withcomments ) {
@@ -870,7 +870,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 						/* Yuck, gotta memmove */
 						memmove(comment_p - 1, comment_p, strlen(comment_p) + 1);
 						new_buf = comment_p;
-					} else if(comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
+					} else if (comment_p[1] == COMMENT_TAG && comment_p[2] == COMMENT_TAG && (comment_p[3] != '-')) {
 						/* Meta-Comment start detected ";--" */
 						if (comment < MAX_NESTED_COMMENTS) {
 							*comment_p = '\0';
@@ -915,7 +915,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 							new_buf = comment_p + 1;
 					}
 				}
-				if( withcomments && comment && !process_buf )
+				if ( withcomments && comment && !process_buf )
 				{
 					CB_ADD(buf);  /* the whole line is a comment, store it */
 				}
@@ -932,7 +932,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			}
 		}
 		fclose(f);		
-	} while(0);
+	} while (0);
 	if (comment) {
 		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
@@ -995,7 +995,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		fprintf(f, ";! Creation Date: %s", date);
 		fprintf(f, ";!\n");
 		cat = cfg->root;
-		while(cat) {
+		while (cat) {
 			/* Dump section with any appropriate comment */
 			for (cmt = cat->precomments; cmt; cmt=cmt->next)
 			{
@@ -1005,14 +1005,14 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			if (!cat->precomments)
 				fprintf(f,"\n");
 			fprintf(f, "[%s]", cat->name);
-			for(cmt = cat->sameline; cmt; cmt=cmt->next)
+			for (cmt = cat->sameline; cmt; cmt=cmt->next)
 			{
 				fprintf(f,"%s", cmt->cmt);
 			}
 			if (!cat->sameline)
 				fprintf(f,"\n");
 			var = cat->root;
-			while(var) {
+			while (var) {
 				for (cmt = var->precomments; cmt; cmt=cmt->next)
 				{
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')

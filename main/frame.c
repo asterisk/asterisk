@@ -534,7 +534,7 @@ char* ast_getformatname(int format)
 	int x;
 	char *ret = "unknown";
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == format) {
+		if (AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == format) {
 			ret = AST_FORMAT_LIST[x].name;
 			break;
 		}
@@ -583,7 +583,7 @@ static const char *ast_expand_codec_alias(const char *in)
 	int x;
 
 	for (x = 0; x < sizeof(ast_codec_alias_table) / sizeof(ast_codec_alias_table[0]); x++) {
-		if(!strcmp(in,ast_codec_alias_table[x].alias))
+		if (!strcmp(in,ast_codec_alias_table[x].alias))
 			return ast_codec_alias_table[x].realname;
 	}
 	return in;
@@ -595,11 +595,11 @@ int ast_getformatbyname(const char *name)
 
 	all = strcasecmp(name, "all") ? 0 : 1;
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(AST_FORMAT_LIST[x].visible && (all || 
+		if (AST_FORMAT_LIST[x].visible && (all || 
 			  !strcasecmp(AST_FORMAT_LIST[x].name,name) ||
 			  !strcasecmp(AST_FORMAT_LIST[x].name,ast_expand_codec_alias(name)))) {
 			format |= AST_FORMAT_LIST[x].bits;
-			if(!all)
+			if (!all)
 				break;
 		}
 	}
@@ -612,7 +612,7 @@ char *ast_codec2str(int codec)
 	int x;
 	char *ret = "unknown";
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == codec) {
+		if (AST_FORMAT_LIST[x].visible && AST_FORMAT_LIST[x].bits == codec) {
 			ret = AST_FORMAT_LIST[x].desc;
 			break;
 		}
@@ -938,7 +938,7 @@ void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size,
 	int x, differential = (int) 'A', mem;
 	char *from, *to;
 
-	if(right) {
+	if (right) {
 		from = pref->order;
 		to = buf;
 		mem = size;
@@ -950,7 +950,7 @@ void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size,
 
 	memset(to, 0, mem);
 	for (x = 0; x < 32 ; x++) {
-		if(!from[x])
+		if (!from[x])
 			break;
 		to[x] = right ? (from[x] + differential) : (from[x] - differential);
 	}
@@ -967,23 +967,23 @@ int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size)
 	buf[0] = '(';
 	total_len--;
 	for(x = 0; x < 32 ; x++) {
-		if(total_len <= 0)
+		if (total_len <= 0)
 			break;
-		if(!(codec = ast_codec_pref_index(pref,x)))
+		if (!(codec = ast_codec_pref_index(pref,x)))
 			break;
-		if((formatname = ast_getformatname(codec))) {
+		if ((formatname = ast_getformatname(codec))) {
 			slen = strlen(formatname);
-			if(slen > total_len)
+			if (slen > total_len)
 				break;
 			strncat(buf,formatname,total_len);
 			total_len -= slen;
 		}
-		if(total_len && x < 31 && ast_codec_pref_index(pref , x + 1)) {
+		if (total_len && x < 31 && ast_codec_pref_index(pref , x + 1)) {
 			strncat(buf,"|",total_len);
 			total_len--;
 		}
 	}
-	if(total_len) {
+	if (total_len) {
 		strncat(buf,")",total_len);
 		total_len--;
 	}
@@ -996,7 +996,7 @@ int ast_codec_pref_index(struct ast_codec_pref *pref, int index)
 	int slot = 0;
 
 	
-	if((index >= 0) && (index < sizeof(pref->order))) {
+	if ((index >= 0) && (index < sizeof(pref->order))) {
 		slot = pref->order[index];
 	}
 
@@ -1011,7 +1011,7 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 	int slot;
 	int size;
 
-	if(!pref->order[0])
+	if (!pref->order[0])
 		return;
 
 	memcpy(&oldorder, pref, sizeof(oldorder));
@@ -1020,9 +1020,9 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
 		slot = oldorder.order[x];
 		size = oldorder.framing[x];
-		if(! slot)
+		if (! slot)
 			break;
-		if(AST_FORMAT_LIST[slot-1].bits != format) {
+		if (AST_FORMAT_LIST[slot-1].bits != format) {
 			pref->order[y] = slot;
 			pref->framing[y++] = size;
 		}
@@ -1038,15 +1038,15 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 	ast_codec_pref_remove(pref, format);
 
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(AST_FORMAT_LIST[x].bits == format) {
+		if (AST_FORMAT_LIST[x].bits == format) {
 			newindex = x + 1;
 			break;
 		}
 	}
 
-	if(newindex) {
+	if (newindex) {
 		for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-			if(!pref->order[x]) {
+			if (!pref->order[x]) {
 				pref->order[x] = newindex;
 				break;
 			}
@@ -1063,31 +1063,31 @@ int ast_codec_pref_setsize(struct ast_codec_pref *pref, int format, int framems)
 	int x, index = -1;
 
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(AST_FORMAT_LIST[x].bits == format) {
+		if (AST_FORMAT_LIST[x].bits == format) {
 			index = x;
 			break;
 		}
 	}
 
-	if(index < 0)
+	if (index < 0)
 		return -1;
 
 	/* size validation */
-	if(!framems)
+	if (!framems)
 		framems = AST_FORMAT_LIST[index].def_ms;
 
-	if(AST_FORMAT_LIST[index].inc_ms && framems % AST_FORMAT_LIST[index].inc_ms) /* avoid division by zero */
+	if (AST_FORMAT_LIST[index].inc_ms && framems % AST_FORMAT_LIST[index].inc_ms) /* avoid division by zero */
 		framems -= framems % AST_FORMAT_LIST[index].inc_ms;
 
-	if(framems < AST_FORMAT_LIST[index].min_ms)
+	if (framems < AST_FORMAT_LIST[index].min_ms)
 		framems = AST_FORMAT_LIST[index].min_ms;
 
-	if(framems > AST_FORMAT_LIST[index].max_ms)
+	if (framems > AST_FORMAT_LIST[index].max_ms)
 		framems = AST_FORMAT_LIST[index].max_ms;
 
 
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(pref->order[x] == (index + 1)) {
+		if (pref->order[x] == (index + 1)) {
 			pref->framing[x] = framems;
 			break;
 		}
@@ -1103,7 +1103,7 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int f
 	struct ast_format_list fmt = { 0, };
 
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(AST_FORMAT_LIST[x].bits == format) {
+		if (AST_FORMAT_LIST[x].bits == format) {
 			fmt = AST_FORMAT_LIST[x];
 			index = x;
 			break;
@@ -1111,23 +1111,23 @@ struct ast_format_list ast_codec_pref_getsize(struct ast_codec_pref *pref, int f
 	}
 
 	for (x = 0; x < sizeof(AST_FORMAT_LIST) / sizeof(AST_FORMAT_LIST[0]); x++) {
-		if(pref->order[x] == (index + 1)) {
+		if (pref->order[x] == (index + 1)) {
 			framems = pref->framing[x];
 			break;
 		}
 	}
 
 	/* size validation */
-	if(!framems)
+	if (!framems)
 		framems = AST_FORMAT_LIST[index].def_ms;
 
-	if(AST_FORMAT_LIST[index].inc_ms && framems % AST_FORMAT_LIST[index].inc_ms) /* avoid division by zero */
+	if (AST_FORMAT_LIST[index].inc_ms && framems % AST_FORMAT_LIST[index].inc_ms) /* avoid division by zero */
 		framems -= framems % AST_FORMAT_LIST[index].inc_ms;
 
-	if(framems < AST_FORMAT_LIST[index].min_ms)
+	if (framems < AST_FORMAT_LIST[index].min_ms)
 		framems = AST_FORMAT_LIST[index].min_ms;
 
-	if(framems > AST_FORMAT_LIST[index].max_ms)
+	if (framems > AST_FORMAT_LIST[index].max_ms)
 		framems = AST_FORMAT_LIST[index].max_ms;
 
 	fmt.cur_ms = framems;
@@ -1150,7 +1150,7 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 			break;
 		}
 	}
-	if(ret & AST_FORMAT_AUDIO_MASK)
+	if (ret & AST_FORMAT_AUDIO_MASK)
 		return ret;
 
 	if (option_debug > 3)

@@ -442,7 +442,7 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	while(!res && (num || playh)) {
+	while (!res && (num || playh)) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -487,7 +487,7 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 			}
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd  > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
@@ -545,7 +545,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 	
-	while(!res && (num || playh)) {
+	while (!res && (num || playh)) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -609,7 +609,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 			num -= left * (exp10_int(length-1));
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1)) {
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				} else {
@@ -638,7 +638,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 
 	if (options && !strncasecmp(options, "n",1)) cn = -1;
 
-	while(!res && (num || playh || playa )) {
+	while (!res && (num || playh || playa )) {
 		/* The grammar for Danish numbers is the same as for English except
 		* for the following:
 		* - 1 exists in both commune ("en", file "1N") and neuter ("et", file "1")
@@ -719,7 +719,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 			}
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
@@ -752,7 +752,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 	if (options && (!strncasecmp(options, "f",1)))
 		mf = -1;
 
-	while(!res && num) {
+	while (!res && num) {
 		/* The grammar for German numbers is the same as for English except
 		* for the following:
 		* - numbers 20 through 99 are said in reverse order, i.e. 21 is
@@ -850,7 +850,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 			res = -1;
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
@@ -885,7 +885,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	while(!res && (num || playh || playa )) {
+	while (!res && (num || playh || playa )) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -937,7 +937,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 		}
 		
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
@@ -1042,7 +1042,7 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 		}
 
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
@@ -1073,7 +1073,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 	if (options && !strncasecmp(options, "f",1))
 		mf = -1;
 
-	while(!res && (num || playh || playa)) {
+	while (!res && (num || playh || playa)) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -1135,7 +1135,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 			res = -1;
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
@@ -1213,7 +1213,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 		mf = -1;
 
 	/* Do we have work to do? */
-	while(!res && (num || (state>0) ))  {
+	while (!res && (num || (state>0) ))  {
 		/* first type of work: play a second sound. In this loop
 		 * we can only play one sound file at a time. Thus playing 
 		 * a second one requires repeating the loop just for the 
@@ -1285,7 +1285,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			res = -1;
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
@@ -1332,7 +1332,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 		So the right file is provided.
 		*/
 
-		while(!res && (num || playh)) {
+	while (!res && (num || playh)) {
 			if (num < 0) {
 				snprintf(fn, sizeof(fn), "digits/minus");
 				if ( num > INT_MIN ) {
@@ -1439,7 +1439,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 				}
 			}
 			if (!res) {
-				if(!ast_streamfile(chan, fn, language)) {
+				if (!ast_streamfile(chan, fn, language)) {
 					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
@@ -1517,7 +1517,7 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 		}
 
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
@@ -1546,7 +1546,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 	
 	if (options && !strncasecmp(options, "n",1)) cn = -1;
 
-	while(!res && (num || playh || playa )) {
+	while (!res && (num || playh || playa )) {
 		/* The grammar for Norwegian numbers is the same as for English except
 		* for the following:
 		* - 1 exists in both commune ("en", file "1") and neuter ("ett", file "1N")
@@ -1610,7 +1610,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 		}
 		
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1)) 
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
@@ -1935,7 +1935,7 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 	if (options && !strncasecmp(options, "f",1))
 		mf = -1;
 
-	while(!res && num ) {
+	while (!res && num ) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -2028,7 +2028,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 	if (options && !strncasecmp(options, "n",1)) cn = -1;
 
-	while(!res && (num || playh)) {
+	while (!res && (num || playh)) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -2078,7 +2078,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 			}
 		}
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
@@ -2099,7 +2099,7 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 	if (!num)
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	while(!res && (num || playh)) {
+	while (!res && (num || playh)) {
 			if (num < 0) {
 				snprintf(fn, sizeof(fn), "digits/minus");
 				if ( num > INT_MIN ) {
@@ -2144,7 +2144,7 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 				}
 			}
 			if (!res) {
-				if(!ast_streamfile(chan, fn, language)) {
+				if (!ast_streamfile(chan, fn, language)) {
 					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
@@ -2192,7 +2192,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	while(!res && (num)) {
+	while (!res && (num)) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus");
 			if ( num > INT_MIN ) {
@@ -2201,7 +2201,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 				num = 0;
 			}	
 		} else	if (num < 20) {
-			if(options && strlen(options) == 1 && num < 3) {
+			if (options && strlen(options) == 1 && num < 3) {
 			    snprintf(fn, sizeof(fn), "digits/%d%s", num, options);
 			} else {
     			    snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -2287,7 +2287,7 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 	int res = 0, t = 0;
 	char fn[256] = "";
 	
-	while(!res && num) {
+	while (!res && num) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus"); /* kind of senseless for enumerations, but our best effort for error checking */
 			if ( num > INT_MIN ) {
@@ -2399,7 +2399,7 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	while(!res && num) {
+	while (!res && num) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus"); /* kind of senseless for enumerations, but our best effort for error checking */
 			if ( num > INT_MIN ) {
@@ -2563,7 +2563,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	while(!res && num) {
+	while (!res && num) {
 		if (num < 0) {
 			snprintf(fn, sizeof(fn), "digits/minus"); /* kind of senseless for enumerations, but our best effort for error checking */
 			if ( num > INT_MIN ) {
@@ -5260,7 +5260,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				} else {
 					snprintf(nextmsg,sizeof(nextmsg), "digits/h-%dh", tm.tm_mday - (tm.tm_mday % 10));
 					res = wait_file(chan,ints,nextmsg,lang);
-					if(!res) {
+					if (!res) {
 						snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday % 10);
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
@@ -6207,7 +6207,7 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 			return  ast_waitstream(chan, ints);
 	}
 
-	while(!res && num ) {
+	while (!res && num ) {
 		i++;
 		if (num < 13) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -6251,7 +6251,7 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 			}
 		} 
 		if (!res) {
-			if(!ast_streamfile(chan, fn, language)) {
+			if (!ast_streamfile(chan, fn, language)) {
 				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else

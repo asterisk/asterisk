@@ -288,7 +288,7 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	struct varshead *headp;
 	int x;
 	
-	for(x = 0; cdr_readonly_vars[x]; x++) {
+	for (x = 0; cdr_readonly_vars[x]; x++) {
 		if (!strcasecmp(name, cdr_readonly_vars[x])) {
 			ast_log(LOG_ERROR, "Attempt to set the '%s' read-only variable!.\n", name);
 			return -1;
@@ -493,7 +493,7 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 	int res = 0;
 
 	for (; cdr; cdr = cdr->next) {
-		switch(cause) {
+		switch (cause) {
 		case AST_CAUSE_BUSY:
 			ast_cdr_busy(cdr);
 			break;
@@ -624,7 +624,7 @@ char *ast_cdr_disp2str(int disposition)
 /*! Converts AMA flag to printable string */
 char *ast_cdr_flags2str(int flag)
 {
-	switch(flag) {
+	switch (flag) {
 	case AST_CDR_OMIT:
 		return "OMIT";
 	case AST_CDR_BILLING:
@@ -945,7 +945,7 @@ static void *do_cdr(void *data)
 	int schedms;
 	int numevents = 0;
 
-	for(;;) {
+	for (;;) {
 		struct timeval now;
 		schedms = ast_sched_wait(sched);
 		/* this shouldn't happen, but provide a 1 second default just in case */

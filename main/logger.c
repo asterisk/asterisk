@@ -214,7 +214,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		*  syslog.facility => level,level,level
 		*/
 		facility = strchr(channel, '.');
-		if(!facility++ || !facility) {
+		if (!facility++ || !facility) {
 			facility = "local0";
 		}
 
@@ -283,14 +283,14 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		openlog("asterisk", LOG_PID, chan->facility);
 	} else {
 		if (channel[0] == '/') {
-			if(!ast_strlen_zero(hostname)) { 
+			if (!ast_strlen_zero(hostname)) { 
 				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
 			} else {
 				ast_copy_string(chan->filename, channel, sizeof(chan->filename));
 			}
 		}		  
 		
-		if(!ast_strlen_zero(hostname)) {
+		if (!ast_strlen_zero(hostname)) {
 			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s", ast_config_AST_LOG_DIR, channel, hostname);
 		} else {
 			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", ast_config_AST_LOG_DIR, channel);
@@ -523,7 +523,7 @@ int reload_logger(int rotate)
 
 static int handle_logger_reload(int fd, int argc, char *argv[])
 {
-	if(reload_logger(0)) {
+	if (reload_logger(0)) {
 		ast_cli(fd, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
 	} else
@@ -532,7 +532,7 @@ static int handle_logger_reload(int fd, int argc, char *argv[])
 
 static int handle_logger_rotate(int fd, int argc, char *argv[])
 {
-	if(reload_logger(1)) {
+	if (reload_logger(1)) {
 		ast_cli(fd, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
 	} else

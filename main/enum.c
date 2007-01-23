@@ -445,7 +445,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 			tmp[newpos++] = '.';
 		}
 		if (*p2) {
-			while(*p2 && newpos < 128){
+			while (*p2 && newpos < 128){
 				tmp[newpos++] = *p2;
 				p2++;
 			}
@@ -634,7 +634,7 @@ int ast_enum_init(void)
 	/* Destroy existing list */
 	ast_mutex_lock(&enumlock);
 	s = toplevs;
-	while(s) {
+	while (s) {
 		sl = s;
 		s = s->next;
 		free(sl);
@@ -644,7 +644,7 @@ int ast_enum_init(void)
 	if (cfg) {
 		sl = NULL;
 		v = ast_variable_browse(cfg, "general");
-		while(v) {
+		while (v) {
 			if (!strcasecmp(v->name, "search")) {
 				s = enum_newtoplev(v->value);
 				if (s) {
