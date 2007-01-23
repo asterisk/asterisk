@@ -55,6 +55,7 @@ A-D: DTMF event for keys A through D
 *: DTMF event for key *
 #: DTMF event for key #
 H: the channel was hung up by the connected party
+E: the script requested an exit
 Z: the previous command was unable to be executed (file does not
 exist, etc.)
 T: the play list was interrupted (see below)
@@ -76,7 +77,9 @@ The child process can send commands on stdout in the following formats:
 S,filename
 A,filename
 H,message
+E,message
 O,option
+V,name=value
 
 The 'S' command checks to see if there is a playable audio file with
 the specified name, and if so, clear's the generator's playlist and
@@ -93,6 +96,9 @@ the specified name, and if so, adds it to the generator's
 playlist. The same playability and exception rules apply as for the
 'S' command.
 
+The 'E' command stops the generator and continues execution in the dialplan,
+and logs the supplied message to the Asterisk log.
+
 The 'H' command stops the generator and hangs up the channel, and logs
 the supplied message to the Asterisk log.
 
@@ -101,6 +107,8 @@ ExternalIVR() application. The supported options are:
 	autoclear/noautoclear:
 	Automatically interrupt and clear the playlist upon reception
 	of DTMF input.
+
+The 'V' command sets the specified channel variable to the specified value.
 
 Errors
 ------

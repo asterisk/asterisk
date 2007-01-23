@@ -487,9 +487,15 @@ static int app_exec(struct ast_channel *chan, void *data)
 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
 						AST_LIST_UNLOCK(&u->playlist);
 					}
+				} else if (input[0] == 'E') {
+					ast_chan_log(LOG_NOTICE, chan, "Exiting: %s\n", &input[2]);
+					send_child_event(child_events, 'E', NULL, chan);
+					res = 0;
+					break;
 				} else if (input[0] == 'H') {
 					ast_chan_log(LOG_NOTICE, chan, "Hanging up: %s\n", &input[2]);
 					send_child_event(child_events, 'H', NULL, chan);
+					res = -1;
 					break;
 				} else if (input[0] == 'O') {
 					if (!strcasecmp(&input[2], "autoclear"))
@@ -498,6 +504,15 @@ static int app_exec(struct ast_channel *chan, void *data)
 						u->option_autoclear = 0;
 					else
 						ast_chan_log(LOG_WARNING, chan, "Unknown option requested '%s'\n", &input[2]);
+				} else if (input[0] == 'V') {
+					char *c;
+					c = strchr(&input[2], '=');
+					if (!c) {
+						send_child_event(child_events, 'Z', NULL, chan);
+					} else {
+						*c++ = '\0';
+						pbx_builtin_setvar_helper(chan, &input[2], c);
+					}
 				}
 			} else if (ready_fd == child_errors_fd) {
 				char input[1024];
