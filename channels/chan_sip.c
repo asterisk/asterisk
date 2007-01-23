@@ -1632,9 +1632,19 @@ static void unref_user(struct sip_user *user)
 	ASTOBJ_UNREF(user, sip_destroy_user);
 }
 
-static void unref_registry(struct sip_registry *reg)
+static void registry_unref(struct sip_registry *reg)
 {
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount - 1);
 	ASTOBJ_UNREF(reg, sip_registry_destroy);
+}
+
+/*! \brief Add object reference to SIP registry */
+static struct sip_registry *registry_addref(struct sip_registry *reg)
+{
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount + 1);
+	return ASTOBJ_REF(reg);	/* Add pointer to registry in packet */
 }
 
 /*! \brief Interface structure with callbacks used to connect to UDPTL module*/
@@ -1969,7 +1979,7 @@ static int retrans_pkt(void *data)
 			/* If no channel owner, destroy now */
 
 			/* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
-			if (pkt->method != SIP_OPTIONS)
+			if (pkt->method != SIP_OPTIONS && pkt->method != SIP_REGISTER)
 				ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
 		}
 	}
@@ -3036,7 +3046,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->registry) {
 		if (p->registry->call == p)
 			p->registry->call = NULL;
-		unref_registry(p->registry);
+		registry_unref(p->registry);
 	}
 
 	/* Unlink us from the owner if we have one */
@@ -4607,7 +4617,7 @@ static int sip_register(char *value, int lineno)
 	reg->callid_valid = FALSE;
 	reg->ocseq = INITIAL_CSEQ;
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
-	unref_registry(reg);
+	registry_unref(reg);
 	return 0;
 }
 
@@ -7174,7 +7184,7 @@ static char *regstate2str(enum sipregistrystate regstate)
 static int sip_reregister(void *data) 
 {
 	/* if we are here, we know that we need to reregister. */
-	struct sip_registry *r= ASTOBJ_REF((struct sip_registry *) data);
+	struct sip_registry *r= registry_addref((struct sip_registry *) data);
 
 	/* if we couldn't get a reference to the registry object, punt */
 	if (!r)
@@ -7189,7 +7199,7 @@ static int sip_reregister(void *data)
 
 	r->expire = -1;
 	__sip_do_register(r);
-	unref_registry(r);
+	registry_unref(r);
 	return 0;
 }
 
@@ -7207,7 +7217,7 @@ static int sip_reg_timeout(void *data)
 {
 
 	/* if we are here, our registration timed out, so we'll just do it over */
-	struct sip_registry *r = ASTOBJ_REF((struct sip_registry *) data);
+	struct sip_registry *r = registry_addref((struct sip_registry *) data);
 	struct sip_pvt *p;
 	int res;
 
@@ -7220,8 +7230,10 @@ static int sip_reg_timeout(void *data)
 		/* Unlink us, destroy old call.  Locking is not relevant here because all this happens
 		   in the single SIP manager thread. */
 		p = r->call;
-		if (p->registry)
-			unref_registry(p->registry);
+		if (p->registry) {
+			registry_unref(p->registry);
+			p->registry = NULL;
+		}
 		r->call = NULL;
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
@@ -7240,7 +7252,7 @@ static int sip_reg_timeout(void *data)
 		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	}
 	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
-	unref_registry(r);
+	registry_unref(r);
 	return 0;
 }
 
@@ -7306,7 +7318,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			r->portno = ntohs(p->sa.sin_port);
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call=p;			/* Save pointer to SIP packet */
-		p->registry = ASTOBJ_REF(r);	/* Add pointer to registry in packet */
+		p->registry = registry_addref(r);	/* Add pointer to registry in packet */
 		if (!ast_strlen_zero(r->secret))	/* Secret (password) */
 			ast_string_field_set(p, peersecret, r->secret);
 		if (!ast_strlen_zero(r->md5secret))
@@ -10409,9 +10421,8 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 		if (iterator->regtime) {
 			ast_localtime(&iterator->regtime, &tm, NULL);
 			strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
-		} else {
-			tmpdat[0] = 0;
-		}
+		} else 
+			tmpdat[0] = '\0';
 		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
 		ASTOBJ_UNLOCK(iterator);
 	} while(0));
@@ -12241,7 +12252,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 		/* Schedule re-registration before we expire */
 		r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
-		unref_registry(r);
+		registry_unref(r);
 	}
 	return 1;
 }
