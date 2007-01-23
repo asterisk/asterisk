@@ -64,6 +64,7 @@ Changes since Asterisk 1.4-beta was branched:
   * Added G729 passthrough support to chan_phone for Sigma Designs boards.
   * Added the parkedcalltransfers option to features.conf
   * Added 's' option to Page application.
+  * Added the srvlookup option to iax.conf
 
 SIP changes
 -----------

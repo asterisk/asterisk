@@ -51,6 +51,10 @@
 ;
 ;adsi=no
 ;
+; Perform an SRV lookup on outbound calls
+;
+;srvlookup=yes
+;
 ; You may specify a default account for Call Detail Records in addition
 ; to specifying on a per-user basis
 ;

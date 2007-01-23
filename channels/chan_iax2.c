@@ -180,6 +180,8 @@ static unsigned int tos = 0;
 static int min_reg_expire;
 static int max_reg_expire;
 
+static int srvlookup = 0;
+
 static int timingfd = -1;				/* Timing file descriptor */
 
 static struct ast_netsock_list *netsock;
@@ -2674,8 +2676,6 @@ struct create_addr_info {
 
 static int create_addr(const char *peername, struct sockaddr_in *sin, struct create_addr_info *cai)
 {
-	struct ast_hostent ahp;
-	struct hostent *hp;
 	struct iax2_peer *peer;
 
 	ast_clear_flag(cai, IAX_SENDANI | IAX_TRUNK);
@@ -2685,18 +2685,14 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 
 	if (!(peer = find_peer(peername, 1))) {
 		cai->found = 0;
-
-		hp = ast_gethostbyname(peername, &ahp);
-		if (hp) {
-			memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
-			sin->sin_port = htons(IAX_DEFAULT_PORTNO);
-			/* use global iax prefs for unknown peer/user */
-			ast_codec_pref_convert(&prefs, cai->prefs, sizeof(cai->prefs), 1);
-			return 0;
-		} else {
+		if (ast_get_ip_or_srv(sin, peername, srvlookup ? "_iax._udp" : NULL)) {
 			ast_log(LOG_WARNING, "No such host: %s\n", peername);
 			return -1;
 		}
+		sin->sin_port = htons(IAX_DEFAULT_PORTNO);
+		/* use global iax prefs for unknown peer/user */
+		ast_codec_pref_convert(&prefs, cai->prefs, sizeof(cai->prefs), 1);
+		return 0;
 	}
 
 	cai->found = 1;
@@ -8968,6 +8964,8 @@ static int set_config(char *config_file, int reload)
 
 	maxauthreq = 3;
 
+	srvlookup = 0;
+
 	v = ast_variable_browse(cfg, "general");
 
 	/* Seed initial tos value */
@@ -9171,6 +9169,8 @@ static int set_config(char *config_file, int reload)
 				maxauthreq = 0;
 		} else if (!strcasecmp(v->name, "adsi")) {
 			adsi = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "srvlookup")) {
+			srvlookup = ast_true(v->value);
 		} /*else if (strcasecmp(v->name,"type")) */
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
