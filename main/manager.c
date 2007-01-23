@@ -1966,7 +1966,9 @@ static int process_message(struct mansession *s, const struct message *m)
 	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
 	if (ast_strlen_zero(action)) {
+		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Missing action in request");
+		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
 	if (!ast_strlen_zero(id)) {
@@ -1987,13 +1989,17 @@ static int process_message(struct mansession *s, const struct message *m)
 				ast_mutex_unlock(&s->__lock);
 				return 0;
 			} else {
+				ast_mutex_lock(&s->__lock);
 				astman_send_error(s, m, "Must specify AuthType");
+				ast_mutex_unlock(&s->__lock);
 				return 0;
 			}
 		} else if (!strcasecmp(action, "Login")) {
 			if (authenticate(s, m)) {
 				sleep(1);
+				ast_mutex_lock(&s->__lock);
 				astman_send_error(s, m, "Authentication failed");
+				ast_mutex_unlock(&s->__lock);
 				return -1;
 			} else {
 				s->authenticated = 1;
@@ -2003,10 +2009,14 @@ static int process_message(struct mansession *s, const struct message *m)
 					}
 				}
 				ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->sessiontimeout ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
+				ast_mutex_lock(&s->__lock);
 				astman_send_ack(s, m, "Authentication accepted");
+				ast_mutex_unlock(&s->__lock);
 			}
 		} else if (!strcasecmp(action, "Logoff")) {
+			ast_mutex_lock(&s->__lock);
 			astman_send_ack(s, m, "See ya");
+			ast_mutex_unlock(&s->__lock);
 			return -1;
 		} else
 			astman_send_error(s, m, "Authentication Required");
@@ -2015,11 +2025,13 @@ static int process_message(struct mansession *s, const struct message *m)
 		for (tmp = first_action; tmp; tmp = tmp->next) { 		
 			if (strcasecmp(action, tmp->action))
 				continue;
+			ast_mutex_lock(&s->__lock);
 			if ((s->writeperm & tmp->authority) == tmp->authority) {
 				if (tmp->func(s, m))
 					ret = -1;
 			} else
 				astman_send_error(s, m, "Permission denied");
+			ast_mutex_unlock(&s->__lock);
 			break;
 		}
 		ast_mutex_unlock(&actionlock);
