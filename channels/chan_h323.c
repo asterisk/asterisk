@@ -3201,13 +3201,17 @@ static enum ast_module_load_result load_module(void)
 	ASTOBJ_CONTAINER_INIT(&aliasl);
 	res = reload_config(0);
 	if (res) {
+		/* No config entry */
+		ast_log(LOG_NOTICE, "Unload and load chan_h323.so again in order to receive configuration changes.\n");
 		ast_cli_unregister(&cli_h323_reload);
 		io_context_destroy(io);
+		io = NULL;
 		sched_context_destroy(sched);
+		sched = NULL;
 		ASTOBJ_CONTAINER_DESTROY(&userl);
 		ASTOBJ_CONTAINER_DESTROY(&peerl);
 		ASTOBJ_CONTAINER_DESTROY(&aliasl);
-		return /*AST_MODULE_LOAD_DECLINE*/AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	} else {
 		/* Make sure we can register our channel type */
 		if (ast_channel_register(&oh323_tech)) {
@@ -3338,8 +3342,10 @@ static int unload_module(void)
 	if (!gatekeeper_disable)
 		h323_gk_urq();
 	h323_end_process();
-	io_context_destroy(io);
-	sched_context_destroy(sched);
+	if (io)
+		io_context_destroy(io);
+	if (sched)
+		sched_context_destroy(sched);
 
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, oh323_destroy_user);
 	ASTOBJ_CONTAINER_DESTROY(&userl);
