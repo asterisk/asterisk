@@ -2076,18 +2076,18 @@ static int process_message(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Permission denied");
 		return 0;
 	}
-	/* XXX should we protect the list navigation ? */
+	ast_mutex_lock(&actionlock);	
 	for (tmp = first_action ; tmp; tmp = tmp->next) {
-		if (!strcasecmp(action, tmp->action)) {
-			if ((s->writeperm & tmp->authority) == tmp->authority) {
-				if (tmp->func(s, m))	/* error */
-					return -1;
-			} else {
-				astman_send_error(s, m, "Permission denied");
-			}
-			break;
-		}
+		if (strcasecmp(action, tmp->action))
+			continue;
+		if ((s->writeperm & tmp->authority) == tmp->authority) {
+			if (tmp->func(s, m))	/* error */
+				return -1;
+		} else
+			astman_send_error(s, m, "Permission denied");
+		break;
 	}
+	ast_mutex_unlock(&actionlock);
 	if (!tmp)
 		astman_send_error(s, m, "Invalid/unknown command. Use Action: ListCommands to show available commands.");
 	if (ret)
@@ -2389,7 +2389,7 @@ int __manager_event(int category, const char *event,
  */
 int ast_manager_unregister(char *action)
 {
-	struct manager_action *cur = first_action, *prev = first_action;
+	struct manager_action *cur, *prev;
 
 	ast_mutex_lock(&actionlock);
 	for (cur = first_action, prev = NULL; cur; prev = cur, cur = cur->next) {
