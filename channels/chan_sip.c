@@ -5278,7 +5278,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "We have an owner, now see if we need to change this call\n");
 
-	if (!(p->owner->nativeformats & p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
+	if (!(p->owner->nativeformats & p->jointcapability & AST_FORMAT_AUDIO_MASK) && (p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
 		if (debug) {
 			char s1[BUFSIZ], s2[BUFSIZ];
 			ast_log(LOG_DEBUG, "Oooh, we need to change our audio formats since our peer supports only %s and not %s\n", 
