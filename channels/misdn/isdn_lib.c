@@ -1970,7 +1970,9 @@ handle_event_nt(void *dat, void *arg)
 				cb_log(0, stack->port, "%% GOT L2 Activate Info. but we're activated already.. this l2 is faulty, blocking port\n");
 				cb_event(EVENT_PORT_ALARM, &stack->bc[0], glob_mgr->user_data);
 			}
-			
+		
+			/* when we get the L2 UP, the L1 is UP definitely too*/
+			stack->l1link = 1;
 			stack->l2link = 1;
 			stack->l2upcnt=0;
 			
@@ -2821,6 +2823,9 @@ static int handle_mgmt(msg_t *msg)
 
 		case SSTATUS_L2_ESTABLISHED:
 			cb_log(3, stack->port, "MGMT: SSTATUS: L2_ESTABLISH \n");
+
+			/*when the L2 goes UP, L1 needs to be UP too*/
+			stack->l1link=1;
 			stack->l2link=1;
 			break;
 			
@@ -3612,12 +3617,12 @@ int misdn_lib_send_restart(int port)
 	struct misdn_bchannel dummybc;
 	memset (&dummybc,0,sizeof(dummybc));
 	dummybc.port=stack->port;
-	dummybc.l3_id=MISDN_ID_DUMMY;
+	dummybc.l3_id=MISDN_ID_GLOBAL;
 	dummybc.nt=stack->nt;
 
 	int max=stack->pri?30:2;
 	int i;
-	for (i=1;i<max;i++) {
+	for (i=1;i<=max;i++) {
 		dummybc.channel=i;
 		cb_log(0, port, "Restarting channel %d\n",i);
 		misdn_lib_send_event(&dummybc, EVENT_RESTART);
@@ -3747,6 +3752,16 @@ static void manager_event_handler(void *arg)
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
 					if (bc) send_msg(glob_mgr->midev, bc, msg);
+					else  {
+						if (frm->dinfo == MISDN_ID_GLOBAL) {
+							struct misdn_bchannel dummybc;
+							memset (&dummybc,0,sizeof(dummybc));
+							dummybc.port=stack->port;
+							dummybc.l3_id=MISDN_ID_GLOBAL;
+							dummybc.nt=stack->nt;
+							send_msg(glob_mgr->midev, &dummybc, msg);
+						}
+					}
 				}
 			}
 		}

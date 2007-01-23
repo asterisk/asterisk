@@ -1879,23 +1879,21 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	int r;
 	struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
 	struct misdn_bchannel *newbc;
-	char *opts=NULL, *ext,*tokb;
+	char *opts=NULL, *ext;
 	char dest_cp[256];
 
 	{
 		strncpy(dest_cp,dest,sizeof(dest_cp)-1);
 		dest_cp[sizeof(dest_cp)]=0;
-		
-		ext=strtok_r(dest_cp,"/",&tokb);
-		
+
+		ext=dest_cp;
+		strsep(&ext,"/");
 		if (ext) {
-			ext=strtok_r(NULL,"/",&tokb);
-			if (ext) {
-				opts=strtok_r(NULL,"/",&tokb);
-			} else {
-				chan_misdn_log(0,0,"misdn_call: No Extension given!\n");
-				return -1;
-			}
+			opts=ext;
+			strsep(&opts,"/");
+		}  else {
+			ast_log(LOG_WARNING, "Malformed dialstring\n");
+			return -1;
 		}
 	}
 
