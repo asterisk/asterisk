@@ -426,7 +426,7 @@ void astman_append(struct mansession *s, const char *fmt, ...)
 
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	char authority[80];
 	int num;
 
@@ -434,7 +434,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	ast_mutex_lock(&actionlock);
-	for (; cur; cur = cur->next) { /* Walk the list of actions */
+	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
 				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n", cur->action, cur->synopsis, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->description ? cur->description : "");
@@ -521,7 +521,7 @@ static int handle_showmanagers(int fd, int argc, char *argv[])
 	Should change to "manager show commands" */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	char authority[80];
 	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
 
@@ -529,7 +529,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	ast_cli(fd, format, "------", "---------", "--------");
 	
 	ast_mutex_lock(&actionlock);
-	for (; cur; cur = cur->next) /* Walk the list of actions */
+	for (cur = first_action; cur; cur = cur->next) /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, authority, sizeof(authority) -1), cur->synopsis);
 	ast_mutex_unlock(&actionlock);
 	
@@ -1254,7 +1254,7 @@ static char mandescr_listcommands[] =
 
 static int action_listcommands(struct mansession *s, const struct message *m)
 {
-	struct manager_action *cur = first_action;
+	struct manager_action *cur;
 	char idText[256] = "";
 	char temp[BUFSIZ];
 	const char *id = astman_get_header(m,"ActionID");
@@ -1263,10 +1263,9 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	astman_append(s, "Response: Success\r\n%s", idText);
 	ast_mutex_lock(&actionlock);
-	while (cur) { /* Walk the list of actions */
+	for (cur = first_action; cur; cur = cur->next) {
 		if ((s->writeperm & cur->authority) == cur->authority)
 			astman_append(s, "%s: %s (Priv: %s)\r\n", cur->action, cur->synopsis, authority_to_str(cur->authority, temp, sizeof(temp)));
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&actionlock);
 	astman_append(s, "\r\n");
@@ -1958,7 +1957,7 @@ static int action_userevent(struct mansession *s, const struct message *m)
 static int process_message(struct mansession *s, const struct message *m)
 {
 	char action[80] = "";
-	struct manager_action *tmp = first_action;
+	struct manager_action *tmp;
 	const char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int ret = 0;
@@ -2012,18 +2011,18 @@ static int process_message(struct mansession *s, const struct message *m)
 		} else
 			astman_send_error(s, m, "Authentication Required");
 	} else {
-		while (tmp) { 		
-			if (!strcasecmp(action, tmp->action)) {
-				if ((s->writeperm & tmp->authority) == tmp->authority) {
-					if (tmp->func(s, m))
-						ret = -1;
-				} else {
-					astman_send_error(s, m, "Permission denied");
-				}
-				break;
-			}
-			tmp = tmp->next;
+		ast_mutex_lock(&actionlock);
+		for (tmp = first_action; tmp; tmp = tmp->next) { 		
+			if (strcasecmp(action, tmp->action))
+				continue;
+			if ((s->writeperm & tmp->authority) == tmp->authority) {
+				if (tmp->func(s, m))
+					ret = -1;
+			} else
+				astman_send_error(s, m, "Permission denied");
+			break;
 		}
+		ast_mutex_unlock(&actionlock);
 		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
 	}
@@ -2318,9 +2317,10 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 
 int ast_manager_unregister(char *action) 
 {
-	struct manager_action *cur = first_action, *prev = first_action;
+	struct manager_action *cur, *prev;
 
 	ast_mutex_lock(&actionlock);
+	cur = prev = first_action;
 	while (cur) {
 		if (!strcasecmp(action, cur->action)) {
 			prev->next = cur->next;
@@ -2346,10 +2346,11 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 
 static int ast_manager_register_struct(struct manager_action *act)
 {
-	struct manager_action *cur = first_action, *prev = NULL;
+	struct manager_action *cur, *prev = NULL;
 	int ret;
 
 	ast_mutex_lock(&actionlock);
+	cur = first_action;
 	while (cur) { /* Walk the list of actions */
 		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
