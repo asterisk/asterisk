@@ -161,7 +161,7 @@ struct callerid_state *callerid_new(int cid_signalling)
 void callerid_get(struct callerid_state *cid, char **name, char **number, int *flags)
 {
 	*flags = cid->flags;
-	if (cid->flags & (CID_UNKNOWN_NAME | CID_PRIVATE_NUMBER))
+	if (cid->flags & (CID_UNKNOWN_NAME | CID_PRIVATE_NAME))
 		*name = NULL;
 	else
 		*name = cid->name;
