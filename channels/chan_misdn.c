@@ -792,6 +792,20 @@ static int misdn_restart_pid (int fd, int argc, char *argv[])
 	return 0;
 }
 
+static int misdn_send_restart(int fd, int argc, char *argv[])
+{
+	int port;
+	
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+ 
+	port = atoi(argv[3]);
+ 
+ 	misdn_lib_send_restart(port);
+	
+	return 0;
+}
+
 static int misdn_port_up (int fd, int argc, char *argv[])
 {
 	int port;
@@ -1426,6 +1440,9 @@ static struct ast_cli_entry chan_misdn_clis[] = {
 		"Usage: misdn restart port\n" },
 	{ {"misdn","restart","pid", NULL}, misdn_restart_pid, "Restarts the given pid",
 		"Usage: misdn restart pid\n" },
+	{ {"misdn","send","restart", NULL},  misdn_send_restart, 
+	  "Sends a restart for every bchannel on the given port", 
+	  "Usage: misdn send restart <port>\n"},
 	{ {"misdn","port","up", NULL}, misdn_port_up, "Tries to establish L1 on the given port",
 		"Usage: misdn port up <port>\n" },
 	{ {"misdn","port","down", NULL}, misdn_port_down, "Tries to deacivate the L1 on the given port",
