@@ -48,6 +48,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#ifdef SOLARIS
+#include <thread.h>
+#endif
 
 #ifdef HAVE_ZAPTEL
 #include <zaptel/zaptel.h>
@@ -506,6 +509,9 @@ static void *monmp3thread(void *data)
 			}
 		}
 		if (class->pseudofd > -1) {
+#ifdef SOLARIS
+			thr_yield();
+#endif
 			/* Pause some amount of time */
 			res = read(class->pseudofd, buf, sizeof(buf));
 			pthread_testcancel();
