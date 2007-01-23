@@ -57,7 +57,7 @@ struct asent {
 	AST_LIST_ENTRY(asent) list;
 };
 
-static AST_LIST_HEAD_STATIC(aslist, asent);
+static AST_RWLIST_HEAD_STATIC(aslist, asent);
 
 static pthread_t asthread = AST_PTHREADT_NULL;
 
@@ -70,8 +70,8 @@ static void *autoservice_run(void *ign)
 		struct asent *as;
 		int x = 0, ms = 500;
 
-		AST_LIST_LOCK(&aslist);
-		AST_LIST_TRAVERSE(&aslist, as, list) {
+		AST_RWLIST_RDLOCK(&aslist);
+		AST_RWLIST_TRAVERSE(&aslist, as, list) {
 			if (!as->chan->_softhangup) {
 				if (x < MAX_AUTOMONS)
 					mons[x++] = as->chan;
@@ -79,7 +79,7 @@ static void *autoservice_run(void *ign)
 					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
 			}
 		}
-		AST_LIST_UNLOCK(&aslist);
+		AST_RWLIST_UNLOCK(&aslist);
 
 		chan = ast_waitfor_n(mons, x, &ms);
 		if (chan) {
@@ -97,10 +97,11 @@ int ast_autoservice_start(struct ast_channel *chan)
 {
 	int res = -1;
 	struct asent *as;
-	AST_LIST_LOCK(&aslist);
+
+	AST_RWLIST_WRLOCK(&aslist);
 
 	/* Check if the channel already has autoservice */
-	AST_LIST_TRAVERSE(&aslist, as, list) {
+	AST_RWLIST_TRAVERSE(&aslist, as, list) {
 		if (as->chan == chan)
 			break;
 	}
@@ -108,21 +109,21 @@ int ast_autoservice_start(struct ast_channel *chan)
 	/* If not, start autoservice on channel */
 	if (!as && (as = ast_calloc(1, sizeof(*as)))) {
 		as->chan = chan;
-		AST_LIST_INSERT_HEAD(&aslist, as, list);
+		AST_RWLIST_INSERT_HEAD(&aslist, as, list);
 		res = 0;
 		if (asthread == AST_PTHREADT_NULL) { /* need start the thread */
 			if (ast_pthread_create_background(&asthread, NULL, autoservice_run, NULL)) {
 				ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
 				/* There will only be a single member in the list at this point,
 				   the one we just added. */
-				AST_LIST_REMOVE(&aslist, as, list);
+				AST_RWLIST_REMOVE(&aslist, as, list);
 				free(as);
 				res = -1;
 			} else
 				pthread_kill(asthread, SIGURG);
 		}
 	}
-	AST_LIST_UNLOCK(&aslist);
+	AST_RWLIST_UNLOCK(&aslist);
 	return res;
 }
 
@@ -131,21 +132,21 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	int res = -1;
 	struct asent *as;
 
-	AST_LIST_LOCK(&aslist);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
+	AST_RWLIST_WRLOCK(&aslist);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
-			AST_LIST_REMOVE_CURRENT(&aslist, list);
+			AST_RWLIST_REMOVE_CURRENT(&aslist, list);
 			free(as);
 			if (!chan->_softhangup)
 				res = 0;
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END
 
 	if (asthread != AST_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);
-	AST_LIST_UNLOCK(&aslist);
+	AST_RWLIST_UNLOCK(&aslist);
 
 	/* Wait for it to un-block */
 	while (ast_test_flag(chan, AST_FLAG_BLOCKING))
