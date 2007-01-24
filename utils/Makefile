@@ -13,6 +13,7 @@
 
 .PHONY: clean all uninstall
 
+# to get check_expr, add it to the ALL_UTILS list
 ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted
 UTILS:=$(ALL_UTILS)
 
@@ -85,7 +86,7 @@ ast_expr2f.c: ../main/ast_expr2f.c
 
 ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
-check_expr: check_expr.c ast_expr2.o ast_expr2f.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o
 
 aelbison.c: ../pbx/ael/ael.tab.c
 	@cp $< $@
