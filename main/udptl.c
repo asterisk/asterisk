@@ -8,12 +8,43 @@
  *
  * Steve Underwood <steveu@coppice.org>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  *
  * A license has been granted to Digium (via disclaimer) for the use of
  * this code.
  */
+
+/*! 
+ * \file 
+ *
+ * \brief UDPTL support for T.38 faxing
+ * 
+ *
+ * \author Mark Spencer <markster@digium.com>,  Steve Underwood <steveu@coppice.org>
+ * 
+ * \page T38fax_udptl T38 fax passhtrough :: UDPTL
+ *
+ * Asterisk supports T.38 fax passthrough. Asterisk will not be a client, server
+ * or any form of gateway. Currently fax passthrough is only implemented in the
+ * SIP channel for strict SIP to SIP calls. If you are using chan_local or chan_agent
+ * as a proxy channel, T.38 passthrough will not work.
+ *
+ * UDPTL is handled very much like RTP. It can be reinvited to go directly between
+ * the endpoints, without involving Asterisk in the media stream.
+ * 
+ * \b References:
+ * - chan_sip.c
+ * - udptl.c
+ */
+
 
 #include "asterisk.h"
 
@@ -57,8 +88,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static int udptlstart;
 static int udptlend;
-static int udptldebug;	                  /* Are we debugging? */
-static struct sockaddr_in udptldebugaddr;   /* Debug packets to/from this host */
+static int udptldebug;	                    /*!< Are we debugging? */
+static struct sockaddr_in udptldebugaddr;   /*!< Debug packets to/from this host */
 #ifdef SO_NO_CHECK
 static int nochecksums;
 #endif
@@ -87,6 +118,7 @@ typedef struct {
 	int fec_entries;
 } udptl_fec_rx_buffer_t;
 
+/*! \brief Structure for an UDPTL session */
 struct ast_udptl {
 	int fd;
 	char resp;
