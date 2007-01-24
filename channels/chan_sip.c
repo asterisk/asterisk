@@ -10438,6 +10438,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 {
 	int realtimepeers;
 	int realtimeusers;
+	char codec_buf[BUFSIZ];
 
 	realtimepeers = ast_check_realtime("sippeers");
 	realtimeusers = ast_check_realtime("sipusers");
@@ -10492,6 +10493,9 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "\nGlobal Signalling Settings:\n");
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "  Codecs:                 ");
+	ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, global_capability);
+	ast_cli(fd, "%s\n", codec_buf);
+	ast_cli(fd, "  Codec Order:            ");
 	print_codec_to_cli(fd, &default_prefs);
 	ast_cli(fd, "\n");
 	ast_cli(fd, "  T1 minimum:             %d\n", global_t1min);
