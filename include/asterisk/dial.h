@@ -35,23 +35,23 @@ struct ast_dial_channel;
 
 /*! \brief List of options that are applicable either globally or per dialed channel */
 enum ast_dial_option {
-	AST_DIAL_OPTION_RINGING,     /*! Always indicate ringing to caller */
-	AST_DIAL_OPTION_ANSWER_EXEC, /*! Execute application upon answer in async mode */
-	AST_DIAL_OPTION_MAX,         /*! End terminator -- must always remain last */
+	AST_DIAL_OPTION_RINGING,     /*!< Always indicate ringing to caller */
+	AST_DIAL_OPTION_ANSWER_EXEC, /*!< Execute application upon answer in async mode */
+	AST_DIAL_OPTION_MAX,         /*!< End terminator -- must always remain last */
 };
 
 /*! \brief List of return codes for dial run API calls */
 enum ast_dial_result {
-	AST_DIAL_RESULT_INVALID = 0, /*! Invalid options were passed to run function */
-	AST_DIAL_RESULT_FAILED,      /*! Attempts to dial failed before reaching critical state */
-	AST_DIAL_RESULT_TRYING,      /*! Currently trying to dial */
-	AST_DIAL_RESULT_RINGING,     /*! Dial is presently ringing */
-	AST_DIAL_RESULT_PROGRESS,    /*! Dial is presently progressing */
-	AST_DIAL_RESULT_PROCEEDING,  /*! Dial is presently proceeding */
-	AST_DIAL_RESULT_ANSWERED,    /*! A channel was answered */
-	AST_DIAL_RESULT_TIMEOUT,     /*! Timeout was tripped, nobody answered */
-	AST_DIAL_RESULT_HANGUP,      /*! Caller hung up */
-	AST_DIAL_RESULT_UNANSWERED,  /*! Nobody answered */
+	AST_DIAL_RESULT_INVALID = 0, /*!< Invalid options were passed to run function */
+	AST_DIAL_RESULT_FAILED,      /*!< Attempts to dial failed before reaching critical state */
+	AST_DIAL_RESULT_TRYING,      /*!< Currently trying to dial */
+	AST_DIAL_RESULT_RINGING,     /*!< Dial is presently ringing */
+	AST_DIAL_RESULT_PROGRESS,    /*!< Dial is presently progressing */
+	AST_DIAL_RESULT_PROCEEDING,  /*!< Dial is presently proceeding */
+	AST_DIAL_RESULT_ANSWERED,    /*!< A channel was answered */
+	AST_DIAL_RESULT_TIMEOUT,     /*!< Timeout was tripped, nobody answered */
+	AST_DIAL_RESULT_HANGUP,      /*!< Caller hung up */
+	AST_DIAL_RESULT_UNANSWERED,  /*!< Nobody answered */
 };
 
 /*! \brief New dialing structure
