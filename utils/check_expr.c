@@ -23,12 +23,12 @@
 #include <stdlib.h>
 #include <../include/asterisk/ast_expr.h>
 
-int global_lineno = 1;
-int global_expr_count = 0;
-int global_expr_max_size = 0;
-int global_expr_tot_size = 0;
-int global_warn_count = 0;
-int global_OK_count = 0;
+static int global_lineno = 1;
+static int global_expr_count=0;
+static int global_expr_max_size=0;
+static int global_expr_tot_size=0;
+static int global_warn_count=0;
+static int global_OK_count=0;
 
 struct varz
 {
@@ -54,6 +54,22 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	fflush(stdout);
 	va_end(vars);
 }
+void ast_register_file_version(const char *file, const char *version);
+void ast_unregister_file_version(const char *file);
+
+char *find_var(const char *varname);
+void set_var(const char *varname, const char *varval);
+unsigned int check_expr(char* buffer, char* error_report);
+int check_eval(char *buffer, char *error_report);
+void parse_file(const char *fname);
+
+void ast_register_file_version(const char *file, const char *version)
+{
+}
+
+void ast_unregister_file_version(const char *file)
+{
+}
 
 char *find_var(const char *varname) /* the list should be pretty short, if there's any list at all */
 {
@@ -75,75 +91,79 @@ void set_var(const char *varname, const char *varval)
 	global_varlist = t;
 }
 
-int check_expr(char *buffer, char *error_report)
+unsigned int check_expr(char* buffer, char* error_report)
 {
-	char *cp;
-	int oplen = 0;
-	int warn_found = 0;
+	char* cp;
+	unsigned int warn_found = 0;
 
 	error_report[0] = 0;
 	
-	for (cp=buffer;*cp;cp++) {
-		
-		if (*cp == '|' 
-			|| *cp == '&'
-			|| *cp == '='
-			|| *cp == '>'
-			|| *cp == '<'
-			|| *cp == '+'
-			|| *cp == '-'
-			|| *cp == '*'
-			|| *cp == '/'
-			|| *cp == '%'
-			|| *cp == '?'
-			|| *cp == ':'
-			/*	|| *cp == '('
-				|| *cp == ')' These are pretty hard to track, as they are in funcalls, etc. */
-			|| *cp == '"') {
-			if (*cp == '"') {
+	for (cp = buffer; *cp; ++cp)
+	{
+		switch (*cp)
+		{
+			case '"':
 				/* skip to the other end */
-				cp++;
-				while (*cp && *cp != '"')
-					cp++;
-				if (*cp == 0) {
-					fprintf(stderr,"Trouble? Unterminated double quote found at line %d\n",
-							global_lineno);
-				}
-			}
-			else {
-				if ((*cp == '>'||*cp == '<' ||*cp=='!') && (*(cp+1) == '=')) {
-					oplen = 2;
-				}
-				else {
-					oplen = 1;
-				}
-				
-				if ((cp > buffer && *(cp-1) != ' ') || *(cp+oplen) != ' ') {
-					char tbuf[1000];
-					if (oplen == 1)
-						sprintf(tbuf,"WARNING: line %d,  '%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
-								global_lineno, *cp);
-					else
-						sprintf(tbuf,"WARNING: line %d,  '%c%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
-								global_lineno, *cp, *(cp+1));
-					strcat(error_report,tbuf);
+				while (*(++cp) && *cp != '"') ;
 
-					global_warn_count++;
-					warn_found++;
+				if (*cp == 0)
+				{
+					fprintf(stderr,
+						"Trouble? Unterminated double quote found at line %d\n",
+						global_lineno);
 				}
-			}
+				break;
+				
+			case '>':
+			case '<':
+			case '!':
+				if (   (*(cp + 1) == '=')
+					&& ( ( (cp > buffer) && (*(cp - 1) != ' ') ) || (*(cp + 2) != ' ') ) )
+				{
+					char msg[200];
+					snprintf(msg,
+						sizeof(msg),
+						"WARNING: line %d: '%c%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
+						global_lineno, *cp, *(cp + 1));
+					strcat(error_report, msg);
+					++global_warn_count;
+					++warn_found;
+				}
+				break;
+				
+			case '|':
+			case '&':
+			case '=':
+			case '+':
+			case '-':
+			case '*':
+			case '/':
+			case '%':
+			case '?':
+			case ':':
+				if ( ( (cp > buffer) && (*(cp - 1) != ' ') ) || (*(cp + 1) != ' ') )
+				{
+					char msg[200];
+					snprintf(msg,
+						sizeof(msg),
+						"WARNING: line %d: '%c' operator not separated by spaces. This may lead to confusion. You may wish to use double quotes to quote the grouping it is in. Please check!\n",
+						global_lineno, *cp );
+					strcat(error_report, msg);
+					++global_warn_count;
+					++warn_found;
+				}
+				break;
 		}
 	}
+
 	return warn_found;
 }
 
 int check_eval(char *buffer, char *error_report)
 {
-	char *cp, *ep, *xp;
+	char *cp, *ep;
 	char s[4096];
 	char evalbuf[80000];
-	int oplen = 0;
-	int warn_found = 0;
 	int result;
 
 	error_report[0] = 0;
@@ -219,7 +239,7 @@ void parse_file(const char *fname)
 	char buffer[30000]; /* I sure hope no expr gets this big! */
 	
 	if (!f) {
-		fprintf(stderr,"Couldn't open %s for reading... need an extensions.conf file to parse!\n");
+		fprintf(stderr,"Couldn't open %s for reading... need an extensions.conf file to parse!\n",fname);
 		exit(20);
 	}
 	if (!l) {
@@ -301,13 +321,23 @@ void parse_file(const char *fname)
 }
 
 
-main(int argc,char **argv)
+int main(int argc,char **argv)
 {
 	int argc1;
 	char *eq;
 	
 	if (argc < 2) {
+		printf("check_expr -- a program to look thru extensions.conf files for $[...] expressions,\n");
+		printf("              and run them thru the parser, looking for problems\n");
 		printf("Hey-- give me a path to an extensions.conf file!\n");
+		printf(" You can also follow the file path with a series of variable decls,\n");
+		printf("     of the form, varname=value, each separated from the next by spaces.\n");
+		printf("     (this might allow you to avoid division by zero messages, check that math\n");
+		printf("      is being done correctly, etc.)\n");
+		printf(" Note that messages about operators not being surrounded by spaces is merely to alert\n");
+		printf("  you to possible problems where you might be expecting those operators as part of a string.\n");
+        printf("  (to include operators in a string, wrap with double quotes!)\n");
+		
 		exit(19);
 	}
 	global_varlist = 0;
@@ -321,4 +351,5 @@ main(int argc,char **argv)
 	/* parse command args for x=y and set varz */
 	
 	parse_file(argv[1]);
+	return 0;
 }
