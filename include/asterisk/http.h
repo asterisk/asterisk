@@ -22,15 +22,14 @@
 #include "asterisk/config.h"
 
 /*!
-  \file http.h
-  \brief Support for Private Asterisk HTTP Servers.
-  \note Note: The Asterisk HTTP servers are extremely simple and minimal and
-        only support the "GET" method.
-  \author Mark Spencer <markster@digium.com>
-*/
-
-/*!
- * In order to have TLS/SSL support, we need the openssl libraries.
+ * \file http.h
+ * \brief Support for Private Asterisk HTTP Servers.
+ * \note Note: The Asterisk HTTP servers are extremely simple and minimal and
+ *      only support the "GET" method.
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * \note In order to have TLS/SSL support, we need the openssl libraries.
  * Still we can decide whether or not to use them by commenting
  * in or out the DO_SSL macro.
  * TLS/SSL support is basically implemented by reading from a config file
@@ -42,11 +41,10 @@
  * on the socket, to do the necessary setup. At the moment the context's name
  * is hardwired in the function, but we can certainly make it into an extra
  * parameter to the function.
- *
  * We declare most of ssl support variables unconditionally,
  * because their number is small and this simplifies the code.
  *
- * NOTE: the ssl-support variables (ssl_ctx, do_ssl, certfile, cipher)
+ * \note: the ssl-support variables (ssl_ctx, do_ssl, certfile, cipher)
  * and their setup should be moved to a more central place, e.g. asterisk.conf
  * and the source files that processes it. Similarly, ssl_setup() should
  * be run earlier in the startup process so modules have it available.
@@ -65,7 +63,7 @@ typedef struct {} SSL;
 typedef struct {} SSL_CTX;
 #endif /* DO_SSL */
 
-/* SSL support */  
+/*! SSL support */  
 #define AST_CERTFILE "asterisk.pem"
 
 struct tls_config {
@@ -137,13 +135,16 @@ void *server_root(void *);
 void server_start(struct server_args *desc);
 int ssl_setup(struct tls_config *cfg);
 
-/*! \brief HTTP Callbacks take the socket, the method and the path as arguments and should
+/*! \brief HTTP Callbacks take the socket
+
+   \note The method and the path as arguments and should
    return the content, allocated with malloc().  Status should be changed to reflect
    the status of the request if it isn't 200 and title may be set to a malloc()'d string
    to an appropriate title for non-200 responses.  Content length may also be specified. 
    The return value may include additional headers at the front and MUST include a blank 
    line with \r\n to provide separation between user headers and content (even if no
-   content is specified) */
+   content is specified) 
+*/
 typedef struct ast_str *(*ast_http_callback)(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
 
 struct ast_http_uri {

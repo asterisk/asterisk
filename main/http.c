@@ -58,24 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "/asterisk"
 
-/*!
- * In order to have TLS/SSL support, we need the openssl libraries.
- * Still we can decide whether or not to use them by commenting
- * in or out the DO_SSL macro.
- * TLS/SSL support is basically implemented by reading from a config file
- * (currently http.conf) the names of the certificate and cipher to use,
- * and then run ssl_setup() to create an appropriate SSL_CTX (ssl_ctx)
- * If we support multiple domains, presumably we need to read multiple
- * certificates.
- * When we are requested to open a TLS socket, we run make_file_from_fd()
- * on the socket, to do the necessary setup. At the moment the context's name
- * is hardwired in the function, but we can certainly make it into an extra
- * parameter to the function.
- *
- * We declare most of ssl support variables unconditionally,
- * because their number is small and this simplifies the code.
- */
-
+/* See http.h for more information about the SSL implementation */
 #if defined(HAVE_OPENSSL) && (defined(HAVE_FUNOPEN) || defined(HAVE_FOPENCOOKIE))
 #define	DO_SSL	/* comment in/out if you want to support ssl */
 #endif
@@ -157,6 +140,7 @@ static char *uri_decode(char *buf)
 	}
 	return buf;
 }
+
 static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	struct ast_str *result;
@@ -298,7 +282,9 @@ struct ast_str *ast_http_error(int status, const char *title, const char *extra_
 }
 
 /*! \brief 
- * Link the new uri into the list. They are sorted by length of
+ * Link the new uri into the list. 
+ *
+ * They are sorted by length of
  * the string, not alphabetically. Duplicate entries are not replaced,
  * but the insertion order (using <= and not just <) makes sure that
  * more recent insertions hide older ones.
