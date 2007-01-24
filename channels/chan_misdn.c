@@ -4268,6 +4268,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 			ch->state=MISDN_DISCONNECTED;
 			start_bc_tones(ch);
+
+			if (ch->ast) ch->ast->hangupcause=bc->cause;
+			ast_queue_control(ch->ast, AST_CONTROL_BUSY);
+			ch->need_busy=0;
 			break;
 		}
 		
