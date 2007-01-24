@@ -22,6 +22,7 @@
  *
  * \author Tilghman Lesher
  * \author Anothony Minessale II 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

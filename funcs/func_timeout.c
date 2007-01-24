@@ -21,6 +21,7 @@
  * \brief Channel timeout related dialplan functions
  *
  * \author Mark Spencer <markster@digium.com> 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

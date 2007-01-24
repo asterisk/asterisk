@@ -22,6 +22,8 @@
  *
  * \author Andy Powell
  * \author Mark Spencer <markster@digium.com>
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

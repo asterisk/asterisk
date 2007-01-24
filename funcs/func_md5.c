@@ -22,6 +22,8 @@
  * 
  * \author Olle E. Johansson <oej@edvina.net>
  * \author Russell Bryant <russelb@clemson.edu>
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

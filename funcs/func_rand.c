@@ -21,6 +21,7 @@
  * 
  * \author Claude Patry <cpatry@gmail.com>
  * \author Tilghman Lesher ( http://asterisk.drunkcoder.com/ )
+ * \ingroup functions
  */
 
 #include "asterisk.h"

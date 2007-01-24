@@ -21,6 +21,8 @@
  * \brief  Call Detail Record related dialplan functions
  *
  * \author Anthony Minessale II 
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

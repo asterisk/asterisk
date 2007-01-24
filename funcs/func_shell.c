@@ -18,9 +18,11 @@
  *
  * \SHELL function to return the value of a system call.
  * 
- * \ Inspiration and Guidance from Russell! Thank You! 
+ * \note Inspiration and Guidance from Russell! Thank You! 
  *
  * \author Brandon Kruse <bkruse@digium.com>
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

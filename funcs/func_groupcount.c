@@ -18,6 +18,7 @@
  *
  * \brief Channel group related dialplan functions
  * 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

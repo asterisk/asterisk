@@ -19,6 +19,7 @@
  *
  * \brief Use the base64 as functions
  * 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

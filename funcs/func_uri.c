@@ -25,6 +25,7 @@
  * \note For now this code only supports 8 bit characters, not unicode,
          which we ultimately will need to support.
  * 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

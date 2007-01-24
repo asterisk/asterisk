@@ -19,6 +19,7 @@
  * \brief Return the current Version strings
  * 
  * \author Steve Murphy (murf@digium.com)
+ * \ingroup functions
  */
 
 #include "asterisk.h"

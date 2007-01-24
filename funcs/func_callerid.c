@@ -18,6 +18,7 @@
  *
  * \brief Caller ID related dialplan functions
  * 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

@@ -27,6 +27,8 @@
  * \author Russell Bryant <russelb@clemson.edu>
  *
  * \arg See also AstENUM
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

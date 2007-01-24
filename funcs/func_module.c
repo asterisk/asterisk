@@ -18,6 +18,8 @@
  *
  * \brief Simple module check function
  * \author Olle E. Johansson, Edvina.net
+ *
+ * \ingroup functions
  */
 #include "asterisk.h"
 

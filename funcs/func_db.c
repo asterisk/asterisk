@@ -23,6 +23,8 @@
  * \brief Functions for interaction with the Asterisk database
  *
  * \author Russell Bryant <russelb@clemson.edu>
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

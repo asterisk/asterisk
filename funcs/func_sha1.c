@@ -20,6 +20,8 @@
  * \brief SHA1 digest related dialplan functions
  * 
  * \author Claude Patry <cpatry@gmail.com>
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"

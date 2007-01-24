@@ -18,6 +18,7 @@
  *
  * \brief Environment related dialplan functions
  * 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

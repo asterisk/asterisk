@@ -22,6 +22,8 @@
  * \brief ODBC lookups
  *
  * \author Tilghman Lesher <func_odbc__200508@the-tilghman.com>
+ *
+ * \ingroup functions
  */
 
 /*** MODULEINFO

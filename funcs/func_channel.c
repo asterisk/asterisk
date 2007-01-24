@@ -20,6 +20,7 @@
  *
  * \author Kevin P. Fleming <kpfleming@digium.com>
  * 
+ * \ingroup functions
  */
 
 #include "asterisk.h"

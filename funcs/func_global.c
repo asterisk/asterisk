@@ -21,6 +21,8 @@
  * \brief Global variable dialplan functions
  *
  * \author Tilghman Lesher <func_global__200605@the-tilghman.com>
+ *
+ * \ingroup functions
  */
 
 #include "asterisk.h"
