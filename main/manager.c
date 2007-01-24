@@ -2820,10 +2820,9 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		char *buf;
 		size_t l = ftell(s->f);
 
-		fclose(s->f);
 		if (format == FORMAT_XML || format == FORMAT_HTML) {
 			if (l) {
-				if ((buf = mmap(NULL, l, PROT_READ, MAP_SHARED, s->fd, 0))) {
+				if ((buf = mmap(NULL, l, PROT_READ | PROT_WRITE, MAP_SHARED, s->fd, 0))) {
 					xml_translate(&out, buf, params, format);
 					munmap(buf, l);
 				}
@@ -2831,6 +2830,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 				xml_translate(&out, "", params, format);
 			}
 		}
+		fclose(s->f);
 		s->f = NULL;
 		s->fd = -1;
 	}
