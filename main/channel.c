@@ -2207,9 +2207,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = chan->outsmpl - chan->insmpl - 4 * f->samples;
 					if (jump >= 0) {
-						if (ast_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+						jump = chan->outsmpl - chan->insmpl;
+						if (ast_seekstream(chan->monitor->read_stream, jump, SEEK_FORCECUR) == -1)
 							ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-						chan->insmpl += jump + 4 * f->samples;
+						chan->insmpl += jump + f->samples;
 					} else
 						chan->insmpl+= f->samples;
 #else
@@ -2627,9 +2628,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 #ifndef MONITOR_CONSTANT_DELAY
 			int jump = chan->insmpl - chan->outsmpl - 4 * f->samples;
 			if (jump >= 0) {
-				if (ast_seekstream(chan->monitor->write_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+				jump = chan->insmpl - chan->outsmpl;
+				if (ast_seekstream(chan->monitor->write_stream, jump, SEEK_FORCECUR) == -1)
 					ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
-				chan->outsmpl += jump + 4 * f->samples;
+				chan->outsmpl += jump + f->samples;
 			} else
 				chan->outsmpl += f->samples;
 #else
