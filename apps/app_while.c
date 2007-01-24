@@ -231,8 +231,8 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
 		snprintf(end_varname,VAR_SIZE,"END_%s",varname);
 		if ((goto_str=pbx_builtin_getvar_helper(chan, end_varname))) {
-			pbx_builtin_setvar_helper(chan, end_varname, NULL);
 			ast_parseable_goto(chan, goto_str);
+			pbx_builtin_setvar_helper(chan, end_varname, NULL);
 		} else {
 			int pri = find_matching_endwhile(chan);
 			if (pri > 0) {
