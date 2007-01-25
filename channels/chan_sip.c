@@ -3126,6 +3126,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Updating call counter for %s call\n", outgoing ? "outgoing" : "incoming");
+
 	/* Test if we need to check call limits, in order to avoid 
 	   realtime lookups if we do not need it */
 	if (!ast_test_flag(&fup->flags[0], SIP_CALL_LIMIT))
@@ -3153,30 +3154,26 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	switch(event) {
 	/* incoming and outgoing affects the inUse counter */
 	case DEC_CALL_LIMIT:
-		if ( *inuse > 0 ) {
-			if (ast_test_flag(&fup->flags[0], SIP_INC_COUNT))
-				(*inuse)--;
-		} else {
+		/* Decrement inuse count if applicable */
+		if (inuse && ast_test_flag(&fup->flags[0], SIP_INC_COUNT))
+			ast_atomic_fetchadd_int(inuse, -1);
+		else
 			*inuse = 0;
+		/* Decrement ringing count if applicable */
+		if (inringing && ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+			ast_atomic_fetchadd_int(inringing, -1);
+			ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 		}
-		if (inringing) {
-			if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
-				if (*inringing > 0)
-					(*inringing)--;
-				else
-					ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", fup->peername);
-				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
-			}
-		}
+		/* Decrement onhold count if applicable */
 		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold)
-			sip_peer_hold(fup, 0);
-		if (option_debug > 1 || sipdebug) {
+			sip_peer_hold(fup, FALSE);
+		if (option_debug > 1 || sipdebug)
 			ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
-		}
 		break;
 
 	case INC_CALL_RINGING:
 	case INC_CALL_LIMIT:
+		/* If call limit is active and we have reached the limit, reject the call */
 		if (*call_limit > 0 ) {
 			if (*inuse >= *call_limit) {
 				ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
@@ -3189,12 +3186,12 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		}
 		if (inringing && (event == INC_CALL_RINGING)) {
 			if (!ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
-				(*inringing)++;
+				ast_atomic_fetchadd_int(inringing, +1);
 				ast_set_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
 		}
 		/* Continue */
-		(*inuse)++;
+		ast_atomic_fetchadd_int(inuse, +1);
 		ast_set_flag(&fup->flags[0], SIP_INC_COUNT);
 		if (option_debug > 1 || sipdebug) {
 			ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
@@ -3202,14 +3199,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		break;
 
 	case DEC_CALL_RINGING:
-		if (inringing) {
-			if (ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
-				if (*inringing > 0)
-					(*inringing)--;
-				else
-					ast_log(LOG_WARNING, "Inringing for peer '%s' < 0?\n", p->name);
-				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
-			}
+		if (inringing && ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+			ast_atomic_fetchadd_int(inringing, -1);
+			ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 		}
 		break;
 
@@ -8227,9 +8219,9 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 
 	/* If they put someone on hold, increment the value... otherwise decrement it */
 	if (hold)
-		peer->onHold++;
+		ast_atomic_fetchadd_int(&peer->onHold, +1);
 	else
-		peer->onHold--;
+		ast_atomic_fetchadd_int(&peer->onHold, -1);
 
 	/* Request device state update */
 	ast_device_state_changed("SIP/%s", peer->name);
