@@ -761,8 +761,8 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 long jb_next(jitterbuf *jb) 
 {
 	if (jb->info.silence_begin_ts) {
-		long next = queue_next(jb);
-		if (next > 0) { 
+		if (jb->frames) {
+			long next = queue_next(jb);
 			history_get(jb);
 			/* shrink during silence */
 			if (jb->info.target - jb->info.current < -JB_TARGET_EXTRA)
