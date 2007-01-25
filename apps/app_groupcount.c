@@ -155,6 +155,11 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 		deprecation_warning = 1;
 	}
 
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "CheckGroup requires an argument(max[@category][|options])\n");
+		return 0;
+	}
+
 	if (!(parse = ast_strdupa(data))) {
 		ast_log(LOG_WARNING, "Memory Error!\n");
 		LOCAL_USER_REMOVE(u);
