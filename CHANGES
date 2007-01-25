@@ -66,6 +66,7 @@ Changes since Asterisk 1.4-beta was branched:
   * Added 's' option to Page application.
   * Added the srvlookup option to iax.conf
   * Added 'E' and 'V' commands to ExternalIVR.
+  * Added 'DBDel' and 'DBDelTree' manager commands.
 
 SIP changes
 -----------

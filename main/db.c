@@ -588,11 +588,62 @@ static int manager_dbget(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static int manager_dbdel(struct mansession *s, const struct message *m)
+{
+	const char *family = astman_get_header(m, "Family");
+	const char *key = astman_get_header(m, "Key");
+	int res;
+
+	if (ast_strlen_zero(family)) {
+		astman_send_error(s, m, "No family specified.");
+		return 0;
+	}
+
+	if (ast_strlen_zero(key)) {
+		astman_send_error(s, m, "No key specified.");
+		return 0;
+	}
+
+	res = ast_db_del(family, key);
+	if (res)
+		astman_send_error(s, m, "Database entry not found");
+	else
+		astman_send_ack(s, m, "Key deleted successfully");
+
+	return 0;
+}
+
+static int manager_dbdeltree(struct mansession *s, const struct message *m)
+{
+	const char *family = astman_get_header(m, "Family");
+	const char *key = astman_get_header(m, "Key");
+	int res;
+
+	if (ast_strlen_zero(family)) {
+		astman_send_error(s, m, "No family specified.");
+		return 0;
+	}
+
+	if (!ast_strlen_zero(key))
+		res = ast_db_deltree(family, key);
+	else
+		res = ast_db_deltree(family, NULL);
+
+	if (res)
+		astman_send_error(s, m, "Database entry not found");
+	else
+		astman_send_ack(s, m, "Key tree deleted successfully");
+	
+	return 0;
+}
+
 int astdb_init(void)
 {
 	dbinit();
 	ast_cli_register_multiple(cli_database, sizeof(cli_database) / sizeof(struct ast_cli_entry));
 	ast_manager_register("DBGet", EVENT_FLAG_SYSTEM, manager_dbget, "Get DB Entry");
 	ast_manager_register("DBPut", EVENT_FLAG_SYSTEM, manager_dbput, "Put DB Entry");
+	ast_manager_register("DBDel", EVENT_FLAG_SYSTEM, manager_dbdel, "Delete DB Entry");
+	ast_manager_register("DBDelTree", EVENT_FLAG_SYSTEM, manager_dbdeltree, "Delete DB Tree");
 	return 0;
 }
