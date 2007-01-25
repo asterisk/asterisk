@@ -3119,7 +3119,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256];
-	int *inuse = NULL, *call_limit = NULL, *inringing = NULL;
+	int *inuse = NULL, *call_limit = NULL, *inringing = NULL, *onhold = NULL;
 	int outgoing = ast_test_flag(&fup->flags[0], SIP_OUTGOING);
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
@@ -3142,6 +3142,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		inuse = &p->inUse;
 		call_limit = &p->call_limit;
 		inringing = &p->inRinging;
+		onhold = &p->onHold;
 		ast_copy_string(name, fup->peername, sizeof(name));
 	} 
 	if (!p && !u) {
@@ -3168,6 +3169,8 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
 		}
+		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold)
+			sip_peer_hold(fup, 0);
 		if (option_debug > 1 || sipdebug) {
 			ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 		}
