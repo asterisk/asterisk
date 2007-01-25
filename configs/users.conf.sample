@@ -28,7 +28,7 @@ hasvoicemail = yes
 ;
 ; Set voicemail mailbox 6000 password to 1234
 ;
-vmpassword = 1234
+vmsecret = 1234
 ;
 ; Create SIP Peer
 ;

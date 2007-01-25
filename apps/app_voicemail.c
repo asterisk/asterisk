@@ -678,9 +678,9 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 	struct ast_variable *tmp;
 	tmp = var;
 	while (tmp) {
-		if (!strcasecmp(tmp->name, "vmpassword")) {
+		if (!strcasecmp(tmp->name, "vmsecret")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
-		} else if (!strcasecmp(tmp->name, "secret") || !strcasecmp(tmp->name, "password")) { /* don't overwrite vmpassword if it exists */
+		} else if (!strcasecmp(tmp->name, "secret") || !strcasecmp(tmp->name, "password")) { /* don't overwrite vmsecret if it exists */
 			if (ast_strlen_zero(retval->password))
 				ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
 		} else if (!strcasecmp(tmp->name, "uniqueid")) {
@@ -823,7 +823,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	category = NULL;
 	var = NULL;
 	/* check users.conf and update the password stored for the mailbox*/
-	/* if no vmpassword entry exists create one. */
+	/* if no vmsecret entry exists create one. */
 	if ((cfg = ast_config_load_with_comments("users.conf"))) {
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "we are looking for %s\n", vmu->mailbox);
@@ -831,10 +831,10 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 			if (option_debug > 3)
 				ast_log(LOG_DEBUG, "users.conf: %s\n", category);
 			if (!strcasecmp(category, vmu->mailbox)) {
-				if (!(tmp = ast_variable_retrieve(cfg, category, "vmpassword"))) {
+				if (!(tmp = ast_variable_retrieve(cfg, category, "vmsecret"))) {
 					if (option_debug > 3)
-						ast_log(LOG_DEBUG, "looks like we need to make vmpassword!\n");
-					var = ast_variable_new("vmpassword", newpassword);
+						ast_log(LOG_DEBUG, "looks like we need to make vmsecret!\n");
+					var = ast_variable_new("vmsecret", newpassword);
 				} 
 				new = alloca(strlen(newpassword)+1);
 				sprintf(new, "%s", newpassword);
@@ -844,7 +844,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					break;
 				}
 				if (!var)		
-					ast_variable_update(cat, "vmpassword", new, NULL);
+					ast_variable_update(cat, "vmsecret", new, NULL);
 				else
 					ast_variable_append(cat, var);
 			}
