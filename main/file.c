@@ -1120,7 +1120,7 @@ static int show_file_formats(int fd, int argc, char *argv[])
 	struct ast_format *f;
 	int count_fmt = 0;
 
-	if (argc != 3)
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Format", "Name", "Extensions");
 
