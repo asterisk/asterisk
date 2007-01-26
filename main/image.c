@@ -47,15 +47,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 
 /* XXX Why don't we just use the formats struct for this? */
-static AST_LIST_HEAD_STATIC(imagers, ast_imager);
+static AST_RWLIST_HEAD_STATIC(imagers, ast_imager);
 
 int ast_image_register(struct ast_imager *img)
 {
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
-	AST_LIST_LOCK(&imagers);
-	AST_LIST_INSERT_HEAD(&imagers, img, list);
-	AST_LIST_UNLOCK(&imagers);
+	AST_RWLIST_WRLOCK(&imagers);
+	AST_RWLIST_INSERT_HEAD(&imagers, img, list);
+	AST_RWLIST_UNLOCK(&imagers);
 	return 0;
 }
 
@@ -63,15 +63,15 @@ void ast_image_unregister(struct ast_imager *img)
 {
 	struct ast_imager *i;
 	
-	AST_LIST_LOCK(&imagers);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&imagers, i, list) {	
+	AST_RWLIST_WRLOCK(&imagers);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&imagers, i, list) {	
 		if (i == img) {
-			AST_LIST_REMOVE_CURRENT(&imagers, list);
+			AST_RWLIST_REMOVE_CURRENT(&imagers, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&imagers);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&imagers);
 	if (i && (option_verbose > 1))
 		ast_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
@@ -121,8 +121,8 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 	int len=0;
 	struct ast_frame *f = NULL;
 	
-	AST_LIST_LOCK(&imagers);
-	AST_LIST_TRAVERSE(&imagers, i, list) {
+	AST_RWLIST_RDLOCK(&imagers);
+	AST_RWLIST_TRAVERSE(&imagers, i, list) {
 		if (i->format & format) {
 			char *stringp=NULL;
 			ast_copy_string(tmp, i->exts, sizeof(tmp));
@@ -161,7 +161,7 @@ struct ast_frame *ast_read_image(char *filename, const char *preflang, int forma
 	} else
 		ast_log(LOG_WARNING, "Image file '%s' not found\n", filename);
 	
-	AST_LIST_UNLOCK(&imagers);
+	AST_RWLIST_UNLOCK(&imagers);
 	
 	return f;
 }
@@ -188,8 +188,11 @@ static int show_image_formats(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	AST_LIST_TRAVERSE(&imagers, i, list)
+	AST_RWLIST_RDLOCK(&imagers);
+	AST_RWLIST_TRAVERSE(&imagers, i, list) {
 		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
+	}
+	AST_RWLIST_UNLOCK(&imagers);
 	return RESULT_SUCCESS;
 }
 

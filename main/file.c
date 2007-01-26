@@ -63,25 +63,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 int ast_language_is_prefix = 1;
 
-static AST_LIST_HEAD_STATIC(formats, ast_format);
+static AST_RWLIST_HEAD_STATIC(formats, ast_format);
 
 int __ast_format_register(const struct ast_format *f, struct ast_module *mod)
 {
 	struct ast_format *tmp;
 
-	if (AST_LIST_LOCK(&formats)) {
-		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		return -1;
-	}
-	AST_LIST_TRAVERSE(&formats, tmp, list) {
+	AST_RWLIST_WRLOCK(&formats);
+	AST_RWLIST_TRAVERSE(&formats, tmp, list) {
 		if (!strcasecmp(f->name, tmp->name)) {
-			AST_LIST_UNLOCK(&formats);
+			AST_RWLIST_UNLOCK(&formats);
 			ast_log(LOG_WARNING, "Tried to register '%s' format, already registered\n", f->name);
 			return -1;
 		}
 	}
 	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
-		AST_LIST_UNLOCK(&formats);
+		AST_RWLIST_UNLOCK(&formats);
 		return -1;
 	}
 	*tmp = *f;
@@ -98,8 +95,8 @@ int __ast_format_register(const struct ast_format *f, struct ast_module *mod)
 	
 	memset(&tmp->list, 0, sizeof(tmp->list));
 
-	AST_LIST_INSERT_HEAD(&formats, tmp, list);
-	AST_LIST_UNLOCK(&formats);
+	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
+	AST_RWLIST_UNLOCK(&formats);
 	if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered file format %s, extension(s) %s\n", f->name, f->exts);
 
@@ -111,19 +108,16 @@ int ast_format_unregister(const char *name)
 	struct ast_format *tmp;
 	int res = -1;
 
-	if (AST_LIST_LOCK(&formats)) {
-		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		return -1;
-	}
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
+	AST_RWLIST_WRLOCK(&formats);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
-			AST_LIST_REMOVE_CURRENT(&formats, list);
+			AST_RWLIST_REMOVE_CURRENT(&formats, list);
 			free(tmp);
 			res = 0;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&formats);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&formats);
 
 	if (!res) {
 		if (option_verbose > 1)
@@ -352,12 +346,9 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 	struct ast_format *f;
 	int res = (action == ACTION_EXISTS) ? 0 : -1;
 
-	if (AST_LIST_LOCK(&formats)) {
-		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		return res;
-	}
+	AST_RWLIST_RDLOCK(&formats);
 	/* Check for a specific format */
-	AST_LIST_TRAVERSE(&formats, f, list) {
+	AST_RWLIST_TRAVERSE(&formats, f, list) {
 		char *stringp, *ext = NULL;
 
 		if (fmt && !exts_compare(f->exts, fmt))
@@ -456,7 +447,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 			free(fn);
 		}
 	}
-	AST_LIST_UNLOCK(&formats);
+	AST_RWLIST_UNLOCK(&formats);
 	return res;
 }
 
@@ -815,12 +806,9 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	struct ast_filestream *fs = NULL;
 	char *fn;
 
-	if (AST_LIST_LOCK(&formats)) {
-		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		return NULL;
-	}
+	AST_RWLIST_RDLOCK(&formats);
 
-	AST_LIST_TRAVERSE(&formats, f, list) {
+	AST_RWLIST_TRAVERSE(&formats, f, list) {
 		fs = NULL;
 		if (!exts_compare(f->exts, type))
 			continue;
@@ -848,7 +836,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		break;
 	}
 
-	AST_LIST_UNLOCK(&formats);
+	AST_RWLIST_UNLOCK(&formats);
 	if (!fs) 
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
 
@@ -866,10 +854,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	size_t size = 0;
 	int format_found = 0;
 
-	if (AST_LIST_LOCK(&formats)) {
-		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		return NULL;
-	}
+	AST_RWLIST_RDLOCK(&formats);
 
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
 	/* We really can't use O_APPEND as it will break WAV header updates */
@@ -884,7 +869,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	/* XXX need to fix this - we should just do the fopen,
 	 * not open followed by fdopen()
 	 */
-	AST_LIST_TRAVERSE(&formats, f, list) {
+	AST_RWLIST_TRAVERSE(&formats, f, list) {
 		char *fn, *orig_fn = NULL;
 		if (fs)
 			break;
@@ -974,7 +959,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			free(fn);
 	}
 
-	AST_LIST_UNLOCK(&formats);
+	AST_RWLIST_UNLOCK(&formats);
 
 	if (!format_found)
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
@@ -1138,17 +1123,13 @@ static int show_file_formats(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Format", "Name", "Extensions");
-	        
-	if (AST_LIST_LOCK(&formats)) {
-		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		return -1;
-	}
 
-	AST_LIST_TRAVERSE(&formats, f, list) {
+	AST_RWLIST_RDLOCK(&formats);
+	AST_RWLIST_TRAVERSE(&formats, f, list) {
 		ast_cli(fd, FORMAT2, ast_getformatname(f->format), f->name, f->exts);
 		count_fmt++;
 	}
-	AST_LIST_UNLOCK(&formats);
+	AST_RWLIST_UNLOCK(&formats);
 	ast_cli(fd, "%d file formats registered.\n", count_fmt);
 	return RESULT_SUCCESS;
 #undef FORMAT
