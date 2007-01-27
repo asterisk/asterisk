@@ -2420,8 +2420,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "TRANSFER", "%s|%s", qe->chan->exten, qe->chan->context);
 		} else if (qe->chan->_softhangup) {
-			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld",
-				      (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld|%d",
+				      (long)(callstart - qe->start), (long)(time(NULL) - callstart), qe->opos);
 			if (qe->parent->eventwhencalled)
 				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
 					      "Queue: %s\r\n"
@@ -2434,7 +2434,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					      queuename, qe->chan->uniqueid, peer->name, member->interface,
 					      (long)(callstart - qe->start), (long)(time(NULL) - callstart));
 		} else {
-			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld|%d", (long)(callstart - qe->start), (long)(time(NULL) - callstart), qe->opos);
 			if (qe->parent->eventwhencalled)
 				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
 					      "Queue: %s\r\n"
