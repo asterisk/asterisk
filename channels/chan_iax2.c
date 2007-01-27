@@ -8531,13 +8531,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
 			} else if (!strcasecmp(v->name, "context")) {
-				if (ast_strlen_zero(peer->context))
-					ast_string_field_set(peer, context, v->value);
+				ast_string_field_set(peer, context, v->value);
 			} else if (!strcasecmp(v->name, "regexten")) {
 				ast_string_field_set(peer, regexten, v->value);
 			} else if (!strcasecmp(v->name, "peercontext")) {
-				if (ast_strlen_zero(peer->peercontext))
-					ast_string_field_set(peer, peercontext, v->value);
+				ast_string_field_set(peer, peercontext, v->value);
 			} else if (!strcasecmp(v->name, "port")) {
 				if (ast_test_flag(peer, IAX_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
