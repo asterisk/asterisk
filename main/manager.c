@@ -2021,22 +2021,29 @@ static int process_message(struct mansession *s, const struct message *m)
 		} else
 			astman_send_error(s, m, "Authentication Required");
 	} else {
-		ast_mutex_lock(&actionlock);
-		for (tmp = first_action; tmp; tmp = tmp->next) { 		
-			if (strcasecmp(action, tmp->action))
-				continue;
+		if (!strcasecmp(action, "Login")) {
 			ast_mutex_lock(&s->__lock);
-			if ((s->writeperm & tmp->authority) == tmp->authority) {
-				if (tmp->func(s, m))
-					ret = -1;
-			} else
-				astman_send_error(s, m, "Permission denied");
+			astman_send_ack(s, m, "Already logged in");
 			ast_mutex_unlock(&s->__lock);
-			break;
+		} else {
+			ast_mutex_lock(&actionlock);
+			for (tmp = first_action; tmp; tmp = tmp->next) { 		
+				if (strcasecmp(action, tmp->action))
+					continue;
+				ast_mutex_lock(&s->__lock);
+				if ((s->writeperm & tmp->authority) == tmp->authority) {
+					if (tmp->func(s, m))
+						ret = -1;
+				} else
+					astman_send_error(s, m, "Permission denied");
+				ast_mutex_unlock(&s->__lock);
+				break;
+			}
+			
+			ast_mutex_unlock(&actionlock);
+			if (!tmp)
+				astman_send_error(s, m, "Invalid/unknown command");
 		}
-		ast_mutex_unlock(&actionlock);
-		if (!tmp)
-			astman_send_error(s, m, "Invalid/unknown command");
 	}
 	if (ret)
 		return ret;
