@@ -127,10 +127,9 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box);
 struct vmstate {
 	struct vm_state *vms;
-	struct vmstate *next;
+	AST_LIST_ENTRY(vmstate) list;
 };
-AST_MUTEX_DEFINE_STATIC(vmstate_lock);
-static struct vmstate *vmstates = NULL;
+static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #endif
 
 #define SMDI_MWI_WAIT_TIMEOUT 1000 /* 1 second */
@@ -8675,61 +8674,59 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 {
 	struct vmstate *vlist = NULL;
 
-	vlist = vmstates;
-	while (vlist) {
-		if (vlist->vms) {
-			if (vlist->vms->imapuser) {
-				if (!strcmp(vlist->vms->imapuser,user)) {
-					if (interactive == 2) {
-						return vlist->vms;
-					} else if (vlist->vms->interactive == interactive) {
-						return vlist->vms;
-					}
-				}
-			} else {
-				if(option_debug > 2)
-					ast_log(LOG_DEBUG, "	error: imapuser is NULL for %s\n",user);
-			}
-		} else {
-			if(option_debug > 2)
-				ast_log(LOG_DEBUG, "	error: vms is NULL for %s\n",user);
+	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
+		if (!vlist->vms) {
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "error: vms is NULL for %s\n", user);
+			continue;
 		}
-		vlist = vlist->next;
+		if (!vlist->vms->imapuser) {
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "error: imapuser is NULL for %s\n", user);
+			continue;
+		}
+
+		if (interactive == 2)
+			return vlist->vms;
+		else if (vlist->vms->interactive == interactive)
+			return vlist->vms;
 	}
+
 	if(option_debug > 2)
-		ast_log(LOG_DEBUG, "%s not found in vmstates\n",user);
+		ast_log(LOG_DEBUG, "%s not found in vmstates\n", user);
+
 	return NULL;
 }
 
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
 { 
 	struct vmstate *vlist = NULL;
-	
-	vlist = vmstates;
-	if(option_debug > 2) 
-		ast_log(LOG_DEBUG, "Mailbox set to %s\n",mailbox);
-	while (vlist) {
-		if (vlist->vms) {
-			if (vlist->vms->username) {
-				if(option_debug > 2)
-					ast_log(LOG_DEBUG, "	comparing mailbox %s (i=%d) to vmstate mailbox %s (i=%d)\n",mailbox,interactive,vlist->vms->username,vlist->vms->interactive);
-				if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
-					if(option_debug > 2)
-						ast_log(LOG_DEBUG, "	Found it!\n");
-					return vlist->vms;
-				}
-			} else {
-				if(option_debug > 2)
-					ast_log(LOG_DEBUG, "	error: username is NULL for %s\n",mailbox);
-			}
-		} else {
-			if(option_debug > 2)
-				ast_log(LOG_DEBUG, "	error: vms is NULL for %s\n",mailbox);
+
+	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
+		if (!vlist->vms) {
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "error: vms is NULL for %s\n", mailbox);
+			continue;
 		}
-		vlist = vlist->next;
+		if (!vlist->vms->username) {
+			if (option_debug > 2)
+				ast_log(LOG_DEBUG, "error: username is NULL for %s\n", mailbox);
+			continue;
+		}
+
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "comparing mailbox %s (i=%d) to vmstate mailbox %s (i=%d)\n", mailbox, interactive, vlist->vms->username, vlist->vms->interactive);
+		
+		if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
+			if(option_debug > 2)
+				ast_log(LOG_DEBUG, "Found it!\n");
+			return vlist->vms;
+		}
 	}
-	if(option_debug > 2)
-		ast_log(LOG_DEBUG, "%s not found in vmstates\n",mailbox);
+
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "%s not found in vmstates\n", mailbox);
+
 	return NULL;
 }
 
@@ -8767,59 +8764,49 @@ static void vmstate_insert(struct vm_state *vms)
 		}
 	}
 
-	v = (struct vmstate *)malloc(sizeof(struct vmstate));
-	if (!v) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-	}
+	if (!(v = ast_calloc(1, sizeof(*v))))
+		return;
+
 	if(option_debug > 2)
 		ast_log(LOG_DEBUG, "Inserting vm_state for user:%s, mailbox %s\n",vms->imapuser,vms->username);
-	ast_mutex_lock(&vmstate_lock);
-	v->vms = vms;
-	v->next = vmstates;
-	vmstates = v;
-	ast_mutex_unlock(&vmstate_lock);
+
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_INSERT_TAIL(&vmstates, v, list);
+	AST_LIST_UNLOCK(&vmstates);
 }
 
 static void vmstate_delete(struct vm_state *vms) 
 {
-	struct vmstate *vc, *vf = NULL, *vl = NULL;
-	struct vm_state *altvms;
+	struct vmstate *vc = NULL;
+	struct vm_state *altvms = NULL;
 
 	/* If interactive, we should copy pertinent info
 	   back to the persistent state (to make update immediate) */
-	if (vms->interactive == 1) {
-		altvms = vms->persist_vms;
-		if (altvms) {
-			if(option_debug > 2)
-				ast_log(LOG_DEBUG, "Duplicate mailbox %s, copying message info...\n",vms->username);
-			altvms->newmessages = vms->newmessages;
-			altvms->oldmessages = vms->oldmessages;
-			altvms->updated = 2;
-		}
+	if (vms->interactive == 1 && (altvms = vms->persist_vms)) {
+		if(option_debug > 2)
+			ast_log(LOG_DEBUG, "Duplicate mailbox %s, copying message info...\n", vms->username);
+		altvms->newmessages = vms->newmessages;
+		altvms->oldmessages = vms->oldmessages;
+		altvms->updated = 2;
 	}
-
-	ast_mutex_lock(&vmstate_lock);
-	vc = vmstates;
-	if(option_debug > 2)
-		ast_log(LOG_DEBUG, "Removing vm_state for user:%s, mailbox %s\n",vms->imapuser,vms->username);
-	while (vc) {
+	
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Removing vm_state for user:%s, mailbox %s\n", vms->imapuser, vms->username);
+	
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&vmstates, vc, list) {
 		if (vc->vms == vms) {
-			vf = vc;
-			if (vl)
-				vl->next = vc->next;
-			else
-				vmstates = vc->next;
+			AST_LIST_REMOVE_CURRENT(&vmstates, list);
 			break;
 		}
-		vl = vc;
-		vc = vc->next;
 	}
-	if (!vf) {
-		ast_log(LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n",vms->imapuser,vms->username);
-	} else {
-		free(vf);
-	}
-	ast_mutex_unlock(&vmstate_lock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&vmstates);
+	
+	if (vc)
+		free(vc);
+	else
+		ast_log(LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n", vms->imapuser, vms->username);
 }
 
 static void set_update(MAILSTREAM * stream) 
