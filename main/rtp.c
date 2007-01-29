@@ -3308,11 +3308,19 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	 * |-----------|------------|-----------------------|
 	 * | Inband    | False      | True                  |
 	 * | RFC2833   | True       | True                  |
-	 * | SIP Info  | False      | False                 |
+	 * | SIP INFO  | False      | False                 |
 	 * --------------------------------------------------
+	 * However, if DTMF from both channels is being monitored by the core, then
+	 * we can still do packet-to-packet bridging, because passing through the 
+	 * core will handle DTMF mode translation.
 	 */
 	if ( (ast_test_flag(p0, FLAG_HAS_DTMF) != ast_test_flag(p1, FLAG_HAS_DTMF)) ||
 		 (!c0->tech->send_digit_begin != !c1->tech->send_digit_begin)) {
+		if (!ast_test_flag(p0, FLAG_P2P_NEED_DTMF) || !ast_test_flag(p1, FLAG_P2P_NEED_DTMF)) {
+			ast_channel_unlock(c0);
+			ast_channel_unlock(c1);
+			return AST_BRIDGE_FAILED_NOWARN;
+		}
 		audio_p0_res = AST_RTP_TRY_PARTIAL;
 		audio_p1_res = AST_RTP_TRY_PARTIAL;
 	}
