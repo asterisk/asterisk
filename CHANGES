@@ -67,6 +67,7 @@ Changes since Asterisk 1.4-beta was branched:
   * Added the srvlookup option to iax.conf
   * Added 'E' and 'V' commands to ExternalIVR.
   * Added 'DBDel' and 'DBDelTree' manager commands.
+  * Added 'core show channels count' CLI command.
 
 SIP changes
 -----------

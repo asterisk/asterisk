@@ -458,19 +458,20 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
 	struct ast_channel *c = NULL;
-	int numchans = 0, concise = 0, verbose = 0;
+	int numchans = 0, concise = 0, verbose = 0, count = 0;
 	int fd, argc;
 	char **argv;
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "core show channels [concise|verbose]";
+		e->command = "core show channels [concise|verbose|count]";
 		e->usage =
-			"Usage: core show channels [concise|verbose]\n"
+			"Usage: core show channels [concise|verbose|count]\n"
 			"       Lists currently defined channels and some information about them. If\n"
 			"       'concise' is specified, the format is abridged and in a more easily\n"
 			"       machine parsable format. If 'verbose' is specified, the output includes\n"
-			"       more and longer fields.\n";
+			"       more and longer fields. If 'count' is specified only the channel and call\n"
+			"       count is output.\n";
 		return NULL;
 
 	case CLI_GENERATE:
@@ -485,58 +486,64 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			concise = 1;
 		else if (!strcasecmp(argv[e->args-1],"verbose"))
 			verbose = 1;
+		else if (!strcasecmp(argv[e->args-1],"count"))
+			count = 1;
 		else
 			return CLI_SHOWUSAGE;
 	} else if (a->argc != e->args - 1)
 		return CLI_SHOWUSAGE;
 
-	if (!concise && !verbose)
-		ast_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
-	else if (verbose)
-		ast_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
-		        "CallerID", "Duration", "Accountcode", "BridgedTo");
+	if (!count) {
+		if (!concise && !verbose)
+			ast_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
+		else if (verbose)
+			ast_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
+				"CallerID", "Duration", "Accountcode", "BridgedTo");
+	}
 
 	while ((c = ast_channel_walk_locked(c)) != NULL) {
 		struct ast_channel *bc = ast_bridged_channel(c);
 		char durbuf[10] = "-";
 
-		if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
-			int duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
-			if (verbose) {
-				int durh = duration / 3600;
-				int durm = (duration % 3600) / 60;
-				int durs = duration % 60;
-				snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+		if (!count) {
+			if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
+				int duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+				if (verbose) {
+					int durh = duration / 3600;
+					int durm = (duration % 3600) / 60;
+					int durs = duration % 60;
+					snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+				} else {
+					snprintf(durbuf, sizeof(durbuf), "%d", duration);
+				}				
+			}
+			if (concise) {
+				ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+					c->appl ? c->appl : "(None)",
+					S_OR(c->data, ""),	/* XXX different from verbose ? */
+					S_OR(c->cid.cid_num, ""),
+					S_OR(c->accountcode, ""),
+					c->amaflags, 
+					durbuf,
+					bc ? bc->name : "(None)");
+			} else if (verbose) {
+				ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+					c->appl ? c->appl : "(None)",
+					c->data ? S_OR(c->data, "(Empty)" ): "(None)",
+					S_OR(c->cid.cid_num, ""),
+					durbuf,
+					S_OR(c->accountcode, ""),
+					bc ? bc->name : "(None)");
 			} else {
-				snprintf(durbuf, sizeof(durbuf), "%d", duration);
-			}				
-		}
-		if (concise) {
-			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)",
-				S_OR(c->data, ""),	/* XXX different from verbose ? */
-			        S_OR(c->cid.cid_num, ""),
-			        S_OR(c->accountcode, ""),
-				c->amaflags, 
-			        durbuf,
-				bc ? bc->name : "(None)");
-		} else if (verbose) {
-			ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-			        c->appl ? c->appl : "(None)",
-				c->data ? S_OR(c->data, "(Empty)" ): "(None)",
-			        S_OR(c->cid.cid_num, ""),
-				durbuf,
-			        S_OR(c->accountcode, ""),
-				bc ? bc->name : "(None)");
-		} else {
-			char locbuf[40] = "(None)";
-			char appdata[40] = "(None)";
-
-			if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
-				snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
-			if (c->appl)
-				snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, S_OR(c->data, ""));
-			ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
+				char locbuf[40] = "(None)";
+				char appdata[40] = "(None)";
+				
+				if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
+					snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
+				if (c->appl)
+					snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, S_OR(c->data, ""));
+				ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
+			}
 		}
 		numchans++;
 		ast_channel_unlock(c);
