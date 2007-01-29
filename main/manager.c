@@ -2130,9 +2130,7 @@ static void *session_do(void *data)
 	struct mansession *s = data;
 	int res;
 	
-	ast_mutex_lock(&s->__lock);
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");
-	ast_mutex_unlock(&s->__lock);
 	for (;;) {
 		if ((res = do_message(s)) < 0)
 			break;
