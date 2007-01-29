@@ -946,7 +946,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	/* check for arguments at first */
 	if (argc != 6 && argc != 7)
 		return RESULT_SHOWUSAGE;
-	if (strcmp(argv[3], "into"))
+	if (strcmp(argv[4], "into"))
 		return RESULT_SHOWUSAGE;
 	if (argc == 7) if (strcmp(argv[6], "replace")) return RESULT_SHOWUSAGE;
 
@@ -991,7 +991,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 
 	if (!app_data)
 		app_data="";
-	if (ast_add_extension(argv[5], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
+	if (ast_add_extension(argv[5], argc == 7 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
 		case ENOMEM:
