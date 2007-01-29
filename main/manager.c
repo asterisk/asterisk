@@ -174,7 +174,7 @@ static AST_LIST_HEAD_STATIC(users, ast_manager_user);
 
 /*! \brief list of actions registered */
 static struct manager_action *first_action;
-AST_MUTEX_DEFINE_STATIC(actionlock);
+AST_RWLOCK_DEFINE_STATIC(actionlock);
 
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
@@ -332,7 +332,6 @@ static int ast_instring(const char *bigstr, const char *smallstr, const char del
 				continue;
 		} else
 			return !strcmp(smallstr, val);
-
 	} while (*(val = (next + 1)));
 
 	return 0;
@@ -386,14 +385,14 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	int l = strlen(word), which = 0;
 	char *ret = NULL;
 
-	ast_mutex_lock(&actionlock);
+	ast_rwlock_rdlock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		if (!strncasecmp(word, cur->action, l) && ++which > state) {
 			ret = ast_strdup(cur->action);
 			break;	/* make sure we exit even if ast_strdup() returns NULL */
 		}
 	}
-	ast_mutex_unlock(&actionlock);
+	ast_rwlock_unlock(&actionlock);
 
 	return ret;
 }
@@ -412,7 +411,7 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 	return user;
 }
 
-
+/*! \note The actionlock is read-locked by the caller of this function */
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur;
@@ -422,7 +421,6 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
@@ -433,7 +431,6 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 			}
 		}
 	}
-	ast_mutex_unlock(&actionlock);
 
 	return RESULT_SUCCESS;
 }
@@ -534,10 +531,10 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
 	ast_cli(fd, format, "------", "---------", "--------");
 
-	ast_mutex_lock(&actionlock);
+	ast_rwlock_rdlock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) /* Walk the list of actions */
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
-	ast_mutex_unlock(&actionlock);
+	ast_rwlock_unlock(&actionlock);
 
 	return RESULT_SUCCESS;
 }
@@ -1259,19 +1256,18 @@ static char mandescr_listcommands[] =
 "  action that is available to the user\n"
 "Variables: NONE\n";
 
+/*! \note The actionlock is read-locked by the caller of this function */
 static int action_listcommands(struct mansession *s, const struct message *m)
 {
 	struct manager_action *cur;
 	struct ast_str *temp = ast_str_alloca(BUFSIZ); /* XXX very large ? */
 
 	astman_start_ack(s, m);
-	ast_mutex_lock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
 			astman_append(s, "%s: %s (Priv: %s)\r\n",
 				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
 	}
-	ast_mutex_unlock(&actionlock);
 	astman_append(s, "\r\n");
 
 	return 0;
@@ -2068,9 +2064,7 @@ static int process_message(struct mansession *s, const struct message *m)
 		ast_log(LOG_DEBUG, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
-		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Missing action in request");
-		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
 
@@ -2080,22 +2074,19 @@ static int process_message(struct mansession *s, const struct message *m)
 		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
-	ast_mutex_lock(&actionlock);	
+	ast_rwlock_rdlock(&actionlock);	
 	for (tmp = first_action ; tmp; tmp = tmp->next) {
 		if (strcasecmp(action, tmp->action))
 			continue;
-		ast_mutex_lock(&s->__lock);
 		if ((s->writeperm & tmp->authority) == tmp->authority) {
 			if (tmp->func(s, m)) {	/* error */
-				ast_mutex_unlock(&s->__lock);
 				return -1;
 			}
 		} else
 			astman_send_error(s, m, "Permission denied");
-		ast_mutex_unlock(&s->__lock);
 		break;
 	}
-	ast_mutex_unlock(&actionlock);
+	ast_rwlock_unlock(&actionlock);
 	if (!tmp) {
 		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Invalid/unknown command. Use Action: ListCommands to show available commands.");
@@ -2402,7 +2393,7 @@ int ast_manager_unregister(char *action)
 {
 	struct manager_action *cur, *prev;
 
-	ast_mutex_lock(&actionlock);
+	ast_rwlock_wrlock(&actionlock);
 	for (cur = first_action, prev = NULL; cur; prev = cur, cur = cur->next) {
 		if (!strcasecmp(action, cur->action)) {
 			if (prev)
@@ -2415,7 +2406,7 @@ int ast_manager_unregister(char *action)
 			break;
 		}
 	}
-	ast_mutex_unlock(&actionlock);
+	ast_rwlock_unlock(&actionlock);
 	return 0;
 }
 
@@ -2431,12 +2422,12 @@ static int ast_manager_register_struct(struct manager_action *act)
 	struct manager_action *cur, *prev = NULL;
 	int ret;
 
-	ast_mutex_lock(&actionlock);
+	ast_rwlock_wrlock(&actionlock);
 	for (cur = first_action; cur; prev = cur, cur = cur->next) {
 		ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
 			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
-			ast_mutex_unlock(&actionlock);
+			ast_rwlock_unlock(&actionlock);
 			return -1;
 		}
 		if (ret > 0)	/* Insert these alphabetically */
@@ -2450,7 +2441,7 @@ static int ast_manager_register_struct(struct manager_action *act)
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
-	ast_mutex_unlock(&actionlock);
+	ast_rwlock_unlock(&actionlock);
 	return 0;
 }
 
