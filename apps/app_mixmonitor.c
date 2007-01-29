@@ -263,7 +263,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	mixmonitor->name = (char *) mixmonitor + sizeof(*mixmonitor);
 	strcpy(mixmonitor->name, chan->name);
 	if (!ast_strlen_zero(postprocess2)) {
-		mixmonitor->post_process = mixmonitor->name + strlen(mixmonitor->name) + 1;
+		mixmonitor->post_process = mixmonitor->name + strlen(mixmonitor->name) + strlen(filename) + 2;
 		strcpy(mixmonitor->post_process, postprocess2);
 	}
 
