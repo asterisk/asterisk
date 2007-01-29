@@ -2516,6 +2516,8 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		vms_p->mailstream = NIL; /* save for access from interactive entry point */
 		if(option_debug > 2)
 			ast_log (LOG_DEBUG,"Copied %s to %s\n",vmu->imapuser,vms_p->imapuser);
+		vms_p->quota_limit = 0;
+		vms_p->quota_usage = 0;
 		vms_p->updated = 1;
 		vms_p->interactive = 0;
 		/* set mailbox to INBOX! */
