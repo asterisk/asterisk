@@ -104,7 +104,7 @@ typedef struct jitterbuf {
 	long hist_maxbuf[JB_HISTORY_MAXBUF_SZ];	/* a sorted buffer of the max delays (highest first) */
 	long hist_minbuf[JB_HISTORY_MAXBUF_SZ];	/* a sorted buffer of the min delays (lowest first) */
 	int  hist_maxbuf_valid;			/* are the "maxbuf"/minbuf valid? */
-
+	unsigned int dropem:1;                  /* flag to indicate dropping frames (overload) */
 
 	jb_frame *frames; 		/* queued frames */
 	jb_frame *free; 		/* free frames (avoid malloc?) */

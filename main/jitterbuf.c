@@ -512,9 +512,15 @@ static void jb_dbgqueue(jitterbuf *jb)
 
 enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type type, long ms, long ts, long now) 
 {
+	long numts;
+
 	jb_dbg2("jb_put(%x,%x,%ld,%ld,%ld)\n", jb, data, ms, ts, now);
 
 	jb->info.frames_in++;
+
+	if (jb->frames && jb->dropem) 
+		return JB_DROP;
+	jb->dropem = 0;
 
 	if (type == JB_TYPE_VOICE) {
 		/* presently, I'm only adding VOICE frames to history and drift calculations; mostly because with the
@@ -522,7 +528,15 @@ enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type t
 		if (history_put(jb,ts,now,ms))
 			return JB_DROP;
 	}
-
+	numts = 0;
+	if (jb->frames)
+		numts = jb->frames->prev->ts - jb->frames->ts;
+	if (numts >= jb->info.conf.max_jitterbuf) {
+		ast_log(LOG_DEBUG, "Attempting to exceed Jitterbuf max %ld timeslots\n",
+			jb->info.conf.max_jitterbuf);
+		jb->dropem = 1;
+		return JB_DROP;
+	}
 	/* if put into head of queue, caller needs to reschedule */
 	if (queue_put(jb,data,type,ms,ts)) {
 		return JB_SCHED;
