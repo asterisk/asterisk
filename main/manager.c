@@ -2235,10 +2235,8 @@ static void *session_do(void *data)
 	AST_LIST_UNLOCK(&sessions);
 	/* Hook to the tail of the event queue */
 	s->last_ev = grab_last();
-	ast_mutex_lock(&s->__lock);
 	s->f = ser->f;
 	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
-	ast_mutex_unlock(&s->__lock);
 	for (;;) {
 		if ((res = do_message(s)) < 0)
 			break;
