@@ -101,7 +101,7 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 editline/libedit.a:
-	cd editline && test -f config.h || CFLAGS="$(PTHREAD_CFLAGS) $(ASTCFLAGS:-Werror=)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM) --with-ncurses=$(NCURSES_DIR) --with-curses=$(CURSES_DIR) --with-termcap=$(TERMCAP_DIR) --with-tinfo=$(TINFO_DIR)
+	cd editline && test -f config.h || CFLAGS="$(PTHREAD_CFLAGS) $(ASTCFLAGS:-Werror=)" LDFLAGS="$(ASTLDFLAGS) ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM) --with-ncurses=$(NCURSES_DIR) --with-curses=$(CURSES_DIR) --with-termcap=$(TERMCAP_DIR) --with-tinfo=$(TINFO_DIR)
 	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a:
