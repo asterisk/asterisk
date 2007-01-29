@@ -4090,9 +4090,11 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 
 		/* Forward VoiceMail */
 		long duration = 0;
+#ifdef IMAP_STORAGE
 		char *myserveremail = serveremail;
 		char buf[1024] = "";
 		int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
+#endif
  		RETRIEVE(dir, curmsg);
 		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, S_OR(context, "default"), record_gain, &duration, vms);
 		if (!cmd) {
