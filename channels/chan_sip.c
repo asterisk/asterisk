@@ -16011,7 +16011,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		if (realtime) {
 			rpeerobjs++;
 			if (option_debug > 2)
-				ast_log(LOG_DEBUG,"-REALTIME- peer built. Name: %s. Peer objects: %d\n", peer->name, rpeerobjs);
+				ast_log(LOG_DEBUG,"-REALTIME- peer built. Name: %s. Peer objects: %d\n", name, rpeerobjs);
 		} else
 			speerobjs++;
 		ASTOBJ_INIT(peer);
