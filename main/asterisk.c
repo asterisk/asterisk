@@ -234,6 +234,8 @@ static pthread_t consolethread = AST_PTHREADT_NULL;
 
 static char randompool[256];
 
+static unsigned int need_reload;
+
 #if !defined(LOW_MEMORY)
 struct file_version {
 	AST_LIST_ENTRY(file_version) list;
@@ -993,8 +995,7 @@ static void hup_handler(int num)
 		printf("Received HUP signal -- Reloading configs\n");
 	if (restartnow)
 		execvp(_argv[0], _argv);
-	/* XXX This could deadlock XXX */
-	ast_module_reload(NULL);
+	need_reload = 1;
 	signal(num, hup_handler);
 }
 
@@ -2132,6 +2133,11 @@ static void ast_remotecontrol(char * data)
 				}
 			}
 		}
+
+		if (need_reload) {
+			need_reload = 0;
+			ast_module_reload(NULL);
+		}
 	}
 	printf("\nDisconnected from Asterisk server\n");
 }
@@ -2807,14 +2813,21 @@ int main(int argc, char *argv[])
 					ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console. Bad things will happen!\n");
 				break;
 			}
+			if (need_reload) {
+				need_reload = 0;
+				ast_module_reload(NULL);
+			}
 		}
-
 	}
 	/* Do nothing */
 	for (;;) {	/* apparently needed for Mac OS X */
 		struct pollfd p = { -1 /* no descriptor */, 0, 0 };
-
 		poll(&p, 0, -1);
+ 		/* SIGHUP will cause this to break out of poll() */
+ 		if (need_reload) {
+ 			need_reload = 0;
+ 			ast_module_reload(NULL);
+ 		}
 	}
 
 	return 0;
