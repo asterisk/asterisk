@@ -200,21 +200,31 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
           AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/share/pwlib/make)
         fi
         PWLIB_INCDIR="/usr/local/include"
-        if test "x$LIB64" != "x"; then
-          PWLIB_LIBDIR="/usr/local/lib64"
-        else
-          PWLIB_LIBDIR="/usr/local/lib"
+        PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir`
+        if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
+          if test "x$LIB64" != "x"; then
+            PWLIB_LIBDIR="/usr/local/lib64"
+          else
+            PWLIB_LIBDIR="/usr/local/lib"
+          fi
         fi
+        PWLIB_LIB=`${PTLIB_CONFIG} --ldflags --libs`
+        PWLIB_LIB="-L${PWLIB_LIBDIR} `echo ${PWLIB_LIB}`"
       else
         AC_CHECK_FILE(/usr/include/ptlib.h, HAS_PWLIB=1, )
         if test "${HAS_PWLIB:-unset}" != "unset" ; then
           AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/share/pwlib/make)
           PWLIB_INCDIR="/usr/include"
-          if test "x$LIB64" != "x"; then
-          	PWLIB_LIBDIR="/usr/lib64"
-          else
-	        PWLIB_LIBDIR="/usr/lib"
-	      fi
+          PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir`
+          if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
+            if test "x$LIB64" != "x"; then
+              PWLIB_LIBDIR="/usr/lib64"
+            else
+              PWLIB_LIBDIR="/usr/lib"
+            fi
+          fi
+          PWLIB_LIB=`${PTLIB_CONFIG} --ldflags --libs`
+          PWLIB_LIB="-L${PWLIB_LIBDIR} `echo ${PWLIB_LIB}`"
         fi
       fi
     fi
@@ -406,6 +416,10 @@ if test "${HAS_OPENH323:-unset}" != "unset" ; then
     OPENH323_LIBDIR="${OPENH323DIR}/lib"
   fi
 
+  OPENH323_LIBDIR="`cd ${OPENH323_LIBDIR}; pwd`"
+  OPENH323_INCDIR="`cd ${OPENH323_INCDIR}; pwd`"
+  OPENH323DIR="`cd ${OPENH323DIR}; pwd`"
+
   AC_SUBST([OPENH323DIR])
   AC_SUBST([OPENH323_INCDIR])
   AC_SUBST([OPENH323_LIBDIR])
@@ -441,7 +455,11 @@ AC_DEFUN(
 
 	   saved_cppflags="${CPPFLAGS}"
 	   saved_libs="${LIBS}"
-	   LIBS="${LIBS} -L${$2_LIBDIR} -l${PLATFORM_$2} $7"
+	   if test "${$2_LIB:-unset}" != "unset"; then
+	      LIBS="${LIBS} ${$2_LIB} $7"
+	   else
+    	      LIBS="${LIBS} -L${$2_LIBDIR} -l${PLATFORM_$2} $7"
+	   fi
 	   CPPFLAGS="${CPPFLAGS} -I${$2_INCDIR} $6"
 
 	   AC_LANG_PUSH([C++])
@@ -462,10 +480,12 @@ AC_DEFUN(
 	   CPPFLAGS="${saved_cppflags}"
 
 	   if test "${ac_cv_lib_$2}" = "yes"; then
-	      if test "${$2_LIBDIR}" != "" -a "${$2_LIBDIR}" != "/usr/lib"; then
-	         $2_LIB="-L${$2_LIBDIR} -l${PLATFORM_$2}"
-	      else
-	         $2_LIB="-l${PLATFORM_$2}"
+	      if test "${$2_LIB:-undef}" = "undef"; then
+	         if test "${$2_LIBDIR}" != "" -a "${$2_LIBDIR}" != "/usr/lib"; then
+	            $2_LIB="-L${$2_LIBDIR} -l${PLATFORM_$2}"
+	         else
+	            $2_LIB="-l${PLATFORM_$2}"
+	         fi
 	      fi
 	      if test "${$2_INCDIR}" != "" -a "${$2_INCDIR}" != "/usr/include"; then
 	         $2_INCLUDE="-I${$2_INCDIR}"
@@ -481,18 +501,25 @@ AC_DEFUN(
 	if test "${HAS_OPENH323:-unset}" != "unset"; then
 		AC_MSG_CHECKING(OpenH323 build option)
 		OPENH323_SUFFIX=
-		files=`ls -l ${OPENH323_LIBDIR}/libh323_${PWLIB_PLATFORM}_*.so*`
-		libfile=
-		if test -n "$files"; then
-			for f in $files; do
-				if test -f $f -a ! -L $f; then
-					libfile=`basename $f`
-					break;
-				fi
-			done
-		fi
+		prefixes="h323_${PWLIB_PLATFORM}_ h323_ openh323"
+		for pfx in $prefixes; do
+			files=`ls -l ${OPENH323_LIBDIR}/lib${pfx}*.so* 2>/dev/null`
+			libfile=
+			if test -n "$files"; then
+				for f in $files; do
+					if test -f $f -a ! -L $f; then
+						libfile=`basename $f`
+						break;
+					fi
+				done
+			fi
+			if test -n "$libfile"; then
+				OPENH323_PREFIX=$pfx
+				break;
+			fi
+		done
 		if test "${libfile:-unset}" != "unset"; then
-			OPENH323_SUFFIX=`eval "echo ${libfile} | sed -e 's/libh323_${PWLIB_PLATFORM}_\(@<:@^.@:>@*\)\..*/\1/'"`
+			OPENH323_SUFFIX=`eval "echo ${libfile} | sed -e 's/lib${OPENH323_PREFIX}\(@<:@^.@:>@*\)\..*/\1/'"`
 		fi
 		case "${OPENH323_SUFFIX}" in
 			n)
@@ -502,7 +529,21 @@ AC_DEFUN(
 			d)
 				OPENH323_BUILD="debug";;
 			*)
-				OPENH323_BUILD="notrace";;
+				if test "${OPENH323_PREFIX:-undef}" = "openh323"; then
+					notrace=`eval "grep NOTRACE ${OPENH323DIR}/openh323u.mak | grep = | sed -e 's/@<:@A-Z0-9_@:>@*@<:@ 	@:>@*=@<:@ 	@:>@*//'"`
+					if test "x$notrace" = "x"; then
+						notrace="0"
+					fi
+					if test "$notrace" -ne 0; then
+						OPENH323_BUILD="notrace"
+					else
+						OPENH323_BUILD="opt"
+					fi
+					OPENH323_LIB="-l${OPENH323_PREFIX}"
+				else
+					OPENH323_BUILD="notrace"
+				fi
+				;;
 		esac
 		AC_MSG_RESULT(${OPENH323_BUILD})
 

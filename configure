@@ -25782,11 +25782,16 @@ fi
 
         fi
         PWLIB_INCDIR="/usr/local/include"
-        if test "x$LIB64" != "x"; then
-          PWLIB_LIBDIR="/usr/local/lib64"
-        else
-          PWLIB_LIBDIR="/usr/local/lib"
+        PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir`
+        if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
+          if test "x$LIB64" != "x"; then
+            PWLIB_LIBDIR="/usr/local/lib64"
+          else
+            PWLIB_LIBDIR="/usr/local/lib"
+          fi
         fi
+        PWLIB_LIB=`${PTLIB_CONFIG} --ldflags --libs`
+        PWLIB_LIB="-L${PWLIB_LIBDIR} `echo ${PWLIB_LIB}`"
       else
         { echo "$as_me:$LINENO: checking for /usr/include/ptlib.h" >&5
 echo $ECHO_N "checking for /usr/include/ptlib.h... $ECHO_C" >&6; }
@@ -25851,11 +25856,16 @@ fi
 
 
           PWLIB_INCDIR="/usr/include"
-          if test "x$LIB64" != "x"; then
-          	PWLIB_LIBDIR="/usr/lib64"
-          else
-	        PWLIB_LIBDIR="/usr/lib"
-	      fi
+          PWLIB_LIBDIR=`${PTLIB_CONFIG} --pwlibdir`
+          if test "${PWLIB_LIBDIR:-unset}" = "unset"; then
+            if test "x$LIB64" != "x"; then
+              PWLIB_LIBDIR="/usr/lib64"
+            else
+              PWLIB_LIBDIR="/usr/lib"
+            fi
+          fi
+          PWLIB_LIB=`${PTLIB_CONFIG} --ldflags --libs`
+          PWLIB_LIB="-L${PWLIB_LIBDIR} `echo ${PWLIB_LIB}`"
         fi
       fi
     fi
@@ -26027,7 +26037,11 @@ echo $ECHO_N "checking PWLib installation validity... $ECHO_C" >&6; }
 
 	   saved_cppflags="${CPPFLAGS}"
 	   saved_libs="${LIBS}"
-	   LIBS="${LIBS} -L${PWLIB_LIBDIR} -l${PLATFORM_PWLIB} "
+	   if test "${PWLIB_LIB:-unset}" != "unset"; then
+	      LIBS="${LIBS} ${PWLIB_LIB} "
+	   else
+    	      LIBS="${LIBS} -L${PWLIB_LIBDIR} -l${PLATFORM_PWLIB} "
+	   fi
 	   CPPFLAGS="${CPPFLAGS} -I${PWLIB_INCDIR} "
 
 	   ac_ext=cpp
@@ -26099,10 +26113,12 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 	   CPPFLAGS="${saved_cppflags}"
 
 	   if test "${ac_cv_lib_PWLIB}" = "yes"; then
-	      if test "${PWLIB_LIBDIR}" != "" -a "${PWLIB_LIBDIR}" != "/usr/lib"; then
-	         PWLIB_LIB="-L${PWLIB_LIBDIR} -l${PLATFORM_PWLIB}"
-	      else
-	         PWLIB_LIB="-l${PLATFORM_PWLIB}"
+	      if test "${PWLIB_LIB:-undef}" = "undef"; then
+	         if test "${PWLIB_LIBDIR}" != "" -a "${PWLIB_LIBDIR}" != "/usr/lib"; then
+	            PWLIB_LIB="-L${PWLIB_LIBDIR} -l${PLATFORM_PWLIB}"
+	         else
+	            PWLIB_LIB="-l${PLATFORM_PWLIB}"
+	         fi
 	      fi
 	      if test "${PWLIB_INCDIR}" != "" -a "${PWLIB_INCDIR}" != "/usr/include"; then
 	         PWLIB_INCLUDE="-I${PWLIB_INCDIR}"
@@ -26302,6 +26318,10 @@ if test "${HAS_OPENH323:-unset}" != "unset" ; then
     OPENH323_LIBDIR="${OPENH323DIR}/lib"
   fi
 
+  OPENH323_LIBDIR="`cd ${OPENH323_LIBDIR}; pwd`"
+  OPENH323_INCDIR="`cd ${OPENH323_INCDIR}; pwd`"
+  OPENH323DIR="`cd ${OPENH323DIR}; pwd`"
+
 
 
 
@@ -26333,18 +26353,25 @@ echo "${ECHO_T}yes" >&6; }
 		{ echo "$as_me:$LINENO: checking OpenH323 build option" >&5
 echo $ECHO_N "checking OpenH323 build option... $ECHO_C" >&6; }
 		OPENH323_SUFFIX=
-		files=`ls -l ${OPENH323_LIBDIR}/libh323_${PWLIB_PLATFORM}_*.so*`
-		libfile=
-		if test -n "$files"; then
-			for f in $files; do
-				if test -f $f -a ! -L $f; then
-					libfile=`basename $f`
-					break;
-				fi
-			done
-		fi
+		prefixes="h323_${PWLIB_PLATFORM}_ h323_ openh323"
+		for pfx in $prefixes; do
+			files=`ls -l ${OPENH323_LIBDIR}/lib${pfx}*.so* 2>/dev/null`
+			libfile=
+			if test -n "$files"; then
+				for f in $files; do
+					if test -f $f -a ! -L $f; then
+						libfile=`basename $f`
+						break;
+					fi
+				done
+			fi
+			if test -n "$libfile"; then
+				OPENH323_PREFIX=$pfx
+				break;
+			fi
+		done
 		if test "${libfile:-unset}" != "unset"; then
-			OPENH323_SUFFIX=`eval "echo ${libfile} | sed -e 's/libh323_${PWLIB_PLATFORM}_\([^.]*\)\..*/\1/'"`
+			OPENH323_SUFFIX=`eval "echo ${libfile} | sed -e 's/lib${OPENH323_PREFIX}\([^.]*\)\..*/\1/'"`
 		fi
 		case "${OPENH323_SUFFIX}" in
 			n)
@@ -26354,7 +26381,21 @@ echo $ECHO_N "checking OpenH323 build option... $ECHO_C" >&6; }
 			d)
 				OPENH323_BUILD="debug";;
 			*)
-				OPENH323_BUILD="notrace";;
+				if test "${OPENH323_PREFIX:-undef}" = "openh323"; then
+					notrace=`eval "grep NOTRACE ${OPENH323DIR}/openh323u.mak | grep = | sed -e 's/[A-Z0-9_]*[ 	]*=[ 	]*//'"`
+					if test "x$notrace" = "x"; then
+						notrace="0"
+					fi
+					if test "$notrace" -ne 0; then
+						OPENH323_BUILD="notrace"
+					else
+						OPENH323_BUILD="opt"
+					fi
+					OPENH323_LIB="-l${OPENH323_PREFIX}"
+				else
+					OPENH323_BUILD="notrace"
+				fi
+				;;
 		esac
 		{ echo "$as_me:$LINENO: result: ${OPENH323_BUILD}" >&5
 echo "${ECHO_T}${OPENH323_BUILD}" >&6; }
@@ -26371,7 +26412,11 @@ echo $ECHO_N "checking OpenH323 installation validity... $ECHO_C" >&6; }
 
 	   saved_cppflags="${CPPFLAGS}"
 	   saved_libs="${LIBS}"
-	   LIBS="${LIBS} -L${OPENH323_LIBDIR} -l${PLATFORM_OPENH323} ${PWLIB_LIB}"
+	   if test "${OPENH323_LIB:-unset}" != "unset"; then
+	      LIBS="${LIBS} ${OPENH323_LIB} ${PWLIB_LIB}"
+	   else
+    	      LIBS="${LIBS} -L${OPENH323_LIBDIR} -l${PLATFORM_OPENH323} ${PWLIB_LIB}"
+	   fi
 	   CPPFLAGS="${CPPFLAGS} -I${OPENH323_INCDIR} ${PWLIB_INCLUDE}"
 
 	   ac_ext=cpp
@@ -26445,10 +26490,12 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 	   CPPFLAGS="${saved_cppflags}"
 
 	   if test "${ac_cv_lib_OPENH323}" = "yes"; then
-	      if test "${OPENH323_LIBDIR}" != "" -a "${OPENH323_LIBDIR}" != "/usr/lib"; then
-	         OPENH323_LIB="-L${OPENH323_LIBDIR} -l${PLATFORM_OPENH323}"
-	      else
-	         OPENH323_LIB="-l${PLATFORM_OPENH323}"
+	      if test "${OPENH323_LIB:-undef}" = "undef"; then
+	         if test "${OPENH323_LIBDIR}" != "" -a "${OPENH323_LIBDIR}" != "/usr/lib"; then
+	            OPENH323_LIB="-L${OPENH323_LIBDIR} -l${PLATFORM_OPENH323}"
+	         else
+	            OPENH323_LIB="-l${PLATFORM_OPENH323}"
+	         fi
 	      fi
 	      if test "${OPENH323_INCDIR}" != "" -a "${OPENH323_INCDIR}" != "/usr/include"; then
 	         OPENH323_INCLUDE="-I${OPENH323_INCDIR}"
