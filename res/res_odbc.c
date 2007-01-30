@@ -363,7 +363,8 @@ static int odbc_register_class(struct odbc_class *class, int connect)
 		if (connect) {
 			/* Request and release builds a connection */
 			obj = ast_odbc_request_obj(class->name, 0);
-			ast_odbc_release_obj(obj);
+			if (obj)
+				ast_odbc_release_obj(obj);
 		}
 
 		return 0;
@@ -434,9 +435,10 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			ast_mutex_init(&obj->lock);
 			obj->parent = class;
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
-				ast_log(LOG_WARNING, "Failed to connect\n");
+				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ast_mutex_destroy(&obj->lock);
 				free(obj);
+				obj = NULL;
 			} else {
 				AST_LIST_INSERT_HEAD(&class->odbc_obj, obj, list);
 			}
