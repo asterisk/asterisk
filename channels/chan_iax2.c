@@ -9761,86 +9761,42 @@ static struct ast_cli_entry cli_iax2_no_jb_debug_deprecated = {
 	iax2_no_jb_debug, NULL,
 	NULL };
 
-static struct ast_cli_entry cli_iax2_show_cache_deprecated = {
-	{ "iax2", "show", "cache", NULL },
-	iax2_show_cache, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_peers_deprecated = {
-	{ "iax2", "show", "peers", NULL },
-	iax2_show_peers, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_stats_deprecated = {
-	{ "iax2", "show", "stats", NULL },
-	iax2_show_stats, NULL };
-
-static struct ast_cli_entry cli_iax2_show_firmware_deprecated = {
-	{ "iax2", "show", "firmware", NULL },
-	iax2_show_firmware, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_channels_deprecated = {
-	{ "iax2", "show", "channels", NULL },
-	iax2_show_channels, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_netstats_deprecated = {
-	{ "iax2", "show", "netstats", NULL },
-	iax2_show_netstats, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_users_deprecated = {
-	{ "iax2", "show", "users", NULL },
-	iax2_show_users, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_threads_deprecated = {
-	{ "iax2", "show", "threads", NULL },
-	iax2_show_threads, NULL,
-	NULL };
-
-static struct ast_cli_entry cli_iax2_show_registry_deprecated = {
-	{ "iax2", "show", "registry", NULL },
-	iax2_show_registry, "Show IAX registration status",
-	show_reg_usage };
-
 static struct ast_cli_entry cli_iax2[] = {
 	{ { "iax2", "show", "cache", NULL },
 	iax2_show_cache, "Display IAX cached dialplan",
-	show_cache_usage, NULL, &cli_iax2_show_cache_deprecated  },
+	show_cache_usage, NULL, },
 
 	{ { "iax2", "show", "channels", NULL },
 	iax2_show_channels, "List active IAX channels",
-	show_channels_usage, NULL, &cli_iax2_show_channels_deprecated  },
+	show_channels_usage, NULL, },
 
 	{ { "iax2", "show", "firmware", NULL },
 	iax2_show_firmware, "List available IAX firmwares",
-	show_firmware_usage, NULL, &cli_iax2_show_firmware_deprecated  },
+	show_firmware_usage, NULL, },
 
 	{ { "iax2", "show", "netstats", NULL },
 	iax2_show_netstats, "List active IAX channel netstats",
-	show_netstats_usage, NULL, &cli_iax2_show_netstats_deprecated  },
+	show_netstats_usage, NULL, },
 
 	{ { "iax2", "show", "peers", NULL },
 	iax2_show_peers, "List defined IAX peers",
-	show_peers_usage, NULL, &cli_iax2_show_peers_deprecated  },
+	show_peers_usage, NULL, },
 
 	{ { "iax2", "show", "registry", NULL },
 	iax2_show_registry, "Display IAX registration status",
-	show_reg_usage, NULL, &cli_iax2_show_registry_deprecated  },
+	show_reg_usage, NULL, },
 
 	{ { "iax2", "show", "stats", NULL },
 	iax2_show_stats, "Display IAX statistics",
-	show_stats_usage, NULL, &cli_iax2_show_stats_deprecated },
+	show_stats_usage, NULL, },
 
 	{ { "iax2", "show", "threads", NULL },
 	iax2_show_threads, "Display IAX helper thread info",
-	show_threads_usage, NULL, &cli_iax2_show_threads_deprecated  },
+	show_threads_usage, NULL, },
 
 	{ { "iax2", "show", "users", NULL },
 	iax2_show_users, "List defined IAX users",
-	show_users_usage, NULL, &cli_iax2_show_users_deprecated  },
+	show_users_usage, NULL, },
 
 	{ { "iax2", "prune", "realtime", NULL },
 	iax2_prune_realtime, "Prune a cached realtime lookup",
