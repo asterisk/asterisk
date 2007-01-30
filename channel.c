@@ -2476,7 +2476,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 						state = f->subclass;
 						ast_frfree(f);
 						break;
-					} else if (f->subclass == AST_CONTROL_PROGRESS) {
+					} else if (f->subclass == AST_CONTROL_PROGRESS || f->subclass == AST_CONTROL_PROCEEDING) {
 						/* Ignore */
 					} else if (f->subclass == -1) {
 						/* Ignore -- just stopping indications */
