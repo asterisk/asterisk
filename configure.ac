@@ -362,26 +362,57 @@ if test "${USE_GSM}" != "no"; then
    if test "${GSM_SYSTEM}" = "yes"; then
       gsmlibdir=""
       if test "x${GSM_DIR}" != "x"; then
-      	 if test -d ${GSM_DIR}/lib; then
-	    gsmlibdir="-L${GSM_DIR}/lib"
-	 else
-	    gsmlibdir="-L${GSM_DIR}"
-	 fi
+         if test -d ${GSM_DIR}/lib; then
+            gsmlibdir="-L${GSM_DIR}/lib"
+         else
+            gsmlibdir="-L${GSM_DIR}"
+         fi
       fi
       AC_CHECK_LIB([gsm], [gsm_create], AC_DEFINE_UNQUOTED([HAVE_GSM], 1,
       [Define to indicate the GSM library]), [], ${gsmlibdir})
       if test "${ac_cv_lib_gsm_gsm_create}" = "yes"; then
-	 GSM_LIB="-lgsm"
-	 if test "x${GSM_DIR}" != "x"; then
-	    GSM_LIB="${gsmlibdir} ${GSM_LIB}"
-	    GSM_INCLUDE="-I${GSM_DIR}/include"
-	 fi
-	 PBX_GSM=1
-	 GSM_INTERNAL="no"
+         if test "x${GSM_DIR}" != "x" ; then
+            AC_CHECK_HEADER([${GSM_DIR}/include/gsm.h], [GSM_HEADER_FOUND=1], [GSM_HEADER_FOUND=0])
+            AC_CHECK_HEADER([${GSM_DIR}/include/gsm/gsm.h], [GSM_GSM_HEADER_FOUND=1], [GSM_GSM_HEADER_FOUND=0])
+         else
+            AC_CHECK_HEADER([gsm.h], [GSM_HEADER_FOUND=1], [GSM_HEADER_FOUND=0])
+            AC_CHECK_HEADER([gsm/gsm.h], [GSM_GSM_HEADER_FOUND=1], [GSM_GSM_HEADER_FOUND=0])
+         fi
+         if test "${GSM_HEADER_FOUND}" = "0" ; then
+            if test "{GSM_GSM_HEADER_FOUND}" = "0" ; then
+               if test "x${GSM_MANDATORY}" = "xyes" ; then
+                  AC_MSG_NOTICE([***])
+                  AC_MSG_NOTICE([*** It appears that you do not have the gsm development package installed.])
+                  AC_MSG_NOTICE([*** Please install it to include ${GSM_DESCRIP} support, or re-run configure])
+                  AC_MSG_NOTICE([*** without explicitly specifying --with-${GSM_OPTION}])
+                  exit 1
+               fi
+            fi
+         fi
+         GSM_OK=0
+         if test "${GSM_HEADER_FOUND}" = "1" ; then
+            AC_DEFINE_UNQUOTED([HAVE_GSM_HEADER], 1, [Define to indicate that gsm.h has no prefix for its location])
+            GSM_OK=1
+         else
+            if test "${GSM_GSM_HEADER_FOUND}" = "1" ; then
+               AC_DEFINE_UNQUOTED([HAVE_GSM_GSM_HEADER], 1, [Define to indicate that gsm.h is in gsm/gsm.h])
+               GSM_OK=1
+            fi
+         fi
+         if test "${GSM_OK}" = "1" ; then
+            GSM_LIB="-lgsm"
+            if test "x${GSM_DIR}" != "x"; then
+               GSM_LIB="${gsmlibdir} ${GSM_LIB}"
+               GSM_INCLUDE="-I${GSM_DIR}/include"
+            fi
+            PBX_GSM=1
+            GSM_INTERNAL="no"
+         fi
       fi
    fi
    if test "${GSM_INTERNAL}" = "yes"; then
       PBX_GSM=1
+      AC_DEFINE_UNQUOTED([HAVE_GSM_HEADER], 1, [Define to indicate that gsm.h has no prefix for its location])
    fi
 fi
 

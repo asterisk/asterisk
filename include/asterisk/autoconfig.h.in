@@ -159,6 +159,12 @@
 /* Define to indicate the GSM library */
 #undef HAVE_GSM
 
+/* Define to indicate that gsm.h is in gsm/gsm.h */
+#undef HAVE_GSM_GSM_HEADER
+
+/* Define to indicate that gsm.h has no prefix for its location */
+#undef HAVE_GSM_HEADER
+
 /* Define if your system has the GTK libraries. */
 #undef HAVE_GTK
 
