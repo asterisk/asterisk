@@ -2662,7 +2662,7 @@ static struct ast_cli_entry cli_h323_trace_deprecated = {
 	trace_usage };
 
 static struct ast_cli_entry cli_h323_gk_cycle_deprecated = {
-	{ "h323", "cycle", "gk", NULL },
+	{ "h.323", "gk", "cycle", NULL },
 	h323_gk_cycle, "Manually re-register with the Gatekeper",
 	show_cycle_usage };
 
