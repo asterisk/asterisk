@@ -160,10 +160,56 @@ MSSQL:		Asterisk can currently store CDRs into an MSSQL database in
                 logs a connection to the database and will now record every
                 call to the database when it's complete.
 
+
 MYSQL:
 
+
 PGSQL:
+        If you want to go directly to postgresql database, and have the cdr_pgsql.so
+        compiled you can use the following sample setup.
+        On Debian, before compiling asterisk, just install libpqxx-dev.
+        Other distros will likely have a similiar package.
+
+        Once you have the compile done,
+        copy the sample cdr_pgsql.conf file or create your own.
+
+        Here is a sample:
+
+        /etc/asterisk/cdr_pgsql.conf
+          ; Sample Asterisk config file for CDR logging to PostgresSQL
+          [global]
+          hostname=localhost
+          port=5432
+          dbname=asterisk
+          password=password
+          user=postgres
+          table=cdr
+
+        ;Now create a table in postgresql for your cdrs
+
+        ;SQL table where CDRs will be inserted
+        ;Copy and paste this into your postgresql prompt.
+        CREATE TABLE cdr (
+                calldate      time               NOT NULL ,
+                clid          varchar (80)          NOT NULL ,
+                src           varchar (80)          NOT NULL ,
+                dst           varchar (80)          NOT NULL ,
+                dcontext      varchar (80)          NOT NULL ,
+                channel       varchar (80)          NOT NULL ,
+                dstchannel    varchar (80)          NOT NULL ,
+                lastapp       varchar (80)          NOT NULL ,
+                lastdata      varchar (80)          NOT NULL ,
+                duration      int                   NOT NULL ,
+                billsec       int                   NOT NULL ,
+                disposition   varchar (45)          NOT NULL ,
+                amaflags      int                   NOT NULL ,
+                accountcode   varchar (20)          NOT NULL ,
+                uniqueid      varchar (32)          NOT NULL ,
+                userfield     varchar (255)         NOT NULL
+        );
+
 
 SQLLITE:
+
 
 RADIUS:		See doc/radius.txt for more information on cdr_radius	
