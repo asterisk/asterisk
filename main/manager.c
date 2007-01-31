@@ -1841,6 +1841,7 @@ static int action_originate(struct mansession *s, const struct message *m)
 			} else {
 				res = 0;
 			}
+			pthread_attr_destroy(&attr);
 		}
 	} else if (!ast_strlen_zero(app)) {
         	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);

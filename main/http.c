@@ -684,6 +684,8 @@ void *server_root(void *data)
 			close(ser->fd);
 			free(ser);
 		}
+
+		pthread_attr_destroy(&attr);
 	}
 	return NULL;
 }

@@ -790,8 +790,10 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
+			pthread_attr_destroy(&attr);
 			return -1;
 		}
+		pthread_attr_destroy(&attr);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
@@ -1019,8 +1021,10 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_PRECACHERP, 0, 1, &ied);
+			pthread_attr_destroy(&attr);
 			return -1;
 		}
+		pthread_attr_destroy(&attr);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
@@ -1106,8 +1110,10 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_DPRESPONSE, 0, 1, &ied);
+			pthread_attr_destroy(&attr);
 			return -1;
 		}
+		pthread_attr_destroy(&attr);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));

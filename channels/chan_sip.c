@@ -12841,8 +12841,10 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 			/* Could not start thread */
 			free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 					   by sip_park_thread() */
+			pthread_attr_destroy(&attr);
 			return 0;
 		}
+		pthread_attr_destroy(&attr);
 	} 
 	return -1;
 }

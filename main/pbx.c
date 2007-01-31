@@ -2506,8 +2506,10 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (ast_pthread_create(&t, &attr, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
+		pthread_attr_destroy(&attr);
 		return AST_PBX_FAILED;
 	}
+	pthread_attr_destroy(&attr);
 
 	return AST_PBX_SUCCESS;
 }
@@ -5015,8 +5017,10 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			}
 			ast_hangup(chan);
 			res = -1;
+			pthread_attr_destroy(&attr);
 			goto outgoing_exten_cleanup;
 		}
+		pthread_attr_destroy(&attr);
 		res = 0;
 	}
 outgoing_exten_cleanup:
@@ -5118,6 +5122,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 							if (locked_channel)
 								*locked_channel = chan;
 						}
+						pthread_attr_destroy(&attr);
 					}
 				}
 			} else {
@@ -5176,11 +5181,13 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				ast_channel_unlock(chan);
 			ast_hangup(chan);
 			res = -1;
+			pthread_attr_destroy(&attr);
 			goto outgoing_app_cleanup;
 		} else {
 			if (locked_channel)
 				*locked_channel = chan;
 		}
+		pthread_attr_destroy(&attr);
 		res = 0;
 	}
 outgoing_app_cleanup:

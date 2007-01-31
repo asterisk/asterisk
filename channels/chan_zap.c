@@ -3837,9 +3837,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	pthread_attr_t attr;
 	struct ast_channel *chan;
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
 	index = zt_get_index(ast, p, 0);
 	mysig = p->sig;
 	if (p->outsigmod > -1)
@@ -4438,6 +4435,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						if (res)
 							ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 						p->owner = chan;
+						pthread_attr_init(&attr);
+						pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 						if (!chan) {
 							ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
 						} else if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
@@ -4455,7 +4454,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									!ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
 							}
 							p->subs[SUB_THREEWAY].needhold = 1;
-						}		
+						}
+						pthread_attr_destroy(&attr);
 					}
 				} else {
 					/* Already have a 3 way call */
@@ -7049,6 +7049,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				"interface %d\n", i->channel);
 		}
 	}
+	pthread_attr_destroy(&attr);
 	return 0;
 }
 
@@ -7273,10 +7274,12 @@ static int restart_monitor(void)
 		if (ast_pthread_create_background(&monitor_thread, &attr, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
+			pthread_attr_destroy(&attr);
 			return -1;
 		}
 	}
 	ast_mutex_unlock(&monlock);
+	pthread_attr_destroy(&attr);
 	return 0;
 }
 
@@ -9180,9 +9183,6 @@ static void *pri_dchannel(void *vpri)
 	char plancallingani[256];
 	char calledtonstr[10];
 	
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
 	gettimeofday(&lastidle, NULL);
 	if (!ast_strlen_zero(pri->idledial) && !ast_strlen_zero(pri->idleext)) {
 		/* Need to do idle dialing, check to be sure though */
@@ -9674,6 +9674,8 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 							ast_mutex_lock(&pri->lock);
+							pthread_attr_init(&attr);
+							pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
@@ -9689,6 +9691,7 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->call = NULL;
 								}
 							}
+							pthread_attr_destroy(&attr);
 						} else  {
 							ast_mutex_unlock(&pri->lock);
 							/* Release PRI lock while we create the channel */

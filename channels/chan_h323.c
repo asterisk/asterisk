@@ -2610,8 +2610,10 @@ static int restart_monitor(void)
 			monitor_thread = AST_PTHREADT_NULL;
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
+			pthread_attr_destroy(&attr);
 			return -1;
 		}
+		pthread_attr_destroy(&attr);
 	}
 	ast_mutex_unlock(&monlock);
 	return 0;

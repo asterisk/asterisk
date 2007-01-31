@@ -1081,6 +1081,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		pthread_attr_init(&conf->attr);
 		pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
 		ast_pthread_create_background(&conf->recordthread, &conf->attr, recordthread, conf);
+		pthread_attr_destroy(&conf->attr);
 	}
 
 	time(&user->jointime);
