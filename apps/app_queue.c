@@ -562,6 +562,7 @@ static int statechange_queue(const char *dev, int state, void *ign)
 		ast_log(LOG_WARNING, "Failed to create update thread!\n");
 		free(sc);
 	}
+	pthread_attr_destroy(&attr);
 
 	return 0;
 }

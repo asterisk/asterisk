@@ -2977,6 +2977,7 @@ static void *accept_thread(void *ignore)
 		ast_verbose("killing accept thread\n");
 	}
 	close(as);
+	pthread_attr_destroy(&attr);
 	return 0;
 }
 

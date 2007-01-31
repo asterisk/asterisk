@@ -10402,8 +10402,11 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		copy_request(&d->req, req);
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, &attr, sip_park_thread, d))
+		if (!ast_pthread_create(&th, &attr, sip_park_thread, d)) {
+			pthread_attr_destroy(&attr);
 			return 0;
+		}
+		pthread_attr_destroy(&attr);
 		free(d);
 	}
 	return -1;

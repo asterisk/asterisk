@@ -295,6 +295,7 @@ static void launch_service(struct outgoing *o)
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		free_outgoing(o);
 	}
+	pthread_attr_destroy(&attr);
 }
 
 static int scan_service(char *fn, time_t now, time_t atime)
@@ -426,6 +427,7 @@ int load_module(void)
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		return -1;
 	}
+	pthread_attr_destroy(&attr);
 	return 0;
 }
 
