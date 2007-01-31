@@ -6059,6 +6059,8 @@ static void spawn_dp_lookup(int callno, const char *context, const char *calledn
 	if (ast_pthread_create(&newthread, &attr, dp_lookup_thread, dpr)) {
 		ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
 	}
+
+	pthread_attr_destroy(&attr);
 }
 
 struct iax_dual {
@@ -6133,8 +6135,11 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create_background(&th, &attr, iax_park_thread, d))
+		if (!ast_pthread_create_background(&th, &attr, iax_park_thread, d)) {
+			pthread_attr_destroy(&attr);
 			return 0;
+		}
+		pthread_attr_destroy(&attr);
 		free(d);
 	}
 	return -1;

@@ -2613,6 +2613,7 @@ pthread_attr_t attr;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	res = ast_pthread_create(&tele->threadid,&attr,rpt_tele_thread,(void *) tele);
+	pthread_attr_destroy(&attr);
 	if(res < 0){
 		rpt_mutex_lock(&myrpt->lock);
 		remque((struct qlem *) tele); /* We don't like stuck transmitters, remove it from the queue */
@@ -3380,6 +3381,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	ast_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *) myrpt);
+	pthread_attr_destroy(&attr);
 	return DC_COMPLETE;
 }
 
@@ -5936,6 +5938,7 @@ char	cmd[MAXDTMF+1] = "";
 		        pthread_attr_init(&attr);
 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			ast_pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *)myrpt);
+			pthread_attr_destroy(&attr);
 			return;
 		}
 	}
@@ -7219,6 +7222,7 @@ struct ast_config *cfg;
 	        pthread_attr_init(&attr);
 	        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		ast_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
+		pthread_attr_destroy(&attr);
 	}
 	usleep(500000);
 	for(;;)
@@ -7254,6 +7258,7 @@ struct ast_config *cfg;
 			        pthread_attr_init(&attr);
 	 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 				ast_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
+				pthread_attr_destroy(&attr);
 				ast_log(LOG_WARNING, "rpt_thread restarted on node %s\n", rpt_vars[i].name);
 			}
 

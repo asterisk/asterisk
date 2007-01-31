@@ -860,6 +860,7 @@ void ast_cdr_submit_batch(int shutdown)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
 		}
+		pthread_attr_destroy(&attr);
 	}
 }
 

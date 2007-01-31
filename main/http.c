@@ -539,6 +539,7 @@ static void *http_root(void *data)
 				fclose(ser->f);
 				free(ser);
 			}
+			pthread_attr_destroy(&attr);
 		} else {
 			ast_log(LOG_WARNING, "fdopen failed!\n");
 			close(ser->fd);
