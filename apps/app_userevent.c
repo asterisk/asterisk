@@ -83,7 +83,7 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 		buflen += 2;
 	}
 
-	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s\r\n", args.eventname, buf);
+	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", args.eventname, buf);
 
 	ast_module_user_remove(u);
 
