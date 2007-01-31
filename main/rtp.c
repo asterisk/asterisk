@@ -1136,7 +1136,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 		}
 		return 0;
 	} else if (rtp_debug_test_addr(&bridged->them))
-			ast_verbose("Sent RTP P2P packet to %s:%d (type %-2.2d, len %-6.6u)\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), bridged_payload, len - hdrlen);
+			ast_verbose("Sent RTP P2P packet to %s:%u (type %-2.2d, len %-6.6u)\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), bridged_payload, len - hdrlen);
 
 	return 0;
 }
@@ -1292,7 +1292,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->themssrc = ntohl(rtpheader[2]); /* Record their SSRC to put in future RR */
 	
 	if (rtp_debug_test_addr(&sin))
-		ast_verbose("Got  RTP packet from    %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+		ast_verbose("Got  RTP packet from    %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
@@ -1315,7 +1315,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				event_end >>= 24;
 				duration = ntohl(*((unsigned int *)(data)));
 				duration &= 0xFFFF;
-				ast_verbose("Got  RTP RFC2833 from   %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
+				ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
 			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
@@ -2208,11 +2208,11 @@ int ast_rtp_senddigit_begin(struct ast_rtp *rtp, char digit)
 		rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (rtp->send_duration));
 		res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 		if (res < 0) 
-			ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+			ast_log(LOG_ERROR, "RTP Transmission error to %s:%u: %s\n",
 				ast_inet_ntoa(rtp->them.sin_addr),
 				ntohs(rtp->them.sin_port), strerror(errno));
 		if (rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			ast_verbose("Sent RTP DTMF packet to %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 				    ast_inet_ntoa(rtp->them.sin_addr),
 				    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		/* Increment sequence number */
@@ -2256,7 +2256,7 @@ static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp)
 			ast_inet_ntoa(rtp->them.sin_addr),
 			ntohs(rtp->them.sin_port), strerror(errno));
 	if (rtp_debug_test_addr(&rtp->them))
-		ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+		ast_verbose("Sent RTP DTMF packet to %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 			    ast_inet_ntoa(rtp->them.sin_addr),
 			    ntohs(rtp->them.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 
@@ -2312,7 +2312,7 @@ int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit)
 				ast_inet_ntoa(rtp->them.sin_addr),
 				ntohs(rtp->them.sin_port), strerror(errno));
 		if (rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP DTMF packet to %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			ast_verbose("Sent RTP DTMF packet to %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 				    ast_inet_ntoa(rtp->them.sin_addr),
 				    ntohs(rtp->them.sin_port), rtp->send_payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 	}
@@ -2592,7 +2592,7 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 		if (res <0) 
 			ast_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 		if (rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent Comfort Noise RTP packet to %s:%d (type %d, seq %d, ts %u, len %d)\n"
+			ast_verbose("Sent Comfort Noise RTP packet to %s:%u (type %d, seq %u, ts %u, len %d)\n"
 					, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
 		   
 	}
@@ -2681,7 +2681,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		}
 				
 		if (rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP packet to      %s:%d (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
+			ast_verbose("Sent RTP packet to      %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u)\n",
 					ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 
