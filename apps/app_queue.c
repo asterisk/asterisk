@@ -992,7 +992,8 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 		}
 	} else {
 		m->dead = 0;	/* Do not delete this one. */
-		m->paused = paused;
+		if (paused_str)
+			m->paused = paused;
 		m->penalty = penalty;
 	}
 }
