@@ -956,15 +956,22 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	}
 }
 
-static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str)
+static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str, const char *paused_str)
 {
 	struct member *m, *prev_m;
 	int penalty = 0;
+	int paused  = 0;
 
 	if (penalty_str) {
 		penalty = atoi(penalty_str);
 		if (penalty < 0)
 			penalty = 0;
+	}
+
+	if (paused_str) {
+		paused = atoi(paused_str);
+		if (paused < 0)
+			paused = 0;
 	}
 
 	/* Find the member, or the place to put a new one. */
@@ -974,7 +981,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 
 	/* Create a new one if not found, else update penalty */
 	if (!m) {
-		if ((m = create_queue_member(interface, membername, penalty, 0))) {
+		if ((m = create_queue_member(interface, membername, penalty, paused))) {
 			m->dead = 0;
 			add_to_interfaces(interface);
 			if (prev_m) {
@@ -985,6 +992,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 		}
 	} else {
 		m->dead = 0;	/* Do not delete this one. */
+		m->paused = paused;
 		m->penalty = penalty;
 	}
 }
@@ -1106,7 +1114,8 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
 			S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface),
-			ast_variable_retrieve(member_config, interface, "penalty"));
+			ast_variable_retrieve(member_config, interface, "penalty"),
+			ast_variable_retrieve(member_config, interface, "paused"));
 	}
 
 	/* Delete all realtime members that have been deleted in DB. */
