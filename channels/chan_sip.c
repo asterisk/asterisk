@@ -3015,6 +3015,12 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (sip_debug_test_pvt(p) || option_debug > 2)
 		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
 
+	if (ast_test_flag(&p->flags[0], SIP_INC_COUNT)) {
+		update_call_counter(p, DEC_CALL_LIMIT);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "This call did not properly clean up call limits. Call ID %s\n", p->callid);
+	}
+
 	/* Remove link from peer to subscription of MWI */
 	if (p->relatedpeer && p->relatedpeer->mwipvt) 
 		p->relatedpeer->mwipvt = NULL;
@@ -3156,9 +3162,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	/* incoming and outgoing affects the inUse counter */
 	case DEC_CALL_LIMIT:
 		/* Decrement inuse count if applicable */
-		if (inuse && ast_test_flag(&fup->flags[0], SIP_INC_COUNT))
+		if (inuse && ast_test_flag(&fup->flags[0], SIP_INC_COUNT)) {
 			ast_atomic_fetchadd_int(inuse, -1);
-		else
+			ast_clear_flag(&fup->flags[0], SIP_INC_COUNT);
+		} else
 			*inuse = 0;
 		/* Decrement ringing count if applicable */
 		if (inringing && ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
