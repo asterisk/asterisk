@@ -46,8 +46,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int function_fieldqty(struct ast_channel *chan, char *cmd,
 			     char *parse, char *buf, size_t len)
 {
-	const char *varval;
-	char *varval2 = NULL;
+	char *varname, *varsubst, varval[8192] = "", *varval2 = varval;
+	char *delim = ast_strdupa(data);
 	int fieldcount = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(varname);
@@ -56,9 +56,10 @@ static int function_fieldqty(struct ast_channel *chan, char *cmd,
 
 	AST_STANDARD_APP_ARGS(args, parse);
 	if (args.delim) {
-		varval = pbx_builtin_getvar_helper(chan, args.varname);
-		if (varval)
-			varval2 = ast_strdupa(varval);
+		varsubst = alloca(strlen(varname) + 4);
+
+		sprintf(varsubst, "${%s}", varname);
+		pbx_substitute_variables_helper(chan, varsubst, varval, sizeof(varval) - 1);
 		while (strsep(&varval2, args.delim))
 			fieldcount++;
 	} else {
