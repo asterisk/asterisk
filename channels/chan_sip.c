@@ -3518,7 +3518,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				we simply forget the frames if we get modem frames before the bridge is up.
 				Fax will re-transmit.
 			*/
-			if (p->udptl && ast->_state != AST_STATE_UP) 
+			if (p->udptl && ast->_state == AST_STATE_UP) 
 				res = ast_udptl_write(p->udptl, frame);
 			ast_mutex_unlock(&p->lock);
 		}
