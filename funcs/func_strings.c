@@ -47,7 +47,6 @@ static int function_fieldqty(struct ast_channel *chan, char *cmd,
 			     char *parse, char *buf, size_t len)
 {
 	char *varname, *varsubst, varval[8192] = "", *varval2 = varval;
-	char *delim = ast_strdupa(data);
 	int fieldcount = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(varname);
