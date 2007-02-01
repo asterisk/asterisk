@@ -41,13 +41,15 @@
 
 static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	char *varname, *varval, workspace[256];
+	char *varname, *varval;
 	char *delim = ast_strdupa(data);
 	int fieldcount = 0;
 
 	if (delim) {
 		varname = strsep(&delim, "|");
-		pbx_retrieve_variable(chan, varname, &varval, workspace, sizeof(workspace), NULL);
+		varval = pbx_builtin_getvar_helper(chan, varname);
+		if (varval)
+			varval = ast_strdupa(varval);
 		if (delim) {
 			while (strsep(&varval, delim))
 				fieldcount++;
