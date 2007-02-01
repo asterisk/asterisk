@@ -562,7 +562,6 @@ static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction schem
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
-static int noncodeccapability = AST_RTP_DTMF;
 
 /* Object counters */
 static int suserobjs = 0;                /*!< Static users */
@@ -944,6 +943,7 @@ struct sip_pvt {
 	int peercapability;			/*!< Supported peer capability */
 	int prefcodec;				/*!< Preferred codec (outbound only) */
 	int noncodeccapability;			/*!< DTMF RFC2833 telephony-event */
+	int jointnoncodeccapability;            /*!< Joint Non codec capability */
 	int redircodecs;			/*!< Redirect codecs */
 	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
 	struct t38properties t38;		/*!< T38 settings */
@@ -5215,7 +5215,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 	newjointcapability = p->capability & (peercapability | vpeercapability);
 	newpeercapability = (peercapability | vpeercapability);
-	newnoncodeccapability = noncodeccapability & peernoncodeccapability;
+	newnoncodeccapability = p->noncodeccapability & peernoncodeccapability;
 		
 		
 	if (debug) {
@@ -5229,7 +5229,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			    ast_getformatname_multiple(s4, BUFSIZ, newjointcapability));
 
 		ast_verbose("Non-codec capabilities (dtmf): us - %s, peer - %s, combined - %s\n",
-			    ast_rtp_lookup_mime_multiple(s1, BUFSIZ, noncodeccapability, 0, 0),
+			    ast_rtp_lookup_mime_multiple(s1, BUFSIZ, p->noncodeccapability, 0, 0),
 			    ast_rtp_lookup_mime_multiple(s2, BUFSIZ, peernoncodeccapability, 0, 0),
 			    ast_rtp_lookup_mime_multiple(s3, BUFSIZ, newnoncodeccapability, 0, 0));
 	}
@@ -5248,9 +5248,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 	/* We are now ready to change the sip session and p->rtp and p->vrtp with the offered codecs, since
 		they are acceptable */
-	p->jointcapability = newjointcapability;	/* Our joint codec profile for this call */
-	p->peercapability = newpeercapability;		/* The other sides capability in latest offer */
-	p->noncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
+	p->jointcapability = newjointcapability;	        /* Our joint codec profile for this call */
+	p->peercapability = newpeercapability;		        /* The other sides capability in latest offer */
+	p->jointnoncodeccapability = newnoncodeccapability;	/* DTMF capabilities */
 
 	ast_rtp_pt_copy(p->rtp, newaudiortp);
 	if (p->vrtp)
@@ -6402,7 +6402,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	/* Now add DTMF RFC2833 telephony-event as a codec */
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
-		if (!(p->noncodeccapability & x))
+		if (!(p->jointnoncodeccapability & x))
 			continue;
 
 		add_noncodec_to_sdp(p, x, 8000,
