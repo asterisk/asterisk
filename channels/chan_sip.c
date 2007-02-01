@@ -567,8 +567,7 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 29)
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
-/* Did this connection increment the counter of in-use calls? */
-#define SIP_INC_COUNT (1 << 31)
+#define SIP_INC_COUNT		(1 << 31)	/* Did this connection increment the counter of in-use calls? */
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
@@ -2123,6 +2122,12 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Destroying call '%s'\n", p->callid);
 
+	if (ast_test_flag(p, SIP_INC_COUNT)) {
+		update_call_counter(p, DEC_CALL_LIMIT);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Call did not properly clean up call counter. Call ID %s\n", p->callid);
+	}
+
 	if (dumphistory)
 		sip_dump_history(p);
 
@@ -2249,8 +2254,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		/* incoming and outgoing affects the inUse counter */
 		case DEC_CALL_LIMIT:
 			if ( *inuse > 0 ) {
-			         if (ast_test_flag(fup,SIP_INC_COUNT))
+				if (ast_test_flag(fup, SIP_INC_COUNT)) {
 				         (*inuse)--;
+					ast_clear_flag(fup, SIP_INC_COUNT);
+				}
 			} else {
 				*inuse = 0;
 			}
