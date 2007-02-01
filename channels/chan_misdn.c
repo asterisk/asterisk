@@ -2012,7 +2012,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	if (newbc->nt) stop_bc_tones(ch);
 
 	ch->state=MISDN_CALLING;
-	
+
 	return 0; 
 }
 
@@ -4174,7 +4174,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	break;
 	case EVENT_PROCEEDING:
 	{
-		
+		if (bc->channel) 
+			update_name(ch->ast,bc->port,bc->channel);
+
 		if ( misdn_cap_is_speech(bc->capability) &&
 		     misdn_inband_avail(bc) ) {
 			start_bc_tones(ch);
@@ -4186,6 +4188,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	}
 	break;
 	case EVENT_PROGRESS:
+
+		if (bc->channel) 
+			update_name(ch->ast,bc->port,bc->channel);
+
 		if (!bc->nt ) {
 			if ( misdn_cap_is_speech(bc->capability) &&
 			     misdn_inband_avail(bc)
@@ -4202,6 +4208,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 	case EVENT_ALERTING:
 	{
+		if (bc->channel) 
+			update_name(ch->ast,bc->port,bc->channel);
+
 		ch->state = MISDN_ALERTING;
 		
 		ast_queue_control(ch->ast, AST_CONTROL_RINGING);
