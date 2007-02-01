@@ -408,7 +408,6 @@ static int restart_monitor(void);
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
-static int noncodeccapability = AST_RTP_DTMF;
 
 static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
@@ -608,6 +607,7 @@ static struct sip_pvt {
 	int peercapability;			/*!< Supported peer capability */
 	int prefcodec;				/*!< Preferred codec (outbound only) */
 	int noncodeccapability;
+	int jointnoncodeccapability;
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
@@ -3729,11 +3729,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				&vpeercapability, &vpeernoncodeccapability);
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->peercapability = (peercapability | vpeercapability);
-	p->noncodeccapability = noncodeccapability & peernoncodeccapability;
+	p->jointnoncodeccapability = p->noncodeccapability & peernoncodeccapability;
 	
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO) {
 		ast_clear_flag(p, SIP_DTMF);
-		if (p->noncodeccapability & AST_RTP_DTMF) {
+		if (p->jointnoncodeccapability & AST_RTP_DTMF) {
 			/* XXX Would it be reasonable to drop the DSP at this point? XXX */
 			ast_set_flag(p, SIP_DTMF_RFC2833);
 		} else {
@@ -3753,9 +3753,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_getformatname_multiple(s4, slen, p->jointcapability));
 
 		ast_verbose("Non-codec capabilities: us - %s, peer - %s, combined - %s\n",
-			ast_rtp_lookup_mime_multiple(s1, slen, noncodeccapability, 0),
+			ast_rtp_lookup_mime_multiple(s1, slen, p->noncodeccapability, 0),
 			ast_rtp_lookup_mime_multiple(s2, slen, peernoncodeccapability, 0),
-			ast_rtp_lookup_mime_multiple(s3, slen, p->noncodeccapability, 0));
+			ast_rtp_lookup_mime_multiple(s3, slen, p->jointnoncodeccapability, 0));
 	}
 	if (!p->jointcapability) {
 		ast_log(LOG_NOTICE, "No compatible codecs!\n");
@@ -4651,7 +4651,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
-		if (!(p->noncodeccapability & x))
+		if (!(p->jointnoncodeccapability & x))
 			continue;
 
 		add_noncodec_to_sdp(p, x, 8000,
