@@ -728,7 +728,7 @@ hash_seq(dbp, key, data, flag)
 	u_int32_t flag;
 {
 	register u_int32_t bucket;
-	register BUFHEAD *bufp;
+	register BUFHEAD *bufp = NULL;
 	HTAB *hashp;
 	u_int16_t *bp, ndx;
 
