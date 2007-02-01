@@ -528,6 +528,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 					; Call-limits will not be enforced on real-time peers,
 					; since they are not stored in-memory
 ;port=80				; The port number we want to connect to on the remote side
+					; Also used as "defaultport" in combination with "defaultip" settings
 
 ;--- sample definition for a provider
 ;[provider1]
