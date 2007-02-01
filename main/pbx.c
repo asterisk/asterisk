@@ -1097,7 +1097,7 @@ static char *substring(const char *value, int offset, int length, char *workspac
 	return ret;
 }
 
-/*! \brief  Support for Asterisk built-in variables and functions in the dialplan
+/*! \brief  Support for Asterisk built-in variables in the dialplan
 
 \note	See also
 	- \ref AstVar	Channel variables
