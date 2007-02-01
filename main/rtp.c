@@ -2961,9 +2961,14 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 				return AST_BRIDGE_COMPLETE;
 			}
 		} else {
-			if ((fr->frametype == AST_FRAME_DTMF) ||
+			if ((fr->frametype == AST_FRAME_DTMF_BEGIN) ||
+			    (fr->frametype == AST_FRAME_DTMF) ||
 			    (fr->frametype == AST_FRAME_VOICE) ||
-			    (fr->frametype == AST_FRAME_VIDEO)) {
+			    (fr->frametype == AST_FRAME_VIDEO) ||
+			    (fr->frametype == AST_FRAME_IMAGE) ||
+			    (fr->frametype == AST_FRAME_HTML) ||
+			    (fr->frametype == AST_FRAME_MODEM) ||
+			    (fr->frametype == AST_FRAME_TEXT)) {
 				ast_write(other, fr);
 			}
 			ast_frfree(fr);
@@ -3176,12 +3181,17 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 				break;
 			}
 		} else {
-			/* If this is a DTMF, voice, or video frame write it to the other channel */
-			if ((fr->frametype == AST_FRAME_DTMF) ||
+			if ((fr->frametype == AST_FRAME_DTMF_BEGIN) ||
+			    (fr->frametype == AST_FRAME_DTMF) ||
 			    (fr->frametype == AST_FRAME_VOICE) ||
-			    (fr->frametype == AST_FRAME_VIDEO)) {
+			    (fr->frametype == AST_FRAME_VIDEO) ||
+			    (fr->frametype == AST_FRAME_IMAGE) ||
+			    (fr->frametype == AST_FRAME_HTML) ||
+			    (fr->frametype == AST_FRAME_MODEM) ||
+			    (fr->frametype == AST_FRAME_TEXT)) {
 				ast_write(other, fr);
 			}
+
 			ast_frfree(fr);
 		}
 		/* Swap priority */
