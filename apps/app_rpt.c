@@ -3188,7 +3188,6 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	ast_pthread_create(&myrpt->rpt_call_thread, &attr, rpt_call, (void *) myrpt);
 	pthread_attr_destroy(&attr);
-	pthread_attr_destroy(&attr);
 	return DC_COMPLETE;
 }
 
@@ -5542,7 +5541,6 @@ static void local_dtmf_helper(struct rpt *myrpt, char c)
 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			ast_pthread_create(&myrpt->rpt_call_thread, &attr, rpt_call, (void *)myrpt);
 			pthread_attr_destroy(&attr);
-			pthread_attr_destroy(&attr);
 			return;
 		}
 	}
@@ -6738,7 +6736,6 @@ static void *rpt_master(void *config)
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		ast_pthread_create(&rpt_vars[i].rpt_thread, &attr, rpt, (void *) &rpt_vars[i]);
 		pthread_attr_destroy(&attr);
-		pthread_attr_destroy(&attr);
 	}
 	usleep(500000);
 	for (;;) {
@@ -6767,7 +6764,6 @@ static void *rpt_master(void *config)
 				pthread_attr_init(&attr);
 	 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 				ast_pthread_create(&rpt_vars[i].rpt_thread, &attr, rpt, (void *) &rpt_vars[i]);
-				pthread_attr_destroy(&attr);
 				pthread_attr_destroy(&attr);
 				ast_log(LOG_WARNING, "rpt_thread restarted on node %s\n", rpt_vars[i].name);
 			}
