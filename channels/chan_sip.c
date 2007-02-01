@@ -2961,7 +2961,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 
 	p->callingpres = ast->cid.cid_pres;
 	p->jointcapability = ast_translate_available_formats(p->capability, p->prefcodec);
-	
+	p->jointnoncodeccapability = p->noncodeccapability;
+
 	/* If there are no audio formats left to offer, punt */
 	if (!(p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
 		ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
