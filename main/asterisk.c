@@ -2387,7 +2387,7 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
-	while ((c = getopt(argc, argv, "mtThfdvVqprRgciInx:U:G:C:L:M:")) != -1) {
+	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:")) != -1) {
 		switch (c) {
 #if HAVE_WORKING_FORK
 		case 'F':
