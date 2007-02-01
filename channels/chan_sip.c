@@ -15354,9 +15354,13 @@ static int sip_poke_peer(struct sip_peer *peer)
 		- not registered			AST_DEVICE_UNAVAILABLE
 		- registered				AST_DEVICE_NOT_INUSE
 		- fixed IP (!dynamic)			AST_DEVICE_NOT_INUSE
+	
+	Peers that does not have a known call and can't be reached by OPTIONS
+		- unreachable				AST_DEVICE_UNAVAILABLE
 
 	If we return AST_DEVICE_UNKNOWN, the device state engine will try to find
 	out a state by walking the channel list.
+
 */
 static int sip_devicestate(void *data)
 {
@@ -15380,27 +15384,35 @@ static int sip_devicestate(void *data)
 	if ((p = find_peer(host, NULL, 1))) {
 		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
 			/* we have an address for the peer */
-			/* if qualify is turned on, check the status */
-			if (p->maxms && (p->lastms > p->maxms)) {
-				res = AST_DEVICE_UNAVAILABLE;
-			} else {
-				/* qualify is not on, or the peer is responding properly */
-				/* check call limit */
-				if (p->call_limit && (p->inUse == p->call_limit))
-					res = AST_DEVICE_BUSY;
-				else if (p->call_limit && p->inUse)
-					res = AST_DEVICE_INUSE;
+		
+			/* Check status in this order
+				- Hold
+				- Ringing
+				- Busy (enforced only by call limit)
+				- Inuse (we have a call)
+				- Unreachable (qualify)
+			   If we don't find any of these state, report AST_DEVICE_NOT_INUSE
+			   for registered devices */
+
+			if (p->onHold)
+				/* First check for hold or ring states */
+				res = AST_DEVICE_ONHOLD;
+			else if (p->inRinging) {
+				if (p->inRinging == p->inUse)
+					res = AST_DEVICE_RINGING;
 				else
-					res = AST_DEVICE_NOT_INUSE;
-				if (p->onHold)
-					res = AST_DEVICE_ONHOLD;
-				else if (p->inRinging) {
-					if (p->inRinging == p->inUse)
-						res = AST_DEVICE_RINGING;
-					else
-						res = AST_DEVICE_RINGINUSE;
-				}
-			}
+					res = AST_DEVICE_RINGINUSE;
+			} else if (p->call_limit && (p->inUse == p->call_limit))
+				/* check call limit */
+				res = AST_DEVICE_BUSY;
+			else if (p->call_limit && p->inUse)
+				/* Not busy, but we do have a call */
+				res = AST_DEVICE_INUSE;
+			else if (p->maxms && (p->lastms > p->maxms)) 
+				/* We don't have a call. Are we reachable at all? Requires qualify= */
+				res = AST_DEVICE_UNAVAILABLE;
+			else	/* Default reply if we're registered and have no other data */
+				res = AST_DEVICE_NOT_INUSE;
 		} else {
 			/* there is no address, it's unavailable */
 			res = AST_DEVICE_UNAVAILABLE;
