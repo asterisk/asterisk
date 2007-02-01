@@ -2832,7 +2832,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 	int oldcodec0 = codec0, oldcodec1 = codec1;
 	struct sockaddr_in ac1 = {0,}, vac1 = {0,}, ac0 = {0,}, vac0 = {0,};
 	struct sockaddr_in t1 = {0,}, vt1 = {0,}, t0 = {0,}, vt0 = {0,};
-
+	
 	/* Set it up so audio goes directly between the two endpoints */
 
 	/* Test the first channel */
@@ -2951,6 +2951,19 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			if ((fr->subclass == AST_CONTROL_HOLD) ||
 			    (fr->subclass == AST_CONTROL_UNHOLD) ||
 			    (fr->subclass == AST_CONTROL_VIDUPDATE)) {
+				if (fr->subclass == AST_CONTROL_HOLD) {
+					/* If we someone went on hold we want the other side to reinvite back to us */
+					if (who == c0)
+						pr1->set_rtp_peer(c1, NULL, NULL, 0, 0);
+					else
+						pr0->set_rtp_peer(c0, NULL, NULL, 0, 0);
+				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
+					/* If they went off hold they should go back to being direct */
+					if (who == c0)
+						pr1->set_rtp_peer(c1, p0, vp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE));
+					else
+						pr0->set_rtp_peer(c0, p1, vp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE));
+				}
 				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
 				ast_frfree(fr);
 			} else {
