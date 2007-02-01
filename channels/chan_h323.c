@@ -35,7 +35,7 @@
 
 /*** MODULEINFO
 	<depend>openh323</depend>
-	<defaultenabled>no</defaultenabled>
+	<defaultenabled>yes</defaultenabled>
  ***/
 
 #ifdef __cplusplus
