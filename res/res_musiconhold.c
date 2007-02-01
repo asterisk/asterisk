@@ -216,28 +216,29 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	struct moh_files_state *state = chan->music_state;
 	int tries;
 
-	if (state->save_pos) {
-		state->pos = state->save_pos;
-		state->save_pos = 0;
-	}
-
-	state->samples = 0;
+	/* Discontinue a stream if it is running already */
 	if (chan->stream) {
 		ast_closestream(chan->stream);
 		chan->stream = NULL;
-		state->pos++;
-		state->pos %= state->class->total_files;
 	}
 
-	if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
-		/* Try 20 times to find something good */
+	/* If a specific file has been saved, use it */
+	if (state->save_pos) {
+		state->pos = state->save_pos;
+		state->save_pos = 0;
+	} else if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
+		/* Get a random file and ensure we can open it */
 		for (tries = 0; tries < 20; tries++) {
 			state->pos = rand() % state->class->total_files;
-
-			/* check to see if this file's format can be opened */
 			if (ast_fileexists(state->class->filearray[state->pos], NULL, NULL) > 0)
 				break;
 		}
+		state->samples = 0;
+	} else {
+		/* This is easy, just increment our position and make sure we don't exceed the total file count */
+		state->pos++;
+		state->pos %= state->class->total_files;
+		state->samples = 0;
 	}
 
 	if (!ast_openstream_full(chan, state->class->filearray[state->pos], chan->language, 1)) {
