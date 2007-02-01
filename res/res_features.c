@@ -1574,13 +1574,13 @@ static void *do_parking_thread(void *ignore)
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), ast_free, registrar);
 					}
 					if (comebacktoorigin) { 
-								set_c_e_p(chan, parking_con_dial, peername, 1);
+						set_c_e_p(chan, parking_con_dial, peername, 1);
 					} else {
-							ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
-							snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
-							pbx_builtin_setvar_helper(pu->chan, "PARKINGSLOT", parkingslot);
-							set_c_e_p(chan, "parkedcallstimeout", peername, 1);
-							}
+						ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
+						snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
+						pbx_builtin_setvar_helper(pu->chan, "PARKINGSLOT", parkingslot);
+						set_c_e_p(chan, "parkedcallstimeout", peername, 1);
+					}
 				} else {
 					/* They've been waiting too long, send them back to where they came.  Theoretically they
 					   should have their original extensions and such, but we copy to be on the safe side */
@@ -1647,8 +1647,8 @@ static void *do_parking_thread(void *ignore)
 						if (con) {
 							if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
 								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
-						else
-							notify_metermaids(pt->parkingexten, parking_con);
+							else
+								notify_metermaids(pt->parkingexten, parking_con);
 						} else
 							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 						free(pt);
