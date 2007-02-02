@@ -400,9 +400,7 @@ static int __ast_device_state_changed_literal(char *buf)
 		strcpy(change->device, device);
 		AST_LIST_LOCK(&state_changes);
 		AST_LIST_INSERT_TAIL(&state_changes, change, list);
-		if (AST_LIST_FIRST(&state_changes) == change)
-			/* the list was empty, signal the thread */
-			ast_cond_signal(&change_pending);
+		ast_cond_signal(&change_pending);
 		AST_LIST_UNLOCK(&state_changes);
 	}
 
@@ -431,22 +429,22 @@ int ast_device_state_changed(const char *fmt, ...)
 /*! \brief Go through the dev state change queue and update changes in the dev state thread */
 static void *do_devstate_changes(void *data)
 {
-	struct state_change *cur;
+	struct state_change *next, *current;
 
-	AST_LIST_LOCK(&state_changes);
 	for (;;) {
-		/* the list lock will _always_ be held at this point in the loop */
-		cur = AST_LIST_REMOVE_HEAD(&state_changes, list);
-		if (cur) {
-			/* we got an entry, so unlock the list while we process it */
-			AST_LIST_UNLOCK(&state_changes);
-			do_state_change(cur->device);
-			free(cur);
-			AST_LIST_LOCK(&state_changes);
-		} else {
-			/* there was no entry, so atomically unlock the list and wait for
-			   the condition to be signalled (returns with the lock held) */
+		/* This basically pops off any state change entries, resets the list back to NULL, unlocks, and processes each state change */
+		AST_LIST_LOCK(&state_changes);
+		if (AST_LIST_EMPTY(&state_changes))
 			ast_cond_wait(&change_pending, &state_changes.lock);
+		next = AST_LIST_FIRST(&state_changes);
+		AST_LIST_HEAD_INIT_NOLOCK(&state_changes);
+		AST_LIST_UNLOCK(&state_changes);
+
+		/* Process each state change */
+		while ((current = next)) {
+			next = AST_LIST_NEXT(current, list);
+			do_state_change(current->device);
+			free(current);
 		}
 	}
 
