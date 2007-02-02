@@ -2637,6 +2637,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
 		time(&callstart);
 
+		if (member->status == AST_DEVICE_NOT_INUSE)
+			ast_log(LOG_WARNING, "The device state of this queue member, %s, is still 'Not in Use' when it probably should not be! Please check UPGRADE.txt for correct configuration settings.\n", member->membername);
+			
+
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
 
 		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {

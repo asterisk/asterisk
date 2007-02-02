@@ -163,6 +163,23 @@ Applications:
   option, it will default to "no" to keep backward compatability with the old 
   behavior.
 
+* Queues depend on the channel driver reporting the proper state
+  for each member of the queue. To get proper signalling on
+  queue members that use the SIP channel driver, you need to
+  enable a call limit (could be set to a high value so it
+  is not put into action) and also make sure that both inbound
+  and outbound calls are accounted for.
+
+  Example:
+
+       [general]
+       limitonpeer = yes
+
+       [peername]
+       type=friend
+       call-limit=10
+
+
 * The app_queue application now has the ability to use MixMonitor to 
   record conversations queue members are having with queue callers. Please
   see configs/queues.conf.sample for more information on this option.
