@@ -2473,7 +2473,7 @@ static int ast_rtcp_write_rr(void *data)
 		return 0;
 	  
 	if (!rtp->rtcp->them.sin_addr.s_addr) {
-		ast_log(LOG_ERROR, "RTCP RR transmission error to, rtcp halted %s\n",strerror(errno));
+		ast_log(LOG_ERROR, "RTCP RR transmission error, rtcp halted\n");
 		if (rtp->rtcp->schedid > 0)
 			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		rtp->rtcp->schedid = -1;
