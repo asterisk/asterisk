@@ -526,6 +526,7 @@ static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
 /* Global settings only apply to the channel */
+static int global_directrtpsetup;	/*!< Enable support for Direct RTP setup (no re-invites) */
 static int global_limitonpeers;		/*!< Match call limit on peers only */
 static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
@@ -10478,6 +10479,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
  	ast_cli(fd, "  Always auth rejects:    %s\n", global_alwaysauthreject ? "Yes" : "No");
 	ast_cli(fd, "  Call limit peers only:  %s\n", global_limitonpeers ? "Yes" : "No");
+	ast_cli(fd, "  Direct RTP setup:       %s\n", global_directrtpsetup ? "Yes" : "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
 	ast_cli(fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
@@ -16337,6 +16339,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
 	global_limitonpeers = FALSE;		/*!< Match call limit on peers only */
 	global_notifyhold = FALSE;		/*!< Keep track of hold status for a peer */
+	global_directrtpsetup = FALSE;		/* Experimental feature, disabled by default */
 	global_alwaysauthreject = 0;
 	global_allowsubscribe = FALSE;
 	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ASTERISK_VERSION);
@@ -16463,6 +16466,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
 		} else if (!strcasecmp(v->name, "limitonpeers")) {
 			global_limitonpeers = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "directrtpsetup")) {
+			global_directrtpsetup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifyhold")) {
@@ -17013,6 +17018,11 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	p = chan->tech_pvt;
 	if (!p) 
 		return -1;
+
+	/* Disable early RTP bridge  */
+	if (chan->_state != AST_STATE_UP && !global_directrtpsetup) 	/* We are in early state */
+		return 0;
+
 	sip_pvt_lock(p);
 	if (ast_test_flag(&p->flags[0], SIP_ALREADYGONE)) {
 		/* If we're destroyed, don't bother */
