@@ -9553,7 +9553,7 @@ static int sip_show_inuse(int fd, int argc, char *argv[])
 			snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
 		else 
 			ast_copy_string(ilimits, "N/A", sizeof(ilimits));
-		snprintf(iused, sizeof(iused), "%d/%d", iterator->inUse, iterator->inRinging);
+		snprintf(iused, sizeof(iused), "%d/%d/%d", iterator->inUse, iterator->inRinging, iterator->onHold);
 		if (showall || iterator->call_limit)
 			ast_cli(fd, FORMAT2, iterator->name, iused, ilimits);
 		ASTOBJ_UNLOCK(iterator);
