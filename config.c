@@ -651,7 +651,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
+						if (process_text_line(cfg, &cat, buf, lineno, fn)) {
 							cfg = NULL;
 							break;
 						}
