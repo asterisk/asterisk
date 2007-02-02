@@ -11,6 +11,25 @@ Asterisk Call Queues
 * Using dynamic queue members
 -----------------------------
 
+* SIP channel configuration
+---------------------------
+Queues depend on the channel driver reporting the proper state
+for each member of the queue. To get proper signalling on 
+queue members that use the SIP channel driver, you need to
+enable a call limit (could be set to a high value so it 
+is not put into action) and also make sure that both inbound
+and outbound calls are accounted for.
+
+Example:
+
+	[general]
+	limitonpeer = yes
+
+	[peername]
+	type=friend
+	call-limit=10
+
+
 * Other references
 -------------------
 
