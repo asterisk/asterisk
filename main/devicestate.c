@@ -226,10 +226,8 @@ int ast_device_state(const char *device)
 	
 	buf = ast_strdupa(device);
 	tech = strsep(&buf, "/");
-	number = buf;
-	if (!number) {
-		provider = strsep(&tech, ":");
-		if (!provider)
+	if (!(number = buf)) {
+		if (!(provider = strsep(&tech, ":")))
 			return AST_DEVICE_INVALID;
 		/* We have a provider */
 		number = tech;
@@ -241,29 +239,27 @@ int ast_device_state(const char *device)
 			ast_log(LOG_DEBUG, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
 		return getproviderstate(provider, number);
 	}
+
 	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "No provider found, checking channel drivers for %s - %s\n", tech, number);
 
-	chan_tech = ast_get_channel_tech(tech);
-	if (!chan_tech)
+	if (!(chan_tech = ast_get_channel_tech(tech)))
 		return AST_DEVICE_INVALID;
 
-	if (!chan_tech->devicestate) 	/* Does the channel driver support device state notification? */
-		return ast_parse_device_state(device);	/* No, try the generic function */
-	else {
-		res = chan_tech->devicestate(number);	/* Ask the channel driver for device state */
-		if (res == AST_DEVICE_UNKNOWN) {
-			res = ast_parse_device_state(device);
-			/* at this point we know the device exists, but the channel driver
-			   could not give us a state; if there is no channel state available,
-			   it must be 'not in use'
-			*/
-			if (res == AST_DEVICE_UNKNOWN)
-				res = AST_DEVICE_NOT_INUSE;
-			return res;
-		} else
-			return res;
-	}
+	if (!(chan_tech->devicestate)) /* Does the channel driver support device state notification? */
+		return ast_parse_device_state(device); /* No, try the generic function */
+
+	res = chan_tech->devicestate(number);
+
+	if (res != AST_DEVICE_UNKNOWN)
+		return res;
+
+	res = ast_parse_device_state(device);
+
+	if (res == AST_DEVICE_UNKNOWN)
+		return AST_DEVICE_NOT_INUSE;
+
+	return res;
 }
 
 /*! \brief Add device state provider */
@@ -388,8 +384,6 @@ static int __ast_device_state_changed_literal(char *buf)
 	device = buf;
 	if ((tmp = strrchr(device, '-')))
 		*tmp = '\0';
-
-	
 
 	if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
