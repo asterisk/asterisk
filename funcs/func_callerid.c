@@ -39,6 +39,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/callerid.h"
 
+static int callerpres_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
+	return 0;
+}
+
+static int callerpres_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	int pres = ast_parse_caller_presentation(value);
+	if (pres < 0)
+		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show function CALLERPRES')\n", value);
+	else
+		chan->cid.cid_pres = pres;
+	return 0;
+}
+
 static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
 {
@@ -173,14 +189,38 @@ static struct ast_custom_function callerid_function = {
 	.write = callerid_write,
 };
 
+static struct ast_custom_function callerpres_function = {
+	.name = "CALLERPRES",
+	.synopsis = "Gets or sets Caller*ID presentation on the channel.",
+	.syntax = "CALLERPRES()",
+	.desc =
+"Gets or sets Caller*ID presentation on the channel.  The following values\n"
+"are valid:\n"
+"      allowed_not_screened    : Presentation Allowed, Not Screened\n"
+"      allowed_passed_screen   : Presentation Allowed, Passed Screen\n" 
+"      allowed_failed_screen   : Presentation Allowed, Failed Screen\n" 
+"      allowed                 : Presentation Allowed, Network Number\n"
+"      prohib_not_screened     : Presentation Prohibited, Not Screened\n" 
+"      prohib_passed_screen    : Presentation Prohibited, Passed Screen\n"
+"      prohib_failed_screen    : Presentation Prohibited, Failed Screen\n"
+"      prohib                  : Presentation Prohibited, Network Number\n"
+"      unavailable             : Number Unavailable\n",
+	.read = callerpres_read,
+	.write = callerpres_write,
+};
+
 static int unload_module(void)
 {
-	return ast_custom_function_unregister(&callerid_function);
+	int res = ast_custom_function_unregister(&callerpres_function);
+	res |= ast_custom_function_unregister(&callerid_function);
+	return res;
 }
 
 static int load_module(void)
 {
-	return ast_custom_function_register(&callerid_function);
+	int res = ast_custom_function_register(&callerpres_function);
+	res |= ast_custom_function_register(&callerid_function);
+	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Caller ID related dialplan function");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Caller ID related dialplan functions");

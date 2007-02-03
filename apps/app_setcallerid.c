@@ -68,9 +68,14 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u;
 	int pres = -1;
+	static int deprecated = 0;
 
 	u = ast_module_user_add(chan);
-	
+
+	if (!deprecated) {
+		deprecated = 1;
+		ast_log(LOG_WARNING, "SetCallerPres is deprecated.  Please use Set(CALLERPRES()=%s) instead.\n", (char *)data);
+	}
 	pres = ast_parse_caller_presentation(data);
 
 	if (pres < 0) {
