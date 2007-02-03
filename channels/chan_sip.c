@@ -5263,6 +5263,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		if (newnoncodeccapability & AST_RTP_DTMF) {
 			/* XXX Would it be reasonable to drop the DSP at this point? XXX */
 			ast_set_flag(&p->flags[0], SIP_DTMF_RFC2833);
+			/* Since RFC2833 is now negotiated we need to change some properties of the RTP stream */
+			ast_rtp_setdtmf(p->rtp, 1);
+			ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
 		} else {
 			ast_set_flag(&p->flags[0], SIP_DTMF_INBAND);
 		}
@@ -17120,14 +17123,19 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	if (!strcasecmp(mode,"info")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_INFO);
+		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
 	} else if (!strcasecmp(mode,"rfc2833")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_RFC2833);
+		p->jointnoncodeccapability |= AST_RTP_DTMF;
 	} else if (!strcasecmp(mode,"inband")) { 
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_INBAND);
+		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
 	} else
 		ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
+	if (p->rtp)
+		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) {
 		if (!p->vad) {
 			p->vad = ast_dsp_new();
