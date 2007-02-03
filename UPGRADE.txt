@@ -34,3 +34,5 @@ Applications:
 * ChanIsAvail() now has a 't' option, which allows the specified device
   to be queried for state without consulting the channel drivers. This
   performs mostly a 'ChanExists' sort of function.
+* SetCallerPres() has been replaced with the CALLERPRES() dialplan function
+  and is now deprecated.
