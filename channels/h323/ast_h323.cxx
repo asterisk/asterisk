@@ -177,7 +177,7 @@ class MyH323_Shutdown {
 	};
 };
 
-MyProcess::MyProcess(): PProcess("The NuFone Network's",
+MyProcess::MyProcess(): PProcess("The NuFone Networks",
 			"H.323 Channel Driver for Asterisk",
 			MAJOR_VERSION, MINOR_VERSION, BUILD_TYPE, BUILD_NUMBER)
 {
