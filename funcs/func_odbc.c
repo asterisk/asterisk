@@ -107,7 +107,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
-	SQLHSTMT stmt;
+	SQLHSTMT stmt = NULL;
 	SQLLEN rows=0;
 
 	AST_LIST_LOCK(&queries);
@@ -204,7 +204,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
-	SQLHSTMT stmt;
+	SQLHSTMT stmt = NULL;
 	SQLSMALLINT colcount=0;
 	SQLLEN indicator;
 	SQLSMALLINT collength;
