@@ -139,7 +139,6 @@ static struct ast_conference {
 	struct ast_conf_user *firstuser;	/* Pointer to the first user struct */
 	struct ast_conf_user *lastuser;		/* Pointer to the last user struct */
 	time_t start;				/* Start time (s) */
-	int refcount;
 	int recording;				/* recording status */
 	int isdynamic;				/* Created on the fly? */
 	int locked;				/* Is the conference locked? */
@@ -439,7 +438,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 		ast_autoservice_stop(chan);
 }
 
-static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
+static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc;
@@ -502,8 +501,6 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			ast_log(LOG_WARNING, "Out of memory\n");
 	}
  cnfout:
- 	if (cnf)
-		ast_atomic_fetchadd_int(&cnf->refcount, refcount);
 	ast_mutex_unlock(&conflock);
 	return cnf;
 }
@@ -838,8 +835,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	
 	if (!user) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		if (ast_atomic_dec_and_test(&conf->refcount))
-			conf_free(conf);
 		return ret;
 	}
 
@@ -1606,10 +1601,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			      "Usernum: %d\r\n",
 			      chan->name, chan->uniqueid, conf->confno, user->user_no);
 		conf->users--;
-		ast_atomic_fetchadd_int(&conf->refcount, -1);
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
-		if (!conf->users && !conf->refcount) {
+		if (!conf->users) {
 			/* No more users -- close this one out */
 			conf_free(conf);
 		} else {
@@ -1652,7 +1646,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 }
 
 static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin,
-	int refcount, struct ast_flags *confflags)
+					struct ast_flags *confflags)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -1664,8 +1658,6 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		if (!strcmp(confno, cnf->confno)) 
 			break;
 	}
-	if (cnf)
-		ast_atomic_fetchadd_int(&cnf->refcount, refcount);
 	ast_mutex_unlock(&conflock);
 
 	if (!cnf) {
@@ -1678,9 +1670,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, AST_MAX_EXTENSION - 1, 0) < 0)
 						return NULL;
 				}
-				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount);
+				cnf = build_conf(confno, dynamic_pin, "", make, dynamic);
 			} else {
-				cnf = build_conf(confno, "", "", make, dynamic, refcount);
+				cnf = build_conf(confno, "", "", make, dynamic);
 			}
 		} else {
 			/* Check the config */
@@ -1702,14 +1694,14 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 							/* Bingo it's a valid conference */
 							if (pin)
 								if (pinadmin)
-									cnf = build_conf(confno, pin, pinadmin, make, dynamic, refcount);
+									cnf = build_conf(confno, pin, pinadmin, make, dynamic);
 								else
-									cnf = build_conf(confno, pin, "", make, dynamic, refcount);
+									cnf = build_conf(confno, pin, "", make, dynamic);
 							else
 								if (pinadmin)
-									cnf = build_conf(confno, "", pinadmin, make, dynamic, refcount);
+									cnf = build_conf(confno, "", pinadmin, make, dynamic);
 								else
-									cnf = build_conf(confno, "", "", make, dynamic, refcount);
+									cnf = build_conf(confno, "", "", make, dynamic);
 							break;
 						}
 					}
@@ -1772,11 +1764,10 @@ static int count_exec(struct ast_channel *chan, void *data)
 	}
 	
 	confnum = strsep(&localdata,"|");       
-	conf = find_conf(chan, confnum, 0, 0, NULL, 1, NULL);
-	if (conf) {
+	conf = find_conf(chan, confnum, 0, 0, NULL, NULL);
+	if (conf)
 		count = conf->users;
-		ast_atomic_fetchadd_int(&conf->refcount, -1);
-	} else
+	else
 		count = 0;
 
 	if (!ast_strlen_zero(localdata)){
@@ -1961,7 +1952,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		}
 		if (!ast_strlen_zero(confno)) {
 			/* Check the validity of the conference */
-			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 1, &confflags);
+			cnf = find_conf(chan, confno, 1, dynamic, the_pin, &confflags);
 			if (!cnf) {
 				res = ast_streamfile(chan, "conf-invalid", chan->language);
 				if (!res)
@@ -2007,13 +1998,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									ast_log(LOG_WARNING, "Couldn't play invalid pin msg!\n");
 									break;
 								}
-								if (res < 0) {
-									ast_mutex_lock(&conflock);
-									if (ast_atomic_dec_and_test(&cnf->refcount))
-										conf_free(cnf);
-									ast_mutex_unlock(&conflock);
+								if (res < 0)
 									break;
-								}
 								pin[0] = res;
 								pin[1] = '\0';
 								res = -1;
@@ -2026,8 +2012,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							allowretry = 0;
 							/* see if we need to get rid of the conference */
 							ast_mutex_lock(&conflock);
-							if (ast_atomic_dec_and_test(&cnf->refcount))
+							if (!cnf->users) {
 								conf_free(cnf);	
+							}
 							ast_mutex_unlock(&conflock);
 							break;
 						}
