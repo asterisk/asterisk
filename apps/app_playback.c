@@ -68,7 +68,7 @@ static char *descrip =
 ;
 
 
-static struct ast_config *say_cfg;
+static struct ast_config *say_cfg = NULL;
 /* save the say' api calls.
  * The first entry is NULL if we have the standard source,
  * otherwise we are sourcing from here.
