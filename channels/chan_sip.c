@@ -15378,6 +15378,12 @@ static int sip_poke_peer(struct sip_peer *peer)
 	If we return AST_DEVICE_UNKNOWN, the device state engine will try to find
 	out a state by walking the channel list.
 
+	The queue system (\ref app_queue.c) treats a member as "active"
+	if devicestate is != AST_DEVICE_UNAVAILBALE && != AST_DEVICE_INVALID
+
+	When placing a call to the queue member, queue system sets a member to busy if
+	!= AST_DEVICE_NOT_INUSE and != AST_DEVICE_UNKNOWN
+
 */
 static int sip_devicestate(void *data)
 {
