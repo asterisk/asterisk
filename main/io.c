@@ -44,13 +44,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEBUG(a) 
 #endif
 
-/* 
+/*! \brief
  * Kept for each file descriptor
  */
 struct io_rec {
-	ast_io_cb callback;		/* What is to be called */
-	void *data; 				/* Data to be passed */
-	int *id; 					/* ID number */
+	ast_io_cb callback;		/*!< What is to be called */
+	void *data; 			/*!< Data to be passed */
+	int *id; 			/*!< ID number */
 };
 
 /* These two arrays are keyed with
@@ -62,21 +62,15 @@ struct io_rec {
 
 #define GROW_SHRINK_SIZE 512
 
-/* Global variables are now in a struct in order to be
+/*! \brief Global IO variables are now in a struct in order to be
    made threadsafe */
 struct io_context {
-	/* Poll structure */
-	struct pollfd *fds;
-	/* Associated I/O records */
-	struct io_rec *ior;
-	/* First available fd */
-	unsigned int fdcnt;
-	/* Maximum available fd */
-	unsigned int maxfdcnt;
-	/* Currently used io callback */
-	int current_ioc;
-	/* Whether something has been deleted */
-	int needshrink;
+	struct pollfd *fds;           /*!< Poll structure */
+	struct io_rec *ior;           /*!< Associated I/O records */
+	unsigned int fdcnt;           /*!< First available fd */
+	unsigned int maxfdcnt;        /*!< Maximum available fd */
+	int current_ioc;              /*!< Currently used io callback */
+	int needshrink;               /*!< Whether something has been deleted */
 };
 
 struct io_context *io_context_create(void)
@@ -112,12 +106,12 @@ void io_context_destroy(struct io_context *ioc)
 	free(ioc);
 }
 
+/*! \brief
+ * Grow the size of our arrays.  
+ * \return 0 on success or -1 on failure
+ */
 static int io_grow(struct io_context *ioc)
 {
-	/* 
-	 * Grow the size of our arrays.  Return 0 on success or
-	 * -1 on failure
-	 */
 	void *tmp;
 	DEBUG(ast_log(LOG_DEBUG, "io_grow()\n"));
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
@@ -146,13 +140,14 @@ static int io_grow(struct io_context *ioc)
 	return 0;
 }
 
+/*! \brief
+ * Add a new I/O entry for this file descriptor
+ * with the given event mask, to call callback with
+ * data as an argument.  
+ * \return Returns NULL on failure.
+ */
 int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data)
 {
-	/*
-	 * Add a new I/O entry for this file descriptor
-	 * with the given event mask, to call callback with
-	 * data as an argument.  Returns NULL on failure.
-	 */
 	int *ret;
 	DEBUG(ast_log(LOG_DEBUG, "ast_io_add()\n"));
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
@@ -252,13 +247,13 @@ int ast_io_remove(struct io_context *ioc, int *_id)
 	return -1;
 }
 
+/*! \brief
+ * Make the poll call, and call
+ * the callbacks for anything that needs
+ * to be handled
+ */
 int ast_io_wait(struct io_context *ioc, int howlong)
 {
-	/*
-	 * Make the poll call, and call
-	 * the callbacks for anything that needs
-	 * to be handled
-	 */
 	int res;
 	int x;
 	int origcnt;
