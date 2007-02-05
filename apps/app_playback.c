@@ -468,6 +468,8 @@ static int unload_module(void)
 
 	res = ast_unregister_application(app);
 
+	ast_cli_unregister_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
+
 	ast_module_user_hangup_all();
 
 	if (say_cfg)
