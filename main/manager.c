@@ -1439,7 +1439,6 @@ static int action_status(struct mansession *s, const struct message *m)
 	long elapsed_seconds = 0;
 	int all = ast_strlen_zero(name); /* set if we want all channels */
 
-	astman_send_ack(s, m, "Channel status will follow");
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 	if (all)
@@ -1451,6 +1450,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			return 0;
 		}
 	}
+	astman_send_ack(s, m, "Channel status will follow");
 	/* if we look by name, we break after the first iteration */
 	while (c) {
 		if (c->_bridge)
