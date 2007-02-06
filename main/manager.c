@@ -1465,7 +1465,6 @@ static int action_status(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", id);
 
-	astman_send_ack(s, m, "Channel status will follow");
 	if (all)
 		c = ast_channel_walk_locked(NULL);
 	else {
@@ -1475,6 +1474,7 @@ static int action_status(struct mansession *s, const struct message *m)
 			return 0;
 		}
 	}
+	astman_send_ack(s, m, "Channel status will follow");
 	/* if we look by name, we break after the first iteration */
 	while (c) {
 		if (c->_bridge)
