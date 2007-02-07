@@ -2446,8 +2446,10 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 
 	peer = build_peer(peername, var, NULL, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
 	
-	if (!peer)
+	if (!peer) {
+		ast_variables_destroy(var);
 		return NULL;
+	}
 
 	for (tmp = var; tmp; tmp = tmp->next) {
 		/* Make sure it's not a user only... */
@@ -2470,10 +2472,11 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 				dynamic = 1;
 		}
 	}
-	if (!peer)
-		return NULL;
 
 	ast_variables_destroy(var);
+
+	if (!peer)
+		return NULL;
 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
@@ -2533,10 +2536,11 @@ static struct iax2_user *realtime_user(const char *username)
 	}
 
 	user = build_user(username, var, NULL, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
-	if (!user)
-		return NULL;
 
 	ast_variables_destroy(var);
+
+	if (!user)
+		return NULL;
 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_set_flag(user, IAX_RTCACHEFRIENDS);
@@ -4739,16 +4743,14 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				*key = '\0';
 				key++;
 			}
-			if (!key || ast_db_get(family, key, buf, sizeof(buf))) {
+			if (!key || ast_db_get(family, key, buf, sizeof(buf)))
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
-				if (ast_test_flag(user, IAX_TEMPONLY)) {
-					destroy_user(user);
-					user = NULL;
-				}
-			} else
+			else
 				ast_string_field_set(iaxs[callno], secret, buf);
 		} else
 			ast_string_field_set(iaxs[callno], secret, user->secret);
+		if (ast_test_flag(user, IAX_TEMPONLY))
+			destroy_user(user);
 		res = 0;
 	}
 	ast_set2_flag(iaxs[callno], iax2_getpeertrunk(*sin), IAX_TRUNK);	
