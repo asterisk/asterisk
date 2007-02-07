@@ -480,7 +480,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	reload();
+	say_cfg = ast_config_load("say.conf");
         ast_cli_register_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
 	return ast_register_application(app, playback_exec, synopsis, descrip);
 }
