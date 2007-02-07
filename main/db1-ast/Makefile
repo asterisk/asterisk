@@ -48,7 +48,7 @@ clean-depend:
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
 
-ASTCFLAGS+=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno
+ASTCFLAGS:=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno $(ASTCFLAGS)
 
 OSTYPE=$(shell uname -s)
 ifeq ($(OSTYPE),SunOS)
