@@ -120,7 +120,7 @@ static struct ast_cli_entry aji_cli[] = {
 	debug_usage },
 
 	{ { "jabber", "reload", NULL},
-	aji_do_reload, "Enable Jabber debugging",
+	aji_do_reload, "Reload Jabber configuration",
 	reload_usage },
 
 	{ { "jabber", "show", "connected", NULL},
