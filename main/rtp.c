@@ -966,7 +966,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			gettimeofday(&rtp->rtcp->rxlsr,NULL); /* To be able to populate the dlsr */
 			rtp->rtcp->spc = ntohl(rtcpheader[i+3]);
 			rtp->rtcp->soc = ntohl(rtcpheader[i + 4]);
-			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff) >> 16); /* Going to LSR in RR*/
+			rtp->rtcp->themrxlsr = ((ntohl(rtcpheader[i]) & 0x0000ffff) << 16) | ((ntohl(rtcpheader[i + 1]) & 0xffff0000) >> 16); /* Going to LSR in RR*/
     
 			if (rtcp_debug_test_addr(&sin)) {
 				ast_verbose("NTP timestamp: %lu.%010lu\n", (unsigned long) ntohl(rtcpheader[i]), (unsigned long) ntohl(rtcpheader[i + 1]) * 4096);
