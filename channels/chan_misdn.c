@@ -4145,6 +4145,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				strncat(bc->dad,bc->infos_pending, l - strlen(bc->dad));
 				bc->dad[l-1] = 0;
 			}	
+		
+			if (!ch->ast) break;
 			{
 				int l = sizeof(ch->ast->exten);
 				strncpy(ch->ast->exten, bc->dad, l);
@@ -4171,10 +4173,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		ch->state = MISDN_PROCEEDING;
 		
+		if (!ch->ast) break;
+
 		ast_queue_control(ch->ast, AST_CONTROL_PROCEEDING);
 	}
 	break;
 	case EVENT_PROGRESS:
+
+		if (bc->channel) 
+			update_name(ch->ast,bc->port,bc->channel);
+
 		if (!bc->nt ) {
 			if ( misdn_cap_is_speech(bc->capability) &&
 			     misdn_inband_avail(bc)
@@ -4182,9 +4190,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				start_bc_tones(ch);
 			}
 			
-			ast_queue_control(ch->ast, AST_CONTROL_PROGRESS);
-			
 			ch->state=MISDN_PROGRESS;
+
+			if (!ch->ast) break;
+			ast_queue_control(ch->ast, AST_CONTROL_PROGRESS);
 		}
 		break;
 		
@@ -4193,6 +4202,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	{
 		ch->state = MISDN_ALERTING;
 		
+		if (!ch->ast) break;
+
 		ast_queue_control(ch->ast, AST_CONTROL_RINGING);
 		ast_setstate(ch->ast, AST_STATE_RINGING);
 		
@@ -4215,7 +4226,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	{
 		/*we answer when we've got our very new L3 ID from the NT stack */
 		misdn_lib_send_event(bc,EVENT_CONNECT_ACKNOWLEDGE);
-	
+
+		if (!ch->ast) break;
+
 		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
 		stop_indicate(ch);
 
@@ -4238,8 +4251,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		start_bc_tones(ch);
 		
-		
 		ch->state = MISDN_CONNECTED;
+		
+		if (!ch->ast) break;
+
 		ast_queue_control(ch->ast, AST_CONTROL_ANSWER);
 	}
 	break;
@@ -4247,7 +4262,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	/*we might not have an ch->ast ptr here anymore*/
 	if (ch) {
 		struct chan_list *holded_ch=find_holded(cl_te, bc);
-	
+		
 		chan_misdn_log(3,bc->port," --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
 		if ( ch->orginator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
 			/* If there's inband information available (e.g. a
@@ -4259,6 +4274,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 			ch->state=MISDN_DISCONNECTED;
 			start_bc_tones(ch);
+
+			if (ch->ast) {
+				ch->ast->hangupcause=bc->cause;
+				ast_queue_control(ch->ast, AST_CONTROL_BUSY);
+			}
+			ch->need_busy=0;
 			break;
 		}
 		
@@ -4374,7 +4395,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			frame.src = NULL;
 			frame.data = bc->bframe ;
 			
-			ast_queue_frame(ch->ast,&frame);
+			if (ch->ast) 
+				ast_queue_frame(ch->ast,&frame);
 		} else {
 			fd_set wrfs;
 			struct timeval tv;

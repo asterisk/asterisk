@@ -2859,22 +2859,11 @@ static msg_t *fetch_msg(int midev)
 {
 	msg_t *msg=alloc_msg(MAX_MSG_SIZE);
 	int r;
-/*	fd_set rdfs; */
 
 	if (!msg) {
 		cb_log(0, 0, "fetch_msg: alloc msg failed !!");
 		return NULL;
 	}
-
-#if 0
-	FD_ZERO(&rdfs);
-	FD_SET(midev,&rdfs);
-  
-	mISDN_select(FD_SETSIZE, &rdfs, NULL, NULL, NULL);
-	//select(FD_SETSIZE, &rdfs, NULL, NULL, NULL);
-  
-	if (FD_ISSET(midev, &rdfs)) {
-#endif
 
 	AGAIN:
 		r=mISDN_read(midev,msg->data,MAX_MSG_SIZE, TIMEOUT_10SEC);
@@ -2897,15 +2886,11 @@ static msg_t *fetch_msg(int midev)
 			cb_log(0,0,"mISDN_read returned :%d error:%s (%d)\n",r,strerror(errno),errno); 
 		}
 
-		return msg;
-
 #if 0
-	} else {
-		printf ("Select timeout\n");
-	}
+               if  (!(frm->prim == (DL_DATA|INDICATION) )|| (frm->prim == (PH_DATA|INDICATION)))
+                       cb_log(0,0,"prim: %x dinfo:%x addr:%x msglen:%d frm->len:%d\n",frm->prim, frm->dinfo, frm->addr, msg->len,frm->len );
 #endif
-  
-	return NULL;
+		return msg;
 }
 
 void misdn_lib_isdn_l1watcher(int port)
@@ -3914,8 +3899,6 @@ char *manager_isdn_get_info(enum event_e event)
 void manager_bchannel_activate(struct misdn_bchannel *bc)
 {
 	char buf[128];
-	iframe_t *ifrm;
-	int ret;
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
@@ -3931,19 +3914,7 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	
 	mISDN_write_frame(stack->midev, buf, bc->addr | FLG_MSG_DOWN,  DL_ESTABLISH | REQUEST, 0,0, NULL, TIMEOUT_1SEC);
 
-	ret=mISDN_read(stack->midev,buf,128,TIMEOUT_10SEC);
-
-	ifrm=(iframe_t*)buf;
-	
-	if (ret>0) {
-		if (ifrm->prim== (DL_ESTABLISH|CONFIRM)) {
-			cb_log(2,stack->port,"bchan: DL_ESTABLISH|CNF\n");
-		}
-	}
-	
-	
 	return ;
-  
 }
 
 
@@ -3976,8 +3947,6 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 	dact.len = 0;
 	char buf[128];	
 	mISDN_write_frame(stack->midev, buf, bc->addr | FLG_MSG_DOWN, DL_RELEASE|REQUEST,0,0,NULL, TIMEOUT_1SEC);
-
-	mISDN_read(stack->midev, buf, 128, TIMEOUT_1SEC);
 
 	clear_ibuffer(bc->astbuf);
 	
