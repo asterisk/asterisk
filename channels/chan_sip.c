@@ -1096,7 +1096,7 @@ struct sip_peer {
 	int inRinging;			/*!< Number of calls ringing */
 	int onHold;                     /*!< Peer has someone on hold */
 	int call_limit;			/*!< Limit of concurrent calls */
-	int busy_limit;			/*!< Limit where we signal busy */
+	int busy_level;			/*!< Level of active channels where we signal busy */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
 	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox setting for MWI checks */
@@ -10220,8 +10220,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		ast_cli(fd, "  LastMsgsSent : %d/%d\n", (peer->lastmsgssent & 0x7fff0000) >> 16, peer->lastmsgssent & 0xffff);
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
-		if (peer->busy_limit)
-			ast_cli(fd, "  Busy limit   : %d\n", peer->busy_limit);
+		if (peer->busy_level)
+			ast_cli(fd, "  Busy limit   : %d\n", peer->busy_level);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  MaxCallBR    : %d kbps\n", peer->maxcallbitrate);
@@ -10310,7 +10310,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Call-limit: %d\r\n", peer->call_limit);
-		astman_append(s, "Busy-limit: %d\r\n", peer->busy_limit);
+		astman_append(s, "Busy-level: %d\r\n", peer->busy_level);
 		astman_append(s, "MaxCallBR: %d kbps\r\n", peer->maxcallbitrate);
 		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Y":"N"));
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
@@ -15428,7 +15428,7 @@ static int sip_devicestate(void *data)
 			} else if (p->call_limit && (p->inUse == p->call_limit))
 				/* check call limit */
 				res = AST_DEVICE_BUSY;
-			else if (p->call_limit && p->busy_limit && p->inUse >= p->busy_limit)
+			else if (p->call_limit && p->busy_level && p->inUse >= p->busy_level)
 				/* We're forcing busy before we've reached the call limit */
 				res = AST_DEVICE_BUSY;
 			else if (p->call_limit && p->inUse)
@@ -16185,6 +16185,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->call_limit = atoi(v->value);
 			if (peer->call_limit < 0)
 				peer->call_limit = 0;
+		} else if (!strcasecmp(v->name, "busy-level")) {
+			peer->busy_level = atoi(v->value);
+			if (peer->busy_level < 0)
+				peer->busy_level = 0;
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			format = ast_cdr_amaflags2int(v->value);
 			if (format < 0) {
