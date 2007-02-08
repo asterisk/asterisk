@@ -241,7 +241,7 @@ static struct ast_translator_pvt *zap_new_alawtog723(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -298,7 +298,7 @@ static struct ast_translator_pvt *zap_new_ulawtog723(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -355,7 +355,7 @@ static struct ast_translator_pvt *zap_new_g723toalaw(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -412,7 +412,7 @@ static struct ast_translator_pvt *zap_new_g723toulaw(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -469,7 +469,7 @@ static struct ast_translator_pvt *zap_new_alawtog729(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -526,7 +526,7 @@ static struct ast_translator_pvt *zap_new_ulawtog729(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -583,7 +583,7 @@ static struct ast_translator_pvt *zap_new_g729toalaw(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -640,7 +640,7 @@ static struct ast_translator_pvt *zap_new_g729toulaw(void)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct ast_translator_pvt *ztp;
 	struct zt_transcode_header *hdr;
 	int flags;
@@ -856,6 +856,11 @@ static int find_transcoders(void)
 		ast_log(LOG_NOTICE, "No Zaptel transcoder support!\n");
 		return 0;
 	}
+
+	ast_mutex_lock(&channelcount);
+	totalchannels = 0;
+	ast_mutex_unlock(&channelcount);
+
 	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);

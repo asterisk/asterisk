@@ -412,7 +412,6 @@ static int restart_monitor(void);
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
-static int noncodeccapability = AST_RTP_DTMF;
 
 static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
@@ -571,8 +570,7 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 29)
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
-/* Did this connection increment the counter of in-use calls? */
-#define SIP_INC_COUNT (1 << 31)
+#define SIP_INC_COUNT		(1 << 31)	/* Did this connection increment the counter of in-use calls? */
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
@@ -613,6 +611,7 @@ static struct sip_pvt {
 	int peercapability;			/*!< Supported peer capability */
 	int prefcodec;				/*!< Preferred codec (outbound only) */
 	int noncodeccapability;
+	int jointnoncodeccapability;
 	int callingpres;			/*!< Calling presentation */
 	int authtries;				/*!< Times we've tried to authenticate */
 	int expiry;				/*!< How long we take to expire */
@@ -2111,6 +2110,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
+		p->jointnoncodeccapability = p->noncodeccapability;
 		transmit_invite(p, SIP_INVITE, 1, 2);
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
@@ -2154,6 +2154,12 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (m_cb)
 	  m_cb->__sip_destroy_hook(p);
 #endif
+
+	if (ast_test_flag(p, SIP_INC_COUNT)) {
+		update_call_counter(p, DEC_CALL_LIMIT);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Call did not properly clean up call counter. Call ID %s\n", p->callid);
+	}
 
 	if (dumphistory)
 		sip_dump_history(p);
@@ -2281,8 +2287,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		/* incoming and outgoing affects the inUse counter */
 		case DEC_CALL_LIMIT:
 			if ( *inuse > 0 ) {
-			         if (ast_test_flag(fup,SIP_INC_COUNT))
+				if (ast_test_flag(fup, SIP_INC_COUNT)) {
 				         (*inuse)--;
+					ast_clear_flag(fup, SIP_INC_COUNT);
+				}
 			} else {
 				*inuse = 0;
 			}
@@ -3760,11 +3768,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				&vpeercapability, &vpeernoncodeccapability);
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->peercapability = (peercapability | vpeercapability);
-	p->noncodeccapability = noncodeccapability & peernoncodeccapability;
+	p->jointnoncodeccapability = p->noncodeccapability & peernoncodeccapability;
 	
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO) {
 		ast_clear_flag(p, SIP_DTMF);
-		if (p->noncodeccapability & AST_RTP_DTMF) {
+		if (p->jointnoncodeccapability & AST_RTP_DTMF) {
 			/* XXX Would it be reasonable to drop the DSP at this point? XXX */
 			ast_set_flag(p, SIP_DTMF_RFC2833);
 		} else {
@@ -3784,9 +3792,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_getformatname_multiple(s4, slen, p->jointcapability));
 
 		ast_verbose("Non-codec capabilities: us - %s, peer - %s, combined - %s\n",
-			ast_rtp_lookup_mime_multiple(s1, slen, noncodeccapability, 0),
+			ast_rtp_lookup_mime_multiple(s1, slen, p->noncodeccapability, 0),
 			ast_rtp_lookup_mime_multiple(s2, slen, peernoncodeccapability, 0),
-			ast_rtp_lookup_mime_multiple(s3, slen, p->noncodeccapability, 0));
+			ast_rtp_lookup_mime_multiple(s3, slen, p->jointnoncodeccapability, 0));
 	}
 	if (!p->jointcapability) {
 		ast_log(LOG_NOTICE, "No compatible codecs!\n");
@@ -4710,7 +4718,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
-		if (!(p->noncodeccapability & x))
+		if (!(p->jointnoncodeccapability & x))
 			continue;
 
 		add_noncodec_to_sdp(p, x, 8000,
@@ -10499,8 +10507,11 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		copy_request(&d->req, req);
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, &attr, sip_park_thread, d))
+		if (!ast_pthread_create(&th, &attr, sip_park_thread, d)) {
+			pthread_attr_destroy(&attr);
 			return 0;
+		}
+		pthread_attr_destroy(&attr);
 		free(d);
 	}
 	return -1;

@@ -2634,8 +2634,10 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 
 	peer = build_peer(peername, var, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
 	
-	if (!peer)
+	if (!peer) {
+		ast_variables_destroy(var);
 		return NULL;
+	}
 
 	tmp = var;
 	while(tmp) {
@@ -2661,10 +2663,11 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		}
 		tmp = tmp->next;
 	}
-	if (!peer)
-		return NULL;
 
 	ast_variables_destroy(var);
+
+	if (!peer)
+		return NULL;
 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
@@ -2725,10 +2728,11 @@ static struct iax2_user *realtime_user(const char *username)
 	}
 
 	user = build_user(username, var, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
-	if (!user)
-		return NULL;
 
 	ast_variables_destroy(var);
+
+	if (!user)
+		return NULL;
 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_set_flag(user, IAX_RTCACHEFRIENDS);
@@ -4925,15 +4929,12 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 					key++;
 				}
 			}
-			if (!family || !key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (!family || !key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret)))
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
-				if (ast_test_flag(user, IAX_TEMPONLY)) {
-					destroy_user(user);
-					user = NULL;
-				}
-			}
 		} else
 			ast_copy_string(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)); 
+		if (ast_test_flag(user, IAX_TEMPONLY))
+			destroy_user(user);
 		res = 0;
 	}
 	ast_set2_flag(iaxs[callno], iax2_getpeertrunk(*sin), IAX_TRUNK);	
@@ -6224,6 +6225,7 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 		if (ast_pthread_create(&newthread, &attr, dp_lookup_thread, dpr)) {
 			ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
 		}
+		pthread_attr_destroy(&attr);
 	} else
 		ast_log(LOG_WARNING, "Out of memory!\n");
 }
@@ -6304,8 +6306,11 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		memset(d, 0, sizeof(*d));
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create(&th, &attr, iax_park_thread, d))
+		if (!ast_pthread_create(&th, &attr, iax_park_thread, d)) {
+			pthread_attr_destroy(&attr);
 			return 0;
+		}
+		pthread_attr_destroy(&attr);
 		free(d);
 	}
 	return -1;

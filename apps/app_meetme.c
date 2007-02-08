@@ -862,6 +862,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n",
 			    conf->confno, conf->recordingfilename, conf->recordingformat);
 		ast_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
+		pthread_attr_destroy(&conf->attr);
 	}
 
 	time(&user->jointime);

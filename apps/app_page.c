@@ -135,6 +135,7 @@ static void launch_page(struct ast_channel *chan, const char *meetmeopts, const 
 			ast_log(LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
 			free(cd);
 		}
+		pthread_attr_destroy(&attr);
 	}
 }
 
