@@ -505,7 +505,7 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 static int speech_background(struct ast_channel *chan, void *data)
 {
         unsigned int timeout = 0;
-        int res = 0, done = 0, argc = 0, started = 0;
+        int res = 0, done = 0, argc = 0, started = 0, quieted = 0;
         struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
         struct ast_frame *f = NULL;
@@ -602,6 +602,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                 if (ast_test_flag(speech, AST_SPEECH_QUIET) && chan->stream != NULL) {
                         ast_stopstream(chan);
 			ast_clear_flag(speech, AST_SPEECH_QUIET);
+			quieted = 1;
                 }
                 /* Check state so we can see what to do */
                 switch (speech->state) {
@@ -609,7 +610,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                         /* If audio playback has stopped do a check for timeout purposes */
                         if (chan->streamid == -1 && chan->timingfunc == NULL)
                                 ast_stopstream(chan);
-                        if (chan->stream == NULL && timeout > 0 && started == 0 && !filename_tmp) {
+                        if (!quieted && chan->stream == NULL && timeout > 0 && started == 0 && !filename_tmp) {
 				time(&start);
 				started = 1;
                         }
