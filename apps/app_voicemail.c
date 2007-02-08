@@ -1746,7 +1746,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 					memset(passdata, 0, vmlen);
 					prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
 					pbx_substitute_variables_helper(ast,fromstring,passdata,vmlen);
-					len_passdata = strlen(passdata) * 2 + 1;
+					len_passdata = strlen(passdata) * 2 + 3;
 					passdata2 = alloca(len_passdata);
 					fprintf(p, "From: %s <%s>\n", quote(passdata, passdata2, len_passdata), who);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -1754,7 +1754,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
 		} else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
-		len_passdata = strlen(vmu->fullname) * 2 + 1;
+		len_passdata = strlen(vmu->fullname) * 2 + 3;
 		passdata2 = alloca(len_passdata);
 		fprintf(p, "To: %s <%s>\n", quote(vmu->fullname, passdata2, len_passdata), vmu->email);
 
