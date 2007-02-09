@@ -74,6 +74,12 @@ or where ever you built thfe UWashington IMAP Toolkit. When you run
 'make menuselect', choose 'Voicemail Build Options' and the
 IMAP_STORAGE option should be available for selection.
 
+Note that the --with-imap option will NOT search your system for an
+installed copy of the IMAP Toolkit c-client library; the Asterisk
+Makefiles and configure script are designed to build against an
+unpacked and compiled source tree of the IMAP Toolkit, not a binary
+distribution.
+
 After selecting it, use the 'x' key to exit menuselect and save
 your changes, and the build/install Asterisk normally.
 
