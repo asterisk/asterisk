@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<depend>iksemel</depend>
+	<depend>res_jabber</depend>
  ***/
 
 #include "asterisk.h"
