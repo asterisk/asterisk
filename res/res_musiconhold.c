@@ -159,7 +159,7 @@ struct mohdata {
 	AST_LIST_ENTRY(mohdata) list;
 };
 
-AST_LIST_HEAD_STATIC(mohclasses, mohclass);
+AST_RWLIST_HEAD_STATIC(mohclasses, mohclass);
 
 #define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
@@ -556,15 +556,15 @@ static void *monmp3thread(void *data)
 			continue;
 		}
 		pthread_testcancel();
-		AST_LIST_LOCK(&mohclasses);
-		AST_LIST_TRAVERSE(&class->members, moh, list) {
+		AST_RWLIST_RDLOCK(&mohclasses);
+		AST_RWLIST_TRAVERSE(&class->members, moh, list) {
 			/* Write data */
 			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
 			}
 		}
-		AST_LIST_UNLOCK(&mohclasses);
+		AST_RWLIST_UNLOCK(&mohclasses);
 	}
 	return NULL;
 }
@@ -629,7 +629,7 @@ static struct mohclass *get_mohbyname(const char *name)
 {
 	struct mohclass *moh = NULL;
 
-	AST_LIST_TRAVERSE(&mohclasses, moh, list) {
+	AST_RWLIST_TRAVERSE(&mohclasses, moh, list) {
 		if (!strcasecmp(name, moh->name))
 			break;
 	}
@@ -672,9 +672,9 @@ static void moh_release(struct ast_channel *chan, void *data)
 	struct mohdata *moh = data;
 	int oldwfmt;
 
-	AST_LIST_LOCK(&mohclasses);
-	AST_LIST_REMOVE(&moh->parent->members, moh, list);	
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_WRLOCK(&mohclasses);
+	AST_RWLIST_REMOVE(&moh->parent->members, moh, list);	
+	AST_RWLIST_UNLOCK(&mohclasses);
 	
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
@@ -838,7 +838,7 @@ static int moh_register(struct mohclass *moh, int reload)
 #ifdef HAVE_ZAPTEL
 	int x;
 #endif
-	AST_LIST_LOCK(&mohclasses);
+	AST_RWLIST_WRLOCK(&mohclasses);
 	if (get_mohbyname(moh->name)) {
 		if (reload) {
 			if (option_debug)
@@ -847,10 +847,10 @@ static int moh_register(struct mohclass *moh, int reload)
 			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		}
 		free(moh);	
-		AST_LIST_UNLOCK(&mohclasses);
+		AST_RWLIST_UNLOCK(&mohclasses);
 		return -1;
 	}
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_UNLOCK(&mohclasses);
 
 	time(&moh->start);
 	moh->start -= respawn_time;
@@ -900,9 +900,9 @@ static int moh_register(struct mohclass *moh, int reload)
 		return -1;
 	}
 
-	AST_LIST_LOCK(&mohclasses);
-	AST_LIST_INSERT_HEAD(&mohclasses, moh, list);
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_WRLOCK(&mohclasses);
+	AST_RWLIST_INSERT_HEAD(&mohclasses, moh, list);
+	AST_RWLIST_UNLOCK(&mohclasses);
 	
 	return 0;
 }
@@ -940,9 +940,9 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	else
 		class = "default";
 
-	AST_LIST_LOCK(&mohclasses);
+	AST_RWLIST_RDLOCK(&mohclasses);
 	mohclass = get_mohbyname(class);
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_UNLOCK(&mohclasses);
 
 	if (!mohclass) {
 		ast_log(LOG_WARNING, "No class: %s\n", class);
@@ -1061,8 +1061,8 @@ static void ast_moh_destroy(void)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
 
-	AST_LIST_LOCK(&mohclasses);
-	while ((moh = AST_LIST_REMOVE_HEAD(&mohclasses, list))) {
+	AST_RWLIST_WRLOCK(&mohclasses);
+	while ((moh = AST_RWLIST_REMOVE_HEAD(&mohclasses, list))) {
 		if (moh->pid > 1) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
@@ -1085,7 +1085,7 @@ static void ast_moh_destroy(void)
 		}
 		ast_moh_free_class(&moh);
 	}
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_UNLOCK(&mohclasses);
 }
 
 static void moh_on_off(int on)
@@ -1120,8 +1120,8 @@ static int cli_files_show(int fd, int argc, char *argv[])
 	int i;
 	struct mohclass *class;
 
-	AST_LIST_LOCK(&mohclasses);
-	AST_LIST_TRAVERSE(&mohclasses, class, list) {
+	AST_RWLIST_RDLOCK(&mohclasses);
+	AST_RWLIST_TRAVERSE(&mohclasses, class, list) {
 		if (!class->total_files)
 			continue;
 
@@ -1129,7 +1129,7 @@ static int cli_files_show(int fd, int argc, char *argv[])
 		for (i = 0; i < class->total_files; i++)
 			ast_cli(fd, "\tFile: %s\n", class->filearray[i]);
 	}
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_UNLOCK(&mohclasses);
 
 	return 0;
 }
@@ -1138,8 +1138,8 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 {
 	struct mohclass *class;
 
-	AST_LIST_LOCK(&mohclasses);
-	AST_LIST_TRAVERSE(&mohclasses, class, list) {
+	AST_RWLIST_RDLOCK(&mohclasses);
+	AST_RWLIST_TRAVERSE(&mohclasses, class, list) {
 		ast_cli(fd, "Class: %s\n", class->name);
 		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
 		ast_cli(fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
@@ -1148,7 +1148,7 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 		if (strcasecmp(class->mode, "files"))
 			ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
 	}
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_UNLOCK(&mohclasses);
 
 	return 0;
 }
@@ -1174,12 +1174,12 @@ static int init_classes(int reload)
 	if (!load_moh_classes(reload)) 		/* Load classes from config */
 		return 0;			/* Return if nothing is found */
 
-	AST_LIST_LOCK(&mohclasses);
-	AST_LIST_TRAVERSE(&mohclasses, moh, list) {
+	AST_RWLIST_WRLOCK(&mohclasses);
+	AST_RWLIST_TRAVERSE(&mohclasses, moh, list) {
 		if (moh->total_files)
 			moh_scan_files(moh);
 	}
-	AST_LIST_UNLOCK(&mohclasses);
+	AST_RWLIST_UNLOCK(&mohclasses);
 
 	return 1;
 }
