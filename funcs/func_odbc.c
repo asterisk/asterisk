@@ -26,6 +26,7 @@
 
 /*** MODULEINFO
 	<depend>unixodbc</depend>
+	<depend>res_odbc</depend>
  ***/
 
 #include "asterisk.h"
