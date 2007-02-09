@@ -937,8 +937,11 @@ static int do_privacy(struct ast_channel *chan, struct ast_channel *peer,
 	   time and make the caller believe the peer hasn't picked up yet */
 
 	if (ast_test_flag(opts, OPT_MUSICBACK) && !ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
+		char *original_moh = ast_strdupa(chan->musicclass);
 		ast_indicate(chan, -1);
+		ast_string_field_set(chan, musicclass, opt_args[OPT_ARG_MUSICBACK]);
 		ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
+		ast_string_field_set(chan, musicclass, original_moh);
 	} else if (ast_test_flag(opts, OPT_RINGBACK)) {
 		ast_indicate(chan, AST_CONTROL_RINGING);
 		pa->sentringing++;
@@ -1443,7 +1446,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		strcpy(pa.status, "NOANSWER");
 		if (ast_test_flag(outgoing, OPT_MUSICBACK)) {
 			moh = 1;
-			ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
+			if (!ast_strlen_zero(opt_args[OPT_ARG_MUSICBACK])) {
+				char *original_moh = ast_strdupa(chan->musicclass);
+				ast_string_field_set(chan, musicclass, opt_args[OPT_ARG_MUSICBACK]);
+				ast_moh_start(chan, opt_args[OPT_ARG_MUSICBACK], NULL);
+				ast_string_field_set(chan, musicclass, original_moh);
+			} else {
+				ast_moh_start(chan, NULL, NULL);
+			}
 			ast_indicate(chan, AST_CONTROL_PROGRESS);
 		} else if (ast_test_flag(outgoing, OPT_RINGBACK)) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
