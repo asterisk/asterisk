@@ -60,11 +60,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/ulaw.h"
 #include "asterisk/astobj.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/dial.h"
 
 #include "enter.h"
 #include "leave.h"
 
 #define CONFIG_FILE_NAME "meetme.conf"
+#define SLA_CONFIG_FILE  "sla.conf"
 
 /*! each buffer is 20ms, so this is 640ms total */
 #define DEFAULT_AUDIO_BUFFERS  32
@@ -148,12 +150,10 @@ enum {
 	CONFFLAG_INTROUSERNOREVIEW = (1 << 23),
 	/*! If set, the user will be initially self-muted */
 	CONFFLAG_STARTMUTED = (1 << 24),
-	/*! If set, the user is a shared line appearance station */
-	CONFFLAG_SLA_STATION = (1 << 25),
-	/*! If set, the user is a shared line appearance trunk */
-	CONFFLAG_SLA_TRUNK = (1 << 26),
-	/*! If set, the user has put us on hold */
-	CONFFLAG_HOLD = (1 << 27),
+	/*! Pass DTMF through the conference */
+	CONFFLAG_PASS_DTMF = (1 << 25),
+	CONFFLAG_SLA_STATION = (1 << 26),
+	CONFFLAG_SLA_TRUNK = (1 << 27),
 	/*! If set, the user should continue in the dialplan if kicked out */
 	CONFFLAG_KICK_CONTINUE = (1 << 28)
 };
@@ -163,7 +163,7 @@ enum {
 	OPT_ARG_ARRAY_SIZE = 1,
 };
 
-AST_APP_OPTIONS(meetme_opts, {
+AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
 	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
 	AST_APP_OPTION('b', CONFFLAG_AGI ),
@@ -173,6 +173,7 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
 	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
 	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
+	AST_APP_OPTION('F', CONFFLAG_PASS_DTMF ),
 	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
 	AST_APP_OPTION('I', CONFFLAG_INTROUSERNOREVIEW ),
 	AST_APP_OPTION('M', CONFFLAG_MOH ),
@@ -190,22 +191,19 @@ AST_APP_OPTIONS(meetme_opts, {
 	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
 	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
 	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
-});
+END_OPTIONS );
 
-AST_APP_OPTIONS(sla_opts, {
-	/* Just a placeholder for now */
-});
 static const char *app = "MeetMe";
 static const char *app2 = "MeetMeCount";
 static const char *app3 = "MeetMeAdmin";
-static const char *appslas = "SLAStation";
-static const char *appslat = "SLATrunk";
+static const char *slastation_app = "SLAStation";
+static const char *slatrunk_app = "SLATrunk";
 
 static const char *synopsis = "MeetMe conference bridge";
 static const char *synopsis2 = "MeetMe participant count";
 static const char *synopsis3 = "MeetMe conference Administration";
-static const char *synopslas = "Shared Line Appearance - Station";
-static const char *synopslat = "Shared Line Appearance - Trunk";
+static const char *slastation_synopsis = "Shared Line Appearance Station";
+static const char *slatrunk_synopsis = "Shared Line Appearance Trunk";
 
 static const char *descrip =
 "  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe\n"
@@ -227,6 +225,8 @@ static const char *descrip =
 "      'D' -- dynamically add conference, prompting for a PIN\n"
 "      'e' -- select an empty conference\n"
 "      'E' -- select an empty pinless conference\n"
+"      'F' -- Pass DTMF through the conference.  DTMF used to activate any\n"
+"             conference features will not be passed through.\n"
 "      'i' -- announce user join/leave with review\n"
 "      'I' -- announce user join/leave without review\n"
 "      'l' -- set listen only mode (Listen only, no talking)\n"
@@ -285,25 +285,20 @@ static const char *descrip3 =
 "      'V' -- Raise entire conference listening volume\n"
 "";
 
-static const char *descripslas =
-"  SLAStation(sla[,options]): Run Shared Line Appearance for station\n"
-"Runs the share line appearance for a station calling in.  If there are no\n"
-"other participants in the conference, the trunk is called and is dumped into\n"
-"the bridge.\n";
+static const char *slastation_desc =
+"  SLAStation():\n";
 
-static const char *descripslat =
-"  SLATrunk(sla[,options]): Run Shared Line Appearance for trunk\n"
-"Runs the share line appearance for a trunk calling in.  If there are no\n"
-"other participants in the conference, all member stations are invited into\n"
-"the bridge.\n";
+static const char *slatrunk_desc =
+"  SLATrunk():\n";
 
-#define CONFIG_FILE_NAME_SLA "sla.conf"
+#define MAX_CONFNUM 80
+#define MAX_PIN     80
 
 /*! \brief The MeetMe Conference object */
 struct ast_conference {
 	ast_mutex_t playlock;                   /*!< Conference specific lock (players) */
 	ast_mutex_t listenlock;                 /*!< Conference specific lock (listeners) */
-	char confno[AST_MAX_EXTENSION];         /*!< Conference */
+	char confno[MAX_CONFNUM];               /*!< Conference */
 	struct ast_channel *chan;               /*!< Announcements channel */
 	struct ast_channel *lchan;              /*!< Listen/Record channel */
 	int fd;                                 /*!< Announcements fd */
@@ -319,8 +314,8 @@ struct ast_conference {
 	pthread_attr_t attr;                    /*!< thread attribute */
 	const char *recordingfilename;          /*!< Filename to record the Conference into */
 	const char *recordingformat;            /*!< Format to record the Conference in */
-	char pin[AST_MAX_EXTENSION];            /*!< If protected by a PIN */
-	char pinadmin[AST_MAX_EXTENSION];       /*!< If protected by a admin PIN */
+	char pin[MAX_PIN];                      /*!< If protected by a PIN */
+	char pinadmin[MAX_PIN];                 /*!< If protected by a admin PIN */
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
@@ -344,39 +339,94 @@ struct ast_conf_user {
 	int zapchannel;                         /*!< Is a Zaptel channel */
 	char usrvalue[50];                      /*!< Custom User Value */
 	char namerecloc[PATH_MAX];				/*!< Name Recorded file Location */
-	int control;							/*! Queue Control for transmission */
-	int dtmf;								/*! Queue DTMF for transmission */
 	time_t jointime;                        /*!< Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
+	AST_LIST_HEAD_NOLOCK(, ast_frame) frame_q;
 	AST_LIST_ENTRY(ast_conf_user) list;
 };
 
-/*! SLA station - one device in an SLA configuration */
-struct ast_sla_station {
-	ASTOBJ_COMPONENTS(struct ast_sla_station);
-	char *dest;
-	char tech[0];
+enum sla_trunk_state {
+	SLA_TRUNK_STATE_IDLE,
+	SLA_TRUNK_STATE_RINGING,
+	SLA_TRUNK_STATE_UP,
+	SLA_TRUNK_STATE_ONHOLD,
 };
 
-struct ast_sla_station_box {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla_station);
+struct sla_trunk_ref;
+
+struct sla_station {
+	AST_RWLIST_ENTRY(sla_station) entry;
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);	
+		AST_STRING_FIELD(device);	
+		AST_STRING_FIELD(autocontext);	
+	);
+	AST_LIST_HEAD_NOLOCK(, sla_trunk_ref) trunks;
+	struct ast_dial *dial;
 };
 
-/*! SLA - Shared Line Appearance object. These consist of one trunk (outbound line)
-	and stations that receive incoming calls and place outbound calls over the trunk 
-*/
-struct ast_sla {
-	ASTOBJ_COMPONENTS (struct ast_sla);
-	struct ast_sla_station_box stations;	/*!< Stations connected to this SLA */
-	char confname[80];	/*!< Name for this SLA bridge */
-	char trunkdest[256];	/*!< Device (channel) identifier for the trunk line */
-	char trunktech[20];	/*!< Technology used for the trunk (channel driver) */
+struct sla_station_ref {
+	AST_LIST_ENTRY(sla_station_ref) entry;
+	struct sla_station *station;
 };
 
-struct ast_sla_box {
-	ASTOBJ_CONTAINER_COMPONENTS(struct ast_sla);
-} slas;
+struct sla_trunk {
+	AST_RWLIST_ENTRY(sla_trunk) entry;
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);
+		AST_STRING_FIELD(device);
+		AST_STRING_FIELD(autocontext);	
+	);
+	AST_LIST_HEAD_NOLOCK(, sla_station_ref) stations;
+	/*! Number of stations that use this trunk */
+	unsigned int num_stations;
+	/*! Number of stations currently on a call with this trunk */
+	unsigned int active_stations;
+	/*! Number of stations that have this trunk on hold. */
+	unsigned int hold_stations;
+	struct ast_channel *chan;
+	pthread_t station_thread;
+};
+
+struct sla_trunk_ref {
+	AST_LIST_ENTRY(sla_trunk_ref) entry;
+	struct sla_trunk *trunk;
+	enum sla_trunk_state state;
+	struct ast_channel *chan;
+};
+
+static AST_RWLIST_HEAD_STATIC(sla_stations, sla_station);
+static AST_RWLIST_HEAD_STATIC(sla_trunks, sla_trunk);
+
+static const char sla_registrar[] = "SLA";
+
+enum sla_event_type {
+	SLA_EVENT_HOLD,
+	SLA_EVENT_UNHOLD
+};
+
+struct sla_event {
+	enum sla_event_type type;
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref;
+	AST_LIST_ENTRY(sla_event) entry;
+};
+
+/*!
+ * \brief A structure for data used by the sla thread
+ */
+static struct sla {
+	/*! The SLA thread ID */
+	pthread_t thread;
+	ast_cond_t cond;
+	ast_mutex_t lock;
+	AST_LIST_HEAD_NOLOCK(, sla_trunk_ref) ringing_trunks;
+	AST_LIST_HEAD_NOLOCK(, sla_event) event_q;
+	unsigned int stop:1;
+} sla = {
+	.thread = AST_PTHREADT_NULL,
+};
 
 /*! The number of audio buffers to be allocated on pseudo channels
  *  when in a conference */
@@ -388,7 +438,7 @@ static int audio_buffers;
  *  conversion... the numbers have been modified
  *  to give the user a better level of adjustability
  */
-static signed char gain_map[] = {
+static const char const gain_map[] = {
 	-15,
 	-13,
 	-10,
@@ -445,7 +495,7 @@ static int careful_write(int fd, unsigned char *data, int len, int block)
 
 static int set_talk_volume(struct ast_conf_user *user, int volume)
 {
-	signed char gain_adjust;
+	char gain_adjust;
 
 	/* attempt to make the adjustment in the channel driver;
 	   if successful, don't adjust in the frame reading routine
@@ -457,7 +507,7 @@ static int set_talk_volume(struct ast_conf_user *user, int volume)
 
 static int set_listen_volume(struct ast_conf_user *user, int volume)
 {
-	signed char gain_adjust;
+	char gain_adjust;
 
 	/* attempt to make the adjustment in the channel driver;
 	   if successful, don't adjust in the frame reading routine
@@ -471,7 +521,7 @@ static void tweak_volume(struct volume *vol, enum volume_action action)
 {
 	switch (action) {
 	case VOL_UP:
-		switch (vol->desired) {
+		switch (vol->desired) { 
 		case 5:
 			break;
 		case 0:
@@ -568,18 +618,19 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 		ast_autoservice_stop(chan);
 }
 
-static void station_destroy(struct ast_sla_station *station)
-{
-	free(station);
-}
-
-static void sla_destroy(struct ast_sla *sla)
-{
-	ASTOBJ_CONTAINER_DESTROYALL(&sla->stations, station_destroy);
-	ASTOBJ_CONTAINER_DESTROY(&sla->stations);
-	free(sla);
-}
-
+/*!
+ * \brief Find or create a conference
+ *
+ * \param confno The conference name/number
+ * \param pin The regular user pin
+ * \param pinadmin The admin pin
+ * \param make Make the conf if it doesn't exist
+ * \param dynamic Mark the newly created conference as dynamic
+ * \param refcount How many references to mark on the conference
+ *
+ * \return A pointer to the conference struct, or NULL if it wasn't found and
+ *         make or dynamic were not set.
+ */
 static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
 {
 	struct ast_conference *cnf;
@@ -592,99 +643,77 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			break;
 	}
 
-	if (!cnf && (make || dynamic)) {
-		/* Make a new one */
-		if ((cnf = ast_calloc(1, sizeof(*cnf)))) {
-			ast_mutex_init(&cnf->playlock);
-			ast_mutex_init(&cnf->listenlock);
-			ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
-			ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
-			ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
-			cnf->refcount = 0;
-			cnf->markedusers = 0;
-			cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
-			if (cnf->chan) {
-				ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
-				ast_set_write_format(cnf->chan, AST_FORMAT_SLINEAR);
-				cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
-			} else {
-				ast_log(LOG_WARNING, "Unable to open pseudo channel - trying device\n");
-				cnf->fd = open("/dev/zap/pseudo", O_RDWR);
-				if (cnf->fd < 0) {
-					ast_log(LOG_WARNING, "Unable to open pseudo device\n");
-					free(cnf);
-					cnf = NULL;
-					goto cnfout;
-				}
-			}
-			memset(&ztc, 0, sizeof(ztc));
-			/* Setup a new zap conference */
-			ztc.chan = 0;
-			ztc.confno = -1;
-			ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-			if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
-				ast_log(LOG_WARNING, "Error setting conference\n");
-				if (cnf->chan)
-					ast_hangup(cnf->chan);
-				else
-					close(cnf->fd);
-				free(cnf);
-				cnf = NULL;
-				goto cnfout;
-			}
-			cnf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
-			if (cnf->lchan) {
-				ast_set_read_format(cnf->lchan, AST_FORMAT_SLINEAR);
-				ast_set_write_format(cnf->lchan, AST_FORMAT_SLINEAR);
-				ztc.chan = 0;
-				ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-				if (ioctl(cnf->lchan->fds[0], ZT_SETCONF, &ztc)) {
-					ast_log(LOG_WARNING, "Error setting conference\n");
-					ast_hangup(cnf->lchan);
-					cnf->lchan = NULL;
-				}
-			}
-			/* Fill the conference struct */
-			cnf->start = time(NULL);
-			cnf->zapconf = ztc.confno;
-			cnf->isdynamic = dynamic ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
-			AST_LIST_INSERT_HEAD(&confs, cnf, list);
-			manager_event(EVENT_FLAG_CALL, "MeetmeStart", "Meetme: %s\r\n", cnf->confno);
-		} 
-	}
- cnfout:
-	if (cnf){ 
-		cnf->refcount += refcount;
-	}
-	AST_LIST_UNLOCK(&confs);
-	return cnf;
-}
+	if (cnf || (!make && !dynamic))
+		goto cnfout;
 
-/*! \brief CLI command for showing SLAs */
-static int sla_show(int fd, int argc, char *argv[]) 
-{
-	struct ast_sla *sla;
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	/* Make a new one */
+	if (!(cnf = ast_calloc(1, sizeof(*cnf))))
+		goto cnfout;
 
-	ast_cli(fd, "Shared line appearances:\n");
-	ASTOBJ_CONTAINER_TRAVERSE(&slas, 1, {
-		ASTOBJ_RDLOCK(iterator);
-		ast_cli(fd, "SLA %s\n", iterator->name);
-		if (ast_strlen_zero(iterator->trunkdest) || ast_strlen_zero(iterator->trunktech))
-			ast_cli(fd, "   Trunk => <unspecified>\n");
+	ast_mutex_init(&cnf->playlock);
+	ast_mutex_init(&cnf->listenlock);
+	ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
+	ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
+	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
+	cnf->refcount = 0;
+	cnf->markedusers = 0;
+	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
+	if (cnf->chan) {
+		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
+		ast_set_write_format(cnf->chan, AST_FORMAT_SLINEAR);
+		cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
+	} else {
+		ast_log(LOG_WARNING, "Unable to open pseudo channel - trying device\n");
+		cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+		if (cnf->fd < 0) {
+			ast_log(LOG_WARNING, "Unable to open pseudo device\n");
+			free(cnf);
+			cnf = NULL;
+			goto cnfout;
+		}
+	}
+	memset(&ztc, 0, sizeof(ztc));
+	/* Setup a new zap conference */
+	ztc.chan = 0;
+	ztc.confno = -1;
+	ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
+	if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
+		ast_log(LOG_WARNING, "Error setting conference\n");
+		if (cnf->chan)
+			ast_hangup(cnf->chan);
 		else
-			ast_cli(fd, "   Trunk => %s/%s\n", iterator->trunktech, iterator->trunkdest);
-		sla = iterator;
-		ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
-			ast_cli(fd, "   Station: %s/%s\n", iterator->tech, iterator->dest);
-		});
-		ASTOBJ_UNLOCK(iterator);
-	});
+			close(cnf->fd);
+		free(cnf);
+		cnf = NULL;
+		goto cnfout;
+	}
+	cnf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
+	if (cnf->lchan) {
+		ast_set_read_format(cnf->lchan, AST_FORMAT_SLINEAR);
+		ast_set_write_format(cnf->lchan, AST_FORMAT_SLINEAR);
+		ztc.chan = 0;
+		ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
+		if (ioctl(cnf->lchan->fds[0], ZT_SETCONF, &ztc)) {
+			ast_log(LOG_WARNING, "Error setting conference\n");
+			ast_hangup(cnf->lchan);
+			cnf->lchan = NULL;
+		}
+	}
+	/* Fill the conference struct */
+	cnf->start = time(NULL);
+	cnf->zapconf = ztc.confno;
+	cnf->isdynamic = dynamic ? 1 : 0;
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+	AST_LIST_INSERT_HEAD(&confs, cnf, list);
+	
+cnfout:
+	if (cnf)
+		cnf->refcount += refcount;
 
-	return RESULT_SUCCESS;
+	AST_LIST_UNLOCK(&confs);
+
+	return cnf;
 }
 
 static int meetme_cmd(int fd, int argc, char **argv) 
@@ -797,7 +826,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 			min = ((now - user->jointime) % 3600) / 60;
 			sec = (now - user->jointime) % 60;
 			if ( !concise )
-				ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
+				ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
 					user->user_no,
 					S_OR(user->chan->cid.cid_num, "<unknown>"),
 					S_OR(user->chan->cid.cid_name, "<no name>"),
@@ -805,8 +834,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
 					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
-					istalking(user->talking), 
-					user->userflags & CONFFLAG_HOLD ? " (On Hold) " : "", hr, min, sec);
+					istalking(user->talking), hr, min, sec); 
 			else 
 				ast_cli(fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
 					user->user_no,
@@ -900,18 +928,94 @@ static const char meetme_usage[] =
 "Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 "       Executes a command for the conference or on a conferee\n";
 
-static const char sla_show_usage[] =
-"Usage: sla show\n"
-"       Lists status of all shared line appearances\n";
+static int sla_show_trunks(int fd, int argc, char **argv)
+{
+	const struct sla_trunk *trunk;
+
+	ast_cli(fd, "--- Configured SLA Trunks -----------------------------------\n"
+	            "-------------------------------------------------------------\n\n");
+	AST_RWLIST_RDLOCK(&sla_trunks);
+	AST_RWLIST_TRAVERSE(&sla_trunks, trunk, entry) {
+		struct sla_station_ref *station_ref;
+		ast_cli(fd, "--- Trunk Name:      %s\n"
+		            "--- ==> Device:      %s\n"
+					"--- ==> AutoContext: %s\n"
+					"--- ==> Stations ...\n",
+					trunk->name, trunk->device, 
+					S_OR(trunk->autocontext, "(none)"));
+		AST_RWLIST_RDLOCK(&sla_stations);
+		AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry)
+			ast_cli(fd, "--- =====> Station name: %s\n", station_ref->station->name);
+		AST_RWLIST_UNLOCK(&sla_stations);
+		ast_cli(fd, "\n");
+	}
+	AST_RWLIST_UNLOCK(&sla_trunks);
+	ast_cli(fd, "-------------------------------------------------------------\n");
+
+	return RESULT_SUCCESS;
+}
+
+static const char *trunkstate2str(enum sla_trunk_state state)
+{
+#define S(e) case e: return # e;
+	switch (state) {
+	S(SLA_TRUNK_STATE_IDLE)
+	S(SLA_TRUNK_STATE_RINGING)
+	S(SLA_TRUNK_STATE_UP)
+	S(SLA_TRUNK_STATE_ONHOLD)
+	}
+	return "Uknown State";
+#undef S
+}
+
+static const char sla_show_trunks_usage[] =
+"Usage: sla show trunks\n"
+"       This will list all trunks defined in sla.conf\n";
+
+static int sla_show_stations(int fd, int argc, char **argv)
+{
+	const struct sla_station *station;
+
+	ast_cli(fd, "--- Configured SLA Stations ---------------------------------\n"
+	            "-------------------------------------------------------------\n\n");
+	AST_RWLIST_RDLOCK(&sla_stations);
+	AST_RWLIST_TRAVERSE(&sla_stations, station, entry) {
+		struct sla_trunk_ref *trunk_ref;
+		ast_cli(fd, "--- Station Name:    %s\n"
+		            "--- ==> Device:      %s\n"
+					"--- ==> AutoContext: %s\n"
+					"--- ==> Trunks ...\n",
+					station->name, station->device, 
+					S_OR(station->autocontext, "(none)"));
+		AST_RWLIST_RDLOCK(&sla_trunks);
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry)
+			ast_cli(fd, "--- =====> Trunk Name: %s State: %s\n", 
+				trunk_ref->trunk->name, trunkstate2str(trunk_ref->state));
+		AST_RWLIST_UNLOCK(&sla_trunks);
+		ast_cli(fd, "\n");
+	}
+	AST_RWLIST_UNLOCK(&sla_stations);
+	ast_cli(fd, "-------------------------------------------------------------\n");
+
+	return RESULT_SUCCESS;
+}
+
+static const char sla_show_stations_usage[] =
+"Usage: sla show stations\n"
+"       This will list all stations defined in sla.conf\n";
 
 static struct ast_cli_entry cli_meetme[] = {
-	{ { "sla", "show", NULL },
-	sla_show, "Show status of Shared Line Appearances",
-	sla_show_usage, NULL },
-
 	{ { "meetme", NULL, NULL },
 	meetme_cmd, "Execute a command on a conference or conferee",
 	meetme_usage, complete_meetmecmd },
+
+	{ { "sla", "show", "trunks", NULL },
+	sla_show_trunks, "Show SLA Trunks",
+	sla_show_trunks_usage, NULL },
+
+	{ { "sla", "show", "stations", NULL },
+	sla_show_stations, "Show SLA Stations",
+	sla_show_stations_usage, NULL },
 };
 
 static void conf_flush(int fd, struct ast_channel *chan)
@@ -983,22 +1087,64 @@ static int conf_free(struct ast_conference *conf)
 	return 0;
 }
 
-static void conf_queue_dtmf(struct ast_conference *conf, int digit)
+static void conf_queue_dtmf(const struct ast_conference *conf,
+	const struct ast_conf_user *sender, const struct ast_frame *_f)
 {
+	struct ast_frame *f;
 	struct ast_conf_user *user;
+
 	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
-		user->dtmf = digit;
+		if (user == sender)
+			continue;
+		if (!(f = ast_frdup(_f)))
+			return;
+		AST_LIST_INSERT_TAIL(&user->frame_q, f, frame_list);
 	}
 }
 
-static void conf_queue_control(struct ast_conference *conf, int control)
+static void sla_queue_event(enum sla_event_type type, const struct ast_channel *chan,
+	struct ast_conference *conf)
 {
-	struct ast_conf_user *user;
-	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
-		user->control = control;
-	}
-}
+	struct sla_event *event;
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref = NULL;
+	char *trunk_name;
 
+	trunk_name = ast_strdupa(conf->confno);
+	strsep(&trunk_name, "_");
+	if (ast_strlen_zero(trunk_name)) {
+		ast_log(LOG_ERROR, "Invalid conference name for SLA - '%s'!\n", conf->confno);
+		return;
+	}
+
+	AST_RWLIST_RDLOCK(&sla_stations);
+	AST_RWLIST_TRAVERSE(&sla_stations, station, entry) {
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+			if (trunk_ref->chan == chan && !strcmp(trunk_ref->trunk->name, trunk_name))
+				break;
+		}
+		if (trunk_ref)
+			break;
+	}
+	AST_RWLIST_UNLOCK(&sla_stations);
+
+	if (!trunk_ref) {
+		ast_log(LOG_DEBUG, "Trunk not found for event!\n");
+		return;
+	}
+
+	if (!(event = ast_calloc(1, sizeof(*event))))
+		return;
+
+	event->type = type;
+	event->trunk_ref = trunk_ref;
+	event->station = station;
+
+	ast_mutex_lock(&sla.lock);
+	AST_LIST_INSERT_TAIL(&sla.event_q, event, entry);
+	ast_cond_signal(&sla.cond);
+	ast_mutex_unlock(&sla.lock);
+}
 
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
@@ -1117,8 +1263,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	/* This device changed state now - if this is the first user */
 	if (conf->users == 1)
 		ast_device_state_changed("meetme:%s", conf->confno);
-	if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
-		ast_device_state_changed("SLA:%s", conf->confno + 4);
 
 	ast_mutex_unlock(&conf->playlock);
 
@@ -1522,8 +1666,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			/* If I have been kicked, exit the conference */
 			if (user->adminflags & ADMINFLAG_KICKME) {
 				//You have been kicked.
-				if (!ast_streamfile(chan, "conf-kicked", chan->language))
+				if (!(confflags & CONFFLAG_QUIET) && 
+					!ast_streamfile(chan, "conf-kicked", chan->language)) {
 					ast_waitstream(chan, "");
+				}
 				ret = 0;
 				break;
 			}
@@ -1547,6 +1693,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					f = ast_read(c);
 				if (!f)
 					break;
+				if (!AST_LIST_EMPTY(&user->frame_q)) {
+					struct ast_frame *f;
+					f = AST_LIST_REMOVE_HEAD(&user->frame_q, frame_list);
+					if (ast_write(chan, f) < 0) {
+						ast_log(LOG_WARNING, "Error writing frame to channel!\n");
+					}
+					ast_frfree(f);
+				}
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
 					if (user->talk.actual)
 						ast_frame_adjust_volume(f, user->talk.actual);
@@ -1597,17 +1751,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (user->talking || !(confflags & CONFFLAG_OPTIMIZETALKER))
 							careful_write(fd, f->data, f->datalen, 0);
 					}
-				} else if ((f->frametype == AST_FRAME_DTMF) && 
-							(confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))) {
-					conf_queue_dtmf(conf, f->subclass);
-				} else if ((f->frametype == AST_FRAME_CONTROL) && 
-							(confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))) {
-					conf_queue_control(conf, f->subclass);
-					if (f->subclass == AST_CONTROL_HOLD)
-						confflags |= CONFFLAG_HOLD;
-					else if (f->subclass == AST_CONTROL_UNHOLD)
-						confflags &= ~CONFFLAG_HOLD;
-					user->userflags = confflags;
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
 
@@ -1780,6 +1923,21 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					}
 
 					conf_flush(fd, chan);
+				} else if ((f->frametype == AST_FRAME_DTMF_BEGIN || f->frametype == AST_FRAME_DTMF_END)
+					&& confflags & CONFFLAG_PASS_DTMF) {
+					conf_queue_dtmf(conf, user, f);
+				} else if ((confflags & CONFFLAG_SLA_STATION) && f->frametype == AST_FRAME_CONTROL) {
+					switch (f->subclass) {
+					case AST_CONTROL_HOLD:
+						ast_log(LOG_DEBUG, "Got a HOLD frame!\n");
+						sla_queue_event(SLA_EVENT_HOLD, chan, conf);
+						break;
+					case AST_CONTROL_UNHOLD:
+						ast_log(LOG_DEBUG, "Got a UNHOLD frame!\n");
+						sla_queue_event(SLA_EVENT_UNHOLD, chan, conf);
+					default:
+						break;
+					}
 				} else if (option_debug) {
 					ast_log(LOG_DEBUG,
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
@@ -1787,33 +1945,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				}
 				ast_frfree(f);
 			} else if (outfd > -1) {
-				if (user->control) {
-					switch(user->control) {
-					case AST_CONTROL_RINGING:
-					case AST_CONTROL_PROGRESS:
-					case AST_CONTROL_PROCEEDING:
-						ast_indicate(chan, user->control);
-						break;
-					case AST_CONTROL_ANSWER:
-						if (chan->_state != AST_STATE_UP)
-							ast_answer(chan);
-						break;
-					}
-					user->control = 0;
-					if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
-						ast_device_state_changed("SLA:%s", conf->confno + 4);
-					continue;
-				}
-				if (user->dtmf) {
-					memset(&fr, 0, sizeof(fr));
-					fr.frametype = AST_FRAME_DTMF;
-					fr.subclass = user->dtmf;
-					if (ast_write(chan, &fr) < 0) {
-						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
-					}
-					user->dtmf = 0;
-					continue;
-				}
 				res = read(outfd, buf, CONF_SIZE);
 				if (res > 0) {
 					memset(&fr, 0, sizeof(fr));
@@ -1946,8 +2077,6 @@ bailoutandtrynormal:
 		/* Change any states */
 		if (!conf->users)
 			ast_device_state_changed("meetme:%s", conf->confno);
-		if (confflags & (CONFFLAG_SLA_STATION|CONFFLAG_SLA_TRUNK))
-			ast_device_state_changed("SLA:%s", conf->confno + 4);
 
 		if (AST_LIST_EMPTY(&conf->userlist)) {
 			/* close this one when no more users and no references*/
@@ -1965,7 +2094,7 @@ bailoutandtrynormal:
 }
 
 static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
-						 char *dynamic_pin, int refcount, struct ast_flags *confflags)
+						 char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags)
 {
 	struct ast_variable *var;
 	struct ast_conference *cnf;
@@ -2022,7 +2151,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 
 
 static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic,
-					char *dynamic_pin, int refcount, struct ast_flags *confflags)
+					char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -2053,7 +2182,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			if (dynamic_pin) {
 				if (dynamic_pin[0] == 'q') {
 					/* Query the user to enter a PIN */
-					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, AST_MAX_EXTENSION - 1, 0) < 0)
+					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, pin_buf_len - 1, 0) < 0)
 						return NULL;
 				}
 				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount);
@@ -2144,7 +2273,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	
-	conf = find_conf(chan, args.confno, 0, 0, NULL, 0, NULL);
+	conf = find_conf(chan, args.confno, 0, 0, NULL, 0, 0, NULL);
 
 	if (conf)
 		count = conf->users;
@@ -2170,7 +2299,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct ast_module_user *u;
-	char confno[AST_MAX_EXTENSION] = "";
+	char confno[MAX_CONFNUM] = "";
 	int allowretry = 0;
 	int retrycnt = 0;
 	struct ast_conference *cnf;
@@ -2178,7 +2307,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
-	char *notdata, *info, the_pin[AST_MAX_EXTENSION] = "";
+	char *notdata, *info, the_pin[MAX_PIN] = "";
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(confno);
 		AST_APP_ARG(options);
@@ -2334,9 +2463,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		}
 		if (!ast_strlen_zero(confno)) {
 			/* Check the validity of the conference */
-			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 1, &confflags);
-			if (!cnf)
-				cnf = find_conf_realtime(chan, confno, 1, dynamic, the_pin, 1, &confflags);
+			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 
+				sizeof(the_pin), 1, &confflags);
+			if (!cnf) {
+				cnf = find_conf_realtime(chan, confno, 1, dynamic, 
+					the_pin, sizeof(the_pin), 1, &confflags);
+			}
 
 			if (!cnf) {
 				res = ast_streamfile(chan, "conf-invalid", chan->language);
@@ -2350,7 +2482,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				     !ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
 				    (!ast_strlen_zero(cnf->pinadmin) &&
 				     ast_test_flag(&confflags, CONFFLAG_ADMIN))) {
-					char pin[AST_MAX_EXTENSION]="";
+					char pin[MAX_PIN] = "";
 					int j;
 
 					/* Allow the pin to be retried up to 3 times */
@@ -2431,177 +2563,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	ast_module_user_remove(u);
 	
 	return res;
-}
-
-struct sla_originate_helper {
-	char tech[100];
-	char data[200];
-	char app[20];
-	char appdata[100];
-	char cid_name[100];
-	char cid_num[100];
-};
-
-static void *sla_originate(void *data)
-{
-	struct sla_originate_helper *in = data;
-	int reason = 0;
-	struct ast_channel *chan = NULL;
-
-	ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, 99999, in->app, in->appdata, &reason, 1, 
-		S_OR(in->cid_num, NULL), 
-		S_OR(in->cid_name, NULL),
-		NULL, NULL, &chan);
-	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
-	if (chan)
-		ast_channel_unlock(chan);
-	free(in);
-	return NULL;
-}
-
-/*! Call in stations and trunk to the SLA */
-static void do_invite(struct ast_channel *orig, const char *tech, const char *dest, const char *app, const char *data)
-{
-	struct sla_originate_helper *slal;
-	pthread_attr_t attr;
-	pthread_t th;
-
-	if (!(slal = ast_calloc(1, sizeof(*slal))))
-		return;
-	
-	ast_copy_string(slal->tech, tech, sizeof(slal->tech));
-   	ast_copy_string(slal->data, dest, sizeof(slal->data));
-	ast_copy_string(slal->app, app, sizeof(slal->app));
-	ast_copy_string(slal->appdata, data, sizeof(slal->appdata));
-	if (orig->cid.cid_num)
-		ast_copy_string(slal->cid_num, orig->cid.cid_num, sizeof(slal->cid_num));
-	if (orig->cid.cid_name)
-		ast_copy_string(slal->cid_name, orig->cid.cid_name, sizeof(slal->cid_name));
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&th, &attr, sla_originate, slal);
-}
-
-static void invite_stations(struct ast_channel *orig, struct ast_sla *sla)
-{
-	ASTOBJ_CONTAINER_TRAVERSE(&sla->stations, 1, {
-		do_invite(orig, iterator->tech, iterator->dest, "SLAStation", sla->name);
-	});
-}
-
-static void invite_trunk(struct ast_channel *orig, struct ast_sla *sla)
-{
-	do_invite(orig, sla->trunktech, sla->trunkdest, "SLATrunk", sla->name);
-}
-
-
-static int sla_checkforhold(struct ast_conference *conf, int hangup)
-{
-	struct ast_conf_user *user;
-	struct ast_channel *onhold=NULL;
-	int holdcount = 0;
-	int stationcount = 0;
-	int amonhold = 0;
-	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
-		if (user->userflags & CONFFLAG_SLA_STATION) {
-			stationcount++;
-			if ((user->userflags & CONFFLAG_HOLD)) {
-				holdcount++;
-				onhold = user->chan;
-			}
-		}
-	}
-	if ((holdcount == 1) && (stationcount == 1)) {
-		amonhold = 1;
-		if (hangup)
-			ast_softhangup(onhold, AST_SOFTHANGUP_EXPLICIT);
-	} else if (holdcount && (stationcount == holdcount))
-		amonhold = 1;
-	return amonhold;
-}
-
-
-/*! \brief The slas()/slat() application */
-static int sla_exec(struct ast_channel *chan, void *data, int trunk)
-{
-	int res=-1;
-	struct ast_module_user *u;
-	char confno[AST_MAX_EXTENSION] = "";
-	struct ast_sla *sla;
-	struct ast_conference *cnf;
-	char *info;
-	struct ast_flags confflags = {0};
-	int dynamic = 1;
-	char *options[OPT_ARG_ARRAY_SIZE] = { NULL, };
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(confno);
-		AST_APP_ARG(options);
-	);
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SLA%c requires an argument (line)\n", trunk ? 'T' : 'S');
-		return -1;
-	}
-
-	info = ast_strdupa(data);
-
-	AST_STANDARD_APP_ARGS(args, info);	
-
-	if (ast_strlen_zero(args.confno)) {
-		ast_log(LOG_WARNING, "SLA%c requires an SLA line number\n", trunk ? 'T' : 'S');
-		return -1;
-	}
-	
-	u = ast_module_user_add(chan);
-
-	if (args.options)
-		ast_app_parse_options(sla_opts, &confflags, NULL, args.options);
-		
-	ast_set_flag(&confflags, CONFFLAG_QUIET|CONFFLAG_DYNAMIC);
-	if (trunk)
-		ast_set_flag(&confflags, CONFFLAG_WAITMARKED|CONFFLAG_MARKEDEXIT|CONFFLAG_SLA_TRUNK);
-	else
-		ast_set_flag(&confflags, CONFFLAG_MARKEDUSER|CONFFLAG_SLA_STATION);
-
-	sla = ASTOBJ_CONTAINER_FIND(&slas, args.confno);
-	if (sla) {
-		snprintf(confno, sizeof(confno), "sla-%s", args.confno);
-		cnf = find_conf(chan, confno, 1, dynamic, "", 1, &confflags);
-		if (cnf) {
-			sla_checkforhold(cnf, 1);
-			if (!cnf->users) {
-				if (trunk) {
-					ast_indicate(chan, AST_CONTROL_RINGING);
-					invite_stations(chan, sla);
-				} else
-					invite_trunk(chan, sla);
-			} else if (chan->_state != AST_STATE_UP)
-				ast_answer(chan);
-
-			/* Run the conference */
-			res = conf_run(chan, cnf, confflags.flags, options);
-		} else
-			ast_log(LOG_WARNING, "SLA%c: Found SLA '%s' but unable to build conference!\n", trunk ? 'T' : 'S', args.confno);
-		ASTOBJ_UNREF(sla, sla_destroy);
-	} else {
-		ast_log(LOG_WARNING, "SLA%c: SLA '%s' not found!\n", trunk ? 'T' : 'S', args.confno);
-	}
-	
-	ast_module_user_remove(u);
-	
-	return res;
-}
-
-/*! \brief The slas() wrapper */
-static int slas_exec(struct ast_channel *chan, void *data)
-{
-	return sla_exec(chan, data, 0);
-}
-
-/*! \brief The slat() wrapper */
-static int slat_exec(struct ast_channel *chan, void *data)
-{
-	return sla_exec(chan, data, 1);
 }
 
 static struct ast_conf_user *find_user(struct ast_conference *conf, char *callerident) 
@@ -2928,50 +2889,6 @@ static int meetmestate(const char *data)
 	return AST_DEVICE_INUSE;
 }
 
-/*! \brief Callback for devicestate providers */
-static int slastate(const char *data)
-{
-	struct ast_conference *conf;
-	struct ast_sla *sla, *sla2;
-
-	if (option_debug)
-		ast_log(LOG_DEBUG, "asked for sla state for '%s'\n", data);
-
-	/* Find conference */
-	AST_LIST_LOCK(&confs);
-	AST_LIST_TRAVERSE(&confs, conf, list) {
-		if (!strncmp(conf->confno, "sla-", 4) && !strcmp(data, conf->confno + 4))
-			break;
-	}
-	AST_LIST_UNLOCK(&confs);
-
-	/* Find conference */
-	sla = sla2 = ASTOBJ_CONTAINER_FIND(&slas, data);
-
-	if (!sla2)
-		return AST_DEVICE_INVALID;
-
-	ASTOBJ_UNREF(sla2, sla_destroy);
-
-	if (option_debug)
-		ast_log(LOG_DEBUG, "for '%s' conf = %p, sla = %p\n", data, conf, sla);
-
-	if (!conf && !sla)
-		return AST_DEVICE_INVALID;
-
-	/* SKREP to fill */
-	if (!conf || !conf->users)
-		return AST_DEVICE_NOT_INUSE;
-	
-	if (conf && sla_checkforhold(conf, 0))
-		return AST_DEVICE_ONHOLD;
-
-	if ((conf->users == 1) && (AST_LIST_FIRST(&conf->userlist)->userflags & CONFFLAG_SLA_TRUNK))
-		return AST_DEVICE_RINGING;
-
-	return AST_DEVICE_INUSE;
-}
-
 static void load_config_meetme(void)
 {
 	struct ast_config *cfg;
@@ -2998,106 +2915,998 @@ static void load_config_meetme(void)
 	ast_config_destroy(cfg);
 }
 
-/*! Append SLA station to station list */
-static void append_station(struct ast_sla *sla, const char *station)
+/*! \brief Find an SLA trunk by name
+ * \note This must be called with the sla_trunks container locked
+ */
+static struct sla_trunk *find_trunk(const char *name)
 {
-	struct ast_sla_station *s;
-	char *c;
+	struct sla_trunk *trunk = NULL;
 
-	s = ast_calloc(1, sizeof(struct ast_sla_station) + strlen(station) + 2);
-	if (s) {
-		ASTOBJ_INIT(s);
-		strcpy(s->tech, station);
-		c = strchr(s->tech, '/');
-		if (c) {
-			*c = '\0';
-			s->dest = c + 1;
-			ASTOBJ_CONTAINER_LINK(&sla->stations, s);
-		} else {
-			ast_log(LOG_WARNING, "station '%s' should be in tech/destination format! Ignoring!\n", station);
-			free(s);
+	AST_RWLIST_TRAVERSE(&sla_trunks, trunk, entry) {
+		if (!strcasecmp(trunk->name, name))
+			break;
+	}
+
+	return trunk;
+}
+
+/*! \brief Find an SLA station by name
+ * \note This must be called with the sla_stations container locked
+ */
+static struct sla_station *find_station(const char *name)
+{
+	struct sla_station *station = NULL;
+
+	AST_RWLIST_TRAVERSE(&sla_stations, station, entry) {
+		if (!strcasecmp(station->name, name))
+			break;
+	}
+
+	return station;
+}
+
+static struct sla_trunk_ref *find_trunk_ref(const struct sla_station *station,
+	const char *name)
+{
+	struct sla_trunk_ref *trunk_ref = NULL;
+
+	AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+		if (!strcasecmp(trunk_ref->trunk->name, name))
+			break;
+	}
+
+	return trunk_ref;
+}
+
+static struct sla_station_ref *create_station_ref(struct sla_station *station)
+{
+	struct sla_station_ref *station_ref;
+
+	if (!(station_ref = ast_calloc(1, sizeof(*station_ref))))
+		return NULL;
+
+	station_ref->station = station;
+
+	return station_ref;
+}
+
+static void change_trunk_state(const struct sla_trunk *trunk, enum sla_trunk_state state, int inactive_only)
+{
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref;
+
+	ast_log(LOG_DEBUG, "Setting all refs of trunk %s to state %s\n", trunk->name, trunkstate2str(state));
+
+	AST_LIST_TRAVERSE(&sla_stations, station, entry) {
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+			if (trunk_ref->trunk != trunk || (inactive_only ? trunk_ref->chan : 0))
+				continue;
+			trunk_ref->state = state;
+			ast_device_state_changed("SLA:%s_%s", station->name, trunk->name);
+			break;
 		}
 	}
 }
 
-/*! Parse SLA configuration file and create objects */
-static void parse_sla(const char *cat, struct ast_variable *v)
-{
-	struct ast_sla *sla;
+struct run_station_args {
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref;
+	ast_mutex_t *cond_lock;
+	ast_cond_t *cond;
+};
 
-	sla = ASTOBJ_CONTAINER_FIND(&slas, cat);
-	if (!sla) {
-		sla = ast_calloc(1, sizeof(struct ast_sla));
-		if (sla) {
-			ASTOBJ_INIT(sla);
-			ast_copy_string(sla->name, cat, sizeof(sla->name));
-			snprintf(sla->confname, sizeof(sla->confname), "sla-%s", sla->name);
-			ASTOBJ_CONTAINER_LINK(&slas, sla);
-		}
+static void *run_station(void *data)
+{
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref;
+	char conf_name[MAX_CONFNUM];
+	struct ast_flags conf_flags = { 0 };
+	struct ast_conference *conf;
+
+	{
+		struct run_station_args *args = data;
+		station = args->station;
+		trunk_ref = args->trunk_ref;
+		ast_mutex_lock(args->cond_lock);
+		ast_cond_signal(args->cond);
+		ast_mutex_unlock(args->cond_lock);
+		/* args is no longer valid here. */
 	}
-	if (sla) {
-		ASTOBJ_UNMARK(sla);
-		ASTOBJ_WRLOCK(sla);
-		ASTOBJ_CONTAINER_DESTROYALL(&sla->stations, station_destroy);
-		while (v) {
-			if (!strcasecmp(v->name, "trunk")) {
-				char *c;
-				c = strchr(v->value, '/');
-				if (c) {
-					ast_copy_string(sla->trunktech, v->value, (c - v->value) + 1);
-					ast_copy_string(sla->trunkdest, c + 1, sizeof(sla->trunkdest));
+
+	ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, 1);
+	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
+	ast_set_flag(&conf_flags, 
+		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
+	ast_answer(trunk_ref->chan);
+	conf = build_conf(conf_name, "", "", 0, 0, 1);
+	if (conf)
+		conf_run(trunk_ref->chan, conf, conf_flags.flags, NULL);
+	trunk_ref->chan = NULL;
+	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations)) {
+		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
+		admin_exec(NULL, conf_name);
+		change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, 0);
+	}
+
+	ast_dial_join(station->dial);
+	ast_dial_destroy(station->dial);
+	station->dial = NULL;
+
+	return NULL;
+}
+
+static void *sla_thread(void *data)
+{
+	AST_LIST_HEAD_NOLOCK_STATIC(ringing_stations, sla_station_ref);
+	struct sla_failed_station {
+		struct sla_station *station;
+		struct timeval last_try;
+		AST_LIST_ENTRY(sla_failed_station) entry;
+	};
+	AST_LIST_HEAD_NOLOCK_STATIC(failed_stations, sla_failed_station);
+	struct sla_station_ref *station_ref;
+	struct sla_failed_station *failed_station;
+
+	for (; !sla.stop;) {
+		struct sla_trunk_ref *trunk_ref = NULL;
+		struct sla_event *event;
+		enum ast_dial_result dial_res = AST_DIAL_RESULT_TRYING;
+
+		ast_mutex_lock(&sla.lock);
+		if (AST_LIST_EMPTY(&sla.ringing_trunks) && AST_LIST_EMPTY(&sla.event_q)) {
+			ast_cond_wait(&sla.cond, &sla.lock);
+			if (sla.stop)
+				break;
+			ast_log(LOG_DEBUG, "Ooh, I was woken up!\n");
+		}
+
+		while ((event = AST_LIST_REMOVE_HEAD(&sla.event_q, entry))) {
+			switch (event->type) {
+			case SLA_EVENT_HOLD:
+				ast_log(LOG_DEBUG, "HOLD, station: %s  trunk: %s\n", 
+					event->station->name, event->trunk_ref->trunk->name);
+				ast_atomic_fetchadd_int((int *) &event->trunk_ref->trunk->hold_stations, 1);
+				event->trunk_ref->state = SLA_TRUNK_STATE_ONHOLD;
+				ast_device_state_changed("SLA:%s_%s", 
+					event->station->name, event->trunk_ref->trunk->name);
+				change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, 1);	
+				break;
+			case SLA_EVENT_UNHOLD:
+				ast_log(LOG_DEBUG, "UNHOLD, station: %s  trunk: %s\n", 
+					event->station->name, event->trunk_ref->trunk->name);
+				if (ast_atomic_dec_and_test((int *) &event->trunk_ref->trunk->hold_stations) == 1)
+					change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_UP, 0);
+				else {
+					event->trunk_ref->state = SLA_TRUNK_STATE_UP;
+					ast_device_state_changed("SLA:%s_%s",
+						event->station->name, event->trunk_ref->trunk->name);
 				}
-			} else if (!strcasecmp(v->name, "station")) {
-				append_station(sla, v->value);
+				break;
 			}
-			v = v->next;
+			free(event);
 		}
-		ASTOBJ_UNLOCK(sla);
-		ast_device_state_changed("SLA:%s", cat);
+
+		/* At this point, we know there are ringing trunks.  So, make sure that every
+		 * station that uses at least one of the ringing trunks, is ringing. */
+		AST_LIST_TRAVERSE(&sla.ringing_trunks, trunk_ref, entry) {
+			AST_LIST_TRAVERSE(&trunk_ref->trunk->stations, station_ref, entry) {
+				char *tech, *tech_data;
+				struct ast_dial *dial;
+				struct sla_station_ref *ringing_ref;
+				struct sla_failed_station *failed_station;
+				/* Did we fail to dial this station earlier?  If so, has it been
+ 				 * a minute since we tried? */
+				AST_LIST_TRAVERSE_SAFE_BEGIN(&failed_stations, failed_station, entry) {
+					if (station_ref->station != failed_station->station)
+						continue;
+					if (ast_tvdiff_ms(ast_tvnow(), failed_station->last_try) > 1000) {
+						AST_LIST_REMOVE_CURRENT(&failed_stations, entry);
+						free(failed_station);
+						failed_station = NULL;
+					}
+					break;
+				}
+				if (failed_station)
+					continue;
+				AST_LIST_TRAVERSE_SAFE_END
+				AST_LIST_TRAVERSE(&ringing_stations, ringing_ref, entry) {
+					if (station_ref->station == ringing_ref->station)
+						break;
+				}
+				if (ringing_ref)
+					continue;
+				if (!(dial = ast_dial_create()))
+					continue;
+				tech_data = ast_strdupa(station_ref->station->device);
+				tech = strsep(&tech_data, "/");
+				if (ast_dial_append(dial, tech, tech_data) == -1) {
+					ast_dial_destroy(dial);
+					continue;
+				}
+				if (ast_dial_run(dial, trunk_ref->trunk->chan, 1) != AST_DIAL_RESULT_TRYING) {
+					ast_dial_destroy(dial);
+					if (!(failed_station = ast_calloc(1, sizeof(*failed_station))))
+						continue;
+					failed_station->station = station_ref->station;
+					failed_station->last_try = ast_tvnow();
+					AST_LIST_INSERT_HEAD(&failed_stations, failed_station, entry);
+					continue;
+				}
+				if (!(ringing_ref = create_station_ref(station_ref->station))) {
+					ast_dial_join(dial);
+					ast_dial_destroy(dial);
+					continue;
+				}
+				station_ref->station->dial = dial;
+				AST_LIST_INSERT_HEAD(&ringing_stations, ringing_ref, entry);
+				ast_log(LOG_DEBUG, "Started dialing station '%s'\n", station_ref->station->name);
+			}
+		}
+		ast_mutex_unlock(&sla.lock);
+		/* Now, all of the stations that should be ringing, are ringing. */
+		
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&ringing_stations, station_ref, entry) {
+			struct sla_trunk_ref *s_trunk_ref;
+			struct run_station_args args;
+			pthread_attr_t attr;
+			pthread_t dont_care;
+			ast_mutex_t cond_lock;
+			ast_cond_t cond;
+
+			switch ((dial_res = ast_dial_status(station_ref->station->dial))) {
+			case AST_DIAL_RESULT_HANGUP:
+			case AST_DIAL_RESULT_INVALID:
+			case AST_DIAL_RESULT_FAILED:
+			case AST_DIAL_RESULT_TIMEOUT:
+			case AST_DIAL_RESULT_UNANSWERED:
+				AST_LIST_REMOVE_CURRENT(&ringing_stations, entry);
+				ast_dial_join(station_ref->station->dial);
+				ast_dial_destroy(station_ref->station->dial);
+				station_ref->station->dial = NULL;
+				free(station_ref);
+				break;
+			case AST_DIAL_RESULT_ANSWERED:
+				AST_LIST_REMOVE_CURRENT(&ringing_stations, entry);
+				/* Find the appropriate trunk to answer. */
+				AST_LIST_TRAVERSE(&station_ref->station->trunks, s_trunk_ref, entry) {
+					ast_mutex_lock(&sla.lock);
+					AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, trunk_ref, entry) {
+						if (s_trunk_ref->trunk == trunk_ref->trunk) {
+							AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+							break;
+						}
+					}
+					AST_LIST_TRAVERSE_SAFE_END
+					ast_mutex_unlock(&sla.lock);
+					if (trunk_ref)
+						break;
+				}
+				if (!trunk_ref) {
+					ast_log(LOG_DEBUG, "Found no ringing trunk for station '%s' to answer!\n",
+						station_ref->station->name);
+					break;
+				}
+				s_trunk_ref->chan = ast_dial_answered(station_ref->station->dial);
+				ast_answer(trunk_ref->trunk->chan);
+				change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, 0);
+				args.trunk_ref = s_trunk_ref;
+				args.station = station_ref->station;
+				args.cond = &cond;
+				args.cond_lock = &cond_lock;
+				free(trunk_ref);
+				free(station_ref);
+				ast_mutex_init(&cond_lock);
+				ast_cond_init(&cond, NULL);
+				pthread_attr_init(&attr);
+				pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+				ast_mutex_lock(&cond_lock);
+				ast_pthread_create_background(&dont_care, &attr, run_station, &args);
+				ast_cond_wait(&cond, &cond_lock);
+				ast_mutex_unlock(&cond_lock);
+				ast_mutex_destroy(&cond_lock);
+				ast_cond_destroy(&cond);
+				pthread_attr_destroy(&attr);
+				break;
+			case AST_DIAL_RESULT_TRYING:
+			case AST_DIAL_RESULT_RINGING:
+			case AST_DIAL_RESULT_PROGRESS:
+			case AST_DIAL_RESULT_PROCEEDING:
+				break;
+			}
+			if (dial_res == AST_DIAL_RESULT_ANSWERED || !AST_LIST_EMPTY(&sla.event_q))
+				break;
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+		/* Find stations that shouldn't be ringing anymore. */
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&ringing_stations, station_ref, entry) {
+			AST_LIST_TRAVERSE(&station_ref->station->trunks, trunk_ref, entry) {
+				struct sla_trunk_ref *ringing_ref;
+				ast_mutex_lock(&sla.lock);
+				AST_LIST_TRAVERSE(&sla.ringing_trunks, ringing_ref, entry) {
+					if (trunk_ref->trunk == ringing_ref->trunk)
+						break;
+				}
+				ast_mutex_unlock(&sla.lock);
+				if (ringing_ref)
+					break;
+			}
+			if (!trunk_ref) {
+				AST_LIST_REMOVE_CURRENT(&ringing_stations, entry);
+				ast_dial_join(station_ref->station->dial);
+				ast_dial_destroy(station_ref->station->dial);
+				station_ref->station->dial = NULL;
+				free(station_ref);
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
 	}
+
+	while ((station_ref = AST_LIST_REMOVE_HEAD(&ringing_stations, entry)))
+		free(station_ref);
+
+	while ((failed_station = AST_LIST_REMOVE_HEAD(&failed_stations, entry)))
+		free(failed_station);
+
+	return NULL;
 }
 
-/*! If there is a SLA configuration file, parse it */
-static void load_config_sla(void)
+struct dial_trunk_args {
+	struct sla_trunk *trunk;
+	struct sla_station *station;
+	ast_mutex_t *cond_lock;
+	ast_cond_t *cond;
+};
+
+static void *dial_trunk(void *data)
 {
-	char *cat;
+	struct dial_trunk_args *args = data;
+	struct ast_dial *dial;
+	char *tech, *tech_data;
+	enum ast_dial_result dial_res;
+	char conf_name[MAX_CONFNUM];
+	struct ast_conference *conf;
+	struct ast_flags conf_flags = { 0 };
+	struct sla_trunk *trunk = args->trunk;
+
+	if (!(dial = ast_dial_create())) {
+		ast_mutex_lock(args->cond_lock);
+		ast_cond_signal(args->cond);
+		ast_mutex_unlock(args->cond_lock);
+		return NULL;
+	}
+
+	tech_data = ast_strdupa(trunk->device);
+	tech = strsep(&tech_data, "/");
+	if (ast_dial_append(dial, tech, tech_data) == -1) {
+		ast_mutex_lock(args->cond_lock);
+		ast_cond_signal(args->cond);
+		ast_mutex_unlock(args->cond_lock);
+		ast_dial_destroy(dial);
+		return NULL;
+	}
+
+	dial_res = ast_dial_run(dial, NULL, 1);
+	if (dial_res != AST_DIAL_RESULT_TRYING) {
+		ast_mutex_lock(args->cond_lock);
+		ast_cond_signal(args->cond);
+		ast_mutex_unlock(args->cond_lock);
+		ast_dial_destroy(dial);
+		return NULL;
+	}
+
+	for (;;) {
+		unsigned int done = 0;
+		switch ((dial_res = ast_dial_status(dial))) {
+		case AST_DIAL_RESULT_ANSWERED:
+			trunk->chan = ast_dial_answered(dial);
+		case AST_DIAL_RESULT_HANGUP:
+		case AST_DIAL_RESULT_INVALID:
+		case AST_DIAL_RESULT_FAILED:
+		case AST_DIAL_RESULT_TIMEOUT:
+		case AST_DIAL_RESULT_UNANSWERED:
+			done = 1;
+		case AST_DIAL_RESULT_TRYING:
+		case AST_DIAL_RESULT_RINGING:
+		case AST_DIAL_RESULT_PROGRESS:
+		case AST_DIAL_RESULT_PROCEEDING:
+			break;
+		}
+		if (done)
+			break;
+	}
+
+	if (!trunk->chan) {
+		ast_mutex_lock(args->cond_lock);
+		ast_cond_signal(args->cond);
+		ast_mutex_unlock(args->cond_lock);
+		ast_dial_join(dial);
+		ast_dial_destroy(dial);
+		ast_log(LOG_DEBUG, "broke out with no chan\n");
+		return NULL;
+	}
+
+	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk->name);
+	ast_set_flag(&conf_flags, 
+		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | 
+		CONFFLAG_PASS_DTMF | CONFFLAG_SLA_TRUNK);
+	conf = build_conf(conf_name, "", "", 1, 1, 1);
+
+	ast_mutex_lock(args->cond_lock);
+	ast_cond_signal(args->cond);
+	ast_mutex_unlock(args->cond_lock);
+
+	if (conf)
+		conf_run(trunk->chan, conf, conf_flags.flags, NULL);
+
+	trunk->chan = NULL;
+
+	ast_dial_join(dial);
+	ast_dial_destroy(dial);
+
+	return NULL;
+}
+
+static int slastation_exec(struct ast_channel *chan, void *data)
+{
+	char *station_name, *trunk_name;
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref = NULL;
+	char conf_name[MAX_CONFNUM];
+	int res;
+	struct ast_flags conf_flags = { 0 };
+	struct ast_conference *conf;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Invalid Arguments to SLAStation!\n");
+		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "FAILURE");
+		return 0;
+	}
+
+	trunk_name = ast_strdupa(data);
+	station_name = strsep(&trunk_name, "_");
+
+	if (ast_strlen_zero(station_name)) {
+		ast_log(LOG_WARNING, "Invalid Arguments to SLAStation!\n");
+		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "FAILURE");
+		return 0;
+	}
+
+	AST_RWLIST_RDLOCK(&sla_stations);
+	station = find_station(station_name);
+	AST_RWLIST_UNLOCK(&sla_stations);
+
+	if (!station) {
+		ast_log(LOG_WARNING, "Station '%s' not found!\n", station_name);
+		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "FAILURE");
+		return 0;
+	}
+
+	AST_RWLIST_RDLOCK(&sla_trunks);
+	if (!ast_strlen_zero(trunk_name))
+		trunk_ref = find_trunk_ref(station, trunk_name);
+	else {
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+			if (trunk_ref->state == SLA_TRUNK_STATE_IDLE)
+				break;
+		}
+	}
+	AST_RWLIST_UNLOCK(&sla_trunks);
+
+	if (ast_strlen_zero(trunk_name) && !trunk_ref) {
+		ast_log(LOG_NOTICE, "No trunks available for call.\n");
+		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
+		return 0;
+	}
+
+	if (!trunk_ref->trunk->chan) {
+		ast_mutex_t cond_lock;
+		ast_cond_t cond;
+		pthread_t dont_care;
+		pthread_attr_t attr;
+		struct dial_trunk_args args = {
+			.trunk = trunk_ref->trunk,
+			.station = station,
+			.cond_lock = &cond_lock,
+			.cond = &cond,
+		};
+		change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, 0);
+		/* Create a thread to dial the trunk and dump it into the conference.
+		 * However, we want to wait until the trunk has been dialed and the
+		 * conference is created before continuing on here. */
+		ast_autoservice_start(chan);
+		ast_mutex_init(&cond_lock);
+		ast_cond_init(&cond, NULL);
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		ast_mutex_lock(&cond_lock);
+		ast_pthread_create_background(&dont_care, &attr, dial_trunk, &args);
+		ast_cond_wait(&cond, &cond_lock);
+		ast_mutex_unlock(&cond_lock);
+		ast_mutex_destroy(&cond_lock);
+		ast_cond_destroy(&cond);
+		pthread_attr_destroy(&attr);
+		ast_autoservice_stop(chan);
+		if (!trunk_ref->trunk->chan) {
+			ast_log(LOG_DEBUG, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);
+			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
+			change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, 0);
+			return 0;
+		}
+	}
+
+	ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, 1);
+	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
+	ast_set_flag(&conf_flags, 
+		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
+	trunk_ref->chan = chan;
+	ast_answer(chan);
+	conf = build_conf(conf_name, "", "", 0, 0, 1);
+	if (conf)
+		conf_run(chan, conf, conf_flags.flags, NULL);
+	trunk_ref->chan = NULL;
+	res = ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, -1);
+	if (res == 1) {	
+		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
+		admin_exec(NULL, conf_name);
+		change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, 0);
+	}
+	
+	pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "SUCCESS");
+
+	return 0;
+}
+
+static struct sla_trunk_ref *create_trunk_ref(struct sla_trunk *trunk)
+{
+	struct sla_trunk_ref *trunk_ref;
+
+	if (!(trunk_ref = ast_calloc(1, sizeof(*trunk_ref))))
+		return NULL;
+
+	trunk_ref->trunk = trunk;
+
+	return trunk_ref;
+}
+
+static int slatrunk_exec(struct ast_channel *chan, void *data)
+{
+	const char *trunk_name = data;
+	char conf_name[MAX_CONFNUM];
+	struct ast_conference *conf;
+	struct ast_flags conf_flags = { 0 };
+	struct sla_trunk *trunk;
+	struct sla_trunk_ref *trunk_ref;
+
+	AST_RWLIST_RDLOCK(&sla_trunks);
+	trunk = find_trunk(trunk_name);
+	AST_RWLIST_UNLOCK(&sla_trunks);
+	if (!trunk) {
+		ast_log(LOG_ERROR, "SLA Trunk '%s' not found!\n", trunk_name);
+		AST_RWLIST_UNLOCK(&sla_trunks);
+		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		return 0;
+	}
+	if (trunk->chan) {
+		ast_log(LOG_ERROR, "Call came in on %s, but the trunk is already in use!\n",
+			trunk_name);
+		AST_RWLIST_UNLOCK(&sla_trunks);
+		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		return 0;
+	}
+	trunk->chan = chan;
+
+	if (!(trunk_ref = create_trunk_ref(trunk))) {
+		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		return 0;
+	}
+
+	change_trunk_state(trunk, SLA_TRUNK_STATE_RINGING, 0);
+
+	ast_mutex_lock(&sla.lock);
+	if (AST_LIST_EMPTY(&sla.ringing_trunks))
+		ast_cond_signal(&sla.cond);
+	AST_LIST_INSERT_HEAD(&sla.ringing_trunks, trunk_ref, entry);
+	ast_mutex_unlock(&sla.lock);
+
+	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_name);
+	conf = build_conf(conf_name, "", "", 1, 1, 1);
+	if (!conf) {
+		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		return 0;
+	}
+	ast_set_flag(&conf_flags, 
+		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | CONFFLAG_PASS_DTMF);
+	ast_indicate(chan, AST_CONTROL_RINGING);
+	conf_run(chan, conf, conf_flags.flags, NULL);
+	trunk->chan = NULL;
+
+	pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "SUCCESS");
+
+	/* Remove the entry from the list of ringing trunks if it is still there. */
+	ast_mutex_lock(&sla.lock);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, trunk_ref, entry) {
+		if (trunk_ref->trunk == trunk) {
+			AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	ast_mutex_unlock(&sla.lock);
+	if (trunk_ref) {
+		free(trunk_ref);
+		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "UNANSWERED");
+	}
+
+	return 0;
+}
+
+static int sla_state(const char *data)
+{
+	char *buf, *station_name, *trunk_name;
+	struct sla_station *station;
+	struct sla_trunk_ref *trunk_ref;
+	int res = AST_DEVICE_INVALID;
+
+	trunk_name = buf = ast_strdupa(data);
+	station_name = strsep(&trunk_name, "_");
+
+	AST_RWLIST_RDLOCK(&sla_stations);
+	AST_LIST_TRAVERSE(&sla_stations, station, entry) {
+		if (strcasecmp(station_name, station->name))
+			continue;
+		AST_RWLIST_RDLOCK(&sla_trunks);
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+			if (!strcasecmp(trunk_name, trunk_ref->trunk->name))
+				break;
+		}
+		if (!trunk_ref) {
+			AST_RWLIST_UNLOCK(&sla_trunks);
+			break;
+		}
+		switch (trunk_ref->state) {
+		case SLA_TRUNK_STATE_IDLE:
+			res = AST_DEVICE_NOT_INUSE;
+			break;
+		case SLA_TRUNK_STATE_RINGING:
+			res = AST_DEVICE_RINGING;
+			break;
+		case SLA_TRUNK_STATE_UP:
+			res = AST_DEVICE_INUSE;
+			break;
+		case SLA_TRUNK_STATE_ONHOLD:
+			res = AST_DEVICE_ONHOLD;
+			break;
+		}
+		AST_RWLIST_UNLOCK(&sla_trunks);
+	}
+	AST_RWLIST_UNLOCK(&sla_stations);
+
+	if (res == AST_DEVICE_INVALID) {
+		ast_log(LOG_ERROR, "Could not determine state for trunk %s on station %s!\n",
+			trunk_name, station_name);
+	}
+
+	return res;
+}
+
+static void destroy_trunk(struct sla_trunk *trunk)
+{
+	struct sla_station_ref *station_ref;
+
+	if (!ast_strlen_zero(trunk->autocontext))
+		ast_context_remove_extension(trunk->autocontext, "s", 1, sla_registrar);
+
+	while ((station_ref = AST_LIST_REMOVE_HEAD(&trunk->stations, entry)))
+		free(station_ref);
+
+	ast_string_field_free_all(trunk);
+	free(trunk);
+}
+
+static void destroy_station(struct sla_station *station)
+{
+	struct sla_trunk_ref *trunk_ref;
+
+	if (!ast_strlen_zero(station->autocontext)) {
+		AST_RWLIST_RDLOCK(&sla_trunks);
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+			char exten[AST_MAX_EXTENSION];
+			char hint[AST_MAX_APP];
+			snprintf(exten, sizeof(exten), "%s_%s", station->name, trunk_ref->trunk->name);
+			snprintf(hint, sizeof(hint), "SLA:%s", exten);
+			ast_context_remove_extension(station->autocontext, exten, 
+				1, sla_registrar);
+			ast_context_remove_extension(station->autocontext, hint, 
+				PRIORITY_HINT, sla_registrar);
+		}
+		AST_RWLIST_UNLOCK(&sla_trunks);
+	}
+
+	while ((trunk_ref = AST_LIST_REMOVE_HEAD(&station->trunks, entry)))
+		free(trunk_ref);
+
+	ast_string_field_free_all(station);
+	free(station);
+}
+
+static void destroy_sla(void)
+{
+	struct sla_trunk *trunk;
+	struct sla_station *station;
+
+	AST_RWLIST_WRLOCK(&sla_trunks);
+	while ((trunk = AST_RWLIST_REMOVE_HEAD(&sla_trunks, entry)))
+		destroy_trunk(trunk);
+	AST_RWLIST_UNLOCK(&sla_trunks);
+
+	AST_RWLIST_WRLOCK(&sla_stations);
+	while ((station = AST_RWLIST_REMOVE_HEAD(&sla_stations, entry)))
+		destroy_station(station);
+	AST_RWLIST_UNLOCK(&sla_stations);
+
+	if (sla.thread != AST_PTHREADT_NULL) {
+		ast_mutex_lock(&sla.lock);
+		sla.stop = 1;
+		ast_cond_signal(&sla.cond);
+		ast_mutex_unlock(&sla.lock);
+		pthread_join(sla.thread, NULL);
+	}
+
+	ast_mutex_destroy(&sla.lock);
+	ast_cond_destroy(&sla.cond);
+}
+
+static int check_device(const char *device)
+{
+	char *tech, *tech_data;
+
+	tech_data = ast_strdupa(device);
+	tech = strsep(&tech_data, "/");
+
+	if (ast_strlen_zero(tech) || ast_strlen_zero(tech_data))
+		return -1;
+
+	return 0;
+}
+
+static int build_trunk(struct ast_config *cfg, const char *cat)
+{
+	struct sla_trunk *trunk;
+	struct ast_variable *var;
+	const char *dev;
+
+	if (!(dev = ast_variable_retrieve(cfg, cat, "device"))) {
+		ast_log(LOG_ERROR, "SLA Trunk '%s' defined with no device!\n", cat);
+		return -1;
+	}
+
+	if (check_device(dev)) {
+		ast_log(LOG_ERROR, "SLA Trunk '%s' define with invalid device '%s'!\n",
+			cat, dev);
+		return -1;
+	}
+
+	if (!(trunk = ast_calloc(1, sizeof(*trunk))))
+		return -1;
+	if (ast_string_field_init(trunk, 32)) {
+		free(trunk);
+		return -1;
+	}
+
+	ast_string_field_set(trunk, name, cat);
+	ast_string_field_set(trunk, device, dev);
+
+	for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
+		if (!strcasecmp(var->name, "autocontext"))
+			ast_string_field_set(trunk, autocontext, var->value);
+		else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
+			ast_log(LOG_ERROR, "Invalid option '%s' specified at line %d of %s!\n",
+				var->name, var->lineno, SLA_CONFIG_FILE);
+		}
+	}
+
+	if (!ast_strlen_zero(trunk->autocontext)) {
+		struct ast_context *context;
+		context = ast_context_find_or_create(NULL, trunk->autocontext, sla_registrar);
+		if (!context) {
+			ast_log(LOG_ERROR, "Failed to automatically find or create "
+				"context '%s' for SLA!\n", trunk->autocontext);
+			destroy_trunk(trunk);
+			return -1;
+		}
+		if (ast_add_extension2(context, 0 /* don't replace */, "s", 1,
+			NULL, NULL, slatrunk_app, ast_strdup(trunk->name), ast_free, sla_registrar)) {
+			ast_log(LOG_ERROR, "Failed to automatically create extension "
+				"for trunk '%s'!\n", trunk->name);
+			destroy_trunk(trunk);
+			return -1;
+		}
+	}
+
+	AST_RWLIST_WRLOCK(&sla_trunks);
+	AST_RWLIST_INSERT_HEAD(&sla_trunks, trunk, entry);
+	AST_RWLIST_UNLOCK(&sla_trunks);
+
+	return 0;
+}
+
+static int build_station(struct ast_config *cfg, const char *cat)
+{
+	struct sla_station *station;
+	struct ast_variable *var;
+	const char *dev;
+
+	if (!(dev = ast_variable_retrieve(cfg, cat, "device"))) {
+		ast_log(LOG_ERROR, "SLA Station '%s' defined with no device!\n", cat);
+		return -1;
+	}
+
+	if (!(station = ast_calloc(1, sizeof(*station))))
+		return -1;
+	if (ast_string_field_init(station, 32)) {
+		free(station);
+		return -1;
+	}
+
+	ast_string_field_set(station, name, cat);
+	ast_string_field_set(station, device, dev);
+
+	for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
+		if (!strcasecmp(var->name, "trunk")) {
+			struct sla_trunk *trunk;
+			struct sla_trunk_ref *trunk_ref;
+			struct sla_station_ref *station_ref;
+			AST_RWLIST_RDLOCK(&sla_trunks);
+			AST_RWLIST_TRAVERSE(&sla_trunks, trunk, entry) {
+				if (!strcasecmp(trunk->name, var->value))
+					break;
+			}
+			AST_RWLIST_UNLOCK(&sla_trunks);
+			if (!trunk) {
+				ast_log(LOG_ERROR, "Trunk '%s' not found!\n", var->value);
+				continue;
+			}
+			if (!(trunk_ref = create_trunk_ref(trunk)))
+				continue;
+			trunk_ref->state = SLA_TRUNK_STATE_IDLE;
+			if (!(station_ref = ast_calloc(1, sizeof(*station_ref)))) {
+				free(trunk_ref);
+				continue;
+			}
+			station_ref->station = station;
+			ast_atomic_fetchadd_int((int *) &trunk->num_stations, 1);
+			AST_RWLIST_WRLOCK(&sla_trunks);
+			AST_LIST_INSERT_TAIL(&trunk->stations, station_ref, entry);
+			AST_RWLIST_UNLOCK(&sla_trunks);
+			AST_LIST_INSERT_TAIL(&station->trunks, trunk_ref, entry);
+		} else if (!strcasecmp(var->name, "autocontext")) {
+			ast_string_field_set(station, autocontext, var->value);
+		} else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
+			ast_log(LOG_ERROR, "Invalid option '%s' specified at line %d of %s!\n",
+				var->name, var->lineno, SLA_CONFIG_FILE);
+		}
+	}
+
+	if (!ast_strlen_zero(station->autocontext)) {
+		struct ast_context *context;
+		struct sla_trunk_ref *trunk_ref;
+		context = ast_context_find_or_create(NULL, station->autocontext, sla_registrar);
+		if (!context) {
+			ast_log(LOG_ERROR, "Failed to automatically find or create "
+				"context '%s' for SLA!\n", station->autocontext);
+			destroy_station(station);
+			return -1;
+		}
+		/* The extension for when the handset goes off-hook.
+		 * exten => station1,1,SLAStation(station1) */
+		if (ast_add_extension2(context, 0 /* don't replace */, station->name, 1,
+			NULL, NULL, slastation_app, ast_strdup(station->name), ast_free, sla_registrar)) {
+			ast_log(LOG_ERROR, "Failed to automatically create extension "
+				"for trunk '%s'!\n", station->name);
+			destroy_station(station);
+			return -1;
+		}
+		AST_RWLIST_RDLOCK(&sla_trunks);
+		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+			char exten[AST_MAX_EXTENSION];
+			char hint[AST_MAX_APP];
+			snprintf(exten, sizeof(exten), "%s_%s", station->name, trunk_ref->trunk->name);
+			snprintf(hint, sizeof(hint), "SLA:%s", exten);
+			/* Extension for this line button 
+			 * exten => station1_line1,1,SLAStation(station1_line1) */
+			if (ast_add_extension2(context, 0 /* don't replace */, exten, 1,
+				NULL, NULL, slastation_app, ast_strdup(exten), ast_free, sla_registrar)) {
+				ast_log(LOG_ERROR, "Failed to automatically create extension "
+					"for trunk '%s'!\n", station->name);
+				destroy_station(station);
+				return -1;
+			}
+			/* Hint for this line button 
+			 * exten => station1_line1,hint,SLA:station1_line1 */
+			if (ast_add_extension2(context, 0 /* don't replace */, exten, PRIORITY_HINT,
+				NULL, NULL, hint, NULL, NULL, sla_registrar)) {
+				ast_log(LOG_ERROR, "Failed to automatically create hint "
+					"for trunk '%s'!\n", station->name);
+				destroy_station(station);
+				return -1;
+			}
+		}
+		AST_RWLIST_UNLOCK(&sla_trunks);
+	}
+
+	AST_RWLIST_WRLOCK(&sla_stations);
+	AST_RWLIST_INSERT_HEAD(&sla_stations, station, entry);
+	AST_RWLIST_UNLOCK(&sla_stations);
+
+	return 0;
+}
+
+static int load_config_sla(void)
+{
 	struct ast_config *cfg;
-	if (!(cfg = ast_config_load(CONFIG_FILE_NAME_SLA)))
-		return;
+	const char *cat = NULL;
+	int res = 0;
 
-	ASTOBJ_CONTAINER_MARKALL(&slas);
-	cat = ast_category_browse(cfg, NULL);
-	while(cat) {
-		if (strcasecmp(cat, "general")) 
-			parse_sla(cat, ast_variable_browse(cfg, cat));
-		cat = ast_category_browse(cfg, cat);
+	if (!(cfg = ast_config_load(SLA_CONFIG_FILE)))
+		return 0; /* Treat no config as normal */
+
+	while ((cat = ast_category_browse(cfg, cat)) && !res) {
+		const char *type;
+		/* Reserve "general" for ... general stuff! */
+		if (!strcasecmp(cat, "general"))
+			continue;
+		if (!(type = ast_variable_retrieve(cfg, cat, "type"))) {
+			ast_log(LOG_WARNING, "Invalid entry in %s defined with no type!\n",
+				SLA_CONFIG_FILE);
+			continue;
+		}
+		if (!strcasecmp(type, "trunk"))
+			res = build_trunk(cfg, cat);
+		else if (!strcasecmp(type, "station"))
+			res = build_station(cfg, cat);
+		else {
+			ast_log(LOG_WARNING, "Entry in %s defined with invalid type '%s'!\n",
+				SLA_CONFIG_FILE, type);
+		}
 	}
+
 	ast_config_destroy(cfg);
-	ASTOBJ_CONTAINER_PRUNE_MARKED(&slas, sla_destroy);
+
+	ast_pthread_create(&sla.thread, NULL, sla_thread, NULL);
+
+	return res;
 }
 
-static void load_config(void)
+static int load_config(int reload)
 {
+	int res = 0;
+
 	load_config_meetme();
-	load_config_sla();
+	if (!reload)
+		res = load_config_sla();
+
+	return res;
 }
 
 static int unload_module(void)
 {
 	int res = 0;
 	
-	ast_cli_unregister_multiple(cli_meetme, sizeof(cli_meetme) / sizeof(struct ast_cli_entry));
+	ast_cli_unregister_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
 	res = ast_manager_unregister("MeetmeMute");
 	res |= ast_manager_unregister("MeetmeUnmute");
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
-	res |= ast_unregister_application(appslas);
-	res |= ast_unregister_application(appslat);
+	res |= ast_unregister_application(slastation_app);
+	res |= ast_unregister_application(slatrunk_app);
 
-	ast_module_user_hangup_all();
 	ast_devstate_prov_del("Meetme");
 	ast_devstate_prov_del("SLA");
+
+	ast_module_user_hangup_all();
+	
+	destroy_sla();
 
 	return res;
 }
@@ -3106,27 +3915,30 @@ static int load_module(void)
 {
 	int res;
 
-	ASTOBJ_CONTAINER_INIT(&slas);
-	ast_cli_register_multiple(cli_meetme, sizeof(cli_meetme) / sizeof(struct ast_cli_entry));
-	res = ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, action_meetmemute, "Mute a Meetme user");
-	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, action_meetmeunmute, "Unmute a Meetme user");
+	ast_cli_register_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
+	res = ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, 
+		action_meetmemute, "Mute a Meetme user");
+	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, 
+		action_meetmeunmute, "Unmute a Meetme user");
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
-	res |= ast_register_application(appslas, slas_exec, synopslas, descripslas);
-	res |= ast_register_application(appslat, slat_exec, synopslat, descripslat);
+	res |= ast_register_application(slastation_app, slastation_exec,
+		slastation_synopsis, slastation_desc);
+	res |= ast_register_application(slatrunk_app, slatrunk_exec,
+		slatrunk_synopsis, slatrunk_desc);
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
-	res |= ast_devstate_prov_add("SLA", slastate);
-	load_config();
+	res |= ast_devstate_prov_add("SLA", sla_state);
+
+	res |= load_config(0);
+
 	return res;
 }
 
 static int reload(void)
 {
-	load_config();
-
-	return 0;
+	return load_config(1);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "MeetMe conference bridge",

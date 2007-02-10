@@ -308,6 +308,9 @@ struct ast_app_option {
 	unsigned int arg_index;
 };
 
+#define BEGIN_OPTIONS {
+#define END_OPTIONS }
+
 /*!
   \brief Declares an array of options for an application.
   \param holder The name of the array to be created

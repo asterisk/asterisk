@@ -553,5 +553,8 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
  */
 void ast_enable_packet_fragmentation(int sock);
 
+#define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
+
 #include "asterisk/strings.h"
+
 #endif /* _ASTERISK_UTILS_H */
