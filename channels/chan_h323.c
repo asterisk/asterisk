@@ -367,6 +367,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 			.frametype = AST_FRAME_DTMF_END,
 			.subclass = pvt->newdigit,
 			.samples = pvt->newduration * 8,
+			.len = pvt->newduration,
 			.src = "UPDATE_INFO",
 		};
 		if (pvt->newdigit == ' ') {		/* signalUpdate message */
@@ -561,14 +562,14 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 	if (pvt->rtp && (pvt->options.dtmfmode & H323_DTMF_RFC2833) && ((pvt->dtmf_pt[0] > 0) || (pvt->dtmf_pt[0] > 0))) {
 		/* out-of-band DTMF */
 		if (h323debug) {
-			ast_log(LOG_DTMF, "End sending out-of-band digit %c on %s\n", digit, c->name);
+			ast_log(LOG_DTMF, "End sending out-of-band digit %c on %s, duration %d\n", digit, c->name, duration);
 		}
 		ast_rtp_senddigit_end(pvt->rtp, digit);
 		ast_mutex_unlock(&pvt->lock);
 	} else {
 		/* in-band DTMF */
 		if (h323debug) {
-			ast_log(LOG_DTMF, "End sending inband digit %c on %s\n", digit, c->name);
+			ast_log(LOG_DTMF, "End sending inband digit %c on %s, duration %d\n", digit, c->name, duration);
 		}
 		pvt->txDtmfDigit = ' ';
 		token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
@@ -1847,6 +1848,7 @@ static int receive_digit(unsigned call_reference, char digit, const char *token,
 				.frametype = AST_FRAME_DTMF_END,
 				.subclass = digit,
 				.samples = duration * 8,
+				.len = duration,
 				.src = "SEND_DIGIT",
 			};
 			if (digit == ' ') {		/* signalUpdate message */
@@ -1856,10 +1858,20 @@ static int receive_digit(unsigned call_reference, char digit, const char *token,
 					pvt->DTMFsched = -1;
 				}
 			} else {				/* Regular input or signal message */
+				if (pvt->DTMFsched >= 0) {
+					/* We still don't send DTMF END from previous event, send it now */
+					ast_sched_del(sched, pvt->DTMFsched);
+					pvt->DTMFsched = -1;
+					f.subclass = pvt->curDTMF;
+					f.samples = f.len = 0;
+					ast_queue_frame(pvt->owner, &f);
+					/* Restore values */
+					f.subclass = digit;
+					f.samples = duration * 8;
+					f.len = duration;
+				}
 				if (duration) {		/* This is a signal, signalUpdate follows */
 					f.frametype = AST_FRAME_DTMF_BEGIN;
-					if (pvt->DTMFsched >= 0)
-						ast_sched_del(sched, pvt->DTMFsched);
 					pvt->DTMFsched = ast_sched_add(sched, duration, oh323_simulate_dtmf_end, pvt);
 					if (h323debug)
 						ast_log(LOG_DTMF, "Scheduled DTMF END simulation for %d ms, id=%d\n", duration, pvt->DTMFsched);
@@ -2454,6 +2466,8 @@ static void set_peer_capabilities(unsigned call_reference, const char *token, in
 		if (h323debug) {
 			int i;
 			for (i = 0; i < 32; ++i) {
+				if (!prefs->order[i])
+					break;
 				ast_log(LOG_DEBUG, "prefs[%d]=%s:%d\n", i, (prefs->order[i] ? ast_getformatname(1 << (prefs->order[i]-1)) : "<none>"), prefs->framing[i]);
 			}
 		}
