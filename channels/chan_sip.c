@@ -4705,7 +4705,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int iterator;
 	int sendonly = 0;
 	int numberofports;
-	struct ast_channel *bridgepeer = NULL;
 	struct ast_rtp *newaudiortp, *newvideortp;	/* Buffers for codec handling */
 	int newjointcapability;				/* Negotiated capability */
 	int newpeercapability;
@@ -5196,22 +5195,21 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
 	
-	/* Turn on/off music on hold if we are holding/unholding */
-	if ((bridgepeer = ast_bridged_channel(p->owner))) {
-		if (sin.sin_addr.s_addr && !sendonly) {
-			ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
-			/* Activate a re-invite */
-			ast_queue_frame(p->owner, &ast_null_frame);
-		} else if (!sin.sin_addr.s_addr || sendonly) {
-			ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
-					       S_OR(p->mohsuggest, NULL),
-					       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
-			if (sendonly)
-				ast_rtp_stop(p->rtp);
-			/* RTCP needs to go ahead, even if we're on hold!!! */
-			/* Activate a re-invite */
-			ast_queue_frame(p->owner, &ast_null_frame);
-		}
+	if (sin.sin_addr.s_addr && !sendonly) {
+		ast_log(LOG_DEBUG, "Queueing UNHOLD!\n");
+		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
+		/* Activate a re-invite */
+		ast_queue_frame(p->owner, &ast_null_frame);
+	} else if (!sin.sin_addr.s_addr || sendonly) {
+		ast_log(LOG_DEBUG, "Going on HOLD!\n");
+		ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
+				       S_OR(p->mohsuggest, NULL),
+				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
+		if (sendonly)
+			ast_rtp_stop(p->rtp);
+		/* RTCP needs to go ahead, even if we're on hold!!! */
+		/* Activate a re-invite */
+		ast_queue_frame(p->owner, &ast_null_frame);
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
@@ -6868,6 +6866,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		pidfnote = "Unavailable";
 		break;
 	case AST_EXTENSION_ONHOLD:
+		statestring = "confirmed";
+		local_state = NOTIFY_INUSE;
+		pidfstate = "busy";
+		pidfnote = "On the phone";
 		break;
 	case AST_EXTENSION_NOT_INUSE:
 	default:
@@ -6963,6 +6965,11 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		else
 			ast_build_string(&t, &maxbytes, "<dialog id=\"%s\">\n", p->exten);
 		ast_build_string(&t, &maxbytes, "<state>%s</state>\n", statestring);
+		if (state == AST_EXTENSION_ONHOLD) {
+			ast_build_string(&t, &maxbytes, "<local>\n<target uri=\"%s\">\n"
+			                                "<param pname=\"+sip.rendering\" pvalue=\"no\">\n"
+			                                "</target>\n</local>\n", mto);
+		}
 		ast_build_string(&t, &maxbytes, "</dialog>\n</dialog-info>\n");
 		break;
 	case NONE:

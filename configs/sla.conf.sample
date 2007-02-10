@@ -1,26 +1,82 @@
-; Configuration file for SLAs (Shared Line Appearances).
-
-; Defining a SLA uses the following syntax:
 ;
-; type => Technology/TechData
-;
-;    type       => trunk or station
-;    Technology => the channel driver (see show channeltypes)
-;    TechData   => the data specific to the channel driver
-;
-; The Technology/TechData information is the same as that provided to the
-; Dial application.
+; Configuration for Shared Line Appearances (SLA).
 ;
 
-; define a SLA called junky
-[junky]
-trunk => SIP/10
-station => SIP/15
-station => SIP/16
+; ---- General Options ----------------
+[general]
+; There are none!
 
-;define a SLA called markster
-[markster]
-trunk => Zap/1
-station => SIP/20
+; -------------------------------------
 
-; Also you can see SLA infos via the CLI, by typing "sla show"
+
+; ---- Trunk Declarations -------------
+
+; Provide a name for this trunk.
+[line1]
+; This line is what marks this entry as a trunk.
+type=trunk
+; Map this trunk declaration to a specific device.
+; NOTE: At this point, this *must* be a zap channel!
+device=Zap/3
+; This supports automatic generation of the dialplan entries if the autocontext
+; option is used.  Each trunk should have a unique context name.  Then, in
+; zapata.conf, this device should be configured to have incoming calls go to
+; this context.
+autocontext=line1
+
+[line2]
+type=trunk
+device=Zap/4
+autocontext=line2
+
+[line3]
+type=trunk
+device=Zap/3
+autocontext=line3
+
+[line4]
+type=trunk
+device=Zap/4
+autocontext=line4
+; --------------------------------------
+
+
+; ---- Station Declarations ------------
+
+; In this example, all stations have the same trunks, so this configuration
+; template is used to simplify the declaration of each station.
+[station](!)
+; This line indicates that this entry is a station.
+type=station
+; This supports automatic generation of the dialplan entries if the autocontext
+; option is used.  All stations can use the same context without conflict.  The
+; device for this station should have its context configured to the same one
+; listed here.
+autocontext=sla_stations
+; Individually list all of the trunks that will appear on this station.  This
+; order is significant.  It should be the same order as they appear on the
+; phone.  The order here defines the order of preference that the trunks will
+; be used.
+trunk=line1
+trunk=line2
+trunk=line3
+trunk=line4
+
+; Define a station that uses the configuration from the template "station".
+[station1](station)
+; Each station must be mapped to a device.
+device=SIP/station1
+
+[station2](station)
+device=SIP/station2
+
+[station3](station)
+device=SIP/station3
+
+[station4](station)
+device=SIP/station4
+
+[station5](station)
+device=SIP/station5
+; --------------------------------------
+

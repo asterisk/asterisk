@@ -228,33 +228,37 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
 		ast_copy_string(numsubst, channel->device, sizeof(numsubst));
 
 		/* Request that the channel be created */
-		if (!(channel->owner = ast_request(channel->tech, chan->nativeformats, numsubst, &channel->cause)))
+		if (!(channel->owner = ast_request(channel->tech, 
+			chan ? chan->nativeformats : AST_FORMAT_AUDIO_MASK, numsubst, &channel->cause))) {
 			continue;
+		}
 
 		channel->owner->appl = "AppDial2";
                 channel->owner->data = "(Outgoing Line)";
                 channel->owner->whentohangup = 0;
 
 		/* Inherit everything from he who spawned this Dial */
-		ast_channel_inherit_variables(chan, channel->owner);
+		if (chan) {
+			ast_channel_inherit_variables(chan, channel->owner);
 
-		/* Copy over callerid information */
-		S_REPLACE(channel->owner->cid.cid_num, ast_strdup(chan->cid.cid_num));
-		S_REPLACE(channel->owner->cid.cid_name, ast_strdup(chan->cid.cid_name));
-		S_REPLACE(channel->owner->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
-		S_REPLACE(channel->owner->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
-
-		ast_string_field_set(channel->owner, language, chan->language);
-		ast_string_field_set(channel->owner, accountcode, chan->accountcode);
-		channel->owner->cdrflags = chan->cdrflags;
-		if (ast_strlen_zero(channel->owner->musicclass))
-			ast_string_field_set(channel->owner, musicclass, chan->musicclass);
-
-		channel->owner->cid.cid_pres = chan->cid.cid_pres;
-		channel->owner->cid.cid_ton = chan->cid.cid_ton;
-		channel->owner->cid.cid_tns = chan->cid.cid_tns;
-		channel->owner->adsicpe = chan->adsicpe;
-		channel->owner->transfercapability = chan->transfercapability;
+			/* Copy over callerid information */
+			S_REPLACE(channel->owner->cid.cid_num, ast_strdup(chan->cid.cid_num));
+			S_REPLACE(channel->owner->cid.cid_name, ast_strdup(chan->cid.cid_name));
+			S_REPLACE(channel->owner->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
+			S_REPLACE(channel->owner->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
+	
+			ast_string_field_set(channel->owner, language, chan->language);
+			ast_string_field_set(channel->owner, accountcode, chan->accountcode);
+			channel->owner->cdrflags = chan->cdrflags;
+			if (ast_strlen_zero(channel->owner->musicclass))
+				ast_string_field_set(channel->owner, musicclass, chan->musicclass);
+	
+			channel->owner->cid.cid_pres = chan->cid.cid_pres;
+			channel->owner->cid.cid_ton = chan->cid.cid_ton;
+			channel->owner->cid.cid_tns = chan->cid.cid_tns;
+			channel->owner->adsicpe = chan->adsicpe;
+			channel->owner->transfercapability = chan->transfercapability;
+		}
 
 		/* Actually call the device */
 		if ((res = ast_call(channel->owner, numsubst, 0))) {
@@ -530,12 +534,16 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 	enum ast_dial_result res = AST_DIAL_RESULT_TRYING;
 
 	/* Ensure required arguments are passed */
-	if (!dial || !chan)
+	if (!dial || (!chan && !async)) {
+		ast_log(LOG_DEBUG, "invalid #1\n");
 		return AST_DIAL_RESULT_INVALID;
+	}
 
 	/* If there are no channels to dial we can't very well try to dial them */
-	if (AST_LIST_EMPTY(&dial->channels))
+	if (AST_LIST_EMPTY(&dial->channels)) {
+		ast_log(LOG_DEBUG, "invalid #2\n");
 		return AST_DIAL_RESULT_INVALID;
+	}
 
 	/* Dial each requested channel */
 	if (!begin_dial(dial, chan))
@@ -543,6 +551,7 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 
 	/* If we are running async spawn a thread and send it away... otherwise block here */
 	if (async) {
+		dial->status = AST_DIAL_RESULT_TRYING;
 		/* Try to create a thread */
 		if (ast_pthread_create(&dial->thread, NULL, async_dial, dial)) {
 			/* Failed to create the thread - hangup all dialed channels and return failed */

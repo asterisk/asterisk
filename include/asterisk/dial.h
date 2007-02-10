@@ -42,7 +42,7 @@ enum ast_dial_option {
 
 /*! \brief List of return codes for dial run API calls */
 enum ast_dial_result {
-	AST_DIAL_RESULT_INVALID = 0, /*!< Invalid options were passed to run function */
+	AST_DIAL_RESULT_INVALID,     /*!< Invalid options were passed to run function */
 	AST_DIAL_RESULT_FAILED,      /*!< Attempts to dial failed before reaching critical state */
 	AST_DIAL_RESULT_TRYING,      /*!< Currently trying to dial */
 	AST_DIAL_RESULT_RINGING,     /*!< Dial is presently ringing */
