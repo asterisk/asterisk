@@ -152,7 +152,9 @@ enum {
 	CONFFLAG_STARTMUTED = (1 << 24),
 	/*! Pass DTMF through the conference */
 	CONFFLAG_PASS_DTMF = (1 << 25),
+	/*! This is a SLA station. (Only for use by the SLA applications.) */
 	CONFFLAG_SLA_STATION = (1 << 26),
+	/*! This is a SLA trunk. (Only for use by the SLA applications.) */
 	CONFFLAG_SLA_TRUNK = (1 << 27),
 };
 
@@ -282,10 +284,19 @@ static const char *descrip3 =
 "";
 
 static const char *slastation_desc =
-"  SLAStation():\n";
+"  SLAStation(station):\n"
+"This application should be executed by an SLA station.  The argument depends\n"
+"on how the call was initiated.  If the phone was just taken off hook, then\n"
+"the argument \"station\" should be just the station name.  If the call was\n"
+"initiated by pressing a line key, then the station name should be preceded\n"
+"by an underscore and the trunk name associated with that line button.\n"
+"For example: \"station1_line1\".";
 
 static const char *slatrunk_desc =
-"  SLATrunk():\n";
+"  SLATrunk(trunk):\n"
+"This application should be executed by an SLA trunk on an inbound call.\n"
+"The channel calling this application should correspond to the SLA trunk\n"
+"with the name \"trunk\" that is being passed as an argument.\n";
 
 #define MAX_CONFNUM 80
 #define MAX_PIN     80
