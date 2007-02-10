@@ -428,10 +428,12 @@ fi
 if test "${USE_IMAP_TK}" != "no"; then
    if test "${IMAP_TK_DIR}" = ""; then
       IMAP_TK_DIR=`pwd`"/../imap-2004g"
-      AC_MSG_NOTICE([The --with-imap option does not search your system for installed])
-      AC_MSG_NOTICE([c-client library/header files. Since you did not provide a path])
-      AC_MSG_NOTICE([the configure script will assume you have placed built the c-client])
-      AC_MSG_NOTICE([files at ${IMAP_TK_DIR}, as outlined in the doc/imapstorage.txt file.])
+      if test  -n "${IMAP_TK_MANDATORY}"; then
+	 AC_MSG_NOTICE([The --with-imap option does not search your system for installed])
+	 AC_MSG_NOTICE([c-client library/header files. Since you did not provide a path])
+	 AC_MSG_NOTICE([the configure script will assume you have placed built the c-client])
+	 AC_MSG_NOTICE([files at ${IMAP_TK_DIR}, as outlined in the doc/imapstorage.txt file.])
+      fi
    fi
    AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
    saved_cppflags="${CPPFLAGS}"
@@ -709,7 +711,7 @@ AST_EXT_LIB_CHECK([PRI], [pri], [pri_call], [libpri.h])
 AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_new], [libss7.h])
 
 if test "${USE_PWLIB}" != "no"; then
-	if test ! -z "${PWLIB_DIR}"; then
+	if test -n "${PWLIB_DIR}"; then
 		PWLIBDIR="${PWLIB_DIR}"
 	fi
 	AST_CHECK_PWLIB()
@@ -728,7 +730,7 @@ if test "${USE_PWLIB}" != "no"; then
 fi
 
 if test "${PBX_PWLIB}" = "1" -a "${USE_OPENH323}" != "no" ; then
-	if test ! -z "${OPENH323_DIR}"; then
+	if test -n "${OPENH323_DIR}"; then
 		OPENH323DIR="${OPENH323_DIR}"
 	fi
 	AST_CHECK_OPENH323()
