@@ -6869,7 +6869,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		statestring = "confirmed";
 		local_state = NOTIFY_INUSE;
 		pidfstate = "busy";
-		pidfnote = "On the phone";
+		pidfnote = "On Hold";
 		break;
 	case AST_EXTENSION_NOT_INUSE:
 	default:
