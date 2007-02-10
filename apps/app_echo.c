@@ -73,6 +73,8 @@ static int echo_exec(struct ast_channel *chan, void *data)
 		case AST_FRAME_DTMF:
 			if (f->subclass == '#') {
 				res = 0;
+				if (ast_write(chan, f))
+					res = -1;
 				ast_frfree(f);
 				goto end;
 			}
