@@ -2132,7 +2132,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			break;
 		case AST_FRAME_DTMF_END:
-			ast_log(LOG_DTMF, "DTMF end '%c' received on %s\n", f->subclass, chan->name);
+			ast_log(LOG_DTMF, "DTMF end '%c' received on %s, duration %ld ms\n", f->subclass, chan->name, f->len);
 			/* Queue it up if DTMF is deffered, or if DTMF emulation is forced.
 			 * However, only let emulation be forced if the other end cares about BEGIN frames */
 			if ( ast_test_flag(chan, AST_FLAG_DEFER_DTMF) ||
@@ -2155,7 +2155,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			} else {
 				ast_clear_flag(chan, AST_FLAG_IN_DTMF);
 				if (!f->len)
-					f->len = ast_tvdiff_ms(chan->dtmf_begin_tv, ast_tvnow());
+					f->len = ast_tvdiff_ms(ast_tvnow(), chan->dtmf_begin_tv);
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
@@ -2186,6 +2186,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					chan->emulate_dtmf_duration = 0;
 					f->frametype = AST_FRAME_DTMF_END;
 					f->subclass = chan->emulate_dtmf_digit;
+					f->len = ast_tvdiff_ms(ast_tvnow(), chan->dtmf_begin_tv);
 				} else {
 					chan->emulate_dtmf_duration -= f->samples / 8; /* XXX 8kHz */
 					ast_frfree(f);
