@@ -69,21 +69,14 @@ static int echo_exec(struct ast_channel *chan, void *data)
 			break;
 		f->delivery.tv_sec = 0;
 		f->delivery.tv_usec = 0;
-		switch (f->frametype) {
-		case AST_FRAME_DTMF:
-			if (f->subclass == '#') {
-				res = 0;
-				if (ast_write(chan, f))
-					res = -1;
-				ast_frfree(f);
-				goto end;
-			}
-			/* fall through */
-		default:
-			if (ast_write(chan, f)) {
-				ast_frfree(f);
-				goto end;
-			}
+		if (ast_write(chan, f)) {
+			ast_frfree(f);
+			goto end;
+		}
+		if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
+			res = 0;
+			ast_frfree(f);
+			goto end;
 		}
 		ast_frfree(f);
 	}
