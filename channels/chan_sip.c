@@ -354,6 +354,20 @@ enum sipregistrystate {
 	REG_STATE_FAILED,	/*!< Registration failed after several tries */
 };
 
+/*! \brief definition of a sip proxy server
+ *
+ * For outbound proxies, this is allocated in the SIP peer dynamically or
+ * statically as the global_outboundproxy. The pointer in a SIP message is just
+ * a pointer and should *not* be de-allocated.
+ */
+struct sip_proxy {
+	char name[MAXHOSTNAMELEN];      /*!< DNS name of domain/host or IP */
+	struct sockaddr_in ip;          /*!< Currently used IP address and port */
+	time_t last_dnsupdate;          /*!< When this was resolved */
+	int force;                      /*!< If it's an outbound proxy, Force use of this outbound proxy for all outbound requests */
+	/* Room for a SRV record chain based on the name */
+};
+
 enum can_create_dialog {
 	CAN_NOT_CREATE_DIALOG,
 	CAN_CREATE_DIALOG,
@@ -560,6 +574,7 @@ static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
 static int global_autoframing;          /*!< Turn autoframing on or off. */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
+static struct sip_proxy global_outboundproxy;	/*!< Outbound proxy */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
@@ -947,6 +962,7 @@ struct sip_pvt {
 	int jointnoncodeccapability;            /*!< Joint Non codec capability */
 	int redircodecs;			/*!< Redirect codecs */
 	int maxcallbitrate;			/*!< Maximum Call Bitrate for Video Calls */	
+	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this dialog */
 	struct t38properties t38;		/*!< T38 settings */
 	struct sockaddr_in udptlredirip;	/*!< Where our T.38 UDPTL should be going if not to us */
 	struct ast_udptl *udptl;		/*!< T.38 UDPTL session */
@@ -1116,6 +1132,7 @@ struct sip_peer {
 	int rtpkeepalive;		/*!<  Send RTP packets for keepalive */
 	ast_group_t callgroup;		/*!<  Call group */
 	ast_group_t pickupgroup;	/*!<  Pickup group */
+	struct sip_proxy *outboundproxy;	/*!< Outbound proxy for this peer */
 	struct ast_dnsmgr_entry *dnsmgr;/*!<  DNS refresh manager for peer */
 	struct sockaddr_in addr;	/*!<  IP address of peer */
 	int maxcallbitrate;		/*!< Maximum Bitrate for a video call */
@@ -1206,7 +1223,6 @@ static time_t externexpire = 0;			/*!< Expiration counter for re-resolving exter
 static int externrefresh = 10;
 static struct ast_ha *localaddr;		/*!< List of local networks, on the same side of NAT as this Asterisk */
 static struct in_addr __ourip;
-static struct sockaddr_in outboundproxyip;
 static int ourport;
 static struct sockaddr_in debugaddr;
 
@@ -1656,6 +1672,14 @@ static struct ast_udptl_protocol sip_udptl = {
 	set_udptl_peer: sip_set_udptl_peer,
 };
 
+/*! \brief Append to SIP dialog history 
+	\return Always returns 0 */
+#define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
+
+static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+
+
 /*! \brief Convert transfer status to string */
 static const char *referstatus2str(enum referstatus rstatus)
 {
@@ -1695,6 +1719,57 @@ static void sip_alreadygone(struct sip_pvt *dialog)
 	ast_set_flag(&dialog->flags[0], SIP_ALREADYGONE);
 }
 
+/*! Resolve DNS srv name or host name in a sip_proxy structure */
+static int proxy_update(struct sip_proxy *proxy)
+{
+	/* if it's actually an IP address and not a name,
+           there's no need for a managed lookup */
+        if (!inet_aton(proxy->name, &proxy->ip.sin_addr)) {
+		/* Ok, not an IP address, then let's check if it's a domain or host */
+		/* XXX Todo - if we have proxy port, don't do SRV */
+		if (ast_get_ip_or_srv(&proxy->ip, proxy->name, global_srvlookup ? "_sip._udp" : NULL) < 0) {
+			ast_log(LOG_WARNING, "Unable to locate host '%s'\n", proxy->name);
+			return FALSE;
+		}
+	}
+	proxy->last_dnsupdate = time(NULL);
+	return TRUE;
+}
+
+/*! \brief Allocate and initialize sip proxy */
+static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
+{
+	struct sip_proxy *proxy;
+	proxy = ast_calloc(1, sizeof(struct sip_proxy));
+	if (!proxy)
+		return NULL;
+	proxy->force = force;
+	ast_copy_string(proxy->name, name, sizeof(proxy->name));
+	if (!ast_strlen_zero(port))
+		proxy->ip.sin_port = htons(atoi(port));
+	proxy_update(proxy);
+	return proxy;
+}
+
+/*! \brief Get default outbound proxy or global proxy */
+static struct sip_proxy *obproxy_get(struct sip_pvt *dialog, struct sip_peer *peer)
+{
+	if (peer && peer->outboundproxy) {
+		if (option_debug && sipdebug)
+			ast_log(LOG_DEBUG, "OBPROXY: Applying peer OBproxy to this call\n");
+		append_history(dialog, "OBproxy", "Using peer obproxy %s", peer->outboundproxy->name);
+		return peer->outboundproxy;
+	}
+	if (global_outboundproxy.name[0]) {
+		if (option_debug && sipdebug)
+			ast_log(LOG_DEBUG, "OBPROXY: Applying global OBproxy to this call\n");
+		append_history(dialog, "OBproxy", "Using global obproxy %s", global_outboundproxy.name);
+		return &global_outboundproxy;
+	}
+	if (option_debug && sipdebug)
+		ast_log(LOG_DEBUG, "OBPROXY: Not applying OBproxy to this call\n");
+	return NULL;
+}
 
 /*! \brief returns true if 'name' (with optional trailing whitespace)
  * matches the sip method 'id'.
@@ -1786,6 +1861,9 @@ static inline int sip_debug_test_addr(const struct sockaddr_in *addr)
 /*! \brief The real destination address for a write */
 static const struct sockaddr_in *sip_real_dst(const struct sip_pvt *p)
 {
+	if (p->outboundproxy)
+		return &p->outboundproxy->ip;
+
 	return ast_test_flag(&p->flags[0], SIP_NAT) & SIP_NAT_ROUTE ? &p->recv : &p->sa;
 }
 
@@ -1864,13 +1942,6 @@ static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *
 		*us = bindaddr.sin_addr;
 	return AST_SUCCESS;
 }
-
-/*! \brief Append to SIP dialog history 
-	\return Always returns 0 */
-#define append_history(p, event, fmt , args... )	append_history_full(p, "%-15s " fmt, event, ## args)
-
-static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
 
 /*! \brief Append to SIP dialog history with arg list  */
 static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
@@ -2115,6 +2186,15 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	const char *msg = "Not Found";	/* used only for debugging */
 
 	sip_pvt_lock(p);
+
+	/* If we have an outbound proxy for this dialog, then delete it now since
+	  the rest of the requests in this dialog needs to follow the routing.
+	  If obforcing is set, we will keep the outbound proxy during the whole
+	  dialog, regardless of what the SIP rfc says
+	*/
+	if (p->outboundproxy && !p->outboundproxy->force)
+		p->outboundproxy = NULL;
+
 	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
 		if (cur->seqno != seqno || ast_test_flag(cur, FLAG_RESPONSE) != resp)
 			continue;
@@ -2237,6 +2317,13 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittype reliable, int seqno)
 {
 	int res;
+
+	/* If we have an outbound proxy, reset peer address 
+		Only do this once.
+	*/
+	if (p->outboundproxy) {
+		p->sa = p->outboundproxy->ip;
+	}
 
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
@@ -2479,6 +2566,9 @@ static void sip_destroy_peer(struct sip_peer *peer)
 {
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Destroying SIP peer %s\n", peer->name);
+
+	if (peer->outboundproxy)
+		free(peer->outboundproxy);
 
 	/* Delete it, it needs to disappear */
 	if (peer->call)
@@ -2794,6 +2884,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 			ast_string_field_build(dialog, callid, "%s@%s", tmpcall, peer->fromdomain);
 		}
 	}
+	dialog->outboundproxy = obproxy_get(dialog, peer);
 	if (ast_strlen_zero(dialog->tohost))
 		ast_string_field_set(dialog, tohost, ast_inet_ntoa(dialog->sa.sin_addr));
 	if (!ast_strlen_zero(peer->fromdomain))
@@ -2847,6 +2938,17 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		unref_peer(peer);
 		return res;
 	}
+
+	/* Get the outbound proxy information */
+	dialog->outboundproxy = obproxy_get(dialog, NULL);
+
+	/* If we have an outbound proxy, don't bother with DNS resolution at all */
+	if (dialog->outboundproxy)
+		return 0;
+
+	/* Let's see if we can find the host in DNS. First try DNS SRV records,
+   	   then hostname lookup */
+
 	hostn = peername;
 	portno = port ? atoi(port) : STANDARD_SIP_PORT;
 	if (global_srvlookup) {
@@ -7310,6 +7412,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 		if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 			append_history(p, "RegistryInit", "Account: %s@%s", r->username, r->hostname);
+
+		p->outboundproxy = obproxy_get(p, NULL);
+
 		/* Find address to hostname */
 		if (create_addr(p, r->hostname)) {
 			/* we have what we hope is a temporary network error,
@@ -7444,8 +7549,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	add_header_contentLength(&req, 0);
 
 	initialize_initreq(p, &req);
-	if (sip_debug_test_pvt(p))
+	if (sip_debug_test_pvt(p)) {
 		ast_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+	}
 	r->regstate = auth ? REG_STATE_AUTHSENT : REG_STATE_REGSENT;
 	r->regattempts++;	/* Another attempt */
 	if (option_debug > 3)
@@ -10240,6 +10346,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd, "  Send RPID    : %s\n", ast_test_flag(&peer->flags[0], SIP_SENDRPID) ? "Yes" : "No");
 		ast_cli(fd, "  Subscriptions: %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
 		ast_cli(fd, "  Overlap dial : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWOVERLAP) ? "Yes" : "No");
+		if (peer->outboundproxy)
+			ast_cli(fd, "  Outb. proxy  : %s %s\n", ast_strlen_zero(peer->outboundproxy->name) ? "<not set>" : peer->outboundproxy->name,
+							peer->outboundproxy->force ? "(forced)" : "");
 
 		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
@@ -10533,8 +10642,11 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
 	ast_cli(fd, "  Notify hold state:      %s\n", global_notifyhold ? "Yes" : "No");
 	ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(global_allowtransfer));
-	ast_cli(fd, "  Max Call Bitrate:       %d kbps\r\n", default_maxcallbitrate);
-	ast_cli(fd, "  Auto-Framing:           %s \r\n", global_autoframing ? "Yes" : "No");
+	ast_cli(fd, "  Max Call Bitrate:       %d kbps\n", default_maxcallbitrate);
+	ast_cli(fd, "  Auto-Framing:           %s\n", global_autoframing ? "Yes" : "No");
+	ast_cli(fd, "  Outb. proxy:            %s %s\n", ast_strlen_zero(global_outboundproxy.name) ? "<not set>" : global_outboundproxy.name,
+							global_outboundproxy.force ? "(forced)" : "");
+
 	ast_cli(fd, "\nDefault Settings:\n");
 	ast_cli(fd, "-----------------\n");
 	ast_cli(fd, "  Context:                %s\n", default_context);
@@ -16028,7 +16140,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
-	int obproxyfound=0;
 	int found=0;
 	int firstpass=1;
 	int format=0;		/* Ama flags */
@@ -16113,22 +16224,33 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_set2_flag(&peer->flags[0], ast_true(v->value), SIP_USEREQPHONE);
 		} else if (!strcasecmp(v->name, "fromuser")) {
 			ast_copy_string(peer->fromuser, v->value, sizeof(peer->fromuser));
-		} else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
+		} else if (!strcasecmp(v->name, "outboundproxy")) {
+			char *port, *next, *force, *proxyname;
+			int forceopt = FALSE;
+			/* Set peer channel variable */
+			next = proxyname = ast_strdupa(v->value);
+			if ((port = strchr(proxyname, ':'))) {
+				*port++ = '\0';
+				next = port;
+			}
+			if ((force = strchr(next, ','))) {
+				*force++ = '\0';
+				forceopt = strcmp(force, "force");
+			}
+			/* Allocate proxy object */
+			peer->outboundproxy = proxy_allocate(proxyname, port, forceopt);
+		} else if (!strcasecmp(v->name, "host")) {
 			if (!strcasecmp(v->value, "dynamic")) {
-				if (!strcasecmp(v->name, "outboundproxy") || obproxyfound) {
-					ast_log(LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
-				} else {
-					/* They'll register with us */
-					ast_set_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
-					if (!found) {
-						/* Initialize stuff iff we're not found, otherwise
-						   we keep going with what we had */
-						memset(&peer->addr.sin_addr, 0, 4);
-						if (peer->addr.sin_port) {
-							/* If we've already got a port, make it the default rather than absolute */
-							peer->defaddr.sin_port = peer->addr.sin_port;
-							peer->addr.sin_port = 0;
-						}
+				/* They'll register with us */
+				ast_set_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
+				if (!found) {
+					/* Initialize stuff iff we're not found, otherwise
+					   we keep going with what we had */
+					memset(&peer->addr.sin_addr, 0, 4);
+					if (peer->addr.sin_port) {
+						/* If we've already got a port, make it the default rather than absolute */
+						peer->defaddr.sin_port = peer->addr.sin_port;
+						peer->addr.sin_port = 0;
 					}
 				}
 			} else {
@@ -16137,19 +16259,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_sched_del(sched, peer->expire);
 				peer->expire = -1;
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
-				if (!obproxyfound || !strcasecmp(v->name, "outboundproxy")) {
-					if (ast_get_ip_or_srv(&peer->addr, v->value, global_srvlookup ? "_sip._udp" : NULL)) {
-						unref_peer(peer);
-						return NULL;
-					}
-				}
-				if (!strcasecmp(v->name, "outboundproxy"))
-					obproxyfound=1;
-				else {
-					ast_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
-					if (!peer->addr.sin_port)
-						peer->addr.sin_port = htons(STANDARD_SIP_PORT);
-				}
+				ast_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
+				if (!peer->addr.sin_port)
+					peer->addr.sin_port = htons(STANDARD_SIP_PORT);
 			}
 		} else if (!strcasecmp(v->name, "defaultip")) {
 			if (ast_get_ip(&peer->defaddr, v->value)) {
@@ -16300,7 +16412,6 @@ static int reload_config(enum channelreloadreason reason)
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct hostent *hp;
-	int format;
 	struct ast_flags dummy[2];
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
@@ -16331,8 +16442,9 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 	memset(&default_prefs, 0 , sizeof(default_prefs));
-	outboundproxyip.sin_port = htons(STANDARD_SIP_PORT);
-	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
+	memset(&global_outboundproxy, 0, sizeof(struct sip_proxy));
+	global_outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
+	global_outboundproxy.ip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	ourport = STANDARD_SIP_PORT;
 	global_srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
@@ -16341,7 +16453,6 @@ static int reload_config(enum channelreloadreason reason)
 	externhost[0] = '\0';			/* External host name (for behind NAT DynDNS support) */
 	externexpire = 0;			/* Expiration for DNS re-issuing */
 	externrefresh = 10;
-	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
 
 	/* Reset channel settings to default before re-configuring */
 	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
@@ -16507,12 +16618,21 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			ast_copy_string(default_fromdomain, v->value, sizeof(default_fromdomain));
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
-			if (ast_get_ip_or_srv(&outboundproxyip, v->value, global_srvlookup ? "_sip._udp" : NULL) < 0)
-				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
-		} else if (!strcasecmp(v->name, "outboundproxyport")) {
-			/* Port needs to be after IP */
-			sscanf(v->value, "%d", &format);
-			outboundproxyip.sin_port = htons(format);
+			char *name, *port = NULL, *force;
+
+			name = ast_strdupa(v->value);
+			if ((port = strchr(name, ':'))) {
+				*port++ = '\0';
+				global_outboundproxy.ip.sin_port = htons(atoi(port));
+			}
+
+			if ((force = strchr(port ? port : name, ','))) {
+				*force++ = '\0';
+				global_outboundproxy.force = (!strcasecmp(force, "force"));
+			}
+			ast_copy_string(global_outboundproxy.name, name, sizeof(global_outboundproxy.name));
+			proxy_update(&global_outboundproxy);
+
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "match_auth_username")) {
