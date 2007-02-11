@@ -2939,6 +2939,8 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		return res;
 	}
 
+	ast_string_field_set(dialog, tohost, peername);
+
 	/* Get the outbound proxy information */
 	dialog->outboundproxy = obproxy_get(dialog, NULL);
 
@@ -2968,7 +2970,6 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 		ast_log(LOG_WARNING, "No such host: %s\n", peername);
 		return -1;
 	}
-	ast_string_field_set(dialog, tohost, peername);
 	memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
 	dialog->sa.sin_port = htons(portno);
 	dialog->recv = dialog->sa;
