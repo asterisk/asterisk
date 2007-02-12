@@ -142,7 +142,7 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
  * \param callback the callback
  * \return nothing
  */
-void ast_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback);
+void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
