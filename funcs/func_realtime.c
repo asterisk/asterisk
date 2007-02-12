@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
 {
 	struct ast_variable *var, *head;
-        struct ast_module_user *u;
+	struct ast_module_user *u;
 	struct ast_str *out;
 	size_t resultslen;
 	int n;
@@ -59,7 +59,6 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 		AST_APP_ARG(delim1);
 		AST_APP_ARG(delim2);
 	);
-
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: REALTIME(family|fieldmatch[|value[|delim1[|delim2]]]) - missing argument!\n");
@@ -100,7 +99,7 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 
 static int function_realtime_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-        struct ast_module_user *u;
+	struct ast_module_user *u;
 	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
@@ -149,18 +148,18 @@ struct ast_custom_function realtime_function = {
 
 static int unload_module(void)
 {
-        int res = ast_custom_function_unregister(&realtime_function);
+	int res = ast_custom_function_unregister(&realtime_function);
 
 	ast_module_user_hangup_all();
 
-        return res;
+	return res;
 }
 
 static int load_module(void)
 {
-        int res = ast_custom_function_register(&realtime_function);
+	int res = ast_custom_function_register(&realtime_function);
 
-        return res;
+	return res;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Read/Write values from a RealTime repository");
