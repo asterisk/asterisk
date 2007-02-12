@@ -698,6 +698,7 @@ AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
 AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
 
+if test "${USE_OSS}" != "no"; then
 PBX_OSS=0
 AC_CHECK_HEADER([linux/soundcard.h],
 	        [
@@ -713,6 +714,7 @@ if test "$PBX_OSS" = "0"; then
 fi
 if test "$PBX_OSS" = "0"; then
    AST_EXT_LIB_CHECK([OSS], [ossaudio], [oss_ioctl_mixer], [soundcard.h])
+fi
 fi
 
 PG_CONFIG=No
