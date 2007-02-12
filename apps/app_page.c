@@ -178,7 +178,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 		struct ast_dial *dial = dials[i];
 
 		/* If the dial is already answered, then they will/should get kicked out by Meetme */
-		if (ast_dial_status(dial) != AST_DIAL_RESULT_ANSWERED)
+		if (ast_dial_state(dial) != AST_DIAL_RESULT_ANSWERED)
 			ast_dial_join(dial);
 
 		/* Hangup all channels */

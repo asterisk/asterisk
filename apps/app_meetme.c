@@ -3153,7 +3153,7 @@ static void *sla_thread(void *data)
 			ast_mutex_t cond_lock;
 			ast_cond_t cond;
 
-			switch ((dial_res = ast_dial_status(station_ref->station->dial))) {
+			switch ((dial_res = ast_dial_state(station_ref->station->dial))) {
 			case AST_DIAL_RESULT_HANGUP:
 			case AST_DIAL_RESULT_INVALID:
 			case AST_DIAL_RESULT_FAILED:
@@ -3296,7 +3296,7 @@ static void *dial_trunk(void *data)
 
 	for (;;) {
 		unsigned int done = 0;
-		switch ((dial_res = ast_dial_status(dial))) {
+		switch ((dial_res = ast_dial_state(dial))) {
 		case AST_DIAL_RESULT_ANSWERED:
 			trunk->chan = ast_dial_answered(dial);
 		case AST_DIAL_RESULT_HANGUP:
