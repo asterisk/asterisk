@@ -33,6 +33,8 @@ struct ast_dial;
 /*! \brief Dialing channel structure. Contains per-channel dialing options, asterisk channel, and more! */
 struct ast_dial_channel;
 
+typedef void (*ast_dial_state_callback)(struct ast_dial *);
+
 /*! \brief List of options that are applicable either globally or per dialed channel */
 enum ast_dial_option {
 	AST_DIAL_OPTION_RINGING,     /*!< Always indicate ringing to caller */
@@ -78,11 +80,11 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
  */
 struct ast_channel *ast_dial_answered(struct ast_dial *dial);
 
-/*! \brief Return status of dial
- * \note Returns the status of the dial attempt
+/*! \brief Return state of dial
+ * \note Returns the state of the dial attempt
  * \param dial Dialing structure
  */
-enum ast_dial_result ast_dial_status(struct ast_dial *dial);
+enum ast_dial_result ast_dial_state(struct ast_dial *dial);
 
 /*! \brief Cancel async thread
  * \note Cancel a running async thread
@@ -134,6 +136,13 @@ int ast_dial_option_global_disable(struct ast_dial *dial, enum ast_dial_option o
  * \return Returns 0 on success, -1 on failure
  */
 int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option option);
+
+/*! \brief Set a callback for state changes
+ * \param dial The dial structure to watch for state changes
+ * \param callback the callback
+ * \return nothing
+ */
+void ast_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
