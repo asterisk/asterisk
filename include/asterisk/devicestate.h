@@ -108,13 +108,14 @@ void ast_devstate_del(ast_devstate_cb_type callback, void *data);
 /*! \brief Add device state provider 
  * \param label to use in hint, like label:object
  * \param callback Callback
- * Return -1 on failure, ID on success
+ * \retval -1 failure
+ * \retval 0 success
  */ 
 int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback);
 
 /*! \brief Remove device state provider 
  * \param label to use in hint, like label:object
- * Return -1 on failure, ID on success
+ * \return nothing
  */ 
 void ast_devstate_prov_del(const char *label);
 
