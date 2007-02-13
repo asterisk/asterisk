@@ -2232,8 +2232,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of users */
-	u = find_user(name, 1);
-	if (u) {
+	if (!outgoing && (u = find_user(name, 1))) {
 		inuse = &u->inUse;
 		call_limit = &u->call_limit;
 		p = NULL;
