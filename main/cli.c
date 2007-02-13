@@ -54,7 +54,7 @@ AST_THREADSTORAGE(ast_cli_buf);
 /*! \brief Initial buffer size for resulting strings in ast_cli() */
 #define AST_CLI_INITLEN   256
 
-void ast_cli(int fd, char *fmt, ...)
+void ast_cli(int fd, const char *fmt, ...)
 {
 	int res;
 	struct ast_str *buf;
