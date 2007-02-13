@@ -16882,6 +16882,7 @@ static int reload_config(enum channelreloadreason reason)
 		sipsock = socket(AF_INET, SOCK_DGRAM, 0);
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
+			return -1;
 		} else {
 			/* Allow SIP clients on the same host to access us: */
 			const int reuseFlag = 1;
