@@ -235,7 +235,7 @@ int ast_cli_register(struct ast_cli_entry *e);
  * \param e pointer to first cli entry to register
  * \param len number of entries to register
  */
-void ast_cli_register_multiple(struct ast_cli_entry *e, int len);
+int ast_cli_register_multiple(struct ast_cli_entry *e, int len);
 
 /*! \brief Unregisters a command or an array of commands
  *
@@ -250,7 +250,7 @@ int ast_cli_unregister(struct ast_cli_entry *e);
  * \param e pointer to first cli entry to unregister
  * \param len number of entries to unregister
  */
-void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
+int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 
 /*! \brief Readline madness
  * Useful for readline, that's about it

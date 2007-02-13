@@ -1354,20 +1354,24 @@ int ast_cli_register(struct ast_cli_entry *e)
 /*
  * register/unregister an array of entries.
  */
-void ast_cli_register_multiple(struct ast_cli_entry *e, int len)
+int ast_cli_register_multiple(struct ast_cli_entry *e, int len)
 {
-	int i;
+	int i, res = 0;
 
 	for (i = 0; i < len; i++)
-		ast_cli_register(e + i);
+		res |= ast_cli_register(e + i);
+
+	return res;
 }
 
-void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
+int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 {
-	int i;
+	int i, res = 0;
 
 	for (i = 0; i < len; i++)
-		ast_cli_unregister(e + i);
+		res |= ast_cli_unregister(e + i);
+
+	return res;
 }
 
 

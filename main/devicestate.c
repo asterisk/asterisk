@@ -179,9 +179,67 @@ static ast_cond_t change_pending;
 static int getproviderstate(const char *provider, const char *address);
 
 /*! \brief Find devicestate as text message for output */
-const char *devstate2str(int devstate) 
+const char *devstate2str(enum ast_device_state devstate) 
 {
 	return devstatestring[devstate];
+}
+
+const char *ast_devstate_str(enum ast_device_state state)
+{
+	const char *res = "UNKNOWN";
+
+	switch (state) {
+	case AST_DEVICE_UNKNOWN:
+		break;
+	case AST_DEVICE_NOT_INUSE:
+		res = "NOT_INUSE";
+		break;
+	case AST_DEVICE_INUSE:
+		res = "INUSE";
+		break;
+	case AST_DEVICE_BUSY:
+		res = "BUSY";
+		break;
+	case AST_DEVICE_INVALID:
+		res = "INVALID";
+		break;
+	case AST_DEVICE_UNAVAILABLE:
+		res = "UNAVAILABLE";
+		break;
+	case AST_DEVICE_RINGING:
+		res = "RINGING";
+		break;
+	case AST_DEVICE_RINGINUSE:
+		res = "RINGINUSE";
+		break;
+	case AST_DEVICE_ONHOLD:
+		res = "ONHOLD";
+		break;
+	}
+
+	return res;
+}
+
+enum ast_device_state ast_devstate_val(const char *val)
+{
+	if (!strcasecmp(val, "NOT_INUSE"))
+		return AST_DEVICE_NOT_INUSE;
+	else if (!strcasecmp(val, "INUSE"))
+		return AST_DEVICE_INUSE;
+	else if (!strcasecmp(val, "BUSY"))
+		return AST_DEVICE_BUSY;
+	else if (!strcasecmp(val, "INVALID"))
+		return AST_DEVICE_INVALID;
+	else if (!strcasecmp(val, "UNAVAILABLE"))
+		return AST_DEVICE_UNAVAILABLE;
+	else if (!strcasecmp(val, "RINGING"))
+		return AST_DEVICE_RINGING;
+	else if (!strcasecmp(val, "RINGINUSE"))
+		return AST_DEVICE_RINGINUSE;
+	else if (!strcasecmp(val, "ONHOLD"))
+		return AST_DEVICE_ONHOLD;
+
+	return AST_DEVICE_UNKNOWN;
 }
 
 /*! \brief Find out if device is active in a call or not 
@@ -189,11 +247,11 @@ const char *devstate2str(int devstate)
 	This function is only used for channels that does not implement 
 	devicestate natively
 */
-int ast_parse_device_state(const char *device)
+enum ast_device_state ast_parse_device_state(const char *device)
 {
 	struct ast_channel *chan;
 	char match[AST_CHANNEL_NAME];
-	int res;
+	enum ast_device_state res;
 
 	ast_copy_string(match, device, sizeof(match)-1);
 	strcat(match, "-");
@@ -213,12 +271,12 @@ int ast_parse_device_state(const char *device)
 }
 
 /*! \brief Check device state through channel specific function or generic function */
-int ast_device_state(const char *device)
+enum ast_device_state ast_device_state(const char *device)
 {
 	char *buf;
 	char *number;
 	const struct ast_channel_tech *chan_tech;
-	int res = 0;
+	enum ast_device_state res = AST_DEVICE_UNKNOWN;
 	/*! \brief Channel driver that provides device state */
 	char *tech;
 	/*! \brief Another provider of device state */
@@ -281,20 +339,24 @@ int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
 }
 
 /*! \brief Remove device state provider */
-void ast_devstate_prov_del(const char *label)
+int ast_devstate_prov_del(const char *label)
 {
 	struct devstate_prov *devcb;
+	int res = -1;
 
 	AST_RWLIST_WRLOCK(&devstate_provs);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devcb, list) {
 		if (!strcasecmp(devcb->label, label)) {
 			AST_RWLIST_REMOVE_CURRENT(&devstate_provs, list);
 			free(devcb);
+			res = 0;
 			break;
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&devstate_provs);
+
+	return res;
 }
 
 /*! \brief Get provider device state */

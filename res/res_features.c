@@ -284,9 +284,9 @@ static void notify_metermaids(char *exten, char *context)
 }
 
 /*! \brief metermaids callback from devicestate.c */
-static int metermaidstate(const char *data)
+static enum ast_device_state metermaidstate(const char *data)
 {
-	int res = AST_DEVICE_INVALID;
+	enum ast_device_state res = AST_DEVICE_INVALID;
 	char *context = ast_strdupa(data);
 	char *exten;
 
@@ -299,7 +299,7 @@ static int metermaidstate(const char *data)
 
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
 
-	if (!res)
+	if (res == AST_DEVICE_UNKNOWN)
 		return AST_DEVICE_NOT_INUSE;
 	else
 		return AST_DEVICE_INUSE;

@@ -28,29 +28,42 @@
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
-/*! @name DeviceStates */
-/*! \@{ */
-#define AST_DEVICE_UNKNOWN	0 /*!< Device is valid but channel didn't know state */
-#define AST_DEVICE_NOT_INUSE	1 /*!< Device is not used */
-#define AST_DEVICE_INUSE	2 /*!< Device is in use */
-#define AST_DEVICE_BUSY		3 /*!< Device is busy */
-#define AST_DEVICE_INVALID	4 /*!< Device is invalid */
-#define AST_DEVICE_UNAVAILABLE	5 /*!< Device is unavailable */
-#define AST_DEVICE_RINGING	6 /*!< Device is ringing */
-#define AST_DEVICE_RINGINUSE	7 /*!< Device is ringing *and* in use */
-#define AST_DEVICE_ONHOLD	8 /*!< Device is on hold */
-/*! \@} */
+
+/*! Device States */
+enum ast_device_state {
+	AST_DEVICE_UNKNOWN,      /*!< Device is valid but channel didn't know state */
+	AST_DEVICE_NOT_INUSE,    /*!< Device is not used */
+	AST_DEVICE_INUSE,        /*!< Device is in use */
+	AST_DEVICE_BUSY,         /*!< Device is busy */
+	AST_DEVICE_INVALID,      /*!< Device is invalid */
+	AST_DEVICE_UNAVAILABLE,  /*!< Device is unavailable */
+	AST_DEVICE_RINGING,      /*!< Device is ringing */
+	AST_DEVICE_RINGINUSE,    /*!< Device is ringing *and* in use */
+	AST_DEVICE_ONHOLD,       /*!< Device is on hold */
+};
 
 /*! \brief Devicestate watcher call back */
-typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
+typedef int (*ast_devstate_cb_type)(const char *dev, enum ast_device_state state, void *data);
 
 /*!  \brief Devicestate provider call back */
-typedef int (*ast_devstate_prov_cb_type)(const char *data);
+typedef enum ast_device_state (*ast_devstate_prov_cb_type)(const char *data);
 
 /*! \brief Convert device state to text string for output 
  * \param devstate Current device state 
  */
-const char *devstate2str(int devstate);
+const char *devstate2str(enum ast_device_state devstate);
+
+/*! \brief Convert device state to text string that is easier to parse 
+ * \param devstate Current device state 
+ */
+const char *ast_devstate_str(enum ast_device_state devstate);
+
+/*! \brief Convert device state from text to integer value
+ * \param The text representing the device state.  Valid values are anything
+ *        that comes after AST_DEVICE_ in one of the defined values.
+ * \return The AST_DEVICE_ integer value
+ */
+enum ast_device_state ast_devstate_val(const char *val);
 
 /*! \brief Search the Channels by Name
  * \param device like a dialstring
@@ -59,7 +72,7 @@ const char *devstate2str(int devstate);
  * Returns an AST_DEVICE_UNKNOWN if no channel found or
  * AST_DEVICE_INUSE if a channel is found
  */
-int ast_parse_device_state(const char *device);
+enum ast_device_state ast_parse_device_state(const char *device);
 
 /*! \brief Asks a channel for device state
  * \param device like a dialstring
@@ -69,7 +82,7 @@ int ast_parse_device_state(const char *device);
  * active channels list for the device.
  * Returns an AST_DEVICE_??? state -1 on failure
  */
-int ast_device_state(const char *device);
+enum ast_device_state ast_device_state(const char *device);
 
 /*! \brief Tells Asterisk the State for Device is changed
  * \param fmt devicename like a dialstring with format parameters
@@ -115,9 +128,9 @@ int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
 
 /*! \brief Remove device state provider 
  * \param label to use in hint, like label:object
- * \return nothing
+ * Return -1 on failure, 0 on success
  */ 
-void ast_devstate_prov_del(const char *label);
+int ast_devstate_prov_del(const char *label);
 
 int ast_device_state_engine_init(void);
 

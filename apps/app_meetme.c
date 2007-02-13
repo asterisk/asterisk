@@ -2867,7 +2867,7 @@ static void *recordthread(void *args)
 }
 
 /*! \brief Callback for devicestate providers */
-static int meetmestate(const char *data)
+static enum ast_device_state meetmestate(const char *data)
 {
 	struct ast_conference *conf;
 
@@ -3540,12 +3540,12 @@ static int slatrunk_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int sla_state(const char *data)
+static enum ast_device_state sla_state(const char *data)
 {
 	char *buf, *station_name, *trunk_name;
 	struct sla_station *station;
 	struct sla_trunk_ref *trunk_ref;
-	int res = AST_DEVICE_INVALID;
+	enum ast_device_state res = AST_DEVICE_INVALID;
 
 	trunk_name = buf = ast_strdupa(data);
 	station_name = strsep(&trunk_name, "_");

@@ -612,7 +612,7 @@ static void *changethread(void *data)
 	return NULL;
 }
 
-static int statechange_queue(const char *dev, int state, void *ign)
+static int statechange_queue(const char *dev, enum ast_device_state state, void *ign)
 {
 	/* Avoid potential for deadlocks by spawning a new thread to handle
 	   the event */
