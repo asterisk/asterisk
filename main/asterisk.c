@@ -136,15 +136,15 @@ int daemon(int, int);  /* defined in libresolv of all places */
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
-	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2006 Digium, Inc. and others.\n"); \
-	ast_verbose("Created by Mark Spencer <markster@digium.com>\n"); \
-	ast_verbose("Asterisk comes with ABSOLUTELY NO WARRANTY; type 'core show warranty' for details.\n"); \
-	ast_verbose("This is free software, with components licensed under the GNU General Public\n"); \
-	ast_verbose("License version 2 and other licenses; you are welcome to redistribute it under\n"); \
-	ast_verbose("certain conditions. Type 'core show license' for details.\n"); \
-	ast_verbose("=========================================================================\n"); \
-	ast_verbose("NOTE: This is a development version of Asterisk, and should not be used in\n"); \
-	ast_verbose("production installations.\n");
+    ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2006 Digium, Inc. and others.\n" \
+                "Created by Mark Spencer <markster@digium.com>\n" \
+                "Asterisk comes with ABSOLUTELY NO WARRANTY; type 'core show warranty' for details.\n" \
+                "This is free software, with components licensed under the GNU General Public\n" \
+                "License version 2 and other licenses; you are welcome to redistribute it under\n" \
+                "certain conditions. Type 'core show license' for details.\n" \
+                "=========================================================================\n" \
+                "NOTE: This is a development version of Asterisk, and should not be used in\n" \
+                "production installations.\n");
 
 /*! \defgroup main_options Main Configuration Options
  \brief Main configuration options from \ref Config_ast "asterisk.conf" or 
