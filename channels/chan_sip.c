@@ -5196,12 +5196,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 	
 	if (sin.sin_addr.s_addr && !sendonly) {
-		ast_log(LOG_DEBUG, "Queueing UNHOLD!\n");
 		ast_queue_control(p->owner, AST_CONTROL_UNHOLD);
 		/* Activate a re-invite */
 		ast_queue_frame(p->owner, &ast_null_frame);
 	} else if (!sin.sin_addr.s_addr || sendonly) {
-		ast_log(LOG_DEBUG, "Going on HOLD!\n");
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
 				       S_OR(p->mohsuggest, NULL),
 				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
