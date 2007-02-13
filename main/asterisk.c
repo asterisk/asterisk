@@ -1335,11 +1335,11 @@ static const char bang_help[] =
 
 static const char show_warranty_help[] =
 "Usage: core show warranty\n"
-"	Shows the warranty (if any) for this copy of Asterisk.\n";
+"       Shows the warranty (if any) for this copy of Asterisk.\n";
 
 static const char show_license_help[] =
 "Usage: core show license\n"
-"	Shows the license(s) for this copy of Asterisk.\n";
+"       Shows the license(s) for this copy of Asterisk.\n";
 
 static const char version_help[] =
 "Usage: core show version\n"
