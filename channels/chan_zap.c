@@ -9356,6 +9356,11 @@ static void *pri_dchannel(void *vpri)
 				pri_dump_event(pri->dchans[which], e);
 			if (e->e != PRI_EVENT_DCHAN_DOWN)
 				pri->dchanavail[which] |= DCHAN_UP;
+
+			if ((e->e != PRI_EVENT_DCHAN_UP) && (e->e != PRI_EVENT_DCHAN_DOWN) && (pri->pri != pri->dchans[which]))
+				/* Must be an NFAS group that has the secondary dchan active */
+				pri->pri = pri->dchans[which];
+
 			switch (e->e) {
 			case PRI_EVENT_DCHAN_UP:
 				if (option_verbose > 1) 
@@ -9522,12 +9527,9 @@ static void *pri_dchannel(void *vpri)
 								PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
 							break;
 						} else {
-							ast_log(LOG_WARNING, "Ring requested on channel %d/%d already in use on span %d.  Hanging up owner.\n", 
+							/* This is where we handle initial glare */
+							ast_log(LOG_DEBUG, "Ring requested on channel %d/%d already in use or previously requested on span %d.  Attempting to renegotiating channel.\n", 
 							PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
-							if (pri->pvts[chanpos]->realcall) 
-								pri_hangup_all(pri->pvts[chanpos]->realcall, pri);
-							else
-								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							chanpos = -1;
 						}
@@ -9739,8 +9741,12 @@ static void *pri_dchannel(void *vpri)
 					if (crv)
 						ast_mutex_unlock(&crv->lock);
 					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
-				} else 
-					pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+				} else {
+					if (e->ring.flexible)
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION);
+					else
+						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_REQUESTED_CHAN_UNAVAIL);
+				}
 				break;
 			case PRI_EVENT_RINGING:
 				chanpos = pri_find_principle(pri, e->ringing.channel);
