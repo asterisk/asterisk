@@ -155,6 +155,9 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 */
 int ast_check_realtime(const char *family);
 
+/*! \brief Check if there's any realtime engines loaded */
+int ast_realtime_enabled(void);
+
 /*! \brief Free variable list 
  * \param var the linked list of variables to free
  * This function frees a list of variables.

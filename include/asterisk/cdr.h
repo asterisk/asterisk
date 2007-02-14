@@ -102,6 +102,9 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
 
+/*! \brief Return TRUE if CDR subsystem is enabled */
+int check_cdr_enabled(void);
+
 /*! \brief Allocate a CDR record 
  * Returns a malloc'd ast_cdr structure, returns NULL on error (malloc failure)
  */

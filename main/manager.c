@@ -109,6 +109,8 @@ static AST_LIST_HEAD_STATIC(all_events, eventqent);
 static int displayconnects = 1;
 static int timestampevents;
 static int httptimeout = 60;
+static int manager_enabled = 0;
+static int webmanager_enabled = 0;
 
 static int block_sockets;
 static int num_sessions;
@@ -238,6 +240,16 @@ static void UNLOCK_SESS(void)
 	AST_LIST_UNLOCK(&sessions);
 }
 #endif
+
+int check_manager_enabled()
+{
+	return manager_enabled;
+}
+
+int check_webmanager_enabled()
+{
+	return (webmanager_enabled && manager_enabled);
+}
 
 /*!
  * Grab a reference to the last event, update usecount as needed.
@@ -2934,8 +2946,6 @@ int init_manager(void)
 	struct ast_config *cfg = NULL;
 	const char *val;
 	char *cat = NULL;
-	int webenabled = 0;
-	int enabled = 0;
 	int newhttptimeout = 60;
 	int have_sslbindaddr = 0;
 	struct hostent *hp;
@@ -3015,11 +3025,11 @@ int init_manager(void)
 			free(ami_tls_cfg.cipher);
 			ami_tls_cfg.cipher = ast_strdup(val);
 		} else if (!strcasecmp(var->name, "enabled")) {
-			enabled = ast_true(val);
+			manager_enabled = ast_true(val);
 		} else if (!strcasecmp(var->name, "block-sockets")) {
 			block_sockets = ast_true(val);
 		} else if (!strcasecmp(var->name, "webenabled")) {
-			webenabled = ast_true(val);
+			webmanager_enabled = ast_true(val);
 		} else if (!strcasecmp(var->name, "port")) {
 			ami_desc.sin.sin_port = htons(atoi(val));
 		} else if (!strcasecmp(var->name, "bindaddr")) {
@@ -3041,7 +3051,7 @@ int init_manager(void)
 		}	
 	}
 
-	if (enabled)
+	if (manager_enabled)
 		ami_desc.sin.sin_family = AF_INET;
 	if (!have_sslbindaddr)
 		amis_desc.sin.sin_addr = ami_desc.sin.sin_addr;
@@ -3128,7 +3138,7 @@ int init_manager(void)
 
 	ast_config_destroy(cfg);
 
-	if (webenabled && enabled) {
+	if (webmanager_enabled && manager_enabled) {
 		if (!webregged) {
 			ast_http_uri_link(&rawmanuri);
 			ast_http_uri_link(&manageruri);

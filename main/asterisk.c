@@ -160,6 +160,7 @@ int option_debug;				/*!< Debug level */
 
 double option_maxload;				/*!< Max load avg on system */
 int option_maxcalls;				/*!< Max number of active calls */
+int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
 
 /*! @} */
 
@@ -326,6 +327,65 @@ void ast_unregister_thread(void *id)
 		free(x);
 	}
 }
+
+#if !defined(LOW_MEMORY)
+/*! \brief Give an overview of core settings */
+static int handle_show_settings(int fd, int argc, char *argv[])
+{
+	char buf[BUFSIZ];
+	struct tm tm;
+
+	ast_cli(fd, "\nPBX Core settings\n");
+	ast_cli(fd, "-----------------\n");
+	if (option_maxcalls)
+		ast_cli(fd, "  Max. calls:                  %d (Current %d)\n", option_maxcalls, ast_active_channels());
+	else
+		ast_cli(fd, "  Max. calls:                  Not set\n");
+	if (option_maxfiles)
+		ast_cli(fd, "  Max. open file handles:      %d\n", option_maxfiles); 
+	else
+		ast_cli(fd, "  Max. open file handles:      Not set\n");
+	ast_cli(fd, "  Verbosity:                   %d\n", option_verbose);
+	ast_cli(fd, "  Debug level:                 %d\n", option_debug);
+	ast_cli(fd, "  Max load avg:                %lf\n", option_maxload);
+	if (localtime_r(&ast_startuptime, &tm)) {
+		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
+		ast_cli(fd, "  Startup time:                %s\n", buf);
+	}
+	if (localtime_r(&ast_lastreloadtime, &tm)) {
+		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
+		ast_cli(fd, "  Last reload time:            %s\n", buf);
+	}
+	ast_cli(fd, "  System:                      %s/%s built by %s on %s %s\n", ast_build_os, ast_build_kernel, ast_build_user, ast_build_machine, ast_build_date);
+	ast_cli(fd, "  System name:                 %s\n", ast_config_AST_SYSTEM_NAME);
+	ast_cli(fd, "  Default language:            %s\n", defaultlanguage);
+	ast_cli(fd, "  Language prefix:             %s\n", ast_language_is_prefix ? "Enabled" : "Disabled");
+	ast_cli(fd, "  User name and group:         %s/%s\n", ast_config_AST_RUN_USER, ast_config_AST_RUN_GROUP);
+	ast_cli(fd, "  Executable includes:         %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_EXEC_INCLUDES) ? "Enabled" : "Disabled");
+	ast_cli(fd, "  Transcode via SLIN:          %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_TRANSCODE_VIA_SLIN) ? "Enabled" : "Disabled");
+	ast_cli(fd, "  Internal timing:             %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING) ? "Enabled" : "Disabled");
+	ast_cli(fd, "  Transmit silence during rec: %s\n", ast_test_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING) ? "Enabled" : "Disabled");
+
+	ast_cli(fd, "\n* Subsystems\n");
+	ast_cli(fd, "  -------------\n");
+	ast_cli(fd, "  Manager (AMI):               %s\n", check_manager_enabled() ? "Enabled" : "Disabled");
+	ast_cli(fd, "  Web Manager (AMI/HTTP):      %s\n", check_webmanager_enabled() ? "Enabled" : "Disabled");
+	ast_cli(fd, "  Call data records:           %s\n", check_cdr_enabled() ? "Enabled" : "Disabled");
+	ast_cli(fd, "  Realtime Architecture (ARA): %s\n", ast_realtime_enabled() ? "Enabled" : "Disabled");
+
+	/*! \todo we could check musiconhold, voicemail, smdi, adsi, queues  */
+
+	ast_cli(fd, "\n* Directories\n");
+	ast_cli(fd, "  -------------\n");
+	ast_cli(fd, "  Configuration file:          %s\n", ast_config_AST_CONFIG_FILE);
+	ast_cli(fd, "  Configuration directory:     %s\n", ast_config_AST_CONFIG_DIR);
+	ast_cli(fd, "  Module directory:            %s\n", ast_config_AST_MODULE_DIR);
+	ast_cli(fd, "  Spool directory:             %s\n", ast_config_AST_SPOOL_DIR);
+	ast_cli(fd, "  Log directory:               %s\n", ast_config_AST_LOG_DIR);
+	ast_cli(fd, "\n\n");
+	return 0;
+}
+#endif
 
 static int handle_show_threads(int fd, int argc, char *argv[])
 {
@@ -1547,6 +1607,10 @@ static struct ast_cli_entry cli_asterisk[] = {
 	handle_show_profile, "Display profiling info",
 	NULL },
 
+	{ { "core", "show", "settings", NULL },
+	handle_show_settings, "Show some core settings",
+	NULL },
+
 	{ { "core", "clear", "profile", NULL },
 	handle_show_profile, "Clear profiling info",
 	NULL },
@@ -2320,7 +2384,8 @@ static void ast_readconfig(void)
 			}
 		/* Set the maximum amount of open files */
 		} else if (!strcasecmp(v->name, "maxfiles")) {
-			set_ulimit(atoi(v->value));
+			option_maxfiles = atoi(v->value);
+			set_ulimit(option_maxfiles);
 		/* What user to run as */
 		} else if (!strcasecmp(v->name, "runuser")) {
 			ast_copy_string(ast_config_AST_RUN_USER, v->value, sizeof(ast_config_AST_RUN_USER));

@@ -62,6 +62,7 @@
 /* Manager Helper Function */
 typedef int (*manager_hook_t)(int, const char *, char *); 
 
+
 struct manager_custom_hook {
 	/*! Identifier */
 	char *file;
@@ -70,6 +71,12 @@ struct manager_custom_hook {
 	/*! Linked list information */
 	AST_RWLIST_ENTRY(manager_custom_hook) list;
 };
+
+/*! \brief Check if AMI is enabled */
+int check_manager_enabled(void);
+
+/*! \brief Check if AMI/HTTP is enabled */
+int check_webmanager_enabled(void);
 
 /*! Add a custom hook to be called when an event is fired */
 /*! \param hook struct manager_custom_hook object to add

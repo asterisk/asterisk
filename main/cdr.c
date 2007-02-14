@@ -88,7 +88,7 @@ static pthread_t cdr_thread = AST_PTHREADT_NULL;
 #define BATCH_SCHEDULER_ONLY_DEFAULT 0
 #define BATCH_SAFE_SHUTDOWN_DEFAULT 1
 
-static int enabled;
+static int enabled;		/*! Is the CDR subsystem enabled ? */
 static int batchmode;
 static int batchsize;
 static int batchtime;
@@ -101,6 +101,10 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 static ast_cond_t cdr_pending_cond;
 
+int check_cdr_enabled()
+{
+	return enabled;
+}
 
 /*! Register a CDR driver. Each registered CDR driver generates a CDR 
 	\return 0 on success, -1 on failure 

@@ -1384,6 +1384,12 @@ int ast_check_realtime(const char *family)
 
 }
 
+/*! \brief Check if there's any realtime engines loaded */
+int ast_realtime_enabled()
+{
+	return config_maps ? 1 : 0;
+}
+
 struct ast_config *ast_load_realtime_multientry(const char *family, ...)
 {
 	struct ast_config_engine *eng;
