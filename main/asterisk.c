@@ -337,6 +337,7 @@ static int handle_show_settings(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "\nPBX Core settings\n");
 	ast_cli(fd, "-----------------\n");
+	ast_cli(fd, "  Version:                     %s\n", "" ASTERISK_VERSION "" );
 	if (option_maxcalls)
 		ast_cli(fd, "  Max. calls:                  %d (Current %d)\n", option_maxcalls, ast_active_channels());
 	else
