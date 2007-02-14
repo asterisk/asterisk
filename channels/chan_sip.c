@@ -16261,6 +16261,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 					ast_sched_del(sched, peer->expire);
 				peer->expire = -1;
 				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
+				if (ast_get_ip_or_srv(&peer->addr, v->value, global_srvlookup ? "_sip._udp" : NULL)) {
+					unref_peer(peer);
+					return NULL;
+				}
+
 				ast_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
 				if (!peer->addr.sin_port)
 					peer->addr.sin_port = htons(STANDARD_SIP_PORT);
