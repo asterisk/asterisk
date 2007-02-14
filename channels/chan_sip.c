@@ -2318,7 +2318,7 @@ static int hangup_sip2cause(int cause)
 		case 408:	/* No reaction */
 			return AST_CAUSE_NO_USER_RESPONSE;
 		case 480:	/* No answer */
-			return AST_CAUSE_FAILURE;
+			return AST_CAUSE_NO_ANSWER;
 		case 483:	/* Too many hops */
 			return AST_CAUSE_NO_ANSWER;
 		case 486:	/* Busy everywhere */
