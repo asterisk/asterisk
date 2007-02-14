@@ -11696,6 +11696,8 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 
 	if (!strcasecmp(colname, "ip")) {
 		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "", len);
+	} else  if (!strcasecmp(colname, "port")) {
+		snprintf(buf, len, "%d", ntohs(peer->addr.sin_port));
 	} else  if (!strcasecmp(colname, "status")) {
 		peer_status(peer, buf, len);
 	} else  if (!strcasecmp(colname, "language")) {
@@ -11749,6 +11751,7 @@ struct ast_custom_function sippeer_function = {
 	.read = function_sippeer,
 	.desc = "Valid items are:\n"
 	"- ip (default)          The IP address.\n"
+	"- port                  The port number\n"
 	"- mailbox               The configured mailbox.\n"
 	"- context               The configured context.\n"
 	"- expire                The epoch time of the next expire.\n"
