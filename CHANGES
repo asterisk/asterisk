@@ -4,10 +4,7 @@ Changes since Asterisk 1.4-beta was branched:
     the DUNDi switch in the dialplan.
   * Added the ability to customize which sound files are used for some of the
     prompts within the Voicemail application by changing them in voicemail.conf
-  * enable https support for builtin web server.
-     See configs/http.conf.sample for details.
   * Argument support for Gosub application
-  * MailboxExists converted to dialplan function
   * Ability to set process limits without restarting Asterisk
   * SS7 support in chan_zap (via libss7 library)
   * Proper codec support in chan_skinny.
@@ -27,8 +24,6 @@ Changes since Asterisk 1.4-beta was branched:
      statistics during a reload.
   * Added rotatetimestamp option to logger.conf which will use
      the time to name the logger files instead of sequence number.
-  * The output of CallerID in Manager events is now more consistent.
-     CallerIDNum is used for number and CallerIDName for name.
   * setinterfacevar option in queues.conf also now sets a variable
      called MEMBERNAME which contains the member's name.
   * Added Masquerade manager event for when a masquerade happens between
@@ -43,9 +38,6 @@ Changes since Asterisk 1.4-beta was branched:
      Read() - timeout now can be floating pt.
      WaitForRing() now takes floating pt timeout arg.
      SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
-  * Extend CALLERID() function with "pres" and "ton" parameters to
-     fetch string representation of calling number presentation indicator
-     and numeric representation of type of calling number value.
   * Added 'C' option to Meetme which causes a caller to continue in the dialplan
      when kicked out.
   * Added option to run macro when a queue member is connected to a caller, 
@@ -59,7 +51,6 @@ Changes since Asterisk 1.4-beta was branched:
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
-  * Added the URI redirect option for the built-in HTTP server
   * Added the trunkmaxsize configuration option to chan_iax2.
   * Added G729 passthrough support to chan_phone for Sigma Designs boards.
   * Added the parkedcalltransfers option to features.conf
@@ -67,10 +58,29 @@ Changes since Asterisk 1.4-beta was branched:
   * Added the srvlookup option to iax.conf
   * Added 'E' and 'V' commands to ExternalIVR.
   * Added 'DBDel' and 'DBDelTree' manager commands.
-  * Added 'core show channels count' CLI command.
+
+AMI - The manager (TCP/TLS/HTTP)
+--------------------------------
+  * Added the URI redirect option for the built-in HTTP server
+  * The output of CallerID in Manager events is now more consistent.
+     CallerIDNum is used for number and CallerIDName for name.
+  * enable https support for builtin web server.
+     See configs/http.conf.sample for details.
+
+Dialplan functions
+------------------
   * Added the DEVSTATE() dialplan function which allows retrieving any device
     state in the dialplan, as well as creating custom device states that are
 	controllable from the dialplan.
+  * Extend CALLERID() function with "pres" and "ton" parameters to
+     fetch string representation of calling number presentation indicator
+     and numeric representation of type of calling number value.
+  * MailboxExists converted to dialplan function
+
+CLI Changes
+-----------
+  * New CLI command "core show settings"
+  * Added 'core show channels count' CLI command.
 
 SIP changes
 -----------
@@ -83,3 +93,5 @@ SIP changes
     since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
   * The "localmask" setting was removed in version 1.2 and the reminder about it
     being removed is now also removed.
+  * A new option "busy-level" for setting a level of calls where asterisk reports
+    a device as busy, to separate it from call-limit
