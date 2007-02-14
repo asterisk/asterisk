@@ -782,9 +782,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					ast_log(LOG_WARNING, "Unable to send URL\n");
 			
 
-			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
+			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF_BEGIN) || (f->frametype == AST_FRAME_DTMF_END)))  {
 				if (ast_write(outgoing->chan, f))
-					ast_log(LOG_WARNING, "Unable to forward voice\n");
+					ast_log(LOG_WARNING, "Unable to forward voice or dtmf\n");
 			}
 			if (single && (f->frametype == AST_FRAME_CONTROL) && 
 				((f->subclass == AST_CONTROL_HOLD) || 
