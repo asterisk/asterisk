@@ -62,7 +62,7 @@ struct io_rec {
 
 #define GROW_SHRINK_SIZE 512
 
-/*! \brief Global IO variables are now in a struct in order to be
+/*! \brief Global IO variables are now in a struct in order to be
    made threadsafe */
 struct io_context {
 	struct pollfd *fds;           /*!< Poll structure */
@@ -73,7 +73,7 @@ struct io_context {
 	int needshrink;               /*!< Whether something has been deleted */
 };
 
-/* Create an I/O context */
+/*! \brief Create an I/O context */
 struct io_context *io_context_create(void)
 {
 	struct io_context *tmp = NULL;
