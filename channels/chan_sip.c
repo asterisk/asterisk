@@ -11754,6 +11754,10 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 		snprintf(buf, len, "%d", peer->inUse);
 	} else  if (!strcasecmp(colname, "accountcode")) {
 		ast_copy_string(buf, peer->accountcode, len);
+	} else  if (!strcasecmp(colname, "callgroup")) {
+		ast_print_group(buf, len, peer->callgroup);
+	} else  if (!strcasecmp(colname, "pickupgroup")) {
+		ast_print_group(buf, len, peer->pickupgroup);
 	} else  if (!strcasecmp(colname, "useragent")) {
 		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
@@ -11802,6 +11806,8 @@ struct ast_custom_function sippeer_function = {
 	"- dynamic               Is it dynamic? (yes/no).\n"
 	"- callerid_name         The configured Caller ID name.\n"
 	"- callerid_num          The configured Caller ID number.\n"
+	"- callgroup             The configured Callgroup.\n"
+	"- pickupgroup           The configured Pickupgroup.\n"
 	"- codecs                The configured codecs.\n"
 	"- status                Status (if qualify=yes).\n"
 	"- regexten              Registration extension\n"
