@@ -24,8 +24,16 @@
  * 
  * \par See also
  * \arg \ref Config_vm
+ * \note For information about voicemail IMAP storage, read doc/imapstorage.txt
  * \ingroup applications
- * \note This module requires res_adsi to load.
+ * \note This module requires res_adsi to load. This needs to be optional
+ * during compilation.
+ *
+ *
+ *
+ * \note  This file is now almost impossible to work with, due to all #ifdefs.
+ *        Feels like the database code before realtime. Someone - please come up
+ *        with a plan to clean this up.
  */
 
 /*** MODULEINFO
@@ -64,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/mman.h>
 #include <time.h>
 #include <dirent.h>
+
 #ifdef IMAP_STORAGE
 #include <ctype.h>
 #include <signal.h>
@@ -72,6 +81,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "imap4r1.h"
 #include "linkage.h"
 #endif
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -90,6 +100,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/smdi.h"
+
 #ifdef ODBC_STORAGE
 #include "asterisk/res_odbc.h"
 #endif
@@ -109,10 +120,10 @@ static char delimiter = '\0';
 struct vm_state;
 struct ast_vm_user;
 
-static int init_mailstream (struct vm_state *vms, int box);
-static void write_file (char *filename, char *buffer, unsigned long len);
-/*static void status (MAILSTREAM *stream); */ /* No need for this. */
-static void display_body (BODY *body, char *pfx, long i);
+/* Forward declarations for IMAP */
+static int init_mailstream(struct vm_state *vms, int box);
+static void write_file char *filename, char *buffer, unsigned long len);
+static void display_body(BODY *body, char *pfx, long i);
 static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len);
 static void vm_imap_delete(int msgnum, struct vm_state *vms);
 static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len);
@@ -130,12 +141,16 @@ static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int target);
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms);
-static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box);
+
+
+
 struct vmstate {
 	struct vm_state *vms;
 	AST_LIST_ENTRY(vmstate) list;
 };
+
 static AST_LIST_HEAD_STATIC(vmstates, vmstate);
+
 #endif
 
 #define SMDI_MWI_WAIT_TIMEOUT 1000 /* 1 second */
@@ -316,13 +331,14 @@ struct ast_vm_user {
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
 	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
 #ifdef IMAP_STORAGE
-	char imapuser[80];	/* IMAP server login */
-	char imappassword[80];	/* IMAP server password if authpassword not defined */
+	char imapuser[80];               /*!< IMAP server login */
+	char imappassword[80];           /*!< IMAP server password if authpassword not defined */
 #endif
-	double volgain;		/*!< Volume gain for voicemails sent via email */
+	double volgain;		         /*!< Volume gain for voicemails sent via email */
 	AST_LIST_ENTRY(ast_vm_user) list;
 };
 
+/*! Voicemail time zones */
 struct vm_zone {
 	AST_LIST_ENTRY(vm_zone) list;
 	char name[80];
@@ -330,6 +346,7 @@ struct vm_zone {
 	char msg_format[512];
 };
 
+/*! Voicemail mailbox state */
 struct vm_state {
 	char curbox[80];
 	char username[80];
@@ -346,30 +363,18 @@ struct vm_state {
 	int starting;
 	int repeats;
 #ifdef IMAP_STORAGE
-	int updated; /* decremented on each mail check until 1 -allows delay */
+	int updated;                         /*!< decremented on each mail check until 1 -allows delay */
 	long msgArray[256];
 	MAILSTREAM *mailstream;
 	int vmArrayIndex;
-	char imapuser[80]; /* IMAP server login */
+	char imapuser[80];                   /*!< IMAP server login */
 	int interactive;
 	unsigned int quota_limit;
 	unsigned int quota_usage;
 	struct vm_state *persist_vms;
 #endif
 };
-static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option, signed char record_gain);
-static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
-static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime,
-			char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration, const char *unlockdir,
-			signed char record_gain, struct vm_state *vms);
-static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain);
-static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
-static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
-static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
-#if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
-static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
-#endif
-static void apply_options(struct ast_vm_user *vmu, const char *options);
+
 
 #ifdef ODBC_STORAGE
 static char odbc_database[80];
@@ -422,77 +427,74 @@ static char userscontext[AST_MAX_EXTENSION] = "default";
 
 static char *addesc = "Comedian Mail";
 
-static char *synopsis_vm =
-"Leave a Voicemail message";
+static char *synopsis_vm = "Leave a Voicemail message";
 
 static char *descrip_vm =
-"  VoiceMail(mailbox[@context][&mailbox[@context]][...][|options]): This\n"
-"application allows the calling party to leave a message for the specified\n"
-"list of mailboxes. When multiple mailboxes are specified, the greeting will\n"
-"be taken from the first mailbox specified. Dialplan execution will stop if the\n"
-"specified mailbox does not exist.\n"
-"  The Voicemail application will exit if any of the following DTMF digits are\n"
-"received:\n"
-"    0 - Jump to the 'o' extension in the current dialplan context.\n"
-"    * - Jump to the 'a' extension in the current dialplan context.\n"
-"  This application will set the following channel variable upon completion:\n"
-"    VMSTATUS - This indicates the status of the execution of the VoiceMail\n"
-"               application. The possible values are:\n"
-"               SUCCESS | USEREXIT | FAILED\n\n"
-"  Options:\n"
-"    b    - Play the 'busy' greeting to the calling party.\n"
-"    g(#) - Use the specified amount of gain when recording the voicemail\n"
-"           message. The units are whole-number decibels (dB).\n"
-"    s    - Skip the playback of instructions for leaving a message to the\n"
-"           calling party.\n"
-"    u    - Play the 'unavailble greeting.\n"
-"    j    - Jump to priority n+101 if the mailbox is not found or some other\n"
-"           error occurs.\n";
+	"  VoiceMail(mailbox[@context][&mailbox[@context]][...][|options]): This\n"
+	"application allows the calling party to leave a message for the specified\n"
+	"list of mailboxes. When multiple mailboxes are specified, the greeting will\n"
+	"be taken from the first mailbox specified. Dialplan execution will stop if the\n"
+	"specified mailbox does not exist.\n"
+	"  The Voicemail application will exit if any of the following DTMF digits are\n"
+	"received:\n"
+	"    0 - Jump to the 'o' extension in the current dialplan context.\n"
+	"    * - Jump to the 'a' extension in the current dialplan context.\n"
+	"  This application will set the following channel variable upon completion:\n"
+	"    VMSTATUS - This indicates the status of the execution of the VoiceMail\n"
+	"               application. The possible values are:\n"
+	"               SUCCESS | USEREXIT | FAILED\n\n"
+	"  Options:\n"
+	"    b    - Play the 'busy' greeting to the calling party.\n"
+	"    g(#) - Use the specified amount of gain when recording the voicemail\n"
+	"           message. The units are whole-number decibels (dB).\n"
+	"    s    - Skip the playback of instructions for leaving a message to the\n"
+	"           calling party.\n"
+	"    u    - Play the 'unavailble greeting.\n"
+	"    j    - Jump to priority n+101 if the mailbox is not found or some other\n"
+	"           error occurs.\n";
 
-static char *synopsis_vmain =
-"Check Voicemail messages";
+static char *synopsis_vmain = "Check Voicemail messages";
 
 static char *descrip_vmain =
-"  VoiceMailMain([mailbox][@context][|options]): This application allows the\n"
-"calling party to check voicemail messages. A specific mailbox, and optional\n"
-"corresponding context, may be specified. If a mailbox is not provided, the\n"
-"calling party will be prompted to enter one. If a context is not specified,\n"
-"the 'default' context will be used.\n\n"
-"  Options:\n"
-"    p    - Consider the mailbox parameter as a prefix to the mailbox that\n"
-"           is entered by the caller.\n"
-"    g(#) - Use the specified amount of gain when recording a voicemail\n"
-"           message. The units are whole-number decibels (dB).\n"
-"    s    - Skip checking the passcode for the mailbox.\n"
-"    a(#) - Skip folder prompt and go directly to folder specified.\n"
-"           Defaults to INBOX\n";
+	"  VoiceMailMain([mailbox][@context][|options]): This application allows the\n"
+	"calling party to check voicemail messages. A specific mailbox, and optional\n"
+	"corresponding context, may be specified. If a mailbox is not provided, the\n"
+	"calling party will be prompted to enter one. If a context is not specified,\n"
+	"the 'default' context will be used.\n\n"
+	"  Options:\n"
+	"    p    - Consider the mailbox parameter as a prefix to the mailbox that\n"
+	"           is entered by the caller.\n"
+	"    g(#) - Use the specified amount of gain when recording a voicemail\n"
+	"           message. The units are whole-number decibels (dB).\n"
+	"    s    - Skip checking the passcode for the mailbox.\n"
+	"    a(#) - Skip folder prompt and go directly to folder specified.\n"
+	"           Defaults to INBOX\n";
 
 static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
 
 static char *descrip_vm_box_exists =
-"  MailboxExists(mailbox[@context][|options]): Check to see if the specified\n"
-"mailbox exists. If no voicemail context is specified, the 'default' context\n"
-"will be used.\n"
-"  This application will set the following channel variable upon completion:\n"
-"    VMBOXEXISTSSTATUS - This will contain the status of the execution of the\n"
-"                        MailboxExists application. Possible values include:\n"
-"                        SUCCESS | FAILED\n\n"
-"  Options:\n"
-"    j - Jump to priority n+101 if the mailbox is found.\n";
+	"  MailboxExists(mailbox[@context][|options]): Check to see if the specified\n"
+	"mailbox exists. If no voicemail context is specified, the 'default' context\n"
+	"will be used.\n"
+	"  This application will set the following channel variable upon completion:\n"
+	"    VMBOXEXISTSSTATUS - This will contain the status of the execution of the\n"
+	"                        MailboxExists application. Possible values include:\n"
+	"                        SUCCESS | FAILED\n\n"
+	"  Options:\n"
+	"    j - Jump to priority n+101 if the mailbox is found.\n";
 
-static char *synopsis_vmauthenticate =
-"Authenticate with Voicemail passwords";
+static char *synopsis_vmauthenticate = "Authenticate with Voicemail passwords";
 
 static char *descrip_vmauthenticate =
-"  VMAuthenticate([mailbox][@context][|options]): This application behaves the\n"
-"same way as the Authenticate application, but the passwords are taken from\n"
-"voicemail.conf.\n"
-"  If the mailbox is specified, only that mailbox's password will be considered\n"
-"valid. If the mailbox is not specified, the channel variable AUTH_MAILBOX will\n"
-"be set with the authenticated mailbox.\n\n"
-"  Options:\n"
-"    s - Skip playing the initial prompts.\n";
+	"  VMAuthenticate([mailbox][@context][|options]): This application behaves the\n"
+	"same way as the Authenticate application, but the passwords are taken from\n"
+	"voicemail.conf.\n"
+	"  If the mailbox is specified, only that mailbox's password will be considered\n"
+	"valid. If the mailbox is not specified, the channel variable AUTH_MAILBOX will\n"
+	"be set with the authenticated mailbox.\n\n"
+	"  Options:\n"
+	"    s - Skip playing the initial prompts.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail";
@@ -551,6 +553,24 @@ static unsigned char adsifdn[4] = "\x00\x00\x00\x0F";
 static unsigned char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
+
+/* Forward declarations - generic */
+static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box);
+static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, int msg, int option, signed char record_gain);
+static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num, char *outgoing_context);
+static int play_record_review(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime,
+			char *fmt, int outsidecaller, struct ast_vm_user *vmu, int *duration, const char *unlockdir,
+			signed char record_gain, struct vm_state *vms);
+static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain);
+static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
+static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
+static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
+static void apply_options(struct ast_vm_user *vmu, const char *options);
+
+#if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
+static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
+#endif
+
 
 
 static void populate_defaults(struct ast_vm_user *vmu)
@@ -798,8 +818,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	if ((cfg = ast_config_load_with_comments(VOICEMAIL_CONFIG))) {
 		while ((category = ast_category_browse(cfg, category))) {
 			if (!strcasecmp(category, vmu->context)) {
-				tmp = ast_variable_retrieve(cfg, category, vmu->mailbox);
-				if (!tmp) {
+				if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
 					ast_log(LOG_WARNING, "We could not find the mailbox.\n");
 					break;
 				}
@@ -944,7 +963,8 @@ static int create_dirpath(char *dest, int len, const char *context, const char *
 	return 1;
 }
 
-/* only return failure if ast_lock_path returns 'timeout',
+/*! \brief Lock file path
+    only return failure if ast_lock_path returns 'timeout',
    not if the path does not exist or any other reason
 */
 static int vm_lock_path(const char *path)
@@ -1615,7 +1635,8 @@ static void copy_file(char *frompath, char *topath)
 	copy(frompath2, topath2);
 }
 #endif
-/*
+
+/*! \brief
  * A negative return value indicates an error.
  * \note Should always be called with a lock already set on dir.
  */
@@ -1696,14 +1717,14 @@ static int inchar(struct baseio *bio, FILE *fi)
 
 static int ochar(struct baseio *bio, int c, FILE *so)
 {
-	if (bio->linelength>=BASELINELEN) {
-		if (fputs(eol,so)==EOF)
+	if (bio->linelength >= BASELINELEN) {
+		if (fputs(eol,so) == EOF)
 			return -1;
 
 		bio->linelength= 0;
 	}
 
-	if (putc(((unsigned char)c),so)==EOF)
+	if (putc(((unsigned char)c),so) == EOF)
 		return -1;
 
 	bio->linelength++;
@@ -1726,24 +1747,24 @@ static int base_encode(char *filename, FILE *so)
 		return -1;
 	}
 
-	for (i= 0;i<9;i++) {
+	for (i= 0; i<9; i++) {
 		dtable[i]= 'A'+i;
 		dtable[i+9]= 'J'+i;
 		dtable[26+i]= 'a'+i;
 		dtable[26+i+9]= 'j'+i;
 	}
-	for (i= 0;i<8;i++) {
+	for (i= 0; i<8; i++) {
 		dtable[i+18]= 'S'+i;
 		dtable[26+i+18]= 's'+i;
 	}
-	for (i= 0;i<10;i++) {
+	for (i= 0; i<10; i++) {
 		dtable[52+i]= '0'+i;
 	}
 	dtable[62]= '+';
 	dtable[63]= '/';
 
 	while (!hiteof){
-		unsigned char igroup[3],ogroup[4];
+		unsigned char igroup[3], ogroup[4];
 		int c,n;
 
 		igroup[0]= igroup[1]= igroup[2]= 0;
@@ -1759,8 +1780,8 @@ static int base_encode(char *filename, FILE *so)
 
 		if (n> 0) {
 			ogroup[0]= dtable[igroup[0]>>2];
-			ogroup[1]= dtable[((igroup[0]&3)<<4)|(igroup[1]>>4)];
-			ogroup[2]= dtable[((igroup[1]&0xF)<<2)|(igroup[2]>>6)];
+			ogroup[1]= dtable[((igroup[0]&3)<<4) | (igroup[1]>>4)];
+			ogroup[2]= dtable[((igroup[1]&0xF)<<2) | (igroup[2]>>6)];
 			ogroup[3]= dtable[igroup[2]&0x3F];
 
 			if (n<3) {
@@ -1775,7 +1796,7 @@ static int base_encode(char *filename, FILE *so)
 		}
 	}
 
-	if (fputs(eol,so)==EOF)
+	if (fputs(eol,so) == EOF)
 		return 0;
 
 	fclose(fi);
@@ -1816,7 +1837,8 @@ static char *quote(const char *from, char *to, size_t len)
 	*ptr = '\0';
 	return to;
 }
-/*
+
+/*! \brief
  * fill in *tm for current time according to the proper timezone, if any.
  * Return tm so it can be used as a function argument.
  */
@@ -1839,7 +1861,7 @@ static const struct tm *vmu_tm(const struct ast_vm_user *vmu, struct tm *tm)
 	return tm;
 }
 
-/* same as mkstemp, but return a FILE * */
+/*! \brief same as mkstemp, but return a FILE * */
 static FILE *vm_mkftemp(char *template)
 {
 	FILE *p = NULL;
@@ -1870,9 +1892,8 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	gethostname(host, sizeof(host)-1);
 	if (strchr(srcemail, '@'))
 		ast_copy_string(who, srcemail, sizeof(who));
-	else {
+	else 
 		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
-	}
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
 	strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 	fprintf(p, "Date: %s\r\n", date);
@@ -1880,7 +1901,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	/* Set date format for voicemail mail */
 	strftime(date, sizeof(date), emaildateformat, &tm);
 
-	if (*fromstring) {
+	if (!ast_strlen_zero(fromstring)) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
 			char *passdata;
@@ -1902,11 +1923,11 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	len_passdata = strlen(vmu->fullname) * 2 + 3;
 	passdata2 = alloca(len_passdata);
 	fprintf(p, "To: %s <%s>\r\n", quote(vmu->fullname, passdata2, len_passdata), vmu->email);
-	if (emailsubject) {
+	if (!ast_strlen_zero(emailsubject)) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
 			char *passdata;
-			int vmlen = strlen(emailsubject)*3 + 200;
+			int vmlen = strlen(emailsubject) * 3 + 200;
 			if ((passdata = alloca(vmlen))) {
 				memset(passdata, 0, vmlen);
 				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
@@ -1917,7 +1938,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-	} else	if (*emailtitle) {
+	} else	if (!ast_strlen_zero(emailtitle)) {
 		fprintf(p, emailtitle, msgnum + 1, mailbox) ;
 		fprintf(p,"\r\n") ;
 	} else if (ast_test_flag((&globalflags), VM_PBXSKIP))
@@ -2019,6 +2040,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		unlink(newtmp);
 	}
 }
+
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category)
 {
 	FILE *p=NULL;
@@ -2063,73 +2085,77 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	if ((p = vm_mkftemp(tmp)) == NULL) {
 		ast_log(LOG_WARNING, "Unable to launch '%s' (can't create temporary file)\n", mailcmd);
 		return -1;
-	} else {
-		gethostname(host, sizeof(host)-1);
-		if (strchr(srcemail, '@'))
-			ast_copy_string(who, srcemail, sizeof(who));
-		else {
-			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
-		}
-		snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
-		fprintf(p, "Date: %s\n", date);
-
-		if (*pagerfromstring) {
-			struct ast_channel *ast;
-			if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
-				char *passdata;
-				int vmlen = strlen(fromstring)*3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
-					fprintf(p, "From: %s <%s>\n", passdata, who);
-				} else 
-					ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
-				ast_channel_free(ast);
-			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-		} else
-			fprintf(p, "From: Asterisk PBX <%s>\n", who);
-		fprintf(p, "To: %s\n", pager);
-		if (pagersubject) {
-			struct ast_channel *ast;
-			if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
-				char *passdata;
-				int vmlen = strlen(pagersubject) * 3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
-					fprintf(p, "Subject: %s\n\n", passdata);
-				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
-				ast_channel_free(ast);
-			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-		} else
-			fprintf(p, "Subject: New VM\n\n");
-		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-		if (pagerbody) {
-			struct ast_channel *ast;
-			if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
-				char *passdata;
-				int vmlen = strlen(pagerbody)*3 + 200;
-				if ((passdata = alloca(vmlen))) {
-					memset(passdata, 0, vmlen);
-					prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-					pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
-					fprintf(p, "%s\n", passdata);
-				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
-			ast_channel_free(ast);
-			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
-		} else {
-			fprintf(p, "New %s long msg in box %s\n"
-					"from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
-		}
-		fclose(p);
-		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
-		ast_safe_system(tmp2);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
 	}
+	gethostname(host, sizeof(host)-1);
+	if (strchr(srcemail, '@'))
+		ast_copy_string(who, srcemail, sizeof(who));
+	else 
+		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
+	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
+	strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
+	fprintf(p, "Date: %s\n", date);
+
+	if (*pagerfromstring) {
+		struct ast_channel *ast;
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
+			char *passdata;
+			int vmlen = strlen(fromstring)*3 + 200;
+			if ((passdata = alloca(vmlen))) {
+				memset(passdata, 0, vmlen);
+				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+				pbx_substitute_variables_helper(ast, pagerfromstring, passdata, vmlen);
+				fprintf(p, "From: %s <%s>\n", passdata, who);
+			} else 
+				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			ast_channel_free(ast);
+		} else 
+			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+	} else
+		fprintf(p, "From: Asterisk PBX <%s>\n", who);
+	fprintf(p, "To: %s\n", pager);
+	if (pagersubject) {
+		struct ast_channel *ast;
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
+			char *passdata;
+			int vmlen = strlen(pagersubject) * 3 + 200;
+			if ((passdata = alloca(vmlen))) {
+				memset(passdata, 0, vmlen);
+				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+				pbx_substitute_variables_helper(ast, pagersubject, passdata, vmlen);
+				fprintf(p, "Subject: %s\n\n", passdata);
+			} else
+				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			ast_channel_free(ast);
+		} else
+			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+	} else
+		fprintf(p, "Subject: New VM\n\n");
+
+	strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
+	if (pagerbody) {
+		struct ast_channel *ast;
+		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, 0))) {
+			char *passdata;
+			int vmlen = strlen(pagerbody)*3 + 200;
+			if ((passdata = alloca(vmlen))) {
+				memset(passdata, 0, vmlen);
+				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+				pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
+				fprintf(p, "%s\n", passdata);
+			} else
+				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			ast_channel_free(ast);
+		} else
+			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+	} else {
+		fprintf(p, "New %s long msg in box %s\n"
+				"from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
+	}
+	fclose(p);
+	snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
+	ast_safe_system(tmp2);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
 	return 0;
 }
 
@@ -2469,6 +2495,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 
  	if (newmsgs)
  		*newmsgs = 0;
+
  	if (oldmsgs)
  		*oldmsgs = 0;
  
@@ -4332,9 +4359,9 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 			}
 		}
 
-		else if (!res){
+		else if (!res) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n",callerid);
+				ast_log(LOG_DEBUG, "VM-CID: Numeric caller id: (%s)\n", callerid);
 			/* BB: Since this is all nicely figured out, why not say "from phone number" in this case" */
 			if (!callback)
 				res = wait_file2(chan, vms, "vm-from-phonenumber");
