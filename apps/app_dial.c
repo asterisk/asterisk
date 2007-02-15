@@ -770,7 +770,7 @@ static int valid_priv_reply(struct ast_flags *opts, int res)
 	return 0;
 }
 
-static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
+static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags, int *continue_exec)
 {
 	int res = -1;
 	struct ast_module_user *u;
@@ -1051,6 +1051,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 		}
 	}
+
+	if (continue_exec)
+		*continue_exec = 0;
 
 	/* If a channel group has been specified, get it for use when we create peer channels */
 	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
@@ -1475,7 +1478,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			peer->priority++;
 			ast_pbx_start(peer);
 			hanguptree(outgoing, NULL);
-			res = 1;
+			if (continue_exec)
+				*continue_exec = 1;
+			res = 0;
 			goto done;
 		}
 
@@ -1668,12 +1673,10 @@ done:
 static int dial_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_flags peerflags;
-	int res = 0;
 
 	memset(&peerflags, 0, sizeof(peerflags));
-	res = dial_exec_full(chan, data, &peerflags);
 
-	return (res >= 0 ? 0 : -1);
+	return dial_exec_full(chan, data, &peerflags, NULL);
 }
 
 static int retrydial_exec(struct ast_channel *chan, void *data)
@@ -1729,14 +1732,16 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 
 	res = 0;
 	while (loops) {
+		int continue_exec;
+
 		chan->data = "Retrying";
 		if (ast_test_flag(chan, AST_FLAG_MOH))
 			ast_moh_stop(chan);
 
-		res = dial_exec_full(chan, dialdata, &peerflags);
-		if (res == 1) {
+		res = dial_exec_full(chan, dialdata, &peerflags, &continue_exec);
+		if (continue_exec)
 			break;
-		} else if (res == 0) {
+		if (res == 0) {
 			if (ast_test_flag(&peerflags, OPT_DTMF_EXIT)) {
 				if (!(res = ast_streamfile(chan, announce, chan->language)))
 					res = ast_waitstream(chan, AST_DIGIT_ANY);
@@ -1774,7 +1779,6 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 
 	if (ast_test_flag(chan, AST_FLAG_MOH))
 		ast_moh_stop(chan);
-
  done:
 	ast_module_user_remove(u);
 	return res;
