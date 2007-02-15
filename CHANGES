@@ -95,3 +95,7 @@ SIP changes
     being removed is now also removed.
   * A new option "busy-level" for setting a level of calls where asterisk reports
     a device as busy, to separate it from call-limit
+  * A new realtime family called "sipregs" is now supported to store SIP registration
+    data. If this family is defined, "sippeers" will be used for configuration and
+    "sipregs" for registrations. If it's not defined, "sippeers" will be used for
+    registration data, as before.
