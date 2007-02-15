@@ -46,6 +46,7 @@
 ;iaxpeers => odbc,asterisk
 ;sipusers => odbc,asterisk
 ;sippeers => odbc,asterisk
+;sipregs => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
 ;queues => odbc,asterisk

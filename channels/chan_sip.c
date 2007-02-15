@@ -2502,12 +2502,17 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	char port[10];
 	char ipaddr[INET_ADDRSTRLEN];
 	char regseconds[20];
+	char *tablename = NULL;
 
 	char *sysname = ast_config_AST_SYSTEM_NAME;
 	char *syslabel = NULL;
 
 	time_t nowtime = time(NULL) + expirey;
 	const char *fc = fullcontact ? "fullcontact" : NULL;
+
+	int realtimeregs = ast_check_realtime("sipregs");
+
+	tablename = realtimeregs ? "sipregs" : "sippeers";
 	
 	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
 	ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
@@ -2519,11 +2524,11 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 		syslabel = "regserver";
 
 	if (fc)
-		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
+		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
 			"username", username, fc, fullcontact, syslabel, sysname, NULL); /* note fc and syslabel _can_ be NULL */
 	else
-		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr,
+		ast_update_realtime(tablename, "name", peername, "ipaddr", ipaddr,
 			"port", port, "regseconds", regseconds,
 			"username", username, syslabel, sysname, NULL); /* note syslabel _can_ be NULL */
 }
@@ -2616,6 +2621,7 @@ static void update_peer(struct sip_peer *p, int expiry)
 
 /*! \brief  realtime_peer: Get peer from realtime storage
  * Checks the "sippeers" realtime family from extconfig.conf 
+ * Checks the "sipregs" realtime family from extconfig.conf if it's configured.
  * \todo Consider adding check of port address when matching here to follow the same
  * 	algorithm as for static peers. Will we break anything by adding that?
 */
@@ -2623,17 +2629,42 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 {
 	struct sip_peer *peer;
 	struct ast_variable *var = NULL;
+	struct ast_variable *varregs = NULL;
 	struct ast_variable *tmp;
 	char ipaddr[INET_ADDRSTRLEN];
+	int realtimeregs = ast_check_realtime("sipregs");
 
 	/* First check on peer name */
-	if (newpeername) 
+	if (newpeername) {
 		var = ast_load_realtime("sippeers", "name", newpeername, NULL);
-	else if (sin) {	/* Then check on IP address for dynamic peers */
+		if (realtimeregs)
+			varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+	} else if (sin) {	/* Then check on IP address for dynamic peers */
 		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
 		var = ast_load_realtime("sippeers", "host", ipaddr, NULL);	/* First check for fixed IP hosts */
-		if (!var)
-			var = ast_load_realtime("sippeers", "ipaddr", ipaddr, NULL);	/* Then check for registred hosts */
+		if (var && realtimeregs) {
+			tmp = var;
+			while (tmp) {
+				if (!newpeername && !strcasecmp(tmp->name, "name"))
+					newpeername = tmp->value;
+				tmp = tmp->next;
+			}
+			varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+		} else {
+			if (realtimeregs)
+				varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, NULL); /* Then check for registered hosts */
+			else
+				var = ast_load_realtime("sippeers", "ipaddr", ipaddr, NULL); /* Then check for registered hosts */
+			if (varregs) {
+				tmp = varregs;
+				while (tmp) {
+					if (!newpeername && !strcasecmp(tmp->name, "name"))
+						newpeername = tmp->value;
+					tmp = tmp->next;
+				}
+				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+			}
+		}
 	}
 
 	if (!var)
@@ -2644,6 +2675,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		if (!strcasecmp(tmp->name, "type") &&
 		    !strcasecmp(tmp->value, "user")) {
 			ast_variables_destroy(var);
+			ast_variables_destroy(varregs);
 			return NULL;
 		} else if (!newpeername && !strcasecmp(tmp->name, "name")) {
 			newpeername = tmp->value;
@@ -2658,9 +2690,10 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 
 
 	/* Peer found in realtime, now build it in memory */
-	peer = build_peer(newpeername, var, NULL, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
+	peer = build_peer(newpeername, var, varregs, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
 	if (!peer) {
 		ast_variables_destroy(var);
+		ast_variables_destroy(varregs);
 		return NULL;
 	}
 
@@ -2681,6 +2714,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		ast_set_flag(&peer->flags[0], SIP_REALTIME);
 	}
 	ast_variables_destroy(var);
+	ast_variables_destroy(varregs);
 
 	return peer;
 }
@@ -7733,9 +7767,16 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 /*! \brief Remove registration data from realtime database or AST/DB when registration expires */
 static void destroy_association(struct sip_peer *peer)
 {
+	int realtimeregs;
+	char *tablename;
+	realtimeregs = ast_check_realtime("sipregs");
+	if (realtimeregs)
+		tablename = "sipregs";
+	else
+		tablename = "sippeers";
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
 		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT))
-			ast_update_realtime("sippeers", "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
+			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
 		else 
 			ast_db_del("SIP/Registry", peer->name);
 	}
@@ -10563,10 +10604,12 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 {
 	int realtimepeers;
 	int realtimeusers;
+	int realtimeregs;
 	char codec_buf[BUFSIZ];
 
 	realtimepeers = ast_check_realtime("sippeers");
 	realtimeusers = ast_check_realtime("sipusers");
+	realtimeregs = ast_check_realtime("sipregs");
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -10611,7 +10654,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Jitterbuffer resync:    %ld\n", global_jbconf.resync_threshold);
 	ast_cli(fd, "  Jitterbuffer impl:      %s\n", global_jbconf.impl);
 	ast_cli(fd, "  Jitterbuffer log:       %s\n", ast_test_flag(&global_jbconf, AST_JB_LOG) ? "Yes" : "No");
-	if (!realtimepeers && !realtimeusers)
+	if (!realtimepeers && !realtimeusers && !realtimeregs)
 		ast_cli(fd, "  SIP realtime:           Disabled\n" );
 	else
 		ast_cli(fd, "  SIP realtime:           Enabled\n" );
@@ -10660,11 +10703,12 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Voice Mail Extension:   %s\n", default_vmexten);
 
 	
-	if (realtimepeers || realtimeusers) {
+	if (realtimepeers || realtimeusers || realtimeregs) {
 		ast_cli(fd, "\nRealtime SIP Settings:\n");
 		ast_cli(fd, "----------------------\n");
 		ast_cli(fd, "  Realtime Peers:         %s\n", realtimepeers ? "Yes" : "No");
 		ast_cli(fd, "  Realtime Users:         %s\n", realtimeusers ? "Yes" : "No");
+		ast_cli(fd, "  Realtime Regs:          %s\n", realtimeregs ? "Yes" : "No");
 		ast_cli(fd, "  Cache Friends:          %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
 		ast_cli(fd, "  Update:                 %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
 		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No");
