@@ -99,3 +99,4 @@ SIP changes
     data. If this family is defined, "sippeers" will be used for configuration and
     "sipregs" for registrations. If it's not defined, "sippeers" will be used for
     registration data, as before.
+  * The SIPPEER function have new options for port address, call and pickup groups
