@@ -73,26 +73,30 @@ struct io_context {
 	int needshrink;               /*!< Whether something has been deleted */
 };
 
+/* Create an I/O context */
 struct io_context *io_context_create(void)
 {
-	/* Create an I/O context */
-	struct io_context *tmp;
-	if ((tmp = ast_malloc(sizeof(*tmp)))) {
-		tmp->needshrink = 0;
-		tmp->fdcnt = 0;
-		tmp->maxfdcnt = GROW_SHRINK_SIZE/2;
-		tmp->current_ioc = -1;
-		if (!(tmp->fds = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->fds)))) {
+	struct io_context *tmp = NULL;
+
+	if (!(tmp = ast_malloc(sizeof(*tmp))))
+		return NULL;
+	
+	tmp->needshrink = 0;
+	tmp->fdcnt = 0;
+	tmp->maxfdcnt = GROW_SHRINK_SIZE/2;
+	tmp->current_ioc = -1;
+	
+	if (!(tmp->fds = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->fds)))) {
+		free(tmp);
+		tmp = NULL;
+	} else {
+		if (!(tmp->ior = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->ior)))) {
+			free(tmp->fds);
 			free(tmp);
 			tmp = NULL;
-		} else {
-			if (!(tmp->ior = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->ior)))) {
-				free(tmp->fds);
-				free(tmp);
-				tmp = NULL;
-			}
 		}
 	}
+
 	return tmp;
 }
 
@@ -103,6 +107,7 @@ void io_context_destroy(struct io_context *ioc)
 		free(ioc->fds);
 	if (ioc->ior)
 		free(ioc->ior);
+
 	free(ioc);
 }
 
@@ -113,8 +118,11 @@ void io_context_destroy(struct io_context *ioc)
 static int io_grow(struct io_context *ioc)
 {
 	void *tmp;
+
 	DEBUG(ast_log(LOG_DEBUG, "io_grow()\n"));
+
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
+
 	if ((tmp = ast_realloc(ioc->ior, (ioc->maxfdcnt + 1) * sizeof(*ioc->ior)))) {
 		ioc->ior = tmp;
 		if ((tmp = ast_realloc(ioc->fds, (ioc->maxfdcnt + 1) * sizeof(*ioc->fds)))) {
@@ -137,6 +145,7 @@ static int io_grow(struct io_context *ioc)
 		ioc->maxfdcnt -= GROW_SHRINK_SIZE;
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -149,7 +158,9 @@ static int io_grow(struct io_context *ioc)
 int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data)
 {
 	int *ret;
+
 	DEBUG(ast_log(LOG_DEBUG, "ast_io_add()\n"));
+
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
 		 * We don't have enough space for this entry.  We need to
@@ -169,36 +180,41 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	ioc->fds[ioc->fdcnt].revents = 0;
 	ioc->ior[ioc->fdcnt].callback = callback;
 	ioc->ior[ioc->fdcnt].data = data;
+
 	if (!(ioc->ior[ioc->fdcnt].id = ast_malloc(sizeof(*ioc->ior[ioc->fdcnt].id)))) {
 		/* Bonk if we couldn't allocate an int */
 		return NULL;
 	}
+
 	*(ioc->ior[ioc->fdcnt].id) = ioc->fdcnt;
 	ret = ioc->ior[ioc->fdcnt].id;
 	ioc->fdcnt++;
+
 	return ret;
 }
 
 int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data)
 {
-	if (*id < ioc->fdcnt) {
-		if (fd > -1)
-			ioc->fds[*id].fd = fd;
-		if (callback)
-			ioc->ior[*id].callback = callback;
-		if (events)
-			ioc->fds[*id].events = events;
-		if (data)
-			ioc->ior[*id].data = data;
-		return id;
-	}
-	return NULL;
+	/* If this id exceeds our file descriptor count it doesn't exist here */
+	if (*id > ioc->fdcnt)
+		return NULL;
+
+	if (fd > -1)
+		ioc->fds[*id].fd = fd;
+	if (callback)
+		ioc->ior[*id].callback = callback;
+	if (events)
+		ioc->fds[*id].events = events;
+	if (data)
+		ioc->ior[*id].data = data;
+
+	return id;
 }
 
 static int io_shrink(struct io_context *ioc)
 {
-	int getfrom;
-	int putto = 0;
+	int getfrom, putto = 0;
+
 	/* 
 	 * Bring the fields from the very last entry to cover over
 	 * the entry we are removing, then decrease the size of the 
@@ -225,10 +241,12 @@ static int io_shrink(struct io_context *ioc)
 int ast_io_remove(struct io_context *ioc, int *_id)
 {
 	int x;
+
 	if (!_id) {
 		ast_log(LOG_WARNING, "Asked to remove NULL?\n");
 		return -1;
 	}
+
 	for (x = 0; x < ioc->fdcnt; x++) {
 		if (ioc->ior[x].id == _id) {
 			/* Free the int immediately and set to NULL so we know it's unused now */
@@ -244,6 +262,7 @@ int ast_io_remove(struct io_context *ioc, int *_id)
 	}
 	
 	ast_log(LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
+
 	return -1;
 }
 
@@ -254,34 +273,34 @@ int ast_io_remove(struct io_context *ioc, int *_id)
  */
 int ast_io_wait(struct io_context *ioc, int howlong)
 {
-	int res;
-	int x;
-	int origcnt;
+	int res, x, origcnt;
+
 	DEBUG(ast_log(LOG_DEBUG, "ast_io_wait()\n"));
-	res = poll(ioc->fds, ioc->fdcnt, howlong);
-	if (res > 0) {
-		/*
-		 * At least one event
-		 */
-		origcnt = ioc->fdcnt;
-		for (x = 0; x < origcnt; x++) {
-			/* Yes, it is possible for an entry to be deleted and still have an
-			   event waiting if it occurs after the original calling id */
-			if (ioc->fds[x].revents && ioc->ior[x].id) {
-				/* There's an event waiting */
-				ioc->current_ioc = *ioc->ior[x].id;
-				if (ioc->ior[x].callback) {
-					if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
-						/* Time to delete them since they returned a 0 */
-						ast_io_remove(ioc, ioc->ior[x].id);
-					}
+
+	if ((res = poll(ioc->fds, ioc->fdcnt, howlong)) <= 0)
+		return res;
+
+	/* At least one event tripped */
+	origcnt = ioc->fdcnt;
+	for (x = 0; x < origcnt; x++) {
+		/* Yes, it is possible for an entry to be deleted and still have an
+		   event waiting if it occurs after the original calling id */
+		if (ioc->fds[x].revents && ioc->ior[x].id) {
+			/* There's an event waiting */
+			ioc->current_ioc = *ioc->ior[x].id;
+			if (ioc->ior[x].callback) {
+				if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
+					/* Time to delete them since they returned a 0 */
+					ast_io_remove(ioc, ioc->ior[x].id);
 				}
-				ioc->current_ioc = -1;
 			}
+			ioc->current_ioc = -1;
 		}
-		if (ioc->needshrink)
-			io_shrink(ioc);
 	}
+
+	if (ioc->needshrink)
+		io_shrink(ioc);
+
 	return res;
 }
 
@@ -292,6 +311,7 @@ void ast_io_dump(struct io_context *ioc)
 	 * the logger interface
 	 */
 	int x;
+
 	ast_log(LOG_DEBUG, "Asterisk IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
 	ast_log(LOG_DEBUG, "================================================\n");
 	ast_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
