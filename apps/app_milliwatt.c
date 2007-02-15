@@ -50,7 +50,6 @@ static char *synopsis = "Generate a Constant 1000Hz tone at 0dbm (mu-law)";
 static char *descrip = 
 "Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)\n";
 
-
 static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
 static void *milliwatt_alloc(struct ast_channel *chan, void *params)
@@ -82,7 +81,6 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 	* a multiple of samples, given by number of samples times bytes per
 	* sample. In the case of ulaw, len = samples. for signed linear
 	* len = 2 * samples */
-
 	if (samples > maxsamples) {
 		ast_log(LOG_WARNING, "Only doing %d samples (%d requested)\n", maxsamples, samples);
 		samples = maxsamples;
@@ -90,17 +88,18 @@ static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int
 	len = samples * sizeof (buf[0]);
 	wf.datalen = len;
 	wf.samples = samples;
+
 	/* create a buffer containing the digital milliwatt pattern */
-	for(i = 0; i < len; i++)
-	{
+	for (i = 0; i < len; i++) {
 		buf[AST_FRIENDLY_OFFSET + i] = digital_milliwatt[(*indexp)++];
 		*indexp &= 7;
 	}
-	if (ast_write(chan,&wf) < 0)
-	{
+
+	if (ast_write(chan,&wf) < 0) {
 		ast_log(LOG_WARNING,"Failed to write frame to '%s': %s\n",chan->name,strerror(errno));
 		return -1;
 	}
+
 	return 0;
 }
 
@@ -109,28 +108,33 @@ static struct ast_generator milliwattgen =
 	alloc: milliwatt_alloc,
 	release: milliwatt_release,
 	generate: milliwatt_generate,
-} ;
+};
 
 static int milliwatt_exec(struct ast_channel *chan, void *data)
 {
 
 	struct ast_module_user *u;
 	u = ast_module_user_add(chan);
+
 	ast_set_write_format(chan, AST_FORMAT_ULAW);
 	ast_set_read_format(chan, AST_FORMAT_ULAW);
+
+
 	if (chan->_state != AST_STATE_UP)
-	{
 		ast_answer(chan);
-	}
-	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
-	{
+
+	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0) {
 		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
 		ast_module_user_remove(u);
 		return -1;
 	}
+
 	while(!ast_safe_sleep(chan, 10000));
+
 	ast_deactivate_generator(chan);
+
 	ast_module_user_remove(u);
+
 	return -1;
 }
 
