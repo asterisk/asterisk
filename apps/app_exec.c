@@ -95,30 +95,31 @@ static int exec_exec(struct ast_channel *chan, void *data)
 	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
-	u = ast_module_user_add(chan);
+	if (ast_strlen_zero(data))
+		return 0;
 
-	/* Check and parse arguments */
-	if (data) {
-		s = ast_strdupa(data);
-		appname = strsep(&s, "(");
-		if (s) {
-			endargs = strrchr(s, ')');
-			if (endargs)
-				*endargs = '\0';
-			pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
-		}
-		if (appname) {
-			app = pbx_findapp(appname);
-			if (app) {
-				res = pbx_exec(chan, app, args);
-			} else {
-				ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-				res = -1;
-			}
+	u = ast_module_user_add(chan);
+	
+	s = ast_strdupa(data);
+	appname = strsep(&s, "(");
+	if (s) {
+		endargs = strrchr(s, ')');
+		if (endargs)
+			*endargs = '\0';
+		pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+	}
+	if (appname) {
+		app = pbx_findapp(appname);
+		if (app) {
+			res = pbx_exec(chan, app, args);
+		} else {
+			ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+			res = -1;
 		}
 	}
 
 	ast_module_user_remove(u);
+
 	return res;
 }
 
@@ -129,31 +130,32 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
+	if (ast_strlen_zero(data))
+		return 0;
+
 	u = ast_module_user_add(chan);
 
-	/* Check and parse arguments */
-	if (data) {
-		s = ast_strdupa(data);
-		appname = strsep(&s, "(");
-		if (s) {
-			endargs = strrchr(s, ')');
-			if (endargs)
-				*endargs = '\0';
-			pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
-		}
-		if (appname) {
-			app = pbx_findapp(appname);
-			if (app) {
-				res = pbx_exec(chan, app, args);
-				pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
-			} else {
-				ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-				pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOAPP");
-			}
+	s = ast_strdupa(data);
+	appname = strsep(&s, "(");
+	if (s) {
+		endargs = strrchr(s, ')');
+		if (endargs)
+			*endargs = '\0';
+		pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
+	}
+	if (appname) {
+		app = pbx_findapp(appname);
+		if (app) {
+			res = pbx_exec(chan, app, args);
+			pbx_builtin_setvar_helper(chan, "TRYSTATUS", res ? "FAILED" : "SUCCESS");
+		} else {
+			ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+			pbx_builtin_setvar_helper(chan, "TRYSTATUS", "NOAPP");
 		}
 	}
 
 	ast_module_user_remove(u);
+
 	return 0;
 }
 

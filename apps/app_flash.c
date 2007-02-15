@@ -75,31 +75,37 @@ static int flash_exec(struct ast_channel *chan, void *data)
 	int x;
 	struct ast_module_user *u;
 	struct zt_params ztp;
-	u = ast_module_user_add(chan);
-	if (!strcasecmp(chan->tech->type, "Zap")) {
-		memset(&ztp, 0, sizeof(ztp));
-		res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
-		if (!res) {
-			if (ztp.sigtype & __ZT_SIG_FXS) {
-				x = ZT_FLASH;
-				res = ioctl(chan->fds[0], ZT_HOOK, &x);
-				if (!res || (errno == EINPROGRESS)) {
-					if (res) {
-						/* Wait for the event to finish */
-						zt_wait_event(chan->fds[0]);
-					}
-					res = ast_safe_sleep(chan, 1000);
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
-				} else
-					ast_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
-			} else
-				ast_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
-		} else
-			ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
-	} else
+
+	if (strcasecmp(chan->tech->type, "Zap")) {
 		ast_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
+		return -1;
+	}
+
+	u = ast_module_user_add(chan);
+	
+	memset(&ztp, 0, sizeof(ztp));
+	res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
+	if (!res) {
+		if (ztp.sigtype & __ZT_SIG_FXS) {
+			x = ZT_FLASH;
+			res = ioctl(chan->fds[0], ZT_HOOK, &x);
+			if (!res || (errno == EINPROGRESS)) {
+				if (res) {
+					/* Wait for the event to finish */
+					zt_wait_event(chan->fds[0]);
+				}
+				res = ast_safe_sleep(chan, 1000);
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
+			} else
+				ast_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
+		} else
+			ast_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
+	} else
+		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
+
 	ast_module_user_remove(u);
+
 	return res;
 }
 
