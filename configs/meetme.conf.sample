@@ -17,5 +17,10 @@
 ;
 ; Usage is conf => confno[,pin][,adminpin]	
 ;
+; Note that once a participant has called the conference, a change to the pin
+; number done in this file will not take effect until there are no more users
+; in the conference and it goes away.  When it is created again, it will have
+; the new pin number.
+;
 ;conf => 1234 
 ;conf => 2345,9938
