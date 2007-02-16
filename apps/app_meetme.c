@@ -631,8 +631,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
  * \return A pointer to the conference struct, or NULL if it wasn't found and
  *         make or dynamic were not set.
  */
-static struct ast_conference *build_conf(const char *confno, const char *pin, 
-	const char *pinadmin, int make, int dynamic, int refcount)
+static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc;
@@ -2094,55 +2093,6 @@ bailoutandtrynormal:
 	return ret;
 }
 
-static struct ast_conference *build_conf_from_config(struct ast_conference *conf, const char *confno, 
-	int make, int dynamic, int refcount)
-{
-	struct ast_config *cfg;
-	struct ast_variable *var;
-
-	if (!(cfg = ast_config_load(CONFIG_FILE_NAME))) {
-		ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
-		return NULL;
-	}
-
-	var = ast_variable_browse(cfg, "rooms");
-	for (; var; var = var->next) {
-		char *parse;
-		AST_DECLARE_APP_ARGS(args,
-			AST_APP_ARG(confno);
-			AST_APP_ARG(pin);
-			AST_APP_ARG(pinadmin);
-		);
-
-		if (strcasecmp(var->name, "conf"))
-			continue;
-
-	 	parse = ast_strdupa(var->value);
-		AST_NONSTANDARD_APP_ARGS(args, parse, ',');
-
-		if (strcasecmp(args.confno, confno))
-			continue;
-
-		if (!conf) {
-			conf = build_conf(args.confno, S_OR(args.pin, ""), 
-				S_OR(args.pinadmin, ""), make, dynamic, refcount);
-			break;
-		}
-
-		ast_copy_string(conf->pin, S_OR(args.pin, ""), sizeof(conf->pin));
-		ast_copy_string(conf->pinadmin, S_OR(args.pinadmin, ""), sizeof(conf->pinadmin));
-
-		break;
-	}
-
-	if (!var && !conf)
-		ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
-
-	ast_config_destroy(cfg);
-
-	return conf;
-}
-
 static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
 						 char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags)
 {
@@ -2199,10 +2149,19 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 	return cnf;
 }
 
+
 static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic,
 					char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags)
 {
+	struct ast_config *cfg;
+	struct ast_variable *var;
 	struct ast_conference *cnf;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confno);
+		AST_APP_ARG(pin);
+		AST_APP_ARG(pinadmin);
+	);
 
 	/* Check first in the conference list */
 	AST_LIST_LOCK(&confs);
@@ -2231,7 +2190,33 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				cnf = build_conf(confno, "", "", make, dynamic, refcount);
 			}
 		} else {
-			cnf = build_conf_from_config(NULL, confno, make, dynamic, refcount);
+			/* Check the config */
+			cfg = ast_config_load(CONFIG_FILE_NAME);
+			if (!cfg) {
+				ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
+				return NULL;
+			}
+			for (var = ast_variable_browse(cfg, "rooms"); var; var = var->next) {
+				if (strcasecmp(var->name, "conf"))
+					continue;
+				
+				if (!(parse = ast_strdupa(var->value)))
+					return NULL;
+				
+				AST_NONSTANDARD_APP_ARGS(args, parse, ',');
+				if (!strcasecmp(args.confno, confno)) {
+					/* Bingo it's a valid conference */
+					cnf = build_conf(args.confno,
+							S_OR(args.pin, ""),
+							S_OR(args.pinadmin, ""),
+							make, dynamic, refcount);
+					break;
+				}
+			}
+			if (!var) {
+				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+			}
+			ast_config_destroy(cfg);
 		}
 	} else if (dynamic_pin) {
 		/* Correct for the user selecting 'D' instead of 'd' to have
@@ -2239,10 +2224,6 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		   with a pin. */
 		if (dynamic_pin[0] == 'q')
 			dynamic_pin[0] = '\0';
-	} else if (!cnf->isdynamic) {
-		/* If the conference exists, check the config again, just in case
-		 * the pin in the file has changed. */
-		build_conf_from_config(cnf, confno, 0, 0, 0);
 	}
 
 	if (cnf) {
