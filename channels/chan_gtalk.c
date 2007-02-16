@@ -188,7 +188,7 @@ static int gtalk_do_reload(int fd, int argc, char **argv);
 static int gtalk_show_channels(int fd, int argc, char **argv);
 /*----- RTP interface functions */
 static int gtalk_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp,
-							   struct ast_rtp *vrtp, int codecs, int nat_active);
+							   struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active);
 static enum ast_rtp_get_result gtalk_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
 static int gtalk_get_codec(struct ast_channel *chan);
 
@@ -540,7 +540,7 @@ static int gtalk_get_codec(struct ast_channel *chan)
 	return p->peercapability;
 }
 
-static int gtalk_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
+static int gtalk_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
 {
 	struct gtalk_pvt *p;
 

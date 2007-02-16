@@ -118,6 +118,8 @@ struct ast_rtp {
 	unsigned int lastrxts;
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
+	unsigned int lastitexttimestamp;
+	unsigned int lastotexttimestamp;
 	unsigned int lasteventseqn;
 	int lastrxseqno;                /*!< Last received sequence number */
 	unsigned short seedrxseqno;     /*!< What sequence number did they start with?*/
@@ -1333,7 +1335,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return f ? f : &ast_null_frame;
 	}
 	rtp->lastrxformat = rtp->f.subclass = rtpPT.code;
-	rtp->f.frametype = (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) ? AST_FRAME_VOICE : AST_FRAME_VIDEO;
+	rtp->f.frametype = (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) ? AST_FRAME_VOICE : (rtp->f.subclass < AST_FORMAT_MAX_VIDEO) ? AST_FRAME_VIDEO : AST_FRAME_TEXT;
 
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
@@ -1357,7 +1359,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->f.ts = timestamp / 8;
 		rtp->f.len = rtp->f.samples / 8;
 		rtp->f.seqno = seqno;
-	} else {
+	} else if(rtp->f.subclass < AST_FORMAT_MAX_VIDEO) {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
 			rtp->lastividtimestamp = timestamp;
@@ -1367,7 +1369,14 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->f.delivery.tv_usec = 0;
 		if (mark)
 			rtp->f.subclass |= 0x1;
-		
+	} else {
+		/* TEXT -- samples is # of samples vs. 1000 */
+		if (!rtp->lastitexttimestamp)
+			rtp->lastitexttimestamp = timestamp;
+		rtp->f.samples = timestamp - rtp->lastitexttimestamp;
+		rtp->lastitexttimestamp = timestamp;
+		rtp->f.delivery.tv_sec = 0;
+		rtp->f.delivery.tv_usec = 0;
 	}
 	rtp->f.src = "RTP";
 	return &rtp->f;
@@ -1524,9 +1533,10 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	// dest = c0, src = c1
 	struct ast_rtp *destp = NULL, *srcp = NULL;		/* Audio RTP Channels */
 	struct ast_rtp *vdestp = NULL, *vsrcp = NULL;		/* Video RTP channels */
+	struct ast_rtp *tdestp = NULL, *tsrcp = NULL;		/* Text RTP channels */
 	struct ast_rtp_protocol *destpr = NULL, *srcpr = NULL;
-	enum ast_rtp_get_result audio_dest_res = AST_RTP_GET_FAILED, video_dest_res = AST_RTP_GET_FAILED;
-	enum ast_rtp_get_result audio_src_res = AST_RTP_GET_FAILED, video_src_res = AST_RTP_GET_FAILED;
+	enum ast_rtp_get_result audio_dest_res = AST_RTP_GET_FAILED, video_dest_res = AST_RTP_GET_FAILED, text_dest_res = AST_RTP_GET_FAILED;
+	enum ast_rtp_get_result audio_src_res = AST_RTP_GET_FAILED, video_src_res = AST_RTP_GET_FAILED, text_src_res = AST_RTP_GET_FAILED;
 	int srccodec, nat_active = 0;
 
 	/* Lock channels */
@@ -1560,12 +1570,14 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 		return -1;
 	}
 
-	/* Get audio and video interface (if native bridge is possible) */
+	/* Get audio, video  and text interface (if native bridge is possible) */
 	audio_dest_res = destpr->get_rtp_info(c0, &destp);
 	video_dest_res = destpr->get_vrtp_info ? destpr->get_vrtp_info(c0, &vdestp) : AST_RTP_GET_FAILED;
+	text_dest_res = destpr->get_trtp_info ? destpr->get_trtp_info(c0, &tdestp) : AST_RTP_GET_FAILED;
 	if (srcpr) {
 		audio_src_res = srcpr->get_rtp_info(c1, &srcp);
 		video_src_res = srcpr->get_vrtp_info ? srcpr->get_vrtp_info(c1, &vsrcp) : AST_RTP_GET_FAILED;
+		text_src_res = srcpr->get_trtp_info ? srcpr->get_trtp_info(c1, &tsrcp) : AST_RTP_GET_FAILED;
 	}
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
@@ -1586,7 +1598,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	if (srcp && (srcp->nat || ast_test_flag(srcp, FLAG_NAT_ACTIVE)))
 		nat_active = 1;
 	/* Bridge media early */
-	if (destpr->set_rtp_peer(c0, srcp, vsrcp, srccodec, nat_active))
+	if (destpr->set_rtp_peer(c0, srcp, vsrcp, tsrcp, srccodec, nat_active))
 		ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
 	ast_channel_unlock(c0);
 	if (c1)
@@ -1600,9 +1612,10 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 {
 	struct ast_rtp *destp = NULL, *srcp = NULL;		/* Audio RTP Channels */
 	struct ast_rtp *vdestp = NULL, *vsrcp = NULL;		/* Video RTP channels */
+	struct ast_rtp *tdestp = NULL, *tsrcp = NULL;		/* Text RTP channels */
 	struct ast_rtp_protocol *destpr = NULL, *srcpr = NULL;
-	enum ast_rtp_get_result audio_dest_res = AST_RTP_GET_FAILED, video_dest_res = AST_RTP_GET_FAILED;
-	enum ast_rtp_get_result audio_src_res = AST_RTP_GET_FAILED, video_src_res = AST_RTP_GET_FAILED; 
+	enum ast_rtp_get_result audio_dest_res = AST_RTP_GET_FAILED, video_dest_res = AST_RTP_GET_FAILED, text_dest_res = AST_RTP_GET_FAILED;
+	enum ast_rtp_get_result audio_src_res = AST_RTP_GET_FAILED, video_src_res = AST_RTP_GET_FAILED, text_src_res = AST_RTP_GET_FAILED; 
 	int srccodec;
 
 	/* Lock channels */
@@ -1632,8 +1645,10 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 	/* Get audio and video interface (if native bridge is possible) */
 	audio_dest_res = destpr->get_rtp_info(dest, &destp);
 	video_dest_res = destpr->get_vrtp_info ? destpr->get_vrtp_info(dest, &vdestp) : AST_RTP_GET_FAILED;
+	text_dest_res = destpr->get_trtp_info ? destpr->get_trtp_info(dest, &tdestp) : AST_RTP_GET_FAILED;
 	audio_src_res = srcpr->get_rtp_info(src, &srcp);
 	video_src_res = srcpr->get_vrtp_info ? srcpr->get_vrtp_info(src, &vsrcp) : AST_RTP_GET_FAILED;
+	text_src_res = srcpr->get_trtp_info ? srcpr->get_trtp_info(src, &tsrcp) : AST_RTP_GET_FAILED;
 
 	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (audio_dest_res != AST_RTP_TRY_NATIVE || audio_src_res != AST_RTP_TRY_NATIVE) {
@@ -1645,13 +1660,15 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 	ast_rtp_pt_copy(destp, srcp);
 	if (vdestp && vsrcp)
 		ast_rtp_pt_copy(vdestp, vsrcp);
+	if (tdestp && tsrcp)
+		ast_rtp_pt_copy(tdestp, tsrcp);
 	if (srcpr->get_codec)
 		srccodec = srcpr->get_codec(src);
 	else
 		srccodec = 0;
 	if (media) {
 		/* Bridge early */
-		if (destpr->set_rtp_peer(dest, srcp, vsrcp, srccodec, ast_test_flag(srcp, FLAG_NAT_ACTIVE)))
+		if (destpr->set_rtp_peer(dest, srcp, vsrcp, tsrcp, srccodec, ast_test_flag(srcp, FLAG_NAT_ACTIVE)))
 			ast_log(LOG_WARNING, "Channel '%s' failed to setup early bridge to '%s'\n", dest->name, src->name);
 	}
 	ast_channel_unlock(dest);
@@ -2080,6 +2097,8 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->lastrxts = 0;
 	rtp->lastividtimestamp = 0;
 	rtp->lastovidtimestamp = 0;
+	rtp->lastitexttimestamp = 0;
+	rtp->lastotexttimestamp = 0;
 	rtp->lasteventseqn = 0;
 	rtp->lasteventendseqn = 0;
 	rtp->lasttxformat = 0;
@@ -2627,7 +2646,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				mark = 1;
 			}
 		}
-	} else {
+	} else if(f->subclass < AST_FORMAT_MAX_VIDEO) {
 		mark = f->subclass & 0x1;
 		pred = rtp->lastovidtimestamp + f->samples;
 		/* Re-calculate last TS */
@@ -2641,6 +2660,21 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
 				rtp->lastovidtimestamp = rtp->lastts;
+			}
+		}
+	} else {
+		pred = rtp->lastotexttimestamp + f->samples;
+		/* Re-calculate last TS */
+		rtp->lastts = rtp->lastts + ms * 90;
+		/* If it's close to our prediction, go for it */
+		if (ast_tvzero(f->delivery)) {
+			if (abs(rtp->lastts - pred) < 7200) {
+				rtp->lastts = pred;
+				rtp->lastotexttimestamp += f->samples;
+			} else {
+				if (option_debug > 2)
+					ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+				rtp->lastotexttimestamp = rtp->lastts;
 			}
 		}
 	}
@@ -2736,11 +2770,12 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		return 0;
 	
 	/* Make sure we have enough space for RTP header */
-	if ((_f->frametype != AST_FRAME_VOICE) && (_f->frametype != AST_FRAME_VIDEO)) {
-		ast_log(LOG_WARNING, "RTP can only send voice and video\n");
+	if ((_f->frametype != AST_FRAME_VOICE) && (_f->frametype != AST_FRAME_VIDEO) && (_f->frametype != AST_FRAME_TEXT)) {
+		ast_log(LOG_WARNING, "RTP can only send voice, video and text\n");
 		return -1;
 	}
 
+	/* The bottom bit of a video subclass contains the marker bit */
 	subclass = _f->subclass;
 	if (_f->frametype == AST_FRAME_VIDEO)
 		subclass &= ~0x1;
@@ -2825,29 +2860,33 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 }
 
 /*! \brief Bridge loop for true native bridge (reinvite) */
-static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct ast_channel *c1, struct ast_rtp *p0, struct ast_rtp *p1, struct ast_rtp *vp0, struct ast_rtp *vp1, struct ast_rtp_protocol *pr0, struct ast_rtp_protocol *pr1, int codec0, int codec1, int timeoutms, int flags, struct ast_frame **fo, struct ast_channel **rc, void *pvt0, void *pvt1)
+static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct ast_channel *c1, struct ast_rtp *p0, struct ast_rtp *p1, struct ast_rtp *vp0, struct ast_rtp *vp1, struct ast_rtp *tp0, struct ast_rtp *tp1, struct ast_rtp_protocol *pr0, struct ast_rtp_protocol *pr1, int codec0, int codec1, int timeoutms, int flags, struct ast_frame **fo, struct ast_channel **rc, void *pvt0, void *pvt1)
 {
 	struct ast_frame *fr = NULL;
 	struct ast_channel *who = NULL, *other = NULL, *cs[3] = {NULL, };
 	int oldcodec0 = codec0, oldcodec1 = codec1;
-	struct sockaddr_in ac1 = {0,}, vac1 = {0,}, ac0 = {0,}, vac0 = {0,};
-	struct sockaddr_in t1 = {0,}, vt1 = {0,}, t0 = {0,}, vt0 = {0,};
+	struct sockaddr_in ac1 = {0,}, vac1 = {0,}, tac1 = {0,}, ac0 = {0,}, vac0 = {0,}, tac0 = {0,};
+	struct sockaddr_in t1 = {0,}, vt1 = {0,}, tt1 = {0,}, t0 = {0,}, vt0 = {0,}, tt0 = {0,};
 	
 	/* Set it up so audio goes directly between the two endpoints */
 
 	/* Test the first channel */
-	if (!(pr0->set_rtp_peer(c0, p1, vp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE)))) {
+	if (!(pr0->set_rtp_peer(c0, p1, vp1, tp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE)))) {
 		ast_rtp_get_peer(p1, &ac1);
 		if (vp1)
 			ast_rtp_get_peer(vp1, &vac1);
+		if (tp1)
+			ast_rtp_get_peer(tp1, &tac1);
 	} else
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
 	
 	/* Test the second channel */
-	if (!(pr1->set_rtp_peer(c1, p0, vp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))) {
+	if (!(pr1->set_rtp_peer(c1, p0, vp0, tp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))) {
 		ast_rtp_get_peer(p0, &ac0);
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vac0);
+		if (tp0)
+			ast_rtp_get_peer(tp0, &tac0);
 	} else
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c1->name, c0->name);
 
@@ -2867,10 +2906,10 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 			if (c0->tech_pvt == pvt0)
-				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0))
+				if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 			if (c1->tech_pvt == pvt1)
-				if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0))
+				if (pr1->set_rtp_peer(c1, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			return AST_BRIDGE_RETRY;
 		}
@@ -2879,44 +2918,56 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		ast_rtp_get_peer(p1, &t1);
 		if (vp1)
 			ast_rtp_get_peer(vp1, &vt1);
+		if (tp1)
+			ast_rtp_get_peer(tp1, &tt1);
 		if (pr1->get_codec)
 			codec1 = pr1->get_codec(c1);
 		ast_rtp_get_peer(p0, &t0);
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vt0);
+		if (tp0)
+			ast_rtp_get_peer(tp0, &tt0);
 		if (pr0->get_codec)
 			codec0 = pr0->get_codec(c0);
 		if ((inaddrcmp(&t1, &ac1)) ||
 		    (vp1 && inaddrcmp(&vt1, &vac1)) ||
+		    (tp1 && inaddrcmp(&tt1, &tac1)) ||
 		    (codec1 != oldcodec1)) {
 			if (option_debug > 1) {
 				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
 					c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), codec1);
 				ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n",
 					c1->name, ast_inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), codec1);
+				ast_log(LOG_DEBUG, "Oooh, '%s' changed end taddress to %s:%d (format %d)\n",
+					c1->name, ast_inet_ntoa(tt1.sin_addr), ntohs(tt1.sin_port), codec1);
 				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
 					c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
 				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
 					c1->name, ast_inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
+					c1->name, ast_inet_ntoa(tac1.sin_addr), ntohs(tac1.sin_port), oldcodec1);
 			}
-			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE)))
+			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, tt1.sin_addr.s_addr ? tp1 : NULL, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE)))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
 			memcpy(&vac1, &vt1, sizeof(vac1));
+			memcpy(&tac1, &tt1, sizeof(tac1));
 			oldcodec1 = codec1;
 		}
 		if ((inaddrcmp(&t0, &ac0)) ||
-		    (vp0 && inaddrcmp(&vt0, &vac0))) {
+		    (vp0 && inaddrcmp(&vt0, &vac0)) ||
+		    (tp0 && inaddrcmp(&tt0, &tac0))) {
 			if (option_debug > 1) {
 				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
 					c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
 				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
 					c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
 			}
-			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
+			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, tt0.sin_addr.s_addr ? tp0 : NULL, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
 			memcpy(&vac0, &vt0, sizeof(vac0));
+			memcpy(&tac0, &tt0, sizeof(tac0));
 			oldcodec0 = codec0;
 		}
 
@@ -2941,10 +2992,10 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Oooh, got a %s\n", fr ? "digit" : "hangup");
 			if (c0->tech_pvt == pvt0)
-				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0))
+				if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 			if (c1->tech_pvt == pvt1)
-				if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0))
+				if (pr1->set_rtp_peer(c1, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			return AST_BRIDGE_COMPLETE;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
@@ -2954,15 +3005,15 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 				if (fr->subclass == AST_CONTROL_HOLD) {
 					/* If we someone went on hold we want the other side to reinvite back to us */
 					if (who == c0)
-						pr1->set_rtp_peer(c1, NULL, NULL, 0, 0);
+						pr1->set_rtp_peer(c1, NULL, NULL, NULL, 0, 0);
 					else
-						pr0->set_rtp_peer(c0, NULL, NULL, 0, 0);
+						pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0);
 				} else if (fr->subclass == AST_CONTROL_UNHOLD) {
 					/* If they went off hold they should go back to being direct */
 					if (who == c0)
-						pr1->set_rtp_peer(c1, p0, vp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE));
+						pr1->set_rtp_peer(c1, p0, vp0, tp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE));
 					else
-						pr0->set_rtp_peer(c0, p1, vp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE));
+						pr0->set_rtp_peer(c0, p1, vp1, tp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE));
 				}
 				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
 				ast_frfree(fr);
@@ -3260,9 +3311,10 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 {
 	struct ast_rtp *p0 = NULL, *p1 = NULL;		/* Audio RTP Channels */
 	struct ast_rtp *vp0 = NULL, *vp1 = NULL;	/* Video RTP channels */
+	struct ast_rtp *tp0 = NULL, *tp1 = NULL;	/* Text RTP channels */
 	struct ast_rtp_protocol *pr0 = NULL, *pr1 = NULL;
-	enum ast_rtp_get_result audio_p0_res = AST_RTP_GET_FAILED, video_p0_res = AST_RTP_GET_FAILED;
-	enum ast_rtp_get_result audio_p1_res = AST_RTP_GET_FAILED, video_p1_res = AST_RTP_GET_FAILED;
+	enum ast_rtp_get_result audio_p0_res = AST_RTP_GET_FAILED, video_p0_res = AST_RTP_GET_FAILED, text_p0_res = AST_RTP_GET_FAILED;
+	enum ast_rtp_get_result audio_p1_res = AST_RTP_GET_FAILED, video_p1_res = AST_RTP_GET_FAILED, text_p1_res = AST_RTP_GET_FAILED;
 	enum ast_bridge_result res = AST_BRIDGE_FAILED;
 	int codec0 = 0, codec1 = 0;
 	void *pvt0 = NULL, *pvt1 = NULL;
@@ -3296,8 +3348,10 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	/* Get audio and video interface (if native bridge is possible) */
 	audio_p0_res = pr0->get_rtp_info(c0, &p0);
 	video_p0_res = pr0->get_vrtp_info ? pr0->get_vrtp_info(c0, &vp0) : AST_RTP_GET_FAILED;
+	text_p0_res = pr0->get_trtp_info ? pr0->get_trtp_info(c0, &vp0) : AST_RTP_GET_FAILED;
 	audio_p1_res = pr1->get_rtp_info(c1, &p1);
 	video_p1_res = pr1->get_vrtp_info ? pr1->get_vrtp_info(c1, &vp1) : AST_RTP_GET_FAILED;
+	text_p1_res = pr1->get_trtp_info ? pr1->get_trtp_info(c1, &vp1) : AST_RTP_GET_FAILED;
 
 	/* If we are carrying video, and both sides are not reinviting... then fail the native bridge */
 	if (video_p0_res != AST_RTP_GET_FAILED && (audio_p0_res != AST_RTP_TRY_NATIVE || video_p0_res != AST_RTP_TRY_NATIVE))
@@ -3384,7 +3438,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	} else {
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
-		res = bridge_native_loop(c0, c1, p0, p1, vp0, vp1, pr0, pr1, codec0, codec1, timeoutms, flags, fo, rc, pvt0, pvt1);
+		res = bridge_native_loop(c0, c1, p0, p1, vp0, vp1, tp0, tp1, pr0, pr1, codec0, codec1, timeoutms, flags, fo, rc, pvt0, pvt1);
 	}
 
 	return res;

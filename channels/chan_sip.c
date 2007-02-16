@@ -510,6 +510,7 @@ static const struct cfsip_options {
 #define DEFAULT_TOS_SIP         0               /*!< Call signalling packets should be marked as DSCP CS3, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_AUDIO       0               /*!< Audio packets should be marked as DSCP EF (Expedited Forwarding), but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_VIDEO       0               /*!< Video packets should be marked as DSCP AF41, but the default is 0 to be compatible with previous versions. */
+#define DEFAULT_TOS_TEXT        0               /*!< Text packets should be marked as XXXX XXXX, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_ALLOW_EXT_DOM	TRUE
 #define DEFAULT_REALM		"asterisk"
 #define DEFAULT_NOTIFYRINGING	TRUE
@@ -563,6 +564,7 @@ static int global_mwitime;		/*!< Time between MWI checks for peers */
 static unsigned int global_tos_sip;		/*!< IP type of service for SIP packets */
 static unsigned int global_tos_audio;		/*!< IP type of service for audio RTP packets */
 static unsigned int global_tos_video;		/*!< IP type of service for video RTP packets */
+static unsigned int global_tos_text;		/*!< IP type of service for text RTP packets */
 static int compactheaders;		/*!< send compact sip headers */
 static int recordhistory;		/*!< Record SIP history. Off by default */
 static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
@@ -794,10 +796,14 @@ struct sip_auth {
 #define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(1 << 24)	/*!< 24: Inactive  */
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< 25: ???? */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< 26: Buggy CISCO MWI fix */
+#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< 26: Text not supported  */
+#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< 27: Global text enable */
+#define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< 28: Global text debug */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
-	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_MWI)
+	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_MWI | \
+	SIP_PAGE2_TEXTSUPPORT )
 
 /* SIP packet flags */
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
@@ -833,6 +839,7 @@ static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_
 #define sipdebug		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG)
 #define sipdebug_config		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE)
+#define sipdebug_text			ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT)
 
 /*! \brief T38 States for a call */
 enum t38state {
@@ -976,6 +983,7 @@ struct sip_pvt {
 	struct sockaddr_in sa;			/*!< Our peer */
 	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/*!< Where our Video RTP should be going if not to us */
+	struct sockaddr_in tredirip;		/*!< Where our Text RTP should be going if not to us */
 	time_t lastrtprx;			/*!< Last RTP received */
 	time_t lastrtptx;			/*!< Last RTP sent */
 	int rtptimeout;				/*!< RTP timeout time */
@@ -1010,6 +1018,7 @@ struct sip_pvt {
 	struct sip_registry *registry;		/*!< If this is a REGISTER dialog, to which registry */
 	struct ast_rtp *rtp;			/*!< RTP Session */
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
+	struct ast_rtp *trtp;			/*!< Text RTP session */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
@@ -1545,9 +1554,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno);
 
 /*----- RTP interface functions */
-static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
+static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp,  struct ast_rtp *trtp, int codecs, int nat_active);
 static enum ast_rtp_get_result sip_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
 static enum ast_rtp_get_result sip_get_vrtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
+static enum ast_rtp_get_result sip_get_trtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
 static int sip_get_codec(struct ast_channel *chan);
 static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p, int *faxdetect);
 
@@ -1571,6 +1581,7 @@ static const struct ast_channel_tech sip_tech = {
 	.read = sip_read,
 	.write = sip_write,
 	.write_video = sip_write,
+	.write_text = sip_write,
 	.indicate = sip_indicate,
 	.transfer = sip_transfer,
 	.fixup = sip_fixup,
@@ -1619,6 +1630,7 @@ static struct ast_rtp_protocol sip_rtp = {
 	type: "SIP",
 	get_rtp_info: sip_get_rtp_peer,
 	get_vrtp_info: sip_get_vrtp_peer,
+	get_trtp_info: sip_get_trtp_peer,
 	set_rtp_peer: sip_set_rtp_peer,
 	get_codec: sip_get_codec,
 };
@@ -2839,6 +2851,11 @@ static void do_setnat(struct sip_pvt *p, int natflags)
 			ast_log(LOG_DEBUG, "Setting NAT on UDPTL to %s\n", mode);
 		ast_udptl_setnat(p->udptl, natflags);
 	}
+	if (p->trtp) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Setting NAT on TRTP to %s\n", mode);
+		ast_rtp_setnat(p->trtp, natflags);
+	}
 }
 
 /*! \brief Create address structure from peer reference.
@@ -2859,6 +2876,10 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 	if ((!ast_test_flag(&dialog->flags[1], SIP_PAGE2_VIDEOSUPPORT) || !(dialog->capability & AST_FORMAT_VIDEO_MASK)) && dialog->vrtp) {
 		ast_rtp_destroy(dialog->vrtp);
 		dialog->vrtp = NULL;
+	}
+	if (!ast_test_flag(&dialog->flags[1], SIP_PAGE2_TEXTSUPPORT) && dialog->trtp) {
+		ast_rtp_destroy(dialog->trtp);
+		dialog->trtp = NULL;
 	}
 	dialog->prefs = peer->prefs;
 	if (ast_test_flag(&dialog->flags[1], SIP_PAGE2_T38SUPPORT)) {
@@ -2897,6 +2918,13 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_set_rtptimeout(dialog->vrtp, peer->rtptimeout);
 		ast_rtp_set_rtpholdtimeout(dialog->vrtp, peer->rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(dialog->vrtp, peer->rtpkeepalive);
+	}
+	if (dialog->trtp) {
+		ast_rtp_setdtmf(dialog->trtp, 0);
+		ast_rtp_setdtmfcompensate(dialog->trtp, 0);
+		ast_rtp_set_rtptimeout(dialog->trtp, peer->rtptimeout);
+		ast_rtp_set_rtpholdtimeout(dialog->trtp, peer->rtpholdtimeout);
+		ast_rtp_set_rtpkeepalive(dialog->trtp, peer->rtpkeepalive);
 	}
 
 	ast_string_field_set(dialog, peername, peer->username);
@@ -3181,6 +3209,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		ast_rtp_destroy(p->rtp);
 	if (p->vrtp)
 		ast_rtp_destroy(p->vrtp);
+	if (p->trtp)
+		ast_rtp_destroy(p->trtp);
 	if (p->udptl)
 		ast_udptl_destroy(p->udptl);
 	if (p->refer)
@@ -3644,10 +3674,13 @@ static int sip_hangup(struct ast_channel *ast)
 			if (!p->pendinginvite) {
 				char *audioqos = "";
 				char *videoqos = "";
+				char *textqos = "";
 				if (p->rtp)
 					audioqos = ast_rtp_get_quality(p->rtp);
 				if (p->vrtp)
 					videoqos = ast_rtp_get_quality(p->vrtp);
+				if (p->trtp)
+					textqos = ast_rtp_get_quality(p->trtp);
 				/* Send a hangup */
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 
@@ -3657,11 +3690,15 @@ static int sip_hangup(struct ast_channel *ast)
 						append_history(p, "RTCPaudio", "Quality:%s", audioqos);
 					if (p->vrtp)
 						append_history(p, "RTCPvideo", "Quality:%s", videoqos);
+					if (p->trtp)
+						append_history(p, "RTCPtext", "Quality:%s", textqos);
 				}
 				if (p->rtp && oldowner)
 					pbx_builtin_setvar_helper(oldowner, "RTPAUDIOQOS", audioqos);
 				if (p->vrtp && oldowner)
 					pbx_builtin_setvar_helper(oldowner, "RTPVIDEOQOS", videoqos);
+				if (p->trtp && oldowner)
+					pbx_builtin_setvar_helper(oldowner, "RTPTEXTQOS", textqos);
 			} else {
 				/* Note we will need a BYE when this all settles out
 				   but we can't send one while we have "INVITE" outstanding. */
@@ -3775,6 +3812,23 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 				}
 				p->lastrtptx = time(NULL);
 				res = ast_rtp_write(p->vrtp, frame);
+			}
+			sip_pvt_unlock(p);
+		}
+		break;
+	case AST_FRAME_TEXT:
+		if (p) {
+			sip_pvt_lock(p);
+			if (p->trtp) {
+				/* Activate text early media */
+				if ((ast->_state != AST_STATE_UP) &&
+				    !ast_test_flag(&p->flags[0], SIP_PROGRESS_SENT) &&
+				    !ast_test_flag(&p->flags[0], SIP_OUTGOING)) {
+					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, XMIT_UNRELIABLE);
+					ast_set_flag(&p->flags[0], SIP_PROGRESS_SENT);	
+				}
+				p->lastrtptx = time(NULL);
+				res = ast_rtp_write(p->trtp, frame);
 			}
 			sip_pvt_unlock(p);
 		}
@@ -4010,7 +4064,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	struct ast_variable *v = NULL;
 	int fmt;
 	int what;
+	int video;
+	int text;
 	int needvideo = 0;
+	int needtext = 0;
 	{
 		const char *my_name;	/* pick a good name */
 	
@@ -4040,15 +4097,22 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
-	if (i->jointcapability)	 	/* The joint capabilities of us and peer */
+	if (i->jointcapability) { 	/* The joint capabilities of us and peer */
 		what = i->jointcapability;
-	else if (i->capability)		/* Our configured capability for this peer */
+		video = i->jointcapability & AST_FORMAT_VIDEO_MASK;
+		text = i->jointcapability & AST_FORMAT_TEXT_MASK;
+	} else if (i->capability) {		/* Our configured capability for this peer */
 		what = i->capability;
-	else
+		video = i->capability & AST_FORMAT_VIDEO_MASK;
+		text = i->capability & AST_FORMAT_TEXT_MASK;
+	} else {
 		what = global_capability;	/* Global codec support */
+		video = global_capability & AST_FORMAT_VIDEO_MASK;
+		text = global_capability & AST_FORMAT_TEXT_MASK;
+	}
 
 	/* Set the native formats for audio  and merge in video */
-	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
+	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | video | text;
 	if (option_debug > 2) {
 		char buf[BUFSIZ];
 		ast_log(LOG_DEBUG, "*** Our native formats are %s \n", ast_getformatname_multiple(buf, BUFSIZ, tmp->nativeformats));
@@ -4073,6 +4137,13 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 			needvideo = i->jointcapability & AST_FORMAT_VIDEO_MASK;	/* Inbound call */
 	}
 
+	if (i->trtp) {
+		if (i->prefcodec)
+			needtext = i->prefcodec & AST_FORMAT_TEXT_MASK;	/* Outbound call */
+ 		else
+			needtext = i->jointcapability & AST_FORMAT_TEXT_MASK;	/* Inbound call */
+	}
+
 	if (option_debug > 2) {
 		if (needvideo) 
 			ast_log(LOG_DEBUG, "This channel can handle video! HOLLYWOOD next!\n");
@@ -4095,6 +4166,9 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (needvideo && i->vrtp) {
 		tmp->fds[2] = ast_rtp_fd(i->vrtp);
 		tmp->fds[3] = ast_rtcp_fd(i->vrtp);
+	}
+	if (needtext && i->trtp) {
+		tmp->fds[4] = ast_rtp_fd(i->trtp);
 	}
 	if (i->udptl) {
 		tmp->fds[5] = ast_udptl_fd(i->udptl);
@@ -4314,6 +4388,19 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	case 3:
 		f = ast_rtcp_read(p->vrtp);	/* RTCP Control Channel for video */
 		break;
+	case 4:
+		f = ast_rtp_read(p->trtp);	/* RTP Text */
+		if (sipdebug_text) {
+			int i;
+			unsigned char* arr = f->data;
+			for (i=0; i < f->datalen; i++)
+				ast_verbose("%c", (arr[i] > ' ' && arr[i] < '}') ? arr[i] : '.');
+			ast_verbose(" -> ");
+			for (i=0; i < f->datalen; i++)
+				ast_verbose("%02X ", arr[i]);
+			ast_verbose("\n");
+		}
+		break;
 	case 5:
 		f = ast_udptl_read(p->udptl);	/* UDPTL for T.38 */
 		break;
@@ -4331,7 +4418,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-				p->owner->nativeformats = (p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass;
+				p->owner->nativeformats = (p->owner->nativeformats & (AST_FORMAT_VIDEO_MASK | AST_FORMAT_TEXT_MASK)) | f->subclass;
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
@@ -4475,11 +4562,15 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		/* If the global videosupport flag is on, we always create a RTP interface for video */
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT))
 			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+ 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT))
+ 			p->trtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (ast_test_flag(&p->flags[1], SIP_PAGE2_T38SUPPORT))
 			p->udptl = ast_udptl_new_with_bindaddr(sched, io, 0, bindaddr.sin_addr);
-		if (!p->rtp || (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp)) {
-			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n",
-				ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "and video" : "", strerror(errno));
+ 		if (!p->rtp|| (ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) && !p->vrtp) 
+				|| (ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) && !p->trtp)) {
+ 			ast_log(LOG_WARNING, "Unable to create RTP audio %s%ssession: %s\n",
+ 				ast_test_flag(&p->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "and video " : "",
+ 				ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "and text " : "", strerror(errno));
 			ast_mutex_destroy(&p->pvt_lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
@@ -4501,6 +4592,11 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			ast_rtp_set_rtptimeout(p->vrtp, global_rtptimeout);
 			ast_rtp_set_rtpholdtimeout(p->vrtp, global_rtpholdtimeout);
 			ast_rtp_set_rtpkeepalive(p->vrtp, global_rtpkeepalive);
+		}
+		if (p->trtp) {
+			ast_rtp_settos(p->trtp, global_tos_text);
+			ast_rtp_setdtmf(p->trtp, 0);
+			ast_rtp_setdtmfcompensate(p->trtp, 0);
 		}
 		if (p->udptl)
 			ast_udptl_settos(p->udptl, global_tos_audio);
@@ -4944,6 +5040,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int len = -1;
 	int portno = -1;		/*!< RTP Audio port number */
 	int vportno = -1;		/*!< RTP Video port number */
+	int tportno = -1;		/*!< RTP Text port number */
 	int udptlportno = -1;
 	int peert38capability = 0;
 	char s[256];
@@ -4952,20 +5049,24 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Peer capability is the capability in the SDP, non codec is RFC2833 DTMF (101) */	
 	int peercapability = 0, peernoncodeccapability = 0;
 	int vpeercapability = 0, vpeernoncodeccapability = 0;
+	int tpeercapability = 0, tpeernoncodeccapability = 0;
 	struct sockaddr_in sin;		/*!< media socket address */
 	struct sockaddr_in vsin;	/*!< Video socket address */
+	struct sockaddr_in tsin;	/*!< Text socket address */
 
 	const char *codecs;
 	struct hostent *hp;		/*!< RTP Audio host IP */
 	struct hostent *vhp = NULL;	/*!< RTP video host IP */
+	struct hostent *thp = NULL;	/*!< RTP text host IP */
 	struct ast_hostent audiohp;
 	struct ast_hostent videohp;
+	struct ast_hostent texthp;
 	int codec;
 	int destiterator = 0;
 	int iterator;
 	int sendonly = 0;
 	int numberofports;
-	struct ast_rtp *newaudiortp, *newvideortp;	/* Buffers for codec handling */
+	struct ast_rtp *newaudiortp, *newvideortp, *newtextrtp;	/* Buffers for codec handling */
 	int newjointcapability;				/* Negotiated capability */
 	int newpeercapability;
 	int newnoncodeccapability;
@@ -4990,6 +5091,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	memset(newvideortp, 0, ast_rtp_alloc_size());
 	ast_rtp_new_init(newvideortp);
 	ast_rtp_pt_clear(newvideortp);
+
+	newtextrtp = alloca(ast_rtp_alloc_size());
+	memset(newtextrtp, 0, ast_rtp_alloc_size());
+	ast_rtp_new_init(newtextrtp);
+	ast_rtp_pt_clear(newtextrtp);
 
 	/* Update our last rtprx when we receive an SDP, too */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
@@ -5017,15 +5123,24 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	vhp = hp;	/* Copy to video address as default too */
+	thp = hp;	/* Copy to video address as default too */
 	
 	iterator = req->sdp_start;
 	ast_set_flag(&p->flags[0], SIP_NOVIDEO);	
+	ast_set_flag(&p->flags[1], SIP_PAGE2_NOTEXT);	
 
+	if (p->vrtp)
+		ast_rtp_pt_clear(newvideortp);  /* Must be cleared in case no m=video line exists */
+ 
+	if (p->trtp)
+		ast_rtp_pt_clear(newtextrtp);  /* Must be cleared in case no m=text line exists */
 
 	/* Find media streams in this SDP offer */
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		int x;
 		int audio = FALSE;
+		int video = FALSE;
+		int text = FALSE;
 
 		numberofports = 1;
 		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
@@ -5046,7 +5161,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			}
 		} else if ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
-			/* If it is not audio - is it video ? */
+			video = TRUE;
 			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);	
 			numberofmediastreams++;
 			vportno = x;
@@ -5059,6 +5174,22 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (debug)
 					ast_verbose("Found RTP video format %d\n", codec);
 				ast_rtp_set_m_type(newvideortp, codec);
+			}
+		} else if ((sscanf(m, "text %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
+		    (sscanf(m, "text %d RTP/AVP %n", &x, &len) == 1)) {
+			text = TRUE;
+			ast_clear_flag(&p->flags[1], SIP_PAGE2_NOTEXT);	
+			numberofmediastreams++;
+			tportno = x;
+			/* Scan through the RTP payload types specified in a "m=" line: */
+			for (codecs = m + len; !ast_strlen_zero(codecs); codecs = ast_skip_blanks(codecs + len)) {
+				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
+					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
+					return -1;
+				}
+				if (debug)
+					ast_verbose("Found RTP text format %d\n", codec);
+				ast_rtp_set_m_type(newtextrtp, codec);
 			}
 		} else if (p->udptl && ( (sscanf(m, "image %d udptl t38%n", &x, &len) == 1) || 
 		 (sscanf(m, "image %d UDPTL t38%n", &x, &len) == 1) )) {
@@ -5092,27 +5223,35 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (audio) {
 					if ( !(hp = ast_gethostbyname(host, &audiohp)))
 						ast_log(LOG_WARNING, "Unable to lookup RTP Audio host in secondary c= line, '%s'\n", c);
-				} else if (!(vhp = ast_gethostbyname(host, &videohp)))
-					ast_log(LOG_WARNING, "Unable to lookup RTP video host in secondary c= line, '%s'\n", c);
+				} else if (video) {
+					if (!(vhp = ast_gethostbyname(host, &videohp)))
+						ast_log(LOG_WARNING, "Unable to lookup RTP video host in secondary c= line, '%s'\n", c);
+				} else if (text) {
+					if (!(thp = ast_gethostbyname(host, &texthp)))
+						ast_log(LOG_WARNING, "Unable to lookup RTP text host in secondary c= line, '%s'\n", c);
+				}
 			}
 
 		}
 	}
-	if (portno == -1 && vportno == -1 && udptlportno == -1)
+	if (portno == -1 && vportno == -1 && udptlportno == -1  && tportno == -1)
 		/* No acceptable offer found in SDP  - we have no ports */
 		/* Do not change RTP or VRTP if this is a re-invite */
 		return -2;
 
-	if (numberofmediastreams > 2)
-		/* We have too many fax, audio and/or video media streams, fail this offer */
+	if (numberofmediastreams > 3)
+		/* We have too many fax, audio and/or video and/or text media streams, fail this offer */
 		return -3;
 
 	/* RTP addresses and ports for audio and video */
 	sin.sin_family = AF_INET;
 	vsin.sin_family = AF_INET;
+	tsin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	if (vhp)
 		memcpy(&vsin.sin_addr, vhp->h_addr, sizeof(vsin.sin_addr));
+	if (thp)
+		memcpy(&tsin.sin_addr, thp->h_addr, sizeof(tsin.sin_addr));
 
 	/* Setup UDPTL port number */
 	if (p->udptl) {
@@ -5146,11 +5285,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			}
 		}
 	}
-	/* Setup video port number */
+	/* Setup video port number, assumes we have audio */
 	if (vportno != -1)
 		vsin.sin_port = htons(vportno);
 
-	/* Next, scan through each "a=rtpmap:" line, noting each
+	/* Setup text port number, assumes we have audio */
+	if (tportno != -1)
+		tsin.sin_port = htons(tportno);
+
+	/* Next, scan through each "a=xxxx:" line, noting each
 	 * specified RTP payload type (with corresponding MIME subtype):
 	 */
 	/* XXX This needs to be done per media stream, since it's media stream specific */
@@ -5240,10 +5383,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			last_rtpmap_codec++;
 
 			/* Note: should really look at the 'freq' and '#chans' params too */
-			ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
-					ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0);
-			if (p->vrtp)
-				ast_rtp_set_rtpmap_type(newvideortp, codec, "video", mimeSubtype, 0);
+			/* Note: This should all be done in the context of the m= above */
+			if (!strncasecmp(mimeSubtype, "H26",3)) {         /* Video */
+				/* Not going to do anything here for the moment, but we will soon */
+			} else if (!strncasecmp(mimeSubtype, "T140",4)) { /* Text */
+				if (p->trtp) {
+					/* ast_verbose("Adding t140 mimeSubtype to textrtp struct\n"); */
+					ast_rtp_set_rtpmap_type(newtextrtp, codec, "text", mimeSubtype, 0);
+				}
+			} else {                                          /* Must be audio?? */
+				ast_rtp_set_rtpmap_type(newaudiortp, codec, "audio", mimeSubtype,
+						ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0);
+			}
 		}
 	}
 	
@@ -5360,21 +5511,23 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	/* Now gather all of the codecs that we are asked for: */
 	ast_rtp_get_current_formats(newaudiortp, &peercapability, &peernoncodeccapability);
 	ast_rtp_get_current_formats(newvideortp, &vpeercapability, &vpeernoncodeccapability);
-
-	newjointcapability = p->capability & (peercapability | vpeercapability);
-	newpeercapability = (peercapability | vpeercapability);
+	ast_rtp_get_current_formats(newtextrtp, &tpeercapability, &tpeernoncodeccapability);
+ 
+	newjointcapability = p->capability & (peercapability | vpeercapability | tpeercapability);
+	newpeercapability = (peercapability | vpeercapability | tpeercapability);
 	newnoncodeccapability = p->noncodeccapability & peernoncodeccapability;
 		
 		
 	if (debug) {
 		/* shame on whoever coded this.... */
-		char s1[BUFSIZ], s2[BUFSIZ], s3[BUFSIZ], s4[BUFSIZ];
+		char s1[BUFSIZ], s2[BUFSIZ], s3[BUFSIZ], s4[BUFSIZ], s5[BUFSIZ];
 
-		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s, combined - %s\n",
+		ast_verbose("Capabilities: us - %s, peer - audio=%s/video=%s/text=%s, combined - %s\n",
 			    ast_getformatname_multiple(s1, BUFSIZ, p->capability),
 			    ast_getformatname_multiple(s2, BUFSIZ, newpeercapability),
 			    ast_getformatname_multiple(s3, BUFSIZ, vpeercapability),
-			    ast_getformatname_multiple(s4, BUFSIZ, newjointcapability));
+			    ast_getformatname_multiple(s4, BUFSIZ, tpeercapability),
+			    ast_getformatname_multiple(s5, BUFSIZ, newjointcapability));
 
 		ast_verbose("Non-codec capabilities (dtmf): us - %s, peer - %s, combined - %s\n",
 			    ast_rtp_lookup_mime_multiple(s1, BUFSIZ, p->noncodeccapability, 0, 0),
@@ -5403,6 +5556,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	ast_rtp_pt_copy(p->rtp, newaudiortp);
 	if (p->vrtp)
 		ast_rtp_pt_copy(p->vrtp, newvideortp);
+	if (p->trtp)
+		ast_rtp_pt_copy(p->trtp, newtextrtp);
 
 	if (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
@@ -5431,6 +5586,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_verbose("Peer video RTP is at port %s:%d\n", ast_inet_ntoa(vsin.sin_addr), ntohs(vsin.sin_port));
 	}
 
+	/* Setup text port number */
+	if (p->trtp && tsin.sin_port) {
+		ast_rtp_set_peer(p->trtp, &tsin);
+		if (debug) 
+			ast_verbose("Peer text RTP is at port %s:%d\n", ast_inet_ntoa(tsin.sin_addr), ntohs(tsin.sin_port));
+	}
+
 	/* Ok, we're going with this offer */
 	if (option_debug > 1) {
 		char buf[BUFSIZ];
@@ -5450,7 +5612,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_getformatname_multiple(s1, BUFSIZ, p->jointcapability),
 				ast_getformatname_multiple(s2, BUFSIZ, p->owner->nativeformats));
 		}
-		p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1) | (p->capability & vpeercapability);
+		p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1) | (p->capability & vpeercapability) | (p->capability & tpeercapability);
 		ast_set_read_format(p->owner, p->owner->readformat);
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}
@@ -6187,6 +6349,52 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 		*min_packet_size = fmt.cur_ms;
 }
 
+/*! \brief Add video codec offer to SDP offer/answer body in INVITE or 200 OK */
+/* This is different to the audio one now so we can add more caps later */
+static void add_vcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     int debug, int *min_packet_size)
+{
+	int rtp_code;
+
+	if (!p->vrtp)
+		return;
+
+	if (debug)
+		ast_verbose("Adding video codec 0x%x (%s) to SDP\n", codec, ast_getformatname(codec));
+
+	if ((rtp_code = ast_rtp_lookup_code(p->vrtp, 1, codec)) == -1)
+		return;
+
+	ast_build_string(m_buf, m_size, " %d", rtp_code);
+	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
+	/* Add fmtp code here */
+}
+
+/*! \brief Add text codec offer to SDP offer/answer body in INVITE or 200 OK */
+static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     int debug, int *min_packet_size)
+{
+	int rtp_code;
+
+	if (!p->trtp)
+		return;
+
+	if (debug)
+		ast_verbose("Adding text codec 0x%x (%s) to SDP\n", codec, ast_getformatname(codec));
+
+	if ((rtp_code = ast_rtp_lookup_code(p->trtp, 1, codec)) == -1)
+		return;
+
+	ast_build_string(m_buf, m_size, " %d", rtp_code);
+	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
+	/* Add fmtp code here */
+}
+
+
 /*! \brief Get Max T.38 Transmission rate from T38 capabilities */
 static int t38_get_rate(int t38cap)
 {
@@ -6344,12 +6552,14 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 /*! \brief Set all IP media addresses for this call 
 	\note called from add_sdp()
 */
-static void get_our_media_address(struct sip_pvt *p, int needvideo, struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *dest, struct sockaddr_in *vdest)
+static void get_our_media_address(struct sip_pvt *p, int needvideo, struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *tsin, struct sockaddr_in *dest, struct sockaddr_in *vdest)
 {
 	/* First, get our address */
 	ast_rtp_get_us(p->rtp, sin);
 	if (p->vrtp)
 		ast_rtp_get_us(p->vrtp, vsin);
+	if (p->trtp)
+		ast_rtp_get_us(p->trtp, tsin);
 
 	/* Now, try to figure out where we want them to send data */
 	/* Is this a re-invite to move the media out, then use the original offer from caller  */
@@ -6383,8 +6593,10 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
+	struct sockaddr_in tsin;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
+	struct sockaddr_in tdest = { 0, };
 
 	/* SDP fields */
 	char *version = 	"v=0\r\n";		/* Protocol version */
@@ -6396,25 +6608,34 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char *hold;
 	char m_audio[256];				/* Media declaration line for audio */
 	char m_video[256];				/* Media declaration line for video */
+	char m_text[256];				  /* Media declaration line for text */
 	char a_audio[1024];				/* Attributes for audio */
 	char a_video[1024];				/* Attributes for video */
+	char a_text[1024];				/* Attributes for text */
 	char *m_audio_next = m_audio;
 	char *m_video_next = m_video;
+	char *m_text_next = m_text;
 	size_t m_audio_left = sizeof(m_audio);
 	size_t m_video_left = sizeof(m_video);
+	size_t m_text_left = sizeof(m_text);
 	char *a_audio_next = a_audio;
 	char *a_video_next = a_video;
+	char *a_text_next = a_text;
 	size_t a_audio_left = sizeof(a_audio);
 	size_t a_video_left = sizeof(a_video);
+	size_t a_text_left = sizeof(a_text);
 
 	int x;
 	int capability;
 	int needvideo = FALSE;
+	int needtext = FALSE;
 	int debug = sip_debug_test_pvt(p);
 	int min_audio_packet_size = 0;
 	int min_video_packet_size = 0;
+	int min_text_packet_size = 0;
 
 	m_video[0] = '\0';	/* Reset the video media string if it's not needed */
+	m_text[0] = '\0';	  /* Reset the video media string if it's not needed */
 
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -6434,7 +6655,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	if (option_debug > 1) {
 		char codecbuf[BUFSIZ];
-		ast_log(LOG_DEBUG, "** Our capability: %s Video flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), ast_test_flag(&p->flags[0], SIP_NOVIDEO) ? "True" : "False");
+ 		ast_log(LOG_DEBUG, "** Our capability: %s Video flag: %s Text flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), 
+ 			ast_test_flag(&p->flags[0], SIP_NOVIDEO) ? "True" : "False", ast_test_flag(&p->flags[1], SIP_PAGE2_NOTEXT) ? "True" : "False");
 		ast_log(LOG_DEBUG, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
 	}
 	
@@ -6456,8 +6678,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Get our media addresses */
-	get_our_media_address(p, needvideo, &sin, &vsin, &dest, &vdest);
+	get_our_media_address(p, needvideo, &sin, &vsin, &tsin, &dest, &vdest);
 		
+	if (debug) 
+		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(sin.sin_port));	
+
 	/* Ok, we need video. Let's add what we need for video and set codecs.
 	   Video is handled differently than audio since we can not transcode. */
 	if (needvideo) {
@@ -6470,8 +6695,36 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
 	}
 
-	if (debug) 
-		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(sin.sin_port));	
+	/* Check if we need text in this call */
+	if((capability & AST_FORMAT_TEXT_MASK) && !ast_test_flag(&p->flags[1], SIP_PAGE2_NOTEXT)) {
+		if (sipdebug_text) ast_verbose("We think we can do text\n");
+		if (p->trtp) {
+			if (sipdebug_text) ast_verbose("And we have a text rtp object\n");
+			needtext = TRUE;
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "This call needs text offers! \n");
+		} else if (option_debug > 1)
+			ast_log(LOG_DEBUG, "This call needs text offers, but there's no text support enabled ! \n");
+	}
+		
+	/* Ok, we need text. Let's add what we need for text and set codecs.
+	   Text is handled differently than audio since we can not transcode. */
+	if (needtext) {
+		if (sipdebug_text) ast_verbose("Lets set up the text sdp\n");
+		/* Determine text destination */
+		if (p->tredirip.sin_addr.s_addr) {
+			tdest.sin_addr = p->tredirip.sin_addr;
+			tdest.sin_port = p->tredirip.sin_port;
+		} else {
+			tdest.sin_addr = p->ourip;
+			tdest.sin_port = tsin.sin_port;
+		}
+		ast_build_string(&m_text_next, &m_text_left, "m=text %d RTP/AVP", ntohs(tdest.sin_port));
+
+		if (debug) 
+			ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(tsin.sin_port));	
+
+	}
 
 	/* Start building generic SDP headers */
 
@@ -6529,7 +6782,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Now send any other common audio and video codecs, and non-codec formats: */
-	for (x = 1; x <= (needvideo ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
+	for (x = 1; x <= (needtext ? AST_FORMAT_MAX_TEXT : (needvideo ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO)); x <<= 1) {
 		if (!(capability & x))	/* Codec not requested */
 			continue;
 
@@ -6541,11 +6794,16 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 					 &m_audio_next, &m_audio_left,
 					 &a_audio_next, &a_audio_left,
 					 debug, &min_audio_packet_size);
-		else 
-			add_codec_to_sdp(p, x, 90000,
+		else if (x <= AST_FORMAT_MAX_VIDEO) 
+			add_vcodec_to_sdp(p, x, 90000,
 					 &m_video_next, &m_video_left,
 					 &a_video_next, &a_video_left,
 					 debug, &min_video_packet_size);
+		else if (x <= AST_FORMAT_MAX_TEXT)
+			add_tcodec_to_sdp(p, x, 1000,
+					 &m_text_next, &m_text_left,
+					 &a_text_next, &a_text_left,
+					 debug, &min_text_packet_size);
 	}
 
 	/* Now add DTMF RFC2833 telephony-event as a codec */
@@ -6565,21 +6823,32 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if (!p->owner || !ast_internal_timing_enabled(p->owner))
 		ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
 
-	if (min_audio_packet_size)
-		ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
-	if (min_video_packet_size)
-		ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
-
-	if ((m_audio_left < 2) || (m_video_left < 2) || (a_audio_left == 0) || (a_video_left == 0))
-		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
-
-	ast_build_string(&m_audio_next, &m_audio_left, "\r\n");
-	if (needvideo)
-		ast_build_string(&m_video_next, &m_video_left, "\r\n");
-
-	len = strlen(version) + strlen(subject) + strlen(owner) + strlen(connection) + strlen(stime) + strlen(m_audio) + strlen(a_audio) + strlen(hold);
-	if (needvideo) /* only if video response is appropriate */
-		len += strlen(m_video) + strlen(a_video) + strlen(bandwidth) + strlen(hold);
+  if (min_audio_packet_size)
+  	ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
+  
+ 	/* XXX don't think you can have ptime for video */
+  if (min_video_packet_size)
+  	ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
+  
+ 	/* XXX don't think you can have ptime for text */
+ 	if (min_text_packet_size)
+ 		ast_build_string(&a_text_next, &a_text_left, "a=ptime:%d\r\n", min_text_packet_size);
+ 
+ 	if ((m_audio_left < 2) || (m_video_left < 2) || (m_text_left < 2) || 
+ 		  (a_audio_left == 0) || (a_video_left == 0) || (a_text_left == 0))
+  		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
+  
+ 	ast_build_string(&m_audio_next, &m_audio_left, "\r\n");
+ 	if (needvideo)
+ 		ast_build_string(&m_video_next, &m_video_left, "\r\n");
+ 	if (needtext)
+ 		ast_build_string(&m_text_next, &m_text_left, "\r\n");
+  
+ 	len = strlen(version) + strlen(subject) + strlen(owner) + strlen(connection) + strlen(stime) + strlen(m_audio) + strlen(a_audio) + strlen(hold);
+ 	if (needvideo) /* only if video response is appropriate */
+ 		len += strlen(m_video) + strlen(a_video) + strlen(bandwidth) + strlen(hold);
+ 	if (needtext) /* only if text response is appropriate */
+ 		len += strlen(m_text) + strlen(a_text) + strlen(hold);
 
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
@@ -6597,6 +6866,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		add_line(resp, m_video);
 		add_line(resp, a_video);
 		add_line(resp, hold);	/* Repeat hold for the video stream */
+	}
+	if (needtext) { /* only if text response is appropriate */
+		add_line(resp, m_text);
+		add_line(resp, a_text);
+		add_line(resp, hold);	/* Repeat hold for the text stream */
 	}
 
 	/* Update lastrtprx when we send our SDP */
@@ -9359,6 +9633,11 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
+		/* If we do not support text, remove text from call structure */
+ 		if (!ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) && p->trtp) {
+ 			ast_rtp_destroy(p->trtp);
+ 			p->trtp = NULL;
+ 		}
 	}
 	unref_user(user);
 	return res;
@@ -9473,6 +9752,10 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
+		if ((!ast_test_flag(&p->flags[1], SIP_PAGE2_TEXTSUPPORT) || !(p->capability & AST_FORMAT_TEXT_MASK)) && p->trtp) {
+			ast_rtp_destroy(p->trtp);
+			p->trtp = NULL;
+ 		}
 		if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833) ||
 		    (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_AUTO))
 			p->noncodeccapability |= AST_RTP_DTMF;
@@ -9962,6 +10245,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 			"Dynamic: %s\r\n"
 			"Natsupport: %s\r\n"
 			"VideoSupport: %s\r\n"
+			"TextSupport: %s\r\n"
 			"ACL: %s\r\n"
 			"Status: %s\r\n"
 			"RealtimeDevice: %s\r\n\r\n", 
@@ -9972,6 +10256,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? "yes" : "no", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
+			ast_test_flag(&iterator->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
 			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status,
 			realtimepeers ? (ast_test_flag(&iterator->flags[0], SIP_REALTIME) ? "yes":"no") : "no");
@@ -10392,6 +10677,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd, "  PromiscRedir : %s\n", ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)?"Yes":"No");
 		ast_cli(fd, "  User=Phone   : %s\n", ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)?"Yes":"No");
 		ast_cli(fd, "  Video Support: %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)?"Yes":"No");
+		ast_cli(fd, "  Text Support : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)?"Yes":"No");
 		ast_cli(fd, "  Trust RPID   : %s\n", ast_test_flag(&peer->flags[0], SIP_TRUSTRPID) ? "Yes" : "No");
 		ast_cli(fd, "  Send RPID    : %s\n", ast_test_flag(&peer->flags[0], SIP_SENDRPID) ? "Yes" : "No");
 		ast_cli(fd, "  Subscriptions: %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE) ? "Yes" : "No");
@@ -10479,6 +10765,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		astman_append(s, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_PROMISCREDIR)?"Y":"N"));
 		astman_append(s, "SIP-UserPhone: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_USEREQPHONE)?"Y":"N"));
 		astman_append(s, "SIP-VideoSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_VIDEOSUPPORT)?"Y":"N"));
+		astman_append(s, "SIP-TextSupport: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_TEXTSUPPORT)?"Y":"N"));
 
 		/* - is enumerated */
 		astman_append(s, "SIP-DTMFmode: %s\r\n", dtmfmode2str(ast_test_flag(&peer->flags[0], SIP_DTMF)));
@@ -10628,6 +10915,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
 	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
 	ast_cli(fd, "  Videosupport:           %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "Yes" : "No");
+	ast_cli(fd, "  Textsupport:            %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT) ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  MatchAuthUsername:      %s\n", global_match_auth_username ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
@@ -10652,6 +10940,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  IP ToS SIP:             %s\n", ast_tos2str(global_tos_sip));
 	ast_cli(fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
 	ast_cli(fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
+	ast_cli(fd, "  IP ToS RTP text:        %s\n", ast_tos2str(global_tos_text));
 	ast_cli(fd, "  T38 fax pt UDPTL:       %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL) ? "Yes" : "No");
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	ast_cli(fd, "  T38 fax pt RTP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP) ? "Yes" : "No");
@@ -11262,6 +11551,7 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 			return RESULT_SHOWUSAGE;
 	}
 	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT);	/*! \note this can be a special debug command - "sip debug text" or something */
 	memset(&debugaddr, 0, sizeof(debugaddr));
 	ast_cli(fd, "SIP Debugging %senabled\n", oldsipdebug ? "re-" : "");
 	return RESULT_SUCCESS;
@@ -11329,6 +11619,7 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT);
 	ast_cli(fd, "SIP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
@@ -12510,6 +12801,8 @@ static void stop_media_flows(struct sip_pvt *p)
 		ast_rtp_stop(p->rtp);
 	if (p->vrtp)
 		ast_rtp_stop(p->vrtp);
+	if (p->trtp)
+		ast_rtp_stop(p->trtp);
 	if (p->udptl)
 		ast_udptl_stop(p->udptl);
 }
@@ -14487,7 +14780,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 
 	/* Get RTCP quality before end of call */
 	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY) || p->owner) {
-		char *audioqos, *videoqos;
+		char *audioqos, *videoqos, *textqos;
 		if (p->rtp) {
 			audioqos = ast_rtp_get_quality(p->rtp);
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
@@ -14501,6 +14794,13 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				append_history(p, "RTCPvideo", "Quality:%s", videoqos);
 			if (p->owner)
 				pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", videoqos);
+		}
+		if (p->trtp) {
+			textqos = ast_rtp_get_quality(p->trtp);
+			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
+				append_history(p, "RTCPtext", "Quality:%s", textqos);
+			if (p->owner)
+				pbx_builtin_setvar_helper(p->owner, "RTPTEXTQOS", textqos);
 		}
 	}
 
@@ -15697,6 +15997,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
 	p->prefcodec = oldformat;				/* Format for this call */
+	p->jointcapability = oldformat;
 	sip_pvt_lock(p);
 	tmpc = sip_new(p, AST_STATE_DOWN, host);	/* Place the call */
 	sip_pvt_unlock(p);
@@ -15818,6 +16119,10 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "videosupport")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_VIDEOSUPPORT);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_VIDEOSUPPORT);
+		res = 1;
+	} else if (!strcasecmp(v->name, "textsupport")) {
+		ast_set_flag(&mask[1], SIP_PAGE2_TEXTSUPPORT);
+		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_TEXTSUPPORT);
 		res = 1;
 	} else if (!strcasecmp(v->name, "allowoverlap")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWOVERLAP);
@@ -16517,6 +16822,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
 	global_tos_video = DEFAULT_TOS_VIDEO;
+	global_tos_text = DEFAULT_TOS_TEXT;
 	externhost[0] = '\0';			/* External host name (for behind NAT DynDNS support) */
 	externexpire = 0;			/* Expiration for DNS re-issuing */
 	externrefresh = 10;
@@ -16584,6 +16890,7 @@ static int reload_config(enum channelreloadreason reason)
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT);
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT);
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -16806,6 +17113,9 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "tos_video")) {
 			if (ast_str2tos(v->value, &global_tos_video))
 				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/ip-tos.txt.\n", v->lineno);
+		} else if (!strcasecmp(v->name, "tos_text")) {
+			if (ast_str2tos(v->value, &global_tos_text))
+				ast_log(LOG_WARNING, "Invalid tos_text value at line %d, recommended value is 'af41'. See doc/ip-tos.txt.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -17208,8 +17518,33 @@ static enum ast_rtp_get_result sip_get_vrtp_peer(struct ast_channel *chan, struc
 	return res;
 }
 
+/*! \brief Returns null if we can't reinvite text (part of RTP interface) */
+static enum ast_rtp_get_result sip_get_trtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
+{
+	struct sip_pvt *p = NULL;
+	enum ast_rtp_get_result res = AST_RTP_TRY_PARTIAL;
+	
+	if (!(p = chan->tech_pvt))
+		return AST_RTP_GET_FAILED;
+
+	sip_pvt_lock(p);
+	if (!(p->trtp)) {
+		sip_pvt_unlock(p);
+		return AST_RTP_GET_FAILED;
+	}
+
+	*rtp = p->trtp;
+
+	if (ast_test_flag(&p->flags[0], SIP_CAN_REINVITE))
+		res = AST_RTP_TRY_NATIVE;
+
+	sip_pvt_unlock(p);
+
+	return res;
+}
+
 /*! \brief Set the RTP peer for this call */
-static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
+static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
 {
 	struct sip_pvt *p;
 	int changed = 0;
@@ -17247,6 +17582,12 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		changed |= ast_rtp_get_peer(vrtp, &p->vredirip);
 	} else if (p->vredirip.sin_addr.s_addr || ntohs(p->vredirip.sin_port) != 0) {
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
+		changed = 1;
+	}
+	if (trtp) {
+		changed |= ast_rtp_get_peer(trtp, &p->tredirip);
+	} else if (p->tredirip.sin_addr.s_addr || ntohs(p->tredirip.sin_port) != 0) {
+		memset(&p->tredirip, 0, sizeof(p->tredirip));
 		changed = 1;
 	}
 	if (codecs && (p->redircodecs != codecs)) {

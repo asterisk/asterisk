@@ -1731,7 +1731,7 @@ static enum ast_rtp_get_result skinny_get_rtp_peer(struct ast_channel *c, struct
 	return AST_RTP_TRY_NATIVE;
 }
 
-static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
+static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
 {
 	struct skinny_subchannel *sub;
 	sub = c->tech_pvt;

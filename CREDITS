@@ -137,6 +137,7 @@ Philippe Sultan - RADIUS CDR module
 	INRIA, http://www.inria.fr/
 
 John Martin, Aupix - Improved video support in the SIP channel
+	T.140 text support in RTP/SIP
 
 Steve Underwood - Provided T.38 pass through support.
 

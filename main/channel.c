@@ -2569,8 +2569,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_TEXT:
-		res = (chan->tech->send_text == NULL) ? 0 :
-			chan->tech->send_text(chan, (char *) fr->data);
+		if (fr->subclass == AST_FORMAT_T140) {
+			res = (chan->tech->write_text == NULL) ? 0 :
+				chan->tech->write_text(chan, fr);
+		} else {
+			res = (chan->tech->send_text == NULL) ? 0 :
+				chan->tech->send_text(chan, (char *) fr->data);
+		}
 		break;
 	case AST_FRAME_HTML:
 		res = (chan->tech->send_html == NULL) ? 0 :
@@ -2898,6 +2903,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 	int res;
 	int foo;
 	int videoformat = format & AST_FORMAT_VIDEO_MASK;
+	int textformat = format & AST_FORMAT_TEXT_MASK;
 
 	if (!cause)
 		cause = &foo;
@@ -2924,7 +2930,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		if (!chan->tech->requester)
 			return NULL;
 		
-		if (!(c = chan->tech->requester(type, capabilities | videoformat, data, cause)))
+		if (!(c = chan->tech->requester(type, capabilities | videoformat | textformat, data, cause)))
 			return NULL;
 		
 		/* no need to generate a Newchannel event here; it is done in the channel_alloc call */

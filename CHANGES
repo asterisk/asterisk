@@ -101,3 +101,4 @@ SIP changes
     "sipregs" for registrations. If it's not defined, "sippeers" will be used for
     registration data, as before.
   * The SIPPEER function have new options for port address, call and pickup groups
+  * Added support for T.140 realtime text in SIP/RTP

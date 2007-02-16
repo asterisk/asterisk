@@ -155,7 +155,7 @@ extern "C" {
 #include "asterisk/compiler.h"
 
 
-#define AST_MAX_FDS		8
+#define AST_MAX_FDS		10
 /*
  * We have AST_MAX_FDS file descriptors in a channel.
  * Some of them have a fixed use:
@@ -296,6 +296,9 @@ struct ast_channel_tech {
 
 	/*! \brief Write a frame, in standard format */
 	int (* const write_video)(struct ast_channel *chan, struct ast_frame *frame);
+
+	/*! \brief Write a text frame, in standard format */
+	int (* const write_text)(struct ast_channel *chan, struct ast_frame *frame);
 
 	/*! \brief Find bridged channel */
 	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
@@ -887,6 +890,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *frame);
  * \return It returns 1 on success, 0 if not implemented, and -1 on failure.
  */
 int ast_write_video(struct ast_channel *chan, struct ast_frame *frame);
+
+/*! \brief Write text frame to a channel 
+ * This function writes the given frame to the indicated channel.
+ * \param chan destination channel of the frame
+ * \param frame frame that will be written
+ * \return It returns 1 on success, 0 if not implemented, and -1 on failure.
+ */
+int ast_write_text(struct ast_channel *chan, struct ast_frame *frame);
 
 /*! \brief Send empty audio to prime a channel driver */
 int ast_prod(struct ast_channel *chan);
