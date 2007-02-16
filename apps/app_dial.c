@@ -1189,7 +1189,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_copy_string(tmp->chan->dialcontext, chan->macrocontext, sizeof(tmp->chan->dialcontext));
 		else
 			ast_copy_string(tmp->chan->dialcontext, chan->context, sizeof(tmp->chan->dialcontext));
-		ast_copy_string(tmp->chan->exten, chan->exten, sizeof(tmp->chan->exten));
+		if (!ast_strlen_zero(chan->macroexten))
+			ast_copy_string(tmp->chan->exten, chan->macroexten, sizeof(tmp->chan->exten));
+		else
+			ast_copy_string(tmp->chan->exten, chan->exten, sizeof(tmp->chan->exten));
 
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
