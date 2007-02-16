@@ -1185,7 +1185,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_app_group_set_channel(tmp->chan, outbound_group);
 
 		/* Inherit context and extension */
-		ast_copy_string(tmp->chan->dialcontext, chan->context, sizeof(tmp->chan->dialcontext));
+		if (!ast_strlen_zero(chan->macrocontext))
+			ast_copy_string(tmp->chan->dialcontext, chan->macrocontext, sizeof(tmp->chan->dialcontext));
+		else
+			ast_copy_string(tmp->chan->dialcontext, chan->context, sizeof(tmp->chan->dialcontext));
 		ast_copy_string(tmp->chan->exten, chan->exten, sizeof(tmp->chan->exten));
 
 		/* Place the call, but don't wait on the answer */
