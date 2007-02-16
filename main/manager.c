@@ -2091,11 +2091,9 @@ static int process_message(struct mansession *s, const struct message *m)
 	for (tmp = first_action ; tmp; tmp = tmp->next) {
 		if (strcasecmp(action, tmp->action))
 			continue;
-		if ((s->writeperm & tmp->authority) == tmp->authority) {
-			if (tmp->func(s, m)) {	/* error */
-				return -1;
-			}
-		} else
+		if ((s->writeperm & tmp->authority) == tmp->authority)
+			ret = tmp->func(s, m);
+		else
 			astman_send_error(s, m, "Permission denied");
 		break;
 	}
