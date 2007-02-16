@@ -91,6 +91,8 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 "NativeFormat=       %s\n"
 			 "WriteFormat=        %s\n"
 			 "ReadFormat=         %s\n"
+			 "RawWriteFormat=     %s\n"
+			 "RawReadFormat=      %s\n"
 			 "1stFileDescriptor=  %d\n"
 			 "Framesin=           %d %s\n"
 			 "Framesout=          %d %s\n"
@@ -117,6 +119,8 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->nativeformats),
 			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->writeformat),
 			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->readformat),
+			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawwriteformat),
+			 ast_getformatname_multiple(formatbuf, sizeof(formatbuf), c->rawreadformat),
 			 c->fds[0], c->fin & ~DEBUGCHAN_FLAG, (c->fin & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "",
 			 c->fout & ~DEBUGCHAN_FLAG, (c->fout & DEBUGCHAN_FLAG) ? " (DEBUGGED)" : "", (long)c->whentohangup,
 			 hour,
