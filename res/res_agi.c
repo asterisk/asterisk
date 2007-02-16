@@ -1941,6 +1941,37 @@ static int handle_showagi(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*! \brief Convert string to use HTML escaped characters
+	\note Maybe this should be a generic function?
+*/
+static void write_html_escaped(FILE *htmlfile, char *str)
+{
+	char *cur = str;
+
+	while(*cur) {
+		switch (*cur) {
+		case '<':
+			fprintf(htmlfile, "%s", "&lt;");
+			break;
+		case '>':
+			fprintf(htmlfile, "%s", "&gt;");
+			break;
+		case '&':
+			fprintf(htmlfile, "%s", "&amp;");
+			break;
+		case '"':
+			fprintf(htmlfile, "%s", "&quot;");
+			break;
+		default:
+			fprintf(htmlfile, "%c", *cur);
+			break;
+		}
+		cur++;
+	}
+
+	return;
+}
+
 static int handle_agidumphtml(int fd, int argc, char *argv[])
 {
 	struct agi_command *e;
@@ -1979,11 +2010,16 @@ static int handle_agidumphtml(int fd, int argc, char *argv[])
 		stringp=e->usage;
 		tempstr = strsep(&stringp, "\n");
 
-		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">%s</TD></TR>\n", tempstr);
+		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">");
+		write_html_escaped(htmlfile, tempstr);
+		fprintf(htmlfile, "</TD></TR>\n");
+
 		
 		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">\n");
-		while ((tempstr = strsep(&stringp, "\n")) != NULL)
-			fprintf(htmlfile, "%s<BR>\n",tempstr);
+		while ((tempstr = strsep(&stringp, "\n")) != NULL) {
+			write_html_escaped(htmlfile, tempstr);
+			fprintf(htmlfile, "<BR>\n");
+		}
 		fprintf(htmlfile, "</TD></TR>\n");
 		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
 
