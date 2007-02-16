@@ -1247,7 +1247,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 			fcntl(x, F_SETFD, FD_CLOEXEC);
 		}
 		if (option_verbose || ast_opt_console)
-			ast_verbose("Restarting Asterisk NOW...\n");
+			ast_verbose("Asterisk is now restarting...\n");
 		restartnow = 1;
 
 		/* close logger */
