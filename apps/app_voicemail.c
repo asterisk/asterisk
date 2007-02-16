@@ -3926,17 +3926,17 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	char todir[PATH_MAX], fn[PATH_MAX], ext_context[PATH_MAX], *stringp;
 	int newmsgs = 0, oldmsgs = 0;
 	const char *category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
+	char *myserveremail = serveremail;
 
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
 	make_file(fn, sizeof(fn), todir, msgnum);
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
 	if (!ast_strlen_zero(vmu->attachfmt)) {
-		if (strstr(fmt, vmu->attachfmt)) {
+		if (strstr(fmt, vmu->attachfmt))
 			fmt = vmu->attachfmt;
-		} else {
+		 else
 			ast_log(LOG_WARNING, "Attachment format '%s' is not one of the recorded formats '%s'.  Falling back to default format for '%s@%s'.\n", vmu->attachfmt, fmt, vmu->mailbox, vmu->context);
-		}
 	}
 
 	/* Attach only the first format */
@@ -3944,34 +3944,31 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	stringp = fmt;
 	strsep(&stringp, "|");
 
+	if (!ast_strlen_zero(vmu->serveremail))
+		myserveremail = vmu->serveremail;
+
 	if (!ast_strlen_zero(vmu->email)) {
-		int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
-		char *myserveremail = serveremail;
-		attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
-		if (!ast_strlen_zero(vmu->serveremail))
-			myserveremail = vmu->serveremail;
+		int attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
+		if (!attach_user_voicemail)
+			attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
+
 		/*XXX possible imap issue, should category be NULL XXX*/
 		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, chan, category);
 	}
 
-	if (!ast_strlen_zero(vmu->pager)) {
-		char *myserveremail = serveremail;
-		if (!ast_strlen_zero(vmu->serveremail))
-			myserveremail = vmu->serveremail;
+	if (!ast_strlen_zero(vmu->pager))
 		sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
-	}
 
-	if (ast_test_flag(vmu, VM_DELETE)) {
+	if (ast_test_flag(vmu, VM_DELETE))
 		DELETE(todir, msgnum, fn);
-	}
 
 #ifdef IMAP_STORAGE
 	DELETE(todir, msgnum, fn);
 #endif
 	/* Leave voicemail for someone */
-	if (ast_app_has_voicemail(ext_context, NULL)) {
+	if (ast_app_has_voicemail(ext_context, NULL)) 
 		ast_app_inboxcount(ext_context, &newmsgs, &oldmsgs);
-	}
+
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox);
 	return 0;
