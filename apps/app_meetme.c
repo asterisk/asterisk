@@ -438,7 +438,8 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 		ast_autoservice_stop(chan);
 }
 
-static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
+static struct ast_conference *build_conf(const char *confno, const char *pin, 
+	const char *pinadmin, int make, int dynamic)
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc;
@@ -1645,11 +1646,53 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	return ret;
 }
 
-static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin,
-					struct ast_flags *confflags)
+static struct ast_conference *build_conf_from_config(struct ast_conference *conf, const char *confno, 
+	int make, int dynamic)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
+
+	if (!(cfg = ast_config_load(CONFIG_FILE_NAME))) {
+		ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
+		return NULL;
+	}
+
+	var = ast_variable_browse(cfg, "rooms");
+	for (; var; var = var->next) {
+		/* Separate the PIN */
+		char *pin, *pinadmin, *conf_name;
+		if (strcasecmp(var->name, "conf"))
+			continue;
+
+		pinadmin = ast_strdupa(var->value);
+		conf_name = strsep(&pinadmin, "|,");
+		pin = strsep(&pinadmin, "|,");
+
+		if (strcasecmp(conf_name, confno))
+			continue;
+
+		if (!conf) {
+			conf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic);
+			break;
+		}
+
+		ast_copy_string(conf->pin, pin ? pin : "", sizeof(conf->pin));
+		ast_copy_string(conf->pinadmin, pinadmin ? pinadmin : "", sizeof(conf->pinadmin));
+
+		break;
+	}
+
+	if (!var && !conf)
+		ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+
+	ast_config_destroy(cfg);
+
+	return conf;
+}
+
+static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, int make, int dynamic, char *dynamic_pin,
+					struct ast_flags *confflags)
+{
 	struct ast_conference *cnf;
 
 	/* Check first in the conference list */
@@ -1675,43 +1718,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				cnf = build_conf(confno, "", "", make, dynamic);
 			}
 		} else {
-			/* Check the config */
-			cfg = ast_config_load(CONFIG_FILE_NAME);
-			if (!cfg) {
-				ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
-				return NULL;
-			}
-			var = ast_variable_browse(cfg, "rooms");
-			while (var) {
-				if (!strcasecmp(var->name, "conf")) {
-					/* Separate the PIN */
-					char *pin, *pinadmin, *conf;
-
-					if ((pinadmin = ast_strdupa(var->value))) {
-						conf = strsep(&pinadmin, "|,");
-						pin = strsep(&pinadmin, "|,");
-						if (!strcasecmp(conf, confno)) {
-							/* Bingo it's a valid conference */
-							if (pin)
-								if (pinadmin)
-									cnf = build_conf(confno, pin, pinadmin, make, dynamic);
-								else
-									cnf = build_conf(confno, pin, "", make, dynamic);
-							else
-								if (pinadmin)
-									cnf = build_conf(confno, "", pinadmin, make, dynamic);
-								else
-									cnf = build_conf(confno, "", "", make, dynamic);
-							break;
-						}
-					}
-				}
-				var = var->next;
-			}
-			if (!var) {
-				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
-			}
-			ast_config_destroy(cfg);
+			cnf = build_conf_from_config(NULL, confno, make, dynamic);
 		}
 	} else if (dynamic_pin) {
 		/* Correct for the user selecting 'D' instead of 'd' to have
@@ -1719,6 +1726,10 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 		   with a pin. */
 		if (dynamic_pin[0] == 'q')
 			dynamic_pin[0] = '\0';
+	} else if (!cnf->isdynamic) {
+		/* If the conference exists, check the config again, just in case
+		 * the pin in the file has changed. */
+		build_conf_from_config(cnf, confno, 0, 0);
 	}
 
 	if (cnf) {
