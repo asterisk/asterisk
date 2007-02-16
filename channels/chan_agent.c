@@ -593,7 +593,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 	int res = -1;
 	ast_mutex_lock(&p->lock);
 	if (p->chan)
-		res = ast_indicate_data(p->chan, condition, data, datalen);
+		res = p->chan->tech->indicate ? p->chan->tech->indicate(p->chan, condition, data, datalen) : -1;
 	else
 		res = 0;
 	ast_mutex_unlock(&p->lock);
