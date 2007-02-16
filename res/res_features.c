@@ -1830,14 +1830,14 @@ static int park_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
 
 		memset(&config, 0, sizeof(struct ast_bridge_config));
-		if (parkedcalltransfers) {
+		if ((parkedcalltransfers == AST_FEATURE_FLAG_BYCALLEE) || (parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH))
 			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
+		if ((parkedcalltransfers == AST_FEATURE_FLAG_BYCALLER) || (parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH))
 			ast_set_flag(&(config.features_caller), AST_FEATURE_REDIRECT);
-		}
-		if (parkedcallreparking) {
+		if ((parkedcallreparking == AST_FEATURE_FLAG_BYCALLEE) || (parkedcallreparking == AST_FEATURE_FLAG_BYBOTH))
 			ast_set_flag(&(config.features_callee), AST_FEATURE_PARKCALL);
+		if ((parkedcallreparking == AST_FEATURE_FLAG_BYCALLER) || (parkedcallreparking == AST_FEATURE_FLAG_BYBOTH))
 			ast_set_flag(&(config.features_caller), AST_FEATURE_PARKCALL);
-		}
 		res = ast_bridge_call(chan, peer, &config);
 
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
@@ -2162,9 +2162,19 @@ static int load_config(void)
 		} else if (!strcasecmp(var->name, "parkinghints")) {
 			parkaddhints = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "parkedcalltransfers")) {
-			parkedcalltransfers = ast_true(var->value);
+			if (!strcasecmp(var->value, "both"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
+			else if (!strcasecmp(var->value, "caller"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
+			else if (!strcasecmp(var->value, "callee"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
 		} else if (!strcasecmp(var->name, "parkedcallreparking")) {
-			parkedcallreparking = ast_true(var->value);
+			if (!strcasecmp(var->value, "both"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYBOTH;
+			else if (!strcasecmp(var->value, "caller"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLER;
+			else if (!strcasecmp(var->value, "callee"))
+				parkedcalltransfers = AST_FEATURE_FLAG_BYCALLEE;
 		} else if (!strcasecmp(var->name, "adsipark")) {
 			adsipark = ast_true(var->value);
 		} else if (!strcasecmp(var->name, "transferdigittimeout")) {
