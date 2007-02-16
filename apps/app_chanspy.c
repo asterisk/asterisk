@@ -67,6 +67,10 @@ static const char *desc_chan =
 "      to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing\n"
 "      the digits '1234#' while spying will begin spying on the channel\n"
 "      'Agent/1234'.\n"
+"  Note: The X option supersedes the three features above in that if a valid\n"
+"        single digit extension exists in the correct context ChanSpy will\n"
+"        exit to it. This also disables choosing a channel based on 'chanprefix'\n"
+"        and a digit sequence.\n"
 "  Options:\n"
 "    b             - Only spy on channels involved in a bridged call.\n"
 "    g(grp)        - Match only channels where their ${SPYGROUP} variable is set to\n"
@@ -83,6 +87,12 @@ static const char *desc_chan =
 "    W             - Enable 'private whisper' mode, so the spying channel can\n"
 "                    talk to the spied-on channel but cannot listen to that\n"
 "                    channel.\n"
+"    o             - Only listen to audio coming from this channel.\n"
+"    X             - Allow the user to exit ChanSpy to a valid single digit\n"
+"                    numeric extension in the current context or the context\n"
+"                    specified by the SPY_EXIT_CONTEXT channel variable. The\n"
+"                    name of the last channel that was spied on will be stored\n"
+"                    in the SPY_CHANNEL variable.\n"
 ;
 
 static const char *app_ext = "ExtenSpy";
@@ -95,6 +105,9 @@ static const char *desc_ext =
 "  While spying, the following actions may be performed:\n"
 "    - Dialing # cycles the volume level.\n"
 "    - Dialing * will stop spying and look for another channel to spy on.\n"
+"  Note: The X option superseeds the two features above in that if a valid\n"
+"        single digit extension exists in the correct context it ChanSpy will\n"
+"        exit to it.\n"
 "  Options:\n"
 "    b             - Only spy on channels involved in a bridged call.\n"
 "    g(grp)        - Match only channels where their ${SPYGROUP} variable is set to\n"
@@ -111,6 +124,12 @@ static const char *desc_ext =
 "    W             - Enable 'private whisper' mode, so the spying channel can\n"
 "                    talk to the spied-on channel but cannot listen to that\n"
 "                    channel.\n"
+"    o             - Only listen to audio coming from this channel.\n"
+"    X             - Allow the user to exit ChanSpy to a valid single digit\n"
+"                    numeric extension in the current context or the context\n"
+"                    specified by the SPY_EXIT_CONTEXT channel variable. The\n"
+"                    name of the last channel that was spied on will be stored\n"
+"                    in the SPY_CHANNEL variable.\n"
 ;
 
 enum {
@@ -121,6 +140,8 @@ enum {
 	OPTION_RECORD    = (1 << 4),
 	OPTION_WHISPER	 = (1 << 5),
 	OPTION_PRIVATE   = (1 << 6),	/* Private Whisper mode */
+	OPTION_READONLY  = (1 << 7),	/* Don't mix the two channels */
+	OPTION_EXIT      = (1 << 8),	/* Exit to a valid single digit extension */
 } chanspy_opt_flags;
 
 enum {
@@ -138,6 +159,8 @@ AST_APP_OPTIONS(spy_opts, {
 	AST_APP_OPTION_ARG('v', OPTION_VOLUME, OPT_ARG_VOLUME),
 	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
 	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
+	AST_APP_OPTION('o', OPTION_READONLY),
+	AST_APP_OPTION('X', OPTION_EXIT),
 });
 
 
@@ -241,7 +264,7 @@ static void set_volume(struct ast_channel *chan, struct chanspy_translation_help
 }
 
 static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd,
-		       const struct ast_flags *flags) 
+		       const struct ast_flags *flags, char *exitcontext) 
 {
 	struct chanspy_translation_helper csth;
 	int running = 0, res, x = 0;
@@ -260,7 +283,8 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	memset(&csth, 0, sizeof(csth));
 	ast_set_flag(&csth.spy, CHANSPY_FORMAT_AUDIO);
 	ast_set_flag(&csth.spy, CHANSPY_TRIGGER_NONE);
-	ast_set_flag(&csth.spy, CHANSPY_MIXAUDIO);
+	if (!ast_test_flag(flags, OPTION_READONLY))
+		ast_set_flag(&csth.spy, CHANSPY_MIXAUDIO);
 	csth.spy.type = "ChanSpy";
 	csth.spy.status = CHANSPY_RUNNING;
 	csth.spy.read_queue.format = AST_FORMAT_SLINEAR;
@@ -348,6 +372,22 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			running = -1;
 			break;
 		}
+		
+		if (ast_test_flag(flags, OPTION_EXIT)) {
+			char tmp[2];
+			tmp[0] = res;
+			tmp[1] = '\0';
+			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
+				ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
+				pbx_builtin_setvar_helper(chan, "SPY_CHANNEL", name);
+				running = -2;
+				break;
+			} else if (option_debug > 1) {
+				ast_log(LOG_DEBUG, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+			}
+		} else if (res >= '0' && res <= '9') {
+			inp[x++] = res;
+		}
 
 		if (res == '*') {
 			running = 0;
@@ -374,8 +414,6 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 				ast_clear_flag(&csth.spy, CHANSPY_READ_VOLADJUST);
 				ast_clear_flag(&csth.spy, CHANSPY_WRITE_VOLADJUST);
 			}
-		} else if (res >= '0' && res <= '9') {
-			inp[x++] = res;
 		}
 	}
 
@@ -431,11 +469,22 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 	struct ast_channel *peer, *prev, *next;
 	char nameprefix[AST_NAME_STRLEN];
 	char peer_name[AST_NAME_STRLEN + 5];
+	char exitcontext[AST_MAX_CONTEXT] = "";
 	signed char zero_volume = 0;
 	int waitms;
 	int res;
 	char *ptr;
 	int num;
+
+	if (ast_test_flag(flags, OPTION_EXIT)) {
+		const char *c;
+		if ((c = pbx_builtin_getvar_helper(chan, "SPY_EXIT_CONTEXT"))) 
+			ast_copy_string(exitcontext, c, sizeof(exitcontext));
+		else if (!ast_strlen_zero(chan->macrocontext)) 
+			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
+		else
+			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
+	}
 
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
@@ -453,12 +502,30 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				ast_clear_flag(chan, AST_FLAG_SPYING);
 				break;
 			}
+			if (!ast_strlen_zero(exitcontext)) {
+				char tmp[2];
+				tmp[0] = res;
+				tmp[1] = '\0';
+				if (!ast_goto_if_exists(chan, exitcontext, tmp, 1))
+					goto exit;
+				else if (option_debug > 1)
+					ast_log(LOG_DEBUG, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+			}
 		}
 
 		res = ast_waitfordigit(chan, waitms);
 		if (res < 0) {
 			ast_clear_flag(chan, AST_FLAG_SPYING);
 			break;
+		}
+		if (!ast_strlen_zero(exitcontext)) {
+			char tmp[2];
+			tmp[0] = res;
+			tmp[1] = '\0';
+			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1))
+				goto exit;
+			else if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 		}
 				
 		/* reset for the next loop around, unless overridden later */
@@ -528,10 +595,13 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			}
 			
 			waitms = 5000;
-			res = channel_spy(chan, peer, &volfactor, fd, flags);
+			res = channel_spy(chan, peer, &volfactor, fd, flags, exitcontext);
 			
 			if (res == -1) {
-				break;
+				goto exit;
+			} else if (res == -2) {
+				res = 0;
+				goto exit;
 			} else if (res > 1 && spec) {
 				snprintf(nameprefix, AST_NAME_STRLEN, "%s/%d", spec, res);
 				if ((next = ast_get_channel_by_name_prefix_locked(nameprefix, strlen(nameprefix)))) {
@@ -543,10 +613,9 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				peer = NULL;
 			}
 		}
-		if (res == -1)
-			break;
 	}
-	
+exit:
+
 	ast_clear_flag(chan, AST_FLAG_SPYING);
 
 	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
