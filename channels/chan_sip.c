@@ -168,7 +168,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* guard min must be < 1000, and should be >= 250 */
 #define EXPIRY_GUARD_SECS       15                /*!< How long before expiry do we reregister */
 #define EXPIRY_GUARD_LIMIT      30                /*!< Below here, we use EXPIRY_GUARD_PCT instead of 
-                                                   EXPIRY_GUARD_SECS */
+	                                                 EXPIRY_GUARD_SECS */
 #define EXPIRY_GUARD_MIN        500                /*!< This is the minimum guard time applied. If 
                                                    GUARD_PCT turns out to be lower than this, it 
                                                    will use this time instead.
@@ -210,7 +210,7 @@ static int expiry = DEFAULT_EXPIRY;
 /*! \brief Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
-        .flags = 0,
+	.flags = 0,
 	.max_size = -1,
 	.resync_threshold = -1,
 	.impl = ""
@@ -843,12 +843,12 @@ static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_
 
 /*! \brief T38 States for a call */
 enum t38state {
-        T38_DISABLED = 0,                /*!< Not enabled */
-        T38_LOCAL_DIRECT,                /*!< Offered from local */
-        T38_LOCAL_REINVITE,              /*!< Offered from local - REINVITE */
-        T38_PEER_DIRECT,                 /*!< Offered from peer */
-        T38_PEER_REINVITE,               /*!< Offered from peer - REINVITE */
-        T38_ENABLED                      /*!< Negotiated (enabled) */
+	T38_DISABLED = 0,                /*!< Not enabled */
+	T38_LOCAL_DIRECT,                /*!< Offered from local */
+	T38_LOCAL_REINVITE,              /*!< Offered from local - REINVITE */
+	T38_PEER_DIRECT,                 /*!< Offered from peer */
+	T38_PEER_REINVITE,               /*!< Offered from peer - REINVITE */
+	T38_ENABLED                      /*!< Negotiated (enabled) */
 };
 
 /*! \brief T.38 channel settings (at some point we need to make this alloc'ed */
@@ -862,15 +862,15 @@ struct t38properties {
 
 /*! \brief Parameters to know status of transfer */
 enum referstatus {
-        REFER_IDLE,                    /*!< No REFER is in progress */
-        REFER_SENT,                    /*!< Sent REFER to transferee */
-        REFER_RECEIVED,                /*!< Received REFER from transferrer */
-        REFER_CONFIRMED,               /*!< Refer confirmed with a 100 TRYING */
-        REFER_ACCEPTED,                /*!< Accepted by transferee */
-        REFER_RINGING,                 /*!< Target Ringing */
-        REFER_200OK,                   /*!< Answered by transfer target */
-        REFER_FAILED,                  /*!< REFER declined - go on */
-        REFER_NOAUTH                   /*!< We had no auth for REFER */
+	REFER_IDLE,                    /*!< No REFER is in progress */
+	REFER_SENT,                    /*!< Sent REFER to transferee */
+	REFER_RECEIVED,                /*!< Received REFER from transferrer */
+	REFER_CONFIRMED,               /*!< Refer confirmed with a 100 TRYING */
+	REFER_ACCEPTED,                /*!< Accepted by transferee */
+	REFER_RINGING,                 /*!< Target Ringing */
+	REFER_200OK,                   /*!< Answered by transfer target */
+	REFER_FAILED,                  /*!< REFER declined - go on */
+	REFER_NOAUTH                   /*!< We had no auth for REFER */
 };
 
 static const struct c_referstatusstring {
@@ -1736,7 +1736,7 @@ static int proxy_update(struct sip_proxy *proxy)
 {
 	/* if it's actually an IP address and not a name,
            there's no need for a managed lookup */
-        if (!inet_aton(proxy->name, &proxy->ip.sin_addr)) {
+	if (!inet_aton(proxy->name, &proxy->ip.sin_addr)) {
 		/* Ok, not an IP address, then let's check if it's a domain or host */
 		/* XXX Todo - if we have proxy port, don't do SRV */
 		if (ast_get_ip_or_srv(&proxy->ip, proxy->name, global_srvlookup ? "_sip._udp" : NULL) < 0) {
@@ -2361,13 +2361,13 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
  */
 static const char *find_closing_quote(const char *start, const char *lim)
 {
-        char last_char = '\0';
-        const char *s;
-        for (s = start; *s && s != lim; last_char = *s++) {
-                if (*s == '"' && last_char != '\\')
-                        break;
-        }
-        return s;
+	char last_char = '\0';
+	const char *s;
+	for (s = start; *s && s != lim; last_char = *s++) {
+		if (*s == '"' && last_char != '\\')
+			break;
+	}
+	return s;
 }
 
 /*! \brief Pick out text in brackets from character string
@@ -2388,10 +2388,10 @@ static char *get_in_brackets(char *tmp)
 
 	/*
 	 * Skip any quoted text until we find the part in brackets.
-         * On any error give up and return the full string.
-         */
-        while ( (first_bracket = strchr(parse, '<')) ) {
-                char *first_quote = strchr(parse, '"');
+	* On any error give up and return the full string.
+	*/
+	while ( (first_bracket = strchr(parse, '<')) ) {
+		char *first_quote = strchr(parse, '"');
 
 		if (!first_quote || first_quote > first_bracket)
 			break; /* no need to look at quoted part */
@@ -6823,27 +6823,27 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if (!p->owner || !ast_internal_timing_enabled(p->owner))
 		ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
 
-  if (min_audio_packet_size)
-  	ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
-  
+	if (min_audio_packet_size)
+		ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
+
  	/* XXX don't think you can have ptime for video */
-  if (min_video_packet_size)
-  	ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
-  
+	if (min_video_packet_size)
+		ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
+
  	/* XXX don't think you can have ptime for text */
  	if (min_text_packet_size)
  		ast_build_string(&a_text_next, &a_text_left, "a=ptime:%d\r\n", min_text_packet_size);
  
  	if ((m_audio_left < 2) || (m_video_left < 2) || (m_text_left < 2) || 
  		  (a_audio_left == 0) || (a_video_left == 0) || (a_text_left == 0))
-  		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
-  
+		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
+
  	ast_build_string(&m_audio_next, &m_audio_left, "\r\n");
  	if (needvideo)
  		ast_build_string(&m_video_next, &m_video_left, "\r\n");
  	if (needtext)
  		ast_build_string(&m_text_next, &m_text_left, "\r\n");
-  
+
  	len = strlen(version) + strlen(subject) + strlen(owner) + strlen(connection) + strlen(stime) + strlen(m_audio) + strlen(a_audio) + strlen(hold);
  	if (needvideo) /* only if video response is appropriate */
  		len += strlen(m_video) + strlen(a_video) + strlen(bandwidth) + strlen(hold);
@@ -8564,7 +8564,7 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	/* --- We have auth, so check it */
 
 	/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
-   	   an example in the spec of just what it is you're doing a hash on. */
+	   an example in the spec of just what it is you're doing a hash on. */
 
 
 	/* Make a copy of the response and parse it */
@@ -11047,13 +11047,13 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 /*! \brief Show active SIP channels */
 static int sip_show_channels(int fd, int argc, char *argv[])  
 {
-        return __sip_show_channels(fd, argc, argv, 0);
+	return __sip_show_channels(fd, argc, argv, 0);
 }
  
 /*! \brief Show active SIP subscriptions */
 static int sip_show_subscriptions(int fd, int argc, char *argv[])
 {
-        return __sip_show_channels(fd, argc, argv, 1);
+	return __sip_show_channels(fd, argc, argv, 1);
 }
 
 /*! \brief SIP show channels CLI (main function) */
@@ -13363,7 +13363,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 
 
 	/* We will try to connect the transferee with the target and hangup
-   	all channels to the transferer */	
+	   all channels to the transferer */	
 	if (option_debug > 3) {
 		ast_log(LOG_DEBUG, "Sip transfer:--------------------\n");
 		if (transferer->chan1)
@@ -13520,19 +13520,19 @@ static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, str
 		/*
 		From the RFC...
 		A minimal, but complete, implementation can respond with a single
-   		NOTIFY containing either the body:
-      			SIP/2.0 100 Trying
+		NOTIFY containing either the body:
+			SIP/2.0 100 Trying
 		
-   		if the subscription is pending, the body:
-      			SIP/2.0 200 OK
-   		if the reference was successful, the body:
-      			SIP/2.0 503 Service Unavailable
-   		if the reference failed, or the body:
-      			SIP/2.0 603 Declined
+		if the subscription is pending, the body:
+			SIP/2.0 200 OK
+		if the reference was successful, the body:
+			SIP/2.0 503 Service Unavailable
+		if the reference failed, or the body:
+			SIP/2.0 603 Declined
 
-   		if the REFER request was accepted before approval to follow the
-   		reference could be obtained and that approval was subsequently denied
-   		(see Section 2.4.7).
+		if the REFER request was accepted before approval to follow the
+		reference could be obtained and that approval was subsequently denied
+		(see Section 2.4.7).
 		
 		If there are several REFERs in the same dialog, we need to
 		match the ID of the event header...
@@ -13994,9 +13994,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, "From"));
 				transmit_fake_auth_response(p, req, 1);
 			} else {
-  				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
+				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
 				transmit_response_reliable(p, "403 Forbidden", req);
-  			}
+			}
 			p->invitestate = INV_COMPLETED;	
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			ast_string_field_free(p, theirtag);
@@ -14555,27 +14555,27 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		return res;
 
 	/* If this is a blind transfer, we have the following
-   	channels to work with:
-   	- chan1, chan2: The current call between transferer and transferee (2 channels)
-   	- target_channel: A new call from the transferee to the target (1 channel)
-   	We need to stay tuned to what happens in order to be able
-   	to bring back the call to the transferer */
+	channels to work with:
+	- chan1, chan2: The current call between transferer and transferee (2 channels)
+	- target_channel: A new call from the transferee to the target (1 channel)
+	We need to stay tuned to what happens in order to be able
+	to bring back the call to the transferer */
 
 	/* If this is a attended transfer, we should have all call legs within reach:
-   	- chan1, chan2: The call between the transferer and transferee (2 channels)
-   	- target_channel, targetcall_pvt: The call between the transferer and the target (2 channels)
+	- chan1, chan2: The call between the transferer and transferee (2 channels)
+	- target_channel, targetcall_pvt: The call between the transferer and the target (2 channels)
 	We want to bridge chan2 with targetcall_pvt!
 	
-   	The replaces call id in the refer message points
-   	to the call leg between Asterisk and the transferer.
-   	So we need to connect the target and the transferee channel
-   	and hangup the two other channels silently 
+	The replaces call id in the refer message points
+	to the call leg between Asterisk and the transferer.
+	So we need to connect the target and the transferee channel
+	and hangup the two other channels silently 
 	
-   	If the target is non-local, the call ID could be on a remote
-   	machine and we need to send an INVITE with replaces to the
-   	target. We basically handle this as a blind transfer
-   	and let the sip_call function catch that we need replaces
-   	header in the INVITE.
+	If the target is non-local, the call ID could be on a remote
+	machine and we need to send an INVITE with replaces to the
+	target. We basically handle this as a blind transfer
+	and let the sip_call function catch that we need replaces
+	header in the INVITE.
 	*/
 
 
@@ -14665,7 +14665,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REPLACES", tempheader);
 	}
 	/* Must release lock now, because it will not longer
-    	   be accessible after the transfer! */
+	   be accessible after the transfer! */
 	*nounlock = 1;
 	ast_channel_unlock(current.chan1);
 	ast_channel_unlock(current.chan2);
@@ -14678,8 +14678,8 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		
 	/* For blind transfer, this will lead to a new call */
 	/* For attended transfer to remote host, this will lead to
-   	   a new SIP call with a replaces header, if the dial plan allows it 
-  	*/
+	   a new SIP call with a replaces header, if the dial plan allows it 
+	*/
 	if (!current.chan2) {
 		/* We have no bridge, so we're talking with Asterisk somehow */
 		/* We need to masquerade this call */
@@ -16903,7 +16903,7 @@ static int reload_config(enum channelreloadreason reason)
 		/* Create the dialogs list */
 		if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(default_context, v->value, sizeof(default_context));
-  		} else if (!strcasecmp(v->name, "allowguest")) {
+		} else if (!strcasecmp(v->name, "allowguest")) {
 			global_allowguest = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "realm")) {
 			ast_copy_string(global_realm, v->value, sizeof(global_realm));
