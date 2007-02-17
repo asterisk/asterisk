@@ -209,7 +209,7 @@ GSM_SOURCES =	$(SRC)/add.c		\
 # XXX should merge with GSM_OBJECTS
 ifeq ($(OSARCH),linux-gnu)
 ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc s390 ))
-ifeq (,$(findstring $(PROC) , arm armv5b armeb ia64 s390 bfin mipsel ))
+ifeq (,$(findstring $(PROC) , arm armv5b armeb powerpc ia64 s390 bfin mipsel ))
 GSM_SOURCES+= $(SRC)/k6opt.s
 endif
 endif
@@ -261,7 +261,7 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 
 ifeq ($(OSARCH),linux-gnu)
 ifeq (,$(findstring $(shell uname -m) , x86_64 amd64 ppc ppc64 alpha armv4l sparc64 parisc ))
-ifeq (,$(findstring $(PROC) , arm armv5b armeb ia64 bfin mipsel ))
+ifeq (,$(findstring $(PROC) , arm armv5b armeb powerpc ia64 bfin mipsel ))
 GSM_OBJECTS+= $(SRC)/k6opt.o
 endif
 endif
