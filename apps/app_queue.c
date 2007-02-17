@@ -4063,7 +4063,7 @@ static void do_print(struct mansession *s, int fd, const char *str)
 static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
 {
 	struct call_queue *q;
-	struct ast_str *out = ast_str_alloca(80);
+	struct ast_str *out = ast_str_alloca(240);
 	int found = 0;
 	time_t now = time(NULL);
 
