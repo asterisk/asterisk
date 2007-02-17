@@ -1148,6 +1148,7 @@ static int setup_privacy_args(struct privacy_args *pa,
 			   "At the tone, please say your name:"
 
 			*/
+			ast_answer(chan);
 			res = ast_play_and_record(chan, "priv-recordintro", pa->privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
 									/* don't think we'll need a lock removed, we took care of
 									   conflicts by naming the pa.privintro file */
