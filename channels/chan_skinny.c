@@ -322,6 +322,14 @@ struct call_info_message {
 	uint32_t type;
 	char originalCalledPartyName[40];
 	char originalCalledParty[24];
+	char lastRedirectingPartyName[40];
+	char lastRedirectingParty[24];
+	uint32_t originalCalledPartyRedirectReason;
+	uint32_t lastRedirectingReason;
+	char callingPartyVoiceMailbox[24];
+	char calledPartyVoiceMailbox[24];
+	char originalCalledPartyVoiceMailbox[24];
+	char lastRedirectingVoiceMailbox[24];
 };
 
 #define SPEED_DIAL_STAT_RES_MESSAGE 0x0091
@@ -1487,6 +1495,9 @@ static void transmit_callinfo(struct skinnysession *s, const char *fromname, con
 	if (!(req = req_alloc(sizeof(struct call_info_message), CALL_INFO_MESSAGE)))
 		return;
 
+	if (skinnydebug)
+			ast_verbose("Setting Callinfo to %s(%s) from %s(%s) on %s(%d)\n", fromname, fromnum, toname, tonum, s->device->name, instance);
+
 	if (fromname) {
 		ast_copy_string(req->data.callinfo.callingPartyName, fromname, sizeof(req->data.callinfo.callingPartyName));
 	}
@@ -2372,14 +2383,12 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		break;
 	}
 
+	transmit_callstate(s, l->instance, SKINNY_RINGIN, sub->callid);
+	transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGIN);
+	transmit_displaypromptstatus(s, "Ring-In", 0, l->instance, sub->callid);
+	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
 	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(s, SKINNY_RING_INSIDE);
-
-	transmit_tone(s, tone);
-	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1);
-	transmit_callstate(s, l->instance, SKINNY_RINGIN, sub->callid);
-	transmit_displaypromptstatus(s, "Ring-In", 0, l->instance, sub->callid);
-	transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGIN);
 
 	ast_setstate(ast, AST_STATE_RINGING);
 	ast_queue_control(ast, AST_CONTROL_RINGING);
