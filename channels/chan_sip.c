@@ -10451,7 +10451,7 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 	bridgea = ast_bridged_channel(chana);
 	bridgeb = ast_bridged_channel(chanb);
 	
-	if (bridgea) {
+	if (bridgea && (bridgea == chana->_bridge)) {
 		peera = chana;
 		peerb = chanb;
 		peerc = bridgea;
