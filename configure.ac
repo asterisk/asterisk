@@ -693,14 +693,30 @@ fi
 if test "${PG_CONFIG}" != No; then
    PGSQL_libdir=`${PG_CONFIG} --libdir`
    PGSQL_includedir=`${PG_CONFIG} --includedir`
-   
-   AC_CHECK_LIB([pq], [PQexec], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
-   [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
+   if test "x$?" != "x0" ; then
+      if test -n "${PGSQL_MANDATORY}" ; then
+         AC_MSG_NOTICE([***])
+         AC_MSG_NOTICE([*** The PostgreSQL installation on this system appears to be broken.])
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** including --without-postgres])
+         exit 1
+	  fi
+   else 
+      AC_CHECK_LIB([pq], [PQexec], AC_DEFINE_UNQUOTED([HAVE_PGSQL], 1,
+      [Define to indicate the PostgreSQL library]), [], -L${PGSQL_libdir} -lz)
 
-   if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
-      PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
-      PGSQL_INCLUDE="-I${PGSQL_includedir}"
-      PBX_PGSQL=1
+      if test "${ac_cv_lib_pq_PQexec}" = "yes"; then
+         PGSQL_LIB="-L${PGSQL_libdir} -lpq -lz"
+         PGSQL_INCLUDE="-I${PGSQL_includedir}"
+         PBX_PGSQL=1
+      elif test -n "${PGSQL_MANDATORY}";
+      then
+         AC_MSG_NOTICE([***])
+         AC_MSG_NOTICE([*** The PostgreSQL installation on this system appears to be broken.])
+         AC_MSG_NOTICE([*** Either correct the installation, or run configure])
+         AC_MSG_NOTICE([*** including --without-postgres])
+         exit 1
+      fi
    fi
 fi
 
