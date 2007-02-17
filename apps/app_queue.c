@@ -1971,7 +1971,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				if (!ast_strlen_zero(o->chan->call_forward) && !forwardsallowed) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s' prevented.\n", in->name, o->chan->call_forward);
-                                        winner = o->chan = NULL;
+					numnochan++;
+					do_hang(o);
+					winner = NULL;
+					continue;
 				} else if (!ast_strlen_zero(o->chan->call_forward)) {
 					char tmpchan[256];
 					char *stuff;
