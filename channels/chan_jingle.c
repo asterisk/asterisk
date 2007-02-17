@@ -183,7 +183,7 @@ static int jingle_sendhtml(struct ast_channel *ast, int subclass, const char *da
 static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, const char *sid);
 /*----- RTP interface functions */
 static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp,
-							   struct ast_rtp *vrtp, int codecs, int nat_active);
+							   struct ast_rtp *vrtp, struct ast_rtp *tpeer, int codecs, int nat_active);
 static enum ast_rtp_get_result jingle_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp);
 static int jingle_get_codec(struct ast_channel *chan);
 
@@ -429,7 +429,7 @@ static int jingle_get_codec(struct ast_channel *chan)
 	return p->peercapability;
 }
 
-static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
+static int jingle_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *tpeer, int codecs, int nat_active)
 {
 	struct jingle_pvt *p;
 
