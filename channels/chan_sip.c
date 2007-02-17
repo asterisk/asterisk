@@ -13093,7 +13093,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else if (sipmethod == SIP_NOTIFY) {
 				/* They got the notify, this is the end */
 				if (p->owner) {
-					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
+					if (p->refer) {
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Got 200 OK on NOTIFY for transfer\n");
+					} else
+						ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
 					/* ast_queue_hangup(p->owner); Disabled */
 				} else {
 					if (!p->subscribed && !p->refer)
@@ -13384,7 +13388,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 			ast_log(LOG_DEBUG, "-- No target second channel ---\n");
 		ast_log(LOG_DEBUG, "-- END Sip transfer:--------------------\n");
 	}
-	if (transferer->chan2) {			/* We have a bridge on the transferer's channel */
+	if (transferer->chan2 && (ast_bridged_channel(transferer->chan2) == transferer->chan2->_bridge)) { /* We have a bridge on the transferer's channel */
 		peera = transferer->chan1;	/* Transferer - PBX -> transferee channel * the one we hangup */
 		peerb = target->chan1;		/* Transferer - PBX -> target channel - This will get lost in masq */
 		peerc = transferer->chan2;	/* Asterisk to Transferee */
