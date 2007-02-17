@@ -161,7 +161,7 @@ static char *descrip =
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
-"   AddQueueMember(queuename[|interface[|penalty[|options]]]):\n"
+"   AddQueueMember(queuename[|interface[|penalty[|options[|membername]]]]):\n"
 "Dynamically adds interface to an existing queue.\n"
 "If the interface is already in the queue and there exists an n+101 priority\n"
 "then it will then jump to this priority.  Otherwise it will return an error\n"
