@@ -7007,52 +7007,55 @@ static const char voicemail_show_zones_help[] =
 "Usage: voicemail show zones\n"
 "       Lists zone message formats\n";
 
+/*! \brief Show a list of voicemail users in the CLI */
 static int handle_voicemail_show_users(int fd, int argc, char *argv[])
 {
 	struct ast_vm_user *vmu;
 	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
 
-	if ((argc < 3) || (argc > 5) || (argc == 4)) return RESULT_SHOWUSAGE;
-	else if ((argc == 5) && strcmp(argv[3],"for")) return RESULT_SHOWUSAGE;
+	if ((argc < 3) || (argc > 5) || (argc == 4))
+		return RESULT_SHOWUSAGE;
+	if ((argc == 5) && strcmp(argv[3],"for"))
+		return RESULT_SHOWUSAGE;
 
 	AST_LIST_LOCK(&users);
-	if (!AST_LIST_EMPTY(&users)) {
-		if (argc == 3)
-			ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
-		else {
-			int count = 0;
-			AST_LIST_TRAVERSE(&users, vmu, list) {
-				if (!strcmp(argv[4],vmu->context))
-					count++;
-			}
-			if (count) {
-				ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
-			} else {
-				ast_cli(fd, "No such voicemail context \"%s\"\n", argv[4]);
-				AST_LIST_UNLOCK(&users);
-				return RESULT_FAILURE;
-			}
-		}
-		AST_LIST_TRAVERSE(&users, vmu, list) {
-			int newmsgs = 0, oldmsgs = 0;
-			char count[12], tmp[256] = "";
-
-			if ((argc == 3) || ((argc == 5) && !strcmp(argv[4],vmu->context))) {
-				snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
-				inboxcount(tmp, &newmsgs, &oldmsgs);
-				snprintf(count,sizeof(count),"%d",newmsgs);
-				ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
-			}
-		}
-	} else {
+	if (AST_LIST_EMPTY(&users)) {
 		ast_cli(fd, "There are no voicemail users currently defined\n");
 		AST_LIST_UNLOCK(&users);
 		return RESULT_FAILURE;
+	}
+	if (argc == 3)
+		ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+	else {
+		int count = 0;
+		AST_LIST_TRAVERSE(&users, vmu, list) {
+			if (!strcmp(argv[4],vmu->context))
+				count++;
+		}
+		if (count) {
+			ast_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+		} else {
+			ast_cli(fd, "No such voicemail context \"%s\"\n", argv[4]);
+			AST_LIST_UNLOCK(&users);
+			return RESULT_FAILURE;
+		}
+	}
+	AST_LIST_TRAVERSE(&users, vmu, list) {
+		int newmsgs = 0, oldmsgs = 0;
+		char count[12], tmp[256] = "";
+
+		if ((argc == 3) || ((argc == 5) && !strcmp(argv[4],vmu->context))) {
+			snprintf(tmp, sizeof(tmp), "%s@%s", vmu->mailbox, ast_strlen_zero(vmu->context) ? "default" : vmu->context);
+			inboxcount(tmp, &newmsgs, &oldmsgs);
+			snprintf(count,sizeof(count),"%d",newmsgs);
+			ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
+		}
 	}
 	AST_LIST_UNLOCK(&users);
 	return RESULT_SUCCESS;
 }
 
+/*! \brief Show a list of voicemail zones in the CLI */
 static int handle_voicemail_show_zones(int fd, int argc, char *argv[])
 {
 	struct vm_zone *zone;
