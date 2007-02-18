@@ -215,7 +215,7 @@ re_refresh(EditLine *el)
 	prompt_print(el, EL_PROMPT);
 
 	/* draw the current input buffer */
-#if notyet
+#ifdef notyet
 	termsz = el->el_term.t_size.h * el->el_term.t_size.v;
 	if (el->el_line.lastchar - el->el_line.buffer > termsz) {
 		/*

@@ -1553,7 +1553,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 		return NULL;
 
   openit:
-#if TRYOPEN
+#ifdef TRYOPEN
 	if (setformat(o, O_RDWR) < 0) {	/* open device */
 		if (option_verbose > 0) {
 			ast_verbose(VERBOSE_PREFIX_2 "Device %s not detected\n", ctg);

@@ -415,9 +415,9 @@ static char ext_pass_cmd[128];
 #define PWDCHANGE_EXTERNAL (1 << 2)
 static int pwdchange = PWDCHANGE_INTERNAL;
 
-#if ODBC_STORAGE
+#ifdef ODBC_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
-#elif IMAP_STORAGE
+#elifdef IMAP_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with IMAP Storage"
 #else
 #define tdesc "Comedian Mail (Voicemail System)"
