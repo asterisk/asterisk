@@ -1508,17 +1508,18 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	return res;
 }
 
-static void post_manager_event(const char *s, char *parkingexten, struct ast_channel *chan)
+/*! \brief Output parking event to manager */
+static void post_manager_event(const char *s, struct parkeduser *pu)
 {
 	manager_event(EVENT_FLAG_CALL, s,
 		"Exten: %s\r\n"
 		"Channel: %s\r\n"
 		"CallerIDNum: %s\r\n"
 		"CallerIDName: %s\r\n\r\n",
-		parkingexten, 
-		chan->name,
-		S_OR(chan->cid.cid_num, "<unknown>"),
-		S_OR(chan->cid.cid_name, "<unknown>")
+		pu->parkingexten, 
+		pu->chan->name,
+		S_OR(pu->chan->cid.cid_num, "<unknown>"),
+		S_OR(pu->chan->cid.cid_name, "<unknown>")
 		);
 }
 
@@ -1588,7 +1589,7 @@ static void *do_parking_thread(void *ignore)
 					set_c_e_p(chan, pu->context, pu->exten, pu->priority);
 				}
 
-				post_manager_event("ParkedCallTimeOut", pu->parkingexten, chan);
+				post_manager_event("ParkedCallTimeOut", pu);
 
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", chan->name, pu->parkingnum, chan->context, chan->exten, chan->priority);
@@ -1631,7 +1632,7 @@ static void *do_parking_thread(void *ignore)
 					if (!f || (f->frametype == AST_FRAME_CONTROL && f->subclass ==  AST_CONTROL_HANGUP)) {
 						if (f)
 							ast_frfree(f);
-						post_manager_event("ParkedCallGiveUp", pu->parkingexten, chan);
+						post_manager_event("ParkedCallGiveUp", pu);
 
 						/* There's a problem, hang them up*/
 						if (option_verbose > 1) 
