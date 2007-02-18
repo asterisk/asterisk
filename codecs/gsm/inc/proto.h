@@ -9,11 +9,11 @@
 #ifndef	PROTO_H
 #define	PROTO_H
 
-#if __cplusplus
+#ifdef __cplusplus
 #	define	NeedFunctionPrototypes	1
 #endif
 
-#if __STDC__
+#ifdef __STDC__
 #	define	NeedFunctionPrototypes	1
 #endif
 
