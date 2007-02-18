@@ -1661,7 +1661,7 @@ static void *do_parking_thread(void *ignore)
 						if (pu->moh_trys < 3 && !chan->generatordata) {
 							if (option_debug)
 								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
-							ast_indicate_data(pu->chan, AST_CONTROL_HOLD, 
+							ast_indicate_data(chan, AST_CONTROL_HOLD, 
 								S_OR(parkmohclass, NULL),
 								!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
 							pu->moh_trys++;
