@@ -435,6 +435,8 @@ static char regcontext[AST_MAX_CONTEXT] = "";		/*!< Context for auto-extensions 
 #define DEFAULT_EXPIRY 900				/*!< Expire slowly */
 static int expiry = DEFAULT_EXPIRY;
 
+#define DEFAULT_T1MIN	100				/*!< Minimial T1 roundtrip time - ms */
+
 static struct sched_context *sched;
 static struct io_context *io;
 static int *sipsock_read_id;
@@ -1918,7 +1920,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->pickupgroup = peer->pickupgroup;
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	if (peer->maxms && peer->lastms)
-		r->timer_t1 = peer->lastms;
+		r->timer_t1 = peer->lastms < DEFAULT_T1MIN ? DEFAULT_T1MIN : peer->lastms;
 	if ((ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_AUTO))
 		r->noncodeccapability |= AST_RTP_DTMF;
 	else
