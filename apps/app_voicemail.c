@@ -5820,21 +5820,28 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	/* If forcename is set, have the user record their name */	
 	if (ast_test_flag(vmu, VM_FORCENAME)) {
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
-		cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
-		if (cmd < 0 || cmd == 't' || cmd == '#')
-			return cmd;
+		if (ast_fileexists(prefile, NULL, NULL) < 1) {
+			cmd = play_record_review(chan, "vm-rec-name", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
+			if (cmd < 0 || cmd == 't' || cmd == '#')
+				return cmd;
+		}
 	}
 
 	/* If forcegreetings is set, have the user record their greetings */
 	if (ast_test_flag(vmu, VM_FORCEGREET)) {
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
-		cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
-		if (cmd < 0 || cmd == 't' || cmd == '#')
-			return cmd;
+		if (ast_fileexists(prefile, NULL, NULL) < 1) {
+			cmd = play_record_review(chan, "vm-rec-unv", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
+			if (cmd < 0 || cmd == 't' || cmd == '#')
+				return cmd;
+		}
+
 		snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
-		cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
-		if (cmd < 0 || cmd == 't' || cmd == '#')
-			return cmd;
+		if (ast_fileexists(prefile, NULL, NULL) < 1) {
+			cmd = play_record_review(chan, "vm-rec-busy", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain, NULL);
+			if (cmd < 0 || cmd == 't' || cmd == '#')
+				return cmd;
+		}
 	}
 
 	return cmd;
