@@ -60,6 +60,7 @@ Changes since Asterisk 1.4-beta was branched:
   * Added 'DBDel' and 'DBDelTree' manager commands.
   * Added 'o' and 'X' options to Chanspy.
   * Added the parkedcallreparking option to features.conf
+  * SMDI is now enabled in voicemail using the smdienable option.
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
