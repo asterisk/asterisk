@@ -58,11 +58,13 @@ maxlogins=3
 ;
 ; If you need to have an external program, i.e. /usr/bin/myapp
 ; called when a voicemail is left, delivered, or your voicemailbox 
-; is checked, uncomment this.  It can also be set to 'smdi' to use
-; smdi for external notification.  If it is 'smdi', smdiport should
-; be set to a valid port as specified in smdi.conf.
-
+; is checked, uncomment this.
 ;externnotify=/usr/bin/myapp
+
+; If you would also like to enable SMDI notification then set smdienable to yes.
+; You will also need to make sure smdiport is set to a valid port as specified in
+; smdi.conf.
+;smdienable=yes
 ;smdiport=/dev/ttyS0
 
 ; If you need to have an external program, i.e. /usr/bin/myapp

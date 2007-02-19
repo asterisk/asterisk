@@ -2817,7 +2817,7 @@ static void run_externnotify(char *context, char *extension)
 	else
 		ast_copy_string(ext_context, extension, sizeof(ext_context));
 
-	if (!strcasecmp(externnotify, "smdi")) {
+	if (smdi_iface) {
 		if (ast_app_has_voicemail(ext_context, NULL)) 
 			ast_smdi_mwi_set(smdi_iface, extension);
 		else
@@ -2835,7 +2835,9 @@ static void run_externnotify(char *context, char *extension)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Successfully executed SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
 		}
-	} else if (!ast_strlen_zero(externnotify)) {
+	}
+
+	if (!ast_strlen_zero(externnotify)) {
 		if (inboxcount(ext_context, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
@@ -7294,32 +7296,31 @@ static int load_config(void)
 		}
 #endif
 		/* External voicemail notify application */
-		
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
 			ast_copy_string(externnotify, notifystr, sizeof(externnotify));
 			if (option_debug)
 				ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
-			if (!strcasecmp(externnotify, "smdi")) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Using SMDI for external voicemail notification\n");
-				if ((smdistr = ast_variable_retrieve(cfg, "general", "smdiport"))) {
-					smdi_iface = ast_smdi_interface_find(smdistr);
-				} else {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "No SMDI interface set, trying default (/dev/ttyS0)\n");
-					smdi_iface = ast_smdi_interface_find("/dev/ttyS0");
-				}
-
-				if (!smdi_iface) {
-					ast_log(LOG_ERROR, "No valid SMDI interface specfied, disabling external voicemail notification\n");
-					externnotify[0] = '\0';
-				} else {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Using SMDI port %s\n", smdi_iface->name);
-				}
-			}
 		} else {
 			externnotify[0] = '\0';
+		}
+
+		/* SMDI voicemail notification */
+		if ((s = ast_variable_retrieve(cfg, "general", "smdienable")) && ast_true(s)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Enabled SMDI voicemail notification\n");
+			if ((smdistr = ast_variable_retrieve(cfg, "general", "smdiport"))) {
+				smdi_iface = ast_smdi_interface_find(smdistr);
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "No SMDI interface set, trying default (/dev/ttyS0)\n");
+				smdi_iface = ast_smdi_interface_find("/dev/ttyS0");
+			}
+			if (!smdi_iface) {
+				ast_log(LOG_ERROR, "No valid SMDI interface specfied, disabling SMDI voicemail notification\n");
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Using SMDI port %s\n", smdi_iface->name);
+			}
 		}
 
 		/* Silence treshold */
