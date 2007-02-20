@@ -10,73 +10,69 @@
 
 
 ; ---- Trunk Declarations -------------
+;
+;[line1]                  ; Provide a name for this trunk.
+;type=trunk               ; This line is what marks this entry as a trunk.
+;
+;device=Zap/3             ; Map this trunk declaration to a specific device.
+                          ; NOTE: At this point, this *must* be a zap channel!
 
-; Provide a name for this trunk.
-[line1]
-; This line is what marks this entry as a trunk.
-type=trunk
-; Map this trunk declaration to a specific device.
-; NOTE: At this point, this *must* be a zap channel!
-device=Zap/3
-; This supports automatic generation of the dialplan entries if the autocontext
-; option is used.  Each trunk should have a unique context name.  Then, in
-; zapata.conf, this device should be configured to have incoming calls go to
-; this context.
-autocontext=line1
+;autocontext=line1        ; This supports automatic generation of the dialplan entries 
+                          ; if the autocontext option is used.  Each trunk should have 
+                          ; a unique context name.  Then, in zapata.conf, this device 
+                          ; should be configured to have incoming calls go to this context.
 
-[line2]
-type=trunk
-device=Zap/4
-autocontext=line2
+;[line2]
+;type=trunk
+;device=Zap/4
+;autocontext=line2
 
-[line3]
-type=trunk
-device=Zap/3
-autocontext=line3
+;[line3]
+;type=trunk
+;device=Zap/3
+;autocontext=line3
 
-[line4]
-type=trunk
-device=Zap/4
-autocontext=line4
+;[line4]
+;type=trunk
+;device=Zap/4
+;autocontext=line4
 ; --------------------------------------
 
 
 ; ---- Station Declarations ------------
 
-; In this example, all stations have the same trunks, so this configuration
-; template is used to simplify the declaration of each station.
-[station](!)
-; This line indicates that this entry is a station.
-type=station
-; This supports automatic generation of the dialplan entries if the autocontext
-; option is used.  All stations can use the same context without conflict.  The
-; device for this station should have its context configured to the same one
-; listed here.
-autocontext=sla_stations
-; Individually list all of the trunks that will appear on this station.  This
-; order is significant.  It should be the same order as they appear on the
-; phone.  The order here defines the order of preference that the trunks will
-; be used.
-trunk=line1
-trunk=line2
-trunk=line3
-trunk=line4
+;[station](!)                       ; In this example, all stations have the same trunks, so this 
+                                    ; configuration template is used to simplify the declaration 
+                                    ; of each station.
 
-; Define a station that uses the configuration from the template "station".
-[station1](station)
-; Each station must be mapped to a device.
-device=SIP/station1
+;type=station                       ; This line indicates that this entry is a station.
 
-[station2](station)
-device=SIP/station2
+;autocontext=sla_stations           ; This supports automatic generation of the dialplan entries if 
+                                    ; the autocontext option is used.  All stations can use the same 
+                                    ; context without conflict.  The device for this station should 
+                                    ; have its context configured to the same one listed here.
 
-[station3](station)
-device=SIP/station3
+;trunk=line1                        ; Individually list all of the trunks that will appear on this station.  This
+                                    ; order is significant.  It should be the same order as they appear on the
+                                    ; phone.  The order here defines the order of preference that the trunks will
+                                    ; be used.
+;trunk=line2
+;trunk=line3
+;trunk=line4
 
-[station4](station)
-device=SIP/station4
-
-[station5](station)
-device=SIP/station5
+;[station1](station)                ; Define a station that uses the configuration from the template "station".
+;device=SIP/station1                ; Each station must be mapped to a device.
+;
+;[station2](station)
+;device=SIP/station2
+;
+;[station3](station)
+;device=SIP/station3
+;
+;[station4](station)
+;device=SIP/station4
+;
+;[station5](station)
+;device=SIP/station5
 ; --------------------------------------
 
