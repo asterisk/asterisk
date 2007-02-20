@@ -790,6 +790,9 @@ static int agent_hangup(struct ast_channel *ast)
 				p->logincallerid[0] = '\0';
 				if (persistent_agents)
 					dump_agents();
+			} else if (!p->loginstart) {
+				p->loginchan[0] = '\0';
+				p->logincallerid[0] = '\0';
 			}
 		} else if (p->dead) {
 			ast_mutex_lock(&p->chan->lock);
@@ -1473,14 +1476,17 @@ static int agent_logoff(char *agent, int soft)
 	struct agent_pvt *p;
 	long logintime;
 	int ret = -1; /* Return -1 if no agent if found */
+	int defer = 0;
 
 	for (p=agents; p; p=p->next) {
 		if (!strcasecmp(p->agent, agent)) {
 			if (!soft) {
 				if (p->owner) {
+					defer = 1;
 					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
 				}
 				if (p->chan) {
+					defer = 1;
 					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 				}
 			}
@@ -1495,8 +1501,10 @@ static int agent_logoff(char *agent, int soft)
 				      p->agent, p->loginchan, logintime);
 			ast_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "CommandLogoff");
 			set_agentbycallerid(p->logincallerid, NULL);
-			p->loginchan[0] = '\0';
-			p->logincallerid[0] = '\0';
+			if (!defer) {
+				p->loginchan[0] = '\0';
+				p->logincallerid[0] = '\0';
+			}
 			ast_device_state_changed("Agent/%s", p->agent);
 			if (persistent_agents)
 				dump_agents();
