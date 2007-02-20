@@ -344,7 +344,7 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "This application requires arguments.\n");
 		return 0;
 	}
-	s = ast_strdupa((char *) data);
+	s = ast_strdupa(data);
 	if (s) {
 		sender = strsep(&s, "|");
 		if (sender && (sender[0] != '\0')) {
@@ -404,7 +404,7 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "This application requires arguments.\n");
 		return 0;
 	}
-	s = ast_strdupa((char *) data);
+	s = ast_strdupa(data);
 	if (s) {
 		sender = strsep(&s, "|");
 		if (sender && (sender[0] != '\0')) {
