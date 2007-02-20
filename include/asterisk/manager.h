@@ -57,7 +57,7 @@
 #define EVENT_FLAG_CONFIG		(1 << 7) /* Ability to modify configurations */
 
 /* Export manager structures */
-#define AST_MAX_MANHEADERS 80
+#define AST_MAX_MANHEADERS 128
 
 /* Manager Helper Function */
 typedef int (*manager_hook_t)(int, const char *, char *); 
