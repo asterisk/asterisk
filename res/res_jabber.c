@@ -339,23 +339,23 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 	char *s = NULL, *sender = NULL, *jid = NULL, *screenname = NULL, *resource = NULL, *variable = NULL;
 	int stat = 7;
 	char status[2];
-	if (data) {
-		s = ast_strdupa((char *) data);
-		if (s) {
-			sender = strsep(&s, "|");
-			if (sender && (sender[0] != '\0')) {
-				jid = strsep(&s, "|");
-				if (jid && (jid[0] != '\0')) {
-					variable = s;
-				} else {
-					ast_log(LOG_ERROR, "Bad arguments\n");
-					return -1;
-				}
+
+	if (!data) {
+		ast_log(LOG_ERROR, "This application requires arguments.\n");
+		return 0;
+	}
+	s = ast_strdupa((char *) data);
+	if (s) {
+		sender = strsep(&s, "|");
+		if (sender && (sender[0] != '\0')) {
+			jid = strsep(&s, "|");
+			if (jid && (jid[0] != '\0')) {
+				variable = s;
+			} else {
+				ast_log(LOG_ERROR, "Bad arguments\n");
+				return -1;
 			}
 		}
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
 	}
 
 	if(!strchr(jid, '/')) {
@@ -366,25 +366,23 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 	}
 	client = ast_aji_get_client(sender);
 	if (!client) {
-		ast_log(LOG_WARNING, "Could not find Connection.\n");
+		ast_log(LOG_WARNING, "Could not find sender connection: %s\n", sender);
 		return -1;
 	}
 	if(!&client->buddies) {
-		ast_log(LOG_WARNING, "No buddies for connection.\n");
+		ast_log(LOG_WARNING, "No buddies for connection : %s\n", sender);
 		return -1;
 	}
-	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, (resource)?screenname:jid);
+	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, resource ? screenname: jid);
 	if (!buddy) {
-		ast_log(LOG_WARNING, "Could not find Buddy in list.\n");
+		ast_log(LOG_WARNING, "Could not find buddy in list : %s\n", resource ? screenname : jid);
 		return -1;
 	}
 	r = aji_find_resource(buddy, resource);
-	if(!r && buddy->resources) {
+	if(!r && buddy->resources) 
 		r = buddy->resources;
-	}
-	if(!r){
+	if(!r)
 		ast_log(LOG_NOTICE, "Resource %s of buddy %s not found \n", resource, screenname);
-	}
 	stat = r->status;
 	sprintf(status, "%d", stat);
 	pbx_builtin_setvar_helper(chan, variable, status);
@@ -403,8 +401,8 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 	char *s = NULL, *sender = NULL, *recipient = NULL, *message = NULL;
 
 	if (!data) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
+		ast_log(LOG_ERROR, "This application requires arguments.\n");
+		return 0;
 	}
 	s = ast_strdupa((char *) data);
 	if (s) {
@@ -414,13 +412,13 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 			if (recipient && (recipient[0] != '\0')) {
 				message = s;
 			} else {
-				ast_log(LOG_ERROR, "Bad arguments \n");
+				ast_log(LOG_ERROR, "Bad arguments: %s\n", (char *) data);
 				return -1;
 			}
 		}
 	}
 	if (!(client = ast_aji_get_client(sender))) {
-		ast_log(LOG_WARNING, "Could not find Sender.\n");
+		ast_log(LOG_WARNING, "Could not find sender connection: %s\n", sender);
 		return -1;
 	}
 	if (strchr(recipient, '@') && message)
@@ -2262,6 +2260,9 @@ static int aji_load_config(void)
 	int debug = 1;
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
+
+	/* Reset flags to default value */
+	globalflags = { AJI_AUTOPRUNE | AJI_AUTOREGISTER };
 
 	cfg = ast_config_load(JABBER_CONFIG);
 	if (!cfg) {
