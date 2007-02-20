@@ -169,6 +169,7 @@ struct agent_pvt {
 	int abouttograb;               /*!< About to grab */
 	int autologoff;                /*!< Auto timeout time */
 	int ackcall;                   /*!< ackcall */
+	int deferlogoff;               /*!< Defer logoff to hangup */
 	time_t loginstart;             /*!< When agent first logged in (0 when logged off) */
 	time_t start;                  /*!< When call started */
 	struct timeval lastdisc;       /*!< When last disconnected */
@@ -765,10 +766,12 @@ static int agent_hangup(struct ast_channel *ast)
 			}
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
-			if (howlong  && p->autologoff && (howlong > p->autologoff)) {
+			if ((p->deferlogoff) || (howlong && p->autologoff && (howlong > p->autologoff))) {
 				long logintime = time(NULL) - p->loginstart;
 				p->loginstart = 0;
-				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+				if (!p->deferlogoff)
+					ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+				p->deferlogoff = 0;
 				agent_logoff_maintenance(p, p->loginchan, logintime, ast->uniqueid, "Autologoff");
 			}
 		} else if (p->dead) {
@@ -1507,16 +1510,20 @@ static int agent_logoff(const char *agent, int soft)
 
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		if (!strcasecmp(p->agent, agent)) {
-			if (!soft) {
-				if (p->owner)
-					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
-				if (p->chan) 
-					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
+			ret = 0;
+			if (p->owner || p->chan) {
+				p->deferlogoff = 1;
+				if (!soft) {
+					if (p->owner)
+						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
+					if (p->chan)
+						ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
+				}
+			} else {
+				logintime = time(NULL) - p->loginstart;
+				p->loginstart = 0;
+				agent_logoff_maintenance(p, p->loginchan, logintime, NULL, "CommandLogoff");
 			}
-			ret = 0; /* found an agent => return 0 */
-			logintime = time(NULL) - p->loginstart;
-			p->loginstart = 0;
-			agent_logoff_maintenance(p, p->loginchan, logintime, NULL, "CommandLogoff");
 			break;
 		}
 	}
