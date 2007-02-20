@@ -705,6 +705,8 @@ static void logger_print_normal(struct logmsg *logmsg)
 						fprintf(stderr, "Logger Warning: Unable to write to log file '%s': %s (disabled)\n", chan->filename, strerror(errno));
 					manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: No\r\nReason: %d - %s\r\n", chan->filename, errno, strerror(errno));
 					chan->disabled = 1;
+				} else if (res > 0) {
+					fflush(chan->fileptr);
 				}
 			}
 		}
