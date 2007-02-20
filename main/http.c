@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/config.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/version.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "/asterisk"
@@ -611,10 +612,10 @@ static void *httpd_helper_thread(void *data)
 
 		strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
 		fprintf(ser->f, "HTTP/1.1 %d %s\r\n"
-				"Server: Asterisk\r\n"
+				"Server: Asterisk/%s\r\n"
 				"Date: %s\r\n"
 				"Connection: close\r\n",
-			status, title ? title : "OK", timebuf);
+			status, title ? title : "OK", ASTERISK_VERSION, timebuf);
 		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
 			fprintf(ser->f, "%s", out->str);
 		} else {
