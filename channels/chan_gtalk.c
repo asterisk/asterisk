@@ -258,10 +258,9 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 	struct gtalk *gtalk = NULL;
 	char *domain = NULL , *s = NULL;
 	if(strchr(connection, '@')) {
-		s = ast_strdupa((char *) connection);
+		s = ast_strdupa(connection);
 		domain = strsep(&s, "@");
 		ast_verbose("OOOOH domain = %s\n", domain);
-		free(s);
 	}
 	gtalk = ASTOBJ_CONTAINER_FIND(&gtalk_list, name);
 	if (!gtalk && strchr(name, '@'))
@@ -876,13 +875,11 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	}
 
 	if(strchr(tmp->us, '/')) {
-		data = ast_strdupa((char *) tmp->us);
+		data = ast_strdupa(tmp->us);
 		exten = strsep(&data, "/");
 	} else
 		exten = tmp->us;
 	ast_copy_string(tmp->exten,  exten, sizeof(tmp->exten));
-	if(data)
-		free(data);
 	ast_mutex_init(&tmp->lock);
 	ast_mutex_lock(&gtalklock);
 	tmp->next = client->p;
@@ -1480,15 +1477,13 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 	struct ast_channel *chan = NULL;
 
 	if (data) {
-		s = ast_strdupa((char *) data);
+		s = ast_strdupa(data);
 		if (s) {
 			sender = strsep(&s, "/");
 			if (sender && (sender[0] != '\0'))
 				to = strsep(&s, "/");
 			if (!to) {
 				ast_log(LOG_ERROR, "Bad arguments in Gtalk Dialstring: %s\n", (char*) data);
-				if (s)
-					free(s);
 				return NULL;
 			}
 		}
@@ -1496,8 +1491,6 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 	client = find_gtalk(to, sender);
 	if (!client) {
 		ast_log(LOG_WARNING, "Could not find recipient.\n");
-		if (s)
-			free(s);
 		return NULL;
 	}
 	p = gtalk_alloc(client, strchr(sender, '@') ? sender : client->connection->jid->full, strchr(to, '@') ? to : client->user, NULL);

@@ -1360,15 +1360,13 @@ static struct ast_channel *jingle_request(const char *type, int format, void *da
 	struct ast_channel *chan = NULL;
 
 	if (data) {
-		s = ast_strdupa((char *) data);
+		s = ast_strdupa(data);
 		if (s) {
 			sender = strsep(&s, "/");
 			if (sender && (sender[0] != '\0'))
 				to = strsep(&s, "/");
 			if (!to) {
 				ast_log(LOG_ERROR, "Bad arguments in Jingle Dialstring: %s\n", (char*) data);
-				if (s)
-					free(s);
 				return NULL;
 			}
 		}
@@ -1376,8 +1374,6 @@ static struct ast_channel *jingle_request(const char *type, int format, void *da
 	client = find_jingle(to, sender);
 	if (!client) {
 		ast_log(LOG_WARNING, "Could not find recipient.\n");
-		if (s)
-			free(s);
 		return NULL;
 	}
 	p = jingle_alloc(client, to, NULL);
