@@ -2262,7 +2262,7 @@ static int aji_load_config(void)
 	struct ast_variable *var = NULL;
 
 	/* Reset flags to default value */
-	globalflags = { AJI_AUTOPRUNE | AJI_AUTOREGISTER };
+	ast_set_flag(&globalflags, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
 
 	cfg = ast_config_load(JABBER_CONFIG);
 	if (!cfg) {
