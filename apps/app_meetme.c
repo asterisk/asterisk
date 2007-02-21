@@ -2546,8 +2546,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					res = conf_run(chan, cnf, confflags.flags, optargs);
 				}
 			}
-			dispose_conf(cnf);
-			cnf = NULL;
+			if (cnf) {
+				dispose_conf(cnf);
+				cnf = NULL;
+			}
 		}
 	} while (allowretry);
 
