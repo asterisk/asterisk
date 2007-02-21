@@ -1987,7 +1987,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						if (conf->transframe[index]) {
  							if (conf->transframe[index]->frametype != AST_FRAME_NULL) {
 	 							if (ast_write(chan, conf->transframe[index]))
-									ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+									ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
 							}
 						} else {
 							ast_mutex_unlock(&conf->listenlock);
@@ -1999,7 +1999,7 @@ bailoutandtrynormal:
 						if (user->listen.actual)
 							ast_frame_adjust_volume(&fr, user->listen.actual);
 						if (ast_write(chan, &fr) < 0) {
-							ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
+							ast_log(LOG_WARNING, "Unable to write frame to channel %s\n", chan->name);
 						}
 					}
 				} else 
