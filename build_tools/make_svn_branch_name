@@ -3,6 +3,7 @@
 PARTS=`LANG=C svn info | grep URL | awk '{print $2;}' | sed -e 's:^.*/svn/asterisk/::' | sed -e 's:/: :g'`
 BRANCH=0
 TEAM=0
+TAG=0
 
 REV=`svnversion -c . | cut -d: -f2`
 
@@ -14,6 +15,12 @@ fi
 
 for PART in $PARTS
 do
+  if [ ${TAG} != 0 ]
+  then
+      RESULT="${PART}"
+      break
+  fi
+
   if [ ${BRANCH} != 0 ]
   then
       RESULT="${RESULT}-${PART}"
@@ -35,8 +42,7 @@ do
 
   if [ "${PART}" = "tags" ]
   then
-      BRANCH=1
-      RESULT="tag"
+      TAG=1
       continue
   fi
 
@@ -47,4 +53,9 @@ do
   fi
 done
 
-echo ${RESULT##-}-r${REV}
+if [ ${TAG} != 0 ]
+then
+    echo ${RESULT}
+else
+    echo ${RESULT##-}-r${REV}
+fi
