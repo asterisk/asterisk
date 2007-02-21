@@ -2468,6 +2468,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	fread(buf, len, 1, p);
 	((char *)buf)[len] = '\0';
 	INIT(&str, mail_string, buf, len);
+	init_mailstream(vms, 0);
 	imap_mailbox_name(mailbox, vms, 0, 1);
 	if(!mail_append(vms->mailstream, mailbox, &str))
 		ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
@@ -2578,12 +2579,10 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
  	}
 
 	/* If no mailstream exists yet and even after attempting to initialize it fails, bail out */
- 	if (!vms_p->mailstream) {
- 		ret = init_mailstream(vms_p, 0);
-		if (!vms_p->mailstream) {
-			ast_log (LOG_ERROR,"Houston we have a problem - IMAP mailstream is NULL\n");
-			return -1;
-		}
+	ret = init_mailstream(vms_p, 0);
+	if (!vms_p->mailstream) {
+		ast_log (LOG_ERROR,"Houston we have a problem - IMAP mailstream is NULL\n");
+		return -1;
 	}
 
 	if (!ret && vms_p->updated == 1) {
