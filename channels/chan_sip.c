@@ -3578,6 +3578,11 @@ static int sip_hangup(struct ast_channel *ast)
 	}
 
 	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
+		if (ast_test_flag(&p->flags[0], SIP_INC_COUNT)) {
+			if (option_debug && sipdebug)
+				ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter on hangup\n", p->username);
+			update_call_counter(p, DEC_CALL_LIMIT);
+		}
 		if (option_debug >3)
 			ast_log(LOG_DEBUG, "SIP Transfer: Not hanging up right now... Rescheduling hangup for %s.\n", p->callid);
 		if (p->autokillid > -1)
@@ -3601,9 +3606,11 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Hanging up zombie call. Be scared.\n");
 
 	sip_pvt_lock(p);
-	if (option_debug && sipdebug)
-		ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter on hangup\n", p->username);
-	update_call_counter(p, DEC_CALL_LIMIT);
+	if (ast_test_flag(&p->flags[0], SIP_INC_COUNT)) {
+		if (option_debug && sipdebug)
+			ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter on hangup\n", p->username);
+		update_call_counter(p, DEC_CALL_LIMIT);
+	}
 
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
