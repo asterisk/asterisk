@@ -796,9 +796,10 @@ struct sip_auth {
 #define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(1 << 24)	/*!< 24: Inactive  */
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< 25: ???? */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< 26: Buggy CISCO MWI fix */
-#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< 26: Text not supported  */
-#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< 27: Global text enable */
-#define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< 28: Global text debug */
+#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< 27: Text not supported  */
+#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< 28: Global text enable */
+#define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< 29: Global text debug */
+#define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< 30: Is this an outgoing call? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -3296,7 +3297,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256];
 	int *inuse = NULL, *call_limit = NULL, *inringing = NULL;
-	int outgoing = ast_test_flag(&fup->flags[0], SIP_OUTGOING);
+	int outgoing = ast_test_flag(&fup->flags[1], SIP_PAGE2_OUTGOING_CALL);
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
 
@@ -15961,6 +15962,8 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		*cause = AST_CAUSE_SWITCH_CONGESTION;
 		return NULL;
 	}
+
+	ast_set_flag(&p->flags[1], SIP_PAGE2_OUTGOING_CALL);
 
 	if (!(p->options = ast_calloc(1, sizeof(*p->options)))) {
 		sip_destroy(p);
