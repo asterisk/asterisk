@@ -2536,8 +2536,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					/* Run the conference */
 					res = conf_run(chan, cnf, confflags.flags, optargs);
 				}
-			}
-			if (cnf) {
 				dispose_conf(cnf);
 				cnf = NULL;
 			}
