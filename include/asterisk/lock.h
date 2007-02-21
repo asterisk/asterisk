@@ -666,4 +666,31 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #define pthread_create __use_ast_pthread_create_instead__
 #endif
 
+int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
+
+#include "asterisk/inline_api.h"
+
+#if defined (__i386__)
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	__asm __volatile (
+	"       lock   xaddl   %0, %1 ;        "
+	: "+r" (v),                     /* 0 (result) */   
+	  "=m" (*p)                     /* 1 */
+	: "m" (*p));                    /* 2 */
+	return (v);
+})
+#else   /* low performance version in utils.c */
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	return ast_atomic_fetchadd_int_slow(p, v);
+})
+#endif
+
+AST_INLINE_API(int ast_atomic_dec_and_test(volatile int *p),
+{
+	int a = ast_atomic_fetchadd_int(p, -1);
+	return a == 1; /* true if the value is 0 now (so it was 1 previously) */
+})
+
 #endif /* _ASTERISK_LOCK_H */
