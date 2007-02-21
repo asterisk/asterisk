@@ -560,7 +560,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         /* Okay it's streaming so go into a loop grabbing frames! */
         while (done == 0) {
 		/* If the filename is null and stream is not running, start up a new sound file */
-		if ((chan->streamid == -1 && chan->timingfunc == NULL) && (filename = strsep(&filename_tmp, "&"))) {
+		if (!quieted && (chan->streamid == -1 && chan->timingfunc == NULL) && (filename = strsep(&filename_tmp, "&"))) {
 			/* Discard old stream information */
 			ast_stopstream(chan);
 			/* Start new stream */
