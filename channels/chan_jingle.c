@@ -707,7 +707,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 			buddy = ASTOBJ_CONTAINER_FIND(&client->connection->buddies, from);
 			if (buddy)
 				resources = buddy->resources;
-		} else 
+		} else if (client->buddy)
 			resources = client->buddy->resources;
 		while (resources) {
 			if (resources->cap->jingle) {

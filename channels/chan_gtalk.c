@@ -838,7 +838,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 			buddy = ASTOBJ_CONTAINER_FIND(&client->connection->buddies, them);
 			if (buddy)
 				resources = buddy->resources;
-		} else 
+		} else if (client->buddy)
 			resources = client->buddy->resources;
 		while (resources) {
 			if (resources->cap->jingle) {
