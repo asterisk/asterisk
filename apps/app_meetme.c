@@ -634,7 +634,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
 {
 	struct ast_conference *cnf;
-	struct zt_confinfo ztc;
+	struct zt_confinfo ztc = { 0, };
 
 	AST_LIST_LOCK(&confs);
 
@@ -655,8 +655,6 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
 	ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
 	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
-	cnf->refcount = 0;
-	cnf->markedusers = 0;
 	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
 	if (cnf->chan) {
 		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
@@ -672,9 +670,8 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			goto cnfout;
 		}
 	}
-	memset(&ztc, 0, sizeof(ztc));
+	
 	/* Setup a new zap conference */
-	ztc.chan = 0;
 	ztc.confno = -1;
 	ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
 	if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
@@ -709,7 +706,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	
 cnfout:
 	if (cnf)
-		cnf->refcount += refcount;
+		ast_atomic_fetchadd_int(&cnf->refcount, refcount);
 
 	AST_LIST_UNLOCK(&confs);
 
@@ -1060,6 +1057,7 @@ static int conf_free(struct ast_conference *conf)
 		conf->recording = MEETME_RECORD_TERMINATE;
 		AST_LIST_UNLOCK(&confs);
 		while (1) {
+			usleep(1);
 			AST_LIST_LOCK(&confs);
 			if (conf->recording == MEETME_RECORD_OFF)
 				break;
@@ -1146,6 +1144,22 @@ static void sla_queue_event(enum sla_event_type type, const struct ast_channel *
 	ast_mutex_unlock(&sla.lock);
 }
 
+/* Decrement reference counts, as incremented by find_conf() */
+static int dispose_conf(struct ast_conference *conf)
+{
+	int res = 0;
+
+	AST_LIST_LOCK(&confs);
+	if (ast_atomic_dec_and_test(&conf->refcount)) {
+		conf_free(conf);
+		res = 1;
+	}
+	AST_LIST_UNLOCK(&confs);
+
+	return res;
+}
+
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags, char *optargs[])
 {
 	struct ast_conf_user *user = NULL;
@@ -1188,15 +1202,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 
-	if (!(user = ast_calloc(1, sizeof(*user)))) {
-		AST_LIST_LOCK(&confs);
-		conf->refcount--;
-		if (!conf->refcount){
-			conf_free(conf);
-		}
-		AST_LIST_UNLOCK(&confs);
+	if (!(user = ast_calloc(1, sizeof(*user))))
 		return ret;
-	}
 
 	/* Possible timeout waiting for marked user */
 	if ((confflags & CONFFLAG_WAITMARKED) &&
@@ -2065,7 +2072,6 @@ bailoutandtrynormal:
 		}
 
 		conf->users--;
-		conf->refcount--;
 		/* Update table */
 		snprintf(members, sizeof(members), "%d", conf->users);
 		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
@@ -2077,12 +2083,7 @@ bailoutandtrynormal:
 		/* Change any states */
 		if (!conf->users)
 			ast_device_state_changed("meetme:%s", conf->confno);
-
-		if (AST_LIST_EMPTY(&conf->userlist)) {
-			/* close this one when no more users and no references*/
-			if (!conf->refcount)
-				conf_free(conf);
-		}
+		
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
@@ -2272,11 +2273,13 @@ static int count_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	
-	conf = find_conf(chan, args.confno, 0, 0, NULL, 0, 0, NULL);
+	conf = find_conf(chan, args.confno, 0, 0, NULL, 0, 1, NULL);
 
-	if (conf)
+	if (conf) {
 		count = conf->users;
-	else
+		dispose_conf(conf);
+		conf = NULL;
+	} else
 		count = 0;
 
 	if (!ast_strlen_zero(args.varname)){
@@ -2301,7 +2304,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	char confno[MAX_CONFNUM] = "";
 	int allowretry = 0;
 	int retrycnt = 0;
-	struct ast_conference *cnf;
+	struct ast_conference *cnf = NULL;
 	struct ast_flags confflags = {0};
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
@@ -2514,15 +2517,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									ast_log(LOG_WARNING, "Couldn't play invalid pin msg!\n");
 									break;
 								}
-								if (res < 0) {
-									AST_LIST_LOCK(&confs);
-									cnf->refcount--;
-									if (!cnf->refcount){
-										conf_free(cnf);
-									}
-									AST_LIST_UNLOCK(&confs);
+								if (res < 0)
 									break;
-								}
 								pin[0] = res;
 								pin[1] = '\0';
 								res = -1;
@@ -2534,12 +2530,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							res = -1;
 							allowretry = 0;
 							/* see if we need to get rid of the conference */
-							AST_LIST_LOCK(&confs);
-							cnf->refcount--;
-							if (!cnf->refcount) {
-								conf_free(cnf);
-							}
-							AST_LIST_UNLOCK(&confs);
 							break;
 						}
 
@@ -2556,9 +2546,14 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					res = conf_run(chan, cnf, confflags.flags, optargs);
 				}
 			}
+			dispose_conf(cnf);
+			cnf = NULL;
 		}
 	} while (allowretry);
-	
+
+	if (cnf)
+		dispose_conf(cnf);
+
 	ast_module_user_remove(u);
 	
 	return res;
@@ -2621,6 +2616,8 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		ast_module_user_remove(u);
 		return 0;
 	}
+
+	ast_atomic_fetchadd_int(&cnf->refcount, 1);
 
 	if (args.user)
 		user = find_user(cnf, args.user);
@@ -2724,6 +2721,8 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	}
 
 	AST_LIST_UNLOCK(&confs);
+
+	dispose_conf(cnf);
 
 	ast_module_user_remove(u);
 	
@@ -3018,8 +3017,11 @@ static void *run_station(void *data)
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	ast_answer(trunk_ref->chan);
 	conf = build_conf(conf_name, "", "", 0, 0, 1);
-	if (conf)
+	if (conf) {
 		conf_run(trunk_ref->chan, conf, conf_flags.flags, NULL);
+		dispose_conf(conf);
+		conf = NULL;
+	}
 	trunk_ref->chan = NULL;
 	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations)) {
 		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
@@ -3334,8 +3336,11 @@ static void *dial_trunk(void *data)
 	ast_cond_signal(args->cond);
 	ast_mutex_unlock(args->cond_lock);
 
-	if (conf)
+	if (conf) {
 		conf_run(trunk->chan, conf, conf_flags.flags, NULL);
+		dispose_conf(conf);
+		conf = NULL;
+	}
 
 	trunk->chan = NULL;
 
@@ -3440,8 +3445,11 @@ static int slastation_exec(struct ast_channel *chan, void *data)
 	trunk_ref->chan = chan;
 	ast_answer(chan);
 	conf = build_conf(conf_name, "", "", 0, 0, 1);
-	if (conf)
+	if (conf) {
 		conf_run(chan, conf, conf_flags.flags, NULL);
+		dispose_conf(conf);
+		conf = NULL;
+	}
 	trunk_ref->chan = NULL;
 	res = ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, -1);
 	if (res == 1) {	
@@ -3517,6 +3525,8 @@ static int slatrunk_exec(struct ast_channel *chan, void *data)
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | CONFFLAG_PASS_DTMF);
 	ast_indicate(chan, AST_CONTROL_RINGING);
 	conf_run(chan, conf, conf_flags.flags, NULL);
+	dispose_conf(conf);
+	conf = NULL;
 	trunk->chan = NULL;
 
 	pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "SUCCESS");
