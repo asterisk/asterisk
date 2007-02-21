@@ -242,17 +242,18 @@ static struct jingle *find_jingle(char *name, char *connection)
 
 	if (!jingle) {				/* guest call */
 		ASTOBJ_CONTAINER_TRAVERSE(&jingles, 1, {
-			ASTOBJ_WRLOCK(iterator);
+			ASTOBJ_RDLOCK(iterator);
 			if (!strcasecmp(iterator->name, "guest")) {
 				if (!strcasecmp(iterator->connection->jid->partial, connection)) {
 					jingle = iterator;
-					break;
 				} else if (!strcasecmp(iterator->connection->name, connection)) {
 					jingle = iterator;
-					break;
 				}
 			}
 			ASTOBJ_UNLOCK(iterator);
+
+			if (jingle)
+				break;
 		});
 
 	}
@@ -1376,9 +1377,11 @@ static struct ast_channel *jingle_request(const char *type, int format, void *da
 		ast_log(LOG_WARNING, "Could not find recipient.\n");
 		return NULL;
 	}
+	ASTOBJ_WRLOCK(client);
 	p = jingle_alloc(client, to, NULL);
 	if (p)
 		chan = jingle_new(client, p, AST_STATE_DOWN, to);
+	ASTOBJ_UNLOCK(client);
 
 	return chan;
 }

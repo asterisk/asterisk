@@ -257,6 +257,7 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 {
 	struct gtalk *gtalk = NULL;
 	char *domain = NULL , *s = NULL;
+
 	if(strchr(connection, '@')) {
 		s = ast_strdupa(connection);
 		domain = strsep(&s, "@");
@@ -268,20 +269,20 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 
 	if (!gtalk) {				/* guest call */
 		ASTOBJ_CONTAINER_TRAVERSE(&gtalk_list, 1, {
-			ASTOBJ_WRLOCK(iterator);
+			ASTOBJ_RDLOCK(iterator);
 			if (!strcasecmp(iterator->name, "guest")) {
 				if (!strcasecmp(iterator->connection->jid->partial, connection)) {
 					gtalk = iterator;
-					break;
 				} else if (!strcasecmp(iterator->connection->name, connection)) {
 					gtalk = iterator;
-					break;
 				} else if (iterator->connection->component && !strcasecmp(iterator->connection->user,domain)) {
 					gtalk = iterator;
-					break;
 				}
 			}
 			ASTOBJ_UNLOCK(iterator);
+
+			if (gtalk)
+				break;
 		});
 
 	}
@@ -1493,10 +1494,12 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 		ast_log(LOG_WARNING, "Could not find recipient.\n");
 		return NULL;
 	}
+	ASTOBJ_WRLOCK(client);
 	p = gtalk_alloc(client, strchr(sender, '@') ? sender : client->connection->jid->full, strchr(to, '@') ? to : client->user, NULL);
 	if (p)
 		chan = gtalk_new(client, p, AST_STATE_DOWN, to);
 
+	ASTOBJ_UNLOCK(client);
 	return chan;
 }
 
@@ -1526,13 +1529,13 @@ static int gtalk_parser(void *data, ikspak *pak)
 	if (iks_find_with_attrib(pak->x, "session", "type", "initiate")) {
 		/* New call */
 		gtalk_newcall(client, pak);
-	} else if (iks_find_with_attrib(pak->x, "session", "type", "candidates") || iks_find_with_attrib(pak->x, "session", "type", "transport-info") ) {
+	} else if (iks_find_with_attrib(pak->x, "session", "type", "candidates") || iks_find_with_attrib(pak->x, "session", "type", "transport-info")) {
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "About to add candidate!\n");
 		gtalk_add_candidate(client, pak);
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Candidate Added!\n");
-	} else if (iks_find_with_attrib(pak->x, "session", "type", "accept")) {
+	} else if (iks_find_with_attrib(pak->x, "session", "type", "accept") || iks_find_with_attrib(pak->x, "session", "type", "transport-accept")) {
 		gtalk_is_answered(client, pak);
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "content-info")) {
 		gtalk_handle_dtmf(client, pak);
