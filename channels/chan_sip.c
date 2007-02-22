@@ -8163,8 +8163,8 @@ static void reg_source_db(struct sip_peer *peer)
 	if (contact)
 		ast_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
 			    peer->name, peer->username, ast_inet_ntoa(in), port, expiry);
 
 	memset(&peer->addr, 0, sizeof(peer->addr));
