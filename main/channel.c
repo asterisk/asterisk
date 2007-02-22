@@ -3114,10 +3114,10 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 
 	/* each of these channels may be sitting behind a channel proxy (i.e. chan_agent)
 	   and if so, we don't really want to masquerade it, but its proxy */
-	if (original->_bridge && (original->_bridge != ast_bridged_channel(original)))
+	if (original->_bridge && (original->_bridge != ast_bridged_channel(original)) && (original->_bridge->_bridge != original))
 		final_orig = original->_bridge;
 
-	if (clone->_bridge && (clone->_bridge != ast_bridged_channel(clone)))
+	if (clone->_bridge && (clone->_bridge != ast_bridged_channel(clone)) && (clone->_bridge->_bridge != clone))
 		final_clone = clone->_bridge;
 
 	if ((final_orig != original) || (final_clone != clone)) {

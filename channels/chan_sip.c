@@ -13404,7 +13404,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 			ast_log(LOG_DEBUG, "-- No target second channel ---\n");
 		ast_log(LOG_DEBUG, "-- END Sip transfer:--------------------\n");
 	}
-	if (transferer->chan2 && (ast_bridged_channel(transferer->chan2) == transferer->chan2->_bridge)) { /* We have a bridge on the transferer's channel */
+	if (transferer->chan2) { /* We have a bridge on the transferer's channel */
 		peera = transferer->chan1;	/* Transferer - PBX -> transferee channel * the one we hangup */
 		peerb = target->chan1;		/* Transferer - PBX -> target channel - This will get lost in masq */
 		peerc = transferer->chan2;	/* Asterisk to Transferee */
