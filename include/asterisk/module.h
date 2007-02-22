@@ -300,7 +300,9 @@ static void __restore_globals(void)
 }
 
 #define AST_MODULE_INFO(keystr, flags_to_set, desc, fields...)	\
-	static struct ast_module_info __mod_info = {		\
+	static struct ast_module_info 				\
+		 __attribute__((section(".embed_module")))	\
+		__mod_info = {					\
 		.backup_globals = __backup_globals,		\
 		.restore_globals = __restore_globals,		\
 		.name = AST_MODULE,				\
