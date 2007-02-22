@@ -22,6 +22,9 @@
                           ; a unique context name.  Then, in zapata.conf, this device 
                           ; should be configured to have incoming calls go to this context.
 
+;ringtimeout=30           ; Set how long to allow this trunk to ring on an inbound call before hanging 
+                          ; it up as an unanswered call.  The value is in seconds.
+
 ;[line2]
 ;type=trunk
 ;device=Zap/4
@@ -41,10 +44,6 @@
 
 ; ---- Station Declarations ------------
 
-;[station](!)                       ; In this example, all stations have the same trunks, so this 
-                                    ; configuration template is used to simplify the declaration 
-                                    ; of each station.
-
 ;type=station                       ; This line indicates that this entry is a station.
 
 ;autocontext=sla_stations           ; This supports automatic generation of the dialplan entries if 
@@ -52,13 +51,21 @@
                                     ; context without conflict.  The device for this station should 
                                     ; have its context configured to the same one listed here.
 
+;ringtimeout=10                     ; Set a timeout for how long to allow the station to ring for an 
+;                                   ; incoming call, in seconds.
+
+
 ;trunk=line1                        ; Individually list all of the trunks that will appear on this station.  This
                                     ; order is significant.  It should be the same order as they appear on the
                                     ; phone.  The order here defines the order of preference that the trunks will
                                     ; be used.
 ;trunk=line2
 ;trunk=line3
-;trunk=line4
+;trunk=line4,ringtimeout=5          ; A ring timeout for the station can also be specified for a specific trunk.
+                                    ; If a ring timeout is specified both for the whole station and for a specific
+                                    ; trunk on a station, the setting for the specific trunk will take priority.
+                                    ; This value is in seconds.
+
 
 ;[station1](station)                ; Define a station that uses the configuration from the template "station".
 ;device=SIP/station1                ; Each station must be mapped to a device.

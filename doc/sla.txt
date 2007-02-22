@@ -1,17 +1,17 @@
--------------------------------------------------------------
---- Shared Line Appearances ---------------------------------
--------------------------------------------------------------
+-------------------------------------------------------------------------------
+--- Shared Line Appearances ---------------------------------------------------
+-------------------------------------------------------------------------------
 
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 INTRODUCTION
 
 The "SLA" functionality in Asterisk is intended to allow a setup that emulates
 a simple key system.  It uses the various abstraction layers already built into
 Asterisk to emulate key system functionality across various devices, including
 IP channels.
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 DIALPLAN CONFIGURATION
 
 The SLA implementation can automatically generate the dialplan necessary for
@@ -44,9 +44,9 @@ exten => station3_line1,hint,SLA:station3_line1
 exten => station3_line1,1,SLAStation(station3_line1)
 exten => station3_line2,hint,SLA:station3_line2
 exten => station3_line2,1,SLAStation(station3_line2)
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 TRUNKS
 
 For the trunk side of SLA, the only channels that are currently supported are
@@ -57,10 +57,10 @@ Be sure to configure the trunk's context to be the same one that is set for the
 
 If the dialplan is being built manually, ensure that calls coming in on a trunk
 execute the SLATrunk() application with an argument of the trunk name.
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 
--------------------------------------------------------------
+-------------------------------------------------------------------------------
 STATIONS
 
 Currently, the only channel driver that has all of the features necessary to
@@ -90,4 +90,4 @@ a SIP phone for use with SLA:
    c) If you would like the phone to automatically connect to a trunk when it
       is taken off hook, then the phone should be automatically configured to
       dial "station1" when it is taken off hook.
--------------------------------------------------------------
+-------------------------------------------------------------------------------
