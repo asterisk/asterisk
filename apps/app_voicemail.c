@@ -122,7 +122,7 @@ struct ast_vm_user;
 
 /* Forward declarations for IMAP */
 static int init_mailstream(struct vm_state *vms, int box);
-static void write_file char *filename, char *buffer, unsigned long len);
+static void write_file(char *filename, char *buffer, unsigned long len);
 static void display_body(BODY *body, char *pfx, long i);
 static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len);
 static void vm_imap_delete(int msgnum, struct vm_state *vms);
@@ -417,10 +417,12 @@ static int pwdchange = PWDCHANGE_INTERNAL;
 
 #ifdef ODBC_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
-#elifdef IMAP_STORAGE
-#define tdesc "Comedian Mail (Voicemail System) with IMAP Storage"
 #else
-#define tdesc "Comedian Mail (Voicemail System)"
+# ifdef IMAP_STORAGE
+# define tdesc "Comedian Mail (Voicemail System) with IMAP Storage"
+# else
+# define tdesc "Comedian Mail (Voicemail System)"
+# endif
 #endif
 
 static char userscontext[AST_MAX_EXTENSION] = "default";
