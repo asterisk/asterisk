@@ -559,7 +559,7 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 
 	/* If we are running async spawn a thread and send it away... otherwise block here */
 	if (async) {
-		set_state(dial, AST_DIAL_RESULT_TRYING);
+		dial->state = AST_DIAL_RESULT_TRYING;
 		/* Try to create a thread */
 		if (ast_pthread_create(&dial->thread, NULL, async_dial, dial)) {
 			/* Failed to create the thread - hangup all dialed channels and return failed */
