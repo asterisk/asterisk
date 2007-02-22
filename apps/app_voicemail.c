@@ -1970,7 +1970,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	fprintf(p, "MIME-Version: 1.0\r\n");
 	if (attach_user_voicemail) {
 		/* Something unique. */
-		snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum, mailbox, getpid(), (unsigned int)ast_random());
+		snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum + 1, mailbox, getpid(), (unsigned int)ast_random());
 
 		fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n\r\n", bound);
 
@@ -2018,19 +2018,19 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 				ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
 		}
 		fprintf(p, "--%s\r\n", bound);
-		fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\r\n", ctype, format, msgnum, format);
+		fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\r\n", ctype, format, msgnum + 1, format);
 		fprintf(p, "Content-Transfer-Encoding: base64\r\n");
 		fprintf(p, "Content-Description: Voicemail sound attachment.\r\n");
-		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\r\n\r\n", msgnum, format);
+		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\r\n\r\n", msgnum + 1, format);
 		snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 		base_encode(fname, p);
 		/* only attach if necessary */
 		if (imap && !strcmp(format, "gsm")) {
 			fprintf(p, "--%s\r\n", bound);
-			fprintf(p, "Content-Type: audio/x-gsm; name=\"msg%04d.%s\"\r\n", msgnum, format);
+			fprintf(p, "Content-Type: audio/x-gsm; name=\"msg%04d.%s\"\r\n", msgnum + 1, format);
 			fprintf(p, "Content-Transfer-Encoding: base64\r\n");
 			fprintf(p, "Content-Description: Voicemail sound attachment.\r\n");
-			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.gsm\"\r\n\r\n", msgnum);
+			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.gsm\"\r\n\r\n", msgnum + 1);
 			snprintf(fname, sizeof(fname), "%s.gsm", attach);
 			base_encode(fname, p);
 		}
