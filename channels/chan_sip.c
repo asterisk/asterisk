@@ -4424,6 +4424,13 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
+				if (!(f->subclass & p->jointcapability)) {
+					if (option_debug) {
+						ast_log(LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
+							ast_getformatname(f->subclass), p->owner->name);
+					}
+					return &ast_null_frame;
+				}
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats = (p->owner->nativeformats & (AST_FORMAT_VIDEO_MASK | AST_FORMAT_TEXT_MASK)) | f->subclass;
