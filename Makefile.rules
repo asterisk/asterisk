@@ -44,6 +44,22 @@ else
 	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS)
 endif
 
+%.o: %.i
+	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
+ifeq ($(AST_DEVMODE),yes)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+else
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS)
+endif
+
+%.i: %.c
+	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
+ifeq ($(AST_DEVMODE),yes)
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+else
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(PTHREAD_CFLAGS) $(ASTCFLAGS)
+endif
+
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
 ifeq ($(AST_DEVMODE),yes)
@@ -75,6 +91,18 @@ endif
 %.so: %.oo
 	$(ECHO_PREFIX) echo "   [LDXX] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $(SOLINK) $^ $(PTHREAD_LIBS) $(LIBS)
+
+%.eo: %.o
+	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
+	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
+	$(CMD_PREFIX) rm -f .$@.ld
+
+%.eoo: %.o
+	$(ECHO_PREFIX) echo "   [EMBED] $< -> $@"
+	$(CMD_PREFIX) $(ASTTOPDIR)/build_tools/make_linker_eo_script $* > .$@.ld
+	$(CMD_PREFIX) $(LD) -r -T .$@.ld -o $@ $<
+	$(CMD_PREFIX) rm -f .$@.ld
 
 %: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"

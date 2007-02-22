@@ -483,6 +483,9 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	if (!error)
 		ast_update_use_count();
 
+	if (!error && !mod->lib)
+		mod->info->restore_globals();
+
 	return res;
 }
 
@@ -624,6 +627,11 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 #if LOADABLE_MODULES
 		unload_dynamic_module(mod);
 #endif
+		return AST_MODULE_LOAD_DECLINE;
+	}
+
+	if (!mod->lib && mod->info->backup_globals()) {
+		ast_log(LOG_WARNING, "Module '%s' was unable to backup its global data.\n", resource_name);
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

@@ -192,6 +192,8 @@ struct ast_module_info {
 	enum ast_module_load_result (*load)(void);	/* register stuff etc. Optional. */
 	int (*reload)(void);			/* config etc. Optional. */
 	int (*unload)(void);			/* unload. called with the module locked */
+	int (*backup_globals)(void);		/* for embedded modules, backup global data */
+	void (*restore_globals)(void);		/* for embedded modules, restore global data */
 	const char *name;			/* name of the module for loader reference and CLI commands */
 	const char *description;		/* user friendly description of the module. */
 
@@ -253,6 +255,75 @@ void ast_module_unref(struct ast_module *);
    and populated at the end of the module's source file... */
 const static __attribute__((unused)) struct ast_module_info *ast_module_info;
 
+#if defined(EMBEDDED_MODULE)
+
+#define make_var_sub(mod, type) __ ## mod ## _ ## type
+#define make_var(mod, type) make_var_sub(mod, type)
+
+extern void make_var(EMBEDDED_MODULE, bss_start);
+extern void make_var(EMBEDDED_MODULE, bss_end);
+extern void make_var(EMBEDDED_MODULE, data_start);
+extern void make_var(EMBEDDED_MODULE, data_end);
+
+static void * __attribute__((section(".embed_module"))) __global_backup;
+
+static int __backup_globals(void)
+{
+	size_t data_size = & make_var(EMBEDDED_MODULE, data_end) - & make_var(EMBEDDED_MODULE, data_start);
+
+	if (__global_backup)
+		return 0;
+
+	if (!data_size)
+		return 0;
+
+	if (!(__global_backup = ast_malloc(data_size)))
+		return -1;
+
+	memcpy(__global_backup, & make_var(EMBEDDED_MODULE, data_start), data_size);
+
+	return 0;
+}
+
+static void __restore_globals(void)
+{
+	size_t data_size = & make_var(EMBEDDED_MODULE, data_end) - & make_var(EMBEDDED_MODULE, data_start);
+	size_t bss_size = & make_var(EMBEDDED_MODULE, bss_end) - & make_var(EMBEDDED_MODULE, bss_start);
+
+	if (bss_size)
+		memset(& make_var(EMBEDDED_MODULE, bss_start), 0, bss_size);
+
+	if (!data_size || !__global_backup)
+		return;
+
+	memcpy(& make_var(EMBEDDED_MODULE, data_start), __global_backup, data_size);
+}
+
+#define AST_MODULE_INFO(keystr, flags_to_set, desc, fields...)	\
+	static struct ast_module_info __mod_info = {		\
+		.backup_globals = __backup_globals,		\
+		.restore_globals = __restore_globals,		\
+		.name = AST_MODULE,				\
+		.flags = flags_to_set,				\
+		.description = desc,				\
+		.key = keystr,					\
+		fields						\
+	};							\
+	static void  __attribute__ ((constructor)) __reg_module(void) \
+	{ \
+		ast_module_register(&__mod_info); \
+	} \
+	static void  __attribute__ ((destructor)) __unreg_module(void) \
+	{ \
+		ast_module_unregister(&__mod_info); \
+	} \
+	const static struct ast_module_info *ast_module_info = &__mod_info
+
+#undef make_var
+#undef make_var_sub
+
+#else /* !defined(EMBEDDED_MODULE) */
+
 #define AST_MODULE_INFO(keystr, flags_to_set, desc, fields...)	\
 	static struct ast_module_info __mod_info = {		\
 		.name = AST_MODULE,				\
@@ -270,6 +341,8 @@ const static __attribute__((unused)) struct ast_module_info *ast_module_info;
 		ast_module_unregister(&__mod_info); \
 	} \
 	const static struct ast_module_info *ast_module_info = &__mod_info
+
+#endif /* !defined(EMBEDDED_MODULE) */
 
 #define AST_MODULE_INFO_STANDARD(keystr, desc)		\
 	AST_MODULE_INFO(keystr, AST_MODFLAG_DEFAULT, desc,	\
