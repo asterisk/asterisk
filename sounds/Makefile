@@ -17,8 +17,8 @@
 
 SOUNDS_DIR:=$(DESTDIR)$(ASTDATADIR)/sounds
 MOH_DIR:=$(DESTDIR)$(ASTDATADIR)/moh
-CORE_SOUNDS_VERSION:=1.4.5
-EXTRA_SOUNDS_VERSION:=1.4.4
+CORE_SOUNDS_VERSION:=1.4.6
+EXTRA_SOUNDS_VERSION:=1.4.5
 SOUNDS_URL:=http://ftp.digium.com/pub/telephony/sounds/releases
 MCS:=$(subst -EN-,-en-,$(MENUSELECT_CORE_SOUNDS))
 MCS:=$(subst -FR-,-fr-,$(MCS))
