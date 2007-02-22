@@ -445,6 +445,11 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	if (!ast_test_flag(mod, FLAG_RUNNING | FLAG_DECLINED))
 		error = 1;
 
+	if (!mod->lib) {
+		ast_log(LOG_WARNING, "Unloading embedded modules is not supported.\n");
+		error = 1;
+	}
+
 	if (!error && (mod->usecount > 0)) {
 		if (force)
 			ast_log(LOG_WARNING, "Warning:  Forcing removal of module '%s' with use count %d\n",
