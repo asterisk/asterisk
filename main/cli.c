@@ -1729,8 +1729,11 @@ int ast_cli_command(int fd, const char *s)
 	switch (res) {
 	case RESULT_SHOWUSAGE:
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
+		AST_LIST_LOCK(&helpers);
+		if (e->deprecated)
+			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
+		AST_LIST_UNLOCK(&helpers);
 		break;
-
 	case RESULT_FAILURE:
 		ast_cli(fd, "Command '%s' failed.\n", s);
 		/* FALLTHROUGH */
