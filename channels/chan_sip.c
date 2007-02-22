@@ -4420,37 +4420,38 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	    (ast_test_flag(&p->flags[0], SIP_DTMF) != SIP_DTMF_RFC2833))
 		return &ast_null_frame;
 
-	if (p->owner) {
-		/* We already hold the channel lock */
-		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
-				if (!(f->subclass & p->jointcapability)) {
-					if (option_debug) {
-						ast_log(LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
-							ast_getformatname(f->subclass), p->owner->name);
-					}
-					return &ast_null_frame;
-				}
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-				p->owner->nativeformats = (p->owner->nativeformats & (AST_FORMAT_VIDEO_MASK | AST_FORMAT_TEXT_MASK)) | f->subclass;
-				ast_set_read_format(p->owner, p->owner->readformat);
-				ast_set_write_format(p->owner, p->owner->writeformat);
+	/* We already hold the channel lock */
+	if (!p->owner || f->frametype != AST_FRAME_VOICE)
+		return f;
+
+	if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
+		if (!(f->subclass & p->jointcapability)) {
+			if (option_debug) {
+				ast_log(LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
+					ast_getformatname(f->subclass), p->owner->name);
 			}
-			if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
-				f = ast_dsp_process(p->owner, p->vad, f);
-				if (f && f->frametype == AST_FRAME_DTMF) {
-					if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_UDPTL) && f->subclass == 'f') {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
-						*faxdetect = 1;
-					} else if (option_debug) {
-						ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
-					}
-				}
+			return &ast_null_frame;
+		}
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+		p->owner->nativeformats = (p->owner->nativeformats & (AST_FORMAT_VIDEO_MASK | AST_FORMAT_TEXT_MASK)) | f->subclass;
+		ast_set_read_format(p->owner, p->owner->readformat);
+		ast_set_write_format(p->owner, p->owner->writeformat);
+	}
+
+	if ((ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
+		f = ast_dsp_process(p->owner, p->vad, f);
+		if (f && f->frametype == AST_FRAME_DTMF) {
+			if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_UDPTL) && f->subclass == 'f') {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Fax CNG detected on %s\n", ast->name);
+				*faxdetect = 1;
+			} else if (option_debug) {
+				ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
 			}
 		}
 	}
+	
 	return f;
 }
 
