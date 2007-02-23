@@ -10099,6 +10099,10 @@ static int __unload_module(void)
 	delete_users();
 	iax_provision_unload();
 	sched_context_destroy(sched);
+
+	for (x = 0; x < IAX_MAX_CALLS; x++)
+		ast_mutex_destroy(&iaxsl[x]);
+
 	return 0;
 }
 
