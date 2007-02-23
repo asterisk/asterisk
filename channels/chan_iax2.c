@@ -633,7 +633,7 @@ struct chan_iax2_pvt {
 	int frames_received;
 
 	AST_LIST_ENTRY(chan_iax2_pvt) entry;
-	unsigned int hash;
+	unsigned short hash;
 };
 
 /* Somewhat arbitrary prime number */
@@ -1265,15 +1265,10 @@ static int make_trunk(unsigned short callno, int locked)
 	return res;
 }
 
-static inline unsigned int peer_hash_val(const struct sockaddr_in *sin, unsigned short callno)
+static inline unsigned short peer_hash_val(const struct sockaddr_in *sin, unsigned short callno)
 {
-	return ( (sin->sin_addr.s_addr & 0xFF000000) ^ 
-	         (sin->sin_addr.s_addr & 0x00FF0000) ^
-	         (sin->sin_addr.s_addr & 0x0000FF00) ^ 
-	         (sin->sin_addr.s_addr & 0x000000FF) ^
-	         (sin->sin_port & 0xFF00) ^ (sin->sin_port ^ 0x00FF) ^
-	         (callno & 0xFF00) ^ (callno & 0x00FF) ) 
-	         % PVT_HASH_SIZE;
+	return ( (sin->sin_addr.s_addr >> 16) ^ sin->sin_addr.s_addr ^
+	         sin->sin_port ^ callno ) % PVT_HASH_SIZE;
 }
 
 static inline void hash_on_peer(struct chan_iax2_pvt *pvt)
@@ -1298,7 +1293,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	struct timeval now;
 	char host[80];
 	if (new <= NEW_ALLOW) {
-		unsigned int hash = peer_hash_val(sin, callno);
+		unsigned short hash = peer_hash_val(sin, callno);
 		const struct chan_iax2_pvt *pvt;
 		AST_RWLIST_RDLOCK(&pvt_hash_tbl[hash]);
 		AST_RWLIST_TRAVERSE(&pvt_hash_tbl[hash], pvt, entry) {
