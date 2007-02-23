@@ -69,6 +69,10 @@ AMI - The manager (TCP/TLS/HTTP)
      CallerIDNum is used for number and CallerIDName for name.
   * enable https support for builtin web server.
      See configs/http.conf.sample for details.
+  * Added a new action, GetConfigJSON, which can return the contents of an
+    Asterisk configuration file in JSON format.  This is intended to help
+    improve the performance of AJAX applications using the manager interface
+    over HTTP.
 
 Dialplan functions
 ------------------
