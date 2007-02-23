@@ -1480,15 +1480,13 @@ static int agent_logoff(char *agent, int soft)
 
 	for (p=agents; p; p=p->next) {
 		if (!strcasecmp(p->agent, agent)) {
+			if (p->owner || p->chan)
+				defer = 1;
 			if (!soft) {
-				if (p->owner) {
-					defer = 1;
+				if (p->owner)
 					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
-				}
-				if (p->chan) {
-					defer = 1;
+				if (p->chan)
 					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
-				}
 			}
 			ret = 0; /* found an agent => return 0 */
 			logintime = time(NULL) - p->loginstart;
