@@ -1059,6 +1059,52 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_getconfigjson[] =
+"Description: A 'GetConfigJSON' action will dump the contents of a configuration\n"
+"file by category and contents in JSON format.  This only makes sense to be used\n"
+"using rawman over the HTTP interface.\n"
+"Variables:\n"
+"   Filename: Configuration filename (e.g. foo.conf)\n";
+
+static int action_getconfigjson(struct mansession *s, const struct message *m)
+{
+	struct ast_config *cfg;
+	const char *fn = astman_get_header(m, "Filename");
+	char *category = NULL;
+	struct ast_variable *v;
+	int comma1 = 0;
+
+	if (ast_strlen_zero(fn)) {
+		astman_send_error(s, m, "Filename not specified");
+		return 0;
+	}
+
+	if (!(cfg = ast_config_load_with_comments(fn))) {
+		astman_send_error(s, m, "Config file not found");
+		return 0;
+	}
+
+	astman_start_ack(s, m);
+	astman_append(s, "JSON: {");
+	while ((category = ast_category_browse(cfg, category))) {
+		int comma2 = 0;
+		astman_append(s, "%s\"%s\":[", comma1 ? "," : "", category);
+		if (!comma1)
+			comma1 = 1;
+		for (v = ast_variable_browse(cfg, category); v; v = v->next) {
+			astman_append(s, "%s\"%s=%s\"", comma2 ? "," : "", v->name, v->value);
+			if (!comma2)
+				comma2 = 1;
+		}
+		astman_append(s, "]");
+	}
+	astman_append(s, "}\r\n\r\n");
+
+	ast_config_destroy(cfg);
+
+	return 0;
+}
+
 /* helper function for action_updateconfig */
 static void handle_updates(struct mansession *s, const struct message *m, struct ast_config *cfg)
 {
@@ -2963,6 +3009,7 @@ int init_manager(void)
 		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
 		ast_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
 		ast_manager_register2("GetConfig", EVENT_FLAG_CONFIG, action_getconfig, "Retrieve configuration", mandescr_getconfig);
+		ast_manager_register2("GetConfigJSON", EVENT_FLAG_CONFIG, action_getconfigjson, "Retrieve configuration (JSON format)", mandescr_getconfigjson);
 		ast_manager_register2("UpdateConfig", EVENT_FLAG_CONFIG, action_updateconfig, "Update basic configuration", mandescr_updateconfig);
 		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
