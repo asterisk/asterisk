@@ -1,5 +1,6 @@
 #!/bin/sh
-cat << END
+if [ ! -f ../.flavor ]; then
+    cat << END
 /*
  * version.h 
  * Automatically generated
@@ -8,3 +9,17 @@ cat << END
 #define ASTERISK_VERSION_NUM ${ASTERISKVERSIONNUM}
 
 END
+else
+    aadkver=`cat ../.version`
+    aadkflavor=`cat ../.flavor`
+    cat << END
+/*
+ * version.h 
+ * Automatically generated
+ */
+#define ASTERISK_VERSION "${ASTERISKVERSION} (${aadkflavor} ${aadkver})"
+#define ASTERISK_VERSION_NUM ${ASTERISKVERSIONNUM}
+
+END
+fi
+
