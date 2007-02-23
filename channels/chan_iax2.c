@@ -9669,15 +9669,20 @@ static int __unload_module(void)
 	delete_users();
 	iax_provision_unload();
 	sched_context_destroy(sched);
+
+	ast_mutex_destroy(&iaxq.lock);
+	ast_mutex_destroy(&userl.lock);
+	ast_mutex_destroy(&peerl.lock);
+	ast_mutex_destroy(&waresl.lock);
+
+	for (x = 0; x < IAX_MAX_CALLS; x++)
+		ast_mutex_destroy(&iaxsl[x]);
+
 	return 0;
 }
 
 int unload_module()
 {
-	ast_mutex_destroy(&iaxq.lock);
-	ast_mutex_destroy(&userl.lock);
-	ast_mutex_destroy(&peerl.lock);
-	ast_mutex_destroy(&waresl.lock);
 	ast_custom_function_unregister(&iaxpeer_function);
 	return __unload_module();
 }
