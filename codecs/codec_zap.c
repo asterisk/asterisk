@@ -181,7 +181,7 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 {
 	/* Request translation through zap if possible */
 	int fd;
-	unsigned int x = ZT_TCOP_RESET;
+	unsigned int x = ZT_TCOP_ALLOCATE;
 	struct pvt *ztp = pvt->pvt;
 	struct zt_transcode_header *hdr;
 	int flags;
