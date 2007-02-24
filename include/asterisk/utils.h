@@ -39,8 +39,8 @@
 #include "asterisk/logger.h"
 #include "asterisk/compiler.h"
 
-/*! \note
- \verbatim
+/*! 
+\note \verbatim
    Note:
    It is very important to use only unsigned variables to hold
    bit flags, as otherwise you can fall prey to the compiler's
@@ -141,6 +141,8 @@ extern unsigned int __unsigned_int_flags_dummy;
 
 #define AST_FLAGS_ALL UINT_MAX
 
+/*! \brief Structure used to handle boolean flags 
+*/
 struct ast_flags {
 	unsigned int flags;
 };
@@ -150,22 +152,21 @@ struct ast_hostent {
 	char buf[1024];
 };
 
+/*! \brief Thread-safe gethostbyname function to use in Asterisk */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
-/* ast_md5_hash 
-	\brief Produces MD5 hash based on input string */
+/*!  \brief Produces MD5 hash based on input string */
 void ast_md5_hash(char *output, char *input);
-/* ast_sha1_hash
-	\brief Produces SHA1 hash based on input string */
+/*! \brief Produces SHA1 hash based on input string */
 void ast_sha1_hash(char *output, char *input);
 
 int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks);
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
 int ast_base64decode(unsigned char *dst, const char *src, int max);
 
-/*! ast_uri_encode
-	\brief Turn text string to URI-encoded %XX version 
- 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
+/*!  \brief Turn text string to URI-encoded %XX version 
+
+\note 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
 	If doreserved == 1 we will convert reserved characters also.
 	RFC 2396, section 2.4
@@ -238,7 +239,7 @@ const char *ast_inet_ntoa(struct in_addr ia);
 int ast_utils_init(void);
 int ast_wait_for_input(int fd, int ms);
 
-/*! ast_carefulwrite
+/*!
 	\brief Try to write string, but wait no more than ms milliseconds
 	before timing out.
 
@@ -249,7 +250,7 @@ int ast_wait_for_input(int fd, int ms);
 */
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 
-/*! Compares the source address and port of two sockaddr_in */
+/*! \brief Compares the source address and port of two sockaddr_in */
 static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
 {
 	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr) 

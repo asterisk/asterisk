@@ -120,10 +120,9 @@ setcapabilities_cb on_setcapabilities;
 setpeercapabilities_cb on_setpeercapabilities;
 onhold_cb on_hold;
 
-/* global debug flag */
-int h323debug;
+int h323debug; /*!< global debug flag */
 
-/*! Global jitterbuffer configuration - by default, jb is disabled */
+/*! \brief Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
 	.flags = 0,
@@ -156,79 +155,81 @@ static unsigned int unique = 0;
 
 static call_options_t global_options;
 
-/** Private structure of a OpenH323 channel */
+/*! \brief Private structure of a OpenH323 channel */
 struct oh323_pvt {
-	ast_mutex_t lock;					/* Channel private lock */
-	call_options_t options;				/* Options to be used during call setup */
-	int alreadygone;					/* Whether or not we've already been destroyed by our peer */
-	int needdestroy;					/* if we need to be destroyed */
-	call_details_t cd;					/* Call details */
-	struct ast_channel *owner;			/* Who owns us */
-	struct sockaddr_in sa;				/* Our peer */
-	struct sockaddr_in redirip;			/* Where our RTP should be going if not to us */
-	int nonCodecCapability;				/* non-audio capability */
-	int outgoing;						/* Outgoing or incoming call? */
-	char exten[AST_MAX_EXTENSION];		/* Requested extension */
-	char context[AST_MAX_CONTEXT];		/* Context where to start */
-	char accountcode[256];				/* Account code */
-	char rdnis[80];						/* Referring DNIS, if available */
-	int amaflags;						/* AMA Flags */
-	struct ast_rtp *rtp;				/* RTP Session */
-	struct ast_dsp *vad;				/* Used for in-band DTMF detection */
-	int nativeformats;					/* Codec formats supported by a channel */
-	int needhangup;						/* Send hangup when Asterisk is ready */
-	int hangupcause;					/* Hangup cause from OpenH323 layer */
-	int newstate;						/* Pending state change */
-	int newcontrol;						/* Pending control to send */
-	int newdigit;						/* Pending DTMF digit to send */
-	int newduration;					/* Pending DTMF digit duration to send */
-	int pref_codec;						/* Preferred codec */
-	int peercapability;					/* Capabilities learned from peer */
-	int jointcapability;				/* Common capabilities for local and remote side */
-	struct ast_codec_pref peer_prefs;	/* Preferenced list of codecs which remote side supports */
-	int dtmf_pt[2];						/* Payload code used for RFC2833/CISCO messages */
-	int curDTMF;						/* DTMF tone being generated to Asterisk side */
-	int DTMFsched;						/* Scheduler descriptor for DTMF */
-	int update_rtp_info;				/* Configuration of fd's array is pending */
-	int recvonly;						/* Peer isn't wish to receive our voice stream */
-	int txDtmfDigit;					/* DTMF digit being to send to H.323 side */
-	int noInbandDtmf;					/* Inband DTMF processing by DSP isn't available */
-	int connection_established;			/* Call got CONNECT message */
-	int got_progress;					/* Call got PROGRESS message, pass inband audio */
-	struct oh323_pvt *next;				/* Next channel in list */
+	ast_mutex_t lock;			/*!< Channel private lock */
+	call_options_t options;			/*!<!< Options to be used during call setup */
+	int alreadygone;			/*!< Whether or not we've already been destroyed by our peer */
+	int needdestroy;			/*!< if we need to be destroyed */
+	call_details_t cd;			/*!< Call details */
+	struct ast_channel *owner;		/*!< Who owns us */
+	struct sockaddr_in sa;			/*!< Our peer */
+	struct sockaddr_in redirip;		/*!< Where our RTP should be going if not to us */
+	int nonCodecCapability;			/*!< non-audio capability */
+	int outgoing;				/*!< Outgoing or incoming call? */
+	char exten[AST_MAX_EXTENSION];		/*!< Requested extension */
+	char context[AST_MAX_CONTEXT];		/*!< Context where to start */
+	char accountcode[256];			/*!< Account code */
+	char rdnis[80];				/*!< Referring DNIS, if available */
+	int amaflags;				/*!< AMA Flags */
+	struct ast_rtp *rtp;			/*!< RTP Session */
+	struct ast_dsp *vad;			/*!< Used for in-band DTMF detection */
+	int nativeformats;			/*!< Codec formats supported by a channel */
+	int needhangup;				/*!< Send hangup when Asterisk is ready */
+	int hangupcause;			/*!< Hangup cause from OpenH323 layer */
+	int newstate;				/*!< Pending state change */
+	int newcontrol;				/*!< Pending control to send */
+	int newdigit;				/*!< Pending DTMF digit to send */
+	int newduration;			/*!< Pending DTMF digit duration to send */
+	int pref_codec;				/*!< Preferred codec */
+	int peercapability;			/*!< Capabilities learned from peer */
+	int jointcapability;			/*!< Common capabilities for local and remote side */
+	struct ast_codec_pref peer_prefs;	/*!< Preferenced list of codecs which remote side supports */
+	int dtmf_pt[2];				/*!< Payload code used for RFC2833/CISCO messages */
+	int curDTMF;				/*!< DTMF tone being generated to Asterisk side */
+	int DTMFsched;				/*!< Scheduler descriptor for DTMF */
+	int update_rtp_info;			/*!< Configuration of fd's array is pending */
+	int recvonly;				/*!< Peer isn't wish to receive our voice stream */
+	int txDtmfDigit;			/*!< DTMF digit being to send to H.323 side */
+	int noInbandDtmf;			/*!< Inband DTMF processing by DSP isn't available */
+	int connection_established;		/*!< Call got CONNECT message */
+	int got_progress;			/*!< Call got PROGRESS message, pass inband audio */
+	struct oh323_pvt *next;			/*!< Next channel in list */
 } *iflist = NULL;
 
-static struct ast_user_list {
+/*! \brief H323 User list */
+static struct h323_user_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct oh323_user);
 } userl;
 
-static struct ast_peer_list {
+/*! \brief H323 peer list */
+static struct h323_peer_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct oh323_peer);
 } peerl;
 
-static struct ast_alias_list {
+/*! \brief H323 alias list */
+static struct h323_alias_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct oh323_alias);
 } aliasl;
 
-/** Asterisk RTP stuff */
+/* Asterisk RTP stuff */
 static struct sched_context *sched;
 static struct io_context *io;
 
-/** Protect the interface list (oh323_pvt) */
-AST_MUTEX_DEFINE_STATIC(iflock);
+AST_MUTEX_DEFINE_STATIC(iflock);	/*!< Protect the interface list (oh323_pvt) */
 
-/* Protect the monitoring thread, so only one process can kill or start it, and not
+/*! \brief  Protect the H.323 monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
 
-/* Protect the H.323 capabilities list, to avoid more than one channel to set the capabilities simultaneaously in the h323 stack. */
+/*! \brief Protect the H.323 capabilities list, to avoid more than one channel to set the capabilities simultaneaously in the h323 stack. */
 AST_MUTEX_DEFINE_STATIC(caplock);
 
-/* Protect the reload process */
+/*! \brief Protect the reload process */
 AST_MUTEX_DEFINE_STATIC(h323_reload_lock);
 static int h323_reloading = 0;
 
-/* This is the thread for the monitor which checks for input on the channels
+/*! \brief This is the thread for the monitor which checks for input on the channels
    which are not currently in use. */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int restart_monitor(void);
@@ -336,7 +337,7 @@ static int oh323_simulate_dtmf_end(void *data)
 	return 0;
 }
 
-/* Channel and private structures should be already locked */
+/*! \brief Channel and private structures should be already locked */
 static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 {
 	if (c->nativeformats != pvt->nativeformats) {
@@ -402,7 +403,7 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 	}
 }
 
-/* Only channel structure should be locked */
+/*! \brief Only channel structure should be locked */
 static void oh323_update_info(struct ast_channel *c)
 {
 	struct oh323_pvt *pvt = c->tech_pvt;
@@ -546,7 +547,7 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
 	return 0;
 }
 
-/**
+/*! \brief
  * Send (play) the specified digit to the channel.
  *
  */
@@ -584,7 +585,7 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 	return 0;
 }
 
-/**
+/*! \brief
  * Make a call over the specified channel to the specified
  * destination.
  * Returns -1 on error, 0 on success.
@@ -757,9 +758,9 @@ static int oh323_hangup(struct ast_channel *c)
 	return 0;
 }
 
+/*! \brief Retrieve audio/etc from channel. Assumes pvt->lock is already held. */
 static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 {
-	/* Retrieve audio/etc from channel. Assumes pvt->lock is already held. */
 	struct ast_frame *f;
 
 	/* Only apply it for the first packet, we just need the correct ip/port */
@@ -1004,7 +1005,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 	return 0;
 }
 
-/* Private structure should be locked on a call */
+/*! \brief Private structure should be locked on a call */
 static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const char *host)
 {
 	struct ast_channel *ch;
@@ -1811,7 +1812,7 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 	return tmpc;
 }
 
-/** Find a call by alias */
+/*! \brief Find a call by alias */
 static struct oh323_alias *find_alias(const char *source_aliases, int realtime)
 {
 	struct oh323_alias *a;
@@ -1824,7 +1825,7 @@ static struct oh323_alias *find_alias(const char *source_aliases, int realtime)
 	return a;
 }
 
-/**
+/*! \brief
   * Callback for sending digits from H.323 up to asterisk
   *
   */
@@ -1895,10 +1896,10 @@ static int receive_digit(unsigned call_reference, char digit, const char *token,
 	return res;
 }
 
-/**
+/*! \brief
   * Callback function used to inform the H.323 stack of the local rtp ip/port details
   *
-  * Returns the local RTP information
+  * \return Returns the local RTP information
   */
 static struct rtp_info *external_rtp_create(unsigned call_reference, const char * token)
 {
@@ -1936,7 +1937,7 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 	return info;
 }
 
-/**
+/*! \brief
  * Definition taken from rtp.c for rtpPayloadType because we need it here.
  */
 struct rtpPayloadType {
@@ -1944,7 +1945,7 @@ struct rtpPayloadType {
 	int code;
 };
 
-/**
+/*! \brief
   * Call-back function passing remote ip/port information from H.323 to asterisk
   *
   * Returns nothing
@@ -2054,7 +2055,7 @@ static void setup_rtp_connection(unsigned call_reference, const char *remoteIp, 
 	return;
 }
 
-/**
+/*! \brief
   *	Call-back function to signal asterisk that the channel has been answered
   * Returns nothing
   */
@@ -2108,7 +2109,7 @@ static int progress(unsigned call_reference, const char *token, int inband)
 	return 0;
 }
 
-/**
+/*! \brief
  *  Call-back function for incoming calls
  *
  *  Returns 1 on success
@@ -2228,7 +2229,7 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 	return &pvt->options;
 }
 
-/**
+/*! \brief
  * Call-back function to start PBX when OpenH323 ready to serve incoming call
  *
  * Returns 1 on success
@@ -2307,7 +2308,7 @@ static int answer_call(unsigned call_reference, const char *token)
 	return 1;
 }
 
-/**
+/*! \brief
  * Call-back function to establish an outgoing H.323 call
  *
  * Returns 1 on success
@@ -2320,7 +2321,7 @@ static int setup_outgoing_call(call_details_t *cd)
 	return 1;
 }
 
-/**
+/*! \brief
   *  Call-back function to signal asterisk that the channel is ringing
   *  Returns nothing
   */
@@ -2346,7 +2347,7 @@ static void chan_ringing(unsigned call_reference, const char *token)
 	return;
 }
 
-/**
+/*! \brief
   * Call-back function to cleanup communication
   * Returns nothing,
   */

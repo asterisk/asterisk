@@ -70,6 +70,7 @@ static char *lline_buffer;    /*!< A buffer for stuff behind the ; */
 static int  lline_buffer_size;
 
 
+/*! \brief Structure to keep comments for rewriting configuration files */
 struct ast_comment {
 	struct ast_comment *next;
 	char cmt[0];

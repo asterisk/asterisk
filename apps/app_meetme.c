@@ -334,6 +334,7 @@ struct volume {
 	int actual;                             /*!< Actual volume adjustment (for channels that can't adjust) */
 };
 
+/*! \brief The MeetMe User object */
 struct ast_conf_user {
 	int user_no;                            /*!< User Number */
 	int userflags;                          /*!< Flags as set in the conference */

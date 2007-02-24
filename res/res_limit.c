@@ -11,6 +11,14 @@
  *
  */
 
+/*! \file
+ *
+ * \brief Resource limits
+ *
+ * \author Tilghman Lesher <res_limit_200607@the-tilghman.com>
+ */
+
+
 #include "asterisk.h"
 
 #include <stdio.h>

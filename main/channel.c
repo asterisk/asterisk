@@ -72,12 +72,15 @@ struct channel_spy_trans {
 	struct ast_trans_pvt *path;
 };
 
+/*! \brief List of SPY structures 
+*/
 struct ast_channel_spy_list {
 	struct channel_spy_trans read_translator;
 	struct channel_spy_trans write_translator;
 	AST_LIST_HEAD_NOLOCK(, ast_channel_spy) list;
 };
 
+/*! \brief Definition of the Whisper buffer */
 struct ast_channel_whisper_buffer {
 	ast_mutex_t lock;
 	struct ast_slinfactory sf;
@@ -88,10 +91,10 @@ struct ast_channel_whisper_buffer {
 /* uncomment if you have problems with 'monitoring' synchronized files */
 #if 0
 #define MONITOR_CONSTANT_DELAY
-#define MONITOR_DELAY	150 * 8		/* 150 ms of MONITORING DELAY */
+#define MONITOR_DELAY	150 * 8		/*!< 150 ms of MONITORING DELAY */
 #endif
 
-/*! Prevent new channel allocation if shutting down. */
+/*! \brief Prevent new channel allocation if shutting down. */
 static int shutting_down;
 
 static int uniqueint;
@@ -101,22 +104,25 @@ unsigned long global_fin, global_fout;
 AST_THREADSTORAGE(state2str_threadbuf);
 #define STATE2STR_BUFSIZE   32
 
-/*! 100ms */
-#define AST_DEFAULT_EMULATE_DTMF_DURATION 100
+#define AST_DEFAULT_EMULATE_DTMF_DURATION 100 /*!< 100ms */
 
+/*! \brief List of channel drivers */
 struct chanlist {
 	const struct ast_channel_tech *tech;
 	AST_LIST_ENTRY(chanlist) list;
 };
 
-/*! the list of registered channel types */
+/*! \brief the list of registered channel types */
 static AST_LIST_HEAD_NOLOCK_STATIC(backends, chanlist);
 
-/*! the list of channels we have. Note that the lock for this list is used for
+/*! \brief the list of channels we have. Note that the lock for this list is used for
     both the channels list and the backends list.  */
 static AST_LIST_HEAD_STATIC(channels, ast_channel);
 
-/*! map AST_CAUSE's to readable string representations */
+/*! \brief map AST_CAUSE's to readable string representations 
+ *
+ * \ref causes.h
+*/
 const struct ast_cause {
 	int cause;
 	const char *name;
@@ -184,6 +190,7 @@ struct ast_variable *ast_channeltype_list(void)
 	return var;
 }
 
+/*! \brief Show channel types - CLI command */
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-40.40s %-12.12s %-12.12s %-12.12s\n"
@@ -211,6 +218,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 }
 
+/*! \brief Show details about a channel driver - CLI command */
 static int show_channeltype(int fd, int argc, char *argv[])
 {
 	struct chanlist *cl = NULL;
@@ -428,6 +436,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 	return 0;
 }
 
+/*! \brief Unregister channel driver */
 void ast_channel_unregister(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
@@ -451,6 +460,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	AST_LIST_UNLOCK(&channels);
 }
 
+/*! \brief Get handle to channel driver based on name */
 const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 {
 	struct chanlist *chanls;

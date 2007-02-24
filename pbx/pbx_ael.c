@@ -70,7 +70,7 @@ static int notes;
    development, this code can be properly re-instated 
 */
 
-/* null definitions for structs passed down the infrastructure */
+/*! \brief null definitions for structs passed down the infrastructure */
 struct argapp
 {
 	struct argapp *next;
@@ -151,7 +151,7 @@ static pval *get_contxt(pval *p);
 static void remove_spaces_before_equals(char *str);
 static void substitute_commas(char *str);
 
-/* I am adding this code to substitute commas with vertbars in the args to apps */
+/*! \brief I am adding this code to substitute commas with vertbars in the args to apps */
 static void substitute_commas(char *str)
 {
 	char *p = str;

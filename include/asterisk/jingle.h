@@ -16,6 +16,15 @@
  * at the top of the source tree.
  */
 
+/*! \file
+ * \brief Jingle definitions for chan_jingle
+ *
+ * \ref chan_jingle.c
+ *
+ * \author Matt O'Gorman <mogorman@digium.com>
+ */
+
+
 #ifndef _ASTERISK_JINGLE_H
 #define _ASTERISK_JINGLE_H
 

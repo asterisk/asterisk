@@ -33,6 +33,8 @@ struct ast_config;
 
 struct ast_category;
 
+/*! \brief Structure for variables, used for configurations and for channel variables 
+*/
 struct ast_variable {
 	char *name;
 	char *value;
@@ -50,6 +52,7 @@ typedef struct ast_variable *realtime_var_get(const char *database, const char *
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 
+/*! \brief Configuration engine structure, used to define realtime drivers */
 struct ast_config_engine {
 	char *name;
 	config_load_func *load_func;

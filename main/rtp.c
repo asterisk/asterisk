@@ -3277,10 +3277,6 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	return res;
 }
 
-/*! \brief Bridge calls. If possible and allowed, initiate
-	re-invite so the peers exchange media directly outside 
-	of Asterisk. 
-*/
 /*! \page AstRTPbridge The Asterisk RTP bridge 
 	The RTP bridge is called from the channel drivers that are using the RTP
 	subsystem in Asterisk - like SIP, H.323 and Jingle/Google Talk.
@@ -3306,6 +3302,12 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	- ast_rtp_bridge()
 	- ast_channel_early_bridge()
 	- ast_channel_bridge()
+	- rtp.c
+	- rtp.h
+*/
+/*! \brief Bridge calls. If possible and allowed, initiate
+	re-invite so the peers exchange media directly outside 
+	of Asterisk. 
 */
 enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {

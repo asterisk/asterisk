@@ -19,6 +19,14 @@
  * this code.
  */
 
+/*! \file
+ *
+ * \brief Answering machine detection
+ *
+ * \author Claude Klimos (claude.klimos@aheeva.com)
+ */
+
+
 #include "asterisk.h"
  
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
