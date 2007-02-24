@@ -29,7 +29,12 @@
  * a Jabber client and a component that can connect as a service
  * to Jabber servers.
  *
- * See
+ * \section External dependencies
+ * AJI use the IKSEMEL library found at http://iksemel.jabberstudio.org/
+ * To use TLS connections, IKSEMEL depends on the GNUTLS library
+ * available at http://iksemel.jabberstudio.org/
+ *
+ * \section Files
  * - res_jabber.c
  * - jabber.h
  * - chan_gtalk.c
