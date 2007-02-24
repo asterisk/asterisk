@@ -3214,7 +3214,7 @@ static void sla_handle_dial_state_event(void)
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_stations, ringing_station, entry) {
 		struct sla_trunk_ref *s_trunk_ref;
-		struct sla_ringing_trunk *ringing_trunk;
+		struct sla_ringing_trunk *ringing_trunk = NULL;
 		struct run_station_args args;
 		enum ast_dial_result dial_res;
 		pthread_attr_t attr;
