@@ -33,6 +33,7 @@
  *  \arg \ref AstAMI : The Call management socket API
  *  \arg \ref AstARA : A generic data storage and retrieval API for Asterisk
  *  \arg \ref AstDUNDi : A way to find phone services dynamically by using the DUNDi protocol
+ *  \arg \ref AJI_intro : The Asterisk Jabber Interface
  *  \arg \ref AstCDR
  *  \arg \ref AstREADME
  *  \arg \ref AstVar

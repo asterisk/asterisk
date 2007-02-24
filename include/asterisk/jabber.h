@@ -16,6 +16,26 @@
  * at the top of the source tree.
  */
 
+/*! \file
+ * \brief AJI - The Asterisk Jabber Interface
+ * \ref AJI_intro
+ * \ref res_jabber.c
+ * \author Matt O'Gorman <mogorman@digium.com>
+ *
+ * \page AJI_intro AJI - The Asterisk Jabber Interface
+ * 
+ * The Asterisk Jabber Interface, AJI, publishes an API for
+ * modules to use jabber communication. res_jabber.c implements
+ * a Jabber client and a component that can connect as a service
+ * to Jabber servers.
+ *
+ * See
+ * - res_jabber.c
+ * - jabber.h
+ * - chan_gtalk.c
+ *
+ */
+
 #ifndef _ASTERISK_JABBER_H
 #define _ASTERISK_JABBER_H
 
@@ -122,12 +142,17 @@ struct aji_client_container{
 	ASTOBJ_CONTAINER_COMPONENTS(struct aji_client);
 };
 
+/*! Send jabber message from connected client to jabber URI */
 int ast_aji_send(struct aji_client *client, const char *address, const char *message);
+/*! Disconnect jabber client */
 int ast_aji_disconnect(struct aji_client *client);
 int ast_aji_check_roster(void);
 void ast_aji_increment_mid(char *mid);
+/*! Open Chat session */
 int ast_aji_create_chat(struct aji_client *client,char *room, char *server, char *topic);
+/*! Invite to opened Chat session */
 int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char *message);
+/*! Join existing Chat session */
 int ast_aji_join_chat(struct aji_client *client,char *room);
 struct aji_client *ast_aji_get_client(const char *name);
 struct aji_client_container *ast_aji_get_clients(void);
