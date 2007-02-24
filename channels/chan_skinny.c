@@ -409,8 +409,8 @@ struct button_definition_template {
 /* Custom button types - add our own between 0xB0 and 0xCF.
    This may need to be revised in the future,
    if stimuluses are ever added in this range. */
-#define BT_CUST_LINESPEEDDIAL		0xB0	/* line or speeddial */
-#define BT_CUST_HINT			0xB1	/* pipe dream */
+#define BT_CUST_LINESPEEDDIAL		0xB0	/* line or speeddial with/without hint */
+#define BT_CUST_LINE			0xB1	/* line or speeddial with hint only */
 
 struct button_template_res_message {
 	uint32_t buttonOffset;
@@ -830,6 +830,7 @@ static int callnums = 1;
 #define SKINNY_TRANSFER 10
 #define SKINNY_PARK 11
 #define SKINNY_PROGRESS 12
+#define SKINNY_CALLREMOTEMULTILINE 13
 #define SKINNY_INVALID 14
 
 #define SKINNY_SILENCE 		0x00
@@ -974,8 +975,12 @@ struct skinny_line {
 struct skinny_speeddial {
 	ast_mutex_t lock;
 	char label[42];
+	char context[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	int instance;
+	int stateid;
+	int laststate;
+	int isHint;
 
 	struct skinny_speeddial *next;
 	struct skinny_device *parent;
@@ -1059,6 +1064,8 @@ static const struct ast_channel_tech skinny_tech = {
 /*	.bridge = ast_rtp_bridge, */
 };
 
+static int skinny_extensionstate_cb(char *context, char* exten, int state, void *data);
+
 static void *get_button_template(struct skinnysession *s, struct button_definition_template *btn)
 {
 	struct skinny_device *d = s->device;
@@ -1070,7 +1077,7 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 		case SKINNY_DEVICE_30VIP:
 			/* 13 rows, 2 columns */
 			for (i = 0; i < 4; i++)
-				(btn++)->buttonDefinition = BT_LINE;
+				(btn++)->buttonDefinition = BT_CUST_LINE;
 			(btn++)->buttonDefinition = BT_REDIAL;
 			(btn++)->buttonDefinition = BT_VOICEMAIL;
 			(btn++)->buttonDefinition = BT_CALLPARK;
@@ -1087,16 +1094,15 @@ static void *get_button_template(struct skinnysession *s, struct button_definiti
 		case SKINNY_DEVICE_12:
 			/* 6 rows, 2 columns */
 			for (i = 0; i < 2; i++)
-				(btn++)->buttonDefinition = BT_LINE;
-			(btn++)->buttonDefinition = BT_REDIAL;
-			for (i = 0; i < 3; i++)
+				(btn++)->buttonDefinition = BT_CUST_LINE;
+			for (i = 0; i < 4; i++)
 				(btn++)->buttonDefinition = BT_SPEEDDIAL;
 			(btn++)->buttonDefinition = BT_HOLD;
+			(btn++)->buttonDefinition = BT_REDIAL;
 			(btn++)->buttonDefinition = BT_TRANSFER;
 			(btn++)->buttonDefinition = BT_FORWARDALL;
 			(btn++)->buttonDefinition = BT_CALLPARK;
 			(btn++)->buttonDefinition = BT_VOICEMAIL;
-			(btn++)->buttonDefinition = BT_CONFERENCE;
 			break;
 		case SKINNY_DEVICE_7910:
 			(btn++)->buttonDefinition = BT_LINE;
@@ -1285,12 +1291,12 @@ static struct skinny_subchannel *find_subchannel_by_reference(struct skinny_devi
 	return sub;
 }
 
-static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device *d, int instance)
+static struct skinny_speeddial *find_speeddial_by_instance(struct skinny_device *d, int instance, int isHint)
 {
 	struct skinny_speeddial *sd;
 
 	for (sd = d->speeddials; sd; sd = sd->next) {
-		if (sd->instance == instance)
+		if (sd->isHint == isHint && sd->instance == instance)
 			break;
 	}
 
@@ -1344,10 +1350,11 @@ static int codec_ast2skinny(int astcodec)
 	}
 }
 
-
 static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
 	struct sockaddr_in sin;
 	socklen_t slen;
 
@@ -1369,6 +1376,13 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				sin.sin_addr = __ourip;
 			}
 			d->ourip = sin.sin_addr;
+
+			for (sd = d->speeddials; sd; sd = sd->next) {
+				sd->stateid = ast_extension_state_add(sd->context, sd->exten, skinny_extensionstate_cb, sd);
+			}
+			for (l = d->lines; l; l = l->next) {
+				ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
+			}
 			break;
 		}
 	}
@@ -1382,12 +1396,22 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
 
 	d = s->device;
 
 	if (d) {
 		d->session = NULL;
 		d->registered = 0;
+
+		for (sd = d->speeddials; sd; sd = sd->next) {
+			if (sd->stateid > -1)
+				ast_extension_state_del(sd->stateid, NULL);
+		}
+		for (l = d->lines; l; l = l->next) {
+			ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
+		}
 	}
 
 	return -1; /* main loop will destroy the session */
@@ -1682,6 +1706,59 @@ static void transmit_dialednumber(struct skinnysession *s, const char *text, int
 	req->data.dialednumber.callReference = htolel(callid);
 
 	transmit_response(s, req);
+}
+
+static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
+{
+	struct skinny_speeddial *sd = data;
+	struct skinny_device *d = sd->parent;
+	struct skinnysession *s = d->session;
+	char hint[AST_MAX_EXTENSION];
+	int callstate = SKINNY_CALLREMOTEMULTILINE;
+	int lamp = SKINNY_LAMP_OFF;
+
+	switch (state) {
+	case AST_EXTENSION_DEACTIVATED: /* Retry after a while */
+	case AST_EXTENSION_REMOVED:     /* Extension is gone */
+		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify Device %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", d->name);
+		sd->stateid = -1;
+		callstate = SKINNY_ONHOOK;
+		lamp = SKINNY_LAMP_OFF;
+		break;
+	case AST_EXTENSION_RINGING:
+	case AST_EXTENSION_UNAVAILABLE:
+		callstate = SKINNY_RINGIN;
+		lamp = SKINNY_LAMP_BLINK;
+		break;
+	case AST_EXTENSION_BUSY: /* callstate = SKINNY_BUSY wasn't wanting to work - I'll settle for this */
+	case AST_EXTENSION_INUSE:
+		callstate = SKINNY_CALLREMOTEMULTILINE;
+		lamp = SKINNY_LAMP_ON;
+		break;
+	case AST_EXTENSION_ONHOLD:
+		callstate = SKINNY_HOLD;
+		lamp = SKINNY_LAMP_WINK;
+		break;
+	case AST_EXTENSION_NOT_INUSE:
+	default:
+		callstate = SKINNY_ONHOOK;
+		lamp = SKINNY_LAMP_OFF;
+		break;
+	}
+
+	if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, sd->context, sd->exten)) {
+		/* If they are not registered, we will override notification and show no availability */
+		if (ast_device_state(hint) == AST_DEVICE_UNAVAILABLE) {
+			callstate = SKINNY_ONHOOK;
+			lamp = SKINNY_LAMP_FLASH;
+		}
+	}
+
+	transmit_lamp_indication(s, STIMULUS_LINE, sd->instance, lamp);
+	transmit_callstate(s, sd->instance, callstate, 0);
+	sd->laststate = state;
+
+	return 0;
 }
 
 /*
@@ -2099,17 +2176,25 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				if (!(sd = ast_calloc(1, sizeof(struct skinny_speeddial)))) {
 					return NULL;
 				} else {
-					char *stringp, *exten, *label;
+					char *stringp, *exten, *context, *label;
 					stringp = v->value;
 					exten = strsep(&stringp, ",");
-					label = strsep(&stringp, ",");
+					if ((context = strchr(exten, '@'))) {
+						*context++ = '\0';
+					}
+					label = stringp;
 					ast_mutex_init(&sd->lock);
 					ast_copy_string(sd->exten, exten, sizeof(sd->exten));
-					if (label)
-						ast_copy_string(sd->label, label, sizeof(sd->label));
-					else
-						ast_copy_string(sd->label, exten, sizeof(sd->label));
-					sd->instance = speeddialInstance++;
+					if (!ast_strlen_zero(context)) {
+						sd->isHint = 1;
+						sd->instance = lineInstance++;
+						ast_copy_string(sd->context, context, sizeof(sd->context));
+					} else {
+						sd->isHint = 0;
+						sd->instance = speeddialInstance++;
+						sd->context[0] = '\0';
+					}
+					ast_copy_string(sd->label, S_OR(label, exten), sizeof(sd->label));
 
 					sd->parent = d;
 
@@ -2833,7 +2918,7 @@ static int skinny_hold(struct skinny_subchannel *sub)
 	req->data.stopmedia.passThruPartyId = htolel(sub->callid);
 	transmit_response(s, req);
 
-	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
+	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_WINK);
 	sub->onhold = 1;
 	return 1;
 }
@@ -3058,7 +3143,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verbose("Received Stimulus: SpeedDial(%d)\n", instance);
 
 #if 0
-		if (!(sd = find_speeddial_by_instance(d, instance))) {
+		if (!(sd = find_speeddial_by_instance(d, instance, 0))) {
 			return 0;
 		}
 
@@ -3162,7 +3247,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Line(%d)\n", instance);
 
-		l = find_line_by_instance(s->device, instance);
+		l = find_line_by_instance(d, instance);
 
 		if (!l) {
 			return 0;
@@ -3174,6 +3259,8 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
 
 		l->hookstate = SKINNY_OFFHOOK;
+
+		ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
 
 		if (sub && sub->outgoing) {
 			/* We're answering a ringing call */
@@ -3216,6 +3303,8 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verbose("RECEIVED UNKNOWN STIMULUS:  %d(%d)\n", event, instance);
 		break;
 	}
+	ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
+
 	return 1;
 }
 
@@ -3243,15 +3332,16 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		l = sub->parent;
 	}
 
+	transmit_ringer_mode(s, SKINNY_RING_OFF);
+	l->hookstate = SKINNY_OFFHOOK;
+
+	ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
+
 	if (sub && sub->onhold) {
-		transmit_ringer_mode(s, SKINNY_RING_OFF);
-		l->hookstate = SKINNY_OFFHOOK;
 		return 1;
 	}
 
-	transmit_ringer_mode(s, SKINNY_RING_OFF);
 	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
-	l->hookstate = SKINNY_OFFHOOK;
 
 	if (sub && sub->outgoing) {
 		/* We're answering a ringing call */
@@ -3308,17 +3398,19 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 	}
 	l = sub->parent;
 
-	if (sub->onhold) {
-		l->hookstate = SKINNY_ONHOOK;
-		return 0;
-	}
-
 	if (l->hookstate == SKINNY_ONHOOK) {
 		/* Something else already put us back on hook */
 		return 0;
 	}
-	sub->cxmode = SKINNY_CX_RECVONLY;
 	l->hookstate = SKINNY_ONHOOK;
+
+	ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
+
+	if (sub->onhold) {
+		return 0;
+	}
+
+	sub->cxmode = SKINNY_CX_RECVONLY;
 	transmit_callstate(s, l->instance, l->hookstate, sub->callid);
 	if (skinnydebug)
 		ast_verbose("Skinny %s@%s went on hook\n", l->name, d->name);
@@ -3393,7 +3485,7 @@ static int handle_speed_dial_stat_req_message(struct skinny_req *req, struct ski
 
 	instance = letohl(req->data.speeddialreq.speedDialNumber);
 
-	sd = find_speeddial_by_instance(d, instance);
+	sd = find_speeddial_by_instance(d, instance, 0);
 
 	if (!sd) {
 		return 0;
@@ -3414,6 +3506,7 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
+	struct skinny_speeddial *sd = NULL;
 	int instance;
 
 	instance = letohl(req->data.line.lineNumber);
@@ -3423,6 +3516,10 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 	l = find_line_by_instance(d, instance);
 
 	if (!l) {
+		sd = find_speeddial_by_instance(d, instance, 1);
+	}
+
+	if (!l && !sd) {
 		return 0;
 	}
 
@@ -3432,10 +3529,13 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 		return -1;
 
 	req->data.linestat.lineNumber = letohl(instance);
-	memcpy(req->data.linestat.lineDirNumber, l->name,
-			sizeof(req->data.linestat.lineDirNumber));
-	memcpy(req->data.linestat.lineDisplayName, l->label,
-			sizeof(req->data.linestat.lineDisplayName));
+	if (!l) {
+		memcpy(req->data.linestat.lineDirNumber, sd->label, sizeof(req->data.linestat.lineDirNumber));
+		memcpy(req->data.linestat.lineDisplayName, sd->label, sizeof(req->data.linestat.lineDisplayName));
+	} else {
+		memcpy(req->data.linestat.lineDirNumber, l->name, sizeof(req->data.linestat.lineDirNumber));
+		memcpy(req->data.linestat.lineDisplayName, l->label, sizeof(req->data.linestat.lineDisplayName));
+	}
 	transmit_response(s,req);
 	return 1;
 }
@@ -3483,6 +3583,37 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 	for (i=0; i<42; i++) {
 		int btnSet = 0;
 		switch (btn[i].buttonDefinition) {
+			case BT_CUST_LINE:
+				/* assume failure */
+				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
+				req->data.buttontemplate.definition[i].instanceNumber = htolel(0);
+
+				for (l = d->lines; l; l = l->next) {
+					if (l->instance == lineInstance) {
+						ast_verbose("Adding button: %d, %d\n", BT_LINE, lineInstance);
+						req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
+						req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+						lineInstance++;
+						buttonCount++;
+						btnSet = 1;
+						break;
+					}
+				}
+
+				if (!btnSet) {
+					for (sd = d->speeddials; sd; sd = sd->next) {
+						if (sd->isHint && sd->instance == lineInstance) {
+							ast_verbose("Adding button: %d, %d\n", BT_LINE, lineInstance);
+							req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
+							req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+							lineInstance++;
+							buttonCount++;
+							btnSet = 1;
+							break;
+						}
+					}
+				}
+				break;
 			case BT_CUST_LINESPEEDDIAL:
 				/* assume failure */
 				req->data.buttontemplate.definition[i].buttonDefinition = BT_NONE;
@@ -3502,7 +3633,15 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 
 				if (!btnSet) {
 					for (sd = d->speeddials; sd; sd = sd->next) {
-						if (sd->instance == speeddialInstance) {
+						if (sd->isHint && sd->instance == lineInstance) {
+							ast_verbose("Adding button: %d, %d\n", BT_LINE, lineInstance);
+							req->data.buttontemplate.definition[i].buttonDefinition = BT_LINE;
+							req->data.buttontemplate.definition[i].instanceNumber = htolel(lineInstance);
+							lineInstance++;
+							buttonCount++;
+							btnSet = 1;
+							break;
+						} else if (!sd->isHint && sd->instance == speeddialInstance) {
 							ast_verbose("Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
 							req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
 							req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance);
@@ -3535,18 +3674,16 @@ static int handle_button_template_req_message(struct skinny_req *req, struct ski
 				req->data.buttontemplate.definition[i].instanceNumber = 0;
 
 				for (sd = d->speeddials; sd; sd = sd->next) {
-					if (sd->instance == speeddialInstance) {
+					if (!sd->isHint && sd->instance == speeddialInstance) {
 						ast_verbose("Adding button: %d, %d\n", BT_SPEEDDIAL, speeddialInstance);
 						req->data.buttontemplate.definition[i].buttonDefinition = BT_SPEEDDIAL;
-						req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance);
+						req->data.buttontemplate.definition[i].instanceNumber = htolel(speeddialInstance - 1);
 						speeddialInstance++;
 						buttonCount++;
 						btnSet = 1;
 						break;
 					}
 				}
-				break;
-			case BT_CUST_HINT:
 				break;
 			case BT_NONE:
 				break;
@@ -3737,6 +3874,8 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verbose("Received Softkey Event: %d(%d)\n", event, instance);
 		return 0;
 	}
+
+	ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
 
 	switch(event) {
 	case SOFTKEY_NONE:
@@ -3965,6 +4104,8 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verbose("Received unknown Softkey Event: %d(%d)\n", event, instance);
 		break;
 	}
+	ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
+
 	return 1;
 }
 
