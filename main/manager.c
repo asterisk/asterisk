@@ -22,6 +22,8 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
+ * \extref OpenSSL http://www.openssl.org - for AMI/SSL 
+ *
  * At the moment this file contains a number of functions, namely:
  *
  * - data structures storing AMI state
@@ -117,8 +119,10 @@ static int num_sessions;
 
 static int manager_debug;	/*!< enable some debugging code in the manager */
 
-/*!
+/*! \brief
  * Descriptor for a manager session, either on the AMI socket or over HTTP.
+ *
+ * \note
  * AMI session have managerid == 0; the entry is created upon a connect,
  * and destroyed with the socket.
  * HTTP sessions have managerid != 0, the value is used as a search key
@@ -155,6 +159,7 @@ struct mansession {
 static AST_LIST_HEAD_STATIC(sessions, mansession);
 
 /*! \brief user descriptor, as read from the config file.
+ *
  * \note It is still missing some fields -- e.g. we can have multiple permit and deny
  * lines which are not supported here, and readperm/writeperm/writetimeout
  * are not stored.
@@ -2157,10 +2162,12 @@ static int process_message(struct mansession *s, const struct message *m)
 
 /*!
  * Read one full line (including crlf) from the manager socket.
+ * \note \verbatim
  * \r\n is the only valid terminator for the line.
  * (Note that, later, '\0' will be considered as the end-of-line marker,
  * so everything between the '\0' and the '\r\n' will not be used).
  * Also note that we assume output to have at least "maxlen" space.
+ * \endverbatim
  */
 static int get_input(struct mansession *s, char *output)
 {

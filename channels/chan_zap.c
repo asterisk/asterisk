@@ -637,7 +637,7 @@ static struct zt_pvt {
  * statement is reached, the current zt_chan_conf is used to configure the 
  * channel (struct zt_pvt)
  *
- * @seealso zt_chan_init for the default values.
+ * \see zt_chan_init for the default values.
  */
 struct zt_chan_conf {
 	struct zt_pvt chan;

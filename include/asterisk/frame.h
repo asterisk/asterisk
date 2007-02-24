@@ -495,8 +495,9 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
 /*! \page AudioCodecPref Audio Codec Preferences
+
 	In order to negotiate audio codecs in the order they are configured
-	in <channel>.conf for a device, we set up codec preference lists
+	in \<channel\>.conf for a device, we set up codec preference lists
 	in addition to the codec capabilities setting. The capabilities
 	setting is a bitmask of audio and video codecs with no internal
 	order. This will reflect the offer given to the other side, where
