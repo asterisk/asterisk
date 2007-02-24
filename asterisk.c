@@ -234,7 +234,11 @@ static int shuttingdown = 0;
 static int restartnow = 0;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 
-static unsigned int need_reload;
+static int sig_alert_pipe[2] = { -1, -1 };
+static struct {
+	 unsigned int need_reload:1;
+	 unsigned int need_quit:1;
+} sig_flags;
 
 #if !defined(LOW_MEMORY)
 struct file_version {
@@ -745,11 +749,14 @@ static void urg_handler(int num)
 
 static void hup_handler(int num)
 {
+	int a = 0;
 	if (option_verbose > 1) 
 		printf("Received HUP signal -- Reloading configs\n");
 	if (restartnow)
 		execvp(_argv[0], _argv);
-	need_reload = 1;
+	sig_flags.need_reload = 1;
+	if (sig_alert_pipe[1] != -1)
+		write(sig_alert_pipe[1], &a, sizeof(a));
 	signal(num, hup_handler);
 }
 
@@ -942,7 +949,12 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 
 static void __quit_handler(int num)
 {
-	quit_handler(num, 0, 1, 0);
+	int a = 0;
+	sig_flags.need_quit = 1;
+	if (sig_alert_pipe[1] != -1)
+		write(sig_alert_pipe[1], &a, sizeof(a));
+	/* There is no need to restore the signal handler here, since the app
+	 * is going to exit */
 }
 
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
@@ -1817,11 +1829,6 @@ static void ast_remotecontrol(char * data)
 				}
 			}
 		}
-
-		if (need_reload) {
-			need_reload = 0;
-			ast_module_reload(NULL);
-		}
 	}
 	printf("\nDisconnected from Asterisk server\n");
 }
@@ -2003,6 +2010,26 @@ static void ast_readconfig(void) {
 		v = v->next;
 	}
 	ast_config_destroy(cfg);
+}
+
+static void *monitor_sig_flags(void *unused)
+{
+	for (;;) {
+		struct pollfd p = { sig_alert_pipe[0], POLLIN, 0 };
+		int a;
+		poll(&p, 1, -1);
+		if (sig_flags.need_reload) {
+			sig_flags.need_reload = 0;
+			ast_module_reload(NULL);
+		}
+		if (sig_flags.need_quit) {
+			sig_flags.need_quit = 0;
+			quit_handler(0, 0, 1, 0);
+		}
+		read(sig_alert_pipe[0], &a, sizeof(a));
+	}
+
+	return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -2403,6 +2430,10 @@ int main(int argc, char *argv[])
 		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	if (option_nofork)
 		consolethread = pthread_self();
+
+	if (pipe(sig_alert_pipe))
+		sig_alert_pipe[0] = sig_alert_pipe[1] = -1;
+
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 #ifdef __AST_DEBUG_MALLOC
@@ -2414,6 +2445,14 @@ int main(int argc, char *argv[])
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
+		pthread_attr_t attr;
+		pthread_t dont_care;
+
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		ast_pthread_create(&dont_care, &attr, monitor_sig_flags, NULL);
+		pthread_attr_destroy(&attr);
+
 		set_icon("Asterisk");
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, ast_mainpid);
 		set_title(title);
@@ -2439,21 +2478,10 @@ int main(int argc, char *argv[])
 					break;
 				}
 			}
-			if (need_reload) {
-				need_reload = 0;
-				ast_module_reload(NULL);
-			}
 		}
 	}
-	/* Do nothing */
-	for(;;)  {	/* apparently needed for the MACos */
-		struct pollfd p = { -1 /* no descriptor */, 0, 0 };
-		poll(&p, 0, -1);
-		/* SIGHUP will cause this to break out of poll() */
-		if (need_reload) {
-			need_reload = 0;
-			ast_module_reload(NULL);
-		}
-	}
+
+	monitor_sig_flags(NULL);
+
 	return 0;
 }
