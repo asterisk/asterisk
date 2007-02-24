@@ -21,6 +21,8 @@
  * \brief Connect to festival
  *
  * \author Christos Ricudis <ricudis@itc.auth.gr>
+ *
+ * \extref  The Festival Speech Synthesis System - http://www.cstr.ed.ac.uk/projects/festival/
  * 
  * \ingroup applications
  */

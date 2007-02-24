@@ -21,6 +21,10 @@
  * \brief Comedian Mail - Voicemail System
  *
  * \author Mark Spencer <markster@digium.com>
+ *
+ * \extref Unixodbc - http://www.unixodbc.org
+ * \extref A source distribution of University of Washington's IMAP
+c-client (http://www.washington.edu/imap/
  * 
  * \par See also
  * \arg \ref Config_vm

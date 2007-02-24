@@ -29,6 +29,7 @@
  *
  * \par See also
  * \arg Config_h323
+ * \extref OpenH323 http://www.openh323.org/
  *
  * \ingroup channel_drivers
  */

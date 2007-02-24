@@ -24,6 +24,8 @@
  * \author Tilghman Lesher <curl-20050919@the-tilghman.com>
  *
  * \note Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option) 
+ *
+ * \extref Depends on the CURL library  - http://curl.haxx.se/
  * 
  * \ingroup functions
  */

@@ -21,10 +21,13 @@
  *
  * \brief Translate between signed linear and Speex (Open Codec)
  *
- * http://www.speex.org
  * \note This work was motivated by Jeremy McNamara 
  * hacked to be configurable by anthm and bkw 9/28/2004
+ *
  * \ingroup codecs
+ *
+ * \extref The Speex library - http://www.speex.org
+ *
  */
 
 /*** MODULEINFO

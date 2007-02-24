@@ -12,6 +12,9 @@
  * \brief SNMP Agent / SubAgent support for Asterisk
  *
  * \author Thorsten Lockert <tholo@voop.as>
+ *
+ * \extref Uses the Net-SNMP libraries available at
+ *	 http://net-snmp.sourceforge.net/
  */
 
 /*** MODULEINFO

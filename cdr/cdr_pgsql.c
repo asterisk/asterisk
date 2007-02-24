@@ -25,6 +25,7 @@
  * \brief PostgreSQL CDR logger 
  * 
  * \author Matthew D. Hardeman <mhardemn@papersoft.com> 
+ * \extref PostgreSQL http://www.postgresql.org/
  *
  * See also
  * \arg \ref Config_cdr

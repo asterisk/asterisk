@@ -22,6 +22,9 @@
  *
  * \author Mark Spencer <markster@digium.com>
  *
+ * \extref The OSP Toolkit: http://www.transnexus.com
+ * \extref OpenSSL http://www.openssl.org
+ *
  * \ingroup applications
  */
 

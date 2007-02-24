@@ -22,6 +22,7 @@
  * \brief Store CDR records in a SQLite database.
  * 
  * \author Holger Schurig <hs4233@mail.mn-solutions.de>
+ * \extref SQLite http://www.sqlite.org/
  *
  * See also
  * \arg \ref Config_cdr

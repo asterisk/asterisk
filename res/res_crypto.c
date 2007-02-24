@@ -21,6 +21,9 @@
  * \brief Provide Cryptographic Signature capability
  *
  * \author Mark Spencer <markster@digium.com> 
+ *
+ * \extref Uses the OpenSSL library, available at
+ *	http://www.openssl.org/
  */
 
 /*** MODULEINFO
