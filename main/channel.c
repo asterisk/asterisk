@@ -906,7 +906,11 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				if (c != prev)	/* not this one */
 					continue;
 				/* found, prepare to return c->next */
-				c = AST_LIST_NEXT(c, chan_list);
+				if ((c = AST_LIST_NEXT(c, chan_list)) == NULL) break;
+				/* If prev was the last item on the channel list, then we just
+				 * want to return NULL, instead of trying to deref NULL in the
+				 * next section.
+				 */
 			}
 			if (name) { /* want match by name */
 				if ((!namelen && strcasecmp(c->name, name)) ||
