@@ -69,7 +69,7 @@ static char *descrip =
 "If filename contains '%d', these characters will be replaced with a number\n"
 "incremented by one each time the file is recorded. A channel variable\n"
 "named RECORDED_FILE will also be set, which contains the final filemname.\n\n"
-"Use 'show file formats' to see the available formats on your system\n\n"
+"Use 'core show file formats' to see the available formats on your system\n\n"
 "User can press '#' to terminate the recording and continue to the next priority.\n\n"
 "If the user should hangup during a recording, all data will be lost and the\n"
 "application will teminate. \n";
