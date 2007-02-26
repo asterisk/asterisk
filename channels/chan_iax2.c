@@ -3323,23 +3323,34 @@ static int iax2_answer(struct ast_channel *c)
 static int iax2_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+	struct chan_iax2_pvt *pvt = c->tech_pvt;
+	int res = 0;
 
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
 
-	if (!strcasecmp(iaxs[callno]->mohinterpret, "passthrough"))
-		return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+	ast_mutex_lock(&iaxsl[callno]);
+
+	if (!strcasecmp(pvt->mohinterpret, "passthrough")) {
+		res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+		ast_mutex_unlock(&iaxsl[callno]);
+		return res;
+	}
 
 	switch (condition) {
 	case AST_CONTROL_HOLD:
-		ast_moh_start(c, data, iaxs[callno]->mohinterpret);
-		return 0;
+		ast_moh_start(c, data, pvt->mohinterpret);
+		break;
 	case AST_CONTROL_UNHOLD:
 		ast_moh_stop(c);
-		return 0;
+		break;
 	default:
-		return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+		res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
 	}
+
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	return res;
 }
 	
 static int iax2_transfer(struct ast_channel *c, const char *dest)
