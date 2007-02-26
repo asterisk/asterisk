@@ -83,8 +83,8 @@ static struct ast_jb_conf global_jbconf;
 
 #define DEBUG 0
 /* Which device to use */
-#define ALSA_INDEV "hw:0,0"
-#define ALSA_OUTDEV "hw:0,0"
+#define ALSA_INDEV "default"
+#define ALSA_OUTDEV "default"
 #define DESIRED_RATE 8000
 
 /* Lets use 160 sample frames, just like GSM.  */
