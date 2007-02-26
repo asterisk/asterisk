@@ -3323,14 +3323,14 @@ static int iax2_answer(struct ast_channel *c)
 static int iax2_indicate(struct ast_channel *c, int condition, const void *data, size_t datalen)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
-	struct chan_iax2_pvt *pvt = c->tech_pvt;
+	struct chan_iax2_pvt *pvt;
 	int res = 0;
 
 	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
 
 	ast_mutex_lock(&iaxsl[callno]);
-
+	pvt = iaxs[callno];
 	if (!strcasecmp(pvt->mohinterpret, "passthrough")) {
 		res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
 		ast_mutex_unlock(&iaxsl[callno]);
