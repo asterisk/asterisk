@@ -406,9 +406,6 @@ struct sla_trunk {
 	/*! Number of stations that have this trunk on hold. */
 	unsigned int hold_stations;
 	struct ast_channel *chan;
-	/*! Ring timeout to use when this trunk is ringing on this specific
-	 *  station.  This takes higher priority than a ring timeout set at
-	 *  the station level. */
 	unsigned int ring_timeout;
 };
 
@@ -417,6 +414,9 @@ struct sla_trunk_ref {
 	struct sla_trunk *trunk;
 	enum sla_trunk_state state;
 	struct ast_channel *chan;
+	/*! Ring timeout to use when this trunk is ringing on this specific
+	 *  station.  This takes higher priority than a ring timeout set at
+	 *  the station level. */
 	unsigned int ring_timeout;
 };
 
