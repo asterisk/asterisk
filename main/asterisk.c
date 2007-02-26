@@ -540,7 +540,7 @@ static char show_version_files_help[] =
 "       Optional regular expression pattern is used to filter the file list.\n";
 
 /*! \brief CLI command to list module versions */
-static int handle_show_version_files(int fd, int argc, char *argv[])
+static int handle_show_version_files_deprecated(int fd, int argc, char *argv[])
 {
 #define FORMAT "%-25.25s %-40.40s\n"
 	struct file_version *iterator;
@@ -594,7 +594,61 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 #undef FORMAT
 }
 
-static char *complete_show_version_files(const char *line, const char *word, int pos, int state)
+static int handle_show_version_files(int fd, int argc, char *argv[])
+{
+#define FORMAT "%-25.25s %-40.40s\n"
+	struct file_version *iterator;
+	regex_t regexbuf;
+	int havepattern = 0;
+	int havename = 0;
+	int count_files = 0;
+
+	switch (argc) {
+	case 6:
+		if (!strcasecmp(argv[4], "like")) {
+			if (regcomp(&regexbuf, argv[5], REG_EXTENDED | REG_NOSUB))
+				return RESULT_SHOWUSAGE;
+			havepattern = 1;
+		} else
+			return RESULT_SHOWUSAGE;
+		break;
+	case 5:
+		havename = 1;
+		break;
+	case 4:
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
+	}
+
+	ast_cli(fd, FORMAT, "File", "Revision");
+	ast_cli(fd, FORMAT, "----", "--------");
+	AST_LIST_LOCK(&file_versions);
+	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
+		if (havename && strcasecmp(iterator->file, argv[4]))
+			continue;
+		
+		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
+			continue;
+
+		ast_cli(fd, FORMAT, iterator->file, iterator->version);
+		count_files++;
+		if (havename)
+			break;
+	}
+	AST_LIST_UNLOCK(&file_versions);
+	if (!havename) {
+		ast_cli(fd, "%d files listed.\n", count_files);
+	}
+
+	if (havepattern)
+		regfree(&regexbuf);
+
+	return RESULT_SUCCESS;
+#undef FORMAT
+}
+
+static char *complete_show_version_files_deprecated(const char *line, const char *word, int pos, int state)
 {
 	struct file_version *find;
 	int which = 0;
@@ -615,6 +669,29 @@ static char *complete_show_version_files(const char *line, const char *word, int
 
 	return ret;
 }
+
+static char *complete_show_version_files(const char *line, const char *word, int pos, int state)
+{
+	struct file_version *find;
+	int which = 0;
+	char *ret = NULL;
+	int matchlen = strlen(word);
+	
+	if (pos != 4)
+		return NULL;
+
+	AST_LIST_LOCK(&file_versions);
+	AST_LIST_TRAVERSE(&file_versions, find, list) {
+		if (!strncasecmp(word, find->file, matchlen) && ++which > state) {
+			ret = ast_strdup(find->file);
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&file_versions);
+
+	return ret;
+}
+
 #endif /* ! LOW_MEMORY */
 
 int ast_register_atexit(void (*func)(void))
@@ -1550,8 +1627,8 @@ static struct ast_cli_entry cli_show_version_deprecated = {
 #if !defined(LOW_MEMORY)
 static struct ast_cli_entry cli_show_version_files_deprecated = {
 	{ "show", "version", "files", NULL },
-	handle_show_version_files, NULL,
-	NULL, complete_show_version_files };
+	handle_show_version_files_deprecated, NULL,
+	NULL, complete_show_version_files_deprecated };
 
 static struct ast_cli_entry cli_show_profile_deprecated = {
 	{ "show", "profile", NULL },
