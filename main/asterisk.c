@@ -564,18 +564,18 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 	int count_files = 0;
 
 	switch (argc) {
-	case 5:
-		if (!strcasecmp(argv[3], "like")) {
-			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+	case 6:
+		if (!strcasecmp(argv[4], "like")) {
+			if (regcomp(&regexbuf, argv[5], REG_EXTENDED | REG_NOSUB))
 				return RESULT_SHOWUSAGE;
 			havepattern = 1;
 		} else
 			return RESULT_SHOWUSAGE;
 		break;
-	case 4:
+	case 5:
 		havename = 1;
 		break;
-	case 3:
+	case 4:
 		break;
 	default:
 		return RESULT_SHOWUSAGE;
@@ -585,7 +585,7 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT, "----", "--------");
 	AST_LIST_LOCK(&file_versions);
 	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
-		if (havename && strcasecmp(iterator->file, argv[3]))
+		if (havename && strcasecmp(iterator->file, argv[4]))
 			continue;
 
 		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
