@@ -55,7 +55,9 @@ static char *descrip =
   "Caller*ID name.  Does nothing if no Caller*ID was received on the\n"
   "channel.  This is useful if you do not subscribe to Caller*ID\n"
   "name delivery, or if you want to change the names on some incoming\n"
-  "calls.\n";
+  "calls.\n\n"
+  "LookupCIDName is deprecated.  Please use ${DB(cidname/${CALLERID(num)})}\n"
+  "instead.\n";
 
 
 static int lookupcidname_exec (struct ast_channel *chan, void *data)
