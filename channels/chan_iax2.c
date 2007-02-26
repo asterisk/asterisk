@@ -1169,7 +1169,7 @@ static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 #define NEW_ALLOW 	1
 #define NEW_FORCE 	2
 
-static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short dcallno, struct chan_iax2_pvt *cur)
+static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short dcallno, const struct chan_iax2_pvt *cur)
 {
 	if ((cur->addr.sin_addr.s_addr == sin->sin_addr.s_addr) &&
 		(cur->addr.sin_port == sin->sin_port)) {
@@ -1298,7 +1298,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		AST_RWLIST_RDLOCK(&pvt_hash_tbl[hash]);
 		AST_RWLIST_TRAVERSE(&pvt_hash_tbl[hash], pvt, entry) {
 			ast_mutex_lock(&iaxsl[pvt->callno]);
-			if (match(sin, callno, dcallno, iaxs[pvt->callno]))
+			if (match(sin, callno, dcallno, pvt))
 				res = pvt->callno;
 			ast_mutex_unlock(&iaxsl[pvt->callno]);
 			if (res > 0)
