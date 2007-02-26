@@ -5574,10 +5574,10 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (!args.lang)
+	if (ast_strlen_zero(args.lang))
 		args.lang = (char *)chan->language;	/* XXX this is const */
 
-	if (!args.context)
+	if (ast_strlen_zero(args.context))
 		args.context = chan->context;
 
 	if (args.options) {
