@@ -332,7 +332,6 @@ void ast_unregister_thread(void *id)
 	}
 }
 
-#if !defined(LOW_MEMORY)
 /*! \brief Give an overview of core settings */
 static int handle_show_settings(int fd, int argc, char *argv[])
 {
@@ -390,7 +389,6 @@ static int handle_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "\n\n");
 	return 0;
 }
-#endif
 
 static int handle_show_threads(int fd, int argc, char *argv[])
 {
