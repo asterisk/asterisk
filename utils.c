@@ -39,7 +39,9 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#define AST_API_MODULE
 #include "asterisk/lock.h"
+
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 #include "asterisk/md5.h"
