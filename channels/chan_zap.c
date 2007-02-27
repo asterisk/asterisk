@@ -1264,7 +1264,7 @@ static char *event2str(int event)
 #ifdef HAVE_PRI
 static char *dialplan2str(int dialplan)
 {
-	if (dialplan == -1) {
+	if (dialplan == -1 || dialplan == -2) {
 		return("Dynamically set dialplan in ISDN");
 	}
 	return (pri_plan2str(dialplan));
@@ -2300,12 +2300,16 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", ast->transfercapability, ast_transfercapability2str(ast->transfercapability));
 		dp_strip = 0;
  		pridialplan = p->pri->dialplan - 1;
- 		if (pridialplan == -2) { /* compute dynamically */
+		if (pridialplan == -2 || pridialplan == -3) { /* compute dynamically */
  			if (strncmp(c + p->stripmsd, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
- 				dp_strip = strlen(p->pri->internationalprefix);
+				if (pridialplan == -2) {
+ 					dp_strip = strlen(p->pri->internationalprefix);
+				}
  				pridialplan = PRI_INTERNATIONAL_ISDN;
  			} else if (strncmp(c + p->stripmsd, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
- 				dp_strip = strlen(p->pri->nationalprefix);
+				if (pridialplan == -2) {
+ 					dp_strip = strlen(p->pri->nationalprefix);
+				}
  				pridialplan = PRI_NATIONAL_ISDN;
  			} else {
 				pridialplan = PRI_LOCAL_ISDN;
@@ -2315,12 +2319,16 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 
 		ldp_strip = 0;
 		prilocaldialplan = p->pri->localdialplan - 1;
-		if ((l != NULL) && (prilocaldialplan == -2)) { /* compute dynamically */
+		if ((l != NULL) && (prilocaldialplan == -2 || prilocaldialplan == -3)) { /* compute dynamically */
 			if (strncmp(l, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
-				ldp_strip = strlen(p->pri->internationalprefix);
+				if (prilocaldialplan == -2) {
+					ldp_strip = strlen(p->pri->internationalprefix);
+				}
 				prilocaldialplan = PRI_INTERNATIONAL_ISDN;
 			} else if (strncmp(l, p->pri->nationalprefix, strlen(p->pri->nationalprefix)) == 0) {
-				ldp_strip = strlen(p->pri->nationalprefix);
+				if (prilocaldialplan == -2) {
+					ldp_strip = strlen(p->pri->nationalprefix);
+				}
 				prilocaldialplan = PRI_NATIONAL_ISDN;
 			} else {
 				prilocaldialplan = PRI_LOCAL_ISDN;
@@ -9121,6 +9129,10 @@ static char * redirectingreason2str(int redirectingreason)
 
 static void apply_plan_to_number(char *buf, size_t size, const struct zt_pri *pri, const char *number, const int plan)
 {
+	if (pri->dialplan == -2) { /* autodetect the TON but leave the number untouched */
+		snprintf(buf, size, "%s", number);
+		return;
+	}
 	switch (plan) {
 	case PRI_INTERNATIONAL_ISDN:		/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
 		snprintf(buf, size, "%s%s", pri->internationalprefix, number);
@@ -12130,6 +12142,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->pri.dialplan = PRI_LOCAL_ISDN + 1;
 	 			} else if (!strcasecmp(v->value, "dynamic")) {
  					confp->pri.dialplan = -1;
+				} else if (!strcasecmp(v->value, "redundant")) {
+					confp->pri.dialplan = -2;
 				} else {
 					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
 				}
@@ -12146,6 +12160,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					confp->pri.localdialplan = PRI_LOCAL_ISDN + 1;
 				} else if (!strcasecmp(v->value, "dynamic")) {
 					confp->pri.localdialplan = -1;
+				} else if (!strcasecmp(v->value, "redundant")) {
+					confp->pri.localdialplan = -2;
 				} else {
 					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
 				}
