@@ -1934,7 +1934,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 
 		fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"" ENDL ENDL ENDL, bound);
 
-		fprintf(p, "--%s\r\n", bound);
+		fprintf(p, "--%s" ENDL, bound);
 	}
 	fprintf(p, "Content-Type: text/plain; charset=%s" ENDL "Content-Transfer-Encoding: 8bit" ENDL ENDL, charset);
 	if (emailbody) {
@@ -1977,7 +1977,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
 		}
-		fprintf(p, "--%s" ENDL ENDL, bound);
+		fprintf(p, "--%s" ENDL, bound);
 		fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"" ENDL, ctype, format, msgnum, format);
 		fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
 		fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
