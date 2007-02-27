@@ -428,6 +428,7 @@ static void do_forward(struct chanlist *o,
 	struct cause_args *num, struct ast_flags *peerflags, int single)
 {
 	char tmpchan[256];
+	struct ast_channel *original = o->chan;
 	struct ast_channel *c = o->chan; /* the winner */
 	struct ast_channel *in = num->chan; /* the input channel */
 	char *stuff;
@@ -498,7 +499,7 @@ static void do_forward(struct chanlist *o,
 		if (ast_call(c, tmpchan, 0)) {
 			ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 			ast_clear_flag(o, DIAL_STILLGOING);	
-			ast_hangup(c);
+			ast_hangup(original);
 			c = o->chan = NULL;
 			num->nochan++;
 		} else {
@@ -509,7 +510,7 @@ static void do_forward(struct chanlist *o,
 				ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 			}
 			/* Hangup the original channel now, in case we needed it */
-			ast_hangup(c);
+			ast_hangup(original);
 		}
 	}
 }
