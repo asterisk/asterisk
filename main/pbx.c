@@ -323,8 +323,13 @@ static struct pbx_builtin {
 	"calling channel to continue dialplan execution at the specified priority.\n"
 	"If no specific extension, or extension and context, are specified, then this\n"
 	"application will jump to the specified priority of the current extension.\n"
+	"  At least a priority is required as an argument, or the goto will return a -1,\n"
+	"and the channel and call will be terminated.\n"
 	"  If the attempt to jump to another location in the dialplan is not successful,\n"
-	"then the channel will continue at the next priority of the current extension.\n"
+	"then the execution engine will try to find and execute the code in the 'i' (invalid)\n"
+	"extension in the current context. If that does not exist, it will try to execute the\n"
+	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
+	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
 	},
 
 	{ "GotoIf", pbx_builtin_gotoif,
@@ -335,7 +340,12 @@ static struct pbx_builtin {
 	"'labeliftrue' if the condition is true, or 'labeliffalse' if the condition is\n"
 	"false. The labels are specified with the same syntax as used within the Goto\n"
 	"application.  If the label chosen by the condition is omitted, no jump is\n"
-	"performed, but execution continues with the next priority in the dialplan.\n"
+	"performed, and the execution passes to the next instruction.\n"
+	"If the target location is bogus, and does not exist, the execution engine will try \n"
+	"to find and execute the code in the 'i' (invalid)\n"
+	"extension in the current context. If that does not exist, it will try to execute the\n"
+	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
+	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
 	},
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
@@ -343,6 +353,7 @@ static struct pbx_builtin {
 	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]exten|]priority):\n"
 	"This application will have the calling channel jump to the specified location\n"
 	"in the dialplan if the current time matches the given time specification.\n"
+	"If the target jump location is bogus, the same actions would be taken as for Goto.\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
