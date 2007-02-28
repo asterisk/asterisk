@@ -1381,9 +1381,10 @@ static void check_goto(pval *item)
 						}
 					}
 				} else {
-					ast_log(LOG_ERROR,"Error: file %s, line %d-%d: goto:  no context %s could be found that matches the goto target!\n",
+					/* here is where code would go to check for target existence in extensions.conf files */
+					ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: goto:  no context %s could be found that matches the goto target!\n",
 							item->filename, item->startline, item->endline, item->u1.list->u1.str);
-					errs++;
+					warns++; /* this is just a warning, because this context could be in extensions.conf or somewhere */
 				}
 			} else {
 				struct pval *mac = in_macro(item); /* is this goto inside a macro? */
@@ -1673,9 +1674,28 @@ static struct pval *match_pval_item(pval *item)
 		           item->u2.statements == pval list of statements in context body
 		*/
 		/* printf("    matching in CATCH\n"); */
-		if ((x=match_pval(item->u2.statements))) {
-			/* printf("CATCH: Responded with pval match %x\n", x); */
-			return x;
+		if (!strcmp(match_exten,"*") || extension_matches(item, match_exten, item->u1.str) ) {
+			/* printf("Descending into matching catch %s => %s\n", match_exten, item->u1.str); */
+			if (strcmp(match_label,"1") == 0) {
+				if (item->u2.statements) {
+					struct pval *p5 = item->u2.statements;
+					while (p5 && p5->type == PV_LABEL)  /* find the first non-label statement in this context. If it exists, there's a "1" */
+						p5 = p5->next;
+					if (p5)
+						return p5;
+					else
+						return 0;
+				}
+				else
+					return 0;
+			}
+
+			if ((x=match_pval(item->u2.statements))) {
+				/* printf("CATCH: Responded with pval match %x\n", (unsigned int)x); */
+				return x;
+			}
+		} else {
+			/* printf("Skipping catch %s\n", item->u1.str); */
 		}
 		break;
 			
@@ -1854,6 +1874,7 @@ struct pval *find_first_label_in_current_context(char *label, pval *curr_cont)
 	/* printf("  --- Got args %s, %s\n", exten, label); */
 	struct pval *ret;
 	struct pval *p3;
+	struct pval *startpt = ((curr_cont->type==PV_MACRO)?curr_cont->u3.macro_statements: curr_cont->u2.statements);
 	
 	count_labels = 0;
 	return_on_context_match = 0;
@@ -1867,7 +1888,7 @@ struct pval *find_first_label_in_current_context(char *label, pval *curr_cont)
 					
 	/* the target of the goto could be in an included context!! Fancy that!! */
 	/* look for includes in the current context */
-	for (p3=curr_cont->u2.statements; p3; p3=p3->next) {
+	for (p3=startpt; p3; p3=p3->next) {
 		if (p3->type == PV_INCLUDES) {
 			struct pval *p4;
 			for (p4=p3->u1.list; p4; p4=p4->next) {
@@ -1894,19 +1915,25 @@ struct pval *find_label_in_current_context(char *exten, char *label, pval *curr_
 	/* printf("  --- Got args %s, %s\n", exten, label); */
 	struct pval *ret;
 	struct pval *p3;
+	struct pval *startpt;
 	
 	count_labels = 0;
 	return_on_context_match = 0;
 	match_context = "*";
 	match_exten = exten;
 	match_label = label;
-	ret =  match_pval(curr_cont->u2.statements);
+	if (curr_cont->type == PV_MACRO)
+		startpt = curr_cont->u3.macro_statements;
+	else
+		startpt = curr_cont->u2.statements;
+
+	ret =  match_pval(startpt);
 	if (ret)
 		return ret;
 					
 	/* the target of the goto could be in an included context!! Fancy that!! */
 	/* look for includes in the current context */
-	for (p3=curr_cont->u2.statements; p3; p3=p3->next) {
+	for (p3=startpt; p3; p3=p3->next) {
 		if (p3->type == PV_INCLUDES) {
 			struct pval *p4;
 			for (p4=p3->u1.list; p4; p4=p4->next) {
@@ -2401,9 +2428,10 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		*/
 		macro_def = find_macro(item->u1.str);
 		if (!macro_def) {
-			ast_log(LOG_ERROR, "Error: file %s, line %d-%d: macro call to non-existent %s !\n",
+			/* here is a good place to check to see if the definition is in extensions.conf! */
+			ast_log(LOG_WARNING, "Error: file %s, line %d-%d: macro call to non-existent %s ! Hopefully it is present in extensions.conf! \n",
 					item->filename, item->startline, item->endline, item->u1.str);
-			errs++;
+			warns++;
 		} else if (macro_def->type != PV_MACRO) {
 			ast_log(LOG_ERROR,"Error: file %s, line %d-%d: macro call to %s references a context, not a macro!\n",
 					item->filename, item->startline, item->endline, item->u1.str);
