@@ -405,6 +405,9 @@ struct sla_trunk {
 	unsigned int hold_stations;
 	struct ast_channel *chan;
 	unsigned int ring_timeout;
+	/*! If set to 1, no station will be able to join an active call with
+	 *  this trunk. */
+	unsigned int barge_disabled:1;
 };
 
 struct sla_trunk_ref {
@@ -1006,14 +1009,16 @@ static int sla_show_trunks(int fd, int argc, char **argv)
 		if (trunk->ring_timeout)
 			snprintf(ring_timeout, sizeof(ring_timeout), "%u Seconds", trunk->ring_timeout);
 		ast_cli(fd, "=== ---------------------------------------------------------\n"
-		            "=== Trunk Name:      %s\n"
-		            "=== ==> Device:      %s\n"
-					"=== ==> AutoContext: %s\n"
-					"=== ==> RingTimeout: %s\n"
+		            "=== Trunk Name:       %s\n"
+		            "=== ==> Device:       %s\n"
+					"=== ==> AutoContext:  %s\n"
+					"=== ==> RingTimeout:  %s\n"
+					"=== ==> BargeAllowed: %s\n"
 					"=== ==> Stations ...\n",
 					trunk->name, trunk->device, 
 					S_OR(trunk->autocontext, "(none)"), 
-					ring_timeout);
+					ring_timeout,
+		            trunk->barge_disabled ? "No" : "Yes");
 		AST_RWLIST_RDLOCK(&sla_stations);
 		AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry)
 			ast_cli(fd, "===    ==> Station name: %s\n", station_ref->station->name);
@@ -3075,14 +3080,24 @@ static struct sla_station *sla_find_station(const char *name)
 	return station;
 }
 
+/*! \brief Find a trunk reference on a station by name
+ * \param station the station
+ * \param name the trunk's name
+ * \return a pointer to the station's trunk reference.  If the trunk
+ *         is not found, or if it is not idle and barge is disabled,
+ *         then NULL will be returned.
+ */
 static struct sla_trunk_ref *sla_find_trunk_ref_byname(const struct sla_station *station,
 	const char *name)
 {
 	struct sla_trunk_ref *trunk_ref = NULL;
 
 	AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
-		if (!strcasecmp(trunk_ref->trunk->name, name))
-			break;
+		if (strcasecmp(trunk_ref->trunk->name, name))
+			continue;
+		if (trunk_ref->trunk->barge_disabled && trunk_ref->state != SLA_TRUNK_STATE_IDLE)
+			trunk_ref = NULL;
+		break;
 	}
 
 	return trunk_ref;
@@ -4017,7 +4032,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		trunk_ref = sla_choose_idle_trunk(station);
 	AST_RWLIST_UNLOCK(&sla_trunks);
 
-	if (ast_strlen_zero(trunk_name) && !trunk_ref) {
+	if (!trunk_ref) {
 		ast_log(LOG_NOTICE, "No trunks available for call.\n");
 		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 		return 0;
@@ -4349,7 +4364,9 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 					var->value, trunk->name);
 				trunk->ring_timeout = 0;
 			}
-		} else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
+		} else if (!strcasecmp(var->name, "barge"))
+			trunk->barge_disabled = ast_false(var->value);
+		else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
 			ast_log(LOG_ERROR, "Invalid option '%s' specified at line %d of %s!\n",
 				var->name, var->lineno, SLA_CONFIG_FILE);
 		}
