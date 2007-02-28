@@ -1507,8 +1507,10 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 			if (bc->channel>0)
 				empty_chan_in_stack(stack,bc->channel);
 			int tmpcause=bc->cause;	
+			int tmp_out_cause=bc->out_cause;	
 			empty_bc(bc);
 			bc->cause=tmpcause;
+			bc->out_cause=tmpcause;
 			clean_up_bc(bc);
 			break;
 		default:

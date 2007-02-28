@@ -1986,12 +1986,8 @@ static int misdn_indication(struct ast_channel *ast, int cond)
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tcongestion pid:%d\n",p->bc?p->bc->pid:-1);
 
 		p->bc->out_cause=42;
-		if (p->state != MISDN_CONNECTED) {
-			start_bc_tones(p);
-			misdn_lib_send_event( p->bc, EVENT_RELEASE);
-		} else {
-			misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
-		}
+		start_bc_tones(p);
+		misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
 
 		if (p->bc->nt) {
 			hanguptone_indicate(p);
@@ -3385,7 +3381,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		if ( stop_tone ) {
 			stop_indicate(ch);
 		}
-		
+	
+		if (!ch->ast) break;
+
 		if (ch->state == MISDN_WAITING4DIGS ) {
 			/*  Ok, incomplete Setup, waiting till extension exists */
 
@@ -4340,6 +4338,7 @@ int unload_module(void)
 	ast_cli_unregister(&cli_show_stacks);
 	ast_cli_unregister(&cli_port_block);
 	ast_cli_unregister(&cli_port_unblock);
+	ast_cli_unregister(&cli_restart_port);
 	ast_cli_unregister(&cli_restart_pid);
 	ast_cli_unregister(&cli_port_up);
 	ast_cli_unregister(&cli_port_down);
