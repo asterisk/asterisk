@@ -363,6 +363,15 @@ enum sla_trunk_state {
 	SLA_TRUNK_STATE_ONHOLD,
 };
 
+enum sla_hold_access {
+	/*! This means that any station can put it on hold, and any station
+	 * can retrieve the call from hold. */
+	SLA_HOLD_OPEN,
+	/*! This means that only the station that put the call on hold may
+	 * retrieve it from hold. */
+	SLA_HOLD_PRIVATE,
+};
+
 struct sla_trunk_ref;
 
 struct sla_station {
@@ -382,6 +391,9 @@ struct sla_station {
 	 *  is set for a specific trunk on this station, that will take
 	 *  priority over this value. */
 	unsigned int ring_delay;
+	/*! This option uses the values in the sla_hold_access enum and sets the
+	 * access control type for hold on this station. */
+	unsigned int hold_access:1;
 };
 
 struct sla_station_ref {
@@ -408,6 +420,9 @@ struct sla_trunk {
 	/*! If set to 1, no station will be able to join an active call with
 	 *  this trunk. */
 	unsigned int barge_disabled:1;
+	/*! This option uses the values in the sla_hold_access enum and sets the
+	 * access control type for hold on this trunk. */
+	unsigned int hold_access:1;
 };
 
 struct sla_trunk_ref {
@@ -993,6 +1008,23 @@ static const char meetme_usage[] =
 "Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 "       Executes a command for the conference or on a conferee\n";
 
+static const char *sla_hold_str(unsigned int hold_access)
+{
+	const char *hold = "Unknown";
+
+	switch (hold_access) {
+	case SLA_HOLD_OPEN:
+		hold = "Open";
+		break;
+	case SLA_HOLD_PRIVATE:
+		hold = "Private";
+	default:
+		break;
+	}
+
+	return hold;
+}
+
 static int sla_show_trunks(int fd, int argc, char **argv)
 {
 	const struct sla_trunk *trunk;
@@ -1014,11 +1046,13 @@ static int sla_show_trunks(int fd, int argc, char **argv)
 		            "=== ==> AutoContext:  %s\n"
 		            "=== ==> RingTimeout:  %s\n"
 		            "=== ==> BargeAllowed: %s\n"
+		            "=== ==> HoldAccess:   %s\n"
 		            "=== ==> Stations ...\n",
 		            trunk->name, trunk->device, 
 		            S_OR(trunk->autocontext, "(none)"), 
 		            ring_timeout,
-		            trunk->barge_disabled ? "No" : "Yes");
+		            trunk->barge_disabled ? "No" : "Yes",
+		            sla_hold_str(trunk->hold_access));
 		AST_RWLIST_RDLOCK(&sla_stations);
 		AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry)
 			ast_cli(fd, "===    ==> Station name: %s\n", station_ref->station->name);
@@ -1075,13 +1109,15 @@ static int sla_show_stations(int fd, int argc, char **argv)
 		ast_cli(fd, "=== ---------------------------------------------------------\n"
 		            "=== Station Name:    %s\n"
 		            "=== ==> Device:      %s\n"
-					"=== ==> AutoContext: %s\n"
-					"=== ==> RingTimeout: %s\n"
-					"=== ==> RingDelay:   %s\n"
-					"=== ==> Trunks ...\n",
-					station->name, station->device,
-					S_OR(station->autocontext, "(none)"), 
-					ring_timeout, ring_delay);
+		            "=== ==> AutoContext: %s\n"
+		            "=== ==> RingTimeout: %s\n"
+		            "=== ==> RingDelay:   %s\n"
+		            "=== ==> HoldAccess:  %s\n"
+		            "=== ==> Trunks ...\n",
+		            station->name, station->device,
+		            S_OR(station->autocontext, "(none)"), 
+		            ring_timeout, ring_delay,
+		            sla_hold_str(station->hold_access));
 		AST_RWLIST_RDLOCK(&sla_trunks);
 		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
 			if (trunk_ref->ring_timeout) {
@@ -3080,12 +3116,32 @@ static struct sla_station *sla_find_station(const char *name)
 	return station;
 }
 
+static int sla_check_station_hold_access(const struct sla_trunk *trunk)
+{
+	struct sla_station_ref *station_ref;
+	struct sla_trunk_ref *trunk_ref;
+
+	/* For each station that has this call on hold, check for private hold. */
+	AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry) {
+		AST_LIST_TRAVERSE(&station_ref->station->trunks, trunk_ref, entry) {
+			if (trunk_ref->trunk != trunk)
+				continue;
+			if (trunk_ref->state == SLA_TRUNK_STATE_ONHOLD && trunk_ref->chan &&
+				station_ref->station->hold_access == SLA_HOLD_PRIVATE)
+				return 1;
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
 /*! \brief Find a trunk reference on a station by name
  * \param station the station
  * \param name the trunk's name
  * \return a pointer to the station's trunk reference.  If the trunk
- *         is not found, or if it is not idle and barge is disabled,
- *         then NULL will be returned.
+ *         is not found, it is not idle and barge is disabled, or if
+ *         it is on hold and private hold is set, then NULL will be returned.
  */
 static struct sla_trunk_ref *sla_find_trunk_ref_byname(const struct sla_station *station,
 	const char *name)
@@ -3095,8 +3151,14 @@ static struct sla_trunk_ref *sla_find_trunk_ref_byname(const struct sla_station 
 	AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
 		if (strcasecmp(trunk_ref->trunk->name, name))
 			continue;
-		if (trunk_ref->trunk->barge_disabled && trunk_ref->state != SLA_TRUNK_STATE_IDLE)
+
+		if ( (trunk_ref->trunk->barge_disabled 
+			&& trunk_ref->state != SLA_TRUNK_STATE_IDLE) ||
+			(trunk_ref->trunk->hold_stations 
+			&& trunk_ref->trunk->hold_access == SLA_HOLD_PRIVATE) ||
+			sla_check_station_hold_access(trunk_ref->trunk) )
 			trunk_ref = NULL;
+
 		break;
 	}
 
@@ -4033,7 +4095,12 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	AST_RWLIST_UNLOCK(&sla_trunks);
 
 	if (!trunk_ref) {
-		ast_log(LOG_NOTICE, "No trunks available for call.\n");
+		if (ast_strlen_zero(trunk_name))
+			ast_log(LOG_NOTICE, "No trunks available for call.\n");
+		else {
+			ast_log(LOG_NOTICE, "Can't join existing call on trunk "
+				"'%s' due to access controls.\n", trunk_name);
+		}
 		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 		return 0;
 	}
@@ -4366,7 +4433,16 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 			}
 		} else if (!strcasecmp(var->name, "barge"))
 			trunk->barge_disabled = ast_false(var->value);
-		else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
+		else if (!strcasecmp(var->name, "hold")) {
+			if (!strcasecmp(var->value, "private"))
+				trunk->hold_access = SLA_HOLD_PRIVATE;
+			else if (!strcasecmp(var->value, "open"))
+				trunk->hold_access = SLA_HOLD_OPEN;
+			else {
+				ast_log(LOG_WARNING, "Invalid value '%s' for hold on trunk %s\n",
+					var->value, trunk->name);
+			}
+		} else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
 			ast_log(LOG_ERROR, "Invalid option '%s' specified at line %d of %s!\n",
 				var->name, var->lineno, SLA_CONFIG_FILE);
 		}
@@ -4492,6 +4568,16 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 					var->value, station->name);
 				station->ring_delay = 0;
 			}
+		} else if (!strcasecmp(var->name, "hold")) {
+			if (!strcasecmp(var->value, "private"))
+				station->hold_access = SLA_HOLD_PRIVATE;
+			else if (!strcasecmp(var->value, "open"))
+				station->hold_access = SLA_HOLD_OPEN;
+			else {
+				ast_log(LOG_WARNING, "Invalid value '%s' for hold on station %s\n",
+					var->value, station->name);
+			}
+
 		} else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
 			ast_log(LOG_ERROR, "Invalid option '%s' specified at line %d of %s!\n",
 				var->name, var->lineno, SLA_CONFIG_FILE);
