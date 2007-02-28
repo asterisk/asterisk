@@ -27,6 +27,10 @@
 ;ringtimeout=30           ; Set how long to allow this trunk to ring on an inbound call before hanging 
                           ; it up as an unanswered call.  The value is in seconds.
 
+;barge=no                 ; If this option is set to "no", then no station will be
+                          ; allowed to join a call that is in progress.  The default
+                          ; value is "yes".
+
 ;[line2]
 ;type=trunk
 ;device=Zap/4
