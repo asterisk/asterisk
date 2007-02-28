@@ -587,7 +587,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                 }
 
 		/* Do timeout check (shared between audio/dtmf) */
-		if (started == 1) {
+		if (!quieted && started == 1) {
 			time(&current);
 			if ((current-start) >= timeout) {
 				done = 1;
@@ -599,8 +599,9 @@ static int speech_background(struct ast_channel *chan, void *data)
 
                 /* Do checks on speech structure to see if it's changed */
                 ast_mutex_lock(&speech->lock);
-                if (ast_test_flag(speech, AST_SPEECH_QUIET) && chan->stream != NULL) {
-                        ast_stopstream(chan);
+                if (ast_test_flag(speech, AST_SPEECH_QUIET)) {
+			if (chan->stream)
+				ast_stopstream(chan);
 			ast_clear_flag(speech, AST_SPEECH_QUIET);
 			quieted = 1;
                 }
