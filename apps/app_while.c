@@ -125,7 +125,7 @@ static int find_matching_endwhile(struct ast_channel *chan)
 	struct ast_context *c;
 	int res=-1;
 
-	if (ast_lock_contexts()) {
+	if (ast_rdlock_contexts()) {
 		ast_log(LOG_ERROR, "Failed to lock contexts list\n");
 		return -1;
 	}
@@ -133,7 +133,7 @@ static int find_matching_endwhile(struct ast_channel *chan)
 	for (c=ast_walk_contexts(NULL); c; c=ast_walk_contexts(c)) {
 		struct ast_exten *e;
 
-		if (!ast_lock_context(c)) {
+		if (!ast_rdlock_context(c)) {
 			if (!strcmp(ast_get_context_name(c), chan->context)) {
 				/* This is the matching context we want */
 				int cur_priority = chan->priority + 1, level=1;

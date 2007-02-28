@@ -669,12 +669,20 @@ int ast_ignore_pattern(const char *context, const char *pattern);
 /* Locking functions for outer modules, especially for completion functions */
 
 /*! 
- * \brief Locks the context list
+ * \brief Write locks the context list
  *
  * \retval 0 on success 
  * \retval -1 on error
  */
-int ast_lock_contexts(void);
+int ast_wrlock_contexts(void);
+
+/*!
+ * \brief Read locks the context list
+ *
+ * \retval 0 on success
+ * \retval -1 on error
+ */
+int ast_rdlock_contexts(void);
 
 /*! 
  * \brief Unlocks contexts
@@ -685,14 +693,24 @@ int ast_lock_contexts(void);
 int ast_unlock_contexts(void);
 
 /*! 
- * \brief Locks a given context
+ * \brief Write locks a given context
  * 
  * \param con context to lock
  *
  * \retval 0 on success 
  * \retval -1 on failure
  */
-int ast_lock_context(struct ast_context *con);
+int ast_wrlock_context(struct ast_context *con);
+
+/*!
+ * \brief Read locks a given context
+ *
+ * \param con context to lock
+ *
+ * \retval 0 on success
+ * \retval -1 on failure
+ */
+int ast_rdlock_context(struct ast_context *con);
 
 /*! 
  * \retval Unlocks the given context
