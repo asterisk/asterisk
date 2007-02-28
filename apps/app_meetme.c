@@ -1011,13 +1011,13 @@ static int sla_show_trunks(int fd, int argc, char **argv)
 		ast_cli(fd, "=== ---------------------------------------------------------\n"
 		            "=== Trunk Name:       %s\n"
 		            "=== ==> Device:       %s\n"
-					"=== ==> AutoContext:  %s\n"
-					"=== ==> RingTimeout:  %s\n"
-					"=== ==> BargeAllowed: %s\n"
-					"=== ==> Stations ...\n",
-					trunk->name, trunk->device, 
-					S_OR(trunk->autocontext, "(none)"), 
-					ring_timeout,
+		            "=== ==> AutoContext:  %s\n"
+		            "=== ==> RingTimeout:  %s\n"
+		            "=== ==> BargeAllowed: %s\n"
+		            "=== ==> Stations ...\n",
+		            trunk->name, trunk->device, 
+		            S_OR(trunk->autocontext, "(none)"), 
+		            ring_timeout,
 		            trunk->barge_disabled ? "No" : "Yes");
 		AST_RWLIST_RDLOCK(&sla_stations);
 		AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry)
