@@ -14,8 +14,9 @@
 ; ---- Trunk Declarations -------------
 ;
 ;[line1]                    ; Provide a name for this trunk.
+
 ;type=trunk                 ; This line is what marks this entry as a trunk.
-;
+
 ;device=Zap/3               ; Map this trunk declaration to a specific device.
                             ; NOTE: At this point, this *must* be a zap channel!
 
@@ -58,7 +59,11 @@
 
 ; ---- Station Declarations ------------
 
+;[station1]                 ; Define a name for this station.
+
 ;type=station               ; This line indicates that this entry is a station.
+
+;device=SIP/station1        ; Each station must be mapped to a device.
 
 ;autocontext=sla_stations   ; This supports automatic generation of the dialplan entries if 
                             ; the autocontext option is used.  All stations can use the same 
@@ -100,10 +105,7 @@
                             ; This value is in seconds.
 
 
-;[station1](station)        ; Define a station that uses the configuration from the template "station".
-;device=SIP/station1        ; Each station must be mapped to a device.
-;
-;[station2](station)
+;[station2](station)        ; Define a station that uses the configuration from the template "station".
 ;device=SIP/station2
 ;
 ;[station3](station)

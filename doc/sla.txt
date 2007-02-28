@@ -24,7 +24,7 @@ voicemail:
 exten => s,1,SLATrunk(line1)
 
 [line2]
-exten => s,2,SLATRUNK(line2)
+exten => s,2,SLATrunk(line2)
 
 [sla_stations]
 exten => station1,1,SLAStation(station1)
