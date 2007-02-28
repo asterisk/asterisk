@@ -773,6 +773,8 @@ static int agent_hangup(struct ast_channel *ast)
 					ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
 				p->deferlogoff = 0;
 				agent_logoff_maintenance(p, p->loginchan, logintime, ast->uniqueid, "Autologoff");
+				if (persistent_agents)
+					dump_agents();
 			}
 		} else if (p->dead) {
 			ast_channel_lock(p->chan);
@@ -787,9 +789,16 @@ static int agent_hangup(struct ast_channel *ast)
 		}
 	}
 	ast_mutex_unlock(&p->lock);
+
 	/* Only register a device state change if the agent is still logged in */
-	if (p->loginstart)
+	if (!p->loginstart) {
+		p->loginchan[0] = '\0';
+		p->logincallerid[0] = '\0';
+		if (persistent_agents)
+			dump_agents();
+	} else {
 		ast_device_state_changed("Agent/%s", p->agent);
+	}
 
 	if (p->pending) {
 		AST_LIST_LOCK(&agents);
