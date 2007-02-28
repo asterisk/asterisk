@@ -1,6 +1,8 @@
 ;
 ; Configuration for Shared Line Appearances (SLA).
 ;
+; See doc/sla.txt for more information.
+;
 
 ; ---- General Options ----------------
 [general]
@@ -52,15 +54,21 @@
                                     ; have its context configured to the same one listed here.
 
 ;ringtimeout=10                     ; Set a timeout for how long to allow the station to ring for an 
-;                                   ; incoming call, in seconds.
+                                    ; incoming call, in seconds.
 
+;ringdelay=10                       ; Set a time for how long to wait before beginning to ring this station
+                                    ; once there is an incoming call, in seconds.
 
 ;trunk=line1                        ; Individually list all of the trunks that will appear on this station.  This
                                     ; order is significant.  It should be the same order as they appear on the
                                     ; phone.  The order here defines the order of preference that the trunks will
                                     ; be used.
 ;trunk=line2
-;trunk=line3
+;trunk=line3,ringdelay=5            ; A ring delay for the station can also be specified for a specific trunk.
+                                    ; If a ring delay is specified both for the whole station and for a specific
+                                    ; trunk on a station, the setting for the specific trunk will take priority.
+                                    ; This value is in seconds.
+
 ;trunk=line4,ringtimeout=5          ; A ring timeout for the station can also be specified for a specific trunk.
                                     ; If a ring timeout is specified both for the whole station and for a specific
                                     ; trunk on a station, the setting for the specific trunk will take priority.

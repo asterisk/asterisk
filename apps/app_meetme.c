@@ -378,6 +378,10 @@ struct sla_station {
 	 *  is set for a specific trunk on this station, that will take
 	 *  priority over this value. */
 	unsigned int ring_timeout;
+	/*! Ring delay for this station, for any trunk.  If a ring delay
+	 *  is set for a specific trunk on this station, that will take
+	 *  priority over this value. */
+	unsigned int ring_delay;
 };
 
 struct sla_station_ref {
@@ -412,6 +416,10 @@ struct sla_trunk_ref {
 	 *  station.  This takes higher priority than a ring timeout set at
 	 *  the station level. */
 	unsigned int ring_timeout;
+	/*! Ring delay to use when this trunk is ringing on this specific
+	 *  station.  This takes higher priority than a ring delay set at
+	 *  the station level. */
+	unsigned int ring_delay;
 };
 
 static AST_RWLIST_HEAD_STATIC(sla_stations, sla_station);
@@ -987,31 +995,34 @@ static int sla_show_trunks(int fd, int argc, char **argv)
 	const struct sla_trunk *trunk;
 
 	ast_cli(fd, "\n"
-	            "--- Configured SLA Trunks -----------------------------------\n"
-	            "-------------------------------------------------------------\n"
-	            "---\n");
+	            "=============================================================\n"
+	            "=== Configured SLA Trunks ===================================\n"
+	            "=============================================================\n"
+	            "===\n");
 	AST_RWLIST_RDLOCK(&sla_trunks);
 	AST_RWLIST_TRAVERSE(&sla_trunks, trunk, entry) {
 		struct sla_station_ref *station_ref;
 		char ring_timeout[16] = "(none)";
 		if (trunk->ring_timeout)
 			snprintf(ring_timeout, sizeof(ring_timeout), "%u Seconds", trunk->ring_timeout);
-		ast_cli(fd, "--- Trunk Name:      %s\n"
-		            "--- ==> Device:      %s\n"
-					"--- ==> AutoContext: %s\n"
-					"--- ==> RingTimeout: %s\n"
-					"--- ==> Stations ...\n",
+		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		            "=== Trunk Name:      %s\n"
+		            "=== ==> Device:      %s\n"
+					"=== ==> AutoContext: %s\n"
+					"=== ==> RingTimeout: %s\n"
+					"=== ==> Stations ...\n",
 					trunk->name, trunk->device, 
 					S_OR(trunk->autocontext, "(none)"), 
 					ring_timeout);
 		AST_RWLIST_RDLOCK(&sla_stations);
 		AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry)
-			ast_cli(fd, "---    ==> Station name: %s\n", station_ref->station->name);
+			ast_cli(fd, "===    ==> Station name: %s\n", station_ref->station->name);
 		AST_RWLIST_UNLOCK(&sla_stations);
-		ast_cli(fd, "---\n");
+		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		            "===\n");
 	}
 	AST_RWLIST_UNLOCK(&sla_trunks);
-	ast_cli(fd, "-------------------------------------------------------------\n"
+	ast_cli(fd, "=============================================================\n"
 	            "\n");
 
 	return RESULT_SUCCESS;
@@ -1039,24 +1050,33 @@ static int sla_show_stations(int fd, int argc, char **argv)
 	const struct sla_station *station;
 
 	ast_cli(fd, "\n" 
-	            "--- Configured SLA Stations ---------------------------------\n"
-	            "-------------------------------------------------------------\n"
-	            "---\n");
+	            "=============================================================\n"
+	            "=== Configured SLA Stations =================================\n"
+	            "=============================================================\n"
+	            "===\n");
 	AST_RWLIST_RDLOCK(&sla_stations);
 	AST_RWLIST_TRAVERSE(&sla_stations, station, entry) {
 		struct sla_trunk_ref *trunk_ref;
 		char ring_timeout[16] = "(none)";
+		char ring_delay[16] = "(none)";
 		if (station->ring_timeout) {
 			snprintf(ring_timeout, sizeof(ring_timeout), 
 				"%u", station->ring_timeout);
 		}
-		ast_cli(fd, "--- Station Name:    %s\n"
-		            "--- ==> Device:      %s\n"
-					"--- ==> AutoContext: %s\n"
-					"--- ==> RingTimeout: %s\n"
-					"--- ==> Trunks ...\n",
+		if (station->ring_delay) {
+			snprintf(ring_delay, sizeof(ring_delay), 
+				"%u", station->ring_delay);
+		}
+		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		            "=== Station Name:    %s\n"
+		            "=== ==> Device:      %s\n"
+					"=== ==> AutoContext: %s\n"
+					"=== ==> RingTimeout: %s\n"
+					"=== ==> RingDelay:   %s\n"
+					"=== ==> Trunks ...\n",
 					station->name, station->device,
-					S_OR(station->autocontext, "(none)"), ring_timeout);
+					S_OR(station->autocontext, "(none)"), 
+					ring_timeout, ring_delay);
 		AST_RWLIST_RDLOCK(&sla_trunks);
 		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
 			if (trunk_ref->ring_timeout) {
@@ -1064,17 +1084,25 @@ static int sla_show_stations(int fd, int argc, char **argv)
 					"%u", trunk_ref->ring_timeout);
 			} else
 				strcpy(ring_timeout, "(none)");
-			ast_cli(fd, "---    ==> Trunk Name: %s\n", 
-				trunk_ref->trunk->name);
-			ast_cli(fd, "---       ==> State:       %s\n", 
-				trunkstate2str(trunk_ref->state));
-			ast_cli(fd, "---       ==> RingTimeout: %s\n", ring_timeout);
+			if (trunk_ref->ring_delay) {
+				snprintf(ring_delay, sizeof(ring_delay),
+					"%u", trunk_ref->ring_delay);
+			} else
+				strcpy(ring_delay, "(none)");
+			ast_cli(fd, "===    ==> Trunk Name: %s\n"
+			            "===       ==> State:       %s\n"
+			            "===       ==> RingTimeout: %s\n"
+			            "===       ==> RingDelay:   %s\n",
+			            trunk_ref->trunk->name,
+			            trunkstate2str(trunk_ref->state),
+			            ring_timeout, ring_delay);
 		}
 		AST_RWLIST_UNLOCK(&sla_trunks);
-		ast_cli(fd, "---\n");
+		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		            "===\n");
 	}
 	AST_RWLIST_UNLOCK(&sla_stations);
-	ast_cli(fd, "-------------------------------------------------------------\n"
+	ast_cli(fd, "============================================================\n"
 	            "\n");
 
 	return RESULT_SUCCESS;
@@ -3047,7 +3075,7 @@ static struct sla_station *sla_find_station(const char *name)
 	return station;
 }
 
-static struct sla_trunk_ref *sla_sla_find_trunk_ref(const struct sla_station *station,
+static struct sla_trunk_ref *sla_find_trunk_ref_byname(const struct sla_station *station,
 	const char *name)
 {
 	struct sla_trunk_ref *trunk_ref = NULL;
@@ -3090,8 +3118,6 @@ static void sla_change_trunk_state(const struct sla_trunk *trunk, enum sla_trunk
 {
 	struct sla_station *station;
 	struct sla_trunk_ref *trunk_ref;
-
-	ast_log(LOG_DEBUG, "Setting all refs of trunk %s to state %s\n", trunk->name, trunkstate2str(state));
 
 	AST_LIST_TRAVERSE(&sla_stations, station, entry) {
 		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
@@ -3209,6 +3235,64 @@ static void sla_dial_state_callback(struct ast_dial *dial)
 	sla_queue_event(SLA_EVENT_DIAL_STATE);
 }
 
+/*! \brief Check to see if dialing this station already timed out for this ringing trunk
+ * \note Assumes sla.lock is locked
+ */
+static int sla_check_timed_out_station(const struct sla_ringing_trunk *ringing_trunk,
+	const struct sla_station *station)
+{
+	struct sla_station_ref *timed_out_station;
+
+	AST_LIST_TRAVERSE(&ringing_trunk->timed_out_stations, timed_out_station, entry) {
+		if (station == timed_out_station->station)
+			return 1;
+	}
+
+	return 0;
+}
+
+/*! \brief Choose the highest priority ringing trunk for a station
+ * \param station the station
+ * \param remove remove the ringing trunk once selected
+ * \param trunk_ref a place to store the pointer to this stations reference to
+ *        the selected trunk
+ * \return a pointer to the selected ringing trunk, or NULL if none found
+ * \note Assumes that sla.lock is locked
+ */
+static struct sla_ringing_trunk *sla_choose_ringing_trunk(struct sla_station *station, 
+	struct sla_trunk_ref **trunk_ref, int remove)
+{
+	struct sla_trunk_ref *s_trunk_ref;
+	struct sla_ringing_trunk *ringing_trunk = NULL;
+
+	AST_LIST_TRAVERSE(&station->trunks, s_trunk_ref, entry) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, ringing_trunk, entry) {
+			/* Make sure this is the trunk we're looking for */
+			if (s_trunk_ref->trunk != ringing_trunk->trunk)
+				continue;
+
+			/* This trunk on the station is ringing.  But, make sure this station
+			 * didn't already time out while this trunk was ringing. */
+			if (sla_check_timed_out_station(ringing_trunk, station))
+				continue;
+
+			if (remove)
+				AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+
+			if (trunk_ref)
+				*trunk_ref = s_trunk_ref;
+
+			break;
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+	
+		if (ringing_trunk)
+			break;
+	}
+
+	return ringing_trunk;
+}
+
 static void sla_handle_dial_state_event(void)
 {
 	struct sla_ringing_station *ringing_station;
@@ -3235,36 +3319,22 @@ static void sla_handle_dial_state_event(void)
 		case AST_DIAL_RESULT_ANSWERED:
 			AST_LIST_REMOVE_CURRENT(&sla.ringing_stations, entry);
 			/* Find the appropriate trunk to answer. */
-			AST_LIST_TRAVERSE(&ringing_station->station->trunks, s_trunk_ref, entry) {
-				ast_mutex_lock(&sla.lock);
-				AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, ringing_trunk, entry) {
-					struct sla_station_ref *station_ref;
-					if (s_trunk_ref->trunk != ringing_trunk->trunk)
-						continue;
-					/* This trunk on the station is ringing.  But, make sure this station
-					 * didn't already time out while this trunk was ringing. */
-					AST_LIST_TRAVERSE(&ringing_trunk->timed_out_stations, station_ref, entry) {
-						if (station_ref->station == ringing_station->station)
-							break;
-					}
-					if (station_ref)
-						continue;
-					AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
-					break;
-				}
-				AST_LIST_TRAVERSE_SAFE_END
-				ast_mutex_unlock(&sla.lock);
-				if (ringing_trunk)
-					break;
-			}
+			ast_mutex_lock(&sla.lock);
+			ringing_trunk = sla_choose_ringing_trunk(ringing_station->station, &s_trunk_ref, 1);
+			ast_mutex_unlock(&sla.lock);
 			if (!ringing_trunk) {
 				ast_log(LOG_DEBUG, "Found no ringing trunk for station '%s' to answer!\n",
 					ringing_station->station->name);
 				break;
 			}
+			/* Track the channel that answered this trunk */
 			s_trunk_ref->chan = ast_dial_answered(ringing_station->station->dial);
+			/* Actually answer the trunk */
 			ast_answer(ringing_trunk->trunk->chan);
 			sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS);
+			/* Now, start a thread that will connect this station to the trunk.  The rest of
+			 * the code here sets up the thread and ensures that it is able to save the arguments
+			 * before they are no longer valid since they are allocated on the stack. */
 			args.trunk_ref = s_trunk_ref;
 			args.station = ringing_station->station;
 			args.cond = &cond;
@@ -3299,84 +3369,199 @@ static void sla_handle_dial_state_event(void)
 	AST_LIST_TRAVERSE_SAFE_END
 }
 
-static void sla_handle_ringing_trunk_event(void)
+/*! \brief Check to see if this station is already ringing 
+ * \note Assumes sla.lock is locked 
+ */
+static int sla_check_ringing_station(const struct sla_station *station)
 {
-	struct sla_trunk_ref *trunk_ref;
-	struct sla_station_ref *station_ref;
-	struct sla_ringing_trunk *ringing_trunk;
 	struct sla_ringing_station *ringing_station;
 
-	ast_mutex_lock(&sla.lock);
+	AST_LIST_TRAVERSE(&sla.ringing_stations, ringing_station, entry) {
+		if (station == ringing_station->station)
+			return 1;
+	}
+
+	return 0;
+}
+
+/*! \brief Check to see if this station has failed to be dialed in the past minute
+ * \note assumes sla.lock is locked
+ */
+static int sla_check_failed_station(const struct sla_station *station)
+{
+	struct sla_failed_station *failed_station;
+	int res = 0;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.failed_stations, failed_station, entry) {
+		if (station != failed_station->station)
+			continue;
+		if (ast_tvdiff_ms(ast_tvnow(), failed_station->last_try) > 1000) {
+			AST_LIST_REMOVE_CURRENT(&sla.failed_stations, entry);
+			free(failed_station);
+			break;
+		}
+		res = 1;
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+
+	return res;
+}
+
+/*! \brief Ring a station
+ * \note Assumes sla.lock is locked
+ */
+static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_station *station)
+{
+	char *tech, *tech_data;
+	struct ast_dial *dial;
+	struct sla_ringing_station *ringing_station;
+
+	if (!(dial = ast_dial_create()))
+		return -1;
+
+	ast_dial_set_state_callback(dial, sla_dial_state_callback);
+	tech_data = ast_strdupa(station->device);
+	tech = strsep(&tech_data, "/");
+
+	if (ast_dial_append(dial, tech, tech_data) == -1) {
+		ast_dial_destroy(dial);
+		return -1;
+	}
+
+	if (ast_dial_run(dial, ringing_trunk->trunk->chan, 1) != AST_DIAL_RESULT_TRYING) {
+		struct sla_failed_station *failed_station;
+		ast_dial_destroy(dial);
+		if (!(failed_station = ast_calloc(1, sizeof(*failed_station))))
+			return -1;
+		failed_station->station = station;
+		failed_station->last_try = ast_tvnow();
+		AST_LIST_INSERT_HEAD(&sla.failed_stations, failed_station, entry);
+		return -1;
+	}
+	if (!(ringing_station = sla_create_ringing_station(station))) {
+		ast_dial_join(dial);
+		ast_dial_destroy(dial);
+		return -1;
+	}
+
+	station->dial = dial;
+
+	AST_LIST_INSERT_HEAD(&sla.ringing_stations, ringing_station, entry);
+
+	return 0;
+}
+
+/*! \brief Check to see if a station is in use
+ */
+static int sla_check_inuse_station(const struct sla_station *station)
+{
+	struct sla_trunk_ref *trunk_ref;
+
+	AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+		if (trunk_ref->chan)
+			return 1;
+	}
+
+	return 0;
+}
+
+static struct sla_trunk_ref *sla_find_trunk_ref(const struct sla_station *station,
+	const struct sla_trunk *trunk)
+{
+	struct sla_trunk_ref *trunk_ref = NULL;
+
+	AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+		if (trunk_ref->trunk == trunk)
+			break;
+	}
+
+	return trunk_ref;
+}
+
+/*! \brief Calculate the ring delay for a given ringing trunk on a station
+ * \param station the station
+ * \param trunk the trunk.  If NULL, the highest priority ringing trunk will be used
+ * \return the number of ms left before the delay is complete, or INT_MAX if there is no delay
+ */
+static int sla_check_station_delay(struct sla_station *station, 
+	struct sla_ringing_trunk *ringing_trunk)
+{
+	struct sla_trunk_ref *trunk_ref;
+	unsigned int delay = UINT_MAX;
+	int time_left, time_elapsed;
+
+	if (!ringing_trunk)
+		ringing_trunk = sla_choose_ringing_trunk(station, &trunk_ref, 0);
+	else
+		trunk_ref = sla_find_trunk_ref(station, ringing_trunk->trunk);
+
+	if (!ringing_trunk || !trunk_ref)
+		return delay;
+
+	/* If this station has a ring delay specific to the highest priority
+	 * ringing trunk, use that.  Otherwise, use the ring delay specified
+	 * globally for the station. */
+	delay = trunk_ref->ring_delay;
+	if (!delay)
+		delay = station->ring_delay;
+	if (!delay)
+		return INT_MAX;
+
+	time_elapsed = ast_tvdiff_ms(ast_tvnow(), ringing_trunk->ring_begin);
+	time_left = (delay * 1000) - time_elapsed;
+
+	return time_left;
+}
+
+/*! \brief Ring stations based on current set of ringing trunks
+ * \note Assumes that sla.lock is locked
+ */
+static void sla_ring_stations(void)
+{
+	struct sla_station_ref *station_ref;
+	struct sla_ringing_trunk *ringing_trunk;
 
 	/* Make sure that every station that uses at least one of the ringing
 	 * trunks, is ringing. */
 	AST_LIST_TRAVERSE(&sla.ringing_trunks, ringing_trunk, entry) {
 		AST_LIST_TRAVERSE(&ringing_trunk->trunk->stations, station_ref, entry) {
-			char *tech, *tech_data;
-			struct ast_dial *dial;
-			struct sla_failed_station *failed_station;
-			struct sla_station_ref *timed_out_station;
+			int time_left;
+
+			/* Is this station already ringing? */
+			if (sla_check_ringing_station(station_ref->station))
+				continue;
+
+			/* Is this station already in a call? */
+			if (sla_check_inuse_station(station_ref->station))
+				continue;
+
 			/* Did we fail to dial this station earlier?  If so, has it been
  			 * a minute since we tried? */
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.failed_stations, failed_station, entry) {
-				if (station_ref->station != failed_station->station)
-					continue;
-				if (ast_tvdiff_ms(ast_tvnow(), failed_station->last_try) > 1000) {
-					AST_LIST_REMOVE_CURRENT(&sla.failed_stations, entry);
-					free(failed_station);
-					failed_station = NULL;
-				}
-				break;
-			}
-			if (failed_station)
+			if (sla_check_failed_station(station_ref->station))
 				continue;
-			AST_LIST_TRAVERSE_SAFE_END
-			AST_LIST_TRAVERSE(&sla.ringing_stations, ringing_station, entry) {
-				if (station_ref->station == ringing_station->station)
-					break;
-			}
-			if (ringing_station)
-				continue;
+
 			/* If this station already timed out while this trunk was ringing,
 			 * do not dial it again for this ringing trunk. */
-			AST_LIST_TRAVERSE(&ringing_trunk->timed_out_stations, timed_out_station, entry) {
-				if (station_ref->station == timed_out_station->station)
-					break;
-			}
-			if (timed_out_station)
+			if (sla_check_timed_out_station(ringing_trunk, station_ref->station))
 				continue;
-			if (!(dial = ast_dial_create()))
+
+			/* Check for a ring delay in progress */
+			time_left = sla_check_station_delay(station_ref->station, ringing_trunk);
+			if (time_left != INT_MAX && time_left > 0)
 				continue;
-			ast_dial_set_state_callback(dial, sla_dial_state_callback);
-			tech_data = ast_strdupa(station_ref->station->device);
-			tech = strsep(&tech_data, "/");
-			if (ast_dial_append(dial, tech, tech_data) == -1) {
-				ast_dial_destroy(dial);
-				continue;
-			}
-			if (ast_dial_run(dial, ringing_trunk->trunk->chan, 1) != AST_DIAL_RESULT_TRYING) {
-				ast_dial_destroy(dial);
-				if (!(failed_station = ast_calloc(1, sizeof(*failed_station))))
-					continue;
-				failed_station->station = station_ref->station;
-				failed_station->last_try = ast_tvnow();
-				AST_LIST_INSERT_HEAD(&sla.failed_stations, failed_station, entry);
-				continue;
-			}
-			if (!(ringing_station = sla_create_ringing_station(station_ref->station))) {
-				ast_dial_join(dial);
-				ast_dial_destroy(dial);
-				continue;
-			}
-			station_ref->station->dial = dial;
-			AST_LIST_INSERT_HEAD(&sla.ringing_stations, ringing_station, entry);
-			ast_log(LOG_DEBUG, "Started dialing station '%s'\n", station_ref->station->name);
+
+			/* It is time to make this station begin to ring.  Do it! */
+			sla_ring_station(ringing_trunk, station_ref->station);
 		}
 	}
-	ast_mutex_unlock(&sla.lock);
 	/* Now, all of the stations that should be ringing, are ringing. */
-	
-	/* Find stations that shouldn't be ringing anymore. */
+}
+
+static void sla_hangup_stations(void)
+{
+	struct sla_trunk_ref *trunk_ref;
+	struct sla_ringing_station *ringing_station;
+
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_stations, ringing_station, entry) {
 		AST_LIST_TRAVERSE(&ringing_station->station->trunks, trunk_ref, entry) {
 			struct sla_ringing_trunk *ringing_trunk;
@@ -3400,6 +3585,16 @@ static void sla_handle_ringing_trunk_event(void)
 	AST_LIST_TRAVERSE_SAFE_END
 }
 
+static void sla_handle_ringing_trunk_event(void)
+{
+	ast_mutex_lock(&sla.lock);
+	sla_ring_stations();
+	ast_mutex_unlock(&sla.lock);
+
+	/* Find stations that shouldn't be ringing anymore. */
+	sla_hangup_stations();
+}
+
 static void sla_handle_hold_event(struct sla_event *event)
 {
 	ast_atomic_fetchadd_int((int *) &event->trunk_ref->trunk->hold_stations, 1);
@@ -3420,17 +3615,15 @@ static void sla_handle_unhold_event(struct sla_event *event)
 	}
 }
 
-/*! \brief Calculate the time until the next known event
- *  \note Called with sla.lock locked */
-static int sla_process_timers(struct timespec *ts)
+/*! \brief Process trunk ring timeouts
+ * \note Called with sla.lock locked
+ * \return non-zero if a change to the ringing trunks was made
+ */
+static int sla_calc_trunk_timeouts(unsigned int *timeout)
 {
 	struct sla_ringing_trunk *ringing_trunk;
-	struct sla_ringing_station *ringing_station;
-	unsigned int timeout = UINT_MAX;
-	struct timeval tv;
-	unsigned int change_made = 0;
+	int res = 0;
 
-	/* Check for ring timeouts on ringing trunks */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, ringing_trunk, entry) {
 		int time_left, time_elapsed;
 		if (!ringing_trunk->trunk->ring_timeout)
@@ -3440,37 +3633,51 @@ static int sla_process_timers(struct timespec *ts)
 		if (time_left <= 0) {
 			AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
 			sla_stop_ringing_trunk(ringing_trunk);
-			change_made = 1;
+			res = 1;
 			continue;
 		}
-		if (time_left < timeout)
-			timeout = time_left;
+		if (time_left < *timeout)
+			*timeout = time_left;
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 
-	/* Check for ring timeouts on ringing stations */
+	return res;
+}
+
+/*! \brief Process station ring timeouts
+ * \note Called with sla.lock locked
+ * \return non-zero if a change to the ringing stations was made
+ */
+static int sla_calc_station_timeouts(unsigned int *timeout)
+{
+	struct sla_ringing_trunk *ringing_trunk;
+	struct sla_ringing_station *ringing_station;
+	int res = 0;
+
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_stations, ringing_station, entry) {
 		unsigned int ring_timeout = 0;
-		int time_elapsed, time_left, final_trunk_time_left = INT_MIN;
+		int time_elapsed, time_left = INT_MAX, final_trunk_time_left = INT_MIN;
 		struct sla_trunk_ref *trunk_ref;
+
 		/* If there are any ring timeouts specified for a specific trunk
 		 * on the station, then use the highest per-trunk ring timeout.
 		 * Otherwise, use the ring timeout set for the entire station. */
 		AST_LIST_TRAVERSE(&ringing_station->station->trunks, trunk_ref, entry) {
 			struct sla_station_ref *station_ref;
 			int trunk_time_elapsed, trunk_time_left;
+
 			AST_LIST_TRAVERSE(&sla.ringing_trunks, ringing_trunk, entry) {
 				if (ringing_trunk->trunk == trunk_ref->trunk)
 					break;
 			}
 			if (!ringing_trunk)
 				continue;
+
 			/* If there is a trunk that is ringing without a timeout, then the
 			 * only timeout that could matter is a global station ring timeout. */
-			if (!trunk_ref->ring_timeout) {
-				final_trunk_time_left = INT_MAX;
+			if (!trunk_ref->ring_timeout)
 				break;
-			}
+
 			/* This trunk on this station is ringing and has a timeout.
 			 * However, make sure this trunk isn't still ringing from a
 			 * previous timeout.  If so, don't consider it. */
@@ -3480,36 +3687,114 @@ static int sla_process_timers(struct timespec *ts)
 			}
 			if (station_ref)
 				continue;
+
 			trunk_time_elapsed = ast_tvdiff_ms(ast_tvnow(), ringing_trunk->ring_begin);
 			trunk_time_left = (trunk_ref->ring_timeout * 1000) - trunk_time_elapsed;
 			if (trunk_time_left > final_trunk_time_left)
 				final_trunk_time_left = trunk_time_left;
 		}
-		if (final_trunk_time_left == INT_MAX && !ringing_station->station->ring_timeout)
+
+		/* No timeout was found for ringing trunks, and no timeout for the entire station */
+		if (final_trunk_time_left == INT_MIN && !ringing_station->station->ring_timeout)
 			continue;
 
-		ring_timeout = ringing_station->station->ring_timeout;
-		time_elapsed = ast_tvdiff_ms(ast_tvnow(), ringing_station->ring_begin);
-		time_left = (ring_timeout * 1000) - time_elapsed;
+		/* Compute how much time is left for a global station timeout */
+		if (ringing_station->station->ring_timeout) {
+			ring_timeout = ringing_station->station->ring_timeout;
+			time_elapsed = ast_tvdiff_ms(ast_tvnow(), ringing_station->ring_begin);
+			time_left = (ring_timeout * 1000) - time_elapsed;
+		}
+
 		/* If the time left based on the per-trunk timeouts is smaller than the
 		 * global station ring timeout, use that. */
 		if (final_trunk_time_left > INT_MIN && final_trunk_time_left < time_left)
 			time_left = final_trunk_time_left;
+
+		/* If there is no time left, the station needs to stop ringing */
 		if (time_left <= 0) {
 			AST_LIST_REMOVE_CURRENT(&sla.ringing_stations, entry);
 			sla_stop_ringing_station(ringing_station, SLA_STATION_HANGUP_TIMEOUT);
-			change_made = 1;
+			res = 1;
 			continue;
 		}
-		if (time_left < timeout)
-			timeout = time_left;
+
+		/* There is still some time left for this station to ring, so save that
+		 * timeout if it is the first event scheduled to occur */
+		if (time_left < *timeout)
+			*timeout = time_left;
 	}
 	AST_LIST_TRAVERSE_SAFE_END
+
+	return res;
+}
+
+/*! \brief Calculate the ring delay for a station
+ * \note Assumes sla.lock is locked
+ */
+static int sla_calc_station_delays(unsigned int *timeout)
+{
+	struct sla_station *station;
+	int res = 0;
+
+	AST_LIST_TRAVERSE(&sla_stations, station, entry) {
+		struct sla_ringing_trunk *ringing_trunk;
+		int time_left;
+
+		/* Ignore stations already ringing */
+		if (sla_check_ringing_station(station))
+			continue;
+
+		/* Ignore stations already on a call */
+		if (sla_check_inuse_station(station))
+			continue;
+
+		/* Ignore stations that don't have one of their trunks ringing */
+		if (!(ringing_trunk = sla_choose_ringing_trunk(station, NULL, 0)))
+			continue;
+
+		if ((time_left = sla_check_station_delay(station, ringing_trunk)) == INT_MAX)
+			continue;
+
+		/* If there is no time left, then the station needs to start ringing.
+		 * Return non-zero so that an event will be queued up an event to 
+		 * make that happen. */
+		if (time_left <= 0) {
+			res = 1;
+			continue;
+		}
+
+		if (time_left < *timeout)
+			*timeout = time_left;
+	}
+
+	return res;
+}
+
+/*! \brief Calculate the time until the next known event
+ *  \note Called with sla.lock locked */
+static int sla_process_timers(struct timespec *ts)
+{
+	unsigned int timeout = UINT_MAX;
+	struct timeval tv;
+	unsigned int change_made = 0;
+
+	/* Check for ring timeouts on ringing trunks */
+	if (sla_calc_trunk_timeouts(&timeout))
+		change_made = 1;
+
+	/* Check for ring timeouts on ringing stations */
+	if (sla_calc_station_timeouts(&timeout))
+		change_made = 1;
+
+	/* Check for station ring delays */
+	if (sla_calc_station_delays(&timeout))
+		change_made = 1;
 
 	/* queue reprocessing of ringing trunks */
 	if (change_made)
 		sla_queue_event_nolock(SLA_EVENT_RINGING_TRUNK);
 
+	/* No timeout */
 	if (timeout == UINT_MAX)
 		return 0;
 
@@ -3541,7 +3826,6 @@ static void *sla_thread(void *data)
 				ast_cond_wait(&sla.cond, &sla.lock);
 			if (sla.stop)
 				break;
-			ast_log(LOG_DEBUG, "Ooh, I was woken up!\n");
 		}
 
 		if (have_timeout)
@@ -3650,7 +3934,6 @@ static void *dial_trunk(void *data)
 		ast_mutex_unlock(args->cond_lock);
 		ast_dial_join(dial);
 		ast_dial_destroy(dial);
-		ast_log(LOG_DEBUG, "broke out with no chan\n");
 		return NULL;
 	}
 
@@ -3678,7 +3961,21 @@ static void *dial_trunk(void *data)
 	return NULL;
 }
 
-static int slastation_exec(struct ast_channel *chan, void *data)
+/*! \brief For a given station, choose the highest priority idle trunk
+ */
+static struct sla_trunk_ref *sla_choose_idle_trunk(const struct sla_station *station)
+{
+	struct sla_trunk_ref *trunk_ref = NULL;
+
+	AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
+		if (trunk_ref->state == SLA_TRUNK_STATE_IDLE)
+			break;
+	}
+
+	return trunk_ref;
+}
+
+static int sla_station_exec(struct ast_channel *chan, void *data)
 {
 	char *station_name, *trunk_name;
 	struct sla_station *station;
@@ -3715,13 +4012,9 @@ static int slastation_exec(struct ast_channel *chan, void *data)
 
 	AST_RWLIST_RDLOCK(&sla_trunks);
 	if (!ast_strlen_zero(trunk_name))
-		trunk_ref = sla_sla_find_trunk_ref(station, trunk_name);
-	else {
-		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
-			if (trunk_ref->state == SLA_TRUNK_STATE_IDLE)
-				break;
-		}
-	}
+		trunk_ref = sla_find_trunk_ref_byname(station, trunk_name);
+	else
+		trunk_ref = sla_choose_idle_trunk(station);
 	AST_RWLIST_UNLOCK(&sla_trunks);
 
 	if (ast_strlen_zero(trunk_name) && !trunk_ref) {
@@ -3824,7 +4117,7 @@ static struct sla_ringing_trunk *queue_ringing_trunk(struct sla_trunk *trunk)
 	return ringing_trunk;
 }
 
-static int slatrunk_exec(struct ast_channel *chan, void *data)
+static int sla_trunk_exec(struct ast_channel *chan, void *data)
 {
 	const char *trunk_name = data;
 	char conf_name[MAX_CONFNUM];
@@ -4121,6 +4414,12 @@ static void sla_add_trunk_to_station(struct sla_station *station, struct ast_var
 					"trunk '%s' on station '%s'\n", value, trunk->name, station->name);
 				trunk_ref->ring_timeout = 0;
 			}
+		} else if (!strcasecmp(name, "ringdelay")) {
+			if (sscanf(value, "%u", &trunk_ref->ring_delay) != 1) {
+				ast_log(LOG_WARNING, "Invalid ringdelay value '%s' for "
+					"trunk '%s' on station '%s'\n", value, trunk->name, station->name);
+				trunk_ref->ring_delay = 0;
+			}
 		} else {
 			ast_log(LOG_WARNING, "Invalid option '%s' for "
 				"trunk '%s' on station '%s'\n", name, trunk->name, station->name);
@@ -4169,6 +4468,12 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 				ast_log(LOG_WARNING, "Invalid ringtimeout '%s' specified for station '%s'\n",
 					var->value, station->name);
 				station->ring_timeout = 0;
+			}
+		} else if (!strcasecmp(var->name, "ringdelay")) {
+			if (sscanf(var->value, "%u", &station->ring_delay) != 1) {
+				ast_log(LOG_WARNING, "Invalid ringdelay '%s' specified for station '%s'\n",
+					var->value, station->name);
+				station->ring_delay = 0;
 			}
 		} else if (strcasecmp(var->name, "type") && strcasecmp(var->name, "device")) {
 			ast_log(LOG_ERROR, "Invalid option '%s' specified at line %d of %s!\n",
@@ -4235,6 +4540,9 @@ static int sla_load_config(void)
 	struct ast_config *cfg;
 	const char *cat = NULL;
 	int res = 0;
+
+	ast_mutex_init(&sla.lock);
+	ast_cond_init(&sla.cond, NULL);
 
 	if (!(cfg = ast_config_load(SLA_CONFIG_FILE)))
 		return 0; /* Treat no config as normal */
@@ -4304,6 +4612,8 @@ static int load_module(void)
 {
 	int res;
 
+	res |= load_config(0);
+
 	ast_cli_register_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
 	res = ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, 
 		action_meetmemute, "Mute a Meetme user");
@@ -4312,15 +4622,13 @@ static int load_module(void)
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
-	res |= ast_register_application(slastation_app, slastation_exec,
+	res |= ast_register_application(slastation_app, sla_station_exec,
 		slastation_synopsis, slastation_desc);
-	res |= ast_register_application(slatrunk_app, slatrunk_exec,
+	res |= ast_register_application(slatrunk_app, sla_trunk_exec,
 		slatrunk_synopsis, slatrunk_desc);
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
 	res |= ast_devstate_prov_add("SLA", sla_state);
-
-	res |= load_config(0);
 
 	return res;
 }
