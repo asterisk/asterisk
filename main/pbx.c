@@ -934,17 +934,17 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		q->swo = NULL;
 		q->data = NULL;
 		q->foundcontext = NULL;
-	}
-	/* Check for stack overflow */
-	if (q->stacklen >= AST_PBX_MAX_STACK) {
+	} else if (q->stacklen >= AST_PBX_MAX_STACK) {
 		ast_log(LOG_WARNING, "Maximum PBX stack exceeded\n");
 		return NULL;
 	}
+
 	/* Check first to see if we've already been checked */
 	for (x = 0; x < q->stacklen; x++) {
 		if (!strcasecmp(q->incstack[x], context))
 			return NULL;
 	}
+
 	if (bypass)	/* bypass means we only look there */
 		tmp = bypass;
 	else {	/* look in contexts */
@@ -956,6 +956,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		if (!tmp)
 			return NULL;
 	}
+
 	if (q->status < STATUS_NO_EXTENSION)
 		q->status = STATUS_NO_EXTENSION;
 
