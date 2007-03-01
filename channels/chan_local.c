@@ -187,7 +187,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 {
 	if (p->alreadymasqed || p->nooptimization)
 		return;
-	if (!p->chan || !p->owner)
+	if (!p->chan || !p->owner || (p->chan->_bridge != ast_bridged_channel(p->chan)))
 		return;
 
 	/* only do the masquerade if we are being called on the outbound channel,
