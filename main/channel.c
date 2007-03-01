@@ -571,7 +571,7 @@ int ast_best_codec(int fmts)
 	/* This just our opinion, expressed in code.  We are asked to choose
 	   the best codec to use, given no information */
 	int x;
-	static int prefs[] =
+	static const int prefs[] =
 	{
 		/*! Okay, ulaw is used by all telephony equipment, so start with it */
 		AST_FORMAT_ULAW,
