@@ -69,7 +69,7 @@ Revision Date of Issue Description
 
 
 1 Introduction
-This document provides instructions on how to build and configure Asterisk V1.6 with the OSP Toolkit to enable secure, multi-lateral peering.  This document is also available in the Asterisk source package as doc/osp.txt.  The OSP Toolkit is an open source implementation of the OSP peering protocol and is freely available from https://sourceforge.net/projects/osp-toolkit.  The OSP standard defined by the European Telecommunications Standards Institute (ETSI TS 101 321) www.esti.org.  If you have questions or need help, building Asterisk with the OSP Toolkit, please post your question on the OSP mailing list at https://lists.sourceforge.net/lists/listinfo/osp-toolkit-client.
+This document provides instructions on how to build and configure Asterisk V1.6 with the OSP Toolkit to enable secure, multi-lateral peering.  This document is also available in the Asterisk source package as doc/osp.txt.  The OSP Toolkit is an open source implementation of the OSP peering protocol and is freely available from https://sourceforge.net/projects/osp-toolkit.  The OSP standard defined by the European Telecommunications Standards Institute (ETSI TS 101 321) www.etsi.org.  If you have questions or need help, building Asterisk with the OSP Toolkit, please post your question on the OSP mailing list at https://lists.sourceforge.net/lists/listinfo/osp-toolkit-client.
 
 2 OSP Toolkit
 Please reference the OSP Toolkit document "How to Build and Test the OSP Toolkit” available from https://sourceforge.net/projects/osp-toolkit.  
