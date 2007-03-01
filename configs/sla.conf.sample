@@ -18,7 +18,10 @@
 ;type=trunk                 ; This line is what marks this entry as a trunk.
 
 ;device=Zap/3               ; Map this trunk declaration to a specific device.
-                            ; NOTE: At this point, this *must* be a zap channel!
+                            ; NOTE: You can not just put any type of channel here.
+                            ;       Zap channels can be directly used.  IP trunks
+                            ;       require some indirect configuration which is
+                            ;       described in doc/sla.txt.
 
 ;autocontext=line1          ; This supports automatic generation of the dialplan entries 
                             ; if the autocontext option is used.  Each trunk should have 
@@ -52,7 +55,10 @@
 
 ;[line4]
 ;type=trunk
-;device=Zap/4
+;device=Local/disa@line4_outbound ; A Local channel in combination with the Disa
+                                  ; application can be used to support IP trunks.
+                                  ; See doc/sla.txt on more information on how
+                                  ; IP trunks work.
 ;autocontext=line4
 ; --------------------------------------
 
