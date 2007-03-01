@@ -220,7 +220,7 @@ static int local_answer(struct ast_channel *ast)
 
 static void check_bridge(struct local_pvt *p, int isoutbound)
 {
-	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || ast_test_flag(p, LOCAL_NO_OPTIMIZATION) || !p->chan || !p->owner)
+	if (ast_test_flag(p, LOCAL_ALREADY_MASQED) || ast_test_flag(p, LOCAL_NO_OPTIMIZATION) || !p->chan || !p->owner || (p->chan->_bridge != ast_bridged_channel(p->chan)))
 		return;
 
 	/* only do the masquerade if we are being called on the outbound channel,
