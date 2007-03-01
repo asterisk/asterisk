@@ -347,7 +347,6 @@ struct ast_conf_user {
 	time_t jointime;                        /*!< Time the user joined the conference */
 	struct volume talk;
 	struct volume listen;
-	AST_LIST_HEAD_NOLOCK(, ast_frame) frame_q;
 	AST_LIST_ENTRY(ast_conf_user) list;
 };
 
@@ -1238,17 +1237,15 @@ static int conf_free(struct ast_conference *conf)
 }
 
 static void conf_queue_dtmf(const struct ast_conference *conf,
-	const struct ast_conf_user *sender, const struct ast_frame *_f)
+	const struct ast_conf_user *sender, struct ast_frame *f)
 {
-	struct ast_frame *f;
 	struct ast_conf_user *user;
 
 	AST_LIST_TRAVERSE(&conf->userlist, user, list) {
 		if (user == sender)
 			continue;
-		if (!(f = ast_frdup(_f)))
-			return;
-		AST_LIST_INSERT_TAIL(&user->frame_q, f, frame_list);
+		if (ast_write(user->chan, f) < 0)
+			ast_log(LOG_WARNING, "Error writing frame to channel %s\n", user->chan->name);
 	}
 }
 
@@ -1875,14 +1872,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					f = ast_read(c);
 				if (!f)
 					break;
-				if (!AST_LIST_EMPTY(&user->frame_q)) {
-					struct ast_frame *f;
-					f = AST_LIST_REMOVE_HEAD(&user->frame_q, frame_list);
-					if (ast_write(chan, f) < 0) {
-						ast_log(LOG_WARNING, "Error writing frame to channel!\n");
-					}
-					ast_frfree(f);
-				}
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
 					if (user->talk.actual)
 						ast_frame_adjust_volume(f, user->talk.actual);
@@ -3941,7 +3930,7 @@ static void *sla_thread(void *data)
 }
 
 struct dial_trunk_args {
-	struct sla_trunk *trunk;
+	struct sla_trunk_ref *trunk_ref;
 	struct sla_station *station;
 	ast_mutex_t *cond_lock;
 	ast_cond_t *cond;
@@ -3956,7 +3945,7 @@ static void *dial_trunk(void *data)
 	char conf_name[MAX_CONFNUM];
 	struct ast_conference *conf;
 	struct ast_flags conf_flags = { 0 };
-	struct sla_trunk *trunk = args->trunk;
+	struct sla_trunk_ref *trunk_ref = args->trunk_ref;
 
 	if (!(dial = ast_dial_create())) {
 		ast_mutex_lock(args->cond_lock);
@@ -3965,7 +3954,7 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	tech_data = ast_strdupa(trunk->device);
+	tech_data = ast_strdupa(trunk_ref->trunk->device);
 	tech = strsep(&tech_data, "/");
 	if (ast_dial_append(dial, tech, tech_data) == -1) {
 		ast_mutex_lock(args->cond_lock);
@@ -3975,7 +3964,7 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	dial_res = ast_dial_run(dial, NULL, 1);
+	dial_res = ast_dial_run(dial, trunk_ref->chan, 1);
 	if (dial_res != AST_DIAL_RESULT_TRYING) {
 		ast_mutex_lock(args->cond_lock);
 		ast_cond_signal(args->cond);
@@ -3988,7 +3977,7 @@ static void *dial_trunk(void *data)
 		unsigned int done = 0;
 		switch ((dial_res = ast_dial_state(dial))) {
 		case AST_DIAL_RESULT_ANSWERED:
-			trunk->chan = ast_dial_answered(dial);
+			trunk_ref->trunk->chan = ast_dial_answered(dial);
 		case AST_DIAL_RESULT_HANGUP:
 		case AST_DIAL_RESULT_INVALID:
 		case AST_DIAL_RESULT_FAILED:
@@ -4005,7 +3994,7 @@ static void *dial_trunk(void *data)
 			break;
 	}
 
-	if (!trunk->chan) {
+	if (!trunk_ref->trunk->chan) {
 		ast_mutex_lock(args->cond_lock);
 		ast_cond_signal(args->cond);
 		ast_mutex_unlock(args->cond_lock);
@@ -4014,7 +4003,7 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk->name);
+	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | 
 		CONFFLAG_PASS_DTMF | CONFFLAG_SLA_TRUNK);
@@ -4025,12 +4014,12 @@ static void *dial_trunk(void *data)
 	ast_mutex_unlock(args->cond_lock);
 
 	if (conf) {
-		conf_run(trunk->chan, conf, conf_flags.flags, NULL);
+		conf_run(trunk_ref->trunk->chan, conf, conf_flags.flags, NULL);
 		dispose_conf(conf);
 		conf = NULL;
 	}
 
-	trunk->chan = NULL;
+	trunk_ref->trunk->chan = NULL;
 
 	ast_dial_join(dial);
 	ast_dial_destroy(dial);
@@ -4105,13 +4094,15 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
+	trunk_ref->chan = chan;
+
 	if (!trunk_ref->trunk->chan) {
 		ast_mutex_t cond_lock;
 		ast_cond_t cond;
 		pthread_t dont_care;
 		pthread_attr_t attr;
 		struct dial_trunk_args args = {
-			.trunk = trunk_ref->trunk,
+			.trunk_ref = trunk_ref,
 			.station = station,
 			.cond_lock = &cond_lock,
 			.cond = &cond,
@@ -4137,6 +4128,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_DEBUG, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);
 			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS);
+			trunk_ref->chan = NULL;
 			return 0;
 		}
 	}
@@ -4145,7 +4137,6 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
-	trunk_ref->chan = chan;
 	ast_answer(chan);
 	conf = build_conf(conf_name, "", "", 0, 0, 1);
 	if (conf) {
