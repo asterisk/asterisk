@@ -155,11 +155,19 @@ static void substitute_commas(char *str);
 static void substitute_commas(char *str)
 {
 	char *p = str;
+	
 	while (p && *p)
 	{
 		if (*p == ',' && ((p != str && *(p-1) != '\\')
 				|| p == str))
 			*p = '|';
+		if (*p == '\\' && *(p+1) == ',') { /* learning experience: the '\,' is turned into just ',' by pbx_config; So we need to do the same */
+			char *q = p;
+			while (*q) {  /* move the ',' and everything after it up 1 char */
+				*q = *(q+1);
+				q++;
+			}
+		}
 		p++;
 	}
 }
