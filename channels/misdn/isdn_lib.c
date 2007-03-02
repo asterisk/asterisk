@@ -1510,7 +1510,7 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 			int tmp_out_cause=bc->out_cause;	
 			empty_bc(bc);
 			bc->cause=tmpcause;
-			bc->out_cause=tmpcause;
+			bc->out_cause=tmp_out_cause;
 			clean_up_bc(bc);
 			break;
 		default:
