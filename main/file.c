@@ -1033,6 +1033,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				if (context) {
 					const char exten[2] = { fr->subclass, '\0' };
 					if (ast_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
+						res = fr->subclass;
 						ast_frfree(fr);
 						return res;
 					}
