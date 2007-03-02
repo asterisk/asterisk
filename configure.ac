@@ -1048,7 +1048,7 @@ if test "${PBX_ZAPTEL}" = 1; then
    if test "${ac_cv_zaptel_vldtmf}" = "yes"; then
 	PBX_ZAPTEL_VLDTMF=1
    fi
-   AC_MSG_CHECKING(for ZT_TCOP_TRANSCODE in zaptel/zaptel.h)
+   AC_MSG_CHECKING(for ZT_TCOP_ALLOCATE in zaptel/zaptel.h)
    saved_cppflags="${CPPFLAGS}"
    if test "x${ZAPTEL_DIR}" != "x"; then
       CPPFLAGS="${CPPFLAGS} -I${ZAPTEL_DIR}/include"
@@ -1057,7 +1057,7 @@ if test "${PBX_ZAPTEL}" = 1; then
 	[
 	AC_LANG_PROGRAM(
 	[#include <zaptel/zaptel.h>],
-	[int foo = ZT_TCOP_TRANSCODE;])
+	[int foo = ZT_TCOP_ALLOCATE;])
 	],
 	[	AC_MSG_RESULT(yes) 
 		ac_cv_zaptel_transcode="yes" 
