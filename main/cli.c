@@ -801,6 +801,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"      Caller ID: %s\n"
 		" Caller ID Name: %s\n"
 		"    DNID Digits: %s\n"
+		"       Language: %s\n"
 		"          State: %s (%d)\n"
 		"          Rings: %d\n"
 		"  NativeFormats: %s\n"
@@ -827,7 +828,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->name, c->tech->type, c->uniqueid,
 		S_OR(c->cid.cid_num, "(N/A)"),
 		S_OR(c->cid.cid_name, "(N/A)"),
-		S_OR(c->cid.cid_dnid, "(N/A)"), ast_state2str(c->_state), c->_state, c->rings, 
+		S_OR(c->cid.cid_dnid, "(N/A)"), 
+		c->language,	
+		ast_state2str(c->_state), c->_state, c->rings, 
 		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats), 
 		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
 		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
