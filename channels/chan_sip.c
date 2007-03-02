@@ -11450,6 +11450,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 	}
 
+	if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
+		transmit_response(p, "503 Server error", req);
+		ast_set_flag(p, SIP_NEEDDESTROY);
+		return -1;
+	}
+
 	/* Handle various incoming SIP methods in requests */
 	switch (p->method) {
 	case SIP_OPTIONS:
