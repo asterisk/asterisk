@@ -319,24 +319,30 @@ static struct pbx_builtin {
 
 	{ "Goto", pbx_builtin_goto,
 	"Jump to a particular priority, extension, or context",
-	"  Goto([[context|]extension|]priority): This application will cause the\n"
-	"calling channel to continue dialplan execution at the specified priority.\n"
+	"  Goto([[context|]extension|]priority): This application will set the current\n"
+	"context, extension, and priority in the channel structure. After it completes, the\n"
+	"pbx engine will continue dialplan execution at the specified location.\n"
 	"If no specific extension, or extension and context, are specified, then this\n"
-	"application will jump to the specified priority of the current extension.\n"
+	"application will just set the specified priority of the current extension.\n"
 	"  At least a priority is required as an argument, or the goto will return a -1,\n"
 	"and the channel and call will be terminated.\n"
-	"  If the attempt to jump to another location in the dialplan is not successful,\n"
+	"  If the location that is put into the channel information is bogus, and asterisk cannot\n"
+        "find that location in the dialplan,\n"
 	"then the execution engine will try to find and execute the code in the 'i' (invalid)\n"
 	"extension in the current context. If that does not exist, it will try to execute the\n"
 	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
 	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
+	"What this means is that, for example, you specify a context that does not exist, then\n"
+	"it will not be possible to find the 'h' or 'i' extensions, and the call will terminate!\n"
 	},
 
 	{ "GotoIf", pbx_builtin_gotoif,
 	"Conditional goto",
-	"  GotoIf(condition?[labeliftrue]:[labeliffalse]): This application will cause\n"
-	"the calling channel to jump to the specified location in the dialplan based on\n"
-	"the evaluation of the given condition. The channel will continue at\n"
+	"  GotoIf(condition?[labeliftrue]:[labeliffalse]): This application will set the current\n"
+	"context, extension, and priority in the channel structure based on the evaluation of\n"
+	"the given condition. After this application completes, the\n"
+	"pbx engine will continue dialplan execution at the specified location in the dialplan.\n"
+	"The channel will continue at\n"
 	"'labeliftrue' if the condition is true, or 'labeliffalse' if the condition is\n"
 	"false. The labels are specified with the same syntax as used within the Goto\n"
 	"application.  If the label chosen by the condition is omitted, no jump is\n"
@@ -346,13 +352,18 @@ static struct pbx_builtin {
 	"extension in the current context. If that does not exist, it will try to execute the\n"
 	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
 	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
+	"Remember that this command can set the current context, and if the context specified\n"
+	"does not exist, then it will not be able to find any 'h' or 'i' extensions there, and\n"
+	"and the channel and call will both be terminated!\n"
 	},
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
 	"Conditional Goto based on the current time",
 	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]exten|]priority):\n"
-	"This application will have the calling channel jump to the specified location\n"
-	"in the dialplan if the current time matches the given time specification.\n"
+	"This application will set the context, extension, and priority in the channel structure\n"
+	"if the current time matches the given time specification. Otherwise, nothing is done.\n"
+        "Further information on the time specification can be found in examples\n"
+        "illustrating how to do time-based context includes in the dialplan.\n" 
 	"If the target jump location is bogus, the same actions would be taken as for Goto.\n"
 	},
 
