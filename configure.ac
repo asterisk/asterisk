@@ -926,7 +926,7 @@ AST_C_DEFINE_CHECK([ZAPTEL], [ZT_DIAL_OP_CANCEL], [zaptel/zaptel.h], [90])
 AST_C_DEFINE_CHECK([ZAPTEL_VLDTMF], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h])
 
 # Check for transcode support
-AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_TRANSCODE], [zaptel/zaptel.h])
+AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])
 
 # On FreeBSD, try old zaptel (0.80 or so) and pretend we have vldtmf
 case "${host_os}" in
