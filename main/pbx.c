@@ -5228,7 +5228,6 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 	struct ast_exten *e, *el, *en;
 	struct ast_ignorepat *ipi;
 
-	ast_wrlock_contexts();
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
@@ -5278,12 +5277,13 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		/* if we have a specific match, we are done, otherwise continue */
 		tmp = con ? NULL : next;
 	}
-	ast_unlock_contexts();
 }
 
 void ast_context_destroy(struct ast_context *con, const char *registrar)
 {
+	ast_wrlock_contexts();
 	__ast_context_destroy(con,registrar);
+	ast_unlock_contexts();
 }
 
 static void wait_for_hangup(struct ast_channel *chan, void *data)
