@@ -111,6 +111,16 @@
                             ; This value is in seconds.
 
 
+;[station](!)               ; When there are a lot of stations that are configured the same way,
+                            ; it is convenient to use a configuration template like this so that
+                            ; the common settings stay in one place.
+;type=station
+;autocontext=sla_stations
+;trunk=line1
+;trunk=line2 
+;trunk=line3
+;trunk=line4 
+
 ;[station2](station)        ; Define a station that uses the configuration from the template "station".
 ;device=SIP/station2
 ;
