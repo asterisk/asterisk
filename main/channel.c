@@ -1145,7 +1145,7 @@ int ast_channel_datastore_free(struct ast_datastore *datastore)
 
 	/* Free allocated UID memory */
 	if (datastore->uid != NULL) {
-		free(datastore->uid);
+		ast_free(datastore->uid);
 		datastore->uid = NULL;
 	}
 
@@ -1153,6 +1153,23 @@ int ast_channel_datastore_free(struct ast_datastore *datastore)
 	free(datastore);
 
 	return res;
+}
+
+int ast_channel_datastore_inherit(struct ast_channel *from, struct ast_channel *to)
+{
+	struct ast_datastore *datastore = NULL, *datastore2;
+
+	AST_LIST_TRAVERSE(&from->datastores, datastore, entry) {
+		if (datastore->inheritance > 0) {
+			datastore2 = ast_channel_datastore_alloc(datastore->info, datastore->uid);
+			if (datastore2) {
+				datastore2->data = datastore->info->duplicate(datastore->data);
+				datastore2->inheritance = datastore->inheritance == DATASTORE_INHERIT_FOREVER ? DATASTORE_INHERIT_FOREVER : datastore->inheritance - 1;
+				AST_LIST_INSERT_TAIL(&to->datastores, datastore2, entry);
+			}
+		}
+	}
+	return 0;
 }
 
 int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *datastore)
@@ -2817,8 +2834,10 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 		/* XXX why is this necessary, for the parent_channel perhaps ? */
 		if (!ast_strlen_zero(oh->cid_num) && !ast_strlen_zero(oh->cid_name))
 			ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
-		if (oh->parent_channel)
+		if (oh->parent_channel) {
 			ast_channel_inherit_variables(oh->parent_channel, chan);
+			ast_channel_datastore_inherit(oh->parent_channel, chan);
+		}
 		if (oh->account)
 			ast_cdr_setaccount(chan, oh->account);	
 	}
