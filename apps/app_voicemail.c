@@ -4219,6 +4219,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 			}	
 		}
 	}
+
+	/* If anything failed above, we still have this list to free */
+	while ((vmtmp = AST_LIST_REMOVE_HEAD(&extensions, list)))
+		free_user(vmtmp);
 	return res ? res : cmd;
 }
 
