@@ -25,6 +25,8 @@
  * 
  * \note 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr) George Konstantoulakis <gkon@inaccessnetworks.com>
  *  						
+ * \note 2007-02-08 : Support for Georgian added by Alexander Shaduri <ashaduri@gmail.com>,
+ *  						Next Generation Networks (NGN).
  */
 
 #include "asterisk.h"
@@ -274,6 +276,7 @@ static int say_digit_str_full(struct ast_channel *chan, const char *str, const c
       \arg \b se    - Swedish
       \arg \b tw    - Taiwanese / Chinese
       \arg \b ru    - Russian
+      \arg \b ge    - Georgian
 
  \par Gender:
  For Some languages the numbers differ for gender and plural.
@@ -328,6 +331,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
+static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 
 /* Forward declarations of language specific variants of ast_say_enumeration_full */
 static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
@@ -342,6 +346,7 @@ static int ast_say_date_fr(struct ast_channel *chan, time_t t, const char *ints,
 static int ast_say_date_nl(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_date_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_date_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
 static int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
@@ -364,6 +369,7 @@ static int ast_say_time_pt(struct ast_channel *chan, time_t t, const char *ints,
 static int ast_say_time_pt_BR(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_time_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_time_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_time_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int ast_say_datetime_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_de(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
@@ -373,10 +379,12 @@ static int ast_say_datetime_pt(struct ast_channel *chan, time_t t, const char *i
 static int ast_say_datetime_pt_BR(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_datetime_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int ast_say_datetime_from_now_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_from_now_fr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_from_now_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_datetime_from_now_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang) 
 {
@@ -426,6 +434,8 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 	   return(ast_say_number_full_gr(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "ru") ) {	/* Russian syntax */
 	   return(ast_say_number_full_ru(chan, num, ints, language, options, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "ge") ) {	/* Georgian syntax */
+	   return(ast_say_number_full_ge(chan, num, ints, language, options, audiofd, ctrlfd));
 	}
 
 	/* Default to english */
@@ -2724,6 +2734,8 @@ static int say_date(struct ast_channel *chan, time_t t, const char *ints, const 
 		return(ast_say_date_pt(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_date_gr(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "ge") ) {  /* Georgian syntax */
+		return(ast_say_date_ge(chan, t, ints, lang));
 	}
 
 	/* Default to English */
@@ -5500,6 +5512,8 @@ static int say_time(struct ast_channel *chan, time_t t, const char *ints, const 
 		return(ast_say_time_tw(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_time_gr(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "ge") ) {  /* Georgian syntax */
+		return(ast_say_time_ge(chan, t, ints, lang));
 	}
 
 	/* Default to English */
@@ -5719,6 +5733,8 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 		return(ast_say_datetime_tw(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_datetime_gr(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "ge") ) {  /* Georgian syntax */
+		return(ast_say_datetime_ge(chan, t, ints, lang));
 	}
 
 	/* Default to English */
@@ -6002,6 +6018,8 @@ static int say_datetime_from_now(struct ast_channel *chan, time_t t, const char 
 		return(ast_say_datetime_from_now_fr(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "pt") || !strcasecmp(lang, "pt_BR")) {	/* Portuguese syntax */
 		return(ast_say_datetime_from_now_pt(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "ge") ) {	/* Georgian syntax */
+		return(ast_say_datetime_from_now_ge(chan, t, ints, lang));
 	}
 
 	/* Default to English */
@@ -6571,6 +6589,377 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 	}
 	return res;
 }
+
+
+
+
+/*********************************** Georgian Support ***************************************/
+
+
+/*
+	Convert a number into a semi-localized string. Only for Georgian.
+	res must be of at least 256 bytes, preallocated.
+	The output corresponds to Georgian spoken numbers, so
+	it may be either converted to real words by applying a direct conversion
+	table, or played just by substituting the entities with played files.
+
+	Output may consist of the following tokens (separated by spaces):
+	0, minus.
+	1-9, 1_-9_. (erti, ori, sami, otxi, ... . erti, or, sam, otx, ...).
+	10-19.
+	20, 40, 60, 80, 20_, 40_, 60_, 80_. (oci, ormoci, ..., ocda, ormocda, ...).
+	100, 100_, 200, 200_, ..., 900, 900_. (asi, as, orasi, oras, ...).
+	1000, 1000_. (atasi, atas).
+	1000000, 1000000_. (milioni, milion).
+	1000000000, 1000000000_. (miliardi, miliard).
+
+	To be able to play the sounds, each of the above tokens needs
+	a corresponding sound file. (e.g. 200_.gsm).
+*/
+static char* ast_translate_number_ge(int num, char* res, int res_len)
+{
+	char buf[256];
+	int digit = 0;
+	int remainder = 0;
+
+
+	if (num < 0) {
+		strncat(res, "minus ", res_len - strlen(res) - 1);
+		if ( num > INT_MIN ) {
+			num = -num;
+		} else {
+			num = 0;
+		}
+	}
+
+
+	/* directly read the numbers */
+	if (num <= 20 || num == 40 || num == 60 || num == 80 || num == 100) {
+		snprintf(buf, sizeof(buf), "%d", num);
+		strncat(res, buf, res_len - strlen(res) - 1);
+		return res;
+	}
+
+
+	if (num < 40) {  /* ocda... */
+		strncat(res, "20_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(num - 20, res, res_len);
+	}
+
+	if (num < 60) {  /* ormocda... */
+		strncat(res, "40_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(num - 40, res, res_len);
+	}
+
+	if (num < 80) {  /* samocda... */
+		strncat(res, "60_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(num - 60, res, res_len);
+	}
+
+	if (num < 100) {  /* otxmocda... */
+		strncat(res, "80_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(num - 80, res, res_len);
+	}
+
+
+	if (num < 1000) {  /*  as, oras, samas, ..., cxraas. asi, orasi, ..., cxraasi. */
+		remainder = num % 100;
+		digit = (num - remainder) / 100;
+
+		if (remainder == 0) {
+			snprintf(buf, sizeof(buf), "%d", num);
+			strncat(res, buf, res_len - strlen(res) - 1);
+			return res;
+		} else {
+			snprintf(buf, sizeof(buf), "%d_ ", digit*100);
+			strncat(res, buf, res_len - strlen(res) - 1);
+			return ast_translate_number_ge(remainder, res, res_len);
+		}
+	}
+
+
+	if (num == 1000) {
+		strncat(res, "1000", res_len - strlen(res) - 1);
+		return res;
+	}
+
+
+	if (num < 1000000) {
+		remainder = num % 1000;
+		digit = (num - remainder) / 1000;
+
+		if (remainder == 0) {
+			ast_translate_number_ge(digit, res, res_len);
+			strncat(res, " 1000", res_len - strlen(res) - 1);
+			return res;
+		}
+
+		if (digit == 1) {
+			strncat(res, "1000_ ", res_len - strlen(res) - 1);
+			return ast_translate_number_ge(remainder, res, res_len);
+		}
+
+		ast_translate_number_ge(digit, res, res_len);
+		strncat(res, " 1000_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(remainder, res, res_len);
+
+	}
+
+
+	if (num == 1000000) {
+		strncat(res, "1 1000000", res_len - strlen(res) - 1);
+		return res;
+	}
+
+
+	if (num < 1000000000) {
+		remainder = num % 1000000;
+		digit = (num - remainder) / 1000000;
+
+		if (remainder == 0) {
+			ast_translate_number_ge(digit, res, res_len);
+			strncat(res, " 1000000", res_len - strlen(res) - 1);
+			return res;
+		}
+
+		ast_translate_number_ge(digit, res, res_len);
+		strncat(res, " 1000000_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(remainder, res, res_len);
+
+	}
+
+
+	if (num == 1000000000) {
+		strncat(res, "1 1000000000", res_len - strlen(res) - 1);
+		return res;
+	}
+
+
+	if (num > 1000000000) {
+		remainder = num % 1000000000;
+		digit = (num - remainder) / 1000000000;
+
+		if (remainder == 0) {
+			ast_translate_number_ge(digit, res, res_len);
+			strncat(res, " 1000000000", res_len - strlen(res) - 1);
+			return res;
+		}
+
+		ast_translate_number_ge(digit, res, res_len);
+		strncat(res, " 1000000000_ ", res_len - strlen(res) - 1);
+		return ast_translate_number_ge(remainder, res, res_len);
+
+	}
+
+	return res;
+
+}
+
+
+
+/*! \brief  ast_say_number_full_ge: Georgian syntax */
+static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	char fn[512] = "";
+	if (!num)
+		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
+
+
+	ast_translate_number_ge(num, fn, 512);
+
+
+	char* s = 0;
+	const char* remainder = fn;
+
+	while (res == 0 && (s = strstr(remainder, " "))) {
+		size_t len = s - remainder;
+		char* new_string = malloc(len + 1 + strlen("digits/"));
+
+		sprintf(new_string, "digits/");
+		strncat(new_string, remainder, len);  /* we can't sprintf() it, it's not null-terminated. */
+/* 		new_string[len + strlen("digits/")] = '\0'; */
+
+		if (!ast_streamfile(chan, new_string, language)) {
+			if ((audiofd  > -1) && (ctrlfd > -1))
+				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+			else
+				res = ast_waitstream(chan, ints);
+		}
+		ast_stopstream(chan);
+
+		free(new_string);
+
+		remainder = s + 1;  /* position just after the found space char. */
+		while(*remainder == ' ')  /* skip multiple spaces */
+			remainder++;
+	}
+
+
+	/* the last chunk. */
+	if (res == 0 && *remainder) {
+
+		char* new_string = malloc(strlen(remainder) + 1 + strlen("digits/"));
+		sprintf(new_string, "digits/%s", remainder);
+
+		if (!ast_streamfile(chan, new_string, language)) {
+			if ((audiofd  > -1) && (ctrlfd > -1))
+				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+			else
+				res = ast_waitstream(chan, ints);
+		}
+		ast_stopstream(chan);
+
+		free(new_string);
+
+	}
+
+
+	return res;
+
+}
+
+
+
+/*
+Georgian support for date/time requires the following files (*.gsm):
+
+mon-1, mon-2, ... (ianvari, tebervali, ...)
+day-1, day-2, ... (orshabati, samshabati, ...)
+saati_da
+tsuti
+tslis
+*/
+
+
+
+/* Georgian syntax. e.g. "oriatas xuti tslis 5 noemberi". */
+static int ast_say_date_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	struct tm tm;
+	char fn[256];
+	int res = 0;
+	ast_localtime(&t,&tm,NULL);
+
+	if (!res)
+		res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/tslis %d", tm.tm_wday);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+
+	if (!res) {
+		res = ast_say_number(chan, tm.tm_mday, ints, lang, (char * ) NULL);
+/* 		if (!res)
+ 			res = ast_waitstream(chan, ints);
+*/
+	}
+
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	return res;
+
+}
+
+
+
+
+
+/* Georgian syntax. e.g. "otxi saati da eqvsi tsuti" */
+static int ast_say_time_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	struct tm tm;
+	int res = 0;
+	localtime_r(&t,&tm);
+
+	res = ast_say_number(chan, tm.tm_hour, ints, lang, (char*)NULL);
+	if (!res) {
+		res = ast_streamfile(chan, "digits/saati_da", lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+
+	if (tm.tm_min) {
+		if (!res) {
+			res = ast_say_number(chan, tm.tm_min, ints, lang, (char*)NULL);
+
+			if (!res) {
+				res = ast_streamfile(chan, "digits/tsuti", lang);
+				if (!res)
+					res = ast_waitstream(chan, ints);
+			}
+		}
+	}
+	return res;
+}
+
+
+
+/* Georgian syntax. Say date, then say time. */
+static int ast_say_datetime_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	struct tm tm;
+	int res = 0;
+	localtime_r(&t,&tm);
+	res = ast_say_date(chan, t, ints, lang);
+	if (!res)
+		ast_say_time(chan, t, ints, lang);
+	return res;
+
+}
+
+
+
+
+/* Georgian syntax */
+static int ast_say_datetime_from_now_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	int res=0;
+	time_t nowt;
+	int daydiff;
+	struct tm tm;
+	struct tm now;
+	char fn[256];
+
+	time(&nowt);
+
+	localtime_r(&t,&tm);
+	localtime_r(&nowt,&now);
+	daydiff = now.tm_yday - tm.tm_yday;
+	if ((daydiff < 0) || (daydiff > 6)) {
+		/* Day of month and month */
+		if (!res)
+			res = ast_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
+		if (!res) {
+			snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
+			res = ast_streamfile(chan, fn, lang);
+			if (!res)
+				res = ast_waitstream(chan, ints);
+		}
+
+	} else if (daydiff) {
+		/* Just what day of the week */
+		if (!res) {
+			snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
+			res = ast_streamfile(chan, fn, lang);
+			if (!res)
+				res = ast_waitstream(chan, ints);
+		}
+	} /* Otherwise, it was today */
+	if (!res)
+		res = ast_say_time(chan, t, ints, lang);
+
+	return res;
+}
+
+
 
 /*
  * remap the 'say' functions to use those in this file
