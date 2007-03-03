@@ -45,7 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define STACKVAR	"~GOSUB~STACK~"
 
-
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
 static const char *app_return = "Return";
@@ -73,55 +72,118 @@ static const char *pop_descrip =
 "  Removes last label on the stack, discarding it.\n";
 
 
-static int pop_exec(struct ast_channel *chan, void *data)
+static void gosub_free(void *data);
+
+static struct ast_datastore_info stack_info = {
+	.type = "GOSUB",
+	.destroy = gosub_free,
+};
+
+struct gosub_stack_frame {
+	AST_LIST_ENTRY(gosub_stack_frame) entries;
+	/* 100 arguments is all that we support anyway, but this will handle up to 255 */
+	unsigned char arguments;
+	int priority;
+	char *context;
+	char extension[0];
+};
+
+static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_frame *frame)
 {
-	const char *frame = pbx_builtin_getvar_helper(chan, STACKVAR);
-	int numargs = 0, i;
+	unsigned char i;
 	char argname[15];
 
-	/* Pop any arguments for this stack frame off the variable stack */
-	if (frame) {
-		numargs = atoi(frame);
-		for (i = 1; i <= numargs; i++) {
-			snprintf(argname, sizeof(argname), "ARG%d", i);
+	/* If chan is not defined, then we're calling it as part of gosub_free,
+	 * and the channel variables will be deallocated anyway.  Otherwise, we're
+	 * just releasing a single frame, so we need to clean up the arguments for
+	 * that frame, so that we re-expose the variables from the previous frame
+	 * that were hidden by this one.
+	 */
+	if (chan) {
+		for (i = 1; i <= frame->arguments && i != 0; i++) {
+			snprintf(argname, sizeof(argname), "ARG%hhd", i);
 			pbx_builtin_setvar_helper(chan, argname, NULL);
 		}
 	}
+	ast_free(frame);
+}
 
-	/* Remove the last frame from the Gosub stack */
-	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
+static struct gosub_stack_frame *gosub_allocate_frame(const char *context, const char *extension, int priority, unsigned char arguments)
+{
+	struct gosub_stack_frame *new = NULL;
+	int len_extension = strlen(extension), len_context = strlen(context);
+
+	if ((new = ast_calloc(1, sizeof(*new) + 2 + len_extension + len_context))) {
+		strcpy(new->extension, extension);
+		new->context = new->extension + len_extension + 1;
+		strcpy(new->context, context);
+		new->priority = priority;
+		new->arguments = arguments;
+	}
+	return new;
+}
+
+static void gosub_free(void *data)
+{
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist = data;
+	struct gosub_stack_frame *oldframe;
+	AST_LIST_LOCK(oldlist);
+	while ((oldframe = AST_LIST_REMOVE_HEAD(oldlist, entries))) {
+		gosub_release_frame(NULL, oldframe);
+	}
+	AST_LIST_UNLOCK(oldlist);
+	AST_LIST_HEAD_DESTROY(oldlist);
+	ast_free(oldlist);
+}
+
+static int pop_exec(struct ast_channel *chan, void *data)
+{
+	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
+	struct gosub_stack_frame *oldframe;
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+
+	if (!stack_store) {
+		ast_log(LOG_WARNING, "%s called with no gosub stack allocated.\n", app_pop);
+		return 0;
+	}
+
+	oldlist = stack_store->data;
+	AST_LIST_LOCK(oldlist);
+	oldframe = AST_LIST_REMOVE_HEAD(oldlist, entries);
+	AST_LIST_UNLOCK(oldlist);
+
+	if (oldframe)
+		gosub_release_frame(chan, oldframe);
+	else
+		ast_log(LOG_DEBUG, "%s called with an empty gosub stack\n", app_pop);
 
 	return 0;
 }
 
 static int return_exec(struct ast_channel *chan, void *data)
 {
-	const char *label = pbx_builtin_getvar_helper(chan, STACKVAR);
-	char argname[15], *retval = data;
-	int numargs, i;
+	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
+	struct gosub_stack_frame *oldframe;
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+	char *retval = data;
 
-	if (ast_strlen_zero(label)) {
+	if (!stack_store) {
+		ast_log(LOG_ERROR, "Return without Gosub: stack is unallocated\n");
+		return -1;
+	}
+
+	oldlist = stack_store->data;
+	AST_LIST_LOCK(oldlist);
+	oldframe = AST_LIST_REMOVE_HEAD(oldlist, entries);
+	AST_LIST_UNLOCK(oldlist);
+
+	if (!oldframe) {
 		ast_log(LOG_ERROR, "Return without Gosub: stack is empty\n");
 		return -1;
 	}
 
-	/* Pop any arguments for this stack frame off the variable stack */
-	numargs = atoi(label);
-	for (i = 1; i <= numargs; i++) {
-		snprintf(argname, sizeof(argname), "ARG%d", i);
-		pbx_builtin_setvar_helper(chan, argname, NULL);
-	}
-
-	/* If the label exists, it will always have a ':' */
-	label = strchr(label, ':') + 1;
-
-	if (ast_parseable_goto(chan, label)) {
-		ast_log(LOG_WARNING, "No next statement after Gosub?\n");
-		return -1;
-	}
-
-	/* Remove the current frame from the Gosub stack */
-	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
+	ast_explicit_goto(chan, oldframe->context, oldframe->extension, oldframe->priority);
+	gosub_release_frame(chan, oldframe);
 
 	/* Set a return value, if any */
 	pbx_builtin_setvar_helper(chan, "GOSUB_RETVAL", S_OR(retval, ""));
@@ -130,7 +192,9 @@ static int return_exec(struct ast_channel *chan, void *data)
 
 static int gosub_exec(struct ast_channel *chan, void *data)
 {
-	char newlabel[AST_MAX_EXTENSION + AST_MAX_CONTEXT + 11 + 11 + 4];
+	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+	struct gosub_stack_frame *newframe;
 	char argname[15], *tmp = ast_strdupa(data), *label, *endparen;
 	int i;
 	struct ast_module_user *u;
@@ -144,6 +208,28 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	}
 
 	u = ast_module_user_add(chan);
+
+	if (!stack_store) {
+		ast_log(LOG_DEBUG, "Channel %s has no datastore, so we're allocating one.\n", chan->name);
+		stack_store = ast_channel_datastore_alloc(&stack_info, NULL);
+		if (!stack_store) {
+			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Gosub will fail.\n");
+			ast_module_user_remove(u);
+			return -1;
+		}
+
+		oldlist = ast_calloc(1, sizeof(*oldlist));
+		if (!oldlist) {
+			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  Gosub will fail.\n");
+			ast_channel_datastore_free(stack_store);
+			ast_module_user_remove(u);
+			return -1;
+		}
+
+		stack_store->data = oldlist;
+		AST_LIST_HEAD_INIT(oldlist);
+		ast_channel_datastore_add(chan, stack_store);
+	}
 
 	/* Separate the arguments from the label */
 	/* NOTE:  you cannot use ast_app_separate_args for this, because '(' cannot be used as a delimiter. */
@@ -159,10 +245,11 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 		args2.argc = 0;
 
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
-	snprintf(newlabel, sizeof(newlabel), "%d:%s|%s|%d", args2.argc, chan->context, chan->exten, chan->priority + 1);
+	newframe = gosub_allocate_frame(chan->context, chan->exten, chan->priority + 1, args2.argc);
 
 	if (ast_parseable_goto(chan, label)) {
 		ast_log(LOG_ERROR, "Gosub address is invalid: '%s'\n", (char *)data);
+		ast_free(newframe);
 		ast_module_user_remove(u);
 		return -1;
 	}
@@ -175,8 +262,11 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	}
 
 	/* And finally, save our return address */
-	pbx_builtin_pushvar_helper(chan, STACKVAR, newlabel);
-	ast_log(LOG_DEBUG, "Setting gosub return address to '%s'\n", newlabel);
+	oldlist = stack_store->data;
+	AST_LIST_LOCK(oldlist);
+	AST_LIST_INSERT_HEAD(oldlist, newframe, entries);
+	AST_LIST_UNLOCK(oldlist);
+
 	ast_module_user_remove(u);
 
 	return 0;
