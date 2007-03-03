@@ -3626,6 +3626,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				vmtmp = vmtmp->next;
 				free_user(vmfree);
 			}
+			extensions = NULL;
 			if (saved_messages > 0) {
 				/* give confirmation that the message was saved */
 				/* commented out since we can't forward batches yet
@@ -3638,6 +3639,13 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				res = ast_play_and_wait(chan, "vm-msgsaved");
 			}	
 		}
+	}
+
+	/* If anything failed above, we still have this list to free */
+	while (extensions) {
+		vmfree = extensions;
+		extensions = extensions->next;
+		free_user(vmfree);
 	}
 	return res ? res : cmd;
 }
