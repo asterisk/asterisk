@@ -3890,8 +3890,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	case EVENT_RELEASE:
 		{
-			bc->out_cause=16;
-			
 			hangup_chan(ch);
 			release_chan(bc);
 		
