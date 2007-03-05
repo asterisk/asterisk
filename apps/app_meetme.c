@@ -4704,7 +4704,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res;
+	int res = 0;
 
 	res |= load_config(0);
 
