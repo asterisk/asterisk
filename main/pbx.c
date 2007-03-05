@@ -354,7 +354,7 @@ static struct pbx_builtin {
 	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
 	"Remember that this command can set the current context, and if the context specified\n"
 	"does not exist, then it will not be able to find any 'h' or 'i' extensions there, and\n"
-	"and the channel and call will both be terminated!\n"
+	"the channel and call will both be terminated!\n"
 	},
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
