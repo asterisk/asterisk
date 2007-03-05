@@ -939,7 +939,7 @@ static int make_file(char *dest, int len, char *dir, int num)
  * \param context String. Ignored if is null or empty string.
  * \param ext     String. Ignored if is null or empty string.
  * \param folder  String. Ignored if is null or empty string. 
- * \return 0 on failure, 1 on success.
+ * \return -1 on failure, 0 on success.
  */
 static int create_dirpath(char *dest, int len, const char *context, const char *ext, const char *folder)
 {
@@ -949,24 +949,24 @@ static int create_dirpath(char *dest, int len, const char *context, const char *
 		make_dir(dest, len, context, "", "");
 		if (mkdir(dest, mode) && errno != EEXIST) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return 0;
+			return -1;
 		}
 	}
 	if (!ast_strlen_zero(ext)) {
 		make_dir(dest, len, context, ext, "");
 		if (mkdir(dest, mode) && errno != EEXIST) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return 0;
+			return -1;
 		}
 	}
 	if (!ast_strlen_zero(folder)) {
 		make_dir(dest, len, context, ext, folder);
 		if (mkdir(dest, mode) && errno != EEXIST) {
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return 0;
+			return -1;
 		}
 	}
-	return 1;
+	return 0;
 }
 
 /*! \brief Lock file path
@@ -2188,7 +2188,7 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
 
-	if (!(res = create_dirpath(dest, sizeof(dest), context, ext, "greet"))) {
+	if ((res = create_dirpath(dest, sizeof(dest), context, ext, "greet"))) {
 		ast_log(LOG_WARNING, "Failed to make directory(%s)\n", fn);
 		return -1;
 	}
@@ -2932,7 +2932,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
 	}
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
-	if (!(res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "temp"))) {
+	if ((res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "temp"))) {
 		ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
 		return -1;
 	}
@@ -5982,7 +5982,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	}
 
 	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
-	if (!(res = create_dirpath(dest, sizeof(dest), vmu->context, vms->username, "temp"))) {
+	if ((res = create_dirpath(dest, sizeof(dest), vmu->context, vms->username, "temp"))) {
 		ast_log(LOG_WARNING, "Failed to create directory (%s).\n", prefile);
 		return -1;
 	}
