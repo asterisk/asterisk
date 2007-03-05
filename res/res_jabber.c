@@ -383,7 +383,8 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 		r = buddy->resources;
 	if(!r)
 		ast_log(LOG_NOTICE, "Resource %s of buddy %s not found \n", resource, screenname);
-	stat = r->status;
+	else
+		stat = r->status;
 	sprintf(status, "%d", stat);
 	pbx_builtin_setvar_helper(chan, variable, status);
 	return 0;
