@@ -10994,6 +10994,29 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 #undef FORMAT2
 }
 
+static int zap_show_version(int fd, int argc, char *argv[])
+{
+	int pseudo_fd = -1;
+	struct zt_versioninfo vi;
+
+	if ((pseudo_fd = open("/dev/zap/ctl", O_RDONLY)) < 0) {
+		ast_cli(fd, "Failed to open control file to get version.\n");
+		return RESULT_SUCCESS;
+	}
+
+	strcpy(vi.version, "Unknown");
+	strcpy(vi.echo_canceller, "Unknown");
+
+	if (ioctl(pseudo_fd, ZT_GETVERSION, &vi))
+		ast_cli(fd, "Failed to get version from control file.\n");
+	else
+		ast_cli(fd, "Zaptel Version: %s Echo Canceller: %s\n", vi.version, vi.echo_canceller);
+
+	close(pseudo_fd);
+
+	return RESULT_SUCCESS;
+}
+
 static const char show_channels_usage[] =
 	"Usage: zap show channels\n"
 	"	Shows a list of available channels\n";
@@ -11016,6 +11039,10 @@ static const char zap_restart_usage[] =
 	"	re-reads them from zapata.conf.\n"
 	"	Note that this will STOP any running CALL on zaptel channels.\n"
 	"";
+
+static char zap_show_version_usage[] =
+        "Usage: zap show version\n"
+        "       Shows the Zaptel version in use\n";
 
 static struct ast_cli_entry zap_cli[] = {
 	{ { "zap", "show", "cadences", NULL },
@@ -11041,6 +11068,10 @@ static struct ast_cli_entry zap_cli[] = {
 	{ { "zap", "show", "status", NULL},
 	zap_show_status, "Show all Zaptel cards status",
 	zap_show_status_usage },
+
+	{ { "zap", "show", "version", NULL},
+	zap_show_version, "Show the Zaptel version in use",
+	zap_show_version_usage },
 };
 
 #define TRANSFER	0

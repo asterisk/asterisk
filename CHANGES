@@ -67,6 +67,7 @@ Miscellaneous
   * Added 'o' and 'X' options to Chanspy.
   * Added the parkedcallreparking option to features.conf
   * SMDI is now enabled in voicemail using the smdienable option.
+  * Added zap show version CLI command to chan_zap.
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
