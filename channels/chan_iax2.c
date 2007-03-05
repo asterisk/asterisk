@@ -7773,6 +7773,7 @@ retryowner2:
 	f.src = "IAX2";
 	f.mallocd = 0;
 	f.offset = 0;
+	f.len = 0;
 	if (f.datalen && (f.frametype == AST_FRAME_VOICE)) {
 		f.samples = ast_codec_get_samples(&f);
 		/* We need to byteswap incoming slinear samples from network byte order */
