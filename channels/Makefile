@@ -16,6 +16,8 @@
 
 CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so chan_local.so chan_skinny.so chan_features.so
 
+SUBDIRS=misdn h323
+
 ifneq (${OSARCH},CYGWIN)
 # if you really, really want to use these drivers, uncomment the line below
 #CHANNEL_LIBS+=chan_modem.so chan_modem_aopen.so chan_modem_bestdata.so
@@ -159,6 +161,7 @@ endif
 all: depend $(CHANNEL_LIBS) 
 
 clean:
+	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.so *.o .depend
 	rm -f busy.h ringtone.h gentone gentone-ulaw
 
