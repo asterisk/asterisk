@@ -766,18 +766,6 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		cnf = NULL;
 		goto cnfout;
 	}
-	cnf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
-	if (cnf->lchan) {
-		ast_set_read_format(cnf->lchan, AST_FORMAT_SLINEAR);
-		ast_set_write_format(cnf->lchan, AST_FORMAT_SLINEAR);
-		ztc.chan = 0;
-		ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-		if (ioctl(cnf->lchan->fds[0], ZT_SETCONF, &ztc)) {
-			ast_log(LOG_WARNING, "Error setting conference\n");
-			ast_hangup(cnf->lchan);
-			cnf->lchan = NULL;
-		}
-	}
 	/* Fill the conference struct */
 	cnf->start = time(NULL);
 	cnf->zapconf = ztc.confno;
@@ -1402,11 +1390,22 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 
-	if ((conf->recording == MEETME_RECORD_OFF) && ((confflags & CONFFLAG_RECORDCONF) || (conf->lchan))) {
-		pthread_attr_init(&conf->attr);
-		pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
-		ast_pthread_create_background(&conf->recordthread, &conf->attr, recordthread, conf);
-		pthread_attr_destroy(&conf->attr);
+	if ((conf->recording == MEETME_RECORD_OFF) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
+		ast_set_read_format(conf->lchan, AST_FORMAT_SLINEAR);
+		ast_set_write_format(conf->lchan, AST_FORMAT_SLINEAR);
+		ztc.chan = 0;
+		ztc.confno = conf->zapconf;
+		ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
+		if (ioctl(conf->lchan->fds[0], ZT_SETCONF, &ztc)) {
+			ast_log(LOG_WARNING, "Error starting listen channel\n");
+			ast_hangup(conf->lchan);
+			conf->lchan = NULL;
+		} else {
+			pthread_attr_init(&conf->attr);
+			pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
+			ast_pthread_create_background(&conf->recordthread, &conf->attr, recordthread, conf);
+			pthread_attr_destroy(&conf->attr);
+		}
 	}
 
 	time(&user->jointime);
