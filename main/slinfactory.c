@@ -56,7 +56,7 @@ void ast_slinfactory_destroy(struct ast_slinfactory *sf)
 
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 {
-	struct ast_frame *frame, *frame_ptr;
+	struct ast_frame *begin_frame = f, *duped_frame = NULL, *frame_ptr;
 	unsigned int x;
 
 	if (f->subclass != AST_FORMAT_SLINEAR) {
@@ -74,16 +74,16 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 		}
 	}
 
-	if (!(frame = ast_frdup( (sf->trans) ? ast_translate(sf->trans, f, 0) : f )))
+	if ((sf->trans && (!(begin_frame = ast_translate(sf->trans, f, 0)))) || (!(duped_frame = ast_frdup(begin_frame))))
 		return 0;
 
 	x = 0;
 	AST_LIST_TRAVERSE(&sf->queue, frame_ptr, frame_list)
 		x++;
 
-	AST_LIST_INSERT_TAIL(&sf->queue, frame, frame_list);
+	AST_LIST_INSERT_TAIL(&sf->queue, duped_frame, frame_list);
 
-	sf->size += frame->samples;
+	sf->size += duped_frame->samples;
 
 	return x;
 }
