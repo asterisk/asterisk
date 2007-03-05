@@ -561,11 +561,11 @@ include => demo
 ;
 ;exten = 8700,1,Dial(${MARK},30,A(/path/to/my/announcemsg))
 ;
-; For more information on applications, just type "show applications" at your
+; For more information on applications, just type "core show applications" at your
 ; friendly Asterisk CLI prompt.
 ;
-; 'show application <command>' will show details of how you
+; 'core show application <command>' will show details of how you
 ; use that particular application in this file, the dial plan. 
-; 'show functions" will list all dialplan functions
-; 'show function <COMMAND>' will show you more information about
+; 'core show functions" will list all dialplan functions
+; 'core show function <COMMAND>' will show you more information about
 ; one function. Remember that function names are UPPER CASE.
