@@ -1102,7 +1102,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 	version = (seqno & 0xC0000000) >> 30;
 	payload = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
-	mark = seqno & (1 << 23);
+	mark = (seqno & 0x800000) >> 23;
 	ext = seqno & (1 << 28);
 	seqno &= 0xffff;
 
