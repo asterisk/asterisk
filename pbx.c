@@ -349,7 +349,7 @@ static struct pbx_builtin {
 	"'h' extension. If either or neither the 'h' or 'i' extensions have been defined, the\n"
 	"channel is hung up, and the execution of instructions on the channel is terminated.\n"
 	"Remember that this command can set the current context, and if the context specified\n"
-	"does not exist, then it will not be able to find any 'h' or 'i' extensions there, and\n"
+	"does not exist, then it will not be able to find any 'h' or 'i' extensions there,\n"
 	"and the channel and call will both be terminated!\n"
 	},
 
