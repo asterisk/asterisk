@@ -520,7 +520,7 @@ static int audio_buffers;
  *  conversion... the numbers have been modified
  *  to give the user a better level of adjustability
  */
-static const char const gain_map[] = {
+static char const gain_map[] = {
 	-15,
 	-13,
 	-10,
