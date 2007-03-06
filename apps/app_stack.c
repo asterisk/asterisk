@@ -154,7 +154,7 @@ static int pop_exec(struct ast_channel *chan, void *data)
 
 	if (oldframe)
 		gosub_release_frame(chan, oldframe);
-	else
+	else if (option_debug)
 		ast_log(LOG_DEBUG, "%s called with an empty gosub stack\n", app_pop);
 
 	return 0;
@@ -210,7 +210,8 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 
 	if (!stack_store) {
-		ast_log(LOG_DEBUG, "Channel %s has no datastore, so we're allocating one.\n", chan->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Channel %s has no datastore, so we're allocating one.\n", chan->name);
 		stack_store = ast_channel_datastore_alloc(&stack_info, NULL);
 		if (!stack_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Gosub will fail.\n");
@@ -258,7 +259,8 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	for (i = 0; i < args2.argc; i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
 		pbx_builtin_pushvar_helper(chan, argname, args2.argval[i]);
-		ast_log(LOG_DEBUG, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
 	}
 
 	/* And finally, save our return address */
