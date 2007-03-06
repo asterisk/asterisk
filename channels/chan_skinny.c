@@ -1420,6 +1420,12 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 static int transmit_response(struct skinnysession *s, struct skinny_req *req)
 {
 	int res = 0;
+
+	if (!s) {
+		ast_log(LOG_WARNING, "Asked to transmit to a non-existant session!\n");
+		return -1;
+	}
+
 	ast_mutex_lock(&s->lock);
 
 	if (skinnydebug)
