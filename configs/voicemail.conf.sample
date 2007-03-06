@@ -184,11 +184,12 @@ emaildateformat=%A, %B %d, %Y at %r
 			; extension digits when saying caller id.
 ; sayduration=no 	; Turn on/off the duration information before the message. [ON by default]
 ; saydurationm=2        ; Specify the minimum duration to say. Default is 2 minutes
-; dialout=fromvm 	; Context to dial out from [option 4 from the advanced menu]
-			;     if not listed, dialing out will not be permitted
-sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced menu]
-  			; if not listed, sending messages from inside voicemail will not be 
-			; permitted
+; dialout=fromvm ; Context to dial out from [option 4 from mailbox's advanced menu]. 
+                 ; If not specified, option 4 will not be listed and dialing out 
+                 ; from within VoiceMailMain() will not be permitted.
+sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside 
+                  ; VoiceMailMain() [option 5 from mailbox's advanced menu].
+                  ; If set to 'no', option 5 will not be listed.
 ; searchcontexts=yes	; Current default behavior is to search only the default context
 			; if one is not specified.  The older behavior was to search all contexts.
 			; This option restores the old behavior [DEFAULT=no]
