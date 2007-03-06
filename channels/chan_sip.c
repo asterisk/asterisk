@@ -15325,7 +15325,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	}
 
 	if (!e && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER || p->method == SIP_NOTIFY)) {
-		transmit_response(p, "503 Server error", req);
+		transmit_response(p, "400 Bad request", req);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return -1;
 	}
