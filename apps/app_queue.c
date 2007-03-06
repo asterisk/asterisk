@@ -2330,6 +2330,48 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	return 0;
 }
 
+enum agent_complete_reason {
+	CALLER,
+	AGENT,
+	TRANSFER
+};
+
+static void send_agent_complete(const struct queue_ent *qe, const char *queuename,
+	const struct ast_channel *peer, const struct member *member, time_t callstart,
+	char *vars, size_t vars_len, enum agent_complete_reason rsn)
+{
+	const char *reason;
+
+	if (!qe->parent->eventwhencalled)
+		return;
+
+	switch (rsn) {
+	case CALLER:
+		reason = "caller";
+		break;
+	case AGENT:
+		reason = "agent";
+		break;
+	case TRANSFER:
+		reason = "transfer";
+		break;
+	}
+
+	manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+		"Queue: %s\r\n"
+		"Uniqueid: %s\r\n"
+		"Channel: %s\r\n"
+		"Member: %s\r\n"
+		"MemberName: %s\r\n"
+		"HoldTime: %ld\r\n"
+		"TalkTime: %ld\r\n"
+		"Reason: %s\r\n"
+		"%s",
+		queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
+		(long)(callstart - qe->start), (long)(time(NULL) - callstart), reason,
+		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
+}
+
 static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi, const char *macro)
 {
 	struct member *cur;
@@ -2741,39 +2783,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "TRANSFER", "%s|%s|%ld|%ld",
 				qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
 				(long) (time(NULL) - callstart));
+			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 		} else if (qe->chan->_softhangup) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld|%d",
 				(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-			if (qe->parent->eventwhencalled)
-				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-						"Queue: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Channel: %s\r\n"
-						"Member: %s\r\n"
-						"MemberName: %s\r\n"
-						"HoldTime: %ld\r\n"
-						"TalkTime: %ld\r\n"
-						"Reason: caller\r\n"
-						"%s",
-						queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
-						(long)(callstart - qe->start), (long)(time(NULL) - callstart),
-						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), CALLER);
 		} else {
 			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETEAGENT", "%ld|%ld|%d",
 				(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
-			if (qe->parent->eventwhencalled)
-				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
-						"Queue: %s\r\n"
-						"Uniqueid: %s\r\n"
-						"Channel: %s\r\n"
-						"MemberName: %s\r\n"
-						"HoldTime: %ld\r\n"
-						"TalkTime: %ld\r\n"
-						"Reason: agent\r\n"
-						"%s",
-						queuename, qe->chan->uniqueid, peer->name, member->membername, (long)(callstart - qe->start),
-						(long)(time(NULL) - callstart),
-						qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
+			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), AGENT);
 		}
 
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
