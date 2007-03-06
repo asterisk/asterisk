@@ -15015,9 +15015,25 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
 		} else if (strstr(accept, "application/xpidf+xml")) {
 			p->subscribed = XPIDF_XML;        /* Early pre-RFC 3863 format with MSN additions (Microsoft Messenger) */
+		} else if (ast_strlen_zero(accept)) {
+			if (p->subscribed == NONE) { /* if the subscribed field is not already set, and there is no accept header... */
+				transmit_response(p, "489 Bad Event", req);
+  
+				ast_log(LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s', subscribeuri: '%s'\n",
+					p->stateid, p->laststate, p->dialogver, p->subscribecontext, p->subscribeuri);
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+				return 0;
+			}
+			/* if p->subscribed is non-zero, then accept is not obligatory; according to rfc 3265 section 3.1.3, at least.
+			   so, we'll just let it ride, keeping the value from a previous subscription, and not abort the subscription */
 		} else {
 			/* Can't find a format for events that we know about */
-			transmit_response(p, "489 Bad Event", req);
+			char mybuf[200];
+			snprintf(mybuf,sizeof(mybuf),"489 Bad Event (format %s)", accept);
+			transmit_response(p, mybuf, req);
+ 
+			ast_log(LOG_WARNING,"SUBSCRIBE failure: unrecognized format: '%s' pvt: subscribed: %d, stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s', subscribeuri: '%s'\n",
+				accept, (int)p->subscribed, p->stateid, p->laststate, p->dialogver, p->subscribecontext, p->subscribeuri);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return 0;
 		}
