@@ -6762,6 +6762,9 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 {
 	int res = 0;
 	char fn[512] = "";
+	char* s = 0;
+	const char* remainder = fn;
+
 	if (!num)
 		return ast_say_digits_full(chan, 0, ints, language, audiofd, ctrlfd);
 
@@ -6769,8 +6772,6 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 	ast_translate_number_ge(num, fn, 512);
 
 
-	char* s = 0;
-	const char* remainder = fn;
 
 	while (res == 0 && (s = strstr(remainder, " "))) {
 		size_t len = s - remainder;
