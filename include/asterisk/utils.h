@@ -161,7 +161,26 @@ void ast_md5_hash(char *output, char *input);
 void ast_sha1_hash(char *output, char *input);
 
 int ast_base64encode_full(char *dst, const unsigned char *src, int srclen, int max, int linebreaks);
+
+/*!
+ * \brief Encode data in base64
+ * \param dst the destination buffer
+ * \param src the source data to be encoded
+ * \param srclen the number of bytes present in the source buffer
+ * \param max the maximum number of bytes to write into the destination
+ *        buffer, *including* the terminating NULL character.
+ */
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
+
+/*!
+ * \brief Decode data from base64
+ * \param dst the destination buffer
+ * \param src the source buffer
+ * \param max The maximum number of bytes to write into the destination
+ *            buffer.  Note that this function will not ensure that the
+ *            destination buffer is NULL terminated.  So, in general,
+ *            this parameter should be sizeof(dst) - 1.
+ */
 int ast_base64decode(unsigned char *dst, const char *src, int max);
 
 /*!  \brief Turn text string to URI-encoded %XX version 
