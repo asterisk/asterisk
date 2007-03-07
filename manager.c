@@ -879,15 +879,15 @@ static int action_redirect(struct mansession *s, struct message *m)
 		return 0;
 	}
 	chan = ast_get_channel_by_name_locked(name);
-	if (chan->_state != AST_STATE_UP) {
-		astman_send_error(s, m, "Redirect failed, channel not up.\n");
-		ast_mutex_unlock(&chan->lock);
-		return 0;
-	}
 	if (!chan) {
 		char buf[BUFSIZ];
 		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
 		astman_send_error(s, m, buf);
+		return 0;
+	}
+	if (chan->_state != AST_STATE_UP) {
+		astman_send_error(s, m, "Redirect failed, channel not up.\n");
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
 	if (!ast_strlen_zero(name2))
