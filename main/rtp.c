@@ -1537,7 +1537,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	struct ast_rtp_protocol *destpr = NULL, *srcpr = NULL;
 	enum ast_rtp_get_result audio_dest_res = AST_RTP_GET_FAILED, video_dest_res = AST_RTP_GET_FAILED, text_dest_res = AST_RTP_GET_FAILED;
 	enum ast_rtp_get_result audio_src_res = AST_RTP_GET_FAILED, video_src_res = AST_RTP_GET_FAILED, text_src_res = AST_RTP_GET_FAILED;
-	int srccodec, nat_active = 0;
+	int srccodec, destcodec, nat_active = 0;
 
 	/* Lock channels */
 	ast_channel_lock(c0);
@@ -1592,6 +1592,17 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 		srccodec = srcpr->get_codec(c1);
 	else
 		srccodec = 0;
+	if (audio_dest_res == AST_RTP_TRY_NATIVE && destpr->get_codec)
+		destcodec = destpr->get_codec(c0);
+	else
+		destcodec = 0;
+	/* Ensure we have at least one matching codec */
+	if (!(srccodec & destcodec)) {
+		ast_channel_unlock(c0);
+		if (c1)
+			ast_channel_unlock(c1);
+		return 0;
+	}
 	/* Consider empty media as non-existant */
 	if (audio_src_res == AST_RTP_TRY_NATIVE && !srcp->them.sin_addr.s_addr)
 		srcp = NULL;
