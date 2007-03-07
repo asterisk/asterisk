@@ -22,6 +22,8 @@
  *
  * \author Mark Spencer <markster@digium.com>
  * 
+ * \extref ICES - http://www.icecast.org/ices.php
+ *
  * \ingroup applications
  */
  
