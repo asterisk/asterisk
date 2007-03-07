@@ -791,7 +791,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 		if (vfs && ast_playstream(vfs))
 			return -1;
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "<%s> Playing '%s' (language '%s')\n", chan->name, filename, preflang ? preflang : "default");
+			ast_verbose(VERBOSE_PREFIX_3 "<%s> Playing '%s.%s' (language '%s')\n", chan->name, filename, ast_getformatname(chan->writeformat), preflang ? preflang : "default");
 
 		return 0;
 	}
