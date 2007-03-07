@@ -336,8 +336,8 @@ static void unload_dynamic_module(struct ast_module *mod)
 
 static struct ast_module *load_dynamic_module(const char *resource_in, unsigned int global_symbols_only)
 {
-	char fn[256];
-	void *lib;
+	char fn[256] = "";
+	void *lib = NULL;
 	struct ast_module *mod;
 	char *resource = (char *) resource_in;
 	unsigned int wants_global;
