@@ -885,8 +885,19 @@ static int action_redirect(struct mansession *s, struct message *m)
 		astman_send_error(s, m, buf);
 		return 0;
 	}
+	if (chan->_state != AST_STATE_UP) {
+		astman_send_error(s, m, "Redirect failed, channel not up.\n");
+		ast_mutex_unlock(&chan->lock);
+		return 0;
+	}
 	if (!ast_strlen_zero(name2))
 		chan2 = ast_get_channel_by_name_locked(name2);
+	if (chan2 && chan2->_state != AST_STATE_UP) {
+		astman_send_error(s, m, "Redirect failed, extra channel not up.\n");
+		ast_mutex_unlock(&chan->lock);
+		ast_mutex_unlock(&chan2->lock);
+		return 0;
+	}
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
 		if (!ast_strlen_zero(name2)) {
