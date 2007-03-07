@@ -1328,6 +1328,12 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		}
 	}
 	if ((res < 1) && (new >= NEW_ALLOW)) {
+		/* It may seem odd that we look through the peer list for a name for
+		 * this *incoming* call.  Well, it is weird.  However, users don't
+		 * have an IP address/port number that we can match against.  So,
+		 * this is just checking for a peer that has that IP/port and
+		 * assuming that we have a user of the same name.  This isn't always
+		 * correct, but it will be changed if needed after authentication. */
 		if (!iax2_getpeername(*sin, host, sizeof(host), lockpeer))
 			snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 		gettimeofday(&now, NULL);
@@ -5015,17 +5021,19 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	int x;
 	struct iax2_user *user = NULL;
 
-	if (ast_test_flag(p, IAX_MAXAUTHREQ)) {
-		AST_LIST_LOCK(&users);
-		AST_LIST_TRAVERSE(&users, user, entry) {
-			if (!strcmp(user->name, p->username)) {
-				user->curauthreq--;
-				break;
-			}
-		}
-		AST_LIST_UNLOCK(&users);
-		ast_clear_flag(p, IAX_MAXAUTHREQ);
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, user, entry) {
+		if (!strcmp(user->name, p->username))
+			break;
 	}
+	if (user) {
+		if (ast_test_flag(p, IAX_MAXAUTHREQ)) {
+			user->curauthreq--;
+			ast_clear_flag(p, IAX_MAXAUTHREQ);
+		}
+		ast_string_field_set(p, host, user->name);
+	}
+	AST_LIST_UNLOCK(&users);
 
 	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))
 		return res;
