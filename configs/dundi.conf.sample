@@ -125,8 +125,27 @@ autokill=yes
 ;digexten => default,0,IAX2,guest@lappy/${NUMBER}
 ;asdf =>
 
-
 ;
+; Weights for mappings can be set a few different ways:
+;
+; 1) It can be set as a static number.
+;testmap1 => context1,222,IAX2,guest@peer1/${NUMBER}
+;
+; 2) It can be an Asterisk global variable.
+;testmap2 => context2,${DUNDITESTVAR},IAX2,guest@peer2${NUMBER}
+;
+; 3) It can be retrieved using a dialplan function.  This can be extremely
+;    useful if you want to let an external script decide what the weight
+;    in a response shouuld be.
+;testmap3 => context3,${SHELL(echo 123)},IAX2,guest@peer3/${NUMBER}
+;
+; Note than when using a global variable or dialplan function to set the
+; weight for a mapping, that response caching should be disabled if you
+; plan for these values to change frequently at all.  If the results are
+; cached, then any change in value will not take effect until the cache
+; has expired.
+;
+
 ;
 ; The remaining sections represent the peers
 ; that we fundamentally trust.  The section name

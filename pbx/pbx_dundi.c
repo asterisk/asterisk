@@ -79,6 +79,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_PACKET_SIZE 8192
 
+#define MAX_WEIGHT 59999
+
 #define DUNDI_MODEL_INBOUND		(1 << 0)
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
 #define DUNDI_MODEL_SYMMETRIC	(DUNDI_MODEL_INBOUND | DUNDI_MODEL_OUTBOUND)
@@ -211,7 +213,8 @@ struct dundi_request {
 struct dundi_mapping {
 	char dcontext[AST_MAX_EXTENSION];
 	char lcontext[AST_MAX_EXTENSION];
-	int weight;
+	int _weight;
+	char *weightstr;
 	int options;
 	int tech;
 	int dead;
@@ -511,6 +514,19 @@ struct dundi_query_state {
 	char fluffy[0];
 };
 
+static int get_mapping_weight(struct dundi_mapping *map)
+{
+	char buf[32] = "";
+
+	if (map->weightstr) {
+		pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);
+		if (sscanf(buf, "%d", &map->_weight) != 1)
+			map->_weight = MAX_WEIGHT;
+	}
+
+	return map->_weight;
+}
+
 static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map, char *called_number, dundi_eid *us_eid, int anscnt, struct dundi_hint_metadata *hmd)
 {
 	struct ast_flags flags = {0};
@@ -539,7 +555,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			ast_set_flag(&flags, map->options & 0xffff);
 			ast_copy_flags(dr + anscnt, &flags, AST_FLAGS_ALL);
 			dr[anscnt].techint = map->tech;
-			dr[anscnt].weight = map->weight;
+			dr[anscnt].weight = get_mapping_weight(map);
 			dr[anscnt].expiration = dundi_cache_time;
 			ast_copy_string(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
@@ -2591,15 +2607,17 @@ static int dundi_show_requests(int fd, int argc, char *argv[])
 static int dundi_show_mappings(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-12.12s %-7.7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
-#define FORMAT "%-12.12s %-7d %-12.12s %-10.10s %-5.5s %-25.25s\n"
+#define FORMAT "%-12.12s %-7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
 	struct dundi_mapping *map;
 	char fs[256];
+	char weight[8];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	ast_cli(fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	AST_LIST_TRAVERSE(&mappings, map, list) {
-		ast_cli(fd, FORMAT, map->dcontext, map->weight, 
+		snprintf(weight, sizeof(weight), "%d", get_mapping_weight(map));
+		ast_cli(fd, FORMAT, map->dcontext, weight,
 			ast_strlen_zero(map->lcontext) ? "<none>" : map->lcontext, 
 			dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);
 	}
@@ -3871,6 +3889,8 @@ static void destroy_peer(struct dundi_peer *peer)
 
 static void destroy_map(struct dundi_mapping *map)
 {
+	if (map->weightstr)
+		free(map->weightstr);
 	free(map);
 }
 
@@ -3960,11 +3980,15 @@ static void build_mapping(char *name, char *value)
 	} else if (x >= 4) {
 		ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
 		ast_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
-		if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
+		if ((sscanf(fields[1], "%d", &map->_weight) == 1) && (map->_weight >= 0) && (map->_weight <= MAX_WEIGHT)) {
 			ast_copy_string(map->dest, fields[3], sizeof(map->dest));
-			if ((map->tech = str2tech(fields[2]))) {
+			if ((map->tech = str2tech(fields[2])))
 				map->dead = 0;
-			}
+		} else if (!strncmp(fields[1], "${", 2) && fields[1][strlen(fields[1]) - 1] == '}') {
+			map->weightstr = ast_strdup(fields[1]);
+			ast_copy_string(map->dest, fields[3], sizeof(map->dest));
+			if ((map->tech = str2tech(fields[2])))
+				map->dead = 0;
 		} else {
 			ast_log(LOG_WARNING, "Invalid weight '%s' specified, deleting entry '%s/%s'\n", fields[1], map->dcontext, map->lcontext);
 		}

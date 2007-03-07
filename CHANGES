@@ -6,10 +6,8 @@ Miscellaneous
 -------------
 
   * Added the bindaddr option to gtalk.conf.
-  * Added the ability to specify arguments to the Dial application when using
-    the DUNDi switch in the dialplan.
   * Added the ability to customize which sound files are used for some of the
-    prompts within the Voicemail application by changing them in voicemail.conf
+     prompts within the Voicemail application by changing them in voicemail.conf
   * Argument support for Gosub application
   * Ability to set process limits without restarting Asterisk
   * SS7 support in chan_zap (via libss7 library)
@@ -85,7 +83,7 @@ Dialplan functions
 ------------------
   * Added the DEVSTATE() dialplan function which allows retrieving any device
     state in the dialplan, as well as creating custom device states that are
-	controllable from the dialplan.
+    controllable from the dialplan.
   * Extend CALLERID() function with "pres" and "ton" parameters to
      fetch string representation of calling number presentation indicator
      and numeric representation of type of calling number value.
@@ -100,18 +98,27 @@ SIP changes
 -----------
   * The default SIP useragent= identifier now includes the Asterisk version
   * A new option, match_auth_username in sip.conf changes the matching of incoming requests.
-    If set, and the incoming request carries authentication info,
-    the username to match in the users list is taken from the Digest header
-    rather than from the From: field. This feature is considered experimental.
+     If set, and the incoming request carries authentication info,
+     the username to match in the users list is taken from the Digest header
+     rather than from the From: field. This feature is considered experimental.
   * The "musiconhold" and "musicclass" settings in sip.conf are now removed,
-    since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
+     since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
   * The "localmask" setting was removed in version 1.2 and the reminder about it
-    being removed is now also removed.
+     being removed is now also removed.
   * A new option "busy-level" for setting a level of calls where asterisk reports
-    a device as busy, to separate it from call-limit
+     a device as busy, to separate it from call-limit
   * A new realtime family called "sipregs" is now supported to store SIP registration
-    data. If this family is defined, "sippeers" will be used for configuration and
-    "sipregs" for registrations. If it's not defined, "sippeers" will be used for
-    registration data, as before.
+     data. If this family is defined, "sippeers" will be used for configuration and
+     "sipregs" for registrations. If it's not defined, "sippeers" will be used for
+     registration data, as before.
   * The SIPPEER function have new options for port address, call and pickup groups
   * Added support for T.140 realtime text in SIP/RTP
+
+DUNDi changes
+-------------
+  * Added the ability to specify arguments to the Dial application when using
+     the DUNDi switch in the dialplan.
+  * Added the ability to set weights for responses dynamically.  This can be
+     done using a global variable or a dialplan function.  Using the SHELL()
+     function would allow you to have an external script set the weight for
+     each response.
