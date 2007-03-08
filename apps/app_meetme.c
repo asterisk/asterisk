@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/dial.h"
+#include "asterisk/causes.h"
 
 #include "enter.h"
 #include "leave.h"
@@ -366,6 +367,7 @@ enum sla_trunk_state {
 	SLA_TRUNK_STATE_RINGING,
 	SLA_TRUNK_STATE_UP,
 	SLA_TRUNK_STATE_ONHOLD,
+	SLA_TRUNK_STATE_ONHOLD_BYME,
 };
 
 enum sla_hold_access {
@@ -454,8 +456,6 @@ static const char sla_registrar[] = "SLA";
 enum sla_event_type {
 	/*! A station has put the call on hold */
 	SLA_EVENT_HOLD,
-	/*! A station has taken the call off of hold */
-	SLA_EVENT_UNHOLD,
 	/*! The state of a dial has changed */
 	SLA_EVENT_DIAL_STATE,
 	/*! The state of a ringing trunk has changed */
@@ -1065,6 +1065,7 @@ static const char *trunkstate2str(enum sla_trunk_state state)
 	S(SLA_TRUNK_STATE_RINGING)
 	S(SLA_TRUNK_STATE_UP)
 	S(SLA_TRUNK_STATE_ONHOLD)
+	S(SLA_TRUNK_STATE_ONHOLD_BYME)
 	}
 	return "Uknown State";
 #undef S
@@ -1273,7 +1274,7 @@ static void sla_queue_event(enum sla_event_type type)
 }
 
 /*! \brief Queue a SLA event from the conference */
-static void sla_queue_event_conf(enum sla_event_type type, const struct ast_channel *chan,
+static void sla_queue_event_conf(enum sla_event_type type, struct ast_channel *chan,
 	struct ast_conference *conf)
 {
 	struct sla_station *station;
@@ -1302,6 +1303,9 @@ static void sla_queue_event_conf(enum sla_event_type type, const struct ast_chan
 		ast_log(LOG_DEBUG, "Trunk not found for event!\n");
 		return;
 	}
+
+	ast_softhangup(chan, AST_CAUSE_NORMAL);
+	trunk_ref->chan = NULL;
 
 	sla_queue_event_full(type, trunk_ref, station, 1);
 }
@@ -2094,8 +2098,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					case AST_CONTROL_HOLD:
 						sla_queue_event_conf(SLA_EVENT_HOLD, chan, conf);
 						break;
-					case AST_CONTROL_UNHOLD:
-						sla_queue_event_conf(SLA_EVENT_UNHOLD, chan, conf);
 					default:
 						break;
 					}
@@ -3094,7 +3096,8 @@ static struct sla_station *sla_find_station(const char *name)
 	return station;
 }
 
-static int sla_check_station_hold_access(const struct sla_trunk *trunk)
+static int sla_check_station_hold_access(const struct sla_trunk *trunk,
+	const struct sla_station *station)
 {
 	struct sla_station_ref *station_ref;
 	struct sla_trunk_ref *trunk_ref;
@@ -3102,9 +3105,9 @@ static int sla_check_station_hold_access(const struct sla_trunk *trunk)
 	/* For each station that has this call on hold, check for private hold. */
 	AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry) {
 		AST_LIST_TRAVERSE(&station_ref->station->trunks, trunk_ref, entry) {
-			if (trunk_ref->trunk != trunk)
+			if (trunk_ref->trunk != trunk || station_ref->station == station)
 				continue;
-			if (trunk_ref->state == SLA_TRUNK_STATE_ONHOLD && trunk_ref->chan &&
+			if (trunk_ref->state == SLA_TRUNK_STATE_ONHOLD_BYME &&
 				station_ref->station->hold_access == SLA_HOLD_PRIVATE)
 				return 1;
 			return 0;
@@ -3133,8 +3136,9 @@ static struct sla_trunk_ref *sla_find_trunk_ref_byname(const struct sla_station 
 		if ( (trunk_ref->trunk->barge_disabled 
 			&& trunk_ref->state != SLA_TRUNK_STATE_IDLE) ||
 			(trunk_ref->trunk->hold_stations 
-			&& trunk_ref->trunk->hold_access == SLA_HOLD_PRIVATE) ||
-			sla_check_station_hold_access(trunk_ref->trunk) )
+			&& trunk_ref->trunk->hold_access == SLA_HOLD_PRIVATE
+			&& trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) ||
+			sla_check_station_hold_access(trunk_ref->trunk, station) )
 			trunk_ref = NULL;
 
 		break;
@@ -3169,14 +3173,15 @@ static struct sla_ringing_station *sla_create_ringing_station(struct sla_station
 }
 
 static void sla_change_trunk_state(const struct sla_trunk *trunk, enum sla_trunk_state state, 
-	enum sla_which_trunk_refs inactive_only)
+	enum sla_which_trunk_refs inactive_only, const struct sla_trunk_ref *exclude)
 {
 	struct sla_station *station;
 	struct sla_trunk_ref *trunk_ref;
 
 	AST_LIST_TRAVERSE(&sla_stations, station, entry) {
 		AST_LIST_TRAVERSE(&station->trunks, trunk_ref, entry) {
-			if (trunk_ref->trunk != trunk || (inactive_only ? trunk_ref->chan : 0))
+			if (trunk_ref->trunk != trunk || (inactive_only ? trunk_ref->chan : 0)
+				|| trunk_ref == exclude)
 				continue;
 			trunk_ref->state = state;
 			ast_device_state_changed("SLA:%s_%s", station->name, trunk->name);
@@ -3222,10 +3227,11 @@ static void *run_station(void *data)
 		conf = NULL;
 	}
 	trunk_ref->chan = NULL;
-	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations)) {
+	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
+		!trunk_ref->trunk->hold_stations) {
 		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
-		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS);
+		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 	}
 
 	ast_dial_join(station->dial);
@@ -3242,7 +3248,7 @@ static void sla_stop_ringing_trunk(struct sla_ringing_trunk *ringing_trunk)
 
 	snprintf(buf, sizeof(buf), "SLA_%s|K", ringing_trunk->trunk->name);
 	admin_exec(NULL, buf);
-	sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS);
+	sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 
 	while ((station_ref = AST_LIST_REMOVE_HEAD(&ringing_trunk->timed_out_stations, entry)))
 		free(station_ref);
@@ -3386,7 +3392,7 @@ static void sla_handle_dial_state_event(void)
 			s_trunk_ref->chan = ast_dial_answered(ringing_station->station->dial);
 			/* Actually answer the trunk */
 			ast_answer(ringing_trunk->trunk->chan);
-			sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS);
+			sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 			/* Now, start a thread that will connect this station to the trunk.  The rest of
 			 * the code here sets up the thread and ensures that it is able to save the arguments
 			 * before they are no longer valid since they are allocated on the stack. */
@@ -3653,21 +3659,11 @@ static void sla_handle_ringing_trunk_event(void)
 static void sla_handle_hold_event(struct sla_event *event)
 {
 	ast_atomic_fetchadd_int((int *) &event->trunk_ref->trunk->hold_stations, 1);
-	event->trunk_ref->state = SLA_TRUNK_STATE_ONHOLD;
+	event->trunk_ref->state = SLA_TRUNK_STATE_ONHOLD_BYME;
 	ast_device_state_changed("SLA:%s_%s", 
 		event->station->name, event->trunk_ref->trunk->name);
-	sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, INACTIVE_TRUNK_REFS);	
-}
-
-static void sla_handle_unhold_event(struct sla_event *event)
-{
-	if (ast_atomic_dec_and_test((int *) &event->trunk_ref->trunk->hold_stations) == 1)
-		sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS);
-	else {
-		event->trunk_ref->state = SLA_TRUNK_STATE_UP;
-		ast_device_state_changed("SLA:%s_%s",
-			event->station->name, event->trunk_ref->trunk->name);
-	}
+	sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, 
+		INACTIVE_TRUNK_REFS, event->trunk_ref);
 }
 
 /*! \brief Process trunk ring timeouts
@@ -3892,9 +3888,6 @@ static void *sla_thread(void *data)
 			case SLA_EVENT_HOLD:
 				sla_handle_hold_event(event);
 				break;
-			case SLA_EVENT_UNHOLD:
-				sla_handle_unhold_event(event);				
-				break;
 			case SLA_EVENT_DIAL_STATE:
 				sla_handle_dial_state_event();
 				break;
@@ -4066,9 +4059,9 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	}
 
 	AST_RWLIST_RDLOCK(&sla_trunks);
-	if (!ast_strlen_zero(trunk_name))
+	if (!ast_strlen_zero(trunk_name)) {
 		trunk_ref = sla_find_trunk_ref_byname(station, trunk_name);
-	else
+	} else
 		trunk_ref = sla_choose_idle_trunk(station);
 	AST_RWLIST_UNLOCK(&sla_trunks);
 
@@ -4081,6 +4074,15 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		}
 		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 		return 0;
+	}
+
+	if (trunk_ref->state == SLA_TRUNK_STATE_ONHOLD_BYME) {
+		if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->hold_stations) == 1)
+			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
+		else {
+			trunk_ref->state = SLA_TRUNK_STATE_UP;
+			ast_device_state_changed("SLA:%s_%s", station->name, trunk_ref->trunk->name);
+		}
 	}
 
 	trunk_ref->chan = chan;
@@ -4096,7 +4098,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 			.cond_lock = &cond_lock,
 			.cond = &cond,
 		};
-		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS);
+		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 		/* Create a thread to dial the trunk and dump it into the conference.
 		 * However, we want to wait until the trunk has been dialed and the
 		 * conference is created before continuing on here. */
@@ -4116,7 +4118,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		if (!trunk_ref->trunk->chan) {
 			ast_log(LOG_DEBUG, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);
 			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
-			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS);
+			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 			trunk_ref->chan = NULL;
 			return 0;
 		}
@@ -4138,7 +4140,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	if (res == 1) {	
 		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
-		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS);
+		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 	}
 	
 	pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "SUCCESS");
@@ -4168,7 +4170,7 @@ static struct sla_ringing_trunk *queue_ringing_trunk(struct sla_trunk *trunk)
 	ringing_trunk->trunk = trunk;
 	ringing_trunk->ring_begin = ast_tvnow();
 
-	sla_change_trunk_state(trunk, SLA_TRUNK_STATE_RINGING, 0);
+	sla_change_trunk_state(trunk, SLA_TRUNK_STATE_RINGING, ALL_TRUNK_REFS, NULL);
 
 	ast_mutex_lock(&sla.lock);
 	AST_LIST_INSERT_HEAD(&sla.ringing_trunks, ringing_trunk, entry);
@@ -4280,6 +4282,7 @@ static int sla_state(const char *data)
 			res = AST_DEVICE_INUSE;
 			break;
 		case SLA_TRUNK_STATE_ONHOLD:
+		case SLA_TRUNK_STATE_ONHOLD_BYME:
 			res = AST_DEVICE_ONHOLD;
 			break;
 		}
