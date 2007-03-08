@@ -4708,17 +4708,17 @@ static int load_module(void)
 	res |= load_config(0);
 
 	ast_cli_register_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
-	res = ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, 
-		action_meetmemute, "Mute a Meetme user");
+	res |= ast_manager_register("MeetmeMute", EVENT_FLAG_CALL, 
+				    action_meetmemute, "Mute a Meetme user");
 	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, 
-		action_meetmeunmute, "Unmute a Meetme user");
+				    action_meetmeunmute, "Unmute a Meetme user");
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
 	res |= ast_register_application(slastation_app, sla_station_exec,
-		slastation_synopsis, slastation_desc);
+					slastation_synopsis, slastation_desc);
 	res |= ast_register_application(slatrunk_app, sla_trunk_exec,
-		slatrunk_synopsis, slatrunk_desc);
+					slatrunk_synopsis, slatrunk_desc);
 
 	res |= ast_devstate_prov_add("Meetme", meetmestate);
 	res |= ast_devstate_prov_add("SLA", sla_state);
