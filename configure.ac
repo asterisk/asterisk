@@ -923,7 +923,7 @@ AST_C_DEFINE_CHECK([ZAPTEL], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h], [140])
 AST_C_DEFINE_CHECK([ZAPTEL], [ZT_DIAL_OP_CANCEL], [zaptel/zaptel.h], [90])
 
 # Check for VLDTMF support
-AST_C_DEFINE_CHECK([ZAPTEL_VLDTMF], [ZT_TONE_DTMF_BASE], [zaptel/zaptel.h])
+AST_C_DEFINE_CHECK([ZAPTEL_VLDTMF], [ZT_EVENT_REMOVED], [zaptel/zaptel.h])
 
 # Check for transcode support
 AST_C_DEFINE_CHECK([ZAPTEL_TRANSCODE], [ZT_TCOP_ALLOCATE], [zaptel/zaptel.h])

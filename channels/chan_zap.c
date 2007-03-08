@@ -6866,6 +6866,24 @@ static void *ss_thread(void *data)
 	return NULL;
 }
 
+/* destroy a zaptel channel, identified by its number */
+static int zap_destroy_channel_bynum(int channel)
+{
+	struct zt_pvt *tmp = NULL;
+	struct zt_pvt *prev = NULL;
+
+	tmp = iflist;
+	while (tmp) {
+		if (tmp->channel == channel) {
+			destroy_channel(prev, tmp, 1);
+			return RESULT_SUCCESS;
+		}
+		prev = tmp;
+		tmp = tmp->next;
+	}
+	return RESULT_FAILURE;
+}
+
 static int handle_init_event(struct zt_pvt *i, int event)
 {
 	int res;
@@ -7056,6 +7074,12 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				"polarity reversal on non-FXO (SIG_FXS) "
 				"interface %d\n", i->channel);
 		}
+	case ZT_EVENT_REMOVED: /* destroy channel */
+		ast_log(LOG_NOTICE, 
+				"Got ZT_EVENT_REMOVED. Destroying channel %d\n", 
+				i->channel);
+		zap_destroy_channel_bynum(i->channel);
+		break;
 	}
 	pthread_attr_destroy(&attr);
 	return 0;
@@ -10627,25 +10651,14 @@ static struct ast_cli_entry zap_pri_cli[] = {
 
 static int zap_destroy_channel(int fd, int argc, char **argv)
 {
-	int channel = 0;
-	struct zt_pvt *tmp = NULL;
-	struct zt_pvt *prev = NULL;
+	int channel;
 	
-	if (argc != 4) {
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	}
+	
 	channel = atoi(argv[3]);
 
-	tmp = iflist;
-	while (tmp) {
-		if (tmp->channel == channel) {
-			destroy_channel(prev, tmp, 1);
-			return RESULT_SUCCESS;
-		}
-		prev = tmp;
-		tmp = tmp->next;
-	}
-	return RESULT_FAILURE;
+	return zap_destroy_channel_bynum(channel);
 }
 
 static int setup_zap(int reload);
