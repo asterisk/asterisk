@@ -1302,9 +1302,6 @@ static void sla_queue_event_conf(enum sla_event_type type, struct ast_channel *c
 		return;
 	}
 
-	ast_softhangup(chan, AST_CAUSE_NORMAL);
-	trunk_ref->chan = NULL;
-
 	sla_queue_event_full(type, trunk_ref, station, 1);
 }
 
@@ -3674,6 +3671,9 @@ static void sla_handle_hold_event(struct sla_event *event)
 		event->station->name, event->trunk_ref->trunk->name);
 	sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, 
 		INACTIVE_TRUNK_REFS, event->trunk_ref);
+	
+	ast_softhangup(event->trunk_ref->chan, AST_CAUSE_NORMAL);
+	event->trunk_ref->chan = NULL;
 }
 
 /*! \brief Process trunk ring timeouts
@@ -4039,7 +4039,6 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	struct sla_station *station;
 	struct sla_trunk_ref *trunk_ref = NULL;
 	char conf_name[MAX_CONFNUM];
-	int res;
 	struct ast_flags conf_flags = { 0 };
 	struct ast_conference *conf;
 
@@ -4146,8 +4145,8 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		conf = NULL;
 	}
 	trunk_ref->chan = NULL;
-	res = ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, -1);
-	if (res == 1) {	
+	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
+		!trunk_ref->trunk->hold_stations) {
 		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
