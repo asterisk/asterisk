@@ -7074,6 +7074,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				"polarity reversal on non-FXO (SIG_FXS) "
 				"interface %d\n", i->channel);
 		}
+		break;
 	case ZT_EVENT_REMOVED: /* destroy channel */
 		ast_log(LOG_NOTICE, 
 				"Got ZT_EVENT_REMOVED. Destroying channel %d\n", 
