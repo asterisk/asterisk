@@ -497,6 +497,7 @@ static void *ast_httpd_helper_thread(void *data)
 			free(title);
 	}
 	fclose(ser->f);
+	close(ser->fd);
 	free(ser);
 	return NULL;
 }
@@ -538,6 +539,7 @@ static void *http_root(void *data)
 			if (ast_pthread_create_background(&launched, &attr, ast_httpd_helper_thread, ser)) {
 				ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 				fclose(ser->f);
+				close(ser->fd);
 				free(ser);
 			}
 			pthread_attr_destroy(&attr);
