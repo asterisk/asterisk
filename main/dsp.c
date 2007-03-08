@@ -1334,9 +1334,11 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 		}
 	}
 #endif
+#ifndef BUSYDETECT_TONEONLY
 #if 1
 	if (res)
 		ast_log(LOG_DEBUG, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+#endif
 #endif
 	return res;
 }
