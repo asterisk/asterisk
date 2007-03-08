@@ -634,9 +634,7 @@ static void *httpd_helper_thread(void *data)
 		free(title);
 
 done:
-	if (ser->f)
-		fclose(ser->f);
-	close(ser->fd);
+	fclose(ser->f);
 	free(ser);
 	return NULL;
 }
