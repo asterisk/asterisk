@@ -3667,6 +3667,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			hp = ast_gethostbyname(host, &ahp);
 			if (!hp) {
 				ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
+				return -1;
 			}
 		}
 	}
@@ -3693,6 +3694,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			hp = ast_gethostbyname(host, &ahp);
 			if (!hp) {
 				ast_log(LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
+				return -1;
 			}
 		}
 	}
