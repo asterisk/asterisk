@@ -5237,14 +5237,20 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			} else {
 				/* XXX This could block for a long time, and block the main thread! XXX */
 				if (audio) {
-					if ( !(hp = ast_gethostbyname(host, &audiohp)))
+					if ( !(hp = ast_gethostbyname(host, &audiohp))) {
 						ast_log(LOG_WARNING, "Unable to lookup RTP Audio host in secondary c= line, '%s'\n", c);
+						return -2;
+					}
 				} else if (video) {
-					if (!(vhp = ast_gethostbyname(host, &videohp)))
+					if (!(vhp = ast_gethostbyname(host, &videohp))) {
 						ast_log(LOG_WARNING, "Unable to lookup RTP video host in secondary c= line, '%s'\n", c);
+						return -2;
+					}
 				} else if (text) {
-					if (!(thp = ast_gethostbyname(host, &texthp)))
+					if (!(thp = ast_gethostbyname(host, &texthp))) {
 						ast_log(LOG_WARNING, "Unable to lookup RTP text host in secondary c= line, '%s'\n", c);
+						return -2;
+					}
 				}
 			}
 
