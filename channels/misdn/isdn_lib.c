@@ -447,7 +447,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
 
 int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
-	if (channel<=0 || channel>=MAX_BCHANS) {
+	if (channel<=0 || channel>MAX_BCHANS) {
 		cb_log(0,stack?stack->port:0, "empty_chan_in_stack: cannot empty channel %d\n",channel);
 		return -1;
 	}
