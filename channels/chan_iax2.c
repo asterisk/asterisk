@@ -2374,18 +2374,15 @@ static void __get_from_jb(void *p)
 			break;
 		case JB_INTERP:
 		{
-			struct ast_frame af;
+			struct ast_frame af = { 0, };
 			
 			/* create an interpolation frame */
 			af.frametype = AST_FRAME_VOICE;
 			af.subclass = pvt->voiceformat;
-			af.datalen  = 0;
 			af.samples  = frame.ms * 8;
-			af.mallocd  = 0;
 			af.src  = "IAX2 JB interpolation";
-			af.data  = NULL;
 			af.delivery = ast_tvadd(pvt->rxcore, ast_samp2tv(next, 1000));
-			af.offset=AST_FRIENDLY_OFFSET;
+			af.offset = AST_FRIENDLY_OFFSET;
 			
 			/* queue the frame:  For consistency, we would call __do_deliver here, but __do_deliver wants an iax_frame,
 			 * which we'd need to malloc, and then it would free it.  That seems like a drag */
@@ -3833,9 +3830,9 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, stru
 {
 	int padding;
 	unsigned char *workspace;
+
 	workspace = alloca(*datalen);
-	if (!workspace)
-		return -1;
+	memset(f, 0, sizeof(*f));
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
 		if (*datalen < 16 + sizeof(struct ast_iax2_full_hdr))
@@ -4673,15 +4670,14 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno, 
 		int now, int transfer, int final)
 {
-	struct ast_frame f;
+	struct ast_frame f = { 0, };
+
 	f.frametype = type;
 	f.subclass = command;
 	f.datalen = datalen;
-	f.samples = 0;
-	f.mallocd = 0;
-	f.offset = 0;
-	f.src = (char *)__FUNCTION__;
-	f.data = (char *)data;
+	f.src = __FUNCTION__;
+	f.data = (void *) data;
+
 	return iax2_send(i, &f, ts, seqno, now, transfer, final);
 }
 
@@ -6468,6 +6464,7 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 		/* If it's a valid call, deliver the contents.  If not, we
 		   drop it, since we don't have a scallno to use for an INVAL */
 		/* Process as a mini frame */
+		memset(&f, 0, sizeof(f));
 		f.frametype = AST_FRAME_VOICE;
 		if (!iaxs[fr->callno]) {
 			/* drop it */
@@ -6558,7 +6555,7 @@ static int socket_process(struct iax2_thread *thread)
 	struct ast_iax2_video_hdr *vh = (struct ast_iax2_video_hdr *)thread->buf;
 	struct iax_frame *fr;
 	struct iax_frame *cur;
-	struct ast_frame f;
+	struct ast_frame f = { 0, };
 	struct ast_channel *c;
 	struct iax2_dpcache *dp;
 	struct iax2_peer *peer;
