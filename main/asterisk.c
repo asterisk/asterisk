@@ -1419,7 +1419,7 @@ static const char version_help[] =
 #if defined(MARKO_BDAY)
 static const char markobday_help[] =
 "Usage: marko show birthday\n"
-"       Shows time until/since Mark Spencers 30th birthday.\n";
+"       Shows time until/since Mark Spencer's 30th birthday.\n";
 #endif
 
 static int handle_version(int fd, int argc, char *argv[])
@@ -1491,9 +1491,9 @@ static int handle_markobday(int fd, int argc, char *argv[])
 		if (curtime >= markobdaystarttime && curtime <= markobdayendtime)
 			ast_cli(fd, "Happy 30th birthday Marko!\n");
 		else if (curtime > markobdayendtime)
-			print_markobdaystr(fd, curtime - markobdayendtime, "Time since Mark Spencers 30th birthday");
+			print_markobdaystr(fd, curtime - markobdayendtime, "Time since Mark Spencer's 30th birthday");
 		else
-			print_markobdaystr(fd, markobdaystarttime - curtime, "Time until Mark Spencers 30th birthday");
+			print_markobdaystr(fd, markobdaystarttime - curtime, "Time until Mark Spencer's 30th birthday");
 	}
 	return RESULT_SUCCESS;
 }
@@ -1676,7 +1676,7 @@ static struct ast_cli_entry cli_asterisk[] = {
 
 #if defined(MARKO_BDAY)
 	{ { "marko", "show", "birthday", NULL },
-	handle_markobday, "Display time until/since Mark Spencers 30th birthday",
+	handle_markobday, "Display time until/since Mark Spencer's 30th birthday",
 	markobday_help },
 #endif
 
