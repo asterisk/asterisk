@@ -463,7 +463,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 
 static int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
-	if (channel<=0 || channel>=MAX_BCHANS) {
+	if (channel<=0 || channel>MAX_BCHANS) {
 		cb_log(0,stack?stack->port:0, "empty_chan_in_stack: cannot empty channel %d\n",channel);
 		return -1;
 	}
@@ -1534,8 +1534,10 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 			if (bc->channel>0)
 				empty_chan_in_stack(stack,bc->channel);
 			int tmpcause=bc->cause;	
+			int tmp_out_cause=bc->out_cause;	
 			empty_bc(bc);
 			bc->cause=tmpcause;
+			bc->out_cause=tmp_out_cause;
 			clean_up_bc(bc);
 			break;
 		default:
@@ -3331,8 +3333,10 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			if (bc->channel>0)
 				empty_chan_in_stack(stack,bc->channel);
 			int tmpcause=bc->cause;	
+			int tmp_out_cause=bc->out_cause;	
 			empty_bc(bc);
 			bc->cause=tmpcause;
+			bc->out_cause=tmp_out_cause;
 			clean_up_bc(bc);
 		}
 		break;
