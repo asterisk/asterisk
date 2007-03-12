@@ -140,7 +140,7 @@ struct ast_rtp {
 
 	/* DTMF Reception Variables */
 	char resp;
-	unsigned int lasteventendseqn;
+	unsigned int lastevent;
 	int dtmfcount;
 	unsigned int dtmfsamples;
 	/* DTMF Transmission Variables */
@@ -775,7 +775,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
  * \param seqno
  * \returns
  */
-static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno)
+static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp)
 {
 	unsigned int event;
 	unsigned int event_end;
@@ -809,21 +809,23 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		resp = 'X';	
 	}
 	
-	if ((!(rtp->resp) && (!(event_end & 0x80))) || (rtp->resp && rtp->resp != resp)) {
-		rtp->resp = resp;
-		if (!ast_test_flag(rtp, FLAG_DTMF_COMPENSATE))
+	if (ast_test_flag(rtp, FLAG_DTMF_COMPENSATE)) {
+		if ((rtp->lastevent != timestamp) || (rtp->resp && rtp->resp != resp)) {
+			rtp->resp = resp;
+			f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+			f->len = 0;
+			rtp->lastevent = timestamp;
+		}
+	} else {
+		if ((!(rtp->resp) && (!(event_end & 0x80))) || (rtp->resp && rtp->resp != resp)) {
+			rtp->resp = resp;
 			f = send_dtmf(rtp, AST_FRAME_DTMF_BEGIN);
-	} else if (event_end & 0x80 && rtp->lasteventendseqn != seqno && rtp->resp) {
-		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-		f->len = ast_tvdiff_ms(ast_samp2tv(samples, 8000), ast_tv(0, 0)); /* XXX hard coded 8kHz */
-		rtp->resp = 0;
-		rtp->lasteventendseqn = seqno;
-	} else if (ast_test_flag(rtp, FLAG_DTMF_COMPENSATE) && event_end & 0x80 && rtp->lasteventendseqn != seqno) {
-		rtp->resp = resp;
-		f = send_dtmf(rtp, AST_FRAME_DTMF_END);
-		f->len = ast_tvdiff_ms(ast_samp2tv(samples, 8000), ast_tv(0, 0)); /* XXX hard coded 8kHz */
-		rtp->resp = 0;
-		rtp->lasteventendseqn = seqno;
+		} else if ((event_end & 0x80) && (rtp->lastevent != seqno) && rtp->resp) {
+			f = send_dtmf(rtp, AST_FRAME_DTMF_END);
+			f->len = ast_tvdiff_ms(ast_samp2tv(samples, 8000), ast_tv(0, 0)); /* XXX hard coded 8kHz */
+			rtp->resp = 0;
+			rtp->lastevent = seqno;
+		}
 	}
 
 	rtp->dtmfcount = dtmftimeout;
@@ -1319,12 +1321,12 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				duration &= 0xFFFF;
 				ast_verbose("Got  RTP RFC2833 from   %s:%u (type %-2.2d, seq %-6.6u, ts %-6.6u, len %-6.6u, mark %d, event %08x, end %d, duration %-5.5d) \n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
-			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
+			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp);
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 			/* It's really special -- process it the Cisco way */
-			if (rtp->lasteventseqn <= seqno || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+			if (rtp->lastevent <= seqno || (rtp->lastevent >= 65530 && seqno <= 6)) {
 				f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-				rtp->lasteventseqn = seqno;
+				rtp->lastevent = seqno;
 			}
 		} else if (rtpPT.code == AST_RTP_CN) {
 			/* Comfort Noise */
@@ -2117,7 +2119,7 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->lastitexttimestamp = 0;
 	rtp->lastotexttimestamp = 0;
 	rtp->lasteventseqn = 0;
-	rtp->lasteventendseqn = 0;
+	rtp->lastevent = 0;
 	rtp->lasttxformat = 0;
 	rtp->lastrxformat = 0;
 	rtp->dtmfcount = 0;
