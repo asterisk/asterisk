@@ -148,10 +148,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; for Sipura and Grandstream ATAs, among others). This is
 				; contrary to the RFC3551 specification, the peer _should_
 				; be negotiating AAL2-G726-32 instead :-(
-
 ;outboundproxy=proxy.provider.domain           ; send outbound signaling to this proxy, not directly to the devices
 ;outboundproxy=proxy.provider.domain:8080       ; send outbound signaling to this proxy, not directly to the devices
 ;outboundproxy=proxy.provider.domain,force      ; Send ALL outbound signalling to proxy, ignoring route: headers
+;matchexterniplocally = yes     ; Only substitute the externip or externhost setting if it matches
+                                ; your localnet setting. Unless you have some sort of strange network
+                                ; setup you will not need to enable this.
 
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a

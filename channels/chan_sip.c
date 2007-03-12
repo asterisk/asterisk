@@ -578,6 +578,8 @@ static int global_autoframing;          /*!< Turn autoframing on or off. */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
 static struct sip_proxy global_outboundproxy;	/*!< Outbound proxy */
 
+static int global_matchexterniplocally; /*!< Match externip/externhost setting against localnet setting */
+
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 
@@ -1935,7 +1937,7 @@ static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *
 
 	if (localaddr && externip.sin_addr.s_addr &&
 	    (ast_apply_ha(localaddr, &theirs)) &&
-	    (!ast_apply_ha(localaddr, &ours))) {
+	    (!global_matchexterniplocally || !ast_apply_ha(localaddr, &ours))) {
 		if (externexpire && time(NULL) >= externexpire) {
 			struct ast_hostent ahp;
 			struct hostent *hp;
@@ -16936,6 +16938,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_callevents = FALSE;
 	global_t1min = DEFAULT_T1MIN;		
 
+	global_matchexterniplocally = FALSE;
+
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
@@ -17187,6 +17191,8 @@ static int reload_config(enum channelreloadreason reason)
 			default_maxcallbitrate = atoi(v->value);
 			if (default_maxcallbitrate < 0)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
+		} else if (!strcasecmp(v->name, "matchexterniplocally")) {
+			global_matchexterniplocally = ast_true(v->value);
 		}
 	}
 
