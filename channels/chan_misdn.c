@@ -1947,7 +1947,12 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		strncpy(newbc->dad,ast->exten, l);
 		newbc->dad[l-1] = 0;
 	}
-	newbc->rad[0]=0;
+
+	if (ast->cid.cid_rdnis)  
+		strcpy(newbc->rad, ast->cid.cid_rdnis);
+	else 
+		newbc->rad[0]=0;
+
 	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n",AST_CID_P(ast));
 	if (ast_strlen_zero(newbc->oad) && AST_CID_P(ast) ) {
 
@@ -3581,6 +3586,15 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (tmp && (atoi(tmp) == 1)) {
 		bc->sending_complete=1;
 	}
+	
+	ast_log(LOG_VERBOSE, "getting MISDN_USERUSER:\n");
+	tmp=pbx_builtin_getvar_helper(chan,"MISDN_USERUSER");
+	if (tmp) {
+		ast_log(LOG_VERBOSE, "MISDN_USERUSER: %s\n", tmp);
+		strcpy(bc->uu, tmp);
+		bc->uulen=strlen(bc->uu);
+	}
+
 }
 
 void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
@@ -3598,6 +3612,10 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (bc->urate) {
 		sprintf(tmp,"%d",bc->urate);
 		pbx_builtin_setvar_helper(chan,"MISDN_URATE",tmp);
+	}
+
+	if (bc->uulen) {
+		pbx_builtin_setvar_helper(chan,"MISDN_USERUSER",bc->uu);
 	}
 }
 

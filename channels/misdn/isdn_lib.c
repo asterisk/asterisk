@@ -617,6 +617,8 @@ static void empty_bc(struct misdn_bchannel *bc)
 	bc->dad[0] = 0;
 	bc->rad[0] = 0;
 	bc->orig_dad[0] = 0;
+	bc->uu[0]=0;
+	bc->uulen=0;
 	
 	bc->fac_in.Function = Fac_None;
 	bc->fac_out.Function = Fac_None;
@@ -3086,6 +3088,9 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout)
 			}
 
 			int maxnum=inout&&!stack->pri&&!stack->ptp?stack->b_num+1:stack->b_num;
+			//int maxnum=stack->b_num+1;
+
+			cb_log(0,0,"maxnum:%d",maxnum);
 			for (i = 0; i <maxnum; i++) {
 				if (!stack->bc[i].in_use) {
 					/* 3. channel on bri means CW*/
