@@ -9007,6 +9007,10 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		if ((c = strchr(of, ':')))
 			*c = '\0';
 		tmp = ast_strdupa(of);
+		/* We need to be able to handle auth-headers looking like
+			<sip:8164444422;phone-context=+1@1.2.3.4:5060;user=phone;tag=SDadkoa01-gK0c3bdb43>
+		*/
+		tmp = strsep(&tmp, ";");
 		if (ast_is_shrinkable_phonenumber(tmp))
 			ast_shrink_phone_number(tmp);
 		ast_string_field_set(p, cid_num, tmp);
