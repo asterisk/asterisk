@@ -4249,8 +4249,11 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	AST_LIST_TRAVERSE_SAFE_END
 	ast_mutex_unlock(&sla.lock);
 	if (ringing_trunk) {
+		sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 		free(ringing_trunk);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "UNANSWERED");
+		/* Queue reprocessing of ringing trunks to make stations stop ringing
+		 * that shouldn't be ringing after this trunk stopped. */
 		sla_queue_event(SLA_EVENT_RINGING_TRUNK);
 	}
 
