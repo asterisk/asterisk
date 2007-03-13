@@ -18,6 +18,7 @@
 ;uncomment to load queues.conf via the odbc engine.
 ;
 ;queues.conf => odbc,asterisk,ast_config
+;extensions.conf => sqlite,asterisk,ast_config
 ;
 ; The following files CANNOT be loaded from Realtime storage:
 ;	asterisk.conf
@@ -41,6 +42,12 @@
 ;
 ;example => odbc,asterisk,alttable
 ;example2 => ldap,"dc=oxymium,dc=net",example2
+;
+; "odbc" is shown in the examples below, but is not the only valid realtime
+; engine.  There is:
+;    odbc ... res_config_odbc
+;    sqlite ... res_config_sqlite
+;    pgsql ... res_config_pgsql
 ;
 ;iaxusers => odbc,asterisk
 ;iaxpeers => odbc,asterisk

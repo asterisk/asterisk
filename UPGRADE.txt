@@ -36,3 +36,9 @@ Applications:
   performs mostly a 'ChanExists' sort of function.
 * SetCallerPres() has been replaced with the CALLERPRES() dialplan function
   and is now deprecated.
+
+CDR:
+
+* The cdr_sqlite module has been marked as deprecated in favor of
+  cdr_sqlite3_custom.  It will potentially be removed from the tree
+  after Asterisk 1.6 is released.

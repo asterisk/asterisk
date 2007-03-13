@@ -394,6 +394,12 @@
 /* Define this to indicate the ${SQLITE_DESCRIP} library */
 #undef HAVE_SQLITE
 
+/* Define this to indicate the ${SQLITE3_DESCRIP} library */
+#undef HAVE_SQLITE3
+
+/* Define to indicate the ${SQLITE3_DESCRIP} library version */
+#undef HAVE_SQLITE3_VERSION
+
 /* Define to indicate the ${SQLITE_DESCRIP} library version */
 #undef HAVE_SQLITE_VERSION
 

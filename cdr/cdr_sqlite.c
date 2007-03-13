@@ -30,6 +30,8 @@
  * 
  * Creates the database and table on-the-fly
  * \ingroup cdr_drivers
+ *
+ * \note This module has been marked deprecated in favor for cdr_sqlite3_custom
  */
 
 /*** MODULEINFO
@@ -179,6 +181,9 @@ static int load_module(void)
 	char *zErr;
 	char fn[PATH_MAX];
 	int res;
+
+	ast_log(LOG_WARNING, "This module has been marked deprecated in favor of "
+		"using cdr_sqlite3_custom. (May be removed after Asterisk 1.6)\n");
 
 	/* is the database there? */
 	snprintf(fn, sizeof(fn), "%s/cdr.db", ast_config_AST_LOG_DIR);
