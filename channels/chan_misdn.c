@@ -4531,16 +4531,22 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 		case 'c':
 			keyidx=atoi(++tok);
       
-			if (keyidx > misdn_key_vector_size  || keyidx < 0 ) {
-				ast_log(LOG_WARNING, "You entered the keyidx: %d but we have only %d keys\n",keyidx, misdn_key_vector_size );
-				continue; 
+			char keys[4096];
+			char *key=NULL, *tmp;
+			int i;
+			misdn_cfg_get( 0, MISDN_GEN_CRYPT_KEYS, keys, sizeof(keys));
+
+			tmp=keys;
+
+			for (i=0; i<keyidx; i++) {
+				key=strsep(&tmp,",");
 			}
-      
-			{
-				ast_copy_string(ch->bc->crypt_key,  misdn_key_vector[keyidx], sizeof(ch->bc->crypt_key));
+
+			if (key) {
+				ast_copy_string(ch->bc->crypt_key, key, sizeof(ch->bc->crypt_key));
 			}
 			
-			chan_misdn_log(0, ch->bc->port, "SETOPT: crypt with key:%s\n",misdn_key_vector[keyidx]);
+			chan_misdn_log(0, ch->bc->port, "SETOPT: crypt with key:%s\n",ch->bc->crypt_key);
 			break;
 
 		case 'e':
