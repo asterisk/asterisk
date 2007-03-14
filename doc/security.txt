@@ -65,3 +65,9 @@ exten => 6123,Dial(Zap/1)
 DON'T FORGET TO TAKE THE DEMO CONTEXT OUT OF YOUR DEFAULT CONTEXT.  There
 isn't really a security reason, it just will keep people from wanting to 
 play with your Asterisk setup remotely.
+
+* LOG SECURITY
+
+Please note that the Asterisk log files, as well as information printed to the
+Asterisk CLI, may contain sensitive information such as passwords and call 
+history.  Keep this in mind when providing access to these resources.
