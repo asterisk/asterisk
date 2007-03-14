@@ -17031,7 +17031,7 @@ static int reload_config(enum channelreloadreason reason)
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			ast_copy_string(default_notifymime, v->value, sizeof(default_notifymime));
-		} else if (!strcasecmp(v->name, "limitonpeers")) {
+		} else if (!strncasecmp(v->name, "limitonpeer", 11)) {
 			global_limitonpeers = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "directrtpsetup")) {
 			global_directrtpsetup = ast_true(v->value);
