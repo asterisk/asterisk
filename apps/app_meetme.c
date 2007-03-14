@@ -496,7 +496,7 @@ struct sla_ringing_station {
 /*!
  * \brief A structure for data used by the sla thread
  */
-static struct sla {
+static struct {
 	/*! The SLA thread ID */
 	pthread_t thread;
 	ast_cond_t cond;
@@ -506,6 +506,9 @@ static struct sla {
 	AST_LIST_HEAD_NOLOCK(, sla_failed_station) failed_stations;
 	AST_LIST_HEAD_NOLOCK(, sla_event) event_q;
 	unsigned int stop:1;
+	/*! Attempt to handle CallerID, even though it is known not to work
+	 *  properly in some situations. */
+	unsigned int attempt_callerid:1;
 } sla = {
 	.thread = AST_PTHREADT_NULL,
 };
@@ -3496,7 +3499,8 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 		return -1;
 	}
 
-	if (ast_dial_run(dial, ringing_trunk->trunk->chan, 1) != AST_DIAL_RESULT_TRYING) {
+	if (ast_dial_run(dial, sla.attempt_callerid ? ringing_trunk->trunk->chan : NULL, 1) 
+		!= AST_DIAL_RESULT_TRYING) {
 		struct sla_failed_station *failed_station;
 		ast_dial_destroy(dial);
 		if (!(failed_station = ast_calloc(1, sizeof(*failed_station))))
@@ -3956,7 +3960,7 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	dial_res = ast_dial_run(dial, trunk_ref->chan, 1);
+	dial_res = ast_dial_run(dial, sla.attempt_callerid ? trunk_ref->chan : NULL, 1);
 	if (dial_res != AST_DIAL_RESULT_TRYING) {
 		ast_mutex_lock(args->cond_lock);
 		ast_cond_signal(args->cond);
@@ -4638,6 +4642,7 @@ static int sla_load_config(void)
 	struct ast_config *cfg;
 	const char *cat = NULL;
 	int res = 0;
+	const char *val;
 
 	ast_mutex_init(&sla.lock);
 	ast_cond_init(&sla.cond, NULL);
@@ -4645,9 +4650,11 @@ static int sla_load_config(void)
 	if (!(cfg = ast_config_load(SLA_CONFIG_FILE)))
 		return 0; /* Treat no config as normal */
 
+	if ((val = ast_variable_retrieve(cfg, "general", "attemptcallerid")))
+		sla.attempt_callerid = ast_true(val);
+
 	while ((cat = ast_category_browse(cfg, cat)) && !res) {
 		const char *type;
-		/* Reserve "general" for ... general stuff! */
 		if (!strcasecmp(cat, "general"))
 			continue;
 		if (!(type = ast_variable_retrieve(cfg, cat, "type"))) {

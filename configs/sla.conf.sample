@@ -6,8 +6,12 @@
 
 ; ---- General Options ----------------
 [general]
-; There are none!
 
+;attemptcallerid=no         ; Attempt CallerID handling.  The default value for this
+                            ; is "no" because CallerID handling with an SLA setup is
+                            ; known to not work properly in some situations.  However,
+                            ; feel free to enable it if you would like.  If you do, and
+                            ; you find problems, please do not report them.
 ; -------------------------------------
 
 
