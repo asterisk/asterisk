@@ -506,7 +506,7 @@ static struct ast_custom_function strptime_function = {
 static int function_eval(struct ast_channel *chan, char *cmd, char *data,
 			 char *buf, size_t len)
 {
-	buf[0] = '\0';
+	memset(buf, 0, len);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
