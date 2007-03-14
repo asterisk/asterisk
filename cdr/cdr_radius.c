@@ -20,7 +20,7 @@
  *
  * \brief RADIUS CDR Support
  * \author Philippe Sultan
- * \extref FreeRadius http://www.freeradius.org/
+ * \extref The Radius Client Library - http://developer.berlios.de/projects/radiusclient-ng/
  * 
  * \arg See also \ref AstCDR
  * \ingroup cdr_drivers
