@@ -168,6 +168,9 @@
 /* Define if your system has the GTK libraries. */
 #undef HAVE_GTK
 
+/* Define if your system has the GTK2 libraries. */
+#undef HAVE_GTK2
+
 /* Define this to indicate the ${IKSEMEL_DESCRIP} library */
 #undef HAVE_IKSEMEL
 

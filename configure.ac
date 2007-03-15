@@ -981,6 +981,18 @@ AC_SUBST(PBX_GTK)
 AC_SUBST(GTK_INCLUDE)
 AC_SUBST(GTK_LIB)
 
+PBX_GTK2=0
+AC_CHECK_TOOL(PKGCONFIG, pkg-config, No)
+if test ! "x${PKGCONFIG}" = xNo; then
+   GTK2_INCLUDE=$(${PKGCONFIG} gtk+-2.0 --cflags)
+   GTK2_LIB=$(${PKGCONFIG} gtk+-2.0 --libs)
+   PBX_GTK2=1
+   AC_DEFINE([HAVE_GTK2], 1, [Define if your system has the GTK2 libraries.])
+fi
+AC_SUBST(PBX_GTK2)
+AC_SUBST(GTK2_INCLUDE)
+AC_SUBST(GTK2_LIB)
+
 if test "${USE_CURL}" != "no"; then
    AC_PATH_TOOL([CURL_CONFIG], [curl-config], No)
    if test ! x"${CURL_CONFIG}" = xNo; then
