@@ -6392,7 +6392,8 @@ static int socket_process(struct iax2_thread *thread)
 									if (duped_fr) {
 										schedule_delivery(duped_fr, updatehistory, 1, &fr->ts);
 									}
-									if (iaxs[fr->callno]->last < fr->ts) {
+									/* It is possible for the pvt structure to go away after we call schedule_delivery */
+									if (iaxs[fr->callno] && iaxs[fr->callno]->last < fr->ts) {
 										iaxs[fr->callno]->last = fr->ts;
 #if 1
 										if (option_debug && iaxdebug)
