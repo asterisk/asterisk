@@ -138,8 +138,8 @@ struct ast_custom_function realtime_function = {
 		"REALTIME(....)= will write a new value/field to the repository. On a\n"
 		"read, this function returns a delimited text string. The name/value \n"
 		"pairs are delimited by delim1, and the name and value are delimited \n"
-		"between each other with delim2. The default for delim1 is '=' and   \n"
-		"the default for delim2 is '|'. If there is no match, NULL will be   \n"
+		"between each other with delim2. The default for delim1 is '|' and   \n"
+		"the default for delim2 is '='. If there is no match, NULL will be   \n"
 		"returned by the function. On a write, this function will always     \n"
 		"return NULL. \n",
 	.read = function_realtime_read,
