@@ -1,8 +1,0 @@
-About Hold Music
-================
-Digium has licensed the music included with
-the Asterisk distribution From FreePlayMusic
-for use and distribution with Asterisk.  It
-is licensed ONLY for use as hold music within
-an Asterisk based PBX.
-
