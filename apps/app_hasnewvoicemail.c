@@ -63,7 +63,8 @@ static char *hasvoicemail_descrip =
 "	'j' -- jump to priority n+101, if there is voicemail in the folder indicated.\n"
 "  This application sets the following channel variable upon completion:\n"
 "	HASVMSTATUS		The result of the voicemail check returned as a text string as follows\n"
-"		<# of messages in the folder, 0 for NONE>\n";
+"		<# of messages in the folder, 0 for NONE>\n"
+"\nThis application has been deprecated in favor of the VMCOUNT() function\n";
 
 static char *app_hasnewvoicemail = "HasNewVoicemail";
 static char *hasnewvoicemail_synopsis = "Conditionally branches to priority + 101 with the right options set";
@@ -75,7 +76,8 @@ static char *hasnewvoicemail_descrip =
 "	'j' -- jump to priority n+101, if there is new voicemail in folder 'folder' or INBOX\n"
 "  This application sets the following channel variable upon completion:\n"
 "	HASVMSTATUS		The result of the new voicemail check returned as a text string as follows\n"
-"		<# of messages in the folder, 0 for NONE>\n";
+"		<# of messages in the folder, 0 for NONE>\n"
+"\nThis application has been deprecated in favor of the VMCOUNT() function\n";
 
 
 static int hasvoicemail_exec(struct ast_channel *chan, void *data)

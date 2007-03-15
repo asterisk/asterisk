@@ -52,7 +52,8 @@ static char *setcdruserfield_descrip =
                "       can use for data not stored anywhere else in the record.\n"
                "       CDR records can be used for billing or storing other arbitrary data\n"
                "       (I.E. telephone survey responses)\n"
-               "       Also see AppendCDRUserField().\n";
+               "       Also see AppendCDRUserField().\n"
+			   "\nThis application is deprecated in favor of Set(CDR(userfield)=...)\n";
 
 		
 static char *setcdruserfield_app = "SetCDRUserField";
@@ -67,7 +68,8 @@ static char *appendcdruserfield_descrip =
                "       can use for data not stored anywhere else in the record.\n"
                "       CDR records can be used for billing or storing other arbitrary data\n"
                "       (I.E. telephone survey responses)\n"
-               "       Also see SetCDRUserField().\n";
+               "       Also see SetCDRUserField().\n"
+			   "\nThis application is deprecated in favor of Set(CDR(userfield)=...)\n";
 		
 static char *appendcdruserfield_app = "AppendCDRUserField";
 static char *appendcdruserfield_synopsis = "Append to the CDR user field";
