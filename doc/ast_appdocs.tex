@@ -224,6 +224,8 @@ AppendCDRUserField(value): Append value to the CDR user field
        (I.E. telephone survey responses)
        Also see SetCDRUserField().
 
+This application is deprecated in favor of Set(CDR(userfield)=...)
+
 \end{verbatim}
 
 
@@ -1170,6 +1172,8 @@ in that folder.
 	HASVMSTATUS		The result of the new voicemail check returned as a text string as follows
 		<# of messages in the folder, 0 for NONE>
 
+This application has been deprecated in favor of the VMCOUNT() function
+
 \end{verbatim}
 
 
@@ -1187,6 +1191,8 @@ HasVoicemail(vmbox[/folder][@context][|varname[|options]])
   This application sets the following channel variable upon completion:
 	HASVMSTATUS		The result of the voicemail check returned as a text string as follows
 		<# of messages in the folder, 0 for NONE>
+
+This application has been deprecated in favor of the VMCOUNT() function
 
 \end{verbatim}
 
@@ -1233,6 +1239,19 @@ application). Variables created by this application have the same inheritance
 properties as those created with the Set application. See the documentation for
 Set for more information.
 
+\end{verbatim}
+
+
+\section{IVRDemo}
+\subsection{Synopsis}
+\begin{verbatim}
+IVR Demo Application
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+  This is a skeleton application that shows you the basic structure to create your
+own asterisk applications and demonstrates the IVR demo.
+ 
 \end{verbatim}
 
 
@@ -2182,6 +2201,50 @@ tone to the user.
 \end{verbatim}
 
 
+\section{Rpt}
+\subsection{Synopsis}
+\begin{verbatim}
+Radio Repeater/Remote Base Control System
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+  Rpt(nodename[|options]):  Radio Remote Link or Remote Base Link Endpoint Process.
+
+    Not specifying an option puts it in normal endpoint mode (where source
+    IP and nodename are verified).
+
+    Options are as follows:
+
+        X - Normal endpoint mode WITHOUT security check. Only specify
+            this if you have checked security already (like with an IAX2
+            user/password or something).
+
+        Rannounce-string[|timeout[|timeout-destination]] - Amateur Radio
+            Reverse Autopatch. Caller is put on hold, and announcement (as
+            specified by the 'announce-string') is played on radio system.
+            Users of radio system can access autopatch, dial specified
+            code, and pick up call. Announce-string is list of names of
+            recordings, or "PARKED" to substitute code for un-parking,
+            or "NODE" to substitute node number.
+
+        P - Phone Control mode. This allows a regular phone user to have
+            full control and audio access to the radio system. For the
+            user to have DTMF control, the 'phone_functions' parameter
+            must be specified for the node in 'rpt.conf'. An additional
+            function (cop,6) must be listed so that PTT control is available.
+
+        D - Dumb Phone Control mode. This allows a regular phone user to
+            have full control and audio access to the radio system. In this
+            mode, the PTT is activated for the entire length of the call.
+            For the user to have DTMF control (not generally recomended in
+            this mode), the 'dphone_functions' parameter must be specified
+            for the node in 'rpt.conf'. Otherwise no DTMF control will be
+            available to the phone user.
+
+
+\end{verbatim}
+
+
 \section{SayAlpha}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -2359,6 +2422,10 @@ channel and all children channels.
     g - Set variable globally instead of on the channel
         (applies only to variables, not functions)
 
+The use of Set to set multiple variables at once and the g flag have both
+been deprecated.  Please use multiple Set calls and the GLOBAL() dialplan
+function instead.
+
 \end{verbatim}
 
 
@@ -2384,6 +2451,8 @@ Set CallerID
 \begin{verbatim}
   SetCallerID(clid[|a]): Set Caller*ID on a call to a new
 value.  Sets ANI as well if a flag is used. 
+
+This application has been deprecated in favor of Set(CALLERID(all)=...)
 
 \end{verbatim}
 
@@ -2430,6 +2499,8 @@ SetCDRUserField(value): Set the CDR 'user field' to value
        (I.E. telephone survey responses)
        Also see AppendCDRUserField().
 
+This application has been deprecated in favor of Set(CDR(userfield)=...)
+
 \end{verbatim}
 
 
@@ -2442,6 +2513,8 @@ Set a global variable to a given value
 \begin{verbatim}
   SetGlobalVar(variable=value): This application sets a given global variable to
 the specified value.
+
+This application has been deprecated in favor of Set(GLOBAL(var)=value)
 
 \end{verbatim}
 
@@ -2478,6 +2551,7 @@ Valid Transfer Capabilities are:
   DIGITAL_W_TONES    : 0x11 - Unrestricted digital information with tones/announcements
   VIDEO              : 0x18 - Video
 
+This application has been deprecated in favor of Set(CHANNEL(transfercapability)=...)
 
 \end{verbatim}
 
@@ -3219,6 +3293,19 @@ Scan Zap channels to monitor calls
   ZapScan([group]) allows a call center manager to monitor Zap channels in
 a convenient way.  Use '#' to select the next channel and use '*' to exit
 Limit scanning to a channel GROUP by setting the option group argument.
+
+\end{verbatim}
+
+
+\section{ZapSendKeypadFacility}
+\subsection{Synopsis}
+\begin{verbatim}
+Send digits out of band over a PRI
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+  ZapSendKeypadFacility(): This application will send the given string of digits in a Keypad Facility
+  IE over the current channel.
 
 \end{verbatim}
 
