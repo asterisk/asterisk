@@ -1956,7 +1956,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "Subject: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
 	else
 		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
-	fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>" ENDL, msgnum, (unsigned int)ast_random(), mailbox, getpid(), host);
+	fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>" ENDL, msgnum + 1, (unsigned int)ast_random(), mailbox, getpid(), host);
 	if(imap) {
 		/* additional information needed for IMAP searching */
 		fprintf(p, "X-Asterisk-VM-Message-Num: %d" ENDL, msgnum + 1);
