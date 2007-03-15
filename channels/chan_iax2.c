@@ -6500,7 +6500,7 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 					duped_fr = iaxfrdup2(fr);
 					if (duped_fr)
 						schedule_delivery(duped_fr, 1, 1, &fr->ts);
-					if (iaxs[fr->callno]->last < fr->ts)
+					if (iaxs[fr->callno] && iaxs[fr->callno]->last < fr->ts)
 						iaxs[fr->callno]->last = fr->ts;
 				}
 			} else {
