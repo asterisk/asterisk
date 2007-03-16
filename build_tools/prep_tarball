@@ -7,6 +7,4 @@
 
 make -C sounds all MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-FREEPLAY-WAV WGET=wget DOWNLOAD=wget
 
-cd doc
-rubber asterisk.tex 
-cd ..
+cd doc && rubber --pdf asterisk.tex
