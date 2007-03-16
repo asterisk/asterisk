@@ -1,0 +1,69 @@
+
+Mathematical dialplan function
+
+Yeah, I thought it was a little insane too.. 
+
+adds:
+
+Sum, Multiply, Divide, Subtract, Modulus, GT, LT, GTE, LTE, EQ functions to Asterisk
+
+All functions follow the same basic pattern for parameters:
+
+parameter 1 = the math expression
+parameter 2 = the type of result
+
+Perform calculation on number 1 to number 2. Valid ops are:
+    +,-,/,*,%,<,>,>=,<=,==
+and behave as their C equivalents.
+
+<type_of_result> - wanted type of result:
+	f, float - float(default)
+	i, int - integer,
+	h, hex - hex,
+	c, char - char
+
+Each math expression is performed as
+
+ Action param1 on param2
+
+eg: 
+
+ Action = Divide
+ Param1 = 10
+ Param2 = 2
+
+Results in 
+
+ Divide 10 by 2
+
+
+Example dialplan:
+
+exten => 11099,1,Set(RV=${MATH(1+20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10*2)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10*2)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10-2)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(2%10)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10/0)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10-200)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1-20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1<20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1>=20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(101>20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1==20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(20<=20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(123%16,int)})
+exten => 11099,n,NOOP(${RV})

@@ -1,0 +1,10 @@
+Asterisk applications register themselves with ast_application_register.
+They should have a short, unique name, and an exec function which takes
+as its arguments a channel and some data that might be useful for callback
+stuff.  Remember to keep track of how many and which channels are using
+your application so that should the module need to be unloaded
+(particularly force unloaded), you will be able to ast_softhangup all the
+channels.  An application should *never* call ast_hangup on the channel
+that it is running on (although it could conceivably hang up other
+channels that it allocates).  See app_playback.c as an example of a simple
+application.

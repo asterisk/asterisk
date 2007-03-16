@@ -1,0 +1,49 @@
+The Local channel
+-----------------
+
+chan_local is a pseudo-channel. Use of this channel simply loops calls back into the dialplan in a different context. Useful for recursive routing.
+
+* Syntax:
+
+ Local/extension@context[/n]
+
+Adding "/n" at the end of the string will make the Local channel not do a native transfer (the "n" stands for "n"o release) upon the remote end answering the line. This is an esoteric, but important feature if you expect the Local channel to handle calls exactly like a normal channel. If you do not have the "no release" feature set, then as soon as the destination (inside of the Local channel) answers the line, the variables and dial plan will revert back to that of the original call, and the Local channel will become a zombie and be removed from the active channels list. This is desirable in some circumstances, but can result in unexpected dialplan behavior if you are doing fancy things with variables in your call handling.
+
+* Purpose:
+
+The Local channel construct can be used to establish dialing into any part of the dialplan.
+
+Imagine you have a TE410P in your box. You want to do something for which you must use a Dial statement (for instance when dropping files in /var/spool/outgoing) but you do want to be able to use your dialplans least-cost-routes or other intelligent stuff. What you could do before we had chan_local was create a cross-link between two ports of the TE410P and then Dial out one port and in the other. This way you could control where the call was going.
+
+Of course, this was a nasty hack, and to make it more sensible, chan_local was built.
+
+The "Local" channel driver allows you to convert an arbitrary extension into a channel. It is used in a variety of places, including agents, etc.
+
+This also allows us to hop to contexts like a GoSub routine; See examples below.
+
+Examples:
+---------
+
+[inbound] ; here falls all incoming calls
+exten => s,1,Answer
+exten => s,2,Dial(local/200@internal,30,r)
+exten => s,3,Playback(sorrynoanswer)
+exten => s,4,Hangup
+
+[internal] ; here where our phones falls for default
+exten => 200,1,Dial(sip/blah)
+exten => 200,102,VoiceMail(${EXTEN}@default)
+  
+exten => 201,1,Dial(zap/1)
+exten => 201,102,VoiceMail(${EXTEN}@default)
+
+exten => _0.,1,Dial(Zap/g1/${EXTEN:1}) ; outgoing calls with 0+number
+
+
+Caveats:
+If you use chan_local from a call-file and you want to pass channel variables into your context, make sure you append the '/n', because otherwise chan_local will 'optimize' itself out of the call-path, and the variables will get lost. i.e.
+
+ Local/00531234567@pbx becomes Local/00531234567@pbx/n
+
+----------
+2004-01-17

@@ -1905,7 +1905,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "Subject: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
 	else
 		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s" ENDL, msgnum + 1, mailbox);
-	fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>" ENDL, msgnum + 1, (unsigned int)ast_random(), mailbox, getpid(), host);
+	fprintf(p, "Message-ID: <Asterisk-%d-%d-%s-%d@%s>" ENDL, msgnum, (unsigned int)ast_random(), mailbox, getpid(), host);
 	if(imap) {
 		/* additional information needed for IMAP searching */
 		fprintf(p, "X-Asterisk-VM-Message-Num: %d" ENDL, msgnum + 1);
@@ -1930,7 +1930,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	fprintf(p, "MIME-Version: 1.0" ENDL);
 	if (attach_user_voicemail) {
 		/* Something unique. */
-		snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum + 1, mailbox, getpid(), (unsigned int)ast_random());
+		snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum, mailbox, getpid(), (unsigned int)ast_random());
 
 		fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"" ENDL ENDL ENDL, bound);
 
@@ -1946,7 +1946,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 				memset(passdata, 0, vmlen);
 				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
 				pbx_substitute_variables_helper(ast, emailbody, passdata, vmlen);
-				fprintf(p, "%s" ENDL, passdata);
+				fprintf(p, "%s\r\n", passdata);
 			} else
 				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
 			ast_channel_free(ast);
@@ -1978,19 +1978,19 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 				ast_log(LOG_DEBUG, "VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", attach, format, vmu->volgain, mailbox);
 		}
 		fprintf(p, "--%s" ENDL, bound);
-		fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"" ENDL, ctype, format, msgnum + 1, format);
+		fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"" ENDL, ctype, format, msgnum, format);
 		fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
 		fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
-		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"" ENDL ENDL, msgnum + 1, format);
+		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"" ENDL ENDL, msgnum, format);
 		snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 		base_encode(fname, p);
 		/* only attach if necessary */
 		if (imap && !strcmp(format, "gsm")) {
 			fprintf(p, "--%s" ENDL, bound);
-			fprintf(p, "Content-Type: audio/x-gsm; name=\"msg%04d.%s\"" ENDL, msgnum + 1, format);
+			fprintf(p, "Content-Type: audio/x-gsm; name=\"msg%04d.%s\"" ENDL, msgnum, format);
 			fprintf(p, "Content-Transfer-Encoding: base64" ENDL);
 			fprintf(p, "Content-Description: Voicemail sound attachment." ENDL);
-			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.gsm\"" ENDL ENDL, msgnum + 1);
+			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.gsm\"" ENDL ENDL, msgnum);
 			snprintf(fname, sizeof(fname), "%s.gsm", attach);
 			base_encode(fname, p);
 		}

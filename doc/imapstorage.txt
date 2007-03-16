@@ -1,0 +1,202 @@
+======================
+IMAP Voicemail Storage
+======================
+
+03-01-2006 - James Rothenberger <jar@onebiztone.com>
+
+By enabling IMAP Storage,  Asterisk will use native IMAP as the storage
+mechanism for voicemail messages instead of using the standard file structure.
+
+Tighter integration of Asterisk voicemail and IMAP email services allows
+additional voicemail functionality, including:
+
+ - Listening to a voicemail on the phone will set its state to "read" in
+   a user's mailbox automatically.
+ - Deleting a voicemail on the phone will delete it from the user's
+   mailbox automatically.
+ - Accessing a voicemail recording email message will turn off the message
+   waiting indicator (MWI) on the user's phone.
+ - Deleting a voicemail recording email will also turn off the message 
+   waiting indicator, and delete the message from the voicemail system.
+
+=====================
+Contents of this file
+=====================
+
+ - Installation Notes
+ - Separate vs. Shared Email Accounts
+ - IMAP Server Implementations
+ - Quota Support
+ - Application Notes
+ - Known Issues
+
+
+==================
+Installation Notes
+==================
+
+--------------------------------------
+University of Washington IMAP C-Client
+--------------------------------------
+You will need a source distribution of University of Washington's IMAP
+c-client (http://www.washington.edu/imap/).  Asterisk supports both the
+2004 and 2006 versions of c-client, however mail_expunge_full is enabled
+in the 2006 version.
+
+Note that Asterisk only uses the 'client' portion of the UW IMAP toolkit,
+but building it also builds an IMAP server and various other utilities.
+Because of this, the build instructions for the IMAP toolkit are somewhat
+complicated and can lead to confusion about what is needed.
+
+If you are going to be connecting Asterisk to an existing IMAP server,
+then you don't need to care about the server or utilities in the IMAP
+toolkit at all. If you want to also install the UW IMAPD server, that
+is outside the scope of this document.
+
+Building the c-client library is fairly straightforward; for example, on a
+Debian system there are two possibilities:
+
+1) if you will not be using SSL to connect to the IMAP server:
+   $ make slx SSLTYPE=none
+
+2) if you will be using SSL to connect to the IMAP server:
+   $ make slx EXTRACFLAGS="-I/usr/include/openssl"
+
+Once this completes you can proceed with the Asterisk build; there is no
+need to run 'make install'.
+
+------------------
+Compiling Asterisk 
+------------------
+
+Configure with ./configure --with-imap=/usr/src/imap
+or where ever you built thfe UWashington IMAP Toolkit. When you run
+'make menuselect', choose 'Voicemail Build Options' and the
+IMAP_STORAGE option should be available for selection.
+
+Note that the --with-imap option will NOT search your system for an
+installed copy of the IMAP Toolkit c-client library; the Asterisk
+Makefiles and configure script are designed to build against an
+unpacked and compiled source tree of the IMAP Toolkit, not a binary
+distribution.
+
+After selecting it, use the 'x' key to exit menuselect and save
+your changes, and the build/install Asterisk normally.
+
+---------------------
+Modify voicemail.conf
+---------------------
+The following directives have been added to voicemail.conf:
+
+imapserver=<name or IP address of IMAP mail server>
+imapport=<IMAP port, defaults to 143>
+imapflags=<IMAP flags, "novalidate-cert" for example>
+expungeonhangup=<yes or no>
+authuser=<username>
+authpassword=<password>
+
+The "expungeonhangup" flag is used to determine if the voicemail system should
+expunge all messages marked for deletion when the user hangs up the phone. 
+
+Each mailbox definition should also have imapuser=<imap username>.
+For example:
+
+4123=>4123,James Rothenberger,jar@onebiztone.com,,attach=yes|imapuser=jar
+
+The directives "authuser" and "authpassword" are not needed when using
+Kerberos. They are defined to allow Asterisk to authenticate as a single 
+user that has access to all mailboxes as an alternative to Kerberos.
+
+--------------
+IMAP Folders
+--------------
+Besides INBOX, users should create "Old", "Work", "Family" and "Friends" 
+IMAP folders at the same level of hierarchy as the INBOX.  These will be 
+used as alternate folders for storing voicemail messages to mimic the 
+behavior of the current (file-based) voicemail system.
+
+
+==================================
+Separate vs. Shared Email Accounts
+==================================
+As administrator you will have to decide if you want to send the voicemail
+messages to a separate IMAP account or use each user's existing IMAP mailbox
+for voicemail storage.  The IMAP storage mechanism will work either way. 
+
+By implementing a single IMAP mailbox, the user will see voicemail messages
+appear in the same INBOX as other messages.  The disadvantage of this method
+is that if the IMAP server does NOT support UIDPLUS, Asterisk voicemail will
+expunge ALL messages marked for deletion when the user exits the voicemail 
+system, not just the VOICEMAIL messages marked for deletion.
+
+By implementing separate IMAP mailboxes for voicemail and email, voicemail 
+expunges will not remove regular email flagged for deletion.
+
+===========================
+IMAP Server Implementations
+===========================
+There are various IMAP server implementations, each supports a potentially
+different set of features.  
+
+-----------------------
+UW IMAP-2005 or earlier
+-----------------------
+UIDPLUS is currently NOT supported on these versions of UW-IMAP.  Please note
+that without UID_EXPUNGE, Asterisk voicemail will expunge ALL messages marked
+for deletion when a user exits the voicemail system (hangs up the phone).
+
+-------------------------------
+UW IMAP-2006 Development Branch
+-------------------------------
+This version supports UIDPLUS, which allows UID_EXPUNGE capabilities.  This
+feature allow the system to expunge ONLY pertinent messages, instead of the
+default behavior, which is to expunge ALL messages marked for deletion when
+EXPUNGE is called.  The IMAP storage mechanism is this version of Asterisk
+will check if the UID_EXPUNGE feature is supported by the server, and use it
+if possible. 
+
+----------
+Cyrus IMAP
+----------
+Cyrus IMAP server v2.3.3 has been tested using a hierarchy delimiter of '/'.  
+
+
+=============
+Quota Support
+=============
+If the IMAP server supports quotas, Asterisk will check the quota when
+accessing voicemail.  Currently only a warning is given to the user that 
+their quota is exceeded. 
+
+
+=================
+Application Notes
+=================
+Since the primary storage mechanism is IMAP, all message information that 
+was previously stored in an associated text file, AND the recording itself,
+is now stored in a single email message.  This means that the .gsm recording
+will ALWAYS be attached to the message (along with the user's preference of
+recording format if different - ie. .WAV).  The voicemail message information
+is stored in the email message headers.  These headers include:
+
+X-Asterisk-VM-Message-Num
+X-Asterisk-VM-Server-Name
+X-Asterisk-VM-Context
+X-Asterisk-VM-Extension
+X-Asterisk-VM-Priority
+X-Asterisk-VM-Caller-channel
+X-Asterisk-VM-Caller-ID-Num
+X-Asterisk-VM-Caller-ID-Name
+X-Asterisk-VM-Duration
+X-Asterisk-VM-Category
+X-Asterisk-VM-Orig-date
+X-Asterisk-VM-Orig-time
+
+=================
+Known Issues
+=================
+
+ - Forward With Comment advanced option is not currently supported.
+   This feature will be added in the near future.
+ - Message Waiting Indicator blinks off and back on when a message arrives.
+   This should be fixed soon.
