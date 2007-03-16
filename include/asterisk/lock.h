@@ -670,7 +670,7 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v);
 
 #include "asterisk/inline_api.h"
 
-#if defined (__i386__)
+#if defined (__i386__) && !defined(__APPLE__)
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (

@@ -5730,10 +5730,17 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	
 	/* Fromdomain is what we are registering to, regardless of actual
 	   host name from SRV */
-	if (!ast_strlen_zero(p->fromdomain))
-		snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
-	else
-		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+	if (!ast_strlen_zero(p->fromdomain)) {
+		if (r->portno && r->portno != DEFAULT_SIP_PORT)
+			snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
+		else
+			snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
+	} else {
+		if (r->portno && r->portno != DEFAULT_SIP_PORT)
+			snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
+		else
+			snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+	}
 	ast_copy_string(p->uri, addr, sizeof(p->uri));
 
 	p->branch ^= thread_safe_rand();

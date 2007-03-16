@@ -417,7 +417,7 @@ void dump_chan_list(struct misdn_stack *stack)
 
 
 
-static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
+static int find_free_chan_in_stack(struct misdn_stack *stack, int channel, int dec)
 {
 	int i;
 
@@ -429,12 +429,23 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, int channel)
 	}
 	
 	channel--;
-  
-	for (i = 0; i < stack->b_num; i++) {
-		if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
-			if (!stack->channels[i]) {
-				cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
-				return i+1;
+ 
+ 	if (dec) {
+		for (i = stack->b_num-1; i >=0; i--) {
+			if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
+				if (!stack->channels[i]) {
+					cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
+					return i+1;
+				}
+			}
+		}
+	} else {
+		for (i = 0; i < stack->b_num; i++) {
+			if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
+				if (!stack->channels[i]) {
+					cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
+					return i+1;
+				}
 			}
 		}
 	}
@@ -525,6 +536,7 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->in_use= 0;
 	bc->cw= 0;
 
+	bc->dec=0;
 	bc->channel = 0;
 
 	bc->sending_complete = 0;
@@ -671,7 +683,7 @@ int set_chan_in_stack(struct misdn_stack *stack, int channel)
 		if (!stack->channels[channel-1])
 			stack->channels[channel-1] = 1;
 		else {
-			cb_log(0,stack->port,"channel already in use:%d\n", channel );
+			cb_log(4,stack->port,"channel already in use:%d\n", channel );
 			return -1;
 		}
 	} else {
@@ -818,7 +830,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 	int free_chan;
   
 	if (stack->nt) {
-		free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
+		free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0, 0);
 		if (!free_chan) return -1;
 		bc->channel=free_chan;
 
@@ -850,7 +862,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 	} else { 
 		if (stack->ptp || bc->te_choose_channel) {
 			/* we know exactly which channels are in use */
-			free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
+			free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0, bc->dec);
 			if (!free_chan) return -1;
 			bc->channel=free_chan;
 			cb_log(2,stack->port, " -->  found channel: %d\n",free_chan);
@@ -1480,7 +1492,7 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 		case EVENT_SETUP:
 		{
 			if (bc->channel == 0xff) {
-				bc->channel=find_free_chan_in_stack(stack, 0);
+				bc->channel=find_free_chan_in_stack(stack, 0, 0);
 				if (!bc->channel) {
 					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
 					bc->out_cause=34;
@@ -1531,7 +1543,7 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 	case CC_NEW_CR|INDICATION:
 		cb_log(7, stack->port, " --> lib: NEW_CR Ind with l3id:%x on this port.\n",frm->dinfo);
 
-		struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1);
+		struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1, 0);
 		if (!bc) {
 			cb_log(0, stack->port, " --> !! lib: No free channel!\n");
 			return -1;
@@ -1787,7 +1799,7 @@ handle_event_nt(void *dat, void *arg)
       
 		case CC_SETUP|INDICATION:
 		{
-			struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1);
+			struct misdn_bchannel* bc=misdn_lib_get_free_bc(stack->port, 0, 1, 0);
 			if (!bc) 
 			ERR_NO_CHANNEL:
 			{
@@ -2032,7 +2044,7 @@ handle_event_nt(void *dat, void *arg)
 			switch (event) {
 				case EVENT_SETUP:
 					if (bc->channel<=0 || bc->channel==0xff) {
-						bc->channel=find_free_chan_in_stack(stack,0);
+						bc->channel=find_free_chan_in_stack(stack,0,0);
 		
 						if (bc->channel<=0)
 							goto ERR_NO_CHANNEL;
@@ -3031,7 +3043,7 @@ void prepare_bc(struct misdn_bchannel*bc, int channel)
 #endif
 }
 
-struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout)
+struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout, int dec)
 {
 	struct misdn_stack *stack;
 	int i;
@@ -3064,14 +3076,29 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout)
 			}
 
 			int maxnum=inout&&!stack->pri&&!stack->ptp?stack->b_num+1:stack->b_num;
-			for (i = 0; i <maxnum; i++) {
-				if (!stack->bc[i].in_use) {
-					/* 3. channel on bri means CW*/
-					if (!stack->pri && i==stack->b_num)
-						stack->bc[i].cw=1;
 
-					prepare_bc(&stack->bc[i], channel);
-					return &stack->bc[i];
+			if (dec) {
+				for (i = maxnum-1; i>=0; i--) {
+					if (!stack->bc[i].in_use) {
+						/* 3. channel on bri means CW*/
+						if (!stack->pri && i==stack->b_num)
+							stack->bc[i].cw=1;
+							
+						prepare_bc(&stack->bc[i], channel);
+						stack->bc[i].dec=1;
+						return &stack->bc[i];
+					}
+				}
+			} else {
+				for (i = 0; i <maxnum; i++) {
+					if (!stack->bc[i].in_use) {
+						/* 3. channel on bri means CW*/
+						if (!stack->pri && i==stack->b_num)
+							stack->bc[i].cw=1;
+
+						prepare_bc(&stack->bc[i], channel);
+						return &stack->bc[i];
+					}
 				}
 			}
 
@@ -3193,7 +3220,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 
 		if (stack->nt) {
 			if (bc->channel <=0 ) { /*  else we have the channel already */
-				bc->channel = find_free_chan_in_stack(stack, 0);
+				bc->channel = find_free_chan_in_stack(stack, 0, 0);
 				if (!bc->channel) {
 					cb_log(0, stack->port, " No free channel at the moment\n");
 					/*FIXME: add disconnect*/
