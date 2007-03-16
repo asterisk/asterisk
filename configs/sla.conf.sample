@@ -1,7 +1,7 @@
 ;
 ; Configuration for Shared Line Appearances (SLA).
 ;
-; See doc/sla.pdf for more information.
+; See doc/asterisk.pdf for more information.
 ;
 
 ; ---- General Options ----------------
@@ -25,7 +25,7 @@
                             ; NOTE: You can not just put any type of channel here.
                             ;       Zap channels can be directly used.  IP trunks
                             ;       require some indirect configuration which is
-                            ;       described in doc/sla.txt.
+                            ;       described in doc/asterisk.pdf.
 
 ;autocontext=line1          ; This supports automatic generation of the dialplan entries 
                             ; if the autocontext option is used.  Each trunk should have 
@@ -61,7 +61,7 @@
 ;type=trunk
 ;device=Local/disa@line4_outbound ; A Local channel in combination with the Disa
                                   ; application can be used to support IP trunks.
-                                  ; See doc/sla.txt on more information on how
+                                  ; See doc/asterisk.pdf on more information on how
                                   ; IP trunks work.
 ;autocontext=line4
 ; --------------------------------------
