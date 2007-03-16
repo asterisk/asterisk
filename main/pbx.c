@@ -3058,8 +3058,8 @@ static int handle_show_application(int fd, int argc, char *argv[])
 
 #ifdef AST_DEVMODE
 static char core_dumpappdocs_help[] =
-"Usage: core dumpappdocs [application]\n"
-"       Dump Application documentation to \\tmp\\ast_appdocs.tex.\n";
+"Usage: core dump appdocs [application]\n"
+"       Dump Application documentation to /tmp/ast_appdocs.tex.\n";
 
 static int handle_core_dumpappdocs(int fd, int argc, char *argv[])
 {
@@ -3781,8 +3781,8 @@ static struct ast_cli_entry pbx_cli[] = {
 	show_application_help, complete_show_application },
 
 #ifdef AST_DEVMODE
-	{ { "core", "dumpappdocs", NULL },
-	handle_core_dumpappdocs, "Dump App docs in LaTeX format",
+	{ { "core", "dump", "appdocs", NULL },
+	handle_core_dumpappdocs, "Dump application documentation in LaTeX format",
 	core_dumpappdocs_help, NULL },
 #endif
 
