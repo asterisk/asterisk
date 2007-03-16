@@ -177,9 +177,8 @@ static int page_exec(struct ast_channel *chan, void *data)
 	for (i = 0; i < pos; i++) {
 		struct ast_dial *dial = dials[i];
 
-		/* If the dial is already answered, then they will/should get kicked out by Meetme */
-		if (ast_dial_state(dial) != AST_DIAL_RESULT_ANSWERED)
-			ast_dial_join(dial);
+		/* We have to wait for the async thread to exit as it's possible Meetme won't throw them out immediately */
+		ast_dial_join(dial);
 
 		/* Hangup all channels */
 		ast_dial_hangup(dial);
