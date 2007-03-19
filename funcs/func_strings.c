@@ -458,7 +458,7 @@ static int acf_sprintf(struct ast_channel *chan, const char *cmd, char *data, ch
 				formatbuf[&arg.format[i] - formatstart + 1] = '\0';
 
 				/* Convert the argument into the required type */
-				if (sscanf(arg.var[argcount++], "%i", &tmpi) != 1) {
+				if (sscanf(arg.var[argcount++], "%d", &tmpi) != 1) {
 					ast_log(LOG_ERROR, "Argument '%s' is not an integer number for format '%s'\n", arg.var[argcount - 1], formatbuf);
 					goto sprintf_fail;
 				}
