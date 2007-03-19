@@ -475,6 +475,9 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 
 	AST_LIST_UNLOCK(&module_list);
 
+	if (!error && !mod->lib)
+		mod->info->restore_globals();
+
 #if LOADABLE_MODULES
 	if (!error)
 		unload_dynamic_module(mod);
@@ -482,9 +485,6 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 
 	if (!error)
 		ast_update_use_count();
-
-	if (!error && !mod->lib)
-		mod->info->restore_globals();
 
 	return res;
 }
