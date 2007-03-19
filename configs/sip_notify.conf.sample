@@ -18,5 +18,5 @@ Content-Length=>0
 
 ; Tested
 [snom-check-cfg]
-Event=>check-sync;reboot=false
+Event=>check-sync\;reboot=false
 Content-Length=>0
