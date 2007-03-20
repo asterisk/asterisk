@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/stat.h>
-#ifdef STACK_BACKTRACES
+#if ((defined(AST_DEVMODE)) && (defined(Linux)))
 #include <execinfo.h>
 #define MAX_BACKTRACE_FRAMES 20
 #endif
@@ -956,7 +956,8 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 void ast_backtrace(void)
 {
-#ifdef STACK_BACKTRACES
+#ifdef Linux
+#ifdef AST_DEVMODE
 	int count=0, i=0;
 	void **addresses;
 	char **strings;
@@ -978,11 +979,10 @@ void ast_backtrace(void)
 		free(addresses);
 	}
 #else
-#ifdef Linux
-	ast_log(LOG_WARNING, "Must compile with 'make dont-optimize' for stack backtraces\n");
-#else
-	ast_log(LOG_WARNING, "Inline stack backtraces are only available on the Linux platform.\n");
+	ast_log(LOG_WARNING, "Must run configure with '--enable-dev-mode' for stack backtraces.\n");
 #endif
+#else /* ndef Linux */
+	ast_log(LOG_WARNING, "Inline stack backtraces are only available on the Linux platform.\n");
 #endif
 }
 
