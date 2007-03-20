@@ -199,6 +199,7 @@ struct ael_extension
 	char *cidmatch;
 	char *hints;
 	int regexten;
+	int is_switch;
 	
 	struct ast_context *context;
 	
