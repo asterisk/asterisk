@@ -2561,7 +2561,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	}
 
 	if (misdn_cfg_is_group_method(group, METHOD_STANDARD_DEC)) {
-		chan_misdn_log(0, port, " --> STARTING STANDARDDEC...\n");
+		chan_misdn_log(4, port, " --> STARTING STANDARDDEC...\n");
 		dec=1;
 	}
 
