@@ -3877,6 +3877,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			cb_log(1,bc->port," --> found holded ch\n");
 			misdn_transfer_bc(ch, holded_ch) ;
 		}
+
+		bc->need_disconnect=0;
 		
 		stop_bc_tones(ch);
 		hangup_chan(ch);
@@ -3892,6 +3894,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	case EVENT_RELEASE:
 		{
+			bc->need_disconnect=0;
+			bc->need_release=0;
+
 			hangup_chan(ch);
 			release_chan(bc);
 		
@@ -3901,6 +3906,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 	case EVENT_RELEASE_COMPLETE:
 	{
+		bc->need_disconnect=0;
+		bc->need_release=0;
+		bc->need_release_complete=0;
+
 		stop_bc_tones(ch);
 		hangup_chan(ch);
 		release_chan(bc);
