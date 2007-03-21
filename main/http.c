@@ -107,6 +107,7 @@ static struct {
 	{ "js", "application/x-javascript" },
 	{ "wav", "audio/x-wav" },
 	{ "mp3", "audio/mpeg" },
+	{ "svg", "image/svg+xml" },
 };
 
 struct http_uri_redirect {
