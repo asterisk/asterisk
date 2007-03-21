@@ -85,6 +85,7 @@ static struct {
 	{ "js", "application/x-javascript" },
 	{ "wav", "audio/x-wav" },
 	{ "mp3", "audio/mpeg" },
+	{ "svg", "image/svg+xml" },
 };
 
 static char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
