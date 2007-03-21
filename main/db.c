@@ -358,6 +358,7 @@ static int database_showkey(int fd, int argc, char *argv[])
 	char *keys, *values;
 	int res;
 	int pass;
+	int counter = 0;
 
 	if (argc == 3) {
 		/* Key only */
@@ -389,9 +390,11 @@ static int database_showkey(int fd, int argc, char *argv[])
 		}
 		if (subkeymatch(keys, suffix)) {
 				ast_cli(fd, "%-50s: %-25s\n", keys, values);
+				counter++;
 		}
 	}
 	ast_mutex_unlock(&dblock);
+	ast_cli(fd, "%d results found.\n", counter);
 	return RESULT_SUCCESS;	
 }
 
