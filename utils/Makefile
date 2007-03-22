@@ -11,6 +11,8 @@
 # the GNU General Public License
 #
 
+-include ../menuselect.makeopts
+
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
