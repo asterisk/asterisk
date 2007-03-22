@@ -302,9 +302,6 @@ static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
 
-static char **misdn_key_vector=NULL;
-static int misdn_key_vector_size=0;
-
 /* Only alaw and mulaw is allowed for now */
 static int prefformat =  AST_FORMAT_ALAW ; /*  AST_FORMAT_SLINEAR ;  AST_FORMAT_ULAW | */
 
