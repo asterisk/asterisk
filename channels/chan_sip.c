@@ -5494,15 +5494,15 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_log(LOG_DEBUG, "Transcoding JBIG: %d\n",x);
 				if (x == 1)
 					peert38capability |= T38FAX_TRANSCODING_JBIG;
-			} else if ((sscanf(a, "T38FaxRateManagement:%s", s) == 1)) {
+			} else if ((sscanf(a, "T38FaxRateManagement:%255s", s) == 1)) {
 				found = 1;
 				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "RateMangement: %s\n", s);
+					ast_log(LOG_DEBUG, "RateManagement: %s\n", s);
 				if (!strcasecmp(s, "localTCF"))
 					peert38capability |= T38FAX_RATE_MANAGEMENT_LOCAL_TCF;
 				else if (!strcasecmp(s, "transferredTCF"))
 					peert38capability |= T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF;
-			} else if ((sscanf(a, "T38FaxUdpEC:%s", s) == 1)) {
+			} else if ((sscanf(a, "T38FaxUdpEC:%255s", s) == 1)) {
 				found = 1;
 				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "UDP EC: %s\n", s);
