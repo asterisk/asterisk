@@ -1,12 +1,14 @@
-All modules must have at least the following functions:
+All modules must have at least the following:
 
-int load_module():
+static int load_module():
 
-	Do what you need to do when you get started.  This function
-returns 0 on success and non-zero on failure (it is not considered loaded
-if it fails.
+	Do what you need to do when you get started.  This function can return
+AST_MODULE_LOAD_FAILURE if a action fails and the module is prevented from loading,
+AST_MODULE_LOAD_DECLINE if the module can not load because of a non-critical failure
+(the configuration file was not found), or AST_MODULE_LOAD_SUCCESS if the module
+loaded fine.
 
-int unload_module():
+static int unload_module():
 	
 	The module will soon be unloaded.  If any channels are using your
 features, you should give them a softhangup in an effort to keep the
@@ -17,10 +19,7 @@ some cases there may be no way to avoid a crash).  This function should
 return 0 on success and non-zero on failure (i.e. it cannot yet be
 unloaded).
 
-char *description():
+AST_MODULE_INFO_STANDARD(keystr, desc);
 
-	Return a description of the module's functionality.
-
-int usecnt():
-	
-	Return the number of channels, etc that are using you.
+keystr: Applicable license for module. In most cases this is ASTERISK_GPL_KEY.
+desc: Description of module.
