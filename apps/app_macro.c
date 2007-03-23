@@ -63,7 +63,7 @@ static char *descrip =
 "at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n"
 "Extensions: While a macro is being executed, it becomes the current context.\n"
 "            This means that if a hangup occurs, for instance, that the macro\n"
-"            will be searched for an "h" extension, NOT the context from which\n"
+"            will be searched for an 'h' extension, NOT the context from which\n"
 "            the macro was called. So, make sure to define all appropriate\n"
 "            extensions in your macro! (you can use 'catch' in AEL) \n"
 "WARNING: Because of the way Macro is implemented (it executes the priorities\n"
