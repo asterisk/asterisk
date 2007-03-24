@@ -14609,20 +14609,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_set_flag(req, SIP_PKT_IGNORE);
 			ast_set_flag(req, SIP_PKT_IGNORE_RESP);
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
-		}
-	
-		e = ast_skip_blanks(e);
-		if (sscanf(e, "%d %n", &respid, &len) != 1) {
-			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
-		} else {
-			if (respid <= 0) {
-				ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
-				return 0;
+		} else if (e) {
+			e = ast_skip_blanks(e);
+			if (sscanf(e, "%d %n", &respid, &len) != 1) {
+				ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
+			} else {
+				if (respid <= 0) {
+					ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
+					return 0;
+				}
+				/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
+				if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
+					extract_uri(p, req);
+				handle_response(p, respid, e + len, req, ignore, seqno);
 			}
-			/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
-			if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
-				extract_uri(p, req);
-			handle_response(p, respid, e + len, req, ignore, seqno);
 		}
 		return 0;
 	}
