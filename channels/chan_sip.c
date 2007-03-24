@@ -11295,16 +11295,16 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
 			ignore=1;
-		}
-	
-		e = ast_skip_blanks(e);
-		if (sscanf(e, "%d %n", &respid, &len) != 1) {
-			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
-		} else {
-			/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
-			if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
-				extract_uri(p, req);
-			handle_response(p, respid, e + len, req, ignore, seqno);
+		} else if (e) {
+			e = ast_skip_blanks(e);
+			if (sscanf(e, "%d %n", &respid, &len) != 1) {
+				ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
+			} else {
+				/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
+				if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
+					extract_uri(p, req);
+				handle_response(p, respid, e + len, req, ignore, seqno);
+			}
 		}
 		return 0;
 	}
