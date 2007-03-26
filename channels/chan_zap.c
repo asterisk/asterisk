@@ -8751,8 +8751,8 @@ static void *ss7_linkset(void *data)
 				isup_cgba(linkset->ss7, e->cgb.startcic, e->cgb.endcic, e->cgb.status, e->cgb.type);
 				break;
 			case ISUP_EVENT_CGU:
-				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic, e->cgb.status, 0);
-				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, e->cgb.status, e->cgu.type);
+				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic, e->cgu.status, 0);
+				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, e->cgu.status, e->cgu.type);
 				break;
 			case ISUP_EVENT_BLO:
 				chanpos = ss7_find_cic(linkset, e->blo.cic);
