@@ -2767,7 +2767,14 @@ static int zt_hangup(struct ast_channel *ast)
 			if (p->ss7call) {
 				if (!ss7_grab(p, p->ss7)) {
 					if (!p->alreadyhungup) {
-						isup_rel(p->ss7->ss7, p->ss7call, ast->hangupcause ? ast->hangupcause : -1);
+						const char *cause = pbx_builtin_getvar_helper(ast,"SS7_CAUSE");
+						int icause = ast->hangupcause ? ast->hangupcause : -1;
+
+						if (cause) {
+							if (atoi(cause))
+								icause = atoi(cause);
+						}
+						isup_rel(p->ss7->ss7, p->ss7call, icause);
 						ss7_rel(p->ss7);
 						p->alreadyhungup = 1;
 					} else
@@ -8741,11 +8748,11 @@ static void *ss7_linkset(void *data)
 				break;
 			case ISUP_EVENT_CGB:
 				ss7_block_cics(linkset, e->cgb.startcic, e->cgb.endcic, e->cgb.status, 1);
-				isup_cgba(linkset->ss7, e->cgb.startcic, e->cgb.endcic, e->cgb.status);
+				isup_cgba(linkset->ss7, e->cgb.startcic, e->cgb.endcic, e->cgb.status, e->cgb.type);
 				break;
 			case ISUP_EVENT_CGU:
 				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic, e->cgb.status, 0);
-				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, e->cgb.status);
+				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, e->cgb.status, e->cgu.type);
 				break;
 			case ISUP_EVENT_BLO:
 				chanpos = ss7_find_cic(linkset, e->blo.cic);
