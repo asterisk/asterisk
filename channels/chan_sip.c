@@ -14141,9 +14141,9 @@ static int acf_audiortpqos_read(struct ast_channel *chan, char *funcname, char *
 	memset(buf, 0, buflen);
 	memset(&qos, 0, sizeof(qos));
 
-	if (strcmp(funcname, "AUDIORTPQOS") == 0) {
+	if (strcmp(funcname, "RTPAUDIOQOS") == 0) {
 		all = ast_rtp_get_quality(p->rtp, &qos);
-	} else if (strcmp(funcname, "VIDEORTPQOS") == 0) {
+	} else if (strcmp(funcname, "RTPVIDEOQOS") == 0) {
 		all = ast_rtp_get_quality(p->vrtp, &qos);
 	}
 
@@ -17369,7 +17369,7 @@ static struct ast_cli_entry cli_sip[] = {
 };
 
 struct ast_custom_function acf_audiortpqos = {
-	.name = "AUDIORTPQOS",
+	.name = "RTPAUDIOQOS",
 	.synopsis = "Retrieve statistics about an RTP audio stream",
 	.desc =
 "The following statistics may be retrieved:\n"
@@ -17383,13 +17383,13 @@ struct ast_custom_function acf_audiortpqos = {
 "  remote_count       - Number of transmitted packets\n"
 "  rtt                - Round trip time\n"
 "  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "AUDIORTPQOS(<field>)",
+	.syntax = "RTPAUDIOQOS(<field>)",
 	.read = acf_audiortpqos_read,
 };
 
 struct ast_custom_function acf_videortpqos = {
-	.name = "VIDEORTPQOS",
-	.synopsis = "Retrieve statistics about an RTP audio stream",
+	.name = "RTPVIDEOQOS",
+	.synopsis = "Retrieve statistics about an RTP video stream",
 	.desc =
 "The following statistics may be retrieved:\n"
 "  local_ssrc         - Local SSRC (stream ID)\n"
@@ -17402,7 +17402,7 @@ struct ast_custom_function acf_videortpqos = {
 "  remote_count       - Number of transmitted packets\n"
 "  rtt                - Round trip time\n"
 "  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "AUDIORTPQOS(<field>)",
+	.syntax = "RTPVIDEOQOS(<field>)",
 	.read = acf_audiortpqos_read,
 };
 
