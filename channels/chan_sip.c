@@ -14800,7 +14800,7 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-static int acf_audiortpqos_read(struct ast_channel *chan, char *funcname, char *args, char *buf, size_t buflen)
+static int acf_audiortpqos_read(struct ast_channel *chan, const char *funcname, char *args, char *buf, size_t buflen)
 {
 	struct ast_rtp_quality qos;
 	struct sip_pvt *p = chan->tech_pvt;
@@ -14814,11 +14814,11 @@ static int acf_audiortpqos_read(struct ast_channel *chan, char *funcname, char *
 	memset(buf, 0, buflen);
 	memset(&qos, 0, sizeof(qos));
 
-	if (strcmp(funcname, "AUDIORTPQOS") == 0) {
+	if (strcmp(funcname, "RTPAUDIOQOS") == 0) {
 		all = ast_rtp_get_quality(p->rtp, &qos);
-	} else if (strcmp(funcname, "VIDEORTPQOS") == 0) {
+	} else if (strcmp(funcname, "RTPVIDEOQOS") == 0) {
 		all = ast_rtp_get_quality(p->vrtp, &qos);
-	} else if (strcmp(funcname, "TEXTRTPQOS") == 0) {
+	} else if (strcmp(funcname, "RTPTEXTQOS") == 0) {
 		all = ast_rtp_get_quality(p->trtp, &qos);
 	}
 
@@ -14886,7 +14886,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 				pbx_builtin_setvar_helper(p->owner, "RTPVIDEOQOS", videoqos);
 		}
 		if (p->trtp) {
-			textqos = ast_rtp_get_quality(p->trtp);
+			textqos = ast_rtp_get_quality(p->trtp, NULL);
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "RTCPtext", "Quality:%s", textqos);
 			if (p->owner)
@@ -18131,7 +18131,7 @@ static struct ast_cli_entry cli_sip[] = {
 };
 
 struct ast_custom_function acf_audiortpqos = {
-	.name = "AUDIORTPQOS",
+	.name = "RTPAUDIOQOS",
 	.synopsis = "Retrieve statistics about an RTP audio stream",
 	.desc =
 "The following statistics may be retrieved:\n"
@@ -18145,13 +18145,13 @@ struct ast_custom_function acf_audiortpqos = {
 "  remote_count       - Number of transmitted packets\n"
 "  rtt                - Round trip time\n"
 "  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "AUDIORTPQOS(<field>)",
+	.syntax = "RTPAUDIOQOS(<field>)",
 	.read = acf_audiortpqos_read,
 };
 
 struct ast_custom_function acf_videortpqos = {
-	.name = "VIDEORTPQOS",
-	.synopsis = "Retrieve statistics about an RTP audio stream",
+	.name = "RTPVIDEOQOS",
+	.synopsis = "Retrieve statistics about an RTP video stream",
 	.desc =
 "The following statistics may be retrieved:\n"
 "  local_ssrc         - Local SSRC (stream ID)\n"
@@ -18164,12 +18164,12 @@ struct ast_custom_function acf_videortpqos = {
 "  remote_count       - Number of transmitted packets\n"
 "  rtt                - Round trip time\n"
 "  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "AUDIORTPQOS(<field>)",
+	.syntax = "RTPVIDEOQOS(<field>)",
 	.read = acf_audiortpqos_read,
 };
 
 struct ast_custom_function acf_textrtpqos = {
-	.name = "TEXTRTPQOS",
+	.name = "RTPTEXTQOS",
 	.synopsis = "Retrieve statistics about an RTP text stream",
 	.desc =
 "The following statistics may be retrieved:\n"
@@ -18183,7 +18183,7 @@ struct ast_custom_function acf_textrtpqos = {
 "  remote_count       - Number of transmitted packets\n"
 "  rtt                - Round trip time\n"
 "  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "TEXTRTPQOS(<field>)",
+	.syntax = "RTPTEXTQOS(<field>)",
 	.read = acf_audiortpqos_read,
 };
 
