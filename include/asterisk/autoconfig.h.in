@@ -636,6 +636,9 @@
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
 
+/* Build chan_misdn for mISDN 1.2 or later. */
+#undef MISDN_1_2
+
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 

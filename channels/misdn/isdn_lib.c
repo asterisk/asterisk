@@ -578,14 +578,13 @@ static void empty_bc(struct misdn_bchannel *bc)
 
 	bc->early_bconnect = 1;
 	
+#ifdef MISDN_1_2
+	*bc->pipeline = 0;
+#else
 	bc->ec_enable = 0;
 	bc->ec_deftaps = 128;
-	bc->ec_whenbridged = 0;
-
-#ifdef EC_TRAIN
-	bc->ec_training = 1;
 #endif
-	
+
 	bc->orig=0;
   
 	bc->cause=16;
@@ -4028,7 +4027,11 @@ void isdn_lib_update_txgain (struct misdn_bchannel *bc)
 
 void isdn_lib_update_ec (struct misdn_bchannel *bc)
 {
+#ifdef MISDN_1_2
+	if (*bc->pipeline)
+#else
 	if (bc->ec_enable)
+#endif
 		manager_ec_enable(bc);
 	else
 		manager_ec_disable(bc);
@@ -4207,19 +4210,24 @@ void misdn_lib_send_tone(struct misdn_bchannel *bc, enum tone_e tone)
 
 void manager_ec_enable(struct misdn_bchannel *bc)
 {
-	int ec_arr[2];
-
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	cb_log(4, stack?stack->port:0,"ec_enable\n");
 
 	if (!misdn_cap_is_speech(bc->capability)) {
 		cb_log(1, stack?stack->port:0, " --> no speech? cannot enable EC\n");
-		return;
-	}
+	} else {
+
+#ifdef MISDN_1_2
+	if (*bc->pipeline) {
+		cb_log(3, stack?stack->port:0,"Sending Control PIPELINE_CFG %s\n",bc->pipeline);
+		manager_ph_control_block(bc, PIPELINE_CFG, bc->pipeline, strlen(bc->pipeline) + 1);
+ 	}
+#else
+	int ec_arr[2];
 
 	if (bc->ec_enable) {
-		cb_log(3, stack?stack->port:0,"Sending Control ECHOCAN_ON taps:%d training:%d\n",bc->ec_deftaps, bc->ec_training);
+		cb_log(3, stack?stack->port:0,"Sending Control ECHOCAN_ON taps:%d\n",bc->ec_deftaps);
 	
 		switch (bc->ec_deftaps) {
 		case 4:
@@ -4239,13 +4247,11 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 		}
 	
 		ec_arr[0]=bc->ec_deftaps;
-#ifdef EC_TRAIN
-		ec_arr[1]=bc->ec_training;
-#else
 		ec_arr[1]=0;
-#endif
 		
 		manager_ph_control_block(bc,  ECHOCAN_ON,  ec_arr, sizeof(ec_arr));
+	}
+#endif
 	}
 }
 
@@ -4262,10 +4268,14 @@ void manager_ec_disable(struct misdn_bchannel *bc)
 		return;
 	}
 
+#ifdef MISDN_1_2
+	manager_ph_control_block(bc, PIPELINE_CFG, "", 0);
+#else
 	if ( ! bc->ec_enable) {
 		cb_log(3, stack?stack->port:0, "Sending Control ECHOCAN_OFF\n");
 		manager_ph_control(bc,  ECHOCAN_OFF, 0);
 	}
+#endif
 }
 
 struct misdn_stack* get_misdn_stack() {

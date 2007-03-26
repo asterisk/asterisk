@@ -343,10 +343,12 @@ struct misdn_bchannel {
   
 	/** list stuf **/
 
+#ifdef MISDN_1_2
+	char pipeline[128];
+#else
 	int ec_enable;
 	int ec_deftaps;
-	int ec_whenbridged;
-	int ec_training;
+#endif
 
 #ifdef WITH_BEROEC
 	beroec_t *ec;
