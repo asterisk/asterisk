@@ -17,6 +17,10 @@
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
 #include "asterisk.h"
+#ifdef STANDALONE_AEL
+#define AST_API_MODULE
+#include "asterisk/strings.h"
+#endif
 /* begin standard C headers. */
 #include <stdio.h>
 #include <string.h>
