@@ -544,8 +544,11 @@ static int speech_background(struct ast_channel *chan, void *data)
         if (argc > 0) {
                 /* Yay sound file */
                 filename_tmp = ast_strdupa(argv[0]);
-                if (argv[1] != NULL)
-                        timeout = atoi(argv[1]);
+		if (!ast_strlen_zero(argv[1])) {
+			if ((timeout = atoi(argv[1])) == 0)
+				timeout = -1;
+		} else
+			timeout = 0;
         }
 
         /* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
@@ -611,7 +614,13 @@ static int speech_background(struct ast_channel *chan, void *data)
                         /* If audio playback has stopped do a check for timeout purposes */
                         if (chan->streamid == -1 && chan->timingfunc == NULL)
                                 ast_stopstream(chan);
-                        if (!quieted && chan->stream == NULL && timeout > 0 && started == 0 && !filename_tmp) {
+                        if (!quieted && chan->stream == NULL && timeout && started == 0 && !filename_tmp) {
+				if (timeout == -1) {
+					done = 1;
+					if (f)
+						ast_frfree(f);
+					break;
+				}
 				time(&start);
 				started = 1;
                         }
