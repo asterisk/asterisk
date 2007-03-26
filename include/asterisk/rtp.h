@@ -77,6 +77,18 @@ struct ast_rtp_protocol {
 	AST_LIST_ENTRY(ast_rtp_protocol) list;
 };
 
+struct ast_rtp_quality {
+	unsigned int local_ssrc;          /* Our SSRC */
+	unsigned int local_lostpackets;   /* Our lost packets */
+	double       local_jitter;        /* Our calculated jitter */
+	unsigned int local_count;         /* Number of received packets */
+	unsigned int remote_ssrc;         /* Their SSRC */
+	unsigned int remote_lostpackets;  /* Their lost packets */
+	double       remote_jitter;       /* Their reported jitter */
+	unsigned int remote_count;        /* Number of transmitted packets */
+	double       rtt;                 /* Round trip time */
+};
+
 
 #define FLAG_3389_WARNING		(1 << 0)
 
@@ -206,7 +218,7 @@ int ast_rtp_early_bridge(struct ast_channel *dest, struct ast_channel *src);
 void ast_rtp_stop(struct ast_rtp *rtp);
 
 /*! \brief Return RTCP quality string */
-char *ast_rtp_get_quality(struct ast_rtp *rtp);
+char *ast_rtp_get_quality(struct ast_rtp *rtp, struct ast_rtp_quality *qual);
 
 /*! \brief Send an H.261 fast update request. Some devices need this rather than the XML message  in SIP */
 int ast_rtcp_send_h261fur(void *data);

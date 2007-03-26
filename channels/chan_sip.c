@@ -3392,9 +3392,9 @@ static int sip_hangup(struct ast_channel *ast)
 				char *audioqos = "";
 				char *videoqos = "";
 				if (p->rtp)
-					audioqos = ast_rtp_get_quality(p->rtp);
+					audioqos = ast_rtp_get_quality(p->rtp, NULL);
 				if (p->vrtp)
-					videoqos = ast_rtp_get_quality(p->vrtp);
+					videoqos = ast_rtp_get_quality(p->vrtp, NULL);
 				/* Send a hangup */
 				transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 
@@ -14127,6 +14127,53 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
+static int acf_audiortpqos_read(struct ast_channel *chan, char *funcname, char *args, char *buf, size_t buflen)
+{
+	struct ast_rtp_quality qos;
+	struct sip_pvt *p = chan->tech_pvt;
+	char *all = "";
+
+	/* Sanity check */
+	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
+		ast_log(LOG_ERROR, "Cannot call %s on a non-SIP channel\n", funcname);
+	}
+
+	memset(buf, 0, buflen);
+	memset(&qos, 0, sizeof(qos));
+
+	if (strcmp(funcname, "AUDIORTPQOS") == 0) {
+		all = ast_rtp_get_quality(p->rtp, &qos);
+	} else if (strcmp(funcname, "VIDEORTPQOS") == 0) {
+		all = ast_rtp_get_quality(p->vrtp, &qos);
+	}
+
+	if (strcasecmp(args, "local_ssrc") == 0)
+		snprintf(buf, buflen, "%u", qos.local_ssrc);
+	else if (strcasecmp(args, "local_lostpackets") == 0)
+		snprintf(buf, buflen, "%u", qos.local_lostpackets);
+	else if (strcasecmp(args, "local_jitter") == 0)
+		snprintf(buf, buflen, "%.0lf", qos.local_jitter * 1000.0);
+	else if (strcasecmp(args, "local_count") == 0)
+		snprintf(buf, buflen, "%u", qos.local_count);
+	else if (strcasecmp(args, "remote_ssrc") == 0)
+		snprintf(buf, buflen, "%u", qos.remote_ssrc);
+	else if (strcasecmp(args, "remote_lostpackets") == 0)
+		snprintf(buf, buflen, "%u", qos.remote_lostpackets);
+	else if (strcasecmp(args, "remote_jitter") == 0)
+		snprintf(buf, buflen, "%.0lf", qos.remote_jitter * 1000.0);
+	else if (strcasecmp(args, "remote_count") == 0)
+		snprintf(buf, buflen, "%u", qos.remote_count);
+	else if (strcasecmp(args, "rtt") == 0)
+		snprintf(buf, buflen, "%.0lf", qos.rtt * 1000.0);
+	else if (strcasecmp(args, "all") == 0)
+		ast_copy_string(buf, all, buflen);
+	else {
+		ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", args, funcname);
+		return -1;
+	}
+	return 0;
+}
+
 /*! \brief Handle incoming BYE request */
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 {
@@ -14148,14 +14195,14 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY) || p->owner) {
 		char *audioqos, *videoqos;
 		if (p->rtp) {
-			audioqos = ast_rtp_get_quality(p->rtp);
+			audioqos = ast_rtp_get_quality(p->rtp, NULL);
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "RTCPaudio", "Quality:%s", audioqos);
 			if (p->owner)
 				pbx_builtin_setvar_helper(p->owner, "RTPAUDIOQOS", audioqos);
 		}
 		if (p->vrtp) {
-			videoqos = ast_rtp_get_quality(p->vrtp);
+			videoqos = ast_rtp_get_quality(p->vrtp, NULL);
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "RTCPvideo", "Quality:%s", videoqos);
 			if (p->owner)
@@ -17321,6 +17368,44 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_reload_usage },
 };
 
+struct ast_custom_function acf_audiortpqos = {
+	.name = "AUDIORTPQOS",
+	.synopsis = "Retrieve statistics about an RTP audio stream",
+	.desc =
+"The following statistics may be retrieved:\n"
+"  local_ssrc         - Local SSRC (stream ID)\n"
+"  local_lostpackets  - Local lost packets\n"
+"  local_jitter       - Local calculated jitter\n"
+"  local_count        - Number of received packets\n"
+"  remote_ssrc        - Remote SSRC (stream ID)\n"
+"  remote_lostpackets - Remote lost packets\n"
+"  remote_jitter      - Remote reported jitter\n"
+"  remote_count       - Number of transmitted packets\n"
+"  rtt                - Round trip time\n"
+"  all                - All statistics (in a form suited to logging, but not for parsing)",
+	.syntax = "AUDIORTPQOS(<field>)",
+	.read = acf_audiortpqos_read,
+};
+
+struct ast_custom_function acf_videortpqos = {
+	.name = "VIDEORTPQOS",
+	.synopsis = "Retrieve statistics about an RTP audio stream",
+	.desc =
+"The following statistics may be retrieved:\n"
+"  local_ssrc         - Local SSRC (stream ID)\n"
+"  local_lostpackets  - Local lost packets\n"
+"  local_jitter       - Local calculated jitter\n"
+"  local_count        - Number of received packets\n"
+"  remote_ssrc        - Remote SSRC (stream ID)\n"
+"  remote_lostpackets - Remote lost packets\n"
+"  remote_jitter      - Remote reported jitter\n"
+"  remote_count       - Number of transmitted packets\n"
+"  rtt                - Round trip time\n"
+"  all                - All statistics (in a form suited to logging, but not for parsing)",
+	.syntax = "AUDIORTPQOS(<field>)",
+	.read = acf_audiortpqos_read,
+};
+
 /*! \brief PBX load module - initialization */
 static int load_module(void)
 {
@@ -17370,6 +17455,8 @@ static int load_module(void)
 	ast_custom_function_register(&sippeer_function);
 	ast_custom_function_register(&sipchaninfo_function);
 	ast_custom_function_register(&checksipdomain_function);
+	ast_custom_function_register(&acf_audiortpqos);
+	ast_custom_function_register(&acf_videortpqos);
 
 	/* Register manager commands */
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -17399,6 +17486,8 @@ static int unload_module(void)
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 	ast_custom_function_unregister(&checksipdomain_function);
+	ast_custom_function_unregister(&acf_audiortpqos);
+	ast_custom_function_unregister(&acf_videortpqos);
 
 	/* Unregister dial plan applications */
 	ast_unregister_application(app_dtmfmode);
