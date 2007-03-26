@@ -669,7 +669,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 					if (chan->stream != NULL) {
 						ast_stopstream(chan);
 						/* Change timeout to be 5 seconds for DTMF input */
-						timeout = 5;
+						timeout = (chan->pbx && chan->pbx->dtimeout) ? chan->pbx->dtimeout : 5;
 						time(&start);
 						started = 1;
 					}
