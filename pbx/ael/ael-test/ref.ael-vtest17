@@ -42,14 +42,14 @@ exten => 81,11,Verbose(Which means that the priorities/sec = $[4* ${iterations} 
 exten => 81,12,SayNumber($[4 * ${iterations} / (${time2} - ${time1}) ])
 exten => 82,1,Gosub(ndeep|s|1(100000))
 exten => 82,2,Verbose(Finished 100000 levels deep call!)
-exten => 83,1,Goto(sw-2-${EXTEN}|1)
+exten => 83,1,Goto(sw-2-${EXTEN}|10)
 exten => 83,2,NoOp(Finish switch-extension-2)
-exten => _sw-2-[4-7]X,1,Verbose(and this too!)
-exten => _sw-2-[4-7]X,2,Goto(83|2)
-exten => _sw-2-9X,1,Verbose(handle both 8x and 9x calls)
-exten => _sw-2-9X,2,Goto(sw-2-49|1)
-exten => _sw-2-8X,1,Verbose(do something to prepare it)
-exten => _sw-2-8X,2,Goto(sw-2-99|1)
+exten => _sw-2-[4-7]X,10,Verbose(and this too!)
+exten => _sw-2-[4-7]X,11,Goto(83|2)
+exten => _sw-2-9X,10,Verbose(handle both 8x and 9x calls)
+exten => _sw-2-9X,11,Goto(sw-2-49|10)
+exten => _sw-2-8X,10,Verbose(do something to prepare it)
+exten => _sw-2-8X,11,Goto(sw-2-99|10)
 
 
 [ndeep]
