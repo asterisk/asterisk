@@ -14148,7 +14148,7 @@ static int acf_rtpqos_read(struct ast_channel *chan, char *funcname, char *prepa
 
 	if (strcasecmp(args.type, "AUDIO") == 0) {
 		all = ast_rtp_get_quality(p->rtp, &qos);
-	} else if (strcmp(args.type, "VIDEO") == 0) {
+	} else if (strcasecmp(args.type, "VIDEO") == 0) {
 		all = ast_rtp_get_quality(p->vrtp, &qos);
 	}
 
