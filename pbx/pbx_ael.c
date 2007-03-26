@@ -2337,9 +2337,9 @@ static void check_context_names(void)
 				if ( j->type == PV_CONTEXT || j->type == PV_MACRO ) {
 					if ( !strcmp(i->u1.str, j->u1.str) )
 					{
-						ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d!\n",
+						ast_log(LOG_ERROR,"Error: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d!\n",
 								i->filename, i->startline, i->endline, i->u1.str,  j->filename, j->startline, j->endline);
-						warns++;
+						errs++;
 					}
 				}
 			}
@@ -2437,7 +2437,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		macro_def = find_macro(item->u1.str);
 		if (!macro_def) {
 			/* here is a good place to check to see if the definition is in extensions.conf! */
-			ast_log(LOG_WARNING, "Error: file %s, line %d-%d: macro call to non-existent %s ! Hopefully it is present in extensions.conf! \n",
+			ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: macro call to non-existent %s ! Hopefully it is present in extensions.conf! \n",
 					item->filename, item->startline, item->endline, item->u1.str);
 			warns++;
 		} else if (macro_def->type != PV_MACRO) {
