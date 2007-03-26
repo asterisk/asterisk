@@ -3486,6 +3486,8 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 	char *tech, *tech_data;
 	struct ast_dial *dial;
 	struct sla_ringing_station *ringing_station;
+	const char *cid_name = NULL, *cid_num = NULL;
+	enum ast_dial_result res;
 
 	if (!(dial = ast_dial_create()))
 		return -1;
@@ -3499,8 +3501,25 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 		return -1;
 	}
 
-	if (ast_dial_run(dial, sla.attempt_callerid ? ringing_trunk->trunk->chan : NULL, 1) 
-		!= AST_DIAL_RESULT_TRYING) {
+	if (!sla.attempt_callerid && !ast_strlen_zero(ringing_trunk->trunk->chan->cid.cid_name)) {
+		cid_name = ast_strdupa(ringing_trunk->trunk->chan->cid.cid_name);
+		free(ringing_trunk->trunk->chan->cid.cid_name);
+		ringing_trunk->trunk->chan->cid.cid_name = NULL;
+	}
+	if (!sla.attempt_callerid && !ast_strlen_zero(ringing_trunk->trunk->chan->cid.cid_num)) {
+		cid_num = ast_strdupa(ringing_trunk->trunk->chan->cid.cid_num);
+		free(ringing_trunk->trunk->chan->cid.cid_num);
+		ringing_trunk->trunk->chan->cid.cid_num = NULL;
+	}
+
+	res = ast_dial_run(dial, ringing_trunk->trunk->chan, 1);
+	
+	if (cid_name)
+		ringing_trunk->trunk->chan->cid.cid_name = ast_strdup(cid_name);
+	if (cid_num)
+		ringing_trunk->trunk->chan->cid.cid_num = ast_strdup(cid_num);
+	
+	if (res != AST_DIAL_RESULT_TRYING) {
 		struct sla_failed_station *failed_station;
 		ast_dial_destroy(dial);
 		if (!(failed_station = ast_calloc(1, sizeof(*failed_station))))
@@ -3942,6 +3961,7 @@ static void *dial_trunk(void *data)
 	struct ast_conference *conf;
 	struct ast_flags conf_flags = { 0 };
 	struct sla_trunk_ref *trunk_ref = args->trunk_ref;
+	const char *cid_name = NULL, *cid_num = NULL;
 
 	if (!(dial = ast_dial_create())) {
 		ast_mutex_lock(args->cond_lock);
@@ -3960,7 +3980,24 @@ static void *dial_trunk(void *data)
 		return NULL;
 	}
 
-	dial_res = ast_dial_run(dial, sla.attempt_callerid ? trunk_ref->chan : NULL, 1);
+	if (!sla.attempt_callerid && !ast_strlen_zero(trunk_ref->chan->cid.cid_name)) {
+		cid_name = ast_strdupa(trunk_ref->chan->cid.cid_name);
+		free(trunk_ref->chan->cid.cid_name);
+		trunk_ref->chan->cid.cid_name = NULL;
+	}
+	if (!sla.attempt_callerid && !ast_strlen_zero(trunk_ref->chan->cid.cid_num)) {
+		cid_num = ast_strdupa(trunk_ref->chan->cid.cid_num);
+		free(trunk_ref->chan->cid.cid_num);
+		trunk_ref->chan->cid.cid_num = NULL;
+	}
+
+	dial_res = ast_dial_run(dial, trunk_ref->chan, 1);
+
+	if (cid_name)
+		trunk_ref->chan->cid.cid_name = ast_strdup(cid_name);
+	if (cid_num)
+		trunk_ref->chan->cid.cid_num = ast_strdup(cid_num);
+
 	if (dial_res != AST_DIAL_RESULT_TRYING) {
 		ast_mutex_lock(args->cond_lock);
 		ast_cond_signal(args->cond);
