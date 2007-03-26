@@ -52,7 +52,9 @@ enum misdn_cfg_elements {
 	MISDN_CFG_EARLY_BCONNECT,      /* int (bool) */
 	MISDN_CFG_INCOMING_EARLY_AUDIO,      /* int (bool) */
 	MISDN_CFG_ECHOCANCEL,          /* int */
-	MISDN_CFG_ECHOCANCELWHENBRIDGED,  /* int (bool) */
+#ifdef MISDN_1_2
+	MISDN_CFG_PIPELINE,            /* char[] */
+#endif
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
 	MISDN_CFG_NTTIMEOUT,     /* bool */
 	MISDN_CFG_JITTERBUFFER,              /* int */

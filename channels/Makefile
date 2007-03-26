@@ -88,6 +88,10 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
   CFLAGS+=-Imisdn  
 endif
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/mISDNdsp.h),)
+  CFLAGS+=-DMISDN_1_2
+endif
+
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
@@ -238,7 +242,7 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 endif
 
 misdn/chan_misdn_lib.a:
-	make -C misdn
+	make CROSS_COMPILE_TARGET=$(CROSS_COMPILE_TARGET) -C misdn
 
 chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a 
 	$(CC) -shared -Xlinker -x -L/usr/lib -o $@ $^ -lisdnnet -lmISDN 
