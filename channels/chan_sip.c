@@ -14800,11 +14800,16 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-static int acf_audiortpqos_read(struct ast_channel *chan, const char *funcname, char *args, char *buf, size_t buflen)
+static int acf_rtpqos_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen)
 {
 	struct ast_rtp_quality qos;
 	struct sip_pvt *p = chan->tech_pvt;
-	char *all = "";
+	char *all = "", *parse = ast_strdupa(preparse);
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(type);
+		AST_APP_ARG(field);
+	);
+	AST_STANDARD_APP_ARGS(args, parse);
 
 	/* Sanity check */
 	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
@@ -14814,36 +14819,36 @@ static int acf_audiortpqos_read(struct ast_channel *chan, const char *funcname, 
 	memset(buf, 0, buflen);
 	memset(&qos, 0, sizeof(qos));
 
-	if (strcmp(funcname, "RTPAUDIOQOS") == 0) {
+	if (strcasecmp(args.type, "AUDIO") == 0) {
 		all = ast_rtp_get_quality(p->rtp, &qos);
-	} else if (strcmp(funcname, "RTPVIDEOQOS") == 0) {
+	} else if (strcasecmp(args.type, "VIDEO") == 0) {
 		all = ast_rtp_get_quality(p->vrtp, &qos);
-	} else if (strcmp(funcname, "RTPTEXTQOS") == 0) {
+	} else if (strcasecmp(args.type, "TEXT") == 0) {
 		all = ast_rtp_get_quality(p->trtp, &qos);
 	}
 
-	if (strcasecmp(args, "local_ssrc") == 0)
+	if (strcasecmp(args.field, "local_ssrc") == 0)
 		snprintf(buf, buflen, "%u", qos.local_ssrc);
-	else if (strcasecmp(args, "local_lostpackets") == 0)
+	else if (strcasecmp(args.field, "local_lostpackets") == 0)
 		snprintf(buf, buflen, "%u", qos.local_lostpackets);
-	else if (strcasecmp(args, "local_jitter") == 0)
+	else if (strcasecmp(args.field, "local_jitter") == 0)
 		snprintf(buf, buflen, "%.0lf", qos.local_jitter * 1000.0);
-	else if (strcasecmp(args, "local_count") == 0)
+	else if (strcasecmp(args.field, "local_count") == 0)
 		snprintf(buf, buflen, "%u", qos.local_count);
-	else if (strcasecmp(args, "remote_ssrc") == 0)
+	else if (strcasecmp(args.field, "remote_ssrc") == 0)
 		snprintf(buf, buflen, "%u", qos.remote_ssrc);
-	else if (strcasecmp(args, "remote_lostpackets") == 0)
+	else if (strcasecmp(args.field, "remote_lostpackets") == 0)
 		snprintf(buf, buflen, "%u", qos.remote_lostpackets);
-	else if (strcasecmp(args, "remote_jitter") == 0)
+	else if (strcasecmp(args.field, "remote_jitter") == 0)
 		snprintf(buf, buflen, "%.0lf", qos.remote_jitter * 1000.0);
-	else if (strcasecmp(args, "remote_count") == 0)
+	else if (strcasecmp(args.field, "remote_count") == 0)
 		snprintf(buf, buflen, "%u", qos.remote_count);
-	else if (strcasecmp(args, "rtt") == 0)
+	else if (strcasecmp(args.field, "rtt") == 0)
 		snprintf(buf, buflen, "%.0lf", qos.rtt * 1000.0);
-	else if (strcasecmp(args, "all") == 0)
+	else if (strcasecmp(args.field, "all") == 0)
 		ast_copy_string(buf, all, buflen);
 	else {
-		ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", args, funcname);
+		ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
 		return -1;
 	}
 	return 0;
@@ -18130,9 +18135,9 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_reload_usage },
 };
 
-struct ast_custom_function acf_audiortpqos = {
-	.name = "RTPAUDIOQOS",
-	.synopsis = "Retrieve statistics about an RTP audio stream",
+struct ast_custom_function acf_rtpqos = {
+	.name = "RTPQOS",
+	.synopsis = "Retrieve statistics about an RTP stream",
 	.desc =
 "The following statistics may be retrieved:\n"
 "  local_ssrc         - Local SSRC (stream ID)\n"
@@ -18144,47 +18149,11 @@ struct ast_custom_function acf_audiortpqos = {
 "  remote_jitter      - Remote reported jitter\n"
 "  remote_count       - Number of transmitted packets\n"
 "  rtt                - Round trip time\n"
-"  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "RTPAUDIOQOS(<field>)",
-	.read = acf_audiortpqos_read,
-};
-
-struct ast_custom_function acf_videortpqos = {
-	.name = "RTPVIDEOQOS",
-	.synopsis = "Retrieve statistics about an RTP video stream",
-	.desc =
-"The following statistics may be retrieved:\n"
-"  local_ssrc         - Local SSRC (stream ID)\n"
-"  local_lostpackets  - Local lost packets\n"
-"  local_jitter       - Local calculated jitter\n"
-"  local_count        - Number of received packets\n"
-"  remote_ssrc        - Remote SSRC (stream ID)\n"
-"  remote_lostpackets - Remote lost packets\n"
-"  remote_jitter      - Remote reported jitter\n"
-"  remote_count       - Number of transmitted packets\n"
-"  rtt                - Round trip time\n"
-"  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "RTPVIDEOQOS(<field>)",
-	.read = acf_audiortpqos_read,
-};
-
-struct ast_custom_function acf_textrtpqos = {
-	.name = "RTPTEXTQOS",
-	.synopsis = "Retrieve statistics about an RTP text stream",
-	.desc =
-"The following statistics may be retrieved:\n"
-"  local_ssrc         - Local SSRC (stream ID)\n"
-"  local_lostpackets  - Local lost packets\n"
-"  local_jitter       - Local calculated jitter\n"
-"  local_count        - Number of received packets\n"
-"  remote_ssrc        - Remote SSRC (stream ID)\n"
-"  remote_lostpackets - Remote lost packets\n"
-"  remote_jitter      - Remote reported jitter\n"
-"  remote_count       - Number of transmitted packets\n"
-"  rtt                - Round trip time\n"
-"  all                - All statistics (in a form suited to logging, but not for parsing)",
-	.syntax = "RTPTEXTQOS(<field>)",
-	.read = acf_audiortpqos_read,
+"  all                - All statistics (in a form suited to logging, but not for parsing)\n"
+"\n"
+"Type may be specified as \"audio\", \"video\", or \"text\".\n",
+	.syntax = "RTPQOS(<type>|<field>)",
+	.read = acf_rtpqos_read,
 };
 
 /*! \brief PBX load module - initialization */
@@ -18236,9 +18205,7 @@ static int load_module(void)
 	ast_custom_function_register(&sippeer_function);
 	ast_custom_function_register(&sipchaninfo_function);
 	ast_custom_function_register(&checksipdomain_function);
-	ast_custom_function_register(&acf_audiortpqos);
-	ast_custom_function_register(&acf_videortpqos);
-	ast_custom_function_register(&acf_textrtpqos);
+	ast_custom_function_register(&acf_rtpqos);
 
 	/* Register manager commands */
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -18268,9 +18235,7 @@ static int unload_module(void)
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 	ast_custom_function_unregister(&checksipdomain_function);
-	ast_custom_function_unregister(&acf_audiortpqos);
-	ast_custom_function_unregister(&acf_videortpqos);
-	ast_custom_function_unregister(&acf_textrtpqos);
+	ast_custom_function_unregister(&acf_rtpqos);
 
 	/* Unregister dial plan applications */
 	ast_unregister_application(app_dtmfmode);
