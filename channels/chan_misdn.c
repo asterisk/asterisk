@@ -351,7 +351,11 @@ int add_out_calls(int port);
 int add_in_calls(int port);
 
 
+#ifdef MISDN_1_2
+static int update_pipeline_config(struct misdn_bchannel *bc);
+#else
 static int update_ec_config(struct misdn_bchannel *bc);
+#endif
 
 
 
@@ -1034,7 +1038,11 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			"  --> activated: %d\n"
 			"  --> state: %s\n"
 			"  --> capability: %s\n"
+#ifdef MISDN_1_2
+			"  --> pipeline: %s\n"
+#else
 			"  --> echo_cancel: %d\n"
+#endif
 			"  --> notone : rx %d tx:%d\n"
 			"  --> bc_hold: %d\n",
 			help->ast->name,
@@ -1047,7 +1055,11 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 			bc->active,
 			bc_state2str(bc->bc_state),
 			bearer2str(bc->capability),
-			bc->ec_enable,
+#ifdef MISDN_1_2
+			bc->pipeline,
+#else
+ 			bc->ec_enable,
+#endif
 
 			help->norxtone,help->notxtone,
 			bc->holded
@@ -1275,7 +1287,11 @@ static int misdn_toggle_echocancel (int fd, int argc, char *argv[])
 			tmp->toggle_ec=tmp->toggle_ec?0:1;
 
 			if (tmp->toggle_ec) {
+#ifdef MISDN_1_2
+				update_pipeline_config(tmp->bc);
+#else
 				update_ec_config(tmp->bc);
+#endif
 				manager_ec_enable(tmp->bc);
 			} else {
 				manager_ec_disable(tmp->bc);
@@ -1616,6 +1632,25 @@ void debug_numplan(int port, int numplan, char *type)
 
 
 
+#ifdef MISDN_1_2
+static int update_pipeline_config(struct misdn_bchannel *bc)
+{
+	int ec;
+
+	misdn_cfg_get(bc->port, MISDN_CFG_PIPELINE, bc->pipeline, sizeof(bc->pipeline));
+
+	if (*bc->pipeline)
+		return 0;
+
+	misdn_cfg_get(bc->port, MISDN_CFG_ECHOCANCEL, &ec, sizeof(int));
+	if (ec == 1)
+		snprintf(bc->pipeline, sizeof(bc->pipeline) - 1, "mg2ec");
+	else if (ec > 1)
+		snprintf(bc->pipeline, sizeof(bc->pipeline) - 1, "mg2ec(deftaps=%d)", ec);
+
+	return 0;
+}
+#else
 static int update_ec_config(struct misdn_bchannel *bc)
 {
 	int ec;
@@ -1629,17 +1664,10 @@ static int update_ec_config(struct misdn_bchannel *bc)
 		bc->ec_enable=1;
 		bc->ec_deftaps=ec;
 	}
-#ifdef WITH_ECHOTRAINING 
-	int ectr;
-	misdn_cfg_get( port, MISDN_CFG_ECHOTRAINING, &ectr, sizeof(int));
-	
-	if ( ectr >= 0 ) {
-		bc->ec_training=ectr;
-	}
-#endif
 
 	return 0;
 }
+#endif
 
 
 static int read_config(struct chan_list *ch, int orig) {
@@ -1714,7 +1742,11 @@ static int read_config(struct chan_list *ch, int orig) {
 	
 	ast_copy_string (ast->context,ch->context,sizeof(ast->context));	
 
+#ifdef MISDN_1_2
+	update_pipeline_config(bc);
+#else
 	update_ec_config(bc);
+#endif
 
 	{
 		int eb3;
@@ -1987,9 +2019,15 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		int bridging;
 		misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
 		if (bridging && ch->other_ch) {
-			chan_misdn_log(0, port, "Disabling EC on both Sides\n");	
+#ifdef MISDN_1_2
+			chan_misdn_log(0, port, "Disabling EC (aka Pipeline) on both Sides\n");
+			*ch->bc->pipeline=0;
+			*ch->other_ch->bc->pipeline=0;
+#else
+			chan_misdn_log(0, port, "Disabling EC on both Sides\n");
 			ch->bc->ec_enable=0;
 			ch->other_ch->bc->ec_enable=0;
+#endif
 		}
 		
 		r=misdn_lib_send_event( newbc, EVENT_SETUP );
@@ -2482,7 +2520,11 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  			isdn_lib_update_rxgain(tmp->bc);
  			tmp->bc->txgain = 0;
  			isdn_lib_update_txgain(tmp->bc);
+#ifdef MISDN_1_2
+			*tmp->bc->pipeline = 0;
+#else
  			tmp->bc->ec_enable = 0;
+#endif
  			isdn_lib_update_ec(tmp->bc);
  			isdn_lib_stop_dtmf(tmp->bc);
  			switch (tmp->faxdetect) {
@@ -4985,14 +5027,22 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			
 			if (neglect) {
 				chan_misdn_log(1, ch->bc->port, " --> disabled\n");
+#ifdef MISDN_1_2
+				*ch->bc->pipeline=0;
+#else
 				ch->bc->ec_enable=0;
+#endif
 			} else {
+#ifdef MISDN_1_2
+				update_pipeline_config(ch->bc);
+#else
 				ch->bc->ec_enable=1;
 				ch->bc->orig=ch->orginator;
 				tok++;
-				if (tok) {
+				if (*tok) {
 					ch->bc->ec_deftaps=atoi(tok);
 				}
+#endif
 			}
 			
 			break;

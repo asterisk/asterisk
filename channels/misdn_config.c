@@ -235,9 +235,14 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tA value of zero turns echocancellation off.\n"
 		"\n"
 		"\tPossible values are: 0,32,64,128,256,yes(=128),no(=0)" },
-	{ "echocancelwhenbridged", MISDN_CFG_ECHOCANCELWHENBRIDGED, MISDN_CTYPE_BOOL, "no", NONE,
-		"This disables echocancellation when the call is bridged between\n"
-		"\tmISDN channels" },
+#ifdef MISDN_1_2
+	{ "pipeline", MISDN_CFG_PIPELINE, MISDN_CTYPE_STR, NO_DEFAULT, NONE,
+		"Set the configuration string for the mISDN dsp pipeline.\n"
+		"\n"
+		"\tExample for enabling the mg2 echo cancellation module with deftaps\n"
+		"\tset to 128:\n"
+		"\t\tmg2ec(deftaps=128)" },
+#endif
 #ifdef WITH_BEROEC
 	{ "bnechocancel", MISDN_CFG_BNECHOCANCEL, MISDN_CTYPE_BOOLINT, "yes", 64,
 		"echotail in ms (1-200)\n"},
