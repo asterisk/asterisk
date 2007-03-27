@@ -14820,7 +14820,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		return 0;
 	}
 
-	if (!strcasecmp(args.param, "rtpqos"))
+	if (strcasecmp(args.param, "rtpqos"))
 		return 0;
 
 	memset(buf, 0, buflen);
