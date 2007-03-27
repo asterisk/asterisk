@@ -1442,7 +1442,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		lseek(fd, 0, SEEK_SET);
 		printf("Length is %zd\n", fdlen);
 		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
-		if (fdm != MAP_FAILED) {
+		if (fdm == MAP_FAILED) {
 			ast_log(LOG_WARNING, "Memory map failed!\n");
 			ast_odbc_release_obj(obj);
 			goto yuck;
