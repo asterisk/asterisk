@@ -1428,6 +1428,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data);
 static int sip_addheader(struct ast_channel *chan, void *data);
 static int sip_do_reload(enum channelreloadreason reason);
 static int sip_reload(int fd, int argc, char *argv[]);
+static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
 
 /*--- Debugging 
 	Functions for enabling debug per IP or fully, or enabling history logging for
@@ -1593,6 +1594,7 @@ static const struct ast_channel_tech sip_tech = {
 	.bridge = ast_rtp_bridge,
 	.early_bridge = ast_rtp_early_bridge,
 	.send_text = sip_sendtext,
+	.func_channel_read = acf_channel_read,
 };
 
 /*! \brief This version of the sip channel tech has no send_digit_begin
@@ -14800,12 +14802,13 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
-static int acf_rtpqos_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen)
+static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen)
 {
 	struct ast_rtp_quality qos;
 	struct sip_pvt *p = chan->tech_pvt;
 	char *all = "", *parse = ast_strdupa(preparse);
 	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(param);
 		AST_APP_ARG(type);
 		AST_APP_ARG(field);
 	);
@@ -14814,7 +14817,11 @@ static int acf_rtpqos_read(struct ast_channel *chan, const char *funcname, char 
 	/* Sanity check */
 	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
 		ast_log(LOG_ERROR, "Cannot call %s on a non-SIP channel\n", funcname);
+		return 0;
 	}
+
+	if (!strcasecmp(args.param, "rtpqos"))
+		return 0;
 
 	memset(buf, 0, buflen);
 	memset(&qos, 0, sizeof(qos));
@@ -18135,27 +18142,6 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_reload_usage },
 };
 
-struct ast_custom_function acf_rtpqos = {
-	.name = "RTPQOS",
-	.synopsis = "Retrieve statistics about an RTP stream",
-	.desc =
-"The following statistics may be retrieved:\n"
-"  local_ssrc         - Local SSRC (stream ID)\n"
-"  local_lostpackets  - Local lost packets\n"
-"  local_jitter       - Local calculated jitter\n"
-"  local_count        - Number of received packets\n"
-"  remote_ssrc        - Remote SSRC (stream ID)\n"
-"  remote_lostpackets - Remote lost packets\n"
-"  remote_jitter      - Remote reported jitter\n"
-"  remote_count       - Number of transmitted packets\n"
-"  rtt                - Round trip time\n"
-"  all                - All statistics (in a form suited to logging, but not for parsing)\n"
-"\n"
-"Type may be specified as \"audio\", \"video\", or \"text\".\n",
-	.syntax = "RTPQOS(<type>|<field>)",
-	.read = acf_rtpqos_read,
-};
-
 /*! \brief PBX load module - initialization */
 static int load_module(void)
 {
@@ -18205,7 +18191,6 @@ static int load_module(void)
 	ast_custom_function_register(&sippeer_function);
 	ast_custom_function_register(&sipchaninfo_function);
 	ast_custom_function_register(&checksipdomain_function);
-	ast_custom_function_register(&acf_rtpqos);
 
 	/* Register manager commands */
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -18235,7 +18220,6 @@ static int unload_module(void)
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 	ast_custom_function_unregister(&checksipdomain_function);
-	ast_custom_function_unregister(&acf_rtpqos);
 
 	/* Unregister dial plan applications */
 	ast_unregister_application(app_dtmfmode);
