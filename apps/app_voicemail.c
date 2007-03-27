@@ -836,7 +836,7 @@ static int retrieve_file(char *dir, int msgnum)
 	int res;
 	int fd=-1;
 	size_t fdlen = 0;
-	void *fdm=NULL;
+	void *fdm = MAP_FAILED;
 	SQLSMALLINT colcount=0;
 	SQLHSTMT stmt;
 	char sql[PATH_MAX];
@@ -944,7 +944,7 @@ static int retrieve_file(char *dir, int msgnum)
 					}
 					/* Read out in small chunks */
 					for (offset = 0; offset < colsize; offset += CHUNKSIZE) {
-						if ((fdm = mmap(NULL, CHUNKSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == (void *)-1) {
+						if ((fdm = mmap(NULL, CHUNKSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset)) == MAP_FAILED) {
 							ast_log(LOG_WARNING, "Could not mmap the output file: %s (%d)\n", strerror(errno), errno);
 							SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 							goto yuck;
@@ -1207,7 +1207,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	int x = 0;
 	int res;
 	int fd = -1;
-	void *fdm=NULL;
+	void *fdm = MAP_FAILED;
 	size_t fdlen = -1;
 	SQLHSTMT stmt;
 	SQLINTEGER len;
@@ -1262,7 +1262,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		lseek(fd, 0, SEEK_SET);
 		printf("Length is %d\n", fdlen);
 		fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED,fd, 0);
-		if (!fdm) {
+		if (fdm != MAP_FAILED) {
 			ast_log(LOG_WARNING, "Memory map failed!\n");
 			goto yuck;
 		} 
@@ -1319,7 +1319,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 yuck:	
 	if (cfg)
 		ast_config_destroy(cfg);
-	if (fdm)
+	if (fdm != MAP_FAILED)
 		munmap(fdm, fdlen);
 	if (fd > -1)
 		close(fd);
