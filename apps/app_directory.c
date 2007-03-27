@@ -95,7 +95,7 @@ static void retrieve_file(char *dir)
 	int res;
 	int fd=-1;
 	size_t fdlen = 0;
-	void *fdm=NULL;
+	void *fdm = MAP_FAILED;
 	SQLHSTMT stmt;
 	char sql[256];
 	char fmt[80]="";
@@ -162,7 +162,7 @@ static void retrieve_file(char *dir)
 				if (fd > -1)
 					fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 			}
-			if (fdm) {
+			if (fdm != MAP_FAILED) {
 				memset(fdm, 0, fdlen);
 				res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
 				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -176,7 +176,7 @@ static void retrieve_file(char *dir)
 		ast_odbc_release_obj(obj);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
-	if (fdm)
+	if (fdm != MAP_FAILED)
 		munmap(fdm, fdlen);
 	if (fd > -1)
 		close(fd);
