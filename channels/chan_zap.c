@@ -9572,7 +9572,7 @@ static void *pri_dchannel(void *vpri)
 							break;
 						} else {
 							/* This is where we handle initial glare */
-							ast_log(LOG_DEBUG, "Ring requested on channel %d/%d already in use or previously requested on span %d.  Attempting to renegotiating channel.\n", 
+							ast_log(LOG_DEBUG, "Ring requested on channel %d/%d already in use or previously requested on span %d.  Attempting to renegotiate channel.\n", 
 							PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
 							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							chanpos = -1;
