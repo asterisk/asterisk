@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 #include <errno.h>
 #include <sys/mman.h>
 #include "asterisk/res_odbc.h"
@@ -88,7 +88,7 @@ static char *descrip =
 #define NUMDIGITS 3
 
 
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 static void retrieve_file(char *dir)
 {
 	int x = 0;
@@ -102,9 +102,9 @@ static void retrieve_file(char *dir)
 	char *c;
 	SQLLEN colsize;
 	char full_fn[256];
+	struct odbc_obj *obj;
 
-	odbc_obj *obj;
-	obj = fetch_odbc_obj(odbc_database, 0);
+	obj = ast_odbc_request_obj(odbc_database, 1);
 	if (obj) {
 		do {
 			ast_copy_string(fmt, vmfmts, sizeof(fmt));
@@ -127,7 +127,7 @@ static void retrieve_file(char *dir)
 				break;
 			}
 			SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
-			res = odbc_smart_execute(obj, stmt);
+			res = ast_odbc_smart_execute(obj, stmt);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
@@ -173,6 +173,7 @@ static void retrieve_file(char *dir)
 			}
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		} while (0);
+		ast_odbc_release_obj(obj);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
 	if (fdm)
@@ -264,11 +265,14 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 	int res = 0;
 	int loop;
 	char fn[256];
+#ifdef ODBC_STORAGE
+	char fn2[256];
+#endif
 
 	/* Check for the VoiceMail2 greeting first */
 	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet",
 		ast_config_AST_SPOOL_DIR, context, ext);
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 	retrieve_file(fn);
 #endif
 
@@ -277,7 +281,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 		snprintf(fn, sizeof(fn), "%s/vm/%s/greet",
 			ast_config_AST_SPOOL_DIR, ext);
 	}
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 	retrieve_file(fn2);
 #endif
 
@@ -296,7 +300,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 			res = ast_say_character_str(chan, ext, AST_DIGIT_ANY, chan->language);
 		}
 	}
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 	ast_filedelete(fn, NULL);	
 	ast_filedelete(fn2, NULL);	
 #endif
@@ -653,9 +657,9 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-#ifdef USE_ODBC_STORAGE
+#ifdef ODBC_STORAGE
 	struct ast_config *cfg = ast_config_load(VOICEMAIL_CONFIG);
-	char *tmp;
+	const char *tmp;
 
 	if (cfg) {
 		if ((tmp = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
