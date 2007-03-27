@@ -51,6 +51,8 @@ typedef struct ast_config *config_load_func(const char *database, const char *ta
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
+typedef int realtime_store(const char *database, const char *table, va_list ap);
+typedef int realtime_destroy(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 
 /*! \brief Configuration engine structure, used to define realtime drivers */
 struct ast_config_engine {
@@ -59,6 +61,8 @@ struct ast_config_engine {
 	realtime_var_get *realtime_func;
 	realtime_multi_get *realtime_multi_func;
 	realtime_update *update_func;
+	realtime_store *store_func;
+	realtime_destroy *destroy_func;
 	struct ast_config_engine *next;
 };
 
