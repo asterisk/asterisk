@@ -4053,7 +4053,7 @@ static int pbx_load_module(void)
 	} else {
 		ast_log(LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
 		destroy_pval(parse_tree); /* free up the memory */
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	destroy_pval(parse_tree); /* free up the memory */
 	
