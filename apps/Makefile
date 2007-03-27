@@ -21,11 +21,14 @@ ifneq ($(findstring apps,$(MENUSELECT_EMBED)),)
   LOADABLE_MODS:=
 endif
 
+MENUSELECT_OPTS_app_directory:=$(MENUSELECT_OPTS_app_voicemail)
 ifneq ($(findstring ODBC_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
 MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
+MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_ODBC_STORAGE)
 endif
 ifneq ($(findstring IMAP_STORAGE,$(MENUSELECT_OPTS_app_voicemail)),)
 MENUSELECT_DEPENDS_app_voicemail+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
+MENUSELECT_DEPENDS_app_directory+=$(MENUSELECT_DEPENDS_IMAP_STORAGE)
 endif
 
 ifeq (SunOS,$(shell uname))
