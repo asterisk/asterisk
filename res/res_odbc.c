@@ -138,7 +138,7 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt)
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
 		if (res == SQL_ERROR) {
 			SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
-			for (i=0; i< numfields + 1; i++) {
+			for (i = 0; i < numfields; i++) {
 				SQLGetDiagRec(SQL_HANDLE_STMT, stmt, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
 				ast_log(LOG_WARNING, "SQL Execute returned an error %d: %s: %s (%d)\n", res, state, diagnostic, diagbytes);
 				if (i > 10) {
