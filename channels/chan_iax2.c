@@ -474,6 +474,8 @@ struct iax_rr {
 	int ooo;
 };
 
+struct iax2_pvt_ref;
+
 struct chan_iax2_pvt {
 	/*! Socket to send/receive on for this call */
 	int sockfd;
@@ -632,14 +634,19 @@ struct chan_iax2_pvt {
 	int frames_dropped;
 	/*! received frame count: (just for stats) */
 	int frames_received;
-
-	AST_LIST_ENTRY(chan_iax2_pvt) entry;
+	struct iax2_pvt_ref *hash_ref;
 	unsigned short hash;
 };
 
+struct iax2_pvt_ref {
+	struct chan_iax2_pvt *pvt;
+	unsigned int callno;
+	AST_LIST_ENTRY(iax2_pvt_ref) entry;
+};
+
 /* Somewhat arbitrary prime number */
-#define PVT_HASH_SIZE 563
-static AST_RWLIST_HEAD(pvt_list, chan_iax2_pvt) pvt_hash_tbl[PVT_HASH_SIZE];
+#define PVT_HASH_SIZE 3373
+static AST_RWLIST_HEAD(pvt_list, iax2_pvt_ref) pvt_hash_tbl[PVT_HASH_SIZE];
 
 static AST_LIST_HEAD_STATIC(queue, iax_frame);
 
@@ -1274,16 +1281,21 @@ static inline unsigned short peer_hash_val(const struct sockaddr_in *sin, unsign
 
 static inline void hash_on_peer(struct chan_iax2_pvt *pvt)
 {
-	if (pvt->hash) {
+	if (pvt->hash_ref) {
 		AST_RWLIST_WRLOCK(&pvt_hash_tbl[pvt->hash]);
-		AST_RWLIST_REMOVE(&pvt_hash_tbl[pvt->hash], pvt, entry);
+		AST_RWLIST_REMOVE(&pvt_hash_tbl[pvt->hash], pvt->hash_ref, entry);
 		AST_RWLIST_UNLOCK(&pvt_hash_tbl[pvt->hash]);	
+	} else {
+		if (!(pvt->hash_ref = ast_calloc(1, sizeof(pvt->hash_ref))))
+			return;
+		pvt->hash_ref->pvt = pvt;
 	}
 
 	pvt->hash = peer_hash_val(&pvt->addr, pvt->peercallno);
+	pvt->hash_ref->callno = pvt->callno;
 
 	AST_RWLIST_WRLOCK(&pvt_hash_tbl[pvt->hash]);
-	AST_RWLIST_INSERT_HEAD(&pvt_hash_tbl[pvt->hash], pvt, entry);
+	AST_RWLIST_INSERT_HEAD(&pvt_hash_tbl[pvt->hash], pvt->hash_ref, entry);
 	AST_RWLIST_UNLOCK(&pvt_hash_tbl[pvt->hash]);
 }
 
@@ -1295,13 +1307,13 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	char host[80];
 	if (new <= NEW_ALLOW) {
 		unsigned short hash = peer_hash_val(sin, callno);
-		const struct chan_iax2_pvt *pvt;
-		AST_RWLIST_RDLOCK(&pvt_hash_tbl[hash]);
-		AST_RWLIST_TRAVERSE(&pvt_hash_tbl[hash], pvt, entry) {
-			ast_mutex_lock(&iaxsl[pvt->callno]);
-			if (match(sin, callno, dcallno, pvt))
-				res = pvt->callno;
-			ast_mutex_unlock(&iaxsl[pvt->callno]);
+		struct iax2_pvt_ref *pvt_ref;
+		AST_RWLIST_WRLOCK(&pvt_hash_tbl[hash]);
+		AST_RWLIST_TRAVERSE(&pvt_hash_tbl[hash], pvt_ref, entry) {
+			ast_mutex_lock(&iaxsl[pvt_ref->callno]);
+			if (match(sin, callno, dcallno, pvt_ref->pvt))
+				res = pvt_ref->callno;
+			ast_mutex_unlock(&iaxsl[pvt_ref->callno]);
 			if (res > 0)
 				break;
  		}
@@ -1844,10 +1856,11 @@ retry:
 			pvt->owner = NULL;
 		iax2_destroy_helper(pvt);
 
-		if (pvt->hash) {
+		if (pvt->hash_ref) {
 			AST_RWLIST_WRLOCK(&pvt_hash_tbl[pvt->hash]);
-			AST_RWLIST_REMOVE(&pvt_hash_tbl[pvt->hash], pvt, entry);
+			AST_RWLIST_REMOVE(&pvt_hash_tbl[pvt->hash], pvt->hash_ref, entry);
 			AST_RWLIST_UNLOCK(&pvt_hash_tbl[pvt->hash]);
+			free(pvt->hash_ref);
 		}
 
 		/* Already gone */
