@@ -7190,51 +7190,9 @@ static int load_config(void)
 	struct ast_config *cfg, *ucfg;
 	char *cat;
 	struct ast_variable *var;
-	const char *notifystr = NULL;
-	const char *smdistr = NULL;
-	const char *astattach;
-	const char *astsearch;
-	const char *astsaycid;
-	const char *send_voicemail;
-#ifdef IMAP_STORAGE
-	const char *imap_server;
-	const char *imap_port;
-	const char *imap_flags;
-	const char *imap_folder;
-	const char *auth_user;
-	const char *auth_password;
-	const char *expunge_on_hangup;
-#endif
-	const char *astcallop;
-	const char *astreview;
-	const char *asttempgreetwarn;
-	const char *astskipcmd;
-	const char *asthearenv;
-	const char *astsaydurationinfo;
-	const char *astsaydurationminfo;
-	const char *silencestr;
-	const char *maxmsgstr;
-	const char *astdirfwd;
-	const char *thresholdstr;
-	const char *fmt;
-	const char *astemail;
-	const char *ucontext;
-	const char *astmailcmd = SENDMAIL;
-	const char *astforcename;
-	const char *astforcegreet;
+	const char *val;
 	const char *s;
-	char *q,*stringp;
-	const char *dialoutcxt = NULL;
-	const char *callbackcxt = NULL;	
-	const char *exitcxt = NULL;	
-	const char *extpc;
-	const char *emaildateformatstr;
-	const char *volgainstr;
-	const char *vm_paswd;
-	const char *vm_newpasswd;
-	const char *vm_passchange;
-	const char *vm_reenterpass;
-	const char *vm_mism;
+	char *q, *stringp;
 	int x;
 	int tmpadsi[4];
 
@@ -7256,99 +7214,99 @@ static int load_config(void)
 	if (cfg) {
 		/* General settings */
 
-		if (!(ucontext = ast_variable_retrieve(cfg, "general", "userscontext")))
-			ucontext = "default";
-		ast_copy_string(userscontext, ucontext, sizeof(userscontext));
+		if (!(val = ast_variable_retrieve(cfg, "general", "userscontext")))
+			val = "default";
+		ast_copy_string(userscontext, val, sizeof(userscontext));
 		/* Attach voice message to mail message ? */
-		if (!(astattach = ast_variable_retrieve(cfg, "general", "attach"))) 
-			astattach = "yes";
-		ast_set2_flag((&globalflags), ast_true(astattach), VM_ATTACH);	
+		if (!(val = ast_variable_retrieve(cfg, "general", "attach"))) 
+			val = "yes";
+		ast_set2_flag((&globalflags), ast_true(val), VM_ATTACH);	
 
-		if (!(astsearch = ast_variable_retrieve(cfg, "general", "searchcontexts")))
-			astsearch = "no";
-		ast_set2_flag((&globalflags), ast_true(astsearch), VM_SEARCH);
+		if (!(val = ast_variable_retrieve(cfg, "general", "searchcontexts")))
+			val = "no";
+		ast_set2_flag((&globalflags), ast_true(val), VM_SEARCH);
 
 		volgain = 0.0;
-		if ((volgainstr = ast_variable_retrieve(cfg, "general", "volgain")))
-			sscanf(volgainstr, "%lf", &volgain);
+		if ((val = ast_variable_retrieve(cfg, "general", "volgain")))
+			sscanf(val, "%lf", &volgain);
 
 #ifdef ODBC_STORAGE
 		strcpy(odbc_database, "asterisk");
-		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
-			ast_copy_string(odbc_database, thresholdstr, sizeof(odbc_database));
+		if ((val = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
+			ast_copy_string(odbc_database, val, sizeof(odbc_database));
 		}
 		strcpy(odbc_table, "voicemessages");
-		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbctable"))) {
-			ast_copy_string(odbc_table, thresholdstr, sizeof(odbc_table));
+		if ((val = ast_variable_retrieve(cfg, "general", "odbctable"))) {
+			ast_copy_string(odbc_table, val, sizeof(odbc_table));
 		}
 #endif		
 		/* Mail command */
 		strcpy(mailcmd, SENDMAIL);
-		if ((astmailcmd = ast_variable_retrieve(cfg, "general", "mailcmd")))
-			ast_copy_string(mailcmd, astmailcmd, sizeof(mailcmd)); /* User setting */
+		if ((val = ast_variable_retrieve(cfg, "general", "mailcmd")))
+			ast_copy_string(mailcmd, val, sizeof(mailcmd)); /* User setting */
 
 		maxsilence = 0;
-		if ((silencestr = ast_variable_retrieve(cfg, "general", "maxsilence"))) {
-			maxsilence = atoi(silencestr);
+		if ((val = ast_variable_retrieve(cfg, "general", "maxsilence"))) {
+			maxsilence = atoi(val);
 			if (maxsilence > 0)
 				maxsilence *= 1000;
 		}
 		
-		if (!(maxmsgstr = ast_variable_retrieve(cfg, "general", "maxmsg"))) {
+		if (!(val = ast_variable_retrieve(cfg, "general", "maxmsg"))) {
 			maxmsg = MAXMSG;
 		} else {
-			maxmsg = atoi(maxmsgstr);
+			maxmsg = atoi(val);
 			if (maxmsg <= 0) {
-				ast_log(LOG_WARNING, "Invalid number of messages per folder '%s'. Using default value %i\n", maxmsgstr, MAXMSG);
+				ast_log(LOG_WARNING, "Invalid number of messages per folder '%s'. Using default value %i\n", val, MAXMSG);
 				maxmsg = MAXMSG;
 			} else if (maxmsg > MAXMSGLIMIT) {
-				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, maxmsgstr);
+				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, val);
 				maxmsg = MAXMSGLIMIT;
 			}
 		}
 
 		/* Load date format config for voicemail mail */
-		if ((emaildateformatstr = ast_variable_retrieve(cfg, "general", "emaildateformat"))) {
-			ast_copy_string(emaildateformat, emaildateformatstr, sizeof(emaildateformat));
+		if ((val = ast_variable_retrieve(cfg, "general", "emaildateformat"))) {
+			ast_copy_string(emaildateformat, val, sizeof(emaildateformat));
 		}
 
 		/* External password changing command */
-		if ((extpc = ast_variable_retrieve(cfg, "general", "externpass"))) {
-			ast_copy_string(ext_pass_cmd,extpc,sizeof(ext_pass_cmd));
+		if ((val = ast_variable_retrieve(cfg, "general", "externpass"))) {
+			ast_copy_string(ext_pass_cmd,val,sizeof(ext_pass_cmd));
 			pwdchange = PWDCHANGE_EXTERNAL;
-		} else if ((extpc = ast_variable_retrieve(cfg, "general", "externpassnotify"))) {
-			ast_copy_string(ext_pass_cmd,extpc,sizeof(ext_pass_cmd));
+		} else if ((val = ast_variable_retrieve(cfg, "general", "externpassnotify"))) {
+			ast_copy_string(ext_pass_cmd,val,sizeof(ext_pass_cmd));
 			pwdchange = PWDCHANGE_EXTERNAL | PWDCHANGE_INTERNAL;
 		}
 
 #ifdef IMAP_STORAGE
 		/* IMAP server address */
-		if ((imap_server = ast_variable_retrieve(cfg, "general", "imapserver"))) {
-			ast_copy_string(imapserver, imap_server, sizeof(imapserver));
+		if ((val = ast_variable_retrieve(cfg, "general", "imapserver"))) {
+			ast_copy_string(imapserver, val, sizeof(imapserver));
 		} else {
 			ast_copy_string(imapserver,"localhost", sizeof(imapserver));
 		}
 		/* IMAP server port */
-		if ((imap_port = ast_variable_retrieve(cfg, "general", "imapport"))) {
-			ast_copy_string(imapport, imap_port, sizeof(imapport));
+		if ((val = ast_variable_retrieve(cfg, "general", "imapport"))) {
+			ast_copy_string(imapport, val, sizeof(imapport));
 		} else {
 			ast_copy_string(imapport,"143", sizeof(imapport));
 		}
 		/* IMAP server flags */
-		if ((imap_flags = ast_variable_retrieve(cfg, "general", "imapflags"))) {
-			ast_copy_string(imapflags, imap_flags, sizeof(imapflags));
+		if ((val = ast_variable_retrieve(cfg, "general", "imapflags"))) {
+			ast_copy_string(imapflags, val, sizeof(imapflags));
 		}
 		/* IMAP server master username */
-		if ((auth_user = ast_variable_retrieve(cfg, "general", "authuser"))) {
-			ast_copy_string(authuser, auth_user, sizeof(authuser));
+		if ((val = ast_variable_retrieve(cfg, "general", "authuser"))) {
+			ast_copy_string(authuser, val, sizeof(authuser));
 		}
 		/* IMAP server master password */
-		if ((auth_password = ast_variable_retrieve(cfg, "general", "authpassword"))) {
-			ast_copy_string(authpassword, auth_password, sizeof(authpassword));
+		if ((val = ast_variable_retrieve(cfg, "general", "authpassword"))) {
+			ast_copy_string(authpassword, val, sizeof(authpassword));
 		}
 		/* Expunge on exit */
-		if ((expunge_on_hangup = ast_variable_retrieve(cfg, "general", "expungeonhangup"))) {
-			if(ast_false(expunge_on_hangup))
+		if ((val = ast_variable_retrieve(cfg, "general", "expungeonhangup"))) {
+			if(ast_false(val))
 				expungeonhangup = 0;
 			else
 				expungeonhangup = 1;
@@ -7356,15 +7314,15 @@ static int load_config(void)
 			expungeonhangup = 1;
 		}
 		/* IMAP voicemail folder */
-		if ((imap_folder = ast_variable_retrieve(cfg, "general", "imapfolder"))) {
-			ast_copy_string(imapfolder, imap_folder, sizeof(imapfolder));
+		if ((val = ast_variable_retrieve(cfg, "general", "imapfolder"))) {
+			ast_copy_string(imapfolder, val, sizeof(imapfolder));
 		} else {
 			ast_copy_string(imapfolder,"INBOX", sizeof(imapfolder));
 		}
 #endif
 		/* External voicemail notify application */
-		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
-			ast_copy_string(externnotify, notifystr, sizeof(externnotify));
+		if ((val = ast_variable_retrieve(cfg, "general", "externnotify"))) {
+			ast_copy_string(externnotify, val, sizeof(externnotify));
 			if (option_debug)
 				ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
 		} else {
@@ -7375,8 +7333,8 @@ static int load_config(void)
 		if ((s = ast_variable_retrieve(cfg, "general", "smdienable")) && ast_true(s)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Enabled SMDI voicemail notification\n");
-			if ((smdistr = ast_variable_retrieve(cfg, "general", "smdiport"))) {
-				smdi_iface = ast_smdi_interface_find(smdistr);
+			if ((val = ast_variable_retrieve(cfg, "general", "smdiport"))) {
+				smdi_iface = ast_smdi_interface_find(val);
 			} else {
 				if (option_debug)
 					ast_log(LOG_DEBUG, "No SMDI interface set, trying default (/dev/ttyS0)\n");
@@ -7392,12 +7350,12 @@ static int load_config(void)
 
 		/* Silence treshold */
 		silencethreshold = 256;
-		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "silencethreshold")))
-			silencethreshold = atoi(thresholdstr);
+		if ((val = ast_variable_retrieve(cfg, "general", "silencethreshold")))
+			silencethreshold = atoi(val);
 		
-		if (!(astemail = ast_variable_retrieve(cfg, "general", "serveremail"))) 
-			astemail = ASTERISK_USERNAME;
-		ast_copy_string(serveremail, astemail, sizeof(serveremail));
+		if (!(val = ast_variable_retrieve(cfg, "general", "serveremail"))) 
+			val = ASTERISK_USERNAME;
+		ast_copy_string(serveremail, val, sizeof(serveremail));
 		
 		vmmaxsecs = 0;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxsecs"))) {
@@ -7443,10 +7401,10 @@ static int load_config(void)
 			}
 		}
 
-		fmt = ast_variable_retrieve(cfg, "general", "format");
-		if (!fmt)
-			fmt = "wav";	
-		ast_copy_string(vmfmts, fmt, sizeof(vmfmts));
+		val = ast_variable_retrieve(cfg, "general", "format");
+		if (!val)
+			val = "wav";	
+		ast_copy_string(vmfmts, val, sizeof(vmfmts));
 
 		skipms = 3000;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxgreet"))) {
@@ -7475,14 +7433,14 @@ static int load_config(void)
 		}
 
 		/* Force new user to record name ? */
-		if (!(astforcename = ast_variable_retrieve(cfg, "general", "forcename"))) 
-			astforcename = "no";
-		ast_set2_flag((&globalflags), ast_true(astforcename), VM_FORCENAME);
+		if (!(val = ast_variable_retrieve(cfg, "general", "forcename"))) 
+			val = "no";
+		ast_set2_flag((&globalflags), ast_true(val), VM_FORCENAME);
 
 		/* Force new user to record greetings ? */
-		if (!(astforcegreet = ast_variable_retrieve(cfg, "general", "forcegreetings"))) 
-			astforcegreet = "no";
-		ast_set2_flag((&globalflags), ast_true(astforcegreet), VM_FORCEGREET);
+		if (!(val = ast_variable_retrieve(cfg, "general", "forcegreetings"))) 
+			val = "no";
+		ast_set2_flag((&globalflags), ast_true(val), VM_FORCEGREET);
 
 		if ((s = ast_variable_retrieve(cfg, "general", "cidinternalcontexts"))){
 			if (option_debug)
@@ -7501,93 +7459,93 @@ static int load_config(void)
 				}
 			}
 		}
-		if (!(astreview = ast_variable_retrieve(cfg, "general", "review"))){
+		if (!(val = ast_variable_retrieve(cfg, "general", "review"))){
 			if (option_debug)
 				ast_log(LOG_DEBUG,"VM Review Option disabled globally\n");
-			astreview = "no";
+			val = "no";
 		}
-		ast_set2_flag((&globalflags), ast_true(astreview), VM_REVIEW);	
+		ast_set2_flag((&globalflags), ast_true(val), VM_REVIEW);	
 
 		/*Temporary greeting reminder */
-		if (!(asttempgreetwarn = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
+		if (!(val = ast_variable_retrieve(cfg, "general", "tempgreetwarn"))) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "VM Temporary Greeting Reminder Option disabled globally\n");
-			asttempgreetwarn = "no";
+			val = "no";
 		} else {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "VM Temporary Greeting Reminder Option enabled globally\n");
 		}
-		ast_set2_flag((&globalflags), ast_true(asttempgreetwarn), VM_TEMPGREETWARN);
+		ast_set2_flag((&globalflags), ast_true(val), VM_TEMPGREETWARN);
 
-		if (!(astcallop = ast_variable_retrieve(cfg, "general", "operator"))){
+		if (!(val = ast_variable_retrieve(cfg, "general", "operator"))){
 			if (option_debug)
 				ast_log(LOG_DEBUG,"VM Operator break disabled globally\n");
-			astcallop = "no";
+			val = "no";
 		}
-		ast_set2_flag((&globalflags), ast_true(astcallop), VM_OPERATOR);	
+		ast_set2_flag((&globalflags), ast_true(val), VM_OPERATOR);	
 
-		if (!(astsaycid = ast_variable_retrieve(cfg, "general", "saycid"))) {
+		if (!(val = ast_variable_retrieve(cfg, "general", "saycid"))) {
 			if (option_debug)
 				ast_log(LOG_DEBUG,"VM CID Info before msg disabled globally\n");
-			astsaycid = "no";
+			val = "no";
 		} 
-		ast_set2_flag((&globalflags), ast_true(astsaycid), VM_SAYCID);	
+		ast_set2_flag((&globalflags), ast_true(val), VM_SAYCID);	
 
-		if (!(send_voicemail = ast_variable_retrieve(cfg,"general", "sendvoicemail"))){
+		if (!(val = ast_variable_retrieve(cfg,"general", "sendvoicemail"))){
 			if (option_debug)
 				ast_log(LOG_DEBUG,"Send Voicemail msg disabled globally\n");
-			send_voicemail = "no";
+			val = "no";
 		}
-		ast_set2_flag((&globalflags), ast_true(send_voicemail), VM_SVMAIL);
+		ast_set2_flag((&globalflags), ast_true(val), VM_SVMAIL);
 	
-		if (!(asthearenv = ast_variable_retrieve(cfg, "general", "envelope"))) {
+		if (!(val = ast_variable_retrieve(cfg, "general", "envelope"))) {
 			if (option_debug)
 				ast_log(LOG_DEBUG,"ENVELOPE before msg enabled globally\n");
-			asthearenv = "yes";
+			val = "yes";
 		}
-		ast_set2_flag((&globalflags), ast_true(asthearenv), VM_ENVELOPE);	
+		ast_set2_flag((&globalflags), ast_true(val), VM_ENVELOPE);	
 
-		if (!(astsaydurationinfo = ast_variable_retrieve(cfg, "general", "sayduration"))) {
+		if (!(val = ast_variable_retrieve(cfg, "general", "sayduration"))) {
 			if (option_debug)
 				ast_log(LOG_DEBUG,"Duration info before msg enabled globally\n");
-			astsaydurationinfo = "yes";
+			val = "yes";
 		}
-		ast_set2_flag((&globalflags), ast_true(astsaydurationinfo), VM_SAYDURATION);	
+		ast_set2_flag((&globalflags), ast_true(val), VM_SAYDURATION);	
 
 		saydurationminfo = 2;
-		if ((astsaydurationminfo = ast_variable_retrieve(cfg, "general", "saydurationm"))) {
-			if (sscanf(astsaydurationminfo, "%d", &x) == 1) {
+		if ((val = ast_variable_retrieve(cfg, "general", "saydurationm"))) {
+			if (sscanf(val, "%d", &x) == 1) {
 				saydurationminfo = x;
 			} else {
 				ast_log(LOG_WARNING, "Invalid min duration for say duration\n");
 			}
 		}
 
-		if (!(astskipcmd = ast_variable_retrieve(cfg, "general", "nextaftercmd"))) {
+		if (!(val = ast_variable_retrieve(cfg, "general", "nextaftercmd"))) {
 			if (option_debug)
 				ast_log(LOG_DEBUG,"We are not going to skip to the next msg after save/delete\n");
-			astskipcmd = "no";
+			val = "no";
 		}
-		ast_set2_flag((&globalflags), ast_true(astskipcmd), VM_SKIPAFTERCMD);
+		ast_set2_flag((&globalflags), ast_true(val), VM_SKIPAFTERCMD);
 
-		if ((dialoutcxt = ast_variable_retrieve(cfg, "general", "dialout"))) {
-			ast_copy_string(dialcontext, dialoutcxt, sizeof(dialcontext));
+		if ((val = ast_variable_retrieve(cfg, "general", "dialout"))) {
+			ast_copy_string(dialcontext, val, sizeof(dialcontext));
 			if (option_debug)
 				ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
 		} else {
 			dialcontext[0] = '\0';	
 		}
 		
-		if ((callbackcxt = ast_variable_retrieve(cfg, "general", "callback"))) {
-			ast_copy_string(callcontext, callbackcxt, sizeof(callcontext));
+		if ((val = ast_variable_retrieve(cfg, "general", "callback"))) {
+			ast_copy_string(callcontext, val, sizeof(callcontext));
 			if (option_debug)
 				ast_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
 		} else {
 			callcontext[0] = '\0';
 		}
 
-		if ((exitcxt = ast_variable_retrieve(cfg, "general", "exitcontext"))) {
-			ast_copy_string(exitcontext, exitcxt, sizeof(exitcontext));
+		if ((val = ast_variable_retrieve(cfg, "general", "exitcontext"))) {
+			ast_copy_string(exitcontext, val, sizeof(exitcontext));
 			if (option_debug)
 				ast_log(LOG_DEBUG, "found operator context: %s\n", exitcontext);
 		} else {
@@ -7595,20 +7553,20 @@ static int load_config(void)
 		}
 		
 		/* load password sounds configuration */
-		if ((vm_paswd = ast_variable_retrieve(cfg, "general", "vm-password")))
-			ast_copy_string(vm_password, vm_paswd, sizeof(vm_password));
-		if ((vm_newpasswd = ast_variable_retrieve(cfg, "general", "vm-newpassword")))
-			ast_copy_string(vm_newpassword, vm_newpasswd, sizeof(vm_newpassword));
-		if ((vm_passchange = ast_variable_retrieve(cfg, "general", "vm-passchanged")))
-			ast_copy_string(vm_passchanged, vm_passchange, sizeof(vm_passchanged));
-		if ((vm_reenterpass = ast_variable_retrieve(cfg, "general", "vm-reenterpassword")))
-			ast_copy_string(vm_reenterpassword, vm_reenterpass, sizeof(vm_reenterpassword));
-		if ((vm_mism = ast_variable_retrieve(cfg, "general", "vm-mismatch")))
-			ast_copy_string(vm_mismatch, vm_mism, sizeof(vm_mismatch));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-password")))
+			ast_copy_string(vm_password, val, sizeof(vm_password));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-newpassword")))
+			ast_copy_string(vm_newpassword, val, sizeof(vm_newpassword));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-passchanged")))
+			ast_copy_string(vm_passchanged, val, sizeof(vm_passchanged));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-reenterpassword")))
+			ast_copy_string(vm_reenterpassword, val, sizeof(vm_reenterpassword));
+		if ((val = ast_variable_retrieve(cfg, "general", "vm-mismatch")))
+			ast_copy_string(vm_mismatch, val, sizeof(vm_mismatch));
 
-		if (!(astdirfwd = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
-			astdirfwd = "no";
-		ast_set2_flag((&globalflags), ast_true(astdirfwd), VM_DIRECFORWARD);	
+		if (!(val = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
+			val = "no";
+		ast_set2_flag((&globalflags), ast_true(val), VM_DIRECFORWARD);	
 		if ((ucfg = ast_config_load("users.conf"))) {	
 			for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 				if (!ast_true(ast_config_option(ucfg, cat, "hasvoicemail")))
