@@ -383,7 +383,6 @@ static int odbc_do_query(void)
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in Query %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, (unsigned char *)ODBC_stat, &ODBC_err, (unsigned char *)ODBC_msg, 100, &ODBC_mlen);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		odbc_disconnect();
 		return -1;
