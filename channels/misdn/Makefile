@@ -9,6 +9,9 @@ CFLAGS		= -pipe -c -Wall -ggdb
 ifeq ($(shell uname -m),x86_64)
 CFLAGS         += -fPIC
 endif
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/mISDNdsp.h),)
+CFLAGS+=-DMISDN_1_2
+endif
 SOURCES		= isdn_lib.c isdn_msg_parser.c 
 OBJDIR		= .
 OBJS		= isdn_lib.o isdn_msg_parser.o fac.o
