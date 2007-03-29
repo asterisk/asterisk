@@ -330,6 +330,8 @@ struct ast_conference {
 
 static AST_LIST_HEAD_STATIC(confs, ast_conference);
 
+static unsigned int conf_map[1024] = {0, };
+
 struct volume {
 	int desired;                            /*!< Desired volume adjustment */
 	int actual;                             /*!< Actual volume adjustment (for channels that can't adjust) */
@@ -720,6 +722,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc = { 0, };
+	int confno_int = 0;
 
 	AST_LIST_LOCK(&confs);
 
@@ -776,6 +779,10 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 	AST_LIST_INSERT_HEAD(&confs, cnf, list);
+
+	/* Reserve conference number in map */
+	if ((sscanf(cnf->confno, "%d", &confno_int) == 1) && (confno_int >= 0 && confno_int < 1024))
+		conf_map[confno_int] = 1;
 	
 cnfout:
 	if (cnf)
@@ -1312,9 +1319,13 @@ static void sla_queue_event_conf(enum sla_event_type type, struct ast_channel *c
 static int dispose_conf(struct ast_conference *conf)
 {
 	int res = 0;
+	int confno_int = 0;
 
 	AST_LIST_LOCK(&confs);
 	if (ast_atomic_dec_and_test(&conf->refcount)) {
+		/* Take the conference room number out of an inuse state */
+		if ((sscanf(conf->confno, "%d", &confno_int) == 1) && (confno_int >= 0 && confno_int < 1024))
+			conf_map[confno_int] = 0;
 		conf_free(conf);
 		res = 1;
 	}
@@ -2521,20 +2532,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		if (retrycnt > 3)
 			allowretry = 0;
 		if (empty) {
-			int i, map[1024] = { 0, };
+			int i;
 			struct ast_config *cfg;
 			struct ast_variable *var;
 			int confno_int;
-
-			AST_LIST_LOCK(&confs);
-			AST_LIST_TRAVERSE(&confs, cnf, list) {
-				if (sscanf(cnf->confno, "%d", &confno_int) == 1) {
-					/* Disqualify in use conference */
-					if (confno_int >= 0 && confno_int < 1024)
-						map[confno_int]++;
-				}
-			}
-			AST_LIST_UNLOCK(&confs);
 
 			/* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
 			if ((empty_no_pin) || (!dynamic)) {
@@ -2547,13 +2548,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							if (stringp) {
 								char *confno_tmp = strsep(&stringp, "|,");
 								int found = 0;
-								if (sscanf(confno_tmp, "%d", &confno_int) == 1) {
-									if ((confno_int >= 0) && (confno_int < 1024)) {
-										if (stringp && empty_no_pin) {
-											map[confno_int]++;
-										}
-									}
-								}
 								if (!dynamic) {
 									/* For static:  run through the list and see if this conference is empty */
 									AST_LIST_LOCK(&confs);
@@ -2588,12 +2582,15 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 			/* Select first conference number not in use */
 			if (ast_strlen_zero(confno) && dynamic) {
-				for (i = 0; i < sizeof(map) / sizeof(map[0]); i++) {
-					if (!map[i]) {
+				AST_LIST_LOCK(&confs);
+				for (i = 0; i < sizeof(conf_map) / sizeof(conf_map[0]); i++) {
+					if (!conf_map[i]) {
 						snprintf(confno, sizeof(confno), "%d", i);
+						conf_map[i] = 1;
 						break;
 					}
 				}
+				AST_LIST_UNLOCK(&confs);
 			}
 
 			/* Not found? */
