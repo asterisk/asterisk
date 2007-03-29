@@ -1328,7 +1328,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 		if(presence && status) {
 			iks_insert_attrib(presence, "type", "subscribed");
 			iks_insert_attrib(presence, "to", pak->from->full);
-			iks_insert_attrib(presence, "from", iks_find_attrib(pak->x, "to"));
+			iks_insert_attrib(presence, "from", client->jid->full);
 			if(pak->id)
 				iks_insert_attrib(presence, "id", pak->id);
 			iks_insert_cdata(status, "Asterisk has approved subscription", 0);
