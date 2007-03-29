@@ -6,8 +6,6 @@ Miscellaneous
 -------------
 
   * Added the bindaddr option to gtalk.conf.
-  * Added the ability to customize which sound files are used for some of the
-     prompts within the Voicemail application by changing them in voicemail.conf
   * Argument support for Gosub application
   * Ability to set process limits without restarting Asterisk
   * SS7 support in chan_zap (via libss7 library)
@@ -124,3 +122,10 @@ DUNDi changes
      done using a global variable or a dialplan function.  Using the SHELL()
      function would allow you to have an external script set the weight for
      each response.
+
+Voicemail Changes
+-----------------
+  * Added the ability to customize which sound files are used for some of the
+     prompts within the Voicemail application by changing them in voicemail.conf
+  * Added the ability for the "voicemail show users" CLI command to show users
+    configured by the dynamic realtime configuration method.
