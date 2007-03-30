@@ -625,6 +625,7 @@ static struct zt_pvt {
 	struct isup_call *ss7call;
 	int transcap;
 	int cic;							/*!< CIC associated with channel */
+	unsigned int dpc;						/*!< CIC's DPC */
 #endif
 	char begindigit;
 } *iflist = NULL, *ifend = NULL;
@@ -2196,7 +2197,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			return -1;
 		}
 
-		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, c + p->stripmsd, l);
+		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc, c + p->stripmsd, l);
 
 		isup_iam(p->ss7->ss7, p->ss7call);
 		ss7_rel(p->ss7);
@@ -7580,6 +7581,9 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 
 				tmp->cic = cur_cicbeginswith++;
 
+				/* DB: Add CIC's DPC information */
+				tmp->dpc = cur_defaultdpc;
+
 				tmp->ss7 = ss7;
 				tmp->ss7call = NULL;
 				ss7->pvts[ss7->numchans++] = tmp;
@@ -8398,23 +8402,28 @@ static void ss7_inservice(struct zt_ss7 *linkset, int startcic, int endcic)
 
 static void ss7_reset_linkset(struct zt_ss7 *linkset)
 {
-	int i, startcic = -1, endcic;
+	int i, startcic = -1, endcic, dpc;
 
 	if (linkset->numchans <= 0)
 		return;
 
 	startcic = linkset->pvts[0]->cic;
+	/* DB: CIC's DPC fix */
+	dpc = linkset->pvts[0]->dpc;
 
 	for (i = 0; i < linkset->numchans; i++) {
-		if (linkset->pvts[i+1] && ((linkset->pvts[i+1]->cic - linkset->pvts[i]->cic) == 1) && (linkset->pvts[i]->cic - startcic < 31)) {
+		if (linkset->pvts[i+1] && linkset->pvts[i+1]->dpc == dpc && ((linkset->pvts[i+1]->cic - linkset->pvts[i]->cic) == 1) && (linkset->pvts[i]->cic - startcic < 31)) {
 			continue;
 		} else {
 			endcic = linkset->pvts[i]->cic;
 			ast_verbose("Resetting CICs %d to %d\n", startcic, endcic);
-			isup_grs(linkset->ss7, startcic, endcic);
+			isup_grs(linkset->ss7, startcic, endcic, dpc);
 
-			if (linkset->pvts[i+1])
+			/* DB: CIC's DPC fix */
+			if (linkset->pvts[i+1]) {
 				startcic = linkset->pvts[i+1]->cic;
+				dpc = linkset->pvts[i+1]->dpc;
+			}
 		}
 	}
 }
@@ -8458,6 +8467,7 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
 }
 
+
 static void *ss7_linkset(void *data)
 {
 	int res, i;
@@ -8470,6 +8480,7 @@ static void *ss7_linkset(void *data)
 	pthread_attr_t attr;
 	struct pollfd pollers[NUM_DCHANS];
 	int cic;
+	unsigned int dpc;
 	int nextms = 0;
 
 	pthread_attr_init(&attr);
@@ -8621,12 +8632,20 @@ static void *ss7_linkset(void *data)
 				ast_mutex_lock(&p->lock);
 				p->inservice = 1;
 				p->remotelyblocked = 0;
+				dpc = p->dpc;
+				isup_set_call_dpc(e->rsc.call, dpc);
 				ast_mutex_unlock(&p->lock);
 				isup_rlc(ss7, e->rsc.call);
 				break;
 			case ISUP_EVENT_GRS:
 				ast_log(LOG_DEBUG, "Got Reset for CICs %d to %d: Acknowledging\n", e->grs.startcic, e->grs.endcic);
-				isup_gra(ss7, e->grs.startcic, e->grs.endcic);
+				chanpos = ss7_find_cic(linkset, e->grs.startcic);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "GRS on unconfigured CIC %d\n", e->grs.startcic);
+					break;
+				}
+				p = linkset->pvts[chanpos];
+				isup_gra(ss7, e->grs.startcic, e->grs.endcic, p->dpc);
 				ss7_block_cics(linkset, e->grs.startcic, e->grs.endcic, NULL, 0);
 				break;
 			case ISUP_EVENT_GRA:
@@ -8656,7 +8675,9 @@ static void *ss7_linkset(void *data)
 					}
 				}
 
+				dpc = p->dpc;
 				p->ss7call = e->iam.call;
+				isup_set_call_dpc(p->ss7call, dpc);
 
 				if (p->use_callerid)
 					ast_copy_string(p->cid_num, e->iam.calling_party_num, sizeof(p->cid_num));
@@ -8747,12 +8768,24 @@ static void *ss7_linkset(void *data)
 				}
 				break;
 			case ISUP_EVENT_CGB:
+ 				chanpos = ss7_find_cic(linkset, e->cgb.startcic);
+ 				if (chanpos < 0) {
+ 					ast_log(LOG_WARNING, "CGB on unconfigured CIC %d\n", e->cgb.startcic);
+ 					break;
+ 				}
+ 				p = linkset->pvts[chanpos];
 				ss7_block_cics(linkset, e->cgb.startcic, e->cgb.endcic, e->cgb.status, 1);
-				isup_cgba(linkset->ss7, e->cgb.startcic, e->cgb.endcic, e->cgb.status, e->cgb.type);
+ 				isup_cgba(linkset->ss7, e->cgb.startcic, e->cgb.endcic, p->dpc, e->cgb.status, e->cgb.type);
 				break;
 			case ISUP_EVENT_CGU:
+ 				chanpos = ss7_find_cic(linkset, e->cgu.startcic);
+ 				if (chanpos < 0) {
+ 					ast_log(LOG_WARNING, "CGU on unconfigured CIC %d\n", e->cgu.startcic);
+ 					break;
+ 				}
+ 				p = linkset->pvts[chanpos];
 				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic, e->cgu.status, 0);
-				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, e->cgu.status, e->cgu.type);
+ 				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, p->dpc, e->cgu.status, e->cgu.type);
 				break;
 			case ISUP_EVENT_BLO:
 				chanpos = ss7_find_cic(linkset, e->blo.cic);
@@ -8765,7 +8798,7 @@ static void *ss7_linkset(void *data)
 				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 1;
 				ast_mutex_unlock(&p->lock);
-				isup_bla(linkset->ss7, e->blo.cic);
+				isup_bla(linkset->ss7, e->blo.cic, p->dpc);
 				break;
 			case ISUP_EVENT_UBL:
 				chanpos = ss7_find_cic(linkset, e->ubl.cic);
@@ -8778,7 +8811,7 @@ static void *ss7_linkset(void *data)
 				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 0;
 				ast_mutex_unlock(&p->lock);
-				isup_uba(linkset->ss7, e->ubl.cic);
+				isup_uba(linkset->ss7, e->ubl.cic, p->dpc);
 				break;
 			case ISUP_EVENT_CON:
 			case ISUP_EVENT_ANM:
@@ -11589,7 +11622,7 @@ static int handle_ss7_block_cic(int fd, int argc, char *argv[])
 				linksets[linkset-1].pvts[i]->locallyblocked = 1;
 				ast_mutex_unlock(&linksets[linkset-1].pvts[i]->lock);
 				ast_mutex_lock(&linksets[linkset-1].lock);
-				isup_blo(linksets[linkset-1].ss7, cic);
+				isup_blo(linksets[linkset-1].ss7, cic, linksets[linkset-1].pvts[i]->dpc);
 				ast_mutex_unlock(&linksets[linkset-1].lock);
 			}
 		}
@@ -11642,7 +11675,7 @@ static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
 				linksets[linkset-1].pvts[i]->locallyblocked = 0;
 				ast_mutex_unlock(&linksets[linkset-1].pvts[i]->lock);
 				ast_mutex_lock(&linksets[linkset-1].lock);
-				isup_ubl(linksets[linkset-1].ss7, cic);
+				isup_ubl(linksets[linkset-1].ss7, cic, linksets[linkset-1].pvts[i]->dpc);
 				ast_mutex_unlock(&linksets[linkset-1].lock);
 			}
 		}
