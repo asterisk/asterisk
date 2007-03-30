@@ -4940,11 +4940,6 @@ static int ast_pbx_outgoing_cdr_failed(void)
 		return -1;  /* failure */
 
 	if (!chan->cdr) {
-		chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
-		ast_log(LOG_NOTICE, "=====PBX_OUTGOING_CDR_FAILED ALLOCS CHANNEL CDR for %s\n", chan->name);
-	}
-
-	if (!chan->cdr) {
 		/* allocation of the cdr failed */
 		ast_channel_free(chan);   /* free the channel */
 		return -1;                /* return failure */

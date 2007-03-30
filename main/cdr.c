@@ -170,8 +170,11 @@ void ast_cdr_unregister(const char *name)
 */
 struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr) 
 {
-	struct ast_cdr *newcdr = ast_cdr_alloc();
-
+	struct ast_cdr *newcdr;
+	
+	if (!cdr) /* don't die if we get a null cdr pointer */
+		return NULL;
+	newcdr = ast_cdr_alloc();
 	if (!newcdr)
 		return NULL;
 
@@ -220,6 +223,9 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 {
 	const char *fmt = "%Y-%m-%d %T";
 	const char *varbuf;
+
+	if (!cdr)  /* don't die if the cdr is null */
+		return;
 
 	*ret = NULL;
 	/* special vars (the ones from the struct ast_cdr when requested by name) 
@@ -292,6 +298,9 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	struct varshead *headp;
 	int x;
 	
+	if (!cdr)  /* don't die if the cdr is null */
+		return -1;
+	
 	for (x = 0; cdr_readonly_vars[x]; x++) {
 		if (!strcasecmp(name, cdr_readonly_vars[x])) {
 			ast_log(LOG_ERROR, "Attempt to set the '%s' read-only variable!.\n", name);
@@ -331,6 +340,9 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 	struct varshead *headpa, *headpb;
 	const char *var, *val;
 	int x = 0;
+
+	if (!to_cdr || !from_cdr) /* don't die if one of the pointers is null */
+		return 0;
 
 	headpa = &from_cdr->varshead;
 	headpb = &to_cdr->varshead;
@@ -408,6 +420,8 @@ void ast_cdr_free_vars(struct ast_cdr *cdr, int recur)
 /*! \brief  print a warning if cdr already posted */
 static void check_post(struct ast_cdr *cdr)
 {
+	if (!cdr)
+		return;
 	if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 		ast_log(LOG_NOTICE, "CDR on channel '%s' already posted\n", S_OR(cdr->channel, "<unknown>"));
 }
@@ -415,6 +429,8 @@ static void check_post(struct ast_cdr *cdr)
 /*! \brief  print a warning if cdr already started */
 static void check_start(struct ast_cdr *cdr)
 {
+	if (!cdr)
+		return;
 	if (!ast_tvzero(cdr->start))
 		ast_log(LOG_NOTICE, "CDR on channel '%s' already started\n", S_OR(cdr->channel, "<unknown>"));
 }
@@ -452,7 +468,10 @@ void ast_cdr_discard(struct ast_cdr *cdr)
 
 struct ast_cdr *ast_cdr_alloc(void)
 {
-	return ast_calloc(1, sizeof(struct ast_cdr));
+	struct ast_cdr *x = ast_calloc(1, sizeof(struct ast_cdr));
+	if (!x)
+		ast_log(LOG_ERROR,"Allocation Failure for a CDR!\n");
+	return x;
 }
 
 void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
@@ -651,7 +670,8 @@ static void set_one_cid(struct ast_cdr *cdr, struct ast_channel *c)
 {
 	/* Grab source from ANI or normal Caller*ID */
 	const char *num = S_OR(c->cid.cid_ani, c->cid.cid_num);
-	
+	if (!cdr)
+		return;
 	if (!ast_strlen_zero(c->cid.cid_name)) {
 		if (!ast_strlen_zero(num))	/* both name and number */
 			snprintf(cdr->clid, sizeof(cdr->clid), "\"%s\" <%s>", c->cid.cid_name, num);
@@ -1001,6 +1021,9 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 {
 	struct ast_cdr_batch_item *newtail;
 	int curr;
+
+	if (!cdr)
+		return;
 
 	/* maybe they disabled CDR stuff completely, so just drop it */
 	if (!enabled) {

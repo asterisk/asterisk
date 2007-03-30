@@ -732,7 +732,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 			      tmp->uniqueid);
 	}
 
-	/* Experiment: under what conditions do we NOT want to track cdrs on channels? */
+	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
 	tmp->cdr = ast_cdr_alloc();
 	ast_cdr_init(tmp->cdr, tmp);
 	ast_cdr_start(tmp->cdr);
