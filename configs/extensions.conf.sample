@@ -43,6 +43,16 @@ writeprotect=no
 ; through reloads, and even if deleted from the extensions.conf or
 ; one of its included files, will remain set to the previous value.
 ;
+; NOTE: A complication sets in, if you put your global variables into
+; the AEL file, instead of the extensions.conf file. With clearglobalvars
+; set, a 'reload' will often leave the globals vars cleared, because it
+; is not unusual to have extensions.conf (which will have no globals)
+; load after the extensions.ael file (where the global vars are stored).
+; So, with 'reload' in this particular situation, first the AEL file will
+; clear and then set all the global vars, then, later, when the extensions.conf
+; file is loaded, the global vars are all cleared, and then not set, because
+; they are not stored in the extensions.conf file.
+;
 clearglobalvars=no
 ;
 ; If priorityjumping is set to 'yes', then applications that support
