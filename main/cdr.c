@@ -438,9 +438,113 @@ void ast_cdr_free(struct ast_cdr *cdr)
 	}
 }
 
+/*! \brief the same as a cdr_free call, only with no checks; just get rid of it */
+void ast_cdr_discard(struct ast_cdr *cdr)
+{
+	while (cdr) {
+		struct ast_cdr *next = cdr->next;
+
+		ast_cdr_free_vars(cdr, 0);
+		free(cdr);
+		cdr = next;
+	}
+}
+
 struct ast_cdr *ast_cdr_alloc(void)
 {
 	return ast_calloc(1, sizeof(struct ast_cdr));
+}
+
+void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
+{
+	if (!to || !from)
+		return;
+	if (!ast_tvzero(from->start)) {
+		if (!ast_tvzero(to->start)) {
+			if (ast_tvcmp(to->start, from->start) > 0 ) {
+				to->start = from->start; /* use the earliest time */
+				from->start = ast_tv(0,0); /* we actively "steal" these values */
+			} else {
+				ast_log(LOG_WARNING,"CDR start disagreement for %s\n", to->channel);
+			}
+		} else {
+			to->start = from->start;
+			from->start = ast_tv(0,0); /* we actively "steal" these values */
+		}
+	}
+	if (!ast_tvzero(from->end)) {
+		if (!ast_tvzero(to->end)) {
+			if (ast_tvcmp(to->end, from->end) < 0 ) {
+				to->end = from->end; /* use the latest time */
+				from->end = ast_tv(0,0); /* we actively "steal" these values */
+			} else {
+				ast_log(LOG_WARNING,"CDR end disagreement for %s\n", to->channel);
+			}
+		} else {
+			to->end = from->end;
+			from->end = ast_tv(0,0); /* we actively "steal" these values */
+			to->duration = to->end.tv_sec - to->start.tv_sec;
+			to->billsec = ast_tvzero(to->answer) ? 0 : to->end.tv_sec - to->answer.tv_sec;
+		}
+	}
+	if (!ast_tvzero(from->answer)) {
+		if (!ast_tvzero(to->answer)) {
+			if (ast_tvcmp(to->answer, from->answer) > 0 ) {
+				to->answer = from->answer; /* use the earliest time */
+				from->answer = ast_tv(0,0); /* we actively "steal" these values */
+			} else {
+				ast_log(LOG_WARNING,"CDR answer disagreement for %s\n", to->channel);
+			}
+		} else {
+			to->answer = from->answer;
+			from->answer = ast_tv(0,0); /* we actively "steal" these values */
+		}
+	}
+	if (to->disposition < from->disposition) {
+		to->disposition = from->disposition;
+		from->disposition = AST_CDR_NOANSWER;
+	}
+	if (ast_strlen_zero(to->lastapp) && !ast_strlen_zero(from->lastapp)) {
+		ast_copy_string(to->lastapp, from->lastapp, sizeof(to->lastapp));
+		from->lastapp[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->lastdata) && !ast_strlen_zero(from->lastdata)) {
+		ast_copy_string(to->lastdata, from->lastdata, sizeof(to->lastdata));
+		from->lastdata[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->dcontext) && !ast_strlen_zero(from->dcontext)) {
+		ast_copy_string(to->dcontext, from->dcontext, sizeof(to->dcontext));
+		from->dcontext[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->dstchannel) && !ast_strlen_zero(from->dstchannel)) {
+		ast_copy_string(to->dstchannel, from->dstchannel, sizeof(to->dstchannel));
+		from->dstchannel[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->channel) && !ast_strlen_zero(from->channel)) {
+		ast_copy_string(to->channel, from->channel, sizeof(to->channel));
+		from->channel[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->src) && !ast_strlen_zero(from->src)) {
+		ast_copy_string(to->src, from->src, sizeof(to->src));
+		from->src[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->dst) && !ast_strlen_zero(from->dst)) {
+		ast_copy_string(to->dst, from->dst, sizeof(to->dst));
+		from->dst[0] = 0; /* theft */
+	}
+	if (!to->amaflags && from->amaflags) {
+		to->amaflags = from->amaflags;
+		from->amaflags = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->accountcode) && !ast_strlen_zero(from->accountcode)) {
+		ast_copy_string(to->accountcode, from->accountcode, sizeof(to->accountcode));
+		from->accountcode[0] = 0; /* theft */
+	}
+	if (ast_strlen_zero(to->userfield) && !ast_strlen_zero(from->userfield)) {
+		ast_copy_string(to->userfield, from->userfield, sizeof(to->userfield));
+		from->userfield[0] = 0; /* theft */
+	}
+	/* flags, varsead, ? */
 }
 
 void ast_cdr_start(struct ast_cdr *cdr)
@@ -734,6 +838,8 @@ static void post_cdr(struct ast_cdr *cdr)
 		if (ast_tvzero(cdr->start))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
+		if (ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
+			continue;
 		AST_LIST_LOCK(&be_list);
 		AST_LIST_TRAVERSE(&be_list, i, list) {
 			i->be(cdr);

@@ -4574,6 +4574,9 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 		   the PBX, we have to make a new channel, masquerade, and start the PBX
 		   at the new location */
 		struct ast_channel *tmpchan = ast_channel_alloc(0, chan->_state, 0, 0, "AsyncGoto/%s", chan->name);
+		if (chan->cdr) {
+			tmpchan->cdr = ast_cdr_dup(chan->cdr);
+		}
 		if (!tmpchan)
 			res = -1;
 		else {
@@ -4936,7 +4939,10 @@ static int ast_pbx_outgoing_cdr_failed(void)
 	if (!chan)
 		return -1;  /* failure */
 
-	chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
+	if (!chan->cdr) {
+		chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
+		ast_log(LOG_NOTICE, "=====PBX_OUTGOING_CDR_FAILED ALLOCS CHANNEL CDR for %s\n", chan->name);
+	}
 
 	if (!chan->cdr) {
 		/* allocation of the cdr failed */

@@ -172,6 +172,15 @@ struct ast_bridge_thread_obj
 	struct ast_channel *peer;
 };
 
+
+
+struct ast_bridge
+{
+	struct ast_cdr *cdr; /* previously, cdrs were associated only with channels, and things
+							could get incredibly perverse when bridging occurred, especially
+						    when the same channel got used in multiple "legs" of a call */
+};
+
 /*! \brief store context, priority and extension */
 static void set_c_e_p(struct ast_channel *chan, const char *context, const char *ext, int pri)
 {
@@ -683,9 +692,16 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		/*! \todo XXX Maybe we should have another message here instead of invalid extension XXX */
 	} else if (ast_exists_extension(transferee, transferer_real_context, xferto, 1, transferer->cid.cid_num)) {
-		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+		pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", transferee->name);
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 		res=finishup(transferee);
+		if (!transferer->cdr) {
+			transferer->cdr=ast_cdr_alloc();
+			ast_cdr_init(transferer->cdr, transferer); /* initilize our channel's cdr */
+			ast_cdr_start(transferer->cdr);
+		}
+		ast_cdr_setdestchan(transferer->cdr, transferee->name);
+		ast_cdr_setapp(transferer->cdr, "BLINDTRANSFER","");
 		if (!transferee->pbx) {
 			/* Doh!  Use our handy async_goto functions */
 			if (option_verbose > 2) 
@@ -1131,6 +1147,12 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 		ast_channel_inherit_variables(caller, chan);	
 		pbx_builtin_setvar_helper(chan, "TRANSFERERNAME", caller->name);
+		if (!chan->cdr) {
+			chan->cdr=ast_cdr_alloc();
+			ast_cdr_init(chan->cdr, chan); /* initilize our channel's cdr */
+			ast_cdr_start(chan->cdr);
+		}
+			
 		if (!ast_call(chan, data, timeout)) {
 			struct timeval started;
 			int x, len = 0;
@@ -1301,8 +1323,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int hadfeatures=0;
 	struct ast_option_header *aoh;
 	struct ast_bridge_config backup_config;
+	struct ast_bridge bridge_object;
 
 	memset(&backup_config, 0, sizeof(backup_config));
+	memset(&bridge_object, 0, sizeof(bridge_object));
 
 	config->start_time = ast_tvnow();
 
@@ -1349,6 +1373,70 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		/* free the peer's cdr without ast_cdr_free complaining */
 		free(peer->cdr);
 		peer->cdr = NULL;
+	}
+
+	/* arrange the cdrs */
+	bridge_object.cdr = ast_cdr_alloc();
+	if (chan->cdr && peer->cdr) { /* both of them? merge */
+		ast_cdr_init(bridge_object.cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
+		ast_cdr_start(bridge_object.cdr); /* now is the time to start */
+		/* absorb the channel cdr */
+		ast_cdr_merge(bridge_object.cdr, chan->cdr);
+		ast_cdr_discard(chan->cdr); /* no posting these guys */
+		chan->cdr = NULL;
+		
+		/* absorb the peer cdr */
+		ast_cdr_merge(bridge_object.cdr, peer->cdr);
+		ast_cdr_discard(peer->cdr); /* no posting these guys */
+		peer->cdr = NULL;
+	} else if (chan->cdr) {
+		/* take the cdr from the channel - literally */
+		ast_cdr_init(bridge_object.cdr,chan);
+		if (chan->cdr->disposition!=AST_CDR_ANSWERED) {
+			ast_cdr_end(chan->cdr);
+			ast_cdr_detach(chan->cdr); /* post the existing cdr, we will be starting a fresh new cdr presently */
+			chan->cdr = ast_cdr_alloc();
+			ast_cdr_init(chan->cdr,chan); /* a fresh new one its place */
+			ast_cdr_start(chan->cdr); /* now is the time to start */
+		} else {
+			/* absorb this data */
+			ast_cdr_merge(bridge_object.cdr, chan->cdr);
+			ast_cdr_discard(chan->cdr); /* no posting these guys */
+			chan->cdr = NULL;
+		}
+		peer->cdr = ast_cdr_alloc();
+		ast_cdr_init(peer->cdr, peer);
+	} else if (peer->cdr) {
+		/* take the cdr from the peer - literally */
+		ast_cdr_init(bridge_object.cdr,peer);
+		if (peer->cdr->disposition != AST_CDR_ANSWERED) {
+			ast_cdr_end(peer->cdr);
+			ast_cdr_detach(peer->cdr); /* post the existing cdr, we will be starting a fresh new cdr presently */
+			peer->cdr = ast_cdr_alloc();
+			ast_cdr_init(peer->cdr,peer); /* a fresh new one its place */
+			ast_cdr_start(peer->cdr); /* now is the time to start */
+		} else {
+			/* absorb this data */
+			ast_cdr_merge(bridge_object.cdr, chan->cdr);
+			ast_cdr_discard(chan->cdr); /* no posting these guys */
+			chan->cdr = NULL;
+		}
+		chan->cdr = ast_cdr_alloc();
+		ast_cdr_init(chan->cdr, chan);
+	} else {
+		/* make up a new cdr */
+		ast_cdr_init(bridge_object.cdr,chan); /* eh, just pick one of them */
+		chan->cdr = ast_cdr_alloc();
+		ast_cdr_init(chan->cdr, chan);
+		peer->cdr = ast_cdr_alloc();
+		ast_cdr_init(peer->cdr, peer);
+		ast_cdr_start(peer->cdr); /* now is the time to start */
+	}
+	if (ast_strlen_zero(bridge_object.cdr->dstchannel)) {
+	       	if (strcmp(bridge_object.cdr->channel, peer->name) != 0)
+			ast_cdr_setdestchan(bridge_object.cdr, peer->name);
+		else
+			ast_cdr_setdestchan(bridge_object.cdr, chan->name);
 	}
 	for (;;) {
 		struct ast_channel *other;	/* used later */
@@ -1416,6 +1504,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
+			/* whoa!! don't go running off without cleaning up your mess! */
+			ast_cdr_merge(bridge_object.cdr,chan->cdr);
+			ast_cdr_merge(bridge_object.cdr,peer->cdr);
+			ast_cdr_failed(bridge_object.cdr);
+			ast_cdr_end(bridge_object.cdr);
+			ast_cdr_detach(bridge_object.cdr);
+			bridge_object.cdr = NULL;
+			ast_cdr_free(chan->cdr); /* no posting these guys */
+			ast_cdr_free(peer->cdr);
+			chan->cdr = NULL;
+			peer->cdr = NULL;
 			return -1;
 		}
 		
@@ -1505,6 +1604,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		if (f)
 			ast_frfree(f);
 	}
+	/* before leaving, post the cdr we accumulated */
+	/* whoa!! don't go running off without cleaning up your mess! */
+	ast_cdr_merge(bridge_object.cdr,chan->cdr);
+	ast_cdr_merge(bridge_object.cdr,peer->cdr);
+	ast_cdr_end(bridge_object.cdr);
+	ast_cdr_detach(bridge_object.cdr);
+	bridge_object.cdr = NULL;
+	ast_cdr_discard(chan->cdr); /* no posting these guys */
+	ast_cdr_discard(peer->cdr);
+	chan->cdr = NULL;
+	peer->cdr = NULL;
 	return res;
 }
 
@@ -1737,6 +1847,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 	struct ast_channel *peer=NULL;
 	struct parkeduser *pu, *pl=NULL;
 	struct ast_context *con;
+
 	int park;
 	struct ast_bridge_config config;
 
@@ -1830,6 +1941,14 @@ static int park_exec(struct ast_channel *chan, void *data)
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
 
+		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
+		ast_cdr_setdestchan(chan->cdr, peer->name);
+#ifdef NOT_NECC
+		ast_log(LOG_NOTICE,"Channel name is %s, and the cdr channel name is '%s'\n", chan->name, chan->cdr->channel);
+		if (!ast_strlen_zero(chan->name) && ast_strlen_zero(chan->cdr->channel)) {
+			ast_copy_string(chan->cdr->channel, chan->name, sizeof(chan->cdr->channel));
+		}
+#endif
 		memset(&config, 0, sizeof(struct ast_bridge_config));
 		if ((parkedcalltransfers == AST_FEATURE_FLAG_BYCALLEE) || (parkedcalltransfers == AST_FEATURE_FLAG_BYBOTH))
 			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);

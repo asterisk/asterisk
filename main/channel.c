@@ -731,6 +731,11 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 			      S_OR(cid_name, "<unknown>"),
 			      tmp->uniqueid);
 	}
+
+	/* Experiment: under what conditions do we NOT want to track cdrs on channels? */
+	tmp->cdr = ast_cdr_alloc();
+	ast_cdr_init(tmp->cdr, tmp);
+	ast_cdr_start(tmp->cdr);
 	
 	headp = &tmp->varshead;
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
@@ -2160,6 +2165,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				} else {
 					/* Answer the CDR */
 					ast_setstate(chan, AST_STATE_UP);
+					if (!chan->cdr) { /* up till now, this insertion hasn't been done. Therefore,
+										 to keep from throwing off the basic order of the universe,
+										 we will try to keep this cdr from getting posted. */
+						chan->cdr = ast_cdr_alloc();
+						ast_cdr_init(chan->cdr, chan);
+						ast_cdr_start(chan->cdr);
+					}
+					
 					ast_cdr_answer(chan->cdr);
 				}
 			}
@@ -2843,6 +2856,15 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	}
 	ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
+	
+
+	if (!chan->cdr) { /* up till now, this insertion hasn't been done. Therefore,
+				to keep from throwing off the basic order of the universe,
+				we will try to keep this cdr from getting posted. */
+		chan->cdr = ast_cdr_alloc();
+		ast_cdr_init(chan->cdr, chan);
+		ast_cdr_start(chan->cdr);
+	}
 	if (ast_call(chan, data, 0)) {	/* ast_call failed... */
 		ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	} else {
@@ -3297,6 +3319,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	struct ast_channel *clone = original->masq;
 	struct ast_channel_spy_list *spy_list = NULL;
 	struct ast_channel_spy *spy = NULL;
+	struct ast_cdr *cdr;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
 	char newn[100];
@@ -3353,6 +3376,11 @@ int ast_do_masquerade(struct ast_channel *original)
 	t = original->tech;
 	original->tech = clone->tech;
 	clone->tech = t;
+
+	/* Swap the cdrs */
+	cdr = original->cdr;
+	original->cdr = clone->cdr;
+	clone->cdr = cdr;
 
 	t_pvt = original->tech_pvt;
 	original->tech_pvt = clone->tech_pvt;

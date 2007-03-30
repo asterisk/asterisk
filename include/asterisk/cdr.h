@@ -121,6 +121,12 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
  */
 void ast_cdr_free(struct ast_cdr *cdr);
 
+/*! \brief Discard and free a CDR record 
+ * \param cdr ast_cdr structure to free
+ * Returns nothing important -- same as free, but no checks or complaints
+ */
+void ast_cdr_discard(struct ast_cdr *cdr);
+
 /*! \brief Initialize based on a channel
  * \param cdr Call Detail Record to use for channel
  * \param chan Channel to bind CDR with
@@ -268,6 +274,12 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *flags);
  * Returns string with flag name
  */
 char *ast_cdr_flags2str(int flags);
+
+/*! Move the non-null data from the "from" cdr to the "to" cdr
+ * \param to   the cdr to get the goodies
+ * \param from the cdr to give the goodies
+ */
+void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from);
 
 int ast_cdr_setaccount(struct ast_channel *chan, const char *account);
 int ast_cdr_setamaflags(struct ast_channel *chan, const char *amaflags);
