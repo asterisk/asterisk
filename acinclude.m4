@@ -514,7 +514,7 @@ else
 fi
 if test "x$ac_cv_func_fork_works" = xcross; then
   case $host in
-    *-*-amigaos* | *-*-msdosdjgpp* | *-*-uclinux* )
+    *-*-amigaos* | *-*-msdosdjgpp* | *-*-uclinux* | *-*-linux-uclibc* )
       # Override, as these systems have only a dummy fork() stub
       ac_cv_func_fork_works=no
       ;;
