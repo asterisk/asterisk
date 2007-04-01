@@ -128,6 +128,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	char iabuf[INET_ADDRSTRLEN];
 	
 	struct ast_netsock *ns;
+	const int reuseFlag = 1;
 	
 	/* Make a UDP socket */
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
@@ -136,6 +137,8 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		return NULL;
 	}
+	if (setsockopt(netsocket, SOL_SOCKET, SO_REUSEADDR, (char *)&reuseFlag, sizeof reuseFlag) < 0)
+			ast_log(LOG_WARNING, "Error setting SO_REUSEADDR on sockfd '%d'\n", netsocket);
 	if (bind(netsocket,(struct sockaddr *)bindaddr, sizeof(struct sockaddr_in))) {
 		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
 		close(netsocket);
