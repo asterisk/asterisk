@@ -2891,7 +2891,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char fmt[80];
 	char *context;
 	char ecodes[16] = "#";
-	char tmp[256] = "", *tmpptr;
+	char tmp[1024] = "", *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
 	const char *category = NULL;
