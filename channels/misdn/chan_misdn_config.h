@@ -56,6 +56,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_PIPELINE,            /* char[] */
 #endif
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
+	MISDN_CFG_NOAUTORESPOND_ON_SETUP,     /* bool */
 	MISDN_CFG_NTTIMEOUT,     /* bool */
 	MISDN_CFG_JITTERBUFFER,              /* int */
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
