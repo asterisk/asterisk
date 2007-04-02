@@ -634,19 +634,7 @@ struct chan_iax2_pvt {
 	int frames_dropped;
 	/*! received frame count: (just for stats) */
 	int frames_received;
-	struct iax2_pvt_ref *hash_ref;
-	unsigned short hash;
 };
-
-struct iax2_pvt_ref {
-	struct chan_iax2_pvt *pvt;
-	unsigned int callno;
-	AST_LIST_ENTRY(iax2_pvt_ref) entry;
-};
-
-/* Somewhat arbitrary prime number */
-#define PVT_HASH_SIZE 3373
-static AST_RWLIST_HEAD(pvt_list, iax2_pvt_ref) pvt_hash_tbl[PVT_HASH_SIZE];
 
 static AST_LIST_HEAD_STATIC(queue, iax_frame);
 
@@ -1273,32 +1261,20 @@ static int make_trunk(unsigned short callno, int locked)
 	return res;
 }
 
-static inline unsigned short peer_hash_val(const struct sockaddr_in *sin, unsigned short callno)
-{
-	return ( (sin->sin_addr.s_addr >> 16) ^ sin->sin_addr.s_addr ^
-	         sin->sin_port ^ callno ) % PVT_HASH_SIZE;
-}
-
-static inline void hash_on_peer(struct chan_iax2_pvt *pvt)
-{
-	if (pvt->hash_ref) {
-		AST_RWLIST_WRLOCK(&pvt_hash_tbl[pvt->hash]);
-		AST_RWLIST_REMOVE(&pvt_hash_tbl[pvt->hash], pvt->hash_ref, entry);
-		AST_RWLIST_UNLOCK(&pvt_hash_tbl[pvt->hash]);	
-	} else {
-		if (!(pvt->hash_ref = ast_calloc(1, sizeof(pvt->hash_ref))))
-			return;
-		pvt->hash_ref->pvt = pvt;
-	}
-
-	pvt->hash = peer_hash_val(&pvt->addr, pvt->peercallno);
-	pvt->hash_ref->callno = pvt->callno;
-
-	AST_RWLIST_WRLOCK(&pvt_hash_tbl[pvt->hash]);
-	AST_RWLIST_INSERT_HEAD(&pvt_hash_tbl[pvt->hash], pvt->hash_ref, entry);
-	AST_RWLIST_UNLOCK(&pvt_hash_tbl[pvt->hash]);
-}
-
+/*!
+ * \todo XXX Note that this function contains a very expensive operation that
+ * happens for *every* incoming media frame.  It iterates through every
+ * possible call number, locking and unlocking each one, to try to match the
+ * incoming frame to an active call.  Call numbers can be up to 2^15, 32768.
+ * So, for an call with a local call number of 20000, every incoming audio
+ * frame would require 20000 mutex lock and unlock operations.  Ouch.
+ *
+ * It's a shame that IAX2 media frames carry the source call number instead of
+ * the destination call number.  If they did, this lookup wouldn't be needed.
+ * However, it's too late to change that now.  Instead, we need to come up with
+ * a better way of indexing active calls so that these frequent lookups are not
+ * so expensive.
+ */
 static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd)
 {
 	int res = 0;
@@ -1306,19 +1282,6 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	struct timeval now;
 	char host[80];
 	if (new <= NEW_ALLOW) {
-		unsigned short hash = peer_hash_val(sin, callno);
-		struct iax2_pvt_ref *pvt_ref;
-		AST_RWLIST_WRLOCK(&pvt_hash_tbl[hash]);
-		AST_RWLIST_TRAVERSE(&pvt_hash_tbl[hash], pvt_ref, entry) {
-			ast_mutex_lock(&iaxsl[pvt_ref->callno]);
-			if (match(sin, callno, dcallno, pvt_ref->pvt))
-				res = pvt_ref->callno;
-			ast_mutex_unlock(&iaxsl[pvt_ref->callno]);
-			if (res > 0)
-				break;
- 		}
-		AST_RWLIST_UNLOCK(&pvt_hash_tbl[hash]);
-		/* Not hashed yet, Look for an existing connection */
 		for (x=1;(res < 1) && (x<maxnontrunkcall);x++) {
 			ast_mutex_lock(&iaxsl[x]);
 			if (iaxs[x]) {
@@ -1371,7 +1334,6 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->addr.sin_family = sin->sin_family;
 			iaxs[x]->addr.sin_addr.s_addr = sin->sin_addr.s_addr;
 			iaxs[x]->peercallno = callno;
-			hash_on_peer(iaxs[x]);
 			iaxs[x]->callno = x;
 			iaxs[x]->pingtime = DEFAULT_RETRY_TIME;
 			iaxs[x]->expiry = min_reg_expire;
@@ -1855,13 +1817,6 @@ retry:
 		if (!owner)
 			pvt->owner = NULL;
 		iax2_destroy_helper(pvt);
-
-		if (pvt->hash_ref) {
-			AST_RWLIST_WRLOCK(&pvt_hash_tbl[pvt->hash]);
-			AST_RWLIST_REMOVE(&pvt_hash_tbl[pvt->hash], pvt->hash_ref, entry);
-			AST_RWLIST_UNLOCK(&pvt_hash_tbl[pvt->hash]);
-			free(pvt->hash_ref);
-		}
 
 		/* Already gone */
 		ast_set_flag(pvt, IAX_ALREADYGONE);	
@@ -5468,7 +5423,6 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->iseqno = 0;
 	pvt->aseqno = 0;
 	pvt->peercallno = peercallno;
-	hash_on_peer(pvt);
 	pvt->transferring = TRANSFER_NONE;
 	pvt->svoiceformat = -1;
 	pvt->voiceformat = 0;
@@ -6683,7 +6637,6 @@ static int socket_process(struct iax2_thread *thread)
 		f.subclass != IAX_COMMAND_TXACC) {		/* for attended transfer */
 		iaxs[fr->callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 		ast_mutex_unlock(&iaxsl[fr->callno]);
-		hash_on_peer(iaxs[fr->callno]);
 		ast_mutex_lock(&iaxsl[fr->callno]);
 	}
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
@@ -10202,9 +10155,6 @@ static int __unload_module(void)
 	for (x = 0; x < IAX_MAX_CALLS; x++)
 		ast_mutex_destroy(&iaxsl[x]);
 
-	for (x = 0; x < PVT_HASH_SIZE; x++)
-		AST_RWLIST_HEAD_DESTROY(&pvt_hash_tbl[x]);
-
 	return 0;
 }
 
@@ -10245,9 +10195,6 @@ static int load_module(void)
 
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		ast_mutex_init(&iaxsl[x]);
-
-	for (x = 0; x < PVT_HASH_SIZE; x++)
-		AST_RWLIST_HEAD_INIT(&pvt_hash_tbl[x]);
 
 	ast_cond_init(&sched_cond, NULL);
 
