@@ -1755,11 +1755,11 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
 		if (bridging && ch->other_ch) {
 #ifdef MISDN_1_2
-			chan_misdn_log(0, port, "Disabling EC (aka Pipeline) on both Sides\n");
+			chan_misdn_log(1, port, "Disabling EC (aka Pipeline) on both Sides\n");
 			*ch->bc->pipeline=0;
 			*ch->other_ch->bc->pipeline=0;
 #else
-			chan_misdn_log(0, port, "Disabling EC on both Sides\n");
+			chan_misdn_log(1, port, "Disabling EC on both Sides\n");
 			ch->bc->ec_enable=0;
 			ch->other_ch->bc->ec_enable=0;
 #endif
