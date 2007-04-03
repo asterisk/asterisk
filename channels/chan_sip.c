@@ -5399,7 +5399,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	add_header(&req, "Subscription-state", "terminated;reason=noresource");
 	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
 
-	strcpy(tmp, "SIP/2.0 200 OK");
+	strcpy(tmp, "SIP/2.0 200 OK\r\n");
 	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
