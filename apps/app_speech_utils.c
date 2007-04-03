@@ -590,7 +590,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                 }
 
 		/* Do timeout check (shared between audio/dtmf) */
-		if (!quieted && started == 1) {
+		if ((!quieted || strlen(dtmf)) && started == 1) {
 			time(&current);
 			if ((current-start) >= timeout) {
 				done = 1;
@@ -677,11 +677,13 @@ static int speech_background(struct ast_channel *chan, void *data)
 				} else {
 					if (chan->stream != NULL) {
 						ast_stopstream(chan);
+					}
+					if (!started) {
 						/* Change timeout to be 5 seconds for DTMF input */
 						timeout = (chan->pbx && chan->pbx->dtimeout) ? chan->pbx->dtimeout : 5;
-						time(&start);
 						started = 1;
 					}
+					time(&start);
 					snprintf(tmp, sizeof(tmp), "%c", f->subclass);
 					strncat(dtmf, tmp, sizeof(dtmf));
 				}
