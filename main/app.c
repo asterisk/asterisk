@@ -85,14 +85,11 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 			ast_playtones_stop(chan);
 		if (res < 1)
 			break;
-		collect[x++] = res;
-		if (!ast_matchmore_extension(chan, context, collect, 1, chan->cid.cid_num)) {
-			if (collect[x-1] == '#') {
-				/* Not a valid extension, ending in #, assume the # was to finish dialing */
-				collect[x-1] = '\0';
-			}
+		if (res == '#')
 			break;
-		}
+		collect[x++] = res;
+		if (!ast_matchmore_extension(chan, context, collect, 1, chan->cid.cid_num))
+			break;
 	}
 	if (res >= 0)
 		res = ast_exists_extension(chan, context, collect, 1, chan->cid.cid_num) ? 1 : 0;
