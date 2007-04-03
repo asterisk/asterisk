@@ -857,6 +857,9 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 		return NULL;
 	}
+
+	memcpy(&tmp->prefs, &client->prefs, sizeof(struct ast_codec_pref));
+
 	if (sid) {
 		ast_copy_string(tmp->sid, sid, sizeof(tmp->sid));
 		ast_copy_string(tmp->them, them, sizeof(tmp->them));
@@ -917,6 +920,11 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 		what = i->capability;
 	else
 		what = global_capability;
+
+	/* Set Frame packetization */
+	if (i->rtp)
+		ast_rtp_codec_setpref(i->rtp, &i->prefs);
+
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
 	fmt = ast_best_codec(tmp->nativeformats);
 

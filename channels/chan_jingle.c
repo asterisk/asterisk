@@ -726,6 +726,9 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 	if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 		return NULL;
 	}
+
+	memcpy(&tmp->prefs, &client->prefs, sizeof(tmp->prefs));
+
 	if (sid) {
 		ast_copy_string(tmp->sid, sid, sizeof(tmp->sid));
 		ast_copy_string(tmp->from, from, sizeof(tmp->from));
@@ -777,6 +780,11 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		what = i->capability;
 	else
 		what = global_capability;
+
+	/* Set Frame packetization */
+	if (i->rtp)
+		ast_rtp_codec_setpref(i->rtp, &i->prefs);
+
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
 	fmt = ast_best_codec(tmp->nativeformats);
 

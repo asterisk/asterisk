@@ -11,6 +11,8 @@ or global level:
     chan_skinny
     chan_h323
     chan_ooh323 (Asterisk-Addons)
+    chan_gtalk
+    chan_jingle
 
 Configuration
 -------
