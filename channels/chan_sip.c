@@ -12453,10 +12453,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->callingpres = ast_parse_caller_presentation(v->value);
 			if (user->callingpres == -1)
 				user->callingpres = atoi(v->value);
-		}
-		/*else if (strcasecmp(v->name,"type"))
-		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
-		 */
+		} else if (strcasecmp(v->name, "type"))
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
 		v = v->next;
 	}
 	ast_copy_flags(user, &userflags, mask.flags);
@@ -12739,11 +12737,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 				peer->maxms = 0;
 			}
-		}
-		/* else if (strcasecmp(v->name,"type"))
-		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
-		 */
-		v=v->next;
+		} else if (strcasecmp(v->name, "type"))
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
+		v = v->next;
 	}
 	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) && realtime) {
 		time_t nowtime;
@@ -13038,10 +13034,8 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
 			callevents = ast_true(v->value);
-		}
-		/* else if (strcasecmp(v->name,"type"))
-		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
-		 */
+		} else
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
 		 v = v->next;
 	}
 
@@ -13056,7 +13050,8 @@ static int reload_config(void)
  		/* Format for authentication is auth = username:password@realm */
  		if (!strcasecmp(v->name, "auth")) {
  			authl = add_realm_authentication(authl, v->value, v->lineno);
- 		}
+ 		} else
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
  		v = v->next;
  	}
 	
