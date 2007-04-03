@@ -13,14 +13,20 @@ if [ ! -d $PPATH ]; then
   exit
 fi
 
+#Solaris (and some others) don't have sed -r.  perl -p is equivalent
+if [[ `echo "xxx" | sed -r 's/x/y/g' 2>/dev/null | grep -c "yyy"` != 0 ]]; then
+    EXTREGEX="sed -r -e"
+else
+    EXTREGEX="perl -pe"
+fi
+
 ## Clean out CFLAGS for the spec file.
 
-LOCAL_CFLAGS=`echo $CFLAGS | sed -e 's/\s*-pipe\s*//g' | sed -e 's/-[Wmp]\S*\s*//g' | \
-  sed -r -e 's/-I(include|\.\.\/include) //g' | \
-  sed -e 's/-DINSTALL_PREFIX=\S* //g' | \
-  sed -r -e 's/-DASTERISK_VERSION=\S* //g' | \
-  sed -r -e 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
-
+LOCAL_CFLAGS=`echo $CFLAGS | ${EXTREGEX} 's/\s*-pipe\s*//g' | ${EXTREGEX} 's/-[Wmp]\S*\s*//g' | \
+  ${EXTREGEX} 's/-I(include|\.\.\/include) //g' | \
+  ${EXTREGEX} 's/-DINSTALL_PREFIX=\S* //g' | \
+  ${EXTREGEX} 's/-DASTERISK_VERSION=\S* //g' | \
+  ${EXTREGEX} 's/-DAST(ETCDIR|LIBDIR|VARLIBDIR|VARRUNDIR|SPOOLDIR|LOGDIR|CONFPATH|MODDIR|AGIDIR)=\S* //g'`
 
 cat <<EOF > $PPATH/asterisk.pc
 install_prefix=$INSTALL_PREFIX
