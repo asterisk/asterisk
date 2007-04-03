@@ -16557,8 +16557,10 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->maxcallbitrate = atoi(v->value);
 			if (user->maxcallbitrate < 0)
 				user->maxcallbitrate = default_maxcallbitrate;
-		} else if (strcasecmp(v->name, "type"))
-			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
+		}
+		/* We can't just report unknown options here because this may be a
+		 * type=friend entry.  All user options are valid for a peer, but not
+		 * the other way around.  */
 	}
 	ast_copy_flags(&user->flags[0], &userflags[0], mask[0].flags);
 	ast_copy_flags(&user->flags[1], &userflags[1], mask[1].flags);
