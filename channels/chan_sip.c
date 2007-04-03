@@ -16557,7 +16557,8 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->maxcallbitrate = atoi(v->value);
 			if (user->maxcallbitrate < 0)
 				user->maxcallbitrate = default_maxcallbitrate;
-		}
+		} else if (strcasecmp(v->name, "type"))
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
 	}
 	ast_copy_flags(&user->flags[0], &userflags[0], mask[0].flags);
 	ast_copy_flags(&user->flags[1], &userflags[1], mask[1].flags);
@@ -16865,7 +16866,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			peer->maxcallbitrate = atoi(v->value);
 			if (peer->maxcallbitrate < 0)
 				peer->maxcallbitrate = default_maxcallbitrate;
-		}
+		} else if (strcasecmp(v->name, "type"))
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
 	}
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
 		time_t nowtime = time(NULL);
@@ -17270,7 +17272,8 @@ static int reload_config(enum channelreloadreason reason)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 		} else if (!strcasecmp(v->name, "matchexterniplocally")) {
 			global_matchexterniplocally = ast_true(v->value);
-		}
+		} else
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
 	}
 
 	if (!allow_external_domains && AST_LIST_EMPTY(&domain_list)) {
@@ -17283,6 +17286,8 @@ static int reload_config(enum channelreloadreason reason)
  		/* Format for authentication is auth = username:password@realm */
  		if (!strcasecmp(v->name, "auth"))
  			authl = add_realm_authentication(authl, v->value, v->lineno);
+ 		else
+			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
  	}
 	
 	ucfg = ast_config_load("users.conf");
