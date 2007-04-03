@@ -83,7 +83,9 @@ enum misdn_cfg_elements {
 	
 	/* general config items */
 	MISDN_GEN_FIRST,
+#ifndef MISDN_1_2
 	MISDN_GEN_MISDN_INIT,           /* char[] */
+#endif
 	MISDN_GEN_DEBUG,               /* int */
 	MISDN_GEN_TRACEFILE,           /* char[] */
 	MISDN_GEN_BRIDGING,            /* int (bool) */

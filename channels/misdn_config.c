@@ -323,8 +323,10 @@ static const struct misdn_cfg_spec gen_spec[] = {
 		"\t2 - Messages + Message specific Informations (e.g. bearer capability)\n"
 		"\t3 - very Verbose, the above + lots of Driver specific infos\n"
 		"\t4 - even more Verbose than 3" },
+#ifndef MISDN_1_2
 	{ "misdn_init", MISDN_GEN_MISDN_INIT, MISDN_CTYPE_STR, "/etc/misdn-init.conf", NONE,
 		"Set the path to the misdn-init.conf (for nt_ptp mode checking)." },
+#endif
 	{ "tracefile", MISDN_GEN_TRACEFILE, MISDN_CTYPE_STR, "/var/log/asterisk/misdn.log", NONE,
 		"Set the path to the massively growing trace file, if you want that." },
 	{ "bridging", MISDN_GEN_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE,
@@ -967,6 +969,7 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 
 void misdn_cfg_update_ptp (void)
 {
+#ifndef MISDN_1_2
 	char misdn_init[BUFFERSIZE];
 	char line[BUFFERSIZE];
 	FILE *fp;
@@ -997,6 +1000,26 @@ void misdn_cfg_update_ptp (void)
 			ast_log(LOG_WARNING,"Couldn't open %s: %s\n", misdn_init, strerror(errno));
 		}
 	}
+#else
+	int i;
+	int proto;
+	char filename[128];
+	FILE *fp;
+
+	for (i = 1; i <= max_ports; ++i) {
+		snprintf(filename, sizeof(filename), "/sys/class/mISDN-stacks/st-%08x/protocol", i << 8);
+		fp = fopen(filename, "r");
+		if (!fp) {
+			ast_log(LOG_WARNING, "Could not open %s: %s\n", filename, strerror(errno));
+			continue;
+		}
+		if (fscanf(fp, "0x%08x", &proto) != 1)
+			ast_log(LOG_WARNING, "Could not parse contents of %s!\n", filename);
+		else
+			ptp[i] = proto & 1<<5 ? 1 : 0;
+		fclose(fp);
+	}
+#endif
 }
 
 static void _fill_defaults (void)
