@@ -1503,7 +1503,6 @@ static int get_rpid_num(const char *input, char *output, int maxlen);
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq);
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq);
 static int get_msg_text(char *buf, int len, struct sip_request *req);
-static void free_old_route(struct sip_route *route);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout);
 
 /*--- Constructing requests and responses */
