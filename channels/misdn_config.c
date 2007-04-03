@@ -719,7 +719,7 @@ void misdn_cfg_update_ptp (void)
 		if (fscanf(fp, "0x%08x", &proto) != 1)
 			ast_log(LOG_WARNING, "Could not parse contents of %s!\n", filename);
 		else
-			ptp[i] = proto & 1<<4 ? 1 : 0;
+			ptp[i] = proto & 1<<5 ? 1 : 0;
 		fclose(fp);
 	}
 #endif
