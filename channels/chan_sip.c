@@ -12343,8 +12343,10 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->callingpres = ast_parse_caller_presentation(v->value);
 			if (user->callingpres == -1)
 				user->callingpres = atoi(v->value);
-		} else if (strcasecmp(v->name, "type"))
-			ast_log(LOG_WARNING, "Ignoring unknown option '%s' at line %d of sip.conf!\n", v->name, v->lineno);
+		}
+		/* We can't just report unknown options here because this may be a
+		 * type=friend entry.  All user options are valid for a peer, but not
+		 * the other way around.  */
 		v = v->next;
 	}
 	ast_copy_flags(user, &userflags, mask.flags);
