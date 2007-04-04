@@ -886,7 +886,8 @@ void ast_shrink_phone_number(char *n)
 				n[y++] = n[x];
 			break;
 		default:
-			if (!strchr("()", n[x]))
+			/* ignore parenthesis and whitespace */
+			if (!strchr("( )", n[x]))
 				n[y++] = n[x];
 		}
 	}
