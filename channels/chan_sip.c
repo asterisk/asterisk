@@ -6223,6 +6223,7 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, const char *msg
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
 	add_header(&resp, "Unsupported", unsupported);
+	add_header_contentLength(&resp, 0);
 	return send_response(p, &resp, XMIT_UNRELIABLE, 0);
 }
 
