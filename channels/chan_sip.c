@@ -11986,20 +11986,17 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 /*! \brief  handle_common_options: Handle flag-type options common to users and peers ---*/
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
 {
-	int res = 0;
+	int res = 1;
 
 	if (!strcasecmp(v->name, "trustrpid")) {
 		ast_set_flag(mask, SIP_TRUSTRPID);
 		ast_set2_flag(flags, ast_true(v->value), SIP_TRUSTRPID);
-		res = 1;
 	} else if (!strcasecmp(v->name, "sendrpid")) {
 		ast_set_flag(mask, SIP_SENDRPID);
 		ast_set2_flag(flags, ast_true(v->value), SIP_SENDRPID);
-		res = 1;
 	} else if (!strcasecmp(v->name, "useclientcode")) {
 		ast_set_flag(mask, SIP_USECLIENTCODE);
 		ast_set2_flag(flags, ast_true(v->value), SIP_USECLIENTCODE);
-		res = 1;
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
 		ast_set_flag(mask, SIP_DTMF);
 		ast_clear_flag(flags, SIP_DTMF);
@@ -12086,8 +12083,8 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "promiscredir")) {
 		ast_set_flag(mask, SIP_PROMISCREDIR);
 		ast_set2_flag(flags, ast_true(v->value), SIP_PROMISCREDIR);
-		res = 1;
-	}
+	} else
+		res = 0;
 
 	return res;
 }
