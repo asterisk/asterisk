@@ -15444,26 +15444,22 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 */
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
 {
-	int res = 0;
+	int res = 1;
 	static int dep_insecure_very = 0;
 	static int dep_insecure_yes = 0;
 
 	if (!strcasecmp(v->name, "trustrpid")) {
 		ast_set_flag(&mask[0], SIP_TRUSTRPID);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_TRUSTRPID);
-		res = 1;
 	} else if (!strcasecmp(v->name, "sendrpid")) {
 		ast_set_flag(&mask[0], SIP_SENDRPID);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_SENDRPID);
-		res = 1;
 	} else if (!strcasecmp(v->name, "g726nonstandard")) {
 		ast_set_flag(&mask[0], SIP_G726_NONSTANDARD);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_G726_NONSTANDARD);
-		res = 1;
 	} else if (!strcasecmp(v->name, "useclientcode")) {
 		ast_set_flag(&mask[0], SIP_USECLIENTCODE);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_USECLIENTCODE);
-		res = 1;
 	} else if (!strcasecmp(v->name, "dtmfmode")) {
 		ast_set_flag(&mask[0], SIP_DTMF);
 		ast_clear_flag(&flags[0], SIP_DTMF);
@@ -15479,7 +15475,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_log(LOG_WARNING, "Unknown dtmf mode '%s' on line %d, using rfc2833\n", v->value, v->lineno);
 			ast_set_flag(&flags[0], SIP_DTMF_RFC2833);
 		}
-		res = 1;
 	} else if (!strcasecmp(v->name, "nat")) {
 		ast_set_flag(&mask[0], SIP_NAT);
 		ast_clear_flag(&flags[0], SIP_NAT);
@@ -15491,7 +15486,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(&flags[0], SIP_NAT_ALWAYS);
 		else
 			ast_set_flag(&flags[0], SIP_NAT_RFC3581);
-		res = 1;
 	} else if (!strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
@@ -15513,7 +15507,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 				}
 			}
 		}
-		res = 1;
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
@@ -15546,7 +15539,6 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 					ast_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", v->value, v->lineno);
 			}
 		}
-		res = 1;
 	} else if (!strcasecmp(v->name, "progressinband")) {
 		ast_set_flag(&mask[0], SIP_PROG_INBAND);
 		ast_clear_flag(&flags[0], SIP_PROG_INBAND);
@@ -15554,46 +15546,37 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(&flags[0], SIP_PROG_INBAND_YES);
 		else if (strcasecmp(v->value, "never"))
 			ast_set_flag(&flags[0], SIP_PROG_INBAND_NO);
-		res = 1;
 	} else if (!strcasecmp(v->name, "promiscredir")) {
 		ast_set_flag(&mask[0], SIP_PROMISCREDIR);
 		ast_set2_flag(&flags[0], ast_true(v->value), SIP_PROMISCREDIR);
-		res = 1;
 	} else if (!strcasecmp(v->name, "videosupport")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_VIDEOSUPPORT);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_VIDEOSUPPORT);
-		res = 1;
 	} else if (!strcasecmp(v->name, "allowoverlap")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWOVERLAP);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_ALLOWOVERLAP);
-		res = 1;
 	} else if (!strcasecmp(v->name, "allowsubscribe")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_ALLOWSUBSCRIBE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_ALLOWSUBSCRIBE);
-		res = 1;
 	} else if (!strcasecmp(v->name, "t38pt_udptl")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_UDPTL);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_UDPTL);
-		res = 1;
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	} else if (!strcasecmp(v->name, "t38pt_rtp")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_RTP);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_RTP);
-		res = 1;
 	} else if (!strcasecmp(v->name, "t38pt_tcp")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_T38SUPPORT_TCP);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_T38SUPPORT_TCP);
-		res = 1;
 #endif
 	} else if (!strcasecmp(v->name, "rfc2833compensate")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_RFC2833_COMPENSATE);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_RFC2833_COMPENSATE);
-		res = 1;
 	} else if (!strcasecmp(v->name, "buggymwi")) {
 		ast_set_flag(&mask[1], SIP_PAGE2_BUGGY_MWI);
 		ast_set2_flag(&flags[1], ast_true(v->value), SIP_PAGE2_BUGGY_MWI);
-		res = 1;
-	} 
+	} else
+		res = 0;
 
 	return res;
 }
