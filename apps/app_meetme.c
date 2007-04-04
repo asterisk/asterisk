@@ -4049,6 +4049,9 @@ static void *dial_trunk(void *data)
 		conf = NULL;
 	}
 
+	/* If the trunk is going away, it is definitely now IDLE. */
+	sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
+
 	trunk_ref->trunk->chan = NULL;
 
 	ast_dial_join(dial);
