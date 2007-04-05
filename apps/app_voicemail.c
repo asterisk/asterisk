@@ -6353,7 +6353,7 @@ static int load_config(void)
 		return 0;
 	} else {
 		ast_mutex_unlock(&vmlock);
-		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+		ast_log(LOG_WARNING, "Failed to load configuration file.\n");
 		return 0;
 	}
 }
