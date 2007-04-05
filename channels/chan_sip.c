@@ -11496,17 +11496,20 @@ retrylock:
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		if (p->owner && ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
-			ast_mutex_unlock(&p->lock);
-			ast_mutex_unlock(&netlock);
-			/* Sleep for a very short amount of time */
-			usleep(1);
-			if (--lockretry)
+			if (--lockretry) {
+				ast_mutex_unlock(&p->lock);
+				ast_mutex_unlock(&netlock);
+				usleep(1);
 				goto retrylock;
+			}
 		}
 		if (!lockretry) {
-			ast_log(LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
+			if (p->owner)
+				ast_log(LOG_ERROR, "We could NOT get the channel lock for %s - Call ID %s! \n", p->owner->name, p->callid);
 			ast_log(LOG_ERROR, "SIP MESSAGE JUST IGNORED: %s \n", req.data);
 			ast_log(LOG_ERROR, "BAD! BAD! BAD!\n");
+			ast_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&netlock);
 			return 1;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
