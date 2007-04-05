@@ -86,6 +86,7 @@ static struct {
 	{ "wav", "audio/x-wav" },
 	{ "mp3", "audio/mpeg" },
 	{ "svg", "image/svg+xml" },
+	{ "gif", "image/gif" },
 };
 
 static char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
