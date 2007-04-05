@@ -61,7 +61,8 @@ struct wav_desc {	/* format-specific parameters */
 
 #define BLOCKSIZE 160
 
-#define GAIN 2		/* 2^GAIN is the multiple to increase the volume by */
+#define GAIN 0		/* 2^GAIN is the multiple to increase the volume by.  The original value of GAIN was 2, or 4x (12 dB),
+			 * but there were many reports of the clipping of loud signal peaks (issue 5823 for example). */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
