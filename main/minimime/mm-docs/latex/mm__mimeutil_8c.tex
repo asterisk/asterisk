@@ -1,0 +1,50 @@
+\section{mm\_\-mimeutil.c File Reference}
+\label{mm__mimeutil_8c}\index{mm_mimeutil.c@{mm\_\-mimeutil.c}}
+{\tt \#include $<$sys/time.h$>$}\par
+{\tt \#include $<$stdio.h$>$}\par
+{\tt \#include $<$stdlib.h$>$}\par
+{\tt \#include $<$string.h$>$}\par
+{\tt \#include $<$time.h$>$}\par
+{\tt \#include $<$assert.h$>$}\par
+{\tt \#include \char`\"{}mm\_\-internal.h\char`\"{}}\par
+\subsection*{Defines}
+\begin{CompactItemize}
+\item 
+\#define \textbf{MM\_\-DATE\_\-LENGTH}~50\label{mm__mimeutil_8c_257774e1a30f8190b3d99891be64210a}
+
+\end{CompactItemize}
+\subsection*{Functions}
+\begin{CompactItemize}
+\item 
+int {\bf mm\_\-mimeutil\_\-gendate} (char $\ast$$\ast$result)
+\item 
+int \textbf{mm\_\-mimeutil\_\-genboundary} (char $\ast$prefix, size\_\-t length, char $\ast$$\ast$result)\label{mm__mimeutil_8c_a72e503ba7ce2552456c6bd5935febe9}
+
+\end{CompactItemize}
+
+
+\subsection{Detailed Description}
+This module contains various MIME related utility functions. 
+
+\subsection{Function Documentation}
+\index{mm_mimeutil.c@{mm\_\-mimeutil.c}!mm_mimeutil_gendate@{mm\_\-mimeutil\_\-gendate}}
+\index{mm_mimeutil_gendate@{mm\_\-mimeutil\_\-gendate}!mm_mimeutil.c@{mm\_\-mimeutil.c}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-mimeutil\_\-gendate (char $\ast$$\ast$ {\em result})}\label{mm__mimeutil_8c_a7b7f63b42dfa7a7f907b615aa4cd057}
+
+
+Generates an RFC 2822 conform date string
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em timezone}]Whether to include timezone information \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]A pointer to the actual date string \end{Desc}
+\begin{Desc}
+\item[Note:]The pointer returned must be freed some time\end{Desc}
+This function generates an RFC 2822 conform date string to use in message headers. It allocates memory to hold the string and returns a pointer to it. The generated date is in the format (example):
+
+Thu, 25 December 2003 16:35:22 +0100 (CET)
+
+This function dynamically allocates memory and returns a pointer to it. This memory should be released with free() once not needed anymore. 

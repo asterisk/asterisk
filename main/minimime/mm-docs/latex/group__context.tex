@@ -1,0 +1,214 @@
+\section{Accessing and manipulating MIME contexts}
+\label{group__context}\index{Accessing and manipulating MIME contexts@{Accessing and manipulating MIME contexts}}
+\subsection*{Manipulating Mini\-MIME contexts}
+\begin{CompactItemize}
+\item 
+MM\_\-CTX $\ast$ {\bf mm\_\-context\_\-new} (void)
+\item 
+void {\bf mm\_\-context\_\-free} (MM\_\-CTX $\ast$ctx)
+\item 
+int {\bf mm\_\-context\_\-attachpart} (MM\_\-CTX $\ast$ctx, struct mm\_\-mimepart $\ast$part)
+\item 
+int {\bf mm\_\-context\_\-attachpart\_\-after} (MM\_\-CTX $\ast$ctx, struct mm\_\-mimepart $\ast$part, int pos)
+\item 
+int {\bf mm\_\-context\_\-deletepart} (MM\_\-CTX $\ast$ctx, int which, int freemem)
+\item 
+int {\bf mm\_\-context\_\-countparts} (MM\_\-CTX $\ast$ctx)
+\item 
+mm\_\-mimepart $\ast$ {\bf mm\_\-context\_\-getpart} (MM\_\-CTX $\ast$ctx, int which)
+\item 
+int {\bf mm\_\-context\_\-iscomposite} (MM\_\-CTX $\ast$ctx)
+\item 
+int {\bf mm\_\-context\_\-haswarnings} (MM\_\-CTX $\ast$ctx)
+\item 
+int {\bf mm\_\-context\_\-generateboundary} (MM\_\-CTX $\ast$ctx)
+\item 
+int {\bf mm\_\-context\_\-setpreamble} (MM\_\-CTX $\ast$ctx, char $\ast$preamble)
+\item 
+char $\ast$ \textbf{mm\_\-context\_\-getpreamble} (MM\_\-CTX $\ast$ctx)\label{group__context_g1ebbdd51106ccdee77ca421f9692bde7}
+
+\item 
+int {\bf mm\_\-context\_\-flatten} (MM\_\-CTX $\ast$ctx, char $\ast$$\ast$flat, size\_\-t $\ast$length, int flags)
+\end{CompactItemize}
+
+
+\subsection{Detailed Description}
+Each message in Mini\-MIME is represented by a so called ``context''. A context holds all necessary information given about a MIME message, such as the envelope, all MIME parts etc. 
+
+\subsection{Function Documentation}
+\index{context@{context}!mm_context_attachpart@{mm\_\-context\_\-attachpart}}
+\index{mm_context_attachpart@{mm\_\-context\_\-attachpart}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-attachpart (MM\_\-CTX $\ast$ {\em ctx}, struct mm\_\-mimepart $\ast$ {\em part})}\label{group__context_gec3ca486a61b392ff68774242086768e}
+
+
+Attaches a MIME part object to a Mini\-MIME context.
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]the Mini\-MIME context \item[{\em part}]the MIME part object to attach \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on failure. Sets mm\_\-errno on failure.\end{Desc}
+This function attaches a MIME part to a context, appending it to the end of the message.
+
+The MIME part should be initialized before attaching it using \doxyref{mm\_\-mimepart\_\-new()}{p.}{group__mimepart_g417e5dd361e30cddb91e1d9a5e30b223}. \index{context@{context}!mm_context_attachpart_after@{mm\_\-context\_\-attachpart\_\-after}}
+\index{mm_context_attachpart_after@{mm\_\-context\_\-attachpart\_\-after}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-attachpart\_\-after (MM\_\-CTX $\ast$ {\em ctx}, struct mm\_\-mimepart $\ast$ {\em part}, int {\em pos})}\label{group__context_g73a3dd187053aeabca4836dc28a6c468}
+
+
+Attaches a MIME part object to a Mini\-MIME context at a given position
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \item[{\em part}]The MIME part object to attach \item[{\em pos}]After which part to attach the object \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 if the given position is invalid \end{Desc}
+\begin{Desc}
+\item[See also:]\doxyref{mm\_\-context\_\-attachpart}{p.}{group__context_gec3ca486a61b392ff68774242086768e}\end{Desc}
+This function attaches a MIME part object after a given position in the specified context. If the position is invalid (out of range), the part will not get attached to the message and the function returns -1. If the index was in range, the MIME part will get attached after the MIME part at the given position, moving any possible following MIME parts one down the hierarchy. \index{context@{context}!mm_context_countparts@{mm\_\-context\_\-countparts}}
+\index{mm_context_countparts@{mm\_\-context\_\-countparts}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-countparts (MM\_\-CTX $\ast$ {\em ctx})}\label{group__context_gf5bb032ad1c481d31d7b1b0710939712}
+
+
+Counts the number of attached MIME part objects in a given Mini\-MIME context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]The Mini\-MIME context \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]The number of attached MIME part objects \end{Desc}
+\index{context@{context}!mm_context_deletepart@{mm\_\-context\_\-deletepart}}
+\index{mm_context_deletepart@{mm\_\-context\_\-deletepart}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-deletepart (MM\_\-CTX $\ast$ {\em ctx}, int {\em which}, int {\em freemem})}\label{group__context_g53d20c33a401539ef1ffa45f3dddb983}
+
+
+Deletes a MIME part object from a Mini\-MIME context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context object \item[{\em which}]The number of the MIME part object to delete \item[{\em freemem}]Whether to free the memory associated with the MIME part object \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on failure. Sets mm\_\-errno on failure.\end{Desc}
+This function deletes a MIME part from a given context. The MIME part to delete is specified as numerical index by the parameter ``which''. If the parameter ``freemem'' is set to anything greater than 0, the memory that is associated will be free'd by using \doxyref{mm\_\-mimepart\_\-free()}{p.}{group__mimepart_gbf47790a0bb96b22bc5e236bc40cb32e}, otherwise the memory is left untouched (if you still have a pointer to the MIME part around). \index{context@{context}!mm_context_flatten@{mm\_\-context\_\-flatten}}
+\index{mm_context_flatten@{mm\_\-context\_\-flatten}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-flatten (MM\_\-CTX $\ast$ {\em ctx}, char $\ast$$\ast$ {\em flat}, size\_\-t $\ast$ {\em length}, int {\em flags})}\label{group__context_g5288136ab923605f6508c09359ae5772}
+
+
+Creates an ASCII message of the specified context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context object \item[{\em flat}]Where to store the message \item[{\em flags}]Flags that affect the flattening process\end{description}
+\end{Desc}
+This function ``flattens'' a Mini\-MIME context, that is, it creates an ASCII represantation of the message the context contains. The flags can be a bitwise combination of the following constants:
+
+\begin{itemize}
+\item MM\_\-FLATTEN\_\-OPAQUE : use opaque MIME parts when flattening\item MM\_\-FLATTEN\_\-SKIPENVELOPE : do not flatten the envelope part\end{itemize}
+
+
+Great care is taken to not produce invalid MIME output. \index{context@{context}!mm_context_free@{mm\_\-context\_\-free}}
+\index{mm_context_free@{mm\_\-context\_\-free}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}void mm\_\-context\_\-free (MM\_\-CTX $\ast$ {\em ctx})}\label{group__context_g76392d5269e9ef340c2f5f8336f7193b}
+
+
+Releases a Mini\-MIME context object
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \end{description}
+\end{Desc}
+\begin{Desc}
+\item[See also:]\doxyref{mm\_\-context\_\-new}{p.}{group__context_g919fd41f85534d9c87c256857faa2610}\end{Desc}
+This function releases all memory associated with Mini\-MIME context object that was created using \doxyref{mm\_\-context\_\-new()}{p.}{group__context_g919fd41f85534d9c87c256857faa2610}. It will also release all memory used for the MIME parts attached, and their specific properties (such as Content-Type information, headers, and the body data). \index{context@{context}!mm_context_generateboundary@{mm\_\-context\_\-generateboundary}}
+\index{mm_context_generateboundary@{mm\_\-context\_\-generateboundary}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-generateboundary (MM\_\-CTX $\ast$ {\em ctx})}\label{group__context_g9710e485f51167099d90f0d659979068}
+
+
+Generates a generic boundary string for a given context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on failure\end{Desc}
+This function generates a default boundary string for the given context. If there is already a boundary for the context, the memory will be free()'d. \index{context@{context}!mm_context_getpart@{mm\_\-context\_\-getpart}}
+\index{mm_context_getpart@{mm\_\-context\_\-getpart}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}struct mm\_\-mimepart$\ast$ mm\_\-context\_\-getpart (MM\_\-CTX $\ast$ {\em ctx}, int {\em which})}\label{group__context_g57fea229675f3e56a77eb40bb8193ee3}
+
+
+Gets a specified MIME part object from a Mime\-MIME context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]The Mini\-MIME context \item[{\em which}]The number of the MIME part object to retrieve \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]The requested MIME part object on success or a NULL pointer if there is no such part. \end{Desc}
+\index{context@{context}!mm_context_haswarnings@{mm\_\-context\_\-haswarnings}}
+\index{mm_context_haswarnings@{mm\_\-context\_\-haswarnings}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-haswarnings (MM\_\-CTX $\ast$ {\em ctx})}\label{group__context_g8733dee7d83d3205349a7ee4ee5b2750}
+
+
+Checks whether there are any warnings associated with a given context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]1 if there are warnings associated with the context, otherwise 0 \end{Desc}
+\index{context@{context}!mm_context_iscomposite@{mm\_\-context\_\-iscomposite}}
+\index{mm_context_iscomposite@{mm\_\-context\_\-iscomposite}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-iscomposite (MM\_\-CTX $\ast$ {\em ctx})}\label{group__context_g1e73cadba4acd3ef9dd148dd0c2c3e70}
+
+
+Checks whether a given context represents a composite (multipart) message
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context object \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]1 if the context is a composite message or 0 if it's flat \end{Desc}
+\index{context@{context}!mm_context_new@{mm\_\-context\_\-new}}
+\index{mm_context_new@{mm\_\-context\_\-new}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}MM\_\-CTX$\ast$ mm\_\-context\_\-new (void)}\label{group__context_g919fd41f85534d9c87c256857faa2610}
+
+
+Creates a new Mini\-MIME context object.
+
+\begin{Desc}
+\item[Returns:]a new Mini\-MIME context object \end{Desc}
+\begin{Desc}
+\item[See also:]\doxyref{mm\_\-context\_\-free}{p.}{group__context_g76392d5269e9ef340c2f5f8336f7193b}\end{Desc}
+This function creates a new Mini\-MIME context, which will hold a message. The memory needed is allocated dynamically and should later be free'd using \doxyref{mm\_\-context\_\-free()}{p.}{group__context_g76392d5269e9ef340c2f5f8336f7193b}.
+
+Before a context can be created, the Mini\-MIME library needs to be initialized properly using mm\_\-library\_\-init(). \index{context@{context}!mm_context_setpreamble@{mm\_\-context\_\-setpreamble}}
+\index{mm_context_setpreamble@{mm\_\-context\_\-setpreamble}!context@{context}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-context\_\-setpreamble (MM\_\-CTX $\ast$ {\em ctx}, char $\ast$ {\em preamble})}\label{group__context_gc0e7cc297516618d4773830a1988fc8d}
+
+
+Sets a preamble for the given Mini\-MIME context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \item[{\em preamble}]The preamble to set \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on failure\end{Desc}
+This function sets the MIME preamble (the text between the end of envelope headers and the beginning of the first MIME part) for a given context object. If preamble is a NULL-pointer then the preamble will be deleted, and the currently associated memory will be free automagically. 

@@ -1,0 +1,119 @@
+\section{Manipulating Mini\-MIME codecs}
+\label{group__codecs}\index{Manipulating MiniMIME codecs@{Manipulating MiniMIME codecs}}
+\subsection*{Codec manipulation}
+\begin{CompactItemize}
+\item 
+int {\bf mm\_\-codec\_\-hasdecoder} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-hasencoder} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-isregistered} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-register} (const char $\ast$encoding, char $\ast$($\ast$encoder)(char $\ast$data, u\_\-int32\_\-t i), char $\ast$($\ast$decoder)(char $\ast$data))
+\item 
+int {\bf mm\_\-codec\_\-unregister} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-unregisterall} (void)
+\item 
+void {\bf mm\_\-codec\_\-registerdefaultcodecs} (void)
+\end{CompactItemize}
+
+
+\subsection{Function Documentation}
+\index{codecs@{codecs}!mm_codec_hasdecoder@{mm\_\-codec\_\-hasdecoder}}
+\index{mm_codec_hasdecoder@{mm\_\-codec\_\-hasdecoder}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-codec\_\-hasdecoder (const char $\ast$ {\em encoding})}\label{group__codecs_g6ccb0f7a1d7c870dc3dae04f31d6ccca}
+
+
+Looks up whether a context has an decoder installed for a given encoding
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em encoding}]The encoding specifier to look up \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]1 if a decoder is installed or 0 if not \end{Desc}
+\index{codecs@{codecs}!mm_codec_hasencoder@{mm\_\-codec\_\-hasencoder}}
+\index{mm_codec_hasencoder@{mm\_\-codec\_\-hasencoder}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-codec\_\-hasencoder (const char $\ast$ {\em encoding})}\label{group__codecs_g50ff257b794ceaec7aedf9ae18bfcc57}
+
+
+Looks up whether a context has an encoder installed for a given encoding
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid MIME context \item[{\em encoding}]The encoding specifier to look up \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]1 if an encoder is installed or 0 if not \end{Desc}
+\index{codecs@{codecs}!mm_codec_isregistered@{mm\_\-codec\_\-isregistered}}
+\index{mm_codec_isregistered@{mm\_\-codec\_\-isregistered}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-codec\_\-isregistered (const char $\ast$ {\em encoding})}\label{group__codecs_g9e19f6343128fd7e4ec57c3d55049b55}
+
+
+Looks up whether a codec for a given encoding is installed to a context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em encoding}]The encoding specifier to look up \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]1 if a codec was found or 0 if not \end{Desc}
+\index{codecs@{codecs}!mm_codec_register@{mm\_\-codec\_\-register}}
+\index{mm_codec_register@{mm\_\-codec\_\-register}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-codec\_\-register (const char $\ast$ {\em encoding}, char $\ast$($\ast$)(char $\ast$data, u\_\-int32\_\-t i) {\em encoder}, char $\ast$($\ast$)(char $\ast$data) {\em decoder})}\label{group__codecs_gf97a7311c909888ed9f6f14d6f1bf397}
+
+
+Registers a codec with the Mini\-MIME library
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em encoding}]The encoding specifier for which to register the codec \item[{\em encoder}]The encoder function for this encoding \item[{\em decoder}]The decoder function for this encoding \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]1 if successfull or 0 if not\end{Desc}
+This function registers a codec for a given Mini\-MIME context. The codec may provide an decoder, an encoder or both (but not none). If there is a codec already installed for this encoding, the function will puke. \index{codecs@{codecs}!mm_codec_registerdefaultcodecs@{mm\_\-codec\_\-registerdefaultcodecs}}
+\index{mm_codec_registerdefaultcodecs@{mm\_\-codec\_\-registerdefaultcodecs}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}void mm\_\-codec\_\-registerdefaultcodecs (void)}\label{group__codecs_gf39e72460fb85f5ca41f6e270a68aacc}
+
+
+Registers the default codecs to a Mini\-MIME context
+
+This functions registers the codecs for the following encodings to a Mini\-MIME context:
+
+\begin{itemize}
+\item Base64\item (TODO:) Quoted-Printable \end{itemize}
+\index{codecs@{codecs}!mm_codec_unregister@{mm\_\-codec\_\-unregister}}
+\index{mm_codec_unregister@{mm\_\-codec\_\-unregister}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-codec\_\-unregister (const char $\ast$ {\em encoding})}\label{group__codecs_g0c71696bc70f834386193e3c7a0e2ca4}
+
+
+Unregisters a Mini\-MIME codec
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em encoding}]The encoding specifier which to unregister \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 if unregistered successfully, or -1 if there was no such codec \end{Desc}
+\index{codecs@{codecs}!mm_codec_unregisterall@{mm\_\-codec\_\-unregisterall}}
+\index{mm_codec_unregisterall@{mm\_\-codec\_\-unregisterall}!codecs@{codecs}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-codec\_\-unregisterall (void)}\label{group__codecs_g7c9e6538f84c368be2b56a3c9ba702be}
+
+
+Unregisters all codecs within a context
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 if all codecs were unregistered successfully or -1 if an error occured. \end{Desc}
+\begin{Desc}
+\item[Note:]Foobar \end{Desc}

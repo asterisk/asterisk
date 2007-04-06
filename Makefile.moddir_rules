@@ -12,7 +12,9 @@
 #
 
 ifneq ($(findstring MALLOC_DEBUG,$(MENUSELECT_CFLAGS)),)
+ ifeq ($(findstring astmm.h,$(ASTCFLAGS)),)
   ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/astmm.h
+ endif
 endif
 
 ifeq ($(findstring LOADABLE_MODULES,$(MENUSELECT_CFLAGS)),)

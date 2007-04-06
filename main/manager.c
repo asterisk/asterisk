@@ -2592,6 +2592,44 @@ static struct mansession *find_session(unsigned long ident)
 	return s;
 }
 
+int astman_verify_session_readpermissions(unsigned long ident, int perm)
+{
+	int result = 0;
+	struct mansession *s;
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, s, list) {
+		ast_mutex_lock(&s->__lock);
+		if ((s->managerid == ident) && (s->readperm & perm)) {
+			result = 1;
+			ast_mutex_unlock(&s->__lock);
+			break;
+		}
+		ast_mutex_unlock(&s->__lock);
+	}
+	AST_LIST_UNLOCK(&sessions);
+	return result;
+}
+
+int astman_verify_session_writepermissions(unsigned long ident, int perm)
+{
+	int result = 0;
+	struct mansession *s;
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, s, list) {
+		ast_mutex_lock(&s->__lock);
+		if ((s->managerid == ident) && (s->writeperm & perm)) {
+			result = 1;
+			ast_mutex_unlock(&s->__lock);
+			break;
+		}
+		ast_mutex_unlock(&s->__lock);
+	}
+	AST_LIST_UNLOCK(&sessions);
+	return result;
+}
+
 /*
  * convert to xml with various conversion:
  * mode & 1	-> lowercase;

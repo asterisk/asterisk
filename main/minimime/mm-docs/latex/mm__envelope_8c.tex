@@ -1,0 +1,25 @@
+\section{mm\_\-envelope.c File Reference}
+\label{mm__envelope_8c}\index{mm_envelope.c@{mm\_\-envelope.c}}
+{\tt \#include $<$stdio.h$>$}\par
+{\tt \#include $<$stdlib.h$>$}\par
+{\tt \#include $<$stdarg.h$>$}\par
+{\tt \#include $<$string.h$>$}\par
+{\tt \#include $<$ctype.h$>$}\par
+{\tt \#include $<$assert.h$>$}\par
+{\tt \#include \char`\"{}mm\_\-internal.h\char`\"{}}\par
+{\tt \#include \char`\"{}mm\_\-util.h\char`\"{}}\par
+\subsection*{Functions}
+\begin{Indent}{\bf Accessing and manipulating a message's envelope}\par
+\begin{CompactItemize}
+\item 
+int {\bf mm\_\-envelope\_\-getheaders} (MM\_\-CTX $\ast$ctx, char $\ast$$\ast$result, size\_\-t $\ast$length)
+\item 
+int {\bf mm\_\-envelope\_\-setheader} (MM\_\-CTX $\ast$ctx, const char $\ast$name, const char $\ast$fmt,...)
+\item 
+int {\bf mm\_\-envelope\_\-getrecipients} (MM\_\-CTX $\ast$ctx, char $\ast$$\ast$result, size\_\-t $\ast$length)
+\end{CompactItemize}
+\end{Indent}
+
+
+\subsection{Detailed Description}
+This module contains functions for accessing a message's envelope. This are mainly wrapper functions for easy access. 

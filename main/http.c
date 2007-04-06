@@ -21,8 +21,9 @@
  * \brief http server for AMI access
  *
  * \author Mark Spencer <markster@digium.com>
- * This program implements a tiny http server supporting the "get" method
- * only and was inspired by micro-httpd by Jef Poskanzer 
+ *
+ * This program implements a tiny http server
+ * and was inspired by micro-httpd by Jef Poskanzer 
  * 
  * \ref AstHTTP - AMI over the http protocol
  */
@@ -47,6 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <pthread.h>
 
+#include "minimime/mm.h"
+
 #include "asterisk/cli.h"
 #include "asterisk/http.h"
 #include "asterisk/utils.h"
@@ -55,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/version.h"
+#include "asterisk/manager.h"
 
 #define MAX_PREFIX 80
 #define DEFAULT_PREFIX "/asterisk"
@@ -92,6 +96,14 @@ static struct server_args https_desc = {
 };
 
 static AST_RWLIST_HEAD_STATIC(uris, ast_http_uri);	/*!< list of supported handlers */
+
+struct ast_http_post_mapping {
+	AST_RWLIST_ENTRY(ast_http_post_mapping) entry;
+	char *from;
+	char *to;
+};
+
+static AST_RWLIST_HEAD_STATIC(post_mappings, ast_http_post_mapping);
 
 /* all valid URIs must be prepended by the string in prefix. */
 static char prefix[MAX_PREFIX];
@@ -329,6 +341,225 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 	AST_RWLIST_UNLOCK(&uris);
 }
 
+/*! \note This assumes that the post_mappings list is locked */
+static struct ast_http_post_mapping *find_post_mapping(const char *uri)
+{
+	struct ast_http_post_mapping *post_map;
+
+	if (!ast_strlen_zero(prefix) && strncmp(prefix, uri, strlen(prefix))) {
+		ast_log(LOG_DEBUG, "URI %s does not have prefix %s\n", uri, prefix);
+		return NULL;
+	}
+
+	uri += strlen(prefix);
+	if (*uri == '/')
+		uri++;
+	
+	AST_RWLIST_TRAVERSE(&post_mappings, post_map, entry) {
+		if (!strcmp(uri, post_map->from))
+			return post_map;
+	}
+
+	return NULL;
+}
+
+static int get_filename(struct mm_mimepart *part, char *fn, size_t fn_len)
+{
+	const char *filename;
+
+	filename = mm_content_getdispositionparambyname(part->type, "filename");
+
+	if (ast_strlen_zero(filename))
+		return -1;
+
+	ast_copy_string(fn, filename, fn_len);
+
+	return 0;
+}
+
+static void post_raw(struct mm_mimepart *part, const char *post_dir, const char *fn)
+{
+	char filename[PATH_MAX];
+	FILE *f;
+	const char *body;
+	size_t body_len;
+
+	snprintf(filename, sizeof(filename), "%s/%s", post_dir, fn);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Posting raw data to %s\n", filename);
+
+	if (!(f = fopen(filename, "w"))) {
+		ast_log(LOG_WARNING, "Unable to open %s for writing file from a POST!\n", filename);
+		return;
+	}
+
+	if (!(body = mm_mimepart_getbody(part, 0))) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Couldn't get the mimepart body\n");
+		fclose(f);
+		return;
+	}
+	body_len = mm_mimepart_getlength(part);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Body length is %ld\n", body_len);
+
+	fwrite(body, 1, body_len, f);
+
+	fclose(f);
+}
+
+static struct ast_str *handle_post(struct server_instance *ser, char *uri, 
+	int *status, char **title, int *contentlength, struct ast_variable *headers,
+	struct ast_variable *cookies)
+{
+	char buf;
+	FILE *f;
+	size_t res;
+	struct ast_variable *var;
+	int content_len = 0;
+	MM_CTX *ctx;
+	int mm_res, i;
+	struct ast_http_post_mapping *post_map;
+	const char *post_dir;
+	unsigned long ident = 0;
+
+	for (var = cookies; var; var = var->next) {
+		if (strcasecmp(var->name, "mansession_id"))
+			continue;
+
+		if (sscanf(var->value, "%lx", &ident) != 1) {
+			*status = 400;
+			*title = ast_strdup("Bad Request");
+			return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
+		}
+
+		if (!astman_verify_session_writepermissions(ident, EVENT_FLAG_CONFIG)) {
+			*status = 401;
+			*title = ast_strdup("Unauthorized");
+			return ast_http_error(401, "Unauthorized", NULL, "You are not authorized to make this request.");
+		}
+
+		break;
+	}
+	if (!var) {
+		*status = 401;
+		*title = ast_strdup("Unauthorized");
+		return ast_http_error(401, "Unauthorized", NULL, "You are not authorized to make this request.");
+	}
+
+	if (!(f = tmpfile()))
+		return NULL;
+
+	for (var = headers; var; var = var->next) {
+		if (!strcasecmp(var->name, "Content-Length")) {
+			if ((sscanf(var->value, "%u", &content_len)) != 1) {
+				ast_log(LOG_ERROR, "Invalid Content-Length in POST request!\n");
+				fclose(f);
+				return NULL;
+			}
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Got a Content-Length of %d\n", content_len);
+		} else if (!strcasecmp(var->name, "Content-Type"))
+			fprintf(f, "Content-Type: %s\r\n\r\n", var->value);
+	}
+
+	while ((res = fread(&buf, 1, 1, ser->f))) {
+		fwrite(&buf, 1, 1, f);
+		content_len--;
+		if (!content_len)
+			break;
+	}
+
+	if (fseek(f, SEEK_SET, 0)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Failed to seek temp file back to beginning.\n");
+		fclose(f);
+		return NULL;
+	}
+
+	AST_RWLIST_RDLOCK(&post_mappings);
+	if (!(post_map = find_post_mapping(uri))) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "%s is not a valid URI for POST\n", uri);
+		AST_RWLIST_UNLOCK(&post_mappings);
+		fclose(f);
+		*status = 404;
+		*title = ast_strdup("Not Found");
+		return ast_http_error(404, "Not Found", NULL, "The requested URL was not found on this server.");
+	}
+	post_dir = ast_strdupa(post_map->to);
+	post_map = NULL;
+	AST_RWLIST_UNLOCK(&post_mappings);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Going to post files to dir %s\n", post_dir);
+
+	if (!(ctx = mm_context_new())) {
+		fclose(f);
+		return NULL;
+	}
+
+	mm_res = mm_parse_fileptr(ctx, f, MM_PARSE_LOOSE, 0);
+	fclose(f);
+	if (mm_res == -1) {
+		ast_log(LOG_ERROR, "Error parsing MIME data\n");
+		mm_context_free(ctx);
+		*status = 400;
+		*title = ast_strdup("Bad Request");
+		return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
+	}
+
+	mm_res = mm_context_countparts(ctx);
+	if (!mm_res) {
+		ast_log(LOG_ERROR, "Invalid MIME data, found no parts!\n");
+		mm_context_free(ctx);
+		*status = 400;
+		*title = ast_strdup("Bad Request");
+		return ast_http_error(400, "Bad Request", NULL, "The was an error parsing the request.");
+	}
+
+	if (option_debug) {
+		if (mm_context_iscomposite(ctx))
+			ast_log(LOG_DEBUG, "Found %d MIME parts\n", mm_res - 1);
+		else
+			ast_log(LOG_DEBUG, "We have a flat (not multi-part) message\n");
+	}
+
+	for (i = 1; i < mm_res; i++) {
+		struct mm_mimepart *part;
+		char fn[PATH_MAX];
+
+		if (!(part = mm_context_getpart(ctx, i))) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Failed to get mime part num %d\n", i);
+			continue;
+		}
+
+		if (get_filename(part, fn, sizeof(fn))) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Failed to retrieve a filename for part num %d\n", i);
+			continue;
+		}
+	
+		if (!part->type) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "This part has no content struct?\n");
+			continue;
+		}
+
+		/* XXX This assumes the MIME part body is not encoded! */
+		post_raw(part, post_dir, fn);
+	}
+
+	mm_context_free(ctx);
+
+	*status = 200;
+	*title = ast_strdup("OK");
+	return ast_http_error(200, "OK", NULL, "File successfully uploaded.");
+}
+
 static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
 {
 	char *c;
@@ -520,7 +751,7 @@ static void *httpd_helper_thread(void *data)
 	char buf[4096];
 	char cookie[4096];
 	struct server_instance *ser = data;
-	struct ast_variable *var, *prev=NULL, *vars=NULL;
+	struct ast_variable *var, *prev=NULL, *vars=NULL, *headers = NULL;
 	char *uri, *title=NULL;
 	int status = 200, contentlength = 0;
 	struct ast_str *out = NULL;
@@ -549,8 +780,23 @@ static void *httpd_helper_thread(void *data)
 		ast_trim_blanks(cookie);
 		if (ast_strlen_zero(cookie))
 			break;
-		if (strncasecmp(cookie, "Cookie: ", 8))
+		if (strncasecmp(cookie, "Cookie: ", 8)) {
+			char *name, *value;
+
+			value = ast_strdupa(cookie);
+			name = strsep(&value, ":");
+			if (!value)
+				continue;
+			value = ast_skip_blanks(value);
+			if (ast_strlen_zero(value))
+				continue;
+			var = ast_variable_new(name, value);
+			if (!var)
+				continue;
+			var->next = headers;
+			headers = var;
 			continue;
+		}
 
 		/* TODO - The cookie parsing code below seems to work   
 		   in IE6 and FireFox 1.5.  However, it is not entirely 
@@ -596,6 +842,8 @@ static void *httpd_helper_thread(void *data)
 
 	if (!*uri)
 		out = ast_http_error(400, "Bad Request", NULL, "Invalid Request");
+	else if (!strcasecmp(buf, "post")) 
+		out = handle_post(ser, uri, &status, &title, &contentlength, headers, vars);
 	else if (strcasecmp(buf, "get")) 
 		out = ast_http_error(501, "Not Implemented", NULL,
 			"Attempt to use unimplemented / unsupported method");
@@ -851,6 +1099,47 @@ static void add_redirect(const char *value)
 	AST_RWLIST_UNLOCK(&uri_redirects);
 }
 
+static void destroy_post_mapping(struct ast_http_post_mapping *post_map)
+{
+	if (post_map->from)
+		free(post_map->from);
+	if (post_map->to)
+		free(post_map->to);
+	free(post_map);
+}
+
+static void destroy_post_mappings(void)
+{
+	struct ast_http_post_mapping *post_map;
+
+	AST_RWLIST_WRLOCK(&post_mappings);
+	while ((post_map = AST_RWLIST_REMOVE_HEAD(&post_mappings, entry)))
+		destroy_post_mapping(post_map);
+	AST_RWLIST_UNLOCK(&post_mappings);
+}
+
+static void add_post_mapping(const char *from, const char *to)
+{
+	struct ast_http_post_mapping *post_map;
+
+	if (!(post_map = ast_calloc(1, sizeof(*post_map))))
+		return;
+
+	if (!(post_map->from = ast_strdup(from))) {
+		destroy_post_mapping(post_map);
+		return;
+	}
+
+	if (!(post_map->to = ast_strdup(to))) {
+		destroy_post_mapping(post_map);
+		return;
+	}
+
+	AST_RWLIST_WRLOCK(&post_mappings);
+	AST_RWLIST_INSERT_TAIL(&post_mappings, post_map, entry);
+	AST_RWLIST_UNLOCK(&post_mappings);
+}
+
 static int __ast_http_load(int reload)
 {
 	struct ast_config *cfg;
@@ -869,6 +1158,7 @@ static int __ast_http_load(int reload)
 
 	memset(&https_desc.sin, 0, sizeof(https_desc.sin));
 	https_desc.sin.sin_port = htons(8089);
+
 	strcpy(newprefix, DEFAULT_PREFIX);
 
 	http_tls_cfg.enabled = 0;
@@ -883,6 +1173,8 @@ static int __ast_http_load(int reload)
 	while ((redirect = AST_RWLIST_REMOVE_HEAD(&uri_redirects, entry)))
 		free(redirect);
 	AST_RWLIST_UNLOCK(&uri_redirects);
+
+	destroy_post_mappings();
 
 	cfg = ast_config_load("http.conf");
 	if (cfg) {
@@ -931,6 +1223,10 @@ static int __ast_http_load(int reload)
 				ast_log(LOG_WARNING, "Ignoring unknown option '%s' in http.conf\n", v->name);
 			}
 		}
+
+		for (v = ast_variable_browse(cfg, "post_mappings"); v; v = v->next)
+			add_post_mapping(v->name, v->value);
+
 		ast_config_destroy(cfg);
 	}
 	if (!have_sslbindaddr)
@@ -943,6 +1239,7 @@ static int __ast_http_load(int reload)
 	server_start(&http_desc);
 	if (ssl_setup(https_desc.tls_cfg))
 		server_start(&https_desc);
+
 	return 0;
 }
 
@@ -950,6 +1247,7 @@ static int handle_show_http(int fd, int argc, char *argv[])
 {
 	struct ast_http_uri *urih;
 	struct http_uri_redirect *redirect;
+	struct ast_http_post_mapping *post_map;
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -986,6 +1284,14 @@ static int handle_show_http(int fd, int argc, char *argv[])
 		ast_cli(fd, "  None.\n");
 	AST_RWLIST_UNLOCK(&uri_redirects);
 
+
+	ast_cli(fd, "\nPOST mappings:\n");
+	AST_RWLIST_RDLOCK(&post_mappings);
+	AST_LIST_TRAVERSE(&post_mappings, post_map, entry)
+		ast_cli(fd, "%s/%s => %s\n", prefix, post_map->from, post_map->to);
+	ast_cli(fd, "%s\n", AST_LIST_EMPTY(&post_mappings) ? "None.\n" : "");
+	AST_RWLIST_UNLOCK(&post_mappings);
+
 	return RESULT_SUCCESS;
 }
 
@@ -1006,8 +1312,12 @@ static struct ast_cli_entry cli_http[] = {
 
 int ast_http_init(void)
 {
+	mm_library_init();
+	mm_codec_registerdefaultcodecs();
+
 	ast_http_uri_link(&statusuri);
 	ast_http_uri_link(&staticuri);
 	ast_cli_register_multiple(cli_http, sizeof(cli_http) / sizeof(struct ast_cli_entry));
+
 	return __ast_http_load(0);
 }

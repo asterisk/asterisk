@@ -1,0 +1,65 @@
+\section{Accessing and manipulating a message's envelope}
+\label{group__envelope}\index{Accessing and manipulating a message's envelope@{Accessing and manipulating a message's envelope}}
+\subsection*{Accessing and manipulating a message's envelope}
+\begin{CompactItemize}
+\item 
+int {\bf mm\_\-envelope\_\-getheaders} (MM\_\-CTX $\ast$ctx, char $\ast$$\ast$result, size\_\-t $\ast$length)
+\item 
+int {\bf mm\_\-envelope\_\-setheader} (MM\_\-CTX $\ast$ctx, const char $\ast$name, const char $\ast$fmt,...)
+\item 
+int {\bf mm\_\-envelope\_\-getrecipients} (MM\_\-CTX $\ast$ctx, char $\ast$$\ast$result, size\_\-t $\ast$length)
+\end{CompactItemize}
+
+
+\subsection{Function Documentation}
+\index{envelope@{envelope}!mm_envelope_getheaders@{mm\_\-envelope\_\-getheaders}}
+\index{mm_envelope_getheaders@{mm\_\-envelope\_\-getheaders}!envelope@{envelope}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-envelope\_\-getheaders (MM\_\-CTX $\ast$ {\em ctx}, char $\ast$$\ast$ {\em result}, size\_\-t $\ast$ {\em length})}\label{group__envelope_g38f1164142cedfc3253b068a81f85563}
+
+
+Gets an ASCII representation of all envelope headers
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \item[{\em result}]Where to store the resulting ASCII headers \item[{\em length}]Where to store the length of the result \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on failure. \end{Desc}
+\begin{Desc}
+\item[Note:]Sets mm\_\-errno on failure\end{Desc}
+This is mainly a convinience function. It constructs an ASCII representation from all of the message's envelope headers and stores the result in headers. Memory is allocated dynamically, and the total length of the result is stored in length. This function takes care that the output is MIME conform, and folds long lines according to the MIME standard at position 78 of the string. It also nicely formats all MIME related header fields, such as the Content-Type header.
+
+Since the memory needed to store the result is allocated dynamically, one should take care of freeing it again when it's not needed anymore. If an error occurs, $\ast$result will be set to NULL, $\ast$length will be set to zero and mm\_\-errno will be set to a reasonable value. \index{envelope@{envelope}!mm_envelope_getrecipients@{mm\_\-envelope\_\-getrecipients}}
+\index{mm_envelope_getrecipients@{mm\_\-envelope\_\-getrecipients}!envelope@{envelope}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-envelope\_\-getrecipients (MM\_\-CTX $\ast$ {\em ctx}, char $\ast$$\ast$ {\em result}, size\_\-t $\ast$ {\em length})}\label{group__envelope_ge63da17c56867ca2406a4eaf73230baf}
+
+
+Gets the list of recipients for a MIME message
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \item[{\em result}]Where to store the result \item[{\em length}]Where to store the length of the result \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on error \end{Desc}
+\begin{Desc}
+\item[Note:]Sets mm\_\-errno on error\end{Desc}
+This functions gets the list of recipients for a given MIME message. It does so by concatenating the \char`\"{}From\char`\"{} and \char`\"{}Cc\char`\"{} header fields, and storing the results in recipients. The memory needed to store the result is allocated dynamically, and the total length of the result is stored in length.
+
+One should take care to free() the result once it's not needed anymore. \index{envelope@{envelope}!mm_envelope_setheader@{mm\_\-envelope\_\-setheader}}
+\index{mm_envelope_setheader@{mm\_\-envelope\_\-setheader}!envelope@{envelope}}
+\subsubsection{\setlength{\rightskip}{0pt plus 5cm}int mm\_\-envelope\_\-setheader (MM\_\-CTX $\ast$ {\em ctx}, const char $\ast$ {\em name}, const char $\ast$ {\em fmt},  {\em ...})}\label{group__envelope_gb2c43c1645e42ae0860c902ce1dda788}
+
+
+Sets a header field in the envelope
+
+\begin{Desc}
+\item[Parameters:]
+\begin{description}
+\item[{\em ctx}]A valid Mini\-MIME context \item[{\em name}]The name of the header field to set \item[{\em fmt}]A format string specifying the value of the header field \end{description}
+\end{Desc}
+\begin{Desc}
+\item[Returns:]0 on success or -1 on failure\end{Desc}
+This function generates a new MIME header and attaches it to the first MIME part (the envelope) found in the given context. If no part is attached already, the function will return an error. The function will store a copy of ``name'' as the header's name field, and dynamically allocate the memory needed to build the format string. 
