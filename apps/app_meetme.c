@@ -432,6 +432,9 @@ struct sla_trunk {
 	/*! This option uses the values in the sla_hold_access enum and sets the
 	 * access control type for hold on this trunk. */
 	unsigned int hold_access:1;
+	/*! Whether this trunk is currently on hold, meaning that once a station
+	 *  connects to it, the trunk channel needs to have UNHOLD indicated to it. */
+	unsigned int on_hold:1;
 };
 
 struct sla_trunk_ref {
@@ -3131,12 +3134,14 @@ static struct sla_trunk_ref *sla_find_trunk_ref_byname(const struct sla_station 
 			continue;
 
 		if ( (trunk_ref->trunk->barge_disabled 
-			&& trunk_ref->state != SLA_TRUNK_STATE_IDLE) ||
+			&& trunk_ref->state == SLA_TRUNK_STATE_UP) ||
 			(trunk_ref->trunk->hold_stations 
 			&& trunk_ref->trunk->hold_access == SLA_HOLD_PRIVATE
 			&& trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) ||
-			sla_check_station_hold_access(trunk_ref->trunk, station) )
+			sla_check_station_hold_access(trunk_ref->trunk, station) ) 
+		{
 			trunk_ref = NULL;
+		}
 
 		break;
 	}
@@ -3225,9 +3230,10 @@ static void *run_station(void *data)
 	}
 	trunk_ref->chan = NULL;
 	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
-		!trunk_ref->trunk->hold_stations) {
+		trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) {
 		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
+		trunk_ref->trunk->hold_stations = 0;
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 	}
 
@@ -3681,7 +3687,14 @@ static void sla_handle_hold_event(struct sla_event *event)
 		event->station->name, event->trunk_ref->trunk->name);
 	sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, 
 		INACTIVE_TRUNK_REFS, event->trunk_ref);
-	
+
+	if (event->trunk_ref->trunk->active_stations == 1) {
+		/* The station putting it on hold is the only one on the call, so start
+		 * Music on hold to the trunk. */
+		event->trunk_ref->trunk->on_hold = 1;
+		ast_indicate(event->trunk_ref->trunk->chan, AST_CONTROL_HOLD);
+	}
+
 	ast_softhangup(event->trunk_ref->chan, AST_CAUSE_NORMAL);
 	event->trunk_ref->chan = NULL;
 }
@@ -4043,6 +4056,7 @@ static void *dial_trunk(void *data)
 	sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 
 	trunk_ref->trunk->chan = NULL;
+	trunk_ref->trunk->on_hold = 0;
 
 	ast_dial_join(dial);
 	ast_dial_destroy(dial);
@@ -4164,7 +4178,12 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, 1);
+	if (ast_atomic_fetchadd_int((int *) &trunk_ref->trunk->active_stations, 1) == 0 &&
+		trunk_ref->trunk->on_hold) {
+		trunk_ref->trunk->on_hold = 0;
+		ast_indicate(trunk_ref->trunk->chan, AST_CONTROL_UNHOLD);
+	}
+
 	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
@@ -4177,9 +4196,10 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	}
 	trunk_ref->chan = NULL;
 	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
-		!trunk_ref->trunk->hold_stations) {
+		trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) {
 		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
+		trunk_ref->trunk->hold_stations = 0;
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 	}
 	
@@ -4266,6 +4286,7 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	dispose_conf(conf);
 	conf = NULL;
 	trunk->chan = NULL;
+	trunk->on_hold = 0;
 
 	pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "SUCCESS");
 
