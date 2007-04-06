@@ -1,0 +1,69 @@
+\section{mm\_\-mimepart.c File Reference}
+\label{mm__mimepart_8c}\index{mm_mimepart.c@{mm\_\-mimepart.c}}
+{\tt \#include $<$sys/types.h$>$}\par
+{\tt \#include $<$sys/stat.h$>$}\par
+{\tt \#include $<$stdio.h$>$}\par
+{\tt \#include $<$stdlib.h$>$}\par
+{\tt \#include $<$string.h$>$}\par
+{\tt \#include $<$unistd.h$>$}\par
+{\tt \#include $<$fcntl.h$>$}\par
+{\tt \#include $<$ctype.h$>$}\par
+{\tt \#include $<$assert.h$>$}\par
+{\tt \#include \char`\"{}mm\_\-internal.h\char`\"{}}\par
+\subsection*{Functions}
+\begin{Indent}{\bf Creating and destroying MIME parts}\par
+\begin{CompactItemize}
+\item 
+mm\_\-mimepart $\ast$ {\bf mm\_\-mimepart\_\-new} (void)
+\item 
+mm\_\-mimepart $\ast$ {\bf mm\_\-mimepart\_\-fromfile} (const char $\ast$filename)
+\item 
+void {\bf mm\_\-mimepart\_\-free} (struct mm\_\-mimepart $\ast$part)
+\end{CompactItemize}
+\end{Indent}
+\begin{Indent}{\bf Accessing the MIME part's mail header}\par
+\begin{CompactItemize}
+\item 
+int {\bf mm\_\-mimepart\_\-attachheader} (struct mm\_\-mimepart $\ast$part, struct mm\_\-mimeheader $\ast$header)
+\item 
+int {\bf mm\_\-mimepart\_\-countheaders} (struct mm\_\-mimepart $\ast$part)
+\item 
+int {\bf mm\_\-mimepart\_\-countheaderbyname} (struct mm\_\-mimepart $\ast$part, const char $\ast$name)
+\item 
+mm\_\-mimeheader $\ast$ {\bf mm\_\-mimepart\_\-getheaderbyname} (struct mm\_\-mimepart $\ast$part, const char $\ast$name, int idx)
+\item 
+const char $\ast$ {\bf mm\_\-mimepart\_\-getheadervalue} (struct mm\_\-mimepart $\ast$part, const char $\ast$name, int idx)
+\item 
+int {\bf mm\_\-mimepart\_\-headers\_\-start} (struct mm\_\-mimepart $\ast$part, struct mm\_\-mimeheader $\ast$$\ast$id)
+\item 
+mm\_\-mimeheader $\ast$ {\bf mm\_\-mimepart\_\-headers\_\-next} (struct mm\_\-mimepart $\ast$part, struct mm\_\-mimeheader $\ast$$\ast$id)
+\end{CompactItemize}
+\end{Indent}
+\begin{Indent}{\bf Accessing and manipulating the MIME part's body}\par
+\begin{CompactItemize}
+\item 
+char $\ast$ {\bf mm\_\-mimepart\_\-getbody} (struct mm\_\-mimepart $\ast$part, int opaque)
+\item 
+void {\bf mm\_\-mimepart\_\-setbody} (struct mm\_\-mimepart $\ast$part, const char $\ast$data, int opaque)
+\item 
+size\_\-t {\bf mm\_\-mimepart\_\-getlength} (struct mm\_\-mimepart $\ast$part)
+\item 
+char $\ast$ {\bf mm\_\-mimepart\_\-decode} (struct mm\_\-mimepart $\ast$part)
+\item 
+int {\bf mm\_\-mimepart\_\-flatten} (struct mm\_\-mimepart $\ast$part, char $\ast$$\ast$result, size\_\-t $\ast$length, int opaque)
+\item 
+int {\bf mm\_\-mimepart\_\-setdefaultcontenttype} (struct mm\_\-mimepart $\ast$part, int composite)
+\end{CompactItemize}
+\end{Indent}
+\begin{Indent}{\bf Accessing the MIME part's Content-Type information}\par
+\begin{CompactItemize}
+\item 
+void {\bf mm\_\-mimepart\_\-attachcontenttype} (struct mm\_\-mimepart $\ast$part, struct mm\_\-content $\ast$ct)
+\item 
+mm\_\-content $\ast$ {\bf mm\_\-mimepart\_\-gettype} (struct mm\_\-mimepart $\ast$part)
+\end{CompactItemize}
+\end{Indent}
+
+
+\subsection{Detailed Description}
+This module contains functions for manipulating MIME header objects. 

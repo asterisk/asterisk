@@ -61,6 +61,14 @@ int unsetenv(const char *name);
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 
+#ifndef HAVE_STRLCAT
+size_t strlcat(char *dst, const char *src, size_t siz);
+#endif
+
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#endif
+
 #ifdef SOLARIS
 #define __BEGIN_DECLS
 #define __END_DECLS

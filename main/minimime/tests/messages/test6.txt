@@ -1,0 +1,12 @@
+From: Me
+Date: Foobar
+To: There
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="abcde"
+
+--abcde
+Content-Type: text/plain
+
+Blah blah
+Blah
+--abcde--

@@ -1,0 +1,61 @@
+\section{mm\_\-contenttype.c File Reference}
+\label{mm__contenttype_8c}\index{mm_contenttype.c@{mm\_\-contenttype.c}}
+{\tt \#include $<$stdio.h$>$}\par
+{\tt \#include $<$stdlib.h$>$}\par
+{\tt \#include $<$stdarg.h$>$}\par
+{\tt \#include $<$string.h$>$}\par
+{\tt \#include $<$ctype.h$>$}\par
+{\tt \#include $<$assert.h$>$}\par
+{\tt \#include \char`\"{}mm\_\-internal.h\char`\"{}}\par
+{\tt \#include \char`\"{}mm\_\-util.h\char`\"{}}\par
+\subsection*{Data Structures}
+\begin{CompactItemize}
+\item 
+struct \textbf{mm\_\-encoding\_\-mappings}
+\end{CompactItemize}
+\subsection*{Functions}
+\begin{Indent}{\bf Functions for manipulating Content-Type objects}\par
+\begin{CompactItemize}
+\item 
+mm\_\-content $\ast$ {\bf mm\_\-content\_\-new} (void)
+\item 
+void {\bf mm\_\-content\_\-free} (struct mm\_\-content $\ast$ct)
+\item 
+int {\bf mm\_\-content\_\-attachparam} (struct mm\_\-content $\ast$ct, struct mm\_\-param $\ast$param)
+\item 
+char $\ast$ {\bf mm\_\-content\_\-getparambyname} (struct mm\_\-content $\ast$ct, const char $\ast$name)
+\item 
+mm\_\-param $\ast$ \textbf{mm\_\-content\_\-getparamobjbyname} (struct mm\_\-content $\ast$ct, const char $\ast$name)\label{group__contenttype_g1ba63e679d2b49aceb6cfec8a6752581}
+
+\item 
+int {\bf mm\_\-content\_\-setmaintype} (struct mm\_\-content $\ast$ct, char $\ast$value, int copy)
+\item 
+char $\ast$ {\bf mm\_\-content\_\-getmaintype} (struct mm\_\-content $\ast$ct)
+\item 
+char $\ast$ {\bf mm\_\-content\_\-getsubtype} (struct mm\_\-content $\ast$ct)
+\item 
+char $\ast$ \textbf{mm\_\-content\_\-gettype} (struct mm\_\-content $\ast$ct)\label{group__contenttype_ga6d8453eb35bd695c4944e53b7040b65}
+
+\item 
+int {\bf mm\_\-content\_\-setsubtype} (struct mm\_\-content $\ast$ct, char $\ast$value, int copy)
+\item 
+int \textbf{mm\_\-content\_\-settype} (struct mm\_\-content $\ast$ct, const char $\ast$fmt,...)\label{group__contenttype_g878686678ea2ba97aa8edb1206a564d8}
+
+\item 
+int {\bf mm\_\-content\_\-iscomposite} (struct mm\_\-content $\ast$ct)
+\item 
+int {\bf mm\_\-content\_\-isvalidencoding} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-content\_\-setencoding} (struct mm\_\-content $\ast$ct, const char $\ast$encoding)
+\item 
+int {\bf mm\_\-content\_\-getencoding} (struct mm\_\-content $\ast$ct, const char $\ast$encoding)
+\item 
+char $\ast$ {\bf mm\_\-content\_\-paramstostring} (struct mm\_\-content $\ast$ct)
+\item 
+char $\ast$ {\bf mm\_\-content\_\-tostring} (struct mm\_\-content $\ast$ct)
+\end{CompactItemize}
+\end{Indent}
+
+
+\subsection{Detailed Description}
+This module contains functions for manipulating Content-Type objects. 

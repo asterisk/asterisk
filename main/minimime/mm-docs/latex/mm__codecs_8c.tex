@@ -1,0 +1,41 @@
+\section{mm\_\-codecs.c File Reference}
+\label{mm__codecs_8c}\index{mm_codecs.c@{mm\_\-codecs.c}}
+{\tt \#include $<$sys/types.h$>$}\par
+{\tt \#include $<$sys/stat.h$>$}\par
+{\tt \#include $<$stdio.h$>$}\par
+{\tt \#include $<$stdlib.h$>$}\par
+{\tt \#include $<$unistd.h$>$}\par
+{\tt \#include $<$fcntl.h$>$}\par
+{\tt \#include $<$string.h$>$}\par
+{\tt \#include $<$assert.h$>$}\par
+{\tt \#include \char`\"{}mm\_\-internal.h\char`\"{}}\par
+{\tt \#include \char`\"{}mm\_\-util.h\char`\"{}}\par
+\subsection*{Functions}
+\begin{Indent}{\bf Codec manipulation}\par
+\begin{CompactItemize}
+\item 
+int {\bf mm\_\-codec\_\-hasdecoder} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-hasencoder} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-isregistered} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-register} (const char $\ast$encoding, char $\ast$($\ast$encoder)(char $\ast$data, u\_\-int32\_\-t i), char $\ast$($\ast$decoder)(char $\ast$data))
+\item 
+int {\bf mm\_\-codec\_\-unregister} (const char $\ast$encoding)
+\item 
+int {\bf mm\_\-codec\_\-unregisterall} (void)
+\item 
+void {\bf mm\_\-codec\_\-registerdefaultcodecs} (void)
+\end{CompactItemize}
+\end{Indent}
+\subsection*{Variables}
+\begin{CompactItemize}
+\item 
+mm\_\-codecs \textbf{codecs}\label{mm__codecs_8c_b669b6dc7c7d10408d8da81b3f1a30d3}
+
+\end{CompactItemize}
+
+
+\subsection{Detailed Description}
+This module contains functions to manipulate Mini\-MIME codecs 

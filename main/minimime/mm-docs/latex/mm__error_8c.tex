@@ -1,0 +1,29 @@
+\section{mm\_\-error.c File Reference}
+\label{mm__error_8c}\index{mm_error.c@{mm\_\-error.c}}
+{\tt \#include $<$stdio.h$>$}\par
+{\tt \#include $<$stdlib.h$>$}\par
+{\tt \#include $<$stdarg.h$>$}\par
+{\tt \#include $<$string.h$>$}\par
+{\tt \#include $<$assert.h$>$}\par
+{\tt \#include $<$errno.h$>$}\par
+{\tt \#include \char`\"{}mm\_\-internal.h\char`\"{}}\par
+{\tt \#include \char`\"{}mm\_\-util.h\char`\"{}}\par
+\subsection*{Functions}
+\begin{CompactItemize}
+\item 
+void {\bf mm\_\-error\_\-init} (void)
+\item 
+void {\bf mm\_\-error\_\-setmsg} (const char $\ast$fmt,...)
+\item 
+void \textbf{mm\_\-error\_\-setlineno} (int lineno)\label{mm__error_8c_190c991d7bb378b6cd6f995ffc3011f7}
+
+\item 
+char $\ast$ {\bf mm\_\-error\_\-string} (void)
+\item 
+int \textbf{mm\_\-error\_\-lineno} (void)\label{mm__error_8c_c84acacac29f1e6efd10bb3a89eab272}
+
+\end{CompactItemize}
+
+
+\subsection{Detailed Description}
+This module contains functions for Mini\-MIME error information/manipulation 
