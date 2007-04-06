@@ -4192,6 +4192,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		trunk_ref->trunk->on_hold) {
 		trunk_ref->trunk->on_hold = 0;
 		ast_indicate(trunk_ref->trunk->chan, AST_CONTROL_UNHOLD);
+		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 	}
 
 	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_ref->trunk->name);
