@@ -53,16 +53,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct wav_desc {	/* format-specific parameters */
 	int bytes;
-	int needsgain;
 	int lasttimeout;
 	int maxlen;
 	struct timeval last;
 };
 
 #define BLOCKSIZE 160
-
-#define GAIN 0		/* 2^GAIN is the multiple to increase the volume by.  The original value of GAIN was 2, or 4x (12 dB),
-			 * but there were many reports of the clipping of loud signal peaks (issue 5823 for example). */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
@@ -387,21 +383,6 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 		tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
 #endif
 
-	if (fs->needsgain) {
-		for (x=0; x < samples; x++) {
-			if (tmp[x] & ((1 << GAIN) - 1)) {
-				/* If it has data down low, then it's not something we've artificially increased gain
-				   on, so we don't need to gain adjust it */
-				fs->needsgain = 0;
-				break;
-			}
-		}
-		if (fs->needsgain) {
-			for (x=0; x < samples; x++)
-				tmp[x] = tmp[x] >> GAIN;
-		}
-	}
-			
 	*whennext = samples;
 	return &s->fr;
 }
@@ -409,8 +390,9 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int x;
+#if __BYTE_ORDER == __BIG_ENDIAN
 	short tmp[8000], *tmpi;
-	float tmpf;
+#endif
 	struct wav_desc *s = (struct wav_desc *)fs->private;
 	int res;
 
@@ -422,34 +404,24 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-SLINEAR frame (%d)!\n", f->subclass);
 		return -1;
 	}
+	if (!f->datalen)
+		return -1;
+
+#if __BYTE_ORDER == __BIG_ENDIAN
+	/* swap and write */
 	if (f->datalen > sizeof(tmp)) {
 		ast_log(LOG_WARNING, "Data length is too long\n");
 		return -1;
 	}
-	if (!f->datalen)
-		return -1;
-
-#if 0
-	printf("Data Length: %d\n", f->datalen);
-#endif	
-
 	tmpi = f->data;
-	/* Volume adjust here to accomodate */
-	for (x=0;x<f->datalen/2;x++) {
-		tmpf = ((float)tmpi[x]) * ((float)(1 << GAIN));
-		if (tmpf > 32767.0)
-			tmpf = 32767.0;
-		if (tmpf < -32768.0)
-			tmpf = -32768.0;
-		tmp[x] = tmpf;
-		tmp[x] &= ~((1 << GAIN) - 1);
+	for (x=0; x < f->datalen/2; x++) 
+		tmp[x] = (tmpi[x] << 8) | ((tmpi[x] & 0xff00) >> 8);
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-		tmp[x] = (tmp[x] << 8) | ((tmp[x] & 0xff00) >> 8);
-#endif
-
-	}
 	if ((res = fwrite(tmp, 1, f->datalen, fs->f)) != f->datalen ) {
+#else
+	/* just write */
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen ) {
+#endif
 		ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
 		return -1;
 	}
