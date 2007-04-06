@@ -3872,7 +3872,7 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 		*dest = &p->subs[index].f;
 	} else if (f->subclass == 'f') {
 		/* Fax tone -- Handle and return NULL */
-		if (!p->faxhandled) {
+		if ((p->callprogress & 0x6) && !p->faxhandled) {
 			p->faxhandled++;
 			if (strcmp(ast->exten, "fax")) {
 				const char *target_context = S_OR(ast->macrocontext, ast->context);
