@@ -28,14 +28,18 @@ extern "C" {
 #endif
 
 /* Speech structure flags */
-#define AST_SPEECH_QUIET (1 << 0) /* Quiet down output... they are talking */
-#define AST_SPEECH_SPOKE (1 << 1) /* Speaker did not speak */
+enum ast_speech_flags {
+	AST_SPEECH_QUIET = (1 << 0), /* Quiet down output... they are talking */
+	AST_SPEECH_SPOKE = (1 << 1), /* Speaker spoke! */
+};
 
 /* Speech structure states - in order of expected change */
-#define AST_SPEECH_STATE_NOT_READY 0 /* Not ready to accept audio */
-#define AST_SPEECH_STATE_READY 1 /* Accepting audio */
-#define AST_SPEECH_STATE_WAIT 2 /* Wait for results to become available */
-#define AST_SPEECH_STATE_DONE 3 /* Processing is done */
+enum ast_speech_states {
+	AST_SPEECH_STATE_NOT_READY = 0, /* Not ready to accept audio */
+	AST_SPEECH_STATE_READY, /* Accepting audio */
+	AST_SPEECH_STATE_WAIT, /* Wait for results to become available */
+	AST_SPEECH_STATE_DONE, /* Processing is all done */
+};
 
 enum ast_speech_results_type {
 	AST_SPEECH_RESULTS_TYPE_NORMAL = 0,
