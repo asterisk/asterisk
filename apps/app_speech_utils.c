@@ -126,19 +126,28 @@ static struct ast_speech *find_speech(struct ast_channel *chan)
 	return speech;
 }
 
-/* Helper function to find a specific speech recognition result by number */
-static struct ast_speech_result *find_result(struct ast_speech_result *results, int num)
+/* Helper function to find a specific speech recognition result by number and nbest alternative */
+static struct ast_speech_result *find_result(struct ast_speech_result *results, char *result_num)
 {
-	struct ast_speech_result *result = NULL;
-	int i = 0;
+	struct ast_speech_result *result = results;
+	char *tmp = NULL;
+	int nbest_num = 0, wanted_num = 0, i = 0;
 
-	result = results;
-	while (result) {
-		if (i == num)
+	if ((tmp = strchr(result_num, '/'))) {
+		*tmp++ = '\0';
+		nbest_num = atoi(result_num);
+		wanted_num = atoi(tmp);
+	} else {
+		wanted_num = atoi(result_num);
+	}
+
+	do {
+		if (result->nbest_num != nbest_num)
+			continue;
+		if (i == wanted_num)
 			break;
 		i++;
-		result = result->next;
-	}
+	} while ((result = result->next));
 
 	return result;
 }
@@ -151,7 +160,7 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 	struct ast_speech *speech = find_speech(chan);
 	char tmp[128] = "";
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, atoi(data))))
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
 		return -1;
 	
 	snprintf(tmp, sizeof(tmp), "%d", result->score);
@@ -164,7 +173,7 @@ static int speech_score(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function speech_score_function = {
         .name = "SPEECH_SCORE",
         .synopsis = "Gets the confidence score of a result.",
-        .syntax = "SPEECH_SCORE(result number)",
+        .syntax = "SPEECH_SCORE([nbest number/]result number)",
         .desc =
         "Gets the confidence score of a result.\n",
         .read = speech_score,
@@ -178,7 +187,7 @@ static int speech_text(struct ast_channel *chan, const char *cmd, char *data,
         struct ast_speech_result *result = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, atoi(data))))
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
                 return -1;
 
 	if (result->text != NULL)
@@ -190,7 +199,7 @@ static int speech_text(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function speech_text_function = {
         .name = "SPEECH_TEXT",
         .synopsis = "Gets the recognized text of a result.",
-        .syntax = "SPEECH_TEXT(result number)",
+        .syntax = "SPEECH_TEXT([nbest number/]result number)",
         .desc =
         "Gets the recognized text of a result.\n",
         .read = speech_text,
@@ -204,7 +213,7 @@ static int speech_grammar(struct ast_channel *chan, const char *cmd, char *data,
         struct ast_speech_result *result = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-	if (data == NULL || speech == NULL || !(result = find_result(speech->results, atoi(data))))
+	if (data == NULL || speech == NULL || !(result = find_result(speech->results, data)))
                 return -1;
 
 	if (result->grammar != NULL)
@@ -216,7 +225,7 @@ static int speech_grammar(struct ast_channel *chan, const char *cmd, char *data,
 static struct ast_custom_function speech_grammar_function = {
         .name = "SPEECH_GRAMMAR",
         .synopsis = "Gets the matched grammar of a result if available.",
-        .syntax = "SPEECH_GRAMMAR(result number)",
+        .syntax = "SPEECH_GRAMMAR([nbest number/]result number)",
         .desc =
         "Gets the matched grammar of a result if available.\n",
         .read = speech_grammar,
@@ -244,6 +253,32 @@ static struct ast_custom_function speech_engine_function = {
 	"Changes a speech engine specific attribute.\n",
 	.read = NULL,
 	.write = speech_engine_write,
+};
+
+/*! \brief SPEECH_RESULTS_TYPE() Dialplan Function */
+static int speech_results_type_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
+{
+	struct ast_speech *speech = find_speech(chan);
+
+	if (data == NULL || speech == NULL)
+		return -1;
+
+	if (!strcasecmp(value, "normal"))
+		ast_speech_change_results_type(speech, AST_SPEECH_RESULTS_TYPE_NORMAL);
+	else if (!strcasecmp(value, "nbest"))
+		ast_speech_change_results_type(speech, AST_SPEECH_RESULTS_TYPE_NBEST);
+
+	return 0;
+}
+
+static struct ast_custom_function speech_results_type_function = {
+	.name = "SPEECH_RESULTS_TYPE",
+	.synopsis = "Sets the type of results that will be returned.",
+	.syntax = "SPEECH_RESULTS_TYPE()=results type",
+	.desc =
+	"Sets the type of results that will be returned. Valid options are normal or nbest.",
+	.read = NULL,
+	.write = speech_results_type_write,
 };
 
 /*! \brief SPEECH() Dialplan Function */
@@ -779,6 +814,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&speech_text_function);
 	res |= ast_custom_function_unregister(&speech_grammar_function);
 	res |= ast_custom_function_unregister(&speech_engine_function);
+	res |= ast_custom_function_unregister(&speech_results_type_function);
 
 	ast_module_user_hangup_all();
 
@@ -803,6 +839,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&speech_text_function);
 	res |= ast_custom_function_register(&speech_grammar_function);
 	res |= ast_custom_function_register(&speech_engine_function);
+	res |= ast_custom_function_register(&speech_results_type_function);
 
 	return res;
 }

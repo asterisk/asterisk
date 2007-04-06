@@ -293,6 +293,19 @@ int ast_speech_change_state(struct ast_speech *speech, int state)
 	return res;
 }
 
+/*! \brief Change the type of results we want */
+int ast_speech_change_results_type(struct ast_speech *speech, enum ast_speech_results_type results_type)
+{
+	int res = 0;
+
+	speech->results_type = results_type;
+
+	if (speech->engine->change_results_type)
+		res = speech->engine->change_results_type(speech, results_type);
+
+	return res;
+}
+
 /*! \brief Register a speech recognition engine */
 int ast_speech_register(struct ast_speech_engine *engine)
 {
