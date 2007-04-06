@@ -456,6 +456,6 @@ Formats:
   in Asterisk 1.4.  This change was made in response to user complaints of
   choppiness or the clipping of loud signal peaks.  The GAIN preprocessor
   definition will be retained in Asterisk 1.4, but will be removed in a 
-  future release.  The use of GAIN for the increasing of voicemail messages
-  should use the 'volgain' option in voicemail.conf
+  future release.  The use of GAIN for the increasing of voicemail message
+  volume should use the 'volgain' option in voicemail.conf
 
