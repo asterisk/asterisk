@@ -390,7 +390,6 @@ static int reload(void)
 	struct translator *cur;
 
 	parse_config();
-	find_transcoders();
 
 	AST_LIST_LOCK(&translators);
 	AST_LIST_TRAVERSE(&translators, cur, entry)
