@@ -55,7 +55,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define BUFFER_SAMPLES	8000
 
 static unsigned int global_useplc = 0;
-static int cardsmode = 0;
 
 static int totalchannels = 0;
 static int complexinuse = 0;
@@ -109,17 +108,14 @@ struct ast_translator_pvt {
 static int show_transcoder(int fd, int argc, char **argv)
 {
 	ast_mutex_lock(&channelcount);
+
 	if (!totalchannels) { 
 		ast_cli(fd, "No transcoder card registered\n");
 		ast_mutex_unlock(&channelcount);
 		return RESULT_SUCCESS;
 	}
-	if(!cardsmode)
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a / G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
-	else if (cardsmode == 1)
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.729a) are in use.\n",complexinuse, simpleinuse, totalchannels);
-	else if (cardsmode == 2)
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels (G.723.1 5.3 kbps) are in use.\n",complexinuse, simpleinuse, totalchannels);
+
+	ast_cli(fd, "%d/%d encoders/decoders of %d channels are in use.\n", complexinuse, simpleinuse, totalchannels);
 
 	ast_mutex_unlock(&channelcount);
 	return RESULT_SUCCESS;
@@ -714,8 +710,7 @@ static int register_translator(int dst, int src)
 		ast_log(LOG_ERROR, "Could not allocate translator\n");
 		return -1;
 	}
-	if (!((cardsmode == 1 && (dst == 8 || src == 8)) || (cardsmode == 2 && (dst == 0 || src == 0)) || (cardsmode == 0)))
-		return -1;
+
 	snprintf((char *) (zt->t.name), sizeof(zt->t.name), "zap%sto%s", 
 		 ast_getformatname((1 << src)), ast_getformatname((1 << dst)));
 
@@ -794,7 +789,6 @@ static void parse_config(void)
 {
 	struct ast_variable *var;
 	struct ast_config *cfg = ast_config_load("codecs.conf");
-	cardsmode = 0;
 
 	if (!cfg)
 		return;
@@ -804,16 +798,6 @@ static void parse_config(void)
 			global_useplc = ast_true(var->value);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "codec_zap: %susing generic PLC\n", global_useplc ? "" : "not ");
-		}
-	}
-	for (var = ast_variable_browse(cfg, "transcoder_card"); var; var = var->next) {
-		if (!strcasecmp(var->name, "mode")) {
-			if(strstr(var->value, "g729"))
-				cardsmode = 1;
-			else if(strstr(var->value, "g723"))
-				cardsmode = 2;
-			else if(strstr(var->value, "mixed"))
-				cardsmode = 0;
 		}
 	}
 
@@ -891,7 +875,6 @@ static int find_transcoders(void)
 int reload(void)
 {
 	parse_config();
-	find_transcoders();
 
 	return 0;
 }
