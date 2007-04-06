@@ -35,7 +35,7 @@ MM_SRCS= \
 MM_OBJS:=$(MM_SRCS:%.c=%.o)
 MM_HDRS:=mm.h mm_util.h
 
-ASTCFLAGS:=$(filter-out -Werror -Wstrict-prototypes -Wmissing-declarations -Wmissing-prototypes,$(ASTCFLAGS))
+ASTCFLAGS:=$(filter-out -Werror -Wundef -Wstrict-prototypes -Wmissing-declarations -Wmissing-prototypes,$(ASTCFLAGS))
 
 all: $(LIBMMIME)
 
