@@ -405,10 +405,15 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 				s->fmt = f;
 				s->trans = NULL;
 				s->filename = NULL;
-				if (s->fmt->format < AST_FORMAT_MAX_AUDIO)
+				if (s->fmt->format < AST_FORMAT_MAX_AUDIO) {
+					if (chan->stream)
+						ast_closestream(chan->stream);
 					chan->stream = s;
-				else
+				} else {
+					if (chan->vstream)
+						ast_closestream(chan->vstream);
 					chan->vstream = s;
+				}
 				free(fn);
 				break;
 			}
@@ -820,7 +825,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		    open_wrapper(fs) ) {
 			ast_log(LOG_WARNING, "Unable to open %s\n", fn);
 			if (fs)
-				free(fs);
+				ast_free(fs);
 			if (bfile)
 				fclose(bfile);
 			free(fn);
@@ -933,7 +938,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 					unlink(orig_fn);
 				}
 				if (fs)
-					free(fs);
+					ast_free(fs);
 			}
 			fs->trans = NULL;
 			fs->fmt = f;
