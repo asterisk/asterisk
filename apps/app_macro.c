@@ -106,10 +106,44 @@ static char *exclusive_synopsis = "Exclusive Macro Implementation";
 static char *exit_synopsis = "Exit From Macro";
 
 
+static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten, int priority, const char *callerid)
+{
+	struct ast_exten *e;
+	struct ast_include *i;
+	struct ast_context *c2;
+
+	for (e=ast_walk_context_extensions(c, NULL); e; e=ast_walk_context_extensions(c, e)) {
+		if (ast_extension_match(ast_get_extension_name(e), exten)) {
+			int needmatch = ast_get_extension_matchcid(e);
+			if ((needmatch && ast_extension_match(ast_get_extension_cidmatch(e), callerid)) ||
+				(!needmatch)) {
+				/* This is the matching extension we want */
+				struct ast_exten *p;
+				for (p=ast_walk_extension_priorities(e, NULL); p; p=ast_walk_extension_priorities(e, p)) {
+					if (priority != ast_get_extension_priority(p))
+						continue;
+					return p;
+				}
+			}
+		}
+	}
+
+	/* No match; run through includes */
+	for (i=ast_walk_context_includes(c, NULL); i; i=ast_walk_context_includes(c, i)) {
+		for (c2=ast_walk_contexts(NULL); c2; c2=ast_walk_contexts(c2)) {
+			if (!strcmp(ast_get_context_name(c2), ast_get_include_name(i))) {
+				e = find_matching_priority(c2, exten, priority, callerid);
+				if (e)
+					return e;
+			}
+		}
+	}
+	return NULL;
+}
+
 static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 {
 	const char *s;
-
 	char *tmp;
 	char *cur, *rest;
 	char *macro;
@@ -119,7 +153,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	int argc, x;
 	int res=0;
 	char oldexten[256]="";
-	int oldpriority;
+	int oldpriority, gosub_level = 0;
 	char pc[80], depthc[12];
 	char oldcontext[AST_MAX_CONTEXT] = "";
 	const char *inhangupc;
@@ -133,6 +167,9 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	char *save_macro_offset;
 	struct ast_module_user *u;
  
+	struct ast_context *c;
+	struct ast_exten *e;
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return -1;
@@ -243,8 +280,17 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+		/* What application will execute? */
+		for (c = ast_walk_contexts(NULL), e = NULL; c; c = ast_walk_contexts(c)) {
+			if (!strcmp(ast_get_context_name(c), chan->context)) {
+				e = find_matching_priority(c, chan->exten, chan->priority, chan->cid.cid_num);
+				break;
+			}
+		}
+
 		/* Reset the macro depth, if it was changed in the last iteration */
 		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
+
 		if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 			/* Something bad happened, or a hangup has been requested. */
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
@@ -274,11 +320,70 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 				goto out;
 			}
 		}
-		if (strcasecmp(chan->context, fullmacro)) {
+
+		ast_log(LOG_DEBUG, "Executed application: %s\n", ast_get_extension_app(e));
+
+		if (e && !strcasecmp(ast_get_extension_app(e), "GOSUB")) {
+			gosub_level++;
+			ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+		} else if (e && !strcasecmp(ast_get_extension_app(e), "GOSUBIF")) {
+			const char *tmp = ast_get_extension_app_data(e);
+			char tmp2[1024] = "", *cond, *app, *app2 = tmp2;
+			pbx_substitute_variables_helper(chan, tmp, tmp2, sizeof(tmp2) - 1);
+			cond = strsep(&app2, "?");
+			app = strsep(&app2, ":");
+			if (pbx_checkcondition(cond)) {
+				if (!ast_strlen_zero(app)) {
+					gosub_level++;
+					ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+				}
+			} else {
+				if (!ast_strlen_zero(app2)) {
+					gosub_level++;
+					ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+				}
+			}
+		} else if (e && !strcasecmp(ast_get_extension_app(e), "RETURN")) {
+			gosub_level--;
+			ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+		} else if (e && !strcasecmp(ast_get_extension_app(e), "STACKPOP")) {
+			gosub_level--;
+			ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+		} else if (e && !strncasecmp(ast_get_extension_app(e), "EXEC", 4)) {
+			/* Must evaluate args to find actual app */
+			const char *tmp = ast_get_extension_app_data(e);
+			char tmp2[1024] = "", *tmp3 = NULL;
+			pbx_substitute_variables_helper(chan, tmp, tmp2, sizeof(tmp2) - 1);
+			if (!strcasecmp(ast_get_extension_app(e), "EXECIF")) {
+				tmp3 = strchr(tmp2, '|');
+				if (tmp3)
+					*tmp3++ = '\0';
+				if (!pbx_checkcondition(tmp2))
+					tmp3 = NULL;
+			} else
+				tmp3 = tmp2;
+
+			if (tmp3)
+				ast_log(LOG_DEBUG, "Last app: %s\n", tmp3);
+
+			if (tmp3 && !strncasecmp(tmp3, "GOSUB", 5)) {
+				gosub_level++;
+				ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+			} else if (tmp3 && !strncasecmp(tmp3, "RETURN", 6)) {
+				gosub_level--;
+				ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+			} else if (tmp3 && !strncasecmp(tmp3, "STACKPOP", 8)) {
+				gosub_level--;
+				ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+			}
+		}
+
+		if (gosub_level == 0 && strcasecmp(chan->context, fullmacro)) {
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
 			break;
 		}
+
 		/* don't stop executing extensions when we're in "h" */
 		if (chan->_softhangup && !inhangup) {
 			if (option_debug)
