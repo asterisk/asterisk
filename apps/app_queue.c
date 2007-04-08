@@ -2668,7 +2668,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				}
 
 				if (mixmonapp) {
-					if (!ast_strlen_zero(monitor_exec) && !ast_strlen_zero(monitor_options))
+					if (!ast_strlen_zero(monitor_exec))
 						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s|%s", tmpid2, monitor_options, monitor_exec);
 					else
 						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s", tmpid2, monitor_options);
