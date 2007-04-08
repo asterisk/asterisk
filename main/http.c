@@ -403,7 +403,7 @@ static void post_raw(struct mm_mimepart *part, const char *post_dir, const char 
 	body_len = mm_mimepart_getlength(part);
 
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Body length is %ld\n", body_len);
+		ast_log(LOG_DEBUG, "Body length is %ld\n", (long int)body_len);
 
 	fwrite(body, 1, body_len, f);
 

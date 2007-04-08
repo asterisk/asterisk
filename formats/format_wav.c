@@ -350,7 +350,9 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 {
 	int res;
 	int samples;	/* actual samples read */
+#if __BYTE_ORDER == __BIG_ENDIAN
 	int x;
+#endif
 	short *tmp;
 	int bytes = WAV_BUF_SIZE;	/* in bytes */
 	off_t here;
@@ -389,8 +391,8 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 
 static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 {
-	int x;
 #if __BYTE_ORDER == __BIG_ENDIAN
+	int x;
 	short tmp[8000], *tmpi;
 #endif
 	struct wav_desc *s = (struct wav_desc *)fs->private;
