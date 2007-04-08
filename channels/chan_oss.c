@@ -1374,7 +1374,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		int i;
 		struct ast_frame f = { AST_FRAME_DTMF, 0 };
 
-		if (argc == 1) {	/* argument is mandatory here */
+		if (argc == 2) {	/* argument is mandatory here */
 			ast_cli(fd, "Already in a call. You can only dial digits until you hangup.\n");
 			return RESULT_FAILURE;
 		}
