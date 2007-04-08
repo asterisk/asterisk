@@ -427,10 +427,15 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 										s->fmt = f;
 										s->trans = NULL;
 										s->filename = NULL;
-										if (s->fmt->format < AST_FORMAT_MAX_AUDIO)
+										if (s->fmt->format < AST_FORMAT_MAX_AUDIO) {
+											if (chan->stream)
+												ast_closestream(chan->stream);
 											chan->stream = s;
-										else
+										} else {
+											if (chan->vstream)
+												ast_closestream(chan->vstream);
 											chan->vstream = s;
+										}
 									} else {
 										fclose(bfile);
 										ast_log(LOG_WARNING, "Unable to open file on %s\n", fn);
