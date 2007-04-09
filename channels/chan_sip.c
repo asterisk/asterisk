@@ -8107,7 +8107,6 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 /*! \brief  manager_sip_show_peer: Show SIP peers in the manager API  ---*/
 static int manager_sip_show_peer( struct mansession *s, struct message *m )
 {
-	char *id = astman_get_header(m,"ActionID");
 	char *a[4];
 	char *peer;
 	int ret;
@@ -8122,8 +8121,6 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 	a[2] = "peer";
 	a[3] = peer;
 
-	if (!ast_strlen_zero(id))
-		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ret = _sip_show_peer(1, s->fd, s, m, 4, a );
 	ast_cli( s->fd, "\r\n\r\n" );
 	return ret;
@@ -8155,9 +8152,13 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
 	peer = find_peer(argv[3], NULL, load_realtime);
 	if (s) { 	/* Manager */
-		if (peer)
+		if (peer) {
+			char *id = astman_get_header(m,"ActionID");
+
 			ast_cli(s->fd, "Response: Success\r\n");
-		else {
+			if (!ast_strlen_zero(id))
+				ast_cli(s->fd, "ActionID: %s\r\n",id);
+		} else {
 			snprintf (cbuf, sizeof(cbuf), "Peer %s not found.\n", argv[3]);
 			astman_send_error(s, m, cbuf);
 			return 0;
@@ -8264,7 +8265,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		print_group(fd, peer->pickupgroup, 1);
 		ast_cli(fd, "VoiceMailbox: %s\r\n", peer->mailbox);
 		ast_cli(fd, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
-		ast_cli(fd, "Call limit: %d\r\n", peer->call_limit);
+		ast_cli(fd, "Call-limit: %d\r\n", peer->call_limit);
 		ast_cli(fd, "Dynamic: %s\r\n", (ast_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)?"Y":"N"));
 		ast_cli(fd, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		ast_cli(fd, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
