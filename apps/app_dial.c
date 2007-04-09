@@ -492,11 +492,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						cause = AST_CAUSE_BUSY;
 					} else {
 						/* Setup parameters */
-						c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
-						if (!c)
-							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-						else
+						if ((c = o->chan = ast_request(tech, in->nativeformats, stuff, &cause))) {
+							if (single)
+								ast_channel_make_compatible(o->chan, in);
 							ast_channel_inherit_variables(in, o->chan);
+						} else
+							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 					}
 				} else {
 					if (option_verbose > 2)
