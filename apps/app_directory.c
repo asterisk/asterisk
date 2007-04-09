@@ -460,7 +460,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 							pos = strrchr(pos, ' ') + 1;
 						conv = convert(pos);
 						if (conv) {
-							if (!strcmp(conv, ext)) {
+							if (!strncmp(conv, ext, strlen(ext))) {
 								/* Match! */
 								found++;
 								free(conv);
