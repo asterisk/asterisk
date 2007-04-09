@@ -470,10 +470,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 						/* Setup parameters */
 						o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
-						if (!o->chan)
-							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
-						else
+						if (o->chan) {
+							if (single)
+								ast_channel_make_compatible(o->chan, in);
 							ast_channel_inherit_variables(in, o->chan);
+						} else
+							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 					} else {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
