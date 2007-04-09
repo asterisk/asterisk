@@ -214,7 +214,8 @@ static int local_answer(struct ast_channel *ast)
 		res = local_queue_frame(p, isoutbound, &answer, ast);
 	} else
 		ast_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
-	ast_mutex_unlock(&p->lock);
+	if (!res)
+		ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -294,7 +295,8 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 			ast_log(LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
 		res = 0;
 	}
-	ast_mutex_unlock(&p->lock);
+	if (!res)
+		ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -342,8 +344,8 @@ static int local_indicate(struct ast_channel *ast, int condition, const void *da
 		f.subclass = condition;
 		f.data = (void*)data;
 		f.datalen = datalen;
-		res = local_queue_frame(p, isoutbound, &f, ast);
-		ast_mutex_unlock(&p->lock);
+		if (!(res = local_queue_frame(p, isoutbound, &f, ast)))
+			ast_mutex_unlock(&p->lock);
 	}
 
 	return res;
@@ -362,8 +364,8 @@ static int local_digit_begin(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
-	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_mutex_unlock(&p->lock);
+	if (!(res = local_queue_frame(p, isoutbound, &f, ast)))
+		ast_mutex_unlock(&p->lock);
 
 	return res;
 }
@@ -382,9 +384,9 @@ static int local_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
 	f.len = duration;
-	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_mutex_unlock(&p->lock);
-	
+	if (!(res = local_queue_frame(p, isoutbound, &f, ast)))
+		ast_mutex_unlock(&p->lock);
+
 	return res;
 }
 
@@ -402,8 +404,8 @@ static int local_sendtext(struct ast_channel *ast, const char *text)
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.data = (char *) text;
 	f.datalen = strlen(text) + 1;
-	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_mutex_unlock(&p->lock);
+	if (!(res = local_queue_frame(p, isoutbound, &f, ast)))
+		ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -422,8 +424,8 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	f.subclass = subclass;
 	f.data = (char *)data;
 	f.datalen = datalen;
-	res = local_queue_frame(p, isoutbound, &f, ast);
-	ast_mutex_unlock(&p->lock);
+	if (!(res = local_queue_frame(p, isoutbound, &f, ast)))
+		ast_mutex_unlock(&p->lock);
 	return res;
 }
 
@@ -477,7 +479,7 @@ static int local_hangup(struct ast_channel *ast)
 	int isoutbound;
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
 	struct ast_channel *ochan = NULL;
-	int glaredetect = 0;
+	int glaredetect = 0, res = 0;
 
 	if (!p)
 		return -1;
@@ -524,8 +526,9 @@ static int local_hangup(struct ast_channel *ast)
 		/* Need to actually hangup since there is no PBX */
 		ochan = p->chan;
 	else
-		local_queue_frame(p, isoutbound, &f, NULL);
-	ast_mutex_unlock(&p->lock);
+		res = local_queue_frame(p, isoutbound, &f, NULL);
+	if (!res)
+		ast_mutex_unlock(&p->lock);
 	if (ochan)
 		ast_hangup(ochan);
 	return 0;
