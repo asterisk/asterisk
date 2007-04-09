@@ -2785,7 +2785,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				(long) (time(NULL) - callstart));
 			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
 		} else if (qe->chan->_softhangup) {
-			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld|%d",
+			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
 				(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
 			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), CALLER);
 		} else {
