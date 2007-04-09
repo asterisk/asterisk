@@ -240,7 +240,7 @@ mm_envelope_getrecipients(MM_CTX *ctx, char **result, size_t *length)
 {
 	struct mm_mimepart *part;
 	struct mm_mimeheader *to, *cc;
-	size_t recipients_length;
+	size_t recipients_length = 0;
 
 	part = mm_context_getpart(ctx, 0);
 	if (part == NULL) {
