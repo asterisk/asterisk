@@ -2486,7 +2486,10 @@ int ast_manager_unregister(char *action)
 static int manager_state_cb(char *context, char *exten, int state, void *data)
 {
 	/* Notify managers of change */
-	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nStatus: %d\r\n", exten, context, state);
+	char hint[BUFSIZ];
+	ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, context, exten);
+
+	manager_event(EVENT_FLAG_CALL, "ExtensionStatus", "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n", exten, context, hint, state);
 	return 0;
 }
 
