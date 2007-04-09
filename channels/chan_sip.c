@@ -9949,7 +9949,6 @@ static char mandescr_show_peer[] =
 /*! \brief Show SIP peers in the manager API  */
 static int manager_sip_show_peer(struct mansession *s, const struct message *m)
 {
-	const char *id = astman_get_header(m,"ActionID");
 	const char *a[4];
 	const char *peer;
 	int ret;
@@ -9964,8 +9963,6 @@ static int manager_sip_show_peer(struct mansession *s, const struct message *m)
 	a[2] = "peer";
 	a[3] = peer;
 
-	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n",id);
 	ret = _sip_show_peer(1, -1, s, m, 4, a);
 	astman_append(s, "\r\n\r\n" );
 	return ret;
@@ -10000,9 +9997,13 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
 	peer = find_peer(argv[3], NULL, load_realtime);
 	if (s) { 	/* Manager */
-		if (peer)
+		if (peer) {
+			const char *id = astman_get_header(m,"ActionID");
+
 			astman_append(s, "Response: Success\r\n");
-		else {
+			if (!ast_strlen_zero(id))
+				astman_append(s, "ActionID: %s\r\n",id);
+		} else {
 			snprintf (cbuf, sizeof(cbuf), "Peer %s not found.\n", argv[3]);
 			astman_send_error(s, m, cbuf);
 			return 0;
@@ -10128,7 +10129,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		astman_append(s, "VoiceMailbox: %s\r\n", peer->mailbox);
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
-		astman_append(s, "Call limit: %d\r\n", peer->call_limit);
+		astman_append(s, "Call-limit: %d\r\n", peer->call_limit);
 		astman_append(s, "MaxCallBR: %d kbps\r\n", peer->maxcallbitrate);
 		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Y":"N"));
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
