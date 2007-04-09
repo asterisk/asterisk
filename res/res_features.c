@@ -1436,13 +1436,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
-			/* whoa!! don't go running off without cleaning up your mess! */
-			if (bridge_cdr) {
-				ast_cdr_failed(bridge_cdr);
-				ast_cdr_end(bridge_cdr);
-				ast_cdr_detach(bridge_cdr);
-				bridge_cdr = NULL;
-			}
 			chan->cdr = NULL;
 			peer->cdr = NULL;
 			return -1;
@@ -1535,6 +1528,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_frfree(f);
 
 	}
+
 	/* arrange the cdrs */
 	bridge_cdr = ast_cdr_alloc();
 	if (bridge_cdr) {
