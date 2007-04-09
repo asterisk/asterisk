@@ -42,3 +42,11 @@ CDR:
 * The cdr_sqlite module has been marked as deprecated in favor of
   cdr_sqlite3_custom.  It will potentially be removed from the tree
   after Asterisk 1.6 is released.
+
+Formats:
+
+* format_wav: The GAIN preprocessor definition and source code that used it
+  is removed.  This change was made in response to user complaints of
+  choppiness or the clipping of loud signal peaks.  To increasing the volume
+  of voicemail messages, use the 'volgain' option in voicemail.conf
+
