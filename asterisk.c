@@ -795,6 +795,7 @@ int ast_set_priority(int pri)
 	struct sched_param sched;
 	memset(&sched, 0, sizeof(sched));
 #ifdef __linux__
+#undef sched_setscheduler
 	if (pri) {  
 		sched.sched_priority = 10;
 		if (sched_setscheduler(0, SCHED_RR, &sched)) {
@@ -805,12 +806,11 @@ int ast_set_priority(int pri)
 				ast_verbose("Set to realtime thread\n");
 	} else {
 		sched.sched_priority = 0;
-		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
-			ast_log(LOG_WARNING, "Unable to set normal priority\n");
-			return -1;
-		}
+		/* According to the manpage, this can never fail, with these parameters. */
+		sched_setscheduler(0, SCHED_OTHER, &sched);
 	}
 #else
+#undef setpriority
 	if (pri) {
 		if (setpriority(PRIO_PROCESS, 0, -10) == -1) {
 			ast_log(LOG_WARNING, "Unable to set high priority\n");
@@ -819,10 +819,8 @@ int ast_set_priority(int pri)
 			if (option_verbose)
 				ast_verbose("Set to high priority\n");
 	} else {
-		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-			ast_log(LOG_WARNING, "Unable to set normal priority\n");
-			return -1;
-		}
+		/* According to the manpage, this can never fail, with these parameters. */
+		setpriority(PRIO_PROCESS, 0, 0);
 	}
 #endif
 	return 0;
