@@ -6481,7 +6481,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 	
 	if (!p->sessionid) {
-		p->sessionid = getpid();
+		p->sessionid = (int)ast_random();
 		p->sessionversion = p->sessionid;
 	} else
 		p->sessionversion++;
@@ -6668,7 +6668,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	/* Set RTP Session ID and version */
 	if (!p->sessionid) {
-		p->sessionid = getpid();
+		p->sessionid = (int)ast_random();
 		p->sessionversion = p->sessionid;
 	} else
 		p->sessionversion++;
