@@ -61,6 +61,8 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#undef sched_setscheduler
+#undef setpriority
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -1133,10 +1135,8 @@ int ast_set_priority(int pri)
 				ast_verbose("Set to realtime thread\n");
 	} else {
 		sched.sched_priority = 0;
-		if (sched_setscheduler(0, SCHED_OTHER, &sched)) {
-			ast_log(LOG_WARNING, "Unable to set normal priority\n");
-			return -1;
-		}
+		/* According to the manpage, these parameters can never fail. */
+		sched_setscheduler(0, SCHED_OTHER, &sched);
 	}
 #else
 	if (pri) {
@@ -1147,10 +1147,8 @@ int ast_set_priority(int pri)
 			if (option_verbose)
 				ast_verbose("Set to high priority\n");
 	} else {
-		if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-			ast_log(LOG_WARNING, "Unable to set normal priority\n");
-			return -1;
-		}
+		/* According to the manpage, these parameters can never fail. */
+		setpriority(PRIO_PROCESS, 0, 0);
 	}
 #endif
 	return 0;

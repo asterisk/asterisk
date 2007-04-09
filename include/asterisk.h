@@ -45,6 +45,8 @@
 
 #define DEFAULT_SAMPLE_RATE 8000
 #define DEFAULT_SAMPLES_PER_MS  ((DEFAULT_SAMPLE_RATE)/1000)
+#define	setpriority	__PLEASE_USE_ast_set_priority_INSTEAD_OF_setpriority__
+#define	sched_setscheduler	__PLEASE_USE_ast_set_priority_INSTEAD_OF_sched_setscheduler__
 
 /* provided in asterisk.c */
 extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
