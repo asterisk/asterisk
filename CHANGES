@@ -78,6 +78,9 @@ AMI - The manager (TCP/TLS/HTTP)
     Asterisk configuration file in JSON format.  This is intended to help
     improve the performance of AJAX applications using the manager interface
     over HTTP.
+  * SIP and IAX manager events now use "ChannelType" in all cases where we 
+    indicate channel driver. Previously, we used a mixture of "Channel"
+    and "ChannelDriver" headers.
 
 Dialplan functions
 ------------------

@@ -7708,7 +7708,7 @@ static int sip_reg_timeout(void *data)
 		r->timeout = -1;
 		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	}
-	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+	manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 	registry_unref(r);
 	return 0;
 }
@@ -12696,7 +12696,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			r->regstate = REG_STATE_UNREGISTERED;
 			transmit_register(r, SIP_REGISTER, NULL, NULL);
 		}
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 		break;
 	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
 		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
@@ -12715,7 +12715,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 		r->regstate = REG_STATE_REGISTERED;
 		r->regtime = time(NULL);		/* Reset time of last succesful registration */
-		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelDriver: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Registration successful\n");
@@ -17452,7 +17452,7 @@ static int reload_config(enum channelreloadreason reason)
 	notify_types = ast_config_load(notify_config);
 
 	/* Done, tell the manager */
-	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "Channel: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\nUser_Count: %d\r\n\r\n", channelreloadreason2txt(reason), registry_count, peer_count, user_count);
+	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "ChannelType: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\nUser_Count: %d\r\n\r\n", channelreloadreason2txt(reason), registry_count, peer_count, user_count);
 
 	return 0;
 }
