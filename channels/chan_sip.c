@@ -10911,7 +10911,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	char host[80];
 	char tmpdat[256];
 	struct tm tm;
-
+	int counter = 0;
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -10926,7 +10926,9 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 			tmpdat[0] = '\0';
 		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
 		ASTOBJ_UNLOCK(iterator);
+		counter++;
 	} while(0));
+	ast_cli(fd, "%d SIP registrations.\n", counter);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
