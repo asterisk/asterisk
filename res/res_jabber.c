@@ -434,7 +434,9 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incoming)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
-	manager_event(EVENT_FLAG_USER, "JabberEvent", "Account: %s\r\nPacket: %s\r\n", client->name, xmpp);
+
+	if (!ast_strlen_zero(xmpp))
+		manager_event(EVENT_FLAG_USER, "JabberEvent", "Account: %s\r\nPacket: %s\r\n", client->name, xmpp);
 
 	if (client->debug) {
 		if (is_incoming)
