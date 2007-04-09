@@ -238,7 +238,7 @@ enum {
 	OPT_CALLEE_PARK =	(1 << 25),
 	OPT_CALLER_PARK =	(1 << 26),
 	OPT_IGNORE_FORWARDING = (1 << 27),
-} dial_exec_option_flags;
+};
 
 #define DIAL_STILLGOING			(1 << 30)
 #define DIAL_NOFORWARDHTML		(1 << 31)
@@ -255,7 +255,7 @@ enum {
 	OPT_ARG_OPERMODE,
 	/* note: this entry _MUST_ be the last one in the enum */
 	OPT_ARG_ARRAY_SIZE,
-} dial_exec_option_args;
+};
 
 AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION_ARG('A', OPT_ANNOUNCE, OPT_ARG_ANNOUNCE),
