@@ -170,6 +170,7 @@ struct ast_bridge_thread_obj
 	struct ast_bridge_config bconfig;
 	struct ast_channel *chan;
 	struct ast_channel *peer;
+	unsigned int return_to_pbx:1;
 };
 
 
@@ -224,11 +225,13 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 static void *ast_bridge_call_thread(void *data) 
 {
 	struct ast_bridge_thread_obj *tobj = data;
+	int res;
 
-	tobj->chan->appl = "Transferred Call";
+	tobj->chan->appl = !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge";
 	tobj->chan->data = tobj->peer->name;
-	tobj->peer->appl = "Transferred Call";
+	tobj->peer->appl = !tobj->return_to_pbx ? "Transferred Call" : "ManagerBridge";
 	tobj->peer->data = tobj->chan->name;
+
 	if (tobj->chan->cdr) {
 		ast_cdr_reset(tobj->chan->cdr, NULL);
 		ast_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
@@ -239,10 +242,29 @@ static void *ast_bridge_call_thread(void *data)
 	}
 
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
-	ast_hangup(tobj->chan);
-	ast_hangup(tobj->peer);
-	bzero(tobj, sizeof(*tobj)); /*! \todo XXX for safety */
+
+	if (tobj->return_to_pbx) {
+		if (!ast_check_hangup(tobj->peer)) {
+			ast_log(LOG_VERBOSE, "putting peer %s into PBX again\n", tobj->peer->name);
+			res = ast_pbx_start(tobj->peer);
+			if (res != AST_PBX_SUCCESS)
+				ast_log(LOG_WARNING, "FAILED continuing PBX on peer %s\n", tobj->peer->name);
+		} else
+			ast_hangup(tobj->peer);
+		if (!ast_check_hangup(tobj->chan)) {
+			ast_log(LOG_VERBOSE, "putting chan %s into PBX again\n", tobj->chan->name);
+			res = ast_pbx_start(tobj->chan);
+			if (res != AST_PBX_SUCCESS)
+				ast_log(LOG_WARNING, "FAILED continuing PBX on chan %s\n", tobj->chan->name);
+		} else
+			ast_hangup(tobj->chan);
+	} else {
+		ast_hangup(tobj->chan);
+		ast_hangup(tobj->peer);
+	}
+
 	free(tobj);
+
 	return NULL;
 }
 
@@ -593,7 +615,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			snprintf(args, len, "%s|%s|m", S_OR(touch_format, "wav"), touch_filename);
 		}
 
-		for( x = 0; x < strlen(args); x++) {
+		for(x = 0; x < strlen(args); x++) {
 			if (args[x] == '/')
 				args[x] = '-';
 		}
@@ -717,7 +739,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		if (option_verbose > 2)	
 			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
-	if (ast_stream_and_wait(transferer, xferfailsound, AST_DIGIT_ANY) < 0 ) {
+	if (ast_stream_and_wait(transferer, xferfailsound, AST_DIGIT_ANY) < 0) {
 		finishup(transferee);
 		return -1;
 	}
@@ -1201,12 +1223,12 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 						if (f->subclass == AST_CONTROL_RINGING) {
 							state = f->subclass;
 							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", chan->name);
+								ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", chan->name);
 							ast_indicate(caller, AST_CONTROL_RINGING);
 						} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
 							state = f->subclass;
 							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", chan->name);
+								ast_verbose(VERBOSE_PREFIX_3 "%s is busy\n", chan->name);
 							ast_indicate(caller, AST_CONTROL_BUSY);
 							ast_frfree(f);
 							f = NULL;
@@ -1444,7 +1466,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		
 		if (!f || (f->frametype == AST_FRAME_CONTROL &&
 				(f->subclass == AST_CONTROL_HANGUP || f->subclass == AST_CONTROL_BUSY || 
-					f->subclass == AST_CONTROL_CONGESTION ) ) ) {
+					f->subclass == AST_CONTROL_CONGESTION))) {
 			res = -1;
 			break;
 		}
@@ -1973,6 +1995,125 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static char mandescr_bridge[] =
+"Description: Bridge together two channels already in the PBX\n"
+"Variables: ( Headers marked with * are required )\n"
+"   *Channel1: Channel to Bridge to Channel2\n"
+"   *Channel2: Channel to Bridge to Channel1\n"
+"        Tone: (Yes|No) Play courtesy tone to Channel 2\n"
+"\n";
+
+static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
+{
+	ast_moh_stop(chan);
+	ast_mutex_lock(&chan->lock);
+	ast_setstate(tmpchan, chan->_state);
+	tmpchan->readformat = chan->readformat;
+	tmpchan->writeformat = chan->writeformat;
+	ast_channel_masquerade(tmpchan, chan);
+	ast_mutex_lock(&tmpchan->lock);
+	ast_do_masquerade(tmpchan);
+	/* when returning from bridge, the channel will continue at the next priority */
+	ast_explicit_goto(tmpchan, chan->context, chan->exten, chan->priority + 1);
+	ast_mutex_unlock(&tmpchan->lock);
+	ast_mutex_unlock(&chan->lock);
+}
+
+static int action_bridge(struct mansession *s, const struct message *m)
+{
+	const char *channela = astman_get_header(m, "Channel1");
+	const char *channelb = astman_get_header(m, "Channel2");
+	const char *playtone = astman_get_header(m, "Tone");
+	struct ast_channel *chana = NULL, *chanb = NULL;
+	struct ast_channel *tmpchana = NULL, *tmpchanb = NULL;
+	struct ast_bridge_thread_obj *tobj = NULL;
+
+	/* make sure valid channels were specified */
+	if (!ast_strlen_zero(channela) && !ast_strlen_zero(channelb)) {
+		chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
+		chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
+		if (chana)
+			ast_mutex_unlock(&chana->lock);
+		if (chanb)
+			ast_mutex_unlock(&chanb->lock);
+
+		/* send errors if any of the channels could not be found/locked */
+		if (!chana) {
+			char buf[256];
+			snprintf(buf, sizeof(buf), "Channel1 does not exists: %s", channela);
+			astman_send_error(s, m, buf);
+			return 0;
+		}
+		if (!chanb) {
+			char buf[256];
+			snprintf(buf, sizeof(buf), "Channel2 does not exists: %s", channelb);
+			astman_send_error(s, m, buf);
+			return 0;
+		}
+	} else {
+		astman_send_error(s, m, "Missing channel parameter in request");
+		return 0;
+	}
+
+	/* Answer the channels if needed */
+	if (chana->_state != AST_STATE_UP)
+		ast_answer(chana);
+	if (chanb->_state != AST_STATE_UP)
+		ast_answer(chanb);
+
+	/* create the placeholder channels and grab the other channels */
+	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
+		NULL, NULL, 0, "Bridge/%s", chana->name))) {
+		astman_send_error(s, m, "Unable to create temporary channel!");
+		return 1;
+	}
+
+	if (!(tmpchana = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
+		NULL, NULL, 0, "Bridge/%s", chanb->name))) {
+		astman_send_error(s, m, "Unable to create temporary channels!");
+		ast_channel_free(tmpchana);
+		return 1;
+	}
+
+	do_bridge_masquerade(chana, tmpchana);
+	do_bridge_masquerade(chanb, tmpchanb);
+	
+	/* make the channels compatible, send error if we fail doing so */
+	if (ast_channel_make_compatible(tmpchana, tmpchanb)) {
+		ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for manager bridge\n", tmpchana->name, tmpchanb->name);
+		astman_send_error(s, m, "Could not make channels compatible for manager bridge");
+		ast_hangup(tmpchana);
+		ast_hangup(tmpchanb);
+		return 1;
+	}
+
+	/* setup the bridge thread object and start the bridge */
+	if (!(tobj = ast_calloc(1, sizeof(*tobj)))) {
+		ast_log(LOG_WARNING, "Unable to spawn a new bridge thread on %s and %s: %s\n", tmpchana->name, tmpchanb->name, strerror(errno));
+		astman_send_error(s, m, "Unable to spawn a new bridge thread");
+		ast_hangup(tmpchana);
+		ast_hangup(tmpchanb);
+		return 1;
+	}
+
+	tobj->chan = tmpchana;
+	tobj->peer = tmpchanb;
+	tobj->return_to_pbx = 1;
+	
+	if (ast_true(playtone)) {
+		if (!ast_strlen_zero(xfersound) && !ast_streamfile(tmpchanb, xfersound, tmpchanb->language)) {
+			if (ast_waitstream(tmpchanb, "") < 0)
+				ast_log(LOG_WARNING, "Failed to play a courtesy tone on chan %s\n", tmpchanb->name);
+		}
+	}
+
+	ast_bridge_call_thread_launch(tobj);
+
+	astman_send_ack(s, m, "Launched bridge thread with success");
+
+	return 0;
+}
+
 static char showfeatures_help[] =
 "Usage: feature list\n"
 "       Lists currently configured features.\n";
@@ -2016,7 +2157,7 @@ static struct ast_cli_entry cli_features[] = {
 };
 
 /*! \brief Dump lot status */
-static int manager_parking_status( struct mansession *s, const struct message *m)
+static int manager_parking_status(struct mansession *s, const struct message *m)
 {
 	struct parkeduser *cur;
 	const char *id = astman_get_header(m, "ActionID");
@@ -2123,7 +2264,7 @@ int ast_pickup_call(struct ast_channel *chan)
 	struct ast_channel *cur = NULL;
 	int res = -1;
 
-	while ( (cur = ast_channel_walk_locked(cur)) != NULL) {
+	while ((cur = ast_channel_walk_locked(cur)) != NULL) {
 		if (!cur->pbx && 
 			(cur != chan) &&
 			(chan->pickupgroup & cur->callgroup) &&
@@ -2394,6 +2535,154 @@ static int load_config(void)
 
 }
 
+static char *app_bridge = "Bridge";
+static char *bridge_synopsis = "Bridge two channels";
+static char *bridge_descrip =
+"Usage: Bridge(channel[|options])\n"
+"	Allows the ability to bridge two channels via the dialplan.\n"
+"The current channel is bridged to the specified 'channel'.\n"
+"The following options are supported:\n"
+"   p - Play a courtesy tone to 'channel'.\n"
+"BRIDGERESULT dial plan variable will contain SUCCESS, FAILURE, LOOP, NONEXISTENT or INCOMPATIBLE.\n";
+
+enum {
+	BRIDGE_OPT_PLAYTONE = (1 << 0),
+};
+
+AST_APP_OPTIONS(bridge_exec_options, BEGIN_OPTIONS
+	AST_APP_OPTION('p', BRIDGE_OPT_PLAYTONE)
+END_OPTIONS );
+
+static int bridge_exec(struct ast_channel *chan, void *data)
+{
+	struct ast_module_user *u;
+	struct ast_channel *current_dest_chan, *final_dest_chan;
+	char *tmp_data  = NULL;
+	struct ast_flags opts = { 0, };
+	struct ast_bridge_config bconfig = { { 0, }, };
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(dest_chan);
+		AST_APP_ARG(options);
+	);
+	
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Bridge require at least 1 argument specifying the other end of the bridge\n");
+		return -1;
+	}
+	
+	u = ast_module_user_add(chan);
+
+	tmp_data = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, tmp_data);
+	if (!ast_strlen_zero(args.options))
+		ast_app_parse_options(bridge_exec_options, &opts, NULL, args.options);
+
+	/* avoid bridge with ourselves */
+	if (!strncmp(chan->name, args.dest_chan, 
+		strlen(chan->name) < strlen(args.dest_chan) ? 
+		strlen(chan->name) : strlen(args.dest_chan))) {
+		ast_log(LOG_WARNING, "Unable to bridge channel %s with itself\n", chan->name);
+		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+					"Response: Failed\r\n"
+					"Reason: Unable to bridge channel to itself\r\n"
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n",
+					chan->name, args.dest_chan);
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "LOOP");
+		ast_module_user_remove(u);
+		return 0;
+	}
+
+	/* make sure we have a valid end point */
+	if (!(current_dest_chan = ast_get_channel_by_name_prefix_locked(args.dest_chan, 
+		strlen(args.dest_chan)))) {
+		ast_log(LOG_WARNING, "Bridge failed because channel %s does not exists or we "
+			"cannot get its lock\n", args.dest_chan);
+		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+					"Response: Failed\r\n"
+					"Reason: Cannot grab end point\r\n"
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n", chan->name, args.dest_chan);
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "NONEXISTENT");
+		ast_module_user_remove(u);
+		return 0;
+	}
+	ast_mutex_unlock(&current_dest_chan->lock);
+
+	/* answer the channel if needed */
+	if (current_dest_chan->_state != AST_STATE_UP)
+		ast_answer(current_dest_chan);
+
+	/* try to allocate a place holder where current_dest_chan will be placed */
+	if (!(final_dest_chan = ast_channel_alloc(0, AST_STATE_DOWN, NULL, NULL, NULL, 
+		NULL, NULL, 0, "Bridge/%s", current_dest_chan->name))) {
+		ast_log(LOG_WARNING, "Cannot create placeholder channel for chan %s\n", args.dest_chan);
+		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+					"Response: Failed\r\n"
+					"Reason: cannot create placeholder\r\n"
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n", chan->name, args.dest_chan);
+	}
+	do_bridge_masquerade(current_dest_chan, final_dest_chan);
+
+	/* now current_dest_chan is a ZOMBIE and with softhangup set to 1 and final_dest_chan is our end point */
+	/* try to make compatible, send error if we fail */
+	if (ast_channel_make_compatible(chan, final_dest_chan) < 0) {
+		ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, final_dest_chan->name);
+		manager_event(EVENT_FLAG_CALL, "BridgeExec",
+					"Response: Failed\r\n"
+					"Reason: Could not make channels compatible for bridge\r\n"
+					"Channel1: %s\r\n"
+					"Channel2: %s\r\n", chan->name, final_dest_chan->name);
+		ast_hangup(final_dest_chan); /* may be we should return this channel to the PBX? */
+		pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "INCOMPATIBLE");
+		ast_module_user_remove(u);
+		return 0;
+	}
+
+	/* Report that the bridge will be successfull */
+	manager_event(EVENT_FLAG_CALL, "BridgeExec",
+				"Response: Success\r\n"
+				"Channel1: %s\r\n"
+				"Channel2: %s\r\n", chan->name, final_dest_chan->name);
+
+	/* we have 2 valid channels to bridge, now it is just a matter of setting up the bridge config and starting the bridge */	
+	if (ast_test_flag(&opts, BRIDGE_OPT_PLAYTONE) && !ast_strlen_zero(xfersound)) {
+		if (!ast_streamfile(final_dest_chan, xfersound, final_dest_chan->language)) {
+			if (ast_waitstream(final_dest_chan, "") < 0)
+				ast_log(LOG_WARNING, "Failed to play courtesy tone on %s\n", final_dest_chan->name);
+		}
+	}
+	
+	/* do the bridge */
+	ast_bridge_call(chan, final_dest_chan, &bconfig);
+
+	/* the bridge has ended, set BRIDGERESULT to SUCCESS. If the other channel has not been hung up, return it to the PBX */
+	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
+	if (!ast_check_hangup(final_dest_chan)) {
+		if (option_debug) {
+			ast_log(LOG_DEBUG, "starting new PBX in %s,%s,%d for chan %s\n", 
+			final_dest_chan->context, final_dest_chan->exten, 
+			final_dest_chan->priority, final_dest_chan->name);
+		}
+
+		if (ast_pbx_start(final_dest_chan) != AST_PBX_SUCCESS) {
+			ast_log(LOG_WARNING, "FAILED continuing PBX on dest chan %s\n", final_dest_chan->name);
+			ast_hangup(final_dest_chan);
+		} else if (option_debug)
+			ast_log(LOG_DEBUG, "SUCCESS continuing PBX on chan %s\n", final_dest_chan->name);
+	} else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "hangup chan %s since the other endpoint has hung up\n", final_dest_chan->name);
+		ast_hangup(final_dest_chan);
+	}
+
+	ast_module_user_remove(u);
+
+	return 0;
+}
+
 static int reload(void)
 {
 	return load_config();
@@ -2402,7 +2691,9 @@ static int reload(void)
 static int load_module(void)
 {
 	int res;
-	
+
+	ast_register_application(app_bridge, bridge_exec, bridge_synopsis, bridge_descrip);	
+
 	memset(parking_ext, 0, sizeof(parking_ext));
 	memset(parking_con, 0, sizeof(parking_con));
 
@@ -2414,9 +2705,10 @@ static int load_module(void)
 	if (!res)
 		res = ast_register_application(parkcall, park_call_exec, synopsis2, descrip2);
 	if (!res) {
-		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls" );
+		ast_manager_register("ParkedCalls", 0, manager_parking_status, "List parked calls");
 		ast_manager_register2("Park", EVENT_FLAG_CALL, manager_park,
 			"Park a channel", mandescr_park); 
+		ast_manager_register2("Bridge", EVENT_FLAG_COMMAND, action_bridge, "Bridge two channels already in the PBX", mandescr_bridge);
 	}
 
 	res |= ast_devstate_prov_add("Park", metermaidstate);
@@ -2430,9 +2722,11 @@ static int unload_module(void)
 	ast_module_user_hangup_all();
 
 	ast_manager_unregister("ParkedCalls");
+	ast_manager_unregister("Bridge");
 	ast_manager_unregister("Park");
 	ast_cli_unregister_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(parkcall);
+	ast_unregister_application(app_bridge);
 	ast_devstate_prov_del("Park");
 	return ast_unregister_application(parkedcall);
 }
@@ -2441,4 +2735,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Call Features Res
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
-	       );
+	      );
