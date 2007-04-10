@@ -123,7 +123,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "jitterbuffer_upper_threshold", MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD, MISDN_CTYPE_INT, "0", NONE },
 	{ "callgroup", MISDN_CFG_CALLGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
 	{ "pickupgroup", MISDN_CFG_PICKUPGROUP, MISDN_CTYPE_ASTGROUP, NO_DEFAULT, NONE },
-	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE }
+	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, "*", NONE }
 };
 
 static const struct misdn_cfg_spec gen_spec[] = {
