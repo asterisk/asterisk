@@ -309,7 +309,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "nttimeout", MISDN_CFG_NTTIMEOUT, MISDN_CTYPE_BOOL, "no", NONE ,
 		"Set this to yes if you want calls disconnected in overlap mode\n"
 		"\twhen a timeout happens." },
-	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, NO_DEFAULT, NONE,
+	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, "*", NONE,
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
 		"\tindicate the incoming calls to Asterisk.\n"
 		"\tHere you can give a comma seperated list, or simply an '*' for any msn." },
