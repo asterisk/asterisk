@@ -66,6 +66,8 @@ Miscellaneous
   * Added zap show version CLI command to chan_zap.
   * Added a new CDR module, cdr_sqlite3_custom.
   * Added a new realtime configuration module, res_config_sqlite
+  * Added a new dialplan application, Bridge, which allows you to bridge the
+    calling channel to any other active channel on the system.
 
 AMI - The manager (TCP/TLS/HTTP)
 --------------------------------
@@ -81,6 +83,8 @@ AMI - The manager (TCP/TLS/HTTP)
   * SIP and IAX manager events now use "ChannelType" in all cases where we 
     indicate channel driver. Previously, we used a mixture of "Channel"
     and "ChannelDriver" headers.
+  * Added a "Bridge" action which allows you to bridge any two channels that
+    are currently active on the system.
 
 Dialplan functions
 ------------------
