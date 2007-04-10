@@ -127,10 +127,7 @@ else
   H323LDLIBS=
 endif
 
-minimime/libmmime.a:
-	@cd minimime && $(MAKE) libmmime.a
-
-asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
+asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 	@$(ASTTOPDIR)/build_tools/make_build_h > $(ASTTOPDIR)/include/asterisk/build.h.tmp
 	@if cmp -s $(ASTTOPDIR)/include/asterisk/build.h.tmp $(ASTTOPDIR)/include/asterisk/build.h ; then echo ; else \
 		mv $(ASTTOPDIR)/include/asterisk/build.h.tmp $(ASTTOPDIR)/include/asterisk/build.h ; \
@@ -147,6 +144,3 @@ clean::
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean
-	@$(MAKE) -C minimime clean
-
-.PHONY: minimime/libmmime.a
