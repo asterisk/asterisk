@@ -2030,6 +2030,19 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 	return 0; /* Time is up */
 }
 
+static void send_dtmf_event(const struct ast_channel *chan, const char *direction, const char digit, const char *begin, const char *end)
+{
+	manager_event(EVENT_FLAG_DTMF,
+			"DTMF",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Digit: %c\r\n"
+			"Direction: %s\r\n"
+			"Begin: %s\r\n"
+			"End: %s\r\n",
+			chan->name, chan->uniqueid, digit, direction, begin, end);
+}
+
 static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 {
 	struct ast_frame *f = NULL;	/* the return value */
@@ -2196,6 +2209,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			break;
 		case AST_FRAME_DTMF_END:
+			send_dtmf_event(chan, "Received", f->subclass, "No", "Yes");
 			ast_log(LOG_DTMF, "DTMF end '%c' received on %s, duration %ld ms\n", f->subclass, chan->name, f->len);
 			/* Queue it up if DTMF is deffered, or if DTMF emulation is forced.
 			 * However, only let emulation be forced if the other end cares about BEGIN frames */
@@ -2223,6 +2237,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
+			send_dtmf_event(chan, "Received", f->subclass, "Yes", "No");
 			ast_log(LOG_DTMF, "DTMF begin '%c' received on %s\n", f->subclass, chan->name);
 			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_END_DTMF_ONLY)) {
 				ast_frfree(f);
@@ -2617,6 +2632,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
+		send_dtmf_event(chan, "Sent", fr->subclass, "Yes", "No");
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_begin(chan, fr->subclass);
@@ -2624,6 +2640,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_DTMF_END:
+		send_dtmf_event(chan, "Sent", fr->subclass, "No", "Yes");
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
 		res = ast_senddigit_end(chan, fr->subclass, fr->len);

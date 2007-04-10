@@ -55,6 +55,7 @@
 #define EVENT_FLAG_AGENT		(1 << 5) /* Ability to read/set agent info */
 #define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
 #define EVENT_FLAG_CONFIG		(1 << 7) /* Ability to modify configurations */
+#define EVENT_FLAG_DTMF  		(1 << 8) /* Ability to read DTMF events */
 
 /* Export manager structures */
 #define AST_MAX_MANHEADERS 128
