@@ -1436,8 +1436,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
-			chan->cdr = NULL;
-			peer->cdr = NULL;
 			return -1;
 		}
 		
@@ -1532,10 +1530,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	/* arrange the cdrs */
 	bridge_cdr = ast_cdr_alloc();
 	if (bridge_cdr) {
-		ast_log(LOG_NOTICE,"merging the bridged CDRs\n");
-		ast_cdr_init(bridge_cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
 		if (chan->cdr && peer->cdr) { /* both of them? merge */
+			ast_cdr_init(bridge_cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
 			ast_cdr_start(bridge_cdr); /* now is the time to start */
+
 			/* absorb the channel cdr */
 			ast_cdr_merge(bridge_cdr, chan->cdr);
 			ast_cdr_discard(chan->cdr); /* no posting these guys */
@@ -1548,27 +1546,17 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		} else if (chan->cdr) {
 			/* take the cdr from the channel - literally */
 			ast_cdr_init(bridge_cdr,chan);
-			if (chan->cdr->disposition==AST_CDR_ANSWERED) {
-				ast_cdr_end(chan->cdr);
-				ast_cdr_detach(chan->cdr); /* post the existing cdr, we will be starting a fresh new cdr presently */
-			} else {
-				/* absorb this data */
-				ast_cdr_merge(bridge_cdr, chan->cdr);
-				ast_cdr_discard(chan->cdr); /* no posting these guys */
-			}
+			/* absorb this data */
+			ast_cdr_merge(bridge_cdr, chan->cdr);
+			ast_cdr_discard(chan->cdr); /* no posting these guys */
 			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
 		} else if (peer->cdr) {
 			/* take the cdr from the peer - literally */
 			ast_cdr_init(bridge_cdr,peer);
-			if (peer->cdr->disposition == AST_CDR_ANSWERED) {
-				ast_cdr_end(peer->cdr);
-				ast_cdr_detach(peer->cdr); /* post the existing cdr, we will be starting a fresh new cdr presently */
-			} else {
-				/* absorb this data */
-				ast_cdr_merge(bridge_cdr, peer->cdr);
-				ast_cdr_discard(peer->cdr); /* no posting these guys */
-				peer->cdr = NULL;
-			}
+			/* absorb this data */
+			ast_cdr_merge(bridge_cdr, peer->cdr);
+			ast_cdr_discard(peer->cdr); /* no posting these guys */
+			peer->cdr = NULL;
 			peer->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
 		} else {
 			/* make up a new cdr */

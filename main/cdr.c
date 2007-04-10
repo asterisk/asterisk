@@ -88,7 +88,7 @@ static pthread_t cdr_thread = AST_PTHREADT_NULL;
 #define BATCH_SCHEDULER_ONLY_DEFAULT 0
 #define BATCH_SAFE_SHUTDOWN_DEFAULT 1
 
-static int enabled;
+static int enabled;		/*! Is the CDR subsystem enabled ? */
 static int batchmode;
 static int batchsize;
 static int batchtime;
@@ -596,6 +596,17 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 	}
 	/* flags, varsead, ? */
 	cdr_merge_vars(from, to);
+
+	if (ast_test_flag(from, AST_CDR_FLAG_KEEP_VARS))
+		ast_set_flag(to, AST_CDR_FLAG_KEEP_VARS);
+	if (ast_test_flag(from, AST_CDR_FLAG_POSTED))
+		ast_set_flag(to, AST_CDR_FLAG_POSTED);
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED))
+		ast_set_flag(to, AST_CDR_FLAG_LOCKED);
+	if (ast_test_flag(from, AST_CDR_FLAG_CHILD))
+		ast_set_flag(to, AST_CDR_FLAG_CHILD);
+	if (ast_test_flag(from, AST_CDR_FLAG_POST_DISABLED))
+		ast_set_flag(to, AST_CDR_FLAG_POST_DISABLED);
 }
 
 void ast_cdr_start(struct ast_cdr *cdr)
