@@ -5520,7 +5520,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 		y++;
 	} while (x < 3);
-	tmp = ast_channel_alloc(0, state, 0, 0, b2);
+	tmp = ast_channel_alloc(0, state, 0, 0, i->accountcode, i->exten, i->context, i->amaflags, b2);
 	if (b2) /*!> b2 can be freed now, it's been copied into the channel structure */
 		free(b2);
 	if (!tmp)

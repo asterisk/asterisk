@@ -584,8 +584,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	int randnum = ast_random() & 0xffff, fmt = 0;
 
 	/* Allocate two new Asterisk channels */
-	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "Local/%s@%s-%04x,1", p->exten, p->context, randnum)) 
-			|| !(tmp2 = ast_channel_alloc(1, AST_STATE_RING, 0, 0, "Local/%s@%s-%04x,2", p->exten, p->context, randnum))) {
+	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "", p->exten, p->context, 0, "Local/%s@%s-%04x,1", p->exten, p->context, randnum)) 
+			|| !(tmp2 = ast_channel_alloc(1, AST_STATE_RING, 0, 0, "", p->exten, p->context, 0, "Local/%s@%s-%04x,2", p->exten, p->context, randnum))) {
 		if (tmp)
 			ast_channel_free(tmp);
 		if (tmp2)

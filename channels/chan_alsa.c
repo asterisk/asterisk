@@ -790,7 +790,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct ast_channel *tmp = NULL;
 
-	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "ALSA/%s", indevname)))
+	if (!(tmp = ast_channel_alloc(1, state, 0, 0, "", p->exten, p->context, 0, "ALSA/%s", indevname)))
 		return NULL;
 
 	tmp->tech = &alsa_tech;

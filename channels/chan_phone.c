@@ -865,7 +865,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 {
 	struct ast_channel *tmp;
 	struct phone_codec_data codec;
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "Phone/%s", i->dev + 5);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", i->ext, i->context, 0, "Phone/%s", i->dev + 5);
 	if (tmp) {
 		tmp->tech = cur_tech;
 		tmp->fds[0] = i->fd;

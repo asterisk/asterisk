@@ -194,7 +194,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	goto_on_transfer = ast_strdupa(val);
 
-	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, chan->name)))
+	if (!(xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, chan->name)))
 		return;
 
 	for (x = goto_on_transfer; x && *x; x++) {
@@ -445,7 +445,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	struct ast_frame *f;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "Parked/%s",rchan->name))) {
+	if (!(chan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, rchan->accountcode, rchan->exten, rchan->context, rchan->amaflags, "Parked/%s",rchan->name))) {
 		ast_log(LOG_WARNING, "Unable to create parked channel\n");
 		return -1;
 	}
@@ -840,7 +840,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		return -1;
 	}
 
-	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "Transfered/%s", transferee->name);
+	xferchan = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, "Transfered/%s", transferee->name);
 	if (!xferchan) {
 		ast_hangup(newchan);
 		return -1;
@@ -1373,81 +1373,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		peer->cdr = NULL;
 	}
 
-	/* arrange the cdrs */
-	bridge_cdr = ast_cdr_alloc();
-	if (bridge_cdr) {
-		if (chan->cdr && peer->cdr) { /* both of them? merge */
-			ast_cdr_init(bridge_cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
-			ast_cdr_start(bridge_cdr); /* now is the time to start */
-			/* absorb the channel cdr */
-			ast_cdr_merge(bridge_cdr, chan->cdr);
-			ast_cdr_discard(chan->cdr); /* no posting these guys */
-			chan->cdr = NULL;
-			
-			/* absorb the peer cdr */
-			ast_cdr_merge(bridge_cdr, peer->cdr);
-			ast_cdr_discard(peer->cdr); /* no posting these guys */
-			peer->cdr = NULL;
-		} else if (chan->cdr) {
-			/* take the cdr from the channel - literally */
-			ast_cdr_init(bridge_cdr,chan);
-			if (chan->cdr->disposition!=AST_CDR_ANSWERED) {
-				ast_cdr_end(chan->cdr);
-				ast_cdr_detach(chan->cdr); /* post the existing cdr, we will be starting a fresh new cdr presently */
-				chan->cdr = ast_cdr_alloc();
-				if (chan->cdr) {
-					ast_cdr_init(chan->cdr,chan); /* a fresh new one its place */
-					ast_cdr_start(chan->cdr); /* now is the time to start */
-				}
-			} else {
-				/* absorb this data */
-				ast_cdr_merge(bridge_cdr, chan->cdr);
-				ast_cdr_discard(chan->cdr); /* no posting these guys */
-				chan->cdr = NULL;
-			}
-			peer->cdr = ast_cdr_alloc();
-			if (peer->cdr)
-				ast_cdr_init(peer->cdr, peer);
-		} else if (peer->cdr) {
-			/* take the cdr from the peer - literally */
-			ast_cdr_init(bridge_cdr,peer);
-			if (peer->cdr->disposition != AST_CDR_ANSWERED) {
-				ast_cdr_end(peer->cdr);
-				ast_cdr_detach(peer->cdr); /* post the existing cdr, we will be starting a fresh new cdr presently */
-				peer->cdr = ast_cdr_alloc();
-				if (peer->cdr) {
-					ast_cdr_init(peer->cdr,peer); /* a fresh new one its place */
-					ast_cdr_start(peer->cdr); /* now is the time to start */
-				}
-			} else {
-				/* absorb this data */
-				ast_cdr_merge(bridge_cdr, chan->cdr);
-				ast_cdr_discard(chan->cdr); /* no posting these guys */
-				chan->cdr = NULL;
-			}
-			chan->cdr = ast_cdr_alloc();
-			if (chan->cdr)
-				ast_cdr_init(chan->cdr, chan);
-		} else {
-			/* make up a new cdr */
-			ast_cdr_init(bridge_cdr,chan); /* eh, just pick one of them */
-			chan->cdr = ast_cdr_alloc();
-			if (chan->cdr) {
-				ast_cdr_init(chan->cdr, chan);
-			}
-			peer->cdr = ast_cdr_alloc();
-			if (chan->cdr) {
-				ast_cdr_init(peer->cdr, peer);
-				ast_cdr_start(peer->cdr); /* now is the time to start */
-			}
-		}
-		if (ast_strlen_zero(bridge_cdr->dstchannel)) {
-		       	if (strcmp(bridge_cdr->channel, peer->name) != 0)
-				ast_cdr_setdestchan(bridge_cdr, peer->name);
-			else
-				ast_cdr_setdestchan(bridge_cdr, chan->name);
-		}
-	}
 	for (;;) {
 		struct ast_channel *other;	/* used later */
 
@@ -1514,19 +1439,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
-			/* whoa!! don't go running off without cleaning up your mess! */
-			if (bridge_cdr) {
-				ast_cdr_merge(bridge_cdr,chan->cdr);
-				ast_cdr_merge(bridge_cdr,peer->cdr);
-				ast_cdr_failed(bridge_cdr);
-				ast_cdr_end(bridge_cdr);
-				ast_cdr_detach(bridge_cdr);
-				bridge_cdr = NULL;
-			}
-			ast_cdr_free(chan->cdr); /* no posting these guys */
-			ast_cdr_free(peer->cdr);
-			chan->cdr = NULL;
-			peer->cdr = NULL;
 			return -1;
 		}
 		
@@ -1615,20 +1527,51 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		}
 		if (f)
 			ast_frfree(f);
+
 	}
-	/* before leaving, post the cdr we accumulated */
-	/* whoa!! don't go running off without cleaning up your mess! */
+	/* arrange the cdrs */
+	bridge_cdr = ast_cdr_alloc();
 	if (bridge_cdr) {
-		ast_cdr_merge(bridge_cdr,chan->cdr);
-		ast_cdr_merge(bridge_cdr,peer->cdr);
-		ast_cdr_end(bridge_cdr);
-		ast_cdr_detach(bridge_cdr);
-		bridge_cdr = NULL;
+		if (chan->cdr && peer->cdr) { /* both of them? merge */
+			ast_cdr_init(bridge_cdr,chan); /* seems more logicaller to use the  destination as a base, but, really, it's random */
+			ast_cdr_start(bridge_cdr); /* now is the time to start */
+			
+			/* absorb the channel cdr */
+			ast_cdr_merge(bridge_cdr, chan->cdr);
+			ast_cdr_discard(chan->cdr); /* no posting these guys */
+			
+			/* absorb the peer cdr */
+			ast_cdr_merge(bridge_cdr, peer->cdr);
+			ast_cdr_discard(peer->cdr); /* no posting these guys */
+			peer->cdr = NULL;
+			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
+		} else if (chan->cdr) {
+			/* take the cdr from the channel - literally */
+			ast_cdr_init(bridge_cdr,chan);
+			/* absorb this data */
+			ast_cdr_merge(bridge_cdr, chan->cdr);
+			ast_cdr_discard(chan->cdr); /* no posting these guys */
+			chan->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
+		} else if (peer->cdr) {
+			/* take the cdr from the peer - literally */
+			ast_cdr_init(bridge_cdr,peer);
+			/* absorb this data */
+			ast_cdr_merge(bridge_cdr, peer->cdr);
+			ast_cdr_discard(peer->cdr); /* no posting these guys */
+			peer->cdr = NULL;
+			peer->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
+		} else {
+			/* make up a new cdr */
+			ast_cdr_init(bridge_cdr,chan); /* eh, just pick one of them */
+			chan->cdr = bridge_cdr; /*  */
+		}
+		if (ast_strlen_zero(bridge_cdr->dstchannel)) {
+			if (strcmp(bridge_cdr->channel, peer->name) != 0)
+				ast_cdr_setdestchan(bridge_cdr, peer->name);
+			else
+				ast_cdr_setdestchan(bridge_cdr, chan->name);
+		}
 	}
-	ast_cdr_discard(chan->cdr); /* no posting these guys */
-	ast_cdr_discard(peer->cdr);
-	chan->cdr = NULL;
-	peer->cdr = NULL;
 	return res;
 }
 

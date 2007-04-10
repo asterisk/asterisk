@@ -233,7 +233,7 @@ static int nbs_xwrite(struct ast_channel *ast, struct ast_frame *frame)
 static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc(1, state, 0, 0, "NBS/%s", i->stream);
+	tmp = ast_channel_alloc(1, state, 0, 0, "", "s", context, 0, "NBS/%s", i->stream);
 	if (tmp) {
 		tmp->tech = &nbs_tech;
 		tmp->fds[0] = nbs_fd(i->nbs);

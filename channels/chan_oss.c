@@ -1021,7 +1021,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 {
 	struct ast_channel *c;
 
-	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "OSS/%s", o->device + 5);
+	c = ast_channel_alloc(1, state, o->cid_num, o->cid_name, "", o->ext, o->ctx, 0, "OSS/%s", o->device + 5);
 	if (c == NULL)
 		return NULL;
 	c->tech = &oss_tech;
@@ -1033,10 +1033,6 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c->writeformat = AST_FORMAT_SLINEAR;
 	c->tech_pvt = o;
 
-	if (!ast_strlen_zero(ctx))
-		ast_copy_string(c->context, ctx, sizeof(c->context));
-	if (!ast_strlen_zero(ext))
-		ast_copy_string(c->exten, ext, sizeof(c->exten));
 	if (!ast_strlen_zero(o->language))
 		ast_string_field_set(c, language, o->language);
 	/* Don't use ast_set_callerid() here because it will

@@ -77,7 +77,7 @@ static struct ast_cdr_batch {
 	int size;
 	struct ast_cdr_batch_item *head;
 	struct ast_cdr_batch_item *tail;
-} *batch;
+} *batch = NULL;
 
 static struct sched_context *sched;
 static int cdr_sched = -1;
@@ -474,36 +474,57 @@ struct ast_cdr *ast_cdr_alloc(void)
 	return x;
 }
 
+static void cdr_merge_vars(struct ast_cdr *to, struct ast_cdr *from)
+{
+	struct ast_var_t *variablesfrom,*variablesto;
+	struct varshead *headpfrom = &to->varshead;
+	struct varshead *headpto = &from->varshead;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(headpfrom, variablesfrom, entries) {
+		/* for every var in from, stick it in to */
+		const char *fromvarname, *fromvarval;
+		const char *tovarname, *tovarval;
+		fromvarname = ast_var_name(variablesfrom);
+		fromvarval = ast_var_value(variablesfrom);
+		tovarname = 0;
+
+		/* now, quick see if that var is in the 'to' cdr already */
+		AST_LIST_TRAVERSE(headpto, variablesto, entries) {
+
+			/* now, quick see if that var is in the 'to' cdr already */
+			if ( strcasecmp(fromvarname, ast_var_name(variablesto)) == 0 ) {
+				tovarname = ast_var_name(variablesto);
+				tovarval = ast_var_value(variablesto);
+				break;
+			}
+		}
+		if (tovarname && strcasecmp(fromvarval,tovarval) != 0) {  /* this message here to see how irritating the userbase finds it */
+			ast_log(LOG_NOTICE, "Merging CDR's: variable %s value %s dropped in favor of value %s\n", tovarname, fromvarval, tovarval);
+			continue;
+		} else if (tovarname && strcasecmp(fromvarval,tovarval) == 0) /* if they are the same, the job is done */
+			continue;
+
+		/*rip this var out of the from cdr, and stick it in the to cdr */
+		AST_LIST_REMOVE_CURRENT(headpfrom, entries);
+		AST_LIST_INSERT_HEAD(headpto, variablesfrom, entries);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
 void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 {
 	if (!to || !from)
 		return;
+	
 	if (!ast_tvzero(from->start)) {
 		if (!ast_tvzero(to->start)) {
 			if (ast_tvcmp(to->start, from->start) > 0 ) {
 				to->start = from->start; /* use the earliest time */
 				from->start = ast_tv(0,0); /* we actively "steal" these values */
-			} else {
-				ast_log(LOG_WARNING,"CDR start disagreement for %s\n", to->channel);
 			}
+			/* else nothing to do */
 		} else {
 			to->start = from->start;
 			from->start = ast_tv(0,0); /* we actively "steal" these values */
-		}
-	}
-	if (!ast_tvzero(from->end)) {
-		if (!ast_tvzero(to->end)) {
-			if (ast_tvcmp(to->end, from->end) < 0 ) {
-				to->end = from->end; /* use the latest time */
-				from->end = ast_tv(0,0); /* we actively "steal" these values */
-			} else {
-				ast_log(LOG_WARNING,"CDR end disagreement for %s\n", to->channel);
-			}
-		} else {
-			to->end = from->end;
-			from->end = ast_tv(0,0); /* we actively "steal" these values */
-			to->duration = to->end.tv_sec - to->start.tv_sec;
-			to->billsec = ast_tvzero(to->answer) ? 0 : to->end.tv_sec - to->answer.tv_sec;
 		}
 	}
 	if (!ast_tvzero(from->answer)) {
@@ -511,12 +532,27 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 			if (ast_tvcmp(to->answer, from->answer) > 0 ) {
 				to->answer = from->answer; /* use the earliest time */
 				from->answer = ast_tv(0,0); /* we actively "steal" these values */
-			} else {
-				ast_log(LOG_WARNING,"CDR answer disagreement for %s\n", to->channel);
 			}
+			/* we got the earliest answer time, so we'll settle for that? */
 		} else {
 			to->answer = from->answer;
 			from->answer = ast_tv(0,0); /* we actively "steal" these values */
+		}
+	}
+	if (!ast_tvzero(from->end)) {
+		if (!ast_tvzero(to->end)) {
+			if (ast_tvcmp(to->end, from->end) < 0 ) {
+				to->end = from->end; /* use the latest time */
+				from->end = ast_tv(0,0); /* we actively "steal" these values */
+				to->duration = to->end.tv_sec - to->start.tv_sec;  /* don't forget to update the duration, billsec, when we set end */
+				to->billsec = ast_tvzero(to->answer) ? 0 : to->end.tv_sec - to->answer.tv_sec;
+			}
+			/* else, nothing to do */
+		} else {
+			to->end = from->end;
+			from->end = ast_tv(0,0); /* we actively "steal" these values */
+			to->duration = to->end.tv_sec - to->start.tv_sec;
+			to->billsec = ast_tvzero(to->answer) ? 0 : to->end.tv_sec - to->answer.tv_sec;
 		}
 	}
 	if (to->disposition < from->disposition) {
@@ -564,6 +600,18 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		from->userfield[0] = 0; /* theft */
 	}
 	/* flags, varsead, ? */
+	cdr_merge_vars(from, to);
+
+	if (ast_test_flag(from, AST_CDR_FLAG_KEEP_VARS))
+		ast_set_flag(to, AST_CDR_FLAG_KEEP_VARS);
+	if (ast_test_flag(from, AST_CDR_FLAG_POSTED))
+		ast_set_flag(to, AST_CDR_FLAG_POSTED);
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED))
+		ast_set_flag(to, AST_CDR_FLAG_LOCKED);
+	if (ast_test_flag(from, AST_CDR_FLAG_CHILD))
+		ast_set_flag(to, AST_CDR_FLAG_CHILD);
+	if (ast_test_flag(from, AST_CDR_FLAG_POST_DISABLED))
+		ast_set_flag(to, AST_CDR_FLAG_POST_DISABLED);
 }
 
 void ast_cdr_start(struct ast_cdr *cdr)

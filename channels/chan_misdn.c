@@ -3167,7 +3167,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 	if (callerid) 
 		ast_callerid_parse(callerid, &cid_name, &cid_num);
 
-	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
+	tmp = ast_channel_alloc(1, state, cid_num, cid_name, "", exten, "", 0, "%s/%d-u%d", misdn_type, chan_offset + c, glob_channel++);
 	
 	if (tmp) {
 		chan_misdn_log(2, 0, " --> * NEW CHANNEL dad:%s oad:%s\n",exten,callerid);

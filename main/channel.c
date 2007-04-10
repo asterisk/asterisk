@@ -620,7 +620,7 @@ static const struct ast_channel_tech null_tech = {
 };
 
 /*! \brief Create a new channel structure */
-struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *name_fmt, ...)
+struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_num, const char *cid_name, const char *acctcode, const char *exten, const char *context, const int amaflag, const char *name_fmt, ...)
 {
 	struct ast_channel *tmp;
 	int x;
@@ -733,6 +733,30 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	}
 
 	/* Reminder for the future: under what conditions do we NOT want to track cdrs on channels? */
+
+	/* These 4 variables need to be set up for the cdr_init() to work right */
+	if (amaflag)
+		tmp->amaflags = amaflag;
+	else
+		tmp->amaflags = ast_default_amaflags;
+	
+	if (!ast_strlen_zero(acctcode))
+		ast_string_field_set(tmp, accountcode, acctcode);
+	else
+		ast_string_field_set(tmp, accountcode, ast_default_accountcode);
+		
+	if (!ast_strlen_zero(context))
+		ast_copy_string(tmp->context, context, sizeof(tmp->context));
+	else
+		strcpy(tmp->context, "default");
+
+	if (!ast_strlen_zero(exten))
+		ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
+	else
+		strcpy(tmp->exten, "s");
+
+	tmp->priority = 1;
+		
 	tmp->cdr = ast_cdr_alloc();
 	ast_cdr_init(tmp->cdr, tmp);
 	ast_cdr_start(tmp->cdr);
@@ -744,13 +768,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	
 	AST_LIST_HEAD_INIT_NOLOCK(&tmp->datastores);
 	
-	strcpy(tmp->context, "default");
-	strcpy(tmp->exten, "s");
-	tmp->priority = 1;
-	
 	ast_string_field_set(tmp, language, defaultlanguage);
-	tmp->amaflags = ast_default_amaflags;
-	ast_string_field_set(tmp, accountcode, ast_default_accountcode);
 
 	tmp->tech = &null_tech;
 
