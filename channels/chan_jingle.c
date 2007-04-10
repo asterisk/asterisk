@@ -765,7 +765,7 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 		str = title;
 	else
 		str = i->from;
-	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "Jingle/%s-%04lx", str, ast_random() & 0xffff);
+	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, "", "", "", 0, "Jingle/%s-%04lx", str, ast_random() & 0xffff);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate Jingle channel structure!\n");
 		return NULL;
