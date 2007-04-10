@@ -470,6 +470,7 @@ static struct zt_pvt {
 	int outsigmod;					/*!< Outbound Signalling style (modifier) */
 	int oprmode;					/*!< "Operator Services" mode */
 	struct zt_pvt *oprpeer;				/*!< "Operator Services" peer tech_pvt ptr */
+	float cid_rxgain;					/*!< "Gain to apply during caller id */
 	float rxgain;
 	float txgain;
 	int tonezone;					/*!< tone zone for this chan, or -1 for default */
@@ -690,6 +691,8 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 			.use_callerid = 1,
 			.sig = -1,
 			.outsigmod = -1,
+
+			.cid_rxgain = +5.0,
 
 			.tonezone = -1,
 
@@ -1712,8 +1715,8 @@ static int bump_gains(struct zt_pvt *p)
 {
 	int res;
 
-	/* Bump receive gain by 5.0db */
-	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + 5.0, p->txgain, p->law);
+	/* Bump receive gain by value stored in cid_rxgain */
+	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + p->cid_rxgain, p->txgain, p->law);
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bump gain: %s\n", strerror(errno));
 		return -1;
@@ -7870,6 +7873,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		tmp->group = conf.chan.group;
 		tmp->callgroup = conf.chan.callgroup;
 		tmp->pickupgroup= conf.chan.pickupgroup;
+		tmp->cid_rxgain = conf.chan.cid_rxgain;
 		tmp->rxgain = conf.chan.rxgain;
 		tmp->txgain = conf.chan.txgain;
 		tmp->tonezone = conf.chan.tonezone;
@@ -12050,6 +12054,10 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			confp->chan.immediate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
 			confp->chan.transfertobusy = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "cid_rxgain")) {
+			if (sscanf(v->value, "%f", &confp->chan.cid_rxgain) != 1) {
+				ast_log(LOG_WARNING, "Invalid cid_rxgain: %s\n", v->value);
+			}
 		} else if (!strcasecmp(v->name, "rxgain")) {
 			if (sscanf(v->value, "%f", &confp->chan.rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid rxgain: %s\n", v->value);
