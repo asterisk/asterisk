@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/dial.h"
 #include "asterisk/pbx.h"
+#include "asterisk/musiconhold.h"
 
 /*! \brief Main dialing structure. Contains global options, channels being dialed, and more! */
 struct ast_dial {
@@ -122,6 +123,21 @@ static int answer_exec_disable(void *data)
 	return 0;
 }
 
+static void *music_enable(void *data)
+{
+	return ast_strdup(data);
+}
+
+static int music_disable(void *data)
+{
+	if (!data)
+		return -1;
+
+	free(data);
+
+	return 0;
+}
+
 /* Application execution function for 'ANSWER_EXEC' option */
 static void answer_exec_run(struct ast_channel *chan, char *app, char *args)
 {
@@ -143,9 +159,10 @@ static const struct ast_option_types {
 	ast_dial_option_cb_enable enable;
 	ast_dial_option_cb_disable disable;
 } option_types[] = {
-	{ AST_DIAL_OPTION_RINGING, NULL, NULL },                                  /*! Always indicate ringing to caller */
-	{ AST_DIAL_OPTION_ANSWER_EXEC, answer_exec_enable, answer_exec_disable }, /*! Execute application upon answer in async mode */
-	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*! Terminator of list */
+	{ AST_DIAL_OPTION_RINGING, NULL, NULL },                                  /*!< Always indicate ringing to caller */
+	{ AST_DIAL_OPTION_ANSWER_EXEC, answer_exec_enable, answer_exec_disable }, /*!< Execute application upon answer in async mode */
+	{ AST_DIAL_OPTION_MUSIC, music_enable, music_disable },                   /*!< Play music to the caller instead of ringing */
+	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*!< Terminator of list */
 };
 
 /* free the buffer if allocated, and set the pointer to the second arg */
@@ -324,7 +341,8 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 		case AST_CONTROL_RINGING:
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", channel->owner->name);
-			ast_indicate(chan, AST_CONTROL_RINGING);
+			if (!dial->options[AST_DIAL_OPTION_MUSIC])
+				ast_indicate(chan, AST_CONTROL_RINGING);
 			break;
 		case AST_CONTROL_PROGRESS:
 			if (option_verbose > 2)
@@ -430,6 +448,13 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		set_state(dial, AST_DIAL_RESULT_RINGING);
 		if (chan)
 			ast_indicate(chan, AST_CONTROL_RINGING);
+	} else if (chan && dial->options[AST_DIAL_OPTION_MUSIC] && 
+		!ast_strlen_zero(dial->options[AST_DIAL_OPTION_MUSIC])) {
+		char *original_moh = ast_strdupa(chan->musicclass);
+		ast_indicate(chan, -1);
+		ast_string_field_set(chan, musicclass, dial->options[AST_DIAL_OPTION_MUSIC]);
+		ast_moh_start(chan, dial->options[AST_DIAL_OPTION_MUSIC], NULL);
+		ast_string_field_set(chan, musicclass, original_moh);
 	}
 
 	/* Go into an infinite loop while we are trying */
@@ -509,6 +534,11 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		/* If ANSWER_EXEC is enabled as an option, execute application on answered channel */
 		if ((channel = find_relative_dial_channel(dial, who)) && (answer_exec = FIND_RELATIVE_OPTION(dial, channel, AST_DIAL_OPTION_ANSWER_EXEC)))
 			answer_exec_run(who, answer_exec->app, answer_exec->args);
+
+		if (chan && dial->options[AST_DIAL_OPTION_MUSIC] && 
+			!ast_strlen_zero(dial->options[AST_DIAL_OPTION_MUSIC])) {
+			ast_moh_stop(chan);
+		}
 	} else if (dial->state == AST_DIAL_RESULT_HANGUP) {
 		/* Hangup everything */
 		AST_LIST_TRAVERSE(&dial->channels, channel, list) {

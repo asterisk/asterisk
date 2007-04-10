@@ -39,6 +39,7 @@ typedef void (*ast_dial_state_callback)(struct ast_dial *);
 enum ast_dial_option {
 	AST_DIAL_OPTION_RINGING,     /*!< Always indicate ringing to caller */
 	AST_DIAL_OPTION_ANSWER_EXEC, /*!< Execute application upon answer in async mode */
+	AST_DIAL_OPTION_MUSIC,       /*!< Play music on hold instead of ringing to the calling channel */
 	AST_DIAL_OPTION_MAX,         /*!< End terminator -- must always remain last */
 };
 
