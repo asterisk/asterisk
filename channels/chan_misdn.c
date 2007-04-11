@@ -152,7 +152,7 @@ struct chan_list {
 	int need_hangup;
 	int need_busy;
 	
-	int orginator;
+	int originator;
 
 	int norxtone;
 	int notxtone; 
@@ -284,12 +284,6 @@ static void send_digit_to_chan(struct chan_list *cl, char digit );
 
 static void hangup_chan(struct chan_list *ch);
 static int pbx_start_chan(struct chan_list *ch);
-
-
-#define AST_CID_P(ast) ast->cid.cid_num
-#define AST_BRIDGED_P(ast) ast_bridged_channel(ast) 
-#define AST_LOAD_CFG ast_config_load
-#define AST_DESTROY_CFG ast_config_destroy
 
 #define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
 #define MISDN_ASTERISK_PVT(ast) 1
@@ -441,37 +435,37 @@ static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 {
 	switch (fac->Function) {
 	case Fac_CD:
-		chan_misdn_log(0,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
+		chan_misdn_log(1,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
 					   fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
 		break;
 	case Fac_AOCDCurrency:
 		if (fac->u.AOCDcur.chargeNotAvailable)
-			chan_misdn_log(0,bc->port," --> AOCD currency: charge not available\n");
+			chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
 		else if (fac->u.AOCDcur.freeOfCharge)
-			chan_misdn_log(0,bc->port," --> AOCD currency: free of charge\n");
+			chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
 		else if (fac->u.AOCDchu.billingId >= 0)
-			chan_misdn_log(0,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d billingId:%d\n",
+			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d billingId:%d\n",
 						   fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
 						   (fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
 		else
-			chan_misdn_log(0,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d\n",
+			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d\n",
 						   fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
 						   (fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
 		break;
 	case Fac_AOCDChargingUnit:
 		if (fac->u.AOCDchu.chargeNotAvailable)
-			chan_misdn_log(0,bc->port," --> AOCD charging unit: charge not available\n");
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
 		else if (fac->u.AOCDchu.freeOfCharge)
-			chan_misdn_log(0,bc->port," --> AOCD charging unit: free of charge\n");
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
 		else if (fac->u.AOCDchu.billingId >= 0)
-			chan_misdn_log(0,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
 						   fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
 		else
-			chan_misdn_log(0,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
+			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
 						   fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
 		break;
 	default:
-		chan_misdn_log(0,bc->port," --> unknown\n");
+		chan_misdn_log(1,bc->port," --> unknown\n");
 	}
 }
 
@@ -489,6 +483,64 @@ static void print_bearer(struct misdn_bchannel *bc)
 		break;
 	}
 }
+
+static void export_aoc_vars(int originator, struct ast_channel *ast, struct misdn_bchannel *bc)
+{
+	char buf[128];
+
+	if (!bc->AOCD_need_export || !ast)
+		return;
+
+	if (originator == ORG_AST) {
+		ast = ast_bridged_channel(ast);
+		if (!ast)
+			return;
+	}
+
+	switch (bc->AOCDtype) {
+	case Fac_AOCDCurrency:
+		pbx_builtin_setvar_helper(ast, "AOCD_Type", "currency");
+		if (bc->AOCD.currency.chargeNotAvailable)
+			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "no");
+		else {
+			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "yes");
+			if (bc->AOCD.currency.freeOfCharge)
+				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "yes");
+			else {
+				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "no");
+				if (snprintf(buf, sizeof(buf), "%d %s", bc->AOCD.currency.currencyAmount * bc->AOCD.currency.multiplier, bc->AOCD.currency.currency) < sizeof(buf)) {
+					pbx_builtin_setvar_helper(ast, "AOCD_Amount", buf);
+					if (bc->AOCD.currency.billingId >= 0 && snprintf(buf, sizeof(buf), "%d", bc->AOCD.currency.billingId) < sizeof(buf))
+						pbx_builtin_setvar_helper(ast, "AOCD_BillingId", buf);
+				}
+			}
+		}
+		break;
+	case Fac_AOCDChargingUnit:
+		pbx_builtin_setvar_helper(ast, "AOCD_Type", "charging_unit");
+		if (bc->AOCD.chargingUnit.chargeNotAvailable)
+			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "no");
+		else {
+			pbx_builtin_setvar_helper(ast, "AOCD_ChargeAvailable", "yes");
+			if (bc->AOCD.chargingUnit.freeOfCharge)
+				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "yes");
+			else {
+				pbx_builtin_setvar_helper(ast, "AOCD_FreeOfCharge", "no");
+				if (snprintf(buf, sizeof(buf), "%d", bc->AOCD.chargingUnit.recordedUnits) < sizeof(buf)) {
+					pbx_builtin_setvar_helper(ast, "AOCD_RecordedUnits", buf);
+					if (bc->AOCD.chargingUnit.billingId >= 0 && snprintf(buf, sizeof(buf), "%d", bc->AOCD.chargingUnit.billingId) < sizeof(buf))
+						pbx_builtin_setvar_helper(ast, "AOCD_BillingId", buf);
+				}
+			}
+		}
+		break;
+	default:
+		break;
+	}
+	
+	bc->AOCD_need_export = 0;
+}
+
 /*************** Helpers END *************/
 
 static void sighandler(int sig)
@@ -1005,9 +1057,9 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 
 		bc->pid, bc->port, bc->channel,
 		bc->nt?"NT":"TE",
-		help->orginator == ORG_AST?"*":"I",
+		help->originator == ORG_AST?"*":"I",
 		ast?ast->exten:NULL,
-		ast?AST_CID_P(ast):NULL,
+		ast?ast->cid.cid_num:NULL,
 		bc->rad,
 		ast?ast->context:NULL,
 		misdn_get_ch_state(help)
@@ -1074,12 +1126,12 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 				
 						,help->l3id
 						,ast->exten
-						,AST_CID_P(ast)
+						,ast->cid.cid_num
 						,help->hold_info.port
 						,help->hold_info.channel
 						);
 			} else {
-				ast_cli(fd,"* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", ast->exten, AST_CID_P(ast));
+				ast_cli(fd,"* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", ast->exten, ast->cid.cid_num);
 			}
 		}
 	}
@@ -1961,12 +2013,12 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		newbc->dad[l-1] = 0;
 	}
 	newbc->rad[0]=0;
-	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n",AST_CID_P(ast));
-	if (ast_strlen_zero(newbc->oad) && AST_CID_P(ast) ) {
+	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n",ast->cid.cid_num);
+	if (ast_strlen_zero(newbc->oad) && ast->cid.cid_num ) {
 
-		if (AST_CID_P(ast)) {
+		if (ast->cid.cid_num) {
 			int l = sizeof(newbc->oad);
-			strncpy(newbc->oad,AST_CID_P(ast), l);
+			strncpy(newbc->oad,ast->cid.cid_num, l);
 			newbc->oad[l-1] = 0;
 		}
 	}
@@ -2242,7 +2294,7 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 				chan_misdn_log(3, p->bc->port, " --> * SEND: State Ring pid:%d\n",p->bc?p->bc->pid:-1);
 				ast_setstate(ast,AST_STATE_RINGING);
 			
-				if ( !p->bc->nt && (p->orginator==ORG_MISDN) && !p->incoming_early_audio ) 
+				if ( !p->bc->nt && (p->originator==ORG_MISDN) && !p->incoming_early_audio ) 
 					chan_misdn_log(2,p->bc->port, " --> incoming_early_audio off\n");
 				else 
 					return -1;
@@ -2326,13 +2378,9 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	bc=p->bc;
 
-
-	
 	MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 	p->ast=NULL;
 
-	bc=p->bc;
-	
 	if (ast->_state == AST_STATE_RESERVED || 
 		p->state == MISDN_NOTHING || 
 		p->state == MISDN_HOLDED || 
@@ -2380,7 +2428,7 @@ static int misdn_hangup(struct ast_channel *ast)
 			bc->out_cause=tmpcause?tmpcause:16;
 		}
     
-		chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n",p->bc?p->bc->pid:-1, ast->context, ast->exten, AST_CID_P(ast), misdn_get_ch_state(p));
+		chan_misdn_log(1, bc->port, "* IND : HANGUP\tpid:%d ctx:%s dad:%s oad:%s State:%s\n",p->bc?p->bc->pid:-1, ast->context, ast->exten, ast->cid.cid_num, misdn_get_ch_state(p));
 		chan_misdn_log(3, bc->port, " --> l3id:%x\n",p->l3id);
 		chan_misdn_log(3, bc->port, " --> cause:%d\n",bc->cause);
 		chan_misdn_log(2, bc->port, " --> out_cause:%d\n",bc->out_cause);
@@ -2411,7 +2459,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		case MISDN_ALERTING:
 		case MISDN_PROGRESS:
 		case MISDN_PROCEEDING:
-			if (p->orginator != ORG_AST) 
+			if (p->originator != ORG_AST) 
 				hanguptone_indicate(p);
       
 			/*p->state=MISDN_CLEANING;*/
@@ -2518,7 +2566,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  					char context_tmp[BUFFERSIZE];
  					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
  					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
- 					if (ast_exists_extension(ast, context, "fax", 1, AST_CID_P(ast))) {
+ 					if (ast_exists_extension(ast, context, "fax", 1, ast->cid.cid_num)) {
   						if (option_verbose > 2)
  							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
   						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
@@ -2900,7 +2948,7 @@ static struct chan_list *init_chan_list(int orig)
 	
 	memset(cl,0,sizeof(struct chan_list));
 
-	cl->orginator=orig;
+	cl->originator=orig;
 	cl->need_queue_hangup=1;
 	cl->need_hangup=1;
 	cl->need_busy=1;
@@ -3421,7 +3469,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 			ast_mutex_destroy(&ch->overlap_tv_lock);
 		}
 
-		if (ch->orginator == ORG_AST) {
+		if (ch->originator == ORG_AST) {
 			misdn_out_calls[bc->port]--;
 		} else {
 			misdn_in_calls[bc->port]--;
@@ -3434,7 +3482,7 @@ static void release_chan(struct misdn_bchannel *bc) {
 
 			
 			if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
-				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, ast->context, ast->exten,AST_CID_P(ast),misdn_get_ch_state(ch));
+				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n",bc?bc->pid:-1, ast->context, ast->exten,ast->cid.cid_num,misdn_get_ch_state(ch));
 				chan_misdn_log(3, bc->port, " --> * State Down\n");
 				MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 				
@@ -3462,11 +3510,11 @@ static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded
 	
 	tmp_ch->state=MISDN_HOLD_DISCONNECT;
   
-	ast_moh_stop(AST_BRIDGED_P(holded_chan->ast));
+	ast_moh_stop(ast_bridged_channel(holded_chan->ast));
 
 	holded_chan->state=MISDN_CONNECTED;
 	//misdn_lib_transfer(holded_chan->bc);
-	ast_channel_masquerade(holded_chan->ast, AST_BRIDGED_P(tmp_ch->ast));
+	ast_channel_masquerade(holded_chan->ast, ast_bridged_channel(tmp_ch->ast));
 }
 
 
@@ -3493,12 +3541,12 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 		}
 	}
 
-	if ( !bc->nt && (ch->orginator==ORG_MISDN) && !ch->incoming_early_audio ) 
+	if ( !bc->nt && (ch->originator==ORG_MISDN) && !ch->incoming_early_audio ) 
 		chan_misdn_log(1,bc->port, " --> incoming_early_audio off\n");
 	 else  
 		dialtone_indicate(ch);
   
-	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, AST_CID_P(ast));
+	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, ast->cid.cid_num);
   
 	strncpy(ast->exten,"s", 2);
   
@@ -3953,7 +4001,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->bc = bc;
 		ch->l3id=bc->l3_id;
 		ch->addr=bc->addr;
-		ch->orginator = ORG_MISDN;
+		ch->originator = ORG_MISDN;
 
 		chan=misdn_new(ch, AST_STATE_RESERVED,bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
 		ch->ast = chan;
@@ -4268,7 +4316,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		if (!ch->ast) break;
 
-		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
+		struct ast_channel *bridged=ast_bridged_channel(ch->ast);
 		stop_indicate(ch);
 
 		if (bridged && !strcasecmp(bridged->tech->type,"mISDN")) {
@@ -4302,8 +4350,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	if (ch) {
 		struct chan_list *holded_ch=find_holded(cl_te, bc);
 		
-		chan_misdn_log(3,bc->port," --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->orginator, bc->nt, misdn_inband_avail(bc), ch->state);
-		if ( ch->orginator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
+		chan_misdn_log(3,bc->port," --> org:%d nt:%d, inbandavail:%d state:%d\n", ch->originator, bc->nt, misdn_inband_avail(bc), ch->state);
+		if ( ch->originator==ORG_AST && !bc->nt && misdn_inband_avail(bc) && ch->state != MISDN_CONNECTED) {
 			/* If there's inband information available (e.g. a
 			   recorded message saying what was wrong with the
 			   dialled number, or perhaps even giving an
@@ -4421,6 +4469,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 	case EVENT_BCHAN_DATA:
 	{
+		if (ch->bc->AOCD_need_export)
+			export_aoc_vars(ch->originator, ch->ast, ch->bc);
 		if ( !misdn_cap_is_speech(ch->bc->capability) ) {
 			struct ast_frame frame;
 			/*In Data Modes we queue frames*/
@@ -4542,7 +4592,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->hold_info.port=0;
 		ch->hold_info.channel=0;
 		
-		struct ast_channel *hold_ast=AST_BRIDGED_P(ch->ast);
+		struct ast_channel *hold_ast=ast_bridged_channel(ch->ast);
 		
 		if (hold_ast) {
 			ast_moh_stop(hold_ast);
@@ -4565,7 +4615,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 		
-		struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
+		struct ast_channel *bridged=ast_bridged_channel(ch->ast);
 
 		if (bridged) {
 			chan_misdn_log(2,bc->port,"Bridge Partner is of type: %s\n",bridged->tech->type);
@@ -4591,12 +4641,18 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	break;
 	
 	case EVENT_FACILITY:
+		if (!ch) {
+			/* This may come from a call we don't know nothing about, so we ignore it. */
+			chan_misdn_log(-1, bc->port, "Got EVENT_FACILITY but we don't have a ch!\n");
+			break;
+		}
+
 		print_facility(&(bc->fac_in), bc);
 		
 		switch (bc->fac_in.Function) {
 		case Fac_CD:
 			{
-				struct ast_channel *bridged=AST_BRIDGED_P(ch->ast);
+				struct ast_channel *bridged=ast_bridged_channel(ch->ast);
 				struct chan_list *ch_br;
 				if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
 					ch_br=MISDN_ASTERISK_TECH_PVT(bridged);
@@ -4617,10 +4673,14 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		case Fac_AOCDCurrency:
 			bc->AOCDtype = Fac_AOCDCurrency;
 			memcpy(&(bc->AOCD.currency), &(bc->fac_in.u.AOCDcur), sizeof(struct FacAOCDCurrency));
+			bc->AOCD_need_export = 1;
+			export_aoc_vars(ch->originator, ch->ast, bc);
 			break;
 		case Fac_AOCDChargingUnit:
 			bc->AOCDtype = Fac_AOCDChargingUnit;
 			memcpy(&(bc->AOCD.chargingUnit), &(bc->fac_in.u.AOCDchu), sizeof(struct FacAOCDChargingUnit));
+			bc->AOCD_need_export = 1;
+			export_aoc_vars(ch->originator, ch->ast, bc);
 			break;
 		default:
 			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);
@@ -4997,7 +5057,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 				update_pipeline_config(ch->bc);
 #else
 				ch->bc->ec_enable=1;
-				ch->bc->orig=ch->orginator;
+				ch->bc->orig=ch->originator;
 				tok++;
 				if (*tok) {
 					ch->bc->ec_deftaps=atoi(tok);

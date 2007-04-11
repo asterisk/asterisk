@@ -585,6 +585,8 @@ static void empty_bc(struct misdn_bchannel *bc)
 	bc->ec_deftaps = 128;
 #endif
 
+	bc->AOCD_need_export = 0;
+
 	bc->orig=0;
   
 	bc->cause=16;

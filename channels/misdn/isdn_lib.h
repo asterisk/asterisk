@@ -274,6 +274,7 @@ struct misdn_bchannel {
 		struct FacAOCDCurrency currency;
 		struct FacAOCDChargingUnit chargingUnit;
 	} AOCD;
+	int AOCD_need_export;
 	
 	enum event_e evq;
 	
