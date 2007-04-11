@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <time.h>
 #include <sys/time.h>
 #include <limits.h>
+#include <sys/sysinfo.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
@@ -2447,11 +2448,14 @@ static int __ast_pbx_run(struct ast_channel *c)
 	return 0;
 }
 
-/* Returns 0 on success, non-zero if call limit was reached */
+/* Returns 0 on success, non-zero if a configured limit (maxcalls, maxload, minmemfree) was reached */
 static int increase_call_count(const struct ast_channel *c)
 {
 	int failed = 0;
 	double curloadavg;
+	long curfreemem;
+	struct sysinfo sys_info;
+
 	ast_mutex_lock(&maxcalllock);
 	if (option_maxcalls) {
 		if (countcalls >= option_maxcalls) {
@@ -2466,6 +2470,19 @@ static int increase_call_count(const struct ast_channel *c)
 			failed = -1;
 		}
 	}
+	if (option_minmemfree) {
+		if (!sysinfo(&sys_info)) {
+			/* make sure that the free system memory is above the configured low watermark
+			 * convert the amount of freeram from mem_units to MB */
+			curfreemem = sys_info.freeram / sys_info.mem_unit; 
+			curfreemem /= 1024*1024; 
+			if (curfreemem < option_minmemfree) {
+				ast_log(LOG_WARNING, "Available system memory (~%ldMB) is below the configured low watermark (%ldMB)\n", curfreemem, option_minmemfree);
+				failed = -1;
+			}
+		}
+	}
+		
 	if (!failed)
 		countcalls++;
 	ast_mutex_unlock(&maxcalllock);

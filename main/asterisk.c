@@ -80,6 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #ifdef linux
 #include <sys/prctl.h>
 #ifdef HAVE_CAP
@@ -163,6 +164,7 @@ int option_debug;				/*!< Debug level */
 double option_maxload;				/*!< Max load avg on system */
 int option_maxcalls;				/*!< Max number of active calls */
 int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
+long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 
 /*! @} */
 
@@ -354,6 +356,7 @@ static int handle_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Verbosity:                   %d\n", option_verbose);
 	ast_cli(fd, "  Debug level:                 %d\n", option_debug);
 	ast_cli(fd, "  Max load avg:                %lf\n", option_maxload);
+	ast_cli(fd, "  Min Free Memory:             %ld MB\n", option_minmemfree);
 	if (localtime_r(&ast_startuptime, &tm)) {
 		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
 		ast_cli(fd, "  Startup time:                %s\n", buf);
@@ -404,6 +407,31 @@ static int handle_show_threads(int fd, int argc, char *argv[])
 	}
         AST_LIST_UNLOCK(&thread_list);
 	ast_cli(fd, "%d threads listed.\n", count);
+	return 0;
+}
+
+static const char show_sysinfo_help[] =
+"Usage: core show sysinfo\n"
+"       List current system information.\n";
+
+/*! \brief Give an overview of system statistics */
+static int handle_show_sysinfo(int fd, int argc, char *argv[])
+{
+	struct sysinfo sys_info;
+
+	if (sysinfo(&sys_info)) {
+		ast_cli(fd, "FAILED to retrieve system information\n\n");
+		return 0;
+	}
+	ast_cli(fd, "\nSystem Statistics\n");
+	ast_cli(fd, "-----------------\n");
+	ast_cli(fd, "  System Uptime:             %ld hours\n", sys_info.uptime/3600);
+	ast_cli(fd, "  Total RAM:                 %ld KiB\n", (sys_info.totalram / sys_info.mem_unit)/1024);
+	ast_cli(fd, "  Free RAM:                  %ld KiB\n", (sys_info.freeram / sys_info.mem_unit)/1024);
+	ast_cli(fd, "  Buffer RAM:                %ld KiB\n", (sys_info.bufferram / sys_info.mem_unit)/1024);
+	ast_cli(fd, "  Total Swap Space:          %ld KiB\n", (sys_info.totalswap / sys_info.mem_unit)/1024);
+	ast_cli(fd, "  Free Swap Space:           %ld KiB\n\n", (sys_info.freeswap / sys_info.mem_unit)/1024);
+	ast_cli(fd, "  Number of Processes:       %d \n\n", sys_info.procs);
 	return 0;
 }
 
@@ -1691,6 +1719,10 @@ static struct ast_cli_entry cli_asterisk[] = {
 	handle_show_threads, "Show running threads",
 	show_threads_help },
 
+	{ { "core", "show", "sysinfo", NULL },
+	handle_show_sysinfo, "Show System Information",
+	show_sysinfo_help },
+
 	{ { "core", "show", "profile", NULL },
 	handle_show_profile, "Display profiling info",
 	NULL },
@@ -2483,6 +2515,12 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "minmemfree")) {
+			/* specify the minimum amount of free memory to retain.  Asterisk should stop accepting new calls
+			 * if the amount of free memory falls below this watermark */
+			if ((sscanf(v->value, "%ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
+				option_minmemfree = 0;
+			}
 		}
 	}
 	ast_config_destroy(cfg);
@@ -2555,6 +2593,11 @@ int main(int argc, char *argv[])
 	/* Check for options */
 	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:")) != -1) {
 		switch (c) {
+		case 'e':
+			if ((sscanf(optarg, "%ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
+				option_minmemfree = 0;
+			}
+			break;
 #if HAVE_WORKING_FORK
 		case 'F':
 			ast_set_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK);
