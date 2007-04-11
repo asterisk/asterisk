@@ -1010,6 +1010,8 @@ void ast_verbose(const char *fmt, ...)
 
 	strcpy(logmsg->str, buf->str);
 
+	ast_log(LOG_VERBOSE, logmsg->str);
+
 	/* Set type */
 	logmsg->type = LOGMSG_VERBOSE;
 	
