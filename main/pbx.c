@@ -37,7 +37,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <time.h>
 #include <sys/time.h>
 #include <limits.h>
+#if HAVE_SYSINFO
 #include <sys/sysinfo.h>
+#endif
 
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
@@ -2453,8 +2455,10 @@ static int increase_call_count(const struct ast_channel *c)
 {
 	int failed = 0;
 	double curloadavg;
+#if HAVE_SYSINFO
 	long curfreemem;
 	struct sysinfo sys_info;
+#endif
 
 	ast_mutex_lock(&maxcalllock);
 	if (option_maxcalls) {
@@ -2470,6 +2474,7 @@ static int increase_call_count(const struct ast_channel *c)
 			failed = -1;
 		}
 	}
+#if HAVE_SYSINFO
 	if (option_minmemfree) {
 		if (!sysinfo(&sys_info)) {
 			/* make sure that the free system memory is above the configured low watermark
@@ -2482,6 +2487,7 @@ static int increase_call_count(const struct ast_channel *c)
 			}
 		}
 	}
+#endif
 		
 	if (!failed)
 		countcalls++;
