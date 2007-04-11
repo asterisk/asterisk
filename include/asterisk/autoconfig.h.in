@@ -504,6 +504,9 @@
 /* Define to indicate the ${SUPPSERV_DESCRIP} library version */
 #undef HAVE_SUPPSERV_VERSION
 
+/* Define to 1 if your system has sysinfo support */
+#undef HAVE_SYSINFO
+
 /* Define to 1 if you have the <syslog.h> header file. */
 #undef HAVE_SYSLOG_H
 
@@ -741,6 +744,9 @@
 #endif
 #ifndef _POSIX_PTHREAD_SEMANTICS
 # undef _POSIX_PTHREAD_SEMANTICS
+#endif
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
 #endif
 
 /* Define like PROTOTYPES; this can be used by system headers. */

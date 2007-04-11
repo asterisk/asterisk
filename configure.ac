@@ -324,6 +324,15 @@ CFLAGS="${saved_CFLAGS}"
 AC_SUBST(GC_CFLAGS)
 AC_SUBST(GC_LDFLAGS)
 
+AC_MSG_CHECKING(for sysinfo)
+AC_LINK_IFELSE(
+        AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
+                        [struct sysinfo sys_info;]),
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([HAVE_SYSINFO], 1, [Define to 1 if your system has sysinfo support]),
+        AC_MSG_RESULT(no)
+)
+
 AC_MSG_CHECKING(for res_ninit)
 AC_LINK_IFELSE(
 	AC_LANG_PROGRAM([#include <resolv.h>],
