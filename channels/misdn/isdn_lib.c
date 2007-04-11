@@ -1816,7 +1816,7 @@ handle_event_nt(void *dat, void *arg)
 				return 0;
 			}
   
-			cb_log(7, stack->port, " --> new_process: New L3Id: %x\n",hh->dinfo);
+			cb_log(4, stack->port, " --> new_process: New L3Id: %x\n",hh->dinfo);
 			bc->l3_id=hh->dinfo;
 
 		}
@@ -3291,10 +3291,11 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			if (bc->bc_state == BCHAN_BRIDGED) {
 				misdn_split_conf(bc,bc->conf_id);
 				struct misdn_bchannel *bc2=find_bc_by_confid(bc->conf_id);
-				if (!bc2) 
+				if (!bc2) {
 					cb_log(0,bc->port,"We have no second bc in bridge???\n");
-				else 
+				} else {
 					misdn_split_conf(bc2,bc->conf_id);
+				}
 			}
 
 			if (bc->channel>0)
