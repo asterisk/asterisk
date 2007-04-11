@@ -99,8 +99,10 @@ static enum ast_device_state custom_devstate_callback(const char *data)
 
 	AST_RWLIST_RDLOCK(&custom_devices);
 	AST_RWLIST_TRAVERSE(&custom_devices, dev, entry) {
-		if (!strcasecmp(dev->name, data))
+		if (!strcasecmp(dev->name, data)) {
 			state = dev->state;	
+			break;
+		}
 	}
 	AST_RWLIST_UNLOCK(&custom_devices);
 
