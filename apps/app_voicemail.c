@@ -1163,6 +1163,9 @@ static int remove_file(char *dir, int msgnum)
 	} else
 		ast_copy_string(fn, dir, sizeof(fn));
 	ast_filedelete(fn, NULL);	
+	if (ast_check_realtime("voicemail_data")) {
+		ast_destroy_realtime("voicemail_data", "filename", fn, NULL);
+	}
 	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 	unlink(full_fn);
 	return 0;
@@ -1579,6 +1582,9 @@ static void rename_file(char *sfn, char *dfn)
 	ast_filerename(sfn,dfn,NULL);
 	snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
 	snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
+	if (ast_check_realtime("voicemail_data")) {
+		ast_update_realtime("voicemail_data", "filename", sfn, "filename", dfn, NULL);
+	}
 	rename(stxt, dtxt);
 }
 
@@ -1635,10 +1641,43 @@ static int copy(char *infile, char *outfile)
 static void copy_file(char *frompath, char *topath)
 {
 	char frompath2[PATH_MAX], topath2[PATH_MAX];
+	struct ast_variable *tmp,*var = NULL;
+	char *origmailbox = NULL, *context = NULL, *macrocontext = NULL, *exten = NULL, *priority = NULL, *callerchan = NULL, *callerid = NULL, *origdate = NULL, *origtime = NULL, *category = NULL, *duration = NULL;
 	ast_filecopy(frompath, topath, NULL);
 	snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
 	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
+	if (ast_check_realtime("voicemail_data")) {
+		var = ast_load_realtime("voicemail_data", "filename", frompath, NULL);
+		/* This cycle converts ast_variable linked list, to va_list list of arguments, may be there is a better way to do it? */
+		for (tmp = var; tmp; tmp = tmp->next) {
+			if (!strcasecmp(tmp->name, "origmailbox")) {
+				origmailbox = tmp->value;
+			} else if (!strcasecmp(tmp->name, "context")) {
+				context = tmp->value;
+			} else if (!strcasecmp(tmp->name, "macrocontext")) {
+				macrocontext = tmp->value;
+			} else if (!strcasecmp(tmp->name, "exten")) {
+				exten = tmp->value;
+			} else if (!strcasecmp(tmp->name, "priority")) {
+				priority = tmp->value;
+			} else if (!strcasecmp(tmp->name, "callerchan")) {
+				callerchan = tmp->value;
+			} else if (!strcasecmp(tmp->name, "callerid")) {
+				callerid = tmp->value;
+			} else if (!strcasecmp(tmp->name, "origdate")) {
+				origdate = tmp->value;
+			} else if (!strcasecmp(tmp->name, "origtime")) {
+				origtime = tmp->value;
+			} else if (!strcasecmp(tmp->name, "category")) {
+				category = tmp->value;
+			} else if (!strcasecmp(tmp->name, "duration")) {
+				duration = tmp->value;
+			}
+		}
+		ast_store_realtime("voicemail_data", "filename", topath, "origmailbox", origmailbox, "context", context, "macrocontext", macrocontext, "exten", exten, "priority", priority, "callerchan", callerchan, "callerid", callerid, "origdate", origdate, "origtime", origtime, "category", category, "duration", duration, NULL);
+	}
 	copy(frompath2, topath2);
+	ast_variables_destroy(var);
 }
 #endif
 
@@ -1683,6 +1722,9 @@ static int vm_delete(char *file)
 	/* Sprintf here would safe because we alloca'd exactly the right length,
 	 * but trying to eliminate all sprintf's anyhow
 	 */
+	if (ast_check_realtime("voicemail_data")) {
+		ast_destroy_realtime("voicemail_data", "filename", file, NULL);
+	}
 	snprintf(txt, txtsize, "%s.txt", file);
 	unlink(txt);
 	return ast_filedelete(file, NULL);
@@ -2882,6 +2924,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	int ausemacro = 0;
 	int ousemacro = 0;
 	int ouseexten = 0;
+	int rtmsgid = 0;
+	char tmpid[16];
+	char tmpdur[16];
+	char priority[16];
+	char origtime[16];
 	char dir[PATH_MAX], tmpdir[PATH_MAX];
 	char dest[PATH_MAX];
 	char fn[PATH_MAX];
@@ -3114,6 +3161,14 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			res = ast_stream_and_wait(chan, "beep", "");
 		}
 				
+		/* Store information in real-time storage */
+		if (ast_check_realtime("voicemail_data")) {
+			snprintf(priority, sizeof(priority), "%d", chan->priority);
+			snprintf(origtime, sizeof(origtime), "%ld", (long)time(NULL));
+			get_date(date, sizeof(date));
+			rtmsgid = ast_store_realtime("voicemail_data", "origmailbox", ext, "context", chan->context, "macrocontext", chan->macrocontext, "exten", chan->exten, "priority", priority, "callerchan", chan->name, "callerid", ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"), "origdate", date, "origtime", origtime, "category", category ? category : "", NULL);
+		}
+
 		/* Store information */
 		txt = fdopen(txtdes, "w+");
 		if (txt) {
@@ -3156,6 +3211,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminsecs);
 				ast_filedelete(tmptxtfile, NULL);
 				unlink(tmptxtfile);
+				if (ast_check_realtime("voicemail_data")) {
+					snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
+					ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
+				}
 			} else {
 				fprintf(txt, "duration=%d\n", duration);
 				fclose(txt);
@@ -3169,6 +3228,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 						ast_log(LOG_DEBUG, "The recorded media file is gone, so we should remove the .txt file too!\n");
 					unlink(tmptxtfile);
 					ast_unlock_path(dir);
+					if (ast_check_realtime("voicemail_data")) {
+						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
+						ast_destroy_realtime("voicemail_data", "id", tmpid, NULL);
+					}
 				} else {
 					msgnum = last_message_index(vmu, dir) + 1;
 					make_file(fn, sizeof(fn), dir, msgnum);
@@ -3185,6 +3248,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					rename(tmptxtfile, txtfile);
 
 					ast_unlock_path(dir);
+					if (ast_check_realtime("voicemail_data")) {
+						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
+						snprintf(tmpdur, sizeof(tmpdur), "%d", duration);
+						ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, NULL);
+					}
 #ifndef IMAP_STORAGE
 					/* Are there to be more recipients of this message? */
 					while (tmpptr) {
@@ -4870,6 +4938,12 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 				vms->heard[x] = 0;
 				--x;
 			} 
+		} else if (vms->deleted[x] && ast_check_realtime("voicemail_data")) {
+			/* If realtime storage enabled - we should explicitly delete this message,
+			cause RENAME() will overwrite files, but will keep duplicate records in RT-storage */
+			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
+			if (EXISTS(vms->curdir, x, vms->fn, NULL))
+				DELETE(vms->curdir, x, vms->fn);
 		} 
 	} 
 
