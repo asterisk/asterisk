@@ -2400,13 +2400,12 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	bc=p->bc;
 
-
+	if (p)
+		export_aoc_vars(p->originator, ast, bc);
 	
 	MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 	p->ast=NULL;
 
-	bc=p->bc;
-	
 	if (ast->_state == AST_STATE_RESERVED || 
 		p->state == MISDN_NOTHING || 
 		p->state == MISDN_HOLDED || 
