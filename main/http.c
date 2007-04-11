@@ -79,8 +79,8 @@ static int enablestatic;
 
 /*! \brief Limit the kinds of files we're willing to serve up */
 static struct {
-	char *ext;
-	char *mtype;
+	const char *ext;
+	const char *mtype;
 } mimetypes[] = {
 	{ "png", "image/png" },
 	{ "jpg", "image/jpeg" },
@@ -88,10 +88,11 @@ static struct {
 	{ "wav", "audio/x-wav" },
 	{ "mp3", "audio/mpeg" },
 	{ "svg", "image/svg+xml" },
+	{ "svgz", "image/svg+xml" },
 	{ "gif", "image/gif" },
 };
 
-static char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
+static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 {
 	int x;
 	if (ftype) {
@@ -109,7 +110,8 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 	char result[4096];
 	char *c=result;
 	char *path;
-	char *ftype, *mtype;
+	char *ftype;
+	const char *mtype;
 	char wkspace[80];
 	struct stat st;
 	int len;
@@ -128,7 +130,7 @@ static char *static_callback(struct sockaddr_in *req, const char *uri, struct as
 		
 	if ((ftype = strrchr(uri, '.')))
 		ftype++;
-	mtype=ftype2mtype(ftype, wkspace, sizeof(wkspace));
+	mtype = ftype2mtype(ftype, wkspace, sizeof(wkspace));
 	
 	/* Cap maximum length */
 	len = strlen(uri) + strlen(ast_config_AST_DATA_DIR) + strlen("/static-http/") + 5;
