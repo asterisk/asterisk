@@ -80,7 +80,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif
 #ifdef linux
@@ -166,7 +166,7 @@ int option_debug;				/*!< Debug level */
 double option_maxload;				/*!< Max load avg on system */
 int option_maxcalls;				/*!< Max number of active calls */
 int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 long option_minmemfree;				/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
 
@@ -360,7 +360,7 @@ static int handle_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Verbosity:                   %d\n", option_verbose);
 	ast_cli(fd, "  Debug level:                 %d\n", option_debug);
 	ast_cli(fd, "  Max load avg:                %lf\n", option_maxload);
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 	ast_cli(fd, "  Min Free Memory:             %ld MB\n", option_minmemfree);
 #endif
 	if (localtime_r(&ast_startuptime, &tm)) {
@@ -416,7 +416,7 @@ static int handle_show_threads(int fd, int argc, char *argv[])
 	return 0;
 }
 
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 static const char show_sysinfo_help[] =
 "Usage: core show sysinfo\n"
 "       List current system information.\n";
@@ -1727,7 +1727,7 @@ static struct ast_cli_entry cli_asterisk[] = {
 	handle_show_threads, "Show running threads",
 	show_threads_help },
 
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 	{ { "core", "show", "sysinfo", NULL },
 	handle_show_sysinfo, "Show System Information",
 	show_sysinfo_help },
@@ -2525,7 +2525,7 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 		} else if (!strcasecmp(v->name, "minmemfree")) {
 			/* specify the minimum amount of free memory to retain.  Asterisk should stop accepting new calls
 			 * if the amount of free memory falls below this watermark */
@@ -2605,7 +2605,7 @@ int main(int argc, char *argv[])
 	/* Check for options */
 	while ((c = getopt(argc, argv, "mtThfFdvVqprRgciInx:U:G:C:L:M:e:")) != -1) {
 		switch (c) {
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 		case 'e':
 			if ((sscanf(optarg, "%ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
 				option_minmemfree = 0;

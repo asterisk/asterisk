@@ -113,7 +113,7 @@ extern int option_verbose;
 extern int option_debug;		/*!< Debugging */
 extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern double option_maxload;
-#if HAVE_SYSINFO
+#if defined(HAVE_SYSINFO)
 extern long option_minmemfree;		/*!< Minimum amount of free system memory - stop accepting calls if free memory falls below this watermark */
 #endif
 extern char defaultlanguage[];
