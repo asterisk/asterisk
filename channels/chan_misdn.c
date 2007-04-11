@@ -487,9 +487,18 @@ static void print_bearer(struct misdn_bchannel *bc)
 	}
 }
 
-static void export_aoc_vars(struct ast_channel *ast, struct misdn_bchannel *bc)
+static void export_aoc_vars(int originator, struct ast_channel *ast, struct misdn_bchannel *bc)
 {
 	char buf[128];
+
+	if (!ast)
+		return;
+
+	if (originator == ORG_AST) {
+		ast = ast_bridged_channel(ast);
+		if (!ast)
+			return;
+	}
 
 	switch (bc->AOCDtype) {
 	case Fac_AOCDCurrency:
@@ -4692,6 +4701,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	break;
 	
 	case EVENT_FACILITY:
+		if (!ch) {
+			/* This may come from a call we don't know nothing about, so we ignore it. */
+			chan_misdn_log(-1, bc->port, "Got EVENT_FACILITY but we don't have a ch!\n");
+			break;
+		}
+
 		print_facility(&(bc->fac_in), bc);
 		
 		switch (bc->fac_in.Function) {
@@ -4718,20 +4733,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		case Fac_AOCDCurrency:
 			bc->AOCDtype = Fac_AOCDCurrency;
 			memcpy(&(bc->AOCD.currency), &(bc->fac_in.u.AOCDcur), sizeof(struct FacAOCDCurrency));
-			if (ch->originator == ORG_AST) {
-				if (ast_bridged_channel(ch->ast))
-					export_aoc_vars(ast_bridged_channel(ch->ast), bc);
-			} else
-				export_aoc_vars(ch->ast, bc);
+			export_aoc_vars(ch->originator, ch->ast, bc);
 			break;
 		case Fac_AOCDChargingUnit:
 			bc->AOCDtype = Fac_AOCDChargingUnit;
 			memcpy(&(bc->AOCD.chargingUnit), &(bc->fac_in.u.AOCDchu), sizeof(struct FacAOCDChargingUnit));
-			if (ch->originator == ORG_AST) {
-				if (ast_bridged_channel(ch->ast))
-					export_aoc_vars(ast_bridged_channel(ch->ast), bc);
-			} else
-				export_aoc_vars(ch->ast, bc);
+			export_aoc_vars(ch->originator, ch->ast, bc);
 			break;
 		default:
 			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);
