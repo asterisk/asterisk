@@ -12415,7 +12415,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 
 	if (peer) {
 		/* Already in the list, remove it and it will be added back (or FREE'd)  */
-		found++;
+		found = 1;
  	} else {
 		peer = malloc(sizeof(*peer));
 		if (peer) {
@@ -12514,10 +12514,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ast_log(LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
 				} else {
 					/* They'll register with us */
-					ast_set_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);
-					if (!found) {
-						/* Initialize stuff iff we're not found, otherwise
-						   we keep going with what we had */
+					if (!found || !ast_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)) {
+						/* Initialize stuff if this is a new peer, or if it used to be
+						 * non-dynamic before the reload. */
 						memset(&peer->addr.sin_addr, 0, 4);
 						if (peer->addr.sin_port) {
 							/* If we've already got a port, make it the default rather than absolute */
@@ -12525,6 +12524,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 							peer->addr.sin_port = 0;
 						}
 					}
+					ast_set_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);
 				}
 			} else {
 				/* Non-dynamic.  Make sure we become that way if we're not */
