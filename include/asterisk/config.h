@@ -156,6 +156,23 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
+/*! \brief Create realtime configuration 
+ * \param family which family/config to be created
+ * This function is used to create a parameter in realtime configuration space.
+ *
+ */
+int ast_store_realtime(const char *family, ...);
+
+/*! \brief Destroy realtime configuration 
+ * \param family which family/config to be destroyed
+ * \param keyfield which field to use as the key
+ * \param lookup which value to look for in the key field to match the entry.
+ * This function is used to destroy an entry in realtime configuration space.
+ * Additional params are used as keys.
+ *
+ */
+int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...);
+
 /*! \brief Check if realtime engine is configured for family 
  * returns 1 if family is configured in realtime and engine exists
  * \param family which family/config to be checked

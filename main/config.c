@@ -1426,6 +1426,38 @@ int ast_update_realtime(const char *family, const char *keyfield, const char *lo
 	return res;
 }
 
+int ast_store_realtime(const char *family, ...) {
+	struct ast_config_engine *eng;
+	int res = -1;
+	char db[256]="";
+	char table[256]="";
+	va_list ap;
+
+	va_start(ap, family);
+	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
+	if (eng && eng->store_func) 
+		res = eng->store_func(db, table, ap);
+	va_end(ap);
+
+	return res;
+}
+
+int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...) {
+	struct ast_config_engine *eng;
+	int res = -1;
+	char db[256]="";
+	char table[256]="";
+	va_list ap;
+
+	va_start(ap, lookup);
+	eng = find_engine(family, db, sizeof(db), table, sizeof(table));
+	if (eng && eng->destroy_func) 
+		res = eng->destroy_func(db, table, keyfield, lookup, ap);
+	va_end(ap);
+
+	return res;
+}
+
 static int config_command(int fd, int argc, char **argv) 
 {
 	struct ast_config_engine *eng;
