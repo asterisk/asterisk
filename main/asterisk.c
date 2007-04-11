@@ -2607,7 +2607,7 @@ int main(int argc, char *argv[])
 		switch (c) {
 #if defined(HAVE_SYSINFO)
 		case 'e':
-			if ((sscanf(optarg, "%ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
+			if ((sscanf(&optarg[1], "%ld", &option_minmemfree) != 1) || (option_minmemfree < 0)) {
 				option_minmemfree = 0;
 			}
 			break;
