@@ -4168,7 +4168,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	add_header(resp, "To", ot);
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
-	add_header(resp, "User-Agent", default_useragent);
+	if (!ast_strlen_zero(default_useragent))
+		add_header(resp, "User-Agent", default_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
@@ -4281,7 +4282,8 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
-	add_header(req, "User-Agent", default_useragent);
+	if (!ast_strlen_zero(default_useragent))
+		add_header(req, "User-Agent", default_useragent);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	if (p->rpid)
@@ -5058,7 +5060,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
-	add_header(req, "User-Agent", default_useragent);
+	if (!ast_strlen_zero(default_useragent))
+		add_header(req, "User-Agent", default_useragent);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	if (p->rpid)
 		add_header(req, "Remote-Party-ID", p->rpid);
@@ -5671,7 +5674,8 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header(&req, "To", to);
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
-	add_header(&req, "User-Agent", default_useragent);
+	if (!ast_strlen_zero(default_useragent))
+		add_header(&req, "User-Agent", default_useragent);
 	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	
