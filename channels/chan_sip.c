@@ -1405,7 +1405,6 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
 static int sip_show_channels(int fd, int argc, char *argv[]);
 static int sip_show_subscriptions(int fd, int argc, char *argv[]);
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
 static char *complete_sipch(const char *line, const char *word, int pos, int state);
 static char *complete_sip_peer(const char *word, int state, int flags2);
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state);
