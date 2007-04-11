@@ -2400,9 +2400,6 @@ static int misdn_hangup(struct ast_channel *ast)
 	
 	bc=p->bc;
 
-	if (p)
-		export_aoc_vars(p->originator, ast, bc);
-	
 	MISDN_ASTERISK_TECH_PVT(ast)=NULL;
 	p->ast=NULL;
 
