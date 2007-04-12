@@ -2657,14 +2657,16 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	} else if (sin) {	/* Then check on IP address for dynamic peers */
 		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
 		var = ast_load_realtime("sippeers", "host", ipaddr, NULL);	/* First check for fixed IP hosts */
-		if (var && realtimeregs) {
-			tmp = var;
-			while (tmp) {
-				if (!newpeername && !strcasecmp(tmp->name, "name"))
-					newpeername = tmp->value;
-				tmp = tmp->next;
+		if (var) {
+			if (realtimeregs) {
+				tmp = var;
+				while (tmp) {
+					if (!newpeername && !strcasecmp(tmp->name, "name"))
+						newpeername = tmp->value;
+					tmp = tmp->next;
+				}
+				varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
 			}
-			varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
 		} else {
 			if (realtimeregs)
 				varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, NULL); /* Then check for registered hosts */
