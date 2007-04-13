@@ -1399,6 +1399,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 static int sip_show_peer(int fd, int argc, char *argv[]);
 static int sip_show_user(int fd, int argc, char *argv[]);
 static int sip_show_registry(int fd, int argc, char *argv[]);
+static int sip_unregister(int fd, int argc, char *argv[]);
 static int sip_show_settings(int fd, int argc, char *argv[]);
 static const char *subscription_type2str(enum subscriptiontype subtype) attribute_pure;
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
@@ -10942,6 +10943,25 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+/*! \brief Unregister (force expiration) a SIP peer in the registry via CLI */
+static int sip_unregister(int fd, int argc, char *argv[])
+{
+	struct sip_peer *peer;
+	int load_realtime = 0;
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	
+	if ((peer = find_peer(argv[2], NULL, load_realtime))) {
+		expire_register(peer);
+		ast_cli(fd, "Unregistered peer \'%s\'\n\n", argv[2]);
+	} else {
+		ast_cli(fd, "Attempted to unregister an unknown peer \'%s\' via CLI\n", argv[2]);
+	}
+	
+	return 0;
+}
+
 /*! \brief List global settings for the SIP channel */
 static int sip_show_settings(int fd, int argc, char *argv[])
 {
@@ -11941,6 +11961,10 @@ static const char prune_realtime_usage[] =
 static const char show_reg_usage[] =
 "Usage: sip show registry\n"
 "       Lists all registration requests and status.\n";
+
+static const char sip_unregister_usage[] =
+"Usage: sip unregister <peer>\n"
+"       Unregister (force expiration) a SIP peer from the registry\n";
 
 static const char debug_usage[] = 
 "Usage: sip debug\n"
@@ -18064,6 +18088,10 @@ static struct ast_cli_entry cli_sip[] = {
 	{ { "sip", "show", "registry", NULL },
 	sip_show_registry, "List SIP registration status",
 	show_reg_usage },
+
+	{ { "sip", "unregister", NULL },
+	sip_unregister, "Unregister (force expiration) a SIP peer from the registery\n",
+	sip_unregister_usage },
 
 	{ { "sip", "show", "settings", NULL },
 	sip_show_settings, "Show SIP global settings",
