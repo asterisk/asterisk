@@ -133,6 +133,9 @@ static struct ast_speech_result *find_result(struct ast_speech_result *results, 
 	char *tmp = NULL;
 	int nbest_num = 0, wanted_num = 0, i = 0;
 
+	if (!result)
+		return NULL;
+
 	if ((tmp = strchr(result_num, '/'))) {
 		*tmp++ = '\0';
 		nbest_num = atoi(result_num);
