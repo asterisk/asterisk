@@ -1392,7 +1392,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	void *fdm = MAP_FAILED;
 	size_t fdlen = -1;
 	SQLHSTMT stmt;
-	SQLINTEGER len;
+	SQLLEN len;
 	char sql[PATH_MAX];
 	char msgnums[20];
 	char fn[PATH_MAX];
