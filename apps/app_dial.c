@@ -92,7 +92,10 @@ static char *descrip =
 "ends the call.\n"
 "  The optional URL will be sent to the called party if the channel supports it.\n"
 "  If the OUTBOUND_GROUP variable is set, all peer channels created by this\n"
-"application will be put into that group (as in Set(GROUP()=...).\n\n"
+"application will be put into that group (as in Set(GROUP()=...).\n"
+"  If the OUTBOUND_GROUP_ONCE variable is set, all peer channels created by this\n"
+"application will be put into that group (as in Set(GROUP()=...). Unlike OUTBOUND_GROUP,\n"
+"however, the variable will be unset after use.\n\n"
 "  Options:\n"
 "    A(x) - Play an announcement to the called party, using 'x' as the file.\n"
 "    C    - Reset the CDR for this call.\n"
@@ -1274,10 +1277,15 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	if (continue_exec)
 		*continue_exec = 0;
-
+	
 	/* If a channel group has been specified, get it for use when we create peer channels */
-	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
-
+	if ((outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP_ONCE"))) {
+		outbound_group = ast_strdupa(outbound_group);
+		pbx_builtin_setvar_helper(chan, "OUTBOUND_GROUP_ONCE", NULL);
+	} else {
+		outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
+	}
+	    
 	ast_copy_flags(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP | OPT_IGNORE_FORWARDING);
 	/* loop through the list of dial destinations */
 	rest = args.peers;
