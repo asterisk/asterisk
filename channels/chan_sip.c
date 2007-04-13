@@ -4354,6 +4354,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	for (p = iflist; p; p = p->next) {
 		/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
 		int found = FALSE;
+		if (ast_strlen_zero(p->callid))
+			continue;
 		if (req->method == SIP_REGISTER)
 			found = (!strcmp(p->callid, callid));
 		else 
