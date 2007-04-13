@@ -512,6 +512,8 @@ static void cdr_merge_vars(struct ast_cdr *to, struct ast_cdr *from)
 
 void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 {
+	struct ast_cdr *tcdr;
+	
 	if (!to || !from)
 		return;
 	
@@ -587,15 +589,15 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		ast_copy_string(to->dst, from->dst, sizeof(to->dst));
 		from->dst[0] = 0; /* theft */
 	}
-	if (!to->amaflags && from->amaflags) {
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (!to->amaflags && from->amaflags)) {
 		to->amaflags = from->amaflags;
 		from->amaflags = 0; /* theft */
 	}
-	if (ast_strlen_zero(to->accountcode) && !ast_strlen_zero(from->accountcode)) {
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->accountcode) && !ast_strlen_zero(from->accountcode))) {
 		ast_copy_string(to->accountcode, from->accountcode, sizeof(to->accountcode));
 		from->accountcode[0] = 0; /* theft */
 	}
-	if (ast_strlen_zero(to->userfield) && !ast_strlen_zero(from->userfield)) {
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->userfield) && !ast_strlen_zero(from->userfield))) {
 		ast_copy_string(to->userfield, from->userfield, sizeof(to->userfield));
 		from->userfield[0] = 0; /* theft */
 	}
@@ -612,6 +614,16 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		ast_set_flag(to, AST_CDR_FLAG_CHILD);
 	if (ast_test_flag(from, AST_CDR_FLAG_POST_DISABLED))
 		ast_set_flag(to, AST_CDR_FLAG_POST_DISABLED);
+
+	/* last, but not least, we need to merge any forked CDRs to the 'to' cdr */
+	while (from->next) {
+		/* just rip 'em off the 'from' and insert them on the 'to' */
+		tcdr = from->next;
+		from->next = tcdr->next;
+		tcdr->next = NULL;
+		/* tcdr is now ripped from the current list; */
+		ast_cdr_append(to, tcdr);
+	}
 }
 
 void ast_cdr_start(struct ast_cdr *cdr)
@@ -817,8 +829,9 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 
 	ast_string_field_set(chan, accountcode, account);
 	for ( ; cdr ; cdr = cdr->next) {
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			ast_copy_string(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode));
+		}
 	}
 	return 0;
 }
