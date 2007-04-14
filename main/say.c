@@ -1113,7 +1113,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 		} else if (num < 80) {
 			snprintf(fn, sizeof(fn), "digits/60");
 			if ((num % 10) == 1) playa++;
-			num = num - 60;
+			num -= 60;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/80");
 			num = num - 80;
