@@ -10201,13 +10201,15 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if ((resp >= 300) && (resp < 700)) {
 				if ((option_verbose > 2) && (resp != 487))
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
-				if (p->rtp) {
-					/* Immediately stop RTP */
-					ast_rtp_stop(p->rtp);
-				}
-				if (p->vrtp) {
-					/* Immediately stop VRTP */
-					ast_rtp_stop(p->vrtp);
+				if (sipmethod == SIP_INVITE) {
+					if (p->rtp) {
+						/* Immediately stop RTP */
+						ast_rtp_stop(p->rtp);
+					}
+					if (p->vrtp) {
+						/* Immediately stop VRTP */
+						ast_rtp_stop(p->vrtp);
+					}
 				}
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
@@ -10251,7 +10253,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* ACK on invite */
 				if (sipmethod == SIP_INVITE) 
 					transmit_request(p, SIP_ACK, seqno, 0, 0);
-				ast_set_flag(p, SIP_ALREADYGONE);	
+				if (sipmethod != SIP_MESSAGE && sipmethod != SIP_INFO)
+					ast_set_flag(p, SIP_ALREADYGONE);	
 				if (!p->owner)
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 			} else if ((resp >= 100) && (resp < 200)) {
