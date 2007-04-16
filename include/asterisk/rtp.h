@@ -84,16 +84,17 @@ struct ast_rtp_protocol {
 	AST_LIST_ENTRY(ast_rtp_protocol) list;
 };
 
+/*! \brief RTCP quality report storage */
 struct ast_rtp_quality {
-	unsigned int local_ssrc;          /* Our SSRC */
-	unsigned int local_lostpackets;   /* Our lost packets */
-	double       local_jitter;        /* Our calculated jitter */
-	unsigned int local_count;         /* Number of received packets */
-	unsigned int remote_ssrc;         /* Their SSRC */
-	unsigned int remote_lostpackets;  /* Their lost packets */
-	double       remote_jitter;       /* Their reported jitter */
-	unsigned int remote_count;        /* Number of transmitted packets */
-	double       rtt;                 /* Round trip time */
+	unsigned int local_ssrc;          /*!< Our SSRC */
+	unsigned int local_lostpackets;   /*!< Our lost packets */
+	double       local_jitter;        /*!< Our calculated jitter */
+	unsigned int local_count;         /*!< Number of received packets */
+	unsigned int remote_ssrc;         /*!< Their SSRC */
+	unsigned int remote_lostpackets;  /*!< Their lost packets */
+	double       remote_jitter;       /*!< Their reported jitter */
+	unsigned int remote_count;        /*!< Number of transmitted packets */
+	double       rtt;                 /*!< Round trip time */
 };
 
 /*! RTP callback structure */
