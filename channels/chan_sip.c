@@ -1312,7 +1312,6 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 static int sip_do_reload(enum channelreloadreason reason);
 static int reload_config(enum channelreloadreason reason);
 static int expire_register(void *data);
-static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
 static int sip_send_mwi_to_peer(struct sip_peer *peer);
@@ -17136,8 +17135,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 
 	sip_scheddestroy(p, 32000);	/* Make sure we stop send this reply. */
 
-	/* hangup here */
-	return -1;
+	return 0;
 }
 
 /*! \brief Return SIP UA's codec (part of the RTP interface) */
