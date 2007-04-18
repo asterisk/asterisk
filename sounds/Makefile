@@ -150,3 +150,9 @@ install: $(SOUNDS_DIR) $(SOUNDS_DIR)/es $(SOUNDS_DIR)/fr $(MOH_DIR) $(CORE_SOUND
 uninstall:
 	rm -rf $(SOUNDS_DIR)
 	rm -rf $(MOH_DIR)
+
+core_sounds_version:
+	@echo $(CORE_SOUNDS_VERSION)
+
+extra_sounds_version:
+	@echo $(EXTRA_SOUNDS_VERSION)
