@@ -145,8 +145,8 @@ struct ast_rtp {
 	unsigned int dtmfsamples;
 	/* DTMF Transmission Variables */
 	unsigned int lastdigitts;
-	char sending_digit;	/* boolean - are we sending digits */
-	char send_digit;	/* digit we are sending */
+	char sending_digit;	/*!< boolean - are we sending digits */
+	char send_digit;	/*!< digit we are sending */
 	int send_payload;
 	int send_duration;
 	int nat;
@@ -995,27 +995,27 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				lsr = (double)((ntohl(rtcpheader[i + 4]) & 0xffff0000) >> 16) + (double)((double)(ntohl(rtcpheader[i + 4]) & 0xffff) / 1000000.);
 				dlsr = (double)(ntohl(rtcpheader[i + 5])/65536.);
 				rtt = a - dlsr - lsr;
-				if (rtt>=0) {
-				rtp->rtcp->accumulated_transit += rtt;
-				rtp->rtcp->rtt = rtt;
-				if (rtp->rtcp->maxrtt<rtt)
-					rtp->rtcp->maxrtt = rtt;
-				if (rtp->rtcp->minrtt>rtt)
-				rtp->rtcp->minrtt = rtt;
-			}
+				if (rtt >= 0) {
+					rtp->rtcp->accumulated_transit += rtt;
+					rtp->rtcp->rtt = rtt;
+					if (rtp->rtcp->maxrtt < rtt)
+						rtp->rtcp->maxrtt = rtt;
+					if (rtp->rtcp->minrtt > rtt)
+						rtp->rtcp->minrtt = rtt;
+				}
 			}
 			rtp->rtcp->reported_jitter = ntohl(rtcpheader[i + 3]);
 			rtp->rtcp->reported_lost = ntohl(rtcpheader[i + 1]) & 0xffffff;
 			if (rtcp_debug_test_addr(&sin)) {
-				ast_verbose("Fraction lost: %ld\n", (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24));
-				ast_verbose("Packets lost so far: %d\n", rtp->rtcp->reported_lost);
-				ast_verbose("Highest sequence number: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff));
-				ast_verbose("Sequence number cycles: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16);
-				ast_verbose("Interarrival jitter: %u\n", rtp->rtcp->reported_jitter);
-				ast_verbose("Last SR(our NTP): %lu.%010lu\n",(unsigned long) ntohl(rtcpheader[i + 4]) >> 16,((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096);
-				ast_verbose("DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
+				ast_verbose("  Fraction lost: %ld\n", (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24));
+				ast_verbose("  Packets lost so far: %d\n", rtp->rtcp->reported_lost);
+				ast_verbose("  Highest sequence number: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff));
+				ast_verbose("  Sequence number cycles: %ld\n", (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16);
+				ast_verbose("  Interarrival jitter: %u\n", rtp->rtcp->reported_jitter);
+				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long) ntohl(rtcpheader[i + 4]) >> 16,((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096);
+				ast_verbose("  DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
 				if (rtt)
-					ast_verbose("RTT: %f(sec)\n", rtt);
+					ast_verbose("  RTT: %f(sec)\n", rtt);
 			}
 			break;
 		case RTCP_PT_FUR:
