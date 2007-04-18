@@ -995,12 +995,14 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				lsr = (double)((ntohl(rtcpheader[i + 4]) & 0xffff0000) >> 16) + (double)((double)(ntohl(rtcpheader[i + 4]) & 0xffff) / 1000000.);
 				dlsr = (double)(ntohl(rtcpheader[i + 5])/65536.);
 				rtt = a - dlsr - lsr;
+				if (rtt>=0) {
 				rtp->rtcp->accumulated_transit += rtt;
 				rtp->rtcp->rtt = rtt;
 				if (rtp->rtcp->maxrtt<rtt)
 					rtp->rtcp->maxrtt = rtt;
 				if (rtp->rtcp->minrtt>rtt)
 				rtp->rtcp->minrtt = rtt;
+			}
 			}
 			rtp->rtcp->reported_jitter = ntohl(rtcpheader[i + 3]);
 			rtp->rtcp->reported_lost = ntohl(rtcpheader[i + 1]) & 0xffffff;
@@ -1155,7 +1157,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	unsigned int seqno;
 	int version;
 	int payloadtype;
-	int tseqno;
 	int hdrlen = 12;
 	int padding;
 	int mark;
@@ -1276,8 +1277,6 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	rtp->rxcount++; /* Only count reasonably valid packets, this'll make the rtcp stats more accurate */
 
-	tseqno = rtp->lastrxseqno +1;
-
 	if (rtp->rxcount==1) {
 		/* This is the first RTP packet successfully received from source */
 		rtp->seedrxseqno = seqno;
@@ -1288,8 +1287,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Schedule transmission of Receiver Report */
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 	}
-
-	if (tseqno > RTP_SEQ_MOD) { /* if tseqno is greater than RTP_SEQ_MOD it would indicate that the sender cycled */
+	if ( rtp->lastrxseqno - seqno  > 100) { /* if so it would indicate that the sender cycled; allow for misordering */
 		rtp->cycles += RTP_SEQ_MOD;
 		ast_verbose("SEQNO cycled: %u\t%d\n", rtp->cycles, seqno);
 	}
@@ -2452,7 +2450,7 @@ static int ast_rtcp_write_sr(void *data)
 	rtcpheader[7] = htonl(rtp->themssrc);
 	rtcpheader[8] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
 	rtcpheader[9] = htonl((rtp->cycles) | ((rtp->lastrxseqno & 0xffff)));
-	rtcpheader[10] = htonl((unsigned int)rtp->rxjitter);
+	rtcpheader[10] = htonl((unsigned int)(rtp->rxjitter * 65536.));
 	rtcpheader[11] = htonl(rtp->rtcp->themrxlsr);
 	rtcpheader[12] = htonl((((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000);
 	len += 24;
@@ -2554,7 +2552,7 @@ static int ast_rtcp_write_rr(void *data)
 	rtcpheader[2] = htonl(rtp->themssrc);
 	rtcpheader[3] = htonl(((fraction & 0xff) << 24) | (lost & 0xffffff));
 	rtcpheader[4] = htonl((rtp->cycles) | ((rtp->lastrxseqno & 0xffff)));
-	rtcpheader[5] = htonl((unsigned int)rtp->rxjitter);
+	rtcpheader[5] = htonl((unsigned int)(rtp->rxjitter * 65536.));
 	rtcpheader[6] = htonl(rtp->rtcp->themrxlsr);
 	rtcpheader[7] = htonl((((dlsr.tv_sec * 1000) + (dlsr.tv_usec / 1000)) * 65536) / 1000);
 
