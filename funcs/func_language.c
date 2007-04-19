@@ -48,7 +48,7 @@ static int language_read(struct ast_channel *chan, char *cmd, char *data,
 				"LANGUAGE() is deprecated; use CHANNEL(language) instead.\n");
 	}
 
-	ast_copy_string(buf, chan->language, len);
+	ast_copy_string(buf, chan ? chan->language : "", len);
 
 	return 0;
 }
@@ -62,7 +62,7 @@ static int language_write(struct ast_channel *chan, char *cmd, char *data,
 				"LANGUAGE() is deprecated; use CHANNEL(language) instead.\n");
 	}
 
-	if (value)
+	if (chan && value)
 		ast_string_field_set(chan, language, value);
 
 	return 0;

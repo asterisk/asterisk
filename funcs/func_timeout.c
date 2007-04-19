@@ -45,6 +45,9 @@ static int timeout_read(struct ast_channel *chan, char *cmd, char *data,
 {
 	time_t myt;
 
+	if (!chan)
+		return -1;
+
 	if (!data) {
 		ast_log(LOG_ERROR, "Must specify type of timeout to get.\n");
 		return -1;
@@ -89,6 +92,9 @@ static int timeout_write(struct ast_channel *chan, char *cmd, char *data,
 	int x;
 	char timestr[64];
 	struct tm myt;
+
+	if (!chan)
+		return -1;
 
 	if (!data) {
 		ast_log(LOG_ERROR, "Must specify type of timeout to set.\n");

@@ -43,7 +43,9 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 {
 	char *opt = data;
 
-	/* XXX we are not always clearing the buffer. Is this correct ? */
+	if (!chan)
+		return -1;
+
 	if (strchr(opt, '|')) {
 		char name[80], num[80];
 
@@ -98,7 +100,7 @@ static int callerid_read(struct ast_channel *chan, char *cmd, char *data,
 static int callerid_write(struct ast_channel *chan, char *cmd, char *data,
 			  const char *value)
 {
-	if (!value)
+	if (!value || !chan)
 		return -1;
 
 	if (!strncasecmp("all", data, 3)) {

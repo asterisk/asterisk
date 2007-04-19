@@ -46,7 +46,7 @@ static int moh_read(struct ast_channel *chan, char *cmd, char *data,
 		ast_log(LOG_WARNING, "MUSICCLASS() is deprecated; use CHANNEL(musicclass) instead.\n");
 	}
 
-	ast_copy_string(buf, chan->musicclass, len);
+	ast_copy_string(buf, chan ? chan->musicclass : "", len);
 
 	return 0;
 }
@@ -59,7 +59,8 @@ static int moh_write(struct ast_channel *chan, char *cmd, char *data,
 		ast_log(LOG_WARNING, "MUSICCLASS() is deprecated; use CHANNEL(musicclass) instead.\n");
 	}
 
-	ast_string_field_set(chan, musicclass, value);
+	if (chan)
+		ast_string_field_set(chan, musicclass, value);
 
 	return 0;
 }
