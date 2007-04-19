@@ -59,7 +59,7 @@ static int cdr_read(struct ast_channel *chan, const char *cmd, char *parse,
 {
 	char *ret;
 	struct ast_flags flags = { 0 };
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr = chan ? chan->cdr : NULL;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(variable);
 			     AST_APP_ARG(options);
@@ -96,7 +96,7 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 			     AST_APP_ARG(options);
 	);
 
-	if (ast_strlen_zero(parse) || !value)
+	if (ast_strlen_zero(parse) || !value || !chan)
 		return -1;
 
 	AST_STANDARD_APP_ARGS(args, parse);
