@@ -32,14 +32,15 @@
 
 static char *function_moh_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	ast_copy_string(buf, chan->musicclass, len);
+	ast_copy_string(buf, chan ? chan->musicclass : "", len);
 
 	return buf;
 }
 
 static void function_moh_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	ast_copy_string(chan->musicclass, value, sizeof(chan->musicclass));
+	if (chan)
+		ast_copy_string(chan->musicclass, value, sizeof(chan->musicclass));
 }
 
 #ifndef BUILTIN_FUNC

@@ -42,6 +42,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *callerid_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
+	if (!chan)
+		return "";
+
 	if (!strncasecmp("all", data, 3)) {
 		snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
 	} else if (!strncasecmp("name", data, 4)) {
@@ -73,9 +76,9 @@ static char *callerid_read(struct ast_channel *chan, char *cmd, char *data, char
 
 static void callerid_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	if (!value)
+	if (!value || !chan)
                 return;
-	
+
 	if (!strncasecmp("all", data, 3)) {
 		char name[256];
 		char num[256];
