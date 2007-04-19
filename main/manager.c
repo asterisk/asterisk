@@ -1391,7 +1391,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 	const char *varname = astman_get_header(m, "Variable");
 	const char *id = astman_get_header(m,"ActionID");
 	char *varval;
-	char workspace[1024];
+	char workspace[1024] = "";
 
 	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
@@ -1410,6 +1410,7 @@ static int action_getvar(struct mansession *s, const struct message *m)
 		char *copy = ast_strdupa(varname);
 
 		ast_func_read(c, copy, workspace, sizeof(workspace));
+		varval = workspace;
 	} else {
 		pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
 	}
