@@ -14391,6 +14391,9 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	else if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
 
+	/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
+	parse_ok_contact(p, req);
+
 	build_contact(p);
 	if (gotdest) {
 		transmit_response(p, "404 Not Found", req);
