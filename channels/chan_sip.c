@@ -11068,6 +11068,10 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_copy_string(p->context, p->subscribecontext, sizeof(p->context));
 		else if (ast_strlen_zero(p->context))
 			strcpy(p->context, default_context);
+
+		/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
+		parse_ok_contact(p, req);
+
 		/* Get destination right away */
 		build_contact(p);
 		if (gotdest) {
