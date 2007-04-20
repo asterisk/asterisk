@@ -577,6 +577,8 @@ struct chan_iax2_pvt {
 		AST_STRING_FIELD(accountcode);
 		AST_STRING_FIELD(mohinterpret);
 		AST_STRING_FIELD(mohsuggest);
+		/*! received OSP token */
+		AST_STRING_FIELD(osptoken);
 	);
 	
 	/*! permitted authentication methods */
@@ -851,6 +853,9 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 static void destroy_user(struct iax2_user *user);
 static void prune_peers(void);
 
+static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
+static int acf_channel_write(struct ast_channel *chan, const char *function, char *data, const char *value);
+
 static const struct ast_channel_tech iax2_tech = {
 	.type = "IAX2",
 	.description = tdesc,
@@ -874,6 +879,8 @@ static const struct ast_channel_tech iax2_tech = {
 	.bridge = iax2_bridge,
 	.transfer = iax2_transfer,
 	.fixup = iax2_fixup,
+	.func_channel_read = acf_channel_read,
+	.func_channel_write = acf_channel_write,
 };
 
 static void insert_idle_thread(struct iax2_thread *thread)
@@ -2890,6 +2897,11 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
 	struct ast_var_t *var;
+	const char* osp_token_ptr;
+	unsigned int osp_token_length;
+	unsigned char osp_block_index;
+	unsigned int osp_block_length;
+	unsigned char osp_buffer[256];
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Channel is already in use (%s)?\n", c->name);
@@ -3009,6 +3021,25 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iaxs[callno]->pingtime = autokill / 2;
 		iaxs[callno]->initid = ast_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
+
+	/* Check if there is an OSP token set by IAXCHANINFO function */
+	osp_token_ptr = iaxs[callno]->osptoken;
+	if (!ast_strlen_zero(osp_token_ptr)) {
+		if ((osp_token_length = strlen(osp_token_ptr)) <= IAX_MAX_OSPTOKEN_SIZE) {
+			osp_block_index = 0;
+			while (osp_token_length > 0) {
+				osp_block_length = IAX_MAX_OSPBLOCK_SIZE < osp_token_length ? IAX_MAX_OSPBLOCK_SIZE : osp_token_length;
+				osp_buffer[0] = osp_block_index;
+				memcpy(osp_buffer + 1, osp_token_ptr, osp_block_length);
+				iax_ie_append_raw(&ied, IAX_IE_OSPTOKEN, osp_buffer, osp_block_length + 1);
+				osp_block_index++;
+				osp_token_ptr += osp_block_length;
+				osp_token_length -= osp_block_length;
+			} 
+		} else
+			ast_log(LOG_WARNING, "OSP token is too long\n");
+	} else if (option_debug && iaxdebug)
+		ast_log(LOG_DEBUG, "OSP token is undefined\n");
 
 	/* send the command using the appropriate socket for this peer */
 	iaxs[callno]->sockfd = cai.sockfd;
@@ -6316,6 +6347,36 @@ static void save_rr(struct iax_frame *fr, struct iax_ies *ies)
 	iaxs[fr->callno]->remote_rr.ooo = ies->rr_ooo;
 }
 
+static void save_osptoken(struct iax_frame *fr, struct iax_ies *ies) 
+{
+	int i;
+	unsigned int length, offset = 0;
+	char full_osptoken[IAX_MAX_OSPBUFF_SIZE];
+
+	for (i = 0; i < IAX_MAX_OSPBLOCK_NUM; i++) {
+		length = ies->ospblocklength[i];
+		if (length != 0) {
+			if (length > IAX_MAX_OSPBLOCK_SIZE) {
+				/* OSP token block length wrong, clear buffer */
+				offset = 0;
+				break;
+			} else {
+				memcpy(full_osptoken + offset, ies->osptokenblock[i], length);
+				offset += length;
+			}
+		} else {
+			break;
+		}
+	}
+	*(full_osptoken + offset) = '\0';
+	if (strlen(full_osptoken) != offset) {
+		/* OSP token length wrong, clear buffer */
+		*full_osptoken = '\0';
+	}
+
+	ast_string_field_set(iaxs[fr->callno], osptoken, full_osptoken);
+}
+
 static int socket_read(int *id, int fd, short events, void *cbdata)
 {
 	struct iax2_thread *thread;
@@ -6940,6 +7001,8 @@ retryowner:
 					ast_mutex_lock(&iaxsl[fr->callno]);
 				} else
 					exists = 0;
+				/* Get OSP token if it does exist */
+				save_osptoken(fr, &ies);
 				if (ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) {
 					if (strcmp(iaxs[fr->callno]->exten, "TBD") && !exists) {
 						memset(&ied0, 0, sizeof(ied0));
@@ -9824,6 +9887,61 @@ struct ast_custom_function iaxpeer_function = {
 	"\n"
 };
 
+static int acf_channel_write(struct ast_channel *chan, const char *function, char *args, const char *value)
+{
+	struct chan_iax2_pvt *pvt;
+	unsigned int callno;
+	int res = 0;
+
+	if (!chan || chan->tech != &iax2_tech) {
+		ast_log(LOG_ERROR, "This function requires a valid IAX2 channel\n");
+		return -1;
+	}
+
+	callno = PTR_TO_CALLNO(chan->tech_pvt);
+	ast_mutex_lock(&iaxsl[callno]);
+	if (!(pvt = iaxs[callno])) {
+		ast_mutex_unlock(&iaxsl[callno]);
+		return -1;
+	}
+
+	if (!strcasecmp(args, "osptoken"))
+		ast_string_field_set(pvt, osptoken, value);
+	else
+		res = -1;
+
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	return res;
+}
+
+static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *args, char *buf, size_t buflen)
+{
+	struct chan_iax2_pvt *pvt;
+	unsigned int callno;
+	int res = 0;
+
+	if (!chan || chan->tech != &iax2_tech) {
+		ast_log(LOG_ERROR, "This function requires a valid IAX2 channel\n");
+		return -1;
+	}
+
+	callno = PTR_TO_CALLNO(chan->tech_pvt);
+	ast_mutex_lock(&iaxsl[callno]);
+	if (!(pvt = iaxs[callno])) {
+		ast_mutex_unlock(&iaxsl[callno]);
+		return -1;
+	}
+
+	if (!strcasecmp(args, "osptoken"))
+		ast_copy_string(buf, pvt->osptoken, buflen);
+	else
+		res = -1;
+
+	ast_mutex_unlock(&iaxsl[callno]);
+
+	return res;
+}
 
 /*! \brief Part of the device state notification system ---*/
 static int iax2_devicestate(void *data) 

@@ -74,6 +74,8 @@ struct iax_ies {
 	unsigned int rr_dropped;
 	unsigned int rr_ooo;
 	struct ast_variable *vars;
+	char *osptokenblock[IAX_MAX_OSPBLOCK_NUM];
+	unsigned int ospblocklength[IAX_MAX_OSPBLOCK_NUM];
 };
 
 #define DIRECTION_INGRESS 1

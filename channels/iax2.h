@@ -129,7 +129,12 @@
 #define IAX_IE_RR_DROPPED			50		/* Dropped frames (presumably by jitterbuf) u32 */
 #define IAX_IE_RR_OOO				51		/* Frames received Out of Order u32 */
 #define IAX_IE_VARIABLE				52		/* Remote variables */
+#define IAX_IE_OSPTOKEN				53		/* OSP token */
 
+#define IAX_MAX_OSPBLOCK_SIZE		254		/* Max OSP token block size, 255 bytes - 1 byte OSP token block index */
+#define IAX_MAX_OSPBLOCK_NUM		4
+#define IAX_MAX_OSPTOKEN_SIZE		(IAX_MAX_OSPBLOCK_SIZE * IAX_MAX_OSPBLOCK_NUM)
+#define IAX_MAX_OSPBUFF_SIZE		(IAX_MAX_OSPTOKEN_SIZE + 16)
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)

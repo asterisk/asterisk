@@ -264,6 +264,7 @@ static struct iax2_ie {
 	{ IAX_IE_RR_DROPPED, "RR_DROPPED", dump_int },
 	{ IAX_IE_RR_OOO, "RR_OUTOFORDER", dump_int },
 	{ IAX_IE_VARIABLE, "VARIABLE", dump_string },
+	{ IAX_IE_OSPTOKEN, "OSPTOKEN" },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -617,6 +618,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	int ie;
 	char tmp[256], *tmp2;
 	struct ast_variable *var, *var2, *prev;
+	unsigned int count;
 	memset(ies, 0, (int)sizeof(struct iax_ies));
 	ies->msgcount = -1;
 	ies->firmwarever = -1;
@@ -928,6 +930,15 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				var = ast_variable_new(tmp, tmp2);
 				var->next = ies->vars;
 				ies->vars = var;
+			}
+			break;
+		case IAX_IE_OSPTOKEN:
+			if ((count = data[2]) < IAX_MAX_OSPBLOCK_NUM) {
+				ies->osptokenblock[count] = (char *)data + 2 + 1;
+				ies->ospblocklength[count] = len - 1;
+			} else {
+				snprintf(tmp, (int)sizeof(tmp), "Expected OSP token block index to be 0~%d but was %d\n", IAX_MAX_OSPBLOCK_NUM - 1, count);
+				errorf(tmp);
 			}
 			break;
 		default:
