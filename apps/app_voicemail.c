@@ -839,7 +839,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					ast_log(LOG_WARNING, "Failed to get category structure.\n");
 					break;
 				}
-				ast_variable_update(cat, vmu->mailbox, new, NULL);
+				ast_variable_update(cat, vmu->mailbox, new, NULL, 0);
 			}
 		}
 		/* save the results */
@@ -871,7 +871,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 					break;
 				}
 				if (!var)		
-					ast_variable_update(cat, "vmsecret", new, NULL);
+					ast_variable_update(cat, "vmsecret", new, NULL, 0);
 				else
 					ast_variable_append(cat, var);
 			}
@@ -3967,7 +3967,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 				*duration += prepend_duration;
 				msg_cat = ast_category_get(msg_cfg, "message");
 				snprintf(duration_str, 11, "%ld", *duration);
-				if (!ast_variable_update(msg_cat, "duration", duration_str, NULL)) {
+				if (!ast_variable_update(msg_cat, "duration", duration_str, NULL, 0)) {
 					config_text_file_save(textfile, msg_cfg, "app_voicemail");
 					STORE(curdir, vmu->mailbox, context, curmsg, chan, vmu, vmfmts, *duration, vms);
 				}

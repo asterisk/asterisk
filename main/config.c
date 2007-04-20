@@ -468,54 +468,41 @@ int ast_variable_delete(struct ast_category *category, const char *variable, con
 	return res;
 }
 
-int ast_variable_update(struct ast_category *category, const char *variable, const char *value, const char *match)
+int ast_variable_update(struct ast_category *category, const char *variable, 
+	const char *value, const char *match, unsigned int object)
 {
 	struct ast_variable *cur, *prev=NULL, *newer;
-	newer = ast_variable_new(variable, value);
-	if (!newer)
+
+	if (!(newer = ast_variable_new(variable, value)))
 		return -1;
-	cur = category->root;
-	while (cur) {
-		if (cur->name == variable) {
-			newer->next = cur->next;
-			newer->object = cur->object;
-			if (prev)
-				prev->next = newer;
-			else
-				category->root = newer;
-			if (category->last == cur)
-				category->last = newer;
-			cur->next = NULL;
-			ast_variables_destroy(cur);
-			return 0;
-		}
-		prev = cur;
-		cur = cur->next;
+	
+	newer->object = object;
+
+	for (cur = category->root; cur; prev = cur, cur = cur->next) {
+		if (strcasecmp(cur->name, variable) ||
+			(!ast_strlen_zero(match) && strcasecmp(cur->value, match)))
+			continue;
+
+		newer->next = cur->next;
+		newer->object = cur->object || object;
+		if (prev)
+			prev->next = newer;
+		else
+			category->root = newer;
+		if (category->last == cur)
+			category->last = newer;
+
+		cur->next = NULL;
+		ast_variables_destroy(cur);
+
+		return 0;
 	}
 
-	prev = NULL;
-	cur = category->root;
-	while (cur) {
-		if (!strcasecmp(cur->name, variable) && (ast_strlen_zero(match) || !strcasecmp(cur->value, match))) {
-			newer->next = cur->next;
-			newer->object = cur->object;
-			if (prev)
-				prev->next = newer;
-			else
-				category->root = newer;
-			if (category->last == cur)
-				category->last = newer;
-			cur->next = NULL;
-			ast_variables_destroy(cur);
-			return 0;
-		}
-		prev = cur;
-		cur = cur->next;
-	}
 	if (prev)
 		prev->next = newer;
 	else
 		category->root = newer;
+
 	return 0;
 }
 
