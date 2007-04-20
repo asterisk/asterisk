@@ -1287,10 +1287,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		/* Schedule transmission of Receiver Report */
 		rtp->rtcp->schedid = ast_sched_add(rtp->sched, ast_rtcp_calc_interval(rtp), ast_rtcp_write, rtp);
 	}
-	if ( rtp->lastrxseqno - seqno  > 100) { /* if so it would indicate that the sender cycled; allow for misordering */
+	if ( rtp->lastrxseqno - seqno  > 100) /* if so it would indicate that the sender cycled; allow for misordering */
 		rtp->cycles += RTP_SEQ_MOD;
-		ast_verbose("SEQNO cycled: %u\t%d\n", rtp->cycles, seqno);
-	}
 
 	rtp->lastrxseqno = seqno;
 	
