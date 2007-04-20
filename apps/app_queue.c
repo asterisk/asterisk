@@ -2122,7 +2122,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				ast_frfree(f);
 				return NULL;
 			}
-			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass)) {
+			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass)) {
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
 				*to = 0;
