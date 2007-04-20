@@ -4960,6 +4960,16 @@ static void parse_request(struct sip_request *req)
 			dst[i] = c + 1; /* record start of next line */
 		}
         }
+	/* Check for last header without CRLF. The RFC for SDP requires CRLF,
+	   but since some devices send without, we'll be generous in what we accept.
+	*/
+	if (!ast_strlen_zero(dst[i])) {
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "%7s %2d [%3d]: %s\n",
+				req->headers < 0 ? "Header" : "Body",
+				i, (int)strlen(dst[i]), dst[i]);
+		i++;
+	}
 	/* update count of header or body lines */
 	if (req->headers >= 0)	/* we are in the body */
 		req->lines = i;
@@ -15097,6 +15107,9 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		ast_string_field_set(p, context, p->subscribecontext);
 	else if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
+
+	/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
+	parse_ok_contact(p, req);
 
 	build_contact(p);
 	if (gotdest) {
