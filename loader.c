@@ -215,6 +215,8 @@ int ast_module_reload(const char *name)
 		ast_verbose("The previous reload command didn't finish yet\n");
 		return -1;
 	}
+	time(&ast_lastreloadtime);
+
 	if (!name || !strcasecmp(name, "extconfig")) {
 		read_config_maps();
 		reloaded = 2;
@@ -239,7 +241,6 @@ int ast_module_reload(const char *name)
 		dnsmgr_reload();
 		reloaded = 2;
 	}
-	time(&ast_lastreloadtime);
 
 	ast_mutex_lock(&modlock);
 	oldversion = modlistver;

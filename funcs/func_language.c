@@ -36,14 +36,14 @@
 
 static char *builtin_function_language_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	ast_copy_string(buf, chan->language, len);
+	ast_copy_string(buf, chan ? chan->language : "", len);
 
 	return buf;
 }
 
 static void builtin_function_language_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	if (value)
+	if (chan && value)
 		ast_copy_string(chan->language, value, sizeof(chan->language));
 }
 

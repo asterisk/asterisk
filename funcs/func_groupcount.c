@@ -149,6 +149,9 @@ static char *group_list_function_read(struct ast_channel *chan, char *cmd, char 
 	char tmp1[1024] = "";
 	char tmp2[1024] = "";
 
+	if (!chan)
+		return "";
+
 	headp=&chan->varshead;
 	AST_LIST_TRAVERSE(headp,current,entries) {
 		if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {

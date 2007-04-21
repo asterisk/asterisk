@@ -44,7 +44,7 @@ static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char
 	int argc;
 	char *argv[2];
 	int recursive = 0;
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr = chan ? chan->cdr : NULL;
 
 	if (ast_strlen_zero(data))
 		return NULL;
@@ -78,9 +78,9 @@ static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char
 	char *argv[2];
 	int recursive = 0;
 
-	if (ast_strlen_zero(data) || !value)
+	if (ast_strlen_zero(data) || !value || !chan)
 		return;
-	
+
 	mydata = ast_strdupa(data);
 	argc = ast_app_separate_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
