@@ -1065,6 +1065,17 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+/*! The amount of space in out must be at least ( 2 * strlen(in) + 1 ) */
+static void json_escape(char *out, const char *in)
+{
+	for (; *in; in++) {
+		if (*in == '\\' || *in == '\"')
+			*out++ = '\\';
+		*out++ = *in;
+	}
+	*out = '\0';
+}
+
 static char mandescr_getconfigjson[] =
 "Description: A 'GetConfigJSON' action will dump the contents of a configuration\n"
 "file by category and contents in JSON format.  This only makes sense to be used\n"
@@ -1079,6 +1090,8 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 	char *category = NULL;
 	struct ast_variable *v;
 	int comma1 = 0;
+	char *buf = NULL;
+	unsigned int buf_len = 0;
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
@@ -1090,15 +1103,36 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 		return 0;
 	}
 
+	buf_len = 512;
+	buf = alloca(buf_len);
+
 	astman_start_ack(s, m);
 	astman_append(s, "JSON: {");
 	while ((category = ast_category_browse(cfg, category))) {
 		int comma2 = 0;
-		astman_append(s, "%s\"%s\":[", comma1 ? "," : "", category);
+		if (buf_len < 2 * strlen(category) + 1) {
+			buf_len *= 2;
+			buf = alloca(buf_len);
+		}
+		json_escape(buf, category);
+		astman_append(s, "%s\"%s\":[", comma1 ? "," : "", buf);
 		if (!comma1)
 			comma1 = 1;
 		for (v = ast_variable_browse(cfg, category); v; v = v->next) {
-			astman_append(s, "%s\"%s=%s\"", comma2 ? "," : "", v->name, v->value);
+			if (comma2)
+				astman_append(s, ",");
+			if (buf_len < 2 * strlen(v->name) + 1) {
+				buf_len *= 2;
+				buf = alloca(buf_len);
+			}
+			json_escape(buf, v->name);
+			astman_append(s, "\"%s", buf);
+			if (buf_len < 2 * strlen(v->value) + 1) {
+				buf_len *= 2;
+				buf = alloca(buf_len);
+			}
+			json_escape(buf, v->value);
+			astman_append(s, "%s\"", buf);
 			if (!comma2)
 				comma2 = 1;
 		}
