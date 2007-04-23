@@ -2226,7 +2226,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
 				chan->emulate_dtmf_digit = f->subclass;
 				chan->dtmf_begin_tv = ast_tvnow();
-				if (f->len)
+				if (f->len && f->len > AST_DEFAULT_EMULATE_DTMF_DURATION)
 					chan->emulate_dtmf_duration = f->len;
 				else
 					chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
@@ -2234,6 +2234,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_clear_flag(chan, AST_FLAG_IN_DTMF);
 				if (!f->len)
 					f->len = ast_tvdiff_ms(ast_tvnow(), chan->dtmf_begin_tv);
+				if (f->len < AST_DEFAULT_EMULATE_DTMF_DURATION) {
+					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
+					chan->emulate_dtmf_digit = f->subclass;
+					chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION - f->len;
+					f = &ast_null_frame;
+				}
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
