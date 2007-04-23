@@ -2,6 +2,81 @@
 --- Functionality changes since Asterisk 1.4-beta was branched ----------------
 -------------------------------------------------------------------------------
 
+AMI - The manager (TCP/TLS/HTTP)
+--------------------------------
+  * Added the URI redirect option for the built-in HTTP server
+  * The output of CallerID in Manager events is now more consistent.
+     CallerIDNum is used for number and CallerIDName for name.
+  * enable https support for builtin web server.
+     See configs/http.conf.sample for details.
+  * Added a new action, GetConfigJSON, which can return the contents of an
+     Asterisk configuration file in JSON format.  This is intended to help
+     improve the performance of AJAX applications using the manager interface
+     over HTTP.
+  * SIP and IAX manager events now use "ChannelType" in all cases where we 
+     indicate channel driver. Previously, we used a mixture of "Channel"
+     and "ChannelDriver" headers.
+  * Added a "Bridge" action which allows you to bridge any two channels that
+     are currently active on the system.
+
+Dialplan functions
+------------------
+  * Added the DEVSTATE() dialplan function which allows retrieving any device
+    state in the dialplan, as well as creating custom device states that are
+    controllable from the dialplan.
+  * Extend CALLERID() function with "pres" and "ton" parameters to
+     fetch string representation of calling number presentation indicator
+     and numeric representation of type of calling number value.
+  * MailboxExists converted to dialplan function
+
+CLI Changes
+-----------
+  * New CLI command "core show settings"
+  * Added 'core show channels count' CLI command.
+
+SIP changes
+-----------
+  * The default SIP useragent= identifier now includes the Asterisk version
+  * A new option, match_auth_username in sip.conf changes the matching of incoming requests.
+     If set, and the incoming request carries authentication info,
+     the username to match in the users list is taken from the Digest header
+     rather than from the From: field. This feature is considered experimental.
+  * The "musiconhold" and "musicclass" settings in sip.conf are now removed,
+     since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
+  * The "localmask" setting was removed in version 1.2 and the reminder about it
+     being removed is now also removed.
+  * A new option "busy-level" for setting a level of calls where asterisk reports
+     a device as busy, to separate it from call-limit
+  * A new realtime family called "sipregs" is now supported to store SIP registration
+     data. If this family is defined, "sippeers" will be used for configuration and
+     "sipregs" for registrations. If it's not defined, "sippeers" will be used for
+     registration data, as before.
+  * The SIPPEER function have new options for port address, call and pickup groups
+  * Added support for T.140 realtime text in SIP/RTP
+
+IAX2 changes
+------------
+  * Added the trunkmaxsize configuration option to chan_iax2.
+  * Added the srvlookup option to iax.conf
+  * Added support for OSP.  The token is set and retrieved through the CHANNEL()
+     dialplan function.
+
+DUNDi changes
+-------------
+  * Added the ability to specify arguments to the Dial application when using
+     the DUNDi switch in the dialplan.
+  * Added the ability to set weights for responses dynamically.  This can be
+     done using a global variable or a dialplan function.  Using the SHELL()
+     function would allow you to have an external script set the weight for
+     each response.
+
+Voicemail Changes
+-----------------
+  * Added the ability to customize which sound files are used for some of the
+     prompts within the Voicemail application by changing them in voicemail.conf
+  * Added the ability for the "voicemail show users" CLI command to show users
+    configured by the dynamic realtime configuration method.
+
 Miscellaneous 
 -------------
 
@@ -53,11 +128,9 @@ Miscellaneous
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
-  * Added the trunkmaxsize configuration option to chan_iax2.
   * Added G729 passthrough support to chan_phone for Sigma Designs boards.
   * Added the parkedcalltransfers option to features.conf
   * Added 's' option to Page application.
-  * Added the srvlookup option to iax.conf
   * Added 'E' and 'V' commands to ExternalIVR.
   * Added 'DBDel' and 'DBDelTree' manager commands.
   * Added 'o' and 'X' options to Chanspy.
@@ -68,71 +141,3 @@ Miscellaneous
   * Added a new realtime configuration module, res_config_sqlite
   * Added a new dialplan application, Bridge, which allows you to bridge the
     calling channel to any other active channel on the system.
-
-AMI - The manager (TCP/TLS/HTTP)
---------------------------------
-  * Added the URI redirect option for the built-in HTTP server
-  * The output of CallerID in Manager events is now more consistent.
-     CallerIDNum is used for number and CallerIDName for name.
-  * enable https support for builtin web server.
-     See configs/http.conf.sample for details.
-  * Added a new action, GetConfigJSON, which can return the contents of an
-    Asterisk configuration file in JSON format.  This is intended to help
-    improve the performance of AJAX applications using the manager interface
-    over HTTP.
-  * SIP and IAX manager events now use "ChannelType" in all cases where we 
-    indicate channel driver. Previously, we used a mixture of "Channel"
-    and "ChannelDriver" headers.
-  * Added a "Bridge" action which allows you to bridge any two channels that
-    are currently active on the system.
-
-Dialplan functions
-------------------
-  * Added the DEVSTATE() dialplan function which allows retrieving any device
-    state in the dialplan, as well as creating custom device states that are
-    controllable from the dialplan.
-  * Extend CALLERID() function with "pres" and "ton" parameters to
-     fetch string representation of calling number presentation indicator
-     and numeric representation of type of calling number value.
-  * MailboxExists converted to dialplan function
-
-CLI Changes
------------
-  * New CLI command "core show settings"
-  * Added 'core show channels count' CLI command.
-
-SIP changes
------------
-  * The default SIP useragent= identifier now includes the Asterisk version
-  * A new option, match_auth_username in sip.conf changes the matching of incoming requests.
-     If set, and the incoming request carries authentication info,
-     the username to match in the users list is taken from the Digest header
-     rather than from the From: field. This feature is considered experimental.
-  * The "musiconhold" and "musicclass" settings in sip.conf are now removed,
-     since they where replaced by "mohsuggest" and "mohinterpret" in version 1.4
-  * The "localmask" setting was removed in version 1.2 and the reminder about it
-     being removed is now also removed.
-  * A new option "busy-level" for setting a level of calls where asterisk reports
-     a device as busy, to separate it from call-limit
-  * A new realtime family called "sipregs" is now supported to store SIP registration
-     data. If this family is defined, "sippeers" will be used for configuration and
-     "sipregs" for registrations. If it's not defined, "sippeers" will be used for
-     registration data, as before.
-  * The SIPPEER function have new options for port address, call and pickup groups
-  * Added support for T.140 realtime text in SIP/RTP
-
-DUNDi changes
--------------
-  * Added the ability to specify arguments to the Dial application when using
-     the DUNDi switch in the dialplan.
-  * Added the ability to set weights for responses dynamically.  This can be
-     done using a global variable or a dialplan function.  Using the SHELL()
-     function would allow you to have an external script set the weight for
-     each response.
-
-Voicemail Changes
------------------
-  * Added the ability to customize which sound files are used for some of the
-     prompts within the Voicemail application by changing them in voicemail.conf
-  * Added the ability for the "voicemail show users" CLI command to show users
-    configured by the dynamic realtime configuration method.
