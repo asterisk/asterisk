@@ -1564,7 +1564,21 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			parse_variable_name(vars, &offset, &offset2, &isfunction);
 			if (isfunction) {
 				/* Evaluate function */
-				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
+				if (c)
+					cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
+				else {
+					struct varshead old;
+					struct ast_channel *c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/%p", vars);
+					if (c) {
+						memcpy(&old, &c->varshead, sizeof(old));
+						memcpy(&c->varshead, headp, sizeof(c->varshead));
+						cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE) ? NULL : workspace;
+						/* Don't deallocate the varshead that was passed in */
+						memcpy(&c->varshead, &old, sizeof(c->varshead));
+						ast_channel_free(c);
+					} else
+						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
+				}
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
