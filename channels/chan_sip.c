@@ -7338,6 +7338,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->noncodeccapability |= AST_RTP_DTMF;
 			else
 				p->noncodeccapability &= ~AST_RTP_DTMF;
+			p->jointnoncodeccapability = p->noncodeccapability;
 		}
 		if (user && debug)
 			ast_verbose("Found user '%s'\n", user->name);
@@ -7447,6 +7448,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 					p->noncodeccapability |= AST_RTP_DTMF;
 				else
 					p->noncodeccapability &= ~AST_RTP_DTMF;
+				p->jointnoncodeccapability = p->noncodeccapability;
 			}
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 		} else { 
