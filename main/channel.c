@@ -104,7 +104,16 @@ unsigned long global_fin, global_fout;
 AST_THREADSTORAGE(state2str_threadbuf);
 #define STATE2STR_BUFSIZE   32
 
-#define AST_DEFAULT_EMULATE_DTMF_DURATION 100 /*!< 100ms */
+/*! Default amount of time to use when emulating a digit as a begin and end 
+ *  100ms */
+#define AST_DEFAULT_EMULATE_DTMF_DURATION 100
+
+/*! Minimum allowed digit length - 80ms */
+#define AST_MIN_DTMF_DURATION 80
+
+/*! Minimum amount of time between the end of the last digit and the beginning 
+ *  of a new one - 45ms */
+#define AST_MIN_DTMF_GAP 45
 
 /*! \brief List of channel drivers */
 struct chanlist {
@@ -2070,7 +2079,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	prestate = chan->_state;
 
 	if (!ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF | AST_FLAG_IN_DTMF) && 
-	    !ast_strlen_zero(chan->dtmfq)) {
+	    !ast_strlen_zero(chan->dtmfq) && 
+		(ast_tvzero(chan->dtmf_tv) || ast_tvdiff_ms(ast_tvnow(), chan->dtmf_tv) > AST_MIN_DTMF_GAP) ) {
 		/* We have DTMF that has been deferred.  Return it now */
 		chan->dtmff.subclass = chan->dtmfq[0];
 		/* Drop first digit from the buffer */
@@ -2083,8 +2093,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
 			chan->emulate_dtmf_digit = f->subclass;
 			chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
-			chan->dtmf_begin_tv = ast_tvnow();
 		}
+		chan->dtmf_tv = ast_tvnow();
 		goto done;
 	}
 	
@@ -2222,35 +2232,51 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else if (!ast_test_flag(chan, AST_FLAG_IN_DTMF | AST_FLAG_END_DTMF_ONLY)) {
-				f->frametype = AST_FRAME_DTMF_BEGIN;
-				ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
-				chan->emulate_dtmf_digit = f->subclass;
-				chan->dtmf_begin_tv = ast_tvnow();
-				if (f->len && f->len > AST_DEFAULT_EMULATE_DTMF_DURATION)
-					chan->emulate_dtmf_duration = f->len;
-				else
-					chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
-			} else {
-				ast_clear_flag(chan, AST_FLAG_IN_DTMF);
-				if (!f->len)
-					f->len = ast_tvdiff_ms(ast_tvnow(), chan->dtmf_begin_tv);
-				if (f->len < AST_DEFAULT_EMULATE_DTMF_DURATION) {
+				if (!ast_tvzero(chan->dtmf_tv) && 
+				    ast_tvdiff_ms(ast_tvnow(), chan->dtmf_tv) < AST_MIN_DTMF_GAP) {
+					/* If it hasn't been long enough, defer this digit */
+					if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
+						chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
+					else
+						ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
+					ast_frfree(f);
+					f = &ast_null_frame;
+				} else {
+					/* There was no begin, turn this into a begin and send the end later */
+					f->frametype = AST_FRAME_DTMF_BEGIN;
 					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
 					chan->emulate_dtmf_digit = f->subclass;
-					chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION - f->len;
-					f = &ast_null_frame;
+					chan->dtmf_tv = ast_tvnow();
+					if (f->len && f->len > AST_MIN_DTMF_DURATION)
+						chan->emulate_dtmf_duration = f->len;
+					else
+						chan->emulate_dtmf_duration = AST_MIN_DTMF_DURATION;
 				}
+			} else {
+				struct timeval now = ast_tvnow();
+				ast_clear_flag(chan, AST_FLAG_IN_DTMF);
+				if (!f->len)
+					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
+				if (f->len < AST_MIN_DTMF_DURATION) {
+					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
+					chan->emulate_dtmf_digit = f->subclass;
+					chan->emulate_dtmf_duration = AST_MIN_DTMF_DURATION - f->len;
+					f = &ast_null_frame;
+				} else
+					chan->dtmf_tv = now;
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
 			send_dtmf_event(chan, "Received", f->subclass, "Yes", "No");
 			ast_log(LOG_DTMF, "DTMF begin '%c' received on %s\n", f->subclass, chan->name);
-			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_END_DTMF_ONLY)) {
+			if ( ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_END_DTMF_ONLY) || 
+			    (!ast_tvzero(chan->dtmf_tv) && 
+			      ast_tvdiff_ms(ast_tvnow(), chan->dtmf_tv) < AST_MIN_DTMF_GAP) ) {
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else {
 				ast_set_flag(chan, AST_FLAG_IN_DTMF);
-				chan->dtmf_begin_tv = ast_tvnow();
+				chan->dtmf_tv = ast_tvnow();
 			}
 			break;
 		case AST_FRAME_VOICE:
@@ -2268,10 +2294,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				f = &ast_null_frame;
 			} else if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
 				if ((f->samples / 8) >= chan->emulate_dtmf_duration) { /* XXX 8kHz */
+					struct timeval now = ast_tvnow();
 					chan->emulate_dtmf_duration = 0;
 					f->frametype = AST_FRAME_DTMF_END;
 					f->subclass = chan->emulate_dtmf_digit;
-					f->len = ast_tvdiff_ms(ast_tvnow(), chan->dtmf_begin_tv);
+					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
+					chan->dtmf_tv = now;
 				} else {
 					chan->emulate_dtmf_duration -= f->samples / 8; /* XXX 8kHz */
 					ast_frfree(f);
