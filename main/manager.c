@@ -926,7 +926,8 @@ static int authenticate(struct mansession *s, const struct message *m)
 				} else if (ha)
 					ast_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
-					if (!ast_strlen_zero(key) && s->challenge) {
+					if (!ast_strlen_zero(key) && 
+					    !ast_strlen_zero(s->challenge) && !ast_strlen_zero(password)) {
 						int x;
 						int len = 0;
 						char md5key[256] = "";
