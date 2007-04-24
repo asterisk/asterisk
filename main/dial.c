@@ -343,11 +343,13 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 				ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", channel->owner->name);
 			if (!dial->options[AST_DIAL_OPTION_MUSIC])
 				ast_indicate(chan, AST_CONTROL_RINGING);
+			set_state(dial, AST_DIAL_RESULT_RINGING);
 			break;
 		case AST_CONTROL_PROGRESS:
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "%s is making progress, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_PROGRESS);
+			set_state(dial, AST_DIAL_RESULT_PROGRESS);
 			break;
 		case AST_CONTROL_VIDUPDATE:
 			if (option_verbose > 2)
@@ -358,6 +360,7 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_PROCEEDING);
+			set_state(dial, AST_DIAL_RESULT_PROCEEDING);
 			break;
 		case AST_CONTROL_HOLD:
 			if (option_verbose > 2)
