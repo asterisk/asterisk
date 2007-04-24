@@ -213,6 +213,7 @@ union facility {
 
 
 struct misdn_bchannel {
+	struct send_lock *send_lock;
 
 	int nt;
 	int port;
