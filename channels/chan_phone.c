@@ -1092,10 +1092,8 @@ static int restart_monitor()
 		  ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		  return -1;
 		}
+		/* Wake up the thread */
 		pthread_cancel(monitor_thread);
-#if 0
-		pthread_join(monitor_thread, NULL);
-#endif
 		ast_mutex_unlock(&iflock);
 	}
 	/* Start a new monitor */
