@@ -5281,7 +5281,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (!ast_strlen_zero(i->cid_name))
 			tmp->cid.cid_name = strdup(i->cid_name);
 		if (!ast_strlen_zero(i->cid_ani))
-			tmp->cid.cid_ani = strdup(i->cid_num);
+			tmp->cid.cid_ani = strdup(i->cid_ani);
 		else if (!ast_strlen_zero(i->cid_num))	
 			tmp->cid.cid_ani = strdup(i->cid_num);
 #else
