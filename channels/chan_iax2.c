@@ -8696,16 +8696,28 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					ast_string_field_set(peer, cid_name, name2);
 					ast_string_field_set(peer, cid_num, num2);
 					ast_set_flag(peer, IAX_HASCALLERID);
+				} else {
+					ast_clear_flag(peer, IAX_HASCALLERID);
+					ast_string_field_set(peer, cid_name, "");
+					ast_string_field_set(peer, cid_num, "");
 				}
 			} else if (!strcasecmp(v->name, "fullname")) {
 				if (!ast_strlen_zero(v->value)) {
 					ast_string_field_set(peer, cid_name, v->value);
 					ast_set_flag(peer, IAX_HASCALLERID);
+				} else {
+					ast_string_field_set(peer, cid_name, "");
+					if (ast_strlen_zero(peer->cid_num))
+						ast_clear_flag(peer, IAX_HASCALLERID);
 				}
 			} else if (!strcasecmp(v->name, "cid_number")) {
 				if (!ast_strlen_zero(v->value)) {
 					ast_string_field_set(peer, cid_num, v->value);
 					ast_set_flag(peer, IAX_HASCALLERID);
+				} else {
+					ast_string_field_set(peer, cid_num, "");
+					if (ast_strlen_zero(peer->cid_name))
+						ast_clear_flag(peer, IAX_HASCALLERID);
 				}
 			} else if (!strcasecmp(v->name, "sendani")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
@@ -8896,16 +8908,28 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 					ast_string_field_set(user, cid_name, name2);
 					ast_string_field_set(user, cid_num, num2);
 					ast_set_flag(user, IAX_HASCALLERID);
+				} else {
+					ast_clear_flag(user, IAX_HASCALLERID);
+					ast_string_field_set(user, cid_name, "");
+					ast_string_field_set(user, cid_num, "");
 				}
 			} else if (!strcasecmp(v->name, "fullname")) {
 				if (!ast_strlen_zero(v->value)) {
 					ast_string_field_set(user, cid_name, v->value);
 					ast_set_flag(user, IAX_HASCALLERID);
+				} else {
+					ast_string_field_set(user, cid_name, "");
+					if (ast_strlen_zero(user->cid_num))
+						ast_clear_flag(user, IAX_HASCALLERID);
 				}
 			} else if (!strcasecmp(v->name, "cid_number")) {
 				if (!ast_strlen_zero(v->value)) {
 					ast_string_field_set(user, cid_num, v->value);
 					ast_set_flag(user, IAX_HASCALLERID);
+				} else {
+					ast_string_field_set(user, cid_num, "");
+					if (ast_strlen_zero(user->cid_name))
+						ast_clear_flag(user, IAX_HASCALLERID);
 				}
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				ast_string_field_set(user, accountcode, v->value);
