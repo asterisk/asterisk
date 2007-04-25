@@ -5281,7 +5281,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (!ast_strlen_zero(i->cid_name))
 			tmp->cid.cid_name = strdup(i->cid_name);
 		if (!ast_strlen_zero(i->cid_ani))
-			tmp->cid.cid_ani = strdup(i->cid_num);
+			tmp->cid.cid_ani = strdup(i->cid_ani);
 		else if (!ast_strlen_zero(i->cid_num))	
 			tmp->cid.cid_ani = strdup(i->cid_num);
 #else
@@ -6836,14 +6836,8 @@ static int restart_monitor(void)
 		return -1;
 	}
 	if (monitor_thread != AST_PTHREADT_NULL) {
-		/* Just signal it to be sure it wakes up */
-#if 0
-		pthread_cancel(monitor_thread);
-#endif
+		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
-#if 0
-		pthread_join(monitor_thread, NULL);
-#endif
 	} else {
 		/* Start a new monitor */
 		if (ast_pthread_create(&monitor_thread, &attr, do_monitor, NULL) < 0) {

@@ -717,8 +717,8 @@ static int restart_monitor()
 		return -1;
 	}
 	if (monitor_thread != AST_PTHREADT_NULL) {
+		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
-		pthread_join(monitor_thread, NULL);
 	} else {
 		/* Start a new monitor */
 		if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {

@@ -1085,6 +1085,10 @@ int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, in
 	cb_log(8, port, "Init.BC %d.\n",bidx);
 	
 	memset(bc, 0,sizeof(struct misdn_bchannel));
+
+	bc->send_lock=malloc(sizeof(struct send_lock));
+
+	pthread_mutex_init(&bc->send_lock->lock, NULL);
 	
 	if (msn) {
 		int l = sizeof(bc->msn);
@@ -1189,6 +1193,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 		stack->nt=1;
 		break;
 
+#ifndef MISDN_1_2
 	case ISDN_PID_L0_TE_U:
 		break;
 	case ISDN_PID_L0_NT_U:
@@ -1197,6 +1202,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 		break;
 	case ISDN_PID_L0_NT_UP2:
 		break;
+#endif
 	case ISDN_PID_L0_TE_E1:
 		cb_log(8, port, "TE S2M Stack\n");
 		stack->nt=0;
@@ -1521,14 +1527,6 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 
 		case EVENT_RELEASE_COMPLETE:
 		case EVENT_RELEASE:
-			if (bc->channel>0)
-				empty_chan_in_stack(stack,bc->channel);
-			int tmpcause=bc->cause;	
-			int tmp_out_cause=bc->out_cause;	
-			empty_bc(bc);
-			bc->cause=tmpcause;
-			bc->out_cause=tmp_out_cause;
-			clean_up_bc(bc);
 			break;
 		default:
 			break;
@@ -1584,17 +1582,18 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 				cb_log(4, stack->port, " --> lib: CLEANING UP l3id: %x\n",frm->dinfo);
 				if (bc->channel>0)
 					empty_chan_in_stack(stack,bc->channel);
-				empty_bc(bc);
 				
-				clean_up_bc(bc);
-				
-				dump_chan_list(stack);
 				/*bc->pid = 0;*/
 				bc->need_disconnect=0;
 				bc->need_release=0;
 				bc->need_release_complete=0;
-				
+
 				cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
+
+				empty_bc(bc);
+				clean_up_bc(bc);
+				dump_chan_list(stack);
+
 				if (bc->stack_holder) {
 					cb_log(4,stack->port, "REMOVEING Holder\n");
 					stack_holder_remove( stack, bc);
@@ -2653,6 +2652,18 @@ int handle_frm(msg_t *msg)
 				}
 			}
 
+			if (event == EVENT_RELEASE_COMPLETE) {
+				/* release bchannel only after we've anounced the RELEASE_COMPLETE */
+				if (bc->channel>0)
+					empty_chan_in_stack(stack,bc->channel);
+				int tmpcause=bc->cause;	
+				int tmp_out_cause=bc->out_cause;	
+				empty_bc(bc);
+				bc->cause=tmpcause;
+				bc->out_cause=tmp_out_cause;
+				clean_up_bc(bc);
+			}
+
 			cb_log(5, stack->port, "Freeing Msg on prim:%x \n",frm->prim);
 
 			
@@ -3167,21 +3178,37 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 	cb_log(5, stack->port, " --> bc:%x h:%d sh:%d\n", bc, bc->holded, bc->stack_holder);
 }
 
+#define RETURN(a,b) {retval=a; goto b;}
+
+void misdn_send_lock(struct misdn_bchannel *bc)
+{
+	//cb_log(0,bc->port,"Locking bc->pid:%d\n", bc->pid);
+	pthread_mutex_lock(&bc->send_lock->lock);
+}
+
+void misdn_send_unlock(struct misdn_bchannel *bc)
+{
+	//cb_log(0,bc->port,"UnLocking bc->pid:%d\n", bc->pid);
+	pthread_mutex_unlock(&bc->send_lock->lock);
+}
+
 int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 {
 	msg_t *msg; 
-	int err = -1 ;
-	int ret=0;
+	int retval=0;
   
-	if (!bc) goto ERR; 
+	if (!bc) RETURN(-1,OUT_POST_UNLOCK);
 	
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	if (!stack) {
 		cb_log(0,bc->port,"SENDEVENT: no Stack for event:%s oad:%s dad:%s \n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad);
-		return -1;
+		RETURN(-1,OUT);
 	}
 	
+	misdn_send_lock(bc);
+
+
 	cb_log(6,stack->port,"SENDEVENT: stack->nt:%d stack->uperid:%x\n",stack->nt, stack->upper_id);
 
 	if ( stack->nt && !stack->l1link) {
@@ -3189,7 +3216,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		bc->evq=event;
 		cb_log(1, stack->port, "Queueing Event %s because L1 is down (btw. Activating L1)\n", isdn_get_info(msgs_g, event, 0));
 		misdn_lib_get_l1_up(stack);
-		return 0;
+		RETURN(0,OUT);
 	}
 	
 	cb_log(1, stack->port, "I SEND:%s oad:%s dad:%s pid:%d\n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad, bc->pid);
@@ -3201,8 +3228,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		if (create_process(glob_mgr->midev, bc)<0) {
 			cb_log(0,  stack->port, " No free channel at the moment @ send_event\n");
 
-			err=-ENOCHAN;
-			goto ERR;
+			RETURN(-ENOCHAN,OUT);
 		}
 #if 0
 	if (stack->nt) {
@@ -3218,8 +3244,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_ALERTING:
 	case EVENT_PROCEEDING:
 	case EVENT_SETUP_ACKNOWLEDGE:
-		if (!bc->nt && !stack->ptp) break;
-
 	case EVENT_CONNECT:
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 
@@ -3229,21 +3253,19 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 				if (!bc->channel) {
 					cb_log(0, stack->port, " No free channel at the moment\n");
 					/*FIXME: add disconnect*/
-					err=-ENOCHAN;
-					goto ERR;
+					RETURN(-ENOCHAN,OUT);
 				}
 				
 				if (set_chan_in_stack(stack ,bc->channel)<0) {
 					/*FIXME: add disconnect*/
-					err=-ENOCHAN;
-					goto ERR;
+					RETURN(-ENOCHAN,OUT);
 				}
 			}
 			/* Its that i generate channels */
 		}
 
-		ret=setup_bc(bc);
-		if (ret == -EINVAL) {
+		retval=setup_bc(bc);
+		if (retval == -EINVAL) {
 			cb_log(0,bc->port,"send_event: setup_bc failed\n");
 		}
 
@@ -3276,7 +3298,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		struct misdn_bchannel *holded_bc=malloc(sizeof(struct misdn_bchannel));
 		if (!holded_bc) {
 			cb_log(0,bc->port, "Could not allocate holded_bc!!!\n");
-			return -1;
+			RETURN(-1,OUT);
 		}
 
 		/*backup the bc*/
@@ -3311,7 +3333,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_DISCONNECT:
 		if (!bc->need_disconnect) {
 			cb_log(0,bc->port," --> we have already send Disconnect\n");
-			return -1;
+			RETURN(-1,OUT);
 		}
 		
 		bc->need_disconnect=0;
@@ -3319,7 +3341,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_RELEASE:
 		if (!bc->need_release) {
 			cb_log(0,bc->port," --> we have already send Release\n");
-			return -1;
+			RETURN(-1,OUT);
 		}
 		bc->need_disconnect=0;
 		bc->need_release=0;
@@ -3327,7 +3349,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_RELEASE_COMPLETE:
 		if (!bc->need_release_complete) {
 			cb_log(0,bc->port," --> we have already send Release_complete\n");
-			return -1;
+			RETURN(-1,OUT);
 		}
 		bc->need_disconnect=0;
 		bc->need_release=0;
@@ -3349,13 +3371,12 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_CONNECT_ACKNOWLEDGE:
 
 		if ( bc->nt || misdn_cap_is_speech(bc->capability)) {
-			int ret=setup_bc(bc);
-			if (ret == -EINVAL){
+			int retval=setup_bc(bc);
+			if (retval == -EINVAL){
 				cb_log(0,bc->port,"send_event: setup_bc failed\n");
 				
 			}
 		}
-	
 		
 		if (misdn_cap_is_speech(bc->capability)) {
 			if (  !bc->nodsp) manager_ph_control(bc,  DTMF_TONE_START, 0);
@@ -3381,10 +3402,11 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	msg_queue_tail(&stack->downqueue, msg);
 	sem_post(&glob_mgr->new_msg);
   
-	return 0;
-  
- ERR:
-	return -1; 
+OUT:
+	misdn_send_unlock(bc);
+
+OUT_POST_UNLOCK:
+	return retval; 
 }
 
 
