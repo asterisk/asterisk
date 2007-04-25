@@ -49,9 +49,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/indications.h"
+#include "asterisk/linkedlists.h"
 
 #define MAX_OTHER_FORMATS 10
 
+static AST_LIST_HEAD_STATIC(groups, ast_group_info);
 
 /* !
 This function presents a dialtone and reads an extension into 'collect' 
@@ -804,61 +806,74 @@ int ast_app_group_split_group(const char *data, char *group, int group_max, char
 	else
 		res = -1;
 
-	if (cat)
-		snprintf(category, category_max, "%s_%s", GROUP_CATEGORY_PREFIX, cat);
-	else
-		ast_copy_string(category, GROUP_CATEGORY_PREFIX, category_max);
+	if (!ast_strlen_zero(cat))
+		ast_copy_string(category, cat, category_max);
 
 	return res;
 }
 
 int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 {
-	int res=0;
-	char group[80] = "";
-	char category[80] = "";
-
-	if (!ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category))) {
-		pbx_builtin_setvar_helper(chan, category, group);
-	} else
+	int res = 0;
+	char group[80] = "", category[80] = "";
+	struct ast_group_info *gi = NULL;
+	size_t len = 0;
+	
+	if (ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category)))
+		return -1;
+	
+	/* Calculate memory we will need if this is new */
+	len = sizeof(*gi) + strlen(group) + 1;
+	if (!ast_strlen_zero(category))
+		len += strlen(category) + 1;
+	
+	AST_LIST_LOCK(&groups);
+	AST_LIST_TRAVERSE(&groups, gi, list) {
+		if (gi->chan == chan && !strcasecmp(gi->group, group) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category))))
+			break;
+	}
+	
+	if (!gi && (gi = calloc(1, len))) {
+		gi->chan = chan;
+		gi->group = (char *) gi + sizeof(*gi);
+		strcpy(gi->group, group);
+		if (!ast_strlen_zero(category)) {
+			gi->category = (char *) gi + sizeof(*gi) + strlen(group) + 1;
+			strcpy(gi->category, category);
+		}
+		AST_LIST_INSERT_TAIL(&groups, gi, list);
+	} else {
 		res = -1;
-
+	}
+	
+	AST_LIST_UNLOCK(&groups);
+	
 	return res;
 }
 
 int ast_app_group_get_count(const char *group, const char *category)
 {
-	struct ast_channel *chan;
+	struct ast_group_info *gi = NULL;
 	int count = 0;
-	const char *test;
-	char cat[80];
-	const char *s;
 
 	if (ast_strlen_zero(group))
 		return 0;
-
- 	s = S_OR(category, GROUP_CATEGORY_PREFIX);
-	ast_copy_string(cat, s, sizeof(cat));
-
-	chan = NULL;
-	while ((chan = ast_channel_walk_locked(chan)) != NULL) {
- 		test = pbx_builtin_getvar_helper(chan, cat);
-		if (test && !strcasecmp(test, group))
- 			count++;
-		ast_channel_unlock(chan);
+	
+	AST_LIST_LOCK(&groups);
+	AST_LIST_TRAVERSE(&groups, gi, list) {
+		if (!strcasecmp(gi->group, group) && (ast_strlen_zero(category) || !strcasecmp(gi->category, category)))
+			count++;
 	}
+	AST_LIST_UNLOCK(&groups);
 
 	return count;
 }
 
 int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 {
+	struct ast_group_info *gi = NULL;
 	regex_t regexbuf;
-	struct ast_channel *chan;
 	int count = 0;
-	const char *test;
-	char cat[80];
-	const char *s;
 
 	if (ast_strlen_zero(groupmatch))
 		return 0;
@@ -867,20 +882,48 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	s = S_OR(category, GROUP_CATEGORY_PREFIX);
-	ast_copy_string(cat, s, sizeof(cat));
-
-	chan = NULL;
-	while ((chan = ast_channel_walk_locked(chan)) != NULL) {
-		test = pbx_builtin_getvar_helper(chan, cat);
-		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
+	AST_LIST_LOCK(&groups);
+	AST_LIST_TRAVERSE(&groups, gi, list) {
+		if (!regexec(&regexbuf, gi->group, 0, NULL, 0) && (ast_strlen_zero(category) || !strcasecmp(gi->category, category)))
 			count++;
-		ast_channel_unlock(chan);
 	}
+	AST_LIST_UNLOCK(&groups);
 
 	regfree(&regexbuf);
 
 	return count;
+}
+
+int ast_app_group_discard(struct ast_channel *chan)
+{
+	struct ast_group_info *gi = NULL;
+	
+	AST_LIST_LOCK(&groups);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
+		if (gi->chan == chan) {
+			AST_LIST_REMOVE_CURRENT(&groups, list);
+			free(gi);
+		}
+	}
+        AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&groups);
+	
+	return 0;
+}
+
+int ast_app_group_list_lock(void)
+{
+	return AST_LIST_LOCK(&groups);
+}
+
+struct ast_group_info *ast_app_group_list_head(void)
+{
+	return AST_LIST_FIRST(&groups);
+}
+
+int ast_app_group_list_unlock(void)
+{
+	return AST_LIST_UNLOCK(&groups);
 }
 
 unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)

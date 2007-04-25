@@ -205,7 +205,12 @@ int ast_unlock_path(const char *path);
 /*! Read a file into asterisk*/
 char *ast_read_textfile(const char *file);
 
-#define GROUP_CATEGORY_PREFIX "GROUP"
+struct ast_group_info {
+	struct ast_channel *chan;
+	char *category;
+	char *group;
+	AST_LIST_ENTRY(ast_group_info) list;
+};
 
 /*! Split a group string into group and category, returning a default category if none is provided. */
 int ast_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max);
@@ -218,6 +223,18 @@ int ast_app_group_get_count(const char *group, const char *category);
 
 /*! Get the current channel count of all groups that match the specified pattern and category. */
 int ast_app_group_match_get_count(const char *groupmatch, const char *category);
+
+/*! Discard all group counting for a channel */
+int ast_app_group_discard(struct ast_channel *chan);
+
+/*! Lock the group count list */
+int ast_app_group_list_lock(void);
+
+/*! Get the head of the group count list */
+struct ast_group_info *ast_app_group_list_head(void);
+
+/*! Unlock the group count list */
+int ast_app_group_list_unlock(void);
 
 /*!
   \brief Define an application argument

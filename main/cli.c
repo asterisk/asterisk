@@ -905,10 +905,8 @@ static int group_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-	struct ast_channel *c = NULL;
+	struct ast_group_info *gi = NULL;
 	int numchans = 0;
-	struct ast_var_t *current;
-	struct varshead *headp;
 	regex_t regexbuf;
 	int havepattern = 0;
 
@@ -922,26 +920,20 @@ static int group_show_channels(int fd, int argc, char *argv[])
 	}
 
 	ast_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
-	while ( (c = ast_channel_walk_locked(c)) != NULL) {
-		headp=&c->varshead;
-		AST_LIST_TRAVERSE(headp,current,entries) {
-			if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
-				if (!havepattern || !regexec(&regexbuf, ast_var_value(current), 0, NULL, 0)) {
-					ast_cli(fd, FORMAT_STRING, c->name, ast_var_value(current),
-						(ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
-					numchans++;
-				}
-			} else if (!strcmp(ast_var_name(current), GROUP_CATEGORY_PREFIX)) {
-				if (!havepattern || !regexec(&regexbuf, ast_var_value(current), 0, NULL, 0)) {
-					ast_cli(fd, FORMAT_STRING, c->name, ast_var_value(current), "(default)");
-					numchans++;
-				}
-			}
-		}
-		numchans++;
-		ast_channel_unlock(c);
-	}
 
+	ast_app_group_list_lock();
+	
+	gi = ast_app_group_list_head();
+	while (gi) {
+		if (!havepattern || !regexec(&regexbuf, gi->group, 0, NULL, 0)) {
+			ast_cli(fd, FORMAT_STRING, gi->chan->name, gi->group, (ast_strlen_zero(gi->category) ? "(default)" : gi->category));
+			numchans++;
+		}
+		gi = AST_LIST_NEXT(gi, list);
+	}
+	
+	ast_app_group_list_unlock();
+	
 	if (havepattern)
 		regfree(&regexbuf);
 
