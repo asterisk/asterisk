@@ -8416,6 +8416,10 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name),
 									peer->cid_num, sizeof(peer->cid_num));
 					ast_set_flag(peer, IAX_HASCALLERID);
+				} else {
+					ast_clear_flag(peer, IAX_HASCALLERID);
+					peer->cid_name[0] = '\0';
+					peer->cid_num[0] = '\0';
 				}
 			} else if (!strcasecmp(v->name, "sendani")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
@@ -8582,6 +8586,10 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				if (!ast_strlen_zero(v->value)) {
 					ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
 					ast_set_flag(user, IAX_HASCALLERID);
+				} else {
+					ast_clear_flag(user, IAX_HASCALLERID);
+					user->cid_name[0] = '\0';
+					user->cid_num[0] = '\0';
 				}
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
