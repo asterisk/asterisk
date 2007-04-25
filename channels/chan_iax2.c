@@ -324,8 +324,8 @@ struct iax2_peer {
 	char inkeys[80];				/*!< Key(s) this peer can use to authenticate to us */
 
 	/* Suggested caller id if registering */
-	char cid_num[AST_MAX_EXTENSION];		/*!< Default context (for transfer really) */
-	char cid_name[AST_MAX_EXTENSION];		/*!< Default context (for transfer really) */
+	char cid_num[AST_MAX_EXTENSION];
+	char cid_name[AST_MAX_EXTENSION];
 	
 	int expire;					/*!< Schedule entry for expiry */
 	int expiry;					/*!< How soon to expire */
@@ -8324,6 +8324,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
 		peer->context[0] = '\0';
 		peer->peercontext[0] = '\0';
+		ast_clear_flag(peer, IAX_HASCALLERID);
+		peer->cid_name[0] = '\0';
+		peer->cid_num[0] = '\0';
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) {
 				ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
@@ -8409,9 +8412,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "callerid")) {
-				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name),
+				if (!ast_strlen_zero(v->value)) {
+					ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name),
 									peer->cid_num, sizeof(peer->cid_num));
-				ast_set_flag(peer, IAX_HASCALLERID);	
+					ast_set_flag(peer, IAX_HASCALLERID);
+				}
 			} else if (!strcasecmp(v->name, "sendani")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_SENDANI);	
 			} else if (!strcasecmp(v->name, "inkeys")) {
@@ -8510,6 +8515,9 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		ast_copy_string(user->name, name, sizeof(user->name));
 		ast_copy_string(user->language, language, sizeof(user->language));
 		ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP);	
+		ast_clear_flag(user, IAX_HASCALLERID);
+		user->cid_num[0] = '\0';
+		user->cid_name[0] = '\0';
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -8571,8 +8579,10 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				} else
 					ast_copy_string(user->secret, v->value, sizeof(user->secret));
 			} else if (!strcasecmp(v->name, "callerid")) {
-				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
-				ast_set_flag(user, IAX_HASCALLERID);	
+				if (!ast_strlen_zero(v->value)) {
+					ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
+					ast_set_flag(user, IAX_HASCALLERID);
+				}
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
 			} else if (!strcasecmp(v->name, "language")) {
