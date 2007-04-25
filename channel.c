@@ -954,6 +954,9 @@ void ast_channel_free(struct ast_channel *chan)
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries)))
 		ast_var_delete(vardata);
 
+	/* Drop out of the group counting radar */
+	ast_app_group_discard(chan);
+
 	free(chan);
 	ast_mutex_unlock(&chlock);
 
@@ -2920,22 +2923,6 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
    
 static void clone_variables(struct ast_channel *original, struct ast_channel *clone)
 {
-	struct ast_var_t *varptr;
-
-	/* we need to remove all app_groupcount related variables from the original
-	   channel before merging in the clone's variables; any groups assigned to the
-	   original channel should be released, only those assigned to the clone
-	   should remain
-	*/
-
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&original->varshead, varptr, entries) {
-		if (!strncmp(ast_var_name(varptr), GROUP_CATEGORY_PREFIX, strlen(GROUP_CATEGORY_PREFIX))) {
-			AST_LIST_REMOVE_CURRENT(&original->varshead, entries);
-			ast_var_delete(varptr);
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
 	/* Append variables from clone channel into original channel */
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
 	if (AST_LIST_FIRST(&clone->varshead))
@@ -3118,6 +3105,8 @@ int ast_do_masquerade(struct ast_channel *original)
 	for (x = 0; x < AST_MAX_FDS; x++) {
 		original->fds[x] = clone->fds[x];
 	}
+	/* Drop group from original */
+	ast_app_group_discard(original);
 	clone_variables(original, clone);
 	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 	/* Presense of ADSI capable CPE follows clone */
