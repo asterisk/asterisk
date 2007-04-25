@@ -5744,6 +5744,15 @@ static void *ss_thread(void *data)
 	int res;
 	int index;
 
+	/* in the bizarre case where the channel has become a zombie before we
+	   even get started here, abort safely
+	*/
+	if (!p) {
+		ast_log(LOG_WARNING, "Channel became a zombie before simple switch could be started (%s)\n", chan->name);
+		ast_hangup(chan);
+		return NULL;
+	}
+
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s'\n", chan->name);
 	index = zt_get_index(chan, p, 1);
