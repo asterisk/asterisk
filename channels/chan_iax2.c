@@ -3164,8 +3164,12 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 
 static struct ast_frame *iax2_read(struct ast_channel *c) 
 {
-	ast_log(LOG_NOTICE, "I should never be called! Hanging up.\n");
-	return NULL;
+	static struct ast_frame null_frame = {
+		AST_FRAME_NULL,
+	};
+
+	ast_log(LOG_NOTICE, "I should never be called!\n");
+	return &null_frame;
 }
 
 static int iax2_start_transfer(unsigned short callno0, unsigned short callno1)
