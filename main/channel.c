@@ -1133,6 +1133,8 @@ void ast_channel_free(struct ast_channel *chan)
 	while ((vardata = AST_LIST_REMOVE_HEAD(headp, entries)))
 		ast_var_delete(vardata);
 
+	ast_app_group_discard(chan);
+
 	/* Destroy the jitterbuffer */
 	ast_jb_destroy(chan);
 
