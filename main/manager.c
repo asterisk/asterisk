@@ -1989,7 +1989,8 @@ static int process_message(struct mansession *s, const struct message *m)
 	int ret = 0;
 
 	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
-	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
+	if (option_debug)
+		ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
 	if (ast_strlen_zero(action)) {
 		astman_send_error(s, m, "Missing action in request");
