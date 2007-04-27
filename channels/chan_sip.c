@@ -6956,6 +6956,8 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 		dst->header[x] += offset;
 	for (x=0; x < src->lines; x++)
 		dst->line[x] += offset;
+	dst->rlPart1 += offset;
+	dst->rlPart2 += offset;
 }
 
 /*! \brief Used for 200 OK and 183 early media */
