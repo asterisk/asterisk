@@ -604,21 +604,19 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 static int agent_digit_begin(struct ast_channel *ast, char digit)
 {
 	struct agent_pvt *p = ast->tech_pvt;
-	int res = -1;
 	ast_mutex_lock(&p->lock);
 	ast_senddigit_begin(p->chan, digit);
 	ast_mutex_unlock(&p->lock);
-	return res;
+	return 0;
 }
 
 static int agent_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct agent_pvt *p = ast->tech_pvt;
-	int res = -1;
 	ast_mutex_lock(&p->lock);
 	ast_senddigit_end(p->chan, digit, duration);
 	ast_mutex_unlock(&p->lock);
-	return res;
+	return 0;
 }
 
 static int agent_call(struct ast_channel *ast, char *dest, int timeout)
