@@ -1408,7 +1408,9 @@ static int sip_show_channels(int fd, int argc, char *argv[]);
 static int sip_show_subscriptions(int fd, int argc, char *argv[]);
 static char *complete_sipch(const char *line, const char *word, int pos, int state);
 static char *complete_sip_peer(const char *word, int state, int flags2);
+static char *complete_sip_registered_peer(const char *word, int state, int flags2);
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state);
+static char *complete_sip_unregister(const char *line, const char *word, int pos, int state);
 static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state);
 static char *complete_sip_user(const char *word, int state, int flags2);
 static char *complete_sip_show_user(const char *line, const char *word, int pos, int state);
@@ -10957,7 +10959,10 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-/*! \brief Unregister (force expiration) a SIP peer in the registry via CLI */
+/*! \brief Unregister (force expiration) a SIP peer in the registry via CLI 
+	\note This function does not tell the SIP device what's going on,
+	so use it with great care.
+*/
 static int sip_unregister(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
@@ -10970,7 +10975,7 @@ static int sip_unregister(int fd, int argc, char *argv[])
 		expire_register(peer);
 		ast_cli(fd, "Unregistered peer \'%s\'\n\n", argv[2]);
 	} else {
-		ast_cli(fd, "Attempted to unregister an unknown peer \'%s\' via CLI\n", argv[2]);
+		ast_cli(fd, "Peer unknown: \'%s\'. Not unregistered.\n", argv[2]);
 	}
 	
 	return 0;
@@ -11231,6 +11236,24 @@ static char *complete_sip_peer(const char *word, int state, int flags2)
 	return result;
 }
 
+/*! \brief Do completion on registered peer name */
+static char *complete_sip_registered_peer(const char *word, int state, int flags2)
+{
+       char *result = NULL;
+       int wordlen = strlen(word);
+       int which = 0;
+
+       ASTOBJ_CONTAINER_TRAVERSE(&peerl, !result, do {
+               ASTOBJ_WRLOCK(iterator);
+               if (!strncasecmp(word, iterator->name, wordlen) &&
+                               (!flags2 || ast_test_flag(&iterator->flags[1], flags2)) &&
+                               ++which > state && iterator->expire > 0)
+                       result = ast_strdup(iterator->name);
+               ASTOBJ_UNLOCK(iterator);
+       } while(0) );
+       return result;
+}
+
 /*! \brief Support routine for 'sip show peer' CLI */
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state)
 {
@@ -11238,6 +11261,15 @@ static char *complete_sip_show_peer(const char *line, const char *word, int pos,
 		return complete_sip_peer(word, state, 0);
 
 	return NULL;
+}
+
+/*! \brief Support routine for 'sip unregister' CLI */
+static char *complete_sip_unregister(const char *line, const char *word, int pos, int state)
+{
+       if (pos == 2)
+               return complete_sip_registered_peer(word, state, 0);
+
+       return NULL;
 }
 
 /*! \brief Support routine for 'sip debug peer' CLI */
@@ -18108,7 +18140,7 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "unregister", NULL },
 	sip_unregister, "Unregister (force expiration) a SIP peer from the registery\n",
-	sip_unregister_usage },
+	sip_unregister_usage, complete_sip_unregister },
 
 	{ { "sip", "show", "settings", NULL },
 	sip_show_settings, "Show SIP global settings",
