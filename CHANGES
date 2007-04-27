@@ -75,7 +75,25 @@ Voicemail Changes
   * Added the ability to customize which sound files are used for some of the
      prompts within the Voicemail application by changing them in voicemail.conf
   * Added the ability for the "voicemail show users" CLI command to show users
-    configured by the dynamic realtime configuration method.
+     configured by the dynamic realtime configuration method.
+
+Queue changes
+-------------
+  * Added QUEUE_VARIABLES function to set queue variables added setqueuevar and 
+     setqueueentryvar options for each queue, see queues.conf.sample for details.
+  * Added keepstats option to queues.conf which will keep queue
+     statistics during a reload.
+  * setinterfacevar option in queues.conf also now sets a variable
+     called MEMBERNAME which contains the member's name.
+  * Added 'Strategy' field to manager event QueueParams which represents
+     the queue strategy in use. 
+  * Added option to run macro when a queue member is connected to a caller, 
+     see queues.conf.sample for details.
+  * app_queue now has a 'loose' option which is almost exactly like 'strict' except it
+     does not count paused queue members as unavailable.
+  * Added min-announce-frequency option to queues.conf which allows you to control the
+     minimum amount of time between queue announcements for use when the caller's queue
+     position changes frequently.
 
 Miscellaneous 
 -------------
@@ -97,16 +115,10 @@ Miscellaneous
      can use --with-cap to specify the path.
   * H323 remote hold notification support added (by NOTIFY message
      and/or H.450 supplementary service)
-  * Added keepstats option to queues.conf which will keep queue
-     statistics during a reload.
   * Added rotatetimestamp option to logger.conf which will use
      the time to name the logger files instead of sequence number.
-  * setinterfacevar option in queues.conf also now sets a variable
-     called MEMBERNAME which contains the member's name.
   * Added Masquerade manager event for when a masquerade happens between
      two channels.
-  * Added 'Strategy' field to manager event QueueParams which represents
-     the queue strategy in use. 
   * From the to-do lists: straighten out the app timeout args:
      Wait() app now really does 0.3 seconds- was truncating arg to an int.
      WaitExten() same as Wait().
@@ -117,14 +129,8 @@ Miscellaneous
      SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
   * Added 'C' option to Meetme which causes a caller to continue in the dialplan
      when kicked out.
-  * Added option to run macro when a queue member is connected to a caller, 
-     see queues.conf.sample for details.
-  * Added QUEUE_VARIABLES function to set queue variables added setqueuevar and 
-    setqueueentryvar options for each queue, see queues.conf.sample for details.
   * Brazilian Portuguese (pt-BR) in VM, and say.c was added via patch from cfassoni.
   * CID matching information is now shown when doing 'dialplan show'.
-  * app_queue now has a 'loose' option which is almost exactly like 'strict' except it
-     does not count paused queue members as unavailable.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.

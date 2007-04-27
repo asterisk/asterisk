@@ -167,9 +167,18 @@ monitor-type = MixMonitor
 
 ; How often to announce queue position and/or estimated 
 ; holdtime to caller (0=off)
+; Note that this value is ignored if the caller's queue
+; position has changed (see min-announce-frequency)
 ;
 ;announce-frequency = 90 
 ;
+; The absolute minimum time between the start of each
+; queue position and/or estimated holdtime announcement
+; This is useful for avoiding constant announcements
+; when the caller's queue position is changing frequently
+; (see announce-frequency)
+;
+;min-announce-frequency = 15
 ;
 ; How often to make any periodic announcement (see periodic-announce)
 ;

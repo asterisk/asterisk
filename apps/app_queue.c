@@ -116,6 +116,8 @@ static struct strategy {
 #define DEFAULT_TIMEOUT		15
 #define RECHECK			1		/* Recheck every second to see we we're at the top yet */
 #define MAX_PERIODIC_ANNOUNCEMENTS 10 /* The maximum periodic announcements we can have */
+#define DEFAULT_MIN_ANNOUNCE_FREQUENCY 15 /* The minimum number of seconds between position announcements
+                                             The default value of 15 provides backwards compatibility */
 
 #define	RES_OKAY	0		/* Action completed */
 #define	RES_EXISTS	(-1)		/* Entry already exists */
@@ -366,6 +368,7 @@ struct call_queue {
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
 	int announcefrequency;              /*!< How often to announce their position */
+	int minannouncefrequency;           /*!< The minimum number of seconds between position announcements (def. 15) */
 	int periodicannouncefrequency;      /*!< How often to play periodic announcement */
 	int roundingseconds;                /*!< How many seconds do we round to? */
 	int holdtime;                       /*!< Current avg holdtime, based on recursive boxcar filter */
@@ -673,6 +676,7 @@ static void init_queue(struct call_queue *q)
 	q->timeout = -1;
 	q->maxlen = 0;
 	q->announcefrequency = 0;
+	q->minannouncefrequency = DEFAULT_MIN_ANNOUNCE_FREQUENCY;
 	q->announceholdtime = 0;
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
@@ -847,6 +851,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
 	} else if (!strcasecmp(param, "announce-frequency")) {
 		q->announcefrequency = atoi(val);
+	} else if (!strcasecmp(param, "min-announce-frequency")) {
+		q->minannouncefrequency = atoi(val);
+		ast_log(LOG_DEBUG, "%s=%s for queue '%s'\n", param, val, q->name);
 	} else if (!strcasecmp(param, "announce-round-seconds")) {
 		q->roundingseconds = atoi(val);
 		if (q->roundingseconds>60 || q->roundingseconds<0) {
@@ -1308,9 +1315,9 @@ static int say_position(struct queue_ent *qe)
 	int res = 0, avgholdmins, avgholdsecs;
 	time_t now;
 
-	/* Check to see if this is ludicrous -- if we just announced position, don't do it again*/
+	/* Let minannouncefrequency seconds pass between the start of each position announcement */
 	time(&now);
-	if ((now - qe->last_pos) < 15)
+	if ((now - qe->last_pos) < qe->parent->minannouncefrequency)
 		return 0;
 
 	/* If either our position has changed, or we are over the freq timer, say position */
