@@ -34,23 +34,6 @@ script. If nothing is specified, the default script (asterisk.adsi) is used.
 \end{verbatim}
 
 
-\section{AgentCallbackLogin}
-\subsection{Synopsis}
-\begin{verbatim}
-Call agent callback login
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  AgentCallbackLogin([AgentNo][|[options][|[exten]@context]]):
-Asks the agent to login to the system with callback.
-The agent's callback extension is called (optionally with the specified
-context).
-The option string may contain zero or more of the following characters:
-      's' -- silent login - do not announce the login ok segment agent logged in/off
-
-\end{verbatim}
-
-
 \section{AgentLogin}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -206,29 +189,6 @@ the dialplan after answering the call.
 \end{verbatim}
 
 
-\section{AppendCDRUserField}
-\subsection{Synopsis}
-\begin{verbatim}
-Append to the CDR user field
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-[Synopsis]
-AppendCDRUserField(value)
-
-[Description]
-AppendCDRUserField(value): Append value to the CDR user field
-       The Call Data Record (CDR) user field is an extra field you
-       can use for data not stored anywhere else in the record.
-       CDR records can be used for billing or storing other arbitrary data
-       (I.E. telephone survey responses)
-       Also see SetCDRUserField().
-
-This application is deprecated in favor of Set(CDR(userfield)=...)
-
-\end{verbatim}
-
-
 \section{Authenticate}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -285,6 +245,9 @@ terminated.
     n - Don't answer the channel before playing the files.
     m - Only break if a digit hit matches a one digit
           extension in the destination context.
+This application sets the following channel variable upon completion:
+ BACKGROUNDSTATUS    The status of the background attempt as a text string, one of
+               SUCCESS | FAILED
 
 \end{verbatim}
 
@@ -305,6 +268,23 @@ yet less than 'max' ms is followed by silence for at least 'sil' ms then
 the audio playback is aborted and processing jumps to the 'talk' extension
 if available.  If unspecified, sil, min, and max default to 1000, 100, and
 infinity respectively.
+
+\end{verbatim}
+
+
+\section{Bridge}
+\subsection{Synopsis}
+\begin{verbatim}
+Bridge two channels
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+Usage: Bridge(channel[|options])
+	Allows the ability to bridge two channels via the dialplan.
+The current channel is bridged to the specified 'channel'.
+The following options are supported:
+   p - Play a courtesy tone to 'channel'.
+BRIDGERESULT dial plan variable will contain SUCCESS, FAILURE, LOOP, NONEXISTENT or INCOMPATIBLE.
 
 \end{verbatim}
 
@@ -353,6 +333,8 @@ available. The following variables will be set by this application:
   ${AVAILSTATUS}   - the status code for the available channel
   Options:
     s - Consider the channel unavailable if the channel is in use at all
+    t - Simply checks if specified channels exist in the channel list
+        (implies option s) 
     j - Support jumping to priority n+101 if no channel is available
 
 \end{verbatim}
@@ -389,6 +371,10 @@ only channels beginning with this string will be spied upon.
       to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing
       the digits '1234#' while spying will begin spying on the channel
       'Agent/1234'.
+  Note: The X option supersedes the three features above in that if a valid
+        single digit extension exists in the correct context ChanSpy will
+        exit to it. This also disables choosing a channel based on 'chanprefix'
+        and a digit sequence.
   Options:
     b             - Only spy on channels involved in a bridged call.
     g(grp)        - Match only channels where their ${SPYGROUP} variable is set to
@@ -405,6 +391,25 @@ only channels beginning with this string will be spied upon.
     W             - Enable 'private whisper' mode, so the spying channel can
                     talk to the spied-on channel but cannot listen to that
                     channel.
+    o             - Only listen to audio coming from this channel.
+    X             - Allow the user to exit ChanSpy to a valid single digit
+                    numeric extension in the current context or the context
+                    specified by the SPY_EXIT_CONTEXT channel variable. The
+                    name of the last channel that was spied on will be stored
+                    in the SPY_CHANNEL variable.
+
+\end{verbatim}
+
+
+\section{ClearHash}
+\subsection{Synopsis}
+\begin{verbatim}
+Clear the keys from a specified hashname
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+ClearHash(<hashname>)
+  Clears all keys out of the specified hashname
 
 \end{verbatim}
 
@@ -573,6 +578,9 @@ ends the call.
   The optional URL will be sent to the called party if the channel supports it.
   If the OUTBOUND_GROUP variable is set, all peer channels created by this
 application will be put into that group (as in Set(GROUP()=...).
+  If the OUTBOUND_GROUP_ONCE variable is set, all peer channels created by this
+application will be put into that group (as in Set(GROUP()=...). Unlike OUTBOUND_GROUP,
+however, the variable will be unset after use.
 
   Options:
     A(x) - Play an announcement to the called party, using 'x' as the file.
@@ -926,6 +934,9 @@ supplied, the current channel's context will be used.
   While spying, the following actions may be performed:
     - Dialing # cycles the volume level.
     - Dialing * will stop spying and look for another channel to spy on.
+  Note: The X option superseeds the two features above in that if a valid
+        single digit extension exists in the correct context it ChanSpy will
+        exit to it.
   Options:
     b             - Only spy on channels involved in a bridged call.
     g(grp)        - Match only channels where their ${SPYGROUP} variable is set to
@@ -942,6 +953,12 @@ supplied, the current channel's context will be used.
     W             - Enable 'private whisper' mode, so the spying channel can
                     talk to the spied-on channel but cannot listen to that
                     channel.
+    o             - Only listen to audio coming from this channel.
+    X             - Allow the user to exit ChanSpy to a valid single digit
+                    numeric extension in the current context or the context
+                    specified by the SPY_EXIT_CONTEXT channel variable. The
+                    name of the last channel that was spied on will be stored
+                    in the SPY_CHANNEL variable.
 
 \end{verbatim}
 
@@ -1050,7 +1067,7 @@ Jump to label, saving return address
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-Gosub([[context|]exten|]priority)
+Gosub([[context|]exten|]priority[(arg1[|...][|argN])])
   Jumps to the label specified, saving the return address.
 
 \end{verbatim}
@@ -1063,7 +1080,7 @@ Conditionally jump to label, saving return address
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-GosubIf(condition?labeliftrue[:labeliffalse])
+GosubIf(condition?labeliftrue[(arg1[|...])][:labeliffalse[(arg1[|...])]])
   If the condition is true, then jump to labeliftrue.  If false, jumps to
 labeliffalse, if specified.  In either case, a jump saves the return point
 in the dialplan, to be returned to with a Return.
@@ -1156,47 +1173,6 @@ value.
 \end{verbatim}
 
 
-\section{HasNewVoicemail}
-\subsection{Synopsis}
-\begin{verbatim}
-Conditionally branches to priority + 101 with the right options set
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-HasNewVoicemail(vmbox[/folder][@context][|varname[|options]])
-Assumes folder 'INBOX' if folder is not specified. Optionally sets <varname> to the number of messages
-in that folder.
-  The option string may contain zero of the following character:
-	'j' -- jump to priority n+101, if there is new voicemail in folder 'folder' or INBOX
-  This application sets the following channel variable upon completion:
-	HASVMSTATUS		The result of the new voicemail check returned as a text string as follows
-		<# of messages in the folder, 0 for NONE>
-
-This application has been deprecated in favor of the VMCOUNT() function
-
-\end{verbatim}
-
-
-\section{HasVoicemail}
-\subsection{Synopsis}
-\begin{verbatim}
-Conditionally branches to priority + 101 with the right options set
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-HasVoicemail(vmbox[/folder][@context][|varname[|options]])
-  Optionally sets <varname> to the number of messages in that folder.  Assumes folder of INBOX if not specified.
-  The option string may contain zero or the following character:
-	'j' -- jump to priority n+101, if there is voicemail in the folder indicated.
-  This application sets the following channel variable upon completion:
-	HASVMSTATUS		The result of the voicemail check returned as a text string as follows
-		<# of messages in the folder, 0 for NONE>
-
-This application has been deprecated in favor of the VMCOUNT() function
-
-\end{verbatim}
-
-
 \section{IAX2Provision}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -1239,19 +1215,6 @@ application). Variables created by this application have the same inheritance
 properties as those created with the Set application. See the documentation for
 Set for more information.
 
-\end{verbatim}
-
-
-\section{IVRDemo}
-\subsection{Synopsis}
-\begin{verbatim}
-IVR Demo Application
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  This is a skeleton application that shows you the basic structure to create your
-own asterisk applications and demonstrates the IVR demo.
- 
 \end{verbatim}
 
 
@@ -1300,48 +1263,6 @@ Log(<level>|<message>)
 \end{verbatim}
 
 
-\section{LookupBlacklist}
-\subsection{Synopsis}
-\begin{verbatim}
-Look up Caller*ID name/number from blacklist database
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  LookupBlacklist(options): Looks up the Caller*ID number on the active
-channel in the Asterisk database (family 'blacklist').  
-The option string may contain the following character:
-	'j' -- jump to n+101 priority if the number/name is found in the blacklist
-This application sets the following channel variable upon completion:
-	LOOKUPBLSTATUS		The status of the Blacklist lookup as a text string, one of
-		FOUND | NOTFOUND
-Example: exten => 1234,1,LookupBlacklist()
-
-This application is deprecated and may be removed from a future release.
-Please use the dialplan function BLACKLIST() instead.
-
-\end{verbatim}
-
-
-\section{LookupCIDName}
-\subsection{Synopsis}
-\begin{verbatim}
-Look up CallerID Name from local database
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  LookupCIDName: Looks up the Caller*ID number on the active
-channel in the Asterisk database (family 'cidname') and sets the
-Caller*ID name.  Does nothing if no Caller*ID was received on the
-channel.  This is useful if you do not subscribe to Caller*ID
-name delivery, or if you want to change the names on some incoming
-calls.
-
-LookupCIDName is deprecated.  Please use ${DB(cidname/${CALLERID(num)})}
-instead.
-
-\end{verbatim}
-
-
 \section{Macro}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -1359,12 +1280,19 @@ If you Goto out of the Macro context, the Macro will terminate and control
 will be returned at the location of the Goto.
 If ${MACRO_OFFSET} is set at termination, Macro will attempt to continue
 at priority MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.
+Extensions: While a macro is being executed, it becomes the current context.
+            This means that if a hangup occurs, for instance, that the macro
+            will be searched for an 'h' extension, NOT the context from which
+            the macro was called. So, make sure to define all appropriate
+            extensions in your macro! (Note: AEL does not use macros)
 WARNING: Because of the way Macro is implemented (it executes the priorities
          contained within it via sub-engine), and a fixed per-thread
          memory stack allowance, macros are limited to 7 levels
          of nesting (macro calling macro calling macro, etc.); It
          may be possible that stack-intensive applications in deeply nested macros
-         could cause asterisk to crash earlier than this limit.
+         could cause asterisk to crash earlier than this limit. It is advised that
+         if you need to deeply nest macro calls, that you use the Gosub application
+         (now allows arguments like a Macro) with explict Return() calls instead.
 
 \end{verbatim}
 
@@ -1459,6 +1387,7 @@ The option string may contain zero or more of the following characters:
              Default: conf-background.agi  (Note: This does not work with
              non-Zap channels in the same conference)
       'c' -- announce user(s) count on joining a conference
+      'C' -- continue in dialplan when kicked out of conference
       'd' -- dynamically add conference
       'D' -- dynamically add conference, prompting for a PIN
       'e' -- select an empty conference
@@ -1551,6 +1480,139 @@ Generate a Constant 1000Hz tone at 0dbm (mu-law)
 \subsection{Description}
 \begin{verbatim}
 Milliwatt(): Generate a Constant 1000Hz tone at 0dbm (mu-law)
+
+\end{verbatim}
+
+
+\section{MinivmAccMess}
+\subsection{Synopsis}
+\begin{verbatim}
+Record account specific messages
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+Syntax: MinivmAccmess(username@domain,option)
+This application is part of the Mini-Voicemail system, configured in minivm.conf.
+Use this application to record account specific audio/video messages for
+busy, unavailable and temporary messages.
+Account specific directories will be created if they do not exist.
+
+The option selects message to be recorded:
+   u      Unavailable
+   b      Busy
+   t      Temporary (overrides busy and unavailable)
+   n      Account name
+
+Result is given in channel variable MINIVM_ACCMESS_STATUS
+        The possible values are:     SUCCESS |  FAILED
+	 FAILED is set if the file can't be created.
+
+
+\end{verbatim}
+
+
+\section{MinivmDelete}
+\subsection{Synopsis}
+\begin{verbatim}
+Delete Mini-Voicemail voicemail messages
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+Syntax: MinivmDelete(filename)
+This application is part of the Mini-Voicemail system, configured in minivm.conf.
+It deletes voicemail file set in MVM_FILENAME or given filename.
+
+Result is given in channel variable MINIVM_DELETE_STATUS
+        The possible values are:     SUCCESS |  FAILED
+	 FAILED is set if the file does not exist or can't be deleted.
+
+
+\end{verbatim}
+
+
+\section{MinivmGreet}
+\subsection{Synopsis}
+\begin{verbatim}
+Play Mini-Voicemail prompts
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+Syntax: MinivmGreet(username@domain[,options])
+This application is part of the Mini-Voicemail system, configured in minivm.conf.
+MinivmGreet() plays default prompts or user specific prompts for an account.
+Busy and unavailable messages can be choosen, but will be overridden if a temporary
+message exists for the account.
+
+Result is given in channel variable MINIVM_GREET_STATUS
+        The possible values are:     SUCCESS | USEREXIT | FAILED
+
+  Options:
+    b    - Play the 'busy' greeting to the calling party.
+    s    - Skip the playback of instructions for leaving a message to the
+           calling party.
+    u    - Play the 'unavailable greeting.
+
+
+\end{verbatim}
+
+
+\section{MinivmNotify}
+\subsection{Synopsis}
+\begin{verbatim}
+Notify voicemail owner about new messages.
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+Syntax: MinivmNotify(username@domain[,template])
+This application is part of the Mini-Voicemail system, configured in minivm.conf.
+MiniVMnotify forwards messages about new voicemail to e-mail and pager.
+If there's no user account for that address, a temporary account will
+be used with default options (set in minivm.conf).
+The recorded file name and path will be read from MVM_FILENAME and the 
+duration of the message will be accessed from MVM_DURATION (set by MinivmRecord() )
+If the channel variable MVM_COUNTER is set, this will be used in the
+message file name and available in the template for the message.
+If not template is given, the default email template will be used to send email and
+default pager template to send paging message (if the user account is configured with
+a paging address.
+
+Result is given in channel variable MINIVM_NOTIFY_STATUS
+        The possible values are:     SUCCESS | FAILED
+
+
+\end{verbatim}
+
+
+\section{MinivmRecord}
+\subsection{Synopsis}
+\begin{verbatim}
+Receive Mini-Voicemail and forward via e-mail
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+Syntax: MinivmRecord(username@domain[,options])
+This application is part of the Mini-Voicemail system, configured in minivm.conf.
+MiniVM records audio file in configured format and forwards message to e-mail and pager.
+If there's no user account for that address, a temporary account will
+be used with default options.
+The recorded file name and path will be stored in MINIVM_FILENAME and the 
+duration of the message will be stored in MINIVM_DURATION
+
+Note: If the caller hangs up after the recording, the only way to send
+the message and clean up is to execute in the "h" extension.
+
+The application will exit if any of the following DTMF digits are 
+received and the requested extension exist in the current context.
+    0 - Jump to the 'o' extension in the current dialplan context.
+    * - Jump to the 'a' extension in the current dialplan context.
+
+Result is given in channel variable MINIVM_RECORD_STATUS
+        The possible values are:     SUCCESS | USEREXIT | FAILED
+
+  Options:
+    g(#) - Use the specified amount of gain when recording the voicemail
+           message. The units are whole-number decibels (dB).
+
 
 \end{verbatim}
 
@@ -1721,6 +1783,7 @@ destroyed when the original caller leaves.  Valid options are:
         d - full duplex audio
         q - quiet, do not play beep to caller
         r - record the page into a file (see 'r' for app_meetme)
+        s - only dial channel if devicestate says it is not in use
 
 \end{verbatim}
 
@@ -1936,28 +1999,30 @@ Queue a call for a call queue
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-  Queue(queuename[|options[|URL][|announceoverride][|timeout][|AGI]):
+  Queue(queuename[|options[|URL][|announceoverride][|timeout][|AGI][|macro]):
 Queues an incoming call in a particular call queue as defined in queues.conf.
 This application will return to the dialplan if the queue does not exist, or
 any of the join options cause the caller to not enter the queue.
 The option string may contain zero or more of the following characters:
       'd' -- data-quality (modem) call (minimum delay).
-      'h' -- allow callee to hang up by hitting *.
-      'H' -- allow caller to hang up by hitting *.
+      'h' -- allow callee to hang up by pressing *.
+      'H' -- allow caller to hang up by pressing *.
       'n' -- no retries on the timeout; will exit this application and 
              go to the next step.
       'i' -- ignore call forward requests from queue members and do nothing
              when they are requested.
-      'r' -- ring instead of playing MOH
-      't' -- allow the called user transfer the calling user
-      'T' -- to allow the calling user to transfer the call.
-      'w' -- allow the called user to write the conversation to disk via Monitor
-      'W' -- allow the calling user to write the conversation to disk via Monitor
+      'r' -- ring instead of playing MOH.
+      't' -- allow the called user to transfer the calling user.
+      'T' -- allow the calling user to transfer the call.
+      'w' -- allow the called user to write the conversation to disk via Monitor.
+      'W' -- allow the calling user to write the conversation to disk via Monitor.
   In addition to transferring the call, a call may be parked and then picked
 up by another user.
   The optional URL will be sent to the called party if the channel supports
 it.
   The optional AGI parameter will setup an AGI script to be executed on the 
+calling party's channel once they are connected to a queue member.
+  The optional macro parameter will run a macro on the 
 calling party's channel once they are connected to a queue member.
   The timeout will cause the queue to fail out after a specified number of
 seconds, checked between each queues.conf 'timeout' and 'retry' cycle.
@@ -1982,20 +2047,6 @@ Example: QueueLog(101|${UNIQUEID}|${AGENT}|WENTONBREAK|600)
 \end{verbatim}
 
 
-\section{Random}
-\subsection{Synopsis}
-\begin{verbatim}
-Conditionally branches, based upon a probability
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-Random([probability]:[[context|]extension|]priority)
-  probability := INTEGER in the range 1 to 100
-DEPRECATED: Use GotoIf($[${RAND(1,100)} > <number>]?<label>)
-
-\end{verbatim}
-
-
 \section{Read}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -2003,11 +2054,11 @@ Read a variable
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-  Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])
+  Read(variable[|filename[&filename2...]][|maxdigits][|option][|attempts][|timeout])
 
 Reads a #-terminated string of digits a certain number of times from the
 user in to the given variable.
-  filename   -- file to play before reading digits or tone with option i
+  filename   -- file(s) to play before reading digits or tone with option i
   maxdigits  -- maximum acceptable number of digits. Stops reading after
                 maxdigits have been entered (without requiring the user to
                 press the '#' key).
@@ -2019,8 +2070,8 @@ user in to the given variable.
                 'n' to read digits even if the line is not up.
   attempts   -- if greater than 1, that many attempts will be made in the 
                 event no data is entered.
-  timeout    -- An integer number of seconds to wait for a digit response. If greater
-                than 0, that value will override the default timeout.
+  timeout    -- The number of seconds to wait for a digit response. If greater
+                than 0, that value will override the default timeout. Can be floating point.
 
 Read should disconnect if the function fails or errors out.
 
@@ -2038,41 +2089,6 @@ ReadFile(varname=file,length)
   Varname - Result stored here.
   File - The name of the file to read.
   Length - Maximum number of characters to capture.
-
-\end{verbatim}
-
-
-\section{RealTime}
-\subsection{Synopsis}
-\begin{verbatim}
-Realtime Data Lookup
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-Use the RealTime config handler system to read data into channel variables.
-RealTime(<family>|<colmatch>|<value>[|<prefix>])
-
-All unique column names will be set as channel variables with optional prefix
-to the name.  For example, a prefix of 'var_' would make the column 'name'
-become the variable ${var_name}.  REALTIMECOUNT will be set with the number
-of values read.
-
-\end{verbatim}
-
-
-\section{RealTimeUpdate}
-\subsection{Synopsis}
-\begin{verbatim}
-Realtime Data Rewrite
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-Use the RealTime config handler system to update a value
-RealTimeUpdate(<family>|<colmatch>|<value>|<newcol>|<newval>)
-
-The column <newcol> in 'family' matching column <colmatch>=<value> will be
-updated to <newval>.  REALTIMECOUNT will be set with the number of rows
-updated or -1 if an error occurs.
 
 \end{verbatim}
 
@@ -2182,8 +2198,9 @@ Return from gosub routine
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-Return()
-  Jumps to the last label on the stack, removing it.
+Return([return-value])
+  Jumps to the last label on the stack, removing it.  The return value, if
+any, is saved in the channel variable GOSUB_RETVAL.
 
 \end{verbatim}
 
@@ -2197,50 +2214,6 @@ Indicate ringing tone
 \begin{verbatim}
   Ringing(): This application will request that the channel indicate a ringing
 tone to the user.
-
-\end{verbatim}
-
-
-\section{Rpt}
-\subsection{Synopsis}
-\begin{verbatim}
-Radio Repeater/Remote Base Control System
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  Rpt(nodename[|options]):  Radio Remote Link or Remote Base Link Endpoint Process.
-
-    Not specifying an option puts it in normal endpoint mode (where source
-    IP and nodename are verified).
-
-    Options are as follows:
-
-        X - Normal endpoint mode WITHOUT security check. Only specify
-            this if you have checked security already (like with an IAX2
-            user/password or something).
-
-        Rannounce-string[|timeout[|timeout-destination]] - Amateur Radio
-            Reverse Autopatch. Caller is put on hold, and announcement (as
-            specified by the 'announce-string') is played on radio system.
-            Users of radio system can access autopatch, dial specified
-            code, and pick up call. Announce-string is list of names of
-            recordings, or "PARKED" to substitute code for un-parking,
-            or "NODE" to substitute node number.
-
-        P - Phone Control mode. This allows a regular phone user to have
-            full control and audio access to the radio system. For the
-            user to have DTMF control, the 'phone_functions' parameter
-            must be specified for the node in 'rpt.conf'. An additional
-            function (cop,6) must be listed so that PTT control is available.
-
-        D - Dumb Phone Control mode. This allows a regular phone user to
-            have full control and audio access to the radio system. In this
-            mode, the PTT is activated for the entire length of the call.
-            For the user to have DTMF control (not generally recomended in
-            this mode), the 'dphone_functions' parameter must be specified
-            for the node in 'rpt.conf'. Otherwise no DTMF control will be
-            available to the phone user.
-
 
 \end{verbatim}
 
@@ -2422,10 +2395,6 @@ channel and all children channels.
     g - Set variable globally instead of on the channel
         (applies only to variables, not functions)
 
-The use of Set to set multiple variables at once and the g flag have both
-been deprecated.  Please use multiple Set calls and the GLOBAL() dialplan
-function instead.
-
 \end{verbatim}
 
 
@@ -2438,21 +2407,6 @@ Set the AMA Flags
 \begin{verbatim}
   SetAMAFlags([flag]): This application will set the channel's AMA Flags for
   billing purposes.
-
-\end{verbatim}
-
-
-\section{SetCallerID}
-\subsection{Synopsis}
-\begin{verbatim}
-Set CallerID
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  SetCallerID(clid[|a]): Set Caller*ID on a call to a new
-value.  Sets ANI as well if a flag is used. 
-
-This application has been deprecated in favor of Set(CALLERID(all)=...)
 
 \end{verbatim}
 
@@ -2481,44 +2435,6 @@ Set CallerID Presentation
 \end{verbatim}
 
 
-\section{SetCDRUserField}
-\subsection{Synopsis}
-\begin{verbatim}
-Set the CDR user field
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-[Synopsis]
-SetCDRUserField(value)
-
-[Description]
-SetCDRUserField(value): Set the CDR 'user field' to value
-       The Call Data Record (CDR) user field is an extra field you
-       can use for data not stored anywhere else in the record.
-       CDR records can be used for billing or storing other arbitrary data
-       (I.E. telephone survey responses)
-       Also see AppendCDRUserField().
-
-This application has been deprecated in favor of Set(CDR(userfield)=...)
-
-\end{verbatim}
-
-
-\section{SetGlobalVar}
-\subsection{Synopsis}
-\begin{verbatim}
-Set a global variable to a given value
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  SetGlobalVar(variable=value): This application sets a given global variable to
-the specified value.
-
-This application has been deprecated in favor of Set(GLOBAL(var)=value)
-
-\end{verbatim}
-
-
 \section{SetMusicOnHold}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -2529,29 +2445,6 @@ Set default Music On Hold class
 SetMusicOnHold(class): Sets the default class for music on hold for a given channel.  When
 music on hold is activated, this class will be used to select which
 music is played.
-
-\end{verbatim}
-
-
-\section{SetTransferCapability}
-\subsection{Synopsis}
-\begin{verbatim}
-Set ISDN Transfer Capability
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  SetTransferCapability(transfercapability): Set the ISDN Transfer 
-Capability of a call to a new value.
-Valid Transfer Capabilities are:
-
-  SPEECH             : 0x00 - Speech (default, voice calls)
-  DIGITAL            : 0x08 - Unrestricted digital information (data calls)
-  RESTRICTED_DIGITAL : 0x09 - Restricted digital information
-  3K1AUDIO           : 0x10 - 3.1kHz Audio (fax calls)
-  DIGITAL_W_TONES    : 0x11 - Unrestricted digital information with tones/announcements
-  VIDEO              : 0x18 - Video
-
-This application has been deprecated in favor of Set(CHANNEL(transfercapability)=...)
 
 \end{verbatim}
 
@@ -2592,13 +2485,8 @@ Shared Line Appearance Station
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-  SLAStation(station):
-This application should be executed by an SLA station.  The argument depends
-on how the call was initiated.  If the phone was just taken off hook, then
-the argument "station" should be just the station name.  If the call was
-initiated by pressing a line key, then the station name should be preceded
-by an underscore and the trunk name associated with that line button.
-For example: "station1_line1".
+  SLAStation():
+
 \end{verbatim}
 
 
@@ -2609,10 +2497,7 @@ Shared Line Appearance Trunk
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-  SLATrunk(trunk):
-This application should be executed by an SLA trunk on an inbound call.
-The channel calling this application should correspond to the SLA trunk
-with the name "trunk" that is being passed as an argument.
+  SLATrunk():
 
 \end{verbatim}
 
@@ -2624,9 +2509,11 @@ Communicates with SMS service centres and SMS capable analogue phones
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-  SMS(name|[a][s]):  SMS handles exchange of SMS data with a call to/from SMS capabale
+  SMS(name|[a][s][t][p(d)][r][o]|addr|body):
+SMS handles exchange of SMS data with a call to/from SMS capable
 phone or SMS PSTN service center. Can send and/or receive SMS messages.
 Works to ETSI ES 201 912 compatible with BT SMS PSTN service in UK
+and Telecom Italia in Italy.
 Typical usage is to use to handle called from the SMS service centre CLI,
 or to set up a call using 'outgoing' or manager interface to connect
 service centre to SMS()
@@ -2634,9 +2521,17 @@ name is the name of the queue used in /var/spool/asterisk/sms
 Arguments:
  a: answer, i.e. send initial FSK packet.
  s: act as service centre talking to a phone.
+ t: use protocol 2 (default used is protocol 1).
+ p(N): set the initial delay to N ms (default is 300).
+addr and body are a deprecated format to send messages out.
+ s: set the Status Report Request (SRR) bit.
+ o: the body should be coded as octets not 7-bit symbols.
 Messages are processed as per text file message queues.
 smsq (a separate software) is a command to generate message
 queues and send messages.
+NOTE: the protocol has tight delay bounds. Please use short frames
+and disable/keep short the jitter buffer on the ATA to make sure that
+respones (ACK etc.) are received in time.
 
 \end{verbatim}
 
@@ -2683,7 +2578,7 @@ This application plays a sound file and waits for the person to speak. Once they
 Once they stop talking the processing sound is played to indicate the speech recognition engine is working.
 Once results are available the application returns and results (score and text) are available using dialplan functions.
 The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)} and ${SPEECH_SCORE(1)}.
-The first argument is the sound file and the second is the timeout. Note the timeout will only start once the sound file has stopped playing.
+The first argument is the sound file and the second is the timeout integer in seconds. Note the timeout will only start once the sound file has stopped playing.
 
 \end{verbatim}
 
@@ -3293,19 +3188,6 @@ Scan Zap channels to monitor calls
   ZapScan([group]) allows a call center manager to monitor Zap channels in
 a convenient way.  Use '#' to select the next channel and use '*' to exit
 Limit scanning to a channel GROUP by setting the option group argument.
-
-\end{verbatim}
-
-
-\section{ZapSendKeypadFacility}
-\subsection{Synopsis}
-\begin{verbatim}
-Send digits out of band over a PRI
-\end{verbatim}
-\subsection{Description}
-\begin{verbatim}
-  ZapSendKeypadFacility(): This application will send the given string of digits in a Keypad Facility
-  IE over the current channel.
 
 \end{verbatim}
 
