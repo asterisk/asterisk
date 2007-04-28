@@ -114,6 +114,11 @@ Queue changes
      minimum amount of time between queue announcements for use when the caller's queue
      position changes frequently.
 
+MeetMe Changes
+--------------
+  * The 'o' option to provide an optimization has been removed and its functionality 
+     has been enabled by default.
+
 Miscellaneous 
 -------------
 
