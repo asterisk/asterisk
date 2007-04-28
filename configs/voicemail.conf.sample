@@ -126,6 +126,19 @@ emaildateformat=%A, %B %d, %Y at %r
 ; You can override the default program to send e-mail if you wish, too
 ;
 ;mailcmd=/usr/sbin/sendmail -t
+;
+;pollmailboxes=no    ;   If mailboxes are changed anywhere outside of app_voicemail,
+;                    ; then this option must be enabled for MWI to work.  This
+;                    ; enables polling mailboxes for changes.  Normally, it will
+;                    ; expect that changes are only made when someone called in
+;                    ; to one of the voicemail applications.
+;                    ;   Examples of situations that would require this option are 
+;                    ; web interfaces to voicemail or an email client in the case 
+;                    ; of using IMAP storage.
+;
+;pollfreq=30         ;   If the "pollmailboxes" option is enabled, this option
+;                    ; sets the polling frequency.  The default is once every
+;                    ; 30 seconds.
 ; 
 ; Users may be located in different timezones, or may have different 
 ; message announcements for their introductory message when they enter 

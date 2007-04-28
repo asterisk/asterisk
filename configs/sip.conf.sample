@@ -69,7 +69,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;t1min=100			; Minimum roundtrip time for messages to monitored hosts
 				; Defaults to 100 ms
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
-;checkmwi=10			; Default time between mailbox checks for peers
 ;buggymwi=no			; Cisco SIP firmware doesn't support the MWI RFC
 				; fully. Enable this option to not get error messages
 				; when sending MWI to phones with this bug.

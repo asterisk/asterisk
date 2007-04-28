@@ -104,6 +104,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/smdi.h"
+#include "asterisk/event.h"
 
 #ifdef ODBC_STORAGE
 #include "asterisk/res_odbc.h"
@@ -313,7 +314,8 @@ struct baseio {
 	unsigned char iobuf[BASEMAXINLINE];
 };
 
-/*! Structure for linked list of users */
+/*! Structure for linked list of users 
+ * Use ast_vm_user_destroy() to free one of these structures. */
 struct ast_vm_user {
 	char context[AST_MAX_CONTEXT];   /*!< Voicemail context */
 	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox id, unique within vm context */
@@ -527,6 +529,42 @@ static int vmmaxsecs;
 static int maxgreet;
 static int skipms;
 static int maxlogins;
+
+/*! Poll mailboxes for changes since there is something external to
+ *  app_voicemail that may change them. */
+static unsigned int poll_mailboxes;
+
+/*! Polling frequency */
+static unsigned int poll_freq;
+/*! By default, poll every 30 seconds */
+#define DEFAULT_POLL_FREQ 30
+
+AST_MUTEX_DEFINE_STATIC(poll_lock);
+static ast_cond_t poll_cond = PTHREAD_COND_INITIALIZER;
+static pthread_t poll_thread = AST_PTHREADT_NULL;
+static unsigned char poll_thread_run;
+
+/*! Subscription to ... MWI event subscriptions */
+static struct ast_event_sub *mwi_sub_sub;
+/*! Subscription to ... MWI event un-subscriptions */
+static struct ast_event_sub *mwi_unsub_sub;
+
+/*!
+ * \brief An MWI subscription
+ *
+ * This is so we can keep track of which mailboxes are subscribed to.
+ * This way, we know which mailboxes to poll when the pollmailboxes
+ * option is being used.
+ */
+struct mwi_sub {
+	AST_RWLIST_ENTRY(mwi_sub) entry;
+	int old_new;
+	int old_old;
+	uint32_t uniqueid;
+	char mailbox[1];
+};
+
+static AST_RWLIST_HEAD_STATIC(mwi_subs, mwi_sub);
 
 /* custom password sounds */
 static char vm_password[80] = "vm-password";
@@ -2258,8 +2296,10 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 
 static void free_user(struct ast_vm_user *vmu)
 {
-	if (ast_test_flag(vmu, VM_ALLOCED))
-		free(vmu);
+	if (!ast_test_flag(vmu, VM_ALLOCED))
+		return;
+
+	free(vmu);
 }
 
 static void free_zone(struct vm_zone *z)
@@ -4002,6 +4042,35 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	return cmd;
 }
 
+static void queue_mwi_event(const char *mbox, int new, int old)
+{
+	struct ast_event *event;
+	char *mailbox;
+
+	/* Strip off @default */
+	mailbox = ast_strdupa(mbox);
+	if (strstr(mailbox, "@default"))
+		mailbox = strsep(&mailbox, "@");
+
+	if (ast_event_check_subscriber(AST_EVENT_MWI,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+		AST_EVENT_IE_END) == AST_EVENT_SUB_NONE) {
+		return;
+	}
+
+	if (!(event = ast_event_new(AST_EVENT_MWI,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, new,
+			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, old,
+			AST_EVENT_IE_END))) {
+		return;
+	}
+
+	ast_event_queue_and_cache(event,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_END);
+}
+
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname)
 {
 	char todir[PATH_MAX], fn[PATH_MAX], ext_context[PATH_MAX], *stringp;
@@ -4049,6 +4118,8 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	/* Leave voicemail for someone */
 	if (ast_app_has_voicemail(ext_context, NULL)) 
 		ast_app_inboxcount(ext_context, &newmsgs, &oldmsgs);
+
+	queue_mwi_event(ext_context, newmsgs, oldmsgs);
 
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
 	run_externnotify(vmu->context, vmu->mailbox);
@@ -6833,9 +6904,12 @@ out:
 	if (vmu)
 		close_mailbox(&vms, vmu);
 	if (valid) {
+		int new = 0, old = 0;
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
 		run_externnotify(vmu->context, vmu->mailbox);
+		ast_app_inboxcount(ext_context, &new, &old);
+		queue_mwi_event(ext_context, new, old);
 	}
 #ifdef IMAP_STORAGE
 	/* expunge message - use UID Expunge if supported on IMAP server*/
@@ -6939,20 +7013,25 @@ static int vm_exec(struct ast_channel *chan, void *data)
 static struct ast_vm_user *find_or_create(char *context, char *mbox)
 {
 	struct ast_vm_user *vmu;
+
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mbox, vmu->mailbox))
 			break;
 		if (context && (!strcasecmp(context, vmu->context)) && (!strcasecmp(mbox, vmu->mailbox)))
 			break;
 	}
+
+	if (vmu)
+		return vmu;
 	
-	if (!vmu) {
-		if ((vmu = ast_calloc(1, sizeof(*vmu)))) {
-			ast_copy_string(vmu->context, context, sizeof(vmu->context));
-			ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
-			AST_LIST_INSERT_TAIL(&users, vmu, list);
-		}
-	}
+	if (!(vmu = ast_calloc(1, sizeof(*vmu))))
+		return NULL;
+	
+	ast_copy_string(vmu->context, context, sizeof(vmu->context));
+	ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+
+	AST_LIST_INSERT_TAIL(&users, vmu, list);
+	
 	return vmu;
 }
 
@@ -6963,24 +7042,36 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
+	char *mailbox_full;
+	int new = 0, old = 0;
 
 	tmp = ast_strdupa(data);
 
-	if ((vmu = find_or_create(context, mbox))) {
-		populate_defaults(vmu);
+	if (!(vmu = find_or_create(context, mbox)))
+		return -1;
+	
+	populate_defaults(vmu);
 
-		stringp = tmp;
-		if ((s = strsep(&stringp, ","))) 
-			ast_copy_string(vmu->password, s, sizeof(vmu->password));
-		if (stringp && (s = strsep(&stringp, ","))) 
-			ast_copy_string(vmu->fullname, s, sizeof(vmu->fullname));
-		if (stringp && (s = strsep(&stringp, ","))) 
-			ast_copy_string(vmu->email, s, sizeof(vmu->email));
-		if (stringp && (s = strsep(&stringp, ","))) 
-			ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
-		if (stringp && (s = strsep(&stringp, ","))) 
-			apply_options(vmu, s);
-	}
+	stringp = tmp;
+	if ((s = strsep(&stringp, ","))) 
+		ast_copy_string(vmu->password, s, sizeof(vmu->password));
+	if (stringp && (s = strsep(&stringp, ","))) 
+		ast_copy_string(vmu->fullname, s, sizeof(vmu->fullname));
+	if (stringp && (s = strsep(&stringp, ","))) 
+		ast_copy_string(vmu->email, s, sizeof(vmu->email));
+	if (stringp && (s = strsep(&stringp, ","))) 
+		ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
+	if (stringp && (s = strsep(&stringp, ","))) 
+		apply_options(vmu, s);
+
+	mailbox_full = alloca(strlen(mbox) + strlen(context) + 1);
+	strcpy(mailbox_full, mbox);
+	strcat(mailbox_full, "@");
+	strcat(mailbox_full, context);
+
+	inboxcount(mailbox_full, &new, &old);
+	queue_mwi_event(mailbox_full, new, old);
+
 	return 0;
 }
 
@@ -7256,6 +7347,160 @@ static struct ast_cli_entry cli_voicemail[] = {
 	handle_voicemail_show_zones, "List zone message formats",
 	voicemail_show_zones_help, NULL, NULL },
 };
+
+static void poll_subscribed_mailboxes(void)
+{
+	struct mwi_sub *mwi_sub;
+
+	AST_RWLIST_RDLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE(&mwi_subs, mwi_sub, entry) {
+		int new = 0, old = 0;
+
+		if (ast_strlen_zero(mwi_sub->mailbox))
+			continue;
+
+		inboxcount(mwi_sub->mailbox, &new, &old);
+
+		if (new != mwi_sub->old_new || old != mwi_sub->old_old) {
+			mwi_sub->old_new = new;
+			mwi_sub->old_old = old;
+			queue_mwi_event(mwi_sub->mailbox, new, old);
+		}
+	}
+	AST_RWLIST_UNLOCK(&mwi_subs);
+}
+
+static void *mb_poll_thread(void *data)
+{
+	while (poll_thread_run) {
+		struct timespec ts = { 0, };
+		struct timeval tv;
+
+		tv = ast_tvadd(ast_tvnow(), ast_samp2tv(poll_freq, 1));
+		ts.tv_sec = tv.tv_sec;
+		ts.tv_nsec = tv.tv_usec * 1000;
+
+		ast_mutex_lock(&poll_lock);
+		ast_cond_timedwait(&poll_cond, &poll_lock, &ts);
+		ast_mutex_unlock(&poll_lock);
+
+		if (!poll_thread_run)
+			break;
+
+		poll_subscribed_mailboxes();
+	}
+
+	return NULL;
+}
+
+static void mwi_sub_destroy(struct mwi_sub *mwi_sub)
+{
+	free(mwi_sub);
+}
+
+static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
+{
+	uint32_t uniqueid;
+	struct mwi_sub *mwi_sub;
+
+	if (ast_event_get_type(event) != AST_EVENT_UNSUB)
+		return;
+
+	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
+		return;
+
+	uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
+
+	AST_RWLIST_WRLOCK(&mwi_subs);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&mwi_subs, mwi_sub, entry) {
+		if (mwi_sub->uniqueid == uniqueid) {
+			AST_LIST_REMOVE_CURRENT(&mwi_subs, entry);
+			break;
+		}
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&mwi_subs);
+
+	if (mwi_sub)
+		mwi_sub_destroy(mwi_sub);
+}
+
+static void mwi_sub_event_cb(const struct ast_event *event, void *userdata)
+{
+	const char *mailbox;
+	uint32_t uniqueid;
+	unsigned int len;
+	struct mwi_sub *mwi_sub;
+
+	if (ast_event_get_type(event) != AST_EVENT_SUB)
+		return;
+
+	if (ast_event_get_ie_uint(event, AST_EVENT_IE_EVENTTYPE) != AST_EVENT_MWI)
+		return;
+
+	mailbox = ast_event_get_ie_str(event, AST_EVENT_IE_MAILBOX);
+	uniqueid = ast_event_get_ie_uint(event, AST_EVENT_IE_UNIQUEID);
+
+	len = sizeof(*mwi_sub);
+	if (!ast_strlen_zero(mailbox))
+		len += strlen(mailbox);
+
+	if (!(mwi_sub = ast_calloc(1, len)))
+		return;
+
+	mwi_sub->uniqueid = uniqueid;
+	if (!ast_strlen_zero(mailbox))
+		strcpy(mwi_sub->mailbox, mailbox);
+
+	AST_RWLIST_WRLOCK(&mwi_subs);
+	AST_RWLIST_INSERT_TAIL(&mwi_subs, mwi_sub, entry);
+	AST_RWLIST_UNLOCK(&mwi_subs);
+}
+
+static void start_poll_thread(void)
+{
+	pthread_attr_t attr;
+
+	mwi_sub_sub = ast_event_subscribe(AST_EVENT_SUB, mwi_sub_event_cb, NULL,
+		AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, AST_EVENT_MWI,
+		AST_EVENT_IE_END);
+
+	mwi_unsub_sub = ast_event_subscribe(AST_EVENT_UNSUB, mwi_unsub_event_cb, NULL,
+		AST_EVENT_IE_EVENTTYPE, AST_EVENT_IE_PLTYPE_UINT, AST_EVENT_MWI,
+		AST_EVENT_IE_END);
+
+	if (mwi_sub_sub)
+		ast_event_report_subs(mwi_sub_sub);
+
+	poll_thread_run = 1;
+
+	pthread_attr_init(&attr);
+	ast_pthread_create(&poll_thread, &attr, mb_poll_thread, NULL);
+	pthread_attr_destroy(&attr);
+}
+
+static void stop_poll_thread(void)
+{
+	poll_thread_run = 0;
+
+	if (mwi_sub_sub) {
+		ast_event_unsubscribe(mwi_sub_sub);
+		mwi_sub_sub = NULL;
+	}
+
+	if (mwi_unsub_sub) {
+		ast_event_unsubscribe(mwi_unsub_sub);
+		mwi_unsub_sub = NULL;
+	}
+
+	ast_mutex_lock(&poll_lock);
+	ast_cond_signal(&poll_cond);
+	ast_mutex_unlock(&poll_lock);
+
+	pthread_join(poll_thread, NULL);
+
+	poll_thread = AST_PTHREADT_NULL;
+}
 
 static int load_config(void)
 {
@@ -7641,6 +7886,19 @@ static int load_config(void)
 		if (!(val = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
 			val = "no";
 		ast_set2_flag((&globalflags), ast_true(val), VM_DIRECFORWARD);	
+
+		poll_freq = DEFAULT_POLL_FREQ;
+		if ((val = ast_variable_retrieve(cfg, "general", "pollfreq"))) {
+			if (sscanf(val, "%u", &poll_freq) != 1) {
+				poll_freq = DEFAULT_POLL_FREQ;
+				ast_log(LOG_ERROR, "'%s' is not a valid value for the pollfreq option!\n", val);
+			}
+		}
+
+		poll_mailboxes = 0;
+		if ((val = ast_variable_retrieve(cfg, "general", "pollmailboxes")))
+			poll_mailboxes = ast_true(val);
+
 		if ((ucfg = ast_config_load("users.conf"))) {	
 			for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 				if (!ast_true(ast_config_option(ucfg, cat, "hasvoicemail")))
@@ -7800,6 +8058,12 @@ static int load_config(void)
 		}
 		AST_LIST_UNLOCK(&users);
 		ast_config_destroy(cfg);
+
+		if (poll_mailboxes && poll_thread == AST_PTHREADT_NULL)
+			start_poll_thread();
+		if (!poll_mailboxes && poll_thread != AST_PTHREADT_NULL)
+			stop_poll_thread();;
+
 		return 0;
 	} else {
 		AST_LIST_UNLOCK(&users);
@@ -7810,13 +8074,13 @@ static int load_config(void)
 
 static int reload(void)
 {
-	return(load_config());
+	return load_config();
 }
 
 static int unload_module(void)
 {
 	int res;
-	
+
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app3);
@@ -7827,28 +8091,31 @@ static int unload_module(void)
 	
 	ast_module_user_hangup_all();
 
+	if (poll_thread != AST_PTHREADT_NULL)
+		stop_poll_thread();
+
 	return res;
 }
 
 static int load_module(void)
 {
 	int res;
+
+	/* compute the location of the voicemail spool directory */
+	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
+
+	if ((res = load_config()))
+		return res;
+
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
 	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
 	if (res)
-		return(res);
-
-	if ((res=load_config())) {
-		return(res);
-	}
+		return res;
 
 	ast_cli_register_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
-
-	/* compute the location of the voicemail spool directory */
-	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 
 	ast_install_vm_functions(has_voicemail, inboxcount, messagecount);
 

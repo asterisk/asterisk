@@ -47,23 +47,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Main dialing structure. Contains global options, channels being dialed, and more! */
 struct ast_dial {
-	int num;                                           /*! Current number to give to next dialed channel */
-	enum ast_dial_result state;                       /*! Status of dial */
-	void *options[AST_DIAL_OPTION_MAX];                /*! Global options */
-	ast_dial_state_callback state_callback;          /*! Status callback */
-	AST_LIST_HEAD_NOLOCK(, ast_dial_channel) channels; /*! Channels being dialed */
-	pthread_t thread;                                  /*! Thread (if running in async) */
+	int num;                                           /*!< Current number to give to next dialed channel */
+	enum ast_dial_result state;                        /*!< Status of dial */
+	void *options[AST_DIAL_OPTION_MAX];                /*!< Global options */
+	ast_dial_state_callback state_callback;            /*!< Status callback */
+	AST_LIST_HEAD_NOLOCK(, ast_dial_channel) channels; /*!< Channels being dialed */
+	pthread_t thread;                                  /*!< Thread (if running in async) */
 };
 
 /*! \brief Dialing channel structure. Contains per-channel dialing options, asterisk channel, and more! */
 struct ast_dial_channel {
-	int num;                               /*! Unique number for dialed channel */
-	const char *tech;                      /*! Technology being dialed */
-	const char *device;                    /*! Device being dialed */
-	void *options[AST_DIAL_OPTION_MAX];    /*! Channel specific options */
-	int cause;                             /*! Cause code in case of failure */
-	struct ast_channel *owner;             /*! Asterisk channel */
-	AST_LIST_ENTRY(ast_dial_channel) list; /*! Linked list information */
+	int num;                               /*!< Unique number for dialed channel */
+	const char *tech;                      /*!< Technology being dialed */
+	const char *device;                    /*!< Device being dialed */
+	void *options[AST_DIAL_OPTION_MAX];    /*!< Channel specific options */
+	int cause;                             /*!< Cause code in case of failure */
+	struct ast_channel *owner;             /*!< Asterisk channel */
+	AST_LIST_ENTRY(ast_dial_channel) list; /*!< Linked list information */
 };
 
 /*! \brief Typedef for dial option enable */

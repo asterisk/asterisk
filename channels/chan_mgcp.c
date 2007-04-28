@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/abstract_jb.h"
+#include "asterisk/event.h"
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -320,9 +321,10 @@ struct mgcp_endpoint {
 	char cid_name[AST_MAX_EXTENSION];	/*!< Caller*ID name */
 	char lastcallerid[AST_MAX_EXTENSION];	/*!< Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];	/*!< Last Caller*ID */
-	char mailbox[AST_MAX_EXTENSION];
 	char musicclass[MAX_MUSICCLASS];
 	char curtone[80];			/*!< Current tone */
+	char mailbox[AST_MAX_EXTENSION];
+	struct ast_event_sub *mwi_event_sub;
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
 	int callwaiting;
@@ -450,9 +452,31 @@ static const struct ast_channel_tech mgcp_tech = {
 	.bridge = ast_rtp_bridge,
 };
 
+static void mwi_event_cb(const struct ast_event *event, void *userdata)
+{
+	/* This module does not handle MWI in an event-based manner.  However, it
+	 * subscribes to MWI for each mailbox that is configured so that the core
+	 * knows that we care about it.  Then, chan_mgcp will get the MWI from the
+	 * event cache instead of checking the mailbox directly. */
+}
+
 static int has_voicemail(struct mgcp_endpoint *p)
 {
-	return ast_app_has_voicemail(p->mailbox, NULL);
+	int new_msgs;
+	struct ast_event *event;
+
+	event = ast_event_get_cached(AST_EVENT_MWI,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mailbox,
+		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+		AST_EVENT_IE_END);
+
+	if (event) {
+		new_msgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		ast_event_destroy(event);
+	} else
+		new_msgs = ast_app_has_voicemail(p->mailbox, NULL);
+
+	return new_msgs;
 }
 
 static int unalloc_sub(struct mgcp_subchannel *sub)
@@ -3740,6 +3764,12 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_copy_string(e->language, language, sizeof(e->language));
 					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
 					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
+					if (!ast_strlen_zero(e->mailbox)) {
+						e->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
+							AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, e->mailbox,
+							AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+							AST_EVENT_IE_END);
+					}
 					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", ast_random());
 					e->msgstate = -1;
 					e->amaflags = amaflags;
@@ -4014,6 +4044,10 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
 		ast_mutex_destroy(&s->cx_queue_lock);
 		free(s);
 	}
+
+	if (e->mwi_event_sub)
+		ast_event_unsubscribe(e->mwi_event_sub);
+
 	ast_mutex_destroy(&e->lock);
 	ast_mutex_destroy(&e->rqnt_queue_lock);
 	ast_mutex_destroy(&e->cmd_queue_lock);

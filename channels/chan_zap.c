@@ -106,6 +106,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/smdi.h"
 #include "asterisk/astobj.h"
+#include "asterisk/event.h"
+
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
 /*! Global jitterbuffer configuration - by default, jb is disabled */
@@ -260,6 +262,14 @@ static int restart_monitor(void);
 static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
 static int zt_sendtext(struct ast_channel *c, const char *text);
+
+static void mwi_event_cb(const struct ast_event *event, void *userdata)
+{
+	/* This module does not handle MWI in an event-based manner.  However, it
+	 * subscribes to MWI for each mailbox that is configured so that the core
+	 * knows that we care about it.  Then, chan_zap will get the MWI from the
+	 * event cache instead of checking the mailbox directly. */
+}
 
 /*! \brief Avoid the silly zt_getevent which ignores a bunch of events */
 static inline int zt_get_event(int fd)
@@ -601,6 +611,7 @@ static struct zt_pvt {
 	struct tdd_state *tdd;				/*!< TDD flag */
 	char call_forward[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
+	struct ast_event_sub *mwi_event_sub;
 	char dialdest[256];
 	int onhooktime;
 	int msgstate;
@@ -1831,8 +1842,21 @@ static int send_cwcidspill(struct zt_pvt *p)
 
 static int has_voicemail(struct zt_pvt *p)
 {
+	int new_msgs;
+	struct ast_event *event;
 
-	return ast_app_has_voicemail(p->mailbox, NULL);
+	event = ast_event_get_cached(AST_EVENT_MWI,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mailbox,
+		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+		AST_EVENT_IE_END);
+
+	if (event) {
+		new_msgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		ast_event_destroy(event);
+	} else
+		new_msgs = ast_app_has_voicemail(p->mailbox, NULL);
+
+	return new_msgs;
 }
 
 static int send_callerid(struct zt_pvt *p)
@@ -2390,6 +2414,8 @@ static void destroy_zt_pvt(struct zt_pvt **pvt)
 		p->next->prev = p->prev;
 	if (p->use_smdi)
 		ASTOBJ_UNREF(p->smdi_iface, ast_smdi_interface_destroy);
+	if (p->mwi_event_sub)
+		ast_event_unsubscribe(p->mwi_event_sub);
 	ast_mutex_destroy(&p->lock);
 	free(p);
 	*pvt = NULL;
@@ -7191,7 +7217,7 @@ static void *do_monitor(void *data)
 					if (last) {
 						if (!last->cidspill && !last->owner && !ast_strlen_zero(last->mailbox) && (thispass - last->onhooktime > 3) &&
 							(last->sig & __ZT_SIG_FXO)) {
-							res = ast_app_has_voicemail(last->mailbox, NULL);
+							res = has_voicemail(last);
 							if (last->msgstate != res) {
 								int x;
 								if (option_debug)
@@ -7872,6 +7898,12 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		tmp->cid_ton = 0;
 		ast_copy_string(tmp->cid_name, conf.chan.cid_name, sizeof(tmp->cid_name));
 		ast_copy_string(tmp->mailbox, conf.chan.mailbox, sizeof(tmp->mailbox));
+		if (!ast_strlen_zero(tmp->mailbox)) {
+			tmp->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, tmp->mailbox,
+				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+				AST_EVENT_IE_END);
+		}
 		tmp->msgstate = -1;
 		tmp->group = conf.chan.group;
 		tmp->callgroup = conf.chan.callgroup;

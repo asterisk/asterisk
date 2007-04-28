@@ -91,6 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/netsock.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/event.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -367,7 +368,9 @@ struct iax2_peer {
 	int pokefreqnotok;				/*!< How often to check when the host has been determined to be down */
 	int historicms;					/*!< How long recent average responses took */
 	int smoothing;					/*!< Sample over how many units to determine historic ms */
-	
+
+	struct ast_event_sub *mwi_event_sub;
+
 	struct ast_ha *ha;
 	AST_LIST_ENTRY(iax2_peer) entry;
 };
@@ -882,6 +885,13 @@ static const struct ast_channel_tech iax2_tech = {
 	.func_channel_read = acf_channel_read,
 	.func_channel_write = acf_channel_write,
 };
+
+static void mwi_event_cb(const struct ast_event *event, void *userdata)
+{
+	/* The MWI subscriptions exist just so the core knows we care about those
+	 * mailboxes.  However, we just grab the events out of the cache when it
+	 * is time to send MWI, since it is only sent with a REGACK. */
+}
 
 static void insert_idle_thread(struct iax2_thread *thread)
 {
@@ -5546,9 +5556,38 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	return 0;
 }
 
-static int iax2_register(char *value, int lineno)
+static int iax2_append_register(const char *hostname, const char *username,
+	const char *secret, const char *porta)
 {
 	struct iax2_registry *reg;
+
+	if (!(reg = ast_calloc(1, sizeof(*reg))))
+		return -1;
+
+	if (ast_dnsmgr_lookup(hostname, &reg->addr.sin_addr, &reg->dnsmgr) < 0) {
+		free(reg);
+		return -1;
+	}
+
+	ast_copy_string(reg->username, username, sizeof(reg->username));
+
+	if (secret)
+		ast_copy_string(reg->secret, secret, sizeof(reg->secret));
+
+	reg->expire = -1;
+	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
+	reg->addr.sin_family = AF_INET;
+	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
+
+	AST_LIST_LOCK(&registrations);
+	AST_LIST_INSERT_HEAD(&registrations, reg, entry);
+	AST_LIST_UNLOCK(&registrations);
+	
+	return 0;
+}
+
+static int iax2_register(char *value, int lineno)
+{
 	char copy[256];
 	char *username, *hostname, *secret;
 	char *porta;
@@ -5556,18 +5595,21 @@ static int iax2_register(char *value, int lineno)
 	
 	if (!value)
 		return -1;
+
 	ast_copy_string(copy, value, sizeof(copy));
-	stringp=copy;
+	stringp = copy;
 	username = strsep(&stringp, "@");
 	hostname = strsep(&stringp, "@");
+
 	if (!hostname) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d\n", lineno);
 		return -1;
 	}
-	stringp=username;
+
+	stringp = username;
 	username = strsep(&stringp, ":");
 	secret = strsep(&stringp, ":");
-	stringp=hostname;
+	stringp = hostname;
 	hostname = strsep(&stringp, ":");
 	porta = strsep(&stringp, ":");
 	
@@ -5575,25 +5617,10 @@ static int iax2_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	if (!(reg = ast_calloc(1, sizeof(*reg))))
-		return -1;
-	if (ast_dnsmgr_lookup(hostname, &reg->addr.sin_addr, &reg->dnsmgr) < 0) {
-		free(reg);
-		return -1;
-	}
-	ast_copy_string(reg->username, username, sizeof(reg->username));
-	if (secret)
-		ast_copy_string(reg->secret, secret, sizeof(reg->secret));
-	reg->expire = -1;
-	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
-	reg->addr.sin_family = AF_INET;
-	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
-	AST_LIST_LOCK(&registrations);
-	AST_LIST_INSERT_HEAD(&registrations, reg, entry);
-	AST_LIST_UNLOCK(&registrations);
-	
-	return 0;
+
+	return iax2_append_register(hostname, username, secret, porta);
 }
+
 
 static void register_peer_exten(struct iax2_peer *peer, int onoff)
 {
@@ -5790,13 +5817,27 @@ static int update_registry(const char *name, struct sockaddr_in *sin, int callno
 		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expiry);
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 		if (!ast_strlen_zero(p->mailbox)) {
+			struct ast_event *event;
 			int new, old;
-			ast_app_inboxcount(p->mailbox, &new, &old);
+
+			event = ast_event_get_cached(AST_EVENT_MWI,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mailbox,
+				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+				AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+				AST_EVENT_IE_END);
+			if (event) {
+				new = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+				old = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
+				ast_event_destroy(event);
+			} else /* Fall back on checking the mailbox directly */
+				ast_app_inboxcount(p->mailbox, &new, &old);
+
 			if (new > 255)
 				new = 255;
 			if (old > 255)
 				old = 255;
 			msgcount = (old << 8) | new;
+
 			iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
 		}
 		if (ast_test_flag(p, IAX_HASCALLERID)) {
@@ -8533,9 +8574,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 {
 	struct iax2_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
-	int maskfound=0;
-	int found=0;
-	int firstpass=1;
+	int maskfound = 0;
+	int found = 0;
+	int firstpass = 1;
 
 	AST_LIST_LOCK(&peers);
 	if (!temponly) {
@@ -8762,8 +8803,16 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		/* Make sure these are IPv4 addresses */
 		peer->addr.sin_family = AF_INET;
 	}
+
 	if (oldha)
 		ast_free_ha(oldha);
+
+	if (!ast_strlen_zero(peer->mailbox)) {
+		peer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, peer->mailbox,
+			AST_EVENT_IE_END);
+	}
+
 	return peer;
 }
 
@@ -9064,6 +9113,9 @@ static void destroy_peer(struct iax2_peer *peer)
 
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
+
+	if (peer->mwi_event_sub)
+		ast_event_unsubscribe(peer->mwi_event_sub);
 
 	ast_string_field_free_pools(peer);
 

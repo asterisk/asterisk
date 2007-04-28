@@ -84,6 +84,7 @@ int dnsmgr_init(void);				/*!< Provided by dnsmgr.c */
 void dnsmgr_start_refresh(void);		/*!< Provided by dnsmgr.c */
 int dnsmgr_reload(void);			/*!< Provided by dnsmgr.c */
 void threadstorage_init(void);			/*!< Provided by threadstorage.c */
+void ast_event_init(void);          /*!< Provided by event.c */
 
 /* Many headers need 'ast_channel' to be defined */
 struct ast_channel;

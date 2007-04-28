@@ -142,6 +142,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/threadstorage.h"
 #include "asterisk/translate.h"
 #include "asterisk/version.h"
+#include "asterisk/event.h"
 
 #ifndef FALSE
 #define FALSE    0
@@ -503,7 +504,6 @@ static const struct cfsip_options {
 #define DEFAULT_VMEXTEN 	"asterisk"
 #define DEFAULT_CALLERID 	"asterisk"
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
-#define DEFAULT_MWITIME 	10
 #define DEFAULT_ALLOWGUEST	TRUE
 #define DEFAULT_SRVLOOKUP	FALSE		/*!< Recommended setting is ON */
 #define DEFAULT_COMPACTHEADERS	FALSE
@@ -560,7 +560,6 @@ static int global_regattempts_max;	/*!< Registration attempts before giving up *
 static int global_allowguest;		/*!< allow unauthenticated users/peers to connect? */
 static int global_allowsubscribe;	/*!< Flag for disabling ALL subscriptions, this is FALSE only if all peers are FALSE 
 					    the global setting is in globals_flags[1] */
-static int global_mwitime;		/*!< Time between MWI checks for peers */
 static unsigned int global_tos_sip;		/*!< IP type of service for SIP packets */
 static unsigned int global_tos_audio;		/*!< IP type of service for audio RTP packets */
 static unsigned int global_tos_video;		/*!< IP type of service for video RTP packets */
@@ -1134,7 +1133,6 @@ struct sip_peer {
 	char useragent[256];		/*!<  User agent in SIP request (saved from registration) */
 	struct ast_codec_pref prefs;	/*!<  codec prefs */
 	int lastmsgssent;
-	time_t	lastmsgcheck;		/*!<  Last time we checked for MWI */
 	unsigned int sipoptions;	/*!<  Supported SIP options */
 	struct ast_flags flags[2];	/*!<  SIP_ flags */
 	int expire;			/*!<  When to expire this peer registration */
@@ -1160,6 +1158,7 @@ struct sip_peer {
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int autoframing;
+	struct ast_event_sub *mwi_event_sub; /*!< The MWI event subscription */
 };
 
 
@@ -1291,8 +1290,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 static void copy_request(struct sip_request *dst, const struct sip_request *src);
 static void receive_message(struct sip_pvt *p, struct sip_request *req);
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req);
-static int sip_send_mwi_to_peer(struct sip_peer *peer);
-static int does_peer_need_mwi(struct sip_peer *peer);
+static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *event, int cache_only);
 
 /*--- Dialog management */
 static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
@@ -1363,20 +1361,20 @@ static int reload_config(enum channelreloadreason reason);
 static int expire_register(void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
-static int sip_send_mwi_to_peer(struct sip_peer *peer);
 static void sip_destroy(struct sip_pvt *p);
 static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
 static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target);
 
-/*--- Device monitoring and Device/extension state handling */
+/*--- Device monitoring and Device/extension state/event handling */
 static int cb_extensionstate(char *context, char* exten, int state, void *data);
 static int sip_devicestate(void *data);
 static int sip_poke_noanswer(void *data);
 static int sip_poke_peer(struct sip_peer *peer);
 static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
+static void mwi_event_cb(const struct ast_event *, void *);
 
 /*--- Applications, functions, CLI and manager command helpers */
 static const char *sip_nat_mode(const struct sip_pvt *p);
@@ -2599,6 +2597,11 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
 	if (peer->mwipvt) 	/* We have an active subscription, delete it */
 		sip_destroy(peer->mwipvt);
+
+	if (peer->mwi_event_sub) {
+		ast_event_unsubscribe(peer->mwi_event_sub);
+		peer->mwi_event_sub = NULL;
+	}
 
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
@@ -8733,6 +8736,16 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 	return;
 }
 
+/*! \brief Receive MWI events that we have subscribed to */
+static void mwi_event_cb(const struct ast_event *event, void *userdata)
+{
+	struct sip_peer *peer = userdata;
+
+	ASTOBJ_RDLOCK(peer);
+	sip_send_mwi_to_peer(peer, event, 0);
+	ASTOBJ_UNLOCK(peer);
+}
+
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
 \note	If you add an "hint" priority to the extension in the dial plan,
 	you will get notifications on device state changes */
@@ -8860,7 +8873,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, ast_test_flag(req, SIP_PKT_IGNORE)))) {
 				sip_cancel_destroy(p);
 
-				/* We have a succesful registration attemp with proper authentication,
+				/* We have a successful registration attempt with proper authentication,
 				   now, update the peer */
 				switch (parse_register_contact(p, peer, req)) {
 				case PARSE_REGISTER_FAILED:
@@ -11016,7 +11029,6 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Call limit peers only:  %s\n", global_limitonpeers ? "Yes" : "No");
 	ast_cli(fd, "  Direct RTP setup:       %s\n", global_directrtpsetup ? "Yes" : "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
-	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
 	ast_cli(fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
 	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
@@ -15227,6 +15239,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 
 		p->subscribed = MWI_NOTIFICATION;
+		if (ast_test_flag(&authpeer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY)) {
+			authpeer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, authpeer,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, authpeer->mailbox,
+				AST_EVENT_IE_END);
+		}
 		if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
 			/* We only allow one subscription per peer */
 			sip_destroy(authpeer->mwipvt);
@@ -15273,7 +15290,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_response(p, "200 OK", req);
 			if (p->relatedpeer) {	/* Send first notification */
 				ASTOBJ_WRLOCK(p->relatedpeer);
-				sip_send_mwi_to_peer(p->relatedpeer);
+				sip_send_mwi_to_peer(p->relatedpeer, NULL, 0);
 				ASTOBJ_UNLOCK(p->relatedpeer);
 			}
 		} else {
@@ -15685,25 +15702,35 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 }
 
 /*! \brief Send message waiting indication to alert peer that they've got voicemail */
-static int sip_send_mwi_to_peer(struct sip_peer *peer)
+static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *event, int cache_only)
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
-	int newmsgs, oldmsgs;
+	int newmsgs = 0, oldmsgs = 0;
+	struct ast_event *cache_event = NULL;
 
-	/* Check for messages */
-	ast_app_inboxcount(peer->mailbox, &newmsgs, &oldmsgs);
-	
-	peer->lastmsgcheck = time(NULL);
-	
-	/* Return now if it's the same thing we told them last time */
-	if (((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs)) == peer->lastmsgssent) {
+	if (ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY) && !peer->mwipvt)
 		return 0;
-	}
-	
-	
-	peer->lastmsgssent = ((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs));
 
+	if (!event) {
+		/* Check the event cache for the mailbox info */
+		event = cache_event = ast_event_get_cached(AST_EVENT_MWI,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, peer->mailbox,
+			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+			AST_EVENT_IE_END);
+	}
+
+	if (event) {
+		newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		oldmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
+		if (cache_event)
+			ast_event_destroy(cache_event);
+	} else if (cache_only) {
+		return 0;
+	} else /* Fall back to manually checking the mailbox */
+		ast_app_inboxcount(peer->mailbox, &newmsgs, &oldmsgs);
+	
 	if (peer->mwipvt) {
 		/* Base message on subscription */
 		p = peer->mwipvt;
@@ -15724,29 +15751,13 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		/* Destroy this session after 32 secs */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
+
 	/* Send MWI */
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 	transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
+
 	return 0;
 }
-
-/*! \brief Check whether peer needs a new MWI notification check */
-static int does_peer_need_mwi(struct sip_peer *peer)
-{
-	time_t t = time(NULL);
-
-	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) &&
-	    !peer->mwipvt) {	/* We don't have a subscription */
-		peer->lastmsgcheck = t;	/* Reset timer */
-		return FALSE;
-	}
-
-	if (!ast_strlen_zero(peer->mailbox) && (t - peer->lastmsgcheck) > global_mwitime)
-		return TRUE;
-
-	return FALSE;
-}
-
 
 /*! \brief helper function for the monitoring thread */
 static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
@@ -15823,11 +15834,7 @@ static void *do_monitor(void *data)
 {
 	int res;
 	struct sip_pvt *dialog;
-	struct sip_peer *peer = NULL;
 	time_t t;
-	int fastrestart = FALSE;
-	int lastpeernum = -1;
-	int curpeernum;
 	int reloading;
 
 	/* Add an I/O event to our SIP UDP socket */
@@ -15859,7 +15866,7 @@ restartsearch:
 		   of time since the last time we did it (when MWI is being sent, we can
 		   get back to this point every millisecond or less)
 		*/
-		for (dialog = dialoglist; !fastrestart && dialog; dialog = dialog->next) {
+		for (dialog = dialoglist; dialog; dialog = dialog->next) {
 			sip_pvt_lock(dialog);
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			check_rtp_timeout(dialog, t);
@@ -15881,10 +15888,6 @@ restartsearch:
 		res = ast_sched_wait(sched);
 		if ((res < 0) || (res > 1000))
 			res = 1000;
-
-		/* If we might need to send more mailbox notifications, don't wait long at all.*/
-		if (fastrestart)
-			res = 1;
 		res = ast_io_wait(io, res);
 		if (option_debug && res > 20)
 			ast_log(LOG_DEBUG, "chan_sip: ast_io_wait ran %d all at once\n", res);
@@ -15894,37 +15897,11 @@ restartsearch:
 			if (option_debug && res >= 20)
 				ast_log(LOG_DEBUG, "chan_sip: ast_sched_runq ran %d all at once\n", res);
 		}
-
-		/* Send MWI notifications to peers - static and cached realtime peers */
-		t = time(NULL);
-		fastrestart = FALSE;
-		curpeernum = 0;
-		peer = NULL;
-		/* Find next peer that needs mwi */
-		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !peer, do {
-			if ((curpeernum > lastpeernum) && does_peer_need_mwi(iterator)) {
-				fastrestart = TRUE;
-				lastpeernum = curpeernum;
-				peer = ASTOBJ_REF(iterator);
-			};
-			curpeernum++;
-		} while (0)
-		);
-		/* Send MWI to the peer */
-		if (peer) {
-			ASTOBJ_WRLOCK(peer);
-			sip_send_mwi_to_peer(peer);
-			ASTOBJ_UNLOCK(peer);
-			unref_peer(peer);
-		} else {
-			/* Reset where we come from */
-			lastpeernum = -1;
-		}
 		ast_mutex_unlock(&monlock);
 	}
+
 	/* Never reached */
 	return NULL;
-	
 }
 
 /*! \brief Start the channel monitor thread */
@@ -16714,7 +16691,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	struct ast_flags mask[2] = {{(0)}};
 	char callback[256] = "";
 
-
 	if (!realtime)
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
 		/* We also use a case-sensitive comparison (unlike find_peer) so
@@ -16953,7 +16929,22 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		global_allowsubscribe = TRUE;	/* No global ban any more */
 	if (!found && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && !ast_test_flag(&peer->flags[0], SIP_REALTIME))
 		reg_source_db(peer);
+
+	/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
+	 * subscribe to it now. */
+	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) && 
+		!ast_strlen_zero(peer->mailbox)) {
+		peer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, peer,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, peer->mailbox,
+			AST_EVENT_IE_END);
+		/* Send MWI from the event cache only.  This is so we can send initial
+		 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
+		 * way, then we will get events when app_voicemail gets loaded. */
+		sip_send_mwi_to_peer(peer, NULL, 1);
+	}
+
 	ASTOBJ_UNMARK(peer);
+
 	ast_free_ha(oldha);
 	if (!ast_strlen_zero(callback)) { /* build string from peer info */
 		char *reg_string;
@@ -17047,7 +17038,6 @@ static int reload_config(enum channelreloadreason reason)
 	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 	global_regattempts_max = 0;
 	pedanticsipchecking = DEFAULT_PEDANTIC;
-	global_mwitime = DEFAULT_MWITIME;
 	autocreatepeer = DEFAULT_AUTOCREATEPEER;
 	global_autoframing = 0;
 	global_allowguest = DEFAULT_ALLOWGUEST;
@@ -17135,11 +17125,6 @@ static int reload_config(enum channelreloadreason reason)
 			ast_set2_flag(&global_flags[0], ast_true(v->value), SIP_USEREQPHONE);	
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			global_relaxdtmf = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "checkmwi")) {
-			if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0)) {
-				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
-				global_mwitime = DEFAULT_MWITIME;
-			}
 		} else if (!strcasecmp(v->name, "vmexten")) {
 			ast_copy_string(default_vmexten, v->value, sizeof(default_vmexten));
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
