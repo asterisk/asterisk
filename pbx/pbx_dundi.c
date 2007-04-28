@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/acl.h"
 #include "asterisk/aes.h"
+#include "asterisk/app.h"
 
 #include "dundi-parser.h"
 
@@ -3838,11 +3839,198 @@ static struct ast_custom_function dundi_function = {
 	.syntax = "DUNDILOOKUP(number[|context[|options]])",
 	.desc = "This will do a DUNDi lookup of the given phone number.\n"
 	"If no context is given, the default will be e164. The result of\n"
-	"this function will the Technology/Resource found in the DUNDi\n"
-	"lookup. If no results were found, the result will be blank.\n"
+	"this function will return the Technology/Resource found in the first result\n"
+	"in the DUNDi lookup. If no results were found, the result will be blank.\n"
 	"If the 'b' option is specified, the internal DUNDi cache will\n"
 	"be bypassed.\n",
 	.read = dundifunc_read,
+};
+
+enum {
+	OPT_BYPASS_CACHE = (1 << 0),
+};
+
+AST_APP_OPTIONS(dundi_query_opts, BEGIN_OPTIONS
+	AST_APP_OPTION('b', OPT_BYPASS_CACHE),
+END_OPTIONS );
+
+unsigned int dundi_result_id;
+
+struct dundi_result_datastore {
+	struct dundi_result results[MAX_RESULTS];
+	unsigned int num_results;
+	unsigned int id;
+};
+
+static void drds_destroy(struct dundi_result_datastore *drds)
+{
+	free(drds);
+}
+
+static void drds_destroy_cb(void *data)
+{
+	struct dundi_result_datastore *drds = data;
+	drds_destroy(drds);
+}
+
+const struct ast_datastore_info dundi_result_datastore_info = {
+	.type = "DUNDIQUERY",
+	.destroy = drds_destroy_cb,
+};
+
+static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_module_user *u;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(number);
+		AST_APP_ARG(context);
+		AST_APP_ARG(options);
+	);
+	struct ast_flags opts = { 0, };
+	char *parse;
+	struct dundi_result_datastore *drds;
+	struct ast_datastore *datastore;
+
+	u = ast_module_user_add(chan);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "DUNDIQUERY requires an argument (number)\n");
+		ast_module_user_remove(u);
+		return -1;
+	}
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "DUNDIQUERY can not be used without a channel!\n");
+		ast_module_user_remove(u);
+		return -1;
+	}
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+	
+	if (!ast_strlen_zero(args.options))
+		ast_app_parse_options(dundi_query_opts, &opts, NULL, args.options);
+
+	if (ast_strlen_zero(args.context))
+		args.context = "e164";
+
+	if (!(drds = ast_calloc(1, sizeof(*drds)))) {
+		ast_module_user_remove(u);
+		return -1;
+	}
+
+	drds->id = ast_atomic_fetchadd_int((int *) &dundi_result_id, 1);
+	snprintf(buf, len, "%u", drds->id);
+
+	if (!(datastore = ast_channel_datastore_alloc(&dundi_result_datastore_info, buf))) {
+		drds_destroy(drds);
+		ast_module_user_remove(u);
+		return -1;
+	}
+
+	datastore->data = drds;
+
+	drds->num_results = dundi_lookup(drds->results, ARRAY_LEN(drds->results), NULL, args.context, 
+		args.number, ast_test_flag(&opts, OPT_BYPASS_CACHE));
+
+	if (drds->num_results > 0)
+		sort_results(drds->results, drds->num_results);
+
+	ast_channel_datastore_add(chan, datastore);
+
+	ast_module_user_remove(u);
+
+	return 0;
+}
+
+static struct ast_custom_function dundi_query_function = {
+	.name = "DUNDIQUERY",
+	.synopsis = "Initiate a DUNDi query.",
+	.syntax = "DUNDIQUERY(number[|context[|options]])",
+	.desc = "This will do a DUNDi lookup of the given phone number.\n"
+	"If no context is given, the default will be e164. The result of\n"
+	"this function will be a numeric ID that can be used to retrieve\n"
+	"the results with the DUNDIRESULT function. If the 'b' option is\n"
+	"is specified, the internal DUNDi cache will be bypassed.\n",
+	.read = dundi_query_read,
+};
+
+static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_module_user *u;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(id);
+		AST_APP_ARG(resultnum);
+	);
+	char *parse;
+	unsigned int num;
+	struct dundi_result_datastore *drds;
+	struct ast_datastore *datastore;
+	int res = -1;
+
+	u = ast_module_user_add(chan);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "DUNDIRESULT requires an argument (id and resultnum)\n");
+		goto finish;
+	}
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "DUNDRESULT can not be used without a channel!\n");
+		goto finish;
+	}
+
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.resultnum)) {
+		ast_log(LOG_ERROR, "A result number must be given to DUNDIRESULT!\n");
+		goto finish;
+	}
+
+	if (!(datastore = ast_channel_datastore_find(chan, &dundi_result_datastore_info, args.id))) {
+		ast_log(LOG_WARNING, "No DUNDi results found for query ID '%s'\n", args.id);
+		goto finish;
+	}
+	drds = datastore->data;
+
+	if (!strcasecmp(args.resultnum, "getnum")) {
+		snprintf(buf, len, "%u", drds->num_results);
+		res = 0;
+		goto finish;
+	}
+
+	if (sscanf(args.resultnum, "%u", &num) != 1) {
+		ast_log(LOG_ERROR, "Invalid value '%s' for resultnum to DUNDIRESULT!\n", 
+			args.resultnum);
+		goto finish;
+	}
+
+	if (num && num <= drds->num_results) {
+		snprintf(buf, len, "%s/%s", drds->results[num - 1].tech, drds->results[num - 1].dest);
+		res = 0;
+	} else
+		ast_log(LOG_WARNING, "Result number %u is not valid for DUNDi query results for ID %s!\n", num, args.id);
+
+finish:
+	ast_module_user_remove(u);
+
+	return res;
+}
+
+static struct ast_custom_function dundi_result_function = {
+	.name = "DUNDIRESULT",
+	.synopsis = "Retrieve results from a DUNDIQUERY",
+	.syntax = "DUNDIRESULT(id|resultnum)",
+	.desc = "This function will retrieve results from a previous use\n"
+	"of the DUNDIQUERY function.\n"
+	"  id - This argument is the identifier returned by the DUNDIQUERY function.\n"
+	"  resultnum - This is the number of the result that you want to retrieve.\n"
+	"       Results start at 1.  If this argument is specified as \"getnum\",\n"
+	"       then it will return the total number of results that are available.\n",
+	.read = dundi_result_read,
 };
 
 static void mark_peers(void)
@@ -4526,6 +4714,8 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
+	ast_custom_function_unregister(&dundi_query_function);
+	ast_custom_function_unregister(&dundi_result_function);
 	sched_context_destroy(sched);
 
 	return 0;
@@ -4590,6 +4780,8 @@ static int load_module(void)
 	if (ast_register_switch(&dundi_switch))
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
 	ast_custom_function_register(&dundi_function);
+	ast_custom_function_register(&dundi_query_function);
+	ast_custom_function_register(&dundi_result_function);
 	
 	if (option_verbose > 1) {
 		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", 

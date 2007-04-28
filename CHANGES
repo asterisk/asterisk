@@ -69,6 +69,9 @@ DUNDi changes
      done using a global variable or a dialplan function.  Using the SHELL()
      function would allow you to have an external script set the weight for
      each response.
+  * Added two new dialplan functions, DUNDIQUERY and DUNDIRESULT.  These
+     functions will allow you to initiate a DUNDi query from the dialplan,
+     find out how many results there are, and access each one.
 
 Voicemail Changes
 -----------------
