@@ -213,7 +213,6 @@ static const char config[] = "zapata.conf";
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
-static char language[MAX_LANGUAGE] = "";
 static char progzone[10] = "";
 
 static int usedistinctiveringdetection = 0;
@@ -7890,7 +7889,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		tmp->canpark = conf.chan.canpark;
 		tmp->transfer = conf.chan.transfer;
 		ast_copy_string(tmp->defcontext,conf.chan.context,sizeof(tmp->defcontext));
-		ast_copy_string(tmp->language, language, sizeof(tmp->language));
+		ast_copy_string(tmp->language, conf.chan.language, sizeof(tmp->language));
 		ast_copy_string(tmp->mohinterpret, conf.chan.mohinterpret, sizeof(tmp->mohinterpret));
 		ast_copy_string(tmp->mohsuggest, conf.chan.mohsuggest, sizeof(tmp->mohsuggest));
 		ast_copy_string(tmp->context, conf.chan.context, sizeof(tmp->context));
