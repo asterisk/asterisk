@@ -172,4 +172,8 @@ Miscellaneous
   * Added a new CDR module, cdr_sqlite3_custom.
   * Added a new realtime configuration module, res_config_sqlite
   * Added a new dialplan application, Bridge, which allows you to bridge the
-    calling channel to any other active channel on the system.
+     calling channel to any other active channel on the system.
+  * Added support for setting the CoS for VLAN traffic (802.1p).  See the sample
+     configuration files for the IP channel drivers.  The new option is "cos".
+     This information is also documented in doc/qos.tex, or the IP Quality of Service
+     section of asterisk.pdf.
