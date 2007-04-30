@@ -102,7 +102,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; The jitter buffer's function is to compensate for varying
 ; network delay.
 ;
-; All the jitter buffer settings except dropcount are in milliseconds.
+; All the jitter buffer settings are in milliseconds.
 ; The jitter buffer works for INCOMING audio - the outbound audio
 ; will be dejittered by the jitter buffer at the other end.
 ;
@@ -143,13 +143,9 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 
 jitterbuffer=no
 forcejitterbuffer=no
-;dropcount=2
 ;maxjitterbuffer=1000
 ;maxjitterinterps=10
 ;resyncthreshold=1000
-;maxexcessbuffer=80
-;minexcessbuffer=10
-;jittershrinkrate=1
 ;jittertargetextra=40
 
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
