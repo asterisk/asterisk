@@ -152,7 +152,9 @@ struct ast_http_uri {
 	AST_LIST_ENTRY(ast_http_uri) entry;
 	const char *description;
 	const char *uri;
-	int has_subtree;
+	unsigned int has_subtree:1;
+	/*! This URI mapping serves static content */
+	unsigned int static_content:1;
 	ast_http_callback callback;
 };
 

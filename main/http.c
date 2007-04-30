@@ -274,6 +274,7 @@ static struct ast_http_uri staticuri = {
 	.description = "Asterisk HTTP Static Delivery",
 	.uri = "static",
 	.has_subtree = 1,
+	.static_content = 1,
 };
 	
 struct ast_str *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
@@ -562,7 +563,9 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 	return ast_http_error(200, "OK", NULL, "File successfully uploaded.");
 }
 
-static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
+static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, 
+	char **title, int *contentlength, struct ast_variable **cookies, 
+	unsigned int *static_content)
 {
 	char *c;
 	struct ast_str *out = NULL;
@@ -644,6 +647,8 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 			AST_RWLIST_UNLOCK(&uris);
 	}
 	if (urih) {
+		if (urih->static_content)
+			*static_content = 1;
 		out = urih->callback(sin, uri, vars, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
 	} else {
@@ -757,6 +762,7 @@ static void *httpd_helper_thread(void *data)
 	char *uri, *title=NULL;
 	int status = 200, contentlength = 0;
 	struct ast_str *out = NULL;
+	unsigned int static_content = 0;
 
 	if (!fgets(buf, sizeof(buf), ser->f))
 		goto done;
@@ -850,7 +856,7 @@ static void *httpd_helper_thread(void *data)
 		out = ast_http_error(501, "Not Implemented", NULL,
 			"Attempt to use unimplemented / unsupported method");
 	else	/* try to serve it */
-		out = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
+		out = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars, &static_content);
 
 	/* If they aren't mopped up already, clean up the cookies */
 	if (vars)
@@ -866,8 +872,10 @@ static void *httpd_helper_thread(void *data)
 		fprintf(ser->f, "HTTP/1.1 %d %s\r\n"
 				"Server: Asterisk/%s\r\n"
 				"Date: %s\r\n"
-				"Connection: close\r\n",
-			status, title ? title : "OK", ASTERISK_VERSION, timebuf);
+				"Connection: close\r\n"
+				"%s",
+			status, title ? title : "OK", ASTERISK_VERSION, timebuf,
+			static_content ? "" : "Cache-Control: no-cache, no-store\r\n");
 		if (!contentlength) {	/* opaque body ? just dump it hoping it is properly formatted */
 			fprintf(ser->f, "%s", out->str);
 		} else {
