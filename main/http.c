@@ -225,6 +225,7 @@ static struct ast_http_uri staticuri = {
 	.description = "Asterisk HTTP Static Delivery",
 	.uri = "static",
 	.has_subtree = 1,
+	.static_content = 1,
 };
 	
 char *ast_http_error(int status, const char *title, const char *extra_header, const char *text)
@@ -291,7 +292,9 @@ void ast_http_uri_unlink(struct ast_http_uri *urih)
 	ast_rwlock_unlock(&uris_lock);
 }
 
-static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **title, int *contentlength, struct ast_variable **cookies)
+static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, 
+	char **title, int *contentlength, struct ast_variable **cookies, 
+	unsigned int *static_content)
 {
 	char *c;
 	char *turi;
@@ -358,6 +361,8 @@ static char *handle_uri(struct sockaddr_in *sin, char *uri, int *status, char **
 		}
 	}
 	if (urih) {
+		if (urih->static_content)
+			*static_content = 1;
 		c = urih->callback(sin, uri, vars, status, title, contentlength);
 		ast_rwlock_unlock(&uris_lock);
 	} else if (ast_strlen_zero(uri) && ast_strlen_zero(prefix)) {
@@ -385,6 +390,7 @@ static void *ast_httpd_helper_thread(void *data)
 	char *vname, *vval;
 	int status = 200, contentlength = 0;
 	time_t t;
+	unsigned int static_content = 0;
 
 	if (fgets(buf, sizeof(buf), ser->f)) {
 		/* Skip method */
@@ -468,7 +474,7 @@ static void *ast_httpd_helper_thread(void *data)
 
 		if (*uri) {
 			if (!strcasecmp(buf, "get")) 
-				c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars);
+				c = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars, &static_content);
 			else 
 				c = ast_http_error(501, "Not Implemented", NULL, "Attempt to use unimplemented / unsupported method");\
 		} else 
@@ -487,6 +493,8 @@ static void *ast_httpd_helper_thread(void *data)
 			ast_cli(ser->fd, "Server: Asterisk/%s\r\n", ASTERISK_VERSION);
 			ast_cli(ser->fd, "Date: %s\r\n", timebuf);
 			ast_cli(ser->fd, "Connection: close\r\n");
+			if (!static_content)
+				ast_cli(ser->fd, "Cache-Control: no-cache, no-store\r\n");
 			if (contentlength) {
 				char *tmp;
 				tmp = strstr(c, "\r\n\r\n");
