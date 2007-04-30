@@ -66,12 +66,15 @@ queue when they hungup, the origposition is the original position the
 caller was when they first entered the queue, and the waittime is how 
 long the call had been waiting in the queue at the time of disconnect.
 
-EXITWITHKEY(key|position)
+EXITWITHKEY(key|position|origposition|waittime)
 The caller elected to use a menu key to exit the queue.  The key and
-the caller's position in the queue are recorded.
+the caller's position in the queue are recorded.  The caller's entry
+position and amoutn of time waited is also recorded.
 
-EXITWITHTIMEOUT(position)
-The caller was on hold too long and the timeout expired.
+EXITWITHTIMEOUT(position|origposition|waittime)
+The caller was on hold too long and the timeout expired.  The position in the
+queue when the timeout occurred, the entry position, and the amount of time
+waited are logged.
 
 QUEUESTART
 The queueing system has been started for the first time this session.

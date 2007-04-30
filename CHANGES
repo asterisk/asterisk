@@ -113,6 +113,8 @@ Queue changes
   * Added min-announce-frequency option to queues.conf which allows you to control the
      minimum amount of time between queue announcements for use when the caller's queue
      position changes frequently.
+  * Added additional information to EXITWITHTIMEOUT and EXITWITHKEY events in the
+     queue log.
 
 MeetMe Changes
 --------------

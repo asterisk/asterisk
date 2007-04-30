@@ -2056,7 +2056,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
 							do_hang(o);
-							endtime = (long)time(NULL);
+							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime*1000, qe, on, membername);
 							if (qe->parent->strategy != QUEUE_STRATEGY_RINGALL) {
@@ -2071,7 +2071,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
-							endtime = (long)time(NULL);
+							endtime = (long) time(NULL);
 							endtime -= starttime;
 							rna(endtime*1000, qe, on, membername);
 							do_hang(o);
@@ -2236,7 +2236,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no agents, if enabled */
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 			*reason = QUEUE_LEAVEEMPTY;
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 			leave_queue(qe);
 			break;
 		}
@@ -2244,13 +2244,13 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no reachable agents, if enabled */
 		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 			leave_queue(qe);
 			break;
 		}
 		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
-			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 			leave_queue(qe);
 			break;
 		}
@@ -2580,7 +2580,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			} else if (res2) {
 				/* Caller must have hung up just before being connected*/
 				ast_log(LOG_NOTICE, "Caller was about to talk to agent on %s but the caller hungup.\n", peer->name);
-				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long)time(NULL) - qe->start);
+				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
 				ast_hangup(peer);
 				return -1;
@@ -2711,7 +2711,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		/* use  pbx_builtin_setvar to set a load of variables with one call */
 		if (qe->parent->setqueueentryvar) {
 			snprintf(interfacevar,sizeof(interfacevar), "QEHOLDTIME=%ld|QEORIGINALPOS=%d",
-				(long)time(NULL) - qe->start, qe->opos);
+				(long) time(NULL) - qe->start, qe->opos);
 			pbx_builtin_setvar(qe->chan, interfacevar);
 		}
 	
@@ -2766,7 +2766,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			} else
 				ast_log(LOG_WARNING, "Asked to execute an AGI on this channel, but could not find application (agi)!\n");
 		}
-		ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "CONNECT", "%ld|%s", (long)time(NULL) - qe->start, peer->uniqueid);
+		ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "CONNECT", "%ld|%s", (long) time(NULL) - qe->start, peer->uniqueid);
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
 					"Queue: %s\r\n"
@@ -2778,7 +2778,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					"BridgedChannel: %s\r\n"
 					"%s",
 					queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
-					(long)time(NULL) - qe->start, peer->uniqueid,
+					(long) time(NULL) - qe->start, peer->uniqueid,
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
@@ -3521,7 +3521,8 @@ check_turns:
 			if (!res)
 				break;
 			if (valid_exit(&qe, res)) {
-				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
+					qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
 				break;
 			}
 		}
@@ -3541,7 +3542,8 @@ check_turns:
 					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", 
+						qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					break;
 				}
 
@@ -3549,7 +3551,8 @@ check_turns:
 					/* Make a position announcement, if enabled */
 					if (qe.parent->announcefrequency && !ringing &&
 						(res = say_position(&qe))) {
-						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
+							qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
 						break;
 					}
 
@@ -3559,7 +3562,8 @@ check_turns:
 				/* Make a periodic announcement, if enabled */
 				if (qe.parent->periodicannouncefrequency && !ringing &&
 					(res = say_periodic_announcement(&qe))) {
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
+						qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					break;
 				}
 
@@ -3574,8 +3578,8 @@ check_turns:
 								(long) time(NULL) - qe.start);
 						}
 					} else if (valid_exit(&qe, res)) {
-						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY",
-							"%s|%d", qe.digits, qe.pos);
+						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
+							qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					}
 					break;
 				}
@@ -3609,7 +3613,7 @@ check_turns:
 					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+					ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					break;
 				}
 
@@ -3617,7 +3621,7 @@ check_turns:
 				res = wait_a_bit(&qe);
 				if (res < 0) {
 					record_abandoned(&qe);
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", args.queuename);
 					}
@@ -3625,14 +3629,16 @@ check_turns:
 					break;
 				}
 				if (res && valid_exit(&qe, res)) {
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
+						qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					break;
 				}
 				/* exit after 'timeout' cycle if 'n' option enabled */
 				if (go_on) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", 
+						qe.pos, qe.opos, (long) time(NULL) - qe.start);
 					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
