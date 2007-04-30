@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
+#include "asterisk/netsock.h"
 #include "asterisk/cli.h"
 #include "asterisk/unaligned.h"
 #include "asterisk/utils.h"
@@ -2040,13 +2041,9 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, 
 	return ast_rtp_new_with_bindaddr(sched, io, rtcpenable, callbackmode, ia);
 }
 
-int ast_rtp_settos(struct ast_rtp *rtp, int tos)
+int ast_rtp_setqos(struct ast_rtp *rtp, int tos, int cos)
 {
-	int res;
-
-	if ((res = setsockopt(rtp->s, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
-		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-	return res;
+	return ast_netsock_set_qos(rtp->s, tos, cos);
 }
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)

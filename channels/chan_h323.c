@@ -149,7 +149,8 @@ static int gkroute = 0;
 /* Find user by alias (h.323 id) is default, alternative is the incomming call's source IP address*/
 static int userbyalias = 1;
 static int acceptAnonymous = 1;
-static int tos = 0;
+static unsigned int tos = 0;
+static unsigned int cos = 0;
 static char secret[50];
 static unsigned int unique = 0;
 
@@ -979,7 +980,7 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Created RTP channel\n");
 
-	ast_rtp_settos(pvt->rtp, tos);
+	ast_rtp_setqos(pvt->rtp, tos, cos);
 
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", pvt->options.nat);
@@ -2812,7 +2813,6 @@ static struct ast_cli_entry cli_h323[] = {
 
 static int reload_config(int is_reload)
 {
-	int format;
 	struct ast_config *cfg, *ucfg;
 	struct ast_variable *v;
 	struct oh323_peer *peer = NULL;
@@ -2858,6 +2858,7 @@ static int reload_config(int is_reload)
 	userbyalias = 1;
 	acceptAnonymous = 1;
 	tos = 0;
+	cos = 0;
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
@@ -2900,20 +2901,12 @@ static int reload_config(int is_reload)
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &format)) {
-				tos = format & 0xff;
-			} else if (!strcasecmp(v->value, "lowdelay")) {
-				tos = IPTOS_LOWDELAY;
-			} else if (!strcasecmp(v->value, "throughput")) {
-				tos = IPTOS_THROUGHPUT;
-			} else if (!strcasecmp(v->value, "reliability")) {
-				tos = IPTOS_RELIABILITY;
-			} else if (!strcasecmp(v->value, "mincost")) {
-				tos = IPTOS_MINCOST;
-			} else if (!strcasecmp(v->value, "none")) {
-				tos = 0;
-			} else {
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+			if (ast_str2tos(v->value, &tos)) {
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, for more info read doc/qos.tex\n", v->lineno);			
+			}
+		} else if (!strcasecmp(v->name, "cos")) {		
+			if (ast_str2cos(v->value, &cos)) {
+				ast_log(LOG_WARNING, "Invalid cos value at line %d, for more info read doc/qos.tex\n", v->lineno);			
 			}
 		} else if (!strcasecmp(v->name, "gatekeeper")) {
 			if (!strcasecmp(v->value, "DISABLE")) {

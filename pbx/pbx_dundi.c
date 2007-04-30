@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/io.h"
 #include "asterisk/utils.h"
+#include "asterisk/netsock.h"
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
 #include "asterisk/acl.h"
@@ -4763,12 +4764,8 @@ static int load_module(void)
 			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), strerror(errno));
 		return AST_MODULE_LOAD_FAILURE;
 	}
-
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
-
-	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+	
+	ast_netsock_set_qos(netsocket, tos, 0);
 	
 	if (start_network_thread()) {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");

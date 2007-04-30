@@ -225,8 +225,9 @@ forcejitterbuffer=no
 ;
 ;authdebug=no
 ;
-; See doc/README.tos for a description of the tos parameters.
+; See doc/qos.tex for a description of the tos parameters.
 ;tos=ef
+;cos=5
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy
 ; a NoOp priority 1 extension for a given peer who registers or unregisters

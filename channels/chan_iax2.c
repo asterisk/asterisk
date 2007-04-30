@@ -178,6 +178,8 @@ static int iaxdefaulttimeout = 5;		/* Default to wait no more than 5 seconds for
 
 static unsigned int tos = 0;
 
+static unsigned int cos = 0;
+
 static int min_reg_expire;
 static int max_reg_expire;
 
@@ -8538,7 +8540,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 				sin.sin_addr.s_addr = INADDR_ANY;
 				if (ast_netsock_find(netsock, &sin)) {
 					sin.sin_addr.s_addr = orig_saddr;
-					sock = ast_netsock_bind(outsock, io, srcaddr, port, tos, socket_read, NULL);
+					sock = ast_netsock_bind(outsock, io, srcaddr, port, tos, cos, socket_read, NULL);
 					if (sock) {
 						sockfd = ast_netsock_sockfd(sock);
 						ast_netsock_unref(sock);
@@ -9204,7 +9206,13 @@ static int set_config(char *config_file, int reload)
 	tosval = ast_variable_retrieve(cfg, "general", "tos");
 	if (tosval) {
 		if (ast_str2tos(tosval, &tos))
-			ast_log(LOG_WARNING, "Invalid tos value, see doc/ip-tos.txt for more information.\n");
+			ast_log(LOG_WARNING, "Invalid tos value, see doc/qos.tex for more information.\n");
+	}
+	/* Seed initial cos value */
+	tosval = ast_variable_retrieve(cfg, "general", "cos");
+	if (tosval) {
+		if (ast_str2cos(tosval, &cos))
+			ast_log(LOG_WARNING, "Invalid cos value, see doc/qos.tex for more information.\n");
 	}
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
@@ -9272,7 +9280,7 @@ static int set_config(char *config_file, int reload)
 			if (reload) {
 				ast_log(LOG_NOTICE, "Ignoring bindaddr on reload\n");
 			} else {
-				if (!(ns = ast_netsock_bind(netsock, io, v->value, portno, tos, socket_read, NULL))) {
+				if (!(ns = ast_netsock_bind(netsock, io, v->value, portno, tos, cos, socket_read, NULL))) {
 					ast_log(LOG_WARNING, "Unable apply binding to '%s' at line %d\n", v->value, v->lineno);
 				} else {
 					if (option_verbose > 1) {
@@ -9379,7 +9387,10 @@ static int set_config(char *config_file, int reload)
 				ast_context_create(NULL, regcontext, "IAX2");
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/ip-tos.txt for more information.'\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/qos.tex for more information.'\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos")) {
+			if (ast_str2cos(v->value, &cos))
+				ast_log(LOG_WARNING, "Invalid cos value at line %d, see doc/qos.tex for more information.'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));
 		} else if (!strcasecmp(v->name, "mohinterpret")) {
@@ -9409,7 +9420,7 @@ static int set_config(char *config_file, int reload)
 	}
 	
 	if (defaultsockfd < 0) {
-		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, tos, socket_read, NULL))) {
+		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, tos, cos, socket_read, NULL))) {
 			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		} else {
 			if (option_verbose > 1)

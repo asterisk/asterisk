@@ -278,6 +278,20 @@ static const struct dscp_codepoint dscp_pool1[] = {
 	{ "EF", 0x2E },
 };
 
+int ast_str2cos(const char *value, unsigned int *cos) 
+{
+	int fval;
+	
+	if (sscanf(value, "%d", &fval) == 1) {
+		if (fval < 8) {
+    		    *cos = fval;
+		    return 0;
+		}
+	}
+	
+	return -1;
+}
+
 int ast_str2tos(const char *value, unsigned int *tos)
 {
 	int fval;

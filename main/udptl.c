@@ -73,6 +73,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
+#include "asterisk/netsock.h"
 #include "asterisk/cli.h"
 #include "asterisk/unaligned.h"
 #include "asterisk/utils.h"
@@ -872,13 +873,9 @@ struct ast_udptl *ast_udptl_new(struct sched_context *sched, struct io_context *
 	return ast_udptl_new_with_bindaddr(sched, io, callbackmode, ia);
 }
 
-int ast_udptl_settos(struct ast_udptl *udptl, int tos)
+int ast_udptl_setqos(struct ast_udptl *udptl, int tos, int cos)
 {
-	int res;
-
-	if ((res = setsockopt(udptl->fd, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))) 
-		ast_log(LOG_WARNING, "UDPTL unable to set TOS to %d\n", tos);
-	return res;
+	return ast_netsock_set_qos(udptl->fd, tos, cos);
 }
 
 void ast_udptl_set_peer(struct ast_udptl *udptl, struct sockaddr_in *them)

@@ -73,7 +73,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl);
 
 int ast_udptl_fd(struct ast_udptl *udptl);
 
-int ast_udptl_settos(struct ast_udptl *udptl, int tos);
+int ast_udptl_setqos(struct ast_udptl *udptl, int tos, int cos);
 
 void ast_udptl_set_m_type(struct ast_udptl* udptl, int pt);
 

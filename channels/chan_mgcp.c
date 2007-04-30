@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/utils.h"
+#include "asterisk/netsock.h"
 #include "asterisk/causes.h"
 #include "asterisk/dsp.h"
 #include "asterisk/devicestate.h"
@@ -163,7 +164,9 @@ static int nat = 0;
 static ast_group_t cur_callergroup = 0;
 static ast_group_t cur_pickupgroup = 0;
 
-static int tos = 0;
+static unsigned int tos = 0;
+
+static unsigned int cos = 0;
 
 static int immediate = 0;
 
@@ -4163,20 +4166,11 @@ static int reload_config(void)
 			else
 				capability &= ~format;
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &format) == 1)
-				tos = format & 0xff;
-			else if (!strcasecmp(v->value, "lowdelay"))
-				tos = IPTOS_LOWDELAY;
-			else if (!strcasecmp(v->value, "throughput"))
-				tos = IPTOS_THROUGHPUT;
-			else if (!strcasecmp(v->value, "reliability"))
-				tos = IPTOS_RELIABILITY;
-			else if (!strcasecmp(v->value, "mincost"))
-				tos = IPTOS_MINCOST;
-			else if (!strcasecmp(v->value, "none"))
-				tos = 0;
-			else
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+			if (ast_str2tos(v->value, &tos))
+			    ast_log(LOG_WARNING, "Invalid tos value at line %d, see doc/qos.tex for more information.\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos")) {				
+			if (ast_str2cos(v->value, &cos))
+			    ast_log(LOG_WARNING, "Invalid cos value at line %d, see doc/qos.tex for more information.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -4263,10 +4257,8 @@ static int reload_config(void)
 			if (option_verbose > 1) {
 				ast_verbose(VERBOSE_PREFIX_2 "MGCP Listening on %s:%d\n", 
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-				ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 			}
-			if (setsockopt(mgcpsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-				ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+			ast_netsock_set_qos(mgcpsock, tos, cos);
 		}
 	}
 	ast_mutex_unlock(&netlock);

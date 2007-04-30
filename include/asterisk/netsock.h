@@ -41,10 +41,10 @@ struct ast_netsock_list *ast_netsock_list_alloc(void);
 int ast_netsock_init(struct ast_netsock_list *list);
 
 struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc,
-				     const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data);
+				     const char *bindinfo, int defaultport, int tos, int cos, ast_io_cb callback, void *data);
 
 struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc,
-					 struct sockaddr_in *bindaddr, int tos, ast_io_cb callback, void *data);
+					 struct sockaddr_in *bindaddr, int tos, int cos, ast_io_cb callback, void *data);
 
 int ast_netsock_free(struct ast_netsock_list *list, struct ast_netsock *netsock);
 
@@ -52,6 +52,8 @@ int ast_netsock_release(struct ast_netsock_list *list);
 
 struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
 				     struct sockaddr_in *sa);
+
+int ast_netsock_set_qos(int netsocket, int tos, int cos);
 
 int ast_netsock_sockfd(const struct ast_netsock *ns);
 

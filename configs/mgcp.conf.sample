@@ -5,6 +5,9 @@
 ;port = 2427
 ;bindaddr = 0.0.0.0
 
+; See doc/qos.tex for a description of the tos parameters.
+;tos=ef
+
 ;------------------------------ JITTER BUFFER CONFIGURATION --------------------------
 ; jbenable = yes              ; Enables the use of a jitterbuffer on the receiving side of a
                               ; MGCP channel. Defaults to "no". An enabled jitterbuffer will

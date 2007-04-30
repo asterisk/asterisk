@@ -136,6 +136,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/monitor.h"
+#include "asterisk/netsock.h"
 #include "asterisk/localtime.h"
 #include "asterisk/abstract_jb.h"
 #include "asterisk/compiler.h"
@@ -511,6 +512,10 @@ static const struct cfsip_options {
 #define DEFAULT_TOS_AUDIO       0               /*!< Audio packets should be marked as DSCP EF (Expedited Forwarding), but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_VIDEO       0               /*!< Video packets should be marked as DSCP AF41, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_TEXT        0               /*!< Text packets should be marked as XXXX XXXX, but the default is 0 to be compatible with previous versions. */
+#define DEFAULT_COS_SIP         4
+#define DEFAULT_COS_AUDIO       5
+#define DEFAULT_COS_VIDEO       6
+#define DEFAULT_COS_TEXT        0
 #define DEFAULT_ALLOW_EXT_DOM	TRUE
 #define DEFAULT_REALM		"asterisk"
 #define DEFAULT_NOTIFYRINGING	TRUE
@@ -564,6 +569,10 @@ static unsigned int global_tos_sip;		/*!< IP type of service for SIP packets */
 static unsigned int global_tos_audio;		/*!< IP type of service for audio RTP packets */
 static unsigned int global_tos_video;		/*!< IP type of service for video RTP packets */
 static unsigned int global_tos_text;		/*!< IP type of service for text RTP packets */
+static unsigned int global_cos_sip;		/*!< 802.1p class of service for SIP packets */
+static unsigned int global_cos_audio;		/*!< 802.1p class of service for audio RTP packets */
+static unsigned int global_cos_video;		/*!< 802.1p class of service for video RTP packets */
+static unsigned int global_cos_text;		/*!< 802.1p class of service for text RTP packets */
 static int compactheaders;		/*!< send compact sip headers */
 static int recordhistory;		/*!< Record SIP history. Off by default */
 static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
@@ -4605,14 +4614,14 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			free(p);
 			return NULL;
 		}
+		ast_rtp_setqos(p->rtp, global_tos_audio, global_cos_audio);
 		ast_rtp_setdtmf(p->rtp, ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_RFC2833);
 		ast_rtp_setdtmfcompensate(p->rtp, ast_test_flag(&p->flags[1], SIP_PAGE2_RFC2833_COMPENSATE));
-		ast_rtp_settos(p->rtp, global_tos_audio);
 		ast_rtp_set_rtptimeout(p->rtp, global_rtptimeout);
 		ast_rtp_set_rtpholdtimeout(p->rtp, global_rtpholdtimeout);
 		ast_rtp_set_rtpkeepalive(p->rtp, global_rtpkeepalive);
 		if (p->vrtp) {
-			ast_rtp_settos(p->vrtp, global_tos_video);
+			ast_rtp_setqos(p->vrtp, global_tos_video, global_cos_video);
 			ast_rtp_setdtmf(p->vrtp, 0);
 			ast_rtp_setdtmfcompensate(p->vrtp, 0);
 			ast_rtp_set_rtptimeout(p->vrtp, global_rtptimeout);
@@ -4620,12 +4629,12 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			ast_rtp_set_rtpkeepalive(p->vrtp, global_rtpkeepalive);
 		}
 		if (p->trtp) {
-			ast_rtp_settos(p->trtp, global_tos_text);
+			ast_rtp_setqos(p->trtp, global_tos_text, global_cos_text);
 			ast_rtp_setdtmf(p->trtp, 0);
 			ast_rtp_setdtmfcompensate(p->trtp, 0);
 		}
 		if (p->udptl)
-			ast_udptl_settos(p->udptl, global_tos_audio);
+			ast_udptl_setqos(p->udptl, global_tos_audio, global_cos_audio);
 		p->maxcallbitrate = default_maxcallbitrate;
 	}
 
@@ -11038,6 +11047,11 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  IP ToS RTP audio:       %s\n", ast_tos2str(global_tos_audio));
 	ast_cli(fd, "  IP ToS RTP video:       %s\n", ast_tos2str(global_tos_video));
 	ast_cli(fd, "  IP ToS RTP text:        %s\n", ast_tos2str(global_tos_text));
+	ast_cli(fd, "  802.1p CoS SIP:         %d\n", global_cos_sip);
+	ast_cli(fd, "  802.1p CoS RTP audio:   %d\n", global_cos_audio);
+	ast_cli(fd, "  802.1p CoS RTP video:   %d\n", global_cos_video);
+	ast_cli(fd, "  802.1p CoS RTP text:    %d\n", global_cos_text);
+
 	ast_cli(fd, "  T38 fax pt UDPTL:       %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_UDPTL) ? "Yes" : "No");
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	ast_cli(fd, "  T38 fax pt RTP:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_T38SUPPORT_RTP) ? "Yes" : "No");
@@ -17019,6 +17033,11 @@ static int reload_config(enum channelreloadreason reason)
 	global_tos_audio = DEFAULT_TOS_AUDIO;
 	global_tos_video = DEFAULT_TOS_VIDEO;
 	global_tos_text = DEFAULT_TOS_TEXT;
+	global_cos_sip = DEFAULT_COS_SIP;
+	global_cos_audio = DEFAULT_COS_AUDIO;
+	global_cos_video = DEFAULT_COS_VIDEO;
+	global_cos_text = DEFAULT_COS_TEXT;
+
 	externhost[0] = '\0';			/* External host name (for behind NAT DynDNS support) */
 	externexpire = 0;			/* Expiration for DNS re-issuing */
 	externrefresh = 10;
@@ -17298,16 +17317,24 @@ static int reload_config(enum channelreloadreason reason)
 				registry_count++;
 		} else if (!strcasecmp(v->name, "tos_sip")) {
 			if (ast_str2tos(v->value, &global_tos_sip))
-				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/ip-tos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_sip value at line %d, recommended value is 'cs3'. See doc/qos.tex.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_audio")) {
 			if (ast_str2tos(v->value, &global_tos_audio))
-				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, recommended value is 'ef'. See doc/ip-tos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_audio value at line %d, recommended value is 'ef'. See doc/qos.tex.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_video")) {
 			if (ast_str2tos(v->value, &global_tos_video))
-				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/ip-tos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_video value at line %d, recommended value is 'af41'. See doc/qos.tex.\n", v->lineno);
 		} else if (!strcasecmp(v->name, "tos_text")) {
 			if (ast_str2tos(v->value, &global_tos_text))
-				ast_log(LOG_WARNING, "Invalid tos_text value at line %d, recommended value is 'af41'. See doc/ip-tos.txt.\n", v->lineno);
+				ast_log(LOG_WARNING, "Invalid tos_text value at line %d, recommended value is 'af41'. See doc/qos.tex.\n", v->lineno);
+		} else if (!strcasecmp(v->name, "cos_sip")) {
+			ast_str2cos(v->value, &global_cos_sip);
+		} else if (!strcasecmp(v->name, "cos_audio")) {
+			ast_str2cos(v->value, &global_cos_audio);
+		} else if (!strcasecmp(v->name, "cos_video")) {
+			ast_str2cos(v->value, &global_cos_video);
+		} else if (!strcasecmp(v->name, "cos_text")) {
+			ast_str2cos(v->value, &global_cos_text);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -17475,10 +17502,8 @@ static int reload_config(enum channelreloadreason reason)
 				if (option_verbose > 1)
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos_sip, sizeof(global_tos_sip))) 
-					ast_log(LOG_WARNING, "Unable to set SIP TOS to %s\n", ast_tos2str(global_tos_sip));
-				else if (option_verbose > 1)
-					ast_verbose(VERBOSE_PREFIX_2 "Using SIP TOS: %s\n", ast_tos2str(global_tos_sip));
+
+				ast_netsock_set_qos(sipsock, global_tos_sip, global_tos_sip);
 			}
 		}
 	}

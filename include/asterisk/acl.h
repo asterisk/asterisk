@@ -57,6 +57,9 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 
 int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+
+int ast_str2cos(const char *value, unsigned int *cos);
+
 int ast_str2tos(const char *value, unsigned int *tos);
 const char *ast_tos2str(unsigned int tos);
 

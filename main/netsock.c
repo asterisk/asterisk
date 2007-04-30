@@ -119,7 +119,7 @@ struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
 	return sock;
 }
 
-struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, ast_io_cb callback, void *data)
+struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, int cos, ast_io_cb callback, void *data)
 {
 	int netsocket = -1;
 	int *ioref;
@@ -142,12 +142,9 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		close(netsocket);
 		return NULL;
 	}
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 
-	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-
+	ast_netsock_set_qos(netsocket, tos, cos);
+		
 	ast_enable_packet_fragmentation(netsocket);
 
 	if (!(ns = ast_calloc(1, sizeof(struct ast_netsock)))) {
@@ -172,7 +169,31 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	return ns;
 }
 
-struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data)
+int ast_netsock_set_qos(int netsocket, int tos, int cos)
+{
+	int res;
+	
+	if ((res = setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))))
+		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+	else {
+	    if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
+	}
+
+#if defined(linux)								
+	if (setsockopt(netsocket, SOL_SOCKET, SO_PRIORITY, &cos, sizeof(cos)))
+	    ast_log(LOG_WARNING, "Unable to set CoS to %d\n", cos);
+	else {
+	    if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Using CoS mark %d\n", tos);
+	}
+#endif
+							
+	return res;
+}
+													
+
+struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, int cos, ast_io_cb callback, void *data)
 {
 	struct sockaddr_in sin;
 	char *tmp;
@@ -193,7 +214,7 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 
 	inet_aton(host, &sin.sin_addr);
 
-	return ast_netsock_bindaddr(list, ioc, &sin, tos, callback, data);
+	return ast_netsock_bindaddr(list, ioc, &sin, tos, cos, callback, data);
 }
 
 int ast_netsock_sockfd(const struct ast_netsock *ns)
