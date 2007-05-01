@@ -839,7 +839,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 	ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
 	res = ast_bridge_call(transferer, newchan, &bconfig);
-	if (newchan->_softhangup || newchan->_state != AST_STATE_UP || !transferer->_softhangup) {
+	if (newchan->_softhangup || !transferer->_softhangup) {
 		ast_hangup(newchan);
 		if (ast_stream_and_wait(transferer, xfersound, ""))
 			ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
