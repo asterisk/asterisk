@@ -2498,6 +2498,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		/* No IMAP account available */
 		if (vmu->imapuser[0] == '\0') {
 			ast_log (LOG_WARNING,"IMAP user not set for mailbox %s\n",vmu->mailbox);
+			free_user(vmu);
 			return -1;
 		}
 	}
@@ -2512,6 +2513,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			ast_log (LOG_DEBUG,"Returning before search - user is logged in\n");
 		*newmsgs = vms_p->newmessages;
 		*oldmsgs = vms_p->oldmessages;
+		free_user(vmu);
 		return 0;
 	}
 
@@ -2524,8 +2526,10 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	if (!vms_p) {
 		if(option_debug > 2)
 			ast_log (LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
-		if (!(vms_p = ast_calloc(1, sizeof(*vms_p))))
+		if (!(vms_p = ast_calloc(1, sizeof(*vms_p)))) {
+			free_user(vmu);
 			return -1;
+		}
 		ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
 		ast_copy_string(vms_p->username, mailboxnc, sizeof(vms_p->username)); /* save for access from interactive entry point */
 		vms_p->mailstream = NIL; /* save for access from interactive entry point */
@@ -2540,6 +2544,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	ret = init_mailstream(vms_p, 0);
 	if (!vms_p->mailstream) {
 		ast_log (LOG_ERROR,"IMAP mailstream is NULL\n");
+		free_user(vmu);
 		return -1;
 	}
 	if (newmsgs && ret==0 && vms_p->updated==1 ) {
@@ -2584,6 +2589,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		*newmsgs = vms_p->newmessages;
 		*oldmsgs = vms_p->oldmessages;
 	}
+	free_user(vmu);
 	return 0;
 }
 
@@ -7936,7 +7942,8 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 			ast_config_destroy(msg_cfg);
 			return res;
 		} else {
-			if (find_user(NULL, vmu->context, num)) {
+			struct ast_vm_user vmu2;
+			if (find_user(&vmu2, vmu->context, num)) {
 				struct leave_vm_options leave_options;
 				char mailbox[AST_MAX_EXTENSION * 2 + 2];
 				snprintf(mailbox, sizeof(mailbox), "%s@%s", num, vmu->context);
