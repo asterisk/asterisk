@@ -1502,6 +1502,7 @@ static const char *find_alias(const char *name, const char *_default);
 static const char *__get_header(const struct sip_request *req, const char *name, int *start);
 static int lws2sws(char *msgbuf, int len);
 static void extract_uri(struct sip_pvt *p, struct sip_request *req);
+static char *remove_uri_parameters(char *uri);
 static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoing_req);
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq);
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req);
@@ -6110,7 +6111,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		ast_copy_string(stripped, get_header(orig, is_outbound ? "To" : "From"),
 				sizeof(stripped));
 		n = get_in_brackets(stripped);
-		c = strsep(&n, ";");	/* trim ; and beyond */
+		c = remove_uri_parameters(n);
 	}	
 	init_req(req, sipmethod, c);
 
@@ -7079,22 +7080,29 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, int t38version)
 	return send_request(p, &req, XMIT_CRITICAL, p->ocseq);
 }
 
+/* \brief Remove URI parameters at end of URI, not in username part though */
+static char *remove_uri_parameters(char *uri)
+{
+	char *atsign;
+	atsign = strchr(uri, '@');	/* First, locate the at sign */
+	if (!atsign)
+		atsign = uri;	/* Ok hostname only, let's stick with the rest */
+	atsign = strchr(atsign, ';');	/* Locate semi colon */
+	if (atsign)
+		*atsign = '\0';	/* Kill at the semi colon */
+	return uri;
+}
+
 /*! \brief Check Contact: URI of SIP message */
 static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 {
 	char stripped[BUFSIZ];
 	char *c;
-	char *atsign;
 
 	ast_copy_string(stripped, get_header(req, "Contact"), sizeof(stripped));
 	c = get_in_brackets(stripped);
 	/* Cut the URI at the at sign after the @, not in the username part */
-	atsign = strchr(c, '@');	/* First, locate the at sign */
-	if (!atsign)
-		atsign = c;	/* Ok hostname only, let's stick with the rest */
-	atsign = strchr(atsign, ';');	/* Locate semi colon */
-	if (atsign)
-		*atsign = '\0';	/* Kill at the semi colon */
+	c = remove_uri_parameters(c);
 	if (!ast_strlen_zero(c))
 		ast_string_field_set(p, uri, c);
 
@@ -7494,7 +7502,8 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
-	mfrom = strsep(&c, ";");	/* trim ; and beyond */
+	
+	mfrom = remove_uri_parameters(c);
 
 	ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 	c = get_in_brackets(to);
@@ -7502,7 +7511,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
-	mto = strsep(&c, ";");	/* trim ; and beyond */
+	mto = remove_uri_parameters(c);
 
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 
@@ -8848,7 +8857,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		ast_uri_decode(tmp);
 
 	c = get_in_brackets(tmp);
-	c = strsep(&c, ";");	/* Ditch ;user=phone */
+	c = remove_uri_parameters(c);
 
 	if (!strncmp(c, "sip:", 4)) {
 		name = c + 4;
@@ -8873,6 +8882,9 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			}
 		}
 	}
+	c = strchr(name, ';');	/* Remove any Username parameters */
+	if (c)
+		*c = '\0';
 
 	ast_string_field_set(p, exten, name);
 	build_contact(p);
@@ -12356,8 +12368,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	char *domain;
 
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
-	s = get_in_brackets(tmp);
-	s = strsep(&s, ";");	/* strip ; and beyond */
+	s = remove_uri_parameters(get_in_brackets(tmp));
 	if (ast_test_flag(&p->flags[0], SIP_PROMISCREDIR)) {
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
@@ -12377,11 +12388,15 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 			/* No username part */
 			domain = tmp;
 		}
-		e = strchr(tmp, '/');
+		e = strchr(tmp, '/');	/* WHEN do we hae a forward slash in the URI? */
 		if (e)
 			*e = '\0';
+
 		if (!strncasecmp(s, "sip:", 4))
 			s += 4;
+		e = strchr(s, ';');	/* And username ; parameters? */
+		if (e)
+			*e = '\0';	
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "Received 302 Redirect to extension '%s' (domain %s)\n", s, domain);
 		if (p->owner) {
