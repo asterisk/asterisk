@@ -6822,6 +6822,13 @@ static int socket_process(struct iax2_thread *thread)
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
 		}
+		/* Ensure text frames are NULL-terminated */
+		if (f.frametype == AST_FRAME_TEXT && thread->buf[res - 1] != '\0') {
+			if (res < sizeof(thread->buf))
+				thread->buf[res++] = '\0';
+			else /* Trims one character from the text message, but that's better than overwriting the end of the buffer. */
+				thread->buf[res - 1] = '\0';
+		}
 		f.datalen = res - sizeof(*fh);
 
 		/* Handle implicit ACKing unless this is an INVAL, and only if this is 
