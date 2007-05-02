@@ -1612,11 +1612,24 @@ static int action_command(struct mansession *s, const struct message *m)
 {
 	const char *cmd = astman_get_header(m, "Command");
 	const char *id = astman_get_header(m, "ActionID");
+	char *buf;
+	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
+	int fd = mkstemp(template);
+	off_t l;
+
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id))
 		astman_append(s, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
-	ast_cli_command(s->fd, cmd);
+	ast_cli_command(fd, cmd);	/* XXX need to change this to use a FILE * */
+	l = lseek(fd, 0, SEEK_END);	/* how many chars available */
+	buf = alloca(l+1);
+	lseek(fd, 0, SEEK_SET);
+	read(fd, buf, l);
+	buf[l] = '\0';
+	close(fd);
+	unlink(template);
+	astman_append(s, buf);
 	astman_append(s, "--END COMMAND--\r\n\r\n");
 	return 0;
 }
