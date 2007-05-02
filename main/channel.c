@@ -2543,27 +2543,27 @@ int ast_senddigit_begin(struct ast_channel *chan, char digit)
 		res = chan->tech->send_digit_begin(chan, digit);
 
 	if (res) {
-		/*
-		 * Device does not support DTMF tones, lets fake
-		 * it by doing our own generation. (PM2002)
-		 */
+		/* Device does not support DTMF tones, lets fake
+		 * it by doing our own generation. */
 		static const char* dtmf_tones[] = {
-			"!941+1336/100,!0/100",	/* 0 */
-			"!697+1209/100,!0/100",	/* 1 */
-			"!697+1336/100,!0/100",	/* 2 */
-			"!697+1477/100,!0/100",	/* 3 */
-			"!770+1209/100,!0/100",	/* 4 */
-			"!770+1336/100,!0/100",	/* 5 */
-			"!770+1477/100,!0/100",	/* 6 */
-			"!852+1209/100,!0/100",	/* 7 */
-			"!852+1336/100,!0/100",	/* 8 */
-			"!852+1477/100,!0/100",	/* 9 */
-			"!697+1633/100,!0/100",	/* A */
-			"!770+1633/100,!0/100",	/* B */
-			"!852+1633/100,!0/100",	/* C */
-			"!941+1633/100,!0/100",	/* D */
-			"!941+1209/100,!0/100",	/* * */
-			"!941+1477/100,!0/100" };	/* # */
+			"941+1336", /* 0 */
+			"697+1209", /* 1 */
+			"697+1336", /* 2 */
+			"697+1477", /* 3 */
+			"770+1209", /* 4 */
+			"770+1336", /* 5 */
+			"770+1477", /* 6 */
+			"852+1209", /* 7 */
+			"852+1336", /* 8 */
+			"852+1477", /* 9 */
+			"697+1633", /* A */
+			"770+1633", /* B */
+			"852+1633", /* C */
+			"941+1633", /* D */
+			"941+1209", /* * */
+			"941+1477"  /* # */
+		};
+
 		if (digit >= '0' && digit <='9')
 			ast_playtones_start(chan, 0, dtmf_tones[digit-'0'], 0);
 		else if (digit >= 'A' && digit <= 'D')
@@ -2657,6 +2657,17 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		if (ast_test_flag(chan, AST_FLAG_WRITE_INT))
 			ast_deactivate_generator(chan);
 		else {
+			if (fr->frametype == AST_FRAME_DTMF_END) {
+				/* There is a generator running while we're in the middle of a digit.
+				 * It's probably inband DTMF, so go ahead and pass it so it can
+				 * stop the generator */
+				ast_clear_flag(chan, AST_FLAG_BLOCKING);
+				ast_channel_unlock(chan);
+				res = ast_senddigit_end(chan, fr->subclass, fr->len);
+				ast_channel_lock(chan);
+				CHECK_BLOCKING(chan);
+			}
+
 			res = 0;	/* XXX explain, why 0 ? */
 			goto done;
 		}
