@@ -2429,10 +2429,11 @@ static char *get_in_brackets(char *tmp)
 	return tmp;
 }
 
-/*!
- * parses a URI in its components.
- * If scheme is specified, drop it from the top.
- * If a component is not requested, do not split around it.
+/*! \brief * parses a URI in its components.
+ *
+ * \note 
+ *- If scheme is specified, drop it from the top.
+ * - If a component is not requested, do not split around it.
  * This means that if we don't have domain, we cannot split
  * name:pass and domain:port.
  * It is safe to call with ret_name, pass, domain, port
@@ -2440,6 +2441,7 @@ static char *get_in_brackets(char *tmp)
  * Init pointers to empty string so we never get NULL dereferencing.
  * Overwrites the string.
  * return 0 on success, other values on error.
+ * general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] 
  */
 static int parse_uri(char *uri, char *scheme,
 	char **ret_name, char **pass, char **domain, char **port, char **options)
@@ -2452,13 +2454,12 @@ static int parse_uri(char *uri, char *scheme,
 		*pass = "";
 	if (port)
 		*port = "";
-	name = strsep(&uri, ";");	/* remove options */
 	if (scheme) {
 		int l = strlen(scheme);
-		if (!strncmp(name, scheme, l))
-			name += l;
+		if (!strncmp(uri, scheme, l))
+			uri += l;
 		else {
-			ast_log(LOG_NOTICE, "Missing scheme '%s' in '%s'\n", scheme, name);
+			ast_log(LOG_NOTICE, "Missing scheme '%s' in '%s'\n", scheme, uri);
 			error = -1;
 		}
 	}
@@ -2472,14 +2473,20 @@ static int parse_uri(char *uri, char *scheme,
 		 */
 		char *c, *dom = "";
 
-		if ((c = strchr(name, '@')) == NULL) {
+		if ((c = strchr(uri, '@')) == NULL) {
 			/* domain-only URI, according to the SIP RFC. */
-			dom = name;
+			dom = uri;
 			name = "";
 		} else {
 			*c++ = '\0';
 			dom = c;
+			name = uri;
 		}
+
+		/* Remove options in domain and name */
+		dom = strsep(&dom, ";");
+		name = strsep(&name, ";");
+
 		if (port && (c = strchr(dom, ':'))) { /* Remove :port */
 			*c++ = '\0';
 			*port = c;
@@ -5922,7 +5929,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	int debug=sip_debug_test_pvt(p);
 
 	/* Parse uri to h (host) and port - uri is already just the part inside the <> */
-	/* general form we are expecting is sip[s]:username[:password]@host[:port][;...] */
+	/* general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] */
 
 	if (debug)
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
@@ -7077,12 +7084,20 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 {
 	char stripped[BUFSIZ];
 	char *c;
+	char *atsign;
 
 	ast_copy_string(stripped, get_header(req, "Contact"), sizeof(stripped));
 	c = get_in_brackets(stripped);
-	c = strsep(&c, ";");	/* trim ; and beyond */
+	/* Cut the URI at the at sign after the @, not in the username part */
+	atsign = strchr(c, '@');	/* First, locate the at sign */
+	if (!atsign)
+		atsign = c;	/* Ok hostname only, let's stick with the rest */
+	atsign = strchr(atsign, ';');	/* Locate semi colon */
+	if (atsign)
+		*atsign = '\0';	/* Kill at the semi colon */
 	if (!ast_strlen_zero(c))
 		ast_string_field_set(p, uri, c);
+
 }
 
 /*! \brief Build contact header - the contact header we send out */
