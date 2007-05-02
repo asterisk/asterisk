@@ -182,3 +182,6 @@ Miscellaneous
      back to the person that did the transfer if the transfer is not successful.
      See the options "atxferdropcall", "atxferloopdelay", and "atxfercallbackretries"
      in features.conf.sample.
+  * The device state functionality in the Local channel driver has been updated
+     to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
+     to just UNKNOWN if the extension exists.

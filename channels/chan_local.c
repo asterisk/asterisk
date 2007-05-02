@@ -129,6 +129,7 @@ static int local_devicestate(void *data)
 	char *exten = ast_strdupa(data);
 	char *context = NULL, *opts = NULL;
 	int res;
+	struct local_pvt *lp;
 
 	if (!(context = strchr(exten, '@'))) {
 		ast_log(LOG_WARNING, "Someone used Local/%s somewhere without a @context. This is bad.\n", exten);
@@ -143,11 +144,22 @@ static int local_devicestate(void *data)
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
+
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
 	if (!res)		
 		return AST_DEVICE_INVALID;
-	else
-		return AST_DEVICE_UNKNOWN;
+	
+	res = AST_DEVICE_NOT_INUSE;
+	AST_LIST_LOCK(&locals);
+	AST_LIST_TRAVERSE(&locals, lp, list) {
+		if (!strcmp(exten, lp->exten) && !strcmp(context, lp->context) && lp->owner) {
+			res = AST_DEVICE_INUSE;
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&locals);
+
+	return res;
 }
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
