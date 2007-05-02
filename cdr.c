@@ -775,16 +775,18 @@ int ast_cdr_update(struct ast_channel *c)
 
 			/* Copy account code et-al */	
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
-			/* Destination information */
-			ast_copy_string(cdr->dst, (ast_strlen_zero(c->macroexten)) ? c->exten : c->macroexten, sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, (ast_strlen_zero(c->macrocontext)) ? c->context : c->macrocontext, sizeof(cdr->dcontext));
+			if (!ast_check_hangup(c)) {
+				/* Destination information */ /* XXX privilege macro* ? */
+				ast_copy_string(cdr->dst, (ast_strlen_zero(c->macroexten)) ? c->exten : c->macroexten, sizeof(cdr->dst));
+				ast_copy_string(cdr->dcontext, (ast_strlen_zero(c->macrocontext)) ? c->context : c->macrocontext, sizeof(cdr->dcontext));
+			}
 		}
 		cdr = cdr->next;
 	}
 
 	return 0;
 }
-
+ 
 int ast_cdr_amaflags2int(const char *flag)
 {
 	if (!strcasecmp(flag, "default"))

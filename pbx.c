@@ -562,7 +562,7 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	int (*execute)(struct ast_channel *chan, void *data) = app->execute; 
 
 	if (newstack) {
-		if (c->cdr)
+		if (c->cdr && !ast_check_hangup(c))
 			ast_cdr_setapp(c->cdr, app->name, data);
 
 		/* save channel values */
