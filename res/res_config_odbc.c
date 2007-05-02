@@ -421,9 +421,11 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	struct ast_category *cur_cat;
 	int res = 0;
 	odbc_obj *obj;
-	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, last_cat_metric=0;
-	SQLBIGINT id;
-	char sql[255] = "", filename[128], category[128], var_name[128], var_val[1024];
+	SQLINTEGER err=0, cat_metric=0, last_cat_metric=0;
+	char category[128], var_name[128], var_val[1024];
+	char sqlbuf[1024];
+	char *sql;
+	size_t sqlleft = sizeof(sqlbuf);
 	SQLSMALLINT rowcount=0;
 	SQLHSTMT stmt;
 	char last[128] = "";
@@ -437,18 +439,16 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
 
-	SQLBindCol (stmt, 1, SQL_C_ULONG, &id, sizeof (id), &err);
-	SQLBindCol (stmt, 2, SQL_C_ULONG, &cat_metric, sizeof (cat_metric), &err);
-	SQLBindCol (stmt, 3, SQL_C_ULONG, &var_metric, sizeof (var_metric), &err);
-	SQLBindCol (stmt, 4, SQL_C_ULONG, &commented, sizeof (commented), &err);
-	SQLBindCol (stmt, 5, SQL_C_CHAR, &filename, sizeof (filename), &err);
-	SQLBindCol (stmt, 6, SQL_C_CHAR, &category, sizeof (category), &err);
-	SQLBindCol (stmt, 7, SQL_C_CHAR, &var_name, sizeof (var_name), &err);
-	SQLBindCol (stmt, 8, SQL_C_CHAR, &var_val, sizeof (var_val), &err);
+	SQLBindCol(stmt, 1, SQL_C_ULONG, &cat_metric, sizeof(cat_metric), &err);
+	SQLBindCol(stmt, 2, SQL_C_CHAR, &category, sizeof(category), &err);
+	SQLBindCol(stmt, 3, SQL_C_CHAR, &var_name, sizeof(var_name), &err);
+	SQLBindCol(stmt, 4, SQL_C_CHAR, &var_val, sizeof(var_val), &err);
 	
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE filename='%s' and commented=0 ORDER BY filename,cat_metric desc,var_metric asc,category,var_name,var_val,id", table, file);
+	ast_build_string(&sql, &sqlleft, "SELECT cat_metric, category, var_name, var_val FROM %s ", table);
+	ast_build_string(&sql, &sqlleft, "WHERE filename='%s' AND commented=0 ", file);
+	ast_build_string(&sql, &sqlleft, "ORDER BY cat_metric DESC, var_metric ASC, category, var_name ");
 
-	res = odbc_smart_direct_execute(obj, stmt, sql);
+	res = odbc_smart_direct_execute(obj, stmt, sqlbuf);
 	
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log (LOG_WARNING, "SQL select error!\n[%s]\n\n", sql);
