@@ -140,14 +140,47 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;
 ; Contexts contain several lines, one for each step of each
 ; extension, which can take one of two forms as listed below,
-; with the first form being preferred.  One may include another
-; context in the current one as well, optionally with a
-; date and time.  Included contexts are included in the order
-; they are listed.
+; with the first form being preferred. 
 ;
 ;[context]
 ;exten => someexten,{priority|label{+|-}offset}[(alias)],application(arg1,arg2,...)
 ;exten => someexten,{priority|label{+|-}offset}[(alias)],application,arg1|arg2...
+;
+; Included Contexts
+;
+; One may include another context in the current one as well, optionally with a
+; date and time.  Included contexts are included in the order
+; they are listed.
+; The reason a context would include other contexts is for their 
+; extensions.
+; The algorithm to find an extension is recursive, and works in this
+; fashion: 
+;	 first, given a stack on which to store context references, 
+;           push the context to find the extension onto the stack...
+;    a) Try to find a matching extension in the context at the top of 
+;       the stack, and, if found, begin executing the priorities
+;       there in sequence.
+;    b) If not found, Search the switches, if any declared, in
+;       sequence.
+;    c) If still not found, for each include, push that context onto 
+;       the top of the context stack, and recurse to a).
+;    d) If still not found, pop the entry from the top of the stack; 
+;       if the stack is empty, the search has failed. If it's not, 
+;       continue with the next context in c).
+; This is a depth-first traversal, and stops with the first context 
+; that provides a matching extension. As usual, if more than one
+; pattern in a context will match, the 'best' match will win.
+; Please note that that extensions found in an included context are
+; treated as if they were in the context from which the search began.
+; The PBX's notion of the "current context" is not changed.
+; Please note that in a context, it does not matter where an include
+; directive occurs. Whether at the top, or near the bottom, the effect 
+; will be the same. The only thing that matters is that if there is 
+; more than one include directive, they will be searched for extensions 
+; in order, first to last.
+; Also please note that pattern matches (like _9XX) are not treated
+; any differently than exact matches (like 987). Also note that the
+; order of extensions in a context have no affect on the outcome.
 ;
 ; Timing list for includes is 
 ;
