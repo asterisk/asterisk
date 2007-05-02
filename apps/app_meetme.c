@@ -318,6 +318,7 @@ struct ast_conference {
 	const char *recordingformat;            /*!< Format to record the Conference in */
 	char pin[MAX_PIN];                      /*!< If protected by a PIN */
 	char pinadmin[MAX_PIN];                 /*!< If protected by a admin PIN */
+	char uniqueid[32];
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
@@ -718,7 +719,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
  * \return A pointer to the conference struct, or NULL if it wasn't found and
  *         make or dynamic were not set.
  */
-static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount)
+static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic, int refcount, const struct ast_channel *chan)
 {
 	struct ast_conference *cnf;
 	struct zt_confinfo ztc = { 0, };
@@ -743,6 +744,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
 	ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
 	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
+	ast_copy_string(cnf->uniqueid, chan->uniqueid, sizeof(cnf->uniqueid));
 	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
 	if (cnf->chan) {
 		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
@@ -1458,6 +1460,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_device_state_changed("meetme:%s", conf->confno);
 
 	ast_mutex_unlock(&conf->playlock);
+
+	/* return the unique ID of the conference */
+	pbx_builtin_setvar_helper(chan, "MEETMEUNIQUEID", conf->uniqueid);
 
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
 		if ((agifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
@@ -2302,7 +2307,7 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 		}
 		ast_variables_destroy(var);
 		
-		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount);
+		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount, chan);
 	}
 
 	if (cnf) {
@@ -2359,9 +2364,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, pin_buf_len - 1, 0) < 0)
 						return NULL;
 				}
-				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount);
+				cnf = build_conf(confno, dynamic_pin, "", make, dynamic, refcount, chan);
 			} else {
-				cnf = build_conf(confno, "", "", make, dynamic, refcount);
+				cnf = build_conf(confno, "", "", make, dynamic, refcount, chan);
 			}
 		} else {
 			/* Check the config */
@@ -2383,7 +2388,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					cnf = build_conf(args.confno,
 							S_OR(args.pin, ""),
 							S_OR(args.pinadmin, ""),
-							make, dynamic, refcount);
+							make, dynamic, refcount, chan);
 					break;
 				}
 			}
@@ -3228,7 +3233,7 @@ static void *run_station(void *data)
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	ast_answer(trunk_ref->chan);
-	conf = build_conf(conf_name, "", "", 0, 0, 1);
+	conf = build_conf(conf_name, "", "", 0, 0, 1, trunk_ref->chan);
 	if (conf) {
 		conf_run(trunk_ref->chan, conf, conf_flags.flags, NULL);
 		dispose_conf(conf);
@@ -4046,7 +4051,7 @@ static void *dial_trunk(void *data)
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_MARKEDUSER | 
 		CONFFLAG_PASS_DTMF | CONFFLAG_SLA_TRUNK);
-	conf = build_conf(conf_name, "", "", 1, 1, 1);
+	conf = build_conf(conf_name, "", "", 1, 1, 1, trunk_ref->trunk->chan);
 
 	ast_mutex_lock(args->cond_lock);
 	ast_cond_signal(args->cond);
@@ -4195,7 +4200,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	ast_set_flag(&conf_flags, 
 		CONFFLAG_QUIET | CONFFLAG_MARKEDEXIT | CONFFLAG_PASS_DTMF | CONFFLAG_SLA_STATION);
 	ast_answer(chan);
-	conf = build_conf(conf_name, "", "", 0, 0, 1);
+	conf = build_conf(conf_name, "", "", 0, 0, 1, chan);
 	if (conf) {
 		conf_run(chan, conf, conf_flags.flags, NULL);
 		dispose_conf(conf);
@@ -4281,7 +4286,7 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	}
 
 	snprintf(conf_name, sizeof(conf_name), "SLA_%s", trunk_name);
-	conf = build_conf(conf_name, "", "", 1, 1, 1);
+	conf = build_conf(conf_name, "", "", 1, 1, 1, chan);
 	if (!conf) {
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
 		return 0;
