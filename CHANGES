@@ -177,3 +177,8 @@ Miscellaneous
      configuration files for the IP channel drivers.  The new option is "cos".
      This information is also documented in doc/qos.tex, or the IP Quality of Service
      section of asterisk.pdf.
+  * The built-in method for doing attended transfers has been updated to
+     include some new options that allow you to have the transferee sent
+     back to the person that did the transfer if the transfer is not successful.
+     See the options "atxferdropcall", "atxferloopdelay", and "atxfercallbackretries"
+     in features.conf.sample.
