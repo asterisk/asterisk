@@ -18263,6 +18263,7 @@ static struct ast_cli_entry cli_sip[] = {
 /*! \brief PBX load module - initialization */
 static int load_module(void)
 {
+	ast_verbose("SIP channel loading...\n");
 	ASTOBJ_CONTAINER_INIT(&userl);	/* User object list */
 	ASTOBJ_CONTAINER_INIT(&peerl);	/* Peer object list */
 	ASTOBJ_CONTAINER_INIT(&regl);	/* Registry object list */
