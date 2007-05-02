@@ -185,3 +185,4 @@ Miscellaneous
   * The device state functionality in the Local channel driver has been updated
      to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
      to just UNKNOWN if the extension exists.
+  * Added support for the Hungarian language for saying numbers, dates, and times.
