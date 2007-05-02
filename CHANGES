@@ -122,7 +122,7 @@ MeetMe Changes
      has been enabled by default.
   * When a conference is created, the UNIQUEID of the channel that caused it to be
      created is stored.  Then, every channel that joins the conference will have the
-     MEETMEUNIQUEID channel variable set with this ID.  This can be used to associating
+     MEETMEUNIQUEID channel variable set with this ID.  This can be used to relate
      callers that come and go from long standing conferences.
 
 Miscellaneous 
