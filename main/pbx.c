@@ -515,7 +515,7 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	const char *saved_c_appl;
 	const char *saved_c_data;
 
-	if (c->cdr && !(c->exten[0] == 'h' && c->exten[1] == 0) )
+	if (c->cdr &&  !ast_check_hangup(c))
 		ast_cdr_setapp(c->cdr, app->name, data);
 
 	/* save channel values */
