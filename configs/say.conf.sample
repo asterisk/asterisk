@@ -169,3 +169,27 @@
     _date::. => date:AdBY:${SAY}
     _time::. => date:IMp:${SAY}
 
+[hu](digit-base,date-base)
+    _[n]um:0. => num:${SAY:1}
+    _[n]um:X => digits/${SAY}
+    _[n]um:1[1-9] => digits/10en, digits/${SAY:1}
+    _[n]um:2[1-9] => digits/20on, digits/${SAY:1}
+    _[n]um:[1-9]0 =>  digits/${SAY}
+    _[n]um:[3-9][1-9] =>  digits/${SAY:0:1}0, num:${SAY:1}
+    _[n]um:XXX => num:${SAY:0:1}, digits/hundred, num:${SAY:1}
+
+    _[n]um:XXXX => num:${SAY:0:1}, digits/thousand, num:${SAY:1}
+    _[n]um:XXXXX => num:${SAY:0:2}, digits/thousand, num:${SAY:2}
+    _[n]um:XXXXXX => num:${SAY:0:3}, digits/thousand, num:${SAY:3}
+
+    _[n]um:XXXXXXX => num:${SAY:0:1}, digits/million, num:${SAY:1}
+    _[n]um:XXXXXXXX => num:${SAY:0:2}, digits/million, num:${SAY:2}
+    _[n]um:XXXXXXXXX => num:${SAY:0:3}, digits/million, num:${SAY:3}
+
+    _[n]um:XXXXXXXXXX => num:${SAY:0:1}, digits/billion, num:${SAY:1}
+    _[n]um:XXXXXXXXXXX => num:${SAY:0:2}, digits/billion, num:${SAY:2}
+    _[n]um:XXXXXXXXXXXX => num:${SAY:0:3}, digits/billion, num:${SAY:3}
+
+    _datetime::. => date:YBdA k 'ora' M 'perc':${SAY}
+    _date::. => date:YBdA:${SAY}
+    _time::. => date:k 'ora' M 'perc':${SAY}
