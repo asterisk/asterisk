@@ -109,7 +109,9 @@ Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
 Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
 	simon@slimey.org
 
-Olle E. Johansson - SIP RFC compliance, documentation and testing, testing, testing
+Olle E. Johansson - SIP RFC compliance, documentation and testing, testing, testing,
+	- MiniVM - the small voicemail system, many documentation updates/corrections
+	and many bug fixes.
 	oej@edvina.net, http://edvina.net
 
 Steve Kann - new jitter buffer for IAX2
