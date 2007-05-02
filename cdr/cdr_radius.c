@@ -239,6 +239,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_config *cfg;
+	int res;
 	const char *tmp;
 
 	if ((cfg = ast_config_load(cdr_config))) {
@@ -257,16 +258,17 @@ static int load_module(void)
 	/* read radiusclient-ng config file */
 	if (!(rh = rc_read_config(radiuscfg))) {
 		ast_log(LOG_NOTICE, "Cannot load radiusclient-ng configuration file %s.\n", radiuscfg);
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	/* read radiusclient-ng dictionaries */
 	if (rc_read_dictionary(rh, rc_conf_str(rh, "dictionary"))) {
 		ast_log(LOG_NOTICE, "Cannot load radiusclient-ng dictionary file.\n");
-		return -1;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 	
-	return ast_cdr_register(name, desc, radius_log);
+	res = ast_cdr_register(name, desc, radius_log);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "RADIUS CDR Backend");

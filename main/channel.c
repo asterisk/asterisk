@@ -710,6 +710,9 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 				       (long) time(NULL), ast_atomic_fetchadd_int(&uniqueint, 1));
 	}
 
+	tmp->cid.cid_name = ast_strdup(cid_name);
+	tmp->cid.cid_num = ast_strdup(cid_num);
+	
 	if (!ast_strlen_zero(name_fmt)) {
 		/* Almost every channel is calling this function, and setting the name via the ast_string_field_build() call.
 		 * And they all use slightly different formats for their name string.
