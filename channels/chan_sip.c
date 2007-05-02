@@ -14482,7 +14482,6 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		transferer->refer->status = REFER_FAILED;
 		sip_pvt_unlock(targetcall_pvt);
 		ast_channel_unlock(current->chan1);
-		ast_channel_unlock(targetcall_pvt->owner);
 		return -1;
 	}
 
