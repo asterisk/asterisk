@@ -7661,6 +7661,7 @@ static void reg_source_db(struct sip_peer *peer)
 		ast_sched_del(sched, peer->expire);
 	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	register_peer_exten(peer, TRUE);
+	ast_device_state_changed("SIP/%s", peer->name);
 }
 
 /*! \brief Save contact header for 200 OK on INVITE */
@@ -16564,6 +16565,7 @@ static int reload_config(enum channelreloadreason reason)
 				if (ast_true(hassip) || (!hassip && genhassip)) {
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (peer) {
+						ast_device_state_changed("SIP/%s", peer->name);
 						ASTOBJ_CONTAINER_LINK(&peerl,peer);
 						ASTOBJ_UNREF(peer, sip_destroy_peer);
 						peer_count++;
