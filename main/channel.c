@@ -2252,10 +2252,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
 					chan->emulate_dtmf_digit = f->subclass;
 					chan->dtmf_tv = ast_tvnow();
-					if (f->len && f->len > AST_MIN_DTMF_DURATION)
-						chan->emulate_dtmf_duration = f->len;
-					else
-						chan->emulate_dtmf_duration = AST_MIN_DTMF_DURATION;
+					if (f->len) {
+						if (f->len > AST_MIN_DTMF_DURATION)
+							chan->emulate_dtmf_duration = f->len;
+						else 
+							chan->emulate_dtmf_duration = AST_MIN_DTMF_DURATION;
+					} else
+						chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
 				}
 			} else {
 				struct timeval now = ast_tvnow();
@@ -2284,9 +2287,23 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				chan->dtmf_tv = ast_tvnow();
 			}
 			break;
+		case AST_FRAME_NULL:
+			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
+				struct timeval now = ast_tvnow();
+				if (ast_tvdiff_ms(now, chan->dtmf_tv) >= chan->emulate_dtmf_duration) {
+					chan->emulate_dtmf_duration = 0;
+					f->frametype = AST_FRAME_DTMF_END;
+					f->subclass = chan->emulate_dtmf_digit;
+					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
+					chan->dtmf_tv = now;
+					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
+					chan->emulate_dtmf_digit = 0;
+				}
+			}
+			break;
 		case AST_FRAME_VOICE:
-			/* The EMULATE_DTMF flag must be cleared here as opposed to when the samples
-			 * first get to zero, because we want to make sure we pass at least one
+			/* The EMULATE_DTMF flag must be cleared here as opposed to when the duration
+			 * is reached , because we want to make sure we pass at least one
 			 * voice frame through before starting the next digit, to ensure a gap
 			 * between DTMF digits. */
 			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF) && !chan->emulate_dtmf_duration) {
@@ -2298,15 +2315,15 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				ast_frfree(f);
 				f = &ast_null_frame;
 			} else if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
-				if ((f->samples / 8) >= chan->emulate_dtmf_duration) { /* XXX 8kHz */
-					struct timeval now = ast_tvnow();
+				struct timeval now = ast_tvnow();
+				if (ast_tvdiff_ms(now, chan->dtmf_tv) >= chan->emulate_dtmf_duration) {
 					chan->emulate_dtmf_duration = 0;
 					f->frametype = AST_FRAME_DTMF_END;
 					f->subclass = chan->emulate_dtmf_digit;
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
 					chan->dtmf_tv = now;
 				} else {
-					chan->emulate_dtmf_duration -= f->samples / 8; /* XXX 8kHz */
+					/* Drop voice frames while we're still in the middle of the digit */
 					ast_frfree(f);
 					f = &ast_null_frame;
 				}
