@@ -462,7 +462,9 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	long num_rows;
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat = NULL;
-	char sql[250] = "";
+	char sqlbuf[1024] = "";
+	char *sql;
+	size_t sqlleft = sizeof(sqlbuf);
 	char last[80] = "";
 	int last_cat_metric = 0;
 
@@ -473,12 +475,12 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 		return NULL;
 	}
 
-	snprintf(sql, sizeof(sql),
-			 "SELECT category, var_name, var_val, cat_metric FROM %s WHERE filename='%s' and commented=0 ORDER BY filename, cat_metric desc, var_metric asc, category, var_name, var_val, id",
-			 table, file);
+	ast_build_string(&sql, &sqlleft, "SELECT category, var_name, var_val, cat_metric FROM %s ", table);
+	ast_build_string(&sql, &sqlleft, "WHERE filename='%s' and commented=0", file);
+	ast_build_string(&sql, &sqlleft, "ORDER BY cat_metric DESC, var_metric ASC, category, var_name ");
 
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Postgresql RealTime: Static SQL: %s\n", sql);
+		ast_log(LOG_DEBUG, "Postgresql RealTime: Static SQL: %s\n", sqlbuf);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	ast_mutex_lock(&pgsql_lock);
@@ -487,7 +489,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 		return NULL;
 	}
 
-	if (!(result = PQexec(pgsqlConn, sql))) {
+	if (!(result = PQexec(pgsqlConn, sqlbuf))) {
 		ast_log(LOG_WARNING,
 				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
 		if (option_debug) {
@@ -515,21 +517,10 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	}
 
 	if ((num_rows = PQntuples(result)) > 0) {
-		int numFields = PQnfields(result);
-		int i = 0;
 		int rowIndex = 0;
-		char **fieldnames = NULL;
 
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Postgresql RealTime: Found %ld rows.\n", num_rows);
-
-		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
-			ast_mutex_unlock(&pgsql_lock);
-			PQclear(result);
-			return NULL;
-		}
-		for (i = 0; i < numFields; i++)
-			fieldnames[i] = PQfname(result, i);
 
 		for (rowIndex = 0; rowIndex < num_rows; rowIndex++) {
 			char *field_category = PQgetvalue(result, rowIndex, 0);
