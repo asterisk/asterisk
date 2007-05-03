@@ -487,7 +487,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	int res = 0;
 	struct odbc_obj *obj;
 	char sqlbuf[1024] = "";
-	char *sql;
+	char *sql = sqlbuf;
 	size_t sqlleft = sizeof(sqlbuf);
 	unsigned int last_cat_metric = 0;
 	SQLSMALLINT rowcount = 0;
