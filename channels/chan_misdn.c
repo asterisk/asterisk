@@ -2308,7 +2308,7 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	if ( !frame->samples ) {
 		chan_misdn_log(4, ch->bc->port, "misdn_write: zero write\n");
-		return 0;
+		return -1;
 	}
 
 	if ( ! ch->bc->addr ) {
