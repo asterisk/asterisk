@@ -296,6 +296,10 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 			enc_ie_redir_nr(&setup->REDIR_NR, msg, 1, 1,  bc->pres, bc->screen, 0, bc->rad, nt,bc);
 	}
 
+	{
+		if (bc->keypad[0])
+			enc_ie_keypad(&setup->CALLED_PN, msg, bc->keypad, nt,bc);
+	}
 	
   
 	if (*bc->display) {
