@@ -1709,8 +1709,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	
 	port=newbc->port;
-	strncpy(newbc->dad,ext,sizeof( newbc->dad));
-	strncpy(ast->exten,ext,sizeof(ast->exten));
+
 	
 	chan_misdn_log(1, port, "* CALL: %s\n",dest);
 	
@@ -1719,7 +1718,10 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	chan_misdn_log(3, port, " --> * adding2newbc ext %s\n",ast->exten);
 	if (ast->exten) {
 		int l = sizeof(newbc->dad);
-		strncpy(newbc->dad,ast->exten, l);
+		strncpy(ast->exten,ext,sizeof(ast->exten));
+
+		strncpy(newbc->dad,ext,l);
+
 		newbc->dad[l-1] = 0;
 	}
 	newbc->rad[0]=0;
@@ -1732,7 +1734,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			newbc->oad[l-1] = 0;
 		}
 	}
-	
+
 	{
 		struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
 		if (!ch) { ast_verbose("No chan_list in misdn_call\n"); return -1;}
@@ -2308,6 +2310,10 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	if ( !frame->samples ) {
 		chan_misdn_log(4, ch->bc->port, "misdn_write: zero write\n");
+		if (ch->state == MISDN_WAITING4DIGS) {
+			chan_misdn_log(4, ch->bc->port, "misdn_write: WAIT4DIGS ..\n");
+			return 0;
+		}
 		return -1;
 	}
 
@@ -3279,6 +3285,14 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (tmp && (atoi(tmp) == 1)) {
 		bc->sending_complete=1;
 	}
+	
+	const char *kp=pbx_builtin_getvar_helper(chan,"MISDN_KEYPAD");
+	if (kp) {
+		strncpy(bc->keypad,kp,sizeof(bc->keypad));
+		bc->keypad[sizeof(bc->keypad)-1]=0;
+	}
+	
+	
 }
  
 void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
@@ -3298,6 +3312,9 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 		sprintf(tmp,"%d",bc->urate);
 		pbx_builtin_setvar_helper(chan,"MISDN_URATE",tmp);
 	}
+
+	if (bc->keypad[0]) 
+		pbx_builtin_setvar_helper(chan,"MISDN_KEYPAD",bc->keypad);
 }
 
 
@@ -3768,6 +3785,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				
 				/** ADD IGNOREPAT **/
 				
+				ch->state=MISDN_WAITING4DIGS;
 				int stop_tone;
 				misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
 				if ( (!ast_strlen_zero(bc->dad)) && stop_tone ) 
@@ -3776,7 +3794,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					dialtone_indicate(ch);
 				}
 				
-				ch->state=MISDN_WAITING4DIGS;
 			}
 		}
       
