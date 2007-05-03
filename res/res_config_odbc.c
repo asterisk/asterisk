@@ -424,7 +424,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	SQLINTEGER err=0, cat_metric=0, last_cat_metric=0;
 	char category[128], var_name[128], var_val[1024];
 	char sqlbuf[1024];
-	char *sql;
+	char *sql = sqlbuf;
 	size_t sqlleft = sizeof(sqlbuf);
 	SQLSMALLINT rowcount=0;
 	SQLHSTMT stmt;
