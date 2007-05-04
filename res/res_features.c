@@ -1056,7 +1056,7 @@ static void ast_unregister_features(void)
 }
 
 /*! \brief find a call feature by name */
-struct ast_call_feature *ast_find_call_feature(char *name)
+static struct ast_call_feature *find_feature(char *name)
 {
 	struct ast_call_feature *tmp;
 
@@ -1068,6 +1068,18 @@ struct ast_call_feature *ast_find_call_feature(char *name)
 	AST_LIST_UNLOCK(&feature_list);
 
 	return tmp;
+}
+
+/*! \brief find a call feature by name */
+struct ast_call_feature *ast_find_call_feature(char *name)
+{
+	int x;
+	for (x = 0; x < FEATURES_COUNT; x++) {
+		if (!strcasecmp(name, builtin_features[x].sname)) {
+			return &builtin_features[x];
+		}
+	}
+	return NULL;
 }
 
 /*! \brief exec an app by feature */
@@ -1197,7 +1209,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		char *tok;
 
 		while ((tok = strsep(&tmp, "#")) != NULL) {
-			feature = ast_find_call_feature(tok);
+			feature = find_feature(tok);
 			
 			if (feature) {
 				/* Feature is up for consideration */
@@ -1241,7 +1253,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 
 			/* while we have a feature */
 			while ((tok = strsep(&tmp, "#"))) {
-				if ((feature = ast_find_call_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
+				if ((feature = find_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
@@ -2580,7 +2592,7 @@ static int load_config(void)
 			continue;
 		}
 
-		if ((feature = ast_find_call_feature(var->name))) {
+		if ((feature = find_feature(var->name))) {
 			ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n", var->name);
 			continue;
 		}
