@@ -24,7 +24,14 @@
 enabled = no
 ;webenabled = yes
 port = 5038
+
 ;httptimeout = 60
+; a) httptimeout sets the Max-Age of the http cookie
+; b) httptimeout is the amount of time the webserver waits 
+;    on a action=waitevent request (actually its httptimeout-10)
+; c) httptimeout is also the amount of time the webserver keeps 
+;    a http session alive after completing a successful action
+
 bindaddr = 0.0.0.0
 
 ; Parameters that control AMI over TLS. ("enabled" must be set too).
