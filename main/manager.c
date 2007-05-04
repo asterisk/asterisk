@@ -2170,9 +2170,8 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 	const char *actionid = astman_get_header(m, "ActionID");
 	char idText[150];
 
-        if (!ast_strlen_zero(actionid)) {
-                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
-        }
+	if (!ast_strlen_zero(actionid))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
 
 	astman_append(s, "Response: Success\r\n"
 			"%s"
@@ -2218,9 +2217,9 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 	char reloadtime[150];
 	struct tm tm;
 
-        if (!ast_strlen_zero(actionid)) {
-                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
-        }
+	if (!ast_strlen_zero(actionid))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+
 	localtime_r(&ast_startuptime, &tm);
 	strftime(startuptime, sizeof(startuptime), "%H:%M:%S", &tm);
 	localtime_r(&ast_lastreloadtime, &tm);
