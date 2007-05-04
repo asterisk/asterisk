@@ -4264,6 +4264,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (!ast_test_flag(&i->flags[0], SIP_NO_HISTORY))
 		append_history(i, "NewChan", "Channel %s - from %s", tmp->name, i->callid);
 
+	/* Inform manager user about new channel and their SIP call ID */
+	if (global_callevents)
+		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
+			"Channel: %s\r\nUniqueid: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\n",
+			tmp->name, tmp->uniqueid, "SIP", i->callid, i->fullcontact);
+
 	return tmp;
 }
 
@@ -12601,6 +12607,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
 			if (!reinvite) {
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
+				if (global_callevents)
+					manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
+						"Channel: %s\r\nChanneltype: %s\r\nUniqueid: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
+						p->owner->name, p->owner->uniqueid, "SIP", p->callid, p->fullcontact, p->peername);
 			} else {	/* RE-invite */
 				ast_queue_frame(p->owner, &ast_null_frame);
 			}
@@ -16240,6 +16250,10 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	p->jointcapability = oldformat;
 	sip_pvt_lock(p);
 	tmpc = sip_new(p, AST_STATE_DOWN, host);	/* Place the call */
+	if (global_callevents)
+		manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
+			"Channel: %s\r\nChanneltype: %s\r\nSIPcallid: %s\r\nSIPfullcontact: %s\r\nPeername: %s\r\n",
+			p->owner? p->owner->name : "", "SIP", p->callid, p->fullcontact, p->peername);
 	sip_pvt_unlock(p);
 	if (!tmpc)
 		sip_destroy(p);

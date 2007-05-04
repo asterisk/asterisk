@@ -895,6 +895,17 @@ static void mwi_event_cb(const struct ast_event *event, void *userdata)
 	 * is time to send MWI, since it is only sent with a REGACK. */
 }
 
+/*! \brief Send manager event at call setup to link between Asterisk channel name
+	and IAX2 call identifiers */
+static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt) 
+{
+	manager_event(EVENT_FLAG_SYSTEM, "ChannelUpdate",
+		"Channel: %s\r\nChanneltype: IAX2\r\nIAX2-callno-local: %d\r\nIAX2-callno-remote: %d\r\nIAX2-peer: %s\r\n",
+		pvt->owner ? pvt->owner->name : "",
+		pvt->callno, pvt->peercallno, pvt->peer ? pvt->peer : "");
+}
+
+
 static void insert_idle_thread(struct iax2_thread *thread)
 {
 	if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
@@ -3332,6 +3343,7 @@ static int iax2_answer(struct ast_channel *c)
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Answering IAX2 call\n");
+	iax2_ami_channelupdate(c->tech_pvt);
 	return send_command_locked(callno, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
@@ -3422,6 +3434,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	ast_mutex_unlock(&iaxsl[callno]);
 	tmp = ast_channel_alloc(1, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "IAX2/%s-%d", i->host, i->callno);
 	ast_mutex_lock(&iaxsl[callno]);
+	iax2_ami_channelupdate(i);
 	if (!tmp)
 		return NULL;
 	tmp->tech = &iax2_tech;
