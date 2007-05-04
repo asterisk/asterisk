@@ -94,8 +94,8 @@ void ast_register_feature(struct ast_call_feature *feature);
     \param feature the ast_call_feature object which was registered before*/
 void ast_unregister_feature(struct ast_call_feature *feature);
 
-/*! \brief look for a feature entry by its sname
+/*! \brief look for a call feature entry by its sname
 	\param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. */
-struct ast_call_feature *find_feature(char *name);
+struct ast_call_feature *ast_find_call_feature(char *name);
 
 #endif /* _AST_FEATURES_H */

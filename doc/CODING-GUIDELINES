@@ -206,6 +206,18 @@ alloca(), and similar functions do not _ever_ need to be cast to a specific
 type, and when you are passing a pointer to (for example) a callback function
 that accepts a 'void *' you do not need to cast into that type.
 
+* Function naming
+-----------------
+
+All public functions (those not marked 'static'), must be named "ast_<something>"
+and have a descriptive name.
+
+As an example, suppose you wanted to take a local function "find_feature", defined
+as static in a file, and used only in that file, and make it public, and use it
+in other files. You will have to remove the "static" declaration and define a 
+prototype in an appropriate header file (usually in include/asterisk). A more
+specific name should be given, such as "ast_find_call_feature".
+
 * Variable naming
 -----------------
 
@@ -225,11 +237,7 @@ options that they are in fact intended to be global.
 - Don't use un-necessary typedef's
 Don't use 'typedef' just to shorten the amount of typing; there is no substantial
 benefit in this:
-
-struct foo {
-	int bar;
-};
-typedef foo_t struct foo;
+struct foo { int bar; }; typedef foo_t struct foo;
 
 In fact, don't use 'variable type' suffixes at all; it's much preferable to
 just type 'struct foo' rather than 'foo_s'.

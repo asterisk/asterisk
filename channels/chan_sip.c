@@ -11647,7 +11647,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		return;
 	} else if (!ast_strlen_zero(c = get_header(req, "Record"))) {
 		/* first, get the feature string, if it exists */
-		struct ast_call_feature *feat = find_feature("automon");
+		struct ast_call_feature *feat = ast_find_call_feature("automon");
 		
 		if (!feat || ast_strlen_zero(feat->exten)) {
 			ast_log(LOG_WARNING,"Recording requested, but no One Touch Monitor registered. (See features.conf)\n");
