@@ -160,7 +160,7 @@ static char *ajistatus_descrip =
 
 struct aji_client_container clients;
 
-struct aji_capabilities *capabilities;
+struct aji_capabilities *capabilities = NULL;
 
 /*! \brief Global flags, initialized to default values */
 static struct ast_flags globalflags = { AJI_AUTOPRUNE | AJI_AUTOREGISTER };
@@ -207,6 +207,15 @@ static void aji_buddy_destroy(struct aji_buddy *obj)
 	free(obj);
 }
 
+/*!
+ * \brief Find version in XML stream and populate our capabilities list
+ * \param node the node attribute in the caps element we'll look for or add to 
+ * our list
+ * \param version the version attribute in the caps element we'll look for or 
+ * add to our list
+ * \param pak the XML stanza we're processing
+ * \return a pointer to the added or found aji_version structure
+ */ 
 static struct aji_version *aji_find_version(char *node, char *version, ikspak *pak)
 {
 	struct aji_capabilities *list = NULL;
@@ -226,6 +235,8 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 					 return res;
 				 res = res->next;
 			}
+			/* Specified version not found. Let's add it to 
+			   this node in our capabilities list */
 			if(!res) {
 				res = (struct aji_version *)malloc(sizeof(struct aji_version));
 				if(!res) {
@@ -242,6 +253,7 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 		}
 		list = list->next;
 	}
+	/* Specified node not found. Let's add it our capabilities list */
 	if(!list) {
 		list = (struct aji_capabilities *)malloc(sizeof(struct aji_capabilities));
 		if(!list) {
@@ -257,7 +269,7 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 		ast_copy_string(res->version, version, sizeof(res->version));
 		res->jingle = 0;
 		res->parent = list;
-		res->next = list->versions;
+		res->next = NULL;
 		list->versions = res;
 		list->next = capabilities;
 		capabilities = list;
