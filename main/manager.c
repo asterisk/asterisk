@@ -2204,6 +2204,42 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_corestatus[] =
+"Description: Query for Core PBX status.\n"
+"Variables: (Names marked with * are optional)\n"
+"       *ActionID: ActionID of this transaction\n";
+
+/*! \brief Show PBX core status information */
+static int action_corestatus(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	char idText[150];
+	char startuptime[150];
+	char reloadtime[150];
+	struct tm tm;
+
+        if (!ast_strlen_zero(actionid)) {
+                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+        }
+	localtime_r(&ast_startuptime, &tm);
+	strftime(startuptime, sizeof(startuptime), "%H:%M:%S", &tm);
+	localtime_r(&ast_lastreloadtime, &tm);
+	strftime(reloadtime, sizeof(reloadtime), "%H:%M:%S", &tm);
+
+	astman_append(s, "Response: Success\r\n"
+			"%s"
+			"CoreStartupTime: %s\r\n"
+			"CoreReloadTime: %s\r\n"
+			"CoreCurrentCalls: %d\r\n"
+			"",
+			idText,
+			startuptime,
+			reloadtime,
+			ast_active_channels()
+			);
+	return 0;
+}
+
 
 /*
  * Done with the action handlers here, we start with the code in charge
@@ -3172,6 +3208,7 @@ int init_manager(void)
 		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
+		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
 
 		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);
