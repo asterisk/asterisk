@@ -11645,6 +11645,38 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			transmit_response(p, "403 Unauthorized", req);
 		}
 		return;
+	} else if (!ast_strlen_zero(c = get_header(req, "Record"))) {
+		/* first, get the feature string, if it exists */
+		struct ast_call_feature *feat = find_feature("automon");
+		
+		if (!feat || ast_strlen_zero(feat->exten)) {
+			ast_log(LOG_WARNING,"Recording requested, but no One Touch Monitor registered. (See features.conf)\n");
+			transmit_response(p, "415 Unsupported media type", req);
+			return;
+		} else {
+			int j;
+			struct ast_frame f = { AST_FRAME_DTMF, };
+			f.len = 100;
+			for (j=0; j<strlen(feat->exten); j++) {
+				f.subclass = feat->exten[j];
+				ast_queue_frame(p->owner, &f);
+				if (sipdebug)
+					ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
+			}
+		}
+		
+		if (strcasecmp(c,"on")== 0) {
+		
+			ast_log(LOG_NOTICE,"Got a Request to Record the channel!\n");
+			transmit_response(p, "200 OK", req);
+			return;
+
+		} else if (strcasecmp(c,"off")== 0) {
+
+			ast_log(LOG_NOTICE,"Got a Request to Stop Recording the channel\n");
+			transmit_response(p, "200 OK", req);
+			return;
+		}
 	}
 	/* Other type of INFO message, not really understood by Asterisk */
 	/* if (get_msg_text(buf, sizeof(buf), req)) { */

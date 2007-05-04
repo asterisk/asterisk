@@ -1056,7 +1056,7 @@ static void ast_unregister_features(void)
 }
 
 /*! \brief find a feature by name */
-static struct ast_call_feature *find_feature(char *name)
+struct ast_call_feature *find_feature(char *name)
 {
 	struct ast_call_feature *tmp;
 

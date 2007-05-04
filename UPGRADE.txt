@@ -61,3 +61,14 @@ Formats:
   choppiness or the clipping of loud signal peaks.  To increasing the volume
   of voicemail messages, use the 'volgain' option in voicemail.conf
 
+Channel Drivers:
+
+* chan_sip.c: a small upgrade to support the "Record" button on the SNOM360,
+  which sends a sip INFO message with a "Record: on" or "Record: off" 
+  header. If asterisk is set up (via features.conf) to accept "One Touch Monitor"
+  requests (by default, via '*1'), then the user-configured dialpad sequence
+  is generated, and recording can be started and stopped via this button. The
+  file names and formats are all controlled via the normal mechanisms. If the
+  user has not configured the automon feature, the normal "415 Unsupported media type"
+  is returned, and nothing is done.
+
