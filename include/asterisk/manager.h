@@ -45,6 +45,7 @@
     You can find a reference of standard headers in doc/manager.txt
  */
 
+#define AMI_VERSION			"1.0"
 #define DEFAULT_MANAGER_PORT 5038	/* Default port for Asterisk management via TCP */
 
 #define EVENT_FLAG_SYSTEM 		(1 << 0) /* System events such as module load/unload */

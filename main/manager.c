@@ -76,6 +76,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/acl.h"
 #include "asterisk/utils.h"
 #include "asterisk/http.h"
+#include "asterisk/version.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
 
@@ -2158,6 +2159,52 @@ static int action_userevent(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_coresettings[] =
+"Description: Query for Core PBX settings.\n"
+"Variables: (Names marked with * are optional)\n"
+"       *ActionID: ActionID of this transaction\n";
+
+/*! \brief Show PBX core settings information */
+static int action_coresettings(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	char idText[150];
+
+        if (!ast_strlen_zero(actionid)) {
+                snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+        }
+
+	astman_append(s, "Response: Success\r\n"
+			"%s"
+			"AMIversion: %s\r\n"
+			"AsteriskVersion: %s\r\n"
+			"SystemName: %s\r\n"
+			"CoreMaxCalls: %d\r\n"
+			"CoreMaxLoadAvg: %f\r\n"
+			"CoreRunUser: %s\r\n"
+			"CoreRunGroup: %s\r\n"
+			"CoreMaxFilehandles: %d\r\n" 
+			"CoreRealTimeEnabled: %s\r\n"
+			"CoreCDRenabled: %s\r\n"
+			"CoreHTTPenabled: %s\r\n"
+			,
+			AMI_VERSION,
+			idText,
+			ASTERISK_VERSION, 
+			ast_config_AST_SYSTEM_NAME,
+			option_maxcalls,
+			option_maxload,
+			ast_config_AST_RUN_USER,
+			ast_config_AST_RUN_GROUP,
+			option_maxfiles,
+			ast_realtime_enabled() ? "Yes" : "No",
+			check_cdr_enabled() ? "Yes" : "No",
+			check_webmanager_enabled() ? "Yes" : "No"
+			);
+	return 0;
+}
+
+
 /*
  * Done with the action handlers here, we start with the code in charge
  * of accepting connections and serving them.
@@ -2354,7 +2401,7 @@ static void *session_do(void *data)
 	/* Hook to the tail of the event queue */
 	s->last_ev = grab_last();
 	s->f = ser->f;
-	astman_append(s, "Asterisk Call Manager/1.0\r\n");	/* welcome prompt */
+	astman_append(s, "Asterisk Call Manager/%s\r\n", AMI_VERSION);	/* welcome prompt */
 	for (;;) {
 		if ((res = do_message(s)) < 0)
 			break;
@@ -3124,6 +3171,7 @@ int init_manager(void)
 		ast_manager_register2("SendText", EVENT_FLAG_CALL, action_sendtext, "Send text message to channel", mandescr_sendtext);
 		ast_manager_register2("UserEvent", EVENT_FLAG_USER, action_userevent, "Send an arbitrary event", mandescr_userevent);
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
+		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
 
 		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);

@@ -110,6 +110,7 @@ enum ast_option_flags {
 extern struct ast_flags ast_options;
 
 extern int option_verbose;
+extern int option_maxfiles;		/*!< Max number of open file handles (files, sockets) */
 extern int option_debug;		/*!< Debugging */
 extern int option_maxcalls;		/*!< Maximum number of simultaneous channels */
 extern double option_maxload;
