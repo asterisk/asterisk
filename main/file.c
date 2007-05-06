@@ -137,6 +137,11 @@ int ast_stopstream(struct ast_channel *tmp)
 		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
 			ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	}
+	/* Stop the video stream too */
+	if (tmp->vstream != NULL) {
+		ast_closestream(tmp->vstream);
+		tmp->vstream = NULL;
+	}
 	return 0;
 }
 
