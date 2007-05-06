@@ -3343,7 +3343,10 @@ static int iax2_answer(struct ast_channel *c)
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Answering IAX2 call\n");
-	iax2_ami_channelupdate(c->tech_pvt);
+	ast_mutex_lock(&iaxsl[callno]);
+	if (iaxs[callno])
+		iax2_ami_channelupdate(iaxs[callno]);
+	ast_mutex_unlock(&iaxsl[callno]);
 	return send_command_locked(callno, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
