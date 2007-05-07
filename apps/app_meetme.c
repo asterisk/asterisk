@@ -2768,17 +2768,16 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 
 	u = ast_module_user_add(chan);
 
-	AST_LIST_LOCK(&confs);
-	
 	params = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, params);
 
 	if (!args.command) {
 		ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
-		AST_LIST_UNLOCK(&confs);
 		ast_module_user_remove(u);
 		return -1;
 	}
+
+	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
 		if (!strcmp(cnf->confno, args.confno))
 			break;
@@ -2953,7 +2952,7 @@ static int channel_admin_exec(struct ast_channel *chan, void *data) {
 	}
 	
 	/* perform the specified action */
-	switch(*args.command) {
+	switch (*args.command) {
 		case 77: /* M: Mute */ 
 			user->adminflags |= ADMINFLAG_MUTED;
 			break;
