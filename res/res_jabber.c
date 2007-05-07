@@ -19,6 +19,8 @@
 /*! \file
  * \brief A resource for interfacing asterisk directly as a client
  * or a component to a jabber compliant server.
+ *
+ * \extref Iksemel http://iksemel.jabberstudio.org/
  */
 
 /*** MODULEINFO

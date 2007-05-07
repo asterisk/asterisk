@@ -21,6 +21,8 @@
  * \author Matt O'Gorman <mogorman@digium.com>
  *
  * \brief Jingle Channel Driver
+ *
+ * \extref Iksemel http://iksemel.jabberstudio.org/
  * 
  * \ingroup channel_drivers
  */
