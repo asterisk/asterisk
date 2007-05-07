@@ -21,7 +21,10 @@
  * \file
  *
  * \brief the chan_misdn channel driver for Asterisk
+ *
  * \author Christian Richter <crich@beronet.com>
+ *
+ * \extref MISDN http://www.misdn.org/
  *
  * \ingroup channel_drivers
  */
