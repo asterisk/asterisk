@@ -1113,6 +1113,20 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	return count;
 }
 
+int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
+{
+	struct ast_group_info *gi = NULL;
+
+	AST_LIST_LOCK(&groups);
+	AST_LIST_TRAVERSE(&groups, gi, list) {
+		if (gi->chan == old)
+			gi->chan = new;
+	}
+	AST_LIST_UNLOCK(&groups);
+
+	return 0;
+}
+
 int ast_app_group_discard(struct ast_channel *chan)
 {
 	struct ast_group_info *gi = NULL;
