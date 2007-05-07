@@ -3106,7 +3106,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		original->fds[x] = clone->fds[x];
 	}
 	/* Drop group from original */
-	ast_app_group_discard(original);
+	ast_app_group_update(clone, original);
 	clone_variables(original, clone);
 	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 	/* Presense of ADSI capable CPE follows clone */
