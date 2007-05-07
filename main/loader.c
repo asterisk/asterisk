@@ -891,7 +891,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 }
 
 /*! \brief Check if module exists */
-int ast_module_check(char *name)
+int ast_module_check(const char *name)
 {
 	struct ast_module *cur;
 

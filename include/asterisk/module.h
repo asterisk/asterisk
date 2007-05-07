@@ -118,7 +118,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
  * \param name Module name, like "chan_sip.so"
  * \return 0 if false, 1 if true 
  */
-int ast_module_check(char *name);
+int ast_module_check(const char *name);
 
 /*! 
  * \brief Add a procedure to be run when modules have been updated.
