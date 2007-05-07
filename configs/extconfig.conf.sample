@@ -40,7 +40,12 @@
 ; the family if the table is not specified
 ;
 ;example => odbc,asterisk,alttable
-;example2 => ldap,"dc=oxymium,dc=net",example2
+;
+; "odbc" is shown in the examples below, but is not the only valid realtime
+; engine.  There is:
+;    odbc ... res_config_odbc
+;    pgsql ... res_config_pgsql
+;    mysql ... res_config_mysql (available from asterisk-addons)
 ;
 ;iaxusers => odbc,asterisk
 ;iaxpeers => odbc,asterisk
