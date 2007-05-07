@@ -124,6 +124,9 @@ MeetMe Changes
      created is stored.  Then, every channel that joins the conference will have the
      MEETMEUNIQUEID channel variable set with this ID.  This can be used to relate
      callers that come and go from long standing conferences.
+  * Added a new application, MeetMeChannelAdmin, which is similar to MeetMeAdmin,
+     except it does operations on a channel by name, instead of number in a conference.
+     This is a very useful feature in combination with the 'X' option to ChanSpy.
 
 Miscellaneous 
 -------------

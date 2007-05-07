@@ -198,12 +198,14 @@ END_OPTIONS );
 static const char *app = "MeetMe";
 static const char *app2 = "MeetMeCount";
 static const char *app3 = "MeetMeAdmin";
+static const char *app4 = "MeetMeChannelAdmin";
 static const char *slastation_app = "SLAStation";
 static const char *slatrunk_app = "SLATrunk";
 
 static const char *synopsis = "MeetMe conference bridge";
 static const char *synopsis2 = "MeetMe participant count";
 static const char *synopsis3 = "MeetMe conference Administration";
+static const char *synopsis4 = "MeetMe conference Administration (channel specific)";
 static const char *slastation_synopsis = "Shared Line Appearance Station";
 static const char *slatrunk_synopsis = "Shared Line Appearance Trunk";
 
@@ -285,6 +287,14 @@ static const char *descrip3 =
 "      'U' -- Raise one user's listen volume\n"
 "      'v' -- Lower entire conference listening volume\n"
 "      'V' -- Raise entire conference listening volume\n"
+"";
+
+static const char *descrip4 = 
+"  MeetMeChannelAdmin(channel|command): Run admin command for a specific\n"
+"channel in any coference.\n"
+"      'k' -- Kick the specified user out of the conference he is in\n"
+"      'm' -- Unmute the specified user\n"
+"      'M' -- Mute the specified user\n"
 "";
 
 static const char *slastation_desc =
@@ -2893,6 +2903,78 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	return 0;
 }
 
+/*--- channel_admin_exec: The MeetMeChannelAdmin application */
+/* MeetMeChannelAdmin(channel, command) */
+static int channel_admin_exec(struct ast_channel *chan, void *data) {
+	char *params;
+	struct ast_conference *conf = NULL;
+	struct ast_conf_user *user = NULL;
+	struct ast_module_user *u;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(channel);
+		AST_APP_ARG(command);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "MeetMeChannelAdmin requires two arguments!\n");
+		return -1;
+	}
+	
+	u = ast_module_user_add(chan);
+
+	params = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, params);
+
+	if (!args.channel) {
+		ast_log(LOG_WARNING, "MeetMeChannelAdmin requires a channel name!\n");
+		ast_module_user_remove(u);
+		return -1;
+	}
+
+	if (!args.command) {
+		ast_log(LOG_WARNING, "MeetMeChannelAdmin requires a command!\n");
+		ast_module_user_remove(u);
+		return -1;
+	}
+
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, conf, list) {
+		AST_LIST_TRAVERSE(&conf->userlist, user, list) {
+			if (!strcmp(user->chan->name, args.channel))
+				break;
+		}
+	}
+	
+	if (!user) {
+		ast_log(LOG_NOTICE, "Specified user (%s) not found\n", args.channel);
+		AST_LIST_UNLOCK(&confs);
+		ast_module_user_remove(u);
+		return 0;
+	}
+	
+	/* perform the specified action */
+	switch(*args.command) {
+		case 77: /* M: Mute */ 
+			user->adminflags |= ADMINFLAG_MUTED;
+			break;
+		case 109: /* m: Unmute */ 
+			user->adminflags &= ~ADMINFLAG_MUTED;
+			break;
+		case 107: /* k: Kick user */ 
+			user->adminflags |= ADMINFLAG_KICKME;
+			break;
+		default: /* unknown command */
+			ast_log(LOG_WARNING, "Unknown MeetMeChannelAdmin command '%s'\n", args.command);
+			break;
+	}
+
+	AST_LIST_UNLOCK(&confs);
+
+	ast_module_user_remove(u);
+	
+	return 0;
+}
+
 static int meetmemute(struct mansession *s, const struct message *m, int mute)
 {
 	struct ast_conference *conf;
@@ -4757,6 +4839,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
 	res = ast_manager_unregister("MeetmeMute");
 	res |= ast_manager_unregister("MeetmeUnmute");
+	res |= ast_unregister_application(app4);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
@@ -4784,6 +4867,7 @@ static int load_module(void)
 				    action_meetmemute, "Mute a Meetme user");
 	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, 
 				    action_meetmeunmute, "Unmute a Meetme user");
+	res |= ast_register_application(app4, channel_admin_exec, synopsis4, descrip4);
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
 	res |= ast_register_application(app, conf_exec, synopsis, descrip);
