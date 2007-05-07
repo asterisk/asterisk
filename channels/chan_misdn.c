@@ -94,17 +94,17 @@ struct misdn_jb{
 
 
 
-/* allocates the jb-structure and initialise the elements*/
+/*! \brief allocates the jb-structure and initialise the elements*/
 struct misdn_jb *misdn_jb_init(int size, int upper_threshold);
 
-/* frees the data and destroys the given jitterbuffer struct */
+/*! \brief frees the data and destroys the given jitterbuffer struct */
 void misdn_jb_destroy(struct misdn_jb *jb);
 
-/* fills the jitterbuffer with len data returns < 0 if there was an
+/*! \brief fills the jitterbuffer with len data returns < 0 if there was an
 error (bufferoverun). */
 int misdn_jb_fill(struct misdn_jb *jb, const char *data, int len);
 
-/* gets len bytes out of the jitterbuffer if available, else only the
+/*! \brief gets len bytes out of the jitterbuffer if available, else only the
 available data is returned and the return value indicates the number
 of data. */
 int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
@@ -167,7 +167,7 @@ struct chan_list {
 	char ast_rd_buf[4096];
 	struct ast_frame frame;
 
-	int faxdetect; /* 0:no 1:yes 2:yes+nojump */
+	int faxdetect; /*!<  0:no 1:yes 2:yes+nojump */
 	int faxdetect_timeout;
 	struct timeval faxdetect_tv;
 	int faxhandled;
@@ -271,7 +271,7 @@ static struct robin_list* get_robin_position (char *group)
 }
 
 
-/* the main schedule context for stuff like l1 watcher, overlap dial, ... */
+/*! \brief the main schedule context for stuff like l1 watcher, overlap dial, ... */
 static struct sched_context *misdn_tasks = NULL;
 static pthread_t misdn_tasks_thread;
 
@@ -296,7 +296,7 @@ static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
 
-/* Only alaw and mulaw is allowed for now */
+/*! \brief Only alaw and mulaw is allowed for now */
 static int prefformat =  AST_FORMAT_ALAW ; /*  AST_FORMAT_SLINEAR ;  AST_FORMAT_ULAW | */
 
 static int *misdn_debug;
