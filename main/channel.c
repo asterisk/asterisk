@@ -3575,7 +3575,7 @@ int ast_do_masquerade(struct ast_channel *original)
 			original->fds[x] = clone->fds[x];
 	}
 
-	ast_app_group_discard(original);
+	ast_app_group_update(clone, original);
 
 	/* move any whisperer over */
 	ast_channel_whisper_stop(original);
