@@ -16,6 +16,9 @@
 #include "isdn_lib_intern.h"
 #include <mISDNuser/isdn_debug.h>
 
+
+int cfg_remember_l1=0;
+
 void misdn_join_conf(struct misdn_bchannel *bc, int conf_id);
 void misdn_split_conf(struct misdn_bchannel *bc, int conf_id);
 
@@ -1318,7 +1321,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 #endif
 		misdn_lib_get_short_status(stack);
 		misdn_lib_get_l1_up(stack);
-		misdn_lib_get_l2_up(stack);
+		misdn_lib_get_l2_up(stack); 
 	}
 
 	cb_log(8,0,"stack_init: port:%d lowerId:%x  upperId:%x\n",stack->port,stack->lower_id, stack->upper_id);
@@ -1711,7 +1714,7 @@ int misdn_lib_port_up(int port, int check)
 				if (stack->l1link && stack->l2link) {
 					return 1;
 				} else {
-					cb_log(0,port, "Port Down L2:%d L1:%d\n",
+					cb_log(1,port, "Port Down L2:%d L1:%d\n",
 						stack->l2link, stack->l1link);
 					return 0;
 				}
@@ -1719,7 +1722,7 @@ int misdn_lib_port_up(int port, int check)
 				if ( !check || stack->l1link )
 					return 1;
 				else {
-					cb_log(0,port, "Port down PMP\n");
+					cb_log(1,port, "Port down PMP\n");
 					return 0;
 				}
 			}
@@ -2848,8 +2851,11 @@ int handle_mgmt(msg_t *msg)
 			/*when the L2 goes UP, L1 needs to be UP too*/
 			stack->l1link=1;
 			stack->l2link=1;
-			if ( !stack->ptp && !stack->nt )
-				stack->l1link=2;
+			
+			if (cfg_remember_l1) {
+				if ( !stack->ptp && !stack->nt )
+					stack->l1link=2;
+			}
 			break;
 			
 		case SSTATUS_L2_RELEASED:
