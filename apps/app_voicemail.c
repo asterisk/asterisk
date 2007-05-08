@@ -6783,21 +6783,24 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 			break;
 		case '7':
-			vms.deleted[vms.curmsg] = !vms.deleted[vms.curmsg];
-			if (useadsi)
-				adsi_delete(chan, &vms);
-			if (vms.deleted[vms.curmsg]) 
-				cmd = ast_play_and_wait(chan, "vm-deleted");
-			else
-				cmd = ast_play_and_wait(chan, "vm-undeleted");
-			if (ast_test_flag((&globalflags), VM_SKIPAFTERCMD)) {
-				if (vms.curmsg < vms.lastmsg) {
-					vms.curmsg++;
-					cmd = play_message(chan, vmu, &vms);
-				} else {
-					cmd = ast_play_and_wait(chan, "vm-nomore");
+			if (vms.curmsg >= 0 && vms.curmsg <= vms.lastmsg) {
+				vms.deleted[vms.curmsg] = !vms.deleted[vms.curmsg];
+				if (useadsi)
+					adsi_delete(chan, &vms);
+				if (vms.deleted[vms.curmsg]) 
+					cmd = ast_play_and_wait(chan, "vm-deleted");
+				else
+					cmd = ast_play_and_wait(chan, "vm-undeleted");
+				if (ast_test_flag((&globalflags), VM_SKIPAFTERCMD)) {
+					if (vms.curmsg < vms.lastmsg) {
+						vms.curmsg++;
+						cmd = play_message(chan, vmu, &vms);
+					} else {
+						cmd = ast_play_and_wait(chan, "vm-nomore");
+					}
 				}
-			}
+			} else /* Delete not valid if we haven't selected a message */
+				cmd = 0;
 #ifdef IMAP_STORAGE
 			deleted = 1;
 #endif
