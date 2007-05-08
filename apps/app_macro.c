@@ -149,6 +149,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	char *macro;
 	char fullmacro[80];
 	char varname[80];
+	char runningapp[80], runningdata[1024];
 	char *oldargs[MAX_ARGS + 1] = { NULL, };
 	int argc, x;
 	int res=0;
@@ -167,9 +168,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	char *save_macro_offset;
 	struct ast_module_user *u;
  
-	struct ast_context *c;
-	struct ast_exten *e;
-
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return -1;
@@ -280,13 +278,31 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+		struct ast_context *c;
+		struct ast_exten *e;
+
 		/* What application will execute? */
-		for (c = ast_walk_contexts(NULL), e = NULL; c; c = ast_walk_contexts(c)) {
-			if (!strcmp(ast_get_context_name(c), chan->context)) {
-				e = find_matching_priority(c, chan->exten, chan->priority, chan->cid.cid_num);
-				break;
+		if (ast_rdlock_contexts()) {
+			ast_log(LOG_WARNING, "Failed to lock contexts list\n");
+			e = NULL;
+		} else {
+			for (c = ast_walk_contexts(NULL), e = NULL; c; c = ast_walk_contexts(c)) {
+				if (!strcmp(ast_get_context_name(c), chan->context)) {
+					if (ast_rdlock_context(c)) {
+						ast_log(LOG_WARNING, "Unable to lock context?\n");
+						runningapp[0] = '\0';
+						runningdata[0] = '\0';
+					} else {
+						e = find_matching_priority(c, chan->exten, chan->priority, chan->cid.cid_num);
+						ast_copy_string(runningapp, ast_get_extension_app(e), sizeof(runningapp));
+						ast_copy_string(runningdata, ast_get_extension_app_data(e), sizeof(runningdata));
+						ast_unlock_context(c);
+					}
+					break;
+				}
 			}
 		}
+		ast_unlock_contexts();
 
 		/* Reset the macro depth, if it was changed in the last iteration */
 		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
@@ -321,15 +337,14 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			}
 		}
 
-		ast_log(LOG_DEBUG, "Executed application: %s\n", ast_get_extension_app(e));
+		ast_log(LOG_DEBUG, "Executed application: %s\n", runningapp);
 
-		if (e && !strcasecmp(ast_get_extension_app(e), "GOSUB")) {
+		if (!strcasecmp(runningapp, "GOSUB")) {
 			gosub_level++;
 			ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
-		} else if (e && !strcasecmp(ast_get_extension_app(e), "GOSUBIF")) {
-			const char *tmp = ast_get_extension_app_data(e);
+		} else if (!strcasecmp(runningapp, "GOSUBIF")) {
 			char tmp2[1024] = "", *cond, *app, *app2 = tmp2;
-			pbx_substitute_variables_helper(chan, tmp, tmp2, sizeof(tmp2) - 1);
+			pbx_substitute_variables_helper(chan, runningdata, tmp2, sizeof(tmp2) - 1);
 			cond = strsep(&app2, "?");
 			app = strsep(&app2, ":");
 			if (pbx_checkcondition(cond)) {
@@ -343,18 +358,17 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 					ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
 				}
 			}
-		} else if (e && !strcasecmp(ast_get_extension_app(e), "RETURN")) {
+		} else if (!strcasecmp(runningapp, "RETURN")) {
 			gosub_level--;
 			ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
-		} else if (e && !strcasecmp(ast_get_extension_app(e), "STACKPOP")) {
+		} else if (!strcasecmp(runningapp, "STACKPOP")) {
 			gosub_level--;
 			ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
-		} else if (e && !strncasecmp(ast_get_extension_app(e), "EXEC", 4)) {
+		} else if (!strncasecmp(runningapp, "EXEC", 4)) {
 			/* Must evaluate args to find actual app */
-			const char *tmp = ast_get_extension_app_data(e);
 			char tmp2[1024] = "", *tmp3 = NULL;
-			pbx_substitute_variables_helper(chan, tmp, tmp2, sizeof(tmp2) - 1);
-			if (!strcasecmp(ast_get_extension_app(e), "EXECIF")) {
+			pbx_substitute_variables_helper(chan, runningdata, tmp2, sizeof(tmp2) - 1);
+			if (!strcasecmp(runningapp, "EXECIF")) {
 				tmp3 = strchr(tmp2, '|');
 				if (tmp3)
 					*tmp3++ = '\0';
