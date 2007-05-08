@@ -1058,7 +1058,7 @@ static void ast_unregister_features(void)
 }
 
 /*! \brief find a call feature by name */
-static struct ast_call_feature *find_feature(const char *name)
+static struct ast_call_feature *find_dynamic_feature(const char *name)
 {
 	struct ast_call_feature *tmp;
 
@@ -1172,13 +1172,16 @@ static void unmap_features(void)
 
 static int remap_feature(const char *name, const char *value)
 {
-	int res = -1;
-	struct ast_call_feature *feature;
+	int x, res = -1;
 
 	ast_rwlock_wrlock(&features_lock);
-	if ((feature = find_feature(name))) {
-		ast_copy_string(feature->exten, value, sizeof(feature->exten));
+	for (x = 0; x < FEATURES_COUNT; x++) {
+		if (strcasecmp(builtin_features[x].sname, name))
+			continue;
+
+		ast_copy_string(builtin_features[x].exten, value, sizeof(builtin_features[x].exten));
 		res = 0;
+		break;
 	}
 	ast_rwlock_unlock(&features_lock);
 
@@ -1223,23 +1226,21 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	tmp = ast_strdupa(dynamic_features);
 
 	while ((tok = strsep(&tmp, "#"))) {
-		ast_rwlock_rdlock(&features_lock);
-		if (!(feature = find_feature(tok))) {
-			ast_rwlock_unlock(&features_lock);
+		AST_LIST_LOCK(&feature_list);	
+		if (!(feature = find_dynamic_feature(tok)))
 			continue;
-		}
 			
 		/* Feature is up for consideration */
 		if (!strcmp(feature->exten, code)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
 			res = feature->operation(chan, peer, config, code, sense);
-			ast_rwlock_unlock(&features_lock);
+			AST_LIST_UNLOCK(&feature_list);
 			break;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
 			res = FEATURE_RETURN_STOREDIGITS;
 
-		ast_rwlock_unlock(&features_lock);
+		AST_LIST_UNLOCK(&feature_list);
 	}
 	
 	return res;
@@ -1274,14 +1275,14 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 
 			/* while we have a feature */
 			while ((tok = strsep(&tmp, "#"))) {
-				ast_rwlock_rdlock(&features_lock);
-				if ((feature = find_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
+				AST_LIST_LOCK(&feature_list);
+				if ((feature = find_dynamic_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 				}
-				ast_rwlock_unlock(&features_lock);
+				AST_LIST_UNLOCK(&feature_list);
 			}
 		}
 	}
@@ -2613,10 +2614,13 @@ static int load_config(void)
 			continue;
 		}
 
-		if ((feature = find_feature(var->name))) {
+		AST_LIST_LOCK(&feature_list);
+		if ((feature = find_dynamic_feature(var->name))) {
+			AST_LIST_UNLOCK(&feature_list);
 			ast_log(LOG_WARNING, "Dynamic Feature '%s' specified more than once!\n", var->name);
 			continue;
 		}
+		AST_LIST_UNLOCK(&feature_list);
 				
 		if (!(feature = ast_calloc(1, sizeof(*feature))))
 			continue;					
