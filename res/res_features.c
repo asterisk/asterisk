@@ -1004,7 +1004,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 /* add atxfer and automon as undefined so you can only use em if you configure them */
 #define FEATURES_COUNT ARRAY_LEN(builtin_features)
 
-struct ast_call_feature builtin_features[] = 
+AST_RWLOCK_DEFINE_STATIC(features_lock);
+
+static struct ast_call_feature builtin_features[] = 
  {
 	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
@@ -1056,16 +1058,14 @@ static void ast_unregister_features(void)
 }
 
 /*! \brief find a call feature by name */
-static struct ast_call_feature *find_feature(char *name)
+static struct ast_call_feature *find_feature(const char *name)
 {
 	struct ast_call_feature *tmp;
 
-	AST_LIST_LOCK(&feature_list);
 	AST_LIST_TRAVERSE(&feature_list, tmp, feature_entry) {
 		if (!strcasecmp(tmp->sname, name))
 			break;
 	}
-	AST_LIST_UNLOCK(&feature_list);
 
 	return tmp;
 }
@@ -1154,23 +1154,25 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 static void unmap_features(void)
 {
 	int x;
+
+	ast_rwlock_wrlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++)
 		strcpy(builtin_features[x].exten, builtin_features[x].default_exten);
+	ast_rwlock_unlock(&features_lock);
 }
 
 static int remap_feature(const char *name, const char *value)
 {
-	int x;
 	int res = -1;
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (!strcasecmp(name, builtin_features[x].sname)) {
-			ast_copy_string(builtin_features[x].exten, value, sizeof(builtin_features[x].exten));
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Remapping feature %s (%s) to sequence '%s'\n", builtin_features[x].fname, builtin_features[x].sname, builtin_features[x].exten);
-			res = 0;
-		} else if (!strcmp(value, builtin_features[x].exten)) 
-			ast_log(LOG_WARNING, "Sequence '%s' already mapped to function %s (%s) while assigning to %s\n", value, builtin_features[x].fname, builtin_features[x].sname, name);
+	struct ast_call_feature *feature;
+
+	ast_rwlock_wrlock(&features_lock);
+	if ((feature = find_feature(name))) {
+		ast_copy_string(feature->exten, value, sizeof(feature->exten));
+		res = 0;
 	}
+	ast_rwlock_unlock(&features_lock);
+
 	return res;
 }
 
@@ -1181,6 +1183,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	int res = FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
 	const char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
+	char *tmp, *tok;
 
 	if (sense == FEATURE_SENSE_CHAN)
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);	
@@ -1189,7 +1192,8 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
 
-	for (x=0; x < FEATURES_COUNT; x++) {
+	ast_rwlock_rdlock(&features_lock);
+	for (x = 0; x < FEATURES_COUNT; x++) {
 		if ((ast_test_flag(&features, builtin_features[x].feature_mask)) &&
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
@@ -1202,27 +1206,31 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 			}
 		}
 	}
+	ast_rwlock_unlock(&features_lock);
 
+	if (ast_strlen_zero(dynamic_features))
+		return res;
 
-	if (!ast_strlen_zero(dynamic_features)) {
-		char *tmp = ast_strdupa(dynamic_features);
-		char *tok;
+	tmp = ast_strdupa(dynamic_features);
 
-		while ((tok = strsep(&tmp, "#")) != NULL) {
-			feature = find_feature(tok);
-			
-			if (feature) {
-				/* Feature is up for consideration */
-				if (!strcmp(feature->exten, code)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
-					res = feature->operation(chan, peer, config, code, sense);
-					break;
-				} else if (!strncmp(feature->exten, code, strlen(code))) {
-					res = FEATURE_RETURN_STOREDIGITS;
-				}
-			}
+	while ((tok = strsep(&tmp, "#"))) {
+		ast_rwlock_rdlock(&features_lock);
+		if (!(feature = find_feature(tok))) {
+			ast_rwlock_unlock(&features_lock);
+			continue;
 		}
+			
+		/* Feature is up for consideration */
+		if (!strcmp(feature->exten, code)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
+			res = feature->operation(chan, peer, config, code, sense);
+			ast_rwlock_unlock(&features_lock);
+			break;
+		} else if (!strncmp(feature->exten, code, strlen(code)))
+			res = FEATURE_RETURN_STOREDIGITS;
+
+		ast_rwlock_unlock(&features_lock);
 	}
 	
 	return res;
@@ -1232,16 +1240,20 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 {
 	int x;
 	
-	ast_clear_flag(config, AST_FLAGS_ALL);	
-	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF)) {
-			if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask))
-				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
+	ast_clear_flag(config, AST_FLAGS_ALL);
 
-			if (ast_test_flag(&(config->features_callee), builtin_features[x].feature_mask))
-				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
-		}
+	ast_rwlock_rdlock(&features_lock);
+	for (x = 0; x < FEATURES_COUNT; x++) {
+		if (!ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
+			continue;
+
+		if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask))
+			ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
+
+		if (ast_test_flag(&(config->features_callee), builtin_features[x].feature_mask))
+			ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 	}
+	ast_rwlock_unlock(&features_lock);
 	
 	if (chan && peer && !(ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_0) && ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_1))) {
 		const char *dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
@@ -1253,12 +1265,14 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 
 			/* while we have a feature */
 			while ((tok = strsep(&tmp, "#"))) {
+				ast_rwlock_rdlock(&features_lock);
 				if ((feature = find_feature(tok)) && ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
 					if (ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
 						ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 				}
+				ast_rwlock_unlock(&features_lock);
 			}
 		}
 	}
@@ -1294,7 +1308,8 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 
 			ast_indicate(caller, AST_CONTROL_RINGING);
 			/* support dialing of the featuremap disconnect code while performing an attended tranfer */
-			for (x=0; x < FEATURES_COUNT; x++) {
+			ast_rwlock_rdlock(&features_lock);
+			for (x = 0; x < FEATURES_COUNT; x++) {
 				if (strcasecmp(builtin_features[x].sname, "disconnect"))
 					continue;
 
@@ -1304,6 +1319,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 				memset(dialed_code, 0, len);
 				break;
 			}
+			ast_rwlock_unlock(&features_lock);
 			x = 0;
 			started = ast_tvnow();
 			to = timeout;
@@ -2073,7 +2089,6 @@ static int park_exec(struct ast_channel *chan, void *data)
 static int handle_showfeatures(int fd, int argc, char *argv[])
 {
 	int i;
-	int fcount;
 	struct ast_call_feature *feature;
 	char format[] = "%-25s %-7s %-7s\n";
 
@@ -2082,23 +2097,20 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 
 	ast_cli(fd, format, "Pickup", "*8", ast_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
 
-	fcount = sizeof(builtin_features) / sizeof(builtin_features[0]);
-
-	for (i = 0; i < fcount; i++)
-	{
+	ast_rwlock_rdlock(&features_lock);
+	for (i = 0; i < FEATURES_COUNT; i++)
 		ast_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
-	}
+	ast_rwlock_unlock(&features_lock);
+
 	ast_cli(fd, "\n");
 	ast_cli(fd, format, "Dynamic Feature", "Default", "Current");
 	ast_cli(fd, format, "---------------", "-------", "-------");
-	if (AST_LIST_EMPTY(&feature_list)) {
+	if (AST_LIST_EMPTY(&feature_list))
 		ast_cli(fd, "(none)\n");
-	}
 	else {
 		AST_LIST_LOCK(&feature_list);
-		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
+		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry)
 			ast_cli(fd, format, feature->sname, "no def", feature->exten);	
-		}
 		AST_LIST_UNLOCK(&feature_list);
 	}
 	ast_cli(fd, "\nCall parking\n");
