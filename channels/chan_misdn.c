@@ -320,6 +320,7 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
+static int misdn_check_l2l1(struct ast_channel *chan, void *data);
 static int misdn_set_opt_exec(struct ast_channel *chan, void *data);
 static int misdn_facility_exec(struct ast_channel *chan, void *data);
 
@@ -2684,8 +2685,6 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				}
 			} while (!newbc && robin_channel != rr->channel);
 			
-			if (!newbc)
-				chan_misdn_log(-1, port, " Failed! No free channel in group %d!", group);
 		} else {		
 			for (port=misdn_cfg_get_next_port(0); port > 0;
 				 port=misdn_cfg_get_next_port(port)) {
@@ -2709,16 +2708,27 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				}
 			}
 		}
-	} else {
+		
+		/* Group dial failed ?*/
+		if (!newbc) {
+			ast_log(LOG_WARNING, 
+					"Could not Dial out on group '%s'.\n"
+					"\tEither the L2 and L1 on all of these ports where DOWN (see 'show application misdn_check_l2l1')\n"
+					"\tOr there was no free channel on none of the ports\n\n"
+					, group);
+			return NULL;
+		}
+	} else { /* 'Normal' Port dial * Port dial */
 		if (channel)
 			chan_misdn_log(1, port," --> preselected_channel: %d\n",channel);
 		newbc = misdn_lib_get_free_bc(port, channel, 0, dec);
+
+		if (!newbc) {
+			ast_log(LOG_WARNING, "Could not create channel on port:%d with extensions:%s\n",port,ext);
+			return NULL;
+		}
 	}
 	
-	if (!newbc) {
-		chan_misdn_log(-1, 0, "Could not create channel on port:%d with extensions:%s\n",port,ext);
-		return NULL;
-	}
 
 	/* create ast_channel and link all the objects together */
 	cl->bc=newbc;
@@ -4396,6 +4406,24 @@ int load_module(void)
 		);
 
 
+	ast_register_application("misdn_check_l2l1", misdn_check_l2l1, "misdn_check_l2l1",
+				 "misdn_check_l2l1(<port>||g:<groupname>,timeout)"
+				 "Checks if the L2 and L1 are up on either the given <port> or\n"
+				 "on the ports in the group with <groupname>\n"
+				 "If the L1/L2 are down, check_l2l1 gets up the L1/L2 and waits\n"
+				 "for <timeout> seconds that this happens. Otherwise, nothing happens\n"
+				 "\n"
+				 "This application, ensures the L1/L2 state of the Ports in a group\n"
+				 "it is intended to make the pmp_l1_check option redundant and to\n"
+				 "fix a buggy switch config from your provider\n"
+				 "\n"
+				 "a sample dialplan would look like:\n\n"
+				 "exten => _X.,1,misdn_check_l2l1(g:out|2)\n"
+				 "exten => _X.,n,dial(mISDN/g:out/${EXTEN})\n"
+				 "\n"
+		);
+
+
 	misdn_cfg_get( 0, MISDN_GEN_TRACEFILE, global_tracefile, BUFFERSIZE);
 
 	chan_misdn_log(0, 0, "-- mISDN Channel Driver Registred -- (BE AWARE THIS DRIVER IS EXPERIMENTAL!)\n");
@@ -4438,6 +4466,7 @@ int unload_module(void)
 	/* ast_unregister_application("misdn_crypt"); */
 	ast_unregister_application("misdn_set_opt");
 	ast_unregister_application("misdn_facility");
+	ast_unregister_application("misdn_check_l2l1");
   
 	ast_channel_unregister(&misdn_tech);
 
@@ -4526,6 +4555,86 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 	
 }
 
+static int misdn_check_l2l1(struct ast_channel *chan, void *data)
+{
+	if (strcasecmp(chan->tech->type,"mISDN")) {
+		ast_log(LOG_WARNING, "misdn_check_l2l1 makes only sense with chan_misdn channels!\n");
+		return -1;
+	}
+
+	AST_DECLARE_APP_ARGS(args,
+			AST_APP_ARG(grouppar);
+			AST_APP_ARG(timeout);
+	);
+
+	if (ast_strlen_zero((char *)data)) {
+		ast_log(LOG_WARNING, "misdn_check_l2l1 Requires arguments\n");
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc != 2) {
+		ast_log(LOG_WARNING, "Wrong argument count\n");
+		return 0;
+	}
+
+	/*ast_log(LOG_NOTICE, "Arguments: group/port '%s' timeout '%s'\n", args.grouppar, args.timeout);*/
+	char group[BUFFERSIZE+1];
+	char *port_str;
+
+	int port=0;
+	int timeout=atoi(args.timeout);
+	int dowait=0;
+
+	port_str=args.grouppar;
+
+	int port_up;
+	if (port_str[0]=='g' && port_str[1]==':' ) {
+		/* We make a group call lets checkout which ports are in my group */
+		port_str += 2;
+		strncpy(group, port_str, BUFFERSIZE);
+		group[BUFFERSIZE-1] = 0;
+		chan_misdn_log(2, 0, "Checking Ports in group: %s\n",group);
+
+		for (	port = misdn_cfg_get_next_port(port); 
+			port > 0;
+			port = misdn_cfg_get_next_port(port)) {
+			
+			chan_misdn_log(2,0,"trying port %d\n",port);
+
+			char cfg_group[BUFFERSIZE+1];
+			misdn_cfg_get(port, MISDN_CFG_GROUPNAME, cfg_group, BUFFERSIZE);
+
+			if (!strcasecmp(cfg_group, group)) {
+				port_up = misdn_lib_port_up(port, 1);
+
+				if (!port_up) {
+					chan_misdn_log(2, 0, " --> port '%d'\n", port);
+					misdn_lib_get_port_up(port);
+					dowait=1;
+				}
+			}
+		}
+
+	} else {
+		port = atoi(port_str);
+		chan_misdn_log(2, 0, "Checking Port: %d\n",port);
+		port_up = misdn_lib_port_up(port, 1);
+		if (!port_up) {
+			misdn_lib_get_port_up(port);
+			dowait=1;
+		}
+
+	}
+
+	if (dowait) {
+		chan_misdn_log(2, 0, "Waiting for '%d' seconds\n",timeout);
+		sleep(timeout);
+	}
+
+	return 0;
+}
 
 static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 {
