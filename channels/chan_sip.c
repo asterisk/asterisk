@@ -11653,14 +11653,17 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			pbx.
 		*/
 		/* first, get the feature string, if it exists */
-		struct ast_call_feature *feat = ast_find_call_feature("automon");
+		struct ast_call_feature *feat;
 		int j;
 		struct ast_frame f = { AST_FRAME_DTMF, };
-		
+
+		ast_rdlock_call_features();
+		feat = ast_find_call_feature("automon");
 		if (!feat || ast_strlen_zero(feat->exten)) {
 			ast_log(LOG_WARNING,"Recording requested, but no One Touch Monitor registered. (See features.conf)\n");
 			/* 403 means that we don't support this feature, so don't request it again */
 			transmit_response(p, "403 Forbidden", req);
+			ast_unlock_call_features();
 			return;
 		} 
 		/* OEJ: Why is the DTMF code included in the record section? */
@@ -11671,6 +11674,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			if (sipdebug)
 				ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
 		}
+		ast_unlock_call_features();
 #ifdef DISABLED_CODE
 		/* And feat isn't used here - Is this code tested at all??? 
 			We just send a reply ... 

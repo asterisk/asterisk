@@ -96,6 +96,9 @@ void ast_unregister_feature(struct ast_call_feature *feature);
 
 /*! \brief look for a call feature entry by its sname
 	\param name a string ptr, should match "automon", "blindxfer", "atxfer", etc. */
-struct ast_call_feature *ast_find_call_feature(char *name);
+struct ast_call_feature *ast_find_call_feature(const char *name);
+
+void ast_rdlock_call_features(void);
+void ast_unlock_call_features(void);
 
 #endif /* _AST_FEATURES_H */

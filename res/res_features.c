@@ -1070,14 +1070,23 @@ static struct ast_call_feature *find_feature(const char *name)
 	return tmp;
 }
 
+void ast_rdlock_call_features(void)
+{
+	ast_rwlock_rdlock(&features_lock);
+}
+
+void ast_unlock_call_features(void)
+{
+	ast_rwlock_unlock(&features_lock);
+}
+
 /*! \brief find a call feature by name */
-struct ast_call_feature *ast_find_call_feature(char *name)
+struct ast_call_feature *ast_find_call_feature(const char *name)
 {
 	int x;
 	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (!strcasecmp(name, builtin_features[x].sname)) {
+		if (!strcasecmp(name, builtin_features[x].sname))
 			return &builtin_features[x];
-		}
 	}
 	return NULL;
 }
