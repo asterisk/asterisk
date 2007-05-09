@@ -2614,7 +2614,7 @@ int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duratio
 
 int ast_senddigit(struct ast_channel *chan, char digit)
 {
-	if (!ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY)) {
+	if (chan->tech->send_digit_begin) {
 		ast_senddigit_begin(chan, digit);
 		ast_safe_sleep(chan, 100); /* XXX 100ms ... probably should be configurable */
 	}
