@@ -14499,8 +14499,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				} 
 				/* Respond to normal re-invite */
 				if (sendok)
-					transmit_response_with_sdp(p, "200 OK", req, XMIT_CRITICAL);
-
+					transmit_response_with_sdp(p, "200 OK", req, ast_test_flag(req, SIP_PKT_IGNORE) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
 			}
 			p->invitestate = INV_TERMINATED;
 			break;
