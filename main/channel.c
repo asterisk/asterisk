@@ -2554,46 +2554,45 @@ int ast_sendtext(struct ast_channel *chan, const char *text)
 
 int ast_senddigit_begin(struct ast_channel *chan, char digit)
 {
-	int res = -1;
+	/* Device does not support DTMF tones, lets fake
+	 * it by doing our own generation. */
+	static const char* dtmf_tones[] = {
+		"941+1336", /* 0 */
+		"697+1209", /* 1 */
+		"697+1336", /* 2 */
+		"697+1477", /* 3 */
+		"770+1209", /* 4 */
+		"770+1336", /* 5 */
+		"770+1477", /* 6 */
+		"852+1209", /* 7 */
+		"852+1336", /* 8 */
+		"852+1477", /* 9 */
+		"697+1633", /* A */
+		"770+1633", /* B */
+		"852+1633", /* C */
+		"941+1633", /* D */
+		"941+1209", /* * */
+		"941+1477"  /* # */
+	};
 
-	if (chan->tech->send_digit_begin)
-		res = chan->tech->send_digit_begin(chan, digit);
+	if (!chan->tech->send_digit_begin)
+		return 0;
 
-	if (res) {
-		/* Device does not support DTMF tones, lets fake
-		 * it by doing our own generation. */
-		static const char* dtmf_tones[] = {
-			"941+1336", /* 0 */
-			"697+1209", /* 1 */
-			"697+1336", /* 2 */
-			"697+1477", /* 3 */
-			"770+1209", /* 4 */
-			"770+1336", /* 5 */
-			"770+1477", /* 6 */
-			"852+1209", /* 7 */
-			"852+1336", /* 8 */
-			"852+1477", /* 9 */
-			"697+1633", /* A */
-			"770+1633", /* B */
-			"852+1633", /* C */
-			"941+1633", /* D */
-			"941+1209", /* * */
-			"941+1477"  /* # */
-		};
+	if (!chan->tech->send_digit_begin(chan, digit))
+		return 0;
 
-		if (digit >= '0' && digit <='9')
-			ast_playtones_start(chan, 0, dtmf_tones[digit-'0'], 0);
-		else if (digit >= 'A' && digit <= 'D')
-			ast_playtones_start(chan, 0, dtmf_tones[digit-'A'+10], 0);
-		else if (digit == '*')
-			ast_playtones_start(chan, 0, dtmf_tones[14], 0);
-		else if (digit == '#')
-			ast_playtones_start(chan, 0, dtmf_tones[15], 0);
-		else {
-			/* not handled */
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, chan->name);
-		}
+	if (digit >= '0' && digit <='9')
+		ast_playtones_start(chan, 0, dtmf_tones[digit-'0'], 0);
+	else if (digit >= 'A' && digit <= 'D')
+		ast_playtones_start(chan, 0, dtmf_tones[digit-'A'+10], 0);
+	else if (digit == '*')
+		ast_playtones_start(chan, 0, dtmf_tones[14], 0);
+	else if (digit == '#')
+		ast_playtones_start(chan, 0, dtmf_tones[15], 0);
+	else {
+		/* not handled */
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unable to generate DTMF tone '%c' for '%s'\n", digit, chan->name);
 	}
 
 	return 0;
