@@ -287,7 +287,8 @@ _all: cleantest $(SUBDIRS)
 
 makeopts: configure
 	@echo "****"
-	@echo "**** The configure script must be executed before running '$(MAKE)'."
+	@echo "**** The configure script must be executed before running '$(MAKE)'." 
+	@echo "****               Please run \"./configure\"."
 	@echo "****"
 	@exit 1
 
