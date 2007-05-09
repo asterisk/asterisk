@@ -298,7 +298,7 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 
 	{
 		if (bc->keypad[0])
-			enc_ie_keypad(&setup->CALLED_PN, msg, bc->keypad, nt,bc);
+			enc_ie_keypad(&setup->KEYPAD, msg, bc->keypad, nt,bc);
 	}
 	
   
