@@ -5580,26 +5580,28 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	i->subs[index].linear = 0;
 	zt_setlinear(i->subs[index].zfd, i->subs[index].linear);
 	features = 0;
-	if (i->busydetect && CANBUSYDETECT(i))
-		features |= DSP_FEATURE_BUSY_DETECT;
-	if ((i->callprogress & 1) && CANPROGRESSDETECT(i))
-		features |= DSP_FEATURE_CALL_PROGRESS;
-	if ((!i->outgoing && (i->callprogress & 4)) || 
-	    (i->outgoing && (i->callprogress & 2))) {
-		features |= DSP_FEATURE_FAX_DETECT;
-	}
+	if (index == SUB_REAL) {
+		if (i->busydetect && CANBUSYDETECT(i))
+			features |= DSP_FEATURE_BUSY_DETECT;
+		if ((i->callprogress & 1) && CANPROGRESSDETECT(i))
+			features |= DSP_FEATURE_CALL_PROGRESS;
+		if ((!i->outgoing && (i->callprogress & 4)) || 
+		    (i->outgoing && (i->callprogress & 2))) {
+			features |= DSP_FEATURE_FAX_DETECT;
+		}
 #ifdef ZT_TONEDETECT
-	x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
-	if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
+		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
+		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
 #endif		
-		i->hardwaredtmf = 0;
-		features |= DSP_FEATURE_DTMF_DETECT;
+			i->hardwaredtmf = 0;
+			features |= DSP_FEATURE_DTMF_DETECT;
 #ifdef ZT_TONEDETECT
-	} else if (NEED_MFDETECT(i)) {
-		i->hardwaredtmf = 1;
-		features |= DSP_FEATURE_DTMF_DETECT;
-	}
+		} else if (NEED_MFDETECT(i)) {
+			i->hardwaredtmf = 1;
+			features |= DSP_FEATURE_DTMF_DETECT;
+		}
 #endif
+	}
 	if (features) {
 		if (i->dsp) {
 			if (option_debug)
