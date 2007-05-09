@@ -3999,9 +3999,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		stop_bc_tones(ch);
 		hangup_chan(ch);
-		release_chan(bc);
+
 		if(ch)	
 			ch->state=MISDN_CLEANING;
+
+		release_chan(bc);
 	}
 	break;
 	case EVENT_BCHAN_ERROR:
