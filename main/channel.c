@@ -2332,6 +2332,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				struct timeval now = ast_tvnow();
 				if (ast_tvdiff_ms(now, chan->dtmf_tv) >= chan->emulate_dtmf_duration) {
 					chan->emulate_dtmf_duration = 0;
+					ast_frfree(f);
+					f = &chan->dtmff;
 					f->frametype = AST_FRAME_DTMF_END;
 					f->subclass = chan->emulate_dtmf_digit;
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
@@ -2358,6 +2360,8 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				struct timeval now = ast_tvnow();
 				if (ast_tvdiff_ms(now, chan->dtmf_tv) >= chan->emulate_dtmf_duration) {
 					chan->emulate_dtmf_duration = 0;
+					ast_frfree(f);
+					f = &chan->dtmff;
 					f->frametype = AST_FRAME_DTMF_END;
 					f->subclass = chan->emulate_dtmf_digit;
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
