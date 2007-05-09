@@ -98,7 +98,7 @@ static void retrieve_file(char *dir)
 	void *fdm = MAP_FAILED;
 	SQLHSTMT stmt;
 	char sql[256];
-	char fmt[80]="";
+	char fmt[80]="", empty[10] = "";
 	char *c;
 	SQLLEN colsize;
 	char full_fn[256];
@@ -149,7 +149,7 @@ static void retrieve_file(char *dir)
 				break;
 			}
 
-			res = SQLGetData(stmt, 1, SQL_BINARY, NULL, 0, &colsize);
+			res = SQLGetData(stmt, 1, SQL_BINARY, empty, 0, &colsize);
 			fdlen = colsize;
 			if (fd > -1) {
 				char tmp[1]="";
