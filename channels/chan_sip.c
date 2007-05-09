@@ -7494,11 +7494,14 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 	
 	/* Check which device/devices we are watching  and if they are registered */
 	if (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten)) {
-		/* If they are not registered, we will override notification and show no availability */
-		if (ast_device_state(hint) == AST_DEVICE_UNAVAILABLE) {
-			local_state = NOTIFY_CLOSED;
-			pidfstate = "away";
-			pidfnote = "Not online";
+		char *hint2 = hint, *individual_hint = NULL;
+		while ((individual_hint = strsep(&hint2, "&"))) {
+			/* If they are not registered, we will override notification and show no availability */
+			if (ast_device_state(individual_hint) == AST_DEVICE_UNAVAILABLE) {
+				local_state = NOTIFY_CLOSED;
+				pidfstate = "away";
+				pidfnote = "Not online";
+			}
 		}
 	}
 
