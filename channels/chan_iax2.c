@@ -2563,7 +2563,8 @@ static int iax2_transmit(struct iax_frame *fr)
 	iaxq.count++;
 	ast_mutex_unlock(&iaxq.lock);
 	/* Wake up the network thread */
-	pthread_kill(netthreadid, SIGURG);
+	if (netthreadid != AST_PTHREADT_NULL)
+		pthread_kill(netthreadid, SIGURG);
 	return 0;
 }
 
