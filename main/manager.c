@@ -79,6 +79,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/term.h"
 
 /*!
  * Linked list of events.
@@ -1772,7 +1773,7 @@ static int action_command(struct mansession *s, const struct message *m)
 {
 	const char *cmd = astman_get_header(m, "Command");
 	const char *id = astman_get_header(m, "ActionID");
-	char *buf;
+	char *buf, *final_buf;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
 	int fd = mkstemp(template);
 	off_t l;
@@ -1783,13 +1784,16 @@ static int action_command(struct mansession *s, const struct message *m)
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
 	ast_cli_command(fd, cmd);	/* XXX need to change this to use a FILE * */
 	l = lseek(fd, 0, SEEK_END);	/* how many chars available */
-	buf = alloca(l+1);
+	buf = alloca(l + 1);
+	final_buf = alloca(l + 1);
 	lseek(fd, 0, SEEK_SET);
 	read(fd, buf, l);
 	buf[l] = '\0';
 	close(fd);
 	unlink(template);
-	astman_append(s, buf);
+	term_strip(final_buf, buf, l);
+	final_buf[l] = '\0';
+	astman_append(s, final_buf);
 	astman_append(s, "--END COMMAND--\r\n\r\n");
 	return 0;
 }
