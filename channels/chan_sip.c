@@ -14944,6 +14944,10 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	struct sip_pvt *p;
 	int newmsgs, oldmsgs;
 
+	/* Do we have an IP address? If not, skip this peer */
+	if (!peer->addr.sin_addr.s_addr && !peer->defaddr.sin_addr.s_addr) 
+		return 0;
+
 	/* Check for messages */
 	ast_app_inboxcount(peer->mailbox, &newmsgs, &oldmsgs);
 	
