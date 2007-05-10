@@ -2379,7 +2379,8 @@ static int iax2_transmit(struct iax_frame *fr)
 	iaxq.count++;
 	AST_LIST_UNLOCK(&iaxq.queue);
 	/* Wake up the network and scheduler thread */
-	pthread_kill(netthreadid, SIGURG);
+	if (netthreadid != AST_PTHREADT_NULL)
+		pthread_kill(netthreadid, SIGURG);
 	signal_condition(&sched_lock, &sched_cond);
 	return 0;
 }
