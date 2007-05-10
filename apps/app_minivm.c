@@ -2283,6 +2283,9 @@ static void free_zone(struct minivm_zone *z)
 static void timezone_destroy_list(void)
 {
 	struct minivm_zone *this;
+
+	if (AST_LIST_EMPTY(&minivm_zones))
+		return;
 	AST_LIST_LOCK(&minivm_zones);
 	while ((this = AST_LIST_REMOVE_HEAD(&minivm_zones, list))) 
 		free(this);
