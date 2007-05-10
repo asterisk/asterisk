@@ -15823,6 +15823,10 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	if (ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY) && !peer->mwipvt)
 		return 0;
 
+	/* Do we have an IP address? If not, skip this peer */
+	if (!peer->addr.sin_addr.s_addr && !peer->defaddr.sin_addr.s_addr) 
+		return 0;
+
 	if (!event) {
 		/* Check the event cache for the mailbox info */
 		event = cache_event = ast_event_get_cached(AST_EVENT_MWI,
