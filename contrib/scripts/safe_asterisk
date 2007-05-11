@@ -6,6 +6,8 @@ CONSOLE=yes		# Whether or not you want a console
 MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
 DUMPDROP=/tmp
 ASTSBINDIR=__ASTERISK_SBIN_DIR__
+ASTPIDFILE=__ASTERISK_VARRUN_DIR__/asterisk.pid
+
 #
 # Don't fork when running "safely"
 #
@@ -35,6 +37,11 @@ fi
 ulimit -c unlimited
 
 #
+# Don't die if stdout/stderr can't be written to
+#
+trap '' SIGPIPE
+
+#
 # Run scripts to set any environment variables or do any other system-specific setup needed
 #
 
@@ -53,10 +60,10 @@ run_asterisk()
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
+			${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
 		else
 			cd /tmp
-			${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS}
+			${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS}
 		fi
 		EXITSTATUS=$?
 		echo "Asterisk ended with exit status $EXITSTATUS"
@@ -71,7 +78,11 @@ run_asterisk()
 				echo "Asterisk on $MACHINE exited on signal $EXITSIGNAL.  Might want to take a peek." | \
 				mail -s "Asterisk Died" $NOTIFY
 			fi
-                        if [ -f /tmp/core ]; then
+
+			PID=`cat ${ASTPIDFILE}`
+                        if [ -f /tmp/core.${PID} ]; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+                        elif [ -f /tmp/core ]; then
 				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 			fi
 		else
@@ -80,7 +91,11 @@ run_asterisk()
 				exit 0
 			else
 				echo "Asterisk died with code $EXITSTATUS."
-	                        if [ -f /tmp/core ]; then
+
+				PID=`cat ${ASTPIDFILE}`
+				if [ -f /tmp/core.${PID} ]; then
+					mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+				elif [ -f /tmp/core ]; then
 					mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 				fi
 			fi
