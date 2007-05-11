@@ -1002,6 +1002,10 @@ static int authenticate(struct mansession *s, const struct message *m)
 				len += sprintf(md5key + len, "%2.2x", digest[x]);
 			if (!strcmp(md5key, key))
 				error = 0;
+		} else {
+			ast_log(LOG_DEBUG, "MD5 authentication is not possible.  challenge: '%s'\n", 
+				S_OR(s->challenge, ""));
+			return -1;
 		}
 	} else if (password) {
 		const char *pass = astman_get_header(m, "Secret");
