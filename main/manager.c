@@ -946,6 +946,11 @@ static int authenticate(struct mansession *s, const struct message *m)
 							ast_config_destroy(cfg);
 							return -1;
 						}
+					} else {
+						ast_log(LOG_DEBUG, "MD5 authentication is not possible.  challenge: '%s'\n", 
+							S_OR(s->challenge, ""));
+						ast_config_destroy(cfg);
+						return -1;
 					}
 				} else if (password && !strcmp(password, pass)) {
 					break;
