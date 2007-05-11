@@ -10,6 +10,7 @@ MACHINE=`hostname`			# To specify which machine has crashed when getting the mai
 DUMPDROP=/tmp
 SLEEPSECS=4
 ASTSBINDIR=__ASTERISK_SBIN_DIR__
+ASTPIDFILE=__ASTERISK_VARRUN_DIR__/asterisk.pid
 
 # comment this line out to have this script _not_ kill all mpg123 processes when
 # asterisk exits
@@ -96,6 +97,11 @@ if [ ! -w ${DUMPDROP} ]; then
 fi
 
 #
+# Don't die if stdout/stderr can't be written to
+#
+trap '' SIGPIPE
+
+#
 # Run scripts to set any environment variables or do any other system-specific setup needed
 #
 
@@ -114,10 +120,10 @@ run_asterisk()
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			nice -n $PRIORITY ${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
+			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
 		else
 			cd /tmp
-			nice -n $PRIORITY ${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS}
+			nice -n $PRIORITY ${ASTSBINDIR}/asterisk -f ${CLIARGS} ${ASTARGS}
 		fi
 		EXITSTATUS=$?
 		echo "Asterisk ended with exit status $EXITSTATUS"
@@ -135,7 +141,11 @@ run_asterisk()
 			if [ "$EXEC" != "" ]; then
 				$EXEC
 			fi
-			if [ -f /tmp/core ]; then
+
+			PID=`cat ${ASTPIDFILE}`
+			if [ -f /tmp/core.${PID} ]; then
+				mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+			elif [ -f /tmp/core ]; then
 				mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 			fi
 		else
@@ -144,7 +154,11 @@ run_asterisk()
 				exit 0
 			else
 				echo "Asterisk died with code $EXITSTATUS."
-				if [ -f /tmp/core ]; then
+
+				PID=`cat ${ASTPIDFILE}`
+				if [ -f /tmp/core.${PID} ]; then
+					mv /tmp/core.${PID} ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
+				elif [ -f /tmp/core ]; then
 					mv /tmp/core ${DUMPDROP}/core.`hostname`-`date -Iseconds` &
 				fi
 			fi

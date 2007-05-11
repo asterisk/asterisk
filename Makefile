@@ -427,7 +427,7 @@ bininstall: _all
 	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
 	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
-		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ;\
+		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;s|__ASTERISK_VARRUN_DIR__|$(ASTVARRUNDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ;\
 		chmod 755 $(DESTDIR)$(ASTSBINDIR)/safe_asterisk;\
 	fi
 	$(INSTALL) -d $(DESTDIR)$(ASTHEADERDIR)
