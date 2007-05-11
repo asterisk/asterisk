@@ -7,6 +7,10 @@ bindport=2000		; Port to bind to, default tcp/2000
 dateformat=M-D-Y	; M,D,Y in any order (5 chars max)
 keepalive=120
 
+;vmexten=8500		; Systemwide voicemailmain pilot number
+			; It must be in the same context as the calling
+			; device/line
+
 ;allow=all		; see doc/rtp-packetization for framing options
 ;disallow=
 
@@ -74,6 +78,7 @@ keepalive=120
 ;nat=yes
 ;callerid="Customer Support" <810-234-1212>
 ;mailbox=100
+;vmexten=8500			; Device level voicemailmain pilot number
 ;context=inbound
 ;linelabel="Support Line"	; Displays next to the line 
 				; button on 7940's and 7960s
