@@ -2374,6 +2374,7 @@ static void ast_readconfig(void)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	char *config = AST_CONFIG_FILE;
+	char hostname[MAXHOSTNAMELEN] = "";
 
 	if (ast_opt_override_config) {
 		cfg = ast_config_load(ast_config_AST_CONFIG_FILE);
@@ -2523,6 +2524,15 @@ static void ast_readconfig(void)
 			ast_copy_string(ast_config_AST_RUN_GROUP, v->value, sizeof(ast_config_AST_RUN_GROUP));
 		} else if (!strcasecmp(v->name, "systemname")) {
 			ast_copy_string(ast_config_AST_SYSTEM_NAME, v->value, sizeof(ast_config_AST_SYSTEM_NAME));
+		} else if (!strcasecmp(v->name, "autosystemname")) {
+			if (ast_true(v->value)) {
+				if (!gethostname(hostname, sizeof(hostname) - 1))
+					ast_copy_string(ast_config_AST_SYSTEM_NAME, hostname, sizeof(ast_config_AST_SYSTEM_NAME));
+				else {
+					ast_log(LOG_ERROR, "Cannot obtain hostname for this system.  Using 'localhost' instead.\n");
+					ast_copy_string(ast_config_AST_SYSTEM_NAME, "localhost", sizeof(ast_config_AST_SYSTEM_NAME));
+				}
+			}
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
 #if defined(HAVE_SYSINFO)
