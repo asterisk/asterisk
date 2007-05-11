@@ -495,7 +495,7 @@ static int handle_showmanager(int fd, int argc, char *argv[])
 		"          write: %s\n"
 		"displayconnects: %s\n",
 		(user->username ? user->username : "(N/A)"),
-		(user->secret ? user->secret : "(N/A)"),
+		(user->secret ? "<Set>" : "(N/A)"),
 		(user->deny ? user->deny : "(N/A)"),
 		(user->permit ? user->permit : "(N/A)"),
 		(user->read ? user->read : "(N/A)"),
