@@ -697,17 +697,16 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 
 
 /*--- handle_saynumber: Say number in various language syntaxes ---*/
-/* Need to add option for gender here as well. Coders wanted */
 /* While waiting, we're sending a NULL.  */
 static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
 	int num;
-	if (argc != 4)
+	if (argc < 4 || argc > 5)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_number_full(chan, num, argv[3], chan->language, NULL, agi->audio, agi->ctrl);
+	res = ast_say_number_full(chan, num, argv[3], chan->language, argc > 4 ? argv[4] : NULL, agi->audio, agi->ctrl);
 	if (res == 1)
 		return RESULT_SUCCESS;
 	fdprintf(agi->fd, "200 result=%d\n", res);
@@ -1513,7 +1512,7 @@ static char usage_getoption[] =
 "	Behaves similar to STREAM FILE but used with a timeout option.\n";
 
 static char usage_saynumber[] =
-" Usage: SAY NUMBER <number> <escape digits>\n"
+" Usage: SAY NUMBER <number> <escape digits> [gender]\n"
 "	Say a given number, returning early if any of the given DTMF digits\n"
 " are received on the channel.  Returns 0 if playback completes without a digit\n"
 " being pressed, or the ASCII numerical value of the digit if one was pressed or\n"
