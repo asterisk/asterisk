@@ -2529,7 +2529,7 @@ static void ast_readconfig(void)
 				if (!gethostname(hostname, sizeof(hostname) - 1))
 					ast_copy_string(ast_config_AST_SYSTEM_NAME, hostname, sizeof(ast_config_AST_SYSTEM_NAME));
 				else {
-					if (!ast_strlen_zero(ast_config_AST_SYSTEM_NAME)){
+					if (ast_strlen_zero(ast_config_AST_SYSTEM_NAME)){
 						ast_copy_string(ast_config_AST_SYSTEM_NAME, "localhost", sizeof(ast_config_AST_SYSTEM_NAME));
 					}
 					ast_log(LOG_ERROR, "Cannot obtain hostname for this system.  Using '%s' instead.\n", ast_config_AST_SYSTEM_NAME);
