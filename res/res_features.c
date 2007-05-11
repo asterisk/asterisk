@@ -360,6 +360,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			return 0;	/* Continue execution if possible */
 		}
 		ast_copy_string(pu->parkingexten, parkingexten, sizeof(pu->parkingexten));
+		x = atoi(parkingexten);
 	} else {
 		/* Select parking space within range */
 		parking_range = parking_stop - parking_start+1;
