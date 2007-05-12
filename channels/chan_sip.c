@@ -802,9 +802,9 @@ struct sip_auth {
 #define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< 21: T38 Fax Passthrough Support (not implemented) */
 #define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< 22: T38 Fax Passthrough Support (not implemented) */
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
-#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (0 << 23)       /*!< 23: Active hold */
-#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 23)	/*!< 23: One directional hold */
-#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 23)	/*!< 23: Inactive hold */
+#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< 23: Active hold */
+#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(2 << 23)	/*!< 23: One directional hold */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(3 << 23)	/*!< 23: Inactive hold */
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< 25: Compensate for buggy RFC2833 implementations */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< 26: Buggy CISCO MWI fix */
 #define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< 27: Text not supported  */
@@ -6804,9 +6804,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR))
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR)
 		hold = "a=recvonly\r\n";
-	else if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE))
+	else if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_INACTIVE)
 		hold = "a=inactive\r\n";
 	else
 		hold = "a=sendrecv\r\n";
