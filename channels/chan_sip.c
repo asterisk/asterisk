@@ -802,8 +802,9 @@ struct sip_auth {
 #define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< 21: T38 Fax Passthrough Support (not implemented) */
 #define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< 22: T38 Fax Passthrough Support (not implemented) */
 #define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
+#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (0 << 23)       /*!< 23: Active hold */
 #define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(1 << 23)	/*!< 23: One directional hold */
-#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(1 << 24)	/*!< 24: Inactive  */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(2 << 23)	/*!< 23: Inactive hold */
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< 25: Compensate for buggy RFC2833 implementations */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< 26: Buggy CISCO MWI fix */
 #define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< 27: Text not supported  */
@@ -5725,7 +5726,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		else if (sendonly == 2)	/* Inactive stream */
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
 		else
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
+			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
 		if (global_notifyhold)
 			sip_peer_hold(p, TRUE);
 	}
