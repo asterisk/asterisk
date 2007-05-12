@@ -5724,6 +5724,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
 		else if (sendonly == 2)	/* Inactive stream */
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
+		else
+			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
 		if (global_notifyhold)
 			sip_peer_hold(p, TRUE);
 	}
