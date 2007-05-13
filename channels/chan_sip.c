@@ -1915,6 +1915,15 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 	const struct sockaddr_in *dst = sip_real_dst(p);
 	res = sendto(sipsock, data, len, 0, (const struct sockaddr *)dst, sizeof(struct sockaddr_in));
 
+	if (res == -1) {
+		switch (errno) {
+			case EBADF: 		/* Bad file descriptor - seems like this is generated when the host exist, but doesn't accept the UDP packet */
+			case EHOSTUNREACH: 	/* Host can't be reached */
+			case ENETDOWN: 		/* Inteface down */
+			case ENETUNREACH:	/* Network failure */
+				res = -2;	/* Don't bother with trying to transmit again */
+		}
+	}
 	if (res != len)
 		ast_log(LOG_WARNING, "sip_xmit of %p (len %d) to %s:%d returned %d: %s\n", data, len, ast_inet_ntoa(dst->sin_addr), ntohs(dst->sin_port), res, strerror(errno));
 	return res;
@@ -2009,6 +2018,7 @@ static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt = data, *prev, *cur = NULL;
 	int reschedule = DEFAULT_RETRANS;
+	int xmitres = 0;
 
 	/* Lock channel PVT */
 	sip_pvt_lock(pkt->owner);
@@ -2048,19 +2058,27 @@ static int retrans_pkt(void *data)
 		}
 
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
-		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
+		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		sip_pvt_unlock(pkt->owner);
-		return  reschedule;
+		if (xmitres == -2) {
+			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner->callid);
+		} else {
+			return  reschedule;
+		}
 	} 
 	/* Too many retries */
-	if (pkt->owner && pkt->method != SIP_OPTIONS) {
+	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
 		if (ast_test_flag(pkt, FLAG_FATAL) || sipdebug)	/* Tell us if it's critical or if we're debugging */
 			ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
-	} else {
-		if ((pkt->method == SIP_OPTIONS) && sipdebug)
+	} else if (pkt->method == SIP_OPTIONS && sipdebug) {
 			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
-	}
-	append_history(pkt->owner, "MaxRetries", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+
+	} 
+	if (xmitres == -2) {
+		ast_log(LOG_WARNING, "Transmit error :: Cancelling transmission on Call ID %s\n", pkt->owner->callid);
+		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+	} else 
+		append_history(pkt->owner, "MaxRetries", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
  		
 	pkt->retransid = -1;
 
@@ -2105,6 +2123,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 {
 	struct sip_pkt *pkt;
 	int siptimer_a = DEFAULT_RETRANS;
+	int xmitres = 0;
 
 	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
 		return AST_FAILURE;
@@ -2129,13 +2148,20 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		ast_log(LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 	pkt->next = p->packets;
 	p->packets = pkt;
-
-	__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
 	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
 		p->pendinginvite = seqno;
 	}
-	return AST_SUCCESS;
+
+	xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
+
+	if (xmitres == -2) {	/* Serious network trouble, no need to try again */
+		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+		ast_sched_del(sched, pkt->retransid);	/* No more retransmission */
+		pkt->retransid = -1;
+		return AST_FAILURE;
+	} else
+		return AST_SUCCESS;
 }
 
 /*! \brief Kill a SIP dialog (called by scheduler) */
@@ -2333,7 +2359,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 			(tmp.method == SIP_RESPONSE || tmp.method == SIP_UNKNOWN) ? tmp.rlPart2 : sip_methods[tmp.method].text);
 	}
 	res = (reliable) ?
-		__sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
+		 __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
 	if (res > 0)
 		return 0;
@@ -3163,14 +3189,19 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_WARNING, "No audio format found to offer. Cancelling call to %s\n", p->username);
 		res = -1;
 	} else {
+		int xmitres;
+
 		p->t38.jointcapability = p->t38.capability;
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
-		transmit_invite(p, SIP_INVITE, 1, 2);
-		p->invitestate = INV_CALLING;
+		xmitres = transmit_invite(p, SIP_INVITE, 1, 2);
+		if (xmitres != -2) {
+			p->invitestate = INV_CALLING;
 		
-		/* Initialize auto-congest time */
-		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
+			/* Initialize auto-congest time */
+			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
+		} else 
+			res = -1;
 	}
 
 	return res;
@@ -6991,7 +7022,9 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 	dst->rlPart2 += offset;
 }
 
-/*! \brief Used for 200 OK and 183 early media */
+/*! \brief Used for 200 OK and 183 early media 
+	\return Will return -2 for network errors.
+*/
 static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable)
 {
 	struct sip_request resp;
@@ -8090,7 +8123,9 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
-/*! \brief Transmit generic SIP request */
+/*! \brief Transmit generic SIP request 
+	returns -2 if transmit failed with a critical error (don't retry)
+*/
 static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
 	struct sip_request resp;
@@ -12495,6 +12530,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 {
 	int outgoing = ast_test_flag(&p->flags[0], SIP_OUTGOING);
 	int res = 0;
+	int xmitres = 0;
 	int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
 	struct ast_channel *bridgepeer = NULL;
 	
@@ -12678,14 +12714,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
 		p->invitestate = INV_TERMINATED;
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, TRUE);
 		check_pendings(p);
 		break;
 
 	case 407: /* Proxy authentication */
 	case 401: /* Www auth */
 		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->options)
 			p->options->auth_type = resp;
 
@@ -12706,7 +12742,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	case 403: /* Forbidden */
 		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		ast_log(LOG_WARNING, "Received response: \"Forbidden\" from '%s'\n", get_header(&p->initreq, "From"));
 		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
@@ -12715,7 +12751,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 404: /* Not found */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		sip_alreadygone(p);
@@ -12724,7 +12760,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	case 481: /* Call leg does not exist */
 		/* Could be REFER caused INVITE with replaces */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
@@ -12733,14 +12769,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* We have sent CANCEL on an outbound INVITE 
 			This transaction is already scheduled to be killed by sip_hangup().
 		*/
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_hangup(p->owner);
 		else if (!ast_test_flag(req, SIP_PKT_IGNORE))
 			update_call_counter(p, DEC_CALL_LIMIT);
 		break;
 	case 488: /* Not acceptable here */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (reinvite && p->udptl) {
 			/* If this is a T.38 call, we should go back to 
 			   audio. If this is an audio call - something went
@@ -12770,18 +12806,20 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* we really should have to wait a while, then retransmit */
 			/* We should support the retry-after at some point */
 		/* At this point, we treat this as a congestion */
-		transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		break;
 
 	case 501: /* Not implemented */
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		if (p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		break;
 	}
+	if (xmitres == -2)
+		ast_log(LOG_WARNING, "Could not transmit message in dialog %s\n", p->callid);
 }
 
 /* \brief Handle SIP response in REFER transaction
@@ -13934,6 +13972,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 
 	/* Answer the incoming call and set channel to UP state */
 	transmit_response_with_sdp(p, "200 OK", req, XMIT_RELIABLE);
+		
 	ast_setstate(c, AST_STATE_UP);
 	
 	/* Stop music on hold and other generators */
@@ -16075,6 +16114,7 @@ static int sip_poke_noanswer(void *data)
 static int sip_poke_peer(struct sip_peer *peer)
 {
 	struct sip_pvt *p;
+	int xmitres = 0;
 
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
@@ -16120,12 +16160,15 @@ static int sip_poke_peer(struct sip_peer *peer)
 	ast_set_flag(&p->flags[0], SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
 	ast_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	transmit_invite(p, SIP_INVITE, 0, 2);
+	xmitres = transmit_invite(p, SIP_INVITE, 0, 2);
 #else
-	transmit_invite(p, SIP_OPTIONS, 0, 2);
+	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
 	gettimeofday(&peer->ps, NULL);
-	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
+	if (xmitres == -2)
+		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
+	else
+		peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
 
 	return 0;
 }
