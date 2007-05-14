@@ -3083,6 +3083,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		res = ast_translator_best_choice(&fmt, &capabilities);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
+			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
 			AST_LIST_UNLOCK(&channels);
 			return NULL;
 		}
