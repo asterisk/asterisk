@@ -223,6 +223,7 @@ static int speextolin_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 		}
 #endif
 		pvt->samples += tmp->framesize;
+		pvt->datalen += 2 * tmp->framesize; /* 2 bytes/sample */
 		return 0;
 	}
 
