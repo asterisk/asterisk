@@ -426,15 +426,6 @@ static void check_post(struct ast_cdr *cdr)
 		ast_log(LOG_NOTICE, "CDR on channel '%s' already posted\n", S_OR(cdr->channel, "<unknown>"));
 }
 
-/*! \brief  print a warning if cdr already started */
-static void check_start(struct ast_cdr *cdr)
-{
-	if (!cdr)
-		return;
-	if (!ast_tvzero(cdr->start))
-		ast_log(LOG_NOTICE, "CDR on channel '%s' already started\n", S_OR(cdr->channel, "<unknown>"));
-}
-
 void ast_cdr_free(struct ast_cdr *cdr)
 {
 
@@ -634,7 +625,6 @@ void ast_cdr_start(struct ast_cdr *cdr)
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			chan = S_OR(cdr->channel, "<unknown>");
 			check_post(cdr);
-			check_start(cdr);
 			cdr->start = ast_tvnow();
 		}
 	}
