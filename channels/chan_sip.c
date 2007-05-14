@@ -153,6 +153,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define TRUE     1
 #endif
 
+#define XMIT_ERROR		-2
+
 #define VIDEO_CODEC_MASK        0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST           0x02
@@ -1920,7 +1922,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 			case EHOSTUNREACH: 	/* Host can't be reached */
 			case ENETDOWN: 		/* Inteface down */
 			case ENETUNREACH:	/* Network failure */
-				res = -2;	/* Don't bother with trying to transmit again */
+				res = XMIT_ERROR;	/* Don't bother with trying to transmit again */
 		}
 	}
 	if (res != len)
@@ -2059,11 +2061,10 @@ static int retrans_pkt(void *data)
 		append_history(pkt->owner, "ReTx", "%d %s", reschedule, pkt->data);
 		xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 		sip_pvt_unlock(pkt->owner);
-		if (xmitres == -2) {
+		if (xmitres == XMIT_ERROR)
 			ast_log(LOG_WARNING, "Network error on retransmit in dialog %s\n", pkt->owner->callid);
-		} else {
+		else 
 			return  reschedule;
-		}
 	} 
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
@@ -2073,7 +2074,7 @@ static int retrans_pkt(void *data)
 			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
 
 	} 
-	if (xmitres == -2) {
+	if (xmitres == XMIT_ERROR) {
 		ast_log(LOG_WARNING, "Transmit error :: Cancelling transmission on Call ID %s\n", pkt->owner->callid);
 		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
 	} else 
@@ -2154,7 +2155,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 
 	xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
 
-	if (xmitres == -2) {	/* Serious network trouble, no need to try again */
+	if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
 		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
 		ast_sched_del(sched, pkt->retransid);	/* No more retransmission */
 		pkt->retransid = -1;
@@ -3194,13 +3195,12 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38.capability, p->t38.jointcapability);
 		xmitres = transmit_invite(p, SIP_INVITE, 1, 2);
-		if (xmitres != -2) {
-			p->invitestate = INV_CALLING;
-		
-			/* Initialize auto-congest time */
-			p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
-		} else 
-			res = -1;
+		if (xmitres == XMIT_ERROR)
+			return -1;
+		p->invitestate = INV_CALLING;
+	
+		/* Initialize auto-congest time */
+		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
 	}
 
 	return res;
@@ -7022,7 +7022,7 @@ static void copy_request(struct sip_request *dst, const struct sip_request *src)
 }
 
 /*! \brief Used for 200 OK and 183 early media 
-	\return Will return -2 for network errors.
+	\return Will return XMIT_ERROR for network errors.
 */
 static int transmit_response_with_sdp(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable)
 {
@@ -8123,7 +8123,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 }
 
 /*! \brief Transmit generic SIP request 
-	returns -2 if transmit failed with a critical error (don't retry)
+	returns XMIT_ERROR if transmit failed with a critical error (don't retry)
 */
 static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xmittype reliable, int newbranch)
 {
@@ -12817,7 +12817,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		break;
 	}
-	if (xmitres == -2)
+	if (xmitres == XMIT_ERROR)
 		ast_log(LOG_WARNING, "Could not transmit message in dialog %s\n", p->callid);
 }
 
@@ -16164,7 +16164,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
 	gettimeofday(&peer->ps, NULL);
-	if (xmitres == -2)
+	if (xmitres == XMIT_ERROR)
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	else
 		peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
