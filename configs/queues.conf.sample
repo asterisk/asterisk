@@ -195,6 +195,7 @@ monitor-type = MixMonitor
 ; What's the rounding time for the seconds?
 ; If this is non-zero, then we announce the seconds as well as the minutes
 ; rounded to this value.
+; Value values are 0, 1, 5, 10, 15, 20, and 30.
 ;
 ; announce-round-seconds = 10
 ;

@@ -859,7 +859,9 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_log(LOG_DEBUG, "%s=%s for queue '%s'\n", param, val, q->name);
 	} else if (!strcasecmp(param, "announce-round-seconds")) {
 		q->roundingseconds = atoi(val);
-		if (q->roundingseconds>60 || q->roundingseconds<0) {
+		/* Rounding to any other values just doesn't make sense... */
+		if (!(q->roundingseconds == 0 || q->roundingseconds == 1 || q->roundingseconds == 5 || q->roundingseconds == 10
+			|| q->roundingseconds == 15 || q->roundingseconds == 20 || q->roundingseconds == 30)) {
 			if (linenum >= 0) {
 				ast_log(LOG_WARNING, "'%s' isn't a valid value for %s "
 					"using 0 instead for queue '%s' at line %d of queues.conf\n",
