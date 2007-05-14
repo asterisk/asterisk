@@ -437,15 +437,19 @@ static void do_state_change(const char *device)
 
 static int __ast_device_state_changed_literal(char *buf)
 {
-	char *device, *tmp;
+	char *device;
 	struct state_change *change;
 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Notification of state change to be queued on device/channel %s\n", buf);
 
 	device = buf;
-	if ((tmp = strrchr(device, '-')))
-		*tmp = '\0';
+
+	if (!strncasecmp(device, "Zap", 3)) {
+		char *tmp = strrchr(device, '-');
+		if (tmp)
+			*tmp = '\0';
+	}
 
 	if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
