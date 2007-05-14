@@ -2686,8 +2686,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				res = ast_senddigit_end(chan, fr->subclass, fr->len);
 				ast_channel_lock(chan);
 				CHECK_BLOCKING(chan);
+			} else if (fr->frametype == AST_FRAME_CONTROL && fr->subclass == AST_CONTROL_UNHOLD) {
+				/* This is a side case where Echo is basically being called and the person put themselves on hold and took themselves off hold */
+				res = (chan->tech->indicate == NULL) ? 0 :
+					chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
 			}
-
 			res = 0;	/* XXX explain, why 0 ? */
 			goto done;
 		}
