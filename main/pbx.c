@@ -4972,20 +4972,6 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				ast_channel_lock(chan);
 		}
 		if (chan) {
-			if (chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
-				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
-			} else {
-				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
-				if (!chan->cdr) {
-					/* allocation of the cdr failed */
-					free(chan->pbx);
-					res = -1;
-					goto outgoing_exten_cleanup;
-				}
-				/* allocation of the cdr was successful */
-				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
-				ast_cdr_start(chan->cdr);
-			}
 			if (chan->_state == AST_STATE_UP) {
 					res = 0;
 				if (option_verbose > 3)
@@ -5016,7 +5002,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
 
-				if(chan->cdr) { /* update the cdr */
+				if (chan->cdr) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
 					 * if that fails then we set the status to failed */
 					if (ast_cdr_disposition(chan->cdr, chan->hangupcause))
