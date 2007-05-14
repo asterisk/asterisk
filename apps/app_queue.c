@@ -134,6 +134,7 @@ static char *descrip =
 "This application will return to the dialplan if the queue does not exist, or\n"
 "any of the join options cause the caller to not enter the queue.\n"
 "The option string may contain zero or more of the following characters:\n"
+"      'c' -- continue in the dialplan if the callee hangs up.\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'h' -- allow callee to hang up by pressing *.\n"
 "      'H' -- allow caller to hang up by pressing *.\n"
@@ -158,7 +159,7 @@ static char *descrip =
 "seconds, checked between each queues.conf 'timeout' and 'retry' cycle.\n"
 "  This application sets the following channel variable upon completion:\n"
 "      QUEUESTATUS    The status of the call as a text string, one of\n"
-"             TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL\n";
+"             TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL | CONTINUE\n";
 
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
@@ -264,6 +265,7 @@ enum queue_result {
 	QUEUE_JOINUNAVAIL = 4,
 	QUEUE_LEAVEUNAVAIL = 5,
 	QUEUE_FULL = 6,
+	QUEUE_CONTINUE = 7,
 };
 
 const struct {
@@ -277,6 +279,7 @@ const struct {
 	{ QUEUE_JOINUNAVAIL, "JOINUNAVAIL" },
 	{ QUEUE_LEAVEUNAVAIL, "LEAVEUNAVAIL" },
 	{ QUEUE_FULL, "FULL" },
+	{ QUEUE_CONTINUE, "CONTINUE" },
 };
 
 /*! \brief We define a custom "local user" structure because we
@@ -3409,6 +3412,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	const char *user_priority;
 	const char *max_penalty_str;
 	int prio;
+	int qcontinue = 0;
 	int max_penalty;
 	enum queue_result reason = QUEUE_UNKNOWN;
 	/* whether to exit Queue application after the timeout hits */
@@ -3481,6 +3485,9 @@ static int queue_exec(struct ast_channel *chan, void *data)
 
 	if (args.options && (strchr(args.options, 'r')))
 		ringing = 1;
+
+	if (args.options && (strchr(args.options, 'c')))
+		qcontinue = 1;
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
@@ -3576,6 +3583,9 @@ check_turns:
 							ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON",
 								"%d|%d|%ld", qe.pos, qe.opos,
 								(long) time(NULL) - qe.start);
+						} else if (qcontinue) {
+							reason = QUEUE_CONTINUE;
+							res = 0;
 						}
 					} else if (valid_exit(&qe, res)) {
 						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
