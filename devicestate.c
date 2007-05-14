@@ -196,13 +196,17 @@ static void do_state_change(const char *device)
 
 static int __ast_device_state_changed_literal(char *buf)
 {
-	char *device, *tmp;
+	char *device;
 	struct state_change *change = NULL;
 
 	device = buf;
-	tmp = strrchr(device, '-');
-	if (tmp)
-		*tmp = '\0';
+
+	if (!strncasecmp(device, "Zap", 3)) {
+		char *tmp = strrchr(device, '-');
+		if (tmp)
+			*tmp = '\0';
+	}
+
 	if (change_thread != AST_PTHREADT_NULL)
 		change = calloc(1, sizeof(*change) + strlen(device));
 
