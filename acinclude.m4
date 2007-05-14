@@ -77,7 +77,7 @@ AC_DEFUN([AST_C_DEFINE_CHECK],
 	AC_MSG_CHECKING([for $2 in $3])
 	saved_cppflags="${CPPFLAGS}"
 	if test "x${$1_DIR}" != "x"; then
-	    $1_INCLUDE= "-I${$1_DIR}/include"
+	    $1_INCLUDE="-I${$1_DIR}/include"
 	fi
 	CPPFLAGS="${CPPFLAGS} ${$1_INCLUDE}"
 
