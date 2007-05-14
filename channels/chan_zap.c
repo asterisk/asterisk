@@ -8619,9 +8619,10 @@ static void *ss7_linkset(void *data)
 		while ((e = ss7_check_event(ss7))) {
 			switch (e->e) {
 			case SS7_EVENT_UP:
-				ast_verbose("--- SS7 Up ---\n");
-				if (linkset->state != LINKSET_STATE_UP)
+				if (linkset->state != LINKSET_STATE_UP) {
+					ast_verbose("--- SS7 Up ---\n");
 					ss7_reset_linkset(linkset);
+				}
 				linkset->state = LINKSET_STATE_UP;
 				break;
 			case SS7_EVENT_DOWN:
