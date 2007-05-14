@@ -149,5 +149,3 @@ clean::
 	@$(MAKE) -C db1-ast clean
 	@$(MAKE) -C stdtime clean
 	@$(MAKE) -C minimime clean
-
-.PHONY: minimime/libmmime.a
