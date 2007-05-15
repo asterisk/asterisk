@@ -336,23 +336,6 @@ static enum ast_device_state metermaidstate(const char *data)
 		return AST_DEVICE_INUSE;
 }
 
-/*!
- * \brief Check to see if a parking space is in use
- * \return non-zero if in use, zero if not in use
- * \note Assumes parking_lock is locked
- */
-static int check_parking_space_inuse(int space)
-{
-	struct parkeduser *pu;
-
-	for (pu = parkinglot; pu; pu = pu->next) {
-		if (pu->parkingnum == space)
-			return 1;
-	}
-
-	return 0;
-}
-
 /*! \brief Park a call 
  	\note We put the user in the parking list, then wake up the parking thread to be sure it looks
 	after these channels too */
@@ -373,17 +356,13 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
 	if (!ast_strlen_zero(parkingexten)) {
 		if (ast_exists_extension(NULL, parking_con, parkingexten, 1, NULL)) {
+			ast_mutex_unlock(&parking_lock);
+			free(pu);
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
 			return 0;	/* Continue execution if possible */
 		}
 		ast_copy_string(pu->parkingexten, parkingexten, sizeof(pu->parkingexten));
 		x = atoi(parkingexten);
-		if (check_parking_space_inuse(x)) {
-			ast_mutex_unlock(&parking_lock);
-			free(pu);
-			ast_log(LOG_WARNING, "Requested parking space %d via PARKINGEXTEN, but it is in use!\n", x);
-			return -1;
-		}
 	} else {
 		/* Select parking space within range */
 		parking_range = parking_stop - parking_start+1;
