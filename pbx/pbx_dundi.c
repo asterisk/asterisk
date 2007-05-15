@@ -3986,6 +3986,11 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
+	if (ast_strlen_zero(args.id)) {
+		ast_log(LOG_ERROR, "A result ID must be provided to DUNDIRESULT\n");
+		goto finish;
+	}
+
 	if (ast_strlen_zero(args.resultnum)) {
 		ast_log(LOG_ERROR, "A result number must be given to DUNDIRESULT!\n");
 		goto finish;
