@@ -7482,7 +7482,7 @@ static unsigned int parse_pointcode(char *pcstring)
 	unsigned int code1, code2, code3;
 	int numvals;
 
-	numvals = sscanf(pcstring, "%d.%d.%d", &code1, &code2, &code3);
+	numvals = sscanf(pcstring, "%d-%d-%d", &code1, &code2, &code3);
 	if (numvals == 1)
 		return code1;
 	if (numvals == 3)

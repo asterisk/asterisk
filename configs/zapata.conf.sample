@@ -676,7 +676,7 @@ immediate=no
 
 ; Point code of the linkset.  For ITU, this is the decimal number
 ; format of the point code.  For ANSI, this can either be in decimal
-; number format or in the xxx.xxx.xxx format
+; number format or in the xxx-xxx-xxx format
 ;pointcode = 1
 
 ; Point code of node adjacent to this signaling link (Possibly the STP between you and
