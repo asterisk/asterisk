@@ -6,6 +6,7 @@
  * Mark Spencer <markster@digium.com>
  * Oleksiy Krivoshey <oleksiyk@gmail.com>
  * Russell Bryant <russelb@clemson.edu>
+ * Brett Bryant <bbryant@digium.com>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -25,6 +26,7 @@
  * \author Mark Spencer <markster@digium.com>
  * \author Oleksiy Krivoshey <oleksiyk@gmail.com>
  * \author Russell Bryant <russelb@clemson.edu>
+ * \author Brett Bryant <bbryant@digium.com>
  *
  * \arg See also AstENUM
  *
@@ -50,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/enum.h"
 #include "asterisk/app.h"
 
- static char *synopsis = "Syntax: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])\n";
+static char *synopsis = "Syntax: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])\n";
 
 static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
@@ -105,8 +107,7 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 
 	}
 
-	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone,
-			   args.options, record);
+	res = ast_get_enum(chan, num, dest, sizeof(dest), tech, sizeof(tech), args.zone, args.options, 1, NULL);
 
 	p = strchr(dest, ':');
 	if (p && strcasecmp(tech, "ALL"))
@@ -118,6 +119,214 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 
 	return 0;
 }
+
+unsigned int enum_datastore_id;
+
+struct enum_result_datastore {
+	struct enum_context *context;
+	unsigned int id;
+};
+
+static void erds_destroy(struct enum_result_datastore *data) 
+{
+	int k;
+
+	for (k = 0; k < data->context->naptr_rrs_count; k++) {
+		free(data->context->naptr_rrs[k].result);
+		free(data->context->naptr_rrs[k].tech);
+	}
+
+	free(data->context->naptr_rrs);
+	free(data->context);
+	free(data);
+}
+
+static void erds_destroy_cb(void *data) 
+{
+	struct enum_result_datastore *erds = data;
+	erds_destroy(erds);
+}
+
+const struct ast_datastore_info enum_result_datastore_info = {
+	.type = "ENUMQUERY",
+	.destroy = erds_destroy_cb,
+}; 
+
+static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct enum_result_datastore *erds;
+	struct ast_datastore *datastore;
+	struct ast_module_user *u;
+	char *parse, tech[128], dest[128];
+	int res = -1;
+
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(number);
+		AST_APP_ARG(tech);
+		AST_APP_ARG(zone);
+	);
+
+	u = ast_module_user_add(chan);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "ENUMQUERY requires at least a number as an argument...\n");
+		goto finish;
+	}
+
+	parse = ast_strdupa(data);
+    
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "ENUMQUERY cannot be used without a channel!\n");
+		goto finish;
+	}
+
+	if (!args.zone)
+		args.zone = "e164.zone";
+
+	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
+
+	if (!(erds = ast_calloc(1, sizeof(*erds))))
+		goto finish;
+
+	if (!(erds->context = ast_calloc(1, sizeof(*erds->context)))) {
+		free(erds);
+		goto finish;
+	}
+
+	erds->id = ast_atomic_fetchadd_int((int *) &enum_datastore_id, 1);
+
+	snprintf(buf, len, "%u", erds->id);
+
+	if (!(datastore = ast_channel_datastore_alloc(&enum_result_datastore_info, buf))) {
+		free(erds->context);
+		free(erds);
+		goto finish;
+	}
+
+	ast_get_enum(chan, args.number, dest, sizeof(dest), tech, sizeof(tech), args.zone, "", 1, &erds->context);
+
+	datastore->data = erds;
+
+	ast_channel_datastore_add(chan, datastore);
+   
+	res = 0;
+    
+finish:
+	ast_module_user_remove(u);
+
+	return res;
+}
+
+static int enum_result_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_module_user *u;
+	struct enum_result_datastore *erds;
+	struct ast_datastore *datastore;
+	char *parse, *p;
+	unsigned int num;
+	int res = -1, k;
+	AST_DECLARE_APP_ARGS(args, 
+		AST_APP_ARG(id);
+		AST_APP_ARG(resultnum);
+	);
+
+	u = ast_module_user_add(chan);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "ENUMRESULT requires two arguments (id and resultnum)\n");
+		goto finish;
+	}
+
+	if (!chan) {
+		ast_log(LOG_ERROR, "ENUMRESULT can not be used without a channel!\n");
+		goto finish;
+	}
+   
+	parse = ast_strdupa(data);
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.id)) {
+		ast_log(LOG_ERROR, "A result ID must be provided to ENUMRESULT\n");
+		goto finish;
+	}
+
+	if (ast_strlen_zero(args.resultnum)) {
+		ast_log(LOG_ERROR, "A result number must be given to ENUMRESULT!\n");
+		goto finish;
+	}
+
+	if (!(datastore = ast_channel_datastore_find(chan, &enum_result_datastore_info, args.id))) {
+		ast_log(LOG_WARNING, "No ENUM results found for query id!\n");
+		goto finish;
+	}
+
+	erds = datastore->data;
+
+	if (!strcasecmp(args.resultnum, "getnum")) {
+		snprintf(buf, len, "%u", erds->context->naptr_rrs_count);
+		res = 0;
+		goto finish;
+	}
+
+	if (sscanf(args.resultnum, "%u", &num) != 1) {
+		ast_log(LOG_ERROR, "Invalid value '%s' for resultnum to ENUMRESULT!\n", args.resultnum);
+		goto finish;
+	}
+
+	if (!num || num > erds->context->naptr_rrs_count) {
+		ast_log(LOG_WARNING, "Result number %u is not valid for ENUM query results for ID %s!\n", num, args.id);
+		goto finish;
+	}
+
+	for (k = 0; k < erds->context->naptr_rrs_count; k++) {
+		if (num - 1 != erds->context->naptr_rrs[k].sort_pos)
+			continue;
+
+		p = strchr(erds->context->naptr_rrs[k].result, ':');
+              
+		if (p && strcasecmp(erds->context->naptr_rrs[k].tech, "ALL"))
+			ast_copy_string(buf, p + 1, len);
+		else
+			ast_copy_string(buf, erds->context->naptr_rrs[k].result, len);
+
+		break;
+	}
+
+	res = 0;
+
+finish:
+	ast_module_user_remove(u);
+
+	return res;
+}
+
+static struct ast_custom_function enum_query_function = {
+	.name = "ENUMQUERY",
+	.synopsis = "Initiate an ENUM query",
+	.syntax = "ENUMQUERY(number[|Method-type[|zone-suffix]])",
+	.desc = "This will do a ENUM lookup of the given phone number.\n"
+	"If no method-tpye is given, the default will be sip. If no\n"
+	"zone-suffix is given, the default will be \"e164.arpa\".\n"
+	"The result of this function will be a numeric ID that can\n"
+	"be used to retrieve the results using the ENUMRESULT function.\n",
+	.read = enum_query_read,
+};
+
+static struct ast_custom_function enum_result_function = {
+	.name = "ENUMRESULT",
+	.synopsis = "Retrieve results from a ENUMQUERY",
+	.syntax = "ENUMRESULT(id|resultnum)",
+	.desc = "This function will retrieve results from a previous use\n"
+	"of the ENUMQUERY function.\n"
+	"  id - This argument is the identifier returned by the ENUMQUERY function.\n"
+	"  resultnum - This is the number of the result that you want to retrieve.\n"
+	"       Results start at 1.  If this argument is specified as \"getnum\",\n"
+	"       then it will return the total number of results that are available.\n",
+	.read = enum_result_read,
+};
 
 static struct ast_custom_function enum_function = {
 	.name = "ENUMLOOKUP",
@@ -179,6 +388,8 @@ static int unload_module(void)
 {
 	int res = 0;
 
+	res |= ast_custom_function_unregister(&enum_result_function);
+	res |= ast_custom_function_unregister(&enum_query_function);
 	res |= ast_custom_function_unregister(&enum_function);
 	res |= ast_custom_function_unregister(&txtcidname_function);
 
@@ -191,6 +402,8 @@ static int load_module(void)
 {
 	int res = 0;
 
+	res |= ast_custom_function_register(&enum_result_function);
+	res |= ast_custom_function_register(&enum_query_function);
 	res |= ast_custom_function_register(&enum_function);
 	res |= ast_custom_function_register(&txtcidname_function);
 

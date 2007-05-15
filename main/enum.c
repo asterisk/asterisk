@@ -91,11 +91,6 @@ static int enumver;
 
 AST_MUTEX_DEFINE_STATIC(enumlock);
 
-struct naptr {
-	unsigned short order;
-	unsigned short pref;
-} __attribute__ ((__packed__));
-
 /*! \brief Parse NAPTR record information elements */
 static unsigned int parse_ie(char *data, unsigned int maxdatalen, unsigned char *src, unsigned int srclen)
 {
@@ -298,26 +293,6 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, unsigne
 /* do not return requested value, just count RRs and return thei number in dst */
 #define ENUMLOOKUP_OPTIONS_COUNT       1
 
-struct enum_naptr_rr {
-	struct naptr naptr; /* order and preference of RR */
-	char *result; /* result of naptr parsing,e.g.: tel:+5553 */
-	char *tech; /* Technology (from URL scheme) */
-	int sort_pos; /* sort position */
-};
-
-struct enum_context {
-	char *dst;	/* Destination part of URL from ENUM */
-	int dstlen;	/* Length */
-	char *tech;	/* Technology (from URL scheme) */
-	int techlen;	/* Length */
-	char *txt;	/* TXT record in TXT lookup */
-	int txtlen;	/* Length */
-	char *naptrinput;	/* The number to lookup */
-	int position; /* used as counter for RRs or specifies position of required RR */
-	int options; /* options , see ENUMLOOKUP_OPTIONS_* defined above */
-	struct enum_naptr_rr *naptr_rrs; /* array of parsed NAPTR RRs */
-	int naptr_rrs_count; /* Size of array naptr_rrs */
-};
 
 /*! \brief Callback for TXT record lookup */
 static int txt_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
@@ -389,9 +364,9 @@ static int enum_callback(void *context, unsigned char *answer, int len, unsigned
 }
 
 /*! \brief ENUM lookup */
-int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options, unsigned int record)
+int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options, unsigned int record, struct enum_context **argcontext)
 {
-	struct enum_context context;
+	struct enum_context *context;
 	char tmp[259 + 512];
 	char naptrinput[512];
 	int pos = strlen(number) - 1;
@@ -406,27 +381,30 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	int i = 0;
 	int z = 0;
 
+	if (!(context = ast_calloc(1, sizeof(*context))))
+		return -1;
+
 	ast_copy_string(naptrinput, number[0] == 'n' ? number+1 : number, sizeof(naptrinput));
 
-	context.naptrinput = naptrinput;	/* The number */
-	context.dst = dst;			/* Return string */
-	context.dstlen = dstlen;
-	context.tech = tech;
-	context.techlen = techlen;
-	context.options = 0;
-	context.position = record;
-	context.naptr_rrs = NULL;
-	context.naptr_rrs_count = 0;
+	context->naptrinput = naptrinput;	/* The number */
+	context->dst = dst;			/* Return string */
+	context->dstlen = dstlen;
+	context->tech = tech;
+	context->techlen = techlen;
+	context->options = 0;
+	context->position = record;
+	context->naptr_rrs = NULL;
+	context->naptr_rrs_count = 0;
 
 	if (options != NULL) {
 		if (*options == 'c') {
-			context.options = ENUMLOOKUP_OPTIONS_COUNT;
-			context.position = 0;
+			context->options = ENUMLOOKUP_OPTIONS_COUNT;
+			context->position = 0;
 		}
 	}
 
 	ast_log(LOG_DEBUG, "ast_get_enum(): n='%s', tech='%s', suffix='%s', options='%d', record='%d'\n",
-			number, tech, suffix, context.options, context.position);
+			number, tech, suffix, context->options, context->position);
 
 	if (pos > 128)
 		pos = 128;
@@ -464,12 +442,14 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		}
 	}
 
-	if (chan && ast_autoservice_start(chan) < 0)
+	if (chan && ast_autoservice_start(chan) < 0) {
+		free(context);
 		return -1;
+	}
 
-	if(suffix) {
+	if (suffix) {
 		ast_copy_string(tmp + newpos, suffix, sizeof(tmp) - newpos);
-		ret = ast_search_dns(&context, tmp, C_IN, T_NAPTR, enum_callback);
+		ret = ast_search_dns(context, tmp, C_IN, T_NAPTR, enum_callback);
 		ast_log(LOG_DEBUG, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
 	} else {
 		ret = -1;		/* this is actually dead code since the demise of app_enum.c */
@@ -502,51 +482,54 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		ret = 0;
 	}
 
-	if (context.naptr_rrs_count >= context.position && ! (context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
+	if (context->naptr_rrs_count >= context->position && ! (context->options & ENUMLOOKUP_OPTIONS_COUNT)) {
 		/* sort array by NAPTR order/preference */
-		for (k = 0; k < context.naptr_rrs_count; k++) {
-			for (i = 0; i < context.naptr_rrs_count; i++) {
+		for (k = 0; k < context->naptr_rrs_count; k++) {
+			for (i = 0; i < context->naptr_rrs_count; i++) {
 				/* use order first and then preference to compare */
-				if ((ntohs(context.naptr_rrs[k].naptr.order) < ntohs(context.naptr_rrs[i].naptr.order)
-						&& context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
-					|| (ntohs(context.naptr_rrs[k].naptr.order) > ntohs(context.naptr_rrs[i].naptr.order)
-						&& context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)){
-					z = context.naptr_rrs[k].sort_pos;
-					context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
-					context.naptr_rrs[i].sort_pos = z;
+				if ((ntohs(context->naptr_rrs[k].naptr.order) < ntohs(context->naptr_rrs[i].naptr.order)
+						&& context->naptr_rrs[k].sort_pos > context->naptr_rrs[i].sort_pos)
+					|| (ntohs(context->naptr_rrs[k].naptr.order) > ntohs(context->naptr_rrs[i].naptr.order)
+						&& context->naptr_rrs[k].sort_pos < context->naptr_rrs[i].sort_pos)){
+					z = context->naptr_rrs[k].sort_pos;
+					context->naptr_rrs[k].sort_pos = context->naptr_rrs[i].sort_pos;
+					context->naptr_rrs[i].sort_pos = z;
 					continue;
 				}
-				if (ntohs(context.naptr_rrs[k].naptr.order) == ntohs(context.naptr_rrs[i].naptr.order)) {
-					if ((ntohs(context.naptr_rrs[k].naptr.pref) < ntohs(context.naptr_rrs[i].naptr.pref)
-							&& context.naptr_rrs[k].sort_pos > context.naptr_rrs[i].sort_pos)
-						|| (ntohs(context.naptr_rrs[k].naptr.pref) > ntohs(context.naptr_rrs[i].naptr.pref)
-							&& context.naptr_rrs[k].sort_pos < context.naptr_rrs[i].sort_pos)){
-						z = context.naptr_rrs[k].sort_pos;
-						context.naptr_rrs[k].sort_pos = context.naptr_rrs[i].sort_pos;
-						context.naptr_rrs[i].sort_pos = z;
+				if (ntohs(context->naptr_rrs[k].naptr.order) == ntohs(context->naptr_rrs[i].naptr.order)) {
+					if ((ntohs(context->naptr_rrs[k].naptr.pref) < ntohs(context->naptr_rrs[i].naptr.pref)
+							&& context->naptr_rrs[k].sort_pos > context->naptr_rrs[i].sort_pos)
+						|| (ntohs(context->naptr_rrs[k].naptr.pref) > ntohs(context->naptr_rrs[i].naptr.pref)
+							&& context->naptr_rrs[k].sort_pos < context->naptr_rrs[i].sort_pos)){
+						z = context->naptr_rrs[k].sort_pos;
+						context->naptr_rrs[k].sort_pos = context->naptr_rrs[i].sort_pos;
+						context->naptr_rrs[i].sort_pos = z;
 					}
 				}
 			}
 		}
-		for (k = 0; k < context.naptr_rrs_count; k++) {
-			if (context.naptr_rrs[k].sort_pos == context.position-1) {
-				ast_copy_string(context.dst, context.naptr_rrs[k].result, dstlen);
-				ast_copy_string(context.tech, context.naptr_rrs[k].tech, techlen);
+		for (k = 0; k < context->naptr_rrs_count; k++) {
+			if (context->naptr_rrs[k].sort_pos == context->position-1) {
+				ast_copy_string(context->dst, context->naptr_rrs[k].result, dstlen);
+				ast_copy_string(context->tech, context->naptr_rrs[k].tech, techlen);
 				break;
 			}
 		}
-	} else if (!(context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
-		context.dst[0] = 0;
+	} else if (!(context->options & ENUMLOOKUP_OPTIONS_COUNT)) {
+		context->dst[0] = 0;
 	}
 	if (chan)
 		ret |= ast_autoservice_stop(chan);
 
-	for (k = 0; k < context.naptr_rrs_count; k++) {
-		free(context.naptr_rrs[k].result);
-		free(context.naptr_rrs[k].tech);
-	}
-
-	free(context.naptr_rrs);
+	if (!argcontext) {
+		for (k = 0; k < context->naptr_rrs_count; k++) {
+			free(context->naptr_rrs[k].result);
+			free(context->naptr_rrs[k].tech);
+		}
+		free(context->naptr_rrs);
+		free(context);
+	} else
+		*argcontext = context;
 
 	return ret;
 }

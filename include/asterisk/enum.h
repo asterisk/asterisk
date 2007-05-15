@@ -25,6 +25,33 @@
 
 #include "asterisk/channel.h"
 
+struct naptr {
+	unsigned short order;
+	unsigned short pref;
+} __attribute__ ((__packed__));
+
+struct enum_naptr_rr {
+	struct naptr naptr; /*!< order and preference of RR */
+	char *result;       /*!< result of naptr parsing,e.g.: tel:+5553 */
+	char *tech;         /*!< Technology (from URL scheme) */
+	int sort_pos;       /*!< sort position */
+};
+
+struct enum_context {
+	char *dst;                       /*!< Destination part of URL from ENUM */
+	int dstlen;                      /*!< Length */
+	char *tech;                      /*!< Technology (from URL scheme) */
+	int techlen;                     /*!< Length */
+	char *txt;                       /*!< TXT record in TXT lookup */
+	int txtlen;                      /*!< Length */
+	char *naptrinput;                /*!< The number to lookup */
+	int position;                    /*!< used as counter for RRs or specifies position of required RR */
+	int options;                     /*!< options , see ENUMLOOKUP_OPTIONS_* defined above */
+	struct enum_naptr_rr *naptr_rrs; /*!< array of parsed NAPTR RRs */
+	int naptr_rrs_count;             /*!< Size of array naptr_rrs */
+};
+
+
 /*! \brief Lookup entry in ENUM Returns 1 if found, 0 if not found, -1 on hangup
 	\param chan	Channel
 	\param number   E164 number with or without the leading +
@@ -37,9 +64,10 @@
 	\param suffix   Zone suffix (if is NULL then use enum.conf 'search' variable)
 	\param options  Options ('c' to count number of NAPTR RR)
 	\param record   The position of required RR in the answer list
+	\param argcontext   Argument for caching results into an enum_context pointer (NULL is used for not caching)
 */
 int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, 
-		int maxtech, char* suffix, char* options, unsigned int record);
+		int maxtech, char* suffix, char* options, unsigned int record, struct enum_context **argcontext);
 
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel
