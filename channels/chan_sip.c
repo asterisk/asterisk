@@ -12311,16 +12311,18 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				handle_response_refer(p, resp, rest, req, seqno);
 			else if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			else if (sipmethod == SIP_BYE)
-				if (ast_strlen_zero(p->authname))
+			else if (sipmethod == SIP_BYE) {
+				if (ast_strlen_zero(p->authname)) {
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", sipmethod, 0)) {
+				} else if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+					/* We fail to auth bye on our own call, but still needs to tear down the call. 
+					   Life, they call it. */
 				}
-			else {
+			} else {
 				ast_log(LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			}
@@ -12351,11 +12353,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			else if (p->registry && sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			else if (sipmethod == SIP_BYE) {
-				if (ast_strlen_zero(p->authname))
+				if (ast_strlen_zero(p->authname)) {
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
-				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
+				} else if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 				}
