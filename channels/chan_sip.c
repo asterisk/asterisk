@@ -524,6 +524,7 @@ static const struct cfsip_options {
 #define DEFAULT_PEDANTIC	FALSE
 #define DEFAULT_AUTOCREATEPEER	FALSE
 #define DEFAULT_QUALIFY		FALSE
+#define DEFAULT_REGEXTENONQUALIFY FALSE
 #define DEFAULT_T1MIN		100		/*!< 100 MS for minimal roundtrip time */
 #define DEFAULT_MAX_CALL_BITRATE (384)		/*!< Max bitrate for video */
 #ifndef DEFAULT_USERAGENT
@@ -584,6 +585,7 @@ static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP chan
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
+static int global_regextenonqualify;  /*!< Whether to add/remove regexten when qualifying peers */
 static int global_autoframing;          /*!< Turn autoframing on or off. */
 static enum transfermodes global_allowtransfer;	/*!< SIP Refer restriction scheme */
 static struct sip_proxy global_outboundproxy;	/*!< Outbound proxy */
@@ -11113,6 +11115,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Direct RTP setup:       %s\n", global_directrtpsetup ? "Yes" : "No");
 	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
+	ast_cli(fd, "  Regexten on Qualify:    %s\n", global_regextenonqualify ? "Yes" : "No");
 	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
@@ -13056,6 +13059,8 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 			"Peer: SIP/%s\r\nPeerStatus: %s\r\nTime: %d\r\n",
 			peer->name, s, pingtime);
+		if (is_reachable && global_regextenonqualify)
+			register_peer_exten(peer, TRUE);
 	}
 
 	if (peer->pokeexpire > -1)
@@ -16096,6 +16101,8 @@ static int sip_poke_noanswer(void *data)
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
+		if (global_regextenonqualify)
+			register_peer_exten(peer, FALSE);
 	}
 	if (peer->call)
 		sip_destroy(peer->call);
@@ -17189,6 +17196,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Reset channel settings to default before re-configuring */
 	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
 	global_regcontext[0] = '\0';
+	global_regextenonqualify = DEFAULT_REGEXTENONQUALIFY;
 	expiry = DEFAULT_EXPIRY;
 	global_notifyringing = DEFAULT_NOTIFYRINGING;
 	global_limitonpeers = FALSE;		/*!< Match call limit on peers only */
@@ -17342,6 +17350,8 @@ static int reload_config(enum channelreloadreason reason)
 					ast_context_create(NULL, context,"SIP");
 			}
 			ast_copy_string(global_regcontext, v->value, sizeof(global_regcontext));
+		} else if (!strcasecmp(v->name, "regextenonqualify")) {
+			global_regextenonqualify = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
 		} else if (!strcasecmp(v->name, "fromdomain")) {

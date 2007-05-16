@@ -172,6 +172,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; separated by '&'.  Patterns may be used in regexten.
 ;
 ;regcontext=sipregistrations
+;regextenonqualify=yes		; Default "no"
+				; If you have qualify on and the peer becomes unreachable
+				; this setting will enforce inactivation of the regexten
+				; extension for the peer
 ;
 ;--------------------------- RTP timers ----------------------------------------------------
 ; These timers are currently used for both audio and video streams. The RTP timeouts
