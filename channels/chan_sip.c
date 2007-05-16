@@ -12165,16 +12165,17 @@ static const char sip_unregister_usage[] =
 "       Unregister (force expiration) a SIP peer from the registry\n";
 
 static const char debug_usage[] = 
-"Usage: sip debug\n"
-"       Enables dumping of SIP packets for debugging purposes\n\n"
-"       sip debug ip <host[:PORT]>\n"
-"       Enables dumping of SIP packets to and from host.\n\n"
-"       sip debug peer <peername>\n"
-"       Enables dumping of SIP packets to and from host.\n"
-"       Require peer to be registered.\n";
+"Usage: sip set debug {on|ip <host[:PORT]>|peer <peername>}\n"
+"       sip set debug on\n"
+"          Enables dumping of all SIP messages for debugging purposes\n\n"
+"       sip set debug ip <host[:PORT]>\n"
+"          Enables dumping of SIP messages to and from host.\n\n"
+"       sip set debug peer <peername>\n"
+"          Enables dumping of SIP messages to and from peer's IP.\n"
+"          Requires peer to be registered.\n";
 
 static const char no_debug_usage[] = 
-"Usage: sip debug off\n"
+"Usage: sip set debug off\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
 static const char no_history_usage[] = 
