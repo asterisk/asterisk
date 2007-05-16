@@ -183,7 +183,7 @@ enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type typ
 	return res;
 }
 
-/*! Send AST_EVENT_SUB events to this subscriber of ... subscriber events */
+/*! \brief Send AST_EVENT_SUB events to this subscriber of ... subscriber events */
 void ast_event_report_subs(const struct ast_event_sub *event_sub)
 {
 	struct ast_event *event;
