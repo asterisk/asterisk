@@ -10177,10 +10177,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE) {
 				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
-				if (ast_strlen_zero(p->authname))
+				if (ast_strlen_zero(p->authname)) {
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
+				}
 				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
