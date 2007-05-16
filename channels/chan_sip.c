@@ -6642,10 +6642,12 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		if (peer)
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 		peer = NULL;
+		res = -4;
 	}
 	if (peer) {
 		if (!ast_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)) {
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
+			res = -5;
 		} else {
 			ast_copy_flags(p, peer, SIP_NAT);
 			transmit_response(p, "100 Trying", req);
@@ -6719,21 +6721,19 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			   proper authentication by digest auth name */
 			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
 			break;
-		case -3:
+		case -3:	/* Unknown domain */
+		case -4:	/* ACL error */
+		case -5:	/* Peer is not supposed to register with us at all */
 			if (global_alwaysauthreject) {
 				transmit_fake_auth_response(p, &p->initreq, p->randdata, sizeof(p->randdata), 1);
 			} else {
 				/* URI not found */
-				transmit_response(p, "404 Not found", &p->initreq);
+				if (res == -5)
+					transmit_response(p, "403 Forbidden", &p->initreq);
+				else
+					transmit_response(p, "404 Not found", &p->initreq);
 			}
-			/* Set res back to -2 because we don't want to return an invalid domain message. That check already happened up above. */
-			res = -2;
 			break;
-		}
-		if (option_debug > 1) {
-			ast_log(LOG_DEBUG, "SIP REGISTER attempt failed for %s : %s\n",
-				peer->name,
-				(res == -1) ? "Bad password" : ((res == -2 ) ? "Bad digest user" : "Peer not found"));
 		}
 	}
 	if (peer)
@@ -11244,8 +11244,24 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 		ast_verbose("Using latest REGISTER request as basis request\n");
 	copy_request(&p->initreq, req);
 	check_via(p, req);
-	if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
-		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
+	if ((res = register_verify(p, sin, req, e, ignore)) < 0)  {
+		const char *error;
+		switch (res) {
+		case -1:	error = "Wrong password";
+			break;
+		case -2:	error = "Username/auth name mismatch";
+			break;
+		case -3:	error = "Not a local SIP domain";
+			break;
+		case -4:	error = "ACL error (permit/deny)";
+			break;
+		case -5:	error = "Peer is not supposed to register";
+			break;
+		default:	error = "Unknown error";
+			break;
+		}
+		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), error);
+	}
 	if (res < 1) {
 		/* Destroy the session, but keep us around for just a bit in case they don't
 		   get our 200 OK */
