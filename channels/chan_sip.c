@@ -5533,9 +5533,9 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		++h;
 	else {
 		h = uri;
-		if (strncmp(h, "sip:", 4) == 0)
+		if (strncasecmp(h, "sip:", 4) == 0)
 			h += 4;
-		else if (strncmp(h, "sips:", 5) == 0)
+		else if (strncasecmp(h, "sips:", 5) == 0)
 			h += 5;
 	}
 	hn = strcspn(h, ":;>") + 1;
@@ -6971,7 +6971,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 
 	ast_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
 	c = get_in_brackets(from);
-	if (strncmp(c, "sip:", 4)) {
+	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
@@ -6979,7 +6979,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 
 	ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 	c = get_in_brackets(to);
-	if (strncmp(c, "sip:", 4)) {
+	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
 	}
@@ -7482,7 +7482,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	ast_copy_string(from, of, sizeof(from));
 	of = get_in_brackets(from);
 	ast_string_field_set(p, from, of);
-	if (strncmp(of, "sip:", 4))
+	if (strncasecmp(of, "sip:", 4))
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	else
 		of += 4;
@@ -8316,7 +8316,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	c = get_in_brackets(tmp);
 	c = strsep(&c, ";");	/* Ditch ;user=phone */
 
-	if (!strncmp(c, "sip:", 4)) {
+	if (!strncasecmp(c, "sip:", 4)) {
 		name = c + 4;
 	} else {
 		name = c;
@@ -8468,7 +8468,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	if (ast_strlen_zero(tmp))
 		return 0;
 	c = get_in_brackets(tmp);
-	if (strncmp(c, "sip:", 4)) {
+	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
 		return -1;
 	}
@@ -8505,7 +8505,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 
 	uri = get_in_brackets(tmp);
 
-	if (strncmp(uri, "sip:", 4)) {
+	if (strncasecmp(uri, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
 		return -1;
 	}
@@ -8522,7 +8522,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	
 	if (!ast_strlen_zero(from)) {
-		if (strncmp(from, "sip:", 4)) {
+		if (strncasecmp(from, "sip:", 4)) {
 			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
 			return -1;
 		}
@@ -8824,7 +8824,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	if (pedanticsipchecking)
 		ast_uri_decode(c);
 	
-	if (strncmp(c, "sip:", 4)) {
+	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header in Also: transfer (%s)?\n", c);
 		return -1;
 	}
@@ -9037,7 +9037,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
 		t = uri2;
-		if (!strncmp(t, "sip:", 4))
+		if (!strncasecmp(t, "sip:", 4))
 			t+= 4;
 		ast_string_field_set(p, exten, t);
 		t = strchr(p->exten, '@');
@@ -9048,7 +9048,7 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 	}
 	/* save the URI part of the From header */
 	ast_string_field_set(p, from, of);
-	if (strncmp(of, "sip:", 4)) {
+	if (strncasecmp(of, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	} else
 		of += 4;
@@ -17172,7 +17172,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 			ast_log(LOG_ERROR, "Cannot retrieve the 'To' header from the original SIP request!\n");
 			return 0;
 		}
-		if ((localtmp = strstr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@'))) {
+		if ((localtmp = strcasestr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@'))) {
 			char lhost[80], lport[80];
 			memset(lhost, 0, sizeof(lhost));
 			memset(lport, 0, sizeof(lport));
