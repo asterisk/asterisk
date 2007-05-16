@@ -72,13 +72,13 @@ typedef void *(*ast_dial_option_cb_enable)(void *data);
 /*! \brief Typedef for dial option disable */
 typedef int (*ast_dial_option_cb_disable)(void *data);
 
-/* Structure for 'ANSWER_EXEC' option */
+/*! \brief Structure for 'ANSWER_EXEC' option */
 struct answer_exec_struct {
-	char app[AST_MAX_APP]; /* Application name */
-	char *args;            /* Application arguments */
+	char app[AST_MAX_APP]; /*!< Application name */
+	char *args;            /*!< Application arguments */
 };
 
-/* Enable function for 'ANSWER_EXEC' option */
+/*! \brief Enable function for 'ANSWER_EXEC' option */
 static void *answer_exec_enable(void *data)
 {
 	struct answer_exec_struct *answer_exec = NULL;
@@ -104,7 +104,7 @@ static void *answer_exec_enable(void *data)
 	return answer_exec;
 }
 
-/* Disable function for 'ANSWER_EXEC' option */
+/*! \brief Disable function for 'ANSWER_EXEC' option */
 static int answer_exec_disable(void *data)
 {
 	struct answer_exec_struct *answer_exec = data;
@@ -138,7 +138,7 @@ static int music_disable(void *data)
 	return 0;
 }
 
-/* Application execution function for 'ANSWER_EXEC' option */
+/*! \brief Application execution function for 'ANSWER_EXEC' option */
 static void answer_exec_run(struct ast_channel *chan, char *app, char *args)
 {
 	struct ast_app *ast_app = pbx_findapp(app);
@@ -165,7 +165,7 @@ static const struct ast_option_types {
 	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*!< Terminator of list */
 };
 
-/* free the buffer if allocated, and set the pointer to the second arg */
+/*! \brief free the buffer if allocated, and set the pointer to the second arg */
 #define S_REPLACE(s, new_val)           \
         do {                            \
                 if (s)                  \
