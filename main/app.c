@@ -75,7 +75,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	else if (!timeout)
 		timeout = 5;
 	
-	ts = ast_get_indication_tone(chan->zone,"dial");
+	ts = ast_get_indication_tone(chan->zone, "dial");
 	if (ts && ts->data[0])
 		res = ast_playtones_start(chan, 0, ts->data, 0);
 	else 
