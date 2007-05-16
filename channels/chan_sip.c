@@ -18151,9 +18151,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq);
 
 	sip_scheddestroy(p, 32000);	/* Make sure we stop send this reply. */
-
+	sip_alreadygone(p);
 	/* hangup here */
-	return -1;
+	return 0;
 }
 
 /*! \brief Return SIP UA's codec (part of the RTP interface) */
