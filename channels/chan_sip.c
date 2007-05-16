@@ -17195,7 +17195,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq);
 
 	sip_scheddestroy(p, 32000);	/* Make sure we stop send this reply. */
-
+	sip_alreadygone(p);
 	return 0;
 }
 
