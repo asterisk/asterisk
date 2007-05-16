@@ -344,6 +344,8 @@ enum check_auth_result {
 	AUTH_NOT_FOUND = -3,	/* returned by register_verify */
 	AUTH_FAKE_AUTH = -4,
 	AUTH_UNKNOWN_DOMAIN = -5,
+	AUTH_PEER_NOT_DYNAMIC = -6,
+	AUTH_ACL_FAILED = -7,
 };
 
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
@@ -8943,6 +8945,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		if (peer)
 			unref_peer(peer);
 		peer = NULL;
+		res = AUTH_ACL_FAILED;
 	}
 	if (peer) {
 		/* Set Frame packetization */
@@ -8952,6 +8955,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		}
 		if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)) {
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
+			res = AUTH_PEER_NOT_DYNAMIC;
 		} else {
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT);
 			transmit_response(p, "100 Trying", req);
@@ -9029,34 +9033,20 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
 			break;
 		case AUTH_NOT_FOUND:
+		case AUTH_PEER_NOT_DYNAMIC:
+		case AUTH_ACL_FAILED:
 			if (global_alwaysauthreject) {
 				transmit_fake_auth_response(p, &p->initreq, 1);
 			} else {
 				/* URI not found */
-				transmit_response(p, "404 Not found", &p->initreq);
+				if (res == AUTH_UNKNOWN_DOMAIN || res == AUTH_PEER_NOT_DYNAMIC)
+					transmit_response(p, "403 Forbidden", &p->initreq);
+				else
+					transmit_response(p, "404 Not found", &p->initreq);
 			}
 			break;
 		default:
 			break;
-		}
-		if (option_debug > 1) {
-			const char *reason = "";
-
-			switch (res) {
-			case AUTH_SECRET_FAILED:
-				reason = "Bad password";
-				break;
-			case AUTH_USERNAME_MISMATCH:
-				reason = "Bad digest user";
-				break;
-			case AUTH_NOT_FOUND:
-				reason = "Peer not found";
-				break;
-			default:
-				break;
-			}
-			ast_log(LOG_DEBUG, "SIP REGISTER attempt failed for %s : %s\n",
-				peer->name, reason);
 		}
 	}
 	if (peer)
@@ -15511,7 +15501,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 		ast_log(LOG_DEBUG, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 	check_via(p, req);
 	if ((res = register_verify(p, sin, req, e)) < 0) {
-		const char *reason = "";
+		const char *reason;
 
 		switch (res) {
 		case AUTH_SECRET_FAILED:
@@ -15526,19 +15516,28 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 		case AUTH_UNKNOWN_DOMAIN:
 			reason = "Not a local domain";
 			break;
+		case AUTH_PEER_NOT_DYNAMIC:
+			reason = "Peer is not supposed to register";
+			break;
+		case AUTH_ACL_FAILED:
+			reason = "Device does not match ACL";
+			break;
 		default:
+			reason = "Unknown failure";
 			break;
 		}
 		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n",
 			get_header(req, "To"), ast_inet_ntoa(sin->sin_addr),
 			reason);
-	}
+		append_history(p, "RegRequest", "Failed : Account %s : %s", get_header(req, "To"), reason);
+	} else
+		append_history(p, "RegRequest", "Succeeded : Account %s", get_header(req, "To"));
+
 	if (res < 1) {
 		/* Destroy the session, but keep us around for just a bit in case they don't
 		   get our 200 OK */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
-	append_history(p, "RegRequest", "%s : Account %s", res ? "Failed": "Succeeded", get_header(req, "To"));
 	return res;
 }
 
