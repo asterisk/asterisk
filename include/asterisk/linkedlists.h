@@ -33,7 +33,7 @@
 
   This macro attempts to place an exclusive lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_LIST_LOCK(head)						\
 	ast_mutex_lock(&(head)->lock) 
@@ -44,7 +44,7 @@
 
   This macro attempts to place an exclusive write lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_RWLIST_WRLOCK(head)                                         \
         ast_rwlock_wrlock(&(head)->lock)
@@ -55,7 +55,7 @@
 
   This macro attempts to place a read lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_RWLIST_RDLOCK(head)                                         \
         ast_rwlock_rdlock(&(head)->lock)
@@ -66,7 +66,7 @@
 
   This macro attempts to place an exclusive lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_LIST_TRYLOCK(head)						\
 	ast_mutex_trylock(&(head)->lock) 
@@ -77,7 +77,7 @@
 
   This macro attempts to place an exclusive write lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_RWLIST_TRYWRLOCK(head)                                      \
         ast_rwlock_trywrlock(&(head)->lock)
@@ -88,7 +88,7 @@
 
   This macro attempts to place a read lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_RWLIST_TRYRDLOCK(head)                                      \
         ast_rwlock_tryrdlock(&(head)->lock)
