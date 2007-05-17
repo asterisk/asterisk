@@ -6767,7 +6767,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 			break;
 		case '4':
-			if (vms.curmsg) {
+			if (vms.curmsg > 0) {
 				vms.curmsg--;
 				cmd = play_message(chan, vmu, &vms);
 			} else {
