@@ -1184,7 +1184,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int to;	/* timeout */
 	struct cause_args num = { chan, 0, 0, 0 };
 	int cause;
-	char numsubst[AST_MAX_EXTENSION];
+	char numsubst[256];
 	char cidname[AST_MAX_EXTENSION];
 
 	struct ast_bridge_config config;
