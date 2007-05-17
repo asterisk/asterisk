@@ -4814,7 +4814,7 @@ static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int use
 
 	/* Add authentication user if present */
 	if (!ast_strlen_zero(authuser))
-		ast_build_string(&t, &left, "/%s", authuser);
+		ast_build_string(&t, &left, "/authuser=%s", authuser);
 
 	/* Add flags if present */
 	if (!ast_strlen_zero(imapflags))
