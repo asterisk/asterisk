@@ -33,7 +33,7 @@
 
   This macro attempts to place an exclusive lock in the
   list head structure pointed to by head.
-  Returns non-zero on success, 0 on failure
+  Returns 0 on success, non-zero on failure
 */
 #define AST_LIST_LOCK(head)						\
 	ast_mutex_lock(&(head)->lock) 
