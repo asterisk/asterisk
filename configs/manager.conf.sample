@@ -45,6 +45,10 @@ bindaddr = 0.0.0.0
 ;   sslcert=/tmp/asterisk.pem	; path to the certificate.
 
 
+;
+;allowmultiplelogin = yes		; IF set to no, rejects manager logins that are already in use.
+;                               ; The default is yes.
+;
 ;displayconnects = yes
 ;
 ; Add a Unix epoch timestamp to events (not action responses)

@@ -111,6 +111,7 @@ struct eventqent {
 static AST_LIST_HEAD_STATIC(all_events, eventqent);
 
 static int displayconnects = 1;
+static int allowmultiplelogin;
 static int timestampevents;
 static int httptimeout = 60;
 static int manager_enabled = 0;
@@ -416,6 +417,21 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 
 	return ret;
 }
+
+static int check_manager_session_inuse(const char *name)
+{
+	struct mansession *session = NULL;
+
+	AST_LIST_LOCK(&sessions);
+	AST_LIST_TRAVERSE(&sessions, session, list) {
+		if (!strcasecmp(session->username, name)) 
+			break;
+	}
+	AST_LIST_UNLOCK(&sessions);
+
+	return session ? 1 : 0;
+}
+
 
 /*!
  * lookup an entry in the list of registered users.
@@ -2266,6 +2282,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	char action[80] = "";
 	int ret = 0;
 	struct manager_action *tmp;
+	const char *user = astman_get_header(m, "Username");
 
 	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
 	if (option_debug)
@@ -2282,6 +2299,16 @@ static int process_message(struct mansession *s, const struct message *m)
 		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
+
+	if (!allowmultiplelogin && !s->authenticated && user &&
+		(!strcasecmp(action, "Login") || !strcasecmp(action, "Challenge"))) {
+		if (check_manager_session_inuse(user)) {
+			sleep(1);
+			astman_send_error(s, m, "Login Already In Use");
+			return -1;
+		}
+	}
+
 	ast_rwlock_rdlock(&actionlock);	
 	for (tmp = first_action ; tmp; tmp = tmp->next) {
 		if (strcasecmp(action, tmp->action))
@@ -3276,6 +3303,8 @@ int init_manager(void)
 				ast_log(LOG_WARNING, "Invalid address '%s' specified, using 0.0.0.0\n", val);
 				memset(&ami_desc.sin.sin_addr, 0, sizeof(ami_desc.sin.sin_addr));
 			}
+		} else if (!strcasecmp(var->name, "allowmultiplelogin")) { 
+			allowmultiplelogin = ast_true(val);
 		} else if (!strcasecmp(var->name, "displayconnects")) {
 			displayconnects = ast_true(val);
 		} else if (!strcasecmp(var->name, "timestampevents")) {
