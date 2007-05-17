@@ -786,7 +786,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int numcongestion = 0;
 	int numnochan = 0;
 	int cause;
-	char numsubst[AST_MAX_EXTENSION];
+	char numsubst[256];
 	char cidname[AST_MAX_EXTENSION];
 	int privdb_val = 0;
 	unsigned int calldurationlimit = 0;
