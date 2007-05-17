@@ -17960,6 +17960,11 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		p->redircodecs = codecs;
 		changed = 1;
 	}
+	if ((p->capability & codecs) != p->capability) {
+		p->jointcapability &= codecs;
+		p->capability &= codecs;
+		changed = 1;
+	}
 	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (chan->_state != AST_STATE_UP) {	/* We are in early state */
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
