@@ -8424,7 +8424,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 		destroy_association(peer);
 		
-		register_peer_exten(peer, 0);	/* Add extension from regexten= setting in sip.conf */
+		register_peer_exten(peer, FALSE);	/* Remove extension from regexten= setting in sip.conf */
 		peer->fullcontact[0] = '\0';
 		peer->useragent[0] = '\0';
 		peer->sipoptions = 0;
@@ -8492,7 +8492,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		sip_poke_peer(peer);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
-		register_peer_exten(peer, 1);
+		register_peer_exten(peer, TRUE);
 	}
 	
 	/* Save User agent */
