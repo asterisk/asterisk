@@ -938,7 +938,7 @@ static void dec_ie_display(unsigned char *p, Q931_info_t *qi, char *display, int
 #endif
 
 /* IE_KEYPAD */
-#if 0
+#if 1
 static void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, char *keypad, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;

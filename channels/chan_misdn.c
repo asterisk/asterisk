@@ -1124,8 +1124,8 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 			print_bc_info(fd, help, bc);
 		} else {
 			if (help->state == MISDN_HOLDED) {
-				chan_misdn_log(2, 0, "ITS A HOLDED BC:\n");
-				chan_misdn_log(2,0," --> l3_id: %x\n"
+				ast_cli(fd, "ITS A HOLDED BC:\n");
+				ast_cli(fd, " --> l3_id: %x\n"
 						" --> dad:%s oad:%s\n"
 						" --> hold_port: %d\n"
 						" --> hold_channel: %d\n"
@@ -2621,7 +2621,8 @@ static struct ast_frame  *misdn_read(struct ast_channel *ast)
 		chan_misdn_log(1,0,"misdn_read called without ast->pvt\n");
 		return NULL;
 	}
-	if (!tmp->bc) {
+
+	if (!tmp->bc && !(tmp->state==MISDN_HOLDED)) {
 		chan_misdn_log(1,0,"misdn_read called without bc\n");
 		return NULL;
 	}
@@ -4625,7 +4626,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	/***************************/
 	case EVENT_RETRIEVE:
 	{
-		ch=find_holded_l3(cl_te, bc->l3_id,1);
+		if (!ch) {
+			chan_misdn_log(4, bc->port, " --> no CH, searching in holded");
+			ch=find_holded_l3(cl_te, bc->l3_id,1);
+		}
+
 		if (!ch) {
 			ast_log(LOG_WARNING, "Found no Holded channel, cannot Retrieve\n");
 			misdn_lib_send_event(bc, EVENT_RETRIEVE_REJECT);
