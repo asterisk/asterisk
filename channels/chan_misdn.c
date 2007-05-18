@@ -337,6 +337,7 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
+static int misdn_check_l2l1(struct ast_channel *chan, void *data);
 static int misdn_set_opt_exec(struct ast_channel *chan, void *data);
 static int misdn_facility_exec(struct ast_channel *chan, void *data);
 
@@ -1999,8 +2000,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	
 	port=newbc->port;
-	strncpy(newbc->dad,ext,sizeof( newbc->dad));
-	strncpy(ast->exten,ext,sizeof(ast->exten));
+
 
 	int exceed;
 	if ((exceed=add_out_calls(port))) {
@@ -2017,7 +2017,10 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	chan_misdn_log(3, port, " --> * adding2newbc ext %s\n",ast->exten);
 	if (ast->exten) {
 		int l = sizeof(newbc->dad);
-		strncpy(newbc->dad,ast->exten, l);
+		strncpy(ast->exten,ext,sizeof(ast->exten));
+
+		strncpy(newbc->dad,ext,l);
+
 		newbc->dad[l-1] = 0;
 	}
 
@@ -2035,7 +2038,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 			newbc->oad[l-1] = 0;
 		}
 	}
-	
+
 	{
 		struct chan_list *ch=MISDN_ASTERISK_TECH_PVT(ast);
 		if (!ch) { ast_verbose("No chan_list in misdn_call\n"); return -1;}
@@ -2713,7 +2716,12 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	if ( !frame->samples ) {
 		chan_misdn_log(4, ch->bc->port, "misdn_write: zero write\n");
-		return 0;
+		
+		if (ch->state == MISDN_WAITING4DIGS) {
+			chan_misdn_log(4, ch->bc->port, "misdn_write: WAIT4DIGS ..\n");
+			return 0;
+		}
+		return -1;
 	}
 
 	if ( ! ch->bc->addr ) {
@@ -3084,8 +3092,6 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				}
 			} while (!newbc && robin_channel != rr->channel);
 			
-			if (!newbc)
-				chan_misdn_log(-1, port, " Failed! No free channel in group %d!", group);
 		} else {		
 			for (port=misdn_cfg_get_next_port(0); port > 0;
 				 port=misdn_cfg_get_next_port(port)) {
@@ -3109,16 +3115,27 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				}
 			}
 		}
-	} else {
+		
+		/* Group dial failed ?*/
+		if (!newbc) {
+			ast_log(LOG_WARNING, 
+					"Could not Dial out on group '%s'.\n"
+					"\tEither the L2 and L1 on all of these ports where DOWN (see 'show application misdn_check_l2l1')\n"
+					"\tOr there was no free channel on none of the ports\n\n"
+					, group);
+			return NULL;
+		}
+	} else { /* 'Normal' Port dial * Port dial */
 		if (channel)
 			chan_misdn_log(1, port," --> preselected_channel: %d\n",channel);
 		newbc = misdn_lib_get_free_bc(port, channel, 0, dec);
+
+		if (!newbc) {
+			ast_log(LOG_WARNING, "Could not create channel on port:%d with extensions:%s\n",port,ext);
+			return NULL;
+		}
 	}
 	
-	if (!newbc) {
-		chan_misdn_log(-1, 0, "Could not create channel on port:%d with extensions:%s\n",port,ext);
-		return NULL;
-	}
 
 	/* create ast_channel and link all the objects together */
 	cl->bc=newbc;
@@ -3675,14 +3692,20 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 		bc->sending_complete=1;
 	}
 	
-	ast_log(LOG_VERBOSE, "getting MISDN_USERUSER:\n");
 	tmp=pbx_builtin_getvar_helper(chan,"MISDN_USERUSER");
 	if (tmp) {
-		ast_log(LOG_VERBOSE, "MISDN_USERUSER: %s\n", tmp);
+		ast_log(LOG_NOTICE, "MISDN_USERUSER: %s\n", tmp);
 		strcpy(bc->uu, tmp);
 		bc->uulen=strlen(bc->uu);
 	}
 
+	tmp=pbx_builtin_getvar_helper(chan,"MISDN_KEYPAD");
+	if (tmp) {
+		strncpy(bc->keypad,tmp,sizeof(bc->keypad));
+		bc->keypad[sizeof(bc->keypad)-1]=0;
+	}
+	
+	
 }
 
 void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
@@ -3705,6 +3728,9 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (bc->uulen) {
 		pbx_builtin_setvar_helper(chan,"MISDN_USERUSER",bc->uu);
 	}
+
+	if (bc->keypad[0]) 
+		pbx_builtin_setvar_helper(chan,"MISDN_KEYPAD",bc->keypad);
 }
 
 int add_in_calls(int port)
@@ -4232,6 +4258,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				/** ADD IGNOREPAT **/
 				
 				int stop_tone, dad_len;
+				ch->state=MISDN_WAITING4DIGS;
+
 				misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
 
 				dad_len = ast_strlen_zero(bc->dad);
@@ -4241,7 +4269,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				else
 					dialtone_indicate(ch);
 				
-				ch->state=MISDN_WAITING4DIGS;
 				
 				if (ch->overlap_dial && !dad_len) {
 					ast_mutex_lock(&ch->overlap_tv_lock);
@@ -4455,9 +4482,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		stop_bc_tones(ch);
 		hangup_chan(ch);
-		release_chan(bc);
+
 		if(ch)	
 			ch->state=MISDN_CLEANING;
+
+		release_chan(bc);
 	}
 	break;
 	case EVENT_BCHAN_ERROR:
@@ -4780,6 +4809,7 @@ static int unload_module(void)
 	/* ast_unregister_application("misdn_crypt"); */
 	ast_unregister_application("misdn_set_opt");
 	ast_unregister_application("misdn_facility");
+	ast_unregister_application("misdn_check_l2l1");
   
 	ast_channel_unregister(&misdn_tech);
 
@@ -4906,6 +4936,24 @@ static int load_module(void)
 		);
 
 
+	ast_register_application("misdn_check_l2l1", misdn_check_l2l1, "misdn_check_l2l1",
+				 "misdn_check_l2l1(<port>||g:<groupname>,timeout)"
+				 "Checks if the L2 and L1 are up on either the given <port> or\n"
+				 "on the ports in the group with <groupname>\n"
+				 "If the L1/L2 are down, check_l2l1 gets up the L1/L2 and waits\n"
+				 "for <timeout> seconds that this happens. Otherwise, nothing happens\n"
+				 "\n"
+				 "This application, ensures the L1/L2 state of the Ports in a group\n"
+				 "it is intended to make the pmp_l1_check option redundant and to\n"
+				 "fix a buggy switch config from your provider\n"
+				 "\n"
+				 "a sample dialplan would look like:\n\n"
+				 "exten => _X.,1,misdn_check_l2l1(g:out|2)\n"
+				 "exten => _X.,n,dial(mISDN/g:out/${EXTEN})\n"
+				 "\n"
+		);
+
+
 	misdn_cfg_get( 0, MISDN_GEN_TRACEFILE, global_tracefile, BUFFERSIZE);
 
 	/* start the l1 watchers */
@@ -4981,6 +5029,86 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 	
 }
 
+static int misdn_check_l2l1(struct ast_channel *chan, void *data)
+{
+	if (strcasecmp(chan->tech->type,"mISDN")) {
+		ast_log(LOG_WARNING, "misdn_check_l2l1 makes only sense with chan_misdn channels!\n");
+		return -1;
+	}
+
+	AST_DECLARE_APP_ARGS(args,
+			AST_APP_ARG(grouppar);
+			AST_APP_ARG(timeout);
+	);
+
+	if (ast_strlen_zero((char *)data)) {
+		ast_log(LOG_WARNING, "misdn_check_l2l1 Requires arguments\n");
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc != 2) {
+		ast_log(LOG_WARNING, "Wrong argument count\n");
+		return 0;
+	}
+
+	/*ast_log(LOG_NOTICE, "Arguments: group/port '%s' timeout '%s'\n", args.grouppar, args.timeout);*/
+	char group[BUFFERSIZE+1];
+	char *port_str;
+
+	int port=0;
+	int timeout=atoi(args.timeout);
+	int dowait=0;
+
+	port_str=args.grouppar;
+
+	int port_up;
+	if (port_str[0]=='g' && port_str[1]==':' ) {
+		/* We make a group call lets checkout which ports are in my group */
+		port_str += 2;
+		strncpy(group, port_str, BUFFERSIZE);
+		group[BUFFERSIZE-1] = 0;
+		chan_misdn_log(2, 0, "Checking Ports in group: %s\n",group);
+
+		for (	port = misdn_cfg_get_next_port(port); 
+			port > 0;
+			port = misdn_cfg_get_next_port(port)) {
+			
+			chan_misdn_log(2,0,"trying port %d\n",port);
+
+			char cfg_group[BUFFERSIZE+1];
+			misdn_cfg_get(port, MISDN_CFG_GROUPNAME, cfg_group, BUFFERSIZE);
+
+			if (!strcasecmp(cfg_group, group)) {
+				port_up = misdn_lib_port_up(port, 1);
+
+				if (!port_up) {
+					chan_misdn_log(2, 0, " --> port '%d'\n", port);
+					misdn_lib_get_port_up(port);
+					dowait=1;
+				}
+			}
+		}
+
+	} else {
+		port = atoi(port_str);
+		chan_misdn_log(2, 0, "Checking Port: %d\n",port);
+		port_up = misdn_lib_port_up(port, 1);
+		if (!port_up) {
+			misdn_lib_get_port_up(port);
+			dowait=1;
+		}
+
+	}
+
+	if (dowait) {
+		chan_misdn_log(2, 0, "Waiting for '%d' seconds\n",timeout);
+		sleep(timeout);
+	}
+
+	return 0;
+}
 
 static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 {

@@ -1344,7 +1344,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 
 		misdn_lib_get_short_status(stack);
 		misdn_lib_get_l1_up(stack);
-		misdn_lib_get_l2_up(stack);
+		misdn_lib_get_l2_up(stack); 
 		
 	}
 
@@ -1718,7 +1718,7 @@ int misdn_lib_port_up(int port, int check)
 				if (stack->l1link && stack->l2link) {
 					return 1;
 				} else {
-					cb_log(0,port, "Port Down L2:%d L1:%d\n",
+					cb_log(1,port, "Port Down L2:%d L1:%d\n",
 						stack->l2link, stack->l1link);
 					return 0;
 				}
@@ -1726,7 +1726,7 @@ int misdn_lib_port_up(int port, int check)
 				if ( !check || stack->l1link )
 					return 1;
 				else {
-					cb_log(0,port, "Port down PMP\n");
+					cb_log(1,port, "Port down PMP\n");
 					return 0;
 				}
 			}
