@@ -11699,32 +11699,18 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			ast_unlock_call_features();
 			return;
 		} 
-		/* OEJ: Why is the DTMF code included in the record section? */
+		/* Send the feature code to the PBX as DTMF, just like the handset had sent it */
 		f.len = 100;
-		for (j=0; j<strlen(feat->exten); j++) {
+		for (j=0; j < strlen(feat->exten); j++) {
 			f.subclass = feat->exten[j];
 			ast_queue_frame(p->owner, &f);
 			if (sipdebug)
-				ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
+				ast_verbose("* DTMF-relay event faked: %c\n", f.subclass);
 		}
 		ast_unlock_call_features();
-#ifdef DISABLED_CODE
-		/* And feat isn't used here - Is this code tested at all??? 
-			We just send a reply ... 
-		*/
-		if (strcasecmp(c, "on")== 0) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got a Request to Record the channel!\n");
-			transmit_response(p, "200 OK", req);
-			return;
 
-		} else if (strcasecmp(c, "off")== 0) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got a Request to Stop Recording the channel\n");
-			transmit_response(p, "200 OK", req);
-			return;
-		}
-#endif
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Got a Request to Record the channel, state %s\n", c);
 		transmit_response(p, "200 OK", req);
 		return;
 	}
