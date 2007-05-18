@@ -10593,6 +10593,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	char *supported;
 	char *required;
 	unsigned int required_profile = 0;
+	int reinvite = 0;
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
@@ -10733,6 +10734,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	} else {
 		if (option_debug > 1 && sipdebug)
 			ast_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
+		reinvite = 1;
 		c = p->owner;
 	}
 	if (!ignore && p)
@@ -10809,7 +10811,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "180 Ringing", req);
 			break;
 		case AST_STATE_UP:
-			transmit_response_with_sdp(p, "200 OK", req, 1);
+			/* If this is not a re-invite or something to ignore - it's critical */
+			transmit_response_with_sdp(p, "200 OK", req, (ignore || reinvite) ? 1 : 2);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
