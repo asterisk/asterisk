@@ -12752,10 +12752,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			This transaction is already scheduled to be killed by sip_hangup().
 		*/
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE)) {
 			ast_queue_hangup(p->owner);
-		else if (!ast_test_flag(req, SIP_PKT_IGNORE))
+			append_history(p, "Hangup", "Got 487 on CANCEL request from us. Queued AST hangup request");
+ 		} else if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
 			update_call_counter(p, DEC_CALL_LIMIT);
+			append_history(p, "Hangup", "Got 487 on CANCEL request from us on call without owner. Killing this dialog.");
+			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			sip_alreadygone(p);
+		}
 		break;
 	case 488: /* Not acceptable here */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
