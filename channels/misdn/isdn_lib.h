@@ -335,7 +335,9 @@ struct misdn_bchannel {
 /* 	unsigned char info_keypad[32]; */
 /* 	unsigned char clisub[24]; */
 /* 	unsigned char cldsub[24]; */
-/* 	unsigned char uu[256]; */
+
+ 	char uu[256];
+	int uulen;
   
 	int cause;
 	int out_cause;

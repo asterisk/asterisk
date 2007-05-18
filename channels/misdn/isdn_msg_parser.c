@@ -252,6 +252,14 @@ static void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchann
 		
 		set_channel(bc,channel);
 	}
+
+	{
+		int  protocol ;
+		dec_ie_useruser(setup->USER_USER, (Q931_info_t *)setup, &protocol, bc->uu, &bc->uulen, nt,bc);
+		if (bc->uulen) cb_log(1,bc->port,"USERUESRINFO:%s\n",bc->uu);
+		else
+		cb_log(1,bc->port,"NO USERUESRINFO\n");
+	}
 	
 	dec_ie_progress(setup->PROGRESS, (Q931_info_t *)setup, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
 	
@@ -331,7 +339,15 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 		enc_ie_complete(&setup->BEARER,msg, bc->sending_complete, nt, bc);
 	}
   
-#ifdef DEBUG 
+	{
+		int  protocol=4;
+		enc_ie_useruser(&setup->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
+		if (bc->uulen) cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+		else
+		cb_log(1,bc->port,"NO USERUESRINFO ENCODED\n");
+	}
+
+#if DEBUG 
 	printf("Building SETUP Msg\n"); 
 #endif
 	return msg; 

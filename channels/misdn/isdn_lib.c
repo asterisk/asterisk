@@ -463,7 +463,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 
 static int empty_chan_in_stack(struct misdn_stack *stack, int channel)
 {
-	if (channel<=0 || channel>=MAX_BCHANS) {
+	if (channel<=0 || channel>MAX_BCHANS) {
 		cb_log(0,stack?stack->port:0, "empty_chan_in_stack: cannot empty channel %d\n",channel);
 		return -1;
 	}
@@ -618,6 +618,8 @@ static void empty_bc(struct misdn_bchannel *bc)
 	bc->dad[0] = 0;
 	bc->rad[0] = 0;
 	bc->orig_dad[0] = 0;
+	bc->uu[0]=0;
+	bc->uulen=0;
 	
 	bc->fac_in.Function = Fac_None;
 	bc->fac_out.Function = Fac_None;
@@ -1533,8 +1535,10 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 			if (bc->channel>0)
 				empty_chan_in_stack(stack,bc->channel);
 			int tmpcause=bc->cause;	
+			int tmp_out_cause=bc->out_cause;	
 			empty_bc(bc);
 			bc->cause=tmpcause;
+			bc->out_cause=tmp_out_cause;
 			clean_up_bc(bc);
 			break;
 		default:
@@ -3082,6 +3086,9 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel, int inout)
 			}
 
 			int maxnum=inout&&!stack->pri&&!stack->ptp?stack->b_num+1:stack->b_num;
+			//int maxnum=stack->b_num+1;
+
+			cb_log(0,0,"maxnum:%d",maxnum);
 			for (i = 0; i <maxnum; i++) {
 				if (!stack->bc[i].in_use) {
 					/* 3. channel on bri means CW*/
@@ -3322,8 +3329,10 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			if (bc->channel>0)
 				empty_chan_in_stack(stack,bc->channel);
 			int tmpcause=bc->cause;	
+			int tmp_out_cause=bc->out_cause;	
 			empty_bc(bc);
 			bc->cause=tmpcause;
+			bc->out_cause=tmp_out_cause;
 			clean_up_bc(bc);
 		}
 		break;

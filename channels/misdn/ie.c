@@ -1324,7 +1324,7 @@ static void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *p
 
 
 /* IE_USERUSER */
-#if 0
+#if 1
 static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, char *user, int user_len, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
@@ -1366,7 +1366,7 @@ static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, ch
 }
 #endif
 
-#if 0
+#if 1
 static void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, char *user, int *user_len, int nt, struct misdn_bchannel *bc)
 {
 	char debug[768];

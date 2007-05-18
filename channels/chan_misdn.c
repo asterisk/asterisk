@@ -2015,7 +2015,12 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		strncpy(newbc->dad,ast->exten, l);
 		newbc->dad[l-1] = 0;
 	}
-	newbc->rad[0]=0;
+
+	if (ast->cid.cid_rdnis)  
+		strcpy(newbc->rad, ast->cid.cid_rdnis);
+	else 
+		newbc->rad[0]=0;
+
 	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n",ast->cid.cid_num);
 	if (ast_strlen_zero(newbc->oad) && ast->cid.cid_num ) {
 
@@ -2330,12 +2335,8 @@ static int misdn_indication(struct ast_channel *ast, int cond, const void *data,
 		chan_misdn_log(1, p->bc->port, " --> * IND :\tcongestion pid:%d\n",p->bc?p->bc->pid:-1);
 
 		p->bc->out_cause=42;
-		if (p->state != MISDN_CONNECTED) {
-			start_bc_tones(p);
-			misdn_lib_send_event( p->bc, EVENT_RELEASE);
-		} else {
-			misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
-		}
+		start_bc_tones(p);
+		misdn_lib_send_event( p->bc, EVENT_DISCONNECT);
 
 		if (p->bc->nt) {
 			hanguptone_indicate(p);
@@ -3660,6 +3661,15 @@ void import_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (tmp && (atoi(tmp) == 1)) {
 		bc->sending_complete=1;
 	}
+	
+	ast_log(LOG_VERBOSE, "getting MISDN_USERUSER:\n");
+	tmp=pbx_builtin_getvar_helper(chan,"MISDN_USERUSER");
+	if (tmp) {
+		ast_log(LOG_VERBOSE, "MISDN_USERUSER: %s\n", tmp);
+		strcpy(bc->uu, tmp);
+		bc->uulen=strlen(bc->uu);
+	}
+
 }
 
 void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_list *ch)
@@ -3677,6 +3687,10 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 	if (bc->urate) {
 		sprintf(tmp,"%d",bc->urate);
 		pbx_builtin_setvar_helper(chan,"MISDN_URATE",tmp);
+	}
+
+	if (bc->uulen) {
+		pbx_builtin_setvar_helper(chan,"MISDN_USERUSER",bc->uu);
 	}
 }
 
@@ -3850,7 +3864,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		if ( stop_tone ) {
 			stop_indicate(ch);
 		}
-		
+	
+		if (!ch->ast) break;
+
 		if (ch->state == MISDN_WAITING4DIGS ) {
 			/*  Ok, incomplete Setup, waiting till extension exists */
 
@@ -4397,8 +4413,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	case EVENT_RELEASE:
 		{
-			bc->out_cause=16;
-			
 			hangup_chan(ch);
 			release_chan(bc);
 		
