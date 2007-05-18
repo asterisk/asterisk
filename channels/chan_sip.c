@@ -4737,6 +4737,33 @@ static int find_sdp(struct sip_request *req)
 	return 0;
 }
 
+/*! \brief Change hold state for a call */
+static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, int holdstate, int sendonly)
+{
+	if (global_notifyhold)
+		sip_peer_hold(dialog, holdstate);
+	if (global_callevents)
+		manager_event(EVENT_FLAG_CALL, holdstate ? "Hold" : "Unhold",
+			      "Channel: %s\r\n"
+			      "Uniqueid: %s\r\n",
+			      dialog->owner->name, 
+			      dialog->owner->uniqueid);
+	append_history(dialog, holdstate ? "Hold" : "Unhold", "%s", req->data);
+	if (!holdstate) { 	/* Put off remote hold */
+		ast_clear_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
+		return;
+	}
+	/* No address for RTP, we're on hold */
+
+	if (sendonly == 1)	/* One directional hold (sendonly/recvonly) */
+		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
+	else if (sendonly == 2)	/* Inactive stream */
+		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
+	else
+		ast_set_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
+	return;
+}
+
 /*! \brief Process SIP SDP offer, select formats and activate RTP channels
 	If offer is rejected, we will not change any properties of the call
  	Return 0 on success, a negative value on errors.
@@ -5285,38 +5312,10 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Manager Hold and Unhold events must be generated, if necessary */
-	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && sin.sin_addr.s_addr && (!sendonly || sendonly == -1)) {
-		append_history(p, "Unhold", "%s", req->data);
-		if (global_callevents)
-			manager_event(EVENT_FLAG_CALL, "Unhold",
-				      "Channel: %s\r\n"
-				      "Uniqueid: %s\r\n",
-				      p->owner->name, 
-				      p->owner->uniqueid);
-		if (global_notifyhold)
-			sip_peer_hold(p, 0);
-		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);	/* Clear both flags */
-	} else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1)) {
-		/* No address for RTP, we're on hold */
-		append_history(p, "Hold", "%s", req->data);
-
-		if (global_callevents && !ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD)) {
-			manager_event(EVENT_FLAG_CALL, "Hold",
-				"Channel: %s\r\n"
-				"Uniqueid: %s\r\n",
-				p->owner->name, 
-				p->owner->uniqueid);
-		}
-		if (sendonly == 1)	/* One directional hold (sendonly/recvonly) */
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ONEDIR);
-		else if (sendonly == 2)	/* Inactive stream */
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
-		else
-			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
-		if (global_notifyhold)
-			sip_peer_hold(p, 1);
-	}
-	
+	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) && sin.sin_addr.s_addr && (!sendonly || sendonly == -1))
+		change_hold_state(p, req, FALSE, sendonly);
+	else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1))
+		change_hold_state(p, req, TRUE, sendonly);
 	return 0;
 }
 
@@ -13405,8 +13404,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 			} else {
 				p->jointcapability = p->capability;
-				if (option_debug)
+				if (option_debug > 2)
 					ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+				/* Some devices signal they want to be put off hold by sending a re-invite
+				   *without* an SDP, which is supposed to mean "Go back to your state"
+				   and since they put os on remote hold, we go back to off hold */
+				if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD))
+					change_hold_state(p, req, FALSE, 0);
 			}
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY)) /* This is a response, note what it was for */
 				append_history(p, "ReInv", "Re-invite received");
