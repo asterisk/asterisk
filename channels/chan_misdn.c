@@ -4385,7 +4385,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 			if (ch->ast) {
 				ch->ast->hangupcause=bc->cause;
-				ast_queue_control(ch->ast, AST_CONTROL_BUSY);
+				if (bc->cause == 17)
+					ast_queue_control(ch->ast, AST_CONTROL_BUSY);
 			}
 			ch->need_busy=0;
 			break;
