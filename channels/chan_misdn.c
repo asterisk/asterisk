@@ -117,6 +117,7 @@ enum misdn_chan_state {
 	MISDN_NOTHING=0,	/*!< at beginning */
 	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
 	MISDN_EXTCANTMATCH, /*!<  when asterisk couldnt match our ext */
+	MISDN_INCOMING_SETUP, /*!<  for incoming setups*/
 	MISDN_DIALING, /*!<  when pbx_start */
 	MISDN_PROGRESS, /*!<  we got a progress */
 	MISDN_PROCEEDING, /*!<  we got a progress */
@@ -156,7 +157,8 @@ struct chan_list {
 	int need_busy;
 	
 	int originator;
-
+	int noautorespond_on_setup;
+	
 	int norxtone;
 	int notxtone; 
 
@@ -986,6 +988,7 @@ static struct state_struct state_array[] = {
 	{MISDN_NOTHING,"NOTHING"}, /* at beginning */
 	{MISDN_WAITING4DIGS,"WAITING4DIGS"}, /*  when waiting for infos */
 	{MISDN_EXTCANTMATCH,"EXTCANTMATCH"}, /*  when asterisk couldnt match our ext */
+	{MISDN_INCOMING_SETUP,"INCOMING SETUP"}, /*  when pbx_start */
 	{MISDN_DIALING,"DIALING"}, /*  when pbx_start */
 	{MISDN_PROGRESS,"PROGRESS"}, /*  when pbx_start */
 	{MISDN_PROCEEDING,"PROCEEDING"}, /*  when pbx_start */
@@ -1747,6 +1750,8 @@ static int read_config(struct chan_list *ch, int orig) {
 	misdn_cfg_get( port, MISDN_CFG_NEED_MORE_INFOS, &bc->need_more_infos, sizeof(int));
 	misdn_cfg_get( port, MISDN_CFG_NTTIMEOUT, &ch->nttimeout, sizeof(int));
 	
+	misdn_cfg_get( port, MISDN_CFG_NOAUTORESPOND_ON_SETUP, &ch->noautorespond_on_setup, sizeof(int));
+	
 	misdn_cfg_get( port, MISDN_CFG_FAR_ALERTING, &ch->far_alerting, sizeof(int));
 
 	misdn_cfg_get( port, MISDN_CFG_ALLOWED_BEARERS, &ch->allowed_bearers, BUFFERSIZE);
@@ -2059,11 +2064,11 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
 		if (bridging && ch->other_ch) {
 #ifdef MISDN_1_2
-			chan_misdn_log(0, port, "Disabling EC (aka Pipeline) on both Sides\n");
+			chan_misdn_log(1, port, "Disabling EC (aka Pipeline) on both Sides\n");
 			*ch->bc->pipeline=0;
 			*ch->other_ch->bc->pipeline=0;
 #else
-			chan_misdn_log(0, port, "Disabling EC on both Sides\n");
+			chan_misdn_log(1, port, "Disabling EC on both Sides\n");
 			ch->bc->ec_enable=0;
 			ch->other_ch->bc->ec_enable=0;
 #endif
@@ -2439,6 +2444,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		chan_misdn_log(2, bc->port, " --> state:%s\n", misdn_get_ch_state(p));
 		
 		switch (p->state) {
+		case MISDN_INCOMING_SETUP:
 		case MISDN_CALLING:
 			p->state=MISDN_CLEANING;
 			misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
@@ -3535,16 +3541,20 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
   
 	ch->state=MISDN_DIALING;
 
-	if (bc->nt) {
-		int ret; 
-		ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
-	} else {
-		int ret;
-		if ( misdn_lib_is_ptp(bc->port)) {
+	if (!ch->noautorespond_on_setup) {
+		if (bc->nt) {
+			int ret; 
 			ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
 		} else {
-			ret = misdn_lib_send_event(bc, EVENT_PROCEEDING );
+			int ret;
+			if ( misdn_lib_is_ptp(bc->port)) {
+				ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+			} else {
+				ret = misdn_lib_send_event(bc, EVENT_PROCEEDING );
+			}
 		}
+	} else {
+		ch->state = MISDN_INCOMING_SETUP;
 	}
 
 	if ( !bc->nt && (ch->originator==ORG_MISDN) && !ch->incoming_early_audio ) 
@@ -4106,8 +4116,12 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		/* Check for Pickup Request first */
 		if (!strcmp(chan->exten, ast_pickup_ext())) {
-			int ret;/** Sending SETUP_ACK**/
-			ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+			if (!ch->noautorespond_on_setup) {
+				int ret;/** Sending SETUP_ACK**/
+				ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+			} else {
+				ch->state = MISDN_INCOMING_SETUP;
+			}
 			if (ast_pickup_call(chan)) {
 				hangup_chan(ch);
 			} else {
@@ -4165,14 +4179,19 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 		
 		if (!ch->overlap_dial && ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
-			ch->state=MISDN_DIALING;
 			
-			if (bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)) ) {
-				int ret; 
-				ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+			if (!ch->noautorespond_on_setup) {
+				ch->state=MISDN_DIALING;
+
+				if (bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)) ) {
+					int ret; 
+					ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+				} else {
+					int ret;
+					ret= misdn_lib_send_event(bc, EVENT_PROCEEDING );
+				}
 			} else {
-				int ret;
-				ret= misdn_lib_send_event(bc, EVENT_PROCEEDING );
+				ch->state = MISDN_INCOMING_SETUP;
 			}
 	
 			if (pbx_start_chan(ch)<0) {
@@ -4202,7 +4221,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				}
 
 			} else {
-
 				int ret= misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
 				if (ret == -ENOCHAN) {
 					ast_log(LOG_WARNING,"Channel was catched, before we could Acknowledge\n");

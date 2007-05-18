@@ -443,9 +443,11 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 	}
 	
 	channel--;
+
+	int bnums=stack->pri?stack->b_num:stack->b_num-1;
  
  	if (dec) {
-		for (i = stack->b_num-1; i >=0; i--) {
+		for (i = bnums; i >=0; i--) {
 			if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
 				if (!stack->channels[i]) {
 					cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
@@ -455,7 +457,7 @@ static int find_free_chan_in_stack(struct misdn_stack *stack, struct misdn_bchan
 			}
 		}
 	} else {
-		for (i = 0; i < stack->b_num; i++) {
+		for (i = 0; i <= bnums; i++) {
 			if (i != 15 && (channel < 0 || i == channel)) { /* skip E1 Dchannel ;) and work with chan preselection */
 				if (!stack->channels[i]) {
 					cb_log (3, stack->port, " --> found chan%s: %d\n", channel>=0?" (preselected)":"", i+1);
