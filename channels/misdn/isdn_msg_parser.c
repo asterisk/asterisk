@@ -340,15 +340,13 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 	}
 
 	if (bc->sending_complete) {
-		enc_ie_complete(&setup->BEARER,msg, bc->sending_complete, nt, bc);
+		enc_ie_complete(&setup->COMPLETE,msg, bc->sending_complete, nt, bc);
 	}
   
-	{
+	if (bc->uulen) {
 		int  protocol=4;
 		enc_ie_useruser(&setup->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
-		if (bc->uulen) cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
-		else
-		cb_log(1,bc->port,"NO USERUESRINFO ENCODED\n");
+		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
 	}
 
 #if DEBUG 
