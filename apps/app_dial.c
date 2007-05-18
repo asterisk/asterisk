@@ -751,6 +751,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 				/* Got hung up */
 				*to = -1;
 				strcpy(pa->status, "CANCEL");
+				ast_cdr_noanswer(in->cdr);
 				if (f)
 					ast_frfree(f);
 				return NULL;
@@ -764,6 +765,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 						*to=0;
+						ast_cdr_noanswer(in->cdr);
 						*result = f->subclass;
 						strcpy(pa->status, "CANCEL");
 						ast_frfree(f);
@@ -777,6 +779,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 						ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 					*to=0;
 					strcpy(pa->status, "CANCEL");
+					ast_cdr_noanswer(in->cdr);
 					ast_frfree(f);
 					return NULL;
 				}
@@ -804,6 +807,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		}
 		if (!*to && (option_verbose > 2))
 			ast_verbose(VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
+		if (!*to || ast_check_hangup(in)) {
+			ast_cdr_noanswer(in->cdr);
+		}
+		
 	}
 
 	return peer;
