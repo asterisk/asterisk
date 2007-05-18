@@ -665,6 +665,22 @@ void ast_cdr_failed(struct ast_cdr *cdr)
 	}
 }
 
+void ast_cdr_noanswer(struct ast_cdr *cdr)
+{
+	char *chan; 
+
+	while (cdr) {
+		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
+			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			if (cdr->disposition < AST_CDR_NOANSWER)
+				cdr->disposition = AST_CDR_NOANSWER;
+		}
+		cdr = cdr->next;
+	}
+}
+
 int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 {
 	int res = 0;
@@ -756,7 +772,7 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
 			set_one_cid(cdr, c);
 
-			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NOANSWER;
+			cdr->disposition = (c->_state == AST_STATE_UP) ?  AST_CDR_ANSWERED : AST_CDR_NULL;
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
@@ -787,6 +803,8 @@ void ast_cdr_end(struct ast_cdr *cdr)
 char *ast_cdr_disp2str(int disposition)
 {
 	switch (disposition) {
+	case AST_CDR_NULL:
+		return "NO ANSWER"; /* by default, for backward compatibility */
 	case AST_CDR_NOANSWER:
 		return "NO ANSWER";
 	case AST_CDR_FAILED:
@@ -953,7 +971,7 @@ void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 			cdr->billsec = 0;
 			cdr->duration = 0;
 			ast_cdr_start(cdr);
-			cdr->disposition = AST_CDR_NOANSWER;
+			cdr->disposition = AST_CDR_NULL;
 		}
 	}
 }
