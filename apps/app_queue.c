@@ -4705,6 +4705,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
+	ast_devstate_del(statechange_queue, NULL);
 
 	ast_module_user_hangup_all();
 
