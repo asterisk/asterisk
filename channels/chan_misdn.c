@@ -2717,10 +2717,16 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	if ( !frame->samples ) {
 		chan_misdn_log(4, ch->bc->port, "misdn_write: zero write\n");
 		
-		if (ch->state == MISDN_WAITING4DIGS) {
-			chan_misdn_log(4, ch->bc->port, "misdn_write: WAIT4DIGS ..\n");
+		if (!strcmp(frame->src,"ast_prod")) {
+			chan_misdn_log(1, ch->bc->port, "misdn_write: state (%s) prodded.\n", misdn_get_ch_state(ch));
+
+			if (ch->ts) {
+				chan_misdn_log(4,ch->bc->port,"Starting Playtones\n");
+				misdn_lib_tone_generator_start(ch->bc);
+			}
 			return 0;
 		}
+
 		return -1;
 	}
 
@@ -2905,9 +2911,8 @@ static int dialtone_indicate(struct chan_list *cl)
 	if (ts) {
 		cl->notxtone=0;
 		cl->norxtone=0;
+		/* This prods us in misdn_write */
 		ast_playtones_start(ast,0, ts->data, 0);
-		chan_misdn_log(4,cl->bc->port,"Starting Playtones\n");
-		misdn_lib_tone_generator_start(cl->bc);
 	}
 
 	return 0;
@@ -3575,11 +3580,6 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 		ch->state = MISDN_INCOMING_SETUP;
 	}
 
-	if ( !bc->nt && (ch->originator==ORG_MISDN) && !ch->incoming_early_audio ) 
-		chan_misdn_log(1,bc->port, " --> incoming_early_audio off\n");
-	 else  
-		dialtone_indicate(ch);
-  
 	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, ast->cid.cid_num);
   
 	strncpy(ast->exten,"s", 2);
@@ -4267,7 +4267,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				if ( !dad_len && stop_tone )
 					stop_indicate(ch);
 				else
-					dialtone_indicate(ch);
+					if (bc->nt) 
+						dialtone_indicate(ch);
 				
 				
 				if (ch->overlap_dial && !dad_len) {
