@@ -4210,7 +4210,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (!ch->noautorespond_on_setup) {
 				ch->state=MISDN_DIALING;
 
-				if (bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)) ) {
+				if (!bc->sending_complete &&
+						(bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)))) {
 					int ret; 
 					ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
 				} else {
