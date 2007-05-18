@@ -1291,6 +1291,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
 				int debug);
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p);
+static void stop_media_flows(struct sip_pvt *p);
 
 /*--- Authentication stuff */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod, char *digest, int digest_len);
@@ -3367,6 +3368,8 @@ static int sip_hangup(struct ast_channel *ast)
 		if (option_debug > 3)
 			ast_log(LOG_DEBUG, "Hanging up channel in state %s (not UP)\n", ast_state2str(ast->_state));
 	}
+
+	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
 	/* Disconnect */
 	if (p->vad)
