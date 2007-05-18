@@ -14052,6 +14052,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	const char *required;
 	unsigned int required_profile = 0;
 	struct ast_channel *c = NULL;		/* New channel */
+	int reinvite = 0;
 
 	/* Find out what they support */
 	if (!p->sipoptions) {
@@ -14354,6 +14355,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			else
 				ast_log(LOG_DEBUG, "Got a SIP re-transmit of INVITE for call %s\n", p->callid);
 		}
+		reinvite = 1;
 		c = p->owner;
 	}
 
@@ -14525,7 +14527,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				} 
 				/* Respond to normal re-invite */
 				if (sendok)
-					transmit_response_with_sdp(p, "200 OK", req, ast_test_flag(req, SIP_PKT_IGNORE) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
+					/* If this is not a re-invite or something to ignore - it's critical */
+					transmit_response_with_sdp(p, "200 OK", req, (reinvite || ast_test_flag(req, SIP_PKT_IGNORE)) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
 			}
 			p->invitestate = INV_TERMINATED;
 			break;
