@@ -2972,6 +2972,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	char *tokb=NULL, *p=NULL;
 	int channel=0, port=0;
 	struct misdn_bchannel *newbc = NULL;
+	int dec=0;
 	
 	struct chan_list *cl=init_chan_list(ORG_AST);
 	
@@ -3000,11 +3001,14 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 		else {
 			port = atoi(port_str);
 		}
-		
-		
 	} else {
 		ast_log(LOG_WARNING, " --> ! IND : CALL dad:%s WITHOUT PORT/Group, check extension.conf\n",ext);
 		return NULL;
+	}
+
+	if (misdn_cfg_is_group_method(group, METHOD_STANDARD_DEC)) {
+		chan_misdn_log(4, port, " --> STARTING STANDARDDEC...\n");
+		dec=1;
 	}
 
 	if (!ast_strlen_zero(group)) {
@@ -3013,10 +3017,11 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 		struct robin_list *rr = NULL;
 
 		if (misdn_cfg_is_group_method(group, METHOD_ROUND_ROBIN)) {
-			chan_misdn_log(4, port, " --> STARTING ROUND ROBIN...");
+			chan_misdn_log(4, port, " --> STARTING ROUND ROBIN...\n");
 			rr = get_robin_position(group);
 		}
 		
+			
 		if (rr) {
 			int robin_channel = rr->channel;
 			int port_start;
@@ -3058,7 +3063,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 						
 						
 						if ( port_up>0 )	{
-							newbc = misdn_lib_get_free_bc(port, robin_channel,0);
+							newbc = misdn_lib_get_free_bc(port, robin_channel,0, 0);
 							if (newbc) {
 								chan_misdn_log(4, port, " Success! Found port:%d channel:%d\n", newbc->port, newbc->channel);
 								if (port_up)
@@ -3074,9 +3079,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 			
 			if (!newbc)
 				chan_misdn_log(-1, port, " Failed! No free channel in group %d!", group);
-		}
-		
-		else {		
+		} else {		
 			for (port=misdn_cfg_get_next_port(0); port > 0;
 				 port=misdn_cfg_get_next_port(port)) {
 				
@@ -3092,18 +3095,17 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 					chan_misdn_log(4, port, "portup:%d\n", port_up);
 					
 					if ( port_up>0 ) {
-						newbc = misdn_lib_get_free_bc(port, 0, 0);
+						newbc = misdn_lib_get_free_bc(port, 0, 0, dec);
 						if (newbc)
 							break;
 					}
 				}
 			}
 		}
-		
 	} else {
 		if (channel)
 			chan_misdn_log(1, port," --> preselected_channel: %d\n",channel);
-		newbc = misdn_lib_get_free_bc(port, channel, 0);
+		newbc = misdn_lib_get_free_bc(port, channel, 0, dec);
 	}
 	
 	if (!newbc) {
@@ -4397,6 +4399,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			cb_log(1,bc->port," --> found holded ch\n");
 			misdn_transfer_bc(ch, holded_ch) ;
 		}
+
+		bc->need_disconnect=0;
 		
 		stop_bc_tones(ch);
 		hangup_chan(ch);
@@ -4413,6 +4417,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	
 	case EVENT_RELEASE:
 		{
+			bc->need_disconnect=0;
+			bc->need_release=0;
+
 			hangup_chan(ch);
 			release_chan(bc);
 		
@@ -4422,6 +4429,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		break;
 	case EVENT_RELEASE_COMPLETE:
 	{
+		bc->need_disconnect=0;
+		bc->need_release=0;
+		bc->need_release_complete=0;
+
 		stop_bc_tones(ch);
 		hangup_chan(ch);
 		release_chan(bc);

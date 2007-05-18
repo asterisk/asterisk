@@ -101,7 +101,8 @@ enum misdn_cfg_elements {
 
 enum misdn_cfg_method {
 	METHOD_STANDARD = 0,
-	METHOD_ROUND_ROBIN
+	METHOD_ROUND_ROBIN,
+	METHOD_STANDARD_DEC
 };
 
 /* you must call misdn_cfg_init before any other function of this header file */

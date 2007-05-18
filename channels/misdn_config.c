@@ -658,9 +658,12 @@ int misdn_cfg_is_port_valid (int port)
 int misdn_cfg_is_group_method (char *group, enum misdn_cfg_method meth)
 {
 	int i, re = 0;
-	char *method = NULL;
+	char *method ;
 
 	misdn_cfg_lock();
+
+	method = port_cfg[0][map[MISDN_CFG_METHOD]].str;
+
 	for (i = 1; i <= max_ports; i++) {
 		if (port_cfg[i] && port_cfg[i][map[MISDN_CFG_GROUPNAME]].str) {
 			if (!strcasecmp(port_cfg[i][map[MISDN_CFG_GROUPNAME]].str, group))
@@ -668,11 +671,14 @@ int misdn_cfg_is_group_method (char *group, enum misdn_cfg_method meth)
 						  port_cfg[i][map[MISDN_CFG_METHOD]].str : port_cfg[0][map[MISDN_CFG_METHOD]].str);
 		}
 	}
+
 	if (method) {
 		switch (meth) {
 		case METHOD_STANDARD:		re = !strcasecmp(method, "standard");
 									break;
 		case METHOD_ROUND_ROBIN:	re = !strcasecmp(method, "round_robin");
+									break;
+		case METHOD_STANDARD_DEC:	re = !strcasecmp(method, "standard_dec");
 									break;
 		}
 	}
