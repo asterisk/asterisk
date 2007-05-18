@@ -932,7 +932,7 @@ void dec_ie_display(unsigned char *p, Q931_info_t *qi, char *display, int displa
 
 
 /* IE_KEYPAD */
-void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, unsigned char *keypad, int nt, struct misdn_bchannel *bc)
+void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, char *keypad, int nt, struct misdn_bchannel *bc)
 {
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
@@ -946,7 +946,7 @@ void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, unsigned char *keypad, in
 
 	if (MISDN_IE_DEBG) printf("    keypad='%s'\n", keypad);
 
-	l = strlen((char *)keypad);
+	l = strlen(keypad);
 	p = msg_put(msg, l+2);
 	if (nt)
 		*ntmode = p+1;
@@ -954,7 +954,7 @@ void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, unsigned char *keypad, in
 		qi->QI_ELEMENT(keypad) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_KEYPAD;
 	p[1] = l;
-	strncpy((char *)p+2, (char *)keypad, strlen((char *)keypad));
+	strncpy((char *)p+2, keypad, strlen(keypad));
 }
 
 void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, char *keypad, int keypad_len, int nt, struct misdn_bchannel *bc)

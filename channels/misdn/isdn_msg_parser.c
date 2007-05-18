@@ -329,7 +329,7 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	}
 
 	if (bc->sending_complete) {
-		enc_ie_complete(&setup->BEARER,msg, bc->sending_complete, nt, bc);
+		enc_ie_complete(&setup->COMPLETE,msg, bc->sending_complete, nt, bc);
 	}
   
 #if DEBUG 
