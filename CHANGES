@@ -77,6 +77,13 @@ DUNDi changes
      functions will allow you to initiate a DUNDi query from the dialplan,
      find out how many results there are, and access each one.
 
+ENUM changes
+------------
+  * Added two new dialplan functions, ENUMQUERY and ENUMRESULT.  These
+     functions will allow you to initiate an ENUM lookup from the dialplan,
+     and Asterisk will cache the results.  ENUMRESULT can be used to access
+	 the results without doing multiple DNS queries.
+
 Voicemail Changes
 -----------------
   * Added the ability to customize which sound files are used for some of the
