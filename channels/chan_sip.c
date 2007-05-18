@@ -9969,10 +9969,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			This transaction is already scheduled to be killed by sip_hangup().
 		*/
 		transmit_request(p, SIP_ACK, seqno, 0, 0);
-		if (p->owner && !ignore)
+		if (p->owner && !ignore) {
 			ast_queue_hangup(p->owner);
-		else if (!ignore)
+			append_history(p, "Hangup", "Got 487 on CANCEL request from us. Queued AST hangup request");
+		} else if (!ignore) {
 			update_call_counter(p, DEC_CALL_LIMIT);
+			append_history(p, "Hangup", "Got 487 on CANCEL request from us on call without owner. Killing this dialog.");
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			ast_set_flag(p, SIP_ALREADYGONE);	
+		}
 		break;
 	case 491: /* Pending */
 		/* we have to wait a while, then retransmit */
