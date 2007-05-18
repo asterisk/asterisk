@@ -30,9 +30,10 @@
 #define AST_CDR_FLAG_CHILD			(1 << 3)
 #define AST_CDR_FLAG_POST_DISABLED		(1 << 4)
 
-#define AST_CDR_NOANSWER			(1 << 0)
+#define AST_CDR_NULL                0
+#define AST_CDR_FAILED				(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
-#define AST_CDR_FAILED				(1 << 2)
+#define AST_CDR_NOANSWER			(1 << 2)
 #define AST_CDR_ANSWERED			(1 << 3)
 
 /*! AMA Flags */
@@ -168,6 +169,13 @@ extern void ast_cdr_start(struct ast_cdr *cdr);
  * Starts all CDR stuff necessary for doing CDR when answering a call
  */
 extern void ast_cdr_answer(struct ast_cdr *cdr);
+
+/*! A call wasn't answered */
+/*!
+ * \param cdr the cdr you wish to associate with the call
+ * Marks the channel disposition as "NO ANSWER"
+ */
+extern void ast_cdr_noanswer(struct ast_cdr *cdr);
 
 /*! Busy a call */
 /*!
