@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <math.h>
 #include <errno.h>
 
+#include "asterisk/adsi.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
@@ -333,7 +334,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	
 }
 
-int ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
+static int _ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -353,7 +354,7 @@ int ast_adsi_begin_download(struct ast_channel *chan, char *service, unsigned ch
 	return -1;
 }
 
-int ast_adsi_end_download(struct ast_channel *chan)
+static int _ast_adsi_end_download(struct ast_channel *chan)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -366,7 +367,7 @@ int ast_adsi_end_download(struct ast_channel *chan)
 	return 0;
 }
 
-int ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
+static int _ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype, int dowait)
 {
 	unsigned char *msgs[5] = { NULL, NULL, NULL, NULL, NULL };
 	int msglens[5];
@@ -447,7 +448,7 @@ int ast_adsi_transmit_message_full(struct ast_channel *chan, unsigned char *msg,
 	return res;
 }
 
-int ast_adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype)
+static int _ast_adsi_transmit_message(struct ast_channel *chan, unsigned char *msg, int msglen, int msgtype)
 {
 	return ast_adsi_transmit_message_full(chan, msg, msglen, msgtype, 1);
 }
@@ -463,7 +464,7 @@ static inline int ccopy(unsigned char *dst, const unsigned char *src, int max)
 	return x;
 }
 
-int ast_adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data)
+static int _ast_adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, char *ret, int data)
 {
 	int bytes=0;
 
@@ -502,7 +503,7 @@ int ast_adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, cons
 	
 }
 
-int ast_adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
+static int _ast_adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
 {
 	int bytes=0;
 	int x;
@@ -525,7 +526,7 @@ int ast_adsi_connect_session(unsigned char *buf, unsigned char *fdn, int ver)
 
 }
 
-int ast_adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn, unsigned char *sec, int ver)
+static int _ast_adsi_download_connect(unsigned char *buf, char *service,  unsigned char *fdn, unsigned char *sec, int ver)
 {
 	int bytes=0;
 	int x;
@@ -555,7 +556,7 @@ int ast_adsi_download_connect(unsigned char *buf, char *service,  unsigned char 
 
 }
 
-int ast_adsi_disconnect_session(unsigned char *buf)
+static int _ast_adsi_disconnect_session(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -570,7 +571,7 @@ int ast_adsi_disconnect_session(unsigned char *buf)
 
 }
 
-int ast_adsi_query_cpeid(unsigned char *buf)
+static int _ast_adsi_query_cpeid(unsigned char *buf)
 {
 	int bytes = 0;
 	buf[bytes++] = ADSI_QUERY_CPEID;
@@ -580,7 +581,7 @@ int ast_adsi_query_cpeid(unsigned char *buf)
 	return bytes;
 }
 
-int ast_adsi_query_cpeinfo(unsigned char *buf)
+static int _ast_adsi_query_cpeinfo(unsigned char *buf)
 {
 	int bytes = 0;
 	buf[bytes++] = ADSI_QUERY_CONFIG;
@@ -590,7 +591,7 @@ int ast_adsi_query_cpeinfo(unsigned char *buf)
 	return bytes;
 }
 
-int ast_adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen)
+static int _ast_adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int maxlen)
 {
 	int bytes = 0;
 	int res;
@@ -625,7 +626,7 @@ int ast_adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int
 	return bytes;
 }
 
-int ast_adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
+static int _ast_adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
@@ -657,7 +658,7 @@ int ast_adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice
 	return res;
 }
 
-int ast_adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice)
+static int _ast_adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice)
 {
 	unsigned char buf[256];
 	int bytes = 0;
@@ -722,7 +723,7 @@ int ast_adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int 
 	return res;
 }
 
-int ast_adsi_data_mode(unsigned char *buf)
+static int _ast_adsi_data_mode(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -737,7 +738,7 @@ int ast_adsi_data_mode(unsigned char *buf)
 
 }
 
-int ast_adsi_clear_soft_keys(unsigned char *buf)
+static int _ast_adsi_clear_soft_keys(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -752,7 +753,7 @@ int ast_adsi_clear_soft_keys(unsigned char *buf)
 
 }
 
-int ast_adsi_clear_screen(unsigned char *buf)
+static int _ast_adsi_clear_screen(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -767,7 +768,7 @@ int ast_adsi_clear_screen(unsigned char *buf)
 
 }
 
-int ast_adsi_voice_mode(unsigned char *buf, int when)
+static int _ast_adsi_voice_mode(unsigned char *buf, int when)
 {
 	int bytes=0;
 
@@ -784,7 +785,7 @@ int ast_adsi_voice_mode(unsigned char *buf, int when)
 
 }
 
-int ast_adsi_available(struct ast_channel *chan)
+static int _ast_adsi_available(struct ast_channel *chan)
 {
 	int cpe = chan->adsicpe & 0xff;
 	if ((cpe == AST_ADSI_AVAILABLE) ||
@@ -793,7 +794,7 @@ int ast_adsi_available(struct ast_channel *chan)
 	return 0;
 }
 
-int ast_adsi_download_disconnect(unsigned char *buf)
+static int _ast_adsi_download_disconnect(unsigned char *buf)
 {
 	int bytes=0;
 
@@ -808,8 +809,8 @@ int ast_adsi_download_disconnect(unsigned char *buf)
 
 }
 
-int ast_adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
-		     char *col1, char *col2)
+static int _ast_adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
+		 char *col1, char *col2)
 {
 	int bytes=0;
 
@@ -854,7 +855,7 @@ int ast_adsi_display(unsigned char *buf, int page, int line, int just, int wrap,
 
 }
 
-int ast_adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just)
+static int _ast_adsi_input_control(unsigned char *buf, int page, int line, int display, int format, int just)
 {
 	int bytes=0;
 
@@ -877,7 +878,7 @@ int ast_adsi_input_control(unsigned char *buf, int page, int line, int display, 
 
 }
 
-int ast_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
+static int _ast_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
 {
 	int bytes = 0;
 
@@ -896,7 +897,7 @@ int ast_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *
 	return bytes;
 }
 
-int ast_adsi_set_keys(unsigned char *buf, unsigned char *keys)
+static int _ast_adsi_set_keys(unsigned char *buf, unsigned char *keys)
 {
 	int bytes=0;
 	int x;
@@ -911,7 +912,7 @@ int ast_adsi_set_keys(unsigned char *buf, unsigned char *keys)
 	return bytes;
 }
 
-int ast_adsi_set_line(unsigned char *buf, int page, int line)
+static int _ast_adsi_set_line(unsigned char *buf, int page, int line)
 {
 	int bytes=0;
 
@@ -942,7 +943,7 @@ int ast_adsi_set_line(unsigned char *buf, int page, int line)
 static int total = 0;
 static int speeds = 0;
 
-int ast_adsi_channel_restore(struct ast_channel *chan)
+static int _ast_adsi_channel_restore(struct ast_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -969,7 +970,7 @@ int ast_adsi_channel_restore(struct ast_channel *chan)
 
 }
 
-int ast_adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
+static int _ast_adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
 {
 	unsigned char buf[4096];
 	int bytes=0;
@@ -989,7 +990,7 @@ int ast_adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voic
 	return res;
 }
 
-int ast_adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data)
+static int _ast_adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -1033,7 +1034,7 @@ int ast_adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver,
 
 }
 
-int ast_adsi_unload_session(struct ast_channel *chan)
+static int _ast_adsi_unload_session(struct ast_channel *chan)
 {
 	unsigned char dsp[256];
 	int bytes;
@@ -1135,6 +1136,36 @@ static int reload(void)
 static int load_module(void)
 {
 	adsi_load();
+
+	ast_adsi_begin_download = _ast_adsi_begin_download;
+	ast_adsi_end_download = _ast_adsi_end_download;
+	ast_adsi_channel_restore = _ast_adsi_channel_restore;
+	ast_adsi_print = _ast_adsi_print;
+	ast_adsi_load_session = _ast_adsi_load_session;
+	ast_adsi_unload_session = _ast_adsi_unload_session;
+	ast_adsi_transmit_message = _ast_adsi_transmit_message;
+	ast_adsi_transmit_message_full = _ast_adsi_transmit_message_full;
+	ast_adsi_read_encoded_dtmf = _ast_adsi_read_encoded_dtmf;
+	ast_adsi_connect_session = _ast_adsi_connect_session;
+	ast_adsi_query_cpeid = _ast_adsi_query_cpeid;
+	ast_adsi_query_cpeinfo = _ast_adsi_query_cpeinfo;
+	ast_adsi_get_cpeid = _ast_adsi_get_cpeid;
+	ast_adsi_get_cpeinfo = _ast_adsi_get_cpeinfo;
+	ast_adsi_download_connect = _ast_adsi_download_connect;
+	ast_adsi_disconnect_session = _ast_adsi_disconnect_session;
+	ast_adsi_download_disconnect = _ast_adsi_download_disconnect;
+	ast_adsi_data_mode = _ast_adsi_data_mode;
+	ast_adsi_clear_soft_keys = _ast_adsi_clear_soft_keys;
+	ast_adsi_clear_screen = _ast_adsi_clear_screen;
+	ast_adsi_voice_mode = _ast_adsi_voice_mode;
+	ast_adsi_available = _ast_adsi_available;
+	ast_adsi_display = _ast_adsi_display;
+	ast_adsi_set_line = _ast_adsi_set_line;
+	ast_adsi_load_soft_key = _ast_adsi_load_soft_key;
+	ast_adsi_set_keys = _ast_adsi_set_keys;
+	ast_adsi_input_control = _ast_adsi_input_control;
+	ast_adsi_input_format = _ast_adsi_input_format;
+
 	return 0;
 }
 
