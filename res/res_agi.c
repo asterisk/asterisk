@@ -2177,4 +2177,7 @@ static int load_module(void)
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Asterisk Gateway Interface (AGI)");
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Asterisk Gateway Interface (AGI)",
+                .load = load_module,
+                .unload = unload_module,
+		);
