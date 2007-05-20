@@ -33,63 +33,39 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/crypto.h"
 #include "asterisk/logger.h"
 
-/* Hrm, I wonder if the compiler is smart enough to only create two functions
-   for all these...  I could force it to only make two, but those would be some
-   really nasty looking casts. */
-   
 static struct ast_key *stub_ast_key_get(const char *kname, int ktype)
 {
 	ast_log(LOG_NOTICE, "Crypto support not loaded!\n");
 	return NULL;
 }
 
-static int stub_ast_check_signature(struct ast_key *key, const char *msg, const char *sig)
-{
-	ast_log(LOG_NOTICE, "Crypto support not loaded!\n");
-	return -1;
-}
+#ifdef SKREP
+#define build_stub(func_name,...) \
+static int stub_ ## func_name(__VA_ARGS__) \
+{ \
+        ast_log(LOG_NOTICE, "Crypto support not loaded!\n"); \
+        return -1; \
+} \
+\
+int (*func_name)(__VA_ARGS__) = \
+        stub_ ## func_name;
+#endif
+#define build_stub(func_name,...) \
+static int stub_##func_name(__VA_ARGS__) \
+{ \
+        ast_log(LOG_NOTICE, "Crypto support not loaded!\n"); \
+        return -1; \
+} \
+\
+int (*func_name)(__VA_ARGS__) = \
+        stub_##func_name;
 
-static int stub_ast_check_signature_bin(struct ast_key *key, const char *msg, int msglen, const unsigned char *sig)
-{
-	ast_log(LOG_NOTICE, "Crypto support not loaded!\n");
-	return -1;
-}
+struct ast_key *(*ast_key_get)(const char *key, int type) =
+stub_ast_key_get;
 
-static int stub_ast_sign(struct ast_key *key, char *msg, char *sig) 
-{
-	ast_log(LOG_NOTICE, "Crypto support not loaded!\n");
-	return -1;
-}
-
-static int stub_ast_sign_bin(struct ast_key *key, const char *msg, int msglen, unsigned char *sig)
-{
-	ast_log(LOG_NOTICE, "Crypto support not loaded!\n");
-	return -1;
-}
-
-static int stub_ast_encdec_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
-{
-	ast_log(LOG_NOTICE, "Crypto support not loaded!\n");
-	return -1;
-}
-
-struct ast_key *(*ast_key_get)(const char *key, int type) = 
-	stub_ast_key_get;
-
-int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig) =
-	stub_ast_check_signature;
-	
-int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen, const unsigned char *sig) =
-	stub_ast_check_signature_bin;
-	
-int (*ast_sign)(struct ast_key *key, char *msg, char *sig) = 
-	stub_ast_sign;
-
-int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned char *sig) =
-	stub_ast_sign_bin;
-	
-int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key) =
-	stub_ast_encdec_bin;
-
-int (*ast_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key) =
-	stub_ast_encdec_bin;
+build_stub(ast_check_signature, struct ast_key *key, const char *msg, const char *sig);
+build_stub(ast_check_signature_bin, struct ast_key *key, const char *msg, int msglen, const unsigned char *sig);
+build_stub(ast_sign, struct ast_key *key, char *msg, char *sig);
+build_stub(ast_sign_bin, struct ast_key *key, const char *msg, int msglen, unsigned char *sig);
+build_stub(ast_encrypt_bin, unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
+build_stub(ast_decrypt_bin, unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
