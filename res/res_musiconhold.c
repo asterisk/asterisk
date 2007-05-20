@@ -1222,7 +1222,7 @@ static int unload_module(void)
 	return -1;
 }
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Music On Hold Resource",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Music On Hold Resource",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,

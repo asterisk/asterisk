@@ -616,7 +616,7 @@ static int unload_module(void)
 }
 
 /* needs usecount semantics defined */
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Cryptographic Digital Signatures",
+AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Cryptographic Digital Signatures",
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload
