@@ -114,6 +114,7 @@ static int load_config(void)
 		ast_copy_string(connection, tmp, sizeof(connection));
 		lenconnection = strlen(connection);
 
+		/* When loading, we want to be sure we can connect. */
 		obj = ast_odbc_request_obj(connection, 1);
 		if (!obj) {
 			ast_log(LOG_WARNING, "No such connection '%s' in the '%s' section of " CONFIG ".  Check res_odbc.conf.\n", connection, catg);
@@ -154,6 +155,9 @@ static int load_config(void)
 		ast_copy_string(tableptr->connection, connection, lenconnection + 1);
 		ast_copy_string(tableptr->table, table, lentable + 1);
 
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Found adaptive CDR table %s@%s.\n", tableptr->table, tableptr->connection);
+
 		while ((res = SQLFetch(stmt)) != SQL_NO_DATA && res != SQL_ERROR) {
 			char *cdrvar = "";
 
@@ -169,7 +173,8 @@ static int load_config(void)
 				if (strcasecmp(var->value, columnname) == 0) {
 					char *tmp = ast_strdupa(var->name + 5);
 					cdrvar = ast_strip(tmp);
-					ast_verbose(VERBOSE_PREFIX_4 "Found alias %s for column %s\n", cdrvar, columnname);
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Found alias %s for column %s in %s@%s\n", cdrvar, columnname, tableptr->table, tableptr->connection);
 					break;
 				}
 			}
@@ -537,7 +542,8 @@ static int odbc_log(struct ast_cdr *cdr)
 
 		if (option_verbose > 10)
 			ast_verbose(VERBOSE_PREFIX_4 "[%s]\n", sql);
-		obj = ast_odbc_request_obj(tableptr->connection, 1);
+		/* No need to check the connection now; we'll handle any failure in prepare_and_execute */
+		obj = ast_odbc_request_obj(tableptr->connection, 0);
 		if (obj) {
 			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, sql);
 			if (stmt) {
