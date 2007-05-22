@@ -41,6 +41,7 @@ c-client (http://www.washington.edu/imap/
  */
 
 /*** MODULEINFO
+	<depend>res_smdi</depend>
  ***/
 
 /*** MAKEOPTS
