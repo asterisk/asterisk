@@ -540,6 +540,8 @@ static void *changethread(void *data)
 	}
 	ast_mutex_unlock(&qlock);
 
+	free(sc);
+
 	return NULL;
 }
 
