@@ -9,6 +9,8 @@ elif [ -d .svn ]; then
     TAG=0
     
     REV=`svnversion -c ${1} | cut -d: -f2`
+
+    BASE=`LANG=C svn pg svnmerge-integrated ${1} | cut -d: -f1`
     
     if [ "${PARTS}" = "trunk" ]
 	then
@@ -60,6 +62,6 @@ elif [ -d .svn ]; then
 	then
 	echo ${RESULT}
 	else
-	echo SVN-${RESULT##-}-r${REV}
+	echo SVN-${RESULT##-}-r${REV}${BASE:+-${BASE}}
     fi
 fi
