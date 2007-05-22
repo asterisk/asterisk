@@ -981,13 +981,13 @@ static int app_exec(struct ast_channel *chan, void *data)
 		}
 		ast_mutex_unlock(&f->lock);
 
-		if (targs.followmeflags.flags & FOLLOWMEFLAG_STATUSMSG) 
+		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
 			ast_stream_and_wait(chan, targs.statusprompt, "");
 
 		snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
 		duration = 5;
 
-		if (targs.followmeflags.flags & FOLLOWMEFLAG_RECORDNAME) 
+		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
 			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, 128, 0, NULL) < 0)
 				goto outrun;
 
@@ -1021,7 +1021,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 		if (targs.status != 100) {
 			ast_moh_stop(chan);
-			if (targs.followmeflags.flags & FOLLOWMEFLAG_UNREACHABLEMSG) 
+			if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
 				ast_stream_and_wait(chan, targs.sorryprompt, "");
 			res = 0;
 		} else {
