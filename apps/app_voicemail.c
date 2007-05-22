@@ -30,6 +30,7 @@
 
 /*** MODULEINFO
 	<depend>res_adsi</depend>
+	<depend>res_smdi</depend>
  ***/
 
 /*** MAKEOPTS

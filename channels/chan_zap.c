@@ -38,6 +38,7 @@
  */
 
 /*** MODULEINFO
+	<depend>res_smdi</depend>
 	<depend>zaptel_vldtmf</depend>
 	<depend>zaptel</depend>
 	<depend>tonezone</depend>
