@@ -1796,7 +1796,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	ast_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
 
 	/* Set Channel Specific Login Overrides */
-	if (pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES") && strlen(pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES"))) {
+	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES"))) {
 		max_login_tries = atoi(pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES"));
 		if (max_login_tries < 0)
 			max_login_tries = 0;
@@ -1804,7 +1804,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,chan->name);
 	}
-	if (pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR") && !ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
+	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
 		if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR")))
 			update_cdr = 1;
 		else
@@ -1813,7 +1813,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,chan->name);
 	}
-	if (pbx_builtin_getvar_helper(chan, "AGENTGOODBYE") && !ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
+	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
 		strcpy(agent_goodbye, pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"));
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTGOODBYE");
 		if (option_verbose > 2)
@@ -1875,7 +1875,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 				p->lastdisc.tv_sec++;
 
 				/* Set Channel Specific Agent Overrides */
-				if (pbx_builtin_getvar_helper(chan, "AGENTACKCALL") && strlen(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"))) {
+				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"))) {
 					if (!strcasecmp(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"), "always"))
 						p->ackcall = 2;
 					else if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTACKCALL")))
@@ -1886,7 +1886,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
 				}
-				if (pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF") && strlen(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
+				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
 					p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
 					if (p->autologoff < 0)
 						p->autologoff = 0;
@@ -1894,7 +1894,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
 				}
-				if (pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME") && strlen(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
+				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
 					p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
 					if (p->wrapuptime < 0)
 						p->wrapuptime = 0;
