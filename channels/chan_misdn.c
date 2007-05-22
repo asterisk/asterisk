@@ -3900,7 +3900,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	{
 		int stop_tone;
 		misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
-		if ( stop_tone ) {
+
+		if ( (ch->state != MISDN_CONNECTED) && stop_tone ) {
 			stop_indicate(ch);
 		}
 	
