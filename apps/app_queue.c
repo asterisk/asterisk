@@ -551,7 +551,6 @@ static void *handle_statechange(struct statechange *sc)
 	if (loc) {
 		*loc++ = '\0';
 	} else {
-		free(sc);
 		return NULL;
 	}
 
@@ -572,7 +571,6 @@ static void *handle_statechange(struct statechange *sc)
 	if (!curint) {
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s) but we don't care because they're not a member of any queue.\n", technology, loc, sc->state, devstate2str(sc->state));
-		free(sc);
 		return NULL;
 	}
 
