@@ -2420,6 +2420,9 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	chan->fin = FRAMECOUNT_INC(chan->fin);
 
 done:
+	if (chan->music_state && chan->generator && chan->generator->digit && f && f->frametype == AST_FRAME_DTMF_END)
+		chan->generator->digit(chan, f->subclass);
+
 	ast_channel_unlock(chan);
 	return f;
 }

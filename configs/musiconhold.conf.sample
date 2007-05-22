@@ -39,7 +39,10 @@ directory=/var/lib/asterisk/moh
 ;[native-random]
 ;mode=files
 ;directory=/var/lib/asterisk/moh
-;random=yes 	; Play the files in a random order
+;random=yes     ; Play the files in a random order
+;digit=#        ; If this option is set for a class, then when callers are
+;               ; listening to music on hold, they can press this digit, and
+;               ; they will switch to listening to this music class.
 
 
 ; =========

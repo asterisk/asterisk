@@ -182,6 +182,8 @@ struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
 	void (*release)(struct ast_channel *chan, void *data);
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
+	/*! This gets called when DTMF_END frames are read from the channel */
+	void (*digit)(struct ast_channel *chan, char digit);
 };
 
 /*! \brief Structure for a data store type */

@@ -82,7 +82,7 @@ ENUM changes
   * Added two new dialplan functions, ENUMQUERY and ENUMRESULT.  These
      functions will allow you to initiate an ENUM lookup from the dialplan,
      and Asterisk will cache the results.  ENUMRESULT can be used to access
-	 the results without doing multiple DNS queries.
+     the results without doing multiple DNS queries.
 
 Voicemail Changes
 -----------------
@@ -134,6 +134,13 @@ MeetMe Changes
   * Added a new application, MeetMeChannelAdmin, which is similar to MeetMeAdmin,
      except it does operations on a channel by name, instead of number in a conference.
      This is a very useful feature in combination with the 'X' option to ChanSpy.
+
+Music On Hold Changes
+---------------------
+  * A new option, "digit", has been added for music on hold classes in 
+     musiconhold.conf.  If this is set for a music on hold class, a caller
+     listening to music on hold can press this digit to switch to listening
+     to this music on hold class.
 
 Miscellaneous 
 -------------

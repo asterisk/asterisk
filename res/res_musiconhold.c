@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include <stdlib.h>
 #include <errno.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 #include <signal.h>
@@ -130,6 +131,7 @@ struct mohclass {
 	char dir[256];
 	char args[256];
 	char mode[80];
+	char digit;
 	/*! A dynamically sized array to hold the list of filenames in "files" mode */
 	char **filearray;
 	/*! The current size of the filearray */
@@ -324,11 +326,42 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	return chan->music_state;
 }
 
+/*! \note This function should be called with the mohclasses list locked */
+static struct mohclass *get_mohbydigit(char digit)
+{
+	struct mohclass *moh = NULL;
+
+	AST_RWLIST_TRAVERSE(&mohclasses, moh, list) {
+		if (digit == moh->digit)
+			break;
+	}
+
+	return moh;
+}
+
+static void moh_handle_digit(struct ast_channel *chan, char digit)
+{
+	struct mohclass *moh;
+	const char *classname;
+
+	AST_RWLIST_RDLOCK(&mohclasses);
+	if ((moh = get_mohbydigit(digit)))
+		classname = ast_strdupa(moh->name);
+	AST_RWLIST_UNLOCK(&mohclasses);
+
+	if (!moh)
+		return;
+
+	ast_moh_stop(chan);
+	ast_moh_start(chan, classname, NULL);
+}
+
 static struct ast_generator moh_file_stream = 
 {
 	alloc: moh_files_alloc,
 	release: moh_files_release,
 	generate: moh_files_generator,
+	digit: moh_handle_digit,
 };
 
 static int spawn_mp3(struct mohclass *class)
@@ -742,6 +775,7 @@ static struct ast_generator mohgen =
 	alloc: moh_alloc,
 	release: moh_release,
 	generate: moh_generate,
+	digit: moh_handle_digit
 };
 
 static int moh_add_file(struct mohclass *class, const char *filepath)
@@ -996,9 +1030,9 @@ static int load_moh_classes(int reload)
 	for (; cat; cat = ast_category_browse(cfg, cat)) {
 		/* These names were deprecated in 1.4 and should not be used until after the next major release. */
 		if (strcasecmp(cat, "classes") && strcasecmp(cat, "moh_files")) {			
-			if (!(class = moh_class_malloc())) {
+			if (!(class = moh_class_malloc()))
 				break;
-			}				
+
 			ast_copy_string(class->name, cat, sizeof(class->name));	
 			var = ast_variable_browse(cfg, cat);
 			while (var) {
@@ -1008,6 +1042,8 @@ static int load_moh_classes(int reload)
 					ast_copy_string(class->dir, var->value, sizeof(class->dir));
 				else if (!strcasecmp(var->name, "application"))
 					ast_copy_string(class->args, var->value, sizeof(class->args));
+				else if (!strcasecmp(var->name, "digit") && (isdigit(*var->value) || strchr("*#", *var->value)))
+					class->digit = *var->value;
 				else if (!strcasecmp(var->name, "random"))
 					ast_set2_flag(class, ast_true(var->value), MOH_RANDOMIZE);
 				else if (!strcasecmp(var->name, "format")) {
@@ -1143,6 +1179,8 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 		ast_cli(fd, "Class: %s\n", class->name);
 		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
 		ast_cli(fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
+		if (class->digit)
+			ast_cli(fd, "\tDigit: %c\n", class->digit);
 		if (ast_test_flag(class, MOH_CUSTOM))
 			ast_cli(fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
 		if (strcasecmp(class->mode, "files"))
