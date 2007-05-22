@@ -305,7 +305,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	char *sql = ast_calloc(sizeof(char), sizesql), *sql2 = ast_calloc(sizeof(char), sizesql2), *tmp;
 	char colbuf[1024], *colptr;
 	SQLHSTMT stmt = NULL;
-	SQLINTEGER rows = 0;
+	SQLLEN rows = 0;
 
 	if (AST_RWLIST_RDLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock table list.  Insert CDR(s) failed.\n");
