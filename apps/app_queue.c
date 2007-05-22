@@ -587,6 +587,8 @@ static void *changethread(void *data)
 	}
 	AST_LIST_UNLOCK(&queues);
 
+	free(sc);
+
 	return NULL;
 }
 
