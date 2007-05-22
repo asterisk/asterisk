@@ -473,7 +473,7 @@ static void cdr_merge_vars(struct ast_cdr *to, struct ast_cdr *from)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(headpfrom, variablesfrom, entries) {
 		/* for every var in from, stick it in to */
 		const char *fromvarname, *fromvarval;
-		const char *tovarname, *tovarval;
+		const char *tovarname = NULL, *tovarval = NULL;
 		fromvarname = ast_var_name(variablesfrom);
 		fromvarval = ast_var_value(variablesfrom);
 		tovarname = 0;
