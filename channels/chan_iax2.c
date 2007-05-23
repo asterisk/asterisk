@@ -6927,6 +6927,25 @@ static int socket_process(struct iax2_thread *thread)
 				f.data = empty;
 			memset(&ies, 0, sizeof(ies));
 		}
+
+		/* when we receive the first full frame for a new incoming channel,
+		   it is safe to start the PBX on the channel because we have now
+		   completed a 3-way handshake with the peer */
+		if ((f.frametype == AST_FRAME_VOICE) ||
+		    (f.frametype == AST_FRAME_VIDEO) ||
+		    (f.frametype == AST_FRAME_IAX)) {
+			if (ast_test_flag(iaxs[fr->callno], IAX_DELAYPBXSTART)) {
+				ast_clear_flag(iaxs[fr->callno], IAX_DELAYPBXSTART);
+				if (ast_pbx_start(iaxs[fr->callno]->owner)) {
+					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", iaxs[fr->callno]->owner->name);
+					ast_hangup(iaxs[fr->callno]->owner);
+					iaxs[fr->callno]->owner = NULL;
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
+			}
+		}
+
 		if (f.frametype == AST_FRAME_VOICE) {
 			if (f.subclass != iaxs[fr->callno]->voiceformat) {
 					iaxs[fr->callno]->voiceformat = f.subclass;
@@ -6987,17 +7006,6 @@ retryowner:
 				iaxs[fr->callno]->last = fr->ts;
 				if (option_debug && iaxdebug)
 					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
-			}
-
-			if (ast_test_flag(iaxs[fr->callno], IAX_DELAYPBXSTART)) {
-				ast_clear_flag(iaxs[fr->callno], IAX_DELAYPBXSTART);
-				if (ast_pbx_start(iaxs[fr->callno]->owner)) {
-					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", iaxs[fr->callno]->owner->name);
-					ast_hangup(iaxs[fr->callno]->owner);
-					iaxs[fr->callno]->owner = NULL;
-					ast_mutex_unlock(&iaxsl[fr->callno]);
-					return 1;
-				}
 			}
 
 			switch(f.subclass) {
@@ -7210,7 +7218,9 @@ retryowner:
 												VERBOSE_PREFIX_4,
 												using_prefs);
 								
-								if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 1)))
+								/* create an Asterisk channel for this call, but don't start
+								   a PBX on it until we have received a full frame from the peer */
+								if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 1)))
 									iax2_destroy(fr->callno);
 								else if (ies.vars) {
 									struct ast_variable *var, *prev = NULL;
