@@ -3309,6 +3309,10 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
 	i->owner = tmp;
 	i->capability = capability;
+
+	for (v = i->vars ; v ; v = v->next)
+		pbx_builtin_setvar_helper(tmp, v->name, v->value);
+
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -3317,9 +3321,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 			return NULL;
 		}
 	}
-
-	for (v = i->vars ; v ; v = v->next)
-		pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
 	ast_module_ref(ast_module_info->self);
 	
