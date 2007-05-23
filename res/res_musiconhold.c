@@ -342,7 +342,7 @@ static struct mohclass *get_mohbydigit(char digit)
 static void moh_handle_digit(struct ast_channel *chan, char digit)
 {
 	struct mohclass *moh;
-	const char *classname;
+	const char *classname = NULL;
 
 	AST_RWLIST_RDLOCK(&mohclasses);
 	if ((moh = get_mohbydigit(digit)))
