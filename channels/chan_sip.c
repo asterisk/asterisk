@@ -2880,6 +2880,11 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	pbx_builtin_setvar_helper(tmp, "OSPPEER", peer);
 #endif
 	ast_setstate(tmp, state);
+
+	/* Set channel variables for this call from configuration */
+	for (v = i->chanvars ; v ; v = v->next)
+		pbx_builtin_setvar_helper(tmp, v->name, v->value);
+				
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -2887,10 +2892,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 			tmp = NULL;
 		}
 	}
-	/* Set channel variables for this call from configuration */
-	for (v = i->chanvars ; v ; v = v->next)
-		pbx_builtin_setvar_helper(tmp,v->name,v->value);
-				
+
 	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
 	ast_mutex_unlock(&usecnt_lock);
