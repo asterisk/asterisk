@@ -48,7 +48,7 @@
  *	or just a specific extensions.
  *
  *	For non-device related states, there's an API called
- *	devicestateproviders. This is an extendable system for
+ *	devicestate providers. This is an extendible system for
  *	delivering state information from outside sources or
  *	functions within Asterisk. Currently we have providers
  *	for app_meetme.c - the conference bridge - and call
@@ -63,7 +63,7 @@
  *
  *	The CLI command "show hints" show last known state
  *
- *	\note None of these handle user states, like an IM presense
+ *	\note None of these handle user states, like an IM presence
  *	system. res_jabber.c can subscribe and watch such states
  *	in jabber/xmpp based systems.
  *
