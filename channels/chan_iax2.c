@@ -6714,6 +6714,7 @@ retryowner:
 			}
 
 			if (ast_test_flag(iaxs[fr->callno], IAX_DELAYPBXSTART)) {
+				ast_clear_flag(iaxs[fr->callno], IAX_DELAYPBXSTART);
 				if (ast_pbx_start(iaxs[fr->callno]->owner)) {
 					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", iaxs[fr->callno]->owner->name);
 					ast_hangup(iaxs[fr->callno]->owner);
