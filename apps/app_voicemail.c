@@ -4058,12 +4058,6 @@ static void queue_mwi_event(const char *mbox, int new, int old)
 	if (strstr(mailbox, "@default"))
 		mailbox = strsep(&mailbox, "@");
 
-	if (ast_event_check_subscriber(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-		AST_EVENT_IE_END) == AST_EVENT_SUB_NONE) {
-		return;
-	}
-
 	if (!(event = ast_event_new(AST_EVENT_MWI,
 			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
 			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, new,
