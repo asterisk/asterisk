@@ -832,7 +832,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	unsigned int length;
 	int rc;
 	double rttsec;
-	uint64_t rtt;
+	uint64_t rtt = 0;
 	unsigned int dlsr;
 	unsigned int lsr;
 	unsigned int msw;
