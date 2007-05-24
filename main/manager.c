@@ -129,6 +129,11 @@ static struct permalias {
 	{ 0, "none" },
 };
 
+static const char *command_blacklist[] = {
+	"module load",
+	"module unload",
+};
+
 struct mansession {
 	/*! Execution thread */
 	pthread_t t;
@@ -1620,8 +1625,15 @@ static int action_command(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char *buf, *final_buf;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
-	int fd = mkstemp(template);
+	int fd = mkstemp(template), i = 0;
 	off_t l;
+
+	for (i = 0; i < sizeof(command_blacklist) / sizeof(command_blacklist[0]); i++) {
+		if (!strncmp(cmd, command_blacklist[i], strlen(command_blacklist[i]))) {
+			astman_send_error(s, m, "Command blacklisted");
+			return 0;
+		}
+	}
 
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id))
