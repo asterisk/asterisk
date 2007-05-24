@@ -359,15 +359,12 @@ static void *attempt_thread(void *data)
 static void launch_service(struct outgoing *o)
 {
 	pthread_t t;
-	pthread_attr_t attr;
 	int ret;
-	pthread_attr_init(&attr);
- 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if ((ret = ast_pthread_create(&t,&attr,attempt_thread, o)) != 0) {
+
+	if ((ret = ast_pthread_create_detached(&t, NULL, attempt_thread, o))) {
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		free_outgoing(o);
 	}
-	pthread_attr_destroy(&attr);
 }
 
 static int scan_service(char *fn, time_t now, time_t atime)
@@ -486,7 +483,6 @@ static int unload_module(void)
 static int load_module(void)
 {
 	pthread_t thread;
-	pthread_attr_t attr;
 	int ret;
 	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing");
 	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
@@ -494,13 +490,12 @@ static int load_module(void)
 		return 0;
 	}
 	snprintf(qdonedir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing_done");
-	pthread_attr_init(&attr);
- 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if ((ret = ast_pthread_create_background(&thread,&attr,scan_thread, NULL)) != 0) {
+
+	if ((ret = ast_pthread_create_detached_background(&thread, NULL, scan_thread, NULL))) {
 		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		return -1;
 	}
-	pthread_attr_destroy(&attr);
+
 	return 0;
 }
 

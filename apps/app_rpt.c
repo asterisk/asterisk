@@ -2452,7 +2452,6 @@ static void rpt_telemetry(struct rpt *myrpt, int mode, void *data)
 	struct rpt_tele *tele;
 	struct rpt_link *mylink = (struct rpt_link *) data;
 	int res;
-	pthread_attr_t attr;
 
 	tele = ast_calloc(1, sizeof(struct rpt_tele));
 	if (!tele) {
@@ -2471,10 +2470,7 @@ static void rpt_telemetry(struct rpt *myrpt, int mode, void *data)
 	}
 	insque((struct qelem *)tele, (struct qelem *)myrpt->tele.next);
 	rpt_mutex_unlock(&myrpt->lock);
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	res = ast_pthread_create(&tele->threadid, &attr, rpt_tele_thread, (void *) tele);
-	pthread_attr_destroy(&attr);
+	res = ast_pthread_create_detached(&tele->threadid, NULL, rpt_tele_thread, (void *) tele);
 	if (res != 0) {
 		rpt_mutex_lock(&myrpt->lock);
 		remque((struct qlem *) tele); /* We don't like stuck transmitters, remove it from the queue */
@@ -3108,7 +3104,6 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 
 static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink)
 {
-	pthread_attr_t attr;
 	int i, index;
 	char *value = NULL;
 	AST_DECLARE_APP_ARGS(params,
@@ -3184,10 +3179,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 	myrpt->cidx = 0;
 	myrpt->exten[myrpt->cidx] = 0;
 	rpt_mutex_unlock(&myrpt->lock);
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create(&myrpt->rpt_call_thread, &attr, rpt_call, (void *) myrpt);
-	pthread_attr_destroy(&attr);
+	ast_pthread_create_detached(&myrpt->rpt_call_thread, NULL, rpt_call, (void *) myrpt);
 	return DC_COMPLETE;
 }
 
@@ -5448,7 +5440,6 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 static void local_dtmf_helper(struct rpt *myrpt, char c)
 {
 	int	res;
-	pthread_attr_t attr;
 	char cmd[MAXDTMF+1] = "";
 
 	if (c == myrpt->p.endchar) {
@@ -5537,10 +5528,7 @@ static void local_dtmf_helper(struct rpt *myrpt, char c)
 			myrpt->cidx = 0;
 			myrpt->exten[myrpt->cidx] = 0;
 			rpt_mutex_unlock(&myrpt->lock);
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			ast_pthread_create(&myrpt->rpt_call_thread, &attr, rpt_call, (void *)myrpt);
-			pthread_attr_destroy(&attr);
+			ast_pthread_create_detached(&myrpt->rpt_call_thread, NULL, rpt_call, (void *)myrpt);
 			return;
 		}
 	}
@@ -6668,7 +6656,6 @@ static void *rpt(void *this)
 static void *rpt_master(void *config)
 {
 	int	i, n;
-	pthread_attr_t attr;
 	struct ast_config *cfg;
 	char *this;
 	const char *val;
@@ -6732,10 +6719,7 @@ static void *rpt_master(void *config)
 			ast_config_destroy(cfg);
 			pthread_exit(NULL);
 		}
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		ast_pthread_create(&rpt_vars[i].rpt_thread, &attr, rpt, (void *) &rpt_vars[i]);
-		pthread_attr_destroy(&attr);
+		ast_pthread_create_detached(&rpt_vars[i].rpt_thread, NULL, rpt, (void *) &rpt_vars[i]);
 	}
 	usleep(500000);
 	for (;;) {
@@ -6761,10 +6745,7 @@ static void *rpt_master(void *config)
 					rpt_vars[i].threadrestarts = 0;
 
 				rpt_vars[i].lastthreadrestarttime = time(NULL);
-				pthread_attr_init(&attr);
-	 			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-				ast_pthread_create(&rpt_vars[i].rpt_thread, &attr, rpt, (void *) &rpt_vars[i]);
-				pthread_attr_destroy(&attr);
+				ast_pthread_create_detached(&rpt_vars[i].rpt_thread, NULL, rpt, (void *) &rpt_vars[i]);
 				ast_log(LOG_WARNING, "rpt_thread restarted on node %s\n", rpt_vars[i].name);
 			}
 

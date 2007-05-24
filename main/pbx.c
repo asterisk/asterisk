@@ -2551,7 +2551,6 @@ static void *pbx_thread(void *data)
 enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 {
 	pthread_t t;
-	pthread_attr_t attr;
 
 	if (!c) {
 		ast_log(LOG_WARNING, "Asked to start thread on NULL channel?\n");
@@ -2562,14 +2561,10 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 		return AST_PBX_CALL_LIMIT;
 
 	/* Start a new thread, and get something handling this channel. */
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create(&t, &attr, pbx_thread, c)) {
+	if (ast_pthread_create_detached(&t, NULL, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
-		pthread_attr_destroy(&attr);
 		return AST_PBX_FAILED;
 	}
-	pthread_attr_destroy(&attr);
 
 	return AST_PBX_SUCCESS;
 }
@@ -4999,7 +4994,6 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 	struct async_stat *as;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
-	pthread_attr_t attr;
 
 	if (sync) {
 		oh.context = context;
@@ -5111,9 +5105,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		ast_set_variables(chan, vars);
 		if (account)
 			ast_cdr_setaccount(chan, account);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&as->p, &attr, async_wait, as)) {
+		if (ast_pthread_create_detached(&as->p, NULL, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
 			if (channel) {
@@ -5122,10 +5114,8 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			}
 			ast_hangup(chan);
 			res = -1;
-			pthread_attr_destroy(&attr);
 			goto outgoing_exten_cleanup;
 		}
-		pthread_attr_destroy(&attr);
 		res = 0;
 	}
 outgoing_exten_cleanup:
@@ -5163,7 +5153,6 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	struct app_tmp *tmp;
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
-	pthread_attr_t attr;
 
 	memset(&oh, 0, sizeof(oh));
 	oh.vars = vars;
@@ -5212,11 +5201,9 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 							ast_channel_unlock(chan);
 						ast_pbx_run_app(tmp);
 					} else {
-						pthread_attr_init(&attr);
-						pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 						if (locked_channel)
 							ast_channel_lock(chan);
-						if (ast_pthread_create(&tmp->t, &attr, ast_pbx_run_app, tmp)) {
+						if (ast_pthread_create_detached(&tmp->t, NULL, ast_pbx_run_app, tmp)) {
 							ast_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
 							free(tmp);
 							if (locked_channel)
@@ -5227,7 +5214,6 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 							if (locked_channel)
 								*locked_channel = chan;
 						}
-						pthread_attr_destroy(&attr);
 					}
 				}
 			} else {
@@ -5275,24 +5261,20 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		if (account)
 			ast_cdr_setaccount(chan, account);
 		/* Start a new thread, and get something handling this channel. */
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (locked_channel)
 			ast_channel_lock(chan);
-		if (ast_pthread_create(&as->p, &attr, async_wait, as)) {
+		if (ast_pthread_create_detached(&as->p, NULL, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
 			if (locked_channel)
 				ast_channel_unlock(chan);
 			ast_hangup(chan);
 			res = -1;
-			pthread_attr_destroy(&attr);
 			goto outgoing_app_cleanup;
 		} else {
 			if (locked_channel)
 				*locked_channel = chan;
 		}
-		pthread_attr_destroy(&attr);
 		res = 0;
 	}
 outgoing_app_cleanup:

@@ -291,15 +291,28 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 			     void *data, size_t stacksize, const char *file, const char *caller,
 			     int line, const char *start_fn);
 
+int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, void*(*start_routine)(void *),
+				 void *data, size_t stacksize, const char *file, const char *caller,
+				 int line, const char *start_fn);
+
 #define ast_pthread_create(a, b, c, d) ast_pthread_create_stack(a, b, c, d,			\
 							        0,				\
 	 						        __FILE__, __FUNCTION__,		\
  							        __LINE__, #c)
+#define ast_pthread_create_detached(a, b, c, d) ast_pthread_create_detached_stack(a, b, c, d, \
+									0, \
+									__FILE__, __FUNCTION__, \
+									__LINE__, #c)
 
 #define ast_pthread_create_background(a, b, c, d) ast_pthread_create_stack(a, b, c, d,			\
 									   AST_BACKGROUND_STACKSIZE,	\
 									   __FILE__, __FUNCTION__,	\
 									   __LINE__, #c)
+
+#define ast_pthread_create_detached_background(a, b, c, d) ast_pthread_create_detached_stack(a, b, c, d, \
+									AST_BACKGROUND_STACKSIZE, \
+									__FILE__, __FUNCTION__, \
+									__LINE__, #c)
 
 /*!
 	\brief Process a string to find and replace characters

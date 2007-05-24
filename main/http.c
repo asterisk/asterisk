@@ -907,7 +907,6 @@ void *server_root(void *data)
 	socklen_t sinlen;
 	struct server_instance *ser;
 	pthread_t launched;
-	pthread_attr_t attr;
 	
 	for (;;) {
 		int i, flags;
@@ -935,17 +934,13 @@ void *server_root(void *data)
 		ser->fd = fd;
 		ser->parent = desc;
 		memcpy(&ser->requestor, &sin, sizeof(ser->requestor));
-
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			
-		if (ast_pthread_create_background(&launched, &attr, make_file_from_fd, ser)) {
+		if (ast_pthread_create_detached_background(&launched, NULL, make_file_from_fd, ser)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(ser->fd);
 			free(ser);
 		}
 
-		pthread_attr_destroy(&attr);
 	}
 	return NULL;
 }

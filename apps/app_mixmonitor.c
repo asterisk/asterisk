@@ -229,7 +229,6 @@ static void *mixmonitor_thread(void *obj)
 static void launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
 				  int readvol, int writevol, const char *post_process) 
 {
-	pthread_attr_t attr;
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
 	char postprocess2[1024] = "";
@@ -296,10 +295,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 		return;
 	}
 
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	ast_pthread_create_background(&thread, &attr, mixmonitor_thread, mixmonitor);
-	pthread_attr_destroy(&attr);
+	ast_pthread_create_detached_background(&thread, NULL, mixmonitor_thread, mixmonitor);
 
 }
 

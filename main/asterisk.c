@@ -932,9 +932,6 @@ static void *listener(void *unused)
 	int x;
 	int flags;
 	struct pollfd fds[1];
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	for (;;) {
 		if (ast_socket < 0)
 			return NULL;
@@ -966,7 +963,7 @@ static void *listener(void *unused)
 					fcntl(consoles[x].p[1], F_SETFL, flags | O_NONBLOCK);
 					consoles[x].fd = s;
 					consoles[x].mute = ast_opt_mute;
-					if (ast_pthread_create_background(&consoles[x].t, &attr, netconsole, &consoles[x])) {
+					if (ast_pthread_create_detached_background(&consoles[x].t, NULL, netconsole, &consoles[x])) {
 						ast_log(LOG_ERROR, "Unable to spawn thread to handle connection: %s\n", strerror(errno));
 						close(consoles[x].p[0]);
 						close(consoles[x].p[1]);
@@ -3029,13 +3026,9 @@ int main(int argc, char *argv[])
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];
-		pthread_attr_t attr;
 		pthread_t dont_care;
 
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		ast_pthread_create(&dont_care, &attr, monitor_sig_flags, NULL);
-		pthread_attr_destroy(&attr);
+		ast_pthread_create_detached(&dont_care, NULL, monitor_sig_flags, NULL);
 
 		set_icon("Asterisk");
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %ld)", hostname, (long)ast_mainpid);

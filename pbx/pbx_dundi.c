@@ -771,7 +771,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 	char eid_str[20];
 	char *s;
 	pthread_t lookupthread;
-	pthread_attr_t attr;
+
 	if (ies->eidcount > 1) {
 		/* Since it is a requirement that the first EID is the authenticating host
 		   and the last EID is the root, it is permissible that the first and last EID
@@ -798,20 +798,17 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 		}
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Answering EID query for '%s@%s'!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), ies->reqeid), ies->called_context);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 		trans->thread = 1;
-		if (ast_pthread_create(&lookupthread, &attr, dundi_query_thread, st)) {
+		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_query_thread, st)) {
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
-			pthread_attr_destroy(&attr);
 			return -1;
 		}
-		pthread_attr_destroy(&attr);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
@@ -916,7 +913,6 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	int skipfirst = 0;
 	
 	pthread_t lookupthread;
-	pthread_attr_t attr;
 
 	memset(&dr2, 0, sizeof(dr2));
 	memset(&dr, 0, sizeof(dr));
@@ -1029,20 +1025,16 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		st->nummaps = mapcount;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Forwarding precache for '%s@%s'!\n", ies->called_number, ies->called_context);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (ast_pthread_create(&lookupthread, &attr, dundi_precache_thread, st)) {
+		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_precache_thread, st)) {
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_PRECACHERP, 0, 1, &ied);
-			pthread_attr_destroy(&attr);
 			return -1;
 		}
-		pthread_attr_destroy(&attr);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));
@@ -1065,7 +1057,6 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 	int skipfirst = 0;
 	
 	pthread_t lookupthread;
-	pthread_attr_t attr;
 	totallen = sizeof(struct dundi_query_state);
 	/* Count matching map entries */
 	AST_LIST_TRAVERSE(&mappings, cur, list) {
@@ -1118,20 +1109,16 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		st->nummaps = mapcount;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Answering query for '%s@%s'!\n", ies->called_number, ies->called_context);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		trans->thread = 1;
-		if (ast_pthread_create(&lookupthread, &attr, dundi_lookup_thread, st)) {
+		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_lookup_thread, st)) {
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_DPRESPONSE, 0, 1, &ied);
-			pthread_attr_destroy(&attr);
 			return -1;
 		}
-		pthread_attr_destroy(&attr);
 	} else {
 		ast_log(LOG_WARNING, "Out of memory!\n");
 		memset(&ied, 0, sizeof(ied));

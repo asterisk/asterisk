@@ -2956,9 +2956,6 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 	struct mgcp_endpoint *p = sub->parent;
 	struct ast_channel *c;
 	pthread_t t;
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
 
 	/* Off hook / answer */
 	if (sub->outgoing) {
@@ -3006,7 +3003,7 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 				}
 				c = mgcp_new(sub, AST_STATE_DOWN);
 				if (c) {
-					if (ast_pthread_create(&t, &attr, mgcp_ss, c)) {
+					if (ast_pthread_create_detached(&t, NULL, mgcp_ss, c)) {
 						ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
 						ast_hangup(c);
 					}
@@ -3034,7 +3031,6 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 			/*ast_queue_control(sub->owner, AST_CONTROL_ANSWER);*/
 		}
 	}
-	pthread_attr_destroy(&attr);
 }
 
 static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req, struct sockaddr_in *sin)

@@ -595,6 +595,32 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
 }
 
+
+int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *),
+			     void *data, size_t stacksize, const char *file, const char *caller,
+			     int line, const char *start_fn)
+{
+	unsigned char attr_destroy = 0;
+	int res;
+
+	if (!attr) {
+		attr = alloca(sizeof(*attr));
+		pthread_attr_init(attr);
+		attr_destroy = 1;
+	}
+
+	if ((errno = pthread_attr_setdetachstate(attr, PTHREAD_CREATE_DETACHED)))
+		ast_log(LOG_WARNING, "pthread_attr_setdetachstate: %s\n", strerror(errno));
+
+	res = ast_pthread_create_stack(thread, attr, start_routine, data, 
+	                               stacksize, file, caller, line, start_fn);
+
+	if (attr_destroy)
+		pthread_attr_destroy(attr);
+
+	return res;
+}
+
 int ast_wait_for_input(int fd, int ms)
 {
 	struct pollfd pfd[1];

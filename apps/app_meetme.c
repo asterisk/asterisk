@@ -1428,10 +1428,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_hangup(conf->lchan);
 			conf->lchan = NULL;
 		} else {
-			pthread_attr_init(&conf->attr);
-			pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
-			ast_pthread_create_background(&conf->recordthread, &conf->attr, recordthread, conf);
-			pthread_attr_destroy(&conf->attr);
+			ast_pthread_create_detached_background(&conf->recordthread, &conf->attr, recordthread, conf);
 		}
 	}
 
@@ -3458,7 +3455,6 @@ static void sla_handle_dial_state_event(void)
 		struct sla_ringing_trunk *ringing_trunk = NULL;
 		struct run_station_args args;
 		enum ast_dial_result dial_res;
-		pthread_attr_t attr;
 		pthread_t dont_care;
 		ast_mutex_t cond_lock;
 		ast_cond_t cond;
@@ -3499,15 +3495,12 @@ static void sla_handle_dial_state_event(void)
 			free(ringing_station);
 			ast_mutex_init(&cond_lock);
 			ast_cond_init(&cond, NULL);
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 			ast_mutex_lock(&cond_lock);
-			ast_pthread_create_background(&dont_care, &attr, run_station, &args);
+			ast_pthread_create_detached_background(&dont_care, NULL, run_station, &args);
 			ast_cond_wait(&cond, &cond_lock);
 			ast_mutex_unlock(&cond_lock);
 			ast_mutex_destroy(&cond_lock);
 			ast_cond_destroy(&cond);
-			pthread_attr_destroy(&attr);
 			break;
 		case AST_DIAL_RESULT_TRYING:
 		case AST_DIAL_RESULT_RINGING:
@@ -4237,7 +4230,6 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		ast_mutex_t cond_lock;
 		ast_cond_t cond;
 		pthread_t dont_care;
-		pthread_attr_t attr;
 		struct dial_trunk_args args = {
 			.trunk_ref = trunk_ref,
 			.station = station,
@@ -4251,15 +4243,12 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		ast_autoservice_start(chan);
 		ast_mutex_init(&cond_lock);
 		ast_cond_init(&cond, NULL);
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		ast_mutex_lock(&cond_lock);
-		ast_pthread_create_background(&dont_care, &attr, dial_trunk, &args);
+		ast_pthread_create_detached_background(&dont_care, NULL, dial_trunk, &args);
 		ast_cond_wait(&cond, &cond_lock);
 		ast_mutex_unlock(&cond_lock);
 		ast_mutex_destroy(&cond_lock);
 		ast_cond_destroy(&cond);
-		pthread_attr_destroy(&attr);
 		ast_autoservice_stop(chan);
 		if (!trunk_ref->trunk->chan) {
 			ast_log(LOG_DEBUG, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);

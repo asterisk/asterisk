@@ -926,7 +926,6 @@ static void insert_idle_thread(struct iax2_thread *thread)
 
 static struct iax2_thread *find_idle_thread(void)
 {
-	pthread_attr_t attr;
 	struct iax2_thread *thread = NULL;
 
 	/* Pop the head of the idle list off */
@@ -960,9 +959,7 @@ static struct iax2_thread *find_idle_thread(void)
 	ast_cond_init(&thread->cond, NULL);
 
 	/* Create thread and send it on it's way */
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
-	if (ast_pthread_create_background(&thread->threadid, &attr, iax2_process_thread, thread)) {
+	if (ast_pthread_create_detached_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 		ast_cond_destroy(&thread->cond);
 		ast_mutex_destroy(&thread->lock);
 		free(thread);
@@ -6267,24 +6264,18 @@ static void spawn_dp_lookup(int callno, const char *context, const char *calledn
 {
 	pthread_t newthread;
 	struct dpreq_data *dpr;
-	pthread_attr_t attr;
 	
 	if (!(dpr = ast_calloc(1, sizeof(*dpr))))
 		return;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
 
 	dpr->callno = callno;
 	ast_copy_string(dpr->context, context, sizeof(dpr->context));
 	ast_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
 	if (callerid)
 		dpr->callerid = ast_strdup(callerid);
-	if (ast_pthread_create(&newthread, &attr, dp_lookup_thread, dpr)) {
+	if (ast_pthread_create_detached(&newthread, NULL, dp_lookup_thread, dpr)) {
 		ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
 	}
-
-	pthread_attr_destroy(&attr);
 }
 
 struct iax_dual {
@@ -6352,18 +6343,11 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		return -1;
 	}
 	if ((d = ast_calloc(1, sizeof(*d)))) {
-		pthread_attr_t attr;
-
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
-		if (!ast_pthread_create_background(&th, &attr, iax_park_thread, d)) {
-			pthread_attr_destroy(&attr);
+		if (!ast_pthread_create_detached_background(&th, NULL, iax_park_thread, d)) {
 			return 0;
 		}
-		pthread_attr_destroy(&attr);
 		free(d);
 	}
 	return -1;
@@ -8467,7 +8451,6 @@ static void *network_thread(void *ignore)
 
 static int start_network_thread(void)
 {
-	pthread_attr_t attr;
 	int threadcount = 0;
 	int x;
 	for (x = 0; x < iaxthreadcount; x++) {
@@ -8477,9 +8460,7 @@ static int start_network_thread(void)
 			thread->threadnum = ++threadcount;
 			ast_mutex_init(&thread->lock);
 			ast_cond_init(&thread->cond, NULL);
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);	
-			if (ast_pthread_create(&thread->threadid, &attr, iax2_process_thread, thread)) {
+			if (ast_pthread_create_detached(&thread->threadid, NULL, iax2_process_thread, thread)) {
 				ast_log(LOG_WARNING, "Failed to create new thread!\n");
 				free(thread);
 				thread = NULL;

@@ -4514,11 +4514,7 @@ static void *accept_thread(void *ignore)
 	struct skinnysession *s;
 	struct protoent *p;
 	int arg = 1;
-	pthread_attr_t attr;
 	pthread_t tcp_thread;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	for (;;) {
 		sinlen = sizeof(sin);
@@ -4544,14 +4540,13 @@ static void *accept_thread(void *ignore)
 		sessions = s;
 		ast_mutex_unlock(&sessionlock);
 
-		if (ast_pthread_create(&tcp_thread, &attr, skinny_session, s)) {
+		if (ast_pthread_create_detached(&tcp_thread, NULL, skinny_session, s)) {
 			destroy_session(s);
 		}
 	}
 	if (skinnydebug)
 		ast_verbose("killing accept thread\n");
 	close(as);
-	pthread_attr_destroy(&attr);
 	return 0;
 }
 

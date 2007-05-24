@@ -1933,7 +1933,6 @@ static int action_originate(struct mansession *s, const struct message *m)
 	char tmp2[256];
 
 	pthread_t th;
-	pthread_attr_t attr;
 	if (!name) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
@@ -1988,14 +1987,11 @@ static int action_originate(struct mansession *s, const struct message *m)
 			ast_copy_string(fast->account, account, sizeof(fast->account));
 			fast->timeout = to;
 			fast->priority = pi;
-			pthread_attr_init(&attr);
-			pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-			if (ast_pthread_create(&th, &attr, fast_originate, fast)) {
+			if (ast_pthread_create_detached(&th, NULL, fast_originate, fast)) {
 				res = -1;
 			} else {
 				res = 0;
 			}
-			pthread_attr_destroy(&attr);
 		}
 	} else if (!ast_strlen_zero(app)) {
         	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);

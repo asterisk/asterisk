@@ -3946,7 +3946,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	char *c;
 	struct zt_pvt *p = ast->tech_pvt;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	struct ast_channel *chan;
 	struct ast_frame *f;
 
@@ -4549,11 +4548,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						if (res)
 							ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
 						p->owner = chan;
-						pthread_attr_init(&attr);
-						pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 						if (!chan) {
 							ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
-						} else if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+						} else if (ast_pthread_create_detached(&threadid, NULL, ss_thread, chan)) {
 							ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
 							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 							zt_enable_ec(p);
@@ -4569,7 +4566,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							}
 							p->subs[SUB_THREEWAY].needhold = 1;
 						}
-						pthread_attr_destroy(&attr);
 					}
 				} else {
 					/* Already have a 3 way call */
@@ -6941,8 +6937,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 	pthread_t threadid;
 	pthread_attr_t attr;
 	struct ast_channel *chan;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	/* Handle an event on a given channel for the monitor thread. */
 	switch (event) {
 	case ZT_EVENT_NONE:
@@ -6986,7 +6981,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_DIALTONE);
 					if (res < 0) 
 						ast_log(LOG_WARNING, "Unable to play dialtone on channel %d\n", i->channel);
-					if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+					if (ast_pthread_create_detached(&threadid, NULL, ss_thread, chan)) {
 						ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 						res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 						if (res < 0)
@@ -7133,7 +7128,6 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		zap_destroy_channel_bynum(i->channel);
 		break;
 	}
-	pthread_attr_destroy(&attr);
 	return 0;
 }
 
@@ -7332,9 +7326,6 @@ static void *do_monitor(void *data)
 
 static int restart_monitor(void)
 {
-	pthread_attr_t attr;
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
@@ -7349,15 +7340,13 @@ static int restart_monitor(void)
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
 		/* Start a new monitor */
-		if (ast_pthread_create_background(&monitor_thread, &attr, do_monitor, NULL) < 0) {
+		if (ast_pthread_create_detached_background(&monitor_thread, NULL, do_monitor, NULL) < 0) {
 			ast_mutex_unlock(&monlock);
 			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
-			pthread_attr_destroy(&attr);
 			return -1;
 		}
 	}
 	ast_mutex_unlock(&monlock);
-	pthread_attr_destroy(&attr);
 	return 0;
 }
 
@@ -8521,14 +8510,10 @@ static void *ss7_linkset(void *data)
 	ss7_event *e = NULL;
 	struct zt_pvt *p;
 	int chanpos;
-	pthread_attr_t attr;
 	struct pollfd pollers[NUM_DCHANS];
 	int cic;
 	unsigned int dpc;
 	int nextms = 0;
-
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	ss7_start(ss7);
 
@@ -9300,7 +9285,6 @@ static void *pri_dchannel(void *vpri)
 	int cause=0;
 	struct zt_pvt *crv;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	char ani2str[6];
 	char plancallingnum[256];
 	char plancallingani[256];
@@ -9799,9 +9783,7 @@ static void *pri_dchannel(void *vpri)
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 							ast_mutex_lock(&pri->lock);
-							pthread_attr_init(&attr);
-							pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
+							if (c && !ast_pthread_create_detached(&threadid, NULL, ss_thread, c)) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
 										plancallingnum, S_OR(pri->pvts[chanpos]->exten, "<unspecified>"),
@@ -9816,7 +9798,6 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->call = NULL;
 								}
 							}
-							pthread_attr_destroy(&attr);
 						} else  {
 							ast_mutex_unlock(&pri->lock);
 							/* Release PRI lock while we create the channel */
