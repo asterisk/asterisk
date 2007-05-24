@@ -1034,7 +1034,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				ast_verbose("  Last SR(our NTP): %lu.%010lu\n",(unsigned long) ntohl(rtcpheader[i + 4]) >> 16,((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096);
 				ast_verbose("  DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
 				if (rtt)
-					ast_verbose("  RTT: %llu(sec)\n", rtt);
+					ast_verbose("  RTT: %lu(sec)\n", (unsigned long) rtt);
 			}
 			break;
 		case RTCP_PT_FUR:
