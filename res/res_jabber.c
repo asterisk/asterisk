@@ -1853,12 +1853,13 @@ static int aji_client_initialize(struct aji_client *client)
 static int aji_component_initialize(struct aji_client *client)
 {
 	int connected = 1;
-	connected = iks_connect_via(client->p, client->jid->server, client->port, client->user);
+
+	connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->user);
 	if (connected == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
 		return IKS_HOOK;
 	} else if (connected == IKS_NET_NODNS) {
-		ast_log(LOG_ERROR, "JABBER ERROR: No DNS\n");
+		ast_log(LOG_ERROR, "JABBER ERROR: No DNS %s for client to  %s\n", client->name, S_OR(client->serverhost, client->jid->server));
 		return IKS_HOOK;
 	} else if (!connected) 
 		iks_recv(client->p, 30);
