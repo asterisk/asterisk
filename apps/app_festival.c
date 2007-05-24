@@ -180,7 +180,9 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 		struct ast_frame f;
 		char offset[AST_FRIENDLY_OFFSET];
 		char frdata[2048];
-	} myf;
+	} myf = {
+		.f = { 0, },
+	};
 	
         if (pipe(fds)) {
                  ast_log(LOG_WARNING, "Unable to create pipe\n");
@@ -241,7 +243,6 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 					myf.f.subclass = AST_FORMAT_SLINEAR;
 					myf.f.datalen = res;
 					myf.f.samples = res / 2;
-					myf.f.mallocd = 0;
 					myf.f.offset = AST_FRIENDLY_OFFSET;
 					myf.f.src = __PRETTY_FUNCTION__;
 					myf.f.data = myf.frdata;
