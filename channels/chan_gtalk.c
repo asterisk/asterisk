@@ -527,7 +527,7 @@ static enum ast_rtp_get_result gtalk_get_rtp_peer(struct ast_channel *chan, stru
 	ast_mutex_lock(&p->lock);
 	if (p->rtp){
 		*rtp = p->rtp;
-		res = AST_RTP_TRY_NATIVE;
+		res = AST_RTP_TRY_PARTIAL;
 	}
 	ast_mutex_unlock(&p->lock);
 
