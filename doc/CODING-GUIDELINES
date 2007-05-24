@@ -68,6 +68,10 @@ can list them in the "svn diff" command:
   within Asterisk to enhance portability and in some cases to produce more
   secure and thread-safe code. Check utils.c/utils.h for these.
 
+- If you need to create a detached thread, use the ast_pthread_create_detached()
+  normally or ast_pthread_create_detached_background() for a thread with a smaller
+  stack size.  This reduces the replication of the code to handle the pthread_attr_t
+  structure.
 
 * Code formatting
 -----------------
