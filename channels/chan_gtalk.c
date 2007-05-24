@@ -1136,6 +1136,7 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in sin;
+	struct sockaddr_in aux;
 
 	if (time(NULL) == p->laststun)
 		return 0;
@@ -1144,14 +1145,32 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 	p->laststun = time(NULL);
 	while (tmp) {
 		char username[256];
+
+		/* Find the IP address of the host */
 		hp = ast_gethostbyname(tmp->ip, &ahp);
 		sin.sin_family = AF_INET;
 		memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 		sin.sin_port = htons(tmp->port);
 		snprintf(username, sizeof(username), "%s%s", tmp->username,
-				 p->ourcandidates->username);
+			 p->ourcandidates->username);
+		
+		/* Find out the result of the STUN */
+		ast_rtp_get_peer(p->rtp, &aux);
 
-		ast_rtp_stun_request(p->rtp, &sin, username);
+		/* If the STUN result is different from the IP of the hostname,
+			lock on the stun IP of the hostname advertised by the
+			remote client */
+		if (aux.sin_addr.s_addr && 
+		    aux.sin_addr.s_addr != sin.sin_addr.s_addr)
+			ast_rtp_stun_request(p->rtp, &aux, username);
+		else 
+			ast_rtp_stun_request(p->rtp, &sin, username);
+		
+		if (aux.sin_addr.s_addr && option_debug > 3) {
+			ast_log(LOG_DEBUG, "Receiving RTP traffic from IP %s, matches with remote candidate's IP %s\n", ast_inet_ntoa(aux.sin_addr), tmp->ip);
+			ast_log(LOG_DEBUG, "Sending STUN request to %s\n", tmp->ip);
+		}
+
 		tmp = tmp->next;
 	}
 	return 1;
