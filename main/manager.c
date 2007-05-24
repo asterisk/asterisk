@@ -131,6 +131,11 @@ static int manager_debug;	/*!< enable some debugging code in the manager */
  * HTTP sessions have managerid != 0, the value is used as a search key
  * to lookup sessions (using the mansession_id cookie).
  */
+static const char *command_blacklist[] = {
+	"module load",
+	"module unload",
+};
+
 struct mansession {
 	pthread_t ms_t;		/*!< Execution thread, basically useless */
 	ast_mutex_t __lock;	/*!< Thread lock -- don't use in action callbacks, it's already taken care of  */
@@ -1795,8 +1800,15 @@ static int action_command(struct mansession *s, const struct message *m)
 	const char *id = astman_get_header(m, "ActionID");
 	char *buf, *final_buf;
 	char template[] = "/tmp/ast-ami-XXXXXX";	/* template for temporary file */
-	int fd = mkstemp(template);
+	int fd = mkstemp(template), i = 0;
 	off_t l;
+
+	for (i = 0; i < sizeof(command_blacklist) / sizeof(command_blacklist[0]); i++) {
+		if (!strncmp(cmd, command_blacklist[i], strlen(command_blacklist[i]))) {
+			astman_send_error(s, m, "Command blacklisted");
+			return 0;
+		}
+	}
 
 	astman_append(s, "Response: Follows\r\nPrivilege: Command\r\n");
 	if (!ast_strlen_zero(id))
