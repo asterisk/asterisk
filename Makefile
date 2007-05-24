@@ -687,10 +687,10 @@ gmenuselect: menuselect/gmenuselect menuselect-tree
 	-@menuselect/gmenuselect $(GLOBAL_MAKEOPTS) $(USER_MAKEOPTS) menuselect.makeopts && (echo "menuselect changes saved!"; rm -f channels/h323/Makefile.ast main/asterisk) || echo "menuselect changes NOT saved!"
 
 menuselect/menuselect: makeopts menuselect/menuselect.c menuselect/menuselect_curses.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts
-	@CC="$(HOST_CC)" LD="" AR="" RANLIB="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
+	@CC="$(HOST_CC)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect CONFIGURE_SILENT="--silent"
 
 menuselect/gmenuselect: makeopts menuselect/menuselect.c menuselect/menuselect_gtk.c menuselect/menuselect_stub.c menuselect/menuselect.h menuselect/linkedlists.h makeopts
-	@CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" $(MAKE) -C menuselect _gmenuselect CONFIGURE_SILENT="--silent"
+	@CC="$(HOST_CC)" CXX="$(CXX)" LD="" AR="" RANLIB="" CFLAGS="" $(MAKE) -C menuselect _gmenuselect CONFIGURE_SILENT="--silent"
 
 menuselect-tree: $(foreach dir,$(filter-out main,$(MOD_SUBDIRS)),$(wildcard $(dir)/*.c) $(wildcard $(dir)/*.cc)) build_tools/cflags.xml sounds/sounds.xml build_tools/embed_modules.xml
 	@echo "Generating input for menuselect ..."
