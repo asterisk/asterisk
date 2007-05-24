@@ -37,6 +37,8 @@ extern "C"
 {
 #endif
 
+#ifndef HAVE_CRYPTO
+
 #define DO_TABLES
 
 #include "aesopt.h"
@@ -225,6 +227,8 @@ void gen_tabs(void)
 }
 
 #endif
+
+#endif /* !HAVE_CRYPTO */
 
 #if defined(__cplusplus)
 }

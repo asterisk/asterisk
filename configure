@@ -737,6 +737,10 @@ CURSES_LIB
 CURSES_INCLUDE
 CURSES_DIR
 PBX_CURSES
+CRYPTO_LIB
+CRYPTO_INCLUDE
+CRYPTO_DIR
+PBX_CRYPTO
 GNUTLS_LIB
 GNUTLS_INCLUDE
 GNUTLS_DIR
@@ -1521,6 +1525,7 @@ Optional Packages:
   --with-cap=PATH         use POSIX 1.e capabilities files in PATH
   --with-curl=PATH        use cURL files in PATH
   --with-curses=PATH      use curses files in PATH
+  --with-crypto=PATH      use OpenSSL Cryptography Support files in PATH
   --with-gnutls=PATH      use GNU TLS support (used for iksemel only) files in
                           PATH
   --with-gsm=PATH         use GSM files in PATH , or 'internal'
@@ -7778,6 +7783,34 @@ esac
 fi
 
 PBX_CURSES=0
+
+
+
+
+
+
+CRYPTO_DESCRIP="OpenSSL Cryptography Support"
+CRYPTO_OPTION="crypto"
+
+# Check whether --with-crypto was given.
+if test "${with_crypto+set}" = set; then
+  withval=$with_crypto;
+case ${withval} in
+     n|no)
+     USE_CRYPTO=no
+     ;;
+     y|ye|yes)
+     ac_mandatory_list="${ac_mandatory_list} CRYPTO"
+     ;;
+     *)
+     CRYPTO_DIR="${withval}"
+     ac_mandatory_list="${ac_mandatory_list} CRYPTO"
+     ;;
+esac
+
+fi
+
+PBX_CRYPTO=0
 
 
 
@@ -29239,6 +29272,399 @@ fi
 
 
 
+if test "x${PBX_CRYPTO}" != "x1" -a "${USE_CRYPTO}" != "no"; then
+   pbxlibdir=""
+   if test "x${CRYPTO_DIR}" != "x"; then
+      if test -d ${CRYPTO_DIR}/lib; then
+      	 pbxlibdir="-L${CRYPTO_DIR}/lib"
+      else
+      	 pbxlibdir="-L${CRYPTO_DIR}"
+      fi
+   fi
+   pbxfuncname="AES_encrypt"
+   if test "x${pbxfuncname}" = "x" ; then   # empty lib, assume only headers
+      AST_CRYPTO_FOUND=yes
+   else
+      as_ac_Lib=`echo "ac_cv_lib_crypto_${pbxfuncname}" | $as_tr_sh`
+{ echo "$as_me:$LINENO: checking for ${pbxfuncname} in -lcrypto" >&5
+echo $ECHO_N "checking for ${pbxfuncname} in -lcrypto... $ECHO_C" >&6; }
+if { as_var=$as_ac_Lib; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcrypto ${pbxlibdir}  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ${pbxfuncname} ();
+int
+main ()
+{
+return ${pbxfuncname} ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  eval "$as_ac_Lib=yes"
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	eval "$as_ac_Lib=no"
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+ac_res=`eval echo '${'$as_ac_Lib'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+if test `eval echo '${'$as_ac_Lib'}'` = yes; then
+  AST_CRYPTO_FOUND=yes
+else
+  AST_CRYPTO_FOUND=no
+fi
+
+   fi
+
+   if test "${AST_CRYPTO_FOUND}" = "yes"; then
+      CRYPTO_LIB="-lcrypto "
+      CRYPTO_HEADER_FOUND="1"
+      if test "x${CRYPTO_DIR}" != "x"; then
+         CRYPTO_LIB="${pbxlibdir} ${CRYPTO_LIB}"
+	 CRYPTO_INCLUDE="-I${CRYPTO_DIR}/include"
+	 saved_cppflags="${CPPFLAGS}"
+	 CPPFLAGS="${CPPFLAGS} -I${CRYPTO_DIR}/include"
+	 if test "xopenssl/aes.h" != "x" ; then
+	    as_ac_Header=`echo "ac_cv_header_${CRYPTO_DIR}/include/openssl/aes.h" | $as_tr_sh`
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  { echo "$as_me:$LINENO: checking for ${CRYPTO_DIR}/include/openssl/aes.h" >&5
+echo $ECHO_N "checking for ${CRYPTO_DIR}/include/openssl/aes.h... $ECHO_C" >&6; }
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+ac_res=`eval echo '${'$as_ac_Header'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking ${CRYPTO_DIR}/include/openssl/aes.h usability" >&5
+echo $ECHO_N "checking ${CRYPTO_DIR}/include/openssl/aes.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <${CRYPTO_DIR}/include/openssl/aes.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking ${CRYPTO_DIR}/include/openssl/aes.h presence" >&5
+echo $ECHO_N "checking ${CRYPTO_DIR}/include/openssl/aes.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <${CRYPTO_DIR}/include/openssl/aes.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: ${CRYPTO_DIR}/include/openssl/aes.h: in the future, the compiler will take precedence" >&2;}
+
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for ${CRYPTO_DIR}/include/openssl/aes.h" >&5
+echo $ECHO_N "checking for ${CRYPTO_DIR}/include/openssl/aes.h... $ECHO_C" >&6; }
+if { as_var=$as_ac_Header; eval "test \"\${$as_var+set}\" = set"; }; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  eval "$as_ac_Header=\$ac_header_preproc"
+fi
+ac_res=`eval echo '${'$as_ac_Header'}'`
+	       { echo "$as_me:$LINENO: result: $ac_res" >&5
+echo "${ECHO_T}$ac_res" >&6; }
+
+fi
+if test `eval echo '${'$as_ac_Header'}'` = yes; then
+  CRYPTO_HEADER_FOUND=1
+else
+  CRYPTO_HEADER_FOUND=0
+fi
+
+
+	 fi
+	 CPPFLAGS="${saved_cppflags}"
+      else
+	 if test "xopenssl/aes.h" != "x" ; then
+            if test "${ac_cv_header_openssl_aes_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for openssl/aes.h" >&5
+echo $ECHO_N "checking for openssl/aes.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_openssl_aes_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_openssl_aes_h" >&5
+echo "${ECHO_T}$ac_cv_header_openssl_aes_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking openssl/aes.h usability" >&5
+echo $ECHO_N "checking openssl/aes.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <openssl/aes.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking openssl/aes.h presence" >&5
+echo $ECHO_N "checking openssl/aes.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <openssl/aes.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: openssl/aes.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: openssl/aes.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: openssl/aes.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: openssl/aes.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: openssl/aes.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: openssl/aes.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: openssl/aes.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: openssl/aes.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: openssl/aes.h: in the future, the compiler will take precedence" >&2;}
+
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for openssl/aes.h" >&5
+echo $ECHO_N "checking for openssl/aes.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_openssl_aes_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_openssl_aes_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_openssl_aes_h" >&5
+echo "${ECHO_T}$ac_cv_header_openssl_aes_h" >&6; }
+
+fi
+if test $ac_cv_header_openssl_aes_h = yes; then
+  CRYPTO_HEADER_FOUND=1
+else
+  CRYPTO_HEADER_FOUND=0
+fi
+
+
+	 fi
+      fi
+      if test "x${CRYPTO_HEADER_FOUND}" = "x0" ; then
+         CRYPTO_LIB=""
+         CRYPTO_INCLUDE=""
+      else
+         if test "x${pbxfuncname}" = "x" ; then		# only checking headers -> no library
+	    CRYPTO_LIB=""
+	 fi
+         PBX_CRYPTO=1
+         # XXX don't know how to evaluate the description (third argument) in AC_DEFINE_UNQUOTED
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_CRYPTO 1
+_ACEOF
+
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_CRYPTO_VERSION
+_ACEOF
+
+      fi
+   fi
+fi
+
+
+if test "${PBX_CRYPTO}" != "0";
+then
+
 if test "x${PBX_OPENSSL}" != "x1" -a "${USE_OPENSSL}" != "no"; then
    pbxlibdir=""
    if test "x${OPENSSL_DIR}" != "x"; then
@@ -29628,6 +30054,7 @@ _ACEOF
    fi
 fi
 
+fi
 
 
 if test "x${PBX_FREETDS}" != "x1" -a "${USE_FREETDS}" != "no"; then
@@ -35694,6 +36121,10 @@ CURSES_LIB!$CURSES_LIB$ac_delim
 CURSES_INCLUDE!$CURSES_INCLUDE$ac_delim
 CURSES_DIR!$CURSES_DIR$ac_delim
 PBX_CURSES!$PBX_CURSES$ac_delim
+CRYPTO_LIB!$CRYPTO_LIB$ac_delim
+CRYPTO_INCLUDE!$CRYPTO_INCLUDE$ac_delim
+CRYPTO_DIR!$CRYPTO_DIR$ac_delim
+PBX_CRYPTO!$PBX_CRYPTO$ac_delim
 GNUTLS_LIB!$GNUTLS_LIB$ac_delim
 GNUTLS_INCLUDE!$GNUTLS_INCLUDE$ac_delim
 GNUTLS_DIR!$GNUTLS_DIR$ac_delim
@@ -35766,10 +36197,6 @@ PRI_LIB!$PRI_LIB$ac_delim
 PRI_INCLUDE!$PRI_INCLUDE$ac_delim
 PRI_DIR!$PRI_DIR$ac_delim
 PBX_PRI!$PBX_PRI$ac_delim
-SS7_LIB!$SS7_LIB$ac_delim
-SS7_INCLUDE!$SS7_INCLUDE$ac_delim
-SS7_DIR!$SS7_DIR$ac_delim
-PBX_SS7!$PBX_SS7$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -35811,6 +36238,10 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+SS7_LIB!$SS7_LIB$ac_delim
+SS7_INCLUDE!$SS7_INCLUDE$ac_delim
+SS7_DIR!$SS7_DIR$ac_delim
+PBX_SS7!$PBX_SS7$ac_delim
 PWLIB_LIB!$PWLIB_LIB$ac_delim
 PWLIB_INCLUDE!$PWLIB_INCLUDE$ac_delim
 PWLIB_DIR!$PWLIB_DIR$ac_delim
@@ -35904,10 +36335,6 @@ PWLIB_LIBDIR!$PWLIB_LIBDIR$ac_delim
 PWLIB_PLATFORM!$PWLIB_PLATFORM$ac_delim
 OPENH323DIR!$OPENH323DIR$ac_delim
 OPENH323_INCDIR!$OPENH323_INCDIR$ac_delim
-OPENH323_LIBDIR!$OPENH323_LIBDIR$ac_delim
-OPENH323_SUFFIX!$OPENH323_SUFFIX$ac_delim
-OPENH323_BUILD!$OPENH323_BUILD$ac_delim
-QTMOC!$QTMOC$ac_delim
 _ACEOF
 
   if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 97; then
@@ -35949,6 +36376,10 @@ _ACEOF
 ac_delim='%!_!# '
 for ac_last_try in false false false false false :; do
   cat >conf$$subs.sed <<_ACEOF
+OPENH323_LIBDIR!$OPENH323_LIBDIR$ac_delim
+OPENH323_SUFFIX!$OPENH323_SUFFIX$ac_delim
+OPENH323_BUILD!$OPENH323_BUILD$ac_delim
+QTMOC!$QTMOC$ac_delim
 EDITLINE_LIB!$EDITLINE_LIB$ac_delim
 PBX_H323!$PBX_H323$ac_delim
 PBX_IXJUSER!$PBX_IXJUSER$ac_delim
@@ -35964,7 +36395,7 @@ CURL_CONFIG!$CURL_CONFIG$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 13; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 17; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

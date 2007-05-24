@@ -24,6 +24,7 @@
 
 /*** MODULEINFO
 	<depend>zlib</depend>
+	<use>crypto</use>
  ***/
 
 #include "asterisk.h"
@@ -173,8 +174,8 @@ struct dundi_transaction {
 	int eidcount;                                  /*!< Number of eids in eids */
 	dundi_eid us_eid;                              /*!< Our EID, to them */
 	dundi_eid them_eid;                            /*!< Their EID, to us */
-	aes_encrypt_ctx	ecx;                           /*!< AES 128 Encryption context */
-	aes_decrypt_ctx	dcx;                           /*!< AES 128 Decryption context */
+	ast_aes_encrypt_key ecx;                       /*!< AES 128 Encryption context */
+	ast_aes_decrypt_key dcx;                       /*!< AES 128 Decryption context */
 	unsigned int flags;                            /*!< Has final packet been sent */
 	int ttl;                                       /*!< Remaining TTL for queries on this one */
 	int thread;                                    /*!< We have a calling thread */
@@ -240,11 +241,11 @@ struct dundi_peer {
 	unsigned char txenckey[256];           /*!< Transmitted encrypted key + sig */
 	unsigned char rxenckey[256];           /*!< Cache received encrypted key + sig */
 	unsigned long us_keycrc32;             /*!< CRC-32 of our key */
-	aes_encrypt_ctx	us_ecx;                /*!< Cached AES 128 Encryption context */
-	aes_decrypt_ctx	us_dcx;	               /*!< Cached AES 128 Decryption context */
+	ast_aes_encrypt_key us_ecx;            /*!< Cached AES 128 Encryption context */
+	ast_aes_decrypt_key us_dcx;            /*!< Cached AES 128 Decryption context */
 	unsigned long them_keycrc32;           /*!< CRC-32 of our key */
-	aes_encrypt_ctx	them_ecx;              /*!< Cached AES 128 Encryption context */
-	aes_decrypt_ctx	them_dcx;              /*!< Cached AES 128 Decryption context */
+	ast_aes_encrypt_key them_ecx;          /*!< Cached AES 128 Encryption context */
+	ast_aes_decrypt_key them_dcx;          /*!< Cached AES 128 Decryption context */
 	time_t keyexpire;                      /*!< When to expire/recreate key */
 	int registerexpire;
 	int lookuptimes[DUNDI_TIMING_HISTORY];
@@ -1300,8 +1301,8 @@ static int update_key(struct dundi_peer *peer)
 	int res;
 	if (!peer->keyexpire || (peer->keyexpire < time(NULL))) {
 		build_iv(key);
-		aes_encrypt_key128(key, &peer->us_ecx);
-		aes_decrypt_key128(key, &peer->us_dcx);
+		ast_aes_encrypt_key(key, &peer->us_ecx);
+		ast_aes_decrypt_key(key, &peer->us_dcx);
 		ekey = ast_key_get(peer->inkey, AST_KEY_PUBLIC);
 		if (!ekey) {
 			ast_log(LOG_NOTICE, "No such key '%s' for creating RSA encrypted shared key for '%s'!\n",
@@ -1331,7 +1332,7 @@ static int update_key(struct dundi_peer *peer)
 	return 0;
 }
 
-static int encrypt_memcpy(unsigned char *dst, unsigned char *src, int len, unsigned char *iv, aes_encrypt_ctx *ecx) 
+static int encrypt_memcpy(unsigned char *dst, unsigned char *src, int len, unsigned char *iv, ast_aes_encrypt_key *ecx) 
 {
 	unsigned char curblock[16];
 	int x;
@@ -1339,7 +1340,7 @@ static int encrypt_memcpy(unsigned char *dst, unsigned char *src, int len, unsig
 	while(len > 0) {
 		for (x=0;x<16;x++)
 			curblock[x] ^= src[x];
-		aes_encrypt(curblock, dst, ecx);
+		ast_aes_encrypt(curblock, dst, ecx);
 		memcpy(curblock, dst, sizeof(curblock)); 
 		dst += 16;
 		src += 16;
@@ -1347,13 +1348,13 @@ static int encrypt_memcpy(unsigned char *dst, unsigned char *src, int len, unsig
 	}
 	return 0;
 }
-static int decrypt_memcpy(unsigned char *dst, unsigned char *src, int len, unsigned char *iv, aes_decrypt_ctx *dcx) 
+static int decrypt_memcpy(unsigned char *dst, unsigned char *src, int len, unsigned char *iv, ast_aes_decrypt_key *dcx) 
 {
 	unsigned char lastblock[16];
 	int x;
 	memcpy(lastblock, iv, sizeof(lastblock));
 	while(len > 0) {
-		aes_decrypt(src, dst, dcx);
+		ast_aes_decrypt(src, dst, dcx);
 		for (x=0;x<16;x++)
 			dst[x] ^= lastblock[x];
 		memcpy(lastblock, src, sizeof(lastblock));
@@ -1507,8 +1508,8 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	memcpy(peer->rxenckey, newkey, 128);
 	memcpy(peer->rxenckey + 128, newsig, 128);
 	peer->them_keycrc32 = crc32(0L, peer->rxenckey, 128);
-	aes_decrypt_key128(dst, &peer->them_dcx);
-	aes_encrypt_key128(dst, &peer->them_ecx);
+	ast_aes_decrypt_key(dst, &peer->them_dcx);
+	ast_aes_encrypt_key(dst, &peer->them_ecx);
 	return 1;
 }
 

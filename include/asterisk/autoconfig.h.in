@@ -77,6 +77,12 @@
 /* Define to 1 if your system has a working `chown' function. */
 #undef HAVE_CHOWN
 
+/* Define this to indicate the ${CRYPTO_DESCRIP} library */
+#undef HAVE_CRYPTO
+
+/* Define to indicate the ${CRYPTO_DESCRIP} library version */
+#undef HAVE_CRYPTO_VERSION
+
 /* Define if your system has the curl libraries. */
 #undef HAVE_CURL
 

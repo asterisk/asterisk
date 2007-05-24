@@ -41,12 +41,14 @@
  * \author Dr Brian Gladman <brg@gladman.me.uk>
  */
 
-#include "aesopt.h"
-
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
+
+#ifndef HAVE_CRYPTO
+
+#include "aesopt.h"
 
 /* Initialise the key schedule from the user supplied key. The key
    length can be specified in bytes, with legal values of 16, 24
@@ -463,6 +465,8 @@ aes_rval aes_decrypt_key(const void *in_key, int key_len, aes_decrypt_ctx cx[1])
 #endif
 
 #endif
+
+#endif /* !HAVE_CRYPTO */
 
 #if defined(__cplusplus)
 }
