@@ -174,7 +174,9 @@ static int framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 				pvt->samples += l;
 				pvt->datalen = pvt->samples * 2;	/* SLIN has 2bytes for 1sample */
 			}
-			return 0;
+			/* We don't want generic PLC. If the codec has native PLC, then do that */
+			if (!pvt->t->native_plc)
+				return 0;
 		}
 		if (pvt->samples + f->samples > pvt->t->buffer_samples) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
