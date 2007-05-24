@@ -205,6 +205,7 @@ static int load_config(void)
 			res = 0;
 		}
 
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 
 		if (AST_LIST_FIRST(&(tableptr->columns)))
