@@ -48,6 +48,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/signal.h>
 #include <iksemel.h>
 
+#include <gcrypt.h>
+#include <pthread.h>
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -1816,6 +1820,8 @@ static int gtalk_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+
 	ASTOBJ_CONTAINER_INIT(&gtalk_list);
 	if (!gtalk_load_config()) {
 		ast_log(LOG_ERROR, "Unable to read config file %s. Not loading module.\n", GOOGLE_CONFIG);
