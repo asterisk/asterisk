@@ -1037,6 +1037,8 @@ struct sip_pvt {
 	struct ast_rtp *rtp;			/*!< RTP Session */
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
 	struct ast_rtp *trtp;			/*!< Text RTP session */
+	const char *url;				/*!< Temporary URI for next response */
+	int freeurl;					/*!< Whether URI should be free()'d */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
@@ -1264,6 +1266,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 static int sip_devicestate(void *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
 static int sip_call(struct ast_channel *ast, char *dest, int timeout);
+static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen);
 static int sip_hangup(struct ast_channel *ast);
 static int sip_answer(struct ast_channel *ast);
 static struct ast_frame *sip_read(struct ast_channel *ast);
@@ -1597,6 +1600,7 @@ static const struct ast_channel_tech sip_tech = {
 	.requester = sip_request_call,
 	.devicestate = sip_devicestate,
 	.call = sip_call,
+	.send_html = sip_sendhtml,
 	.hangup = sip_hangup,
 	.answer = sip_answer,
 	.read = sip_read,
@@ -2536,6 +2540,44 @@ static int parse_uri(char *uri, char *scheme,
 		*options = uri ? uri : "";
 
 	return error;
+}
+
+/*! \brief Send message with Access-URL header, if this is an HTML URL only! */
+static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen)
+{
+	struct sip_pvt *p = chan->tech_pvt;
+	char *tmp;
+	int debug = sip_debug_test_pvt(p);
+	if (subclass != AST_HTML_URL)
+		return -1;
+	tmp = alloca(strlen(data) + 20);
+	snprintf(tmp, strlen(data) + 20, "<%s>;mode=active", data);
+	p->url = tmp;
+	if (debug)
+		ast_verbose("Send URL %s, state = %d!\n", data, chan->_state);
+	switch(chan->_state) {
+	case AST_STATE_RING:
+		transmit_response(p, "100 Trying", &p->initreq);
+		break;
+	case AST_STATE_RINGING:
+		transmit_response(p, "180 Ringing", &p->initreq);
+		break;
+	case AST_STATE_UP:
+		if (!p->pendinginvite) {		/* We are up, and have no outstanding invite */
+			transmit_reinvite_with_sdp(p, FALSE);
+		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
+			/* We have a pending Invite. Send re-invite when we're done with the invite */
+			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
+			p->url = strdup(p->url);
+			p->freeurl = 1;
+		}	
+		break;
+	default:
+		ast_log(LOG_WARNING, "Don't know how to send URI when state is %d!\n", chan->_state);
+	}
+	if (p->url && !p->freeurl)
+		ast_log(LOG_WARNING, "Whoa, didn't expect URI to hang around!\n");
+	return 0;
 }
 
 /*! \brief Send SIP MESSAGE text within a call
@@ -6104,6 +6146,12 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	} else if (msg[0] != '4' && p->our_contact[0]) {
 		add_header(resp, "Contact", p->our_contact);
 	}
+	if (p->url) {
+		add_header(resp, "Access-URL", p->url);
+		if (p->freeurl)
+			free((char *)p->url);
+		p->url = NULL;
+	}
 	return 0;
 }
 
@@ -6208,7 +6256,12 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
-
+	if (p->url) {
+		add_header(req, "Access-URL", p->url);
+		if (p->freeurl)
+			free((char *)p->url);
+		p->url = NULL;
+	}
 	return 0;
 }
 
