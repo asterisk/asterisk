@@ -7505,6 +7505,72 @@ static void stop_poll_thread(void)
 	poll_thread = AST_PTHREADT_NULL;
 }
 
+static int manager_list_voicemail_users(struct mansession *s, const struct message *m)
+{
+	struct ast_vm_user *vmu = NULL;
+	const char *id = astman_get_header(m, "ActionID");
+	char actionid[128] = "";
+
+	if (!ast_strlen_zero(id))
+		snprintf(actionid, sizeof(actionid), "ActionID: %s\r\n", id);
+
+	AST_LIST_LOCK(&users);
+
+	if (AST_LIST_EMPTY(&users)) {
+		astman_send_ack(s, m, "There are no voicemail users currently defined.");
+		AST_LIST_UNLOCK(&users);
+		return RESULT_SUCCESS;
+	}
+	
+	astman_send_ack(s, m, "Voicemail user list will follow\r\n");
+	
+	AST_LIST_TRAVERSE(&users, vmu, list) {
+		char dirname[256];
+		
+		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
+		astman_append(s,
+			      "%s"
+			      "Event: VoicemailUserEntry\r\n"
+			      "Context: %s\r\n"
+			      "Mailbox: %s\r\n"
+			      "Fullname: %s\r\n"
+			      "Email: %s\r\n"
+			      "Pager: %s\r\n"
+			      "ServerEmail: %s\r\n"
+			      "MailCommand: %s\r\n"
+			      "Language: %s\r\n"
+			      "Zone: %s\r\n"
+			      "Callback: %s\r\n"
+			      "Dialout: %s\r\n"
+			      "UniqueID: %s\r\n"
+			      "ExitContext: %s\r\n"
+			      "SayDurationMinimum: %d\r\n"
+			      "AttachmentFormat: %s\r\n"
+			      "VolumeGain: %.2lf\r\n"
+			      "MaxMessageCount: %d\r\n"
+			      "MaxMessageLength: %d\r\n"
+			      "NewMessageCount: %d\r\n"
+#ifdef IMAP_STORAGE
+			      "IMAPUser: %s\r\n"
+#endif
+			      "\r\n",
+			      actionid, vmu->context, vmu->mailbox, vmu->fullname, vmu->email,
+			      vmu->pager, vmu->serveremail, vmu->mailcmd, vmu->language,
+			      vmu->zonetag, vmu->callback, vmu->dialout, vmu->uniqueid,
+			      vmu->exit, vmu->saydurationm, vmu->attachfmt, vmu->volgain,
+			      vmu->maxmsg, vmu->maxsecs, count_messages(vmu, dirname)
+#ifdef IMAP_STORAGE
+			      , vmu->imapuser
+#endif
+			);
+	}		
+	astman_append(s, "Event: VoicemailUserEntryComplete\r\n%s\r\n", actionid);
+
+	AST_LIST_UNLOCK(&users);
+
+	return RESULT_SUCCESS;
+}
+
 static int load_config(void)
 {
 	struct ast_vm_user *cur;
@@ -8089,6 +8155,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app4);
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
+	res |= ast_manager_unregister("ListAllVoicemailUsers");
 	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
 	
@@ -8115,6 +8182,7 @@ static int load_module(void)
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
+	res |= ast_manager_register("ListAllVoicemailUsers", EVENT_FLAG_CALL, manager_list_voicemail_users, "List All Voicemail User Information");
 	if (res)
 		return res;
 

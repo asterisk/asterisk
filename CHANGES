@@ -18,6 +18,8 @@ AMI - The manager (TCP/TLS/HTTP)
      and "ChannelDriver" headers.
   * Added a "Bridge" action which allows you to bridge any two channels that
      are currently active on the system.
+  * Added a "ListAllVoicemailUsers" action that allows you to get a list of all
+     the voicemail users setup.
 
 Dialplan functions
 ------------------
