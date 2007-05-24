@@ -3220,6 +3220,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->capability = global_capability;
 	if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
+	p->jointnoncodeccapability = p->noncodeccapability;
 	strcpy(p->context, default_context);
 
 	/* Add to active dialog list */
