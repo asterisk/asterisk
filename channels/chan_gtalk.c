@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <iksemel.h>
 #include <pthread.h>
 
-#if HAVE_GNUTLS
+#ifdef HAVE_GNUTLS
 #include <gcrypt.h>
 GCRY_THREAD_OPTION_PTHREAD_IMPL;
 #endif /* HAVE_GNUTLS */
@@ -1811,7 +1811,7 @@ static int gtalk_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
-#if HAVE_GNUTLS	
+#ifdef HAVE_GNUTLS	
         gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
 #endif /* HAVE_GNUTLS */
 
