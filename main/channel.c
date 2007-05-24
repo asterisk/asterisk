@@ -652,8 +652,11 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 		return NULL;
 	}
 	
-	if ((ast_string_field_init(tmp, 128)))
+	if ((ast_string_field_init(tmp, 128))) {
+		sched_context_destroy(tmp->sched);
+		free(tmp);
 		return NULL;
+	}
 
 	/* Don't bother initializing the last two FD here, because they
 	   will *always* be set just a few lines down (AST_TIMING_FD,
