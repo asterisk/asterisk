@@ -128,6 +128,8 @@ AC_PROG_LN_S
 AC_PROG_RANLIB
 AST_CHECK_GNU_MAKE
 
+AC_PATH_TOOL([STRIP], [strip], :)
+
 GNU_LD=0
 if test "x$with_gnu_ld" = "xyes" ; then
    GNU_LD=1
@@ -144,7 +146,6 @@ AC_PATH_PROG([DIRNAME], [dirname], :)
 AC_PATH_PROG([SHELL], [sh], :)
 AC_PATH_PROG([LN], [ln], :)
 AC_PATH_PROG([DOT], [dot], :)
-AC_PATH_PROG([STRIP], [strip], :)
 AC_PATH_PROG([WGET], [wget], :)
 if test "${WGET}" != ":" ; then
   DOWNLOAD=${WGET}
