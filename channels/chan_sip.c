@@ -969,6 +969,7 @@ struct sip_pvt {
 		AST_STRING_FIELD(our_contact);	/*!< Our contact header */
 		AST_STRING_FIELD(rpid);		/*!< Our RPID header */
 		AST_STRING_FIELD(rpid_from);	/*!< Our RPID From header */
+		AST_STRING_FIELD(url);		/*!< URL to be sent with next message to peer */
 	);
 	unsigned int ocseq;			/*!< Current outgoing seqno */
 	unsigned int icseq;			/*!< Current incoming seqno */
@@ -1037,8 +1038,6 @@ struct sip_pvt {
 	struct ast_rtp *rtp;			/*!< RTP Session */
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
 	struct ast_rtp *trtp;			/*!< Text RTP session */
-	const char *url;				/*!< Temporary URI for next response */
-	int freeurl;					/*!< Whether URI should be free()'d */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
@@ -2546,15 +2545,11 @@ static int parse_uri(char *uri, char *scheme,
 static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen)
 {
 	struct sip_pvt *p = chan->tech_pvt;
-	struct ast_str *buf;
 
 	if (subclass != AST_HTML_URL)
 		return -1;
 
-	buf = ast_str_alloca(64);
-
-	ast_str_set(&buf, 0, "<%s>;mode=active", data);
-	p->url = buf->str;
+	ast_string_field_build(p, url, "<%s>;mode=active", data);
 
 	if (sip_debug_test_pvt(p) && option_debug)
 		ast_log(LOG_DEBUG, "Send URL %s, state = %d!\n", data, chan->_state);
@@ -2570,18 +2565,12 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 		if (!p->pendinginvite) {		/* We are up, and have no outstanding invite */
 			transmit_reinvite_with_sdp(p, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			/* We have a pending Invite. Send re-invite when we're done with the invite */
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
-			if ((p->url = ast_strdup(p->url)))
-				p->freeurl = 1;
 		}	
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to send URI when state is %d!\n", chan->_state);
 	}
-
-	if (p->url && !p->freeurl)
-		ast_log(LOG_WARNING, "Whoa, didn't expect URI to hang around!\n");
 
 	return 0;
 }
@@ -6152,12 +6141,12 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 	} else if (msg[0] != '4' && p->our_contact[0]) {
 		add_header(resp, "Contact", p->our_contact);
 	}
+
 	if (p->url) {
 		add_header(resp, "Access-URL", p->url);
-		if (p->freeurl)
-			free((char *)p->url);
-		p->url = NULL;
+		ast_string_field_free(p, url);
 	}
+
 	return 0;
 }
 
@@ -6262,12 +6251,12 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
+
 	if (p->url) {
 		add_header(req, "Access-URL", p->url);
-		if (p->freeurl)
-			free((char *)p->url);
-		p->url = NULL;
+		ast_string_field_free(p, url);
 	}
+
 	return 0;
 }
 
