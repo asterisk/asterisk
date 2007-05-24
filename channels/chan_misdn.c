@@ -2936,6 +2936,8 @@ static int stop_indicate(struct chan_list *cl)
 	chan_misdn_log(3,cl->bc->port," --> None\n");
 	misdn_lib_tone_generator_stop(cl->bc);
 	ast_playtones_stop(ast);
+
+	cl->ts=NULL;
 	/*ast_deactivate_generator(ast);*/
 	
 	return 0;
