@@ -77,6 +77,7 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 	int iaction = -1;
 	int type_of_result = FLOAT_RESULT;
 	char *mvalue1, *mvalue2 = NULL, *mtype_of_result;
+	int negvalue1 = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(argv0);
 			     AST_APP_ARG(argv1);
@@ -96,13 +97,12 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 
 	mvalue1 = args.argv0;
 
-	if ((op = strchr(mvalue1, '+'))) {
-		iaction = ADDFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '-'))) {
-		iaction = SUBTRACTFUNCTION;
-		*op = '\0';
-	} else if ((op = strchr(mvalue1, '*'))) {
+	if (mvalue1[0] == '-') {
+		negvalue1 = 1;
+		mvalue1++;
+	}
+
+	if ((op = strchr(mvalue1, '*'))) {
 		iaction = MULTIPLYFUNCTION;
 		*op = '\0';
 	} else if ((op = strchr(mvalue1, '/'))) {
@@ -141,6 +141,12 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 			iaction = EQFUNCTION;
 		} else
 			op = NULL;
+	} else if ((op = strchr(mvalue1, '+'))) {
+		iaction = ADDFUNCTION;
+		*op = '\0';
+	} else if ((op = strchr(mvalue1, '-'))) { /* subtraction MUST always be last, in case we have a negative first number */
+		iaction = SUBTRACTFUNCTION;
+		*op = '\0';
 	}
 
 	if (op)
@@ -183,6 +189,9 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 		return -1;
 	}
+
+	if (negvalue1)
+		fnum1 = 0 - fnum1;
 
 	switch (iaction) {
 	case ADDFUNCTION:
