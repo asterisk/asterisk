@@ -2546,16 +2546,20 @@ static int parse_uri(char *uri, char *scheme,
 static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data, int datalen)
 {
 	struct sip_pvt *p = chan->tech_pvt;
-	char *tmp;
-	int debug = sip_debug_test_pvt(p);
+	struct ast_str *buf;
+
 	if (subclass != AST_HTML_URL)
 		return -1;
-	tmp = alloca(strlen(data) + 20);
-	snprintf(tmp, strlen(data) + 20, "<%s>;mode=active", data);
-	p->url = tmp;
-	if (debug)
-		ast_verbose("Send URL %s, state = %d!\n", data, chan->_state);
-	switch(chan->_state) {
+
+	buf = ast_str_alloca(64);
+
+	ast_str_set(&buf, 0, "<%s>;mode=active", data);
+	p->url = buf->str;
+
+	if (sip_debug_test_pvt(p) && option_debug)
+		ast_log(LOG_DEBUG, "Send URL %s, state = %d!\n", data, chan->_state);
+
+	switch (chan->_state) {
 	case AST_STATE_RING:
 		transmit_response(p, "100 Trying", &p->initreq);
 		break;
@@ -2568,15 +2572,17 @@ static int sip_sendhtml(struct ast_channel *chan, int subclass, const char *data
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 			/* We have a pending Invite. Send re-invite when we're done with the invite */
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
-			p->url = strdup(p->url);
-			p->freeurl = 1;
+			if ((p->url = ast_strdup(p->url)))
+				p->freeurl = 1;
 		}	
 		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to send URI when state is %d!\n", chan->_state);
 	}
+
 	if (p->url && !p->freeurl)
 		ast_log(LOG_WARNING, "Whoa, didn't expect URI to hang around!\n");
+
 	return 0;
 }
 
