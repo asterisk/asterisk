@@ -4779,32 +4779,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'S':
 				/* Seconds */
-				if (tm.tm_sec == 0) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
-				} else if (tm.tm_sec < 10) {
-					res = wait_file(chan,ints, "digits/oh",lang);
-					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-						res = wait_file(chan,ints,nextmsg,lang);
-					}
-				} else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
-					res = wait_file(chan,ints,nextmsg,lang);
-				} else {
-					int ten, one;
-					ten = (tm.tm_sec / 10) * 10;
-					one = (tm.tm_sec % 10);
-					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
-					res = wait_file(chan,ints,nextmsg,lang);
-					if (!res) {
-						/* Fifty, not fifty-zero */
-						if (one != 0) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-							res = wait_file(chan,ints,nextmsg,lang);
-						}
-					}
-				}
+				res = ast_say_number(chan, tm.tm_sec, ints, lang, (char *) NULL);
 				break;
 			case 'T':
 				res = ast_say_date_with_format_nl(chan, time, ints, lang, "HMS", timezone);
