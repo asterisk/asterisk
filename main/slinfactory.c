@@ -72,10 +72,12 @@ int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f)
 				sf->format = f->subclass;
 			}
 		}
+		if (!(begin_frame = ast_translate(sf->trans, f, 0)) || !(duped_frame = ast_frdup(begin_frame)))
+			return 0;
+	} else {
+		if (!(duped_frame = ast_frdup(f)))
+			return 0;
 	}
-
-	if ((sf->trans && (!(begin_frame = ast_translate(sf->trans, f, 0)))) || (!(duped_frame = ast_frdup(begin_frame))))
-		return 0;
 
 	x = 0;
 	AST_LIST_TRAVERSE(&sf->queue, frame_ptr, frame_list)
