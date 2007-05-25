@@ -28,6 +28,7 @@
 /*** MODULEINFO
 	<depend>iksemel</depend>
 	<depend>res_jabber</depend>
+	<use>gnutls</use>
  ***/
 
 #include "asterisk.h"
