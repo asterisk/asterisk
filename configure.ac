@@ -186,7 +186,7 @@ AST_EXT_LIB_SETUP([BKTR], [Stack Backtrace support], [execinfo])
 AST_EXT_LIB_SETUP([CAP], [POSIX 1.e capabilities], [cap])
 AST_EXT_LIB_SETUP([CURL], [cURL], [curl])
 AST_EXT_LIB_SETUP([CURSES], [curses], [curses])
-AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography Support], [crypto])
+AST_EXT_LIB_SETUP([CRYPTO], [OpenSSL Cryptography support], [crypto])
 AST_EXT_LIB_SETUP([GNUTLS], [GNU TLS support (used for iksemel only)], [gnutls])
 AST_EXT_LIB_SETUP([GSM], [GSM], [gsm], [, or 'internal'])
 AST_EXT_LIB_SETUP([IKSEMEL], [Iksemel Jabber Library], [iksemel])
@@ -214,7 +214,7 @@ AST_EXT_LIB_SETUP([SPEEX], [Speex], [speex])
 AST_EXT_LIB_SETUP([SQLITE], [SQLite], [sqlite])
 AST_EXT_LIB_SETUP([SQLITE3], [SQLite], [sqlite3])
 AST_EXT_LIB_SETUP([SUPPSERV], [mISDN Supplemental Services], [suppserv])
-AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL], [ssl])
+AST_EXT_LIB_SETUP([OPENSSL], [OpenSSL Secure Sockets Layer support], [ssl])
 AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
 AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
@@ -675,11 +675,6 @@ AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [-lltdl])
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
-if test "$PBX_OPENSSL" = "1";
-then
-    AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
-fi
-
 AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h], [-lexecinfo])
 
 # possible places for oss definitions
@@ -849,9 +844,14 @@ AST_EXT_LIB_CHECK([SQLITE3], [sqlite3], [sqlite3_open], [sqlite3.h])
 
 AST_EXT_LIB_CHECK([CRYPTO], [crypto], [AES_encrypt], [openssl/aes.h])
 
-if test "${PBX_CRYPTO}" != "0";
+if test "$PBX_CRYPTO" = "1";
 then
     AST_EXT_LIB_CHECK([OPENSSL], [ssl], [ssl2_connect], [openssl/ssl.h], [-lcrypto])
+fi
+
+if test "$PBX_OPENSSL" = "1";
+then
+    AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
 fi
 
 AST_EXT_LIB_CHECK([FREETDS], [tds], [tds_version], [tds.h])

@@ -50,6 +50,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <arpa/inet.h>
 #include <sys/signal.h>
 #include <iksemel.h>
+#include <pthread.h>
+
+#ifdef HAVE_GNUTLS
+#include <gcrypt.h>
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
+#endif /* HAVE_GNUTLS */
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
@@ -1674,6 +1680,10 @@ static int jingle_load_config(void)
 /*! \brief Load module into PBX, register channel */
 static int load_module(void)
 {
+#ifdef HAVE_GNUTLS	
+        gcry_control (GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+#endif /* HAVE_GNUTLS */
+
 	ASTOBJ_CONTAINER_INIT(&jingles);
 	if (!jingle_load_config()) {
 		ast_log(LOG_ERROR, "Unable to read config file %s. Not loading module.\n", JINGLE_CONFIG);
