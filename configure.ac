@@ -431,10 +431,7 @@ fi
 AST_EXT_LIB_CHECK([IKSEMEL], [iksemel], [iks_start_sasl], [iksemel.h])
 
 if test "${PBX_IKSEMEL}" = 1; then
-   AST_EXT_LIB_CHECK([GNUTLS], [gnutls], [gnutls_bye])
-   if test "${PBX_GNUTLS}" = 1; then
-      IKSEMEL_LIB="${IKSEMEL_LIB} -lgnutls -lz -lgcrypt -lgpg-error"
-   fi
+   AST_EXT_LIB_CHECK([GNUTLS], [gnutls], [gnutls_bye], [gnutls/gnutls.h], [-lz -lgcrypt -lgpg-error])
 fi
 
 if test "${USE_IMAP_TK}" != "no"; then
@@ -678,7 +675,10 @@ AST_EXT_LIB_CHECK([UNIXODBC], [odbc], [SQLConnect], [sql.h], [-lltdl])
 
 AST_EXT_LIB_CHECK([OGG], [ogg], [ogg_sync_init], [])
 
-AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
+if test "$PBX_OPENSSL" = "1";
+then
+    AST_EXT_LIB_CHECK([OSPTK], [osptk], [OSPPCryptoDecrypt], [osp/osp.h], [-lcrypto -lssl])
+fi
 
 AST_EXT_LIB_CHECK([BKTR], [execinfo], [backtrace], [execinfo.h], [-lexecinfo])
 

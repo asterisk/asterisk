@@ -25,6 +25,7 @@
 
 /*** MODULEINFO
 	<depend>iksemel</depend>
+	<use>gnutls</use>
  ***/
 
 #include "asterisk.h"
