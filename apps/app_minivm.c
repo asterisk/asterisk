@@ -2515,6 +2515,7 @@ static int load_config(void)
 	/* Make sure we could load configuration file */
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module activated with default settings.\n");
+		ast_mutex_unlock(&minivmlock);
 		return 0;
 	}
 
