@@ -323,7 +323,6 @@ struct ast_conference {
 	unsigned int isdynamic:1;               /*!< Created on the fly? */
 	unsigned int locked:1;                  /*!< Is the conference locked? */
 	pthread_t recordthread;                 /*!< thread for recording */
-	pthread_attr_t attr;                    /*!< thread attribute */
 	const char *recordingfilename;          /*!< Filename to record the Conference into */
 	const char *recordingformat;            /*!< Format to record the Conference in */
 	char pin[MAX_PIN];                      /*!< If protected by a PIN */
@@ -1428,7 +1427,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_hangup(conf->lchan);
 			conf->lchan = NULL;
 		} else {
-			ast_pthread_create_detached_background(&conf->recordthread, &conf->attr, recordthread, conf);
+			ast_pthread_create_detached_background(&conf->recordthread, NULL, recordthread, conf);
 		}
 	}
 
