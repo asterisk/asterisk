@@ -10486,17 +10486,17 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			if (ast_true(v->value))
 				distinctiveringaftercid = 1;
 		} else if (!strcasecmp(v->name, "dring1context")) {
-			ast_copy_string(confp->chan.drings.ringContext[0].contextData,v->value,sizeof(confp->chan.drings.ringContext[0].contextData));
+			ast_copy_string(drings.ringContext[0].contextData, v->value, sizeof(drings.ringContext[0].contextData));
 		} else if (!strcasecmp(v->name, "dring2context")) {
-			ast_copy_string(confp->chan.drings.ringContext[1].contextData,v->value,sizeof(confp->chan.drings.ringContext[1].contextData));
+			ast_copy_string(drings.ringContext[1].contextData, v->value, sizeof(drings.ringContext[1].contextData));
 		} else if (!strcasecmp(v->name, "dring3context")) {
-			ast_copy_string(confp->chan.drings.ringContext[2].contextData,v->value,sizeof(confp->chan.drings.ringContext[2].contextData));
+			ast_copy_string(drings.ringContext[2].contextData, v->value, sizeof(drings.ringContext[2].contextData));
 		} else if (!strcasecmp(v->name, "dring1")) {
 			ringc = v->value;
-			sscanf(ringc, "%d,%d,%d", &confp->chan.drings.ringnum[0].ring[0], &confp->chan.drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[0].ring[0], &drings.ringnum[0].ring[1], &drings.ringnum[0].ring[2]);
 		} else if (!strcasecmp(v->name, "dring2")) {
 			ringc = v->value;
-			sscanf(ringc,"%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
+			sscanf(ringc, "%d,%d,%d", &drings.ringnum[1].ring[0], &drings.ringnum[1].ring[1], &drings.ringnum[1].ring[2]);
 		} else if (!strcasecmp(v->name, "dring3")) {
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
