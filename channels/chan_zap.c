@@ -206,7 +206,6 @@ static char defaultozz[64] = "";
 
 static char progzone[10] = "";
 
-static int usedistinctiveringdetection = 0;
 static int distinctiveringaftercid = 0;
 
 static int numbufs = 4;
@@ -7376,7 +7375,7 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
 		tmp->drings = drings;
-		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
+		tmp->usedistinctiveringdetection = conf.chan.usedistinctiveringdetection;
 		tmp->callwaitingcallerid = conf.chan.callwaitingcallerid;
 		tmp->threewaycalling = conf.chan.threewaycalling;
 		tmp->adsi = conf.chan.adsi;
