@@ -11121,8 +11121,12 @@ static int sip_unregister(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	
 	if ((peer = find_peer(argv[2], NULL, load_realtime))) {
-		expire_register(peer);
-		ast_cli(fd, "Unregistered peer \'%s\'\n\n", argv[2]);
+		if (peer->expire > 0) {
+			expire_register(peer);
+			ast_cli(fd, "Unregistered peer \'%s\'\n\n", argv[2]);
+		} else {
+			ast_cli(fd, "Peer %s not registered\n", argv[2]);
+		}
 	} else {
 		ast_cli(fd, "Peer unknown: \'%s\'. Not unregistered.\n", argv[2]);
 	}
