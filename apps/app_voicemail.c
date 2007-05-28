@@ -7505,6 +7505,7 @@ static void stop_poll_thread(void)
 	poll_thread = AST_PTHREADT_NULL;
 }
 
+/*! \brief Manager list voicemail users command */
 static int manager_list_voicemail_users(struct mansession *s, const struct message *m)
 {
 	struct ast_vm_user *vmu = NULL;
@@ -7531,15 +7532,15 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 		astman_append(s,
 			      "%s"
 			      "Event: VoicemailUserEntry\r\n"
-			      "Context: %s\r\n"
-			      "Mailbox: %s\r\n"
+			      "VMContext: %s\r\n"
+			      "VoiceMailbox: %s\r\n"
 			      "Fullname: %s\r\n"
 			      "Email: %s\r\n"
 			      "Pager: %s\r\n"
 			      "ServerEmail: %s\r\n"
 			      "MailCommand: %s\r\n"
 			      "Language: %s\r\n"
-			      "Zone: %s\r\n"
+			      "TimeZone: %s\r\n"
 			      "Callback: %s\r\n"
 			      "Dialout: %s\r\n"
 			      "UniqueID: %s\r\n"
@@ -8155,7 +8156,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app4);
 	res |= ast_custom_function_unregister(&mailbox_exists_acf);
-	res |= ast_manager_unregister("ListAllVoicemailUsers");
+	res |= ast_manager_unregister("VoicemailUsersList");
 	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
 	
@@ -8182,7 +8183,7 @@ static int load_module(void)
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	res |= ast_register_application(app4, vmauthenticate, synopsis_vmauthenticate, descrip_vmauthenticate);
 	res |= ast_custom_function_register(&mailbox_exists_acf);
-	res |= ast_manager_register("ListAllVoicemailUsers", EVENT_FLAG_CALL, manager_list_voicemail_users, "List All Voicemail User Information");
+	res |= ast_manager_register("VoicemailUsersList", EVENT_FLAG_CALL, manager_list_voicemail_users, "List All Voicemail User Information");
 	if (res)
 		return res;
 
