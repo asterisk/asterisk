@@ -13371,7 +13371,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					break;
 				default:
 					/* Send hangup */	
-					if (owner && sipmethod != SIP_MESSAGE && sipmethod != SIP_INFO)
+					if (owner && sipmethod != SIP_MESSAGE && sipmethod != SIP_INFO && sipmethod != SIP_BYE)
 						ast_queue_hangup(p->owner);
 					break;
 				}
