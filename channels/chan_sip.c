@@ -10912,6 +10912,10 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
 		
 	check_via(p, req);
 	ast_set_flag(p, SIP_ALREADYGONE);	
+
+	if (ast_test_flag(p, SIP_INC_COUNT)) 
+		update_call_counter(p, DEC_CALL_LIMIT);
+
 	if (p->rtp) {
 		/* Immediately stop RTP */
 		ast_rtp_stop(p->rtp);
