@@ -15064,6 +15064,10 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 			ast_log(LOG_DEBUG, "Got CANCEL on an answered call. Ignoring... \n");
 		return 0;
 	}
+
+	if (ast_test_flag(&p->flags[0], SIP_INC_COUNT)) 
+		update_call_counter(p, DEC_CALL_LIMIT);
+
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
 	if (p->owner)
