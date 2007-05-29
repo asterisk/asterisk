@@ -331,8 +331,7 @@ static struct ast_custom_function enum_result_function = {
 static struct ast_custom_function enum_function = {
 	.name = "ENUMLOOKUP",
 	.synopsis =
-		"ENUMLOOKUP allows for general or specific querying of NAPTR records"
-		" or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
+		"General or specific querying of NAPTR records for ENUM or ENUM-like DNS pointers",
 	.syntax =
 		"ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])",
 	.desc =
