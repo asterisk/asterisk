@@ -2096,7 +2096,7 @@ static int retrans_pkt(void *data)
 			usleep(1);
 			sip_pvt_lock(pkt->owner);
 		}
-		if (pkt->owner->owner) 
+		if (pkt->owner->owner && !pkt->owner->owner->hangupcause) 
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
 		if (pkt->method == SIP_BYE) {
 			/* Ok, we're not getting answers on SIP BYE's. Who cares?
