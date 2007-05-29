@@ -186,13 +186,19 @@ enum gsamp_thresh {
 #endif
 
 typedef struct {
-	float v2;
-	float v3;
-	float fac;
+	int v2;
+	int v3;
+	int chunky;
+	int fac;
 #ifndef OLD_DSP_ROUTINES
 	int samples;
 #endif	
 } goertzel_state_t;
+
+typedef struct {
+	int value;
+	int power;
+} goertzel_result_t;
 
 typedef struct
 {
@@ -290,12 +296,19 @@ static char bell_mf_positions[] = "1247C-358A--69*---0B----#";
 
 static inline void goertzel_sample(goertzel_state_t *s, short sample)
 {
-	float v1;
-	float fsamp  = sample;
+	int v1;
 	
 	v1 = s->v2;
 	s->v2 = s->v3;
-	s->v3 = s->fac * s->v2 - v1 + fsamp;
+	
+	s->v3 = (s->fac * s->v2) >> 15;
+	s->v3 = s->v3 - v1 + (sample >> s->chunky);
+	if (abs(s->v3) > 32768) {
+		s->chunky++;
+		s->v3 = s->v3 >> 1;
+		s->v2 = s->v2 >> 1;
+		v1 = v1 >> 1;
+	}
 }
 
 static inline void goertzel_update(goertzel_state_t *s, short *samps, int count)
@@ -309,13 +322,17 @@ static inline void goertzel_update(goertzel_state_t *s, short *samps, int count)
 
 static inline float goertzel_result(goertzel_state_t *s)
 {
-	return s->v3 * s->v3 + s->v2 * s->v2 - s->v2 * s->v3 * s->fac;
+	goertzel_result_t r;
+	r.value = (s->v3 * s->v3) + (s->v2 * s->v2);
+	r.value -= ((s->v2 * s->v3) >> 15) * s->fac;
+	r.power = s->chunky * 2;
+	return (float)r.value * (float)(1 << r.power);
 }
 
 static inline void goertzel_init(goertzel_state_t *s, float freq, int samples)
 {
-	s->v2 = s->v3 = 0.0;
-	s->fac = 2.0 * cos(2.0 * M_PI * (freq / 8000.0));
+	s->v2 = s->v3 = s->chunky = 0.0;
+	s->fac = (int)(32768.0 * 2.0 * cos(2.0 * M_PI * (freq / 8000.0)));
 #ifndef OLD_DSP_ROUTINES
 	s->samples = samples;
 #endif
@@ -323,7 +340,7 @@ static inline void goertzel_init(goertzel_state_t *s, float freq, int samples)
 
 static inline void goertzel_reset(goertzel_state_t *s)
 {
-	s->v2 = s->v3 = 0.0;
+	s->v2 = s->v3 = s->chunky = 0.0;
 }
 
 struct ast_dsp {
@@ -431,7 +448,6 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 #endif	
 #endif /* FAX_DETECT */
 	float famp;
-	float v1;
 	int i;
 	int j;
 	int sample;
@@ -464,35 +480,17 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 			s->energy += famp*famp;
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
-			v1 = s->row_out[0].v2;
-			s->row_out[0].v2 = s->row_out[0].v3;
-			s->row_out[0].v3 = s->row_out[0].fac*s->row_out[0].v2 - v1 + famp;
-			v1 = s->col_out[0].v2;
-			s->col_out[0].v2 = s->col_out[0].v3;
-			s->col_out[0].v3 = s->col_out[0].fac*s->col_out[0].v2 - v1 + famp;
-			v1 = s->row_out[1].v2;
-			s->row_out[1].v2 = s->row_out[1].v3;
-			s->row_out[1].v3 = s->row_out[1].fac*s->row_out[1].v2 - v1 + famp;
-			v1 = s->col_out[1].v2;
-			s->col_out[1].v2 = s->col_out[1].v3;
-			s->col_out[1].v3 = s->col_out[1].fac*s->col_out[1].v2 - v1 + famp;
-			v1 = s->row_out[2].v2;
-			s->row_out[2].v2 = s->row_out[2].v3;
-			s->row_out[2].v3 = s->row_out[2].fac*s->row_out[2].v2 - v1 + famp;
-			v1 = s->col_out[2].v2;
-			s->col_out[2].v2 = s->col_out[2].v3;
-			s->col_out[2].v3 = s->col_out[2].fac*s->col_out[2].v2 - v1 + famp;
-			v1 = s->row_out[3].v2;
-			s->row_out[3].v2 = s->row_out[3].v3;
-			s->row_out[3].v3 = s->row_out[3].fac*s->row_out[3].v2 - v1 + famp;
-			v1 = s->col_out[3].v2;
-			s->col_out[3].v2 = s->col_out[3].v3;
-			s->col_out[3].v3 = s->col_out[3].fac*s->col_out[3].v2 - v1 + famp;
+			goertzel_sample(s->row_out, amp[j]);
+			goertzel_sample(s->col_out, amp[j]);
+			goertzel_sample(s->row_out + 1, amp[j]);
+			goertzel_sample(s->col_out + 1, amp[j]);
+			goertzel_sample(s->row_out + 2, amp[j]);
+			goertzel_sample(s->col_out + 2, amp[j]);
+			goertzel_sample(s->row_out + 3, amp[j]);
+			goertzel_sample(s->col_out + 3, amp[j]);
 #ifdef FAX_DETECT
 			/* Update fax tone */
-			v1 = s->fax_tone.v2;
-			s->fax_tone.v2 = s->fax_tone.v3;
-			s->fax_tone.v3 = s->fax_tone.fac*s->fax_tone.v2 - v1 + famp;
+			goertzel_sample(&s->fax_tone, amp[j]);
 #endif /* FAX_DETECT */
 #ifdef OLD_DSP_ROUTINES
 			v1 = s->col_out2nd[0].v2;
@@ -705,7 +703,6 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 	int second_best;
 #endif
 	float famp;
-	float v1;
 	int i;
 	int j;
 	int sample;
@@ -738,24 +735,12 @@ static int mf_detect (mf_detect_state_t *s, int16_t amp[],
 #endif
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
 			   (rough estimate) as long as a neat little 0-3 loop */
-			v1 = s->tone_out[0].v2;
-			s->tone_out[0].v2 = s->tone_out[0].v3;
-			s->tone_out[0].v3 = s->tone_out[0].fac*s->tone_out[0].v2 - v1 + famp;
-			v1 = s->tone_out[1].v2;
-			s->tone_out[1].v2 = s->tone_out[1].v3;
-			s->tone_out[1].v3 = s->tone_out[1].fac*s->tone_out[1].v2 - v1 + famp;
-			v1 = s->tone_out[2].v2;
-			s->tone_out[2].v2 = s->tone_out[2].v3;
-			s->tone_out[2].v3 = s->tone_out[2].fac*s->tone_out[2].v2 - v1 + famp;
-			v1 = s->tone_out[3].v2;
-			s->tone_out[3].v2 = s->tone_out[3].v3;
-			s->tone_out[3].v3 = s->tone_out[3].fac*s->tone_out[3].v2 - v1 + famp;
-			v1 = s->tone_out[4].v2;
-			s->tone_out[4].v2 = s->tone_out[4].v3;
-			s->tone_out[4].v3 = s->tone_out[4].fac*s->tone_out[4].v2 - v1 + famp;
-			v1 = s->tone_out[5].v2;
-			s->tone_out[5].v2 = s->tone_out[5].v3;
-			s->tone_out[5].v3 = s->tone_out[5].fac*s->tone_out[5].v2 - v1 + famp;
+			goertzel_sample(s->tone_out, amp[j]);
+			goertzel_sample(s->tone_out + 1, amp[j]);
+			goertzel_sample(s->tone_out + 2, amp[j]);
+			goertzel_sample(s->tone_out + 3, amp[j]);
+			goertzel_sample(s->tone_out + 4, amp[j]);
+			goertzel_sample(s->tone_out + 5, amp[j]);
 #ifdef OLD_DSP_ROUTINES
 			v1 = s->tone_out2nd[0].v2;
 			s->tone_out2nd[0].v2 = s->tone_out2nd[0].v3;
