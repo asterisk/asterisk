@@ -2096,14 +2096,16 @@ static int retrans_pkt(void *data)
 			usleep(1);
 			sip_pvt_lock(pkt->owner);
 		}
+		if (pkt->owner->owner) 
+			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
 		if (pkt->method == SIP_BYE) {
 			/* Ok, we're not getting answers on SIP BYE's. Who cares?
 		           let's take the call down anyway. */
-			if (pkt->owner->owner)
+			if (pkt->owner->owner) 
 				ast_channel_unlock(pkt->owner->owner);
 			append_history(pkt->owner, "ByeFailure", "Remote peer doesn't respond to bye. Destroying call anyway.");
 			ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
-		} if (pkt->owner->owner) {
+		} else if (pkt->owner->owner) {
 			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
 			ast_queue_hangup(pkt->owner->owner);
@@ -2112,8 +2114,12 @@ static int retrans_pkt(void *data)
 			/* If no channel owner, destroy now */
 
 			/* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
-			if (pkt->method != SIP_OPTIONS && pkt->method != SIP_REGISTER)
+			if (pkt->method != SIP_OPTIONS && pkt->method != SIP_REGISTER) {
 				ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
+				sip_alreadygone(pkt->owner);
+				if (option_debug)
+					append_history(pkt->owner, "DialogKill", "Killing this failed dialog immediately");
+			}
 		}
 	}
 	/* Remove the packet */
@@ -3768,6 +3774,8 @@ static int sip_hangup(struct ast_channel *ast)
 					/* We can't send anything in CALLING state */
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);
 					/* Do we need a timer here if we don't hear from them at all? */
+					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+					append_history(p, "DELAY", "Not sending cancel, waiting for timeout");
 				} else {
 					/* Send a new request: CANCEL */
 					transmit_request(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
