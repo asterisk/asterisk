@@ -13284,7 +13284,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			if (sipmethod == SIP_INVITE)
 				handle_response_invite(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_REGISTER) 
-				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+				res = handle_response_register(p, resp, rest, req, seqno);
 			else if (sipmethod == SIP_BYE) {
 				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
 				if (option_debug)
