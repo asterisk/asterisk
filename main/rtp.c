@@ -2743,7 +2743,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_smoother_feed(rtp->smoother, _f);
 		}
 
-		while((f = ast_smoother_read(rtp->smoother)))
+		while((f = ast_smoother_read(rtp->smoother)) && (f->data))
 			ast_rtp_raw_write(rtp, f, codec);
 	} else {
 	        /* Don't buffer outgoing frames; send them one-per-packet: */
@@ -2752,7 +2752,8 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 		} else {
 			f = _f;
 		}
-		ast_rtp_raw_write(rtp, f, codec);
+		if (f->data)
+			ast_rtp_raw_write(rtp, f, codec);
 		if (f != _f)
 			ast_frfree(f);
 	}
