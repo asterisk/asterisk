@@ -71,8 +71,12 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 
 		sprintf(varsubst, "${%s}", args.varname);
 		pbx_substitute_variables_helper(chan, varsubst, varval, sizeof(varval) - 1);
-		while (strsep(&varval2, args.delim))
-			fieldcount++;
+		if (ast_strlen_zero(varval2))
+			fieldcount = 0;
+		else {
+			while (strsep(&varval2, args.delim))
+				fieldcount++;
+		}
 	} else {
 		fieldcount = 1;
 	}
