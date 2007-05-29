@@ -51,7 +51,9 @@ static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, 
 
 		sprintf(varsubst, "${%s}", varname);
 		pbx_substitute_variables_helper(chan, varsubst, varval, sizeof(varval) - 1);
-		if (delim) {
+		if (ast_strlen_zero(varval))
+			fieldcount = 0;
+		else if (delim) {
 			while (strsep(&varval2, delim))
 				fieldcount++;
 		} else if (!ast_strlen_zero(varval)) {
@@ -60,7 +62,7 @@ static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, 
 		snprintf(buf, len, "%d", fieldcount);
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		strncpy(buf, "1", len);
+		ast_copy_string(buf, "1", len);
 	}
 	return buf;
 }
