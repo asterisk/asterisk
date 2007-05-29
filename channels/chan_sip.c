@@ -12809,6 +12809,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		sip_alreadygone(p);
 		break;
 
+	case 408: /* Request timeout */
 	case 481: /* Call leg does not exist */
 		/* Could be REFER caused INVITE with replaces */
 		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
@@ -12973,6 +12974,14 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 		}
+		break;
+	case 408:	/* Request timeout */
+		if (global_regattempts_max)
+			p->registry->regattempts = global_regattempts_max+1;
+		ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+		r->call = NULL;
+		ast_sched_del(sched, r->timeout);
+		r->timeout = -1;
 		break;
 	case 423:	/* Interval too brief */
 		r->expiry = atoi(get_header(req, "Min-Expires"));
@@ -13270,6 +13279,21 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 423: /* Interval too brief */
 			if (sipmethod == SIP_REGISTER)
 				res = handle_response_register(p, resp, rest, req, seqno);
+			break;
+		case 408: /* Request timeout - terminate dialog */
+			if (sipmethod == SIP_INVITE)
+				handle_response_invite(p, resp, rest, req, seqno);
+			else if (sipmethod == SIP_REGISTER) 
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			else if (sipmethod == SIP_BYE) {
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY); 
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Got timeout on bye. Thanks for the answer. Now, kill this call\n");
+			} else {
+				if (owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
+			}
 			break;
 		case 481: /* Call leg does not exist */
 			if (sipmethod == SIP_INVITE) {
