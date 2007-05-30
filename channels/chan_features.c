@@ -462,7 +462,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	for (x=1;x<4;x++) {
 		if (b2)
 			free(b2);
-		asprintf(&b2, "Feature/%s/%s-%d", p->tech, p->dest, x);
+		asprintf(&b2, "%s/%s-%d", p->tech, p->dest, x);
 		for (y=0;y<3;y++) {
 			if (y == index)
 				continue;
@@ -472,7 +472,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		if (y >= 3)
 			break;
 	}
-	tmp = ast_channel_alloc(0, state, 0,0, "", "", "", 0, b2);
+	tmp = ast_channel_alloc(0, state, 0,0, "", "", "", 0, "Feature/%s", b2);
 	/* free up the name, it was copied into the channel name */
 	if (b2)
 		free(b2);
