@@ -256,5 +256,5 @@ static int load_module(void)
 	return ast_register_application(app, zapras_exec, synopsis, descrip);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Zap RAS Application");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Zaptel ISDN Remote Access Server");
 

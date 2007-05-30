@@ -338,4 +338,4 @@ static int load_module(void)
 	return 0;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Stack Routines");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Dialplan subroutines (Gosub, Return, etc)");

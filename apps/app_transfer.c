@@ -153,4 +153,4 @@ static int load_module(void)
 	return ast_register_application(app, transfer_exec, synopsis, descrip);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Transfer");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Transfers a caller to another extension");

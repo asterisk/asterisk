@@ -88,5 +88,5 @@ static int load_module(void)
 	return ast_custom_function_register(&shell_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SHELL dialplan function");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Returns the output of a shell command");
 

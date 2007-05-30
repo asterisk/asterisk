@@ -137,4 +137,4 @@ static int load_module(void)
 	return ast_register_application(app, asyncgoto_exec, synopsis, descrip);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Channel Redirect");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Redirects a given channel to a dialplan target");

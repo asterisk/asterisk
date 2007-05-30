@@ -165,4 +165,4 @@ static int load_module(void)
 	return ast_custom_function_register(&cdr_function);
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "CDR dialplan function");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call Detail Record (CDR) dialplan function");

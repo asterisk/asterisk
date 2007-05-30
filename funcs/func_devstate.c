@@ -204,4 +204,4 @@ static int load_module(void)
 	return res;
 }
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Device state dialplan functions");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Gets or sets a device state in the dialplan");
