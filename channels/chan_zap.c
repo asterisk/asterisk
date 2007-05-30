@@ -5159,7 +5159,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	int res;
 	int x,y;
 	int features;
-	char *b2 = 0;
+	char *b2 = NULL;
 	ZT_PARAMS ps;
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
@@ -5171,20 +5171,20 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			free(b2);
 #ifdef HAVE_PRI
 		if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-			asprintf(&b2, "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+			b2 = ast_safe_string_alloc("%d:%d-%d", i->pri->trunkgroup, i->channel, y);
 		else
 #endif
 		if (i->channel == CHAN_PSEUDO)
-			asprintf(&b2, "Zap/pseudo-%ld", ast_random());
+			b2 = ast_safe_string_alloc("pseudo-%ld", ast_random());
 		else	
-			asprintf(&b2, "Zap/%d-%d", i->channel, y);
+			b2 = ast_safe_string_alloc("%d-%d", i->channel, y);
 		for (x = 0; x < 3; x++) {
 			if ((index != x) && i->subs[x].owner && !strcasecmp(b2, i->subs[x].owner->name))
 				break;
 		}
 		y++;
 	} while (x < 3);
-	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, b2);
+	tmp = ast_channel_alloc(0, state, i->cid_num, i->cid_name, i->accountcode, i->exten, i->context, i->amaflags, "Zap/%s", b2);
 	if (b2) /*!> b2 can be freed now, it's been copied into the channel structure */
 		free(b2);
 	if (!tmp)
