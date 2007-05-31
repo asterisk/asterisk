@@ -280,22 +280,23 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
 		struct ast_context *c;
 		struct ast_exten *e;
+		runningapp[0] = '\0';
+		runningdata[0] = '\0';
 
 		/* What application will execute? */
 		if (ast_rdlock_contexts()) {
 			ast_log(LOG_WARNING, "Failed to lock contexts list\n");
-			e = NULL;
 		} else {
 			for (c = ast_walk_contexts(NULL), e = NULL; c; c = ast_walk_contexts(c)) {
 				if (!strcmp(ast_get_context_name(c), chan->context)) {
 					if (ast_rdlock_context(c)) {
 						ast_log(LOG_WARNING, "Unable to lock context?\n");
-						runningapp[0] = '\0';
-						runningdata[0] = '\0';
 					} else {
 						e = find_matching_priority(c, chan->exten, chan->priority, chan->cid.cid_num);
-						ast_copy_string(runningapp, ast_get_extension_app(e), sizeof(runningapp));
-						ast_copy_string(runningdata, ast_get_extension_app_data(e), sizeof(runningdata));
+						if (e) { /* This will only be undefined for pbx_realtime, which is majorly broken. */
+							ast_copy_string(runningapp, ast_get_extension_app(e), sizeof(runningapp));
+							ast_copy_string(runningdata, ast_get_extension_app_data(e), sizeof(runningdata));
+						}
 						ast_unlock_context(c);
 					}
 					break;
