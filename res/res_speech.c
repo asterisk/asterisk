@@ -185,7 +185,7 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 	ast_speech_change_state(new_speech, AST_SPEECH_STATE_NOT_READY);
 
 	/* Pass ourselves to the engine so they can set us up some more and if they error out then do not create a structure */
-	if (engine->new(new_speech)) {
+	if (engine->create(new_speech)) {
 		ast_mutex_destroy(&new_speech->lock);
 		free(new_speech);
 		new_speech = NULL;
@@ -251,7 +251,7 @@ int ast_speech_register(struct ast_speech_engine *engine)
 	int res = 0;
 
 	/* Confirm the engine meets the minimum API requirements */
-	if (!engine->new || !engine->write || !engine->destroy) {
+	if (!engine->create || !engine->write || !engine->destroy) {
 		ast_log(LOG_WARNING, "Speech recognition engine '%s' did not meet minimum API requirements.\n", engine->name);
 		return -1;
 	}

@@ -73,7 +73,7 @@ struct ast_speech_engine {
 	/*! Name of speech engine */
 	char *name;
 	/*! Set up the speech structure within the engine */
-	int (*new)(struct ast_speech *speech);
+	int (*create)(struct ast_speech *speech);
 	/*! Destroy any data set on the speech structure by the engine */
 	int (*destroy)(struct ast_speech *speech);
 	/*! Load a local grammar on the speech structure */

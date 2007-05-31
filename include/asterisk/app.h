@@ -228,7 +228,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category);
 int ast_app_group_discard(struct ast_channel *chan);
 
 /*! Update all group counting for a channel to a new one */
-int ast_app_group_update(struct ast_channel *old, struct ast_channel *new);
+int ast_app_group_update(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 /*! Lock the group count list */
 int ast_app_group_list_lock(void);
