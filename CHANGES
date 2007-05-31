@@ -209,3 +209,7 @@ Miscellaneous
      to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
      to just UNKNOWN if the extension exists.
   * Added support for the Hungarian language for saying numbers, dates, and times.
+  * Added support for configuring named groups of custom call features in
+     features.conf.  This means that features can be written a single time, and
+     then mapped into groups of features for different key mappings or easier
+     access control.

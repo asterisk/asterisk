@@ -78,6 +78,24 @@ enum {
 	AST_FEATURE_FLAG_BYBOTH	 =   (3 << 3),
 };
 
+struct feature_group_exten {
+	AST_LIST_ENTRY(feature_group_exten) entry;
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(exten);
+	);
+	struct ast_call_feature *feature;
+};
+
+struct feature_group {
+	AST_LIST_ENTRY(feature_group) entry;
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(gname);
+	);
+	AST_LIST_HEAD_NOLOCK(, feature_group_exten) features;
+};
+
+static AST_RWLIST_HEAD_STATIC(feature_groups, feature_group);
+
 static char *parkedcall = "ParkedCall";
 
 static int parkaddhints = 0;                               /*!< Add parking hints automatically */
@@ -1010,7 +1028,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 AST_RWLOCK_DEFINE_STATIC(features_lock);
 
 static struct ast_call_feature builtin_features[] = 
- {
+{
 	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF, "" },
 	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF, "" },
@@ -1035,6 +1053,69 @@ void ast_register_feature(struct ast_call_feature *feature)
 
 	if (option_verbose >= 2) 
 		ast_verbose(VERBOSE_PREFIX_2 "Registered Feature '%s'\n",feature->sname);
+}
+
+/*! \brief This function must be called while feature_groups is locked... */
+static struct feature_group* register_group(const char *fgname)
+{
+	struct feature_group *fg;
+
+	if (!fgname) {
+		ast_log(LOG_NOTICE, "You didn't pass a new group name!\n");
+		return NULL;
+	}
+
+	if (!(fg = ast_calloc(1, sizeof(*fg))))
+		return NULL;
+
+	if (ast_string_field_init(fg, 128)) {
+		free(fg);
+		return NULL;
+	}
+
+	ast_string_field_set(fg, gname, fgname);
+
+	AST_LIST_INSERT_HEAD(&feature_groups, fg, entry);
+
+	if (option_verbose >= 2) 
+		ast_verbose(VERBOSE_PREFIX_2 "Registered group '%s'\n", fg->gname);
+
+	return fg;
+}
+
+/*! \brief This function must be called while feature_groups is locked... */
+
+static void register_group_feature(struct feature_group *fg, const char *exten, struct ast_call_feature *feature) 
+{
+	struct feature_group_exten *fge;
+
+	if (!(fge = ast_calloc(1, sizeof(*fge))))
+		return;
+
+	if (ast_string_field_init(fge, 128)) {
+		free(fge);
+		return;
+	}
+
+	if (!fg) {
+		ast_log(LOG_NOTICE, "You didn't pass a group!\n");
+		return;
+	}
+
+	if (!feature) {
+		ast_log(LOG_NOTICE, "You didn't pass a feature!\n");
+		return;
+	}
+
+	ast_string_field_set(fge, exten, (ast_strlen_zero(exten) ? feature->exten : exten));
+
+	fge->feature = feature;
+
+	AST_LIST_INSERT_HEAD(&fg->features, fge, entry);		
+
+	if (option_verbose >= 2)
+		ast_verbose(VERBOSE_PREFIX_2 "Registered feature '%s' for group '%s' at exten '%s'\n", 
+					feature->sname, fg->gname, exten);
 }
 
 /*! \brief unregister feature from feature_list */
@@ -1071,6 +1152,48 @@ static struct ast_call_feature *find_dynamic_feature(const char *name)
 	}
 
 	return tmp;
+}
+
+/*! \brief Remove all groups in the list */
+static void ast_unregister_groups(void)
+{
+	struct feature_group *fg;
+	struct feature_group_exten *fge;
+
+	AST_RWLIST_WRLOCK(&feature_groups);
+	while ((fg = AST_LIST_REMOVE_HEAD(&feature_groups, entry))) {
+		while ((fge = AST_LIST_REMOVE_HEAD(&fg->features, entry))) {
+			ast_string_field_free_all(fge);
+			free(fge);
+		}
+
+		ast_string_field_free_all(fg);
+		free(fg);
+	}
+	AST_RWLIST_UNLOCK(&feature_groups);
+}
+
+/*! \brief Find a group by name */
+static struct feature_group *find_group(const char *name) {
+	struct feature_group *fg = NULL;
+
+	AST_LIST_TRAVERSE(&feature_groups, fg, entry) {
+		if (!strcasecmp(fg->gname, name))
+			break;
+	}
+
+	return fg;
+}
+
+static struct feature_group_exten *find_group_exten(struct feature_group *fg, const char *code) {
+	struct feature_group_exten *fge = NULL;
+
+	AST_LIST_TRAVERSE(&fg->features, fge, entry) {
+		if(!strcasecmp(fge->exten, code))
+			break;
+	}
+
+	return fge;
 }
 
 void ast_rdlock_call_features(void)
@@ -1197,13 +1320,15 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	struct ast_flags features;
 	int res = FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
+	struct feature_group *fg = NULL;
+	struct feature_group_exten *fge;
 	const char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
 	char *tmp, *tok;
 
 	if (sense == FEATURE_SENSE_CHAN)
-		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);	
+		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
 	else
-		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);	
+		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
 
@@ -1229,9 +1354,23 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	tmp = ast_strdupa(dynamic_features);
 
 	while ((tok = strsep(&tmp, "#"))) {
-		AST_LIST_LOCK(&feature_list);	
-		if (!(feature = find_dynamic_feature(tok)))
+		AST_RWLIST_RDLOCK(&feature_groups);
+
+		fg = find_group(tok);
+
+		if (fg && (fge = find_group_exten(fg, code))) {
+			res = fge->feature->operation(chan, peer, config, code, sense);
+			AST_RWLIST_UNLOCK(&feature_groups);
 			continue;
+		}
+
+		AST_RWLIST_UNLOCK(&feature_groups);
+		AST_LIST_LOCK(&feature_list);
+
+		if(!(feature = find_dynamic_feature(tok))) {
+			AST_LIST_UNLOCK(&feature_list);
+			continue;
+		}
 			
 		/* Feature is up for consideration */
 		if (!strcmp(feature->exten, code)) {
@@ -2454,11 +2593,22 @@ static int load_config(void)
 {
 	int start = 0, end = 0;
 	int res;
+	int i;
 	struct ast_context *con = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
+	struct feature_group *fg = NULL;
 	char old_parking_ext[AST_MAX_EXTENSION];
 	char old_parking_con[AST_MAX_EXTENSION] = "";
+	char *ctg; 
+	static const char *categories[] = { 
+		/* Categories in features.conf that are not
+		 * to be parsed as group categories
+		 */
+		"general",
+		"featuremap",
+		"applicationmap"
+	};
 
 	if (!ast_strlen_zero(parking_con)) {
 		strcpy(old_parking_ext, parking_ext);
@@ -2671,7 +2821,41 @@ static int load_config(void)
 			
 		if (option_verbose >= 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);  
-	}	 
+	}
+
+	ast_unregister_groups();
+	AST_RWLIST_WRLOCK(&feature_groups);
+
+	ctg = NULL;
+	struct ast_call_feature *feature;
+	while ((ctg = ast_category_browse(cfg, ctg))) {
+		for (i = 0; i < ARRAY_LEN(categories); i++) {
+			if (!strcasecmp(categories[i], ctg))
+				break;
+		}
+
+		if (i < ARRAY_LEN(categories)) 
+			continue;
+
+		if (!(fg = register_group(ctg)))
+			continue;
+
+		for (var = ast_variable_browse(cfg, ctg); var; var = var->next) {
+			AST_LIST_LOCK(&feature_list);
+			if(!(feature = find_dynamic_feature(var->name)) && 
+			   !(feature = ast_find_call_feature(var->name))) {
+				AST_LIST_UNLOCK(&feature_list);
+				ast_log(LOG_WARNING, "Feature '%s' was not found.\n", var->name);
+				continue;
+			}
+			AST_LIST_UNLOCK(&feature_list);
+
+			register_group_feature(fg, var->value, feature);
+		}
+	}
+
+	AST_RWLIST_UNLOCK(&feature_groups);
+
 	ast_config_destroy(cfg);
 
 	/* Remove the old parking extension */
