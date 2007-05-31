@@ -67,4 +67,11 @@ writesql=UPDATE presence SET location='${SQL_ESC(${VAL1})}' WHERE id='${SQL_ESC(
 ;escapecommas=no    ; Normally, commas within a field are escaped such that each
                     ; field may be separated into individual variables with ARRAY.
                     ; This option turns that behavior off [default=yes].
+;mode=multirow      ; Enable multirow fetching.  Instead of returning results directly,
+                    ; mode=multirow queries will return a result-id, which can be passed
+                    ; multiple times to ODBC_FETCH, and that function will return each
+                    ; row, in order.  You can add to this the following parameter:
+;rowlimit=5         ; rowlimit will limit the number of rows retrieved and stored from
+                    ; the database.  If not specified, all rows, up to available memory,
+                    ; will be retrieved and stored.
 
