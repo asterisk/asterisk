@@ -463,6 +463,33 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; jblog = no                  ; Enables jitterbuffer frame logging. Defaults to "no".
 ;-----------------------------------------------------------------------------------
 
+;---- Disclaimer Settings ----------------------------------------------------------
+;
+;enabledisclaimer = no  ; This option enables sending a disclaimer along with all
+;                       ; SIP messages.  Generally, this would be some sort of legal
+;                       ; statement.  Note that the legal implications of using this
+;                       ; with a SIP proxy are not quite clear if the disclaimer
+;                       ; indicates that the message contents can not be used by
+;                       ; any party excepted the intended recipient, so it should
+;                       ; probably not be used in a network that contains proxies.
+;                       ; The default is "no".
+;
+;dislciamertext = Your custom disclaimer here.  
+;                       ; You can configure a custom disclaimer with this option.
+;                       ; Note that you must keep the entire disclaimer on one line.
+;                       ; The default text is:
+;                       ;   "This message and all contents are covered by the Electronic Communications "
+;                       ; "Privacy Act, 18 U.S.C. Sections 2510-2521, is confidential and may be legally " 
+;                       ; "privileged. It is intended to be conveyed only to the designated recipient(s). " 
+;                       ; "If you are not the intended recipient, you are hereby notified that any " 
+;                       ; "retention, dissemination, distribution or copying of this communication is " 
+;                       ; "strictly prohibited and that use, dissemination, distribution or reproduction " 
+;                       ; "of this message by unintended recipients is not authorized and may be unlawful. " 
+;                       ; "Please reply to sender that you have received the message in error, " 
+;                       ; "then delete it. Thank you."
+;
+;-----------------------------------------------------------------------------------
+
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your
 ; Asterisk server for authentication. These credentials override

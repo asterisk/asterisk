@@ -533,6 +533,19 @@ static const struct cfsip_options {
 #define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
 #endif
 
+/*! An option disclaimer that will be added to all SIP messages. */
+static struct ast_str *global_disclaimer;
+
+#define DEFAULT_DISCLAIMER \
+	"This message and all contents are covered by the Electronic Communications " \
+	"Privacy Act, 18 U.S.C. Sections 2510-2521, is confidential and may be legally " \
+	"privileged. It is intended to be conveyed only to the designated recipient(s). " \
+	"If you are not the intended recipient, you are hereby notified that any " \
+	"retention, dissemination, distribution or copying of this communication is " \
+	"strictly prohibited and that use, dissemination, distribution or reproduction " \
+	"of this message by unintended recipients is not authorized and may be unlawful. " \
+	"Please reply to sender that you have received the message in error, " \
+	"then delete it. Thank you."
 
 /* Default setttings are used as a channel setting and as a default when
    configuring devices */
@@ -817,6 +830,7 @@ struct sip_auth {
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< 28: Global text enable */
 #define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< 29: Global text debug */
 #define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< 30: Is this an outgoing call? */
+#define SIP_PAGE2_DISCLAIMER        (1 << 31)   /*!< 31: Include disclaimer in SIP requests and responses. */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -2364,6 +2378,9 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, enum xmitty
 {
 	int res;
 
+	if (ast_test_flag(&global_flags[1], SIP_PAGE2_DISCLAIMER) && !ast_strlen_zero(global_disclaimer->str))
+		add_header(req, "X-Disclaimer", global_disclaimer->str);
+
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
 		const struct sockaddr_in *dst = sip_real_dst(p);
@@ -2398,6 +2415,9 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 	if (p->outboundproxy) {
 		p->sa = p->outboundproxy->ip;
 	}
+
+	if (ast_test_flag(&global_flags[1], SIP_PAGE2_DISCLAIMER) && !ast_strlen_zero(global_disclaimer->str))
+		add_header(req, "X-Disclaimer", global_disclaimer->str);
 
 	add_blank(req);
 	if (sip_debug_test_pvt(p)) {
@@ -17341,6 +17361,14 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_VIDEOSUPPORT);
 	ast_clear_flag(&global_flags[1], SIP_PAGE2_TEXTSUPPORT);
 
+	/* Set the default disclaimer settings */
+	ast_clear_flag(&global_flags[1], SIP_PAGE2_DISCLAIMER);
+	if (!global_disclaimer) {
+		if (!(global_disclaimer = ast_str_create(80)))
+			return -1;
+	}
+	ast_str_set(&global_disclaimer, 0, DEFAULT_DISCLAIMER);
+
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
 		if (handle_common_options(&global_flags[0], &dummy[0], v))
@@ -17593,6 +17621,10 @@ static int reload_config(enum channelreloadreason reason)
 				default_maxcallbitrate = DEFAULT_MAX_CALL_BITRATE;
 		} else if (!strcasecmp(v->name, "matchexterniplocally")) {
 			global_matchexterniplocally = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "enabledisclaimer")) {
+			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_DISCLAIMER);
+		} else if (!strcasecmp(v->name, "disclaimertext")) {
+			ast_str_set(&global_disclaimer, 0, v->value);
 		}
 	}
 
@@ -18611,7 +18643,10 @@ static int unload_module(void)
 	clear_sip_domains();
 	close(sipsock);
 	sched_context_destroy(sched);
-		
+
+	if (global_disclaimer)
+		free(global_disclaimer);
+
 	return 0;
 }
 
