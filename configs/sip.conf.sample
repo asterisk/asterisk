@@ -470,7 +470,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                       ; statement.  Note that the legal implications of using this
 ;                       ; with a SIP proxy are not quite clear if the disclaimer
 ;                       ; indicates that the message contents can not be used by
-;                       ; any party excepted the intended recipient, so it should
+;                       ; any party except the intended recipient, so it should
 ;                       ; probably not be used in a network that contains proxies.
 ;                       ; The default is "no".
 ;
