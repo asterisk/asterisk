@@ -100,20 +100,3 @@ context => parkedcalls		; Which context parked calls are in
 ;unpauseMonitor => #3,self/callee,UnPauseMonitor   ;Allow the callee to unpause monitoring
 ;                                                  ;on their channel
 ;
-; GROUPS
-;   Groups are groupings of features defined in [applicationmap]
-;   that can have their own key mappings.
-;
-;   Groups are defined as a configuration section,
-;   and can be set as part of DYNAMIC_FEATURES in
-;   the same way that a normal feature can... 
-;	etc:	
-;
-;	  Set(DYNAMIC_FEATURES=myGroupName);
-;
-; example:
-; [myGroupName]        ; defines the group named myGroupName
-; testfeature => #9    ; associates testfeature with the group and the keycode #9
-; pauseMonitor         ; associates pauseMonitor with the group and the keycode
-;                      ; defined in [applicationmap]
-
