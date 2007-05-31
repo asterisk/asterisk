@@ -1146,6 +1146,7 @@ static int make_dir(char *dest, int len, const char *domain, const char *usernam
 
 /*! \brief Checks if directory exists. Does not create directory, but builds string in dest
  * \param dest    String. base directory.
+ * \param len    Int. Length base directory string.
  * \param domain String. Ignored if is null or empty string.
  * \param username String. Ignored if is null or empty string. 
  * \param folder  String. Ignored if is null or empty string.
@@ -1166,7 +1167,7 @@ static int check_dirpath(char *dest, int len, char *domain, char *username, char
  * \param len     Length of directory string
  * \param domain  String. Ignored if is null or empty string.
  * \param folder  String. Ignored if is null or empty string. 
- * \param ext	  String. Ignored if is null or empty string.
+ * \param username  String. Ignored if is null or empty string.
  * \return -1 on failure, 0 on success.
  */
 static int create_dirpath(char *dest, int len, char *domain, char *username, char *folder)
@@ -2898,6 +2899,7 @@ static int vm_lock_path(const char *path)
 
 /*! \brief Access counter file, lock directory, read and possibly write it again changed 
 	\param directory	Directory to crate file in
+	\param countername	filename 
 	\param value		If set to zero, we only read the variable
 	\param operand		0 to read, 1 to set new value, 2 to change 
 	\return -1 on error, otherwise counter value

@@ -1115,6 +1115,7 @@ static int osp_lookup(
 
 /*!
  * \brief OSP Lookup Next function
+ * \param provider OSP provider name
  * \param cause Asterisk hangup cuase
  * \param result Lookup results, in/output
  * \return 1 Found , 0 No route, -1 Error

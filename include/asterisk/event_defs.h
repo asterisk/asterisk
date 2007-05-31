@@ -64,7 +64,7 @@ enum ast_event_ie_type {
 	 */
 	AST_EVENT_IE_OLDMSGS   = 0x02,
 	/*! 
-	 * \brief Mailbox name (mailbox[@context])
+	 * \brief Mailbox name \verbatim (mailbox[@context]) \endverbatim
 	 * Used by: AST_EVENT_MWI 
 	 * Payload type: STR
 	 */

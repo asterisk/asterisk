@@ -724,6 +724,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
  * \param make Make the conf if it doesn't exist
  * \param dynamic Mark the newly created conference as dynamic
  * \param refcount How many references to mark on the conference
+ * \param chan The asterisk channel
  *
  * \return A pointer to the conference struct, or NULL if it wasn't found and
  *         make or dynamic were not set.
@@ -3648,7 +3649,7 @@ static struct sla_trunk_ref *sla_find_trunk_ref(const struct sla_station *statio
 
 /*! \brief Calculate the ring delay for a given ringing trunk on a station
  * \param station the station
- * \param trunk the trunk.  If NULL, the highest priority ringing trunk will be used
+ * \param ringing_trunk the trunk.  If NULL, the highest priority ringing trunk will be used
  * \return the number of ms left before the delay is complete, or INT_MAX if there is no delay
  */
 static int sla_check_station_delay(struct sla_station *station, 

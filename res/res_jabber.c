@@ -1090,7 +1090,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 }
 
 /*!
- * \brief Handles <iq> tags.
+ * \brief Handles \verbatim <iq> \endverbatim tags.
  * \param client structure and the iq node.
  * \return void.
  */

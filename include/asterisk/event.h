@@ -200,7 +200,7 @@ void ast_event_report_subs(const struct ast_event_sub *sub);
  *     AST_EVENT_IE_END))) {
  *       return;
  * }
- * \code
+ * \endcode
  *
  * This creates a MWI event with 3 information elements, a mailbox which is
  * a string, and the number of new and old messages, specified as integers.

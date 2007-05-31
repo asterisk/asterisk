@@ -44,7 +44,7 @@ typedef enum {
 	AST_ACTION_MENU,	/*!< adata is a pointer to an ast_ivr_menu */
 	AST_ACTION_REPEAT,	/*!< adata is max # of repeats, cast to a pointer */
 	AST_ACTION_RESTART,	/*!< adata is like repeat, but resets repeats to 0 */
-	AST_ACTION_TRANSFER,	/*!< adata is a string with exten[@context] */
+	AST_ACTION_TRANSFER,	/*!< adata is a string with exten\verbatim[@context]\endverbatim */
 	AST_ACTION_WAITOPTION,	/*!< adata is a timeout, or 0 for defaults */
 	AST_ACTION_NOOP,	/*!< adata is unused */
 	AST_ACTION_BACKLIST,	/*!< adata is list of files separated by ; allows interruption */
