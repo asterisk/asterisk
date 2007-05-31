@@ -2301,7 +2301,7 @@ static int timezone_add(char *zonename, char *config)
 	struct minivm_zone *newzone;
 	char *msg_format, *timezone;
 
-	newzone = malloc(sizeof(struct minivm_zone));
+	newzone = ast_calloc(1, sizeof(struct minivm_zone));
 	if (newzone == NULL)
 		return 0;
 
