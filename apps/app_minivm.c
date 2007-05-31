@@ -2285,11 +2285,9 @@ static void timezone_destroy_list(void)
 {
 	struct minivm_zone *this;
 
-	if (AST_LIST_EMPTY(&minivm_zones))
-		return;
 	AST_LIST_LOCK(&minivm_zones);
 	while ((this = AST_LIST_REMOVE_HEAD(&minivm_zones, list))) 
-		free(this);
+		free_zone(this);
 		
 	AST_LIST_UNLOCK(&minivm_zones);
 }
@@ -2462,9 +2460,6 @@ static int apply_general_options(struct ast_variable *var)
 /*! \brief Load minivoicemail configuration */
 static int load_config(void)
 {
-	struct minivm_account *cur;
-	struct minivm_zone *zcur;
-	struct minivm_template *tcur;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	char *cat;
@@ -2474,25 +2469,12 @@ static int load_config(void)
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
 	ast_mutex_lock(&minivmlock);
 
-	AST_LIST_LOCK(&minivm_accounts);
-	while ((cur = AST_LIST_REMOVE_HEAD(&minivm_accounts, list))) {
-		free_user(cur);
-	}
-	AST_LIST_UNLOCK(&minivm_accounts);
-
-	/* Free all zones */
-	AST_LIST_LOCK(&minivm_zones);
-	while ((zcur = AST_LIST_REMOVE_HEAD(&minivm_zones, list))) {
-		free_zone(zcur);
-	}
-	AST_LIST_UNLOCK(&minivm_zones);
-
-	/* Free all templates */
-	AST_LIST_LOCK(&message_templates);
-	while ((tcur = AST_LIST_REMOVE_HEAD(&message_templates, list))) {
-		message_template_free(tcur);
-	}
-	AST_LIST_UNLOCK(&message_templates);
+	/* Destroy lists to reconfigure */
+	message_destroy_list();		/* Destroy list of voicemail message templates */
+	timezone_destroy_list();	/* Destroy list of timezones */
+	vmaccounts_destroy_list();	/* Destroy list of voicemail accounts */
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "Destroyed memory objects...\n");
 
 	/* First, set some default settings */
 	global_externnotify[0] = '\0';
@@ -3186,12 +3168,6 @@ static int load_module(void)
 /*! \brief Reload mini voicemail module */
 static int reload(void)
 {
-	/* Destroy lists to reconfigure */	
-	message_destroy_list();		/* Destroy list of voicemail message templates */
-	timezone_destroy_list();	/* Destroy list of timezones */
-	vmaccounts_destroy_list();	/* Destroy list of voicemail accounts */
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "Destroyed memory objects...\n");
 	return(load_config());
 }
 
