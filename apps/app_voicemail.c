@@ -565,7 +565,6 @@ static void populate_defaults(struct ast_vm_user *vmu)
 
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
 {
-    ast_log (LOG_DEBUG, "I'm applying option %s with value %s\n", var, value);
 	int x;
 	if (!strcasecmp(var, "attach")) {
 		ast_set2_flag(vmu, ast_true(value), VM_ATTACH);
@@ -580,7 +579,6 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 #ifdef IMAP_STORAGE
 	} else if (!strcasecmp(var, "imapuser")) {
 		ast_copy_string(vmu->imapuser, value, sizeof(vmu->imapuser));
-        ast_log (LOG_DEBUG, "vmu->imapuser = %s\n", vmu->imapuser);
 	} else if (!strcasecmp(var, "imappassword")) {
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
 #endif
@@ -666,7 +664,6 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 {
 	struct ast_variable *tmp;
 	tmp = var;
-    ast_log (LOG_DEBUG, "I'm applying the value %s somewhere...\n", tmp->name);
 	while (tmp) {
 		if (!strcasecmp(tmp->name, "vmsecret")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
@@ -685,7 +682,6 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
 #ifdef IMAP_STORAGE
 		} else if (!strcasecmp(tmp->name, "imapuser")) {
-            ast_log (LOG_DEBUG, "I'm setting the imapuser field to %s\n", tmp->name);
 			ast_copy_string(retval->imapuser, tmp->value, sizeof(retval->imapuser));
 		} else if (!strcasecmp(tmp->name, "imappassword")) {
 			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
