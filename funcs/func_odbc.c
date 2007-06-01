@@ -123,6 +123,7 @@ static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
 	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
@@ -225,8 +226,10 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	snprintf(varname, sizeof(varname), "%d", (int)rows);
 	pbx_builtin_setvar_helper(chan, "ODBCROWS", varname);
 
-	if (stmt)
+	if (stmt) {
+		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	}
 	if (obj)
 		ast_odbc_release_obj(obj);
 
@@ -310,6 +313,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	res = SQLNumResultCols(stmt, &colcount);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
@@ -327,6 +331,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		} else {
 			ast_log(LOG_WARNING, "Error %d in FETCH [%s]\n", res, sql);
 		}
+		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
@@ -373,6 +378,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 					if (!tmp) {
 						ast_log(LOG_ERROR, "No space for a new resultset?\n");
 						ast_free(resultset);
+						SQLCloseCursor(stmt);
 						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 						ast_odbc_release_obj(obj);
 						pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
@@ -451,6 +457,7 @@ end_acf_read:
 		if (!odbc_store) {
 			ast_log(LOG_ERROR, "Rows retrieved, but unable to store it in the channel.  Results fail.\n");
 			odbc_datastore_free(resultset);
+			SQLCloseCursor(stmt);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
 			return -1;
@@ -458,6 +465,7 @@ end_acf_read:
 		odbc_store->data = resultset;
 		ast_channel_datastore_add(chan, odbc_store);
 	}
+	SQLCloseCursor(stmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
 	return 0;
