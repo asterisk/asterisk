@@ -1989,8 +1989,6 @@ static void handle_statechange(const char *device)
 
 static int statechange_queue(const char *dev)
 {
-	/* Avoid potential for deadlocks by spawning a new thread to handle
-	   the event */
 	struct statechange *sc;
 
 	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1)))
