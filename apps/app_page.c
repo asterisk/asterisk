@@ -27,6 +27,7 @@
 
 /*** MODULEINFO
 	<depend>zaptel</depend>
+	<depend>app_meetme</depend>
  ***/
 
 #include "asterisk.h"
