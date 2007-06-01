@@ -488,6 +488,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                       ; "Please reply to sender that you have received the message in error, " 
 ;                       ; "then delete it. Thank you."
 ;
+; NOTE: THIS IS A JOKE.  IT IS ACCEPTABLE TO LAUGH.
+;
 ;-----------------------------------------------------------------------------------
 
 [authentication]
