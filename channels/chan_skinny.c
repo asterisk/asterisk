@@ -1001,6 +1001,7 @@ static struct skinny_device {
 	char name[80];
 	char id[16];
 	char version_id[16];
+	char exten[AST_MAX_EXTENSION];		/* Cruddy variable name, pick a better one */
 	int type;
 	int registered;
 	int lastlineinstance;
@@ -1200,6 +1201,12 @@ static struct skinny_line *find_line_by_instance(struct skinny_device *d, int in
 {
 	struct skinny_line *l;
 
+	/*Dialing from on hook or on a 7920 uses instance 0 in requests
+	  but we need to start looking at instance 1 */
+
+	if (!instance)
+		instance = 1;
+
 	for (l = d->lines; l; l = l->next) {
 		if (l->instance == instance)
 			break;
@@ -1257,11 +1264,17 @@ static struct skinny_subchannel *find_subchannel_by_instance_reference(struct sk
 		return NULL;
 	}
 
-	for (sub = l->sub; sub; sub = sub->next) {
-		if (sub->callid == reference)
-			break;
+	/* 7920 phones set call reference to 0, so use the first
+	   sub-channel on the list.
+           This MIGHT need more love to be right */
+	if (!reference)
+		sub = l->sub;
+	else {
+		for (sub = l->sub; sub; sub = sub->next) {
+			if (sub->callid == reference)
+				break;
+		}
 	}
-
 	if (!sub) {
 		ast_log(LOG_WARNING, "Could not find subchannel with reference '%d' on '%s'\n", reference, d->name);
 	}
@@ -2369,38 +2382,40 @@ static void *skinny_ss(void *data)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->parent;
 	struct skinnysession *s = d->session;
-	char exten[AST_MAX_EXTENSION] = "";
 	int len = 0;
 	int timeout = firstdigittimeout;
-	int res;
+	int res = 0;
 	int getforward=0;
+	int loop_pause = 100;
 
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s@%s'\n", l->name, d->name);
 
+	len = strlen(d->exten);
+
 	while (len < AST_MAX_EXTENSION-1) {
-		res = ast_waitfordigit(c, timeout);
-		timeout = 0;
-		if (res < 0) {
-			if (skinnydebug)
-				ast_verbose("Skinny(%s@%s): waitfordigit returned < 0\n", l->name, d->name);
-			if (sub->owner) {
-				ast_indicate(c, -1);
-				ast_hangup(c);
+		res = 1;  /* Assume that we will get a digit */
+		while (strlen(d->exten) == len){
+			ast_safe_sleep(c, loop_pause);
+			timeout -= loop_pause;
+			if ( (timeout -= loop_pause) <= 0){
+				 res = 0;
+				 break;
 			}
-			return NULL;
-		} else if (res) {
-			exten[len++]=res;
-			exten[len] = '\0';
+		res = 1;
 		}
-		if (!ast_ignore_pattern(c->context, exten)) {
+
+		timeout = 0;
+		len = strlen(d->exten);
+
+		if (!ast_ignore_pattern(c->context, d->exten)) {
 			transmit_tone(s, SKINNY_SILENCE);
 		}
-		if (ast_exists_extension(c, c->context, exten, 1, l->cid_num)) {
-			if (!res || !ast_matchmore_extension(c, c->context, exten, 1, l->cid_num)) {
+		if (ast_exists_extension(c, c->context, d->exten, 1, l->cid_num)) {
+			if (!res || !ast_matchmore_extension(c, c->context, d->exten, 1, l->cid_num)) {
 				if (getforward) {
 					/* Record this as the forwarding extension */
-					ast_copy_string(l->call_forward, exten, sizeof(l->call_forward));
+					ast_copy_string(l->call_forward, d->exten, sizeof(l->call_forward));
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n",
 							l->call_forward, c->name);
@@ -2411,13 +2426,14 @@ static void *skinny_ss(void *data)
 					ast_safe_sleep(c, 500);
 					ast_indicate(c, -1);
  					ast_safe_sleep(c, 1000);
-					memset(exten, 0, sizeof(exten));
+					memset(d->exten, 0, sizeof(d->exten));
 					transmit_tone(s, SKINNY_DIALTONE);
 					len = 0;
 					getforward = 0;
 				} else {
-					ast_copy_string(c->exten, exten, sizeof(c->exten));
-					ast_copy_string(l->lastnumberdialed, exten, sizeof(l->lastnumberdialed));
+					ast_copy_string(c->exten, d->exten, sizeof(c->exten));
+					ast_copy_string(l->lastnumberdialed, d->exten, sizeof(l->lastnumberdialed));
+					memset(d->exten, 0, sizeof(d->exten));
 					skinny_newcall(c);
 					return NULL;
 				}
@@ -2428,16 +2444,16 @@ static void *skinny_ss(void *data)
 			}
 		} else if (res == 0) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Not enough digits (and no ambiguous match)...\n");
+				ast_log(LOG_DEBUG, "Not enough digits (%s) (and no ambiguous match)...\n", d->exten);
 			transmit_tone(s, SKINNY_REORDER);
 			if (sub->owner && sub->owner->_state != AST_STATE_UP) {
 				ast_indicate(c, -1);
 				ast_hangup(c);
 			}
 			return NULL;
-		} else if (!ast_canmatch_extension(c, c->context, exten, 1, c->cid.cid_num) &&
-			   ((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
-			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, c->cid.cid_num ? c->cid.cid_num : "<Unknown Caller>", c->context);
+		} else if (!ast_canmatch_extension(c, c->context, d->exten, 1, c->cid.cid_num) &&
+			   ((d->exten[0] != '*') || (!ast_strlen_zero(d->exten) > 2))) {
+			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", d->exten, c->cid.cid_num ? c->cid.cid_num : "<Unknown Caller>", c->context);
 			transmit_tone(s, SKINNY_REORDER);
 			/* hang out for 3 seconds to let congestion play */
 			ast_safe_sleep(c, 3000);
@@ -2446,7 +2462,7 @@ static void *skinny_ss(void *data)
 		if (!timeout) {
 			timeout = gendigittimeout;
 		}
-		if (len && !ast_ignore_pattern(c->context, exten)) {
+		if (len && !ast_ignore_pattern(c->context, d->exten)) {
 			ast_indicate(c, -1);
 		}
 	}
@@ -4253,7 +4269,42 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		if (skinnydebug)
 			ast_verbose("Collected digit: [%d]\n", letohl(req->data.keypad.button));
 
-		res = handle_keypad_button_message(req, s);
+		struct skinny_device *d = s->device;
+		struct skinny_subchannel *sub;
+		int lineInstance;
+		int callReference;
+
+		lineInstance = letohl(req->data.keypad.lineInstance);
+		callReference = letohl(req->data.keypad.callReference);
+
+		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
+
+		if (sub && (sub->owner->_state <  AST_STATE_UP)) {
+			char dgt;
+			int digit = letohl(req->data.keypad.button);
+	
+			if (digit == 14) {
+				dgt = '*';
+			} else if (digit == 15) {
+				dgt = '#';
+			} else if (digit >= 0 && digit <= 9) {
+				dgt = '0' + digit;
+			} else {
+				/* digit=10-13 (A,B,C,D ?), or
+		 		* digit is bad value
+		 		*
+		 		* probably should not end up here, but set
+		 		* value for backward compatibility, and log
+		 		* a warning.
+		 		*/
+				dgt = '0' + digit;
+				ast_log(LOG_WARNING, "Unsupported digit %d\n", digit);
+			}
+
+			d->exten[strlen(d->exten)] = dgt;
+			d->exten[strlen(d->exten)+1] = '\0';
+		} else
+			res = handle_keypad_button_message(req, s);
 		break;
 	case STIMULUS_MESSAGE:
 		res = handle_stimulus_message(req, s);
