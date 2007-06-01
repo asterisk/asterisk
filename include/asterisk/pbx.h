@@ -877,8 +877,6 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
  */
 int ast_func_write(struct ast_channel *chan, const char *function, const char *value);
 
-void ast_hint_state_changed(const char *device);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

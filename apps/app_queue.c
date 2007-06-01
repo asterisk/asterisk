@@ -92,6 +92,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/event.h"
 
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
@@ -256,6 +257,9 @@ static int autofill_default = 0;
 
 /*! \brief queues.conf [general] option */
 static int montype_default = 0;
+
+/*! \brief Subscription to device state change events */
+static struct ast_event_sub *device_state_sub;
 
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
@@ -656,10 +660,8 @@ static void *device_state_thread(void *data)
 	return NULL;
 }
 
-static int statechange_queue(const char *dev, enum ast_device_state state, void *data)
+static int statechange_queue(const char *dev, enum ast_device_state state)
 {
-	/* Avoid potential for deadlocks by spawning a new thread to handle
-	   the event */
 	struct statechange *sc;
 
 	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1)))
@@ -674,6 +676,22 @@ static int statechange_queue(const char *dev, enum ast_device_state state, void 
 	ast_mutex_unlock(&device_state.lock);
 
 	return 0;
+}
+
+static void device_state_cb(const struct ast_event *event, void *unused)
+{
+	enum ast_device_state state;
+	const char *device;
+
+	state = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
+	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
+
+	if (ast_strlen_zero(device)) {
+		ast_log(LOG_ERROR, "Received invalid event that had no device IE\n");
+		return;
+	}
+
+	statechange_queue(device, state);
 }
 
 static struct member *create_queue_member(const char *interface, const char *membername, int penalty, int paused)
@@ -4747,7 +4765,9 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
-	ast_devstate_del(statechange_queue, NULL);
+
+	if (device_state_sub)
+		ast_event_unsubscribe(device_state_sub);
 
 	ast_module_user_hangup_all();
 
@@ -4788,7 +4808,9 @@ static int load_module(void)
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);
 	res |= ast_custom_function_register(&queuewaitingcount_function);
-	res |= ast_devstate_add(statechange_queue, NULL);
+
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
+		res = -1;
 
 	return res;
 }

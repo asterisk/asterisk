@@ -63,6 +63,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/event.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -220,6 +221,29 @@ static const struct cfextension_states {
 	{ AST_EXTENSION_INUSE | AST_EXTENSION_ONHOLD,  "InUse&Hold" }
 };
 
+struct statechange {
+	AST_LIST_ENTRY(statechange) entry;
+	char dev[0];
+};
+
+/*!
+ * \brief Data used by the device state thread
+ */
+static struct {
+	/*! Set to 1 to stop the thread */
+	unsigned int stop:1;
+	/*! The device state monitoring thread */
+	pthread_t thread;
+	/*! Lock for the state change queue */
+	ast_mutex_t lock;
+	/*! Condition for the state change queue */
+	ast_cond_t cond;
+	/*! Queue of state changes */
+	AST_LIST_HEAD_NOLOCK(, statechange) state_change_q;
+} device_state = {
+	.thread = AST_PTHREADT_NULL,
+};
+
 static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
 static int pbx_builtin_hangup(struct ast_channel *, void *);
@@ -247,6 +271,9 @@ AST_RWLOCK_DEFINE_STATIC(globalslock);
 static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
 
 static int autofallthrough = 1;
+
+/*! \brief Subscription for device state change events */
+static struct ast_event_sub *device_state_sub;
 
 AST_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls;
@@ -1917,7 +1944,7 @@ int ast_extension_state(struct ast_channel *c, const char *context, const char *
 	return ast_extension_state2(e);    		/* Check all devices in the hint */
 }
 
-void ast_hint_state_changed(const char *device)
+static void handle_statechange(const char *device)
 {
 	struct ast_hint *hint;
 
@@ -1958,6 +1985,49 @@ void ast_hint_state_changed(const char *device)
 	}
 
 	AST_RWLIST_UNLOCK(&hints);
+}
+
+static int statechange_queue(const char *dev)
+{
+	/* Avoid potential for deadlocks by spawning a new thread to handle
+	   the event */
+	struct statechange *sc;
+
+	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1)))
+		return 0;
+
+	strcpy(sc->dev, dev);
+
+	ast_mutex_lock(&device_state.lock);
+	AST_LIST_INSERT_TAIL(&device_state.state_change_q, sc, entry);
+	ast_cond_signal(&device_state.cond);
+	ast_mutex_unlock(&device_state.lock);
+
+	return 0;
+}
+
+static void *device_state_thread(void *data)
+{
+	struct statechange *sc;
+
+	while (!device_state.stop) {
+		ast_mutex_lock(&device_state.lock);
+		while (!(sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry))) {
+			ast_cond_wait(&device_state.cond, &device_state.lock);
+			/* Check to see if we were woken up to see the request to stop */
+			if (device_state.stop) {
+				ast_mutex_unlock(&device_state.lock);
+				return NULL;
+			}
+		}
+		ast_mutex_unlock(&device_state.lock);
+
+		handle_statechange(sc->dev);
+
+		free(sc);
+	}
+
+	return NULL;
 }
 
 /*! \brief  ast_extension_state_add: Add watcher for extension states */
@@ -6032,6 +6102,19 @@ static int pbx_builtin_sayphonetic(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static void device_state_cb(const struct ast_event *event, void *unused)
+{
+	const char *device;
+
+	device = ast_event_get_ie_str(event, AST_EVENT_IE_DEVICE);
+	if (ast_strlen_zero(device)) {
+		ast_log(LOG_ERROR, "Received invalid event that had no device IE\n");
+		return;
+	}
+
+	statechange_queue(device);
+}
+
 int load_pbx(void)
 {
 	int x;
@@ -6055,6 +6138,16 @@ int load_pbx(void)
 	
 	/* Register manager application */
 	ast_manager_register2("ShowDialPlan", EVENT_FLAG_CONFIG, manager_show_dialplan, "List dialplan", mandescr_show_dialplan);
+
+	ast_mutex_init(&device_state.lock);
+	ast_cond_init(&device_state.cond, NULL);
+	ast_pthread_create(&device_state.thread, NULL, device_state_thread, NULL);
+
+	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL,
+			AST_EVENT_IE_END))) {
+		return -1;
+	}
+
 	return 0;
 }
 

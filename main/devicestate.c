@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2006, Digium, Inc.
+ * Copyright (C) 1999 - 2007, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -126,6 +126,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/app.h"
 #include "asterisk/options.h"
+#include "asterisk/event.h"
 
 /*! \brief Device state strings for printing */
 static const char *devstatestring[] = {
@@ -149,16 +150,6 @@ struct devstate_prov {
 
 /*! \brief A list of providers */
 static AST_RWLIST_HEAD_STATIC(devstate_provs, devstate_prov);
-
-/*! \brief  A device state watcher (callback) */
-struct devstate_cb {
-	void *data;
-	ast_devstate_cb_type callback;	/*!< Where to report when state changes */
-	AST_RWLIST_ENTRY(devstate_cb) list;
-};
-
-/*! \brief A device state watcher list */
-static AST_RWLIST_HEAD_STATIC(devstate_cbs, devstate_cb);
 
 struct state_change {
 	AST_LIST_ENTRY(state_change) list;
@@ -380,59 +371,28 @@ static int getproviderstate(const char *provider, const char *address)
 	return res;
 }
 
-/*! \brief Add device state watcher */
-int ast_devstate_add(ast_devstate_cb_type callback, void *data)
-{
-	struct devstate_cb *devcb;
-
-	if (!callback || !(devcb = ast_calloc(1, sizeof(*devcb))))
-		return -1;
-
-	devcb->data = data;
-	devcb->callback = callback;
-
-	AST_RWLIST_WRLOCK(&devstate_cbs);
-	AST_RWLIST_INSERT_HEAD(&devstate_cbs, devcb, list);
-	AST_RWLIST_UNLOCK(&devstate_cbs);
-
-	return 0;
-}
-
-/*! \brief Remove device state watcher */
-void ast_devstate_del(ast_devstate_cb_type callback, void *data)
-{
-	struct devstate_cb *devcb;
-
-	AST_RWLIST_WRLOCK(&devstate_cbs);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&devstate_cbs, devcb, list) {
-		if ((devcb->callback == callback) && (devcb->data == data)) {
-			AST_RWLIST_REMOVE_CURRENT(&devstate_cbs, list);
-			free(devcb);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
-	AST_RWLIST_UNLOCK(&devstate_cbs);
-}
-
 /*! \brief Notify callback watchers of change, and notify PBX core for hint updates
 	Normally executed within a separate thread
 */
 static void do_state_change(const char *device)
 {
-	int state;
-	struct devstate_cb *devcb;
+	enum ast_device_state state;
+	struct ast_event *event;
 
 	state = ast_device_state(device);
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
-	AST_RWLIST_RDLOCK(&devstate_cbs);
-	AST_RWLIST_TRAVERSE(&devstate_cbs, devcb, list)
-		devcb->callback(device, state, devcb->data);
-	AST_RWLIST_UNLOCK(&devstate_cbs);
+	if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE,
+			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
+			AST_EVENT_IE_STATE, AST_EVENT_IE_PLTYPE_UINT, state,
+			AST_EVENT_IE_END))) {
+		return;
+	}
 
-	ast_hint_state_changed(device);
+	ast_event_queue_and_cache(event,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_END);
 }
 
 static int __ast_device_state_changed_literal(char *buf)

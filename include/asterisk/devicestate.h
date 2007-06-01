@@ -19,6 +19,18 @@
 /*! \file
  * \brief Device state management
  *
+ * To subscribe to device state changes, use the generic ast_event_subscribe
+ * method.  For an example, see apps/app_queue.c.
+ *
+ * \todo Currently, when the state of a device changes, the device state provider
+ * calls one of the functions defined here to queue an object to say that the 
+ * state of a device has changed.  However, this does not include the new state.
+ * Another thread processes these device state change objects and calls the
+ * device state provider's callback to figure out what the new state is.  It
+ * would make a lot more sense for the new state to be included in the original
+ * function call that says the state of a device has changed.  However, it
+ * will take a lot of work to change this.
+ *
  * \arg See \ref AstExtState
  */
 
@@ -29,7 +41,11 @@
 extern "C" {
 #endif
 
-/*! Device States */
+/*! Device States 
+ *  \note The order of these states may not change because they are included
+ *        in Asterisk events which may be transmitted across the network to
+ *        other servers.
+ */
 enum ast_device_state {
 	AST_DEVICE_UNKNOWN,      /*!< Device is valid but channel didn't know state */
 	AST_DEVICE_NOT_INUSE,    /*!< Device is not used */
@@ -41,9 +57,6 @@ enum ast_device_state {
 	AST_DEVICE_RINGINUSE,    /*!< Device is ringing *and* in use */
 	AST_DEVICE_ONHOLD,       /*!< Device is on hold */
 };
-
-/*! \brief Devicestate watcher call back */
-typedef int (*ast_devstate_cb_type)(const char *dev, enum ast_device_state state, void *data);
 
 /*!  \brief Devicestate provider call back */
 typedef enum ast_device_state (*ast_devstate_prov_cb_type)(const char *data);
@@ -93,7 +106,6 @@ enum ast_device_state ast_device_state(const char *device);
 int ast_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
-
 /*! \brief Tells Asterisk the State for Device is changed 
  * \param device devicename like a dialstring
  * Asterisk polls the new extensionstates and calls the registered
@@ -101,22 +113,6 @@ int ast_device_state_changed(const char *fmt, ...)
  * Returns 0 on success, -1 on failure
  */
 int ast_device_state_changed_literal(const char *device);
-
-/*! \brief Registers a device state change callback 
- * \param callback Callback
- * \param data to pass to callback
- * The callback is called if the state for extension is changed
- * Return -1 on failure, ID on success
- */ 
-int ast_devstate_add(ast_devstate_cb_type callback, void *data);
-
-/*! \brief Unregisters a device state change callback 
- * \param callback Callback
- * \param data to pass to callback
- * The callback is called if the state for extension is changed
- * Return -1 on failure, ID on success
- */ 
-void ast_devstate_del(ast_devstate_cb_type callback, void *data);
 
 /*! \brief Add device state provider 
  * \param label to use in hint, like label:object
@@ -131,8 +127,6 @@ int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback)
  * Return -1 on failure, 0 on success
  */ 
 int ast_devstate_prov_del(const char *label);
-
-int ast_device_state_engine_init(void);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

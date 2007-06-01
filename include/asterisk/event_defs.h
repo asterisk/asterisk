@@ -37,13 +37,15 @@ enum ast_event_type {
 	    unique to the event itself, not necessarily across all events. */
 	AST_EVENT_CUSTOM = 0x01,
 	/*! Voicemail message waiting indication */
-	AST_EVENT_MWI    = 0x02,
+	AST_EVENT_MWI          = 0x02,
 	/*! Someone has subscribed to events */
-	AST_EVENT_SUB    = 0x03,
+	AST_EVENT_SUB          = 0x03,
 	/*! Someone has unsubscribed from events */
-	AST_EVENT_UNSUB  = 0x04,
+	AST_EVENT_UNSUB        = 0x04,
+	/*! The state of a device has changed */
+	AST_EVENT_DEVICE_STATE = 0x05,
 	/*! Number of event types.  This should be the last event type + 1 */
-	AST_EVENT_TOTAL  = 0x05,
+	AST_EVENT_TOTAL        = 0x06,
 };
 
 /*! \brief Event Information Element types */
@@ -82,11 +84,25 @@ enum ast_event_ie_type {
 	 */
 	AST_EVENT_IE_EVENTTYPE = 0x05,
 	/*!
-	 * \brief Hint that someone cares than an IE exists
+	 * \brief Hint that someone cares that an IE exists
 	 * Used by: AST_EVENT_SUB
 	 * Payload type: UINT (ast_event_ie_type)
 	 */
 	AST_EVENT_IE_EXISTS    = 0x06,
+	/*!
+	 * \brief Device Name
+	 * Used by AST_EVENT_DEVICE_STATE
+	 * Payload type: STR
+	 */
+	AST_EVENT_IE_DEVICE    = 0x07,
+	/*!
+	 * \brief Generic State IE
+	 * Used by AST_EVENT_DEVICE_STATE
+	 * Payload type: UINT
+	 * The actual state values depend on the event which
+	 * this IE is a part of.
+	 */
+	 AST_EVENT_IE_STATE    = 0x08,
 };
 
 /*!
