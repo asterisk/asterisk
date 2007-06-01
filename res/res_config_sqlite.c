@@ -20,13 +20,14 @@
  */
 
 /*!
- * \mainpage res_sqlite
+ * \mainpage res_config_sqlite
  * 
  * \section intro_sec Presentation
  * 
- * res_sqlite is a module for the Asterisk Open Source PBX to support SQLite 2
- * databases. It can be used to fetch configuration from a database (static
- * configuration files and/or using the Asterisk RealTime Architecture - ARA).
+ * res_config_sqlite is a module for the Asterisk Open Source PBX to 
+ * support SQLite 2 databases. It can be used to fetch configuration 
+ * from a database (static configuration files and/or using the Asterisk 
+ * RealTime Architecture - ARA).
  * It can also be used to log CDR entries. Finally, it can be used for simple
  * queries in the Dialplan. Note that Asterisk already comes with a module
  * named cdr_sqlite. There are two reasons for including it in res_sqlite:
@@ -38,13 +39,6 @@
  * addons. res_sqlite was developed because we, at Proformatique, are using
  * PHP 4 in our embedded systems, and PHP 4 has no stable support for SQLite 3
  * at this time. We also needed RealTime support.
- * 
- * \section build_install_sec Building and installing
- * 
- * To build res_sqlite, simply enter <code>make</code>. To install it,
- * enter make install. The Makefile has been slightly designed for
- * cross compilation and installation in non standard locations, to ease
- * the work of packagers. Read it for more details.
  * 
  * \section conf_sec Configuration
  * 
@@ -90,7 +84,7 @@
  * 
  * \section credits_sec Credits
  * 
- * res_sqlite was developed by Richard Braun at the Proformatique company.
+ * res_config_sqlite was developed by Richard Braun at the Proformatique company.
  */
 
 /*!
