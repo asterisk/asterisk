@@ -441,7 +441,6 @@ struct iax2_registry {
 	struct sockaddr_in addr;		/*!< Who we connect to for registration purposes */
 	char username[80];
 	char secret[80];			/*!< Password or key name in []'s */
-	char random[80];
 	int expire;				/*!< Sched ID of expiration */
 	int refresh;				/*!< How often to refresh */
 	enum iax_reg_state regstate;
