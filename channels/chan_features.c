@@ -387,7 +387,7 @@ static int features_hangup(struct ast_channel *ast)
 			ast_hangup(p->subchan);
 		ast_mutex_unlock(&p->lock);
 		ast_mutex_destroy(&p->lock);
-		free(p);
+		ast_free(p);
 		return 0;
 	}
 	ast_mutex_unlock(&p->lock);
@@ -428,9 +428,8 @@ static struct feature_pvt *features_alloc(char *data, int format)
 			ast_log(LOG_NOTICE, "Unable to allocate subchannel '%s/%s'\n", tech, dest);
 			return NULL;
 		}
-		tmp = malloc(sizeof(struct feature_pvt));
+		tmp = ast_calloc(1, sizeof(*tmp));
 		if (tmp) {
-			memset(tmp, 0, sizeof(struct feature_pvt));
 			for (x=0;x<3;x++)
 				init_sub(tmp->subs + x);
 			ast_mutex_init(&tmp->lock);
@@ -461,7 +460,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	/* figure out what you want the name to be */
 	for (x=1;x<4;x++) {
 		if (b2)
-			free(b2);
+			ast_free(b2);
 		asprintf(&b2, "%s/%s-%d", p->tech, p->dest, x);
 		for (y=0;y<3;y++) {
 			if (y == index)
@@ -475,7 +474,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	tmp = ast_channel_alloc(0, state, 0,0, "", "", "", 0, "Feature/%s", b2);
 	/* free up the name, it was copied into the channel name */
 	if (b2)
-		free(b2);
+		ast_free(b2);
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
@@ -566,7 +565,7 @@ static int unload_module(void)
 		if (p->owner)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 		AST_LIST_REMOVE_CURRENT(&features, list);
-		free(p);
+		ast_free(p);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&features);

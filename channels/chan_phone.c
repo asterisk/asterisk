@@ -1179,12 +1179,12 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 	struct phone_pvt *tmp;
 	int flags;	
 	
-	tmp = malloc(sizeof(struct phone_pvt));
+	tmp = ast_calloc(1, sizeof(*tmp));
 	if (tmp) {
 		tmp->fd = open(iface, O_RDWR);
 		if (tmp->fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open '%s'\n", iface);
-			free(tmp);
+			ast_free(tmp);
 			return NULL;
 		}
 		if (mode == MODE_FXO) {
@@ -1344,7 +1344,7 @@ static int __unload_module(void)
 			pl = p;
 			p = p->next;
 			/* Free associated memory */
-			free(pl);
+			ast_free(pl);
 		}
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);

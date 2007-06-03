@@ -122,7 +122,7 @@ static void nbs_destroy(struct nbs_pvt *p)
 	if (p->nbs)
 		nbs_delstream(p->nbs);
 	ast_module_user_remove(p->u);
-	free(p);
+	ast_free(p);
 }
 
 static struct nbs_pvt *nbs_alloc(void *data)
@@ -138,9 +138,8 @@ static struct nbs_pvt *nbs_alloc(void *data)
 		opts++;
 	} else
 		opts = "";
-	p = malloc(sizeof(struct nbs_pvt));
+	p = ast_calloc(1, sizeof(*p));
 	if (p) {
-		memset(p, 0, sizeof(struct nbs_pvt));
 		if (!ast_strlen_zero(opts)) {
 			if (strchr(opts, 'm'))
 				flags |= NBS_FLAG_MUTE;
@@ -157,7 +156,7 @@ static struct nbs_pvt *nbs_alloc(void *data)
 		p->nbs = nbs_newstream("asterisk", stream, flags);
 		if (!p->nbs) {
 			ast_log(LOG_WARNING, "Unable to allocate new NBS stream '%s' with flags %d\n", stream, flags);
-			free(p);
+			ast_free(p);
 			p = NULL;
 		} else {
 			/* Set for 8000 hz mono, 640 samples */

@@ -881,7 +881,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	tmp->parent = client;
 	if (!tmp->rtp) {
 		ast_log(LOG_WARNING, "Out of RTP sessions?\n");
-		free(tmp);
+		ast_free(tmp);
 		return NULL;
 	}
 
@@ -1600,8 +1600,7 @@ static struct gtalk_candidate *gtalk_create_candidate(char *args)
 {
 	char *name, *type, *preference, *protocol;
 	struct gtalk_candidate *res;
-	res = malloc(sizeof(struct gtalk_candidate));
-	memset(res, 0, sizeof(struct gtalk_candidate));
+	res = ast_calloc(1, sizeof(*res));
 	if (args)
 		name = args;
 	if ((args = strchr(args, ','))) {
@@ -1758,8 +1757,7 @@ static int gtalk_load_config(void)
 	while (cat) {
 		if (strcasecmp(cat, "general")) {
 			var = ast_variable_browse(cfg, cat);
-			member = (struct gtalk *) malloc(sizeof(struct gtalk));
-			memset(member, 0, sizeof(struct gtalk));
+			member = ast_calloc(1, sizeof(*member));
 			ASTOBJ_INIT(member);
 			ASTOBJ_WRLOCK(member);
 			if (!strcasecmp(cat, "guest")) {

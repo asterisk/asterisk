@@ -288,7 +288,7 @@ static void oh323_destroy_alias(struct oh323_alias *alias)
 {
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Destroying alias '%s'\n", alias->name);
-	free(alias);
+	ast_free(alias);
 }
 
 static void oh323_destroy_user(struct oh323_user *user)
@@ -296,7 +296,7 @@ static void oh323_destroy_user(struct oh323_user *user)
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Destroying user '%s'\n", user->name);
 	ast_free_ha(user->ha);
-	free(user);
+	ast_free(user);
 }
 
 static void oh323_destroy_peer(struct oh323_peer *peer)
@@ -304,7 +304,7 @@ static void oh323_destroy_peer(struct oh323_peer *peer)
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Destroying peer '%s'\n", peer->name);
 	ast_free_ha(peer->ha);
-	free(peer);
+	ast_free(peer);
 }
 
 static int oh323_simulate_dtmf_end(void *data)
@@ -419,35 +419,35 @@ static void oh323_update_info(struct ast_channel *c)
 static void cleanup_call_details(call_details_t *cd)
 {
 	if (cd->call_token) {
-		free(cd->call_token);
+		ast_free(cd->call_token);
 		cd->call_token = NULL;
 	}
 	if (cd->call_source_aliases) {
-		free(cd->call_source_aliases);
+		ast_free(cd->call_source_aliases);
 		cd->call_source_aliases = NULL;
 	}
 	if (cd->call_dest_alias) {
-		free(cd->call_dest_alias);
+		ast_free(cd->call_dest_alias);
 		cd->call_dest_alias = NULL;
 	}
 	if (cd->call_source_name) {
-		free(cd->call_source_name);
+		ast_free(cd->call_source_name);
 		cd->call_source_name = NULL;
 	}
 	if (cd->call_source_e164) {
-		free(cd->call_source_e164);
+		ast_free(cd->call_source_e164);
 		cd->call_source_e164 = NULL;
 	}
 	if (cd->call_dest_e164) {
-		free(cd->call_dest_e164);
+		ast_free(cd->call_dest_e164);
 		cd->call_dest_e164 = NULL;
 	}
 	if (cd->sourceIp) {
-		free(cd->sourceIp);
+		ast_free(cd->sourceIp);
 		cd->sourceIp = NULL;
 	}
 	if (cd->redirect_number) {
-		free(cd->redirect_number);
+		ast_free(cd->redirect_number);
 		cd->redirect_number = NULL;
 	}
 }
@@ -496,7 +496,7 @@ static void __oh323_destroy(struct oh323_pvt *pvt)
 	} else {
 		ast_mutex_unlock(&pvt->lock);
 		ast_mutex_destroy(&pvt->lock);
-		free(pvt);
+		ast_free(pvt);
 	}
 }
 
@@ -540,7 +540,7 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
 		ast_mutex_unlock(&pvt->lock);
 		h323_send_tone(token, digit);
 		if (token) {
-			free(token);
+			ast_free(token);
 		}
 	} else
 		ast_mutex_unlock(&pvt->lock);
@@ -579,7 +579,7 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 		ast_mutex_unlock(&pvt->lock);
 		h323_send_tone(token, ' ');
 		if (token) {
-			free(token);
+			ast_free(token);
 		}
 	}
 	oh323_update_info(c);
@@ -684,7 +684,7 @@ static int oh323_answer(struct ast_channel *c)
 	ast_mutex_unlock(&pvt->lock);
 	res = h323_answering_call(token, 0);
 	if (token)
-		free(token);
+		ast_free(token);
 
 	oh323_update_info(c);
 	if (c->_state != AST_STATE_UP) {
@@ -746,7 +746,7 @@ static int oh323_hangup(struct ast_channel *c)
 			if (h323_clear_call(call_token, q931cause)) {
 				ast_log(LOG_WARNING, "ClearCall failed.\n");
 			}
-			free(call_token);
+			ast_free(call_token);
 			ast_mutex_lock(&pvt->lock);
 		}
 	}
@@ -939,7 +939,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 	if (h323debug)
 		ast_log(LOG_DEBUG, "OH323: Indicated %d on %s, res=%d\n", condition, token, res);
 	if (token)
-		free(token);
+		ast_free(token);
 	oh323_update_info(c);
 
 	return res;
@@ -1113,23 +1113,22 @@ static struct oh323_pvt *oh323_alloc(int callid)
 {
 	struct oh323_pvt *pvt;
 
-	pvt = (struct oh323_pvt *) malloc(sizeof(struct oh323_pvt));
+	pvt = ast_calloc(1, sizeof(*pvt));
 	if (!pvt) {
 		ast_log(LOG_ERROR, "Couldn't allocate private structure. This is bad\n");
 		return NULL;
 	}
-	memset(pvt, 0, sizeof(struct oh323_pvt));
 	pvt->cd.redirect_reason = -1;
 	pvt->cd.transfer_capability = -1;
 	/* Ensure the call token is allocated for outgoing call */
 	if (!callid) {
 		if ((pvt->cd).call_token == NULL) {
-			(pvt->cd).call_token = (char *)malloc(128);
+			(pvt->cd).call_token = ast_calloc(1, 128);
 		}
 		if (!pvt->cd.call_token) {
 			ast_log(LOG_ERROR, "Not enough memory to alocate call token\n");
 			ast_rtp_destroy(pvt->rtp);
-			free(pvt);
+			ast_free(pvt);
 			return NULL;
 		}
 		memset((char *)(pvt->cd).call_token, 0, 128);
@@ -1210,7 +1209,7 @@ static struct oh323_alias *build_alias(const char *name, struct ast_variable *v,
 	if (alias)
 		found++;
 	else {
-		if (!(alias = (struct oh323_alias *)calloc(1, sizeof(*alias))))
+		if (!(alias = ast_calloc(1, sizeof(*alias))))
 			return NULL;
 		ASTOBJ_INIT(alias);
 	}
@@ -1379,7 +1378,7 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v, struct 
 	if (user)
 		found++;
 	else {
-		if (!(user = (struct oh323_user *)calloc(1, sizeof(*user))))
+		if (!(user = ast_calloc(1, sizeof(*user))))
 			return NULL;
 		ASTOBJ_INIT(user);
 	}
@@ -1496,7 +1495,7 @@ static struct oh323_peer *build_peer(const char *name, struct ast_variable *v, s
 	if (peer)
 		found++;
 	else {
-		if (!(peer = (struct oh323_peer*)calloc(1, sizeof(*peer))))
+		if (!(peer = ast_calloc(1, sizeof(*peer))))
 			return NULL;
 		ASTOBJ_INIT(peer);
 	}
@@ -1908,14 +1907,14 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 	struct sockaddr_in us;
 	struct rtp_info *info;
 
-	info = (struct rtp_info *)malloc(sizeof(struct rtp_info));
+	info = ast_calloc(1, sizeof(*info));
 	if (!info) {
 		ast_log(LOG_ERROR, "Unable to allocated info structure, this is very bad\n");
 		return NULL;
 	}
 	pvt = find_call_locked(call_reference, token);
 	if (!pvt) {
-		free(info);
+		ast_free(info);
 		ast_log(LOG_ERROR, "Unable to find call %s(%d)\n", token, call_reference);
 		return NULL;
 	}
@@ -1923,7 +1922,7 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 		__oh323_rtp_create(pvt);
 	if (!pvt->rtp) {
 		ast_mutex_unlock(&pvt->lock);
-		free(info);
+		ast_free(info);
 		ast_log(LOG_ERROR, "No RTP stream is available for call %s (%d)", token, call_reference);
 		return NULL;
 	}
@@ -3337,7 +3336,7 @@ static int unload_module(void)
 			p = p->next;
 			/* free associated memory */
 			ast_mutex_destroy(&pl->lock);
-			free(pl);
+			ast_free(pl);
 		}
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);

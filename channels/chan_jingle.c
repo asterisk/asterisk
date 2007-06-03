@@ -238,7 +238,7 @@ static struct jingle_container jingles;
 
 static void jingle_member_destroy(struct jingle *obj)
 {
-	free(obj);
+	ast_free(obj);
 }
 
 static struct jingle *find_jingle(char *name, char *connection)
@@ -691,9 +691,9 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 
 safeout:
 	if (ours1)
-		free(ours1);
+		ast_free(ours1);
 	if (ours2)
-		free(ours2);
+		ast_free(ours2);
 	if (iq)
 		iks_delete(iq);
 	if (jingle)
@@ -750,7 +750,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 	tmp->parent = client;
 	if (!tmp->rtp) {
 		ast_log(LOG_WARNING, "Out of RTP sessions?\n");
-		free(tmp);
+		ast_free(tmp);
 		return NULL;
 	}
 	ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
@@ -883,7 +883,7 @@ static void jingle_free_candidates(struct jingle_candidate *candidate)
 	while (candidate) {
 		last = candidate;
 		candidate = candidate->next;
-		free(last);
+		ast_free(last);
 	}
 }
 
@@ -911,7 +911,7 @@ static void jingle_free_pvt(struct jingle *client, struct jingle_pvt *p)
 	if (p->vrtp)
 		ast_rtp_destroy(p->vrtp);
 	jingle_free_candidates(p->theircandidates);
-	free(p);
+	ast_free(p);
 }
 
 
@@ -1465,8 +1465,7 @@ static struct jingle_candidate *jingle_create_candidate(char *args)
 {
 	char *name, *type, *preference, *protocol;
 	struct jingle_candidate *res;
-	res = malloc(sizeof(struct jingle_candidate));
-	memset(res, 0, sizeof(struct jingle_candidate));
+	res = ast_calloc(1, sizeof(*res));
 	if (args)
 		name = args;
 	if ((args = strchr(args, ','))) {
@@ -1615,8 +1614,7 @@ static int jingle_load_config(void)
 	while (cat) {
 		if (strcasecmp(cat, "general")) {
 			var = ast_variable_browse(cfg, cat);
-			member = (struct jingle *) malloc(sizeof(struct jingle));
-			memset(member, 0, sizeof(struct jingle));
+			member = ast_calloc(1, sizeof(*member));
 			ASTOBJ_INIT(member);
 			ASTOBJ_WRLOCK(member);
 			if (!strcasecmp(cat, "guest")) {
