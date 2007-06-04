@@ -546,6 +546,10 @@ static int aji_act_hook(void *data, int type, iks *node)
 								}
 							}
 						} else {
+							if (!client->jid->user) {
+								ast_log(LOG_ERROR, "Malformed Jabber ID : %s (domain missing?)\n", client->jid->full);
+								break;
+							}
 							features = aji_highest_bit(features);
 							if (features == IKS_STREAM_SASL_MD5)
 								iks_start_sasl(client->p, IKS_SASL_DIGEST_MD5, client->jid->user, client->password);
