@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: asterisk,v 1.3 2005/11/17 22:30:01 Gregory Boehnlein <damin@nacs.net>
+# $Id$
 #
 # asterisk	start the asterisk PBX
 #
