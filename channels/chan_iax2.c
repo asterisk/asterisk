@@ -6747,8 +6747,6 @@ static int socket_process(struct iax2_thread *thread)
 		f.subclass != IAX_COMMAND_TXCNT &&		/* for attended transfer */
 		f.subclass != IAX_COMMAND_TXACC) {		/* for attended transfer */
 		iaxs[fr->callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
-		ast_mutex_unlock(&iaxsl[fr->callno]);
-		ast_mutex_lock(&iaxsl[fr->callno]);
 	}
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug  && iaxdebug)
