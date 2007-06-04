@@ -549,7 +549,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 						senddialevent(in, c);
 						/* After calling, set callerid to extension */
 						if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID)) {
-							char cidname[AST_MAX_EXTENSION];
+							char cidname[AST_MAX_EXTENSION] = "";
 							ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
@@ -794,7 +794,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int numnochan = 0;
 	int cause;
 	char numsubst[256];
-	char cidname[AST_MAX_EXTENSION];
+	char cidname[AST_MAX_EXTENSION] = "";
 	int privdb_val = 0;
 	unsigned int calldurationlimit = 0;
 	long timelimit = 0;
