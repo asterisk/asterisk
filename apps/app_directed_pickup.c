@@ -90,7 +90,7 @@ static int can_pickup(struct ast_channel *chan)
 }
 
 /* Attempt to pick up specified extension with context */
-static int pickup_by_exten(struct ast_channel *chan, char *exten, char *context)
+static int pickup_by_exten(struct ast_channel *chan, const char *exten, const char *context)
 {
 	int res = -1;
 	struct ast_channel *target = NULL;
@@ -110,7 +110,7 @@ static int pickup_by_exten(struct ast_channel *chan, char *exten, char *context)
 }
 
 /* Attempt to pick up specified mark */
-static int pickup_by_mark(struct ast_channel *chan, char *mark)
+static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 {
 	int res = -1;
 	const char *tmp = NULL;
@@ -149,11 +149,11 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	while (!ast_strlen_zero(tmp) && (exten = strsep(&tmp, "&"))) {
 		if ((context = strchr(exten, '@')))
 			*context++ = '\0';
-		if (context && !strcasecmp(context, PICKUPMARK)) {
+		if (!ast_strlen_zero(context) && !strcasecmp(context, PICKUPMARK)) {
 			if (!pickup_by_mark(chan, exten))
 				break;
 		} else {
-			if (!pickup_by_exten(chan, exten, context ? context : chan->context))
+			if (!pickup_by_exten(chan, exten, !ast_strlen_zero(context) ? context : chan->context))
 				break;
 		}
 		ast_log(LOG_NOTICE, "No target channel found for %s.\n", exten);
