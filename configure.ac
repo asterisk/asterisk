@@ -1016,8 +1016,27 @@ if test "${USE_CURL}" != "no"; then
       if test $(printf "%d" 0x$(${CURL_CONFIG} --vernum)) -ge $(printf "%d" 0x070907); then
          CURL_INCLUDE=$(${CURL_CONFIG} --cflags)
          CURL_LIB=$(${CURL_CONFIG} --libs)
-         PBX_CURL=1
-         AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
+
+         AC_MSG_CHECKING(for curl_version() in curl/curl.h)
+         saved_cppflags="${CPPFLAGS}"
+         CPPFLAGS="${CPPFLAGS} ${CURL_INCLUDE}"
+         AC_COMPILE_IFELSE(
+            [AC_LANG_PROGRAM(
+                [#include <curl/curl.h>],
+                    [curl_version();])
+            ],[
+                AC_MSG_RESULT(yes)
+                ac_cv_curl_h="yes"
+            ],[
+                AC_MSG_RESULT(no)
+                ac_cv_curl_h="no"
+            ]
+	 )
+	 CPPFLAGS="${saved_cppflags}"
+         if test "${ac_cv_curl_h}" = "yes"; then
+             PBX_CURL=1
+             AC_DEFINE([HAVE_CURL], 1, [Define if your system has the curl libraries.])
+         fi
       fi
    fi
 fi
