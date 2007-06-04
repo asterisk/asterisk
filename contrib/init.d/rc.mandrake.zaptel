@@ -9,6 +9,8 @@
 #
 # hide: true
 
+# $Id$
+
 # Source function library.
 . /etc/rc.d/init.d/functions
 
