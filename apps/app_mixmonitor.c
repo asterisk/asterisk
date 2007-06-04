@@ -420,6 +420,11 @@ static int mixmonitor_cli(int fd, int argc, char **argv)
 
 static char *complete_mixmonitor_cli(const char *line, const char *word, int pos, int state)
 {
+	char *options[] = {"start", "stop", NULL};
+
+	if (pos == 1)
+		return ast_cli_complete (word, options, state);
+
 	return ast_complete_channels(line, word, pos, state, 2);
 }
 
