@@ -5148,7 +5148,7 @@ static int find_sdp(struct sip_request *req)
 	if (!strcasecmp(content_type, "application/sdp")) {
 		req->sdp_start = 0;
 		req->sdp_end = req->lines;
-		return 1;
+		return req->lines ? 1 : 0;
 	}
 
 	/* if it's not multipart/mixed, there cannot be an SDP */
