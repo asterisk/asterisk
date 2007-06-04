@@ -1950,9 +1950,9 @@ static void __attempt_transmit(void *data)
 							/* Hangup the fd */
 							fr.frametype = AST_FRAME_CONTROL;
 							fr.subclass = AST_CONTROL_HANGUP;
-							iax2_queue_frame(callno, &fr);
+							iax2_queue_frame(callno, &fr); // XXX
 							/* Remember, owner could disappear */
-							if (iaxs[callno]->owner)
+							if (iaxs[callno] && iaxs[callno]->owner)
 								iaxs[callno]->owner->hangupcause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
 						} else {
 							if (iaxs[callno]->reg) {
@@ -2388,6 +2388,8 @@ static void __get_from_jb(void *p)
 		case JB_OK:
 			fr = frame.data;
 			__do_deliver(fr);
+			/* __do_deliver() can cause the call to disappear */
+			pvt = iaxs[callno];
 			break;
 		case JB_INTERP:
 		{
@@ -2403,10 +2405,13 @@ static void __get_from_jb(void *p)
 			
 			/* queue the frame:  For consistency, we would call __do_deliver here, but __do_deliver wants an iax_frame,
 			 * which we'd need to malloc, and then it would free it.  That seems like a drag */
-			if (!ast_test_flag(iaxs[callno], IAX_ALREADYGONE))
+			if (!ast_test_flag(iaxs[callno], IAX_ALREADYGONE)) {
 				iax2_queue_frame(callno, &af);
+				/* iax2_queue_frame() could cause the call to disappear */
+				pvt = iaxs[callno];
+			}
 		}
-		break;
+			break;
 		case JB_DROP:
 			iax2_frame_free(frame.data);
 			break;
@@ -2419,7 +2424,8 @@ static void __get_from_jb(void *p)
 			break;
 		}
 	}
-	update_jbsched(pvt);
+	if (pvt)
+		update_jbsched(pvt);
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
@@ -2432,6 +2438,12 @@ static int get_from_jb(void *data)
 	return 0;
 }
 
+/*!
+ * \note This function assumes fr->callno is locked
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ */
 static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtrunk, unsigned int *tsout)
 {
 	int type, len;
@@ -2440,7 +2452,6 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 
 	/* Attempt to recover wrapped timestamps */
 	unwrap_timestamp(fr);
-	
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
 	if ( !fromtrunk && !ast_tvzero(iaxs[fr->callno]->rxcore))
@@ -2475,16 +2486,20 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	if( (!ast_test_flag(iaxs[fr->callno], IAX_FORCEJITTERBUF)) &&
 	    iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner) &&
 	    (ast_bridged_channel(iaxs[fr->callno]->owner)->tech->properties & AST_CHAN_TP_WANTSJITTER)) {
-                jb_frame frame;
+		jb_frame frame;
 
-                /* deliver any frames in the jb */
-                while(jb_getall(iaxs[fr->callno]->jb,&frame) == JB_OK)
-                        __do_deliver(frame.data);
+		/* deliver any frames in the jb */
+		while (jb_getall(iaxs[fr->callno]->jb, &frame) == JB_OK) {
+			__do_deliver(frame.data);
+			/* __do_deliver() can make the call disappear */
+			if (!iaxs[fr->callno])
+				return -1;
+		}
 
 		jb_reset(iaxs[fr->callno]->jb);
 
 		if (iaxs[fr->callno]->jbid > -1)
-                        ast_sched_del(sched, iaxs[fr->callno]->jbid);
+			ast_sched_del(sched, iaxs[fr->callno]->jbid);
 
 		iaxs[fr->callno]->jbid = -1;
 
@@ -3226,6 +3241,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	struct timeval waittimer = {0, 0}, tv;
 
 	lock_both(callno0, callno1);
+	if (!iaxs[callno0] || !iaxs[callno1]) {
+		unlock_both(callno0, callno1);
+		return AST_BRIDGE_FAILED;
+	}
 	/* Put them in native bridge mode */
 	if (!flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1)) {
 		iaxs[callno0]->bridgecallno = callno1;
@@ -3264,8 +3283,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			}
 			/* Remove from native mode */
 			lock_both(callno0, callno1);
-			iaxs[callno0]->bridgecallno = 0;
-			iaxs[callno1]->bridgecallno = 0;
+			if (iaxs[callno0])
+				iaxs[callno0]->bridgecallno = 0;
+			if (iaxs[callno1])
+				iaxs[callno1]->bridgecallno = 0;
 			unlock_both(callno0, callno1);
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
@@ -7095,6 +7116,10 @@ retryowner:
 					ast_mutex_unlock(&iaxsl[fr->callno]);
 					exists = ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num);
 					ast_mutex_lock(&iaxsl[fr->callno]);
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
 				} else
 					exists = 0;
 				/* Get OSP token if it does exist */
@@ -7845,7 +7870,7 @@ retryowner2:
 			return 1;
 		}
 		/* Unless this is an ACK or INVAL frame, ack it */
-		if (iaxs[fr->callno]->aseqno != iaxs[fr->callno]->iseqno)
+		if (iaxs[fr->callno] && iaxs[fr->callno]->aseqno != iaxs[fr->callno]->iseqno)
 			send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 	} else if (minivid) {
 		f.frametype = AST_FRAME_VIDEO;
