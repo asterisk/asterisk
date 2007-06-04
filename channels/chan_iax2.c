@@ -1393,6 +1393,16 @@ static void iax2_frame_free(struct iax_frame *fr)
 	iax_frame_free(fr);
 }
 
+/*!
+ * \brief Queue a frame to a call's owning asterisk channel
+ *
+ * \note This function assumes that iaxsl[callno] is locked when called.
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ * This function may unlock and lock the mutex associated with this callno,
+ * meaning that another thread may grab it and destroy the call.
+ */
 static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
 	/* Assumes lock for callno is already held... */
@@ -1664,6 +1674,14 @@ static void reload_firmware(void)
 	AST_LIST_UNLOCK(&firmwares);
 }
 
+/*!
+ * \note This function assumes that iaxsl[callno] is locked when called.
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ * This function calls iax2_queue_frame(), which may unlock and lock the mutex 
+ * associated with this callno, meaning that another thread may grab it and destroy the call.
+ */
 static int __do_deliver(void *data)
 {
 	/* Just deliver the packet by using queueing.  This is called by
