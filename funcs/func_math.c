@@ -70,9 +70,9 @@ enum TypeOfResult {
 static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		char *buf, size_t len)
 {
-	float fnum1;
-	float fnum2;
-	float ftmp = 0;
+	double fnum1;
+	double fnum2;
+	double ftmp = 0;
 	char *op;
 	int iaction = -1;
 	int type_of_result = FLOAT_RESULT;
@@ -180,12 +180,12 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		return -1;
 	}
 
-	if (sscanf(mvalue1, "%f", &fnum1) != 1) {
+	if (sscanf(mvalue1, "%lf", &fnum1) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue1);
 		return -1;
 	}
 
-	if (sscanf(mvalue2, "%f", &fnum2) != 1) {
+	if (sscanf(mvalue2, "%lf", &fnum2) != 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid number\n", mvalue2);
 		return -1;
 	}
