@@ -6844,6 +6844,7 @@ static int socket_process(struct iax2_thread *thread)
 		    ((f.subclass != IAX_COMMAND_INVAL) ||
 		     (f.frametype != AST_FRAME_IAX))) {
 			unsigned char x;
+			int call_to_destroy;
 			/* XXX This code is not very efficient.  Surely there is a better way which still
 			       properly handles boundary conditions? XXX */
 			/* First we have to qualify that the ACKed value is within our window */
@@ -6857,20 +6858,23 @@ static int socket_process(struct iax2_thread *thread)
 					/* Ack the packet with the given timestamp */
 					if (option_debug && iaxdebug)
 						ast_log(LOG_DEBUG, "Cancelling transmission of packet %d\n", x);
+					call_to_destroy = 0;
 					AST_LIST_LOCK(&queue);
 					AST_LIST_TRAVERSE(&queue, cur, list) {
 						/* If it's our call, and our timestamp, mark -1 retries */
 						if ((fr->callno == cur->callno) && (x == cur->oseqno)) {
 							cur->retries = -1;
 							/* Destroy call if this is the end */
-							if (cur->final) { 
-								if (iaxdebug && option_debug)
-									ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr->callno);
-								iax2_destroy(fr->callno);
-							}
+							if (cur->final)
+								call_to_destroy = fr->callno;
 						}
 					}
 					AST_LIST_UNLOCK(&queue);
+					if (call_to_destroy) {
+						if (iaxdebug && option_debug)
+							ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", call_to_destroy);
+						iax2_destroy(call_to_destroy);
+					}
 				}
 				/* Note how much we've received acknowledgement for */
 				if (iaxs[fr->callno])
