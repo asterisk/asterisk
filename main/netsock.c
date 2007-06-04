@@ -185,7 +185,7 @@ int ast_netsock_set_qos(int netsocket, int tos, int cos)
 	    ast_log(LOG_WARNING, "Unable to set CoS to %d\n", cos);
 	else {
 	    if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using CoS mark %d\n", tos);
+		ast_verbose(VERBOSE_PREFIX_2 "Using CoS mark %d\n", cos);
 	}
 #endif
 							

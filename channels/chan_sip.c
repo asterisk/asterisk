@@ -17771,7 +17771,7 @@ static int reload_config(enum channelreloadreason reason)
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 
-				ast_netsock_set_qos(sipsock, global_tos_sip, global_tos_sip);
+				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip);
 			}
 		}
 	}
