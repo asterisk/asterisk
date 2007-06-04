@@ -511,7 +511,7 @@ static void do_forward(struct chanlist *o,
 			senddialevent(in, c);
 			/* After calling, set callerid to extension */
 			if (!ast_test_flag(peerflags, OPT_ORIGINAL_CLID)) {
-				char cidname[AST_MAX_EXTENSION];
+				char cidname[AST_MAX_EXTENSION] = "";
 				ast_set_callerid(c, S_OR(in->macroexten, in->exten), get_cid_name(cidname, sizeof(cidname), in), NULL);
 			}
 			/* Hangup the original channel now, in case we needed it */
@@ -1192,7 +1192,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	struct cause_args num = { chan, 0, 0, 0 };
 	int cause;
 	char numsubst[256];
-	char cidname[AST_MAX_EXTENSION];
+	char cidname[AST_MAX_EXTENSION] = "";
 
 	struct ast_bridge_config config;
 	unsigned int calldurationlimit = 0;
