@@ -55,12 +55,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static AST_LIST_HEAD_STATIC(groups, ast_group_info);
 
-/* !
-This function presents a dialtone and reads an extension into 'collect' 
-which must be a pointer to a **pre-initialized** array of char having a 
-size of 'size' suitable for writing to.  It will collect no more than the smaller 
-of 'maxlen' or 'size' minus the original strlen() of collect digits.
-\return 0 if extension does not exist, 1 if extension exists
+/*!
+ * \brief This function presents a dialtone and reads an extension into 'collect' 
+ * which must be a pointer to a **pre-initialized** array of char having a 
+ * size of 'size' suitable for writing to.  It will collect no more than the smaller 
+ * of 'maxlen' or 'size' minus the original strlen() of collect digits.
+ * \param chan struct.
+ * \param context 
+ * \param collect 
+ * \param size 
+ * \param maxlen
+ * \param timeout timeout in seconds
+ *
+ * \return 0 if extension does not exist, 1 if extension exists
 */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
@@ -98,11 +105,13 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 	return res;
 }
 
-/*! \param c The channel to read from
- *  \param prompt The file to stream to the channel
- *  \param s The string to read in to.  Must be at least the size of your length
- *  \param maxlen How many digits to read (maximum)
- *  \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
+/*!
+ * \brief ast_app_getdata
+ * \param c The channel to read from
+ * \param prompt The file to stream to the channel
+ * \param s The string to read in to.  Must be at least the size of your length
+ * \param maxlen How many digits to read (maximum)
+ * \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
  *      "ludicrous time" (essentially never times out) */
 int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxlen, int timeout)
 {
@@ -491,19 +500,19 @@ static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
 /*! Optionally play a sound file or a beep, then record audio and video from the channel.
- * @param chan Channel to playback to/record from.
- * @param playfile Filename of sound to play before recording begins.
- * @param recordfile Filename to record to.
- * @param maxtime Maximum length of recording (in milliseconds).
- * @param fmt Format(s) to record message in. Multiple formats may be specified by separating them with a '|'.
- * @param duration Where to store actual length of the recorded message (in milliseconds).
- * @param beep Whether to play a beep before starting to record.
- * @param silencethreshold 
- * @param maxsilence Length of silence that will end a recording (in milliseconds).
- * @param path Optional filesystem path to unlock.
- * @param prepend If true, prepend the recorded audio to an existing file.
- * @param acceptdtmf DTMF digits that will end the recording.
- * @param canceldtmf DTMF digits that will cancel the recording.
+ * \param chan Channel to playback to/record from.
+ * \param playfile Filename of sound to play before recording begins.
+ * \param recordfile Filename to record to.
+ * \param maxtime Maximum length of recording (in milliseconds).
+ * \param fmt Format(s) to record message in. Multiple formats may be specified by separating them with a '|'.
+ * \param duration Where to store actual length of the recorded message (in milliseconds).
+ * \param beep Whether to play a beep before starting to record.
+ * \param silencethreshold 
+ * \param maxsilence Length of silence that will end a recording (in milliseconds).
+ * \param path Optional filesystem path to unlock.
+ * \param prepend If true, prepend the recorded audio to an existing file.
+ * \param acceptdtmf DTMF digits that will end the recording.
+ * \param canceldtmf DTMF digits that will cancel the recording.
  */
 
 static int __ast_play_and_record(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, int beep, int silencethreshold, int maxsilence, const char *path, int prepend, const char *acceptdtmf, const char *canceldtmf)
