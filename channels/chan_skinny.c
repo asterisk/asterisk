@@ -4438,15 +4438,21 @@ static int get_input(struct skinnysession *s)
  	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
 	fds[0].revents = 0;
-	res = poll(fds, 1, -1);
-
+	res = poll(fds, 1, (keep_alive * 1100)); /* If nothing has happen, client is dead */
+						 /* we add 10% to the keep_alive to deal */
+						 /* with network delays, etc */
 	if (res < 0) {
-		if (errno != EINTR)
-		{
+		if (errno != EINTR) {
 			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 			return res;
 		}
- 	}
+ 	} else if (res == 0) {
+		if (skinnydebug)
+			ast_verbose("Skinny Client was lost, unregistering\n");
+		skinny_unregister(NULL, s);
+		return -1;
+	}
+		     
 	if (fds[0].revents) {
 		ast_mutex_lock(&s->lock);
 		memset(s->inbuf,0,sizeof(s->inbuf));
