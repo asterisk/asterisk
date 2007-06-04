@@ -1016,7 +1016,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				} else {
 					ast_verbose("Internal RTCP NTP clock skew detected: "
 							   "lsr=%u, now=%u, dlsr=%u (%d:%03dms), "
-							   "diff=%d",
+							   "diff=%d\n",
 							   lsr, comp, dlsr, dlsr / 65536,
 							   (dlsr % 65536) * 1000 / 65536,
 							   dlsr - (comp - lsr));
