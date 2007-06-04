@@ -10,6 +10,8 @@
 # processname:	asterisk
 # 
 
+# $Id$
+
 TTY=9			# TTY (if you want one) for Asterisk to run on
 CONSOLE=yes		# Whether or not you want a console
 NOTIFY=root		# Who to notify about crashes
