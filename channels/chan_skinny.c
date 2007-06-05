@@ -1038,6 +1038,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int skinny_senddigit_begin(struct ast_channel *ast, char digit);
 static int skinny_senddigit_end(struct ast_channel *ast, char digit, unsigned int duration);
+static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s);
 
 static const struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
@@ -1711,7 +1712,8 @@ static void do_housekeeping(struct skinnysession *s)
 	struct skinny_line *l;
 */
 
-	transmit_displaymessage(s, NULL);
+	/* Update time on device */
+	handle_time_date_req_message(NULL, s);
 
 /*
 	for (l = d->lines; l; l = l->next) {
