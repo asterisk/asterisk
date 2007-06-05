@@ -726,6 +726,12 @@ struct iax2_thread {
 	time_t checktime;
 	ast_mutex_t lock;
 	ast_cond_t cond;
+	unsigned short ffcallno;		/* if this thread is processing a full frame, the
+						   callno for that frame will be here, so we can
+						   avoid dispatching any more full frames for that
+						   callno to other threads */
+	struct sockaddr_in ffsin;		/* remember the peer IP/port number for a full frame
+						   in process */
 };
 
 /* Thread lists */
@@ -965,6 +971,11 @@ static struct iax2_thread *find_idle_thread(void)
 		free(thread);
 		thread = NULL;
 	}
+
+	/* this thread is not processing a full frame (since it is idle),
+	   so ensure that the field for the full frame call number is empty */
+	thread->ffcallno = 0;
+	memset(&thread->ffsin, 0, sizeof(thread->ffsin));
 
 	return thread;
 }
@@ -6471,37 +6482,68 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_thread *thread;
 	socklen_t len;
 	time_t t;
-	static time_t last_errtime=0;
+	static time_t last_errtime = 0;
+	struct ast_iax2_full_hdr *fh;
 
-	thread = find_idle_thread();
-	if (thread) {
-		len = sizeof(thread->iosin);
-		thread->iofd = fd;
-		thread->iores = recvfrom(fd, thread->buf, sizeof(thread->buf), 0,(struct sockaddr *) &thread->iosin, &len);
-		if (thread->iores < 0) {
-			if (errno != ECONNREFUSED && errno != EAGAIN)
-				ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
-			handle_error();
-			insert_idle_thread(thread);
-			return 1;
-		}
-		if (test_losspct && ((100.0 * ast_random() / (RAND_MAX + 1.0)) < test_losspct)) { /* simulate random loss condition */
-			insert_idle_thread(thread);
-			return 1;
-		}
-		/* Mark as ready and send on its way */
-		thread->iostate = IAX_IOSTATE_READY;
-#ifdef DEBUG_SCHED_MULTITHREAD
-		ast_copy_string(thread->curfunc, "socket_process", sizeof(thread->curfunc));
-#endif
-		signal_condition(&thread->lock, &thread->cond);
-	} else {
+	if (!(thread = find_idle_thread())) {
 		time(&t);
 		if (t != last_errtime)
 			ast_log(LOG_NOTICE, "Out of idle IAX2 threads for I/O, pausing!\n");
 		last_errtime = t;
 		usleep(1);
+		return 1;
 	}
+
+	len = sizeof(thread->iosin);
+	thread->iofd = fd;
+	thread->iores = recvfrom(fd, thread->buf, sizeof(thread->buf), 0, (struct sockaddr *) &thread->iosin, &len);
+	if (thread->iores < 0) {
+		if (errno != ECONNREFUSED && errno != EAGAIN)
+			ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
+		handle_error();
+		insert_idle_thread(thread);
+		return 1;
+	}
+	if (test_losspct && ((100.0 * ast_random() / (RAND_MAX + 1.0)) < test_losspct)) { /* simulate random loss condition */
+		insert_idle_thread(thread);
+		return 1;
+	}
+	
+	/* Determine if this frame is a full frame; if so, and any thread is currently
+	   processing a full frame for the same callno from this peer, then drop this
+	   frame (and the peer will retransmit it) */
+	fh = (struct ast_iax2_full_hdr *) thread->buf;
+	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
+		struct iax2_thread *cur = NULL;
+		
+		AST_LIST_LOCK(&active_list);
+		AST_LIST_TRAVERSE(&active_list, cur, list) {
+			if ((cur->ffcallno == ntohs(fh->scallno)) &&
+			    !memcmp(&cur->ffsin, &thread->iosin, sizeof(cur->ffsin)))
+				break;
+		}
+		AST_LIST_UNLOCK(&active_list);
+		if (cur) {
+			/* we found another thread processing a full frame for this call,
+			   so we can't accept this frame */
+			ast_log(LOG_WARNING, "Dropping full frame from %s (callno %d) received too rapidly\n",
+				ast_inet_ntoa(thread->iosin.sin_addr), cur->ffcallno);
+			insert_idle_thread(thread);
+			return 1;
+		} else {
+			/* this thread is going to process this frame, so mark it */
+			thread->ffcallno = ntohs(fh->scallno);
+			memcpy(&thread->ffsin, &thread->iosin, sizeof(thread->ffsin));
+		}
+	}
+	
+	/* Mark as ready and send on its way */
+	thread->iostate = IAX_IOSTATE_READY;
+#ifdef DEBUG_SCHED_MULTITHREAD
+	ast_copy_string(thread->curfunc, "socket_process", sizeof(thread->curfunc));
+#endif
+	signal_condition(&thread->lock, &thread->cond);
+
 	return 1;
 }
 
