@@ -637,7 +637,6 @@ static void populate_defaults(struct ast_vm_user *vmu)
 
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
 {
-    ast_log (LOG_DEBUG, "I'm applying option %s with value %s\n", var, value);
 	int x;
 	if (!strcasecmp(var, "attach")) {
 		ast_set2_flag(vmu, ast_true(value), VM_ATTACH);
@@ -652,7 +651,6 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 #ifdef IMAP_STORAGE
 	} else if (!strcasecmp(var, "imapuser")) {
 		ast_copy_string(vmu->imapuser, value, sizeof(vmu->imapuser));
-        ast_log (LOG_DEBUG, "vmu->imapuser = %s\n", vmu->imapuser);
 	} else if (!strcasecmp(var, "imappassword")) {
 		ast_copy_string(vmu->imappassword, value, sizeof(vmu->imappassword));
 #endif
@@ -745,7 +743,6 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 {
 	struct ast_variable *tmp;
 	tmp = var;
-    ast_log (LOG_DEBUG, "I'm applying the value %s somewhere...\n", tmp->name);
 	while (tmp) {
 		if (!strcasecmp(tmp->name, "vmsecret")) {
 			ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
@@ -764,7 +761,6 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
 #ifdef IMAP_STORAGE
 		} else if (!strcasecmp(tmp->name, "imapuser")) {
-            ast_log (LOG_DEBUG, "I'm setting the imapuser field to %s\n", tmp->name);
 			ast_copy_string(retval->imapuser, tmp->value, sizeof(retval->imapuser));
 		} else if (!strcasecmp(tmp->name, "imappassword")) {
 			ast_copy_string(retval->imappassword, tmp->value, sizeof(retval->imappassword));
@@ -4587,6 +4583,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	char category[32];
 	char todir[PATH_MAX];
 	int res = 0;
+	char *attachedfilefmt;
 	char *temp;
 	char buf[1024];
 
@@ -4610,7 +4607,23 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	make_gsm_file(vms->fn, vms->imapuser, todir, vms->curmsg);
 
 	mail_fetchstructure (vms->mailstream,vms->msgArray[vms->curmsg],&body);
-	save_body(body,vms,"3","gsm");
+	
+	/* We have the body, now we extract the file name of the first attachment. */
+	if (body->nested.part->next && body->nested.part->next->body.parameter->value) {
+		attachedfilefmt = ast_strdupa(body->nested.part->next->body.parameter->value);
+	} else {
+		ast_log(LOG_ERROR, "There is no file attached to this IMAP message.\n");
+		return -1;
+	}
+	
+	/* Find the format of the attached file */
+
+	strsep(&attachedfilefmt, ".");
+	if (!attachedfilefmt) {
+		ast_log(LOG_ERROR, "File format could not be obtained from IMAP message attachment\n");
+		return -1;
+	}
+	save_body(body, vms, "2", attachedfilefmt);
 
 	adsi_message(chan, vms);
 	if (!vms->curmsg)
