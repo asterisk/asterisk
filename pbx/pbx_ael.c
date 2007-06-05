@@ -2325,6 +2325,33 @@ void check_switch_expr(pval *item, struct argapp *apps)
 			warns++;
 		}
 	}
+#else
+	pval *t,*tl=0,*p2;
+	int def= 0;
+	
+	/* first of all, does this switch have a default case ? */
+	for (t=item->u2.statements; t; t=t->next) {
+		if (t->type == PV_DEFAULT) {
+			def =1;
+			break;
+		}
+		tl = t;
+	}
+	if (def) /* nothing to check. All cases accounted for! */
+		return;
+	/* if no default, warn and insert a default case at the end */
+	p2 = tl->next = calloc(1, sizeof(struct pval));
+	
+	p2->type = PV_DEFAULT;
+	p2->startline = tl->startline;
+	p2->endline = tl->endline;
+	p2->startcol = tl->startcol;
+	p2->endcol = tl->endcol;
+	p2->filename = strdup(tl->filename);
+	ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: A default case was automatically added to the switch.\n",
+			p2->filename, p2->startline, p2->endline);
+	warns++;
+
 #endif
 }
 
