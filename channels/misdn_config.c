@@ -118,6 +118,7 @@ static const struct misdn_cfg_spec port_spec[] = {
 #endif
 	{ "need_more_infos", MISDN_CFG_NEED_MORE_INFOS, MISDN_CTYPE_BOOL, "0", NONE },
 	{ "noautorespond_on_setup", MISDN_CFG_NOAUTORESPOND_ON_SETUP, MISDN_CTYPE_BOOL, "0", NONE },
+	{ "overlapdial", MISDN_CFG_OVERLAP_DIAL, MISDN_CTYPE_BOOLINT, "0", 4 },
 	{ "nttimeout", MISDN_CFG_NTTIMEOUT, MISDN_CTYPE_BOOL, "no", NONE },
 	{ "bridging", MISDN_CFG_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE },
 	{ "jitterbuffer", MISDN_CFG_JITTERBUFFER, MISDN_CTYPE_INT, "4000", NONE },
