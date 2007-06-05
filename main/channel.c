@@ -435,7 +435,8 @@ char *ast_safe_string_alloc(const char *fmt, ...)
 	len = vsnprintf(buf, 1, fmt, args);
 	va_end(args);
 
-	b2 = ast_malloc(len + 1);
+	if (!(b2 = ast_malloc(len + 1)))
+		return NULL;
 
 	va_start(args, fmt);
 	vsnprintf(b2, len + 1,  fmt, args);
