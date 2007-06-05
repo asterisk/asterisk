@@ -513,7 +513,7 @@ struct {								\
   the list traversal (and without having to re-traverse the list to modify the
   previous entry, if any).
  */
-#define AST_LIST_REMOVE_CURRENT(head, field)						\
+#define AST_LIST_REMOVE_CURRENT(head, field) do { \
 	__new_prev->field.next = NULL;							\
 	__new_prev = __list_prev;							\
 	if (__list_prev)								\
@@ -521,7 +521,8 @@ struct {								\
 	else										\
 		(head)->first = __list_next;						\
 	if (!__list_next)								\
-		(head)->last = __list_prev;
+		(head)->last = __list_prev; \
+	} while (0)
 
 #define AST_RWLIST_REMOVE_CURRENT AST_LIST_REMOVE_CURRENT
 
