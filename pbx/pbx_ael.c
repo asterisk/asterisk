@@ -3891,7 +3891,29 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 				np2->appargs = strdup(buf);
 				linkprio(exten, np2);
 			}
-			
+			/* add any includes */
+			for (p2=p->u3.macro_statements; p2; p2=p2->next) {
+				pval *p3;
+				
+				switch (p2->type) {
+				case PV_INCLUDES:
+					for (p3 = p2->u1.list; p3 ;p3=p3->next) {
+						if ( p3->u2.arglist ) {
+							snprintf(buf,sizeof(buf), "%s|%s|%s|%s|%s", 
+									 p3->u1.str,
+									 p3->u2.arglist->u1.str,
+									 p3->u2.arglist->next->u1.str,
+									 p3->u2.arglist->next->next->u1.str,
+									 p3->u2.arglist->next->next->next->u1.str);
+							ast_context_add_include2(context, buf, registrar);
+						} else
+							ast_context_add_include2(context, p3->u1.str, registrar);
+					}
+					break;
+				default:
+					break;
+				}
+			}
 			/* CONTAINS APPCALLS, CATCH, just like extensions... */
 			gen_prios(exten, p->u1.str, p->u3.macro_statements, 0, context );
 			if (exten->return_needed) {  /* most likely, this will go away */

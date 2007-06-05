@@ -577,6 +577,7 @@ macro_statements: /* empty */ { $$ = NULL; }
 	;
 
 macro_statement : statement {$$=$1;}
+	| includes { $$=$1;}
 	| KW_CATCH word LC statements RC {
 		$$ = npval2(PV_CATCH, &@1, &@5);
 		$$->u1.str = $2;
