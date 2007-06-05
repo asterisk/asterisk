@@ -37,7 +37,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <signal.h>
 #include <sys/file.h>
+#include <semaphore.h>
 
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
@@ -58,6 +60,7 @@
 #include <asterisk/indications.h>
 #include <asterisk/app.h>
 #include <asterisk/features.h>
+#include <asterisk/sched.h>
 
 #include <chan_misdn_config.h>
 #include <isdn_lib.h>
@@ -201,6 +204,11 @@ struct chan_list {
 
 	const struct tone_zone_sound *ts;
 	
+	int overlap_dial;
+	int overlap_dial_task;
+	ast_mutex_t overlap_tv_lock;
+	struct timeval overlap_tv;
+  
 	struct chan_list *peer;
 	struct chan_list *next;
 	struct chan_list *prev;
@@ -261,11 +269,17 @@ static struct robin_list* get_robin_position (char *group)
 }
 
 
+/* the main schedule context for stuff like l1 watcher, overlap dial, ... */
+static struct sched_context *misdn_tasks = NULL;
+static pthread_t misdn_tasks_thread;
+
 static void chan_misdn_log(int level, int port, char *tmpl, ...);
 
 static struct ast_channel *misdn_new(struct chan_list *cl, int state,  char *exten, char *callerid, int format, int port, int c);
 static void send_digit_to_chan(struct chan_list *cl, char digit );
 
+static void hangup_chan(struct chan_list *ch);
+static int pbx_start_chan(struct chan_list *ch);
 
 #define AST_CID_P(ast) ast->cid.cid_num
 #define AST_BRIDGED_P(ast) ast_bridged_channel(ast) 
@@ -437,6 +451,144 @@ static void print_bearer(struct misdn_bchannel *bc)
 	}
 }
 /*************** Helpers END *************/
+
+static void sighandler(int sig)
+{}
+
+static void* misdn_tasks_thread_func (void *data)
+{
+	int wait;
+	struct sigaction sa;
+
+	sa.sa_handler = sighandler;
+	sa.sa_flags = SA_NODEFER;
+	sigemptyset(&sa.sa_mask);
+	sigaddset(&sa.sa_mask, SIGUSR1);
+	sigaction(SIGUSR1, &sa, NULL);
+	
+	sem_post((sem_t *)data);
+
+	while (1) {
+		wait = ast_sched_wait(misdn_tasks);
+		if (wait < 0)
+			wait = 8000;
+		if (poll(NULL, 0, wait) < 0)
+			chan_misdn_log(4, 0, "Waking up misdn_tasks thread\n");
+		ast_sched_runq(misdn_tasks);
+	}
+	return NULL;
+}
+
+static void misdn_tasks_init (void)
+{
+	sem_t blocker;
+	int i = 5;
+
+	if (sem_init(&blocker, 0, 0)) {
+		perror("chan_misdn: Failed to initialize semaphore!");
+		exit(1);
+	}
+
+	chan_misdn_log(4, 0, "Starting misdn_tasks thread\n");
+	
+	misdn_tasks = sched_context_create();
+	pthread_create(&misdn_tasks_thread, NULL, misdn_tasks_thread_func, &blocker);
+
+	while (sem_wait(&blocker) && --i);
+	sem_destroy(&blocker);
+}
+
+static void misdn_tasks_destroy (void)
+{
+	if (misdn_tasks) {
+		chan_misdn_log(4, 0, "Killing misdn_tasks thread\n");
+		if ( pthread_cancel(misdn_tasks_thread) == 0 ) {
+			cb_log(4, 0, "Joining misdn_tasks thread\n");
+			pthread_join(misdn_tasks_thread, NULL);
+		}
+		sched_context_destroy(misdn_tasks);
+	}
+}
+
+static inline void misdn_tasks_wakeup (void)
+{
+	pthread_kill(misdn_tasks_thread, SIGUSR1);
+}
+
+static inline int _misdn_tasks_add_variable (int timeout, ast_sched_cb callback, void *data, int variable)
+{
+	int task_id;
+
+	if (!misdn_tasks) {
+		misdn_tasks_init();
+	}
+	task_id = ast_sched_add_variable(misdn_tasks, timeout, callback, data, variable);
+	misdn_tasks_wakeup();
+
+	return task_id;
+}
+
+#if 0
+static int misdn_tasks_add (int timeout, ast_sched_cb callback, void *data)
+{
+	return _misdn_tasks_add_variable(timeout, callback, data, 0);
+}
+#endif
+
+static int misdn_tasks_add_variable (int timeout, ast_sched_cb callback, void *data)
+{
+	return _misdn_tasks_add_variable(timeout, callback, data, 1);
+}
+
+static void misdn_tasks_remove (int task_id)
+{
+	ast_sched_del(misdn_tasks, task_id);
+}
+
+static int misdn_overlap_dial_task (void *data)
+{
+	struct timeval tv_end, tv_now;
+	int diff;
+	struct chan_list *ch = (struct chan_list *)data;
+
+	chan_misdn_log(4, ch->bc->port, "overlap dial task, chan_state: %d\n", ch->state);
+
+	if (ch->state != MISDN_WAITING4DIGS) {
+		ch->overlap_dial_task = -1;
+		return 0;
+	}
+	
+	ast_mutex_lock(&ch->overlap_tv_lock);
+	tv_end = ch->overlap_tv;
+	ast_mutex_unlock(&ch->overlap_tv_lock);
+	
+	tv_end.tv_sec += ch->overlap_dial;
+	tv_now = ast_tvnow();
+
+	diff = ast_tvdiff_ms(tv_end, tv_now);
+
+	if (diff <= 100) {
+		/* if we are 100ms near the timeout, we are satisfied.. */
+		stop_indicate(ch);
+		if (ast_exists_extension(ch->ast, ch->context, ch->bc->dad, 1, ch->bc->oad)) {
+			ch->state=MISDN_DIALING;
+			if (pbx_start_chan(ch) < 0) {
+				chan_misdn_log(-1, ch->bc->port, "ast_pbx_start returned < 0 in misdn_overlap_dial_task\n");
+				goto misdn_overlap_dial_task_disconnect;
+			}
+		} else {
+misdn_overlap_dial_task_disconnect:
+			hanguptone_indicate(ch);
+			if (ch->bc->nt)
+				misdn_lib_send_event(ch->bc, EVENT_RELEASE_COMPLETE );
+			else
+				misdn_lib_send_event(ch->bc, EVENT_RELEASE);
+		}
+		ch->overlap_dial_task = -1;
+		return 0;
+	} else
+		return diff;
+}
 
 static void send_digit_to_chan(struct chan_list *cl, char digit )
 {
@@ -1581,8 +1733,7 @@ static int read_config(struct chan_list *ch, int orig) {
 			debug_numplan(port, bc->cpnnumplan,"CTON");
 		}
 
-		
-		
+		ch->overlap_dial = 0;
 	} else { /** ORIGINATOR MISDN **/
 	
 		misdn_cfg_get( port, MISDN_CFG_CPNDIALPLAN, &bc->cpnnumplan, sizeof(int));
@@ -1647,7 +1798,11 @@ static int read_config(struct chan_list *ch, int orig) {
 		if ( !ast_strlen_zero(bc->rad) ) 
 			ast->cid.cid_rdnis=strdup(bc->rad);
 		
+		misdn_cfg_get(bc->port, MISDN_CFG_OVERLAP_DIAL, &ch->overlap_dial, sizeof(ch->overlap_dial));
+		ast_mutex_init(&ch->overlap_tv_lock);
 	} /* ORIG MISDN END */
+
+	ch->overlap_dial_task = -1;
 	
 	return 0;
 }
@@ -2583,6 +2738,7 @@ static struct chan_list *init_chan_list(int orig)
 	cl->need_queue_hangup=1;
 	cl->need_hangup=1;
 	cl->need_busy=1;
+	cl->overlap_dial_task=-1;
 	
 	return cl;
 	
@@ -3130,6 +3286,13 @@ static void release_chan(struct misdn_bchannel *bc) {
 				chan_misdn_log(5,bc->port,"Jitterbuffer already destroyed.\n");
 		}
 		
+		if (ch->overlap_dial) {
+			if (ch->overlap_dial_task != -1) {
+				misdn_tasks_remove(ch->overlap_dial_task);
+				ch->overlap_dial_task = -1;
+			}
+			ast_mutex_destroy(&ch->overlap_tv_lock);
+		}
 		if (ch) {
 			
 			close(ch->pipe[0]);
@@ -3529,6 +3692,18 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 				break;
 			}
+
+			if (ch->overlap_dial) {
+				ast_mutex_lock(&ch->overlap_tv_lock);
+				ch->overlap_tv = ast_tvnow();
+				ast_mutex_unlock(&ch->overlap_tv_lock);
+				if (ch->overlap_dial_task == -1) {
+					ch->overlap_dial_task = 
+						misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
+				}
+				break;
+			}
+
 			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 				ch->state=MISDN_DIALING;
 	  
@@ -3758,7 +3933,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 		
-		if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
+		if (!ch->overlap_dial && ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 			
 			if (!ch->noautorespond_on_setup) {
 				ch->state=MISDN_DIALING;
@@ -3812,15 +3987,27 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				/** ADD IGNOREPAT **/
 				
 				ch->state=MISDN_WAITING4DIGS;
-				int stop_tone;
+				int stop_tone, dad_len;
 				misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
-				if ( (!ast_strlen_zero(bc->dad)) && stop_tone ) 
+
+				dad_len = ast_strlen_zero(bc->dad);
+				
+				if ( !dad_len && stop_tone )
 					stop_indicate(ch);
 				else {
-					if (bc->nt) 
+					if (bc->nt)
 						dialtone_indicate(ch);
 				}
 				
+				if (ch->overlap_dial && !dad_len) {
+					ast_mutex_lock(&ch->overlap_tv_lock);
+					ch->overlap_tv = ast_tvnow();
+					ast_mutex_unlock(&ch->overlap_tv_lock);
+					if (ch->overlap_dial_task == -1) {
+						ch->overlap_dial_task = 
+							misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
+					}
+				}
 			}
 		}
       
@@ -4456,6 +4643,8 @@ int unload_module(void)
 {
 	/* First, take us out of the channel loop */
 	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+	
+	misdn_tasks_destroy();
 	
 	if (!g_config_initialized) return 0;
 	
