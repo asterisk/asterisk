@@ -428,6 +428,31 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 }
 #endif
 
+void ast_module_shutdown(void)
+{
+	struct ast_module *mod;
+	AST_LIST_HEAD_NOLOCK_STATIC(local_module_list, ast_module);
+
+	/* We have to call the unload() callbacks in reverse order that the modules
+	 * exist in the module list so it is the reverse order of how they were
+	 * loaded. */
+
+	AST_LIST_LOCK(&module_list);
+	while ((mod = AST_LIST_REMOVE_HEAD(&module_list, entry)))
+		AST_LIST_INSERT_HEAD(&local_module_list, mod, entry);
+	AST_LIST_UNLOCK(&module_list);
+
+	while ((mod = AST_LIST_REMOVE_HEAD(&local_module_list, entry))) {
+		if (mod->info->unload)
+			mod->info->unload();
+		/* Since this should only be called when shutting down "gracefully",
+		 * all channels should be down before we get to this point, meaning
+		 * there will be no module users left. */
+		AST_LIST_HEAD_DESTROY(&mod->users);
+		free(mod);
+	}
+}
+
 int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode force)
 {
 	struct ast_module *mod;

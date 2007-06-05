@@ -126,6 +126,7 @@ int daemon(int, int);  /* defined in libresolv of all places */
 #include "asterisk/version.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/module.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 
@@ -1244,6 +1245,9 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 				ast_verbose("Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
 			return;
 		}
+
+		if (nice)
+			ast_module_shutdown();
 	}
 	if (ast_opt_console || ast_opt_remote) {
 		if (getenv("HOME")) 

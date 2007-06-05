@@ -141,6 +141,13 @@ int ast_loader_register(int (*updater)(void));
  */
 int ast_loader_unregister(int (*updater)(void));
 
+/*!
+ * \brief Run the unload() callback for all loaded modules
+ *
+ * This function should be called when Asterisk is shutting down gracefully.
+ */
+void ast_module_shutdown(void);
+
 /*! 
  * \brief Match modules names for the Asterisk cli.
  * \param line Unused by this function, but this should be the line we are
