@@ -1430,9 +1430,10 @@ static void zt_enable_ec(struct zt_pvt *p)
 			ast_log(LOG_WARNING, "Unable to enable echo cancellation on channel %d\n", p->channel);
 		else {
 			p->echocanon = 1;
-			ast_log(LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
 		}
-	} else
+	} else if (option_debug)
 		ast_log(LOG_DEBUG, "No echo cancellation requested\n");
 }
 
@@ -1461,7 +1462,7 @@ static void zt_disable_ec(struct zt_pvt *p)
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
-		else
+		else if (option_debug)
 			ast_log(LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
 	}
 	p->echocanon = 0;
@@ -2834,7 +2835,8 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 			ast_log(LOG_WARNING, "No index in TXGAIN?\n");
 			return -1;
 		}
-		ast_log(LOG_DEBUG, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
 		return set_actual_txgain(p->subs[index].zfd, 0, p->txgain + (float) *scp, p->law);
 	case AST_OPTION_RXGAIN:
 		scp = (signed char *) data;
@@ -2843,7 +2845,8 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 			ast_log(LOG_WARNING, "No index in RXGAIN?\n");
 			return -1;
 		}
-		ast_log(LOG_DEBUG, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
 		return set_actual_rxgain(p->subs[index].zfd, 0, p->rxgain + (float) *scp, p->law);
 	case AST_OPTION_TONE_VERIFY:
 		if (!p->dsp)
@@ -3589,9 +3592,12 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 	struct zt_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = *dest;
 
-	ast_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+
 	if (p->confirmanswer) {
-		ast_log(LOG_DEBUG, "Confirm answer on %s!\n", ast->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Confirm answer on %s!\n", ast->name);
 		/* Upon receiving a DTMF digit, consider this an answer confirmation instead
 		   of a DTMF digit */
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
@@ -3601,7 +3607,8 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 		p->confirmanswer = 0;
 	} else if (p->callwaitcas) {
 		if ((f->subclass == 'A') || (f->subclass == 'D')) {
-			ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
 			if (p->cidspill)
 				free(p->cidspill);
 			send_cwcidspill(p);
@@ -3627,9 +3634,9 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 						ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
 				} else
 					ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
-			} else
+			} else if (option_debug)
 				ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
-		} else
+		} else if (option_debug)
 				ast_log(LOG_DEBUG, "Fax already handled\n");
 		zt_confmute(p, 0);
 		p->subs[index].f.frametype = AST_FRAME_NULL;
@@ -3684,7 +3691,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	} else
 		res = zt_get_event(p->subs[index].zfd);
 
-	ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
 
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
 		p->pulsedial =  (res & ZT_EVENT_PULSEDIGIT) ? 1 : 0;
@@ -3705,7 +3713,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	}
 
 	if (res & ZT_EVENT_DTMFDOWN) {
-		ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
 		/* Mute conference */
 		zt_confmute(p, 1);
 		p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
@@ -4057,9 +4066,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 
 				/* If we get a ring then we cannot be in 
 				 * reversed polarity. So we reset to idle */
-				ast_log(LOG_DEBUG, "Setting IDLE polarity due "
-					"to ring. Old polarity was %d\n", 
-					p->polarity);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Setting IDLE polarity due "
+						"to ring. Old polarity was %d\n", 
+						p->polarity);
 				p->polarity = POLARITY_IDLE;
 
 				/* Fall through */
@@ -4563,7 +4573,8 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 		f = &p->subs[index].f;
 		return f;
 	}
-	if (!(p->radio || (p->oprmode < 0))) ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
+	if (!(p->radio || (p->oprmode < 0)) && option_debug) 
+		ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
@@ -4990,7 +5001,8 @@ static int zt_indicate(struct ast_channel *chan, int condition, const void *data
 	int func = ZT_FLASH;
 	ast_mutex_lock(&p->lock);
 	index = zt_get_index(chan, p, 0);
-	ast_log(LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Requested indication %d on channel %s\n", condition, chan->name);
 	if (index == SUB_REAL) {
 		switch (condition) {
 		case AST_CONTROL_BUSY:
