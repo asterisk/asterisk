@@ -4395,6 +4395,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	char category[32];
 	char todir[PATH_MAX];
 	int res = 0;
+	char *attachedfilefmt;
 	char *temp;
 
 	vms->starting = 0; 
@@ -4416,7 +4417,23 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	make_gsm_file(vms->fn, vms->imapuser, todir, vms->curmsg);
 
 	mail_fetchstructure (vms->mailstream,vms->msgArray[vms->curmsg],&body);
-	save_body(body,vms,"3","gsm");
+	
+	/* We have the body, now we extract the file name of the first attachment. */
+	if (body->nested.part->next && body->nested.part->next->body.parameter->value) {
+		attachedfilefmt = ast_strdupa(body->nested.part->next->body.parameter->value);
+	} else {
+		ast_log(LOG_ERROR, "There is no file attached to this IMAP message.\n");
+		return -1;
+	}
+	
+	/* Find the format of the attached file */
+
+	strsep(&attachedfilefmt, ".");
+	if (!attachedfilefmt) {
+		ast_log(LOG_ERROR, "File format could not be obtained from IMAP message attachment\n");
+		return -1;
+	}
+	save_body(body, vms, "2", attachedfilefmt);
 
 	adsi_message(chan, vms);
 	if (!vms->curmsg)
