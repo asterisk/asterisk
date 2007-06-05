@@ -974,8 +974,10 @@ static struct iax2_thread *find_idle_thread(void)
 
 	/* this thread is not processing a full frame (since it is idle),
 	   so ensure that the field for the full frame call number is empty */
-	thread->ffcallno = 0;
-	memset(&thread->ffsin, 0, sizeof(thread->ffsin));
+	if (thread) {
+		thread->ffcallno = 0;
+		memset(&thread->ffsin, 0, sizeof(thread->ffsin));
+	}
 
 	return thread;
 }
