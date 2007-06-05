@@ -66,9 +66,9 @@ enum misdn_cfg_elements {
 #endif
 	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
 	MISDN_CFG_NOAUTORESPOND_ON_SETUP,     /* bool */
-	MISDN_CFG_NTTIMEOUT,     /* bool */
-	MISDN_CFG_BRIDGING,              /* int */
-	MISDN_CFG_JITTERBUFFER,              /* int */
+	MISDN_CFG_NTTIMEOUT,     	/* bool */
+	MISDN_CFG_BRIDGING,              /* bool */
+	MISDN_CFG_JITTERBUFFER,             /* int */
 	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
 	MISDN_CFG_CALLGROUP,           /* ast_group_t */
 	MISDN_CFG_PICKUPGROUP,         /* ast_group_t */
