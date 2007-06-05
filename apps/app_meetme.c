@@ -827,8 +827,10 @@ static int meetme_cmd(int fd, int argc, char **argv)
 	if (argc == 1) {
 		/* 'MeetMe': List all the conferences */	
 		now = time(NULL);
+		AST_LIST_LOCK(&confs);
 		if (AST_LIST_EMPTY(&confs)) {
 			ast_cli(fd, "No active MeetMe conferences.\n");
+			AST_LIST_UNLOCK(&confs);
 			return RESULT_SUCCESS;
 		}
 		ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
@@ -845,6 +847,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 
 			total += cnf->users; 	
 		}
+		AST_LIST_UNLOCK(&confs);
 		ast_cli(fd, "* Total number of MeetMe users: %d\n", total);
 		return RESULT_SUCCESS;
 	}
@@ -899,6 +902,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 			return RESULT_SUCCESS;	
 		}
 		/* Find the right conference */
+		AST_LIST_LOCK(&confs);
 		AST_LIST_TRAVERSE(&confs, cnf, list) {
 			if (strcmp(cnf->confno, argv[2]) == 0)
 				break;
@@ -906,11 +910,12 @@ static int meetme_cmd(int fd, int argc, char **argv)
 		if (!cnf) {
 			if ( !concise )
 				ast_cli(fd, "No such conference: %s.\n",argv[2]);
+			AST_LIST_UNLOCK(&confs);
 			return RESULT_SUCCESS;
 		}
 		/* Show all the users */
+		time(&now);
 		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			now = time(NULL);
 			hr = (now - user->jointime) / 3600;
 			min = ((now - user->jointime) % 3600) / 60;
 			sec = (now - user->jointime) % 60;
@@ -938,7 +943,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 		}
 		if ( !concise )
 			ast_cli(fd,"%d users in that conference.\n",cnf->users);
-
+		AST_LIST_UNLOCK(&confs);
 		return RESULT_SUCCESS;
 	} else 
 		return RESULT_SHOWUSAGE;
