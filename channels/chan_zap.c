@@ -1569,10 +1569,8 @@ static void zt_enable_ec(struct zt_pvt *p)
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Enabled echo cancellation on channel %d\n", p->channel);
 		}
-	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "No echo cancellation requested\n");
-	}
+	} else if (option_debug)
+		ast_log(LOG_DEBUG, "No echo cancellation requested\n");
 }
 
 static void zt_train_ec(struct zt_pvt *p)
@@ -1603,10 +1601,8 @@ static void zt_disable_ec(struct zt_pvt *p)
 		res = ioctl(p->subs[SUB_REAL].zfd, ZT_ECHOCANCEL, &x);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to disable echo cancellation on channel %d\n", p->channel);
-		else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
-		}
+		else if (option_debug)
+			ast_log(LOG_DEBUG, "disabled echo cancellation on channel %d\n", p->channel);
 	}
 	p->echocanon = 0;
 }
@@ -3877,9 +3873,12 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 	struct zt_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = *dest;
 
-	ast_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "DTMF digit: %c on %s\n", f->subclass, ast->name);
+
 	if (p->confirmanswer) {
-		ast_log(LOG_DEBUG, "Confirm answer on %s!\n", ast->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Confirm answer on %s!\n", ast->name);
 		/* Upon receiving a DTMF digit, consider this an answer confirmation instead
 		   of a DTMF digit */
 		p->subs[index].f.frametype = AST_FRAME_CONTROL;
@@ -3889,7 +3888,8 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 		p->confirmanswer = 0;
 	} else if (p->callwaitcas) {
 		if ((f->subclass == 'A') || (f->subclass == 'D')) {
-			ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
 			if (p->cidspill)
 				free(p->cidspill);
 			send_cwcidspill(p);
@@ -3915,9 +3915,9 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 						ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
 				} else
 					ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
-			} else
+			} else if (option_debug)
 				ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
-		} else
+		} else if (option_debug)
 				ast_log(LOG_DEBUG, "Fax already handled\n");
 		zt_confmute(p, 0);
 		p->subs[index].f.frametype = AST_FRAME_NULL;
@@ -4879,10 +4879,8 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 		f = &p->subs[index].f;
 		return f;
 	}
-	if (!(p->radio || (p->oprmode < 0))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
-	}
+	if (!(p->radio || (p->oprmode < 0)) && option_debug) 
+		ast_log(LOG_DEBUG, "Exception on %d, channel %d\n", ast->fds[0],p->channel);
 	/* If it's not us, return NULL immediately */
 	if (ast != p->owner) {
 		ast_log(LOG_WARNING, "We're %s, not %s\n", ast->name, p->owner->name);
