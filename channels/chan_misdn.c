@@ -3751,7 +3751,6 @@ int add_in_calls(int port)
 	int max_in_calls;
 	
 	misdn_cfg_get( port, MISDN_CFG_MAX_IN, &max_in_calls, sizeof(max_in_calls));
-
 	misdn_in_calls[port]++;
 
 	if (max_in_calls >=0 && max_in_calls<misdn_in_calls[port]) {
@@ -3779,7 +3778,24 @@ int add_out_calls(int port)
 	return 0;
 }
 
+static void wait_for_digits(struct chan_list *ch, struct misdn_bchannel *bc, struct ast_channel *chan) {
+	ch->state=MISDN_WAITING4DIGS;
+	misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+	if (bc->nt)
+		dialtone_indicate(ch);
+}
 
+static void start_pbx(struct chan_list *ch, struct misdn_bchannel *bc, struct ast_channel *chan) {
+	if (pbx_start_chan(ch)<0) {
+		hangup_chan(ch);
+		chan_misdn_log(-1, bc->port, "ast_pbx_start returned <0 in SETUP\n");
+		if (bc->nt) {
+			hanguptone_indicate(ch);
+			misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
+		} else
+			misdn_lib_send_event(bc, EVENT_RELEASE);
+	}
+}
 
 /************************************************************/
 /*  Receive Events from isdn_lib  here                     */
@@ -3911,41 +3927,30 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
     
 	case EVENT_INFORMATION:
 	{
-		int stop_tone;
-		misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
+		int l;
 
-		if ( (ch->state != MISDN_CONNECTED) && stop_tone ) {
+		if ( ch->state != MISDN_CONNECTED ) 
 			stop_indicate(ch);
-		}
 	
 		if (!ch->ast) break;
 
 		if (ch->state == MISDN_WAITING4DIGS ) {
 			/*  Ok, incomplete Setup, waiting till extension exists */
-
 			if (ast_strlen_zero(bc->info_dad) && ! ast_strlen_zero(bc->keypad)) {
 				chan_misdn_log(1, bc->port, " --> using keypad as info\n");
 				strcpy(bc->info_dad,bc->keypad);
 			}
 
-			{
-				int l = sizeof(bc->dad);
-				strncat(bc->dad,bc->info_dad, l);
-				bc->dad[l-1] = 0;
-			}
-			
-			
-			{
-				int l = sizeof(ch->ast->exten);
-				strncpy(ch->ast->exten, bc->dad, l);
-				ch->ast->exten[l-1] = 0;
-			}
-/*			chan_misdn_log(5, bc->port, "Can Match Extension: dad:%s oad:%s\n",bc->dad,bc->oad);*/
-			
+			l = sizeof(bc->dad);
+			strncat(bc->dad,bc->info_dad, l);
+			bc->dad[l-1] = 0;
+
+			l = sizeof(ch->ast->exten);
+			strncpy(ch->ast->exten, bc->dad, l);
+			ch->ast->exten[l-1] = 0;
+
 			/* Check for Pickup Request first */
 			if (!strcmp(ch->ast->exten, ast_pickup_ext())) {
-				int ret;/** Sending SETUP_ACK**/
-				ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
 				if (ast_pickup_call(ch->ast)) {
 					hangup_chan(ch);
 				} else {
@@ -3959,15 +3964,23 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 			
 			if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
+				if (ast_exists_extension(ch->ast, ch->context, "i", 1, bc->oad)) {
+					ast_log(LOG_WARNING, "Extension can never match, So jumping to 'i' extension. port(%d)\n",bc->port);
+					strcpy(ch->ast->exten, "i");
+					start_pbx(ch, bc, ch->ast);
+					break;
+				}
 
-				chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
+				ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d)."
+						"maybe you want to add an 'i' extension to catch this case.\n",
+						bc->port);
+
 				if (bc->nt)
 					hanguptone_indicate(ch);
 				ch->state=MISDN_EXTCANTMATCH;
 				bc->out_cause=1;
 
 				misdn_lib_send_event(bc, EVENT_DISCONNECT );
-
 				break;
 			}
 
@@ -3982,21 +3995,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				break;
 			}
 
-			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
-				ch->state=MISDN_DIALING;
-	  
-				stop_indicate(ch);
-/*				chan_misdn_log(1, bc->port, " --> * Starting Ast ctx:%s\n", ch->context);*/
-				if (pbx_start_chan(ch)<0) {
-					hangup_chan(ch);
-
-					chan_misdn_log(-1, bc->port, "ast_pbx_start returned < 0 in INFO\n");
-				 	if (bc->nt) hanguptone_indicate(ch);
-
-					misdn_lib_send_event(bc, EVENT_DISCONNECT );
-				}
-			}
-	
+			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) 
+				start_pbx(ch, bc, ch->ast);
 		} else {
 			/*  sending INFOS as DTMF-Frames :) */
 			struct ast_frame fr;
@@ -4044,7 +4044,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 	}
-	
 
 	int msn_valid = misdn_cfg_is_msn_valid(bc->port, bc->dad);
 	if (!bc->nt && ! msn_valid) {
@@ -4064,12 +4063,28 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	print_bearer(bc);
     
 	{
+		int msn_valid = misdn_cfg_is_msn_valid(bc->port, bc->dad);
+		if (!bc->nt && ! msn_valid) {
+			chan_misdn_log(1, bc->port, " --> Ignoring Call, its not in our MSN List\n");
+			return RESPONSE_IGNORE_SETUP; /*  Ignore MSNs which are not in our List */
+		}
+
+		if (bc->cw) {
+			chan_misdn_log(0, bc->port, " --> Call Waiting on PMP sending RELEASE_COMPLETE\n");
+			int cause;
+			misdn_cfg_get( bc->port, MISDN_CFG_REJECT_CAUSE, &cause, sizeof(cause));
+			bc->out_cause=cause?cause:16;
+			return RESPONSE_RELEASE_SETUP;
+		}
+
+		print_bearer(bc);
+
 		struct chan_list *ch=init_chan_list(ORG_MISDN);
 		struct ast_channel *chan;
 		int exceed;
 
 		if (!ch) { chan_misdn_log(-1, bc->port, "cb_events: malloc for chan_list failed!\n"); return 0;}
-		
+
 		ch->bc = bc;
 		ch->l3id=bc->l3_id;
 		ch->addr=bc->addr;
@@ -4085,7 +4100,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		}
 
 		read_config(ch, ORG_MISDN);
-		
+
 		export_ch(chan, bc, ch);
 
 		ch->ast->rings=1;
@@ -4095,48 +4110,47 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		switch (bc->pres) {
 			case 1:
-			pres=AST_PRES_RESTRICTED; chan_misdn_log(2,bc->port," --> PRES: Restricted (1)\n");
-			break;
+				pres=AST_PRES_RESTRICTED; chan_misdn_log(2,bc->port," --> PRES: Restricted (1)\n");
+				break;
 			case 2:
-			pres=AST_PRES_UNAVAILABLE; chan_misdn_log(2,bc->port," --> PRES: Restricted (2)\n");
-			break;
+				pres=AST_PRES_UNAVAILABLE; chan_misdn_log(2,bc->port," --> PRES: Restricted (2)\n");
+				break;
 			default:
-			pres=AST_PRES_ALLOWED; chan_misdn_log(2,bc->port," --> PRES: Restricted (%d)\n", bc->pres);
+				pres=AST_PRES_ALLOWED; chan_misdn_log(2,bc->port," --> PRES: Restricted (%d)\n", bc->pres);
 		}
 
 		switch (bc->screen) {
 			case 0:
-			screen=AST_PRES_USER_NUMBER_UNSCREENED;  chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (0)\n");
-			break;
+				screen=AST_PRES_USER_NUMBER_UNSCREENED;  chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (0)\n");
+				break;
 			case 1:
-			screen=AST_PRES_USER_NUMBER_PASSED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: Passed screen (1)\n");
-			break;
+				screen=AST_PRES_USER_NUMBER_PASSED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: Passed screen (1)\n");
+				break;
 			case 2:
-			screen=AST_PRES_USER_NUMBER_FAILED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: failed screen (2)\n");
-			break;
+				screen=AST_PRES_USER_NUMBER_FAILED_SCREEN; chan_misdn_log(2,bc->port," --> SCREEN: failed screen (2)\n");
+				break;
 			case 3:
-			screen=AST_PRES_NETWORK_NUMBER; chan_misdn_log(2,bc->port," --> SCREEN: Network Number (3)\n");
-			break;
+				screen=AST_PRES_NETWORK_NUMBER; chan_misdn_log(2,bc->port," --> SCREEN: Network Number (3)\n");
+				break;
 			default:
-			screen=AST_PRES_USER_NUMBER_UNSCREENED; chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (%d)\n",bc->screen);
+				screen=AST_PRES_USER_NUMBER_UNSCREENED; chan_misdn_log(2,bc->port," --> SCREEN: Unscreened (%d)\n",bc->screen);
 		}
 
 		chan->cid.cid_pres=pres+screen;
 
 		pbx_builtin_setvar_helper(chan, "TRANSFERCAPABILITY", ast_transfercapability2str(bc->capability));
 		chan->transfercapability=bc->capability;
-		
+
 		switch (bc->capability) {
-		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED:
-			pbx_builtin_setvar_helper(chan,"CALLTYPE","DIGITAL");
-			break;
-		default:
-			pbx_builtin_setvar_helper(chan,"CALLTYPE","SPEECH");
+			case INFO_CAPABILITY_DIGITAL_UNRESTRICTED:
+				pbx_builtin_setvar_helper(chan,"CALLTYPE","DIGITAL");
+				break;
+			default:
+				pbx_builtin_setvar_helper(chan,"CALLTYPE","SPEECH");
 		}
 
 		/** queue new chan **/
 		cl_queue_chan(&cl_te, ch) ;
-
 
 		if (!strstr(ch->allowed_bearers,"all")) {
 			int i;
@@ -4145,16 +4159,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 					if (  !strstr( ch->allowed_bearers, allowed_bearers_array[i].name)) {
 						chan_misdn_log(0,bc->port,"Bearer Not allowed\b");
 						bc->out_cause=88;
-						
+
 						ch->state=MISDN_EXTCANTMATCH;
 						misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
 						return RESPONSE_OK;
 					}
 				}
-				
+
 			}
 		}
-		
+
 		/* Check for Pickup Request first */
 		if (!strcmp(chan->exten, ast_pickup_ext())) {
 			if (!ch->noautorespond_on_setup) {
@@ -4173,41 +4187,43 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				break;
 			}
 		}
-		
+
 		/*
-		  added support for s extension hope it will help those poor cretains
-		  which haven't overlap dial.
-		*/
-		{
-			int ai;
-			misdn_cfg_get( bc->port, MISDN_CFG_ALWAYS_IMMEDIATE, &ai, sizeof(ai));
-			if ( ai ) {
-				do_immediate_setup(bc, ch , chan);
-				break;
-			}
-			
-			
-			
+		   added support for s extension hope it will help those poor cretains
+		   which haven't overlap dial.
+		   */
+		int ai;
+		misdn_cfg_get( bc->port, MISDN_CFG_ALWAYS_IMMEDIATE, &ai, sizeof(ai));
+		if ( ai ) {
+			do_immediate_setup(bc, ch , chan);
+			break;
 		}
 
 		/* check if we should jump into s when we have no dad */
-		{
-			int im;
-			misdn_cfg_get( bc->port, MISDN_CFG_IMMEDIATE, &im, sizeof(im));
-			if ( im && ast_strlen_zero(bc->dad) ) {
-				do_immediate_setup(bc, ch , chan);
-				break;
-			}
+		int im;
+		misdn_cfg_get( bc->port, MISDN_CFG_IMMEDIATE, &im, sizeof(im));
+		if ( im && ast_strlen_zero(bc->dad) ) {
+			do_immediate_setup(bc, ch , chan);
+			break;
 		}
 
-		
-			chan_misdn_log(5,bc->port,"CONTEXT:%s\n",ch->context);
-			if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
-			
-			chan_misdn_log(-1, bc->port, "Extension can never match, so disconnecting\n");
+		chan_misdn_log(5,bc->port,"CONTEXT:%s\n",ch->context);
+		if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
+			if (ast_exists_extension(ch->ast, ch->context, "i", 1, bc->oad)) {
+				ast_log(LOG_WARNING, "Extension can never match, So jumping to 'i' extension. port(%d)\n",bc->port);
+				strcpy(ch->ast->exten, "i");
+				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE);
+				ch->state=MISDN_DIALING;
+				start_pbx(ch, bc, chan);
+				break;
+			}
 
+			ast_log(LOG_WARNING, "Extension can never match, so disconnecting on port(%d)."
+					"maybe you want to add an 'i' extension to catch this case.\n",
+					bc->port);
 			if (bc->nt)
 				hanguptone_indicate(ch);
+
 			ch->state=MISDN_EXTCANTMATCH;
 			bc->out_cause=1;
 
@@ -4215,91 +4231,65 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
 			else
 				misdn_lib_send_event(bc, EVENT_RELEASE );
-				
+
 			break;
 		}
-		
-		if (!ch->overlap_dial && ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
-			
+
+		/* Whatever happens, when sending_complete is set or we are PTMP TE, we will definitely 
+		 * jump into the dialplan, when the dialed extension does not exist, the 's' extension 
+		 * will be used by Asterisk automatically. */
+		if (bc->sending_complete || (!bc->nt && !misdn_lib_is_ptp(bc->port))) {
 			if (!ch->noautorespond_on_setup) {
 				ch->state=MISDN_DIALING;
-
-				if (!bc->sending_complete &&
-						(bc->nt || (bc->need_more_infos && misdn_lib_is_ptp(bc->port)))) {
-					int ret; 
-					ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
-				} else {
-					int ret;
-					ret= misdn_lib_send_event(bc, EVENT_PROCEEDING );
-				}
+				misdn_lib_send_event(bc, EVENT_PROCEEDING );
 			} else {
 				ch->state = MISDN_INCOMING_SETUP;
 			}
-	
-			if (pbx_start_chan(ch)<0) {
-				hangup_chan(ch);
-
-				chan_misdn_log(-1, bc->port, "ast_pbx_start returned <0 in SETUP\n");
-				chan=NULL;
-
-				if (bc->nt) {
-					hanguptone_indicate(ch);
-					misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE );
-				} else
-					misdn_lib_send_event(bc, EVENT_RELEASE);
-			}
-		} else {
-
-			if (bc->sending_complete) {
-				ch->state=MISDN_EXTCANTMATCH;
-				bc->out_cause=1;
-
-				if (bc->nt)  {
-					chan_misdn_log(0,bc->port," --> sending_complete so we never match ..\n");
-					misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
-				} else {
-					chan_misdn_log(0,bc->port," --> sending_complete so we never match ..\n");
-					misdn_lib_send_event(bc, EVENT_RELEASE);
-				}
-
-			} else {
-				int ret= misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
-				if (ret == -ENOCHAN) {
-					ast_log(LOG_WARNING,"Channel was catched, before we could Acknowledge\n");
-					misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-				}
-				/*  send tone to phone :) */
-				
-				/** ADD IGNOREPAT **/
-				
-				int stop_tone, dad_len;
-				ch->state=MISDN_WAITING4DIGS;
-
-				misdn_cfg_get( 0, MISDN_GEN_STOP_TONE, &stop_tone, sizeof(int));
-
-				dad_len = ast_strlen_zero(bc->dad);
-				
-				if ( !dad_len && stop_tone )
-					stop_indicate(ch);
-				else
-					if (bc->nt) 
-						dialtone_indicate(ch);
-				
-				
-				if (ch->overlap_dial && !dad_len) {
-					ast_mutex_lock(&ch->overlap_tv_lock);
-					ch->overlap_tv = ast_tvnow();
-					ast_mutex_unlock(&ch->overlap_tv_lock);
-					if (ch->overlap_dial_task == -1) {
-						ch->overlap_dial_task = 
-							misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
-					}
-				}
-			}
+			start_pbx(ch, bc, chan);
+			break;
 		}
-		
+
+		/* 
+		 * If overlapdial we will definitely send a SETUP_ACKNOWLEDGE and wait for more 
+		 * Infos with a Interdigit Timeout.
+		 * */
+		if (ch->overlap_dial) {
+			ast_mutex_lock(&ch->overlap_tv_lock);
+			ch->overlap_tv = ast_tvnow();
+			ast_mutex_unlock(&ch->overlap_tv_lock);
+
+			if (ch->overlap_dial_task == -1) 
+				ch->overlap_dial_task = 
+					misdn_tasks_add_variable(ch->overlap_dial, misdn_overlap_dial_task, ch);
+
+			wait_for_digits(ch, bc, chan);
+			break;
+		}
+
+		/* If the extension does not exist and we're not TE_PTMP we wait for more digis 
+		 * without interdigit timeout.
+		 * */
+		if (!ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad))  {
+			wait_for_digits(ch, bc, chan);
+			break;
+		}
+
+		/*
+		 * If the extension exists let's just jump into it.
+		 * */
+		if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
+			if (bc->need_more_infos)
+				misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+			else
+				misdn_lib_send_event(bc, EVENT_PROCEEDING);
+
+			ch->state=MISDN_DIALING;
+			start_pbx(ch, bc, chan);
+			break;
+		}
 	}
 	break;
+
 	case EVENT_SETUP_ACKNOWLEDGE:
 	{
 		ch->state = MISDN_CALLING_ACKNOWLEDGE;
