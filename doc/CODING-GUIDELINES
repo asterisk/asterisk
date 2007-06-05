@@ -484,6 +484,14 @@ Note that /*! */ blocks document the construct immediately following them
 unless they are written, /*!< */, in which case they document the construct
 preceding them.
 
+It is very much preferred that documentation is not done inline, as done in
+the previous example for member2.  The first reason for this is that it tends
+to encourage extremely brief, and often pointless, documentation since people
+try to keep the comment from making the line extremely long.  However, if you
+insist on using inline comments, please indent the documentation with spaces!
+That way, all of the comments are properly aligned, regardless of what tab
+size is being used for viewing the code.
+
 * Finishing up before you submit your code
 ------------------------------------------
 
