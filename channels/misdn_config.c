@@ -314,6 +314,13 @@ static const struct misdn_cfg_spec port_spec[] = {
 	{ "nttimeout", MISDN_CFG_NTTIMEOUT, MISDN_CTYPE_BOOL, "no", NONE ,
 		"Set this to yes if you want calls disconnected in overlap mode\n"
 		"\twhen a timeout happens." },
+	{ "bridging", MISDN_CFG_BRIDGING, MISDN_CTYPE_BOOL, "yes", NONE,
+	 	"Set this to yes/no, default is yes.\n"
+		"This can be used to have bridging enabled in general and to\n"
+		"disable it for specific ports. It makes sense to disable\n"
+		"bridging on NT Port where you plan to use the HOLD/RETRIEVE\n"
+		"features with ISDN phones.\n"
+		},
 	{ "msns", MISDN_CFG_MSNS, MISDN_CTYPE_MSNLIST, "*", NONE,
 		"MSN's for TE ports, listen on those numbers on the above ports, and\n"
 		"\tindicate the incoming calls to Asterisk.\n"

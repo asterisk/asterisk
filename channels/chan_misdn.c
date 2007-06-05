@@ -2808,6 +2808,16 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 	else
 		return -1;
 
+	int p1_b, p2_b;
+
+	misdn_cfg_get(ch1->bc->port, MISDN_CFG_BRIDGING, &p1_b, sizeof(int));
+	misdn_cfg_get(ch2->bc->port, MISDN_CFG_BRIDGING, &p2_b, sizeof(int));
+	
+	if ( ! p1_b || ! p2_b) {
+		ast_log(LOG_NOTICE, "Falling back to Asterisk bridging\n");
+		return AST_BRIDGE_FAILED;
+	}
+
 	int bridging;
 	misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
 	if (bridging) {
@@ -3268,6 +3278,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		
 		int bridging;
 		misdn_cfg_get( 0, MISDN_GEN_BRIDGING, &bridging, sizeof(int));
+		
 		if (bridging)
 			tmp->tech = &misdn_tech;
 		else
