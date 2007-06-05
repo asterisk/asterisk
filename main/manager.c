@@ -111,7 +111,7 @@ struct eventqent {
 static AST_LIST_HEAD_STATIC(all_events, eventqent);
 
 static int displayconnects = 1;
-static int allowmultiplelogin;
+static int allowmultiplelogin = 1;
 static int timestampevents;
 static int httptimeout = 60;
 static int manager_enabled = 0;
