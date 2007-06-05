@@ -726,12 +726,12 @@ struct iax2_thread {
 	time_t checktime;
 	ast_mutex_t lock;
 	ast_cond_t cond;
-	unsigned short ffcallno;		/* if this thread is processing a full frame, the
-						   callno for that frame will be here, so we can
-						   avoid dispatching any more full frames for that
-						   callno to other threads */
-	struct sockaddr_in ffsin;		/* remember the peer IP/port number for a full frame
-						   in process */
+	/*! If this thread is processing a full frame, the callno for that frame
+	 *  will be here, so we can avoid dispatching any more full frames
+	 *  or that callno to other threads */
+	unsigned short ffcallno;
+	/*! Remember the peer IP/port number for a full frame in process */
+	struct sockaddr_in ffsin;
 };
 
 /* Thread lists */
