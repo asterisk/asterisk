@@ -186,7 +186,7 @@ static char *handle_reload_deprecated(struct ast_cli_entry *e, int cmd, struct a
 
 static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int oldval = option_verbose;
+	int oldval;
 	int newlevel;
 	int atleast = 0;
 	int fd = a->fd;
@@ -217,9 +217,11 @@ static char *handle_verbose(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	if (!strcasecmp(argv[e->args - 2], "debug")) {
 		dst = &option_debug;
+		oldval = option_debug;
 		what = "Core debug";
 	} else {
 		dst = &option_verbose;
+		oldval = option_verbose;
 		what = "Verbosity";
 	}
 	if (argc == e->args && !strcasecmp(argv[e->args - 1], "off")) {
