@@ -349,7 +349,7 @@ static msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, in
 		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
 	}
 
-#if DEBUG 
+#ifdef DEBUG 
 	printf("Building SETUP Msg\n"); 
 #endif
 	return msg; 
