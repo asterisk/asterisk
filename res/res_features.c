@@ -1044,7 +1044,7 @@ void ast_register_feature(struct ast_call_feature *feature)
 {
 	if (!feature) {
 		ast_log(LOG_NOTICE,"You didn't pass a feature!\n");
-    		return;
+		return;
 	}
   
 	AST_LIST_LOCK(&feature_list);
