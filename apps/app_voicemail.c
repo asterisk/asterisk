@@ -2991,7 +2991,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	category = pbx_builtin_getvar_helper(chan, "VM_CATEGORY");
 
-	if(option_debug > 2)
+	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Before find_user\n");
 	if (!(vmu = find_user(&svm, context, ext))) {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
