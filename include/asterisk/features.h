@@ -73,10 +73,10 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *host, int 
 /*! \brief Determine system parking extension
  *  Returns the call parking extension for drivers that provide special
     call parking help */
-char *ast_parking_ext(void);
+const char *ast_parking_ext(void);
 
 /*! \brief Determine system call pickup extension */
-char *ast_pickup_ext(void);
+const char *ast_pickup_ext(void);
 
 /*! \brief Bridge a call, optionally allowing redirection */
 int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,struct ast_bridge_config *config);

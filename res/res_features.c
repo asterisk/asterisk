@@ -179,12 +179,12 @@ AST_MUTEX_DEFINE_STATIC(parking_lock);	/*!< protects all static variables above 
 
 static pthread_t parking_thread;
 
-char *ast_parking_ext(void)
+const char *ast_parking_ext(void)
 {
 	return parking_ext;
 }
 
-char *ast_pickup_ext(void)
+const char *ast_pickup_ext(void)
 {
 	return pickup_ext;
 }
@@ -322,7 +322,7 @@ static int adsi_announce_park(struct ast_channel *chan, char *parkingexten)
 }
 
 /*! \brief Notify metermaids that we've changed an extension */
-static void notify_metermaids(char *exten, char *context)
+static void notify_metermaids(const char *exten, char *context)
 {
 	if (option_debug > 3)
 		ast_log(LOG_DEBUG, "Notification of state change to metermaids %s@%s\n", exten, context);
