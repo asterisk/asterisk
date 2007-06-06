@@ -475,7 +475,7 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 #else
 		/* The following unrolled loop takes only 35% (rough estimate) of the 
 		   time of a rolled loop on the machine on which it was developed */
-		for (j=sample;j<limit;j++) {
+		for (j = sample; j < limit; j++) {
 			famp = amp[j];
 			s->energy += famp*famp;
 			/* With GCC 2.95, the following unrolled code seems to take about 35%
