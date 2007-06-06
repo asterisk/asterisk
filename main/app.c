@@ -1067,7 +1067,7 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 	/* Note that urgent and private are for flagging messages as such in the future */
 
 	/* barf if no pointer passed to store duration in */
-	if (duration == NULL) {
+	if (!duration) {
 		ast_log(LOG_WARNING, "Error ast_record_review called without duration pointer\n");
 		return -1;
 	}
