@@ -72,7 +72,7 @@ static AST_LIST_HEAD_STATIC(groups, ast_group_info);
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
 	struct ind_tone_zone_sound *ts;
-	int res=0, x=0;
+	int res = 0, x = 0;
 
 	if (maxlen > size)
 		maxlen = size;
