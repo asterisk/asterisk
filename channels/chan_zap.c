@@ -211,6 +211,12 @@ static const char config[] = "zapata.conf";
 
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
+/* Overlap dialing option types */
+#define ZAP_OVERLAPDIAL_NONE 0
+#define ZAP_OVERLAPDIAL_OUTGOING 1
+#define ZAP_OVERLAPDIAL_INCOMING 2
+#define ZAP_OVERLAPDIAL_BOTH (ZAP_OVERLAPDIAL_INCOMING|ZAP_OVERLAPDIAL_OUTGOING)
+
 static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
@@ -517,7 +523,7 @@ static struct zt_pvt {
 	unsigned int inalarm:1;
 	unsigned int mate:1;				/*!< flag to say its in MATE mode */
 	unsigned int outgoing:1;
-	unsigned int overlapdial:1;
+	/* unsigned int overlapdial:1; 			unused and potentially confusing */
 	unsigned int permcallwaiting:1;
 	unsigned int permhidecallerid:1;		/*!< Whether to hide our outgoing caller ID or not */
 	unsigned int priindication_oob:1;
@@ -3979,7 +3985,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef HAVE_PRI
-		if (!p->proceeding && p->sig == SIG_PRI && p->pri && p->pri->overlapdial) {
+		if (!p->proceeding && p->sig == SIG_PRI && p->pri && (p->pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING)) {
 			/* absorb event */
 		} else {
 #endif
@@ -5169,7 +5175,9 @@ static struct ast_frame  *zt_read(struct ast_channel *ast)
 				}
 			} else if (f->frametype == AST_FRAME_DTMF) {
 #ifdef HAVE_PRI
-				if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
+				if (!p->proceeding && p->sig==SIG_PRI && p->pri && 
+				    ((!p->outgoing && (p->pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING)) ||
+				     (p->outgoing && (p->pri->overlapdial & ZAP_OVERLAPDIAL_OUTGOING)))) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					f->frametype = AST_FRAME_NULL;
 					f->subclass = 0;
@@ -9566,7 +9574,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
-						if (pri->overlapdial && pri->pvts[chanpos]->call==e->digit.call && pri->pvts[chanpos]->owner) {
+						if ((pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING) && pri->pvts[chanpos]->call==e->digit.call && pri->pvts[chanpos]->owner) {
 							/* how to do that */
 							int digitlen = strlen(e->digit.digits);
 							char digit;
@@ -9594,7 +9602,7 @@ static void *pri_dchannel(void *vpri)
 					if (chanpos > -1) {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						/* queue DTMF frame if the PBX for this call was already started (we're forwarding INFORMATION further on */
-						if (pri->overlapdial && pri->pvts[chanpos]->call==e->ring.call && pri->pvts[chanpos]->owner) {
+						if ((pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING) && pri->pvts[chanpos]->call==e->ring.call && pri->pvts[chanpos]->owner) {
 							/* how to do that */
 							int digitlen = strlen(e->ring.callednum);
 							char digit;
@@ -9711,7 +9719,7 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->exten[1] = '\0';
 					}
 					/* Make sure extension exists (or in overlap dial mode, can exist) */
-					if ((pri->overlapdial && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) ||
+					if (((pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING) && ast_canmatch_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) ||
 						ast_exists_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
 						/* Setup law */
 						int law;
@@ -9731,7 +9739,7 @@ static void *pri_dchannel(void *vpri)
 						res = set_actual_gain(pri->pvts[chanpos]->subs[SUB_REAL].zfd, 0, pri->pvts[chanpos]->rxgain, pri->pvts[chanpos]->txgain, law);
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvts[chanpos]->channel);
-						if (e->ring.complete || !pri->overlapdial) {
+						if (e->ring.complete || !(pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING)) {
 							/* Just announce proceeding */
 							pri->pvts[chanpos]->proceeding = 1;
 							pri_proceeding(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 0);
@@ -9745,7 +9753,7 @@ static void *pri_dchannel(void *vpri)
 						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
 					
 						/* Start PBX */
-						if (pri->overlapdial && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
+						if ((pri->overlapdial & ZAP_OVERLAPDIAL_INCOMING) && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
 							/* Release the PRI lock while we create the channel */
 							ast_mutex_unlock(&pri->lock);
 							if (crv) {
@@ -10369,8 +10377,8 @@ static int start_pri(struct zt_pri *pri)
 		pri->dchans[i] = pri_new(pri->fds[i], pri->nodetype, pri->switchtype);
 		/* Force overlap dial if we're doing GR-303! */
 		if (pri->switchtype == PRI_SWITCH_GR303_TMC)
-			pri->overlapdial = 1;
-		pri_set_overlapdial(pri->dchans[i],pri->overlapdial);
+			pri->overlapdial |= ZAP_OVERLAPDIAL_BOTH;
+		pri_set_overlapdial(pri->dchans[i],(pri->overlapdial & ZAP_OVERLAPDIAL_OUTGOING)?1:0);
 		/* Enslave to master if appropriate */
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
@@ -10623,7 +10631,7 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 #else
 			pri_dump_info(pris[span-1].pri);
 #endif
-			ast_cli(fd, "\n");
+			ast_cli(fd, "Overlap Recv: %s\n\n", (pris[span-1].overlapdial & ZAP_OVERLAPDIAL_INCOMING)?"Yes":"No");
 		}
 	}
 	return RESULT_SUCCESS;
@@ -12383,7 +12391,17 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 			} else if (!strcasecmp(v->name, "idledial")) {
 				ast_copy_string(confp->pri.idledial, v->value, sizeof(confp->pri.idledial));
 			} else if (!strcasecmp(v->name, "overlapdial")) {
-				confp->pri.overlapdial = ast_true(v->value);
+				if (ast_true(v->value)) {
+					confp->pri.overlapdial = ZAP_OVERLAPDIAL_BOTH;
+				} else if (!strcasecmp(v->value, "incoming")) {
+					confp->pri.overlapdial = ZAP_OVERLAPDIAL_INCOMING;
+				} else if (!strcasecmp(v->value, "outgoing")) {
+					confp->pri.overlapdial = ZAP_OVERLAPDIAL_OUTGOING;
+				} else if (!strcasecmp(v->value, "both") || ast_true(v->value)) {
+					confp->pri.overlapdial = ZAP_OVERLAPDIAL_BOTH;
+				} else {
+					confp->pri.overlapdial = ZAP_OVERLAPDIAL_NONE;
+				}
 			} else if (!strcasecmp(v->name, "pritimer")) {
 #ifdef PRI_GETSET_TIMERS
 				char *timerc, *c;
