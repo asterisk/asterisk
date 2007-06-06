@@ -3439,7 +3439,7 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 static int iax2_transfer(struct ast_channel *c, const char *dest)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
-	struct iax_ie_data ied;
+	struct iax_ie_data ied = { "", };
 	char tmp[256], *context;
 	ast_copy_string(tmp, dest, sizeof(tmp));
 	context = strchr(tmp, '@');
@@ -3447,7 +3447,6 @@ static int iax2_transfer(struct ast_channel *c, const char *dest)
 		*context = '\0';
 		context++;
 	}
-	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, tmp);
 	if (context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
