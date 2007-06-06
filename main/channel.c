@@ -1082,7 +1082,10 @@ void ast_channel_free(struct ast_channel *chan)
 	headp=&chan->varshead;
 	
 	AST_LIST_LOCK(&channels);
-	AST_LIST_REMOVE(&channels, chan, chan_list);
+	if (!AST_LIST_REMOVE(&channels, chan, chan_list)) {
+		AST_LIST_UNLOCK(&channels);
+		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
+	}
 	/* Lock and unlock the channel just to be sure nobody
 	   has it locked still */
 	ast_channel_lock(chan);
