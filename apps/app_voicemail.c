@@ -9280,6 +9280,8 @@ static void vmstate_insert(struct vm_state *vms)
 
 	if (!(v = ast_calloc(1, sizeof(*v))))
 		return;
+	
+	v->vms = vms;
 
 	if(option_debug > 2)
 		ast_log(LOG_DEBUG, "Inserting vm_state for user:%s, mailbox %s\n",vms->imapuser,vms->username);
