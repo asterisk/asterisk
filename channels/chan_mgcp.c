@@ -697,15 +697,18 @@ static int retrans_pkt(void *data)
 static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub, 
                             char *data, int len, unsigned int seqno)
 {
-	struct mgcp_message *msg = ast_malloc(sizeof(*msg) + len);
+	struct mgcp_message *msg;
 	struct mgcp_message *cur;
-	struct mgcp_gateway *gw = ((p && p->parent) ? p->parent : NULL);
+	struct mgcp_gateway *gw;
  	struct timeval tv;
 
+	msg = ast_malloc(sizeof(*msg) + len);
 	if (!msg) {
 		return -1;
 	}
+	gw = ((p && p->parent) ? p->parent : NULL);
 	if (!gw) {
+		ast_free(msg);
 		return -1;
 	}
 /* SC

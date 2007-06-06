@@ -117,7 +117,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 				/* There will only be a single member in the list at this point,
 				   the one we just added. */
 				AST_RWLIST_REMOVE(&aslist, as, list);
-				free(as);
+				ast_free(as);
 				res = -1;
 			} else
 				pthread_kill(asthread, SIGURG);
@@ -136,7 +136,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
 			AST_RWLIST_REMOVE_CURRENT(&aslist, list);
-			free(as);
+			ast_free(as);
 			if (!chan->_softhangup)
 				res = 0;
 			break;

@@ -87,12 +87,12 @@ struct io_context *io_context_create(void)
 	tmp->current_ioc = -1;
 	
 	if (!(tmp->fds = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->fds)))) {
-		free(tmp);
+		ast_free(tmp);
 		tmp = NULL;
 	} else {
 		if (!(tmp->ior = ast_calloc(1, (GROW_SHRINK_SIZE / 2) * sizeof(*tmp->ior)))) {
-			free(tmp->fds);
-			free(tmp);
+			ast_free(tmp->fds);
+			ast_free(tmp);
 			tmp = NULL;
 		}
 	}
@@ -104,11 +104,11 @@ void io_context_destroy(struct io_context *ioc)
 {
 	/* Free associated memory with an I/O context */
 	if (ioc->fds)
-		free(ioc->fds);
+		ast_free(ioc->fds);
 	if (ioc->ior)
-		free(ioc->ior);
+		ast_free(ioc->ior);
 
-	free(ioc);
+	ast_free(ioc);
 }
 
 /*! \brief
@@ -250,7 +250,7 @@ int ast_io_remove(struct io_context *ioc, int *_id)
 	for (x = 0; x < ioc->fdcnt; x++) {
 		if (ioc->ior[x].id == _id) {
 			/* Free the int immediately and set to NULL so we know it's unused now */
-			free(ioc->ior[x].id);
+			ast_free(ioc->ior[x].id);
 			ioc->ior[x].id = NULL;
 			ioc->fds[x].events = 0;
 			ioc->fds[x].revents = 0;

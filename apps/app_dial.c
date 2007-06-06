@@ -312,7 +312,7 @@ static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception)
 			ast_hangup(outgoing->chan);
 		oo = outgoing;
 		outgoing=outgoing->next;
-		free(oo);
+		ast_free(oo);
 	}
 }
 
@@ -1327,7 +1327,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			handle_cause(cause, &num);
 			if (!rest)	/* we are on the last destination */
 				chan->hangupcause = cause;
-			free(tmp);
+			ast_free(tmp);
 			continue;
 		}
 		pbx_builtin_setvar_helper(tc, "DIALEDPEERNUMBER", numsubst);
@@ -1374,7 +1374,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			if (!tc) {
 				handle_cause(cause, &num);
-				free(tmp);
+				ast_free(tmp);
 				continue;
 			}
 		}
@@ -1436,7 +1436,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			ast_hangup(tc);
 			tc = NULL;
-			free(tmp);
+			ast_free(tmp);
 			continue;
 		} else {
 			senddialevent(chan, tc);

@@ -136,12 +136,12 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 	} else if (!strncasecmp("dnid", data, 4)) {
 		/* do we need to lock chan here? */
 		if (chan->cid.cid_dnid)
-			free(chan->cid.cid_dnid);
+			ast_free(chan->cid.cid_dnid);
 		chan->cid.cid_dnid = ast_strdup(value);
 	} else if (!strncasecmp("rdnis", data, 5)) {
 		/* do we need to lock chan here? */
 		if (chan->cid.cid_rdnis)
-			free(chan->cid.cid_rdnis);
+			ast_free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = ast_strdup(value);
 	} else if (!strncasecmp("pres", data, 4)) {
 		int i;

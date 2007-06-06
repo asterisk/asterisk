@@ -1625,7 +1625,7 @@ void ast_dsp_set_features(struct ast_dsp *dsp, int features)
 
 void ast_dsp_free(struct ast_dsp *dsp)
 {
-	free(dsp);
+	ast_free(dsp);
 }
 
 void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold)

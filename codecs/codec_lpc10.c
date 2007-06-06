@@ -230,7 +230,7 @@ static void lpc10_destroy(struct ast_trans_pvt *arg)
 {
 	struct lpc10_coder_pvt *pvt = arg->pvt;
 	/* Enc and DEC are both just allocated, so they can be freed */
-	free(pvt->lpc10.enc);
+	ast_free(pvt->lpc10.enc);
 }
 
 static struct ast_translator lpc10tolin = {

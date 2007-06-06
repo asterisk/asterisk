@@ -922,7 +922,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 						prev->next = var;
 					else
 						ies->vars = var;
-					free(var2);
+					ast_free(var2);
 					break;
 				}
 			}
@@ -1048,14 +1048,14 @@ void iax_frame_free(struct iax_frame *fr)
 
 #if !defined(LOW_MEMORY)
 	if (!fr->cacheable || !(iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
-		free(fr);
+		ast_free(fr);
 		return;
 	}
 
 	fr->direction = 0;
 	AST_LIST_INSERT_HEAD(iax_frames, fr, list);
 #else
-	free(fr);
+	ast_free(fr);
 #endif
 }
 
@@ -1066,9 +1066,9 @@ static void frame_cache_cleanup(void *data)
 	struct iax_frame *cur;
 
 	while ((cur = AST_LIST_REMOVE_HEAD(frames, list)))
-		free(cur);
+		ast_free(cur);
 
-	free(frames);
+	ast_free(frames);
 }
 #endif
 

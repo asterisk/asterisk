@@ -679,10 +679,10 @@ static void get_callerid(struct vpb_pvt *p)
 		if ((rc=vpb_cid_decode2(cli_struct, buf, CID_MSECS*8)) == VPB_OK ) {
 			/*
 			if (owner->cid.cid_num)
-				free(owner->cid.cid_num);
+				ast_free(owner->cid.cid_num);
 			owner->cid.cid_num=NULL;
 			if (owner->cid.cid_name)
-				free(owner->cid.cid_name);
+				ast_free(owner->cid.cid_name);
 			owner->cid.cid_name=NULL;
 			*/
 			
@@ -791,11 +791,11 @@ static void get_callerid_ast(struct vpb_pvt *p)
 		ast_log(LOG_ERROR, "%s: Failed to create Caller ID struct\n", p->dev );
 	}
 	if (owner->cid.cid_num) {
-		free(owner->cid.cid_num);
+		ast_free(owner->cid.cid_num);
 		owner->cid.cid_num = NULL;
 	}
 	if (owner->cid.cid_name) {
-		free(owner->cid.cid_name);
+		ast_free(owner->cid.cid_name);
 		owner->cid.cid_name = NULL;
 	}
 	if (number)
@@ -1239,10 +1239,10 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 						if (owner){
 							/*
 							if (owner->cid.cid_num)
-								free(owner->cid.cid_num);
+								ast_free(owner->cid.cid_num);
 							owner->cid.cid_num=NULL;
 							if (owner->cid.cid_name)
-								free(owner->cid.cid_name);
+								ast_free(owner->cid.cid_name);
 							owner->cid.cid_name=NULL;
 							owner->cid.cid_num = strdup(p->callerid);
 							*/
@@ -1499,11 +1499,10 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 	if(!bridges) {
 		if(model==vpb_model_v4pci) 
 			max_bridges = MAX_BRIDGES_V4PCI;
-		bridges = (vpb_bridge_t *)malloc(max_bridges * sizeof(vpb_bridge_t) );
+		bridges = ast_calloc(1, max_bridges * sizeof(vpb_bridge_t));
 		if(!bridges) 
 			ast_log(LOG_ERROR, "Failed to initialize bridges\n");
 		else {
-			memset(bridges,0,max_bridges * sizeof(vpb_bridge_t));
 			for(int i = 0; i < max_bridges; i++ ) {
 				ast_mutex_init(&bridges[i].lock);
 				ast_cond_init(&bridges[i].cond, NULL);
@@ -1544,7 +1543,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	struct vpb_pvt *tmp;
 	char buf[64];
 
-	tmp = (struct vpb_pvt *)calloc(1, sizeof *tmp);
+	tmp = ast_calloc(1, sizeof(*tmp));
 
 	if (!tmp)
 		return NULL;
@@ -1554,7 +1553,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	if (tmp->handle < 0) {	  
 		ast_log(LOG_WARNING, "Unable to create channel vpb/%d-%d: %s\n", 
 					board, channel, strerror(errno));
-		free(tmp);
+		ast_free(tmp);
 		return NULL;
 	}
 	       
@@ -2741,7 +2740,7 @@ static struct ast_channel *vpb_request(const char *type, int format, void *data,
 		ast_verbose(VERBOSE_PREFIX_2 " %s requested, got: [%s]\n",
 		name, tmp ? tmp->name : "None");
 
-	free(name);
+	ast_free(name);
 
 	restart_monitor();
 	return tmp;
@@ -2814,7 +2813,7 @@ int unload_module()
 
 			iflist = iflist->next;
 
-			free(p);
+			ast_free(p);
 		}
 		iflist = NULL;
 	} ast_mutex_unlock(&iflock);
@@ -2827,7 +2826,7 @@ int unload_module()
 		ast_mutex_destroy(&bridges[i].lock);
 		ast_cond_destroy(&bridges[i].cond);
 	}
-	free(bridges);
+	ast_free(bridges);
 
 	return 0;
 }

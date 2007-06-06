@@ -285,7 +285,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 
 void ast_smoother_free(struct ast_smoother *s)
 {
-	free(s);
+	ast_free(s);
 }
 
 static struct ast_frame *ast_frame_header_new(void)
@@ -330,9 +330,9 @@ static void frame_cache_cleanup(void *data)
 	struct ast_frame *f;
 
 	while ((f = AST_LIST_REMOVE_HEAD(&frames->list, frame_list)))
-		free(f);
+		ast_free(f);
 	
-	free(frames);
+	ast_free(frames);
 }
 #endif
 
@@ -358,11 +358,11 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 	
 	if (fr->mallocd & AST_MALLOCD_DATA) {
 		if (fr->data) 
-			free(fr->data - fr->offset);
+			ast_free(fr->data - fr->offset);
 	}
 	if (fr->mallocd & AST_MALLOCD_SRC) {
 		if (fr->src)
-			free((char *)fr->src);
+			ast_free((char *)fr->src);
 	}
 	if (fr->mallocd & AST_MALLOCD_HDR) {
 #ifdef TRACE_FRAMES
@@ -371,7 +371,7 @@ void ast_frame_free(struct ast_frame *fr, int cache)
 		AST_LIST_REMOVE(&headerlist, fr, frame_list);
 		AST_LIST_UNLOCK(&headerlist);
 #endif			
-		free(fr);
+		ast_free(fr);
 	}
 }
 
@@ -409,7 +409,7 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		if (fr->src) {
 			if (!(out->src = ast_strdup(fr->src))) {
 				if (out != fr)
-					free(out);
+					ast_free(out);
 				return NULL;
 			}
 		}
@@ -419,9 +419,9 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 	if (!(fr->mallocd & AST_MALLOCD_DATA))  {
 		if (!(newdata = ast_malloc(fr->datalen + AST_FRIENDLY_OFFSET))) {
 			if (out->src != fr->src)
-				free((void *) out->src);
+				ast_free((void *) out->src);
 			if (out != fr)
-				free(out);
+				ast_free(out);
 			return NULL;
 		}
 		newdata += AST_FRIENDLY_OFFSET;

@@ -466,7 +466,7 @@ void ast_db_freetree(struct ast_db_entry *dbe)
 	while (dbe) {
 		last = dbe;
 		dbe = dbe->next;
-		free(last);
+		ast_free(last);
 	}
 }
 

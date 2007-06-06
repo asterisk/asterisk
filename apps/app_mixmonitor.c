@@ -220,7 +220,7 @@ static void *mixmonitor_thread(void *obj)
 	if (fs)
 		ast_closestream(fs);
 
-	free(mixmonitor);
+	ast_free(mixmonitor);
 
 
 	return NULL;
@@ -253,7 +253,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	}
 
 	/* Pre-allocate mixmonitor structure and spy */
-	if (!(mixmonitor = calloc(1, len))) {
+	if (!(mixmonitor = ast_calloc(1, len))) {
 		return;
 	}
 
@@ -291,7 +291,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 			mixmonitor->spy.type, chan->name);
 		/* Since we couldn't add ourselves - bail out! */
 		ast_mutex_destroy(&mixmonitor->spy.lock);
-		free(mixmonitor);
+		ast_free(mixmonitor);
 		return;
 	}
 

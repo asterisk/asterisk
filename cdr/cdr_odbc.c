@@ -218,22 +218,22 @@ static int odbc_unload_module(void)
 	if (dsn) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free dsn\n");
-		free(dsn);
+		ast_free(dsn);
 	}
 	if (username) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free username\n");
-		free(username);
+		ast_free(username);
 	}
 	if (password) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free password\n");
-		free(password);
+		ast_free(password);
 	}
 	if (table) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free table\n");
-		free(table);
+		ast_free(table);
 	}
 
 	ast_cdr_unregister(name);

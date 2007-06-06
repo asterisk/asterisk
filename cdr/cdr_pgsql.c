@@ -184,17 +184,17 @@ static int my_unload_module(void)
 	if (conn)
 		PQfinish(conn);
 	if (pghostname)
-		free(pghostname);
+		ast_free(pghostname);
 	if (pgdbname)
-		free(pgdbname);
+		ast_free(pgdbname);
 	if (pgdbuser)
-		free(pgdbuser);
+		ast_free(pgdbuser);
 	if (pgpassword)
-		free(pgpassword);
+		ast_free(pgpassword);
 	if (pgdbport)
-		free(pgdbport);
+		ast_free(pgdbport);
 	if (table)
-		free(table);
+		ast_free(table);
 	ast_cdr_unregister(name);
 	return 0;
 }

@@ -422,7 +422,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
   		if (oldargs[x]) {
 			if (!dead)
 				pbx_builtin_setvar_helper(chan, varname, oldargs[x]);
-			free(oldargs[x]);
+			ast_free(oldargs[x]);
 		} else if (!dead) {
 			pbx_builtin_setvar_helper(chan, varname, NULL);
 		}
@@ -435,11 +435,11 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
 	}
 	if (save_macro_exten)
-		free(save_macro_exten);
+		ast_free(save_macro_exten);
 	if (save_macro_context)
-		free(save_macro_context);
+		ast_free(save_macro_context);
 	if (save_macro_priority)
-		free(save_macro_priority);
+		ast_free(save_macro_priority);
 
 	if (!dead && setmacrocontext) {
 		chan->macrocontext[0] = '\0';
@@ -470,7 +470,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	if (!dead)
 		pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", save_macro_offset);
 	if (save_macro_offset)
-		free(save_macro_offset);
+		ast_free(save_macro_offset);
 
 	/* Unlock the macro */
 	if (exclusive) {

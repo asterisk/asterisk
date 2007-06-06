@@ -294,7 +294,7 @@ void ast_unregister_file_version(const char *file)
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&file_versions);
 	if (find)
-		free(find);
+		ast_free(find);
 }
 
 struct thread_list_t {
@@ -336,8 +336,8 @@ void ast_unregister_thread(void *id)
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&thread_list);
 	if (x) {
-		free(x->name);
-		free(x);
+		ast_free(x->name);
+		ast_free(x);
 	}
 }
 
@@ -2036,7 +2036,7 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 			/* Don't print dupes */
 			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
 				i--;
-				free(matches[idx]);
+				ast_free(matches[idx]);
 				matches[idx] = NULL;
 				continue;
 			}
@@ -2044,7 +2044,7 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 			numoutput++;
 			numoutputline++;
 			fprintf(stdout, "%-*s  ", max, matches[idx]);
-			free(matches[idx]);
+			ast_free(matches[idx]);
 			matches[idx] = NULL;
 		}
 		if (numoutputline > 0)
@@ -2113,7 +2113,7 @@ static char *cli_complete(EditLine *el, int ch)
 			mbuf[mlen] = '\0';
 
 			matches = ast_el_strtoarr(mbuf);
-			free(mbuf);
+			ast_free(mbuf);
 		} else
 			matches = (char **) NULL;
 	} else {
@@ -2159,8 +2159,8 @@ static char *cli_complete(EditLine *el, int ch)
 			}
 		}
 		for (i = 0; matches[i]; i++)
-			free(matches[i]);
-		free(matches);
+			ast_free(matches[i]);
+		ast_free(matches);
 	}
 
 	return (char *)(long)retval;

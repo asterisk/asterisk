@@ -101,9 +101,8 @@ void tdd_init(void)
 struct tdd_state *tdd_new(void)
 {
 	struct tdd_state *tdd;
-	tdd = malloc(sizeof(struct tdd_state));
+	tdd = calloc(1, sizeof(*tdd));
 	if (tdd) {
-		memset(tdd, 0, sizeof(struct tdd_state));
 		tdd->fskd.spb = 176;        /* 45.5 baud */
 		tdd->fskd.hdlc = 0;         /* Async */
 		tdd->fskd.nbit = 5;         /* 5 bits */
@@ -143,13 +142,12 @@ int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int len)
 	int b = 'X';
 	int res;
 	int c,x;
-	short *buf = malloc(2 * len + tdd->oldlen);
+	short *buf = calloc(1, 2 * len + tdd->oldlen);
 	short *obuf = buf;
 	if (!buf) {
 		ast_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
-	memset(buf, 0, 2 * len + tdd->oldlen);
 	memcpy(buf, tdd->oldstuff, tdd->oldlen);
 	mylen += tdd->oldlen/2;
 	for (x = 0; x < len; x++) 

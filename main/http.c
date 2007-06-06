@@ -206,7 +206,7 @@ static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri,
 	*contentlength = read(fd, result->str + result->used, st.st_size);
 	if (*contentlength < 0) {
 		close(fd);
-		free(result);
+		ast_free(result);
 		goto out403;
 	}
 	result->used += *contentlength;
@@ -747,7 +747,7 @@ static void *make_file_from_fd(void *data)
 	if (!ser->f) {
 		close(ser->fd);
 		ast_log(LOG_WARNING, "FILE * open failed!\n");
-		free(ser);
+		ast_free(ser);
 		return NULL;
 	}
 	return ser->parent->worker_fn(ser);
@@ -888,14 +888,14 @@ static void *httpd_helper_thread(void *data)
 				fwrite(tmp + 4, 1, contentlength, ser->f);
 			}
 		}
-		free(out);
+		ast_free(out);
 	}
 	if (title)
-		free(title);
+		ast_free(title);
 
 done:
 	fclose(ser->f);
-	free(ser);
+	ast_free(ser);
 	return NULL;
 }
 
@@ -938,7 +938,7 @@ void *server_root(void *data)
 		if (ast_pthread_create_detached_background(&launched, NULL, make_file_from_fd, ser)) {
 			ast_log(LOG_WARNING, "Unable to launch helper thread: %s\n", strerror(errno));
 			close(ser->fd);
-			free(ser);
+			ast_free(ser);
 		}
 
 	}
@@ -1107,10 +1107,10 @@ static void add_redirect(const char *value)
 static void destroy_post_mapping(struct ast_http_post_mapping *post_map)
 {
 	if (post_map->from)
-		free(post_map->from);
+		ast_free(post_map->from);
 	if (post_map->to)
-		free(post_map->to);
-	free(post_map);
+		ast_free(post_map->to);
+	ast_free(post_map);
 }
 
 static void destroy_post_mappings(void)
@@ -1168,15 +1168,15 @@ static int __ast_http_load(int reload)
 
 	http_tls_cfg.enabled = 0;
 	if (http_tls_cfg.certfile)
-		free(http_tls_cfg.certfile);
+		ast_free(http_tls_cfg.certfile);
 	http_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
 	if (http_tls_cfg.cipher)
-		free(http_tls_cfg.cipher);
+		ast_free(http_tls_cfg.cipher);
 	http_tls_cfg.cipher = ast_strdup("");
 
 	AST_RWLIST_WRLOCK(&uri_redirects);
 	while ((redirect = AST_RWLIST_REMOVE_HEAD(&uri_redirects, entry)))
-		free(redirect);
+		ast_free(redirect);
 	AST_RWLIST_UNLOCK(&uri_redirects);
 
 	destroy_post_mappings();
@@ -1192,10 +1192,10 @@ static int __ast_http_load(int reload)
 			else if (!strcasecmp(v->name, "sslbindport"))
 				https_desc.sin.sin_port = htons(atoi(v->value));
 			else if (!strcasecmp(v->name, "sslcert")) {
-				free(http_tls_cfg.certfile);
+				ast_free(http_tls_cfg.certfile);
 				http_tls_cfg.certfile = ast_strdup(v->value);
 			} else if (!strcasecmp(v->name, "sslcipher")) {
-				free(http_tls_cfg.cipher);
+				ast_free(http_tls_cfg.cipher);
 				http_tls_cfg.cipher = ast_strdup(v->value);
 			}
 			else if (!strcasecmp(v->name, "enablestatic"))

@@ -221,16 +221,16 @@ static int tds_log(struct ast_cdr *cdr)
 		}
 	} while (!connected && !retried);
 
-	free(accountcode);
-	free(src);
-	free(dst);
-	free(dcontext);
-	free(clid);
-	free(channel);
-	free(dstchannel);
-	free(lastapp);
-	free(lastdata);
-	free(uniqueid);
+	ast_free(accountcode);
+	ast_free(src);
+	ast_free(dst);
+	ast_free(dcontext);
+	ast_free(clid);
+	ast_free(channel);
+	ast_free(dstchannel);
+	ast_free(lastapp);
+	ast_free(lastdata);
+	ast_free(uniqueid);
 
 	ast_mutex_unlock(&tds_lock);
 
@@ -246,7 +246,7 @@ static char *anti_injection(const char *str, int len)
 	char *known_bad[] = {"select", "insert", "update", "delete", "drop", ";", "--", "\0"};
 	int idx;
 
-	if ((buf = malloc(len + 1)) == NULL)
+	if ((buf = ast_malloc(len + 1)) == NULL)
 	{
 		ast_log(LOG_ERROR, "cdr_tds:  Out of memory error\n");
 		return NULL;
@@ -413,13 +413,13 @@ static int tds_unload_module(void)
 
 	ast_cdr_unregister(name);
 
-	if (hostname) free(hostname);
-	if (dbname) free(dbname);
-	if (dbuser) free(dbuser);
-	if (password) free(password);
-	if (charset) free(charset);
-	if (language) free(language);
-	if (table) free(table);
+	if (hostname) ast_free(hostname);
+	if (dbname) ast_free(dbname);
+	if (dbuser) ast_free(dbuser);
+	if (password) ast_free(password);
+	if (charset) ast_free(charset);
+	if (language) ast_free(language);
+	if (table) ast_free(table);
 
 	return 0;
 }

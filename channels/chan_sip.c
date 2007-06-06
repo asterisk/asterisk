@@ -1791,7 +1791,7 @@ static int proxy_update(struct sip_proxy *proxy)
 static struct sip_proxy *proxy_allocate(char *name, char *port, int force)
 {
 	struct sip_proxy *proxy;
-	proxy = ast_calloc(1, sizeof(struct sip_proxy));
+	proxy = ast_calloc(1, sizeof(*proxy));
 	if (!proxy)
 		return NULL;
 	proxy->force = force;
@@ -2015,7 +2015,7 @@ static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 	if (!(hist = ast_calloc(1, sizeof(*hist) + l)))
 		return;
 	if (!p->history && !(p->history = ast_calloc(1, sizeof(*p->history)))) {
-		free(hist);
+		ast_free(hist);
 		return;
 	}
 	memcpy(hist->event, buf, l);
@@ -2141,7 +2141,7 @@ static int retrans_pkt(void *data)
 		if (cur == pkt) {
 			UNLINK(cur, pkt->owner->packets, prev);
 			sip_pvt_unlock(pkt->owner);
-			free(pkt);
+			ast_free(pkt);
 			return 0;
 		}
 	}
@@ -2300,7 +2300,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 				cur->retransid = -1;
 			}
 			UNLINK(cur, p->packets, prev);
-			free(cur);
+			ast_free(cur);
 			break;
 		}
 	}
@@ -2708,7 +2708,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_log(LOG_DEBUG, "Destroying SIP peer %s\n", peer->name);
 
 	if (peer->outboundproxy)
-		free(peer->outboundproxy);
+		ast_free(peer->outboundproxy);
 
 	/* Delete it, it needs to disappear */
 	if (peer->call)
@@ -2745,7 +2745,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	peer->auth = NULL;
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
-	free(peer);
+	ast_free(peer);
 }
 
 /*! \brief Update peer data in database (if used) */
@@ -2903,7 +2903,7 @@ static void sip_destroy_user(struct sip_user *user)
 		ruserobjs--;
 	else
 		suserobjs--;
-	free(user);
+	ast_free(user);
 }
 
 /*! \brief Load user from realtime storage
@@ -3304,7 +3304,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		ast_sched_del(sched, reg->timeout);
 	ast_string_field_free_pools(reg);
 	regobjs--;
-	free(reg);
+	ast_free(reg);
 	
 }
 
@@ -3331,7 +3331,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		sip_dump_history(p);
 
 	if (p->options)
-		free(p->options);
+		ast_free(p->options);
 
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
@@ -3349,7 +3349,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->udptl)
 		ast_udptl_destroy(p->udptl);
 	if (p->refer)
-		free(p->refer);
+		ast_free(p->refer);
 	if (p->route) {
 		free_old_route(p->route);
 		p->route = NULL;
@@ -3374,8 +3374,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->history) {
 		struct sip_history *hist;
 		while( (hist = AST_LIST_REMOVE_HEAD(p->history, list)) )
-			free(hist);
-		free(p->history);
+			ast_free(hist);
+		ast_free(p->history);
 		p->history = NULL;
 	}
 
@@ -3400,7 +3400,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->packets = p->packets->next;
 		if (cp->retransid > -1)
 			ast_sched_del(sched, cp->retransid);
-		free(cp);
+		ast_free(cp);
 	}
 	if (p->chanvars) {
 		ast_variables_destroy(p->chanvars);
@@ -3410,7 +3410,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 
 	ast_string_field_free_pools(p);
 
-	free(p);
+	ast_free(p);
 }
 
 /*! \brief  update_call_counter: Handle call_limit for SIP users 
@@ -4686,7 +4686,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		return NULL;
 
 	if (ast_string_field_init(p, 512)) {
-		free(p);
+		ast_free(p);
 		return NULL;
 	}
 
@@ -4738,7 +4738,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 				ast_variables_destroy(p->chanvars);
 				p->chanvars = NULL;
 			}
-			free(p);
+			ast_free(p);
 			return NULL;
 		}
 		ast_rtp_setqos(p->rtp, global_tos_audio, global_cos_audio);
@@ -4997,7 +4997,7 @@ static int sip_register(char *value, int lineno)
 
 	if (ast_string_field_init(reg, 256)) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry strings\n");
-		free(reg);
+		ast_free(reg);
 		return -1;
 	}
 
@@ -6334,7 +6334,7 @@ static void temp_pvt_cleanup(void *data)
 
 	ast_string_field_free_pools(p);
 
-	free(data);
+	ast_free(data);
 }
 
 /*! \brief Transmit response, no retransmits, using a temporary pvt structure */
@@ -8601,7 +8601,7 @@ static void free_old_route(struct sip_route *route)
 
 	while (route) {
 		next = route->next;
-		free(route);
+		ast_free(route);
 		route = next;
 	}
 }
@@ -13572,7 +13572,7 @@ static void *sip_park_thread(void *stuff)
 	transferee = d->chan1;
 	transferer = d->chan2;
 	copy_request(&req, &d->req);
-	free(d);
+	ast_free(d);
 
 	if (!transferee || !transferer) {
 		ast_log(LOG_ERROR, "Missing channels for parking! Transferer %s Transferee %s\n", transferer ? "<available>" : "<missing>", transferee ? "<available>" : "<missing>" );
@@ -13704,7 +13704,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		d->seqno = seqno;
 		if (ast_pthread_create_detached_background(&th, NULL, sip_park_thread, d) < 0) {
 			/* Could not start thread */
-			free(d);	/* We don't need it anymore. If thread is created, d will be free'd
+			ast_free(d);	/* We don't need it anymore. If thread is created, d will be free'd
 					   by sip_park_thread() */
 			return 0;
 		}
@@ -16664,7 +16664,7 @@ static void clear_sip_domains(void)
 
 	AST_LIST_LOCK(&domain_list);
 	while ((d = AST_LIST_REMOVE_HEAD(&domain_list, list)))
-		free(d);
+		ast_free(d);
 	AST_LIST_UNLOCK(&domain_list);
 }
 
@@ -16737,7 +16737,7 @@ static int clear_realm_authentication(struct sip_auth *authlist)
 	while (a) {
 		b = a;
 		a = a->next;
-		free(b);
+		ast_free(b);
 	}
 
 	return 1;
@@ -17225,7 +17225,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		asprintf(&reg_string, "%s:%s@%s/%s", peer->username, peer->secret, peer->tohost, callback);
 		if (reg_string) {
 			sip_register(reg_string, 0); /* XXX TODO: count in registry_count */
-			free(reg_string);
+			ast_free(reg_string);
 		}
 	}
 	return peer;
@@ -18646,7 +18646,7 @@ static int unload_module(void)
 	sched_context_destroy(sched);
 
 	if (global_disclaimer)
-		free(global_disclaimer);
+		ast_free(global_disclaimer);
 
 	return 0;
 }

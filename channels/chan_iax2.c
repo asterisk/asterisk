@@ -968,7 +968,7 @@ static struct iax2_thread *find_idle_thread(void)
 	if (ast_pthread_create_detached_background(&thread->threadid, NULL, iax2_process_thread, thread)) {
 		ast_cond_destroy(&thread->cond);
 		ast_mutex_destroy(&thread->lock);
-		free(thread);
+		ast_free(thread);
 		thread = NULL;
 	}
 
@@ -1160,7 +1160,7 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 		return NULL;
 
 	if (ast_string_field_init(tmp, 32)) {
-		free(tmp);
+		ast_free(tmp);
 		tmp = NULL;
 		return NULL;
 	}
@@ -1444,7 +1444,7 @@ static void destroy_firmware(struct iax_firmware *cur)
 		munmap(cur->fwh, ntohl(cur->fwh->datalen) + sizeof(*(cur->fwh)));
 	}
 	close(cur->fd);
-	free(cur);
+	ast_free(cur);
 }
 
 static int try_firmware(char *s)
@@ -1910,7 +1910,7 @@ retry:
 			jb_destroy(pvt->jb);
 			/* gotta free up the stringfields */
 			ast_string_field_free_pools(pvt);
-			free(pvt);
+			ast_free(pvt);
 		}
 	}
 	if (owner) {
@@ -3187,7 +3187,7 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
 					  AST_CONTROL_OPTION, 0, (unsigned char *) h,
 					  datalen + sizeof(*h), -1);
-		free(h);
+		ast_free(h);
 		return res;
 	}
 }
@@ -5638,7 +5638,7 @@ static int iax2_append_register(const char *hostname, const char *username,
 		return -1;
 
 	if (ast_dnsmgr_lookup(hostname, &reg->addr.sin_addr, &reg->dnsmgr) < 0) {
-		free(reg);
+		ast_free(reg);
 		return -1;
 	}
 
@@ -6247,10 +6247,10 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		   because by the time they could get tpeerlock, we've already grabbed it */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Dropping unused iax2 trunk peer '%s:%d'\n", ast_inet_ntoa(drop->addr.sin_addr), ntohs(drop->addr.sin_port));
-		free(drop->trunkdata);
+		ast_free(drop->trunkdata);
 		ast_mutex_unlock(&drop->lock);
 		ast_mutex_destroy(&drop->lock);
-		free(drop);
+		ast_free(drop);
 		
 	}
 
@@ -6306,8 +6306,8 @@ static void *dp_lookup_thread(void *data)
 	struct dpreq_data *dpr = data;
 	dp_lookup(dpr->callno, dpr->context, dpr->callednum, dpr->callerid, 0);
 	if (dpr->callerid)
-		free(dpr->callerid);
-	free(dpr);
+		ast_free(dpr->callerid);
+	ast_free(dpr);
 	return NULL;
 }
 
@@ -6344,7 +6344,7 @@ static void *iax_park_thread(void *stuff)
 	d = stuff;
 	chan1 = d->chan1;
 	chan2 = d->chan2;
-	free(d);
+	ast_free(d);
 	f = ast_read(chan1);
 	if (f)
 		ast_frfree(f);
@@ -6399,7 +6399,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		if (!ast_pthread_create_detached_background(&th, NULL, iax_park_thread, d)) {
 			return 0;
 		}
-		free(d);
+		ast_free(d);
 	}
 	return -1;
 }
@@ -7299,7 +7299,7 @@ retryowner:
 									char tmp[256];
 									for (var = ies.vars; var; var = var->next) {
 										if (prev)
-											free(prev);
+											ast_free(prev);
 										prev = var;
 										snprintf(tmp, sizeof(tmp), "__~IAX2~%s", var->name);
 										pbx_builtin_setvar_helper(c, tmp, var->value);
@@ -8016,7 +8016,7 @@ static void iax2_process_thread_cleanup(void *data)
 	struct iax2_thread *thread = data;
 	ast_mutex_destroy(&thread->lock);
 	ast_cond_destroy(&thread->cond);
-	free(thread);
+	ast_free(thread);
 	ast_atomic_dec_and_test(&iaxactivethreadcount);
 }
 
@@ -8359,7 +8359,7 @@ static void free_context(struct iax2_context *con)
 	while(con) {
 		conl = con;
 		con = con->next;
-		free(conl);
+		ast_free(conl);
 	}
 }
 
@@ -8539,10 +8539,11 @@ static void *network_thread(void *ignore)
 
 static int start_network_thread(void)
 {
+	struct iax2_thread *thread;
 	int threadcount = 0;
 	int x;
 	for (x = 0; x < iaxthreadcount; x++) {
-		struct iax2_thread *thread = ast_calloc(1, sizeof(struct iax2_thread));
+		thread = ast_calloc(1, sizeof(*thread));
 		if (thread) {
 			thread->type = IAX_THREAD_TYPE_POOL;
 			thread->threadnum = ++threadcount;
@@ -8550,7 +8551,7 @@ static int start_network_thread(void)
 			ast_cond_init(&thread->cond, NULL);
 			if (ast_pthread_create_detached(&thread->threadid, NULL, iax2_process_thread, thread)) {
 				ast_log(LOG_WARNING, "Failed to create new thread!\n");
-				free(thread);
+				ast_free(thread);
 				thread = NULL;
 			}
 			AST_LIST_LOCK(&idle_list);
@@ -8726,7 +8727,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			peer->pokeexpire = -1;
 			peer->sockfd = defaultsockfd;
 			if (ast_string_field_init(peer, 32)) {
-				free(peer);
+				ast_free(peer);
 				peer = NULL;
 			}
 		}
@@ -8812,7 +8813,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 					ast_clear_flag(peer, IAX_DYNAMIC);
 					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr)) {
 						ast_string_field_free_pools(peer);
-						free(peer);
+						ast_free(peer);
 						return NULL;
 					}
 					if (!peer->addr.sin_port)
@@ -8823,7 +8824,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			} else if (!strcasecmp(v->name, "defaultip")) {
 				if (ast_get_ip(&peer->defaddr, v->value)) {
 					ast_string_field_free_pools(peer);
-					free(peer);
+					ast_free(peer);
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "sourceaddress")) {
@@ -8977,7 +8978,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
  	} else {
 		AST_LIST_UNLOCK(&users);
 		/* This is going to memset'd to 0 in the next block */
-		user = ast_calloc(sizeof(*user),1);
+		user = ast_calloc(1, sizeof(*user));
 	}
 	
 	if (user) {
@@ -8985,7 +8986,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 			ast_string_field_free_pools(user);
 			memset(user, 0, sizeof(struct iax2_user));
 			if (ast_string_field_init(user, 32)) {
-				free(user);
+				ast_free(user);
 				user = NULL;
 			}
 			user->maxauthreq = maxauthreq;
@@ -9178,7 +9179,7 @@ static void delete_users(void)
 		}
 		if (reg->dnsmgr)
 			ast_dnsmgr_release(reg->dnsmgr);
-		free(reg);
+		ast_free(reg);
 	}
 	AST_LIST_UNLOCK(&registrations);
 
@@ -9197,7 +9198,7 @@ static void destroy_user(struct iax2_user *user)
 		user->vars = NULL;
 	}
 	ast_string_field_free_pools(user);
-	free(user);
+	ast_free(user);
 }
 
 static void prune_users(void)
@@ -9241,7 +9242,7 @@ static void destroy_peer(struct iax2_peer *peer)
 
 	ast_string_field_free_pools(peer);
 
-	free(peer);
+	ast_free(peer);
 }
 
 static void prune_peers(void){
@@ -9794,7 +9795,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 			if ((dp->flags & CACHE_FLAG_PENDING) || dp->callno)
 				ast_log(LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = blah, callno = %d)\n", dp->flags, dp->callno);
 			else
-				free(dp);
+				ast_free(dp);
 			continue;
 		}
 		if (!strcmp(dp->peercontext, data) && !strcmp(dp->exten, exten))

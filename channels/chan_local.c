@@ -178,7 +178,7 @@ retrylock:
 		return and destroy p.  */
 		ast_mutex_unlock(&p->lock);
 		ast_mutex_destroy(&p->lock);
-		free(p);
+		ast_free(p);
 		return -1;
 	}
 	if (!other) {
@@ -530,7 +530,7 @@ static int local_hangup(struct ast_channel *ast)
 		/* And destroy */
 		if (!glaredetect) {
 			ast_mutex_destroy(&p->lock);
-			free(p);
+			ast_free(p);
 		}
 		return 0;
 	}
@@ -577,7 +577,7 @@ static struct local_pvt *local_alloc(const char *data, int format)
 	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
 		ast_mutex_destroy(&tmp->lock);
-		free(tmp);
+		ast_free(tmp);
 		tmp = NULL;
 	} else {
 		/* Add to list */

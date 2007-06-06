@@ -100,7 +100,7 @@ static int handle_add_indication(int fd, int argc, char *argv[])
 		ast_copy_string(tz->country,argv[2],sizeof(tz->country));
 		if (ast_register_indication_country(tz)) {
 			ast_log(LOG_WARNING, "Unable to register new country\n");
-			free(tz);
+			ast_free(tz);
 			return -1;
 		}
 		created_country = 1;
@@ -293,7 +293,7 @@ static int ind_load_module(void)
 					ast_copy_string(azone->alias, cxt, sizeof(azone->alias));
 					if (ast_register_indication_country(azone)) {
 						ast_log(LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);
-						free(tones);
+						ast_free(tones);
 					}
 					/* next item */
 					country = strsep(&c,",");
@@ -326,9 +326,9 @@ out:			v = v->next;
 		if (tones->description[0] || tones->alias[0] || tones->tones) {
 			if (ast_register_indication_country(tones)) {
 				ast_log(LOG_WARNING, "Unable to register indication at line %d.\n",v->lineno);
-				free(tones);
+				ast_free(tones);
 			}
-		} else free(tones);
+		} else ast_free(tones);
 
 		cxt = ast_category_browse(cfg, cxt);
 	}

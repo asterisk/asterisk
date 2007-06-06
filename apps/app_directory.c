@@ -463,14 +463,14 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 							if (!strncmp(conv, ext, strlen(ext))) {
 								/* Match! */
 								found++;
-								free(conv);
-								free(start);
+								ast_free(conv);
+								ast_free(start);
 								break;
 							}
-							free(conv);
+							ast_free(conv);
 						}
 					}
-					free(start);
+					ast_free(start);
 				}
 				v = v->next;
 			}
@@ -547,10 +547,10 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 							default:
 								break;
 							}
-							free(conv);
+							ast_free(conv);
 							break;
 						}
-						free(conv);
+						ast_free(conv);
 					}
 				}
 			}

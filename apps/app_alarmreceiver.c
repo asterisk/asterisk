@@ -727,7 +727,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	for(elp = event_head; (elp != NULL);){
 		efree = elp;
 		elp = elp->next;
-		free(efree);
+		ast_free(efree);
 	}
 
 

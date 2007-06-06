@@ -157,7 +157,7 @@ void ast_cdr_unregister(const char *name)
 			AST_LIST_REMOVE_CURRENT(&be_list, list);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
-			free(i);
+			ast_free(i);
 			break;
 		}
 	}
@@ -440,7 +440,7 @@ void ast_cdr_free(struct ast_cdr *cdr)
 			ast_log(LOG_NOTICE, "CDR on channel '%s' lacks start\n", chan);
 
 		ast_cdr_free_vars(cdr, 0);
-		free(cdr);
+		ast_free(cdr);
 		cdr = next;
 	}
 }
@@ -452,14 +452,15 @@ void ast_cdr_discard(struct ast_cdr *cdr)
 		struct ast_cdr *next = cdr->next;
 
 		ast_cdr_free_vars(cdr, 0);
-		free(cdr);
+		ast_free(cdr);
 		cdr = next;
 	}
 }
 
 struct ast_cdr *ast_cdr_alloc(void)
 {
-	struct ast_cdr *x = ast_calloc(1, sizeof(struct ast_cdr));
+	struct ast_cdr *x;
+	x = ast_calloc(1, sizeof(*x));
 	if (!x)
 		ast_log(LOG_ERROR,"Allocation Failure for a CDR!\n");
 	return x;
@@ -1024,7 +1025,7 @@ static void *do_batch_backend_process(void *data)
 		ast_cdr_free(batchitem->cdr);
 		processeditem = batchitem;
 		batchitem = batchitem->next;
-		free(processeditem);
+		ast_free(processeditem);
 	}
 
 	return NULL;

@@ -793,7 +793,7 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 			ast_variables_destroy(var);
 		} else { 
 			if (!ivm) 
-				free(retval);
+				ast_free(retval);
 			retval = NULL;
 		}	
 	} 
@@ -2287,12 +2287,12 @@ static void free_user(struct ast_vm_user *vmu)
 	if (!ast_test_flag(vmu, VM_ALLOCED))
 		return;
 
-	free(vmu);
+	ast_free(vmu);
 }
 
 static void free_zone(struct vm_zone *z)
 {
-	free(z);
+	ast_free(z);
 }
 
 static const char *mbox(int id)
@@ -8047,10 +8047,9 @@ static int load_config(void)
 								AST_LIST_UNLOCK(&zones);
 							} else {
 								ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
-								free(z);
+								ast_free(z);
 							}
 						} else {
-							free(z);
 							AST_LIST_UNLOCK(&users);
 							ast_config_destroy(cfg);
 							return -1;
@@ -8066,19 +8065,19 @@ static int load_config(void)
 		memset(emailtitle,0,sizeof(emailtitle));
 		strcpy(charset, "ISO-8859-1");
 		if (emailbody) {
-			free(emailbody);
+			ast_free(emailbody);
 			emailbody = NULL;
 		}
 		if (emailsubject) {
-			free(emailsubject);
+			ast_free(emailsubject);
 			emailsubject = NULL;
 		}
 		if (pagerbody) {
-			free(pagerbody);
+			ast_free(pagerbody);
 			pagerbody = NULL;
 		}
 		if (pagersubject) {
-			free(pagersubject);
+			ast_free(pagersubject);
 			pagersubject = NULL;
 		}
 		if ((s = ast_variable_retrieve(cfg, "general", "pbxskip")))
@@ -8938,7 +8937,7 @@ static struct ast_vm_user *find_user_realtime_imapuser(const char *imapuser)
 		ast_variables_destroy(var);
 		return vmu;
 	} else {
-		free(vmu);
+		ast_free(vmu);
 		return NULL;
 	}
 }
@@ -9320,7 +9319,7 @@ static void vmstate_delete(struct vm_state *vms)
 	AST_LIST_UNLOCK(&vmstates);
 	
 	if (vc)
-		free(vc);
+		ast_free(vc);
 	else
 		ast_log(LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n", vms->imapuser, vms->username);
 }

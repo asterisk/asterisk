@@ -156,7 +156,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			if (directory) {
 				char *name = strdup(fname_base);
 				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
-				free(name);
+				ast_free(name);
 				ast_safe_system(tmp);
 			}
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
@@ -200,7 +200,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
 			ast_log(LOG_WARNING, "Could not create file %s\n",
 						monitor->read_filename);
-			free(monitor);
+			ast_free(monitor);
 			UNLOCK_IF_NEEDED(chan, need_lock);
 			return -1;
 		}
@@ -213,7 +213,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			ast_log(LOG_WARNING, "Could not create file %s\n",
 						monitor->write_filename);
 			ast_closestream(monitor->read_stream);
-			free(monitor);
+			ast_free(monitor);
 			UNLOCK_IF_NEEDED(chan, need_lock);
 			return -1;
 		}
@@ -321,8 +321,8 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 				ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}
 		
-		free(chan->monitor->format);
-		free(chan->monitor);
+		ast_free(chan->monitor->format);
+		ast_free(chan->monitor);
 		chan->monitor = NULL;
 	}
 
@@ -371,7 +371,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		if (directory) {
 			char *name = strdup(fname_base);
 			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
-			free(name);
+			ast_free(name);
 			ast_safe_system(tmp);
 		}
 

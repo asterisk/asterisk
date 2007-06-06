@@ -831,7 +831,7 @@ static int remove_from_interfaces(const char *interface)
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Removing %s from the list of interfaces that make up all of our queue members.\n", interface);
 				AST_LIST_REMOVE_CURRENT(&interfaces, list);
-				free(curint);
+				ast_free(curint);
 			}
 			break;
 		}
@@ -848,7 +848,7 @@ static void clear_and_free_interfaces(void)
 
 	AST_LIST_LOCK(&interfaces);
 	while ((curint = AST_LIST_REMOVE_HEAD(&interfaces, list)))
-		free(curint);
+		ast_free(curint);
 	AST_LIST_UNLOCK(&interfaces);
 }
 
@@ -1076,7 +1076,7 @@ static void free_members(struct call_queue *q, int all)
 			else
 				q->members = next;
 			remove_from_interfaces(curm->interface);
-			free(curm);
+			ast_free(curm);
 		} else
 			prev = curm;
 	}
@@ -1086,7 +1086,7 @@ static void destroy_queue(struct call_queue *q)
 {
 	free_members(q, 1);
 	ast_mutex_destroy(&q->lock);
-	free(q);
+	ast_free(q);
 }
 
 /*!\brief Reload a single queue via realtime.
@@ -1196,7 +1196,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 				q->members = next_m;
 			}
 			remove_from_interfaces(m->interface);
-			free(m);
+			ast_free(m);
 		} else {
 			prev_m = m;
 		}
@@ -1546,7 +1546,7 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 			ast_hangup(outgoing->chan);
 		oo = outgoing;
 		outgoing = outgoing->q_next;
-		free(oo);
+		ast_free(oo);
 	}
 }
 
@@ -1747,13 +1747,13 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	tmp->chan->data = "(Outgoing Line)";
 	tmp->chan->whentohangup = 0;
 	if (tmp->chan->cid.cid_num)
-		free(tmp->chan->cid.cid_num);
+		ast_free(tmp->chan->cid.cid_num);
 	tmp->chan->cid.cid_num = ast_strdup(qe->chan->cid.cid_num);
 	if (tmp->chan->cid.cid_name)
-		free(tmp->chan->cid.cid_name);
+		ast_free(tmp->chan->cid.cid_name);
 	tmp->chan->cid.cid_name = ast_strdup(qe->chan->cid.cid_name);
 	if (tmp->chan->cid.cid_ani)
-		free(tmp->chan->cid.cid_ani);
+		ast_free(tmp->chan->cid.cid_ani);
 	tmp->chan->cid.cid_ani = ast_strdup(qe->chan->cid.cid_ani);
 
 	/* Inherit specially named variables from parent channel */
@@ -2067,11 +2067,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 					} else {
 						ast_channel_inherit_variables(in, o->chan);
 						if (o->chan->cid.cid_num)
-							free(o->chan->cid.cid_num);
+							ast_free(o->chan->cid.cid_num);
 						o->chan->cid.cid_num = ast_strdup(in->cid.cid_num);
 
 						if (o->chan->cid.cid_name)
-							free(o->chan->cid.cid_name);
+							ast_free(o->chan->cid.cid_name);
 						o->chan->cid.cid_name = ast_strdup(in->cid.cid_name);
 
 						ast_string_field_set(o->chan, accountcode, in->accountcode);
@@ -2079,11 +2079,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 						if (in->cid.cid_ani) {
 							if (o->chan->cid.cid_ani)
-								free(o->chan->cid.cid_ani);
+								ast_free(o->chan->cid.cid_ani);
 							o->chan->cid.cid_ani = ast_strdup(in->cid.cid_ani);
 						}
 						if (o->chan->cid.cid_rdnis)
-							free(o->chan->cid.cid_rdnis);
+							ast_free(o->chan->cid.cid_rdnis);
 						o->chan->cid.cid_rdnis = ast_strdup(S_OR(in->macroexten, in->exten));
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
@@ -2547,7 +2547,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
 				break;
 		} else {
-			free(tmp);
+			ast_free(tmp);
 		}
 	}
 	if (qe->expire && (!qe->parent->timeout || (qe->expire - now) <= qe->parent->timeout))
@@ -2964,7 +2964,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 				"Location: %s\r\n"
 				"MemberName: %s\r\n",
 				q->name, last_member->interface, last_member->membername);
-			free(last_member);
+			ast_free(last_member);
 			
 			if (queue_persistent_members)
 				dump_queue_members(q);
@@ -4087,7 +4087,7 @@ static int reload_queues(void)
 							} else {
 								q->members = newm;
 							}
-							free(cur);
+							ast_free(cur);
 						} else {
 							/* Add them to the master int list if necessary */
 							add_to_interfaces(interface);
@@ -4116,7 +4116,7 @@ static int reload_queues(void)
 						q->members = next;
 
 					remove_from_interfaces(cur->interface);
-					free(cur);
+					ast_free(cur);
 				}
 
 				if (new) {

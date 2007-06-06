@@ -112,7 +112,7 @@ int ast_format_unregister(const char *name)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
 			AST_RWLIST_REMOVE_CURRENT(&formats, list);
-			free(tmp);
+			ast_free(tmp);
 			res = 0;
 		}
 	}
@@ -372,7 +372,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 				continue;
 
 			if ( stat(fn, &st) ) { /* file not existent */
-				free(fn);
+				ast_free(fn);
 				continue;
 			}
 			/* for 'OPEN' we need to be sure that the format matches
@@ -385,23 +385,23 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 
 				if ( !(chan->writeformat & f->format) &&
 				     !(f->format >= AST_FORMAT_MAX_AUDIO && fmt)) {
-					free(fn);
+					ast_free(fn);
 					continue;	/* not a supported format */
 				}
 				if ( (bfile = fopen(fn, "r")) == NULL) {
-					free(fn);
+					ast_free(fn);
 					continue;	/* cannot open file */
 				}
 				s = get_filestream(f, bfile);
 				if (!s) {
 					fclose(bfile);
-					free(fn);	/* cannot allocate descriptor */
+					ast_free(fn);	/* cannot allocate descriptor */
 					continue;
 				}
 				if (open_wrapper(s)) {
 					fclose(bfile);
-					free(fn);
-					free(s);
+					ast_free(fn);
+					ast_free(s);
 					continue;	/* cannot run open on file */
 				}
 				/* ok this is good for OPEN */
@@ -419,7 +419,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 						ast_closestream(chan->vstream);
 					chan->vstream = s;
 				}
-				free(fn);
+				ast_free(fn);
 				break;
 			}
 			switch (action) {
@@ -446,7 +446,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 						ast_log(LOG_WARNING, "%s(%s,%s) failed: %s\n",
 							action == ACTION_COPY ? "copy" : "rename",
 							 fn, nfn, strerror(errno));
-					free(nfn);
+					ast_free(nfn);
 				}
 			    }
 				break;
@@ -454,7 +454,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 			default:
 				ast_log(LOG_WARNING, "Unknown helper %d\n", action);
 			}
-			free(fn);
+			ast_free(fn);
 		}
 	}
 	AST_RWLIST_UNLOCK(&formats);
@@ -732,16 +732,16 @@ int ast_closestream(struct ast_filestream *f)
 	}
 
 	if (f->filename)
-		free(f->filename);
+		ast_free(f->filename);
 	if (f->realfilename)
-		free(f->realfilename);
+		ast_free(f->realfilename);
 	if (f->fmt->close)
 		f->fmt->close(f);
 	fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
 	ast_module_unref(f->fmt->module);
-	free(f);
+	ast_free(f);
 	return 0;
 }
 
@@ -833,7 +833,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 				ast_free(fs);
 			if (bfile)
 				fclose(bfile);
-			free(fn);
+			ast_free(fn);
 			continue;
 		}
 		/* found it */
@@ -919,7 +919,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			strcpy(buf, record_cache_dir);
 			strcat(buf, "/");
 			strcat(buf, fn);
-			free(fn);
+			ast_free(fn);
 			fn = buf;
 			fd = open(fn, flags | myflags, mode);
 			if (fd > -1) {
@@ -966,7 +966,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 		}
 		/* if buf != NULL then fn is already free and pointing to it */
 		if (!buf)
-			free(fn);
+			ast_free(fn);
 	}
 
 	AST_RWLIST_UNLOCK(&formats);

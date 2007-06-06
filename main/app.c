@@ -306,7 +306,7 @@ static void linear_release(struct ast_channel *chan, void *params)
 	}
 	if (ls->autoclose)
 		close(ls->fd);
-	free(params);
+	ast_free(params);
 }
 
 static int linear_generator(struct ast_channel *chan, void *data, int len, int samples)
@@ -349,7 +349,7 @@ static void *linear_alloc(struct ast_channel *chan, void *params)
 		ls->origwfmt = chan->writeformat;
 		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 			ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
-			free(ls);
+			ast_free(ls);
 			ls = params = NULL;
 		}
 	}
@@ -844,7 +844,7 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 			break;
 	}
 	
-	if (!gi && (gi = calloc(1, len))) {
+	if (!gi && (gi = ast_calloc(1, len))) {
 		gi->chan = chan;
 		gi->group = (char *) gi + sizeof(*gi);
 		strcpy(gi->group, group);
@@ -927,7 +927,7 @@ int ast_app_group_discard(struct ast_channel *chan)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
 		if (gi->chan == chan) {
 			AST_LIST_REMOVE_CURRENT(&groups, list);
-			free(gi);
+			ast_free(gi);
 		}
 	}
         AST_LIST_TRAVERSE_SAFE_END
@@ -1378,7 +1378,7 @@ char *ast_read_textfile(const char *filename)
 			output[res] = '\0';
 		} else {
 			ast_log(LOG_WARNING, "Short read of %s (%d of %d): %s\n", filename, res, count - 1, strerror(errno));
-			free(output);
+			ast_free(output);
 			output = NULL;
 		}
 	}

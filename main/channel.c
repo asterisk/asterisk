@@ -458,7 +458,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&backends, chan, list) {
 		if (chan->tech == tech) {
 			AST_LIST_REMOVE_CURRENT(&backends, list);
-			free(chan);
+			ast_free(chan);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered channel type '%s'\n", tech->type);
 			break;	
@@ -648,13 +648,13 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 
 	if (!(tmp->sched = sched_context_create())) {
 		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
-		free(tmp);
+		ast_free(tmp);
 		return NULL;
 	}
 	
 	if ((ast_string_field_init(tmp, 128))) {
 		sched_context_destroy(tmp->sched);
-		free(tmp);
+		ast_free(tmp);
 		return NULL;
 	}
 
@@ -681,7 +681,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 			ast_string_field_free_pools(tmp);
-			free(tmp);
+			ast_free(tmp);
 			return NULL;
 		} else {
 			flags = fcntl(tmp->alertpipe[0], F_GETFL);
@@ -1057,15 +1057,15 @@ int ast_safe_sleep(struct ast_channel *chan, int ms)
 static void free_cid(struct ast_callerid *cid)
 {
 	if (cid->cid_dnid)
-		free(cid->cid_dnid);
+		ast_free(cid->cid_dnid);
 	if (cid->cid_num)
-		free(cid->cid_num);	
+		ast_free(cid->cid_num);	
 	if (cid->cid_name)
-		free(cid->cid_name);	
+		ast_free(cid->cid_name);	
 	if (cid->cid_ani)
-		free(cid->cid_ani);
+		ast_free(cid->cid_ani);
 	if (cid->cid_rdnis)
-		free(cid->cid_rdnis);
+		ast_free(cid->cid_rdnis);
 	cid->cid_dnid = cid->cid_num = cid->cid_name = cid->cid_ani = cid->cid_rdnis = NULL;
 }
 
@@ -1092,7 +1092,7 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 	if (chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
-		free(chan->tech_pvt);
+		ast_free(chan->tech_pvt);
 	}
 
 	if (chan->sched)
@@ -1149,7 +1149,7 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_jb_destroy(chan);
 
 	ast_string_field_free_pools(chan);
-	free(chan);
+	ast_free(chan);
 	AST_LIST_UNLOCK(&channels);
 
 	ast_device_state_changed_literal(name);
@@ -1160,13 +1160,13 @@ struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_inf
 	struct ast_datastore *datastore = NULL;
 
 	/* Make sure we at least have type so we can identify this */
-	if (info == NULL) {
+	if (!info) {
 		return NULL;
 	}
 
 	/* Allocate memory for datastore and clear it */
 	datastore = ast_calloc(1, sizeof(*datastore));
-	if (datastore == NULL) {
+	if (!datastore) {
 		return NULL;
 	}
 
@@ -1194,7 +1194,7 @@ int ast_channel_datastore_free(struct ast_datastore *datastore)
 	}
 
 	/* Finally free memory used by ourselves */
-	free(datastore);
+	ast_free(datastore);
 
 	return res;
 }
@@ -1332,7 +1332,7 @@ static void spy_cleanup(struct ast_channel *chan)
 		ast_translator_free_path(chan->spies->read_translator.path);
 	if (chan->spies->write_translator.path)
 		ast_translator_free_path(chan->spies->write_translator.path);
-	free(chan->spies);
+	ast_free(chan->spies);
 	chan->spies = NULL;
 	return;
 }
@@ -2522,7 +2522,7 @@ int ast_recvchar(struct ast_channel *chan, int timeout)
 	if (buf == NULL)
 		return -1;	/* error or timeout */
 	c = *(unsigned char *)buf;
-	free(buf);
+	ast_free(buf);
 	return c;
 }
 
@@ -3702,17 +3702,17 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 {
 	if (callerid) {
 		if (chan->cid.cid_num)
-			free(chan->cid.cid_num);
+			ast_free(chan->cid.cid_num);
 		chan->cid.cid_num = ast_strdup(callerid);
 	}
 	if (calleridname) {
 		if (chan->cid.cid_name)
-			free(chan->cid.cid_name);
+			ast_free(chan->cid.cid_name);
 		chan->cid.cid_name = ast_strdup(calleridname);
 	}
 	if (ani) {
 		if (chan->cid.cid_ani)
-			free(chan->cid.cid_ani);
+			ast_free(chan->cid.cid_ani);
 		chan->cid.cid_ani = ast_strdup(ani);
 	}
 	if (chan->cdr)
@@ -4262,7 +4262,7 @@ static void tonepair_release(struct ast_channel *chan, void *params)
 
 	if (chan)
 		ast_set_write_format(chan, ts->origwfmt);
-	free(ts);
+	ast_free(ts);
 }
 
 static void *tonepair_alloc(struct ast_channel *chan, void *params)
@@ -4670,7 +4670,7 @@ struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_cha
 
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could not set write format to SLINEAR\n");
-		free(state);
+		ast_free(state);
 		return NULL;
 	}
 
@@ -4695,7 +4695,7 @@ void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_sil
 	if (ast_set_write_format(chan, state->old_write_format) < 0)
 		ast_log(LOG_ERROR, "Could not return write format to its original state\n");
 
-	free(state);
+	ast_free(state);
 }
 
 
@@ -4925,6 +4925,6 @@ void ast_channel_whisper_stop(struct ast_channel *chan)
 		ast_set_write_format(chan, chan->whisper->original_format);
 	ast_slinfactory_destroy(&chan->whisper->sf);
 	ast_mutex_destroy(&chan->whisper->lock);
-	free(chan->whisper);
+	ast_free(chan->whisper);
 	chan->whisper = NULL;
 }

@@ -257,7 +257,7 @@ static struct gtalk_container gtalk_list;
 
 static void gtalk_member_destroy(struct gtalk *obj)
 {
-	free(obj);
+	ast_free(obj);
 }
 
 static struct gtalk *find_gtalk(char *name, char *connection)
@@ -817,9 +817,9 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 
 safeout:
 	if (ours1)
-		free(ours1);
+		ast_free(ours1);
 	if (ours2)
-		free(ours2);
+		ast_free(ours2);
 	if (iq)
 		iks_delete(iq);
 	if (gtalk)
@@ -1036,7 +1036,7 @@ static void gtalk_free_candidates(struct gtalk_candidate *candidate)
 	while (candidate) {
 		last = candidate;
 		candidate = candidate->next;
-		free(last);
+		ast_free(last);
 	}
 }
 
@@ -1064,7 +1064,7 @@ static void gtalk_free_pvt(struct gtalk *client, struct gtalk_pvt *p)
 	if (p->vrtp)
 		ast_rtp_destroy(p->vrtp);
 	gtalk_free_candidates(p->theircandidates);
-	free(p);
+	ast_free(p);
 }
 
 

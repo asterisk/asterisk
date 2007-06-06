@@ -85,7 +85,7 @@ void __ast_threadstorage_object_remove(void *key)
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&tls_objects);
 	if (to)
-		free(to);
+		ast_free(to);
 }
 
 void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len)

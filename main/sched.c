@@ -94,17 +94,17 @@ void sched_context_destroy(struct sched_context *con)
 #ifdef SCHED_MAX_CACHE
 	/* Eliminate the cache */
 	while ((s = AST_LIST_REMOVE_HEAD(&con->schedc, list)))
-		free(s);
+		ast_free(s);
 #endif
 
 	/* And the queue */
 	while ((s = AST_LIST_REMOVE_HEAD(&con->schedq, list)))
-		free(s);
+		ast_free(s);
 	
 	/* And the context */
 	ast_mutex_unlock(&con->lock);
 	ast_mutex_destroy(&con->lock);
-	free(con);
+	ast_free(con);
 }
 
 static struct sched *sched_alloc(struct sched_context *con)
@@ -138,7 +138,7 @@ static void sched_release(struct sched_context *con, struct sched *tmp)
 		con->schedccnt++;
 	} else
 #endif
-		free(tmp);
+		ast_free(tmp);
 }
 
 /*! \brief

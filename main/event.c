@@ -109,9 +109,9 @@ static AST_RWLIST_HEAD(ast_event_ref_list, ast_event_ref) ast_event_cache[AST_EV
 static void ast_event_ie_val_destroy(struct ast_event_ie_val *ie_val)
 {
 	if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
-		free((void *) ie_val->payload.str);
+		ast_free((void *) ie_val->payload.str);
 
-	free(ie_val);
+	ast_free(ie_val);
 }
 
 enum ast_event_subscriber_res ast_event_check_subscriber(enum ast_event_type type, ...)
@@ -270,7 +270,7 @@ struct ast_event_sub *ast_event_subscribe(enum ast_event_type type, ast_event_cb
 			ie_val->payload.uint = va_arg(ap, uint32_t);
 		else if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_STR) {
 			if (!(ie_val->payload.str = ast_strdup(va_arg(ap, const char *)))) {
-				free(ie_val);
+				ast_free(ie_val);
 				continue;
 			}
 		}
@@ -327,7 +327,7 @@ static void ast_event_sub_destroy(struct ast_event_sub *sub)
 	while ((ie_val = AST_LIST_REMOVE_HEAD(&sub->ie_vals, entry)))
 		ast_event_ie_val_destroy(ie_val);
 
-	free(sub);
+	ast_free(sub);
 }
 
 void ast_event_unsubscribe(struct ast_event_sub *sub)
@@ -481,13 +481,13 @@ struct ast_event *ast_event_new(enum ast_event_type type, ...)
 
 void ast_event_destroy(struct ast_event *event)
 {
-	free(event);
+	ast_free(event);
 }
 
 static void ast_event_ref_destroy(struct ast_event_ref *event_ref)
 {
 	ast_event_destroy(event_ref->event);
-	free(event_ref);
+	ast_free(event_ref);
 }
 
 static struct ast_event *ast_event_dup(const struct ast_event *event)

@@ -295,7 +295,7 @@ static void purge_events(void)
 	while ( (ev = AST_LIST_FIRST(&all_events)) &&
 	    ev->usecount == 0 && AST_LIST_NEXT(ev, eq_next)) {
 		AST_LIST_REMOVE_HEAD(&all_events, eq_next);
-		free(ev);
+		ast_free(ev);
 	}
 	AST_LIST_UNLOCK(&all_events);
 }
@@ -696,7 +696,7 @@ static void free_session(struct mansession *s)
 	if (s->f != NULL)
 		fclose(s->f);
 	ast_mutex_destroy(&s->__lock);
-	free(s);
+	ast_free(s);
 	unref_event(eqe);
 }
 
@@ -1889,7 +1889,7 @@ static void *fast_originate(void *data)
 	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
 	if (chan)
 		ast_channel_unlock(chan);
-	free(in);
+	ast_free(in);
 	return NULL;
 }
 
@@ -2501,7 +2501,7 @@ static void *session_do(void *data)
 	destroy_session(s);
 
 done:
-	free(ser);
+	ast_free(ser);
 	return NULL;
 }
 
@@ -2641,7 +2641,7 @@ int ast_manager_unregister(char *action)
 				prev->next = cur->next;
 			else
 				first_action = cur->next;
-			free(cur);
+			ast_free(cur);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
 			break;
@@ -3273,10 +3273,10 @@ int init_manager(void)
 
 	ami_tls_cfg.enabled = 0;
 	if (ami_tls_cfg.certfile)
-		free(ami_tls_cfg.certfile);
+		ast_free(ami_tls_cfg.certfile);
 	ami_tls_cfg.certfile = ast_strdup(AST_CERTFILE);
 	if (ami_tls_cfg.cipher)
-		free(ami_tls_cfg.cipher);
+		ast_free(ami_tls_cfg.cipher);
 	ami_tls_cfg.cipher = ast_strdup("");
 
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
@@ -3293,10 +3293,10 @@ int init_manager(void)
 				ast_log(LOG_WARNING, "Invalid bind address '%s'\n", val);
 			}
 		} else if (!strcasecmp(var->name, "sslcert")) {
-			free(ami_tls_cfg.certfile);
+			ast_free(ami_tls_cfg.certfile);
 			ami_tls_cfg.certfile = ast_strdup(val);
 		} else if (!strcasecmp(var->name, "sslcipher")) {
-			free(ami_tls_cfg.cipher);
+			ast_free(ami_tls_cfg.cipher);
 			ami_tls_cfg.cipher = ast_strdup(val);
 		} else if (!strcasecmp(var->name, "enabled")) {
 			manager_enabled = ast_true(val);
@@ -3359,23 +3359,23 @@ int init_manager(void)
 		while (var) {
 			if (!strcasecmp(var->name, "secret")) {
 				if (user->secret)
-					free(user->secret);
+					ast_free(user->secret);
 				user->secret = ast_strdup(var->value);
 			} else if (!strcasecmp(var->name, "deny") ) {
 				if (user->deny)
-					free(user->deny);
+					ast_free(user->deny);
 				user->deny = ast_strdup(var->value);
 			} else if (!strcasecmp(var->name, "permit") ) {
 				if (user->permit)
-					free(user->permit);
+					ast_free(user->permit);
 				user->permit = ast_strdup(var->value);
 			}  else if (!strcasecmp(var->name, "read") ) {
 				if (user->read)
-					free(user->read);
+					ast_free(user->read);
 				user->read = ast_strdup(var->value);
 			}  else if (!strcasecmp(var->name, "write") ) {
 				if (user->write)
-					free(user->write);
+					ast_free(user->write);
 				user->write = ast_strdup(var->value);
 			}  else if (!strcasecmp(var->name, "displayconnects") )
 				user->displayconnects = ast_true(var->value);
@@ -3397,16 +3397,16 @@ int init_manager(void)
 		AST_LIST_REMOVE_CURRENT(&users, list);
 		/* Free their memory now */
 		if (user->secret)
-			free(user->secret);
+			ast_free(user->secret);
 		if (user->deny)
-			free(user->deny);
+			ast_free(user->deny);
 		if (user->permit)
-			free(user->permit);
+			ast_free(user->permit);
 		if (user->read)
-			free(user->read);
+			ast_free(user->read);
 		if (user->write)
-			free(user->write);
-		free(user);
+			ast_free(user->write);
+		ast_free(user);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 

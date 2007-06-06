@@ -80,7 +80,7 @@ static void ast_netsock_destroy(struct ast_netsock *netsock)
 {
 	ast_io_remove(netsock->ioc, netsock->ioref);
 	close(netsock->sockfd);
-	free(netsock);
+	ast_free(netsock);
 }
 
 struct ast_netsock_list *ast_netsock_list_alloc(void)
@@ -147,7 +147,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 		
 	ast_enable_packet_fragmentation(netsocket);
 
-	if (!(ns = ast_calloc(1, sizeof(struct ast_netsock)))) {
+	if (!(ns = ast_calloc(1, sizeof(*ns)))) {
 		close(netsocket);
 		return NULL;
 	}
@@ -155,7 +155,7 @@ struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct i
 	/* Establish I/O callback for socket read */
 	if (!(ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns))) {
 		close(netsocket);
-		free(ns);
+		ast_free(ns);
 		return NULL;
 	}	
 	ASTOBJ_INIT(ns);

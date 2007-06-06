@@ -511,7 +511,7 @@ static int speech_processing_sound(struct ast_channel *chan, void *data)
         }
 
 	if (speech->processing_sound != NULL) {
-		free(speech->processing_sound);
+		ast_free(speech->processing_sound);
 		speech->processing_sound = NULL;
 	}
 

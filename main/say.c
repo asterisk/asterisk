@@ -1962,7 +1962,7 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 	static odmiana *odmiana_zenska = NULL; 
 
 	if (odmiana_nieosobowa == NULL) {
-		odmiana_nieosobowa = (odmiana *) malloc(sizeof(odmiana));
+		odmiana_nieosobowa = ast_malloc(sizeof(*odmiana_nieosobowa));
 
 		odmiana_nieosobowa->separator_dziesiatek = " ";
 
@@ -1975,7 +1975,7 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 	}
 
 	if (odmiana_zenska == NULL) {
-		odmiana_zenska = (odmiana *) malloc(sizeof(odmiana));
+		odmiana_zenska = ast_malloc(sizeof(*odmiana_zenska));
 
 		odmiana_zenska->separator_dziesiatek = " ";
 
@@ -1988,7 +1988,7 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 	}
 
 	if (odmiana_meska == NULL) {
-		odmiana_meska = (odmiana *) malloc(sizeof(odmiana));
+		odmiana_meska = ast_malloc(sizeof(*odmiana_meska));
 
 		odmiana_meska->separator_dziesiatek = " ";
 
@@ -6908,7 +6908,7 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 
 	while (res == 0 && (s = strstr(remainder, " "))) {
 		size_t len = s - remainder;
-		char* new_string = malloc(len + 1 + strlen("digits/"));
+		char* new_string = ast_malloc(len + 1 + strlen("digits/"));
 
 		sprintf(new_string, "digits/");
 		strncat(new_string, remainder, len);  /* we can't sprintf() it, it's not null-terminated. */
@@ -6922,7 +6922,7 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 		}
 		ast_stopstream(chan);
 
-		free(new_string);
+		ast_free(new_string);
 
 		remainder = s + 1;  /* position just after the found space char. */
 		while(*remainder == ' ')  /* skip multiple spaces */
@@ -6933,7 +6933,7 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 	/* the last chunk. */
 	if (res == 0 && *remainder) {
 
-		char* new_string = malloc(strlen(remainder) + 1 + strlen("digits/"));
+		char* new_string = ast_malloc(strlen(remainder) + 1 + strlen("digits/"));
 		sprintf(new_string, "digits/%s", remainder);
 
 		if (!ast_streamfile(chan, new_string, language)) {
@@ -6944,7 +6944,7 @@ static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char 
 		}
 		ast_stopstream(chan);
 
-		free(new_string);
+		ast_free(new_string);
 
 	}
 

@@ -376,13 +376,12 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 	}
 	if (!cur) {
 		mallocd = 1;
-		cur = malloc(sizeof(struct iax_template));
+		cur = ast_calloc(1, sizeof(*cur));
 		if (!cur) {
 			ast_log(LOG_WARNING, "Out of memory!\n");
 			return -1;
 		}
 		/* Initialize entry */
-		memset(cur, 0, sizeof(*cur));
 		strncpy(cur->name, s, sizeof(cur->name) - 1);
 		cur->dead = 1;
 	}
@@ -527,7 +526,7 @@ int iax_provision_reload(void)
 				prev->next = next;
 			else
 				templates = next;
-			free(cur);
+			ast_free(cur);
 		} else 
 			prev = cur;
 		cur = next;

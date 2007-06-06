@@ -765,7 +765,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		cnf->fd = open("/dev/zap/pseudo", O_RDWR);
 		if (cnf->fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo device\n");
-			free(cnf);
+			ast_free(cnf);
 			cnf = NULL;
 			goto cnfout;
 		}
@@ -780,7 +780,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 			ast_hangup(cnf->chan);
 		else
 			close(cnf->fd);
-		free(cnf);
+		ast_free(cnf);
 		cnf = NULL;
 		goto cnfout;
 	}
@@ -1247,7 +1247,7 @@ static int conf_free(struct ast_conference *conf)
 	else
 		close(conf->fd);
 	
-	free(conf);
+	ast_free(conf);
 
 	return 0;
 }
@@ -2278,7 +2278,7 @@ bailoutandtrynormal:
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 	}
-	free(user);
+	ast_free(user);
 	AST_LIST_UNLOCK(&confs);
 
 	return ret;
@@ -3348,9 +3348,9 @@ static void sla_stop_ringing_trunk(struct sla_ringing_trunk *ringing_trunk)
 	sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 
 	while ((station_ref = AST_LIST_REMOVE_HEAD(&ringing_trunk->timed_out_stations, entry)))
-		free(station_ref);
+		ast_free(station_ref);
 
-	free(ringing_trunk);
+	ast_free(ringing_trunk);
 }
 
 static void sla_stop_ringing_station(struct sla_ringing_station *ringing_station,
@@ -3385,7 +3385,7 @@ static void sla_stop_ringing_station(struct sla_ringing_station *ringing_station
 	}
 
 done:
-	free(ringing_station);
+	ast_free(ringing_station);
 }
 
 static void sla_dial_state_callback(struct ast_dial *dial)
@@ -3496,8 +3496,8 @@ static void sla_handle_dial_state_event(void)
 			args.station = ringing_station->station;
 			args.cond = &cond;
 			args.cond_lock = &cond_lock;
-			free(ringing_trunk);
-			free(ringing_station);
+			ast_free(ringing_trunk);
+			ast_free(ringing_station);
 			ast_mutex_init(&cond_lock);
 			ast_cond_init(&cond, NULL);
 			ast_mutex_lock(&cond_lock);
@@ -3551,7 +3551,7 @@ static int sla_check_failed_station(const struct sla_station *station)
 			continue;
 		if (ast_tvdiff_ms(ast_tvnow(), failed_station->last_try) > 1000) {
 			AST_LIST_REMOVE_CURRENT(&sla.failed_stations, entry);
-			free(failed_station);
+			ast_free(failed_station);
 			break;
 		}
 		res = 1;
@@ -3586,12 +3586,12 @@ static int sla_ring_station(struct sla_ringing_trunk *ringing_trunk, struct sla_
 
 	if (!sla.attempt_callerid && !ast_strlen_zero(ringing_trunk->trunk->chan->cid.cid_name)) {
 		cid_name = ast_strdupa(ringing_trunk->trunk->chan->cid.cid_name);
-		free(ringing_trunk->trunk->chan->cid.cid_name);
+		ast_free(ringing_trunk->trunk->chan->cid.cid_name);
 		ringing_trunk->trunk->chan->cid.cid_name = NULL;
 	}
 	if (!sla.attempt_callerid && !ast_strlen_zero(ringing_trunk->trunk->chan->cid.cid_num)) {
 		cid_num = ast_strdupa(ringing_trunk->trunk->chan->cid.cid_num);
-		free(ringing_trunk->trunk->chan->cid.cid_num);
+		ast_free(ringing_trunk->trunk->chan->cid.cid_num);
 		ringing_trunk->trunk->chan->cid.cid_num = NULL;
 	}
 
@@ -3753,7 +3753,7 @@ static void sla_hangup_stations(void)
 			ast_dial_join(ringing_station->station->dial);
 			ast_dial_destroy(ringing_station->station->dial);
 			ringing_station->station->dial = NULL;
-			free(ringing_station);
+			ast_free(ringing_station);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
@@ -4018,7 +4018,7 @@ static void *sla_thread(void *data)
 				sla_handle_ringing_trunk_event();
 				break;
 			}
-			free(event);
+			ast_free(event);
 			ast_mutex_lock(&sla.lock);
 		}
 	}
@@ -4026,10 +4026,10 @@ static void *sla_thread(void *data)
 	ast_mutex_unlock(&sla.lock);
 
 	while ((ringing_station = AST_LIST_REMOVE_HEAD(&sla.ringing_stations, entry)))
-		free(ringing_station);
+		ast_free(ringing_station);
 
 	while ((failed_station = AST_LIST_REMOVE_HEAD(&sla.failed_stations, entry)))
-		free(failed_station);
+		ast_free(failed_station);
 
 	return NULL;
 }
@@ -4072,12 +4072,12 @@ static void *dial_trunk(void *data)
 
 	if (!sla.attempt_callerid && !ast_strlen_zero(trunk_ref->chan->cid.cid_name)) {
 		cid_name = ast_strdupa(trunk_ref->chan->cid.cid_name);
-		free(trunk_ref->chan->cid.cid_name);
+		ast_free(trunk_ref->chan->cid.cid_name);
 		trunk_ref->chan->cid.cid_name = NULL;
 	}
 	if (!sla.attempt_callerid && !ast_strlen_zero(trunk_ref->chan->cid.cid_num)) {
 		cid_num = ast_strdupa(trunk_ref->chan->cid.cid_num);
-		free(trunk_ref->chan->cid.cid_num);
+		ast_free(trunk_ref->chan->cid.cid_num);
 		trunk_ref->chan->cid.cid_num = NULL;
 	}
 
@@ -4389,7 +4389,7 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	ast_mutex_unlock(&sla.lock);
 	if (ringing_trunk) {
 		sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
-		free(ringing_trunk);
+		ast_free(ringing_trunk);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "UNANSWERED");
 		/* Queue reprocessing of ringing trunks to make stations stop ringing
 		 * that shouldn't be ringing after this trunk stopped. */
@@ -4457,10 +4457,10 @@ static void destroy_trunk(struct sla_trunk *trunk)
 		ast_context_remove_extension(trunk->autocontext, "s", 1, sla_registrar);
 
 	while ((station_ref = AST_LIST_REMOVE_HEAD(&trunk->stations, entry)))
-		free(station_ref);
+		ast_free(station_ref);
 
 	ast_string_field_free_all(trunk);
-	free(trunk);
+	ast_free(trunk);
 }
 
 static void destroy_station(struct sla_station *station)
@@ -4483,10 +4483,10 @@ static void destroy_station(struct sla_station *station)
 	}
 
 	while ((trunk_ref = AST_LIST_REMOVE_HEAD(&station->trunks, entry)))
-		free(trunk_ref);
+		ast_free(trunk_ref);
 
 	ast_string_field_free_all(station);
-	free(station);
+	ast_free(station);
 }
 
 static void sla_destroy(void)
@@ -4549,7 +4549,7 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 	if (!(trunk = ast_calloc(1, sizeof(*trunk))))
 		return -1;
 	if (ast_string_field_init(trunk, 32)) {
-		free(trunk);
+		ast_free(trunk);
 		return -1;
 	}
 
@@ -4654,7 +4654,7 @@ static void sla_add_trunk_to_station(struct sla_station *station, struct ast_var
 	}
 
 	if (!(station_ref = sla_create_station_ref(station))) {
-		free(trunk_ref);
+		ast_free(trunk_ref);
 		return;
 	}
 	ast_atomic_fetchadd_int((int *) &trunk->num_stations, 1);
@@ -4678,7 +4678,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 	if (!(station = ast_calloc(1, sizeof(*station))))
 		return -1;
 	if (ast_string_field_init(station, 32)) {
-		free(station);
+		ast_free(station);
 		return -1;
 	}
 

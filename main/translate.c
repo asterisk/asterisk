@@ -129,7 +129,7 @@ static void *newpvt(struct ast_translator *t)
 		pvt->outbuf = ofs + AST_FRIENDLY_OFFSET;
 	/* call local init routine, if present */
 	if (t->newpvt && t->newpvt(pvt)) {
-		free(pvt);
+		ast_free(pvt);
 		return NULL;
 	}
 	ast_module_ref(t->module);
@@ -142,7 +142,7 @@ static void destroy(struct ast_trans_pvt *pvt)
 
 	if (t->destroy)
 		t->destroy(pvt);
-	free(pvt);
+	ast_free(pvt);
 	ast_module_unref(t->module);
 }
 

@@ -1353,7 +1353,7 @@ static int rpt_do_lstats(int fd, int argc, char *argv[])
 					l = l->next;
 					continue;
 				}
-				if ((s = (struct rpt_lstat *) ast_calloc(1, sizeof(struct rpt_lstat))) == NULL) {
+				if ((s = ast_calloc(1, sizeof(*s))) == NULL) {
 					ast_log(LOG_ERROR, "Malloc failed in rpt_do_lstats\n");
 					rpt_mutex_unlock(&myrpt->lock); /* UNLOCK */
 					return RESULT_FAILURE;
@@ -2186,7 +2186,7 @@ static void *rpt_tele_thread(void *this)
 				l = l->next;
 				continue;
 			}
-			m = ast_malloc(sizeof(struct rpt_link));
+			m = ast_malloc(sizeof(*m));
 			if (!m) {
 				ast_log(LOG_WARNING, "Cannot alloc memory on %s\n", mychannel->name);
 				remque((struct qelem *)mytele);
@@ -2453,7 +2453,7 @@ static void rpt_telemetry(struct rpt *myrpt, int mode, void *data)
 	struct rpt_link *mylink = (struct rpt_link *) data;
 	int res;
 
-	tele = ast_calloc(1, sizeof(struct rpt_tele));
+	tele = ast_calloc(1, sizeof(*tele));
 	if (!tele) {
 		ast_log(LOG_WARNING, "Unable to allocate memory\n");
 		pthread_exit(NULL);
@@ -2869,7 +2869,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			rpt_mutex_unlock(&myrpt->lock);
 		ast_copy_string(myrpt->lastlinknode, digitbuf, MAXNODESTR);
 		/* establish call in monitor mode */
-		l = ast_calloc(1, sizeof(struct rpt_link));
+		l = ast_calloc(1, sizeof(*l));
 		if (!l) {
 			ast_log(LOG_WARNING, "Unable to malloc\n");
 			return DC_ERROR;
@@ -2979,7 +2979,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			rpt_mutex_unlock(&myrpt->lock);
 		ast_copy_string(myrpt->lastlinknode, digitbuf, MAXNODESTR);
 		/* establish call in tranceive mode */
-		l = ast_calloc(1, sizeof(struct rpt_link));
+		l = ast_calloc(1, sizeof(*l));
 		if (!l) {
 			ast_log(LOG_WARNING, "Unable to malloc\n");
 			return DC_ERROR;
@@ -6982,7 +6982,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		} else 
 			rpt_mutex_unlock(&myrpt->lock);
 		/* establish call in tranceive mode */
-		l = ast_calloc(1, sizeof(struct rpt_link));
+		l = ast_calloc(1, sizeof(*l));
 		if (!l) {
 			ast_log(LOG_WARNING, "Unable to malloc\n");
 			pthread_exit(NULL);

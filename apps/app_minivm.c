@@ -470,7 +470,7 @@ static struct minivm_template *message_template_create(const char *name)
 {
 	struct minivm_template *template;
 
-	template = ast_calloc(1, sizeof(struct minivm_template));
+	template = ast_calloc(1, sizeof(*template));
 	if (!template)
 		return NULL;
 
@@ -488,9 +488,9 @@ static struct minivm_template *message_template_create(const char *name)
 static void message_template_free(struct minivm_template *template)
 {
 	if (template->body)
-		free(template->body);
+		ast_free(template->body);
 
-	free (template);
+	ast_free (template);
 }
 
 /*! \brief Build message template from configuration */
@@ -524,7 +524,7 @@ static int message_template_build(const char *name, struct ast_variable *var)
 			ast_copy_string(template->charset, var->value, sizeof(template->charset));
 		} else if (!strcasecmp(var->name, "templatefile")) {
 			if (template->body) 
-				free(template->body);
+				ast_free(template->body);
 			template->body = message_template_parse_filebody(var->value);
 			if (!template->body) {
 				ast_log(LOG_ERROR, "Error reading message body definition file %s\n", var->value);
@@ -532,7 +532,7 @@ static int message_template_build(const char *name, struct ast_variable *var)
 			}
 		} else if (!strcasecmp(var->name, "messagebody")) {
 			if (template->body) 
-				free(template->body);
+				ast_free(template->body);
 			template->body = message_template_parse_emailbody(var->value);
 			if (!template->body) {
 				ast_log(LOG_ERROR, "Error parsing message body definition:\n          %s\n", var->value);
@@ -727,7 +727,7 @@ static void free_user(struct minivm_account *vmu)
 {
 	if (vmu->chanvars)
 		ast_variables_destroy(vmu->chanvars);
-	free(vmu);
+	ast_free(vmu);
 }
 
 
@@ -793,7 +793,7 @@ static struct minivm_account *mvm_user_alloc(void)
 {
 	struct minivm_account *new;
 
-	new = calloc(1, sizeof(struct minivm_account));
+	new = ast_calloc(1, sizeof(*new));
 	if (!new)
 		return NULL;
 	populate_defaults(new);
@@ -808,7 +808,7 @@ static void vmaccounts_destroy_list(void)
 	struct minivm_account *this;
 	AST_LIST_LOCK(&minivm_accounts);
 	while ((this = AST_LIST_REMOVE_HEAD(&minivm_accounts, list))) 
-		free(this);
+		ast_free(this);
 	AST_LIST_UNLOCK(&minivm_accounts);
 }
 
@@ -877,7 +877,7 @@ static struct minivm_account *find_user_realtime(const char *domain, const char 
 	var = ast_load_realtime("minivm", "username", username, "domain", domain, NULL);
 
 	if (!var) {
-		free(retval);
+		ast_free(retval);
 		return NULL;
 	}
 
@@ -2201,7 +2201,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 		ast_log(LOG_DEBUG, "Creating static account for user %s domain %s\n", username, domain);
 
 	/* Allocate user account */
-	vmu = ast_calloc(1, sizeof(struct minivm_account));
+	vmu = ast_calloc(1, sizeof(*vmu));
 	if (!vmu)
 		return 0;
 	
@@ -2277,7 +2277,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 /*! \brief Free Mini Voicemail timezone */
 static void free_zone(struct minivm_zone *z)
 {
-	free(z);
+	ast_free(z);
 }
 
 /*! \brief Clear list of timezones */
@@ -2299,21 +2299,21 @@ static int timezone_add(char *zonename, char *config)
 	struct minivm_zone *newzone;
 	char *msg_format, *timezone;
 
-	newzone = ast_calloc(1, sizeof(struct minivm_zone));
+	newzone = ast_calloc(1, sizeof(*newzone));
 	if (newzone == NULL)
 		return 0;
 
 	msg_format = ast_strdupa(config);
 	if (msg_format == NULL) {
 		ast_log(LOG_WARNING, "Out of memory.\n");
-		free(newzone);
+		ast_free(newzone);
 		return 0;
 	}
 
 	timezone = strsep(&msg_format, "|");
 	if (!msg_format) {
 		ast_log(LOG_WARNING, "Invalid timezone definition : %s\n", zonename);
-		free(newzone);
+		ast_free(newzone);
 		return 0;
 	}
 			

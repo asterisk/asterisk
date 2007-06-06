@@ -593,7 +593,7 @@ static char *sql_get_config_table =
 static int set_var(char **var, char *name, char *value)
 {
 	if (*var)
-		free(*var);
+		ast_free(*var);
 
 	*var = ast_strdup(value);
 
@@ -654,11 +654,11 @@ static int load_config(void)
 
 static void unload_config(void)
 {
-	free(dbfile);
+	ast_free(dbfile);
 	dbfile = NULL;
-	free(config_table);
+	ast_free(config_table);
 	config_table = NULL;
-	free(cdr_table);
+	ast_free(cdr_table);
 	cdr_table = NULL;
 }
 
@@ -684,7 +684,7 @@ static int cdr_handler(struct ast_cdr *cdr)
 
 	if (error) {
 		ast_log(LOG_ERROR, "%s\n", errormsg);
-		free(errormsg);
+		ast_free(errormsg);
 		return 1;
 	}
 
@@ -711,7 +711,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 			return 1;
 		}
 
-		free(args->cat_name);
+		ast_free(args->cat_name);
 		args->cat_name = ast_strdup(argv[RES_SQLITE_CONFIG_CATEGORY]);
 
 		if (!args->cat_name) {
@@ -763,11 +763,11 @@ static struct ast_config *config_handler(const char *database,
 
 	ast_mutex_unlock(&mutex);
 
-	free(args.cat_name);
+	ast_free(args.cat_name);
 
 	if (error) {
 		ast_log(LOG_ERROR, "%s\n", errormsg);
-		free(errormsg);
+		ast_free(errormsg);
 		return NULL;
 	}
 
@@ -785,15 +785,15 @@ static size_t get_params(va_list ap, const char ***params_ptr, const char ***val
 
 	while ((param = va_arg(ap, const char *)) && (val = va_arg(ap, const char *))) {
 		if (!(tmp = ast_realloc(params, (params_count + 1) * sizeof(char *)))) {
-			free(params);
-			free(vals);
+			ast_free(params);
+			ast_free(vals);
 			return 0;
 		}
 		params = tmp;
 
 		if (!(tmp = ast_realloc(vals, (params_count + 1) * sizeof(char *)))) {
-			free(params);
-			free(vals);
+			ast_free(params);
+			ast_free(vals);
 			return 0;
 		}
 		vals = tmp;
@@ -872,8 +872,8 @@ realtime_handler(const char *database, const char *table, va_list ap)
 
 	if (!query) {
 		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
-		free(params);
-		free(vals);
+		ast_free(params);
+		ast_free(vals);
 		return NULL;
 	}
 
@@ -888,8 +888,8 @@ realtime_handler(const char *database, const char *table, va_list ap)
 
 			if (!tmp_str) {
 				ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
-				free(params);
-				free(vals);
+				ast_free(params);
+				ast_free(vals);
 				return NULL;
 			}
 
@@ -897,8 +897,8 @@ realtime_handler(const char *database, const char *table, va_list ap)
 		}
 	}
 
-	free(params);
-	free(vals);
+	ast_free(params);
+	ast_free(vals);
 
 	tmp_str = sqlite_mprintf("%s LIMIT 1;", query);
 	sqlite_freemem(query);
@@ -925,7 +925,7 @@ realtime_handler(const char *database, const char *table, va_list ap)
 
 	if (error) {
 		ast_log(LOG_WARNING, "%s\n", errormsg);
-		free(errormsg);
+		ast_free(errormsg);
 		ast_variables_destroy(args.var);
 		return NULL;
 	}
@@ -1008,8 +1008,8 @@ static struct ast_config *realtime_multi_handler(const char *database,
 
 	if (!(initfield = ast_strdup(params[0]))) {
 		ast_config_destroy(cfg);
-		free(params);
-		free(vals);
+		ast_free(params);
+		ast_free(vals);
 		return NULL;
 	}
 
@@ -1034,9 +1034,9 @@ static struct ast_config *realtime_multi_handler(const char *database,
 	if (!(query = sqlite_mprintf(QUERY, table, params[0], op, tmp_str))) {
 		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
 		ast_config_destroy(cfg);
-		free(params);
-		free(vals);
-		free(initfield);
+		ast_free(params);
+		ast_free(vals);
+		ast_free(initfield);
 		return NULL;
 	}
 
@@ -1052,9 +1052,9 @@ static struct ast_config *realtime_multi_handler(const char *database,
 			if (!tmp_str) {
 				ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
 				ast_config_destroy(cfg);
-				free(params);
-				free(vals);
-				free(initfield);
+				ast_free(params);
+				ast_free(vals);
+				ast_free(initfield);
 				return NULL;
 			}
 
@@ -1062,13 +1062,13 @@ static struct ast_config *realtime_multi_handler(const char *database,
 		}
 	}
 
-	free(params);
-	free(vals);
+	ast_free(params);
+	ast_free(vals);
 
 	if (!(tmp_str = sqlite_mprintf("%s ORDER BY %q;", query, initfield))) {
 		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
 		ast_config_destroy(cfg);
-		free(initfield);
+		ast_free(initfield);
 		return NULL;
 	}
 
@@ -1087,11 +1087,11 @@ static struct ast_config *realtime_multi_handler(const char *database,
 	ast_mutex_unlock(&mutex);
 
 	sqlite_freemem(query);
-	free(initfield);
+	ast_free(initfield);
 
 	if (error) {
 		ast_log(LOG_WARNING, "%s\n", errormsg);
-		free(errormsg);
+		ast_free(errormsg);
 		ast_config_destroy(cfg);
 		return NULL;
 	}
@@ -1123,8 +1123,8 @@ static int realtime_update_handler(const char *database, const char *table,
 
 	if (!(query = sqlite_mprintf(QUERY, table, params[0], vals[0]))) {
 		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
-		free(params);
-		free(vals);
+		ast_free(params);
+		ast_free(vals);
 		return -1;
 	}
 
@@ -1138,8 +1138,8 @@ static int realtime_update_handler(const char *database, const char *table,
 
 			if (!tmp_str) {
 				ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
-				free(params);
-				free(vals);
+				ast_free(params);
+				ast_free(vals);
 				return -1;
 			}
 
@@ -1147,8 +1147,8 @@ static int realtime_update_handler(const char *database, const char *table,
 		}
 	}
 
-	free(params);
-	free(vals);
+	ast_free(params);
+	ast_free(vals);
 
 	if (!(tmp_str = sqlite_mprintf("%s WHERE %q = '%q';", query, keyfield, entity))) {
 		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
@@ -1176,7 +1176,7 @@ static int realtime_update_handler(const char *database, const char *table,
 
 	if (error) {
 		ast_log(LOG_WARNING, "%s\n", errormsg);
-		free(errormsg);
+		ast_free(errormsg);
 	}
 
 	return rows_num;
@@ -1239,7 +1239,7 @@ static int load_module(void)
 
 	if (!(db = sqlite_open(dbfile, 0660, &errormsg))) {
 		ast_log(LOG_ERROR, "%s\n", errormsg);
-		free(errormsg);
+		ast_free(errormsg);
 		unload_module();
 		return 1;
 	}
@@ -1258,7 +1258,7 @@ static int load_module(void)
 			 */
 			if (error != SQLITE_ERROR) {
 				ast_log(LOG_ERROR, "%s\n", errormsg);
-				free(errormsg);
+				ast_free(errormsg);
 				unload_module();
 				return 1;
 			}
@@ -1270,7 +1270,7 @@ static int load_module(void)
 
 			if (error) {
 				ast_log(LOG_ERROR, "%s\n", errormsg);
-				free(errormsg);
+				ast_free(errormsg);
 				unload_module();
 				return 1;
 			}

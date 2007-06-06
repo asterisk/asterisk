@@ -175,7 +175,7 @@ static void ast_moh_free_class(struct mohclass **mohclass)
 	int i;
 	
 	while ((member = AST_LIST_REMOVE_HEAD(&class->members, list)))
-		free(member);
+		ast_free(member);
 	
 	if (class->thread) {
 		pthread_cancel(class->thread);
@@ -184,11 +184,11 @@ static void ast_moh_free_class(struct mohclass **mohclass)
 
 	if (class->filearray) {
 		for (i = 0; i < class->total_files; i++)
-			free(class->filearray[i]);
-		free(class->filearray);
+			ast_free(class->filearray[i]);
+		ast_free(class->filearray);
 	}
 
-	free(class);
+	ast_free(class);
 	*mohclass = NULL;
 }
 
@@ -680,7 +680,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	
 	if (pipe(moh->pipe)) {
 		ast_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
-		free(moh);
+		ast_free(moh);
 		return NULL;
 	}
 
@@ -712,7 +712,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	close(moh->pipe[0]);
 	close(moh->pipe[1]);
 	oldwfmt = moh->origwfmt;
-	free(moh);
+	ast_free(moh);
 	if (chan) {
 		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) 
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(oldwfmt));
@@ -819,7 +819,7 @@ static int moh_scan_files(struct mohclass *class) {
 	}
 
 	for (i = 0; i < class->total_files; i++)
-		free(class->filearray[i]);
+		ast_free(class->filearray[i]);
 
 	class->total_files = 0;
 	dirnamelen = strlen(class->dir) + 2;
@@ -880,7 +880,7 @@ static int moh_register(struct mohclass *moh, int reload)
 		} else {
 			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		}
-		free(moh);	
+		ast_free(moh);	
 		AST_RWLIST_UNLOCK(&mohclasses);
 		return -1;
 	}
@@ -944,7 +944,7 @@ static int moh_register(struct mohclass *moh, int reload)
 static void local_ast_moh_cleanup(struct ast_channel *chan)
 {
 	if (chan->music_state) {
-		free(chan->music_state);
+		ast_free(chan->music_state);
 		chan->music_state = NULL;
 	}
 }
@@ -1061,18 +1061,18 @@ static int load_moh_classes(int reload)
 					strcpy(class->dir, "nodir");
 				} else {
 					ast_log(LOG_WARNING, "A directory must be specified for class '%s'!\n", class->name);
-					free(class);
+					ast_free(class);
 					continue;
 				}
 			}
 			if (ast_strlen_zero(class->mode)) {
 				ast_log(LOG_WARNING, "A mode must be specified for class '%s'!\n", class->name);
-				free(class);
+				ast_free(class);
 				continue;
 			}
 			if (ast_strlen_zero(class->args) && !strcasecmp(class->mode, "custom")) {
 				ast_log(LOG_WARNING, "An application must be specified for class '%s'!\n", class->name);
-				free(class);
+				ast_free(class);
 				continue;
 			}
 

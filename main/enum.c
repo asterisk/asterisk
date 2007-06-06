@@ -443,7 +443,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	}
 
 	if (chan && ast_autoservice_start(chan) < 0) {
-		free(context);
+		ast_free(context);
 		return -1;
 	}
 
@@ -523,11 +523,11 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 
 	if (!argcontext) {
 		for (k = 0; k < context->naptr_rrs_count; k++) {
-			free(context->naptr_rrs[k].result);
-			free(context->naptr_rrs[k].tech);
+			ast_free(context->naptr_rrs[k].result);
+			ast_free(context->naptr_rrs[k].tech);
 		}
-		free(context->naptr_rrs);
-		free(context);
+		ast_free(context->naptr_rrs);
+		ast_free(context);
 	} else
 		*argcontext = context;
 
@@ -622,7 +622,7 @@ int ast_enum_init(void)
 	while (s) {
 		sl = s;
 		s = s->next;
-		free(sl);
+		ast_free(sl);
 	}
 	toplevs = NULL;
 	cfg = ast_config_load("enum.conf");

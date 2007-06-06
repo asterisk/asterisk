@@ -170,7 +170,7 @@ void ast_module_unregister(const struct ast_module_info *info)
 
 	if (mod) {
 		AST_LIST_HEAD_DESTROY(&mod->users);
-		free(mod);
+		ast_free(mod);
 	}
 }
 
@@ -201,7 +201,7 @@ void __ast_module_user_remove(struct ast_module *mod, struct ast_module_user *u)
 	AST_LIST_REMOVE(&mod->users, u, entry);
 	AST_LIST_UNLOCK(&mod->users);
 	ast_atomic_fetchadd_int(&mod->usecount, -1);
-	free(u);
+	ast_free(u);
 
 	ast_update_use_count();
 }
@@ -214,7 +214,7 @@ void __ast_module_user_hangup_all(struct ast_module *mod)
 	while ((u = AST_LIST_REMOVE_HEAD(&mod->users, entry))) {
 		ast_softhangup(u->chan, AST_SOFTHANGUP_APPUNLOAD);
 		ast_atomic_fetchadd_int(&mod->usecount, -1);
-		free(u);
+		ast_free(u);
 	}
 	AST_LIST_UNLOCK(&mod->users);
 
@@ -359,7 +359,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 
 	if (!(lib = dlopen(fn, RTLD_LAZY | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
-		free(resource_being_loaded);
+		ast_free(resource_being_loaded);
 		return NULL;
 	}
 
@@ -396,7 +396,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Unable to promote flags on module '%s': %s\n", resource_in, dlerror());
 		while (!dlclose(lib));
-		free(resource_being_loaded);
+		ast_free(resource_being_loaded);
 		return NULL;
 	}
 #else
@@ -412,7 +412,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 
 	if (!(lib = dlopen(fn, wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Error loading module '%s': %s\n", resource_in, dlerror());
-		free(resource_being_loaded);
+		ast_free(resource_being_loaded);
 		return NULL;
 	}
 
@@ -816,8 +816,8 @@ int load_modules(unsigned int preload_only)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
 			if (!resource_name_match(order->resource, v->value)) {
 				AST_LIST_REMOVE_CURRENT(&load_order, entry);
-				free(order->resource);
-				free(order);
+				ast_free(order->resource);
+				ast_free(order);
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
@@ -840,8 +840,8 @@ int load_modules(unsigned int preload_only)
 		case AST_MODULE_LOAD_SUCCESS:
 		case AST_MODULE_LOAD_DECLINE:
 			AST_LIST_REMOVE_CURRENT(&load_order, entry);
-			free(order->resource);
-			free(order);
+			ast_free(order->resource);
+			ast_free(order);
 			break;
 		case AST_MODULE_LOAD_FAILURE:
 			res = -1;
@@ -859,8 +859,8 @@ int load_modules(unsigned int preload_only)
 		case AST_MODULE_LOAD_SUCCESS:
 		case AST_MODULE_LOAD_DECLINE:
 			AST_LIST_REMOVE_CURRENT(&load_order, entry);
-			free(order->resource);
-			free(order);
+			ast_free(order->resource);
+			ast_free(order);
 			break;
 		case AST_MODULE_LOAD_FAILURE:
 			res = -1;
@@ -874,8 +874,8 @@ int load_modules(unsigned int preload_only)
 
 done:
 	while ((order = AST_LIST_REMOVE_HEAD(&load_order, entry))) {
-		free(order->resource);
-		free(order);
+		ast_free(order->resource);
+		ast_free(order);
 	}
 
 	AST_LIST_UNLOCK(&module_list);

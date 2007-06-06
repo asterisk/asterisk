@@ -328,7 +328,7 @@ static int osp_create_provider(
 	error = OSPPUtilLoadPEMPrivateKey((unsigned char*)p->privatekey, &privatekey);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_WARNING, "OSP: Unable to load privatekey '%s', error '%d'\n", p->privatekey, error);
-		free(p);
+		ast_free(p);
 		return 0;
 	}
 
@@ -336,9 +336,9 @@ static int osp_create_provider(
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_WARNING, "OSP: Unable to load localcert '%s', error '%d'\n", p->localcert, error);
 		if (privatekey.PrivateKeyData) {
-			free(privatekey.PrivateKeyData);
+			ast_free(privatekey.PrivateKeyData);
 		}
-		free(p);
+		ast_free(p);
 		return 0;
 	}
 
@@ -354,16 +354,16 @@ static int osp_create_provider(
 			ast_log(LOG_WARNING, "OSP: Unable to load cacert '%s', error '%d'\n", p->cacerts[i], error);
 			for (j = 0; j < i; j++) {
 				if (cacerts[j].CertData) {
-					free(cacerts[j].CertData);
+					ast_free(cacerts[j].CertData);
 				}
 			}
 			if (localcert.CertData) {
-				free(localcert.CertData);
+				ast_free(localcert.CertData);
 			}
 			if (privatekey.PrivateKeyData) {
-				free(privatekey.PrivateKeyData);
+				ast_free(privatekey.PrivateKeyData);
 			}
-			free(p);
+			ast_free(p);
 			return 0;
 		}
 		pcacerts[i] = &cacerts[i];
@@ -394,7 +394,7 @@ static int osp_create_provider(
 				&p->handle);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_WARNING, "OSP: Unable to create provider '%s', error '%d'\n", provider, error);
-		free(p);
+		ast_free(p);
 		res = -1;
 	} else {
 		if (option_debug)
@@ -408,14 +408,14 @@ static int osp_create_provider(
 
 	for (i = 0; i < p->cacount; i++) {
 		if (cacerts[i].CertData) {
-			free(cacerts[i].CertData);
+			ast_free(cacerts[i].CertData);
 		}
 	}
 	if (localcert.CertData) {
-		free(localcert.CertData);
+		ast_free(localcert.CertData);
 	}
 	if (privatekey.PrivateKeyData) {
-		free(privatekey.PrivateKeyData);
+		ast_free(privatekey.PrivateKeyData);
 	}
 
 	return res;
@@ -2009,7 +2009,7 @@ static int osp_unload(void)
 		while(p) {
 			next = p->next;
 			OSPPProviderDelete(p->handle, 0);
-			free(p);
+			ast_free(p);
 			p = next;
 		}
 		ospproviders = NULL;

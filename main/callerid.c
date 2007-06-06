@@ -683,7 +683,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 
 void callerid_free(struct callerid_state *cid)
 {
-	free(cid);
+	ast_free(cid);
 }
 
 static int callerid_genmsg(char *msg, int size, const char *number, const char *name, int flags)

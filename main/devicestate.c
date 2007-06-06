@@ -339,7 +339,7 @@ int ast_devstate_prov_del(const char *label)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devcb, list) {
 		if (!strcasecmp(devcb->label, label)) {
 			AST_RWLIST_REMOVE_CURRENT(&devstate_provs, list);
-			free(devcb);
+			ast_free(devcb);
 			res = 0;
 			break;
 		}
@@ -463,7 +463,7 @@ static void *do_devstate_changes(void *data)
 		while ((current = next)) {
 			next = AST_LIST_NEXT(current, list);
 			do_state_change(current->device);
-			free(current);
+			ast_free(current);
 		}
 	}
 

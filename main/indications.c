@@ -108,9 +108,9 @@ static void playtones_release(struct ast_channel *chan, void *params)
 	if (chan)
 		ast_set_write_format(chan, ps->origwfmt);
 	if (ps->items)
-		free(ps->items);
+		ast_free(ps->items);
 
-	free(ps);
+	ast_free(ps);
 }
 
 static void * playtones_alloc(struct ast_channel *chan, void *params)
@@ -324,7 +324,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 	}
 
 	if (ast_activate_generator(chan, &playtones, &d)) {
-		free(d.items);
+		ast_free(d.items);
 		return -1;
 	}
 	return 0;
@@ -453,16 +453,16 @@ static inline void free_zone(struct ind_tone_zone* zone)
 {
 	while (zone->tones) {
 		struct ind_tone_zone_sound *tmp = zone->tones->next;
-		free((void*)zone->tones->name);
-		free((void*)zone->tones->data);
-		free(zone->tones);
+		ast_free((void *)zone->tones->name);
+		ast_free((void *)zone->tones->data);
+		ast_free(zone->tones);
 		zone->tones = tmp;
 	}
 
 	if (zone->ringcadence)
-		free(zone->ringcadence);
+		ast_free(zone->ringcadence);
 
-	free(zone);
+	ast_free(zone);
 }
 
 /*--------------------------------------------*/
@@ -543,8 +543,8 @@ int ast_register_indication(struct ind_tone_zone *zone, const char *indication, 
 	for (ps=NULL,ts=zone->tones; ts; ps=ts,ts=ts->next) {
 		if (strcasecmp(indication,ts->name)==0) {
 			/* indication already there, replace */
-			free((void*)ts->name);
-			free((void*)ts->data);
+			ast_free((void*)ts->name);
+			ast_free((void*)ts->data);
 			break;
 		}
 	}
@@ -588,9 +588,9 @@ int ast_unregister_indication(struct ind_tone_zone *zone, const char *indication
 				ps->next = tmp;
 			else
 				zone->tones = tmp;
-			free((void*)ts->name);
-			free((void*)ts->data);
-			free(ts);
+			ast_free((void*)ts->name);
+			ast_free((void*)ts->data);
+			ast_free(ts);
 			ts = tmp;
 			res = 0;
 		}

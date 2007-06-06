@@ -59,7 +59,7 @@ static void *milliwatt_alloc(struct ast_channel *chan, void *params)
 
 static void milliwatt_release(struct ast_channel *chan, void *data)
 {
-	free(data);
+	ast_free(data);
 	return;
 }
 

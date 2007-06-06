@@ -161,7 +161,7 @@ static int sqlite_log(struct ast_cdr *cdr)
 	
 	if (zErr) {
 		ast_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-		free(zErr);
+		ast_free(zErr);
 	}
 
 	ast_mutex_unlock(&sqlite_lock);
@@ -190,7 +190,7 @@ static int load_module(void)
 	db = sqlite_open(fn, AST_FILE_MODE, &zErr);
 	if (!db) {
 		ast_log(LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-		free(zErr);
+		ast_free(zErr);
 		return -1;
 	}
 
@@ -200,7 +200,7 @@ static int load_module(void)
 		res = sqlite_exec(db, sql_create_table, NULL, NULL, &zErr);
 		if (res) {
 			ast_log(LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
-			free(zErr);
+			ast_free(zErr);
 			goto err;
 		}
 

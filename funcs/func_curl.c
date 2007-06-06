@@ -160,7 +160,7 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 				chunk.memory[chunk.size - 1] = '\0';
 
 			ast_copy_string(buf, chunk.memory, len);
-			free(chunk.memory);
+			ast_free(chunk.memory);
 		}
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");

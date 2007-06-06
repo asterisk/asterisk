@@ -136,7 +136,7 @@ static void gen_release(struct ast_channel *chan, void *data)
 	struct gen_state *state = data;
 
 	gen_closestream(state);
-	free(data);
+	ast_free(data);
 }
 
 /* caller has the playlist locked */
@@ -399,7 +399,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 				AST_LIST_LOCK(&u->finishlist);
 				while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
 					send_child_event(child_events, 'F', entry->filename, chan);
-					free(entry);
+					ast_free(entry);
 				}
 				AST_LIST_UNLOCK(&u->finishlist);
 			}
@@ -422,7 +422,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 						AST_LIST_LOCK(&u->playlist);
 						while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
 							send_child_event(child_events, 'D', entry->filename, chan);
-							free(entry);
+							ast_free(entry);
 						}
 						if (!u->playing_silence)
 							u->abort_current_sound = 1;
@@ -467,7 +467,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 					AST_LIST_LOCK(&u->playlist);
 					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
 						send_child_event(child_events, 'D', entry->filename, chan);
-						free(entry);
+						ast_free(entry);
 					}
 					if (!u->playing_silence)
 						u->abort_current_sound = 1;
@@ -569,7 +569,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		close(child_stderr[1]);
 
 	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
-		free(entry);
+		ast_free(entry);
 
 	ast_module_user_remove(lu);
 

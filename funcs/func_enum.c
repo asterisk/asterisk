@@ -132,13 +132,13 @@ static void erds_destroy(struct enum_result_datastore *data)
 	int k;
 
 	for (k = 0; k < data->context->naptr_rrs_count; k++) {
-		free(data->context->naptr_rrs[k].result);
-		free(data->context->naptr_rrs[k].tech);
+		ast_free(data->context->naptr_rrs[k].result);
+		ast_free(data->context->naptr_rrs[k].tech);
 	}
 
-	free(data->context->naptr_rrs);
-	free(data->context);
-	free(data);
+	ast_free(data->context->naptr_rrs);
+	ast_free(data->context);
+	ast_free(data);
 }
 
 static void erds_destroy_cb(void *data) 
@@ -191,7 +191,7 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 		goto finish;
 
 	if (!(erds->context = ast_calloc(1, sizeof(*erds->context)))) {
-		free(erds);
+		ast_free(erds);
 		goto finish;
 	}
 
@@ -200,8 +200,8 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 	snprintf(buf, len, "%u", erds->id);
 
 	if (!(datastore = ast_channel_datastore_alloc(&enum_result_datastore_info, buf))) {
-		free(erds->context);
-		free(erds);
+		ast_free(erds->context);
+		ast_free(erds);
 		goto finish;
 	}
 

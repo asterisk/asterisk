@@ -116,7 +116,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 		ast_verbose(VERBOSE_PREFIX_4 "removing dns manager for '%s'\n", entry->name);
 
 	ast_mutex_destroy(&entry->lock);
-	free(entry);
+	ast_free(entry);
 }
 
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr)

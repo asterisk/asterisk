@@ -94,7 +94,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 				ast_log(LOG_WARNING, "%s is longer than %d, and %d \n", file, len, (int)strlen(returnvar));
 		}
 		pbx_builtin_setvar_helper(chan, varname, returnvar);
-		free(returnvar);
+		ast_free(returnvar);
 	}
 	ast_module_user_remove(u);
 	return res;

@@ -378,7 +378,7 @@ static int agent_cleanup(struct agent_pvt *p)
 	if (p->dead) {
 		ast_mutex_destroy(&p->lock);
 		ast_mutex_destroy(&p->app_lock);
-		free(p);
+		ast_free(p);
         }
 	return 0;
 }
@@ -810,7 +810,7 @@ static int agent_hangup(struct ast_channel *ast)
 	} else if (p->dead) {
 		ast_mutex_destroy(&p->lock);
 		ast_mutex_destroy(&p->app_lock);
-		free(p);
+		ast_free(p);
 	} else {
 		if (p->chan) {
 			/* Not dead -- check availability now */
@@ -1136,7 +1136,7 @@ static int read_agent_config(void)
 				if (!p->chan) {
 					ast_mutex_destroy(&p->lock);
 					ast_mutex_destroy(&p->app_lock);
-					free(p);
+					ast_free(p);
 				} else {
 					/* Cause them to hang up */
 					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
@@ -2118,7 +2118,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						if (p->dead && !p->owner) {
 							ast_mutex_destroy(&p->lock);
 							ast_mutex_destroy(&p->app_lock);
-							free(p);
+							ast_free(p);
 						}
 					}
 					else {
@@ -2531,7 +2531,7 @@ static int unload_module(void)
 	while ((p = AST_LIST_REMOVE_HEAD(&agents, list))) {
 		if (p->owner)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		free(p);
+		ast_free(p);
 	}
 	AST_LIST_UNLOCK(&agents);
 	AST_LIST_HEAD_DESTROY(&agents);

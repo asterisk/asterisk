@@ -184,12 +184,12 @@ static void aji_client_destroy(struct aji_client *obj)
 	AST_LIST_LOCK(&obj->messages);
 	while ((tmp = AST_LIST_REMOVE_HEAD(&obj->messages, list))) {
 		if (tmp->from)
-			free(tmp->from);
+			ast_free(tmp->from);
 		if (tmp->message)
-			free(tmp->message);
+			ast_free(tmp->message);
 	}
 	AST_LIST_HEAD_DESTROY(&obj->messages);
-	free(obj);
+	ast_free(obj);
 }
 
 /*!
@@ -203,11 +203,11 @@ static void aji_buddy_destroy(struct aji_buddy *obj)
 
 	while ((tmp = obj->resources)) {
 		obj->resources = obj->resources->next;
-		free(tmp->description);
-		free(tmp);
+		ast_free(tmp->description);
+		ast_free(tmp);
 	}
 
-	free(obj);
+	ast_free(obj);
 }
 
 /*!
@@ -241,7 +241,7 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 			/* Specified version not found. Let's add it to 
 			   this node in our capabilities list */
 			if(!res) {
-				res = (struct aji_version *)malloc(sizeof(struct aji_version));
+				res = ast_malloc(sizeof(*res));
 				if(!res) {
 					ast_log(LOG_ERROR, "Out of memory!\n");
 					return NULL;
@@ -258,12 +258,12 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 	}
 	/* Specified node not found. Let's add it our capabilities list */
 	if(!list) {
-		list = (struct aji_capabilities *)malloc(sizeof(struct aji_capabilities));
+		list = ast_malloc(sizeof(*list));
 		if(!list) {
 			ast_log(LOG_ERROR, "Out of memory!\n");
 			return NULL;
 		}
-		res = (struct aji_version *)malloc(sizeof(struct aji_version));
+		res = ast_malloc(sizeof(*res));
 		if(!res) {
 			ast_log(LOG_ERROR, "Out of memory!\n");
 			return NULL;
@@ -571,9 +571,9 @@ static int aji_act_hook(void *data, int type, iks *node)
 										iks_send(client->p, x);
 										iks_delete(x);
 										if (base64)
-											free(base64);
+											ast_free(base64);
 										if (s)
-											free(s);
+											ast_free(s);
 									} else {
 										ast_log(LOG_ERROR, "Out of memory.\n");
 									}
@@ -612,7 +612,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 				asprintf(&handshake, "<handshake>%s</handshake>", shasum);
 				if (handshake) {
 					iks_send_raw(client->p, handshake);
-					free(handshake);
+					ast_free(handshake);
 					handshake = NULL;
 				}
 				client->state = AJI_CONNECTING;
@@ -1113,7 +1113,7 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 	struct aji_message *insert, *tmp;
 	int flag = 0;
 	
-	if (!(insert = ast_calloc(1, sizeof(struct aji_message))))
+	if (!(insert = ast_calloc(1, sizeof(*insert))))
 		return;
 	time(&insert->arrived);
 	if (iks_find_cdata(pak->x, "body"))
@@ -1127,16 +1127,16 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 		if (flag) {
 			AST_LIST_REMOVE_CURRENT(&client->messages, list);
 			if (tmp->from)
-				free(tmp->from);
+				ast_free(tmp->from);
 			if (tmp->message)
-				free(tmp->message);
+				ast_free(tmp->message);
 		} else if (difftime(time(NULL), tmp->arrived) >= client->message_timeout) {
 			flag = 1;
 			AST_LIST_REMOVE_CURRENT(&client->messages, list);
 			if (tmp->from)
-				free(tmp->from);
+				ast_free(tmp->from);
 			if (tmp->message)
-				free(tmp->message);
+				ast_free(tmp->message);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
@@ -1173,7 +1173,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	while (tmp) {
 		if (!strcasecmp(tmp->resource, pak->from->resource)) {
 			tmp->status = status;
-			if (tmp->description) free(tmp->description);
+			if (tmp->description) ast_free(tmp->description);
 			tmp->description = descrip;
 			found = tmp;
 			if (status == 6) {	/* Sign off Destroy resource */
@@ -1190,7 +1190,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 					else
 						buddy->resources = NULL;
 				}
-				free(found);
+				ast_free(found);
 				found = NULL;
 				break;
 			}
@@ -1230,8 +1230,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	}
 
 	if (!found && status != 6) {
-		found = (struct aji_resource *) malloc(sizeof(struct aji_resource));
-		memset(found, 0, sizeof(struct aji_resource));
+		found = ast_calloc(1, sizeof(*found));
 
 		if (!found) {
 			ast_log(LOG_ERROR, "Out of memory!\n");
@@ -1736,12 +1735,11 @@ static int aji_filter_roster(void *data, ikspak *pak)
 			});
 
 			if (!flag) {
-				buddy = (struct aji_buddy *) malloc(sizeof(struct aji_buddy));
+				buddy = ast_calloc(1, sizeof(*buddy));
 				if (!buddy) {
 					ast_log(LOG_WARNING, "Out of memory\n");
 					return 0;
 				}
-				memset(buddy, 0, sizeof(struct aji_buddy));
 				ASTOBJ_INIT(buddy);
 				ASTOBJ_WRLOCK(buddy);
 				ast_copy_string(buddy->name, iks_find_attrib(x, "jid"), sizeof(buddy->name));
@@ -2064,12 +2062,11 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	client = ASTOBJ_CONTAINER_FIND(&clients,label);
 	if (!client) {
 		flag = 1;
-		client = (struct aji_client *) malloc(sizeof(struct aji_client));
+		client = ast_calloc(1, sizeof(*client));
 		if (!client) {
 			ast_log(LOG_ERROR, "Out of memory!\n");
 			return 0;
 		}
-		memset(client, 0, sizeof(struct aji_client));
 		ASTOBJ_INIT(client);
 		ASTOBJ_WRLOCK(client);
 		ASTOBJ_CONTAINER_INIT(&client->buddies);
@@ -2161,7 +2158,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 		asprintf(&resource, "%s/asterisk", client->user);
 		if (resource) {
 			client->jid = iks_id_new(client->stack, resource);
-			free(resource);
+			ast_free(resource);
 		}
 	} else
 		client->jid = iks_id_new(client->stack, client->user);
@@ -2178,7 +2175,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 		asprintf(&resource, "%s/asterisk", client->user);
 		if (resource) {
 			client->jid = iks_id_new(client->stack, resource);
-			free(resource);
+			ast_free(resource);
 		}
 	} else
 		client->jid = iks_id_new(client->stack, client->user);
@@ -2202,12 +2199,11 @@ static int aji_create_transport(char *label, struct aji_client *client)
 
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies,label);
 	if (!buddy) {
-		buddy = malloc(sizeof(struct aji_buddy));
+		buddy = ast_calloc(1, sizeof(*buddy));
 		if(!buddy) {
 			ast_log(LOG_WARNING, "Out of memory\n");
 			return 0;
 		}
-		memset(buddy, 0, sizeof(struct aji_buddy));
 		ASTOBJ_INIT(buddy);
 	}
 	ASTOBJ_WRLOCK(buddy);
@@ -2252,12 +2248,11 @@ static int aji_create_buddy(char *label, struct aji_client *client)
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies,label);
 	if (!buddy) {
 		flag = 1;
-		buddy = malloc(sizeof(struct aji_buddy));
+		buddy = ast_calloc(1, sizeof(*buddy));
 		if(!buddy) {
 			ast_log(LOG_WARNING, "Out of memory\n");
 			return 0;
 		}
-		memset(buddy, 0, sizeof(struct aji_buddy));
 		ASTOBJ_INIT(buddy);
 	}
 	ASTOBJ_WRLOCK(buddy);

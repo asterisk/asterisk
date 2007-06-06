@@ -452,8 +452,8 @@ static void _free_msn_list (struct msn_list* iter)
 	if (iter->next)
 		_free_msn_list(iter->next);
 	if (iter->msn)
-		free(iter->msn);
-	free(iter);
+		ast_free(iter->msn);
+	ast_free(iter);
 }
 
 static void _free_port_cfg (void)
@@ -483,7 +483,7 @@ static void _free_port_cfg (void)
 				if (port_spec[i].type == MISDN_CTYPE_MSNLIST)
 					_free_msn_list(free_list[j][i].ml);
 				else
-					free(free_list[j][i].any);
+					ast_free(free_list[j][i].any);
 			}
 		}
 	}
@@ -495,10 +495,10 @@ static void _free_general_cfg (void)
 
 	for (i = 0; i < NUM_GEN_ELEMENTS; i++) 
 		if (general_cfg[i].any)
-			free(general_cfg[i].any);
+			ast_free(general_cfg[i].any);
 }
 
-void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsize)
+void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsize)
 {
 	int place;
 
@@ -514,18 +514,16 @@ void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsi
 			memset(buf, 0, bufsize);
 	} else {
 		if ((place = map[elem]) < 0) {
-			memset (buf, 0, bufsize);
+			memset(buf, 0, bufsize);
 			ast_log(LOG_WARNING, "Invalid call to misdn_cfg_get! Invalid element (%d) requested.\n", elem);
 		} else {
 			if (elem < MISDN_CFG_LAST) {
 				switch (port_spec[place].type) {
 				case MISDN_CTYPE_STR:
 					if (port_cfg[port][place].str) {
-						if (!memccpy(buf, port_cfg[port][place].str, 0, bufsize))
-							memset(buf, 0, 1);
+						ast_copy_string(buf, port_cfg[port][place].str, bufsize);
 					} else if (port_cfg[0][place].str) {
-						if (!memccpy(buf, port_cfg[0][place].str, 0, bufsize))
-							memset(buf, 0, 1);
+						ast_copy_string(buf, port_cfg[0][place].str, bufsize);
 					}
 					break;
 				default:
@@ -539,8 +537,7 @@ void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsi
 			} else {
 				switch (gen_spec[place].type) {
 				case MISDN_CTYPE_STR:
-					if (!general_cfg[place].str || !memccpy(buf, general_cfg[place].str, 0, bufsize))
-						memset(buf, 0, 1);
+					ast_copy_string(buf, S_OR(general_cfg[place].str, ""), bufsize);
 					break;
 				default:
 					if (general_cfg[place].any)
@@ -554,7 +551,7 @@ void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsi
 	misdn_cfg_unlock();
 }
 
-enum misdn_cfg_elements misdn_cfg_get_elem (char *name)
+enum misdn_cfg_elements misdn_cfg_get_elem(char *name)
 {
 	int pos;
 
@@ -564,18 +561,18 @@ enum misdn_cfg_elements misdn_cfg_get_elem (char *name)
 	if (!strcmp(name, "name"))
 		return MISDN_CFG_FIRST;
 
-	pos = get_cfg_position (name, PORT_CFG);
+	pos = get_cfg_position(name, PORT_CFG);
 	if (pos >= 0)
 		return port_spec[pos].elem;
 	
-	pos = get_cfg_position (name, GEN_CFG);
+	pos = get_cfg_position(name, GEN_CFG);
 	if (pos >= 0)
 		return gen_spec[pos].elem;
 	
 	return MISDN_CFG_FIRST;
 }
 
-void misdn_cfg_get_name (enum misdn_cfg_elements elem, void *buf, int bufsize)
+void misdn_cfg_get_name(enum misdn_cfg_elements elem, void *buf, int bufsize)
 {
 	struct misdn_cfg_spec *spec = NULL;
 	int place = map[elem];
@@ -592,14 +589,13 @@ void misdn_cfg_get_name (enum misdn_cfg_elements elem, void *buf, int bufsize)
 			memset(buf, 0, 1);
 		return;
 	}
-	
+
 	if ((elem > MISDN_CFG_FIRST) && (elem < MISDN_CFG_LAST))
 		spec = (struct misdn_cfg_spec *)port_spec;
 	else if ((elem > MISDN_GEN_FIRST) && (elem < MISDN_GEN_LAST))
 		spec = (struct misdn_cfg_spec *)gen_spec;
 
-	if (!spec || !memccpy(buf, spec[place].name, 0, bufsize))
-		memset(buf, 0, 1);
+	ast_copy_string(buf, spec ? spec[place].name : "", bufsize);
 }
 
 void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, void *buf_default, int bufsize_default)
@@ -609,8 +605,7 @@ void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, v
 
 	/* here comes a hack to replace the (not existing) "name" elemet with the "ports" element */
 	if (elem == MISDN_CFG_GROUPNAME) {
-		if (!memccpy(buf, ports_description, 0, bufsize))
-			memset(buf, 0, 1);
+		ast_copy_string(buf, ports_description, bufsize);
 		if (buf_default && bufsize_default)
 			memset(buf_default, 0, 1);
 		return;
@@ -624,13 +619,12 @@ void misdn_cfg_get_desc (enum misdn_cfg_elements elem, void *buf, int bufsize, v
 	if (!spec || !spec[place].desc)
 		memset(buf, 0, 1);
 	else {
-		if (!memccpy(buf, spec[place].desc, 0, bufsize))
-			memset(buf, 0, 1);
+		ast_copy_string(buf, spec[place].desc, bufsize);
 		if (buf_default && bufsize) {
 			if (!strcmp(spec[place].def, NO_DEFAULT))
 				memset(buf_default, 0, 1);
-			else if (!memccpy(buf_default, spec[place].def, 0, bufsize_default))
-				memset(buf_default, 0, 1);
+			else
+				ast_copy_string(buf_default, spec[place].def, bufsize_default);
 		}
 	}
 }
@@ -857,11 +851,11 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 	switch (type) {
 	case MISDN_CTYPE_STR:
 		if ((len = strlen(value))) {
-			dest->str = (char *)malloc((len + 1) * sizeof(char));
+			dest->str = ast_malloc((len + 1) * sizeof(char));
 			strncpy(dest->str, value, len);
 			dest->str[len] = 0;
 		} else {
-			dest->str = (char *)malloc( sizeof(char));
+			dest->str = ast_malloc(sizeof(char));
 			dest->str[0] = 0;
 		}
 		break;
@@ -873,18 +867,18 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 		else
 			pat="%d";
 		if (sscanf(value, pat, &tmp)) {
-			dest->num = (int *)malloc(sizeof(int));
+			dest->num = ast_malloc(sizeof(int));
 			memcpy(dest->num, &tmp, sizeof(int));
 		} else
 			re = -1;
 	}
 		break;
 	case MISDN_CTYPE_BOOL:
-		dest->num = (int *)malloc(sizeof(int));
+		dest->num = ast_malloc(sizeof(int));
 		*(dest->num) = (ast_true(value) ? 1 : 0);
 		break;
 	case MISDN_CTYPE_BOOLINT:
-		dest->num = (int *)malloc(sizeof(int));
+		dest->num = ast_malloc(sizeof(int));
 		if (sscanf(value, "%d", &tmp)) {
 			memcpy(dest->num, &tmp, sizeof(int));
 		} else {
@@ -894,8 +888,8 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 	case MISDN_CTYPE_MSNLIST:
 		for (valtmp = strsep(&value, ","); valtmp; valtmp = strsep(&value, ",")) {
 			if ((len = strlen(valtmp))) {
-				struct msn_list *ml = (struct msn_list *)malloc(sizeof(struct msn_list));
-				ml->msn = (char *)calloc(len+1, sizeof(char));
+				struct msn_list *ml = ast_malloc(sizeof(*ml));
+				ml->msn = ast_calloc(len+1, sizeof(char));
 				strncpy(ml->msn, valtmp, len);
 				ml->next = dest->ml;
 				dest->ml = ml;
@@ -903,7 +897,7 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 		}
 		break;
 	case MISDN_CTYPE_ASTGROUP:
-		dest->grp = (ast_group_t *)malloc(sizeof(ast_group_t));
+		dest->grp = ast_malloc(sizeof(ast_group_t));
 		*(dest->grp) = ast_get_group(value);
 		break;
 	}
@@ -1066,10 +1060,10 @@ void misdn_cfg_destroy (void)
 	_free_port_cfg();
 	_free_general_cfg();
 
-	free(port_cfg);
-	free(general_cfg);
-	free(ptp);
-	free(map);
+	ast_free(port_cfg);
+	ast_free(general_cfg);
+	ast_free(ptp);
+	ast_free(map);
 
 	misdn_cfg_unlock();
 	ast_mutex_destroy(&config_mutex);
@@ -1095,10 +1089,10 @@ int misdn_cfg_init (int this_max_ports)
 	if (this_max_ports) {
 		/* this is the first run */
 		max_ports = this_max_ports;
-		map = (int *)calloc(MISDN_GEN_LAST + 1, sizeof(int));
+		map = ast_calloc(MISDN_GEN_LAST + 1, sizeof(int));
 		if (_enum_array_map())
 			return -1;
-		p = (char *)calloc(1, (max_ports + 1) * sizeof(union misdn_cfg_pt *)
+		p = ast_calloc(1, (max_ports + 1) * sizeof(union misdn_cfg_pt *)
 						   + (max_ports + 1) * NUM_PORT_ELEMENTS * sizeof(union misdn_cfg_pt));
 		port_cfg = (union misdn_cfg_pt **)p;
 		p += (max_ports + 1) * sizeof(union misdn_cfg_pt *);
@@ -1106,8 +1100,8 @@ int misdn_cfg_init (int this_max_ports)
 			port_cfg[i] = (union misdn_cfg_pt *)p;
 			p += NUM_PORT_ELEMENTS * sizeof(union misdn_cfg_pt);
 		}
-		general_cfg = (union misdn_cfg_pt *)calloc(1, sizeof(union misdn_cfg_pt *) * NUM_GEN_ELEMENTS);
-		ptp = (int *)calloc(max_ports + 1, sizeof(int));
+		general_cfg = ast_calloc(1, sizeof(union misdn_cfg_pt *) * NUM_GEN_ELEMENTS);
+		ptp = ast_calloc(max_ports + 1, sizeof(int));
 	}
 	else {
 		/* misdn reload */

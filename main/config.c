@@ -140,7 +140,8 @@ static void CB_RESET(char **comment_buffer, char **lline_buffer)
 
 static struct ast_comment *ALLOC_COMMENT(const char *buffer)
 { 
-	struct ast_comment *x = ast_calloc(1,sizeof(struct ast_comment)+strlen(buffer)+1);
+	struct ast_comment *x;
+	x = ast_calloc(1, sizeof(*x)+strlen(buffer)+1);
 	strcpy(x->cmt, buffer);
 	return x;
 }
@@ -215,7 +216,7 @@ void ast_variables_destroy(struct ast_variable *v)
 	while (v) {
 		vn = v;
 		v = v->next;
-		free(vn);
+		ast_free(vn);
 	}
 }
 
@@ -344,7 +345,7 @@ void ast_category_append(struct ast_config *config, struct ast_category *categor
 void ast_category_destroy(struct ast_category *cat)
 {
 	ast_variables_destroy(cat->root);
-	free(cat);
+	ast_free(cat);
 }
 
 static struct ast_category *next_available_category(struct ast_category *cat)
@@ -522,7 +523,7 @@ int ast_category_delete(struct ast_config *cfg, const char *category)
 				if (cat == cfg->last)
 					cfg->last = NULL;
 			}
-			free(cat);
+			ast_free(cat);
 			return 0;
 		}
 		prev = cat;
@@ -543,7 +544,7 @@ int ast_category_delete(struct ast_config *cfg, const char *category)
 				if (cat == cfg->last)
 					cfg->last = NULL;
 			}
-			free(cat);
+			ast_free(cat);
 			return 0;
 		}
 		prev = cat;
@@ -564,9 +565,9 @@ void ast_config_destroy(struct ast_config *cfg)
 		ast_variables_destroy(cat->root);
 		catn = cat;
 		cat = cat->next;
-		free(catn);
+		ast_free(catn);
 	}
-	free(cfg);
+	ast_free(cfg);
 }
 
 struct ast_category *ast_config_get_current_category(const struct ast_config *cfg)
@@ -934,8 +935,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 #endif
 
 	if (cfg && cfg->include_level == 1 && withcomments && comment_buffer) {
-		free(comment_buffer);
-		free(lline_buffer);
+		ast_free(comment_buffer);
+		ast_free(lline_buffer);
 		comment_buffer = NULL;
 		lline_buffer = NULL;
 		comment_buffer_size = 0;
@@ -1046,7 +1047,7 @@ static void clear_config_maps(void)
 	while (config_maps) {
 		map = config_maps;
 		config_maps = config_maps->next;
-		free(map);
+		ast_free(map);
 	}
 		
 	ast_mutex_unlock(&config_lock);
@@ -1345,7 +1346,7 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	/* Eliminate blank entries */
 	for (cur = res; cur; cur = cur->next) {
 		if (freeme) {
-			free(freeme);
+			ast_free(freeme);
 			freeme = NULL;
 		}
 

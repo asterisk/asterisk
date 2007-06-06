@@ -609,7 +609,7 @@ static inline int include_valid(struct ast_include *i)
 
 static void pbx_destroy(struct ast_pbx *p)
 {
-	free(p);
+	ast_free(p);
 }
 
 /*
@@ -2022,7 +2022,7 @@ static void *device_state_thread(void *data)
 
 		handle_statechange(sc->dev);
 
-		free(sc);
+		ast_free(sc);
 	}
 
 	return NULL;
@@ -2133,7 +2133,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	if (p_cur && *p_cur) {
 		struct ast_state_cb *cur = *p_cur;
 		*p_cur = cur->next;
-		free(cur);
+		ast_free(cur);
 		ret = 0;
 	}
 	AST_RWLIST_UNLOCK(&hints);
@@ -2215,11 +2215,11 @@ static int ast_remove_hint(struct ast_exten *e)
 				cbprev = cblist;
 				cblist = cblist->next;
 				cbprev->callback(hint->exten->parent->name, hint->exten->exten, AST_EXTENSION_DEACTIVATED, cbprev->data);
-				free(cbprev);
+				ast_free(cbprev);
 	    		}
 	    		hint->callbacks = NULL;
 			AST_RWLIST_REMOVE_CURRENT(&hints, list);
-	    		free(hint);
+	    		ast_free(hint);
 	   		res = 0;
 			break;
 		}
@@ -2326,7 +2326,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 	if (c->pbx) {
 		ast_log(LOG_WARNING, "%s already has PBX structure??\n", c->name);
 		/* XXX and now what ? */
-		free(c->pbx);
+		ast_free(c->pbx);
 	}
 	if (!(c->pbx = ast_calloc(1, sizeof(*c->pbx))))
 		return -1;
@@ -2335,7 +2335,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 			c->cdr = ast_cdr_alloc();
 			if (!c->cdr) {
 				ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
-				free(c->pbx);
+				ast_free(c->pbx);
 				return -1;
 			}
 			ast_cdr_init(c->cdr, c);
@@ -2593,7 +2593,7 @@ static void destroy_exten(struct ast_exten *e)
 
 	if (e->datad)
 		e->datad(e->data);
-	free(e);
+	ast_free(e);
 }
 
 static void *pbx_thread(void *data)
@@ -2722,7 +2722,7 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
 			else
 				con->includes = i->next;
 			/* free include and return */
-			free(i);
+			ast_free(i);
 			ret = 0;
 			break;
 		}
@@ -2772,7 +2772,7 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 			(!registrar || !strcmp(i->registrar, registrar))) {
 			/* found, remove from list */
 			AST_LIST_REMOVE_CURRENT(&con->alts, list);
-			free(i); /* free switch and return */
+			ast_free(i); /* free switch and return */
 			ret = 0;
 			break;
 		}
@@ -3925,7 +3925,7 @@ int ast_unregister_application(const char *app)
 			AST_RWLIST_REMOVE_CURRENT(&apps, list);
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
-			free(tmp);
+			ast_free(tmp);
 			break;
 		}
 	}
@@ -4083,7 +4083,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 				prevcb = thiscb;
 				thiscb = thiscb->next;
 				prevcb->callback(this->context, this->exten, AST_EXTENSION_REMOVED, prevcb->data);
-				free(prevcb);
+				ast_free(prevcb);
 	    		}
 		} else {
 			thiscb = this->callbacks;
@@ -4093,7 +4093,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 			hint->callbacks = this->callbacks;
 			hint->laststate = this->laststate;
 		}
-		free(this);
+		ast_free(this);
 	}
 
 	AST_RWLIST_UNLOCK(&hints);
@@ -4406,7 +4406,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	/* ... go to last include and check if context is already included too... */
 	for (i = con->includes; i; i = i->next) {
 		if (!strcasecmp(i->name, new_include->name)) {
-			free(new_include);
+			ast_free(new_include);
 			ast_unlock_context(con);
 			errno = EEXIST;
 			return -1;
@@ -4497,7 +4497,7 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	/* ... go to last sw and check if context is already swd too... */
 	AST_LIST_TRAVERSE(&con->alts, i, list) {
 		if (!strcasecmp(i->name, new_sw->name) && !strcasecmp(i->data, new_sw->data)) {
-			free(new_sw);
+			ast_free(new_sw);
 			ast_unlock_context(con);
 			errno = EEXIST;
 			return -1;
@@ -4542,10 +4542,10 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
 			(!registrar || (registrar == ip->registrar))) {
 			if (ipl) {
 				ipl->next = ip->next;
-				free(ip);
+				ast_free(ip);
 			} else {
 				con->ignorepats = ip->next;
-				free(ip);
+				ast_free(ip);
 			}
 			ast_unlock_context(con);
 			return 0;
@@ -4766,7 +4766,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			ast_log(LOG_WARNING, "Unable to register extension '%s', priority %d in '%s', already in use\n", tmp->exten, tmp->priority, con->name);
 			if (tmp->datad)
 				tmp->datad(tmp->data);
-			free(tmp);
+			ast_free(tmp);
 			return -1;
 		}
 		/* we are replacing e, so copy the link fields and then update
@@ -4785,7 +4785,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		/* Destroy the old one */
 		if (e->datad)
 			e->datad(e->data);
-		free(e);
+		ast_free(e);
 	} else {	/* Slip ourselves in just before e */
 		tmp->peer = e;
 		tmp->next = e->next;	/* extension chain, or NULL if e is not the first extension */
@@ -5020,7 +5020,7 @@ static void *async_wait(void *data)
 			}
 		}
 	}
-	free(as);
+	ast_free(as);
 	if (chan)
 		ast_hangup(chan);
 	return NULL;
@@ -5162,7 +5162,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				ast_channel_lock(chan);
 		}
 		if (!chan) {
-			free(as);
+			ast_free(as);
 			res = -1;
 			goto outgoing_exten_cleanup;
 		}
@@ -5175,7 +5175,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			ast_cdr_setaccount(chan, account);
 		if (ast_pthread_create_detached(&as->p, NULL, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
-			free(as);
+			ast_free(as);
 			if (channel) {
 				*channel = NULL;
 				ast_channel_unlock(chan);
@@ -5211,7 +5211,7 @@ static void *ast_pbx_run_app(void *data)
 	} else
 		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
 	ast_hangup(tmp->chan);
-	free(tmp);
+	ast_free(tmp);
 	return NULL;
 }
 
@@ -5241,7 +5241,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
 				if (!chan->cdr) {
 					/* allocation of the cdr failed */
-					free(chan->pbx);
+					ast_free(chan->pbx);
 					res = -1;
 					goto outgoing_app_cleanup;
 				}
@@ -5273,7 +5273,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 							ast_channel_lock(chan);
 						if (ast_pthread_create_detached(&tmp->t, NULL, ast_pbx_run_app, tmp)) {
 							ast_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
-							free(tmp);
+							ast_free(tmp);
 							if (locked_channel)
 								ast_channel_unlock(chan);
 							ast_hangup(chan);
@@ -5316,7 +5316,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		}
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (!chan) {
-			free(as);
+			ast_free(as);
 			res = -1;
 			goto outgoing_app_cleanup;
 		}
@@ -5333,7 +5333,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			ast_channel_lock(chan);
 		if (ast_pthread_create_detached(&as->p, NULL, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
-			free(as);
+			ast_free(as);
 			if (locked_channel)
 				ast_channel_unlock(chan);
 			ast_hangup(chan);
@@ -5383,15 +5383,15 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		for (tmpi = tmp->includes; tmpi; ) { /* Free includes */
 			struct ast_include *tmpil = tmpi;
 			tmpi = tmpi->next;
-			free(tmpil);
+			ast_free(tmpil);
 		}
 		for (ipi = tmp->ignorepats; ipi; ) { /* Free ignorepats */
 			struct ast_ignorepat *ipl = ipi;
 			ipi = ipi->next;
-			free(ipl);
+			ast_free(ipl);
 		}
 		while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
-			free(sw);
+			ast_free(sw);
 		for (e = tmp->root; e;) {
 			for (en = e->peer; en;) {
 				el = en;
@@ -5403,7 +5403,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 			destroy_exten(el);
 		}
 		ast_rwlock_destroy(&tmp->lock);
-		free(tmp);
+		ast_free(tmp);
 		/* if we have a specific match, we are done, otherwise continue */
 		tmp = con ? NULL : next;
 	}

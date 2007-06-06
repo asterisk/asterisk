@@ -191,7 +191,7 @@ static void clearvar_prefix(struct ast_channel *chan, const char *prefix)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->varshead, var, entries) {
 		if (strncasecmp(prefix, ast_var_name(var), len) == 0) {
 			AST_LIST_REMOVE_CURRENT(&chan->varshead, entries);
-			free(var);
+			ast_free(var);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END

@@ -824,7 +824,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 	udptl->us.sin_family = AF_INET;
 
 	if ((udptl->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		free(udptl);
+		ast_free(udptl);
 		ast_log(LOG_WARNING, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
@@ -845,7 +845,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 		if (errno != EADDRINUSE) {
 			ast_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
 			close(udptl->fd);
-			free(udptl);
+			ast_free(udptl);
 			return NULL;
 		}
 		if (++x > udptlend)
@@ -853,7 +853,7 @@ struct ast_udptl *ast_udptl_new_with_bindaddr(struct sched_context *sched, struc
 		if (x == startplace) {
 			ast_log(LOG_WARNING, "No UDPTL ports remaining\n");
 			close(udptl->fd);
-			free(udptl);
+			ast_free(udptl);
 			return NULL;
 		}
 	}
@@ -908,7 +908,7 @@ void ast_udptl_destroy(struct ast_udptl *udptl)
 		ast_io_remove(udptl->io, udptl->ioid);
 	if (udptl->fd > -1)
 		close(udptl->fd);
-	free(udptl);
+	ast_free(udptl);
 }
 
 int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)

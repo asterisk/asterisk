@@ -211,7 +211,7 @@ static int load_config(void)
 		if (AST_LIST_FIRST(&(tableptr->columns)))
 			AST_RWLIST_INSERT_TAIL(&odbc_tables, tableptr, list);
 		else
-			free(tableptr);
+			ast_free(tableptr);
 	}
 	return res;
 }

@@ -172,17 +172,17 @@ static void free_numbers(struct call_followme *f)
 
 	while ((prev = AST_LIST_REMOVE_HEAD(&f->numbers, entry)))
 		/* Free the number */
-		free(prev);
+		ast_free(prev);
 	AST_LIST_HEAD_INIT_NOLOCK(&f->numbers);
 
 	while ((prev = AST_LIST_REMOVE_HEAD(&f->blnumbers, entry)))
 		/* Free the blacklisted number */
-		free(prev);
+		ast_free(prev);
 	AST_LIST_HEAD_INIT_NOLOCK(&f->blnumbers);
 
 	while ((prev = AST_LIST_REMOVE_HEAD(&f->wlnumbers, entry)))
 		/* Free the whitelisted number */
-		free(prev);
+		ast_free(prev);
 	AST_LIST_HEAD_INIT_NOLOCK(&f->wlnumbers);
 	
 }
@@ -815,7 +815,7 @@ static void findmeexec(struct fm_args *tpargs)
 			tmpuser = ast_calloc(1, sizeof(*tmpuser));
 			if (!tmpuser) {
 				ast_log(LOG_WARNING, "Out of memory!\n");
-				free(findme_user_list);
+				ast_free(findme_user_list);
 				return;
 			}
 					
@@ -872,7 +872,7 @@ static void findmeexec(struct fm_args *tpargs)
 			if (!fmuser->cleared && fmuser->ochan != winner)
 				clear_caller(fmuser);
 			AST_LIST_REMOVE_CURRENT(findme_user_list, entry);
-			free(fmuser);
+			ast_free(fmuser);
 		}
 		AST_LIST_TRAVERSE_SAFE_END
 		fmuser = NULL;
@@ -883,7 +883,7 @@ static void findmeexec(struct fm_args *tpargs)
 
 		if (!caller) {
 			tpargs->status = 1;
-			free(findme_user_list);
+			ast_free(findme_user_list);
 			return;	
 		}
 
@@ -893,7 +893,7 @@ static void findmeexec(struct fm_args *tpargs)
 				break;
 
 	}
-	free(findme_user_list);
+	ast_free(findme_user_list);
 	if (!winner) 
 		tpargs->status = 1;
 	else {
@@ -1012,7 +1012,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 				
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&targs.cnumbers, nm, entry) {
 			AST_LIST_REMOVE_CURRENT(&targs.cnumbers, entry);
-			free(nm);
+			ast_free(nm);
 		}
 		AST_LIST_TRAVERSE_SAFE_END
 	
@@ -1075,7 +1075,7 @@ static int unload_module(void)
 	AST_LIST_LOCK(&followmes);
 	while ((f = AST_LIST_REMOVE_HEAD(&followmes, entry))) {
 		free_numbers(f);
-		free(f);
+		ast_free(f);
 	}
 
 	AST_LIST_UNLOCK(&followmes);

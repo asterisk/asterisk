@@ -437,7 +437,7 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			if (odbc_obj_connect(obj) == ODBC_FAIL) {
 				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
 				ast_mutex_destroy(&obj->lock);
-				free(obj);
+				ast_free(obj);
 				obj = NULL;
 			} else {
 				AST_LIST_INSERT_HEAD(&class->odbc_obj, obj, list);
@@ -657,12 +657,12 @@ static int reload(void)
 				AST_LIST_REMOVE_CURRENT(&(class->odbc_obj), list);
 				odbc_obj_disconnect(current);
 				ast_mutex_destroy(&current->lock);
-				free(current);
+				ast_free(current);
 			}
 			AST_LIST_TRAVERSE_SAFE_END;
 
 			AST_LIST_REMOVE_CURRENT(&odbc_list, list);
-			free(class);
+			ast_free(class);
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END;

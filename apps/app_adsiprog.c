@@ -1384,11 +1384,11 @@ static struct adsi_script *compile_script(char *script)
 		break;
 	case STATE_INSUB:
 		ast_log(LOG_WARNING, "Missing ENDSUB at end of file %s\n", script);
-		free(scr);
+		ast_free(scr);
 		return NULL;
 	case STATE_INKEY:
 		ast_log(LOG_WARNING, "Missing ENDKEY at end of file %s\n", script);
-		free(scr);
+		ast_free(scr);
 		return NULL;
 	}
 	err = 0;
@@ -1414,7 +1414,7 @@ static struct adsi_script *compile_script(char *script)
 	}
 
 	if (err) {
-		free(scr);
+		ast_free(scr);
 		return NULL;
 	}
 	return scr;
@@ -1451,7 +1451,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "User rejected download attempt\n");
 		ast_log(LOG_NOTICE, "User rejected download on channel %s\n", chan->name);
-		free(scr);
+		ast_free(scr);
 		return -1;
 	}
 
@@ -1538,10 +1538,10 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Download attempt failed\n");
 		ast_log(LOG_NOTICE, "Download failed on %s\n", chan->name);
-		free(scr);
+		ast_free(scr);
 		return -1;
 	}
-	free(scr);
+	ast_free(scr);
 	ast_adsi_unload_session(chan);
 	return 0;
 }

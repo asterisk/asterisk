@@ -476,13 +476,13 @@ static void *smdi_read(void *iface_p)
 /*! \brief ast_smdi_md_message destructor. */
 void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg)
 {
-	free(msg);
+	ast_free(msg);
 }
 
 /*! \brief ast_smdi_mwi_message destructor. */
 void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg)
 {
-	free(msg);
+	ast_free(msg);
 }
 
 /*! \brief ast_smdi_interface destructor. */
@@ -502,7 +502,7 @@ void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
 	ASTOBJ_CONTAINER_DESTROYALL(&iface->mwi_q, ast_smdi_mwi_message_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&iface->md_q);
 	ASTOBJ_CONTAINER_DESTROY(&iface->mwi_q);
-	free(iface);
+	ast_free(iface);
 
 	ast_module_unref(ast_module_info->self);
 }

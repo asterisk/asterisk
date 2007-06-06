@@ -106,12 +106,12 @@ void jb_destroy(jitterbuf *jb)
 	frame = jb->free;
 	while (frame != NULL) {
 		jb_frame *next = frame->next;
-		free(frame);
+		ast_free(frame);
 		frame = next;
 	}
 
 	/* free ourselves! */ 
-	free(jb);
+	ast_free(jb);
 }
 
 

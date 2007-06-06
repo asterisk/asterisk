@@ -626,19 +626,19 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 				obuf = buf;
 				if (!(buf = ast_realloc(obuf, buflen))) 
 					/* Memory allocation failure...  Just free old buffer and be done */
-					free(obuf);
+					ast_free(obuf);
 			}
 			if (buf)
 				len += sprintf( buf + len, "%s ", matches[x]);
-			free(matches[x]);
+			ast_free(matches[x]);
 			matches[x] = NULL;
 		}
-		free(matches);
+		ast_free(matches);
 	}
 
 	if (buf) {
 		ast_cli(fd, "%s%s",buf, AST_CLI_COMPLETE_EOF);
-		free(buf);
+		ast_free(buf);
 	} else
 		ast_cli(fd, "NULL\n");
 
@@ -670,7 +670,7 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 	buf = __ast_cli_generator(argv[2], argv[3], atoi(argv[4]), 0);
 	if (buf) {
 		ast_cli(fd, buf);
-		free(buf);
+		ast_free(buf);
 	} else
 		ast_cli(fd, "NULL\n");
 	return RESULT_SUCCESS;
@@ -1247,12 +1247,12 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 		AST_LIST_LOCK(&helpers);
 		AST_LIST_REMOVE(&helpers, e, list);
 		AST_LIST_UNLOCK(&helpers);
-		free(e->_full_cmd);
+		ast_free(e->_full_cmd);
 		e->_full_cmd = NULL;
 		if (e->new_handler) {
 			/* this is a new-style entry. Reset fields and free memory. */
 			bzero((char **)(e->cmda), sizeof(e->cmda));
-			free(e->command);
+			ast_free(e->command);
 			e->command = NULL;
 			e->usage = NULL;
 		}
@@ -1291,7 +1291,7 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	
 	if (find_cli(e->cmda, 1)) {
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", e->_full_cmd);
-		free(e->_full_cmd);
+		ast_free(e->_full_cmd);
 		e->_full_cmd = NULL;
 		goto done;
 	}
@@ -1525,11 +1525,11 @@ int ast_cli_generatornummatches(const char *text, const char *word)
 		if (!oldbuf || strcmp(buf,oldbuf))
 			matches++;
 		if (oldbuf)
-			free(oldbuf);
+			ast_free(oldbuf);
 		oldbuf = buf;
 	}
 	if (oldbuf)
-		free(oldbuf);
+		ast_free(oldbuf);
 	return matches;
 }
 
@@ -1648,7 +1648,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 			 */
 			if (matchnum > state)
 				break;
-			free(ret);
+			ast_free(ret);
 			ret = NULL;
 		} else if (ast_strlen_zero(e->cmda[dst])) {
 			/*
@@ -1671,7 +1671,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	}
 	if (lock)
 		AST_LIST_UNLOCK(&helpers);
-	free(dup);
+	ast_free(dup);
 	return ret;
 }
 
@@ -1745,6 +1745,6 @@ int ast_cli_command(int fd, const char *s)
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
 done:
-	free(dup);
+	ast_free(dup);
 	return 0;
 }

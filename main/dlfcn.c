@@ -287,7 +287,7 @@ static const char *searchList()
 	if (!buf)
 	{	
 		buf_size = strlen(ldlp) + strlen(dyldlp) + strlen(stdpath) + 4;
-		buf = malloc(buf_size);
+		buf = ast_malloc(buf_size);
 		snprintf(buf, buf_size, "%s%s%s%s%s%c", dyldlp, (dyldlp[0] ? ":" : ""), ldlp, (ldlp[0] ? ":" : ""),
 				 stdpath, '\0');
 	}
@@ -309,18 +309,18 @@ static const char *getSearchPath(int i)
 	}
 	if (!path)
 	{
-		path = (char **)calloc(MAX_SEARCH_PATHS, sizeof(char **));
+		path = ast_calloc(MAX_SEARCH_PATHS, sizeof(char **));
 	}
 	if (!list && !end)
 		list = searchList();
 	if (i >= (numsize))
 	{
 		debug("Increasing size for long PATH");
-		tmp = (char **)calloc((MAX_SEARCH_PATHS + numsize), sizeof(char **));
+		tmp = ast_calloc((MAX_SEARCH_PATHS + numsize), sizeof(char **));
 		if (tmp)
 		{
 			memcpy(tmp, path, sizeof(char **) * numsize);
-			free(path);
+			ast_free(path);
 			path = tmp;
 			numsize += MAX_SEARCH_PATHS;
 		}
@@ -434,7 +434,7 @@ static struct dlstatus *allocStatus()
 		dls = dls->next;
 	if (!dls)
 #endif
-		dls = malloc(sizeof(*dls));
+		dls = ast_malloc(sizeof(*dls));
 	dls->flags = 0;
 	return dls;
 }
@@ -551,7 +551,7 @@ static inline const char *dyld_error_str()
 	NSLinkEditError(&dylder, &dylderno, &dyldfile, &dylderrstr);
 	if (dylderrstr && strlen(dylderrstr))
 	{
-		retStr = malloc(strlen(dylderrstr) +1);
+		retStr = ast_malloc(strlen(dylderrstr) +1);
 		strcpy((char*)retStr,dylderrstr);
 	}
 	return retStr;
@@ -651,8 +651,8 @@ static void *dlsymIntern(struct dlstatus *dls, const char *symbol, int canSetErr
 			else
 			{
 				if (savedErrorStr)
-					free((char*)savedErrorStr);			
-				savedErrorStr = malloc(256);
+					ast_free(savedErrorStr);			
+				savedErrorStr = ast_malloc(256);
 				snprintf((char*)savedErrorStr, 256, "Symbol \"%s\" not in global context",symbol);	
 			}
 		}
@@ -663,8 +663,8 @@ static void *dlsymIntern(struct dlstatus *dls, const char *symbol, int canSetErr
 		if (!savedErrorStr || !strlen(savedErrorStr))
 		{
 			if (savedErrorStr)
-				free((char*)savedErrorStr);
-			savedErrorStr = malloc(256);
+				ast_free(savedErrorStr);
+			savedErrorStr = ast_malloc(256);
 			snprintf((char*)savedErrorStr, 256,"Symbol \"%s\" not found",symbol);
 		}
 		if (canSetError)
@@ -676,7 +676,7 @@ static void *dlsymIntern(struct dlstatus *dls, const char *symbol, int canSetErr
 			debug(savedErrorStr);
 		}
 		if (savedErrorStr)
-			free((char*)savedErrorStr);
+			ast_free(savedErrorStr);
 		return NULL;
 	}
 	return NSAddressOfSymbol(nssym);
@@ -760,7 +760,7 @@ static struct dlstatus *loadModule(const char *path, const struct stat *sbuf, in
 				error(errstr);
 			if ((dls->flags & DL_IN_LIST) == 0)
 			{
-				free(dls);
+				ast_free(dls);
 			}
 			return NULL;
 		}
@@ -782,7 +782,7 @@ static struct dlstatus *loadModule(const char *path, const struct stat *sbuf, in
 		NSLinkEditError(&ler, &lerno, &file, &errstr);
 		if ((dls->flags & DL_IN_LIST) == 0)
 		{
-			free(dls);
+			ast_free(dls);
 		}
 		error(errstr);
 		return NULL;
@@ -828,10 +828,10 @@ static void dlcompat_cleanup(void)
 	char *data;
 	data = (char *)searchList();
 	if ( data )
-		free( data );
+		ast_free(data);
 	data = 	(char *)getSearchPath(-1);
 	if ( data )
-		free( data );
+		ast_free(data);
 	pthread_mutex_destroy(&dlcompat_mutex);
 	pthread_key_delete(dlerror_key);
 	next = stqueue;
@@ -839,7 +839,7 @@ static void dlcompat_cleanup(void)
 	{
 		dls = next;
 		next = dls->next;
-		free(dls);
+		ast_free(dls);
 	}
 }
 
@@ -852,7 +852,7 @@ static void resetdlerror()
 
 static void dlerrorfree(void *data)
 {
-	free(data);
+	ast_free(data);
 }
 
 /* We kind of want a recursive lock here, but meet a little trouble
@@ -866,7 +866,7 @@ static inline void dolock(void)
 	tss = pthread_getspecific(dlerror_key);
 	if (!tss)
 	{
-		tss = malloc(sizeof(struct dlthread));
+		tss = ast_malloc(sizeof(*tss));
 		tss->lockcnt = 0;
 		tss->errset = 0;
 		if (pthread_setspecific(dlerror_key, tss))
@@ -948,12 +948,12 @@ void *dlsym(void * dl_restrict handle, const char * dl_restrict symbol)
 	void *value = NULL;
 	char *malloc_sym = NULL;
 	dolock();
-	malloc_sym = malloc(sym_len + 2);
+	malloc_sym = ast_malloc(sym_len + 2);
 	if (malloc_sym)
 	{
 		sprintf(malloc_sym, "_%s", symbol);
 		value = dlsymIntern(handle, malloc_sym, 1);
-		free(malloc_sym);
+		ast_free(malloc_sym);
 	}
 	else
 	{
@@ -993,12 +993,12 @@ static void *dlsym_prepend_underscore_intern(void *handle, const char *symbol)
 	int sym_len = strlen(symbol);
 	void *value = NULL;
 	char *malloc_sym = NULL;
-	malloc_sym = malloc(sym_len + 2);
+	malloc_sym = ast_malloc(sym_len + 2);
 	if (malloc_sym)
 	{
 		sprintf(malloc_sym, "_%s", symbol);
 		value = dlsymIntern(handle, malloc_sym, 1);
-		free(malloc_sym);
+		ast_free(malloc_sym);
 	}
 	else
 	{
@@ -1293,12 +1293,12 @@ dlfunc_t dlfunc(void * dl_restrict handle, const char * dl_restrict symbol)
 	int sym_len = strlen(symbol);
 	char *malloc_sym = NULL;
 	dolock();
-	malloc_sym = malloc(sym_len + 2);
+	malloc_sym = ast_malloc(sym_len + 2);
 	if (malloc_sym)
 	{
 		sprintf(malloc_sym, "_%s", symbol);
 		rv.d = dlsymIntern(handle, malloc_sym, 1);
-		free(malloc_sym);
+		ast_free(malloc_sym);
 	}
 	else
 	{

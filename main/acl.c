@@ -90,7 +90,7 @@ void ast_free_ha(struct ast_ha *ha)
 	while (ha) {
 		hal = ha;
 		ha = ha->next;
-		free(hal);
+		ast_free(hal);
 	}
 }
 
@@ -174,14 +174,14 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int 
 			ast_log(LOG_WARNING, "%s is not a valid netmask\n", nm);
 			if (error)
 				*error = 1;
-			free(ha);
+			ast_free(ha);
 			return ret;
 		}
 		if (!inet_aton(tmp, &ha->netaddr)) {
 			ast_log(LOG_WARNING, "%s is not a valid IP\n", tmp);
 			if (error)
 				*error = 1;
-			free(ha);
+			ast_free(ha);
 			return ret;
 		}
 		ha->netaddr.s_addr &= ha->netmask.s_addr;

@@ -265,7 +265,7 @@ static int register_translator(int dst, int src)
 	zt->t.buf_size = BUFFER_SAMPLES * 2;
 	zt->t.desc_size = sizeof(struct pvt);
 	if ((res = ast_register_translator(&zt->t))) {
-		free(zt);
+		ast_free(zt);
 		return -1;
 	}
 
@@ -292,7 +292,7 @@ static void drop_translator(int dst, int src)
 
 		AST_LIST_REMOVE_CURRENT(&translators, entry);
 		ast_unregister_translator(&cur->t);
-		free(cur);
+		ast_free(cur);
 		global_format_map.map[dst][src] = 0;
 		break;
 	}
@@ -307,7 +307,7 @@ static void unregister_translators(void)
 	AST_LIST_LOCK(&translators);
 	while ((cur = AST_LIST_REMOVE_HEAD(&translators, entry))) {
 		ast_unregister_translator(&cur->t);
-		free(cur);
+		ast_free(cur);
 	}
 	AST_LIST_UNLOCK(&translators);
 }

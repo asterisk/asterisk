@@ -525,7 +525,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 				ast_log(LOG_DEBUG,"Festival WV command\n");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
 			res = send_waveform_to_channel(chan,waveform,filesize, intstr);
-			free(waveform);
+			ast_free(waveform);
 			break;
 		}
 		else if (strcmp(ack,"LP\n") == 0) {   /* receive an s-expr */
@@ -534,7 +534,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 			waveform = socket_receive_file_to_buff(fd,&filesize);
 			waveform[filesize]='\0';
 			ast_log(LOG_WARNING,"Festival returned LP : %s\n",waveform);
-			free(waveform);
+			ast_free(waveform);
 		} else if (strcmp(ack,"ER\n") == 0) {    /* server got an error */
 			ast_log(LOG_WARNING,"Festival returned ER\n");
 			res=-1;

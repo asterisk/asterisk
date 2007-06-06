@@ -287,7 +287,7 @@ static void *ast_bridge_call_thread(void *data)
 		ast_hangup(tobj->peer);
 	}
 
-	free(tobj);
+	ast_free(tobj);
 
 	return NULL;
 }
@@ -375,7 +375,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	if (!ast_strlen_zero(parkingexten)) {
 		if (ast_exists_extension(NULL, parking_con, parkingexten, 1, NULL)) {
 			ast_mutex_unlock(&parking_lock);
-			free(pu);
+			ast_free(pu);
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
 			return -1; /* We failed to park this call, plain and simple so we need to error out */
 		}
@@ -398,7 +398,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 
 		if (!(i < parking_range)) {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
-			free(pu);
+			ast_free(pu);
 			ast_mutex_unlock(&parking_lock);
 			return -1;
 		}
@@ -1069,7 +1069,7 @@ static struct feature_group* register_group(const char *fgname)
 		return NULL;
 
 	if (ast_string_field_init(fg, 128)) {
-		free(fg);
+		ast_free(fg);
 		return NULL;
 	}
 
@@ -1093,7 +1093,7 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 		return;
 
 	if (ast_string_field_init(fge, 128)) {
-		free(fge);
+		ast_free(fge);
 		return;
 	}
 
@@ -1127,7 +1127,7 @@ void ast_unregister_feature(struct ast_call_feature *feature)
 	AST_LIST_LOCK(&feature_list);
 	AST_LIST_REMOVE(&feature_list,feature,feature_entry);
 	AST_LIST_UNLOCK(&feature_list);
-	free(feature);
+	ast_free(feature);
 }
 
 /*! \brief Remove all features in the list */
@@ -1137,7 +1137,7 @@ static void ast_unregister_features(void)
 
 	AST_LIST_LOCK(&feature_list);
 	while ((feature = AST_LIST_REMOVE_HEAD(&feature_list,feature_entry)))
-		free(feature);
+		ast_free(feature);
 	AST_LIST_UNLOCK(&feature_list);
 }
 
@@ -1164,11 +1164,11 @@ static void ast_unregister_groups(void)
 	while ((fg = AST_LIST_REMOVE_HEAD(&feature_groups, entry))) {
 		while ((fge = AST_LIST_REMOVE_HEAD(&fg->features, entry))) {
 			ast_string_field_free_all(fge);
-			free(fge);
+			ast_free(fge);
 		}
 
 		ast_string_field_free_all(fg);
-		free(fg);
+		ast_free(fg);
 	}
 	AST_RWLIST_UNLOCK(&feature_groups);
 }
@@ -1675,7 +1675,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		} else
 			ast_cdr_setuserfield(chan, peer->cdr->userfield);
 		/* free the peer's cdr without ast_cdr_free complaining */
-		free(peer->cdr);
+		ast_free(peer->cdr);
 		peer->cdr = NULL;
 	}
 
@@ -1986,7 +1986,7 @@ static void *do_parking_thread(void *ignore)
 						notify_metermaids(pt->parkingexten, parking_con);
 				} else
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
-				free(pt);
+				ast_free(pt);
 			} else {	/* still within parking time, process descriptors */
 				for (x = 0; x < AST_MAX_FDS; x++) {
 					struct ast_frame *f;
@@ -2026,7 +2026,7 @@ static void *do_parking_thread(void *ignore)
 								notify_metermaids(pt->parkingexten, parking_con);
 						} else
 							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
-						free(pt);
+						ast_free(pt);
 						break;
 					} else {
 						/*! \todo XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
@@ -2158,7 +2158,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			S_OR(pu->chan->cid.cid_name, "<unknown>")
 			);
 
-		free(pu);
+		ast_free(pu);
 	}
 	/* JK02: it helps to answer the channel if not already up */
 	if (chan->_state != AST_STATE_UP)

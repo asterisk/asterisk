@@ -1306,7 +1306,7 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	} else
 		ast_cli(a->fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	if (s)
-		free(s);
+		ast_free(s);
 	return CLI_SUCCESS;
 }
 
@@ -1362,7 +1362,7 @@ static int console_transfer(int fd, int argc, char *argv[])
 			ast_cli(fd, "Failed to transfer :(\n");
 	}
 	if (tmp)
-		free(tmp);
+		ast_free(tmp);
 	return RESULT_SUCCESS;
 }
 
@@ -1470,7 +1470,7 @@ static void store_mixer(struct chan_oss_pvt *o, char *s)
 		}
 	}
 	if (o->mixer_cmd)
-		free(o->mixer_cmd);
+		ast_free(o->mixer_cmd);
 	o->mixer_cmd = ast_strdup(s);
 	ast_log(LOG_WARNING, "setting mixer %s\n", s);
 }
@@ -1543,7 +1543,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 		asprintf(&cmd, "mixer %s", o->mixer_cmd);
 		ast_log(LOG_WARNING, "running [%s]\n", cmd);
 		system(cmd);
-		free(cmd);
+		ast_free(cmd);
 	}
 	if (o == &oss_default)		/* we are done with the default */
 		return NULL;
@@ -1574,7 +1574,7 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
 
   error:
 	if (o != &oss_default)
-		free(o);
+		ast_free(o);
 	return NULL;
 }
 

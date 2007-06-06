@@ -539,7 +539,7 @@ static void *dummy_start(void *data)
 	   keep a copy of the pointer and then ast_unregister_thread will
 	   free the memory
 	*/
-	free(data);
+	ast_free(data);
 	ast_register_thread(a.name);
 	pthread_cleanup_push(ast_unregister_thread, (void *) pthread_self());
 	ret = a.start_routine(a.data);

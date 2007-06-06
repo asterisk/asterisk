@@ -105,16 +105,16 @@ int ast_speech_results_free(struct ast_speech_result *result)
 		prev_result = current_result;
 		/* Deallocate what we can */
 		if (current_result->text != NULL) {
-			free(current_result->text);
+			ast_free(current_result->text);
 			current_result->text = NULL;
 		}
 		if (current_result->grammar != NULL) {
-			free(current_result->grammar);
+			ast_free(current_result->grammar);
 			current_result->grammar = NULL;
 		}
 		/* Move on and then free ourselves */
 		current_result = current_result->next;
-		free(prev_result);
+		ast_free(prev_result);
 		prev_result = NULL;
 	}
 
@@ -187,7 +187,7 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 	/* Pass ourselves to the engine so they can set us up some more and if they error out then do not create a structure */
 	if (engine->create(new_speech)) {
 		ast_mutex_destroy(&new_speech->lock);
-		free(new_speech);
+		ast_free(new_speech);
 		new_speech = NULL;
 	}
 
@@ -211,10 +211,10 @@ int ast_speech_destroy(struct ast_speech *speech)
 
 	/* If a processing sound is set - free the memory used by it */
 	if (speech->processing_sound)
-		free(speech->processing_sound);
+		ast_free(speech->processing_sound);
 
 	/* Aloha we are done */
-	free(speech);
+	ast_free(speech);
 
 	return res;
 }

@@ -130,7 +130,7 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 		if (agidebug)
 			ast_verbose("AGI Tx >> %s\n", stuff);
 		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
-		free(stuff);
+		ast_free(stuff);
 	}
 }
 
@@ -476,7 +476,7 @@ static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 	buf = ast_recvtext(chan,atoi(argv[2]));
 	if (buf) {
 		fdprintf(agi->fd, "200 result=1 (%s)\n", buf);
-		free(buf);
+		ast_free(buf);
 	} else {	
 		fdprintf(agi->fd, "200 result=-1\n");
 	}

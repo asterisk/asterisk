@@ -2125,7 +2125,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 	int speeddialInstance = 1;
 	int y = 0;
 
-	if (!(d = ast_calloc(1, sizeof(struct skinny_device)))) {
+	if (!(d = ast_calloc(1, sizeof(*d)))) {
 		return NULL;
 	} else {
 		ast_copy_string(d->name, cat, sizeof(d->name));
@@ -2137,7 +2137,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
 				if (ast_get_ip(&d->addr, v->value)) {
-					free(d);
+					ast_free(d);
 					return NULL;
 				}
 			} else if (!strcasecmp(v->name, "port")) {
@@ -2203,7 +2203,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 			} else if (!strcasecmp(v->name, "linelabel")) {
 				ast_copy_string(linelabel, v->value, sizeof(linelabel));
 			} else if (!strcasecmp(v->name, "speeddial")) {
-				if (!(sd = ast_calloc(1, sizeof(struct skinny_speeddial)))) {
+				if (!(sd = ast_calloc(1, sizeof(*sd)))) {
 					return NULL;
 				} else {
 					char *stringp, *exten, *context, *label;
@@ -2232,7 +2232,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					d->speeddials = sd;
 				}
 			} else if (!strcasecmp(v->name, "addon")) {
-				if (!(a = ast_calloc(1, sizeof(struct skinny_addon)))) {
+				if (!(a = ast_calloc(1, sizeof(*a)))) {
 					return NULL;
 				} else {
 					ast_mutex_init(&a->lock);
@@ -2242,7 +2242,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					d->addons = a;
 				}
 			} else if (!strcasecmp(v->name, "trunk") || !strcasecmp(v->name, "line")) {
-				if (!(l = ast_calloc(1, sizeof(struct skinny_line)))) {
+				if (!(l = ast_calloc(1, sizeof(*l)))) {
 					return NULL;
 				} else {
 					ast_mutex_init(&l->lock);
@@ -2850,7 +2850,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
 	} else {
-		sub = ast_calloc(1, sizeof(struct skinny_subchannel));
+		sub = ast_calloc(1, sizeof(*sub));
 		if (!sub) {
 			ast_log(LOG_WARNING, "Unable to allocate Skinny subchannel\n");
 			return NULL;
@@ -4250,7 +4250,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 
 	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
-		free(req);
+		ast_free(req);
 		return 0;
 	}
 
@@ -4398,7 +4398,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		break;
 	}
 	if (res >= 0 && req)
-		free(req);
+		ast_free(req);
 	return res;
 }
 
@@ -4424,7 +4424,7 @@ static void destroy_session(struct skinnysession *s)
 			close(s->fd);
 		}
 		ast_mutex_destroy(&s->lock);
-		free(s);
+		ast_free(s);
 	} else {
 		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 	}
@@ -4521,7 +4521,7 @@ static struct skinny_req *skinny_req_parse(struct skinnysession *s)
 
 	if (letohl(req->e) < 0) {
 		ast_log(LOG_ERROR, "Event Message is NULL from socket %d, This is bad\n", s->fd);
-		free(req);
+		ast_free(req);
 		return NULL;
 	}
 
@@ -4896,25 +4896,25 @@ static void delete_devices(void)
 			llast = l;
 			l = l->next;
 			ast_mutex_destroy(&llast->lock);
-			free(llast);
+			ast_free(llast);
 		}
 		/* Delete all speeddials for this device */
 		for (sd=d->speeddials;sd;) {
 			sdlast = sd;
 			sd = sd->next;
 			ast_mutex_destroy(&sdlast->lock);
-			free(sdlast);
+			ast_free(sdlast);
 		}
 		/* Delete all addons for this device */
 		for (a=d->addons;a;) {
 			alast = a;
 			a = a->next;
 			ast_mutex_destroy(&alast->lock);
-			free(alast);
+			ast_free(alast);
 		}
 		dlast = d;
 		d = d->next;
-		free(dlast);
+		ast_free(dlast);
 	}
 	devices=NULL;
 	ast_mutex_unlock(&devicelock);
@@ -4999,7 +4999,7 @@ static int unload_module(void)
 		if (slast->fd > -1)
 			close(slast->fd);
 		ast_mutex_destroy(&slast->lock);
-		free(slast);
+		ast_free(slast);
 	}
 	sessions = NULL;
 	ast_mutex_unlock(&sessionlock);

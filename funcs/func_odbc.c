@@ -603,7 +603,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
 
 	if (!ast_strlen_zero((*query)->sql_read) && ast_strlen_zero((*query)->readhandle[0])) {
-		free(*query);
+		ast_free(*query);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for reading: %s\n", catg);
 		return EINVAL;
@@ -616,7 +616,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
 
 	if (!ast_strlen_zero((*query)->sql_write) && ast_strlen_zero((*query)->writehandle[0])) {
-		free(*query);
+		ast_free(*query);
 		*query = NULL;
 		ast_log(LOG_ERROR, "There is SQL, but no ODBC class to be used for writing: %s\n", catg);
 		return EINVAL;
@@ -638,7 +638,7 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 
 	(*query)->acf = ast_calloc(1, sizeof(struct ast_custom_function));
 	if (! (*query)->acf) {
-		free(*query);
+		ast_free(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -650,8 +650,8 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	}
 
 	if (!((*query)->acf->name)) {
-		free((*query)->acf);
-		free(*query);
+		ast_free((*query)->acf);
+		ast_free(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -659,9 +659,9 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 	asprintf((char **)&((*query)->acf->syntax), "%s(<arg1>[...[,<argN>]])", (*query)->acf->name);
 
 	if (!((*query)->acf->syntax)) {
-		free((char *)(*query)->acf->name);
-		free((*query)->acf);
-		free(*query);
+		ast_free((char *)(*query)->acf->name);
+		ast_free((*query)->acf);
+		ast_free(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -691,19 +691,19 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 					"This function may only be set.\nSQL:\n%s\n",
 					(*query)->sql_write);
 	} else {
-		free((char *)(*query)->acf->syntax);
-		free((char *)(*query)->acf->name);
-		free((*query)->acf);
-		free(*query);
+		ast_free((char *)(*query)->acf->syntax);
+		ast_free((char *)(*query)->acf->name);
+		ast_free((*query)->acf);
+		ast_free(*query);
 		ast_log(LOG_WARNING, "Section %s was found, but there was no SQL to execute.  Ignoring.\n", catg);
 		return EINVAL;
 	}
 
 	if (! ((*query)->acf->desc)) {
-		free((char *)(*query)->acf->syntax);
-		free((char *)(*query)->acf->name);
-		free((*query)->acf);
-		free(*query);
+		ast_free((char *)(*query)->acf->syntax);
+		ast_free((char *)(*query)->acf->name);
+		ast_free((*query)->acf);
+		ast_free(*query);
 		*query = NULL;
 		return ENOMEM;
 	}
@@ -728,14 +728,14 @@ static int free_acf_query(struct acf_odbc_query *query)
 	if (query) {
 		if (query->acf) {
 			if (query->acf->name)
-				free((char *)query->acf->name);
+				ast_free((char *)query->acf->name);
 			if (query->acf->syntax)
-				free((char *)query->acf->syntax);
+				ast_free((char *)query->acf->syntax);
 			if (query->acf->desc)
-				free((char *)query->acf->desc);
-			free(query->acf);
+				ast_free((char *)query->acf->desc);
+			ast_free(query->acf);
 		}
-		free(query);
+		ast_free(query);
 	}
 	return 0;
 }

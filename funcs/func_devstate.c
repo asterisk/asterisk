@@ -187,7 +187,7 @@ static int unload_module(void)
 
 	AST_RWLIST_WRLOCK(&custom_devices);
 	while ((dev = AST_RWLIST_REMOVE_HEAD(&custom_devices, entry)))
-		free(dev);
+		ast_free(dev);
 	AST_RWLIST_UNLOCK(&custom_devices);
 
 	return res;

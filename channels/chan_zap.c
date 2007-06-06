@@ -1878,7 +1878,7 @@ static int send_callerid(struct zt_pvt *p)
 			return 0;
 		p->cidpos += res;
 	}
-	free(p->cidspill);
+	ast_free(p->cidspill);
 	p->cidspill = NULL;
 	if (p->callwaitcas) {
 		/* Wait for CID/CW to expire */
@@ -1894,7 +1894,7 @@ static int zt_callwait(struct ast_channel *ast)
 	p->callwaitingrepeat = CALLWAITING_REPEAT_SAMPLES;
 	if (p->cidspill) {
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
-		free(p->cidspill);
+		ast_free(p->cidspill);
 	}
 	if (!(p->cidspill = ast_malloc(2400 /* SAS */ + 680 /* CAS */ + READ_SIZE * 4)))
 		return -1;
@@ -1971,7 +1971,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				/* Generate the Caller-ID spill if desired */
 				if (p->cidspill) {
 					ast_log(LOG_WARNING, "cidspill already exists??\n");
-					free(p->cidspill);
+					ast_free(p->cidspill);
 				}
 				p->callwaitcas = 0;
 				if ((p->cidspill = ast_malloc(MAX_CALLERID_SIZE))) {
@@ -2413,7 +2413,7 @@ static void destroy_zt_pvt(struct zt_pvt **pvt)
 	if (p->mwi_event_sub)
 		ast_event_unsubscribe(p->mwi_event_sub);
 	ast_mutex_destroy(&p->lock);
-	free(p);
+	ast_free(p);
 	*pvt = NULL;
 }
 
@@ -2636,12 +2636,12 @@ static int zt_hangup(struct ast_channel *ast)
 	restore_gains(p);
 	if (p->origcid_num) {
 		ast_copy_string(p->cid_num, p->origcid_num, sizeof(p->cid_num));
-		free(p->origcid_num);
+		ast_free(p->origcid_num);
 		p->origcid_num = NULL;
 	}	
 	if (p->origcid_name) {
 		ast_copy_string(p->cid_name, p->origcid_name, sizeof(p->cid_name));
-		free(p->origcid_name);
+		ast_free(p->origcid_name);
 		p->origcid_name = NULL;
 	}	
 	if (p->dsp)
@@ -2904,7 +2904,7 @@ static int zt_hangup(struct ast_channel *ast)
 			tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
 		}
 		if (p->cidspill)
-			free(p->cidspill);
+			ast_free(p->cidspill);
 		if (p->sig)
 			zt_disable_ec(p);
 		x = 0;
@@ -3891,7 +3891,7 @@ static void zt_handle_dtmfup(struct ast_channel *ast, int index, struct ast_fram
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
 			if (p->cidspill)
-				free(p->cidspill);
+				ast_free(p->cidspill);
 			send_cwcidspill(p);
 		}
 		if ((f->subclass != 'm') && (f->subclass != 'u')) 
@@ -4289,7 +4289,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						ast_log(LOG_DEBUG, "channel %d answered\n", p->channel);
 					if (p->cidspill) {
 						/* Cancel any running CallerID spill */
-						free(p->cidspill);
+						ast_free(p->cidspill);
 						p->cidspill = NULL;
 					}
 					p->dialing = 0;
@@ -4419,7 +4419,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			ast->rings++;
 			if ((ast->rings > p->cidrings) && (p->cidspill)) {
 				ast_log(LOG_WARNING, "Didn't finish Caller-ID spill.  Cancelling.\n");
-				free(p->cidspill);
+				ast_free(p->cidspill);
 				p->cidspill = NULL;
 				p->callwaitcas = 0;
 			}
@@ -6240,10 +6240,10 @@ static void *ss_thread(void *data)
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
 				if (chan->cid.cid_num)
-					free(chan->cid.cid_num);
+					ast_free(chan->cid.cid_num);
 				chan->cid.cid_num = NULL;
 				if (chan->cid.cid_name)
-					free(chan->cid.cid_name);
+					ast_free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
 				if (res) {
@@ -6322,10 +6322,10 @@ static void *ss_thread(void *data)
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
 				if (chan->cid.cid_num)
-					free(chan->cid.cid_num);
+					ast_free(chan->cid.cid_num);
 				chan->cid.cid_num = NULL;
 				if (chan->cid.cid_name)
-					free(chan->cid.cid_name);
+					ast_free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
 				ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);
@@ -6952,7 +6952,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				break;
 			if (i->cidspill) {
 				/* Cancel VMWI spill */
-				free(i->cidspill);
+				ast_free(i->cidspill);
 				i->cidspill = NULL;
 			}
 			if (i->immediate) {
@@ -7152,7 +7152,7 @@ static void *do_monitor(void *data)
 		ast_mutex_lock(&iflock);
 		if (!pfds || (lastalloc != ifcount)) {
 			if (pfds)
-				free(pfds);
+				ast_free(pfds);
 			if (ifcount) {
 				if (!(pfds = ast_calloc(1, ifcount * sizeof(*pfds)))) {
 					ast_mutex_unlock(&iflock);
@@ -7273,7 +7273,7 @@ static void *do_monitor(void *data)
 						if (res2 > 0) {
 							i->cidpos += res2;
 							if (i->cidpos >= i->cidlen) {
-								free(i->cidspill);
+								ast_free(i->cidspill);
 								i->cidspill = 0;
 								i->cidpos = 0;
 								i->cidlen = 0;
@@ -10618,7 +10618,7 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 			info_str = pri_dump_info_str(pris[span-1].pri);
 			if (info_str) {
 				ast_cli(fd, "%s", info_str);
-				free(info_str);
+				ast_free(info_str);
 			}
 #else
 			pri_dump_info(pris[span-1].pri);
@@ -11414,7 +11414,7 @@ static int __unload_module(void)
 	while (p) {
 		/* Free any callerid */
 		if (p->cidspill)
-			free(p->cidspill);
+			ast_free(p->cidspill);
 		/* Close the zapata thingy */
 		if (p->subs[SUB_REAL].zfd > -1)
 			zt_close(p->subs[SUB_REAL].zfd);
@@ -12872,7 +12872,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 		len = tdd_generate(p->tdd, buf, text);
 		if (len < 1) {
 			ast_log(LOG_ERROR, "TDD generate (len %d) failed!!\n", (int)strlen(text));
-			free(mybuf);
+			ast_free(mybuf);
 			return -1;
 		}
 	}
@@ -12881,7 +12881,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 	fd = p->subs[index].zfd;
 	while (len) {
 		if (ast_check_hangup(c)) {
-			free(mybuf);
+			ast_free(mybuf);
 			return -1;
 		}
 		size = len;
@@ -12907,7 +12907,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 		res = write(fd, buf, size);
 		if (res != size) {
 			if (res == -1) {
-				free(mybuf);
+				ast_free(mybuf);
 				return -1;
 			}
 			if (option_debug)
@@ -12917,7 +12917,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 		len -= size;
 		buf += size;
 	}
-	free(mybuf);
+	ast_free(mybuf);
 	return(0);
 }
 

@@ -115,10 +115,10 @@ static int answer_exec_disable(void *data)
 
 	/* If arguments are present, free them too */
 	if (answer_exec->args)
-		free(answer_exec->args);
+		ast_free(answer_exec->args);
 
 	/* This is simple - just free the structure */
-	free(answer_exec);
+	ast_free(answer_exec);
 
 	return 0;
 }
@@ -133,7 +133,7 @@ static int music_disable(void *data)
 	if (!data)
 		return -1;
 
-	free(data);
+	ast_free(data);
 
 	return 0;
 }
@@ -707,7 +707,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 			channel->owner = NULL;
 		}
 		/* Free structure */
-		free(channel);
+		ast_free(channel);
 	}
        
 	/* Disable any enabled options globally */
@@ -720,7 +720,7 @@ int ast_dial_destroy(struct ast_dial *dial)
 	}
 
 	/* Free structure */
-	free(dial);
+	ast_free(dial);
 
 	return 0;
 }

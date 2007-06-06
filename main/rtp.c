@@ -1936,7 +1936,7 @@ static struct ast_rtcp *ast_rtcp_new(void)
 	rtcp->them.sin_family = AF_INET;
 
 	if (rtcp->s < 0) {
-		free(rtcp);
+		ast_free(rtcp);
 		ast_log(LOG_WARNING, "Unable to allocate RTCP socket: %s\n", strerror(errno));
 		return NULL;
 	}
@@ -1977,7 +1977,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 
 	rtp->s = rtp_socket();
 	if (rtp->s < 0) {
-		free(rtp);
+		ast_free(rtp);
 		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
 		return NULL;
 	}
@@ -2017,9 +2017,9 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
-				free(rtp->rtcp);
+				ast_free(rtp->rtcp);
 			}
-			free(rtp);
+			ast_free(rtp);
 			return NULL;
 		}
 		/* The port was used, increment it (by two). */
@@ -2035,9 +2035,9 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
-				free(rtp->rtcp);
+				ast_free(rtp->rtcp);
 			}
-			free(rtp);
+			ast_free(rtp);
 			return NULL;
 		}
 	}
@@ -2204,13 +2204,13 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		if (rtp->rtcp->schedid > 0)
 			ast_sched_del(rtp->sched, rtp->rtcp->schedid);
 		close(rtp->rtcp->s);
-		free(rtp->rtcp);
+		ast_free(rtp->rtcp);
 		rtp->rtcp=NULL;
 	}
 #ifdef P2P_INTENSE
 	ast_mutex_destroy(&rtp->bridge_lock);
 #endif
-	free(rtp);
+	ast_free(rtp);
 }
 
 static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
