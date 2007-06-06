@@ -1057,7 +1057,7 @@ int ast_unlock_path(const char *path)
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
 {
 	int silencethreshold = 128; 
-	int maxsilence=0;
+	int maxsilence = 0;
 	int res = 0;
 	int cmd = 0;
 	int max_attempts = 3;
