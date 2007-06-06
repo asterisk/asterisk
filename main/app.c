@@ -798,9 +798,9 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 
 int ast_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max)
 {
-	int res=0;
+	int res = 0;
 	char tmp[256];
-	char *grp=NULL, *cat=NULL;
+	char *grp = NULL, *cat = NULL;
 
 	if (!ast_strlen_zero(data)) {
 		ast_copy_string(tmp, data, sizeof(tmp));
