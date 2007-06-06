@@ -598,7 +598,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 				t->plc_samples, t->buffer_samples);
 			return -1;
 		}
-		if (t->dstfmt != AST_FORMAT_SLINEAR)
+		if (t->dstfmt != powerof(AST_FORMAT_SLINEAR))
 			ast_log(LOG_WARNING, "plc_samples %d format %x\n",
 				t->plc_samples, t->dstfmt);
 	}
