@@ -1571,7 +1571,7 @@ static void build_rpid(struct sip_pvt *p);
 
 /*------Request handling functions */
 static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e);
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e, int *nounlock);
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_register(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, char *e);
@@ -14151,7 +14151,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
  *	plan but tries to find the active call and masquerade
  *	into it 
  */
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e)
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e, int *nounlock)
 {
 	int res = 1;
 	int gotdest;
@@ -14524,6 +14524,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				}
 			} else {	/* Pickup call in call group */
 				ast_channel_unlock(c);
+				*nounlock = 1;
 				if (ast_pickup_call(c)) {
 					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
 					if (ast_test_flag(req, SIP_PKT_IGNORE))
@@ -15795,7 +15796,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		res = handle_request_options(p, req);
 		break;
 	case SIP_INVITE:
-		res = handle_request_invite(p, req, debug, seqno, sin, recount, e);
+		res = handle_request_invite(p, req, debug, seqno, sin, recount, e, nounlock);
 		break;
 	case SIP_REFER:
 		res = handle_request_refer(p, req, debug, seqno, nounlock);
