@@ -897,14 +897,16 @@ void ast_channel_free(struct ast_channel *chan)
 		last = cur;
 		cur = cur->next;
 	}
-	if (!cur)
-		ast_log(LOG_WARNING, "Unable to find channel in list\n");
-	else {
-		/* Lock and unlock the channel just to be sure nobody
-		   has it locked still */
-		ast_mutex_lock(&cur->lock);
-		ast_mutex_unlock(&cur->lock);
+	if (!cur) {
+		ast_mutex_unlock(&chlock);
+		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
+		return;
 	}
+
+	/* Lock and unlock the channel just to be sure nobody
+	   has it locked still */
+	ast_mutex_lock(&cur->lock);
+	ast_mutex_unlock(&cur->lock);
 	if (chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
 		free(chan->tech_pvt);
