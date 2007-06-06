@@ -944,6 +944,8 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 				}
 				if (fs)
 					ast_free(fs);
+				fs = NULL;
+				continue;
 			}
 			fs->trans = NULL;
 			fs->fmt = f;
