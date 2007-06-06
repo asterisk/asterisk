@@ -1735,7 +1735,7 @@ int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone)
 {
 	int x;
 	
-	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]);x++) {
+	for (x = 0; x < ARRAY_LEN(aliases); x++) {
 		if (!strcasecmp(aliases[x].name, zone)) {
 			dsp->progmode = aliases[x].mode;
 			ast_dsp_prog_reset(dsp);
