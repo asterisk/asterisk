@@ -1350,7 +1350,7 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 		dsp->busymaybe = 0;
 		min = 9999;
 		max = 0;
-		for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
+		for (x = DSP_HISTORY - dsp->busycount; x < DSP_HISTORY; x++) {
 #if 0
 			printf("Silence: %d, Noise: %d\n", dsp->historicsilence[x], dsp->historicnoise[x]);
 #endif			
