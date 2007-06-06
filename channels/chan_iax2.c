@@ -4436,6 +4436,49 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int iax2_unregister(int fd, int argc, char *argv[]) {
+	struct iax2_peer *p;
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+
+	p = find_peer(argv[2], 1);	
+	if (p) {
+		if (p->expire > 0) {
+			expire_registry(argv[2]);
+			ast_cli(fd, "Peer %s unregistered\n", argv[2]);
+		} else {
+			ast_cli(fd, "Peer %s not registered\n", argv[2]);
+		}
+	} else {
+		ast_cli(fd, "Peer unknown: %s. Not unregistered\n", argv[2]);
+	}
+	return RESULT_SUCCESS;
+}
+
+static char *complete_iax2_unregister(const char *line, const char *word, int pos, int state)
+{
+	int which = 0;
+	struct iax2_peer *p = NULL;
+	char *res = NULL;
+	int wordlen = strlen(word);
+
+	/* 0 - iax2; 1 - unregister; 2 - <peername> */
+	if (pos == 2) {
+		AST_LIST_LOCK(&peers);
+		AST_LIST_TRAVERSE(&peers, p, entry) {
+			if (!strncasecmp(p->name, word, wordlen) && 
+				++which > state && p->expire > 0) {
+				res = ast_strdup(p->name);
+				break;
+			}
+		}
+		AST_LIST_UNLOCK(&peers);
+	}
+
+	return res;
+}
+
 static int iax2_show_peers(int fd, int argc, char *argv[])
 {
 	return __iax2_show_peers(0, fd, NULL, argc, argv);
@@ -10270,6 +10313,10 @@ static const char show_threads_usage[] =
 "Usage: iax2 show threads\n"
 "       Lists status of IAX helper threads\n";
 
+static const char unregister_usage[] =
+"Usage: iax2 unregister <peername>\n"
+"       Unregister (force expiration) an IAX2 peer from the registry.\n";
+
 static const char show_peers_usage[] = 
 "Usage: iax2 show peers [registered] [like <pattern>]\n"
 "       Lists all known IAX2 peers.\n"
@@ -10358,6 +10405,10 @@ static struct ast_cli_entry cli_iax2[] = {
 	{ { "iax2", "show", "threads", NULL },
 	iax2_show_threads, "Display IAX helper thread info",
 	show_threads_usage },
+
+	{ { "iax2", "unregister", NULL },
+	iax2_unregister, "Unregister (force expiration) an IAX2 peer from the registry",
+	unregister_usage, complete_iax2_unregister },
 
 	{ { "iax2", "set", "mtu", NULL },
 	iax2_set_mtu, "Set the IAX systemwide trunking MTU",
