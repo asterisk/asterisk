@@ -1314,7 +1314,7 @@ static char debug_usage[] =
 "       Enables dumping of AGI transactions for debugging purposes\n";
 
 static char no_debug_usage[] = 
-"Usage: agi nodebug\n"
+"Usage: agi debug off\n"
 "       Disables dumping of AGI transactions for debugging purposes\n";
 
 static int agi_do_debug(int fd, int argc, char *argv[])
@@ -1337,7 +1337,7 @@ static int agi_no_debug_deprecated(int fd, int argc, char *argv[])
 
 static int agi_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	agidebug = 0;
 	ast_cli(fd, "AGI Debugging Disabled\n");
