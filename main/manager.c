@@ -1505,7 +1505,7 @@ static char mandescr_setvar[] =
 
 static int action_setvar(struct mansession *s, const struct message *m)
 {
-        struct ast_channel *c = NULL;
+	struct ast_channel *c = NULL;
 	const char *name = astman_get_header(m, "Channel");
 	const char *varname = astman_get_header(m, "Variable");
 	const char *varval = astman_get_header(m, "Value");
