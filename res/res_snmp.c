@@ -112,25 +112,7 @@ static int unload_module(void)
 	return ((thread != AST_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);
 }
 
-static int reload(void)
-{
-	ast_verbose(VERBOSE_PREFIX_1 "Reloading [Sub]Agent Module\n");
-
-	res_snmp_dont_stop = 0;
-	if (thread != AST_PTHREADT_NULL)
-		pthread_join(thread, NULL);
-	thread = AST_PTHREADT_NULL;
-	load_config();
-
-	res_snmp_dont_stop = 1;
-	if (res_snmp_enabled)
-		return ast_pthread_create_background(&thread, NULL, agent_thread, NULL);
-	else
-		return 0;
-}
-
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "SNMP [Sub]Agent for Asterisk",
 		.load = load_module,
 		.unload = unload_module,
-		.reload = reload,
 		);
