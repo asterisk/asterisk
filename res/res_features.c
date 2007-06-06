@@ -2398,42 +2398,60 @@ static char showfeatures_help[] =
 "Usage: feature list\n"
 "       Lists currently configured features.\n";
 
-static int handle_parkedcalls(int fd, int argc, char *argv[])
+static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct parkeduser *cur;
 	int numparked = 0;
 
-	ast_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "parkedcalls show";
+		e->usage =
+			"Usage: parkedcalls show\n"
+			"       List currently parked calls\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > e->args)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
 		, "Context", "Extension", "Pri", "Timeout");
 
 	ast_mutex_lock(&parking_lock);
 
 	for (cur = parkinglot; cur; cur = cur->next) {
-		ast_cli(fd, "%-10.10s %25s (%-15s %-12s %-4d) %6lds\n"
+		ast_cli(a->fd, "%-10.10s %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingexten, cur->chan->name, cur->context, cur->exten
 			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 
 		numparked++;
 	}
 	ast_mutex_unlock(&parking_lock);
-	ast_cli(fd, "%d parked call%s.\n", numparked, ESS(numparked));
+	ast_cli(a->fd, "%d parked call%s.\n", numparked, ESS(numparked));
 
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char showparked_help[] =
-"Usage: show parkedcalls\n"
-"       Lists currently parked calls.\n";
+static char *handle_parkedcalls_deprecated(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = handle_parkedcalls(e, cmd, a);
+	if (cmd == CLI_INIT)
+		e->command = "show parkedcalls";
+	return res;
+}
+
+static struct ast_cli_entry cli_show_parkedcalls_deprecated = NEW_CLI(handle_parkedcalls_deprecated, "List currently parked calls.");
 
 static struct ast_cli_entry cli_features[] = {
 	{ { "feature", "show", NULL },
 	handle_showfeatures, "Lists configured features",
 	showfeatures_help },
 
-	{ { "show", "parkedcalls", NULL },
-	handle_parkedcalls, "Lists parked calls",
-	showparked_help },
+	NEW_CLI(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
 };
 
 /*! \brief Dump lot status */
