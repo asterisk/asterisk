@@ -100,8 +100,10 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 		if (!ast_matchmore_extension(chan, context, collect, 1, chan->cid.cid_num))
 			break;
 	}
+
 	if (res >= 0)
 		res = ast_exists_extension(chan, context, collect, 1, chan->cid.cid_num) ? 1 : 0;
+
 	return res;
 }
 
