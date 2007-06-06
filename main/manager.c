@@ -1182,7 +1182,7 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 	struct ast_category *category;
 	struct ast_variable *v;
 
-	for (x=0;x<100000;x++) {
+	for (x = 0; x < 100000; x++) {
 		unsigned int object = 0;
 
 		snprintf(hdr, sizeof(hdr), "Action-%06d", x);
