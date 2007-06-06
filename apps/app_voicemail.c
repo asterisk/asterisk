@@ -2218,14 +2218,12 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
 			char *passdata;
-			int vmlen = strlen(pagerbody)*3 + 200;
-			if ((passdata = alloca(vmlen))) {
-				memset(passdata, 0, vmlen);
-				prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
-				pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
-				fprintf(p, "%s\n", passdata);
-			} else
-				ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+			int vmlen = strlen(pagerbody) * 3 + 200;
+			passdata = alloca(vmlen);
+			memset(passdata, 0, vmlen);
+			prep_email_sub_vars(ast, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen, category);
+			pbx_substitute_variables_helper(ast, pagerbody, passdata, vmlen);
+			fprintf(p, "%s\n", passdata);
 			ast_channel_free(ast);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
