@@ -5032,11 +5032,13 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	}
 	ast_unlock_path(vms->curdir);
 #else
-	for (x=0;x < vmu->maxmsg;x++) { 
-		if (vms->deleted[x]) { 
-			if(option_debug > 2)
-				ast_log(LOG_DEBUG,"IMAP delete of %d\n",x);
-			IMAP_DELETE(vms->curdir, x, vms->fn, vms);
+	if (vms->deleted) {
+		for (x=0;x < vmu->maxmsg;x++) { 
+			if (vms->deleted[x]) { 
+				if(option_debug > 2)
+					ast_log(LOG_DEBUG,"IMAP delete of %d\n",x);
+				IMAP_DELETE(vms->curdir, x, vms->fn, vms);
+			}
 		}
 	}
 #endif
