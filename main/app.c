@@ -540,7 +540,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		maxsilence = global_maxsilence;
 
 	/* barf if no pointer passed to store duration in */
-	if (duration == NULL) {
+	if (!duration) {
 		ast_log(LOG_WARNING, "Error play_and_record called without duration pointer\n");
 		return -1;
 	}
