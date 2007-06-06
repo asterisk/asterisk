@@ -8061,7 +8061,7 @@ static int load_config(void)
 			}
 			cat = ast_category_browse(cfg, cat);
 		}
-		memset(fromstring,0,sizeof(fromstring));
+		memset(fromstring, 0, sizeof(fromstring));
 		memset(pagerfromstring,0,sizeof(pagerfromstring));
 		memset(emailtitle,0,sizeof(emailtitle));
 		strcpy(charset, "ISO-8859-1");
