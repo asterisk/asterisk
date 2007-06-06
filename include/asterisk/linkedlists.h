@@ -729,8 +729,10 @@ struct {								\
   used to link entries of this list together.
   \warning The removed entry is \b not freed nor modified in any way.
  */
-#define AST_LIST_REMOVE(head, elm, field) do {			        \
+#define AST_LIST_REMOVE(head, elm, field) ({			        \
+	__typeof(elm) __res = NULL; \
 	if ((head)->first == (elm)) {					\
+		__res = (head)->first;                      \
 		(head)->first = (elm)->field.next;			\
 		if ((head)->last == (elm))			\
 			(head)->last = NULL;			\
@@ -739,13 +741,15 @@ struct {								\
 		while (curelm && (curelm->field.next != (elm)))			\
 			curelm = curelm->field.next;			\
 		if (curelm) { \
+			__res = curelm; \
 			curelm->field.next = (elm)->field.next;			\
 			if ((head)->last == (elm))				\
 				(head)->last = curelm;				\
 		} \
 	}								\
-        (elm)->field.next = NULL;                                       \
-} while (0)
+	(elm)->field.next = NULL;                                       \
+	(__res); \
+})
 
 #define AST_RWLIST_REMOVE AST_LIST_REMOVE
 
