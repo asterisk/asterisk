@@ -166,7 +166,7 @@ static const char tdesc[] = "Zapata Telephony Driver"
 #ifdef HAVE_PRI
                " w/PRI"
 #endif
-#ifdef HAVEL_LIBSS7
+#ifdef HAVEL_SS7
 	       "w/SS7"
 #endif
 ;
