@@ -726,12 +726,16 @@ struct iax2_thread {
 	time_t checktime;
 	ast_mutex_t lock;
 	ast_cond_t cond;
-	/*! If this thread is processing a full frame, the callno for that frame
-	 *  will be here, so we can avoid dispatching any more full frames
-	 *  or that callno to other threads */
-	unsigned short ffcallno;
-	/*! Remember the peer IP/port number for a full frame in process */
-	struct sockaddr_in ffsin;
+	/*! if this thread is processing a full frame,
+	  some information about that frame will be stored
+	  here, so we can avoid dispatching any more full
+	  frames for that callno to other threads */
+	struct {
+		unsigned short callno;
+		struct sockaddr_in sin;
+		unsigned char type;
+		unsigned char csub;
+	} ffinfo;
 };
 
 /* Thread lists */
@@ -974,10 +978,8 @@ static struct iax2_thread *find_idle_thread(void)
 
 	/* this thread is not processing a full frame (since it is idle),
 	   so ensure that the field for the full frame call number is empty */
-	if (thread) {
-		thread->ffcallno = 0;
-		memset(&thread->ffsin, 0, sizeof(thread->ffsin));
-	}
+	if (thread)
+		memset(&thread->ffinfo, 0, sizeof(thread->ffinfo));
 
 	return thread;
 }
@@ -6562,22 +6564,24 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		
 		AST_LIST_LOCK(&active_list);
 		AST_LIST_TRAVERSE(&active_list, cur, list) {
-			if ((cur->ffcallno == ntohs(fh->scallno)) &&
-			    !memcmp(&cur->ffsin, &thread->iosin, sizeof(cur->ffsin)))
+			if ((cur->ffinfo.callno == ntohs(fh->scallno)) &&
+			    !inaddrcmp(&cur->ffinfo.sin, &thread->iosin))
 				break;
 		}
 		AST_LIST_UNLOCK(&active_list);
 		if (cur) {
 			/* we found another thread processing a full frame for this call,
 			   so we can't accept this frame */
-			ast_log(LOG_WARNING, "Dropping full frame from %s (callno %d) received too rapidly\n",
-				ast_inet_ntoa(thread->iosin.sin_addr), cur->ffcallno);
+			ast_log(LOG_WARNING, "Dropping frame from %s (callno %d) of type %d (subclass %d) due to frame of type %d (subclass %d) already in process\n",
+				ast_inet_ntoa(thread->iosin.sin_addr), cur->ffinfo.callno,
+				fh->type, uncompress_subclass(fh->csub),
+				cur->ffinfo.type, uncompress_subclass(cur->ffinfo.csub));
 			insert_idle_thread(thread);
 			return 1;
 		} else {
 			/* this thread is going to process this frame, so mark it */
-			thread->ffcallno = ntohs(fh->scallno);
-			memcpy(&thread->ffsin, &thread->iosin, sizeof(thread->ffsin));
+			thread->ffinfo.callno = ntohs(fh->scallno);
+			memcpy(&thread->ffinfo.sin, &thread->iosin, sizeof(thread->ffinfo.sin));
 		}
 	}
 	
