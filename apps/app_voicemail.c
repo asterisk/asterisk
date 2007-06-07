@@ -6676,6 +6676,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  	int recorded = 0;
  	int message_exists = 0;
 	signed char zero_gain = 0;
+	char tempfile[PATH_MAX];
 	char *acceptdtmf = "#";
 	char *canceldtmf = "";
 
@@ -6686,6 +6687,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		ast_log(LOG_WARNING, "Error play_record_review called without duration pointer\n");
 		return -1;
 	}
+
+	if (!outsidecaller)
+		snprintf(tempfile, sizeof(tempfile), "%s.tmp", recordfile);
+	else
+		ast_copy_string(tempfile, recordfile, sizeof(tempfile));
 
  	cmd = '3';	 /* Want to start by recording */
  
@@ -6700,6 +6706,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				/* Otherwise 1 is to save the existing message */
  				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
+				if (!outsidecaller)
+					ast_filerename(tempfile, recordfile, NULL);
  				ast_streamfile(chan, "vm-msgsaved", chan->language);
  				ast_waitstream(chan, "");
 				STORE(recordfile, vmu->mailbox, vmu->context, -1);
@@ -6711,7 +6719,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  			/* Review */
  			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
- 			ast_streamfile(chan, recordfile, chan->language);
+			ast_streamfile(chan, tempfile, chan->language);
  			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
  			break;
  		case '3':
@@ -6734,11 +6742,15 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &record_gain, sizeof(record_gain), 0);
 			if (ast_test_flag(vmu, VM_OPERATOR))
 				canceldtmf = "0";
-			cmd = ast_play_and_record_full(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir, acceptdtmf, canceldtmf);
+			cmd = ast_play_and_record_full(chan, playfile, tempfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir, acceptdtmf, canceldtmf);
 			if (record_gain)
 				ast_channel_setoption(chan, AST_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain), 0);
  			if (cmd == -1) {
- 			/* User has hung up, no options to give */
+				/* User has hung up, no options to give */
+				if (!outsidecaller) {
+					/* user was recording a greeting and they hung up, so let's delete the recording. */
+					vm_delete(tempfile);
+				}
  				return cmd;
 			}
  			if (cmd == '0') {
@@ -6752,14 +6764,14 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Message too short\n");
 				cmd = ast_play_and_wait(chan, "vm-tooshort");
- 				cmd = vm_delete(recordfile);
+ 				cmd = vm_delete(tempfile);
  				break;
  			}
  			else if (vmu->review && (cmd == 2 && *duration < (maxsilence + 3))) {
  				/* Message is all silence */
  				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
- 				cmd = vm_delete(recordfile);
+ 				cmd = vm_delete(tempfile);
 				cmd = ast_play_and_wait(chan, "vm-nothingrecorded");
 				if (!cmd)
  					cmd = ast_play_and_wait(chan, "vm-speakup");
@@ -6788,7 +6800,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  		case '*':
  			/* Cancel recording, delete message, offer to take another message*/
  			cmd = ast_play_and_wait(chan, "vm-deleted");
- 			cmd = vm_delete(recordfile);
+ 			cmd = vm_delete(tempfile);
  			if (outsidecaller) {
  				res = vm_exec(chan, NULL);
  				return res;
