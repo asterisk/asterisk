@@ -67,7 +67,7 @@ static int say_character_str_full(struct ast_channel *chan, const char *str, con
 	int num = 0;
 	int res = 0;
 
-	while (str[num]) {
+	while (str[num] && !res) {
 		fn = NULL;
 		switch (str[num]) {
 		case ('*'):
@@ -142,7 +142,7 @@ static int say_phonetic_str_full(struct ast_channel *chan, const char *str, cons
 	int num = 0;
 	int res = 0;
 
-	while (str[num]) {
+	while (str[num] && !res) {
 		fn = NULL;
 		switch (str[num]) {
 		case ('*'):
