@@ -38,7 +38,7 @@ Here is an example:
    | leavewhenempty=strict           |
    |                                 |
    | ; Support dispatch queue        |
-   | [support-dispatch]              |
+   | [dispatch]                      |
    | music=default                   |
    | context=dispatch                |
    | strategy=ringall                |
@@ -48,11 +48,11 @@ Here is an example:
 \end{verbatim}
 
 In the above, we have defined 3 separate calling queues: 
-sales-general, customerservice, and support-dispatch.
+sales-general, customerservice, and dispatch.
 
 Please note that the sales-general queue specifies a
 context of "sales", and that customerservice specifies the
-context of "customerservice", and the support-dispatch
+context of "customerservice", and the dispatch
 queue specifies the context "dispatch". These three
 contexts must be defined somewhere in your dialplan.
 We will show them after the main menu below.
@@ -298,30 +298,30 @@ context queues-manip {
 
         // Raquel Squelch
         _[IO]6121 => {
-                &queue-addremove(dispatch,10);
-                &queue-success();
+                &queue-addremove(dispatch,10,${EXTEN});
+                &queue-success(${EXTEN});
         }
 
         // Brittanica Spears
         _[IO]6165 => {
-                &queue-addremove(dispatch,20);
-                &queue-success();
+                &queue-addremove(dispatch,20,${EXTEN});
+                &queue-success(${EXTEN});
         }
 
         // Rock Hudson
         _[IO]6170 => {
-                &queue-addremove(sales-general,10);
-                &queue-addremove(customerservice,20);
-                &queue-addremove(dispatch,30);
-                &queue-success();
+                &queue-addremove(sales-general,10,${EXTEN});
+                &queue-addremove(customerservice,20,${EXTEN});
+                &queue-addremove(dispatch,30,${EXTEN});
+                &queue-success(${EXTEN});
         }
 
         // Saline Dye-on
         _[IO]6070 => {
-                &queue-addremove(sales-general,20);
-                &queue-addremove(customerservice,30);
-                &queue-addremove(dispatch,30);
-                &queue-success();
+                &queue-addremove(sales-general,20,${EXTEN});
+                &queue-addremove(customerservice,30,${EXTEN});
+                &queue-addremove(dispatch,30,${EXTEN});
+                &queue-success(${EXTEN});
         }
 }
 \end{verbatim}
@@ -347,11 +347,11 @@ The call to queue-success() gives some feedback to the agent
 as they log in and out, that the process has completed.
 
 \begin{verbatim}
-macro queue-success()
+macro queue-success(exten)
 {
         if( ${queue-announce-success} > 0 )
         {
-                switch(${MACRO_EXTEN:0:1})
+                switch(${exten:0:1})
                 {
                 case I:
                         Playback(agent-loginok);
@@ -367,35 +367,39 @@ macro queue-success()
 The queue-addremove macro is defined in this manner:
 
 \begin{verbatim}
-macro queue-addremove(queuename,penalty)
+macro queue-addremove(queuename,penalty,exten)
 {
-        switch(${MACRO_EXTEN:0:1})
+        switch(${exten:0:1})
         {
         case I:  // Login
                 {
-                AddQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents,${penalty});
+                 AddQueueMember(${queuename},Local/${exten:1}@agents,${penalty});
+		 break;
                 }
         case O:  // Logout
                 {
-                RemoveQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents);
+                 RemoveQueueMember(${queuename},Local/${exten:1}@agents);
+		 break;
                 }
         case P:  // Pause
                 {
-                PauseQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents);
+                 PauseQueueMember(${queuename},Local/${exten:1}@agents);
+		 break;
                 }
         case U:  // Unpause
                 {
-                UnpauseQueueMember(${queuename},Local/${MACRO_EXTEN:1}@agents);
+                 UnpauseQueueMember(${queuename},Local/${exten:1}@agents);
+		 break;
                 }
         default: // Invalid
                 {
-                Playback(invalid);
+                 Playback(invalid);
                 }
         }
 }
 \end{verbatim}
 
-Basically, it uses the first character of the MACRO\_EXTEN variable, to determine the
+Basically, it uses the first character of the exten variable, to determine the
 proper actions to take. In the above dial plan code, only the cases I or O are used,
 which correspond to the Login and Logout actions.
 
@@ -441,10 +445,10 @@ context agents
 		Queue(support-dispatch,t);
 		goto dispatch|s|1;
 	}
-	6121 => &callagent(${RAQUEL});
-	6165 => &callagent(${SPEARS});
-	6170 => &callagent(${ROCK});
-	6070 => &callagent(${SALINE});
+	6121 => &callagent(${RAQUEL},${EXTEN});
+	6165 => &callagent(${SPEARS},${EXTEN});
+	6170 => &callagent(${ROCK},${EXTEN});
+	6070 => &callagent(${SALINE},${EXTEN});
 }
 \end{verbatim}
 
@@ -462,11 +466,11 @@ queue is called, but does not answer, then they are automatically
 removed from the queue.
 
 \begin{verbatim}
-macro callagent(device)
+macro callagent(device,exten)
 {
-	if( ${GROUP_COUNT(${MACRO_EXTEN}@agents)}=0 )
+	if( ${GROUP_COUNT(${exten}@agents)}=0 )
 	{
-		Set(OUTBOUND_GROUP=${MACRO_EXTEN}@agents);
+		Set(OUTBOUND_GROUP=${exten}@agents);
 		Dial(${device}|300|t);
 		switch(${DIALSTATUS})
 		{
@@ -475,7 +479,7 @@ macro callagent(device)
 			break;
 		case NOANSWER:
 			Set(queue-announce-success=0);
-			goto queues-manip|O${MACRO_EXTEN}|1;
+			goto queues-manip|O${exten}|1;
 		default:
 			Hangup();
 			break;
@@ -488,7 +492,7 @@ macro callagent(device)
 }
 \end{verbatim}
 
-In the callagent macro above, the \${MACRO\_EXTEN} will
+In the callagent macro above, the \${exten} will
 be 6121, or 6165, etc, which is the extension of the agent.
 
 The use of the GROUP\_COUNT, and OUTBOUND\_GROUP follow this line
