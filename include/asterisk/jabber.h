@@ -50,7 +50,8 @@
 #include "asterisk/linkedlists.h"
 
 enum aji_state {
-	AJI_DISCONNECTED = 0,
+	AJI_DISCONNECTING,
+	AJI_DISCONNECTED,
 	AJI_CONNECTING,
 	AJI_CONNECTED
 };

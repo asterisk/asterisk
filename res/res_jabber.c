@@ -469,7 +469,9 @@ static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incom
 
 /*!
  * \brief The action hook parses the inbound packets, constantly running.
- * \param aji client structure, type of packet, the actual packet.
+ * \param data aji client structure 
+ * \param type type of packet 
+ * \param node the actual packet.
  * \return IKS_OK or IKS_HOOK .
  */
 static int aji_act_hook(void *data, int type, iks *node)
@@ -480,6 +482,11 @@ static int aji_act_hook(void *data, int type, iks *node)
 
 	if(!node) {
 		ast_log(LOG_ERROR, "aji_act_hook was called with out a packet\n"); /* most likely cause type is IKS_NODE_ERROR lost connection */
+		ASTOBJ_UNREF(client, aji_client_destroy);
+		return IKS_HOOK;
+	}
+
+	if (client->state == AJI_DISCONNECTING) {
 		ASTOBJ_UNREF(client, aji_client_destroy);
 		return IKS_HOOK;
 	}
@@ -1511,6 +1518,12 @@ static void *aji_recv_loop(void *data)
 		}
 
 		res = iks_recv(client->p, 1);
+
+		if (client->state == AJI_DISCONNECTING) {
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Ending our Jabber client's thread due to a disconnect\n");
+			pthread_exit(NULL);
+		}
 		client->timeout--;
 		if (res == IKS_HOOK) 
 			ast_log(LOG_WARNING, "JABBER: Got hook event.\n");
@@ -2380,9 +2393,9 @@ static int unload_module(void)
 	ast_manager_unregister("JabberSend");
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: %s\n", iterator->name);
-		iterator->state = AJI_DISCONNECTED;
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "JABBER: Releasing and disconneing client: %s\n", iterator->name);
+		iterator->state = AJI_DISCONNECTING;
 		ast_aji_disconnect(iterator);
 		pthread_join(iterator->thread, NULL);
 		ASTOBJ_UNLOCK(iterator);
@@ -2390,8 +2403,6 @@ static int unload_module(void)
 
 	ASTOBJ_CONTAINER_DESTROYALL(&clients, aji_client_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&clients);
-
-	ast_log(LOG_NOTICE, "res_jabber unloaded.\n");
 	return 0;
 }
 
@@ -2406,7 +2417,6 @@ static int load_module(void)
 	ast_register_application(app_ajistatus, aji_status_exec, ajistatus_synopsis, ajistatus_descrip);
 	ast_cli_register_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
 
-	ast_log(LOG_NOTICE, "res_jabber.so loaded.\n");
 	return 0;
 }
 
