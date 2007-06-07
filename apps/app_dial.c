@@ -1660,8 +1660,11 @@ out:
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
-	if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
+	if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE)) {
+		if (calldurationlimit)
+			chan->whentohangup = 0;
 		res=0;
+	}
 	
 	LOCAL_USER_REMOVE(u);    
 	
