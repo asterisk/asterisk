@@ -182,7 +182,7 @@ static int tls_initialized = FALSE;
 
 /*!
  * \brief Deletes the aji_client data structure.
- * \param obj is the structure we will delete.
+ * \param obj aji_client The structure we will delete.
  * \return void.
  */
 static void aji_client_destroy(struct aji_client *obj)
@@ -206,7 +206,7 @@ static void aji_client_destroy(struct aji_client *obj)
 
 /*!
  * \brief Deletes the aji_buddy data structure.
- * \param obj is the structure we will delete.
+ * \param obj aji_buddy The structure we will delete.
  * \return void.
  */
 static void aji_buddy_destroy(struct aji_buddy *obj)
@@ -228,7 +228,7 @@ static void aji_buddy_destroy(struct aji_buddy *obj)
  * our list
  * \param version the version attribute in the caps element we'll look for or 
  * add to our list
- * \param pak the XML stanza we're processing
+ * \param pak struct The XML stanza we're processing
  * \return a pointer to the added or found aji_version structure
  */ 
 static struct aji_version *aji_find_version(char *node, char *version, ikspak *pak)
@@ -291,7 +291,12 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 	}
 	return res;
 }
-
+/*!
+ * \brief Find the aji_resource we want
+ * \param buddy aji_buddy A buddy
+ * \param name 
+ * \return aji_resource object
+*/
 static struct aji_resource *aji_find_resource(struct aji_buddy *buddy, char *name)
 {
 	struct aji_resource *res = NULL;
@@ -307,6 +312,11 @@ static struct aji_resource *aji_find_resource(struct aji_buddy *buddy, char *nam
 	return res;
 }
 
+/*!
+ * \brief Jabber GTalk function
+ * \param node iks
+ * \return 1 on success, 0 on failure.
+*/
 static int gtalk_yuck(iks *node)
 {
 	if (iks_find_with_attrib(node, "c", "node", "http://www.google.com/xmpp/client/caps"))
@@ -316,7 +326,7 @@ static int gtalk_yuck(iks *node)
 
 /*!
  * \brief Detects the highest bit in a number.
- * \param Number you want to have evaluated.
+ * \param number  Number you want to have evaluated.
  * \return the highest power of 2 that can go into the number.
  */
 static int aji_highest_bit(int number)
@@ -331,6 +341,13 @@ static int aji_highest_bit(int number)
 	return (1 << x);
 }
 
+/*!
+ * \brief Setup the authentication struct
+ * \param id iksid 
+ * \param pass password
+ * \param sid
+ * \return x iks
+*/
 static iks *jabber_make_auth(iksid * id, const char *pass, const char *sid)
 {
 	iks *x, *y;
@@ -355,8 +372,9 @@ static iks *jabber_make_auth(iksid * id, const char *pass, const char *sid)
 /*!
  * \brief Dial plan function status(). puts the status of watched user 
    into a channel variable.
- * \param channel, and username,watched user, status var
- * \return 0.
+ * \param chan ast_channel
+ * \param data
+ * \return 0 on success, -1 on error
  */
 static int aji_status_exec(struct ast_channel *chan, void *data)
 {
@@ -419,8 +437,9 @@ static int aji_status_exec(struct ast_channel *chan, void *data)
 
 /*!
  * \brief Dial plan function to send a message.
- * \param channel, and data, data is sender, reciever, message.
- * \return 0.
+ * \param chan ast_channel
+ * \param data  Data is sender|reciever|message.
+ * \return 0 on success,-1 on error.
  */
 static int aji_send_exec(struct ast_channel *chan, void *data)
 {
@@ -456,7 +475,10 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 
 /*!
  * \brief the debug loop.
- * \param aji_client structure, xml data as string, size of string, direction of packet, 1 for inbound 0 for outbound.
+ * \param data void
+ * \param xmpp xml data as string
+ * \param size size of string
+ * \param is_incoming direction of packet 1 for inbound 0 for outbound.
  */
 static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incoming)
 {
@@ -698,7 +720,12 @@ static int aji_act_hook(void *data, int type, iks *node)
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_OK;
 }
-
+/*!
+ * \brief Uknown
+ * \param data void
+ * \param pak ikspak
+ * \return IKS_FILTER_EAT.
+*/
 static int aji_register_approve_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
@@ -737,7 +764,12 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
-
+/*!
+ * \brief register query
+ * \param data incoming aji_client request
+ * \param pak ikspak
+ * \return IKS_FILTER_EAT.
+*/
 static int aji_register_query_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
@@ -809,6 +841,12 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 	return IKS_FILTER_EAT;
 }
 
+/*!
+ * \brief Handles stuff
+ * \param data void
+ * \param pak ikspak 
+ * \return IKS_FILTER_EAT.
+*/
 static int aji_ditems_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
@@ -904,7 +942,12 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 	return IKS_FILTER_EAT;
 
 }
-
+/*!
+ * \brief Handle add extra info
+ * \param data void
+ * \param pak ikspak
+ * \return IKS_FILTER_EAT
+*/
 static int aji_client_info_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
@@ -963,7 +1006,12 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
-
+/*!
+ * \brief Handler of the return info packet
+ * \param data aji_client
+ * \param pak ikspak
+ * \return IKS_FILTER_EAT
+*/
 static int aji_dinfo_handler(void *data, ikspak *pak)
 {
 	struct aji_client *client = ASTOBJ_REF((struct aji_client *) data);
@@ -1115,7 +1163,8 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 
 /*!
  * \brief Handles \verbatim <iq> \endverbatim tags.
- * \param client structure and the iq node.
+ * \param client aji_client
+ * \param node iks 
  * \return void.
  */
 static void aji_handle_iq(struct aji_client *client, iks *node)
@@ -1125,8 +1174,8 @@ static void aji_handle_iq(struct aji_client *client, iks *node)
 
 /*!
  * \brief Handles presence packets.
- * \param client structure and the node.
- * \return void.
+ * \param client aji_client
+ * \param pak ikspak the node
  */
 static void aji_handle_message(struct aji_client *client, ikspak *pak)
 {
@@ -1163,7 +1212,11 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 	AST_LIST_INSERT_HEAD(&client->messages, insert, list);
 	AST_LIST_UNLOCK(&client->messages);
 }
-
+/*!
+ * \brief Check the presence info
+ * \param client aji_client
+ * \param pak ikspak
+*/
 static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 {
 	int status, priority;
@@ -1356,7 +1409,8 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 
 /*!
  * \brief handles subscription requests.
- * \param aji_client struct and xml packet.
+ * \param client aji_client
+ * \param pak ikspak iksemel packet.
  * \return void.
  */
 static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
@@ -1406,7 +1460,9 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 
 /*!
  * \brief sends messages.
- * \param aji_client struct , reciever, message.
+ * \param client aji_client 
+ * \param address
+ * \param message
  * \return 1.
  */
 int ast_aji_send(struct aji_client *client, const char *address, const char *message)
@@ -1430,7 +1486,10 @@ int ast_aji_send(struct aji_client *client, const char *address, const char *mes
 
 /*!
  * \brief create a chatroom.
- * \param aji_client struct , room, server, topic for the room.
+ * \param client aji_client
+ * \param room name of room
+ * \param server name of server
+ * \param topic topic for the room.
  * \return 0.
  */
 int ast_aji_create_chat(struct aji_client *client, char *room, char *server, char *topic)
@@ -1451,7 +1510,8 @@ int ast_aji_create_chat(struct aji_client *client, char *room, char *server, cha
 
 /*!
  * \brief join a chatroom.
- * \param aji_client struct , room.
+ * \param client aji_client 
+ * \param room room to join
  * \return res.
  */
 int ast_aji_join_chat(struct aji_client *client, char *room)
@@ -1479,7 +1539,10 @@ int ast_aji_join_chat(struct aji_client *client, char *room)
 
 /*!
  * \brief invite to a chatroom.
- * \param aji_client struct ,user, room, message.
+ * \param client aji_client
+ * \param user 
+ * \param room
+ * \param message
  * \return res.
  */
 int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char *message)
@@ -1514,7 +1577,7 @@ int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char 
 
 /*!
  * \brief receive message loop.
- * \param aji_client struct.
+ * \param data void
  * \return void.
  */
 static void *aji_recv_loop(void *data)
@@ -1558,7 +1621,7 @@ static void *aji_recv_loop(void *data)
 
 /*!
  * \brief increments the mid field for messages and other events.
- * \param message id.
+ * \param mid char.
  * \return void.
  */
 void ast_aji_increment_mid(char *mid)
@@ -1665,7 +1728,7 @@ void ast_aji_increment_mid(char *mid)
 */
 /*!
  * \brief goes through roster and prunes users not needed in list, or adds them accordingly.
- * \param aji_client struct.
+ * \param client aji_client
  * \return void.
  */
 static void aji_pruneregister(struct aji_client *client)
@@ -1718,7 +1781,8 @@ static void aji_pruneregister(struct aji_client *client)
 
 /*!
  * \brief filters the roster packet we get back from server.
- * \param aji_client struct, and xml packet.
+ * \param data void
+ * \param pak ikspak iksemel packet.
  * \return IKS_FILTER_EAT.
  */
 static int aji_filter_roster(void *data, ikspak *pak)
@@ -1791,7 +1855,11 @@ static int aji_filter_roster(void *data, ikspak *pak)
 	ASTOBJ_UNREF(client, aji_client_destroy);
 	return IKS_FILTER_EAT;
 }
-
+/*!
+ * \brief reconnect to jabber server
+ * \param client aji_client
+ * \return res.
+*/
 static int aji_reconnect(struct aji_client *client)
 {
 	int res = 0;
@@ -1808,7 +1876,11 @@ static int aji_reconnect(struct aji_client *client)
 
 	return res;
 }
-
+/*!
+ * \brief Get the roster of jabber users
+ * \param client aji_client
+ * \return 1.
+*/
 static int aji_get_roster(struct aji_client *client)
 {
 	iks *roster = NULL;
@@ -1825,7 +1897,8 @@ static int aji_get_roster(struct aji_client *client)
 
 /*!
  * \brief connects as a client to jabber server.
- * \param aji_client struct, and xml packet.
+ * \param data void
+ * \param pak ikspak iksemel packet
  * \return res.
  */
 static int aji_client_connect(void *data, ikspak *pak)
@@ -1851,7 +1924,7 @@ static int aji_client_connect(void *data, ikspak *pak)
 
 /*!
  * \brief prepares client for connect.
- * \param aji_client struct.
+ * \param client aji_client
  * \return 1.
  */
 static int aji_initialize(struct aji_client *client)
@@ -1872,7 +1945,7 @@ static int aji_initialize(struct aji_client *client)
 
 /*!
  * \brief disconnect from jabber server.
- * \param aji_client struct.
+ * \param client aji_client
  * \return 1.
  */
 int ast_aji_disconnect(struct aji_client *client)
@@ -1890,7 +1963,11 @@ int ast_aji_disconnect(struct aji_client *client)
 
 /*!
  * \brief set presence of client.
- * \param aji_client struct, user to send it to, and from, level, description.
+ * \param client aji_client
+ * \param to user send it to
+ * \param from user it came from
+ * \param level
+ * \param desc
  * \return void.
  */
 static void aji_set_presence(struct aji_client *client, char *to, char *from, int level, char *desc)
@@ -1922,7 +1999,9 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 
 /*!
  * \brief turnon console debugging.
- * \param fd, number of args, args.
+ * \param fd
+ * \param argc Integer. Number of args
+ * \param argv List of arguements
  * \return RESULT_SUCCESS.
  */
 static int aji_do_debug(int fd, int argc, char *argv[])
@@ -1938,7 +2017,9 @@ static int aji_do_debug(int fd, int argc, char *argv[])
 
 /*!
  * \brief reload jabber module.
- * \param fd, number of args, args.
+ * \param fd
+ * \param argc no of args
+ * \param argv list of arguements
  * \return RESULT_SUCCESS.
  */
 static int aji_do_reload(int fd, int argc, char *argv[])
@@ -1950,7 +2031,9 @@ static int aji_do_reload(int fd, int argc, char *argv[])
 
 /*!
  * \brief turnoff console debugging.
- * \param fd, number of args, args.
+ * \param fd
+ * \param argc Integer. number of args
+ * \param argv list of arguements
  * \return RESULT_SUCCESS.
  */
 static int aji_no_debug(int fd, int argc, char *argv[])
@@ -1966,7 +2049,9 @@ static int aji_no_debug(int fd, int argc, char *argv[])
 
 /*!
  * \brief show client status.
- * \param fd, number of args, args.
+ * \param fd
+ * \param argc Integer. number of args
+ * \param argv list of arguements
  * \return RESULT_SUCCESS.
  */
 static int aji_show_clients(int fd, int argc, char *argv[])
@@ -2000,8 +2085,10 @@ static int aji_show_clients(int fd, int argc, char *argv[])
 
 /*!
  * \brief send test message for debugging.
- * \param fd, number of args, args.
- * \return RESULT_SUCCESS.
+ * \param fd
+ * \param argc Integer. number of args
+ * \param argv list of arguements
+ * \return RESULT_SUCCESS,RESULT_FAILURE.
  */
 static int aji_test(int fd, int argc, char *argv[])
 {
@@ -2051,7 +2138,9 @@ static int aji_test(int fd, int argc, char *argv[])
 
 /*!
  * \brief creates aji_client structure.
- * \param label, ast_variable, debug, pruneregister, component/client, aji_client to dump into. 
+ * \param label
+ * \param var ast_variable
+ * \param debug 
  * \return 0.
  */
 static int aji_create_client(char *label, struct ast_variable *var, int debug)
@@ -2240,8 +2329,9 @@ static int aji_create_transport(char *label, struct aji_client *client)
 
 /*!
  * \brief creates buddy.
- * \param label, buddy to dump it into. 
- * \return 0.
+ * \param label char.
+ * \param client aji_client buddy to dump it into. 
+ * \return 1 on success, 0 on failure.
  */
 static int aji_create_buddy(char *label, struct aji_client *client)
 {
@@ -2269,11 +2359,7 @@ static int aji_create_buddy(char *label, struct aji_client *client)
 	return 1;
 }
 
-/*!
- * \brief load config file.
- * \param void. 
- * \return 1.
- */
+/*!< load config file. \return 1. */
 static int aji_load_config(void)
 {
 	char *cat = NULL;
@@ -2312,8 +2398,8 @@ static int aji_load_config(void)
 
 /*!
  * \brief grab a aji_client structure by label name.
- * \param void. 
- * \return 1.
+ * \param name label name 
+ * \return aji_client.
  */
 struct aji_client *ast_aji_get_client(const char *name)
 {
@@ -2337,7 +2423,12 @@ static char mandescr_jabber_send[] =
 "  ScreenName:	User Name to message.\n"
 "  Message:	Message to be sent to the buddy\n";
 
-/*! \brief  Send a Jabber Message via call from the Manager */
+/*! 
+ * \brief  Send a Jabber Message via call from the Manager 
+ * \param s mansession Manager session
+ * \param m message Message to send
+ * \return  0
+*/
 static int manager_jabber_send(struct mansession *s, const struct message *m)
 {
 	struct aji_client *client = NULL;
@@ -2378,7 +2469,7 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-
+/*! \brief Reload the jabber module */
 static int aji_reload()
 {
 	ASTOBJ_CONTAINER_MARKALL(&clients);
@@ -2400,6 +2491,7 @@ static int aji_reload()
 	return 1;
 }
 
+/*! \brief Unload the jabber module */
 static int unload_module(void)
 {
 
@@ -2433,6 +2525,7 @@ static int unload_module(void)
 	return 0;
 }
 
+/*! \brief Unload the jabber module */
 static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&clients);
@@ -2447,6 +2540,7 @@ static int load_module(void)
 	return 0;
 }
 
+/*! \brief Wrapper for aji_reload */
 static int reload(void)
 {
 	aji_reload();
