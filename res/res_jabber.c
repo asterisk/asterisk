@@ -70,8 +70,7 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak);
 static void aji_handle_presence(struct aji_client *client, ikspak *pak);
 static void aji_handle_subscribe(struct aji_client *client, ikspak *pak);
 static void *aji_recv_loop(void *data);
-static int aji_component_initialize(struct aji_client *client);
-static int aji_client_initialize(struct aji_client *client);
+static int aji_initialize(struct aji_client *client);
 static int aji_client_connect(void *data, ikspak *pak);
 static void aji_set_presence(struct aji_client *client, char *to, char *from, int level, char *desc);
 static int aji_do_debug(int fd, int argc, char *argv[]);
@@ -1778,10 +1777,7 @@ static int aji_reconnect(struct aji_client *client)
 	if (client->authorized)
 		client->authorized = 0;
 
-	if(client->component)
-		res = aji_component_initialize(client);
-	else
-		res = aji_client_initialize(client);
+	res = aji_initialize(client);
 
 	return res;
 }
@@ -1831,11 +1827,10 @@ static int aji_client_connect(void *data, ikspak *pak)
  * \param aji_client struct.
  * \return 1.
  */
-static int aji_client_initialize(struct aji_client *client)
+static int aji_initialize(struct aji_client *client)
 {
-	int connected = 0;
-
-	connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->jid->server);
+	/* If it's a component, connect to user, otherwise, connect to server */
+	int connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->component ? client->user : client->jid->server);
 
 	if (connected == IKS_NET_NOCONN) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
@@ -1843,28 +1838,7 @@ static int aji_client_initialize(struct aji_client *client)
 	} else 	if (connected == IKS_NET_NODNS) {
 		ast_log(LOG_ERROR, "JABBER ERROR: No DNS %s for client to  %s\n", client->name, S_OR(client->serverhost, client->jid->server));
 		return IKS_HOOK;
-	} else
-		iks_recv(client->p, 30);
-	return IKS_OK;
-}
-
-/*!
- * \brief prepares component for connect.
- * \param aji_client struct.
- * \return 1.
- */
-static int aji_component_initialize(struct aji_client *client)
-{
-	int connected = 1;
-
-	connected = iks_connect_via(client->p, S_OR(client->serverhost, client->jid->server), client->port, client->user);
-	if (connected == IKS_NET_NOCONN) {
-		ast_log(LOG_ERROR, "JABBER ERROR: No Connection\n");
-		return IKS_HOOK;
-	} else if (connected == IKS_NET_NODNS) {
-		ast_log(LOG_ERROR, "JABBER ERROR: No DNS %s for client to  %s\n", client->name, S_OR(client->serverhost, client->jid->server));
-		return IKS_HOOK;
-	} else if (!connected) 
+	} else /* if (!connected) phsultan: check if this is needed! */
 		iks_recv(client->p, 30);
 	return IKS_OK;
 }
