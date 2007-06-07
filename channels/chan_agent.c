@@ -134,7 +134,7 @@ static char moh[80] = "default";
 #define AST_MAX_BUF	256
 #define AST_MAX_FILENAME_LEN	256
 
-static const char pa_family[] = "/Agents";          /*!< Persistent Agents astdb family */
+static const char pa_family[] = "Agents";          /*!< Persistent Agents astdb family */
 #define PA_MAX_LEN 2048                             /*!< The maximum length of each persistent member agent database entry */
 
 static int persistent_agents = 0;                   /*!< queues.conf [general] option */
