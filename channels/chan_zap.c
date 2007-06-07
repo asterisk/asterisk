@@ -6938,7 +6938,6 @@ static int handle_init_event(struct zt_pvt *i, int event)
 {
 	int res;
 	pthread_t threadid;
-	pthread_attr_t attr;
 	struct ast_channel *chan;
 
 	/* Handle an event on a given channel for the monitor thread. */
@@ -7017,7 +7016,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
-				if (chan && ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && ast_pthread_create_detached(&threadid, NULL, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
 					if (res < 0)
@@ -7113,7 +7112,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 					    "CID detection on channel %d\n",
 					    i->channel);
 				chan = zt_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, 0);
-				if (chan && ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+				if (chan && ast_pthread_create_detached(&threadid, NULL, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 				}
 			}
