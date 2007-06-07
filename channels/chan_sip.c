@@ -8374,7 +8374,6 @@ static void reg_source_db(struct sip_peer *peer)
 		ast_sched_del(sched, peer->expire);
 	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	register_peer_exten(peer, TRUE);
-	ast_device_state_changed("SIP/%s", peer->name);
 }
 
 /*! \brief Save contact header for 200 OK on INVITE */
