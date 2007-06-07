@@ -19,6 +19,11 @@
 /*! \file
  * \brief A resource for interfacing asterisk directly as a client
  * or a component to a jabber compliant server.
+ *
+ * \todo If you unload this module, chan_gtalk/jingle will be dead. How do we handle that?
+ * \todo If you have TLS, you can't unload this module. See bug #9738. This needs to be fixed,
+ *       but the bug is in the unmantained Iksemel library
+ *
  */
 
 /*** MODULEINFO
