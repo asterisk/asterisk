@@ -1727,8 +1727,11 @@ out:
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", pa.status);
 	
-	if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
+	if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE)) {
+		if (calldurationlimit)
+			chan->whentohangup = 0;
 		res = 0;
+	}
 
 done:
 	ast_module_user_remove(u);    	/* XXX probably not the right place for this. */
