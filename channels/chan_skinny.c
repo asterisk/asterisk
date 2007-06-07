@@ -260,15 +260,20 @@ struct register_ack_message {
 #define START_TONE_MESSAGE 0x0082
 struct start_tone_message {
 	uint32_t tone;
+	uint32_t space[3];
 };
 
 #define STOP_TONE_MESSAGE 0x0083
+struct stop_tone_message {
+	uint32_t space[2];
+};
 
 #define SET_RINGER_MESSAGE 0x0085
 struct set_ringer_message {
 	uint32_t ringerMode;
 	uint32_t unknown1; /* See notes in transmit_ringer_mode */
 	uint32_t unknown2;
+	uint32_t space[2];
 };
 
 #define SET_LAMP_MESSAGE 0x0086
@@ -293,7 +298,7 @@ struct set_microphone_message {
 struct media_qualifier {
 	uint32_t precedence;
 	uint32_t vad;
-	uint32_t packets;
+	uint16_t packets;
 	uint32_t bitRate;
 };
 
@@ -305,12 +310,14 @@ struct start_media_transmission_message {
 	uint32_t packetSize;
 	uint32_t payloadType;
 	struct media_qualifier qualifier;
+	uint32_t space[16];
 };
 
 #define STOP_MEDIA_TRANSMISSION_MESSAGE 0x008B
 struct stop_media_transmission_message {
 	uint32_t conferenceId;
 	uint32_t passThruPartyId;
+	uint32_t space[3];
 };
 
 #define CALL_INFO_MESSAGE 0x008F
@@ -332,6 +339,7 @@ struct call_info_message {
 	char calledPartyVoiceMailbox[24];
 	char originalCalledPartyVoiceMailbox[24];
 	char lastRedirectingVoiceMailbox[24];
+	uint32_t space[3];
 };
 
 #define SPEED_DIAL_STAT_RES_MESSAGE 0x0091
@@ -345,8 +353,8 @@ struct speed_dial_stat_res_message {
 struct line_stat_res_message {
 	uint32_t lineNumber;
 	char lineDirNumber[24];
-	char lineDisplayName[42];
-	uint32_t space;
+	char lineDisplayName[24];
+	uint32_t space[15];
 };
 
 #define DEFINETIMEDATE_MESSAGE 0x0094
@@ -431,7 +439,6 @@ struct displaytext_message {
 };
 
 #define CLEAR_NOTIFY_MESSAGE  0x0115
-#define CLEAR_PROMPT_MESSAGE  0x0113
 #define CLEAR_DISPLAY_MESSAGE 0x009A
 
 #define CAPABILITIES_REQ_MESSAGE 0x009B
@@ -467,12 +474,14 @@ struct open_receive_channel_message {
 	uint32_t capability;
 	uint32_t echo;
 	uint32_t bitrate;
+	uint32_t space[16];
 };
 
 #define CLOSE_RECEIVE_CHANNEL_MESSAGE 0x0106
 struct close_receive_channel_message {
 	uint32_t conferenceId;
 	uint32_t partyId;
+	uint32_t space[2];
 };
 
 #define SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
@@ -662,6 +671,7 @@ struct call_state_message {
 	uint32_t callState;
 	uint32_t lineInstance;
 	uint32_t callReference;
+	uint32_t space[3];
 };
 
 #define DISPLAY_PROMPT_STATUS_MESSAGE 0x0112
@@ -670,6 +680,12 @@ struct display_prompt_status_message {
 	char promptMessage[32];
 	uint32_t lineInstance;
 	uint32_t callReference;
+};
+
+#define CLEAR_PROMPT_MESSAGE  0x0113
+struct clear_prompt_message {
+       uint32_t lineInstance;
+       uint32_t callReference;
 };
 
 #define DISPLAY_NOTIFY_MESSAGE 0x0114
@@ -701,6 +717,7 @@ union skinny_data {
 	struct button_template_res_message buttontemplate;
 	struct displaytext_message displaytext;
 	struct display_prompt_status_message displaypromptstatus;
+	struct clear_prompt_message clearpromptstatus;
 	struct definetimedate_message definetimedate;
 	struct start_tone_message starttone;
 	struct speed_dial_stat_res_message speeddial;
@@ -929,7 +946,7 @@ struct skinny_subchannel {
 struct skinny_line {
 	ast_mutex_t lock;
 	char name[80];
-	char label[42];					/* Label that shows next to the line buttons */
+	char label[24];					/* Label that shows next to the line buttons */
 	char accountcode[AST_MAX_ACCOUNT_CODE];
 	char exten[AST_MAX_EXTENSION];			/* Extension where to start */
 	char context[AST_MAX_CONTEXT];
@@ -1598,7 +1615,7 @@ static void transmit_tone(struct skinnysession *s, int tone)
 		if (!(req = req_alloc(sizeof(struct start_tone_message), START_TONE_MESSAGE)))
 			return;
 	} else {
-		if (!(req = req_alloc(0, STOP_TONE_MESSAGE)))
+		if (!(req = req_alloc(sizeof(struct stop_tone_message), STOP_TONE_MESSAGE)))
 			return;
 	}
 
@@ -4330,6 +4347,8 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		res = handle_speed_dial_stat_req_message(req, s);
 		break;
 	case LINE_STATE_REQ_MESSAGE:
+		if (skinnydebug)
+			ast_verbose("Received LineStatRequest\n");
 		res = handle_line_state_req_message(req, s);
 		break;
 	case TIME_DATE_REQ_MESSAGE:
