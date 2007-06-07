@@ -26,6 +26,9 @@
  * 
  * \ingroup channel_drivers
  */
+/*** MODULEINFO
+        <defaultenabled>no</defaultenabled>
+ ***/
 
 #include "asterisk.h"
 
