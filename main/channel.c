@@ -950,6 +950,11 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				 * want to return NULL, instead of trying to deref NULL in the
 				 * next section.
 				 */
+				prev = NULL;
+				/* We want prev to be NULL in case we end up doing more searching through
+				 * the channel list to find the channel (ie: name searching). If we didn't
+				 * set this to NULL the logic would just blow up
+				 */
 			}
 			if (name) { /* want match by name */
 				if ((!namelen && strcasecmp(c->name, name)) ||
