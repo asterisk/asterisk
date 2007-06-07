@@ -731,53 +731,60 @@ struct sip_auth {
 	struct sip_auth *next;          /*!< Next auth structure in list */
 };
 
-/*--- Various flags for the flags field in the pvt structure */
-#define SIP_ALREADYGONE		(1 << 0)	/*!< Whether or not we've already been destroyed by our peer */
-#define SIP_NEEDDESTROY		(1 << 1)	/*!< if we need to be destroyed by the monitor thread */
-#define SIP_NOVIDEO		(1 << 2)	/*!< Didn't get video in invite, don't offer */
-#define SIP_RINGING		(1 << 3)	/*!< Have sent 180 ringing */
-#define SIP_PROGRESS_SENT	(1 << 4)	/*!< Have sent 183 message progress */
-#define SIP_NEEDREINVITE	(1 << 5)	/*!< Do we need to send another reinvite? */
-#define SIP_PENDINGBYE		(1 << 6)	/*!< Need to send bye after we ack? */
-#define SIP_GOTREFER		(1 << 7)	/*!< Got a refer? */
-#define SIP_PROMISCREDIR	(1 << 8)	/*!< Promiscuous redirection */
-#define SIP_TRUSTRPID		(1 << 9)	/*!< Trust RPID headers? */
-#define SIP_USEREQPHONE		(1 << 10)	/*!< Add user=phone to numeric URI. Default off */
-#define SIP_REALTIME		(1 << 11)	/*!< Flag for realtime users */
-#define SIP_USECLIENTCODE	(1 << 12)	/*!< Trust X-ClientCode info message */
-#define SIP_OUTGOING		(1 << 13)	/*!< Direction of the last transaction in this dialog */
+/*--- Various flags for the flags field in the pvt structure 
+	Trying to sort these up:
+	D: Dialog only
+	DP: Dialog and peer/user
+	P: Peer/user only, not dialog
+	G: Global flag only
+*/
+#define SIP_ALREADYGONE		(1 << 0)	/*!< D: Whether or not we've already been destroyed by our peer */
+#define SIP_NEEDDESTROY		(1 << 1)	/*!< D: if we need to be destroyed by the monitor thread */
+#define SIP_NOVIDEO		(1 << 2)	/*!< D: Didn't get video in invite, don't offer */
+#define SIP_RINGING		(1 << 3)	/*!< D: Have sent 180 ringing */
+#define SIP_PROGRESS_SENT	(1 << 4)	/*!< D: Have sent 183 message progress */
+#define SIP_NEEDREINVITE	(1 << 5)	/*!< D: Do we need to send another reinvite? */
+#define SIP_PENDINGBYE		(1 << 6)	/*!< D: Need to send bye after we ack? */
+#define SIP_GOTREFER		(1 << 7)	/*!< D: Got a refer? */
+#define SIP_PROMISCREDIR	(1 << 8)	/*!< DP: Promiscuous redirection */
+#define SIP_TRUSTRPID		(1 << 9)	/*!< DP: Trust RPID headers? */
+#define SIP_USEREQPHONE		(1 << 10)	/*!< DP: Add user=phone to numeric URI. Default off */
+#define SIP_REALTIME		(1 << 11)	/*!< P: Flag for realtime users */
+#define SIP_USECLIENTCODE	(1 << 12)	/*!< DP: Trust X-ClientCode info message */
+#define SIP_OUTGOING		(1 << 13)	/*!< D: Direction of the last transaction in this dialog */
 #define SIP_FREE_BIT		(1 << 14)	/*!< ---- */
-#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< Do not hangup at first ast_hangup */
-#define SIP_DTMF		(3 << 16)	/*!< DTMF Support: four settings, uses two bits */
-#define SIP_DTMF_RFC2833	(0 << 16)	/*!< DTMF Support: RTP DTMF - "rfc2833" */
-#define SIP_DTMF_INBAND		(1 << 16)	/*!< DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
-#define SIP_DTMF_INFO		(2 << 16)	/*!< DTMF Support: SIP Info messages - "info" */
-#define SIP_DTMF_AUTO		(3 << 16)	/*!< DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
+#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< D: Do not hangup at first ast_hangup */
+#define SIP_DTMF		(3 << 16)	/*!< DP: DTMF Support: four settings, uses two bits */
+#define SIP_DTMF_RFC2833	(0 << 16)	/*!< DP: DTMF Support: RTP DTMF - "rfc2833" */
+#define SIP_DTMF_INBAND		(1 << 16)	/*!< DP: DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
+#define SIP_DTMF_INFO		(2 << 16)	/*!< DP: DTMF Support: SIP Info messages - "info" */
+#define SIP_DTMF_AUTO		(3 << 16)	/*!< DP: DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
 /* NAT settings */
-#define SIP_NAT			(3 << 18)	/*!< four settings, uses two bits */
-#define SIP_NAT_NEVER		(0 << 18)	/*!< No nat support */
-#define SIP_NAT_RFC3581		(1 << 18)	/*!< NAT RFC3581 */
-#define SIP_NAT_ROUTE		(2 << 18)	/*!< NAT Only ROUTE */
-#define SIP_NAT_ALWAYS		(3 << 18)	/*!< NAT Both ROUTE and RFC3581 */
+#define SIP_NAT			(3 << 18)	/*!< DP: four settings, uses two bits */
+#define SIP_NAT_NEVER		(0 << 18)	/*!< DP: No nat support */
+#define SIP_NAT_RFC3581		(1 << 18)	/*!< DP: NAT RFC3581 */
+#define SIP_NAT_ROUTE		(2 << 18)	/*!< DP: NAT Only ROUTE */
+#define SIP_NAT_ALWAYS		(3 << 18)	/*!< DP: NAT Both ROUTE and RFC3581 */
 /* re-INVITE related settings */
-#define SIP_REINVITE		(7 << 20)	/*!< three bits used */
-#define SIP_CAN_REINVITE	(1 << 20)	/*!< allow peers to be reinvited to send media directly p2p */
-#define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< allow media reinvite when new peer is behind NAT */
-#define SIP_REINVITE_UPDATE	(4 << 20)	/*!< use UPDATE (RFC3311) when reinviting this peer */
+#define SIP_REINVITE		(7 << 20)	/*!< DP: three bits used */
+#define SIP_CAN_REINVITE	(1 << 20)	/*!< DP: allow peers to be reinvited to send media directly p2p */
+#define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< DP: allow media reinvite when new peer is behind NAT */
+#define SIP_REINVITE_UPDATE	(4 << 20)	/*!< DP: use UPDATE (RFC3311) when reinviting this peer */
 /* "insecure" settings */
-#define SIP_INSECURE_PORT	(1 << 23)	/*!< don't require matching port for incoming requests */
-#define SIP_INSECURE_INVITE	(1 << 24)	/*!< don't require authentication for incoming INVITEs */
+#define SIP_INSECURE_PORT	(1 << 23)	/*!< DP: don't require matching port for incoming requests */
+#define SIP_INSECURE_INVITE	(1 << 24)	/*!< DP: don't require authentication for incoming INVITEs */
 /* Sending PROGRESS in-band settings */
-#define SIP_PROG_INBAND		(3 << 25)	/*!< three settings, uses two bits */
+#define SIP_PROG_INBAND		(3 << 25)	/*!< DP: three settings, uses two bits */
 #define SIP_PROG_INBAND_NEVER	(0 << 25)
 #define SIP_PROG_INBAND_NO	(1 << 25)
 #define SIP_PROG_INBAND_YES	(2 << 25)
-#define SIP_NO_HISTORY		(1 << 27)	/*!< Suppress recording request/response history */
-#define SIP_CALL_LIMIT		(1 << 28)	/*!< Call limit enforced for this call */
-#define SIP_SENDRPID		(1 << 29)	/*!< Remote Party-ID Support */
-#define SIP_INC_COUNT		(1 << 30)	/*!< Did this connection increment the counter of in-use calls? */
-#define SIP_G726_NONSTANDARD	(1 << 31)	/*!< Use non-standard packing for G726-32 data */
+#define SIP_NO_HISTORY		(1 << 27)	/*!< D: Suppress recording request/response history */
+#define SIP_CALL_LIMIT		(1 << 28)	/*!< D: Call limit enforced for this call */
+#define SIP_SENDRPID		(1 << 29)	/*!< DP: Remote Party-ID Support */
+#define SIP_INC_COUNT		(1 << 30)	/*!< D: Did this dialog increment the counter of in-use calls? */
+#define SIP_G726_NONSTANDARD	(1 << 31)	/*!< DP: Use non-standard packing for G726-32 data */
 
+/*! \brief Flags to copy from peer/user to dialog */
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | SIP_G726_NONSTANDARD | \
@@ -785,37 +792,37 @@ struct sip_auth {
 
 /*--- a new page of flags (for flags[1] */
 /* realtime flags */
-#define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
-#define SIP_PAGE2_RTUPDATE		(1 << 1)
-#define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
-#define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)
-#define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)
+#define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< G: Should we keep RT objects in memory for extended time? */
+#define SIP_PAGE2_RTUPDATE		(1 << 1)	/*!< G: Update database with registration data for peer? */
+#define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< G: Should we clean memory from peers after expiry? */
+#define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)	
+#define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)	/*!< G: Save system name at registration? */
 /* Space for addition of other realtime flags in the future */
-#define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)
-#define SIP_PAGE2_DEBUG			(3 << 11)
-#define SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)
-#define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 12)
-#define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< Dynamic Peers register with Asterisk */
-#define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< Automatic peers need to destruct themselves */
-#define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)
-#define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< Allow subscriptions from this peer? */
-#define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< Allow overlap dialing ? */
-#define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< Only issue MWI notification if subscribed to */
-#define SIP_PAGE2_INC_RINGING		(1 << 19)	/*!< Did this connection increment the counter of in-use calls? */
-#define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< 20: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< 21: T38 Fax Passthrough Support (not implemented) */
-#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< 22: T38 Fax Passthrough Support (not implemented) */
-#define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< Call states */
-#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< 23: Active hold */
-#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(2 << 23)	/*!< 23: One directional hold */
-#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(3 << 23)	/*!< 23: Inactive hold */
-#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< 25: Compensate for buggy RFC2833 implementations */
-#define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< 26: Buggy CISCO MWI fix */
-#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< 27: Text not supported  */
-#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< 28: Global text enable */
-#define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< 29: Global text debug */
-#define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< 30: Is this an outgoing call? */
+#define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)	/*!< G: Ignore expiration of peer  */
+#define SIP_PAGE2_DEBUG			(3 << 11)	/*!< G: Debug flags */
+#define SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)	/*!< G: Debug flags */
+#define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 12)	/*!< G: Debug flags */
+#define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
+#define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< P: Automatic peers need to destruct themselves */
+#define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)	/*!< DP: Video supported if offered? */
+#define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
+#define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< DP: Allow overlap dialing ? */
+#define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
+#define SIP_PAGE2_INC_RINGING		(1 << 19)	/*!< D: Did this connection increment the counter of in-use calls? */
+#define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< GDP: 20: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< GDP: 21: T38 Fax Passthrough Support (not implemented) */
+#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< GDP: 22: T38 Fax Passthrough Support (not implemented) */
+#define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< D: Call hold states */
+#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< D: 23: Active hold */
+#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(2 << 23)	/*!< D: 23: One directional hold */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(3 << 23)	/*!< D: 23: Inactive hold */
+#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: 25: Compensate for buggy RFC2833 implementations */
+#define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: 26: Buggy CISCO MWI fix */
+#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< GPD: 27: Text not supported  */
+#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GPD: 28: Global text enable */
+#define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< GPD: 29: Global text debug */
+#define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< D: 30: Is this an outgoing call? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -856,7 +863,7 @@ static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_
 #define sipdebug		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG)
 #define sipdebug_config		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE)
-#define sipdebug_text			ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT)
+#define sipdebug_text		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT)
 
 /*! \brief T38 States for a call */
 enum t38state {
@@ -904,8 +911,8 @@ static const struct c_referstatusstring {
 	{ REFER_NOAUTH,		"Failed - auth failure" }
 } ;
 
-/*! \brief Structure to handle SIP transfers. Dynamically allocated when needed  */
-/* OEJ: Should be moved to string fields */
+/*! \brief Structure to handle SIP transfers. Dynamically allocated when needed
+	\note OEJ: Should be moved to string fields */
 struct sip_refer {
 	char refer_to[AST_MAX_EXTENSION];		/*!< Place to store REFER-TO extension */
 	char refer_to_domain[AST_MAX_EXTENSION];	/*!< Place to store REFER-TO domain */
