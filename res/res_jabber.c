@@ -57,6 +57,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define JABBER_CONFIG "jabber.conf"
 
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
 /*-- Forward declarations */
 static int aji_highest_bit(int number);
 static void aji_buddy_destroy(struct aji_buddy *obj);
@@ -2065,6 +2073,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	ast_copy_string(client->name, label, sizeof(client->name));
 	ast_copy_string(client->mid, "aaaaa", sizeof(client->mid));
 
+	/* Set default values for the client object */
 	client->debug = debug;
 	ast_copy_flags(client, &globalflags, AST_FLAGS_ALL);
 	client->port = 5222;
@@ -2387,10 +2396,29 @@ static int aji_reload()
 
 static int unload_module(void)
 {
+	int module_uses_tls = FALSE;
+
+	/* Check if any client use TLS. If that's the case, we can't unload this
+	   module due to a bug in the iksemel library that will cause a crash or
+	   a deadlock. We're trying to find a way to handle this, but in the meantime
+	   we will simply refuse to die... 
+	 */
+	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
+		ASTOBJ_RDLOCK(iterator);
+		if (iterator->usetls)
+			module_uses_tls = TRUE;
+		ASTOBJ_UNLOCK(iterator);
+	});
+	if (module_uses_tls) {
+		ast_log(LOG_ERROR, "Module can't be unloaded due to a bug in the Iksemel library when using TLS.\n");
+		return 1;	/* You need a forced unload to get rid of this module */
+	}
+
 	ast_cli_unregister_multiple(aji_cli, sizeof(aji_cli) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(app_ajisend);
 	ast_unregister_application(app_ajistatus);
 	ast_manager_unregister("JabberSend");
+	
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		if (option_debug > 2)
