@@ -774,6 +774,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
  * \param data
  * \param len
  * \param seqno
+ * \param timestamp
  * \returns
  */
 static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno, unsigned int timestamp)

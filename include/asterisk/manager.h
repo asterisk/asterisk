@@ -35,10 +35,14 @@
  Manager protocol packages are text fields of the form a: b.  There is
  always exactly one space after the colon.
 
+\verbatim
+
  The first header type is the "Event" header.  Other headers vary from
  event to event.  Headers end with standard \r\n termination.
  The last line of the manager response or event is an empty line.
  (\r\n)
+
+\endverbatim
 
  ** Please try to re-use existing headers to simplify manager message parsing in clients.
     Don't re-use an existing header with a new meaning, please.

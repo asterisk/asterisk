@@ -88,7 +88,7 @@
  */
 
 /*!
- * \file res_sqlite.c
+ * \file 
  * \brief res_sqlite module.
  */
 
@@ -298,6 +298,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames);
  * \param table		the table to use
  * \param file		 the file to load from the database
  * \param cfg			the struct ast_config object to use when storing variables
+ * \param withcomments	Integer. Flag
  * \return NULL if an error occurred, cfg otherwise
  * \see add_cfg_entry()
  */

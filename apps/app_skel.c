@@ -20,7 +20,7 @@
  *
  * \brief Skeleton application
  *
- * \author\verbatim <Your Name Here> <<Your Email Here>> \endvebatim
+ * \author\verbatim <Your Name Here> <<Your Email Here>> \endverbatim
  * 
  * This is a skeleton for development of an Asterisk application 
  * \ingroup applications

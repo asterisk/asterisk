@@ -319,7 +319,8 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
   \param x Pointer to a structure containing fields
   \param field Name of the field to set
   \param fmt printf-style format string
-  \param argslist a va_list of the args
+  \param args1 arguement one
+  \param args2 arguement two
   \return nothing
 */
 #define ast_string_field_build_va(x, field, fmt, args1, args2) \

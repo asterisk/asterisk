@@ -141,9 +141,11 @@ int ssl_setup(struct tls_config *cfg);
    return the content, allocated with malloc().  Status should be changed to reflect
    the status of the request if it isn't 200 and title may be set to a malloc()'d string
    to an appropriate title for non-200 responses.  Content length may also be specified. 
+\verbatim   
    The return value may include additional headers at the front and MUST include a blank 
    line with \r\n to provide separation between user headers and content (even if no
    content is specified) 
+\endverbatim
 */
 typedef struct ast_str *(*ast_http_callback)(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength);
 

@@ -16,7 +16,7 @@
 
 /*! \file
  *
- * \SHELL function to return the value of a system call.
+ * SHELL function to return the value of a system call.
  * 
  * \note Inspiration and Guidance from Russell! Thank You! 
  *

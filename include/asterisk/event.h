@@ -280,7 +280,7 @@ int ast_event_queue_and_cache(struct ast_event *event, ...);
 /*!
  * \brief Retrieve an event from the cache
  *
- * \param event_type The type of event to retrieve from the cache
+ * \param ast_event_type The type of event to retrieve from the cache
  *
  * The rest of the arguments to this function specify information elements to
  * match for retrieving events from the cache.  They are specified in the form:

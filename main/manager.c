@@ -2877,10 +2877,13 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
  *
  * General: the unformatted text is used as a value of
  * XML output:  to be completed
+ * 
+ * \verbatim
  *   Each section is within <response type="object" id="xxx">
  *   where xxx is taken from ajaxdest variable or defaults to unknown
  *   Each row is reported as an attribute Name="value" of an XML
  *   entity named from the variable ajaxobjtype, default to "generic"
+ * \endverbatim
  *
  * HTML output:
  *   each Name-value pair is output as a single row of a two-column table.

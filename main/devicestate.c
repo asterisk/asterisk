@@ -93,13 +93,13 @@
  *	and reported back.
  *
  *	- Extension states
- *		\arg \ref enum ast_extension_states
+ *		\arg \ref ENUM ast_extension_states
  *		\arg \ref pbx.c 
  *		\arg \ref pbx.h 
  *	- Structures
- *		- \ref struct ast_state_cb  Callbacks for watchers
+ *		- \ref ast_state_cb struct.  Callbacks for watchers
  *		- Callback ast_state_cb_type
- *		- \ref struct ast_hint
+ *		- \ref ast_hint struct.
  * 	- Functions
  *		- ast_extension_state_add()
  *		- ast_extension_state_del()

@@ -16,7 +16,7 @@
  * at the top of the source tree.
  */
 
-/*! \file This file generates Doxygen pages from files in the /doc
+/*! \file doxyref.h This file generates Doxygen pages from files in the /doc
  directory of the Asterisk source code tree 
  */
 

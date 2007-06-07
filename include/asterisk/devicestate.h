@@ -72,7 +72,7 @@ const char *devstate2str(enum ast_device_state devstate);
 const char *ast_devstate_str(enum ast_device_state devstate);
 
 /*! \brief Convert device state from text to integer value
- * \param The text representing the device state.  Valid values are anything
+ * \param val The text representing the device state.  Valid values are anything
  *        that comes after AST_DEVICE_ in one of the defined values.
  * \return The AST_DEVICE_ integer value
  */

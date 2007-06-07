@@ -1937,9 +1937,10 @@ static struct rtp_info *external_rtp_create(unsigned call_reference, const char 
 	return info;
 }
 
-/*! \brief
+/* 
  * Definition taken from rtp.c for rtpPayloadType because we need it here.
  */
+
 struct rtpPayloadType {
 	int isAstFormat;	/* whether the following code is an AST_FORMAT */
 	int code;

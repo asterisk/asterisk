@@ -47,7 +47,7 @@ static force_inline int ast_strlen_zero(const char *s)
 /*!
   \brief Gets a pointer to the first non-whitespace character in a string.
   \param ast_skip_blanks function being used
-  \param str the input string
+  \arg str the input string
   \return a pointer to the first non-whitespace character
  */
 AST_INLINE_API(
@@ -61,8 +61,8 @@ char *ast_skip_blanks(const char *str),
 
 /*!
   \brief Trims trailing whitespace characters from a string.
-  \param ast_trim_blanks function being used
-  \param str the input string
+  \param ast_skip_blanks function being used
+  \arg str the input string
   \return a pointer to the modified string
  */
 AST_INLINE_API(
@@ -88,7 +88,7 @@ char *ast_trim_blanks(char *str),
 /*!
   \brief Gets a pointer to first whitespace character in a string.
   \param ast_skip_noblanks function being used
-  \param str the input string
+  \arg str the input string
   \return a pointer to the first whitespace character
  */
 AST_INLINE_API(
@@ -102,7 +102,8 @@ char *ast_skip_nonblanks(char *str),
   
 /*!
   \brief Strip leading/trailing whitespace from a string.
-  \param s The string to be stripped (will be modified).
+  \param ast_strip function ast_strip being used.
+  \arg s The string to be stripped (will be modified).
   \return The stripped string.
 
   This functions strips all leading and trailing whitespace
@@ -147,10 +148,9 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 /*!
   \brief Size-limited null-terminating string copy.
-  \param ast_copy_string function being used
-  \param dst The destination buffer.
-  \param src The source string
-  \param size The size of the destination buffer
+  \arg dst The destination buffer.
+  \arg src The source string
+  \arg size The size of the destination buffer
   \return Nothing.
 
   This is similar to \a strncpy, with two important differences:
@@ -183,9 +183,9 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   This is a wrapper for snprintf, that properly handles the buffer pointer
   and buffer space available.
 
-  \param buffer current position in buffer to place string into (will be updated on return)
-  \param space remaining space in buffer (will be updated on return)
-  \param fmt printf-style format string
+  \arg buffer current position in buffer to place string into (will be updated on return)
+  \arg space remaining space in buffer (will be updated on return)
+  \arg fmt printf-style format string
   \return 0 on success, non-zero on failure.
 */
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));

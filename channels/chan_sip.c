@@ -1244,8 +1244,9 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
-/*! \todo Move the sip_auth list to AST_LIST */
-static struct sip_auth *authl = NULL;		/*!< Authentication list for realm authentication */
+/*! \breif Authentication list for realm authentication 
+ * \todo Move the sip_auth list to AST_LIST */
+static struct sip_auth *authl = NULL;
 
 
 /* --- Sockets and networking --------------*/
@@ -2442,12 +2443,13 @@ static const char *find_closing_quote(const char *start, const char *lim)
 	\return pointer to terminated stripped string
 	\param tmp input string that will be modified
 	Examples:
-
+\verbatim
 	"foo" <bar>	valid input, returns bar
 	foo		returns the whole string
 	< "foo ... >	returns the string between brackets
 	< "foo...	bogus (missing closing bracket), returns the whole string
 			XXX maybe should still skip the opening bracket
+\endverbatim
  */
 static char *get_in_brackets(char *tmp)
 {
@@ -2496,7 +2498,9 @@ static char *get_in_brackets(char *tmp)
  * Init pointers to empty string so we never get NULL dereferencing.
  * Overwrites the string.
  * return 0 on success, other values on error.
+ * \verbatim 
  * general form we are expecting is sip[s]:username[:password][;parameter]@host[:port][;...] 
+ * \endverbatim
  */
 static int parse_uri(char *uri, char *scheme,
 	char **ret_name, char **pass, char **domain, char **port, char **options)
@@ -5933,7 +5937,9 @@ static int copy_all_header(struct sip_request *req, const struct sip_request *or
 \note	If the client indicates that it wishes to know the port we received from,
 	it adds ;rport without an argument to the topmost via header. We need to
 	add the port number (from our point of view) to that parameter.
+\verbatim
 	We always add ;received=<ip address> to the topmost via header.
+\endverbatim
 	Received: RFC 3261, rport RFC 3581 */
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, const struct sip_request *orig, const char *field)
 {
@@ -7453,7 +7459,11 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 /*! \brief Build REFER/INVITE/OPTIONS message and transmit it 
 	\param init 0 = Prepare request within dialog, 1= prepare request, new branch, 2= prepare new request and new dialog. do_proxy_auth calls this with init!=2
-	*/
+ \param p sip_pvt structure
+ \param sdp unknown 
+ \param sipmethod unknown 
+ 
+*/
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 {
 	struct sip_request req;
@@ -8947,10 +8957,12 @@ static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *r
  * Terminate the uri at the first ';' or space.
  * Technically we should ignore escaped space per RFC3261 (19.1.1 etc)
  * but don't do it for the time being. Remember the uri format is:
+ *\verbatim
  *
  *	sip:user:password@host:port;uri-parameters?headers
  *	sips:user:password@host:port;uri-parameters?headers
  *
+ *\endverbatim
  */
 static char *terminate_uri(char *uri)
 {
