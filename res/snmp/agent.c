@@ -138,6 +138,8 @@ static oid asterisk_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 #define			ASTCHANTYPETRANSFER		6
 #define			ASTCHANTYPECHANNELS		7
 
+#define			ASTCHANBRIDGECOUNT      5
+
 void *agent_thread(void *arg)
 {
     ast_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
@@ -585,6 +587,26 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
     return NULL;
 }
 
+static u_char *ast_var_channel_bridge(struct variable *vp, oid *name, size_t *length,
+	int exact, size_t *var_len, WriteMethod **write_method)
+{
+	unsigned long long_ret = 0;
+	struct ast_channel *chan = NULL;
+
+	if (header_generic(vp, name, length, exact, var_len, write_method))
+		return NULL;
+
+	while ((chan = ast_channel_walk_locked(chan))) {
+		if (ast_bridged_channel(chan) != NULL)
+			long_ret++;
+		ast_channel_unlock(chan);
+	}
+
+	*var_len = sizeof(long_ret);
+
+	return (vp->magic == ASTCHANBRIDGECOUNT) ? (u_char *) &long_ret : NULL;
+}
+
 static u_char *ast_var_Config(struct variable *vp, oid *name, size_t *length,
 							 int exact, size_t *var_len, WriteMethod **write_method)
 {
@@ -802,6 +824,7 @@ static void init_asterisk_mib(void)
 		{ASTCHANTYPEINDICATIONS, ASN_INTEGER,   RONLY, ast_var_channel_types_table, 4, {ASTCHANNELS, ASTCHANTYPETABLE, 1, ASTCHANTYPEINDICATIONS}},
 		{ASTCHANTYPETRANSFER,    ASN_INTEGER,   RONLY, ast_var_channel_types_table, 4, {ASTCHANNELS, ASTCHANTYPETABLE, 1, ASTCHANTYPETRANSFER}},
 		{ASTCHANTYPECHANNELS,    ASN_GAUGE,     RONLY, ast_var_channel_types_table, 4, {ASTCHANNELS, ASTCHANTYPETABLE, 1, ASTCHANTYPECHANNELS}},
+		{ASTCHANBRIDGECOUNT,     ASN_GAUGE,     RONLY, ast_var_channel_bridge,      2, {ASTCHANNELS, ASTCHANBRIDGECOUNT}},
     };
 
     register_sysORTable(asterisk_oid, OID_LENGTH(asterisk_oid),

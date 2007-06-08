@@ -11,7 +11,7 @@ IMPORTS
 		FROM DIGIUM-MIB;
 
 asterisk MODULE-IDENTITY
-	LAST-UPDATED	"200603061840Z"
+	LAST-UPDATED	"200606081626Z"
 	ORGANIZATION	"Digium, Inc."
 	CONTACT-INFO
 		"Mark A. Spencer
@@ -735,5 +735,15 @@ astChanTypeChannels OBJECT-TYPE
 	DESCRIPTION
 		"Number of active channels using the current technology."
 	::= { astChanTypeEntry 7 }
+
+astChanScalars OBJECT-IDENTIFIER ::= { asteriskChannels 5 }
+
+astNumChanBridge OBJECT-TYPE
+       SYNTAX          Gauge32
+       MAX-ACCESS      read-only
+       STATUS          current
+       DESCRIPTION
+               "Number of channels currently in a bridged state."
+       ::= { asteriskChanScalars 1 }
 
 END
