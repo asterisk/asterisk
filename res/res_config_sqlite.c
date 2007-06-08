@@ -804,12 +804,11 @@ static size_t get_params(va_list ap, const char ***params_ptr, const char ***val
 		params_count++;
 	}
 
-	if (params_count)
-		ast_log(LOG_WARNING, "1 parameter and 1 value at least required\n");
-	else {
+	if (params_count > 0) {
 		*params_ptr = params;
 		*vals_ptr = vals;
-	}
+	} else
+		ast_log(LOG_WARNING, "1 parameter and 1 value at least required\n");
 
 	return params_count;
 }
