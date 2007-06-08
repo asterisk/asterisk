@@ -6582,6 +6582,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			/* this thread is going to process this frame, so mark it */
 			thread->ffinfo.callno = ntohs(fh->scallno);
 			memcpy(&thread->ffinfo.sin, &thread->iosin, sizeof(thread->ffinfo.sin));
+			thread->ffinfo.type = fh->type;
+			thread->ffinfo.csub = fh->csub;
 		}
 	}
 	
