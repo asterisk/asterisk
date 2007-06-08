@@ -5925,6 +5925,13 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+		manager_event(EVENT_FLAG_CALL, "VarSet", 
+			"Channel: %s\r\n"
+			"Variable: %s\r\n"
+			"Value: %s\r\n"
+			"Uniqueid: %s\r\n", 
+			chan ? chan->name : "none", name, value, 
+			chan ? chan->uniqueid : "none");
 	}
 
 	if (headp == &globals)
