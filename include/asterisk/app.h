@@ -163,8 +163,14 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 /*! Stream a filename (or file descriptor) as a generator. */
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
 
-/*! Stream a file with fast forward, pause, reverse, restart. */
-int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
+/*! 
+ * \brief Stream a file with fast forward, pause, reverse, restart. 
+ * \param offsetms Before calling this function, set this to be the number 
+ *        of ms to start from the beginning of the file.  When the function
+ *        returns, it will be the number of ms from the beginning where the
+ *        playback stopped.  Pass NULL if you don't care.
+ */
+int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms, long *offsetms);
 
 /*! Play a stream and wait for a digit, returning the digit that was pressed */
 int ast_play_and_wait(struct ast_channel *chan, const char *fn);

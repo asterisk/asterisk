@@ -551,7 +551,7 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 	else
 		pause = NULL;
 	
-	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms);
+	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms, NULL);
 	
 	fdprintf(agi->fd, "200 result=%d\n", res);
 

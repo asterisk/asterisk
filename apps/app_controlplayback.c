@@ -61,11 +61,29 @@ static const char *descrip =
 "  pause   - Pause playback when this DTMF digit is received.\n"
 "  restart - Restart playback when this DTMF digit is received.\n"
 "Options:\n"
-"  j - Jump to priority n+101 if the requested file is not found.\n"
-"This application sets the following channel variable upon completion:\n"
+"  j    - Jump to priority n+101 if the requested file is not found.\n"
+"  o(#) - Start at # ms from the beginning of the file.\n"
+"This application sets the following channel variables upon completion:\n"
 "  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
-"                     string, one of: SUCCESS | USERSTOPPED | ERROR\n";
+"                     string, one of: SUCCESS | USERSTOPPED | ERROR\n"
+"  CPLAYBACKOFFSET -  This contains the offset in ms into the file where\n"
+"                     playback was at when it stopped.  -1 is end of file.\n";
 
+enum {
+	OPT_JUMP   = (1 << 0),
+	OPT_OFFSET = (1 << 1),
+};
+
+enum {
+	OPT_ARG_OFFSET = 0,
+	/* must stay as the last entry ... */
+	OPT_ARG_ARRAY_LEN,
+};
+
+AST_APP_OPTIONS(cpb_opts, BEGIN_OPTIONS
+	AST_APP_OPTION('j', OPT_JUMP),
+	AST_APP_OPTION_ARG('o', OPT_OFFSET, OPT_ARG_OFFSET),
+END_OPTIONS );
 
 static int is_on_phonepad(char key)
 {
@@ -74,12 +92,14 @@ static int is_on_phonepad(char key)
 
 static int controlplayback_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0, priority_jump = 0;
+	int res = 0;
 	int skipms = 0;
+	long offsetms = 0;
+	char offsetbuf[20];
 	struct ast_module_user *u;
 	char *tmp;
 	int argc;
-	char *argv[8];
+	char *argv[8] = { NULL, };
 	enum arg_ids {
 		arg_file = 0,
 		arg_skip = 1,
@@ -90,7 +110,9 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		arg_restart = 6,
 		options = 7,
 	};
-	
+	struct ast_flags opts = { 0, };
+	char *opt_args[OPT_ARG_ARRAY_LEN];
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
@@ -99,7 +121,6 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 	
 	tmp = ast_strdupa(data);
-	memset(argv, 0, sizeof(argv));
 
 	argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
@@ -125,11 +146,12 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		argv[arg_restart] = NULL;
 
 	if (argv[options]) {
-		if (strchr(argv[options], 'j'))
-			priority_jump = 1;
+		ast_app_parse_options(cpb_opts, &opts, opt_args, argv[options]);		
+		if (ast_test_flag(&opts, OPT_OFFSET))
+			offsetms = atol(opt_args[OPT_ARG_OFFSET]);
 	}
 
-	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
+	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms, &offsetms);
 
 	/* If we stopped on one of our stop keys, return 0  */
 	if (argv[arg_stop] && strchr(argv[arg_stop], res)) {
@@ -137,7 +159,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
 	} else {
 		if (res < 0) {
-			if (priority_jump || ast_opt_priority_jumping) {
+			if (ast_test_flag(&opts, OPT_JUMP) || ast_opt_priority_jumping) {
 				if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 					ast_log(LOG_WARNING, "ControlPlayback tried to jump to priority n+101 as requested, but priority didn't exist\n");
 				}
@@ -147,6 +169,9 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		} else
 			pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "SUCCESS");
 	}
+
+	snprintf(offsetbuf, sizeof(offsetbuf), "%ld", offsetms);
+	pbx_builtin_setvar_helper(chan, "CPLAYBACKOFFSET", offsetbuf);
 
 	ast_module_user_remove(u);
 

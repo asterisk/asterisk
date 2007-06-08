@@ -395,13 +395,17 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			   const char *fwd, const char *rev,
 			   const char *stop, const char *pause,
-			   const char *restart, int skipms) 
+			   const char *restart, int skipms, long *offsetms) 
 {
 	char *breaks = NULL;
 	char *end = NULL;
 	int blen = 2;
 	int res;
 	long pause_restart_point = 0;
+	long offset = 0;
+
+	if (offsetms) 
+		offset = *offsetms * 8; /* XXX Assumes 8kHz */
 
 	if (stop)
 		blen += strlen(stop);
@@ -440,9 +444,18 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 				ast_seekstream(chan->stream, pause_restart_point, SEEK_SET);
 				pause_restart_point = 0;
 			}
-			else if (end) {
-				ast_seekstream(chan->stream, 0, SEEK_END);
+			else if (end || offset < 0) {
+				if (offset == -8) 
+					offset = 0;
+				ast_verbose(VERBOSE_PREFIX_3 "ControlPlayback seek to offset %ld from end\n", offset);
+
+				ast_seekstream(chan->stream, offset, SEEK_END);
 				end = NULL;
+				offset = 0;
+			} else if (offset) {
+				ast_verbose(VERBOSE_PREFIX_3 "ControlPlayback seek to offset %ld\n", offset);
+				ast_seekstream(chan->stream, offset, SEEK_SET);
+				offset = 0;
 			};
 			res = ast_waitstream_fr(chan, breaks, fwd, rev, skipms);
 		}
@@ -481,6 +494,19 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 		if (stop && strchr(stop, res))
 			break;
 	}
+
+	if (pause_restart_point) {
+		offset = pause_restart_point;
+	} else {
+		if (chan->stream) {
+			offset = ast_tellstream(chan->stream);
+		} else {
+			offset = -8;  /* indicate end of file */
+		}
+	}
+
+	if (offsetms) 
+		*offsetms = offset / 8; /* samples --> ms ... XXX Assumes 8 kHz */
 
 	ast_stopstream(chan);
 
