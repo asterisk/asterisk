@@ -321,7 +321,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		ast_set_read_format(chan, oldr);
 	}
 	LOCAL_USER_REMOVE(u);
-	return res;
+	return 0;
 }
 
 int unload_module(void)
