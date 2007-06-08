@@ -121,6 +121,9 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr)
 {
+	struct ast_hostent ahp;
+	struct hostent *hp;
+
 	if (ast_strlen_zero(name) || !result || !dnsmgr)
 		return -1;
 
@@ -135,21 +138,18 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
 	if (inet_aton(name, result))
 		return 0;
 
-	/* if the manager is disabled, do a direct lookup and return the result,
-	   otherwise register a managed lookup for the name */
-	if (!enabled) {
-		struct ast_hostent ahp;
-		struct hostent *hp;
-
-		if ((hp = ast_gethostbyname(name, &ahp)))
-			memcpy(result, hp->h_addr, sizeof(result));
+	/* do a lookup now but add a manager so it will automagically get updated in the background */
+	if ((hp = ast_gethostbyname(name, &ahp)))
+		memcpy(result, hp->h_addr, sizeof(result));
+	
+	/* if dnsmgr is not enable don't bother adding an entry */
+	if (!enabled)
 		return 0;
-	} else {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_2 "adding dns manager for '%s'\n", name);
-		*dnsmgr = ast_dnsmgr_get(name, result);
-		return !*dnsmgr;
-	}
+	
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_2 "adding dns manager for '%s'\n", name);
+	*dnsmgr = ast_dnsmgr_get(name, result);
+	return !*dnsmgr;
 }
 
 /*
