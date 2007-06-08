@@ -293,6 +293,7 @@ void ast_unregister_file_version(const char *file)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&file_versions);
+
 	if (find)
 		ast_free(find);
 }
