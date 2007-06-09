@@ -75,6 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/sched.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/causes.h"
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -1973,10 +1974,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_copy_string(newbc->dad, ext, sizeof(newbc->dad));
 	}
 
-	if (!ast_strlen_zero(ast->cid.cid_rdnis))
-		ast_copy_string(newbc->rad, ast->cid.cid_rdnis, sizeof(newbc->rad));
-	else 
-		newbc->rad = "";
+	ast_copy_string(newbc->rad, S_OR(ast->cid.cid_rdnis, ""), sizeof(newbc->rad));
 
 	chan_misdn_log(3, port, " --> * adding2newbc callerid %s\n", ast->cid.cid_num);
 	if (ast_strlen_zero(newbc->oad) && !ast_strlen_zero(ast->cid.cid_num)) {
@@ -2070,8 +2068,6 @@ static int misdn_answer(struct ast_channel *ast)
 	} else {
 		chan_misdn_log(3, p->bc->port, " --> Connection is without BF encryption\n");
 	}
-
-	{
 
 	tmp = pbx_builtin_getvar_helper(ast, "MISDN_DIGITAL_TRANS");
 	if (!ast_strlen_zero(tmp) && ast_true(tmp)) {
@@ -4157,7 +4153,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 			if (!ch->ast)
 				break;
-			ast_copy_string(ch->ast->exten, bc->dad, l, sizeof(ch->ast->exten));
+			ast_copy_string(ch->ast->exten, bc->dad, sizeof(ch->ast->exten));
 			ast_copy_string(bc->info_dad, bc->infos_pending, sizeof(bc->info_dad));
 			ast_copy_string(bc->infos_pending, "", sizeof(bc->infos_pending));
 
@@ -4351,6 +4347,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		switch (ch->state) {
 		case MISDN_CALLING:
 			bc->cause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
+			break;
+		default:
 			break;
 		}
 		
@@ -4739,8 +4737,6 @@ static int load_module(void)
 	if (!ast_strlen_zero(ports))
 		chan_misdn_log(0, 0, "Got: %s from get_ports\n", ports);
 
-	{
-		
 	if (misdn_lib_init(ports, &iface, NULL))
 		chan_misdn_log(0, 0, "No te ports initialized\n");
 
