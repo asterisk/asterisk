@@ -977,19 +977,28 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 		if (!done) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Avoiding %s for channel '%p'\n", msg, c);
+			if (retries == 9) {
+				/* We are about to fail due to a deadlock, so report this
+				 * while we still have the list lock.
+				 */
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Failure, could not lock '%p' after %d retries!\n", c, retries);
+				/* As we have deadlocked, we will skip this channel and
+				 * see if there is another match.
+				 * NOTE: No point doing this for a full-name match,
+				 * as there can be no more matches.
+				 */
+				if (!(name && !namelen)) {
+					prev = c;
+					retries = -1;
+				}
+			}
 		}
 		AST_LIST_UNLOCK(&channels);
 		if (done)
 			return c;
 		usleep(1);	/* give other threads a chance before retrying */
 	}
-	/*
- 	 * c is surely not null, but we don't have the lock so cannot
-	 * access c->name
-	 */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Failure, could not lock '%p' after %d retries!\n",
-			c, retries);
 
 	return NULL;
 }
