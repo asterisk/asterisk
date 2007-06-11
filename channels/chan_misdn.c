@@ -2913,6 +2913,11 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	cl->bc=newbc;
 	
 	tmp = misdn_new(cl, AST_STATE_RESERVED, ext, NULL, format, port, channel);
+	if (!tmp) {
+		ast_log(LOG_ERROR,"Could not create Asterisk object\n");
+		return NULL;
+	}
+
 	cl->ast=tmp;
 	
 	/* register chan in local list */
@@ -3804,6 +3809,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		ch->orginator = ORG_MISDN;
 
 		chan=misdn_new(ch, AST_STATE_RESERVED,bc->dad, bc->oad, AST_FORMAT_ALAW, bc->port, bc->channel);
+
+		if (!chan) {
+			misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
+			ast_log(LOG_ERROR, "cb_events: misdn_new failed !\n"); 
+			return 0;
+		}
+
 		ch->ast = chan;
 
 		read_config(ch, ORG_MISDN);
