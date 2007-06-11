@@ -806,7 +806,7 @@ static int misdn_set_crypt_debug(int fd, int argc, char *argv[])
 static int misdn_port_block(int fd, int argc, char *argv[])
 {
 	int port;
-  
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
   
@@ -1278,6 +1278,25 @@ static int misdn_send_cd(int fd, int argc, char *argv[])
 	return 0; 
 }
 
+static int misdn_send_restart(int fd, int argc, char *argv[])
+{
+	int port;
+	int channel;
+	
+	if ( (argc < 4) ||  (argc >  5) )
+		return RESULT_SHOWUSAGE;
+  
+	port = atoi(argv[3]);
+
+	if (argc==5) {
+		channel = atoi(argv[4]);
+ 		misdn_lib_send_restart(port, channel);
+	} else
+ 		misdn_lib_send_restart(port, -1 );
+	
+	return 0;
+}
+
 static int misdn_send_digit(int fd, int argc, char *argv[])
 {
 	char *channame; 
@@ -1498,6 +1517,9 @@ static struct ast_cli_entry chan_misdn_clis[] = {
 		"Usage: misdn port unblock\n" },
 	{ {"misdn","restart","port", NULL}, misdn_restart_port, "Restarts the given port",
 		"Usage: misdn restart port\n" },
+	{ {"misdn","send","restart", NULL},  misdn_send_restart, 
+	  "Sends a restart for every bchannel on the given port", 
+	  "Usage: misdn send restart <port>\n"},
 	{ {"misdn","restart","pid", NULL}, misdn_restart_pid, "Restarts the given pid",
 		"Usage: misdn restart pid\n" },
 	{ {"misdn","port","up", NULL}, misdn_port_up, "Tries to establish L1 on the given port",

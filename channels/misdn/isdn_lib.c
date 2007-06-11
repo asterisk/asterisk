@@ -1137,9 +1137,6 @@ int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, in
 		
 	}
 	
-	
-	
-	
 	{
 		stack_info_t *stinf;
 		ret = mISDN_get_stack_info(midev, stack->port, buff, sizeof(buff));
@@ -3205,13 +3202,15 @@ void misdn_send_unlock(struct misdn_bchannel *bc);
 void misdn_send_lock(struct misdn_bchannel *bc)
 {
 	//cb_log(0,bc->port,"Locking bc->pid:%d\n", bc->pid);
-	pthread_mutex_lock(&bc->send_lock->lock);
+	if (bc->send_lock)
+		pthread_mutex_lock(&bc->send_lock->lock);
 }
 
 void misdn_send_unlock(struct misdn_bchannel *bc)
 {
 	//cb_log(0,bc->port,"UnLocking bc->pid:%d\n", bc->pid);
-	pthread_mutex_unlock(&bc->send_lock->lock);
+	if (bc->send_lock)
+		pthread_mutex_unlock(&bc->send_lock->lock);
 }
 
 int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
@@ -3650,6 +3649,39 @@ int misdn_lib_pid_restart(int pid)
 	return 0;
 }
 
+/*Sends Restart message for every bchnanel*/
+int misdn_lib_send_restart(int port, int channel)
+{
+	struct misdn_stack *stack=find_stack_by_port(port);
+	cb_log(0, port, "Sending Restarts on this port.\n");
+	
+	struct misdn_bchannel dummybc;
+	memset (&dummybc,0,sizeof(dummybc));
+	dummybc.port=stack->port;
+	dummybc.l3_id=MISDN_ID_GLOBAL;
+	dummybc.nt=stack->nt;
+
+	/*default is all channels*/
+	int max=stack->pri?30:2;
+	int i=1;
+	
+	/*if a channel is specified we restart only this one*/
+	if (channel > 0) {
+		i=channel;
+		max=channel;
+	}
+
+	for (;i<=max;i++) {
+		dummybc.channel=i;
+		cb_log(0, port, "Restarting channel %d\n",i);
+		misdn_lib_send_event(&dummybc, EVENT_RESTART);
+		/*do we need to wait before we get an EVENT_RESTART_ACK ?*/
+	}
+
+	return 0;
+}
+
+/*reinitializes the L2/L3*/
 int misdn_lib_port_restart(int port)
 {
 	struct misdn_stack *stack=find_stack_by_port(port);
@@ -3768,7 +3800,18 @@ static void manager_event_handler(void *arg)
 				} else {
 					iframe_t *frm = (iframe_t *)msg->data;
 					struct misdn_bchannel *bc = find_bc_by_l3id(stack, frm->dinfo);
-					if (bc) send_msg(glob_mgr->midev, bc, msg);
+					if (bc) 
+						send_msg(glob_mgr->midev, bc, msg);
+					else  {
+						if (frm->dinfo == MISDN_ID_GLOBAL) {
+							struct misdn_bchannel dummybc;
+							memset (&dummybc,0,sizeof(dummybc));
+							dummybc.port=stack->port;
+							dummybc.l3_id=MISDN_ID_GLOBAL;
+							dummybc.nt=stack->nt;
+							send_msg(glob_mgr->midev, &dummybc, msg);
+						}
+					}
 				}
 			}
 		}

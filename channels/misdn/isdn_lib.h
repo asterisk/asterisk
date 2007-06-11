@@ -416,6 +416,7 @@ void isdn_lib_stop_dtmf (struct misdn_bchannel *bc);
 
 int misdn_lib_port_restart(int port);
 int misdn_lib_pid_restart(int pid);
+int misdn_lib_send_restart(int port, int channel);
 
 int misdn_lib_get_port_info(int port);
 
