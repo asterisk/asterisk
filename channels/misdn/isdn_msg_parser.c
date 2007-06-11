@@ -803,6 +803,7 @@ msg_t *build_restart (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	printf("Building RESTART Msg\n"); 
 #endif
 	enc_ie_channel_id(&restart->CHANNEL_ID, msg, 1,bc->channel, nt,bc);
+	enc_ie_restart_ind(&restart->RESTART_IND, msg, 0x80, nt, bc);
 
 	cb_log(0,bc->port, "Restarting channel %d\n", bc->channel);
 	
