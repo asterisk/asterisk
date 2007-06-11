@@ -771,19 +771,29 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 		/* exit if chan not found or mutex acquired successfully */
 		done = (c == NULL) || (ast_mutex_trylock(&c->lock) == 0);
 		/* this is slightly unsafe, as we _should_ hold the lock to access c->name */
-		if (!done && c)
+		if (!done && c) {
 			ast_log(LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
+			if (retries == 9) {
+				/* We are about to fail due to a deadlock, so report this
+				 * while we still have the list lock.
+				 */
+				ast_log(LOG_WARNING, "Avoided %s for '%p', %d retries!\n", msg, c, retries);
+				/* As we have deadlocked, we will skip this channel and see if
+				 * there is another match.
+				 * NOTE: No point doing this for a full-name match, as there
+				 * can be no more matches.
+				 */
+				if (!(name && !namelen)) {
+					prev = c;
+					retries = -1;
+				}
+			}
+		}
 		ast_mutex_unlock(&chlock);
 		if (done)
 			return c;
 		usleep(1);
 	}
-	/*
- 	 * c is surely not null, but we don't have the lock so cannot
-	 * access c->name
-	 */
-	ast_log(LOG_WARNING, "Avoided %s for '%p', %d retries!\n",
-		msg, c, retries);
 
 	return NULL;
 }
