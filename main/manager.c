@@ -423,6 +423,27 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	return ret;
 }
 
+static char *complete_show_manuser(const char *line, const char *word, int pos, int state)
+{
+	struct ast_manager_user *user = NULL;
+	int l = strlen(word), which = 0;
+	char *ret = NULL;
+
+	if (pos != 3)
+		return NULL;
+	
+	AST_LIST_LOCK(&users);
+	AST_LIST_TRAVERSE(&users, user, list) {
+		if (!strncasecmp(word, user->username, l) && ++which > state) {
+			ret = ast_strdup(user->username);
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(&users);
+
+	return ret;
+}
+
 static int check_manager_session_inuse(const char *name)
 {
 	struct mansession *session = NULL;
@@ -663,7 +684,7 @@ static struct ast_cli_entry cli_manager[] = {
 
 	{ { "manager", "show", "user", NULL },
 	handle_showmanager, "Display information on a specific manager user",
-	showmanager_help, NULL, NULL },
+	showmanager_help, complete_show_manuser, NULL },
 
 	{ { "manager", "debug", NULL },
 	handle_mandebug, "Show, enable, disable debugging of the manager code",
