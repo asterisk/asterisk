@@ -13,11 +13,11 @@
 ; where the proxyhostname is defined in a section below 
 ; 
 ; Useful CLI commands to check peers/users:
-;   sip list peers		Show all SIP peers (including friends)
-;   sip list users		Show all SIP users (including friends)
-;   sip list registry		Show status of hosts we register with
+;   sip show peers		Show all SIP peers (including friends)
+;   sip show users		Show all SIP users (including friends)
+;   sip show registry		Show status of hosts we register with
 ;
-;   sip debug			Show all SIP messages
+;   sip set debug		Show all SIP messages
 ;
 ;   sip reload			Reload configuration file
 ;				Active SIP peers will not be reconfigured
