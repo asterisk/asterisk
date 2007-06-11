@@ -793,7 +793,7 @@ static int misdn_set_crypt_debug(int fd, int argc, char *argv[])
 static int misdn_port_block(int fd, int argc, char *argv[])
 {
 	int port;
-  
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
   
@@ -844,20 +844,6 @@ static int misdn_restart_pid (int fd, int argc, char *argv[])
 
 	misdn_lib_pid_restart(pid);
 
-	return 0;
-}
-
-static int misdn_send_restart(int fd, int argc, char *argv[])
-{
-	int port;
-	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
- 
-	port = atoi(argv[3]);
- 
- 	misdn_lib_send_restart(port);
-	
 	return 0;
 }
 
@@ -1278,6 +1264,25 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
 	}
   
 	return 0; 
+}
+
+static int misdn_send_restart(int fd, int argc, char *argv[])
+{
+	int port;
+	int channel;
+	
+	if ( (argc < 4) ||  (argc >  5) )
+		return RESULT_SHOWUSAGE;
+  
+	port = atoi(argv[3]);
+
+	if (argc==5) {
+		channel = atoi(argv[4]);
+ 		misdn_lib_send_restart(port, channel);
+	} else
+ 		misdn_lib_send_restart(port, -1 );
+	
+	return 0;
 }
 
 static int misdn_send_digit (int fd, int argc, char *argv[])
