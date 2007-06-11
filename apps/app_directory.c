@@ -265,9 +265,6 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 	int res = 0;
 	int loop;
 	char fn[256];
-#ifdef ODBC_STORAGE
-	char fn2[256];
-#endif
 
 	/* Check for the VoiceMail2 greeting first */
 	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet",
@@ -282,7 +279,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 			ast_config_AST_SPOOL_DIR, ext);
 	}
 #ifdef ODBC_STORAGE
-	retrieve_file(fn2);
+	retrieve_file(fn);
 #endif
 
 	if (ast_fileexists(fn, NULL, chan->language) > 0) {
@@ -302,7 +299,6 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context,
 	}
 #ifdef ODBC_STORAGE
 	ast_filedelete(fn, NULL);	
-	ast_filedelete(fn2, NULL);	
 #endif
 
 	for (loop = 3 ; loop > 0; loop--) {
