@@ -47,6 +47,9 @@ Applications:
   performs mostly a 'ChanExists' sort of function.
 * SetCallerPres() has been replaced with the CALLERPRES() dialplan function
   and is now deprecated.
+* DISA()'s fifth argument is now an options argument.  If you have previously
+  used 'NOANSWER' in this argument, you'll need to convert that to the new
+  option 'n'.
 
 CDR:
 

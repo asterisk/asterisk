@@ -55,47 +55,55 @@ static char *app = "DISA";
 static char *synopsis = "DISA (Direct Inward System Access)";
 
 static char *descrip = 
-	"DISA(<numeric passcode>[|<context>]) or DISA(<filename>)\n"
-	"The DISA, Direct Inward System Access, application allows someone from \n"
-	"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
-	"dialtone and to place calls from it as if they were placing a call from \n"
-	"within the switch.\n"
-	"DISA plays a dialtone. The user enters their numeric passcode, followed by\n"
-	"the pound sign (#). If the passcode is correct, the user is then given\n"
-	"system dialtone on which a call may be placed. Obviously, this type\n"
-	"of access has SERIOUS security implications, and GREAT care must be\n"
-	"taken NOT to compromise your security.\n\n"
-	"There is a possibility of accessing DISA without password. Simply\n"
-	"exchange your password with \"no-password\".\n\n"
-	"    Example: exten => s,1,DISA(no-password|local)\n\n"
-	"Be aware that using this compromises the security of your PBX.\n\n"
-	"The arguments to this application (in extensions.conf) allow either\n"
-	"specification of a single global passcode (that everyone uses), or\n"
-	"individual passcodes contained in a file. It also allows specification\n"
-	"of the context on which the user will be dialing. If no context is\n"
-	"specified, the DISA application defaults the context to \"disa\".\n"
-	"Presumably a normal system will have a special context set up\n"
-	"for DISA use with some or a lot of restrictions. \n\n"
-	"The file that contains the passcodes (if used) allows specification\n"
-	"of either just a passcode (defaulting to the \"disa\" context, or\n"
-	"passcode|context on each line of the file. The file may contain blank\n"
-	"lines, or comments starting with \"#\" or \";\". In addition, the\n"
-	"above arguments may have |new-callerid-string appended to them, to\n"
-	"specify a new (different) callerid to be used for this call, for\n"
-	"example: numeric-passcode|context|\"My Phone\" <(234) 123-4567> or \n"
-	"full-pathname-of-passcode-file|\"My Phone\" <(234) 123-4567>.  Last\n"
-	"but not least, |mailbox[@context] may be appended, which will cause\n"
-	"a stutter-dialtone (indication \"dialrecall\") to be used, if the\n"
-	"specified mailbox contains any new messages, for example:\n"
-	"numeric-passcode|context||1234 (w/a changing callerid).  Note that\n"
-	"in the case of specifying the numeric-passcode, the context must be\n"
-	"specified if the callerid is specified also.\n\n"
-	"If login is successful, the application looks up the dialed number in\n"
-	"the specified (or default) context, and executes it if found.\n"
-	"If the user enters an invalid extension and extension \"i\" (invalid) \n"
-	"exists in the context, it will be used. Also, if you set the 5th argument\n"
-	"to 'NOANSWER', the DISA application will not answer initially.\n";
+"DISA(<numeric passcode>[|<context>[|<cid>[|mailbox[|options]]]]) or\n"
+"DISA(<filename>[||||options])\n"
+"The DISA, Direct Inward System Access, application allows someone from \n"
+"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
+"dialtone and to place calls from it as if they were placing a call from \n"
+"within the switch.\n"
+"DISA plays a dialtone. The user enters their numeric passcode, followed by\n"
+"the pound sign (#). If the passcode is correct, the user is then given\n"
+"system dialtone within <context> on which a call may be placed. If the user\n"
+"enters an invalid extension and extension \"i\" exists in the specified\n"
+"context, it will be used.\n"
+"\n"
+"If you need to present a DISA dialtone without entering a password, simply\n"
+"set <passcode> to \"no-password\".\n"
+"\n"
+"Be aware that using this may compromise the security of your PBX.\n"
+"\n"
+"The arguments to this application (in extensions.conf) allow either\n"
+"specification of a single global passcode (that everyone uses), or\n"
+"individual passcodes contained in a file.\n"
+"\n"
+"The file that contains the passcodes (if used) allows a complete\n"
+"specification of all of the same arguments available on the command\n"
+"line, with the sole exception of the options. The file may contain blank\n"
+"lines, or comments starting with \"#\" or \";\".\n"
+"\n"
+"<context> specifies the dialplan context in which the user-entered extension\n"
+"will be matched. If no context is specified, the DISA application defaults\n"
+"the context to \"disa\". Presumably a normal system will have a special\n"
+"context set up for DISA use with some or a lot of restrictions.\n"
+"\n"
+"<cid> specifies a new (different) callerid to be used for this call.\n"
+"\n"
+"<mailbox[@context]> will cause a stutter-dialtone (indication \"dialrecall\")\n"
+"to be used, if the specified mailbox contains any new messages.\n"
+"\n"
+"The following options are available:\n"
+"  n - the DISA application will not answer initially.\n"
+"  p - the extension entered will be considered complete when a '#' is entered.\n";
 
+enum {
+	NOANSWER_FLAG = (1 << 0),
+	POUND_TO_END_FLAG = (1 << 1),
+} option_flags;
+
+AST_APP_OPTIONS(app_opts, {
+	AST_APP_OPTION('n', NOANSWER_FLAG),
+	AST_APP_OPTION('p', POUND_TO_END_FLAG),
+});
 
 static void play_dialtone(struct ast_channel *chan, char *mailbox)
 {
@@ -116,6 +124,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct ast_module_user *u;
+	struct ast_flags flags;
 	char *tmp, exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char pwline[256];
 	char ourcidname[256],ourcidnum[256];
@@ -129,7 +138,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(context);
 		AST_APP_ARG(cid);
 		AST_APP_ARG(mailbox);
-		AST_APP_ARG(noanswer);
+		AST_APP_ARG(options);
 	);
 
 	if (ast_strlen_zero(data)) {
@@ -168,13 +177,14 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		args.context = "disa";	
 	if (ast_strlen_zero(args.mailbox))
 		args.mailbox = "";
+	if (!ast_strlen_zero(args.options))
+		ast_app_parse_options(app_opts, &flags, NULL, args.options);
 
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 
 	special_noanswer = 0;
-	if ((!args.noanswer) || strcmp(args.noanswer,"NOANSWER"))
-	{
+	if (ast_test_flag(&flags, NOANSWER_FLAG)) {
 		if (chan->_state != AST_STATE_UP) {
 			/* answer */
 			ast_answer(chan);
@@ -314,6 +324,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (!(k&1))
 				continue; /* if getting password, continue doing it */
 			/* if this exists */
+
+			/* user wants end of number, remove # */
+			if (ast_test_flag(&flags, POUND_TO_END_FLAG) && j == '#') {
+				exten[--i] = 0;
+				break;
+			}
 
 			if (ast_ignore_pattern(args.context, exten)) {
 				play_dialtone(chan, "");
