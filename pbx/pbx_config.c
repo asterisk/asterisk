@@ -851,16 +851,27 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						    ast_get_extension_app(p));
 				} else { /* copy and replace '|' with ',' */
 					const char *sep, *cid;
-					char *tempdata;
+					char *tempdata = "";
 					char *s;
 					const char *el = ast_get_extension_label(p);
-					char label[128];
+					char label[128] = "";
  
- 					tempdata = ast_strdupa(ast_get_extension_app_data(p));
+ 					s = ast_get_extension_app_data(p);
+					if (s) {
+						char *t;
+						tempdata = alloca(strlen(tempdata) * 2 + 1);
 
-					for (s = tempdata; *s; s++) {
-						if (*s == '|')
-							*s = ',';
+						for (t = tempdata; *s; s++, t++) {
+							if (*s == '|')
+								*t = ',';
+							else {
+								if (*s == ',')
+									*t++ = '\\';
+								*t = *s;
+							}
+						}
+						/* Terminating NULL */
+						*t = *s;
 					}
 
 					if (ast_get_extension_matchcid(p)) {
@@ -869,7 +880,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 					} else
 						sep = cid = "";
 				
-					if (el && (snprintf(label, 127, "(%s)", el) != (strlen(el) + 2)))
+					if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
 						incomplete = 1;	/* error encountered or label > 125 chars */
 					
 					fprintf(output, "exten => %s%s%s,%d%s,%s(%s)\n",
