@@ -126,7 +126,7 @@ static AST_LIST_HEAD_NOLOCK_STATIC(backends, chanlist);
 
 /*! \brief the list of channels we have. Note that the lock for this list is used for
     both the channels list and the backends list.  */
-static AST_LIST_HEAD_STATIC(channels, ast_channel);
+static AST_RWLIST_HEAD_STATIC(channels, ast_channel);
 
 /*! \brief map AST_CAUSE's to readable string representations 
  *
@@ -208,7 +208,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 	ast_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	ast_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
-	if (AST_LIST_LOCK(&channels)) {
+	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
@@ -219,7 +219,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 			(cl->tech->transfer) ? "yes" : "no");
 		count_chan++;
 	}
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 	ast_cli(fd, "----------\n%d channel drivers registered.\n", count_chan);
 	return RESULT_SUCCESS;
 
@@ -235,7 +235,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	
-	if (AST_LIST_LOCK(&channels)) {
+	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return RESULT_FAILURE;
 	}
@@ -249,7 +249,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 
 	if (!cl) {
 		ast_cli(fd, "\n%s is not a registered channel driver.\n", argv[3]);
-		AST_LIST_UNLOCK(&channels);
+		AST_RWLIST_UNLOCK(&channels);
 		return RESULT_FAILURE;
 	}
 
@@ -277,7 +277,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 		
 	);
 
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 	return RESULT_SUCCESS;
 }
 
@@ -351,10 +351,10 @@ void ast_begin_shutdown(int hangup)
 	struct ast_channel *c;
 	shutting_down = 1;
 	if (hangup) {
-		AST_LIST_LOCK(&channels);
-		AST_LIST_TRAVERSE(&channels, c, chan_list)
+		AST_RWLIST_RDLOCK(&channels);
+		AST_RWLIST_TRAVERSE(&channels, c, chan_list)
 			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
-		AST_LIST_UNLOCK(&channels);
+		AST_RWLIST_UNLOCK(&channels);
 	}
 }
 
@@ -363,10 +363,10 @@ int ast_active_channels(void)
 {
 	struct ast_channel *c;
 	int cnt = 0;
-	AST_LIST_LOCK(&channels);
-	AST_LIST_TRAVERSE(&channels, c, chan_list)
+	AST_RWLIST_RDLOCK(&channels);
+	AST_RWLIST_TRAVERSE(&channels, c, chan_list)
 		cnt++;
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 	return cnt;
 }
 
@@ -417,18 +417,18 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
 
-	AST_LIST_LOCK(&channels);
+	AST_RWLIST_WRLOCK(&channels);
 
 	AST_LIST_TRAVERSE(&backends, chan, list) {
 		if (!strcasecmp(tech->type, chan->tech->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", tech->type);
-			AST_LIST_UNLOCK(&channels);
+			AST_RWLIST_UNLOCK(&channels);
 			return -1;
 		}
 	}
 	
 	if (!(chan = ast_calloc(1, sizeof(*chan)))) {
-		AST_LIST_UNLOCK(&channels);
+		AST_RWLIST_UNLOCK(&channels);
 		return -1;
 	}
 	chan->tech = tech;
@@ -441,7 +441,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered channel type '%s' (%s)\n", chan->tech->type,
 			    chan->tech->description);
 
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 	return 0;
 }
 
@@ -453,7 +453,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
 
-	AST_LIST_LOCK(&channels);
+	AST_RWLIST_WRLOCK(&channels);
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&backends, chan, list) {
 		if (chan->tech == tech) {
@@ -466,7 +466,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 }
 
 /*! \brief Get handle to channel driver based on name */
@@ -475,7 +475,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 	struct chanlist *chanls;
 	const struct ast_channel_tech *ret = NULL;
 
-	if (AST_LIST_LOCK(&channels)) {
+	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel tech list\n");
 		return NULL;
 	}
@@ -487,7 +487,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 		}
 	}
 
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 	
 	return ret;
 }
@@ -788,9 +788,9 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 
 	tmp->tech = &null_tech;
 
-	AST_LIST_LOCK(&channels);
-	AST_LIST_INSERT_HEAD(&channels, tmp, chan_list);
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_WRLOCK(&channels);
+	AST_RWLIST_INSERT_HEAD(&channels, tmp, chan_list);
+	AST_RWLIST_UNLOCK(&channels);
 
 	return tmp;
 }
@@ -939,13 +939,13 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 
 	for (retries = 0; retries < 10; retries++) {
 		int done;
-		AST_LIST_LOCK(&channels);
-		AST_LIST_TRAVERSE(&channels, c, chan_list) {
+		AST_RWLIST_RDLOCK(&channels);
+		AST_RWLIST_TRAVERSE(&channels, c, chan_list) {
 			if (prev) {	/* look for next item */
 				if (c != prev)	/* not this one */
 					continue;
 				/* found, prepare to return c->next */
-				if ((c = AST_LIST_NEXT(c, chan_list)) == NULL) break;
+				if ((c = AST_RWLIST_NEXT(c, chan_list)) == NULL) break;
 				/* If prev was the last item on the channel list, then we just
 				 * want to return NULL, instead of trying to deref NULL in the
 				 * next section.
@@ -994,7 +994,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				}
 			}
 		}
-		AST_LIST_UNLOCK(&channels);
+		AST_RWLIST_UNLOCK(&channels);
 		if (done)
 			return c;
 		usleep(1);	/* give other threads a chance before retrying */
@@ -1095,9 +1095,9 @@ void ast_channel_free(struct ast_channel *chan)
 	
 	headp=&chan->varshead;
 	
-	AST_LIST_LOCK(&channels);
-	if (!AST_LIST_REMOVE(&channels, chan, chan_list)) {
-		AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_WRLOCK(&channels);
+	if (!AST_RWLIST_REMOVE(&channels, chan, chan_list)) {
+		AST_RWLIST_UNLOCK(&channels);
 		ast_log(LOG_ERROR, "Unable to find channel in list to free. Assuming it has already been done.\n");
 	}
 	/* Lock and unlock the channel just to be sure nobody
@@ -1164,7 +1164,7 @@ void ast_channel_free(struct ast_channel *chan)
 
 	ast_string_field_free_pools(chan);
 	ast_free(chan);
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 
 	ast_device_state_changed_literal(name);
 }
@@ -3096,7 +3096,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		cause = &foo;
 	*cause = AST_CAUSE_NOTDEFINED;
 
-	if (AST_LIST_LOCK(&channels)) {
+	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
@@ -3111,10 +3111,10 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		if (res < 0) {
 			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
 			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
-			AST_LIST_UNLOCK(&channels);
+			AST_RWLIST_UNLOCK(&channels);
 			return NULL;
 		}
-		AST_LIST_UNLOCK(&channels);
+		AST_RWLIST_UNLOCK(&channels);
 		if (!chan->tech->requester)
 			return NULL;
 		
@@ -3127,7 +3127,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 
 	ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
 	*cause = AST_CAUSE_NOSUCHDRIVER;
-	AST_LIST_UNLOCK(&channels);
+	AST_RWLIST_UNLOCK(&channels);
 
 	return NULL;
 }
