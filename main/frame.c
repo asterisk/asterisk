@@ -904,15 +904,15 @@ static struct ast_cli_entry my_clis[] = {
 	show_codecs, "Displays a list of codecs",
 	frame_show_codecs_usage },
 
-	{ { "core", "show", "audio", "codecs", NULL },
+	{ { "core", "show", "codecs", "audio", NULL },
 	show_codecs, "Displays a list of audio codecs",
 	frame_show_codecs_usage },
 
-	{ { "core", "show", "video", "codecs", NULL },
+	{ { "core", "show", "codecs", "video", NULL },
 	show_codecs, "Displays a list of video codecs",
 	frame_show_codecs_usage },
 
-	{ { "core", "show", "image", "codecs", NULL },
+	{ { "core", "show", "codecs", "image", NULL },
 	show_codecs, "Displays a list of image codecs",
 	frame_show_codecs_usage },
 
