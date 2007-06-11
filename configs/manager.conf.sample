@@ -68,6 +68,8 @@ bindaddr = 0.0.0.0
 ;
 ; writetimeout = 100
 ;
+;displayconnects = yes	; Display on CLI user login/logoff
+;
 ; Authorization for various classes 
 ;read = system,call,log,verbose,command,agent,user,config,dtmf
 ;write = system,call,log,verbose,command,agent,user,config,dtmf

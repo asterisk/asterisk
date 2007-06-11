@@ -473,6 +473,23 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 	return user;
 }
 
+/*! \brief Get displayconnects config option.
+ *  \param s manager session to get parameter from.
+ *  \return displayconnects config option value.
+ */
+static int manager_displayconnects (struct mansession *s)
+{
+	struct ast_manager_user *user = NULL;
+	int ret = 0;
+
+	AST_LIST_LOCK(&users);
+	if ((user = get_manager_by_name_locked (s->username)))
+		ret = user->displayconnects;
+	AST_LIST_UNLOCK(&users);
+	
+	return ret;
+}
+
 /*! \note The actionlock is read-locked by the caller of this function */
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
@@ -1467,7 +1484,7 @@ static int action_login(struct mansession *s, const struct message *m)
 	}
 	s->authenticated = 1;
 	if (option_verbose > 1) {
-		if (displayconnects) {
+		if (manager_displayconnects(s)) {
 			ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 		}
 	}
@@ -2508,7 +2525,7 @@ static void *session_do(void *data)
 	/* session is over, explain why and terminate */
 	if (s->authenticated) {
 		if (option_verbose > 1) {
-			if (displayconnects)
+			if (manager_displayconnects(s))
 				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		}
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -2537,7 +2554,7 @@ static void purge_sessions(int n_max)
 		if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
 			AST_LIST_REMOVE_CURRENT(&sessions, list);
 			ast_atomic_fetchadd_int(&num_sessions, -1);
-			if (s->authenticated && (option_verbose > 1) && displayconnects) {
+			if (s->authenticated && (option_verbose > 1) && manager_displayconnects(s)) {
 				ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
 					s->username, ast_inet_ntoa(s->sin.sin_addr));
 			}
@@ -3075,7 +3092,7 @@ static struct ast_str *generic_http_callback(enum output_format format,
 	if (process_message(s, &m)) {
 		if (s->authenticated) {
 			if (option_verbose > 1) {
-				if (displayconnects)
+				if (manager_displayconnects(s))
 					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 			}
 			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
@@ -3378,6 +3395,8 @@ int init_manager(void)
 
 		/* Make sure we keep this user and don't destroy it during cleanup */
 		user->keep = 1;
+		/* Default displayconnect to [general] */
+		user->displayconnects = displayconnects;
 
 		var = ast_variable_browse(cfg, cat);
 		while (var) {
