@@ -129,6 +129,17 @@ void ast_console_toggle_mute(int fd);
 #define __LOG_DTMF  6
 #define LOG_DTMF    __LOG_DTMF, _A_
 
+/*!
+ * \brief Log a DEBUG message
+ * \param level The minimum value of option_debug for this message
+ *        to get logged
+ */
+#define ast_debug(level, ...) do {       \
+	if (option_debug >= level) {         \
+		ast_log(LOG_DEBUG, __VA_ARGS__); \
+	}                                    \
+} while (0)
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
