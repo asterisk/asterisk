@@ -3244,6 +3244,11 @@ static int ast_channel_make_compatible_helper(struct ast_channel *from, struct a
 	int src;
 	int dst;
 
+	if (from->readformat == to->writeformat && from->writeformat == to->readformat) {
+		/* Already compatible!  Moving on ... */
+		return 0;
+	}
+
 	/* Set up translation from the 'from' channel to the 'to' channel */
 	src = from->nativeformats;
 	dst = to->nativeformats;
