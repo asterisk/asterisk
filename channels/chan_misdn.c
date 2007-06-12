@@ -3530,7 +3530,7 @@ static void start_pbx(struct chan_list *ch, struct misdn_bchannel *bc, struct as
 static void wait_for_digits(struct chan_list *ch, struct misdn_bchannel *bc, struct ast_channel *chan) {
 	ch->state=MISDN_WAITING4DIGS;
 	misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
-	if (bc->nt)
+	if (bc->nt && !bc->dad[0])
 		dialtone_indicate(ch);
 }
 
