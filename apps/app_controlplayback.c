@@ -61,7 +61,6 @@ static const char *descrip =
 "  pause   - Pause playback when this DTMF digit is received.\n"
 "  restart - Restart playback when this DTMF digit is received.\n"
 "Options:\n"
-"  j    - Jump to priority n+101 if the requested file is not found.\n"
 "  o(#) - Start at # ms from the beginning of the file.\n"
 "This application sets the following channel variables upon completion:\n"
 "  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
@@ -70,7 +69,6 @@ static const char *descrip =
 "                     playback was at when it stopped.  -1 is end of file.\n";
 
 enum {
-	OPT_JUMP   = (1 << 0),
 	OPT_OFFSET = (1 << 1),
 };
 
@@ -81,7 +79,6 @@ enum {
 };
 
 AST_APP_OPTIONS(cpb_opts, BEGIN_OPTIONS
-	AST_APP_OPTION('j', OPT_JUMP),
 	AST_APP_OPTION_ARG('o', OPT_OFFSET, OPT_ARG_OFFSET),
 END_OPTIONS );
 
@@ -159,11 +156,6 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
 	} else {
 		if (res < 0) {
-			if (ast_test_flag(&opts, OPT_JUMP) || ast_opt_priority_jumping) {
-				if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-					ast_log(LOG_WARNING, "ControlPlayback tried to jump to priority n+101 as requested, but priority didn't exist\n");
-				}
-			}
 			res = 0;
 			pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "ERROR");
 		} else

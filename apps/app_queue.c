@@ -167,10 +167,7 @@ static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
 "   AddQueueMember(queuename[|interface[|penalty[|options[|membername]]]]):\n"
 "Dynamically adds interface to an existing queue.\n"
-"If the interface is already in the queue and there exists an n+101 priority\n"
-"then it will then jump to this priority.  Otherwise it will return an error\n"
-"The option string may contain zero or more of the following characters:\n"
-"       'j' -- jump to +101 priority when appropriate.\n"
+"If the interface is already in the queue it will return an error.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AQMSTATUS    The status of the attempt to add a queue member as a \n"
 "                     text string, one of\n"
@@ -183,10 +180,7 @@ static char *app_rqm_synopsis = "Dynamically removes queue members" ;
 static char *app_rqm_descrip =
 "   RemoveQueueMember(queuename[|interface[|options]]):\n"
 "Dynamically removes interface to an existing queue\n"
-"If the interface is NOT in the queue and there exists an n+101 priority\n"
-"then it will then jump to this priority.  Otherwise it will return an error\n"
-"The option string may contain zero or more of the following characters:\n"
-"       'j' -- jump to +101 priority when appropriate.\n"
+"If the interface is NOT in the queue it will return an error.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     RQMSTATUS      The status of the attempt to remove a queue member as a\n"
 "                     text string, one of\n"
@@ -203,13 +197,7 @@ static char *app_pqm_descrip =
 "any calls from being sent from the queue to the interface until it is\n"
 "unpaused with UnpauseQueueMember or the manager interface.  If no\n"
 "queuename is given, the interface is paused in every queue it is a\n"
-"member of.  If the interface is not in the named queue, or if no queue\n"
-"is given and the interface is not in any queue, it will jump to\n"
-"priority n+101, if it exists and the appropriate options are set.\n"
-"The application will fail if the interface is not found and no extension\n"
-"to jump to exists.\n"
-"The option string may contain zero or more of the following characters:\n"
-"       'j' -- jump to +101 priority when appropriate.\n"
+"member of. The application will fail if the interface is not found.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     PQMSTATUS      The status of the attempt to pause a queue member as a\n"
 "                     text string, one of\n"
@@ -223,8 +211,6 @@ static char *app_upqm_descrip =
 "Unpauses (resumes calls to) a queue member.\n"
 "This is the counterpart to PauseQueueMember and operates exactly the\n"
 "same way, except it unpauses instead of pausing the given interface.\n"
-"The option string may contain zero or more of the following characters:\n"
-"       'j' -- jump to +101 priority when appropriate.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     UPQMSTATUS       The status of the attempt to unpause a queue \n"
 "                      member as a text string, one of\n"
@@ -3180,7 +3166,6 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *lu;
 	char *parse;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
@@ -3199,8 +3184,6 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 	lu = ast_module_user_add(chan);
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	if (ast_strlen_zero(args.interface)) {
@@ -3211,13 +3194,6 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	if (set_member_paused(args.queuename, args.interface, 1)) {
 		ast_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", args.interface);
-		if (priority_jump || ast_opt_priority_jumping) {
-			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-				pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
-				ast_module_user_remove(lu);
-				return 0;
-			}
-		}
 		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 		return -1;
@@ -3233,7 +3209,6 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *lu;
 	char *parse;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
@@ -3252,8 +3227,6 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	lu = ast_module_user_add(chan);
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	if (ast_strlen_zero(args.interface)) {
@@ -3264,13 +3237,6 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	if (set_member_paused(args.queuename, args.interface, 0)) {
 		ast_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", args.interface);
-		if (priority_jump || ast_opt_priority_jumping) {
-			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-				pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
-				ast_module_user_remove(lu);
-				return 0;
-			}
-		}
 		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 		return -1;
@@ -3287,7 +3253,6 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	int res=-1;
 	struct ast_module_user *lu;
 	char *parse, *temppos = NULL;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
@@ -3314,8 +3279,6 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	switch (remove_from_queue(args.queuename, args.interface)) {
@@ -3328,8 +3291,6 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	case RES_EXISTS:
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
-		if (priority_jump || ast_opt_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");
 		res = 0;
 		break;
@@ -3350,7 +3311,6 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	int res=-1;
 	struct ast_module_user *lu;
 	char *parse, *temppos = NULL;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
@@ -3386,8 +3346,6 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	}
 	
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	if (ast_strlen_zero(args.membername))
@@ -3403,8 +3361,6 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", args.interface, args.queuename);
-		if (priority_jump || ast_opt_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "MEMBERALREADY");
 		res = 0;
 		break;

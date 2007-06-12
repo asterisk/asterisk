@@ -62,13 +62,12 @@ static char *descrip =
 "  Options:\n"
 "    s - Consider the channel unavailable if the channel is in use at all\n"
 "    t - Simply checks if specified channels exist in the channel list\n"
-"        (implies option s) \n"
-"    j - Support jumping to priority n+101 if no channel is available\n";
+"        (implies option s) \n";
 
 
 static int chanavail_exec(struct ast_channel *chan, void *data)
 {
-	int res=-1, inuse=-1, option_state=0, priority_jump=0, string_compare=0;
+	int res=-1, inuse=-1, option_state=0, string_compare=0;
 	int status;
 	struct ast_module_user *u;
 	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
@@ -94,8 +93,6 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			option_state = 1;
 		if (strchr(args.options, 't'))
 			string_compare = 1;
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 	peers = args.reqchans;
 	if (peers) {
@@ -152,12 +149,6 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (priority_jump || ast_opt_priority_jumping) {
-			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
-				ast_module_user_remove(u);
-				return -1;
-			}
-		}
 	}
 
 	ast_module_user_remove(u);

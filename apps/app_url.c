@@ -59,10 +59,6 @@ static char *descrip =
 "If the option 'wait' is specified, execution will wait for an\n"
 "acknowledgement that the URL has been loaded before continuing\n"
 "\n"
-"If jumping is specified as an option (the 'j' flag), the client does not\n"
-"support Asterisk \"html\" transport, and there exists a step with priority\n"
-"n + 101, then execution will continue at that step.\n"
-"\n"
 "SendURL continues normally if the URL was sent correctly or if the channel\n"
 "does not support HTML transport.  Otherwise, the channel is hung up.\n";
 
@@ -74,7 +70,6 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	char *tmp;
 	char *options;
 	int local_option_wait=0;
-	int local_option_jump = 0;
 	struct ast_frame *f;
 	char *stringp=NULL;
 	char *status = "FAILURE";
@@ -94,13 +89,9 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	options = strsep(&stringp, "|");
 	if (options && !strcasecmp(options, "wait"))
 		local_option_wait = 1;
-	if (options && !strcasecmp(options, "j"))
-		local_option_jump = 1;
 	
 	if (!ast_channel_supports_html(chan)) {
 		/* Does not support transport */
-		if (local_option_jump || ast_opt_priority_jumping)
-			 ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "UNSUPPORTED");
 		ast_module_user_remove(u);
 		return 0;
@@ -135,8 +126,6 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 				case AST_HTML_NOSUPPORT:
 					/* Does not support transport */
 					status ="UNSUPPORTED";
-					if (local_option_jump || ast_opt_priority_jumping)
-			 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 					res = 0;
 					ast_frfree(f);
 					goto out;

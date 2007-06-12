@@ -1316,7 +1316,6 @@ static int ospauth_exec(
 	int res;
 	struct ast_module_user* u;
 	const char* provider = OSP_DEF_PROVIDER;
-	int priority_jump = 0;
 	struct varshead* headp;
 	struct ast_var_t* current;
 	const char* source = "";
@@ -1348,11 +1347,7 @@ static int ospauth_exec(
 	if (option_debug)
 		ast_log(LOG_DEBUG, "OSPAuth: provider '%s'\n", provider);
 
-	if ((args.options) && (strchr(args.options, 'j'))) {
-		priority_jump = 1;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPAuth: priority jump '%d'\n", priority_jump);
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
@@ -1392,12 +1387,7 @@ static int ospauth_exec(
 		ast_log(LOG_DEBUG, "OSPAuth: %s\n", status);
 
 	if(res <= 0) {
-		if (priority_jump || ast_opt_priority_jumping) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-			res = 0;
-		} else {
-			res = -1;
-		}
+		res = -1;
 	} else {
 		res = 0;
 	}
@@ -1420,7 +1410,6 @@ static int osplookup_exec(
 	int res, cres;
 	struct ast_module_user* u;
 	const char* provider = OSP_DEF_PROVIDER;
-	int priority_jump = 0;
 	struct varshead* headp;
 	struct ast_var_t* current;
 	const char* srcdev = "";
@@ -1462,9 +1451,6 @@ static int osplookup_exec(
 		ast_log(LOG_DEBUG, "OSPlookup: provider '%s'\n", provider);
 
 	if (args.options) {
-		if (strchr(args.options, 'j')) {
-			priority_jump = 1;
-		}
 		if (strchr(args.options, 'h')) {
 			callidtypes |= OSP_CALLID_H323;
 		}
@@ -1476,7 +1462,6 @@ static int osplookup_exec(
 		}
 	}
 	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPLookup: priority jump '%d'\n", priority_jump);
 		ast_log(LOG_DEBUG, "OSPLookup: call id types '%d'\n", callidtypes);
 	}
 
@@ -1595,12 +1580,7 @@ static int osplookup_exec(
 	}
 
 	if(res <= 0) {
-		if (priority_jump || ast_opt_priority_jumping) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-			res = 0;
-		} else {
-			res = -1;
-		}
+		res = -1;
 	} else {
 		res = 0;
 	}
@@ -1623,7 +1603,6 @@ static int ospnext_exec(
 	int res;
 	struct ast_module_user* u;
 	const char* provider = OSP_DEF_PROVIDER;
-	int priority_jump = 0;
 	int cause = 0;
 	struct varshead* headp;
 	struct ast_var_t* current;
@@ -1665,12 +1644,6 @@ static int ospnext_exec(
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "OSPlookup: provider '%s'\n", provider);
-
-	if ((args.options) && (strchr(args.options, 'j'))) {
-		priority_jump = 1;
-	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: priority jump '%d'\n", priority_jump);
 
 	result.inhandle = OSP_INVALID_HANDLE;
 	result.outhandle = OSP_INVALID_HANDLE;
@@ -1780,12 +1753,7 @@ static int ospnext_exec(
 	}
 
 	if(res <= 0) {
-		if (priority_jump || ast_opt_priority_jumping) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-			res = 0;
-		} else {
-			res = -1;
-		}
+		res = -1;
 	} else {
 		res = 0;
 	}
@@ -1807,7 +1775,6 @@ static int ospfinished_exec(
 {
 	int res = 1;
 	struct ast_module_user* u;
-	int priority_jump = 0;
 	int cause = 0;
 	struct varshead* headp;
 	struct ast_var_t* current;
@@ -1834,12 +1801,6 @@ static int ospfinished_exec(
 	}
 
 	AST_STANDARD_APP_ARGS(args, tmp);
-
-	if ((args.options) && (strchr(args.options, 'j'))) {
-		priority_jump = 1;
-	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPFinish: priority jump '%d'\n", priority_jump);
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
@@ -1923,12 +1884,7 @@ static int ospfinished_exec(
 	pbx_builtin_setvar_helper(chan, "OSPFINISHSTATUS", status);
 
 	if(!res) {
-		if (priority_jump || ast_opt_priority_jumping) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-			res = 0;
-		} else {
-			res = -1;
-		}
+		res = -1;
 	} else {
 		res = 0;
 	}
@@ -2106,8 +2062,6 @@ static const char* descrip1 =
 " ${OSPINHANDLE}:  The inbound call transaction handle\n"
 " ${OSPINTIMELIMIT}:  The inbound call duration limit in seconds\n"
 "\n"
-"The option string may contain the following character:\n"
-"	'j' -- jump to n+101 priority if the authentication was NOT successful\n"
 "This application sets the following channel variable upon completion:\n"
 "	OSPAUTHSTATUS	The status of the OSP Auth attempt as a text string, one of\n"
 "		SUCCESS | FAILED | ERROR\n";
@@ -2130,7 +2084,6 @@ static const char* descrip2 =
 " ${OSPRESULTS}:  The number of OSP results total remaining\n"
 "\n"
 "The option string may contain the following character:\n"
-"	'j' -- jump to n+101 priority if the lookup was NOT successful\n"
 "	'h' -- generate H323 call id for the outbound call\n"
 "	's' -- generate SIP call id for the outbound call. Have not been implemented\n"
 "	'i' -- generate IAX call id for the outbound call. Have not been implemented\n"
@@ -2144,8 +2097,6 @@ static const char* descrip3 =
 "  OSPNext(cause[|provider[|options]]):  Looks up the next OSP Destination for ${OSPOUTHANDLE}\n"
 "See OSPLookup for more information\n"
 "\n"
-"The option string may contain the following character:\n"
-"	'j' -- jump to n+101 priority if the lookup was NOT successful\n"
 "This application sets the following channel variable upon completion:\n"
 "	OSPNEXTSTATUS The status of the OSP Next attempt as a text string, one of\n"
 "		SUCCESS | FAILED | ERROR\n";
@@ -2157,8 +2108,6 @@ static const char* descrip4 =
 "status, which should be one of BUSY, CONGESTION, ANSWER, NOANSWER, or CHANUNAVAIL\n"
 "or coincidentally, just what the Dial application stores in its ${DIALSTATUS}.\n"
 "\n"
-"The option string may contain the following character:\n"
-"	'j' -- jump to n+101 priority if the finish attempt was NOT successful\n"
 "This application sets the following channel variable upon completion:\n"
 "	OSPFINISHSTATUS The status of the OSP Finish attempt as a text string, one of\n"
 "		SUCCESS | FAILED | ERROR \n";

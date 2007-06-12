@@ -211,7 +211,6 @@ enum {
 	OPT_UNAVAIL_GREETING = (1 << 2),
 	OPT_RECORDGAIN =       (1 << 3),
 	OPT_PREPEND_MAILBOX =  (1 << 4),
-	OPT_PRIORITY_JUMP =    (1 << 5),
 	OPT_AUTOPLAY =         (1 << 6),
 } vm_option_flags;
 
@@ -228,7 +227,6 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('u', OPT_UNAVAIL_GREETING),
 	AST_APP_OPTION_ARG('g', OPT_RECORDGAIN, OPT_ARG_RECORDGAIN),
 	AST_APP_OPTION('p', OPT_PREPEND_MAILBOX),
-	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
 	AST_APP_OPTION_ARG('a', OPT_AUTOPLAY, OPT_ARG_PLAYFOLDER),
 });
 
@@ -457,9 +455,7 @@ static char *descrip_vm =
 	"           message. The units are whole-number decibels (dB).\n"
 	"    s    - Skip the playback of instructions for leaving a message to the\n"
 	"           calling party.\n"
-	"    u    - Play the 'unavailable greeting.\n"
-	"    j    - Jump to priority n+101 if the mailbox is not found or some other\n"
-	"           error occurs.\n";
+	"    u    - Play the 'unavailable greeting.\n";
 
 static char *synopsis_vmain = "Check Voicemail messages";
 
@@ -489,8 +485,7 @@ static char *descrip_vm_box_exists =
 	"    VMBOXEXISTSSTATUS - This will contain the status of the execution of the\n"
 	"                        MailboxExists application. Possible values include:\n"
 	"                        SUCCESS | FAILED\n\n"
-	"  Options:\n"
-	"    j - Jump to priority n+101 if the mailbox is found.\n";
+	"  Options: (none)\n";
 
 static char *synopsis_vmauthenticate = "Authenticate with Voicemail passwords";
 
@@ -2995,8 +2990,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		ast_log(LOG_DEBUG, "Before find_user\n");
 	if (!(vmu = find_user(&svm, context, ext))) {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
-		if (ast_test_flag(options, OPT_PRIORITY_JUMP) || ast_opt_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		return res;
 	}
@@ -7008,7 +7001,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 				ast_module_user_remove(u);
 				return -1;
 			}
-			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING | OPT_PRIORITY_JUMP);
+			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING);
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
@@ -7039,10 +7032,6 @@ static int vm_exec(struct ast_channel *chan, void *data)
 
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
-		/*Send the call to n+101 priority, where n is the current priority*/
-		if (ast_test_flag(&leave_options, OPT_PRIORITY_JUMP) || ast_opt_priority_jumping)
-			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-				ast_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		res = 0;
 	}
@@ -7122,7 +7111,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	struct ast_module_user *u;
 	struct ast_vm_user svm;
 	char *context, *box;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(mbox);
 		AST_APP_ARG(options);
@@ -7146,8 +7134,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, box);
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	if ((context = strchr(args.mbox, '@'))) {
@@ -7157,9 +7143,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 
 	if (find_user(&svm, context, args.mbox)) {
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
-		if (priority_jump || ast_opt_priority_jumping)
-			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-				ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
 	} else
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
 	ast_module_user_remove(u);

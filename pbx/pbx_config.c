@@ -782,12 +782,11 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	}
 
 	/* fireout general info */
-	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\npriorityjumping=%s\n\n",
+	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\n\n",
 		static_config ? "yes" : "no",
 		write_protect_config ? "yes" : "no",
                 autofallthrough_config ? "yes" : "no",
-                clearglobalvars_config ? "yes" : "no",
-		ast_true(ast_variable_retrieve(cfg, "general", "priorityjumping")) ? "yes" : "no");
+                clearglobalvars_config ? "yes" : "no");
 
 	if ((v = ast_variable_browse(cfg, "globals"))) {
 		fprintf(output, "[globals]\n");
@@ -1362,7 +1361,6 @@ static int pbx_load_config(const char *config_file)
 	if ((aft = ast_variable_retrieve(cfg, "general", "autofallthrough")))
 		autofallthrough_config = ast_true(aft);
 	clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
-	ast_set2_flag(&ast_options, ast_true(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
 
 	if ((cxt = ast_variable_retrieve(cfg, "general", "userscontext"))) 
 		ast_copy_string(userscontext, cxt, sizeof(userscontext));

@@ -49,7 +49,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 enum {
 	OPT_ACCOUNT = (1 << 0),
 	OPT_DATABASE = (1 << 1),
-	OPT_JUMP = (1 << 2),
 	OPT_MULTIPLE = (1 << 3),
 	OPT_REMOVE = (1 << 4),
 } auth_option_flags;
@@ -57,7 +56,6 @@ enum {
 AST_APP_OPTIONS(auth_app_options, {
 	AST_APP_OPTION('a', OPT_ACCOUNT),
 	AST_APP_OPTION('d', OPT_DATABASE),
-	AST_APP_OPTION('j', OPT_JUMP),
 	AST_APP_OPTION('m', OPT_MULTIPLE),
 	AST_APP_OPTION('r', OPT_REMOVE),
 });
@@ -73,13 +71,10 @@ static char *descrip =
 "begins with the '/' character, it is interpreted as a file which contains a list of\n"
 "valid passwords, listed 1 password per line in the file.\n"
 "  When using a database key, the value associated with the key can be anything.\n"
-"Users have three attempts to authenticate before the channel is hung up. If the\n"
-"passsword is invalid, the 'j' option is specified, and priority n+101 exists,\n"
-"dialplan execution will continnue at this location.\n"
+"Users have three attempts to authenticate before the channel is hung up.\n"
 "  Options:\n"
 "     a - Set the channels' account code to the password that is entered\n"
 "     d - Interpret the given path as database key, not a literal file\n"
-"     j - Support jumping to n+101 if authentication fails\n"
 "     m - Interpret the given path as a file which contains a list of account\n"
 "         codes and password hashes delimited with ':', listed one per line in\n"
 "         the file. When one of the passwords is matched, the channel will have\n"
@@ -218,13 +213,9 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitstream(chan, "");
 	} else {
-		if (ast_test_flag(&flags,OPT_JUMP) && ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101) == 0) {
-			res = 0;
-		} else {
-			if (!ast_streamfile(chan, "vm-goodbye", chan->language))
-				res = ast_waitstream(chan, "");
-			res = -1;
-		}
+		if (!ast_streamfile(chan, "vm-goodbye", chan->language))
+			res = ast_waitstream(chan, "");
+		res = -1;
 	}
 	ast_module_user_remove(u);
 	return res;

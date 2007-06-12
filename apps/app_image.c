@@ -53,8 +53,6 @@ static char *descrip =
 "If the channel supports image transport but the image send\n"
 "fails, the channel will be hung up. Otherwise, the dialplan\n"
 "continues execution.\n"
-"The option string may contain the following character:\n"
-"	'j' -- jump to priority n+101 if the channel doesn't support image transport\n"
 "This application sets the following channel variable upon completion:\n"
 "	SENDIMAGESTATUS		The status is the result of the attempt as a text string, one of\n"
 "		OK | NOSUPPORT \n";			
@@ -65,7 +63,6 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct ast_module_user *u;
 	char *parse;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(options);
@@ -83,14 +80,10 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */
-		if (priority_jump || ast_opt_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "NOSUPPORT");
 		ast_module_user_remove(u);
 		return 0;

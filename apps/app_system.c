@@ -59,14 +59,7 @@ static char *descrip =
 "fails, the console should report a fallthrough. \n"
 "Result of execution is returned in the SYSTEMSTATUS channel variable:\n"
 "   FAILURE	Could not execute the specified command\n"
-"   SUCCESS	Specified command successfully executed\n"
-"\n"
-"Old behaviour:\n"
-"If the command itself executes but is in error, and if there exists\n"
-"a priority n + 101, where 'n' is the priority of the current instance,\n"
-"then  the  channel  will  be  setup to continue at that priority level.\n"
-"Note that this jump functionality has been deprecated and will only occur\n"
-"if the global priority jumping option is enabled in extensions.conf.\n";
+"   SUCCESS	Specified command successfully executed\n";
 
 static char *descrip2 =
 "  TrySystem(command): Executes a command  by  using  system().\n"
@@ -74,13 +67,7 @@ static char *descrip2 =
 "Result of execution is returned in the SYSTEMSTATUS channel variable:\n"
 "   FAILURE	Could not execute the specified command\n"
 "   SUCCESS	Specified command successfully executed\n"
-"   APPERROR	Specified command successfully executed, but returned error code\n"
-"\n"
-"Old behaviour:\nIf  the command itself executes but is in error, and if\n"
-"there exists a priority n + 101, where 'n' is the priority of the current\n"
-"instance, then  the  channel  will  be  setup  to continue at that\n"
-"priority level.  Otherwise, System will terminate.\n";
-
+"   APPERROR	Specified command successfully executed, but returned error code\n";
 
 static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)
 {
@@ -108,9 +95,6 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	} else {
 		if (res < 0) 
 			res = 0;
-		if (ast_opt_priority_jumping && res)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-
 		if (res != 0)
 			pbx_builtin_setvar_helper(chan, chanvar, "APPERROR");
 		else

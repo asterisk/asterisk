@@ -60,10 +60,7 @@ static const char *descrip =
 "channel variable:\n"
 "       SUCCESS      Transfer succeeded\n"
 "       FAILURE      Transfer failed\n"
-"       UNSUPPORTED  Transfer unsupported by channel driver\n"
-"The option string many contain the following character:\n"
-"'j' -- jump to n+101 priority if the channel transfer attempt\n"
-"       fails\n";
+"       UNSUPPORTED  Transfer unsupported by channel driver\n";
 
 static int transfer_exec(struct ast_channel *chan, void *data)
 {
@@ -75,7 +72,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	char *dest = NULL;
 	char *status;
 	char *parse;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dest);
 		AST_APP_ARG(options);
@@ -94,8 +90,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	dest = args.dest;
@@ -122,8 +116,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 
 	if (res < 0) {
 		status = "FAILURE";
-		if (priority_jump || ast_opt_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 	} else {
 		status = "SUCCESS";

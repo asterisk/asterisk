@@ -99,11 +99,9 @@ static const char descrip3[] =
 "with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent \n"
 "instead of Monitor application. That have to be configured in the agents.conf file.\n"
 "\nReturn value:\n"
-"Normally the app returns 0 unless the options are passed. Also if the callerid or\n"
-"the agentid are not specified it'll look for n+101 priority.\n"
+"Normally the app returns 0 unless the options are passed.\n"
 "\nOptions:\n"
-"	'd' - make the app return -1 if there is an error condition and there is\n"
-"	      no extension n+101\n"
+"	'd' - make the app return -1 if there is an error condition"
 "	'c' - change the CDR so that the source of the call is 'Agent/agent_id'\n"
 "	'n' - don't generate the warnings when there is no callerid or the\n"
 "	      agentid is not known.\n"
@@ -2238,14 +2236,8 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 		if (!nowarnings)
 			ast_log(LOG_WARNING, "There is no callerid on that call, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n");
 	}
-	/* check if there is n + 101 priority */
-	/*! \todo XXX Needs to check option priorityjump etc etc */
 	if (res) {
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			chan->priority+=100;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Going to %d priority because there is no callerid or the agentid cannot be found.\n",chan->priority);
-		} else if (exitifnoagentid)
+		if (exitifnoagentid)
 			return res;
 	}
 	return 0;

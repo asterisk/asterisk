@@ -58,11 +58,7 @@ static const char *descrip =
 "      FAILURE      Transmission failed\n"
 "      UNSUPPORTED  Text transmission not supported by channel\n"
 "\n"
-"At this moment, text is supposed to be 7 bit ASCII in most channels.\n"
-"The option string many contain the following character:\n"
-"'j' -- jump to n+101 priority if the channel doesn't support\n"
-"       text transport\n";
-
+"At this moment, text is supposed to be 7 bit ASCII in most channels.\n";
 
 static int sendtext_exec(struct ast_channel *chan, void *data)
 {
@@ -70,7 +66,6 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	struct ast_module_user *u;
 	char *status = "UNSUPPORTED";
 	char *parse = NULL;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(text);
 		AST_APP_ARG(options);
@@ -88,16 +83,12 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (args.options) {
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
 	}
 
 	ast_channel_lock(chan);
 	if (!chan->tech->send_text) {
 		ast_channel_unlock(chan);
 		/* Does not support transport */
-		if (priority_jump || ast_opt_priority_jumping)
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		ast_module_user_remove(u);
 		return 0;
 	}

@@ -65,9 +65,6 @@ static char *descrip =
   "If you don't want to use the config file and have an i/o operation with\n"
   "every call, you can also specify maxretries and minlength as application\n"
   "parameters. Doing so supercedes any values set in privacy.conf.\n"
-  "The option string may contain the following character: \n"
-  "  'j' -- jump to n+101 priority after <maxretries> failed attempts to collect\n"
-  "         the minlength number of digits.\n"
   "The application sets the following channel variable upon completion: \n"
   "PRIVACYMGRSTATUS  The status of the privacy manager's attempt to collect \n"
   "                  a phone number from the user. A text string that is either:\n" 
@@ -87,7 +84,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	struct ast_module_user *u;
 	struct ast_config *cfg = NULL;
 	char *parse = NULL;
-	int priority_jump = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(maxretries);
 		AST_APP_ARG(minlength);
@@ -126,9 +122,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 				else
 					ast_log(LOG_WARNING, "Invalid min length argument\n");
 			}
-			if (args.options)
-				if (strchr(args.options, 'j'))
-					priority_jump = 1;
 
 		}		
 
@@ -200,8 +193,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			}
 			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "SUCCESS");
 		} else {
-			if (priority_jump || ast_opt_priority_jumping)	
-				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "FAILED");
 		}
 		if (cfg) 

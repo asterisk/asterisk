@@ -123,7 +123,6 @@ static char *descrip =
 "    H    - Allow the calling party to hang up by hitting the '*' DTMF digit.\n"
 "    i    - Asterisk will ignore any forwarding requests it may receive on this\n"
 "           dial attempt.\n"
-"    j    - Jump to priority n+101 if all of the requested channels were busy.\n"
 "    L(x[:y][:z]) - Limit the call to 'x' ms. Play a warning when 'y' ms are\n"
 "           left. Repeat the warning every 'z' ms. The following special\n"
 "           variables can be used with this option:\n"
@@ -145,9 +144,7 @@ static char *descrip =
 "           finished executing.\n"
 "           * ABORT        Hangup both legs of the call.\n"
 "           * CONGESTION   Behave as if line congestion was encountered.\n"
-"           * BUSY         Behave as if a busy signal was encountered. This will also\n"
-"                          have the application jump to priority n+101 if the\n"
-"                          'j' option is set.\n"
+"           * BUSY         Behave as if a busy signal was encountered.\n"
 "           * CONTINUE     Hangup the called party and allow the calling party\n"
 "                          to continue dialplan execution at the next priority.\n"
 "           * GOTO:<context>^<exten>^<priority> - Transfer the call to the\n"
@@ -221,7 +218,6 @@ enum {
 	OPT_GO_ON =		(1 << 5),
 	OPT_CALLEE_HANGUP =	(1 << 6),
 	OPT_CALLER_HANGUP =	(1 << 7),
-	OPT_PRIORITY_JUMP =	(1 << 8),
 	OPT_DURATION_LIMIT =	(1 << 9),
 	OPT_MUSICBACK =		(1 << 10),
 	OPT_CALLEE_MACRO =	(1 << 11),
@@ -271,7 +267,6 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
 	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
 	AST_APP_OPTION('i', OPT_IGNORE_FORWARDING),
-	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
@@ -532,7 +527,7 @@ struct privacy_args {
 static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct chanlist *outgoing, int *to, struct ast_flags *peerflags,
 	struct privacy_args *pa,
-	const struct cause_args *num_in, int priority_jump, int *result)
+	const struct cause_args *num_in, int *result)
 {
 	struct cause_args num = *num_in;
 	int prestart = num.busy + num.congestion + num.nochan;
@@ -573,8 +568,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					strcpy(pa->status, "CONGESTION");
 				else if (num.nochan)
 					strcpy(pa->status, "CHANUNAVAIL");
-				if (ast_opt_priority_jumping || priority_jump)
-					ast_goto_if_exists(in, in->context, in->exten, in->priority + 101);
 			} else {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, num.busy, num.congestion, num.nochan);
@@ -1125,15 +1118,9 @@ static int setup_privacy_args(struct privacy_args *pa,
 		return 0;
 	} else if (pa->privdb_val == AST_PRIVACY_KILL ) {
 		ast_copy_string(pa->status, "DONTCALL", sizeof(pa->status));
-		if (ast_opt_priority_jumping || ast_test_flag(opts, OPT_PRIORITY_JUMP)) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
-		}
 		return 0; /* Is this right? */
 	} else if (pa->privdb_val == AST_PRIVACY_TORTURE ) {
 		ast_copy_string(pa->status, "TORTURE", sizeof(pa->status));
-		if (ast_opt_priority_jumping || ast_test_flag(opts, OPT_PRIORITY_JUMP)) {
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
-		}
 		return 0; /* is this right??? */
 	} else if (pa->privdb_val == AST_PRIVACY_UNKNOWN ) {
 		/* Get the user's intro, store it in priv-callerintros/$CID, 
@@ -1490,7 +1477,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, ast_test_flag(&opts, OPT_PRIORITY_JUMP), &result);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, &pa, &num, &result);
 	
 	if (!peer) {
 		if (result) {
@@ -1600,12 +1587,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 				if (!strcasecmp(macro_result, "BUSY")) {
 					ast_copy_string(pa.status, macro_result, sizeof(pa.status));
-					if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
-						if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
-							ast_set_flag(peerflags, OPT_GO_ON);
-						}
-					} else
-						ast_set_flag(peerflags, OPT_GO_ON);
+					ast_set_flag(peerflags, OPT_GO_ON);
 					res = -1;
 				} else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
 					ast_copy_string(pa.status, macro_result, sizeof(pa.status));

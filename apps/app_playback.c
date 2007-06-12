@@ -59,9 +59,7 @@ static char *descrip =
 "specified, the application will return immediately should the channel not be\n"
 "off hook.  Otherwise, unless 'noanswer' is specified, the channel will\n"
 "be answered before the sound is played. Not all channels support playing\n"
-"messages while still on hook. If 'j' is specified, the application\n"
-"will jump to priority n+101 if present when a file specified to be played\n"
-"does not exist.\n"
+"messages while still on hook.\n"
 "This application sets the following channel variable upon completion:\n"
 " PLAYBACKSTATUS    The status of the playback attempt as a text string, one of\n"
 "               SUCCESS | FAILED\n"
@@ -384,7 +382,6 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	int option_skip=0;
 	int option_say=0;
 	int option_noanswer = 0;
-	int priority_jump = 0;
 
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filenames);
@@ -408,10 +405,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 			option_say = 1;
 		if (strcasestr(args.options, "noanswer"))
 			option_noanswer = 1;
-		if (strchr(args.options, 'j'))
-			priority_jump = 1;
-	}
-	
+	} 
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
@@ -435,8 +429,6 @@ static int playback_exec(struct ast_channel *chan, void *data)
 				ast_stopstream(chan);
 			} else {
 				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
-				if (priority_jump || ast_opt_priority_jumping)
-					ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 				res = 0;
 				mres = 1;
 			}

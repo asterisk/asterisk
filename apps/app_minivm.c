@@ -1803,7 +1803,6 @@ static int minivm_record_exec(struct ast_channel *chan, void *data)
 
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
-		/* Send the call to n+101 priority, where n is the current priority*/
 		pbx_builtin_setvar_helper(chan, "MINIVM_RECORD_STATUS", "FAILED");
 		res = 0;
 	}
