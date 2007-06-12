@@ -135,7 +135,7 @@ void ast_console_toggle_mute(int fd);
  *        to get logged
  */
 #define ast_debug(level, ...) do {       \
-	if (option_debug >= level) {         \
+	if (option_debug >= (level)) {       \
 		ast_log(LOG_DEBUG, __VA_ARGS__); \
 	}                                    \
 } while (0)
