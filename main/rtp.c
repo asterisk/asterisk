@@ -3096,6 +3096,11 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		cs[1] = cs[2];
 	}
 
+	if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
+		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
+	if (pr1->set_rtp_peer(c1, NULL, NULL, NULL, 0, 0))
+		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+
 	return AST_BRIDGE_FAILED;
 }
 
