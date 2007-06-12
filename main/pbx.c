@@ -1606,8 +1606,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 					} else
 						ast_log(LOG_ERROR, "Unable to allocate bogus channel for variable substitution.  Function results may be blank.\n");
 				}
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
+				ast_debug(1, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
@@ -1674,8 +1673,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			length = ast_expr(vars, cp2, count);
 
 			if (length) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Expression result is '%s'\n", cp2);
+				ast_debug(1, "Expression result is '%s'\n", cp2);
 				count -= length;
 				cp2 += length;
 			}
@@ -1756,8 +1754,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			if (option_debug) {
 				char atmp[80];
 				char atmp2[EXT_DATA_SIZE+100];
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
+				ast_debug(1, "Launching '%s'\n", app->name);
 				snprintf(atmp, sizeof(atmp), "STACK-%s-%s-%d", context, exten, priority);
 				snprintf(atmp2, sizeof(atmp2), "%s(\"%s\", \"%s\") %s",
 					app->name, c->name, passdata, "in new stack");
@@ -1814,8 +1811,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
 			break;
 		default:
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Shouldn't happen!\n");
+			ast_debug(1, "Shouldn't happen!\n");
 		}
 
 		return (matching_action) ? 0 : -1;
@@ -2154,14 +2150,12 @@ static int ast_add_hint(struct ast_exten *e)
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		if (hint->exten == e) {
 			AST_RWLIST_UNLOCK(&hints);
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
+			ast_debug(2, "HINTS: Not re-adding existing hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 			return -1;
 		}
 	}
 
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
+	ast_debug(2, "HINTS: Adding hint %s: %s\n", ast_get_extension_name(e), ast_get_extension_app(e));
 
 	if (!(hint = ast_calloc(1, sizeof(*hint)))) {
 		AST_RWLIST_UNLOCK(&hints);
@@ -2378,23 +2372,20 @@ static int __ast_pbx_run(struct ast_channel *c)
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
 				if (strchr("0123456789ABCDEF*#", res)) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+					ast_debug(1, "Oooh, got something to jump out with ('%c')!\n", res);
 					pos = 0;
 					dst_exten[pos++] = digit = res;
 					dst_exten[pos] = '\0';
 					break;
 				}
 				if (res == AST_PBX_KEEPALIVE) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
+					ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					if (option_verbose > 1)
 						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					error = 1;
 					break;
 				}
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
@@ -2414,9 +2405,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 				c->whentohangup = 0;
 				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
 			} else if (c->_softhangup) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
-						c->exten, c->priority);
+				ast_debug(1, "Extension %s, priority %d returned normally even though call was hung up\n",
+					c->exten, c->priority);
 				error = 1;
 				break;
 			}
@@ -2514,8 +2504,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		while (ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				break;
@@ -3623,8 +3612,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 	if (ast_strlen_zero(context))
 		context = NULL;
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "manager_show_dialplan: Context: -%s- Extension: -%s-\n", context, exten);
+	ast_debug(3, "manager_show_dialplan: Context: -%s- Extension: -%s-\n", context, exten);
 
 	/* try to lock contexts */
 	if (ast_rdlock_contexts()) {
@@ -3644,12 +3632,10 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 
 		dpc->context_existence = 1;
 
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "manager_show_dialplan: Found Context: %s \n", ast_get_context_name(c));
+		ast_debug(3, "manager_show_dialplan: Found Context: %s \n", ast_get_context_name(c));
 
 		if (ast_rdlock_context(c)) {	/* failed to lock */
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "manager_show_dialplan: Failed to lock context\n");
+			ast_debug(3, "manager_show_dialplan: Failed to lock context\n");
 			continue;
 		}
 
@@ -3661,12 +3647,10 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 			/* looking for extension? is this our extension? */
 			if (exten && !ast_extension_match(ast_get_extension_name(e), exten)) {
 				/* not the one we are looking for, continue */
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "manager_show_dialplan: Skipping extension %s\n", ast_get_extension_name(e));
+				ast_debug(3, "manager_show_dialplan: Skipping extension %s\n", ast_get_extension_name(e));
 				continue;
 			}
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "manager_show_dialplan: Found Extension: %s \n", ast_get_extension_name(e));
+			ast_debug(3, "manager_show_dialplan: Found Extension: %s \n", ast_get_extension_name(e));
 
 			dpc->extension_existence = 1;
 
@@ -3708,8 +3692,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
 				astman_append(s, "Context: %s\r\nIncludeContext: %s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_include_name(i), ast_get_include_registrar(i));
 				astman_append(s, "\r\n");
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "manager_show_dialplan: Found Included context: %s \n", ast_get_include_name(i));
+				ast_debug(3, "manager_show_dialplan: Found Included context: %s \n", ast_get_include_name(i));
 			}
 		}
 
@@ -3735,8 +3718,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 				astman_append(s, "Event: ListDialplan\r\n%s", actionidtext);
 				astman_append(s, "Context: %s\r\nSwitch: %s/%s\r\nRegistrar: %s\r\n", ast_get_context_name(c), ast_get_switch_name(sw), ast_get_switch_data(sw), ast_get_switch_registrar(sw));	
 				astman_append(s, "\r\n");
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "manager_show_dialplan: Found Switch : %s \n", ast_get_switch_name(sw));
+				ast_debug(3, "manager_show_dialplan: Found Switch : %s \n", ast_get_switch_name(sw));
 			}
 		}
 
@@ -3745,8 +3727,7 @@ static int manager_show_dialplan_helper(struct mansession *s, const struct messa
 	ast_unlock_contexts();
 
 	if (dpc->total_exten == old_total_exten) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "manager_show_dialplan: Found nothing new\n");
+		ast_debug(3, "manager_show_dialplan: Found nothing new\n");
 		/* Nothing new under the sun */
 		return -1;
 	} else {
@@ -3967,8 +3948,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
 		*local_contexts = tmp;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Registered context '%s'\n", tmp->name);
+		ast_debug(1, "Registered context '%s'\n", tmp->name);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
 	}
@@ -4042,8 +4022,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	tmp = *extcontexts;
 	if (registrar) {
 		/* XXX remove previous contexts from same registrar */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "must remove any reg %s\n", registrar);
+		ast_debug(1, "must remove any reg %s\n", registrar);
 		__ast_context_destroy(NULL,registrar);
 		while (tmp) {
 			lasttmp = tmp;
@@ -4936,13 +4915,11 @@ int ast_add_extension2(struct ast_context *con,
 	}
 	if (option_debug) {
 		if (tmp->matchcid) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Added extension '%s' priority %d (CID match '%s') to %s\n",
-					tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+			ast_debug(1, "Added extension '%s' priority %d (CID match '%s') to %s\n",
+				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Added extension '%s' priority %d to %s\n",
-					tmp->exten, tmp->priority, con->name);
+			ast_debug(1, "Added extension '%s' priority %d to %s\n",
+				tmp->exten, tmp->priority, con->name);
 		}
 	}
 	if (option_verbose > 2) {
@@ -5361,8 +5338,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 	for (tmp = contexts; tmp; ) {
 		struct ast_context *next;	/* next starting point */
 		for (; tmp; tmpl = tmp, tmp = tmp->next) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "check ctx %s %s\n", tmp->name, tmp->registrar);
+			ast_debug(1, "check ctx %s %s\n", tmp->name, tmp->registrar);
 			if ( (!registrar || !strcasecmp(registrar, tmp->registrar)) &&
 			     (!con || !strcasecmp(tmp->name, con->name)) )
 				break;	/* found it */
@@ -5370,8 +5346,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 		if (!tmp)	/* not found, we are done */
 			break;
 		ast_wrlock_context(tmp);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+		ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
 		next = tmp->next;
 		if (tmpl)
 			tmpl->next = next;
@@ -6047,8 +6022,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	branch = pbx_checkcondition(condition) ? branch1 : branch2;
 
 	if (ast_strlen_zero(branch)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Not taking any branch\n");
+		ast_debug(1, "Not taking any branch\n");
 		return 0;
 	}
 
