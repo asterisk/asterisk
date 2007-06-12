@@ -119,15 +119,6 @@ static const char mandescr_agent_logoff[] =
 "	*Agent: Agent ID of the agent to log off\n"
 "	Soft: Set to 'true' to not hangup existing calls\n";
 
-static const char mandescr_agent_callback_login[] =
-"Description: Sets an agent as logged in with callback.\n"
-"Variables: (Names marked with * are required)\n"
-"	*Agent: Agent ID of the agent to login\n"
-"	*Exten: Extension to use for callback\n"
-"	Context: Context to use for callback\n"
-"	AckCall: Set to 'true' to require an acknowledgement by '#' when agent is called back\n"
-"	WrapupTime: the minimum amount of time after disconnecting before the caller can receive a new call\n";
-
 static char moh[80] = "default";
 
 #define AST_MAX_AGENT	80                          /*!< Agent ID or Password max length */
@@ -1397,7 +1388,7 @@ static force_inline int powerof(unsigned int d)
  * \param s
  * \param m
  * \returns 
- * \sa action_agent_logoff(), action_agent_callback_login(), load_module().
+ * \sa action_agent_logoff(), load_module().
  */
 static int action_agents(struct mansession *s, const struct message *m)
 {
@@ -1562,7 +1553,7 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
  * \param s
  * \param m
  * \returns 
- * \sa action_agents(), action_agent_callback_login(), load_module().
+ * \sa action_agents(), load_module().
  */
 static int action_agent_logoff(struct mansession *s, const struct message *m)
 {
@@ -1595,7 +1586,7 @@ static char *complete_agent_logoff_cmd(const char *line, const char *word, int p
 
 		AST_LIST_TRAVERSE(&agents, p, list) {
 			snprintf(name, sizeof(name), "Agent/%s", p->agent);
-			if (!strncasecmp(word, name, len) && ++which > state)
+			if (!strncasecmp(word, name, len) && p->loginstart && ++which > state)
 				return ast_strdup(name);
 		}
 	} else if (pos == 3 && state == 0) 
