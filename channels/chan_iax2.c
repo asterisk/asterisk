@@ -6572,7 +6572,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if (cur) {
 			/* we found another thread processing a full frame for this call,
 			   so we can't accept this frame */
-			ast_log(LOG_WARNING, "Dropping frame from %s (callno %d) of type %d (subclass %d) due to frame of type %d (subclass %d) already in process\n",
+			ast_debug(1, "Dropping frame from %s (callno %d) of type %d (subclass %d) due to frame of type %d (subclass %d) already in process\n",
 				ast_inet_ntoa(thread->iosin.sin_addr), cur->ffinfo.callno,
 				fh->type, uncompress_subclass(fh->csub),
 				cur->ffinfo.type, uncompress_subclass(cur->ffinfo.csub));
