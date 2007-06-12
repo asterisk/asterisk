@@ -2068,10 +2068,14 @@ static int misdn_digit(struct ast_channel *ast, char digit )
 		}
 		break;
 		
-		default:
-			if ( bc->send_dtmf ) {
+		default:	
+			/* Do not send Digits in CONNECTED State, when
+			 * the other side is too mISDN. */
+			if (p->other_ch ) 
+				return 0;
+
+			if ( bc->send_dtmf ) 
 				send_digit_to_chan(p,digit);
-			}
 		break;
 	}
 	
