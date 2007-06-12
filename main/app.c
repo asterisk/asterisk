@@ -81,9 +81,8 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 		timeout = chan->pbx->dtimeout;
 	else if (!timeout)
 		timeout = 5;
-	
-	ts = ast_get_indication_tone(chan->zone, "dial");
-	if (ts && ts->data[0])
+
+	if ((ts = ast_get_indication_tone(chan->zone, "dial")) && ts->data[0])
 		res = ast_playtones_start(chan, 0, ts->data, 0);
 	else 
 		ast_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
@@ -162,19 +161,21 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 
 int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
 {
-	int res, to, fto;
-	if (prompt) {
+	int res, to = 2000, fto = 6000;
+
+	if (!ast_strlen_zero(prompt)) {
 		res = ast_streamfile(c, prompt, c->language);
 		if (res < 0)
 			return res;
 	}
-	fto = 6000;
-	to = 2000;
+	
 	if (timeout > 0) 
 		fto = to = timeout;
 	if (timeout < 0) 
 		fto = to = 1000000000;
+
 	res = ast_readstring_full(c, s, maxlen, to, fto, "#", audiofd, ctrlfd);
+
 	return res;
 }
 
@@ -301,34 +302,37 @@ struct linear_state {
 static void linear_release(struct ast_channel *chan, void *params)
 {
 	struct linear_state *ls = params;
-	if (ls->origwfmt && ast_set_write_format(chan, ls->origwfmt)) {
+	
+	if (ls->origwfmt && ast_set_write_format(chan, ls->origwfmt))
 		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
-	}
+
 	if (ls->autoclose)
 		close(ls->fd);
+
 	ast_free(params);
 }
 
 static int linear_generator(struct ast_channel *chan, void *data, int len, int samples)
 {
-	struct ast_frame f;
 	short buf[2048 + AST_FRIENDLY_OFFSET / 2];
 	struct linear_state *ls = data;
+	struct ast_frame f = {
+                .frametype = AST_FRAME_VOICE,
+                .subclass = AST_FORMAT_SLINEAR,
+                .data = buf + AST_FRIENDLY_OFFSET / 2,
+		.offset = AST_FRIENDLY_OFFSET,
+        };
 	int res;
+
 	len = samples * 2;
 	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
 		ast_log(LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
 		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
 	}
-	memset(&f, 0, sizeof(f));
 	res = read(ls->fd, buf + AST_FRIENDLY_OFFSET/2, len);
 	if (res > 0) {
-		f.frametype = AST_FRAME_VOICE;
-		f.subclass = AST_FORMAT_SLINEAR;
-		f.data = buf + AST_FRIENDLY_OFFSET/2;
 		f.datalen = res;
 		f.samples = res / 2;
-		f.offset = AST_FRIENDLY_OFFSET;
 		ast_write(chan, &f);
 		if (res == len)
 			return 0;
@@ -338,21 +342,25 @@ static int linear_generator(struct ast_channel *chan, void *data, int len, int s
 
 static void *linear_alloc(struct ast_channel *chan, void *params)
 {
-	struct linear_state *ls;
+	struct linear_state *ls = params;
+
+	if (!params)
+		return NULL;
+
 	/* In this case, params is already malloc'd */
-	if (params) {
-		ls = params;
-		if (ls->allowoverride)
-			ast_set_flag(chan, AST_FLAG_WRITE_INT);
-		else
-			ast_clear_flag(chan, AST_FLAG_WRITE_INT);
-		ls->origwfmt = chan->writeformat;
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
-			ast_free(ls);
-			ls = params = NULL;
-		}
+	if (ls->allowoverride)
+		ast_set_flag(chan, AST_FLAG_WRITE_INT);
+	else
+		ast_clear_flag(chan, AST_FLAG_WRITE_INT);
+
+	ls->origwfmt = chan->writeformat;
+
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+		ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
+		ast_free(ls);
+		ls = params = NULL;
 	}
+
 	return params;
 }
 
@@ -377,8 +385,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 			ast_copy_string(tmpf, filename, sizeof(tmpf));
 		else
 			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", ast_config_AST_DATA_DIR, "sounds", filename);
-		fd = open(tmpf, O_RDONLY);
-		if (fd < 0){
+		if ((fd = open(tmpf, O_RDONLY)) < 0) {
 			ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", tmpf, strerror(errno));
 			return -1;
 		}
@@ -515,12 +522,15 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 
 int ast_play_and_wait(struct ast_channel *chan, const char *fn)
 {
-	int d;
-	d = ast_streamfile(chan, fn, chan->language);
-	if (d)
+	int d = 0;
+
+	if ((d = ast_streamfile(chan, fn, chan->language)))
 		return d;
+
 	d = ast_waitstream(chan, AST_DIGIT_ANY);
+
 	ast_stopstream(chan);
+
 	return d;
 }
 
@@ -1383,21 +1393,22 @@ int ast_ivr_menu_run(struct ast_channel *chan, struct ast_ivr_menu *menu, void *
 	
 char *ast_read_textfile(const char *filename)
 {
-	int fd;
+	int fd, count = 0, res;
 	char *output = NULL;
 	struct stat filesize;
-	int count = 0;
-	int res;
+
 	if (stat(filename, &filesize) == -1) {
 		ast_log(LOG_WARNING, "Error can't stat %s\n", filename);
 		return NULL;
 	}
+
 	count = filesize.st_size + 1;
-	fd = open(filename, O_RDONLY);
-	if (fd < 0) {
+
+	if ((fd = open(filename, O_RDONLY)) < 0) {
 		ast_log(LOG_WARNING, "Cannot open file '%s' for reading: %s\n", filename, strerror(errno));
 		return NULL;
 	}
+
 	if ((output = ast_malloc(count))) {
 		res = read(fd, output, count - 1);
 		if (res == count - 1) {
@@ -1408,17 +1419,17 @@ char *ast_read_textfile(const char *filename)
 			output = NULL;
 		}
 	}
+
 	close(fd);
+
 	return output;
 }
 
 int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags *flags, char **args, char *optstr)
 {
-	char *s;
-	int curarg;
+	char *s, *arg;
+	int curarg, res = 0;
 	unsigned int argloc;
-	char *arg;
-	int res = 0;
 
 	ast_clear_flag(flags, AST_FLAGS_ALL);
 

@@ -65,8 +65,7 @@ static void *autoservice_run(void *ign)
 {
 
 	for (;;) {
-		struct ast_channel *mons[MAX_AUTOMONS];
-		struct ast_channel *chan;
+		struct ast_channel *mons[MAX_AUTOMONS], *chan;
 		struct asent *as;
 		int x = 0, ms = 500;
 
@@ -81,15 +80,16 @@ static void *autoservice_run(void *ign)
 		}
 		AST_RWLIST_UNLOCK(&aslist);
 
-		chan = ast_waitfor_n(mons, x, &ms);
-		if (chan) {
+		if ((chan = ast_waitfor_n(mons, x, &ms))) {
 			/* Read and ignore anything that occurs */
 			struct ast_frame *f = ast_read(chan);
 			if (f)
 				ast_frfree(f);
 		}
 	}
+
 	asthread = AST_PTHREADT_NULL;
+
 	return NULL;
 }
 
@@ -151,5 +151,6 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	/* Wait for it to un-block */
 	while (ast_test_flag(chan, AST_FLAG_BLOCKING))
 		usleep(1000);
+
 	return res;
 }
