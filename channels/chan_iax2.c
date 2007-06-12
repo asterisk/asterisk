@@ -155,7 +155,7 @@ static char regcontext[AST_MAX_CONTEXT] = "";
 
 static int maxauthreq = 3;
 static int max_retries = 4;
-static int ping_time = 20;
+static int ping_time = 21;
 static int lagrq_time = 10;
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
