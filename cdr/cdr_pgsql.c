@@ -68,13 +68,13 @@ static int connected = 0;
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
 static PGconn	*conn = NULL;
-static PGresult	*result = NULL;
 
 static int pgsql_log(struct ast_cdr *cdr)
 {
 	struct tm tm;
 	char sqlcmd[2048] = "", timestr[128];
 	char *pgerror;
+	PGresult *result;
 
 	ast_mutex_lock(&pgsql_lock);
 
@@ -154,26 +154,27 @@ static int pgsql_log(struct ast_cdr *cdr)
 			}
 		}
 		result = PQexec(conn, sqlcmd);
-		if ( PQresultStatus(result) != PGRES_COMMAND_OK) {
-                        pgerror = PQresultErrorMessage(result);
+		if (PQresultStatus(result) != PGRES_COMMAND_OK) {
+			pgerror = PQresultErrorMessage(result);
 			ast_log(LOG_ERROR,"cdr_pgsql: Failed to insert call detail record into database!\n");
-                        ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
+			ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
 			ast_log(LOG_ERROR,"cdr_pgsql: Connection may have been lost... attempting to reconnect.\n");
 			PQreset(conn);
 			if (PQstatus(conn) == CONNECTION_OK) {
 				ast_log(LOG_ERROR, "cdr_pgsql: Connection reestablished.\n");
 				connected = 1;
 				result = PQexec(conn, sqlcmd);
-				if ( PQresultStatus(result) != PGRES_COMMAND_OK)
-				{
+				if (PQresultStatus(result) != PGRES_COMMAND_OK) {
 					pgerror = PQresultErrorMessage(result);
 					ast_log(LOG_ERROR,"cdr_pgsql: HARD ERROR!  Attempted reconnection failed.  DROPPING CALL RECORD!\n");
 					ast_log(LOG_ERROR,"cdr_pgsql: Reason: %s\n", pgerror);
 				}
 			}
 			ast_mutex_unlock(&pgsql_lock);
+			PQclear(result);
 			return -1;
 		}
+		PQclear(result);
 	}
 	ast_mutex_unlock(&pgsql_lock);
 	return 0;
