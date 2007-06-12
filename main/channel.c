@@ -395,21 +395,20 @@ int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
 {
 	time_t whentohangup;
 
-	if (chan->whentohangup == 0) {
+	if (!chan->whentohangup)
 		return (offset == 0) ? 0 : -1;
-	} else {
-		if (offset == 0)	/* XXX why is this special ? */
-			return (1);
-		else {
-			whentohangup = offset + time (NULL);
-			if (chan->whentohangup < whentohangup)
-				return (1);
-			else if (chan->whentohangup == whentohangup)
-				return (0);
-			else
-				return (-1);
-		}
-	}
+
+	if (!offset) /* XXX why is this special? */
+		return 1;
+
+	whentohangup = offset + time(NULL);
+
+	if (chan->whentohangup < whentohangup)
+		return 1;
+	else if (chan->whentohangup == whentohangup)
+		return 0;
+	else
+		return -1;
 }
 
 /*! \brief Register a new telephony channel in Asterisk */
