@@ -8,10 +8,7 @@ Dynamically adds queue members
 \begin{verbatim}
    AddQueueMember(queuename[|interface[|penalty[|options[|membername]]]]):
 Dynamically adds interface to an existing queue.
-If the interface is already in the queue and there exists an n+101 priority
-then it will then jump to this priority.  Otherwise it will return an error
-The option string may contain zero or more of the following characters:
-       'j' -- jump to +101 priority when appropriate.
+If the interface is already in the queue it will return an error.
   This application sets the following channel variable upon completion:
      AQMSTATUS    The status of the attempt to add a queue member as a 
                      text string, one of
@@ -67,13 +64,10 @@ with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent
 instead of Monitor application. That have to be configured in the agents.conf file.
 
 Return value:
-Normally the app returns 0 unless the options are passed. Also if the callerid or
-the agentid are not specified it'll look for n+101 priority.
+Normally the app returns 0 unless the options are passed.
 
 Options:
-	'd' - make the app return -1 if there is an error condition and there is
-	      no extension n+101
-	'c' - change the CDR so that the source of the call is 'Agent/agent_id'
+	'd' - make the app return -1 if there is an error condition	'c' - change the CDR so that the source of the call is 'Agent/agent_id'
 	'n' - don't generate the warnings when there is no callerid or the
 	      agentid is not known.
              It's handy if you want to have one context for agent and non-agent calls.
@@ -201,13 +195,10 @@ to enter a given password in order to continue dialplan execution. If the passwo
 begins with the '/' character, it is interpreted as a file which contains a list of
 valid passwords, listed 1 password per line in the file.
   When using a database key, the value associated with the key can be anything.
-Users have three attempts to authenticate before the channel is hung up. If the
-passsword is invalid, the 'j' option is specified, and priority n+101 exists,
-dialplan execution will continnue at this location.
+Users have three attempts to authenticate before the channel is hung up.
   Options:
      a - Set the channels' account code to the password that is entered
      d - Interpret the given path as database key, not a literal file
-     j - Support jumping to n+101 if authentication fails
      m - Interpret the given path as a file which contains a list of account
          codes and password hashes delimited with ':', listed one per line in
          the file. When one of the passwords is matched, the channel will have
@@ -335,7 +326,6 @@ available. The following variables will be set by this application:
     s - Consider the channel unavailable if the channel is in use at all
     t - Simply checks if specified channels exist in the channel list
         (implies option s) 
-    j - Support jumping to priority n+101 if no channel is available
 
 \end{verbatim}
 
@@ -461,10 +451,12 @@ Parameters:
   pause   - Pause playback when this DTMF digit is received.
   restart - Restart playback when this DTMF digit is received.
 Options:
-  j - Jump to priority n+101 if the requested file is not found.
-This application sets the following channel variable upon completion:
+  o(#) - Start at # ms from the beginning of the file.
+This application sets the following channel variables upon completion:
   CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text
                      string, one of: SUCCESS | USERSTOPPED | ERROR
+  CPLAYBACKOFFSET -  This contains the offset in ms into the file where
+                     playback was at when it stopped.  -1 is end of file.
 
 \end{verbatim}
 
@@ -609,7 +601,6 @@ however, the variable will be unset after use.
     H    - Allow the calling party to hang up by hitting the '*' DTMF digit.
     i    - Asterisk will ignore any forwarding requests it may receive on this
            dial attempt.
-    j    - Jump to priority n+101 if all of the requested channels were busy.
     L(x[:y][:z]) - Limit the call to 'x' ms. Play a warning when 'y' ms are
            left. Repeat the warning every 'z' ms. The following special
            variables can be used with this option:
@@ -631,9 +622,7 @@ however, the variable will be unset after use.
            finished executing.
            * ABORT        Hangup both legs of the call.
            * CONGESTION   Behave as if line congestion was encountered.
-           * BUSY         Behave as if a busy signal was encountered. This will also
-                          have the application jump to priority n+101 if the
-                          'j' option is set.
+           * BUSY         Behave as if a busy signal was encountered.
            * CONTINUE     Hangup the called party and allow the calling party
                           to continue dialplan execution at the next priority.
            * GOTO:<context>^<exten>^<priority> - Transfer the call to the
@@ -737,52 +726,45 @@ DISA (Direct Inward System Access)
 \end{verbatim}
 \subsection{Description}
 \begin{verbatim}
-DISA(<numeric passcode>[|<context>]) or DISA(<filename>)
+DISA(<numeric passcode>[|<context>[|<cid>[|mailbox[|options]]]]) or
+DISA(<filename>[||||options])
 The DISA, Direct Inward System Access, application allows someone from 
 outside the telephone switch (PBX) to obtain an "internal" system 
 dialtone and to place calls from it as if they were placing a call from 
 within the switch.
 DISA plays a dialtone. The user enters their numeric passcode, followed by
 the pound sign (#). If the passcode is correct, the user is then given
-system dialtone on which a call may be placed. Obviously, this type
-of access has SERIOUS security implications, and GREAT care must be
-taken NOT to compromise your security.
+system dialtone within <context> on which a call may be placed. If the user
+enters an invalid extension and extension "i" exists in the specified
+context, it will be used.
 
-There is a possibility of accessing DISA without password. Simply
-exchange your password with "no-password".
+If you need to present a DISA dialtone without entering a password, simply
+set <passcode> to "no-password".
 
-    Example: exten => s,1,DISA(no-password|local)
-
-Be aware that using this compromises the security of your PBX.
+Be aware that using this may compromise the security of your PBX.
 
 The arguments to this application (in extensions.conf) allow either
 specification of a single global passcode (that everyone uses), or
-individual passcodes contained in a file. It also allows specification
-of the context on which the user will be dialing. If no context is
-specified, the DISA application defaults the context to "disa".
-Presumably a normal system will have a special context set up
-for DISA use with some or a lot of restrictions. 
+individual passcodes contained in a file.
 
-The file that contains the passcodes (if used) allows specification
-of either just a passcode (defaulting to the "disa" context, or
-passcode|context on each line of the file. The file may contain blank
-lines, or comments starting with "#" or ";". In addition, the
-above arguments may have |new-callerid-string appended to them, to
-specify a new (different) callerid to be used for this call, for
-example: numeric-passcode|context|"My Phone" <(234) 123-4567> or 
-full-pathname-of-passcode-file|"My Phone" <(234) 123-4567>.  Last
-but not least, |mailbox[@context] may be appended, which will cause
-a stutter-dialtone (indication "dialrecall") to be used, if the
-specified mailbox contains any new messages, for example:
-numeric-passcode|context||1234 (w/a changing callerid).  Note that
-in the case of specifying the numeric-passcode, the context must be
-specified if the callerid is specified also.
+The file that contains the passcodes (if used) allows a complete
+specification of all of the same arguments available on the command
+line, with the sole exception of the options. The file may contain blank
+lines, or comments starting with "#" or ";".
 
-If login is successful, the application looks up the dialed number in
-the specified (or default) context, and executes it if found.
-If the user enters an invalid extension and extension "i" (invalid) 
-exists in the context, it will be used. Also, if you set the 5th argument
-to 'NOANSWER', the DISA application will not answer initially.
+<context> specifies the dialplan context in which the user-entered extension
+will be matched. If no context is specified, the DISA application defaults
+the context to "disa". Presumably a normal system will have a special
+context set up for DISA use with some or a lot of restrictions.
+
+<cid> specifies a new (different) callerid to be used for this call.
+
+<mailbox[@context]> will cause a stutter-dialtone (indication "dialrecall")
+to be used, if the specified mailbox contains any new messages.
+
+The following options are available:
+  n - the DISA application will not answer initially.
+  p - the extension entered will be considered complete when a '#' is entered.
 
 \end{verbatim}
 
@@ -1359,8 +1341,7 @@ will be used.
                         MailboxExists application. Possible values include:
                         SUCCESS | FAILED
 
-  Options:
-    j - Jump to priority n+101 if the mailbox is found.
+  Options: (none)
 
 \end{verbatim}
 
@@ -1451,6 +1432,22 @@ MeetMe conference Administration
       'U' -- Raise one user's listen volume
       'v' -- Lower entire conference listening volume
       'V' -- Raise entire conference listening volume
+
+\end{verbatim}
+
+
+\section{MeetMeChannelAdmin}
+\subsection{Synopsis}
+\begin{verbatim}
+MeetMe conference Administration (channel specific)
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+  MeetMeChannelAdmin(channel|command): Run admin command for a specific
+channel in any coference.
+      'k' -- Kick the specified user out of the conference he is in
+      'm' -- Unmute the specified user
+      'M' -- Mute the specified user
 
 \end{verbatim}
 
@@ -1768,6 +1765,19 @@ variables or functions without having any effect.
 \end{verbatim}
 
 
+\section{ODBCFinish}
+\subsection{Synopsis}
+\begin{verbatim}
+Clear the resultset of a successful multirow query
+\end{verbatim}
+\subsection{Description}
+\begin{verbatim}
+ODBCFinish(<result-id>)
+  Clears any remaining rows of the specified resultset
+
+\end{verbatim}
+
+
 \section{Page}
 \subsection{Synopsis}
 \begin{verbatim}
@@ -1877,13 +1887,7 @@ The given interface will be paused in the given queue.  This prevents
 any calls from being sent from the queue to the interface until it is
 unpaused with UnpauseQueueMember or the manager interface.  If no
 queuename is given, the interface is paused in every queue it is a
-member of.  If the interface is not in the named queue, or if no queue
-is given and the interface is not in any queue, it will jump to
-priority n+101, if it exists and the appropriate options are set.
-The application will fail if the interface is not found and no extension
-to jump to exists.
-The option string may contain zero or more of the following characters:
-       'j' -- jump to +101 priority when appropriate.
+member of. The application will fail if the interface is not found.
   This application sets the following channel variable upon completion:
      PQMSTATUS      The status of the attempt to pause a queue member as a
                      text string, one of
@@ -1922,9 +1926,7 @@ is not in the 'up' state (i.e. it hasn't been  answered  yet). If 'skip' is
 specified, the application will return immediately should the channel not be
 off hook.  Otherwise, unless 'noanswer' is specified, the channel will
 be answered before the sound is played. Not all channels support playing
-messages while still on hook. If 'j' is specified, the application
-will jump to priority n+101 if present when a file specified to be played
-does not exist.
+messages while still on hook.
 This application sets the following channel variable upon completion:
  PLAYBACKSTATUS    The status of the playback attempt as a text string, one of
                SUCCESS | FAILED
@@ -1968,9 +1970,6 @@ The application does nothing if Caller*ID was received on the channel.
 If you don't want to use the config file and have an i/o operation with
 every call, you can also specify maxretries and minlength as application
 parameters. Doing so supercedes any values set in privacy.conf.
-The option string may contain the following character: 
-  'j' -- jump to n+101 priority after <maxretries> failed attempts to collect
-         the minlength number of digits.
 The application sets the following channel variable upon completion: 
 PRIVACYMGRSTATUS  The status of the privacy manager's attempt to collect 
                   a phone number from the user. A text string that is either:
@@ -2004,6 +2003,7 @@ Queues an incoming call in a particular call queue as defined in queues.conf.
 This application will return to the dialplan if the queue does not exist, or
 any of the join options cause the caller to not enter the queue.
 The option string may contain zero or more of the following characters:
+      'c' -- continue in the dialplan if the callee hangs up.
       'd' -- data-quality (modem) call (minimum delay).
       'h' -- allow callee to hang up by pressing *.
       'H' -- allow caller to hang up by pressing *.
@@ -2028,7 +2028,7 @@ calling party's channel once they are connected to a queue member.
 seconds, checked between each queues.conf 'timeout' and 'retry' cycle.
   This application sets the following channel variable upon completion:
       QUEUESTATUS    The status of the call as a text string, one of
-             TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL
+             TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL | CONTINUE
 
 \end{verbatim}
 
@@ -2139,10 +2139,7 @@ Dynamically removes queue members
 \begin{verbatim}
    RemoveQueueMember(queuename[|interface[|options]]):
 Dynamically removes interface to an existing queue
-If the interface is NOT in the queue and there exists an n+101 priority
-then it will then jump to this priority.  Otherwise it will return an error
-The option string may contain zero or more of the following characters:
-       'j' -- jump to +101 priority when appropriate.
+If the interface is NOT in the queue it will return an error.
   This application sets the following channel variable upon completion:
      RQMSTATUS      The status of the attempt to remove a queue member as a
                      text string, one of
@@ -2318,8 +2315,6 @@ Send an image file
 If the channel supports image transport but the image send
 fails, the channel will be hung up. Otherwise, the dialplan
 continues execution.
-The option string may contain the following character:
-	'j' -- jump to priority n+101 if the channel doesn't support image transport
 This application sets the following channel variable upon completion:
 	SENDIMAGESTATUS		The status is the result of the attempt as a text string, one of
 		OK | NOSUPPORT 
@@ -2342,9 +2337,6 @@ channel variable:
       UNSUPPORTED  Text transmission not supported by channel
 
 At this moment, text is supposed to be 7 bit ASCII in most channels.
-The option string many contain the following character:
-'j' -- jump to n+101 priority if the channel doesn't support
-       text transport
 
 \end{verbatim}
 
@@ -2366,10 +2358,6 @@ Result is returned in the SENDURLSTATUS channel variable:
 
 If the option 'wait' is specified, execution will wait for an
 acknowledgement that the URL has been loaded before continuing
-
-If jumping is specified as an option (the 'j' flag), the client does not
-support Asterisk "html" transport, and there exists a step with priority
-n + 101, then execution will continue at that step.
 
 SendURL continues normally if the URL was sent correctly or if the channel
 does not support HTML transport.  Otherwise, the channel is hung up.
@@ -2770,13 +2758,6 @@ Result of execution is returned in the SYSTEMSTATUS channel variable:
    FAILURE	Could not execute the specified command
    SUCCESS	Specified command successfully executed
 
-Old behaviour:
-If the command itself executes but is in error, and if there exists
-a priority n + 101, where 'n' is the priority of the current instance,
-then  the  channel  will  be  setup to continue at that priority level.
-Note that this jump functionality has been deprecated and will only occur
-if the global priority jumping option is enabled in extensions.conf.
-
 \end{verbatim}
 
 
@@ -2822,9 +2803,6 @@ channel variable:
        SUCCESS      Transfer succeeded
        FAILURE      Transfer failed
        UNSUPPORTED  Transfer unsupported by channel driver
-The option string many contain the following character:
-'j' -- jump to n+101 priority if the channel transfer attempt
-       fails
 
 \end{verbatim}
 
@@ -2862,12 +2840,6 @@ Result of execution is returned in the SYSTEMSTATUS channel variable:
    SUCCESS	Specified command successfully executed
    APPERROR	Specified command successfully executed, but returned error code
 
-Old behaviour:
-If  the command itself executes but is in error, and if
-there exists a priority n + 101, where 'n' is the priority of the current
-instance, then  the  channel  will  be  setup  to continue at that
-priority level.  Otherwise, System will terminate.
-
 \end{verbatim}
 
 
@@ -2896,8 +2868,6 @@ Unpauses a queue member
 Unpauses (resumes calls to) a queue member.
 This is the counterpart to PauseQueueMember and operates exactly the
 same way, except it unpauses instead of pausing the given interface.
-The option string may contain zero or more of the following characters:
-       'j' -- jump to +101 priority when appropriate.
   This application sets the following channel variable upon completion:
      UPQMSTATUS       The status of the attempt to unpause a queue 
                       member as a text string, one of
@@ -2988,8 +2958,6 @@ received:
     s    - Skip the playback of instructions for leaving a message to the
            calling party.
     u    - Play the 'unavailable greeting.
-    j    - Jump to priority n+101 if the mailbox is not found or some other
-           error occurs.
 
 \end{verbatim}
 
