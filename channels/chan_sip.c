@@ -7494,7 +7494,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	}
 	/* This new INVITE is part of an attended transfer. Make sure that the
 	other end knows and replace the current call with this new call */
-	if (p->options && p->options->replaces && !ast_strlen_zero(p->options->replaces)) {
+	if (p->options && !ast_strlen_zero(p->options->replaces)) {
 		add_header(&req, "Replaces", p->options->replaces);
 		add_header(&req, "Require", "replaces");
 	}
@@ -15025,7 +15025,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			pbx_builtin_setvar_helper(current.chan2, "_SIPTRANSFER_REFERER", p->refer->referred_by);
 	}
 	/* Generate a Replaces string to be used in the INVITE during attended transfer */
-	if (p->refer->replaces_callid && !ast_strlen_zero(p->refer->replaces_callid)) {
+	if (!ast_strlen_zero(p->refer->replaces_callid)) {
 		char tempheader[BUFSIZ];
 		snprintf(tempheader, sizeof(tempheader), "%s%s%s%s%s", p->refer->replaces_callid, 
 				p->refer->replaces_callid_totag ? ";to-tag=" : "", 

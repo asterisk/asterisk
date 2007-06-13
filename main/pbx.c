@@ -3746,7 +3746,7 @@ static int manager_show_dialplan(struct mansession *s, const struct message *m)
 	/* Variables used for different counters */
 	struct dialplan_counters counters;
 
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
 	else
 		idtext[0] = '\0';
