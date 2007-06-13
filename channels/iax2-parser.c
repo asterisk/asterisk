@@ -451,7 +451,8 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"TRANSFR",
 		"PROVISN",
 		"FWDWNLD",
-		"FWDATA "
+		"FWDATA ",
+		"TXMEDIA"
 	};
 	const char *cmds[] = {
 		"(0?)",
