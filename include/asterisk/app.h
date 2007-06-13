@@ -236,8 +236,11 @@ int ast_app_group_discard(struct ast_channel *chan);
 /*! Update all group counting for a channel to a new one */
 int ast_app_group_update(struct ast_channel *oldchan, struct ast_channel *newchan);
 
-/*! Lock the group count list */
-int ast_app_group_list_lock(void);
+/*! Write Lock the group count list */
+int ast_app_group_list_wrlock(void);
+
+/*! Read Lock the group count list */
+int ast_app_group_list_rdlock(void);
 
 /*! Get the head of the group count list */
 struct ast_group_info *ast_app_group_list_head(void);

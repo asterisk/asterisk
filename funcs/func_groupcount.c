@@ -100,7 +100,7 @@ static int group_function_read(struct ast_channel *chan, const char *cmd,
 {
 	struct ast_group_info *gi = NULL;
 	
-	ast_app_group_list_lock();
+	ast_app_group_list_rdlock();
 	
 	gi = ast_app_group_list_head();
 	while (gi) {
@@ -158,7 +158,7 @@ static int group_list_function_read(struct ast_channel *chan, const char *cmd,
 	if (!chan)
 		return -1;
 
-	ast_app_group_list_lock();
+	ast_app_group_list_rdlock();
 
 	gi = ast_app_group_list_head();
 	while (gi) {

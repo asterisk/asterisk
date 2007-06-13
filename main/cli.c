@@ -923,7 +923,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 
 	ast_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
 
-	ast_app_group_list_lock();
+	ast_app_group_list_rdlock();
 	
 	gi = ast_app_group_list_head();
 	while (gi) {

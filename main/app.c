@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_OTHER_FORMATS 10
 
-static AST_LIST_HEAD_STATIC(groups, ast_group_info);
+static AST_RWLIST_HEAD_STATIC(groups, ast_group_info);
 
 /*!
  * \brief This function presents a dialtone and reads an extension into 'collect' 
@@ -874,15 +874,15 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 	if (!ast_strlen_zero(category))
 		len += strlen(category) + 1;
 	
-	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
+	AST_RWLIST_WRLOCK(&groups);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
 		if ((gi->chan == chan) && ((ast_strlen_zero(category) && ast_strlen_zero(gi->category)) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
-			AST_LIST_REMOVE_CURRENT(&groups, list);
+			AST_RWLIST_REMOVE_CURRENT(&groups, list);
 			free(gi);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END
 
 	if ((gi = calloc(1, len))) {
 		gi->chan = chan;
@@ -892,12 +892,12 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 			gi->category = (char *) gi + sizeof(*gi) + strlen(group) + 1;
 			strcpy(gi->category, category);
 		}
-		AST_LIST_INSERT_TAIL(&groups, gi, list);
+		AST_RWLIST_INSERT_TAIL(&groups, gi, list);
 	} else {
 		res = -1;
 	}
 	
-	AST_LIST_UNLOCK(&groups);
+	AST_RWLIST_UNLOCK(&groups);
 	
 	return res;
 }
@@ -910,12 +910,12 @@ int ast_app_group_get_count(const char *group, const char *category)
 	if (ast_strlen_zero(group))
 		return 0;
 	
-	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE(&groups, gi, list) {
+	AST_RWLIST_RDLOCK(&groups);
+	AST_RWLIST_TRAVERSE(&groups, gi, list) {
 		if (!strcasecmp(gi->group, group) && (ast_strlen_zero(category) || !strcasecmp(gi->category, category)))
 			count++;
 	}
-	AST_LIST_UNLOCK(&groups);
+	AST_RWLIST_UNLOCK(&groups);
 
 	return count;
 }
@@ -933,12 +933,12 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE(&groups, gi, list) {
+	AST_RWLIST_RDLOCK(&groups);
+	AST_RWLIST_TRAVERSE(&groups, gi, list) {
 		if (!regexec(&regexbuf, gi->group, 0, NULL, 0) && (ast_strlen_zero(category) || !strcasecmp(gi->category, category)))
 			count++;
 	}
-	AST_LIST_UNLOCK(&groups);
+	AST_RWLIST_UNLOCK(&groups);
 
 	regfree(&regexbuf);
 
@@ -949,12 +949,12 @@ int ast_app_group_update(struct ast_channel *old, struct ast_channel *new)
 {
 	struct ast_group_info *gi = NULL;
 
-	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE(&groups, gi, list) {
+	AST_RWLIST_WRLOCK(&groups);
+	AST_RWLIST_TRAVERSE(&groups, gi, list) {
 		if (gi->chan == old)
 			gi->chan = new;
 	}
-	AST_LIST_UNLOCK(&groups);
+	AST_RWLIST_UNLOCK(&groups);
 
 	return 0;
 }
@@ -963,32 +963,37 @@ int ast_app_group_discard(struct ast_channel *chan)
 {
 	struct ast_group_info *gi = NULL;
 	
-	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
+	AST_RWLIST_WRLOCK(&groups);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
 		if (gi->chan == chan) {
-			AST_LIST_REMOVE_CURRENT(&groups, list);
+			AST_RWLIST_REMOVE_CURRENT(&groups, list);
 			ast_free(gi);
 		}
 	}
-        AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&groups);
+        AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&groups);
 	
 	return 0;
 }
 
-int ast_app_group_list_lock(void)
+int ast_app_group_list_wrlock(void)
 {
-	return AST_LIST_LOCK(&groups);
+	return AST_RWLIST_WRLOCK(&groups);
+}
+
+int ast_app_group_list_rdlock(void)
+{
+	return AST_RWLIST_RDLOCK(&groups);
 }
 
 struct ast_group_info *ast_app_group_list_head(void)
 {
-	return AST_LIST_FIRST(&groups);
+	return AST_RWLIST_FIRST(&groups);
 }
 
 int ast_app_group_list_unlock(void)
 {
-	return AST_LIST_UNLOCK(&groups);
+	return AST_RWLIST_UNLOCK(&groups);
 }
 
 unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)
