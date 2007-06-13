@@ -2103,16 +2103,11 @@ static int retrans_pkt(void *data)
 			usleep(1);
 			sip_pvt_lock(pkt->owner);
 		}
+
 		if (pkt->owner->owner && !pkt->owner->owner->hangupcause) 
 			pkt->owner->owner->hangupcause = AST_CAUSE_NO_USER_RESPONSE;
-		if (pkt->method == SIP_BYE) {
-			/* Ok, we're not getting answers on SIP BYE's. Who cares?
-		           let's take the call down anyway. */
-			if (pkt->owner->owner) 
-				ast_channel_unlock(pkt->owner->owner);
-			append_history(pkt->owner, "ByeFailure", "Remote peer doesn't respond to bye. Destroying call anyway.");
-			ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);	
-		} else if (pkt->owner->owner) {
+		
+		if (pkt->owner->owner) {
 			sip_alreadygone(pkt->owner);
 			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
 			ast_queue_hangup(pkt->owner->owner);
@@ -2129,6 +2124,15 @@ static int retrans_pkt(void *data)
 			}
 		}
 	}
+
+	if (pkt->method == SIP_BYE) {
+		/* We're not getting answers on SIP BYE's.  Tear down the call anyway. */
+		if (pkt->owner->owner) 
+			ast_channel_unlock(pkt->owner->owner);
+		append_history(pkt->owner, "ByeFailure", "Remote peer doesn't respond to bye. Destroying call anyway.");
+		ast_set_flag(&pkt->owner->flags[0], SIP_NEEDDESTROY);
+	}
+
 	/* Remove the packet */
 	for (prev = NULL, cur = pkt->owner->packets; cur; prev = cur, cur = cur->next) {
 		if (cur == pkt) {
