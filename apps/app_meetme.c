@@ -2136,12 +2136,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					default:
 						break;
 					}
+				} else if (f->frametype == AST_FRAME_NULL) {
+					/* Ignore NULL frames. It is perfectly normal to get these if the person is muted. */
 				} else if (option_debug) {
 					ast_log(LOG_DEBUG,
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
 						chan->name, f->frametype, f->subclass);
 				}
 				ast_frfree(f);
+				if (ast_check_hangup(chan))
+					break;
 			} else if (outfd > -1) {
 				res = read(outfd, buf, CONF_SIZE);
 				if (res > 0) {
