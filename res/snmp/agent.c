@@ -138,83 +138,81 @@ static oid asterisk_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 #define			ASTCHANTYPETRANSFER		6
 #define			ASTCHANTYPECHANNELS		7
 
-#define			ASTCHANBRIDGECOUNT      5
+#define			ASTCHANBRIDGECOUNT	  5
 
 void *agent_thread(void *arg)
 {
-    ast_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
+	ast_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
 
-    snmp_enable_stderrlog();
+	snmp_enable_stderrlog();
 
-    if (res_snmp_agentx_subagent)
+	if (res_snmp_agentx_subagent)
 		netsnmp_ds_set_boolean(NETSNMP_DS_APPLICATION_ID,
 							   NETSNMP_DS_AGENT_ROLE,
 							   1);
 
-    init_agent("asterisk");
+	init_agent("asterisk");
 
-    init_asterisk_mib();
+	init_asterisk_mib();
 
-    init_snmp("asterisk");
+	init_snmp("asterisk");
 
-    if (!res_snmp_agentx_subagent)
+	if (!res_snmp_agentx_subagent)
 		init_master_agent();
 
-    while (res_snmp_dont_stop)
+	while (res_snmp_dont_stop)
 		agent_check_and_process(1);
 
-    snmp_shutdown("asterisk");
+	snmp_shutdown("asterisk");
 
-    ast_verbose(VERBOSE_PREFIX_2 "Terminating %sAgent\n",
+	ast_verbose(VERBOSE_PREFIX_2 "Terminating %sAgent\n",
 				res_snmp_agentx_subagent ? "Sub" : "");
 
-    return NULL;
+	return NULL;
 }
 
 static u_char *
 ast_var_channels(struct variable *vp, oid *name, size_t *length,
 				 int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
+	static unsigned long long_ret;
 
-    if (header_generic(vp, name, length, exact, var_len, write_method))
+	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
-    switch (vp->magic) {
-	case ASTCHANCOUNT:
-		long_ret = ast_active_channels();
-		return (u_char *)&long_ret;
-	default:
-		break;
-    }
-    return NULL;
+	if (vp->magic != ASTCHANCOUNT)
+		return NULL;
+
+	long_ret = ast_active_channels();
+
+	return (u_char *)&long_ret;
 }
 
 static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *length,
 									int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
-    static u_char bits_ret[2];
-    static char string_ret[256];
-    struct ast_channel *chan, *bridge;
-    struct timeval tval;
-    u_char *ret;
-    int i, bit;
+	static unsigned long long_ret;
+	static u_char bits_ret[2];
+	static char string_ret[256];
+	struct ast_channel *chan, *bridge;
+	struct timeval tval;
+	u_char *ret = NULL;
+	int i, bit;
 	struct ast_str *out = ast_str_alloca(2048);
 
-    if (header_simple_table(vp, name, length, exact, var_len, write_method, ast_active_channels()))
+	if (header_simple_table(vp, name, length, exact, var_len, write_method, ast_active_channels()))
 		return NULL;
 
-    i = name[*length - 1] - 1;
-    for (chan = ast_channel_walk_locked(NULL);
+	i = name[*length - 1] - 1;
+	for (chan = ast_channel_walk_locked(NULL);
 		 chan && i;
 		 chan = ast_channel_walk_locked(chan), i--)
 		ast_channel_unlock(chan);
-    if (chan == NULL)
+	if (chan == NULL)
 		return NULL;
 	*var_len = sizeof(long_ret);
 
-    switch (vp->magic) {
+	switch (vp->magic) {
 	case ASTCHANINDEX:
 		long_ret = name[*length - 1];
 		ret = (u_char *)&long_ret;
@@ -226,8 +224,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANLANGUAGE:
 		if (!ast_strlen_zero(chan->language)) {
@@ -236,8 +232,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANTYPE:
 		strncpy(string_ret, chan->tech->type, sizeof(string_ret));
@@ -252,8 +246,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANBRIDGE:
 		if ((bridge = ast_bridged_channel(chan)) != NULL) {
@@ -262,8 +254,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANMASQ:
 		if (chan->masq && !ast_strlen_zero(chan->masq->name)) {
@@ -272,8 +262,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANMASQR:
 		if (chan->masqr && !ast_strlen_zero(chan->masqr->name)) {
@@ -282,8 +270,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANWHENHANGUP:
 		if (chan->whentohangup) {
@@ -291,8 +277,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			long_ret = difftime(chan->whentohangup, tval.tv_sec) * 100 - tval.tv_usec / 10000;
 			ret= (u_char *)&long_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANAPP:
 		if (chan->appl) {
@@ -301,8 +285,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANDATA:
 		if (chan->data) {
@@ -311,8 +293,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANCONTEXT:
 		strncpy(string_ret, chan->context, sizeof(string_ret));
@@ -353,8 +333,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANFORWARDTO:
 		if (!ast_strlen_zero(chan->call_forward)) {
@@ -363,8 +341,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANUNIQUEID:
 		strncpy(string_ret, chan->uniqueid, sizeof(string_ret));
@@ -399,8 +375,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANCIDNUM:
 		if (chan->cid.cid_num) {
@@ -409,8 +383,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANCIDNAME:
 		if (chan->cid.cid_name) {
@@ -419,8 +391,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANCIDANI:
 		if (chan->cid.cid_ani) {
@@ -429,8 +399,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANCIDRDNIS:
 		if (chan->cid.cid_rdnis) {
@@ -439,8 +407,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANCIDPRES:
 		long_ret = chan->cid.cid_pres;
@@ -473,8 +439,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(string_ret);
 			ret = (u_char *)string_ret;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANHANGUPCAUSE:
 		long_ret = chan->hangupcause;
@@ -485,8 +449,6 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 			*var_len = strlen(out->str);
 			ret = (u_char *)out->str;
 		}
-		else
-			ret = NULL;
 		break;
 	case ASTCHANFLAGS:
 		bits_ret[0] = 0;
@@ -501,36 +463,30 @@ static u_char *ast_var_channels_table(struct variable *vp, oid *name, size_t *le
 	case ASTCHANTRANSFERCAP:
 		long_ret = chan->transfercapability;
 		ret = (u_char *)&long_ret;
-		break;
 	default:
-		ret = NULL;
 		break;
-    }
-    ast_channel_unlock(chan);
-    return ret;
+	}
+	ast_channel_unlock(chan);
+	return ret;
 }
 
 static u_char *ast_var_channel_types(struct variable *vp, oid *name, size_t *length,
 								   int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
+	static unsigned long long_ret;
 	struct ast_variable *channel_types, *next;
 
-    if (header_generic(vp, name, length, exact, var_len, write_method))
+	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
-    switch (vp->magic) {
-	case ASTCHANTYPECOUNT:
-		long_ret = 0;
-		for (channel_types = next = ast_channeltype_list(); next; next = next->next) {
-			long_ret++;
-		}
-		ast_variables_destroy(channel_types);
-		return (u_char *)&long_ret;
-	default:
-		break;
-    }
-    return NULL;
+	if (vp->magic != ASTCHANTYPECOUNT)
+		return NULL;
+
+	for (long_ret = 0, channel_types = next = ast_channeltype_list(); next; next = next->next)
+		long_ret++;
+	ast_variables_destroy(channel_types);
+
+	return (u_char *)&long_ret;
 }
 
 static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_t *length,
@@ -538,11 +494,11 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 {
 	const struct ast_channel_tech *tech = NULL;
 	struct ast_variable *channel_types, *next;
-    static unsigned long long_ret;
-    struct ast_channel *chan;
-    u_long i;
+	static unsigned long long_ret;
+	struct ast_channel *chan;
+	u_long i;
 
-    if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
+	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
 		return NULL;
 
 	channel_types = ast_channeltype_list();
@@ -551,10 +507,10 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 	if (next != NULL)
 		tech = ast_get_channel_tech(next->name);
 	ast_variables_destroy(channel_types);
-    if (next == NULL || tech == NULL)
+	if (next == NULL || tech == NULL)
 		return NULL;
-    
-    switch (vp->magic) {
+	
+	switch (vp->magic) {
 	case ASTCHANTYPEINDEX:
 		long_ret = name[*length - 1];
 		return (u_char *)&long_ret;
@@ -583,8 +539,8 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 		return (u_char *)&long_ret;
 	default:
 		break;
-    }
-    return NULL;
+	}
+	return NULL;
 }
 
 static u_char *ast_var_channel_bridge(struct variable *vp, oid *name, size_t *length,
@@ -610,13 +566,13 @@ static u_char *ast_var_channel_bridge(struct variable *vp, oid *name, size_t *le
 static u_char *ast_var_Config(struct variable *vp, oid *name, size_t *length,
 							 int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
-    struct timeval tval;
+	static unsigned long long_ret;
+	struct timeval tval;
 
-    if (header_generic(vp, name, length, exact, var_len, write_method))
+	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
-    switch (vp->magic) {
+	switch (vp->magic) {
 	case ASTCONFUPTIME:
 		gettimeofday(&tval, NULL);
 		long_ret = difftime(tval.tv_sec, ast_startuptime) * 100 + tval.tv_usec / 10000;
@@ -636,20 +592,20 @@ static u_char *ast_var_Config(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)ast_config_AST_SOCKET;
 	default:
 		break;
-    }
-    return NULL;
+	}
+	return NULL;
 }
 
 static u_char *ast_var_indications(struct variable *vp, oid *name, size_t *length,
 								  int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
-    struct ind_tone_zone *tz = NULL;
+	static unsigned long long_ret;
+	struct ind_tone_zone *tz = NULL;
 
-    if (header_generic(vp, name, length, exact, var_len, write_method))
+	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
-    switch (vp->magic) {
+	switch (vp->magic) {
 	case ASTINDCOUNT:
 		long_ret = 0;
 		while ( (tz = ast_walk_indications(tz)) )
@@ -666,27 +622,27 @@ static u_char *ast_var_indications(struct variable *vp, oid *name, size_t *lengt
 		return NULL;
 	default:
 		break;
-    }
-    return NULL;
+	}
+	return NULL;
 }
 
 static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t *length,
 									   int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
-    struct ind_tone_zone *tz = NULL;
-    int i;
+	static unsigned long long_ret;
+	struct ind_tone_zone *tz = NULL;
+	int i;
 
-    if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
+	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
 		return NULL;
 
-    i = name[*length - 1] - 1;
-    while ( (tz = ast_walk_indications(tz)) && i )
+	i = name[*length - 1] - 1;
+	while ( (tz = ast_walk_indications(tz)) && i )
 	i--;
-    if (tz == NULL)
+	if (tz == NULL)
 		return NULL;
 
-    switch (vp->magic) {
+	switch (vp->magic) {
 	case ASTINDINDEX:
 		long_ret = name[*length - 1];
 		return (u_char *)&long_ret;
@@ -704,42 +660,40 @@ static u_char *ast_var_indications_table(struct variable *vp, oid *name, size_t 
 		return (u_char *)tz->description;
 	default:
 		break;
-    }
-    return NULL;
+	}
+	return NULL;
 }
 
 static int countmodule(const char *mod, const char *desc, int use, const char *like)
 {
-    return 1;
+	return 1;
 }
 
 static u_char *ast_var_Modules(struct variable *vp, oid *name, size_t *length,
 							  int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
+	static unsigned long long_ret;
 
-    if (header_generic(vp, name, length, exact, var_len, write_method))
+	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
-    switch (vp->magic) {
-	case ASTMODCOUNT:
-		long_ret = ast_update_module_list(countmodule, NULL);
-		return (u_char *)&long_ret;
-	default:
-		break;
-    }
-    return NULL;
+	if (vp->magic != ASTMODCOUNT)
+		return NULL;
+
+	long_ret = ast_update_module_list(countmodule, NULL);
+
+	return (u_char *)&long_ret;
 }
 
 static u_char *ast_var_Version(struct variable *vp, oid *name, size_t *length,
 							  int exact, size_t *var_len, WriteMethod **write_method)
 {
-    static unsigned long long_ret;
+	static unsigned long long_ret;
 
-    if (header_generic(vp, name, length, exact, var_len, write_method))
+	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
-    switch (vp->magic) {
+	switch (vp->magic) {
 	case ASTVERSTRING:
 		*var_len = strlen(ASTERISK_VERSION);
 		return (u_char *)ASTERISK_VERSION;
@@ -748,19 +702,19 @@ static u_char *ast_var_Version(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	default:
 		break;
-    }
-    return NULL;
+	}
+	return NULL;
 }
 
 static int term_asterisk_mib(int majorID, int minorID, void *serverarg, void *clientarg)
 {
-    unregister_sysORTable(asterisk_oid, OID_LENGTH(asterisk_oid));
-    return 0;
+	unregister_sysORTable(asterisk_oid, OID_LENGTH(asterisk_oid));
+	return 0;
 }
 
 static void init_asterisk_mib(void)
 {
-    static struct variable4 asterisk_vars[] = {
+	static struct variable4 asterisk_vars[] = {
 		{ASTVERSTRING,           ASN_OCTET_STR, RONLY, ast_var_Version,             2, {ASTVERSION, ASTVERSTRING}},
 		{ASTVERTAG,              ASN_UNSIGNED,  RONLY, ast_var_Version,             2, {ASTVERSION, ASTVERTAG}},
 		{ASTCONFUPTIME,          ASN_TIMETICKS, RONLY, ast_var_Config,              2, {ASTCONFIGURATION, ASTCONFUPTIME}},
@@ -825,14 +779,14 @@ static void init_asterisk_mib(void)
 		{ASTCHANTYPETRANSFER,    ASN_INTEGER,   RONLY, ast_var_channel_types_table, 4, {ASTCHANNELS, ASTCHANTYPETABLE, 1, ASTCHANTYPETRANSFER}},
 		{ASTCHANTYPECHANNELS,    ASN_GAUGE,     RONLY, ast_var_channel_types_table, 4, {ASTCHANNELS, ASTCHANTYPETABLE, 1, ASTCHANTYPECHANNELS}},
 		{ASTCHANBRIDGECOUNT,     ASN_GAUGE,     RONLY, ast_var_channel_bridge,      2, {ASTCHANNELS, ASTCHANBRIDGECOUNT}},
-    };
+	};
 
-    register_sysORTable(asterisk_oid, OID_LENGTH(asterisk_oid),
+	register_sysORTable(asterisk_oid, OID_LENGTH(asterisk_oid),
 			"ASTERISK-MIB implementation for Asterisk.");
 
-    REGISTER_MIB("res_snmp", asterisk_vars, variable4, asterisk_oid);
+	REGISTER_MIB("res_snmp", asterisk_vars, variable4, asterisk_oid);
 
-    snmp_register_callback(SNMP_CALLBACK_LIBRARY,
+	snmp_register_callback(SNMP_CALLBACK_LIBRARY,
 			   SNMP_CALLBACK_SHUTDOWN,
 			   term_asterisk_mib, NULL);
 }
