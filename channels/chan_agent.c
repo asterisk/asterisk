@@ -1254,26 +1254,6 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	return res;
 }
 
-/* return 1 if multiple login is fine, 0 if it is not and we find a match, -1 if multiplelogin is not allowed and we don't find a match. */
-static int allow_multiple_login(char *chan, char *context)
-{
-	struct agent_pvt *p;
-	char loginchan[80];
-
-	if(multiplelogin)
-		return 1;
-	if(!chan) 
-		return 0;
-
-	snprintf(loginchan, sizeof(loginchan), "%s@%s", chan, S_OR(context, "default"));
-	
-	AST_LIST_TRAVERSE(&agents, p, list) {
-		if(!strcasecmp(chan, p->loginchan))
-			return 0;
-	}
-	return -1;
-}
-
 /*! \brief Part of the Asterisk PBX interface */
 static struct ast_channel *agent_request(const char *type, int format, void *data, int *cause)
 {
@@ -1743,13 +1723,16 @@ static struct ast_cli_entry cli_agents[] = {
 };
 
 /*!
+ * Called by the AgentLogin application (from the dial plan).
+ * 
  * \brief Log in agent application.
  *
  * \param chan
  * \param data
- * \param callbackmode non-zero for AgentCallbackLogin
+ * \returns
+ * \sa agentmonitoroutgoing_exec(), load_module().
  */
-static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
+static int login_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	int tries = 0;
@@ -1769,12 +1752,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			     AST_APP_ARG(extension);
 		);
 	const char *tmpoptions = NULL;
-	char *context = NULL;
 	int play_announcement = 1;
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
 	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
-	char tmpchan[AST_MAX_BUF] = "";
 
 	u = ast_module_user_add(chan);
 
@@ -1810,12 +1791,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	}
 	/* End Channel Specific Login Overrides */
 	
-	if (callbackmode && args.extension) {
-		parse = args.extension;
-		args.extension = strsep(&parse, "@");
-		context = parse;
-	}
-
 	if (!ast_strlen_zero(args.options)) {
 		if (strchr(args.options, 's')) {
 			play_announcement = 0;
@@ -1893,77 +1868,13 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 				}
 				/* End Channel Specific Agent Overrides */
 				if (!p->chan) {
-					char last_loginchan[80] = "";
 					long logintime;
 					snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 
-					if (callbackmode) {
-						int pos = 0;
-						/* Retrieve login chan */
-						for (;;) {
-							if (!ast_strlen_zero(args.extension)) {
-								ast_copy_string(tmpchan, args.extension, sizeof(tmpchan));
-								res = 0;
-							} else
-								res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
-							if (ast_strlen_zero(tmpchan) )
-								break;
-							if(ast_exists_extension(chan, S_OR(context,"default"), tmpchan,1, NULL) ) {
-								if(!allow_multiple_login(tmpchan,context) ) {
-									args.extension = NULL;
-									pos = 0;
-								} else
-									break;
-							}
-							if (args.extension) {
-								ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", args.extension, p->agent);
-								args.extension = NULL;
-								pos = 0;
-							} else {
-								ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, S_OR(context, "default"), p->agent);
-								res = ast_streamfile(chan, "invalid", chan->language);
-								if (!res)
-									res = ast_waitstream(chan, AST_DIGIT_ANY);
-								if (res > 0) {
-									tmpchan[0] = res;
-									tmpchan[1] = '\0';
-									pos = 1;
-								} else {
-									tmpchan[0] = '\0';
-									pos = 0;
-								}
-							}
-						}
-						args.extension = tmpchan;
-						if (!res) {
-							set_agentbycallerid(p->logincallerid, NULL);
-							if (!ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
-								snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
-							else {
-								ast_copy_string(last_loginchan, p->loginchan, sizeof(last_loginchan));
-								ast_copy_string(p->loginchan, tmpchan, sizeof(p->loginchan));
-							}
-							p->acknowledged = 0;
-							if (ast_strlen_zero(p->loginchan)) {
-								login_state = 2;
-								filename = "agent-loggedoff";
-							} else {
-								if (chan->cid.cid_num) {
-									ast_copy_string(p->logincallerid, chan->cid.cid_num, sizeof(p->logincallerid));
-									set_agentbycallerid(p->logincallerid, p->agent);
-								} else
-									p->logincallerid[0] = '\0';
-							}
-
-							if(update_cdr && chan->cdr)
-								snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
-
-						}
-					} else {
-						p->loginchan[0] = '\0';
-						p->logincallerid[0] = '\0';
-						p->acknowledged = 0;
-					}
+					p->loginchan[0] = '\0';
+					p->logincallerid[0] = '\0';
+					p->acknowledged = 0;
+					
 					ast_mutex_unlock(&p->lock);
 					AST_LIST_UNLOCK(&agents);
 					if( !res && play_announcement==1 )
@@ -1985,35 +1896,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					/* Check once more just in case */
 					if (p->chan)
 						res = -1;
-					if (callbackmode && !res) {
-						/* Just say goodbye and be done with it */
-						if (!ast_strlen_zero(p->loginchan)) {
-							if (p->loginstart == 0)
-								time(&p->loginstart);
-							manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
-								      "Agent: %s\r\n"
-								      "Loginchan: %s\r\n"
-								      "Uniqueid: %s\r\n",
-								      p->agent, p->loginchan, chan->uniqueid);
-							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
-							if (option_verbose > 1)
-								ast_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
-							ast_device_state_changed("Agent/%s", p->agent);
-							if (persistent_agents)
-								dump_agents();
-						} else {
-							logintime = time(NULL) - p->loginstart;
-							p->loginstart = 0;
-
-							agent_logoff_maintenance(p, last_loginchan, logintime, chan->uniqueid, NULL);
-							if (option_verbose > 1)
-								ast_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged out\n", p->agent);
-						}
-						AST_LIST_UNLOCK(&agents);
-						if (!res)
-							res = ast_safe_sleep(chan, 500);
-						ast_mutex_unlock(&p->lock);
-					} else if (!res) {
+					if (!res) {
 						ast_indicate_data(chan, AST_CONTROL_HOLD, 
 							S_OR(p->moh, NULL), 
 							!ast_strlen_zero(p->moh) ? strlen(p->moh) + 1 : 0);
@@ -2134,55 +2017,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	if (!res)
 		res = ast_safe_sleep(chan, 500);
 
-	/* AgentLogin() exit */
-	if (!callbackmode) {
-		ast_module_user_remove(u);
-		return -1;
-	} else { /* AgentCallbackLogin() exit*/
-		/* Set variables */
-		if (login_state > 0) {
-			pbx_builtin_setvar_helper(chan, "AGENTNUMBER", user);
-			if (login_state==1) {
-				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "on");
-				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", args.extension);
-			} else 
-				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "off");
-		} else {
-			pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "fail");
-		}
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
-			ast_module_user_remove(u);
-			return 0;
-		}
-		/* Do we need to play agent-goodbye now that we will be hanging up? */
-		if (play_announcement) {
-			if (!res)
-				res = ast_safe_sleep(chan, 1000);
-			res = ast_streamfile(chan, agent_goodbye, chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
-			if (!res)
-				res = ast_safe_sleep(chan, 1000);
-		}
-	}
-
 	ast_module_user_remove(u);
 	
-	/* We should never get here if next priority exists when in callbackmode */
  	return -1;
-}
-
-/*!
- * Called by the AgentLogin application (from the dial plan).
- * 
- * \param chan
- * \param data
- * \returns
- * \sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
- */
-static int login_exec(struct ast_channel *chan, void *data)
-{
-	return __login_exec(chan, data, 0);
 }
 
 /*!
@@ -2191,7 +2028,7 @@ static int login_exec(struct ast_channel *chan, void *data)
  * \param chan
  * \param data
  * \returns
- * \sa login_exec(), callback_login_exec(), load_module().
+ * \sa login_exec(), load_module().
  */
 static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 {
