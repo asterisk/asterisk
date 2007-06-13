@@ -2419,7 +2419,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, enum xmittyp
 		append_history(p, reliable ? "TxReqRel" : "TxReq", "%s / %s - %s", tmp.data, get_header(&tmp, "CSeq"), sip_methods[tmp.method].text);
 	}
 	res = (reliable) ?
-		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1), req->method) :
+		__sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable == XMIT_CRITICAL), req->method) :
 		__sip_xmit(p, req->data, req->len);
 	return res;
 }
