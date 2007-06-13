@@ -1139,7 +1139,7 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 	if ((cur->transfer.sin_addr.s_addr == sin->sin_addr.s_addr) &&
 	    (cur->transfer.sin_port == sin->sin_port) && (cur->transferring)) {
 		/* We're transferring */
-		if ((dcallno == cur->callno) || (cur->transferring = TRANSFER_MEDIAPASS && cur->transfercallno == callno))
+		if ((dcallno == cur->callno) || (cur->transferring == TRANSFER_MEDIAPASS && cur->transfercallno == callno))
 			return 1;
 	}
 	return 0;
