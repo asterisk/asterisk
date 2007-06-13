@@ -590,14 +590,14 @@ static u_char *ast_var_channel_types_table(struct variable *vp, oid *name, size_
 static u_char *ast_var_channel_bridge(struct variable *vp, oid *name, size_t *length,
 	int exact, size_t *var_len, WriteMethod **write_method)
 {
-	unsigned long long_ret = 0;
+	static unsigned long long_ret = 0;
 	struct ast_channel *chan = NULL;
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
 	while ((chan = ast_channel_walk_locked(chan))) {
-		if (ast_bridged_channel(chan) != NULL)
+		if (ast_bridged_channel(chan))
 			long_ret++;
 		ast_channel_unlock(chan);
 	}
