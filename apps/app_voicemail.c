@@ -2056,10 +2056,10 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	fprintf(p, "MIME-Version: 1.0" ENDL);
 	if (attach_user_voicemail) {
 		/* Something unique. */
-		snprintf(bound, sizeof(bound), "voicemail_%d%s%d%d", msgnum + 1, mailbox, getpid(), (unsigned int)ast_random());
+		snprintf(bound, sizeof(bound), "----voicemail_%d%s%d%d", msgnum + 1, mailbox, getpid(), (unsigned int)ast_random());
 
-		fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"" ENDL ENDL ENDL, bound);
-
+		fprintf(p, "Content-Type: multipart/mixed; boundary=\"%s\"" ENDL, bound);
+		fprintf(p, ENDL ENDL "This is a multi-part message in MIME format." ENDL ENDL);
 		fprintf(p, "--%s" ENDL, bound);
 	}
 	fprintf(p, "Content-Type: text/plain; charset=%s" ENDL "Content-Transfer-Encoding: 8bit" ENDL ENDL, charset);
@@ -2110,7 +2110,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"" ENDL ENDL, msgnum + 1, format);
 		snprintf(fname, sizeof(fname), "%s.%s", attach, format);
 		base_encode(fname, p);
-		fprintf(p, ENDL ENDL "--%s--" ENDL "." ENDL, bound);
+		fprintf(p, ENDL "--%s--" ENDL "." ENDL, bound);
 		if (tmpfd > -1)
 			close(tmpfd);
 		unlink(newtmp);
