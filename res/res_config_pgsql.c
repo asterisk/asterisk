@@ -180,7 +180,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (!ast_strlen_zero(ast_strip(chunk))) {
 						if (prev) {
 							prev->next = ast_variable_new(fieldnames[i], chunk);
 							if (prev->next) {
@@ -336,7 +336,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 				stringp = PQgetvalue(result, rowIndex, i);
 				while (stringp) {
 					chunk = strsep(&stringp, ";");
-					if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (!ast_strlen_zero(ast_strip(chunk))) {
 						if (initfield && !strcmp(initfield, fieldnames[i])) {
 							ast_category_rename(cat, chunk);
 						}
