@@ -7203,11 +7203,18 @@ retryowner:
 						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 					break;
 				}
-				/* This might re-enter the IAX code and need the lock */
 				if (strcasecmp(iaxs[fr->callno]->exten, "TBD")) {
+					const char *context, *exten, *cid_num;
+
+					context = ast_strdupa(iaxs[fr->callno]->context);
+					exten = ast_strdupa(iaxs[fr->callno]->exten);
+					cid_num = ast_strdupa(iaxs[fr->callno]->cid_num);
+
+					/* This might re-enter the IAX code and need the lock */
 					ast_mutex_unlock(&iaxsl[fr->callno]);
-					exists = ast_exists_extension(NULL, iaxs[fr->callno]->context, iaxs[fr->callno]->exten, 1, iaxs[fr->callno]->cid_num);
+					exists = ast_exists_extension(NULL, context, exten, 1, cid_num);
 					ast_mutex_lock(&iaxsl[fr->callno]);
+
 					if (!iaxs[fr->callno]) {
 						ast_mutex_unlock(&iaxsl[fr->callno]);
 						return 1;
