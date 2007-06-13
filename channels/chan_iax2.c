@@ -1139,7 +1139,7 @@ static int match(struct sockaddr_in *sin, unsigned short callno, unsigned short 
 	if ((cur->transfer.sin_addr.s_addr == sin->sin_addr.s_addr) &&
 	    (cur->transfer.sin_port == sin->sin_port) && (cur->transferring)) {
 		/* We're transferring */
-		if (dcallno == cur->callno)
+		if ((dcallno == cur->callno) || (cur->transferring = TRANSFER_MEDIAPASS && cur->transfercallno == callno))
 			return 1;
 	}
 	return 0;
@@ -1226,6 +1226,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	int x;
 	struct timeval now;
 	char host[80];
+
 	if (new <= NEW_ALLOW) {
 		/* Look for an existing connection first */
 		for (x=1;(res < 1) && (x<maxnontrunkcall);x++) {
@@ -6549,7 +6550,7 @@ static int socket_process(struct iax2_thread *thread)
 	if (!fr->callno)
 		fr->callno = find_callno(ntohs(mh->callno) & ~IAX_FLAG_FULL, dcallno, &sin, new, 1, fd);
 
-	if (fr->callno > 0) 
+	if (fr->callno > 0)
 		ast_mutex_lock(&iaxsl[fr->callno]);
 
 	if (!fr->callno || !iaxs[fr->callno]) {
@@ -7604,6 +7605,14 @@ retryowner2:
 				break;	
 			case IAX_COMMAND_TXMEDIA:
 				if (iaxs[fr->callno]->transferring == TRANSFER_READY) {
+                                        AST_LIST_LOCK(&iaxq.queue);
+                                        AST_LIST_TRAVERSE(&iaxq.queue, cur, list) {
+                                                /* Cancel any outstanding frames and start anew */
+                                                if ((fr->callno == cur->callno) && (cur->transfer)) {
+                                                        cur->retries = -1;
+                                                }
+                                        }
+                                        AST_LIST_UNLOCK(&iaxq.queue);
 					/* Start sending our media to the transfer address, but otherwise leave the call as-is */
 					iaxs[fr->callno]->transferring = TRANSFER_MEDIAPASS;
 				}
