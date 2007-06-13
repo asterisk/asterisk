@@ -875,12 +875,16 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 		len += strlen(category) + 1;
 	
 	AST_LIST_LOCK(&groups);
-	AST_LIST_TRAVERSE(&groups, gi, list) {
-		if (gi->chan == chan && !strcasecmp(gi->group, group) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category))))
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
+		if ((gi->chan == chan) && ((ast_strlen_zero(category) && ast_strlen_zero(gi->category)) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
+			AST_LIST_REMOVE_CURRENT(&groups, list);
+			free(gi);
 			break;
+		}
 	}
-	
-	if (!gi && (gi = ast_calloc(1, len))) {
+	AST_LIST_TRAVERSE_SAFE_END
+
+	if ((gi = calloc(1, len))) {
 		gi->chan = chan;
 		gi->group = (char *) gi + sizeof(*gi);
 		strcpy(gi->group, group);
