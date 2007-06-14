@@ -5336,7 +5336,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
-		format = "YBdA 'digits/at' HM";
+		format = "YBdAkM";
 
 	ast_localtime(&time,&tm,timezone);
 
@@ -5375,16 +5375,17 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 			case 'e':
 				/* First - Thirtyfirst */
 				if (!(tm.tm_mday % 10) || (tm.tm_mday < 10)) {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday);
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday);
 					res = wait_file(chan,ints,nextmsg,lang);
 				} else {
-					snprintf(nextmsg,sizeof(nextmsg), "digits/h-%dh", tm.tm_mday - (tm.tm_mday % 10));
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday - (tm.tm_mday % 10));
 					res = wait_file(chan,ints,nextmsg,lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday % 10);
+						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday % 10);
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
 				}
+                if(!res) res = wait_file(chan,ints,"ri",lang);
 				break;
 			case 'Y':
 				/* Year */
@@ -5454,12 +5455,12 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'H':
+                if (tm.tm_hour < 10) {
+                    res = wait_file(chan, ints, "digits/0", lang);
+                }
 			case 'k':
 				/* 24-Hour */
 				if (!(tm.tm_hour % 10) || tm.tm_hour < 10) {
-					if (tm.tm_hour < 10) {
-						res = wait_file(chan, ints, "digits/0", lang);
-					}
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
 					res = wait_file(chan,ints,nextmsg,lang);
 				} else {
@@ -5560,7 +5561,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format_tw(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_tw(chan, time, ints, lang, "kM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
