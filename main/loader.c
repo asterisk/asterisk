@@ -526,7 +526,7 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 		if (!strncasecmp(word, cur->resource, l) &&
 		    (cur->info->reload || !needsreload) &&
 		    ++which > state) {
-			ret = strdup(cur->resource);
+			ret = ast_strdup(cur->resource);
 			break;
 		}
 	}
@@ -535,7 +535,7 @@ char *ast_module_helper(const char *line, const char *word, int pos, int state, 
 	if (!ret) {
 		for (i=0; !ret && reload_classes[i].name; i++) {
 			if (!strncasecmp(word, reload_classes[i].name, l) && ++which > state)
-				ret = strdup(reload_classes[i].name);
+				ret = ast_strdup(reload_classes[i].name);
 		}
 	}
 

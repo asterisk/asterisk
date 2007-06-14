@@ -314,8 +314,8 @@ static int ind_load_module(void)
 					return -1;
 				}
 				ts->next = NULL;
-				ts->name = strdup(v->name);
-				ts->data = strdup(v->value);
+				ts->name = ast_strdup(v->name);
+				ts->data = ast_strdup(v->value);
 				if (ps)
 					ps->next = ts;
 				else

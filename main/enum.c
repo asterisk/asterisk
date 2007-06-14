@@ -345,8 +345,8 @@ static int enum_callback(void *context, unsigned char *answer, int len, unsigned
 			if ((p = ast_realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
 				c->naptr_rrs = p;
 				memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
-				c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
-				c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
+				c->naptr_rrs[c->naptr_rrs_count].result = ast_strdup(c->dst);
+				c->naptr_rrs[c->naptr_rrs_count].tech = ast_strdup(c->tech);
 				c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
 				c->naptr_rrs_count++;
 			}

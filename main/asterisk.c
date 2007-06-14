@@ -1980,7 +1980,7 @@ static char **ast_el_strtoarr(char *buf)
 			}
 		}
 
-		match_list[matches++] = strdup(retstr);
+		match_list[matches++] = ast_strdup(retstr);
 	}
 
 	if (!match_list)

@@ -1360,7 +1360,7 @@ static char *complete_show_function(const char *line, const char *word, int pos,
 	AST_RWLIST_RDLOCK(&acf_root);
 	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
  		if (!strncasecmp(word, acf->name, wordlen) && ++which > state) {
- 			ret = strdup(acf->name);
+ 			ret = ast_strdup(acf->name);
 			break;
 		}
 	}
@@ -3066,7 +3066,7 @@ static char *complete_show_application(const char *line, const char *word, int p
 	AST_RWLIST_RDLOCK(&apps);
 	AST_RWLIST_TRAVERSE(&apps, a, list) {
 		if (!strncasecmp(word, a->name, wordlen) && ++which > state) {
-			ret = strdup(a->name);
+			ret = ast_strdup(a->name);
 			break;
 		}
 	}

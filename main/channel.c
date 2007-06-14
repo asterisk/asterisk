@@ -295,7 +295,7 @@ static char *complete_channeltypes(const char *line, const char *word, int pos, 
 
 	AST_LIST_TRAVERSE(&backends, cl, list) {
 		if (!strncasecmp(word, cl->tech->type, wordlen) && ++which > state) {
-			ret = strdup(cl->tech->type);
+			ret = ast_strdup(cl->tech->type);
 			break;
 		}
 	}

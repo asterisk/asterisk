@@ -1409,7 +1409,7 @@ static char *complete_ch_helper(const char *line, const char *word, int pos, int
 		ast_mutex_unlock(&c->lock);
 	}
 	if (c) {
-		ret = strdup(c->name);
+		ret = ast_strdup(c->name);
 		ast_mutex_unlock(&c->lock);
 	} else
 		ret = NULL;
@@ -1429,13 +1429,13 @@ static char *complete_debug_port (const char *line, const char *word, int pos, i
 	switch (pos) {
 	case 4:
 		if (*word == 'p')
-			return strdup("port");
+			return ast_strdup("port");
 		else if (*word == 'o')
-			return strdup("only");
+			return ast_strdup("only");
 		break;
 	case 6:
 		if (*word == 'o')
-			return strdup("only");
+			return ast_strdup("only");
 		break;
 	}
 	return NULL;
@@ -1452,15 +1452,15 @@ static char *complete_show_config (const char *line, const char *word, int pos, 
 	switch (pos) {
 	case 3:
 		if ((!strncmp(word, "description", wordlen)) && (++which > state))
-			return strdup("description");
+			return ast_strdup("description");
 		if ((!strncmp(word, "descriptions", wordlen)) && (++which > state))
-			return strdup("descriptions");
+			return ast_strdup("descriptions");
 		if ((!strncmp(word, "0", wordlen)) && (++which > state))
-			return strdup("0");
+			return ast_strdup("0");
 		while ((port = misdn_cfg_get_next_port(port)) != -1) {
 			snprintf(buffer, sizeof(buffer), "%d", port);
 			if ((!strncmp(word, buffer, wordlen)) && (++which > state)) {
-				return strdup(buffer);
+				return ast_strdup(buffer);
 			}
 		}
 		break;
@@ -1472,14 +1472,14 @@ static char *complete_show_config (const char *line, const char *word, int pos, 
 				misdn_cfg_get_name(elem, buffer, sizeof(buffer));
 				if (!wordlen || !strncmp(word, buffer, wordlen)) {
 					if (++which > state)
-						return strdup(buffer);
+						return ast_strdup(buffer);
 				}
 			}
 		} else if (strstr(line, "descriptions ")) {
 			if ((!wordlen || !strncmp(word, "general", wordlen)) && (++which > state))
-				return strdup("general");
+				return ast_strdup("general");
 			if ((!wordlen || !strncmp(word, "ports", wordlen)) && (++which > state))
-				return strdup("ports");
+				return ast_strdup("ports");
 		}
 		break;
 	}
@@ -1895,7 +1895,7 @@ static int read_config(struct chan_list *ch, int orig)
 		if ( !ast_strlen_zero(bc->rad) ) {
 			if (ast->cid.cid_rdnis)
 				ast_free(ast->cid.cid_rdnis);
-			ast->cid.cid_rdnis = strdup(bc->rad);
+			ast->cid.cid_rdnis = ast_strdup(bc->rad);
 		}
 	
 		misdn_cfg_get(bc->port, MISDN_CFG_OVERLAP_DIAL, &ch->overlap_dial, sizeof(ch->overlap_dial));

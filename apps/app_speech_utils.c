@@ -515,7 +515,7 @@ static int speech_processing_sound(struct ast_channel *chan, void *data)
 		speech->processing_sound = NULL;
 	}
 
-	speech->processing_sound = strdup(data);
+	speech->processing_sound = ast_strdup(data);
 
         ast_module_user_remove(u);
 
@@ -747,8 +747,8 @@ static int speech_background(struct ast_channel *chan, void *data)
 		speech->results = ast_calloc(1, sizeof(*speech->results));
 		if (speech->results != NULL) {
 			speech->results->score = 1000;
-			speech->results->text = strdup(dtmf);
-			speech->results->grammar = strdup("dtmf");
+			speech->results->text = ast_strdup(dtmf);
+			speech->results->grammar = ast_strdup("dtmf");
 		}
 	}
 

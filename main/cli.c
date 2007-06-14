@@ -105,7 +105,7 @@ static char *complete_fn(const char *word, int state)
 	if (c && word[0] != '/')
 		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
 	
-	return c ? strdup(c) : c;
+	return c ? ast_strdup(c) : c;
 }
 
 static char *handle_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -693,7 +693,7 @@ static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, str
 		/* XXX remember to handle the optional "off" */
 		if (a->pos != e->args)
 			return NULL;
-		return a->n == 0 ? strdup("all") : ast_complete_channels(a->line, a->word, a->pos, a->n - 1, e->args);
+		return a->n == 0 ? ast_strdup("all") : ast_complete_channels(a->line, a->word, a->pos, a->n - 1, e->args);
 	}
 	/* 'core set debug channel {all|chan_id}' */
 	if (a->argc == e->args + 2) {
@@ -1027,7 +1027,7 @@ static int set_full_cmd(struct ast_cli_entry *e)
 	char buf[80];
 
 	ast_join(buf, sizeof(buf), e->cmda);
-	e->_full_cmd = strdup(buf);
+	e->_full_cmd = ast_strdup(buf);
 	if (!e->_full_cmd) {
 		ast_log(LOG_WARNING, "-- cannot allocate <%s>\n", buf);
 		return -1;
@@ -1144,7 +1144,7 @@ static char *is_prefix(const char *word, const char *token,
 		if (strncasecmp(token, word, lw))	/* no match */
 			return NULL;
 		*actual = 1;
-		return (pos != 0) ? NULL : strdup(token);
+		return (pos != 0) ? NULL : ast_strdup(token);
 	}
 	/* now handle regexp match */
 
@@ -1158,7 +1158,7 @@ static char *is_prefix(const char *word, const char *token,
 			continue;
 		(*actual)++;
 		if (pos-- == 0)
-			return strdup(s);
+			return ast_strdup(s);
 	}
 	return NULL;
 }

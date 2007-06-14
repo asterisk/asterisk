@@ -688,8 +688,8 @@ static void get_callerid(struct vpb_pvt *p)
 			
 			if (cli_struct->ra_cldn[0]=='\0'){
 				/*
-				owner->cid.cid_num = strdup(cli_struct->cldn);
-				owner->cid.cid_name = strdup(cli_struct->cn);
+				owner->cid.cid_num = ast_strdup(cli_struct->cldn);
+				owner->cid.cid_name = ast_strdup(cli_struct->cn);
 				*/
 				if (owner){
 					ast_set_callerid(owner, cli_struct->cldn, cli_struct->cn, cli_struct->cldn);
@@ -2694,7 +2694,7 @@ static struct ast_channel *vpb_request(const char *type, int format, void *data,
 	int oldformat;
 	struct vpb_pvt *p;
 	struct ast_channel *tmp = NULL;
-	char *name = strdup(data ? (char *)data : "");
+	char *name = ast_strdup(data ? (char *)data : "");
 	char *s, *sepstr;
 	int group=-1;
 
@@ -2940,7 +2940,7 @@ int load_module()
 			} else if (strcasecmp(v->name, "language") == 0) {
 				strncpy(language, v->value, sizeof(language)-1);
 			} else if (strcasecmp(v->name, "callerid") == 0) {
-				callerid = strdup(v->value);
+				callerid = ast_strdup(v->value);
 			} else if (strcasecmp(v->name, "mode") == 0) {
 				if (strncasecmp(v->value, "di", 2) == 0) 
 					mode = MODE_DIALTONE;

@@ -536,7 +536,7 @@ static int oh323_digit_begin(struct ast_channel *c, char digit)
 			ast_log(LOG_DTMF, "Begin sending inband digit %c on %s\n", digit, c->name);
 		}
 		pvt->txDtmfDigit = digit;
-		token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+		token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
 		ast_mutex_unlock(&pvt->lock);
 		h323_send_tone(token, digit);
 		if (token) {
@@ -575,7 +575,7 @@ static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int durat
 			ast_log(LOG_DTMF, "End sending inband digit %c on %s, duration %d\n", digit, c->name, duration);
 		}
 		pvt->txDtmfDigit = ' ';
-		token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+		token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
 		ast_mutex_unlock(&pvt->lock);
 		h323_send_tone(token, ' ');
 		if (token) {
@@ -680,7 +680,7 @@ static int oh323_answer(struct ast_channel *c)
 		ast_debug(1, "Answering on %s\n", c->name);
 
 	ast_mutex_lock(&pvt->lock);
-	token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+	token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
 	ast_mutex_unlock(&pvt->lock);
 	res = h323_answering_call(token, 0);
 	if (token)
@@ -739,7 +739,7 @@ static int oh323_hangup(struct ast_channel *c)
 
 	/* Start the process if it's not already started */
 	if (!pvt->alreadygone && !pvt->hangupcause) {
-		call_token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+		call_token = pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL;
 		if (call_token) {
 			/* Release lock to eliminate deadlock */
 			ast_mutex_unlock(&pvt->lock);
@@ -877,7 +877,7 @@ static int oh323_indicate(struct ast_channel *c, int condition, const void *data
 	int got_progress;
 
 	ast_mutex_lock(&pvt->lock);
-	token = (pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL);
+	token = (pvt->cd.call_token ? ast_strdup(pvt->cd.call_token) : NULL);
 	got_progress = pvt->got_progress;
 	if (condition == AST_CONTROL_PROGRESS)
 		pvt->got_progress = 1;
@@ -1092,7 +1092,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		ch->cid.cid_ton = pvt->cd.type_of_number;
 
 		if (!ast_strlen_zero(pvt->exten) && strcmp(pvt->exten, "s")) {
-			ch->cid.cid_dnid = strdup(pvt->exten);
+			ch->cid.cid_dnid = ast_strdup(pvt->exten);
 		}
 		if (pvt->cd.transfer_capability >= 0)
 			ch->transfercapability = pvt->cd.transfer_capability;

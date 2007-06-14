@@ -984,7 +984,7 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 		/* User Number || Conf Command option*/
 		if (strstr(line, "mute") || strstr(line, "kick")) {
 			if (state == 0 && (strstr(line, "kick") || strstr(line,"mute")) && !strncasecmp(word, "all", len))
-				return strdup("all");
+				return ast_strdup("all");
 			which++;
 			AST_LIST_LOCK(&confs);
 
@@ -1009,9 +1009,9 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 				}
 			}
 			AST_LIST_UNLOCK(&confs);
-			return usr ? strdup(usrno) : NULL;
+			return usr ? ast_strdup(usrno) : NULL;
 		} else if ( strstr(line, "list") && ( 0 == state ) )
-			return strdup("concise");
+			return ast_strdup("concise");
 	}
 
 	return NULL;

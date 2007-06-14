@@ -839,7 +839,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		fs->fmt = f;
 		fs->flags = flags;
 		fs->mode = mode;
-		fs->filename = strdup(filename);
+		fs->filename = ast_strdup(filename);
 		fs->vfs = NULL;
 		break;
 	}
@@ -950,11 +950,11 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			fs->flags = flags;
 			fs->mode = mode;
 			if (orig_fn) {
-				fs->realfilename = strdup(orig_fn);
-				fs->filename = strdup(fn);
+				fs->realfilename = ast_strdup(orig_fn);
+				fs->filename = ast_strdup(fn);
 			} else {
 				fs->realfilename = NULL;
-				fs->filename = strdup(filename);
+				fs->filename = ast_strdup(filename);
 			}
 			fs->vfs = NULL;
 			/* If truncated, we'll be at the beginning; if not truncated, then append */

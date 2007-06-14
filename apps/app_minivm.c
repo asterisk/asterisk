@@ -2333,7 +2333,7 @@ static char *message_template_parse_filebody(char *filename) {
 static char *message_template_parse_emailbody(const char *configuration)
 {
 	char *tmpread, *tmpwrite;
-	char *emailbody = strdup(configuration);
+	char *emailbody = ast_strdup(configuration);
 
 	/* substitute strings \t and \n into the apropriate characters */
 	tmpread = tmpwrite = emailbody;
@@ -2678,12 +2678,12 @@ static char *complete_minivm_show_users(const char *line, const char *word, int 
 	if (pos > 4)
 		return NULL;
 	if (pos == 3)
-		return (state == 0) ? strdup("for") : NULL;
+		return (state == 0) ? ast_strdup("for") : NULL;
 	wordlen = strlen(word);
 	AST_LIST_TRAVERSE(&minivm_accounts, vmu, list) {
 		if (!strncasecmp(word, vmu->domain, wordlen)) {
 			if (domain && strcmp(domain, vmu->domain) && ++which > state)
-				return strdup(vmu->domain);
+				return ast_strdup(vmu->domain);
 			/* ignore repeated domains ? */
 			domain = vmu->domain;
 		}

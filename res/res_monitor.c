@@ -154,7 +154,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			int directory = strchr(fname_base, '/') ? 1 : 0;
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
-				char *name = strdup(fname_base);
+				char *name = ast_strdup(fname_base);
 				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
 				ast_free(name);
 				ast_safe_system(tmp);
@@ -186,9 +186,9 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 
 		/* Determine file format */
 		if (!ast_strlen_zero(format_spec)) {
-			monitor->format = strdup(format_spec);
+			monitor->format = ast_strdup(format_spec);
 		} else {
-			monitor->format = strdup("wav");
+			monitor->format = ast_strdup("wav");
 		}
 		
 		/* open files */
@@ -366,7 +366,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		int directory = strchr(fname_base, '/') ? 1 : 0;
 		/* try creating the directory just in case it doesn't exist */
 		if (directory) {
-			char *name = strdup(fname_base);
+			char *name = ast_strdup(fname_base);
 			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
 			ast_free(name);
 			ast_safe_system(tmp);

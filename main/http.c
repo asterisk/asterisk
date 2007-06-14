@@ -215,12 +215,12 @@ static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri,
 
 out404:
 	*status = 404;
-	*title = strdup("Not Found");
+	*title = ast_strdup("Not Found");
 	return ast_http_error(404, "Not Found", NULL, "Nothing to see here.  Move along.");
 
 out403:
 	*status = 403;
-	*title = strdup("Access Denied");
+	*title = ast_strdup("Access Denied");
 	return ast_http_error(403, "Access Denied", NULL, "Sorry, I cannot let you do that, Dave.");
 }
 
@@ -616,7 +616,7 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 			out = ast_http_error(302, "Moved Temporarily", buf,
 				"There is no spoon...");
 			*status = 302;
-			*title = strdup("Moved Temporarily");
+			*title = ast_strdup("Moved Temporarily");
 			break;
 		}
 	}
@@ -655,7 +655,7 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 		out = ast_http_error(404, "Not Found", NULL,
 			"The requested URL was not found on this server.");
 		*status = 404;
-		*title = strdup("Not Found");
+		*title = ast_strdup("Not Found");
 	}
 
 cleanup:

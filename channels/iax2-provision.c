@@ -169,7 +169,7 @@ char *iax_prov_complete_template(const char *line, const char *word, int pos, in
 	ast_mutex_lock(&provlock);
 	for (c = templates; c; c = c->next) {
 		if (!strncasecmp(word, c->name, wordlen) && ++which > state) {
-			ret = strdup(c->name);
+			ret = ast_strdup(c->name);
 			break;
 		}
 	}
