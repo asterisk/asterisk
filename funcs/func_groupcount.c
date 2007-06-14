@@ -42,10 +42,10 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 
 	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
 
-        if ((count = ast_app_group_get_count(group, category)) == -1)
-                ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);
-        else
-                snprintf(buf, len, "%d", count);
+	if ((count = ast_app_group_get_count(group, category)) == -1)
+		ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);
+	else
+		snprintf(buf, len, "%d", count);
 
 	return buf;
 }
@@ -93,25 +93,23 @@ struct ast_custom_function group_match_count_function = {
 
 static char *group_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-        struct ast_group_info *gi = NULL;
+	struct ast_group_info *gi = NULL;
 
-        ast_app_group_list_lock();
+	ast_app_group_list_lock();
 
-        gi = ast_app_group_list_head();
-        while (gi) {
-                if (gi->chan != chan)
-                        continue;
-                if (ast_strlen_zero(data))
-                        break;
-                if (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, data))
-                        break;
-                gi = AST_LIST_NEXT(gi, list);
-        }
+	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, list)) {
+		if (gi->chan != chan)
+			continue;
+		if (ast_strlen_zero(data))
+			break;
+		if (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, data))
+			break;
+	}
 
-        if (gi)
-                ast_copy_string(buf, gi->group, len);
+	if (gi)
+		ast_copy_string(buf, gi->group, len);
 
-        ast_app_group_list_unlock();
+	ast_app_group_list_unlock();
 
 	return buf;
 }
@@ -126,8 +124,8 @@ static void group_function_write(struct ast_channel *chan, char *cmd, char *data
 		ast_copy_string(grpcat, value, sizeof(grpcat));
 	}
 
-        if (ast_app_group_set_channel(chan, grpcat))
-                ast_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
+	if (ast_app_group_set_channel(chan, grpcat))
+		ast_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
 }
 
 #ifndef BUILTIN_FUNC
@@ -144,34 +142,32 @@ struct ast_custom_function group_function = {
 
 static char *group_list_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-        struct ast_group_info *gi = NULL;
-        char tmp1[1024] = "";
-        char tmp2[1024] = "";
+	struct ast_group_info *gi = NULL;
+	char tmp1[1024] = "";
+	char tmp2[1024] = "";
 
-        ast_app_group_list_lock();
+	ast_app_group_list_lock();
 
-        gi = ast_app_group_list_head();
-        while (gi) {
-                if (gi->chan != chan)
-                        continue;
-                if (!ast_strlen_zero(tmp1)) {
-                        ast_copy_string(tmp2, tmp1, sizeof(tmp2));
-                        if (!ast_strlen_zero(gi->category))
-                                snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, gi->group, gi->category);
-                        else
-                                snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, gi->group);
-                } else {
-                        if (!ast_strlen_zero(gi->category))
-                                snprintf(tmp1, sizeof(tmp1), "%s@%s", gi->group, gi->category);
-                        else
-                                snprintf(tmp1, sizeof(tmp1), "%s", gi->group);
-                }
-                gi = AST_LIST_NEXT(gi, list);
-        }
+	for (gi = ast_app_group_list_head(); gi; gi = AST_LIST_NEXT(gi, list)) {
+		if (gi->chan != chan)
+			continue;
+		if (!ast_strlen_zero(tmp1)) {
+			ast_copy_string(tmp2, tmp1, sizeof(tmp2));
+			if (!ast_strlen_zero(gi->category))
+				snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, gi->group, gi->category);
+			else
+				snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, gi->group);
+		} else {
+			if (!ast_strlen_zero(gi->category))
+				snprintf(tmp1, sizeof(tmp1), "%s@%s", gi->group, gi->category);
+			else
+				snprintf(tmp1, sizeof(tmp1), "%s", gi->group);
+		}
+	}
 
-        ast_app_group_list_unlock();
+	ast_app_group_list_unlock();
 
-        ast_copy_string(buf, tmp1, len);
+	ast_copy_string(buf, tmp1, len);
 
 	return buf;
 }
