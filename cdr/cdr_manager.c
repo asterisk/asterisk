@@ -95,17 +95,17 @@ static int manager_log(struct ast_cdr *cdr)
 		return 0;
 
 	t = cdr->start.tv_sec;
-	localtime_r(&t, &timeresult);
+	ast_localtime(&t, &timeresult, NULL);
 	strftime(strStartTime, sizeof(strStartTime), DATE_FORMAT, &timeresult);
 	
 	if (cdr->answer.tv_sec)	{
     		t = cdr->answer.tv_sec;
-    		localtime_r(&t, &timeresult);
+    		ast_localtime(&t, &timeresult, NULL);
 		strftime(strAnswerTime, sizeof(strAnswerTime), DATE_FORMAT, &timeresult);
 	}
 
 	t = cdr->end.tv_sec;
-	localtime_r(&t, &timeresult);
+	ast_localtime(&t, &timeresult, NULL);
 	strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
 	manager_event(EVENT_FLAG_CALL, "Cdr",

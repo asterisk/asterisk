@@ -32,12 +32,14 @@
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
 #include <limits.h>
+#include <time.h>	/* we want to override localtime_r */
 
 #include "asterisk/lock.h"
 #include "asterisk/time.h"
 #include "asterisk/strings.h"
 #include "asterisk/logger.h"
 #include "asterisk/compiler.h"
+#include "asterisk/localtime.h"
 
 /*! \note
  \verbatim
@@ -234,6 +236,11 @@ const char *ast_inet_ntoa(struct in_addr ia);
 #undef inet_ntoa
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
+
+#ifdef localtime_r
+#undef localtime_r
+#endif
+#define localtime_r __dont_use_localtime_r_use_ast_localtime_instead__
 
 int ast_utils_init(void);
 int ast_wait_for_input(int fd, int ms);

@@ -726,7 +726,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		return;
 
 	time(&t);
-	localtime_r(&t, &tm);
+	ast_localtime(&t, &tm, NULL);
 	strftime(date, sizeof(date), dateformat, &tm);
 
 	AST_LIST_LOCK(&logchannels);
@@ -860,7 +860,7 @@ void ast_verbose(const char *fmt, ...)
 		char *datefmt;
 
 		time(&t);
-		localtime_r(&t, &tm);
+		ast_localtime(&t, &tm, NULL);
 		strftime(date, sizeof(date), dateformat, &tm);
 		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
 		sprintf(datefmt, "[%s] %s", date, fmt);

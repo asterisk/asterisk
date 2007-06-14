@@ -720,7 +720,7 @@ static int callerid_genmsg(char *msg, int size, const char *number, const char *
 	int i,x;
 	/* Get the time */
 	time(&t);
-	localtime_r(&t,&tm);
+	ast_localtime(&t, &tm, NULL);
 	
 	ptr = msg;
 	

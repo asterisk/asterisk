@@ -295,7 +295,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	int start;
 
 	time(&UtcTime);
-	localtime_r(&UtcTime,&tm);
+	ast_localtime(&UtcTime, &tm, NULL);
 
 	memset(&cid, 0, sizeof(PHONE_CID));
 	if(&tm != NULL) {
