@@ -365,11 +365,11 @@ static int handle_show_settings(int fd, int argc, char *argv[])
 #if defined(HAVE_SYSINFO)
 	ast_cli(fd, "  Min Free Memory:             %ld MB\n", option_minmemfree);
 #endif
-	if (localtime_r(&ast_startuptime, &tm)) {
+	if (ast_localtime(&ast_startuptime, &tm, NULL)) {
 		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
 		ast_cli(fd, "  Startup time:                %s\n", buf);
 	}
-	if (localtime_r(&ast_lastreloadtime, &tm)) {
+	if (ast_localtime(&ast_lastreloadtime, &tm, NULL)) {
 		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
 		ast_cli(fd, "  Last reload time:            %s\n", buf);
 	}
@@ -1864,7 +1864,7 @@ static char *cli_prompt(EditLine *el)
 				case 'd': /* date */
 					memset(&tm, 0, sizeof(tm));
 					time(&ts);
-					if (localtime_r(&ts, &tm)) 
+					if (ast_localtime(&ts, &tm, NULL))
 						strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 					break;
 				case 'h': /* hostname */
@@ -1921,7 +1921,7 @@ static char *cli_prompt(EditLine *el)
 				case 't': /* time */
 					memset(&tm, 0, sizeof(tm));
 					time(&ts);
-					if (localtime_r(&ts, &tm))
+					if (ast_localtime(&ts, &tm, NULL))
 						strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
 					break;
 				case '#': /* process console or remote? */

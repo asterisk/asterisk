@@ -2239,7 +2239,7 @@ static int get_date(char *s, int len)
 	struct tm tm;
 	time_t t;
 	t = time(0);
-	localtime_r(&t,&tm);
+	ast_localtime(&t, &tm, NULL);
 	return strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
@@ -4380,10 +4380,10 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 /* No internal variable parsing for now, so we'll comment it out for the time being */
 #if 0
 	/* Set the DIFF_* variables */
-	localtime_r(&t, &time_now);
+	ast_localtime(&t, &time_now, NULL);
 	tv_now = ast_tvnow();
 	tnow = tv_now.tv_sec;
-	localtime_r(&tnow,&time_then);
+	ast_localtime(&tnow, &time_then, NULL);
 
 	/* Day difference */
 	if (time_now.tm_year == time_then.tm_year)

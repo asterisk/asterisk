@@ -931,7 +931,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 	/* Create our date/time */
 	time(&t);
-	localtime_r(&t, &tm);
+	ast_localtime(&t, &tm, NULL);
 	strftime(logmsg->date, sizeof(logmsg->date), dateformat, &tm);
 
 	/* Copy over data */
@@ -1022,7 +1022,7 @@ void ast_verbose(const char *fmt, ...)
 		char *datefmt;
 
 		time(&t);
-		localtime_r(&t, &tm);
+		ast_localtime(&t, &tm, NULL);
 		strftime(date, sizeof(date), dateformat, &tm);
 		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
 		sprintf(datefmt, "[%s] %s", date, fmt);

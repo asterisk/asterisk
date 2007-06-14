@@ -1217,7 +1217,7 @@ const time_t * const	timep;
 char *buf;
 {
         struct tm tm;
-	return asctime_r(localtime_r(timep, &tm), buf);
+	return asctime_r(ast_localtime(timep, &tm, NULL), buf);
 }
 
 /*

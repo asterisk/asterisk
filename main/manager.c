@@ -2290,9 +2290,9 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 	if (!ast_strlen_zero(actionid))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
 
-	localtime_r(&ast_startuptime, &tm);
+	ast_localtime(&ast_startuptime, &tm, NULL);
 	strftime(startuptime, sizeof(startuptime), "%H:%M:%S", &tm);
-	localtime_r(&ast_lastreloadtime, &tm);
+	ast_localtime(&ast_lastreloadtime, &tm, NULL);
 	strftime(reloadtime, sizeof(reloadtime), "%H:%M:%S", &tm);
 
 	astman_append(s, "Response: Success\r\n"

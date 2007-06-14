@@ -146,7 +146,7 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME))
 		gmtime_r(&(cdr->start.tv_sec), &tm);
 	else
-		localtime_r(&(cdr->start.tv_sec), &tm);
+		ast_localtime(&(cdr->start.tv_sec), &tm, NULL);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	if (!rc_avpair_add(rh, send, PW_AST_START_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
@@ -155,7 +155,7 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME))
 		gmtime_r(&(cdr->answer.tv_sec), &tm);
 	else
-		localtime_r(&(cdr->answer.tv_sec), &tm);
+		ast_localtime(&(cdr->answer.tv_sec), &tm, NULL);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	if (!rc_avpair_add(rh, send, PW_AST_ANSWER_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;
@@ -164,7 +164,7 @@ static int build_radius_record(VALUE_PAIR **send, struct ast_cdr *cdr)
 	if (ast_test_flag(&global_flags, RADIUS_FLAG_USEGMTIME))
 		gmtime_r(&(cdr->end.tv_sec), &tm);
 	else
-		localtime_r(&(cdr->end.tv_sec), &tm);
+		ast_localtime(&(cdr->end.tv_sec), &tm, NULL);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	if (!rc_avpair_add(rh, send, PW_AST_END_TIME, timestr, strlen(timestr), VENDOR_CODE))
 		return -1;

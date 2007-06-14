@@ -200,7 +200,7 @@ static int append_date(char *buf, struct timeval tv, size_t bufsize)
 	if (usegmtime) {
 		gmtime_r(&t,&tm);
 	} else {
-		localtime_r(&t,&tm);
+		ast_localtime(&t, &tm, NULL);
 	}
 	strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
 	return append_string(buf, tmp, bufsize);

@@ -4311,7 +4311,7 @@ int ast_check_timing(const struct ast_timing *i)
 	struct tm tm;
 	time_t t = time(NULL);
 
-	localtime_r(&t,&tm);
+	ast_localtime(&t, &tm, NULL);
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon)))

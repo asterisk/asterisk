@@ -212,7 +212,8 @@ static void cdr_get_tv(struct timeval tv, const char *fmt, char *buf, int bufsiz
 		time_t t = tv.tv_sec;
 		if (t) {
 			struct tm tm;
-			localtime_r(&t, &tm);
+
+			ast_localtime(&t, &tm, NULL);
 			strftime(buf, bufsize, fmt, &tm);
 		}
 	}

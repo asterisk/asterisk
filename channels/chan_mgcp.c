@@ -2237,7 +2237,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 	struct mgcp_endpoint *p = sub->parent;
 	
 	time(&t);
-	localtime_r(&t,&tm);
+	ast_localtime(&t, &tm, NULL);
 	n = callername;
 	l = callernum;
 	if (!n)

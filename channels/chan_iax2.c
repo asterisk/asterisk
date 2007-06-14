@@ -2874,9 +2874,10 @@ static unsigned int iax2_datetime(const char *tz)
 	struct tm tm;
 	unsigned int tmp;
 	time(&t);
-	localtime_r(&t, &tm);
 	if (!ast_strlen_zero(tz))
 		ast_localtime(&t, &tm, tz);
+	else
+		ast_localtime(&t, &tm, NULL);
 	tmp  = (tm.tm_sec >> 1) & 0x1f;			/* 5 bits of seconds */
 	tmp |= (tm.tm_min & 0x3f) << 5;			/* 6 bits of minutes */
 	tmp |= (tm.tm_hour & 0x1f) << 11;		/* 5 bits of hours */

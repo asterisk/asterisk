@@ -104,15 +104,15 @@ static int sqlite_log(struct ast_cdr *cdr)
 	ast_mutex_lock(&sqlite_lock);
 
 	t = cdr->start.tv_sec;
-	localtime_r(&t, &tm);
+	ast_localtime(&t, &tm, NULL);
 	strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
 
 	t = cdr->answer.tv_sec;
-	localtime_r(&t, &tm);
+	ast_localtime(&t, &tm, NULL);
 	strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
 
 	t = cdr->end.tv_sec;
-	localtime_r(&t, &tm);
+	ast_localtime(&t, &tm, NULL);
 	strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
 
 	for(count=0; count<5; count++) {

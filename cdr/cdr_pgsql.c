@@ -78,7 +78,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 	ast_mutex_lock(&pgsql_lock);
 
-	localtime_r(&cdr->start.tv_sec,&tm);
+	ast_localtime(&cdr->start.tv_sec, &tm, NULL);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
 	if ((!connected) && pghostname && pgdbuser && pgpassword && pgdbname) {

@@ -715,8 +715,9 @@ static int get_date(char *s, int len)
 {
 	struct tm tm;
 	time_t t;
+
 	t = time(0);
-	localtime_r(&t,&tm);
+	ast_localtime(&t, &tm, NULL);
 	return strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 

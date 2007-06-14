@@ -286,7 +286,7 @@ static void get_date(char *dateField, struct timeval tv)
 	if (!ast_tvzero(tv))
 	{
 		t = tv.tv_sec;
-		localtime_r(&t, &tm);
+		ast_localtime(&t, &tm, NULL);
 		strftime(buf, 80, DATE_FORMAT, &tm);
 		sprintf(dateField, "'%s'", buf);
 	}
