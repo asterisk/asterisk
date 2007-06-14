@@ -2766,6 +2766,11 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 	int src;
 	int dst;
 
+	if (chan->readformat == peer->writeformat && chan->writeformat == peer->readformat) {
+		/* Already compatible!  Moving on ... */
+		return 0;
+	}
+
 	/* Set up translation from the chan to the peer */
 	src = chan->nativeformats;
 	dst = peer->nativeformats;
