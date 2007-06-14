@@ -3322,11 +3322,11 @@ int init_manager(void)
 
 	for (var = ast_variable_browse(cfg, "general"); var; var = var->next) {
 		val = var->value;
-		if (!strcasecmp(var->name, "ssenable"))
+		if (!strcasecmp(var->name, "sslenable"))
 			ami_tls_cfg.enabled = ast_true(val);
-		else if (!strcasecmp(var->name, "ssbindport"))
+		else if (!strcasecmp(var->name, "sslbindport"))
 			amis_desc.sin.sin_port = htons(atoi(val));
-		else if (!strcasecmp(var->name, "ssbindaddr")) {
+		else if (!strcasecmp(var->name, "sslbindaddr")) {
 			if ((hp = ast_gethostbyname(val, &ahp))) {
 				memcpy(&amis_desc.sin.sin_addr, hp->h_addr, sizeof(amis_desc.sin.sin_addr));
 				have_sslbindaddr = 1;
