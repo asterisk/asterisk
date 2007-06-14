@@ -284,13 +284,11 @@ enum ast_device_state ast_device_state(const char *device)
 	}
 
 	if (provider)  {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
+		ast_debug(3, "Checking if I can find provider for \"%s\" - number: %s\n", provider, number);
 		return getproviderstate(provider, number);
 	}
 
-	if (option_debug > 3)
-		ast_log(LOG_DEBUG, "No provider found, checking channel drivers for %s - %s\n", tech, number);
+	ast_debug(4, "No provider found, checking channel drivers for %s - %s\n", tech, number);
 
 	if (!(chan_tech = ast_get_channel_tech(tech)))
 		return AST_DEVICE_INVALID;
@@ -359,8 +357,7 @@ static int getproviderstate(const char *provider, const char *address)
 
 	AST_RWLIST_RDLOCK(&devstate_provs);
 	AST_RWLIST_TRAVERSE(&devstate_provs, devprov, list) {
-		if (option_debug > 4)
-			ast_log(LOG_DEBUG, "Checking provider %s with %s\n", devprov->label, provider);
+		ast_debug(5, "Checking provider %s with %s\n", devprov->label, provider);
 
 		if (!strcasecmp(devprov->label, provider)) {
 			res = devprov->callback(address);
@@ -380,8 +377,7 @@ static void do_state_change(const char *device)
 	struct ast_event *event;
 
 	state = ast_device_state(device);
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
+	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
 	if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE,
 			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
@@ -401,8 +397,7 @@ static int __ast_device_state_changed_literal(char *buf)
 	struct state_change *change;
 	char *tmp = NULL;
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Notification of state change to be queued on device/channel %s\n", buf);
+	ast_debug(3, "Notification of state change to be queued on device/channel %s\n", buf);
 
 	device = buf;
 

@@ -122,8 +122,7 @@ static int load_config(void)
 	if (tmp) {
 		usegmtime = ast_true(tmp);
 		if (usegmtime) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "logging time in GMT\n");
+			ast_debug(1, "logging time in GMT\n");
 		}
 	}
 
@@ -131,8 +130,7 @@ static int load_config(void)
 	if (tmp) {
 		loguniqueid = ast_true(tmp);
 		if (loguniqueid) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "logging CDR field UNIQUEID\n");
+			ast_debug(1, "logging CDR field UNIQUEID\n");
 		}
 	}
 
@@ -140,8 +138,7 @@ static int load_config(void)
 	if (tmp) {
 		loguserfield = ast_true(tmp);
 		if (loguserfield) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "logging CDR user-defined field\n");
+			ast_debug(1, "logging CDR user-defined field\n");
 		}
 	}
 

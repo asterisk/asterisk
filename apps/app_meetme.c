@@ -948,8 +948,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 	} else 
 		return RESULT_SHOWUSAGE;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Cmdline: %s\n", cmdline);
+	ast_debug(1, "Cmdline: %s\n", cmdline);
 
 	admin_exec(NULL, cmdline);
 
@@ -1325,7 +1324,7 @@ static void sla_queue_event_conf(enum sla_event_type type, struct ast_channel *c
 	AST_RWLIST_UNLOCK(&sla_stations);
 
 	if (!trunk_ref) {
-		ast_log(LOG_DEBUG, "Trunk not found for event!\n");
+		ast_debug(1, "Trunk not found for event!\n");
 		return;
 	}
 
@@ -1616,8 +1615,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	if (ztc.confmode) {
 		/* Whoa, already in a conference...  Retry... */
 		if (!retryzap) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+			ast_debug(1, "Zap channel is in a conference already, retrying with pseudo\n");
 			retryzap = 1;
 			goto zapretry;
 		}
@@ -1651,8 +1649,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_mutex_unlock(&conf->playlock);
 		goto outrun;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
+	ast_debug(1, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
 
 	if (!sent_event) {
 		manager_event(EVENT_FLAG_CALL, "MeetmeJoin", 
@@ -1891,8 +1888,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						close(fd);
 						using_pseudo = 0;
 					}
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+					ast_debug(1, "Ooh, something swapped out under us, starting over\n");
 					retryzap = strcasecmp(c->tech->type, "Zap");
 					user->zapchannel = !retryzap;
 					goto zapretry;
@@ -1959,13 +1955,13 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
 					if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
+						ast_debug(1, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
 						ret = 0;
 						ast_frfree(f);
 						break;
-					} else if (option_debug > 1)
-						ast_log(LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
+					} else {
+						ast_debug(2, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
+					}
 				} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
 					ret = 0;
 					ast_frfree(f);
@@ -2372,8 +2368,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	if (!cnf) {
 		if (dynamic) {
 			/* No need to parse meetme.conf */
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Building dynamic conference '%s'\n", confno);
+			ast_debug(1, "Building dynamic conference '%s'\n", confno);
 			if (dynamic_pin) {
 				if (dynamic_pin[0] == 'q') {
 					/* Query the user to enter a PIN */
@@ -2409,7 +2404,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				}
 			}
 			if (!var) {
-				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
+				ast_debug(1, "%s isn't a valid conference\n", confno);
 			}
 			ast_config_destroy(cfg);
 		}
@@ -3484,8 +3479,7 @@ static void sla_handle_dial_state_event(void)
 			ringing_trunk = sla_choose_ringing_trunk(ringing_station->station, &s_trunk_ref, 1);
 			ast_mutex_unlock(&sla.lock);
 			if (!ringing_trunk) {
-				ast_log(LOG_DEBUG, "Found no ringing trunk for station '%s' to answer!\n",
-					ringing_station->station->name);
+				ast_debug(1, "Found no ringing trunk for station '%s' to answer!\n", ringing_station->station->name);
 				break;
 			}
 			/* Track the channel that answered this trunk */
@@ -4260,7 +4254,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 		ast_cond_destroy(&cond);
 		ast_autoservice_stop(chan);
 		if (!trunk_ref->trunk->chan) {
-			ast_log(LOG_DEBUG, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);
+			ast_debug(1, "Trunk didn't get created. chan: %lx\n", (long) trunk_ref->trunk->chan);
 			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 			trunk_ref->chan = NULL;

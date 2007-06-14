@@ -1240,8 +1240,8 @@ static void update_max_trunk(void)
 			max = x + 1;
 	}
 	maxtrunkcall = max;
-	if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "New max trunk callno is %d\n", max);
+	if (iaxdebug)
+		ast_debug(1, "New max trunk callno is %d\n", max);
 }
 
 static void update_max_nontrunk(void)
@@ -1254,8 +1254,8 @@ static void update_max_nontrunk(void)
 			max = x + 1;
 	}
 	maxnontrunkcall = max;
-	if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "New max nontrunk callno is %d\n", max);
+	if (iaxdebug)
+		ast_debug(1, "New max nontrunk callno is %d\n", max);
 }
 
 static int make_trunk(unsigned short callno, int locked)
@@ -1298,8 +1298,7 @@ static int make_trunk(unsigned short callno, int locked)
 		ast_log(LOG_WARNING, "Unable to trunk call: Insufficient space\n");
 		return -1;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Made call %d into trunk call %d\n", callno, x);
+	ast_debug(1, "Made call %d into trunk call %d\n", callno, x);
 	/* We move this call from a non-trunked to a trunked call */
 	update_max_trunk();
 	update_max_nontrunk();
@@ -1373,8 +1372,8 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		iaxs[x] = new_iax(sin, lockpeer, host);
 		update_max_nontrunk();
 		if (iaxs[x]) {
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "Creating new call structure %d\n", x);
+			if (iaxdebug)
+				ast_debug(1, "Creating new call structure %d\n", x);
 			iaxs[x]->sockfd = sockfd;
 			iaxs[x]->addr.sin_port = sin->sin_port;
 			iaxs[x]->addr.sin_family = sin->sin_family;
@@ -1753,8 +1752,7 @@ static int transmit_trunk(struct iax_frame *f, struct sockaddr_in *sin, int sock
 	res = sendto(sockfd, f->data, f->datalen, 0,(struct sockaddr *)sin,
 					sizeof(*sin));
 	if (res < 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
+		ast_debug(1, "Received error: %s\n", strerror(errno));
 		handle_error();
 	} else
 		res = 0;
@@ -1771,8 +1769,8 @@ static int send_packet(struct iax_frame *f)
 	    return -1;
 	
 	/* Called with iaxsl held */
-	if (option_debug > 2 && iaxdebug)
-		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, callno, iaxs[callno]->peercallno, ast_inet_ntoa(iaxs[callno]->addr.sin_addr), ntohs(iaxs[callno]->addr.sin_port));
+	if (iaxdebug)
+		ast_debug(3, "Sending %d on %d/%d to %s:%d\n", f->ts, callno, iaxs[callno]->peercallno, ast_inet_ntoa(iaxs[callno]->addr.sin_addr), ntohs(iaxs[callno]->addr.sin_port));
 	if (f->transfer) {
 		if (iaxdebug)
 			iax_showframe(f, NULL, 0, &iaxs[callno]->transfer, f->datalen - sizeof(struct ast_iax2_full_hdr));
@@ -1785,8 +1783,8 @@ static int send_packet(struct iax_frame *f)
 					sizeof(iaxs[callno]->addr));
 	}
 	if (res < 0) {
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
+		if (iaxdebug)
+			ast_debug(1, "Received error: %s\n", strerror(errno));
 		handle_error();
 	} else
 		res = 0;
@@ -2330,8 +2328,8 @@ static void unwrap_timestamp(struct iax_frame *fr)
 			   gotten the update from the main packet.  We'll just pretend that we did, and
 			   update the timestamp appropriately. */
 			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
+			if (iaxdebug)
+				ast_debug(1, "schedule_delivery: pushed forward timestamp\n");
 		}
 		if (x > 50000) {
 			/* Sudden apparent big jump forwards in timestamp:
@@ -2339,8 +2337,8 @@ static void unwrap_timestamp(struct iax_frame *fr)
 			   top-16-bit timestamp that has turned up out of order.
 			   Adjust the timestamp appropriately. */
 			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
+			if (iaxdebug)
+				ast_debug(1, "schedule_delivery: pushed back timestamp\n");
 		}
 	}
 }
@@ -2474,8 +2472,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		fr->af.delivery = ast_tvadd(iaxs[fr->callno]->rxcore, ast_samp2tv(fr->ts, 1000));
 	else {
 #if 0
-		if (option_debug)
-			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
+		ast_debug(1, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
 #endif
 		fr->af.delivery = ast_tv(0,0);
 	}
@@ -2682,14 +2679,12 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
 			memset(&peer->addr, 0, sizeof(peer->addr));
 			realtime_update_peer(peer->name, &peer->addr, 0);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "realtime_peer: Bah, '%s' is expired (%d/%d/%d)!\n",
-						peername, (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
+			ast_debug(1, "realtime_peer: Bah, '%s' is expired (%d/%d/%d)!\n",
+				peername, (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
 		}
 		else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "realtime_peer: Registration for '%s' still active (%d/%d/%d)!\n",
-						peername, (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
+			ast_debug(1, "realtime_peer: Registration for '%s' still active (%d/%d/%d)!\n",
+				peername, (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
 		}
 	}
 
@@ -3111,8 +3106,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 			} 
 		} else
 			ast_log(LOG_WARNING, "OSP token is too long\n");
-	} else if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "OSP token is undefined\n");
+	} else if (iaxdebug)
+		ast_debug(1, "OSP token is undefined\n");
 
 	/* send the command using the appropriate socket for this peer */
 	iaxs[callno]->sockfd = cai.sockfd;
@@ -3147,8 +3142,7 @@ static int iax2_hangup(struct ast_channel *c)
  	memset(&ied, 0, sizeof(ied));
 	ast_mutex_lock(&iaxsl[callno]);
 	if (callno && iaxs[callno]) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "We're hanging up %s now...\n", c->name);
+		ast_debug(1, "We're hanging up %s now...\n", c->name);
 		alreadygone = ast_test_flag(iaxs[callno], IAX_ALREADYGONE);
 		/* Send the hangup unless we have had a transmission error or are already gone */
  		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, (unsigned char)c->hangupcause);
@@ -3158,8 +3152,7 @@ static int iax2_hangup(struct ast_channel *c)
 		iax2_predestroy(callno);
 		/* If we were already gone to begin with, destroy us now */
 		if (alreadygone) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Really destroying %s now...\n", c->name);
+			ast_debug(1, "Really destroying %s now...\n", c->name);
 			iax2_destroy(callno);
 		}
 	}
@@ -3397,8 +3390,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 static int iax2_answer(struct ast_channel *c)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Answering IAX2 call\n");
+	ast_debug(1, "Answering IAX2 call\n");
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno])
 		iax2_ami_channelupdate(iaxs[callno]);
@@ -3412,8 +3404,8 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 	struct chan_iax2_pvt *pvt;
 	int res = 0;
 
-	if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
+	if (iaxdebug)
+		ast_debug(1, "Indicating condition %d\n", condition);
 
 	ast_mutex_lock(&iaxsl[callno]);
 	pvt = iaxs[callno];
@@ -3453,8 +3445,7 @@ static int iax2_transfer(struct ast_channel *c, const char *dest)
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, tmp);
 	if (context)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Transferring '%s' to '%s'\n", c->name, dest);
+	ast_debug(1, "Transferring '%s' to '%s'\n", c->name, dest);
 	return send_command_locked(callno, AST_FRAME_IAX, IAX_COMMAND_TRANSFER, 0, ied.buf, ied.pos, -1);
 }
 	
@@ -3628,8 +3619,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	/* If we have a time that the frame arrived, always use it to make our timestamp */
 	if (delivery && !ast_tvzero(*delivery)) {
 		ms = ast_tvdiff_ms(*delivery, p->offset);
-		if (option_debug > 2 && iaxdebug)
-			ast_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
+		if (iaxdebug)
+			ast_debug(3, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
 		ms = ast_tvdiff_ms(ast_tvnow(), p->offset);
 		if (ms < 0)
@@ -3678,7 +3669,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* frame size too) */
 
 				if (iaxdebug && abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW )
-					ast_log(LOG_DEBUG, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
+					ast_debug(1, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
 						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= 8) /* check to make sure we dont core dump */
@@ -3721,13 +3712,13 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	/* Setup rxcore if necessary */
 	if (ast_tvzero(p->rxcore)) {
 		p->rxcore = ast_tvnow();
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
+		if (iaxdebug)
+			ast_debug(1, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
 					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset);
 		p->rxcore = ast_tvsub(p->rxcore, ast_samp2tv(offset, 1000));
 #if 1
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n",
+		if (iaxdebug)
+			ast_debug(1, "calc_rxstamp: call=%d: works out as %d.%6.6d\n",
 					p->callno, (int)(p->rxcore.tv_sec),(int)( p->rxcore.tv_usec));
 #endif
 	}
@@ -3775,8 +3766,7 @@ static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 #ifdef SO_NO_CHECK
 			setsockopt(tpeer->sockfd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Created trunk peer for '%s:%d'\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
+			ast_debug(1, "Created trunk peer for '%s:%d'\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 			AST_LIST_INSERT_TAIL(&tpeers, tpeer, list);
 		}
 	}
@@ -3809,8 +3799,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 				
 				tpeer->trunkdataalloc += DEFAULT_TRUNKDATA;
 				tpeer->trunkdata = tmp;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Expanded trunk '%s:%d' to %d bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
+				ast_debug(1, "Expanded trunk '%s:%d' to %d bytes\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
 			} else {
 				ast_log(LOG_WARNING, "Maximum trunk data space exceeded to %s:%d\n", ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 				ast_mutex_unlock(&tpeer->lock);
@@ -3927,8 +3916,8 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 		memcpy_decrypt(workspace, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr), dcx);
 
 		padding = 16 + (workspace[15] & 0xf);
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
+		if (iaxdebug)
+			ast_debug(1, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
 		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
 			return -1;
 
@@ -3942,8 +3931,8 @@ static int decode_frame(ast_aes_decrypt_key *dcx, struct ast_iax2_full_hdr *fh, 
 		}
 	} else {
 		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Decoding mini with length %d\n", *datalen);
+		if (iaxdebug)
+			ast_debug(1, "Decoding mini with length %d\n", *datalen);
 		if (*datalen < 16 + sizeof(struct ast_iax2_mini_hdr))
 			return -1;
 		/* Decrypt */
@@ -3966,24 +3955,24 @@ static int encrypt_frame(ast_aes_encrypt_key *ecx, struct ast_iax2_full_hdr *fh,
 		return -1;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d\n", fh->type, fh->csub, *datalen);
+		if (iaxdebug)
+			ast_debug(1, "Encoding full frame %d/%d with length %d\n", fh->type, fh->csub, *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_full_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
 		memcpy(workspace, poo, padding);
 		memcpy(workspace + padding, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr));
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0xf);
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
+		if (iaxdebug)
+			ast_debug(1, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
 		*datalen += padding;
 		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct ast_iax2_full_enc_hdr), ecx);
 		if (*datalen >= 32 + sizeof(struct ast_iax2_full_enc_hdr))
 			memcpy(poo, workspace + *datalen - 32, 32);
 	} else {
 		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Encoding mini frame with length %d\n", *datalen);
+		if (iaxdebug)
+			ast_debug(1, "Encoding mini frame with length %d\n", *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_mini_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
 		memcpy(workspace, poo, padding);
@@ -4787,8 +4776,7 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 			/* Simple, just queue for transmission */
 				res = iax2_send(iaxs[callno], f, 0, -1, 0, 0, 0);
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Write error: %s\n", strerror(errno));
+			ast_debug(1, "Write error: %s\n", strerror(errno));
 		}
 	}
 	/* If it's already gone, just return */
@@ -5067,7 +5055,7 @@ static int raw_hangup(struct sockaddr_in *sin, unsigned short src, unsigned shor
 #if 0
 	if (option_debug)
 #endif	
-		ast_log(LOG_DEBUG, "Raw Hangup %s:%d, src=%d, dst=%d\n",
+		ast_debug(1, "Raw Hangup %s:%d, src=%d, dst=%d\n",
 			ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), src, dst);
 	return sendto(sockfd, &fh, sizeof(fh), 0, (struct sockaddr *)sin, sizeof(*sin));
 }
@@ -5780,8 +5768,7 @@ static void __expire_registry(void *data)
 	if (!p)
 		return;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Expiring registration for peer '%s'\n", p->name);
+	ast_debug(1, "Expiring registration for peer '%s'\n", p->name);
 	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
 		realtime_update_peer(p->name, &p->addr, 0);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
@@ -6214,8 +6201,7 @@ static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
 		res = transmit_trunk(fr, &tpeer->addr, tpeer->sockfd);
 		calls = tpeer->calls;
 #if 0
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Trunking %d call chunks in %d bytes to %s:%d, ts=%d\n", calls, fr->datalen, ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), ntohl(mth->ts));
+		ast_debug(1, "Trunking %d call chunks in %d bytes to %s:%d, ts=%d\n", calls, fr->datalen, ast_inet_ntoa(tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), ntohl(mth->ts));
 #endif		
 		/* Reset transmit trunk side data */
 		tpeer->trunkdatalen = 0;
@@ -6291,8 +6277,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		ast_mutex_lock(&drop->lock);
 		/* Once we have this lock, we're sure nobody else is using it or could use it once we release it, 
 		   because by the time they could get tpeerlock, we've already grabbed it */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Dropping unused iax2 trunk peer '%s:%d'\n", ast_inet_ntoa(drop->addr.sin_addr), ntohs(drop->addr.sin_port));
+		ast_debug(1, "Dropping unused iax2 trunk peer '%s:%d'\n", ast_inet_ntoa(drop->addr.sin_addr), ntohs(drop->addr.sin_port));
 		ast_free(drop->trunkdata);
 		ast_mutex_unlock(&drop->lock);
 		ast_mutex_destroy(&drop->lock);
@@ -6460,8 +6445,7 @@ static int check_provisioning(struct sockaddr_in *sin, int sockfd, char *si, uns
 	snprintf(rsi, sizeof(rsi), "si-%s", si);
 	if (iax_provision_version(&ourver, rsi, 1))
 		return 0;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Service identifier '%s', we think '%08x', they think '%08x'\n", si, ourver, ver);
+	ast_debug(1, "Service identifier '%s', we think '%08x', they think '%08x'\n", si, ourver, ver);
 	if (ourver != ver) 
 		iax2_provision(sin, sockfd, NULL, rsi, 1);
 	return 0;
@@ -6881,16 +6865,15 @@ static int socket_process(struct iax2_thread *thread)
 		iaxs[fr->callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	}
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
-		if (option_debug  && iaxdebug)
-			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
+		if (iaxdebug)
+			ast_debug(1, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
 		/* Check if it's out of order (and not an ACK or INVAL) */
 		fr->oseqno = fh->oseqno;
 		fr->iseqno = fh->iseqno;
 		fr->ts = ntohl(fh->ts);
 #ifdef IAXTESTS
 		if (test_resync) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Simulating frame ts resync, was %u now %u\n", fr->ts, fr->ts + test_resync);
+			ast_debug(1, "Simulating frame ts resync, was %u now %u\n", fr->ts, fr->ts + test_resync);
 			fr->ts += test_resync;
 		}
 #endif /* IAXTESTS */
@@ -6923,15 +6906,13 @@ static int socket_process(struct iax2_thread *thread)
 			  (f.subclass != IAX_COMMAND_VNAK)) ||
 			  (f.frametype != AST_FRAME_IAX)) {
 			 	/* If it's not an ACK packet, it's out of order. */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
+				ast_debug(1, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
 					iaxs[fr->callno]->iseqno, fr->oseqno, f.frametype, f.subclass);
 				if (iaxs[fr->callno]->iseqno > fr->oseqno) {
 					/* If we've already seen it, ack it XXX There's a border condition here XXX */
 					if ((f.frametype != AST_FRAME_IAX) || 
 							((f.subclass != IAX_COMMAND_ACK) && (f.subclass != IAX_COMMAND_INVAL))) {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Acking anyway\n");
+						ast_debug(1, "Acking anyway\n");
 						/* XXX Maybe we should handle its ack to us, but then again, it's probably outdated anyway, and if
 						   we have anything to send, we'll retransmit and get an ACK back anyway XXX */
 						send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
@@ -6986,8 +6967,8 @@ static int socket_process(struct iax2_thread *thread)
 				   that it says to */
 				for (x=iaxs[fr->callno]->rseqno; x != fr->iseqno; x++) {
 					/* Ack the packet with the given timestamp */
-					if (option_debug && iaxdebug)
-						ast_log(LOG_DEBUG, "Cancelling transmission of packet %d\n", x);
+					if (iaxdebug)
+						ast_debug(1, "Cancelling transmission of packet %d\n", x);
 					call_to_destroy = 0;
 					AST_LIST_LOCK(&queue);
 					AST_LIST_TRAVERSE(&queue, cur, list) {
@@ -7001,8 +6982,8 @@ static int socket_process(struct iax2_thread *thread)
 					}
 					AST_LIST_UNLOCK(&queue);
 					if (call_to_destroy) {
-						if (iaxdebug && option_debug)
-							ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", call_to_destroy);
+						if (iaxdebug)
+							ast_debug(1, "Really destroying %d, having been acked on final message\n", call_to_destroy);
 						iax2_destroy(call_to_destroy);
 					}
 				}
@@ -7015,8 +6996,7 @@ static int socket_process(struct iax2_thread *thread)
 					return 1;
 				}
 			} else {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr->iseqno, iaxs[fr->callno]->rseqno, iaxs[fr->callno]->oseqno);
+				ast_debug(1, "Received iseqno %d not within window %d->%d\n", fr->iseqno, iaxs[fr->callno]->rseqno, iaxs[fr->callno]->oseqno);
 			}
 		}
 		if (inaddrcmp(&sin, &iaxs[fr->callno]->addr) && 
@@ -7067,8 +7047,7 @@ static int socket_process(struct iax2_thread *thread)
 		if (f.frametype == AST_FRAME_VOICE) {
 			if (f.subclass != iaxs[fr->callno]->voiceformat) {
 					iaxs[fr->callno]->voiceformat = f.subclass;
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
+					ast_debug(1, "Ooh, voice format changed to %d\n", f.subclass);
 					if (iaxs[fr->callno]->owner) {
 						int orignative;
 retryowner:
@@ -7088,8 +7067,7 @@ retryowner:
 								ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
 							}
 						} else {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Neat, somebody took away the channel at a magical time but i found it!\n");
+							ast_debug(1, "Neat, somebody took away the channel at a magical time but i found it!\n");
 							/* Free remote variables (if any) */
 							if (ies.vars)
 								ast_variables_destroy(ies.vars);
@@ -7101,8 +7079,7 @@ retryowner:
 		}
 		if (f.frametype == AST_FRAME_VIDEO) {
 			if (f.subclass != iaxs[fr->callno]->videoformat) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Ooh, video format changed to %d\n", f.subclass & ~0x1);
+				ast_debug(1, "Ooh, video format changed to %d\n", f.subclass & ~0x1);
 				iaxs[fr->callno]->videoformat = f.subclass & ~0x1;
 			}
 		}
@@ -7113,8 +7090,8 @@ retryowner:
 				iaxs[fr->callno]->initid = -1;
 			}
 			/* Handle the IAX pseudo frame itself */
-			if (option_debug && iaxdebug)
-				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
+			if (iaxdebug)
+				ast_debug(1, "IAX subclass %d received\n", f.subclass);
 
                         /* Update last ts unless the frame's timestamp originated with us. */
 			if (iaxs[fr->callno]->last < fr->ts &&
@@ -7122,8 +7099,8 @@ retryowner:
                             f.subclass != IAX_COMMAND_PONG &&
                             f.subclass != IAX_COMMAND_LAGRP) {
 				iaxs[fr->callno]->last = fr->ts;
-				if (option_debug && iaxdebug)
-					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
+				if (iaxdebug)
+					ast_debug(1, "For call=%d, set last=%d\n", fr->callno, fr->ts);
 			}
 
 			switch(f.subclass) {
@@ -7395,8 +7372,7 @@ retryowner:
 				break;
 			case IAX_COMMAND_HANGUP:
 				ast_set_flag(iaxs[fr->callno], IAX_ALREADYGONE);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Immediately destroying %d, having received hangup\n", fr->callno);
+				ast_debug(1, "Immediately destroying %d, having received hangup\n", fr->callno);
 				/* Set hangup cause according to remote */
 				if (ies.causecode && iaxs[fr->callno]->owner)
 					iaxs[fr->callno]->owner->hangupcause = ies.causecode;
@@ -7414,9 +7390,8 @@ retryowner:
 						ast_log(LOG_WARNING, "Call rejected by %s: %s\n",
 							ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr),
 							ies.cause ? ies.cause : "<Unknown>");
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n",
-							fr->callno);
+					ast_debug(1, "Immediately destroying %d, having received reject\n",
+						fr->callno);
 				}
 				/* Send ack immediately, before we destroy */
 				send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK,
@@ -7434,22 +7409,19 @@ retryowner:
 						if (iax_park(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->owner)) {
 							ast_log(LOG_WARNING, "Failed to park call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 						} else if (ast_bridged_channel(iaxs[fr->callno]->owner)) {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
+							ast_debug(1, "Parked call on '%s'\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name);
 						}
 					} else {
 						if (ast_async_goto(ast_bridged_channel(iaxs[fr->callno]->owner), iaxs[fr->callno]->context, ies.called_number, 1))
 							ast_log(LOG_WARNING, "Async goto of '%s' to '%s@%s' failed\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
 								ies.called_number, iaxs[fr->callno]->context);
 						else {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Async goto of '%s' to '%s@%s' started\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
-									ies.called_number, iaxs[fr->callno]->context);
+							ast_debug(1, "Async goto of '%s' to '%s@%s' started\n", ast_bridged_channel(iaxs[fr->callno]->owner)->name, 
+								ies.called_number, iaxs[fr->callno]->context);
 						}
 					}
 				} else {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Async goto not applicable on call %d\n", fr->callno);
+					ast_debug(1, "Async goto not applicable on call %d\n", fr->callno);
 				}
 				break;
 			case IAX_COMMAND_ACCEPT:
@@ -7566,8 +7538,7 @@ retryowner2:
 					/* And wrap up the qualify call */
 					iax2_destroy(fr->callno);
 					peer->callno = 0;
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Peer %s: got pong, lastms %d, historicms %d, maxms %d\n", peer->name, peer->lastms, peer->historicms, peer->maxms);
+					ast_debug(1, "Peer %s: got pong, lastms %d, historicms %d, maxms %d\n", peer->name, peer->lastms, peer->historicms, peer->maxms);
 				}
 				break;
 			case IAX_COMMAND_LAGRQ:
@@ -7587,8 +7558,8 @@ retryowner2:
 					/* This is a reply we've been given, actually measure the difference */
 					ts = calc_timestamp(iaxs[fr->callno], 0, &fr->af);
 					iaxs[fr->callno]->lag = ts - fr->ts;
-					if (option_debug && iaxdebug)
-						ast_log(LOG_DEBUG, "Peer %s lag measured as %dms\n",
+					if (iaxdebug)
+						ast_debug(1, "Peer %s lag measured as %dms\n",
 							ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr), iaxs[fr->callno]->lag);
 				}
 				break;
@@ -7663,8 +7634,7 @@ retryowner2:
 					}
 					if (!format) {
 						if(!ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr->callno]->peerformat), iaxs[fr->callno]->peercapability);
+							ast_debug(1, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr->callno]->peerformat), iaxs[fr->callno]->peercapability);
 							format = iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability;
 						}
 						if (!format) {
@@ -7783,15 +7753,12 @@ retryowner2:
 				break;
 			case IAX_COMMAND_INVAL:
 				iaxs[fr->callno]->error = ENOTCONN;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Immediately destroying %d, having received INVAL\n", fr->callno);
+				ast_debug(1, "Immediately destroying %d, having received INVAL\n", fr->callno);
 				iax2_destroy(fr->callno);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Destroying call %d\n", fr->callno);
+				ast_debug(1, "Destroying call %d\n", fr->callno);
 				break;
 			case IAX_COMMAND_VNAK:
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Received VNAK: resending outstanding frames\n");
+				ast_debug(1, "Received VNAK: resending outstanding frames\n");
 				/* Force retransmission */
 				vnak_retransmit(fr->callno, fr->iseqno);
 				break;
@@ -7955,8 +7922,7 @@ retryowner2:
 					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
 				break;
 			default:
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Unknown IAX command %d on %d/%d\n", f.subclass, fr->callno, iaxs[fr->callno]->peercallno);
+				ast_debug(1, "Unknown IAX command %d on %d/%d\n", f.subclass, fr->callno, iaxs[fr->callno]->peercallno);
 				memset(&ied0, 0, sizeof(ied0));
 				iax_ie_append_byte(&ied0, IAX_IE_IAX_UNKNOWN, f.subclass);
 				send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_UNSUPPORT, 0, ied0.buf, ied0.pos, -1);
@@ -8054,8 +8020,8 @@ retryowner2:
 		/*iaxs[fr->callno]->last = fr->ts; (do it afterwards cos schedule/forward_delivery needs the last ts too)*/
 		fr->outoforder = 0;
 	} else {
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr->ts, iaxs[fr->callno]->last);
+		if (iaxdebug)
+			ast_debug(1, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr->ts, iaxs[fr->callno]->last);
 		fr->outoforder = -1;
 	}
 	duped_fr = iaxfrdup2(fr);
@@ -8065,8 +8031,8 @@ retryowner2:
 	if (iaxs[fr->callno] && iaxs[fr->callno]->last < fr->ts) {
 		iaxs[fr->callno]->last = fr->ts;
 #if 1
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr->callno, fr->ts);
+		if (iaxdebug)
+			ast_debug(1, "For call=%d, set last=%d\n", fr->callno, fr->ts);
 #endif
 	}
 
@@ -8165,8 +8131,8 @@ static void *iax2_process_thread(void *data)
 static int iax2_do_register(struct iax2_registry *reg)
 {
 	struct iax_ie_data ied;
-	if (option_debug && iaxdebug)
-		ast_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
+	if (iaxdebug)
+		ast_debug(1, "Sending registration request for '%s'\n", reg->username);
 
 	if (reg->dnsmgr && 
 	    ((reg->regstate == REG_STATE_TIMEOUT) || !reg->addr.sin_addr.s_addr)) {
@@ -8185,8 +8151,8 @@ static int iax2_do_register(struct iax2_registry *reg)
 		reg->callno = 0;
 	}
 	if (!reg->addr.sin_addr.s_addr) {
-		if (option_debug && iaxdebug)
-			ast_log(LOG_DEBUG, "Unable to send registration request for '%s' without IP address\n", reg->username);
+		if (iaxdebug)
+			ast_debug(1, "Unable to send registration request for '%s' without IP address\n", reg->username);
 		/* Setup the next registration attempt */
 		if (reg->expire > -1)
 			ast_sched_del(sched, reg->expire);
@@ -8195,14 +8161,13 @@ static int iax2_do_register(struct iax2_registry *reg)
 	}
 
 	if (!reg->callno) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Allocate call number\n");
+		ast_debug(1, "Allocate call number\n");
 		reg->callno = find_callno(0, 0, &reg->addr, NEW_FORCE, 1, defaultsockfd);
 		if (reg->callno < 1) {
 			ast_log(LOG_WARNING, "Unable to create call for registration\n");
 			return -1;
-		} else if (option_debug)
-			ast_log(LOG_DEBUG, "Registration created on call %d\n", reg->callno);
+		} else
+			ast_debug(1, "Registration created on call %d\n", reg->callno);
 		iaxs[reg->callno]->reg = reg;
 	}
 	/* Schedule the next registration attempt */
@@ -8239,12 +8204,10 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 
 	memset(&cai, 0, sizeof(cai));
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Provisioning '%s' from template '%s'\n", dest, template);
+	ast_debug(1, "Provisioning '%s' from template '%s'\n", dest, template);
 
 	if (iax_provision_build(&provdata, &sig, template, force)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "No provisioning found for template '%s'\n", template);
+		ast_debug(1, "No provisioning found for template '%s'\n", template);
 		return 0;
 	}
 
@@ -8529,8 +8492,8 @@ static void *sched_thread(void *ignore)
 		pthread_testcancel();
 
 		count = ast_sched_runq(sched);
-		if (count >= 20 && option_debug)
-			ast_log(LOG_DEBUG, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
+		if (count >= 20)
+			ast_debug(1, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 	}
 
 	return NULL;
@@ -8589,14 +8552,14 @@ static void *network_thread(void *ignore)
 		AST_LIST_UNLOCK(&queue);
 
 		pthread_testcancel();
-		if (count >= 20 && option_debug)
-			ast_log(LOG_DEBUG, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
+		if (count >= 20)
+			ast_debug(1, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
 
 		/* Now do the IO, and run scheduled tasks */
 		res = ast_io_wait(io, wakeup);
 		if (res >= 0) {
-			if (res >= 20 && option_debug)
-				ast_log(LOG_DEBUG, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
+			if (res >= 20)
+				ast_debug(1, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
 		}
 	}
 	return NULL;
@@ -8670,8 +8633,7 @@ static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
 
 	res = bind(sd, sa, salen);
 	if (res < 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Can't bind: %s\n", strerror(errno));
+		ast_debug(1, "Can't bind: %s\n", strerror(errno));
 		close(sd);
 		return 1;
 	}
@@ -8750,8 +8712,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 			srcaddr, peer->name);
 			return -1;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Using sourceaddress %s for '%s'\n", srcaddr, peer->name);
+		ast_debug(1, "Using sourceaddress %s for '%s'\n", srcaddr, peer->name);
 		return 0;
 	}
 }
@@ -9808,9 +9769,8 @@ static int cache_get_callno_locked(const char *data)
 	if (create_addr(pds.peer, &sin, &cai))
 		return -1;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
-			pds.peer, pds.username, pds.password, pds.context);
+	ast_debug(1, "peer: %s, username: %s, password: %s, context: %s\n",
+		pds.peer, pds.username, pds.password, pds.context);
 
 	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
 	if (callno < 1) {
@@ -10247,17 +10207,15 @@ static int iax2_devicestate(void *data)
 	if (ast_strlen_zero(pds.peer))
 		return res;
 	
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Checking device state for device %s\n", pds.peer);
+	ast_debug(3, "Checking device state for device %s\n", pds.peer);
 
 	/* SLD: FIXME: second call to find_peer during registration */
 	if (!(p = find_peer(pds.peer, 1)))
 		return res;
 
 	res = AST_DEVICE_UNAVAILABLE;
-	if (option_debug > 2) 
-		ast_log(LOG_DEBUG, "iax2_devicestate: Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
-			pds.peer, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
+	ast_debug(3, "iax2_devicestate: Found peer. What's device state of %s? addr=%d, defaddr=%d maxms=%d, lastms=%d\n",
+		pds.peer, p->addr.sin_addr.s_addr, p->defaddr.sin_addr.s_addr, p->maxms, p->lastms);
 	
 	if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 	    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {

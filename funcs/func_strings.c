@@ -146,8 +146,7 @@ static int regex(struct ast_channel *chan, const char *cmd, char *parse, char *b
 	if ((*args.str == ' ') || (*args.str == '\t'))
 		args.str++;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "FUNCTION REGEX (%s)(%s)\n", args.reg, args.str);
+	ast_debug(1, "FUNCTION REGEX (%s)(%s)\n", args.reg, args.str);
 
 	if ((errcode = regcomp(&regexbuf, args.reg, REG_EXTENDED | REG_NOSUB))) {
 		regerror(errcode, &regexbuf, buf, len);
@@ -237,8 +236,7 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 	 * want them to be surprised by the result.  Hence, we prefer commas as the
 	 * delimiter, but we'll fall back to vertical bars if commas aren't found.
 	 */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "array (%s=%s)\n", var, value2);
+	ast_debug(1, "array (%s=%s)\n", var, value2);
 	if (strchr(var, ','))
 		AST_NONSTANDARD_APP_ARGS(arg1, var, ',');
 	else
@@ -250,8 +248,7 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 		AST_STANDARD_APP_ARGS(arg2, value2);
 
 	for (i = 0; i < arg1.argc; i++) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "array set value (%s=%s)\n", arg1.var[i],
+		ast_debug(1, "array set value (%s=%s)\n", arg1.var[i],
 				arg2.val[i]);
 		if (i < arg2.argc) {
 			if (ishash) {

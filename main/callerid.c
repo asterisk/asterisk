@@ -180,7 +180,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 	number[0] = 0;
 
 	if (strlen(cidstring) < 2) {
-		ast_log(LOG_DEBUG, "No cid detected\n");
+		ast_debug(1, "No cid detected\n");
 		*flags = CID_UNKNOWN_NUMBER;
 		return;
 	}
@@ -194,7 +194,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 		else if (code == 10) 
 			*flags = CID_PRIVATE_NUMBER;
 		else
-			ast_log(LOG_DEBUG, "Unknown DTMF code %d\n", code);
+			ast_debug(1, "Unknown DTMF code %d\n", code);
 	} else if (cidstring[0] == 'D' && cidstring[2] == '#') {
 		/* .DK special code */
 		if (cidstring[1] == '1')
@@ -209,7 +209,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 			if (isdigit(cidstring[i]))
 				number[i-1] = cidstring[i];
 			else
-				ast_log(LOG_DEBUG, "Unknown CID digit '%c'\n",
+				ast_debug(1, "Unknown CID digit '%c'\n",
 					cidstring[i]);
 		}
 		number[i-1] = 0;
@@ -226,8 +226,7 @@ void callerid_get_dtmf(char *cidstring, char *number, int *flags)
 		}
 		number[i] = 0;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Unknown CID protocol, start digit '%c'\n", cidstring[0]);
+		ast_debug(1, "Unknown CID protocol, start digit '%c'\n", cidstring[0]);
 		*flags = CID_UNKNOWN_NUMBER;
 	}
 }
@@ -420,8 +419,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						case 0x06: /* short dial number */
 						case 0x07: /* reserved */
 						default:   /* reserved */
-							if (option_debug > 1)
-								ast_log(LOG_DEBUG, "cid info:#1=%X\n", cid->rawdata[x]);
+							ast_debug(2, "cid info:#1=%X\n", cid->rawdata[x]);
 							break ;
 						}
 						x++; 
@@ -437,8 +435,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						case 0x09: /* private dial plan */
 						case 0x05: /* reserved */
 						default:   /* reserved */
-							if (option_debug > 1)
-								ast_log(LOG_DEBUG, "cid info:#2=%X\n", cid->rawdata[x]);
+							ast_debug(2, "cid info:#2=%X\n", cid->rawdata[x]);
 							break ;
 						}
 						x++; 
@@ -453,8 +450,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						case 'C': /* pay phone */
 						case 'S': /* service congested */
                    						cid->flags |= CID_UNKNOWN_NUMBER;
-							if (option_debug > 1)
-								ast_log(LOG_DEBUG, "no cid reason:%c\n",cid->rawdata[x]);
+							ast_debug(2, "no cid reason:%c\n",cid->rawdata[x]);
 							break ;
 						}
 						x++; 
@@ -495,8 +491,7 @@ int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, i
 						case 0x09: /* private dial plan */
 						case 0x05: /* reserved */
 						default:   /* reserved */
-							if (option_debug > 1)
-								ast_log(LOG_DEBUG, "did info:#2=%X\n", cid->rawdata[x]);
+							ast_debug(2, "did info:#2=%X\n", cid->rawdata[x]);
 							break ;
 						}
 						x++;

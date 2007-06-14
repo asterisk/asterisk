@@ -909,7 +909,7 @@ realtime_handler(const char *database, const char *table, va_list ap)
 	}
 
 	query = tmp_str;
-	ast_log(LOG_DEBUG, "SQL query: %s\n", query);
+	ast_debug(1, "SQL query: %s\n", query);
 	args.var = NULL;
 	args.last = NULL;
 
@@ -1074,7 +1074,7 @@ static struct ast_config *realtime_multi_handler(const char *database,
 
 	sqlite_freemem(query);
 	query = tmp_str;
-	ast_log(LOG_DEBUG, "SQL query: %s\n", query);
+	ast_debug(1, "SQL query: %s\n", query);
 	args.cfg = cfg;
 	args.initfield = initfield;
 
@@ -1157,7 +1157,7 @@ static int realtime_update_handler(const char *database, const char *table,
 
 	sqlite_freemem(query);
 	query = tmp_str;
-	ast_log(LOG_DEBUG, "SQL query: %s\n", query);
+	ast_debug(1, "SQL query: %s\n", query);
 
 	ast_mutex_lock(&mutex);
 

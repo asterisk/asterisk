@@ -169,9 +169,8 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, unsigne
 		return -1;
 	}
 
-	if (option_debug > 2)	/* Advanced NAPTR debugging */
-		ast_log(LOG_DEBUG, "NAPTR input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
-			naptrinput, flags, services, regexp, repl);
+	ast_debug(3, "NAPTR input='%s', flags='%s', services='%s', regexp='%s', repl='%s'\n",
+		naptrinput, flags, services, regexp, repl);
 
 	if (tolower(flags[0]) != 'u') {
 		ast_log(LOG_WARNING, "NAPTR Flag must be 'U' or 'u'.\n");
@@ -403,7 +402,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		}
 	}
 
-	ast_log(LOG_DEBUG, "ast_get_enum(): n='%s', tech='%s', suffix='%s', options='%d', record='%d'\n",
+	ast_debug(1, "ast_get_enum(): n='%s', tech='%s', suffix='%s', options='%d', record='%d'\n",
 			number, tech, suffix, context->options, context->position);
 
 	if (pos > 128)
@@ -450,7 +449,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	if (suffix) {
 		ast_copy_string(tmp + newpos, suffix, sizeof(tmp) - newpos);
 		ret = ast_search_dns(context, tmp, C_IN, T_NAPTR, enum_callback);
-		ast_log(LOG_DEBUG, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
+		ast_debug(1, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
 	} else {
 		ret = -1;		/* this is actually dead code since the demise of app_enum.c */
 		for (;;) {
@@ -469,15 +468,14 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	
 			ast_copy_string(tmp + newpos, s->toplev, sizeof(tmp) - newpos);
 			ret = ast_search_dns(&context, tmp, C_IN, T_NAPTR, enum_callback);
-			ast_log(LOG_DEBUG, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
+			ast_debug(1, "ast_get_enum: ast_search_dns(%s) returned %d\n", tmp, ret);
 			if (ret > 0)
 				break;
 		}
 	}
 
 	if (ret < 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "No such number found: %s (%s)\n", tmp, strerror(errno));
+		ast_debug(1, "No such number found: %s (%s)\n", tmp, strerror(errno));
 		strcpy(dst, "0");
 		ret = 0;
 	}
@@ -589,8 +587,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 			break;
 	}
 	if (ret < 0) {
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "No such number found in ENUM: %s (%s)\n", tmp, strerror(errno));
+		ast_debug(2, "No such number found in ENUM: %s (%s)\n", tmp, strerror(errno));
 		ret = 0;
 	}
 	if (chan)

@@ -2462,8 +2462,7 @@ static void *skinny_ss(void *data)
 				timeout = matchdigittimeout;
 			}
 		} else if (res == 0) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Not enough digits (%s) (and no ambiguous match)...\n", d->exten);
+			ast_debug(1, "Not enough digits (%s) (and no ambiguous match)...\n", d->exten);
 			transmit_tone(s, SKINNY_REORDER);
 			if (sub->owner && sub->owner->_state != AST_STATE_UP) {
 				ast_indicate(c, -1);
@@ -2552,8 +2551,7 @@ static int skinny_hangup(struct ast_channel *ast)
 	struct skinnysession *s;
 
 	if (!sub) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
+		ast_debug(1, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	l = sub->parent;
@@ -2657,8 +2655,7 @@ static struct ast_frame *skinny_rtp_read(struct skinny_subchannel *sub)
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != ast->nativeformats) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
 				ast->nativeformats = f->subclass;
 				ast_set_read_format(ast, ast->readformat);
 				ast_set_write_format(ast, ast->writeformat);
@@ -3383,8 +3380,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_setstate(sub->owner, AST_STATE_UP);
 		} else {
 			if (sub && sub->owner) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Current subchannel [%s] already has owner\n", sub->owner->name);
+				ast_debug(1, "Current subchannel [%s] already has owner\n", sub->owner->name);
 			} else {
 				c = skinny_new(l, AST_STATE_DOWN);
 				if (c) {
@@ -3463,8 +3459,7 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		ast_setstate(sub->owner, AST_STATE_UP);
 	} else {
 		if (sub && sub->owner) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
+			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
 		} else {
 			c = skinny_new(l, AST_STATE_DOWN);
 			if (c) {

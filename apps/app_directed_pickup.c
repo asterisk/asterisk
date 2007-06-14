@@ -59,8 +59,7 @@ static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
 {
 	int res = 0;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
+	ast_debug(1, "Call pickup on '%s' by '%s'\n", target->name, chan->name);
 
 	if ((res = ast_answer(chan))) {
 		ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);

@@ -175,9 +175,9 @@ error:
 	}
 	
 	for (ptr = tmp->vc.user_comments; *ptr; ptr++)
-		ast_log(LOG_DEBUG, "OGG/Vorbis comment: %s\n", *ptr);
-	ast_log(LOG_DEBUG, "OGG/Vorbis bitstream is %d channel, %ldHz\n", tmp->vi.channels, tmp->vi.rate);
-	ast_log(LOG_DEBUG, "OGG/Vorbis file encoded by: %s\n", tmp->vc.vendor);
+		ast_debug(1, "OGG/Vorbis comment: %s\n", *ptr);
+		ast_debug(1, "OGG/Vorbis bitstream is %d channel, %ldHz\n", tmp->vi.channels, tmp->vi.rate);
+		ast_debug(1, "OGG/Vorbis file encoded by: %s\n", tmp->vc.vendor);
 
 	if (tmp->vi.channels != 1) {
 		ast_log(LOG_ERROR, "Only monophonic OGG/Vorbis files are currently supported!\n");

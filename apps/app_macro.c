@@ -220,8 +220,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	/* If we are to run the macro exclusively, take the mutex */
 	if (exclusive) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Locking macrolock for '%s'\n", fullmacro);
+		ast_debug(1, "Locking macrolock for '%s'\n", fullmacro);
 		ast_autoservice_start(chan);
 		if (ast_context_lockmacro(fullmacro)) {
 			ast_log(LOG_WARNING, "Failed to lock macro '%s' as in-use\n", fullmacro);
@@ -313,8 +312,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
 		    	(res == '*') || (res == '#')) {
 				/* Just return result as to the previous application as if it had been dialed */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
+				ast_debug(1, "Oooh, got something to jump out with ('%c')!\n", res);
 				break;
 			}
 			switch(res) {
@@ -322,27 +320,25 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 				res = 0;
 				goto out;
 			case AST_PBX_KEEPALIVE:
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
-				else if (option_verbose > 1)
+				ast_debug(2, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
+				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in macro '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
 				goto out;
 				break;
 			default:
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
-				else if (option_verbose > 1)
+				ast_debug(2, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+				if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				dead = 1;
 				goto out;
 			}
 		}
 
-		ast_log(LOG_DEBUG, "Executed application: %s\n", runningapp);
+		ast_debug(1, "Executed application: %s\n", runningapp);
 
 		if (!strcasecmp(runningapp, "GOSUB")) {
 			gosub_level++;
-			ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+			ast_debug(1, "Incrementing gosub_level\n");
 		} else if (!strcasecmp(runningapp, "GOSUBIF")) {
 			char tmp2[1024] = "", *cond, *app, *app2 = tmp2;
 			pbx_substitute_variables_helper(chan, runningdata, tmp2, sizeof(tmp2) - 1);
@@ -351,20 +347,20 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			if (pbx_checkcondition(cond)) {
 				if (!ast_strlen_zero(app)) {
 					gosub_level++;
-					ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+					ast_debug(1, "Incrementing gosub_level\n");
 				}
 			} else {
 				if (!ast_strlen_zero(app2)) {
 					gosub_level++;
-					ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+					ast_debug(1, "Incrementing gosub_level\n");
 				}
 			}
 		} else if (!strcasecmp(runningapp, "RETURN")) {
 			gosub_level--;
-			ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+			ast_debug(1, "Decrementing gosub_level\n");
 		} else if (!strcasecmp(runningapp, "STACKPOP")) {
 			gosub_level--;
-			ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+			ast_debug(1, "Decrementing gosub_level\n");
 		} else if (!strncasecmp(runningapp, "EXEC", 4)) {
 			/* Must evaluate args to find actual app */
 			char tmp2[1024] = "", *tmp3 = NULL;
@@ -379,17 +375,17 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 				tmp3 = tmp2;
 
 			if (tmp3)
-				ast_log(LOG_DEBUG, "Last app: %s\n", tmp3);
+				ast_debug(1, "Last app: %s\n", tmp3);
 
 			if (tmp3 && !strncasecmp(tmp3, "GOSUB", 5)) {
 				gosub_level++;
-				ast_log(LOG_DEBUG, "Incrementing gosub_level\n");
+				ast_debug(1, "Incrementing gosub_level\n");
 			} else if (tmp3 && !strncasecmp(tmp3, "RETURN", 6)) {
 				gosub_level--;
-				ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+				ast_debug(1, "Decrementing gosub_level\n");
 			} else if (tmp3 && !strncasecmp(tmp3, "STACKPOP", 8)) {
 				gosub_level--;
-				ast_log(LOG_DEBUG, "Decrementing gosub_level\n");
+				ast_debug(1, "Decrementing gosub_level\n");
 			}
 		}
 
@@ -401,9 +397,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 		/* don't stop executing extensions when we're in "h" */
 		if (chan->_softhangup && !inhangup) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n",
-					chan->exten, chan->macroexten, chan->priority);
+			ast_debug(1, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n", chan->exten, chan->macroexten, chan->priority);
 			goto out;
 		}
 		chan->priority++;
@@ -474,8 +468,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	/* Unlock the macro */
 	if (exclusive) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Unlocking macrolock for '%s'\n", fullmacro);
+		ast_debug(1, "Unlocking macrolock for '%s'\n", fullmacro);
 		if (ast_context_unlockmacro(fullmacro)) {
 			ast_log(LOG_ERROR, "Failed to unlock macro '%s' - that isn't good\n", fullmacro);
 			res = 0;

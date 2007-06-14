@@ -269,8 +269,7 @@ static struct number *create_followme_number(char *number, int timeout, int numo
 		*tmp = '\0';
 	ast_copy_string(cur->number, number, sizeof(cur->number));
 	cur->order = numorder;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Created a number, %s, order of , %d, with a timeout of %ld.\n", cur->number, cur->order, cur->timeout);
+	ast_debug(1, "Created a number, %s, order of , %d, with a timeout of %ld.\n", cur->number, cur->order, cur->timeout);
 
 	return cur;
 }
@@ -356,8 +355,7 @@ static int reload_followme(void)
 			if (!strcasecmp(f->name, cat))
 				break;
 		}
-		if (option_debug)
-			ast_log(LOG_DEBUG, "New profile %s.\n", cat);
+		ast_debug(1, "New profile %s.\n", cat);
 		if (!f) {
 			/* Make one then */
 			f = alloc_profile(cat);
@@ -406,8 +404,7 @@ static int reload_followme(void)
 					AST_LIST_INSERT_TAIL(&f->numbers, cur, entry);
 				} else {
 					profile_set_param(f, var->name, var->value, var->lineno, 1);
-					if (option_debug > 1)
-						ast_log(LOG_DEBUG, "Logging parameter %s with value %s from lineno %d\n", var->name, var->value, var->lineno);
+					ast_debug(2, "Logging parameter %s with value %s from lineno %d\n", var->name, var->value, var->lineno);
 				}
 				var = var->next;
 			} /* End while(var) loop */
@@ -688,8 +685,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 								ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", winner->name);
 							break;
 						default:
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+							ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
 							break;
 						}
 					} 
@@ -697,24 +693,19 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						if (winner->stream)
 							ast_stopstream(winner);
 						tmpuser->digts = 0;
-						if (option_debug)
-							ast_log(LOG_DEBUG, "DTMF received: %c\n",(char) f->subclass);
+						ast_debug(1, "DTMF received: %c\n",(char) f->subclass);
 						tmpuser->yn[tmpuser->ynidx] = (char) f->subclass;
 						tmpuser->ynidx++;
-						if (option_debug)
-							ast_log(LOG_DEBUG, "DTMF string: %s\n", tmpuser->yn);
+						ast_debug(1, "DTMF string: %s\n", tmpuser->yn);
 						if (tmpuser->ynidx >= ynlongest) {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "reached longest possible match - doing evals\n");
+							ast_debug(1, "reached longest possible match - doing evals\n");
 							if (!strcmp(tmpuser->yn, tpargs->takecall)) {
-								if (option_debug)
-									ast_log(LOG_DEBUG, "Match to take the call!\n");
+								ast_debug(1, "Match to take the call!\n");
 								ast_frfree(f);
 								return tmpuser->ochan;	
 							}
 							if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
-								if (option_debug)
-									ast_log(LOG_DEBUG, "Next in dial plan step requested.\n");
+								ast_debug(1, "Next in dial plan step requested.\n");
 								*status = 1;
 								ast_frfree(f);
 								return NULL;
@@ -726,8 +717,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					ast_frfree(f);
 				} else {
 					if (winner) {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "we didn't get a frame. hanging up. dg is %d\n",dg);					      
+						ast_debug(1, "we didn't get a frame. hanging up. dg is %d\n",dg);					      
 						if (!dg) {
 							clear_calling_tree(findme_user_list);
 							return NULL;
@@ -735,8 +725,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							tmpuser->state = -1;
 						 	ast_hangup(winner);  
 							livechannels--;
-							if (option_debug)
-								ast_log(LOG_DEBUG, "live channels left %d\n", livechannels);
+							ast_debug(1, "live channels left %d\n", livechannels);
 							if (!livechannels) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "no live channels left. exiting.\n");
@@ -747,8 +736,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 				}					
 				
 			} else
-				if (option_debug)
-					ast_log(LOG_DEBUG, "timed out waiting for action\n");
+				ast_debug(1, "timed out waiting for action\n");
 		}
 		
 	} else {
@@ -793,13 +781,11 @@ static void findmeexec(struct fm_args *tpargs)
 
 	while (nm) {
 
-		if (option_debug > 1)	
-			ast_log(LOG_DEBUG, "Number %s timeout %ld\n", nm->number,nm->timeout);
+		ast_debug(2, "Number %s timeout %ld\n", nm->number,nm->timeout);
 		time(&start_time);
 
 		number = ast_strdupa(nm->number);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "examining %s\n", number);
+		ast_debug(3, "examining %s\n", number);
 		do {
 			rest = strchr(number, '&');
 			if (rest) {
@@ -948,8 +934,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 	AST_LIST_UNLOCK(&followmes);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "New profile %s.\n", args.followmeid);
+	ast_debug(1, "New profile %s.\n", args.followmeid);
 	if (!f) { 
 		ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.\n", args.followmeid);
 		res = 0;

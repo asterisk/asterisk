@@ -683,32 +683,26 @@ static int aji_act_hook(void *data, int type, iks *node)
 
 	switch (pak->type) {
 	case IKS_PAK_NONE:
-		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Don't know what to do with you NONE\n");
+		ast_debug(1, "JABBER: I Don't know what to do with you NONE\n");
 		break;
 	case IKS_PAK_MESSAGE:
 		aji_handle_message(client, pak);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Don't know what to do with you MESSAGE\n");
+		ast_debug(1, "JABBER: I Don't know what to do with you MESSAGE\n");
 		break;
 	case IKS_PAK_PRESENCE:
 		aji_handle_presence(client, pak);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Do know how to handle presence!!\n");
+		ast_debug(1, "JABBER: I Do know how to handle presence!!\n");
 		break;
 	case IKS_PAK_S10N:
 		aji_handle_subscribe(client, pak);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Dont know S10N subscribe!!\n");
+		ast_debug(1, "JABBER: I Dont know S10N subscribe!!\n");
 		break;
 	case IKS_PAK_IQ:
-		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Dont have an IQ!!!\n");
+		ast_debug(1, "JABBER: I Dont have an IQ!!!\n");
 		aji_handle_iq(client, node);
 		break;
 	default:
-		if (option_debug)
-			ast_log(LOG_DEBUG, "JABBER: I Dont know %i\n", pak->type);
+		ast_debug(1, "JABBER: I Dont know %i\n", pak->type);
 		break;
 	}
 	
@@ -1346,8 +1340,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		if(gtalk_yuck(pak->x)) /* gtalk should do discover */
 			found->cap->jingle = 1;
 		if(found->cap->jingle && option_debug > 4) {
-			if (option_debug)
-				ast_log(LOG_DEBUG,"Special case for google till they support discover.\n");
+			ast_debug(1,"Special case for google till they support discover.\n");
 		}
 		else {
 			iks *iq, *query;
@@ -1597,8 +1590,7 @@ static void *aji_recv_loop(void *data)
 		res = iks_recv(client->p, 1);
 
 		if (client->state == AJI_DISCONNECTING) {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Ending our Jabber client's thread due to a disconnect\n");
+			ast_debug(2, "Ending our Jabber client's thread due to a disconnect\n");
 			pthread_exit(NULL);
 		}
 		client->timeout--;
@@ -2512,8 +2504,7 @@ static int unload_module(void)
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "JABBER: Releasing and disconneing client: %s\n", iterator->name);
+		ast_debug(3, "JABBER: Releasing and disconneing client: %s\n", iterator->name);
 		iterator->state = AJI_DISCONNECTING;
 		ast_aji_disconnect(iterator);
 		pthread_join(iterator->thread, NULL);

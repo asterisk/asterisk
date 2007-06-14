@@ -222,8 +222,7 @@ int ast_search_dns(void *context,
 			ret = -1;
 		}
 		else if (ret == 0) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "No matches found in DNS for %s\n", dname);
+			ast_debug(1, "No matches found in DNS for %s\n", dname);
 			ret = 0;
 		}
 		else

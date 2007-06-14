@@ -121,8 +121,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			return -1;
 		}
 
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "cdr_pgsql: inserting a CDR record.\n");
+		ast_debug(2, "cdr_pgsql: inserting a CDR record.\n");
 
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,"
 				 "lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES"
@@ -130,8 +129,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				 table,timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,
 				 cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
 		
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "cdr_pgsql: SQL command executed:  %s\n",sqlcmd);
+		ast_debug(3, "cdr_pgsql: SQL command executed:  %s\n",sqlcmd);
 		
 		/* Test to be sure we're still connected... */
 		/* If we're connected, and connection is working, good. */
@@ -259,20 +257,19 @@ static int process_my_load_module(struct ast_config *cfg)
 
 	if (option_debug) {
 	    	if (ast_strlen_zero(pghostname))
-			ast_log(LOG_DEBUG, "cdr_pgsql: using default unix socket\n");
+			ast_debug(1, "cdr_pgsql: using default unix socket\n");
 		else
-			ast_log(LOG_DEBUG, "cdr_pgsql: got hostname of %s\n", pghostname);
-		ast_log(LOG_DEBUG, "cdr_pgsql: got port of %s\n", pgdbport);
-		ast_log(LOG_DEBUG, "cdr_pgsql: got user of %s\n", pgdbuser);
-		ast_log(LOG_DEBUG, "cdr_pgsql: got dbname of %s\n", pgdbname);
-		ast_log(LOG_DEBUG, "cdr_pgsql: got password of %s\n", pgpassword);
-		ast_log(LOG_DEBUG, "cdr_pgsql: got sql table name of %s\n", table);
+			ast_debug(1, "cdr_pgsql: got hostname of %s\n", pghostname);
+			ast_debug(1, "cdr_pgsql: got port of %s\n", pgdbport);
+			ast_debug(1, "cdr_pgsql: got user of %s\n", pgdbuser);
+			ast_debug(1, "cdr_pgsql: got dbname of %s\n", pgdbname);
+			ast_debug(1, "cdr_pgsql: got password of %s\n", pgpassword);
+			ast_debug(1, "cdr_pgsql: got sql table name of %s\n", table);
 	}
 	
 	conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
 	if (PQstatus(conn) != CONNECTION_BAD) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Successfully connected to PostgreSQL database.\n");
+		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
 	} else {
                 pgerror = PQerrorMessage(conn);

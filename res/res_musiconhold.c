@@ -250,8 +250,7 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		return -1;
 	}
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
+	ast_debug(1, "%s Opened file %d '%s'\n", chan->name, state->pos, state->class->filearray[state->pos]);
 
 	if (state->samples)
 		ast_seekstream(chan->stream, state->samples, SEEK_SET);
@@ -583,8 +582,7 @@ static void *monmp3thread(void *data)
 					class->pid = 0;
 				}
 			} else {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Read %d bytes of audio while expecting %d\n", res2, len);
+				ast_debug(1, "Read %d bytes of audio while expecting %d\n", res2, len);
 			}
 			continue;
 		}
@@ -593,8 +591,7 @@ static void *monmp3thread(void *data)
 		AST_RWLIST_TRAVERSE(&class->members, moh, list) {
 			/* Write data */
 			if ((res = write(moh->pipe[1], sbuf, res2)) != res2) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Only wrote %d of %d bytes to pipe\n", res, res2);
+				ast_debug(1, "Only wrote %d of %d bytes to pipe\n", res, res2);
 			}
 		}
 		AST_RWLIST_UNLOCK(&mohclasses);
@@ -875,8 +872,7 @@ static int moh_register(struct mohclass *moh, int reload)
 	AST_RWLIST_WRLOCK(&mohclasses);
 	if (get_mohbyname(moh->name)) {
 		if (reload) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
+			ast_debug(1, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
 		} else {
 			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
 		}
@@ -1100,8 +1096,7 @@ static void ast_moh_destroy(void)
 	AST_RWLIST_WRLOCK(&mohclasses);
 	while ((moh = AST_RWLIST_REMOVE_HEAD(&mohclasses, list))) {
 		if (moh->pid > 1) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
+			ast_debug(1, "killing %d!\n", moh->pid);
 			stime = time(NULL) + 2;
 			pid = moh->pid;
 			moh->pid = 0;
@@ -1115,8 +1110,7 @@ static void ast_moh_destroy(void)
 			kill(pid, SIGKILL);
 			while ((ast_wait_for_input(moh->srcfd, 100) > 0) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime)
 				tbytes = tbytes + bytes;
-			if (option_debug)
-				ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
+			ast_debug(1, "mpg123 pid %d and child died after %d bytes read\n", pid, tbytes);
 			close(moh->srcfd);
 		}
 		ast_moh_free_class(&moh);

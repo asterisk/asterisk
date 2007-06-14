@@ -378,12 +378,12 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			tmp[0] = res;
 			tmp[1] = '\0';
 			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
-				ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
+				ast_debug(1, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
 				pbx_builtin_setvar_helper(chan, "SPY_CHANNEL", name);
 				running = -2;
 				break;
-			} else if (option_debug > 1) {
-				ast_log(LOG_DEBUG, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+			} else {
+				ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 			}
 		} else if (res >= '0' && res <= '9') {
 			inp[x++] = res;
@@ -508,8 +508,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 				tmp[1] = '\0';
 				if (!ast_goto_if_exists(chan, exitcontext, tmp, 1))
 					goto exit;
-				else if (option_debug > 1)
-					ast_log(LOG_DEBUG, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+				else
+					ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 			}
 		}
 
@@ -524,8 +524,8 @@ static int common_exec(struct ast_channel *chan, const struct ast_flags *flags,
 			tmp[1] = '\0';
 			if (!ast_goto_if_exists(chan, exitcontext, tmp, 1))
 				goto exit;
-			else if (option_debug > 1)
-				ast_log(LOG_DEBUG, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
+			else
+				ast_debug(2, "Exit by single digit did not work in chanspy. Extension %s does not exist in context %s\n", tmp, exitcontext);
 		}
 				
 		/* reset for the next loop around, unless overridden later */

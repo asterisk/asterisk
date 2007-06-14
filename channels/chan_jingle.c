@@ -407,8 +407,7 @@ static int jingle_answer(struct ast_channel *ast)
 	struct jingle *client = p->parent;
 	int res = 0;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Answer!\n");
+	ast_debug(1, "Answer!\n");
 	ast_mutex_lock(&p->lock);
 	jingle_accept_call(client, p);
 	ast_mutex_unlock(&p->lock);
@@ -495,8 +494,7 @@ static int jingle_is_answered(struct jingle *client, ikspak *pak)
 {
 	struct jingle_pvt *tmp;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
@@ -564,8 +562,7 @@ static int jingle_hangup_farend(struct jingle *client, ikspak *pak)
 {
 	struct jingle_pvt *tmp;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
@@ -710,8 +707,7 @@ static struct jingle_pvt *jingle_alloc(struct jingle *client, const char *from, 
 	struct aji_buddy *buddy;
 	char idroster[200];
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "The client is %s for alloc\n", client->name);
+	ast_debug(1, "The client is %s for alloc\n", client->name);
 	if (!sid && !strchr(from, '/')) {	/* I started call! */
 		if (!strcasecmp(client->name, "guest")) {
 			buddy = ASTOBJ_CONTAINER_FIND(&client->connection->buddies, from);
@@ -1095,8 +1091,7 @@ static struct ast_frame *jingle_rtp_read(struct ast_channel *ast, struct jingle_
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats =
 					(p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass;
 				ast_set_read_format(p->owner, p->owner->readformat);
@@ -1104,8 +1099,8 @@ static struct ast_frame *jingle_rtp_read(struct ast_channel *ast, struct jingle_
 			}
 /*			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 				f = ast_dsp_process(p->owner, p->vad, f);
-				if (option_debug && f && (f->frametype == AST_FRAME_DTMF))
-					ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
+				if (f && (f->frametype == AST_FRAME_DTMF))
+					ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass);
 		        } */
 		}
 	}
@@ -1443,11 +1438,9 @@ static int jingle_parser(void *data, ikspak *pak)
 		/* New call */
 		jingle_newcall(client, pak);
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", GOOGLE_NEGOTIATE)) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "About to add candidate!\n");
+		ast_debug(3, "About to add candidate!\n");
 		jingle_add_candidate(client, pak);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Candidate Added!\n");
+		ast_debug(3, "Candidate Added!\n");
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", GOOGLE_ACCEPT)) {
 		jingle_is_answered(client, pak);
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "content-info")) {

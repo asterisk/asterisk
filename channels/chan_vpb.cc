@@ -536,7 +536,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 					res = AST_BRIDGE_RETRY;
 					break;
 				}
-				ast_log(LOG_DEBUG, "%s: vpb_bridge: Empty frame read...\n",p0->dev);
+				ast_debug(1, "%s: vpb_bridge: Empty frame read...\n",p0->dev);
 				/* check for hangup / whentohangup */
 				if (ast_check_hangup(c0) || ast_check_hangup(c1))
 					break;
@@ -548,7 +548,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 				       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
 				*fo = f;
 				*rc = who;
-				ast_log(LOG_DEBUG, "%s: vpb_bridge: Got a [%s]\n",p0->dev, f ? "digit" : "hangup");
+				ast_debug(1, "%s: vpb_bridge: Got a [%s]\n",p0->dev, f ? "digit" : "hangup");
 /*
 				if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
@@ -930,9 +930,9 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 						} else
 							ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
 					} else
-						ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+						ast_debug(1, "Already in a fax extension, not redirecting\n");
 				} else
-					ast_log(LOG_DEBUG, "Fax already handled\n");
+					ast_debug(1, "Fax already handled\n");
 
 			} 
 			else if (e->data == VPB_GRUNT) {
@@ -1799,7 +1799,7 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
-	ast_log(LOG_DEBUG, "New owner for channel %s is %s\n", p->dev, newchan->name);
+	ast_debug(1, "New owner for channel %s is %s\n", p->dev, newchan->name);
 
 	if (p->owner == oldchan) {
 		p->owner = newchan;
@@ -1957,7 +1957,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		#endif
 
 		if (res != VPB_OK) {
-			ast_log(LOG_DEBUG, "Call on %s to %s failed: %s\n", ast->name, s, vpb_strerror(res));	      
+			ast_debug(1, "Call on %s to %s failed: %s\n", ast->name, s, vpb_strerror(res));	      
 			res = -1;
 		} else 
 			res = 0;
@@ -2278,7 +2278,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
 	}
-/*	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame type..\n", p->dev); */
+/*	ast_debug(1, "%s: vpb_write: Checked frame type..\n", p->dev); */
 
 
 	fmt = ast2vpbformat(frame->subclass);
@@ -2288,20 +2288,20 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 
 	tdiff = ast_tvdiff_ms(ast_tvnow(), p->lastplay);
-	ast_log(LOG_DEBUG, "%s: vpb_write: time since last play(%d) \n", p->dev, tdiff); 
+	ast_debug(1, "%s: vpb_write: time since last play(%d) \n", p->dev, tdiff); 
 	if (tdiff < (VPB_SAMPLES/8 - 1)){
-		ast_log(LOG_DEBUG, "%s: vpb_write: Asked to play too often (%d) (%d)\n", p->dev, tdiff,frame->datalen); 
+		ast_debug(1, "%s: vpb_write: Asked to play too often (%d) (%d)\n", p->dev, tdiff,frame->datalen); 
 //		return 0;
 	}
 	p->lastplay = ast_tvnow();
 /*
-	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev); 
+	ast_debug(1, "%s: vpb_write: Checked frame format..\n", p->dev); 
 */
 
 	ast_mutex_lock(&p->play_lock);
 
 /*
-	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev); 
+	ast_debug(1, "%s: vpb_write: Got play lock..\n", p->dev); 
 */
 
 	/* Check if we have set up the play_buf */
@@ -2329,8 +2329,8 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	if( p->txswgain > MAX_VPB_GAIN )
 		a_gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data, frame->datalen/sizeof(short));
 
-/*	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev); */
-/*	ast_log(LOG_DEBUG, "%s: vpb_write: play_buf_time %d\n", p->dev, p->play_buf_time); */
+/*	ast_debug(1, "%s: vpb_write: Applied gain..\n", p->dev); */
+/*	ast_debug(1, "%s: vpb_write: play_buf_time %d\n", p->dev, p->play_buf_time); */
 
 	if ((p->read_state == 1)&&(p->play_buf_time<5)){
 		play_buf_time_start = ast_tvnow();
@@ -2344,7 +2344,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 	else {
 		p->chuck_count++;
-		ast_log(LOG_DEBUG, "%s: vpb_write: Tossed data away, tooooo much data!![%d]\n", p->dev,p->chuck_count);
+		ast_debug(1, "%s: vpb_write: Tossed data away, tooooo much data!![%d]\n", p->dev,p->chuck_count);
 		p->play_buf_time=0;
 	}
 
@@ -2473,11 +2473,11 @@ static void *do_chanreads(void *pvt)
 /*		afmt = (p->owner) ? p->owner->rawreadformat : AST_FORMAT_SLINEAR; */
 		if (p->owner){
 			afmt = p->owner->rawreadformat;
-/*			ast_log(LOG_DEBUG,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
+/*			ast_debug(1,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
 		}
 		else {
 			afmt = AST_FORMAT_SLINEAR;
-/*			ast_log(LOG_DEBUG,"%s: Record using default format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
+/*			ast_debug(1,"%s: Record using default format [%s]\n", p->dev, ast2vpbformatname(afmt)); */
 		}
 		fmt = ast2vpbformat(afmt);
 		if (fmt < 0) {
@@ -2525,7 +2525,7 @@ static void *do_chanreads(void *pvt)
 			if ((use_ast_dtmfdet)&&(p->vad)){
 				fr = ast_dsp_process(p->owner,p->vad,fr);
 				if (fr && (fr->frametype == AST_FRAME_DTMF))
-					ast_log(LOG_DEBUG, "%s: chanreads: Detected DTMF '%c'\n",p->dev, fr->subclass);
+					ast_debug(1, "%s: chanreads: Detected DTMF '%c'\n",p->dev, fr->subclass);
 				if (fr->subclass == 'm'){
 					/* conf mute request */
 					fr->frametype = AST_FRAME_NULL;

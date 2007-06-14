@@ -829,15 +829,13 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			fflush(stdout);
 		}
 		if (!(f = fopen(fn, "r"))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
+			ast_debug(1, "No file to parse: %s\n", fn);
 			if (option_verbose > 1)
 				ast_verbose( "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
+		ast_debug(1, "Parsing %s\n", fn);
 		if (option_verbose > 1)
 			ast_verbose("Found\n");
 		while (!feof(f)) {
@@ -1028,8 +1026,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		if ((option_verbose > 1) && !option_debug)
 			ast_verbose("Saved\n");
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Unable to open for writing: %s\n", fn);
+		ast_debug(1, "Unable to open for writing: %s\n", fn);
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
 		return -1;

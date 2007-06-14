@@ -78,9 +78,7 @@ static int g726_open(struct ast_filestream *tmp, int rate)
 {
 	struct g726_desc *s = (struct g726_desc *)tmp->private;
 	s->rate = rate;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Created filestream G.726-%dk.\n", 
-				40 - s->rate * 8);
+	ast_debug(1, "Created filestream G.726-%dk.\n", 40 - s->rate * 8);
 	return 0;
 }
 

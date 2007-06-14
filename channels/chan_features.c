@@ -209,8 +209,7 @@ static void swap_subs(struct feature_pvt *p, int a, int b)
 	int tinthreeway;
 	struct ast_channel *towner;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Swapping %d and %d\n", a, b);
+	ast_debug(1, "Swapping %d and %d\n", a, b);
 
 	towner = p->subs[a].owner;
 	tinthreeway = p->subs[a].inthreeway;

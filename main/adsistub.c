@@ -43,8 +43,7 @@ int (*func_name)(__VA_ARGS__) = \
 #define build_stub(func_name,...) \
 static int stub_##func_name(__VA_ARGS__) \
 { \
-	if (option_debug > 4) \
-	        ast_log(LOG_DEBUG, "ADSI support not loaded!\n"); \
+	ast_debug(5, "ADSI support not loaded!\n"); \
         return -1; \
 } \
 \

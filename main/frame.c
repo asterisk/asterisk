@@ -1153,8 +1153,7 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 	if (ret & AST_FORMAT_AUDIO_MASK)
 		return ret;
 
-	if (option_debug > 3)
-		ast_log(LOG_DEBUG, "Could not find preferred codec - %s\n", find_best ? "Going for the best codec" : "Returning zero codec");
+	ast_debug(4, "Could not find preferred codec - %s\n", find_best ? "Going for the best codec" : "Returning zero codec");
 
    	return find_best ? ast_best_codec(formats) : 0;
 }
@@ -1170,8 +1169,7 @@ int ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char 
 		framems = 0;
 		if ((psize = strrchr(this, ':'))) {
 			*psize++ = '\0';
-			if (option_debug)
-				ast_log(LOG_DEBUG,"Packetization for codec: %s is %s\n", this, psize);
+			ast_debug(1, "Packetization for codec: %s is %s\n", this, psize);
 			framems = atoi(psize);
 			if (framems < 0) {
 				framems = 0;

@@ -365,8 +365,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 		ast_log(LOG_ERROR, "snd_pcm_open failed: %s\n", snd_strerror(err));
 		return NULL;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
+		ast_debug(1, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
 	}
 
 	snd_pcm_hw_params_alloca(&hwparams);
@@ -394,8 +393,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	if (err < 0)
 		ast_log(LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
 	else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Period size is %d\n", err);
+		ast_debug(1, "Period size is %d\n", err);
 	}
 
 	buffer_size = 4096 * 2;		/* period_size * 16; */
@@ -403,8 +401,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	if (err < 0)
 		ast_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
 	else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Buffer size is set to %d frames\n", err);
+		ast_debug(1, "Buffer size is set to %d frames\n", err);
 	}
 
 #if 0
@@ -465,13 +462,11 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	if (err <= 0)
 		ast_log(LOG_ERROR, "Unable to get a poll descriptors count, error is %s\n", snd_strerror(err));
 	if (err != 1) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Can't handle more than one device\n");
+		ast_debug(1, "Can't handle more than one device\n");
 	}
 
 	snd_pcm_poll_descriptors(handle, &pfd, err);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
+	ast_debug(1, "Acquired fd %d from the poll descriptor\n", pfd.fd);
 
 	if (stream == SND_PCM_STREAM_CAPTURE)
 		readdev = pfd.fd;
@@ -634,8 +629,7 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 		res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2);
 		if (res == -EPIPE) {
 #if DEBUG
-			if (option_debug)
-				ast_log(LOG_DEBUG, "XRUN write\n");
+			ast_debug(1, "XRUN write\n");
 #endif
 			snd_pcm_prepare(alsa.ocard);
 			res = snd_pcm_writei(alsa.ocard, sizbuf, len / 2);

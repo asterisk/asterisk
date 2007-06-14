@@ -170,15 +170,13 @@ static int ices_exec(struct ast_channel *chan, void *data)
 			/* Wait for audio, and stream */
 			ms = ast_waitfor(chan, -1);
 			if (ms < 0) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Hangup detected\n");
+				ast_debug(1, "Hangup detected\n");
 				res = -1;
 				break;
 			}
 			f = ast_read(chan);
 			if (!f) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+				ast_debug(1, "Null frame == hangup() detected\n");
 				res = -1;
 				break;
 			}

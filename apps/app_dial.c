@@ -711,8 +711,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 					}
 					break;
 				default:
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
+					ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
 				}
 			} else if (single) {
 				/* XXX are we sure the logic is correct ? or we should just switch on f->frametype ? */
@@ -1417,8 +1416,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* check the results of ast_call */
 		if (res) {
 			/* Again, keep going even if there's an error */
-			if (option_debug)
-				ast_log(LOG_DEBUG, "ast call on peer returned %d\n", res);
+			ast_debug(1, "ast call on peer returned %d\n", res);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			ast_hangup(tc);
@@ -1510,8 +1508,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
  		if (!ast_strlen_zero(args.url) && ast_channel_supports_html(peer) ) {
-			if (option_debug)
- 				ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", args.url);
+ 			ast_debug(1, "app_dial: sendurl=%s.\n", args.url);
  			ast_channel_sendurl( peer, args.url );
  		}
 		if ( (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) && pa.privdb_val == AST_PRIVACY_UNKNOWN) {
@@ -1569,8 +1566,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (theapp && !res) {	/* XXX why check res here ? */
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_MACRO]);
 				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_MACRO]);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
+				ast_debug(1, "Macro exited with status %d\n", res);
 				res = 0;
 			} else {
 				ast_log(LOG_ERROR, "Could not find application Macro\n");
@@ -1706,8 +1702,7 @@ out:
 	hanguptree(outgoing, NULL);
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 	senddialendevent(chan, pa.status);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", pa.status);
+	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 	
 	if ((ast_test_flag(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE)) {
 		if (calldurationlimit)

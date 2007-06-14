@@ -576,13 +576,13 @@ enum ast_dial_result ast_dial_run(struct ast_dial *dial, struct ast_channel *cha
 
 	/* Ensure required arguments are passed */
 	if (!dial || (!chan && !async)) {
-		ast_log(LOG_DEBUG, "invalid #1\n");
+		ast_debug(1, "invalid #1\n");
 		return AST_DIAL_RESULT_INVALID;
 	}
 
 	/* If there are no channels to dial we can't very well try to dial them */
 	if (AST_LIST_EMPTY(&dial->channels)) {
-		ast_log(LOG_DEBUG, "invalid #2\n");
+		ast_debug(1, "invalid #2\n");
 		return AST_DIAL_RESULT_INVALID;
 	}
 

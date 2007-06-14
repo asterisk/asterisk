@@ -142,8 +142,7 @@ static int local_devicestate(void *data)
 	if ((opts = strchr(context, '/')))
 		*opts = '\0';
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
+	ast_debug(3, "Checking if extension %s@%s exists (devicestate)\n", exten, context);
 
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
 	if (!res)		
@@ -303,8 +302,7 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	if (!ast_test_flag(p, LOCAL_ALREADY_MASQED))
 		res = local_queue_frame(p, isoutbound, f, ast);
 	else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Not posting to queue since already masked on '%s'\n", ast->name);
+		ast_debug(1, "Not posting to queue since already masked on '%s'\n", ast->name);
 		res = 0;
 	}
 	if (!res)

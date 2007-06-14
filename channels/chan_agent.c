@@ -184,12 +184,10 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
 		if (ast->nativeformats != p->chan->nativeformats) { \
-			if (option_debug) \
-				ast_log(LOG_DEBUG, "Native formats changing from %d to %d\n", ast->nativeformats, p->chan->nativeformats); \
+			ast_debug(1, "Native formats changing from %d to %d\n", ast->nativeformats, p->chan->nativeformats); \
 			/* Native formats changed, reset things */ \
 			ast->nativeformats = p->chan->nativeformats; \
-			if (option_debug) \
-				ast_log(LOG_DEBUG, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
+			ast_debug(1, "Resetting read to %d and write to %d\n", ast->readformat, ast->writeformat);\
 			ast_set_read_format(ast, ast->readformat); \
 			ast_set_write_format(ast, ast->writeformat); \
 		} \
@@ -434,8 +432,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			/* Note that we don't hangup if it's not a callback because Asterisk will do it
 			   for us when the PBX instance that called login finishes */
 			if (!ast_strlen_zero(p->loginchan)) {
-				if (p->chan && option_debug)
-					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
+				if (p->chan)
+					ast_debug(1, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 
 				status = pbx_builtin_getvar_helper(p->chan, "CHANLOCALSTATUS");
 				if (autologoffunavail && status && !strcasecmp(status, "CHANUNAVAIL")) {
@@ -505,8 +503,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	if (p->chan && !p->chan->_bridge) {
 		if (strcasecmp(p->chan->tech->type, "Local")) {
 			p->chan->_bridge = ast;
-			if (p->chan && option_debug)
-				ast_log(LOG_DEBUG, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
+			if (p->chan)
+				ast_debug(1, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
 		}
 	}
 	ast_mutex_unlock(&p->lock);
@@ -551,10 +549,9 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 		    (f->subclass == p->chan->writeformat)) {
 			res = ast_write(p->chan, f);
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Dropping one incompatible %s frame on '%s' to '%s'\n", 
-					f->frametype == AST_FRAME_VOICE ? "audio" : "video",
-					ast->name, p->chan->name);
+			ast_debug(1, "Dropping one incompatible %s frame on '%s' to '%s'\n", 
+				f->frametype == AST_FRAME_VOICE ? "audio" : "video",
+				ast->name, p->chan->name);
 			res = 0;
 		}
 	}
@@ -617,8 +614,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	p->acknowledged = 0;
 	if (!p->chan) {
 		if (p->pending) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Pretending to dial on pending agent\n");
+			ast_debug(1, "Pretending to dial on pending agent\n");
 			newstate = AST_STATE_DIALING;
 			res = 0;
 		} else {
@@ -643,20 +639,16 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		return res;
 	}
 	ast_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
+	ast_debug(3, "Playing beep, lang '%s'\n", p->chan->language);
 	res = ast_streamfile(p->chan, beep, p->chan->language);
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Played beep, result '%d'\n", res);
+	ast_debug(3, "Played beep, result '%d'\n", res);
 	if (!res) {
 		res = ast_waitstream(p->chan, "");
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+		ast_debug(3, "Waited for stream, result '%d'\n", res);
 	}
 	if (!res) {
 		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Set read format, result '%d'\n", res);
+		ast_debug(3, "Set read format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
 	} else {
@@ -666,8 +658,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 
 	if (!res) {
 		res = ast_set_write_format(p->chan, ast_best_codec(p->chan->nativeformats));
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Set write format, result '%d'\n", res);
+		ast_debug(3, "Set write format, result '%d'\n", res);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
 	}
@@ -721,8 +712,7 @@ static int agent_hangup(struct ast_channel *ast)
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Hangup called for state %s\n", ast_state2str(ast->_state));
+	ast_debug(1, "Hangup called for state %s\n", ast_state2str(ast->_state));
 	if (p->start && (ast->_state != AST_STATE_UP)) {
 		howlong = time(NULL) - p->start;
 		p->start = 0;
@@ -751,8 +741,7 @@ static int agent_hangup(struct ast_channel *ast)
 				ast_hangup(p->chan);
 				p->chan = NULL;
 			}
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
+			ast_debug(1, "Hungup, howlong is %d, autologoff is %d\n", howlong, p->autologoff);
 			if ((p->deferlogoff) || (howlong && p->autologoff && (howlong > p->autologoff))) {
 				long logintime = time(NULL) - p->loginstart;
 				p->loginstart = 0;
@@ -830,8 +819,8 @@ static int agent_cont_sleep( void *data )
 	}
 	ast_mutex_unlock(&p->lock);
 
-	if (option_debug > 4 && !res)
-		ast_log(LOG_DEBUG, "agent_cont_sleep() returning %d\n", res );
+	if (!res)
+		ast_debug(5, "agent_cont_sleep() returning %d\n", res );
 
 	return res;
 }
@@ -889,8 +878,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 			ret = p->chan;
 	}
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
+	ast_debug(1, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
 	return ret;
 }
 
@@ -1145,8 +1133,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 	struct agent_pvt *p;
 	int res;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Checking availability of '%s'\n", newlyavailable->agent);
+	ast_debug(1, "Checking availability of '%s'\n", newlyavailable->agent);
 	if (needlock)
 		AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
@@ -1155,8 +1142,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		}
 		ast_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+			ast_debug(1, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			/* We found a pending call, time to merge */
 			chan = agent_new(newlyavailable, AST_STATE_DOWN);
 			parent = p->owner;
@@ -1173,15 +1159,12 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			/* Don't do beep here */
 			res = 0;
 		} else {
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
+			ast_debug(3, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 			res = ast_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "Played beep, result '%d'\n", res);
+			ast_debug(3, "Played beep, result '%d'\n", res);
 			if (!res) {
 				res = ast_waitstream(newlyavailable->chan, "");
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+				ast_debug(1, "Waited for stream, result '%d'\n", res);
 			}
 		}
 		if (!res) {
@@ -1200,13 +1183,11 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 				ast_mutex_unlock(&parent->lock);
 				p->abouttograb = 0;
 			} else {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Sneaky, parent disappeared in the mean time...\n");
+				ast_debug(1, "Sneaky, parent disappeared in the mean time...\n");
 				agent_cleanup(newlyavailable);
 			}
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Ugh...  Agent hung up at exactly the wrong time\n");
+			ast_debug(1, "Ugh...  Agent hung up at exactly the wrong time\n");
 			agent_cleanup(newlyavailable);
 		}
 	}
@@ -1218,8 +1199,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	struct agent_pvt *p;
 	int res=0;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Checking beep availability of '%s'\n", newlyavailable->agent);
+	ast_debug(1, "Checking beep availability of '%s'\n", newlyavailable->agent);
 	if (needlock)
 		AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
@@ -1228,8 +1208,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 		}
 		ast_mutex_lock(&p->lock);
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Call '%s' looks like a would-be winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
+			ast_debug(1, "Call '%s' looks like a would-be winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			ast_mutex_unlock(&p->lock);
 			break;
 		}
@@ -1239,15 +1218,12 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 		AST_LIST_UNLOCK(&agents);
 	if (p) {
 		ast_mutex_unlock(&newlyavailable->lock);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
+		ast_debug(3, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
 		res = ast_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Played beep, result '%d'\n", res);
+		ast_debug(1, "Played beep, result '%d'\n", res);
 		if (!res) {
 			res = ast_waitstream(newlyavailable->chan, "");
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Waited for stream, result '%d'\n", res);
+			ast_debug(1, "Waited for stream, result '%d'\n", res);
 		}
 		ast_mutex_lock(&newlyavailable->lock);
 	}
@@ -1333,16 +1309,14 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 		/* No agent available -- but we're requesting to wait for one.
 		   Allocate a place holder */
 		if (hasagent) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Creating place holder for '%s'\n", s);
+			ast_debug(1, "Creating place holder for '%s'\n", s);
 			p = add_agent(data, 1);
 			p->group = groupmatch;
 			chan = agent_new(p, AST_STATE_DOWN);
 			if (!chan) 
 				ast_log(LOG_WARNING, "Weird...  Fix this to drop the unused pending agent\n");
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Not creating place holder for '%s' since nobody logged in\n", s);
+			ast_debug(1, "Not creating place holder for '%s' since nobody logged in\n", s);
 		}
 	}
 	*cause = hasagent ? AST_CAUSE_BUSY : AST_CAUSE_UNREGISTERED;
@@ -1936,8 +1910,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 							ast_mutex_lock(&p->lock);
 							if (p->lastdisc.tv_sec) {
 								if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > p->wrapuptime) {
-									if (option_debug)
-										ast_log(LOG_DEBUG, "Wrapup time for %s expired!\n", p->agent);
+									ast_debug(1, "Wrapup time for %s expired!\n", p->agent);
 									p->lastdisc = ast_tv(0, 0);
 									if (p->ackcall > 1)
 										check_beep(p, 0);
@@ -2096,8 +2069,8 @@ static void dump_agents(void)
 			snprintf(buf, sizeof(buf), "%s;%s", cur_agent->loginchan, cur_agent->logincallerid);
 			if (ast_db_put(pa_family, cur_agent->agent, buf))
 				ast_log(LOG_WARNING, "failed to create persistent entry in ASTdb for %s!\n", buf);
-			else if (option_debug)
-				ast_log(LOG_DEBUG, "Saved Agent: %s on %s\n", cur_agent->agent, cur_agent->loginchan);
+			else
+				ast_debug(1, "Saved Agent: %s on %s\n", cur_agent->agent, cur_agent->loginchan);
 		} else {
 			/* Delete -  no agent or there is an error */
 			ast_db_del(pa_family, cur_agent->agent);
@@ -2136,8 +2109,7 @@ static void reload_agents(void)
 		} else
 			ast_mutex_unlock(&cur_agent->lock);
 		if (!ast_db_get(pa_family, agent_num, agent_data, sizeof(agent_data)-1)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Reload Agent from AstDB: %s on %s\n", cur_agent->agent, agent_data);
+			ast_debug(1, "Reload Agent from AstDB: %s on %s\n", cur_agent->agent, agent_data);
 			parse = agent_data;
 			agent_chan = strsep(&parse, ";");
 			agent_callerid = strsep(&parse, ";");

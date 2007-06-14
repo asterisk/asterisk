@@ -515,8 +515,7 @@ static int gtalk_answer(struct ast_channel *ast)
 	struct gtalk_pvt *p = ast->tech_pvt;
 	int res = 0;
 	
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Answer!\n");
+	ast_debug(1, "Answer!\n");
 	ast_mutex_lock(&p->lock);
 	gtalk_invite(p, p->them, p->us,p->sid, 0);
 	ast_mutex_unlock(&p->lock);
@@ -603,8 +602,7 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 {
 	struct gtalk_pvt *tmp;
 	char *from;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid))
@@ -682,8 +680,7 @@ static int gtalk_hangup_farend(struct gtalk *client, ikspak *pak)
 	struct gtalk_pvt *tmp;
 	char *from;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid))
@@ -839,8 +836,7 @@ static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const
 	char idroster[200];
 	char *data, *exten = NULL;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "The client is %s for alloc\n", client->name);
+	ast_debug(1, "The client is %s for alloc\n", client->name);
 	if (!sid && !strchr(them, '/')) {	/* I started call! */
 		if (!strcasecmp(client->name, "guest")) {
 			buddy = ASTOBJ_CONTAINER_FIND(&client->connection->buddies, them);
@@ -1173,9 +1169,9 @@ static int gtalk_update_stun(struct gtalk *client, struct gtalk_pvt *p)
 		else 
 			ast_rtp_stun_request(p->rtp, &sin, username);
 		
-		if (aux.sin_addr.s_addr && option_debug > 3) {
-			ast_log(LOG_DEBUG, "Receiving RTP traffic from IP %s, matches with remote candidate's IP %s\n", ast_inet_ntoa(aux.sin_addr), tmp->ip);
-			ast_log(LOG_DEBUG, "Sending STUN request to %s\n", tmp->ip);
+		if (aux.sin_addr.s_addr) {
+			ast_debug(4, "Receiving RTP traffic from IP %s, matches with remote candidate's IP %s\n", ast_inet_ntoa(aux.sin_addr), tmp->ip);
+			ast_debug(4, "Sending STUN request to %s\n", tmp->ip);
 		}
 
 		tmp = tmp->next;
@@ -1280,8 +1276,7 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats =
 					(p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass;
 				ast_set_read_format(p->owner, p->owner->readformat);
@@ -1290,8 +1285,7 @@ static struct ast_frame *gtalk_rtp_read(struct ast_channel *ast, struct gtalk_pv
 /*			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
 				f = ast_dsp_process(p->owner, p->vad, f);
 				if (option_debug && f && (f->frametype == AST_FRAME_DTMF))
-					if (option_debug)
-						ast_log(LOG_DEBUG, "* Detected inband DTMF '%c'\n", f->subclass);
+					ast_debug(1, "* Detected inband DTMF '%c'\n", f->subclass);
 		        } */
 		}
 	}
@@ -1577,11 +1571,9 @@ static int gtalk_parser(void *data, ikspak *pak)
 		/* New call */
 		gtalk_newcall(client, pak);
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "candidates") || iks_find_with_attrib(pak->x, "session", "type", "transport-info")) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "About to add candidate!\n");
+		ast_debug(3, "About to add candidate!\n");
 		gtalk_add_candidate(client, pak);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Candidate Added!\n");
+		ast_debug(3, "Candidate Added!\n");
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "accept") || iks_find_with_attrib(pak->x, "session", "type", "transport-accept")) {
 		gtalk_is_answered(client, pak);
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "content-info")) {

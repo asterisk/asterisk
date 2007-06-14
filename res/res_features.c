@@ -324,8 +324,7 @@ static int adsi_announce_park(struct ast_channel *chan, char *parkingexten)
 /*! \brief Notify metermaids that we've changed an extension */
 static void notify_metermaids(const char *exten, char *context)
 {
-	if (option_debug > 3)
-		ast_log(LOG_DEBUG, "Notification of state change to metermaids %s@%s\n", exten, context);
+	ast_debug(4, "Notification of state change to metermaids %s@%s\n", exten, context);
 
 	/* Send notification to devicestate subsystem */
 	ast_device_state_changed("park:%s@%s", exten, context);
@@ -343,8 +342,7 @@ static enum ast_device_state metermaidstate(const char *data)
 	if (!context)
 		return res;
 	
-	if (option_debug > 3)
-		ast_log(LOG_DEBUG, "Checking state of exten %s in context %s\n", exten, context);
+	ast_debug(4, "Checking state of exten %s in context %s\n", exten, context);
 
 	res = ast_exists_extension(NULL, context, exten, 1, NULL);
 
@@ -807,8 +805,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_frame *f;
 	int l;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
+	ast_debug(1, "Executing Attended Transfer %s, %s (sense=%d) \n", chan->name, peer->name, sense);
 	set_peers(&transferer, &transferee, peer, chan, sense);
         transferer_real_context = real_ctx(transferer, transferee);
 	/* Start autoservice on chan while we talk to the originator */
@@ -957,11 +954,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				}
 				if (!newchan) {
 					/* Transfer failed, sleeping */
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Sleeping for %d ms before callback.\n", atxferloopdelay);
+					ast_debug(1, "Sleeping for %d ms before callback.\n", atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Trying to callback...\n");
+					ast_debug(1, "Trying to callback...\n");
 					newchan = ast_feature_request_and_dial(transferee, NULL, "Local", ast_best_codec(transferee->nativeformats),
 						callbackto, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
 				}
@@ -1329,8 +1324,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
 	else
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
 
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {
@@ -1693,8 +1687,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				   activated, but that's no excuse to keep things going 
 				   indefinitely! */
 				if (backup_config.feature_timer && ((backup_config.feature_timer -= diff) <= 0)) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Timed out, realtime this time!\n");
+					ast_debug(1, "Timed out, realtime this time!\n");
 					config->feature_timer = 0;
 					who = chan;
 					if (f)
@@ -1704,8 +1697,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				} else if (config->feature_timer <= 0) {
 					/* Not *really* out of time, just out of time for
 					   digits to come in for features. */
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Timed out for feature!\n");
+					ast_debug(1, "Timed out for feature!\n");
 					if (!ast_strlen_zero(peer_featurecode)) {
 						ast_dtmf_stream(chan, peer, peer_featurecode, 0);
 						memset(peer_featurecode, 0, sizeof(peer_featurecode));
@@ -1827,8 +1819,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				}
 				config->start_time = ast_tvnow();
 				config->feature_timer = featuredigittimeout;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
+				ast_debug(1, "Set time limit to %ld\n", config->feature_timer);
 			}
 		}
 		if (f)
@@ -2032,8 +2023,7 @@ static void *do_parking_thread(void *ignore)
 						/*! \todo XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 						ast_frfree(f);
 						if (pu->moh_trys < 3 && !chan->generatordata) {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+							ast_debug(1, "MOH on parked call stopped by outside source.  Restarting.\n");
 							ast_indicate_data(chan, AST_CONTROL_HOLD, 
 								S_OR(parkmohclass, NULL),
 								!ast_strlen_zero(parkmohclass) ? strlen(parkmohclass) + 1 : 0);
@@ -2573,8 +2563,7 @@ int ast_pickup_call(struct ast_channel *chan)
 		ast_channel_unlock(cur);
 	}
 	if (cur) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
+		ast_debug(1, "Call pickup on chan '%s' by '%s'\n",cur->name, chan->name);
 		res = ast_answer(chan);
 		if (res)
 			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
@@ -2586,8 +2575,7 @@ int ast_pickup_call(struct ast_channel *chan)
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, cur->name);		/* Done */
 		ast_channel_unlock(cur);
 	} else	{
-		if (option_debug)
-			ast_log(LOG_DEBUG, "No call pickup possible...\n");
+		ast_debug(1, "No call pickup possible...\n");
 	}
 	return res;
 }
@@ -2880,8 +2868,7 @@ static int load_config(void)
 	if (!ast_strlen_zero(old_parking_con) && (con = ast_context_find(old_parking_con)))	{
 		if(ast_context_remove_extension2(con, old_parking_ext, 1, registrar))
 				notify_metermaids(old_parking_ext, old_parking_con);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
+		ast_debug(1, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
 	
 	if (!(con = ast_context_find(parking_con)) && !(con = ast_context_create(NULL, parking_con, registrar))) {
@@ -3023,20 +3010,17 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 	/* the bridge has ended, set BRIDGERESULT to SUCCESS. If the other channel has not been hung up, return it to the PBX */
 	pbx_builtin_setvar_helper(chan, "BRIDGERESULT", "SUCCESS");
 	if (!ast_check_hangup(final_dest_chan)) {
-		if (option_debug) {
-			ast_log(LOG_DEBUG, "starting new PBX in %s,%s,%d for chan %s\n", 
+		ast_debug(1, "starting new PBX in %s,%s,%d for chan %s\n", 
 			final_dest_chan->context, final_dest_chan->exten, 
 			final_dest_chan->priority, final_dest_chan->name);
-		}
 
 		if (ast_pbx_start(final_dest_chan) != AST_PBX_SUCCESS) {
 			ast_log(LOG_WARNING, "FAILED continuing PBX on dest chan %s\n", final_dest_chan->name);
 			ast_hangup(final_dest_chan);
-		} else if (option_debug)
-			ast_log(LOG_DEBUG, "SUCCESS continuing PBX on chan %s\n", final_dest_chan->name);
+		} else
+			ast_debug(1, "SUCCESS continuing PBX on chan %s\n", final_dest_chan->name);
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "hangup chan %s since the other endpoint has hung up\n", final_dest_chan->name);
+		ast_debug(1, "hangup chan %s since the other endpoint has hung up\n", final_dest_chan->name);
 		ast_hangup(final_dest_chan);
 	}
 

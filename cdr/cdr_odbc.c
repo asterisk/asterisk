@@ -306,15 +306,12 @@ static int odbc_load_module(void)
 	if (tmp) {
 		loguniqueid = ast_true(tmp);
 		if (loguniqueid) {
-			if (option_debug)
-				ast_log(LOG_DEBUG,"cdr_odbc: Logging uniqueid\n");
+			ast_debug(1,"cdr_odbc: Logging uniqueid\n");
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
+			ast_debug(1,"cdr_odbc: Not logging uniqueid\n");
 		}
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG,"cdr_odbc: Not logging uniqueid\n");
+		ast_debug(1,"cdr_odbc: Not logging uniqueid\n");
 		loguniqueid = 0;
 	}
 
@@ -322,15 +319,12 @@ static int odbc_load_module(void)
 	if (tmp) {
 		usegmtime = ast_true(tmp);
 		if (usegmtime) {
-			if (option_debug)
-				ast_log(LOG_DEBUG,"cdr_odbc: Logging in GMT\n");
+			ast_debug(1,"cdr_odbc: Logging in GMT\n");
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
+			ast_debug(1,"cdr_odbc: Not logging in GMT\n");
 		}
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG,"cdr_odbc: Not logging in GMT\n");
+		ast_debug(1,"cdr_odbc: Not logging in GMT\n");
 		usegmtime = 0;
 	}
 

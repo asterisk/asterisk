@@ -727,8 +727,7 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
 		ast_playtones_start(chan,0,dtmf_tones[15], 0);
 	else {
 		/* not handled */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
+		ast_debug(1, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
 	}
 }
 /*** CLI HANDLING ***/
@@ -2300,8 +2299,7 @@ static int misdn_hangup(struct ast_channel *ast)
 	struct misdn_bchannel *bc = NULL;
 	const char *varcause = NULL;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
+	ast_debug(1, "misdn_hangup(%s)\n", ast->name);
 
 	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
 
@@ -2322,8 +2320,7 @@ static int misdn_hangup(struct ast_channel *ast)
 
 		CLEAN_CH:
 		/* between request and call */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "State Reserved (or nothing) => chanIsAvail\n");
+		ast_debug(1, "State Reserved (or nothing) => chanIsAvail\n");
 		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
 		
 		cl_dequeue_chan(&cl_te, p);
@@ -2467,8 +2464,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  	if (!f || (f->frametype != AST_FRAME_DTMF))
  		return frame;
  
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c\n", f->subclass);
+	ast_debug(1, "Detected inband DTMF digit: %c\n", f->subclass);
  
  	if (tmp->faxdetect && (f->subclass == 'f')) {
  		/* Fax tone -- Handle and return NULL */
@@ -2504,8 +2500,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
   					} else
  						ast_log(LOG_NOTICE, "Fax detected, but no fax extension ctx:%s exten:%s\n", context, ast->exten);
  				} else {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+					ast_debug(1, "Already in a fax extension, not redirecting\n");
 				}
  				break;
  			case 2:
@@ -2513,8 +2508,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  				break;
  			}
  		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Fax already handled\n");
+			ast_debug(1, "Fax already handled\n");
 		}
   	}
  	
@@ -2654,10 +2648,10 @@ static int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	{
 		int i, max = 5 > frame->samples ? frame->samples : 5;
 
-		ast_log(LOG_DEBUG, "write2mISDN %p %d bytes: ", p, frame->samples);
+		ast_debug(1, "write2mISDN %p %d bytes: ", p, frame->samples);
 
 		for (i = 0; i < max ; i++)
-			ast_log(LOG_DEBUG, "%2.2x ", ((char*) frame->data)[i]);
+			ast_debug(1, "%2.2x ", ((char*) frame->data)[i]);
 	}
 #endif
 

@@ -175,8 +175,7 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 						break;
 					}
 				} else {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "No more mp3\n");
+					ast_debug(1, "No more mp3\n");
 					res = 0;
 					break;
 				}
@@ -184,22 +183,19 @@ static int NBScat_exec(struct ast_channel *chan, void *data)
 			} else {
 				ms = ast_waitfor(chan, ms);
 				if (ms < 0) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Hangup detected\n");
+					ast_debug(1, "Hangup detected\n");
 					res = -1;
 					break;
 				}
 				if (ms) {
 					f = ast_read(chan);
 					if (!f) {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Null frame == hangup() detected\n");
+						ast_debug(1, "Null frame == hangup() detected\n");
 						res = -1;
 						break;
 					}
 					if (f->frametype == AST_FRAME_DTMF) {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "User pressed a key\n");
+						ast_debug(1, "User pressed a key\n");
 						ast_frfree(f);
 						res = 0;
 						break;

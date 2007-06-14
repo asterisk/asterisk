@@ -2775,9 +2775,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		return DC_ERROR;
 
 	ast_copy_string(digitbuf, digits, sizeof(digitbuf));
-
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ ilink param = %s, digitbuf = %s\n", S_OR(param, "(null)"), digitbuf);
+	ast_debug(1, "@@@@ ilink param = %s, digitbuf = %s\n", S_OR(param, "(null)"), digitbuf);
 
 	switch (myatoi(param)) {
 	case 1: /* Link off */
@@ -3122,8 +3120,7 @@ static int function_autopatchup(struct rpt *myrpt, char *param, char *digitbuf, 
 	if (!myrpt->enable)
 		return DC_ERROR;
 
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ Autopatch up\n");
+	ast_debug(1, "@@@@ Autopatch up\n");
 
 	if (!myrpt->callmode) {
 		/* Set defaults */
@@ -3192,8 +3189,7 @@ static int function_autopatchdn(struct rpt *myrpt, char *param, char *digitbuf, 
 	if (!myrpt->enable)
 		return DC_ERROR;
 	
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ Autopatch down\n");
+	ast_debug(1, "@@@@ Autopatch down\n");
 		
 	rpt_mutex_lock(&myrpt->lock);
 	
@@ -3221,8 +3217,7 @@ static int function_status(struct rpt *myrpt, char *param, char *digitbuf, int c
 	if (!myrpt->enable)
 		return DC_ERROR;
 
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ status param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
+	ast_debug(1, "@@@@ status param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
 	
 	switch (myatoi(param)) {
 	case 1: /* System ID */
@@ -3255,8 +3250,7 @@ static int function_macro(struct rpt *myrpt, char *param, char *digitbuf, int co
 	if ((!myrpt->remote) && (!myrpt->enable))
 		return DC_ERROR;
 
-	if (debug) 
-		ast_log(LOG_DEBUG, "@@@@ macro-oni param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
+	ast_debug(1, "@@@@ macro-oni param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
 	
 	mychannel = myrpt->remchannel;
 
@@ -3338,8 +3332,7 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 		AST_APP_ARG(param);
 	);
 	
-	if (debug)	
-		ast_log(LOG_DEBUG, "@@@@ Digits collected: %s, source: %d\n", digits, command_source);
+	ast_debug(1, "@@@@ Digits collected: %s, source: %d\n", digits, command_source);
 	
 	if (command_source == SOURCE_DPHONE) {
 		if (!myrpt->p.dphone_functions)
@@ -3379,23 +3372,20 @@ static int collect_function_digits(struct rpt *myrpt, char *digits, int command_
 	stringp = ast_strdupa(vp->value);
 	AST_NONSTANDARD_APP_ARGS(args, stringp, ',');
 
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ action: %s, param = %s\n", args.action, S_OR(args.param, "(null)"));
+	ast_debug(1, "@@@@ action: %s, param = %s\n", args.action, S_OR(args.param, "(null)"));
 	/* Look up the action */
 	for (i = 0; i < (sizeof(function_table) / sizeof(struct function_table_tag)); i++) {
 		if (!strncasecmp(args.action, function_table[i].action, strlen(args.action)))
 			break;
 	}
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ table index i = %d\n", i);
+	ast_debug(1, "@@@@ table index i = %d\n", i);
 	if (i == (sizeof(function_table) / sizeof(struct function_table_tag))) {
 		/* Error, action not in table */
 		return DC_ERROR;
 	}
 	if (function_table[i].function == NULL) {
 		/* Error, function undefined */
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ NULL for action: %s\n", args.action);
+		ast_debug(1, "@@@@ NULL for action: %s\n", args.action);
 		return DC_ERROR;
 	}
 	functiondigits = digits + strlen(vp->name);
@@ -3872,16 +3862,14 @@ static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes
 	int i;
 	struct zt_radio_param prm;
 
-	if (debug) {
-		char *buf = alloca(30 + txbytes * 3);
-		int len;
-		ast_copy_string(buf, "String output was: ", 30 + txbytes * 3);
-		len = strlen(buf);
-		for (i = 0; i < txbytes; i++)
-			len += snprintf(buf + len, 30 + txbytes * 3 - len, "%02X ", (unsigned char) txbuf[i]);
-		strcat(buf + len, "\n");
-		ast_log(LOG_DEBUG, "%s", buf);
-	}
+	char *buf = alloca(30 + txbytes * 3);
+	int len;
+	ast_copy_string(buf, "String output was: ", 30 + txbytes * 3);
+	len = strlen(buf);
+	for (i = 0; i < txbytes; i++)
+		len += snprintf(buf + len, 30 + txbytes * 3 - len, "%02X ", (unsigned char) txbuf[i]);
+	strcat(buf + len, "\n");
+	ast_debug(1, "%s", buf);
 
 	prm.radpar = ZT_RADPAR_REMMODE;
 	if (asciiflag)
@@ -3920,42 +3908,36 @@ static int setrbi(struct rpt *myrpt)
 	/* if no decimal, is invalid */
 	
 	if (s == NULL) {
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ Frequency needs a decimal\n");
+		ast_debug(1, "@@@@ Frequency needs a decimal\n");
 		return -1;
 	}
 	
 	*s++ = 0;
 	if (strlen(tmp) < 2) {
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ Bad MHz digits: %s\n", tmp);
+		ast_debug(1, "@@@@ Bad MHz digits: %s\n", tmp);
 	 	return -1;
 	}
 	 
 	if (strlen(s) < 3) {
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ Bad KHz digits: %s\n", s);
+		ast_debug(1, "@@@@ Bad KHz digits: %s\n", s);
 	 	return -1;
 	}
 
 	if ((s[2] != '0') && (s[2] != '5')) {
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ KHz must end in 0 or 5: %c\n", s[2]);
+		ast_debug(1, "@@@@ KHz must end in 0 or 5: %c\n", s[2]);
 	 	return -1;
 	}
 	 
 	band = rbi_mhztoband(tmp);
 	if (band == -1) {
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ Bad Band: %s\n", tmp);
+		ast_debug(1, "@@@@ Bad Band: %s\n", tmp);
 	 	return -1;
 	}
 	
 	txpl = rbi_pltocode(myrpt->txpl);
 	
 	if (txpl == -1) {
-		if (debug)
-			ast_log(LOG_DEBUG, "@@@@ Bad TX PL: %s\n", myrpt->txpl);
+		ast_debug(1, "@@@@ Bad TX PL: %s\n", myrpt->txpl);
 	 	return -1;
 	}
 
@@ -4148,8 +4130,7 @@ static int set_freq_ft897(struct rpt *myrpt, char *newfreq)
 	int fd, m, d;
 
 	fd = 0;
-	if (debug) 
-		ast_log(LOG_DEBUG, "New frequency: %s\n", newfreq);
+	ast_debug(1, "New frequency: %s\n", newfreq);
 
 	if (split_freq(&m, &d, newfreq))
 		return -1; 
@@ -4274,53 +4255,44 @@ static int set_ft897(struct rpt *myrpt)
 {
 	int res;
 	
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ lock on\n");
+	ast_debug(1, "@@@@ lock on\n");
 
 	res = simple_command_ft897(myrpt, 0x00);				/* LOCK on */	
 
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ ptt off\n");
+	ast_debug(1, "@@@@ ptt off\n");
 
 	if (!res)
 		res = simple_command_ft897(myrpt, 0x88);		/* PTT off */
 
-	if (debug)
-		ast_log(LOG_DEBUG, "Modulation mode\n");
+	ast_debug(1, "Modulation mode\n");
 
 	if (!res)
 		res = set_mode_ft897(myrpt, myrpt->remmode);		/* Modulation mode */
 
-	if (debug)
-		ast_log(LOG_DEBUG, "Split off\n");
+	ast_debug(1, "Split off\n");
 
 	if (!res)
 		simple_command_ft897(myrpt, 0x82);			/* Split off */
 
-	if (debug)
-		ast_log(LOG_DEBUG, "Frequency\n");
+	ast_debug(1, "Frequency\n");
 
 	if (!res)
 		res = set_freq_ft897(myrpt, myrpt->freq);		/* Frequency */
 	if ((myrpt->remmode == REM_MODE_FM)) {
-		if (debug)
-			ast_log(LOG_DEBUG, "Offset\n");
+		ast_debug(1, "Offset\n");
 		if (!res)
 			res = set_offset_ft897(myrpt, myrpt->offset);	/* Offset if FM */
 		if ((!res)&&(myrpt->rxplon || myrpt->txplon)) {
-			if (debug)
-				ast_log(LOG_DEBUG, "CTCSS tone freqs.\n");
+			ast_debug(1, "CTCSS tone freqs.\n");
 			res = set_ctcss_freq_ft897(myrpt, myrpt->txpl, myrpt->rxpl); /* CTCSS freqs if CTCSS is enabled */
 		}
 		if (!res) {
-			if (debug)
-				ast_log(LOG_DEBUG, "CTCSS mode\n");
+			ast_debug(1, "CTCSS mode\n");
 			res = set_ctcss_mode_ft897(myrpt, myrpt->txplon, myrpt->rxplon); /* CTCSS mode */
 		}
 	}
 	if ((myrpt->remmode == REM_MODE_USB)||(myrpt->remmode == REM_MODE_LSB)) {
-		if (debug)
-			ast_log(LOG_DEBUG, "Clarifier off\n");
+		ast_debug(1, "Clarifier off\n");
 		simple_command_ft897(myrpt, 0x85);			/* Clarifier off if LSB or USB */
 	}
 	return res;
@@ -4342,8 +4314,7 @@ static int multimode_bump_freq_ft897(struct rpt *myrpt, int interval)
 {
 	int m, d;
 
-	if (debug)
-		ast_log(LOG_DEBUG, "Before bump: %s\n", myrpt->freq);
+	ast_debug(1, "Before bump: %s\n", myrpt->freq);
 
 	if (split_freq(&m, &d, myrpt->freq))
 		return -1;
@@ -4358,15 +4329,12 @@ static int multimode_bump_freq_ft897(struct rpt *myrpt, int interval)
 	}
 
 	if (check_freq_ft897(m, d, NULL)) {
-		if (debug)
-			ast_log(LOG_DEBUG, "Bump freq invalid\n");
+		ast_debug(1, "Bump freq invalid\n");
 		return -1;
 	}
 
 	snprintf(myrpt->freq, MAXREMSTR, "%d.%05d", m, d);
-
-	if (debug)
-		ast_log(LOG_DEBUG, "After bump: %s\n", myrpt->freq);
+	ast_debug(1, "After bump: %s\n", myrpt->freq);
 
 	return set_freq_ft897(myrpt, myrpt->freq);	
 }
@@ -4768,9 +4736,7 @@ static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int c
 		/* Check frequency for validity and establish a default mode */
 			
 		snprintf(freq, sizeof(freq), "%s.%03d%02d", args.s1, k, ht);
-
-		if (debug)
-			ast_log(LOG_DEBUG, "New frequency: %s\n", freq);		
+		ast_debug(1, "New frequency: %s\n", freq);		
 	
 		split_freq(&mhz, &decimals, freq);
 
@@ -4842,8 +4808,7 @@ invalid_freq:
 		i = strlen(digitbuf) - 1;
 		if ((j != 1) || (k < 2)|| (l != 1))
 			break; /* Not yet */
-		if (debug)
-			ast_log(LOG_DEBUG, "PL digits entered %s\n", digitbuf);
+		ast_debug(1, "PL digits entered %s\n", digitbuf);
  		
 		ast_copy_string(tmp, digitbuf, sizeof(tmp));
 		/* see if we have at least 1 */
@@ -4879,8 +4844,7 @@ invalid_freq:
 		i = strlen(digitbuf) - 1;
 		if ((j != 1) || (k < 2)|| (l != 1))
 			break; /* Not yet */
-		if (debug)
-			ast_log(LOG_DEBUG, "PL digits entered %s\n", digitbuf);
+		ast_debug(1, "PL digits entered %s\n", digitbuf);
 
 		ast_copy_string(tmp, digitbuf, sizeof(tmp));
 		/* see if we have at least 1 */
@@ -6287,8 +6251,7 @@ static void *rpt(void *this)
 		if (who == myrpt->rxchannel) { /* if it was a read from rx */
 			f = ast_read(myrpt->rxchannel);
 			if (!f) {
-				if (debug)
-					ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+				ast_debug(1, "@@@@ rpt:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
@@ -6347,24 +6310,21 @@ static void *rpt(void *this)
 				continue;
 			} else if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 				/* if RX key */
 				if (f->subclass == AST_CONTROL_RADIO_KEY) {
 					if ((!lasttx) || (myrpt->p.duplex > 1)) {
-						if (debug == 7)
-							ast_log(LOG_DEBUG, "@@@@ rx key\n");
+						ast_debug(8, "@@@@ rx key\n");
 						myrpt->keyed = 1;
 					}
 				}
 				/* if RX un-key */
 				if (f->subclass == AST_CONTROL_RADIO_UNKEY) {
 					if ((!lasttx) || (myrpt->p.duplex > 1)) {
-						if (debug == 7)
-							ast_log(LOG_DEBUG, "@@@@ rx un-key\n");
+						ast_debug(8, "@@@@ rx un-key\n");
 						if (myrpt->keyed) {
 							rpt_telemetry(myrpt, UNKEY, NULL);
 						}
@@ -6378,8 +6338,7 @@ static void *rpt(void *this)
 		if (who == myrpt->pchannel) { /* if it was a read from pseudo */
 			f = ast_read(myrpt->pchannel);
 			if (!f) {
-				if (debug)
-					ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+				ast_debug(1, "@@@@ rpt:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
@@ -6387,8 +6346,7 @@ static void *rpt(void *this)
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
@@ -6399,14 +6357,12 @@ static void *rpt(void *this)
 		if (who == myrpt->txchannel) { /* if it was a read from tx */
 			f = ast_read(myrpt->txchannel);
 			if (!f) {
-				if (debug)
-					ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+				ast_debug(1, "@@@@ rpt:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
@@ -6514,14 +6470,12 @@ static void *rpt(void *this)
 					}
 					/* if RX key */
 					if (f->subclass == AST_CONTROL_RADIO_KEY) {
-						if (debug == 7 )
-							ast_log(LOG_DEBUG, "@@@@ rx key\n");
+						ast_debug(8, "@@@@ rx key\n");
 						l->lastrx = 1;
 					}
 					/* if RX un-key */
 					if (f->subclass == AST_CONTROL_RADIO_UNKEY) {
-						if (debug == 7)
-							ast_log(LOG_DEBUG, "@@@@ rx un-key\n");
+						ast_debug(8, "@@@@ rx un-key\n");
 						l->lastrx = 0;
 					}
 					if (f->subclass == AST_CONTROL_HANGUP) {
@@ -6577,8 +6531,7 @@ static void *rpt(void *this)
 				rpt_mutex_unlock(&myrpt->lock);
 				f = ast_read(l->pchan);
 				if (!f) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					toexit = 1;
 					rpt_mutex_lock(&myrpt->lock);
 					break;
@@ -6589,8 +6542,7 @@ static void *rpt(void *this)
 				}
 				if (f->frametype == AST_FRAME_CONTROL) {
 					if (f->subclass == AST_CONTROL_HANGUP) {
-						if (debug)
-							ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+						ast_debug(1, "@@@@ rpt:Hung Up\n");
 						ast_frfree(f);
 						toexit = 1;
 						rpt_mutex_lock(&myrpt->lock);
@@ -6609,14 +6561,12 @@ static void *rpt(void *this)
 		if (who == myrpt->txpchannel) { /* if it was a read from remote tx */
 			f = ast_read(myrpt->txpchannel);
 			if (!f) {
-				if (debug)
-					ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+				ast_debug(1, "@@@@ rpt:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
@@ -6645,8 +6595,7 @@ static void *rpt(void *this)
 		ast_free(ll);
 	}
 	rpt_mutex_unlock(&myrpt->lock);
-	if (debug)
-		ast_log(LOG_DEBUG, "@@@@ rpt:Hung up channel\n");
+	ast_debug(1, "@@@@ rpt:Hung up channel\n");
 	myrpt->rpt_thread = AST_PTHREADT_STOP;
 	pthread_exit(NULL); 
 	return NULL;
@@ -7222,8 +7171,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		if (who == chan) { /* if it was a read from incoming */
 			f = ast_read(chan);
 			if (!f) {
-				if (debug)
-					ast_log(LOG_DEBUG, "@@@@ link:Hung Up\n");
+				ast_debug(1, "@@@@ link:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
@@ -7235,8 +7183,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			if (f->frametype == AST_FRAME_DTMF) {
 				myrpt->remchannel = chan; /* Save copy of channel */
 				if (handle_remote_phone_dtmf(myrpt, f->subclass, &keyed, phone_mode) == -1) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
@@ -7244,29 +7191,25 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			if (f->frametype == AST_FRAME_TEXT) {
 				myrpt->remchannel = chan; /* Save copy of channel */
 				if (handle_remote_data(myrpt, f->data) == -1) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 				/* if RX key */
 				if (f->subclass == AST_CONTROL_RADIO_KEY) {
-					if (debug == 7)
-						ast_log(LOG_DEBUG, "@@@@ rx key\n");
+					ast_debug(8, "@@@@ rx key\n");
 					keyed = 1;
 				}
 				/* if RX un-key */
 				if (f->subclass == AST_CONTROL_RADIO_UNKEY) {
-					if (debug == 7)
-						ast_log(LOG_DEBUG, "@@@@ rx un-key\n");
+					ast_debug(8, "@@@@ rx un-key\n");
 					keyed = 0;
 				}
 			}
@@ -7308,7 +7251,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		if (who == myrpt->rxchannel) { /* if it was a read from radio */
 			f = ast_read(myrpt->rxchannel);
 			if (!f) {
-				if (debug) ast_log(LOG_DEBUG, "@@@@ link:Hung Up\n");
+				ast_debug(1, "@@@@ link:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
@@ -7317,15 +7260,13 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				 ast_write(chan, f);
 			} else if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}
 				/* if RX key */
 				if (f->subclass == AST_CONTROL_RADIO_KEY) {
-					if (debug == 7)
-						ast_log(LOG_DEBUG, "@@@@ remote rx key\n");
+					ast_debug(8, "@@@@ remote rx key\n");
 					if (!myrpt->remotetx) {
 						ast_indicate(chan, AST_CONTROL_RADIO_KEY);
 						myrpt->remoterx = 1;
@@ -7333,8 +7274,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				}
 				/* if RX un-key */
 				if (f->subclass == AST_CONTROL_RADIO_UNKEY) {
-					if (debug == 7)
-						ast_log(LOG_DEBUG, "@@@@ remote rx un-key\n");
+					ast_debug(8, "@@@@ remote rx un-key\n");
 					if (!myrpt->remotetx) {
 						ast_indicate(chan, AST_CONTROL_RADIO_UNKEY);
 						myrpt->remoterx = 0;
@@ -7348,14 +7288,12 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			/* do this cuz you have to */
 			f = ast_read(myrpt->txchannel);
 			if (!f) {
-				if (debug)
-					ast_log(LOG_DEBUG, "@@@@ link:Hung Up\n");
+				ast_debug(1, "@@@@ link:Hung Up\n");
 				break;
 			}
 			if (f->frametype == AST_FRAME_CONTROL) {
 				if (f->subclass == AST_CONTROL_HANGUP) {
-					if (debug)
-						ast_log(LOG_DEBUG, "@@@@ rpt:Hung Up\n");
+					ast_debug(1, "@@@@ rpt:Hung Up\n");
 					ast_frfree(f);
 					break;
 				}

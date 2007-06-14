@@ -112,8 +112,7 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 		ast_log(LOG_NOTICE, "No samples were received from the other side!\n");
 		return -1;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "%s: Noise: %d, samples: %d, avg: %d\n", who, noise, samples, noise / samples);
+	ast_debug(1, "%s: Noise: %d, samples: %d, avg: %d\n", who, noise, samples, noise / samples);
 	return (noise / samples);
 }
 
@@ -153,18 +152,15 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 	/* Transmit client version */
 	if (!res)
 		res = ast_dtmf_stream(chan, NULL, "8378*1#", 0);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Transmit client version\n");
+	ast_debug(1, "Transmit client version\n");
 	
 	/* Read server version */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Read server version\n");
+	ast_debug(1, "Read server version\n");
 	if (!res) 
 		res = ast_app_getdata(chan, NULL, serverver, sizeof(serverver) - 1, 0);
 	if (res > 0)
 		res = 0;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "server version: %s\n", serverver);
+	ast_debug(1, "server version: %s\n", serverver);
 		
 	if (res > 0)
 		res = 0;
@@ -176,8 +172,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		res = ast_dtmf_stream(chan, NULL, testid, 0);		
 	if (!res) 
 		res = ast_dtmf_stream(chan, NULL, "#", 0);		
-	if (option_debug)
-		ast_log(LOG_DEBUG, "send test identifier: %s\n", testid);
+	ast_debug(1, "send test identifier: %s\n", testid);
 
 	if ((res >=0) && (!ast_strlen_zero(testid))) {
 		/* Make the directory to hold the test results in case it's not there */
@@ -193,8 +188,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			
 			if (!res) {
 				/* Step 1: Wait for "1" */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 2.  Wait DTMF 1\n");
+				ast_debug(1, "TestClient: 2.  Wait DTMF 1\n");
 				res = ast_waitfordigit(chan, 3000);
 				fprintf(f, "WAIT DTMF 1:   %s\n", (res != '1') ? "FAIL" : "PASS");
 				if (res == '1')
@@ -206,8 +200,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 				res = ast_safe_sleep(chan, 1000);
 			if (!res) {
 				/* Step 2: Send "2" */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 2.  Send DTMF 2\n");
+				ast_debug(1, "TestClient: 2.  Send DTMF 2\n");
 				res = ast_dtmf_stream(chan, NULL, "2", 0);
 				fprintf(f, "SEND DTMF 2:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -215,8 +208,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 3: Wait one second */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 3.  Wait one second\n");
+				ast_debug(1, "TestClient: 3.  Wait one second\n");
 				res = ast_safe_sleep(chan, 1000);
 				fprintf(f, "WAIT 1 SEC:    %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -224,8 +216,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}			
 			if (!res) {
 				/* Step 4: Measure noise */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 4.  Measure noise\n");
+				ast_debug(1, "TestClient: 4.  Measure noise\n");
 				res = measurenoise(chan, 5000, "TestClient");
 				fprintf(f, "MEASURENOISE:  %s (%d)\n", (res < 0) ? "FAIL" : "PASS", res);
 				if (res > 0)
@@ -233,8 +224,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 5: Wait for "4" */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 5.  Wait DTMF 4\n");
+				ast_debug(1, "TestClient: 5.  Wait DTMF 4\n");
 				res = ast_waitfordigit(chan, 3000);
 				fprintf(f, "WAIT DTMF 4:   %s\n", (res != '4') ? "FAIL" : "PASS");
 				if (res == '4')
@@ -244,15 +234,13 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 6: Transmit tone noise */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 6.  Transmit tone\n");
+				ast_debug(1, "TestClient: 6.  Transmit tone\n");
 				res = sendnoise(chan, 6000);
 				fprintf(f, "SENDTONE:      %s\n", (res < 0) ? "FAIL" : "PASS");
 			}
 			if (!res || (res == '5')) {
 				/* Step 7: Wait for "5" */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 7.  Wait DTMF 5\n");
+				ast_debug(1, "TestClient: 7.  Wait DTMF 5\n");
 				if (!res)
 					res = ast_waitfordigit(chan, 3000);
 				fprintf(f, "WAIT DTMF 5:   %s\n", (res != '5') ? "FAIL" : "PASS");
@@ -263,8 +251,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 8: Wait one second */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 8.  Wait one second\n");
+				ast_debug(1, "TestClient: 8.  Wait one second\n");
 				res = ast_safe_sleep(chan, 1000);
 				fprintf(f, "WAIT 1 SEC:    %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -272,8 +259,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 9: Measure noise */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 6.  Measure tone\n");
+				ast_debug(1, "TestClient: 6.  Measure tone\n");
 				res = measurenoise(chan, 4000, "TestClient");
 				fprintf(f, "MEASURETONE:   %s (%d)\n", (res < 0) ? "FAIL" : "PASS", res);
 				if (res > 0)
@@ -281,8 +267,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 10: Send "7" */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 7.  Send DTMF 7\n");
+				ast_debug(1, "TestClient: 7.  Send DTMF 7\n");
 				res = ast_dtmf_stream(chan, NULL, "7", 0);
 				fprintf(f, "SEND DTMF 7:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -290,8 +275,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 11: Wait for "8" */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "TestClient: 11.  Wait DTMF 8\n");
+				ast_debug(1, "TestClient: 11.  Wait DTMF 8\n");
 				res = ast_waitfordigit(chan, 3000);
 				fprintf(f, "WAIT DTMF 8:   %s\n", (res != '8') ? "FAIL" : "PASS");
 				if (res == '8')
@@ -301,11 +285,10 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			}
 			if (option_debug && !res ) {
 				/* Step 12: Hangup! */
-				ast_log(LOG_DEBUG, "TestClient: 12.  Hangup\n");
+				ast_debug(1, "TestClient: 12.  Hangup\n");
 			}
 
-			if (option_debug)
-				ast_log(LOG_DEBUG, "-- TEST COMPLETE--\n");
+			ast_debug(1, "-- TEST COMPLETE--\n");
 			fprintf(f, "-- END TEST--\n");
 			fclose(f);
 			res = -1;
@@ -330,16 +313,15 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	/* Read version */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Read client version\n");
+	ast_debug(1, "Read client version\n");
 	if (!res) 
 		res = ast_app_getdata(chan, NULL, testid, sizeof(testid) - 1, 0);
 	if (res > 0)
 		res = 0;
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "client version: %s\n", testid);
-		ast_log(LOG_DEBUG, "Transmit server version\n");
-	}
+
+	ast_debug(1, "client version: %s\n", testid);
+	ast_debug(1, "Transmit server version\n");
+
 	res = ast_safe_sleep(chan, 1000);
 	if (!res)
 		res = ast_dtmf_stream(chan, NULL, "8378*1#", 0);
@@ -348,8 +330,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 
 	if (!res) 
 		res = ast_app_getdata(chan, NULL, testid, sizeof(testid) - 1, 0);		
-	if (option_debug) 
-		ast_log(LOG_DEBUG, "read test identifier: %s\n", testid);
+	ast_debug(1, "read test identifier: %s\n", testid);
 	/* Check for sneakyness */
 	if (strchr(testid, '/'))
 		res = -1;
@@ -364,13 +345,11 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			fprintf(f, "SERVERCHAN:    %s\n", chan->name);
 			fprintf(f, "SERVERTEST ID: %s\n", testid);
 			fprintf(f, "ANSWER:        PASS\n");
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Processing Test ID '%s'\n", testid);
+			ast_debug(1, "Processing Test ID '%s'\n", testid);
 			res = ast_safe_sleep(chan, 1000);
 			if (!res) {
 				/* Step 1: Send "1" */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 1.  Send DTMF 1\n");
+				ast_debug(1, "TestServer: 1.  Send DTMF 1\n");
 				res = ast_dtmf_stream(chan, NULL, "1", 0);
 				fprintf(f, "SEND DTMF 1:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -378,8 +357,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 2: Wait for "2" */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 2.  Wait DTMF 2\n");
+				ast_debug(1, "TestServer: 2.  Wait DTMF 2\n");
 				res = ast_waitfordigit(chan, 3000);
 				fprintf(f, "WAIT DTMF 2:   %s\n", (res != '2') ? "FAIL" : "PASS");
 				if (res == '2')
@@ -389,8 +367,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 3: Measure noise */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 3.  Measure noise\n");
+				ast_debug(1, "TestServer: 3.  Measure noise\n");
 				res = measurenoise(chan, 6000, "TestServer");
 				fprintf(f, "MEASURENOISE:  %s (%d)\n", (res < 0) ? "FAIL" : "PASS", res);
 				if (res > 0)
@@ -398,8 +375,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 4: Send "4" */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 4.  Send DTMF 4\n");
+				ast_debug(1, "TestServer: 4.  Send DTMF 4\n");
 				res = ast_dtmf_stream(chan, NULL, "4", 0);
 				fprintf(f, "SEND DTMF 4:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -408,8 +384,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 		
 			if (!res) {
 				/* Step 5: Wait one second */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 5.  Wait one second\n");
+				ast_debug(1, "TestServer: 5.  Wait one second\n");
 				res = ast_safe_sleep(chan, 1000);
 				fprintf(f, "WAIT 1 SEC:    %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -418,8 +393,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 		
 			if (!res) {
 				/* Step 6: Measure noise */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 6.  Measure tone\n");
+				ast_debug(1, "TestServer: 6.  Measure tone\n");
 				res = measurenoise(chan, 4000, "TestServer");
 				fprintf(f, "MEASURETONE:   %s (%d)\n", (res < 0) ? "FAIL" : "PASS", res);
 				if (res > 0)
@@ -428,8 +402,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 
 			if (!res) {
 				/* Step 7: Send "5" */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 7.  Send DTMF 5\n");
+				ast_debug(1, "TestServer: 7.  Send DTMF 5\n");
 				res = ast_dtmf_stream(chan, NULL, "5", 0);
 				fprintf(f, "SEND DTMF 5:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -438,16 +411,14 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 
 			if (!res) {
 				/* Step 8: Transmit tone noise */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 8.  Transmit tone\n");
+				ast_debug(1, "TestServer: 8.  Transmit tone\n");
 				res = sendnoise(chan, 6000);
 				fprintf(f, "SENDTONE:      %s\n", (res < 0) ? "FAIL" : "PASS");
 			}
 		
 			if (!res || (res == '7')) {
 				/* Step 9: Wait for "7" */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 9.  Wait DTMF 7\n");
+				ast_debug(1, "TestServer: 9.  Wait DTMF 7\n");
 				if (!res)
 					res = ast_waitfordigit(chan, 3000);
 				fprintf(f, "WAIT DTMF 7:   %s\n", (res != '7') ? "FAIL" : "PASS");
@@ -460,8 +431,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 				res = ast_safe_sleep(chan, 1000);
 			if (!res) {
 				/* Step 10: Send "8" */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 10.  Send DTMF 8\n");
+				ast_debug(1, "TestServer: 10.  Send DTMF 8\n");
 				res = ast_dtmf_stream(chan, NULL, "8", 0);
 				fprintf(f, "SEND DTMF 8:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
@@ -469,8 +439,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			}
 			if (!res) {
 				/* Step 11: Wait for hangup to arrive! */
-				if (option_debug) 
-					ast_log(LOG_DEBUG, "TestServer: 11.  Waiting for hangup\n");
+				ast_debug(1, "TestServer: 11.  Waiting for hangup\n");
 				res = ast_safe_sleep(chan, 10000);
 				fprintf(f, "WAIT HANGUP:   %s\n", (res < 0) ? "PASS" : "FAIL");
 			}

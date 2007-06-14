@@ -222,9 +222,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG,"Cannot start monitoring %s, already monitored\n",
-						chan->name);
+		ast_debug(1,"Cannot start monitoring %s, already monitored\n", chan->name);
 		res = -1;
 	}
 
@@ -315,8 +313,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &",tmp, dir ,name); /* remove legs when done mixing */
 				ast_copy_string(tmp, tmp2, sizeof(tmp));
 			}
-			if (option_debug)
-				ast_log(LOG_DEBUG,"monitor executing %s\n",tmp);
+			ast_debug(1,"monitor executing %s\n",tmp);
 			if (ast_safe_system(tmp) == -1)
 				ast_log(LOG_WARNING, "Execute of %s failed.\n",tmp);
 		}

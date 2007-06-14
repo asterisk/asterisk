@@ -76,9 +76,7 @@ static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 	}
 
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "VERSION returns %s result, given %s argument\n",
-			response_char, args.info);
+	ast_debug(1, "VERSION returns %s result, given %s argument\n", response_char, args.info);
 	snprintf(buffer, buflen, "%s", response_char);
 
 	ast_module_user_remove(u);

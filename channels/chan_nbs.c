@@ -102,8 +102,7 @@ static int nbs_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	/* When we call, it just works, really, there's no destination...  Just
 	   ring the phone and wait for someone to answer */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Calling %s on %s\n", dest, ast->name);
+	ast_debug(1, "Calling %s on %s\n", dest, ast->name);
 
 	/* If we can't connect, return congestion */
 	if (nbs_connect(p->nbs)) {
@@ -173,8 +172,7 @@ static int nbs_hangup(struct ast_channel *ast)
 {
 	struct nbs_pvt *p;
 	p = ast->tech_pvt;
-	if (option_debug)
-		ast_log(LOG_DEBUG, "nbs_hangup(%s)\n", ast->name);
+	ast_debug(1, "nbs_hangup(%s)\n", ast->name);
 	if (!ast->tech_pvt) {
 		ast_log(LOG_WARNING, "Asked to hangup channel not connected\n");
 		return 0;
@@ -200,8 +198,7 @@ static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 	p->fr.delivery.tv_sec = 0;
 	p->fr.delivery.tv_usec = 0;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Returning null frame on %s\n", ast->name);
+	ast_debug(1, "Returning null frame on %s\n", ast->name);
 
 	return &p->fr;
 }

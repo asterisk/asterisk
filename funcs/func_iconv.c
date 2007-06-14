@@ -73,8 +73,7 @@ static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments
 
 	incount = strlen(args.text);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Iconv: \"%s\" %s -> %s\n", args.text, args.in_charset, args.out_charset);
+	ast_debug(1, "Iconv: \"%s\" %s -> %s\n", args.text, args.in_charset, args.out_charset);
 
 	cd = iconv_open(args.out_charset, args.in_charset);
 

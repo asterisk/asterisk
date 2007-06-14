@@ -482,8 +482,7 @@ static int tds_load_module(void)
 
 	ptr = ast_variable_retrieve(cfg,"global","table");
 	if (ptr == NULL) {
-		if (option_debug)
-			ast_log(LOG_DEBUG,"cdr_tds: table not specified.  Assuming cdr\n");
+		ast_debug(1,"cdr_tds: table not specified.  Assuming cdr\n");
 		ptr = "cdr";
 	}
 	table = strdup(ptr);

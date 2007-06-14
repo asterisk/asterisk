@@ -490,8 +490,7 @@ static int unalloc_sub(struct mgcp_subchannel *sub)
 		ast_log(LOG_WARNING, "Trying to unalloc the real channel %s@%s?!?\n", p->name, p->parent->name);
 		return -1;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Released sub %d of channel %s@%s\n", sub->id, p->name, p->parent->name);
+	ast_debug(1, "Released sub %d of channel %s@%s\n", sub->id, p->name, p->parent->name);
 
 	sub->owner = NULL;
 	if (!ast_strlen_zero(sub->cxident)) {
@@ -757,8 +756,7 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 		/* XXX Should schedule retransmission XXX */
 /* SC
 	} else
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Deferring transmission of transaction %d\n", seqno);
+		ast_debug(1, "Deferring transmission of transaction %d\n", seqno);
 */
 	return 0;
 }
@@ -771,8 +769,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 	struct mgcp_request **queue, *q, *r, *t;
 	ast_mutex_t *l;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Slow sequence is %d\n", p->slowsequence);
+	ast_debug(1, "Slow sequence is %d\n", p->slowsequence);
 	if (p->slowsequence) {
 		queue = &p->cmd_queue;
 		l = &p->cmd_queue_lock;
@@ -948,17 +945,13 @@ static int mgcp_hangup(struct ast_channel *ast)
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	struct mgcp_endpoint *p = sub->parent;
 
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "mgcp_hangup(%s)\n", ast->name);
-	}
+	ast_debug(1, "mgcp_hangup(%s)\n", ast->name);
 	if (!ast->tech_pvt) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
+		ast_debug(1, "Asked to hangup channel not connected\n");
 		return 0;
 	}
 	if (strcmp(sub->magic, MGCP_SUBCHANNEL_MAGIC)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Invalid magic. MGCP subchannel freed up already.\n");
+		ast_debug(1, "Invalid magic. MGCP subchannel freed up already.\n");
 		return 0;
 	}
 	ast_mutex_lock(&sub->lock);
@@ -1210,8 +1203,7 @@ static int mgcp_answer(struct ast_channel *ast)
 	}
 	if (ast->_state != AST_STATE_UP) {
 		ast_setstate(ast, AST_STATE_UP);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "mgcp_answer(%s)\n", ast->name);
+		ast_debug(1, "mgcp_answer(%s)\n", ast->name);
 		transmit_notify_request(sub, "");
 		transmit_modify_request(sub);
 	}
@@ -1232,8 +1224,7 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != sub->owner->nativeformats) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
+				ast_debug(1, "Oooh, format changed to %d\n", f->subclass);
 				sub->owner->nativeformats = f->subclass;
 				ast_set_read_format(sub->owner, sub->owner->readformat);
 				ast_set_write_format(sub->owner, sub->owner->writeformat);
@@ -1678,20 +1669,17 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 			/* SC */
 			p = g->endpoints;
 			while(p) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Searching on %s@%s for subchannel\n",
-						p->name, g->name);
+				ast_debug(1, "Searching on %s@%s for subchannel\n",
+					p->name, g->name);
 				if (msgid) {
 #if 0 /* new transport mech */
 					sub = p->sub;
 					do {
-						if (option_debug)
-							ast_log(LOG_DEBUG, "Searching on %s@%s-%d for subchannel with lastout: %d\n",
-								p->name, g->name, sub->id, msgid);
+						ast_debug(1, "Searching on %s@%s-%d for subchannel with lastout: %d\n",
+							p->name, g->name, sub->id, msgid);
 						if (sub->lastout == msgid) {
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Found subchannel sub%d to handle request %d sub->lastout: %d\n",
-									sub->id, msgid, sub->lastout);
+							ast_debug(1, "Found subchannel sub%d to handle request %d sub->lastout: %d\n",
+								sub->id, msgid, sub->lastout);
 							found = 1;
 							break;
 						}
@@ -1707,9 +1695,8 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 					/* SC */
 					break;
 				} else if (name && !strcasecmp(p->name, tmp)) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Coundn't determine subchannel, assuming current master %s@%s-%d\n", 
-							p->name, g->name, p->sub->id);
+					ast_debug(1, "Coundn't determine subchannel, assuming current master %s@%s-%d\n", 
+						p->name, g->name, p->sub->id);
 					sub = p->sub;
 					found = 1;
 					break;
@@ -2727,8 +2714,7 @@ static void *mgcp_ss(void *data)
 				timeout = matchdigittimeout;
 			}
 		} else if (res == 0) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "not enough digits (and no ambiguous match)...\n");
+			ast_debug(1, "not enough digits (and no ambiguous match)...\n");
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);*/
 			transmit_notify_request(sub, "G/cg");
 			/*zt_wait_event(p->subs[index].zfd);*/
@@ -2851,8 +2837,7 @@ static void *mgcp_ss(void *data)
 			timeout = firstdigittimeout;
 		} else if (!ast_canmatch_extension(chan, chan->context, p->dtmf_buf, 1, chan->cid.cid_num) &&
 				((p->dtmf_buf[0] != '*') || (strlen(p->dtmf_buf) > 2))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Can't match %s from '%s' in context %s\n", p->dtmf_buf, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
+			ast_debug(1, "Can't match %s from '%s' in context %s\n", p->dtmf_buf, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
 			break;
 		}
 		if (!timeout)
@@ -2865,13 +2850,11 @@ static void *mgcp_ss(void *data)
 	for (;;) {
 		res = ast_waitfordigit(chan, to);
 		if (!res) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Timeout...\n");
+			ast_debug(1, "Timeout...\n");
 			break;
 		}
 		if (res < 0) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got hangup...\n");
+			ast_debug(1, "Got hangup...\n");
 			ast_hangup(chan);
 			break;
 		}
@@ -2951,9 +2934,8 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 		/* Tell the caller not to hangup */
 		return 1;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Neither %s nor %s are in a bridge, nothing to transfer\n",
-				p->sub->owner->name, p->sub->next->owner->name);
+		ast_debug(1, "Neither %s nor %s are in a bridge, nothing to transfer\n",
+			p->sub->owner->name, p->sub->next->owner->name);
 		p->sub->next->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 		if (p->sub->next->owner) {
 			p->sub->next->alreadygone = 1;
@@ -3116,8 +3098,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 		ev = get_header(req, "O");
 		s = strchr(ev, '/');
 		if (s) ev = s + 1;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Endpoint '%s@%s-%d' observed '%s'\n", p->name, p->parent->name, sub->id, ev);
+		ast_debug(1, "Endpoint '%s@%s-%d' observed '%s'\n", p->name, p->parent->name, sub->id, ev);
 		/* Keep looking for events unless this was a hangup */
 		if (strcasecmp(ev, "hu") && strcasecmp(ev, "hd") && strcasecmp(ev, "ping")) {
 			transmit_notify_request(sub, p->curtone);
@@ -3215,8 +3196,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 		} else if (!strcasecmp(ev, "hu")) {
 			p->hookstate = MGCP_ONHOOK;
 			sub->cxmode = MGCP_CX_RECVONLY;
-			if (option_debug)
-				ast_log(LOG_DEBUG, "MGCP %s@%s Went on hook\n", p->name, p->parent->name);
+			ast_debug(1, "MGCP %s@%s Went on hook\n", p->name, p->parent->name);
 			/* Do we need to send MDCX before a DLCX ?
 			if (sub->rtp) {
 				transmit_modify_request(sub);
@@ -3388,8 +3368,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 			ast_mutex_lock(&gw->msgs_lock);
 			for (prev = NULL, cur = gw->msgs; cur; prev = cur, cur = cur->next) {
 				if (cur->seqno == ident) {
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Got response back on transaction %d\n", ident);
+					ast_debug(1, "Got response back on transaction %d\n", ident);
 					if (prev)
 						prev->next = cur->next;
 					else

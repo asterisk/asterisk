@@ -164,10 +164,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
-		ast_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
-	}
+	ast_debug(1, "Digittimeout: %d\n", digittimeout);
+	ast_debug(1, "Responsetimeout: %d\n", firstdigittimeout);
 
 	tmp = ast_strdupa(data);
 
@@ -180,8 +178,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	if (!ast_strlen_zero(args.options))
 		ast_app_parse_options(app_opts, &flags, NULL, args.options);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
+	ast_debug(1, "Mailbox: %s\n",args.mailbox);
 
 	special_noanswer = 0;
 	if (ast_test_flag(&flags, NOANSWER_FLAG)) {
@@ -196,13 +193,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Context: %s\n",args.context);
+	ast_debug(1, "Context: %s\n",args.context);
 
 	if (!strcasecmp(args.passcode, "no-password")) {
 		k |= 1; /* We have the password */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "DISA no-password login success\n");
+		ast_debug(1, "DISA no-password login success\n");
 	}
 	lastdigittime = ast_tvnow();
 
@@ -212,14 +207,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		  /* if outa time, give em reorder */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > 
 		    ((k&2) ? digittimeout : firstdigittimeout)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
-					((k&1) ? "extension" : "password"),chan->name);
+			ast_debug(1,"DISA %s entry timeout on chan %s\n",
+				((k&1) ? "extension" : "password"),chan->name);
 			break;
 		}
 		if ((res = ast_waitfor(chan, -1) < 0)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Waitfor returned %d\n", res);
+			ast_debug(1, "Waitfor returned %d\n", res);
 			continue;
 		}
 			
@@ -280,8 +273,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 							AST_STANDARD_APP_ARGS(args, pwline);
 			
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
+							ast_debug(1, "Mailbox: %s\n",args.mailbox);
 
 							/* password must be in valid format (numeric) */
 							if (sscanf(args.passcode,"%d", &j) < 1)
@@ -304,8 +296,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 					}
 					 /* password good, set to dial state */
-					if (option_debug)
-						ast_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
+					ast_debug(1,"DISA on chan %s password is good\n",chan->name);
 					play_dialtone(chan, args.mailbox);
 
 					k|=1; /* In number mode */
@@ -313,8 +304,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					exten[sizeof(acctcode)] = 0;
 					ast_copy_string(acctcode, exten, sizeof(acctcode));
 					exten[0] = 0;
-					if (option_debug)
-						ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n", chan->name);
+					ast_debug(1,"Successful DISA log-in on chan %s\n", chan->name);
 					continue;
 				}
 			}

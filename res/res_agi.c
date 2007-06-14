@@ -224,8 +224,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 	if (!ast_strlen_zero(script))
 		fdprintf(s, "agi_network_script: %s\n", script);
 
-	if (option_debug > 3)
-		ast_log(LOG_DEBUG, "Wow, connected!\n");
+	ast_debug(4, "Wow, connected!\n");
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
@@ -584,8 +583,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_SUCCESS;
 	}	
 	vfs = ast_openvstream(chan, argv[2], chan->language);
-	if (vfs && option_debug)
-		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
+	ast_debug(vfs && 1, "Ooh, found a video stream, too\n");
 		
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
@@ -649,8 +647,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 		return RESULT_SUCCESS;
 	}
 	vfs = ast_openvstream(chan, argv[2], chan->language);
-	if (vfs && option_debug)
-		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
+	ast_debug(vfs && 1, "Ooh, found a video stream, too\n");
 	
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
@@ -1860,8 +1857,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			/* Idle the channel until we get a command */
 			f = ast_read(c);
 			if (!f) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "%s hungup\n", chan->name);
+				ast_debug(1, "%s hungup\n", chan->name);
 				returnstatus = AGI_RESULT_HANGUP;
 				break;
 			} else {

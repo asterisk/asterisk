@@ -159,8 +159,9 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			maximumNumberOfWords = atoi(args.argMaximumNumberOfWords);
 		if (!ast_strlen_zero(args.argSilenceThreshold))
 			silenceThreshold = atoi(args.argSilenceThreshold);
-	} else if (option_debug)
-		ast_log(LOG_DEBUG, "AMD using the default parameters.\n");
+	} else {
+		ast_debug(1, "AMD using the default parameters.\n");
+	}
 
 	/* Now we're ready to roll! */
 	if (option_verbose > 2)
@@ -195,8 +196,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 		if (!(f = ast_read(chan))) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got hangup\n");
+			ast_debug(1, "Got hangup\n");
 			strcpy(amdStatus, "HANGUP");
 			break;
 		}

@@ -179,8 +179,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
         if (ztc.confmode) {
 			/* Whoa, already in a conference...  Retry... */
 			if (!retryzap) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Zap channel is in a conference already, retrying with pseudo\n");
+				ast_debug(1, "Zap channel is in a conference already, retrying with pseudo\n");
 				retryzap = 1;
 				goto zapretry;
 			}
@@ -196,8 +195,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
                 close(fd);
                 goto outrun;
         }
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
+	ast_debug(1, "Placed channel %s in ZAP channel %d monitor\n", chan->name, confno);
 		
         for(;;) {
 			outfd = -1;
@@ -209,8 +207,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 						/* Kill old pseudo */
 						close(fd);
 					}
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
+					ast_debug(1, "Ooh, something swapped out under us, starting over\n");
 					retryzap = 0;
                                 goto zapretry;
 				}

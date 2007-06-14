@@ -69,9 +69,7 @@ static int function_db_read(struct ast_channel *chan, const char *cmd,
 	}
 
 	if (ast_db_get(args.family, args.key, buf, len - 1)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", args.family,
-					args.key);
+		ast_debug(1, "DB: %s/%s not found in database.\n", args.family, args.key);
 	} else
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 
@@ -185,13 +183,10 @@ static int function_db_delete(struct ast_channel *chan, const char *cmd,
 	}
 
 	if (ast_db_get(args.family, args.key, buf, len - 1)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "DB_DELETE: %s/%s not found in database.\n", args.family, args.key);
+		ast_debug(1, "DB_DELETE: %s/%s not found in database.\n", args.family, args.key);
 	} else {
 		if (ast_db_del(args.family, args.key)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "DB_DELETE: %s/%s could not be deleted from the database\n", 
-					args.family, args.key);
+			ast_debug(1, "DB_DELETE: %s/%s could not be deleted from the database\n", args.family, args.key);
 		}
 	}
 	pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);

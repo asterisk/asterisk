@@ -223,16 +223,14 @@ static int osp_create_provider(
 			} else {
 				snprintf(p->privatekey, sizeof(p->privatekey), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 			}
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: privatekey '%s'\n", p->privatekey);
+			ast_debug(1, "OSP: privatekey '%s'\n", p->privatekey);
 		} else if (!strcasecmp(v->name, "localcert")) {
 			if (v->value[0] == '/') {
 				ast_copy_string(p->localcert, v->value, sizeof(p->localcert));
 			} else {
 				snprintf(p->localcert, sizeof(p->localcert), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 			}
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: localcert '%s'\n", p->localcert);
+			ast_debug(1, "OSP: localcert '%s'\n", p->localcert);
 		} else if (!strcasecmp(v->name, "cacert")) {
 			if (p->cacount < OSP_MAX_CERTS) {
 				if (v->value[0] == '/') {
@@ -240,8 +238,7 @@ static int osp_create_provider(
 				} else {
 					snprintf(p->cacerts[p->cacount], sizeof(p->cacerts[0]), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 				}
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: cacert[%d]: '%s'\n", p->cacount, p->cacerts[p->cacount]);
+				ast_debug(1, "OSP: cacert[%d]: '%s'\n", p->cacount, p->cacerts[p->cacount]);
 				p->cacount++;
 			} else {
 				ast_log(LOG_WARNING, "OSP: Too many CA Certificates at line %d\n", v->lineno);
@@ -249,8 +246,7 @@ static int osp_create_provider(
 		} else if (!strcasecmp(v->name, "servicepoint")) {
 			if (p->spcount < OSP_MAX_SRVS) {
 				ast_copy_string(p->srvpoints[p->spcount], v->value, sizeof(p->srvpoints[0]));
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: servicepoint[%d]: '%s'\n", p->spcount, p->srvpoints[p->spcount]);
+				ast_debug(1, "OSP: servicepoint[%d]: '%s'\n", p->spcount, p->srvpoints[p->spcount]);
 				p->spcount++;
 			} else {
 				ast_log(LOG_WARNING, "OSP: Too many Service Points at line %d\n", v->lineno);
@@ -258,8 +254,7 @@ static int osp_create_provider(
 		} else if (!strcasecmp(v->name, "maxconnections")) {
 			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_MAXCONNECTIONS) && (t <= OSP_MAX_MAXCONNECTIONS)) {
 				p->maxconnections = t;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: maxconnections '%d'\n", t);
+				ast_debug(1, "OSP: maxconnections '%d'\n", t);
 			} else {
 				ast_log(LOG_WARNING, "OSP: maxconnections should be an integer from %d to %d, not '%s' at line %d\n",
 					OSP_MIN_MAXCONNECTIONS, OSP_MAX_MAXCONNECTIONS, v->value, v->lineno);
@@ -267,8 +262,7 @@ static int osp_create_provider(
 		} else if (!strcasecmp(v->name, "retrydelay")) {
 			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_RETRYDELAY) && (t <= OSP_MAX_RETRYDELAY)) {
 				p->retrydelay = t;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: retrydelay '%d'\n", t);
+				ast_debug(1, "OSP: retrydelay '%d'\n", t);
 			} else {
 				ast_log(LOG_WARNING, "OSP: retrydelay should be an integer from %d to %d, not '%s' at line %d\n",
 					OSP_MIN_RETRYDELAY, OSP_MAX_RETRYDELAY, v->value, v->lineno);
@@ -276,8 +270,7 @@ static int osp_create_provider(
 		} else if (!strcasecmp(v->name, "retrylimit")) {
 			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_RETRYLIMIT) && (t <= OSP_MAX_RETRYLIMIT)) {
 				p->retrylimit = t;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: retrylimit '%d'\n", t);
+				ast_debug(1, "OSP: retrylimit '%d'\n", t);
 			} else {
 				ast_log(LOG_WARNING, "OSP: retrylimit should be an integer from %d to %d, not '%s' at line %d\n",
 					OSP_MIN_RETRYLIMIT, OSP_MAX_RETRYLIMIT, v->value, v->lineno);
@@ -285,21 +278,18 @@ static int osp_create_provider(
 		} else if (!strcasecmp(v->name, "timeout")) {
 			if ((sscanf(v->value, "%d", &t) == 1) && (t >= OSP_MIN_TIMEOUT) && (t <= OSP_MAX_TIMEOUT)) {
 				p->timeout = t;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: timeout '%d'\n", t);
+				ast_debug(1, "OSP: timeout '%d'\n", t);
 			} else {
 				ast_log(LOG_WARNING, "OSP: timeout should be an integer from %d to %d, not '%s' at line %d\n",
 					OSP_MIN_TIMEOUT, OSP_MAX_TIMEOUT, v->value, v->lineno);
 			}
 		} else if (!strcasecmp(v->name, "source")) {
 			ast_copy_string(p->source, v->value, sizeof(p->source));
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: source '%s'\n", p->source);
+			ast_debug(1, "OSP: source '%s'\n", p->source);
 		} else if (!strcasecmp(v->name, "authpolicy")) {
 			if ((sscanf(v->value, "%d", &t) == 1) && ((t == OSP_AUTH_NO) || (t == OSP_AUTH_YES) || (t == OSP_AUTH_EXCLUSIVE))) {
 				p->authpolicy = t;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: authpolicy '%d'\n", t);
+				ast_debug(1, "OSP: authpolicy '%d'\n", t);
 			} else {
 				ast_log(LOG_WARNING, "OSP: authpolicy should be %d, %d or %d, not '%s' at line %d\n",
 					OSP_AUTH_NO, OSP_AUTH_YES, OSP_AUTH_EXCLUSIVE, v->value, v->lineno);
@@ -307,16 +297,13 @@ static int osp_create_provider(
 		} else if (!strcasecmp(v->name, "defaultprotocol")) {
 			if (!strcasecmp(v->value, OSP_PROT_SIP)) {
 				p->defaultprotocol = OSP_PROT_SIP;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: default protocol '%s'\n", p->defaultprotocol);
+				ast_debug(1, "OSP: default protocol '%s'\n", p->defaultprotocol);
 			} else if (!strcasecmp(v->value, OSP_PROT_H323)) {
 				p->defaultprotocol = OSP_PROT_H323;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: default protocol '%s'\n", p->defaultprotocol);
+				ast_debug(1, "OSP: default protocol '%s'\n", p->defaultprotocol);
 			} else if (!strcasecmp(v->value, OSP_PROT_IAX)) {
 				p->defaultprotocol = OSP_PROT_IAX;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: default protocol '%s'\n", p->defaultprotocol);
+				ast_debug(1, "OSP: default protocol '%s'\n", p->defaultprotocol);
 			} else {
 				ast_log(LOG_WARNING, "OSP: default protocol should be %s, %s, %s, or %s not '%s' at line %d\n",
 					OSP_PROT_SIP, OSP_PROT_H323, OSP_PROT_IAX, OSP_PROT_OTHER, v->value, v->lineno);
@@ -344,8 +331,7 @@ static int osp_create_provider(
 
 	if (p->cacount < 1) {
 		snprintf(p->cacerts[p->cacount], sizeof(p->cacerts[0]), "%s/%s-cacert.pem", ast_config_AST_KEY_DIR, provider);
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: cacert[%d]: '%s'\n", p->cacount, p->cacerts[p->cacount]);
+		ast_debug(1, "OSP: cacert[%d]: '%s'\n", p->cacount, p->cacerts[p->cacount]);
 		p->cacount++;
 	}
 	for (i = 0; i < p->cacount; i++) {
@@ -397,8 +383,7 @@ static int osp_create_provider(
 		ast_free(p);
 		res = -1;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: provider '%s'\n", provider);
+		ast_debug(1, "OSP: provider '%s'\n", provider);
 		ast_mutex_lock(&osplock);
 		p->next = ospproviders;
 		ospproviders = p;
@@ -439,8 +424,7 @@ static int osp_get_provider(
 	while(p) {
 		if (!strcasecmp(p->name, name)) {
 			*provider = p;
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: find provider '%s'\n", name);
+			ast_debug(1, "OSP: find provider '%s'\n", name);
 			res = 1;
 			break;
 		}
@@ -475,16 +459,13 @@ static int osp_create_transaction(
 		if (!strcasecmp(p->name, provider)) {
 			error = OSPPTransactionNew(p->handle, transaction);
 			if (error == OSPC_ERR_NO_ERROR) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: transaction '%d'\n", *transaction);
+				ast_debug(1, "OSP: transaction '%d'\n", *transaction);
 				ast_copy_string(source, p->source, sourcesize);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: source '%s'\n", source);
+				ast_debug(1, "OSP: source '%s'\n", source);
 				res = 1;
 			} else {
 				*transaction = OSP_INVALID_HANDLE;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: Unable to create transaction handle, error '%d'\n", error);
+				ast_debug(1, "OSP: Unable to create transaction handle, error '%d'\n", error);
 				res = -1;
 			}
 			break;
@@ -568,16 +549,13 @@ static int osp_validate_token(
 				NULL,
 				osp_tokenformat);
 	if (error != OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to validate inbound token\n");
+		ast_debug(1, "OSP: Unable to validate inbound token\n");
 		res = -1;
 	} else if (authorised) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Authorised\n");
+		ast_debug(1, "OSP: Authorised\n");
 		res = 1;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unauthorised\n");
+		ast_debug(1, "OSP: Unauthorised\n");
 		res = 0;
 	}
 
@@ -631,15 +609,13 @@ static int osp_check_destination(
 	int error;
 
 	if (strlen(destination) <= 2) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Wrong destination format '%s'\n", destination);
+		ast_debug(1, "OSP: Wrong destination format '%s'\n", destination);
 		*reason = OSPC_FAIL_NORMAL_UNSPECIFIED;
 		return -1;
 	}
 
 	if ((error = OSPPTransactionIsDestOSPEnabled(result->outhandle, &enabled)) != OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to get destination OSP version, error '%d'\n", error);
+		ast_debug(1, "OSP: Unable to get destination OSP version, error '%d'\n", error);
 		*reason = OSPC_FAIL_NORMAL_UNSPECIFIED;
 		return -1;
 	}
@@ -651,14 +627,12 @@ static int osp_check_destination(
 	}
 
 	if ((error = OSPPTransactionGetDestNetworkId(result->outhandle, result->networkid)) != OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to get destination network ID, error '%d'\n", error);
+		ast_debug(1, "OSP: Unable to get destination network ID, error '%d'\n", error);
 		result->networkid[0] = '\0';
 	}
 
 	if ((error = OSPPTransactionGetDestProtocol(result->outhandle, &protocol)) != OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to get destination protocol, error '%d'\n", error);
+		ast_debug(1, "OSP: Unable to get destination protocol, error '%d'\n", error);
 		*reason = OSPC_FAIL_NORMAL_UNSPECIFIED;
 		result->token[0] = '\0';
 		result->networkid[0] = '\0';
@@ -670,24 +644,21 @@ static int osp_check_destination(
 	destination[strlen(destination) - 1] = '\0';
 	switch(protocol) {
 		case OSPE_DEST_PROT_H323_SETUP:
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: protocol '%s'\n", OSP_PROT_H323);
+			ast_debug(1, "OSP: protocol '%s'\n", OSP_PROT_H323);
 			ast_copy_string(result->tech, OSP_TECH_H323, sizeof(result->tech));
 			ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
 			ast_copy_string(result->called, called, sizeof(result->called));
 			ast_copy_string(result->calling, calling, sizeof(result->calling));
 			break;
 		case OSPE_DEST_PROT_SIP:
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: protocol '%s'\n", OSP_PROT_SIP);
+			ast_debug(1, "OSP: protocol '%s'\n", OSP_PROT_SIP);
 			ast_copy_string(result->tech, OSP_TECH_SIP, sizeof(result->tech));
 			ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
 			ast_copy_string(result->called, called, sizeof(result->called));
 			ast_copy_string(result->calling, calling, sizeof(result->calling));
 			break;
 		case OSPE_DEST_PROT_IAX:
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: protocol '%s'\n", OSP_PROT_IAX);
+			ast_debug(1, "OSP: protocol '%s'\n", OSP_PROT_IAX);
 			ast_copy_string(result->tech, OSP_TECH_IAX, sizeof(result->tech));
 			ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
 			ast_copy_string(result->called, called, sizeof(result->called));
@@ -695,10 +666,9 @@ static int osp_check_destination(
 			break;
 		case OSPE_DEST_PROT_UNDEFINED:
 		case OSPE_DEST_PROT_UNKNOWN:
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "OSP: unknown/undefined protocol '%d'\n", protocol);
-				ast_log(LOG_DEBUG, "OSP: use default protocol '%s'\n", provider->defaultprotocol);
-			}
+			ast_debug(1, "OSP: unknown/undefined protocol '%d'\n", protocol);
+			ast_debug(1, "OSP: use default protocol '%s'\n", provider->defaultprotocol);
+
 			ast_copy_string(result->tech, provider->defaultprotocol, sizeof(result->tech));
 			ast_copy_string(result->dest, destination + 1, sizeof(result->dest));
 			ast_copy_string(result->called, called, sizeof(result->called));
@@ -756,8 +726,7 @@ static int osp_auth(
 	*timelimit = OSP_DEF_TIMELIMIT;
 
 	if ((res = osp_get_provider(provider, &p)) <= 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unabe to find OSP provider '%s'\n", provider);
+		ast_debug(1, "OSP: Unabe to find OSP provider '%s'\n", provider);
 		return res;
 	}
 
@@ -769,8 +738,7 @@ static int osp_auth(
 			if (ast_strlen_zero(token)) {
 				res = 0;
 			} else if ((res = osp_create_transaction(provider, transaction, sizeof(dest), dest)) <= 0) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: Unable to generate transaction handle\n");
+				ast_debug(1, "OSP: Unable to generate transaction handle\n");
 				*transaction = OSP_INVALID_HANDLE;
 				res = 0;
 			} else if((res = osp_validate_token(*transaction, source, dest, calling, called, token, timelimit)) <= 0) {
@@ -782,8 +750,7 @@ static int osp_auth(
 			if (ast_strlen_zero(token)) {
 				res = 1;
 			} else if ((res = osp_create_transaction(provider, transaction, sizeof(dest), dest)) <= 0) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: Unable to generate transaction handle\n");
+				ast_debug(1, "OSP: Unable to generate transaction handle\n");
 				*transaction = OSP_INVALID_HANDLE;
 				res = 0;
 			} else if((res = osp_validate_token(*transaction, source, dest, calling, called, token, timelimit)) <= 0) {
@@ -928,14 +895,12 @@ static int osp_lookup(
 	result->outtimelimit = OSP_DEF_TIMELIMIT;
 
 	if ((res = osp_get_provider(provider, &p)) <= 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unabe to find OSP provider '%s'\n", provider);
+		ast_debug(1, "OSP: Unabe to find OSP provider '%s'\n", provider);
 		return res;
 	}
 
 	if ((res = osp_create_transaction(provider, &result->outhandle, sizeof(source), source)) <= 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to generate transaction handle\n");
+		ast_debug(1, "OSP: Unable to generate transaction handle\n");
 		result->outhandle = OSP_INVALID_HANDLE;
 		if (result->inhandle != OSP_INVALID_HANDLE) {
 			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
@@ -980,8 +945,7 @@ static int osp_lookup(
 	}
 
 	if (error != OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to request authorization\n");
+		ast_debug(1, "OSP: Unable to request authorization\n");
 		result->numresults = 0;
 		if (result->inhandle != OSP_INVALID_HANDLE) {
 			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
@@ -990,8 +954,7 @@ static int osp_lookup(
 	}
 
 	if (!result->numresults) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: No more destination\n");
+		ast_debug(1, "OSP: No more destination\n");
 		if (result->inhandle != OSP_INVALID_HANDLE) {
 			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
 		}
@@ -1019,8 +982,7 @@ static int osp_lookup(
 				&tokenlen,
 				token);
 	if (error != OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to get first route\n");
+		ast_debug(1, "OSP: Unable to get first route\n");
 		result->numresults = 0;
 		result->outtimelimit = OSP_DEF_TIMELIMIT;
 		if (result->inhandle != OSP_INVALID_HANDLE) {
@@ -1031,21 +993,18 @@ static int osp_lookup(
 
 	result->numresults--;
 	result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSP: outtimelimit '%d'\n", result->outtimelimit);
-		ast_log(LOG_DEBUG, "OSP: called '%s'\n", callednum);
-		ast_log(LOG_DEBUG, "OSP: calling '%s'\n", callingnum);
-		ast_log(LOG_DEBUG, "OSP: destination '%s'\n", destination);
-		ast_log(LOG_DEBUG, "OSP: token size '%d'\n", tokenlen);
-	}
+	ast_debug(1, "OSP: outtimelimit '%d'\n", result->outtimelimit);
+	ast_debug(1, "OSP: called '%s'\n", callednum);
+	ast_debug(1, "OSP: calling '%s'\n", callingnum);
+	ast_debug(1, "OSP: destination '%s'\n", destination);
+	ast_debug(1, "OSP: token size '%d'\n", tokenlen);
 
 	if ((res = osp_check_destination(p, callednum, callingnum, destination, tokenlen, token, &reason, result)) > 0) {
 		return 1;
 	}
 
 	if (!result->numresults) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: No more destination\n");
+		ast_debug(1, "OSP: No more destination\n");
 		result->outtimelimit = OSP_DEF_TIMELIMIT;
 		OSPPTransactionRecordFailure(result->outhandle, reason);
 		if (result->inhandle != OSP_INVALID_HANDLE) {
@@ -1079,18 +1038,16 @@ static int osp_lookup(
 		if (error == OSPC_ERR_NO_ERROR) {
 			result->numresults--;
 			result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "OSP: outtimelimit '%d'\n", result->outtimelimit);
-				ast_log(LOG_DEBUG, "OSP: called '%s'\n", callednum);
-				ast_log(LOG_DEBUG, "OSP: calling '%s'\n", callingnum);
-				ast_log(LOG_DEBUG, "OSP: destination '%s'\n", destination);
-				ast_log(LOG_DEBUG, "OSP: token size '%d'\n", tokenlen);
-			}
+			ast_debug(1, "OSP: outtimelimit '%d'\n", result->outtimelimit);
+			ast_debug(1, "OSP: called '%s'\n", callednum);
+			ast_debug(1, "OSP: calling '%s'\n", callingnum);
+			ast_debug(1, "OSP: destination '%s'\n", destination);
+			ast_debug(1, "OSP: token size '%d'\n", tokenlen);
+
 			if ((res = osp_check_destination(p, callednum, callingnum, destination, tokenlen, token, &reason, result)) > 0) {
 				break;
 			} else if (!result->numresults) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: No more destination\n");
+				ast_debug(1, "OSP: No more destination\n");
 				OSPPTransactionRecordFailure(result->outhandle, reason);
 				if (result->inhandle != OSP_INVALID_HANDLE) {
 					OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
@@ -1099,8 +1056,7 @@ static int osp_lookup(
 				break;
 			}
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: Unable to get route, error '%d'\n", error);
+			ast_debug(1, "OSP: Unable to get route, error '%d'\n", error);
 			result->numresults = 0;
 			result->outtimelimit = OSP_DEF_TIMELIMIT;
 			if (result->inhandle != OSP_INVALID_HANDLE) {
@@ -1144,14 +1100,12 @@ static int osp_next(
 	result->outtimelimit = OSP_DEF_TIMELIMIT;
 
 	if ((res = osp_get_provider(provider, &p)) <= 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unabe to find OSP provider '%s'\n", provider);
+		ast_debug(1, "OSP: Unabe to find OSP provider '%s'\n", provider);
 		return res;
 	}
 
 	if (result->outhandle == OSP_INVALID_HANDLE) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Transaction handle undefined\n");
+		ast_debug(1, "OSP: Transaction handle undefined\n");
 		result->numresults = 0;
 		if (result->inhandle != OSP_INVALID_HANDLE) {
 			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NORMAL_UNSPECIFIED);
@@ -1162,8 +1116,7 @@ static int osp_next(
 	reason = asterisk2osp(cause);
 
 	if (!result->numresults) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: No more destination\n");
+		ast_debug(1, "OSP: No more destination\n");
 		OSPPTransactionRecordFailure(result->outhandle, reason);
 		if (result->inhandle != OSP_INVALID_HANDLE) {
 			OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
@@ -1196,19 +1149,17 @@ static int osp_next(
 		if (error == OSPC_ERR_NO_ERROR) {
 			result->numresults--;
 			result->outtimelimit = osp_choose_timelimit(result->intimelimit, result->outtimelimit);
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "OSP: outtimelimit '%d'\n", result->outtimelimit);
-				ast_log(LOG_DEBUG, "OSP: called '%s'\n", callednum);
-				ast_log(LOG_DEBUG, "OSP: calling '%s'\n", callingnum);
-				ast_log(LOG_DEBUG, "OSP: destination '%s'\n", destination);
-				ast_log(LOG_DEBUG, "OSP: token size '%d'\n", tokenlen);
-			}
+			ast_debug(1, "OSP: outtimelimit '%d'\n", result->outtimelimit);
+			ast_debug(1, "OSP: called '%s'\n", callednum);
+			ast_debug(1, "OSP: calling '%s'\n", callingnum);
+			ast_debug(1, "OSP: destination '%s'\n", destination);
+			ast_debug(1, "OSP: token size '%d'\n", tokenlen);
+
 			if ((res = osp_check_destination(p, callednum, callingnum, destination, tokenlen, token, &reason, result)) > 0) {
 				res = 1;
 				break;
 			} else if (!result->numresults) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "OSP: No more destination\n");
+				ast_debug(1, "OSP: No more destination\n");
 				OSPPTransactionRecordFailure(result->outhandle, reason);
 				if (result->inhandle != OSP_INVALID_HANDLE) {
 					OSPPTransactionRecordFailure(result->inhandle, OSPC_FAIL_NO_ROUTE_TO_DEST);
@@ -1217,8 +1168,7 @@ static int osp_next(
 				break;
 			}
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSP: Unable to get route, error '%d'\n", error);
+			ast_debug(1, "OSP: Unable to get route, error '%d'\n", error);
 			result->token[0] = '\0';
 			result->numresults = 0;
 			result->outtimelimit = OSP_DEF_TIMELIMIT;
@@ -1288,12 +1238,10 @@ static int osp_finish(
 				&dummy,
 				NULL);
 	if (error == OSPC_ERR_NO_ERROR) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Usage reported\n");
+		ast_debug(1, "OSP: Usage reported\n");
 		res = 1;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: Unable to report usage, error '%d'\n", error);
+		ast_debug(1, "OSP: Unable to report usage, error '%d'\n", error);
 		res = -1;
 	}
 	OSPPTransactionDelete(handle);
@@ -1344,10 +1292,7 @@ static int ospauth_exec(
 	if (!ast_strlen_zero(args.provider)) {
 		provider = args.provider;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPAuth: provider '%s'\n", provider);
-
-	}
+	ast_debug(1, "OSPAuth: provider '%s'\n", provider);
 
 	headp = &chan->varshead;
 	AST_LIST_TRAVERSE(headp, current, entries) {
@@ -1358,10 +1303,8 @@ static int ospauth_exec(
 		}
 	}
 
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPAuth: source '%s'\n", source);
-		ast_log(LOG_DEBUG, "OSPAuth: token size '%zd'\n", strlen(token));
-	}
+	ast_debug(1, "OSPAuth: source '%s'\n", source);
+	ast_debug(1, "OSPAuth: token size '%zd'\n", strlen(token));
 
 	if ((res = osp_auth(provider, &handle, source, chan->cid.cid_num, chan->exten, token, &timelimit)) > 0) {
 		status = AST_OSP_SUCCESS;
@@ -1376,15 +1319,12 @@ static int ospauth_exec(
 
 	snprintf(buffer, sizeof(buffer), "%d", handle);
 	pbx_builtin_setvar_helper(chan, "OSPINHANDLE", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPAuth: OSPINHANDLE '%s'\n", buffer);
+	ast_debug(1, "OSPAuth: OSPINHANDLE '%s'\n", buffer);
 	snprintf(buffer, sizeof(buffer), "%d", timelimit);
 	pbx_builtin_setvar_helper(chan, "OSPINTIMELIMIT", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPAuth: OSPINTIMELIMIT '%s'\n", buffer);
+	ast_debug(1, "OSPAuth: OSPINTIMELIMIT '%s'\n", buffer);
 	pbx_builtin_setvar_helper(chan, "OSPAUTHSTATUS", status);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPAuth: %s\n", status);
+	ast_debug(1, "OSPAuth: %s\n", status);
 
 	if(res <= 0) {
 		res = -1;
@@ -1441,14 +1381,12 @@ static int osplookup_exec(
 
 	AST_STANDARD_APP_ARGS(args, tmp);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: exten '%s'\n", args.exten);
+	ast_debug(1, "OSPLookup: exten '%s'\n", args.exten);
 
 	if (!ast_strlen_zero(args.provider)) {
 		provider = args.provider;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPlookup: provider '%s'\n", provider);
+	ast_debug(1, "OSPlookup: provider '%s'\n", provider);
 
 	if (args.options) {
 		if (strchr(args.options, 'h')) {
@@ -1461,9 +1399,7 @@ static int osplookup_exec(
 			callidtypes |= OSP_CALLID_IAX;
 		}
 	}
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPLookup: call id types '%d'\n", callidtypes);
-	}
+	ast_debug(1, "OSPLookup: call id types '%d'\n", callidtypes);
 
 	result.inhandle = OSP_INVALID_HANDLE;
 	result.intimelimit = OSP_DEF_TIMELIMIT;
@@ -1484,12 +1420,10 @@ static int osplookup_exec(
 			srcdev = ast_var_value(current);
 		}
 	}
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPLookup: OSPINHANDLE '%d'\n", result.inhandle);
-		ast_log(LOG_DEBUG, "OSPLookup: OSPINTIMELIMIT '%d'\n", result.intimelimit);
-		ast_log(LOG_DEBUG, "OSPLookup: OSPINNETWORKID '%s'\n", netid);
-		ast_log(LOG_DEBUG, "OSPLookup: source device '%s'\n", srcdev);
-	}
+	ast_debug(1, "OSPLookup: OSPINHANDLE '%d'\n", result.inhandle);
+	ast_debug(1, "OSPLookup: OSPINTIMELIMIT '%d'\n", result.intimelimit);
+	ast_debug(1, "OSPLookup: OSPINNETWORKID '%s'\n", netid);
+	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
 
 	if ((cres = ast_autoservice_start(chan)) < 0) {
 		ast_module_user_remove(u);
@@ -1518,38 +1452,28 @@ static int osplookup_exec(
 
 	snprintf(buffer, sizeof(buffer), "%d", result.outhandle);
 	pbx_builtin_setvar_helper(chan, "OSPOUTHANDLE", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPOUTHANDLE '%s'\n", buffer);
+	ast_debug(1, "OSPLookup: OSPOUTHANDLE '%s'\n", buffer);
 	pbx_builtin_setvar_helper(chan, "OSPTECH", result.tech);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPTECH '%s'\n", result.tech);
+	ast_debug(1, "OSPLookup: OSPTECH '%s'\n", result.tech);
 	pbx_builtin_setvar_helper(chan, "OSPDEST", result.dest);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPDEST '%s'\n", result.dest);
+	ast_debug(1, "OSPLookup: OSPDEST '%s'\n", result.dest);
 	pbx_builtin_setvar_helper(chan, "OSPCALLED", result.called);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPCALLED '%s'\n", result.called);
+	ast_debug(1, "OSPLookup: OSPCALLED '%s'\n", result.called);
 	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPCALLING '%s'\n", result.calling);
+	ast_debug(1, "OSPLookup: OSPCALLING '%s'\n", result.calling);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
+	ast_debug(1, "OSPLookup: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
 	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
 	pbx_builtin_setvar_helper(chan, "OSPRESULTS", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPRESULTS '%s'\n", buffer);
+	ast_debug(1, "OSPLookup: OSPRESULTS '%s'\n", buffer);
 	snprintf(buffer, sizeof(buffer), "%d", result.outtimelimit);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTIMELIMIT", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPOUTTIMELIMIT '%s'\n", buffer);
+	ast_debug(1, "OSPLookup: OSPOUTTIMELIMIT '%s'\n", buffer);
 	snprintf(buffer, sizeof(buffer), "%d", callidtypes);
 	pbx_builtin_setvar_helper(chan, "OSPOUTCALLIDTYPES", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: OSPOUTCALLIDTYPES '%s'\n", buffer);
+	ast_debug(1, "OSPLookup: OSPOUTCALLIDTYPES '%s'\n", buffer);
 	pbx_builtin_setvar_helper(chan, "OSPLOOKUPSTATUS", status);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPLookup: %s\n", status);
+	ast_debug(1, "OSPLookup: %s\n", status);
 
 	if (!strcasecmp(result.tech, OSP_TECH_H323)) {
 		if ((callidtypes & OSP_CALLID_H323) && (result.outcallid.len != 0)) {
@@ -1566,8 +1490,7 @@ static int osplookup_exec(
 		if (!ast_strlen_zero(result.token)) {
 			snprintf(buffer, sizeof(buffer), "%s%s", OSP_SIP_HEADER, result.token);
 			pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
+			ast_debug(1, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 		}
 	} else if (!strcasecmp(result.tech, OSP_TECH_IAX)) {
 		snprintf(buffer, sizeof(buffer), "%s/%s/%s", result.tech, result.dest, result.called);
@@ -1636,14 +1559,12 @@ static int ospnext_exec(
 	if (!ast_strlen_zero(args.cause) && sscanf(args.cause, "%d", &cause) != 1) {
 		cause = 0;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: cause '%d'\n", cause);
+	ast_debug(1, "OSPNext: cause '%d'\n", cause);
 
 	if (!ast_strlen_zero(args.provider)) {
 		provider = args.provider;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPlookup: provider '%s'\n", provider);
+	ast_debug(1, "OSPlookup: provider '%s'\n", provider);
 
 	result.inhandle = OSP_INVALID_HANDLE;
 	result.outhandle = OSP_INVALID_HANDLE;
@@ -1674,13 +1595,11 @@ static int ospnext_exec(
 			}
 		}
 	}
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPNext: OSPINHANDLE '%d'\n", result.inhandle);
-		ast_log(LOG_DEBUG, "OSPNext: OSPOUTHANDLE '%d'\n", result.outhandle);
-		ast_log(LOG_DEBUG, "OSPNext: OSPINTIMELIMIT '%d'\n", result.intimelimit);
-		ast_log(LOG_DEBUG, "OSPNext: OSPOUTCALLIDTYPES '%d'\n", callidtypes);
-		ast_log(LOG_DEBUG, "OSPNext: OSPRESULTS '%d'\n", result.numresults);
-	}
+	ast_debug(1, "OSPNext: OSPINHANDLE '%d'\n", result.inhandle);
+	ast_debug(1, "OSPNext: OSPOUTHANDLE '%d'\n", result.outhandle);
+	ast_debug(1, "OSPNext: OSPINTIMELIMIT '%d'\n", result.intimelimit);
+	ast_debug(1, "OSPNext: OSPOUTCALLIDTYPES '%d'\n", callidtypes);
+	ast_debug(1, "OSPNext: OSPRESULTS '%d'\n", result.numresults);
 
 	if ((res = osp_next(provider, cause, &result)) > 0) {
 		status = AST_OSP_SUCCESS;
@@ -1703,31 +1622,23 @@ static int ospnext_exec(
 	}
 
 	pbx_builtin_setvar_helper(chan, "OSPTECH", result.tech);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPTECH '%s'\n", result.tech);
+	ast_debug(1, "OSPNext: OSPTECH '%s'\n", result.tech);
 	pbx_builtin_setvar_helper(chan, "OSPDEST", result.dest);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPDEST '%s'\n", result.dest);
+	ast_debug(1, "OSPNext: OSPDEST '%s'\n", result.dest);
 	pbx_builtin_setvar_helper(chan, "OSPCALLED", result.called);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPCALLED'%s'\n", result.called);
+	ast_debug(1, "OSPNext: OSPCALLED'%s'\n", result.called);
 	pbx_builtin_setvar_helper(chan, "OSPCALLING", result.calling);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPCALLING '%s'\n", result.calling);
+	ast_debug(1, "OSPNext: OSPCALLING '%s'\n", result.calling);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTOKEN", result.token);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
+	ast_debug(1, "OSPNext: OSPOUTTOKEN size '%zd'\n", strlen(result.token));
 	snprintf(buffer, sizeof(buffer), "%d", result.numresults);
 	pbx_builtin_setvar_helper(chan, "OSPRESULTS", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPRESULTS '%s'\n", buffer);
+	ast_debug(1, "OSPNext: OSPRESULTS '%s'\n", buffer);
 	snprintf(buffer, sizeof(buffer), "%d", result.outtimelimit);
 	pbx_builtin_setvar_helper(chan, "OSPOUTTIMELIMIT", buffer);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: OSPOUTTIMELIMIT '%s'\n", buffer);
+	ast_debug(1, "OSPNext: OSPOUTTIMELIMIT '%s'\n", buffer);
 	pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", status);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPNext: %s\n", status);
+	ast_debug(1, "OSPNext: %s\n", status);
 
 	if (!strcasecmp(result.tech, OSP_TECH_H323)) {
 		if ((callidtypes & OSP_CALLID_H323) && (result.outcallid.len != 0)) {
@@ -1744,8 +1655,7 @@ static int ospnext_exec(
 		if (!ast_strlen_zero(result.token)) {
 			snprintf(buffer, sizeof(buffer), "%s%s", OSP_SIP_HEADER, result.token);
 			pbx_builtin_setvar_helper(chan, "_SIPADDHEADER", buffer);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
+			ast_debug(1, "OSPLookup: SIPADDHEADER size '%zd'\n", strlen(buffer));
 		}
 	} else if (!strcasecmp(result.tech, OSP_TECH_IAX)) {
 		snprintf(buffer, sizeof(buffer), "%s/%s/%s", result.tech, result.dest, result.called);
@@ -1822,17 +1732,14 @@ static int ospfinished_exec(
 			}
 		}
 	}
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPFinish: OSPINHANDLE '%d'\n", inhandle);
-		ast_log(LOG_DEBUG, "OSPFinish: OSPOUTHANDLE '%d'\n", outhandle);
-		ast_log(LOG_DEBUG, "OSPFinish: recorded '%d'\n", recorded);
-	}
+	ast_debug(1, "OSPFinish: OSPINHANDLE '%d'\n", inhandle);
+	ast_debug(1, "OSPFinish: OSPOUTHANDLE '%d'\n", outhandle);
+	ast_debug(1, "OSPFinish: recorded '%d'\n", recorded);
 
 	if (!ast_strlen_zero(args.cause) && sscanf(args.cause, "%d", &cause) != 1) {
 		cause = 0;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSPFinish: cause '%d'\n", cause);
+	ast_debug(1, "OSPFinish: cause '%d'\n", cause);
 
 	if (chan->cdr) {
 		start = chan->cdr->start.tv_sec;
@@ -1847,17 +1754,14 @@ static int ospfinished_exec(
 		connect = 0;
 		end = 0;
 	}
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "OSPFinish: start '%ld'\n", start);
-		ast_log(LOG_DEBUG, "OSPFinish: connect '%ld'\n", connect);
-		ast_log(LOG_DEBUG, "OSPFinish: end '%ld'\n", end);
-	}
+	ast_debug(1, "OSPFinish: start '%ld'\n", start);
+	ast_debug(1, "OSPFinish: connect '%ld'\n", connect);
+	ast_debug(1, "OSPFinish: end '%ld'\n", end);
 
 	release = chan->_softhangup ? 0 : 1;
 
 	if (osp_finish(outhandle, recorded, cause, start, connect, end, release) <= 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSPFinish: Unable to report usage for outbound call\n");
+		ast_debug(1, "OSPFinish: Unable to report usage for outbound call\n");
 	}
 	switch (cause) {
 		case AST_CAUSE_NORMAL_CLEARING:
@@ -1867,8 +1771,7 @@ static int ospfinished_exec(
 			break;
 	}
 	if (osp_finish(inhandle, recorded, cause, start, connect, end, release) <= 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSPFinish: Unable to report usage for inbound call\n");
+		ast_debug(1, "OSPFinish: Unable to report usage for inbound call\n");
 	}
 	snprintf(buffer, sizeof(buffer), "%d", OSP_INVALID_HANDLE);
 	pbx_builtin_setvar_helper(chan, "OSPOUTHANDLE", buffer);
@@ -1916,8 +1819,7 @@ static int osp_load(void)
 		} else {
 			OSPPInit(0);
 		}
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: osp_hardware '%d'\n", osp_hardware);
+		ast_debug(1, "OSP: osp_hardware '%d'\n", osp_hardware);
 
 		t = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "tokenformat");
 		if (t) {
@@ -1930,8 +1832,7 @@ static int osp_load(void)
 					TOKEN_ALGO_SIGNED, TOKEN_ALGO_UNSIGNED, TOKEN_ALGO_BOTH, t);
 			}
 		}
-		if (option_debug)
-			ast_log(LOG_DEBUG, "OSP: osp_tokenformat '%d'\n", osp_tokenformat);
+		ast_debug(1, "OSP: osp_tokenformat '%d'\n", osp_tokenformat);
 
 		t = ast_category_browse(cfg, NULL);
 		while(t) {
@@ -1948,8 +1849,7 @@ static int osp_load(void)
 		ast_log(LOG_WARNING, "OSP: Unable to find configuration. OSP support disabled\n");
 		return 0;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "OSP: osp_initialized '%d'\n", osp_initialized);
+	ast_debug(1, "OSP: osp_initialized '%d'\n", osp_initialized);
 
 	return 1;
 }

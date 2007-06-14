@@ -1049,16 +1049,14 @@ void ast_cdr_submit_batch(int shutdown)
 	/* if configured, spawn a new thread to post these CDRs,
 	   also try to save as much as possible if we are shutting down safely */
 	if (batchscheduleronly || shutdown) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
+		ast_debug(1, "CDR single-threaded batch processing begins now\n");
 		do_batch_backend_process(oldbatchitems);
 	} else {
 		if (ast_pthread_create_detached_background(&batch_post_thread, NULL, do_batch_backend_process, oldbatchitems)) {
 			ast_log(LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
 			do_batch_backend_process(oldbatchitems);
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
+			ast_debug(1, "CDR multi-threaded batch processing begins now\n");
 		}
 	}
 }
@@ -1095,8 +1093,7 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 
 	/* maybe they disabled CDR stuff completely, so just drop it */
 	if (!enabled) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Dropping CDR !\n");
+		ast_debug(1, "Dropping CDR !\n");
 		ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
 		ast_cdr_free(cdr);
 		return;
@@ -1110,8 +1107,7 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 	}
 
 	/* otherwise, each CDR gets put into a batch list (at the end) */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "CDR detaching from this thread\n");
+	ast_debug(1, "CDR detaching from this thread\n");
 
 	/* we'll need a new tail for every CDR */
 	if (!(newtail = ast_calloc(1, sizeof(*newtail)))) {
@@ -1161,8 +1157,7 @@ static void *do_cdr(void *data)
 		ast_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
 		numevents = ast_sched_runq(sched);
 		ast_mutex_unlock(&cdr_pending_lock);
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "Processed %d scheduled CDR batches from the run queue\n", numevents);
+		ast_debug(2, "Processed %d scheduled CDR batches from the run queue\n", numevents);
 	}
 
 	return NULL;

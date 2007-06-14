@@ -218,8 +218,7 @@ static int radius_log(struct ast_cdr *cdr)
 	VALUE_PAIR *send = NULL;
 
 	if (build_radius_record(&send, cdr)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Unable to create RADIUS record. CDR not recorded!\n");
+		ast_debug(1, "Unable to create RADIUS record. CDR not recorded!\n");
 		return result;
 	}
 	

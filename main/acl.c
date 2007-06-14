@@ -197,8 +197,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int 
 			ret = ha;
 		}
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
+	ast_debug(1, "%s/%s appended to acl for peer\n", stuff, nm);
 	return ret;
 }
 
@@ -212,8 +211,7 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 		/* DEBUG */
 		ast_copy_string(iabuf, ast_inet_ntoa(sin->sin_addr), sizeof(iabuf));
 		ast_copy_string(iabuf2, ast_inet_ntoa(ha->netaddr), sizeof(iabuf2));
-		if (option_debug)
-			ast_log(LOG_DEBUG, "##### Testing %s with %s\n", iabuf, iabuf2);
+		ast_debug(1, "##### Testing %s with %s\n", iabuf, iabuf2);
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)

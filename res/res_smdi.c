@@ -111,8 +111,7 @@ int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox)
 	fclose(file);
 
 	ASTOBJ_UNLOCK(iface);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Sent MWI set message for %s on %s\n", mailbox, iface->name);
+	ast_debug(1, "Sent MWI set message for %s on %s\n", mailbox, iface->name);
 	return 0;
 }
 
@@ -143,8 +142,7 @@ int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
 	fclose(file);
 
 	ASTOBJ_UNLOCK(iface);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Sent MWI unset message for %s on %s\n", mailbox, iface->name);
+	ast_debug(1, "Sent MWI unset message for %s on %s\n", mailbox, iface->name);
 	return 0;
 }
 
@@ -413,8 +411,7 @@ static void *smdi_read(void *iface_p)
 				/* add the message to the message queue */
 				md_msg->timestamp = ast_tvnow();
 				ast_smdi_md_message_push(iface, md_msg);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Recieved SMDI MD message on %s\n", iface->name);
+				ast_debug(1, "Recieved SMDI MD message on %s\n", iface->name);
 				
 				ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
 
@@ -457,8 +454,7 @@ static void *smdi_read(void *iface_p)
 				/* add the message to the message queue */
 				mwi_msg->timestamp = ast_tvnow();
 				ast_smdi_mwi_message_push(iface, mwi_msg);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Recieved SMDI MWI message on %s\n", iface->name);
+				ast_debug(1, "Recieved SMDI MWI message on %s\n", iface->name);
 				
 				ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
 			} else {

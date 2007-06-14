@@ -506,8 +506,7 @@ static int message_template_build(const char *name, struct ast_variable *var)
 	}
 
 	while (var) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "-_-_- Configuring template option %s = \"%s\" for template %s\n", var->name, var->value, name);
+		ast_debug(3, "-_-_- Configuring template option %s = \"%s\" for template %s\n", var->name, var->value, name);
 		if (!strcasecmp(var->name, "fromaddress")) {
 			ast_copy_string(template->fromaddress, var->value, sizeof(template->fromaddress));
 		} else if (!strcasecmp(var->name, "fromemail")) {
@@ -823,8 +822,7 @@ static struct minivm_account *find_account(const char *domain, const char *usern
 		ast_log(LOG_NOTICE, "No username or domain? \n");
 		return NULL;
 	}
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "-_-_-_- Looking for voicemail user %s in domain %s\n", username, domain);
+	ast_debug(3, "-_-_-_- Looking for voicemail user %s in domain %s\n", username, domain);
 
 	AST_LIST_LOCK(&minivm_accounts);
 	AST_LIST_TRAVERSE(&minivm_accounts, cur, list) {
@@ -835,8 +833,7 @@ static struct minivm_account *find_account(const char *domain, const char *usern
 	AST_LIST_UNLOCK(&minivm_accounts);
 
 	if (cur) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "-_-_- Found account for %s@%s\n", username, domain);
+		ast_debug(3, "-_-_- Found account for %s@%s\n", username, domain);
 		vmu = cur;
 
 	} else
@@ -849,8 +846,7 @@ static struct minivm_account *find_account(const char *domain, const char *usern
 		if (vmu) {
 			ast_copy_string(vmu->username, username, sizeof(vmu->username));
 			ast_copy_string(vmu->domain, domain, sizeof(vmu->domain));
-			if (option_debug)
-				ast_log(LOG_DEBUG, "--- Created temporary account\n");
+			ast_debug(1, "--- Created temporary account\n");
 		}
 
 	}
@@ -926,8 +922,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		return -1;	
 	}
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "-_-_- Sending mail to %s@%s - Using template %s\n", vmu->username, vmu->domain, template->name);
+	ast_debug(3, "-_-_- Sending mail to %s@%s - Using template %s\n", vmu->username, vmu->domain, template->name);
 
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
@@ -940,8 +935,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		int tmpfd;
 
 		snprintf(newtmp, sizeof(newtmp), "/tmp/XXXXXX");
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
+		ast_debug(3, "newtmp: %s\n", newtmp);
 		tmpfd = mkstemp(newtmp);
 		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
 		ast_safe_system(tmpcmd);
@@ -955,8 +949,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	/* Create file name */
 	snprintf(fname, sizeof(fname), "%s.%s", finalfilename, format);
 
-	if (option_debug && template->attachment)
-		ast_log(LOG_DEBUG, "-- Attaching file '%s', format '%s', uservm is '%d'\n", finalfilename, format, attach_user_voicemail);
+	if (template->attachment)
+		ast_debug(1, "-- Attaching file '%s', format '%s', uservm is '%d'\n", finalfilename, format, attach_user_voicemail);
 
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
@@ -967,8 +961,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 			close(pfd);
 			pfd = -1;
 		}
-		if (option_debug)
-			ast_log(LOG_DEBUG, "-_-_- Opening temp file for e-mail: %s\n", tmp);
+		ast_debug(1, "-_-_- Opening temp file for e-mail: %s\n", tmp);
 	}
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to open temporary file '%s'\n", tmp);
@@ -1029,8 +1022,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	if (ast_strlen_zero(fromaddress)) {
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
 	} else {
-		if (option_debug > 3)
-			ast_log(LOG_DEBUG, "-_-_- Fromaddress template: %s\n", fromaddress);
+		ast_debug(4, "-_-_- Fromaddress template: %s\n", fromaddress);
 		/* Allocate a buffer big enough for variable substitution */
 		int vmlen = strlen(fromaddress) * 3 + 200;
 
@@ -1046,8 +1038,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 			return -1;	
 		}
 	} 
-	if (option_debug > 3)
-		ast_log(LOG_DEBUG, "-_-_- Fromstring now: %s\n", ast_strlen_zero(passdata) ? "-default-" : passdata);
+	ast_debug(4, "-_-_- Fromstring now: %s\n", ast_strlen_zero(passdata) ? "-default-" : passdata);
 
 	fprintf(p, "Message-ID: <Asterisk-%d-%s-%d-%s>\n", (unsigned int)rand(), vmu->username, getpid(), who);
 	len_passdata = strlen(vmu->fullname) * 2 + 3;
@@ -1069,11 +1060,12 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 			fclose(p);
 			return -1;	
 		}
-		if (option_debug > 3)
-			ast_log(LOG_DEBUG, "-_-_- Subject now: %s\n", passdata);
+
+		ast_debug(4, "-_-_- Subject now: %s\n", passdata);
+
 	} else  {
 		fprintf(p, "Subject: New message in mailbox %s@%s\n", vmu->username, vmu->domain);
-		ast_log(LOG_DEBUG, "-_-_- Using default subject for this email \n");
+		ast_debug(1, "-_-_- Using default subject for this email \n");
 	}
 
 
@@ -1094,8 +1086,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		if ((passdata = alloca(vmlen))) {
 			memset(passdata, 0, vmlen);
 			pbx_substitute_variables_helper(ast, template->body, passdata, vmlen);
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "Message now: %s\n-----\n", passdata);
+			ast_debug(3, "Message now: %s\n-----\n", passdata);
 			fprintf(p, "%s\n", passdata);
 		} else
 			ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -1105,13 +1096,11 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 			"in mailbox %s from %s, on %s so you might\n"
 			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", vmu->fullname, 
 			dur,  vmu->username, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Using default message body (no template)\n-----\n");
+		ast_debug(3, "Using default message body (no template)\n-----\n");
 	}
 	/* Eww. We want formats to tell us their own MIME type */
 	if (template->attachment) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "-_-_- Attaching file to message: %s\n", fname);
+		ast_debug(3, "-_-_- Attaching file to message: %s\n", fname);
 		char *ctype = "audio/x-";
 		if (!strcasecmp(format, "ogg"))
 			ctype = "application/";
@@ -1128,11 +1117,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	fclose(p);
 	snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", global_mailcmd, tmp, tmp);
 	ast_safe_system(tmp2);
-	if (option_debug) {
-		ast_log(LOG_DEBUG, "Sent message to %s with command '%s' - %s\n", vmu->email, global_mailcmd, template->attachment ? "(media attachment)" : "");
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "-_-_- Actual command used: %s\n", tmp2);
-	}
+	ast_debug(1, "Sent message to %s with command '%s' - %s\n", vmu->email, global_mailcmd, template->attachment ? "(media attachment)" : "");
+	ast_debug(3, "-_-_- Actual command used: %s\n", tmp2);
 	if (ast)
 		ast_channel_free(ast);
 	return 0;
@@ -1195,8 +1181,7 @@ static int create_dirpath(char *dest, int len, char *domain, char *username, cha
 			return -1;
 		}
 	}
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "Creating directory for %s@%s folder %s : %s\n", username, domain, folder, dest);
+	ast_debug(2, "Creating directory for %s@%s folder %s : %s\n", username, domain, folder, dest);
 	return 0;
 }
 
@@ -1208,8 +1193,7 @@ static int invent_message(struct ast_channel *chan, char *domain, char *username
 	int res;
 	char fn[PATH_MAX];
 
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "-_-_- Still preparing to play message ...\n");
+	ast_debug(2, "-_-_- Still preparing to play message ...\n");
 
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", MVM_SPOOL_DIR, domain, username);
 
@@ -1224,12 +1208,10 @@ static int invent_message(struct ast_channel *chan, char *domain, char *username
 		int numericusername = 1;
 		char *i = username;
 
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "-_-_- No personal prompts. Using default prompt set for language\n");
+		ast_debug(2, "-_-_- No personal prompts. Using default prompt set for language\n");
 		
 		while (*i)  {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "-_-_- Numeric? Checking %c\n", *i);
+			ast_debug(2, "-_-_- Numeric? Checking %c\n", *i);
 			if (!isdigit(*i)) {
 				numericusername = FALSE;
 				break;
@@ -1266,8 +1248,7 @@ static int vm_delete(char *file)
 {
 	int res;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "-_-_- Deleting voicemail file %s\n", file);
+	ast_debug(1, "-_-_- Deleting voicemail file %s\n", file);
 
 	res = unlink(file);	/* Remove the meta data file */
 	res |=  ast_filedelete(file, NULL);	/* remove the media file */
@@ -1418,9 +1399,7 @@ static void run_externnotify(struct ast_channel *chan, struct minivm_account *vm
 		vmu->username, vmu->domain,
 		chan->cid.cid_name, chan->cid.cid_num);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Executing: %s\n", arguments);
-
+	ast_debug(1, "Executing: %s\n", arguments);
   	ast_safe_system(arguments);
 }
 
@@ -1454,8 +1433,7 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 	if (!ast_strlen_zero(etemplate->locale)) {
 		char *newlocale;
 		ast_copy_string(oldlocale, setlocale(LC_TIME, NULL), sizeof(oldlocale));
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "-_-_- Changing locale from %s to %s\n", oldlocale, etemplate->locale);
+		ast_debug(2, "-_-_- Changing locale from %s to %s\n", oldlocale, etemplate->locale);
 		newlocale = setlocale(LC_TIME, etemplate->locale);
 		if (newlocale == NULL) {
 			ast_log(LOG_WARNING, "-_-_- Changing to new locale did not work. Locale: %s\n", etemplate->locale);
@@ -1466,11 +1444,10 @@ static int notify_new_message(struct ast_channel *chan, const char *templatename
 
 	/* Read counter if available */
 	counter = pbx_builtin_getvar_helper(chan, "MVM_COUNTER");
-	if (option_debug > 1) {
-		if (ast_strlen_zero(counter))
-			ast_log(LOG_DEBUG, "-_-_- MVM_COUNTER not found\n");
-		else
-			ast_log(LOG_DEBUG, "-_-_- MVM_COUNTER found - will use it with value %s\n", counter);
+	if (ast_strlen_zero(counter)) {
+		ast_debug(2, "-_-_- MVM_COUNTER not found\n");
+	} else {
+		ast_debug(2, "-_-_- MVM_COUNTER found - will use it with value %s\n", counter);
 	}
 
 	res = sendmail(etemplate, vmu, cidnum, cidname, filename, messageformat, duration, etemplate->attachment, MVM_MESSAGE_EMAIL, counter);
@@ -1555,8 +1532,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 	/* If we have no user directory, use generic temporary directory */
 	if (!userdir) {
 		create_dirpath(tmpdir, sizeof(tmpdir), "0000_minivm_temp", "mediafiles", "");
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Creating temporary directory %s\n", tmpdir);
+		ast_debug(3, "Creating temporary directory %s\n", tmpdir);
 	}
 
 
@@ -1583,8 +1559,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 
 	/* OEJ XXX Maybe this can be turned into a log file? Hmm. */
 	/* Store information */
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "Open file for metadata: %s\n", tmptxtfile);
+	ast_debug(2, "Open file for metadata: %s\n", tmptxtfile);
 
 	res = play_record_review(chan, NULL, tmptxtfile, global_vmmaxmessage, fmt, 1, vmu, &duration, NULL, options->record_gain);
 
@@ -1635,8 +1610,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 		} 
 		fclose(txt); /* Close log file */
 		if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
-			if (option_debug) 
-				ast_log(LOG_DEBUG, "The recorded media file is gone, so we should remove the .txt file too!\n");
+			ast_debug(1, "The recorded media file is gone, so we should remove the .txt file too!\n");
 			unlink(tmptxtfile);
 			pbx_builtin_setvar_helper(chan, "MINIVM_RECORD_STATUS", "FAILED");
 			if(ast_test_flag(vmu, MVM_ALLOCED))
@@ -1656,8 +1630,8 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 //	/* Go ahead and delete audio files from system, they're not needed any more */
 //	if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
 //		ast_filedelete(tmptxtfile, NULL);
-//		if (option_debug > 1)
-//			ast_log(LOG_DEBUG, "-_-_- Deleted audio file after notification :: %s \n", tmptxtfile);
+//		 /* Even not being used at the moment, it's better to convert ast_log to ast_debug anyway */
+//		ast_debug(2, "-_-_- Deleted audio file after notification :: %s \n", tmptxtfile);
 //	}
 
 	if (res > 0)
@@ -1873,8 +1847,7 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 		ast_module_user_remove(u);
 		return -1;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "-_-_- Trying to find configuration for user %s in domain %s\n", username, domain);
+	ast_debug(1, "-_-_- Trying to find configuration for user %s in domain %s\n", username, domain);
 
 	if (!(vmu = find_account(domain, username, TRUE))) {
 		ast_log(LOG_ERROR, "Could not allocate memory. \n");
@@ -1904,12 +1877,10 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 	/* Check for temporary greeting - it overrides busy and unavail */
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", MVM_SPOOL_DIR, vmu->domain, username);
 	if (!(res = check_dirpath(dest, sizeof(dest), vmu->domain, username, "temp"))) {
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "Temporary message directory does not exist, using default (%s)\n", tempfile);
+		ast_debug(2, "Temporary message directory does not exist, using default (%s)\n", tempfile);
 		ast_copy_string(prefile, tempfile, sizeof(prefile));
 	}
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "-_-_- Preparing to play message ...\n");
+	ast_debug(2, "-_-_- Preparing to play message ...\n");
 
 	/* Check current or macro-calling context for special extensions */
 	if (ast_test_flag(vmu, MVM_OPERATOR)) {
@@ -1944,13 +1915,11 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 		if (ast_streamfile(chan, prefile, chan->language) > -1) 
 			res = ast_waitstream(chan, ecodes);
 	} else {
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
+		ast_debug(2, "%s doesn't exist, doing what we can\n", prefile);
 		res = invent_message(chan, vmu->domain, username, ast_test_flag(&leave_options, OPT_BUSY_GREETING), ecodes);
 	}
 	if (res < 0) {
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
+		ast_debug(2, "Hang up during prefile playback\n");
 		pbx_builtin_setvar_helper(chan, "MINIVM_GREET_STATUS", "FAILED");
 		if(ast_test_flag(vmu, MVM_ALLOCED))
 			free_user(vmu);
@@ -2042,17 +2011,14 @@ static int minivm_delete_exec(struct ast_channel *chan, void *data)
 	if (ast_fileexists(filename, NULL, NULL) > 0) {
 		res = vm_delete(filename);
 		if (res) {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "-_-_- Can't delete file: %s\n", filename);
+			ast_debug(2, "-_-_- Can't delete file: %s\n", filename);
 			pbx_builtin_setvar_helper(chan, "MINIVM_DELETE_STATUS", "FAILED");
 		} else {
-			if (option_debug > 1)
-				ast_log(LOG_DEBUG, "-_-_- Deleted voicemail file :: %s \n", filename);
+			ast_debug(2, "-_-_- Deleted voicemail file :: %s \n", filename);
 			pbx_builtin_setvar_helper(chan, "MINIVM_DELETE_STATUS", "SUCCESS");
 		}
 	} else {
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "-_-_- Filename does not exist: %s\n", filename);
+		ast_debug(2, "-_-_- Filename does not exist: %s\n", filename);
 		pbx_builtin_setvar_helper(chan, "MINIVM_DELETE_STATUS", "FAILED");
 	}
 	
@@ -2159,8 +2125,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	/* Maybe we should check the result of play_record_review ? */
 	cmd = play_record_review(chan, prompt, filename, global_maxgreet, default_vmformat, 0, vmu, &duration, NULL, FALSE);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Recorded new %s message in %s (duration %d)\n", message, filename, duration);
+	ast_debug(1, "Recorded new %s message in %s (duration %d)\n", message, filename, duration);
 
 	if(ast_test_flag(vmu, MVM_ALLOCED))
 		free_user(vmu);
@@ -2181,8 +2146,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 	char *username;
 	char accbuf[BUFSIZ];
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Creating %s account for [%s]\n", realtime ? "realtime" : "static", name);
+	ast_debug(3, "Creating %s account for [%s]\n", realtime ? "realtime" : "static", name);
 
 	ast_copy_string(accbuf, name, sizeof(accbuf));
 	username = accbuf;
@@ -2196,8 +2160,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 		return 0;
 	}
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Creating static account for user %s domain %s\n", username, domain);
+	ast_debug(3, "Creating static account for user %s domain %s\n", username, domain);
 
 	/* Allocate user account */
 	vmu = ast_calloc(1, sizeof(*vmu));
@@ -2209,12 +2172,10 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 
 	populate_defaults(vmu);
 
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "...Configuring account %s\n", name);
+	ast_debug(3, "...Configuring account %s\n", name);
 
 	while (var) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "---- Configuring %s = \"%s\" for account %s\n", var->name, var->value, name);
+		ast_debug(3, "---- Configuring %s = \"%s\" for account %s\n", var->name, var->value, name);
 		if (!strcasecmp(var->name, "serveremail")) {
 			ast_copy_string(vmu->serveremail, var->value, sizeof(vmu->serveremail));
 		} else if (!strcasecmp(var->name, "email")) {
@@ -2259,8 +2220,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 		}
 		var = var->next;
 	}
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "...Linking account %s\n", name);
+	ast_debug(3, "...Linking account %s\n", name);
 	
 	AST_LIST_LOCK(&minivm_accounts);
 	AST_LIST_INSERT_TAIL(&minivm_accounts, vmu, list);
@@ -2268,8 +2228,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 
 	global_stats.voicemailaccounts++;
 
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "MINIVM :: Created account %s@%s - tz %s etemplate %s %s\n", username, domain, ast_strlen_zero(vmu->zonetag) ? "" : vmu->zonetag, ast_strlen_zero(vmu->etemplate) ? "" : vmu->etemplate, realtime ? "(realtime)" : "");
+	ast_debug(2, "MINIVM :: Created account %s@%s - tz %s etemplate %s %s\n", username, domain, ast_strlen_zero(vmu->zonetag) ? "" : vmu->zonetag, ast_strlen_zero(vmu->etemplate) ? "" : vmu->etemplate, realtime ? "(realtime)" : "");
 	return 0;
 }
 
@@ -2363,10 +2322,8 @@ static char *message_template_parse_filebody(char *filename) {
 	fclose(fi);
 	messagebody = ast_calloc(1, strlen(buf + 1));
 	ast_copy_string(messagebody, buf, strlen(buf) + 1);
-	if (option_debug > 3) {
-		ast_log(LOG_DEBUG, "---> Size of allocation %d\n", (int) strlen(buf + 1) );
-		ast_log(LOG_DEBUG, "---> Done reading message template : \n%s\n---- END message template--- \n", messagebody);
-	}
+	ast_debug(4, "---> Size of allocation %d\n", (int) strlen(buf + 1) );
+	ast_debug(4, "---> Done reading message template : \n%s\n---- END message template--- \n", messagebody);
 
 	return messagebody;
 }
@@ -2472,8 +2429,7 @@ static int load_config(void)
 	message_destroy_list();		/* Destroy list of voicemail message templates */
 	timezone_destroy_list();	/* Destroy list of timezones */
 	vmaccounts_destroy_list();	/* Destroy list of voicemail accounts */
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "Destroyed memory objects...\n");
+	ast_debug(2, "Destroyed memory objects...\n");
 
 	/* First, set some default settings */
 	global_externnotify[0] = '\0';
@@ -2501,15 +2457,13 @@ static int load_config(void)
 		return 0;
 	}
 
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "-_-_- Loaded configuration file, now parsing\n");
+	ast_debug(2, "-_-_- Loaded configuration file, now parsing\n");
 
 	/* General settings */
 
 	cat = ast_category_browse(cfg, NULL);
 	while (cat) {
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "-_-_- Found configuration section [%s]\n", cat);
+		ast_debug(3, "-_-_- Found configuration section [%s]\n", cat);
 		if (!strcasecmp(cat, "general")) {
 			/* Nothing right now */
 			error += apply_general_options(ast_variable_browse(cfg, cat));
@@ -2584,8 +2538,8 @@ static int load_config(void)
 		minivmlogfile = fopen(global_logfile, "a");
 		if(!minivmlogfile)
 			ast_log(LOG_ERROR, "Failed to open minivm log file %s : %s\n", global_logfile, strerror(errno));
-		if (option_debug > 2 && minivmlogfile)
-			ast_log(LOG_DEBUG, "-_-_- Opened log file %s \n", global_logfile);
+		if (minivmlogfile)
+			ast_debug(3, "-_-_- Opened log file %s \n", global_logfile);
 	}
 
 	return 0;
@@ -2901,8 +2855,7 @@ static int access_counter_file(char *directory, char *countername, int value, in
 		counterfile = fopen(filename, "r");
 		if (counterfile) {
 			if(fgets(readbuf, sizeof(readbuf), counterfile)) {
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Read this string from counter file: %s\n", readbuf);
+				ast_debug(3, "Read this string from counter file: %s\n", readbuf);
 				old = counter = atoi(readbuf);
 			}
 			fclose(counterfile);
@@ -2911,8 +2864,7 @@ static int access_counter_file(char *directory, char *countername, int value, in
 	switch (operand) {
 	case 0:	/* Read only */
 		ast_unlock_path(directory);
-		if (option_debug > 1)
-			ast_log(LOG_DEBUG, "MINIVM Counter %s/%s: Value %d\n", directory, countername, counter);
+		ast_debug(2, "MINIVM Counter %s/%s: Value %d\n", directory, countername, counter);
 		return counter;
 		break;
 	case 1: /* Set new value */
@@ -2935,8 +2887,7 @@ static int access_counter_file(char *directory, char *countername, int value, in
 	fprintf(counterfile, "%d\n\n", counter);
 	fclose(counterfile);
 	ast_unlock_path(directory);
-	if (option_debug > 1)
-		ast_log(LOG_DEBUG, "MINIVM Counter %s/%s: Old value %d New value %d\n", directory, countername, old, counter);
+	ast_debug(2, "MINIVM Counter %s/%s: Old value %d New value %d\n", directory, countername, old, counter);
 	return counter;
 }
 
