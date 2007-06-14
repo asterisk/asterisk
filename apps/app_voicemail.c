@@ -246,6 +246,7 @@ static int load_config(void);
 	\arg \b gr    - Greek
 	\arg \b no    - Norwegian
 	\arg \b se    - Swedish
+	\arg \b tw    - Chinese (Taiwan)
 
 German requires the following additional soundfile:
 \arg \b 1F	einE (feminine)
@@ -297,6 +298,15 @@ For vm_intro_it:
 \arg \b vm-nuovi	new plural
 \arg \b vm-vecchio	old
 \arg \b vm-vecchi	old plural
+
+Chinese (Taiwan) requires the following additional soundfile:
+\arg \b vm-tong		A class-word for call (tong1)
+\arg \b vm-ri		A class-word for day (ri4)
+\arg \b vm-you		You (ni3)
+\arg \b vm-haveno   Have no (mei2 you3)
+\arg \b vm-have	    Have (you3)
+\arg \b vm-listen   To listen (yao4 ting1)
+
 
 \note Don't use vm-INBOX or vm-Old, because they are the name of the INBOX and Old folders,
 spelled among others when you have to change folder. For the above reasons, vm-INBOX
@@ -4402,6 +4412,8 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q  H 'digits/kai' M ", NULL);
 	else if (!strcasecmp(chan->language,"pt_BR"))
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Ad 'digits/pt-de' B 'digits/pt-de' Y 'digits/pt-as' HM ", NULL);
+	else if (!strcasecmp(chan->language,"tw"))      /* CHINESE (Taiwan) syntax */
+		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "qR 'vm-received'", NULL);		
 	else
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' q 'digits/at' IMp", NULL);
 #if 0
@@ -5784,6 +5796,48 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
+/* CHINESE (Taiwan) syntax */
+static int vm_intro_tw(struct ast_channel *chan, struct vm_state *vms)
+{
+	int res;
+
+	/* Introduce messages they have */
+	res = ast_play_and_wait(chan, "vm-you");
+
+    if (!res && vms->newmessages) {
+        res = ast_play_and_wait(chan, "vm-have");
+        if (!res)
+            res = say_and_wait(chan, vms->newmessages, chan->language);
+        if (!res)
+            res = ast_play_and_wait(chan, "vm-tong");
+        if (!res)
+            res = ast_play_and_wait(chan, "vm-INBOX");
+        if (vms->oldmessages && !res)
+            res = ast_play_and_wait(chan, "vm-and");
+        else if (!res) 
+            res = ast_play_and_wait(chan, "vm-messages");
+
+    }
+    if (!res && vms->oldmessages) {
+        res = ast_play_and_wait(chan, "vm-have");
+        if (!res)
+            res = say_and_wait(chan, vms->oldmessages, chan->language);
+        if (!res)
+            res = ast_play_and_wait(chan, "vm-tong");
+        if (!res)
+            res = ast_play_and_wait(chan, "vm-Old");
+        if (!res)
+            res = ast_play_and_wait(chan, "vm-messages");
+    }
+    if (!res && !vms->oldmessages && !vms->newmessages) {
+        res = ast_play_and_wait(chan, "vm-haveno");
+        if (!res)
+            res = ast_play_and_wait(chan, "vm-messages");
+    }
+    return res;
+}
+
+
 
 static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
@@ -5823,12 +5877,14 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_no(chan, vms);
 	} else if (!strcasecmp(chan->language, "ru")) { /* RUSSIAN syntax */
 		return vm_intro_ru(chan, vms);
+	} else if (!strcasecmp(chan->language, "tw")) { /* CHINESE (Taiwan) syntax */
+		return vm_intro_tw(chan, vms);
 	} else {					/* Default to ENGLISH */
 		return vm_intro_en(chan, vms);
 	}
 }
 
-static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+static int vm_instructions_en(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
 {
 	int res = 0;
 	/* Play instructions and wait for new command */
@@ -5874,6 +5930,40 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int s
 	}
 	return res;
 }
+
+static int vm_instructions_tw(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+{
+	int res = 0;
+	/* Play instructions and wait for new command */
+	while (!res) {
+		if (vms->lastmsg > -1) {
+			res = ast_play_and_wait(chan, "vm-listen");
+			if (!res)
+				res = vm_play_folder_name(chan, vms->vmbox);
+			if (!res)
+				res = ast_play_and_wait(chan, "press");
+			if (!res)
+				res = ast_play_and_wait(chan, "digits/1");
+		}
+		if (!res)
+			res = ast_play_and_wait(chan, "vm-opts");
+		if (!res) {
+			vms->starting = 0;
+			return vm_instructions_en(chan,vms,skipadvanced);
+		}
+	}
+	return res;
+}
+
+static int vm_instructions(struct ast_channel *chan, struct vm_state *vms, int skipadvanced)
+{
+	if (vms->starting && !strcasecmp(chan->language, "tw")) { /* CHINESE (Taiwan) syntax */
+		return vm_instructions_tw(chan, vms, skipadvanced);
+	} else {					/* Default to ENGLISH */
+		return vm_instructions_en(chan, vms, skipadvanced);
+	}
+}
+
 
 static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain)
 {
@@ -6262,6 +6352,27 @@ static int vm_browse_messages_pt(struct ast_channel *chan, struct vm_state *vms,
 	return cmd;
 }
 
+/* Chinese (Taiwan)syntax */
+static int vm_browse_messages_tw(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
+{
+	int cmd=0;
+
+	if (vms->lastmsg > -1) {
+		cmd = play_message(chan, vmu, vms);
+	} else {
+		cmd = ast_play_and_wait(chan, "vm-you");
+		if (!cmd) 
+			cmd = ast_play_and_wait(chan, "vm-haveno");
+		if (!cmd)
+			cmd = ast_play_and_wait(chan, "vm-messages");
+		if (!cmd) {
+			snprintf(vms->fn, sizeof(vms->fn), "vm-%s", vms->curbox);
+			cmd = ast_play_and_wait(chan, vms->fn);
+		}
+	}
+	return cmd;
+}
+
 static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	if (!strcasecmp(chan->language, "es")) {	/* SPANISH */
@@ -6272,6 +6383,8 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 		return vm_browse_messages_pt(chan, vms, vmu);
 	} else if (!strcasecmp(chan->language, "gr")){
 		return vm_browse_messages_gr(chan, vms, vmu);   /* GREEK */
+	} else if (!strcasecmp(chan->language, "tw")){
+		return vm_browse_messages_tw(chan, vms, vmu);   /* CHINESE (Taiwan) */
 	} else {	/* Default to English syntax */
 		return vm_browse_messages_en(chan, vms, vmu);
 	}
