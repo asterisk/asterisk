@@ -921,7 +921,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		fclose(f);		
 	} while (0);
 	if (comment) {
-		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
+		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment - 1]);
 	}
 #ifdef AST_INCLUDE_GLOB
 					if (!cfg)
