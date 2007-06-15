@@ -543,7 +543,7 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 static int speech_background(struct ast_channel *chan, void *data)
 {
         unsigned int timeout = 0;
-        int res = 0, done = 0, argc = 0, started = 0, quieted = 0;
+        int res = 0, done = 0, argc = 0, started = 0, quieted = 0, max_dtmf_len = 0;
         struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
         struct ast_frame *f = NULL;
@@ -552,6 +552,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         time_t start, current;
         struct ast_datastore *datastore = NULL;
         char *argv[2], *args = NULL, *filename_tmp = NULL, *filename = NULL, tmp[2] = "";
+	const char *tmp2 = NULL;
 
         args = ast_strdupa(data);
 
@@ -588,6 +589,10 @@ static int speech_background(struct ast_channel *chan, void *data)
 		} else
 			timeout = 0;
         }
+
+	/* See if the maximum DTMF length variable is set... we use a variable in case they want to carry it through their entire dialplan */
+	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_MAXLEN")) && !ast_strlen_zero(tmp2))
+		max_dtmf_len = atoi(tmp2);
 
         /* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
         if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
@@ -724,6 +729,9 @@ static int speech_background(struct ast_channel *chan, void *data)
 					time(&start);
 					snprintf(tmp, sizeof(tmp), "%c", f->subclass);
 					strncat(dtmf, tmp, sizeof(dtmf));
+					/* If the maximum length of the DTMF has been reached, stop now */
+					if (max_dtmf_len && strlen(dtmf) == max_dtmf_len)
+						done = 1;
 				}
                                 break;
                         case AST_FRAME_CONTROL:
