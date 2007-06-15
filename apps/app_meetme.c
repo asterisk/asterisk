@@ -298,10 +298,27 @@ static const char *descrip4 =
 "";
 
 static const char *slastation_desc =
-"  SLAStation():\n";
+"  SLAStation(station):\n"
+"This application should be executed by an SLA station.  The argument depends\n"
+"on how the call was initiated.  If the phone was just taken off hook, then\n"
+"the argument \"station\" should be just the station name.  If the call was\n"
+"initiated by pressing a line key, then the station name should be preceded\n"
+"by an underscore and the trunk name associated with that line button.\n"
+"For example: \"station1_line1\"."
+"  On exit, this application will set the variable SLASTATION_STATUS to\n"
+"one of the following values:\n"
+"    FAILURE | CONGESTION | SUCCESS\n"
+"";
 
 static const char *slatrunk_desc =
-"  SLATrunk():\n";
+"  SLATrunk(trunk):\n"
+"This application should be executed by an SLA trunk on an inbound call.\n"
+"The channel calling this application should correspond to the SLA trunk\n"
+"with the name \"trunk\" that is being passed as an argument.\n"
+"  On exit, this application will set the variable SLATRUNK_STATUS to\n"
+"one of the following values:\n"
+"   FAILURE | SUCCESS | UNANSWERED | RINGTIMEOUT\n" 
+"";
 
 #define MAX_CONFNUM 80
 #define MAX_PIN     80
@@ -3803,6 +3820,7 @@ static int sla_calc_trunk_timeouts(unsigned int *timeout)
 		time_elapsed = ast_tvdiff_ms(ast_tvnow(), ringing_trunk->ring_begin);
 		time_left = (ringing_trunk->trunk->ring_timeout * 1000) - time_elapsed;
 		if (time_left <= 0) {
+			pbx_builtin_setvar_helper(ringing_trunk->trunk->chan, "SLATRUNK_STATUS", "RINGTIMEOUT");
 			AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
 			sla_stop_ringing_trunk(ringing_trunk);
 			res = 1;
@@ -4372,8 +4390,9 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	conf = NULL;
 	trunk->chan = NULL;
 	trunk->on_hold = 0;
-
-	pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "SUCCESS");
+	
+	if (!pbx_builtin_getvar_helper(chan, "SLATRUNK_STATUS"))
+		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "SUCCESS");
 
 	/* Remove the entry from the list of ringing trunks if it is still there. */
 	ast_mutex_lock(&sla.lock);
