@@ -1083,8 +1083,10 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 
 	while ((tok = strsep(&tmp, "#"))) {
 		AST_LIST_LOCK(&feature_list);	
-		if (!(feature = find_dynamic_feature(tok)))
+		if (!(feature = find_dynamic_feature(tok))) {
+			AST_LIST_UNLOCK(&feature_list);
 			continue;
+		}
 			
 		/* Feature is up for consideration */
 		if (!strcmp(feature->exten, code)) {
