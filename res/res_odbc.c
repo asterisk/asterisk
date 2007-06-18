@@ -31,6 +31,7 @@
 
 /*** MODULEINFO
 	<depend>unixodbc</depend>
+	<depend>ltdl</depend>
  ***/
 
 #include "asterisk.h"

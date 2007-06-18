@@ -30,6 +30,7 @@
 
 /*** MODULEINFO
 	<depend>unixodbc</depend>
+	<depend>ltdl</depend>
 	<depend>res_odbc</depend>
  ***/
 
