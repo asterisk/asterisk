@@ -3027,7 +3027,7 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_rtp_set_rtpkeepalive(dialog->trtp, peer->rtpkeepalive);
 	}
 
-	ast_string_field_set(dialog, peername, peer->username);
+	ast_string_field_set(dialog, peername, peer->name);
 	ast_string_field_set(dialog, authname, peer->username);
 	ast_string_field_set(dialog, username, peer->username);
 	ast_string_field_set(dialog, peersecret, peer->secret);
