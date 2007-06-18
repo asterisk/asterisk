@@ -1893,7 +1893,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 		ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 	}
-	ast_copy_string(r->peername, peer->username, sizeof(r->peername));
+	ast_copy_string(r->peername, peer->name, sizeof(r->peername));
 	ast_copy_string(r->authname, peer->username, sizeof(r->authname));
 	ast_copy_string(r->username, peer->username, sizeof(r->username));
 	ast_copy_string(r->peersecret, peer->secret, sizeof(r->peersecret));
