@@ -118,8 +118,9 @@ else
   ASTLOGDIR=$(localstatedir)/log/asterisk
   ASTVARRUNDIR=$(localstatedir)/run
   ASTMANDIR=$(mandir)
-ifeq ($(OSARCH),FreeBSD)
+ifneq ($(findstring BSD,$(OSARCH)),)
   ASTVARLIBDIR=$(prefix)/share/asterisk
+  ASTVARRUNDIR=$(localstatedir)/run/asterisk
 else
   ASTVARLIBDIR=$(localstatedir)/lib/asterisk
 endif
