@@ -2307,7 +2307,7 @@ static void *rpt_tele_thread(void *this)
 	case STATS_TIME:
 		wait_interval(myrpt, DLY_TELEM, mychannel); /* Wait a little bit */
 		t = time(NULL);
-		localtime_r(&t, &localtm);
+		ast_localtime(&t, &localtm, NULL);
 		/* Say the phase of the day is before the time */
 		if ((localtm.tm_hour >= 0) && (localtm.tm_hour < 12))
 			p = "rpt/goodmorning";
