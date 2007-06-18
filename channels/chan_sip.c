@@ -17863,14 +17863,16 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		memset(&p->tredirip, 0, sizeof(p->tredirip));
 		changed = 1;
 	}
-	if (codecs && (p->redircodecs != codecs)) {
-		p->redircodecs = codecs;
-		changed = 1;
-	}
-	if ((p->capability & codecs) != p->capability) {
-		p->jointcapability &= codecs;
-		p->capability &= codecs;
-		changed = 1;
+	if (codecs) {
+		if ((p->redircodecs != codecs)) {
+			p->redircodecs = codecs;
+			changed = 1;
+		}
+		if ((p->capability & codecs) != p->capability) {
+			p->jointcapability &= codecs;
+			p->capability &= codecs;
+			changed = 1;
+		}
 	}
 	if (changed && !ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (chan->_state != AST_STATE_UP) {	/* We are in early state */
