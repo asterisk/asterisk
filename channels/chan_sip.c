@@ -14581,14 +14581,16 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 	sip_pvt_unlock(targetcall_pvt);
 	if (res) {
 		/* Failed transfer */
-		/* Could find better message, but they will get the point */
-		transmit_notify_with_sipfrag(transferer, seqno, "486 Busy", TRUE);
+		transmit_notify_with_sipfrag(transferer, seqno, "486 Busy Here", TRUE);
 		append_history(transferer, "Xfer", "Refer failed");
+		transferer->refer->status = REFER_FAILED;
 		if (targetcall_pvt->owner)
 			ast_channel_unlock(targetcall_pvt->owner);
 		/* Right now, we have to hangup, sorry. Bridge is destroyed */
 		if (res != -2)
 			ast_hangup(transferer->owner);
+		else
+			ast_clear_flag(&transferer->flags[0], SIP_DEFER_BYE_ON_TRANSFER);
 	} else {
 		/* Transfer succeeded! */
 
