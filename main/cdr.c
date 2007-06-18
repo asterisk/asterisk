@@ -63,10 +63,10 @@ struct ast_cdr_beitem {
 	char name[20];
 	char desc[80];
 	ast_cdrbe be;
-	AST_LIST_ENTRY(ast_cdr_beitem) list;
+	AST_RWLIST_ENTRY(ast_cdr_beitem) list;
 };
 
-static AST_LIST_HEAD_STATIC(be_list, ast_cdr_beitem);
+static AST_RWLIST_HEAD_STATIC(be_list, ast_cdr_beitem);
 
 struct ast_cdr_batch_item {
 	struct ast_cdr *cdr;
@@ -111,25 +111,23 @@ int check_cdr_enabled()
 */
 int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 {
-	struct ast_cdr_beitem *i;
+	struct ast_cdr_beitem *i = NULL;
 
 	if (!name)
 		return -1;
+
 	if (!be) {
 		ast_log(LOG_WARNING, "CDR engine '%s' lacks backend\n", name);
 		return -1;
 	}
 
-	AST_LIST_LOCK(&be_list);
-	AST_LIST_TRAVERSE(&be_list, i, list) {
-		if (!strcasecmp(name, i->name))
-			break;
-	}
-	AST_LIST_UNLOCK(&be_list);
-
-	if (i) {
-		ast_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
-		return -1;
+	AST_RWLIST_WRLOCK(&be_list);
+	AST_RWLIST_TRAVERSE(&be_list, i, list) {
+		if (!strcasecmp(name, i->name)) {
+			ast_log(LOG_WARNING, "Already have a CDR backend called '%s'\n", name);
+			AST_RWLIST_UNLOCK(&be_list);
+			return -1;
+		}
 	}
 
 	if (!(i = ast_calloc(1, sizeof(*i)))) 	
@@ -139,9 +137,8 @@ int ast_cdr_register(const char *name, const char *desc, ast_cdrbe be)
 	ast_copy_string(i->name, name, sizeof(i->name));
 	ast_copy_string(i->desc, desc, sizeof(i->desc));
 
-	AST_LIST_LOCK(&be_list);
-	AST_LIST_INSERT_HEAD(&be_list, i, list);
-	AST_LIST_UNLOCK(&be_list);
+	AST_RWLIST_INSERT_HEAD(&be_list, i, list);
+	AST_RWLIST_UNLOCK(&be_list);
 
 	return 0;
 }
@@ -151,18 +148,18 @@ void ast_cdr_unregister(const char *name)
 {
 	struct ast_cdr_beitem *i = NULL;
 
-	AST_LIST_LOCK(&be_list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
+	AST_RWLIST_WRLOCK(&be_list);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
 		if (!strcasecmp(name, i->name)) {
-			AST_LIST_REMOVE_CURRENT(&be_list, list);
+			AST_RWLIST_REMOVE_CURRENT(&be_list, list);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
 			ast_free(i);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&be_list);
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&be_list);
 }
 
 /*! Duplicate a CDR record 
@@ -933,11 +930,11 @@ static void post_cdr(struct ast_cdr *cdr)
 		ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
 			continue;
-		AST_LIST_LOCK(&be_list);
-		AST_LIST_TRAVERSE(&be_list, i, list) {
+		AST_RWLIST_RDLOCK(&be_list);
+		AST_RWLIST_TRAVERSE(&be_list, i, list) {
 			i->be(cdr);
 		}
-		AST_LIST_UNLOCK(&be_list);
+		AST_RWLIST_UNLOCK(&be_list);
 	}
 }
 
@@ -1188,11 +1185,11 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 			ast_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, ESS(batchtime));
 			ast_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, ESS(nextbatchtime));
 		}
-		AST_LIST_LOCK(&be_list);
-		AST_LIST_TRAVERSE(&be_list, beitem, list) {
+		AST_RWLIST_RDLOCK(&be_list);
+		AST_RWLIST_TRAVERSE(&be_list, beitem, list) {
 			ast_cli(fd, "CDR registered backend: %s\n", beitem->name);
 		}
-		AST_LIST_UNLOCK(&be_list);
+		AST_RWLIST_UNLOCK(&be_list);
 	}
 
 	return 0;

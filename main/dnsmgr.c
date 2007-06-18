@@ -60,12 +60,12 @@ struct ast_dnsmgr_entry {
 	/*! Set to 1 if the entry changes */
 	int changed:1;
 	ast_mutex_t lock;
-	AST_LIST_ENTRY(ast_dnsmgr_entry) list;
+	AST_RWLIST_ENTRY(ast_dnsmgr_entry) list;
 	/*! just 1 here, but we use calloc to allocate the correct size */
 	char name[1];
 };
 
-static AST_LIST_HEAD_STATIC(entry_list, ast_dnsmgr_entry);
+static AST_RWLIST_HEAD_STATIC(entry_list, ast_dnsmgr_entry);
 
 AST_MUTEX_DEFINE_STATIC(refresh_lock);
 
@@ -97,9 +97,9 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 	ast_mutex_init(&entry->lock);
 	strcpy(entry->name, name);
 
-	AST_LIST_LOCK(&entry_list);
-	AST_LIST_INSERT_HEAD(&entry_list, entry, list);
-	AST_LIST_UNLOCK(&entry_list);
+	AST_RWLIST_WRLOCK(&entry_list);
+	AST_RWLIST_INSERT_HEAD(&entry_list, entry, list);
+	AST_RWLIST_UNLOCK(&entry_list);
 
 	return entry;
 }
@@ -109,9 +109,9 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	if (!entry)
 		return;
 
-	AST_LIST_LOCK(&entry_list);
-	AST_LIST_REMOVE(&entry_list, entry, list);
-	AST_LIST_UNLOCK(&entry_list);
+	AST_RWLIST_WRLOCK(&entry_list);
+	AST_RWLIST_REMOVE(&entry_list, entry, list);
+	AST_RWLIST_UNLOCK(&entry_list);
 	if (option_verbose > 3)
 		ast_verbose(VERBOSE_PREFIX_4 "removing dns manager for '%s'\n", entry->name);
 
@@ -302,10 +302,10 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "DNS Manager: %s\n", enabled ? "enabled" : "disabled");
 	ast_cli(fd, "Refresh Interval: %d seconds\n", refresh_interval);
-	AST_LIST_LOCK(&entry_list);
-	AST_LIST_TRAVERSE(&entry_list, entry, list)
+	AST_RWLIST_RDLOCK(&entry_list);
+	AST_RWLIST_TRAVERSE(&entry_list, entry, list)
 		count++;
-	AST_LIST_UNLOCK(&entry_list);
+	AST_RWLIST_UNLOCK(&entry_list);
 	ast_cli(fd, "Number of entries: %d\n", count);
 
 	return 0;

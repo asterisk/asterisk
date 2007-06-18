@@ -188,10 +188,10 @@ struct console {
 
 struct ast_atexit {
 	void (*func)(void);
-	AST_LIST_ENTRY(ast_atexit) list;
+	AST_RWLIST_ENTRY(ast_atexit) list;
 };
 
-static AST_LIST_HEAD_STATIC(atexits, ast_atexit);
+static AST_RWLIST_HEAD_STATIC(atexits, ast_atexit);
 
 time_t ast_startuptime;
 time_t ast_lastreloadtime;
@@ -252,12 +252,12 @@ static struct {
 
 #if !defined(LOW_MEMORY)
 struct file_version {
-	AST_LIST_ENTRY(file_version) list;
+	AST_RWLIST_ENTRY(file_version) list;
 	const char *file;
 	char *version;
 };
 
-static AST_LIST_HEAD_STATIC(file_versions, file_version);
+static AST_RWLIST_HEAD_STATIC(file_versions, file_version);
 
 void ast_register_file_version(const char *file, const char *version)
 {
@@ -275,36 +275,36 @@ void ast_register_file_version(const char *file, const char *version)
 	new->file = file;
 	new->version = (char *) new + sizeof(*new);
 	memcpy(new->version, work, version_length);
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_INSERT_HEAD(&file_versions, new, list);
-	AST_LIST_UNLOCK(&file_versions);
+	AST_RWLIST_WRLOCK(&file_versions);
+	AST_RWLIST_INSERT_HEAD(&file_versions, new, list);
+	AST_RWLIST_UNLOCK(&file_versions);
 }
 
 void ast_unregister_file_version(const char *file)
 {
 	struct file_version *find;
 
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
+	AST_RWLIST_WRLOCK(&file_versions);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
 		if (!strcasecmp(find->file, file)) {
-			AST_LIST_REMOVE_CURRENT(&file_versions, list);
+			AST_RWLIST_REMOVE_CURRENT(&file_versions, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&file_versions);
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&file_versions);
 
 	if (find)
 		ast_free(find);
 }
 
 struct thread_list_t {
-	AST_LIST_ENTRY(thread_list_t) list;
+	AST_RWLIST_ENTRY(thread_list_t) list;
 	char *name;
 	pthread_t id;
 };
 
-static AST_LIST_HEAD_STATIC(thread_list, thread_list_t);
+static AST_RWLIST_HEAD_STATIC(thread_list, thread_list_t);
 
 static const char show_threads_help[] =
 "Usage: core show threads\n"
@@ -318,24 +318,24 @@ void ast_register_thread(char *name)
 		return;
 	new->id = pthread_self();
 	new->name = name; /* steal the allocated memory for the thread name */
-	AST_LIST_LOCK(&thread_list);
-	AST_LIST_INSERT_HEAD(&thread_list, new, list);
-	AST_LIST_UNLOCK(&thread_list);
+	AST_RWLIST_WRLOCK(&thread_list);
+	AST_RWLIST_INSERT_HEAD(&thread_list, new, list);
+	AST_RWLIST_UNLOCK(&thread_list);
 }
 
 void ast_unregister_thread(void *id)
 {
 	struct thread_list_t *x;
 
-	AST_LIST_LOCK(&thread_list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&thread_list, x, list) {
+	AST_RWLIST_WRLOCK(&thread_list);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&thread_list, x, list) {
 		if ((void *) x->id == id) {
-			AST_LIST_REMOVE_CURRENT(&thread_list, list);
+			AST_RWLIST_REMOVE_CURRENT(&thread_list, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
-	AST_LIST_UNLOCK(&thread_list);
+	AST_RWLIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_UNLOCK(&thread_list);
 	if (x) {
 		ast_free(x->name);
 		ast_free(x);
@@ -408,12 +408,12 @@ static int handle_show_threads(int fd, int argc, char *argv[])
 	int count = 0;
 	struct thread_list_t *cur;
 
-	AST_LIST_LOCK(&thread_list);
-	AST_LIST_TRAVERSE(&thread_list, cur, list) {
+	AST_RWLIST_RDLOCK(&thread_list);
+	AST_RWLIST_TRAVERSE(&thread_list, cur, list) {
 		ast_cli(fd, "%p %s\n", (void *)cur->id, cur->name);
 		count++;
 	}
-        AST_LIST_UNLOCK(&thread_list);
+        AST_RWLIST_UNLOCK(&thread_list);
 	ast_cli(fd, "%d threads listed.\n", count);
 	return 0;
 }
@@ -623,8 +623,8 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 
 	ast_cli(fd, FORMAT, "File", "Revision");
 	ast_cli(fd, FORMAT, "----", "--------");
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
+	AST_RWLIST_RDLOCK(&file_versions);
+	AST_RWLIST_TRAVERSE(&file_versions, iterator, list) {
 		if (havename && strcasecmp(iterator->file, argv[4]))
 			continue;
 
@@ -636,7 +636,7 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 		if (havename)
 			break;
 	}
-	AST_LIST_UNLOCK(&file_versions);
+	AST_RWLIST_UNLOCK(&file_versions);
 	if (!havename) {
 		ast_cli(fd, "%d files listed.\n", count_files);
 	}
@@ -658,14 +658,14 @@ static char *complete_show_version_files(const char *line, const char *word, int
 	if (pos != 3)
 		return NULL;
 
-	AST_LIST_LOCK(&file_versions);
-	AST_LIST_TRAVERSE(&file_versions, find, list) {
+	AST_RWLIST_RDLOCK(&file_versions);
+	AST_RWLIST_TRAVERSE(&file_versions, find, list) {
 		if (!strncasecmp(word, find->file, matchlen) && ++which > state) {
 			ret = ast_strdup(find->file);
 			break;
 		}
 	}
-	AST_LIST_UNLOCK(&file_versions);
+	AST_RWLIST_UNLOCK(&file_versions);
 
 	return ret;
 }
@@ -676,28 +676,28 @@ int ast_register_atexit(void (*func)(void))
 	int res = -1;
 	struct ast_atexit *ae;
 	ast_unregister_atexit(func);	
-	AST_LIST_LOCK(&atexits);
+	AST_RWLIST_WRLOCK(&atexits);
 	if ((ae = ast_calloc(1, sizeof(*ae)))) {
-		AST_LIST_INSERT_HEAD(&atexits, ae, list);
+		AST_RWLIST_INSERT_HEAD(&atexits, ae, list);
 		ae->func = func;
 		res = 0;
 	}
-	AST_LIST_UNLOCK(&atexits);
+	AST_RWLIST_UNLOCK(&atexits);
 	return res;
 }
 
 void ast_unregister_atexit(void (*func)(void))
 {
 	struct ast_atexit *ae;
-	AST_LIST_LOCK(&atexits);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
+	AST_RWLIST_WRLOCK(&atexits);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
 		if (ae->func == func) {
-			AST_LIST_REMOVE_CURRENT(&atexits, list);
+			AST_RWLIST_REMOVE_CURRENT(&atexits, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&atexits);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&atexits);
 }
 
 static int fdprint(int fd, const char *s)
@@ -1192,12 +1192,12 @@ int ast_set_priority(int pri)
 static void ast_run_atexits(void)
 {
 	struct ast_atexit *ae;
-	AST_LIST_LOCK(&atexits);
-	AST_LIST_TRAVERSE(&atexits, ae, list) {
+	AST_RWLIST_RDLOCK(&atexits);
+	AST_RWLIST_TRAVERSE(&atexits, ae, list) {
 		if (ae->func) 
 			ae->func();
 	}
-	AST_LIST_UNLOCK(&atexits);
+	AST_RWLIST_UNLOCK(&atexits);
 }
 
 static void quit_handler(int num, int nice, int safeshutdown, int restart)
