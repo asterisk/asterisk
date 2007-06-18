@@ -99,7 +99,7 @@ fi
 #
 # Don't die if stdout/stderr can't be written to
 #
-trap '' SIGPIPE
+trap '' PIPE
 
 #
 # Run scripts to set any environment variables or do any other system-specific setup needed
