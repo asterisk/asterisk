@@ -15850,6 +15850,10 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 	if (dialog->owner->_state != AST_STATE_UP || dialog->redirip.sin_addr.s_addr)
 		return;
 
+	/* If the call is involved in a T38 fax session do not check RTP timeout */
+	if (dialog->t38.state == T38_ENABLED)
+		return;
+
 	/* If we have no timers set, return now */
 	if (ast_rtp_get_rtpkeepalive(dialog->rtp) == 0 || (ast_rtp_get_rtptimeout(dialog->rtp) == 0 && ast_rtp_get_rtpholdtimeout(dialog->rtp) == 0))
 		return;
