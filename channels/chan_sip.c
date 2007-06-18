@@ -13669,7 +13669,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 			ast_softhangup_nolock(transferer->chan1, AST_SOFTHANGUP_DEV);
 		if (target->chan1)
 			ast_softhangup_nolock(target->chan1, AST_SOFTHANGUP_DEV);
-		return -1;
+		return -2;
 	}
 	return 0;
 }
@@ -14587,7 +14587,8 @@ static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *
 		if (targetcall_pvt->owner)
 			ast_channel_unlock(targetcall_pvt->owner);
 		/* Right now, we have to hangup, sorry. Bridge is destroyed */
-		ast_hangup(transferer->owner);
+		if (res != -2)
+			ast_hangup(transferer->owner);
 	} else {
 		/* Transfer succeeded! */
 
@@ -14877,7 +14878,6 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	   be accessible after the transfer! */
 	*nounlock = 1;
 	ast_channel_unlock(current.chan1);
-	ast_channel_unlock(current.chan2);
 
 	/* Connect the call */
 
