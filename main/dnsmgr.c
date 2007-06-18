@@ -96,6 +96,7 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 	entry->result = result;
 	ast_mutex_init(&entry->lock);
 	strcpy(entry->name, name);
+	memcpy(&entry->last, result, sizeof(entry->last));
 
 	AST_RWLIST_WRLOCK(&entry_list);
 	AST_RWLIST_INSERT_HEAD(&entry_list, entry, list);
@@ -233,14 +234,14 @@ static int refresh_list(void *data)
 
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_2 "Refreshing DNS lookups.\n");
-	AST_LIST_LOCK(info->entries);
-	AST_LIST_TRAVERSE(info->entries, entry, list) {
+	AST_RWLIST_RDLOCK(info->entries);
+	AST_RWLIST_TRAVERSE(info->entries, entry, list) {
 		if (info->regex_present && regexec(&info->filter, entry->name, 0, NULL, 0))
 		    continue;
 
 		dnsmgr_refresh(entry, info->verbose);
 	}
-	AST_LIST_UNLOCK(info->entries);
+	AST_RWLIST_UNLOCK(info->entries);
 
 	ast_mutex_unlock(&refresh_lock);
 
