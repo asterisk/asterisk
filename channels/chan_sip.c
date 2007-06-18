@@ -1646,6 +1646,7 @@ static const struct ast_channel_tech sip_tech_info = {
 	.send_digit_end = sip_senddigit_end,
 	.bridge = ast_rtp_bridge,
 	.send_text = sip_sendtext,
+	.func_channel_read = acf_channel_read,
 };
 
 /**--- some list management macros. **/
@@ -14992,11 +14993,14 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 	if (ast_strlen_zero(args.param) || strcasecmp(args.param, "rtpqos"))
 		return -1;
 
+	/* Default arguments of audio,all */
+	if (ast_strlen_zero(args.type))
+		args.type = "audio";
+	if (ast_strlen_zero(args.field))
+		args.field = "all";
+
 	memset(buf, 0, buflen);
 	memset(&qos, 0, sizeof(qos));
-
-	if (ast_strlen_zero(args.type))
-		return -1;
 
 	if (strcasecmp(args.type, "AUDIO") == 0) {
 		all = ast_rtp_get_quality(p->rtp, &qos);
@@ -15005,9 +15009,6 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 	} else if (strcasecmp(args.type, "TEXT") == 0) {
 		all = ast_rtp_get_quality(p->trtp, &qos);
 	}
-
-	if (ast_strlen_zero(args.field))
-		return -1;
 
 	if (strcasecmp(args.field, "local_ssrc") == 0)
 		snprintf(buf, buflen, "%u", qos.local_ssrc);
