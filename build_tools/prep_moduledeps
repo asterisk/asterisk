@@ -10,7 +10,7 @@ process_dir() {
 	catsuffix=${3}
 	displayname=${4}
 
-	echo -e "\t<category name=\"MENUSELECT_${catsuffix}\" displayname=\"${displayname}\" remove_on_change=\"${dir}/modules.link\">"
+	printf "\t<category name=\"MENUSELECT_${catsuffix}\" displayname=\"${displayname}\" remove_on_change=\"${dir}/modules.link\">\n"
 	for file in `ls ${dir}/${prefix}*.c ${dir}/${prefix}*.cc 2> /dev/null | sort`
 	do
 		if [ ! -f ${file} ]; then
@@ -20,12 +20,12 @@ process_dir() {
 		fname=`basename ${fname} .cc`
 		get_description ${file}
 		desc=${TDESC}
-		echo -e "\t\t<member name=\"${fname}\" displayname=\"${desc}\" remove_on_change=\"${dir}/${fname}.o ${dir}/${fname}.oo ${dir}/${fname}.so\">"
+		printf "\t\t<member name=\"${fname}\" displayname=\"${desc}\" remove_on_change=\"${dir}/${fname}.o ${dir}/${fname}.oo ${dir}/${fname}.so\">\n"
 		awk -f build_tools/get_moduleinfo ${file}
-		echo -e "\t\t</member>"
+		printf "\t\t</member>\n"
 		awk -f build_tools/get_makeopts ${file} >> .makeoptstmp
 	done
-	echo -e "\t</category>"
+	printf "\t</category>\n"
 }
 
 echo "<?xml version=\"1.0\"?>"
