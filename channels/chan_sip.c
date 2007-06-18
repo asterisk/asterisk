@@ -15176,7 +15176,8 @@ restartsearch:
 			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			if (sip->rtp && sip->owner &&
 			    (sip->owner->_state == AST_STATE_UP) &&
-			    !sip->redirip.sin_addr.s_addr) {
+			    !sip->redirip.sin_addr.s_addr &&
+			    sip->t38.state != T38_ENABLED) {
 				if (sip->lastrtptx &&
 				    ast_rtp_get_rtpkeepalive(sip->rtp) &&
 				    (t > sip->lastrtptx + ast_rtp_get_rtpkeepalive(sip->rtp))) {
