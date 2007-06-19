@@ -441,6 +441,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int padding;
 	int mark;
 	int ext;
+	int cc;
 	int x;
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int ssrc;
@@ -501,6 +502,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	padding = seqno & (1 << 29);
 	mark = seqno & (1 << 23);
 	ext = seqno & (1 << 28);
+	cc = (seqno & 0xF000000) >> 24;
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
 	ssrc = ntohl(rtpheader[2]);
@@ -518,10 +520,15 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		res -= rtp->rawdata[AST_FRIENDLY_OFFSET + res - 1];
 	}
 	
+	if (cc) {
+		/* CSRC fields present */
+		hdrlen += cc*4;
+	}
+
 	if (ext) {
 		/* RTP Extension present */
+		hdrlen += (ntohl(rtpheader[hdrlen/4]) & 0xffff) << 2;
 		hdrlen += 4;
-		hdrlen += (ntohl(rtpheader[3]) & 0xffff) << 2;
 	}
 
 	if (res < hdrlen) {
