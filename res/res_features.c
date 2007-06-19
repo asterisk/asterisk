@@ -383,12 +383,12 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 		}
 	}
+	if (peer) 
+		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 	if (con) {
 		snprintf(exten, sizeof(exten), "%d", x);
 		ast_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), FREE, registrar);
 	}
-	if (peer) 
-		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
 		ast_moh_start(pu->chan, NULL);
