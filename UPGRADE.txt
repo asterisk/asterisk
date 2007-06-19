@@ -57,6 +57,9 @@ CDR:
   cdr_sqlite3_custom.  It will potentially be removed from the tree
   after Asterisk 1.6 is released.
 
+* The cdr_manager module has a [mappings] feature, like cdr_custom,
+  to add fields to the manager event from the CDR variables.
+
 Formats:
 
 * format_wav: The GAIN preprocessor definition and source code that used it
@@ -74,4 +77,8 @@ Channel Drivers:
   file names and formats are all controlled via the normal mechanisms. If the
   user has not configured the automon feature, the normal "415 Unsupported media type"
   is returned, and nothing is done.
+
+* chan_zap.c: In India, some carriers transmit CID via dtmf. Some code has been added
+  that will handle some situations. The cidstart=polarity_IN choice has been added for
+  those carriers that transmit CID via dtmf after a polarity change.
 
