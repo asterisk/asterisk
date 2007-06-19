@@ -4088,7 +4088,13 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_check_hangup(c1) ? "Yes" : "No");
 			break;
 		}
-
+		
+		/* See if the BRIDGEPEER variable needs to be updated */
+		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c0, "BRIDGEPEER")))
+			pbx_builtin_setvar_helper(c0, "BRIDGEPEER", c1->name);
+		if (!ast_strlen_zero(pbx_builtin_getvar_helper(c1, "BRIDGEPEER")))
+			pbx_builtin_setvar_helper(c1, "BRIDGEPEER", c0->name);
+		
 		if (c0->tech->bridge &&
 		    (config->timelimit == 0) &&
 		    (c0->tech->bridge == c1->tech->bridge) &&
