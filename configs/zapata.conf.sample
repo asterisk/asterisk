@@ -257,6 +257,9 @@ usecallerid=yes
 ; What signals the start of caller ID
 ;     ring     = a ring signals the start
 ;     polarity = polarity reversal signals the start
+;     polarity_IN = polarity reversal signals the start, for India, 
+;                    for dtmf dialtone detection; using DTMF.
+;                    (see doc/India-CID.txt)
 ;
 ;cidstart=ring
 ;

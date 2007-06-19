@@ -6398,7 +6398,7 @@ static void *ss_thread(void *data)
 		/* If we want caller id, we're in a prering state due to a polarity reversal
 		 * and we're set to use a polarity reversal to trigger the start of caller id,
 		 * grab the caller id and wait for ringing to start... */
-		} else if (p->use_callerid && (chan->_state == AST_STATE_PRERING && p->cid_start == CID_START_POLARITY)) {
+		} else if (p->use_callerid && (chan->_state == AST_STATE_PRERING && (p->cid_start == CID_START_POLARITY || p->cid_start == CID_START_POLARITY_IN))) {
 			/* If set to use DTMF CID signalling, listen for DTMF */
 			if (p->cid_signalling == CID_SIG_DTMF) {
 				int i = 0;
@@ -6644,6 +6644,45 @@ static void *ss_thread(void *data)
 				return NULL;
 			}
 		} else if (p->use_callerid && p->cid_start == CID_START_RING) {
+                        if (p->cid_signalling == CID_SIG_DTMF) {
+                                int i = 0;
+                                cs = NULL;
+                                zt_setlinear(p->subs[index].zfd, 0);
+                                res = 2000;
+                                for (;;) {
+                                        struct ast_frame *f;
+                                        res = ast_waitfor(chan, res);
+                                        if (res <= 0) {
+                                                ast_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
+                                                                "Exiting simple switch\n");
+                                                ast_hangup(chan);
+                                                return NULL;
+                                        }
+                                        f = ast_read(chan);
+                                        if (f->frametype == AST_FRAME_DTMF) {
+                                                dtmfbuf[i++] = f->subclass;
+                                                ast_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass);
+                                                res = 2000;
+                                        }
+                                        ast_frfree(f);
+
+                                        if (p->ringt_base == p->ringt)
+                                                break;
+
+                                }
+                                dtmfbuf[i] = '\0';
+                                zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+                                /* Got cid and ring. */
+                                callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
+                                ast_log(LOG_DEBUG, "CID is '%s', flags %d\n",
+                                                dtmfcid, flags);
+                                /* If first byte is NULL, we have no cid */
+                                if (!ast_strlen_zero(dtmfcid))
+                                        number = dtmfcid;
+                                else
+                                        number = NULL;
+                                /* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
+                        } else {
 			/* FSK Bell202 callerID */
 			cs = callerid_new(p->cid_signalling);
 			if (cs) {
@@ -6822,6 +6861,7 @@ static void *ss_thread(void *data)
 			} else
 				ast_log(LOG_WARNING, "Unable to get caller ID space\n");
 		}
+		}
 		else
 			cs = NULL;
 
@@ -6956,7 +6996,11 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF_FEATB:
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
+				if (i->cid_start == CID_START_POLARITY_IN) {
+					chan = zt_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, 0);
+				} else {
+					chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
+				}
 				if (chan && ast_pthread_create_detached(&threadid, NULL, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
@@ -7047,7 +7091,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXSLS:
 		case SIG_FXSKS:
 		case SIG_FXSGS:
-			if (i->cid_start == CID_START_POLARITY) {
+			if (i->cid_start == CID_START_POLARITY || i->cid_start == CID_START_POLARITY_IN) {
 				i->polarity = POLARITY_REV;
 				ast_verbose(VERBOSE_PREFIX_2 "Starting post polarity "
 					    "CID detection on channel %d\n",
@@ -11920,6 +11964,8 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		} else if (!strcasecmp(v->name, "cidstart")) {
 			if (!strcasecmp(v->value, "ring"))
 				confp->chan.cid_start = CID_START_RING;
+			else if (!strcasecmp(v->value, "polarity_in"))
+				confp->chan.cid_start = CID_START_POLARITY_IN;
 			else if (!strcasecmp(v->value, "polarity"))
 				confp->chan.cid_start = CID_START_POLARITY;
 			else if (ast_true(v->value))
