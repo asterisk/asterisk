@@ -41,29 +41,34 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
 #include "asterisk/config.h"
+#include "asterisk/pbx.h"
 
 #define DATE_FORMAT 	"%Y-%m-%d %T"
 #define CONF_FILE	"cdr_manager.conf"
+#define CUSTOM_FIELDS_BUF_SIZE 1024
 
 static char *name = "cdr_manager";
 
 static int enablecdr = 0;
+struct ast_str *customfields;
 
-static int loadconfigurationfile(void)
+static int load_config(void)
 {
-	char *cat;
+	char *cat = NULL;
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	
+	customfields = NULL;
+
 	cfg = ast_config_load(CONF_FILE);
 	if (!cfg) {
 		/* Standard configuration */
+		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 		enablecdr = 0;
 		return 0;
 	}
 	
-	cat = ast_category_browse(cfg, NULL);
-	while (cat) {
+	while ( (cat = ast_category_browse(cfg, cat)) ) {
 		if (!strcasecmp(cat, "general")) {
 			v = ast_variable_browse(cfg, cat);
 			while (v) {
@@ -73,10 +78,23 @@ static int loadconfigurationfile(void)
 				
 				v = v->next;
 			}
+		} else if (!strcasecmp(cat, "mappings")) {
+			customfields = ast_str_create(CUSTOM_FIELDS_BUF_SIZE);
+			v = ast_variable_browse(cfg, cat);
+			while (v) {
+				if (customfields && !ast_strlen_zero(v->name) && !ast_strlen_zero(v->value)) {
+					if( (customfields->used + strlen(v->value) + strlen(v->name) + 14) < customfields->len) {
+						ast_str_append(&customfields, -1, "%s: ${CDR(%s)}\r\n", v->value, v->name);
+						ast_log(LOG_NOTICE, "Added mapping %s: ${CDR(%s)}\n", v->value, v->name);
+					} else {
+						ast_log(LOG_WARNING, "No more buffer space to add other custom fields\n");
+						break;
+					}
+					
+				}
+				v = v->next;
+			}
 		}
-	
-		/* Next category */
-		cat = ast_category_browse(cfg, cat);
 	}
 	
 	ast_config_destroy(cfg);
@@ -90,7 +108,9 @@ static int manager_log(struct ast_cdr *cdr)
 	char strStartTime[80] = "";
 	char strAnswerTime[80] = "";
 	char strEndTime[80] = "";
-	
+	char buf[CUSTOM_FIELDS_BUF_SIZE];
+	struct ast_channel dummy;
+
 	if (!enablecdr)
 		return 0;
 
@@ -107,6 +127,14 @@ static int manager_log(struct ast_cdr *cdr)
 	t = cdr->end.tv_sec;
 	ast_localtime(&t, &timeresult, NULL);
 	strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
+
+	/* Custom fields handling */
+	memset(buf, 0 , sizeof(buf));
+	if (customfields != NULL && customfields->used > 0) {
+		memset(&dummy, 0, sizeof(dummy));
+		dummy.cdr = cdr;
+		pbx_substitute_variables_helper(&dummy, customfields->str, buf, sizeof(buf) - 1);
+	}
 
 	manager_event(EVENT_FLAG_CALL, "Cdr",
 	    "AccountCode: %s\r\n"
@@ -126,18 +154,22 @@ static int manager_log(struct ast_cdr *cdr)
 	    "Disposition: %s\r\n"
 	    "AMAFlags: %s\r\n"
 	    "UniqueID: %s\r\n"
-	    "UserField: %s\r\n",
+	    "UserField: %s\r\n"
+	    "%s",
 	    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
 	    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
-	    cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), 
-	    ast_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
-	    	
+	    cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition),
+	    ast_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield,buf);
+
 	return 0;
 }
 
 static int unload_module(void)
 {
 	ast_cdr_unregister(name);
+	if (customfields)
+		ast_free(customfields);
+
 	return 0;
 }
 
@@ -146,7 +178,7 @@ static int load_module(void)
 	int res;
 
 	/* Configuration file */
-	if (!loadconfigurationfile())
+	if (!load_config())
 		return AST_MODULE_LOAD_DECLINE;
 	
 	res = ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
@@ -159,7 +191,11 @@ static int load_module(void)
 
 static int reload(void)
 {
-	loadconfigurationfile();
+	if (customfields) {
+		ast_free(customfields);
+	}
+	
+	load_config();
 	return 0;
 }
 
