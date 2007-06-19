@@ -1296,6 +1296,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				}
 			}
 
+			/* If the channel wants to be hung up, hang it up */
+			if (ast_check_hangup(chan))
+				break;
+
 			if (c) {
 				if (c->fds[0] != origfd) {
 					if (using_pseudo) {
