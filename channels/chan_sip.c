@@ -6557,6 +6557,8 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 {
 	struct sip_pvt *p = data;
 
+	ast_mutex_lock(&p->lock);
+
 	switch(state) {
 	case AST_EXTENSION_DEACTIVATED:	/* Retry after a while */
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
@@ -6576,6 +6578,9 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
+
+	ast_mutex_unlock(&p->lock);
+
 	return 0;
 }
 
