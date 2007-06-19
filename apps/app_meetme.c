@@ -1898,6 +1898,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				break;
 			}
 
+			/* Perform an extra hangup check just in case */
+			if (ast_check_hangup(chan))
+				break;
+
 			if (c) {
 				if (c->fds[0] != origfd) {
 					if (using_pseudo) {
@@ -2157,8 +2161,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						chan->name, f->frametype, f->subclass);
 				}
 				ast_frfree(f);
-				if (ast_check_hangup(chan))
-					break;
 			} else if (outfd > -1) {
 				res = read(outfd, buf, CONF_SIZE);
 				if (res > 0) {
