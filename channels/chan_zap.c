@@ -321,6 +321,8 @@ static int ringt_base = DEFAULT_RINGT;
 #define LINKSTATE_UP		(1 << 2)
 #define LINKSTATE_DOWN		(1 << 3)
 
+#define SS7_NAI_DYNAMIC		-1
+
 struct zt_ss7 {
 	pthread_t master;						/*!< Thread of master */
 	ast_mutex_t lock;
@@ -333,6 +335,12 @@ struct zt_ss7 {
 		LINKSET_STATE_DOWN = 0,
 		LINKSET_STATE_UP
 	} state;
+	char called_nai;						/*!< Called Nature of Address Indicator */
+	char calling_nai;						/*!< Calling Nature of Address Indicator */
+	char internationalprefix[10];					/*!< country access code ('00' for european dialplans) */
+	char nationalprefix[10];					/*!< area access code ('0' for european dialplans) */
+	char subscriberprefix[20];					/*!< area access code + area code ('0'+area code for european dialplans) */
+	char unknownprefix[20];						/*!< for unknown dialplans */
 	struct ss7 *ss7;
 	struct zt_pvt *pvts[MAX_CHANNELS];				/*!< Member channel pvt structs */
 };
@@ -663,6 +671,10 @@ struct zt_chan_conf {
 #ifdef HAVE_PRI
 	struct zt_pri pri;
 #endif
+
+#ifdef HAVE_SS7
+	struct zt_ss7 ss7;
+#endif
 	ZT_PARAMS timing;
 
 	char smdi_port[SMDI_MAX_FILENAME_LEN];
@@ -692,6 +704,16 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 			.unknownprefix = "",
 
 			.resetinterval = 3600
+		},
+#endif
+#ifdef HAVE_SS7
+		.ss7 = {
+			.called_nai = SS7_NAI_NATIONAL,
+			.calling_nai = SS7_NAI_NATIONAL,
+			.internationalprefix = "",
+			.nationalprefix = "",
+			.subscriberprefix = "",
+			.unknownprefix = ""
 		},
 #endif
 		.chan = {
@@ -1902,6 +1924,18 @@ static int zt_callwait(struct ast_channel *ast)
 	return 0;
 }
 
+#ifdef HAVE_SS7
+static unsigned char cid_pres2ss7pres(int cid_pres)
+{
+	 return (cid_pres >> 5) & 0x03;
+}
+
+static unsigned char cid_pres2ss7screen(int cid_pres)
+{
+	return cid_pres & 0x03;
+}
+#endif
+
 static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 {
 	struct zt_pvt *p = ast->tech_pvt;
@@ -2179,6 +2213,11 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	}
 #ifdef HAVE_SS7
 	if (p->ss7) {
+		char ss7_called_nai;
+		int called_nai_strip;
+		char ss7_calling_nai;
+		int calling_nai_strip;
+
 		c = strchr(dest, '/');
 		if (c)
 			c++;
@@ -2191,7 +2230,11 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			l = NULL;
 		}
 
-		ss7_grab(p, p->ss7);
+		if (ss7_grab(p, p->ss7)) {
+			ast_log(LOG_WARNING, "Failed to grab SS7!\n");
+			ast_mutex_unlock(&p->lock);
+			return -1;
+		}
 		p->digital = IS_DIGITAL(ast->transfercapability);
 		p->ss7call = isup_new_call(p->ss7->ss7);
 
@@ -2202,9 +2245,42 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			return -1;
 		}
 
-		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc, c + p->stripmsd, l);
+		called_nai_strip = 0;
+ 		ss7_called_nai = p->ss7->called_nai;
+		if (ss7_called_nai == SS7_NAI_DYNAMIC) { /* compute dynamically */
+ 			if (strncmp(c + p->stripmsd, p->ss7->internationalprefix, strlen(p->ss7->internationalprefix)) == 0) {
+ 				called_nai_strip = strlen(p->ss7->internationalprefix);
+ 				ss7_called_nai = SS7_NAI_INTERNATIONAL;
+ 			} else if (strncmp(c + p->stripmsd, p->ss7->nationalprefix, strlen(p->ss7->nationalprefix)) == 0) {
+				called_nai_strip = strlen(p->ss7->nationalprefix);
+ 				ss7_called_nai = SS7_NAI_NATIONAL;
+ 			} else {
+				ss7_called_nai = SS7_NAI_SUBSCRIBER;
+ 			}
+ 		}
+ 		isup_set_called(p->ss7call, c + p->stripmsd + called_nai_strip, ss7_called_nai, p->ss7->ss7);
+
+		calling_nai_strip = 0;
+		ss7_calling_nai = p->ss7->calling_nai;
+		if ((l != NULL) && (ss7_calling_nai == SS7_NAI_DYNAMIC)) { /* compute dynamically */
+			if (strncmp(l, p->ss7->internationalprefix, strlen(p->ss7->internationalprefix)) == 0) {
+				calling_nai_strip = strlen(p->ss7->internationalprefix);
+				ss7_calling_nai = SS7_NAI_INTERNATIONAL;
+			} else if (strncmp(l, p->ss7->nationalprefix, strlen(p->ss7->nationalprefix)) == 0) {
+				calling_nai_strip = strlen(p->ss7->nationalprefix);
+				ss7_calling_nai = SS7_NAI_NATIONAL;
+			} else {
+				ss7_calling_nai = SS7_NAI_SUBSCRIBER;
+			}
+		}
+		isup_set_calling(p->ss7call, l ? (l + calling_nai_strip) : NULL, ss7_calling_nai,
+			p->use_callingpres ? cid_pres2ss7pres(ast->cid.cid_pres) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
+			p->use_callingpres ? cid_pres2ss7screen(ast->cid.cid_pres) : SS7_SCREENING_USER_PROVIDED );
+
+		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
 
 		isup_iam(p->ss7->ss7, p->ss7call);
+		ast_setstate(ast, AST_STATE_DIALING);
 		ss7_rel(p->ss7);
 	}
 #endif /* HAVE_SS7 */
@@ -7475,6 +7551,14 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 				tmp->ss7 = ss7;
 				tmp->ss7call = NULL;
 				ss7->pvts[ss7->numchans++] = tmp;
+
+				ast_copy_string(linksets[span].internationalprefix, conf.ss7.internationalprefix, sizeof(linksets[span].internationalprefix));
+				ast_copy_string(linksets[span].nationalprefix, conf.ss7.nationalprefix, sizeof(linksets[span].nationalprefix));
+				ast_copy_string(linksets[span].subscriberprefix, conf.ss7.subscriberprefix, sizeof(linksets[span].subscriberprefix));
+				ast_copy_string(linksets[span].unknownprefix, conf.ss7.unknownprefix, sizeof(linksets[span].unknownprefix));
+
+				linksets[span].called_nai = conf.ss7.called_nai;
+				linksets[span].calling_nai = conf.ss7.calling_nai;
 			}
 #endif
 #ifdef HAVE_PRI
@@ -8358,6 +8442,30 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
 }
 
+static void ss7_apply_plan_to_number(char *buf, size_t size, const struct zt_ss7 *ss7, const char *number, const unsigned nai)
+{
+	switch (nai) {
+	case SS7_NAI_INTERNATIONAL:
+		snprintf(buf, size, "%s%s", ss7->internationalprefix, number);
+		break;
+	case SS7_NAI_NATIONAL:
+		snprintf(buf, size, "%s%s", ss7->nationalprefix, number);
+		break;
+	case SS7_NAI_SUBSCRIBER:
+		snprintf(buf, size, "%s%s", ss7->subscriberprefix, number);
+		break;
+	case SS7_NAI_UNKNOWN:
+		snprintf(buf, size, "%s%s", ss7->unknownprefix, number);
+		break;
+	default:
+		snprintf(buf, size, "%s", number);
+		break;
+	}
+}
+static int ss7_pres_scr2cid_pres(char presentation_ind, char screening_ind)
+{
+    return ((presentation_ind & 0x3) << 5) | (screening_ind & 0x3);
+}
 
 static void *ss7_linkset(void *data)
 {
@@ -8542,7 +8650,7 @@ static void *ss7_linkset(void *data)
 				ss7_block_cics(linkset, e->gra.startcic, e->gra.endcic, e->gra.status, 1);
 				break;
 			case ISUP_EVENT_IAM:
-				ast_debug(1, "Got IAM for CIC %d and number %s\n", e->iam.cic, e->iam.called_party_num);
+ 				ast_debug(1, "Got IAM for CIC %d and called number %s, calling number %s\n", e->iam.cic, e->iam.called_party_num, e->iam.calling_party_num);
 				chanpos = ss7_find_cic(linkset, e->iam.cic);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "IAM on unconfigured CIC %d\n", e->iam.cic);
@@ -8567,8 +8675,11 @@ static void *ss7_linkset(void *data)
 				p->ss7call = e->iam.call;
 				isup_set_call_dpc(p->ss7call, dpc);
 
-				if (p->use_callerid)
-					ast_copy_string(p->cid_num, e->iam.calling_party_num, sizeof(p->cid_num));
+				if ( (p->use_callerid) && (!ast_strlen_zero(e->iam.calling_party_num)) )
+				{
+					ss7_apply_plan_to_number(p->cid_num, sizeof(p->cid_num), linkset, e->iam.calling_party_num, e->iam.calling_nai);
+					p->callingpres = ss7_pres_scr2cid_pres(e->iam.presentation_ind, e->iam.screening_ind);
+				}
 				else
 					p->cid_num[0] = 0;
 
@@ -8577,7 +8688,7 @@ static void *ss7_linkset(void *data)
 					p->exten[1] = '\0';
 				} else if (!ast_strlen_zero(e->iam.called_party_num)) {
 					char *st;
-					ast_copy_string(p->exten, e->iam.called_party_num, sizeof(p->exten));
+					ss7_apply_plan_to_number(p->exten, sizeof(p->exten), linkset, e->iam.called_party_num, e->iam.called_nai);
 					st = strchr(p->exten, '#');
 					if (st)
 						*st = '\0';
@@ -8590,8 +8701,8 @@ static void *ss7_linkset(void *data)
 				p->cid_ton = 0;
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
-					ast_copy_string(p->dnid, e->iam.called_party_num, sizeof(p->exten));
-
+					ss7_apply_plan_to_number(p->dnid, sizeof(p->dnid), linkset, e->iam.called_party_num, e->iam.called_nai);
+				
 				if (ast_exists_extension(NULL, p->context, p->exten, 1, p->cid_num)) {
 
 					if (e->iam.cot_check_required) {
@@ -8773,6 +8884,7 @@ static void zt_ss7_error(struct ss7 *ss7, char *s)
 	ast_log(LOG_ERROR, "%s", s);
 #endif
 }
+
 #endif /* HAVE_SS7 */
 
 #ifdef HAVE_PRI
@@ -12166,7 +12278,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				} else if (!strcasecmp(v->value, "redundant")) {
 					confp->pri.localdialplan = -2;
 				} else {
-					ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
+					ast_log(LOG_WARNING, "Unknown PRI localdialplan '%s' at line %d.\n", v->value, v->lineno);
 				}
 			} else if (!strcasecmp(v->name, "switchtype")) {
 				if (!strcasecmp(v->value, "national")) 
@@ -12302,6 +12414,38 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					cur_networkindicator = SS7_NI_INT_SPARE;
 				else
 					cur_networkindicator = -1;
+			} else if (!strcasecmp(v->name, "ss7_internationalprefix")) {
+				ast_copy_string(confp->ss7.internationalprefix, v->value, sizeof(confp->ss7.internationalprefix));
+			} else if (!strcasecmp(v->name, "ss7_nationalprefix")) {
+				ast_copy_string(confp->ss7.nationalprefix, v->value, sizeof(confp->ss7.nationalprefix));
+			} else if (!strcasecmp(v->name, "ss7_subscriberprefix")) {
+				ast_copy_string(confp->ss7.subscriberprefix, v->value, sizeof(confp->ss7.subscriberprefix));
+			} else if (!strcasecmp(v->name, "ss7_unknownprefix")) {
+				ast_copy_string(confp->ss7.unknownprefix, v->value, sizeof(confp->ss7.unknownprefix));
+			} else if (!strcasecmp(v->name, "ss7_called_nai")) {
+				if (!strcasecmp(v->value, "national")) {
+					confp->ss7.called_nai = SS7_NAI_NATIONAL;
+				} else if (!strcasecmp(v->value, "international")) {
+					confp->ss7.called_nai = SS7_NAI_INTERNATIONAL;
+				} else if (!strcasecmp(v->value, "subscriber")) {
+					confp->ss7.called_nai = SS7_NAI_SUBSCRIBER;
+	 			} else if (!strcasecmp(v->value, "dynamic")) {
+ 					confp->ss7.called_nai = SS7_NAI_DYNAMIC;
+				} else {
+					ast_log(LOG_WARNING, "Unknown SS7 called_nai '%s' at line %d.\n", v->value, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "ss7_calling_nai")) {
+				if (!strcasecmp(v->value, "national")) {
+					confp->ss7.calling_nai = SS7_NAI_NATIONAL;
+				} else if (!strcasecmp(v->value, "international")) {
+					confp->ss7.calling_nai = SS7_NAI_INTERNATIONAL;
+				} else if (!strcasecmp(v->value, "subscriber")) {
+					confp->ss7.calling_nai = SS7_NAI_SUBSCRIBER;
+				} else if (!strcasecmp(v->value, "dynamic")) {
+					confp->ss7.calling_nai = SS7_NAI_DYNAMIC;
+				} else {
+					ast_log(LOG_WARNING, "Unknown SS7 calling_nai '%s' at line %d.\n", v->value, v->lineno);
+				}
 			} else if (!strcasecmp(v->name, "sigchan")) {
 				int sigchan, res;
 				sigchan = atoi(v->value);

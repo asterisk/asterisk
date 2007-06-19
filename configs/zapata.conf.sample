@@ -671,6 +671,34 @@ immediate=no
 ; Options are itu and ansi
 ;ss7type = itu
 
+; SS7 Called Nature of Address Indicator
+;
+; unknown:        Unknown
+; subscriber:     Subscriber
+; national:	  National
+; international:  International
+; dynamic:	  Dynamically selects the appropriate dialplan
+;
+;ss7_called_nai=dynamic
+;
+; SS7 Calling Nature of Address Indicator
+;
+; unknown:        Unknown
+; subscriber:     Subscriber
+; national:	  National
+; international:  International
+; dynamic:	  Dynamically selects the appropriate dialplan
+;
+;ss7_calling_nai=dynamic
+;
+; 
+; sample 1 for Germany 
+;ss7_internationalprefix = 00
+;ss7_nationalprefix = 0
+;ss7_subscriberprefix = 
+;ss7_unknownprefix = 
+;
+
 ; All settings apply to linkset 1
 ;linkset = 1
 
