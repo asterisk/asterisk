@@ -1119,18 +1119,13 @@ static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int t
 /*! \brief Perform a Packet2Packet RTP write */
 static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, unsigned int *rtpheader, int len, int hdrlen)
 {
-	int res = 0, payload = 0, bridged_payload = 0, version, padding, mark, ext;
+	int res = 0, payload = 0, bridged_payload = 0, mark;
 	struct rtpPayloadType rtpPT;
-	unsigned int seqno;
-	
+	int reconstruct = ntohl(rtpheader[0]);
+
 	/* Get fields from packet */
-	seqno = ntohl(rtpheader[0]);
-	version = (seqno & 0xC0000000) >> 30;
-	payload = (seqno & 0x7f0000) >> 16;
-	padding = seqno & (1 << 29);
-	mark = (seqno & 0x800000) >> 23;
-	ext = seqno & (1 << 28);
-	seqno &= 0xffff;
+	payload = (reconstruct & 0x7f0000) >> 16;
+	mark = (((reconstruct & 0x800000) >> 23) != 0);
 
 	/* Check what the payload value should be */
 	rtpPT = ast_rtp_lookup_pt(rtp, payload);
@@ -1149,7 +1144,10 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 	}
 
 	/* Reconstruct part of the packet */
-	rtpheader[0] = htonl((version << 30) | (mark << 23) | (bridged_payload << 16) | (seqno));
+	reconstruct &= 0xFF80FFFF;
+	reconstruct |= (bridged_payload << 16);
+	reconstruct |= (mark << 23);
+	rtpheader[0] = htonl(reconstruct);
 
 	/* Send the packet back out */
 	res = sendto(bridged->s, (void *)rtpheader, len, 0, (struct sockaddr *)&bridged->them, sizeof(bridged->them));
@@ -1181,6 +1179,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int padding;
 	int mark;
 	int ext;
+	int cc;
 	unsigned int ssrc;
 	unsigned int timestamp;
 	unsigned int *rtpheader;
@@ -1259,6 +1258,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	padding = seqno & (1 << 29);
 	mark = seqno & (1 << 23);
 	ext = seqno & (1 << 28);
+	cc = (seqno & 0xF000000) >> 24;
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
 	ssrc = ntohl(rtpheader[2]);
@@ -1276,10 +1276,15 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		res -= rtp->rawdata[AST_FRIENDLY_OFFSET + res - 1];
 	}
 	
+	if (cc) {
+		/* CSRC fields present */
+		hdrlen += cc*4;
+	}
+
 	if (ext) {
 		/* RTP Extension present */
+		hdrlen += (ntohl(rtpheader[hdrlen/4]) & 0xffff) << 2;
 		hdrlen += 4;
-		hdrlen += (ntohl(rtpheader[3]) & 0xffff) << 2;
 		if (option_debug) {
 			int profile;
 			profile = (ntohl(rtpheader[3]) & 0xffff0000) >> 16;
