@@ -130,7 +130,7 @@ static char *app = "Queue";
 static char *synopsis = "Queue a call for a call queue";
 
 static char *descrip =
-"  Queue(queuename[|options[|URL][|announceoverride][|timeout][|AGI][|macro]):\n"
+"  Queue(queuename[|options[|URL][|announceoverride][|timeout][|AGI][|macro][|gosub]):\n"
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "This application will return to the dialplan if the queue does not exist, or\n"
 "any of the join options cause the caller to not enter the queue.\n"
@@ -155,6 +155,8 @@ static char *descrip =
 "  The optional AGI parameter will setup an AGI script to be executed on the \n"
 "calling party's channel once they are connected to a queue member.\n"
 "  The optional macro parameter will run a macro on the \n"
+"calling party's channel once they are connected to a queue member.\n"
+"  The optional gosub parameter will run a gosub on the \n"
 "calling party's channel once they are connected to a queue member.\n"
 "  The timeout will cause the queue to fail out after a specified number of\n"
 "seconds, checked between each queues.conf 'timeout' and 'retry' cycle.\n"
@@ -372,6 +374,7 @@ struct call_queue {
 	char monfmt[8];                     /*!< Format to use when recording calls */
 	int montype;                        /*!< Monitor type  Monitor vs. MixMonitor */
 	char membermacro[32];               /*!< Macro to run upon member connection */
+	char membergosub[32];               /*!< Gosub to run upon member connection */
 	char sound_next[80];                /*!< Sound file: "Your call is now first in line" (def. queue-youarenext) */
 	char sound_thereare[80];            /*!< Sound file: "There are currently" (def. queue-thereare) */
 	char sound_calls[80];               /*!< Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
@@ -729,6 +732,7 @@ static void init_queue(struct call_queue *q)
 	q->autofill = autofill_default;
 	q->montype = montype_default;
 	q->membermacro[0] = '\0';
+	q->membergosub[0] = '\0';
 	q->moh[0] = '\0';
 	q->announce[0] = '\0';
 	q->context[0] = '\0';
@@ -871,6 +875,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_copy_string(q->monfmt, val, sizeof(q->monfmt));
 	} else if (!strcasecmp(param, "membermacro")) {
 		ast_copy_string(q->membermacro, val, sizeof(q->membermacro));
+	} else if (!strcasecmp(param, "membergosub")) {
+		ast_copy_string(q->membergosub, val, sizeof(q->membergosub));
 	} else if (!strcasecmp(param, "queue-youarenext")) {
 		ast_copy_string(q->sound_next, val, sizeof(q->sound_next));
 	} else if (!strcasecmp(param, "queue-thereare")) {
@@ -2399,7 +2405,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
 }
 
-static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi, const char *macro)
+static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi, const char *macro, const char *gosub)
 {
 	struct member *cur;
 	struct callattempt *outgoing = NULL; /* the list of calls we are building */
@@ -2424,6 +2430,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char nondataquality = 1;
 	char *agiexec = NULL;
 	char *macroexec = NULL;
+	char *gosubexec = NULL;
 	int ret = 0;
 	const char *monitorfilename;
 	const char *monitor_exec;
@@ -2759,6 +2766,43 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				res = 0;
 			} else {
 				ast_log(LOG_ERROR, "Could not find application Macro\n");
+				res = -1;
+			}
+		
+			if (ast_autoservice_stop(qe->chan) < 0) {
+				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
+				res = -1;
+			}
+		}
+
+		/* run a gosub for this connection if defined. The gosub simply returns, no action is taken on the result */
+		/* use gosub from dialplan if passed as a option, otherwise use the default queue gosub */
+		if (!ast_strlen_zero(gosub)) {
+				gosubexec = ast_strdupa(gosub);
+		} else {
+			if (qe->parent->membergosub)
+				gosubexec = ast_strdupa(qe->parent->membergosub);
+		}
+
+		if (!ast_strlen_zero(gosubexec)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "app_queue: gosub=%s.\n", gosubexec);
+			
+			res = ast_autoservice_start(qe->chan);
+			if (res) {
+				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
+				res = -1;
+			}
+			
+			app = pbx_findapp("Gosub");
+			
+			if (app) {
+				res = pbx_exec(qe->chan, app, gosubexec);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+				res = 0;
+			} else {
+				ast_log(LOG_ERROR, "Could not find application Gosub\n");
 				res = -1;
 			}
 		
@@ -3405,6 +3449,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(queuetimeoutstr);
 		AST_APP_ARG(agi);
 		AST_APP_ARG(macro);
+		AST_APP_ARG(gosub);
 	);
 	/* Our queue entry */
 	struct queue_ent qe;
@@ -3548,7 +3593,7 @@ check_turns:
 				}
 
 				/* Try calling all queue members for 'timeout' seconds */
-				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro);
+				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro, args.gosub);
 				if (res) {
 					if (res < 0) {
 						if (!qe.handled) {

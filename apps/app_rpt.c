@@ -133,8 +133,11 @@
 
 #define	MAXDTMF 32
 #define	MAXMACRO 2048
+#define	MAXGOSUB 2048
 #define	MACROTIME 100
+#define	GOSUBTIME 100
 #define	MACROPTIME 500
+#define	GOSUBPTIME 500
 #define	DTMF_TIMEOUT 3
 
 #ifdef	__RPT_NOTCH
@@ -157,6 +160,7 @@
 #define	NODES "nodes"
 #define MEMORY "memory"
 #define MACRO "macro"
+#define GOSUB "gosub"
 #define	FUNCTIONS "functions"
 #define TELEMETRY "telemetry"
 #define MORSE "morse"
@@ -183,7 +187,7 @@ enum {REM_OFF, REM_MONITOR, REM_TX};
 enum {ID, PROC, TERM, COMPLETE, UNKEY, REMDISC, REMALREADY, REMNOTFOUND, REMGO,
 	CONNECTED, CONNFAIL, STATUS, TIMEOUT, ID1, STATS_TIME,
 	STATS_VERSION, IDTALKOVER, ARB_ALPHA, TEST_TONE, REV_PATCH,
-	TAILMSG, MACRO_NOTFOUND, MACRO_BUSY, LASTNODEKEY};
+	TAILMSG, MACRO_NOTFOUND, GOSUB_NOTFOUND, MACRO_BUSY, GOSUB_BUSY, LASTNODEKEY};
 
 enum {REM_SIMPLEX, REM_MINUS, REM_PLUS};
 
@@ -418,7 +422,9 @@ static struct rpt
 		);
 		char memory[80];
 		char macro[80];
+		char gosub[80];
 		char startupmacro[80];
+		char startupgosub[80];
 		int iobase;
 		char funcchar;
 		char endchar;
@@ -437,6 +443,7 @@ static struct rpt
 	char enable;
 	char dtmfbuf[MAXDTMF];
 	char macrobuf[MAXMACRO];
+	char gosubbuf[MAXGOSUB];
 	char rem_dtmfbuf[MAXDTMF];
 	char lastdtmfcommand[MAXDTMF];
 	char cmdnode[50];
@@ -474,6 +481,7 @@ static struct rpt
 	char patchcontext[MAXPATCHCONTEXT];
 	int patchdialtime;
 	int macro_longest;
+	int gosub_longest;
 	int phone_longestfunc;
 	int dphone_longestfunc;
 	int link_longestfunc;
@@ -484,6 +492,7 @@ static struct rpt
 	time_t disgorgetime;
 	time_t lastthreadrestarttime;
 	long macrotimer;
+	long gosubtimer;
 	char lastnodewhichkeyedusup[MAXNODESTR];
 #ifdef	__RPT_NOTCH
 	struct rptfilter
@@ -784,6 +793,7 @@ static int function_status(struct rpt *myrpt, char *param, char *digitbuf, int c
 static int function_cop(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink);
 static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink);
 static int function_macro(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink);
+static int function_gosub(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink);
 /*
 * Function table
 */
@@ -796,6 +806,7 @@ static struct function_table_tag function_table[] = {
 	{"status", function_status},
 	{"remote", function_remote},
 	{"macro", function_macro}
+	{"gosub", function_gosub}
 } ;
 
 /*
@@ -955,6 +966,7 @@ static void load_rpt_vars(int n, int init)
 	rpt_vars[n].p.politeid = POLITEID;
 	ast_copy_string(rpt_vars[n].p.memory, MEMORY, sizeof(rpt_vars[n].p.memory));
 	ast_copy_string(rpt_vars[n].p.macro, MACRO, sizeof(rpt_vars[n].p.macro));
+	ast_copy_string(rpt_vars[n].p.gosub, GOSUB, sizeof(rpt_vars[n].p.gosub));
 	rpt_vars[n].p.iobase = DEFAULT_IOBASE;
 	ast_copy_string(rpt_vars[n].p.functions, FUNCTIONS, sizeof(rpt_vars[n].p.functions));
 	rpt_vars[n].p.simple = 1;
@@ -1014,8 +1026,12 @@ static void load_rpt_vars(int n, int init)
 			ast_copy_string(rpt_vars[n].p.memory, var->value, sizeof(rpt_vars[n].p.memory));
 		} else if (!strcmp(var->name, "macro")) {
 			ast_copy_string(rpt_vars[n].p.macro, var->value, sizeof(rpt_vars[n].p.macro));
+		} else if (!strcmp(var->name, "gosub")) {
+			ast_copy_string(rpt_vars[n].p.gosub, var->value, sizeof(rpt_vars[n].p.gosub));
 		} else if (!strcmp(var->name, "startup_macro")) {
 			ast_copy_string(rpt_vars[n].p.startupmacro, var->value, sizeof(rpt_vars[n].p.startupmacro));
+		} else if (!strcmp(var->name, "startup_gosub")) {
+			ast_copy_string(rpt_vars[n].p.startupgosub, var->value, sizeof(rpt_vars[n].p.startupgosub));
 		} else if (!strcmp(var->name, "iobase")) {
 			/* do not use atoi() here, we need to be able to have
 			   the input specified in hex or decimal so we use
@@ -1100,6 +1116,12 @@ static void load_rpt_vars(int n, int init)
 	for (vp = ast_variable_browse(cfg, rpt_vars[n].p.macro); vp; vp = vp->next) {
 		if ((j = strlen(vp->name)) > rpt_vars[n].macro_longest)
 			rpt_vars[n].macro_longest = j;
+	}
+
+	rpt_vars[n].gosub_longest = 1;
+	for (vp = ast_variable_browse(cfg, rpt_vars[n].p.gosub); vp; vp = vp->next) {
+		if ((j = strlen(vp->name)) > rpt_vars[n].gosub_longest)
+			rpt_vars[n].gosub_longest = j;
 	}
 	ast_mutex_unlock(&rpt_vars[n].lock);
 }
@@ -1961,10 +1983,20 @@ static void *rpt_tele_thread(void *this)
 		wait_interval(myrpt, DLY_TELEM, mychannel);
 		res = ast_streamfile(mychannel, "rpt/macro_notfound", mychannel->language);
 		break;
+	case GOSUB_NOTFOUND:
+		/* wait a little bit */
+		wait_interval(myrpt, DLY_TELEM, mychannel);
+		res = ast_streamfile(mychannel, "rpt/gosub_notfound", mychannel->language);
+		break;
 	case MACRO_BUSY:
 		/* wait a little bit */
 		wait_interval(myrpt, DLY_TELEM, mychannel);
 		res = ast_streamfile(mychannel, "rpt/macro_busy", mychannel->language);
+		break;
+	case GOSUB_BUSY:
+		/* wait a little bit */
+		wait_interval(myrpt, DLY_TELEM, mychannel);
+		res = ast_streamfile(mychannel, "rpt/gosub_busy", mychannel->language);
 		break;
 	case UNKEY:
 		if (myrpt->patchnoct && myrpt->callmode) { /* If no CT during patch configured, then don't send one */
@@ -3279,6 +3311,54 @@ static int function_macro(struct rpt *myrpt, char *param, char *digitbuf, int co
 	}
 	myrpt->macrotimer = MACROTIME;
 	strncat(myrpt->macrobuf, val, sizeof(myrpt->macrobuf) - 1);
+	rpt_mutex_unlock(&myrpt->lock);
+	return DC_COMPLETE;	
+}
+
+/*
+*  Gosub
+*/
+
+static int function_gosub(struct rpt *myrpt, char *param, char *digitbuf, int command_source, struct rpt_link *mylink)
+{
+
+	const char *val;
+	int	i;
+	struct ast_channel *mychannel;
+
+	if ((!myrpt->remote) && (!myrpt->enable))
+		return DC_ERROR;
+
+	if (debug) 
+		ast_log(LOG_DEBUG, "@@@@ gosub param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
+	
+	mychannel = myrpt->remchannel;
+
+	if (ast_strlen_zero(digitbuf)) /* needs 1 digit */
+		return DC_INDETERMINATE;
+			
+	for (i = 0; i < digitbuf[i]; i++) {
+		if ((digitbuf[i] < '0') || (digitbuf[i] > '9'))
+			return DC_ERROR;
+	}
+   
+	if (*digitbuf == '0')
+		val = myrpt->p.startupgosub;
+	else
+		val = ast_variable_retrieve(myrpt->cfg, myrpt->p.gosub, digitbuf);
+	/* param was 1 for local buf */
+	if (!val) {
+		rpt_telemetry(myrpt, GOSUB_NOTFOUND, NULL);
+		return DC_COMPLETE;
+	}			
+	rpt_mutex_lock(&myrpt->lock);
+	if ((sizeof(myrpt->gosubbuf) - strlen(myrpt->gosubbuf)) < strlen(val)) {
+		rpt_mutex_unlock(&myrpt->lock);
+		rpt_telemetry(myrpt, GOSUB_BUSY, NULL);
+		return DC_ERROR;
+	}
+	myrpt->gosubtimer = GOSUBTIME;
+	strncat(myrpt->gosubbuf, val, sizeof(myrpt->gosubbuf) - 1);
 	rpt_mutex_unlock(&myrpt->lock);
 	return DC_COMPLETE;	
 }
@@ -5798,6 +5878,9 @@ static void *rpt(void *this)
 	if (myrpt->p.startupmacro) {
 		snprintf(myrpt->macrobuf, sizeof(myrpt->macrobuf), "PPPP%s", myrpt->p.startupmacro);
 	}
+	if (myrpt->p.startupgosub) {
+		snprintf(myrpt->gosubbuf, sizeof(myrpt->gosubbuf), "PPPP%s", myrpt->p.startupgosub);
+	}
 	rpt_mutex_unlock(&myrpt->lock);
 	val = 0;
 	ast_channel_setoption(myrpt->rxchannel, AST_OPTION_TONE_VERIFY, &val, sizeof(char), 0);
@@ -6228,6 +6311,11 @@ static void *rpt(void *this)
 			myrpt->macrotimer -= elap;
 		if (myrpt->macrotimer < 0)
 			myrpt->macrotimer = 0;
+		/* do gosub timers */
+		if (myrpt->gosubtimer)
+			myrpt->gosubtimer -= elap;
+		if (myrpt->gosubtimer < 0)
+			myrpt->gosubtimer = 0;
 		/* Execute scheduler appx. every 2 tenths of a second */
 		if (myrpt->skedtimer <= 0) {
 			myrpt->skedtimer = 200;
@@ -6244,6 +6332,16 @@ static void *rpt(void *this)
 			memmove(myrpt->macrobuf, myrpt->macrobuf + 1, sizeof(myrpt->macrobuf) - 1);
 			if ((c == 'p') || (c == 'P'))
 				myrpt->macrotimer = MACROPTIME;
+			rpt_mutex_unlock(&myrpt->lock);
+			local_dtmf_helper(myrpt, c);
+		} else
+			rpt_mutex_unlock(&myrpt->lock);
+		c = myrpt->gosubbuf[0];
+		if (c && (!myrpt->gosubtimer)) {
+			myrpt->gosubtimer = GOSUBTIME;
+			memmove(myrpt->gosubbuf, myrpt->gosubbuf + 1, sizeof(myrpt->gosubbuf) - 1);
+			if ((c == 'p') || (c == 'P'))
+				myrpt->gosubtimer = GOSUBPTIME;
 			rpt_mutex_unlock(&myrpt->lock);
 			local_dtmf_helper(myrpt, c);
 		} else
@@ -7072,6 +7170,10 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		myrpt->remchannel = chan; /* Save copy of channel */
 		snprintf(myrpt->macrobuf, sizeof(myrpt->macrobuf), "PPPP%s", myrpt->p.startupmacro);
 	}
+	if (myrpt->p.startupgosub) {
+		myrpt->remchannel = chan; /* Save copy of channel */
+		snprintf(myrpt->gosubbuf, sizeof(myrpt->gosubbuf), "PPPP%s", myrpt->p.startupgosub);
+	}
 	myrpt->reload = 0;
 	rpt_mutex_unlock(&myrpt->lock);
 	setrem(myrpt); 
@@ -7123,6 +7225,10 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			myrpt->macrotimer -= elap;
 		if (myrpt->macrotimer < 0)
 			myrpt->macrotimer = 0;
+		if (myrpt->gosubtimer)
+			myrpt->gosubtimer -= elap;
+		if (myrpt->gosubtimer < 0)
+			myrpt->gosubtimer = 0;
 		rpt_mutex_unlock(&myrpt->lock);
 		if (!ms)
 			continue;
@@ -7240,6 +7346,17 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				memmove(myrpt->macrobuf, myrpt->macrobuf + 1, sizeof(myrpt->macrobuf) - 1);
 				if ((c == 'p') || (c == 'P'))
 					myrpt->macrotimer = MACROPTIME;
+				rpt_mutex_unlock(&myrpt->lock);
+				if (handle_remote_dtmf_digit(myrpt, c, &keyed, 0) == -1)
+					break;
+				continue;
+			}
+			c = myrpt->gosubbuf[0];
+			if (c && (!myrpt->gosubtimer)) {
+				myrpt->gosubtimer = GOSUBTIME;
+				memmove(myrpt->gosubbuf, myrpt->gosubbuf + 1, sizeof(myrpt->gosubbuf) - 1);
+				if ((c == 'p') || (c == 'P'))
+					myrpt->gosubtimer = GOSUBPTIME;
 				rpt_mutex_unlock(&myrpt->lock);
 				if (handle_remote_dtmf_digit(myrpt, c, &keyed, 0) == -1)
 					break;

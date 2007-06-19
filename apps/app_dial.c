@@ -123,6 +123,10 @@ static char *descrip =
 "    H    - Allow the calling party to hang up by hitting the '*' DTMF digit.\n"
 "    i    - Asterisk will ignore any forwarding requests it may receive on this\n"
 "           dial attempt.\n"
+"    k    - Allow the called party to enable parking of the call by sending\n"
+"           the DTMF sequence defined for call parking in features.conf.\n"
+"    K    - Allow the calling party to enable parking of the call by sending\n"
+"           the DTMF sequence defined for call parking in features.conf.\n"
 "    L(x[:y][:z]) - Limit the call to 'x' ms. Play a warning when 'y' ms are\n"
 "           left. Repeat the warning every 'z' ms. The following special\n"
 "           variables can be used with this option:\n"
@@ -184,14 +188,27 @@ static char *descrip =
 "           DTMF sequence defined in features.conf.\n"
 "    T    - Allow the calling party to transfer the called party by sending the\n"
 "           DTMF sequence defined in features.conf.\n"
+"    U(x[^arg]) - Execute via Gosub the routine 'x' for the *called* channel before connecting\n"
+"           to the calling channel. Arguments can be specified to the Gosub\n"
+"           using '^' as a delimeter. The Gosub routine can set the variable\n"
+"           GOSUB_RESULT to specify the following actions after the Gosub returns.\n" 
+"           * ABORT        Hangup both legs of the call.\n"
+"           * CONGESTION   Behave as if line congestion was encountered.\n"
+"           * BUSY         Behave as if a busy signal was encountered. This will also\n"
+"                          have the application jump to priority n+101 if the\n"
+"                          'j' option is set.\n"
+"           * CONTINUE     Hangup the called party and allow the calling party\n"
+"                          to continue dialplan execution at the next priority.\n"
+"           * GOTO:<context>^<exten>^<priority> - Transfer the call to the\n"
+"                          specified priority. Optionally, an extension, or\n"
+"                          extension and priority can be specified.\n"
+"           You cannot use any additional action post answer options in conjunction\n"
+"           with this option. Also, pbx services are not run on the peer (called) channel,\n"
+"           so you will not be able to set timeouts via the TIMEOUT() function in this routine.\n"
 "    w    - Allow the called party to enable recording of the call by sending\n"
 "           the DTMF sequence defined for one-touch recording in features.conf.\n"
 "    W    - Allow the calling party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch recording in features.conf.\n"
-"    k    - Allow the called party to enable parking of the call by sending\n"
-"           the DTMF sequence defined for call parking in features.conf.\n"
-"    K    - Allow the calling party to enable parking of the call by sending\n"
-"           the DTMF sequence defined for call parking in features.conf.\n";
+"           the DTMF sequence defined for one-touch recording in features.conf.\n";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static char *rapp = "RetryDial";
@@ -237,6 +254,7 @@ enum {
 	OPT_CALLEE_PARK =	(1 << 25),
 	OPT_CALLER_PARK =	(1 << 26),
 	OPT_IGNORE_FORWARDING = (1 << 27),
+	OPT_CALLEE_GOSUB =	(1 << 28),
 };
 
 #define DIAL_STILLGOING			(1 << 30)
@@ -249,6 +267,7 @@ enum {
 	OPT_ARG_DURATION_LIMIT,
 	OPT_ARG_MUSICBACK,
 	OPT_ARG_CALLEE_MACRO,
+	OPT_ARG_CALLEE_GOSUB,
 	OPT_ARG_PRIVACY,
 	OPT_ARG_DURATION_STOP,
 	OPT_ARG_OPERMODE,
@@ -267,6 +286,8 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
 	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
 	AST_APP_OPTION('i', OPT_IGNORE_FORWARDING),
+	AST_APP_OPTION('k', OPT_CALLEE_PARK),
+	AST_APP_OPTION('K', OPT_CALLER_PARK),
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
@@ -280,10 +301,9 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
 	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
 	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
+	AST_APP_OPTION_ARG('U', OPT_CALLEE_GOSUB, OPT_ARG_CALLEE_GOSUB),
 	AST_APP_OPTION('w', OPT_CALLEE_MONITOR),
 	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
-	AST_APP_OPTION('k', OPT_CALLEE_PARK),
-	AST_APP_OPTION('K', OPT_CALLER_PARK),
 });
 
 /*
@@ -1605,6 +1625,67 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 					if (strchr(macro_transfer_dest, '^')) { /* context^exten^priority*/
 						replace_macro_delimiter(macro_transfer_dest);
 						if (!ast_parseable_goto(chan, macro_transfer_dest))
+							ast_set_flag(peerflags, OPT_GO_ON);
+					}
+				}
+			}
+		}
+
+		if (ast_test_flag(&opts, OPT_CALLEE_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GOSUB])) {
+			struct ast_app *theapp;
+			const char *gosub_result;
+
+			res = ast_autoservice_start(chan);
+			if (res) {
+				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
+				res = -1;
+			}
+
+			theapp = pbx_findapp("Gosub");
+
+			if (theapp && !res) {	/* XXX why check res here ? */
+				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
+				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_GOSUB]);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+				res = 0;
+			} else {
+				ast_log(LOG_ERROR, "Could not find application Gosub\n");
+				res = -1;
+			}
+
+			if (ast_autoservice_stop(chan) < 0) {
+				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
+				res = -1;
+			}
+
+			if (!res && (gosub_result = pbx_builtin_getvar_helper(peer, "GOSUB_RESULT"))) {
+				char *gosub_transfer_dest;
+
+				if (!strcasecmp(gosub_result, "BUSY")) {
+					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
+					ast_set_flag(peerflags, OPT_GO_ON);
+					res = -1;
+				} else if (!strcasecmp(gosub_result, "CONGESTION") || !strcasecmp(gosub_result, "CHANUNAVAIL")) {
+					ast_copy_string(pa.status, gosub_result, sizeof(pa.status));
+					ast_set_flag(peerflags, OPT_GO_ON);	
+					res = -1;
+				} else if (!strcasecmp(gosub_result, "CONTINUE")) {
+					/* hangup peer and keep chan alive assuming the macro has changed 
+					   the context / exten / priority or perhaps 
+					   the next priority in the current exten is desired.
+					*/
+					ast_set_flag(peerflags, OPT_GO_ON);	
+					res = -1;
+				} else if (!strcasecmp(gosub_result, "ABORT")) {
+					/* Hangup both ends unless the caller has the g flag */
+					res = -1;
+				} else if (!strncasecmp(gosub_result, "GOTO:", 5) && (gosub_transfer_dest = ast_strdupa(gosub_result + 5))) {
+					res = -1;
+					/* perform a transfer to a new extension */
+					if (strchr(gosub_transfer_dest, '^')) { /* context^exten^priority*/
+						replace_macro_delimiter(gosub_transfer_dest);
+						if (!ast_parseable_goto(chan, gosub_transfer_dest))
 							ast_set_flag(peerflags, OPT_GO_ON);
 					}
 				}
