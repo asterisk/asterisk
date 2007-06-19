@@ -180,6 +180,9 @@ Miscellaneous
   * Added 'C' option to Meetme which causes a caller to continue in the dialplan
      when kicked out.
   * Brazilian Portuguese (pt-BR) in VM, and say.c was added via patch from cfassoni.
+  * In India, some carriers transmit CID via dtmf. Some code has been added
+    that will handle some situations. The cidstart=polarity_IN choice has been added for
+    those carriers that transmit CID via dtmf after a polarity change.
   * CID matching information is now shown when doing 'dialplan show'.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
@@ -194,6 +197,8 @@ Miscellaneous
   * SMDI is now enabled in voicemail using the smdienable option.
   * Added zap show version CLI command to chan_zap.
   * Added a new CDR module, cdr_sqlite3_custom.
+  * The cdr_manager module has a [mappings] feature, like cdr_custom,
+    to add fields to the manager event from the CDR variables.
   * Added a new realtime configuration module, res_config_sqlite
   * Added a new dialplan application, Bridge, which allows you to bridge the
      calling channel to any other active channel on the system.
