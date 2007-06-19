@@ -3385,10 +3385,20 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
 */
 static void clone_variables(struct ast_channel *original, struct ast_channel *clone)
 {
+	struct ast_var_t *current, *newvar;
 	/* Append variables from clone channel into original channel */
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
 	if (AST_LIST_FIRST(&clone->varshead))
 		AST_LIST_APPEND_LIST(&original->varshead, &clone->varshead, entries);
+	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
+
+	/* then, dup the varshead list into the clone */
+	
+	AST_LIST_TRAVERSE(&original->varshead, current, entries) {
+		newvar = ast_var_assign(current->name, current->value);
+		if (newvar)
+			AST_LIST_INSERT_TAIL(&clone->varshead, newvar, entries);
+	}
 }
 
 /*!
@@ -3593,7 +3603,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	AST_LIST_HEAD_INIT_NOLOCK(&clone->datastores);
 
 	clone_variables(original, clone);
-	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */
