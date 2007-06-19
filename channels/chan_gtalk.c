@@ -690,10 +690,10 @@ static int gtalk_hangup_farend(struct gtalk *client, ikspak *pak)
 	if(!from)
 		from = client->connection->jid->full;
 
-
 	if (tmp) {
 		tmp->alreadygone = 1;
-		ast_queue_hangup(tmp->owner);
+		if (tmp->owner)
+			ast_queue_hangup(tmp->owner);
 	} else
 		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
 	gtalk_response(client, from, pak, NULL, NULL);
