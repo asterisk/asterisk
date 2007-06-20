@@ -39,7 +39,7 @@ echo
 
 
 echo Trying for a backtrace of the captured core.
-/usr/bin/gdb /usr/sbin/asterisk ${DUMPDIR}/asterisk_${DATE}.core.${PID} > /tmp/gdb_dump.${PID} 2> /dev/null << EOF
+/usr/bin/gdb /usr/sbin/asterisk ${DUMPDIR}/asterisk_${DATE}.core.${PID} > ${DUMPDIR}/gdb_dump.${PID}.txt 2> /dev/null << EOF
 set prompt \n
 echo --------------------------------------------------------------------------------\n
 echo INFO THREAD
@@ -57,7 +57,6 @@ echo Done trying for a bt.
 
 echo Notifying admins of the core.
 /usr/bin/mail -s "${HOSTNAME} core dumped at ${DUMPDIR}/asterisk_${DATE}.core.${PID}" ${ADMINEMAIL} < /tmp/gdb_dump.${PID}
-/bin/rm /tmp/gdb_dump.${PID}
 echo Done.
 echo
 echo Reproducible deadlocks should be posted with a full backtrace and instructions
