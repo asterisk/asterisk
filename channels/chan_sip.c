@@ -8456,10 +8456,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	/* Save SIP options profile */
 	peer->sipoptions = pvt->sipoptions;
 
-	if (!ast_strlen_zero(curi))	/* Overwrite the default username from config at registration */
+	if (!ast_strlen_zero(curi) && ast_strlen_zero(peer->username))
 		ast_copy_string(peer->username, curi, sizeof(peer->username));
-	else
-		peer->username[0] = '\0';
 
 	if (peer->expire > -1) {
 		ast_sched_del(sched, peer->expire);
