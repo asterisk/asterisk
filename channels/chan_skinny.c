@@ -2463,6 +2463,7 @@ static void *skinny_ss(void *data)
 			}
 		} else if (res == 0) {
 			ast_debug(1, "Not enough digits (%s) (and no ambiguous match)...\n", d->exten);
+			memset(d->exten, 0, sizeof(d->exten));
 			transmit_tone(s, SKINNY_REORDER);
 			if (sub->owner && sub->owner->_state != AST_STATE_UP) {
 				ast_indicate(c, -1);
@@ -2472,6 +2473,7 @@ static void *skinny_ss(void *data)
 		} else if (!ast_canmatch_extension(c, c->context, d->exten, 1, c->cid.cid_num) &&
 			   ((d->exten[0] != '*') || (!ast_strlen_zero(d->exten) > 2))) {
 			ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", d->exten, c->cid.cid_num ? c->cid.cid_num : "<Unknown Caller>", c->context);
+			memset(d->exten, 0, sizeof(d->exten));
 			transmit_tone(s, SKINNY_REORDER);
 			/* hang out for 3 seconds to let congestion play */
 			ast_safe_sleep(c, 3000);
@@ -2486,6 +2488,7 @@ static void *skinny_ss(void *data)
 	}
 	if (c)
 		ast_hangup(c);
+	memset(d->exten, 0, sizeof(d->exten));
 	return NULL;
 }
 
