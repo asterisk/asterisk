@@ -2797,9 +2797,30 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			app = pbx_findapp("Gosub");
 			
 			if (app) {
-				res = pbx_exec(qe->chan, app, gosubexec);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+				char *gosub_args, *gosub_argstart;
+
+				/* Set where we came from */
+				ast_copy_string(qe->chan->context, "app_dial_gosub_virtual_context", sizeof(qe->chan->context));
+				ast_copy_string(qe->chan->exten, "s", sizeof(qe->chan->exten));
+				qe->chan->priority = 0;
+
+				gosub_argstart = strchr(gosubexec, '|');
+				if (gosub_argstart) {
+					*gosub_argstart = 0;
+					asprintf(&gosub_args, "%s|s|1(%s)", gosubexec, gosub_argstart + 1);
+					*gosub_argstart = '|';
+				} else {
+					asprintf(&gosub_args, "%s|s|1", gosubexec);
+				}
+				if (gosub_args) {
+					res = pbx_exec(qe->chan, app, gosub_args);
+					ast_pbx_run(qe->chan);
+					free(gosub_args);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+				} else
+					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
+				
 				res = 0;
 			} else {
 				ast_log(LOG_ERROR, "Could not find application Gosub\n");
@@ -4696,9 +4717,19 @@ static struct ast_cli_entry cli_queue[] = {
 	qrm_cmd_usage, complete_queue_remove_member, NULL },
 };
 
+static char *kapp = "KeepAlive";
+static char *ksynopsis = "DO NOT USE";
+static char *kdescrip = "";
+
+static int keepalive_exec(struct ast_channel *chan, void *data)
+{
+	return AST_PBX_KEEPALIVE;
+}
+
 static int unload_module(void)
 {
 	int res;
+	struct ast_context *con;
 
 	if (device_state.thread != AST_PTHREADT_NULL) {
 		device_state.stop = 1;
@@ -4723,6 +4754,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_upqm);
 	res |= ast_unregister_application(app_ql);
 	res |= ast_unregister_application(app);
+	res |= ast_unregister_application(kapp);
 	res |= ast_custom_function_unregister(&queuevar_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
@@ -4730,6 +4762,10 @@ static int unload_module(void)
 
 	if (device_state_sub)
 		ast_event_unsubscribe(device_state_sub);
+
+	if ((con = ast_context_find("app_queue_gosub_virtual_context"))) {
+		ast_context_remove_extension2(con, "s", 1, NULL);
+	}
 
 	ast_module_user_hangup_all();
 
@@ -4741,9 +4777,18 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+	struct ast_context *con;
 
 	if (!reload_queues())
 		return AST_MODULE_LOAD_DECLINE;
+
+	con = ast_context_find("app_dial_queue_virtual_context");
+	if (!con)
+		con = ast_context_create(NULL, "app_queue_gosub_virtual_context", "app_dial");
+	if (!con)
+		ast_log(LOG_ERROR, "Queue virtual context 'app_queue_gosub_virtual_context' does not exist and unable to create\n");
+	else
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free, "app_queue");
 
 	if (queue_persistent_members)
 		reload_queue_members();
@@ -4759,6 +4804,7 @@ static int load_module(void)
 	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip);
 	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip);
 	res |= ast_register_application(app_ql, ql_exec, app_ql_synopsis, app_ql_descrip);
+	res |= ast_register_application(kapp, keepalive_exec, ksynopsis, kdescrip);
 	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
 	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
 	res |= ast_manager_register("QueueSummary", 0, manager_queues_summary, "Queue Summary");
@@ -4770,7 +4816,6 @@ static int load_module(void)
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuememberlist_function);
 	res |= ast_custom_function_register(&queuewaitingcount_function);
-
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
 		res = -1;
 

@@ -1637,7 +1637,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			struct ast_app *theapp;
 			const char *gosub_result;
 			char *gosub_args, *gosub_argstart;
-			ast_log(LOG_ERROR, "In OPT_CALLEE_GOSUB code!\n");
 
 			res = ast_autoservice_start(chan);
 			if (res) {
@@ -1655,7 +1654,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_copy_string(peer->exten, "s", sizeof(peer->exten));
 				peer->priority = 0;
 
-				ast_log(LOG_ERROR, "Gosub stuff is: %s\n", opt_args[OPT_ARG_CALLEE_GOSUB]);
 				gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], '|');
 				if (gosub_argstart) {
 					*gosub_argstart = 0;
@@ -1664,12 +1662,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				} else {
 					asprintf(&gosub_args, "%s|s|1", opt_args[OPT_ARG_CALLEE_GOSUB]);
 				}
-				ast_log(LOG_DEBUG, "Gosub_args is: %s\n", gosub_args);
+
 				if (gosub_args) {
-					ast_log(LOG_ERROR, "About to pbx_exec!\n");
 					res = pbx_exec(peer, theapp, gosub_args);
 					ast_pbx_run(peer);
-					ast_log(LOG_ERROR, "pbx_exec returns %d!\n", res);
 					free(gosub_args);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
