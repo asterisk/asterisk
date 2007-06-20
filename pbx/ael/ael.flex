@@ -189,6 +189,7 @@ context		{ STORE_POS; return KW_CONTEXT;}
 abstract	{ STORE_POS; return KW_ABSTRACT;}
 macro		{ STORE_POS; return KW_MACRO;};
 globals		{ STORE_POS; return KW_GLOBALS;}
+local		{ STORE_POS; return KW_LOCAL;}
 ignorepat	{ STORE_POS; return KW_IGNOREPAT;}
 switch		{ STORE_POS; return KW_SWITCH;}
 if		{ STORE_POS; return KW_IF;}

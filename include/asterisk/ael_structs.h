@@ -75,6 +75,7 @@ typedef enum {
 	PV_EXTENSION,         /* 25 */
 	PV_IGNOREPAT,         /* 26 */
 	PV_GLOBALS,           /* 27 */
+	PV_LOCALVARDEC, /* you know, local var=val; */  /* 28 */
 
 } pvaltype;
 

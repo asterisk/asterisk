@@ -264,6 +264,7 @@ The following are keywords in the AEL language:
     \item random
     \item goto
     \item jump
+    \item local
     \item return
     \item break
     \item continue
@@ -368,6 +369,7 @@ First, some basic objects
          | <eswitches>
          | <ignorepat>
          | <word> '='  <collected-word> ';'
+         | 'local' <word> '='  <collected-word> ';'
          | ';'
 
 
@@ -400,6 +402,7 @@ First, some basic objects
 
 <statement> :== '{' <statements> '}'
        | <word> '='  <collected-word> ';'
+       | 'local' <word> '='  <collected-word> ';'
        | 'goto' <target> ';'
        | 'jump' <jumptarget> ';'
        | <word> ':'
@@ -717,6 +720,49 @@ context blah {
          NoOp(My name is ${CALLERID(name)} !);
     }
 } 
+\end{verbatim}
+
+You can declare variables in Macros, as so:
+
+\begin{verbatim}
+Macro myroutine(firstarg, secondarg)
+{
+	Myvar=1;
+	NoOp(Myvar is set to ${myvar});
+}
+\end{verbatim}
+
+\subsection{Local Variables}
+
+In 1.2, and 1.4, ALL VARIABLES are CHANNEL variables, including the function
+arguments and associated ARG1, ARG2, etc variables. Sorry.
+
+In trunk (1.6 and higher), we have made all arguments local variables to
+a macro call. They will not affect channel variables of the same name.
+This includes the ARG1, ARG2, etc variables. 
+
+Users can declare their own local variables by using the keyword 'local'
+before setting them to a value;
+
+\begin{verbatim}
+Macro myroutine(firstarg, secondarg)
+{
+	local Myvar=1;
+	NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
+}
+\end{verbatim}
+
+In the above example, Myvar, firstarg, and secondarg are all local variables,
+and will not be visible to the calling code, be it an extension, or another Macro. 
+
+If you need to make a local variable within the Set() application, you can do it this way:
+
+\begin{verbatim}
+Macro myroutine(firstarg, secondarg)
+{
+	Set(LOCAL(Myvar)=1);
+	NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
+}
 \end{verbatim}
 
 

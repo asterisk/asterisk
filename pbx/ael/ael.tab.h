@@ -67,7 +67,8 @@
      KW_SWITCHES = 293,
      KW_ESWITCHES = 294,
      KW_INCLUDES = 295,
-     word = 296
+     KW_LOCAL = 296,
+     word = 297
    };
 #endif
 /* Tokens.  */
@@ -109,7 +110,8 @@
 #define KW_SWITCHES 293
 #define KW_ESWITCHES 294
 #define KW_INCLUDES 295
-#define word 296
+#define KW_LOCAL 296
+#define word 297
 
 
 
@@ -123,7 +125,7 @@ typedef union YYSTYPE
 	struct pval *pval;	/* full objects */
 }
 /* Line 1536 of yacc.c.  */
-#line 127 "ael.tab.h"
+#line 129 "ael.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

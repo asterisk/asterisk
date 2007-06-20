@@ -83,7 +83,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %token KW_MACRO KW_GLOBALS KW_IGNOREPAT KW_SWITCH KW_IF KW_IFTIME KW_ELSE KW_RANDOM KW_ABSTRACT
 %token EXTENMARK KW_GOTO KW_JUMP KW_RETURN KW_BREAK KW_CONTINUE KW_REGEXTEN KW_HINT
 %token KW_FOR KW_WHILE KW_CASE KW_PATTERN KW_DEFAULT KW_CATCH KW_SWITCHES KW_ESWITCHES
-%token KW_INCLUDES
+%token KW_INCLUDES KW_LOCAL
 
 %right BAR COMMA
 
@@ -114,6 +114,7 @@ static pval *update_last(pval *, YYLTYPE *);
 %type <pval>elements
 %type <pval>arglist
 %type <pval>assignment
+%type <pval>local_assignment
 %type <pval>global_statements
 %type <pval>globals
 %type <pval>macro
@@ -169,7 +170,7 @@ static pval *update_last(pval *, YYLTYPE *);
 		eval_arglist application_call application_call_head
 		macro_call target jumptarget statement switch_statement
 		if_like_head statements extension
-		ignorepat element elements arglist assignment
+		ignorepat element elements arglist assignment local_assignment
 		global_statements globals macro context object objects
 		opt_else
 		timespec included_entry
@@ -242,6 +243,12 @@ assignment : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
 		$$->u2.val = $4; }
 	;
 
+local_assignment : KW_LOCAL word EQ { reset_semicount(parseio->scanner); }  word SEMI {
+		$$ = npval2(PV_LOCALVARDEC, &@1, &@6);
+		$$->u1.str = $2;
+		$$->u2.val = $5; }
+	;
+
 /* XXX this matches missing arguments, is this desired ? */
 arglist : /* empty */ { $$ = NULL; }
 	| word { $$ = nword($1, &@1); }
@@ -260,6 +267,7 @@ element : extension {$$=$1;}
 	| eswitches {$$=$1;}
 	| ignorepat {$$=$1;}
 	| assignment {$$=$1;}
+    | local_assignment {$$=$1;}
 	| word error {free($1); $$=0;}
 	| SEMI  {$$=0;/* allow older docs to be read */}
 	;
@@ -396,6 +404,7 @@ statement : LC statements RC {
 		$$ = npval2(PV_STATEMENTBLOCK, &@1, &@3);
 		$$->u1.list = $2; set_dads($$,$2);}
 	| assignment { $$ = $1; }
+	| local_assignment { $$ = $1; }
 	| KW_GOTO target SEMI {
 		$$ = npval2(PV_GOTO, &@1, &@3);
 		$$->u1.list = $2;}

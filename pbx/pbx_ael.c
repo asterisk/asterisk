@@ -315,6 +315,10 @@ static void print_pval(FILE *fin, pval *item, int depth)
 		fprintf(fin,"%s=%s;\n", item->u1.str, item->u2.val);
 		break;
 			
+	case PV_LOCALVARDEC:
+		fprintf(fin,"local %s=%s;\n", item->u1.str, item->u2.val);
+		break;
+			
 	case PV_GOTO:
 		fprintf(fin,"goto %s", item->u1.list->u1.str);
 		if ( item->u1.list->next )
@@ -565,6 +569,7 @@ void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy f
 		break;
 			
 	case PV_VARDEC:
+	case PV_LOCALVARDEC:
 		/* fields: item->u1.str     == variable name
 		           item->u2.val     == variable value to assign
 		*/
@@ -2627,6 +2632,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		break;
 			
 	case PV_VARDEC:
+	case PV_LOCALVARDEC:
 		/* fields: item->u1.str     == variable name
 		           item->u2.val     == variable value to assign
 		*/
@@ -3057,6 +3063,17 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			pr = new_prio();
 			pr->type = AEL_APPCALL;
 			snprintf(buf1,sizeof(buf1),"%s=$[%s]", p->u1.str, p->u2.val);
+			pr->app = strdup("Set");
+			remove_spaces_before_equals(buf1);
+			pr->appargs = strdup(buf1);
+			pr->origin = p;
+			linkprio(exten, pr);
+			break;
+
+		case PV_LOCALVARDEC:
+			pr = new_prio();
+			pr->type = AEL_APPCALL;
+			snprintf(buf1,sizeof(buf1),"LOCAL(%s)=$[%s]", p->u1.str, p->u2.val);
 			pr->app = strdup("Set");
 			remove_spaces_before_equals(buf1);
 			pr->appargs = strdup(buf1);
@@ -4335,6 +4352,7 @@ void destroy_pval_item(pval *item)
 		break;
 			
 	case PV_VARDEC:
+	case PV_LOCALVARDEC:
 		/* fields: item->u1.str     == variable name
 		           item->u2.val     == variable value to assign
 		*/

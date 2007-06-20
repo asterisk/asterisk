@@ -162,7 +162,14 @@ Miscellaneous
      recursive call depths of 100,000 without problems.
      -- in addition to this, all apps that allowed a macro
      to be called, as in Dial, queues, etc, are now allowing
-     a gosub call in similar fashion also.
+     a gosub call in similar fashion.
+  * AEL now generates LOCAL(argname) declarations when it
+    Set()'s the each arg name to the value of ${ARG1}, ${ARG2),
+    etc. That makes the arguments local in scope. The user
+    can define their own local variables in macros, now,
+    by saying "local myvar=someval;"  or using Set() in this
+    fashion:  Set(LOCAL(myvar)=someval);  ("local" is now
+    an AEL keyword).
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
