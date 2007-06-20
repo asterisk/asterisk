@@ -72,6 +72,7 @@ static const char *pop_descrip =
 
 
 static void gosub_free(void *data);
+static int local_write(struct ast_channel *chan, const char *cmd, char *var, const char *value);
 
 static struct ast_datastore_info stack_info = {
 	.type = "GOSUB",
@@ -108,8 +109,11 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 	}
 
 	/* Delete local variables */
-	while ((vardata = AST_LIST_REMOVE_HEAD(&frame->varshead, entries)))
+	while ((vardata = AST_LIST_REMOVE_HEAD(&frame->varshead, entries))) {
+		if (chan)
+			pbx_builtin_setvar_helper(chan, ast_var_name(vardata), NULL);	
 		ast_var_delete(vardata);
+	}
 
 	ast_free(frame);
 }
@@ -264,7 +268,7 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	/* Now that we know for certain that we're going to a new location, set our arguments */
 	for (i = 0; i < args2.argc; i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
-		pbx_builtin_pushvar_helper(chan, argname, args2.argval[i]);
+		local_write(chan, "LOCAL", argname, args2.argval[i]);
 		ast_debug(1, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
 	}
 
@@ -336,7 +340,8 @@ static int local_read(struct ast_channel *chan, const char *cmd, char *data, cha
 	frame = AST_LIST_FIRST(oldlist);
 	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
 		if (!strcmp(data, ast_var_name(variables))) {
-			ast_copy_string(buf, ast_var_value(variables), len);
+			const char *tmp = pbx_builtin_getvar_helper(chan, data);
+			ast_copy_string(buf, S_OR(tmp, ""), len);
 			break;
 		}
 	}
@@ -350,6 +355,7 @@ static int local_write(struct ast_channel *chan, const char *cmd, char *var, con
 	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
 	struct gosub_stack_frame *frame;
 	struct ast_var_t *variables;
+	int found = 0;
 
 	if (!stack_store) {
 		ast_log(LOG_ERROR, "Tried to set LOCAL(%s), but we aren't within a Gosub routine\n", var);
@@ -359,24 +365,23 @@ static int local_write(struct ast_channel *chan, const char *cmd, char *var, con
 	oldlist = stack_store->data;
 	AST_LIST_LOCK(oldlist);
 	frame = AST_LIST_FIRST(oldlist);
+
+	/* Does this variable already exist? */
 	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
 		if (!strcmp(var, ast_var_name(variables))) {
-			AST_LIST_REMOVE(&frame->varshead, variables, entries);
-			ast_var_delete(variables);
+			found = 1;
 			break;
 		}
 	}
 
-	if (ast_strlen_zero(value)) {
-		manager_event(EVENT_FLAG_CALL, "VarSet",
-			"Channel: %s\r\n"
-			"Variable: LOCAL(%s)\r\n"
-			"Value:\r\n"
-			"Uniqueid: %s\r\n",
-			chan->name, var, chan->uniqueid);
-	} else {
-		variables = ast_var_assign(var, value);
-		AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
+	if (!ast_strlen_zero(value)) {
+		if (!found) {
+			variables = ast_var_assign(var, "");
+			AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
+			pbx_builtin_pushvar_helper(chan, var, value);
+		} else
+			pbx_builtin_setvar_helper(chan, var, value);
+
 		manager_event(EVENT_FLAG_CALL, "VarSet", 
 			"Channel: %s\r\n"
 			"Variable: LOCAL(%s)\r\n"
