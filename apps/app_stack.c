@@ -42,8 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/config.h"
 #include "asterisk/app.h"
-
-#define STACKVAR	"~GOSUB~STACK~"
+#include "asterisk/manager.h"
 
 static const char *app_gosub = "Gosub";
 static const char *app_gosubif = "GosubIf";
@@ -83,6 +82,7 @@ struct gosub_stack_frame {
 	AST_LIST_ENTRY(gosub_stack_frame) entries;
 	/* 100 arguments is all that we support anyway, but this will handle up to 255 */
 	unsigned char arguments;
+	struct varshead varshead;
 	int priority;
 	char *context;
 	char extension[0];
@@ -92,6 +92,7 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 {
 	unsigned char i;
 	char argname[15];
+	struct ast_var_t *vardata;
 
 	/* If chan is not defined, then we're calling it as part of gosub_free,
 	 * and the channel variables will be deallocated anyway.  Otherwise, we're
@@ -105,6 +106,11 @@ static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_fra
 			pbx_builtin_setvar_helper(chan, argname, NULL);
 		}
 	}
+
+	/* Delete local variables */
+	while ((vardata = AST_LIST_REMOVE_HEAD(&frame->varshead, entries)))
+		ast_var_delete(vardata);
+
 	ast_free(frame);
 }
 
@@ -114,6 +120,7 @@ static struct gosub_stack_frame *gosub_allocate_frame(const char *context, const
 	int len_extension = strlen(extension), len_context = strlen(context);
 
 	if ((new = ast_calloc(1, sizeof(*new) + 2 + len_extension + len_context))) {
+		AST_LIST_HEAD_INIT_NOLOCK(&new->varshead);
 		strcpy(new->extension, extension);
 		new->context = new->extension + len_extension + 1;
 		strcpy(new->context, context);
@@ -314,12 +321,90 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int local_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+	struct gosub_stack_frame *frame;
+	struct ast_var_t *variables;
+
+	if (!stack_store)
+		return -1;
+
+	oldlist = stack_store->data;
+	AST_LIST_LOCK(oldlist);
+	frame = AST_LIST_FIRST(oldlist);
+	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
+		if (!strcmp(data, ast_var_name(variables))) {
+			ast_copy_string(buf, ast_var_value(variables), len);
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(oldlist);
+	return 0;
+}
+
+static int local_write(struct ast_channel *chan, const char *cmd, char *var, const char *value)
+{
+	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
+	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
+	struct gosub_stack_frame *frame;
+	struct ast_var_t *variables;
+
+	if (!stack_store) {
+		ast_log(LOG_ERROR, "Tried to set LOCAL(%s), but we aren't within a Gosub routine\n", var);
+		return -1;
+	}
+
+	oldlist = stack_store->data;
+	AST_LIST_LOCK(oldlist);
+	frame = AST_LIST_FIRST(oldlist);
+	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
+		if (!strcmp(var, ast_var_name(variables))) {
+			AST_LIST_REMOVE(&frame->varshead, variables, entries);
+			ast_var_delete(variables);
+			break;
+		}
+	}
+
+	if (ast_strlen_zero(value)) {
+		manager_event(EVENT_FLAG_CALL, "VarSet",
+			"Channel: %s\r\n"
+			"Variable: LOCAL(%s)\r\n"
+			"Value:\r\n"
+			"Uniqueid: %s\r\n",
+			chan->name, var, chan->uniqueid);
+	} else {
+		variables = ast_var_assign(var, value);
+		AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
+		manager_event(EVENT_FLAG_CALL, "VarSet", 
+			"Channel: %s\r\n"
+			"Variable: LOCAL(%s)\r\n"
+			"Value: %s\r\n"
+			"Uniqueid: %s\r\n", 
+			chan->name, var, value, chan->uniqueid);
+	}
+
+	AST_LIST_UNLOCK(oldlist);
+
+	return 0;
+}
+
+static struct ast_custom_function local_function = {
+	.name = "LOCAL",
+	.synopsis = "Variables local to the gosub stack frame",
+	.syntax = "LOCAL(<varname>)",
+	.write = local_write,
+	.read = local_read,
+};
+
 static int unload_module(void)
 {
 	ast_unregister_application(app_return);
 	ast_unregister_application(app_pop);
 	ast_unregister_application(app_gosubif);
 	ast_unregister_application(app_gosub);
+	ast_custom_function_unregister(&local_function);
 
 	ast_module_user_hangup_all();
 
@@ -332,6 +417,7 @@ static int load_module(void)
 	ast_register_application(app_return, return_exec, return_synopsis, return_descrip);
 	ast_register_application(app_gosubif, gosubif_exec, gosubif_synopsis, gosubif_descrip);
 	ast_register_application(app_gosub, gosub_exec, gosub_synopsis, gosub_descrip);
+	ast_custom_function_register(&local_function);
 
 	return 0;
 }
