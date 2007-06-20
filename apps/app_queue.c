@@ -4808,7 +4808,7 @@ static int load_module(void)
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
 		res = -1;
 
-	return res;
+	return res ? AST_MODULE_LOAD_DECLINE : 0;
 }
 
 static int reload(void)

@@ -2940,15 +2940,16 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 {
 	struct ast_app *tmp, *cur = NULL;
 	char tmps[80];
-	int length;
+	int length, res;
 
 	AST_RWLIST_WRLOCK(&apps);
 	AST_RWLIST_TRAVERSE(&apps, tmp, list) {
-		if (!strcasecmp(app, tmp->name)) {
+		if (!(res = strcasecmp(app, tmp->name))) {
 			ast_log(LOG_WARNING, "Already have an application '%s'\n", app);
 			AST_RWLIST_UNLOCK(&apps);
 			return -1;
-		}
+		} else if (res < 0)
+			break;
 	}
 
 	length = sizeof(*tmp) + strlen(app) + 1;
