@@ -313,7 +313,7 @@ static int reload(void)
 	ast_mutex_lock(&pgsql_lock);
 	my_unload_module();
 	res = my_load_module();
-	ast_mutex_lock(&pgsql_lock);
+	ast_mutex_unlock(&pgsql_lock);
 	return res;
 }
 
