@@ -4717,15 +4717,6 @@ static struct ast_cli_entry cli_queue[] = {
 	qrm_cmd_usage, complete_queue_remove_member, NULL },
 };
 
-static char *kapp = "KeepAlive";
-static char *ksynopsis = "DO NOT USE";
-static char *kdescrip = "";
-
-static int keepalive_exec(struct ast_channel *chan, void *data)
-{
-	return AST_PBX_KEEPALIVE;
-}
-
 static int unload_module(void)
 {
 	int res;
@@ -4754,7 +4745,6 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_upqm);
 	res |= ast_unregister_application(app_ql);
 	res |= ast_unregister_application(app);
-	res |= ast_unregister_application(kapp);
 	res |= ast_custom_function_unregister(&queuevar_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
@@ -4782,9 +4772,9 @@ static int load_module(void)
 	if (!reload_queues())
 		return AST_MODULE_LOAD_DECLINE;
 
-	con = ast_context_find("app_dial_queue_virtual_context");
+	con = ast_context_find("app_queue_gosub_virtual_context");
 	if (!con)
-		con = ast_context_create(NULL, "app_queue_gosub_virtual_context", "app_dial");
+		con = ast_context_create(NULL, "app_queue_gosub_virtual_context", "app_queue");
 	if (!con)
 		ast_log(LOG_ERROR, "Queue virtual context 'app_queue_gosub_virtual_context' does not exist and unable to create\n");
 	else
@@ -4804,7 +4794,6 @@ static int load_module(void)
 	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip);
 	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip);
 	res |= ast_register_application(app_ql, ql_exec, app_ql_synopsis, app_ql_descrip);
-	res |= ast_register_application(kapp, keepalive_exec, ksynopsis, kdescrip);
 	res |= ast_manager_register("Queues", 0, manager_queues_show, "Queues");
 	res |= ast_manager_register("QueueStatus", 0, manager_queues_status, "Queue Status");
 	res |= ast_manager_register("QueueSummary", 0, manager_queues_summary, "Queue Summary");

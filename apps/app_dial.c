@@ -224,10 +224,6 @@ static char *rdescrip =
 "  The 'dialargs' are specified in the same format that arguments are provided\n"
 "to the Dial application.\n";
 
-static char *kapp = "KeepAlive";
-static char *ksynopsis = "DO NOT USE";
-static char *kdescrip = "";
-
 enum {
 	OPT_ANNOUNCE =		(1 << 0),
 	OPT_RESETCDR =		(1 << 1),
@@ -1934,11 +1930,6 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int keepalive_exec(struct ast_channel *chan, void *data)
-{
-	return AST_PBX_KEEPALIVE;
-}
-
 static int unload_module(void)
 {
 	int res;
@@ -1946,7 +1937,6 @@ static int unload_module(void)
 
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(rapp);
-	res |= ast_unregister_application(kapp);
 
 	ast_module_user_hangup_all();
 
@@ -1972,7 +1962,6 @@ static int load_module(void)
 
 	res = ast_register_application(app, dial_exec, synopsis, descrip);
 	res |= ast_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);
-	res |= ast_register_application(kapp, keepalive_exec, ksynopsis, kdescrip);
 	
 	return res;
 }
