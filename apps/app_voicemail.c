@@ -9251,7 +9251,6 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
 {
 
-	ast_debug (0, "I've been called with interactive = %d\n", interactive);
 	struct vmstate *vlist = NULL;
 
 	AST_LIST_LOCK(&vmstates);
