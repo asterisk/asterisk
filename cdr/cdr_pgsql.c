@@ -309,8 +309,12 @@ static int unload_module(void)
 
 static int reload(void)
 {
+	int res;
+	ast_mutex_lock(&pgsql_lock);
 	my_unload_module();
-	return my_load_module();
+	res = my_load_module();
+	ast_mutex_lock(&pgsql_lock);
+	return res;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "PostgreSQL CDR Backend",
