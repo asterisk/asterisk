@@ -6144,10 +6144,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		memcpy(&p->addr, &pvt->recv, sizeof(p->addr));
 	}
 
-	if (c)	/* Overwrite the default username from config at registration */
+	if (c && ast_strlen_zero(p->username))
 		ast_copy_string(p->username, c, sizeof(p->username));
-	else
-		p->username[0] = '\0';
 
 	if (p->expire > -1) {
 		ast_sched_del(sched, p->expire);
