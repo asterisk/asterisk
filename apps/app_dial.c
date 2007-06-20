@@ -194,9 +194,7 @@ static char *descrip =
 "           GOSUB_RESULT to specify the following actions after the Gosub returns.\n" 
 "           * ABORT        Hangup both legs of the call.\n"
 "           * CONGESTION   Behave as if line congestion was encountered.\n"
-"           * BUSY         Behave as if a busy signal was encountered. This will also\n"
-"                          have the application jump to priority n+101 if the\n"
-"                          'j' option is set.\n"
+"           * BUSY         Behave as if a busy signal was encountered.\n"
 "           * CONTINUE     Hangup the called party and allow the calling party\n"
 "                          to continue dialplan execution at the next priority.\n"
 "           * GOTO:<context>^<exten>^<priority> - Transfer the call to the\n"
@@ -225,6 +223,10 @@ static char *rdescrip =
 "one, The call will jump to that extension immediately.\n"
 "  The 'dialargs' are specified in the same format that arguments are provided\n"
 "to the Dial application.\n";
+
+static char *kapp = "KeepAlive";
+static char *ksynopsis = "DO NOT USE";
+static char *kdescrip = "";
 
 enum {
 	OPT_ANNOUNCE =		(1 << 0),
@@ -1634,6 +1636,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (ast_test_flag(&opts, OPT_CALLEE_GOSUB) && !ast_strlen_zero(opt_args[OPT_ARG_CALLEE_GOSUB])) {
 			struct ast_app *theapp;
 			const char *gosub_result;
+			char *gosub_args, *gosub_argstart;
+			ast_log(LOG_ERROR, "In OPT_CALLEE_GOSUB code!\n");
 
 			res = ast_autoservice_start(chan);
 			if (res) {
@@ -1645,9 +1649,33 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 			if (theapp && !res) {	/* XXX why check res here ? */
 				replace_macro_delimiter(opt_args[OPT_ARG_CALLEE_GOSUB]);
-				res = pbx_exec(peer, theapp, opt_args[OPT_ARG_CALLEE_GOSUB]);
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+
+				/* Set where we came from */
+				ast_copy_string(peer->context, "app_dial_gosub_virtual_context", sizeof(peer->context));
+				ast_copy_string(peer->exten, "s", sizeof(peer->exten));
+				peer->priority = 0;
+
+				ast_log(LOG_ERROR, "Gosub stuff is: %s\n", opt_args[OPT_ARG_CALLEE_GOSUB]);
+				gosub_argstart = strchr(opt_args[OPT_ARG_CALLEE_GOSUB], '|');
+				if (gosub_argstart) {
+					*gosub_argstart = 0;
+					asprintf(&gosub_args, "%s|s|1(%s)", opt_args[OPT_ARG_CALLEE_GOSUB], gosub_argstart + 1);
+					*gosub_argstart = '|';
+				} else {
+					asprintf(&gosub_args, "%s|s|1", opt_args[OPT_ARG_CALLEE_GOSUB]);
+				}
+				ast_log(LOG_DEBUG, "Gosub_args is: %s\n", gosub_args);
+				if (gosub_args) {
+					ast_log(LOG_ERROR, "About to pbx_exec!\n");
+					res = pbx_exec(peer, theapp, gosub_args);
+					ast_pbx_run(peer);
+					ast_log(LOG_ERROR, "pbx_exec returns %d!\n", res);
+					free(gosub_args);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Gosub exited with status %d\n", res);
+				} else
+					ast_log(LOG_ERROR, "Could not Allocate string for Gosub arguments -- Gosub Call Aborted!\n");
+				
 				res = 0;
 			} else {
 				ast_log(LOG_ERROR, "Could not find application Gosub\n");
@@ -1910,24 +1938,45 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int keepalive_exec(struct ast_channel *chan, void *data)
+{
+	return AST_PBX_KEEPALIVE;
+}
+
 static int unload_module(void)
 {
 	int res;
+	struct ast_context *con;
 
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(rapp);
+	res |= ast_unregister_application(kapp);
 
 	ast_module_user_hangup_all();
-	
+
+	if ((con = ast_context_find("app_dial_gosub_virtual_context"))) {
+		ast_context_remove_extension2(con, "s", 1, NULL);
+	}
+
 	return res;
 }
 
 static int load_module(void)
 {
 	int res;
+	struct ast_context *con;
+
+	con = ast_context_find("app_dial_gosub_virtual_context");
+	if (!con)
+		con = ast_context_create(NULL, "app_dial_gosub_virtual_context", "app_dial");
+	if (!con)
+		ast_log(LOG_ERROR, "Dial virtual context 'app_dial_gosub_virtual_context' does not exist and unable to create\n");
+	else
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free, "app_dial");
 
 	res = ast_register_application(app, dial_exec, synopsis, descrip);
 	res |= ast_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);
+	res |= ast_register_application(kapp, keepalive_exec, ksynopsis, kdescrip);
 	
 	return res;
 }

@@ -3886,7 +3886,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 				struct ael_priority *np2 = new_prio();
 				np2->type = AEL_APPCALL;
 				np2->app = strdup("Set");
-				snprintf(buf,sizeof(buf),"%s=${ARG%d}", lp->u1.str, argc++);
+				snprintf(buf,sizeof(buf),"LOCAL(%s)=${ARG%d}", lp->u1.str, argc++);
 				remove_spaces_before_equals(buf);
 				np2->appargs = strdup(buf);
 				linkprio(exten, np2);
