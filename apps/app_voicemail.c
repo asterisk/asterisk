@@ -147,7 +147,7 @@ static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int target);
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms);
-
+static void update_messages_by_imapuser(const char *user, unsigned long number);
 
 
 struct vmstate {
@@ -8770,22 +8770,34 @@ static void write_file(char *filename, char *buffer, unsigned long len)
 	fclose (output);
 }
 
+static void update_messages_by_imapuser(const char *user, unsigned long number)
+{
+	struct vmstate *vlist = NULL;
+
+	AST_LIST_LOCK(&vmstates);
+	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
+		if (!vlist->vms) {
+			ast_debug(3, "error: vms is NULL for %s\n", user);
+			continue;
+		}
+		if (!vlist->vms->imapuser) {
+			ast_debug(3, "error: imapuser is NULL for %s\n", user);
+			continue;
+		}
+		ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vlist->vms->vmArrayIndex, vlist->vms->interactive);
+		vlist->vms->msgArray[vlist->vms->vmArrayIndex++] = number;
+	}
+	AST_LIST_UNLOCK(&vmstates);
+}
+
 void mm_searched(MAILSTREAM *stream, unsigned long number)
 {
-	struct vm_state *vms;
 	char *mailbox = stream->mailbox, buf[1024] = "", *user;
 
 	if (!(user = get_user_by_mailbox(mailbox, buf, sizeof(buf))))
 		return;
 
-	if (!(vms = get_vm_state_by_imapuser(user, 2))) {
-		ast_log(LOG_ERROR, "No state found.\n");
-		return;
-	}
-	
-	ast_debug(3, "saving mailbox message number %lu as message %d. Interactive set to %d\n", number, vms->vmArrayIndex, vms->interactive);
-
-	vms->msgArray[vms->vmArrayIndex++] = number;
+	update_messages_by_imapuser(user, number);
 }
 
 
@@ -9213,6 +9225,7 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 {
 	struct vmstate *vlist = NULL;
 
+	AST_LIST_LOCK(&vmstates);
 	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
 		if (!vlist->vms) {
 			ast_debug(3, "error: vms is NULL for %s\n", user);
@@ -9223,11 +9236,12 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 			continue;
 		}
 
-		if (interactive == 2)
+		if (interactive == 2 || vlist->vms->interactive == interactive) {
+			AST_LIST_UNLOCK(&vmstates);
 			return vlist->vms;
-		else if (vlist->vms->interactive == interactive)
-			return vlist->vms;
+		}
 	}
+	AST_LIST_UNLOCK(&vmstates);
 
 	ast_debug(3, "%s not found in vmstates\n", user);
 
@@ -9235,9 +9249,12 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 }
 
 static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interactive)
-{ 
+{
+
+	ast_debug (0, "I've been called with interactive = %d\n", interactive);
 	struct vmstate *vlist = NULL;
 
+	AST_LIST_LOCK(&vmstates);
 	AST_LIST_TRAVERSE(&vmstates, vlist, list) {
 		if (!vlist->vms) {
 			ast_debug(3, "error: vms is NULL for %s\n", mailbox);
@@ -9252,9 +9269,11 @@ static struct vm_state *get_vm_state_by_mailbox(const char *mailbox, int interac
 		
 		if (!strcmp(vlist->vms->username,mailbox) && vlist->vms->interactive == interactive) {
 			ast_debug(3, "Found it!\n");
+			AST_LIST_UNLOCK(&vmstates);
 			return vlist->vms;
 		}
 	}
+	AST_LIST_UNLOCK(&vmstates);
 
 	ast_debug(3, "%s not found in vmstates\n", mailbox);
 
@@ -9271,7 +9290,7 @@ static void vmstate_insert(struct vm_state *vms)
 	   We can compare the username to find the duplicate */
 	if (vms->interactive == 1) {
 		altvms = get_vm_state_by_mailbox(vms->username,0);
-		if (altvms) {
+		if (altvms) {	
 			ast_debug(3, "Duplicate mailbox %s, copying message info...\n",vms->username);
 			vms->newmessages = altvms->newmessages;
 			vms->oldmessages = altvms->oldmessages;
