@@ -10085,25 +10085,29 @@ static void *pri_dchannel(void *vpri)
 							else if (pri->pvts[chanpos]->owner) {
 								/* Queue a BUSY instead of a hangup if our cause is appropriate */
 								pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
-								switch(e->hangup.cause) {
-								case PRI_CAUSE_USER_BUSY:
-									pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
-									break;
-								case PRI_CAUSE_CALL_REJECTED:
-								case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
-								case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
-								case PRI_CAUSE_SWITCH_CONGESTION:
-								case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
-								case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
-									pri->pvts[chanpos]->subs[SUB_REAL].needcongestion =1;
-									break;
-								default:
+								if (pri->pvts[chanpos]->owner->_state == AST_STATE_UP)
 									pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								else {
+									switch (e->hangup.cause) {
+									case PRI_CAUSE_USER_BUSY:
+										pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
+										break;
+									case PRI_CAUSE_CALL_REJECTED:
+									case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
+									case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+									case PRI_CAUSE_SWITCH_CONGESTION:
+									case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
+									case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
+										pri->pvts[chanpos]->subs[SUB_REAL].needcongestion =1;
+										break;
+									default:
+										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									}
 								}
 							}
 							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup\n", 
-									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup, cause %d\n", 
+									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, e->hangup.cause);
 						} else {
 							pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
 							pri->pvts[chanpos]->call = NULL;
@@ -10149,23 +10153,27 @@ static void *pri_dchannel(void *vpri)
 							pri_hangup_all(pri->pvts[chanpos]->realcall, pri);
 						else if (pri->pvts[chanpos]->owner) {
 							pri->pvts[chanpos]->owner->hangupcause = e->hangup.cause;
-							switch(e->hangup.cause) {
-							case PRI_CAUSE_USER_BUSY:
-								pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
-								break;
-							case PRI_CAUSE_CALL_REJECTED:
-							case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
-							case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
-							case PRI_CAUSE_SWITCH_CONGESTION:
-							case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
-							case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
-								pri->pvts[chanpos]->subs[SUB_REAL].needcongestion =1;
-								break;
-							default:
+							if (pri->pvts[chanpos]->owner->_state == AST_STATE_UP)
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							else {
+								switch (e->hangup.cause) {
+									case PRI_CAUSE_USER_BUSY:
+										pri->pvts[chanpos]->subs[SUB_REAL].needbusy =1;
+										break;
+									case PRI_CAUSE_CALL_REJECTED:
+									case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
+									case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+									case PRI_CAUSE_SWITCH_CONGESTION:
+									case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
+									case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
+										pri->pvts[chanpos]->subs[SUB_REAL].needcongestion =1;
+										break;
+									default:
+										pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+								}
 							}
 							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup request\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup request, cause %d\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span, e->hangup.cause);
 							if (e->hangup.aoc_units > -1)
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
