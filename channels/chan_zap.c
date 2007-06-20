@@ -10963,6 +10963,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Propagated Conference: %d\n", tmp->propconfno);
 			ast_cli(fd, "Real in conference: %d\n", tmp->inconference);
 			ast_cli(fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
+			ast_cli(fd, "TDD: %s\n", tmp->tdd ? "yes" : "no");
 			ast_cli(fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
 			ast_cli(fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
 			ast_cli(fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
