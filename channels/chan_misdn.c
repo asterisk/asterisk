@@ -3149,6 +3149,8 @@ static struct chan_list *find_chan_by_pid(struct chan_list *list, int pid)
 static struct chan_list *find_holded(struct chan_list *list, struct misdn_bchannel *bc)
 {
 	struct chan_list *help=list;
+
+	if (bc->pri) return NULL;
 	
 	chan_misdn_log(6, bc->port, "$$$ find_holded: channel:%d oad:%s dad:%s\n",bc->channel, bc->oad,bc->dad);
 	for (;help; help=help->next) {
