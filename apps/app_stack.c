@@ -72,7 +72,6 @@ static const char *pop_descrip =
 
 
 static void gosub_free(void *data);
-static int local_write(struct ast_channel *chan, const char *cmd, char *var, const char *value);
 
 static struct ast_datastore_info stack_info = {
 	.type = "GOSUB",
@@ -88,6 +87,37 @@ struct gosub_stack_frame {
 	char *context;
 	char extension[0];
 };
+
+static int frame_set_var(struct ast_channel *chan, struct gosub_stack_frame *frame, const char *var, const char *value)
+{
+	struct ast_var_t *variables;
+	int found = 0;
+
+	/* Does this variable already exist? */
+	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
+		if (!strcmp(var, ast_var_name(variables))) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!ast_strlen_zero(value)) {
+		if (!found) {
+			variables = ast_var_assign(var, "");
+			AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
+			pbx_builtin_pushvar_helper(chan, var, value);
+		} else
+			pbx_builtin_setvar_helper(chan, var, value);
+
+		manager_event(EVENT_FLAG_CALL, "VarSet", 
+			"Channel: %s\r\n"
+			"Variable: LOCAL(%s)\r\n"
+			"Value: %s\r\n"
+			"Uniqueid: %s\r\n", 
+			chan->name, var, value, chan->uniqueid);
+	}
+	return 0;
+}
 
 static void gosub_release_frame(struct ast_channel *chan, struct gosub_stack_frame *frame)
 {
@@ -258,6 +288,9 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	/* Create the return address, but don't save it until we know that the Gosub destination exists */
 	newframe = gosub_allocate_frame(chan->context, chan->exten, chan->priority + 1, args2.argc);
 
+	if (!newframe)
+		return -1;
+
 	if (ast_parseable_goto(chan, label)) {
 		ast_log(LOG_ERROR, "Gosub address is invalid: '%s'\n", (char *)data);
 		ast_free(newframe);
@@ -268,7 +301,7 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	/* Now that we know for certain that we're going to a new location, set our arguments */
 	for (i = 0; i < args2.argc; i++) {
 		snprintf(argname, sizeof(argname), "ARG%d", i + 1);
-		local_write(chan, "LOCAL", argname, args2.argval[i]);
+		frame_set_var(chan, newframe, argname, args2.argval[i]);
 		ast_debug(1, "Setting '%s' to '%s'\n", argname, args2.argval[i]);
 	}
 
@@ -354,8 +387,6 @@ static int local_write(struct ast_channel *chan, const char *cmd, char *var, con
 	struct ast_datastore *stack_store = ast_channel_datastore_find(chan, &stack_info, NULL);
 	AST_LIST_HEAD(, gosub_stack_frame) *oldlist;
 	struct gosub_stack_frame *frame;
-	struct ast_var_t *variables;
-	int found = 0;
 
 	if (!stack_store) {
 		ast_log(LOG_ERROR, "Tried to set LOCAL(%s), but we aren't within a Gosub routine\n", var);
@@ -366,29 +397,8 @@ static int local_write(struct ast_channel *chan, const char *cmd, char *var, con
 	AST_LIST_LOCK(oldlist);
 	frame = AST_LIST_FIRST(oldlist);
 
-	/* Does this variable already exist? */
-	AST_LIST_TRAVERSE(&frame->varshead, variables, entries) {
-		if (!strcmp(var, ast_var_name(variables))) {
-			found = 1;
-			break;
-		}
-	}
-
-	if (!ast_strlen_zero(value)) {
-		if (!found) {
-			variables = ast_var_assign(var, "");
-			AST_LIST_INSERT_HEAD(&frame->varshead, variables, entries);
-			pbx_builtin_pushvar_helper(chan, var, value);
-		} else
-			pbx_builtin_setvar_helper(chan, var, value);
-
-		manager_event(EVENT_FLAG_CALL, "VarSet", 
-			"Channel: %s\r\n"
-			"Variable: LOCAL(%s)\r\n"
-			"Value: %s\r\n"
-			"Uniqueid: %s\r\n", 
-			chan->name, var, value, chan->uniqueid);
-	}
+	if (frame)
+		frame_set_var(chan, frame, var, value);
 
 	AST_LIST_UNLOCK(oldlist);
 
