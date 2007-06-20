@@ -413,12 +413,19 @@ void dump_chan_list(struct misdn_stack *stack)
 	int i;
 
 	for (i=0; i <= stack->b_num; i++) {
-		cb_log(6, stack->port, "Idx:%d stack->cchan:%d Chan:%d\n",i,stack->channels[i], i+1);
+		cb_log(6, stack->port, "Idx:%d stack->cchan:%d in_use:%d Chan:%d\n",i,stack->channels[i], stack->bc[i].in_use, i+1);
 	}
 }
 
 
+void misdn_dump_chanlist()
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	for ( ; stack; stack=stack->next) {
+		dump_chan_list(stack);
+	}
 
+}
 
 static int find_free_chan_in_stack(struct misdn_stack *stack, int channel, int dec)
 {
@@ -658,7 +665,6 @@ int clean_up_bc(struct misdn_bchannel *bc)
 	mISDN_write_frame(stack->midev, buff, bc->layer_id|FLG_MSG_TARGET|FLG_MSG_DOWN, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 	
 	bc->b_stid = 0;
-	bc->in_use = 0;
 	bc_state_change(bc, BCHAN_CLEANED);
 	
 	return ret;
@@ -676,6 +682,7 @@ void clear_l3(struct misdn_stack *stack)
 			empty_chan_in_stack(stack,i+1);
 			empty_bc(&stack->bc[i]);
 			clean_up_bc(&stack->bc[i]);
+			stack->bc[i].in_use = 0;
 		}
 		
 	} 
@@ -1585,7 +1592,8 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 				clean_up_bc(bc);
 
 				if (channel>0)
-					empty_chan_in_stack(stack,bc->channel);
+					empty_chan_in_stack(stack,channel);
+				bc->in_use=0;
 
 				dump_chan_list(stack);
 
@@ -1619,11 +1627,12 @@ void misdn_lib_release(struct misdn_bchannel *bc)
 		return;
 	}
 	
-	if (bc->channel>0) {
+	if (bc->channel>0) 
 		empty_chan_in_stack(stack,bc->channel);
-	}
+	
 	empty_bc(bc);
 	clean_up_bc(bc);
+	bc->in_use=0;
 }
 
 
@@ -2062,7 +2071,7 @@ handle_event_nt(void *dat, void *arg)
 					break;
 				case EVENT_RELEASE:
 				case EVENT_RELEASE_COMPLETE:
-				{
+					{
 					int channel=bc->channel;
 					int tmpcause=bc->cause;	
 			                empty_bc(bc);
@@ -2070,7 +2079,8 @@ handle_event_nt(void *dat, void *arg)
 					clean_up_bc(bc);
 
 					if (channel>0)
-                        			empty_chan_in_stack(stack, bc->channel);
+                        			empty_chan_in_stack(stack,channel);
+					bc->in_use=0;
 					}
 					break;
 
@@ -2639,8 +2649,6 @@ int handle_frm(msg_t *msg)
 					bc->in_use=0;
 
 					cb_log(0, stack->port, "GOT IGNORE SETUP\n");
-
-					
 					break;
 				case RESPONSE_OK:
 					cb_log(4, stack->port, "GOT SETUP OK\n");
@@ -2668,8 +2676,9 @@ int handle_frm(msg_t *msg)
 						set_chan_in_stack(stack,bc->channel);
 				} else {
 					if (channel>0)
-						empty_chan_in_stack(stack,bc->channel);
+						empty_chan_in_stack(stack,channel);
 				}
+				bc->in_use=0;
 			}
 
 			cb_log(5, stack->port, "Freeing Msg on prim:%x \n",frm->prim);
@@ -3339,7 +3348,9 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			clean_up_bc(bc);
 
 			if (channel>0)
-				empty_chan_in_stack(stack,bc->channel);
+				empty_chan_in_stack(stack,channel);
+
+			bc->in_use=0;	
 		}
 		
 	}
@@ -3383,7 +3394,9 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			clean_up_bc(bc);
 			
 			if (channel>0)
-				empty_chan_in_stack(stack,bc->channel);
+				empty_chan_in_stack(stack,channel);
+			
+			bc->in_use=0;
 		}
 		break;
     
@@ -3681,9 +3694,11 @@ int misdn_lib_send_restart(int port, int channel)
 			if (stack->bc[cnt].channel == i) {
 				empty_bc(&stack->bc[cnt]);
 				clean_up_bc(&stack->bc[cnt]);
+				stack->bc[cnt].in_use=0;
 			}
 		}
 		empty_chan_in_stack(stack, i);
+
 			
 	}
 
@@ -4168,7 +4183,8 @@ void manager_clean_bc(struct misdn_bchannel *bc )
 	if (bc->channel>0)
 		empty_chan_in_stack(stack, bc->channel);
 	empty_bc(bc);
-  
+ 	bc->in_use=0;
+
 	cb_event(EVENT_CLEANUP, bc, NULL); 
 }
 
