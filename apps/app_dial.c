@@ -1574,7 +1574,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				time_t now;
 
 				time(&now);
-				chan->whentohangup = now + calldurationlimit;
+				peer->whentohangup = now + calldurationlimit;
 			}
 			if (!ast_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
