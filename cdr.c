@@ -736,7 +736,8 @@ int ast_cdr_setamaflags(struct ast_channel *chan, const char *flag)
 	newflag = ast_cdr_amaflags2int(flag);
 	if (newflag) {
 		for (cdr = chan->cdr; cdr; cdr = cdr->next) {
-			cdr->amaflags = newflag;
+			if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
+				cdr->amaflags = newflag;
 		}
 	}
 
