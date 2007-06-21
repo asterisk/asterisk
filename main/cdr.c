@@ -775,8 +775,8 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			cdr->amaflags = c->amaflags ? c->amaflags :  ast_default_amaflags;
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
 			/* Destination information */
-			ast_copy_string(cdr->dst, c->exten, sizeof(cdr->dst));
-			ast_copy_string(cdr->dcontext, c->context, sizeof(cdr->dcontext));
+			ast_copy_string(cdr->dst, S_OR(c->macroexten,c->exten), sizeof(cdr->dst));
+			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext,c->context), sizeof(cdr->dcontext));
 			/* Unique call identifier */
 			ast_copy_string(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid));
 		}
@@ -891,11 +891,10 @@ int ast_cdr_update(struct ast_channel *c)
 
 			/* Copy account code et-al */	
 			ast_copy_string(cdr->accountcode, c->accountcode, sizeof(cdr->accountcode));
-			if (!ast_check_hangup(c)) {
-				/* Destination information */ /* XXX privilege macro* ? */
-				ast_copy_string(cdr->dst, S_OR(c->macroexten, c->exten), sizeof(cdr->dst));
-				ast_copy_string(cdr->dcontext, S_OR(c->macrocontext, c->context), sizeof(cdr->dcontext));
-			}
+			
+			/* Destination information */ /* XXX privilege macro* ? */
+			ast_copy_string(cdr->dst, S_OR(c->macroexten, c->exten), sizeof(cdr->dst));
+			ast_copy_string(cdr->dcontext, S_OR(c->macrocontext, c->context), sizeof(cdr->dcontext));
 		}
 	}
 
