@@ -421,6 +421,8 @@ struct sla_station {
 	/*! This option uses the values in the sla_hold_access enum and sets the
 	 * access control type for hold on this station. */
 	unsigned int hold_access:1;
+	/*! Use count for inside sla_station_exec */
+	unsigned int ref_count;
 };
 
 struct sla_station_ref {
@@ -453,6 +455,8 @@ struct sla_trunk {
 	/*! Whether this trunk is currently on hold, meaning that once a station
 	 *  connects to it, the trunk channel needs to have UNHOLD indicated to it. */
 	unsigned int on_hold:1;
+	/*! Use count for inside sla_trunk_exec */
+	unsigned int ref_count;
 };
 
 struct sla_trunk_ref {
@@ -483,6 +487,10 @@ enum sla_event_type {
 	SLA_EVENT_DIAL_STATE,
 	/*! The state of a ringing trunk has changed */
 	SLA_EVENT_RINGING_TRUNK,
+	/*! A reload of configuration has been requested */
+	SLA_EVENT_RELOAD,
+	/*! Poke the SLA thread so it can check if it can perform a reload */
+	SLA_EVENT_CHECK_RELOAD,
 };
 
 struct sla_event {
@@ -538,6 +546,8 @@ static struct {
 	/*! Attempt to handle CallerID, even though it is known not to work
 	 *  properly in some situations. */
 	unsigned int attempt_callerid:1;
+	/*! A reload has been requested */
+	unsigned int reload:1;
 } sla = {
 	.thread = AST_PTHREADT_NULL,
 };
@@ -3999,6 +4009,51 @@ static int sla_process_timers(struct timespec *ts)
 	return 1;
 }
 
+static int sla_load_config(int reload);
+
+/*! \brief Check if we can do a reload of SLA, and do it if we can */
+static void sla_check_reload(void)
+{
+	struct sla_station *station;
+	struct sla_trunk *trunk;
+
+	ast_mutex_lock(&sla.lock);
+
+	if (!AST_LIST_EMPTY(&sla.event_q) || !AST_LIST_EMPTY(&sla.ringing_trunks) 
+		|| !AST_LIST_EMPTY(&sla.ringing_stations)) {
+		ast_mutex_unlock(&sla.lock);
+		return;
+	}
+
+	AST_RWLIST_RDLOCK(&sla_stations);
+	AST_RWLIST_TRAVERSE(&sla_stations, station, entry) {
+		if (station->ref_count)
+			break;
+	}
+	AST_RWLIST_UNLOCK(&sla_stations);
+	if (station) {
+		ast_mutex_unlock(&sla.lock);
+		return;
+	}
+
+	AST_RWLIST_RDLOCK(&sla_trunks);
+	AST_RWLIST_TRAVERSE(&sla_trunks, trunk, entry) {
+		if (trunk->ref_count)
+			break;
+	}
+	AST_RWLIST_UNLOCK(&sla_trunks);
+	if (trunk) {
+		ast_mutex_unlock(&sla.lock);
+		return;
+	}
+
+	/* yay */
+	sla_load_config(1);
+	sla.reload = 0;
+
+	ast_mutex_unlock(&sla.lock);
+}
+
 static void *sla_thread(void *data)
 {
 	struct sla_failed_station *failed_station;
@@ -4035,10 +4090,17 @@ static void *sla_thread(void *data)
 			case SLA_EVENT_RINGING_TRUNK:
 				sla_handle_ringing_trunk_event();
 				break;
+			case SLA_EVENT_RELOAD:
+				sla.reload = 1;
+			case SLA_EVENT_CHECK_RELOAD:
+				break;
 			}
 			ast_free(event);
 			ast_mutex_lock(&sla.lock);
 		}
+
+		if (sla.reload)
+			sla_check_reload();
 	}
 
 	ast_mutex_unlock(&sla.lock);
@@ -4212,11 +4274,14 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 
 	AST_RWLIST_RDLOCK(&sla_stations);
 	station = sla_find_station(station_name);
+	if (station)
+		ast_atomic_fetchadd_int((int *) &station->ref_count, 1);
 	AST_RWLIST_UNLOCK(&sla_stations);
 
 	if (!station) {
 		ast_log(LOG_WARNING, "Station '%s' not found!\n", station_name);
 		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "FAILURE");
+		sla_queue_event(SLA_EVENT_CHECK_RELOAD);
 		return 0;
 	}
 
@@ -4235,6 +4300,8 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 				"'%s' due to access controls.\n", trunk_name);
 		}
 		pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
+		ast_atomic_fetchadd_int((int *) &station->ref_count, -1);
+		sla_queue_event(SLA_EVENT_CHECK_RELOAD);
 		return 0;
 	}
 
@@ -4278,6 +4345,8 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 			pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "CONGESTION");
 			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 			trunk_ref->chan = NULL;
+			ast_atomic_fetchadd_int((int *) &station->ref_count, -1);
+			sla_queue_event(SLA_EVENT_CHECK_RELOAD);
 			return 0;
 		}
 	}
@@ -4309,6 +4378,9 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	}
 	
 	pbx_builtin_setvar_helper(chan, "SLASTATION_STATUS", "SUCCESS");
+
+	ast_atomic_fetchadd_int((int *) &station->ref_count, -1);
+	sla_queue_event(SLA_EVENT_CHECK_RELOAD);
 
 	return 0;
 }
@@ -4357,22 +4429,33 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 
 	AST_RWLIST_RDLOCK(&sla_trunks);
 	trunk = sla_find_trunk(trunk_name);
+	if (trunk)
+		ast_atomic_fetchadd_int((int *) &trunk->ref_count, 1);
 	AST_RWLIST_UNLOCK(&sla_trunks);
+
 	if (!trunk) {
 		ast_log(LOG_ERROR, "SLA Trunk '%s' not found!\n", trunk_name);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
+		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
 		return 0;
 	}
+
 	if (trunk->chan) {
 		ast_log(LOG_ERROR, "Call came in on %s, but the trunk is already in use!\n",
 			trunk_name);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
+		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
 		return 0;
 	}
+
 	trunk->chan = chan;
 
 	if (!(ringing_trunk = queue_ringing_trunk(trunk))) {
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
+		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
 		return 0;
 	}
 
@@ -4380,6 +4463,8 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	conf = build_conf(conf_name, "", "", 1, 1, 1, chan);
 	if (!conf) {
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
+		ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
+		sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
 		return 0;
 	}
 	ast_set_flag(&conf_flags, 
@@ -4412,6 +4497,9 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 		 * that shouldn't be ringing after this trunk stopped. */
 		sla_queue_event(SLA_EVENT_RINGING_TRUNK);
 	}
+
+	ast_atomic_fetchadd_int((int *) &trunk->ref_count, -1);
+	sla_queue_event(SLA_EVENT_CHECK_RELOAD);	
 
 	return 0;
 }
@@ -4789,15 +4877,17 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 	return 0;
 }
 
-static int sla_load_config(void)
+static int sla_load_config(int reload)
 {
 	struct ast_config *cfg;
 	const char *cat = NULL;
 	int res = 0;
 	const char *val;
 
-	ast_mutex_init(&sla.lock);
-	ast_cond_init(&sla.cond, NULL);
+	if (!reload) {
+		ast_mutex_init(&sla.lock);
+		ast_cond_init(&sla.cond, NULL);
+	}
 
 	if (!(cfg = ast_config_load(SLA_CONFIG_FILE)))
 		return 0; /* Treat no config as normal */
@@ -4826,20 +4916,24 @@ static int sla_load_config(void)
 
 	ast_config_destroy(cfg);
 
-	ast_pthread_create(&sla.thread, NULL, sla_thread, NULL);
+	if (!reload)
+		ast_pthread_create(&sla.thread, NULL, sla_thread, NULL);
 
 	return res;
 }
 
 static int load_config(int reload)
 {
-	int res = 0;
-
 	load_config_meetme();
-	if (!reload)
-		res = sla_load_config();
 
-	return res;
+	if (reload) {
+		sla_queue_event(SLA_EVENT_RELOAD);
+		ast_log(LOG_NOTICE, "A reload of the SLA configuration has been requested "
+			"and will be completed when the system is idle.\n");
+		return 0;
+	}
+	
+	return sla_load_config(0);
 }
 
 static int unload_module(void)
