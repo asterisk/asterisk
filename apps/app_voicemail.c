@@ -1604,7 +1604,7 @@ static void copy_file(char *frompath, char *topath)
 /*
  * A negative return value indicates an error.
  */
-#if (!defined(IMAP_STORAGE) || defined(ODBC_STORAGE))
+#if (!defined(IMAP_STORAGE) && !defined(ODBC_STORAGE))
 static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x;
@@ -1623,6 +1623,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	return x - 1;
 }
 #endif
+#endif
 
 static int vm_delete(char *file)
 {
@@ -1639,8 +1640,6 @@ static int vm_delete(char *file)
 	return ast_filedelete(file, NULL);
 }
 
-
-#endif
 static int inbuf(struct baseio *bio, FILE *fi)
 {
 	int l;
