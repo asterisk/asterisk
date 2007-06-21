@@ -317,6 +317,7 @@ static struct permalias {
 	{ EVENT_FLAG_USER, "user" },
 	{ EVENT_FLAG_CONFIG, "config" },
 	{ EVENT_FLAG_DTMF, "dtmf" },
+	{ EVENT_FLAG_REPORTING, "reporting" },
 	{ -1, "all" },
 	{ 0, "none" },
 };

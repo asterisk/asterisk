@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/netsock.h"
 #include "asterisk/cli.h"
+#include "asterisk/manager.h"
 #include "asterisk/unaligned.h"
 #include "asterisk/utils.h"
 
@@ -1036,6 +1037,56 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				ast_verbose("  DLSR: %4.4f (sec)\n",ntohl(rtcpheader[i + 5])/65536.0);
 				if (rtt)
 					ast_verbose("  RTT: %lu(sec)\n", (unsigned long) rtt);
+			}
+			if (rtt) {
+				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
+								    "PT: %d(%s)\r\n"
+								    "ReceptionReports: %d\r\n"
+								    "SenderSSRC: %u\r\n"
+								    "FractionLost: %ld\r\n"
+								    "PacketsLost: %d\r\n"
+								    "HighestSequence: %ld\r\n"
+								    "SequenceNumberCycles: %ld\r\n"
+								    "IAJitter: %u\r\n"
+								    "LastSR: %lu.%010lu\r\n"
+								    "DLSR: %4.4f(sec)\r\n"
+								    "RTT: %lu(sec)\r\n",
+								    ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
+								    pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
+								    rc,
+								    rtcpheader[i + 1],
+								    (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24),
+								    rtp->rtcp->reported_lost,
+								    (long) (ntohl(rtcpheader[i + 2]) & 0xffff),
+								    (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16,
+								    rtp->rtcp->reported_jitter,
+								    (unsigned long) ntohl(rtcpheader[i + 4]) >> 16, ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
+								    ntohl(rtcpheader[i + 5])/65536.0,
+								    rtt);
+			} else {
+				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
+								    "PT: %d(%s)\r\n"
+								    "ReceptionReports: %d\r\n"
+								    "SenderSSRC: %u\r\n"
+								    "FractionLost: %ld\r\n"
+								    "PacketsLost: %d\r\n"
+								    "HighestSequence: %ld\r\n"
+								    "SequenceNumberCycles: %ld\r\n"
+								    "IAJitter: %u\r\n"
+								    "LastSR: %lu.%010lu\r\n"
+								    "DLSR: %4.4f(sec)\r\n",
+								    ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
+								    pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
+								    rc,
+								    rtcpheader[i + 1],
+								    (((long) ntohl(rtcpheader[i + 1]) & 0xff000000) >> 24),
+								    rtp->rtcp->reported_lost,
+								    (long) (ntohl(rtcpheader[i + 2]) & 0xffff),
+								    (long) (ntohl(rtcpheader[i + 2]) & 0xffff) >> 16,
+								    rtp->rtcp->reported_jitter,
+								    (unsigned long) ntohl(rtcpheader[i + 4]) >> 16,
+								    ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
+								    ntohl(rtcpheader[i + 5])/65536.0);
 			}
 			break;
 		case RTCP_PT_FUR:
@@ -2200,6 +2251,30 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		ast_verbose("  RTT:		 %f\n", rtp->rtcp->rtt);
 	}
 
+	manager_event(EVENT_FLAG_REPORTING, "RTPReceiverStat", "SSRC: %u\r\n"
+					    "ReceivedPackets: %u\r\n"
+					    "LostPackets: %u\r\n"
+					    "Jitter: %.4f\r\n"
+					    "Transit: %.4f\r\n"
+					    "RRCount: %u\r\n",
+					    rtp->themssrc,
+					    rtp->rxcount,
+					    rtp->rtcp->expected_prior - rtp->rtcp->received_prior,
+					    rtp->rxjitter,
+					    rtp->rxtransit,
+					    rtp->rtcp->rr_count);
+	manager_event(EVENT_FLAG_REPORTING, "RTPSenderStat", "SSRC: %u\r\n"
+					    "SentPackets: %u\r\n"
+					    "LostPackets: %u\r\n"
+					    "Jitter: %u\r\n"
+					    "SRCount: %u\r\n"
+					    "RTT: %f\r\n",
+					    rtp->ssrc,
+					    rtp->txcount,
+					    rtp->rtcp->reported_lost,
+					    rtp->rtcp->reported_jitter,
+					    rtp->rtcp->sr_count,
+					    rtp->rtcp->rtt);
 	if (rtp->smoother)
 		ast_smoother_free(rtp->smoother);
 	if (rtp->ioid)
@@ -2519,6 +2594,29 @@ static int ast_rtcp_write_sr(void *data)
 		ast_verbose("  Their last SR: %u\n", rtp->rtcp->themrxlsr);
 		ast_verbose("  DLSR: %4.4f (sec)\n\n", (double)(ntohl(rtcpheader[12])/65536.0));
 	}
+	manager_event(EVENT_FLAG_REPORTING, "RTCPSent", "To %s:%d\r\n"
+					    "OurSSRC: %u\r\n"
+					    "SentNTP: %u.%010u\r\n"
+					    "SentRTP: %u\r\n"
+					    "SentPackets: %u\r\n"
+					    "SentOctets: %u\r\n"
+					    "ReportBlock:\r\n"
+					    "FractionLost: %u\r\n"
+					    "CumulativeLoss: %u\r\n"
+					    "IAJitter: %.4f\r\n"
+					    "TheirLastSR: %u\r\n"
+					    "DLSR: %4.4f (sec)\r\n",
+					    ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port),
+					    rtp->ssrc,
+					    (unsigned int)now.tv_sec, (unsigned int)now.tv_usec*4096,
+					    rtp->lastts,
+					    rtp->txcount,
+					    rtp->txoctetcount,
+					    fraction,
+					    lost,
+					    rtp->rxjitter,
+					    rtp->rtcp->themrxlsr,
+					    (double)(ntohl(rtcpheader[12])/65536.0));
 	return res;
 }
 
