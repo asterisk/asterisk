@@ -5179,7 +5179,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
-				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+				if (ast_strlen_zero(opts[OPT_ARG_RECORDGAIN])) {
+					ast_log(LOG_WARNING, "No value provided for record gain option\n");
+					LOCAL_USER_REMOVE(u);
+					return -1;
+				} else if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 					ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 					LOCAL_USER_REMOVE(u);
 					return -1;
