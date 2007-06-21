@@ -1751,6 +1751,8 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 	return x - 1;
 }
 
+#endif
+
 static int vm_delete(char *file)
 {
 	char *txt;
@@ -1769,8 +1771,6 @@ static int vm_delete(char *file)
 	return ast_filedelete(file, NULL);
 }
 
-
-#endif
 static int inbuf(struct baseio *bio, FILE *fi)
 {
 	int l;
