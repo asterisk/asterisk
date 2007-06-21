@@ -98,7 +98,7 @@ static char *descrip =
 "  Use the CLI command 'agi show' to list available agi commands\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AGISTATUS      The status of the attempt to the run the AGI script\n"
-"                    text string, one of SUCCESS | FAILED | HANGUP\n";
+"                    text string, one of SUCCESS | FAILED | NOTFOUND | HANGUP\n";
 
 static int agidebug = 0;
 
@@ -112,7 +112,8 @@ static int agidebug = 0;
 enum agi_result {
 	AGI_RESULT_SUCCESS,
 	AGI_RESULT_FAILURE,
-	AGI_RESULT_HANGUP
+	AGI_RESULT_NOTFOUND,
+	AGI_RESULT_HANGUP,
 };
 
 static void agi_debug_cli(int fd, char *fmt, ...)
@@ -249,6 +250,13 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_AGI_DIR, script);
 		script = tmp;
 	}
+
+	/* Before even trying let's see if the file actually exists */
+	if (!ast_fileexists(script, NULL, NULL)) {
+		ast_log(LOG_WARNING, "Failed to execute '%s': File does not exist.\n", script);
+		return AGI_RESULT_NOTFOUND;
+	}
+
 	if (pipe(toast)) {
 		ast_log(LOG_WARNING, "Unable to create toast pipe: %s\n",strerror(errno));
 		return AGI_RESULT_FAILURE;
@@ -2085,6 +2093,9 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		break;
 	case AGI_RESULT_FAILURE:
 		pbx_builtin_setvar_helper(chan, "AGISTATUS", "FAILURE");
+		break;
+	case AGI_RESULT_NOTFOUND:
+		pbx_builtin_setvar_helper(chan, "AGISTATUS", "NOTFOUND");
 		break;
 	case AGI_RESULT_HANGUP:
 		pbx_builtin_setvar_helper(chan, "AGISTATUS", "HANGUP");
