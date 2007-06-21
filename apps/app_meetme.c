@@ -4360,14 +4360,12 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	AST_RWLIST_UNLOCK(&sla_trunks);
 	if (!trunk) {
 		ast_log(LOG_ERROR, "SLA Trunk '%s' not found!\n", trunk_name);
-		AST_RWLIST_UNLOCK(&sla_trunks);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
 		return 0;
 	}
 	if (trunk->chan) {
 		ast_log(LOG_ERROR, "Call came in on %s, but the trunk is already in use!\n",
 			trunk_name);
-		AST_RWLIST_UNLOCK(&sla_trunks);
 		pbx_builtin_setvar_helper(chan, "SLATRUNK_STATUS", "FAILURE");
 		return 0;
 	}
