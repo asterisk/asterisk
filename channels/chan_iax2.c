@@ -6636,6 +6636,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			   so queue it up for processing later. */
 			defer_full_frame(thread);
 			AST_LIST_UNLOCK(&active_list);
+			insert_idle_thread(thread);
 			return 1;
 		} else {
 			/* this thread is going to process this frame, so mark it */
