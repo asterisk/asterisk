@@ -11576,8 +11576,6 @@ static int linkset_addsigchan(int sigchan)
 	if (cur_defaultdpc < 0) {
 		ast_log(LOG_ERROR, "Unspecified defaultdpc!\n");
 		return -1;
-	} else {
-		ss7_set_default_dpc(link->ss7, cur_defaultdpc);
 	}
 
 	if (cur_networkindicator < 0) {
