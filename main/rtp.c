@@ -3489,6 +3489,8 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 
 	/* If either side can only do a partial bridge, then don't try for a true native bridge */
 	if (audio_p0_res == AST_RTP_TRY_PARTIAL || audio_p1_res == AST_RTP_TRY_PARTIAL) {
+		struct ast_format_list fmt0, fmt1;
+
 		/* In order to do Packet2Packet bridging both sides must be in the same rawread/rawwrite */
 		if (c0->rawreadformat != c1->rawwriteformat || c1->rawreadformat != c0->rawwriteformat) {
 			if (option_debug)
@@ -3497,6 +3499,17 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			ast_channel_unlock(c1);
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
+		/* They must also be using the same packetization */
+		fmt0 = ast_codec_pref_getsize(&p0->pref, c0->rawreadformat);
+		fmt1 = ast_codec_pref_getsize(&p1->pref, c1->rawreadformat);
+		if (fmt0.cur_ms != fmt1.cur_ms) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Cannot packet2packet bridge - packetization settings prevent it\n");
+			ast_channel_unlock(c0);
+			ast_channel_unlock(c1);
+			return AST_BRIDGE_FAILED_NOWARN;
+		}
+
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Packet2Packet bridging %s and %s\n", c0->name, c1->name);
 		res = bridge_p2p_loop(c0, c1, p0, p1, timeoutms, flags, fo, rc, pvt0, pvt1);
