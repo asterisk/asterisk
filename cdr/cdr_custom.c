@@ -72,21 +72,22 @@ static int load_config(int reload)
 
 	strcpy(format, "");
 	strcpy(master, "");
+	ast_mutex_lock(&lock);
 	if((cfg = ast_config_load("cdr_custom.conf"))) {
 		var = ast_variable_browse(cfg, "mappings");
 		while(var) {
-			ast_mutex_lock(&lock);
 			if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {
 				if (strlen(var->value) > (sizeof(format) - 1))
 					ast_log(LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
 				ast_copy_string(format, var->value, sizeof(format) - 1);
 				strcat(format,"\n");
 				snprintf(master, sizeof(master),"%s/%s/%s", ast_config_AST_LOG_DIR, name, var->name);
-				ast_mutex_unlock(&lock);
+				if (var->next) {
+					ast_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
+					break;
+				}
 			} else
 				ast_log(LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
-			if (var->next)
-				ast_log(LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
 			var = var->next;
 		}
 		ast_config_destroy(cfg);
@@ -97,6 +98,7 @@ static int load_config(int reload)
 		else
 			ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
 	}
+	ast_mutex_unlock(&lock);
 	
 	return res;
 }
