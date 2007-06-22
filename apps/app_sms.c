@@ -31,7 +31,7 @@
  *
  * \author Adrian Kennard (for the original protocol 1 code)
  * \author Filippo Grassilli (Hyppo) - protocol 2 support
- *                   Not fully tested, under development
+ *		   Not fully tested, under development
  */
 
 #include "asterisk.h"
@@ -72,7 +72,6 @@ static volatile unsigned char message_ref;      /* arbitary message ref */
 static volatile unsigned int seq;       /* arbitrary message sequence number for unqiue files */
 
 static char log_file[255];
-static char spool_dir[255];
 
 static char *app = "SMS";
 
@@ -82,9 +81,9 @@ static char *descrip =
 	"  SMS(name|[a][s][t][p(d)][r][o]|addr|body):\n"
 	"SMS handles exchange of SMS data with a call to/from SMS capable\n"
 	"phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
-	"Works to ETSI ES 201 912 compatible with BT SMS PSTN service in UK\n"
+	"Works to ETSI ES 201 912; compatible with BT SMS PSTN service in UK\n"
 	"and Telecom Italia in Italy.\n"
-	"Typical usage is to use to handle called from the SMS service centre CLI,\n"
+	"Typical usage is to use to handle calls from the SMS service centre CLI,\n"
 	"or to set up a call using 'outgoing' or manager interface to connect\n"
 	"service centre to SMS()\n"
 	"name is the name of the queue used in /var/spool/asterisk/sms\n"
@@ -192,8 +191,8 @@ static const unsigned short escapes[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-#define SMSLEN		160              /*!< max SMS length */
-#define SMSLEN_8	140              /*!< max SMS length for 8-bit char */
+#define SMSLEN		160	      /*!< max SMS length */
+#define SMSLEN_8	140	      /*!< max SMS length for 8-bit char */
 
 typedef struct sms_s {
 	unsigned char hangup;        /*!< we are done... */
@@ -229,13 +228,13 @@ typedef struct sms_s {
 	signed long long ims0,
 		imc0,
 		ims1,
-		imc1;                      /*!< magnitude averages sin/cos 0/1 */
+		imc1;                    /*!< magnitude averages sin/cos 0/1 */
 	unsigned int idle;
 	unsigned short imag;         /*!< signal level */
-	unsigned char ips0;	     /*!< phase sin for bit 0, start at  0 inc by 21 mod 80 */
-	unsigned char ips1;	     /*!< phase cos for bit 0, start at 20 inc by 21 mod 80 */
-	unsigned char ipc0;	     /*!< phase sin for bit 1, start at  0 inc by 13 mod 80 */
-	unsigned char ipc1;	     /*!< phase cos for bit 1, start at 20 inc by 13 mod 80 */
+	unsigned char ips0;          /*!< phase sin for bit 0, start at  0 inc by 21 mod 80 */
+	unsigned char ips1;          /*!< phase cos for bit 0, start at 20 inc by 21 mod 80 */
+	unsigned char ipc0;          /*!< phase sin for bit 1, start at  0 inc by 13 mod 80 */
+	unsigned char ipc1;          /*!< phase cos for bit 1, start at 20 inc by 13 mod 80 */
 	unsigned char ibitl;         /*!< last bit */
 	unsigned char ibitc;         /*!< bit run length count */
 	unsigned char iphasep;       /*!< bit phase (0-79) for 1200 bps */
@@ -248,7 +247,7 @@ typedef struct sms_s {
 	unsigned char ibitt;         /*!< total of 1's in last 3 bytes */
 	/* more to go here */
 
-	int	opause_0;		/*!< initial delay in ms, p() option */
+	int opause_0;                /*!< initial delay in ms, p() option */
 	int protocol;                /*!< ETSI SMS protocol to use (passed at app call) */
 	int oseizure;                /*!< protocol 2: channel seizure bits to send */
 	int framenumber;             /*!< protocol 2: frame number (for sending ACK0 or ACK1) */
@@ -258,9 +257,9 @@ typedef struct sms_s {
 /* different types of encoding */
 #define is7bit(dcs)	( ((dcs) & 0xC0) ? (!((dcs)&4) ) : (((dcs) & 0xc) == 0) )
 #define is8bit(dcs)	( ((dcs) & 0xC0) ? ( ((dcs)&4) ) : (((dcs) & 0xc) == 4) )
-#define is16bit(dcs)	( ((dcs) & 0xC0) ? 0             : (((dcs) & 0xc) == 8) )
+#define is16bit(dcs)	( ((dcs) & 0xC0) ? 0	     : (((dcs) & 0xc) == 8) )
 
-static void sms_messagetx (sms_t * h);
+static void sms_messagetx(sms_t *h);
 
 /*! \brief copy number, skipping non digits apart from leading + */
 static void numcpy(char *d, char *s)
@@ -268,7 +267,7 @@ static void numcpy(char *d, char *s)
 	if (*s == '+')
 		*d++ = *s++;
 	while (*s) {
-  		if (isdigit (*s))
+  		if (isdigit(*s))
      			*d++ = *s;
 		s++;
 	}
@@ -276,9 +275,11 @@ static void numcpy(char *d, char *s)
 }
 
 /*! \brief static, return a date/time in ISO format */
-static char * isodate(time_t t, char *buf, int len)
+static char *isodate(time_t t, char *buf, int len)
 {
-	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", localtime (&t));
+	struct tm tm;
+	ast_localtime(&t, &tm, NULL);
+	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
 	return buf;
 }
 
@@ -289,43 +290,43 @@ static long utf8decode(unsigned char **pp)
 {
 	unsigned char *p = *pp;
 	if (!*p)
-		return 0;                 /* null termination of string */
+		return 0;		 /* null termination of string */
 	(*pp)++;
 	if (*p < 0xC0)
-		return *p;                /* ascii or continuation character */
+		return *p;		/* ascii or continuation character */
 	if (*p < 0xE0) {
 		if (*p < 0xC2 || (p[1] & 0xC0) != 0x80)
-			return *p;             /* not valid UTF-8 */
+			return *p;	     /* not valid UTF-8 */
 		(*pp)++;
 		return ((*p & 0x1F) << 6) + (p[1] & 0x3F);
    	}
 	if (*p < 0xF0) {
 		if ((*p == 0xE0 && p[1] < 0xA0) || (p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80)
-			 return *p;             /* not valid UTF-8 */
+			 return *p;	     /* not valid UTF-8 */
 		(*pp) += 2;
 		return ((*p & 0x0F) << 12) + ((p[1] & 0x3F) << 6) + (p[2] & 0x3F);
 	}
 	if (*p < 0xF8) {
 		if ((*p == 0xF0 && p[1] < 0x90) || (p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80)
-			return *p;             /* not valid UTF-8 */
+			return *p;	     /* not valid UTF-8 */
 		(*pp) += 3;
 		return ((*p & 0x07) << 18) + ((p[1] & 0x3F) << 12) + ((p[2] & 0x3F) << 6) + (p[3] & 0x3F);
 	}
 	if (*p < 0xFC) {
 		if ((*p == 0xF8 && p[1] < 0x88) || (p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80
 			|| (p[4] & 0xC0) != 0x80)
-			return *p;             /* not valid UTF-8 */
+			return *p;	     /* not valid UTF-8 */
 		(*pp) += 4;
 		return ((*p & 0x03) << 24) + ((p[1] & 0x3F) << 18) + ((p[2] & 0x3F) << 12) + ((p[3] & 0x3F) << 6) + (p[4] & 0x3F);
 	}
 	if (*p < 0xFE) {
 		if ((*p == 0xFC && p[1] < 0x84) || (p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80
 			|| (p[4] & 0xC0) != 0x80 || (p[5] & 0xC0) != 0x80)
-			return *p;             /* not valid UTF-8 */
+			return *p;	     /* not valid UTF-8 */
 		(*pp) += 5;
 		return ((*p & 0x01) << 30) + ((p[1] & 0x3F) << 24) + ((p[2] & 0x3F) << 18) + ((p[3] & 0x3F) << 12) + ((p[4] & 0x3F) << 6) + (p[5] & 0x3F);
 	}
-	return *p;                   /* not sensible */
+	return *p;		   /* not sensible */
 }
 
 /*! \brief takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using SMS 7 bit character codes */
@@ -342,7 +343,7 @@ static int packsms7(unsigned char *o, int udhl, unsigned char *udh, int udl, uns
 	if (o == NULL)		/* output to a dummy buffer if o not set */
 		o = dummy;
 
-	if (udhl) {                            /* header */
+	if (udhl) {			    /* header */
 		o[p++] = udhl;
 		b = 1;
 		n = 1;
@@ -387,7 +388,7 @@ static int packsms7(unsigned char *o, int udhl, unsigned char *udh, int udl, uns
 			}
 		}
 		if (v == 128)
-			return -1;             /* invalid character */
+			return -1;	     /* invalid character */
 		/* store, same as above */
 		o[p] |= (v << b);
 		b += 7;
@@ -428,7 +429,7 @@ static int packsms8(unsigned char *o, int udhl, unsigned char *udh, int udl, uns
 		long u;
 		u = *ud++;
 		if (u < 0 || u > 0xFF)
-			return -1;             /* not valid */
+			return -1;	     /* not valid */
 		o[p++] = u;
 		if (p >= SMSLEN_8)
 			return p;
@@ -465,7 +466,7 @@ static int packsms16(unsigned char *o, int udhl, unsigned char *udh, int udl, un
 		u = *ud++;
 		o[p++] = (u >> 8);
 		if (p >= SMSLEN_8)
-			return p - 1;          /* could not fit last character */
+			return p - 1;	  /* could not fit last character */
 		o[p++] = u;
 		if (p >= SMSLEN_8)
 			return p;
@@ -510,18 +511,19 @@ static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, un
 /*! \brief pack a date and return */
 static void packdate(unsigned char *o, time_t w)
 {
-	struct tm *t = localtime (&w);
+	struct tm t;
+	ast_localtime(&w, &t, NULL);
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
-	int z = -t->tm_gmtoff / 60 / 15;
+	int z = -t.tm_gmtoff / 60 / 15;
 #else
 	int z = timezone / 60 / 15;
 #endif
-	*o++ = ((t->tm_year % 10) << 4) + (t->tm_year % 100) / 10;
-	*o++ = (((t->tm_mon + 1) % 10) << 4) + (t->tm_mon + 1) / 10;
-	*o++ = ((t->tm_mday % 10) << 4) + t->tm_mday / 10;
-	*o++ = ((t->tm_hour % 10) << 4) + t->tm_hour / 10;
-	*o++ = ((t->tm_min % 10) << 4) + t->tm_min / 10;
-	*o++ = ((t->tm_sec % 10) << 4) + t->tm_sec / 10;
+	*o++ = ((t.tm_year % 10) << 4) + (t.tm_year % 100) / 10;
+	*o++ = (((t.tm_mon + 1) % 10) << 4) + (t.tm_mon + 1) / 10;
+	*o++ = ((t.tm_mday % 10) << 4) + t.tm_mday / 10;
+	*o++ = ((t.tm_hour % 10) << 4) + t.tm_hour / 10;
+	*o++ = ((t.tm_min % 10) << 4) + t.tm_min / 10;
+	*o++ = ((t.tm_sec % 10) << 4) + t.tm_sec / 10;
 	if (z < 0)
 		*o++ = (((-z) % 10) << 4) + (-z) / 10 + 0x08;
 	else
@@ -529,7 +531,7 @@ static void packdate(unsigned char *o, time_t w)
 }
 
 /*! \brief unpack a date and return */
-static time_t unpackdate (unsigned char *i)
+static time_t unpackdate(unsigned char *i)
 {
 	struct tm t;
 	t.tm_year = 100 + (i[0] & 0xF) * 10 + (i[0] >> 4);
@@ -543,7 +545,7 @@ static time_t unpackdate (unsigned char *i)
 		t.tm_min += 15 * ((i[6] & 0x7) * 10 + (i[6] >> 4));
 	else
 		t.tm_min -= 15 * ((i[6] & 0x7) * 10 + (i[6] >> 4));
-	return mktime (&t);
+	return mktime(&t);
 }
 
 /*! \brief unpacks bytes (7 bit encoding) at i, len l septets, 
@@ -656,13 +658,13 @@ static void unpacksms16(unsigned char *i, unsigned char l, unsigned char *udh, i
 static int unpacksms(unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	int l = *i++;
-	if (is7bit (dcs)) {
-		unpacksms7 (i, l, udh, udhl, ud, udl, udhi);
+	if (is7bit(dcs)) {
+		unpacksms7(i, l, udh, udhl, ud, udl, udhi);
 		l = (l * 7 + 7) / 8;		/* adjust length to return */
-	} else if (is8bit (dcs))
-		unpacksms8 (i, l, udh, udhl, ud, udl, udhi);
+	} else if (is8bit(dcs))
+		unpacksms8(i, l, udh, udhl, ud, udl, udhi);
 	else
-		unpacksms16 (i, l, udh, udhl, ud, udl, udhi);
+		unpacksms16(i, l, udh, udhl, ud, udl, udhi);
 	return l + 1;
 }
 
@@ -694,7 +696,7 @@ static unsigned char packaddress(unsigned char *o, char *i)
 	} else
 		o[1] = 0x81;
 	for ( ; *i ; i++) {
-		if (!isdigit (*i))	/* ignore non-digits */
+		if (!isdigit(*i))	/* ignore non-digits */
 			continue;
 		if (o[0] & 1)
 			o[p++] |= ((*i & 0xF) << 4);
@@ -714,19 +716,19 @@ static void sms_log(sms_t * h, char status)
 
 	if (*h->oa == '\0' && *h->da == '\0')
 		return;
-	o = open (log_file, O_CREAT | O_APPEND | O_WRONLY, AST_FILE_MODE);
+	o = open(log_file, O_CREAT | O_APPEND | O_WRONLY, AST_FILE_MODE);
 	if (o >= 0) {
 		char line[1000], mrs[3] = "", *p;
 		char buf[30];
 		unsigned char n;
 
 		if (h->mr >= 0)
-			snprintf (mrs, sizeof (mrs), "%02X", h->mr);
-		snprintf (line, sizeof (line), "%s %c%c%c%s %s %s %s ",
-			isodate(time(0), buf, sizeof(buf)),
+			snprintf(mrs, sizeof(mrs), "%02X", h->mr);
+		snprintf(line, sizeof(line), "%s %c%c%c%s %s %s %s ",
+			isodate(time(NULL), buf, sizeof(buf)),
 			status, h->rx ? 'I' : 'O', h->smsc ? 'S' : 'M', mrs, h->queue,
 			S_OR(h->oa, "-"), S_OR(h->da, "-") );
-		p = line + strlen (line);
+		p = line + strlen(line);
 		for (n = 0; n < h->udl; n++) {
 			if (h->ud[n] == '\\') {
 				*p++ = '\\';
@@ -744,8 +746,8 @@ static void sms_log(sms_t * h, char status)
 		}
 		*p++ = '\n';
 		*p = 0;
-		write (o, line, strlen (line));
-		close (o);
+		write(o, line, strlen(line));
+		close(o);
 	}
 	*h->oa = *h->da = h->udl = 0;
 }
@@ -756,18 +758,18 @@ static void sms_readfile(sms_t * h, char *fn)
 	char line[1000];
 	FILE *s;
 	char dcsset = 0;		/* if DSC set */
-	ast_log (LOG_EVENT, "Sending %s\n", fn);
+	ast_log(LOG_EVENT, "Sending %s\n", fn);
 	h->rx = h->udl = *h->oa = *h->da = h->pid = h->srr = h->udhi = h->rp = h->vp = h->udhl = 0;
 	h->mr = -1;
 	h->dcs = 0xF1;			/* normal messages class 1 */
-	h->scts = time (0);
-	s = fopen (fn, "r");
+	h->scts = time(NULL);
+	s = fopen(fn, "r");
 	if (s) {
-		if (unlink (fn)) {	/* concurrent access, we lost */
-			fclose (s);
+		if (unlink(fn)) {	/* concurrent access, we lost */
+			fclose(s);
 			return;
 		}
-		while (fgets (line, sizeof (line), s)) {	/* process line in file */
+		while (fgets (line, sizeof(line), s)) {	/* process line in file */
 			char *p;
 			void *pp = &p;
 			for (p = line; *p && *p != '\n' && *p != '\r'; p++);
@@ -775,7 +777,7 @@ static void sms_readfile(sms_t * h, char *fn)
 			p = line;
 			if (!*p || *p == ';')
 				continue;			  /* blank line or comment, ignore */
-			while (isalnum (*p)) {
+			while (isalnum(*p)) {
 				*p = tolower (*p);
 				p++;
 			}
@@ -783,35 +785,35 @@ static void sms_readfile(sms_t * h, char *fn)
 				*p++ = 0;
 			if (*p == '=') {
 				*p++ = 0;
-				if (!strcmp (line, "ud")) {	 /* parse message (UTF-8) */
+				if (!strcmp(line, "ud")) {	 /* parse message (UTF-8) */
 					unsigned char o = 0;
-					memcpy(h->udtxt,p,SMSLEN);	/* for protocol 2 */
+					memcpy(h->udtxt, p, SMSLEN);	/* for protocol 2 */
 					while (*p && o < SMSLEN)
 						h->ud[o++] = utf8decode(pp);
 					h->udl = o;
 					if (*p)
-						ast_log (LOG_WARNING, "UD too long in %s\n", fn);
+						ast_log(LOG_WARNING, "UD too long in %s\n", fn);
 				} else {
 					while (isspace (*p))
 						p++;
-					if (!strcmp (line, "oa") && strlen (p) < sizeof (h->oa))
+					if (!strcmp(line, "oa") && strlen(p) < sizeof(h->oa))
 						numcpy (h->oa, p);
-					else if (!strcmp (line, "da") && strlen (p) < sizeof (h->oa))
+					else if (!strcmp(line, "da") && strlen(p) < sizeof(h->oa))
 						numcpy (h->da, p);
-					else if (!strcmp (line, "pid"))
-						h->pid = atoi (p);
-					else if (!strcmp (line, "dcs")) {
-						h->dcs = atoi (p);
+					else if (!strcmp(line, "pid"))
+						h->pid = atoi(p);
+					else if (!strcmp(line, "dcs")) {
+						h->dcs = atoi(p);
 						dcsset = 1;
-					} else if (!strcmp (line, "mr"))
-						h->mr = atoi (p);
-					else if (!strcmp (line, "srr"))
-						h->srr = (atoi (p) ? 1 : 0);
-					else if (!strcmp (line, "vp"))
-						h->vp = atoi (p);
-					else if (!strcmp (line, "rp"))
-						h->rp = (atoi (p) ? 1 : 0);
-					else if (!strcmp (line, "scts")) {	/* get date/time */
+					} else if (!strcmp(line, "mr"))
+						h->mr = atoi(p);
+					else if (!strcmp(line, "srr"))
+						h->srr = (atoi(p) ? 1 : 0);
+					else if (!strcmp(line, "vp"))
+						h->vp = atoi(p);
+					else if (!strcmp(line, "rp"))
+						h->rp = (atoi(p) ? 1 : 0);
+					else if (!strcmp(line, "scts")) {	/* get date/time */
 						int Y,
 						  m,
 						  d,
@@ -827,52 +829,52 @@ static void sms_readfile(sms_t * h, char *fn)
 							t.tm_min = M;
 							t.tm_sec = S;
 							t.tm_isdst = -1;
-							h->scts = mktime (&t);
+							h->scts = mktime(&t);
 							if (h->scts == (time_t) - 1)
-								ast_log (LOG_WARNING, "Bad date/timein %s: %s", fn, p);
+								ast_log(LOG_WARNING, "Bad date/timein %s: %s", fn, p);
 						}
 					} else
-						ast_log (LOG_WARNING, "Cannot parse in %s: %s=%si\n", fn, line, p);
+						ast_log(LOG_WARNING, "Cannot parse in %s: %s=%si\n", fn, line, p);
 				}
 			} else if (*p == '#') {		/* raw hex format */
 				*p++ = 0;
 				if (*p == '#') {
 					p++;
-					if (!strcmp (line, "ud")) {	/* user data */
+					if (!strcmp(line, "ud")) {	/* user data */
 						int o = 0;
 						while (*p && o < SMSLEN) {
-							if (isxdigit (*p) && isxdigit (p[1]) && isxdigit (p[2]) && isxdigit (p[3])) {
+							if (isxdigit(*p) && isxdigit(p[1]) && isxdigit(p[2]) && isxdigit(p[3])) {
 								h->ud[o++] =
-									(((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 12) +
-									(((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF)) << 8) +
-									(((isalpha (p[2]) ? 9 : 0) + (p[2] & 0xF)) << 4) + ((isalpha (p[3]) ? 9 : 0) + (p[3] & 0xF));
+									(((isalpha(*p) ? 9 : 0) + (*p & 0xF)) << 12) +
+									(((isalpha(p[1]) ? 9 : 0) + (p[1] & 0xF)) << 8) +
+									(((isalpha(p[2]) ? 9 : 0) + (p[2] & 0xF)) << 4) + ((isalpha(p[3]) ? 9 : 0) + (p[3] & 0xF));
 								p += 4;
 							} else
 								break;
 						}
 						h->udl = o;
 						if (*p)
-							ast_log (LOG_WARNING, "UD too long / invalid UCS-2 hex in %s\n", fn);
+							ast_log(LOG_WARNING, "UD too long / invalid UCS-2 hex in %s\n", fn);
 					} else
-						ast_log (LOG_WARNING, "Only ud can use ## format, %s\n", fn);
-				} else if (!strcmp (line, "ud")) {	/* user data */
+						ast_log(LOG_WARNING, "Only ud can use ## format, %s\n", fn);
+				} else if (!strcmp(line, "ud")) {	/* user data */
 					int o = 0;
 					while (*p && o < SMSLEN) {
-						if (isxdigit (*p) && isxdigit (p[1])) {
-							h->ud[o++] = (((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF));
+						if (isxdigit(*p) && isxdigit(p[1])) {
+							h->ud[o++] = (((isalpha(*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha(p[1]) ? 9 : 0) + (p[1] & 0xF));
 							p += 2;
 						} else
 							break;
 					}
 					h->udl = o;
 					if (*p)
-						ast_log (LOG_WARNING, "UD too long / invalid UCS-1 hex in %s\n", fn);
-				} else if (!strcmp (line, "udh")) {	/* user data header */
+						ast_log(LOG_WARNING, "UD too long / invalid UCS-1 hex in %s\n", fn);
+				} else if (!strcmp(line, "udh")) {	/* user data header */
 					unsigned char o = 0;
 					h->udhi = 1;
 					while (*p && o < SMSLEN) {
-						if (isxdigit (*p) && isxdigit (p[1])) {
-							h->udh[o] = (((isalpha (*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha (p[1]) ? 9 : 0) + (p[1] & 0xF));
+						if (isxdigit(*p) && isxdigit(p[1])) {
+							h->udh[o] = (((isalpha(*p) ? 9 : 0) + (*p & 0xF)) << 4) + ((isalpha(p[1]) ? 9 : 0) + (p[1] & 0xF));
 							o++;
 							p += 2;
 						} else
@@ -880,32 +882,32 @@ static void sms_readfile(sms_t * h, char *fn)
 					}
 					h->udhl = o;
 					if (*p)
-						ast_log (LOG_WARNING, "UDH too long / invalid hex in %s\n", fn);
+						ast_log(LOG_WARNING, "UDH too long / invalid hex in %s\n", fn);
 				} else
-					ast_log (LOG_WARNING, "Only ud and udh can use # format, %s\n", fn);
+					ast_log(LOG_WARNING, "Only ud and udh can use # format, %s\n", fn);
 			} else
-				ast_log (LOG_WARNING, "Cannot parse in %s: %s\n", fn, line);
+				ast_log(LOG_WARNING, "Cannot parse in %s: %s\n", fn, line);
 		}
-		fclose (s);
-		if (!dcsset && packsms7 (0, h->udhl, h->udh, h->udl, h->ud) < 0) {
-			if (packsms8 (0, h->udhl, h->udh, h->udl, h->ud) < 0) {
-				if (packsms16 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
-					ast_log (LOG_WARNING, "Invalid UTF-8 message even for UCS-2 (%s)\n", fn);
+		fclose(s);
+		if (!dcsset && packsms7(0, h->udhl, h->udh, h->udl, h->ud) < 0) {
+			if (packsms8(0, h->udhl, h->udh, h->udl, h->ud) < 0) {
+				if (packsms16(0, h->udhl, h->udh, h->udl, h->ud) < 0)
+					ast_log(LOG_WARNING, "Invalid UTF-8 message even for UCS-2 (%s)\n", fn);
 				else {
 					h->dcs = 0x08;	/* default to 16 bit */
-					ast_log (LOG_WARNING, "Sending in 16 bit format (%s)\n", fn);
+					ast_log(LOG_WARNING, "Sending in 16 bit format(%s)\n", fn);
 				}
 			} else {
 				h->dcs = 0xF5;		/* default to 8 bit */
-				ast_log (LOG_WARNING, "Sending in 8 bit format (%s)\n", fn);
+				ast_log(LOG_WARNING, "Sending in 8 bit format(%s)\n", fn);
 			}
 		}
-		if (is7bit (h->dcs) && packsms7 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
-			ast_log (LOG_WARNING, "Invalid 7 bit GSM data %s\n", fn);
-		if (is8bit (h->dcs) && packsms8 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
-			ast_log (LOG_WARNING, "Invalid 8 bit data %s\n", fn);
-		if (is16bit (h->dcs) && packsms16 (0, h->udhl, h->udh, h->udl, h->ud) < 0)
-			ast_log (LOG_WARNING, "Invalid 16 bit data %s\n", fn);
+		if (is7bit(h->dcs) && packsms7(0, h->udhl, h->udh, h->udl, h->ud) < 0)
+			ast_log(LOG_WARNING, "Invalid 7 bit GSM data %s\n", fn);
+		if (is8bit(h->dcs) && packsms8(0, h->udhl, h->udh, h->udl, h->ud) < 0)
+			ast_log(LOG_WARNING, "Invalid 8 bit data %s\n", fn);
+		if (is16bit(h->dcs) && packsms16(0, h->udhl, h->udh, h->udl, h->ud) < 0)
+			ast_log(LOG_WARNING, "Invalid 16 bit data %s\n", fn);
 	}
 }
 
@@ -916,96 +918,96 @@ static void sms_writefile(sms_t * h)
 	char buf[30];
 	FILE *o;
 
-	snprintf(fn, sizeof(fn), "%s/%s", spool_dir, h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
+	snprintf(fn, sizeof(fn), "%s/sms/%s", ast_config_AST_SPOOL_DIR, h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
 	ast_mkdir(fn, 0777);			/* ensure it exists */
-	ast_copy_string(fn2, fn, sizeof (fn2));
-	snprintf(fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
-	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
-	o = fopen (fn, "w");
+	ast_copy_string(fn2, fn, sizeof(fn2));
+	snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
+	snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
+	o = fopen(fn, "w");
 	if (o == NULL)
 		return;
 
 	if (*h->oa)
-		fprintf (o, "oa=%s\n", h->oa);
+		fprintf(o, "oa=%s\n", h->oa);
 	if (*h->da)
-		fprintf (o, "da=%s\n", h->da);
+		fprintf(o, "da=%s\n", h->da);
 	if (h->udhi) {
 		unsigned int p;
-		fprintf (o, "udh#");
+		fprintf(o, "udh#");
 		for (p = 0; p < h->udhl; p++)
-			fprintf (o, "%02X", h->udh[p]);
-		fprintf (o, "\n");
+			fprintf(o, "%02X", h->udh[p]);
+		fprintf(o, "\n");
 	}
 	if (h->udl) {
 		unsigned int p;
 		for (p = 0; p < h->udl && h->ud[p] >= ' '; p++);
 		if (p < h->udl)
-			fputc (';', o);	  /* cannot use ud=, but include as a comment for human readable */
-		fprintf (o, "ud=");
+			fputc(';', o);	  /* cannot use ud=, but include as a comment for human readable */
+		fprintf(o, "ud=");
 		for (p = 0; p < h->udl; p++) {
 			unsigned short v = h->ud[p];
 			if (v < 32)
-				fputc (191, o);
+				fputc(191, o);
 			else if (v < 0x80)
-				fputc (v, o);
+				fputc(v, o);
 			else if (v < 0x800)
 			{
-				fputc (0xC0 + (v >> 6), o);
-				fputc (0x80 + (v & 0x3F), o);
+				fputc(0xC0 + (v >> 6), o);
+				fputc(0x80 + (v & 0x3F), o);
 			} else
 			{
-				fputc (0xE0 + (v >> 12), o);
-				fputc (0x80 + ((v >> 6) & 0x3F), o);
-				fputc (0x80 + (v & 0x3F), o);
+				fputc(0xE0 + (v >> 12), o);
+				fputc(0x80 + ((v >> 6) & 0x3F), o);
+				fputc(0x80 + (v & 0x3F), o);
 			}
 		}
-		fprintf (o, "\n");
+		fprintf(o, "\n");
 		for (p = 0; p < h->udl && h->ud[p] >= ' '; p++);
 		if (p < h->udl) {
 			for (p = 0; p < h->udl && h->ud[p] < 0x100; p++);
 			if (p == h->udl) {						 /* can write in ucs-1 hex */
-				fprintf (o, "ud#");
+				fprintf(o, "ud#");
 				for (p = 0; p < h->udl; p++)
-					fprintf (o, "%02X", h->ud[p]);
-				fprintf (o, "\n");
+					fprintf(o, "%02X", h->ud[p]);
+				fprintf(o, "\n");
 			} else {						 /* write in UCS-2 */
-				fprintf (o, "ud##");
+				fprintf(o, "ud##");
 				for (p = 0; p < h->udl; p++)
-					fprintf (o, "%04X", h->ud[p]);
-				fprintf (o, "\n");
+					fprintf(o, "%04X", h->ud[p]);
+				fprintf(o, "\n");
 			}
 		}
 	}
 	if (h->scts) {
 		char buf[30];
-		fprintf (o, "scts=%s\n", isodate(h->scts, buf, sizeof(buf)));
+		fprintf(o, "scts=%s\n", isodate(h->scts, buf, sizeof(buf)));
 	}
 	if (h->pid)
-		fprintf (o, "pid=%d\n", h->pid);
+		fprintf(o, "pid=%d\n", h->pid);
 	if (h->dcs != 0xF1)
-		fprintf (o, "dcs=%d\n", h->dcs);
+		fprintf(o, "dcs=%d\n", h->dcs);
 	if (h->vp)
-		fprintf (o, "vp=%d\n", h->vp);
+		fprintf(o, "vp=%d\n", h->vp);
 	if (h->srr)
-		fprintf (o, "srr=1\n");
+		fprintf(o, "srr=1\n");
 	if (h->mr >= 0)
-		fprintf (o, "mr=%d\n", h->mr);
+		fprintf(o, "mr=%d\n", h->mr);
 	if (h->rp)
-		fprintf (o, "rp=1\n");
-	fclose (o);
-	if (rename (fn, fn2))
-		unlink (fn);
+		fprintf(o, "rp=1\n");
+	fclose(o);
+	if (rename(fn, fn2))
+		unlink(fn);
 	else
-		ast_log (LOG_EVENT, "Received to %s\n", fn2);
+		ast_log(LOG_EVENT, "Received to %s\n", fn2);
 }
 
 /*! \brief read dir skipping dot files... */
-static struct dirent *readdirqueue (DIR * d, char *queue)
+static struct dirent *readdirqueue(DIR *d, char *queue)
 {
 	struct dirent *f;
 	do {
-		f = readdir (d);
-	} while (f && (*f->d_name == '.' || strncmp (f->d_name, queue, strlen (queue)) || f->d_name[strlen (queue)] != '.'));
+		f = readdir(d);
+	} while (f && (*f->d_name == '.' || strncmp(f->d_name, queue, strlen(queue)) || f->d_name[strlen(queue)] != '.'));
 	return f;
 }
 
@@ -1020,10 +1022,10 @@ static unsigned char sms_handleincoming (sms_t * h)
 			h->srr = ((h->imsg[2] & 0x20) ? 1 : 0);
 			h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
 			h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
-			ast_copy_string (h->oa, h->cli, sizeof (h->oa));
-			h->scts = time (0);
+			ast_copy_string(h->oa, h->cli, sizeof(h->oa));
+			h->scts = time(NULL);
 			h->mr = h->imsg[p++];
-			p += unpackaddress (h->da, h->imsg + p);
+			p += unpackaddress(h->da, h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
 			if ((h->imsg[2] & 0x18) == 0x10) {							 /* relative VP */
@@ -1038,15 +1040,15 @@ static unsigned char sms_handleincoming (sms_t * h)
 				p++;
 			} else if (h->imsg[2] & 0x18)
 				p += 7;				 /* ignore enhanced / absolute VP */
-			p += unpacksms (h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
+			p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
 			h->rx = 1;				 /* received message */
-			sms_writefile (h);	  /* write the file */
+			sms_writefile(h);	  /* write the file */
 			if (p != h->imsg[1] + 2) {
-				ast_log (LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
+				ast_log(LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
 				return 0xFF;		  /* duh! */
 			}
 		} else {
-			ast_log (LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
+			ast_log(LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
 			return 0xFF;
 		}
 	} else {									 /* client */
@@ -1056,20 +1058,20 @@ static unsigned char sms_handleincoming (sms_t * h)
 			h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
 			h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
 			h->mr = -1;
-			p += unpackaddress (h->oa, h->imsg + p);
+			p += unpackaddress(h->oa, h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
-			h->scts = unpackdate (h->imsg + p);
+			h->scts = unpackdate(h->imsg + p);
 			p += 7;
-			p += unpacksms (h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
+			p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
 			h->rx = 1;				 /* received message */
-			sms_writefile (h);	  /* write the file */
+			sms_writefile(h);	  /* write the file */
 			if (p != h->imsg[1] + 2) {
-				ast_log (LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
+				ast_log(LOG_WARNING, "Mismatch receive unpacking %d/%d\n", p, h->imsg[1] + 2);
 				return 0xFF;		  /* duh! */
 			}
 		} else {
-			ast_log (LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
+			ast_log(LOG_WARNING, "Unknown message type %02X\n", h->imsg[2]);
 			return 0xFF;
 		}
 	}
@@ -1084,60 +1086,60 @@ static unsigned char sms_handleincoming (sms_t * h)
  * Add data to a protocol 2 message.
  * Use the length field (h->omsg[1]) as a pointer to the next free position.
  */
-static void adddata_proto2 (sms_t *h, unsigned char msg, char *data, int size)
+static void adddata_proto2(sms_t *h, unsigned char msg, char *data, int size)
 {
 	int x = h->omsg[1]+2;	/* Get current position */
-	if (x==2)
+	if (x == 2)
 		x += 2;		/* First: skip Payload length (set later) */
 	h->omsg[x++] = msg;	/* Message code */
-	h->omsg[x++]=(unsigned char)size;       /* Data size Low */
-	h->omsg[x++]=0;         /* Data size Hi */
-	for (; size>0 ; size--)
+	h->omsg[x++] = (unsigned char)size;       /* Data size Low */
+	h->omsg[x++] = 0;	 /* Data size Hi */
+	for (; size > 0 ; size--)
 		h->omsg[x++] = *data++;
-	h->omsg[1] = x-2;	/* Frame size */
-	h->omsg[2] = x-4;	/* Payload length (Lo) */
+	h->omsg[1] = x - 2;	/* Frame size */
+	h->omsg[2] = x - 4;	/* Payload length (Lo) */
 	h->omsg[3] = 0;		/* Payload length (Hi) */
 }
 
-static void putdummydata_proto2 (sms_t *h)
+static void putdummydata_proto2(sms_t *h)
 {
-	adddata_proto2 (h, 0x10, "\0", 1);              /* Media Identifier > SMS */
-	adddata_proto2 (h, 0x11, "\0\0\0\0\0\0", 6);    /* Firmware version */
-	adddata_proto2 (h, 0x12, "\2\0\4", 3);          /* SMS provider ID */
-	adddata_proto2 (h, 0x13, h->udtxt, h->udl);     /* Body */
+	adddata_proto2(h, 0x10, "\0", 1);	      /* Media Identifier > SMS */
+	adddata_proto2(h, 0x11, "\0\0\0\0\0\0", 6);    /* Firmware version */
+	adddata_proto2(h, 0x12, "\2\0\4", 3);	  /* SMS provider ID */
+	adddata_proto2(h, 0x13, h->udtxt, h->udl);     /* Body */
 }
 
 static void sms_compose2(sms_t *h, int more)
 {
-	struct tm *tm;
+	struct tm tm;
 	char stm[9];
 
 	h->omsg[0] = 0x00;       /* set later... */
 	h->omsg[1] = 0;
-	putdummydata_proto2 (h);
-	if (h->smsc) {                  /* deliver */
+	putdummydata_proto2(h);
+	if (h->smsc) {		  /* deliver */
 		h->omsg[0] = 0x11;      /* SMS_DELIVERY */
-		// Required: 10 11 12 13 14 15 17 (seems they must be ordered!)
-		tm=localtime(&h->scts);
-		sprintf (stm, "%02d%02d%02d%02d", tm->tm_mon+1,tm->tm_mday,tm->tm_hour,tm->tm_min);     // Date mmddHHMM
-		adddata_proto2 (h, 0x14, stm, 8);               /* Date */
-		if(*h->oa==0)
-			strcpy(h->oa,"00000000");
-		adddata_proto2 (h, 0x15, h->oa, strlen(h->oa)); /* Originator */
-		adddata_proto2 (h, 0x17, "\1", 1);              /* Calling Terminal ID */
-	} else {                        /* submit */
+		/* Required: 10 11 12 13 14 15 17 (seems they must be ordered!) */
+		ast_localtime(&h->scts, &tm, NULL);
+		sprintf(stm, "%02d%02d%02d%02d", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);     /* Date mmddHHMM */
+		adddata_proto2(h, 0x14, stm, 8);	       /* Date */
+		if (*h->oa == 0)
+			strcpy(h->oa, "00000000");
+		adddata_proto2(h, 0x15, h->oa, strlen(h->oa)); /* Originator */
+		adddata_proto2(h, 0x17, "\1", 1);	      /* Calling Terminal ID */
+	} else {			/* submit */
 		h->omsg[0] = 0x10;      /* SMS_SUBMIT */
-		// Required: 10 11 12 13 17 18 1B 1C (seems they must be ordered!)
-		adddata_proto2 (h, 0x17, "\1", 1);              /* Calling Terminal ID */
-		if(*h->da==0)
-			strcpy(h->da,"00000000");
-		adddata_proto2 (h, 0x18, h->da, strlen(h->da)); /* Originator */
-		adddata_proto2 (h, 0x1B, "\1", 1);              /* Called Terminal ID */
-		adddata_proto2 (h, 0x1C, "\0\0\0", 3);          /* Notification */
+		/* Required: 10 11 12 13 17 18 1B 1C (seems they must be ordered!) */
+		adddata_proto2(h, 0x17, "\1", 1);	      /* Calling Terminal ID */
+		if (*h->da == 0)
+			strcpy(h->da, "00000000");
+		adddata_proto2(h, 0x18, h->da, strlen(h->da)); /* Originator */
+		adddata_proto2(h, 0x1B, "\1", 1);	      /* Called Terminal ID */
+		adddata_proto2(h, 0x1C, "\0\0\0", 3);	  /* Notification */
 	}
 }
 
-static void putdummydata_proto2 (sms_t *h);
+static void putdummydata_proto2(sms_t *h);
 
 #define MAX_DEBUG_LEN	300
 static char *sms_hexdump(unsigned char buf[], int size, char *s /* destination */)
@@ -1145,90 +1147,90 @@ static char *sms_hexdump(unsigned char buf[], int size, char *s /* destination *
 	char *p;
 	int f;
 
-	for (p=s,f=0; f<size && f < MAX_DEBUG_LEN; f++, p+=3) 
-		sprintf(p,"%02X ",(unsigned char)buf[f]);
+	for (p = s, f = 0; f < size && f < MAX_DEBUG_LEN; f++, p += 3) 
+		sprintf(p, "%02X ", (unsigned char)buf[f]);
 	return(s);
 }
 
 
 /*! \brief sms_handleincoming_proto2: handle the incoming message */
-static int sms_handleincoming_proto2(sms_t * h)
+static int sms_handleincoming_proto2(sms_t *h)
 {
-	int f, i, sz=0;
+	int f, i, sz = 0;
 	int msg, msgsz;
-	struct tm *tm;
+	struct tm tm;
 	char debug_buf[MAX_DEBUG_LEN * 3 + 1];
 
-	sz = h->imsg[1]+2;
-	/* ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg,sz, debug_buf)); */
+	sz = h->imsg[1] + 2;
+	/* ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg, sz, debug_buf)); */
 
 	/* Parse message body (called payload) */
-	h->scts = time (0);
-	for(f=4; f<sz; ) {
-		msg=h->imsg[f++];
-		msgsz=h->imsg[f++];
-		msgsz+=(h->imsg[f++]*256);
-		switch(msg) {
+	h->scts = time(NULL);
+	for (f = 4; f < sz; ) {
+		msg = h->imsg[f++];
+		msgsz = h->imsg[f++];
+		msgsz += (h->imsg[f++] * 256);
+		switch (msg) {
 		case 0x13:      /* Body */
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Body#%02X=[%.*s]\n",msg,msgsz,&h->imsg[f]);
+				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Body#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
 			if (msgsz >= sizeof(h->imsg))
-				msgsz = sizeof(h->imsg)-1;
-			for (i=0; i<msgsz; i++)
-				h->ud[i]=h->imsg[f+i];
+				msgsz = sizeof(h->imsg) - 1;
+			for (i = 0; i < msgsz; i++)
+				h->ud[i] = h->imsg[f + i];
 			h->udl = msgsz;
 			break;
 		case 0x14:      /* Date SCTS */
-			h->scts = time (0);
-			tm = localtime (&h->scts);
-			tm->tm_mon = ( (h->imsg[f]*10) + h->imsg[f+1] ) - 1;
-			tm->tm_mday = ( (h->imsg[f+2]*10) + h->imsg[f+3] );
-			tm->tm_hour = ( (h->imsg[f+4]*10) + h->imsg[f+5] );
-			tm->tm_min = ( (h->imsg[f+6]*10) + h->imsg[f+7] );
-			tm->tm_sec = 0;
-			h->scts = mktime (tm);
+			h->scts = time(NULL);
+			ast_localtime(&h->scts, &tm, NULL);
+			tm.tm_mon = ( (h->imsg[f] * 10) + h->imsg[f + 1] ) - 1;
+			tm.tm_mday = ( (h->imsg[f + 2] * 10) + h->imsg[f + 3] );
+			tm.tm_hour = ( (h->imsg[f + 4] * 10) + h->imsg[f + 5] );
+			tm.tm_min = ( (h->imsg[f + 6] * 10) + h->imsg[f + 7] );
+			tm.tm_sec = 0;
+			h->scts = mktime(&tm);
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", msg, tm->tm_mday, tm->tm_mon+1, tm->tm_hour, tm->tm_min);
+				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", msg, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
 			break;
 		case 0x15:      /* Calling line (from SMSC) */
-			if (msgsz>=20)
-				msgsz=20-1;
+			if (msgsz >= 20)
+				msgsz = 20 - 1;
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Origin#%02X=[%.*s]\n",msg,msgsz,&h->imsg[f]);
-			ast_copy_string (h->oa, (char*)(&h->imsg[f]), msgsz+1);
+				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Origin#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_copy_string(h->oa, (char *)(&h->imsg[f]), msgsz + 1);
 			break;
-		case 0x18:      /* Destination (from TE/phone) */
-			if (msgsz>=20)
-				msgsz=20-1;
+		case 0x18:      /* Destination(from TE/phone) */
+			if (msgsz >= 20)
+				msgsz = 20 - 1;
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Destination#%02X=[%.*s]\n",msg,msgsz,&h->imsg[f]);
-			ast_copy_string (h->da, (char*)(&h->imsg[f]), msgsz+1);
+				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Destination#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_copy_string(h->da, (char *)(&h->imsg[f]), msgsz + 1);
 			break;
 		case 0x1C:      /* Notify */
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Notify#%02X=%s\n",msg, sms_hexdump(&h->imsg[f],3, debug_buf));
+				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Notify#%02X=%s\n", msg, sms_hexdump(&h->imsg[f], 3, debug_buf));
 			break;
 		default:
 			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "SMS-P2 Par#%02X [%d]: %s\n",msg,msgsz,sms_hexdump(&h->imsg[f],msgsz, debug_buf));
+				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Par#%02X [%d]: %s\n", msg, msgsz, sms_hexdump(&h->imsg[f], msgsz, debug_buf));
 			break;
 		}
 		f+=msgsz;       /* Skip to next */
 	}
-	h->rx = 1;              /* received message */
-	sms_writefile (h);      /* write the file */
-	return 0;               /* no error */
+	h->rx = 1;	      /* received message */
+	sms_writefile(h);      /* write the file */
+	return 0;	       /* no error */
 }
 
 #if 0
 static void smssend(sms_t *h, char *c)
 {
 	int f, x;
-	for(f=0; f<strlen(c); f++) {
-		sscanf(&c[f*3],"%x",&x);
+	for (f = 0; f < strlen(c); f++) {
+		sscanf(&c[f*3], "%x", &x);
 		h->omsg[f] = x;
 	}
-	sms_messagetx (h);
+	sms_messagetx(h);
 }
 #endif
 
@@ -1243,14 +1245,14 @@ static void sms_messagerx2(sms_t * h)
 	switch (p) {
 	case DLL2_SMS_EST:	/* Protocol 2: Connection ready (fake): send message  */
 		sms_nextoutgoing (h);
-		//smssend(h,"11 29 27 00 10 01 00 00 11 06 00 00 00 00 00 00 00 12 03 00 02 00 04 13 01 00 41 14 08 00 30 39 31 35 30 02 30 02 15 02 00 39 30 ");
+		/* smssend(h,"11 29 27 00 10 01 00 00 11 06 00 00 00 00 00 00 00 12 03 00 02 00 04 13 01 00 41 14 08 00 30 39 31 35 30 02 30 02 15 02 00 39 30 "); */
 		break;
 
 	case DLL2_SMS_INFO_MO:	/* transport SMS_SUBMIT */
 	case DLL2_SMS_INFO_MT:	/* transport SMS_DELIVERY */
 		cause = sms_handleincoming_proto2(h);
 		if (!cause)	/* ACK */
-			sms_log (h, 'Y');
+			sms_log(h, 'Y');
 		h->omsg[0] = DLL2_ACK(h);
 		h->omsg[1] = 0x06;  /* msg len */
 		h->omsg[2] = 0x04;  /* payload len */
@@ -1259,21 +1261,21 @@ static void sms_messagerx2(sms_t * h)
 		h->omsg[5] = 0x01;  /* parameter len */
 		h->omsg[6] = 0x00;  /* parameter len */
 		h->omsg[7] = cause;  /* CONFIRM or error */
-		sms_messagetx (h);
+		sms_messagetx(h);
 		break;
 
 	case DLL2_SMS_NACK:	/* Protocol 2: SMS_NAK */
 		h->omsg[0] = DLL2_SMS_REL;  /* SMS_REL */
 		h->omsg[1] = 0x00;  /* msg len */
-		sms_messagetx (h);
+		sms_messagetx(h);
 		break;
 
 	case DLL2_SMS_ACK0:
 	case DLL2_SMS_ACK1:
 		/* SMS_ACK also transport SMS_SUBMIT or SMS_DELIVERY */
-		if( (h->omsg[0] & DLL_SMS_MASK) == DLL2_SMS_REL) {
+		if ( (h->omsg[0] & DLL_SMS_MASK) == DLL2_SMS_REL) {
 			/* a response to our Release, just hangup */
-			h->hangup = 1;          /* hangup */
+			h->hangup = 1;	  /* hangup */
 		} else {
 			/* XXX depending on what we are.. */
 			ast_log(LOG_NOTICE, "SMS_SUBMIT or SMS_DELIVERY");
@@ -1284,7 +1286,7 @@ static void sms_messagerx2(sms_t * h)
 	case DLL2_SMS_REL:	/* Protocol 2: SMS_REL (hangup req) */
 		h->omsg[0] = DLL2_ACK(h);
 		h->omsg[1] = 0;
-		sms_messagetx (h);
+		sms_messagetx(h);
 		break;
 	}
 }
@@ -1297,19 +1299,19 @@ static void sms_compose1(sms_t *h, int more)
 	h->omsg[0] = 0x91;		  /* SMS_DATA */
 	if (h->smsc) {			 /* deliver */
 		h->omsg[p++] = (more ? 4 : 0) + ((h->udhl > 0) ? 0x40 : 0);
-		p += packaddress (h->omsg + p, h->oa);
+		p += packaddress(h->omsg + p, h->oa);
 		h->omsg[p++] = h->pid;
 		h->omsg[p++] = h->dcs;
-		packdate (h->omsg + p, h->scts);
+		packdate(h->omsg + p, h->scts);
 		p += 7;
-		p += packsms (h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
+		p += packsms(h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
 	} else {			 /* submit */
 		h->omsg[p++] =
 			0x01 + (more ? 4 : 0) + (h->srr ? 0x20 : 0) + (h->rp ? 0x80 : 0) + (h->vp ? 0x10 : 0) + (h->udhi ? 0x40 : 0);
 		if (h->mr < 0)
 			h->mr = message_ref++;
 		h->omsg[p++] = h->mr;
-		p += packaddress (h->omsg + p, h->da);
+		p += packaddress(h->omsg + p, h->da);
 		h->omsg[p++] = h->pid;
 		h->omsg[p++] = h->dcs;
 		if (h->vp) {		 /* relative VP */
@@ -1324,40 +1326,40 @@ static void sms_compose1(sms_t *h, int more)
 			else
 				h->omsg[p++] = 255;		/* max */
 		}
-		p += packsms (h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
+		p += packsms(h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
 	}
 	h->omsg[1] = p - 2;
 }
 
 /*! \brief find and fill in next message, or send a REL if none waiting */
 static void sms_nextoutgoing (sms_t * h)
-{          
+{	  
 	char fn[100 + NAME_MAX] = "";
 	DIR *d;
 	char more = 0;
 
 	*h->da = *h->oa = '\0';			/* clear destinations */
 	h->rx = 0;				/* outgoing message */
-	snprintf(fn, sizeof(fn), "%s/%s", spool_dir, h->smsc ? "mttx" : "motx");
+	snprintf(fn, sizeof(fn), "%s/sms/%s", ast_config_AST_SPOOL_DIR, h->smsc ? "mttx" : "motx");
 	ast_mkdir(fn, 0777);			/* ensure it exists */
-	d = opendir (fn);
+	d = opendir(fn);
 	if (d) {
-		struct dirent *f = readdirqueue (d, h->queue);
+		struct dirent *f = readdirqueue(d, h->queue);
 		if (f) {
-			snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", f->d_name);
-			sms_readfile (h, fn);
-			if (readdirqueue (d, h->queue))
+			snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", f->d_name);
+			sms_readfile(h, fn);
+			if (readdirqueue(d, h->queue))
 				more = 1;			  /* more to send */
 		}
-		closedir (d);
+		closedir(d);
 	}
 	if (*h->da || *h->oa) {									 /* message to send */
-		if (h->protocol==2)
+		if (h->protocol == 2)
 			sms_compose2(h, more);
 		else
-			sms_compose1(h,more);
+			sms_compose1(h, more);
 	} else {				/* no message */
-		if (h->protocol==2) {
+		if (h->protocol == 2) {
 			h->omsg[0] = 0x17;      /* SMS_REL */
 			h->omsg[1] = 0;
 		} else {
@@ -1365,7 +1367,7 @@ static void sms_nextoutgoing (sms_t * h)
 			h->omsg[1] = 0;
 		}
 	}
-	sms_messagetx (h);
+	sms_messagetx(h);
 }
 
 #define DIR_RX 1
@@ -1378,13 +1380,13 @@ static void sms_debug (int dir, sms_t *h)
 	int n = (dir == DIR_RX) ? h->ibytep : msg[1] + 2;
 	int q = 0;
 	while (q < n && q < 30) {
-		sprintf (p, " %02X", msg[q++]);
+		sprintf(p, " %02X", msg[q++]);
 		p += 3;
 	}
 	if (q < n)
-		sprintf (p, "...");
+		sprintf(p, "...");
 	if (option_verbose > 2)
-		ast_verbose (VERBOSE_PREFIX_3 "SMS %s%s\n", dir == DIR_RX ? "RX" : "TX", txt);
+		ast_verbose(VERBOSE_PREFIX_3 "SMS %s%s\n", dir == DIR_RX ? "RX" : "TX", txt);
 }
 
 
@@ -1400,27 +1402,27 @@ static void sms_messagerx(sms_t * h)
 	/* parse incoming message for Protocol 1 */
 	switch (h->imsg[0]) {
 	case 0x91:						/* SMS_DATA */
-			cause = sms_handleincoming (h);
-			if (!cause) {
-				sms_log (h, 'Y');
-				h->omsg[0] = 0x95;  /* SMS_ACK */
-				h->omsg[1] = 0x02;
-				h->omsg[2] = 0x00;  /* deliver report */
-				h->omsg[3] = 0x00;  /* no parameters */
-			} else {							 /* NACK */
-				sms_log (h, 'N');
-				h->omsg[0] = 0x96;  /* SMS_NACK */
-				h->omsg[1] = 3;
-				h->omsg[2] = 0;	  /* delivery report */
-				h->omsg[3] = cause; /* cause */
-				h->omsg[4] = 0;	  /* no parameters */
-			}
-			sms_messagetx (h);
-			break;
+		cause = sms_handleincoming (h);
+		if (!cause) {
+			sms_log(h, 'Y');
+			h->omsg[0] = 0x95;  /* SMS_ACK */
+			h->omsg[1] = 0x02;
+			h->omsg[2] = 0x00;  /* deliver report */
+			h->omsg[3] = 0x00;  /* no parameters */
+		} else {							 /* NACK */
+			sms_log(h, 'N');
+			h->omsg[0] = 0x96;  /* SMS_NACK */
+			h->omsg[1] = 3;
+			h->omsg[2] = 0;	  /* delivery report */
+			h->omsg[3] = cause; /* cause */
+			h->omsg[4] = 0;	  /* no parameters */
+		}
+		sms_messagetx(h);
+		break;
 
 	case 0x92:						/* SMS_ERROR */
 		h->err = 1;
-		sms_messagetx (h);		  /* send whatever we sent again */
+		sms_messagetx(h);		  /* send whatever we sent again */
 		break;
 	case 0x93:						/* SMS_EST */
 		sms_nextoutgoing (h);
@@ -1429,19 +1431,19 @@ static void sms_messagerx(sms_t * h)
 		h->hangup = 1;				/* hangup */
 		break;
 	case 0x95:						/* SMS_ACK */
-		sms_log (h, 'Y');
+		sms_log(h, 'Y');
 		sms_nextoutgoing (h);
 		break;
 	case 0x96:						/* SMS_NACK */
 		h->err = 1;
-		sms_log (h, 'N');
+		sms_log(h, 'N');
 		sms_nextoutgoing (h);
 		break;
 	default:						  /* Unknown */
 		h->omsg[0] = 0x92;		  /* SMS_ERROR */
 		h->omsg[1] = 1;
 		h->omsg[2] = 3;			  /* unknown message type; */
-		sms_messagetx (h);
+		sms_messagetx(h);
 		break;
 	}
 }
@@ -1468,10 +1470,10 @@ static void sms_messagetx(sms_t * h)
 	h->obitp = 0;
 	if (h->protocol == 2) {
 		h->oseizure = 300;      /* Proto 2: 300bits (or more ?) */
-		h->obyte = 0;           /* Seizure starts with  space (0) */
+		h->obyte = 0;	   /* Seizure starts with  space (0) */
 		h->opause = 400;
 	} else {
-		h->oseizure = 0;        /* Proto 1: No seizure */
+		h->oseizure = 0;	/* Proto 1: No seizure */
 	}
 	/* Note - setting osync triggers the generator */
 	h->osync = OSYNC_BITS;			/* 80 sync bits */
@@ -1491,7 +1493,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 	int i;
 
 	if (samples > MAXSAMPLES) {
-		ast_log (LOG_WARNING, "Only doing %d samples (%d requested)\n",
+		ast_log(LOG_WARNING, "Only doing %d samples (%d requested)\n",
 			 MAXSAMPLES, samples);
 		samples = MAXSAMPLES;
 	}
@@ -1519,7 +1521,7 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 				h->ophase -= 80;
 			if ((h->ophasep += 12) >= 80) {		/* time to send the next bit */
 				h->ophasep -= 80;
-				if (h->oseizure > 0) {           /* sending channel seizure (proto 2) */
+				if (h->oseizure > 0) {	   /* sending channel seizure (proto 2) */
 					h->oseizure--;
 					h->obyte ^= 1;	/* toggle low bit */
 				} else if (h->osync) {
@@ -1548,8 +1550,8 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 			}
 		}
 	}
-	if (ast_write (chan, &f) < 0) {
-		ast_log (LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror (errno));
+	if (ast_write(chan, &f) < 0) {
+		ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 		return -1;
 	}
 	return 0;
@@ -1559,12 +1561,12 @@ static int sms_generate(struct ast_channel *chan, void *data, int len, int sampl
 /*!
  * Just return the pointer to the descriptor that we received.
  */
-static void *sms_alloc (struct ast_channel *chan, void *sms_t_ptr)
+static void *sms_alloc(struct ast_channel *chan, void *sms_t_ptr)
 {
 	return sms_t_ptr;
 }
 
-static void sms_release (struct ast_channel *chan, void *data)
+static void sms_release(struct ast_channel *chan, void *data)
 {
 	return;	/* nothing to do here. */
 }
@@ -1602,24 +1604,24 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 		return;
 	for ( ; samples-- ; data++) {
 		unsigned long long m0, m1;
-		if (abs (*data) > h->imag)
-			h->imag = abs (*data);
+		if (abs(*data) > h->imag)
+			h->imag = abs(*data);
 		else
 			h->imag = h->imag * 7 / 8;
 		if (h->imag <= 500) {		/* below [arbitrary] threahold: lost carrier */
 			if (h->idle++ == 80000) {		 /* nothing happening */
-				ast_log (LOG_NOTICE, "No data, hanging up\n");
+				ast_log(LOG_NOTICE, "No data, hanging up\n");
 				h->hangup = 1;
 				h->err = 1;
 			}
 			if (h->ierr) {		/* error */
-				ast_log (LOG_NOTICE, "Error %d, hanging up\n", h->ierr);
+				ast_log(LOG_NOTICE, "Error %d, hanging up\n", h->ierr);
 				/* Protocol 1 */
 				h->err = 1;
 				h->omsg[0] = 0x92;  /* error */
 				h->omsg[1] = 1;
 				h->omsg[2] = h->ierr;
-				sms_messagetx (h);  /* send error */
+				sms_messagetx(h);  /* send error */
 			}
 			h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
 			continue;
@@ -1665,15 +1667,15 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 		}
 		if (bit && h->ibitc == 200) {						 /* sync, restart message */
 			/* Protocol 2: empty connnection ready (I am master) */
-			if(h->framenumber<0 && h->ibytec>=160 && !memcmp(h->imsg,"UUUUUUUUUUUUUUUUUUUU",20)) {
+			if (h->framenumber < 0 && h->ibytec >= 160 && !memcmp(h->imsg, "UUUUUUUUUUUUUUUUUUUU", 20)) {
 				h->framenumber = 1;
 				if (option_verbose > 2)
-					ast_verbose (VERBOSE_PREFIX_3 "SMS protocol 2 detected\n");
+					ast_verbose(VERBOSE_PREFIX_3 "SMS protocol 2 detected\n");
 				h->protocol = 2;
 				h->imsg[0] = 0xff;      /* special message (fake) */
 				h->imsg[1] = h->imsg[2] = 0x00;
 				h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
-				sms_messagerx (h);
+				sms_messagerx(h);
 			}
 			h->ierr = h->ibitn = h->ibytep = h->ibytec = 0;
 		}
@@ -1686,17 +1688,17 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 						ast_log(LOG_NOTICE, "bad stop bit");
 						h->ierr = 0xFF; /* unknown error */
 					} else {
-						if (h->ibytep < sizeof (h->imsg)) {
+						if (h->ibytep < sizeof(h->imsg)) {
 							h->imsg[h->ibytep] = h->ibytev;
 							h->ibytec += h->ibytev;
 							h->ibytep++;
-						} else if (h->ibytep == sizeof (h->imsg)) {
+						} else if (h->ibytep == sizeof(h->imsg)) {
 							ast_log(LOG_NOTICE, "msg too large");
 							h->ierr = 2; /* bad message length */
 						}
 						if (h->ibytep > 1 && h->ibytep == 3 + h->imsg[1] && !h->ierr) {
 							if (!h->ibytec)
-								sms_messagerx (h);
+								sms_messagerx(h);
 							else {
 								ast_log(LOG_NOTICE, "bad checksum");
 								h->ierr = 1;		/* bad checksum */
@@ -1741,7 +1743,7 @@ AST_APP_OPTIONS(sms_options, {
 	AST_APP_OPTION_ARG('p', OPTION_PAUSE, OPTION_ARG_PAUSE),
 	} );
 
-static int sms_exec (struct ast_channel *chan, void *data)
+static int sms_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	struct ast_module_user *u;
@@ -1751,14 +1753,14 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	char *parse, *sms_opts[OPTION_ARG_ARRAY_SIZE];
 	char *p;
 	AST_DECLARE_APP_ARGS(sms_args,
-                AST_APP_ARG(queue);
-                AST_APP_ARG(options);
+		AST_APP_ARG(queue);
+		AST_APP_ARG(options);
 		AST_APP_ARG(addr);
 		AST_APP_ARG(body);
-        );
+	);
 
 	if (!data) {
-		ast_log (LOG_ERROR, "Requires queue name at least\n");
+		ast_log(LOG_ERROR, "Requires queue name at least\n");
 		return -1;
 	}
 
@@ -1778,20 +1780,20 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	h.dcs = 0xF1;			/* default */
 
 	if (chan->cid.cid_num)
-		ast_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
+		ast_copy_string(h.cli, chan->cid.cid_num, sizeof(h.cli));
 
 	if (ast_strlen_zero(sms_args.queue)) {
-		ast_log (LOG_ERROR, "Requires queue name\n");
+		ast_log(LOG_ERROR, "Requires queue name\n");
 		goto done;
 	}
 	if (strlen(sms_args.queue) >= sizeof(h.queue)) {
-		ast_log (LOG_ERROR, "Queue name too long\n");
+		ast_log(LOG_ERROR, "Queue name too long\n");
 		goto done;
 	}
 	ast_copy_string(h.queue, sms_args.queue, sizeof(h.queue));
 
 	for (p = h.queue; *p; p++)
-		if (!isalnum (*p))
+		if (!isalnum(*p))
 			*p = '-';			  /* make very safe for filenames */
 
 	h.smsc = ast_test_flag(&sms_flags, OPTION_BE_SMSC);
@@ -1825,46 +1827,46 @@ static int sms_exec (struct ast_channel *chan, void *data)
 
 		/* submitting a message, not taking call. */
 		/* deprecated, use smsq instead */
-		h.scts = time (0);
-		if (ast_strlen_zero(sms_args.addr) || strlen (sms_args.addr) >= sizeof (h.oa)) {
-			ast_log (LOG_ERROR, "Address too long %s\n", sms_args.addr);
+		h.scts = time(NULL);
+		if (ast_strlen_zero(sms_args.addr) || strlen(sms_args.addr) >= sizeof(h.oa)) {
+			ast_log(LOG_ERROR, "Address too long %s\n", sms_args.addr);
 			goto done;
 		}
 		if (h.smsc)
-			ast_copy_string (h.oa, sms_args.addr, sizeof (h.oa));
+			ast_copy_string(h.oa, sms_args.addr, sizeof(h.oa));
 		else {
-			ast_copy_string (h.da, sms_args.addr, sizeof (h.da));
-			ast_copy_string (h.oa, h.cli, sizeof (h.oa));
+			ast_copy_string(h.da, sms_args.addr, sizeof(h.da));
+			ast_copy_string(h.oa, h.cli, sizeof(h.oa));
 		}
 		h.udl = 0;
 		if (ast_strlen_zero(sms_args.body)) {
-			ast_log (LOG_ERROR, "Missing body for %s\n", sms_args.addr);
+			ast_log(LOG_ERROR, "Missing body for %s\n", sms_args.addr);
 			goto done;
 		}
 		up = (unsigned char *)sms_args.body;
 		while (*up && h.udl < SMSLEN)
 			h.ud[h.udl++] = utf8decode(&up);
-		if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0) {
-			ast_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
+		if (is7bit(h.dcs) && packsms7(0, h.udhl, h.udh, h.udl, h.ud) < 0) {
+			ast_log(LOG_WARNING, "Invalid 7 bit GSM data\n");
 			goto done;
 		}
-		if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0) {
-			ast_log (LOG_WARNING, "Invalid 8 bit data\n");
+		if (is8bit(h.dcs) && packsms8(0, h.udhl, h.udh, h.udl, h.ud) < 0) {
+			ast_log(LOG_WARNING, "Invalid 8 bit data\n");
 			goto done;
 		}
-		if (is16bit (h.dcs) && packsms16 (0, h.udhl, h.udh, h.udl, h.ud) < 0) {
-			ast_log (LOG_WARNING, "Invalid 16 bit data\n");
+		if (is16bit(h.dcs) && packsms16(0, h.udhl, h.udh, h.udl, h.ud) < 0) {
+			ast_log(LOG_WARNING, "Invalid 16 bit data\n");
 			goto done;
 		}
 		h.rx = 0;				  /* sent message */
 		h.mr = -1;
-		sms_writefile (&h);
+		sms_writefile(&h);
 		res = h.err;
 		goto done;
 	}
 
 	if (ast_test_flag(&sms_flags, OPTION_ANSWER)) {
-		h.framenumber = 1;             /* Proto 2 */
+		h.framenumber = 1;	     /* Proto 2 */
 		/* set up SMS_EST initial message */
 		if (h.protocol == 2) {
 			h.omsg[0] = DLL2_SMS_EST;
@@ -1873,22 +1875,22 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			h.omsg[0] = DLL1_SMS_EST | DLL1_SMS_COMPLETE;
 			h.omsg[1] = 0;
 		}
-		sms_messagetx (&h);
+		sms_messagetx(&h);
 	}
 
 	if (chan->_state != AST_STATE_UP)
-		ast_answer (chan);
+		ast_answer(chan);
 
-	res = ast_set_write_format (chan, __OUT_FMT);
+	res = ast_set_write_format(chan, __OUT_FMT);
 	if (res >= 0)
-		res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
-		ast_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
+		ast_log(LOG_ERROR, "Unable to set to linear mode, giving up\n");
 		goto done;
 	}
 
-	if ( (res = ast_activate_generator (chan, &smsgen, &h)) < 0) {
-		ast_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+	if ( (res = ast_activate_generator(chan, &smsgen, &h)) < 0) {
+		ast_log(LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
 		goto done;
 	}
 
@@ -1904,20 +1906,20 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			ast_log(LOG_NOTICE, "channel hangup\n");
 			break;
 		}
-		f = ast_read (chan);
+		f = ast_read(chan);
 		if (!f) {
 			ast_log(LOG_NOTICE, "ast_read failed\n");
 			break;
 		}
 		if (f->frametype == AST_FRAME_VOICE) {
-			sms_process (&h, f->samples, f->data);
+			sms_process(&h, f->samples, f->data);
 		}
 
-		ast_frfree (f);
+		ast_frfree(f);
 	}
 	res = h.err;	/* XXX */
 
-	sms_log (&h, '?');			  /* log incomplete message */
+	sms_log(&h, '?');			  /* log incomplete message */
 done:
 	ast_module_user_remove(u);
 	return (res);
@@ -1927,7 +1929,7 @@ static int unload_module(void)
 {
 	int res;
 
-	res = ast_unregister_application (app);
+	res = ast_unregister_application(app);
 	
 	ast_module_user_hangup_all();
 
@@ -1941,9 +1943,8 @@ static int load_module(void)
 	for (p = 0; p < 80; p++)
 		wavea[p] = AST_LIN2A (wave[p]);
 #endif
-	snprintf (log_file, sizeof (log_file), "%s/sms", ast_config_AST_LOG_DIR);
-	snprintf (spool_dir, sizeof (spool_dir), "%s/sms", ast_config_AST_SPOOL_DIR);
-	return ast_register_application (app, sms_exec, synopsis, descrip);
+	snprintf(log_file, sizeof(log_file), "%s/sms", ast_config_AST_LOG_DIR);
+	return ast_register_application(app, sms_exec, synopsis, descrip);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "SMS/PSTN handler");
