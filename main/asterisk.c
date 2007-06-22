@@ -1451,12 +1451,6 @@ static const char version_help[] =
 "Usage: core show version\n"
 "       Shows Asterisk version information.\n";
 
-#if defined(MARKO_BDAY)
-static const char markobday_help[] =
-"Usage: marko show birthday\n"
-"       Shows time until/since Mark Spencer's 30th birthday.\n";
-#endif
-
 static int handle_version(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
@@ -1466,73 +1460,6 @@ static int handle_version(int fd, int argc, char *argv[])
 		ast_build_machine, ast_build_os, ast_build_date);
 	return RESULT_SUCCESS;
 }
-
-#if defined(MARKO_BDAY)
-static void print_markobdaystr(int fd, time_t timeval, const char *prefix)
-{
-	int x; /* the main part - years, weeks, etc. */
-	struct ast_str *out;
-
-#define SECOND (1)
-#define MINUTE (SECOND*60)
-#define HOUR (MINUTE*60)
-#define DAY (HOUR*24)
-#define WEEK (DAY*7)
-#define YEAR (DAY*365)
-#define NEEDCOMMA(x) ((x)? ",": "")	/* define if we need a comma */
-	if (timeval < 0)	/* invalid, nothing to show */
-		return;
-
-	out = ast_str_alloca(256);
-	if (timeval > YEAR) {
-		x = (timeval / YEAR);
-		timeval -= (x * YEAR);
-		ast_str_append(&out, 0, "%d year%s%s ", x, ESS(x),NEEDCOMMA(timeval));
-	}
-	if (timeval > WEEK) {
-		x = (timeval / WEEK);
-		timeval -= (x * WEEK);
-		ast_str_append(&out, 0, "%d week%s%s ", x, ESS(x),NEEDCOMMA(timeval));
-	}
-	if (timeval > DAY) {
-		x = (timeval / DAY);
-		timeval -= (x * DAY);
-		ast_str_append(&out, 0, "%d day%s%s ", x, ESS(x),NEEDCOMMA(timeval));
-	}
-	if (timeval > HOUR) {
-		x = (timeval / HOUR);
-		timeval -= (x * HOUR);
-		ast_str_append(&out, 0, "%d hour%s%s ", x, ESS(x),NEEDCOMMA(timeval));
-	}
-	if (timeval > MINUTE) {
-		x = (timeval / MINUTE);
-		timeval -= (x * MINUTE);
-		ast_str_append(&out, 0, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval));
-	}
-	x = timeval;
-	if (x > 0 || out->used == 0)	/* if there is nothing, print 0 seconds */
-		ast_str_append(&out, 0, "%d second%s ", x, ESS(x));
-	ast_cli(fd, "%s: %s\n", prefix, out->str);
-}
-
-static int handle_markobday(int fd, int argc, char *argv[])
-{
-	time_t markobdaystarttime = 1176008400; /* 2007-04-08 00:00:00 */
-	time_t markobdayendtime = 1176094799;   /* 2007-04-08 23:59:59 */
-	time_t curtime;
-
-	curtime = time(NULL);
-	if (markobdaystarttime && markobdayendtime) {
-		if (curtime >= markobdaystarttime && curtime <= markobdayendtime)
-			ast_cli(fd, "Happy 30th birthday Marko!\n");
-		else if (curtime > markobdayendtime)
-			print_markobdaystr(fd, curtime - markobdayendtime, "Time since Mark Spencer's 30th birthday");
-		else
-			print_markobdaystr(fd, markobdaystarttime - curtime, "Time until Mark Spencer's 30th birthday");
-	}
-	return RESULT_SUCCESS;
-}
-#endif
 
 #if 0
 static int handle_quit(int fd, int argc, char *argv[])
@@ -1708,12 +1635,6 @@ static struct ast_cli_entry cli_asterisk[] = {
 	{ { "core", "show", "version", NULL },
 	handle_version, "Display version info",
 	version_help },
-
-#if defined(MARKO_BDAY)
-	{ { "marko", "show", "birthday", NULL },
-	handle_markobday, "Display time until/since Mark Spencer's 30th birthday",
-	markobday_help },
-#endif
 
 	{ { "!", NULL },
 	handle_bang, "Execute a shell command",
@@ -2282,10 +2203,6 @@ static void ast_remotecontrol(char * data)
 	fdprint(ast_consock, tmp);
 	snprintf(tmp, sizeof(tmp), "core set debug atleast %d", option_debug);
 	fdprint(ast_consock, tmp);
-#if defined(MARKO_BDAY)
-	snprintf(tmp, sizeof(tmp), "marko show birthday");
-	fdprint(ast_consock, tmp);
-#endif
 	if (ast_opt_mute) {
 		snprintf(tmp, sizeof(tmp), "log and verbose output currently muted ('logger unmute' to unmute)");
 		fdprint(ast_consock, tmp);

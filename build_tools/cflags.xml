@@ -30,7 +30,4 @@
 		<member name="LOADABLE_MODULES" displayname="Runtime module loading">
 			<defaultenabled>yes</defaultenabled>
 		</member>
-		<member name="MARKO_BDAY" displayname="Enable Mark Spencer Birthday Edition">
-			<defaultenabled>no</defaultenabled>
-		</member>
 	</category>
