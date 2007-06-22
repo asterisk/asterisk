@@ -533,8 +533,7 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 	if (ast_applystream(chan, fs))
 		return -1;
 	
-	if (ast_playstream(fs))
-		return -1;
+	ast_playstream(fs);
 
         return 0;
 }
