@@ -6603,7 +6603,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 
 	len = sizeof(thread->iosin);
 	thread->iofd = fd;
-	thread->buf_len = recvfrom(fd, thread->readbuf, sizeof(thread->buf), 0, (struct sockaddr *) &thread->iosin, &len);
+	thread->buf_len = recvfrom(fd, thread->readbuf, sizeof(thread->readbuf), 0, (struct sockaddr *) &thread->iosin, &len);
 	thread->buf_size = sizeof(thread->readbuf);
 	thread->buf = thread->readbuf;
 	if (thread->buf_len < 0) {
