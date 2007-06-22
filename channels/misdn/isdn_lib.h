@@ -202,6 +202,8 @@ struct misdn_bchannel {
 	struct send_lock *send_lock;
 
 	int nt;
+	int pri;
+
 	int port;
 	/** init stuff **/
 	int b_stid;
