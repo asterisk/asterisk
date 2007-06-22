@@ -602,14 +602,10 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	res = ast_applystream(chan, fs);
 	if (vfs)
 		vres = ast_applystream(chan, vfs);
-	res = ast_playstream(fs);
+	ast_playstream(fs);
 	if (vfs)
-		vres = ast_playstream(vfs);
+		ast_playstream(vfs);
 	
-	if (res) {
-		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
-		return (res >= 0) ? RESULT_SHOWUSAGE : RESULT_FAILURE;
-	}
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
@@ -666,16 +662,10 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 	res = ast_applystream(chan, fs);
 	if (vfs)
 		vres = ast_applystream(chan, vfs);
-	res = ast_playstream(fs);
+	ast_playstream(fs);
 	if (vfs)
-		vres = ast_playstream(vfs);
-	if (res) {
-		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
-		if (res >= 0)
-			return RESULT_SHOWUSAGE;
-		else
-			return RESULT_FAILURE;
-	}
+		ast_playstream(vfs);
+
 	res = ast_waitstream_full(chan, argv[3], agi->audio, agi->ctrl);
 	/* this is to check for if ast_waitstream closed the stream, we probably are at
 	 * the end of the stream, return that amount, else check for the amount */
