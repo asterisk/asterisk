@@ -939,8 +939,9 @@ static int make_dir(char *dest, int len, const char *context, const char *ext, c
 #ifdef IMAP_STORAGE
 static int make_gsm_file(char *dest, char *imapuser, char *dir, int num)
 {
-	if (mkdir(dir, 01777) && (errno != EEXIST)) {
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+	int res;
+	if ((res = ast_mkdir(dir, 01777))) {
+		ast_log(LOG_WARNING, "ast_mkdir '%s' failed: %s\n", dir, strerror(res));
 		return sprintf(dest, "%s/msg%04d", dir, num);
 	}
 	/* return sprintf(dest, "%s/s/msg%04d", dir, imapuser, num); */
@@ -983,27 +984,12 @@ static int make_file(char *dest, int len, char *dir, int num)
 static int create_dirpath(char *dest, int len, const char *context, const char *ext, const char *folder)
 {
 	mode_t	mode = VOICEMAIL_DIR_MODE;
+	int res;
 
-	if (!ast_strlen_zero(context)) {
-		make_dir(dest, len, context, "", "");
-		if (mkdir(dest, mode) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return -1;
-		}
-	}
-	if (!ast_strlen_zero(ext)) {
-		make_dir(dest, len, context, ext, "");
-		if (mkdir(dest, mode) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return -1;
-		}
-	}
-	if (!ast_strlen_zero(folder)) {
-		make_dir(dest, len, context, ext, folder);
-		if (mkdir(dest, mode) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return -1;
-		}
+	make_dir(dest, len, context, ext, folder);
+	if ((res = ast_mkdir(dest, mode))) {
+		ast_log(LOG_WARNING, "ast_mkdir '%s' failed: %s\n", dest, strerror(res));
+		return -1;
 	}
 	return 0;
 }

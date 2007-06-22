@@ -139,7 +139,7 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 			ast_copy_string(filein, filename, sizeof(filein));
 			filename = "";
 		}
-		mkdir(base, 0755);
+		ast_mkdir(base, 0755);
 		len = strlen(base) + strlen(filein) + 2;
 		if (!path || len > maxlen) {
 			path = alloca(len);

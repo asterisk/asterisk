@@ -1146,13 +1146,13 @@ static int setup_privacy_args(struct privacy_args *pa,
 
 		/* make sure the priv-callerintros dir actually exists */
 		snprintf(pa->privintro, sizeof(pa->privintro), "%s/sounds/priv-callerintros", ast_config_AST_DATA_DIR);
-		if (mkdir(pa->privintro, 0755) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "privacy: can't create directory priv-callerintros: %s\n", strerror(errno));
+		if ((res = ast_mkdir(pa->privintro, 0755))) {
+			ast_log(LOG_WARNING, "privacy: can't create directory priv-callerintros: %s\n", strerror(res));
 			return -1;
 		}
 
-		snprintf(pa->privintro,sizeof(pa->privintro), "priv-callerintros/%s", pa->privcid);
-		if (ast_fileexists(pa->privintro,NULL,NULL ) > 0 && strncmp(pa->privcid,"NOCALLERID",10) != 0) {
+		snprintf(pa->privintro, sizeof(pa->privintro), "priv-callerintros/%s", pa->privcid);
+		if (ast_fileexists(pa->privintro, NULL, NULL ) > 0 && strncmp(pa->privcid, "NOCALLERID", 10) != 0) {
 			/* the DELUX version of this code would allow this caller the
 			   option to hear and retape their previously recorded intro.
 			*/

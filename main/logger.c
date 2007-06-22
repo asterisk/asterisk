@@ -417,7 +417,7 @@ int reload_logger(int rotate)
 		queue_rotate = 0;
 	qlog = NULL;
 
-	mkdir(ast_config_AST_LOG_DIR, 0755);
+	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
 	AST_LIST_TRAVERSE(&logchannels, f, list) {
 		if (f->disabled) {
@@ -796,14 +796,13 @@ int init_logger(void)
 	/* register the logger cli commands */
 	ast_cli_register_multiple(cli_logger, sizeof(cli_logger) / sizeof(struct ast_cli_entry));
 
-	mkdir(ast_config_AST_LOG_DIR, 0755);
+	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
   
 	/* create log channels */
 	init_logger_chain();
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
-		mkdir(ast_config_AST_LOG_DIR, 0755);
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
 		eventlog = fopen(tmp, "a");
 		if (eventlog) {

@@ -128,7 +128,6 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		const char *fname_base, int need_lock)
 {
 	int res = 0;
-	char tmp[256];
 
 	LOCK_IF_NEEDED(chan, need_lock);
 
@@ -137,12 +136,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		char *channel_name, *p;
 
 		/* Create monitoring directory if needed */
-		if (mkdir(ast_config_AST_MONITOR_DIR, 0770) < 0) {
-			if (errno != EEXIST) {
-				ast_log(LOG_WARNING, "Unable to create audio monitor directory: %s\n",
-					strerror(errno));
-			}
-		}
+		ast_mkdir(ast_config_AST_MONITOR_DIR, 0777);
 
 		if (!(monitor = ast_calloc(1, sizeof(*monitor)))) {
 			UNLOCK_IF_NEEDED(chan, need_lock);
@@ -154,10 +148,8 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			int directory = strchr(fname_base, '/') ? 1 : 0;
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
-				char *name = ast_strdup(fname_base);
-				snprintf(tmp, sizeof(tmp), "mkdir -p \"%s\"",dirname(name));
-				ast_free(name);
-				ast_safe_system(tmp);
+				char *name = ast_strdupa(fname_base);
+				ast_mkdir(dirname(name), 0777);
 			}
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
 						directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);
@@ -354,7 +346,6 @@ static int unpause_monitor_exec(struct ast_channel *chan, void *data)
 /* Change monitoring filename of a channel */
 int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, int need_lock)
 {
-	char tmp[256];
 	if (ast_strlen_zero(fname_base)) {
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null\n", chan->name);
 		return -1;
@@ -366,10 +357,8 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		int directory = strchr(fname_base, '/') ? 1 : 0;
 		/* try creating the directory just in case it doesn't exist */
 		if (directory) {
-			char *name = ast_strdup(fname_base);
-			snprintf(tmp, sizeof(tmp), "mkdir -p %s",dirname(name));
-			ast_free(name);
-			ast_safe_system(tmp);
+			char *name = ast_strdupa(fname_base);
+			ast_mkdir(dirname(name), 0777);
 		}
 
 		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);

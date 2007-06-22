@@ -1159,28 +1159,11 @@ static int check_dirpath(char *dest, int len, char *domain, char *username, char
  */
 static int create_dirpath(char *dest, int len, char *domain, char *username, char *folder)
 {
-	mode_t	mode = VOICEMAIL_DIR_MODE;
-
-	if(!ast_strlen_zero(domain)) {
-		make_dir(dest, len, domain, "", "");
-		if(mkdir(dest, mode) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return -1;
-		}
-	}
-	if(!ast_strlen_zero(username)) {
-		make_dir(dest, len, domain, username, "");
-		if(mkdir(dest, mode) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return -1;
-		}
-	}
-	if(!ast_strlen_zero(folder)) {
-		make_dir(dest, len, domain, username, folder);
-		if(mkdir(dest, mode) && errno != EEXIST) {
-			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
-			return -1;
-		}
+	int res;
+	make_dir(dest, len, domain, username, folder);
+	if ((res = ast_mkdir(dest, 0777))) {
+		ast_log(LOG_WARNING, "ast_mkdir '%s' failed: %s\n", dest, strerror(res));
+		return -1;
 	}
 	ast_debug(2, "Creating directory for %s@%s folder %s : %s\n", username, domain, folder, dest);
 	return 0;

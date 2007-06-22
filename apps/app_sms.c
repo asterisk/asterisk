@@ -916,10 +916,8 @@ static void sms_writefile(sms_t * h)
 	char buf[30];
 	FILE *o;
 
-	ast_copy_string(fn, spool_dir, sizeof (fn));
-	mkdir(fn, 0777);			/* ensure it exists */
-	snprintf(fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
-	mkdir(fn, 0777);			/* ensure it exists */
+	snprintf(fn, sizeof(fn), "%s/%s", spool_dir, h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
+	ast_mkdir(fn, 0777);			/* ensure it exists */
 	ast_copy_string(fn2, fn, sizeof (fn2));
 	snprintf(fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
@@ -1339,11 +1337,9 @@ static void sms_nextoutgoing (sms_t * h)
 	char more = 0;
 
 	*h->da = *h->oa = '\0';			/* clear destinations */
-	ast_copy_string (fn, spool_dir, sizeof (fn));
-	mkdir(fn, 0777);			/* ensure it exists */
 	h->rx = 0;				/* outgoing message */
-	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? "mttx" : "motx");
-	mkdir (fn, 0777);			/* ensure it exists */
+	snprintf(fn, sizeof(fn), "%s/%s", spool_dir, h->smsc ? "mttx" : "motx");
+	ast_mkdir(fn, 0777);			/* ensure it exists */
 	d = opendir (fn);
 	if (d) {
 		struct dirent *f = readdirqueue (d, h->queue);

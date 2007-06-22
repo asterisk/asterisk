@@ -294,7 +294,7 @@ static int remove_from_queue(struct outgoing *o, const char *status)
 		unlink(o->fn);
 		return 0;
 	}
-	if (mkdir(qdonedir, 0700) && (errno != EEXIST)) {
+	if (ast_mkdir(qdonedir, 0777)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool archiving disabled\n", qdonedir);
 		unlink(o->fn);
 		return -1;
@@ -485,7 +485,7 @@ static int load_module(void)
 	pthread_t thread;
 	int ret;
 	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing");
-	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
+	if (ast_mkdir(qdir, 0777)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 		return 0;
 	}

@@ -593,6 +593,16 @@ int _ast_vasprintf(char **ret, const char *file, int lineno, const char *func, c
  */
 void ast_enable_packet_fragmentation(int sock);
 
+/*!
+  \brief Recursively create directory path
+  \param path The directory path to create
+  \param mode The permissions with which to try to create the directory
+  \return 0 on success or an error code otherwise
+
+  Creates a directory path, creating parent directories as needed.
+ */
+int ast_mkdir(const char *path, int mode);
+
 #define ARRAY_LEN(a) (sizeof(a) / sizeof(a[0]))
 
 #include "asterisk/strings.h"

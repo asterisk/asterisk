@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -1058,3 +1059,39 @@ void ast_enable_packet_fragmentation(int sock)
 		ast_log(LOG_WARNING, "Unable to disable PMTU discovery. Large UDP packets may fail to be delivered when sent from this socket.\n");
 #endif /* HAVE_IP_MTU_DISCOVER */
 }
+
+int ast_mkdir(const char *path, int mode)
+{
+	char *ptr;
+	int len = strlen(path), count = 0, x, piececount = 0;
+	char *tmp = ast_strdupa(path);
+	char **pieces;
+	char *fullpath = alloca(len + 1);
+	int res = 0;
+
+	for (ptr = tmp; *ptr; ptr++) {
+		if (*ptr == '/')
+			count++;
+	}
+
+	/* Count the components to the directory path */
+	pieces = alloca(count * sizeof(*pieces));
+	for (ptr = tmp; *ptr; ptr++) {
+		if (*ptr == '/') {
+			*ptr = '\0';
+			pieces[piececount++] = ptr + 1;
+		}
+	}
+
+	*fullpath = '\0';
+	for (x = 0; x < piececount; x++) {
+		/* This looks funky, but the buffer is always ideally-sized, so it's fine. */
+		strcat(fullpath, "/");
+		strcat(fullpath, pieces[x]);
+		res = mkdir(fullpath, mode);
+		if (res && errno != EEXIST)
+			return errno;
+	}
+	return 0;
+}
+
