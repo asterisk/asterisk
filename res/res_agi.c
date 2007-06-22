@@ -242,7 +242,8 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 	int x;
 	int res;
 	sigset_t signal_set, old_set;
-	
+	struct stat st;
+
 	if (!strncasecmp(script, "agi://", 6))
 		return launch_netscript(script, argv, fds, efd, opid);
 	
@@ -252,7 +253,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 	}
 
 	/* Before even trying let's see if the file actually exists */
-	if (!ast_fileexists(script, NULL, NULL)) {
+	if (stat(script, &st)) {
 		ast_log(LOG_WARNING, "Failed to execute '%s': File does not exist.\n", script);
 		return AGI_RESULT_NOTFOUND;
 	}
