@@ -1140,7 +1140,7 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 		}
 	}
   
-  
+ 	misdn_dump_chanlist();
 	return 0;
 }
 
