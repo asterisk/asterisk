@@ -1050,7 +1050,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 								    "IAJitter: %u\r\n"
 								    "LastSR: %lu.%010lu\r\n"
 								    "DLSR: %4.4f(sec)\r\n"
-								    "RTT: %lu(sec)\r\n",
+								    "RTT: %llu(sec)\r\n",
 								    ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port),
 								    pt, (pt == 200) ? "Sender Report" : (pt == 201) ? "Receiver Report" : (pt == 192) ? "H.261 FUR" : "Unknown",
 								    rc,

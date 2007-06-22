@@ -579,17 +579,18 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		ast_copy_string(to->dst, from->dst, sizeof(to->dst));
 		from->dst[0] = 0; /* theft */
 	}
-	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (!to->amaflags && from->amaflags)) {
+	if (!to->amaflags)
+		to->amaflags = AST_CDR_DOCUMENTATION;
+	if (!from->amaflags)
+		from->amaflags = AST_CDR_DOCUMENTATION; /* make sure both amaflags are set to something (DOC is default) */
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (to->amaflags == AST_CDR_DOCUMENTATION && from->amaflags != AST_CDR_DOCUMENTATION)) {
 		to->amaflags = from->amaflags;
-		from->amaflags = 0; /* theft */
 	}
 	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->accountcode) && !ast_strlen_zero(from->accountcode))) {
 		ast_copy_string(to->accountcode, from->accountcode, sizeof(to->accountcode));
-		from->accountcode[0] = 0; /* theft */
 	}
 	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED) || (ast_strlen_zero(to->userfield) && !ast_strlen_zero(from->userfield))) {
 		ast_copy_string(to->userfield, from->userfield, sizeof(to->userfield));
-		from->userfield[0] = 0; /* theft */
 	}
 	/* flags, varsead, ? */
 	cdr_merge_vars(from, to);
