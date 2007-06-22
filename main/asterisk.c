@@ -2232,6 +2232,9 @@ static void ast_remotecontrol(char * data)
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
 
+		if (!ebuf)
+			break;
+
 		if (!ast_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
@@ -2957,12 +2960,14 @@ int main(int argc, char *argv[])
 
 		for (;;) {
 			buf = (char *)el_gets(el, &num);
-			if (buf) {
-				if (buf[strlen(buf)-1] == '\n')
-					buf[strlen(buf)-1] = '\0';
+			if (!buf)
+				break;
 
-				consolehandler((char *)buf);
-			} else if (ast_opt_remote && (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
+			if (buf[strlen(buf)-1] == '\n')
+				buf[strlen(buf)-1] = '\0';
+			consolehandler((char *)buf);
+
+			if (!buf && ast_opt_remote && (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
 				   strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0)) {
 				/* Whoa, stdout disappeared from under us... Make /dev/null's */
 				int fd;
