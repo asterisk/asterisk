@@ -761,6 +761,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				
 				
 				ast_moh_stop(transferee);
+				ast_indicate(transferee, AST_CONTROL_UNHOLD);
 				
 				if ((ast_autoservice_stop(transferee) < 0)
 				   || (ast_waitfordigit(transferee, 100) < 0)
