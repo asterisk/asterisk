@@ -1062,7 +1062,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 								    rtp->rtcp->reported_jitter,
 								    (unsigned long) ntohl(rtcpheader[i + 4]) >> 16, ((unsigned long) ntohl(rtcpheader[i + 4]) << 16) * 4096,
 								    ntohl(rtcpheader[i + 5])/65536.0,
-								    rtt);
+								    (unsigned long long)rtt);
 			} else {
 				manager_event(EVENT_FLAG_REPORTING, "RTCPReceived", "From %s:%d\r\n"
 								    "PT: %d(%s)\r\n"
