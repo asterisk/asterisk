@@ -502,10 +502,66 @@ static void cdr_merge_vars(struct ast_cdr *to, struct ast_cdr *from)
 
 void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 {
-	struct ast_cdr *tcdr;
+	struct ast_cdr *zcdr;
+	struct ast_cdr *lto = NULL;
+	struct ast_cdr *lfrom = NULL;
+	int discard_from = 0;
 	
 	if (!to || !from)
 		return;
+
+	/* don't merge into locked CDR's -- it's bad business */
+	if (ast_test_flag(to, AST_CDR_FLAG_LOCKED)) {
+		zcdr = to; /* safety valve? */
+		while (to->next) {
+			lto = to;
+			to = to->next;
+		}
+		
+		if (ast_test_flag(to, AST_CDR_FLAG_LOCKED)) {
+			ast_log(LOG_WARNING, "Merging into locked CDR... no choice.");
+			to = zcdr; /* safety-- if all there are is locked CDR's, then.... ?? */
+			lto = NULL;
+		}
+	}
+
+	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED)) {
+		discard_from = 1;
+		if (lto) {
+			struct ast_cdr *llfrom;
+			/* insert the from stuff after lto */
+			lto->next = from;
+			lfrom = from;
+			while (lfrom && lfrom->next) {
+				if (!lfrom->next->next)
+					llfrom = lfrom;
+				lfrom = lfrom->next; 
+			}
+			/* rip off the last entry and put a copy of the to at the end */
+			llfrom->next = to;
+			from = lfrom;
+		} else {
+			/* save copy of the current *to cdr */
+			struct ast_cdr tcdr;
+			struct ast_cdr *llfrom;
+			memcpy(&tcdr, to, sizeof(tcdr));
+			/* copy in the locked from cdr */
+			memcpy(to, from, sizeof(*to));
+			lfrom = from;
+			while (lfrom && lfrom->next) {
+				if (!lfrom->next->next)
+					llfrom = lfrom;
+				lfrom = lfrom->next; 
+			}
+			from->next = NULL;
+			/* rip off the last entry and put a copy of the to at the end */
+			if (llfrom == from)
+				to = to->next = ast_cdr_dup(&tcdr);
+			else
+				to = llfrom->next = ast_cdr_dup(&tcdr);
+			from = lfrom;
+		}
+	}
 	
 	if (!ast_tvzero(from->start)) {
 		if (!ast_tvzero(to->start)) {
@@ -575,6 +631,10 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		ast_copy_string(to->src, from->src, sizeof(to->src));
 		from->src[0] = 0; /* theft */
 	}
+	if (ast_strlen_zero(to->clid) && !ast_strlen_zero(from->clid)) {
+		ast_copy_string(to->clid, from->clid, sizeof(to->clid));
+		from->clid[0] = 0; /* theft */
+	}
 	if (ast_strlen_zero(to->dst) && !ast_strlen_zero(from->dst)) {
 		ast_copy_string(to->dst, from->dst, sizeof(to->dst));
 		from->dst[0] = 0; /* theft */
@@ -609,12 +669,14 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 	/* last, but not least, we need to merge any forked CDRs to the 'to' cdr */
 	while (from->next) {
 		/* just rip 'em off the 'from' and insert them on the 'to' */
-		tcdr = from->next;
-		from->next = tcdr->next;
-		tcdr->next = NULL;
-		/* tcdr is now ripped from the current list; */
-		ast_cdr_append(to, tcdr);
+		zcdr = from->next;
+		from->next = zcdr->next;
+		zcdr->next = NULL;
+		/* zcdr is now ripped from the current list; */
+		ast_cdr_append(to, zcdr);
 	}
+	if (discard_from)
+		ast_cdr_discard(from);
 }
 
 void ast_cdr_start(struct ast_cdr *cdr)
