@@ -304,7 +304,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	int x, readvol = 0, writevol = 0;
 	struct ast_module_user *u;
 	struct ast_flags flags = {0};
-	char *parse;
+	char *parse, *tmp, *slash;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(options);
@@ -372,6 +372,11 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		sprintf(build, "%s/%s", ast_config_AST_MONITOR_DIR, args.filename);
 		args.filename = build;
 	}
+
+	tmp = ast_strdupa(args.filename);
+	if ((slash = strrchr(tmp, '/')))
+		*slash = '\0';
+	ast_mkdir(tmp, 0777);
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
 	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
