@@ -1858,8 +1858,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			ast_cdr_init(bridge_cdr,peer);
 			/* absorb this data */
 			ast_cdr_merge(bridge_cdr, peer->cdr);
-			if (!ast_test_flag(chan->cdr, AST_CDR_FLAG_LOCKED))
-				ast_cdr_discard(chan->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
+			if (!ast_test_flag(peer->cdr, AST_CDR_FLAG_LOCKED))
+				ast_cdr_discard(peer->cdr); /* if locked cdrs are in chan, they are taken over in the merge */
 			peer->cdr = NULL;
 			peer->cdr = bridge_cdr; /* make this available to the rest of the world via the chan while the call is in progress */
 		} else {
