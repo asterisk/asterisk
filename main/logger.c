@@ -964,16 +964,13 @@ void ast_backtrace(void)
 	if ((addresses = ast_calloc(MAX_BACKTRACE_FRAMES, sizeof(*addresses)))) {
 		count = backtrace(addresses, MAX_BACKTRACE_FRAMES);
 		if ((strings = backtrace_symbols(addresses, count))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
+			ast_debug(1, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
 			for (i=0; i < count ; i++) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+				ast_debug(1, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
 			}
 			free(strings);
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Could not allocate memory for backtrace\n");
+			ast_debug(1, "Could not allocate memory for backtrace\n");
 		}
 		free(addresses);
 	}

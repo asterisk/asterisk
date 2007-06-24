@@ -805,8 +805,8 @@ static struct function_table_tag function_table[] = {
 	{"ilink", function_ilink},
 	{"status", function_status},
 	{"remote", function_remote},
-	{"macro", function_macro}
-	{"gosub", function_gosub}
+	{"macro", function_macro},
+	{"gosub", function_gosub},
 } ;
 
 /*

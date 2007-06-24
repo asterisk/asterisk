@@ -283,7 +283,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 				else
 					res = -1;
 			}
-			if (option_debug && !res ) {
+			if (!res) {
 				/* Step 12: Hangup! */
 				ast_debug(1, "TestClient: 12.  Hangup\n");
 			}

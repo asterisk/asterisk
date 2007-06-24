@@ -338,7 +338,7 @@ static struct ast_http_post_mapping *find_post_mapping(const char *uri)
 	struct ast_http_post_mapping *post_map;
 
 	if (!ast_strlen_zero(prefix) && strncmp(prefix, uri, strlen(prefix))) {
-		ast_log(LOG_DEBUG, "URI %s does not have prefix %s\n", uri, prefix);
+		ast_debug(1, "URI %s does not have prefix %s\n", uri, prefix);
 		return NULL;
 	}
 
@@ -377,8 +377,7 @@ static void post_raw(struct mm_mimepart *part, const char *post_dir, const char 
 
 	snprintf(filename, sizeof(filename), "%s/%s", post_dir, fn);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Posting raw data to %s\n", filename);
+	ast_debug(1, "Posting raw data to %s\n", filename);
 
 	if (!(f = fopen(filename, "w"))) {
 		ast_log(LOG_WARNING, "Unable to open %s for writing file from a POST!\n", filename);
@@ -386,15 +385,13 @@ static void post_raw(struct mm_mimepart *part, const char *post_dir, const char 
 	}
 
 	if (!(body = mm_mimepart_getbody(part, 0))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Couldn't get the mimepart body\n");
+		ast_debug(1, "Couldn't get the mimepart body\n");
 		fclose(f);
 		return;
 	}
 	body_len = mm_mimepart_getlength(part);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Body length is %ld\n", (long int)body_len);
+	ast_debug(1, "Body length is %ld\n", (long int)body_len);
 
 	fwrite(body, 1, body_len, f);
 
@@ -450,8 +447,7 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 				fclose(f);
 				return NULL;
 			}
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Got a Content-Length of %d\n", content_len);
+			ast_debug(1, "Got a Content-Length of %d\n", content_len);
 		} else if (!strcasecmp(var->name, "Content-Type"))
 			fprintf(f, "Content-Type: %s\r\n\r\n", var->value);
 	}
@@ -464,16 +460,14 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 	}
 
 	if (fseek(f, SEEK_SET, 0)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Failed to seek temp file back to beginning.\n");
+		ast_debug(1, "Failed to seek temp file back to beginning.\n");
 		fclose(f);
 		return NULL;
 	}
 
 	AST_RWLIST_RDLOCK(&post_mappings);
 	if (!(post_map = find_post_mapping(uri))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "%s is not a valid URI for POST\n", uri);
+		ast_debug(1, "%s is not a valid URI for POST\n", uri);
 		AST_RWLIST_UNLOCK(&post_mappings);
 		fclose(f);
 		*status = 404;
@@ -484,8 +478,7 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 	post_map = NULL;
 	AST_RWLIST_UNLOCK(&post_mappings);
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Going to post files to dir %s\n", post_dir);
+	ast_debug(1, "Going to post files to dir %s\n", post_dir);
 
 	if (!(ctx = mm_context_new())) {
 		fclose(f);
@@ -513,9 +506,9 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 
 	if (option_debug) {
 		if (mm_context_iscomposite(ctx))
-			ast_log(LOG_DEBUG, "Found %d MIME parts\n", mm_res - 1);
+			ast_debug(1, "Found %d MIME parts\n", mm_res - 1);
 		else
-			ast_log(LOG_DEBUG, "We have a flat (not multi-part) message\n");
+			ast_debug(1, "We have a flat (not multi-part) message\n");
 	}
 
 	for (i = 1; i < mm_res; i++) {
@@ -523,20 +516,17 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 		char fn[PATH_MAX];
 
 		if (!(part = mm_context_getpart(ctx, i))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Failed to get mime part num %d\n", i);
+			ast_debug(1, "Failed to get mime part num %d\n", i);
 			continue;
 		}
 
 		if (get_filename(part, fn, sizeof(fn))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Failed to retrieve a filename for part num %d\n", i);
+			ast_debug(1, "Failed to retrieve a filename for part num %d\n", i);
 			continue;
 		}
 	
 		if (!part->type) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "This part has no content struct?\n");
+			ast_debug(1, "This part has no content struct?\n");
 			continue;
 		}
 
@@ -979,8 +969,7 @@ void server_start(struct server_args *desc)
 	
 	/* Do nothing if nothing has changed */
 	if (!memcmp(&desc->oldsin, &desc->sin, sizeof(desc->oldsin))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Nothing changed in %s\n", desc->name);
+		ast_debug(1, "Nothing changed in %s\n", desc->name);
 		return;
 	}
 	

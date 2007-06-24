@@ -149,7 +149,7 @@ int ast_sched_wait(struct sched_context *con)
 {
 	int ms;
 
-	DEBUG(ast_log(LOG_DEBUG, "ast_sched_wait()\n"));
+	DEBUG(ast_debug(1, "ast_sched_wait()\n"));
 
 	ast_mutex_lock(&con->lock);
 	if (AST_LIST_EMPTY(&con->schedq)) {
@@ -201,8 +201,7 @@ static int sched_settime(struct timeval *tv, int when)
 		*tv = now;
 	*tv = ast_tvadd(*tv, ast_samp2tv(when, 1000));
 	if (ast_tvcmp(*tv, now) < 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Request to schedule in the past?!?!\n");
+		ast_debug(1, "Request to schedule in the past?!?!\n");
 		*tv = now;
 	}
 	return 0;
@@ -216,7 +215,7 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 {
 	struct sched *tmp;
 	int res = -1;
-	DEBUG(ast_log(LOG_DEBUG, "ast_sched_add()\n"));
+	DEBUG(ast_debug(1, "ast_sched_add()\n"));
 	if (!when) {
 		ast_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
 		return -1;
@@ -260,7 +259,7 @@ int ast_sched_del(struct sched_context *con, int id)
 {
 	struct sched *s;
 
-	DEBUG(ast_log(LOG_DEBUG, "ast_sched_del()\n"));
+	DEBUG(ast_debug(1, "ast_sched_del()\n"));
 	
 	ast_mutex_lock(&con->lock);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, s, list) {
@@ -281,8 +280,7 @@ int ast_sched_del(struct sched_context *con, int id)
 	ast_mutex_unlock(&con->lock);
 
 	if (!s) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Attempted to delete nonexistent schedule entry %d!\n", id);
+		ast_debug(1, "Attempted to delete nonexistent schedule entry %d!\n", id);
 #ifdef DO_CRASH
 		CRASH;
 #endif
@@ -298,11 +296,9 @@ void ast_sched_dump(const struct sched_context *con)
 	struct sched *q;
 	struct timeval tv = ast_tvnow();
 #ifdef SCHED_MAX_CACHE
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
+	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
 #else
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
+	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
 #endif
 
 	if (option_debug) {
@@ -333,7 +329,7 @@ int ast_sched_runq(struct sched_context *con)
 	int numevents;
 	int res;
 
-	DEBUG(ast_log(LOG_DEBUG, "ast_sched_runq()\n"));
+	DEBUG(ast_debug(1, "ast_sched_runq()\n"));
 		
 	ast_mutex_lock(&con->lock);
 
@@ -387,7 +383,7 @@ long ast_sched_when(struct sched_context *con,int id)
 {
 	struct sched *s;
 	long secs = -1;
-	DEBUG(ast_log(LOG_DEBUG, "ast_sched_when()\n"));
+	DEBUG(ast_debug(1, "ast_sched_when()\n"));
 
 	ast_mutex_lock(&con->lock);
 	AST_LIST_TRAVERSE(&con->schedq, s, list) {

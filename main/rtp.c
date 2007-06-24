@@ -436,34 +436,29 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 	int resplen, respleft;
 	
 	if (len < sizeof(struct stun_header)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Runt STUN packet (only %d, wanting at least %d)\n", (int) len, (int) sizeof(struct stun_header));
+		ast_debug(1, "Runt STUN packet (only %d, wanting at least %d)\n", (int) len, (int) sizeof(struct stun_header));
 		return -1;
 	}
 	if (stundebug)
 		ast_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
 	if (ntohs(hdr->msglen) > len - sizeof(struct stun_header)) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), (int)(len - sizeof(struct stun_header)));
+		ast_debug(1, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), (int)(len - sizeof(struct stun_header)));
 	} else
 		len = ntohs(hdr->msglen);
 	data += sizeof(struct stun_header);
 	memset(&st, 0, sizeof(st));
 	while (len) {
 		if (len < sizeof(struct stun_attr)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Runt Attribute (got %d, expecting %d)\n", (int)len, (int) sizeof(struct stun_attr));
+			ast_debug(1, "Runt Attribute (got %d, expecting %d)\n", (int)len, (int) sizeof(struct stun_attr));
 			break;
 		}
 		attr = (struct stun_attr *)data;
 		if (ntohs(attr->len) > len) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), (int)len);
+			ast_debug(1, "Inconsistent Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), (int)len);
 			break;
 		}
 		if (stun_process_attr(&st, attr)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
+			ast_debug(1, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
 			break;
 		}
 		/* Clear attribute in case previous entry was a string */
@@ -638,14 +633,12 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp, enum ast_frame_type type
 {
 	if (((ast_test_flag(rtp, FLAG_DTMF_COMPENSATE) && type == AST_FRAME_DTMF_END) ||
 	     (type == AST_FRAME_DTMF_BEGIN)) && ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(rtp->them.sin_addr));
+		ast_debug(1, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(rtp->them.sin_addr));
 		rtp->resp = 0;
 		rtp->dtmfsamples = 0;
 		return &ast_null_frame;
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(rtp->them.sin_addr));
+	ast_debug(1, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(rtp->them.sin_addr));
 	if (rtp->resp == 'X') {
 		rtp->f.frametype = AST_FRAME_CONTROL;
 		rtp->f.subclass = AST_CONTROL_FLASH;
@@ -944,8 +937,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		}
 	}
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
+	ast_debug(1, "Got RTCP report of %d bytes\n", res);
 
 	/* Process a compound packet */
 	position = 0;
@@ -1109,8 +1101,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 				ast_verbose("Received a BYE from %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 			break;
 		default:
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Unknown RTCP packet (pt=%d) received from %s:%d\n", pt, ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			ast_debug(1, "Unknown RTCP packet (pt=%d) received from %s:%d\n", pt, ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 			break;
 		}
 		position += (length + 1);
@@ -1204,8 +1195,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 	res = sendto(bridged->s, (void *)rtpheader, len, 0, (struct sockaddr *)&bridged->them, sizeof(bridged->them));
 	if (res < 0) {
 		if (!bridged->nat || (bridged->nat && (ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
+			ast_debug(1, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
 		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
 			if (option_debug || rtpdebug)
 				ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
@@ -1632,16 +1622,14 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	if (c1)
 		srcpr = get_proto(c1);
 	if (!destpr) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", c0->name);
+		ast_debug(1, "Channel '%s' has no RTP, not doing anything\n", c0->name);
 		ast_channel_unlock(c0);
 		if (c1)
 			ast_channel_unlock(c1);
 		return -1;
 	}
 	if (!srcpr) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", c1 ? c1->name : "<unspecified>");
+		ast_debug(1, "Channel '%s' has no RTP, not doing anything\n", c1 ? c1->name : "<unspecified>");
 		ast_channel_unlock(c0);
 		if (c1)
 			ast_channel_unlock(c1);
@@ -1692,8 +1680,7 @@ int ast_rtp_early_bridge(struct ast_channel *c0, struct ast_channel *c1)
 	ast_channel_unlock(c0);
 	if (c1)
 		ast_channel_unlock(c1);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Setting early bridge SDP of '%s' with that of '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
+	ast_debug(1, "Setting early bridge SDP of '%s' with that of '%s'\n", c0->name, c1 ? c1->name : "<unspecified>");
 	return 0;
 }
 
@@ -1717,15 +1704,13 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 
 	/* Find channel driver interfaces */
 	if (!(destpr = get_proto(dest))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", dest->name);
+		ast_debug(1, "Channel '%s' has no RTP, not doing anything\n", dest->name);
 		ast_channel_unlock(dest);
 		ast_channel_unlock(src);
 		return 0;
 	}
 	if (!(srcpr = get_proto(src))) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", src->name);
+		ast_debug(1, "Channel '%s' has no RTP, not doing anything\n", src->name);
 		ast_channel_unlock(dest);
 		ast_channel_unlock(src);
 		return 0;
@@ -1768,8 +1753,7 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src, i
 	}
 	ast_channel_unlock(dest);
 	ast_channel_unlock(src);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Seeded SDP of '%s' with that of '%s'\n", dest->name, src->name);
+	ast_debug(1, "Seeded SDP of '%s' with that of '%s'\n", dest->name, src->name);
 	return 1;
 }
 
@@ -2791,8 +2775,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			if (abs(rtp->lastts - pred) < MAX_TIMESTAMP_SKEW)
 				rtp->lastts = pred;
 			else {
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
+				ast_debug(3, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 				mark = 1;
 			}
 		}
@@ -2807,8 +2790,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				rtp->lastts = pred;
 				rtp->lastovidtimestamp += f->samples;
 			} else {
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+				ast_debug(3, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
 				rtp->lastovidtimestamp = rtp->lastts;
 			}
 		}
@@ -2822,8 +2804,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				rtp->lastts = pred;
 				rtp->lastotexttimestamp += f->samples;
 			} else {
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+				ast_debug(3, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
 				rtp->lastotexttimestamp = rtp->lastts;
 			}
 		}
@@ -2848,8 +2829,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) {
 			if (!rtp->nat || (rtp->nat && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+				ast_debug(1, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
@@ -2938,8 +2918,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 
 	if (rtp->lasttxformat != subclass) {
 		/* New format, reset the smoother */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", ast_getformatname(rtp->lasttxformat), ast_getformatname(subclass));
+		ast_debug(1, "Ooh, format changed from %s to %s\n", ast_getformatname(rtp->lasttxformat), ast_getformatname(subclass));
 		rtp->lasttxformat = subclass;
 		if (rtp->smoother)
 			ast_smoother_free(rtp->smoother);
@@ -2955,8 +2934,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			}
 			if (fmt.flags)
 				ast_smoother_set_flags(rtp->smoother, fmt.flags);
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Created smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
+			ast_debug(1, "Created smoother: format: %d ms: %d len: %d\n", subclass, fmt.cur_ms, ((fmt.cur_ms * fmt.fr_len) / fmt.inc_ms));
 		}
 	}
 	if (rtp->smoother) {
@@ -3054,8 +3032,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+			ast_debug(1, "Oooh, something is weird, backing out\n");
 			if (c0->tech_pvt == pvt0)
 				if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
@@ -3084,20 +3061,18 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		    (vp1 && inaddrcmp(&vt1, &vac1)) ||
 		    (tp1 && inaddrcmp(&tt1, &tac1)) ||
 		    (codec1 != oldcodec1)) {
-			if (option_debug > 1) {
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
-					c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), codec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n",
-					c1->name, ast_inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), codec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end taddress to %s:%d (format %d)\n",
-					c1->name, ast_inet_ntoa(tt1.sin_addr), ntohs(tt1.sin_port), codec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
-					c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
-					c1->name, ast_inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
-					c1->name, ast_inet_ntoa(tac1.sin_addr), ntohs(tac1.sin_port), oldcodec1);
-			}
+			ast_debug(2, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
+				c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), codec1);
+			ast_debug(2, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n",
+				c1->name, ast_inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), codec1);
+			ast_debug(2, "Oooh, '%s' changed end taddress to %s:%d (format %d)\n",
+				c1->name, ast_inet_ntoa(tt1.sin_addr), ntohs(tt1.sin_port), codec1);
+			ast_debug(2, "Oooh, '%s' was %s:%d/(format %d)\n",
+				c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
+			ast_debug(2, "Oooh, '%s' was %s:%d/(format %d)\n",
+				c1->name, ast_inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+			ast_debug(2, "Oooh, '%s' was %s:%d/(format %d)\n",
+				c1->name, ast_inet_ntoa(tac1.sin_addr), ntohs(tac1.sin_port), oldcodec1);
 			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, tt1.sin_addr.s_addr ? tp1 : NULL, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE)))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
@@ -3108,12 +3083,10 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		if ((inaddrcmp(&t0, &ac0)) ||
 		    (vp0 && inaddrcmp(&vt0, &vac0)) ||
 		    (tp0 && inaddrcmp(&tt0, &tac0))) {
-			if (option_debug > 1) {
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
-					c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n",
-					c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
-			}
+			ast_debug(2, "Oooh, '%s' changed end address to %s:%d (format %d)\n",
+				c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
+			ast_debug(2, "Oooh, '%s' was %s:%d/(format %d)\n",
+				c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
 			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, tt0.sin_addr.s_addr ? tp0 : NULL, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
@@ -3131,8 +3104,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 				return AST_BRIDGE_RETRY;
 			}
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Ooh, empty read...\n");
+			ast_debug(1, "Ooh, empty read...\n");
 			if (ast_check_hangup(c0) || ast_check_hangup(c1))
 				break;
 			continue;
@@ -3145,8 +3117,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			/* Break out of bridge */
 			*fo = fr;
 			*rc = who;
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Oooh, got a %s\n", fr ? "digit" : "hangup");
+			ast_debug(1, "Oooh, got a %s\n", fr ? "digit" : "hangup");
 			if (c0->tech_pvt == pvt0)
 				if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
@@ -3176,8 +3147,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			} else {
 				*fo = fr;
 				*rc = who;
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				ast_debug(1, "Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
 				return AST_BRIDGE_COMPLETE;
 			}
 		} else {
@@ -3338,8 +3308,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
 		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "p2p-rtp-bridge: Oooh, something is weird, backing out\n");
+			ast_debug(3, "p2p-rtp-bridge: Oooh, something is weird, backing out\n");
 			/* If a masquerade needs to happen we have to try to read in a frame so that it actually happens. Without this we risk being called again and going into a loop */
 			if ((c0->masq || c0->masqr) && (fr = ast_read(c0)))
 				ast_frfree(fr);
@@ -3370,8 +3339,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			/* Record received frame and who */
 			*fo = fr;
 			*rc = who;
-			if (option_debug > 2)
-				ast_log(LOG_DEBUG, "p2p-rtp-bridge: Ooh, got a %s\n", fr ? "digit" : "hangup");
+			ast_debug(3, "p2p-rtp-bridge: Ooh, got a %s\n", fr ? "digit" : "hangup");
 			res = AST_BRIDGE_COMPLETE;
 			break;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
@@ -3400,8 +3368,7 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			} else {
 				*fo = fr;
 				*rc = who;
-				if (option_debug > 2)
-					ast_log(LOG_DEBUG, "p2p-rtp-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
+				ast_debug(3, "p2p-rtp-bridge: Got a FRAME_CONTROL (%d) frame on channel %s\n", fr->subclass, who->name);
 				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
@@ -3578,8 +3545,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	codec1 = pr1->get_codec ? pr1->get_codec(c1) : 0;
 	if (codec0 && codec1 && !(codec0 & codec1)) {
 		/* Hey, we can't do native bridging if both parties speak different codecs */
-		if (option_debug > 2)
-			ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
+		ast_debug(3, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
 		ast_channel_unlock(c0);
 		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
@@ -3591,8 +3557,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 
 		/* In order to do Packet2Packet bridging both sides must be in the same rawread/rawwrite */
 		if (c0->rawreadformat != c1->rawwriteformat || c1->rawreadformat != c0->rawwriteformat) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Cannot packet2packet bridge - raw formats are incompatible\n");
+			ast_debug(1, "Cannot packet2packet bridge - raw formats are incompatible\n");
 			ast_channel_unlock(c0);
 			ast_channel_unlock(c1);
 			return AST_BRIDGE_FAILED_NOWARN;

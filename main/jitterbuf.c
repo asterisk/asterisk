@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "jitterbuf.h"
 #include "asterisk/utils.h"
+#include "asterisk/options.h"
 
 /*! define these here, just for ancient compiler systems */
 #define JB_LONGMAX 2147483647L
@@ -532,7 +533,7 @@ enum jb_return_code jb_put(jitterbuf *jb, void *data, const enum jb_frame_type t
 	if (jb->frames)
 		numts = jb->frames->prev->ts - jb->frames->ts;
 	if (numts >= jb->info.conf.max_jitterbuf) {
-		ast_log(LOG_DEBUG, "Attempting to exceed Jitterbuf max %ld timeslots\n",
+		ast_debug(1, "Attempting to exceed Jitterbuf max %ld timeslots\n",
 			jb->info.conf.max_jitterbuf);
 		jb->dropem = 1;
 		return JB_DROP;

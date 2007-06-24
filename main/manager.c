@@ -1063,7 +1063,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 			if (!strcmp(md5key, key))
 				error = 0;
 		} else {
-			ast_log(LOG_DEBUG, "MD5 authentication is not possible.  challenge: '%s'\n", 
+			ast_debug(1, "MD5 authentication is not possible.  challenge: '%s'\n", 
 				S_OR(s->challenge, ""));
 			return -1;
 		}
@@ -1370,8 +1370,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 
 	/* XXX should this go inside the lock ? */
 	s->waiting_thread = pthread_self();	/* let new events wake up this thread */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Starting waiting for an event!\n");
+	ast_debug(1, "Starting waiting for an event!\n");
 
 	for (x=0; x < timeout || timeout < 0; x++) {
 		ast_mutex_lock(&s->__lock);
@@ -1395,8 +1394,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 			sleep(1);
 		}
 	}
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Finished waiting for an event!\n");
+	ast_debug(1, "Finished waiting for an event!\n");
 	ast_mutex_lock(&s->__lock);
 	if (s->waiting_thread == pthread_self()) {
 		struct eventqent *eqe;
@@ -1415,8 +1413,7 @@ static int action_waitevent(struct mansession *s, const struct message *m)
 			"\r\n", idText);
 		s->waiting_thread = AST_PTHREADT_NULL;
 	} else {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Abandoning event request!\n");
+		ast_debug(1, "Abandoning event request!\n");
 	}
 	ast_mutex_unlock(&s->__lock);
 	return 0;
@@ -2327,8 +2324,7 @@ static int process_message(struct mansession *s, const struct message *m)
 	const char *user = astman_get_header(m, "Username");
 
 	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Manager received command '%s'\n", action);
+	ast_debug(1, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
 		astman_send_error(s, m, "Missing action in request");
@@ -3157,12 +3153,10 @@ static struct ast_str *generic_http_callback(enum output_format format,
 
 	if (s->needdestroy) {
 		if (s->inuse == 1) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Need destroy, doing it now!\n");
+			ast_debug(1, "Need destroy, doing it now!\n");
 			blastaway = 1;
 		} else {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Need destroy, but can't do it yet!\n");
+			ast_debug(1, "Need destroy, but can't do it yet!\n");
 			if (s->waiting_thread != AST_PTHREADT_NULL)
 				pthread_kill(s->waiting_thread, SIGURG);
 			s->inuse--;
@@ -3419,8 +3413,7 @@ int init_manager(void)
 			}  else if (!strcasecmp(var->name, "displayconnects") )
 				user->displayconnects = ast_true(var->value);
 			else {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "%s is an unknown option.\n", var->name);
+				ast_debug(1, "%s is an unknown option.\n", var->name);
 			}
 			var = var->next;
 		}

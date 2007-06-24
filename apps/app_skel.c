@@ -127,7 +127,10 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_register_application(app, app_exec, synopsis, descrip);
+	if (ast_register_application(app, app_exec, synopsis, descrip))
+		return AST_MODULE_LOAD_DECLINE;
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Skeleton (sample) Application");

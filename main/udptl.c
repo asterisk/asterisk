@@ -697,8 +697,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 		if ((udptl->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 			(udptl->them.sin_port != sin.sin_port)) {
 			memcpy(&udptl->them, &sin, sizeof(udptl->them));
-			if (option_debug)
-				ast_log(LOG_DEBUG, "UDPTL NAT: Using address %s:%d\n", ast_inet_ntoa(udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+			ast_debug(1, "UDPTL NAT: Using address %s:%d\n", ast_inet_ntoa(udptl->them.sin_addr), ntohs(udptl->them.sin_port));
 		}
 	}
 
@@ -1066,8 +1065,7 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		if ((c0->tech_pvt != pvt0) ||
 			(c1->tech_pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
+				ast_debug(1, "Oooh, something is weird, backing out\n");
 				/* Tell it to try again later */
 				return -3;
 		}
@@ -1075,27 +1073,22 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_udptl_get_peer(p1, &t1);
 		ast_udptl_get_peer(p0, &t0);
 		if (inaddrcmp(&t1, &ac1)) {
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
-					c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port));
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
-					c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port));
-			}
+			ast_debug(1, "Oooh, '%s' changed end address to %s:%d\n", 
+				c1->name, ast_inet_ntoa(t1.sin_addr), ntohs(t1.sin_port));
+			ast_debug(1, "Oooh, '%s' was %s:%d\n", 
+				c1->name, ast_inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port));
 			memcpy(&ac1, &t1, sizeof(ac1));
 		}
 		if (inaddrcmp(&t0, &ac0)) {
-			if (option_debug) {
-				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d\n", 
-					c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port));
-				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d\n", 
-					c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port));
-			}
+			ast_debug(1, "Oooh, '%s' changed end address to %s:%d\n", 
+				c0->name, ast_inet_ntoa(t0.sin_addr), ntohs(t0.sin_port));
+			ast_debug(1, "Oooh, '%s' was %s:%d\n", 
+				c0->name, ast_inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port));
 			memcpy(&ac0, &t0, sizeof(ac0));
 		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Ooh, empty read...\n");
+			ast_debug(1, "Ooh, empty read...\n");
 			/* check for hangup / whentohangup */
 			if (ast_check_hangup(c0) || ast_check_hangup(c1))
 				break;
@@ -1105,8 +1098,7 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		if (!f) {
 			*fo = f;
 			*rc = who;
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
+			ast_debug(1, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			/* That's all we needed */
 			return 0;
 		} else {

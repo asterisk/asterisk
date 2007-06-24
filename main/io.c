@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
+#include "asterisk/options.h"
 
 #ifdef DEBUG_IO
 #define DEBUG DEBUG_M
@@ -119,7 +120,7 @@ static int io_grow(struct io_context *ioc)
 {
 	void *tmp;
 
-	DEBUG(ast_log(LOG_DEBUG, "io_grow()\n"));
+	DEBUG(ast_debug(1, "io_grow()\n"));
 
 	ioc->maxfdcnt += GROW_SHRINK_SIZE;
 
@@ -159,7 +160,7 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 {
 	int *ret;
 
-	DEBUG(ast_log(LOG_DEBUG, "ast_io_add()\n"));
+	DEBUG(ast_debug(1, "ast_io_add()\n"));
 
 	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
@@ -275,7 +276,7 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 {
 	int res, x, origcnt;
 
-	DEBUG(ast_log(LOG_DEBUG, "ast_io_wait()\n"));
+	DEBUG(ast_debug(1, "ast_io_wait()\n"));
 
 	if ((res = poll(ioc->fds, ioc->fdcnt, howlong)) <= 0)
 		return res;
@@ -312,19 +313,19 @@ void ast_io_dump(struct io_context *ioc)
 	 */
 	int x;
 
-	ast_log(LOG_DEBUG, "Asterisk IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
-	ast_log(LOG_DEBUG, "================================================\n");
-	ast_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
-	ast_log(LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
+	ast_debug(1, "Asterisk IO Dump: %d entries, %d max entries\n", ioc->fdcnt, ioc->maxfdcnt);
+	ast_debug(1, "================================================\n");
+	ast_debug(1, "| ID    FD     Callback    Data        Events  |\n");
+	ast_debug(1, "+------+------+-----------+-----------+--------+\n");
 	for (x = 0; x < ioc->fdcnt; x++) {
-		ast_log(LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
+		ast_debug(1, "| %.4d | %.4d | %p | %p | %.6x |\n", 
 				*ioc->ior[x].id,
 				ioc->fds[x].fd,
 				ioc->ior[x].callback,
 				ioc->ior[x].data,
 				ioc->fds[x].events);
 	}
-	ast_log(LOG_DEBUG, "================================================\n");
+	ast_debug(1, "================================================\n");
 }
 
 /* Unrelated I/O functions */

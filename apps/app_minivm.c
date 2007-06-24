@@ -941,8 +941,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);
 		ast_safe_system(tmpcmd);
 		finalfilename = newtmp;
-		if (option_debug > 2)
-			ast_log	(LOG_DEBUG, "-- VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
+		ast_debug(3, "-- VOLGAIN: Stored at: %s.%s - Level: %.4f - Mailbox: %s\n", filename, format, vmu->volgain, vmu->username);
 	} else {
 		finalfilename = ast_strdupa(filename);
 	}

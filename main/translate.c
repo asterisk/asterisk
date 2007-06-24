@@ -423,8 +423,7 @@ static void rebuild_matrix(int samples)
 	int y;      /* intermediate format index */
 	int z;      /* destination format index */
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Resetting translation matrix\n");
+	ast_debug(1, "Resetting translation matrix\n");
 
 	bzero(tr_matrix, sizeof(tr_matrix));
 
@@ -478,8 +477,7 @@ static void rebuild_matrix(int samples)
 					tr_matrix[x][z].step = tr_matrix[x][y].step;
 					tr_matrix[x][z].cost = newcost;
 					tr_matrix[x][z].multistep = 1;
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
+					ast_debug(1, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
 					changed++;
 				}
 			}
