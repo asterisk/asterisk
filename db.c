@@ -531,12 +531,8 @@ static int manager_dbput(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No key specified");
 		return 0;
 	}
-	if (!strlen(val)) {
-		astman_send_error(s, m, "No val specified");
-		return 0;
-	}
 
-	res = ast_db_put(family, key, val);
+	res = ast_db_put(family, key, val ? val : "");
 	if (res) {
 		astman_send_error(s, m, "Failed to update entry");
 	} else {
