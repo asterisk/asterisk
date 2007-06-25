@@ -1125,7 +1125,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 	}
 	fdprintf(agi->fd, "200 result=%d\n", res);
 
-	return res;
+	return res >= 0 ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_setcallerid(struct ast_channel *chan, AGI *agi, int argc, char **argv)
