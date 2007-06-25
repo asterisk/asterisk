@@ -525,7 +525,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 	if (ast_test_flag(from, AST_CDR_FLAG_LOCKED)) {
 		discard_from = 1;
 		if (lto) {
-			struct ast_cdr *llfrom;
+			struct ast_cdr *llfrom = NULL;
 			/* insert the from stuff after lto */
 			lto->next = from;
 			lfrom = from;
@@ -540,7 +540,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		} else {
 			/* save copy of the current *to cdr */
 			struct ast_cdr tcdr;
-			struct ast_cdr *llfrom;
+			struct ast_cdr *llfrom = NULL;
 			memcpy(&tcdr, to, sizeof(tcdr));
 			/* copy in the locked from cdr */
 			memcpy(to, from, sizeof(*to));
