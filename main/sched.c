@@ -196,7 +196,7 @@ static int sched_settime(struct timeval *tv, int when)
 {
 	struct timeval now = ast_tvnow();
 
-	/*ast_log(LOG_DEBUG, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
+	/*ast_debug(1, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
 	if (ast_tvzero(*tv))	/* not supplied, default to now */
 		*tv = now;
 	*tv = ast_tvadd(*tv, ast_samp2tv(when, 1000));
@@ -301,22 +301,20 @@ void ast_sched_dump(const struct sched_context *con)
 	ast_debug(1, "Asterisk Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
 #endif
 
-	if (option_debug) {
-	ast_log(LOG_DEBUG, "=============================================================\n");
-	ast_log(LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
-	ast_log(LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
-		AST_LIST_TRAVERSE(&con->schedq, q, list) {
-			struct timeval delta = ast_tvsub(q->when, tv);
+	ast_debug(1, "=============================================================\n");
+	ast_debug(1, "|ID    Callback          Data              Time  (sec:ms)   |\n");
+	ast_debug(1, "+-----+-----------------+-----------------+-----------------+\n");
+	AST_LIST_TRAVERSE(&con->schedq, q, list) {
+		struct timeval delta = ast_tvsub(q->when, tv);
 
-			ast_log(LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
-				q->id,
-				q->callback,
-				q->data,
-				delta.tv_sec,
-				(long int)delta.tv_usec);
-		}
-		ast_log(LOG_DEBUG, "=============================================================\n");
+		ast_debug(1, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
+			q->id,
+			q->callback,
+			q->data,
+			delta.tv_sec,
+			(long int)delta.tv_usec);
 	}
+	ast_debug(1, "=============================================================\n");
 }
 
 /*! \brief

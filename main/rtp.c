@@ -730,7 +730,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	event = data[3] & 0x1f;
 
 	if (option_debug > 2 || rtpdebug)
-		ast_log(LOG_DEBUG, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02x, power=%d, history count=%d)\n", event, len, seq, flags, power, (len - 4) / 2);
+		ast_debug(0, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02x, power=%d, history count=%d)\n", event, len, seq, flags, power, (len - 4) / 2);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -790,7 +790,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 
 	/* Print out debug if turned on */
 	if (rtpdebug || option_debug > 2)
-		ast_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
+		ast_debug(0, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 
 	/* Figure out what digit was pressed */
 	if (event < 10) {
@@ -843,7 +843,7 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
 	if (rtpdebug)
-		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
+		ast_debug(0, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 
 	if (!(ast_test_flag(rtp, FLAG_3389_WARNING))) {
 		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
@@ -933,7 +933,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
 			if (option_debug || rtpdebug)
-				ast_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+				ast_debug(0, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
 
@@ -1198,7 +1198,7 @@ static int bridge_p2p_rtp_write(struct ast_rtp *rtp, struct ast_rtp *bridged, un
 			ast_debug(1, "RTP Transmission error of packet to %s:%d: %s\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port), strerror(errno));
 		} else if (((ast_test_flag(bridged, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(bridged, FLAG_NAT_INACTIVE_NOWARN)) {
 			if (option_debug || rtpdebug)
-				ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
+				ast_debug(0, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(bridged->them.sin_addr), ntohs(bridged->them.sin_port));
 			ast_set_flag(bridged, FLAG_NAT_INACTIVE_NOWARN);
 		}
 		return 0;
@@ -1284,7 +1284,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			rtp->rxseqno = 0;
 			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
 			if (option_debug || rtpdebug)
-				ast_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+				ast_debug(0, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
 
@@ -1306,7 +1306,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	
 	if (!mark && rtp->rxssrc && rtp->rxssrc != ssrc) {
 		if (option_debug || rtpdebug)
-			ast_log(LOG_DEBUG, "Forcing Marker bit, because SSRC has changed\n");
+			ast_debug(0, "Forcing Marker bit, because SSRC has changed\n");
 		mark = 1;
 	}
 
@@ -1330,9 +1330,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			int profile;
 			profile = (ntohl(rtpheader[3]) & 0xffff0000) >> 16;
 			if (profile == 0x505a)
-				ast_log(LOG_DEBUG, "Found Zfone extension in RTP stream - zrtp - not supported.\n");
+				ast_debug(1, "Found Zfone extension in RTP stream - zrtp - not supported.\n");
 			else
-				ast_log(LOG_DEBUG, "Found unknown RTP Extensions %x\n", profile);
+				ast_debug(1, "Found unknown RTP Extensions %x\n", profile);
 		}
 	}
 
@@ -2833,7 +2833,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			} else if (((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) && !ast_test_flag(rtp, FLAG_NAT_INACTIVE_NOWARN)) {
 				/* Only give this error message once if we are not RTP debugging */
 				if (option_debug || rtpdebug)
-					ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+					ast_debug(0, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 				ast_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
 			}
 		} else {
@@ -3204,7 +3204,7 @@ static int p2p_rtp_callback(int *id, int fd, short events, void *cbdata)
 		rtp->rxseqno = 0;
 		ast_set_flag(rtp, FLAG_NAT_ACTIVE);
 		if (option_debug || rtpdebug)
-			ast_log(LOG_DEBUG, "P2P RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+			ast_debug(0, "P2P RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 	}
 
 	/* Write directly out to other RTP stream if bridged */
@@ -3566,8 +3566,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		fmt0 = ast_codec_pref_getsize(&p0->pref, c0->rawreadformat);
 		fmt1 = ast_codec_pref_getsize(&p1->pref, c1->rawreadformat);
 		if (fmt0.cur_ms != fmt1.cur_ms) {
-			if (option_debug)
-				ast_log(LOG_DEBUG, "Cannot packet2packet bridge - packetization settings prevent it\n");
+			ast_debug(1, "Cannot packet2packet bridge - packetization settings prevent it\n");
 			ast_channel_unlock(c0);
 			ast_channel_unlock(c1);
 			return AST_BRIDGE_FAILED_NOWARN;

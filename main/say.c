@@ -1381,7 +1381,7 @@ static int ast_say_number_full_hu(struct ast_channel *chan, int num, const char 
 						num = num % 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
-						ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+						ast_debug(1, "Number '%d' is too big for me\n", num);
 						res = -1;
 					}
 				}
@@ -6305,7 +6305,7 @@ static int gr_say_number_female(int num, struct ast_channel *chan, const char *i
 	int res;
 	char fn[256] = "";
 
-	/* ast_log(LOG_DEBUG, "\n\n Saying number female %s %d \n\n",lang, num); */
+	/* ast_debug(1, "\n\n Saying number female %s %d \n\n",lang, num); */
 	if (num < 5) {
 		snprintf(fn, sizeof(fn), "digits/female-%d", num);
 		res = wait_file(chan, ints, fn, lang);
