@@ -959,7 +959,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			ast_mutex_unlock(&p->lock);     /* For other thread to read the condition. */
 			return NULL;
 		}	
-	}
+	} else if (p->chan)
 		ast_indicate(p->chan, AST_CONTROL_UNHOLD);
 	p->owning_app = pthread_self();
 	/* After the above step, there should not be any blockers. */
