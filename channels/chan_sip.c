@@ -9761,8 +9761,10 @@ static struct ast_custom_function sipchaninfo_function = {
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
 	char tmp[256];
-	char *s, *e;
+	char *s, *e, *t;
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
+	if ((t = strchr(tmp, ',')))
+		*t = '\0';
 	s = get_in_brackets(tmp);
 	e = strchr(s, ';');
 	if (e)
