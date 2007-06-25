@@ -4879,6 +4879,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 
 	return 0;
 }
+
 #else
 static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 {
@@ -7597,6 +7598,11 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	
 	AST_LIST_TRAVERSE(&users, vmu, list) {
 		char dirname[256];
+
+#ifdef IMAP_STORAGE
+		int new, old;
+		inboxcount (vmu->mailbox, &new, &old);
+#endif
 		
 		make_dir(dirname, sizeof(dirname), vmu->context, vmu->mailbox, "INBOX");
 		astman_append(s,
@@ -7622,6 +7628,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			      "MaxMessageLength: %d\r\n"
 			      "NewMessageCount: %d\r\n"
 #ifdef IMAP_STORAGE
+				  "OldMessageCount: %d\r\n"
 			      "IMAPUser: %s\r\n"
 #endif
 			      "\r\n",
@@ -7629,9 +7636,11 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			      vmu->pager, vmu->serveremail, vmu->mailcmd, vmu->language,
 			      vmu->zonetag, vmu->callback, vmu->dialout, vmu->uniqueid,
 			      vmu->exit, vmu->saydurationm, vmu->attachfmt, vmu->volgain,
-			      vmu->maxmsg, vmu->maxsecs, count_messages(vmu, dirname)
+			      vmu->maxmsg, vmu->maxsecs, 
 #ifdef IMAP_STORAGE
-			      , vmu->imapuser
+				  new, old, vmu->imapuser
+#else
+				  count_messages(vmu, dirname)
 #endif
 			);
 	}		
