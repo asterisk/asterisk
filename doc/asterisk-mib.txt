@@ -276,7 +276,7 @@ astChanName OBJECT-TYPE
 	MAX-ACCESS	read-only
 	STATUS		current
 	DESCRIPTION
-		"Name of the currentl channel."
+		"Name of the current channel."
 	::= { astChanEntry 2 }
 
 astChanLanguage OBJECT-TYPE
