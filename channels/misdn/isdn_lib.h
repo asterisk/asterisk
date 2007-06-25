@@ -476,5 +476,6 @@ void misdn_lib_reinit_nt_stack(int port);
 char *bc_state2str(enum bchannel_state state);
 void bc_state_change(struct misdn_bchannel *bc, enum bchannel_state state);
 
+void misdn_dump_chanlist(void);
 
 #endif
