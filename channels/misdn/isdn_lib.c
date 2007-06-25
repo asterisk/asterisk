@@ -3398,7 +3398,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			clean_up_bc(bc);
 			
 			if (channel>0)
-				empty_chan_in_stack(stack,bc->channel);
+				empty_chan_in_stack(stack,channel);
 		}
 		break;
     
