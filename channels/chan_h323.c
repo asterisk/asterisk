@@ -2874,6 +2874,11 @@ static int reload_config(int is_reload)
 						ASTOBJ_CONTAINER_LINK(&userl, user);
 						ASTOBJ_UNREF(user, oh323_destroy_user);
 					}
+					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
+					if (peer) {
+						ASTOBJ_CONTAINER_LINK(&peerl, peer);
+						ASTOBJ_UNREF(peer, oh323_destroy_peer);
+					}
 				}
 			}
 		}
