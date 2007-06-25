@@ -154,7 +154,6 @@ static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pq
 static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int target);
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms);
 static void update_messages_by_imapuser(const char *user, unsigned long number);
-static int count_messages(struct ast_vm_user *vmu, char *dir);
 
 struct vmstate {
 	struct vm_state *vms;
