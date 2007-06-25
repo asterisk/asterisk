@@ -5135,7 +5135,6 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 				chan_misdn_log(1, ch->bc->port, "SETOPT: HDLC \n");
 				if (!ch->bc->hdlc) {
 					ch->bc->hdlc = 1;
-					misdn_lib_setup_bc(ch->bc);
 				}
 			}
 			ch->bc->capability = INFO_CAPABILITY_DIGITAL_UNRESTRICTED;

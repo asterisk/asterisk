@@ -3273,6 +3273,8 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_ALERTING:
 	case EVENT_PROCEEDING:
 	case EVENT_SETUP_ACKNOWLEDGE:
+		if (!stack->nt) break;
+
 	case EVENT_CONNECT:
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 
