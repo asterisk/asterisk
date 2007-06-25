@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
