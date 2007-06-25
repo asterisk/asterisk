@@ -1430,9 +1430,11 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
 static int sip_show_channels(int fd, int argc, char *argv[]);
 static int sip_show_subscriptions(int fd, int argc, char *argv[]);
-static char *complete_sipch(const char *line, const char *word, int pos, int state);
+static char *complete_sip_channel(const char *word, int state);
 static char *complete_sip_peer(const char *word, int state, int flags2);
 static char *complete_sip_registered_peer(const char *word, int state, int flags2);
+static char *complete_sip_show_channel(const char *line, const char *word, int pos, int state);
+static char *complete_sip_show_history(const char *line, const char *word, int pos, int state);
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state);
 static char *complete_sip_unregister(const char *line, const char *word, int pos, int state);
 static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state);
@@ -11285,8 +11287,8 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 #undef FORMAT3
 }
 
-/*! \brief Support routine for 'sip show channel' CLI */
-static char *complete_sipch(const char *line, const char *word, int pos, int state)
+/*! \brief Support routine for 'sip show channel' and 'sip show history' CLI */
+static char *complete_sip_channel(const char *word, int state)
 {
 	int which=0;
 	struct sip_pvt *cur;
@@ -11339,6 +11341,24 @@ static char *complete_sip_registered_peer(const char *word, int state, int flags
        return result;
 }
 
+/*! \brief Support routine for 'sip show channel' CLI */
+static char *complete_sip_show_channel(const char *line, const char *word, int pos, int state)
+{
+	if (pos == 3)
+		return complete_sip_channel(word, state);
+
+	return NULL;
+}
+
+/*! \brief Support routine for 'sip show history' CLI */
+static char *complete_sip_show_history(const char *line, const char *word, int pos, int state)
+{
+	if (pos == 3)
+		return complete_sip_channel(word, state);
+
+	return NULL;
+}
+
 /*! \brief Support routine for 'sip show peer' CLI */
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state)
 {
@@ -11360,7 +11380,7 @@ static char *complete_sip_unregister(const char *line, const char *word, int pos
 /*! \brief Support routine for 'sip debug peer' CLI */
 static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state)
 {
-	if (pos == 3)
+	if (pos == 4)
 		return complete_sip_peer(word, state, 0);
 
 	return NULL;
@@ -11771,7 +11791,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
 	int oldsipdebug = sipdebug_console;
-	if (argc != 4) {
+	if (argc != 4 || strcmp(argv[3], "on") != 0) {
 		if (argc != 5) 
 			return RESULT_SHOWUSAGE;
 		else if (strcmp(argv[3], "ip") == 0)
@@ -12131,9 +12151,11 @@ static const char sip_unregister_usage[] =
 "       Unregister (force expiration) a SIP peer from the registry\n";
 
 static const char debug_usage[] = 
-"Usage: sip set debug {on|ip <host[:PORT]>|peer <peername>}\n"
+"Usage: sip set debug {on|off|ip <host[:PORT]>|peer <peername>}\n"
 "       sip set debug on\n"
 "          Enables dumping of all SIP messages for debugging purposes\n\n"
+"       sip set debug off\n"
+"          Disables dumping of all SIP messages\n\n"
 "       sip set debug ip <host[:PORT]>\n"
 "          Enables dumping of SIP messages to and from host.\n\n"
 "       sip set debug peer <peername>\n"
@@ -18238,11 +18260,11 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "show", "channel", NULL },
 	sip_show_channel, "Show detailed SIP channel info",
-	show_channel_usage, complete_sipch  },
+	show_channel_usage, complete_sip_show_channel  },
 
 	{ { "sip", "show", "history", NULL },
 	sip_show_history, "Show SIP dialog history",
-	show_history_usage, complete_sipch  },
+	show_history_usage, complete_sip_show_history },
 
 	{ { "sip", "show", "peer", NULL },
 	sip_show_peer, "Show details on specific SIP peer",
@@ -18265,6 +18287,10 @@ static struct ast_cli_entry cli_sip[] = {
 	prune_realtime_usage, complete_sip_prune_realtime_user },
 
 	{ { "sip", "set", "debug", NULL },
+	sip_do_debug, "Enable SIP debugging",
+	debug_usage },
+
+	{ { "sip", "set", "debug", "on", NULL },
 	sip_do_debug, "Enable SIP debugging",
 	debug_usage },
 
