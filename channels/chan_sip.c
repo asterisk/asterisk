@@ -12430,10 +12430,12 @@ static struct ast_custom_function sipchaninfo_function = {
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
 	char tmp[BUFSIZ];
-	char *s, *e;
+	char *s, *e, *t;
 	char *domain;
 
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
+	if ((t = strchr(tmp, ',')))
+		*t = '\0';
 	s = remove_uri_parameters(get_in_brackets(tmp));
 	if (ast_test_flag(&p->flags[0], SIP_PROMISCREDIR)) {
 		if (!strncasecmp(s, "sip:", 4))
