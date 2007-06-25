@@ -2146,10 +2146,14 @@ static int misdn_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 		ast_copy_string(p->ast->exten, bc->dad, sizeof(p->ast->exten));
 		misdn_lib_send_event( bc, EVENT_INFORMATION);
 		break;
-	default:
-		if (bc->send_dtmf) {
-			send_digit_to_chan(p, digit);
-		}
+	default:	
+			/* Do not send Digits in CONNECTED State, when
+			 * the other side is too mISDN. */
+			if (p->other_ch ) 
+				return 0;
+
+			if ( bc->send_dtmf ) 
+				send_digit_to_chan(p,digit);
 		break;
 	}
 
