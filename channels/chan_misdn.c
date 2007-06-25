@@ -2155,7 +2155,7 @@ static int misdn_digit_end(struct ast_channel *ast, char digit, unsigned int dur
 			if ( bc->send_dtmf ) 
 				send_digit_to_chan(p,digit);
 		break;
-	}
+}
 
 	return 0;
 }
@@ -2370,6 +2370,11 @@ static int misdn_hangup(struct ast_channel *ast)
 	case MISDN_INCOMING_SETUP:
 	case MISDN_CALLING:
 		p->state = MISDN_CLEANING;
+		/* This is the only place in misdn_hangup, where we 
+		 * can call release_chan, else it might create lot's of trouble
+		 * */
+		ast_log(LOG_NOTICE, "release channel, in CALLING/INCOMING_SETUP state.. no other events happened\n");
+		release_chan(bc);
 		misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
 		break;
 	case MISDN_HOLDED:
@@ -2380,7 +2385,6 @@ static int misdn_hangup(struct ast_channel *ast)
 		if (bc->need_disconnect)
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
 		break;
-
 	case MISDN_CALLING_ACKNOWLEDGE:
 		start_bc_tones(p);
 		hanguptone_indicate(p);
