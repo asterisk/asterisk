@@ -19,10 +19,11 @@ additional voicemail functionality, including:
 
 \subsubsection{University of Washington IMAP C-Client}
 
-You will need a source distribution of University of Washington's IMAP
-c-client (http://www.washington.edu/imap/).  Asterisk supports both the
-2004 and 2006 versions of c-client, however mail\_expunge\_full is enabled
-in the 2006 version.
+If you do not have the University of Washington's IMAP c-client
+installed on your system, you will need to download the c-client
+source distribution (http://www.washington.edu/imap/) and compile it.
+Asterisk supports both the 2004 and 2006 versions of c-client, however
+mail\_expunge\_full is enabled in the 2006 version.
 
 Note that Asterisk only uses the 'client' portion of the UW IMAP toolkit,
 but building it also builds an IMAP server and various other utilities.
@@ -50,19 +51,17 @@ need to run 'make install'.
 
 \subsubsection{Compiling Asterisk}
 
-Configure with ./configure --with-imap=/usr/src/imap
-or where ever you built thfe UWashington IMAP Toolkit. When you run
-'make menuselect', choose 'Voicemail Build Options' and the
-IMAP\_STORAGE option should be available for selection.
+To use the system c-client library, configure Asterisk with
+./configure --with-imap=system. If you downloaded the c-client source
+and compiled it according to the above instructions, configure
+Asterisk with with ./configure --with-imap=/usr/src/imap or where ever
+you built the UWashington IMAP Toolkit. When you run 'make
+menuselect', choose 'Voicemail Build Options' and the IMAP\_STORAGE
+option should be available for selection.
 
-Note that the --with-imap option will NOT search your system for an
-installed copy of the IMAP Toolkit c-client library; the Asterisk
-Makefiles and configure script are designed to build against an
-unpacked and compiled source tree of the IMAP Toolkit, not a binary
-distribution.
-
-After selecting it, use the 'x' key to exit menuselect and save
-your changes, and the build/install Asterisk normally.
+After selecting the IMAP\_STORAGE option, use the 'x' key to exit
+menuselect and save your changes, and the build/install Asterisk
+normally.
 
 \subsection{Modify voicemail.conf}
 

@@ -436,7 +436,9 @@ if test "${PBX_IKSEMEL}" = 1; then
 fi
 
 if test "${USE_IMAP_TK}" != "no"; then
-   if test "${IMAP_TK_DIR}" = ""; then
+   if test "${IMAP_TK_DIR}" = "system" ; then
+      AC_MSG_NOTICE([Checking for system c-client library...])
+   elif test "${IMAP_TK_DIR}" = ""; then
       IMAP_TK_DIR=`pwd`"/../imap-2004g"
       if test  -n "${IMAP_TK_MANDATORY}"; then
 	 AC_MSG_NOTICE([The --with-imap option does not search your system for installed])
@@ -445,17 +447,29 @@ if test "${USE_IMAP_TK}" != "no"; then
 	 AC_MSG_NOTICE([files at ${IMAP_TK_DIR}, as outlined in the doc/imapstorage.txt file.])
       fi
    fi
-   AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
+   if test "${IMAP_TK_DIR}" != "system" ; then
+      AC_MSG_CHECKING(for UW IMAP Toolkit c-client library)
+   fi
    saved_cppflags="${CPPFLAGS}"
    saved_libs="${LIBS}"
-   if test -f ${IMAP_TK_DIR}/c-client/LDFLAGS ; then
+   if test "${IMAP_TK_DIR}" = "system" ; then
+      imap_ldflags=""
+      imap_libs="-lc-client"
+      imap_include="-DUSE_SYSTEM_IMAP"
+   elif test -f ${IMAP_TK_DIR}/c-client/LDFLAGS ; then
       imap_ldflags=`cat ${IMAP_TK_DIR}/c-client/LDFLAGS`
+      imap_libs="${IMAP_TK_DIR}/c-client/c-client.a"
+      imap_include="-I${IMAP_TK_DIR}/c-client"
    fi
-   CPPFLAGS="${CPPFLAGS} -I${IMAP_TK_DIR}/c-client"
-   LIBS="${LIBS} ${IMAP_TK_DIR}/c-client/c-client.a "`echo ${imap_ldflags}`
+   CPPFLAGS="${CPPFLAGS} ${imap_include}"
+   LIBS="${LIBS} ${imap_libs} "`echo ${imap_ldflags}`
    AC_LINK_IFELSE(
 	AC_LANG_PROGRAM(
-		[#include "c-client.h"
+		[#ifdef USE_SYSTEM_IMAP
+		#include <imap/c-client.h>
+		#else
+		#include "c-client.h"
+		#endif
 		void mm_searched (MAILSTREAM *stream,unsigned long number)
 		{
 		}
@@ -511,7 +525,11 @@ if test "${USE_IMAP_TK}" != "no"; then
    if test "${ac_cv_imap_tk}" = "yes"; then
    AC_LINK_IFELSE(
       AC_LANG_PROGRAM(
-         [#include "c-client.h"
+         [#ifdef USE_SYSTEM_IMAP
+	 #include <imap/c-client.h>
+	 #else
+	 #include "c-client.h"
+	 #endif
          void mm_searched (MAILSTREAM *stream,unsigned long number)
          {
          }
@@ -569,8 +587,8 @@ if test "${USE_IMAP_TK}" != "no"; then
    LIBS="${saved_libs}"
    if test "${ac_cv_imap_tk}" = "yes"; then
       AC_MSG_RESULT(yes) 
-      IMAP_TK_LIB="${IMAP_TK_DIR}/c-client/c-client.a "`echo ${imap_ldflags}`
-      IMAP_TK_INCLUDE="-I${IMAP_TK_DIR}/c-client"
+      IMAP_TK_LIB="${imap_libs}"`echo ${imap_ldflags}`
+      IMAP_TK_INCLUDE="${imap_include}"
       PBX_IMAP_TK=1
       AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
       if test "${ac_cv_imap_tk2006}" = "yes"; then

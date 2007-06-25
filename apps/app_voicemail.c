@@ -82,9 +82,15 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ctype.h>
 #include <signal.h>
 #include <pwd.h>
+#ifdef USE_SYSTEM_IMAP
+#include <imap/c-client.h>
+#include <imap/imap4r1.h>
+#include <imap/linkage.h>
+#else
 #include "c-client.h"
 #include "imap4r1.h"
 #include "linkage.h"
+#endif
 #endif
 
 #include "asterisk/lock.h"
@@ -148,7 +154,7 @@ static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pq
 static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int target);
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms);
 static void update_messages_by_imapuser(const char *user, unsigned long number);
-
+static int count_messages(struct ast_vm_user *vmu, char *dir);
 
 struct vmstate {
 	struct vm_state *vms;
@@ -4807,7 +4813,11 @@ static int init_mailstream(struct vm_state *vms, int box)
 
 	if (delimiter == '\0') {		/* did not probe the server yet */
 		char *cp;
+#ifdef USE_SYSTEM_IMAP
+#include <imap/linkage.c>
+#else
 #include "linkage.c"
+#endif
 		/* Connect to INBOX first to get folders delimiter */
 		imap_mailbox_name(tmp, vms, 0, 0);
 		stream = mail_open(stream, tmp, debug ? OP_DEBUG : NIL);
