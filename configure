@@ -19334,7 +19334,7 @@ rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
    if test "${ac_cv_imap_tk}" = "yes"; then
       { echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6; }
-      IMAP_TK_LIB="${imap_libs}"`echo ${imap_ldflags}`
+      IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
       IMAP_TK_INCLUDE="${imap_include}"
       PBX_IMAP_TK=1
 

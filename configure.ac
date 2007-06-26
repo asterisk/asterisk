@@ -587,7 +587,7 @@ if test "${USE_IMAP_TK}" != "no"; then
    LIBS="${saved_libs}"
    if test "${ac_cv_imap_tk}" = "yes"; then
       AC_MSG_RESULT(yes) 
-      IMAP_TK_LIB="${imap_libs}"`echo ${imap_ldflags}`
+      IMAP_TK_LIB="${imap_libs} "`echo ${imap_ldflags}`
       IMAP_TK_INCLUDE="${imap_include}"
       PBX_IMAP_TK=1
       AC_DEFINE([HAVE_IMAP_TK], 1, [Define if your system has the UW IMAP Toolkit c-client library.])
