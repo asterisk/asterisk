@@ -15001,9 +15001,9 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 
 static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen)
 {
-	struct ast_rtp_quality qos;
 	struct sip_pvt *p = chan->tech_pvt;
 	char *all = "", *parse = ast_strdupa(preparse);
+	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(param);
 		AST_APP_ARG(type);
@@ -15017,51 +15017,68 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		return 0;
 	}
 
-	if (ast_strlen_zero(args.param) || strcasecmp(args.param, "rtpqos"))
-		return -1;
-
-	/* Default arguments of audio,all */
-	if (ast_strlen_zero(args.type))
-		args.type = "audio";
-	if (ast_strlen_zero(args.field))
-		args.field = "all";
-
 	memset(buf, 0, buflen);
-	memset(&qos, 0, sizeof(qos));
 
-	if (strcasecmp(args.type, "AUDIO") == 0) {
-		all = ast_rtp_get_quality(p->rtp, &qos);
-	} else if (strcasecmp(args.type, "VIDEO") == 0) {
-		all = ast_rtp_get_quality(p->vrtp, &qos);
-	} else if (strcasecmp(args.type, "TEXT") == 0) {
-		all = ast_rtp_get_quality(p->trtp, &qos);
-	}
+	if (!strcasecmp(args.param, "rtpdest")) {
+		struct sockaddr_in sin;
 
-	if (strcasecmp(args.field, "local_ssrc") == 0)
-		snprintf(buf, buflen, "%u", qos.local_ssrc);
-	else if (strcasecmp(args.field, "local_lostpackets") == 0)
-		snprintf(buf, buflen, "%u", qos.local_lostpackets);
-	else if (strcasecmp(args.field, "local_jitter") == 0)
-		snprintf(buf, buflen, "%.0lf", qos.local_jitter * 1000.0);
-	else if (strcasecmp(args.field, "local_count") == 0)
-		snprintf(buf, buflen, "%u", qos.local_count);
-	else if (strcasecmp(args.field, "remote_ssrc") == 0)
-		snprintf(buf, buflen, "%u", qos.remote_ssrc);
-	else if (strcasecmp(args.field, "remote_lostpackets") == 0)
-		snprintf(buf, buflen, "%u", qos.remote_lostpackets);
-	else if (strcasecmp(args.field, "remote_jitter") == 0)
-		snprintf(buf, buflen, "%.0lf", qos.remote_jitter * 1000.0);
-	else if (strcasecmp(args.field, "remote_count") == 0)
-		snprintf(buf, buflen, "%u", qos.remote_count);
-	else if (strcasecmp(args.field, "rtt") == 0)
-		snprintf(buf, buflen, "%.0lf", qos.rtt * 1000.0);
-	else if (strcasecmp(args.field, "all") == 0)
-		ast_copy_string(buf, all, buflen);
-	else {
-		ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
-		return -1;
+		if (ast_strlen_zero(args.type))
+			args.type = "audio";
+
+		if (!strcasecmp(args.type, "audio"))
+			ast_rtp_get_peer(p->rtp, &sin);
+		else if (!strcasecmp(args.type, "video"))
+			ast_rtp_get_peer(p->vrtp, &sin);
+		else if (!strcasecmp(args.type, "text"))
+			ast_rtp_get_peer(p->trtp, &sin);
+
+		snprintf(buf, buflen, "%s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	} else if (!strcasecmp(args.param, "rtpqos")) {
+		struct ast_rtp_quality qos;
+		
+		memset(&qos, 0, sizeof(qos));
+
+		if (ast_strlen_zero(args.type))
+			args.type = "audio";
+		if (ast_strlen_zero(args.field))
+			args.field = "all";
+		
+		if (strcasecmp(args.type, "AUDIO") == 0) {
+			all = ast_rtp_get_quality(p->rtp, &qos);
+		} else if (strcasecmp(args.type, "VIDEO") == 0) {
+			all = ast_rtp_get_quality(p->vrtp, &qos);
+		} else if (strcasecmp(args.type, "TEXT") == 0) {
+			all = ast_rtp_get_quality(p->trtp, &qos);
+		}
+		
+		if (strcasecmp(args.field, "local_ssrc") == 0)
+			snprintf(buf, buflen, "%u", qos.local_ssrc);
+		else if (strcasecmp(args.field, "local_lostpackets") == 0)
+			snprintf(buf, buflen, "%u", qos.local_lostpackets);
+		else if (strcasecmp(args.field, "local_jitter") == 0)
+			snprintf(buf, buflen, "%.0lf", qos.local_jitter * 1000.0);
+		else if (strcasecmp(args.field, "local_count") == 0)
+			snprintf(buf, buflen, "%u", qos.local_count);
+		else if (strcasecmp(args.field, "remote_ssrc") == 0)
+			snprintf(buf, buflen, "%u", qos.remote_ssrc);
+		else if (strcasecmp(args.field, "remote_lostpackets") == 0)
+			snprintf(buf, buflen, "%u", qos.remote_lostpackets);
+		else if (strcasecmp(args.field, "remote_jitter") == 0)
+			snprintf(buf, buflen, "%.0lf", qos.remote_jitter * 1000.0);
+		else if (strcasecmp(args.field, "remote_count") == 0)
+			snprintf(buf, buflen, "%u", qos.remote_count);
+		else if (strcasecmp(args.field, "rtt") == 0)
+			snprintf(buf, buflen, "%.0lf", qos.rtt * 1000.0);
+		else if (strcasecmp(args.field, "all") == 0)
+			ast_copy_string(buf, all, buflen);
+		else {
+			ast_log(LOG_WARNING, "Unrecognized argument '%s' to %s\n", preparse, funcname);
+			return -1;
+		}
+	} else {
+		res = -1;
 	}
-	return 0;
+	return res;
 }
 
 /*! \brief Handle incoming BYE request */

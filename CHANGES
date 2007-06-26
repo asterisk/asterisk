@@ -59,6 +59,7 @@ SIP changes
      required due to the restructuring of how MWI is handled.  See the descriptions 
      in this file of the "pollmailboxes" and "pollfreq" options to voicemail.conf 
      for more information.
+  * Added rtpdest option to CHANNEL() dialplan function.
 
 IAX2 changes
 ------------
