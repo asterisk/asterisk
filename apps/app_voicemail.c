@@ -6902,6 +6902,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				cmd = ast_play_and_wait(chan, "vm-nomore");
 			break;
 		case '9':
+			if (vms.curmsg < 0 || vms.curmsg > vms.lastmsg) {
+				/* No message selected */
+				cmd = 0;
+				break;
+			}
 			if (useadsi)
 				adsi_folders(chan, 1, "Save to folder...");
 			cmd = get_folder2(chan, "vm-savefolder", 1);
