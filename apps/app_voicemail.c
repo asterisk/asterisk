@@ -8689,12 +8689,12 @@ static char *get_user_by_mailbox(char *mailbox)
 	if (!mailbox)
 		return NULL;
 
-	start = strstr(mailbox,"user=");
+	start = strstr(mailbox,"/user=");
 	if (!start)
 		return NULL;
 
 	ast_mutex_lock(&imaptemp_lock);
-	ast_copy_string(imaptemp, start+5, sizeof(imaptemp));
+	ast_copy_string(imaptemp, start+6, sizeof(imaptemp));
 	ast_mutex_unlock(&imaptemp_lock);
 
 	quote = strchr(imaptemp,'\"');
