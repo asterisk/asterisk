@@ -2709,6 +2709,9 @@ static int ast_rtcp_write(void *data)
 	struct ast_rtp *rtp = data;
 	int res;
 	
+	if (!rtp || !rtp->rtcp)
+		return 0;
+
 	if (rtp->txcount > rtp->rtcp->lastsrtxcount)
 		res = ast_rtcp_write_sr(data);
 	else
