@@ -3130,7 +3130,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			return -1;
 		}
 		/* here is a big difference! We add one to it later */
-		msgnum = newmsgs + oldmsgs;
 		ast_debug(3, "Messagecount set to %d\n",msgnum);
 
 #else
