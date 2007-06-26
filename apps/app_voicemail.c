@@ -9217,10 +9217,10 @@ static char *get_user_by_mailbox(char *mailbox, char *buf, size_t len)
 	if (ast_strlen_zero(mailbox))
 		return NULL;
 
-	if (!(start = strstr(mailbox, "user=")))
+	if (!(start = strstr(mailbox, "/user=")))
 		return NULL;
 
-	ast_copy_string(buf, start+5, len);
+	ast_copy_string(buf, start+6, len);
 
 	if (!(quote = strchr(buf, '\"'))) {
 		if (!(eol_pnt = strchr(buf, '/')))
