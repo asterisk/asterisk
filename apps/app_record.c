@@ -81,6 +81,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int count = 0;
 	int percentflag = 0;
 	char *filename, *ext = NULL, *silstr, *maxstr, *options;
+	char *file, *dir;
 	char *vdata, *p;
 	int i = 0;
 	char tmp[256];
@@ -263,8 +264,13 @@ static int record_exec(struct ast_channel *chan, void *data)
 		}
 		ast_dsp_set_threshold(sildet, 256);
 	} 
-		
-		
+
+	/* Create the directory if it does not exist. */
+	dir = ast_strdupa(tmp);
+	if ((file = strrchr(dir, '/')))
+		*file++ = '\0';
+	ast_mkdir (dir, 0777);
+
 	flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
 	s = ast_writefile( tmp, ext, NULL, flags , 0, AST_FILE_MODE);
 		
