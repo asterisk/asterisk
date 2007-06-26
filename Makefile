@@ -864,7 +864,9 @@ config:
 		$(INSTALL) -m 755 contrib/init.d/rc.redhat.asterisk /etc/rc.d/init.d/asterisk; \
 		/sbin/chkconfig --add asterisk; \
 	elif [ -d /etc/init.d ]; then \
-		$(INSTALL) -m 755 init.asterisk /etc/init.d/asterisk; \
+		echo "Only distros that use rc.d based init scripts are currently supported."; \
+		echo "You may be able to copy one of the scripts in contrib/init.d/ into your /etc/init.d/ directory."; \
+		exit 1; \
 	fi 
 
 dont-optimize: install
