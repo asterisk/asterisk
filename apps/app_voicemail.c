@@ -2657,7 +2657,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		return -1;
 	}
 
-	if (!ret && vms_p->updated == 1) {
+	if (!ret && vms_p->updated > 0) {
 		if (newmsgs) {
 			pgm = mail_newsearchpgm();
 			hdr = mail_newsearchheader("X-Asterisk-VM-Extension", (char *)mailboxnc);
@@ -2688,10 +2688,8 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 	}
 
- 	if (vms_p->updated == 1) {  /* changes, so we did the searches above */
+ 	if (vms_p->updated > 1) {  /* changes, so we did the searches above */
  		vms_p->updated = 0;
- 	} else if (vms_p->updated > 1) {  /* decrement delay count */
- 		vms_p->updated--;
  	} else {  /* no changes, so don't search */
  		mail_ping(vms_p->mailstream);
  		/* Keep the old data */
@@ -3111,19 +3109,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #ifdef IMAP_STORAGE
 		/* Is ext a mailbox? */
 		/* must open stream for this user to get info! */
-		vms = get_vm_state_by_mailbox(ext,0);
-		if (vms) {
-			ast_debug(3, "Using vm_state, interactive set to %d.\n",vms->interactive);
-			newmsgs = vms->newmessages++;
-			oldmsgs = vms->oldmessages;
-		} else {
-			res = inboxcount(ext_context, &newmsgs, &oldmsgs);
-			if(res < 0) {
-				ast_log(LOG_NOTICE,"Can not leave voicemail, unable to count messages\n");
-				return -1;
-			}
-			vms = get_vm_state_by_mailbox(ext,0);
+		res = inboxcount(ext_context, &newmsgs, &oldmsgs);
+		if(res < 0) {
+			ast_log(LOG_NOTICE,"Can not leave voicemail, unable to count messages\n");
+			return -1;
 		}
+		if((vms = get_vm_state_by_mailbox(ext,0))) 
+			vms->newmessages++; /*still need to increment new message count*/
 		/* here is a big difference! We add one to it later */
 		msgnum = newmsgs + oldmsgs;
 		ast_debug(3, "Messagecount set to %d\n",msgnum);
@@ -6623,7 +6615,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 #ifdef IMAP_STORAGE
 	vms.interactive = 1;
-	vms.updated = 2;
+	vms.updated = 1;
 	vmstate_insert(&vms);
 	init_vm_state(&vms);
 #endif
@@ -6673,6 +6665,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if (!vms.newmessages && vms.oldmessages) {
 			/* If we only have old messages start here */
 			res = open_mailbox(&vms, vmu, 1);
+			play_folder = 1;
 			if (res == ERROR_LOCK_PATH)
 				goto out;
 		}
@@ -6736,6 +6729,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				res = open_mailbox(&vms, vmu, cmd);
 				if (res == ERROR_LOCK_PATH)
 					goto out;
+				play_folder = cmd;
 				cmd = 0;
 			}
 			if (useadsi)
@@ -6872,10 +6866,20 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				vms.deleted[vms.curmsg] = !vms.deleted[vms.curmsg];
 				if (useadsi)
 					adsi_delete(chan, &vms);
-				if (vms.deleted[vms.curmsg]) 
+				if (vms.deleted[vms.curmsg]) {
+					if (play_folder == 0)
+						vms.newmessages--;
+					else if (play_folder == 1)
+						vms.oldmessages--;
 					cmd = ast_play_and_wait(chan, "vm-deleted");
-				else
+				}
+				else {
+					if (play_folder == 0)
+						vms.newmessages++;
+					else if (play_folder == 1)
+						vms.oldmessages++;
 					cmd = ast_play_and_wait(chan, "vm-undeleted");
+				}
 				if (ast_test_flag((&globalflags), VM_SKIPAFTERCMD)) {
 					if (vms.curmsg < vms.lastmsg) {
 						vms.curmsg++;
@@ -9346,7 +9350,7 @@ static void vmstate_delete(struct vm_state *vms)
 		ast_debug(3, "Duplicate mailbox %s, copying message info...\n", vms->username);
 		altvms->newmessages = vms->newmessages;
 		altvms->oldmessages = vms->oldmessages;
-		altvms->updated = 2;
+		altvms->updated = 1;
 	}
 	
 	ast_debug(3, "Removing vm_state for user:%s, mailbox %s\n", vms->imapuser, vms->username);
@@ -9381,7 +9385,7 @@ static void set_update(MAILSTREAM * stream)
 
 	ast_debug(3, "User %s mailbox set for update.\n", user);
        
-	vms->updated = 2; /* Set updated flag since mailbox changed */
+	vms->updated = 1; /* Set updated flag since mailbox changed */
 }
 
 static void init_vm_state(struct vm_state *vms) 
