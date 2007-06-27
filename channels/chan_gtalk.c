@@ -969,15 +969,14 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
 	if (!strcasecmp(client->name, "guest")) {
-		if (strchr(i->them, '/')) {
-			char *aux;
-			data = ast_strdupa((char *)i->them);
-			aux = data;
-			cid = strsep(&aux, "/");
+		data = ast_strdupa(i->them);
+		if (strchr(data, '/')) {
+			cid = strsep(&data, "/");
 		} else
-			cid = i->them;
+			cid = data;
 	} else {
-		cid = client->user;
+		data =  ast_strdupa(client->user);
+		cid = data;
 	}
 	cid = strsep(&cid, "@");
 	tmp->cid.cid_num = ast_strdup(cid);
