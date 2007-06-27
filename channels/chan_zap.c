@@ -584,7 +584,7 @@ static struct zt_pvt {
 	char callwait_name[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
 	char dnid[AST_MAX_EXTENSION];
-	unsigned int group;
+	ast_group_t group;
 	int law;
 	int confno;					/*!< Our conference */
 	int confusers;					/*!< Who is using our conference */
