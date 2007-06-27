@@ -1605,6 +1605,7 @@ static void free_translation(struct ast_channel *clone)
 int ast_hangup(struct ast_channel *chan)
 {
 	int res = 0;
+	struct ast_cdr *cdr = NULL;
 
 	/* Don't actually hang up a channel that will masquerade as someone else, or
 	   if someone is going to masquerade as us */
@@ -1652,7 +1653,7 @@ int ast_hangup(struct ast_channel *chan)
 	chan->generator = NULL;
 	if (chan->cdr) {		/* End the CDR if it hasn't already */
 		ast_cdr_end(chan->cdr);
-		ast_cdr_detach(chan->cdr);	/* Post and Free the CDR */
+		cdr = chan->cdr;
 		chan->cdr = NULL;
 	}
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
@@ -1681,6 +1682,10 @@ int ast_hangup(struct ast_channel *chan)
 			ast_cause2str(chan->hangupcause)
 			);
 	ast_channel_free(chan);
+
+	if (cdr)
+		ast_cdr_detach(cdr);
+
 	return res;
 }
 
