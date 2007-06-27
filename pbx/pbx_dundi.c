@@ -52,6 +52,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <ifaddrs.h>
 #endif
 #include <zlib.h>
+#include <sys/signal.h>
+#include <pthread.h>
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -136,6 +138,7 @@ static char cursecret[80];
 static char ipaddr[80];
 static time_t rotatetime;
 static dundi_eid empty_eid = { { 0, 0, 0, 0, 0, 0 } };
+static int dundi_shutdown = 0;
 
 struct permission {
 	AST_LIST_ENTRY(permission) list;
@@ -2107,7 +2110,8 @@ static void *network_thread(void *ignore)
 	int res;
 	/* Establish I/O callback for socket read */
 	ast_io_add(io, netsocket, socket_read, AST_IO_IN, NULL);
-	for(;;) {
+	
+	while (!dundi_shutdown) {
 		res = ast_sched_wait(sched);
 		if ((res > 1000) || (res < 0))
 			res = 1000;
@@ -2130,7 +2134,7 @@ static void *process_precache(void *ign)
 	char number[256];
 	int run;
 
-	for (;;) {
+	while (!dundi_shutdown) {
 		time(&now);
 		run = 0;
 		AST_LIST_LOCK(&pcq);
@@ -4705,11 +4709,20 @@ static int unload_module(void)
 {
 	ast_module_user_hangup_all();
 
+	/* Stop all currently running threads */
+	dundi_shutdown = 1;
+	pthread_kill(netthreadid, SIGURG);
+	pthread_join(netthreadid, NULL);
+	pthread_kill(precachethreadid, SIGURG);
+	pthread_join(precachethreadid, NULL);
+
 	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
 	ast_custom_function_unregister(&dundi_query_function);
 	ast_custom_function_unregister(&dundi_result_function);
+	close(netsocket);
+	io_context_destroy(io);
 	sched_context_destroy(sched);
 
 	return 0;
