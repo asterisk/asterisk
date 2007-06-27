@@ -106,6 +106,7 @@ Voicemail Changes
      to account for this: "pollmailboxes" and "pollfreq".  See the sample
      configuration file for details.
   * Added "tw" language support
+  * Added support for storage of greetings using an IMAP server
 
 Queue changes
 -------------
