@@ -2282,6 +2282,9 @@ static void ast_remotecontrol(char * data)
 	for (;;) {
 		ebuf = (char *)el_gets(el, &num);
 
+		if (!ebuf && write(1, "", 1) < 0)
+			break;
+
 		if (!ast_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
@@ -2956,6 +2959,10 @@ int main(int argc, char *argv[])
 
 		for (;;) {
 			buf = (char *)el_gets(el, &num);
+
+			if (!buf && write(1, "", 1) < 0)
+				goto lostterm;
+
 			if (buf) {
 				if (buf[strlen(buf)-1] == '\n')
 					buf[strlen(buf)-1] = '\0';
@@ -2978,5 +2985,6 @@ int main(int argc, char *argv[])
 
 	monitor_sig_flags(NULL);
 
+lostterm:
 	return 0;
 }
