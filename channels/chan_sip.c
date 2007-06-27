@@ -9340,6 +9340,16 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 
 	/* Get referred by header if it exists */
 	p_referred_by = get_header(req, "Referred-By");
+
+	/* Give useful transfer information to the dialplan */
+	if (transferer->owner) {
+		struct ast_channel *peer = ast_bridged_channel(transferer->owner);
+		if (peer) {
+			pbx_builtin_setvar_helper(peer, "SIPREFERRINGCONTEXT", transferer->context);
+			pbx_builtin_setvar_helper(peer, "SIPREFERREDBYHDR", p_referred_by);
+		}
+	}
+
 	if (!ast_strlen_zero(p_referred_by)) {
 		char *lessthan;
 		h_referred_by = ast_strdupa(p_referred_by);

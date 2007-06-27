@@ -60,6 +60,7 @@ SIP changes
      in this file of the "pollmailboxes" and "pollfreq" options to voicemail.conf 
      for more information.
   * Added rtpdest option to CHANNEL() dialplan function.
+  * Added SIPREFERRINGCONTEXT and SIPREFERREDBYHDR variables which are set when a transfer takes place.
 
 IAX2 changes
 ------------
