@@ -255,6 +255,12 @@ sendvoicemail=yes ; Allow the user to compose and send a voicemail while inside
 			;     Customize which sound file is used instead of the default
 			;     prompt that says: "The passwords you entered and re-entered
 			;     did not match.  Please try again."
+; listen-control-forward-key=#	; Customize the key that fast-forwards message playback
+; listen-control-reverse-key=*	; Customize the key that rewinds message playback
+; listen-control-pause-key=0	; Customize the key that pauses/unpauses message playback
+; listen-control-restart-key=2	; Customize the key that restarts message playback
+; listen-control-stop-key=13456789	; Customize the keys that interrupt message playback, probably all keys not set above
+
 
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp

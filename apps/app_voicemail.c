@@ -180,6 +180,16 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VOICEMAIL_CONFIG "voicemail.conf"
 #define ASTERISK_USERNAME "asterisk"
 
+/* Define fast-forward, pause, restart, and reverse keys
+   while listening to a voicemail message - these are
+   strings, not characters */
+#define DEFAULT_LISTEN_CONTROL_FORWARD_KEY "#"
+#define DEFAULT_LISTEN_CONTROL_REVERSE_KEY "*"
+#define DEFAULT_LISTEN_CONTROL_PAUSE_KEY "0"
+#define DEFAULT_LISTEN_CONTROL_RESTART_KEY "2"
+#define DEFAULT_LISTEN_CONTROL_STOP_KEY "13456789"
+#define VALID_DTMF "1234567890*#" /* Yes ABCD are valid dtmf but what phones have those? */
+
 /* Default mail command to mail voicemail. Change it with the
     mailcmd= command in voicemail.conf */
 #define SENDMAIL "/usr/sbin/sendmail -t"
@@ -591,6 +601,13 @@ struct mwi_sub {
 
 static AST_RWLIST_HEAD_STATIC(mwi_subs, mwi_sub);
 
+/* custom audio control prompts for voicemail playback */
+static char listen_control_forward_key[12];
+static char listen_control_reverse_key[12];
+static char listen_control_pause_key[12];
+static char listen_control_restart_key[12];
+static char listen_control_stop_key[12];
+
 /* custom password sounds */
 static char vm_password[80] = "vm-password";
 static char vm_newpassword[80] = "vm-newpassword";
@@ -635,6 +652,7 @@ static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail, struct ast_channel *chan, const char *category, int imap);
 static void apply_options(struct ast_vm_user *vmu, const char *options);
+static int is_valid_dtmf(const char *key);
 
 #if !(defined(ODBC_STORAGE) || defined(IMAP_STORAGE))
 static int __has_voicemail(const char *context, const char *mailbox, const char *folder, int shortcircuit);
@@ -794,6 +812,21 @@ static void apply_options_full(struct ast_vm_user *retval, struct ast_variable *
 			apply_option(retval, tmp->name, tmp->value);
 		tmp = tmp->next;
 	} 
+}
+
+static int is_valid_dtmf(const char *key)
+{
+	int i;
+	char *local_key = ast_strdupa(key);
+
+	for(i = 0; i < strlen(key); ++i) {
+		if(!strchr(VALID_DTMF, *local_key)) {
+			ast_log(LOG_WARNING, "Invalid DTMF key \"%c\" used in voicemail configuration file\n", *local_key);
+			return 0;
+		}
+		local_key++;
+	}
+	return 1;
 }
 
 static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const char *context, const char *mailbox)
@@ -4363,7 +4396,7 @@ static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file
 
 static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file) 
 {
-	return ast_control_streamfile(chan, file, "#", "*", "1456789", "0", "2", skipms, NULL);
+	return ast_control_streamfile(chan, file, listen_control_forward_key, listen_control_reverse_key, listen_control_stop_key, listen_control_pause_key, listen_control_restart_key, skipms, NULL);
 }
 
 static int play_message_category(struct ast_channel *chan, const char *category)
@@ -7857,10 +7890,18 @@ static int load_config(void)
 	struct ast_variable *var;
 	const char *val;
 	const char *s;
+	const char *key;
 	char *q, *stringp;
 	int x;
 	int tmpadsi[4];
 
+	/* set audio control prompts */
+	strcpy(listen_control_forward_key,DEFAULT_LISTEN_CONTROL_FORWARD_KEY);
+	strcpy(listen_control_reverse_key,DEFAULT_LISTEN_CONTROL_REVERSE_KEY);
+	strcpy(listen_control_pause_key,DEFAULT_LISTEN_CONTROL_PAUSE_KEY);
+	strcpy(listen_control_restart_key,DEFAULT_LISTEN_CONTROL_RESTART_KEY);
+	strcpy(listen_control_stop_key,DEFAULT_LISTEN_CONTROL_STOP_KEY);
+	
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
 
 	AST_LIST_LOCK(&users);
@@ -8221,6 +8262,17 @@ static int load_config(void)
 			ast_copy_string(vm_reenterpassword, val, sizeof(vm_reenterpassword));
 		if ((val = ast_variable_retrieve(cfg, "general", "vm-mismatch")))
 			ast_copy_string(vm_mismatch, val, sizeof(vm_mismatch));
+		/* load configurable audio prompts */
+		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-forward-key")) && is_valid_dtmf(key))
+			ast_copy_string(listen_control_forward_key, key, sizeof(listen_control_forward_key));
+		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-reverse-key")) && is_valid_dtmf(key))
+			ast_copy_string(listen_control_reverse_key, key, sizeof(listen_control_reverse_key));
+		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-pause-key")) && is_valid_dtmf(key))
+			ast_copy_string(listen_control_pause_key, key, sizeof(listen_control_pause_key));
+		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-restart-key")) && is_valid_dtmf(key))
+			ast_copy_string(listen_control_restart_key, key, sizeof(listen_control_restart_key));
+		if ((key = ast_variable_retrieve(cfg, "general", "listen-control-stop-key")) && is_valid_dtmf(key))
+			ast_copy_string(listen_control_stop_key, key, sizeof(listen_control_stop_key));
 
 		if (!(val = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
 			val = "no";

@@ -107,6 +107,7 @@ Voicemail Changes
      configuration file for details.
   * Added "tw" language support
   * Added support for storage of greetings using an IMAP server
+  * Added ability to customize forward, reverse, stop, and pause keys for message playback
 
 Queue changes
 -------------
