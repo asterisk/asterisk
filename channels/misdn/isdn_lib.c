@@ -1485,6 +1485,7 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 		switch (event) {
 
 		case EVENT_CONNECT_ACKNOWLEDGE:
+			setup_bc(bc);
 			break;
 		case EVENT_CONNECT:
 
@@ -1826,20 +1827,6 @@ handle_event_nt(void *dat, void *arg)
 		break;
 
 		case CC_CONNECT_ACKNOWLEDGE|INDICATION:
-#if 0
-		{
-			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
-			if (bc) {
-				if ( !misdn_cap_is_speech(bc->capability)) {
-					int ret=setup_bc(bc);
-					if (ret == -EINVAL){
-						cb_log(0,bc->port,"send_event: setup_bc failed\n");
-						
-					}
-				}
-			}
-		}
-#endif
 		break;
 		
 		case CC_ALERTING|INDICATION:
@@ -1847,28 +1834,6 @@ handle_event_nt(void *dat, void *arg)
 		case CC_SETUP_ACKNOWLEDGE|INDICATION:
 			if(!stack->ptp) break;	
 		case CC_CONNECT|INDICATION:
-		{
-#if 0
-			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
-			
-			if (!bc) {
-				msg_t *dmsg;
-				cb_log(0, stack->port,"!!!! We didn't found our bc, dinfo:%x on this port.\n",hh->dinfo);
-				
-				cb_log(0, stack->port, "Releaseing call %x (No free Chan for you..)\n", hh->dinfo);
-				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
-				stack->nst.manager_l3(&stack->nst, dmsg);
-				free_msg(msg);
-				return 0;
-				
-			}
-			int ret=setup_bc(bc);
-			if (ret == -EINVAL){
-				cb_log(0,bc->port,"handle_event_nt: setup_bc failed\n");
-				misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
-			}
-#endif
-		}
 		break;
 		case CC_DISCONNECT|INDICATION:
 		{
@@ -3252,23 +3217,15 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 
 			RETURN(-ENOCHAN,OUT);
 		}
-#if 0
-	if (stack->nt) {
-		ret=setup_bc(bc);
-		if (ret == -EINVAL) {
-			cb_log(0,bc->port,"send_event: setup_bc failed\n");
-		}
-	}
-#endif
 		break;
 
 	case EVENT_PROGRESS:
 	case EVENT_ALERTING:
 	case EVENT_PROCEEDING:
 	case EVENT_SETUP_ACKNOWLEDGE:
+	case EVENT_CONNECT:
 		if (!stack->nt) break;
 
-	case EVENT_CONNECT:
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 
 		if (stack->nt) {
@@ -3694,6 +3651,8 @@ int misdn_lib_send_restart(int port, int channel)
 		int cnt;
 		for (cnt=0; cnt<=stack->b_num; cnt++) {
 			if (stack->bc[cnt].channel == i) {
+				cb_event(&stack->bc[cnt], EVENT_CLEANUP);
+
 				empty_bc(&stack->bc[cnt]);
 				clean_up_bc(&stack->bc[cnt]);
 				stack->bc[cnt].in_use=0;
