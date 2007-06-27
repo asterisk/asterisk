@@ -1401,6 +1401,8 @@ static int pbx_load_config(const char *config_file)
 					pri = strsep(&stringp, ",");
 					if (!pri)
 						pri="";
+					pri = ast_skip_blanks(pri);
+					pri = ast_trim_blanks(pri);
 					label = strchr(pri, '(');
 					if (label) {
 						*label++ = '\0';
