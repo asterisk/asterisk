@@ -3472,6 +3472,7 @@ check_turns:
 				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 					record_abandoned(&qe);
 					reason = QUEUE_LEAVEEMPTY;
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
 					res = 0;
 					break;
 				}
@@ -3480,6 +3481,7 @@ check_turns:
 				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 					record_abandoned(&qe);
 					reason = QUEUE_LEAVEUNAVAIL;
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
 					res = 0;
 					break;
 				}
