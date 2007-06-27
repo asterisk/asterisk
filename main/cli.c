@@ -387,7 +387,7 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 
 	switch (cmd) {
         case CLI_INIT:
-		e->command = "core show uptime";
+		e->command = "core show uptime [seconds]";
 		e->usage =
 			"Usage: core show uptime [seconds]\n"
 			"       Shows Asterisk uptime information.\n"
@@ -395,12 +395,12 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;
 
 	case CLI_GENERATE:
-		return (a->pos > e->args || a->n > 0) ? NULL : "seconds";
+		return NULL;
 	}
 	/* regular handler */
-	if (a->argc == e->args+1 && !strcasecmp(a->argv[e->args],"seconds"))
+	if (a->argc == e->args && !strcasecmp(a->argv[e->args-1],"seconds"))
 		printsec = 1;
-	else if (a->argc == e->args)
+	else if (a->argc == e->args-1)
 		printsec = 0;
 	else
 		return CLI_SHOWUSAGE;
