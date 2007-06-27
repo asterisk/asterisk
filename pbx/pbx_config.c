@@ -1678,6 +1678,8 @@ static int pbx_load_module(void)
 							pri = strsep(&stringp, ",");
 							if (!pri)
 								pri="";
+							pri = ast_skip_blanks(pri);
+							pri = ast_trim_blanks(pri);
 							label = strchr(pri, '(');
 							if (label) {
 								*label = '\0';
