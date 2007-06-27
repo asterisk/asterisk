@@ -75,8 +75,8 @@ static const char *desc = ""
 " W(<x>) - Adjust the both heard and spoken volumes by a factor of <x>\n"
 "         (range -4 to 4)\n\n"	
 "<command> will be executed when the recording is over\n"
-"Any strings matching ^{X} will be unescaped to ${X} and \n"
-"all variables will be evaluated at that time.\n"
+"Any strings matching ^{X} will be unescaped to ${X}.\n"
+"All variables will be evaluated at the time MixMonitor is called.\n"
 "The variable MIXMONITOR_FILENAME will contain the filename used to record.\n"
 "";
 
