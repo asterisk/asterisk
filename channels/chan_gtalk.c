@@ -355,7 +355,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, int codec, iks *dcodec
 			ast_log(LOG_WARNING,"Failed to allocate iks node");
 			return -1;
 		}
-		iks_insert_attrib(payload_ilbc, "id", "102");
+		iks_insert_attrib(payload_ilbc, "id", "97");
 		iks_insert_attrib(payload_ilbc, "name", "iLBC");
 		iks_insert_attrib(payload_ilbc, "clockrate","8000");
 		iks_insert_attrib(payload_ilbc, "bitrate","13300");
@@ -379,7 +379,7 @@ static int add_codec_to_answer(const struct gtalk_pvt *p, int codec, iks *dcodec
 			ast_log(LOG_WARNING,"Failed to allocate iks node");
 			return -1;
 		}
-		iks_insert_attrib(payload_speex, "id", "98");
+		iks_insert_attrib(payload_speex, "id", "110");
 		iks_insert_attrib(payload_speex, "name", "speex");
 		iks_insert_attrib(payload_speex, "clockrate","8000");
 		iks_insert_attrib(payload_speex, "bitrate","11000");
