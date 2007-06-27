@@ -28,6 +28,19 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack);
 
 struct misdn_stack* get_misdn_stack( void );
 
+
+void make_dummy(struct misdn_bchannel *dummybc, int port, int l3id, int nt, int channel) 
+{
+	memset (dummybc,0,sizeof(struct misdn_bchannel));
+	dummybc->port=port;
+	dummybc->l3_id=l3id;
+	dummybc->nt=nt;
+	dummybc->dummy=1;
+	dummybc->channel=channel;
+}
+
+
+
 int misdn_lib_port_block(int port)
 {
 	struct misdn_stack *stack=get_misdn_stack();
@@ -584,6 +597,8 @@ void bc_next_state_change(struct misdn_bchannel *bc, enum bchannel_state state)
 
 void empty_bc(struct misdn_bchannel *bc)
 {
+	bc->dummy=0;
+
 	bc->bframe_len=0;
 
 	bc->cw= 0;
@@ -1573,10 +1588,8 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
       
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", frm->dinfo);
-				memset (&dummybc,0,sizeof(dummybc));
-				dummybc.port=stack->port;
-				dummybc.l3_id=frm->dinfo;
-				dummybc.nt=stack->nt;
+				make_dummy(&dummybc, stack->port, frm->dinfo, stack->nt, 0);
+				
 				bc=&dummybc; 
 			}
       
@@ -1902,10 +1915,7 @@ handle_event_nt(void *dat, void *arg)
 			/** removing procid **/
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", hh->dinfo);
-				memset (&dummybc,0,sizeof(dummybc));
-				dummybc.port=stack->port;
-				dummybc.l3_id=hh->dinfo;
-				dummybc.nt=stack->nt;
+				make_dummy(&dummybc, stack->port, hh->dinfo, stack->nt, 0);
 				bc=&dummybc; 
 			}
 	
@@ -2005,12 +2015,8 @@ handle_event_nt(void *dat, void *arg)
 		bc=find_bc_by_l3id(stack, hh->dinfo);
     
 		if (!bc) {
-      
 			cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x).\n", hh->dinfo);
-			memset (&dummybc,0,sizeof(dummybc));
-			dummybc.port=stack->port;
-			dummybc.l3_id=hh->dinfo;
-			dummybc.nt=stack->nt;
+			make_dummy(&dummybc, stack->port,  hh->dinfo, stack->nt, 0);
 			bc=&dummybc; 
 		}
 		if (bc ) {
@@ -2547,6 +2553,7 @@ int handle_frm(msg_t *msg)
 	cb_log(4,stack?stack->port:0,"handle_frm: frm->addr:%x frm->prim:%x\n",frm->addr,frm->prim);
 
 	{
+		struct misdn_bchannel dummybc;
 		struct misdn_bchannel *bc;
 		int ret=handle_cr(stack, frm);
 
@@ -2562,6 +2569,11 @@ int handle_frm(msg_t *msg)
 		}
     
 		bc=find_bc_by_l3id(stack, frm->dinfo);
+
+		if (!bc && (frm->prim==(CC_RESTART|CONFIRM)) ) {
+			make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
+			bc=&dummybc;
+		}
     
 		if (bc ) {
 			enum event_e event = isdn_msg_get_event(msgs_g, msg, 0);
@@ -2628,12 +2640,19 @@ int handle_frm(msg_t *msg)
 				if (tmpcause == 44) {
 					cb_log(0,stack->port,"**** Received CAUSE:44, so not cleaning up channel %d\n", channel);
 					cb_log(0,stack->port,"**** This channel is now no longer available,\nplease try to restart it with 'misdn send restart <port> <channel>'\n");
-					set_chan_in_stack(stack,bc->channel);
+					set_chan_in_stack(stack, channel);
+					bc->channel=channel;
+					misdn_lib_send_restart(stack->port, channel);
 				} else {
 					if (channel>0)
-						empty_chan_in_stack(stack,channel);
+						empty_chan_in_stack(stack, channel);
 				}
 				bc->in_use=0;
+			}
+
+			if (event == EVENT_RESTART) {
+				cb_log(0, stack->port, "**** Received RESTART_ACK channel:%d\n", bc->restart_channel);
+				empty_chan_in_stack(stack, bc->restart_channel);
 			}
 
 			cb_log(5, stack->port, "Freeing Msg on prim:%x \n",frm->prim);
@@ -3609,10 +3628,7 @@ int misdn_lib_send_restart(int port, int channel)
 	cb_log(0, port, "Sending Restarts on this port.\n");
 	
 	struct misdn_bchannel dummybc;
-	memset (&dummybc,0,sizeof(dummybc));
-	dummybc.port=stack->port;
-	dummybc.l3_id=MISDN_ID_GLOBAL;
-	dummybc.nt=stack->nt;
+	make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 
 	/*default is all channels*/
 	int max=stack->pri?30:2;
@@ -3640,9 +3656,6 @@ int misdn_lib_send_restart(int port, int channel)
 				stack->bc[cnt].in_use=0;
 			}
 		}
-		empty_chan_in_stack(stack, i);
-
-			
 	}
 
 	return 0;
@@ -3771,10 +3784,7 @@ void manager_event_handler(void *arg)
 					else  {
 						if (frm->dinfo == MISDN_ID_GLOBAL) {
 							struct misdn_bchannel dummybc;
-							memset (&dummybc,0,sizeof(dummybc));
-							dummybc.port=stack->port;
-							dummybc.l3_id=MISDN_ID_GLOBAL;
-							dummybc.nt=stack->nt;
+							make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 							send_msg(glob_mgr->midev, &dummybc, msg);
 						}
 					}

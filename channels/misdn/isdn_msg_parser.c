@@ -782,15 +782,13 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 #endif
   
 	{
-		int  exclusive, channel;
+		int  exclusive;
 		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &bc->restart_channel, nt,bc);
-		if (channel==0xff) /* any channel */
-			channel=-1;
-		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n");
+		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n", bc->restart_channel);
 	}
-  
  
 }
+
 msg_t *build_restart (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
