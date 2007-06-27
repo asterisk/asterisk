@@ -992,6 +992,20 @@ void ast_verbose(const char *fmt, ...)
 	if (!(buf = ast_str_thread_get(&verbose_buf, VERBOSE_BUF_INIT_SIZE)))
 		return;
 
+        if (ast_opt_timestamp) {
+                time_t t;
+                struct tm tm;
+                char date[40];
+                char *datefmt;
+
+                time(&t);
+                ast_localtime(&t, &tm, NULL);
+                strftime(date, sizeof(date), dateformat, &tm);
+                datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
+                sprintf(datefmt, "[%s] %s", date, fmt);
+                fmt = datefmt;
+        }
+
 	/* Build string */
 	va_start(ap, fmt);
 	res = ast_str_set_va(&buf, 0, fmt, ap);
@@ -1011,20 +1025,6 @@ void ast_verbose(const char *fmt, ...)
 	/* Set type */
 	logmsg->type = LOGMSG_VERBOSE;
 	
-	if (ast_opt_timestamp) {
-		time_t t;
-		struct tm tm;
-		char date[40];
-		char *datefmt;
-
-		time(&t);
-		ast_localtime(&t, &tm, NULL);
-		strftime(date, sizeof(date), dateformat, &tm);
-		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
-		sprintf(datefmt, "[%s] %s", date, fmt);
-		fmt = datefmt;
-	}
-
 	/* Add to the list and poke the thread if possible */
 	if (logthread != AST_PTHREADT_NULL) {
 		AST_LIST_LOCK(&logmsgs);
