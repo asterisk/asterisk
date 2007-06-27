@@ -3651,8 +3651,6 @@ int misdn_lib_send_restart(int port, int channel)
 		int cnt;
 		for (cnt=0; cnt<=stack->b_num; cnt++) {
 			if (stack->bc[cnt].channel == i) {
-				cb_event(&stack->bc[cnt], EVENT_CLEANUP);
-
 				empty_bc(&stack->bc[cnt]);
 				clean_up_bc(&stack->bc[cnt]);
 				stack->bc[cnt].in_use=0;
