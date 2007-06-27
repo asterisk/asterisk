@@ -2060,6 +2060,36 @@ static void send_dtmf_event(const struct ast_channel *chan, const char *directio
 			chan->name, chan->uniqueid, digit, direction, begin, end);
 }
 
+static void ast_read_generator_actions(struct ast_channel *chan, struct ast_frame *f)
+{
+	if (chan->generatordata &&  !ast_internal_timing_enabled(chan)) {
+		void *tmp = chan->generatordata;
+		int res;
+
+		if (chan->timingfunc) {
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
+			ast_settimeout(chan, 0, NULL, NULL);
+		}
+
+		chan->generatordata = NULL;     /* reset, to let writes go through */
+		res = chan->generator->generate(chan, tmp, f->datalen, f->samples);
+		chan->generatordata = tmp;
+		if (res) {
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
+			ast_deactivate_generator(chan);
+		}
+
+	} else if (f->frametype == AST_FRAME_CNG) {
+		if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "Generator got CNG, switching to timed mode\n");
+			ast_settimeout(chan, 160, generator_force, chan);
+		}
+	}
+}
+
 static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 {
 	struct ast_frame *f = NULL;	/* the return value */
@@ -2315,9 +2345,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			}
 
 			if (dropaudio || ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+				if (dropaudio)
+					ast_read_generator_actions(chan, f);
 				ast_frfree(f);
 				f = &ast_null_frame;
-			} else if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF)) {
+			}
+
+			if (ast_test_flag(chan, AST_FLAG_EMULATE_DTMF) && !ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
 				struct timeval now = ast_tvnow();
 				if (ast_tvdiff_ms(now, chan->dtmf_tv) >= chan->emulate_dtmf_duration) {
 					chan->emulate_dtmf_duration = 0;
@@ -2332,14 +2366,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_frfree(f);
 					f = &ast_null_frame;
 				}
-			} else if (!(f->subclass & chan->nativeformats)) {
+			} else if ((f->frametype == AST_FRAME_VOICE) && !(f->subclass & chan->nativeformats)) {
 				/* This frame can't be from the current native formats -- drop it on the
 				   floor */
 				ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n",
 					chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
 				ast_frfree(f);
 				f = &ast_null_frame;
-			} else {
+			} else if ((f->frametype == AST_FRAME_VOICE)) {
 				if (chan->spies)
 					queue_frame_to_spies(chan, f, SPY_READ);
 				
@@ -2371,32 +2405,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 				if (chan->readtrans && (f = ast_translate(chan->readtrans, f, 1)) == NULL)
 					f = &ast_null_frame;
-
-				/* Run generator sitting on the line if timing device not available
-				* and synchronous generation of outgoing frames is necessary       */
-				if (chan->generatordata &&  !ast_internal_timing_enabled(chan)) {
-					void *tmp = chan->generatordata;
-					int res;
-
-					if (chan->timingfunc) {
-						ast_debug(2, "Generator got voice, switching to phase locked mode\n");
-						ast_settimeout(chan, 0, NULL, NULL);
-					}
-
-					chan->generatordata = NULL;	/* reset, to let writes go through */
-					res = chan->generator->generate(chan, tmp, f->datalen, f->samples);
-					chan->generatordata = tmp;
-					if (res) {
-						ast_debug(2, "Auto-deactivating generator\n");
-						ast_deactivate_generator(chan);
-					}
-
-				} else if (f->frametype == AST_FRAME_CNG) {
-					if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
-						ast_debug(2, "Generator got CNG, switching to timed mode\n");
-						ast_settimeout(chan, 160, generator_force, chan);
-					}
-				}
+				else
+					/* Run generator sitting on the line if timing device not available
+					 * and synchronous generation of outgoing frames is necessary       */
+					ast_read_generator_actions(chan, f);
 			}
 		default:
 			/* Just pass it on! */
