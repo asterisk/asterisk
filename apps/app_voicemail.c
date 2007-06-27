@@ -8658,7 +8658,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				/* User has hung up, no options to give */
 				if (!outsidecaller) {
 					/* user was recording a greeting and they hung up, so let's delete the recording. */
-					vm_delete(tempfile);
+					ast_filedelete(tempfile, NULL);
 				}
 				return cmd;
 			}
@@ -8673,14 +8673,14 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Message too short\n");
 				cmd = ast_play_and_wait(chan, "vm-tooshort");
-				cmd = vm_delete(tempfile);
+				cmd = ast_filedelete(tempfile, NULL);
 				break;
 			}
 			else if (vmu->review && (cmd == 2 && *duration < (maxsilence + 3))) {
 				/* Message is all silence */
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
-				cmd = vm_delete(tempfile);
+				cmd = ast_filedelete(tempfile, NULL);
 				cmd = ast_play_and_wait(chan, "vm-nothingrecorded");
 				if (!cmd)
 					cmd = ast_play_and_wait(chan, "vm-speakup");
@@ -8709,7 +8709,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 		case '*':
 			/* Cancel recording, delete message, offer to take another message*/
 			cmd = ast_play_and_wait(chan, "vm-deleted");
-			cmd = vm_delete(tempfile);
+			cmd = ast_filedelete(tempfile, NULL);
 			if (outsidecaller) {
 				res = vm_exec(chan, NULL);
 				return res;
