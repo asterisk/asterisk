@@ -2052,6 +2052,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no agents, if enabled */
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 			*reason = QUEUE_LEAVEEMPTY;
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)(time(NULL) - qe->start));
 			leave_queue(qe);
 			break;
 		}
@@ -2059,6 +2060,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		/* leave the queue if no reachable agents, if enabled */
 		if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 			*reason = QUEUE_LEAVEUNAVAIL;
+			ast_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe->pos, qe->opos, (long)(time(NULL) - qe->start));
 			leave_queue(qe);
 			break;
 		}
@@ -3172,6 +3174,7 @@ check_turns:
 				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
 					record_abandoned(&qe);
 					reason = QUEUE_LEAVEEMPTY;
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
 					res = 0;
 					break;
 				}
@@ -3180,6 +3183,7 @@ check_turns:
 				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
 					record_abandoned(&qe);
 					reason = QUEUE_LEAVEUNAVAIL;
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
 					res = 0;
 					break;
 				}
