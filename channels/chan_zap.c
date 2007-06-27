@@ -8782,7 +8782,7 @@ static void *ss7_linkset(void *data)
 				ast_mutex_lock(&p->lock);
 				if (p->owner) {
 					p->owner->hangupcause = e->rel.cause;
-					ast_queue_hangup(p->owner);
+					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 				} else
 					ast_log(LOG_WARNING, "REL on channel (CIC %d) without owner!\n", p->cic);
 
