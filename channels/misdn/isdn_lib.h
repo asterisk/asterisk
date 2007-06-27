@@ -364,16 +364,8 @@ struct misdn_bchannel {
 	int ec_deftaps;
 	int ec_training;
 #endif
-
-#ifdef WITH_BEROEC
-	beroec_t *ec;
-	int bnec_tail;
-	int bnec_ah;
-	int bnec_nlp;
-	int bnec_td;
-	int bnec_adapt;
-	int bnec_zero;
-#endif
+	
+	int channel_found;
 	
 	int orig;
 
