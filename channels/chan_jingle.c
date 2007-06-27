@@ -302,7 +302,7 @@ static void add_codec_to_answer(const struct jingle_pvt *p, int codec, iks *dcod
 	}
 	if (!strcasecmp("ilbc", format)) {
 		iks *payload_ilbc = iks_new("payload-type");
-		iks_insert_attrib(payload_ilbc, "id", "102");
+		iks_insert_attrib(payload_ilbc, "id", "97");
 		iks_insert_attrib(payload_ilbc, "name", "iLBC");
 		iks_insert_attrib(payload_ilbc, "xmlns", "http://www.google.com/session/phone");
 		iks_insert_node(dcodecs, payload_ilbc);
