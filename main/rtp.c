@@ -1007,7 +1007,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 						rtp->rtcp->maxrtt = rttsec;
 					if (rtp->rtcp->minrtt>rttsec)
 						rtp->rtcp->minrtt = rttsec;
-				} else {
+				} else if (rtcp_debug_test_addr(&sin)) {
 					ast_verbose("Internal RTCP NTP clock skew detected: "
 							   "lsr=%u, now=%u, dlsr=%u (%d:%03dms), "
 							   "diff=%d\n",
