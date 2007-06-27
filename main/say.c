@@ -27,6 +27,8 @@
  *  						
  * \note 2007-02-08 : Support for Georgian added by Alexander Shaduri <ashaduri@gmail.com>,
  *  						Next Generation Networks (NGN).
+ * \note 2007-03-20 : Support for Thai added by Dome C. <dome@tel.co.th>,
+ *  						IP Crossing Co.,Ltd.
  */
 
 #include "asterisk.h"
@@ -346,6 +348,7 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_ge(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_hu(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_th(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 
 /* Forward declarations of language specific variants of ast_say_enumeration_full */
 static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
@@ -362,6 +365,7 @@ static int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints,
 static int ast_say_date_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_date_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_date_hu(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
 static int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
@@ -375,6 +379,7 @@ static int ast_say_date_with_format_pl(struct ast_channel *chan, time_t time, co
 static int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
 static int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
 static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
+static int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone);
 
 static int ast_say_time_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_time_de(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
@@ -386,6 +391,7 @@ static int ast_say_time_tw(struct ast_channel *chan, time_t t, const char *ints,
 static int ast_say_time_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_time_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_time_hu(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_time_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int ast_say_datetime_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_de(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
@@ -397,6 +403,7 @@ static int ast_say_datetime_tw(struct ast_channel *chan, time_t t, const char *i
 static int ast_say_datetime_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_hu(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
+static int ast_say_datetime_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 
 static int ast_say_datetime_from_now_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
 static int ast_say_datetime_from_now_fr(struct ast_channel *chan, time_t t, const char *ints, const char *lang);
@@ -453,6 +460,8 @@ static int say_number_full(struct ast_channel *chan, int num, const char *ints, 
 	   return(ast_say_number_full_gr(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "ru") ) {	/* Russian syntax */
 	   return(ast_say_number_full_ru(chan, num, ints, language, options, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "th") ) {	/* Thai syntax */
+	   return(ast_say_number_full_th(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "ge") ) {	/* Georgian syntax */
 	   return(ast_say_number_full_ge(chan, num, ints, language, options, audiofd, ctrlfd));
 	}
@@ -2359,6 +2368,74 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 	return res;
 }
 
+static int ast_say_number_full_th(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int playh = 0;
+	char fn[256] = "";
+	if (!num) 
+		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+
+	while(!res && (num || playh)) {
+		if (num < 0) {
+			snprintf(fn, sizeof(fn), "digits/lop");
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}	
+		} else if (playh) {
+			snprintf(fn, sizeof(fn), "digits/roi");
+			playh = 0;
+		} else if (num < 100) {
+			if ((num <= 20) || ((num % 10) == 1)) {
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+				num = 0;
+			} else {
+				snprintf(fn, sizeof(fn), "digits/%d", (num / 10) * 10);
+				num -= ((num / 10) * 10);
+			}
+		} else if (num < 1000) {
+			snprintf(fn, sizeof(fn), "digits/%d", (num/100));
+			playh++;
+			num -= ((num / 100) * 100);
+		} else if (num < 10000) { /* 10,000 */
+			res = ast_say_number_full_th(chan, num / 1000, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			num = num % 1000;
+			snprintf(fn, sizeof(fn), "digits/pan");
+		} else if (num < 100000) { /* 100,000 */
+			res = ast_say_number_full_th(chan, num / 10000, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			num = num % 10000;
+			snprintf(fn, sizeof(fn), "digits/muan");
+		} else if (num < 1000000) { /* 1,000,000 */
+			res = ast_say_number_full_th(chan, num / 100000, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			num = num % 100000;
+			snprintf(fn, sizeof(fn), "digits/san");
+		} else {
+			res = ast_say_number_full_th(chan, num / 1000000, ints, language, audiofd, ctrlfd);
+			if (res)
+				return res;
+			num = num % 1000000;
+			snprintf(fn, sizeof(fn), "digits/larn");
+		}
+		if (!res) {
+			if(!ast_streamfile(chan, fn, language)) {
+				if ((audiofd  > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
+		}
+	}
+	return res;
+}
 
 /*! \brief  ast_say_enumeration_full: call language-specific functions */
 /* Called from AGI */
@@ -2819,6 +2896,8 @@ static int say_date(struct ast_channel *chan, time_t t, const char *ints, const 
 		return(ast_say_date_pt(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_date_gr(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "th") ) {	/* Thai syntax */
+		return(ast_say_date_th(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "ge") ) {  /* Georgian syntax */
 		return(ast_say_date_ge(chan, t, ints, lang));
 	}
@@ -3039,6 +3118,41 @@ int ast_say_date_nl(struct ast_channel *chan, time_t t, const char *ints, const 
 	return res;
 }
 
+/* Thai syntax */
+int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	struct tm tm;
+	char fn[256];
+	int res = 0;
+	ast_localtime(&t,&tm,NULL);
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
+		res = ast_streamfile(chan, fn, lang);
+		snprintf(fn, sizeof(fn), "digits/tee");
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res)
+		res = ast_say_number(chan, tm.tm_mday, ints, lang, (char * ) NULL);
+	if (!res)
+		res = ast_waitstream(chan, ints);
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/duan");
+		res = ast_streamfile(chan, fn, lang);
+		snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res){
+		snprintf(fn, sizeof(fn), "digits/posor");
+		res = ast_streamfile(chan, fn, lang);
+		res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+	}	
+	return res;
+}
+
 /* Portuguese syntax */
 int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
@@ -3089,6 +3203,8 @@ static int say_date_with_format(struct ast_channel *chan, time_t time, const cha
 		return(ast_say_date_with_format_pt(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "tw") || !strcasecmp(lang, "zh") ) {	/* Taiwanese / Chinese syntax */
 		return(ast_say_date_with_format_tw(chan, time, ints, lang, format, timezone));
+	} else if (!strcasecmp(lang, "th") ) {	/* Thai syntax */
+		return(ast_say_date_with_format_th(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "gr") ) {	/* Greek syntax */
 		return(ast_say_date_with_format_gr(chan, time, ints, lang, format, timezone));
 	}
@@ -3730,6 +3846,177 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'T':
 				res = ast_say_date_with_format_de(chan, time, ints, lang, "HMS", timezone);
+				break;
+			case ' ':
+			case '	':
+				/* Just ignore spaces and tabs */
+				break;
+			default:
+				/* Unknown character */
+				ast_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+		}
+		/* Jump out on DTMF */
+		if (res) {
+			break;
+		}
+	}
+	return res;
+}
+
+/* Thai syntax */
+int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+{
+	struct tm tm;
+	int res=0, offset, sndoffset;
+	char sndfile[256], nextmsg[256];
+
+	if (format == NULL)
+		format = "a 'digits/tee' e 'digits/duan' hY  I 'digits/naliga' M 'digits/natee'";
+
+	ast_localtime(&time,&tm,timezone);
+
+	for (offset=0 ; format[offset] != '\0' ; offset++) {
+		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		switch (format[offset]) {
+			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
+			case '\'':
+				/* Literal name of a sound file */
+				sndoffset=0;
+				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
+					sndfile[sndoffset] = format[offset];
+				sndfile[sndoffset] = '\0';
+				res = wait_file(chan,ints,sndfile,lang);
+				break;
+			case 'A':
+			case 'a':
+				/* Sunday - Saturday */
+				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'B':
+			case 'b':
+			case 'h':
+				/* January - December */
+				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'm':
+				/* Month enumerated */
+				res = ast_say_number(chan, (tm.tm_mon + 1), ints, lang, (char *) NULL);	
+				break;
+			case 'd':
+			case 'e':
+				/* First - Thirtyfirst */
+				res = ast_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);	
+				break;
+			case 'Y':
+				/* Year */
+				res = ast_say_number(chan, tm.tm_year + 1900 + 543, ints, lang, (char *) NULL);
+				break;
+			case 'I':
+			case 'l':
+				/* 12-Hour */
+				if (tm.tm_hour == 0)
+					snprintf(nextmsg,sizeof(nextmsg), "digits/24");
+				snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'H':
+			case 'k':
+				/* 24-Hour */
+				if (tm.tm_hour == 0)
+					snprintf(nextmsg,sizeof(nextmsg), "digits/24");
+				snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'M':
+			case 'N':
+				res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+				break;
+			case 'P':
+			case 'p':
+				break;
+			case 'Q':
+				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today, tt;
+
+					gettimeofday(&now,NULL);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
+					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
+					/* In any case, it saves not having to do ast_mktime() */
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < time) {
+						/* Today */
+						res = wait_file(chan,ints, "digits/today",lang);
+					} else if (beg_today - 86400 < time) {
+						/* Yesterday */
+						res = wait_file(chan,ints, "digits/yesterday",lang);
+					} else if (beg_today - 86400 * 6 < time) {
+						/* Within the last week */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
+					} else if (beg_today - 2628000 < time) {
+						/* Less than a month ago - "Sunday, October third" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "ABd", timezone);
+					} else if (beg_today - 15768000 < time) {
+						/* Less than 6 months ago - "August seventh" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "Bd", timezone);
+					} else {
+						/* More than 6 months ago - "April nineteenth two thousand three" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "BdY", timezone);
+					}
+				}
+				break;
+			case 'q':
+				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today, tt;
+
+					gettimeofday(&now,NULL);
+					tt = now.tv_sec;
+					ast_localtime(&tt,&tmnow,timezone);
+					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
+					/* In any case, it saves not having to do ast_mktime() */
+					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < time) {
+						/* Today */
+					} else if ((beg_today - 86400) < time) {
+						/* Yesterday */
+						res = wait_file(chan,ints, "digits/yesterday",lang);
+					} else if (beg_today - 86400 * 6 < time) {
+						/* Within the last week */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
+					} else if (beg_today - 2628000 < time) {
+						/* Less than a month ago - "Sunday, October third" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "ABd", timezone);
+					} else if (beg_today - 15768000 < time) {
+						/* Less than 6 months ago - "August seventh" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "Bd", timezone);
+					} else {
+						/* More than 6 months ago - "April nineteenth two thousand three" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "BdY", timezone);
+					}
+				}
+				break;
+			case 'R':
+				res = ast_say_date_with_format_en(chan, time, ints, lang, "HM", timezone);
+				break;
+			case 'S':
+				res = ast_say_number(chan, tm.tm_sec, ints, lang, (char *) NULL);
+				break;
+			case 'T':
+				res = ast_say_date_with_format_en(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -5595,6 +5882,8 @@ static int say_time(struct ast_channel *chan, time_t t, const char *ints, const 
 		return(ast_say_time_tw(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_time_gr(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "th") ) {
+		return(ast_say_time_th(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "ge") ) {  /* Georgian syntax */
 		return(ast_say_time_ge(chan, t, ints, lang));
 	}
@@ -5786,6 +6075,23 @@ int ast_say_time_pt_BR(struct ast_channel *chan, time_t t, const char *ints, con
 	return res;
 }
 
+/* Thai  syntax */
+int ast_say_time_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	struct tm tm;
+	int res = 0;
+	int hour;
+	ast_localtime(&t, &tm, NULL);
+	hour = tm.tm_hour;
+	if (!hour)
+		hour = 24;
+	if (!res)
+		res = ast_say_number(chan, hour, ints, lang, (char *) NULL);
+	if (!res)
+		res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
+	return res;
+}
+
 /* Taiwanese / Chinese  syntax */
 int ast_say_time_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
@@ -5847,6 +6153,8 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 		return(ast_say_datetime_tw(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_datetime_gr(chan, t, ints, lang));
+	} else if (!strcasecmp(lang, "th") ) {	/* Thai syntax */
+		return(ast_say_datetime_th(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "ge") ) {  /* Georgian syntax */
 		return(ast_say_datetime_ge(chan, t, ints, lang));
 	}
@@ -6082,6 +6390,48 @@ int ast_say_datetime_pt_BR(struct ast_channel *chan, time_t t, const char *ints,
 	res = ast_say_date(chan, t, ints, lang);
 	if (!res)
 		res = ast_say_time(chan, t, ints, lang);
+	return res;
+}
+
+/* Thai syntax */
+int ast_say_datetime_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
+{
+	struct tm tm;
+	char fn[256];
+	int res = 0;
+	int hour;
+	ast_localtime(&t, &tm, NULL);
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res) {
+		snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
+		res = ast_streamfile(chan, fn, lang);
+		if (!res)
+			res = ast_waitstream(chan, ints);
+	}
+	if (!res){
+		snprintf(fn, sizeof(fn), "digits/posor");
+		res = ast_streamfile(chan, fn, lang);
+		res = ast_say_number(chan, tm.tm_year + 1900 + 543, ints, lang, (char *) NULL);
+	}	
+	if (!res)
+		res = ast_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
+
+	hour = tm.tm_hour;
+	if (!hour)
+		hour = 24;
+	if (!res){
+		snprintf(fn, sizeof(fn), "digits/wela");
+		res = ast_streamfile(chan, fn, lang);
+	}	
+	if (!res)
+		res = ast_say_number(chan, hour, ints, lang, (char *) NULL);
+	if (!res)
+		res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);
 	return res;
 }
 
