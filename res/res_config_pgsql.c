@@ -208,7 +208,6 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	char *chunk;
 	char *op;
 	const char *newparam, *newval;
-	struct ast_realloca ra;
 	struct ast_variable *var = NULL;
 	struct ast_config *cfg = NULL;
 	struct ast_category *cat = NULL;
@@ -217,8 +216,6 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
 		return NULL;
 	}
-
-	memset(&ra, 0, sizeof(ra));
 
 	if (!(cfg = ast_config_new()))
 		return NULL;

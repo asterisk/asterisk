@@ -244,24 +244,6 @@ void ast_join(char *s, size_t len, char * const w[]);
 */
 int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed);
 
-/* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
-
-struct ast_realloca {
-	char *ptr;
-	int alloclen;
-};
-
-#define ast_restrdupa(ra, s) \
-	({ \
-		if ((ra)->ptr && strlen(s) + 1 < (ra)->alloclen) { \
-			strcpy((ra)->ptr, s); \
-		} else { \
-			(ra)->ptr = alloca(strlen(s) + 1 - (ra)->alloclen); \
-			if ((ra)->ptr) (ra)->alloclen = strlen(s) + 1; \
-		} \
-		(ra)->ptr; \
-	})
-
 /*!
  * Support for dynamic strings.
  *

@@ -220,7 +220,6 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	struct ast_variable *var=NULL;
 	struct ast_config *cfg=NULL;
 	struct ast_category *cat=NULL;
-	struct ast_realloca ra;
 	SQLULEN colsize;
 	SQLSMALLINT colcount=0;
 	SQLSMALLINT datatype;
@@ -230,11 +229,9 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 
 	va_list aq;
 	va_copy(aq, ap);
-	
-	
+
 	if (!table)
 		return NULL;
-	memset(&ra, 0, sizeof(ra));
 
 	obj = ast_odbc_request_obj(database, 0);
 	if (!obj)
