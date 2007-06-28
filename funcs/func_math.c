@@ -53,6 +53,9 @@ enum TypeOfFunctions {
 	POWFUNCTION,
 	SHLEFTFUNCTION,
 	SHRIGHTFUNCTION,
+	BITWISEANDFUNCTION,
+	BITWISEXORFUNCTION,
+	BITWISEORFUNCTION,
 	GTFUNCTION,
 	LTFUNCTION,
 	GTEFUNCTION,
@@ -113,6 +116,18 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 		*op = '\0';
 	} else if ((op = strchr(mvalue1, '^'))) {
 		iaction = POWFUNCTION;
+		*op = '\0';
+	} else if ((op = strstr(mvalue1, "AND"))) {
+		iaction = BITWISEANDFUNCTION;
+		op += 3;
+		*op = '\0';
+	} else if ((op = strstr(mvalue1, "XOR"))) {
+		iaction = BITWISEXORFUNCTION;
+		op += 3;
+		*op = '\0';
+	} else if ((op = strstr(mvalue1, "OR"))) {
+		iaction = BITWISEORFUNCTION;
+		op += 2;
 		*op = '\0';
 	} else if ((op = strchr(mvalue1, '>'))) {
 		iaction = GTFUNCTION;
@@ -237,6 +252,27 @@ static int math(struct ast_channel *chan, const char *cmd, char *parse,
 			ftmp = (inum1 >> inum2);
 			break;
 		}
+	case BITWISEANDFUNCTION:
+		{
+			int inum1 = fnum1;
+			int inum2 = fnum2;
+			ftmp = (inum1 & inum2);
+			break;
+		}
+	case BITWISEXORFUNCTION:
+		{
+			int inum1 = fnum1;
+			int inum2 = fnum2;
+			ftmp = (inum1 ^ inum2);
+			break;
+		}
+	case BITWISEORFUNCTION:
+		{
+			int inum1 = fnum1;
+			int inum2 = fnum2;
+			ftmp = (inum1 | inum2);
+			break;
+		}
 	case GTFUNCTION:
 		ast_copy_string(buf, (fnum1 > fnum2) ? "TRUE" : "FALSE", len);
 		break;
@@ -278,7 +314,7 @@ static struct ast_custom_function math_function = {
 	.synopsis = "Performs Mathematical Functions",
 	.syntax = "MATH(<number1><op><number2>[,<type_of_result>])",
 	.desc = "Perform calculation on number1 to number2. Valid ops are: \n"
-		"    +,-,/,*,%,<<,>>,^,<,>,>=,<=,==\n"
+		"    +,-,/,*,%,<<,>>,^,AND,OR,XOR,<,>,>=,<=,==\n"
 		"and behave as their C equivalents.\n"
 		"<type_of_result> - wanted type of result:\n"
 		"	f, float - float(default)\n"
