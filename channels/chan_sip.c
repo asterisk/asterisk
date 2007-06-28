@@ -4167,6 +4167,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	int text;
 	int needvideo = 0;
 	int needtext = 0;
+	char buf[BUFSIZ];
 	{
 		const char *my_name;	/* pick a good name */
 	
@@ -4211,7 +4212,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	/* Set the native formats for audio  and merge in video */
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | video | text;
-	char buf[BUFSIZ];
 	ast_debug(3, "*** Our native formats are %s \n", ast_getformatname_multiple(buf, BUFSIZ, tmp->nativeformats));
 	ast_debug(3, "*** Joint capabilities are %s \n", ast_getformatname_multiple(buf, BUFSIZ, i->jointcapability));
 	ast_debug(3, "*** Our capabilities are %s \n", ast_getformatname_multiple(buf, BUFSIZ, i->capability));
@@ -5184,6 +5184,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int found_rtpmap_codecs[32];
 	int last_rtpmap_codec=0;
 
+	char buf[BUFSIZ];
+
 	if (!p->rtp) {
 		ast_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
 		return -1;
@@ -5696,7 +5698,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	}
 
 	/* Ok, we're going with this offer */
-	char buf[BUFSIZ];
 	ast_debug(2, "We're settling with these formats: %s\n", ast_getformatname_multiple(buf, BUFSIZ, p->jointcapability));
 
 	if (!p->owner) 	/* There's no open channel owning us so we can return here. For a re-invite or so, we proceed */
@@ -6737,6 +6738,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	int min_video_packet_size = 0;
 	int min_text_packet_size = 0;
 
+	char codecbuf[BUFSIZ];
+	char buf[BUFSIZ];
+
 	m_video[0] = '\0';	/* Reset the video media string if it's not needed */
 	m_text[0] = '\0';	  /* Reset the video media string if it's not needed */
 
@@ -6756,7 +6760,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	capability = p->jointcapability;
 
-	char codecbuf[BUFSIZ];
  	ast_debug(1, "** Our capability: %s Video flag: %s Text flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), 
  		ast_test_flag(&p->flags[0], SIP_NOVIDEO) ? "True" : "False", ast_test_flag(&p->flags[1], SIP_PAGE2_NOTEXT) ? "True" : "False");
 	ast_debug(1, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
@@ -6974,7 +6977,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Update lastrtprx when we send our SDP */
 	p->lastrtprx = p->lastrtptx = time(NULL); /* XXX why both ? */
 
-	char buf[BUFSIZ];
 	ast_debug(3, "Done building SDP. Settling with this capability: %s\n", ast_getformatname_multiple(buf, BUFSIZ, capability));
 
 	return AST_SUCCESS;
@@ -13898,6 +13900,8 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	struct ast_channel *replacecall = p->refer->refer_call->owner;	/* The channel we're about to take over */
 	struct ast_channel *targetcall;		/* The bridge to the take-over target */
 
+	struct ast_channel *test;
+
 	/* Check if we're in ring state */
 	if (replacecall->_state == AST_STATE_RING)
 		earlyreplace = 1;
@@ -14011,7 +14015,6 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	sip_pvt_unlock(p->refer->refer_call);
 
 	ast_setstate(c, AST_STATE_DOWN);
-	struct ast_channel *test;
 	ast_debug(4, "After transfer:----------------------------\n");
 	ast_debug(4, " -- C:        %s State %s\n", c->name, ast_state2str(c->_state));
 	if (replacecall)
