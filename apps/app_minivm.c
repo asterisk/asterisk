@@ -1022,10 +1022,10 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	if (ast_strlen_zero(fromaddress)) {
 		fprintf(p, "From: Asterisk PBX <%s>\n", who);
 	} else {
-		ast_debug(4, "-_-_- Fromaddress template: %s\n", fromaddress);
 		/* Allocate a buffer big enough for variable substitution */
 		int vmlen = strlen(fromaddress) * 3 + 200;
 
+		ast_debug(4, "-_-_- Fromaddress template: %s\n", fromaddress);
 		if ((passdata = alloca(vmlen))) {
 			memset(passdata, 0, vmlen);
 			pbx_substitute_variables_helper(ast, fromaddress, passdata, vmlen);
@@ -1100,8 +1100,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	}
 	/* Eww. We want formats to tell us their own MIME type */
 	if (template->attachment) {
-		ast_debug(3, "-_-_- Attaching file to message: %s\n", fname);
 		char *ctype = "audio/x-";
+		ast_debug(3, "-_-_- Attaching file to message: %s\n", fname);
 		if (!strcasecmp(format, "ogg"))
 			ctype = "application/";
 	
@@ -2404,6 +2404,7 @@ static int load_config(void)
 	char *cat;
 	const char *chanvar;
 	int error = 0;
+	struct minivm_template *template;
 
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
 	ast_mutex_lock(&minivmlock);
@@ -2428,7 +2429,6 @@ static int load_config(void)
 	ast_set2_flag((&globalflags), FALSE, MVM_REVIEW);	
 	ast_set2_flag((&globalflags), FALSE, MVM_OPERATOR);	
 	strcpy(global_charset, "ISO-8859-1");
-	struct minivm_template *template;
 	/* Reset statistics */
 	memset(&global_stats, 0, sizeof(struct minivm_stats));
 	global_stats.reset = time(NULL);
