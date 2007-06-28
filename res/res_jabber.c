@@ -518,6 +518,9 @@ static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incom
 static int aji_start_sasl(iksparser *prs, enum ikssasltype type, char *username, char *pass)
 {
 	iks *x = NULL;
+	int len;
+	char *s;
+	char *base64;
 
 	if (type == IKS_STREAM_SASL_MD5)
 		return iks_start_sasl(prs, type, username, pass);
@@ -529,10 +532,10 @@ static int aji_start_sasl(iksparser *prs, enum ikssasltype type, char *username,
 	}
 
 	iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
-	int len = strlen(username) + strlen(pass) + 3;
+	len = strlen(username) + strlen(pass) + 3;
 	/* XXX Check return values XXX */
-	char *s = ast_malloc(80 + len);
-	char *base64 = ast_malloc(80 + len * 2);
+	s = ast_malloc(80 + len);
+	base64 = ast_malloc(80 + len * 2);
 	iks_insert_attrib(x, "mechanism", "PLAIN");
 	sprintf(s, "%c%s%c%s", 0, username, 0, pass);
 	ast_base64encode(base64, (const unsigned char *) s, len, len * 2);
