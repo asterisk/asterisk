@@ -193,7 +193,7 @@ ASTCFLAGS+=-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declar
 ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/autoconfig.h
 
 ifeq ($(AST_DEVMODE),yes)
-  ASTCFLAGS+=-Werror -Wunused -Wundef
+  ASTCFLAGS+=-Werror -Wunused -Wundef -Wdeclaration-after-statement
 endif
 
 ifneq ($(findstring BSD,$(OSARCH)),)
