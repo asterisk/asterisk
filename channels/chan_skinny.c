@@ -3199,10 +3199,11 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		}
 		break;
 	case STIMULUS_SPEEDDIAL:
+	    {
+		struct skinny_speeddial *sd;
+
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: SpeedDial(%d)\n", instance);
-
-		struct skinny_speeddial *sd;
 		if (!(sd = find_speeddial_by_instance(d, instance, 0))) {
 			return 0;
 		}
@@ -3241,6 +3242,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				break;
 			}
 		}
+	    }
 		break;
 	case STIMULUS_HOLD:
 		if (skinnydebug)
@@ -4283,13 +4285,14 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 		res = handle_ip_port_message(req, s);
 		break;
 	case KEYPAD_BUTTON_MESSAGE:
-		if (skinnydebug)
-			ast_verbose("Collected digit: [%d]\n", letohl(req->data.keypad.button));
-
+	    {
 		struct skinny_device *d = s->device;
 		struct skinny_subchannel *sub;
 		int lineInstance;
 		int callReference;
+
+		if (skinnydebug)
+			ast_verbose("Collected digit: [%d]\n", letohl(req->data.keypad.button));
 
 		lineInstance = letohl(req->data.keypad.lineInstance);
 		callReference = letohl(req->data.keypad.callReference);
@@ -4322,6 +4325,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 			d->exten[strlen(d->exten)+1] = '\0';
 		} else
 			res = handle_keypad_button_message(req, s);
+	    }
 		break;
 	case STIMULUS_MESSAGE:
 		res = handle_stimulus_message(req, s);
