@@ -22,7 +22,7 @@ AC_COPYRIGHT("Asterisk")
 AC_REVISION($Revision$)
 
 AC_GNU_SOURCE
-AC_USE_SYSTEM_EXTENSIONS
+AC_USE_SYSTEM_EXTENSIONS	# note- does not work on FreeBSD
 
 case "${host_os}" in
      freebsd*)
@@ -120,7 +120,7 @@ AC_PROG_CPP
 AC_PROG_CXXCPP
 # This macro is just copied into our local acinclude.m4 from libtool.m4 so that
 # the developers regenerating the configure script don't have to install libtool.
-AST_PROG_LD
+AST_PROG_LD 	# note - does not work on freebsd
 AC_PROG_AWK
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -260,6 +260,9 @@ AC_FUNC_STRTOD
 AC_FUNC_UTIME_NULL
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
+
+# some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+AC_CHECK_FUNCS([gethostbyname_r])
 
 AC_MSG_CHECKING(for PTHREAD_RWLOCK_INITIALIZER)
 AC_LINK_IFELSE(
