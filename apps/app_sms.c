@@ -512,11 +512,13 @@ static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, un
 static void packdate(unsigned char *o, time_t w)
 {
 	struct tm t;
+	int z;
+
 	ast_localtime(&w, &t, NULL);
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
-	int z = -t.tm_gmtoff / 60 / 15;
+	z = -t.tm_gmtoff / 60 / 15;
 #else
-	int z = timezone / 60 / 15;
+	z = timezone / 60 / 15;
 #endif
 	*o++ = ((t.tm_year % 10) << 4) + (t.tm_year % 100) / 10;
 	*o++ = (((t.tm_mon + 1) % 10) << 4) + (t.tm_mon + 1) / 10;

@@ -2838,7 +2838,6 @@ static int load_config(void)
 	AST_RWLIST_WRLOCK(&feature_groups);
 
 	ctg = NULL;
-	struct ast_call_feature *feature;
 	while ((ctg = ast_category_browse(cfg, ctg))) {
 		for (i = 0; i < ARRAY_LEN(categories); i++) {
 			if (!strcasecmp(categories[i], ctg))
@@ -2852,6 +2851,8 @@ static int load_config(void)
 			continue;
 
 		for (var = ast_variable_browse(cfg, ctg); var; var = var->next) {
+			struct ast_call_feature *feature;
+
 			AST_LIST_LOCK(&feature_list);
 			if(!(feature = find_dynamic_feature(var->name)) && 
 			   !(feature = ast_find_call_feature(var->name))) {
