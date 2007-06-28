@@ -2258,7 +2258,7 @@ bailoutandtrynormal:
 				      user->user_no,
 				      S_OR(user->chan->cid.cid_num, "<unknown>"),
 				      S_OR(user->chan->cid.cid_name, "<unknown>"),
-				      (now - user->jointime));
+				      (long)(now - user->jointime));
 		}
 
 		conf->users--;
