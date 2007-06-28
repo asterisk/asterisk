@@ -8651,7 +8651,7 @@ static void *ss7_linkset(void *data)
 					{
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 						ast_debug(1, "Queuing frame PROGRESS on CIC %d\n", p->cic);
-						zap_queue_frame(p, &f, ss7);
+						zap_queue_frame(p, &f, linkset);
 						p->progress = 1;
 					}
 					break;
