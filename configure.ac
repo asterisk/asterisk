@@ -326,6 +326,17 @@ CFLAGS="${saved_CFLAGS}"
 AC_SUBST(GC_CFLAGS)
 AC_SUBST(GC_LDFLAGS)
 
+AC_MSG_CHECKING(for -Wdeclaration-after-statement support)
+if $(${CC} -Wdeclaration-after-statement -S -o /dev/null -xc /dev/null > /dev/null 2>&1); then
+	AC_MSG_RESULT(yes)
+	AST_DECLARATION_AFTER_STATEMENT=-Wdeclaration-after-statement
+else
+	AC_MSG_RESULT(no)
+	AST_DECLARATION_AFTER_STATEMENT=
+fi
+AC_SUBST(AST_DECLARATION_AFTER_STATEMENT)
+
+
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
         AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
