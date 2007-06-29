@@ -493,4 +493,4 @@ static int unload_module(void)
 		|| ast_format_unregister(g722_f.name);
 }	
 
-AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw/Sun uLaw/ALaw 8KHz Audio support (PCM,PCMA,AU) and G.722 16Khz Audio Support");
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Raw/Sun uLaw/ALaw 8KHz (PCM,PCMA,AU), G.722 16Khz");
