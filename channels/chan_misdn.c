@@ -103,6 +103,7 @@ int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
 /* BEGIN: chan_misdn.h */
 
+ast_mutex_t release_lock;
 
 
 enum misdn_chan_state {
@@ -3286,10 +3287,13 @@ static void hangup_chan(struct chan_list *ch)
 /** Isdn asks us to release channel, pendant to misdn_hangup **/
 static void release_chan(struct misdn_bchannel *bc) {
 	struct ast_channel *ast=NULL;
+
+	ast_mutex_lock(&release_lock);
 	{
 		struct chan_list *ch=find_chan_by_bc(cl_te, bc);
 		if (!ch)  {
 			chan_misdn_log(1, bc->port, "release_chan: Ch not found!\n");
+			ast_mutex_unlock(&release_lock);
 			return;
 		}
 		
@@ -3341,6 +3345,8 @@ static void release_chan(struct misdn_bchannel *bc) {
 			/* chan is already cleaned, so exiting  */
 		}
 	}
+
+	ast_mutex_unlock(&release_lock);
 }
 /*** release end **/
 
@@ -4537,6 +4543,7 @@ int load_module(void)
 	}
 
 	ast_mutex_init(&cl_te_lock);
+	ast_mutex_init(&release_lock);
 
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);

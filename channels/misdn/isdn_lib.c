@@ -966,7 +966,7 @@ int setup_bc(struct misdn_bchannel *bc)
 	int channel=bc->channel-1-(bc->channel>16);
 	int b_stid=stack->b_stids[channel>=0?channel:0];
 
-
+	
 	switch (bc->bc_state) {
 		case BCHAN_CLEANED:
 			break;
@@ -976,6 +976,15 @@ int setup_bc(struct misdn_bchannel *bc)
 	}
 	
 	cb_log(5, stack->port, "$$$ Setting up bc with stid :%x\n", b_stid);
+	
+	/*check if the b_stid is alread initialized*/
+	int i;
+	for (i=0; i <= stack->b_num; i++) {
+		if (stack->bc[i].b_stid == b_stid) {
+			cb_log(0, bc->port, "setup_bc: b_stid:%x already in use !!!\n", b_stid);
+			return -1;
+		}
+	}
 	
 	if (b_stid <= 0) {
 		cb_log(0, stack->port," -- Stid <=0 at the moment in channel:%d\n",channel);
