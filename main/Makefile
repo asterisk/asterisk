@@ -100,11 +100,13 @@ ifeq ($(OSARCH),SunOS)
   ASTLINK=
 endif
 
-editline/libedit.a:
+CHECK_SUBDIR:	# do nothing, just make sure that we recurse in the subdir/
+
+editline/libedit.a: CHECK_SUBDIR
 	cd editline && test -f config.h || CFLAGS="$(PTHREAD_CFLAGS) $(ASTCFLAGS:-Werror=)" LDFLAGS="$(ASTLDFLAGS)" ./configure --build=$(BUILD_PLATFORM) --host=$(HOST_PLATFORM) --with-ncurses=$(NCURSES_DIR) --with-curses=$(CURSES_DIR) --with-termcap=$(TERMCAP_DIR) --with-tinfo=$(TINFO_DIR)
 	$(MAKE) -C editline libedit.a
 
-db1-ast/libdb1.a:
+db1-ast/libdb1.a: CHECK_SUBDIR
 	CFLAGS="$(ASTCFLAGS)" LDFLAGS="$(ASTLDFLAGS)" $(MAKE) -C db1-ast libdb1.a
 
 ast_expr2.c ast_expr2.h:
@@ -133,7 +135,7 @@ else
   H323LDLIBS=
 endif
 
-minimime/libmmime.a:
+minimime/libmmime.a: CHECK_SUBDIR
 	@cd minimime && $(MAKE) libmmime.a
 
 asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a minimime/libmmime.a $(AST_EMBED_LDSCRIPTS)
