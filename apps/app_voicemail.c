@@ -2647,7 +2647,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	 ast_debug(3,"Mailbox is set to %s\n",mailbox);
 
  	/* If no mailbox, return immediately */
- 	if (ast_strlen_zero(mailbox))
+ 	if (ast_strlen_zero(mailbox)) 
  		return 0;
 
  	if (strchr(mailbox, ',')) {
@@ -2694,7 +2694,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		free_user(vmu);
 		return -1;
  	}
- 
+
  	/* check if someone is accessing this box right now... */
 	if ((vms_p = get_vm_state_by_imapuser(vmu->imapuser, 1)) || (vms_p = get_vm_state_by_mailbox(mailboxnc, 1))) {
 		ast_debug(3,"Returning before search - user is logged in\n");
@@ -2703,7 +2703,7 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		free_user(vmu);
  		return 0;
  	}
- 
+
  	/* add one if not there... */
 	if (!(vms_p = get_vm_state_by_imapuser(vmu->imapuser, 0)) && !(vms_p = get_vm_state_by_mailbox(mailboxnc, 0))) {
 		ast_debug(3,"Adding new vmstate for %s\n",vmu->imapuser);
@@ -3187,8 +3187,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_log(LOG_NOTICE,"Can not leave voicemail, unable to count messages\n");
 			return -1;
 		}
-		if((vms = get_vm_state_by_mailbox(ext,0))) 
+		if((vms = get_vm_state_by_mailbox(ext,0)))  
 			vms->newmessages++; /*still need to increment new message count*/
+		
 		/* here is a big difference! We add one to it later */
 		msgnum = newmsgs + oldmsgs;
 		ast_debug(3, "Messagecount set to %d\n",msgnum);
@@ -5031,8 +5032,7 @@ static int imap_retrieve_file (char *dir, int msgnum, char *mailbox, char *conte
 		return -1;
 	}
 
-	for (i = 0; i < vms_p->mailstream->nmsgs; i++)
-	{
+	for (i = 0; i < vms_p->mailstream->nmsgs; i++) {
 		mail_fetchstructure(vms_p->mailstream, i + 1, &body);
 		/* We have the body, now we extract the file name of the first attachment. */
 		if (body->nested.part->next && body->nested.part->next->body.parameter->value) {
@@ -5042,8 +5042,7 @@ static int imap_retrieve_file (char *dir, int msgnum, char *mailbox, char *conte
 			return -1;
 		}
 		filename = strsep(&attachment, ".");
-		if (!strcmp(filename, file))
-		{
+		if (!strcmp(filename, file)) {
 			ast_copy_string(vms_p->fn, dir, sizeof(vms_p->fn));
 			vms_p->msgArray[vms_p->curmsg] = i + 1;
 			save_body(body, vms_p, "2", attachment);
@@ -5083,8 +5082,7 @@ static int imap_delete_old_greeting (char *dir, struct vm_state *vms)
 			return -1;
 		}
 		filename = strsep(&attachment, ".");
-		if (!strcmp(filename, file))
-		{
+		if (!strcmp(filename, file)) {
 			sprintf (arg,"%d", i+1);
 			mail_setflag (vms->mailstream,arg,"\\DELETED");
 		}
@@ -9495,7 +9493,7 @@ static struct vm_state *get_vm_state_by_imapuser(char *user, int interactive)
 			continue;
 		}
 
-		if (interactive == 2 || vlist->vms->interactive == interactive) {
+		if (!strcmp(vlist->vms->imapuser, user) && (interactive == 2 || vlist->vms->interactive == interactive)) {
 			AST_LIST_UNLOCK(&vmstates);
 			return vlist->vms;
 		}
