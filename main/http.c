@@ -48,10 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <pthread.h>
 
-#ifdef HAVE_SENDFILE
-#include <sys/sendfile.h>
-#endif
-
 #include "minimime/mm.h"
 
 #include "asterisk/cli.h"
@@ -201,14 +197,8 @@ static struct ast_str *static_callback(struct server_instance *ser, const char *
 		"Content-type: %s\r\n\r\n",
 		ASTERISK_VERSION, buf, (int) st.st_size, mtype);
 
-	fflush(ser->f);
-
-#ifdef HAVE_SENDFILE
-	sendfile(ser->fd, fd, NULL, st.st_size);
-#else
 	while ((len = read(fd, buf, sizeof(buf))) > 0)
-		write(ser->fd, buf, len);
-#endif
+		fwrite(buf, 1, len, ser->f);
 
 	close(fd);
 	return NULL;
