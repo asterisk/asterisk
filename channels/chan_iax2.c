@@ -267,7 +267,10 @@ enum {
 	IAX_FORCEJITTERBUF =	(1 << 20),	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 	IAX_RTIGNOREREGEXPIRE =	(1 << 21),	/*!< When using realtime, ignore registration expiration */
 	IAX_TRUNKTIMESTAMPS =	(1 << 22),	/*!< Send trunk timestamps */
-	IAX_MAXAUTHREQ =        (1 << 23)       /*!< Maximum outstanding AUTHREQ restriction is in place */
+	IAX_MAXAUTHREQ =        (1 << 23),      /*!< Maximum outstanding AUTHREQ restriction is in place */
+	IAX_DELAYPBXSTART =	(1 << 25),	/*!< Don't start a PBX on the channel until the peer sends us a
+						     response, so that we've achieved a three-way handshake with
+						     them before sending voice or anything else*/
 } iax2_flags;
 
 static int global_rtautoclear = 120;
@@ -3440,7 +3443,7 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 }
 
 /*--- ast_iax2_new: Create new call, interface with the PBX core */
-static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
+static struct ast_channel *ast_iax2_new(int callno, int state, int capability, unsigned int delaypbx)
 {
 	struct ast_channel *tmp;
 	struct chan_iax2_pvt *i;
@@ -3488,8 +3491,10 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 
 		for (v = i->vars ; v ; v = v->next)
 			pbx_builtin_setvar_helper(tmp, v->name, v->value);
-		
-		if (state != AST_STATE_DOWN) {
+
+		if (delaypbx) {
+			ast_set_flag(i, IAX_DELAYPBXSTART);
+		} else if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 				ast_hangup(tmp);
@@ -6815,6 +6820,25 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				f.data = empty;
 			memset(&ies, 0, sizeof(ies));
 		}
+
+		/* when we receive the first full frame for a new incoming channel,
+		   it is safe to start the PBX on the channel because we have now
+		   completed a 3-way handshake with the peer */
+		if ((f.frametype == AST_FRAME_VOICE) ||
+		    (f.frametype == AST_FRAME_VIDEO) ||
+		    (f.frametype == AST_FRAME_IAX)) {
+			if (ast_test_flag(iaxs[fr->callno], IAX_DELAYPBXSTART)) {
+				ast_clear_flag(iaxs[fr->callno], IAX_DELAYPBXSTART);
+				if (ast_pbx_start(iaxs[fr->callno]->owner)) {
+					ast_log(LOG_WARNING, "Unable to start PBX on %s\n", iaxs[fr->callno]->owner->name);
+					ast_hangup(iaxs[fr->callno]->owner);
+					iaxs[fr->callno]->owner = NULL;
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
+			}
+		}
+
 		if (f.frametype == AST_FRAME_VOICE) {
 			if (f.subclass != iaxs[fr->callno]->voiceformat) {
 					iaxs[fr->callno]->voiceformat = f.subclass;
@@ -7077,7 +7101,9 @@ retryowner:
 												VERBOSE_PREFIX_4,
 												using_prefs);
 								
-								if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
+								/* create an Asterisk channel for this call, but don't start
+								   a PBX on it until we have received a full frame from the peer */
+								if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 1)))
 									iax2_destroy_nolock(fr->callno);
 							} else {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
@@ -7486,7 +7512,7 @@ retryowner2:
 											using_prefs);
 
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-							if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format)))
+							if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 0)))
 								iax2_destroy_nolock(fr->callno);
 						} else {
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
@@ -7514,7 +7540,7 @@ retryowner2:
 							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr->callno]->peerformat);
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						send_command(iaxs[fr->callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
-						if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat)))
+						if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat, 0)))
 							iax2_destroy_nolock(fr->callno);
 					}
 				}
@@ -8052,7 +8078,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	if (cai.found)
 		ast_copy_string(iaxs[callno]->host, pds.peer, sizeof(iaxs[callno]->host));
 
-	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability);
+	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability, 0);
 
 	ast_mutex_unlock(&iaxsl[callno]);
 
