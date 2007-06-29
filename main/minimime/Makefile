@@ -35,7 +35,12 @@ MM_SRCS= \
 MM_OBJS:=$(MM_SRCS:%.c=%.o)
 MM_HDRS:=mm.h mm_util.h
 
-ASTCFLAGS:=$(filter-out -Werror -Wundef -Wstrict-prototypes -Wmissing-declarations -Wmissing-prototypes,$(ASTCFLAGS))
+# Use weaker error checking because we have some automatically generated
+# files. However just mask out -Werror, because other warnings below:
+#	-Wundef -Wstrict-prototypes -Wmissing-declarations
+#	-Wmissing-prototypes
+# may actually be important and spot out real bugs.
+ASTCFLAGS:=$(filter-out -Werror,$(ASTCFLAGS))
 
 all: $(LIBMMIME)
 
