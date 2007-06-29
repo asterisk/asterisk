@@ -3182,19 +3182,19 @@ generic_callback_out:
 	return out;
 }
 
-static struct ast_str *manager_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *manager_http_callback(struct server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_HTML, requestor, uri, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_HTML, &ser->requestor, uri, params, status, title, contentlength);
 }
 
-static struct ast_str *mxml_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *mxml_http_callback(struct server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_XML, requestor, uri, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_XML, &ser->requestor, uri, params, status, title, contentlength);
 }
 
-static struct ast_str *rawman_http_callback(struct sockaddr_in *requestor, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
+static struct ast_str *rawman_http_callback(struct server_instance *ser, const char *uri, struct ast_variable *params, int *status, char **title, int *contentlength)
 {
-	return generic_http_callback(FORMAT_RAW, requestor, uri, params, status, title, contentlength);
+	return generic_http_callback(FORMAT_RAW, &ser->requestor, uri, params, status, title, contentlength);
 }
 
 struct ast_http_uri rawmanuri = {

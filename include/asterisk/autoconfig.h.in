@@ -394,6 +394,9 @@
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
 
+/* Define if your system has the sendfile syscall. */
+#undef HAVE_SENDFILE
+
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
 

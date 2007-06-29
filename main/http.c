@@ -48,6 +48,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <fcntl.h>
 #include <pthread.h>
 
+#ifdef HAVE_SENDFILE
+#include <sys/sendfile.h>
+#endif
+
 #include "minimime/mm.h"
 
 #include "asterisk/cli.h"
@@ -145,9 +149,8 @@ static const char *ftype2mtype(const char *ftype, char *wkspace, int wkspacelen)
 	return wkspace;
 }
 
-static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *static_callback(struct server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
-	struct ast_str *result;
 	char *path;
 	char *ftype;
 	const char *mtype;
@@ -155,6 +158,8 @@ static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri,
 	struct stat st;
 	int len;
 	int fd;
+	time_t t;
+	char buf[256];
 
 	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration 
 	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
@@ -185,21 +190,28 @@ static struct ast_str *static_callback(struct sockaddr_in *req, const char *uri,
 	if (fd < 0)
 		goto out403;
 
-	len = st.st_size + strlen(mtype) + 40;
-	result = ast_str_create(len);
-	if (result == NULL)	/* XXX not really but... */
-		goto out403;
+	time(&t);
+	strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
+	fprintf(ser->f, "HTTP/1.1 200 OK\r\n"
+		"Server: Asterisk/%s\r\n"
+		"Date: %s\r\n"
+		"Connection: close\r\n"
+		"Cache-Control: no-cache, no-store\r\n"
+		"Content-Length: %d\r\n"
+		"Content-type: %s\r\n\r\n",
+		ASTERISK_VERSION, buf, (int) st.st_size, mtype);
 
-	ast_str_append(&result, 0, "Content-type: %s\r\n\r\n", mtype);
-	*contentlength = read(fd, result->str + result->used, st.st_size);
-	if (*contentlength < 0) {
-		close(fd);
-		ast_free(result);
-		goto out403;
-	}
-	result->used += *contentlength;
+	fflush(ser->f);
+
+#ifdef HAVE_SENDFILE
+	sendfile(ser->fd, fd, NULL, st.st_size);
+#else
+	while ((len = read(fd, buf, sizeof(buf))) > 0)
+		write(ser->fd, buf, len);
+#endif
+
 	close(fd);
-	return result;
+	return NULL;
 
 out404:
 	*status = 404;
@@ -213,7 +225,7 @@ out403:
 }
 
 
-static struct ast_str *httpstatus_callback(struct sockaddr_in *req, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
+static struct ast_str *httpstatus_callback(struct server_instance *ser, const char *uri, struct ast_variable *vars, int *status, char **title, int *contentlength)
 {
 	struct ast_str *out = ast_str_create(512);
 	struct ast_variable *v;
@@ -541,7 +553,7 @@ static struct ast_str *handle_post(struct server_instance *ser, char *uri,
 	return ast_http_error(200, "OK", NULL, "File successfully uploaded.");
 }
 
-static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *status, 
+static struct ast_str *handle_uri(struct server_instance *ser, char *uri, int *status, 
 	char **title, int *contentlength, struct ast_variable **cookies, 
 	unsigned int *static_content)
 {
@@ -627,7 +639,7 @@ static struct ast_str *handle_uri(struct sockaddr_in *sin, char *uri, int *statu
 	if (urih) {
 		if (urih->static_content)
 			*static_content = 1;
-		out = urih->callback(sin, uri, vars, status, title, contentlength);
+		out = urih->callback(ser, uri, vars, status, title, contentlength);
 		AST_RWLIST_UNLOCK(&uris);
 	} else {
 		out = ast_http_error(404, "Not Found", NULL,
@@ -834,14 +846,12 @@ static void *httpd_helper_thread(void *data)
 		out = ast_http_error(501, "Not Implemented", NULL,
 			"Attempt to use unimplemented / unsupported method");
 	else	/* try to serve it */
-		out = handle_uri(&ser->requestor, uri, &status, &title, &contentlength, &vars, &static_content);
+		out = handle_uri(ser, uri, &status, &title, &contentlength, &vars, &static_content);
 
 	/* If they aren't mopped up already, clean up the cookies */
 	if (vars)
 		ast_variables_destroy(vars);
 
-	if (out == NULL)
-		out = ast_http_error(500, "Internal Error", NULL, "Internal Server Error");
 	if (out) {
 		time_t t = time(NULL);
 		char timebuf[256];

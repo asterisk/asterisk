@@ -364,6 +364,23 @@ AC_CHECK_HEADER([libkern/OSAtomic.h],
 
 AC_CHECK_SIZEOF(int)
 
+AC_COMPILE_IFELSE(
+  [AC_LANG_PROGRAM(
+    [#include <stdlib.h>
+     #include <sys/sendfile.h>],
+    [sendfile(1, 0, NULL, 1);])
+  ],[
+    AC_MSG_RESULT(yes)
+       have_sendfile=yes
+  ],[
+    AC_MSG_RESULT(no)
+       have_sendfile=no
+  ]
+)
+if test "${have_sendfile}" = "yes"; then
+  AC_DEFINE([HAVE_SENDFILE], 1, [Define if your system has the sendfile syscall.])
+fi
+
 # do the package library checks now
 
 AST_EXT_LIB_CHECK([ALSA], [asound], [snd_spcm_init], [alsa/asoundlib.h], [-lm -ldl])
