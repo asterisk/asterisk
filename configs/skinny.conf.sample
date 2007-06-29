@@ -11,6 +11,18 @@ keepalive=120
 			; It must be in the same context as the calling
 			; device/line
 
+; If regcontext is specified, Asterisk will dynamically create and destroy a
+; NoOp priority 1 extension for a given line which registers or unregisters with
+; us and have a "regexten=" configuration item.  
+; Multiple contexts may be specified by separating them with '&'. The 
+; actual extension is the 'regexten' parameter of the registering line or its
+; name if 'regexten' is not provided.  If more than one context is provided,
+; the context must be specified within regexten by appending the desired
+; context after '@'.  More than one regexten may be supplied if they are 
+; separated by '&'.  Patterns may be used in regexten.
+;
+;regcontext=skinnyregistrations
+
 ;allow=all		; see doc/rtp-packetization for framing options
 ;disallow=
 
@@ -79,12 +91,14 @@ keepalive=120
 ;callerid="Customer Support" <810-234-1212>
 ;mailbox=100
 ;vmexten=8500			; Device level voicemailmain pilot number
+;regexten=100
 ;context=inbound
 ;linelabel="Support Line"	; Displays next to the line 
 				; button on 7940's and 7960s
 ;line => 100
 ;callerid="John Chambers" <408-526-4000>
 ;context=did
+;regexten=110
 ;linelabel="John"
 ;mailbox=110
 ;line => 110

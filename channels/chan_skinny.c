@@ -100,6 +100,7 @@ enum skinny_codecs {
 
 static int keep_alive = 120;
 static char vmexten[AST_MAX_EXTENSION];		/* Voicemail pilot number */
+static char regcontext[AST_MAX_CONTEXT];	/* Context for auto-extension */
 static char date_format[6] = "D-M-Y";
 static char version_id[16] = "P002F202";
 
@@ -798,6 +799,7 @@ static int cancallforward = 0;
 /* static int busycount = 3;*/
 static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 static char mailbox[AST_MAX_EXTENSION];
+static char regexten[AST_MAX_EXTENSION];
 static int amaflags = 0;
 static int callnums = 1;
 
@@ -957,6 +959,8 @@ struct skinny_line {
 	char call_forward[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
 	char vmexten[AST_MAX_EXTENSION];
+	char regexten[AST_MAX_EXTENSION];		/* Extension for auto-extensions */
+	char regcontext[AST_MAX_CONTEXT];		/* Context for auto-extensions */
 	char mohinterpret[MAX_MUSICCLASS];
 	char mohsuggest[MAX_MUSICCLASS];
 	char lastnumberdialed[AST_MAX_EXTENSION];	/* Last number that was dialed - used for redial */
@@ -1383,6 +1387,78 @@ static int codec_ast2skinny(int astcodec)
 	}
 }
 
+static void cleanup_stale_contexts(char *new, char *old)
+{
+	char *oldcontext, *newcontext, *stalecontext, *stringp, newlist[AST_MAX_CONTEXT];
+
+	while ((oldcontext = strsep(&old, "&"))) {
+		stalecontext = '\0';
+		ast_copy_string(newlist, new, sizeof(newlist));
+		stringp = newlist;
+		while ((newcontext = strsep(&stringp, "&"))) {
+			if (strcmp(newcontext, oldcontext) == 0) {
+				/* This is not the context you're looking for */
+				stalecontext = '\0';
+				break;
+			} else if (strcmp(newcontext, oldcontext)) {
+				stalecontext = oldcontext;
+			}
+			
+		}
+		if (stalecontext)
+			ast_context_destroy(ast_context_find(stalecontext), "Skinny");
+	}
+}
+
+static void register_exten(struct skinny_line *l)
+{
+	char multi[256];
+	char *stringp, *ext, *context;
+
+	if (ast_strlen_zero(regcontext))
+		return;
+
+	ast_copy_string(multi, S_OR(l->regexten, l->name), sizeof(multi));
+	stringp = multi;
+	while ((ext = strsep(&stringp, "&"))) {
+		if ((context = strchr(ext, '@'))) {
+			*context++ = '\0';	/* split ext@context */
+			if (!ast_context_find(context)) {
+				ast_log(LOG_WARNING, "Context %s must exist in regcontext= in skinny.conf!\n", context);
+				continue;
+			}
+		} else {
+			context = regcontext;
+		}
+		ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
+			 ast_strdup(l->name), ast_free, "Skinny");
+	}
+}
+
+static void unregister_exten(struct skinny_line *l)
+{
+	char multi[256];
+	char *stringp, *ext, *context;
+
+	if (ast_strlen_zero(regcontext))
+		return;
+
+	ast_copy_string(multi, S_OR(l->regexten, l->name), sizeof(multi));
+	stringp = multi;
+	while ((ext = strsep(&stringp, "&"))) {
+		if ((context = strchr(ext, '@'))) {
+			*context++ = '\0';	/* split ext@context */
+			if (!ast_context_find(context)) {
+				ast_log(LOG_WARNING, "Context %s must exist in regcontext= in skinny.conf!\n", context);
+				continue;
+			}
+		} else {
+			context = regcontext;
+		}
+		ast_context_remove_extension(context, ext, 1, NULL);
+	}
+}
+
 static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 {
 	struct skinny_device *d;
@@ -1414,6 +1490,7 @@ static int skinny_register(struct skinny_req *req, struct skinnysession *s)
 				sd->stateid = ast_extension_state_add(sd->context, sd->exten, skinny_extensionstate_cb, sd);
 			}
 			for (l = d->lines; l; l = l->next) {
+				register_exten(l);
 				ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
 			}
 			break;
@@ -1443,6 +1520,7 @@ static int skinny_unregister(struct skinny_req *req, struct skinnysession *s)
 				ast_extension_state_del(sd->stateid, NULL);
 		}
 		for (l = d->lines; l; l = l->next) {
+			unregister_exten(l);
 			ast_device_state_changed("Skinny/%s@%s", l->name, d->name);
 		}
 	}
@@ -2167,6 +2245,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				ast_copy_string(device_vmexten, v->value, sizeof(device_vmexten));
 			} else if (!strcasecmp(v->name, "context")) {
 				ast_copy_string(context, v->value, sizeof(context));
+			} else if (!strcasecmp(v->name, "regexten")) {
+				ast_copy_string(regexten, v->value, sizeof(regexten));
 			} else if (!strcasecmp(v->name, "allow")) {
 				ast_parse_allow_disallow(&d->prefs, &d->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
@@ -2273,7 +2353,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_copy_string(l->language, language, sizeof(l->language));
 					ast_copy_string(l->mohinterpret, mohinterpret, sizeof(l->mohinterpret));
 					ast_copy_string(l->mohsuggest, mohsuggest, sizeof(l->mohsuggest));
-					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
+					ast_copy_string(l->regexten, regexten, sizeof(l->regexten));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
 					if (!ast_strlen_zero(mailbox)) {
 						if (option_verbose > 2)
@@ -4763,6 +4843,8 @@ static int reload_config(void)
 	char *cat;
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
+	char *stringp, *context, *oldregcontext;
+	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
@@ -4777,6 +4859,10 @@ static int reload_config(void)
 	}
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&default_prefs, 0, sizeof(default_prefs));
+
+	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
+	ast_copy_string(oldcontexts, regcontext, sizeof(oldcontexts));
+	oldregcontext = oldcontexts;
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
@@ -4801,6 +4887,17 @@ static int reload_config(void)
 			keep_alive = atoi(v->value);
 		} else if (!strcasecmp(v->name, "vmexten")) {
 			ast_copy_string(vmexten, v->value, sizeof(vmexten));
+		} else if (!strcasecmp(v->name, "regcontext")) {
+			ast_copy_string(newcontexts, v->value, sizeof(newcontexts));
+			stringp = newcontexts;
+			/* Let's remove any contexts that are no longer defined in regcontext */
+			cleanup_stale_contexts(stringp, oldregcontext);
+			/* Create contexts if they don't exist already */
+			while ((context = strsep(&stringp, "&"))) {
+				if (!ast_context_find(context))
+					ast_context_create(NULL, context, "Skinny");
+			}
+			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 		} else if (!strcasecmp(v->name, "dateformat")) {
 			ast_copy_string(date_format, v->value, sizeof(date_format));
 		} else if (!strcasecmp(v->name, "allow")) {
