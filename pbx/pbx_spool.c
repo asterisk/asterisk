@@ -257,7 +257,7 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 	if (fd > -1) {
 		f = fdopen(fd, "a");
 		if (f) {
-			fprintf(f, "%s: %ld %d (%ld)\n", s, (long)ast_mainpid, o->retries, (long) now);
+			fprintf(f, "\n%s: %ld %d (%ld)\n", s, (long)ast_mainpid, o->retries, (long) now);
 			fclose(f);
 		} else
 			close(fd);
