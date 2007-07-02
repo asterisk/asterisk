@@ -9,4 +9,6 @@ make -C sounds all MENUSELECT_CORE_SOUNDS=CORE-SOUNDS-EN-GSM MENUSELECT_MOH=MOH-
 
 make menuselect-tree
 
-cd doc && rubber --pdf asterisk.tex
+VERSION=`cat .version`
+sed -i -e "s/ASTERISKVERSION/${VERSION}/" doc/tex/asterisk.tex
+cd doc/tex && rubber --pdf asterisk.tex
