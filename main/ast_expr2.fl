@@ -24,12 +24,29 @@
 
 #include "asterisk.h"
 
-#ifndef STANDALONE
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-#endif
-
 #include <sys/types.h>
 #include <stdio.h>
+
+#ifndef STANDALONE
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#else
+#ifndef __USE_ISOC99
+#define __USE_ISOC99 1
+#endif
+#endif
+
+#ifdef __USE_ISOC99
+#define FP___PRINTF "%.16Lg"
+#define FP___FMOD   fmodl
+#define FP___STRTOD  strtold
+#define FP___TYPE    long double
+#else
+#define FP___PRINTF "%.8g"
+#define FP___FMOD   fmod
+#define FP___STRTOD  strtod
+#define FP___TYPE    double
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
@@ -48,14 +65,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string
 } ;
 
 struct val {
 	enum valtype type;
 	union {
 		char *s;
-		quad_t i;
+		FP___TYPE i; /* long double or just double if it's a bad day */
 	} u;
 } ;
 
@@ -140,7 +157,7 @@ static char *expr2_token_subst(char *mess);
 \"[^"]*\"	{SET_COLUMNS; SET_STRING; return TOKEN;}
 
 [\n]		{/* what to do with eol */}
-[0-9]+		{
+[0-9]+(\.[0-9]+)?		{
 		SET_COLUMNS;
 		/* the original behavior of the expression parser was
 		 * to bring in numbers as a numeric string
@@ -235,10 +252,10 @@ int ast_expr(char *expr, char *buf, int length)
 			return_value = 1;
 		}
 	} else {
-		if (io.val->type == AST_EXPR_integer) {
+		if (io.val->type == AST_EXPR_number) {
 			int res_length;
 
-			res_length = snprintf(buf, length, "%ld", (long int) io.val->u.i);
+			res_length = snprintf(buf, length, FP___PRINTF, io.val->u.i);
 			return_value = (res_length <= length) ? res_length : length;
 		} else {
 #if defined(STANDALONE) || defined(LOW_MEMORY) || defined(STANDALONE_AEL)

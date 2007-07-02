@@ -229,8 +229,8 @@ struct yy_buffer_state
 	 */
 	int yy_at_bol;
 
-    int yy_bs_lineno; /*!< The line count. */
-    int yy_bs_column; /*!< The column count. */
+    int yy_bs_lineno; /**< The line count. */
+    int yy_bs_column; /**< The column count. */
     
 	/* Whether to try to fill the input buffer when we reach the
 	 * end of it.
@@ -732,8 +732,8 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,
       -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,  -23,
       -23,  -23,  -23,  -23,  -23,   39,   39,  -23,  -23,   39,
-      -23,  -23,  -23,  -23,   39,  -23,   39,  -23,   42,   42,
-       42,   42,   42,   42,   42,   42,   42,   42,  -23,   39,
+      -23,  -23,  -23,  -23,   39,  -23,   42,  -23,   43,   43,
+       43,   43,   43,   43,   43,   43,   43,   43,  -23,   39,
       -23,  -23,  -23,  -23,   39,   39,   39,   39,   39,   39,
        39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
        39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
@@ -750,7 +750,7 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,
       -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,
       -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,
-      -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,   43,  -24,
+      -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,   44,  -24,
       -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,
       -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,  -24,
 
@@ -769,7 +769,7 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
 
       -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
-      -25,   44,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
+      -25,   45,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
       -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
       -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
       -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,  -25,
@@ -786,14 +786,14 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
-      -26,   45,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
+      -26,   46,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
       -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,  -26,
 
-      -26,  -26,  -26,  -26,  -26,  -26,   46,  -26
+      -26,  -26,  -26,  -26,  -26,  -26,   47,  -26
     },
 
     {
@@ -803,7 +803,7 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
       -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
       -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
-      -27,   47,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
+      -27,   48,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
       -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
       -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,  -27,
 
@@ -844,25 +844,25 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,
       -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,
       -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,  -29,
-      -29,  -29,  -29,  -29,   48,  -29,  -29,  -29
+      -29,  -29,  -29,  -29,   49,  -29,  -29,  -29
 
     },
 
     {
-        7,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
+        7,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
 
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   50,   49,   51,   49,   49
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   51,   50,   52,   50,   50
     },
 
     {
@@ -900,21 +900,21 @@ static yyconst flex_int16_t yy_nxt[][128] =
     },
 
     {
-        7,   52,   52,   52,   52,   52,   52,   52,   52,  -33,
+        7,   53,   53,   53,   53,   53,   53,   53,   53,  -33,
 
-      -33,   52,   52,  -33,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,  -33,  -33,   52,   52,  -33,  -33,  -33,   52,
-      -33,  -33,  -33,  -33,   52,  -33,   52,  -33,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,  -33,   52,
-      -33,  -33,  -33,  -33,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
+      -33,   53,   53,  -33,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,  -33,  -33,   53,   53,  -33,  -33,  -33,   53,
+      -33,  -33,  -33,  -33,   53,  -33,   53,  -33,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,  -33,   53,
+      -33,  -33,  -33,  -33,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
 
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,  -33,   52,   52,   52
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,  -33,   53,   53,   53
     },
 
     {
@@ -948,7 +948,7 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,
       -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,
       -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,  -35,
-      -35,  -35,  -35,   53,  -35,  -35,  -35,  -35
+      -35,  -35,  -35,   54,  -35,  -35,  -35,  -35
     },
 
     {
@@ -1061,8 +1061,8 @@ static yyconst flex_int16_t yy_nxt[][128] =
       -42,  -42,  -42,  -42,  -42,  -42,  -42,  -42,  -42,  -42,
       -42,  -42,  -42,  -42,  -42,   39,   39,  -42,  -42,   39,
 
-      -42,  -42,  -42,  -42,   39,  -42,   39,  -42,   42,   42,
-       42,   42,   42,   42,   42,   42,   42,   42,  -42,   39,
+      -42,  -42,  -42,  -42,   39,  -42,   39,  -42,   55,   55,
+       55,   55,   55,   55,   55,   55,   55,   55,  -42,   39,
       -42,  -42,  -42,  -42,   39,   39,   39,   39,   39,   39,
        39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
        39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
@@ -1077,17 +1077,17 @@ static yyconst flex_int16_t yy_nxt[][128] =
 
       -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
       -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
+      -43,  -43,  -43,  -43,  -43,   39,   39,  -43,  -43,   39,
+      -43,  -43,  -43,  -43,   39,  -43,   42,  -43,   43,   43,
+       43,   43,   43,   43,   43,   43,   43,   43,  -43,   39,
+      -43,  -43,  -43,  -43,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,  -43,   39,  -43,   39,   39,  -43,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
 
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43,
-      -43,  -43,  -43,  -43,  -43,  -43,  -43,  -43
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,  -43,  -43,  -43,  -43,  -43
     },
 
     {
@@ -1177,38 +1177,38 @@ static yyconst flex_int16_t yy_nxt[][128] =
     },
 
     {
-        7,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
+        7,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
 
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   49,   49,   49,   49,   49,   49,   49,
-       49,   49,   49,   50,   49,   51,   49,   49
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49,
+      -49,  -49,  -49,  -49,  -49,  -49,  -49,  -49
 
     },
 
     {
-        7,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
+        7,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
 
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50,
-      -50,  -50,  -50,  -50,  -50,  -50,  -50,  -50
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   50,   50,   50,   50,   50,   50,   50,
+       50,   50,   50,   51,   50,   52,   50,   50
     },
 
     {
@@ -1229,38 +1229,72 @@ static yyconst flex_int16_t yy_nxt[][128] =
     },
 
     {
-        7,   52,   52,   52,   52,   52,   52,   52,   52,  -52,
-      -52,   52,   52,  -52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,  -52,  -52,   52,   52,  -52,  -52,  -52,   52,
+        7,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
 
-      -52,  -52,  -52,  -52,   52,  -52,   52,  -52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,  -52,   52,
-      -52,  -52,  -52,  -52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,   52,   52,   52,   52,   52,   52,
-       52,   52,   52,   52,  -52,   52,   52,   52
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52,
+      -52,  -52,  -52,  -52,  -52,  -52,  -52,  -52
     },
 
     {
-        7,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
+        7,   53,   53,   53,   53,   53,   53,   53,   53,  -53,
 
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
+      -53,   53,   53,  -53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,  -53,  -53,   53,   53,  -53,  -53,  -53,   53,
+      -53,  -53,  -53,  -53,   53,  -53,   53,  -53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,  -53,   53,
+      -53,  -53,  -53,  -53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
 
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53,
-      -53,  -53,  -53,  -53,  -53,  -53,  -53,  -53
+       53,   53,   53,   53,   53,   53,   53,   53,   53,   53,
+       53,   53,   53,   53,  -53,   53,   53,   53
+    },
+
+    {
+        7,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54,
+      -54,  -54,  -54,  -54,  -54,  -54,  -54,  -54
+    },
+
+    {
+        7,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,
+      -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,
+      -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,  -55,
+      -55,  -55,  -55,  -55,  -55,   39,   39,  -55,  -55,   39,
+      -55,  -55,  -55,  -55,   39,  -55,   39,  -55,   55,   55,
+
+       55,   55,   55,   55,   55,   55,   55,   55,  -55,   39,
+      -55,  -55,  -55,  -55,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,  -55,   39,  -55,   39,   39,  -55,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,   39,   39,   39,   39,   39,   39,   39,
+       39,   39,   39,  -55,  -55,  -55,  -55,  -55
     },
 
     } ;
@@ -1290,24 +1324,24 @@ struct yy_trans_info
 	flex_int32_t yy_verify;
 	flex_int32_t yy_nxt;
 	};
-static yyconst flex_int16_t yy_accept[54] =
+static yyconst flex_int16_t yy_accept[56] =
     {   0,
         0,    0,    0,    0,   32,   32,   36,   35,   25,   27,
        19,   35,   29,   29,   17,    2,   22,   23,   15,   13,
        14,   16,   28,   20,    9,    3,    8,   18,    1,   35,
        31,   30,   32,   33,   33,   12,    0,   26,   29,   24,
-        5,   28,   21,   11,    6,    7,   10,    4,    0,   31,
-       30,   32,   34
+        5,   29,   28,   21,   11,    6,    7,   10,    4,    0,
+       31,   30,   32,   34,   28
     } ;
 
-static yyconst yy_state_type yy_NUL_trans[54] =
+static yyconst yy_state_type yy_NUL_trans[56] =
     {   0,
         8,    8,   30,   30,   33,   33,    0,    0,    0,    0,
         0,   37,    0,    0,    0,    0,    0,    0,    0,    0,
-        0,    0,    0,    0,    0,    0,    0,    0,    0,   49,
-        0,    0,   52,    0,    0,    0,   37,    0,    0,    0,
-        0,    0,    0,    0,    0,    0,    0,    0,   49,    0,
-        0,   52,    0
+        0,    0,    0,    0,    0,    0,    0,    0,    0,   50,
+        0,    0,   53,    0,    0,    0,   37,    0,    0,    0,
+        0,    0,    0,    0,    0,    0,    0,    0,    0,   50,
+        0,    0,   53,    0,    0
     } ;
 
 /* The intent behind this definition is that it'll catch
@@ -1344,12 +1378,29 @@ static yyconst yy_state_type yy_NUL_trans[54] =
 
 #include "asterisk.h"
 
-#ifndef STANDALONE
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-#endif
-
 #include <sys/types.h>
 #include <stdio.h>
+
+#ifndef STANDALONE
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+#else
+#ifndef __USE_ISOC99
+#define __USE_ISOC99 1
+#endif
+#endif
+
+#ifdef __USE_ISOC99
+#define FP___PRINTF "%.16Lg"
+#define FP___FMOD   fmodl
+#define FP___STRTOD  strtold
+#define FP___TYPE    long double
+#else
+#define FP___PRINTF "%.8g"
+#define FP___FMOD   fmod
+#define FP___STRTOD  strtod
+#define FP___TYPE    double
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
@@ -1368,14 +1419,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/strings.h"
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string
 } ;
 
 struct val {
 	enum valtype type;
 	union {
 		char *s;
-		quad_t i;
+		FP___TYPE i; /* long double or just double if it's a bad day */
 	} u;
 } ;
 
@@ -1411,17 +1462,19 @@ int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
 static char *expr2_token_subst(char *mess);
 
-#line 1415 "ast_expr2f.c"
+#line 1466 "ast_expr2f.c"
 
 #define INITIAL 0
 #define var 1
 #define trail 2
 
+#ifndef YY_NO_UNISTD_H
 /* Special case for "unistd.h", since it is non-ANSI. We include it way
  * down here because we want the user's section 1 to have been scanned first.
  * The user has a chance to override it with an option.
  */
 #include <unistd.h>
+#endif
 
 #ifndef YY_EXTRA_TYPE
 #define YY_EXTRA_TYPE void *
@@ -1436,9 +1489,9 @@ struct yyguts_t
 
     /* The rest are the same as the globals declared in the non-reentrant scanner. */
     FILE *yyin_r, *yyout_r;
-    size_t yy_buffer_stack_top; /*!< index of top of stack. */
-    size_t yy_buffer_stack_max; /*!< capacity of stack. */
-    YY_BUFFER_STATE * yy_buffer_stack; /*!< Stack as an array. */
+    size_t yy_buffer_stack_top; /**< index of top of stack. */
+    size_t yy_buffer_stack_max; /**< capacity of stack. */
+    YY_BUFFER_STATE * yy_buffer_stack; /**< Stack as an array. */
     char yy_hold_char;
     int yy_n_chars;
     int yyleng_r;
@@ -1464,6 +1517,8 @@ struct yyguts_t
     YYLTYPE * yylloc_r;
 
     }; /* end struct yyguts_t */
+
+static int yy_init_globals (yyscan_t yyscanner );
 
     /* This must go here because YYSTYPE and YYLTYPE are included
      * from bison output in section 1.*/
@@ -1599,9 +1654,11 @@ static int input (yyscan_t yyscanner );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int ast_yylex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
+extern int ast_yylex \
+               (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int ast_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int ast_yylex \
+               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -1619,8 +1676,7 @@ extern int ast_yylex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yy
 #define YY_RULE_SETUP \
 	YY_USER_ACTION
 
-/*!
- * \brief The main scanner function which does all the work.
+/** The main scanner function which does all the work.
  */
 YY_DECL
 {
@@ -1629,10 +1685,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 104 "ast_expr2.fl"
+#line 121 "ast_expr2.fl"
 
 
-#line 1635 "ast_expr2f.c"
+#line 1692 "ast_expr2f.c"
 
     yylval = yylval_param;
 
@@ -1715,122 +1771,122 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 106 "ast_expr2.fl"
+#line 123 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 107 "ast_expr2.fl"
+#line 124 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 108 "ast_expr2.fl"
+#line 125 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 109 "ast_expr2.fl"
+#line 126 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 110 "ast_expr2.fl"
+#line 127 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 111 "ast_expr2.fl"
+#line 128 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 112 "ast_expr2.fl"
+#line 129 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 113 "ast_expr2.fl"
+#line 130 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GT;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 114 "ast_expr2.fl"
+#line 131 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LT;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 115 "ast_expr2.fl"
+#line 132 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GE;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 116 "ast_expr2.fl"
+#line 133 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LE;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 117 "ast_expr2.fl"
+#line 134 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_NE;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 118 "ast_expr2.fl"
+#line 135 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_PLUS;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 119 "ast_expr2.fl"
+#line 136 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 120 "ast_expr2.fl"
+#line 137 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MULT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 121 "ast_expr2.fl"
+#line 138 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_DIV;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 122 "ast_expr2.fl"
+#line 139 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MOD;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 123 "ast_expr2.fl"
+#line 140 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COND;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 124 "ast_expr2.fl"
+#line 141 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COMPL;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 125 "ast_expr2.fl"
+#line 142 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLON;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 126 "ast_expr2.fl"
+#line 143 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 127 "ast_expr2.fl"
+#line 144 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LP;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 128 "ast_expr2.fl"
+#line 145 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_RP;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 129 "ast_expr2.fl"
+#line 146 "ast_expr2.fl"
 {
 		/* gather the contents of ${} expressions, with trailing stuff,
 		 * into a single TOKEN.
@@ -1843,24 +1899,24 @@ YY_RULE_SETUP
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 139 "ast_expr2.fl"
+#line 156 "ast_expr2.fl"
 {}
 	YY_BREAK
 case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
-#line 140 "ast_expr2.fl"
+#line 157 "ast_expr2.fl"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 27:
 /* rule 27 can match eol */
 YY_RULE_SETUP
-#line 142 "ast_expr2.fl"
+#line 159 "ast_expr2.fl"
 {/* what to do with eol */}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 143 "ast_expr2.fl"
+#line 160 "ast_expr2.fl"
 {
 		SET_COLUMNS;
 		/* the original behavior of the expression parser was
@@ -1872,7 +1928,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 152 "ast_expr2.fl"
+#line 169 "ast_expr2.fl"
 {
 		SET_COLUMNS;
 		SET_STRING;
@@ -1882,7 +1938,7 @@ YY_RULE_SETUP
 case 30:
 /* rule 30 can match eol */
 YY_RULE_SETUP
-#line 159 "ast_expr2.fl"
+#line 176 "ast_expr2.fl"
 {
 		curlycount--;
 		if (curlycount < 0) {
@@ -1896,7 +1952,7 @@ YY_RULE_SETUP
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 169 "ast_expr2.fl"
+#line 186 "ast_expr2.fl"
 {
 		curlycount++;
 		yymore();
@@ -1904,7 +1960,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 175 "ast_expr2.fl"
+#line 192 "ast_expr2.fl"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1915,7 +1971,7 @@ YY_RULE_SETUP
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 182 "ast_expr2.fl"
+#line 199 "ast_expr2.fl"
 {
 		char c = yytext[yyleng-1];
 		BEGIN(0);
@@ -1927,7 +1983,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 191 "ast_expr2.fl"
+#line 208 "ast_expr2.fl"
 {
 		curlycount = 0;
 		BEGIN(var);
@@ -1935,7 +1991,7 @@ YY_RULE_SETUP
 	}
 	YY_BREAK
 case YY_STATE_EOF(trail):
-#line 197 "ast_expr2.fl"
+#line 214 "ast_expr2.fl"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1946,10 +2002,10 @@ case YY_STATE_EOF(trail):
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 205 "ast_expr2.fl"
+#line 222 "ast_expr2.fl"
 ECHO;
 	YY_BREAK
-#line 1952 "ast_expr2f.c"
+#line 2009 "ast_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(var):
 	yyterminate();
@@ -2137,7 +2193,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			size_t num_to_read =
+			int num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -2382,11 +2438,10 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 }
 #endif	/* ifndef YY_NO_INPUT */
 
-/*!
- * \brief Immediately switch to a different input stream.
- * \param input_file A readable stream.
- * \param yyscanner The scanner object.
- * \note This function does not reset the start condition to @c INITIAL .
+/** Immediately switch to a different input stream.
+ * @param input_file A readable stream.
+ * @param yyscanner The scanner object.
+ * @note This function does not reset the start condition to @c INITIAL .
  */
     void ast_yyrestart  (FILE * input_file , yyscan_t yyscanner)
 {
@@ -2402,10 +2457,9 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	ast_yy_load_buffer_state(yyscanner );
 }
 
-/*!
- * \brief Switch to a different input buffer.
- * \param new_buffer The new input buffer.
- * \param yyscanner The scanner object.
+/** Switch to a different input buffer.
+ * @param new_buffer The new input buffer.
+ * @param yyscanner The scanner object.
  */
     void ast_yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
 {
@@ -2448,13 +2502,11 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
 	yyg->yy_hold_char = *yyg->yy_c_buf_p;
 }
 
-/*!
- * \brief Allocate and initialize an input buffer state.
- * \param file A readable stream.
- * \param size The character buffer size in bytes. When in doubt, use @c YY_BUF_SIZE.
- * \param yyscanner The scanner object.
- * 
- * \return the allocated buffer state.
+/** Allocate and initialize an input buffer state.
+ * @param file A readable stream.
+ * @param size The character buffer size in bytes. When in doubt, use @c YY_BUF_SIZE.
+ * @param yyscanner The scanner object.
+ * @return the allocated buffer state.
  */
     YY_BUFFER_STATE ast_yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 {
@@ -2480,10 +2532,9 @@ static void ast_yy_load_buffer_state  (yyscan_t yyscanner)
 	return b;
 }
 
-/*!
- * \brief Destroy the buffer.
- * \param b a buffer created with ast_yy_create_buffer()
- * \param yyscanner The scanner object.
+/** Destroy the buffer.
+ * @param b a buffer created with ast_yy_create_buffer()
+ * @param yyscanner The scanner object.
  */
     void ast_yy_delete_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 {
@@ -2534,10 +2585,9 @@ extern int isatty (int );
 	errno = oerrno;
 }
 
-/*!
- * \brief Discard all buffered characters. On the next scan, YY_INPUT will be called.
- * \param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
- * \param yyscanner The scanner object.
+/** Discard all buffered characters. On the next scan, YY_INPUT will be called.
+ * @param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
+ * @param yyscanner The scanner object.
  */
     void ast_yy_flush_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 {
@@ -2563,12 +2613,11 @@ extern int isatty (int );
 		ast_yy_load_buffer_state(yyscanner );
 }
 
-/*!
- *  \brief Pushes the new state onto the stack. The new state becomes
+/** Pushes the new state onto the stack. The new state becomes
  *  the current state. This function will allocate the stack
  *  if necessary.
- *  \param new_buffer The new state.
- *  \param yyscanner The scanner object.
+ *  @param new_buffer The new state.
+ *  @param yyscanner The scanner object.
  */
 void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 {
@@ -2597,10 +2646,9 @@ void ast_yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 	yyg->yy_did_buffer_switch_on_eof = 1;
 }
 
-/*!
- *  \brief Removes and deletes the top of the stack, if present.
+/** Removes and deletes the top of the stack, if present.
  *  The next element becomes the new top.
- *  \param yyscanner The scanner object.
+ *  @param yyscanner The scanner object.
  */
 void ast_yypop_buffer_state (yyscan_t yyscanner)
 {
@@ -2662,13 +2710,11 @@ static void ast_yyensure_buffer_stack (yyscan_t yyscanner)
 	}
 }
 
-/*!
- * \brief Setup the input buffer state to scan directly from a user-specified character buffer.
- * \param base the character buffer
- * \param size the size in bytes of the character buffer
- * \param yyscanner The scanner object.
- * 
- * \return the newly allocated buffer state object. 
+/** Setup the input buffer state to scan directly from a user-specified character buffer.
+ * @param base the character buffer
+ * @param size the size in bytes of the character buffer
+ * @param yyscanner The scanner object.
+ * @return the newly allocated buffer state object. 
  */
 YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
@@ -2699,30 +2745,26 @@ YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 	return b;
 }
 
-/*!
- * \brief Setup the input buffer state to scan a string. The next call to ast_yylex() will
+/** Setup the input buffer state to scan a string. The next call to ast_yylex() will
  * scan from a @e copy of @a str.
- * \param str a NUL-terminated string to scan
- * \param yyscanner The scanner object.
- * 
- * \return the newly allocated buffer state object.
- * \note If you want to scan bytes that may contain NULL values, then use
+ * @param str a NUL-terminated string to scan
+ * @param yyscanner The scanner object.
+ * @return the newly allocated buffer state object.
+ * @note If you want to scan bytes that may contain NUL values, then use
  *       ast_yy_scan_bytes() instead.
  */
-YY_BUFFER_STATE ast_yy_scan_string (yyconst char * str , yyscan_t yyscanner)
+YY_BUFFER_STATE ast_yy_scan_string (yyconst char * yy_str , yyscan_t yyscanner)
 {
     
-	return ast_yy_scan_bytes(str,strlen(str) ,yyscanner);
+	return ast_yy_scan_bytes(yy_str,strlen(yy_str) ,yyscanner);
 }
 
-/*!
- * \brief Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
+/** Setup the input buffer state to scan the given bytes. The next call to ast_yylex() will
  * scan from a @e copy of @a bytes.
- * \param bytes the byte buffer to scan
- * \param len the number of bytes in the buffer pointed to by @a bytes.
- * \param yyscanner The scanner object.
- * 
- * \return the newly allocated buffer state object.
+ * @param bytes the byte buffer to scan
+ * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yyscanner The scanner object.
+ * @return the newly allocated buffer state object.
  */
 YY_BUFFER_STATE ast_yy_scan_bytes  (yyconst char * bytes, int  len , yyscan_t yyscanner)
 {
@@ -2783,9 +2825,8 @@ static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
 
 /* Accessor  methods (get/set functions) to struct members. */
 
-/*!
- * \brief Get the user-defined data for this scanner.
- * \param yyscanner The scanner object.
+/** Get the user-defined data for this scanner.
+ * @param yyscanner The scanner object.
  */
 YY_EXTRA_TYPE ast_yyget_extra  (yyscan_t yyscanner)
 {
@@ -2793,9 +2834,8 @@ YY_EXTRA_TYPE ast_yyget_extra  (yyscan_t yyscanner)
     return yyextra;
 }
 
-/*!
- * \brief Get the current line number.
- * \param yyscanner The scanner object.
+/** Get the current line number.
+ * @param yyscanner The scanner object.
  */
 int ast_yyget_lineno  (yyscan_t yyscanner)
 {
@@ -2807,9 +2847,8 @@ int ast_yyget_lineno  (yyscan_t yyscanner)
     return yylineno;
 }
 
-/*!
- * \brief Get the current column number.
- * \param yyscanner The scanner object.
+/** Get the current column number.
+ * @param yyscanner The scanner object.
  */
 int ast_yyget_column  (yyscan_t yyscanner)
 {
@@ -2821,9 +2860,8 @@ int ast_yyget_column  (yyscan_t yyscanner)
     return yycolumn;
 }
 
-/*!
- * \brief Get the input stream.
- * \param yyscanner The scanner object.
+/** Get the input stream.
+ * @param yyscanner The scanner object.
  */
 FILE *ast_yyget_in  (yyscan_t yyscanner)
 {
@@ -2831,9 +2869,8 @@ FILE *ast_yyget_in  (yyscan_t yyscanner)
     return yyin;
 }
 
-/*!
- * \brief Get the output stream.
- * \param yyscanner The scanner object.
+/** Get the output stream.
+ * @param yyscanner The scanner object.
  */
 FILE *ast_yyget_out  (yyscan_t yyscanner)
 {
@@ -2841,9 +2878,8 @@ FILE *ast_yyget_out  (yyscan_t yyscanner)
     return yyout;
 }
 
-/*!
- * \brief Get the length of the current token.
- * \param yyscanner The scanner object.
+/** Get the length of the current token.
+ * @param yyscanner The scanner object.
  */
 int ast_yyget_leng  (yyscan_t yyscanner)
 {
@@ -2851,9 +2887,8 @@ int ast_yyget_leng  (yyscan_t yyscanner)
     return yyleng;
 }
 
-/*!
- * \brief Get the current token.
- * \param yyscanner The scanner object.
+/** Get the current token.
+ * @param yyscanner The scanner object.
  */
 
 char *ast_yyget_text  (yyscan_t yyscanner)
@@ -2862,10 +2897,9 @@ char *ast_yyget_text  (yyscan_t yyscanner)
     return yytext;
 }
 
-/*!
- * \brief Set the user-defined data. This data is never touched by the scanner.
- * \param user_defined The data to be associated with this scanner.
- * \param yyscanner The scanner object.
+/** Set the user-defined data. This data is never touched by the scanner.
+ * @param user_defined The data to be associated with this scanner.
+ * @param yyscanner The scanner object.
  */
 void ast_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
 {
@@ -2873,10 +2907,9 @@ void ast_yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
     yyextra = user_defined ;
 }
 
-/*!
- * \brief Set the current line number.
- * \param line_number
- * \param yyscanner The scanner object.
+/** Set the current line number.
+ * @param line_number
+ * @param yyscanner The scanner object.
  */
 void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
 {
@@ -2889,10 +2922,9 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
     yylineno = line_number;
 }
 
-/*!
- * \brief Set the current column.
- * \param column_no
- * \param yyscanner The scanner object.
+/** Set the current column.
+ * @param line_number
+ * @param yyscanner The scanner object.
  */
 void ast_yyset_column (int  column_no , yyscan_t yyscanner)
 {
@@ -2905,12 +2937,11 @@ void ast_yyset_column (int  column_no , yyscan_t yyscanner)
     yycolumn = column_no;
 }
 
-/*!
- * \brief Set the input stream. This does not discard the current
+/** Set the input stream. This does not discard the current
  * input buffer.
- * \param in_str A readable stream.
- * \param yyscanner The scanner object.
- * \see ast_yy_switch_to_buffer
+ * @param in_str A readable stream.
+ * @param yyscanner The scanner object.
+ * @see ast_yy_switch_to_buffer
  */
 void ast_yyset_in (FILE *  in_str , yyscan_t yyscanner)
 {
@@ -2995,8 +3026,7 @@ static int yy_init_globals (yyscan_t yyscanner)
 
 /* User-visible API */
 
-/*!
- * \brief ast_yylex_init is special because it creates the scanner itself, so it is
+/* ast_yylex_init is special because it creates the scanner itself, so it is
  * the ONLY reentrant function that doesn't take the scanner as the last argument.
  * That's why we explicitly handle the declaration, instead of using our macros.
  */
@@ -3021,7 +3051,7 @@ int ast_yylex_init(yyscan_t* ptr_yy_globals)
     return yy_init_globals ( *ptr_yy_globals );
 }
 
-/*! \brief ast_yylex_destroy is for both reentrant and non-reentrant scanners. */
+/* ast_yylex_destroy is for both reentrant and non-reentrant scanners. */
 int ast_yylex_destroy  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
@@ -3108,7 +3138,7 @@ void ast_yyfree (void * ptr , yyscan_t yyscanner)
 #undef YY_DECL_IS_OURS
 #undef YY_DECL
 #endif
-#line 205 "ast_expr2.fl"
+#line 222 "ast_expr2.fl"
 
 
 
@@ -3143,10 +3173,10 @@ int ast_expr(char *expr, char *buf, int length)
 			return_value = 1;
 		}
 	} else {
-		if (io.val->type == AST_EXPR_integer) {
+		if (io.val->type == AST_EXPR_number) {
 			int res_length;
 
-			res_length = snprintf(buf, length, "%ld", (long int) io.val->u.i);
+			res_length = snprintf(buf, length, FP___PRINTF, io.val->u.i);
 			return_value = (res_length <= length) ? res_length : length;
 		} else {
 #if defined(STANDALONE) || defined(LOW_MEMORY) || defined(STANDALONE_AEL)
