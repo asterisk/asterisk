@@ -2129,9 +2129,11 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		/* Drop first digit from the buffer */
 		memmove(chan->dtmfq, chan->dtmfq + 1, sizeof(chan->dtmfq) - 1);
 		f = &chan->dtmff;
-		if (ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY))
+		if (ast_test_flag(chan, AST_FLAG_END_DTMF_ONLY)) {
+			ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass, chan->name);
 			chan->dtmff.frametype = AST_FRAME_DTMF_END;
-		else {
+		} else {
+			ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %d queued on %s\n", f->subclass, AST_DEFAULT_EMULATE_DTMF_DURATION, chan->name);
 			chan->dtmff.frametype = AST_FRAME_DTMF_BEGIN;
 			ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
 			chan->emulate_dtmf_digit = f->subclass;
@@ -2295,6 +2297,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 							chan->emulate_dtmf_duration = AST_MIN_DTMF_DURATION;
 					} else
 						chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
+					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %d queued on %s\n", f->subclass, chan->emulate_dtmf_duration, chan->name);
 				}
 			} else {
 				struct timeval now = ast_tvnow();
@@ -2336,6 +2339,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					chan->dtmf_tv = now;
 					ast_clear_flag(chan, AST_FLAG_EMULATE_DTMF);
 					chan->emulate_dtmf_digit = 0;
+					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass, chan->name);
 				}
 			}
 			break;
@@ -2366,6 +2370,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					f->subclass = chan->emulate_dtmf_digit;
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
 					chan->dtmf_tv = now;
+					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass, chan->name);
 				} else {
 					/* Drop voice frames while we're still in the middle of the digit */
 					ast_frfree(f);
