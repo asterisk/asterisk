@@ -114,6 +114,10 @@ of data. */
 int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
 
+/* BEGIN: chan_misdn.h */
+
+ast_mutex_t release_lock;
+
 enum misdn_chan_state {
 	MISDN_NOTHING=0,	/*!< at beginning */
 	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
@@ -2326,11 +2330,13 @@ static int misdn_hangup(struct ast_channel *ast)
 		/* between request and call */
 		ast_debug(1, "State Reserved (or nothing) => chanIsAvail\n");
 		MISDN_ASTERISK_TECH_PVT(ast) = NULL;
-		
+	
+		ast_mutex_lock(&release_lock);
 		cl_dequeue_chan(&cl_te, p);
 		close(p->pipe[0]);
 		close(p->pipe[1]);
 		ast_free(p);
+		ast_mutex_unlock(&release_lock);
 		
 		if (bc)
 			misdn_lib_release(bc);
@@ -3388,67 +3394,73 @@ static void hangup_chan(struct chan_list *ch)
 
 /** Isdn asks us to release channel, pendant to misdn_hangup **/
 static void release_chan(struct misdn_bchannel *bc) {
-	struct ast_channel *ast = NULL;
-	struct chan_list *ch = find_chan_by_bc(cl_te, bc);
+	struct ast_channel *ast=NULL;
 
-	if (!ch)  {
-		chan_misdn_log(1, bc->port, "release_chan: Ch not found!\n");
-		return;
-	}
-		
-	if (ch->ast) {
-		ast = ch->ast;
-	} 
-		
-	chan_misdn_log(5, bc->port, "release_chan: bc with l3id: %x\n", bc->l3_id);
-		
-	/*releaseing jitterbuffer*/
-	if (ch->jb ) {
-		misdn_jb_destroy(ch->jb);
-		ch->jb = NULL;
-	} else {
-		if (!bc->nojitter)
-			chan_misdn_log(5, bc->port, "Jitterbuffer already destroyed.\n");
-	}
-
-	if (ch->overlap_dial) {
-		if (ch->overlap_dial_task != -1) {
-			misdn_tasks_remove(ch->overlap_dial_task);
-			ch->overlap_dial_task = -1;
+	ast_mutex_lock(&release_lock);
+	{
+		struct chan_list *ch=find_chan_by_bc(cl_te, bc);
+		if (!ch)  {
+			chan_misdn_log(1, bc->port, "release_chan: Ch not found!\n");
+			ast_mutex_unlock(&release_lock);
+			return;
 		}
-		ast_mutex_destroy(&ch->overlap_tv_lock);
-	}
 
-	if (ch->originator == ORG_AST) {
-		misdn_out_calls[bc->port]--;
-	} else {
-		misdn_in_calls[bc->port]--;
-	}
-		
-	if (ch) {
-		close(ch->pipe[0]);
-		close(ch->pipe[1]);
+		if (ch->ast) {
+			ast = ch->ast;
+		} 
 
-		if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
-			chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n", bc ? bc->pid : -1, ast->context, ast->exten, ast->cid.cid_num, misdn_get_ch_state(ch));
-			chan_misdn_log(3, bc->port, " --> * State Down\n");
-			MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+		chan_misdn_log(5, bc->port, "release_chan: bc with l3id: %x\n", bc->l3_id);
 
-			if (ast->_state != AST_STATE_RESERVED) {
-				chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
-				ast_setstate(ast, AST_STATE_DOWN);
+		/*releaseing jitterbuffer*/
+		if (ch->jb ) {
+			misdn_jb_destroy(ch->jb);
+			ch->jb = NULL;
+		} else {
+			if (!bc->nojitter)
+				chan_misdn_log(5, bc->port, "Jitterbuffer already destroyed.\n");
+		}
+
+		if (ch->overlap_dial) {
+			if (ch->overlap_dial_task != -1) {
+				misdn_tasks_remove(ch->overlap_dial_task);
+				ch->overlap_dial_task = -1;
 			}
+			ast_mutex_destroy(&ch->overlap_tv_lock);
 		}
 
-		ch->state = MISDN_CLEANING;
-		cl_dequeue_chan(&cl_te, ch);
+		if (ch->originator == ORG_AST) {
+			misdn_out_calls[bc->port]--;
+		} else {
+			misdn_in_calls[bc->port]--;
+		}
 
-		ast_free(ch);
-	} else {
-		/* chan is already cleaned, so exiting  */
+		if (ch) {
+			close(ch->pipe[0]);
+			close(ch->pipe[1]);
+
+			if (ast && MISDN_ASTERISK_TECH_PVT(ast)) {
+				chan_misdn_log(1, bc->port, "* RELEASING CHANNEL pid:%d ctx:%s dad:%s oad:%s state: %s\n", bc ? bc->pid : -1, ast->context, ast->exten, ast->cid.cid_num, misdn_get_ch_state(ch));
+				chan_misdn_log(3, bc->port, " --> * State Down\n");
+				MISDN_ASTERISK_TECH_PVT(ast) = NULL;
+
+				if (ast->_state != AST_STATE_RESERVED) {
+					chan_misdn_log(3, bc->port, " --> Setting AST State to down\n");
+					ast_setstate(ast, AST_STATE_DOWN);
+				}
+			}
+
+			ch->state = MISDN_CLEANING;
+			cl_dequeue_chan(&cl_te, ch);
+
+			ast_free(ch);
+		} else {
+			/* chan is already cleaned, so exiting  */
+		}
+
+		ast_mutex_unlock(&release_lock);
 	}
-}
 /*** release end **/
+}
 
 static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded_chan)
 {
@@ -4771,6 +4783,7 @@ static int load_module(void)
 	}
 
 	ast_mutex_init(&cl_te_lock);
+	ast_mutex_init(&release_lock);
 
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);
