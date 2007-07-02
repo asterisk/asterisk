@@ -4,7 +4,7 @@
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
  *
- * And then overhauled twice by Steve Murphy (murf@e-tools.com)
+ * And then overhauled twice by Steve Murphy (murf@digium.com)
  * to add double-quoted strings, allow mult. spaces, improve
  * error messages, and then to fold in a flex scanner for the 
  * yylex operation.
@@ -12,16 +12,33 @@
  * $FreeBSD: src/bin/expr/expr.y,v 1.16 2000/07/22 10:59:36 se Exp $
  */
 
-#include "asterisk.h"
-
-#ifndef STANDALONE
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-#endif
-
 #include <sys/types.h>
 #include <stdio.h>
+
+#ifdef STANDALONE /* I guess somewhere, the feature is set in the asterisk includes */
+#ifndef __USE_ISOC99
+#define __USE_ISOC99 1
+#endif
+#endif
+
+#ifdef __USE_ISOC99
+#define FP___PRINTF "%.16Lg"
+#define FP___FMOD   fmodl
+#define FP___STRTOD  strtold
+#define FP___TYPE    long double
+#else
+#define FP___PRINTF "%.8g"
+#define FP___FMOD   fmod
+#define FP___STRTOD  strtod
+#define FP___TYPE    double
+#endif
+
 #include <stdlib.h>
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <string.h>
+#include <math.h>
 #include <locale.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -34,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <regex.h>
 #include <limits.h>
 
+#include "asterisk.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/logger.h"
 
@@ -50,7 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #  if ! defined(QUAD_MAX)
 #   define QUAD_MAX     (0x7fffffffffffffffLL)
 #  endif
-
+#define YYENABLE_NLS 0
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
@@ -58,7 +76,7 @@ extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
 enum valtype {
-	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string
 } ;
 
 #ifdef STANDALONE
@@ -69,7 +87,7 @@ struct val {
 	enum valtype type;
 	union {
 		char *s;
-		quad_t i;
+		FP___TYPE i; /* either long double, or just double, on a bad day */
 	} u;
 } ;
 
@@ -82,14 +100,14 @@ struct parse_io
 	yyscan_t scanner;
 };
  
-static int		chk_div __P((quad_t, quad_t));
-static int		chk_minus __P((quad_t, quad_t, quad_t));
-static int		chk_plus __P((quad_t, quad_t, quad_t));
-static int		chk_times __P((quad_t, quad_t, quad_t));
+static int		chk_div __P((FP___TYPE, FP___TYPE));
+static int		chk_minus __P((FP___TYPE, FP___TYPE, FP___TYPE));
+static int		chk_plus __P((FP___TYPE, FP___TYPE, FP___TYPE));
+static int		chk_times __P((FP___TYPE, FP___TYPE, FP___TYPE));
 static void		free_value __P((struct val *));
 static int		is_zero_or_null __P((struct val *));
 static int		isstring __P((struct val *));
-static struct val	*make_integer __P((quad_t));
+static struct val	*make_number __P((FP___TYPE));
 static struct val	*make_str __P((const char *));
 static struct val	*op_and __P((struct val *, struct val *));
 static struct val	*op_colon __P((struct val *, struct val *));
@@ -109,7 +127,7 @@ static struct val	*op_or __P((struct val *, struct val *));
 static struct val	*op_plus __P((struct val *, struct val *));
 static struct val	*op_rem __P((struct val *, struct val *));
 static struct val	*op_times __P((struct val *, struct val *));
-static quad_t		to_integer __P((struct val *));
+static int		to_number __P((struct val *));
 static void		to_string __P((struct val *));
 
 /* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
@@ -174,7 +192,7 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = $1->type;
-              if( $1->type == AST_EXPR_integer )
+              if( $1->type == AST_EXPR_number )
 				  ((struct parse_io *)parseio)->val->u.i = $1->u.i;
               else
 				  ((struct parse_io *)parseio)->val->u.s = $1->u.s; 
@@ -270,7 +288,7 @@ expr:	TOKEN   { $$= $1;}
 %%
 
 static struct val *
-make_integer (quad_t i)
+make_number (FP___TYPE i)
 {
 	struct val *vp;
 
@@ -280,7 +298,7 @@ make_integer (quad_t i)
 		return(NULL);
 	}
 
-	vp->type = AST_EXPR_integer;
+	vp->type = AST_EXPR_number;
 	vp->u.i  = i;
 	return vp; 
 }
@@ -290,7 +308,7 @@ make_str (const char *s)
 {
 	struct val *vp;
 	size_t i;
-	int isint;
+	int isint; /* this started out being a test for an integer, but then ended up being a test for a float */
 
 	vp = (struct val *) malloc (sizeof (*vp));
 	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
@@ -298,14 +316,13 @@ make_str (const char *s)
 		return(NULL);
 	}
 
-	for(i = 1, isint = isdigit(s[0]) || s[0] == '-';
-	    isint && i < strlen(s);
-	    i++)
+	for (i = 0, isint = (isdigit(s[0]) || s[0] == '-' || s[0]=='.'); isint && i < strlen(s); i++)
 	{
-		if(!isdigit(s[i]))
-			 isint = 0;
+		if (!isdigit(s[i]) && s[i] != '.') {
+			isint = 0;
+			break;
+		}
 	}
-
 	if (isint)
 		vp->type = AST_EXPR_numeric_string;
 	else	
@@ -327,17 +344,17 @@ free_value (struct val *vp)
 }
 
 
-static quad_t
-to_integer (struct val *vp)
+static int
+to_number (struct val *vp)
 {
-	quad_t i;
+	FP___TYPE i;
 	
 	if (vp == NULL) {
-		ast_log(LOG_WARNING,"vp==NULL in to_integer()\n");
+		ast_log(LOG_WARNING,"vp==NULL in to_number()\n");
 		return(0);
 	}
 
-	if (vp->type == AST_EXPR_integer)
+	if (vp->type == AST_EXPR_number)
 		return 1;
 
 	if (vp->type == AST_EXPR_string)
@@ -345,16 +362,16 @@ to_integer (struct val *vp)
 
 	/* vp->type == AST_EXPR_numeric_string, make it numeric */
 	errno = 0;
-	i  = strtoll(vp->u.s, (char**)NULL, 10);
+	i  = FP___STRTOD(vp->u.s, (char**)0); /* either strtod, or strtold on a good day */
 	if (errno != 0) {
-		ast_log(LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
+		ast_log(LOG_WARNING,"Conversion of %s to number under/overflowed!\n", vp->u.s);
 		free(vp->u.s);
 		vp->u.s = 0;
 		return(0);
 	}
 	free (vp->u.s);
 	vp->u.i = i;
-	vp->type = AST_EXPR_integer;
+	vp->type = AST_EXPR_number;
 	return 1;
 }
 
@@ -395,7 +412,7 @@ to_string (struct val *vp)
 		return;
 	}
 
-	sprintf(tmp, "%ld", (long int) vp->u.i);
+	sprintf(tmp, FP___PRINTF, vp->u.i);
 	vp->type = AST_EXPR_string;
 	vp->u.s  = tmp;
 }
@@ -404,7 +421,7 @@ to_string (struct val *vp)
 static int
 isstring (struct val *vp)
 {
-	/* only TRUE if this string is not a valid integer */
+	/* only TRUE if this string is not a valid number */
 	return (vp->type == AST_EXPR_string);
 }
 
@@ -412,10 +429,10 @@ isstring (struct val *vp)
 static int
 is_zero_or_null (struct val *vp)
 {
-	if (vp->type == AST_EXPR_integer) {
+	if (vp->type == AST_EXPR_number) {
 		return (vp->u.i == 0);
 	} else {
-		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
+		return (*vp->u.s == 0 || (to_number(vp) && vp->u.i == 0));
 	}
 	/* NOTREACHED */
 }
@@ -502,7 +519,7 @@ op_and (struct val *a, struct val *b)
 	if (is_zero_or_null (a) || is_zero_or_null (b)) {
 		free_value (a);
 		free_value (b);
-		return (make_integer ((quad_t)0));
+		return (make_number ((double)0.0));
 	} else {
 		free_value (b);
 		return (a);
@@ -517,18 +534,18 @@ op_eq (struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);	
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) == 0));
+		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) == 0));
 	} else {
 #ifdef DEBUG_FOR_CONVERSIONS
 		char buffer[2000];
 		sprintf(buffer,"Converting '%s' and '%s' ", a->u.s, b->u.s);
 #endif
-		(void)to_integer(a);
-		(void)to_integer(b);
+		(void)to_number(a);
+		(void)to_number(b);
 #ifdef DEBUG_FOR_CONVERSIONS
 		ast_log(LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
 #endif
-		r = make_integer ((quad_t)(a->u.i == b->u.i));
+		r = make_number ((FP___TYPE)(a->u.i == b->u.i));
 	}
 
 	free_value (a);
@@ -544,11 +561,11 @@ op_gt (struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) > 0));
+		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) > 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i > b->u.i));
+		(void)to_number(a);
+		(void)to_number(b);
+		r = make_number ((FP___TYPE)(a->u.i > b->u.i));
 	}
 
 	free_value (a);
@@ -564,11 +581,11 @@ op_lt (struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) < 0));
+		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) < 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i < b->u.i));
+		(void)to_number(a);
+		(void)to_number(b);
+		r = make_number ((FP___TYPE)(a->u.i < b->u.i));
 	}
 
 	free_value (a);
@@ -584,11 +601,11 @@ op_ge (struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) >= 0));
+		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) >= 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i >= b->u.i));
+		(void)to_number(a);
+		(void)to_number(b);
+		r = make_number ((FP___TYPE)(a->u.i >= b->u.i));
 	}
 
 	free_value (a);
@@ -604,11 +621,11 @@ op_le (struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) <= 0));
+		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) <= 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i <= b->u.i));
+		(void)to_number(a);
+		(void)to_number(b);
+		r = make_number ((FP___TYPE)(a->u.i <= b->u.i));
 	}
 
 	free_value (a);
@@ -638,7 +655,7 @@ op_cond (struct val *a, struct val *b, struct val *c)
 	}
 	else
 	{
-		(void)to_integer(a);
+		(void)to_number(a);
 		if( a->u.i )
 		{
 			free_value(a);
@@ -663,11 +680,11 @@ op_ne (struct val *a, struct val *b)
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) != 0));
+		r = make_number ((FP___TYPE)(strcoll (a->u.s, b->u.s) != 0));
 	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i != b->u.i));
+		(void)to_number(a);
+		(void)to_number(b);
+		r = make_number ((FP___TYPE)(a->u.i != b->u.i));
 	}
 
 	free_value (a);
@@ -676,7 +693,7 @@ op_ne (struct val *a, struct val *b)
 }
 
 static int
-chk_plus (quad_t a, quad_t b, quad_t r)
+chk_plus (FP___TYPE a, FP___TYPE b, FP___TYPE r)
 {
 	/* sum of two positive numbers must be positive */
 	if (a > 0 && b > 0 && r <= 0)
@@ -693,23 +710,23 @@ op_plus (struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a)) {
+	if (!to_number (a)) {
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING,"non-numeric argument\n");
-		if (!to_integer (b)) {
+		if (!to_number (b)) {
 			free_value(a);
 			free_value(b);
-			return make_integer(0);
+			return make_number(0);
 		} else {
 			free_value(a);
 			return (b);
 		}
-	} else if (!to_integer(b)) {
+	} else if (!to_number(b)) {
 		free_value(b);
 		return (a);
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
+	r = make_number (a->u.i + b->u.i);
 	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
 		ast_log(LOG_WARNING,"overflow\n");
 	}
@@ -719,7 +736,7 @@ op_plus (struct val *a, struct val *b)
 }
 
 static int
-chk_minus (quad_t a, quad_t b, quad_t r)
+chk_minus (FP___TYPE a, FP___TYPE b, FP___TYPE r)
 {
 	/* special case subtraction of QUAD_MIN */
 	if (b == QUAD_MIN) {
@@ -737,27 +754,27 @@ op_minus (struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a)) {
+	if (!to_number (a)) {
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
-		if (!to_integer (b)) {
+		if (!to_number (b)) {
 			free_value(a);
 			free_value(b);
-			return make_integer(0);
+			return make_number(0);
 		} else {
-			r = make_integer(0 - b->u.i);
+			r = make_number(0 - b->u.i);
 			free_value(a);
 			free_value(b);
 			return (r);
 		}
-	} else if (!to_integer(b)) {
+	} else if (!to_number(b)) {
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(b);
 		return (a);
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
+	r = make_number (a->u.i - b->u.i);
 	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
 		ast_log(LOG_WARNING, "overflow\n");
 	}
@@ -771,14 +788,14 @@ op_negate (struct val *a)
 {
 	struct val *r;
 
-	if (!to_integer (a) ) {
+	if (!to_number (a) ) {
 		free_value(a);
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
-		return make_integer(0);
+		return make_number(0);
 	}
 
-	r = make_integer (/*(quad_t)*/(- a->u.i));
+	r = make_number (- a->u.i);
 	if (chk_minus (0, a->u.i, r->u.i)) {
 		ast_log(LOG_WARNING, "overflow\n");
 	}
@@ -800,7 +817,7 @@ op_compl (struct val *a)
 	{
 		switch( a->type )
 		{
-		case AST_EXPR_integer:
+		case AST_EXPR_number:
 			if( a->u.i == 0 )
 				v1 = 0;
 			break;
@@ -831,13 +848,13 @@ op_compl (struct val *a)
 		}
 	}
 	
-	r = make_integer (!v1);
+	r = make_number (!v1);
 	free_value (a);
 	return r;
 }
 
 static int
-chk_times (quad_t a, quad_t b, quad_t r)
+chk_times (FP___TYPE a, FP___TYPE b, FP___TYPE r)
 {
 	/* special case: first operand is 0, no overflow possible */
 	if (a == 0)
@@ -853,15 +870,15 @@ op_times (struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_number (a) || !to_number (b)) {
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
-		return(make_integer(0));
+		return(make_number(0));
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
+	r = make_number (a->u.i * b->u.i);
 	if (chk_times (a->u.i, b->u.i, r->u.i)) {
 		ast_log(LOG_WARNING, "overflow\n");
 	}
@@ -871,7 +888,7 @@ op_times (struct val *a, struct val *b)
 }
 
 static int
-chk_div (quad_t a, quad_t b)
+chk_div (FP___TYPE a, FP___TYPE b)
 {
 	/* div by zero has been taken care of before */
 	/* only QUAD_MIN / -1 causes overflow */
@@ -886,28 +903,28 @@ op_div (struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a)) {
+	if (!to_number (a)) {
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
-		return make_integer(0);
-	} else if (!to_integer (b)) {
+		return make_number(0);
+	} else if (!to_number (b)) {
 		free_value(a);
 		free_value(b);
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
-		return make_integer(INT_MAX);
+		return make_number(INT_MAX);
 	}
 
 	if (b->u.i == 0) {
 		ast_log(LOG_WARNING, "division by zero\n");		
 		free_value(a);
 		free_value(b);
-		return make_integer(INT_MAX);
+		return make_number(INT_MAX);
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
+	r = make_number (a->u.i / b->u.i);
 	if (chk_div (a->u.i, b->u.i)) {
 		ast_log(LOG_WARNING, "overflow\n");
 	}
@@ -921,12 +938,12 @@ op_rem (struct val *a, struct val *b)
 {
 	struct val *r;
 
-	if (!to_integer (a) || !to_integer (b)) {
+	if (!to_number (a) || !to_number (b)) {
 		if( !extra_error_message_supplied )
 			ast_log(LOG_WARNING, "non-numeric argument\n");
 		free_value(a);
 		free_value(b);
-		return make_integer(0);
+		return make_number(0);
 	}
 
 	if (b->u.i == 0) {
@@ -935,7 +952,7 @@ op_rem (struct val *a, struct val *b)
 		return(b);
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i % b->u.i));
+	r = make_number (FP___FMOD(a->u.i, b->u.i)); /* either fmod or fmodl if FP___TYPE is available */
 	/* chk_rem necessary ??? */
 	free_value (a);
 	free_value (b);
@@ -975,11 +992,11 @@ op_colon (struct val *a, struct val *b)
 			v = make_str (a->u.s + rm[1].rm_so);
 
 		} else {
-			v = make_integer ((quad_t)(rm[0].rm_eo - rm[0].rm_so));
+			v = make_number ((FP___TYPE)(rm[0].rm_eo - rm[0].rm_so));
 		}
 	} else {
 		if (rp.re_nsub == 0) {
-			v = make_integer ((quad_t)0);
+			v = make_number ((FP___TYPE)0);
 		} else {
 			v = make_str ("");
 		}
@@ -1026,11 +1043,11 @@ op_eqtilde (struct val *a, struct val *b)
 			v = make_str (a->u.s + rm[1].rm_so);
 
 		} else {
-			v = make_integer ((quad_t)(rm[0].rm_eo - rm[0].rm_so));
+			v = make_number ((FP___TYPE)(rm[0].rm_eo - rm[0].rm_so));
 		}
 	} else {
 		if (rp.re_nsub == 0) {
-			v = make_integer ((quad_t)0);
+			v = make_number ((FP___TYPE)0.0);
 		} else {
 			v = make_str ("");
 		}
