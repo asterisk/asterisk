@@ -491,7 +491,6 @@ static int manager_displayconnects (struct mansession *s)
 	return ret;
 }
 
-/*! \note The actionlock is read-locked by the caller of this function */
 static int handle_showmancmd(int fd, int argc, char *argv[])
 {
 	struct manager_action *cur;
@@ -501,6 +500,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
+	ast_rwlock_rdlock(&actionlock);
 	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
@@ -511,6 +511,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 			}
 		}
 	}
+	ast_rwlock_unlock(&actionlock);
 
 	return RESULT_SUCCESS;
 }
