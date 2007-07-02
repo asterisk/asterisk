@@ -201,6 +201,8 @@ enum layer_e {
 struct misdn_bchannel {
 	struct send_lock *send_lock;
 
+	int dummy;
+
 	int nt;
 	int pri;
 
