@@ -54,8 +54,10 @@ static struct limits {
 	{ RLIMIT_CORE, "-c", "core file size" },
 #ifdef RLIMIT_RSS
 	{ RLIMIT_RSS, "-m", "resident memory" },
-	{ RLIMIT_NPROC, "-u", "number of processes" },
 	{ RLIMIT_MEMLOCK, "-l", "amount of memory locked into RAM" },
+#endif
+#ifdef RLIMIT_NPROC
+	{ RLIMIT_NPROC, "-u", "number of processes" },
 #endif
 	{ RLIMIT_NOFILE, "-n", "number of file descriptors" },
 #ifdef VMEM_DEF
@@ -107,7 +109,11 @@ static int my_ulimit(int fd, int argc, char **argv)
 
 		if (argc == 3) {
 			int x;
+#ifdef RLIMIT_NPROC
 			if (resource != RLIMIT_NOFILE && resource != RLIMIT_CORE && resource != RLIMIT_NPROC && resource != RLIMIT_FSIZE) {
+#else
+			  if (resource != RLIMIT_NOFILE && resource != RLIMIT_CORE && resource != RLIMIT_FSIZE) {
+#endif
 				ast_cli(fd, "Resource not permitted to be set\n");
 				return RESULT_FAILURE;
 			}
