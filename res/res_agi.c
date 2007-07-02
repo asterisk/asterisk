@@ -1710,6 +1710,9 @@ static char *handle_agi_dump_commanddocs(struct ast_cli_entry *e, int cmd, struc
 		char fullcmd[80];
 
 		command = &commands[i];
+		if (!command->cmda[0])
+			break;
+
 		ast_join(fullcmd, sizeof(fullcmd), command->cmda);
 
 		if (command_name && strcasecmp(fullcmd, command_name))
