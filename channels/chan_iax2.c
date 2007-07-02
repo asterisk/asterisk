@@ -646,7 +646,7 @@ struct chan_iax2_pvt {
 	int frames_received;
 };
 
-static AST_LIST_HEAD_STATIC(queue, iax_frame);
+static AST_LIST_HEAD_STATIC(frame_queue, iax_frame);
 
 static AST_LIST_HEAD_STATIC(users, iax2_user);
 
@@ -1901,13 +1901,13 @@ retry:
 			ast_queue_hangup(owner);
 		}
 
-		AST_LIST_LOCK(&queue);
-		AST_LIST_TRAVERSE(&queue, cur, list) {
+		AST_LIST_LOCK(&frame_queue);
+		AST_LIST_TRAVERSE(&frame_queue, cur, list) {
 			/* Cancel any pending transmissions */
 			if (cur->callno == pvt->callno) 
 				cur->retries = -1;
 		}
-		AST_LIST_UNLOCK(&queue);
+		AST_LIST_UNLOCK(&frame_queue);
 
 		if (pvt->reg)
 			pvt->reg->callno = 0;
@@ -2017,9 +2017,9 @@ static void __attempt_transmit(void *data)
 	/* Do not try again */
 	if (freeme) {
 		/* Don't attempt delivery, just remove it from the queue */
-		AST_LIST_LOCK(&queue);
-		AST_LIST_REMOVE(&queue, f, list);
-		AST_LIST_UNLOCK(&queue);
+		AST_LIST_LOCK(&frame_queue);
+		AST_LIST_REMOVE(&frame_queue, f, list);
+		AST_LIST_UNLOCK(&frame_queue);
 		f->retrans = -1;
 		/* Free the IAX frame */
 		iax2_frame_free(f);
@@ -2218,15 +2218,15 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	AST_LIST_LOCK(&queue);
-	AST_LIST_TRAVERSE(&queue, cur, list) {
+	AST_LIST_LOCK(&frame_queue);
+	AST_LIST_TRAVERSE(&frame_queue, cur, list) {
 		if (cur->retries < 0)
 			dead++;
 		if (cur->final)
 			final++;
 		cnt++;
 	}
-	AST_LIST_UNLOCK(&queue);
+	AST_LIST_UNLOCK(&frame_queue);
 
 	ast_cli(fd, "    IAX Statistics\n");
 	ast_cli(fd, "---------------------\n");
@@ -2560,9 +2560,9 @@ static int iax2_transmit(struct iax_frame *fr)
 	/* By setting this to 0, the network thread will send it for us, and
 	   queue retransmission if necessary */
 	fr->sentyet = 0;
-	AST_LIST_LOCK(&queue);
-	AST_LIST_INSERT_TAIL(&queue, fr, list);
-	AST_LIST_UNLOCK(&queue);
+	AST_LIST_LOCK(&frame_queue);
+	AST_LIST_INSERT_TAIL(&frame_queue, fr, list);
+	AST_LIST_UNLOCK(&frame_queue);
 	/* Wake up the network and scheduler thread */
 	if (netthreadid != AST_PTHREADT_NULL)
 		pthread_kill(netthreadid, SIGURG);
@@ -5601,15 +5601,15 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->lastsent = 0;
 	pvt->nextpred = 0;
 	pvt->pingtime = DEFAULT_RETRY_TIME;
-	AST_LIST_LOCK(&queue);
-	AST_LIST_TRAVERSE(&queue, cur, list) {
+	AST_LIST_LOCK(&frame_queue);
+	AST_LIST_TRAVERSE(&frame_queue, cur, list) {
 		/* We must cancel any packets that would have been transmitted
 		   because now we're talking to someone new.  It's okay, they
 		   were transmitted to someone that didn't care anyway. */
 		if (callno == cur->callno) 
 			cur->retries = -1;
 	}
-	AST_LIST_UNLOCK(&queue);
+	AST_LIST_UNLOCK(&frame_queue);
 	return 0; 
 }
 
@@ -6154,15 +6154,15 @@ static void vnak_retransmit(int callno, int last)
 {
 	struct iax_frame *f;
 
-	AST_LIST_LOCK(&queue);
-	AST_LIST_TRAVERSE(&queue, f, list) {
+	AST_LIST_LOCK(&frame_queue);
+	AST_LIST_TRAVERSE(&frame_queue, f, list) {
 		/* Send a copy immediately */
 		if ((f->callno == callno) && iaxs[f->callno] &&
 			(f->oseqno >= last)) {
 			send_packet(f);
 		}
 	}
-	AST_LIST_UNLOCK(&queue);
+	AST_LIST_UNLOCK(&frame_queue);
 }
 
 static void __iax2_poke_peer_s(void *data)
@@ -7046,8 +7046,8 @@ static int socket_process(struct iax2_thread *thread)
 					if (iaxdebug)
 						ast_debug(1, "Cancelling transmission of packet %d\n", x);
 					call_to_destroy = 0;
-					AST_LIST_LOCK(&queue);
-					AST_LIST_TRAVERSE(&queue, cur, list) {
+					AST_LIST_LOCK(&frame_queue);
+					AST_LIST_TRAVERSE(&frame_queue, cur, list) {
 						/* If it's our call, and our timestamp, mark -1 retries */
 						if ((fr->callno == cur->callno) && (x == cur->oseqno)) {
 							cur->retries = -1;
@@ -7056,7 +7056,7 @@ static int socket_process(struct iax2_thread *thread)
 								call_to_destroy = fr->callno;
 						}
 					}
-					AST_LIST_UNLOCK(&queue);
+					AST_LIST_UNLOCK(&frame_queue);
 					if (call_to_destroy) {
 						if (iaxdebug)
 							ast_debug(1, "Really destroying %d, having been acked on final message\n", call_to_destroy);
@@ -7224,13 +7224,13 @@ retryowner:
 			case IAX_COMMAND_TXACC:
 				if (iaxs[fr->callno]->transferring == TRANSFER_BEGIN) {
 					/* Ack the packet with the given timestamp */
-					AST_LIST_LOCK(&queue);
-					AST_LIST_TRAVERSE(&queue, cur, list) {
+					AST_LIST_LOCK(&frame_queue);
+					AST_LIST_TRAVERSE(&frame_queue, cur, list) {
 						/* Cancel any outstanding txcnt's */
 						if ((fr->callno == cur->callno) && (cur->transfer))
 							cur->retries = -1;
 					}
-					AST_LIST_UNLOCK(&queue);
+					AST_LIST_UNLOCK(&frame_queue);
 					memset(&ied1, 0, sizeof(ied1));
 					iax_ie_append_short(&ied1, IAX_IE_CALLNO, iaxs[fr->callno]->callno);
 					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_TXREADY, 0, ied1.buf, ied1.pos, -1);
@@ -7968,14 +7968,14 @@ retryowner2:
 				break;	
 			case IAX_COMMAND_TXMEDIA:
 				if (iaxs[fr->callno]->transferring == TRANSFER_READY) {
-                                        AST_LIST_LOCK(&queue);
-                                        AST_LIST_TRAVERSE(&queue, cur, list) {
+                                        AST_LIST_LOCK(&frame_queue);
+                                        AST_LIST_TRAVERSE(&frame_queue, cur, list) {
                                                 /* Cancel any outstanding frames and start anew */
                                                 if ((fr->callno == cur->callno) && (cur->transfer)) {
                                                         cur->retries = -1;
                                                 }
                                         }
-                                        AST_LIST_UNLOCK(&queue);
+                                        AST_LIST_UNLOCK(&frame_queue);
 					/* Start sending our media to the transfer address, but otherwise leave the call as-is */
 					iaxs[fr->callno]->transferring = TRANSFER_MEDIAPASS;
 				}
@@ -8595,10 +8595,10 @@ static void *network_thread(void *ignore)
 
 		/* Go through the queue, sending messages which have not yet been
 		   sent, and scheduling retransmissions if appropriate */
-		AST_LIST_LOCK(&queue);
+		AST_LIST_LOCK(&frame_queue);
 		count = 0;
 		wakeup = -1;
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&queue, f, list) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&frame_queue, f, list) {
 			if (f->sentyet)
 				continue;
 			
@@ -8619,7 +8619,7 @@ static void *network_thread(void *ignore)
 
 			if (f->retries < 0) {
 				/* This is not supposed to be retransmitted */
-				AST_LIST_REMOVE(&queue, f, list);
+				AST_LIST_REMOVE(&frame_queue, f, list);
 				/* Free the iax frame */
 				iax_frame_free(f);
 			} else {
@@ -8630,7 +8630,7 @@ static void *network_thread(void *ignore)
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END
-		AST_LIST_UNLOCK(&queue);
+		AST_LIST_UNLOCK(&frame_queue);
 
 		pthread_testcancel();
 		if (count >= 20)
@@ -10548,12 +10548,12 @@ static int __unload_module(void)
 	/* Grab the sched lock resource to keep it away from threads about to die */
 	/* Cancel the network thread, close the net socket */
 	if (netthreadid != AST_PTHREADT_NULL) {
-		AST_LIST_LOCK(&queue);
+		AST_LIST_LOCK(&frame_queue);
 		ast_mutex_lock(&sched_lock);
 		pthread_cancel(netthreadid);
 		ast_cond_signal(&sched_cond);
 		ast_mutex_unlock(&sched_lock);	/* Release the schedule lock resource */
-		AST_LIST_UNLOCK(&queue);
+		AST_LIST_UNLOCK(&frame_queue);
 		pthread_join(netthreadid, NULL);
 	}
 	if (schedthreadid != AST_PTHREADT_NULL) {
