@@ -1603,6 +1603,13 @@ static char usage_noop[] =
 " Usage: NoOp\n"
 "	Does nothing.\n";
 
+/*!
+ * \brief AGI commands
+ *
+ * \todo XXX This array is not handled in a thread safe way.  There is no
+ * synchronization done at all between the agi register and unregister functions
+ * and the rest of this module which uses the entries here.
+ */
 static agi_command commands[MAX_COMMANDS] = {
 	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer },
 	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
