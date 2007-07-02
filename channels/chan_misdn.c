@@ -110,6 +110,10 @@ of data. */
 int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
 
+/* BEGIN: chan_misdn.h */
+
+ast_mutex_t release_lock;
+
 enum misdn_chan_state {
 	MISDN_NOTHING=0,	/*!< at beginning */
 	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
@@ -2424,11 +2428,13 @@ static int misdn_hangup(struct ast_channel *ast)
 		/* between request and call */
 		ast_log(LOG_DEBUG, "State Reserved (or nothing) => chanIsAvail\n");
 		MISDN_ASTERISK_TECH_PVT(ast)=NULL;
-		
+	
+		ast_mutex_lock(&release_lock);
 		cl_dequeue_chan(&cl_te, p);
 		close(p->pipe[0]);
 		close(p->pipe[1]);
 		free(p);
+		ast_mutex_unlock(&release_lock);
 		
 		if (bc)
 			misdn_lib_release(bc);
@@ -3516,10 +3522,13 @@ static void hangup_chan(struct chan_list *ch)
 /** Isdn asks us to release channel, pendant to misdn_hangup **/
 static void release_chan(struct misdn_bchannel *bc) {
 	struct ast_channel *ast=NULL;
+
+	ast_mutex_lock(&release_lock);
 	{
 		struct chan_list *ch=find_chan_by_bc(cl_te, bc);
 		if (!ch)  {
 			chan_misdn_log(1, bc->port, "release_chan: Ch not found!\n");
+			ast_mutex_unlock(&release_lock);
 			return;
 		}
 		
@@ -3578,6 +3587,8 @@ static void release_chan(struct misdn_bchannel *bc) {
 			/* chan is already cleaned, so exiting  */
 		}
 	}
+
+	ast_mutex_unlock(&release_lock);
 }
 /*** release end **/
 
@@ -4917,6 +4928,7 @@ static int load_module(void)
 	}
 	
 	ast_mutex_init(&cl_te_lock);
+	ast_mutex_init(&release_lock);
 
 	misdn_cfg_update_ptp();
 	misdn_cfg_get_ports_string(ports);
