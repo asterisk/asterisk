@@ -4814,8 +4814,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 	case EVENT_RESTART:
 
-		stop_bc_tones(ch);
-		release_chan(bc);
+		if (!bc->dummy) {
+			stop_bc_tones(ch);
+			release_chan(bc);
+		}
 		
 		break;
 				

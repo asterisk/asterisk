@@ -816,14 +816,10 @@ static void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bcha
 #endif
   
 	{
-		int  exclusive, channel = 0;
+		int  exclusive;
 		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &bc->restart_channel, nt,bc);
-		/* XXX: this is broken... channel is not used */
-		if (channel==0xff) /* any channel */
-			channel=-1;
-		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n");
+		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n", bc->restart_channel);
 	}
-  
  
 }
 
