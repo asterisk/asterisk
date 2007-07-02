@@ -9,7 +9,7 @@
 \usepackage{hyperref}
 
 \author{Asterisk Development Team \\ Asterisk.org}
-\title{Asterisk Reference Information \\ Version ASTERISKVERSION}
+\title{Asterisk Reference Information \\ Version SVN-trunk-r72921M}
 
 \begin{document}
 \maketitle
@@ -108,10 +108,15 @@ reference purposes.
   \section{Queue Logs}
   \input{queuelog.tex}
 
-% Generate this using the "core dumpappdocs" CLI command that is present
+% Generate this using the "core dump appdocs" CLI command that is present
 % when Asterisk is built with dev-mode enabled.
-\chapter{Application Reference}
+\chapter{Dialplan Application Reference}
 \input{ast_appdocs.tex}
+
+% Generate this using the "core dump funcdocs" CLI command that is present
+% when Asterisk is built with dev-mode enabled.
+\chapter{Dialplan Function Reference}
+\input{ast_funcdocs.tex}
 
 % This is a list of files not yet integrated into this document:
 %
