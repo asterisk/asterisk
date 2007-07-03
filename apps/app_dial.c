@@ -1706,7 +1706,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	if ((dialdata = strchr(announce, '|'))) {
 		*dialdata = '\0';
 		dialdata++;
-		if ((sleep = atoi(dialdata))) {
+		if (sscanf(dialdata, "%d", &sleep) == 1) {
 			sleep *= 1000;
 		} else {
 			ast_log(LOG_ERROR, "%s requires the numerical argument <sleep>\n",rapp);
@@ -1716,7 +1716,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if ((dialdata = strchr(dialdata, '|'))) {
 			*dialdata = '\0';
 			dialdata++;
-			if (!(loops = atoi(dialdata))) {
+			if (sscanf(dialdata, "%d", &loops) != 1) {
 				ast_log(LOG_ERROR, "%s requires the numerical argument <loops>\n",rapp);
 				LOCAL_USER_REMOVE(u);
 				return -1;
