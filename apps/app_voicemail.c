@@ -8635,7 +8635,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
-	RETRIEVE(vms->curdir, vms->curms, vmu->mailbox, vmu->context);
+	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
 	msg_cfg = ast_config_load(filename);
 	DISPOSE(vms->curdir, vms->curmsg);
 	if (!msg_cfg) {
