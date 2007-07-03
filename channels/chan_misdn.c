@@ -4783,11 +4783,6 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 
 static int misdn_check_l2l1(struct ast_channel *chan, void *data)
 {
-	if (strcasecmp(chan->tech->type,"mISDN")) {
-		ast_log(LOG_WARNING, "misdn_check_l2l1 makes only sense with chan_misdn channels!\n");
-		return -1;
-	}
-
 	AST_DECLARE_APP_ARGS(args,
 			AST_APP_ARG(grouppar);
 			AST_APP_ARG(timeout);
