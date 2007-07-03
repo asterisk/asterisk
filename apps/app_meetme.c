@@ -1423,7 +1423,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
-	char *exitkeys;
+	char *exitkeys = NULL;
 
 	if (!(user = ast_calloc(1, sizeof(*user))))
 		return ret;
@@ -2006,7 +2006,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					} else {
 						ast_debug(2, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
 					}
-				} else if ((f->frametype == AST_FRAME_DTMF) && (strchr(exitkeys, f->subclass)) && (confflags & CONFFLAG_KEYEXIT)) {
+				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_KEYEXIT) && (strchr(exitkeys, f->subclass))) {
 					char exitkey[2];
 
 					exitkey[0] = f->subclass;
