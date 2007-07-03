@@ -3321,6 +3321,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					ast_filerename(tmptxtfile, fn, NULL);
 					rename(tmptxtfile, txtfile);
 
+					/* Properly set permissions on voicemail text descriptor file.
+					   Unfortunately mkstemp() makes this file 0600 on most unix systems. */
+					if (chmod(txtfile, VOICEMAIL_FILE_MODE) < 0)
+						ast_log(LOG_ERROR, "Couldn't set permissions on voicemail text file %s: %s", txtfile, strerror(errno));
+
 					ast_unlock_path(dir);
 					if (ast_check_realtime("voicemail_data")) {
 						snprintf(tmpid, sizeof(tmpid), "%d", rtmsgid);
