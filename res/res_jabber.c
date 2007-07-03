@@ -523,7 +523,7 @@ static int aji_start_sasl(iksparser *prs, enum ikssasltype type, char *username,
 	char *base64;
 
 	if (type == IKS_STREAM_SASL_MD5)
-		return iks_start_sasl(prs, type, username, pass);
+		return iks_start_sasl(prs, IKS_SASL_DIGEST_MD5, username, pass);
 
 	x = iks_new("auth"); 
 	if (!x) {
