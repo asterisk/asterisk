@@ -4942,11 +4942,6 @@ static int misdn_check_l2l1(struct ast_channel *chan, void *data)
 			AST_APP_ARG(timeout);
 	);
 
-	if (strcasecmp(chan->tech->type, "mISDN")) {
-		ast_log(LOG_WARNING, "misdn_check_l2l1 makes only sense with chan_misdn channels!\n");
-		return -1;
-	}
-
 	if (ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "misdn_check_l2l1 Requires arguments\n");
 		return -1;
