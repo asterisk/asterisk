@@ -111,8 +111,8 @@ enum {
 	CONFFLAG_ADMIN = (1 << 0),
 	/*! If set the user can only receive audio from the conference */
 	CONFFLAG_MONITOR = (1 << 1),
-	/*! If set asterisk will exit conference when '#' is pressed */
-	CONFFLAG_POUNDEXIT = (1 << 2),
+	/*! If set asterisk will exit conference when key defined in p() option is pressed */
+	CONFFLAG_KEYEXIT = (1 << 2),
 	/*! If set asterisk will provide a menu to the user when '*' is pressed */
 	CONFFLAG_STARMENU = (1 << 3),
 	/*! If set the use can only send audio to the conference */
@@ -163,7 +163,8 @@ enum {
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
-	OPT_ARG_ARRAY_SIZE = 1,
+	OPT_ARG_EXITKEYS   = 1,
+	OPT_ARG_ARRAY_SIZE = 2,
 };
 
 AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
@@ -182,7 +183,7 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('M', CONFFLAG_MOH ),
 	AST_APP_OPTION('m', CONFFLAG_STARTMUTED ),
 	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
-	AST_APP_OPTION('p', CONFFLAG_POUNDEXIT ),
+	AST_APP_OPTION_ARG('p', CONFFLAG_KEYEXIT, OPT_ARG_EXITKEYS ),
 	AST_APP_OPTION('q', CONFFLAG_QUIET ),
 	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
 	AST_APP_OPTION('s', CONFFLAG_STARMENU ),
@@ -240,7 +241,10 @@ static const char *descrip =
 "             being muted, meaning (a) No encode is done on transmission and\n"
 "             (b) Received audio that is not registered as talking is omitted\n"
 "             causing no buildup in background noise\n"
-"      'p' -- allow user to exit the conference by pressing '#'\n"
+"      'p[(<keys>)]'\n"
+"          -- allow user to exit the conference by pressing '#' (default)\n"
+"             or any of the defined keys. If keys contain '*' this will override\n"
+"             option 's'. The key used is set to channel variable MEETME_EXIT_KEY.\n"
 "      'P' -- always prompt for the pin even if it is specified\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'r' -- Record conference (records as ${MEETME_RECORDINGFILE}\n"
@@ -1419,6 +1423,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
+	char *exitkeys;
 
 	if (!(user = ast_calloc(1, sizeof(*user))))
 		return ret;
@@ -1430,7 +1435,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		(opt_waitmarked_timeout > 0)) {
 		timeout = time(NULL) + opt_waitmarked_timeout;
 	}
-
+	
+	/* Get exit keys */
+	if ((confflags & CONFFLAG_KEYEXIT)) {
+		if (!ast_strlen_zero(optargs[OPT_ARG_EXITKEYS]))
+			exitkeys = ast_strdupa(optargs[OPT_ARG_EXITKEYS]);
+		else
+			exitkeys = ast_strdupa("#"); /* Default */
+	}
+	
 	if (confflags & CONFFLAG_RECORDCONF) {
 		if (!conf->recordingfilename) {
 			conf->recordingfilename = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFILE");
@@ -1993,7 +2006,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					} else {
 						ast_debug(2, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
 					}
-				} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
+				} else if ((f->frametype == AST_FRAME_DTMF) && (strchr(exitkeys, f->subclass)) && (confflags & CONFFLAG_KEYEXIT)) {
+					char exitkey[2];
+
+					exitkey[0] = f->subclass;
+					exitkey[1] = '\0';
+					
+					pbx_builtin_setvar_helper(chan, "MEETME_EXIT_KEY", exitkey);
+						
 					ret = 0;
 					ast_frfree(f);
 					break;
