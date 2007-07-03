@@ -631,8 +631,10 @@ static void *device_state_thread(void *data)
 
 	while (!device_state.stop) {
 		ast_mutex_lock(&device_state.lock);
-		ast_cond_wait(&device_state.cond, &device_state.lock);
-		sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry);
+		if (!(sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry))) {
+			ast_cond_wait(&device_state.cond, &device_state.lock);
+			sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry);
+		}
 		ast_mutex_unlock(&device_state.lock);
 
 		/* Check to see if we were woken up to see the request to stop */
