@@ -1533,6 +1533,26 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 
 		case EVENT_CONNECT_ACKNOWLEDGE:
 			setup_bc(bc);
+
+			if ( *bc->crypt_key ) {
+				cb_log(4, stack->port, "ENABLING BLOWFISH channel:%d oad%d:%s dad%d:%s\n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
+			}
+
+			if (misdn_cap_is_speech(bc->capability)) {
+				if (  !bc->nodsp) manager_ph_control(bc,  DTMF_TONE_START, 0);
+				manager_ec_enable(bc);
+
+				if ( bc->txgain != 0 ) {
+					cb_log(4, stack->port, "--> Changing txgain to %d\n", bc->txgain);
+					manager_ph_control(bc, VOL_CHANGE_TX, bc->txgain);
+				}
+				if ( bc->rxgain != 0 ) {
+					cb_log(4, stack->port, "--> Changing rxgain to %d\n", bc->rxgain);
+					manager_ph_control(bc, VOL_CHANGE_RX, bc->rxgain);
+				}
+			}
+
 			break;
 		case EVENT_CONNECT:
 
