@@ -3860,6 +3860,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				if (ast_exists_extension(ch->ast, ch->context, "i", 1, bc->oad)) {
 					ast_log(LOG_WARNING, "Extension can never match, So jumping to 'i' extension. port(%d)\n", bc->port);
 					strcpy(ch->ast->exten, "i");
+
+					ch->state = MISDN_DIALING;
 					start_pbx(ch, bc, ch->ast);
 					break;
 				}
@@ -3888,8 +3890,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				break;
 			}
 
-			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) 
+			if (ast_exists_extension(ch->ast, ch->context, bc->dad, 1, bc->oad))  {
+				
+				ch->state = MISDN_DIALING;
 				start_pbx(ch, bc, ch->ast);
+			}
 		} else {
 			/*  sending INFOS as DTMF-Frames :) */
 			struct ast_frame fr;
