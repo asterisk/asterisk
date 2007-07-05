@@ -147,4 +147,6 @@ char *misdn_cfg_get_next_group(char *group);
 int misdn_cfg_get_next_port_in_group(int port, char *group);
 #endif
 
+struct ast_jb_conf *misdn_get_global_jbconf(void);
+
 #endif

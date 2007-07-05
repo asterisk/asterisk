@@ -56,6 +56,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define NUM_GEN_ELEMENTS (sizeof(gen_spec) / sizeof(struct misdn_cfg_spec))
 #define NUM_PORT_ELEMENTS (sizeof(port_spec) / sizeof(struct misdn_cfg_spec))
 
+/*! Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = "",
+};
+
+static struct ast_jb_conf global_jbconf;
+
 enum misdn_cfg_type {
 	MISDN_CTYPE_STR,
 	MISDN_CTYPE_INT,
@@ -910,6 +921,8 @@ static void _build_general_config (struct ast_variable *v)
 	int pos;
 
 	for (; v; v = v->next) {
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
+			continue;
 		if (((pos = get_cfg_position(v->name, GEN_CFG)) < 0) || 
 			(_parse(&general_cfg[pos], v->value, gen_spec[pos].type, gen_spec[pos].boolint_def) < 0))
 			CLI_ERROR(v->name, v->value, "general");
@@ -1084,6 +1097,9 @@ int misdn_cfg_init (int this_max_ports)
 
 	ast_mutex_init(&config_mutex);
 
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
+
 	misdn_cfg_lock();
 
 	if (this_max_ports) {
@@ -1132,4 +1148,6 @@ int misdn_cfg_init (int this_max_ports)
 	return 0;
 }
 
-
+struct ast_jb_conf *misdn_get_global_jbconf() {
+	return &global_jbconf;
+}

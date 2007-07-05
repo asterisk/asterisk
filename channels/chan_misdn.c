@@ -75,6 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/sched.h"
 #include "asterisk/stringfields.h"
+#include "asterisk/abstract_jb.h"
 #include "asterisk/causes.h"
 
 #include "chan_misdn_config.h"
@@ -3228,7 +3229,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		else
 			tmp->rings = 0;
 		
-		
+	        ast_jb_configure(tmp, misdn_get_global_jbconf());
 	} else {
 		chan_misdn_log(-1, 0, "Unable to allocate channel structure\n");
 	}
