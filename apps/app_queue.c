@@ -4351,8 +4351,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 
 		/* List queue properties */
 		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
-			if (q->callscompleted > 0)
-				sl = 100 * ((float) q->callscompletedinsl / (float) q->callscompleted);
+			sl = ((q->callscompleted > 0) ? 100 * ((float)q->callscompletedinsl / (float)q->callscompleted) : 0);
 			astman_append(s, "Event: QueueParams\r\n"
 				"Queue: %s\r\n"
 				"Max: %d\r\n"
