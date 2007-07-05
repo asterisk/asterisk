@@ -179,6 +179,7 @@ mm_context_attachpart(MM_CTX *ctx, struct mm_mimepart *part)
  * part at the given position, moving any possible following MIME parts one
  * down the hierarchy.
  */
+#if 0
 int
 mm_context_attachpart_after(MM_CTX *ctx, struct mm_mimepart *part, int pos)
 {
@@ -202,6 +203,7 @@ mm_context_attachpart_after(MM_CTX *ctx, struct mm_mimepart *part, int pos)
 
 	return(0);
 }
+#endif
 
 /**
  * Deletes a MIME part object from a MiniMIME context
@@ -342,6 +344,7 @@ mm_context_haswarnings(MM_CTX *ctx)
  * This function generates a default boundary string for the given context.
  * If there is already a boundary for the context, the memory will be free()'d.
  */
+#if 0
 int
 mm_context_generateboundary(MM_CTX *ctx)
 {
@@ -384,6 +387,7 @@ mm_context_generateboundary(MM_CTX *ctx)
 	ctx->boundary = boundary;
 	return(0);
 }
+#endif
 
 /**
  * Sets a preamble for the given MiniMIME context
@@ -397,6 +401,7 @@ mm_context_generateboundary(MM_CTX *ctx)
  * object. If preamble is a NULL-pointer then the preamble will be deleted,
  * and the currently associated memory will be free automagically.
  */
+#if 0
 int
 mm_context_setpreamble(MM_CTX *ctx, char *preamble)
 {
@@ -413,7 +418,9 @@ mm_context_setpreamble(MM_CTX *ctx, char *preamble)
 	}	
 	return(0);
 }
+#endif
 
+#if 0
 char *
 mm_context_getpreamble(MM_CTX *ctx)
 {
@@ -422,6 +429,7 @@ mm_context_getpreamble(MM_CTX *ctx)
 
 	return(ctx->preamble);	
 }
+#endif
 
 /**
  * Creates an ASCII message of the specified context
@@ -439,6 +447,7 @@ mm_context_getpreamble(MM_CTX *ctx)
  *
  * Great care is taken to not produce invalid MIME output.
  */
+#if 0
 int
 mm_context_flatten(MM_CTX *ctx, char **flat, size_t *length, int flags)
 {
@@ -600,5 +609,6 @@ cleanup:
 	}	
 	return -1;
 }
+#endif
 
 /** @} */

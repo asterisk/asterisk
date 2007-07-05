@@ -235,6 +235,7 @@ cleanup:
  *
  * One should take care to free() the result once it's not needed anymore.
  */
+#if 0
 int
 mm_envelope_getrecipients(MM_CTX *ctx, char **result, size_t *length)
 {
@@ -265,5 +266,6 @@ mm_envelope_getrecipients(MM_CTX *ctx, char **result, size_t *length)
 	
 	return 0;
 }
+#endif
 
 /** @} */

@@ -409,6 +409,7 @@ mm_mimepart_getbody(struct mm_mimepart *part, int opaque)
  * body, and thus, the memory pointed to by data can be freed after the
  * operation. 
  */
+#if 0
 void
 mm_mimepart_setbody(struct mm_mimepart *part, const char *data, int opaque)
 {
@@ -423,6 +424,7 @@ mm_mimepart_setbody(struct mm_mimepart *part, const char *data, int opaque)
 	}
 	part->length = strlen(data);
 }
+#endif
 
 /**
  * Gets the length of a given MIME part object

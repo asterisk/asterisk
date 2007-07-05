@@ -125,6 +125,7 @@ mm_param_free(struct mm_param *param)
  * actual object, so the memory holding the arguments can safely be
  * freed after successfull return of this function.
  */
+#if 0
 struct mm_param *
 mm_param_generate(const char *name, const char *value)
 {
@@ -137,6 +138,7 @@ mm_param_generate(const char *name, const char *value)
 	
 	return param;
 }
+#endif
 
 /**
  * Sets the name of the given MIME parameter
@@ -146,6 +148,7 @@ mm_param_generate(const char *name, const char *value)
  * @param copy If set to > 0, copy the value stored in name
  * @returns The address of the previous name for passing to free()
  */
+#if 0
 char *
 mm_param_setname(struct mm_param *param, const char *name, int copy)
 {
@@ -161,6 +164,7 @@ mm_param_setname(struct mm_param *param, const char *name, int copy)
 
 	return retadr;	
 }
+#endif
 
 /**
  * Sets the value of the given MIME parameter
@@ -170,6 +174,7 @@ mm_param_setname(struct mm_param *param, const char *name, int copy)
  * @param copy If set to > 0, copy the value stored in value
  * @returns The address of the previous value for passing to free()
  */
+#if 0
 char *
 mm_param_setvalue(struct mm_param *param, const char *value, int copy)
 {
@@ -185,6 +190,7 @@ mm_param_setvalue(struct mm_param *param, const char *value, int copy)
 
 	return retadr;	
 }
+#endif
 
 /**
  * Gets the name of a MIME parameter object
@@ -192,12 +198,14 @@ mm_param_setvalue(struct mm_param *param, const char *value, int copy)
  * @param param A valid MIME parameter object
  * @returns The name of the MIME parameter
  */
+#if 0
 const char *
 mm_param_getname(struct mm_param *param)
 {
 	assert(param != NULL);
 	return param->name;
 }
+#endif
 
 /**
  * Gets the value of a MIME parameter object
@@ -205,11 +213,13 @@ mm_param_getname(struct mm_param *param)
  * @param param A valid MIME parameter object
  * @returns The value of the MIME parameter
  */
+#if 0
 const char *
 mm_param_getvalue(struct mm_param *param)
 {
 	assert(param != NULL);
 	return param->value;
 }
+#endif
 
 /** @} */

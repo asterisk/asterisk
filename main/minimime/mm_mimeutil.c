@@ -68,6 +68,7 @@ static const char boundary_charset[] =
  * This function dynamically allocates memory and returns a pointer to it.
  * This memory should be released with free() once not needed anymore.
  */
+#if 0
 int
 mm_mimeutil_gendate(char **result)
 {
@@ -86,7 +87,7 @@ mm_mimeutil_gendate(char **result)
 		return(-1);
 	}	
 }
-
+#endif
 
 int
 mm_mimeutil_genboundary(char *prefix, size_t length, char **result)

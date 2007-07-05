@@ -529,6 +529,7 @@ mm_content_setencoding(struct mm_content *ct, const char *encoding)
  * @param encoding A string representing the content encoding identifier
  * @return The numerical ID of the content encoding
  */ 
+#if 0
 int
 mm_content_getencoding(struct mm_content *ct, const char *encoding)
 {
@@ -545,6 +546,7 @@ mm_content_getencoding(struct mm_content *ct, const char *encoding)
 	/* Not found */
 	return MM_ENCODING_UNKNOWN;
 }
+#endif
 
 /**
  * Constructs a MIME conform string of Content-Type parameters.
