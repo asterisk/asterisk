@@ -4050,6 +4050,13 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	return ret;
 }
 
+static char *complete_queue_show(const char *line, const char *word, int pos, int state)
+{
+	if (pos == 2)
+		return complete_queue(line, word, pos, state);
+	return NULL;
+}
+
 /*!\brief callback to display queues status in manager
    \addtogroup Group_AMI
  */
@@ -4424,7 +4431,7 @@ static char qrm_cmd_usage[] =
 static struct ast_cli_entry cli_show_queue_deprecated = {
 	{ "show", "queue", NULL },
 	queue_show, NULL,
-	NULL, complete_queue };
+	NULL, complete_queue_show };
 
 static struct ast_cli_entry cli_add_queue_member_deprecated = {
 	{ "add", "queue", "member", NULL },
@@ -4444,7 +4451,7 @@ static struct ast_cli_entry cli_queue[] = {
 
 	{ { "queue", "show", NULL },
 	queue_show, "Show status of a specified queue",
-	queue_show_usage, complete_queue, &cli_show_queue_deprecated },
+	queue_show_usage, complete_queue_show, &cli_show_queue_deprecated },
 
 	{ { "queue", "add", "member", NULL },
 	handle_queue_add_member, "Add a channel to a specified queue",
