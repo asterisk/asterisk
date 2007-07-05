@@ -6449,6 +6449,9 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 	if (codec == AST_FORMAT_G729A) {
 		/* Indicate that we don't support VAD (G.729 annex B) */
 		ast_build_string(a_buf, a_size, "a=fmtp:%d annexb=no\r\n", rtp_code);
+	} else if (codec == AST_FORMAT_G723_1) {
+		/* Indicate that we don't support VAD (G.723.1 annex A) */
+		ast_build_string(a_buf, a_size, "a=fmtp:%d annexa=no\r\n", rtp_code);
 	} else if (codec == AST_FORMAT_ILBC) {
 		/* Add information about us using only 20/30 ms packetization */
 		ast_build_string(a_buf, a_size, "a=fmtp:%d mode=%d\r\n", rtp_code, fmt.cur_ms);
