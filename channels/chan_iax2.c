@@ -6556,32 +6556,32 @@ static void handle_deferred_full_frames(struct iax2_thread *thread)
  * If there are already any full frames queued, they are sorted
  * by sequence number.
  */
-static void defer_full_frame(struct iax2_thread *thread)
+static void defer_full_frame(struct iax2_thread *from_here, struct iax2_thread *to_here)
 {
 	struct iax2_pkt_buf *pkt_buf, *cur_pkt_buf;
 	struct ast_iax2_full_hdr *fh, *cur_fh;
 
-	if (!(pkt_buf = ast_calloc(1, sizeof(*pkt_buf) + thread->buf_len)))
+	if (!(pkt_buf = ast_calloc(1, sizeof(*pkt_buf) + from_here->buf_len)))
 		return;
 
-	pkt_buf->len = thread->buf_len;
-	memcpy(pkt_buf->buf, thread->buf, pkt_buf->len);
+	pkt_buf->len = from_here->buf_len;
+	memcpy(pkt_buf->buf, from_here->buf, pkt_buf->len);
 
 	fh = (struct ast_iax2_full_hdr *) pkt_buf->buf;
-	ast_mutex_lock(&thread->lock);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&thread->full_frames, cur_pkt_buf, entry) {
+	ast_mutex_lock(&to_here->lock);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&to_here->full_frames, cur_pkt_buf, entry) {
 		cur_fh = (struct ast_iax2_full_hdr *) cur_pkt_buf->buf;
 		if (fh->oseqno < cur_fh->oseqno) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&thread->full_frames, pkt_buf, entry);
+			AST_LIST_INSERT_BEFORE_CURRENT(&to_here->full_frames, pkt_buf, entry);
 			break;
 		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 
 	if (!cur_pkt_buf)
-		AST_LIST_INSERT_TAIL(&thread->full_frames, pkt_buf, entry);
+		AST_LIST_INSERT_TAIL(&to_here->full_frames, pkt_buf, entry);
 	
-	ast_mutex_unlock(&thread->lock);
+	ast_mutex_unlock(&to_here->lock);
 }
 
 static int socket_read(int *id, int fd, short events, void *cbdata)
@@ -6635,7 +6635,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if (cur) {
 			/* we found another thread processing a full frame for this call,
 			   so queue it up for processing later. */
-			defer_full_frame(cur);
+			defer_full_frame(thread, cur);
 			AST_LIST_UNLOCK(&active_list);
 			insert_idle_thread(thread);
 			return 1;
