@@ -1749,17 +1749,24 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		/* many things should be sent to the 'other' channel */
 		other = (who == chan) ? peer : chan;
 		if (f->frametype == AST_FRAME_CONTROL) {
-			if (f->subclass == AST_CONTROL_RINGING)
-				ast_indicate(other, AST_CONTROL_RINGING);
-			else if (f->subclass == -1)
-				ast_indicate(other, -1);
-			else if (f->subclass == AST_CONTROL_FLASH)
-				ast_indicate(other, AST_CONTROL_FLASH);
-			else if (f->subclass == AST_CONTROL_OPTION) {
+			switch (f->subclass) {
+			case AST_CONTROL_RINGING:
+			case AST_CONTROL_FLASH:
+			case -1:
+				ast_indicate(other, f->subclass);
+				break;
+			case AST_CONTROL_HOLD:
+			case AST_CONTROL_UNHOLD:
+				ast_indicate_data(other, f->subclass, f->data, f->datalen);
+				break;
+			case AST_CONTROL_OPTION:
 				aoh = f->data;
 				/* Forward option Requests */
-				if (aoh && aoh->flag == AST_OPTION_FLAG_REQUEST)
-					ast_channel_setoption(other, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
+				if (aoh && aoh->flag == AST_OPTION_FLAG_REQUEST) {
+					ast_channel_setoption(other, ntohs(aoh->option), aoh->data, 
+						f->datalen - sizeof(struct ast_option_header), 0);
+				}
+				break;
 			}
 		} else if (f->frametype == AST_FRAME_DTMF_BEGIN) {
 			/* eat it */
