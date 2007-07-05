@@ -3056,6 +3056,8 @@ static int create_addr_from_peer(struct sip_pvt *dialog, struct sip_peer *peer)
 		ast_string_field_set(dialog, fromdomain, peer->fromdomain);
 	if (!ast_strlen_zero(peer->fromuser))
 		ast_string_field_set(dialog, fromuser, peer->fromuser);
+	if (!ast_strlen_zero(peer->language))
+		ast_string_field_set(dialog, language, peer->language);
 	dialog->callgroup = peer->callgroup;
 	dialog->pickupgroup = peer->pickupgroup;
 	dialog->allowtransfer = peer->allowtransfer;
