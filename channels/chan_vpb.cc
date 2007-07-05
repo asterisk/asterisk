@@ -340,7 +340,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *i, enum ast_channel_state sta
 static void *do_chanreads(void *pvt);
 static struct ast_channel *vpb_request(const char *type, int format, void *data, int *cause);
 static int vpb_digit_begin(struct ast_channel *ast, char digit);
-static int vpb_digit_end(struct ast_channel *ast, char digit);
+static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
 static int vpb_call(struct ast_channel *ast, char *dest, int timeout);
 static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
@@ -1830,7 +1830,7 @@ static int vpb_digit_begin(struct ast_channel *ast, char digit)
 	/* XXX Modify this callback to let Asterisk control the length of DTMF */
 	return 0;
 }
-static int vpb_digit_end(struct ast_channel *ast, char digit)
+static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int duration)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
 	char s[2];
@@ -2625,7 +2625,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	if (option_verbose > 3)
 		ast_verbose("%s: New call for context [%s]\n",me->dev,context);
 	    
-	tmp = ast_channel_alloc(1, state, 0, 0, "", me->exten, me->context, 0, me->dev);
+	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, 0, me->dev);
 	if (tmp) {
 		if (use_ast_ind == 1){
 			tmp->tech = &vpb_tech_indicate;
