@@ -6624,23 +6624,24 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	fh = (struct ast_iax2_full_hdr *) thread->buf;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct iax2_thread *cur = NULL;
+		uint16_t callno = ntohs(fh->scallno) & ~IAX_FLAG_FULL;
 		
 		AST_LIST_LOCK(&active_list);
 		AST_LIST_TRAVERSE(&active_list, cur, list) {
-			if ((cur->ffinfo.callno == ntohs(fh->scallno)) &&
+			if ((cur->ffinfo.callno == callno) &&
 			    !inaddrcmp(&cur->ffinfo.sin, &thread->iosin))
 				break;
 		}
 		if (cur) {
 			/* we found another thread processing a full frame for this call,
 			   so queue it up for processing later. */
-			defer_full_frame(thread);
+			defer_full_frame(cur);
 			AST_LIST_UNLOCK(&active_list);
 			insert_idle_thread(thread);
 			return 1;
 		} else {
 			/* this thread is going to process this frame, so mark it */
-			thread->ffinfo.callno = ntohs(fh->scallno);
+			thread->ffinfo.callno = callno;
 			memcpy(&thread->ffinfo.sin, &thread->iosin, sizeof(thread->ffinfo.sin));
 			thread->ffinfo.type = fh->type;
 			thread->ffinfo.csub = fh->csub;
