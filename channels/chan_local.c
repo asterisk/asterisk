@@ -391,10 +391,10 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 		}
 	}
 
-	p->launchedpbx = 1;
-
 	/* Start switch on sub channel */
-	res = ast_pbx_start(p->chan);
+	if (!(res = ast_pbx_start(p->chan)))
+		p->launchedpbx = 1;
+
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
