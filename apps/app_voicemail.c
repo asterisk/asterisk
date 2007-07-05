@@ -2311,7 +2311,7 @@ static int invent_message(struct ast_channel *chan, char *context, char *ext, in
 
 	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
 
-	if ((res = create_dirpath(dest, sizeof(dest), context, ext, "greet"))) {
+	if ((res = create_dirpath(dest, sizeof(dest), context, ext, ""))) {
 		ast_log(LOG_WARNING, "Failed to make directory(%s)\n", fn);
 		return -1;
 	}
@@ -3018,7 +3018,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char priority[16];
 	char origtime[16];
 	char dir[PATH_MAX], tmpdir[PATH_MAX];
-	char dest[PATH_MAX];
 	char fn[PATH_MAX];
 	char prefile[PATH_MAX] = "";
 	char tempfile[PATH_MAX] = "";
@@ -3057,14 +3056,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	else
 		ast_copy_string(ext_context, vmu->context, sizeof(ext_context));
 	if (ast_test_flag(options, OPT_BUSY_GREETING)) {
-		res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "busy");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
 	} else if (ast_test_flag(options, OPT_UNAVAIL_GREETING)) {
-		res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "unavail");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
 	}
 	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
-	if ((res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "temp"))) {
+	if ((res = create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp"))) {
 		ast_log(LOG_WARNING, "Failed to make directory (%s)\n", tempfile);
 		return -1;
 	}
@@ -3074,7 +3071,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	DISPOSE(tempfile, -1);
 	/* It's easier just to try to make it than to check for its existence */
 	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
-	create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, ext, "tmp");
 
 	/* Check current or macro-calling context for special extensions */
 	if (ast_test_flag(vmu, VM_OPERATOR)) {
@@ -6383,13 +6379,11 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain)
 {
-	int res;
 	int cmd = 0;
 	int retries = 0;
 	int duration = 0;
 	char prefile[PATH_MAX] = "";
 	unsigned char buf[256];
-	char dest[PATH_MAX];
 	int bytes = 0;
 
 	if (ast_adsi_available(chan)) {
@@ -6402,10 +6396,6 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	}
 
 	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
-	if ((res = create_dirpath(dest, sizeof(dest), vmu->context, vms->username, "temp"))) {
-		ast_log(LOG_WARNING, "Failed to create directory (%s).\n", prefile);
-		return -1;
-	}
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
