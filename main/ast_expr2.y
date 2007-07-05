@@ -647,7 +647,7 @@ static char *compose_func_args(struct expr_node *arglist)
 		}
 		t = t->right;
 	}
-	ast_log(LOG_NOTICE,"argbuf uses %d bytes;\n", strlen(argbuf));
+	ast_log(LOG_NOTICE,"argbuf uses %d bytes;\n", (int) strlen(argbuf));
 	return argbuf;
 }
 
