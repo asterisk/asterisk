@@ -36,12 +36,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifdef __USE_ISOC99
-#define FP___PRINTF "%.16Lg"
+#define FP___PRINTF "%.18Lg"
 #define FP___FMOD   fmodl
 #define FP___STRTOD  strtold
 #define FP___TYPE    long double
 #else
-#define FP___PRINTF "%.8g"
+#define FP___PRINTF "%.16g"
 #define FP___FMOD   fmod
 #define FP___STRTOD  strtod
 #define FP___TYPE    double
@@ -62,7 +62,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ast_expr.h"
 #include "asterisk/logger.h"
+#ifndef STANDALONE
 #include "asterisk/strings.h"
+#include "asterisk/channel.h"
+#endif
 
 enum valtype {
 	AST_EXPR_number, AST_EXPR_numeric_string, AST_EXPR_string
@@ -101,6 +104,7 @@ struct parse_io
 	char *string;
 	struct val *val;
 	yyscan_t scanner;
+	struct ast_channel *chan;
 };
  
 void ast_yyset_column(int column_no, yyscan_t yyscanner);
@@ -133,6 +137,7 @@ static char *expr2_token_subst(char *mess);
 \<\=	{ SET_COLUMNS; SET_STRING; return TOK_LE;}
 \!\=	{ SET_COLUMNS; SET_STRING; return TOK_NE;}
 \+	{ SET_COLUMNS; SET_STRING; return TOK_PLUS;}
+\,	{ SET_COLUMNS; SET_STRING; return TOK_COMMA;}
 \-	{ SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 \*	{ SET_COLUMNS; SET_STRING; return TOK_MULT;}
 \/	{ SET_COLUMNS; SET_STRING; return TOK_DIV;}
@@ -166,7 +171,7 @@ static char *expr2_token_subst(char *mess);
 		return TOKEN;
 	}
 
-[a-zA-Z0-9,.';\\_^$#@]+	{
+[a-zA-Z0-9\.';\\_^$#@]+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
@@ -230,13 +235,14 @@ static char *expr2_token_subst(char *mess);
 int ast_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int ast_expr(char *expr, char *buf, int length)
+int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 {
 	struct parse_io io;
 	int return_value = 0;
 	
 	memset(&io, 0, sizeof(io));
 	io.string = expr;  /* to pass to the error routine */
+	io.chan = chan;
 	
 	ast_yylex_init(&io.scanner);
 	
@@ -310,6 +316,7 @@ static char *expr2_token_equivs1[] =
 	"TOK_COMPL",
 	"TOK_COLON",
 	"TOK_EQTILDE",
+	"TOK_COMMA",
 	"TOK_RP",
 	"TOK_LP"
 };
@@ -335,6 +342,7 @@ static char *expr2_token_equivs2[] =
 	"!",
 	":",
 	"=~",
+	",",
 	")",
 	"("
 };

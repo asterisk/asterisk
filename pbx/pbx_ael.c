@@ -90,7 +90,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals);
 void check_switch_expr(pval *item, struct argapp *apps);
 void ast_expr_register_extra_error_info(char *errmsg);
 void ast_expr_clear_extra_error_info(void);
-int  ast_expr(char *expr, char *buf, int length);
+int  ast_expr(char *expr, char *buf, int length,struct ast_channel *chan);
 struct pval *find_macro(char *name);
 struct pval *find_context(char *name);
 struct pval *find_context(char *name);
@@ -2640,7 +2640,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		if( !in_globals ) { /* don't check stuff inside the globals context; no wrapping in $[ ] there... */
 			snprintf(errmsg,sizeof(errmsg), "file %s, line %d, columns %d-%d, variable declaration expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.val);
 			ast_expr_register_extra_error_info(errmsg);
-			ast_expr(item->u2.val, expr_output, sizeof(expr_output));
+			ast_expr(item->u2.val, expr_output, sizeof(expr_output),NULL);
 			ast_expr_clear_extra_error_info();
 			if ( strpbrk(item->u2.val,"~!-+<>=*/&^") && !strstr(item->u2.val,"${") ) {
 				ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
@@ -2686,12 +2686,12 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 
 		strp = strchr(item->u1.for_init, '=');
 		if (strp) {
-			ast_expr(strp+1, expr_output, sizeof(expr_output));
+			ast_expr(strp+1, expr_output, sizeof(expr_output),NULL);
 		}
-		ast_expr(item->u2.for_test, expr_output, sizeof(expr_output));
+		ast_expr(item->u2.for_test, expr_output, sizeof(expr_output),NULL);
 		strp = strchr(item->u3.for_inc, '=');
 		if (strp) {
-			ast_expr(strp+1, expr_output, sizeof(expr_output));
+			ast_expr(strp+1, expr_output, sizeof(expr_output),NULL);
 		}
 		if ( strpbrk(item->u2.for_test,"~!-+<>=*/&^") && !strstr(item->u2.for_test,"${") ) {
 			ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
@@ -2717,7 +2717,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, while expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
 		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u1.str, expr_output, sizeof(expr_output));
+		ast_expr(item->u1.str, expr_output, sizeof(expr_output),NULL);
 		ast_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
@@ -2754,7 +2754,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, random expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
 		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u1.str, expr_output, sizeof(expr_output));
+		ast_expr(item->u1.str, expr_output, sizeof(expr_output),NULL);
 		ast_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: random expression '%s' has operators, but no variables. Interesting...\n",
@@ -2797,7 +2797,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, if expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
 		ast_expr_register_extra_error_info(errmsg);
-		ast_expr(item->u1.str, expr_output, sizeof(expr_output));
+		ast_expr(item->u1.str, expr_output, sizeof(expr_output),NULL);
 		ast_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: expression '%s' has operators, but no variables. Interesting...\n",

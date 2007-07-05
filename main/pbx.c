@@ -1677,7 +1677,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				vars = var;
 			}
 
-			length = ast_expr(vars, cp2, count);
+			length = ast_expr(vars, cp2, count, c);
 
 			if (length) {
 				ast_debug(1, "Expression result is '%s'\n", cp2);

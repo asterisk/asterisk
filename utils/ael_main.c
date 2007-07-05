@@ -110,6 +110,15 @@ struct ast_app *pbx_findapp(const char *app)
 	return (struct ast_app*)1; /* so as not to trigger an error */
 }
 
+struct ast_custom_function *ast_custom_function_find(const char *name);
+
+
+struct ast_custom_function *ast_custom_function_find(const char *name)
+{
+	return 0; /* in "standalone" mode, functions are just not avail */
+}
+
+
 void ast_add_profile(void)
 {
 	if (!no_comp)

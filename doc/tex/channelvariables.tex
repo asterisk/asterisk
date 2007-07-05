@@ -207,19 +207,19 @@ with equal precedence are grouped within { } symbols.
              an empty string or zero; otherwise, returns zero.
 
      expr1 {=, >, >=, <, <=, !=} expr2
-             Return the results of integer comparison if both arguments are
-             integers; otherwise, returns the results of string comparison
+             Return the results of floating point comparison if both arguments are
+             numbers; otherwise, returns the results of string comparison
              using the locale-specific collation sequence.  The result of each
              comparison is 1 if the specified relation is true, or 0 if the
              relation is false.
 
      expr1 {+, -} expr2
-             Return the results of addition or subtraction of integer-valued
+             Return the results of addition or subtraction of floating point-valued
              arguments.
 
      expr1 {*, /, %} expr2
-             Return the results of multiplication, integer division, or
-             remainder of integer-valued arguments.
+             Return the results of multiplication, floating point division, or
+             remainder of arguments.
 
      - expr1
             Return the result of subtracting expr1 from 0.
@@ -274,7 +274,69 @@ Parentheses are used for grouping in the usual manner.
 Operator precedence is applied as one would expect in any of the C
 or C derived languages.
 
-\subsection{Examples}
+subsection{Floating Point Numbers}
+
+In 1.6 and above, we shifted the \$\[...\] expressions to be calculated
+via floating point numbers instead of integers. We use 'long double' numbers
+when possible, which provide around 16 digits of precision with 12 byte numbers. 
+
+To specify a floating point constant, the number has to have this format: D.D, where D is 
+a string of base 10 digits. So, you can say 0.10, but you can't say .10 or 20.-- we hope
+this is not an excessive restriction!
+
+Floating point numbers are turned into strings via the '%g'/'%Lg' format of the printf
+function set. This allows numbers to still 'look' like integers to those counting
+on integer behavior. If you were counting on 1/4 evaluating to 0, you need to now say
+TRUNC(1/4). For a list of all the truncation/rounding capabilities, see the next section.
+
+
+subsection{Functions}
+
+In 1.6 and above, we upgraded the $[] expressions to handle floating point numbers.
+Because of this, folks counting on integer behavior would be disrupted. To make
+the same results possible, some rounding and integer truncation functions have been
+added to the core of the Expr2 parser. Indeed, dialplan functions can be called from
+$[..] expressions without the ${...} operators. The only trouble might be in the fact that
+the arguments to these functions must be specified with a comma. If you try to call
+the MATH function, for example, and try to say 3 + MATH(7*8), the expression parser will
+evaluate 7*8 for you into 56, and the MATH function will most likely complain that its 
+input doesn't make any sense.
+
+We also provide access to most of the floating point functions in the C library. (but not all of them).
+
+While we don't expect someone to want to do Fourier analysis in the dialplan, we
+don't want to preclude it, either.
+
+Here is a list of the 'builtin' functions in Expr2. All other dialplan functions
+are available by simply calling them (read-only). In other words, you don't need to
+surround function calls in \$\[...\] expressions with \$\{...\}. Don't jump to conclusions,
+though! -- you still need to wrap variable names in curly braces!
+
+\begin{Enumerate}
+\item COS(x) x is in radians. Results vary from -1 to 1. 
+\item SIN(x) x is in radians. Results vary from -1 to 1.
+\item TAN(x) x is in radians.
+\item ACOS(x) x should be a value between -1 and 1.
+\item ASIN(x) x should be a value between -1 and 1.
+\item ATAN(x) returns the arc tangent in radians; between -PI/2 and PI/2.
+\item ATAN2(x,y) returns a result resembling y/x, except that the signs of both args are used to determine the quadrant of the result. Its result is in radians, between -PI and PI.
+\item POW(x,y) returns the value of x raised to the power of y.
+\item SQRT(x) returns the square root of x.
+\item FLOOR(x) rounds x down to the nearest integer.
+\item CEIL(x) rounds x up to the nearest integer.
+\item ROUND(x) rounds x to the nearest integer, but round halfway cases away from zero.
+\item RINT(x) rounds x to the nearest integer, rounding halfway cases to the nearest even integer.
+\item TRUNC(x) rounds x to the nearest integer not larger in absolute value.
+\item REMAINDER(x,y) computes the remainder of dividing x by y. The return value is x - n*y, where n is the value x/y, rounded to the nearest integer.
+If this quotient is 1/2, it is rounded to the nearest even number.
+\item EXP(x) returns e to the x power.
+\item EXP2(x) returns 2 to the x power.
+\item LOG(x) returns the natural logarithm of x.
+\item LOG2(x) returns the base 2 log of x.
+\item LOG10(x) returns the base 10 log of x.
+\end{Enumerate}
+
+subsection{Examples}
 
 \begin{verbatim}
  "One Thousand Five Hundred" =~ "(T[^ ]+)"
@@ -310,6 +372,55 @@ or C derived languages.
 
 (2+8)/2
 	returns 5, of course.
+
+(3+8)/2
+	returns 5.5 now.
+
+TRUNC((3+8)/2)
+	returns 5.
+
+FLOOR(2.5)
+	returns 2
+
+FLOOR(-2.5)
+	returns -3
+
+CEIL(2.5)
+	returns 3.
+
+CEIL(-2.5)
+	returns -2.
+
+ROUND(2.5)
+	returns 3.
+
+ROUND(3.5)
+	returns 4.
+
+ROUND(-2.5)
+	returns -3
+
+RINT(2.5)
+	returns 2.
+
+RINT(3.5)
+	returns 4.
+
+RINT(-2.5)
+	returns -2.
+
+RINT(-3.5)
+	returns -4.
+
+TRUNC(2.5)
+	returns 2.
+
+TRUNC(3.5)
+	returns 3.
+
+TRUNC(-3.5)
+	returns -3.
+
 \begin{verbatim}
 
 Of course, all of the above examples use constants, but would work the
@@ -319,9 +430,10 @@ variable reference \${CALLERIDNUM}, for instance.
 
 \subsection{Numbers Vs. Strings}
 
-Tokens consisting only of numbers are converted to 64-bit numbers for
-most of the operators. This means that overflows can occur when the
-numbers get above 18 digits.  Warnings will appear in the logs in this
+Tokens consisting only of numbers are converted to 'long double' if possible, which
+are from 80 bits to 128 bits depending on the OS, compiler, and hardware.
+This means that overflows can occur when the
+numbers get above 18 digits (depending on the number of bits involved).  Warnings will appear in the logs in this
 case.
 
 \subsection{Conditionals}

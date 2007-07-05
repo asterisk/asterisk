@@ -161,6 +161,13 @@ unsigned int check_expr(char* buffer, char* error_report)
 	return warn_found;
 }
 
+struct ast_custom_function *ast_custom_function_find(const char *name);
+
+struct ast_custom_function *ast_custom_function_find(const char *name)
+{
+	return 0;
+}
+
 int check_eval(char *buffer, char *error_report)
 {
 	char *cp, *ep;
@@ -221,7 +228,7 @@ int check_eval(char *buffer, char *error_report)
 	*ep++ = 0;
 
 	/* now, run the test */
-	result = ast_expr(evalbuf, s, sizeof(s));
+	result = ast_expr(evalbuf, s, sizeof(s),NULL);
 	if (result) {
 		sprintf(error_report,"line %d, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
 		return 1;

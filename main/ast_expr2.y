@@ -22,15 +22,55 @@
 #endif
 
 #ifdef __USE_ISOC99
-#define FP___PRINTF "%.16Lg"
+#define FP___PRINTF "%.18Lg"
 #define FP___FMOD   fmodl
 #define FP___STRTOD  strtold
 #define FP___TYPE    long double
+#define FUNC_COS     cosl
+#define FUNC_SIN     sinl
+#define FUNC_TAN     tanl
+#define FUNC_ACOS     acosl
+#define FUNC_ASIN     asinl
+#define FUNC_ATAN     atanl
+#define FUNC_ATAN2     atan2l
+#define FUNC_POW       powl
+#define FUNC_SQRT       sqrtl
+#define FUNC_FLOOR      floorl
+#define FUNC_CEIL      ceill
+#define FUNC_ROUND     roundl
+#define FUNC_RINT     rintl
+#define FUNC_TRUNC     truncl
+#define FUNC_EXP       expl
+#define FUNC_EXP2       exp2l
+#define FUNC_LOG       logl
+#define FUNC_LOG2       log2l
+#define FUNC_LOG10       log10l
+#define FUNC_REMAINDER       remainderl
 #else
-#define FP___PRINTF "%.8g"
+#define FP___PRINTF "%.16g"
 #define FP___FMOD   fmod
 #define FP___STRTOD  strtod
 #define FP___TYPE    double
+#define FUNC_COS     cos
+#define FUNC_SIN     sin
+#define FUNC_TAN     tan
+#define FUNC_ACOS     acos
+#define FUNC_ASIN     asin
+#define FUNC_ATAN     atan
+#define FUNC_ATAN2     atan2
+#define FUNC_POW       pow
+#define FUNC_SQRT       sqrt
+#define FUNC_FLOOR      floor
+#define FUNC_CEIL      ceil
+#define FUNC_ROUND     round
+#define FUNC_RINT     rint
+#define FUNC_TRUNC     trunc
+#define FUNC_EXP       exp
+#define FUNC_EXP2       exp2
+#define FUNC_LOG       log
+#define FUNC_LOG2       log2
+#define FUNC_LOG10       log10
+#define FUNC_REMAINDER       remainder
 #endif
 
 #include <stdlib.h>
@@ -54,6 +94,9 @@
 #include "asterisk.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/logger.h"
+#ifndef STANDALONE
+#include "asterisk/pbx.h"
+#endif
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
 #define QUAD_MIN LONG_LONG_MIN
@@ -91,6 +134,19 @@ struct val {
 	} u;
 } ;
 
+enum node_type {
+	AST_EXPR_NODE_COMMA, AST_EXPR_NODE_STRING, AST_EXPR_NODE_VAL
+} ;
+
+struct expr_node 
+{
+	enum node_type type;
+	struct val *val;
+	struct expr_node *left;
+	struct expr_node *right;
+};
+
+
 typedef void *yyscan_t;
 
 struct parse_io
@@ -98,6 +154,7 @@ struct parse_io
 	char *string;
 	struct val *val;
 	yyscan_t scanner;
+	struct ast_channel *chan;
 };
  
 static int		chk_div __P((FP___TYPE, FP___TYPE));
@@ -127,8 +184,12 @@ static struct val	*op_or __P((struct val *, struct val *));
 static struct val	*op_plus __P((struct val *, struct val *));
 static struct val	*op_rem __P((struct val *, struct val *));
 static struct val	*op_times __P((struct val *, struct val *));
+static struct val   *op_func(struct val *funcname, struct expr_node *arglist, struct ast_channel *chan);
 static int		to_number __P((struct val *));
 static void		to_string __P((struct val *));
+static struct expr_node *alloc_expr_node(enum node_type);
+static void destroy_arglist(struct expr_node *arglist);
+static int is_really_num(char *str);
 
 /* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
 typedef struct yyltype
@@ -164,23 +225,26 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 %union
 {
 	struct val *val;
+	struct expr_node *arglist;
 }
 
 %{
 extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %}
+%left <val> TOK_COMMA
 %left <val> TOK_COND TOK_COLONCOLON
 %left <val> TOK_OR
 %left <val> TOK_AND
 %left <val> TOK_EQ TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE
 %left <val> TOK_PLUS TOK_MINUS
-%left <val> TOK_MULT TOK_DIV TOK_MOD
+%left <val> TOK_MULT TOK_DIV TOK_MOD 
 %right <val> TOK_COMPL
 %left <val> TOK_COLON TOK_EQTILDE
 %left <val> TOK_RP TOK_LP
 
 
 %token <val> TOKEN
+%type <arglist> arglist
 %type <val> start expr
 
 
@@ -205,8 +269,24 @@ start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(st
 
 	;
 
-expr:	TOKEN   { $$= $1;}
-	| TOK_LP expr TOK_RP { $$ = $2; 
+arglist: expr { $$ = alloc_expr_node(AST_EXPR_NODE_VAL); $$->val = $1;}
+       | arglist TOK_COMMA expr %prec TOK_RP{struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
+                                 struct expr_node *t;
+								 DESTROY($2);
+                                 for (t=$1;t->right;t=t->right)
+						         	  ;
+                                 $$ = $1; t->right = x; x->val = $3;}
+       ;
+
+expr: 
+      TOKEN TOK_LP arglist TOK_RP { $$ = op_func($1,$3, ((struct parse_io *)parseio)->chan);
+		                            DESTROY($2);
+									DESTROY($4);
+									DESTROY($1);
+									destroy_arglist($3);
+                                  }
+    | TOKEN {$$ = $1;}
+	| TOK_LP expr TOK_RP { $$ = $2;
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						   @$.first_line=0; @$.last_line=0;
 							DESTROY($1); DESTROY($3); }
@@ -286,6 +366,19 @@ expr:	TOKEN   { $$= $1;}
 	;
 
 %%
+
+static struct expr_node *alloc_expr_node(enum node_type nt)
+{
+	struct expr_node *x = calloc(1,sizeof(struct expr_node));
+	if (!x) {
+		ast_log(LOG_ERROR, "Allocation for expr_node FAILED!!\n");
+		return 0;
+	}
+	x->type = nt;
+	return x;
+}
+
+
 
 static struct val *
 make_number (FP___TYPE i)
@@ -475,7 +568,7 @@ int main(int argc,char **argv) {
 			if( s[strlen(s)-1] == '\n' )
 				s[strlen(s)-1] = 0;
 			
-			ret = ast_expr(s, out, sizeof(out));
+			ret = ast_expr(s, out, sizeof(out),NULL);
 			printf("Expression: %s    Result: [%d] '%s'\n",
 				   s, ret, out);
 		}
@@ -483,7 +576,7 @@ int main(int argc,char **argv) {
 	}
 	else
 	{
-		if (ast_expr(argv[1], s, sizeof(s)))
+		if (ast_expr(argv[1], s, sizeof(s), NULL))
 			printf("=====%s======\n",s);
 		else
 			printf("No result\n");
@@ -499,6 +592,304 @@ int main(int argc,char **argv) {
    because it refers to the buffer state. Best to
    let it access the BUFFER stuff there and not trying
    define all the structs, macros etc. in this file! */
+
+static void destroy_arglist(struct expr_node *arglist)
+{
+	struct expr_node *arglist_next;
+	
+	while (arglist)
+	{
+		arglist_next = arglist->right;
+		if (arglist->val)
+			free_value(arglist->val);
+		arglist->val = 0;
+		arglist->right = 0;
+		free(arglist);
+		arglist = arglist_next;
+	}
+}
+
+static char *compose_func_args(struct expr_node *arglist)
+{
+	struct expr_node *t = arglist;
+	char *argbuf;
+	int total_len = 0;
+	
+	while (t) {
+		if (t != arglist)
+			total_len += 1; /* for the sep */
+		if (t->val) {
+			if (t->val->type == AST_EXPR_number)
+				total_len += 25; /* worst case */
+			else
+				total_len += strlen(t->val->u.s);
+		}
+		
+		t = t->right;
+	}
+	total_len++; /* for the null */
+	ast_log(LOG_NOTICE,"argbuf allocated %d bytes;\n", total_len);
+	argbuf = malloc(total_len);
+	argbuf[0] = 0;
+	t = arglist;
+	while (t) {
+		char numbuf[30];
+		
+		if (t != arglist)
+			strcat(argbuf,"|");
+		
+		if (t->val) {
+			if (t->val->type == AST_EXPR_number) {
+				sprintf(numbuf,FP___PRINTF,t->val->u.i);
+				strcat(argbuf,numbuf);
+			} else
+				strcat(argbuf,t->val->u.s);
+		}
+		t = t->right;
+	}
+	ast_log(LOG_NOTICE,"argbuf uses %d bytes;\n", strlen(argbuf));
+	return argbuf;
+}
+
+static int is_really_num(char *str)
+{
+	if ( strspn(str,"-0123456789. 	") == strlen(str))
+		return 1;
+	else
+		return 0;
+}
+
+
+static struct val *op_func(struct val *funcname, struct expr_node *arglist, struct ast_channel *chan)
+{
+	if (strspn(funcname->u.s,"ABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789") == strlen(funcname->u.s))
+	{
+		struct val *result;
+		
+		if (strcmp(funcname->u.s,"COS") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_COS(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"SIN") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_SIN(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"TAN") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_TAN(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"ACOS") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_ACOS(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"ASIN") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_ASIN(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"ATAN") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_ATAN(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"ATAN2") == 0) {
+			if (arglist && arglist->right && !arglist->right->right && arglist->val && arglist->right->val){
+				to_number(arglist->val);
+				to_number(arglist->right->val);
+				result = make_number(FUNC_ATAN2(arglist->val->u.i, arglist->right->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"POW") == 0) {
+			if (arglist && arglist->right && !arglist->right->right && arglist->val && arglist->right->val){
+				to_number(arglist->val);
+				to_number(arglist->right->val);
+				result = make_number(FUNC_POW(arglist->val->u.i, arglist->right->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"SQRT") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_SQRT(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"FLOOR") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_FLOOR(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"CEIL") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_CEIL(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"ROUND") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_ROUND(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"RINT") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_RINT(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"TRUNC") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_TRUNC(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"EXP") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_EXP(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"EXP2") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_EXP2(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"LOG") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_LOG(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"LOG2") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_LOG2(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"LOG10") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_LOG10(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else if (strcmp(funcname->u.s,"REMAINDER") == 0) {
+			if (arglist && arglist->right && !arglist->right->right && arglist->val && arglist->right->val){
+				to_number(arglist->val);
+				to_number(arglist->right->val);
+				result = make_number(FUNC_REMAINDER(arglist->val->u.i, arglist->right->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
+		} else {
+			/* is this a custom function we should execute and collect the results of? */
+#ifndef STANDALONE
+			struct ast_custom_function *f = ast_custom_function_find(funcname->u.s);
+			if (!chan)
+				ast_log(LOG_WARNING,"Hey! chan is NULL.\n");
+			if (!f)
+				ast_log(LOG_WARNING,"Hey! could not find func %s.\n", funcname->u.s);
+			
+			if (f && chan) {
+				if (f->read) {
+					char workspace[512];
+					char *argbuf = compose_func_args(arglist);
+					f->read(chan, funcname->u.s, argbuf, workspace, sizeof(workspace));
+					free(argbuf);
+					if (is_really_num(workspace))
+						return make_number(FP___STRTOD(workspace,(char **)NULL));
+					else
+						return make_str(workspace);
+				} else {
+					ast_log(LOG_ERROR,"Error! Function '%s' cannot be read!\n", funcname->u.s);
+					return (make_number ((FP___TYPE)0.0));
+				}
+				
+			} else {
+				ast_log(LOG_ERROR,"Error! '%s' doesn't appear to be an available function!", funcname->u.s);
+				return (make_number ((FP___TYPE)0.0));
+			}
+#else
+			ast_log(LOG_ERROR,"Error! '%s' is not available in the standalone version!", funcname->u.s);
+			return (make_number ((FP___TYPE)0.0));
+#endif
+		}
+	}
+	else
+	{
+		ast_log(LOG_ERROR,"Error! '%s' is not possibly a function name!", funcname->u.s);
+		return (make_number ((FP___TYPE)0.0));
+	}
+	return (make_number ((FP___TYPE)0.0));
+}
 
 
 static struct val *
@@ -519,7 +910,7 @@ op_and (struct val *a, struct val *b)
 	if (is_zero_or_null (a) || is_zero_or_null (b)) {
 		free_value (a);
 		free_value (b);
-		return (make_number ((double)0.0));
+		return (make_number ((FP___TYPE)0.0));
 	} else {
 		free_value (b);
 		return (a);

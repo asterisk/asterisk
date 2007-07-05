@@ -29,6 +29,11 @@ Core:
   Where D is a string of base-10 digits. All math is now done in "long double",
   if it is available on your compiler/architecture. This was half-way between
   a bug-fix (because the MATH func returns fp by default), and an enhancement.
+  Also, for those counting on, or needing, integer operations, a series of
+  'functions' were also added to the expr language, to allow several styles
+  of rounding/truncation, along with a set of common floating point operations,
+  like sin, cos, tan, log, pow, etc. The ability to call external functions
+  like CDR(), etc. was also added, without having to use the ${...} notation.
  
 Voicemail:
 
