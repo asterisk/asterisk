@@ -329,9 +329,10 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 
 	ast_deactivate_generator(chan);
 	
+	csth.spy.status = CHANSPY_DONE;
+
 	ast_mutex_lock(&csth.spy.lock);
 	if (csth.spy.chan) {
-		csth.spy.status = CHANSPY_DONE;
 		ast_mutex_lock(&csth.spy.chan->lock);
 		ast_channel_spy_remove(csth.spy.chan, &csth.spy);
 		ast_mutex_unlock(&csth.spy.chan->lock);
