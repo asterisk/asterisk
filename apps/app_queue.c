@@ -383,6 +383,7 @@ struct call_queue {
 	char sound_lessthan[80];            /*!< Sound file: "less-than" (def. queue-lessthan) */
 	char sound_seconds[80];             /*!< Sound file: "seconds." (def. queue-seconds) */
 	char sound_thanks[80];              /*!< Sound file: "Thank you for your patience." (def. queue-thankyou) */
+	char sound_callerannounce[80];      /*!< Sound file: Custom announce for caller, no default */
 	char sound_reporthold[80];          /*!< Sound file: "Hold time" (def. queue-reporthold) */
 	char sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS][80];/*!< Sound files: Custom announce, no default */
 
@@ -740,6 +741,7 @@ static void init_queue(struct call_queue *q)
 	q->context[0] = '\0';
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
+	q->sound_callerannounce[0] = '\0';	/* Default, don't announce the caller that he has been answered */
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
 	ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
 	ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
@@ -895,6 +897,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		ast_copy_string(q->sound_lessthan, val, sizeof(q->sound_lessthan));
 	} else if (!strcasecmp(param, "queue-thankyou")) {
 		ast_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
+	} else if (!strcasecmp(param, "queue-callerannounce")) {
+		ast_copy_string(q->sound_callerannounce, val, sizeof(q->sound_callerannounce));
 	} else if (!strcasecmp(param, "queue-reporthold")) {
 		ast_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
 	} else if (!strcasecmp(param, "announce-frequency")) {
@@ -2627,6 +2631,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_hangup(peer);
 			return -1;
 		}
+
+		/* Play announcement to the caller telling it's his turn if defined */
+		if (!ast_strlen_zero(qe->parent->sound_callerannounce)) {
+			if (play_file(qe->chan, qe->parent->sound_callerannounce))
+				ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", qe->parent->sound_callerannounce);
+		}
+
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
