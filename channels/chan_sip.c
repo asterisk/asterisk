@@ -15177,8 +15177,12 @@ static void *do_monitor(void *data)
 			sip_do_reload(sip_reloadreason);
 
 			/* Change the I/O fd of our UDP socket */
-			if (sipsock > -1)
-				sipsock_read_id = ast_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
+			if (sipsock > -1) {
+				if (sipsock_read_id)
+					sipsock_read_id = ast_io_change(io, sipsock_read_id, sipsock, NULL, 0, NULL);
+				else
+					sipsock_read_id = ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
+			}
 		}
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
