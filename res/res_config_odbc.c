@@ -109,6 +109,8 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		newval = va_arg(aq, const char *);
 	}
 	va_end(aq);
+	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ESCAPE '\\'");
+
 	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -264,6 +266,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	if (initfield)
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
 	va_end(aq);
+	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ESCAPE '\\'");
+
 	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
