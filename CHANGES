@@ -110,6 +110,7 @@ Voicemail Changes
   * Added "tw" language support
   * Added support for storage of greetings using an IMAP server
   * Added ability to customize forward, reverse, stop, and pause keys for message playback
+  * SMDI is now enabled in voicemail using the smdienable option.
 
 Queue changes
 -------------
@@ -142,6 +143,8 @@ MeetMe Changes
   * Added a new application, MeetMeChannelAdmin, which is similar to MeetMeAdmin,
      except it does operations on a channel by name, instead of number in a conference.
      This is a very useful feature in combination with the 'X' option to ChanSpy.
+  * Added 'C' option to Meetme which causes a caller to continue in the dialplan
+     when kicked out.
 
 Music On Hold Changes
 ---------------------
@@ -150,14 +153,8 @@ Music On Hold Changes
      listening to music on hold can press this digit to switch to listening
      to this music on hold class.
 
-Miscellaneous 
--------------
-
-  * Added the bindaddr option to gtalk.conf.
-  * Argument support for Gosub application
-  * Ability to set process limits without restarting Asterisk
-  * SS7 support in chan_zap (via libss7 library)
-  * Proper codec support in chan_skinny.
+AEL Changes
+-----------
   * AEL upgraded to use the Gosub with Arguments instead
      of Macro application, to hopefully reduce the problems
      seen with the artificially low stack ceiling that 
@@ -169,17 +166,54 @@ Miscellaneous
      to be called, as in Dial, queues, etc, are now allowing
      a gosub call in similar fashion.
   * AEL now generates LOCAL(argname) declarations when it
-    Set()'s the each arg name to the value of ${ARG1}, ${ARG2),
-    etc. That makes the arguments local in scope. The user
-    can define their own local variables in macros, now,
-    by saying "local myvar=someval;"  or using Set() in this
-    fashion:  Set(LOCAL(myvar)=someval);  ("local" is now
-    an AEL keyword).
+     Set()'s the each arg name to the value of ${ARG1}, ${ARG2),
+     etc. That makes the arguments local in scope. The user
+     can define their own local variables in macros, now,
+     by saying "local myvar=someval;"  or using Set() in this
+     fashion:  Set(LOCAL(myvar)=someval);  ("local" is now
+     an AEL keyword).
+
+Zaptel channel driver (chan_zap) Changes
+----------------------------------------
+  * SS7 support in chan_zap (via libss7 library)
+  * In India, some carriers transmit CID via dtmf. Some code has been added
+    that will handle some situations. The cidstart=polarity_IN choice has been added for
+    those carriers that transmit CID via dtmf after a polarity change.
+  * CID matching information is now shown when doing 'dialplan show'.
+  * Added zap show version CLI command to chan_zap.
+
+H.323 Changes
+-------------
+  * H323 remote hold notification support added (by NOTIFY message
+     and/or H.450 supplementary service)
+
+Call Features (res_features) Changes
+------------------------------------
+  * Added the parkedcalltransfers option to features.conf
+  * The built-in method for doing attended transfers has been updated to
+     include some new options that allow you to have the transferee sent
+     back to the person that did the transfer if the transfer is not successful.
+     See the options "atxferdropcall", "atxferloopdelay", and "atxfercallbackretries"
+     in features.conf.sample.
+  * Added support for configuring named groups of custom call features in
+     features.conf.  This means that features can be written a single time, and
+     then mapped into groups of features for different key mappings or easier
+     access control.
+
+Language Support Changes
+------------------------
+  * Brazilian Portuguese (pt-BR) in VM, and say.c was added
+  * Added support for the Hungarian language for saying numbers, dates, and times.
+
+Miscellaneous 
+-------------
+  * Added the bindaddr option to gtalk.conf.
+  * Argument support for Gosub application
+  * Ability to set process limits without restarting Asterisk
+  * Proper codec support in chan_skinny.
   * Ability to use libcap to set high ToS bits when non-root
      on Linux. If configure is unable to find libcap then you
      can use --with-cap to specify the path.
-  * H323 remote hold notification support added (by NOTIFY message
-     and/or H.450 supplementary service)
   * Added rotatetimestamp option to logger.conf which will use
      the time to name the logger files instead of sequence number.
   * Added Masquerade manager event for when a masquerade happens between
@@ -192,25 +226,14 @@ Miscellaneous
      Read() - timeout now can be floating pt.
      WaitForRing() now takes floating pt timeout arg.
      SpeechBackground() -- clarified in the docstrings that the timeout is an integer seconds.
-  * Added 'C' option to Meetme which causes a caller to continue in the dialplan
-     when kicked out.
-  * Brazilian Portuguese (pt-BR) in VM, and say.c was added via patch from cfassoni.
-  * In India, some carriers transmit CID via dtmf. Some code has been added
-    that will handle some situations. The cidstart=polarity_IN choice has been added for
-    those carriers that transmit CID via dtmf after a polarity change.
-  * CID matching information is now shown when doing 'dialplan show'.
   * Added maxfiles option to options section of asterisk.conf which allows you to specify
      what Asterisk should set as the maximum number of open files when it loads.
   * Added the jittertargetextra configuration option.
   * Added G729 passthrough support to chan_phone for Sigma Designs boards.
-  * Added the parkedcalltransfers option to features.conf
   * Added 's' option to Page application.
   * Added 'E' and 'V' commands to ExternalIVR.
   * Added 'DBDel' and 'DBDelTree' manager commands.
   * Added 'o' and 'X' options to Chanspy.
-  * Added the parkedcallreparking option to features.conf
-  * SMDI is now enabled in voicemail using the smdienable option.
-  * Added zap show version CLI command to chan_zap.
   * Added a new CDR module, cdr_sqlite3_custom.
   * The cdr_manager module has a [mappings] feature, like cdr_custom,
     to add fields to the manager event from the CDR variables.
@@ -221,16 +244,6 @@ Miscellaneous
      configuration files for the IP channel drivers.  The new option is "cos".
      This information is also documented in doc/qos.tex, or the IP Quality of Service
      section of asterisk.pdf.
-  * The built-in method for doing attended transfers has been updated to
-     include some new options that allow you to have the transferee sent
-     back to the person that did the transfer if the transfer is not successful.
-     See the options "atxferdropcall", "atxferloopdelay", and "atxfercallbackretries"
-     in features.conf.sample.
   * The device state functionality in the Local channel driver has been updated
      to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
      to just UNKNOWN if the extension exists.
-  * Added support for the Hungarian language for saying numbers, dates, and times.
-  * Added support for configuring named groups of custom call features in
-     features.conf.  This means that features can be written a single time, and
-     then mapped into groups of features for different key mappings or easier
-     access control.
