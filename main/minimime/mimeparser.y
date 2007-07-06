@@ -53,8 +53,6 @@ int mimeparser_yywrap(void);
 void reset_environ(struct parser_state *pstate);
 int PARSER_initialize(struct parser_state *pstate, void *yyscanner);
 
-typedef void *yyscan_t;
-
 static char *PARSE_readmessagepart(size_t, size_t, size_t, size_t *,yyscan_t, struct parser_state *);
 FILE *mimeparser_yyget_in (yyscan_t yyscanner );
 

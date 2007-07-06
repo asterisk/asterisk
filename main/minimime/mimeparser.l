@@ -94,8 +94,9 @@ TSPECIAL_LITE [a-zA-Z0-9)(<>@,-._+'?\[\]]
 %%
 
 <INITIAL,headers>^[a-zA-Z]+[a-zA-Z0-9\-\_]* {
-	yylval_param->string=strdup(yytext); 
 	struct lexer_state *lstate = yyget_extra(yyscanner);
+
+	yylval_param->string=strdup(yytext); 
 	lstate->current_pos += yyleng;
 	BC(header);
 
@@ -443,7 +444,7 @@ void reset_lexer_state(void *yyscanner, struct parser_state *pstate)
 }
 
 void
-PARSER_setbuffer(char *string, yyscan_t scanner)
+PARSER_setbuffer(const char *string, yyscan_t scanner)
 {
 	struct lexer_state *lstate = yyget_extra(scanner);
 	lstate->message_buffer = string;
@@ -451,15 +452,15 @@ PARSER_setbuffer(char *string, yyscan_t scanner)
 }
 
 void
-PARSER_setfp(FILE *fp, yyscan_t yyscanner)
+PARSER_setfp(FILE *fp, yyscan_t scanner)
 {
 	/* looks like a bug in bison 2.2a -- the wrong code is generated for yyset_in !! */
-	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	struct yyguts_t * yyg = (struct yyguts_t*) scanner;
 	yyg->yyin_r = fp;
 	
 	if (0) {
 		/* This is just to make a compiler warning go away */
-		yyunput(0, NULL, yyscanner);
+		yyunput(0, NULL, scanner);
 	}
 }
 

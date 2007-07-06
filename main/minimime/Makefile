@@ -42,6 +42,8 @@ MM_HDRS:=mm.h mm_util.h
 # may actually be important and spot out real bugs.
 ASTCFLAGS:=$(filter-out -Werror,$(ASTCFLAGS))
 
+ASTCFLAGS+=-std=c99
+
 all: $(LIBMMIME)
 
 $(LIBMMIME): $(MM_OBJS)
@@ -49,11 +51,11 @@ $(LIBMMIME): $(MM_OBJS)
 	$(CMD_PREFIX) $(AR) cr $@ $^
 	$(CMD_PREFIX) $(RANLIB) $@
 
-#mimeparser.yy.c: mimeparser.l
-#	flex -Pmimeparser_yy -omimeparser.yy.c mimeparser.l
+mimeparser.yy.c:
+	flex -Pmimeparser_yy -omimeparser.yy.c mimeparser.l
 
-#mimeparser.tab.c: mimeparser.y
-#	bison -d -pmimeparser_yy -omimeparser.tab.c mimeparser.y
+mimeparser.tab.c:
+	bison -d -pmimeparser_yy -omimeparser.tab.c mimeparser.y
 
 clean::
 	rm -f $(LIBMMIME) *.o

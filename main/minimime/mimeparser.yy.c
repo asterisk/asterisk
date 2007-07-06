@@ -755,7 +755,11 @@ char *mimeparser_yyget_text (yyscan_t yyscanner );
 
 int mimeparser_yyget_lineno (yyscan_t yyscanner );
 
+int mimeparser_yyget_column  (yyscan_t yyscanner);
+
 void mimeparser_yyset_lineno (int line_number ,yyscan_t yyscanner );
+
+void mimeparser_yyset_column (int  column_no , yyscan_t yyscanner);
 
 YYSTYPE * mimeparser_yyget_lval (yyscan_t yyscanner );
 
@@ -1014,8 +1018,9 @@ case 1:
 YY_RULE_SETUP
 #line 96 "mimeparser.l"
 {
-	yylval_param->string=strdup(yytext); 
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
+
+	yylval_param->string=strdup(yytext); 
 	lstate->current_pos += yyleng;
 	BC(header);
 
@@ -1042,7 +1047,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 123 "mimeparser.l"
+#line 124 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	/* dprintf2("Unknown header char: %c\n", *yytext); */
@@ -1053,7 +1058,7 @@ YY_RULE_SETUP
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 130 "mimeparser.l"
+#line 131 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->lineno++; 
@@ -1078,7 +1083,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 152 "mimeparser.l"
+#line 153 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	BC(headervalue); 
@@ -1089,7 +1094,7 @@ YY_RULE_SETUP
 case 5:
 /* rule 5 can match eol */
 YY_RULE_SETUP
-#line 159 "mimeparser.l"
+#line 160 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	BC(headers);
@@ -1101,7 +1106,7 @@ YY_RULE_SETUP
 case 6:
 /* rule 6 can match eol */
 YY_RULE_SETUP
-#line 167 "mimeparser.l"
+#line 168 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1110,7 +1115,7 @@ YY_RULE_SETUP
 case 7:
 /* rule 7 can match eol */
 YY_RULE_SETUP
-#line 172 "mimeparser.l"
+#line 173 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	if (lstate->header_state != STATE_MAIL && lstate->header_state != STATE_CENC) {
@@ -1131,7 +1136,7 @@ YY_RULE_SETUP
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-#line 189 "mimeparser.l"
+#line 190 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	/* marks the end of one header line */
@@ -1144,7 +1149,7 @@ YY_RULE_SETUP
 case 9:
 /* rule 9 can match eol */
 YY_RULE_SETUP
-#line 198 "mimeparser.l"
+#line 199 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->lineno += count_lines(yytext);
@@ -1154,7 +1159,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 205 "mimeparser.l"
+#line 206 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1163,7 +1168,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 211 "mimeparser.l"
+#line 212 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	BC(tspecialvalue);
@@ -1173,7 +1178,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 218 "mimeparser.l"
+#line 219 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	yylval_param->string=strdup(yytext);
@@ -1184,7 +1189,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 226 "mimeparser.l"
+#line 227 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1192,7 +1197,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 231 "mimeparser.l"
+#line 232 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->lineno += count_lines(yytext);
@@ -1203,7 +1208,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 239 "mimeparser.l"
+#line 240 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	BC(headervalue);
@@ -1213,7 +1218,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 246 "mimeparser.l"
+#line 247 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	/**
@@ -1251,7 +1256,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 281 "mimeparser.l"
+#line 282 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	/**
@@ -1297,7 +1302,7 @@ YY_RULE_SETUP
 case 18:
 /* rule 18 can match eol */
 YY_RULE_SETUP
-#line 323 "mimeparser.l"
+#line 324 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1306,7 +1311,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 329 "mimeparser.l"
+#line 330 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1315,14 +1320,14 @@ YY_RULE_SETUP
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 335 "mimeparser.l"
+#line 336 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
 }
 	YY_BREAK
 case YY_STATE_EOF(body):
-#line 340 "mimeparser.l"
+#line 341 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	if (lstate->boundary_string == NULL && lstate->body_start) {
@@ -1340,7 +1345,7 @@ case YY_STATE_EOF(body):
 case 21:
 /* rule 21 can match eol */
 YY_RULE_SETUP
-#line 354 "mimeparser.l"
+#line 355 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	/* dprintf2("Preamble CR/LF at line %d\n", lineno); */
@@ -1350,7 +1355,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 361 "mimeparser.l"
+#line 362 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	yylval_param->string = strdup(yytext);
@@ -1360,7 +1365,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 368 "mimeparser.l"
+#line 369 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	yylval_param->string = strdup(yytext);
@@ -1371,7 +1376,7 @@ YY_RULE_SETUP
 case 24:
 /* rule 24 can match eol */
 YY_RULE_SETUP
-#line 375 "mimeparser.l"
+#line 376 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	BC(headers);
@@ -1384,7 +1389,7 @@ YY_RULE_SETUP
 case 25:
 /* rule 25 can match eol */
 YY_RULE_SETUP
-#line 384 "mimeparser.l"
+#line 385 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	BC(postamble);
@@ -1394,7 +1399,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 391 "mimeparser.l"
+#line 392 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1402,7 +1407,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 397 "mimeparser.l"
+#line 398 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1411,7 +1416,7 @@ YY_RULE_SETUP
 case 28:
 /* rule 28 can match eol */
 YY_RULE_SETUP
-#line 402 "mimeparser.l"
+#line 403 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->lineno++;
@@ -1421,7 +1426,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 409 "mimeparser.l"
+#line 410 "mimeparser.l"
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(yyscanner);
 	lstate->current_pos += yyleng;
@@ -1430,10 +1435,10 @@ YY_RULE_SETUP
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 416 "mimeparser.l"
+#line 417 "mimeparser.l"
 ECHO;
 	YY_BREAK
-#line 1437 "mimeparser.yy.c"
+#line 1438 "mimeparser.yy.c"
 			case YY_STATE_EOF(INITIAL):
 			case YY_STATE_EOF(headers):
 			case YY_STATE_EOF(header):
@@ -1646,7 +1651,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, num_to_read );
+			yyg->yy_n_chars, (size_t) num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -2549,7 +2554,7 @@ void mimeparser_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 416 "mimeparser.l"
+#line 417 "mimeparser.l"
 
 
 
@@ -2581,7 +2586,7 @@ void reset_lexer_state(void *yyscanner, struct parser_state *pstate)
 }
 
 void
-PARSER_setbuffer(char *string, yyscan_t scanner)
+PARSER_setbuffer(const char *string, yyscan_t scanner)
 {
 	struct lexer_state *lstate = mimeparser_yyget_extra(scanner);
 	lstate->message_buffer = string;
@@ -2589,15 +2594,15 @@ PARSER_setbuffer(char *string, yyscan_t scanner)
 }
 
 void
-PARSER_setfp(FILE *fp, yyscan_t yyscanner)
+PARSER_setfp(FILE *fp, yyscan_t scanner)
 {
 	/* looks like a bug in bison 2.2a -- the wrong code is generated for mimeparser_yyset_in !! */
-	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	struct yyguts_t * yyg = (struct yyguts_t*) scanner;
 	yyg->yyin_r = fp;
 	
 	if (0) {
 		/* This is just to make a compiler warning go away */
-		yyunput(0, NULL, yyscanner);
+		yyunput(0, NULL, scanner);
 	}
 }
 

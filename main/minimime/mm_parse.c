@@ -47,11 +47,6 @@
 #include "mimeparser.h"
 #include "mimeparser.tab.h"
 
-int yyparse (struct parser_state *pstate, void *yyscanner);
-void PARSER_initialize(struct parser_state *, void *);
-void PARSER_setbuffer(const char *);
-void PARSER_setfp(FILE *,void *yyscanner);
-
 /** @file mm_parse.c
  *
  * Functions to parse MIME messages
@@ -86,9 +81,6 @@ mm_parse_mem(MM_CTX *ctx, const char *text, int parsemode, int flags)
 	void *yyscanner;
 	int res;
 	struct parser_state pstate;
-	typedef void *yyscan_t;
-	int mimeparser_yylex_init (yyscan_t* scanner);
-	int mimeparser_yylex_destroy (yyscan_t yyscanner );
 	
 	pstate.ctx = ctx;
 	pstate.parsemode = parsemode;
@@ -96,8 +88,8 @@ mm_parse_mem(MM_CTX *ctx, const char *text, int parsemode, int flags)
 	mimeparser_yylex_init(&yyscanner);
 	PARSER_initialize(&pstate, yyscanner);
 	
-	PARSER_setbuffer(text);
-	PARSER_setfp(NULL,yyscanner);
+	PARSER_setbuffer(text, yyscanner);
+	PARSER_setfp(NULL, yyscanner);
 	
 	res =  mimeparser_yyparse(&pstate,yyscanner);
 	mimeparser_yylex_destroy(yyscanner);
@@ -127,7 +119,6 @@ mm_parse_mem(MM_CTX *ctx, const char *text, int parsemode, int flags)
  * The context needs to be initialized before using mm_context_new() and may
  * be freed using mm_context_free().
  */
-typedef void *yyscan_t;
 int
 mm_parse_file(MM_CTX *ctx, const char *filename, int parsemode, int flags)
 {
@@ -135,8 +126,6 @@ mm_parse_file(MM_CTX *ctx, const char *filename, int parsemode, int flags)
 	int res;
 	void *yyscanner;
 	struct parser_state pstate;
-	int mimeparser_yylex_init (yyscan_t* scanner);
-	int mimeparser_yylex_destroy (yyscan_t yyscanner );
 
 	mimeparser_yylex_init(&yyscanner);
 
@@ -163,8 +152,6 @@ mm_parse_fileptr(MM_CTX *ctx, FILE *f, int parsemode, int flags)
 	int res;
 	void *yyscanner;
 	struct parser_state pstate;
-	int mimeparser_yylex_init (yyscan_t* scanner);
-	int mimeparser_yylex_destroy (yyscan_t yyscanner );
 
 	mimeparser_yylex_init(&yyscanner);
 

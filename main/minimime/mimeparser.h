@@ -33,7 +33,7 @@ struct lexer_state
 
 	char *boundary_string;
 	char *endboundary_string;
-	char *message_buffer;
+	const char *message_buffer;
 };
 
 
@@ -51,6 +51,10 @@ struct parser_state
 	struct lexer_state lstate;
 };
 
+#ifndef YY_TYPEDEF_YY_SCANNER_T
+#define YY_TYPEDEF_YY_SCANNER_T
+typedef void* yyscan_t;
+#endif
 
 #include "mimeparser.tab.h"
 
@@ -62,6 +66,11 @@ int 	dprintf2(struct parser_state *, const char *, ...);
 int 	mimeparser_yyparse(struct parser_state *, void *);
 int 	mimeparser_yylex(YYSTYPE *, void *);
 int	mimeparser_yyerror(struct parser_state *, void *, const char *);
-
+int	mimeparser_yylex_init(yyscan_t* scanner);
+int	mimeparser_yylex_destroy(yyscan_t yyscanner);
+void	reset_lexer_state(void *yyscanner, struct parser_state *pstate);
+int	PARSER_initialize(struct parser_state *pstate, yyscan_t scanner);
+void	PARSER_setbuffer(const char *string, yyscan_t scanner);
+void	PARSER_setfp(FILE *fp, yyscan_t scanner);
 
 #endif /* ! _MIMEPARSER_H_INCLUDED */

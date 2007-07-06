@@ -184,8 +184,6 @@ int mimeparser_yywrap(void);
 void reset_environ(struct parser_state *pstate);
 int PARSER_initialize(struct parser_state *pstate, void *yyscanner);
 
-typedef void *yyscan_t;
-
 static char *PARSE_readmessagepart(size_t, size_t, size_t, size_t *,yyscan_t, struct parser_state *);
 FILE *mimeparser_yyget_in (yyscan_t yyscanner );
 
@@ -211,14 +209,14 @@ FILE *mimeparser_yyget_in (yyscan_t yyscanner );
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 69 "mimeparser.y"
+#line 67 "mimeparser.y"
 {
 	int number;
 	char *string;
 	struct s_position position;
 }
-/* Line 193 of yacc.c.  */
-#line 222 "mimeparser.tab.c"
+/* Line 187 of yacc.c.  */
+#line 220 "mimeparser.tab.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -231,7 +229,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 235 "mimeparser.tab.c"
+#line 233 "mimeparser.tab.c"
 
 #ifdef short
 # undef short
@@ -281,7 +279,7 @@ typedef short int yytype_int16;
 #define YYSIZE_MAXIMUM ((YYSIZE_T) -1)
 
 #ifndef YY_
-# if YYENABLE_NLS
+# if defined(YYENABLE_NLS)
 #  if ENABLE_NLS
 #   include <libintl.h> /* INFRINGES ON USER NAME SPACE */
 #   define YY_(msgid) dgettext ("bison-runtime", msgid)
@@ -534,12 +532,12 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   114,   114,   116,   121,   120,   133,   141,   143,   167,
-     171,   186,   190,   193,   197,   199,   203,   218,   220,   230,
-     232,   234,   236,   250,   257,   276,   284,   294,   300,   308,
-     331,   338,   345,   349,   351,   355,   364,   366,   368,   382,
-     384,   386,   400,   431,   445,   451,   466,   474,   481,   500,
-     519
+       0,   112,   112,   114,   119,   118,   131,   139,   141,   165,
+     169,   184,   188,   191,   195,   197,   201,   216,   218,   228,
+     230,   232,   234,   248,   255,   274,   282,   292,   298,   306,
+     329,   336,   343,   347,   349,   353,   362,   364,   366,   380,
+     382,   384,   398,   429,   443,   449,   464,   472,   479,   498,
+     517
 };
 #endif
 
@@ -759,7 +757,7 @@ while (YYID (0))
    we won't break user code: when these are the locations we know.  */
 
 #ifndef YY_LOCATION_PRINT
-# if YYLTYPE_IS_TRIVIAL
+# if defined(YYLTYPE_IS_TRIVIAL)
 #  define YY_LOCATION_PRINT(File, Loc)			\
      fprintf (File, "%d.%d-%d.%d",			\
 	      (Loc).first_line, (Loc).first_column,	\
@@ -1513,31 +1511,31 @@ yyreduce:
   switch (yyn)
     {
         case 4:
-#line 121 "mimeparser.y"
+#line 119 "mimeparser.y"
     { 
 		mm_context_attachpart(pstate->ctx, pstate->current_mimepart);
 		pstate->current_mimepart = mm_mimepart_new();
 		pstate->have_contenttype = 0;
-	}
+	;}
     break;
 
   case 5:
-#line 127 "mimeparser.y"
+#line 125 "mimeparser.y"
     {
 		dprintf2(pstate,"This was a multipart message\n");
-	}
+	;}
     break;
 
   case 6:
-#line 134 "mimeparser.y"
+#line 132 "mimeparser.y"
     {
 		dprintf2(pstate,"This was a single part message\n");
 		mm_context_attachpart(pstate->ctx, pstate->current_mimepart);
-	}
+	;}
     break;
 
   case 8:
-#line 144 "mimeparser.y"
+#line 142 "mimeparser.y"
     {
 		/* If we did not find a Content-Type header for the current
 		 * MIME part (or envelope), we create one and attach it.
@@ -1559,11 +1557,11 @@ yyreduce:
 			mm_mimepart_attachcontenttype(pstate->current_mimepart, ct);
 		}	
 		pstate->have_contenttype = 0;
-	}
+	;}
     break;
 
   case 10:
-#line 172 "mimeparser.y"
+#line 170 "mimeparser.y"
     {
 		char *preamble;
 		size_t offset;
@@ -1577,17 +1575,17 @@ yyreduce:
 			pstate->ctx->preamble = preamble;
 			dprintf2(pstate,"PREAMBLE:\n%s\n", preamble);
 		}
-	}
+	;}
     break;
 
   case 12:
-#line 191 "mimeparser.y"
+#line 189 "mimeparser.y"
     {
-	}
+	;}
     break;
 
   case 16:
-#line 204 "mimeparser.y"
+#line 202 "mimeparser.y"
     {
 
 		if (mm_context_attachpart(pstate->ctx, pstate->current_mimepart) == -1) {
@@ -1598,11 +1596,11 @@ yyreduce:
 		pstate->temppart = mm_mimepart_new();
 		pstate->current_mimepart = pstate->temppart;
 		pstate->mime_parts++;
-	}
+	;}
     break;
 
   case 18:
-#line 221 "mimeparser.y"
+#line 219 "mimeparser.y"
     {
 		pstate->have_contenttype = 1;
 		if (mm_content_iscomposite(pstate->envelope->type)) {
@@ -1610,11 +1608,11 @@ yyreduce:
 		} else {
 			pstate->ctx->messagetype = MM_MSGTYPE_FLAT;
 		}	
-	}
+	;}
     break;
 
   case 22:
-#line 237 "mimeparser.y"
+#line 235 "mimeparser.y"
     {
 		if (pstate->parsemode != MM_PARSE_LOOSE) {
 			mm_errno = MM_ERROR_PARSE;
@@ -1624,20 +1622,20 @@ yyreduce:
 		} else {
 			/* TODO: attach MM_WARNING_INVHDR */
 		}
-	}
+	;}
     break;
 
   case 23:
-#line 251 "mimeparser.y"
+#line 249 "mimeparser.y"
     {
 		struct mm_mimeheader *hdr;
 		hdr = mm_mimeheader_generate((yyvsp[(1) - (4)].string), (yyvsp[(3) - (4)].string));
 		mm_mimepart_attachheader(pstate->current_mimepart, hdr);
-	}
+	;}
     break;
 
   case 24:
-#line 258 "mimeparser.y"
+#line 256 "mimeparser.y"
     {
 		struct mm_mimeheader *hdr;
 
@@ -1652,47 +1650,47 @@ yyreduce:
 		
 		hdr = mm_mimeheader_generate((yyvsp[(1) - (3)].string), xstrdup(""));
 		mm_mimepart_attachheader(pstate->current_mimepart, hdr);
-	}
+	;}
     break;
 
   case 25:
-#line 277 "mimeparser.y"
+#line 275 "mimeparser.y"
     {
 		mm_content_settype(pstate->ctype, "%s", (yyvsp[(3) - (4)].string));
 		mm_mimepart_attachcontenttype(pstate->current_mimepart, pstate->ctype);
 		dprintf2(pstate,"Content-Type -> %s\n", (yyvsp[(3) - (4)].string));
 		pstate->ctype = mm_content_new();
-	}
+	;}
     break;
 
   case 26:
-#line 285 "mimeparser.y"
+#line 283 "mimeparser.y"
     {
 		mm_content_settype(pstate->ctype, "%s", (yyvsp[(3) - (5)].string));
 		mm_mimepart_attachcontenttype(pstate->current_mimepart, pstate->ctype);
 		dprintf2(pstate,"Content-Type (P) -> %s\n", (yyvsp[(3) - (5)].string));
 		pstate->ctype = mm_content_new();
-	}
+	;}
     break;
 
   case 27:
-#line 295 "mimeparser.y"
+#line 293 "mimeparser.y"
     {
 		dprintf2(pstate,"Content-Disposition -> %s\n", (yyvsp[(3) - (4)].string));
 		pstate->ctype->disposition_type = xstrdup((yyvsp[(3) - (4)].string));
-	}
+	;}
     break;
 
   case 28:
-#line 301 "mimeparser.y"
+#line 299 "mimeparser.y"
     {
 		dprintf2(pstate,"Content-Disposition (P) -> %s; params\n", (yyvsp[(3) - (5)].string));
 		pstate->ctype->disposition_type = xstrdup((yyvsp[(3) - (5)].string));
-	}
+	;}
     break;
 
   case 29:
-#line 309 "mimeparser.y"
+#line 307 "mimeparser.y"
     {
 		/*
 		 * According to RFC 2183, the content disposition value may
@@ -1711,34 +1709,34 @@ yyreduce:
 			/* TODO: attach MM_WARNING_INVHDR */
 		}	
 		(yyval.string) = (yyvsp[(1) - (1)].string);
-	}
+	;}
     break;
 
   case 30:
-#line 332 "mimeparser.y"
+#line 330 "mimeparser.y"
     {
 		dprintf2(pstate,"Content-Transfer-Encoding -> %s\n", (yyvsp[(3) - (4)].string));
-	}
+	;}
     break;
 
   case 31:
-#line 339 "mimeparser.y"
+#line 337 "mimeparser.y"
     {
 		dprintf2(pstate,"MIME-Version -> '%s'\n", (yyvsp[(3) - (4)].string));
-	}
+	;}
     break;
 
   case 35:
-#line 356 "mimeparser.y"
+#line 354 "mimeparser.y"
     {
 		char type[255];
 		snprintf(type, sizeof(type), "%s/%s", (yyvsp[(1) - (3)].string), (yyvsp[(3) - (3)].string));
 		(yyval.string) = type;
-	}
+	;}
     break;
 
   case 38:
-#line 369 "mimeparser.y"
+#line 367 "mimeparser.y"
     {
 		if (pstate->parsemode != MM_PARSE_LOOSE) {
 			mm_errno = MM_ERROR_MIME;
@@ -1748,11 +1746,11 @@ yyreduce:
 		} else {
 			/* TODO: attach MM_WARNING_INVHDR */
 		}	
-	}
+	;}
     break;
 
   case 41:
-#line 387 "mimeparser.y"
+#line 385 "mimeparser.y"
     {	
 		if (pstate->parsemode != MM_PARSE_LOOSE) {
 			mm_errno = MM_ERROR_MIME;
@@ -1762,11 +1760,11 @@ yyreduce:
 		} else {
 			/* TODO: attach MM_WARNING_INVHDR */
 		}
-	}
+	;}
     break;
 
   case 42:
-#line 401 "mimeparser.y"
+#line 399 "mimeparser.y"
     {
 		struct mm_param *param;
 		param = mm_param_new();
@@ -1793,11 +1791,11 @@ yyreduce:
 		param->value = xstrdup((yyvsp[(3) - (3)].string));
 
 		mm_content_attachtypeparam(pstate->ctype, param);
-	}
+	;}
     break;
 
   case 43:
-#line 432 "mimeparser.y"
+#line 430 "mimeparser.y"
     {
 		struct mm_param *param;
 		param = mm_param_new();
@@ -1807,19 +1805,19 @@ yyreduce:
 
 		mm_content_attachdispositionparam(pstate->ctype, param);
 
-	}
+	;}
     break;
 
   case 44:
-#line 446 "mimeparser.y"
+#line 444 "mimeparser.y"
     {
 		dprintf2(pstate,"contenttype_param_val: WORD=%s\n", (yyvsp[(1) - (1)].string));
 		(yyval.string) = (yyvsp[(1) - (1)].string);
-	}
+	;}
     break;
 
   case 45:
-#line 452 "mimeparser.y"
+#line 450 "mimeparser.y"
     {
 		dprintf2(pstate,"contenttype_param_val: TSPECIAL\n");
 		/* For broken MIME implementation */
@@ -1832,26 +1830,26 @@ yyreduce:
 			/* TODO: attach MM_WARNING_INVAL */
 		}	
 		(yyval.string) = (yyvsp[(1) - (1)].string);
-	}
+	;}
     break;
 
   case 46:
-#line 467 "mimeparser.y"
+#line 465 "mimeparser.y"
     {
 		dprintf2(pstate,"contenttype_param_val: \"TSPECIAL\"\n" );
 		(yyval.string) = (yyvsp[(2) - (3)].string);
-	}
+	;}
     break;
 
   case 47:
-#line 475 "mimeparser.y"
+#line 473 "mimeparser.y"
     {
 		dprintf2(pstate,"End of headers at line %d\n", pstate->lstate.lineno);
-	}
+	;}
     break;
 
   case 48:
-#line 482 "mimeparser.y"
+#line 480 "mimeparser.y"
     {
 		if (pstate->lstate.boundary_string == NULL) {
 			mm_errno = MM_ERROR_PARSE;
@@ -1866,11 +1864,11 @@ yyreduce:
 			return(-1);
 		}
 		dprintf2(pstate,"New MIME part... (%s)\n", (yyvsp[(1) - (2)].string));
-	}
+	;}
     break;
 
   case 49:
-#line 501 "mimeparser.y"
+#line 499 "mimeparser.y"
     {
 		if (pstate->lstate.endboundary_string == NULL) {
 			mm_errno = MM_ERROR_PARSE;
@@ -1885,11 +1883,11 @@ yyreduce:
 			return(-1);
 		}
 		dprintf2(pstate,"End of MIME message\n");
-	}
+	;}
     break;
 
   case 50:
-#line 520 "mimeparser.y"
+#line 518 "mimeparser.y"
     {
 		char *body;
 		size_t offset;
@@ -1906,12 +1904,12 @@ yyreduce:
 		pstate->current_mimepart->body = body + offset;
 		pstate->current_mimepart->opaque_length = (yyvsp[(1) - (1)].position).end - (yyvsp[(1) - (1)].position).start - 2 + offset;
 		pstate->current_mimepart->length = pstate->current_mimepart->opaque_length - offset;
-	}
+	;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1915 "mimeparser.tab.c"
+#line 1913 "mimeparser.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2125,7 +2123,7 @@ yyreturn:
 }
 
 
-#line 539 "mimeparser.y"
+#line 537 "mimeparser.y"
 
 
 /*
