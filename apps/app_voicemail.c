@@ -3183,8 +3183,24 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_log(LOG_NOTICE,"Can not leave voicemail, unable to count messages\n");
 			return -1;
 		}
-		if((vms = get_vm_state_by_mailbox(ext,0)))  
-			vms->newmessages++; /*still need to increment new message count*/
+		if(!(vms = get_vm_state_by_mailbox(ext,0))) {
+		/*It is possible under certain circumstances that inboxcount did not create a vm_state when it was needed. This is a catchall which will
+		 * rarely be used*/
+			if (!(vms = ast_calloc(1, sizeof(*vms)))) {
+				ast_log(LOG_ERROR, "Couldn't allocate necessary space\n");
+				return -1;
+			}
+			ast_copy_string(vms->imapuser, vmu->imapuser, sizeof(vms->imapuser));
+			ast_copy_string(vms->username, ext, sizeof(vms->username));
+			vms->mailstream = NIL;
+			ast_debug(3, "Copied %s to %s\n", vmu->imapuser, vms->imapuser);
+			vms->updated=1;
+			ast_copy_string(vms->curbox, mbox(0), sizeof(vms->curbox));
+			init_vm_state(vms);
+			vmstate_insert(vms);
+			vms = get_vm_state_by_mailbox(ext,0);
+		}
+		vms->newmessages++;
 		
 		/* here is a big difference! We add one to it later */
 		msgnum = newmsgs + oldmsgs;
