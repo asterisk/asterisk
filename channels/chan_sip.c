@@ -15400,8 +15400,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	}
 
 	/* Add subscription for extension state from the PBX core */
-	if (p->subscribed != MWI_NOTIFICATION && !resubscribe)
+	if (p->subscribed != MWI_NOTIFICATION && !resubscribe) {
+		if (p->stateid > -1)
+			ast_extension_state_del(p->stateid, cb_extensionstate);
 		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+	}
 
 	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
 		p->lastinvite = seqno;
