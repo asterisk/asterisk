@@ -11191,8 +11191,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 				return 0;
 			}
-			if (p->subscribed != NONE)
+			if (p->subscribed != NONE) {
+				if (p->stateid > -1)
+					ast_extension_state_del(p->stateid, cb_extensionstate);
 				p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
+			}
 		}
 	}
 
