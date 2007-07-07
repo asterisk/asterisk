@@ -9,13 +9,21 @@ check_for_app() {
 	fi
 }
 
-# On FreeBSD, multiple autoconf/automake versions have different names.
+# On FreeBSD and OpenBSD, multiple autoconf/automake versions have different names.
 # On linux, envitonment variables tell which one to use.
 
-uname -s | grep -q FreeBSD
-if [ $? = 0 ] ; then	# FreeBSD case
-	MY_AC_VER=259
-	MY_AM_VER=19
+uname -s | grep -q BSD
+if [ $? = 0 ] ; then	# BSD case
+	uname -s | grep -q FreeBSD
+	if [ $? = 0 ] ; then # FreeBSD case
+		MY_AC_VER=259
+		MY_AM_VER=19
+	fi
+	uname -s | grep -q OpenBSD
+	if [ $? = 0 ] ; then # OpenBSD case
+		MY_AC_VER=-2.61
+		MY_AM_VER=-1.9
+	fi
 else	# linux case
 	MY_AC_VER=
 	MY_AM_VER=

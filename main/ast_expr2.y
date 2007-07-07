@@ -41,9 +41,13 @@
 #define FUNC_RINT     rintl
 #define FUNC_TRUNC     truncl
 #define FUNC_EXP       expl
+#ifdef HAVE_EXP2
 #define FUNC_EXP2       exp2l
+#endif
 #define FUNC_LOG       logl
+#ifdef HAVE_LOG2
 #define FUNC_LOG2       log2l
+#endif
 #define FUNC_LOG10       log10l
 #define FUNC_REMAINDER       remainderl
 #else
@@ -66,9 +70,13 @@
 #define FUNC_RINT     rint
 #define FUNC_TRUNC     trunc
 #define FUNC_EXP       exp
+#ifdef HAVE_EXP2
 #define FUNC_EXP2       exp2
+#endif
 #define FUNC_LOG       log
+#ifdef HAVE_LOG2
 #define FUNC_LOG2       log2
+#endif
 #define FUNC_LOG10       log10
 #define FUNC_REMAINDER       remainder
 #endif
@@ -803,6 +811,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#ifdef HAVE_EXP2
 		} else if (strcmp(funcname->u.s,"EXP2") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -812,6 +821,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#endif
 		} else if (strcmp(funcname->u.s,"LOG") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -821,6 +831,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#ifdef HAVE_LOG2
 		} else if (strcmp(funcname->u.s,"LOG2") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -830,6 +841,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#endif
 		} else if (strcmp(funcname->u.s,"LOG10") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
