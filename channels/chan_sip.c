@@ -3721,6 +3721,8 @@ static int sip_hangup(struct ast_channel *ast)
 
 	stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
 
+	append_history(p, needcancel ? "Cancel" : "Hangup", "Cause %s", p->owner ? ast_cause2str(p->owner->hangupcause) : "Unknown");
+
 	/* Disconnect */
 	if (p->vad)
 		ast_dsp_free(p->vad);
