@@ -334,22 +334,21 @@ static void notify_metermaids(const char *exten, char *context)
 /*! \brief metermaids callback from devicestate.c */
 static enum ast_device_state metermaidstate(const char *data)
 {
-	enum ast_device_state res = AST_DEVICE_INVALID;
-	char *context = ast_strdupa(data);
+	char *context;
 	char *exten;
+
+	context = ast_strdupa(data);
 
 	exten = strsep(&context, "@");
 	if (!context)
-		return res;
+		return AST_DEVICE_INVALID;
 	
 	ast_debug(4, "Checking state of exten %s in context %s\n", exten, context);
 
-	res = ast_exists_extension(NULL, context, exten, 1, NULL);
-
-	if (res == AST_DEVICE_UNKNOWN)
+	if (!ast_exists_extension(NULL, context, exten, 1, NULL))
 		return AST_DEVICE_NOT_INUSE;
-	else
-		return AST_DEVICE_INUSE;
+
+	return AST_DEVICE_INUSE;
 }
 
 /*! \brief Park a call 
