@@ -41,14 +41,27 @@
 #define FUNC_RINT     rintl
 #define FUNC_TRUNC     truncl
 #define FUNC_EXP       expl
-#ifdef HAVE_EXP2
+#ifdef HAVE_EXP2L
 #define FUNC_EXP2       exp2l
+#else
+#define	FUNC_EXP2(x)	expl((x) * logl(2))
+#endif
+#ifdef HAVE_EXP10L
+#define FUNC_EXP10       exp10l
+#else
+#define	FUNC_EXP10(x)	expl((x) * logl(10))
 #endif
 #define FUNC_LOG       logl
-#ifdef HAVE_LOG2
+#ifdef HAVE_LOG2L
 #define FUNC_LOG2       log2l
+#else
+#define	FUNC_LOG2(x)	(logl(x) / logl(2))
 #endif
+#ifdef HAVE_LOG10L
 #define FUNC_LOG10       log10l
+#else
+#define	FUNC_LOG10(x)	(logl(x) / logl(10))
+#endif
 #define FUNC_REMAINDER       remainderl
 #else
 #define FP___PRINTF "%.16g"
@@ -72,12 +85,25 @@
 #define FUNC_EXP       exp
 #ifdef HAVE_EXP2
 #define FUNC_EXP2       exp2
+#else
+#define	FUNC_EXP2(x)	exp((x) * log(2))
+#endif
+#ifdef HAVE_EXP10
+#define FUNC_EXP10       exp10
+#else
+#define	FUNC_EXP10(x)	exp((x) * log(10))
 #endif
 #define FUNC_LOG       log
 #ifdef HAVE_LOG2
 #define FUNC_LOG2       log2
+#else
+#define	FUNC_LOG2(x)	(log(x) / log(2))
 #endif
+#ifdef HAVE_LOG10
 #define FUNC_LOG10       log10
+#else
+#define	FUNC_LOG10(x)	(log(x) / log(10))
+#endif
 #define FUNC_REMAINDER       remainder
 #endif
 
@@ -811,7 +837,6 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
-#ifdef HAVE_EXP2
 		} else if (strcmp(funcname->u.s,"EXP2") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -821,7 +846,15 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
-#endif
+		} else if (strcmp(funcname->u.s,"EXP10") == 0) {
+			if (arglist && !arglist->right && arglist->val){
+				to_number(arglist->val);
+				result = make_number(FUNC_EXP10(arglist->val->u.i));
+				return result;
+			} else {
+				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
+				return make_number(0.0);
+			}
 		} else if (strcmp(funcname->u.s,"LOG") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -831,7 +864,6 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
-#ifdef HAVE_LOG2
 		} else if (strcmp(funcname->u.s,"LOG2") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -841,7 +873,6 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
-#endif
 		} else if (strcmp(funcname->u.s,"LOG10") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);

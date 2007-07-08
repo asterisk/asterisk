@@ -375,8 +375,14 @@ if test "x${host_os}" = "xlinux-gnu" ; then
 fi
 
 # BSD might not have exp2, and/or log2
+AST_EXT_LIB_CHECK([EXP2L], [m], [exp2l])
+AST_EXT_LIB_CHECK([LOG2L], [m], [log2l])
+AST_EXT_LIB_CHECK([EXP10L], [m], [exp10l])
+AST_EXT_LIB_CHECK([LOG10L], [m], [log10l])
 AST_EXT_LIB_CHECK([EXP2], [m], [exp2])
 AST_EXT_LIB_CHECK([LOG2], [m], [log2])
+AST_EXT_LIB_CHECK([EXP10], [m], [exp10])
+AST_EXT_LIB_CHECK([LOG10], [m], [log10])
 
 GSM_INTERNAL="yes"
 AC_SUBST(GSM_INTERNAL)
