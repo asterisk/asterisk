@@ -46,7 +46,7 @@ struct ast_channel_monitor {
 
 /* Start monitoring a channel */
 int ast_monitor_start(struct ast_channel *chan, const char *format_spec,
-		      const char *fname_base, int need_lock );
+		      const char *fname_base, int need_lock, int stream_action);
 
 /* Stop monitoring a channel */
 int ast_monitor_stop(struct ast_channel *chan, int need_lock);

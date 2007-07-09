@@ -61,6 +61,11 @@ AST_MUTEX_DEFINE_STATIC(monitorlock);
 		ast_channel_unlock(lock); \
 	} while (0)
 
+/* Streams recording control */
+#define X_REC_IN	1
+#define X_REC_OUT	2
+#define X_JOIN		4
+
 static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
@@ -85,6 +90,10 @@ static char *monitor_descrip = "Monitor([file_format[:urlbase]|[fname_base]|[opt
 "          administrator interface\n"
 "\n"
 "    b   - Don't begin recording unless a call is bridged to another channel\n"
+"\n"
+"    i   - Skip recording of input stream (disables m option)\n"
+"\n"
+"    o   - Skip recording of output stream (disables m option)\n"
 "\nReturns -1 if monitor files can't be opened or if the channel is already\n"
 "monitored, otherwise 0.\n"
 ;
@@ -125,7 +134,7 @@ static int ast_monitor_set_state(struct ast_channel *chan, int state)
 
 /* Start monitoring a channel */
 int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
-		const char *fname_base, int need_lock)
+		const char *fname_base, int need_lock, int stream_action)
 {
 	int res = 0;
 
@@ -184,31 +193,38 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		}
 		
 		/* open files */
-		if (ast_fileexists(monitor->read_filename, NULL, NULL) > 0) {
-			ast_filedelete(monitor->read_filename, NULL);
-		}
-		if (!(monitor->read_stream = ast_writefile(monitor->read_filename,
-						monitor->format, NULL,
-						O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
-			ast_log(LOG_WARNING, "Could not create file %s\n",
-						monitor->read_filename);
-			ast_free(monitor);
-			UNLOCK_IF_NEEDED(chan, need_lock);
-			return -1;
-		}
-		if (ast_fileexists(monitor->write_filename, NULL, NULL) > 0) {
-			ast_filedelete(monitor->write_filename, NULL);
-		}
-		if (!(monitor->write_stream = ast_writefile(monitor->write_filename,
-						monitor->format, NULL,
-						O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
-			ast_log(LOG_WARNING, "Could not create file %s\n",
-						monitor->write_filename);
-			ast_closestream(monitor->read_stream);
-			ast_free(monitor);
-			UNLOCK_IF_NEEDED(chan, need_lock);
-			return -1;
-		}
+		if (stream_action & X_REC_IN) {
+			if (ast_fileexists(monitor->read_filename, NULL, NULL) > 0)
+				ast_filedelete(monitor->read_filename, NULL);
+			if (!(monitor->read_stream = ast_writefile(monitor->read_filename,
+							monitor->format, NULL,
+							O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
+				ast_log(LOG_WARNING, "Could not create file %s\n",
+							monitor->read_filename);
+				ast_free(monitor);
+				UNLOCK_IF_NEEDED(chan, need_lock);
+				return -1;
+			}
+		} else
+			monitor->read_stream = NULL;
+
+		if (stream_action & X_REC_OUT) {
+			if (ast_fileexists(monitor->write_filename, NULL, NULL) > 0) {
+				ast_filedelete(monitor->write_filename, NULL);
+			}
+			if (!(monitor->write_stream = ast_writefile(monitor->write_filename,
+							monitor->format, NULL,
+							O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
+				ast_log(LOG_WARNING, "Could not create file %s\n",
+							monitor->write_filename);
+				ast_closestream(monitor->read_stream);
+				ast_free(monitor);
+				UNLOCK_IF_NEEDED(chan, need_lock);
+				return -1;
+			}
+		} else
+			monitor->write_stream = NULL;
+
 		chan->monitor = monitor;
 		ast_monitor_set_state(chan, AST_MONITOR_RUNNING);
 		/* so we know this call has been monitored in case we need to bill for it or something */
@@ -381,6 +397,7 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	char *delay = NULL;
 	char *urlprefix = NULL;
 	char tmp[256];
+	int stream_action = X_REC_IN | X_REC_OUT;
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;
@@ -397,9 +414,13 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 				*options = 0;
 				options++;
 				if (strchr(options, 'm'))
-					joinfiles = 1;
+					stream_action |= X_JOIN;
 				if (strchr(options, 'b'))
 					waitforbridge = 1;
+				if (strchr(options, 'i'))
+					stream_action &= ~X_REC_IN;
+				if (strchr(options, 'o'))
+					stream_action &= ~X_REC_OUT;
 			}
 		}
 		arg = strchr(format,':');
@@ -432,9 +453,16 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	res = ast_monitor_start(chan, format, fname_base, 1);
+	res = ast_monitor_start(chan, format, fname_base, 1, stream_action);
 	if (res < 0)
 		res = ast_monitor_change_fname(chan, fname_base, 1);
+
+	if (stream_action & X_JOIN) {
+		if ((stream_action & X_REC_IN) && (stream_action & X_REC_OUT))
+			joinfiles = 1;
+		else
+			ast_log(LOG_WARNING, "Won't mix streams unless both input and output streams are recorded\n");
+	}
 	ast_monitor_setjoinfiles(chan, joinfiles);
 
 	return res;
@@ -472,7 +500,7 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 	const char *format = astman_get_header(m, "Format");
 	const char *mix = astman_get_header(m, "Mix");
 	char *d;
-	
+
 	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
@@ -494,8 +522,8 @@ static int start_monitor_action(struct mansession *s, const struct message *m)
 		if ((d = strchr(fname, '/'))) 
 			*d = '-';
 	}
-	
-	if (ast_monitor_start(c, format, fname, 1)) {
+
+	if (ast_monitor_start(c, format, fname, 1, X_REC_IN | X_REC_OUT)) {
 		if (ast_monitor_change_fname(c, fname, 1)) {
 			astman_send_error(s, m, "Could not start monitoring channel");
 			ast_channel_unlock(c);
