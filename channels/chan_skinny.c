@@ -4778,7 +4778,7 @@ static int unload_module(void)
 	delete_devices();
 
 	ast_mutex_lock(&monlock);
-	if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
+	if ((monitor_thread != AST_PTHREADT_NULL) && (monitor_thread != AST_PTHREADT_STOP)) {
 		pthread_cancel(monitor_thread);
 		pthread_kill(monitor_thread, SIGURG);
 		pthread_join(monitor_thread, NULL);

@@ -2093,6 +2093,9 @@ static void *network_thread(void *ignore)
 		}
 		check_password();
 	}
+
+	netthreadid = AST_PTHREADT_NULL;
+	
 	return NULL;
 }
 
@@ -2127,6 +2130,8 @@ static void *process_precache(void *ign)
 		} else
 			sleep(1);
 	}
+
+	precachethreadid = AST_PTHREADT_NULL;
 
 	return NULL;
 }
@@ -4467,10 +4472,14 @@ static int unload_module(void)
 
 	/* Stop all currently running threads */
 	dundi_shutdown = 1;
-	pthread_kill(netthreadid, SIGURG);
-	pthread_join(netthreadid, NULL);
-	pthread_kill(precachethreadid, SIGURG);
-	pthread_join(precachethreadid, NULL);
+	if (netthreadid != AST_PTHREADT_NULL) {
+		pthread_kill(netthreadid, SIGURG);
+		pthread_join(netthreadid, NULL);
+	}
+	if (precachethreadid != AST_PTHREADT_NULL) {
+		pthread_kill(precachethreadid, SIGURG);
+		pthread_join(precachethreadid, NULL);
+	}
 
 	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
 	ast_unregister_switch(&dundi_switch);
