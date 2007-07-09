@@ -622,7 +622,7 @@ void ast_cdr_merge(struct ast_cdr *to, struct ast_cdr *from)
 		ast_copy_string(to->dstchannel, from->dstchannel, sizeof(to->dstchannel));
 		from->dstchannel[0] = 0; /* theft */
 	}
-	if (ast_strlen_zero(to->channel) && !ast_strlen_zero(from->channel)) {
+	if (!ast_strlen_zero(from->channel) && (ast_strlen_zero(to->channel) || !strncasecmp(from->channel, "Agent/", 6))) {
 		ast_copy_string(to->channel, from->channel, sizeof(to->channel));
 		from->channel[0] = 0; /* theft */
 	}
