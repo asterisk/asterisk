@@ -883,9 +883,9 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 						incomplete = 1;	/* error encountered or label > 125 chars */
 					
 					fprintf(output, "exten => %s%s%s,%d%s,%s(%s)\n",
-					    ast_get_extension_name(p), sep, cid,
+					    ast_get_extension_name(p), (ast_strlen_zero(sep) ? "" : sep), (ast_strlen_zero(cid) ? "" : cid),
 					    ast_get_extension_priority(p), label,
-					    ast_get_extension_app(p), tempdata);
+					    ast_get_extension_app(p), (ast_strlen_zero(tempdata) ? "" : tempdata));
 				}
 			}
 		}
