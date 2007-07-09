@@ -170,12 +170,10 @@ struct parkeduser {
 	int notquiteyet;
 	char peername[1024];
 	unsigned char moh_trys;
-	struct parkeduser *next;
+	AST_LIST_ENTRY(parkeduser) list;
 };
 
-static struct parkeduser *parkinglot;
-
-AST_MUTEX_DEFINE_STATIC(parking_lock);	/*!< protects all static variables above */
+static AST_LIST_HEAD_STATIC(parkinglot, parkeduser);
 
 static pthread_t parking_thread;
 
@@ -366,12 +364,12 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		return -1;
 
 	/* Lock parking lot */
-	ast_mutex_lock(&parking_lock);
+	AST_LIST_LOCK(&parkinglot);
 	/* Check for channel variable PARKINGEXTEN */
 	parkingexten = pbx_builtin_getvar_helper(chan, "PARKINGEXTEN");
 	if (!ast_strlen_zero(parkingexten)) {
 		if (ast_exists_extension(NULL, parking_con, parkingexten, 1, NULL)) {
-			ast_mutex_unlock(&parking_lock);
+			AST_LIST_UNLOCK(&parkinglot);
 			ast_free(pu);
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
 			return -1; /* We failed to park this call, plain and simple so we need to error out */
@@ -383,11 +381,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		parking_range = parking_stop - parking_start+1;
 		for (i = 0; i < parking_range; i++) {
 			x = (i + parking_offset) % parking_range + parking_start;
-			cur = parkinglot;
-			while(cur) {
-				if (cur->parkingnum == x) 
+			AST_LIST_TRAVERSE(&parkinglot, cur, list) {
+				if (cur->parkingnum == x)
 					break;
-				cur = cur->next;
 			}
 			if (!cur)
 				break;
@@ -396,7 +392,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		if (!(i < parking_range)) {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
 			ast_free(pu);
-			ast_mutex_unlock(&parking_lock);
+			AST_LIST_UNLOCK(&parkinglot);
 			return -1;
 		}
 		/* Set pointer for next parking */
@@ -430,13 +426,12 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	ast_copy_string(pu->context, S_OR(chan->macrocontext, chan->context), sizeof(pu->context));
 	ast_copy_string(pu->exten, S_OR(chan->macroexten, chan->exten), sizeof(pu->exten));
 	pu->priority = chan->macropriority ? chan->macropriority : chan->priority;
-	pu->next = parkinglot;
-	parkinglot = pu;
+	AST_LIST_INSERT_TAIL(&parkinglot, pu, list);
 
 	/* If parking a channel directly, don't quiet yet get parking running on it */
 	if (peer == chan) 
 		pu->notquiteyet = 1;
-	ast_mutex_unlock(&parking_lock);
+	AST_LIST_UNLOCK(&parkinglot);
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
 	if (option_verbose > 1) 
@@ -1908,28 +1903,22 @@ static void *do_parking_thread(void *ignore)
 	FD_ZERO(&efds);
 
 	for (;;) {
-		struct parkeduser *pu, *pl, *pt = NULL;
+		struct parkeduser *pu;
 		int ms = -1;	/* select timeout, uninitialized */
 		int max = -1;	/* max fd, none there yet */
 		fd_set nrfds, nefds;	/* args for the next select */
 		FD_ZERO(&nrfds);
 		FD_ZERO(&nefds);
 
-		ast_mutex_lock(&parking_lock);
-		pl = NULL;
-		pu = parkinglot;
-		/* navigate the list with prev-cur pointers to support removals */
-		while (pu) {
+		AST_LIST_LOCK(&parkinglot);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&parkinglot, pu, list) {
 			struct ast_channel *chan = pu->chan;	/* shorthand */
 			int tms;        /* timeout for this item */
 			int x;          /* fd index in channel */
 			struct ast_context *con;
 
-			if (pu->notquiteyet) { /* Pretend this one isn't here yet */
-				pl = pu;
-				pu = pu->next;
+			if (pu->notquiteyet) /* Pretend this one isn't here yet */
 				continue;
-			}
 			tms = ast_tvdiff_ms(ast_tvnow(), pu->start);
 			if (tms > pu->parkingtime) {
 				ast_indicate(chan, AST_CONTROL_UNHOLD);
@@ -1974,21 +1963,16 @@ static void *do_parking_thread(void *ignore)
 					ast_hangup(chan);
 				}
 				/* And take them out of the parking lot */
-				if (pl) 
-					pl->next = pu->next;
-				else
-					parkinglot = pu->next;
-				pt = pu;
-				pu = pu->next;
+				AST_LIST_REMOVE_CURRENT(&parkinglot, list);
 				con = ast_context_find(parking_con);
 				if (con) {
-					if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
+					if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
 						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 					else
-						notify_metermaids(pt->parkingexten, parking_con);
+						notify_metermaids(pu->parkingexten, parking_con);
 				} else
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
-				ast_free(pt);
+				ast_free(pu);
 			} else {	/* still within parking time, process descriptors */
 				for (x = 0; x < AST_MAX_FDS; x++) {
 					struct ast_frame *f;
@@ -2014,21 +1998,16 @@ static void *do_parking_thread(void *ignore)
 							ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", chan->name);
 						ast_hangup(chan);
 						/* And take them out of the parking lot */
-						if (pl) 
-							pl->next = pu->next;
-						else
-							parkinglot = pu->next;
-						pt = pu;
-						pu = pu->next;
+						AST_LIST_REMOVE_CURRENT(&parkinglot, list);
 						con = ast_context_find(parking_con);
 						if (con) {
-							if (ast_context_remove_extension2(con, pt->parkingexten, 1, NULL))
+							if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
 								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 							else
-								notify_metermaids(pt->parkingexten, parking_con);
+								notify_metermaids(pu->parkingexten, parking_con);
 						} else
 							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
-						ast_free(pt);
+						ast_free(pu);
 						break;
 					} else {
 						/*! \todo XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
@@ -2056,12 +2035,11 @@ std:					for (x=0; x<AST_MAX_FDS; x++) {	/* mark fds for next round */
 					/* Keep track of our shortest wait */
 					if (tms < ms || ms < 0)
 						ms = tms;
-					pl = pu;
-					pu = pu->next;
 				}
 			}
 		} /* end while */
-		ast_mutex_unlock(&parking_lock);
+		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_UNLOCK(&parkinglot);
 		rfds = nrfds;
 		efds = nefds;
 		{
@@ -2109,7 +2087,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct ast_module_user *u;
 	struct ast_channel *peer=NULL;
-	struct parkeduser *pu, *pl=NULL;
+	struct parkeduser *pu;
 	struct ast_context *con;
 
 	int park;
@@ -2123,20 +2101,17 @@ static int park_exec(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 
 	park = atoi((char *)data);
-	ast_mutex_lock(&parking_lock);
-	pu = parkinglot;
-	while(pu) {
+
+	AST_LIST_LOCK(&parkinglot);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&parkinglot, pu, list) {
 		if (pu->parkingnum == park) {
-			if (pl)
-				pl->next = pu->next;
-			else
-				parkinglot = pu->next;
+			AST_LIST_REMOVE_CURRENT(&parkinglot, list);
 			break;
 		}
-		pl = pu;
-		pu = pu->next;
 	}
-	ast_mutex_unlock(&parking_lock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&parkinglot);
+
 	if (pu) {
 		peer = pu->chan;
 		con = ast_context_find(parking_con);
@@ -2421,16 +2396,15 @@ static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli
 	ast_cli(a->fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
 		, "Context", "Extension", "Pri", "Timeout");
 
-	ast_mutex_lock(&parking_lock);
-
-	for (cur = parkinglot; cur; cur = cur->next) {
+	AST_LIST_LOCK(&parkinglot);
+	AST_LIST_TRAVERSE(&parkinglot, cur, list) {
 		ast_cli(a->fd, "%-10.10s %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingexten, cur->chan->name, cur->context, cur->exten
 			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 
 		numparked++;
 	}
-	ast_mutex_unlock(&parking_lock);
+	AST_LIST_UNLOCK(&parkinglot);
 	ast_cli(a->fd, "%d parked call%s.\n", numparked, ESS(numparked));
 
 
@@ -2467,9 +2441,9 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 
 	astman_send_ack(s, m, "Parked calls will follow");
 
-	ast_mutex_lock(&parking_lock);
+	AST_LIST_LOCK(&parkinglot);
 
-	for (cur = parkinglot; cur; cur = cur->next) {
+	AST_LIST_TRAVERSE(&parkinglot, cur, list) {
 		astman_append(s, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
@@ -2491,7 +2465,7 @@ static int manager_parking_status(struct mansession *s, const struct message *m)
 		"%s"
 		"\r\n",idText);
 
-	ast_mutex_unlock(&parking_lock);
+	AST_LIST_UNLOCK(&parkinglot);
 
 	return RESULT_SUCCESS;
 }
