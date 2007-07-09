@@ -99,6 +99,8 @@ static char *descrip =
 "  Options:\n"
 "    A(x) - Play an announcement to the called party, using 'x' as the file.\n"
 "    C    - Reset the CDR for this call.\n"
+"    c    - If DIAL cancels this call, always set the flag to tell the channel\n"
+"           driver that the call is answered elsewhere.\n"
 "    d    - Allow the calling user to dial a 1 digit extension while waiting for\n"
 "           a call to be answered. Exit to that extension if it exists in the\n"
 "           current context, or the context defined in the EXITCONTEXT variable,\n"
@@ -253,6 +255,7 @@ enum {
 	OPT_CALLER_PARK =	(1 << 26),
 	OPT_IGNORE_FORWARDING = (1 << 27),
 	OPT_CALLEE_GOSUB =	(1 << 28),
+	OPT_CANCEL_ELSEWHERE =  (1 << 29),
 };
 
 #define DIAL_STILLGOING			(1 << 30)
@@ -276,6 +279,7 @@ enum {
 AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION_ARG('A', OPT_ANNOUNCE, OPT_ARG_ANNOUNCE),
 	AST_APP_OPTION('C', OPT_RESETCDR),
+	AST_APP_OPTION('c', OPT_CANCEL_ELSEWHERE),
 	AST_APP_OPTION('d', OPT_DTMF_EXIT),
 	AST_APP_OPTION_ARG('D', OPT_SENDDTMF, OPT_ARG_SENDDTMF),
 	AST_APP_OPTION('f', OPT_FORCECLID),
@@ -315,14 +319,17 @@ struct chanlist {
 };
 
 
-static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception)
+static void hanguptree(struct chanlist *outgoing, struct ast_channel *exception, int answered_elsewhere)
 {
 	/* Hang up a tree of stuff */
 	struct chanlist *oo;
 	while (outgoing) {
 		/* Hangup any existing lines we have open */
-		if (outgoing->chan && (outgoing->chan != exception))
+		if (outgoing->chan && (outgoing->chan != exception)) {
+			if (answered_elsewhere)
+				ast_set_flag(outgoing->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 			ast_hangup(outgoing->chan);
+		}
 		oo = outgoing;
 		outgoing=outgoing->next;
 		ast_free(oo);
@@ -1314,6 +1321,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			goto out;
 		if (opts.flags) {
 			ast_copy_flags(tmp, &opts,
+				       OPT_CANCEL_ELSEWHERE |
 				       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
 				       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
 				       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
@@ -1513,7 +1521,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
-		hanguptree(outgoing, peer);
+		hanguptree(outgoing, peer, 1);
 		outgoing = NULL;
 		/* If appropriate, log that we have a destination channel */
 		if (chan->cdr)
@@ -1562,7 +1570,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_parseable_goto(peer, opt_args[OPT_ARG_GOTO]);
 			peer->priority++;
 			ast_pbx_start(peer);
-			hanguptree(outgoing, NULL);
+			hanguptree(outgoing, NULL, ast_test_flag(&opts, OPT_CANCEL_ELSEWHERE ? 1 : 0));
 			if (continue_exec)
 				*continue_exec = 1;
 			res = 0;
@@ -1800,7 +1808,7 @@ out:
 		ast_indicate(chan, -1);
 	}
 	ast_channel_early_bridge(chan, NULL);
-	hanguptree(outgoing, NULL);
+	hanguptree(outgoing, NULL, 0);	/* In this case, there's no answer anywhere */
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 	senddialendevent(chan, pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);

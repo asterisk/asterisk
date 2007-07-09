@@ -495,6 +495,8 @@ static int local_hangup(struct ast_channel *ast)
 		return -1;
 
 	ast_mutex_lock(&p->lock);
+	if (p->chan && ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) 
+		ast_set_flag(p->chan, AST_FLAG_ANSWERED_ELSEWHERE);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		const char *status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");

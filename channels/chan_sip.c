@@ -752,7 +752,7 @@ struct sip_auth {
 #define SIP_REALTIME		(1 << 11)	/*!< P: Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< DP: Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< D: Direction of the last transaction in this dialog */
-#define SIP_FREE_BIT		(1 << 14)	/*!< ---- */
+#define SIP_DIALOG_ANSWEREDELSEWHERE	(1 << 14)	/*!< D: This call is cancelled due to answer on another channel */
 #define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< D: Do not hangup at first ast_hangup */
 #define SIP_DTMF		(3 << 16)	/*!< DP: DTMF Support: four settings, uses two bits */
 #define SIP_DTMF_RFC2833	(0 << 16)	/*!< DP: DTMF Support: RTP DTMF - "rfc2833" */
@@ -3673,6 +3673,12 @@ static int sip_hangup(struct ast_channel *ast)
 	if (!p) {
 		ast_debug(1, "Asked to hangup channel that was not connected\n");
 		return 0;
+	}
+	if (ast_test_flag(ast, AST_FLAG_ANSWERED_ELSEWHERE)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "This call was answered elsewhere");
+		append_history(p, "Cancel", "Call answered elsewhere");
+		ast_set_flag(&p->flags[0], SIP_DIALOG_ANSWEREDELSEWHERE);
 	}
 
 	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
@@ -8140,6 +8146,9 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 		p->invitestate = INV_CONFIRMED;
 
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
+	if (sipmethod == SIP_CANCEL && ast_test_flag(&p->flags[0], SIP_DIALOG_ANSWEREDELSEWHERE)) 
+		add_header(&resp, "Reason:", "SIP;cause=200;text=\"Call completed elsewhere\"");
+
 	add_header_contentLength(&resp, 0);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }

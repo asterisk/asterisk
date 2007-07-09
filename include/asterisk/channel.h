@@ -539,6 +539,9 @@ enum {
 	/*! This is set to tell the channel not to generate DTMF begin frames, and
 	 *  to instead only generate END frames. */
 	AST_FLAG_END_DTMF_ONLY = (1 << 14),
+	/*! Flag to show channels that this call is hangup due to the fact that the call
+	    was indeed anwered, but in another channel */
+	AST_FLAG_ANSWERED_ELSEWHERE = (1 << 15),
 };
 
 /*! \brief ast_bridge_config flags */
