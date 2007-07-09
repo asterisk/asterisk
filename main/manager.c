@@ -2241,7 +2241,7 @@ static char mandescr_coresettings[] =
 static int action_coresettings(struct mansession *s, const struct message *m)
 {
 	const char *actionid = astman_get_header(m, "ActionID");
-	char idText[150];
+	char idText[150] = "";
 
 	if (!ast_strlen_zero(actionid))
 		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
@@ -2260,8 +2260,8 @@ static int action_coresettings(struct mansession *s, const struct message *m)
 			"CoreCDRenabled: %s\r\n"
 			"CoreHTTPenabled: %s\r\n"
 			,
+		        idText,
 			AMI_VERSION,
-			idText,
 			ASTERISK_VERSION, 
 			ast_config_AST_SYSTEM_NAME,
 			option_maxcalls,
