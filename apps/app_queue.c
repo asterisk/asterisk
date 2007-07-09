@@ -1763,15 +1763,17 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		char vars[2048];
 
 		manager_event(EVENT_FLAG_AGENT, "AgentCalled",
+					"Queue: %s\r\n"
 					"AgentCalled: %s\r\n"
 					"ChannelCalling: %s\r\n"
+					"DestinationChannel: %s\r\n"
 					"CallerIDNum: %s\r\n"
 					"CallerIDName: %s\r\n"
 					"Context: %s\r\n"
 					"Extension: %s\r\n"
 					"Priority: %d\r\n"
 					"%s",
-					tmp->interface, qe->chan->name,
+					qe->parent->name, tmp->interface, qe->chan->name, tmp->chan->name,
 					tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
 					tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
 					qe->chan->context, qe->chan->exten, qe->chan->priority,
