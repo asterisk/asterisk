@@ -636,6 +636,7 @@ static struct mohclass *get_mohbyname(char *name)
 			return moh;
 		moh = moh->next;
 	}
+	ast_log(LOG_WARNING, "Music on Hold class '%s' not found\n", name);
 	return NULL;
 }
 
@@ -908,20 +909,19 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 
 static int local_ast_moh_start(struct ast_channel *chan, char *class)
 {
-	struct mohclass *mohclass;
+	struct mohclass *mohclass = NULL;
 
-	if (ast_strlen_zero(class))
-		class = chan->musicclass;
-	if (ast_strlen_zero(class))
-		class = "default";
 	ast_mutex_lock(&moh_lock);
-	mohclass = get_mohbyname(class);
+	if (!ast_strlen_zero(class))
+		mohclass = get_mohbyname(class);
+	if (!mohclass && !ast_strlen_zero(chan->musicclass))
+		mohclass = get_mohbyname(chan->musicclass);
+	if (!mohclass)
+		mohclass = get_mohbyname("default");
 	ast_mutex_unlock(&moh_lock);
 
-	if (!mohclass) {
-		ast_log(LOG_WARNING, "No class: %s\n", (char *)class);
+	if (!mohclass)
 		return -1;
-	}
 
 	ast_set_flag(chan, AST_FLAG_MOH);
 	if (mohclass->total_files) {
