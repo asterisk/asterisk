@@ -3464,7 +3464,6 @@ check_turns:
 					}
 					break;
 				}
-				ast_log(LOG_DEBUG, "Status update 3\n");
 
 				stat = get_member_status(qe.parent, qe.max_penalty);
 
