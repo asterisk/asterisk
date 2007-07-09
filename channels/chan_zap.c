@@ -12131,6 +12131,14 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
 			else
 				confp->chan.amaflags = y;
+		} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
+			confp->chan.polarityonanswerdelay = atoi(v->value);
+		} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {
+			confp->chan.answeronpolarityswitch = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
+			confp->chan.hanguponpolarityswitch = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
+			confp->chan.sendcalleridafter = atoi(v->value);
 		} else if (!reload){ 
 			 if (!strcasecmp(v->name, "signalling")) {
 				confp->chan.outsigmod = -1;
@@ -12627,14 +12635,6 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 					}
 				}
 				close(ctlfd);
-			} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
-				confp->chan.polarityonanswerdelay = atoi(v->value);
-			} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {
-				confp->chan.answeronpolarityswitch = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
-				confp->chan.hanguponpolarityswitch = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "sendcalleridafter")) {
-				confp->chan.sendcalleridafter = atoi(v->value);
 			} else if (!strcasecmp(v->name, "defaultcic")) {
 				ast_copy_string(defaultcic, v->value, sizeof(defaultcic));
 			} else if (!strcasecmp(v->name, "defaultozz")) {
