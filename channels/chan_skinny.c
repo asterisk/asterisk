@@ -890,7 +890,7 @@ static char *skinny_cxmodes[] = {
 #endif
 
 /* driver scheduler */
-static struct sched_context *sched;
+static struct sched_context *sched = NULL;
 static struct io_context *io;
 
 /* Protect the monitoring thread, so only one process can kill or start it, and not
@@ -4800,7 +4800,8 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_skinny, sizeof(cli_skinny) / sizeof(struct ast_cli_entry));
 
 	close(skinnysock);
-	sched_context_destroy(sched);
+	if (sched)
+		sched_context_destroy(sched);
 
 	return 0;
 }
