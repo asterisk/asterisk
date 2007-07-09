@@ -1244,7 +1244,7 @@ static void temp_pvt_cleanup(void *);
 /*! \brief A per-thread temporary pvt structure */
 AST_THREADSTORAGE_CUSTOM(ts_temp_pvt, temp_pvt_init, temp_pvt_cleanup);
 
-/*! \breif Authentication list for realm authentication 
+/*! \brief Authentication list for realm authentication 
  * \todo Move the sip_auth list to AST_LIST */
 static struct sip_auth *authl = NULL;
 

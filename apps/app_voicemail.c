@@ -35,7 +35,7 @@ c-client (http://www.washington.edu/imap/
  *
  *
  *
- * \note  This file is now almost impossible to work with, due to all #ifdefs.
+ * \note  This file is now almost impossible to work with, due to all \#ifdefs.
  *        Feels like the database code before realtime. Someone - please come up
  *        with a plan to clean this up.
  */

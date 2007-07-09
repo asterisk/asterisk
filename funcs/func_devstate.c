@@ -24,7 +24,7 @@
  *
  * \ingroup functions
  *
- * \note Props go out to Ahrimanes in #asterisk for requesting this at 4:30 AM
+ * \note Props go out to Ahrimanes in \#asterisk for requesting this at 4:30 AM
  *       when I couldn't sleep.  :)
  */
 

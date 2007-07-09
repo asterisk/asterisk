@@ -107,12 +107,12 @@
 	so a transcoding module is needed.
 
 References:
-        - ast_channel_early_bridge()
-        - ast_channel_bridge()
-	- app_meetme.c
-	- \ref AstRTPbridge
-        - ast_rtp_bridge() 
-	- \ref Def_Channel
+	\li \see ast_channel_early_bridge()
+	\li \see ast_channel_bridge()
+	\li \see app_meetme.c
+	\li \ref AstRTPbridge
+	\li \see ast_rtp_bridge() 
+	\li \ref Def_Channel
 */
 
 /*! \page AstFileDesc File descriptors 
