@@ -2357,8 +2357,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
 			break;
 		case 'n':
-			if ((now - qe->start >= qe->parent->timeout))
-				*go_on = 1;
+			*go_on = 1;
 			break;
 		case 'i':
 			forwardsallowed = 0;
@@ -3465,8 +3464,20 @@ check_turns:
 					}
 					break;
 				}
+				ast_log(LOG_DEBUG, "Status update 3\n");
 
 				stat = get_member_status(qe.parent, qe.max_penalty);
+
+				/* exit after 'timeout' cycle if 'n' option enabled */
+				if (go_on) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+					record_abandoned(&qe);
+					reason = QUEUE_TIMEOUT;
+					res = 0;
+					break;
+				}
 
 				/* leave the queue if no agents, if enabled */
 				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
@@ -3510,16 +3521,7 @@ check_turns:
 					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 					break;
 				}
-				/* exit after 'timeout' cycle if 'n' option enabled */
-				if (go_on) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
-					record_abandoned(&qe);
-					reason = QUEUE_TIMEOUT;
-					res = 0;
-					break;
-				}
+
 				/* Since this is a priority queue and
 				 * it is not sure that we are still at the head
 				 * of the queue, go and check for our turn again.
