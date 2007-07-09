@@ -31,6 +31,8 @@ Dialplan functions
      fetch string representation of calling number presentation indicator
      and numeric representation of type of calling number value.
   * MailboxExists converted to dialplan function
+  * A new option to Dial() for telling IP phones not to count the call
+    as "missed" when dial times out and cancels.
 
 CLI Changes
 -----------
@@ -62,6 +64,8 @@ SIP changes
      for more information.
   * Added rtpdest option to CHANNEL() dialplan function.
   * Added SIPREFERRINGCONTEXT and SIPREFERREDBYHDR variables which are set when a transfer takes place.
+  * SIP now adds a header to the CANCEL if the call was answered by another phone
+    in the same dial command, or if the new c option in dial() is used.
 
 IAX2 changes
 ------------
