@@ -603,7 +603,7 @@ static int moh0_exec(struct ast_channel *chan, void *data)
 {
 	if (ast_moh_start(chan, data, NULL)) {
 		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
-		return -1;
+		return 0;
 	}
 	while (!ast_safe_sleep(chan, 10000));
 	ast_moh_stop(chan);
@@ -619,7 +619,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 	}
 	if (ast_moh_start(chan, NULL, NULL)) {
 		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi(data), chan->name);
-		return -1;
+		return 0;
 	}
 	res = ast_safe_sleep(chan, atoi(data) * 1000);
 	ast_moh_stop(chan);
@@ -663,6 +663,9 @@ static struct mohclass *get_mohbyname(const char *name)
 		if (!strcasecmp(name, moh->name))
 			break;
 	}
+
+	if (!moh)
+		ast_log(LOG_WARNING, "Music on Hold class '%s' not found\n", name);
 
 	return moh;
 }
@@ -948,7 +951,6 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
 	struct mohclass *mohclass;
-	const char *class;
 
 	/* The following is the order of preference for which class to use:
 	 * 1) The channels explicitly set musicclass, which should *only* be
@@ -961,23 +963,19 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	 *    option.
 	 * 4) The default class.
 	 */
-	if (!ast_strlen_zero(chan->musicclass))
-		class = chan->musicclass;
-	else if (!ast_strlen_zero(mclass))
-		class = mclass;
-	else if (!ast_strlen_zero(interpclass))
-		class = interpclass;
-	else
-		class = "default";
-
 	AST_RWLIST_RDLOCK(&mohclasses);
-	mohclass = get_mohbyname(class);
+	if (!ast_strlen_zero(chan->musicclass))
+		mohclass = get_mohbyname(chan->musicclass);
+	if (!mohclass && !ast_strlen_zero(mclass))
+		mohclass = get_mohbyname(mclass);
+	if (!mohclass && !ast_strlen_zero(interpclass))
+		mohclass = get_mohbyname(interpclass);
+	if (!mohclass)	
+		mohclass = get_mohbyname("default");
 	AST_RWLIST_UNLOCK(&mohclasses);
 
-	if (!mohclass) {
-		ast_log(LOG_WARNING, "No class: %s\n", class);
+	if (!mohclass)
 		return -1;
-	}
 
 	ast_set_flag(chan, AST_FLAG_MOH);
 	if (mohclass->total_files) {
