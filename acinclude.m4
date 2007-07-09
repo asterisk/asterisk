@@ -179,21 +179,22 @@ AC_DEFUN(
 [AST_CHECK_PWLIB], [
 PWLIB_INCDIR=
 PWLIB_LIBDIR=
+AC_LANG_PUSH([C++])
 if test "${PWLIBDIR:-unset}" != "unset" ; then
-  AC_CHECK_FILE(${PWLIBDIR}/version.h, HAS_PWLIB=1, )
+  AC_CHECK_HEADER(${PWLIBDIR}/version.h, HAS_PWLIB=1, )
 fi
 if test "${HAS_PWLIB:-unset}" = "unset" ; then
   if test "${OPENH323DIR:-unset}" != "unset"; then
-    AC_CHECK_FILE(${OPENH323DIR}/../pwlib/version.h, HAS_PWLIB=1, )
+    AC_CHECK_HEADER(${OPENH323DIR}/../pwlib/version.h, HAS_PWLIB=1, )
   fi
   if test "${HAS_PWLIB:-unset}" != "unset" ; then
     PWLIBDIR="${OPENH323DIR}/../pwlib"
   else
-    AC_CHECK_FILE(${HOME}/pwlib/include/ptlib.h, HAS_PWLIB=1, )
+    AC_CHECK_HEADER(${HOME}/pwlib/include/ptlib.h, HAS_PWLIB=1, )
     if test "${HAS_PWLIB:-unset}" != "unset" ; then
       PWLIBDIR="${HOME}/pwlib"
     else
-      AC_CHECK_FILE(/usr/local/include/ptlib.h, HAS_PWLIB=1, )
+      AC_CHECK_HEADER(/usr/local/include/ptlib.h, HAS_PWLIB=1, )
       if test "${HAS_PWLIB:-unset}" != "unset" ; then
         AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/local/bin)
         if test "${PTLIB_CONFIG:-unset}" = "unset" ; then
@@ -211,7 +212,7 @@ if test "${HAS_PWLIB:-unset}" = "unset" ; then
         PWLIB_LIB=`${PTLIB_CONFIG} --ldflags --libs`
         PWLIB_LIB="-L${PWLIB_LIBDIR} `echo ${PWLIB_LIB}`"
       else
-        AC_CHECK_FILE(/usr/include/ptlib.h, HAS_PWLIB=1, )
+        AC_CHECK_HEADER(/usr/include/ptlib.h, HAS_PWLIB=1, )
         if test "${HAS_PWLIB:-unset}" != "unset" ; then
           AC_PATH_PROG(PTLIB_CONFIG, ptlib-config, , /usr/share/pwlib/make)
           PWLIB_INCDIR="/usr/include"
@@ -276,6 +277,7 @@ if test "${HAS_PWLIB:-unset}" != "unset" ; then
   AC_SUBST([PWLIB_INCDIR])
   AC_SUBST([PWLIB_LIBDIR])
 fi
+  AC_LANG_POP([C++])
 ])
 
 
@@ -370,20 +372,21 @@ AC_DEFUN(
 [AST_CHECK_OPENH323], [
 OPENH323_INCDIR=
 OPENH323_LIBDIR=
+AC_LANG_PUSH([C++])
 if test "${OPENH323DIR:-unset}" != "unset" ; then
-  AC_CHECK_FILE(${OPENH323DIR}/version.h, HAS_OPENH323=1, )
+  AC_CHECK_HEADER(${OPENH323DIR}/version.h, HAS_OPENH323=1, )
 fi
 if test "${HAS_OPENH323:-unset}" = "unset" ; then
-  AC_CHECK_FILE(${PWLIBDIR}/../openh323/version.h, OPENH323DIR="${PWLIBDIR}/../openh323"; HAS_OPENH323=1, )
+  AC_CHECK_HEADER(${PWLIBDIR}/../openh323/version.h, OPENH323DIR="${PWLIBDIR}/../openh323"; HAS_OPENH323=1, )
   if test "${HAS_OPENH323:-unset}" != "unset" ; then
     OPENH323DIR="${PWLIBDIR}/../openh323"
-    AC_CHECK_FILE(${OPENH323DIR}/include/h323.h, , OPENH323_INCDIR="${PWLIB_INCDIR}/openh323"; OPENH323_LIBDIR="${PWLIB_LIBDIR}")
+    AC_CHECK_HEADER(${OPENH323DIR}/include/h323.h, , OPENH323_INCDIR="${PWLIB_INCDIR}/openh323"; OPENH323_LIBDIR="${PWLIB_LIBDIR}")
   else
-    AC_CHECK_FILE(${HOME}/openh323/include/h323.h, HAS_OPENH323=1, )
+    AC_CHECK_HEADER(${HOME}/openh323/include/h323.h, HAS_OPENH323=1, )
     if test "${HAS_OPENH323:-unset}" != "unset" ; then
       OPENH323DIR="${HOME}/openh323"
     else
-      AC_CHECK_FILE(/usr/local/include/openh323/h323.h, HAS_OPENH323=1, )
+      AC_CHECK_HEADER(/usr/local/include/openh323/h323.h, HAS_OPENH323=1, )
       if test "${HAS_OPENH323:-unset}" != "unset" ; then
         OPENH323DIR="/usr/local/share/openh323"
         OPENH323_INCDIR="/usr/local/include/openh323"
@@ -393,7 +396,7 @@ if test "${HAS_OPENH323:-unset}" = "unset" ; then
           OPENH323_LIBDIR="/usr/local/lib"
         fi
       else
-        AC_CHECK_FILE(/usr/include/openh323/h323.h, HAS_OPENH323=1, )
+        AC_CHECK_HEADER(/usr/include/openh323/h323.h, HAS_OPENH323=1, )
         if test "${HAS_OPENH323:-unset}" != "unset" ; then
           OPENH323DIR="/usr/share/openh323"
           OPENH323_INCDIR="/usr/include/openh323"
@@ -424,6 +427,7 @@ if test "${HAS_OPENH323:-unset}" != "unset" ; then
   AC_SUBST([OPENH323_INCDIR])
   AC_SUBST([OPENH323_LIBDIR])
 fi
+  AC_LANG_POP([C++])
 ])
 
 
