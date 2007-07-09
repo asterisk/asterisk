@@ -2860,7 +2860,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (strcmp(vmu->context, "default"))
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
 	else
-		ast_copy_string(ext_context, vmu->context, sizeof(ext_context));
+		ast_copy_string(ext_context, vmu->mailbox, sizeof(ext_context));
 	if (ast_test_flag(options, OPT_BUSY_GREETING)) {
 		res = create_dirpath(dest, sizeof(dest), vmu->context, ext, "busy");
 		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
