@@ -950,7 +950,7 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 
 static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass)
 {
-	struct mohclass *mohclass;
+	struct mohclass *mohclass = NULL;
 
 	/* The following is the order of preference for which class to use:
 	 * 1) The channels explicitly set musicclass, which should *only* be
