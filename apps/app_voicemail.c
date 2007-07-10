@@ -4176,6 +4176,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	char *temp;
 	char todir[256];
 	int todircount=0;
+	struct vm_state *dstvms;
 #endif
 	char username[70]="";
 	int res = 0, cmd = 0;
@@ -4366,7 +4367,19 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
  				/* should not assume "fmt" here! */
 				save_body(body,vms,"2",fmt);
  
-				STORE(todir, vmtmp->mailbox, vmtmp->context, vms->curmsg, chan, vmtmp, fmt, duration, vms);
+				/* get destination mailbox */
+				dstvms = get_vm_state_by_mailbox(vmtmp->mailbox,0);
+				if (dstvms) {
+					init_mailstream(dstvms, 0);
+					if (!dstvms->mailstream) {
+						ast_log (LOG_ERROR,"IMAP mailstream for %s is NULL\n",vmtmp->mailbox);
+					} else {
+						STORE(todir, vmtmp->mailbox, vmtmp->context, dstvms->curmsg, chan, vmtmp, fmt, duration, dstvms);
+						run_externnotify(vmtmp->context, vmtmp->mailbox); 
+					}
+				} else {
+					ast_log (LOG_ERROR,"Could not find state information for mailbox %s\n",vmtmp->mailbox);
+				}
 
 				if (!ast_strlen_zero(vmtmp->serveremail))
 					myserveremail = vmtmp->serveremail;
