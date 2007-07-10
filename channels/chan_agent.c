@@ -836,7 +836,7 @@ static int agent_hangup(struct ast_channel *ast)
 			/* Not dead -- check availability now */
 			ast_mutex_lock(&p->lock);
 			/* Store last disconnect time */
-			p->lastdisc = ast_tvnow();
+			p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
 			ast_mutex_unlock(&p->lock);
 		}
 		/* Release ownership of the agent to other threads (presumably running the login app). */
@@ -856,7 +856,7 @@ static int agent_cont_sleep( void *data )
 	ast_mutex_lock(&p->lock);
 	res = p->app_sleep_cond;
 	if (p->lastdisc.tv_sec) {
-		if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > p->wrapuptime) 
+		if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > 0) 
 			res = 1;
 	}
 	ast_mutex_unlock(&p->lock);
@@ -1314,7 +1314,9 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 		    ast_strlen_zero(p->loginchan)) {
 			if (p->chan)
 				hasagent++;
-			if (!p->lastdisc.tv_sec) {
+			tv = ast_tvnow();
+			if (!p->lastdisc.tv_sec || (tv.tv_sec >= p->lastdisc.tv_sec)) {
+				p->lastdisc = ast_tv(0, 0);
 				/* Agent must be registered, but not have any active call, and not be in a waiting state */
 				if (!p->owner && p->chan) {
 					/* Fixed agent */
@@ -2007,7 +2009,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							ast_mutex_lock(&agentlock);
 							ast_mutex_lock(&p->lock);
 							if (p->lastdisc.tv_sec) {
-								if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > p->wrapuptime) {
+								if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > 0) {
 									if (option_debug)
 										ast_log(LOG_DEBUG, "Wrapup time for %s expired!\n", p->agent);
 									p->lastdisc = ast_tv(0, 0);
