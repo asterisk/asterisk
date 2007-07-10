@@ -175,6 +175,9 @@ static int dns_parse_answer(void *context,
 
 #if defined(res_ninit)
 #define HAS_RES_NINIT
+#if defined(res_ndestroy)
+#define HAS_RES_NDESTROY
+#endif
 #else
 AST_MUTEX_DEFINE_STATIC(res_lock);
 #if 0
@@ -217,7 +220,11 @@ int ast_search_dns(void *context,
 			ret = 1;
 	}
 #ifdef HAS_RES_NINIT
+#ifdef HAS_RES_NDESTROY
+	res_ndestroy(&dnsstate);
+#else
 	res_nclose(&dnsstate);
+#endif
 #else
 #ifndef __APPLE__
 	res_close();
