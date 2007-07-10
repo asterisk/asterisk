@@ -843,7 +843,7 @@ int ast_app_group_get_count(const char *group, const char *category)
 	
 	AST_LIST_LOCK(&groups);
 	AST_LIST_TRAVERSE(&groups, gi, list) {
-		if (!strcasecmp(gi->group, group) && (ast_strlen_zero(category) || !strcasecmp(gi->category, category)))
+		if (!strcasecmp(gi->group, group) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category))))
 			count++;
 	}
 	AST_LIST_UNLOCK(&groups);
@@ -866,7 +866,7 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 
 	AST_LIST_LOCK(&groups);
 	AST_LIST_TRAVERSE(&groups, gi, list) {
-		if (!regexec(&regexbuf, gi->group, 0, NULL, 0) && (ast_strlen_zero(category) || !strcasecmp(gi->category, category)))
+		if (!regexec(&regexbuf, gi->group, 0, NULL, 0) && (ast_strlen_zero(category) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category))))
 			count++;
 	}
 	AST_LIST_UNLOCK(&groups);
