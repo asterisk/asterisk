@@ -424,6 +424,9 @@
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
 
+/* Define to 1 if your system has the ndestroy resolver function. */
+#undef HAVE_RES_NDESTROY
+
 /* Define to 1 if your system has the re-entrant resolver functions. */
 #undef HAVE_RES_NINIT
 
