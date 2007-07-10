@@ -30,6 +30,11 @@ enum AST_MONITORING_STATE {
 	AST_MONITOR_PAUSED
 };
 
+/* Streams recording control */
+#define X_REC_IN	1
+#define X_REC_OUT	2
+#define X_JOIN		4
+
 /*! Responsible for channel monitoring data */
 struct ast_channel_monitor {
 	struct ast_filestream *read_stream;

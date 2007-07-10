@@ -61,11 +61,6 @@ AST_MUTEX_DEFINE_STATIC(monitorlock);
 		ast_channel_unlock(lock); \
 	} while (0)
 
-/* Streams recording control */
-#define X_REC_IN	1
-#define X_REC_OUT	2
-#define X_JOIN		4
-
 static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
@@ -132,7 +127,14 @@ static int ast_monitor_set_state(struct ast_channel *chan, int state)
 	return 0;
 }
 
-/* Start monitoring a channel */
+/*! \brief Start monitoring a channel
+ * \param chan ast_channel struct to record
+ * \param format_spec file format to use for recording
+ * \param fname_base filename base to record to
+ * \param need_lock whether to lock the channel mutex
+ * \param stream_action whether to record the input and/or output streams.  X_REC_IN | X_REC_OUT is most often used
+ * \returns 0 on success, -1 on failure
+ */
 int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		const char *fname_base, int need_lock, int stream_action)
 {

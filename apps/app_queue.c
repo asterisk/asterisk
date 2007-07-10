@@ -2649,13 +2649,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				else
 					which = peer;
 				if (monitorfilename)
-					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1 );
+					ast_monitor_start(which, qe->parent->monfmt, monitorfilename, 1, X_REC_IN | X_REC_OUT);
 				else if (qe->chan->cdr)
-					ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1 );
+					ast_monitor_start(which, qe->parent->monfmt, qe->chan->cdr->uniqueid, 1, X_REC_IN | X_REC_OUT);
 				else {
 					/* Last ditch effort -- no CDR, make up something */
 					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
-					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1 );
+					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
 				}
 				if (qe->parent->monjoin)
 					ast_monitor_setjoinfiles(which, 1);
