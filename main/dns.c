@@ -229,7 +229,7 @@ int ast_search_dns(void *context,
 			ret = 1;
 	}
 #ifdef HAVE_RES_NINIT
-#if HAVE_RES_NDESTROY
+#ifdef HAVE_RES_NDESTROY
 	res_ndestroy(&dnsstate);
 #else
 	res_nclose(&dnsstate);
