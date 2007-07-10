@@ -1468,21 +1468,17 @@ playout:
 	return res;
 }
 
-static void recalc_holdtime(struct queue_ent *qe)
+static void recalc_holdtime(struct queue_ent *qe, int newholdtime)
 {
-	int oldvalue, newvalue;
+	int oldvalue;
 
 	/* Calculate holdtime using a recursive boxcar filter */
 	/* Thanks to SRT for this contribution */
 	/* 2^2 (4) is the filter coefficient; a higher exponent would give old entries more weight */
 
-	newvalue = time(NULL) - qe->start;
-
 	ast_mutex_lock(&qe->parent->lock);
-	if (newvalue <= qe->parent->servicelevel)
-		qe->parent->callscompletedinsl++;
 	oldvalue = qe->parent->holdtime;
-	qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newvalue) >> 2;
+	qe->parent->holdtime = (((oldvalue << 2) - oldvalue) + newholdtime) >> 2;
 	ast_mutex_unlock(&qe->parent->lock);
 }
 
@@ -2307,7 +2303,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 	return res;
 }
 
-static int update_queue(struct call_queue *q, struct member *member)
+static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl)
 {
 	struct member *cur;
 
@@ -2324,6 +2320,8 @@ static int update_queue(struct call_queue *q, struct member *member)
 		cur = cur->next;
 	}
 	q->callscompleted++;
+	if (callcompletedinsl)
+		q->callscompletedinsl++;
 	ast_mutex_unlock(&q->lock);
 	return 0;
 }
@@ -2450,6 +2448,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char *p;
 	char vars[2048];
 	int forwardsallowed = 1;
+	int callcompletedinsl;
+
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
 		
@@ -2559,7 +2559,11 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (!strcmp(peer->tech->type, "Zap"))
 			ast_channel_setoption(peer, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
 		/* Update parameters for the queue */
-		recalc_holdtime(qe);
+		time(&now);
+		recalc_holdtime(qe, (now - qe->start));
+		ast_mutex_lock(&qe->parent->lock);
+		callcompletedinsl = ((now - qe->start) <= qe->parent->servicelevel);
+		ast_mutex_unlock(&qe->parent->lock);
 		member = lpeer->member;
 		hangupcalls(outgoing, peer);
 		outgoing = NULL;
@@ -2893,7 +2897,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 		if (bridge != AST_PBX_NO_HANGUP_PEER)
 			ast_hangup(peer);
-		update_queue(qe->parent, member);
+		update_queue(qe->parent, member, callcompletedinsl);
 		res = bridge ? bridge : 1;
 	}
 out:
