@@ -177,7 +177,7 @@ static int dns_parse_answer(void *context,
 	return 0;
 }
 
-#if !HAVE_RES_NINIT
+#ifndef HAVE_RES_NINIT
 AST_MUTEX_DEFINE_STATIC(res_lock);
 #endif
 
@@ -189,13 +189,13 @@ int ast_search_dns(void *context,
 	   const char *dname, int class, int type,
 	   int (*callback)(void *context, unsigned char *answer, int len, unsigned char *fullanswer))
 {
-#if HAVE_RES_NINIT
+#ifdef HAVE_RES_NINIT
 	struct __res_state dnsstate;
 #endif
 	unsigned char answer[MAX_SIZE];
 	int res, ret = -1;
 
-#if HAVE_RES_NINIT
+#ifdef HAVE_RES_NINIT
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
@@ -215,8 +215,8 @@ int ast_search_dns(void *context,
 		else
 			ret = 1;
 	}
-#if HAVE_RES_NINIT
-#if HAVE_RES_NDESTROY
+#ifdef HAVE_RES_NINIT
+#ifdef HAVE_RES_NDESTROY
 	res_ndestroy(&dnsstate);
 #else
 	res_nclose(&dnsstate);
