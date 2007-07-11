@@ -79,6 +79,10 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h)$(wildcard
   CHANNEL_LIBS+=chan_phone.so
 endif
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/compiler.h),)
+  CFLAGS+=-DHAVE_LINUX_COMPILER_H
+endif
+
 ifneq ($(wildcard h323/libchanh323.a),)
   CHANNEL_LIBS+=chan_h323.so
 endif
