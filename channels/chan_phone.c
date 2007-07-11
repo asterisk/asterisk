@@ -1068,7 +1068,7 @@ static void *do_monitor(void *data)
 		ast_mutex_unlock(&iflock);
 
 		/* Wait indefinitely for something to happen */
-		if (dotone && i->mode != MODE_SIGMA) {
+		if (dotone && i && i->mode != MODE_SIGMA) {
 			/* If we're ready to recycle the time, set it to 30 ms */
 			tonepos += 240;
 			if (tonepos >= sizeof(DialTone))
