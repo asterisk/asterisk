@@ -94,18 +94,17 @@ int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox)
 	FILE *file;
 	int i;
 	
-	file = fopen(iface->name, "w");
-	if(!file) {
+	if (!(file = fopen(iface->name, "w"))) {
 		ast_log(LOG_ERROR, "Error opening SMDI interface %s (%s) for writing\n", iface->name, strerror(errno));
 		return 1;
 	}	
-
+	
 	ASTOBJ_WRLOCK(iface);
-
+	
 	fprintf(file, "OP:MWI ");
-
-	for(i = 0; i < iface->msdstrip; i++)
-	   fprintf(file, "0");
+	
+	for (i = 0; i < iface->msdstrip; i++)
+		fprintf(file, "0");
 
 	fprintf(file, "%s!\x04", mailbox);
 	fclose(file);
@@ -124,19 +123,18 @@ int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
 {
 	FILE *file;
 	int i;
-	
-	file = fopen(iface->name, "w");
-	if(!file) {
+
+	if (!(file = fopen(iface->name, "w"))) {
 		ast_log(LOG_ERROR, "Error opening SMDI interface %s (%s) for writing\n", iface->name, strerror(errno));
 		return 1;
 	}	
-
+	
 	ASTOBJ_WRLOCK(iface);
-
+	
 	fprintf(file, "RMV:MWI ");
-
-	for(i = 0; i < iface->msdstrip; i++)
-	   fprintf(file, "0");
+	
+	for (i = 0; i < iface->msdstrip; i++)
+		fprintf(file, "0");
 
 	fprintf(file, "%s!\x04", mailbox);
 	fclose(file);
@@ -225,11 +223,10 @@ struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *i
  */
 extern struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout)
 {
-	struct timeval start;
+	struct timeval start = ast_tvnow();
 	long diff = 0;
 	struct ast_smdi_md_message *msg;
 
-	start = ast_tvnow();
 	while (diff < timeout) {
 
 		if ((msg = ast_smdi_md_message_pop(iface)))
@@ -255,11 +252,10 @@ extern struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_inte
 extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface)
 {
 	struct ast_smdi_mwi_message *mwi_msg = ASTOBJ_CONTAINER_UNLINK_START(&iface->mwi_q);
-	struct timeval now;
+	struct timeval now = ast_tvnow();
 	long elapsed = 0;
 
 	/* purge old messages */
-	now = ast_tvnow();
 	while (mwi_msg)	{
 		elapsed = ast_tvdiff_ms(now, mwi_msg->timestamp);
 
@@ -293,11 +289,10 @@ extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_int
  */
 extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout)
 {
-	struct timeval start;
+	struct timeval start = ast_tvnow();
 	long diff = 0;
 	struct ast_smdi_mwi_message *msg;
 
-	start = ast_tvnow();
 	while (diff < timeout) {
 
 		if ((msg = ast_smdi_mwi_message_pop(iface)))
@@ -528,10 +523,8 @@ static int smdi_load(int reload)
 	
 	int msdstrip = 0;              /* strip zero digits */
 	long msg_expiry = SMDI_MSG_EXPIRY_TIME;
-	
-	conf = ast_config_load(config_file);
 
-	if (!conf) {
+	if (!(conf = ast_config_load(config_file))) {
 		if (reload)
 			ast_log(LOG_NOTICE, "Unable to reload config %s: SMDI untouched\n", config_file);
 		else
@@ -651,13 +644,13 @@ static int smdi_load(int reload)
 			
 			/* set the stop bits */
 			if (stopbits)
-			   iface->mode.c_cflag = iface->mode.c_cflag | CSTOPB;   /* set two stop bits */
+				iface->mode.c_cflag = iface->mode.c_cflag | CSTOPB;   /* set two stop bits */
 			else
-			   iface->mode.c_cflag = iface->mode.c_cflag & ~CSTOPB;  /* set one stop bit */
-
+				iface->mode.c_cflag = iface->mode.c_cflag & ~CSTOPB;  /* set one stop bit */
+			
 			/* set the parity */
 			iface->mode.c_cflag = (iface->mode.c_cflag & ~PARENB & ~PARODD) | paritybit;
-
+			
 			/* set the character size */
 			iface->mode.c_cflag = (iface->mode.c_cflag & ~CSIZE) | charsize;
 			
@@ -691,7 +684,7 @@ static int smdi_load(int reload)
 		}
 	}
 	ast_config_destroy(conf);
-
+	
 	/* Prune any interfaces we should no longer monitor. */
 	if (reload)
 		ASTOBJ_CONTAINER_PRUNE_MARKED(&smdi_ifaces, ast_smdi_interface_destroy);
@@ -701,18 +694,18 @@ static int smdi_load(int reload)
 	if (!smdi_ifaces.head)
 		res = 1;
 	ASTOBJ_CONTAINER_UNLOCK(&smdi_ifaces);
-			
+	
 	return res;
 }
 
 static int load_module(void)
 {
 	int res;
-
+	
 	/* initialize our containers */
 	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
 	ASTOBJ_CONTAINER_INIT(&smdi_ifaces);
-
+	
 	/* load the config and start the listener threads*/
 	res = smdi_load(0);
 	if (res < 0) {
