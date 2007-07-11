@@ -237,10 +237,34 @@ struct ast_rtcp {
 	int sendfur;
 };
 
+/*!
+ * \brief STUN support code
+ *
+ * This code provides some support for doing STUN transactions.
+ * Eventually it should be moved elsewhere as other protocols
+ * than RTP can benefit from it - e.g. SIP.
+ * STUN is described in RFC3489 and it is based on the exchange
+ * of UDP packets between a client and one or more servers to
+ * determine the externally visible address (and port) of the client
+ * once it has gone through the NAT boxes that connect it to the
+ * outside.
+ * The simplest request packet is just the header defined in
+ * struct stun_header, and from the response we may just look at
+ * one attribute, STUN_MAPPED_ADDRESS, that we find in the response.
+ * By doing more transactions with different server addresses we
+ * may determine more about the behaviour of the NAT boxes, of
+ * course - the details are in the RFC.
+ *
+ * All STUN packets start with a simple header made of a type,
+ * length (excluding the header) and a 16-byte random transaction id.
+ * Following the header we may have zero or more attributes, each
+ * structured as a type, length and a value (whose format depends
+ * on the type, but often contains addresses).
+ * Of course all fields are in network format.
+ */
 
 typedef struct { unsigned int id[4]; } __attribute__((packed)) stun_trans_id;
 
-/* XXX Maybe stun belongs in another file if it ever has use outside of RTP */
 struct stun_header {
 	unsigned short msgtype;
 	unsigned short msglen;
@@ -254,6 +278,9 @@ struct stun_attr {
 	unsigned char value[0];
 } __attribute__((packed));
 
+/*
+ * The format normally used for addresses carried by STUN messages.
+ */
 struct stun_addr {
 	unsigned char unused;
 	unsigned char family;
@@ -264,6 +291,13 @@ struct stun_addr {
 #define STUN_IGNORE		(0)
 #define STUN_ACCEPT		(1)
 
+/*! \brief STUN message types
+ * 'BIND' refers to transactions used to determine the externally
+ * visible addresses. 'SEC' refers to transactions used to establish
+ * a session key for subsequent requests.
+ * 'SEC' functionality is not supported here.
+ */
+ 
 #define STUN_BINDREQ	0x0001
 #define STUN_BINDRESP	0x0101
 #define STUN_BINDERR	0x0111
@@ -271,6 +305,9 @@ struct stun_addr {
 #define STUN_SECRESP	0x0102
 #define STUN_SECERR	0x0112
 
+/*! \brief Basic attribute types in stun messages.
+ * Messages can also contain custom attributes (codes above 0x7fff)
+ */
 #define STUN_MAPPED_ADDRESS	0x0001
 #define STUN_RESPONSE_ADDRESS	0x0002
 #define STUN_CHANGE_REQUEST	0x0003
@@ -283,6 +320,7 @@ struct stun_addr {
 #define STUN_UNKNOWN_ATTRIBUTES	0x000a
 #define STUN_REFLECTED_FROM	0x000b
 
+/*! \brief helper function to print message names */
 static const char *stun_msg2str(int msg)
 {
 	switch (msg) {
@@ -302,6 +340,7 @@ static const char *stun_msg2str(int msg)
 	return "Non-RFC3489 Message";
 }
 
+/*! \brief helper function to print attribute names */
 static const char *stun_attr2str(int msg)
 {
 	switch (msg) {
@@ -331,6 +370,7 @@ static const char *stun_attr2str(int msg)
 	return "Non-RFC3489 Attribute";
 }
 
+/*! \brief here we store credentials extracted from a message */
 struct stun_state {
 	const char *username;
 	const char *password;
@@ -356,6 +396,7 @@ static int stun_process_attr(struct stun_state *state, struct stun_attr *attr)
 	return 0;
 }
 
+/*! \brief append a string to an STUN message */
 static void append_attr_string(struct stun_attr **attr, int attrval, const char *s, int *len, int *left)
 {
 	int size = sizeof(**attr) + strlen(s);
@@ -369,6 +410,7 @@ static void append_attr_string(struct stun_attr **attr, int attrval, const char 
 	}
 }
 
+/*! \brief append an address to an STUN message */
 static void append_attr_address(struct stun_attr **attr, int attrval, struct sockaddr_in *sin, int *len, int *left)
 {
 	int size = sizeof(**attr) + 8;
@@ -387,12 +429,14 @@ static void append_attr_address(struct stun_attr **attr, int attrval, struct soc
 	}
 }
 
+/*! \brief wrapper to send an STUN message */
 static int stun_send(int s, struct sockaddr_in *dst, struct stun_header *resp)
 {
 	return sendto(s, resp, ntohs(resp->msglen) + sizeof(*resp), 0,
 		      (struct sockaddr *)dst, sizeof(*dst));
 }
 
+/*! \brief helper function to generate a random request id */
 static void stun_req_id(struct stun_header *req)
 {
 	int x;
@@ -405,6 +449,9 @@ size_t ast_rtp_alloc_size(void)
 	return sizeof(struct ast_rtp);
 }
 
+/*! \brief send a STUN BIND request to the given destination.
+ * Optionally, add a username if specified.
+ */
 void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username)
 {
 	struct stun_header *req;
@@ -426,6 +473,13 @@ void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, c
 	stun_send(rtp->s, suggestion, req);
 }
 
+/*! \brief handle an incoming STUN message.
+ *
+ * Do some basic sanity checks on packet size and content,
+ * try to extract a bit of information, and possibly reply.
+ * At the moment this only processes BIND requests, and returns
+ * the externally visible address of the request.
+ */
 static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len)
 {
 	struct stun_header *resp, *hdr = (struct stun_header *)data;
@@ -1259,6 +1313,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	/* Check RTP version */
 	version = (seqno & 0xC0000000) >> 30;
 	if (!version) {
+		/* If the two high bits are 0, this might be a
+		 * STUN message, so process it. stun_handle_packet()
+		 * answers to requests, and it returns STUN_ACCEPT
+		 * if the request is valid.
+		 */
 		if ((stun_handle_packet(rtp->s, &sin, rtp->rawdata + AST_FRIENDLY_OFFSET, res) == STUN_ACCEPT) &&
 			(!rtp->them.sin_port && !rtp->them.sin_addr.s_addr)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
