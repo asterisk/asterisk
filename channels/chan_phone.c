@@ -34,6 +34,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#ifdef HAVE_LINUX_COMPILER_H
+#include <linux/compiler.h>
+#endif
 #include <linux/telephony.h>
 /* Still use some IXJ specific stuff */
 #include <linux/version.h>
