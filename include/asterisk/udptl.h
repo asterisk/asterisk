@@ -42,7 +42,7 @@ struct ast_udptl_protocol {
 	/* Set UDPTL peer */
 	int (* const set_udptl_peer)(struct ast_channel *chan, struct ast_udptl *peer);
 	const char * const type;
-	struct ast_udptl_protocol *next;
+	AST_RWLIST_ENTRY(ast_udptl_protocol) list;
 };
 
 struct ast_udptl;

@@ -170,7 +170,7 @@ struct ast_udptl {
 	udptl_fec_rx_buffer_t rx[UDPTL_BUF_MASK + 1];
 };
 
-static struct ast_udptl_protocol *protos;
+static AST_RWLIST_HEAD_STATIC(protos, ast_udptl_protocol);
 
 static int udptl_rx_packet(struct ast_udptl *s, uint8_t *buf, int len);
 static int udptl_build_packet(struct ast_udptl *s, uint8_t *buf, uint8_t *ifp, int ifp_len);
@@ -949,52 +949,40 @@ int ast_udptl_write(struct ast_udptl *s, struct ast_frame *f)
 
 void ast_udptl_proto_unregister(struct ast_udptl_protocol *proto)
 {
-	struct ast_udptl_protocol *cur;
-	struct ast_udptl_protocol *prev;
-
-	cur = protos;
-	prev = NULL;
-	while (cur) {
-		if (cur == proto) {
-			if (prev)
-				prev->next = proto->next;
-			else
-				protos = proto->next;
-			return;
-		}
-		prev = cur;
-		cur = cur->next;
-	}
+	AST_RWLIST_WRLOCK(&protos);
+	AST_RWLIST_REMOVE(&protos, proto, list);
+	AST_RWLIST_UNLOCK(&protos);
 }
 
 int ast_udptl_proto_register(struct ast_udptl_protocol *proto)
 {
 	struct ast_udptl_protocol *cur;
 
-	cur = protos;
-	while (cur) {
+	AST_RWLIST_WRLOCK(&protos);
+	AST_RWLIST_TRAVERSE(&protos, cur, list) {
 		if (cur->type == proto->type) {
 			ast_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+			AST_RWLIST_UNLOCK(&protos);
 			return -1;
 		}
-		cur = cur->next;
 	}
-	proto->next = protos;
-	protos = proto;
+	AST_RWLIST_INSERT_TAIL(&protos, proto, list);
+	AST_RWLIST_UNLOCK(&protos);
 	return 0;
 }
 
 static struct ast_udptl_protocol *get_proto(struct ast_channel *chan)
 {
-	struct ast_udptl_protocol *cur;
+	struct ast_udptl_protocol *cur = NULL;
 
-	cur = protos;
-	while (cur) {
+	AST_RWLIST_RDLOCK(&protos);
+	AST_RWLIST_TRAVERSE(&protos, cur, list) {
 		if (cur->type == chan->tech->type)
-			return cur;
-		cur = cur->next;
+			break;
 	}
-	return NULL;
+	AST_RWLIST_UNLOCK(&protos);
+
+	return cur;
 }
 
 int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
