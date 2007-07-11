@@ -185,7 +185,7 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 	ast_speech_change_state(new_speech, AST_SPEECH_STATE_NOT_READY);
 
 	/* Pass ourselves to the engine so they can set us up some more and if they error out then do not create a structure */
-	if (engine->create(new_speech)) {
+	if (engine->create(new_speech, format)) {
 		ast_mutex_destroy(&new_speech->lock);
 		ast_free(new_speech);
 		new_speech = NULL;
