@@ -168,6 +168,10 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 	if (!(engine = find_engine(engine_name)))
 		return NULL;
 
+	/* Make sure the requested format fits */
+	if (!(engine->formats & format))
+		return NULL;
+
 	/* Allocate our own speech structure, and try to allocate a structure from the engine too */
 	if (!(new_speech = ast_calloc(1, sizeof(*new_speech))))
 		return NULL;
@@ -180,6 +184,9 @@ struct ast_speech *ast_speech_new(char *engine_name, int format)
 
 	/* Copy over our engine pointer */
 	new_speech->engine = engine;
+
+	/* Can't forget the format audio is going to be in */
+	new_speech->format = format;
 
 	/* We are not ready to accept audio yet */
 	ast_speech_change_state(new_speech, AST_SPEECH_STATE_NOT_READY);
