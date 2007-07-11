@@ -11,7 +11,9 @@
 
 #include "isdn_lib.h"
 
-#if !defined MISDNUSER_VERSION_CODE || (MISDNUSER_VERSION_CODE < MISDNUSER_VERSION(1, 0, 3))
+#ifndef MISDNUSER_VERSION_CODE
+#error "You need a newer version of mISDNuser ..."
+#elif MISDNUSER_VERSION_CODE < MISDNUSER_VERSION(1, 0, 3)
 #error "You need a newer version of mISDNuser ..."
 #endif
 
