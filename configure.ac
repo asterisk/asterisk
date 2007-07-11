@@ -1028,9 +1028,12 @@ AC_SUBST(EDITLINE_LIB)
 AC_CHECK_HEADER([h323.h], [PBX_H323=1], [PBX_H323=0])
 AC_SUBST(PBX_H323)
 
+AC_CHECK_HEADER([linux/compiler.h],
+                [AC_DEFINE_UNQUOTED([HAVE_LINUX_COMPILER_H], 1, [Define to 1 if your system has linux/compiler.h.])])
+
 AC_CHECK_HEADER([linux/ixjuser.h], [PBX_IXJUSER=1], [PBX_IXJUSER=0], [
 				   #include <linux/version.h>
-				   #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+				   #ifdef HAVE_LINUX_COMPILER_H
 				   #include <linux/compiler.h>
 				   #endif
 				   ])
