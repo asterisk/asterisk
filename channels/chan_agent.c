@@ -1998,6 +1998,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						ast_device_state_changed("Agent/%s", p->agent);
 						while (res >= 0) {
 							ast_mutex_lock(&p->lock);
+							if (!p->loginstart && p->chan)
+								ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 							if (p->chan != chan)
 								res = -1;
 							ast_mutex_unlock(&p->lock);
