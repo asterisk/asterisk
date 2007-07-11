@@ -352,7 +352,7 @@ static int speech_create(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 
 	/* Request a speech object */
-	speech = ast_speech_new(data, AST_FORMAT_SLINEAR);
+	speech = ast_speech_new(data, chan->nativeformats);
 	if (speech == NULL) {
 		/* Not available */
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
@@ -572,7 +572,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         oldreadformat = chan->readformat;
 
         /* Change read format to be signed linear */
-        if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
+        if (ast_set_read_format(chan, speech->format)) {
                 ast_module_user_remove(u);
                 return -1;
         }

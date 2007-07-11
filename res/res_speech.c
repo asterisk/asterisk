@@ -159,17 +159,22 @@ int ast_speech_change(struct ast_speech *speech, char *name, const char *value)
 }
 
 /*! \brief Create a new speech structure using the engine specified */
-struct ast_speech *ast_speech_new(char *engine_name, int format)
+struct ast_speech *ast_speech_new(char *engine_name, int formats)
 {
 	struct ast_speech_engine *engine = NULL;
 	struct ast_speech *new_speech = NULL;
+	int format = AST_FORMAT_SLINEAR;
 
 	/* Try to find the speech recognition engine that was requested */
 	if (!(engine = find_engine(engine_name)))
 		return NULL;
 
-	/* Make sure the requested format fits */
-	if (!(engine->formats & format))
+	/* Before even allocating the memory below do some codec negotiation, we choose the best codec possible and fall back to signed linear if possible */
+	if ((format = (engine->formats & formats)))
+		format = ast_best_codec(format);
+	else if ((engine->formats & AST_FORMAT_SLINEAR))
+		format = AST_FORMAT_SLINEAR;
+	else
 		return NULL;
 
 	/* Allocate our own speech structure, and try to allocate a structure from the engine too */
