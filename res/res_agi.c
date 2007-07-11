@@ -126,30 +126,28 @@ static void agi_debug_cli(int fd, char *fmt, ...)
 	va_start(ap, fmt);
 	res = vasprintf(&stuff, fmt, ap);
 	va_end(ap);
+
 	if (res == -1) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-	} else {
-		if (agidebug)
-			ast_verbose("AGI Tx >> %s\n", stuff);
-		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
-		ast_free(stuff);
+		return;
 	}
+
+	if (agidebug)
+		ast_verbose("AGI Tx >> %s\n", stuff);
+	ast_carefulwrite(fd, stuff, strlen(stuff), 100);
+	ast_free(stuff);
 }
 
 /* launch_netscript: The fastagi handler.
 	FastAGI defaults to port 4573 */
 static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int *opid)
 {
-	int s;
-	int flags;
+	int s, flags, res, port = AGI_PORT;
 	struct pollfd pfds[1];
-	char *host;
-	char *c; int port = AGI_PORT;
-	char *script="";
+	char *host, *c, *script = "";
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	int res;
 
 	/* agiusl is "agi://host.domain[:port][/script/name]" */
 	host = ast_strdupa(agiurl + 6);	/* Remove agi:// */
@@ -168,18 +166,15 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 		ast_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
 		return -1;
 	}
-	hp = ast_gethostbyname(host, &ahp);
-	if (!hp) {
+	if (!(hp = ast_gethostbyname(host, &ahp))) {
 		ast_log(LOG_WARNING, "Unable to locate host '%s'\n", host);
 		return -1;
 	}
-	s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s < 0) {
+	if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		ast_log(LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return -1;
 	}
-	flags = fcntl(s, F_GETFL);
-	if (flags < 0) {
+	if ((flags = fcntl(s, F_GETFL)) < 0) {
 		ast_log(LOG_WARNING, "Fcntl(F_GETFL) failed: %s\n", strerror(errno));
 		close(s);
 		return -1;
@@ -236,12 +231,7 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 static enum agi_result launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
 	char tmp[256];
-	int pid;
-	int toast[2];
-	int fromast[2];
-	int audio[2];
-	int x;
-	int res;
+	int pid, toast[2], fromast[2], audio[2], x, res;
 	sigset_t signal_set, old_set;
 	struct stat st;
 
@@ -296,8 +286,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 	/* Block SIGHUP during the fork - prevents a race */
 	sigfillset(&signal_set);
 	pthread_sigmask(SIG_BLOCK, &signal_set, &old_set);
-	pid = fork();
-	if (pid < 0) {
+	if ((pid = fork()) < 0) {
 		ast_log(LOG_WARNING, "Failed to fork(): %s\n", strerror(errno));
 		pthread_sigmask(SIG_SETMASK, &old_set, NULL);
 		return AGI_RESULT_FAILURE;
@@ -322,11 +311,10 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		/* Redirect stdin and out, provide enhanced audio channel if desired */
 		dup2(fromast[0], STDIN_FILENO);
 		dup2(toast[1], STDOUT_FILENO);
-		if (efd) {
+		if (efd)
 			dup2(audio[0], STDERR_FILENO + 1);
-		} else {
+		else
 			close(STDERR_FILENO + 1);
-		}
 
 		/* Before we unblock our signals, return our trapped signals back to the defaults */
 		signal(SIGHUP, SIG_DFL);
@@ -344,7 +332,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		}
 
 		/* Close everything but stdin/out/error */
-		for (x=STDERR_FILENO + 2;x<1024;x++) 
+		for (x = STDERR_FILENO + 2; x < 1024; x++) 
 			close(x);
 
 		/* Execute script */
@@ -360,9 +348,8 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		ast_verbose(VERBOSE_PREFIX_3 "Launched AGI Script %s\n", script);
 	fds[0] = toast[0];
 	fds[1] = fromast[1];
-	if (efd) {
+	if (efd)
 		*efd = audio[1];
-	}
 	/* close what we're not using in the parent */
 	close(toast[1]);
 	close(fromast[0]);
@@ -416,20 +403,20 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 
 static int handle_answer(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	res = 0;
-	if (chan->_state != AST_STATE_UP) {
-		/* Answer the chan */
+	int res = 0;
+
+	/* Answer the channel */
+	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
-	}
+
 	fdprintf(agi->fd, "200 result=%d\n", res);
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
 static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int to;
+	int res, to;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[3], "%d", &to) != 1)
@@ -442,8 +429,10 @@ static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, cha
 static int handle_sendtext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	/* At the moment, the parser (perhaps broken) returns with
 	   the last argument PLUS the newline at the end of the input
 	   buffer. This probably needs to be fixed, but I wont do that
@@ -459,8 +448,10 @@ static int handle_sendtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 static int handle_recvchar(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	res = ast_recvchar(chan,atoi(argv[2]));
 	if (res == 0) {
 		fdprintf(agi->fd, "200 result=%d (timeout)\n", res);
@@ -482,6 +473,7 @@ static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 	
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	buf = ast_recvtext(chan,atoi(argv[2]));
 	if (buf) {
 		fdprintf(agi->fd, "200 result=1 (%s)\n", buf);
@@ -494,9 +486,11 @@ static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 
 static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res,x;
+	int res, x;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	if (!strncasecmp(argv[2],"on",2)) 
 		x = 1; 
 	else 
@@ -516,8 +510,10 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	res = ast_send_image(chan, argv[2]);
 	if (!ast_check_hangup(chan))
 		res = 0;
@@ -527,12 +523,8 @@ static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *
 
 static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res = 0;
-	int skipms = 3000;
-	char *fwd = NULL;
-	char *rev = NULL;
-	char *pause = NULL;
-	char *stop = NULL;
+	int res = 0, skipms = 3000;
+	char *fwd = NULL, *rev = NULL, *pause = NULL, *stop = NULL;
 
 	if (argc < 5 || argc > 9)
 		return RESULT_SHOWUSAGE;
@@ -569,12 +561,9 @@ static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc
 
 static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int vres;	
-	struct ast_filestream *fs;
-	struct ast_filestream *vfs;
-	long sample_offset = 0;
-	long max_length;
+	int res, vres;
+	struct ast_filestream *fs, *vfs;
+	long sample_offset = 0, max_length;
 	char *edigits = "";
 
 	if (argc < 4 || argc > 5)
@@ -585,10 +574,8 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if ((argc > 4) && (sscanf(argv[4], "%ld", &sample_offset) != 1))
 		return RESULT_SHOWUSAGE;
-	
-	fs = ast_openstream(chan, argv[2], chan->language);	
-	
-	if (!fs) {
+
+	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
 	}	
@@ -624,12 +611,9 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 /* get option - really similar to the handle_streamfile, but with a timeout */
 static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int vres;	
-	struct ast_filestream *fs;
-	struct ast_filestream *vfs;
-	long sample_offset = 0;
-	long max_length;
+	int res, vres;
+	struct ast_filestream *fs, *vfs;
+	long sample_offset = 0, max_length;
 	int timeout = 0;
 	char *edigits = "";
 
@@ -646,8 +630,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 		timeout = chan->pbx->dtimeout * 1000; /* in msec */
 	}
 
-	fs = ast_openstream(chan, argv[2], chan->language);
-	if (!fs) {
+	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
 		return RESULT_SUCCESS;
@@ -697,8 +680,8 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 /* While waiting, we're sending a NULL.  */
 static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int num;
+	int res, num;
+
 	if (argc < 4 || argc > 5)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%d", &num) != 1)
@@ -712,8 +695,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 
 static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int num;
+	int res, num;
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -743,8 +725,8 @@ static int handle_sayalpha(struct ast_channel *chan, AGI *agi, int argc, char *a
 
 static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int num;
+	int res, num;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%d", &num) != 1)
@@ -758,8 +740,8 @@ static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *ar
 
 static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
-	int num;
+	int res, num;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%d", &num) != 1)
@@ -773,9 +755,9 @@ static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *ar
 
 static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res=0;
+	int res = 0;
 	time_t unixtime;
-	char *format, *zone=NULL;
+	char *format, *zone = NULL;
 	
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
@@ -821,10 +803,8 @@ static int handle_sayphonetic(struct ast_channel *chan, AGI *agi, int argc, char
 
 static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
-	int res;
+	int res, max, timeout;
 	char data[1024];
-	int max;
-	int timeout;
 
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
@@ -870,6 +850,7 @@ static int handle_setextension(struct ast_channel *chan, AGI *agi, int argc, cha
 static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int pri;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;	
 
@@ -1081,6 +1062,7 @@ static int handle_autohangup(struct ast_channel *chan, AGI *agi, int argc, char 
 static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	struct ast_channel *c;
+
 	if (argc == 1) {
 		/* no argument: hangup the current channel */
 		ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
@@ -1115,9 +1097,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
 
-	app = pbx_findapp(argv[1]);
-
-	if (app) {
+	if ((app = pbx_findapp(argv[1]))) {
 		res = pbx_exec(chan, app, argv[2]);
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", argv[1]);
@@ -1303,6 +1283,7 @@ static int handle_dbdel(struct ast_channel *chan, AGI *agi, int argc, char **arg
 static int handle_dbdeltree(struct ast_channel *chan, AGI *agi, int argc, char **argv)
 {
 	int res;
+
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
 	if (argc == 4)
@@ -1652,13 +1633,14 @@ static agi_command commands[MAX_COMMANDS] = {
 
 static int help_workhorse(int fd, char *match[])
 {
-	char fullcmd[80];
-	char matchstr[80];
+	char fullcmd[80], matchstr[80];
 	int x;
 	struct agi_command *e;
+
 	if (match)
 		ast_join(matchstr, sizeof(matchstr), match);
-	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
+
+	for (x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
 		e = &commands[x]; 
 		if (!e->cmda[0])
 			break;
@@ -1676,13 +1658,14 @@ static int help_workhorse(int fd, char *match[])
 int ast_agi_register(agi_command *agi)
 {
 	int x;
-	for (x=0; x<MAX_COMMANDS - 1; x++) {
+
+	for (x = 0; x < MAX_COMMANDS - 1; x++) {
 		if (commands[x].cmda[0] == agi->cmda[0]) {
 			ast_log(LOG_WARNING, "Command already registered!\n");
 			return -1;
 		}
 	}
-	for (x=0; x<MAX_COMMANDS - 1; x++) {
+	for (x = 0; x < MAX_COMMANDS - 1; x++) {
 		if (!commands[x].cmda[0]) {
 			commands[x] = *agi;
 			return 0;
@@ -1695,7 +1678,7 @@ int ast_agi_register(agi_command *agi)
 void ast_agi_unregister(agi_command *agi)
 {
 	int x;
-	for (x=0; x<MAX_COMMANDS - 1; x++) {
+	for (x = 0; x < MAX_COMMANDS - 1; x++) {
 		if (commands[x].cmda[0] == agi->cmda[0]) {
 			memset(&commands[x], 0, sizeof(agi_command));
 		}
@@ -1704,16 +1687,14 @@ void ast_agi_unregister(agi_command *agi)
 
 static agi_command *find_command(char *cmds[], int exact)
 {
-	int x;
-	int y;
-	int match;
+	int x, y, match;
 
-	for (x=0; x < sizeof(commands) / sizeof(commands[0]); x++) {
+	for (x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
 		if (!commands[x].cmda[0])
 			break;
 		/* start optimistic */
 		match = 1;
-		for (y=0; match && cmds[y]; y++) {
+		for (y = 0; match && cmds[y]; y++) {
 			/* If there are no more words in the command (and we're looking for
 			   an exact match) or there is a difference between the two words,
 			   then this is not a match */
@@ -1738,10 +1719,7 @@ static agi_command *find_command(char *cmds[], int exact)
 
 static int parse_args(char *s, int *max, char *argv[])
 {
-	int x=0;
-	int quoted=0;
-	int escaped=0;
-	int whitespace=1;
+	int x = 0, quoted = 0, escaped = 0, whitespace = 1;
 	char *cur;
 
 	cur = s;
@@ -1805,13 +1783,11 @@ normal:
 static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 {
 	char *argv[MAX_ARGS];
-	int argc = MAX_ARGS;
-	int res;
+	int argc = MAX_ARGS, res;
 	agi_command *c;
 
 	parse_args(buf, &argc, argv);
-	c = find_command(argv, 0);
-	if (c) {
+	if ((c = find_command(argv, 0))) {
 		res = c->handler(chan, agi, argc, argv);
 		switch(res) {
 		case RESULT_SHOWUSAGE:
@@ -1837,8 +1813,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int *status, int dead, int argc, char *argv[])
 {
 	struct ast_channel *c;
-	int outfd;
-	int ms;
+	int outfd, ms;
 	enum agi_result returnstatus = AGI_RESULT_SUCCESS;
 	struct ast_frame *f;
 	char buf[2048];
@@ -1923,8 +1898,10 @@ static int handle_showagi(int fd, int argc, char *argv[])
 {
 	struct agi_command *e;
 	char fullcmd[80];
+
 	if ((argc < 2))
 		return RESULT_SHOWUSAGE;
+
 	if (argc > 2) {
 		e = find_command(argv + 2, 1);
 		if (e) 
@@ -1995,7 +1972,7 @@ static int handle_agidumphtml(int fd, int argc, char *argv[])
 
 	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
 
-	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
+	for (x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
 		char *stringp, *tempstr;
 
 		e = &commands[x]; 
@@ -2037,14 +2014,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 {
 	enum agi_result res;
 	struct ast_module_user *u;
-	char *argv[MAX_ARGS];
-	char buf[2048]="";
-	char *tmp = buf;
-	int argc = 0;
-	int fds[2];
-	int efd = -1;
-	int pid;
-        char *stringp;
+	char *argv[MAX_ARGS], buf[2048] = "", *tmp = buf, *stringp;
+	int argc = 0, fds[2], efd = -1, pid;
 	AGI agi;
 
 	if (ast_strlen_zero(data)) {
@@ -2113,8 +2084,7 @@ static int agi_exec(struct ast_channel *chan, void *data)
 
 static int eagi_exec(struct ast_channel *chan, void *data)
 {
-	int readformat;
-	int res;
+	int readformat, res;
 
 	if (chan->_softhangup)
 		ast_log(LOG_WARNING, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
