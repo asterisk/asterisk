@@ -88,8 +88,8 @@ struct outgoing {
 	char data[256];
 
 	/* If extension/context/priority */
-	char exten[256];
-	char context[256];
+	char exten[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 	int priority;
 
 	/* CallerID Information */
@@ -111,7 +111,6 @@ struct outgoing {
 
 static void init_outgoing(struct outgoing *o)
 {
-	memset(o, 0, sizeof(struct outgoing));
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
@@ -120,7 +119,7 @@ static void init_outgoing(struct outgoing *o)
 
 static void free_outgoing(struct outgoing *o)
 {
-	free(o);
+	ast_free(o);
 }
 
 static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
@@ -253,20 +252,21 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 	int fd;
 	FILE *f;
 	struct utimbuf tbuf;
-	fd = open(o->fn, O_WRONLY|O_APPEND);
-	if (fd > -1) {
-		f = fdopen(fd, "a");
-		if (f) {
-			fprintf(f, "\n%s: %ld %d (%ld)\n", s, (long)ast_mainpid, o->retries, (long) now);
-			fclose(f);
-		} else
-			close(fd);
-		/* Update the file time */
-		tbuf.actime = now;
-		tbuf.modtime = now + o->retrytime;
-		if (utime(o->fn, &tbuf))
-			ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", o->fn, strerror(errno));
-	}
+
+	if ((fd = open(o->fn, O_WRONLY | O_APPEND)) < 0)
+		return;
+
+	if ((f = fdopen(fd, "a"))) {
+		fprintf(f, "\n%s: %ld %d (%ld)\n", s, (long)ast_mainpid, o->retries, (long) now);
+		fclose(f);
+	} else
+		close(fd);
+
+	/* Update the file time */
+	tbuf.actime = now;
+	tbuf.modtime = now + o->retrytime;
+	if (utime(o->fn, &tbuf))
+		ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", o->fn, strerror(errno));
 }
 
 /*!
@@ -285,34 +285,34 @@ static int remove_from_queue(struct outgoing *o, const char *status)
 	if (!ast_test_flag(&o->options, SPOOL_FLAG_ALWAYS_DELETE)) {
 		struct stat current_file_status;
 
-		if (!stat(o->fn, &current_file_status))
+		if (!stat(o->fn, &current_file_status)) {
 			if (time(NULL) < current_file_status.st_mtime)
 				return 0;
+		}
 	}
 
 	if (!ast_test_flag(&o->options, SPOOL_FLAG_ARCHIVE)) {
 		unlink(o->fn);
 		return 0;
 	}
+
 	if (ast_mkdir(qdonedir, 0777)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool archiving disabled\n", qdonedir);
 		unlink(o->fn);
 		return -1;
 	}
-	fd = open(o->fn, O_WRONLY|O_APPEND);
-	if (fd > -1) {
-		f = fdopen(fd, "a");
-		if (f) {
+
+	if ((fd = open(o->fn, O_WRONLY | O_APPEND))) {
+		if ((f = fdopen(fd, "a"))) {
 			fprintf(f, "Status: %s\n", status);
 			fclose(f);
 		} else
 			close(fd);
 	}
 
-	bname = strrchr(o->fn,'/');
-	if (bname == NULL) 
+	if (!(bname = strrchr(o->fn, '/')))
 		bname = o->fn;
-	else 
+	else
 		bname++;	
 	snprintf(newfn, sizeof(newfn), "%s/%s", qdonedir, bname);
 	/* a existing call file the archive dir is overwritten */
@@ -369,56 +369,63 @@ static void launch_service(struct outgoing *o)
 
 static int scan_service(char *fn, time_t now, time_t atime)
 {
-	struct outgoing *o;
+	struct outgoing *o = NULL;
 	FILE *f;
-	o = malloc(sizeof(struct outgoing));
-	if (o) {
-		init_outgoing(o);
-		f = fopen(fn, "r+");
-		if (f) {
-			if (!apply_outgoing(o, fn, f)) {
-#if 0
-				printf("Filename: %s, Retries: %d, max: %d\n", fn, o->retries, o->maxretries);
-#endif
-				fclose(f);
-				if (o->retries <= o->maxretries) {
-					now += o->retrytime;
-					if (o->callingpid && (o->callingpid == ast_mainpid)) {
-						safe_append(o, time(NULL), "DelayedRetry");
-						ast_log(LOG_DEBUG, "Delaying retry since we're currently running '%s'\n", o->fn);
-						free_outgoing(o);
-					} else {
-						/* Increment retries */
-						o->retries++;
-						/* If someone else was calling, they're presumably gone now
-						   so abort their retry and continue as we were... */
-						if (o->callingpid)
-							safe_append(o, time(NULL), "AbortRetry");
+	int res = 0;
 
-						safe_append(o, now, "StartRetry");
-						launch_service(o);
-					}
-					return now;
-				} else {
-					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
-					remove_from_queue(o, "Expired");
-					free_outgoing(o);
-					return 0;
-				}
-			} else {
-				remove_from_queue(o, "Failed");
-				free_outgoing(o);
-				ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
-				fclose(f);
-			}
-		} else {
-			remove_from_queue(o, "Failed");
+	if (!(o = ast_calloc(1, sizeof(*o)))) {
+		ast_log(LOG_WARNING, "Out of memory ;(\n");
+		return -1;
+	}
+	
+	init_outgoing(o);
+
+	/* Attempt to open the file */
+	if (!(f = fopen(fn, "r+"))) {
+		remove_from_queue(o, "Failed");
+		free_outgoing(o);
+		ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
+		return -1;
+	}
+
+	/* Read in and verify the contents */
+	if (apply_outgoing(o, fn, f)) {
+		remove_from_queue(o, "Failed");
+		free_outgoing(o);
+		ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
+		fclose(f);
+		return -1;
+	}
+	
+#if 0
+	printf("Filename: %s, Retries: %d, max: %d\n", fn, o->retries, o->maxretries);
+#endif
+	fclose(f);
+	if (o->retries <= o->maxretries) {
+		now += o->retrytime;
+		if (o->callingpid && (o->callingpid == ast_mainpid)) {
+			safe_append(o, time(NULL), "DelayedRetry");
+			ast_log(LOG_DEBUG, "Delaying retry since we're currently running '%s'\n", o->fn);
 			free_outgoing(o);
-			ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
+		} else {
+			/* Increment retries */
+			o->retries++;
+			/* If someone else was calling, they're presumably gone now
+			   so abort their retry and continue as we were... */
+			if (o->callingpid)
+				safe_append(o, time(NULL), "AbortRetry");
+			
+			safe_append(o, now, "StartRetry");
+			launch_service(o);
 		}
-	} else
-		ast_log(LOG_WARNING, "Out of memory :(\n");
-	return -1;
+		res = now;
+	} else {
+		ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
+		remove_from_queue(o, "Expired");
+		free_outgoing(o);
+	}
+
+	return res;
 }
 
 static void *scan_thread(void *unused)
@@ -429,48 +436,57 @@ static void *scan_thread(void *unused)
 	char fn[256];
 	int res;
 	time_t last = 0, next = 0, now;
+
 	for(;;) {
 		/* Wait a sec */
 		sleep(1);
 		time(&now);
-		if (!stat(qdir, &st)) {
-			if ((st.st_mtime != last) || (next && (now > next))) {
-#if 0
-				printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
-				printf("Ooh, something changed / timeout\n");
-#endif				
-				next = 0;
-				last = st.st_mtime;
-				dir = opendir(qdir);
-				if (dir) {
-					while((de = readdir(dir))) {
-						snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
-						if (!stat(fn, &st)) {
-							if (S_ISREG(st.st_mode)) {
-								if (st.st_mtime <= now) {
-									res = scan_service(fn, now, st.st_atime);
-									if (res > 0) {
-										/* Update next service time */
-										if (!next || (res < next)) {
-											next = res;
-										}
-									} else if (res)
-										ast_log(LOG_WARNING, "Failed to scan service '%s'\n", fn);
-								} else {
-									/* Update "next" update if necessary */
-									if (!next || (st.st_mtime < next))
-										next = st.st_mtime;
-								}
-							}
-						} else
-							ast_log(LOG_WARNING, "Unable to stat %s: %s\n", fn, strerror(errno));
-					}
-					closedir(dir);
-				} else
-					ast_log(LOG_WARNING, "Unable to open directory %s: %s\n", qdir, strerror(errno));
-			}
-		} else
+
+		if (stat(qdir, &st)) {
 			ast_log(LOG_WARNING, "Unable to stat %s\n", qdir);
+			continue;
+		}
+
+		/* Make sure it is time for us to execute our check */
+		if ((st.st_mtime == last) && (next && (next > now)))
+			continue;
+		
+#if 0
+		printf("atime: %ld, mtime: %ld, ctime: %ld\n", st.st_atime, st.st_mtime, st.st_ctime);
+		printf("Ooh, something changed / timeout\n");
+#endif				
+		next = 0;
+		last = st.st_mtime;
+
+		if (!(dir = opendir(qdir))) {
+			ast_log(LOG_WARNING, "Unable to open directory %s: %s\n", qdir, strerror(errno));
+			continue;
+		}
+
+		while ((de = readdir(dir))) {
+			snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
+			if (stat(fn, &st)) {
+				ast_log(LOG_WARNING, "Unable to stat %s: %s\n", fn, strerror(errno));
+				continue;
+			}
+			if (!S_ISREG(st.st_mode))
+				continue;
+			if (st.st_mtime <= now) {
+				res = scan_service(fn, now, st.st_atime);
+				if (res > 0) {
+					/* Update next service time */
+					if (!next || (res < next)) {
+						next = res;
+					}
+				} else if (res)
+					ast_log(LOG_WARNING, "Failed to scan service '%s'\n", fn);
+			} else {
+				/* Update "next" update if necessary */
+				if (!next || (st.st_mtime < next))
+					next = st.st_mtime;
+			}
+		}
+		closedir(dir);
 	}
 	return NULL;
 }
