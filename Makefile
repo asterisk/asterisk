@@ -652,7 +652,10 @@ _uninstall: $(SUBDIRS_UNINSTALL)
 	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
 	rm -rf $(DESTDIR)$(ASTHEADERDIR)
 	rm -rf $(DESTDIR)$(ASTDATADIR)/firmware
-	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
+	rm -f $(DESTDIR)$(ASTMANDIR)/man8/asterisk.8
+	rm -f $(DESTDIR)$(ASTMANDIR)/man8/astgenkey.8
+	rm -f $(DESTDIR)$(ASTMANDIR)/man8/autosupport.8
+	rm -f $(DESTDIR)$(ASTMANDIR)/man8/safe_asterisk.8
 	$(MAKE) -C sounds uninstall
 
 uninstall: _uninstall
