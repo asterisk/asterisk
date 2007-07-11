@@ -113,7 +113,7 @@ int ast_speech_results_free(struct ast_speech_result *result)
 			current_result->grammar = NULL;
 		}
 		/* Move on and then free ourselves */
-		current_result = current_result->next;
+		current_result = AST_LIST_NEXT(current_result, list);
 		ast_free(prev_result);
 		prev_result = NULL;
 	}

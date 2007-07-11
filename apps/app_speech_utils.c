@@ -150,7 +150,7 @@ static struct ast_speech_result *find_result(struct ast_speech_result *results, 
 		if (i == wanted_num)
 			break;
 		i++;
-	} while ((result = result->next));
+	} while ((result = AST_LIST_NEXT(result, list)));
 
 	return result;
 }
@@ -315,11 +315,8 @@ static int speech_read(struct ast_channel *chan, const char *cmd, char *data,
 			ast_copy_string(buf, "0", len);
 	} else if (!strcasecmp(data, "results")) {
 		/* Count number of results */
-		result = speech->results;
-		while (result) {
+		for (result = speech->results; result; result = AST_LIST_NEXT(result, list))
 			results++;
-			result = result->next;
-		}
 		snprintf(tmp, sizeof(tmp), "%d", results);
 		ast_copy_string(buf, tmp, len);
 	}

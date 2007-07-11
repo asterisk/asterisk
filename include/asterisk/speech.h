@@ -110,7 +110,7 @@ struct ast_speech_result {
 	/*! Matched grammar */
 	char *grammar;
 	/*! List information */
-	struct ast_speech_result *next;
+	AST_LIST_ENTRY(ast_speech_result) list;
 };
 
 /*! \brief Activate a grammar on a speech structure */
