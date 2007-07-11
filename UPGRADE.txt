@@ -101,12 +101,6 @@ PBX Core:
   if your dialplan relies on the ability to 'run off the end' of an extension
   and wait for a new extension without using WaitExten() to accomplish that,
   you will need set autofallthrough to 'no' in your extensions.conf file.
-
-* The ast_expr2 stuff has been modified to handle floating-point numbers.
-  Numbers of the format D.D are now acceptable input for the expr parser, 
-  Where D is a string of base-10 digits. All math is now done in "long double",
-  if it is available on your compiler/architecture. This was half-way between
-  a bug-fix (because the MATH func returns fp by default), and an enhancement.
  
 Command Line Interface:
 

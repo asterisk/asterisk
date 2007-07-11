@@ -212,19 +212,19 @@ with equal precedence are grouped within { } symbols.
              an empty string or zero; otherwise, returns zero.
 
      expr1 {=, >, >=, <, <=, !=} expr2
-             Return the results of floating pt. comparison if both arguments are
-             numbers; otherwise, returns the results of string comparison
+             Return the results of integer comparison if both arguments are
+             integers; otherwise, returns the results of string comparison
              using the locale-specific collation sequence.  The result of each
              comparison is 1 if the specified relation is true, or 0 if the
              relation is false.
 
      expr1 {+, -} expr2
-             Return the results of addition or subtraction of 
+             Return the results of addition or subtraction of integer-valued
              arguments.
 
      expr1 {*, /, %} expr2
-             Return the results of multiplication, division, or
-             remainder of arguments. (floating point [long double if possible]).
+             Return the results of multiplication, integer division, or
+             remainder of integer-valued arguments.
 
      - expr1
             Return the result of subtracting expr1 from 0.
@@ -322,13 +322,10 @@ __________________________
 NUMBERS VS STRINGS
 --------------------------
 
-Tokens consisting only of numbers are converted to long doubles for
-most of the operators (80-128 bits, depending on the compiler/platform/etc). 
-This means that overflows can occur when the
+Tokens consisting only of numbers are converted to 64-bit numbers for
+most of the operators. This means that overflows can occur when the
 numbers get above 18 digits.  Warnings will appear in the logs in this
 case.
-If "long double" is not available, then "double" is used (usually 64 bit floating
-point numbers).
 ___________________________
 CONDITIONALS
 ---------------------------
@@ -486,10 +483,6 @@ of possible concern with "legacy" extension.conf files:
     is returned as the result. See above for details. 
 
 9.  Unary operators '-' and '!' were made right associative.
-
-10. All arithmetic operations are now done in floating point (long double
-    if possible, plain double otherwise).
-
 
 --------------------------------------------------------
 DEBUGGING HINTS FOR $[  ]  EXPRESSIONS
