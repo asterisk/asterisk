@@ -7246,7 +7246,9 @@ retryowner:
 					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
 				if (ast_test_flag(iaxs[fr->callno], IAX_TRUNK)) {
-					fr->callno = make_trunk(fr->callno, 1);
+					int new_callno;
+					if ((new_callno = make_trunk(fr->callno, 1)) != -1)
+						fr->callno = new_callno;
 				}
 				/* For security, always ack immediately */
 				if (delayreject)
@@ -8519,8 +8521,11 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 
 	/* If this is a trunk, update it now */
 	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
-	if (ast_test_flag(&cai, IAX_TRUNK))
-		callno = make_trunk(callno, 1);
+	if (ast_test_flag(&cai, IAX_TRUNK)) {
+		int new_callno;
+		if ((new_callno = make_trunk(callno, 1)) != -1)
+			callno = new_callno;
+	}
 	iaxs[callno]->maxtime = cai.maxtime;
 	if (cai.found)
 		ast_string_field_set(iaxs[callno], host, pds.peer);
