@@ -101,16 +101,15 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 	newval = va_arg(aq, const char *);
-	if (!strchr(newparam, ' ')) op = " ="; else op = "";
+	op = !strchr(newparam, ' ') ? " =" : "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);
 	while((newparam = va_arg(aq, const char *))) {
-		if (!strchr(newparam, ' ')) op = " ="; else op = "";
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?", newparam, op);
+		op = !strchr(newparam, ' ') ? " =" : "";
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", newparam, op,
+			strcasestr(newparam, "LIKE") ? " ESCAPE '\\'" : "");
 		newval = va_arg(aq, const char *);
 	}
 	va_end(aq);
-	if (strcasestr(sql, "LIKE"))
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ESCAPE '\\'");
 
 	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -257,18 +256,17 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	if ((op = strchr(initfield, ' '))) 
 		*op = '\0';
 	newval = va_arg(aq, const char *);
-	if (!strchr(newparam, ' ')) op = " ="; else op = "";
+	op = !strchr(newparam, ' ') ? " =" : "";
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s%s ?", table, newparam, op);
 	while((newparam = va_arg(aq, const char *))) {
-		if (!strchr(newparam, ' ')) op = " ="; else op = "";
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?", newparam, op);
+		op = !strchr(newparam, ' ') ? " =" : "";
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s%s ?%s", newparam, op,
+			strcasestr(newparam, "LIKE") ? " ESCAPE '\\'" : "");
 		newval = va_arg(aq, const char *);
 	}
 	if (initfield)
 		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ORDER BY %s", initfield);
 	va_end(aq);
-	if (strcasestr(sql, "LIKE"))
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " ESCAPE '\\'");
 
 	res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
