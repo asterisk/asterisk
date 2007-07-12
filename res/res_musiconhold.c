@@ -655,7 +655,7 @@ static int moh4_exec(struct ast_channel *chan, void *data)
 }
 
 /*! \note This function should be called with the mohclasses list locked */
-static struct mohclass *get_mohbyname(const char *name)
+static struct mohclass *get_mohbyname(const char *name, int warn)
 {
 	struct mohclass *moh = NULL;
 
@@ -664,7 +664,7 @@ static struct mohclass *get_mohbyname(const char *name)
 			break;
 	}
 
-	if (!moh)
+	if (!moh && warn)
 		ast_log(LOG_WARNING, "Music on Hold class '%s' not found\n", name);
 
 	return moh;
@@ -873,7 +873,7 @@ static int moh_register(struct mohclass *moh, int reload)
 	int x;
 #endif
 	AST_RWLIST_WRLOCK(&mohclasses);
-	if (get_mohbyname(moh->name)) {
+	if (get_mohbyname(moh->name, 0)) {
 		if (reload) {
 			ast_debug(1, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
 		} else {
@@ -965,13 +965,13 @@ static int local_ast_moh_start(struct ast_channel *chan, const char *mclass, con
 	 */
 	AST_RWLIST_RDLOCK(&mohclasses);
 	if (!ast_strlen_zero(chan->musicclass))
-		mohclass = get_mohbyname(chan->musicclass);
+		mohclass = get_mohbyname(chan->musicclass, 1);
 	if (!mohclass && !ast_strlen_zero(mclass))
-		mohclass = get_mohbyname(mclass);
+		mohclass = get_mohbyname(mclass, 1);
 	if (!mohclass && !ast_strlen_zero(interpclass))
-		mohclass = get_mohbyname(interpclass);
+		mohclass = get_mohbyname(interpclass, 1);
 	if (!mohclass)	
-		mohclass = get_mohbyname("default");
+		mohclass = get_mohbyname("default", 1);
 	AST_RWLIST_UNLOCK(&mohclasses);
 
 	if (!mohclass)
@@ -1076,7 +1076,7 @@ static int load_moh_classes(int reload)
 			numclasses++;
 		}
 	}
-	
+
 	ast_config_destroy(cfg);
 
 	return numclasses;
