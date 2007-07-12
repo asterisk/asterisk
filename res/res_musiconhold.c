@@ -627,7 +627,7 @@ static int moh4_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static struct mohclass *get_mohbyname(char *name)
+static struct mohclass *get_mohbyname(char *name, int warn)
 {
 	struct mohclass *moh;
 	moh = mohclasses;
@@ -636,7 +636,8 @@ static struct mohclass *get_mohbyname(char *name)
 			return moh;
 		moh = moh->next;
 	}
-	ast_log(LOG_WARNING, "Music on Hold class '%s' not found\n", name);
+	if (warn)
+		ast_log(LOG_WARNING, "Music on Hold class '%s' not found\n", name);
 	return NULL;
 }
 
@@ -833,7 +834,7 @@ static int moh_register(struct mohclass *moh, int reload)
 	int x;
 #endif
 	ast_mutex_lock(&moh_lock);
-	if (get_mohbyname(moh->name)) {
+	if (get_mohbyname(moh->name, 0)) {
 		if (reload) {
 			ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
 		} else {
@@ -913,11 +914,11 @@ static int local_ast_moh_start(struct ast_channel *chan, char *class)
 
 	ast_mutex_lock(&moh_lock);
 	if (!ast_strlen_zero(class))
-		mohclass = get_mohbyname(class);
+		mohclass = get_mohbyname(class, 1);
 	if (!mohclass && !ast_strlen_zero(chan->musicclass))
-		mohclass = get_mohbyname(chan->musicclass);
+		mohclass = get_mohbyname(chan->musicclass, 1);
 	if (!mohclass)
-		mohclass = get_mohbyname("default");
+		mohclass = get_mohbyname("default", 1);
 	ast_mutex_unlock(&moh_lock);
 
 	if (!mohclass)
@@ -1045,7 +1046,7 @@ static int load_moh_classes(int reload)
 			args = strchr(data, ',');
 			if (args)
 				*args++ = '\0';
-			if (!(get_mohbyname(var->name))) {
+			if (!(get_mohbyname(var->name, 0))) {
 				class = moh_class_malloc();
 				if (!class) {
 					ast_log(LOG_WARNING, "Out of memory!\n");
@@ -1070,7 +1071,7 @@ static int load_moh_classes(int reload)
 			ast_log(LOG_WARNING, "The old musiconhold.conf syntax has been deprecated!  Please refer to the sample configuration for information on the new syntax.\n");
 			dep_warning = 1;
 		}
-		if (!(get_mohbyname(var->name))) {
+		if (!(get_mohbyname(var->name, 0))) {
 			args = strchr(var->value, ',');
 			if (args)
 				*args++ = '\0';
