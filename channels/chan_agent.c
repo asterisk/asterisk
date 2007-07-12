@@ -1465,18 +1465,18 @@ static int agent_logoff(const char *agent, int soft)
 		if (!strcasecmp(p->agent, agent)) {
 			ret = 0;
 			if (p->owner || p->chan) {
-				p->deferlogoff = 1;
 				if (!soft) {
 					if (p->owner)
 						ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
 					if (p->chan)
 						ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
-				}
+				} else
+					p->deferlogoff = 1;
 			} else {
 				logintime = time(NULL) - p->loginstart;
+				p->loginstart = 0;
 				agent_logoff_maintenance(p, p->loginchan, logintime, NULL, "CommandLogoff");
 			}
-			p->loginstart = 0;
 			break;
 		}
 	}
@@ -1901,8 +1901,10 @@ static int login_exec(struct ast_channel *chan, void *data)
 						ast_device_state_changed("Agent/%s", p->agent);
 						while (res >= 0) {
 							ast_mutex_lock(&p->lock);
-							if (!p->loginstart && p->chan)
+							if (p->deferlogoff && p->chan) {
 								ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
+								p->deferlogoff = 0;
+							}
 							if (p->chan != chan)
 								res = -1;
 							ast_mutex_unlock(&p->lock);
