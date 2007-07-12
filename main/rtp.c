@@ -482,24 +482,29 @@ void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, c
  */
 static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len)
 {
-	struct stun_header *resp, *hdr = (struct stun_header *)data;
+	struct stun_header *hdr = (struct stun_header *)data;
 	struct stun_attr *attr;
 	struct stun_state st;
 	int ret = STUN_IGNORE;	
-	unsigned char respdata[1024];
-	int resplen, respleft;
-	
+	int x;
+
+	/* On entry, 'len' is the length of the udp payload. After the
+	 * initial checks it becomes the size of unprocessed options,
+	 * while 'data' is advanced accordingly.
+	 */
 	if (len < sizeof(struct stun_header)) {
 		ast_debug(1, "Runt STUN packet (only %d, wanting at least %d)\n", (int) len, (int) sizeof(struct stun_header));
 		return -1;
 	}
-	if (stundebug)
-		ast_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), ntohs(hdr->msglen));
-	if (ntohs(hdr->msglen) > len - sizeof(struct stun_header)) {
-		ast_debug(1, "Scrambled STUN packet length (got %d, expecting %d)\n", ntohs(hdr->msglen), (int)(len - sizeof(struct stun_header)));
-	} else
-		len = ntohs(hdr->msglen);
+	len -= sizeof(struct stun_header);
 	data += sizeof(struct stun_header);
+	x = ntohs(hdr->msglen);	/* len as advertised in the message */
+	if (stundebug)
+		ast_verbose("STUN Packet, msg %s (%04x), length: %d\n", stun_msg2str(ntohs(hdr->msgtype)), ntohs(hdr->msgtype), x);
+	if (x > len) {
+		ast_debug(1, "Scrambled STUN packet length (got %d, expecting %d)\n", x, (int)len);
+	} else
+		len = x;
 	memset(&st, 0, sizeof(st));
 	while (len) {
 		if (len < sizeof(struct stun_attr)) {
@@ -507,29 +512,44 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 			break;
 		}
 		attr = (struct stun_attr *)data;
-		if (ntohs(attr->len) > len) {
-			ast_debug(1, "Inconsistent Attribute (length %d exceeds remaining msg len %d)\n", ntohs(attr->len), (int)len);
+		/* compute total attribute length */
+		x = ntohs(attr->len) + sizeof(struct stun_attr);
+		if (x > len) {
+			ast_debug(1, "Inconsistent Attribute (length %d exceeds remaining msg len %d)\n", x, (int)len);
 			break;
 		}
 		if (stun_process_attr(&st, attr)) {
 			ast_debug(1, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
 			break;
 		}
-		/* Clear attribute in case previous entry was a string */
+		/* Clear attribute id: in case previous entry was a string,
+		 * this will act as the terminator for the string.
+		 */
 		attr->attr = 0;
-		data += ntohs(attr->len) + sizeof(struct stun_attr);
-		len -= ntohs(attr->len) + sizeof(struct stun_attr);
+		data += x;
+		len -= x;
 	}
-	/* Null terminate any string */
+	/* Null terminate any string.
+	 * XXX NOTE, we write past the size of the buffer passed by the
+	 * caller, so this is potentially dangerous. The only thing that
+	 * saves us is that usually we read the incoming message in a
+	 * much larger buffer in the struct ast_rtp
+	 */
 	*data = '\0';
-	resp = (struct stun_header *)respdata;
-	resplen = 0;
-	respleft = sizeof(respdata) - sizeof(struct stun_header);
-	resp->id = hdr->id;
-	resp->msgtype = 0;
-	resp->msglen = 0;
-	attr = (struct stun_attr *)resp->ies;
-	if (!len) {
+
+	/* Now prepare to generate a reply, which at the moment is done
+	 * only for properly formed (len == 0) STUN_BINDREQ messages.
+	 */
+	if (len == 0) {
+		unsigned char respdata[1024];
+		struct stun_header *resp = (struct stun_header *)respdata;
+		int resplen = 0;	/* len excluding header */
+		int respleft = sizeof(respdata) - sizeof(struct stun_header);
+
+		resp->id = hdr->id;
+		resp->msgtype = 0;
+		resp->msglen = 0;
+		attr = (struct stun_attr *)resp->ies;
 		switch (ntohs(hdr->msgtype)) {
 		case STUN_BINDREQ:
 			if (stundebug)
