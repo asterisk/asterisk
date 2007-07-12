@@ -2003,14 +2003,18 @@ char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
 	return buf;
 }
 
-/*! \brief Open RTP or RTCP socket for a session */
-static int rtp_socket(void)
+/*! \brief Open RTP or RTCP socket for a session.
+ * Print a message on failure. 
+ */
+static int rtp_socket(const char *type)
 {
-	int s;
-	long flags;
-	s = socket(AF_INET, SOCK_DGRAM, 0);
-	if (s > -1) {
-		flags = fcntl(s, F_GETFL);
+	int s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		if (type == NULL)
+			type = "RTP/RTCP";
+		ast_log(LOG_WARNING, "Unable to allocate %s socket: %s\n", type, strerror(errno));
+	} else {
+		long flags = fcntl(s, F_GETFL);
 		fcntl(s, F_SETFL, flags | O_NONBLOCK);
 #ifdef SO_NO_CHECK
 		if (nochecksums)
@@ -2031,13 +2035,12 @@ static struct ast_rtcp *ast_rtcp_new(void)
 
 	if (!(rtcp = ast_calloc(1, sizeof(*rtcp))))
 		return NULL;
-	rtcp->s = rtp_socket();
+	rtcp->s = rtp_socket("RTCP");
 	rtcp->us.sin_family = AF_INET;
 	rtcp->them.sin_family = AF_INET;
 
 	if (rtcp->s < 0) {
 		ast_free(rtcp);
-		ast_log(LOG_WARNING, "Unable to allocate RTCP socket: %s\n", strerror(errno));
 		return NULL;
 	}
 
@@ -2067,7 +2070,6 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 {
 	struct ast_rtp *rtp;
 	int x;
-	int first;
 	int startplace;
 	
 	if (!(rtp = ast_calloc(1, sizeof(*rtp))))
@@ -2075,70 +2077,68 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 
 	ast_rtp_new_init(rtp);
 
-	rtp->s = rtp_socket();
-	if (rtp->s < 0) {
-		ast_free(rtp);
-		ast_log(LOG_ERROR, "Unable to allocate socket: %s\n", strerror(errno));
-		return NULL;
-	}
+	rtp->s = rtp_socket("RTP");
+	if (rtp->s < 0)
+		goto fail;
 	if (sched && rtcpenable) {
 		rtp->sched = sched;
 		rtp->rtcp = ast_rtcp_new();
 	}
 	
-	/* Select a random port number in the range of possible RTP */
+	/*
+	 * Try to bind the RTP port, x, and possibly the RTCP port, x+1 as well.
+	 * Start from a random (even, by RTP spec) port number, and
+	 * iterate until success or no ports are available.
+	 * Note that the requirement of RTP port being even, or RTCP being the
+	 * next one, cannot be enforced in presence of a NAT box because the
+	 * mapping is not under our control.
+	 */
 	x = (ast_random() % (rtpend-rtpstart)) + rtpstart;
-	x = x & ~1;
-	/* Save it for future references. */
-	startplace = x;
-	/* Iterate tring to bind that port and incrementing it otherwise untill a port was found or no ports are available. */
+	x = x & ~1;		/* make it an even number */
+	startplace = x;		/* remember the starting point */
+	/* this is constant across the loop */
+	rtp->us.sin_addr = addr;
+	if (rtp->rtcp)
+		rtp->rtcp->us.sin_addr = addr;
 	for (;;) {
-		/* Must be an even port number by RTP spec */
 		rtp->us.sin_port = htons(x);
-		rtp->us.sin_addr = addr;
-
-		/* If there's rtcp, initialize it as well. */
-		if (rtp->rtcp) {
+		if (!bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) {
+			/* bind succeeded, if no rtcp then we are done */
+			if (!rtp->rtcp)
+				break;
+			/* have rtcp, try to bind it */
 			rtp->rtcp->us.sin_port = htons(x + 1);
-			rtp->rtcp->us.sin_addr = addr;
-		}
-		/* Try to bind it/them. */
-		if (!(first = bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) &&
-			(!rtp->rtcp || !bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us))))
-			break;
-		if (!first) {
-			/* Primary bind succeeded! Gotta recreate it */
+			if (!bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us)))
+				break;	/* success again, we are really done */
+			/*
+			 * RTCP bind failed, so close and recreate the
+			 * already bound RTP socket for the next round.
+			 */
 			close(rtp->s);
-			rtp->s = rtp_socket();
+			rtp->s = rtp_socket("RTP");
+			if (rtp->s < 0)
+				goto fail;
 		}
+		/*
+		 * If we get here, there was an error in one of the bind()
+		 * calls, so make sure it is nothing unexpected.
+		 */
 		if (errno != EADDRINUSE) {
 			/* We got an error that wasn't expected, abort! */
 			ast_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
-			close(rtp->s);
-			if (rtp->rtcp) {
-				close(rtp->rtcp->s);
-				ast_free(rtp->rtcp);
-			}
-			ast_free(rtp);
-			return NULL;
+			goto fail;
 		}
-		/* The port was used, increment it (by two). */
+		/*
+		 * One of the ports is in use. For the next iteration,
+		 * increment by two and handle wraparound.
+		 * If we reach the starting point, then declare failure.
+		 */
 		x += 2;
-		/* Did we go over the limit ? */
 		if (x > rtpend)
-			/* then, start from the begingig. */
 			x = (rtpstart + 1) & ~1;
-		/* Check if we reached the place were we started. */
 		if (x == startplace) {
-			/* If so, there's no ports available. */
 			ast_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
-			close(rtp->s);
-			if (rtp->rtcp) {
-				close(rtp->rtcp->s);
-				ast_free(rtp->rtcp);
-			}
-			ast_free(rtp);
-			return NULL;
+			goto fail;
 		}
 	}
 	rtp->sched = sched;
@@ -2149,6 +2149,16 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 	}
 	ast_rtp_pt_default(rtp);
 	return rtp;
+
+fail:
+	if (rtp->s >= 0)
+		close(rtp->s);
+	if (rtp->rtcp) {
+		close(rtp->rtcp->s);
+		ast_free(rtp->rtcp);
+	}
+	ast_free(rtp);
+	return NULL;
 }
 
 struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode)
