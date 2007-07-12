@@ -4099,7 +4099,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 			len = strlen(d->exten);
 			if (len < sizeof(d->exten) - 1) {
 				d->exten[len] = dgt;
-				d->exten[len] = '\0';
+				d->exten[len+1] = '\0';
 			} else {
 				ast_log(LOG_WARNING, "Dropping digit with value %d because digit queue is full\n", dgt);
 			}
