@@ -211,7 +211,22 @@ void ast_rtp_setdtmfcompensate(struct ast_rtp *rtp, int compensate);
 /*! \brief Enable STUN capability */
 void ast_rtp_setstun(struct ast_rtp *rtp, int stun_enable);
 
-/*! \brief Send STUN request (??) */
+/*! \brief Generic STUN request
+ * send a generic stun request to the server specified.
+ * \param s the socket used to send the request
+ * \param dst the address of the STUN server
+ * \param username if non null, add the username in the request
+ * \param answer if non null, the function waits for a response and
+ *    puts here the externally visible address.
+ * \return 0 on success, other values on error.
+ * The interface it may change in the future.
+ */
+int ast_stun_request(int s, struct sockaddr_in *dst,
+	const char *username, struct sockaddr_in *answer);
+
+/*! \brief Send STUN request for an RTP socket
+ * Deprecated, this is just a wrapper for ast_rtp_stun_request()
+ */
 void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username);
 
 /*! \brief The RTP bridge.

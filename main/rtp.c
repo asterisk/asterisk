@@ -449,29 +449,8 @@ size_t ast_rtp_alloc_size(void)
 	return sizeof(struct ast_rtp);
 }
 
-/*! \brief send a STUN BIND request to the given destination.
- * Optionally, add a username if specified.
- */
-void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username)
-{
-	struct stun_header *req;
-	unsigned char reqdata[1024];
-	int reqlen, reqleft;
-	struct stun_attr *attr;
-	
-	req = (struct stun_header *)reqdata;
-	stun_req_id(req);
-	reqlen = 0;
-	reqleft = sizeof(reqdata) - sizeof(struct stun_header);
-	req->msgtype = 0;
-	req->msglen = 0;
-	attr = (struct stun_attr *)req->ies;
-	if (username)
-		append_attr_string(&attr, STUN_USERNAME, username, &reqlen, &reqleft);
-	req->msglen = htons(reqlen);
-	req->msgtype = htons(STUN_BINDREQ);
-	stun_send(rtp->s, suggestion, req);
-}
+/*! \brief callback type to be invoked on stun responses. */
+typedef int (stun_cb_f)(struct stun_attr *attr, void *arg);
 
 /*! \brief handle an incoming STUN message.
  *
@@ -479,8 +458,10 @@ void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, c
  * try to extract a bit of information, and possibly reply.
  * At the moment this only processes BIND requests, and returns
  * the externally visible address of the request.
+ * If a callback is specified, invoke it with the attribute.
  */
-static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len)
+static int stun_handle_packet(int s, struct sockaddr_in *src,
+	unsigned char *data, size_t len, stun_cb_f *stun_cb, void *arg)
 {
 	struct stun_header *hdr = (struct stun_header *)data;
 	struct stun_attr *attr;
@@ -518,6 +499,8 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 			ast_debug(1, "Inconsistent Attribute (length %d exceeds remaining msg len %d)\n", x, (int)len);
 			break;
 		}
+		if (stun_cb)
+			stun_cb(attr, arg);
 		if (stun_process_attr(&st, attr)) {
 			ast_debug(1, "Failed to handle attribute %s (%04x)\n", stun_attr2str(ntohs(attr->attr)), ntohs(attr->attr));
 			break;
@@ -569,6 +552,107 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 		}
 	}
 	return ret;
+}
+
+/*! \brief Extract the STUN_MAPPED_ADDRESS from the stun response.
+ * This is used as a callback for stun_handle_response
+ * when called from ast_stun_request.
+ */
+static int stun_get_mapped(struct stun_attr *attr, void *arg)
+{
+	struct stun_addr *addr = (struct stun_addr *)(attr + 1);
+	struct sockaddr_in *sa = (struct sockaddr_in *)arg;
+
+	if (ntohs(attr->attr) != STUN_MAPPED_ADDRESS || ntohs(attr->len) != 8)
+		return 1;	/* not us. */
+	sa->sin_port = addr->port;
+	sa->sin_addr.s_addr = addr->addr;
+	return 0;
+}
+
+/*! \brief Generic STUN request
+ * Send a generic stun request to the server specified,
+ * possibly waiting for a reply and filling the 'reply' field with
+ * the externally visible address. Note that in this case the request
+ * will be blocking.
+ * (Note, the interface may change slightly in the future).
+ *
+ * \param s the socket used to send the request
+ * \param dst the address of the STUN server
+ * \param username if non null, add the username in the request
+ * \param answer if non null, the function waits for a response and
+ *    puts here the externally visible address.
+ * \return 0 on success, other values on error.
+ */
+int ast_stun_request(int s, struct sockaddr_in *dst,
+        const char *username, struct sockaddr_in *answer)
+{
+	struct stun_header *req;
+	unsigned char reqdata[1024];
+	int reqlen, reqleft;
+	struct stun_attr *attr;
+	int res = 0;
+	int retry;
+	
+	req = (struct stun_header *)reqdata;
+	stun_req_id(req);
+	reqlen = 0;
+	reqleft = sizeof(reqdata) - sizeof(struct stun_header);
+	req->msgtype = 0;
+	req->msglen = 0;
+	attr = (struct stun_attr *)req->ies;
+	if (username)
+		append_attr_string(&attr, STUN_USERNAME, username, &reqlen, &reqleft);
+	req->msglen = htons(reqlen);
+	req->msgtype = htons(STUN_BINDREQ);
+	for (retry = 0; retry < 3; retry++) {	/* XXX make retries configurable */
+		/* send request, possibly wait for reply */
+		unsigned char reply_buf[1024];
+		fd_set rfds;
+		struct timeval to = { 3, 0 };	/* timeout, make it configurable */
+		struct sockaddr_in src;
+		int srclen;
+
+		res = stun_send(s, dst, req);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "ast_stun_request send #%d failed error %d, retry\n",
+				retry, res);
+			continue;
+		}
+		if (answer == NULL)
+			break;
+		FD_ZERO(&rfds);
+		FD_SET(s, &rfds);
+		res = ast_select(s + 1, &rfds, NULL, NULL, &to);
+		if (res <= 0)	/* timeout or error */
+			continue;
+		bzero(&src, sizeof(src));
+		srclen = sizeof(src);
+		/* XXX pass -1 in the size, because stun_handle_packet might
+		 * write past the end of the buffer.
+		 */
+		res = recvfrom(s, reply_buf, sizeof(reply_buf) - 1,
+			0, (struct sockaddr *)&src, &srclen);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "ast_stun_request recvfrom #%d failed error %d, retry\n",
+				retry, res);
+			continue;
+		}
+		bzero(answer, sizeof(struct sockaddr_in));
+		stun_handle_packet(s, &src, reply_buf, res,
+			stun_get_mapped, answer);
+		res = 0; /* signal regular exit */
+		break;
+	}
+	return res;
+}
+
+/*! \brief send a STUN BIND request to the given destination.
+ * Optionally, add a username if specified.
+ */
+void ast_rtp_stun_request(struct ast_rtp *rtp, struct sockaddr_in *suggestion, const char *username)
+{
+	ast_stun_request(rtp->s, suggestion, username, NULL);
 }
 
 /*! \brief List of current sessions */
@@ -1338,7 +1422,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		 * answers to requests, and it returns STUN_ACCEPT
 		 * if the request is valid.
 		 */
-		if ((stun_handle_packet(rtp->s, &sin, rtp->rawdata + AST_FRIENDLY_OFFSET, res) == STUN_ACCEPT) &&
+		if ((stun_handle_packet(rtp->s, &sin, rtp->rawdata + AST_FRIENDLY_OFFSET, res, NULL, NULL) == STUN_ACCEPT) &&
 			(!rtp->them.sin_port && !rtp->them.sin_addr.s_addr)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
 		}
