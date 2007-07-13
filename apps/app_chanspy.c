@@ -674,7 +674,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 
 		if (ast_test_flag(&flags, OPTION_PRIVATE))
 			ast_set_flag(&flags, OPTION_WHISPER);
-	}
+	} else
+		ast_clear_flag(&flags, AST_FLAGS_ALL);
 
 	oldwf = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
@@ -758,7 +759,8 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 
 		if (ast_test_flag(&flags, OPTION_PRIVATE))
 			ast_set_flag(&flags, OPTION_WHISPER);
-	}
+	} else
+		ast_clear_flag(&flags, AST_FLAGS_ALL);
 
 	oldwf = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
