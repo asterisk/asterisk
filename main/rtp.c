@@ -611,7 +611,7 @@ int ast_stun_request(int s, struct sockaddr_in *dst,
 		fd_set rfds;
 		struct timeval to = { 3, 0 };	/* timeout, make it configurable */
 		struct sockaddr_in src;
-		int srclen;
+		socklen_t srclen;
 
 		res = stun_send(s, dst, req);
 		if (res < 0) {
