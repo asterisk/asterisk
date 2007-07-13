@@ -665,7 +665,10 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	moh->f.offset = AST_FRIENDLY_OFFSET;
 
 	moh->parent = cl;
+
+	AST_LIST_LOCK(&mohclasses);
 	AST_LIST_INSERT_HEAD(&cl->members, moh, list);
+	AST_LIST_UNLOCK(&mohclasses);
 	
 	return moh;
 }
