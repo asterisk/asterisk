@@ -1052,7 +1052,7 @@ static int load_moh_classes(int reload)
 				class = moh_class_malloc();
 				if (!class) {
 					ast_log(LOG_WARNING, "Out of memory!\n");
-					return numclasses;
+					break;
 				}
 				
 				ast_copy_string(class->name, var->name, sizeof(class->name));
@@ -1080,7 +1080,7 @@ static int load_moh_classes(int reload)
 			class = moh_class_malloc();
 			if (!class) {
 				ast_log(LOG_WARNING, "Out of memory!\n");
-				return numclasses;
+				break;
 			}
 			
 			ast_copy_string(class->name, var->name, sizeof(class->name));
