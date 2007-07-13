@@ -1065,7 +1065,7 @@ static int load_moh_classes(int reload)
 				*args++ = '\0';
 			if (!(get_mohbyname(var->name, 0))) {			
 				if (!(class = moh_class_malloc())) {
-					return numclasses;
+					break;
 				}
 				
 				ast_copy_string(class->name, var->name, sizeof(class->name));
@@ -1091,7 +1091,7 @@ static int load_moh_classes(int reload)
 			if (args)
 				*args++ = '\0';			
 			if (!(class = moh_class_malloc())) {
-				return numclasses;
+				break;
 			}
 			
 			ast_copy_string(class->name, var->name, sizeof(class->name));
