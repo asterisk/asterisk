@@ -660,8 +660,10 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 	flags = fcntl(moh->pipe[1], F_GETFL);
 	fcntl(moh->pipe[1], F_SETFL, flags | O_NONBLOCK);
 	moh->parent = cl;
+	ast_mutex_lock(&moh_lock);
 	moh->next = cl->members;
 	cl->members = moh;
+	ast_mutex_unlock(&moh_lock);
 	return moh;
 }
 
