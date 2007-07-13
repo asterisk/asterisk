@@ -432,6 +432,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 				volfactor = vol;
 			}
 	}
+	else 
+		ast_clear_flag(&flags, AST_FLAGS_ALL);
 
 	if (recbase) {
 		char filename[512];
