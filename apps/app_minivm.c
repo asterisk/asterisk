@@ -1630,7 +1630,6 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 /*! \brief Notify voicemail account owners - either generic template or user specific */
 static int minivm_notify_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	int argc;
 	char *argv[2];
 	int res = 0;
@@ -1644,18 +1643,13 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 	const char *format;
 	const char *duration_string;
 	
-	u = ast_module_user_add(chan);
-
-
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "Minivm needs at least an account argument \n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	tmpptr = ast_strdupa((char *)data);
 	if (!tmpptr) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	argc = ast_app_separate_args(tmpptr, '|', argv, sizeof(argv) / sizeof(argv[0]));
@@ -1672,7 +1666,6 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 	} 
 	if (ast_strlen_zero(domain) || ast_strlen_zero(username)) {
 		ast_log(LOG_ERROR, "Need username@domain as argument. Sorry. Argument 0 %s\n", argv[0]);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1680,7 +1673,6 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 		/* We could not find user, let's exit */
 		ast_log(LOG_WARNING, "Could not allocate temporary memory for '%s@%s'\n", username, domain);
 		pbx_builtin_setvar_helper(chan, "MINIVM_NOTIFY_STATUS", "FAILED");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -1699,7 +1691,6 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 		free_user(vmu);
 
 	/* Ok, we're ready to rock and roll. Return to dialplan */
-	ast_module_user_remove(u);
 
 	return res;
 
@@ -1709,16 +1700,13 @@ static int minivm_notify_exec(struct ast_channel *chan, void *data)
 static int minivm_record_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *tmp;
 	struct leave_vm_options leave_options;
 	int argc;
 	char *argv[2];
 	struct ast_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
-	
-	u = ast_module_user_add(chan);
-	
+		
 	memset(&leave_options, 0, sizeof(leave_options));
 
 	/* Answer channel if it's not already answered */
@@ -1727,19 +1715,16 @@ static int minivm_record_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "Minivm needs at least an account argument \n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	tmp = ast_strdupa((char *)data);
 	if (!tmp) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 	if (argc == 2) {
 		if (ast_app_parse_options(minivm_app_options, &flags, opts, argv[1])) {
-			ast_module_user_remove(u);
 			return -1;
 		}
 		ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING );
@@ -1748,7 +1733,6 @@ static int minivm_record_exec(struct ast_channel *chan, void *data)
 
 			if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 				ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
-				ast_module_user_remove(u);
 				return -1;
 			} else 
 				leave_options.record_gain = (signed char) gain;
@@ -1765,16 +1749,12 @@ static int minivm_record_exec(struct ast_channel *chan, void *data)
 	}
 	pbx_builtin_setvar_helper(chan, "MINIVM_RECORD_STATUS", "SUCCESS");
 
-	
-	ast_module_user_remove(u);
-
 	return res;
 }
 
 /*! \brief Play voicemail prompts - either generic or user specific */
 static int minivm_greet_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	struct leave_vm_options leave_options = { 0, '\0'};
 	int argc;
 	char *argv[2];
@@ -1794,27 +1774,21 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 	char *tmpptr;
 	struct minivm_account *vmu;
 	char *username = argv[0];
-	
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "Minivm needs at least an account argument \n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	tmpptr = ast_strdupa((char *)data);
 	if (!tmpptr) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	argc = ast_app_separate_args(tmpptr, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (argc == 2) {
-		if (ast_app_parse_options(minivm_app_options, &flags, opts, argv[1])) {
-			ast_module_user_remove(u);
+		if (ast_app_parse_options(minivm_app_options, &flags, opts, argv[1]))
 			return -1;
-		}
 		ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING );
 	}
 
@@ -1827,14 +1801,12 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 	} 
 	if (ast_strlen_zero(domain) || ast_strlen_zero(username)) {
 		ast_log(LOG_ERROR, "Need username@domain as argument. Sorry. Argument:  %s\n", argv[0]);
-		ast_module_user_remove(u);
 		return -1;
 	}
 	ast_debug(1, "-_-_- Trying to find configuration for user %s in domain %s\n", username, domain);
 
 	if (!(vmu = find_account(domain, username, TRUE))) {
 		ast_log(LOG_ERROR, "Could not allocate memory. \n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1906,7 +1878,6 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "MINIVM_GREET_STATUS", "FAILED");
 		if(ast_test_flag(vmu, MVM_ALLOCED))
 			free_user(vmu);
-		ast_module_user_remove(u);
 		return -1;
 	}
 	if (res == '#') {
@@ -1963,8 +1934,6 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 
 
 	/* Ok, we're ready to rock and roll. Return to dialplan */
-	ast_module_user_remove(u);
-
 	return res;
 
 }
@@ -1973,18 +1942,14 @@ static int minivm_greet_exec(struct ast_channel *chan, void *data)
 static int minivm_delete_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char filename[BUFSIZ];
-	
-	u = ast_module_user_add(chan);
-	
+		
 	if (!ast_strlen_zero(data))
 		ast_copy_string(filename, (char *) data, sizeof(filename));
 	else
 		ast_copy_string(filename, pbx_builtin_getvar_helper(chan, "MVM_FILENAME"), sizeof(filename));
 
 	if (ast_strlen_zero(filename)) {
-		ast_module_user_remove(u);
 		ast_log(LOG_ERROR, "No filename given in application arguments or channel variable MVM_FILENAME\n");
 		return res;
 	} 
@@ -2004,8 +1969,6 @@ static int minivm_delete_exec(struct ast_channel *chan, void *data)
 		ast_debug(2, "-_-_- Filename does not exist: %s\n", filename);
 		pbx_builtin_setvar_helper(chan, "MINIVM_DELETE_STATUS", "FAILED");
 	}
-	
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -2013,7 +1976,6 @@ static int minivm_delete_exec(struct ast_channel *chan, void *data)
 /*! \brief Record specific messages for voicemail account */
 static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	int argc = 0;
 	char *argv[2];
 	int res = 0;
@@ -2030,8 +1992,6 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	char *prompt = NULL;
 	int duration;
 	int cmd;
-	
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data))  {
 		ast_log(LOG_ERROR, "MinivmAccmess needs at least two arguments: account and option\n");
@@ -2060,10 +2020,8 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 		error = TRUE;
 	}
 
-	if (error) {
-		ast_module_user_remove(u);
+	if (error)
 		return -1;
-	}
 
 	ast_copy_string(tmp, argv[0], sizeof(tmp));
 	username = tmp;
@@ -2074,7 +2032,6 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	} 
 	if (ast_strlen_zero(domain) || ast_strlen_zero(username)) {
 		ast_log(LOG_ERROR, "Need username@domain as argument. Sorry. Argument 0 %s\n", argv[0]);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -2082,7 +2039,6 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 		/* We could not find user, let's exit */
 		ast_log(LOG_WARNING, "Could not allocate temporary memory for '%s@%s'\n", username, domain);
 		pbx_builtin_setvar_helper(chan, "MINIVM_NOTIFY_STATUS", "FAILED");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -2115,8 +2071,6 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 
 
 	/* Ok, we're ready to rock and roll. Return to dialplan */
-	ast_module_user_remove(u);
-
 	return res;
 
 }

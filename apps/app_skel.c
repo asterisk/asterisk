@@ -77,7 +77,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct ast_flags flags;
-	struct ast_module_user *u;
 	char *parse, *opts[OPTION_ARG_ARRAY_SIZE];
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(dummy);
@@ -88,8 +87,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n", app);
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	/* Do our thing here */
 
@@ -112,8 +109,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	if (ast_test_flag(&flags, OPTION_C))
 		ast_log(LOG_NOTICE, "Option C is set with : %s\n", opts[OPTION_ARG_C] ? opts[OPTION_ARG_C] : "<unspecified>");
-
-	ast_module_user_remove(u);
 
 	return res;
 }

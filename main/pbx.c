@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/event.h"
+#include "asterisk/module.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -182,7 +183,7 @@ struct ast_app {
 	const char *synopsis;			/*!< Synopsis text for 'show applications' */
 	const char *description;		/*!< Description (help text) for 'show application &lt;name&gt;' */
 	AST_RWLIST_ENTRY(ast_app) list;		/*!< Next app in list */
-	struct module *module;			/*!< Module this app belongs to */
+	struct ast_module *module;		/*!< Module this app belongs to */
 	char name[0];				/*!< Name of the application */
 };
 
@@ -545,7 +546,7 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 	     void *data)			/*!< Data for execution */
 {
 	int res;
-
+	struct ast_module_user *u = NULL;
 	const char *saved_c_appl;
 	const char *saved_c_data;
 
@@ -558,14 +559,11 @@ int pbx_exec(struct ast_channel *c, 		/*!< Channel */
 
 	c->appl = app->name;
 	c->data = data;
-	/* XXX remember what to to when we have linked apps to modules */
-	if (app->module) {
-		/* XXX LOCAL_USER_ADD(app->module) */
-	}
+	if (app->module)
+		u = __ast_module_user_add(app->module, c);
 	res = app->execute(c, data);
-	if (app->module) {
-		/* XXX LOCAL_USER_REMOVE(app->module) */
-	}
+	if (app->module && u)
+		__ast_module_user_remove(app->module, u);
 	/* restore channel values */
 	c->appl = saved_c_appl;
 	c->data = saved_c_data;
@@ -2936,7 +2934,7 @@ int ast_context_unlockmacro(const char *context)
 }
 
 /*! \brief Dynamically register a new dial plan application */
-int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *), const char *synopsis, const char *description)
+int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, void *), const char *synopsis, const char *description, void *mod)
 {
 	struct ast_app *tmp, *cur = NULL;
 	char tmps[80];
@@ -2963,6 +2961,7 @@ int ast_register_application(const char *app, int (*execute)(struct ast_channel 
 	tmp->execute = execute;
 	tmp->synopsis = synopsis;
 	tmp->description = description;
+	tmp->module = mod;
 
 	/* Store in alphabetical order */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
@@ -6066,7 +6065,7 @@ int load_pbx(void)
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
 		if (option_verbose)
 			ast_verbose( VERBOSE_PREFIX_1 "[%s]\n", builtins[x].name);
-		if (ast_register_application(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description)) {
+		if (ast_register_application2(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description, NULL)) {
 			ast_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);
 			return -1;
 		}

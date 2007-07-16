@@ -90,15 +90,12 @@ static char *execif_descrip =
 
 static int exec_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
-	struct ast_module_user *u;
+	int res = 0;
 	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
 	if (ast_strlen_zero(data))
 		return 0;
-
-	u = ast_module_user_add(chan);
 	
 	s = ast_strdupa(data);
 	appname = strsep(&s, "(");
@@ -118,22 +115,17 @@ static int exec_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	ast_module_user_remove(u);
-
 	return res;
 }
 
 static int tryexec_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
-	struct ast_module_user *u;
+	int res = 0;
 	char *s, *appname, *endargs, args[MAXRESULT] = "";
 	struct ast_app *app;
 
 	if (ast_strlen_zero(data))
 		return 0;
-
-	u = ast_module_user_add(chan);
 
 	s = ast_strdupa(data);
 	appname = strsep(&s, "(");
@@ -154,21 +146,16 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
 static int execif_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *myapp = NULL;
 	char *mydata = NULL;
 	char *expr = NULL;
 	struct ast_app *app = NULL;
-
-	u = ast_module_user_add(chan);
 
 	expr = ast_strdupa(data);
 
@@ -193,8 +180,6 @@ static int execif_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR,"Invalid Syntax.\n");
 		res = -1;
 	}
-		
-	ast_module_user_remove(u);
 
 	return res;
 }

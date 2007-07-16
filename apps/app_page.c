@@ -85,7 +85,6 @@ AST_APP_OPTIONS(page_opts, {
 
 static int page_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *options, *tech, *resource, *tmp;
 	char meetmeopts[88], originator[AST_CHANNEL_NAME];
 	struct ast_flags flags = { 0 };
@@ -99,11 +98,8 @@ static int page_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	if (!(app = pbx_findapp("MeetMe"))) {
 		ast_log(LOG_WARNING, "There is no MeetMe application available!\n");
-		ast_module_user_remove(u);
 		return -1;
 	};
 
@@ -187,8 +183,6 @@ static int page_exec(struct ast_channel *chan, void *data)
 		/* Destroy dialing structure */
 		ast_dial_destroy(dial);
 	}
-
-	ast_module_user_remove(u);
 
 	return -1;
 }

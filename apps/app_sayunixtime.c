@@ -75,15 +75,12 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	);
 	char *parse;
 	int res = 0;
-	struct ast_module_user *u;
 	time_t unixtime;
 	
 	if (!data)
 		return 0;
 
 	parse = ast_strdupa(data);
-
-	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -95,8 +92,6 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	if (!res)
 		res = ast_say_date_with_format(chan, unixtime, AST_DIGIT_ANY,
 					       chan->language, args.format, args.timezone);
-
-	ast_module_user_remove(u);
 
 	return res;
 }

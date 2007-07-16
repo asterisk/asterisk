@@ -318,11 +318,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 
 static int amd_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u = NULL;
-
-	u = ast_module_user_add(chan);
 	isAnsweringMachine(chan, data);
-	ast_module_user_remove(u);
 
 	return 0;
 }

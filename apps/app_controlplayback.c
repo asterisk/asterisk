@@ -93,7 +93,6 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	int skipms = 0;
 	long offsetms = 0;
 	char offsetbuf[20];
-	struct ast_module_user *u;
 	char *tmp;
 	int argc;
 	char *argv[8] = { NULL, };
@@ -114,8 +113,6 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 	
 	tmp = ast_strdupa(data);
 
@@ -123,7 +120,6 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	if (argc < 1) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -164,8 +160,6 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	snprintf(offsetbuf, sizeof(offsetbuf), "%ld", offsetms);
 	pbx_builtin_setvar_helper(chan, "CPLAYBACKOFFSET", offsetbuf);
-
-	ast_module_user_remove(u);
 
 	return res;
 }

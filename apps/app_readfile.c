@@ -56,7 +56,6 @@ static char *readfile_descrip =
 static int readfile_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct ast_module_user *u;
 	char *s, *varname=NULL, *file=NULL, *length=NULL, *returnvar=NULL;
 	int len=0;
 
@@ -64,8 +63,6 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "ReadFile require an argument!\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	s = ast_strdupa(data);
 
@@ -75,7 +72,6 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 
 	if (!varname || !file) {
 		ast_log(LOG_ERROR, "No file or variable specified!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -96,7 +92,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, varname, returnvar);
 		ast_free(returnvar);
 	}
-	ast_module_user_remove(u);
+
 	return res;
 }
 

@@ -69,7 +69,6 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1, inuse=-1, option_state=0, string_compare=0;
 	int status;
-	struct ast_module_user *u;
 	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
 	struct ast_channel *tempchan;
 	AST_DECLARE_APP_ARGS(args,
@@ -81,8 +80,6 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "ChanIsAvail requires an argument (Zap/1&Zap/2)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	info = ast_strdupa(data); 
 
@@ -108,7 +105,6 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			number = strchr(tech, '/');
 			if (!number) {
 				ast_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
-				ast_module_user_remove(u);
 				return -1;
 			}
 			*number = '\0';
@@ -151,7 +147,6 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
 	}
 
-	ast_module_user_remove(u);
 	return 0;
 }
 

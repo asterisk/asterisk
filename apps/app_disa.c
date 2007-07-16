@@ -123,7 +123,6 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int i,j,k,x,did_ignore,special_noanswer;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
-	struct ast_module_user *u;
 	struct ast_flags flags;
 	char *tmp, exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char pwline[256];
@@ -145,8 +144,6 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "DISA requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 	
 	if (chan->pbx) {
 		firstdigittimeout = chan->pbx->rtimeout*1000;
@@ -155,12 +152,10 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n", chan->name);
-		ast_module_user_remove(u);
 		return -1;
 	}
 	if (ast_set_read_format(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n", chan->name);
-		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -218,13 +213,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			
 		f = ast_read(chan);
 		if (f == NULL) {
-			ast_module_user_remove(u);
 			return -1;
 		}
 		if ((f->frametype == AST_FRAME_CONTROL) &&
 		    (f->subclass == AST_CONTROL_HANGUP)) {
 			ast_frfree(f);
-			ast_module_user_remove(u);
 			return -1;
 		}
 		if (f->frametype == AST_FRAME_VOICE) {
@@ -254,7 +247,6 @@ static int disa_exec(struct ast_channel *chan, void *data)
 						fp = fopen(args.passcode,"r");
 						if (!fp) {
 							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,chan->name);
-							ast_module_user_remove(u);
 							return -1;
 						}
 						pwline[0] = 0;
@@ -361,7 +353,6 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (special_noanswer) flags.flags = 0;
 			ast_cdr_reset(chan->cdr, &flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
-			ast_module_user_remove(u);
 			return 0;
 		}
 	}
@@ -382,7 +373,6 @@ reorder:
 		ast_frfree(f);
 	}
 	ast_playtones_stop(chan);
-	ast_module_user_remove(u);
 	return -1;
 }
 

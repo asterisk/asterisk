@@ -2486,7 +2486,6 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 /*! \brief The MeetmeCount application */
 static int count_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	int res = 0;
 	struct ast_conference *conf;
 	int count;
@@ -2501,13 +2500,9 @@ static int count_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 	
-	if (!(localdata = ast_strdupa(data))) {
-		ast_module_user_remove(u);
+	if (!(localdata = ast_strdupa(data)))
 		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	
@@ -2529,7 +2524,6 @@ static int count_exec(struct ast_channel *chan, void *data)
 			ast_answer(chan);
 		res = ast_say_number(chan, count, "", chan->language, (char *) NULL); /* Needs gender */
 	}
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -2538,7 +2532,6 @@ static int count_exec(struct ast_channel *chan, void *data)
 static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct ast_module_user *u;
 	char confno[MAX_CONFNUM] = "";
 	int allowretry = 0;
 	int retrycnt = 0;
@@ -2554,8 +2547,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(pin);
 	);
 	char *optargs[OPT_ARG_ARRAY_SIZE] = { NULL, };
-
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		allowretry = 1;
@@ -2777,8 +2768,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	if (cnf)
 		dispose_conf(cnf);
-
-	ast_module_user_remove(u);
 	
 	return res;
 }
@@ -2804,7 +2793,6 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	char *params;
 	struct ast_conference *cnf;
 	struct ast_conf_user *user = NULL;
-	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(confno);
 		AST_APP_ARG(command);
@@ -2816,14 +2804,11 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	params = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, params);
 
 	if (!args.command) {
 		ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -2836,7 +2821,6 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	if (!cnf) {
 		ast_log(LOG_WARNING, "Conference number '%s' not found!\n", args.confno);
 		AST_LIST_UNLOCK(&confs);
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -2946,8 +2930,6 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	AST_LIST_UNLOCK(&confs);
 
 	dispose_conf(cnf);
-
-	ast_module_user_remove(u);
 	
 	return 0;
 }
@@ -2958,7 +2940,6 @@ static int channel_admin_exec(struct ast_channel *chan, void *data) {
 	char *params;
 	struct ast_conference *conf = NULL;
 	struct ast_conf_user *user = NULL;
-	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(channel);
 		AST_APP_ARG(command);
@@ -2969,20 +2950,16 @@ static int channel_admin_exec(struct ast_channel *chan, void *data) {
 		return -1;
 	}
 	
-	u = ast_module_user_add(chan);
-
 	params = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, params);
 
 	if (!args.channel) {
 		ast_log(LOG_WARNING, "MeetMeChannelAdmin requires a channel name!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
 	if (!args.command) {
 		ast_log(LOG_WARNING, "MeetMeChannelAdmin requires a command!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -2997,7 +2974,6 @@ static int channel_admin_exec(struct ast_channel *chan, void *data) {
 	if (!user) {
 		ast_log(LOG_NOTICE, "Specified user (%s) not found\n", args.channel);
 		AST_LIST_UNLOCK(&confs);
-		ast_module_user_remove(u);
 		return 0;
 	}
 	
@@ -3018,8 +2994,6 @@ static int channel_admin_exec(struct ast_channel *chan, void *data) {
 	}
 
 	AST_LIST_UNLOCK(&confs);
-
-	ast_module_user_remove(u);
 	
 	return 0;
 }

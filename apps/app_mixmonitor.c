@@ -302,7 +302,6 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 static int mixmonitor_exec(struct ast_channel *chan, void *data)
 {
 	int x, readvol = 0, writevol = 0;
-	struct ast_module_user *u;
 	struct ast_flags flags = {0};
 	char *parse, *tmp, *slash;
 	AST_DECLARE_APP_ARGS(args,
@@ -316,15 +315,12 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 	
 	if (ast_strlen_zero(args.filename)) {
 		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -381,23 +377,14 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
 	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
 static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
-
 	ast_channel_lock(chan);
 	ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
 	ast_channel_unlock(chan);
-
-	ast_module_user_remove(u);
-
 	return 0;
 }
 

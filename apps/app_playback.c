@@ -377,7 +377,6 @@ static int playback_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	int mres = 0;
-	struct ast_module_user *u;
 	char *tmp;
 	int option_skip=0;
 	int option_say=0;
@@ -394,8 +393,6 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	}
 
 	tmp = ast_strdupa(data);
-
-	u = ast_module_user_add(chan);
 	AST_STANDARD_APP_ARGS(args, tmp);
 
 	if (args.options) {
@@ -436,7 +433,6 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	}
 done:
 	pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", mres ? "FAILED" : "SUCCESS");
-	ast_module_user_remove(u);
 	return res;
 }
 

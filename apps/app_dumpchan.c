@@ -142,14 +142,11 @@ static int serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 
 static int dumpchan_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	struct ast_str *vars = ast_str_alloca(BUFSIZ * 4); /* XXX very large! */
 	char info[1024];
 	int level = 0;
 	static char *line = "================================================================================";
 	
-	u = ast_module_user_add(chan);
-
 	if (!ast_strlen_zero(data)) 
 		level = atoi(data);
 
@@ -157,8 +154,6 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 	serialize_showchan(chan, info, sizeof(info));
 	if (option_verbose >= level)
 		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n", chan->name, line, info, vars->str, line);
-
-	ast_module_user_remove(u);
 	
 	return 0;
 }

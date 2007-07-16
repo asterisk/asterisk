@@ -259,19 +259,15 @@ outrun:
 static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct ast_module_user *u;
 	int retrycnt = 0;
 	int confflags = 0;
 	int confno = 0;
 	char confstr[80] = "";
-
-	u = ast_module_user_add(chan);
 	
 	if (!ast_strlen_zero(data)) {
 		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
 		    (sscanf(data, "%d", &confno) != 1)) {
 			ast_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);
-			ast_module_user_remove(u);
 			return 0;
 		}
 	}
@@ -294,7 +290,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	}
 out:
 	/* Do the conference */
-	ast_module_user_remove(u);
 	return res;
 }
 

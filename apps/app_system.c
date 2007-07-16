@@ -71,16 +71,13 @@ static char *descrip2 =
 
 static int system_exec_helper(struct ast_channel *chan, void *data, int failmode)
 {
-	int res=0;
-	struct ast_module_user *u;
+	int res = 0;
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "System requires an argument(command)\n");
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		return failmode;
 	}
-
-	u = ast_module_user_add(chan);
 
 	/* Do our thing here */
 	res = ast_safe_system((char *)data);
@@ -101,8 +98,6 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 			pbx_builtin_setvar_helper(chan, chanvar, "SUCCESS");
 		res = 0;
 	} 
-
-	ast_module_user_remove(u);
 
 	return res;
 }

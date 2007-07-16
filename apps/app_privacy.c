@@ -81,7 +81,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	int x = 0;
 	const char *s;
 	char phone[30];
-	struct ast_module_user *u;
 	struct ast_config *cfg = NULL;
 	char *parse = NULL;
 	AST_DECLARE_APP_ARGS(args,
@@ -90,19 +89,14 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 
-	u = ast_module_user_add(chan);
-
 	if (!ast_strlen_zero(chan->cid.cid_num)) {
 		if (option_verbose > 2)
 			ast_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
 	} else {
 		/*Answer the channel if it is not already*/
 		if (chan->_state != AST_STATE_UP) {
-			res = ast_answer(chan);
-			if (res) {
-				ast_module_user_remove(u);
+			if ((res = ast_answer(chan)))
 				return -1;
-			}
 		}
 
 		if (!ast_strlen_zero(data)) {
@@ -198,8 +192,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		if (cfg) 
 			ast_config_destroy(cfg);
 	}
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

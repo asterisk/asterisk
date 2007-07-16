@@ -66,11 +66,8 @@ static char *descrip2 =
 
 static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	int pres = -1;
 	static int deprecated = 0;
-
-	u = ast_module_user_add(chan);
 
 	if (!deprecated) {
 		deprecated = 1;
@@ -81,12 +78,10 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 	if (pres < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
 			(char *) data);
-		ast_module_user_remove(u);
 		return 0;
 	}
 	
 	chan->cid.cid_pres = pres;
-	ast_module_user_remove(u);
 	return 0;
 }
 

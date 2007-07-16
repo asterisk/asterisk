@@ -899,7 +899,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	struct call_followme *f;
 	struct number *nm, *newnm;
 	int res = 0;
-	struct ast_module_user *u;
 	char *argstr;
 	char namerecloc[255];
 	int duration = 0;
@@ -921,8 +920,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n",app);
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, argstr);
 
@@ -1043,8 +1040,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 	outrun:
 	
-	ast_module_user_remove(u);
-
 	return res;
 }
 

@@ -73,15 +73,12 @@ static int flash_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	int x;
-	struct ast_module_user *u;
 	struct zt_params ztp;
 
 	if (strcasecmp(chan->tech->type, "Zap")) {
 		ast_log(LOG_WARNING, "%s is not a Zap channel\n", chan->name);
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 	
 	memset(&ztp, 0, sizeof(ztp));
 	res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
@@ -103,8 +100,6 @@ static int flash_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "%s is not an FXO Channel\n", chan->name);
 	} else
 		ast_log(LOG_WARNING, "Unable to get parameters of %s: %s\n", chan->name, strerror(errno));
-
-	ast_module_user_remove(u);
 
 	return res;
 }

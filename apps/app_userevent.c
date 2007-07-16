@@ -57,7 +57,6 @@ static char *descrip =
 
 static int userevent_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *parse, buf[2048] = "";
 	int x, buflen = 0;
 	AST_DECLARE_APP_ARGS(args,
@@ -69,8 +68,6 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -84,8 +81,6 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	}
 
 	manager_event(EVENT_FLAG_USER, "UserEvent", "UserEvent: %s\r\n%s", args.eventname, buf);
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

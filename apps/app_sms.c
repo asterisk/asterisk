@@ -1748,7 +1748,6 @@ AST_APP_OPTIONS(sms_options, {
 static int sms_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
-	struct ast_module_user *u;
 	sms_t h = { 0 };
 	/* argument parsing support */
 	struct ast_flags sms_flags;
@@ -1777,7 +1776,6 @@ static int sms_exec(struct ast_channel *chan, void *data)
 		S_OR(sms_args.addr, ""),
 		S_OR(sms_args.body, "") );
 
-	u = ast_module_user_add(chan);
 	h.ipc0 = h.ipc1 = 20;		/* phase for cosine */
 	h.dcs = 0xF1;			/* default */
 
@@ -1923,7 +1921,6 @@ static int sms_exec(struct ast_channel *chan, void *data)
 
 	sms_log(&h, '?');			  /* log incomplete message */
 done:
-	ast_module_user_remove(u);
 	return (res);
 }
 

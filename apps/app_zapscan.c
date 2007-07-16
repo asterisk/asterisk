@@ -287,7 +287,6 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct ast_module_user *u;
 	int confflags = 0;
 	int confno = 0;
 	char confstr[80] = "", *tmp = NULL;
@@ -295,9 +294,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	struct ast_frame *f;
 	char *desired_group;
 	int input=0,search_group=0;
-	
-	u = ast_module_user_add(chan);
-	
+		
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 	
@@ -357,7 +354,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			ast_mutex_unlock(&tempchan->lock);
 		lastchan = tempchan;
 	}
-	ast_module_user_remove(u);
 	return res;
 }
 

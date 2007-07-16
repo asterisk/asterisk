@@ -111,13 +111,9 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 	int res=0, ditlen, tone;
 	char *digit;
 	const char *ditlenc, *tonec;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: Morsecode(<string>) - no argument found\n");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -155,7 +151,6 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 		playtone(chan, 0, 2 * ditlen);
 	}
 
-	ast_module_user_remove(u);
 	return res;
 }
 

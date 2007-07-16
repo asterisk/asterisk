@@ -3213,7 +3213,6 @@ static void reload_queue_members(void)
 
 static int pqm_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *lu;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -3230,25 +3229,17 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	lu = ast_module_user_add(chan);
-
-	if (args.options) {
-	}
-
 	if (ast_strlen_zero(args.interface)) {
 		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
-		ast_module_user_remove(lu);
 		return -1;
 	}
 
 	if (set_member_paused(args.queuename, args.interface, 1)) {
 		ast_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", args.interface);
-		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
-	ast_module_user_remove(lu);
 	pbx_builtin_setvar_helper(chan, "PQMSTATUS", "PAUSED");
 
 	return 0;
@@ -3256,7 +3247,6 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 static int upqm_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *lu;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -3273,25 +3263,17 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	lu = ast_module_user_add(chan);
-
-	if (args.options) {
-	}
-
 	if (ast_strlen_zero(args.interface)) {
 		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
-		ast_module_user_remove(lu);
 		return -1;
 	}
 
 	if (set_member_paused(args.queuename, args.interface, 0)) {
 		ast_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", args.interface);
-		ast_module_user_remove(lu);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 		return -1;
 	}
 
-	ast_module_user_remove(lu);
 	pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "UNPAUSED");
 
 	return 0;
@@ -3300,7 +3282,6 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 static int rqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct ast_module_user *lu;
 	char *parse, *temppos = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -3318,16 +3299,11 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	lu = ast_module_user_add(chan);
-
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
 		temppos = strrchr(args.interface, '-');
 		if (temppos)
 			*temppos = '\0';
-	}
-
-	if (args.options) {
 	}
 
 	switch (remove_from_queue(args.queuename, args.interface)) {
@@ -3349,15 +3325,12 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	ast_module_user_remove(lu);
-
 	return res;
 }
 
 static int aqm_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	struct ast_module_user *lu;
 	char *parse, *temppos = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -3377,8 +3350,6 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	lu = ast_module_user_add(chan);
-
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
 		temppos = strrchr(args.interface, '-');
@@ -3391,9 +3362,6 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Penalty '%s' is invalid, must be an integer >= 0\n", args.penalty);
 			penalty = 0;
 		}
-	}
-	
-	if (args.options) {
 	}
 
 	if (ast_strlen_zero(args.membername))
@@ -3422,14 +3390,11 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	ast_module_user_remove(lu);
-
 	return res;
 }
 
 static int ql_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *parse;
 
 	AST_DECLARE_APP_ARGS(args,
@@ -3445,8 +3410,6 @@ static int ql_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -3454,14 +3417,11 @@ static int ql_exec(struct ast_channel *chan, void *data)
 	if (ast_strlen_zero(args.queuename) || ast_strlen_zero(args.uniqueid)
 	    || ast_strlen_zero(args.membername) || ast_strlen_zero(args.event)) {
 		ast_log(LOG_WARNING, "QueueLog requires arguments (queuename|uniqueid|membername|event[|additionalinfo])\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
 	ast_queue_log(args.queuename, args.uniqueid, args.membername, args.event, 
 		"%s", args.params ? args.params : "");
-
-	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -3470,7 +3430,6 @@ static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	int ringing=0;
-	struct ast_module_user *lu;
 	const char *user_priority;
 	const char *max_penalty_str;
 	int prio;
@@ -3500,8 +3459,6 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	
 	parse = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, parse);
-
-	lu = ast_module_user_add(chan);
 
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
@@ -3745,7 +3702,6 @@ check_turns:
 		set_queue_result(chan, reason);
 		res = 0;
 	}
-	ast_module_user_remove(lu);
 
 	return res;
 }
@@ -3754,7 +3710,6 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 {
 	int res = -1;
 	struct call_queue *q;
-	struct ast_module_user *lu;
 
 	char interfacevar[256]="";
         float sl = 0;
@@ -3765,8 +3720,6 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
 		return -1;
 	}
-
-	lu = ast_module_user_add(chan);
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3797,7 +3750,6 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	snprintf(buf, len, "%d", res);
-	ast_module_user_remove(lu);
 
 	return 0;
 }
@@ -3806,7 +3758,6 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 {
 	int count = 0;
 	struct call_queue *q;
-	struct ast_module_user *lu;
 	struct member *m;
 
 	buf[0] = '\0';
@@ -3815,8 +3766,6 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
 		return -1;
 	}
-
-	lu = ast_module_user_add(chan);
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3839,7 +3788,6 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	snprintf(buf, len, "%d", count);
-	ast_module_user_remove(lu);
 
 	return 0;
 }
@@ -3848,7 +3796,6 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 {
 	int count = 0;
 	struct call_queue *q;
-	struct ast_module_user *lu;
 
 	buf[0] = '\0';
 	
@@ -3856,8 +3803,6 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
 		return -1;
 	}
-
-	lu = ast_module_user_add(chan);
 	
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3875,13 +3820,12 @@ static int queue_function_queuewaitingcount(struct ast_channel *chan, const char
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
 
 	snprintf(buf, len, "%d", count);
-	ast_module_user_remove(lu);
+
 	return 0;
 }
 
 static int queue_function_queuememberlist(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	struct call_queue *q;
 	struct member *m;
 
@@ -3892,8 +3836,6 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 		ast_log(LOG_ERROR, "QUEUE_MEMBER_LIST requires an argument: queuename\n");
 		return -1;
 	}
-	
-	u = ast_module_user_add(chan);
 
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3927,7 +3869,6 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 
 	/* We should already be terminated, but let's make sure. */
 	buf[len - 1] = '\0';
-	ast_module_user_remove(u);
 
 	return 0;
 }

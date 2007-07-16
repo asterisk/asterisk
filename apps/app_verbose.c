@@ -56,9 +56,6 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 {
 	char *vtext;
 	int vsize;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	if (data) {
 		char *tmp;
@@ -93,23 +90,17 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
 static int log_exec(struct ast_channel *chan, void *data)
 {
 	char *level, *ltext;
-	struct ast_module_user *u;
 	int lnum = -1;
 	char extension[AST_MAX_EXTENSION + 5], context[AST_MAX_EXTENSION + 2];
 
-	u = ast_module_user_add(chan);
-	if (ast_strlen_zero(data)) {
-		ast_module_user_remove(u);
+	if (ast_strlen_zero(data))
 		return 0;
-	}
 
 	ltext = ast_strdupa(data);
 
@@ -139,7 +130,7 @@ static int log_exec(struct ast_channel *chan, void *data)
 
 		ast_log(lnum, extension, chan->priority, context, "%s\n", ltext);
 	}
-	ast_module_user_remove(u);
+
 	return 0;
 }
 

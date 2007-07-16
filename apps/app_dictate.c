@@ -89,7 +89,6 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	struct ast_flags flags = {0};
 	struct ast_filestream *fs;
 	struct ast_frame *f = NULL;
-	struct ast_module_user *u;
 	int ffactor = 320 * 80,
 		res = 0,
 		done = 0,
@@ -101,8 +100,6 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		len = 0,
 		maxlen = 0,
 		mode = 0;
-		
-	u = ast_module_user_add(chan);
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
 	if (!ast_strlen_zero(data)) {
@@ -122,7 +119,6 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	oldr = chan->readformat;
 	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -330,7 +326,6 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	if (oldr) {
 		ast_set_read_format(chan, oldr);
 	}
-	ast_module_user_remove(u);
 	return 0;
 }
 

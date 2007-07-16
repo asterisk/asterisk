@@ -63,19 +63,15 @@ static const char *descrip =
 static int sendtext_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *status = "UNSUPPORTED";
 	char *parse = NULL;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(text);
 		AST_APP_ARG(options);
 	);
-		
-	u = ast_module_user_add(chan);	
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendText requires an argument (text[|options])\n");
-		ast_module_user_remove(u);
 		return -1;
 	} else
 		parse = ast_strdupa(data);
@@ -89,7 +85,6 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	if (!chan->tech->send_text) {
 		ast_channel_unlock(chan);
 		/* Does not support transport */
-		ast_module_user_remove(u);
 		return 0;
 	}
 	status = "FAILURE";
@@ -98,7 +93,6 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	if (!res)
 		status = "SUCCESS";
 	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
-	ast_module_user_remove(u);
 	return 0;
 }
 

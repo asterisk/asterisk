@@ -113,9 +113,6 @@ static struct ast_generator milliwattgen =
 static int milliwatt_exec(struct ast_channel *chan, void *data)
 {
 
-	struct ast_module_user *u;
-	u = ast_module_user_add(chan);
-
 	ast_set_write_format(chan, AST_FORMAT_ULAW);
 	ast_set_read_format(chan, AST_FORMAT_ULAW);
 
@@ -125,15 +122,12 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 
 	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0) {
 		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
 	while(!ast_safe_sleep(chan, 10000));
 
 	ast_deactivate_generator(chan);
-
-	ast_module_user_remove(u);
 
 	return -1;
 }

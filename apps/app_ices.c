@@ -103,8 +103,7 @@ static int icesencode(char *filename, int fd)
 
 static int ices_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
-	struct ast_module_user *u;
+	int res = 0;
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
@@ -119,14 +118,11 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 	
 	last = ast_tv(0, 0);
 	
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	flags = fcntl(fds[1], F_GETFL);
@@ -141,7 +137,6 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Answer failed!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -151,7 +146,6 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	if (((char *)data)[0] == '/')
@@ -200,8 +194,6 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		kill(pid, SIGKILL);
 	if (!res && oreadformat)
 		ast_set_read_format(chan, oreadformat);
-
-	ast_module_user_remove(u);
 
 	return res;
 }

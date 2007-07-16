@@ -44,9 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 
-#define ALL_DONE(u,ret) {ast_module_user_remove(u); return ret;}
-
-
 static char *start_app = "While";
 static char *start_desc = 
 "Usage:  While(<expr>)\n"
@@ -164,7 +161,6 @@ static int find_matching_endwhile(struct ast_channel *chan)
 static int _while_exec(struct ast_channel *chan, void *data, int end)
 {
 	int res=0;
-	struct ast_module_user *u;
 	const char *while_pri = NULL;
 	char *my_name = NULL;
 	const char *condition = NULL, *label = NULL;
@@ -179,14 +175,11 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	/* dont want run away loops if the chan isn't even up
 	   this is up for debate since it slows things down a tad ......
 	*/
 	if (ast_waitfordigit(chan,1) < 0)
-		ALL_DONE(u,-1);
-
+		return -1;
 
 	for (x=0;;x++) {
 		if (get_index(chan, prefix, x)) {
@@ -243,7 +236,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 				ast_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
 			}
 		}
-		ALL_DONE(u,res);
+		return res;
 	}
 
 	if (!end && !while_pri) {
@@ -268,11 +261,8 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		}
 		ast_parseable_goto(chan, while_pri);
 	}
-	
 
-
-
-	ALL_DONE(u, res);
+	return res;
 }
 
 static int while_start_exec(struct ast_channel *chan, void *data) {

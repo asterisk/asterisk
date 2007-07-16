@@ -342,18 +342,14 @@ static struct ast_custom_function speech_function = {
 /*! \brief SpeechCreate() Dialplan Application */
 static int speech_create(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u = NULL;
 	struct ast_speech *speech = NULL;
 	struct ast_datastore *datastore = NULL;
-
-	u = ast_module_user_add(chan);
 
 	/* Request a speech object */
 	speech = ast_speech_new(data, chan->nativeformats);
 	if (speech == NULL) {
 		/* Not available */
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -361,13 +357,10 @@ static int speech_create(struct ast_channel *chan, void *data)
 	if (datastore == NULL) {
 		ast_speech_destroy(speech);
 		pbx_builtin_setvar_helper(chan, "ERROR", "1");
-		ast_module_user_remove(u);
 		return 0;
 	}
 	datastore->data = speech;
 	ast_channel_datastore_add(chan, datastore);
-
-	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -376,32 +369,23 @@ static int speech_create(struct ast_channel *chan, void *data)
 static int speech_load(struct ast_channel *chan, void *data)
 {
 	int res = 0, argc = 0;
-	struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 	char *argv[2], *args = NULL, *name = NULL, *path = NULL;
 
 	args = ast_strdupa(data);
 
-	u = ast_module_user_add(chan);
-
-	if (speech == NULL) {
-		ast_module_user_remove(u);
+	if (speech == NULL)
                 return -1;
-        }
 
 	/* Parse out arguments */
 	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-	if (argc != 2) {
-		ast_module_user_remove(u);
+	if (argc != 2)
 		return -1;
-	}
 	name = argv[0];
 	path = argv[1];
 
         /* Load the grammar locally on the object */
         res = ast_speech_grammar_load(speech, name, path);
-
-        ast_module_user_remove(u);
 
         return res;
 }
@@ -410,20 +394,13 @@ static int speech_load(struct ast_channel *chan, void *data)
 static int speech_unload(struct ast_channel *chan, void *data)
 {
         int res = 0;
-        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-        u = ast_module_user_add(chan);
-
-        if (speech == NULL) {
-                ast_module_user_remove(u);
-                return -1;
-        }
+        if (speech == NULL)
+		return -1;
 
         /* Unload the grammar */
         res = ast_speech_grammar_unload(speech, data);
-
-        ast_module_user_remove(u);
 
         return res;
 }
@@ -432,20 +409,13 @@ static int speech_unload(struct ast_channel *chan, void *data)
 static int speech_deactivate(struct ast_channel *chan, void *data)
 {
         int res = 0;
-        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-        u = ast_module_user_add(chan);
-
-        if (speech == NULL) {
-                ast_module_user_remove(u);
+        if (speech == NULL)
                 return -1;
-        }
 
         /* Deactivate the grammar on the speech object */
         res = ast_speech_grammar_deactivate(speech, data);
-
-        ast_module_user_remove(u);
 
         return res;
 }
@@ -454,20 +424,13 @@ static int speech_deactivate(struct ast_channel *chan, void *data)
 static int speech_activate(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 
-	u = ast_module_user_add(chan);
-
-	if (speech == NULL) {
-		ast_module_user_remove(u);
+	if (speech == NULL)
 		return -1;
-	}
 
 	/* Activate the grammar on the speech object */
 	res = ast_speech_grammar_activate(speech, data);
-
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -476,19 +439,12 @@ static int speech_activate(struct ast_channel *chan, void *data)
 static int speech_start(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-        struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 
-	u = ast_module_user_add(chan);
-
-	if (speech == NULL) {
-		ast_module_user_remove(u);
+	if (speech == NULL)
 		return -1;
-	}
 
 	ast_speech_start(speech);
-
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -497,15 +453,10 @@ static int speech_start(struct ast_channel *chan, void *data)
 static int speech_processing_sound(struct ast_channel *chan, void *data)
 {
         int res = 0;
-        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
 
-        u = ast_module_user_add(chan);
-
-        if (speech == NULL) {
-                ast_module_user_remove(u);
+        if (speech == NULL)
                 return -1;
-        }
 
 	if (speech->processing_sound != NULL) {
 		ast_free(speech->processing_sound);
@@ -513,8 +464,6 @@ static int speech_processing_sound(struct ast_channel *chan, void *data)
 	}
 
 	speech->processing_sound = ast_strdup(data);
-
-        ast_module_user_remove(u);
 
         return res;
 }
@@ -540,7 +489,6 @@ static int speech_background(struct ast_channel *chan, void *data)
 {
         unsigned int timeout = 0;
         int res = 0, done = 0, argc = 0, started = 0, quieted = 0, max_dtmf_len = 0;
-        struct ast_module_user *u = NULL;
         struct ast_speech *speech = find_speech(chan);
         struct ast_frame *f = NULL;
         int oldreadformat = AST_FORMAT_SLINEAR;
@@ -552,27 +500,19 @@ static int speech_background(struct ast_channel *chan, void *data)
 
         args = ast_strdupa(data);
 
-        u = ast_module_user_add(chan);
-
-        if (speech == NULL) {
-                ast_module_user_remove(u);
+        if (speech == NULL)
                 return -1;
-        }
 
 	/* If channel is not already answered, then answer it */
-	if (chan->_state != AST_STATE_UP && ast_answer(chan)) {
-		ast_module_user_remove(u);
+	if (chan->_state != AST_STATE_UP && ast_answer(chan))
 		return -1;
-	}
 
         /* Record old read format */
         oldreadformat = chan->readformat;
 
         /* Change read format to be signed linear */
-        if (ast_set_read_format(chan, speech->format)) {
-                ast_module_user_remove(u);
+        if (ast_set_read_format(chan, speech->format))
                 return -1;
-        }
 
         /* Parse out options */
         argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
@@ -769,8 +709,6 @@ static int speech_background(struct ast_channel *chan, void *data)
                 ast_set_read_format(chan, oldreadformat);
         }
 
-        ast_module_user_remove(u);
-
         return 0;
 }
 
@@ -779,16 +717,11 @@ static int speech_background(struct ast_channel *chan, void *data)
 static int speech_destroy(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-        struct ast_module_user *u = NULL;
 	struct ast_speech *speech = find_speech(chan);
 	struct ast_datastore *datastore = NULL;
 
-	u = ast_module_user_add(chan);
-
-	if (speech == NULL) {
-		ast_module_user_remove(u);
+	if (speech == NULL)
 		return -1;
-	}
 
 	/* Destroy speech structure */
 	ast_speech_destroy(speech);
@@ -797,8 +730,6 @@ static int speech_destroy(struct ast_channel *chan, void *data)
 	if (datastore != NULL) {
 		ast_channel_datastore_remove(chan, datastore);
 	}
-
-	ast_module_user_remove(u);
 
 	return res;
 }

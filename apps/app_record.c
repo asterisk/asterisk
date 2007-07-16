@@ -87,7 +87,6 @@ static int record_exec(struct ast_channel *chan, void *data)
 	char tmp[256];
 
 	struct ast_filestream *s = '\0';
-	struct ast_module_user *u;
 	struct ast_frame *f = NULL;
 	
 	struct ast_dsp *sildet = NULL;   	/* silence detector dsp */
@@ -113,8 +112,6 @@ static int record_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	/* Yay for strsep being easy */
 	vdata = ast_strdupa(data);
 
@@ -137,7 +134,6 @@ static int record_exec(struct ast_channel *chan, void *data)
 	}
 	if (!ext) {
 		ast_log(LOG_WARNING, "No extension specified to filename!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	if (silstr) {
@@ -222,7 +218,6 @@ static int record_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
-			ast_module_user_remove(u);
 			return 0;
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to record while on-hook */
@@ -253,13 +248,11 @@ static int record_exec(struct ast_channel *chan, void *data)
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-			ast_module_user_remove(u);
 			return -1;
 		}
 		sildet = ast_dsp_new();
 		if (!sildet) {
 			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-			ast_module_user_remove(u);
 			return -1;
 		}
 		ast_dsp_set_threshold(sildet, 256);
@@ -367,8 +360,6 @@ static int record_exec(struct ast_channel *chan, void *data)
 		if (sildet)
 			ast_dsp_free(sildet);
 	}
-
-	ast_module_user_remove(u);
 
 	return res;
 }

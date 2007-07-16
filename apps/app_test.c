@@ -129,7 +129,6 @@ static int sendnoise(struct ast_channel *chan, int ms)
 
 static int testclient_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	int res = 0;
 	char *testid=data;
 	char fn[80];
@@ -142,8 +141,6 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	u = ast_module_user_add(chan);
-
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	
@@ -298,18 +295,15 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE, "Did not read a test ID on '%s'\n", chan->name);
 		res = -1;
 	}
-	ast_module_user_remove(u);
 	return res;
 }
 
 static int testserver_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	int res = 0;
 	char testid[80]="";
 	char fn[80];
 	FILE *f;
-	u = ast_module_user_add(chan);
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	/* Read version */
@@ -454,7 +448,6 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE, "Did not read a test ID on '%s'\n", chan->name);
 		res = -1;
 	}
-	ast_module_user_remove(u);
 	return res;
 }
 

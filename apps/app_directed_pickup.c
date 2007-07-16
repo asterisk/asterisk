@@ -133,7 +133,6 @@ static int pickup_by_mark(struct ast_channel *chan, const char *mark)
 static int pickup_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u = NULL;
 	char *tmp = ast_strdupa(data);
 	char *exten = NULL, *context = NULL;
 
@@ -141,8 +140,6 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Pickup requires an argument (extension)!\n");
 		return -1;	
 	}
-
-	u = ast_module_user_add(chan);
 	
 	/* Parse extension (and context if there) */
 	while (!ast_strlen_zero(tmp) && (exten = strsep(&tmp, "&"))) {
@@ -157,8 +154,6 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		}
 		ast_log(LOG_NOTICE, "No target channel found for %s.\n", exten);
 	}
-
-	ast_module_user_remove(u);
 
 	return res;
 }

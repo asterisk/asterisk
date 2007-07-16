@@ -46,15 +46,8 @@ static char *nocdr_synopsis = "Tell Asterisk to not maintain a CDR for the curre
 
 static int nocdr_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
-	
-	u = ast_module_user_add(chan);
-
-	if (chan->cdr) {
+	if (chan->cdr)
 		ast_set_flag(chan->cdr, AST_CDR_FLAG_POST_DISABLED);
-	}
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

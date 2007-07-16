@@ -201,13 +201,10 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	char *args;
-	struct ast_module_user *u;
 	ZT_PARAMS ztp;
 
 	if (!data) 
 		data = "";
-
-	u = ast_module_user_add(chan);
 
 	args = ast_strdupa(data);
 	
@@ -235,7 +232,6 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 			run_ras(chan, args);
 		}
 	}
-	ast_module_user_remove(u);
 	return res;
 }
 

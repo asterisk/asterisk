@@ -61,15 +61,12 @@ static char *descrip =
 static int sendimage_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(options);
 	);
 	
-	u = ast_module_user_add(chan);
-
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -85,15 +82,12 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "NOSUPPORT");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
 	if (!(res = ast_send_image(chan, args.filename)))
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "OK");
-	
-	ast_module_user_remove(u);
-	
+		
 	return res;
 }
 

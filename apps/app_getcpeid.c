@@ -66,15 +66,12 @@ static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)
 static int cpeid_exec(struct ast_channel *chan, void *idata)
 {
 	int res=0;
-	struct ast_module_user *u;
 	unsigned char cpeid[4];
 	int gotgeometry = 0;
 	int gotcpeid = 0;
 	int width, height, buttons;
 	char *data[4];
 	unsigned int x;
-
-	u = ast_module_user_add(chan);
 
 	for (x = 0; x < 4; x++)
 		data[x] = alloca(80);
@@ -125,7 +122,7 @@ static int cpeid_exec(struct ast_channel *chan, void *idata)
 			ast_adsi_unload_session(chan);
 		}
 	}
-	ast_module_user_remove(u);
+
 	return res;
 }
 

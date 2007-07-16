@@ -1262,7 +1262,6 @@ static int ospauth_exec(
 	void* data)
 {
 	int res;
-	struct ast_module_user* u;
 	const char* provider = OSP_DEF_PROVIDER;
 	struct varshead* headp;
 	struct ast_var_t* current;
@@ -1279,11 +1278,8 @@ static int ospauth_exec(
 		AST_APP_ARG(options);
 	);
 
-	u = ast_module_user_add(chan);
-
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1332,8 +1328,6 @@ static int ospauth_exec(
 		res = 0;
 	}
 
-	ast_module_user_remove(u);
-
 	return res;
 }
 
@@ -1348,7 +1342,6 @@ static int osplookup_exec(
 	void* data)
 {
 	int res, cres;
-	struct ast_module_user* u;
 	const char* provider = OSP_DEF_PROVIDER;
 	struct varshead* headp;
 	struct ast_var_t* current;
@@ -1371,11 +1364,8 @@ static int osplookup_exec(
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1426,7 +1416,6 @@ static int osplookup_exec(
 	ast_debug(1, "OSPLookup: source device '%s'\n", srcdev);
 
 	if ((cres = ast_autoservice_start(chan)) < 0) {
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1498,7 +1487,6 @@ static int osplookup_exec(
 	}
 
 	if ((cres = ast_autoservice_stop(chan)) < 0) {
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1507,8 +1495,6 @@ static int osplookup_exec(
 	} else {
 		res = 0;
 	}
-
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -1524,7 +1510,6 @@ static int ospnext_exec(
 	void* data)
 {
 	int res;
-	struct ast_module_user* u;
 	const char* provider = OSP_DEF_PROVIDER;
 	int cause = 0;
 	struct varshead* headp;
@@ -1546,11 +1531,8 @@ static int ospnext_exec(
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1668,8 +1650,6 @@ static int ospnext_exec(
 		res = 0;
 	}
 
-	ast_module_user_remove(u);
-
 	return res;
 }
 
@@ -1684,7 +1664,6 @@ static int ospfinished_exec(
 	void* data)
 {
 	int res = 1;
-	struct ast_module_user* u;
 	int cause = 0;
 	struct varshead* headp;
 	struct ast_var_t* current;
@@ -1702,11 +1681,8 @@ static int ospfinished_exec(
 		AST_APP_ARG(options);
 	);
 
-	u = ast_module_user_add(chan);
-
 	if (!(tmp = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -1791,8 +1767,6 @@ static int ospfinished_exec(
 	} else {
 		res = 0;
 	}
-
-	ast_module_user_remove(u);
 
 	return res;
 }

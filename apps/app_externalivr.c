@@ -243,7 +243,6 @@ static struct playlist_entry *make_entry(const char *filename)
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *lu;
 	struct playlist_entry *entry;
 	const char *args = data;
 	int child_stdin[2] = { 0,0 };
@@ -265,8 +264,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	struct ivr_localuser *u = &foo;
 	sigset_t fullset, oldset;
 
-	lu = ast_module_user_add(chan);
-
 	sigfillset(&fullset);
 	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
 
@@ -275,7 +272,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	
 	if (ast_strlen_zero(args)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
-		ast_module_user_remove(lu);
 		return -1;	
 	}
 
@@ -570,8 +566,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
 		ast_free(entry);
-
-	ast_module_user_remove(lu);
 
 	return res;
 }

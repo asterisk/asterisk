@@ -55,7 +55,6 @@ static char *app = "WaitForRing";
 
 static int waitforring_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	struct ast_frame *f;
 	int res = 0;
 	double s;
@@ -65,8 +64,6 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
                 ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
 		return 0;
 	}
-
-	u = ast_module_user_add(chan);
 
 	ms = s*1000.0;
 	while(ms > 0) {
@@ -113,7 +110,6 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-	ast_module_user_remove(u);
 
 	return res;
 }

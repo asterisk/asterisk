@@ -55,9 +55,6 @@ static int echo_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
 	int format;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	format = ast_best_codec(chan->nativeformats);
 	ast_set_write_format(chan, format);
@@ -81,7 +78,6 @@ static int echo_exec(struct ast_channel *chan, void *data)
 		ast_frfree(f);
 	}
 end:
-	ast_module_user_remove(u);
 	return res;
 }
 

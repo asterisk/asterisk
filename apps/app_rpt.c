@@ -6806,7 +6806,6 @@ static void *rpt_master(void *config)
 static int rpt_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1, i, rem_totx, n, phone_mode = 0;
-	struct ast_module_user *u;
 	char *tmp, keyed = 0;
 	char *options, *tele, c;
 	struct rpt *myrpt;
@@ -7089,7 +7088,6 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Cant get io permission on IO port %x hex\n", myrpt->p.iobase);
 		return -1;
 	}
-	u = ast_module_user_add(chan);
 	rpt_mutex_unlock(&myrpt->lock);
 	/* find our index, and load the vars initially */
 	for (i = 0; i < nrpts; i++) {
@@ -7429,7 +7427,6 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->remoteon = 0;
 	rpt_mutex_unlock(&myrpt->lock);
 	closerem(myrpt);
-	ast_module_user_remove(u);
 	return res;
 }
 

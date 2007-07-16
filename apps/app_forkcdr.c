@@ -77,21 +77,17 @@ static void ast_cdr_fork(struct ast_channel *chan)
 static int forkcdr_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 
 	if (!chan->cdr) {
 		ast_log(LOG_WARNING, "Channel does not have a CDR\n");
 		return 0;
 	}
 
-	u = ast_module_user_add(chan);
-
 	if (!ast_strlen_zero(data))
 		ast_set2_flag(chan->cdr, strchr(data, 'v'), AST_CDR_FLAG_KEEP_VARS);
 	
 	ast_cdr_fork(chan);
 
-	ast_module_user_remove(u);
 	return res;
 }
 

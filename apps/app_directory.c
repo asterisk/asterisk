@@ -566,7 +566,6 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 static int directory_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	struct ast_config *cfg, *ucfg;
 	int last = 1;
 	int readext = 0;
@@ -583,8 +582,6 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	parse = ast_strdupa(data);
 
@@ -605,7 +602,6 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	cfg = realtime_directory(args.vmcontext);
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to read the configuration data!\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -640,7 +636,6 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	if (ucfg)
 		ast_config_destroy(ucfg);
 	ast_config_destroy(cfg);
-	ast_module_user_remove(u);
 	return res;
 }
 

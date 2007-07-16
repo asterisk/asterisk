@@ -66,7 +66,6 @@ static char *descrip =
 static int sendurl_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *tmp;
 	char *options;
 	int local_option_wait=0;
@@ -80,8 +79,6 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	tmp = ast_strdupa(data);
 
 	stringp=tmp;
@@ -93,13 +90,11 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	if (!ast_channel_supports_html(chan)) {
 		/* Does not support transport */
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "UNSUPPORTED");
-		ast_module_user_remove(u);
 		return 0;
 	}
 	res = ast_channel_sendurl(chan, tmp);
 	if (res == -1) {
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "FAILURE");
-		ast_module_user_remove(u);
 		return res;
 	}
 	status = "SUCCESS";
@@ -139,7 +134,6 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	} 
 out:	
 	pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", status);
-	ast_module_user_remove(u);
 	return res;
 }
 

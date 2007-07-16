@@ -63,7 +63,6 @@ static char *descrip =
 static int background_detect_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *tmp;
 	char *options;
 	char *stringp;
@@ -81,8 +80,6 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	tmp = ast_strdupa(data);
 
@@ -205,7 +202,6 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	}
 	if (dsp)
 		ast_dsp_free(dsp);
-	ast_module_user_remove(u);
 	return res;
 }
 

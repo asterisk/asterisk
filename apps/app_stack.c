@@ -238,7 +238,6 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	struct gosub_stack_frame *newframe;
 	char argname[15], *tmp = ast_strdupa(data), *label, *endparen;
 	int i;
-	struct ast_module_user *u;
 	AST_DECLARE_APP_ARGS(args2,
 		AST_APP_ARG(argval)[100];
 	);
@@ -248,14 +247,11 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	if (!stack_store) {
 		ast_debug(1, "Channel %s has no datastore, so we're allocating one.\n", chan->name);
 		stack_store = ast_channel_datastore_alloc(&stack_info, NULL);
 		if (!stack_store) {
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  Gosub will fail.\n");
-			ast_module_user_remove(u);
 			return -1;
 		}
 
@@ -263,7 +259,6 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 		if (!oldlist) {
 			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  Gosub will fail.\n");
 			ast_channel_datastore_free(stack_store);
-			ast_module_user_remove(u);
 			return -1;
 		}
 
@@ -294,7 +289,6 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	if (ast_parseable_goto(chan, label)) {
 		ast_log(LOG_ERROR, "Gosub address is invalid: '%s'\n", (char *)data);
 		ast_free(newframe);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -311,14 +305,11 @@ static int gosub_exec(struct ast_channel *chan, void *data)
 	AST_LIST_INSERT_HEAD(oldlist, newframe, entries);
 	AST_LIST_UNLOCK(oldlist);
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
 static int gosubif_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *args;
 	int res=0;
 	AST_DECLARE_APP_ARGS(cond,
@@ -335,13 +326,10 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	u = ast_module_user_add(chan);
-
 	args = ast_strdupa(data);
 	AST_NONSTANDARD_APP_ARGS(cond, args, '?');
 	if (cond.argc != 2) {
 		ast_log(LOG_WARNING, "GosubIf requires an argument: GosubIf(cond?label1(args):label2(args)\n");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -354,7 +342,6 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 		res = gosub_exec(chan, label.iffalse);
 	}
 
-	ast_module_user_remove(u);
 	return res;
 }
 

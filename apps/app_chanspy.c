@@ -626,7 +626,6 @@ exit:
 
 static int chanspy_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *options = NULL;
 	char *spec = NULL;
 	char *argv[2];
@@ -640,8 +639,6 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	int res;
 
 	data = ast_strdupa(data);
-
-	u = ast_module_user_add(chan);
 
 	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		spec = argv[0];
@@ -680,7 +677,6 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	oldwf = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -702,14 +698,11 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
 
-	ast_module_user_remove(u);
-
 	return res;
 }
 
 static int extenspy_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *options = NULL;
 	char *exten = NULL;
 	char *context = NULL;
@@ -724,8 +717,6 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 	int res;
 
 	data = ast_strdupa(data);
-
-	u = ast_module_user_add(chan);
 
 	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		context = argv[0];
@@ -765,7 +756,6 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 	oldwf = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -786,8 +776,6 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 
 	if (oldwf && ast_set_write_format(chan, oldwf) < 0)
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
-
-	ast_module_user_remove(u);
 
 	return res;
 }

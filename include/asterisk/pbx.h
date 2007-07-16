@@ -313,8 +313,28 @@ int ast_add_extension2(struct ast_context *con, int replace, const char *extensi
  * \retval 0 success 
  * \retval -1 failure.
  */
-int ast_register_application(const char *app, int (*execute)(struct ast_channel *, void *),
-			     const char *synopsis, const char *description);
+#define ast_register_application(app, execute, synopsis, description) ast_register_application2(app, execute, synopsis, description, ast_module_info->self)
+
+/*!
+ * \brief Register an application.
+ *
+ * \param app Short name of the application
+ * \param execute a function callback to execute the application. It should return
+ *                non-zero if the channel needs to be hung up.
+ * \param synopsis a short description (one line synopsis) of the application
+ * \param description long description with all of the details about the use of
+ *                    the application
+ * \param mod module this application belongs to
+ *
+ * This registers an application with Asterisk's internal application list.
+ * \note The individual applications themselves are responsible for registering and unregistering
+ *       and unregistering their own CLI commands.
+ *
+ * \retval 0 success
+ * \retval -1 failure.
+ */
+int ast_register_application2(const char *app, int (*execute)(struct ast_channel *, void *),
+				     const char *synopsis, const char *description, void *mod);
 
 /*! 
  * \brief Unregister an application

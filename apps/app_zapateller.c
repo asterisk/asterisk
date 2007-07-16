@@ -59,14 +59,11 @@ static char *descrip =
 static int zapateller_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	int i, answer = 0, nocallerid = 0;
 	char *parse = ast_strdupa((char *)data);
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(options)[2];
 	);
-
-	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -85,10 +82,8 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 			res = ast_safe_sleep(chan, 500);
 	}
 
-	if (!ast_strlen_zero(chan->cid.cid_num) && nocallerid) {
-		ast_module_user_remove(u);
+	if (!ast_strlen_zero(chan->cid.cid_num) && nocallerid)
 		return res;
-	} 
 
 	if (!res) 
 		res = ast_tonepair(chan, 950, 0, 330, 0);
@@ -99,7 +94,6 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 	if (!res) 
 		res = ast_tonepair(chan, 0, 0, 1000, 0);
 
-	ast_module_user_remove(u);
 	return res;
 }
 

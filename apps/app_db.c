@@ -68,9 +68,6 @@ static char *dt_synopsis = "Delete a family or keytree from the database";
 static int deltree_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *keytree;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	argv = ast_strdupa(data);
 
@@ -79,7 +76,6 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 		keytree = strsep(&argv, "\0");
 			if (!family || !keytree) {
 				ast_debug(1, "Ignoring; Syntax error in argument\n");
-				ast_module_user_remove(u);
 				return 0;
 			}
 		if (ast_strlen_zero(keytree))
@@ -101,18 +97,13 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
 	}
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
 static int del_exec(struct ast_channel *chan, void *data)
 {
 	char *argv, *family, *key;
-	struct ast_module_user *u;
 	static int deprecation_warning = 0;
-
-	u = ast_module_user_add(chan);
 
 	if (!deprecation_warning) {
 		deprecation_warning = 1;
@@ -126,7 +117,6 @@ static int del_exec(struct ast_channel *chan, void *data)
 		key = strsep(&argv, "\0");
 		if (!family || !key) {
 			ast_debug(1, "Ignoring; Syntax error in argument\n");
-			ast_module_user_remove(u);
 			return 0;
 		}
 		if (option_verbose > 2)
@@ -138,8 +128,6 @@ static int del_exec(struct ast_channel *chan, void *data)
 	} else {
 		ast_debug(1, "Ignoring, no parameters\n");
 	}
-
-	ast_module_user_remove(u);
 	
 	return 0;
 }

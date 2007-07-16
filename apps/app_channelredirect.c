@@ -52,7 +52,6 @@ static char *descrip =
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
-	struct ast_module_user *u;
 	char *info, *context, *exten, *priority;
 	int prio = 1;
 	struct ast_channel *chan2 = NULL;
@@ -66,8 +65,6 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "%s requires an argument (channel|[[context|]exten|]priority)\n", app);
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	info = ast_strdupa(data);
 	AST_STANDARD_APP_ARGS(args, info);
@@ -115,7 +112,6 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
  chanquit:
 	ast_mutex_unlock(&chan2->lock);
  quit:
-	ast_module_user_remove(u);
 
 	return res;
 }

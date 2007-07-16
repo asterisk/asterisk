@@ -92,15 +92,12 @@ AST_IVR_DECLARE_MENU(ivr_demo, "IVR Demo Main Menu", 0,
 static int skel_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct ast_module_user *u;
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "skel requires an argument (filename)\n");
 		return -1;
 	}
 	
-	u = ast_module_user_add(chan);
-
 	/* Do our thing here */
 
 	if (chan->_state != AST_STATE_UP)
@@ -108,8 +105,6 @@ static int skel_exec(struct ast_channel *chan, void *data)
 	if (!res)
 		res = ast_ivr_menu_run(chan, &ivr_demo, data);
 	
-	ast_module_user_remove(u);
-
 	return res;
 }
 

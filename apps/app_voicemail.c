@@ -6727,7 +6727,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int res=-1;
 	int cmd=0;
 	int valid = 0;
-	struct ast_module_user *u;
 	char prefixstr[80] ="";
 	char ext_context[256]="";
 	int box;
@@ -6744,7 +6743,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 #ifdef IMAP_STORAGE
 	int deleted = 0;
 #endif
-	u = ast_module_user_add(chan);
 
 	/* Add the vm_state to the active list and keep it active */
 	memset(&vms, 0, sizeof(vms));
@@ -6770,16 +6768,13 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		AST_STANDARD_APP_ARGS(args, parse);
 
 		if (args.argc == 2) {
-			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
-				ast_module_user_remove(u);
+			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1))
 				return -1;
-			}
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 				if (!ast_strlen_zero(opts[OPT_ARG_RECORDGAIN])) {
 					if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 						ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
-						ast_module_user_remove(u);
 						return -1;
 					} else {
 						record_gain = (signed char) gain;
@@ -7269,7 +7264,6 @@ out:
 		free(vms.deleted);
 	if (vms.heard)
 		free(vms.heard);
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -7277,7 +7271,6 @@ out:
 static int vm_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *tmp;
 	struct leave_vm_options leave_options;
 	struct ast_flags flags = { 0 };
@@ -7286,8 +7279,6 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(argv0);
 		AST_APP_ARG(argv1);
 	);
-
-	u = ast_module_user_add(chan);
 	
 	memset(&leave_options, 0, sizeof(leave_options));
 
@@ -7298,17 +7289,14 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		tmp = ast_strdupa(data);
 		AST_STANDARD_APP_ARGS(args, tmp);
 		if (args.argc == 2) {
-			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
-				ast_module_user_remove(u);
+			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1))
 				return -1;
-			}
 			ast_copy_flags(&leave_options, &flags, OPT_SILENT | OPT_BUSY_GREETING | OPT_UNAVAIL_GREETING);
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
 
 				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 					ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
-					ast_module_user_remove(u);
 					return -1;
 				} else {
 					leave_options.record_gain = (signed char) gain;
@@ -7318,14 +7306,10 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	} else {
 		char tmp[256];
 		res = ast_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
-		if (res < 0) {
-			ast_module_user_remove(u);
+		if (res < 0)
 			return res;
-		}
-		if (ast_strlen_zero(tmp)) {
-			ast_module_user_remove(u);
+		if (ast_strlen_zero(tmp))
 			return 0;
-		}
 		args.argv0 = ast_strdupa(tmp);
 	}
 
@@ -7336,8 +7320,6 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		res = 0;
 	}
-	
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -7409,7 +7391,6 @@ static int append_mailbox(char *context, char *mbox, char *data)
 
 static int vm_box_exists(struct ast_channel *chan, void *data) 
 {
-	struct ast_module_user *u;
 	struct ast_vm_user svm;
 	char *context, *box;
 	AST_DECLARE_APP_ARGS(args,
@@ -7422,8 +7403,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context][|options])\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	if (!dep_warning) {
 		dep_warning = 1;
@@ -7446,7 +7425,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
 	} else
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
-	ast_module_user_remove(u);
+
 	return 0;
 }
 
@@ -7476,14 +7455,11 @@ static struct ast_custom_function mailbox_exists_acf = {
 
 static int vmauthenticate(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION] = "";
 	struct ast_vm_user vmus;
 	char *options = NULL;
 	int silent = 0, skipuser = 0;
 	int res = -1;
-
-	u = ast_module_user_add(chan);
 	
 	if (s) {
 		s = ast_strdupa(s);
@@ -7510,7 +7486,6 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 		res = 0;
 	}
 
-	ast_module_user_remove(u);
 	return res;
 }
 

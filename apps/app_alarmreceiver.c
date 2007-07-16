@@ -628,13 +628,10 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	event_node_t *elp, *efree;
 	char signalling_type[64] = "";
 
 	event_node_t *event_head = NULL;
-
-	u = ast_module_user_add(chan);
 
 	/* Set write and read formats to ULAW */
 
@@ -643,13 +640,11 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
-		ast_module_user_remove(u);
 		return -1;
 	}
 	
 	if (ast_set_read_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -664,13 +659,8 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Answering channel\n");
 
 	if (chan->_state != AST_STATE_UP) {
-	
-		res = ast_answer(chan);
-		
-		if (res) {
-			ast_module_user_remove(u);
+		if ((res = ast_answer(chan)))
 			return -1;
-		}
 	}
 
 	/* Wait for the connection to settle post-answer */
@@ -721,9 +711,6 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 		elp = elp->next;
 		ast_free(efree);
 	}
-
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

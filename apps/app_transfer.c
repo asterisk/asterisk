@@ -66,7 +66,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 {
 	int res;
 	int len;
-	struct ast_module_user *u;
 	char *slash;
 	char *tech = NULL;
 	char *dest = NULL;
@@ -77,11 +76,8 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(options);
 	);
 
-	u = ast_module_user_add(chan);
-
 	if (ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination[|options])\n");
-		ast_module_user_remove(u);
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;
 	} else
@@ -100,7 +96,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		/* Allow execution only if the Tech/destination agrees with the type of the channel */
 		if (strncasecmp(chan->tech->type, tech, len)) {
 			pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
-			ast_module_user_remove(u);
 			return 0;
 		}
 	}
@@ -108,7 +103,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	/* Check if the channel supports transfer before we try it */
 	if (!chan->tech->transfer) {
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "UNSUPPORTED");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -123,8 +117,6 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	}
 
 	pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", status);
-
-	ast_module_user_remove(u);
 
 	return res;
 }

@@ -1195,7 +1195,6 @@ static int setup_privacy_args(struct privacy_args *pa,
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags, int *continue_exec)
 {
 	int res = -1;	/* default: error */
-	struct ast_module_user *u;
 	char *rest, *cur;	/* scan the list of destinations */
 	struct chanlist *outgoing = NULL;	/* list of destinations */
 	struct ast_channel *peer;
@@ -1233,8 +1232,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		pbx_builtin_setvar_helper(chan, "DIALSTATUS", pa.status);
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);	/* XXX is this the right place ? */
 
 	parse = ast_strdupa(data);
 	
@@ -1820,7 +1817,6 @@ out:
 	}
 
 done:
-	ast_module_user_remove(u);    	/* XXX probably not the right place for this. */
 	return res;
 }
 
@@ -1838,15 +1834,12 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	char *announce = NULL, *dialdata = NULL;
 	const char *context = NULL;
 	int sleep = 0, loops = 0, res = -1;
-	struct ast_module_user *u;
 	struct ast_flags peerflags;
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "RetryDial requires an argument!\n");
 		return -1;
 	}	
-
-	u = ast_module_user_add(chan);
 
 	announce = ast_strdupa(data);
 
@@ -1934,7 +1927,6 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	if (ast_test_flag(chan, AST_FLAG_MOH))
 		ast_moh_stop(chan);
  done:
-	ast_module_user_remove(u);
 	return res;
 }
 
@@ -1946,9 +1938,8 @@ static int unload_module(void)
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(rapp);
 
-	if ((con = ast_context_find("app_dial_gosub_virtual_context"))) {
+	if ((con = ast_context_find("app_dial_gosub_virtual_context")))
 		ast_context_remove_extension2(con, "s", 1, NULL);
-	}
 
 	return res;
 }

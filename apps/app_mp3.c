@@ -125,7 +125,6 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 static int mp3_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
-	struct ast_module_user *u;
 	int fds[2];
 	int ms = -1;
 	int pid = -1;
@@ -144,11 +143,8 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -158,7 +154,6 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	
@@ -230,8 +225,6 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		kill(pid, SIGKILL);
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
-
-	ast_module_user_remove(u);
 	
 	return res;
 }

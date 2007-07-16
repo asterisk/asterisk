@@ -87,7 +87,6 @@ static char *descrip =
 static int read_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char tmp[256] = "";
 	int maxdigits = 255;
 	int tries = 1, to = 0, x = 0;
@@ -109,8 +108,6 @@ static int read_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 	
 	argcopy = ast_strdupa(data);
 
@@ -146,7 +143,6 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 	if (ast_strlen_zero(arglist.variable)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
-		ast_module_user_remove(u);
 		return -1;
 	}
 	ts=NULL;
@@ -159,7 +155,6 @@ static int read_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(&flags,OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
 			pbx_builtin_setvar_helper(chan, arglist.variable, "\0");
-			ast_module_user_remove(u);
 			return 0;
 		} else if (!ast_test_flag(&flags,OPT_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
@@ -212,7 +207,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	}
-	ast_module_user_remove(u);
+
 	return res;
 }
 

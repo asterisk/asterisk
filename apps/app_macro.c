@@ -166,14 +166,11 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	char *save_macro_context;
 	char *save_macro_priority;
 	char *save_macro_offset;
-	struct ast_module_user *u;
  
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	/* does the user want a deeper rabbit hole? */
 	s = pbx_builtin_getvar_helper(chan, "MACRO_RECURSION");
@@ -193,7 +190,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	if (depth >= maxdepth) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
-		ast_module_user_remove(u);
 		return 0;
 	}
 	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
@@ -204,7 +200,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	macro = strsep(&rest, "|");
 	if (ast_strlen_zero(macro)) {
 		ast_log(LOG_WARNING, "Invalid macro name specified\n");
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -214,7 +209,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 		else
 			ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
-		ast_module_user_remove(u);
 		return 0;
 	}
 
@@ -225,8 +219,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		if (ast_context_lockmacro(fullmacro)) {
 			ast_log(LOG_WARNING, "Failed to lock macro '%s' as in-use\n", fullmacro);
 			ast_autoservice_stop(chan);
-			ast_module_user_remove(u);
-
 			return 0;
 		}
 		ast_autoservice_stop(chan);
@@ -474,8 +466,6 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 			res = 0;
 		}
 	}
-	
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -494,14 +484,9 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
-	struct ast_module_user *u;
 
-	u = ast_module_user_add(chan);
-
-	if (!(expr = ast_strdupa(data))) {
-		ast_module_user_remove(u);
+	if (!(expr = ast_strdupa(data)))
 		return -1;
-	}
 
 	if ((label_a = strchr(expr, '?'))) {
 		*label_a = '\0';
@@ -516,8 +501,6 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 			macro_exec(chan, label_b);
 	} else
 		ast_log(LOG_WARNING, "Invalid Syntax.\n");
-
-	ast_module_user_remove(u);
 
 	return res;
 }

@@ -55,7 +55,6 @@ static char *app = "SoftHangup";
 
 static int softhangup_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_module_user *u;
 	struct ast_channel *c=NULL;
 	char *options, *cut, *cdata, *match;
 	char name[AST_CHANNEL_NAME] = "";
@@ -66,8 +65,6 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	
-	u = ast_module_user_add(chan);
-
 	cdata = ast_strdupa(data);
 	match = strsep(&cdata, "|");
 	options = strsep(&cdata, "|");
@@ -96,8 +93,6 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		}
 		c = ast_channel_walk_locked(c);
 	}
-	
-	ast_module_user_remove(u);
 
 	return 0;
 }

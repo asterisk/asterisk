@@ -59,7 +59,6 @@ static char *descrip =
 static int senddtmf_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	struct ast_module_user *u;
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
@@ -67,8 +66,6 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return 0;
 	}
-
-	u = ast_module_user_add(chan);
 
 	digits = ast_strdupa(data);
 
@@ -82,8 +79,6 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 		timeout = 250;
 
 	res = ast_dtmf_stream(chan,NULL,digits,timeout);
-		
-	ast_module_user_remove(u);
 
 	return res;
 }

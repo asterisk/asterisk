@@ -1548,10 +1548,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 
 static int adsi_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
+	int res = 0;
 	
 	if (ast_strlen_zero(data))
 		data = "asterisk.adsi";
@@ -1564,8 +1561,6 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "ADSI Available on CPE.  Attempting Upload.\n");
 		res = adsi_prog(chan, data);
 	}
-
-	ast_module_user_remove(u);
 	
 	return res;
 }

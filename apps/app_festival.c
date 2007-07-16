@@ -284,7 +284,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 {
 	int usecache;
 	int res=0;
-	struct ast_module_user *u;
  	struct sockaddr_in serv_addr;
 	struct hostent *serverhost;
 	struct ast_hostent ahp;
@@ -323,12 +322,9 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	cfg = ast_config_load(FESTIVAL_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
-		ast_module_user_remove(u);
 		return -1;
 	}
 	if (!(host = ast_variable_retrieve(cfg, "general", "host"))) {
@@ -385,7 +381,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (fd < 0) {
 		ast_log(LOG_WARNING,"festival_client: can't get socket\n");
 		ast_config_destroy(cfg);
-		ast_module_user_remove(u);
 		return -1;
 	}
 
@@ -398,7 +393,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		if (serverhost == (struct hostent *)0) {
 			ast_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
 			ast_config_destroy(cfg);
-			ast_module_user_remove(u);
 			return -1;
 		}
 		memmove(&serv_addr.sin_addr,serverhost->h_addr, serverhost->h_length);
@@ -410,7 +404,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
 		ast_log(LOG_WARNING,"festival_client: connect to server failed\n");
 		ast_config_destroy(cfg);
-		ast_module_user_remove(u);
         	return -1;
     	}
     	
@@ -502,7 +495,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
                                ast_log(LOG_WARNING,"Unable to read from cache/festival fd\n");
 			       close(fd);
 			       ast_config_destroy(cfg);
-			       ast_module_user_remove(u);
                                return -1;
                        }
                        n += read_data;
@@ -529,7 +521,6 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	} while (strcmp(ack,"OK\n") != 0);
 	close(fd);
 	ast_config_destroy(cfg);
-	ast_module_user_remove(u);
 	return res;
 
 }
