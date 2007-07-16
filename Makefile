@@ -795,7 +795,7 @@ samples: adsi
 		fi; \
 	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
-	for x in sounds/moh/*.mp3; do \
+	for x in sounds/moh/*.mp3 sounds/moh/LICENSE; do \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/mohmp3/sample-hold.mp3
