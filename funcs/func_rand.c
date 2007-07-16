@@ -44,14 +44,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int acf_rand_exec(struct ast_channel *chan, const char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
-	struct ast_module_user *u;
 	int min_int, response_int, max_int;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(min);
 			     AST_APP_ARG(max);
 	);
-
-	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -72,8 +69,6 @@ static int acf_rand_exec(struct ast_channel *chan, const char *cmd,
 	response_int = min_int + (ast_random() % (max_int - min_int + 1));
 	ast_debug(1, "%d was the lucky number in range [%d,%d]\n", response_int, min_int, max_int);
 	snprintf(buffer, buflen, "%d", response_int);
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

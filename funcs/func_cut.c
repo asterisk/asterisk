@@ -222,10 +222,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 static int acf_sort_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	int ret = -1;
-
-	u = ast_module_user_add(chan);
 
 	switch (sort_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
@@ -241,17 +238,12 @@ static int acf_sort_exec(struct ast_channel *chan, const char *cmd, char *data, 
 		ast_log(LOG_ERROR, "Unknown internal error\n");
 	}
 
-	ast_module_user_remove(u);
-
 	return ret;
 }
 
 static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	int ret = -1;
-	struct ast_module_user *u;
-
-	u = ast_module_user_add(chan);
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
@@ -269,8 +261,6 @@ static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, c
 	default:
 		ast_log(LOG_ERROR, "Unknown internal error\n");
 	}
-
-	ast_module_user_remove(u);
 
 	return ret;
 }

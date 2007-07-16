@@ -67,7 +67,6 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 	int res = 0;
 	char tech[80];
 	char dest[256] = "", tmp[2] = "", num[AST_MAX_EXTENSION] = "";
-	struct ast_module_user *u;
 	char *s, *p;
 	unsigned int record = 1;
 
@@ -84,8 +83,6 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 		ast_log(LOG_WARNING, synopsis);
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	ast_copy_string(tech, args.tech ? args.tech : "sip", sizeof(tech));
 
@@ -114,8 +111,6 @@ static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 		ast_copy_string(buf, p + 1, len);
 	else
 		ast_copy_string(buf, dest, len);
-
-	ast_module_user_remove(u);
 
 	return 0;
 }
@@ -156,7 +151,6 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 {
 	struct enum_result_datastore *erds;
 	struct ast_datastore *datastore;
-	struct ast_module_user *u;
 	char *parse, tech[128], dest[128];
 	int res = -1;
 
@@ -165,8 +159,6 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 		AST_APP_ARG(tech);
 		AST_APP_ARG(zone);
 	);
-
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ENUMQUERY requires at least a number as an argument...\n");
@@ -214,14 +206,12 @@ static int enum_query_read(struct ast_channel *chan, const char *cmd, char *data
 	res = 0;
     
 finish:
-	ast_module_user_remove(u);
 
 	return res;
 }
 
 static int enum_result_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	struct enum_result_datastore *erds;
 	struct ast_datastore *datastore;
 	char *parse, *p;
@@ -231,8 +221,6 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 		AST_APP_ARG(id);
 		AST_APP_ARG(resultnum);
 	);
-
-	u = ast_module_user_add(chan);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ENUMRESULT requires two arguments (id and resultnum)\n");
@@ -298,7 +286,6 @@ static int enum_result_read(struct ast_channel *chan, const char *cmd, char *dat
 	res = 0;
 
 finish:
-	ast_module_user_remove(u);
 
 	return res;
 }
@@ -349,7 +336,6 @@ static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 	char tech[80];
 	char txt[256] = "";
 	char dest[80];
-	struct ast_module_user *u;
 
 	buf[0] = '\0';
 
@@ -359,15 +345,11 @@ static int function_txtcidname(struct ast_channel *chan, const char *cmd,
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt,
 			  sizeof(txt));
 
 	if (!ast_strlen_zero(txt))
 		ast_copy_string(buf, txt, len);
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

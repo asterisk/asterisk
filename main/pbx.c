@@ -1410,12 +1410,14 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	return acf ? 0 : -1;
 }
 
-int ast_custom_function_register(struct ast_custom_function *acf)
+int ast_custom_function_register2(struct ast_custom_function *acf, struct ast_module *mod)
 {
 	struct ast_custom_function *cur;
 
 	if (!acf)
 		return -1;
+
+	acf->mod = mod;
 
 	AST_RWLIST_WRLOCK(&acf_root);
 
@@ -1476,8 +1478,16 @@ int ast_func_read(struct ast_channel *chan, const char *function, char *workspac
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	else if (!acfptr->read)
 		ast_log(LOG_ERROR, "Function %s cannot be read\n", copy);
-	else
-		return acfptr->read(chan, copy, args, workspace, len);
+	else {
+		int res;
+		struct ast_module_user *u = NULL;
+		if (acfptr->mod)
+			u = __ast_module_user_add(acfptr->mod, chan);
+		res = acfptr->read(chan, copy, args, workspace, len);
+		if (acfptr->mod && u)
+			__ast_module_user_remove(acfptr->mod, u);
+		return res;
+	}
 	return -1;
 }
 
@@ -1491,8 +1501,16 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 		ast_log(LOG_ERROR, "Function %s not registered\n", copy);
 	else if (!acfptr->write)
 		ast_log(LOG_ERROR, "Function %s cannot be written to\n", copy);
-	else
-		return acfptr->write(chan, copy, args, value);
+	else {
+		int res;
+		struct ast_module_user *u = NULL;
+		if (acfptr->mod)
+			u = __ast_module_user_add(acfptr->mod, chan);
+		res = acfptr->write(chan, copy, args, value);
+		if (acfptr->mod && u)
+			__ast_module_user_remove(acfptr->mod, u);
+		return res;
+	}
 
 	return -1;
 }

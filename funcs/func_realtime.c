@@ -48,7 +48,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int function_realtime_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) 
 {
 	struct ast_variable *var, *head;
-	struct ast_module_user *u;
 	struct ast_str *out;
 	size_t resultslen;
 	int n;
@@ -65,8 +64,6 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!args.delim1)
@@ -76,10 +73,9 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 
 	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, NULL);
 
-	if (!head) {
-		ast_module_user_remove(u);
+	if (!head)
 		return -1;
-	}
+
 	resultslen = 0;
 	n = 0;
 	for (var = head; var; n++, var = var->next)
@@ -92,14 +88,11 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	ast_copy_string(buf, out->str, len);
 
-	ast_module_user_remove(u);
-
 	return 0;
 }
 
 static int function_realtime_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct ast_module_user *u;
 	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);
@@ -113,8 +106,6 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 		return -1;
 	}
 
-	u = ast_module_user_add(chan);
-
 	AST_STANDARD_APP_ARGS(args, data);
 
 	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, NULL);
@@ -122,8 +113,6 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to update. Check the debug log for possible data repository related entries.\n");
 	}
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

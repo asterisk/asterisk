@@ -47,14 +47,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *argsstr, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	char *context;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmbox);
 		AST_APP_ARG(folder);
 	);
-
-	u = ast_module_user_add(chan);
 
 	buf[0] = '\0';
 
@@ -72,8 +69,6 @@ static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *arg
 	}
 
 	snprintf(buf, len, "%d", ast_app_messagecount(context, args.vmbox, args.folder));
-
-	ast_module_user_remove(u);
 	
 	return 0;
 }

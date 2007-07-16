@@ -135,7 +135,6 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 
 static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, char *buf, size_t len)
 {
-	struct ast_module_user *u;
 	struct MemoryStruct chunk = { NULL, 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(url);
@@ -148,8 +147,6 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
 		return -1;
 	}
-
-	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, info);	
 
@@ -165,8 +162,6 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 	}
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

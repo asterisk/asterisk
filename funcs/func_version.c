@@ -47,13 +47,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 			 char *parse, char *buffer, size_t buflen)
 {
-	struct ast_module_user *u;
 	char *response_char = ASTERISK_VERSION;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(info);
 	);
-
-	u = ast_module_user_add(chan);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -78,8 +75,6 @@ static int acf_version_exec(struct ast_channel *chan, const char *cmd,
 
 	ast_debug(1, "VERSION returns %s result, given %s argument\n", response_char, args.info);
 	snprintf(buffer, buflen, "%s", response_char);
-
-	ast_module_user_remove(u);
 
 	return 0;
 }

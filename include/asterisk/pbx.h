@@ -76,6 +76,7 @@ struct ast_custom_function {
 	const char *syntax;		/*!< Syntax description */
 	int (*read)(struct ast_channel *, const char *, char *, char *, size_t);	/*!< Read function, if read is supported */
 	int (*write)(struct ast_channel *, const char *, char *, const char *);		/*!< Write function, if write is supported */
+	struct ast_module *mod;         /*!< Module this custom function belongs to */
 	AST_RWLIST_ENTRY(ast_custom_function) acflist;
 };
 
@@ -862,9 +863,14 @@ struct ast_custom_function* ast_custom_function_find(const char *name);
 int ast_custom_function_unregister(struct ast_custom_function *acf);
 
 /*!
- * \brief Reigster a custom function
+ * \brief Register a custom function
  */
-int ast_custom_function_register(struct ast_custom_function *acf);
+#define ast_custom_function_register(acf) ast_custom_function_register2(acf, ast_module_info->self)
+
+/*!
+ * \brief Register a custom function
+ */
+int ast_custom_function_register2(struct ast_custom_function *acf, struct ast_module *mod);
 
 /*! 
  * \brief Retrieve the number of active calls
