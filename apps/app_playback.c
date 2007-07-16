@@ -462,8 +462,6 @@ static int unload_module(void)
 
 	ast_cli_unregister_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
 
-	ast_module_user_hangup_all();
-
 	if (say_cfg)
 		ast_config_destroy(say_cfg);
 

@@ -392,8 +392,6 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&enum_function);
 	res |= ast_custom_function_unregister(&txtcidname_function);
 
-	ast_module_user_hangup_all();
-
 	return res;
 }
 

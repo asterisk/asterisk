@@ -114,7 +114,6 @@ static struct ast_cli_entry cli_realtime[] = {
 static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
-	ast_module_user_hangup_all();
 	return 0;
 }
 

@@ -8501,8 +8501,6 @@ static int unload_module(void)
 	res |= ast_manager_unregister("VoicemailUsersList");
 	ast_cli_unregister_multiple(cli_voicemail, sizeof(cli_voicemail) / sizeof(struct ast_cli_entry));
 	ast_uninstall_vm_functions();
-	
-	ast_module_user_hangup_all();
 
 	if (poll_thread != AST_PTHREADT_NULL)
 		stop_poll_thread();

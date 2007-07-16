@@ -150,8 +150,6 @@ static int unload_module(void)
 	res = ast_unregister_application(app_verbose);
 	res |= ast_unregister_application(app_log);
 
-	ast_module_user_hangup_all();
-
 	return res;	
 }
 

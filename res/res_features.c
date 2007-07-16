@@ -3051,8 +3051,6 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_module_user_hangup_all();
-
 	ast_manager_unregister("ParkedCalls");
 	ast_manager_unregister("Bridge");
 	ast_manager_unregister("Park");

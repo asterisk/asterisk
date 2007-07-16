@@ -148,18 +148,12 @@ struct ast_custom_function realtime_function = {
 
 static int unload_module(void)
 {
-	int res = ast_custom_function_unregister(&realtime_function);
-
-	ast_module_user_hangup_all();
-
-	return res;
+	return ast_custom_function_unregister(&realtime_function);
 }
 
 static int load_module(void)
 {
-	int res = ast_custom_function_register(&realtime_function);
-
-	return res;
+	return ast_custom_function_register(&realtime_function);
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Read/Write values from a RealTime repository");

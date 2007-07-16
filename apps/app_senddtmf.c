@@ -125,8 +125,6 @@ static int unload_module(void)
 	res = ast_unregister_application(app);
 	res |= ast_manager_unregister("PlayDTMF");
 
-	ast_module_user_hangup_all();
-
 	return res;	
 }
 

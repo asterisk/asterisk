@@ -2138,7 +2138,6 @@ static struct ast_cli_entry cli_agi[] = {
 
 static int unload_module(void)
 {
-	ast_module_user_hangup_all();
 	ast_cli_unregister_multiple(cli_agi, sizeof(cli_agi) / sizeof(struct ast_cli_entry));
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);

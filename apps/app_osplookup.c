@@ -2049,8 +2049,6 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_osp, sizeof(cli_osp) / sizeof(struct ast_cli_entry));
 	osp_unload();
 
-	ast_module_user_hangup_all();
-
 	return res;
 }
 

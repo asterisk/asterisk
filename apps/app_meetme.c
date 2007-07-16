@@ -4972,8 +4972,6 @@ static int unload_module(void)
 
 	ast_devstate_prov_del("Meetme");
 	ast_devstate_prov_del("SLA");
-
-	ast_module_user_hangup_all();
 	
 	sla_destroy();
 

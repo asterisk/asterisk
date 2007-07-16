@@ -7437,7 +7437,6 @@ static int unload_module(void)
 {
 	int i;
 
-	ast_module_user_hangup_all();
 	for (i = 0; i < nrpts; i++) {
 		if (!strcmp(rpt_vars[i].name, rpt_vars[i].p.nodes))
 			continue;

@@ -575,7 +575,6 @@ static struct ast_config_engine odbc_engine = {
 
 static int unload_module (void)
 {
-	ast_module_user_hangup_all();
 	ast_config_engine_deregister(&odbc_engine);
 	if (option_verbose)
 		ast_verbose("res_config_odbc unloaded.\n");

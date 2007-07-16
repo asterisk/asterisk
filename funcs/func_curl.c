@@ -187,8 +187,6 @@ static int unload_module(void)
 
 	res = ast_custom_function_unregister(&acf_curl);
 
-	ast_module_user_hangup_all();
-
 	curl_global_cleanup();
 	
 	return res;

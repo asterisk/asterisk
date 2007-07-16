@@ -1946,8 +1946,6 @@ static int unload_module(void)
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(rapp);
 
-	ast_module_user_hangup_all();
-
 	if ((con = ast_context_find("app_dial_gosub_virtual_context"))) {
 		ast_context_remove_extension2(con, "s", 1, NULL);
 	}

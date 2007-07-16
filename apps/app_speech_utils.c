@@ -823,8 +823,6 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&speech_engine_function);
 	res |= ast_custom_function_unregister(&speech_results_type_function);
 
-	ast_module_user_hangup_all();
-
 	return res;	
 }
 

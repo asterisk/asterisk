@@ -573,8 +573,6 @@ static int unload_module(void)
 		ast_verbose("Postgresql RealTime unloaded.\n");
 	}
 
-	ast_module_user_hangup_all();
-
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&pgsql_lock);
 

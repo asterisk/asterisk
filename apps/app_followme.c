@@ -1052,8 +1052,6 @@ static int unload_module(void)
 {
 	struct call_followme *f;
 
-	ast_module_user_hangup_all();
-
 	ast_unregister_application(app);
 
 	/* Free Memory. Yeah! I'm free! */

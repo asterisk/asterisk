@@ -799,8 +799,6 @@ static int unload_module(void)
 	res |= ast_unregister_application(app_chan);
 	res |= ast_unregister_application(app_ext);
 
-	ast_module_user_hangup_all();
-
 	return res;
 }
 

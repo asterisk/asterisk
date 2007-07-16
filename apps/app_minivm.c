@@ -3130,9 +3130,6 @@ static int unload_module(void)
 	timezone_destroy_list();	/* Destroy list of timezones */
 	vmaccounts_destroy_list();	/* Destroy list of voicemail accounts */
 
-	
-	ast_module_user_hangup_all();
-
 	return res;
 }
 

@@ -4784,8 +4784,6 @@ static int unload_module(void)
 		ast_context_remove_extension2(con, "s", 1, NULL);
 	}
 
-	ast_module_user_hangup_all();
-
 	clear_and_free_interfaces();
 
 	return res;

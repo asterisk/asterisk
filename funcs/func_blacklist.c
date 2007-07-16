@@ -75,9 +75,7 @@ static struct ast_custom_function blacklist_function = {
 
 static int unload_module(void)
 {
-	int res = ast_custom_function_unregister(&blacklist_function);
-	ast_module_user_hangup_all();
-	return res;	
+	return ast_custom_function_unregister(&blacklist_function);
 }
 
 static int load_module(void)

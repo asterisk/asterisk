@@ -388,13 +388,7 @@ reorder:
 
 static int unload_module(void)
 {
-	int res;
-
-	res = ast_unregister_application(app);
-
-	ast_module_user_hangup_all();
-
-	return res;
+	return ast_unregister_application(app);
 }
 
 static int load_module(void)

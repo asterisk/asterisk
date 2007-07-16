@@ -306,8 +306,6 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&acf_cut);
 	res |= ast_custom_function_unregister(&acf_sort);
 
-	ast_module_user_hangup_all();
-
 	return res;
 }
 

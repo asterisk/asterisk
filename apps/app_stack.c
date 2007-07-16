@@ -421,8 +421,6 @@ static int unload_module(void)
 	ast_unregister_application(app_gosub);
 	ast_custom_function_unregister(&local_function);
 
-	ast_module_user_hangup_all();
-
 	return 0;
 }
 

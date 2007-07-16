@@ -123,8 +123,6 @@ static int unload_module(void)
 
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
-	
-	ast_module_user_hangup_all();
 
 	return res;
 }

@@ -315,8 +315,6 @@ static int unload_module(void)
 	res |= ast_unregister_application(exit_app);
 	res |= ast_unregister_application(continue_app);
 
-	ast_module_user_hangup_all();
-
 	return res;
 }
 

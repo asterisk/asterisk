@@ -90,10 +90,7 @@ struct ast_custom_function acf_vmcount = {
 
 static int unload_module(void)
 {
-	int res = ast_custom_function_unregister(&acf_vmcount);
-	ast_module_user_hangup_all();
-
-	return res;
+	return ast_custom_function_unregister(&acf_vmcount);
 }
 
 static int load_module(void)
