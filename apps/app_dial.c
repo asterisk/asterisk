@@ -1888,22 +1888,33 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		res = dial_exec_full(chan, dialdata, &peerflags, &continue_exec);
 		if (continue_exec)
 			break;
+
 		if (res == 0) {
 			if (ast_test_flag(&peerflags, OPT_DTMF_EXIT)) {
-				if (!(res = ast_streamfile(chan, announce, chan->language)))
-					res = ast_waitstream(chan, AST_DIGIT_ANY);
+				if (!ast_strlen_zero(announce)) {
+					if (ast_fileexists(announce, NULL, chan->language)) {
+						if(!(res = ast_streamfile(chan, announce, chan->language)))								
+							ast_waitstream(chan, AST_DIGIT_ANY);
+					} else
+						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", announce);
+				}
 				if (!res && sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
 						ast_moh_start(chan, NULL, NULL);
 					res = ast_waitfordigit(chan, sleep);
 				}
 			} else {
-				if (!(res = ast_streamfile(chan, announce, chan->language)))
-					res = ast_waitstream(chan, "");
+				if (!ast_strlen_zero(announce)) {
+					if (ast_fileexists(announce, NULL, chan->language)) {
+						if (!(res = ast_streamfile(chan, announce, chan->language)))
+							res = ast_waitstream(chan, "");
+					} else
+						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", announce);
+				}
 				if (sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
 						ast_moh_start(chan, NULL, NULL);
-					if (!res) 
+					if (!res)
 						res = ast_waitfordigit(chan, sleep);
 				}
 			}
