@@ -54,39 +54,39 @@ static char *log_descrip =
 
 static int verbose_exec(struct ast_channel *chan, void *data)
 {
-	char *vtext;
+	char *vtext, *tmp;
 	int vsize;
 
-	if (data) {
-		char *tmp;
-		vtext = ast_strdupa(data);
-		tmp = strsep(&vtext, "|");
-		if (vtext) {
-			if (sscanf(tmp, "%d", &vsize) != 1) {
-				vsize = 0;
-				ast_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
-			}
-		} else {
-			vtext = tmp;
+	if (ast_strlen_zero(data))
+		return 0;
+	
+	vtext = ast_strdupa(data);
+	tmp = strsep(&vtext, "|");
+	if (vtext) {
+		if (sscanf(tmp, "%d", &vsize) != 1) {
 			vsize = 0;
+			ast_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
 		}
-		if (option_verbose >= vsize) {
-			switch (vsize) {
-			case 0:
-				ast_verbose("%s\n", vtext);
-				break;
-			case 1:
-				ast_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
-				break;
-			case 2:
-				ast_verbose(VERBOSE_PREFIX_2 "%s\n", vtext);
-				break;
-			case 3:
-				ast_verbose(VERBOSE_PREFIX_3 "%s\n", vtext);
-				break;
-			default:
-				ast_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
-			}
+	} else {
+		vtext = tmp;
+		vsize = 0;
+	}
+	if (option_verbose >= vsize) {
+		switch (vsize) {
+		case 0:
+			ast_verbose("%s\n", vtext);
+			break;
+		case 1:
+			ast_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
+			break;
+		case 2:
+			ast_verbose(VERBOSE_PREFIX_2 "%s\n", vtext);
+			break;
+		case 3:
+			ast_verbose(VERBOSE_PREFIX_3 "%s\n", vtext);
+			break;
+		default:
+			ast_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
 		}
 	}
 
