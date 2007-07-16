@@ -47,6 +47,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/options.h"
 
+/*! 
+ * Some systems define the second arg to iconv() as (const char *),
+ * while others define it as (char *).  Cast it to a (void *) to 
+ * suppress compiler warnings about it. 
+ */
+#define AST_ICONV_CAST void *
+
 static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments, char *buf, size_t len)
 {
 	AST_DECLARE_APP_ARGS(args,
@@ -82,7 +89,7 @@ static int iconv_read(struct ast_channel *chan, const char *cmd, char *arguments
 		return -1;
 	}
 
-	if (iconv(cd, &args.text, &incount, &buf, &outcount) == (size_t) -1) {
+	if (iconv(cd, (AST_ICONV_CAST) &args.text, &incount, &buf, &outcount) == (size_t) -1) {
 		if (errno == E2BIG)
 			ast_log(LOG_WARNING, "Iconv: output buffer too small.\n");
 		else if (errno == EILSEQ)
