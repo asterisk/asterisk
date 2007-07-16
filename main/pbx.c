@@ -1410,7 +1410,7 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	return acf ? 0 : -1;
 }
 
-int ast_custom_function_register2(struct ast_custom_function *acf, struct ast_module *mod)
+int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod)
 {
 	struct ast_custom_function *cur;
 

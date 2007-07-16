@@ -865,12 +865,12 @@ int ast_custom_function_unregister(struct ast_custom_function *acf);
 /*!
  * \brief Register a custom function
  */
-#define ast_custom_function_register(acf) ast_custom_function_register2(acf, ast_module_info->self)
+#define ast_custom_function_register(acf) __ast_custom_function_register(acf, ast_module_info->self)
 
 /*!
  * \brief Register a custom function
  */
-int ast_custom_function_register2(struct ast_custom_function *acf, struct ast_module *mod);
+int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod);
 
 /*! 
  * \brief Retrieve the number of active calls
