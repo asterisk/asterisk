@@ -52,7 +52,7 @@ struct enum_context {
 };
 
 
-/*! \brief Lookup entry in ENUM Returns 1 if found, 0 if not found, -1 on hangup
+/*! \brief Lookup entry in ENUM 
 	\param chan	Channel
 	\param number   E164 number with or without the leading +
 	\param location Number returned	(or SIP uri)
@@ -65,6 +65,9 @@ struct enum_context {
 	\param options  Options ('c' to count number of NAPTR RR)
 	\param record   The position of required RR in the answer list
 	\param argcontext   Argument for caching results into an enum_context pointer (NULL is used for not caching)
+	\retval 1 if found
+	\retval 0 if not found
+	\retval -1 on hangup
 */
 int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, 
 		int maxtech, char* suffix, char* options, unsigned int record, struct enum_context **argcontext);

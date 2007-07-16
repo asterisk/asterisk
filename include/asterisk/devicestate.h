@@ -78,53 +78,63 @@ const char *ast_devstate_str(enum ast_device_state devstate);
  */
 enum ast_device_state ast_devstate_val(const char *val);
 
-/*! \brief Search the Channels by Name
+/*! 
+ * \brief Search the Channels by Name
  * \param device like a dialstring
  * Search the Device in active channels by compare the channelname against 
  * the devicename. Compared are only the first chars to the first '-' char.
- * Returns an AST_DEVICE_UNKNOWN if no channel found or
- * AST_DEVICE_INUSE if a channel is found
+ * \retval an AST_DEVICE_UNKNOWN if no channel found
+ * \retval AST_DEVICE_INUSE if a channel is found
  */
 enum ast_device_state ast_parse_device_state(const char *device);
 
-/*! \brief Asks a channel for device state
+/*! 
+ * \brief Asks a channel for device state
  * \param device like a dialstring
  * Asks a channel for device state, data is  normaly a number from dialstring
  * used by the low level module
  * Trys the channel devicestate callback if not supported search in the
  * active channels list for the device.
- * Returns an AST_DEVICE_??? state -1 on failure
+ * \retval an AST_DEVICE_??? state
+ * \retval -1 on failure
  */
 enum ast_device_state ast_device_state(const char *device);
 
-/*! \brief Tells Asterisk the State for Device is changed
+/*! 
+ * \brief Tells Asterisk the State for Device is changed
  * \param fmt devicename like a dialstring with format parameters
  * Asterisk polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
- * Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
-/*! \brief Tells Asterisk the State for Device is changed 
+/*! 
+ * \brief Tells Asterisk the State for Device is changed 
  * \param device devicename like a dialstring
  * Asterisk polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
- * Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_device_state_changed_literal(const char *device);
 
-/*! \brief Add device state provider 
+/*! 
+ * \brief Add device state provider 
  * \param label to use in hint, like label:object
  * \param callback Callback
- * \retval -1 failure
  * \retval 0 success
+ * \retval -1 failure
  */ 
 int ast_devstate_prov_add(const char *label, ast_devstate_prov_cb_type callback);
 
-/*! \brief Remove device state provider 
+/*! 
+ * \brief Remove device state provider 
  * \param label to use in hint, like label:object
- * Return -1 on failure, 0 on success
+ * \retval 0 on success
+ * \retval -1 on failure
  */ 
 int ast_devstate_prov_del(const char *label);
 

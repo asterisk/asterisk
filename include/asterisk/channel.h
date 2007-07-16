@@ -396,7 +396,7 @@ struct ast_channel {
 		AST_STRING_FIELD(uniqueid);		/*!< Unique Channel Identifier */
 	);
 	
-	/*! \brief File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  See \ref AstFileDesc */
+	/*! \brief File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  See \arg \ref AstFileDesc */
 	int fds[AST_MAX_FDS];	
 
 	void *music_state;				/*!< Music State*/

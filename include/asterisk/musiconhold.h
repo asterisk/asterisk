@@ -36,8 +36,8 @@ extern "C" {
  * \param interpclass The class to use if the musicclass is not currently set on
  *                    the channel structure or in the mclass argument.
  *
- * \retval 0 success
- * \retval non-zero failure
+ * \retval Zero on success
+ * \retval non-zero on failure
  */
 int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *interpclass);
 

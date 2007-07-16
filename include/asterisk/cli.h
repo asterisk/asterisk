@@ -55,7 +55,7 @@ void ast_cli(int fd, const char *fmt, ...)
  */
 #define ESS(x) ((x) == 1 ? "" : "s")
 
-/*! \page CLI_command_api CLI command API
+/*! \page CLI_command_API CLI command API
 
    CLI commands are described by a struct ast_cli_entry that contains
    all the components for their implementation.
@@ -123,8 +123,8 @@ static char *test_new_cli(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
  
  */
 
-/*! \brief calling arguments for new-style handlers 
-	See \ref CLI_command_API
+/*! \brief calling arguments for new-style handlers. 
+* \arg \ref CLI_command_API
 */
 enum ast_cli_fn {
 	CLI_INIT = -2,		/* return the usage string */
@@ -147,8 +147,8 @@ struct ast_cli_entry;
 typedef int (*old_cli_fn)(int fd, int argc, char *argv[]);
 typedef char *(*new_cli_fn)(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
-/*! \brief descriptor for a cli entry 
-	See \ref CLI_command_API
+/*! \brief descriptor for a cli entry. 
+ * \arg \ref CLI_command_API
  */
 struct ast_cli_entry {
 	char * const cmda[AST_MAX_CMD_LEN];	/*!< words making up the command.
@@ -217,16 +217,20 @@ struct ast_cli_entry {
  */
 char *ast_cli_complete(const char *word, char *const choices[], int pos);
 
-/*! \brief Interprets a command
+/*! 
+ * \brief Interprets a command
  * Interpret a command s, sending output to fd
- * Returns 0 on succes, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_cli_command(int fd, const char *s);
 
-/*! \brief Registers a command or an array of commands
+/*! 
+ * \brief Registers a command or an array of commands
  * \param e which cli entry to register
  * Register your own command
- * Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_cli_register(struct ast_cli_entry *e);
 
@@ -237,11 +241,11 @@ int ast_cli_register(struct ast_cli_entry *e);
  */
 int ast_cli_register_multiple(struct ast_cli_entry *e, int len);
 
-/*! \brief Unregisters a command or an array of commands
- *
+/*! 
+ * \brief Unregisters a command or an array of commands
  * \param e which cli entry to unregister
  * Unregister your own command.  You must pass a completed ast_cli_entry structure
- * Returns 0.
+ * \return 0.
  */
 int ast_cli_unregister(struct ast_cli_entry *e);
 
@@ -252,9 +256,11 @@ int ast_cli_unregister(struct ast_cli_entry *e);
  */
 int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 
-/*! \brief Readline madness
+/*! 
+ * \brief Readline madness
  * Useful for readline, that's about it
- * Returns 0 on success, -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 char *ast_cli_generator(const char *, const char *, int);
 

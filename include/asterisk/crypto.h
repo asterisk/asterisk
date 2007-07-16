@@ -32,76 +32,90 @@ extern "C" {
 
 struct ast_key;
 
-/*! \brief Retrieve a key
+/*! 
+ * \brief Retrieve a key
  * \param name of the key we are retrieving
  * \param int type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
  *
- * Returns the key on success or NULL on failure
+ * \retval the key on success.
+ * \retval NULL on failure.
  */
 struct ast_key *(*ast_key_get)(const char *key, int type);
 
-/*! \brief Check the authenticity of a message signature using a given public key
+/*! 
+ * \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param sig the proposed valid signature in mime64-like encoding
  *
- * Returns 0 if the signature is valid, or -1 otherwise
+ * \retval 0 if the signature is valid.
+ * \retval -1 otherwise.
  *
  */
 int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig);
 
-/*! \brief Check the authenticity of a message signature using a given public key
+/*! 
+ * \brief Check the authenticity of a message signature using a given public key
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param sig the proposed valid signature in raw binary representation
  *
- * Returns 0 if the signature is valid, or -1 otherwise
+ * \retval 0 if the signature is valid.
+ * \retval -1 otherwise.
  *
  */
 int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int msglen, const unsigned char *sig);
 
 /*!
+ * \brief Sign a message signature using a given private key
  * \param key a private key to use to create the signature
  * \param msg the message to sign
  * \param sig a pointer to a buffer of at least 256 bytes in which the
  * mime64-like encoded signature will be stored
  *
- * Returns 0 on success or -1 on failure.
+ * \retval 0 on success.
+ * \retval -1 on failure.
  *
  */
 int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
 
 /*!
+ * \brief Sign a message signature using a given private key
  * \param key a private key to use to create the signature
  * \param msg the message to sign
  * \param sig a pointer to a buffer of at least 128 bytes in which the
  * raw encoded signature will be stored
  *
- * Returns 0 on success or -1 on failure.
+ * \retval 0 on success.
+ * \retval -1 on failure.
  *
  */
 int (*ast_sign_bin)(struct ast_key *key, const char *msg, int msglen, unsigned char *sig);
 
 /*!
+ * \brief Encrypt a message using a given private key
  * \param key a private key to use to encrypt
  * \param src the message to encrypt
  * \param srclen the length of the message to encrypt
  * \param dst a pointer to a buffer of at least srclen * 1.5 bytes in which the encrypted
  * answer will be stored
  *
- * Returns length of encrypted data on success or -1 on failure.
+ * \retval length of encrypted data on success.
+ * \retval -1 on failure.
  *
  */
 int (*ast_encrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);
 
 /*!
+ * \brief Decrypt a message using a given private key
  * \param key a private key to use to decrypt
  * \param src the message to decrypt
  * \param srclen the length of the message to decrypt
  * \param dst a pointer to a buffer of at least srclen bytes in which the decrypted
  * answer will be stored
  *
- * Returns length of decrypted data on success or -1 on failure.
+ * \retval length of dencrypted data on success.
+ * \retval -1 on failure.
  *
  */
 int (*ast_decrypt_bin)(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key);

@@ -228,9 +228,7 @@ void ast_context_destroy(struct ast_context *con, const char *registrar);
  */
 struct ast_context *ast_context_find(const char *name);
 
-/*! \brief The result codes when starting the PBX on a channel
-	with \ref ast_pbx_start()
-
+/*! \brief The result codes when starting the PBX on a channelwith \see ast_pbx_start.
 	AST_PBX_CALL_LIMIT refers to the maxcalls call limit in asterisk.conf
  */
 enum ast_pbx_result {
@@ -244,10 +242,11 @@ enum ast_pbx_result {
  *
  * \param c channel to start the pbx on
  *
- * See ast_pbx_run for a synchronous function to run the PBX in the
+ * \see ast_pbx_run for a synchronous function to run the PBX in the
  * current thread, as opposed to starting a new one.
  *
- * \return Zero on success, non-zero on failure
+ * \retval Zero on success
+ * \retval non-zero on failure
  */
 enum ast_pbx_result ast_pbx_start(struct ast_channel *c);
 
@@ -261,7 +260,8 @@ enum ast_pbx_result ast_pbx_start(struct ast_channel *c);
  * See ast_pbx_start for an asynchronous function to run the PBX in a
  * new thread as opposed to the current one.
  * 
- * \return Zero on success, non-zero on failure
+ * \retval Zero on success
+ * \retval non-zero on failure
  */
 enum ast_pbx_result ast_pbx_run(struct ast_channel *c);
 
@@ -419,7 +419,8 @@ int ast_exists_extension(struct ast_channel *c, const char *context, const char 
  * \param label label of the action within the extension to match to priority
  * \param callerid callerid to search for
  *
- * \return the priority which matches the given label in the extension or -1 if not found.
+ * \retval the priority which matches the given label in the extension
+ * \retval -1 if not found.
  */
 int ast_findlabel_extension(struct ast_channel *c, const char *context, 
 	const char *exten, const char *label, const char *callerid);

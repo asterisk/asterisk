@@ -48,7 +48,7 @@ extern "C" {
 /*! Invalid fd */
 #define AST_IO_NVAL	POLLNVAL
 
-/*
+/*!
  * An Asterisk IO callback takes its id, a file descriptor, list of events, and
  * callback data as arguments and returns 0 if it should not be
  * run again, or non-zero if it should be run again.
@@ -56,16 +56,16 @@ extern "C" {
 
 struct io_context;
 
-/*! Creates a context */
-/*!
+/*! 
+ * \brief Creates a context 
  * Create a context for I/O operations
  * Basically mallocs an IO structure and sets up some default values.
- * Returns an allocated io_context structure
+ * \return an allocated io_context structure
  */
 struct io_context *io_context_create(void);
 
-/*! Destroys a context */
-/*
+/*! 
+ * \brief Destroys a context 
  * \param ioc structure to destroy
  * Destroy a context for I/O operations
  * Frees all memory associated with the given io_context structure along with the structure itself
@@ -75,53 +75,58 @@ void io_context_destroy(struct io_context *ioc);
 typedef int (*ast_io_cb)(int *id, int fd, short events, void *cbdata);
 #define AST_IO_CB(a) ((ast_io_cb)(a))
 
-/*! Adds an IO context */
-/*!
+/*! 
+ * \brief Adds an IO context 
  * \param ioc which context to use
  * \param fd which fd to monitor
  * \param callback callback function to run
  * \param events event mask of events to wait for
  * \param data data to pass to the callback
  * Watch for any of revents activites on fd, calling callback with data as
- * callback data.  Returns a pointer to ID of the IO event, or NULL on failure.
+ * callback data.  
+ * \retval a pointer to ID of the IO event
+ * \retval NULL on failure
  */
 int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events, void *data);
 
-/*! Changes an IO handler */
-/*!
+/*! 
+ * \brief Changes an IO handler 
  * \param ioc which context to use
  * \param id
  * \param fd the fd you wish it to contain now
  * \param callback new callback function
  * \param events event mask to wait for
  * \param data data to pass to the callback function
- * Change an i/o handler, updating fd if > -1, callback if non-null, and revents
- * if >-1, and data if non-null.  Returns a pointero to the ID of the IO event,
- * or NULL on failure.
+ * Change an I/O handler, updating fd if > -1, callback if non-null, 
+ * and revents if >-1, and data if non-null.
+ * \retval a pointer to the ID of the IO event
+ * \retval NULL on failure
  */
 int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data);
 
-/*! Removes an IO context */
-/*!
+/*! 
+ * \brief Removes an IO context 
  * \param ioc which io_context to remove it from
  * \param id which ID to remove
- * Remove an I/O id from consideration  Returns 0 on success or -1 on failure.
+ * Remove an I/O id from consideration  
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_io_remove(struct io_context *ioc, int *id);
 
-/*! Waits for IO */
-/*!
+/*! 
+ * \brief Waits for IO 
  * \param ioc which context to act upon
  * \param howlong how many milliseconds to wait
  * Wait for I/O to happen, returning after
  * howlong milliseconds, and after processing
- * any necessary I/O.  Returns the number of
- * I/O events which took place.
+ * any necessary I/O.  
+ * \return he number of I/O events which took place.
  */
 int ast_io_wait(struct io_context *ioc, int howlong);
 
-/*! Dumps the IO array */
-/*
+/*! 
+ * \brief Dumps the IO array.
  * Debugging: Dump everything in the I/O array
  */
 void ast_io_dump(struct io_context *ioc);
@@ -130,8 +135,8 @@ void ast_io_dump(struct io_context *ioc);
 
 int ast_hide_password(int fd);
 
-/*! Restores TTY mode */
-/*
+/*! 
+ * \brief Restores TTY mode.
  * Call with result from previous ast_hide_password
  */
 int ast_restore_tty(int fd, int oldstatus);

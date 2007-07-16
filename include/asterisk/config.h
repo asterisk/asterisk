@@ -70,7 +70,8 @@ struct ast_config_engine {
  * \param filename path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
  * Create a config structure from a given configuration file.
  *
- * Returns NULL on error, or an ast_config data structure on success
+ * \retval an ast_config data structure on success
+ * \retval NULL on error
  */
 struct ast_config *ast_config_load(const char *filename);
 struct ast_config *ast_config_load_with_comments(const char *filename);
@@ -82,52 +83,62 @@ struct ast_config *ast_config_load_with_comments(const char *filename);
  */
 void ast_config_destroy(struct ast_config *config);
 
-/*! \brief Goes through categories 
+/*! 
+ * \brief Goes through categories 
  * \param config Which config structure you wish to "browse"
  * \param prev A pointer to a previous category.
  * This funtion is kind of non-intuitive in it's use.  To begin, one passes NULL as the second arguement.  It will return a pointer to the string of the first category in the file.  From here on after, one must then pass the previous usage's return value as the second pointer, and it will return a pointer to the category name afterwards.
  *
- * Returns a category on success, or NULL on failure/no-more-categories
+ * \retval a category on success
+ * \retval NULL on failure/no-more-categories
  */
 char *ast_category_browse(struct ast_config *config, const char *prev);
 
-/*! \brief Goes through variables
+/*! 
+ * \brief Goes through variables
  * Somewhat similar in intent as the ast_category_browse.
  * List variables of config file category
  *
- * Returns ast_variable list on success, or NULL on failure
+ * \retval ast_variable list on success
+ * \retval NULL on failure
  */
 struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category);
 
-/*! \brief Gets a variable 
+/*! 
+ * \brief Gets a variable 
  * \param config which (opened) config to use
  * \param category category under which the variable lies
  * \param variable which variable you wish to get the data for
  * Goes through a given config file in the given category and searches for the given variable
  *
- * Returns the variable value on success, or NULL if unable to find it.
+ * \retval The variable value on success 
+ * \retval NULL if unable to find it.
  */
 const char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
 
-/*! \brief Retrieve a category if it exists
+/*! 
+ * \brief Retrieve a category if it exists
  * \param config which config to use
  * \param category_name name of the category you're looking for
  * This will search through the categories within a given config file for a match.
  *
- * Returns pointer to category if found, NULL if not.
+ * \retval pointer to category if found
+ * \retval NULL if not.
  */
 struct ast_category *ast_category_get(const struct ast_config *config, const char *category_name);
 
-/*! \brief Check for category duplicates 
+/*! 
+ * \brief Check for category duplicates 
  * \param config which config to use
  * \param category_name name of the category you're looking for
  * This will search through the categories within a given config file for a match.
  *
- * Return non-zero if found
+ * \return non-zero if found
  */
 int ast_category_exist(const struct ast_config *config, const char *category_name);
 
-/*! \brief Retrieve realtime configuration 
+/*! 
+ * \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters.  Note
@@ -137,7 +148,8 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
 struct ast_variable *ast_load_realtime(const char *family, ...);
 struct ast_variable *ast_load_realtime_all(const char *family, ...);
 
-/*! \brief Retrieve realtime configuration 
+/*! 
+ * \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters. Unlike
@@ -147,7 +159,8 @@ struct ast_variable *ast_load_realtime_all(const char *family, ...);
  */
 struct ast_config *ast_load_realtime_multientry(const char *family, ...);
 
-/*! \brief Update realtime configuration 
+/*! 
+ * \brief Update realtime configuration 
  * \param family which family/config to be updated
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
@@ -156,14 +169,16 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
-/*! \brief Create realtime configuration 
+/*! 
+ * \brief Create realtime configuration 
  * \param family which family/config to be created
  * This function is used to create a parameter in realtime configuration space.
  *
  */
 int ast_store_realtime(const char *family, ...);
 
-/*! \brief Destroy realtime configuration 
+/*! 
+ * \brief Destroy realtime configuration 
  * \param family which family/config to be destroyed
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
@@ -173,9 +188,10 @@ int ast_store_realtime(const char *family, ...);
  */
 int ast_destroy_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
-/*! \brief Check if realtime engine is configured for family 
- * returns 1 if family is configured in realtime and engine exists
+/*! 
+ * \brief Check if realtime engine is configured for family 
  * \param family which family/config to be checked
+ * \return 1 if family is configured in realtime and engine exists
 */
 int ast_check_realtime(const char *family);
 

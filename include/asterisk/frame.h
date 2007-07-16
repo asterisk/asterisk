@@ -508,10 +508,16 @@ void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 	can't be transcoded and we just have to pick whatever is supported
 */
 
-/*! \brief Initialize an audio codec preference to "no preference" See \ref AudioCodecPref */
+/*! 
+ *\brief Initialize an audio codec preference to "no preference".
+ * \arg \ref AudioCodecPref 
+*/
 void ast_codec_pref_init(struct ast_codec_pref *pref);
 
-/*! \brief Codec located at a particular place in the preference index See \ref AudioCodecPref */
+/*! 
+ * \brief Codec located at a particular place in the preference index.
+ * \arg \ref AudioCodecPref 
+*/
 int ast_codec_pref_index(struct ast_codec_pref *pref, int index);
 
 /*! \brief Remove audio a codec from a preference list */

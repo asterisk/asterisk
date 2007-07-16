@@ -18,7 +18,7 @@
 
 /*! \file
  * \brief Distributed Universal Number Discovery (DUNDi)
- * See also \ref AstDUNDi
+ * See also \arg \ref AstDUNDi
  */
 
 #ifndef _ASTERISK_DUNDI_H 
@@ -213,8 +213,13 @@ struct dundi_entity_info {
 	char ipaddr[80];
 };
 
-/*! \brief Lookup the given number in the given dundi context (or e164 if unspecified) using the given callerid (if specified) and return up to maxret results in the array specified.
-   returns the number of results found or -1 on a hangup of teh channel. */
+/*! 
+ * \brief Lookup the given number in the given dundi context.
+ * Lookup number in a given dundi context (if unspecified use e164), the given callerid (if specified) 
+ * and return up to maxret results in the array specified.
+ * \retval the number of results found.
+ * \retval -1 on a hangup of the channel. 
+*/
 int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *chan, const char *dcontext, const char *number, int nocache);
 
 /*! \brief Retrieve information on a specific EID */

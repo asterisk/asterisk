@@ -500,19 +500,21 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 
 /*! \addtogroup cdr_drivers Module: CDR Drivers
  *  \section CDR_generic Asterisk CDR Drivers
- *  \brief CDR drivers are loaded dynamically (see \ref Config_mod "Modules Configuration"). Each loaded CDR driver produce a billing record for each call.
+ *  \brief CDR drivers are loaded dynamically, each loaded CDR driver produce a billing record for each call.
+ *  \arg \ref Config_mod "Modules Configuration"
  *  \arg \ref Config_cdr "CDR Configuration"
  */
 
 
 /*! \addtogroup channel_drivers Module: Asterisk Channel Drivers
  *  \section channel_generic Asterisk Channel Drivers
- *  \brief Channel drivers are loaded dynamically (see \ref Config_mod "Modules Configuration"). 
+ *  \brief Channel drivers are loaded dynamically. 
+ *  \arg \ref Config_mod "Modules Configuration"
  */
 
 /*! \addtogroup applications Module: Dial plan applications
  *  \section app_generic Asterisk Dial Plan Applications
- *  \brief Applications support the dialplan. They register dynamically with \ref ast_register_application() and unregister with ast_unregister_application()
+ *  \brief Applications support the dialplan. They register dynamically with \see ast_register_application() and unregister with \see ast_unregister_application()
  * \par See also
  * \arg \ref functions
  *  

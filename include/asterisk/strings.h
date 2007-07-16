@@ -186,7 +186,8 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   \arg buffer current position in buffer to place string into (will be updated on return)
   \arg space remaining space in buffer (will be updated on return)
   \arg fmt printf-style format string
-  \return 0 on success, non-zero on failure.
+  \retval 0 on success
+  \retval non-zero on failure.
 */
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
@@ -204,21 +205,27 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
 */
 int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
 
-/*! Make sure something is true */
-/*!
+/*! 
+ * \brief Make sure something is true.
  * Determine if a string containing a boolean value is "true".
- * This function checks to see whether a string passed to it is an indication of an "true" value.  It checks to see if the string is "yes", "true", "y", "t", "on" or "1".  
+ * This function checks to see whether a string passed to it is an indication of an "true" value.  
+ * It checks to see if the string is "yes", "true", "y", "t", "on" or "1".  
  *
- * Returns 0 if val is a NULL pointer, -1 if "true", and 0 otherwise.
+ * \retval 0 if val is a NULL pointer.
+ * \retval -1 if "true".
+ * \retval 0 otherwise.
  */
 int ast_true(const char *val);
 
-/*! Make sure something is false */
-/*!
+/*! 
+ * \brief Make sure something is false.
  * Determine if a string containing a boolean value is "false".
- * This function checks to see whether a string passed to it is an indication of an "false" value.  It checks to see if the string is "no", "false", "n", "f", "off" or "0".  
+ * This function checks to see whether a string passed to it is an indication of an "false" value.  
+ * It checks to see if the string is "no", "false", "n", "f", "off" or "0".  
  *
- * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
+ * \retval 0 if val is a NULL pointer.
+ * \retval -1 if "true".
+ * \retval 0 otherwise.
  */
 int ast_false(const char *val);
 
@@ -240,7 +247,8 @@ void ast_join(char *s, size_t len, char * const w[]);
   \param dst Destination
   \param _default Value to use if the string does not contain a valid time
   \param consumed The number of characters 'consumed' in the string by the parse (see 'man sscanf' for details)
-  \return zero on success, non-zero on failure
+  \retval 0 on success
+  \retval non-zero on failure.
 */
 int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed);
 

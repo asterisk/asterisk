@@ -43,53 +43,55 @@ struct ast_imager {
 	AST_LIST_ENTRY(ast_imager) list;
 };
 
-/*! Check for image support on a channel */
-/*!
+/*! 
+ * \brief Check for image support on a channel 
  * \param chan channel to check
  * Checks the channel to see if it supports the transmission of images
- * Returns non-zero if image transmission is supported
+ * \return non-zero if image transmission is supported
  */
 int ast_supports_images(struct ast_channel *chan);
 
-/*! Sends an image */
-/*!
+/*! 
+ * \brief Sends an image 
  * \param chan channel to send image on
  * \param filename filename of image to send (minus extension)
  * Sends an image on the given channel.
- * Returns 0 on success, -1 on error
+ * \retval 0 on success
+ * \retval -1 on error
  */
 int ast_send_image(struct ast_channel *chan, char *filename);
 
-/*! Make an image */
-/*!
+/*! 
+ * \brief Make an image 
  * \param filename filename of image to prepare
  * \param preflang preferred language to get the image...?
  * \param format the format of the file
  * Make an image from a filename ??? No estoy positivo
- * Returns an ast_frame on success, NULL on failure
+ * \retval an ast_frame on success
+ * \retval NULL on failure
  */
 struct ast_frame *ast_read_image(char *filename, const char *preflang, int format);
 
-/*! Register image format */
-/*!
+/*! 
+ * \brief Register image format
  * \param imgdrv Populated ast_imager structure with info to register
  * Registers an image format
- * Returns 0 regardless
+ * \return 0 regardless
  */
 int ast_image_register(struct ast_imager *imgdrv);
 
-/*! Unregister an image format */
-/*!
+/*! 
+ * \brief Unregister an image format 
  * \param imgdrv pointer to the ast_imager structure you wish to unregister
- * Unregisters the image format passed in
+ * Unregisters the image format passed in.
  * Returns nothing
  */
 void ast_image_unregister(struct ast_imager *imgdrv);
 
-/*! Initialize image stuff */
-/*!
+/*! 
+ * \brief Initialize image stuff
  * Initializes all the various image stuff.  Basically just registers the cli stuff
- * Returns 0 all the time
+ * \return 0 all the time
  */
 int ast_image_init(void);
 

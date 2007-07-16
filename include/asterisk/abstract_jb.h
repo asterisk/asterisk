@@ -113,7 +113,8 @@ struct ast_jb
  * appropriate internal jb flags to the channels, determining further behaviour
  * of the bridged jitterbuffers.
  *
- * \return zero if there are no jitter buffers in use, non-zero if there are
+ * \retval zero if there are no jitter buffers in use
+ * \retval non-zero if there are
  */
 int ast_jb_do_usecheck(struct ast_channel *c0, struct ast_channel *c1);
 
@@ -150,7 +151,8 @@ int ast_jb_get_when_to_wakeup(struct ast_channel *c0, struct ast_channel *c1, in
  * Dropped by the jb implementation frames are considered successfuly enqueued as
  * far as they should not be delivered at all.
  *
- * \return zero if the frame was queued, -1 if not.
+ * \retval 0 if the frame was queued
+ * \retval -1 if not
  */
 int ast_jb_put(struct ast_channel *chan, struct ast_frame *f);
 

@@ -86,7 +86,8 @@ enum ast_module_load_result ast_load_resource(const char *resource_name);
  * specified.  Setting #AST_FORCE_FIRM or #AST_FORCE_HARD will unload the
  * module regardless of consequences (NOT RECOMMENDED).
  *
- * \return Zero on success, -1 on error.
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode);
 
@@ -116,7 +117,8 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 /*!
  * \brief Check if module with the name given is loaded
  * \param name Module name, like "chan_sip.so"
- * \return 0 if false, 1 if true 
+ * \retval 1 if true 
+ * \retval 0 if false
  */
 int ast_module_check(const char *name);
 
@@ -127,7 +129,8 @@ int ast_module_check(const char *name);
  * This function adds the given function to a linked list of functions to be
  * run when the modules are updated. 
  *
- * \return Zero on success and -1 on failure.
+ * \retval 0 on success 
+ * \retval -1 on failure.
  */
 int ast_loader_register(int (*updater)(void));
 
@@ -137,7 +140,8 @@ int ast_loader_register(int (*updater)(void));
  *
  * This removes the given function from the updater list.
  * 
- * \return Zero on success, -1 on failure.
+ * \retval 0 on success
+ * \retval -1 on failure.
  */
 int ast_loader_unregister(int (*updater)(void));
 
@@ -161,8 +165,8 @@ void ast_module_shutdown(void);
  *        otherwise.  This function will only return modules that are reloadble
  *        if this is 1.
  *
- * \return A possible completion of the partial match, or NULL if no matches
- * were found.
+ * \retval A possible completion of the partial match.
+ * \retval NULL if no matches were found.
  */
 char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload);
 
@@ -190,19 +194,19 @@ enum ast_module_flags {
 
 struct ast_module_info {
 
-	/* The 'self' pointer for a module; it will be set by the loader before
+	/*! The 'self' pointer for a module; it will be set by the loader before
 	   it calls the module's load_module() entrypoint, and used by various
 	   other macros that need to identify the module.
 	*/
 
 	struct ast_module *self;
-	enum ast_module_load_result (*load)(void);	/* register stuff etc. Optional. */
-	int (*reload)(void);			/* config etc. Optional. */
-	int (*unload)(void);			/* unload. called with the module locked */
-	int (*backup_globals)(void);		/* for embedded modules, backup global data */
-	void (*restore_globals)(void);		/* for embedded modules, restore global data */
-	const char *name;			/* name of the module for loader reference and CLI commands */
-	const char *description;		/* user friendly description of the module. */
+	enum ast_module_load_result (*load)(void);	/*!< register stuff etc. Optional. */
+	int (*reload)(void);			/*!< config etc. Optional. */
+	int (*unload)(void);			/*!< unload. called with the module locked */
+	int (*backup_globals)(void);		/*!< for embedded modules, backup global data */
+	void (*restore_globals)(void);		/*!< for embedded modules, restore global data */
+	const char *name;			/*!< name of the module for loader reference and CLI commands */
+	const char *description;		/*!< user friendly description of the module. */
 
 	/*! 
 	 * This holds the ASTERISK_GPL_KEY, signifiying that you agree to the terms of

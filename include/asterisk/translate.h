@@ -240,7 +240,7 @@ unsigned int ast_translate_path_steps(unsigned int dest, unsigned int src);
  * The result will include all formats from 'dest' that are either present
  * in 'src' or translatable from a format present in 'src'.
  *
- * Note that only a single audio format and a single video format can be
+ * \note Only a single audio format and a single video format can be
  * present in 'src', or the function will produce unexpected results.
  */
 unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src);

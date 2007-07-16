@@ -33,6 +33,7 @@
 
 typedef enum { ODBC_SUCCESS=0, ODBC_FAIL=-1} odbc_status;
 
+/*! \brief ODBC container */
 struct odbc_obj {
 	ast_mutex_t lock;
 	SQLHDBC  con;                   /* ODBC Connection Handle */
@@ -44,10 +45,12 @@ struct odbc_obj {
 
 /* functions */
 
-/*! \brief Executes a prepared statement handle
+/*! 
+ * \brief Executes a prepared statement handle
  * \param obj The non-NULL result of odbc_request_obj()
  * \param stmt The prepared statement handle
- * \return Returns 0 on success or -1 on failure
+ * \retval 0 on success
+ * \retval -1 on failure
  *
  * This function was originally designed simply to execute a prepared
  * statement handle and to retry if the initial execution failed.
@@ -62,10 +65,12 @@ struct odbc_obj {
  */
 int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt); /* DEPRECATED */
 
-/*! \brief Retrieves a connected ODBC object
+/*! 
+ * \brief Retrieves a connected ODBC object
  * \param name The name of the ODBC class for which a connection is needed.
  * \param check Whether to ensure that a connection is valid before returning the handle.  Usually unnecessary.
- * \return Returns an ODBC object or NULL if there is no connection available with the requested name.
+ * \retval ODBC object 
+ * \retval  NULL if there is no connection available with the requested name.
  *
  * Connection classes may, in fact, contain multiple connection handles.  If
  * the connection is pooled, then each connection will be dedicated to the
@@ -74,22 +79,27 @@ int ast_odbc_smart_execute(struct odbc_obj *obj, SQLHSTMT stmt); /* DEPRECATED *
  */
 struct odbc_obj *ast_odbc_request_obj(const char *name, int check);
 
-/*! \brief Releases an ODBC object previously allocated by odbc_request_obj()
+/*! 
+ * \brief Releases an ODBC object previously allocated by odbc_request_obj()
  * \param obj The ODBC object
  */
 void ast_odbc_release_obj(struct odbc_obj *obj);
 
-/*! \brief Checks an ODBC object to ensure it is still connected
+/*! 
+ * \brief Checks an ODBC object to ensure it is still connected
  * \param obj The ODBC object
- * \return Returns 0 if connected, -1 otherwise.
+ * \retval 0 if connected
+ * \retval -1 otherwise.
  */
 int ast_odbc_sanity_check(struct odbc_obj *obj);
 
-/*! \brief Prepares, executes, and returns the resulting statement handle.
+/*! 
+ * \brief Prepares, executes, and returns the resulting statement handle.
  * \param obj The ODBC object
  * \param prepare_cb A function callback, which, when called, should return a statement handle prepared, with any necessary parameters or result columns bound.
  * \param data A parameter to be passed to the prepare_cb parameter function, indicating which statement handle is to be prepared.
- * \return Returns a statement handle or NULL on error.
+ * \retval a statement handle 
+ * \retval NULL on error
  */
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data);
 

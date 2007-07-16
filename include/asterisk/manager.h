@@ -144,7 +144,8 @@ int ast_manager_unregister( char *action );
  * \brief Verify a session's read permissions against a permission mask.  
  * \param ident session identity
  * \param perm permission mask to verify
- * \returns 1 if the session has the permission mask capabilities, otherwise 0
+ * \retval 1 if the session has the permission mask capabilities
+ * \retval 0 otherwise
  */
 int astman_verify_session_readpermissions(unsigned long ident, int perm);
 
@@ -152,7 +153,8 @@ int astman_verify_session_readpermissions(unsigned long ident, int perm);
  * \brief Verify a session's write permissions against a permission mask.  
  * \param ident session identity
  * \param perm permission mask to verify
- * \returns 1 if the session has the permission mask capabilities, otherwise 0
+ * \retval 1 if the session has the permission mask capabilities, otherwise 0
+ * \retval 0 otherwise
  */
 int astman_verify_session_writepermissions(unsigned long ident, int perm);
 
