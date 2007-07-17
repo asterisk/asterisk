@@ -7093,6 +7093,7 @@ static int socket_process(struct iax2_thread *thread)
 					return 1;
 				}
 				f.data = NULL;
+				f.datalen = 0;
 			} else
 				f.data = thread->buf + sizeof(*fh);
 		} else {
