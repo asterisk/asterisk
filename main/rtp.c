@@ -450,9 +450,9 @@ static int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *dat
 			break;
 		}
 		attr = (struct stun_attr *)data;
-		if (ntohs(attr->len) > len) {
+		if ((ntohs(attr->len) + sizeof(struct stun_attr)) > len) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", ntohs(attr->len), len);
+				ast_log(LOG_DEBUG, "Inconsistent Attribute (length %d exceeds remaining msg len %zd)\n", (ntohs(attr->len) + sizeof(struct stun_attr)), len);
 			break;
 		}
 		if (stun_process_attr(&st, attr)) {
