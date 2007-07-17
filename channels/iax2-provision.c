@@ -69,7 +69,7 @@ struct iax_template {
 	unsigned int server;
 	unsigned short serverport;
 	unsigned int altserver;
-	unsigned int flags;
+	uint64_t flags;
 	unsigned int format;
 	unsigned int tos;	
 } *templates;
@@ -88,7 +88,7 @@ static struct iax_flag {
 	{ "disable3way", PROV_FLAG_DIS_THREEWAY },
 };
 
-char *iax_provflags2str(char *buf, int buflen, unsigned int flags)
+char *iax_provflags2str(char *buf, int buflen, uint64_t flags)
 {
 	int x;
 
@@ -117,7 +117,7 @@ static unsigned int iax_str2flags(const char *buf)
 	int x;
 	int len;
 	int found;
-	unsigned int flags = 0;
+	uint64_t flags = 0;
 	char *e;
 	while(buf && *buf) {
 		e = strchr(buf, ',');

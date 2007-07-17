@@ -55,7 +55,7 @@ enum {
 struct ast_jb_conf
 {
 	/*! \brief Combination of the AST_JB_ENABLED, AST_JB_FORCED and AST_JB_LOG flags. */
-	unsigned int flags;
+	uint64_t flags;
 	/*! \brief Max size of the jitterbuffer implementation. */
 	long max_size;
 	/*! \brief Resynchronization threshold of the jitterbuffer implementation. */
@@ -98,7 +98,7 @@ struct ast_jb
 	/*! \brief File for frame timestamp tracing. */
 	FILE *logfile;
 	/*! \brief Jitterbuffer internal state flags. */
-	unsigned int flags;
+	uint64_t flags;
 };
 
 

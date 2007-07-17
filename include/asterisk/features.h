@@ -39,7 +39,7 @@ struct ast_call_feature {
 	char exten[FEATURE_MAX_LEN];
 	char default_exten[FEATURE_MAX_LEN];
 	int (*operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense);
-	unsigned int flags;
+	uint64_t flags;
 	char app[FEATURE_APP_LEN];		
 	char app_args[FEATURE_APP_ARGS_LEN];
 	char moh_class[FEATURE_MOH_LEN];

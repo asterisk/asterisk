@@ -61,7 +61,7 @@ struct ast_channel_spy {
 	struct ast_channel *chan;
 	struct ast_channel_spy_queue read_queue;
 	struct ast_channel_spy_queue write_queue;
-	unsigned int flags;
+	uint64_t flags;
 	enum chanspy_states status;
 	const char *type;
 	/* The volume adjustment values are very straightforward:

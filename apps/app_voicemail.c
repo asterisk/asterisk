@@ -370,7 +370,7 @@ struct ast_vm_user {
 	char uniqueid[20];               /*!< Unique integer identifier */
 	char exit[80];
 	char attachfmt[20];              /*!< Attachment format */
-	unsigned int flags;              /*!< VM_ flags */	
+	uint64_t flags;              /*!< VM_ flags */	
 	int saydurationm;
 	int maxmsg;                      /*!< Maximum number of msgs per folder for this mailbox */
 	int maxsecs;                     /*!< Maximum number of seconds per message for this mailbox */
@@ -2193,7 +2193,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	}
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
+	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %lld\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	if ((p = vm_mkftemp(tmp)) == NULL) {
@@ -2991,7 +2991,7 @@ static void run_externnotify(char *context, char *extension)
 }
 
 struct leave_vm_options {
-	unsigned int flags;
+	uint64_t flags;
 	signed char record_gain;
 };
 

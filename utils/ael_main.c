@@ -9,6 +9,7 @@
 #include <regex.h>
 #include <limits.h>
 
+#include "asterisk/compat.h"
 #include "asterisk/ast_expr.h"
 #include "asterisk/channel.h"
 #include "asterisk/module.h"

@@ -97,7 +97,7 @@ struct mixmonitor {
 	char *filename;
 	char *post_process;
 	char *name;
-	unsigned int flags;
+	uint64_t flags;
 };
 
 enum {
@@ -226,7 +226,7 @@ static void *mixmonitor_thread(void *obj)
 	return NULL;
 }
 
-static void launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
+static void launch_monitor_thread(struct ast_channel *chan, const char *filename, uint64_t flags,
 				  int readvol, int writevol, const char *post_process) 
 {
 	pthread_t thread;

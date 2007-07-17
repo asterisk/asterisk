@@ -86,8 +86,8 @@ struct ast_module {
 	int usecount;					/* the number of 'users' currently in this module */
 	struct module_user_list users;			/* the list of users in the module */
 	struct {
-		unsigned int running:1;
-		unsigned int declined:1;
+		uint64_t running:1;
+		uint64_t declined:1;
 	} flags;
 	AST_LIST_ENTRY(ast_module) entry;
 	char resource[0];

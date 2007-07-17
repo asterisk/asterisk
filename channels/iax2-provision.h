@@ -45,7 +45,7 @@
 #define PROV_FLAG_DIS_CIDCW		(1 << 6)	/* CID/CW Disabled */
 #define PROV_FLAG_DIS_THREEWAY	(1 << 7)	/* Three-way calling, transfer disabled */
 
-char *iax_provflags2str(char *buf, int buflen, unsigned int flags);
+char *iax_provflags2str(char *buf, int buflen, uint64_t flags);
 int iax_provision_reload(void);
 int iax_provision_unload(void);
 int iax_provision_build(struct iax_ie_data *provdata, unsigned int *signature, const char *template, int force);

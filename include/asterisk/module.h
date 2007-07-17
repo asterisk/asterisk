@@ -215,7 +215,7 @@ struct ast_module_info {
 	 */
 
 	const char *key;
-	unsigned int flags;
+	uint64_t flags;
 };
 
 void ast_module_register(const struct ast_module_info *);

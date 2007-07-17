@@ -51,7 +51,7 @@ struct ast_speech {
 	/*! Structure lock */
 	ast_mutex_t lock;
 	/*! Set flags */
-	unsigned int flags;
+	uint64_t flags;
 	/*! Processing sound (used when engine is processing audio and getting results) */
 	char *processing_sound;
 	/*! Current state of structure */

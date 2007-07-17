@@ -109,7 +109,8 @@ static char *descrip =
 "           party has answered, but before the call gets bridged. The 'called'\n"
 "           DTMF string is sent to the called party, and the 'calling' DTMF\n"
 "           string is sent to the calling party. Both parameters can be used\n"
-"           alone.\n"  	
+"           alone.\n"
+"    e    - execute the 'h' extension for peer after the call ends\n"
 "    f    - Force the callerid of the *calling* channel to be set as the\n"
 "           extension associated with the channel using a dialplan 'hint'.\n"
 "           For example, some PSTNs do not allow CallerID to be set to anything\n"
@@ -256,10 +257,11 @@ enum {
 	OPT_IGNORE_FORWARDING = (1 << 27),
 	OPT_CALLEE_GOSUB =	(1 << 28),
 	OPT_CANCEL_ELSEWHERE =  (1 << 29),
+	OPT_PEER_H =            (1 << 30),
 };
 
-#define DIAL_STILLGOING			(1 << 30)
-#define DIAL_NOFORWARDHTML		(1 << 31)
+#define DIAL_STILLGOING			(1 << 31)
+#define DIAL_NOFORWARDHTML		((uint64_t)1 << 32) /* flags are now 64 bits, so keep it up! */
 
 enum {
 	OPT_ARG_ANNOUNCE = 0,
@@ -282,6 +284,7 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('c', OPT_CANCEL_ELSEWHERE),
 	AST_APP_OPTION('d', OPT_DTMF_EXIT),
 	AST_APP_OPTION_ARG('D', OPT_SENDDTMF, OPT_ARG_SENDDTMF),
+	AST_APP_OPTION('e', OPT_PEER_H),
 	AST_APP_OPTION('f', OPT_FORCECLID),
 	AST_APP_OPTION('g', OPT_GO_ON),
 	AST_APP_OPTION_ARG('G', OPT_GOTO, OPT_ARG_GOTO),
@@ -314,7 +317,7 @@ AST_APP_OPTIONS(dial_exec_options, {
 struct chanlist {
 	struct chanlist *next;
 	struct ast_channel *chan;
-	unsigned int flags;
+	uint64_t flags;
 	int forwards;
 };
 
@@ -1789,7 +1792,29 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
 		pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
+		
+		
+		if (ast_test_flag(&opts, OPT_PEER_H)) {
+			ast_log(LOG_NOTICE,"PEER context: %s; PEER exten: %s;  PEER priority: %d\n", 
+					peer->context, peer->exten, peer->priority);
+		}
+		
+		strcpy(peer->context, chan->context);
 
+		if (ast_test_flag(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
+			strcpy(peer->exten, "h");
+			peer->priority = 1;
+			while (ast_exists_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num)) {
+				if ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num))) {
+					/* Something bad happened, or a hangup has been requested. */
+					ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
+					if (option_verbose > 1)
+						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
+					break;
+				}
+				peer->priority++;
+			}
+		}
 		if (res != AST_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
 				chan->hangupcause = peer->hangupcause;

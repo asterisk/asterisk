@@ -50,7 +50,7 @@
    your variable.
 
    The flag macros below use a set of compiler tricks to verify
-   that the caller is using an "unsigned int" variable to hold
+   that the caller is using an "unsigned long long" variable to hold
    the flags, and nothing else. If the caller uses any other
    type of variable, a warning message similar to this:
 
@@ -64,7 +64,7 @@
  \endverbatim
 */
 
-extern unsigned int __unsigned_int_flags_dummy;
+extern uint64_t __unsigned_int_flags_dummy;
 
 #define ast_test_flag(p,flag) 		({ \
 					typeof ((p)->flags) __p = (p)->flags; \
@@ -146,7 +146,7 @@ extern unsigned int __unsigned_int_flags_dummy;
 /*! \brief Structure used to handle boolean flags 
 */
 struct ast_flags {
-	unsigned int flags;
+	uint64_t flags;
 };
 
 struct ast_hostent {

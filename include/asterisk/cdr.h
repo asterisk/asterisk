@@ -83,7 +83,7 @@ struct ast_cdr {
 	/*! What account number to use */
 	char accountcode[AST_MAX_ACCOUNT_CODE];			
 	/*! flags */
-	unsigned int flags;				
+	uint64_t flags;				
 	/*! Unique Channel Identifier */
 	char uniqueid[32];
 	/*! User field */

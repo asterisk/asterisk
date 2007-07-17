@@ -364,7 +364,7 @@ struct minivm_account {
 	char attachfmt[80];		/*!< Format for voicemail audio file attachment */
 	char etemplate[80];		/*!< Pager template */
 	char ptemplate[80];		/*!< Voicemail format */
-	unsigned int flags;		/*!< MVM_ flags */	
+	uint64_t flags;	    	/*!< MVM_ flags */	
 	struct ast_variable *chanvars;	/*!< Variables for e-mail template */
 	double volgain;			/*!< Volume gain for voicemails sent via e-mail */
 	AST_LIST_ENTRY(minivm_account) list;	
@@ -395,7 +395,7 @@ static AST_LIST_HEAD_STATIC(message_templates, minivm_template);
 
 /*! \brief Options for leaving voicemail with the voicemail() application */
 struct leave_vm_options {
-	unsigned int flags;
+	uint64_t flags;
 	signed char record_gain;
 };
 

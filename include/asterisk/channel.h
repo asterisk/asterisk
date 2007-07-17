@@ -468,7 +468,7 @@ struct ast_channel {
 								(see \ref AstChanVar ) */
 	ast_group_t callgroup;				/*!< Call group for call pickups */
 	ast_group_t pickupgroup;			/*!< Pickup group - which calls groups can be picked up? */
-	unsigned int flags;				/*!< channel flags of AST_FLAG_ type */
+	uint64_t flags;				/*!< channel flags of AST_FLAG_ type */
 	unsigned short transfercapability;		/*!< ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
 	AST_LIST_HEAD_NOLOCK(, ast_frame) readq;
 	int alertpipe[2];
@@ -567,7 +567,7 @@ struct ast_bridge_config {
 	const char *end_sound;
 	const char *start_sound;
 	int firstpass;
-	unsigned int flags;
+	uint64_t flags;
 };
 
 struct chanmon;

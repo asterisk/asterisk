@@ -179,7 +179,7 @@ struct dundi_transaction {
 	dundi_eid them_eid;                            /*!< Their EID, to us */
 	ast_aes_encrypt_key ecx;                       /*!< AES 128 Encryption context */
 	ast_aes_decrypt_key dcx;                       /*!< AES 128 Decryption context */
-	unsigned int flags;                            /*!< Has final packet been sent */
+	uint64_t flags;                                /*!< Has final packet been sent */
 	int ttl;                                       /*!< Remaining TTL for queries on this one */
 	int thread;                                    /*!< We have a calling thread */
 	int retranstimer;                              /*!< How long to wait before retransmissions */
@@ -892,7 +892,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 		/* Skip anything with an illegal pipe in it */
 		if (strchr(req->dr[x].dest, '|'))
 			continue;
-		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%d/%d/%d/%s/%s|", 
+		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%lld/%d/%d/%s/%s|", 
 			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest, 
 			dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), &req->dr[x].eid));
 	}
@@ -1154,7 +1154,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", expiration);
 				ptr += length + 1;
-				while((sscanf(ptr, "%d/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%lld/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, '|');
 					if (term) {

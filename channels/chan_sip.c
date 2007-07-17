@@ -639,7 +639,7 @@ struct sip_request {
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
-	unsigned int flags;     /*!< SIP_PKT Flags for this packet */
+	uint64_t flags;     /*!< SIP_PKT Flags for this packet */
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
@@ -1080,7 +1080,7 @@ struct sip_pkt {
 	int retrans;				/*!< Retransmission number */
 	int method;				/*!< SIP method for this packet */
 	int seqno;				/*!< Sequence number */
-	unsigned int flags;			/*!< non-zero if this is a response packet (e.g. 200 OK) */
+	uint64_t flags;			/*!< non-zero if this is a response packet (e.g. 200 OK) */
 	struct sip_pvt *owner;			/*!< Owner AST call */
 	int retransid;				/*!< Retransmission ID */
 	int timer_a;				/*!< SIP timer A, retransmission timer */
@@ -11536,7 +11536,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				ast_cli(fd, "  Original uri:           %s\n", cur->uri);
 			if (!ast_strlen_zero(cur->cid_num))
 				ast_cli(fd, "  Caller-ID:              %s\n", cur->cid_num);
-			ast_cli(fd, "  Need Destroy:           %d\n", ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY));
+			ast_cli(fd, "  Need Destroy:           %lld\n", ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY));
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR) ? "Yes" : "No");
 			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");

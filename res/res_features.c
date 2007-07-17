@@ -1318,7 +1318,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);
 	else
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);
-	ast_debug(3, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+	ast_debug(3, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%lld\n", chan->name, peer->name, sense, features.flags);
 
 	ast_rwlock_rdlock(&features_lock);
 	for (x = 0; x < FEATURES_COUNT; x++) {

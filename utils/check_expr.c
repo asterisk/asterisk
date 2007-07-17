@@ -21,6 +21,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+#include <../include/asterisk/compat.h>
 #include <../include/asterisk/ast_expr.h>
 
 static int global_lineno = 1;
