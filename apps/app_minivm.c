@@ -1982,7 +1982,7 @@ static int minivm_accmess_exec(struct ast_channel *chan, void *data)
 	char filename[PATH_MAX];
 	char tmp[PATH_MAX];
 	char *domain;
-	char *tmpptr;
+	char *tmpptr = NULL;
 	struct minivm_account *vmu;
 	char *username = argv[0];
 	struct ast_flags flags = { 0 };
