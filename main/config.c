@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <errno.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <sys/socket.h>		/* for AF_INET */
 #define AST_INCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
 #if defined(__Darwin__) || defined(__CYGWIN__)
@@ -1442,6 +1443,124 @@ int ast_destroy_realtime(const char *family, const char *keyfield, const char *l
 	va_end(ap);
 
 	return res;
+}
+
+/*! \brief Helper function to parse arguments
+ * See documentation in config.h
+ */
+int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
+        void *p_result, ...)
+{
+	va_list ap;
+	int error = 0;
+
+	va_start(ap, p_result);
+	switch (flags & PARSE_TYPE) {
+	case PARSE_INT32:
+	    {
+		int32_t *result = p_result;
+		int32_t x, def = result ? *result : 0,
+			high = (int32_t)0x7fffffff,
+			low  = (int32_t)0x80000000;
+		/* optional argument: first default value, then range */
+		if (flags & PARSE_DEFAULT)
+			def = va_arg(ap, int32_t);
+		if (flags & (PARSE_IN_RANGE|PARSE_OUT_RANGE)) {
+			/* range requested, update bounds */
+			low = va_arg(ap, int32_t);
+			high = va_arg(ap, int32_t);
+		}
+		x = strtol(arg, NULL, 0);
+		error = (x < low) || (x > high);
+		if (flags & PARSE_OUT_RANGE)
+			error = !error;
+		if (result)
+			*result  = error ? def : x;
+		ast_debug(3,
+			"extract int from [%s] in [%d, %d] gives [%d](%d)\n",
+			arg, low, high,
+			result ? *result : x, error);
+		break;
+	    }
+
+	case PARSE_UINT32:
+	    {
+		uint32_t *result = p_result;
+		uint32_t x, def = result ? *result : 0,
+			low = 0, high = (uint32_t)~0;
+		/* optional argument: first default value, then range */
+		if (flags & PARSE_DEFAULT)
+			def = va_arg(ap, uint32_t);
+		if (flags & (PARSE_IN_RANGE|PARSE_OUT_RANGE)) {
+			/* range requested, update bounds */
+			low = va_arg(ap, uint32_t);
+			high = va_arg(ap, uint32_t);
+		}
+		x = strtoul(arg, NULL, 0);
+		error = (x < low) || (x > high);
+		if (flags & PARSE_OUT_RANGE)
+			error = !error;
+		if (result)
+			*result  = error ? def : x;
+		ast_debug(3,
+			"extract uint from [%s] in [%u, %u] gives [%u](%d)\n",
+			arg, low, high,
+			result ? *result : x, error);
+		break;
+	    }
+
+	case PARSE_INADDR:
+	    {
+		char *port, *buf;
+		struct sockaddr_in _sa_buf;	/* buffer for the result */
+		struct sockaddr_in *sa = p_result ?
+			(struct sockaddr_in *)p_result : &_sa_buf;
+		/* default is either the supplied value or the result itself */
+		struct sockaddr_in *def = (flags & PARSE_DEFAULT) ?
+			va_arg(ap, struct sockaddr_in *) : sa;
+		struct hostent *hp;
+		struct ast_hostent ahp;
+
+		bzero(&_sa_buf, sizeof(_sa_buf)); /* clear buffer */
+		/* duplicate the string to strip away the :port */
+		port = ast_strdupa(arg);
+		buf = strsep(&port, ":");
+		sa->sin_family = AF_INET;	/* assign family */
+		/*
+		 * honor the ports flag setting, assign default value
+		 * in case of errors or field unset.
+		 */
+		flags &= PARSE_PORT_MASK; /* the only flags left to process */
+		if (port) {
+			if (flags == PARSE_PORT_FORBID) {
+				error = 1;	/* port was forbidden */
+				sa->sin_port = def->sin_port;
+			} else if (flags == PARSE_PORT_IGNORE)
+				sa->sin_port = def->sin_port;
+			else /* accept or require */
+				sa->sin_port = htons(strtol(port, NULL, 0));
+		} else {
+			sa->sin_port = def->sin_port;
+			if (flags == PARSE_PORT_REQUIRE)
+				error = 1;
+		}
+		/* Now deal with host part, even if we have errors before. */
+		hp = ast_gethostbyname(buf, &ahp);
+		if (hp)	/* resolved successfully */
+			memcpy(&sa->sin_addr, hp->h_addr, sizeof(sa->sin_addr));
+		else {
+			error = 1;
+			sa->sin_addr = def->sin_addr;
+		}
+		ast_debug(3,
+			"extract inaddr from [%s] gives [%s:%d](%d)\n",
+			arg, ast_inet_ntoa(sa->sin_addr),
+			ntohs(sa->sin_port), error);
+	    	break;
+	    }
+	}
+	va_end(ap);
+	return error;
 }
 
 static int config_command(int fd, int argc, char **argv) 

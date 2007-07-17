@@ -235,6 +235,88 @@ int config_text_file_save(const char *filename, const struct ast_config *cfg, co
 
 struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, int withcomments);
 
+/*! \brief Support code to parse config file arguments
+ *
+ * The function ast_parse_arg() provides a generic interface to parse
+ * strings (e.g. numbers, network addresses and so on) in a flexible
+ * way, e.g. by doing proper error and bound checks, provide default
+ * values, and so on.
+ * The function (described later) takes a string as an argument,
+ * a set of flags to specify the result format and checks to perform,
+ * a pointer to the result, and optionally some additional arguments.
+ * It returns 0 on success, != 0 otherwise.
+ *
+ */
+enum ast_parse_flags {
+	/* low 4 bits of flags are used for the operand type */
+	PARSE_TYPE	=	0x000f,
+	/* numeric types, with optional default value and bound checks.
+	 * Additional arguments are passed by value.
+	 */
+	PARSE_INT16	= 	0x0001,
+	PARSE_INT32	= 	0x0002,
+	PARSE_UINT16	= 	0x0003,
+	PARSE_UINT32	= 	0x0004,
+	/* Returns a struct sockaddr_in, with optional default value
+	 * (passed by reference) and port handling (accept, ignore,
+	 * require, forbid). The format is 'host.name[:port]'
+	 */
+	PARSE_INADDR	= 	0x0005,
+
+	/* Other data types can be added as needed */
+
+	/* If PARSE_DEFAULT is set, next argument is a default value
+	 * which is returned in case of error. The argument is passed
+	 * by value in case of numeric types, by reference in other cases.
+ 	 */
+	PARSE_DEFAULT	=	0x0010,	/* assign default on error */
+
+	/* Request a range check, applicable to numbers. Two additional
+	 * arguments are passed by value, specifying the low-high end of
+	 * the range (inclusive). An error is returned if the value
+	 * is outside or inside the range, respectively.
+	 */
+	PARSE_IN_RANGE =	0x0020,	/* accept values inside a range */
+	PARSE_OUT_RANGE =	0x0040,	/* accept values outside a range */
+
+	/* Port handling, for sockaddr_in. accept/ignore/require/forbid
+	 * port number after the hostname or address.
+	 */
+	PARSE_PORT_MASK =	0x0300, /* 0x000: accept port if present */
+	PARSE_PORT_IGNORE =	0x0100, /* 0x100: ignore port if present */
+	PARSE_PORT_REQUIRE =	0x0200, /* 0x200: require port number */
+	PARSE_PORT_FORBID =	0x0300, /* 0x100: forbid port number */
+};
+
+/*! \brief The argument parsing routine.
+ * \param arg the string to parse. It is not modified.
+ * \param flags combination of ast_parse_flags to specify the
+ *	return type and additional checks.
+ * \param result pointer to the result. NULL is valid here, and can
+ *	be used to perform only the validity checks.
+ * \param ... extra arguments are required according to flags.
+ * \retval 0 in case of success, != 0 otherwise.
+ * \retval result returns the parsed value in case of success,
+ *	the default value in case of error, or it is left unchanged
+ *	in case of error and no default specified. Note that in certain
+ *	cases (e.g. sockaddr_in, with multi-field return values) some
+ *	of the fields in result may be changed even if an error occurs.
+ *
+ * Examples of use:
+ *	ast_parse_arg("223", PARSE_INT32|PARSE_IN_RANGE,
+ *		&a, -1000, 1000); /* returns 0, a = 223 */
+ *	ast_parse_arg("22345", PARSE_INT32|PARSE_IN_RANGE|PARSE_DEFAULT,
+ *		&a, 9999, 10, 100); /* returns 1, a = 9999 */
+ *      ast_parse_arg("22345ssf", PARSE_UINT32|PARSE_IN_RANGE, &b, 10, 100);
+ *		/* returns 1, b unchanged */
+ *      ast_parse_arg("www.foo.biz:44", PARSE_INADDR, &sa);
+ *		/* returns 0, sa contains address and port */
+ *      ast_parse_arg("www.foo.biz", PARSE_INADDR|PARSE_PORT_REQUIRE, &sa);
+ *		/* returns 1 because port is missing, sa contains address */
+ */
+int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
+        void *result, ...);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
