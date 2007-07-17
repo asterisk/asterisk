@@ -2082,6 +2082,8 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 
 static int deadagi_exec(struct ast_channel *chan, void *data)
 {
+	if (!ast_check_hangup(chan))
+		ast_log(LOG_WARNING,"Running DeadAGI on a live channel will cause problems, please use AGI\n");
 	return agi_exec_full(chan, data, 0, 1);
 }
 
