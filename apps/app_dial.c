@@ -1567,7 +1567,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_parseable_goto(peer, opt_args[OPT_ARG_GOTO]);
 			peer->priority++;
 			ast_pbx_start(peer);
-			hanguptree(outgoing, NULL, ast_test_flag(&opts, OPT_CANCEL_ELSEWHERE ? 1 : 0));
+			hanguptree(outgoing, NULL, ast_test_flag(&opts, OPT_CANCEL_ELSEWHERE) ? 1 : 0);
 			if (continue_exec)
 				*continue_exec = 1;
 			res = 0;
