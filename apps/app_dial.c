@@ -1917,7 +1917,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if (res == 0) {
 			if (ast_test_flag(&peerflags, OPT_DTMF_EXIT)) {
 				if (!ast_strlen_zero(announce)) {
-					if (ast_fileexists(announce, NULL, chan->language)) {
+					if (ast_fileexists(announce, NULL, chan->language) > 0) {
 						if(!(res = ast_streamfile(chan, announce, chan->language)))								
 							ast_waitstream(chan, AST_DIGIT_ANY);
 					} else
@@ -1930,7 +1930,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 				}
 			} else {
 				if (!ast_strlen_zero(announce)) {
-					if (ast_fileexists(announce, NULL, chan->language)) {
+					if (ast_fileexists(announce, NULL, chan->language) > 0) {
 						if (!(res = ast_streamfile(chan, announce, chan->language)))
 							res = ast_waitstream(chan, "");
 					} else
