@@ -304,15 +304,17 @@ enum ast_parse_flags {
  *
  * Examples of use:
  *	ast_parse_arg("223", PARSE_INT32|PARSE_IN_RANGE,
- *		&a, -1000, 1000); /* returns 0, a = 223 */
+ *		&a, -1000, 1000); 
+ *              returns 0, a = 223
  *	ast_parse_arg("22345", PARSE_INT32|PARSE_IN_RANGE|PARSE_DEFAULT,
- *		&a, 9999, 10, 100); /* returns 1, a = 9999 */
+ *		&a, 9999, 10, 100);
+ *              returns 1, a = 9999
  *      ast_parse_arg("22345ssf", PARSE_UINT32|PARSE_IN_RANGE, &b, 10, 100);
- *		/* returns 1, b unchanged */
+ *		returns 1, b unchanged
  *      ast_parse_arg("www.foo.biz:44", PARSE_INADDR, &sa);
- *		/* returns 0, sa contains address and port */
+ *		returns 0, sa contains address and port
  *      ast_parse_arg("www.foo.biz", PARSE_INADDR|PARSE_PORT_REQUIRE, &sa);
- *		/* returns 1 because port is missing, sa contains address */
+ *		returns 1 because port is missing, sa contains address
  */
 int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
         void *result, ...);
