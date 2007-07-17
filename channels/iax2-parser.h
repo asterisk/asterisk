@@ -126,7 +126,7 @@ struct iax_frame {
 	/* Actual, isolated frame header */
 	struct ast_frame af;
 	/*! Amount of space _allocated_ for data */
-	size_t mallocd_datalen;
+	size_t afdatalen;
 	unsigned char unused[AST_FRIENDLY_OFFSET];
 	unsigned char afdata[0];	/* Data for frame */
 };
