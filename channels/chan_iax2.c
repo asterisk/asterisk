@@ -6811,6 +6811,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					return 1;
 				}
 				f.data = NULL;
+				f.datalen = 0;
 			} else
 				f.data = buf + sizeof(*fh);
 		} else {
