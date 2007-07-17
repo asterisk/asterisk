@@ -119,6 +119,8 @@ struct iax_frame {
 	struct iax_frame *prev;
 	/* Actual, isolated frame header */
 	struct ast_frame af;
+	/* Amount of data _allocated_ for afdata */
+	size_t afdatalen;
 	unsigned char unused[AST_FRIENDLY_OFFSET];
 	unsigned char afdata[0];	/* Data for frame */
 };

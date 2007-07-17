@@ -904,13 +904,20 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 	fr->af.delivery.tv_usec = 0;
 	fr->af.data = fr->afdata;
 	if (fr->af.datalen) {
+		size_t copy_len = fr->af.datalen;
+		if (copy_len > fr->afdatalen) {
+			ast_log(LOG_ERROR, "Losing frame data because destination buffer size '%d' bytes not big enough for '%d' bytes in the frame\n",
+				(int) fr->afdatalen, (int) fr->af.datalen);
+			copy_len = fr->afdatalen;
+		}
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		/* We need to byte-swap slinear samples from network byte order */
 		if ((fr->af.frametype == AST_FRAME_VOICE) && (fr->af.subclass == AST_FORMAT_SLINEAR)) {
-			ast_swapcopy_samples(fr->af.data, f->data, fr->af.samples);
+			/* 2 bytes / sample for SLINEAR */
+			ast_swapcopy_samples(fr->af.data, f->data, copy_len / 2);
 		} else
 #endif
-		memcpy(fr->af.data, f->data, fr->af.datalen);
+			memcpy(fr->af.data, f->data, copy_len);
 	}
 }
 
@@ -919,6 +926,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen)
 	struct iax_frame *fr;
 	fr = malloc((int)sizeof(struct iax_frame) + datalen);
 	if (fr) {
+		fr->afdatalen = datalen;
 		fr->direction = direction;
 		fr->retrans = -1;
 		frames++;
