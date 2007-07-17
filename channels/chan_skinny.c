@@ -4587,7 +4587,7 @@ static int get_input(struct skinnysession *s)
 		}
 		
 		dlen = letohl(*(int *)s->inbuf);
-		if (dlen < 0) {
+		if (dlen < 4) {
 			ast_log(LOG_WARNING, "Skinny Client sent invalid data.\n");
 			ast_mutex_unlock(&s->lock);
 			return -1;
