@@ -4020,7 +4020,9 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	int sendmini=0;
 	unsigned int lastsent;
 	unsigned int fts;
-		
+
+	frb.fr2.afdatalen = sizeof(frb.buffer);
+
 	if (!pvt) {
 		ast_log(LOG_WARNING, "No private structure for packet?\n");
 		return -1;
@@ -6435,7 +6437,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	/* allocate an iax_frame with 4096 bytes of data buffer */
 	fr = alloca(sizeof(*fr) + 4096);
 	fr->callno = 0;
-	
+	fr->afdatalen = 4096; /* From alloca() above */
+
 	res = recvfrom(fd, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -6811,6 +6814,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					return 1;
 				}
 				f.data = NULL;
+				f.datalen = 0;
 			} else
 				f.data = buf + sizeof(*fh);
 		} else {
