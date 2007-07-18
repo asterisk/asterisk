@@ -4255,7 +4255,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 			ast_verbose("Received Softkey Event: Forward All(%d)\n", instance);
 
 		/* Do not disturb */
-		transmit_tone(s, SKINNY_DIALTONE);
 		if (l->dnd != 0){
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Disabling DND on %s@%s\n", l->name, d->name);
