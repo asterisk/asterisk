@@ -3529,6 +3529,8 @@ static int handle_time_date_req_message(struct skinny_req *req, struct skinnyses
 	req->data.definetimedate.hour = htolel(cmtime->tm_hour);
 	req->data.definetimedate.minute = htolel(cmtime->tm_min);
 	req->data.definetimedate.seconds = htolel(cmtime->tm_sec);
+	req->data.definetimedate.milliseconds = htolel(0);
+	req->data.definetimedate.timestamp = htolel(timer);
 	transmit_response(s, req);
 	return 1;
 }
