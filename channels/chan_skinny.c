@@ -605,10 +605,8 @@ static const uint8_t soft_key_default_connwithconf[] = {
 };
 
 static const uint8_t soft_key_default_ringout[] = {
+	SOFTKEY_NONE,
 	SOFTKEY_ENDCALL,
-	SOFTKEY_TRNSFER,
-	SOFTKEY_CFWDALL,
-	SOFTKEY_CFWDBUSY,
 };
 
 static const uint8_t soft_key_default_offhookwithfeat[] = {
@@ -3070,6 +3068,14 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			ast_verbose("Received Stimulus: Redial(%d)\n", instance);
 
 #if 0
+ 		if (ast_strlen_zero(l->lastnumberdialed)) {
+ 			ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found.\n");
+ 			l->hookstate = SKINNY_ONHOOK;
+ 			transmit_speaker_mode(s, SKINNY_SPEAKEROFF);
+ 			transmit_callstate(s, l->instance, SKINNY_ONHOOK, instance);
+ 			break;
+ 		}
+
 		c = skinny_new(l, AST_STATE_DOWN);
 		if(!c) {
 			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
@@ -3080,11 +3086,8 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
 			transmit_displaymessage(s, NULL); /* clear display */
 			transmit_tone(s, SKINNY_DIALTONE);
+			transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGOUT);
 
-			if (ast_strlen_zero(l->lastnumberdialed)) {
-				ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found.\n");
-				return 0;
-			}
 			if (!ast_ignore_pattern(c->context, l->lastnumberdialed)) {
 				transmit_tone(s, SKINNY_SILENCE);
 			}
@@ -3105,6 +3108,14 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 			return 0;
 		}
 
+		if (ast_strlen_zero(l->lastnumberdialed)) {
+			ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found.\n");
+			l->hookstate = SKINNY_ONHOOK;
+			transmit_speaker_mode(s, SKINNY_SPEAKEROFF);
+			transmit_callstate(s, l->instance, SKINNY_ONHOOK, instance);
+			break;
+		}
+
 		c = skinny_new(l, AST_STATE_DOWN);
 		if(c) {
 			sub = c->tech_pvt;
@@ -3114,6 +3125,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 				ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
 			transmit_displaymessage(s, NULL); /* clear display */
 			transmit_tone(s, SKINNY_DIALTONE);
+			transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGOUT);
 
 			if (!ast_ignore_pattern(c->context, sd->exten)) {
 				transmit_tone(s, SKINNY_SILENCE);
@@ -3804,11 +3816,8 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 				ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
 			transmit_displaymessage(s, NULL); /* clear display */
 			transmit_tone(s, SKINNY_DIALTONE);
+			transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_RINGOUT);
 
-			if (ast_strlen_zero(l->lastnumberdialed)) {
-				ast_log(LOG_WARNING, "Attempted redial, but no previously dialed number found.\n");
-				break;
-			}
 			if (!ast_ignore_pattern(c->context, l->lastnumberdialed)) {
 				transmit_tone(s, SKINNY_SILENCE);
 			}
