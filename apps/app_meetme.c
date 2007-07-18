@@ -3115,7 +3115,7 @@ static void *recordthread(void *args)
 			}
 			if (cnf->origframe)
 				ast_frfree(cnf->origframe);
-			cnf->origframe = f;
+			cnf->origframe = ast_frdup(f);
 			ast_mutex_unlock(&cnf->listenlock);
 			if (s)
 				res = ast_writestream(s, f);
