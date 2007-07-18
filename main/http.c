@@ -154,8 +154,9 @@ static struct ast_str *static_callback(struct server_instance *ser, const char *
 	struct stat st;
 	int len;
 	int fd;
-	time_t t;
+	struct timeval tv = ast_tvnow();
 	char buf[256];
+	struct ast_tm tm;
 
 	/* Yuck.  I'm not really sold on this, but if you don't deliver static content it makes your configuration 
 	   substantially more challenging, but this seems like a rather irritating feature creep on Asterisk. */
@@ -186,8 +187,7 @@ static struct ast_str *static_callback(struct server_instance *ser, const char *
 	if (fd < 0)
 		goto out403;
 
-	time(&t);
-	strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
+	ast_strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&tv, &tm, "GMT"));
 	fprintf(ser->f, "HTTP/1.1 200 OK\r\n"
 		"Server: Asterisk/%s\r\n"
 		"Date: %s\r\n"
@@ -843,10 +843,11 @@ static void *httpd_helper_thread(void *data)
 		ast_variables_destroy(vars);
 
 	if (out) {
-		time_t t = time(NULL);
+		struct timeval tv = ast_tvnow();
 		char timebuf[256];
+		struct ast_tm tm;
 
-		strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S GMT", gmtime(&t));
+		ast_strftime(timebuf, sizeof(timebuf), "%a, %d %b %Y %H:%M:%S %Z", ast_localtime(&tv, &tm, "GMT"));
 		fprintf(ser->f, "HTTP/1.1 %d %s\r\n"
 				"Server: Asterisk/%s\r\n"
 				"Date: %s\r\n"

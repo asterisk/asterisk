@@ -193,8 +193,8 @@ struct ast_atexit {
 
 static AST_RWLIST_HEAD_STATIC(atexits, ast_atexit);
 
-time_t ast_startuptime;
-time_t ast_lastreloadtime;
+struct timeval ast_startuptime;
+struct timeval ast_lastreloadtime;
 
 static History *el_hist;
 static EditLine *el;
@@ -346,7 +346,7 @@ void ast_unregister_thread(void *id)
 static int handle_show_settings(int fd, int argc, char *argv[])
 {
 	char buf[BUFSIZ];
-	struct tm tm;
+	struct ast_tm tm;
 
 	ast_cli(fd, "\nPBX Core settings\n");
 	ast_cli(fd, "-----------------\n");
@@ -366,11 +366,11 @@ static int handle_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Min Free Memory:             %ld MB\n", option_minmemfree);
 #endif
 	if (ast_localtime(&ast_startuptime, &tm, NULL)) {
-		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
+		ast_strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
 		ast_cli(fd, "  Startup time:                %s\n", buf);
 	}
 	if (ast_localtime(&ast_lastreloadtime, &tm, NULL)) {
-		strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
+		ast_strftime(buf, sizeof(buf), "%H:%M:%S", &tm);
 		ast_cli(fd, "  Last reload time:            %s\n", buf);
 	}
 	ast_cli(fd, "  System:                      %s/%s built by %s on %s %s\n", ast_build_os, ast_build_kernel, ast_build_user, ast_build_machine, ast_build_date);
@@ -1760,8 +1760,8 @@ static char *cli_prompt(EditLine *el)
 			if (*t == '%') {
 				char hostname[MAXHOSTNAMELEN]="";
 				int i;
-				time_t ts;
-				struct tm tm;
+				struct timeval ts = ast_tvnow();
+				struct ast_tm tm = { 0, };
 #ifdef linux
 				FILE *LOADAVG;
 #endif
@@ -1783,10 +1783,8 @@ static char *cli_prompt(EditLine *el)
 					color_used = ((fgcolor == COLOR_WHITE) && (bgcolor == COLOR_BLACK)) ? 0 : 1;
 					break;
 				case 'd': /* date */
-					memset(&tm, 0, sizeof(tm));
-					time(&ts);
 					if (ast_localtime(&ts, &tm, NULL))
-						strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
+						ast_strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 					break;
 				case 'h': /* hostname */
 					if (!gethostname(hostname, sizeof(hostname) - 1))
@@ -1840,10 +1838,8 @@ static char *cli_prompt(EditLine *el)
 					strncat(p, ast_config_AST_SYSTEM_NAME, sizeof(prompt) - strlen(prompt) - 1);
 					break;
 				case 't': /* time */
-					memset(&tm, 0, sizeof(tm));
-					time(&ts);
 					if (ast_localtime(&ts, &tm, NULL))
-						strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
+						ast_strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
 					break;
 				case '#': /* process console or remote? */
 					if (!ast_opt_remote) 
@@ -2943,7 +2939,7 @@ int main(int argc, char *argv[])
 	__ast_mm_init();
 #endif	
 
-	time(&ast_startuptime);
+	ast_startuptime = ast_tvnow();
 	ast_cli_register_multiple(cli_asterisk, sizeof(cli_asterisk) / sizeof(struct ast_cli_entry));
 
 	if (ast_opt_console) {

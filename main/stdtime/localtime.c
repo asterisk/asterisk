@@ -180,25 +180,25 @@ static const char *	getsecs P((const char * strp, long * secsp));
 static const char *	getoffset P((const char * strp, long * offsetp));
 static const char *	getrule P((const char * strp, struct rule * rulep));
 static void		gmtload P((struct state * sp));
-static void		gmtsub P((const time_t * timep, long offset,
-				struct tm * tmp, const char * zone));
-static void		localsub P((const time_t * timep, long offset,
-				struct tm * tmp, const char * zone));
+static void		gmtsub P((const struct timeval * timep, long offset,
+				struct ast_tm * tmp, const char * zone));
+static void		localsub P((const struct timeval * timep, long offset,
+				struct ast_tm * tmp, const char * zone));
 static int		increment_overflow P((int * number, int delta));
 static int		normalize_overflow P((int * tensptr, int * unitsptr,
 				int base));
-static time_t		time1 P((struct tm * tmp,
-				void(*funcp) P((const time_t *,
-				long, struct tm *, const char*)),
+static time_t		time1 P((struct ast_tm * tmp,
+				void(*funcp) P((const struct timeval *,
+				long, struct ast_tm *, const char *)),
 				long offset, const char * zone));
-static time_t		time2 P((struct tm *tmp,
-				void(*funcp) P((const time_t *,
-				long, struct tm*, const char*)),
+static time_t		time2 P((struct ast_tm *tmp,
+				void(*funcp) P((const struct timeval *,
+				long, struct ast_tm *, const char *)),
 				long offset, int * okayp, const char * zone));
-static void		timesub P((const time_t * timep, long offset,
-				const struct state * sp, struct tm * tmp));
-static int		tmcomp P((const struct tm * atmp,
-				const struct tm * btmp));
+static void		timesub P((const struct timeval * timep, long offset,
+				const struct state * sp, struct ast_tm *tmp));
+static int		tmcomp P((const struct ast_tm *atmp,
+				const struct ast_tm * btmp));
 static time_t		transtime P((time_t janfirst, int year,
 				const struct rule * rulep, long offset));
 static int		tzload P((const char * name, struct state * sp));
@@ -982,15 +982,16 @@ ast_tzset P((const char *name))
 /*ARGSUSED*/
 static void
 localsub(timep, offset, tmp, zone)
-const time_t * const	timep;
+const struct timeval * const	timep;
 const long		offset;
-struct tm * const	tmp;
+struct ast_tm * const	tmp;
 const char * const	zone;
 {
 	register struct state *		sp;
 	register const struct ttinfo *	ttisp;
 	register int			i;
-	const time_t			t = *timep;
+	struct timeval	t;
+	memcpy(&t, timep, sizeof(t));
 
 	sp = lclptr;
 	/* Find the right zone record */
@@ -1019,7 +1020,7 @@ const char * const	zone;
 		gmtsub(timep, offset, tmp, zone);
 		return;
 	}
-	if (sp->timecnt == 0 || t < sp->ats[0]) {
+	if (sp->timecnt == 0 || t.tv_sec < sp->ats[0]) {
 		i = 0;
 		while (sp->ttis[i].tt_isdst)
 			if (++i >= sp->typecnt) {
@@ -1028,7 +1029,7 @@ const char * const	zone;
 			}
 	} else {
 		for (i = 1; i < sp->timecnt; ++i)
-			if (t < sp->ats[i])
+			if (t.tv_sec < sp->ats[i])
 				break;
 		i = sp->types[i - 1];
 	}
@@ -1045,12 +1046,13 @@ const char * const	zone;
 #ifdef TM_ZONE
 	tmp->TM_ZONE = &sp->chars[ttisp->tt_abbrind];
 #endif /* defined TM_ZONE */
+	tmp->tm_usec = timep->tv_usec;
 }
 
-struct tm *
+struct ast_tm *
 ast_localtime(timep, p_tm, zone)
-const time_t * const	timep;
-struct tm *p_tm;
+const struct timeval * const	timep;
+struct ast_tm *p_tm;
 const char * const	zone;
 {
 #ifdef _THREAD_SAFE
@@ -1070,9 +1072,9 @@ const char * const	zone;
 
 static void
 gmtsub(timep, offset, tmp, zone)
-const time_t * const	timep;
+const struct timeval * const	timep;
 const long		offset;
-struct tm * const	tmp;
+struct ast_tm * const	tmp;
 const char * const	zone;
 {
 #ifdef	_THREAD_SAFE
@@ -1104,10 +1106,10 @@ const char * const	zone;
 
 static void
 timesub(timep, offset, sp, tmp)
-const time_t * const			timep;
+const struct timeval * const	timep;
 const long				offset;
 register const struct state * const	sp;
-register struct tm * const		tmp;
+register struct ast_tm * const		tmp;
 {
 	register const struct lsinfo *	lp;
 	register long			days;
@@ -1124,8 +1126,8 @@ register struct tm * const		tmp;
 	i = (sp == NULL) ? 0 : sp->leapcnt;
 	while (--i >= 0) {
 		lp = &sp->lsis[i];
-		if (*timep >= lp->ls_trans) {
-			if (*timep == lp->ls_trans) {
+		if (timep->tv_sec >= lp->ls_trans) {
+			if (timep->tv_sec == lp->ls_trans) {
 				hit = ((i == 0 && lp->ls_corr > 0) ||
 					lp->ls_corr > sp->lsis[i - 1].ls_corr);
 				if (hit)
@@ -1142,10 +1144,10 @@ register struct tm * const		tmp;
 			break;
 		}
 	}
-	days = *timep / SECSPERDAY;
-	rem = *timep % SECSPERDAY;
+	days = timep->tv_sec / SECSPERDAY;
+	rem = timep->tv_sec % SECSPERDAY;
 #ifdef mc68k
-	if (*timep == 0x80000000) {
+	if (timep->tv_sec == 0x80000000) {
 		/*
 		** A 3B1 muffs the division on the most negative number.
 		*/
@@ -1196,28 +1198,16 @@ register struct tm * const		tmp;
 #ifdef TM_GMTOFF
 	tmp->TM_GMTOFF = offset;
 #endif /* defined TM_GMTOFF */
+	tmp->tm_usec = timep->tv_usec;
 }
 
 char *
-ast_ctime(timep)
-const time_t * const	timep;
-{
-/*
-** Section 4.12.3.2 of X3.159-1989 requires that
-**	The ctime funciton converts the calendar time pointed to by timer
-**	to local time in the form of a string.  It is equivalent to
-**		asctime(localtime(timer))
-*/
-	return asctime(localtime(timep));
-}
-
-char *
-ast_ctime_r(timep, buf)
-const time_t * const	timep;
+ast_ctime(timep, buf)
+const struct timeval * const	timep;
 char *buf;
 {
-        struct tm tm;
-	return asctime_r(ast_localtime(timep, &tm, NULL), buf);
+	struct ast_tm tm;
+	return asctime_r((struct tm *)ast_localtime(timep, &tm, NULL), buf);
 }
 
 /*
@@ -1267,8 +1257,8 @@ const int	base;
 
 static int
 tmcomp(atmp, btmp)
-register const struct tm * const atmp;
-register const struct tm * const btmp;
+register const struct ast_tm * const atmp;
+register const struct ast_tm * const btmp;
 {
 	register int	result;
 
@@ -1283,8 +1273,8 @@ register const struct tm * const btmp;
 
 static time_t
 time2(tmp, funcp, offset, okayp, zone)
-struct tm * const	tmp;
-void (* const		funcp) P((const time_t*, long, struct tm*, const char*));
+struct ast_tm * const	tmp;
+void (* const		funcp) P((const struct timeval *, long, struct ast_tm*, const char*));
 const long		offset;
 int * const		okayp;
 const char * const	zone;
@@ -1294,9 +1284,9 @@ const char * const	zone;
 	register int			bits;
 	register int			i, j ;
 	register int			saved_seconds;
-	time_t				newt;
-	time_t				t;
-	struct tm			yourtm, mytm;
+	struct timeval			newt = { 0, 0 };
+	struct timeval			t = { 0, 0 };
+	struct ast_tm			yourtm, mytm;
 
 	*okayp = FALSE;
 	yourtm = *tmp;
@@ -1364,7 +1354,7 @@ const char * const	zone;
 	** assuming two's complement arithmetic.
 	** If time_t is unsigned, then (1 << bits) is just above the median.
 	*/
-	t = TYPE_SIGNED(time_t) ? 0 : (((time_t) 1) << bits);
+	t.tv_sec = 0;
 	for ( ; ; ) {
 		(*funcp)(&t, offset, &mytm, zone);
 		dir = tmcomp(&mytm, &yourtm);
@@ -1372,10 +1362,10 @@ const char * const	zone;
 			if (bits-- < 0)
 				return WRONG;
 			if (bits < 0)
-				--t; /* may be needed if new t is minimal */
+				--t.tv_sec; /* may be needed if new t is minimal */
 			else if (dir > 0)
-				t -= ((time_t) 1) << bits;
-			else	t += ((time_t) 1) << bits;
+				t.tv_sec -= ((time_t) 1) << bits;
+			else	t.tv_sec += ((time_t) 1) << bits;
 			continue;
 		}
 		if (yourtm.tm_isdst < 0 || mytm.tm_isdst == yourtm.tm_isdst)
@@ -1400,7 +1390,7 @@ const char * const	zone;
 			for (j = sp->typecnt - 1; j >= 0; --j) {
 				if (sp->ttis[j].tt_isdst == yourtm.tm_isdst)
 					continue;
-				newt = t + sp->ttis[j].tt_gmtoff -
+				newt.tv_sec = t.tv_sec + sp->ttis[j].tt_gmtoff -
 					sp->ttis[i].tt_gmtoff;
 				(*funcp)(&newt, offset, &mytm, zone);
 				if (tmcomp(&mytm, &yourtm) != 0)
@@ -1417,19 +1407,19 @@ const char * const	zone;
 		return WRONG;
 	}
 label:
-	newt = t + saved_seconds;
-	if ((newt < t) != (saved_seconds < 0))
+	newt.tv_sec = t.tv_sec + saved_seconds;
+	if ((newt.tv_sec < t.tv_sec) != (saved_seconds < 0))
 		return WRONG;
-	t = newt;
+	t.tv_sec = newt.tv_sec;
 	(*funcp)(&t, offset, tmp, zone);
 	*okayp = TRUE;
-	return t;
+	return t.tv_sec;
 }
 
 static time_t
 time1(tmp, funcp, offset, zone)
-struct tm * const	tmp;
-void (* const		funcp) P((const time_t *, long, struct tm *, const char*));
+struct ast_tm * const	tmp;
+void (* const		funcp) P((const struct timeval *, long, struct ast_tm *, const char*));
 const long		offset;
 const char * const	zone;
 {
@@ -1489,7 +1479,7 @@ const char * const	zone;
 
 time_t
 ast_mktime(tmp,zone)
-struct tm * const	tmp;
+struct ast_tm * const	tmp;
 const char * const	zone;
 {
 	time_t mktime_return_value;
@@ -1502,5 +1492,64 @@ const char * const	zone;
 	ast_mutex_unlock(&lcl_mutex);
 #endif
 	return(mktime_return_value);
+}
+
+int ast_strftime(char *buf, size_t len, const char *tmp, const struct ast_tm *tm)
+{
+	size_t fmtlen = strlen(tmp) + 1;
+	char *format = ast_calloc(1, fmtlen), *fptr = format, *newfmt;
+	int decimals = -1, i, res;
+	long fraction;
+
+	if (!format)
+		return -1;
+	for (; *tmp; tmp++) {
+		if (*tmp == '%') {
+			switch (tmp[1]) {
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+				if (tmp[2] != 'q')
+					goto defcase;
+				decimals = tmp[1] - '0';
+				tmp++;
+				/* Fall through */
+			case 'q': /* Milliseconds */
+				if (decimals == -1)
+					decimals = 3;
+
+				/* Juggle some memory to fit the item */
+				newfmt = ast_realloc(format, fmtlen + decimals);
+				if (!newfmt) {
+					ast_free(format);
+					return -1;
+				}
+				fptr = fptr - format + newfmt;
+				format = newfmt;
+				fmtlen += decimals;
+
+				/* Reduce the fraction of time to the accuracy needed */
+				for (i = 6, fraction = tm->tm_usec; i > decimals; i--)
+					fraction /= 10;
+				fptr += sprintf(fptr, "%0*ld", decimals, fraction);
+
+				/* Reset, in case more than one 'q' specifier exists */
+				decimals = -1;
+				tmp++;
+				break;
+			default:
+				goto defcase;
+			}
+		} else
+defcase:	*fptr++ = *tmp;
+	}
+	*fptr = '\0';
+#undef strftime
+	res = (int)strftime(buf, len, format, (struct tm *)tm);
+	ast_free(format);
+	return res;
 }
 

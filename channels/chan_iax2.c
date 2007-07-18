@@ -1274,7 +1274,7 @@ static int make_trunk(unsigned short callno, int locked)
 {
 	int x;
 	int res= 0;
-	struct timeval now;
+	struct timeval now = ast_tvnow();
 	if (iaxs[callno]->oseqno) {
 		ast_log(LOG_WARNING, "Can't make trunk once a call has started!\n");
 		return -1;
@@ -1283,7 +1283,6 @@ static int make_trunk(unsigned short callno, int locked)
 		ast_log(LOG_WARNING, "Call %d is already a trunk\n", callno);
 		return -1;
 	}
-	gettimeofday(&now, NULL);
 	for (x=TRUNK_CALL_START;x<IAX_MAX_CALLS - 1; x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (!iaxs[x] && ((now.tv_sec - lastused[x].tv_sec) > MIN_REUSE_TIME)) {
@@ -1369,7 +1368,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		 * correct, but it will be changed if needed after authentication. */
 		if (!iax2_getpeername(*sin, host, sizeof(host), lockpeer))
 			snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-		gettimeofday(&now, NULL);
+		now = ast_tvnow();
 		for (x=1;x<TRUNK_CALL_START;x++) {
 			/* Find first unused call number that hasn't been used in a while */
 			ast_mutex_lock(&iaxsl[x]);
@@ -1872,7 +1871,7 @@ static void iax2_destroy(int callno)
 
 retry:
 	pvt = iaxs[callno];
-	gettimeofday(&lastused[callno], NULL);
+	lastused[callno] = ast_tvnow();
 	
 	owner = pvt ? pvt->owner : NULL;
 
@@ -2274,9 +2273,7 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 	struct iax2_dpcache *dp = NULL;
 	char tmp[1024], *pc = NULL;
 	int s, x, y;
-	struct timeval tv;
-
-	gettimeofday(&tv, NULL);
+	struct timeval tv = ast_tvnow();
 
 	AST_LIST_LOCK(&dpcache);
 
@@ -2387,7 +2384,7 @@ static void __get_from_jb(void *p)
 	int ret;
 	long now;
 	long next;
-	struct timeval tv;
+	struct timeval tv = ast_tvnow();
 	
 	/* Make sure we have a valid private structure before going on */
 	ast_mutex_lock(&iaxsl[callno]);
@@ -2400,7 +2397,6 @@ static void __get_from_jb(void *p)
 
 	pvt->jbid = -1;
 	
-	gettimeofday(&tv,NULL);
 	/* round up a millisecond since ast_sched_runq does; */
 	/* prevents us from spinning while waiting for our now */
 	/* to catch up with runq's now */
@@ -2882,14 +2878,10 @@ static int auto_congest(void *data)
 
 static unsigned int iax2_datetime(const char *tz)
 {
-	time_t t;
-	struct tm tm;
+	struct timeval t = ast_tvnow();
+	struct ast_tm tm;
 	unsigned int tmp;
-	time(&t);
-	if (!ast_strlen_zero(tz))
-		ast_localtime(&t, &tm, tz);
-	else
-		ast_localtime(&t, &tm, NULL);
+	ast_localtime(&t, &tm, ast_strlen_zero(tz) ? NULL : tz);
 	tmp  = (tm.tm_sec >> 1) & 0x1f;			/* 5 bits of seconds */
 	tmp |= (tm.tm_min & 0x3f) << 5;			/* 6 bits of minutes */
 	tmp |= (tm.tm_hour & 0x1f) << 11;		/* 5 bits of hours */
@@ -3322,7 +3314,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		}
 		if ((iaxs[callno0]->transferring == TRANSFER_RELEASED) && (iaxs[callno1]->transferring == TRANSFER_RELEASED)) {
 			/* Call has been transferred.  We're no longer involved */
-			gettimeofday(&tv, NULL);
+			tv = ast_tvnow();
 			if (ast_tvzero(waittimer)) {
 				waittimer = tv;
 			} else if (tv.tv_sec - waittimer.tv_sec > IAX_LINGER_TIMEOUT) {
@@ -3586,7 +3578,7 @@ static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 	long ms;	/* NOT unsigned */
 	if (ast_tvzero(iaxs[callno]->rxcore)) {
 		/* Initialize rxcore time if appropriate */
-		gettimeofday(&iaxs[callno]->rxcore, NULL);
+		iaxs[callno]->rxcore = ast_tvnow();
 		/* Round to nearest 20ms so traces look pretty */
 		iaxs[callno]->rxcore.tv_usec -= iaxs[callno]->rxcore.tv_usec % 20000;
 	}
@@ -3622,7 +3614,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 		}
 	}
 	if (ast_tvzero(p->offset)) {
-		gettimeofday(&p->offset, NULL);
+		p->offset = ast_tvnow();
 		/* Round to nearest 20ms for nice looking traces */
 		p->offset.tv_usec -= p->offset.tv_usec % 20000;
 	}
@@ -3850,7 +3842,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 
 		/* if we have enough for a full MTU, ship it now without waiting */
 		if (global_max_trunk_mtu > 0 && tpeer->trunkdatalen + f->datalen + 4 >= global_max_trunk_mtu) {
-			gettimeofday(&now, NULL);
+			now = ast_tvnow();
 			res = send_trunk(tpeer, &now); 
 			trunk_untimed ++; 
 		}
@@ -6243,10 +6235,9 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 #ifdef ZT_TIMERACK
 	int x = 1;
 #endif
-	struct timeval now;
+	struct timeval now = ast_tvnow();
 	if (iaxtrunkdebug)
 		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", trunkmaxsize);
-	gettimeofday(&now, NULL);
 	if (events & AST_IO_PRI) {
 #ifdef ZT_TIMERACK
 		/* Great, this is a timing interface, just call the ioctl */
@@ -9898,12 +9889,10 @@ static int cache_get_callno_locked(const char *data)
 static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *data, const char *context, const char *exten, int priority)
 {
 	struct iax2_dpcache *dp = NULL;
-	struct timeval tv;
+	struct timeval tv = ast_tvnow();
 	int x, com[2], timeout, old = 0, outfd, abort, callno;
 	struct ast_channel *c = NULL;
 	struct ast_frame *f = NULL;
-
-	gettimeofday(&tv, NULL);
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, cache_list) {
 		if (ast_tvcmp(tv, dp->expiry) > 0) {
@@ -9932,7 +9921,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		}
 		ast_copy_string(dp->peercontext, data, sizeof(dp->peercontext));
 		ast_copy_string(dp->exten, exten, sizeof(dp->exten));
-		gettimeofday(&dp->expiry, NULL);
+		dp->expiry = ast_tvnow();
 		dp->orig = dp->expiry;
 		/* Expires in 30 mins by default */
 		dp->expiry.tv_sec += iaxdefaultdpcache;

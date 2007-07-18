@@ -252,6 +252,16 @@ void ast_join(char *s, size_t len, char * const w[]);
 */
 int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed);
 
+/*
+  \brief Parse a time (float) string.
+  \param src String to parse
+  \param dst Destination
+  \param _default Value to use if the string does not contain a valid time
+  \param consumed The number of characters 'consumed' in the string by the parse (see 'man sscanf' for details)
+  \return zero on success, non-zero on failure
+*/
+int ast_get_timeval(const char *src, struct timeval *tv, struct timeval _default, int *consumed);
+
 /*!
  * Support for dynamic strings.
  *

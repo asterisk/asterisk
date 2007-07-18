@@ -281,12 +281,13 @@ static int say_date_generic(struct ast_channel *chan, time_t t,
 	const char *ints, const char *lang, const char *format, const char *timezone, const char *prefix)
 {
 	char buf[128];
-	struct tm tm;
+	struct ast_tm tm;
+	struct timeval tv = { t, 0 };
         say_args_t a = { chan, ints, lang, -1, -1 };
 	if (format == NULL)
 		format = "";
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	snprintf(buf, sizeof(buf), "%s:%s:%04d%02d%02d%02d%02d.%02d-%d-%3d",
 		prefix,
 		format,

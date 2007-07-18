@@ -599,20 +599,20 @@ static int acf_strftime(struct ast_channel *chan, const char *cmd, char *parse,
 			     AST_APP_ARG(timezone);
 			     AST_APP_ARG(format);
 	);
-	time_t epochi;
-	struct tm tm;
+	struct timeval tv;
+	struct ast_tm tm;
 
 	buf[0] = '\0';
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
-	ast_get_time_t(args.epoch, &epochi, time(NULL), NULL);
-	ast_localtime(&epochi, &tm, args.timezone);
+	ast_get_timeval(args.epoch, &tv, ast_tvnow(), NULL);
+	ast_localtime(&tv, &tm, args.timezone);
 
 	if (!args.format)
 		args.format = "%c";
 
-	if (!strftime(buf, len, args.format, &tm))
+	if (ast_strftime(buf, len, args.format, &tm) <= 0)
 		ast_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
 
 	buf[len - 1] = '\0';
@@ -624,6 +624,14 @@ static struct ast_custom_function strftime_function = {
 	.name = "STRFTIME",
 	.synopsis = "Returns the current date/time in a specified format.",
 	.syntax = "STRFTIME([<epoch>][|[timezone][|format]])",
+	.desc =
+"STRFTIME sports all of the same formats as the underlying C function\n"
+"strftime(3) - see the man page for details.  It also supports the\n"
+"following format:\n"
+" %[n]q - fractions of a second, with leading zeroes.  For example, %3q will\n"
+"         give milliseconds and %1q will give tenths of a second.  The default\n"
+"         is to output milliseconds (n=3).  The common case is to use it in\n"
+"         combination with %S, as in \"%S.%3q\".\n",
 	.read = acf_strftime,
 };
 
@@ -635,9 +643,10 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 			     AST_APP_ARG(timezone);
 			     AST_APP_ARG(format);
 	);
-	struct tm time;
-
-	memset(&time, 0, sizeof(struct tm));
+	union {
+		struct ast_tm atm;
+		struct tm time;
+	} t = { { 0, }, };
 
 	buf[0] = '\0';
 
@@ -655,10 +664,10 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	if (!strptime(args.timestring, args.format, &time)) {
+	if (!strptime(args.timestring, args.format, &t.time)) {
 		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
 	} else {
-		snprintf(buf, len, "%d", (int) ast_mktime(&time, args.timezone));
+		snprintf(buf, len, "%d", (int) ast_mktime(&t.atm, args.timezone));
 	}
 
 	return 0;

@@ -329,7 +329,7 @@ static int modlist_modentry(const char *module, const char *description, int use
 	return 0;
 }
 
-static void print_uptimestr(int fd, time_t timeval, const char *prefix, int printsec)
+static void print_uptimestr(int fd, struct timeval timeval, const char *prefix, int printsec)
 {
 	int x; /* the main part - years, weeks, etc. */
 	struct ast_str *out;
@@ -341,40 +341,40 @@ static void print_uptimestr(int fd, time_t timeval, const char *prefix, int prin
 #define WEEK (DAY*7)
 #define YEAR (DAY*365)
 #define NEEDCOMMA(x) ((x)? ",": "")	/* define if we need a comma */
-	if (timeval < 0)	/* invalid, nothing to show */
+	if (timeval.tv_sec < 0)	/* invalid, nothing to show */
 		return;
 
 	if (printsec)  {	/* plain seconds output */
-		ast_cli(fd, "%s: %lu\n", prefix, (u_long)timeval);
+		ast_cli(fd, "%s: %lu\n", prefix, (u_long)timeval.tv_sec);
 		return;
 	}
 	out = ast_str_alloca(256);
-	if (timeval > YEAR) {
-		x = (timeval / YEAR);
-		timeval -= (x * YEAR);
-		ast_str_append(&out, 0, "%d year%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+	if (timeval.tv_sec > YEAR) {
+		x = (timeval.tv_sec / YEAR);
+		timeval.tv_sec -= (x * YEAR);
+		ast_str_append(&out, 0, "%d year%s%s ", x, ESS(x),NEEDCOMMA(timeval.tv_sec));
 	}
-	if (timeval > WEEK) {
-		x = (timeval / WEEK);
-		timeval -= (x * WEEK);
-		ast_str_append(&out, 0, "%d week%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+	if (timeval.tv_sec > WEEK) {
+		x = (timeval.tv_sec / WEEK);
+		timeval.tv_sec -= (x * WEEK);
+		ast_str_append(&out, 0, "%d week%s%s ", x, ESS(x),NEEDCOMMA(timeval.tv_sec));
 	}
-	if (timeval > DAY) {
-		x = (timeval / DAY);
-		timeval -= (x * DAY);
-		ast_str_append(&out, 0, "%d day%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+	if (timeval.tv_sec > DAY) {
+		x = (timeval.tv_sec / DAY);
+		timeval.tv_sec -= (x * DAY);
+		ast_str_append(&out, 0, "%d day%s%s ", x, ESS(x),NEEDCOMMA(timeval.tv_sec));
 	}
-	if (timeval > HOUR) {
-		x = (timeval / HOUR);
-		timeval -= (x * HOUR);
-		ast_str_append(&out, 0, "%d hour%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+	if (timeval.tv_sec > HOUR) {
+		x = (timeval.tv_sec / HOUR);
+		timeval.tv_sec -= (x * HOUR);
+		ast_str_append(&out, 0, "%d hour%s%s ", x, ESS(x),NEEDCOMMA(timeval.tv_sec));
 	}
-	if (timeval > MINUTE) {
-		x = (timeval / MINUTE);
-		timeval -= (x * MINUTE);
-		ast_str_append(&out, 0, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval));
+	if (timeval.tv_sec > MINUTE) {
+		x = (timeval.tv_sec / MINUTE);
+		timeval.tv_sec -= (x * MINUTE);
+		ast_str_append(&out, 0, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval.tv_sec));
 	}
-	x = timeval;
+	x = timeval.tv_sec;
 	if (x > 0 || out->used == 0)	/* if there is nothing, print 0 seconds */
 		ast_str_append(&out, 0, "%d second%s ", x, ESS(x));
 	ast_cli(fd, "%s: %s\n", prefix, out->str);
@@ -382,7 +382,7 @@ static void print_uptimestr(int fd, time_t timeval, const char *prefix, int prin
 
 static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	time_t curtime;
+	struct timeval curtime = ast_tvnow();
 	int printsec;
 
 	switch (cmd) {
@@ -404,11 +404,10 @@ static char * handle_showuptime(struct ast_cli_entry *e, int cmd, struct ast_cli
 		printsec = 0;
 	else
 		return CLI_SHOWUSAGE;
-	curtime = time(NULL);
-	if (ast_startuptime)
-		print_uptimestr(a->fd, curtime - ast_startuptime, "System uptime", printsec);
-	if (ast_lastreloadtime)
-		print_uptimestr(a->fd, curtime - ast_lastreloadtime, "Last reload", printsec);
+	if (ast_startuptime.tv_sec)
+		print_uptimestr(a->fd, ast_tvsub(curtime, ast_startuptime), "System uptime", printsec);
+	if (ast_lastreloadtime.tv_sec)
+		print_uptimestr(a->fd, ast_tvsub(curtime, ast_lastreloadtime), "Last reload", printsec);
 	return CLI_SUCCESS;
 }
 

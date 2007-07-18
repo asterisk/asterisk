@@ -96,24 +96,20 @@ static int sqlite_log(struct ast_cdr *cdr)
 {
 	int res = 0;
 	char *zErr = 0;
-	struct tm tm;
-	time_t t;
+	struct ast_tm tm;
 	char startstr[80], answerstr[80], endstr[80];
 	int count;
 
 	ast_mutex_lock(&sqlite_lock);
 
-	t = cdr->start.tv_sec;
-	ast_localtime(&t, &tm, NULL);
-	strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
+	ast_localtime(&cdr->start, &tm, NULL);
+	ast_strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
 
-	t = cdr->answer.tv_sec;
-	ast_localtime(&t, &tm, NULL);
-	strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
+	ast_localtime(&cdr->answer, &tm, NULL);
+	ast_strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
 
-	t = cdr->end.tv_sec;
-	ast_localtime(&t, &tm, NULL);
-	strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
+	ast_localtime(&cdr->end, &tm, NULL);
+	ast_strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
 
 	for(count=0; count<5; count++) {
 		res = sqlite_exec_printf(db,

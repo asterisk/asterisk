@@ -587,6 +587,7 @@ static void rpt_mutex_spew(void)
 	int i, j;
 	long long diff;
 	char a[100] = "";
+	struct ast_tm tm;
 	struct timeval lasttv;
 
 	ast_mutex_lock(&locklock);
@@ -597,8 +598,8 @@ static void rpt_mutex_spew(void)
 	lasttv.tv_sec = lasttv.tv_usec = 0;
 	for (i = 0; i < 32; i++) {
 		j = (i + lock_ring_index_copy) % 32;
-		strftime(a, sizeof(a) - 1, "%m/%d/%Y %H:%M:%S",
-			localtime(&lock_ring_copy[j].tv.tv_sec));
+		ast_strftime(a, sizeof(a) - 1, "%m/%d/%Y %H:%M:%S",
+			ast_localtime(&lock_ring_copy[j].tv, &tm, NULL));
 		diff = 0;
 		if (lasttv.tv_sec) {
 			diff = (lock_ring_copy[j].tv.tv_sec - lasttv.tv_sec) * 1000000;
@@ -1890,7 +1891,7 @@ static void *rpt_tele_thread(void *this)
 	struct ast_channel *mychannel;
 	const char *p, *ct;
 	time_t t;
-	struct tm localtm;
+	struct ast_tm localtm;
 #ifdef  APP_RPT_LOCK_DEBUG
 	struct lockthread *t;
 #endif
@@ -5619,7 +5620,7 @@ static void queue_id(struct rpt *myrpt)
 static void do_scheduler(struct rpt *myrpt)
 {
 	int res;
-	struct tm tmnow;
+	struct ast_tm tmnow;
 
 	memcpy(&myrpt->lasttv, &myrpt->curtv, sizeof(struct timeval));
 	

@@ -551,7 +551,7 @@ int ast_module_reload(const char *name)
 		ast_verbose("The previous reload command didn't finish yet\n");
 		return -1;	/* reload already in progress */
 	}
-	ast_lastreloadtime = time(NULL);
+	ast_lastreloadtime = ast_tvnow();
 
 	/* Call "predefined" reload here first */
 	for (i = 0; reload_classes[i].name; i++) {

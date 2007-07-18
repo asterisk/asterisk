@@ -866,8 +866,8 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 {
 	struct logmsg *logmsg = NULL;
 	struct ast_str *buf = NULL;
-	struct tm tm;
-	time_t t;
+	struct ast_tm tm;
+	struct timeval tv = ast_tvnow();
 	int res = 0;
 	va_list ap;
 
@@ -929,9 +929,8 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	logmsg->type = LOGMSG_NORMAL;
 
 	/* Create our date/time */
-	time(&t);
-	ast_localtime(&t, &tm, NULL);
-	strftime(logmsg->date, sizeof(logmsg->date), dateformat, &tm);
+	ast_localtime(&tv, &tm, NULL);
+	ast_strftime(logmsg->date, sizeof(logmsg->date), dateformat, &tm);
 
 	/* Copy over data */
 	logmsg->level = level;
@@ -993,14 +992,14 @@ void ast_verbose(const char *fmt, ...)
 		return;
 
         if (ast_opt_timestamp) {
-                time_t t;
-                struct tm tm;
+                struct timeval tv;
+                struct ast_tm tm;
                 char date[40];
                 char *datefmt;
 
-                time(&t);
-                ast_localtime(&t, &tm, NULL);
-                strftime(date, sizeof(date), dateformat, &tm);
+				tv = ast_tvnow();
+                ast_localtime(&tv, &tm, NULL);
+                ast_strftime(date, sizeof(date), dateformat, &tm);
                 datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
                 sprintf(datefmt, "[%s] %s", date, fmt);
                 fmt = datefmt;

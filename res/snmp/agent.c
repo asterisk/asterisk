@@ -575,14 +575,14 @@ static u_char *ast_var_Config(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case ASTCONFUPTIME:
 		gettimeofday(&tval, NULL);
-		long_ret = difftime(tval.tv_sec, ast_startuptime) * 100 + tval.tv_usec / 10000;
+		long_ret = difftime(tval.tv_sec, ast_startuptime.tv_sec) * 100 + tval.tv_usec / 10000 - ast_startuptime.tv_usec / 10000;
 		return (u_char *)&long_ret;
 	case ASTCONFRELOADTIME:
 		gettimeofday(&tval, NULL);
-		if (ast_lastreloadtime)
-			long_ret = difftime(tval.tv_sec, ast_lastreloadtime) * 100 + tval.tv_usec / 10000;
+		if (ast_lastreloadtime.tv_sec)
+			long_ret = difftime(tval.tv_sec, ast_lastreloadtime.tv_sec) * 100 + tval.tv_usec / 10000 - ast_lastreloadtime.tv_usec / 10000;
 		else
-			long_ret = difftime(tval.tv_sec, ast_startuptime) * 100 + tval.tv_usec / 10000;
+			long_ret = difftime(tval.tv_sec, ast_startuptime.tv_sec) * 100 + tval.tv_usec / 10000 - ast_startuptime.tv_usec / 10000;
 		return (u_char *)&long_ret;
 	case ASTCONFPID:
 		long_ret = getpid();

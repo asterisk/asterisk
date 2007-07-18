@@ -277,9 +277,10 @@ static void numcpy(char *d, char *s)
 /*! \brief static, return a date/time in ISO format */
 static char *isodate(time_t t, char *buf, int len)
 {
-	struct tm tm;
-	ast_localtime(&t, &tm, NULL);
-	strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
+	struct ast_tm tm;
+	struct timeval tv = { t, 0 };
+	ast_localtime(&tv, &tm, NULL);
+	ast_strftime(buf, len, "%Y-%m-%dT%H:%M:%S", &tm);
 	return buf;
 }
 
@@ -511,10 +512,11 @@ static int packsms(unsigned char dcs, unsigned char *base, unsigned int udhl, un
 /*! \brief pack a date and return */
 static void packdate(unsigned char *o, time_t w)
 {
-	struct tm t;
+	struct ast_tm t;
+	struct timeval tv = { w, 0 };
 	int z;
 
-	ast_localtime(&w, &t, NULL);
+	ast_localtime(&tv, &t, NULL);
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
 	z = -t.tm_gmtoff / 60 / 15;
 #else
@@ -1113,7 +1115,8 @@ static void putdummydata_proto2(sms_t *h)
 
 static void sms_compose2(sms_t *h, int more)
 {
-	struct tm tm;
+	struct ast_tm tm;
+	struct timeval tv = { h->scts, 0 };
 	char stm[9];
 
 	h->omsg[0] = 0x00;       /* set later... */
@@ -1122,7 +1125,7 @@ static void sms_compose2(sms_t *h, int more)
 	if (h->smsc) {		  /* deliver */
 		h->omsg[0] = 0x11;      /* SMS_DELIVERY */
 		/* Required: 10 11 12 13 14 15 17 (seems they must be ordered!) */
-		ast_localtime(&h->scts, &tm, NULL);
+		ast_localtime(&tv, &tm, NULL);
 		sprintf(stm, "%02d%02d%02d%02d", tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);     /* Date mmddHHMM */
 		adddata_proto2(h, 0x14, stm, 8);	       /* Date */
 		if (*h->oa == 0)
@@ -1160,14 +1163,15 @@ static int sms_handleincoming_proto2(sms_t *h)
 {
 	int f, i, sz = 0;
 	int msg, msgsz;
-	struct tm tm;
+	struct ast_tm tm;
+	struct timeval tv = { 0, 0 };
 	char debug_buf[MAX_DEBUG_LEN * 3 + 1];
 
 	sz = h->imsg[1] + 2;
 	/* ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg, sz, debug_buf)); */
 
 	/* Parse message body (called payload) */
-	h->scts = time(NULL);
+	tv.tv_sec = h->scts = time(NULL);
 	for (f = 4; f < sz; ) {
 		msg = h->imsg[f++];
 		msgsz = h->imsg[f++];
@@ -1183,14 +1187,14 @@ static int sms_handleincoming_proto2(sms_t *h)
 			h->udl = msgsz;
 			break;
 		case 0x14:      /* Date SCTS */
-			h->scts = time(NULL);
-			ast_localtime(&h->scts, &tm, NULL);
+			tv.tv_sec = h->scts = time(NULL);
+			ast_localtime(&tv, &tm, NULL);
 			tm.tm_mon = ( (h->imsg[f] * 10) + h->imsg[f + 1] ) - 1;
 			tm.tm_mday = ( (h->imsg[f + 2] * 10) + h->imsg[f + 3] );
 			tm.tm_hour = ( (h->imsg[f + 4] * 10) + h->imsg[f + 5] );
 			tm.tm_min = ( (h->imsg[f + 6] * 10) + h->imsg[f + 7] );
 			tm.tm_sec = 0;
-			h->scts = mktime(&tm);
+			h->scts = ast_mktime(&tm, NULL);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", msg, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
 			break;

@@ -1212,7 +1212,7 @@ struct sip_registry {
 	int refresh;			/*!< How often to refresh */
 	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
 	enum sipregistrystate regstate;	/*!< Registration state (see above) */
-	time_t regtime;		/*!< Last successful registration time */
+	struct timeval regtime;		/*!< Last successful registration time */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
 	struct sockaddr_in us;		/*!< Who the server thinks we are */
@@ -11042,7 +11042,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s %-25.25s\n"
 	char host[80];
 	char tmpdat[256];
-	struct tm tm;
+	struct ast_tm tm;
 	int counter = 0;
 
 	if (argc != 3)
@@ -11051,9 +11051,9 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : STANDARD_SIP_PORT);
-		if (iterator->regtime) {
+		if (iterator->regtime.tv_sec) {
 			ast_localtime(&iterator->regtime, &tm, NULL);
-			strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
+			ast_strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T", &tm);
 		} else 
 			tmpdat[0] = '\0';
 		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate), tmpdat);
@@ -12975,7 +12975,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		}
 
 		r->regstate = REG_STATE_REGISTERED;
-		r->regtime = time(NULL);		/* Reset time of last succesful registration */
+		r->regtime = ast_tvnow();		/* Reset time of last succesful registration */
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 		r->regattempts = 0;
 		ast_debug(1, "Registration successful\n");
@@ -16177,7 +16177,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 #else
 	xmitres = transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
-	gettimeofday(&peer->ps, NULL);
+	peer->ps = ast_tvnow();
 	if (xmitres == XMIT_ERROR)
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	else

@@ -95,15 +95,12 @@ static int odbc_log(struct ast_cdr *cdr)
 	int ODBC_res;
 	char sqlcmd[2048] = "", timestr[128];
 	int res = 0;
-	struct tm tm;
+	struct ast_tm tm;
 
-	if (usegmtime) 
-		gmtime_r(&cdr->start.tv_sec,&tm);
-	else
-		ast_localtime(&cdr->start.tv_sec, &tm, NULL);
+	ast_localtime(&cdr->start, &tm, usegmtime ? "GMT" : NULL);
 
 	ast_mutex_lock(&odbc_lock);
-	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
+	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	memset(sqlcmd,0,2048);
 	if (loguniqueid) {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "

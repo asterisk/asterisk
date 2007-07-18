@@ -3059,7 +3059,7 @@ static int zt_answer(struct ast_channel *ast)
 		/* Pick up the line */
 		ast_debug(1, "Took %s off hook\n", ast->name);
 		if (p->hanguponpolarityswitch) {
-			gettimeofday(&p->polaritydelaytv, NULL);
+			p->polaritydelaytv = ast_tvnow();
 		}
 		res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 		tone_zone_play_tone(p->subs[index].zfd, -1);
@@ -4463,7 +4463,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				break;
 			}
 			/* Remember last time we got a flash-hook */
-			gettimeofday(&p->flashtime, NULL);
+			p->flashtime = ast_tvnow();
 			switch (mysig) {
 			case SIG_FXOLS:
 			case SIG_FXOGS:
@@ -4733,7 +4733,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					ast_debug(1, "Answering on polarity switch!\n");
 					ast_setstate(p->owner, AST_STATE_UP);
 					if (p->hanguponpolarityswitch) {
-						gettimeofday(&p->polaritydelaytv, NULL);
+						p->polaritydelaytv = ast_tvnow();
 					}
 				} else
 					ast_debug(1, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
@@ -4836,7 +4836,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 			/* Do nothing */
 			break;
 		case ZT_EVENT_WINKFLASH:
-			gettimeofday(&p->flashtime, NULL);
+			p->flashtime = ast_tvnow();
 			if (p->owner) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Channel %d flashed to other channel %s\n", p->channel, p->owner->name);
@@ -8539,7 +8539,7 @@ static void *ss7_linkset(void *data)
 	while(1) {
 		ast_mutex_lock(&linkset->lock);
 		if ((next = ss7_schedule_next(ss7))) {
-			gettimeofday(&tv, NULL);
+			tv = ast_tvnow();
 			tv.tv_sec = next->tv_sec - tv.tv_sec;
 			tv.tv_usec = next->tv_usec - tv.tv_usec;
 			if (tv.tv_usec < 0) {
@@ -9302,7 +9302,7 @@ static void *pri_dchannel(void *vpri)
 	int nextidle = -1;
 	struct ast_channel *c;
 	struct timeval tv, lowest, *next;
-	struct timeval lastidle = { 0, 0 };
+	struct timeval lastidle = ast_tvnow();
 	int doidling=0;
 	char *cc;
 	char idlen[80];
@@ -9319,7 +9319,6 @@ static void *pri_dchannel(void *vpri)
 	char plancallingani[256];
 	char calledtonstr[10];
 	
-	gettimeofday(&lastidle, NULL);
 	if (!ast_strlen_zero(pri->idledial) && !ast_strlen_zero(pri->idleext)) {
 		/* Need to do idle dialing, check to be sure though */
 		cc = strchr(pri->idleext, '@');
@@ -9389,7 +9388,7 @@ static void *pri_dchannel(void *vpri)
 						}
 					} else
 						ast_log(LOG_WARNING, "Unable to request channel 'Zap/%s' for idle call\n", idlen);
-					gettimeofday(&lastidle, NULL);
+					lastidle = ast_tvnow();
 				}
 			} else if ((haveidles < pri->minunused) &&
 				   (activeidles > pri->minidle)) {

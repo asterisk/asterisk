@@ -188,21 +188,15 @@ static int append_int(char *buf, int s, size_t bufsize)
 static int append_date(char *buf, struct timeval tv, size_t bufsize)
 {
 	char tmp[80] = "";
-	struct tm tm;
-	time_t t;
-	t = tv.tv_sec;
+	struct ast_tm tm;
 	if (strlen(buf) > bufsize - 3)
 		return -1;
 	if (ast_tvzero(tv)) {
 		strncat(buf, ",", bufsize - strlen(buf) - 1);
 		return 0;
 	}
-	if (usegmtime) {
-		gmtime_r(&t,&tm);
-	} else {
-		ast_localtime(&t, &tm, NULL);
-	}
-	strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
+	ast_localtime(&tv, &tm, usegmtime ? "GMT" : NULL);
+	ast_strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
 	return append_string(buf, tmp, bufsize);
 }
 

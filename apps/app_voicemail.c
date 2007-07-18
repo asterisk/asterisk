@@ -1964,10 +1964,10 @@ static char *quote(const char *from, char *to, size_t len)
  * fill in *tm for current time according to the proper timezone, if any.
  * Return tm so it can be used as a function argument.
  */
-static const struct tm *vmu_tm(const struct ast_vm_user *vmu, struct tm *tm)
+static const struct ast_tm *vmu_tm(const struct ast_vm_user *vmu, struct ast_tm *tm)
 {
 	const struct vm_zone *z = NULL;
-	time_t t = time(NULL);
+	struct timeval t = ast_tvnow();
 
 	/* Does this user have a timezone specified? */
 	if (!ast_strlen_zero(vmu->zonetag)) {
@@ -2007,7 +2007,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 	char fname[256];
 	char dur[256];
 	char tmpcmd[256];
-	struct tm tm;
+	struct ast_tm tm;
 	char *passdata2;
 	size_t len_passdata;
 	char *greeting_attachment;
@@ -2029,11 +2029,11 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 		*greeting_attachment++ = '\0';
 
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-	strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
+	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 	fprintf(p, "Date: %s" ENDL, date);
 
 	/* Set date format for voicemail mail */
-	strftime(date, sizeof(date), emaildateformat, &tm);
+	ast_strftime(date, sizeof(date), emaildateformat, &tm);
 
 	if (!ast_strlen_zero(fromstring)) {
 		struct ast_channel *ast;
@@ -2214,7 +2214,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	char dur[PATH_MAX];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[PATH_MAX];
-	struct tm tm;
+	struct ast_tm tm;
 	FILE *p;
 
 	if ((p = vm_mkftemp(tmp)) == NULL) {
@@ -2227,7 +2227,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	else 
 		snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 	snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-	strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
+	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 	fprintf(p, "Date: %s\n", date);
 
 	if (*pagerfromstring) {
@@ -2266,7 +2266,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	} else
 		fprintf(p, "Subject: New VM\n\n");
 
-	strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
+	ast_strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 	if (pagerbody) {
 		struct ast_channel *ast;
 		if ((ast = ast_channel_alloc(0, AST_STATE_DOWN, 0, 0, "", "", "", 0, 0))) {
@@ -2293,11 +2293,10 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 
 static int get_date(char *s, int len)
 {
-	struct tm tm;
-	time_t t;
-	t = time(0);
+	struct ast_tm tm;
+	struct timeval t = ast_tvnow();
 	ast_localtime(&t, &tm, NULL);
-	return strftime(s, len, "%a %b %e %r %Z %Y", &tm);
+	return ast_strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
 static int invent_message(struct ast_channel *chan, char *context, char *ext, int busy, char *ecodes)
@@ -4472,8 +4471,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 	/* Set the DIFF_* variables */
 	ast_localtime(&t, &time_now, NULL);
 	tv_now = ast_tvnow();
-	tnow = tv_now.tv_sec;
-	ast_localtime(&tnow, &time_then, NULL);
+	ast_localtime(&tv_now, &time_then, NULL);
 
 	/* Day difference */
 	if (time_now.tm_year == time_then.tm_year)

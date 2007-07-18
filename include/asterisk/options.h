@@ -116,8 +116,8 @@ extern long option_minmemfree;		/*!< Minimum amount of free system memory - stop
 #endif
 extern char defaultlanguage[];
 
-extern time_t ast_startuptime;
-extern time_t ast_lastreloadtime;
+extern struct timeval ast_startuptime;
+extern struct timeval ast_lastreloadtime;
 extern pid_t ast_mainpid;
 
 extern char record_cache_dir[AST_CACHE_DIR_LEN];

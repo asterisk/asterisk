@@ -103,8 +103,7 @@ static int load_config(void)
 
 static int manager_log(struct ast_cdr *cdr)
 {
-	time_t t;
-	struct tm timeresult;
+	struct ast_tm timeresult;
 	char strStartTime[80] = "";
 	char strAnswerTime[80] = "";
 	char strEndTime[80] = "";
@@ -114,19 +113,16 @@ static int manager_log(struct ast_cdr *cdr)
 	if (!enablecdr)
 		return 0;
 
-	t = cdr->start.tv_sec;
-	ast_localtime(&t, &timeresult, NULL);
-	strftime(strStartTime, sizeof(strStartTime), DATE_FORMAT, &timeresult);
+	ast_localtime(&cdr->start, &timeresult, NULL);
+	ast_strftime(strStartTime, sizeof(strStartTime), DATE_FORMAT, &timeresult);
 	
 	if (cdr->answer.tv_sec)	{
-    		t = cdr->answer.tv_sec;
-    		ast_localtime(&t, &timeresult, NULL);
-		strftime(strAnswerTime, sizeof(strAnswerTime), DATE_FORMAT, &timeresult);
+		ast_localtime(&cdr->answer, &timeresult, NULL);
+		ast_strftime(strAnswerTime, sizeof(strAnswerTime), DATE_FORMAT, &timeresult);
 	}
 
-	t = cdr->end.tv_sec;
-	ast_localtime(&t, &timeresult, NULL);
-	strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
+	ast_localtime(&cdr->end, &timeresult, NULL);
+	ast_strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
 	/* Custom fields handling */
 	memset(buf, 0 , sizeof(buf));

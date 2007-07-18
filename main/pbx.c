@@ -4279,10 +4279,10 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 
 int ast_check_timing(const struct ast_timing *i)
 {
-	struct tm tm;
-	time_t t = time(NULL);
+	struct ast_tm tm;
+	struct timeval tv = ast_tvnow();
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	/* If it's not the right month, return */
 	if (!(i->monthmask & (1 << tm.tm_mon)))

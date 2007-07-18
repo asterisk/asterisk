@@ -736,15 +736,11 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 		gw->msgs = msg;
 	}
 
-	if (gettimeofday(&tv, NULL) < 0) {
-		/* This shouldn't ever happen, but let's be sure */
-		ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
-	} else {
-		msg->expire = tv.tv_sec * 1000 + tv.tv_usec / 1000 + DEFAULT_RETRANS;
+	tv = ast_tvnow();
+	msg->expire = tv.tv_sec * 1000 + tv.tv_usec / 1000 + DEFAULT_RETRANS;
 
-		if (gw->retransid == -1)
-			gw->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, (void *)gw);
-	}
+	if (gw->retransid == -1)
+		gw->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, (void *)gw);
 	ast_mutex_unlock(&gw->msgs_lock);
 /* SC
 	if (!gw->messagepending) {
@@ -2232,11 +2228,10 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 	struct mgcp_request resp;
 	char tone2[256];
 	char *l, *n;
-	time_t t;
-	struct tm tm;
+	struct timeval t = ast_tvnow();
+	struct ast_tm tm;
 	struct mgcp_endpoint *p = sub->parent;
 	
-	time(&t);
 	ast_localtime(&t, &tm, NULL);
 	n = callername;
 	l = callernum;

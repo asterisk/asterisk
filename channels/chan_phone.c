@@ -293,11 +293,10 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	struct phone_pvt *p;
 
 	PHONE_CID cid;
-	time_t UtcTime;
-	struct tm tm;
+	struct timeval UtcTime = ast_tvnow();
+	struct ast_tm tm;
 	int start;
 
-	time(&UtcTime);
 	ast_localtime(&UtcTime, &tm, NULL);
 
 	memset(&cid, 0, sizeof(PHONE_CID));

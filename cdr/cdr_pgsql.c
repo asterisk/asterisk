@@ -71,15 +71,15 @@ static PGconn	*conn = NULL;
 
 static int pgsql_log(struct ast_cdr *cdr)
 {
-	struct tm tm;
+	struct ast_tm tm;
 	char sqlcmd[2048] = "", timestr[128];
 	char *pgerror;
 	PGresult *result;
 
 	ast_mutex_lock(&pgsql_lock);
 
-	ast_localtime(&cdr->start.tv_sec, &tm, NULL);
-	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
+	ast_localtime(&cdr->start, &tm, NULL);
+	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
 	if ((!connected) && pghostname && pgdbuser && pgpassword && pgdbname) {
 		conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);

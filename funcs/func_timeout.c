@@ -92,7 +92,7 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 {
 	int x;
 	char timestr[64];
-	struct tm myt;
+	struct ast_tm myt;
 
 	if (!chan)
 		return -1;
@@ -113,8 +113,9 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 		ast_channel_setwhentohangup(chan, x);
 		if (option_verbose > 2) {
 			if (chan->whentohangup) {
-				strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S UTC",
-					 gmtime_r(&chan->whentohangup, &myt));
+				struct timeval tv = { chan->whentohangup, 0 };
+				ast_strftime(timestr, sizeof(timestr), "%Y-%m-%d %H:%M:%S.%3q %Z",
+					ast_localtime(&tv, &myt, NULL));
 				ast_verbose(VERBOSE_PREFIX_3 "Channel will hangup at %s.\n",
 					    timestr);
 			} else {

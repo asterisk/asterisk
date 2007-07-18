@@ -2909,10 +2909,11 @@ static int say_date(struct ast_channel *chan, time_t t, const char *ints, const 
 /* English syntax */
 int ast_say_date_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct ast_tm tm;
+	struct timeval tv = { t, 0 };
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -2937,10 +2938,11 @@ int ast_say_date_en(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Danish syntax */
 int ast_say_date_da(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -2985,10 +2987,11 @@ int ast_say_date_da(struct ast_channel *chan, time_t t, const char *ints, const 
 /* German syntax */
 int ast_say_date_de(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -3034,10 +3037,11 @@ int ast_say_date_de(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Hungarian syntax */
 int ast_say_date_hu(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	if (!res)
 		res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
@@ -3065,10 +3069,11 @@ int ast_say_date_hu(struct ast_channel *chan, time_t t, const char *ints, const 
 /* French syntax */
 int ast_say_date_fr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -3093,10 +3098,11 @@ int ast_say_date_fr(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Dutch syntax */
 int ast_say_date_nl(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -3121,10 +3127,11 @@ int ast_say_date_nl(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Thai syntax */
 int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -3156,11 +3163,12 @@ int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Portuguese syntax */
 int ast_say_date_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 	if (!res)
 		res = wait_file(chan, ints, fn, lang);
@@ -3216,14 +3224,15 @@ static int say_date_with_format(struct ast_channel *chan, time_t time, const cha
 /* English syntax */
 int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "ABdY 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -3351,16 +3360,15 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
 					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3389,15 +3397,14 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					now = ast_tvnow();
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -3458,14 +3465,15 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 /* Danish syntax */
 int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (!format)
 		format = "A dBY HMS";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -3578,16 +3586,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3605,16 +3611,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -3663,14 +3667,15 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 /* German syntax */
 int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (!format)
 		format = "A dBY HMS";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -3781,16 +3786,14 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3808,13 +3811,11 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
 					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
@@ -3866,14 +3867,15 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 /* Thai syntax */
 int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "a 'digits/tee' e 'digits/duan' hY  I 'digits/naliga' M 'digits/natee'";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -3942,16 +3944,14 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -3979,16 +3979,14 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -4064,14 +4062,15 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 	/* TODO: This whole function is cut&paste from 
 	 * ast_say_date_with_format_en . Is that considered acceptable?
 	 **/
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (!format)
 		format = IL_DATE_STR_FULL;
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -4165,17 +4164,15 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 					char todo = format[offset]; /* The letter to format*/
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						if (todo == 'Q') {
@@ -4246,14 +4243,15 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 /* Spanish syntax */
 int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -4331,16 +4329,14 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4358,16 +4354,14 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4438,14 +4432,15 @@ oclock = heure
 */
 int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "AdBY 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -4555,16 +4550,14 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4582,16 +4575,14 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -4636,14 +4627,15 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 
 int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "AdB 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -4653,7 +4645,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				/* Literal name of a sound file */
 				sndoffset=0;
 				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
-				sndfile[sndoffset] = format[offset];
+					sndfile[sndoffset] = format[offset];
 				sndfile[sndoffset] = '\0';
 				res = wait_file(chan,ints,sndfile,lang);
 				break;
@@ -4768,16 +4760,14 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 	
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -4792,16 +4782,14 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 	
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -4869,14 +4857,15 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 /* Dutch syntax */
 int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "ABdY 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -5001,16 +4990,14 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -5025,16 +5012,14 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -5077,11 +5062,12 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 /* Polish syntax */
 int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { thetime, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
-	ast_localtime(&thetime, &tm, timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset = 0 ; format[offset] != '\0' ; offset++) {
 		int remainder;
@@ -5203,14 +5189,14 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
 				{
-					time_t tv_sec = time(NULL);
-					struct tm tmnow;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
 					time_t beg_today;
 
-					ast_localtime(&tv_sec,&tmnow, timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < thetime) {
 						/* Today */
 						res = wait_file(chan, ints, "digits/today", lang);
@@ -5225,14 +5211,14 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or AdBY */
 				{
-					time_t tv_sec = time(NULL);
-					struct tm tmnow;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
 					time_t beg_today;
 
-					ast_localtime(&tv_sec, &tmnow, timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < thetime) {
 						/* Today */
 					} else if ((beg_today - 86400) < thetime) {
@@ -5293,14 +5279,15 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 /* Portuguese syntax */
 int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "Ad 'digits/pt-de' B 'digits/pt-de' Y 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -5476,16 +5463,14 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -5503,16 +5488,14 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -5591,14 +5574,15 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 /* Taiwanese / Chinese syntax */
 int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (format == NULL)
 		format = "YBdAkM";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -5769,16 +5753,14 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 						res = wait_file(chan,ints, "digits/today",lang);
@@ -5796,16 +5778,14 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 				{
-					struct timeval now;
-					struct tm tmnow;
-					time_t beg_today, tt;
+					struct timeval now = ast_tvnow();
+					struct ast_tm tmnow;
+					time_t beg_today;
 
-					gettimeofday(&now,NULL);
-					tt = now.tv_sec;
-					ast_localtime(&tt,&tmnow,timezone);
+					ast_localtime(&now, &tmnow, timezone);
 					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 					/* In any case, it saves not having to do ast_mktime() */
-					beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 					if (beg_today < time) {
 						/* Today */
 					} else if ((beg_today - 86400) < time) {
@@ -5895,11 +5875,12 @@ static int say_time(struct ast_channel *chan, time_t t, const char *ints, const 
 /* English syntax */
 int ast_say_time_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 	int hour, pm=0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	hour = tm.tm_hour;
 	if (!hour)
 		hour = 12;
@@ -5943,10 +5924,11 @@ int ast_say_time_en(struct ast_channel *chan, time_t t, const char *ints, const 
 /* German syntax */
 int ast_say_time_de(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res)
 		res = ast_say_number(chan, tm.tm_hour, ints, lang, "n");
 	if (!res)
@@ -5962,10 +5944,11 @@ int ast_say_time_de(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Hungarian syntax */
 int ast_say_time_hu(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res)
 		res = ast_say_number(chan, tm.tm_hour, ints, lang, "n");
 	if (!res)
@@ -5984,10 +5967,11 @@ int ast_say_time_hu(struct ast_channel *chan, time_t t, const char *ints, const 
 /* French syntax */
 int ast_say_time_fr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	res = ast_say_number(chan, tm.tm_hour, ints, lang, "f");
 	if (!res)
@@ -6002,10 +5986,11 @@ int ast_say_time_fr(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Dutch syntax */
 int ast_say_time_nl(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res)
 		res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);
 	if (!res)
@@ -6021,11 +6006,12 @@ int ast_say_time_nl(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Portuguese syntax */
 int ast_say_time_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 	int hour;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	hour = tm.tm_hour;
 	if (!res)
 		res = ast_say_number(chan, hour, ints, lang, "f");
@@ -6049,10 +6035,11 @@ int ast_say_time_pt(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Brazilian Portuguese syntax */
 int ast_say_time_pt_BR(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	res = ast_say_number(chan, tm.tm_hour, ints, lang, "f");
 	if (!res) {
@@ -6078,10 +6065,11 @@ int ast_say_time_pt_BR(struct ast_channel *chan, time_t t, const char *ints, con
 /* Thai  syntax */
 int ast_say_time_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 	int hour;
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	hour = tm.tm_hour;
 	if (!hour)
 		hour = 24;
@@ -6095,11 +6083,12 @@ int ast_say_time_th(struct ast_channel *chan, time_t t, const char *ints, const 
 /* Taiwanese / Chinese  syntax */
 int ast_say_time_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 	int hour, pm=0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	hour = tm.tm_hour;
 	if (!hour)
 		hour = 12;
@@ -6166,12 +6155,13 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 /* English syntax */
 int ast_say_datetime_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 	int hour, pm=0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -6232,10 +6222,11 @@ int ast_say_datetime_en(struct ast_channel *chan, time_t t, const char *ints, co
 /* German syntax */
 int ast_say_datetime_de(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	res = ast_say_date(chan, t, ints, lang);
 	if (!res) 
 		ast_say_time(chan, t, ints, lang);
@@ -6246,10 +6237,11 @@ int ast_say_datetime_de(struct ast_channel *chan, time_t t, const char *ints, co
 /* Hungarian syntax */
 int ast_say_datetime_hu(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	res = ast_say_date(chan, t, ints, lang);
 	if (!res) 
 		ast_say_time(chan, t, ints, lang);
@@ -6259,11 +6251,12 @@ int ast_say_datetime_hu(struct ast_channel *chan, time_t t, const char *ints, co
 /* French syntax */
 int ast_say_datetime_fr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	if (!res)
 		res = ast_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
@@ -6299,10 +6292,11 @@ int ast_say_datetime_fr(struct ast_channel *chan, time_t t, const char *ints, co
 /* Dutch syntax */
 int ast_say_datetime_nl(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	res = ast_say_date(chan, t, ints, lang);
 	if (!res) {
 		res = ast_streamfile(chan, "digits/nl-om", lang);
@@ -6317,12 +6311,13 @@ int ast_say_datetime_nl(struct ast_channel *chan, time_t t, const char *ints, co
 /* Portuguese syntax */
 int ast_say_datetime_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 	int hour, pm=0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -6383,10 +6378,11 @@ int ast_say_datetime_pt(struct ast_channel *chan, time_t t, const char *ints, co
 /* Brazilian Portuguese syntax */
 int ast_say_datetime_pt_BR(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	res = ast_say_date(chan, t, ints, lang);
 	if (!res)
 		res = ast_say_time(chan, t, ints, lang);
@@ -6396,11 +6392,12 @@ int ast_say_datetime_pt_BR(struct ast_channel *chan, time_t t, const char *ints,
 /* Thai syntax */
 int ast_say_datetime_th(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 	int hour;
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
@@ -6438,12 +6435,13 @@ int ast_say_datetime_th(struct ast_channel *chan, time_t t, const char *ints, co
 /* Taiwanese / Chinese syntax */
 int ast_say_datetime_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 	int hour, pm=0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	if (!res)
 		res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
 	if (!res) {
@@ -6514,16 +6512,14 @@ static int say_datetime_from_now(struct ast_channel *chan, time_t t, const char 
 int ast_say_datetime_from_now_en(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	int res=0;
-	time_t nowt;
+	struct timeval nowtv = ast_tvnow(), tv = { t, 0 };
 	int daydiff;
-	struct tm tm;
-	struct tm now;
+	struct ast_tm tm;
+	struct ast_tm now;
 	char fn[256];
 
-	time(&nowt);
-
-	ast_localtime(&t, &tm, NULL);
-	ast_localtime(&nowt,&now, NULL);
+	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&nowtv, &now, NULL);
 	daydiff = now.tm_yday - tm.tm_yday;
 	if ((daydiff < 0) || (daydiff > 6)) {
 		/* Day of month and month */
@@ -6554,16 +6550,14 @@ int ast_say_datetime_from_now_en(struct ast_channel *chan, time_t t, const char 
 int ast_say_datetime_from_now_fr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	int res=0;
-	time_t nowt;
+	struct timeval nowtv = ast_tvnow(), tv = { t, 0 };
 	int daydiff;
-	struct tm tm;
-	struct tm now;
+	struct ast_tm tm;
+	struct ast_tm now;
 	char fn[256];
 
-	time(&nowt);
-
-	ast_localtime(&t, &tm, NULL);
-	ast_localtime(&nowt, &now, NULL);
+	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&nowtv, &now, NULL);
 	daydiff = now.tm_yday - tm.tm_yday;
 	if ((daydiff < 0) || (daydiff > 6)) {
 		/* Day of month and month */
@@ -6594,16 +6588,14 @@ int ast_say_datetime_from_now_fr(struct ast_channel *chan, time_t t, const char 
 int ast_say_datetime_from_now_pt(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	int res=0;
-	time_t nowt;
 	int daydiff;
-	struct tm tm;
-	struct tm now;
+	struct ast_tm tm;
+	struct ast_tm now;
+	struct timeval nowtv = ast_tvnow(), tv = { t, 0 };
 	char fn[256];
 
-	time(&nowt);
-
-	ast_localtime(&t, &tm, NULL);
-	ast_localtime(&nowt, &now, NULL);
+	ast_localtime(&tv, &tm, NULL);
+	ast_localtime(&nowtv, &now, NULL);
 	daydiff = now.tm_yday - tm.tm_yday;
 	if ((daydiff < 0) || (daydiff > 6)) {
 		/* Day of month and month */
@@ -6778,13 +6770,14 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 
 static int ast_say_date_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct ast_tm tm;
+	struct timeval tv = { t, 0 };
 	
 	char fn[256];
 	int res = 0;
 	
 
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 	/* W E E K - D A Y */
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
@@ -6822,11 +6815,12 @@ static int ast_say_date_gr(struct ast_channel *chan, time_t t, const char *ints,
 static int ast_say_time_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 	int hour, pm=0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	hour = tm.tm_hour;
 
 	if (!hour)
@@ -6868,13 +6862,13 @@ static int ast_say_time_gr(struct ast_channel *chan, time_t t, const char *ints,
 
 static int ast_say_datetime_gr(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 
-	
 	/* W E E K - D A Y */
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
@@ -6900,15 +6894,15 @@ static int ast_say_datetime_gr(struct ast_channel *chan, time_t t, const char *i
 
 static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
-	
-	struct tm tm;
+	struct timeval tv = { time, 0 };
+	struct ast_tm tm;
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
 	if (!format)
 		format = "AdBY 'digits/at' IMp";
 
-	ast_localtime(&time,&tm,timezone);
+	ast_localtime(&tv, &tm, timezone);
 	
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_debug(1, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -6991,16 +6985,14 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 			{
-				struct timeval now;
-				struct tm tmnow;
-				time_t beg_today, tt;
+				struct timeval now = ast_tvnow();
+				struct ast_tm tmnow;
+				time_t beg_today;
 				
-				gettimeofday(&now,NULL);
-				tt = now.tv_sec;
-				ast_localtime(&tt,&tmnow,timezone);
+				ast_localtime(&now, &tmnow, timezone);
 				/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 				/* In any case, it saves not having to do ast_mktime() */
-				beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+				beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 				if (beg_today < time) {
 					/* Today */
 					res = wait_file(chan,ints, "digits/today",lang);
@@ -7018,16 +7010,14 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 				 * language to say the date, with changes in what you say, depending
 				 * upon how recent the date is. XXX */
 			{
-				struct timeval now;
-				struct tm tmnow;
-				time_t beg_today, tt;
+				struct timeval now = ast_tvnow();
+				struct ast_tm tmnow;
+				time_t beg_today;
 				
-				gettimeofday(&now,NULL);
-				tt = now.tv_sec;
-				ast_localtime(&tt,&tmnow,timezone);
+				ast_localtime(&now, &tmnow, timezone);
 				/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
 				/* In any case, it saves not having to do ast_mktime() */
-				beg_today = tt - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+				beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
 				if (beg_today < time) {
 					/* Today */
 				} else if ((beg_today - 86400) < time) {
@@ -7320,10 +7310,11 @@ tslis
 /* Georgian syntax. e.g. "oriatas xuti tslis 5 noemberi". */
 static int ast_say_date_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	char fn[256];
 	int res = 0;
-	ast_localtime(&t,&tm,NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	if (!res)
 		res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
@@ -7359,10 +7350,11 @@ static int ast_say_date_ge(struct ast_channel *chan, time_t t, const char *ints,
 /* Georgian syntax. e.g. "otxi saati da eqvsi tsuti" */
 static int ast_say_time_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 
 	res = ast_say_number(chan, tm.tm_hour, ints, lang, (char*)NULL);
 	if (!res) {
@@ -7390,10 +7382,11 @@ static int ast_say_time_ge(struct ast_channel *chan, time_t t, const char *ints,
 /* Georgian syntax. Say date, then say time. */
 static int ast_say_datetime_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
-	struct tm tm;
+	struct timeval tv = { t, 0 };
+	struct ast_tm tm;
 	int res = 0;
 
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	res = ast_say_date(chan, t, ints, lang);
 	if (!res)
 		ast_say_time(chan, t, ints, lang);
@@ -7408,15 +7401,13 @@ static int ast_say_datetime_ge(struct ast_channel *chan, time_t t, const char *i
 static int ast_say_datetime_from_now_ge(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	int res=0;
-	time_t nowt;
 	int daydiff;
-	struct tm tm;
-	struct tm now;
+	struct ast_tm tm;
+	struct ast_tm now;
+	struct timeval tv = { t, 0 }, nowt = ast_tvnow();
 	char fn[256];
 
-	time(&nowt);
-
-	ast_localtime(&t, &tm, NULL);
+	ast_localtime(&tv, &tm, NULL);
 	ast_localtime(&nowt, &now, NULL);
 	daydiff = now.tm_yday - tm.tm_yday;
 	if ((daydiff < 0) || (daydiff > 6)) {

@@ -425,9 +425,9 @@ struct minivm_stats {
 	int timezones;			/*!< Number of time zones */
 	int templates;			/*!< Number of templates */
 
-	time_t reset;			/*!< Time for last reset */
+	struct timeval reset;			/*!< Time for last reset */
 	int receivedmessages;		/*!< Number of received messages since reset */
-	time_t lastreceived;		/*!< Time for last voicemail sent */
+	struct timeval lastreceived;		/*!< Time for last voicemail sent */
 };
 
 /*! \brief Statistics for voicemail */
@@ -713,12 +713,11 @@ static int base_encode(char *filename, FILE *so)
 
 static int get_date(char *s, int len)
 {
-	struct tm tm;
-	time_t t;
+	struct ast_tm tm;
+	struct timeval tv = ast_tvnow();
 
-	t = time(0);
-	ast_localtime(&t, &tm, NULL);
-	return strftime(s, len, "%a %b %e %r %Z %Y", &tm);
+	ast_localtime(&tv, &tm, NULL);
+	return ast_strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
 
@@ -898,8 +897,8 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 	char dur[PATH_MAX];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[PATH_MAX];
-	time_t now;
-	struct tm tm;
+	struct timeval now;
+	struct ast_tm tm;
 	struct minivm_zone *the_zone = NULL;
 	int len_passdata;
 	struct ast_channel *ast;
@@ -986,15 +985,15 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		AST_LIST_UNLOCK(&minivm_zones);
 	}
 
-	time(&now);
+	now = ast_tvnow();
 	ast_localtime(&now, &tm, the_zone ? the_zone->timezone : NULL);
-	strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
+	ast_strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 
 	/* Start printing the email to the temporary file */
 	fprintf(p, "Date: %s\n", date);
 
 	/* Set date format for voicemail mail */
-	strftime(date, sizeof(date), template->dateformat, &tm);
+	ast_strftime(date, sizeof(date), template->dateformat, &tm);
 
 
 	/* Populate channel with channel variables for substitution */
@@ -1550,14 +1549,13 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 	if (!txt) {
 		ast_log(LOG_WARNING, "Error opening text file for output\n");
 	} else {
-		struct tm tm;
-		time_t now;
+		struct ast_tm tm;
+		struct timeval now = ast_tvnow();
 		char timebuf[30];
 		char logbuf[BUFSIZ];
 		get_date(date, sizeof(date));
-		now = time(NULL);
 		ast_localtime(&now, &tm, NULL);
-		strftime(timebuf, sizeof(timebuf), "%H:%M:%S", &tm);
+		ast_strftime(timebuf, sizeof(timebuf), "%H:%M:%S", &tm);
 		
 		snprintf(logbuf, sizeof(logbuf),
 			/* "Mailbox:domain:macrocontext:exten:priority:callerchan:callerid:origdate:origtime:duration:durationstatus:accountcode" */
@@ -1608,7 +1606,7 @@ static int leave_voicemail(struct ast_channel *chan, char *username, struct leav
 		pbx_builtin_setvar_helper(chan, "MVM_FORMAT", fmt);
 
 	}
-	global_stats.lastreceived = time(NULL);
+	global_stats.lastreceived = ast_tvnow();
 	global_stats.receivedmessages++;
 //	/* Go ahead and delete audio files from system, they're not needed any more */
 //	if (ast_fileexists(tmptxtfile, NULL, NULL) <= 0) {
@@ -2384,8 +2382,8 @@ static int load_config(void)
 	ast_set2_flag((&globalflags), FALSE, MVM_OPERATOR);	
 	strcpy(global_charset, "ISO-8859-1");
 	/* Reset statistics */
-	memset(&global_stats, 0, sizeof(struct minivm_stats));
-	global_stats.reset = time(NULL);
+	memset(&global_stats, 0, sizeof(global_stats));
+	global_stats.reset = ast_tvnow();
 
 	/* Make sure we could load configuration file */
 	if (!cfg) {
@@ -2651,7 +2649,7 @@ static int handle_minivm_show_settings(int fd, int argc, char *argv[])
 /*! \brief Show stats */
 static int handle_minivm_show_stats(int fd, int argc, char *argv[])
 {
-	struct tm time;
+	struct ast_tm time;
 	char buf[BUFSIZ];
 
 	ast_cli(fd, "* Mini-Voicemail statistics\n");
@@ -2665,11 +2663,11 @@ static int handle_minivm_show_stats(int fd, int argc, char *argv[])
 	} else {
 		ast_cli(fd, "  Received messages since last reset:  %d\n", global_stats.receivedmessages);
 		ast_localtime(&global_stats.lastreceived, &time, NULL);
-		strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &time);
+		ast_strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &time);
 		ast_cli(fd, "  Last received voicemail:             %s\n", buf);
 	}
 	ast_localtime(&global_stats.reset, &time, NULL);
-	strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &time);
+	ast_strftime(buf, sizeof(buf), "%a %b %e %r %Z %Y", &time);
 	ast_cli(fd, "  Last reset:                          %s\n", buf);
 
 	ast_cli(fd, "\n");

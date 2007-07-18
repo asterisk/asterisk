@@ -3735,21 +3735,21 @@ static int handle_line_state_req_message(struct skinny_req *req, struct skinnyse
 
 static int handle_time_date_req_message(struct skinny_req *req, struct skinnysession *s)
 {
-	time_t timer;
-	struct tm *cmtime;
+	struct timeval tv = ast_tvnow();
+	struct ast_tm cmtime;
 
 	if (!(req = req_alloc(sizeof(struct definetimedate_message), DEFINETIMEDATE_MESSAGE)))
 		return -1;
 
-	timer = time(NULL);
-	cmtime = localtime(&timer);
-	req->data.definetimedate.year = htolel(cmtime->tm_year+1900);
-	req->data.definetimedate.month = htolel(cmtime->tm_mon+1);
-	req->data.definetimedate.dayofweek = htolel(cmtime->tm_wday);
-	req->data.definetimedate.day = htolel(cmtime->tm_mday);
-	req->data.definetimedate.hour = htolel(cmtime->tm_hour);
-	req->data.definetimedate.minute = htolel(cmtime->tm_min);
-	req->data.definetimedate.seconds = htolel(cmtime->tm_sec);
+	ast_localtime(&tv, &cmtime, NULL);
+	req->data.definetimedate.year = htolel(cmtime.tm_year+1900);
+	req->data.definetimedate.month = htolel(cmtime.tm_mon+1);
+	req->data.definetimedate.dayofweek = htolel(cmtime.tm_wday);
+	req->data.definetimedate.day = htolel(cmtime.tm_mday);
+	req->data.definetimedate.hour = htolel(cmtime.tm_hour);
+	req->data.definetimedate.minute = htolel(cmtime.tm_min);
+	req->data.definetimedate.seconds = htolel(cmtime.tm_sec);
+	req->data.definetimedate.milliseconds = htolel(cmtime.tm_usec / 1000);
 	transmit_response(s, req);
 	return 1;
 }

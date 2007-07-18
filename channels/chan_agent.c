@@ -1812,7 +1812,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 				login_state = 1; /* Successful Login */
 
 				/* Ensure we can't be gotten until we're done */
-				gettimeofday(&p->lastdisc, NULL);
+				p->lastdisc = ast_tvnow();
 				p->lastdisc.tv_sec++;
 
 				/* Set Channel Specific Agent Overrides */

@@ -306,8 +306,8 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 static int write_metadata( FILE *logfile, char *signalling_type, struct ast_channel *chan)
 {
 	int res = 0;
-	time_t t;
-	struct tm now;
+	struct timeval t;
+	struct ast_tm now;
 	char *cl,*cn;
 	char workstring[80];
 	char timestamp[80];
@@ -324,12 +324,12 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 
 	/* Get the current time */
 		
-	time(&t);
+	t = ast_tvnow();
 	ast_localtime(&t, &now, NULL);
 	
 	/* Format the time */
 	
-	strftime(timestamp, sizeof(timestamp), time_stamp_format, &now); 
+	ast_strftime(timestamp, sizeof(timestamp), time_stamp_format, &now); 
 
 	
 	res = fprintf(logfile, "\n\n[metadata]\n\n");

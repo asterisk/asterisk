@@ -976,6 +976,33 @@ int ast_atomic_fetchadd_int_slow(volatile int *p, int v)
 /*! \brief
  * get values from config variables.
  */
+int ast_get_timeval(const char *src, struct timeval *dst, struct timeval _default, int *consumed)
+{
+	long double dtv = 0.0;
+	int scanned;
+
+	if (dst == NULL)
+		return -1;
+
+	*dst = _default;
+
+	if (ast_strlen_zero(src))
+		return -1;
+
+	/* only integer at the moment, but one day we could accept more formats */
+	if (sscanf(src, "%Lf%n", &dtv, &scanned) > 0) {
+		dst->tv_sec = dtv;
+		dst->tv_usec = (dtv - dst->tv_sec) * 1000000.0;
+		if (consumed)
+			*consumed = scanned;
+		return 0;
+	} else
+		return -1;
+}
+
+/*! \brief
+ * get values from config variables.
+ */
 int ast_get_time_t(const char *src, time_t *dst, time_t _default, int *consumed)
 {
 	long t;
