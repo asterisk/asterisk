@@ -4419,18 +4419,18 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 	}
 	AST_LIST_UNLOCK(&active_list);
 	ast_cli(fd, "Dynamic Threads:\n");
-        AST_LIST_LOCK(&dynamic_list);
-        AST_LIST_TRAVERSE(&dynamic_list, thread, list) {
+	AST_LIST_LOCK(&dynamic_list);
+	AST_LIST_TRAVERSE(&dynamic_list, thread, list) {
 #ifdef DEBUG_SCHED_MULTITHREAD
-                ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, func ='%s'\n",
-                        thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
+		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, func ='%s'\n",
+			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-                ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d\n",
-                        thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
+		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d\n",
+			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		dynamiccount++;
-        }
-        AST_LIST_UNLOCK(&dynamic_list);
+	}
+	AST_LIST_UNLOCK(&dynamic_list);
 	ast_cli(fd, "%d of %d threads accounted for with %d dynamic threads\n", threadcount, iaxthreadcount, dynamiccount);
 	return RESULT_SUCCESS;
 }
@@ -7966,14 +7966,13 @@ retryowner2:
 				break;	
 			case IAX_COMMAND_TXMEDIA:
 				if (iaxs[fr->callno]->transferring == TRANSFER_READY) {
-                                        AST_LIST_LOCK(&frame_queue);
-                                        AST_LIST_TRAVERSE(&frame_queue, cur, list) {
-                                                /* Cancel any outstanding frames and start anew */
-                                                if ((fr->callno == cur->callno) && (cur->transfer)) {
-                                                        cur->retries = -1;
-                                                }
-                                        }
-                                        AST_LIST_UNLOCK(&frame_queue);
+					AST_LIST_LOCK(&frame_queue);
+					AST_LIST_TRAVERSE(&frame_queue, cur, list) {
+						/* Cancel any outstanding frames and start anew */
+						if ((fr->callno == cur->callno) && (cur->transfer))
+							cur->retries = -1;
+					}
+					AST_LIST_UNLOCK(&frame_queue);
 					/* Start sending our media to the transfer address, but otherwise leave the call as-is */
 					iaxs[fr->callno]->transferring = TRANSFER_MEDIAPASS;
 				}
@@ -10586,7 +10585,7 @@ static int __unload_module(void)
 		pthread_cancel(thread->threadid);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
-			AST_LIST_UNLOCK(&dynamic_list);
+	AST_LIST_UNLOCK(&dynamic_list);
 	
 	/* Wait for threads to exit */
 	while(0 < iaxactivethreadcount)
