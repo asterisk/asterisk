@@ -553,12 +553,9 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
 	if (saydurationminfo)
 		vmu->saydurationm = saydurationminfo;
-	if (callcontext)
-		ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
-	if (dialcontext)
-		ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
-	if (exitcontext)
-		ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
+	ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
+	ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
+	ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 	if (maxmsg)
 		vmu->maxmsg = maxmsg;
 	vmu->volgain = volgain;
