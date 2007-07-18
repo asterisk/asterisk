@@ -6033,7 +6033,7 @@ static void vnak_retransmit(int callno, int last)
 	while(f) {
 		/* Send a copy immediately */
 		if ((f->callno == callno) && iaxs[f->callno] &&
-			(f->oseqno >= last)) {
+			((unsigned char ) (f->oseqno - last) < 128)) {
 			send_packet(f);
 		}
 		f = f->next;
