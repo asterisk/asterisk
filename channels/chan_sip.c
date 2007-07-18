@@ -11536,7 +11536,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 				ast_cli(fd, "  Original uri:           %s\n", cur->uri);
 			if (!ast_strlen_zero(cur->cid_num))
 				ast_cli(fd, "  Caller-ID:              %s\n", cur->cid_num);
-			ast_cli(fd, "  Need Destroy:           %lld\n", ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY));
+			ast_cli(fd, "  Need Destroy:           %lld\n", (unsigned long long)ast_test_flag(&cur->flags[0], SIP_NEEDDESTROY));
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", ast_test_flag(&cur->flags[0], SIP_PROMISCREDIR) ? "Yes" : "No");
 			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");

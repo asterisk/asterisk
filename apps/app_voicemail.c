@@ -2190,7 +2190,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	}
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
-	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %lld\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
+	ast_debug(3, "Attaching file '%s', format '%s', uservm is '%d', global is %lld\n", attach, format, attach_user_voicemail, (unsigned long long)ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
 	if ((p = vm_mkftemp(tmp)) == NULL) {

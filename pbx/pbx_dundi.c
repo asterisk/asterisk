@@ -893,7 +893,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 		if (strchr(req->dr[x].dest, '|'))
 			continue;
 		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%lld/%d/%d/%s/%s|", 
-			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest, 
+			(unsigned  long long)req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest, 
 			dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), &req->dr[x].eid));
 	}
 	ast_db_put("dundi/cache", key1, data);
@@ -1154,7 +1154,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Found cache expiring in %d seconds!\n", expiration);
 				ptr += length + 1;
-				while((sscanf(ptr, "%lld/%d/%d/%n", &(flags.flags), &weight, &tech, &length) == 3)) {
+				while((sscanf(ptr, "%lld/%d/%d/%n", (unsigned long long*)&(flags.flags), &weight, &tech, &length) == 3)) {
 					ptr += length;
 					term = strchr(ptr, '|');
 					if (term) {

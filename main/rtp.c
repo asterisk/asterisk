@@ -888,7 +888,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	event = data[3] & 0x1f;
 
 	if (option_debug > 2 || rtpdebug)
-		ast_debug(0, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02llx, power=%d, history count=%d)\n", event, len, seq, flags, power, (len - 4) / 2);
+		ast_debug(0, "Cisco DTMF Digit: %02x (len=%d, seq=%d, flags=%02llx, power=%d, history count=%d)\n", event, len, seq, (unsigned long long)flags, power, (len - 4) / 2);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
