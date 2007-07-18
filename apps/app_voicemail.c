@@ -2691,6 +2691,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 					ast_unlock_path(dir);
 
+					/* We must store the file first, before copying the message, because
+					 * ODBC storage does the entire copy with SQL.
+					 */
+					if (ast_fileexists(fn, NULL, NULL) > 0) {
+						STORE(dir, vmu->mailbox, vmu->context, msgnum);
+					}
+
 					/* Are there to be more recipients of this message? */
 					while (tmpptr) {
 						struct ast_vm_user recipu, *recip;
@@ -2707,8 +2714,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 							free_user(recip);
 						}
 					}
+
+					/* Notification and disposal needs to happen after the copy, though. */
 					if (ast_fileexists(fn, NULL, NULL) > 0) {
-						STORE(dir, vmu->mailbox, vmu->context, msgnum);
 						notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 						DISPOSE(dir, msgnum);
 					}
