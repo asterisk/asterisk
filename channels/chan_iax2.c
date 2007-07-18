@@ -646,6 +646,13 @@ struct chan_iax2_pvt {
 	int frames_received;
 };
 
+/*!
+ * \brief a list of frames that may need to be retransmitted
+ *
+ * \note The contents of this list do not need to be explicitly destroyed
+ * on module unload.  This is because all active calls are destroyed, and
+ * all frames in this queue will get destroyed as a part of that process.
+ */
 static AST_LIST_HEAD_STATIC(frame_queue, iax_frame);
 
 static AST_LIST_HEAD_STATIC(users, iax2_user);
@@ -10807,9 +10814,10 @@ static int __unload_module(void)
 	
 	ast_netsock_release(netsock);
 	ast_netsock_release(outsock);
-	for (x=0;x<IAX_MAX_CALLS;x++)
+	for (x = 0; x < IAX_MAX_CALLS; x++) {
 		if (iaxs[x])
 			iax2_destroy(x);
+	}
 	ast_manager_unregister( "IAXpeers" );
 	ast_manager_unregister( "IAXnetstats" );
 	ast_unregister_application(papp);
