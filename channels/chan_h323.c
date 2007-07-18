@@ -3091,6 +3091,10 @@ static int h323_do_reload(void)
 
 static int reload(void)
 {
+	if (!sched || !io) {
+		ast_log(LOG_NOTICE, "Unload and load chan_h323.so again in order to receive configuration changes.\n");
+		return 0;
+	}
 	return h323_reload(0, 0, NULL);
 }
 
