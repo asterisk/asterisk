@@ -882,6 +882,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, time_t regtime);
 static void destroy_user(struct iax2_user *user);
 static void prune_peers(void);
+static void *iax2_dup_variable_datastore(void *);
+static void iax2_free_variable_datastore(void *);
 
 static int acf_channel_read(struct ast_channel *chan, const char *funcname, char *preparse, char *buf, size_t buflen);
 static int acf_channel_write(struct ast_channel *chan, const char *function, char *data, const char *value);
@@ -930,6 +932,50 @@ static void iax2_ami_channelupdate(struct chan_iax2_pvt *pvt)
 		pvt->callno, pvt->peercallno, pvt->peer ? pvt->peer : "");
 }
 
+
+static struct ast_datastore_info iax2_variable_datastore_info = {
+	.type = "IAX2_VARIABLE",
+	.duplicate = iax2_dup_variable_datastore,
+	.destroy = iax2_free_variable_datastore,
+};
+
+static void *iax2_dup_variable_datastore(void *old)
+{
+	AST_LIST_HEAD(, ast_var_t) *oldlist = old, *newlist;
+	struct ast_var_t *oldvar, *newvar;
+
+	newlist = ast_calloc(sizeof(*newlist), 1);
+	if (!newlist) {
+		ast_log(LOG_ERROR, "Unable to duplicate iax2 variables\n");
+		return NULL;
+	}
+
+	AST_LIST_HEAD_INIT(newlist);
+	AST_LIST_LOCK(oldlist);
+	AST_LIST_TRAVERSE(oldlist, oldvar, entries) {
+		newvar = ast_var_assign(ast_var_name(oldvar), ast_var_value(oldvar));
+		if (newvar)
+			AST_LIST_INSERT_TAIL(newlist, newvar, entries);
+		else
+			ast_log(LOG_ERROR, "Unable to duplicate iax2 variable '%s'\n", ast_var_name(oldvar));
+	}
+	AST_LIST_UNLOCK(oldlist);
+	return newlist;
+}
+
+static void iax2_free_variable_datastore(void *old)
+{
+	AST_LIST_HEAD(, ast_var_t) *oldlist = old;
+	struct ast_var_t *oldvar;
+
+	AST_LIST_LOCK(oldlist);
+	while ((oldvar = AST_LIST_REMOVE_HEAD(oldlist, entries))) {
+		ast_free(oldvar);
+	}
+	AST_LIST_UNLOCK(oldlist);
+	AST_LIST_HEAD_DESTROY(oldlist);
+	ast_free(oldlist);
+}
 
 static void insert_idle_thread(struct iax2_thread *thread)
 {
@@ -2970,6 +3016,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
 	struct ast_var_t *var;
+	struct ast_datastore *variablestore = ast_channel_datastore_find(c, &iax2_variable_datastore_info, NULL);
 	const char* osp_token_ptr;
 	unsigned int osp_token_length;
 	unsigned char osp_block_index;
@@ -3118,16 +3165,19 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	iaxs[callno]->sockfd = cai.sockfd;
 
 	/* Add remote vars */
-	AST_LIST_TRAVERSE(&c->varshead, var, entries) {
-		if (!strncmp(ast_var_name(var), "~IAX2~", strlen("~IAX2~"))) {
+	if (variablestore) {
+		AST_LIST_HEAD(, ast_var_t) *variablelist = variablestore->data;
+		AST_LIST_LOCK(variablelist);
+		AST_LIST_TRAVERSE(variablelist, var, entries) {
 			char tmp[256];
 			int i;
 			/* Automatically divide the value up into sized chunks */
-			for (i = 0; i < strlen(ast_var_value(var)); i += 255 - (strlen(ast_var_name(var)) - strlen("~IAX2~") + 1)) {
-				snprintf(tmp, sizeof(tmp), "%s=%s", ast_var_name(var) + strlen("~IAX2~"), ast_var_value(var) + i);
+			for (i = 0; i < strlen(ast_var_value(var)); i += 255 - (strlen(ast_var_name(var)) + 1)) {
+				snprintf(tmp, sizeof(tmp), "%s=%s", ast_var_name(var), ast_var_value(var) + i);
 				iax_ie_append_str(&ied, IAX_IE_VARIABLE, tmp);
 			}
 		}
+		AST_LIST_UNLOCK(variablelist);
 	}
 
 	/* Transmit the string in a "NEW" request */
@@ -3135,7 +3185,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 	ast_mutex_unlock(&iaxsl[callno]);
 	ast_setstate(c, AST_STATE_RINGING);
-	
+
 	return 0;
 }
 
@@ -3478,6 +3528,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability, u
 	struct ast_channel *tmp;
 	struct chan_iax2_pvt *i;
 	struct ast_variable *v = NULL;
+	struct ast_datastore *variablestore = NULL;
 
 	if (!(i = iaxs[callno])) {
 		ast_log(LOG_WARNING, "No IAX2 pvt found for callno '%d' !\n", callno);
@@ -3526,8 +3577,32 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability, u
 	i->owner = tmp;
 	i->capability = capability;
 
-	for (v = i->vars ; v ; v = v->next)
-		pbx_builtin_setvar_helper(tmp, v->name, v->value);
+	/* Set inherited variables */
+	if (i->vars) {
+		AST_LIST_HEAD(, ast_var_t) *varlist;
+		varlist = ast_calloc(1, sizeof(*varlist));
+		variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+		if (variablestore && varlist) {
+			variablestore->data = varlist;
+			variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
+			AST_LIST_HEAD_INIT(varlist);
+			for (v = i->vars ; v ; v = v->next) {
+				struct ast_var_t *newvar = ast_var_assign(v->name, v->value);
+				if (!newvar) {
+					ast_log(LOG_ERROR, "Out of memory\n");
+					break;
+				}
+				AST_LIST_INSERT_TAIL(varlist, newvar, entries);
+			}
+			ast_channel_datastore_add(tmp, variablestore);
+		} else {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			if (variablestore)
+				ast_channel_datastore_free(variablestore);
+			if (varlist)
+				ast_free(varlist);
+		}
+	}
 
 	if (delaypbx) {
 		ast_set_flag(i, IAX_DELAYPBXSTART);
@@ -5460,6 +5535,42 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	}
 	if (ies->encmethods)
 		ast_set_flag(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
+	if (!res) {
+		struct ast_datastore *variablestore;
+		struct ast_variable *var, *prev = NULL;
+		AST_LIST_HEAD(, ast_var_t) *varlist;
+		varlist = ast_calloc(1, sizeof(*varlist));
+		variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+		if (variablestore && varlist && p->owner) {
+			variablestore->data = varlist;
+			variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
+			AST_LIST_HEAD_INIT(varlist);
+			for (var = ies->vars; var; var = var->next) {
+				struct ast_var_t *newvar = ast_var_assign(var->name, var->value);
+				if (prev)
+					ast_free(prev);
+				prev = var;
+				if (!newvar) {
+					/* Don't abort list traversal, as this would leave ies->vars in an inconsistent state. */
+					ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
+				} else {
+					AST_LIST_INSERT_TAIL(varlist, newvar, entries);
+				}
+			}
+			if (prev)
+				free(prev);
+			ies->vars = NULL;
+			ast_channel_datastore_add(p->owner, variablestore);
+		} else {
+			if (p->owner)
+				ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
+			if (variablestore)
+				ast_channel_datastore_free(variablestore);
+			if (varlist)
+				ast_free(varlist);
+		}
+	}
+
 	if (!res)
 		res = send_command(p, AST_FRAME_IAX, IAX_COMMAND_AUTHREP, 0, ied.buf, ied.pos, -1);
 	return res;
@@ -6782,20 +6893,67 @@ static int socket_process_meta(int packet_len, struct ast_iax2_meta_hdr *meta, s
 
 static int acf_iaxvar_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	const char *value;
-	char tmp[256];
-	snprintf(tmp, sizeof(tmp), "~IAX2~%s", data);
-	value = pbx_builtin_getvar_helper(chan, tmp);
-	ast_copy_string(buf, value ? value : "", len);
+	struct ast_datastore *variablestore = ast_channel_datastore_find(chan, &iax2_variable_datastore_info, NULL);
+	AST_LIST_HEAD(, ast_var_t) *varlist;
+	struct ast_var_t *var;
+
+	if (!variablestore) {
+		*buf = '\0';
+		return 0;
+	}
+	varlist = variablestore->data;
+
+	AST_LIST_LOCK(varlist);
+	AST_LIST_TRAVERSE(varlist, var, entries) {
+		if (strcmp(var->name, data) == 0) {
+			ast_copy_string(buf, var->value, len);
+			break;
+		}
+	}
+	AST_LIST_UNLOCK(varlist);
 	return 0;
 }
 
-static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *varname, const char *value)
+static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	char tmp[256];
-	/* Inherit forever */
-	snprintf(tmp, sizeof(tmp), "__~IAX2~%s", varname);
-	pbx_builtin_setvar_helper(chan, tmp, value);
+	struct ast_datastore *variablestore = ast_channel_datastore_find(chan, &iax2_variable_datastore_info, NULL);
+	AST_LIST_HEAD(, ast_var_t) *varlist;
+	struct ast_var_t *var;
+
+	if (!variablestore) {
+		variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+		if (!variablestore) {
+			ast_log(LOG_ERROR, "Memory allocation error\n");
+			return -1;
+		}
+		varlist = ast_calloc(1, sizeof(*varlist));
+		if (!varlist) {
+			ast_log(LOG_ERROR, "Unable to assign new variable '%s'\n", data);
+			return -1;
+		}
+
+		AST_LIST_HEAD_INIT(varlist);
+		variablestore->data = varlist;
+		variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
+		ast_channel_datastore_add(chan, variablestore);
+	} else
+		varlist = variablestore->data;
+
+	AST_LIST_LOCK(varlist);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(varlist, var, entries) {
+		if (strcmp(var->name, data) == 0) {
+			AST_LIST_REMOVE_CURRENT(varlist, entries);
+			ast_var_delete(var);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	var = ast_var_assign(data, value);
+	if (var)
+		AST_LIST_INSERT_TAIL(varlist, var, entries);
+	else
+		ast_log(LOG_ERROR, "Unable to assign new variable '%s'\n", data);
+	AST_LIST_UNLOCK(varlist);
 	return 0;
 }
 
@@ -7403,16 +7561,38 @@ retryowner:
 								if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 1)))
 									iax2_destroy(fr->callno);
 								else if (ies.vars) {
+									struct ast_datastore *variablestore;
 									struct ast_variable *var, *prev = NULL;
-									char tmp[256];
-									for (var = ies.vars; var; var = var->next) {
+									AST_LIST_HEAD(, ast_var_t) *varlist;
+									varlist = ast_calloc(1, sizeof(*varlist));
+									variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+									if (variablestore && varlist) {
+										variablestore->data = varlist;
+										variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
+										AST_LIST_HEAD_INIT(varlist);
+										for (var = ies.vars; var; var = var->next) {
+											struct ast_var_t *newvar = ast_var_assign(var->name, var->value);
+											if (prev)
+												ast_free(prev);
+											prev = var;
+											if (!newvar) {
+												/* Don't abort list traversal, as this would leave ies.vars in an inconsistent state. */
+												ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
+											} else {
+												AST_LIST_INSERT_TAIL(varlist, newvar, entries);
+											}
+										}
 										if (prev)
 											ast_free(prev);
-										prev = var;
-										snprintf(tmp, sizeof(tmp), "__~IAX2~%s", var->name);
-										pbx_builtin_setvar_helper(c, tmp, var->value);
+										ies.vars = NULL;
+										ast_channel_datastore_add(c, variablestore);
+									} else {
+										ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
+										if (variablestore)
+											ast_channel_datastore_free(variablestore);
+										if (varlist)
+											ast_free(varlist);
 									}
-									ies.vars = NULL;
 								}
 							} else {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
@@ -7792,8 +7972,42 @@ retryowner2:
 											using_prefs);
 
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-							if(!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 0)))
+							if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, format, 0)))
 								iax2_destroy(fr->callno);
+							else if (ies.vars) {
+								struct ast_datastore *variablestore;
+								struct ast_variable *var, *prev = NULL;
+								AST_LIST_HEAD(, ast_var_t) *varlist;
+								varlist = ast_calloc(1, sizeof(*varlist));
+								variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
+								if (variablestore && varlist) {
+									variablestore->data = varlist;
+									variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
+									AST_LIST_HEAD_INIT(varlist);
+									for (var = ies.vars; var; var = var->next) {
+										struct ast_var_t *newvar = ast_var_assign(var->name, var->value);
+										if (prev)
+											ast_free(prev);
+										prev = var;
+										if (!newvar) {
+											/* Don't abort list traversal, as this would leave ies.vars in an inconsistent state. */
+											ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
+										} else {
+											AST_LIST_INSERT_TAIL(varlist, newvar, entries);
+										}
+									}
+									if (prev)
+										free(prev);
+									ies.vars = NULL;
+									ast_channel_datastore_add(c, variablestore);
+								} else {
+									ast_log(LOG_ERROR, "Memory allocation error while processing IAX2 variables\n");
+									if (variablestore)
+										ast_channel_datastore_free(variablestore);
+									if (varlist)
+										ast_free(varlist);
+								}
+							}
 						} else {
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 							/* If this is a TBD call, we're ready but now what...  */
