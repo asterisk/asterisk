@@ -3341,6 +3341,13 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 						ast_update_realtime("voicemail_data", "id", tmpid, "filename", fn, "duration", tmpdur, NULL);
 					}
 #ifndef IMAP_STORAGE
+					/* We must store the file first, before copying the message, because
+					 * ODBC storage does the entire copy with SQL.
+					 */
+					if (ast_fileexists(fn, NULL, NULL) > 0) {
+						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms);
+					}
+
 					/* Are there to be more recipients of this message? */
 					while (tmpptr) {
 						struct ast_vm_user recipu, *recip;
@@ -3358,8 +3365,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 						}
 					}
 #endif
+					/* Notification and disposal needs to happen after the copy, though. */
 					if (ast_fileexists(fn, NULL, NULL)) {
-						STORE(dir, vmu->mailbox, vmu->context, msgnum, chan, vmu, fmt, duration, vms);
 						notify_new_message(chan, vmu, msgnum, duration, fmt, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL));
 						DISPOSE(dir, msgnum);
 					}
