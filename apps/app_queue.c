@@ -2598,7 +2598,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			res2 |= ast_autoservice_stop(qe->chan);
 			if (peer->_softhangup) {
 				/* Agent must have hung up */
-				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
+				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "AGENTDUMP", "%s", "");
 				record_abandoned(qe);
 				if (qe->parent->eventwhencalled)
