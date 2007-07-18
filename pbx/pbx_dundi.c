@@ -4712,17 +4712,18 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 
 static int unload_module(void)
 {
+	pthread_t previous_netthreadid = netthreadid, previous_precachethreadid = precachethreadid;
 	ast_module_user_hangup_all();
 
 	/* Stop all currently running threads */
 	dundi_shutdown = 1;
-	if (netthreadid != AST_PTHREADT_NULL) {
-		pthread_kill(netthreadid, SIGURG);
-		pthread_join(netthreadid, NULL);
+	if (previous_netthreadid != AST_PTHREADT_NULL) {
+		pthread_kill(previous_netthreadid, SIGURG);
+		pthread_join(previous_netthreadid, NULL);
 	}
-	if (precachethreadid != AST_PTHREADT_NULL) {
-		pthread_kill(precachethreadid, SIGURG);
-		pthread_join(precachethreadid, NULL);
+	if (previous_precachethreadid != AST_PTHREADT_NULL) {
+		pthread_kill(previous_precachethreadid, SIGURG);
+		pthread_join(previous_precachethreadid, NULL);
 	}
 
 	ast_cli_unregister_multiple(cli_dundi, sizeof(cli_dundi) / sizeof(struct ast_cli_entry));
