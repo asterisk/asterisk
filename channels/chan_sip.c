@@ -4948,7 +4948,7 @@ static int sip_register(char *value, int lineno)
 	regobjs++;
 	ASTOBJ_INIT(reg);
 	ast_string_field_set(reg, callback, callback);
-	if (username)
+	if (!ast_strlen_zero(username))
 		ast_string_field_set(reg, username, username);
 	if (hostname)
 		ast_string_field_set(reg, hostname, hostname);

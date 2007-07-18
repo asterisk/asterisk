@@ -390,10 +390,10 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 		/* substitute . for - */
 		if ((pointer = strchr(filename, '.')))
 			*pointer = '-';
-		snprintf(tmp, sizeof(tmp), "%s%s",savecallsin ? savecallsin : "", filename);
+		snprintf(tmp, sizeof(tmp), "%s%s", savecallsin, filename);
 		ast_monitor_start(ast, recordformat, tmp, needlock, X_REC_IN | X_REC_OUT);
 		ast_monitor_setjoinfiles(ast, 1);
-		snprintf(tmp2, sizeof(tmp2), "%s%s.%s", urlprefix ? urlprefix : "", filename, recordformatext);
+		snprintf(tmp2, sizeof(tmp2), "%s%s.%s", urlprefix, filename, recordformatext);
 #if 0
 		ast_verbose("name is %s, link is %s\n",tmp, tmp2);
 #endif

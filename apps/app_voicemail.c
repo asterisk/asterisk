@@ -619,9 +619,9 @@ static struct ast_flags globalflags = {0};
 
 static int saydurationminfo;
 
-static char dialcontext[AST_MAX_CONTEXT];
-static char callcontext[AST_MAX_CONTEXT];
-static char exitcontext[AST_MAX_CONTEXT];
+static char dialcontext[AST_MAX_CONTEXT] = "";
+static char callcontext[AST_MAX_CONTEXT] = "";
+static char exitcontext[AST_MAX_CONTEXT] = "";
 
 static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
 
@@ -665,12 +665,9 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
 	if (saydurationminfo)
 		vmu->saydurationm = saydurationminfo;
-	if (callcontext)
-		ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
-	if (dialcontext)
-		ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
-	if (exitcontext)
-		ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
+	ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
+	ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
+	ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 	if (vmmaxsecs)
 		vmu->maxsecs = vmmaxsecs;
 	if (maxmsg)
