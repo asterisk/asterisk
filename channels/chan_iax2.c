@@ -6710,7 +6710,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Packet arrived out of order (expecting %d, got %d) (frametype = %d, subclass = %d)\n", 
 					iaxs[fr->callno]->iseqno, fr->oseqno, f.frametype, f.subclass);
-				if (iaxs[fr->callno]->iseqno > fr->oseqno) {
+				/* Check to see if we need to request retransmission,
+				 * and take sequence number wraparound into account */
+				if ((unsigned char) (iaxs[fr->callno]->iseqno - fr->oseqno) < 128) {
 					/* If we've already seen it, ack it XXX There's a border condition here XXX */
 					if ((f.frametype != AST_FRAME_IAX) || 
 							((f.subclass != IAX_COMMAND_ACK) && (f.subclass != IAX_COMMAND_INVAL))) {
