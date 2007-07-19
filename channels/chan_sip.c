@@ -1495,7 +1495,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 static int sip_prune_realtime(int fd, int argc, char *argv[]);
 
 /*--- Internal UA client handling (outbound registrations) */
-static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
+static void ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(char *value, int lineno);
 static char *regstate2str(enum sipregistrystate regstate) attribute_const;
@@ -1961,7 +1961,7 @@ static void build_via(struct sip_pvt *p)
  * apply it to their address to see if we need to substitute our
  * externip or can get away with our internal bindaddr
  */
-static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
+static void ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
 	struct sockaddr_in theirs, ours;
 
@@ -1988,7 +1988,6 @@ static enum sip_result ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *
 			ast_inet_ntoa(*(struct in_addr *)&them->s_addr));
 	} else if (bindaddr.sin_addr.s_addr)
 		*us = bindaddr.sin_addr;
-	return AST_SUCCESS;
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -4657,8 +4656,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (sin) {
 		p->sa = *sin;
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			p->ourip = __ourip;
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 	} else
 		p->ourip = __ourip;
 
@@ -6282,8 +6280,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 
 	if (sin) {
 		p->sa = *sin;
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			p->ourip = __ourip;
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 	} else
 		p->ourip = __ourip;
 
@@ -7920,8 +7917,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		  based on whether the remote host is on the external or
 		  internal network so we can register through nat
 		 */
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			p->ourip = bindaddr.sin_addr;
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 		build_contact(p);
 	}
 
@@ -11881,8 +11877,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 			add_header(&req, var->name, var->value);
 
 		/* Recalculate our side, and recalculate Call ID */
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			p->ourip = __ourip;
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 		build_via(p);
 		build_callid_pvt(p);
 		ast_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
@@ -15904,8 +15899,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 			return 0;
 		}
 		/* Recalculate our side, and recalculate Call ID */
-		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-			p->ourip = __ourip;
+		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 		build_via(p);
 		build_callid_pvt(p);
 		/* Destroy this session after 32 secs */
@@ -16162,8 +16156,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		ast_string_field_set(p, tohost, ast_inet_ntoa(peer->addr.sin_addr));
 
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-		p->ourip = __ourip;
+	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 	build_via(p);
 	build_callid_pvt(p);
 
@@ -16341,8 +16334,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	if (ast_strlen_zero(p->peername) && ext)
 		ast_string_field_set(p, peername, ext);
 	/* Recalculate our side, and recalculate Call ID */
-	if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
-		p->ourip = __ourip;
+	ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
 	build_via(p);
 	build_callid_pvt(p);
 	
