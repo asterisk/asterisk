@@ -296,6 +296,7 @@ struct queue_ent {
 	char announce[80];                  /*!< Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];      /*!< Context when user exits queue */
 	char digits[AST_MAX_EXTENSION];     /*!< Digits entered while in queue */
+	int valid_digits;		    /*!< Digits entered correspond to valid extension. Exited */
 	int pos;                            /*!< Where we are in the queue */
 	int prio;                           /*!< Our priority */
 	int last_pos_said;                  /*!< Last position we told the user */
@@ -1322,9 +1323,11 @@ static int play_file(struct ast_channel *chan, char *filename)
 	int res;
 
 	ast_stopstream(chan);
+
 	res = ast_streamfile(chan, filename, chan->language);
 	if (!res)
 		res = ast_waitstream(chan, AST_DIGIT_ANY);
+
 	ast_stopstream(chan);
 
 	return res;
@@ -1355,6 +1358,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 	/* We have an exact match */
 	if (!ast_goto_if_exists(qe->chan, qe->context, qe->digits, 1)) {
+		qe->valid_digits = 1;
 		/* Return 1 on a successful goto */
 		return 1;
 	}
@@ -1380,19 +1384,19 @@ static int say_position(struct queue_ent *qe)
 	/* Say we're next, if we are */
 	if (qe->pos == 1) {
 		res = play_file(qe->chan, qe->parent->sound_next);
-		if (res && valid_exit(qe, res))
+		if (res)
 			goto playout;
 		else
 			goto posout;
 	} else {
 		res = play_file(qe->chan, qe->parent->sound_thereare);
-		if (res && valid_exit(qe, res))
+		if (res)
 			goto playout;
 		res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
-		if (res && valid_exit(qe, res))
+		if (res)
 			goto playout;
 		res = play_file(qe->chan, qe->parent->sound_calls);
-		if (res && valid_exit(qe, res))
+		if (res)
 			goto playout;
 	}
 	/* Round hold time to nearest minute */
@@ -1414,35 +1418,35 @@ static int say_position(struct queue_ent *qe)
 	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) &&
 		(!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->last_pos)) {
 		res = play_file(qe->chan, qe->parent->sound_holdtime);
-		if (res && valid_exit(qe, res))
+		if (res)
 			goto playout;
 
 		if (avgholdmins > 0) {
 			if (avgholdmins < 2) {
 				res = play_file(qe->chan, qe->parent->sound_lessthan);
-				if (res && valid_exit(qe, res))
+				if (res)
 					goto playout;
 
 				res = ast_say_number(qe->chan, 2, AST_DIGIT_ANY, qe->chan->language, NULL);
-				if (res && valid_exit(qe, res))
+				if (res)
 					goto playout;
 			} else {
 				res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, NULL);
-				if (res && valid_exit(qe, res))
+				if (res)
 					goto playout;
 			}
 			
 			res = play_file(qe->chan, qe->parent->sound_minutes);
-			if (res && valid_exit(qe, res))
+			if (res)
 				goto playout;
 		}
 		if (avgholdsecs>0) {
 			res = ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, qe->chan->language, NULL);
-			if (res && valid_exit(qe, res))
+			if (res)
 				goto playout;
 
 			res = play_file(qe->chan, qe->parent->sound_seconds);
-			if (res && valid_exit(qe, res))
+			if (res)
 				goto playout;
 		}
 
@@ -1453,10 +1457,11 @@ posout:
 		ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
 			qe->chan->name, qe->parent->name, qe->pos);
 	res = play_file(qe->chan, qe->parent->sound_thanks);
-	if (res && !valid_exit(qe, res))
-		res = 0;
 
 playout:
+	if (res > 0 && !valid_exit(qe, res))
+		res = 0;
+
 	/* Set our last_pos indicators */
 	qe->last_pos = now;
 	qe->last_pos_said = qe->pos;
@@ -1851,26 +1856,6 @@ static int store_next(struct queue_ent *qe, struct callattempt *outgoing)
 	return 0;
 }
 
-static int background_file(struct queue_ent *qe, struct ast_channel *chan, char *filename)
-{
-	int res;
-
-	ast_stopstream(chan);
-	res = ast_streamfile(chan, filename, chan->language);
-
-	if (!res) {
-		/* Wait for a keypress */
-		res = ast_waitstream(chan, AST_DIGIT_ANY);
-		if (res < 0 || !valid_exit(qe, res))
-			res = 0;
-
-		/* Stop playback */
-		ast_stopstream(chan);
-	}
-	
-	return res;
-}
-
 static int say_periodic_announcement(struct queue_ent *qe)
 {
 	int res = 0;
@@ -1895,7 +1880,10 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	}
 	
 	/* play the announcement */
-	res = background_file(qe, qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]);
+	res = play_file(qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]);
+
+	if (res > 0 && !valid_exit(qe, res))
+		res = 0;
 
 	/* Resume Music on Hold if the caller is going to stay in the queue */
 	if (!res)
@@ -2296,8 +2284,12 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			break;
 
 		/* Wait a second before checking again */
-		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000)))
-			break;
+		if ((res = ast_waitfordigit(qe->chan, RECHECK * 1000))) {
+			if (res > 0 && !valid_exit(qe, res))
+				res = 0;
+			else
+				break;
+		}
 	}
 
 	return res;
@@ -2547,6 +2539,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			res = -1;
 		} else {
 			res = digit;
+			if (res > 0 && !valid_exit(qe, res))
+				res = 0;
 		}
 		ast_debug(1, "%s: Nobody answered.\n", qe->chan->name);
 	} else { /* peer is valid */
@@ -2911,7 +2905,11 @@ static int wait_a_bit(struct queue_ent *qe)
 	/* Don't need to hold the lock while we setup the outgoing calls */
 	int retrywait = qe->parent->retry * 1000;
 
-	return ast_waitfordigit(qe->chan, retrywait);
+	int res = ast_waitfordigit(qe->chan, retrywait);
+	if (res > 0 && !valid_exit(qe, res))
+		res = 0;
+
+	return res;
 }
 
 static struct member *interface_exists(struct call_queue *q, const char *interface)
@@ -3514,6 +3512,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_pos = 0;
 	qe.last_periodic_announce_time = time(NULL);
 	qe.last_periodic_announce_sound = 0;
+	qe.valid_digits = 0;
 	if (!join_queue(args.queuename, &qe, &reason)) {
 		ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", S_OR(args.url, ""),
 			S_OR(chan->cid.cid_num, ""));
@@ -3523,30 +3522,13 @@ check_turns:
 		} else {
 			ast_moh_start(chan, qe.moh, NULL);
 		}
-		for (;;) {
-			/* This is the wait loop for callers 2 through maxlen */
 
-			res = wait_our_turn(&qe, ringing, &reason);
-			/* If they hungup, return immediately */
-			if (res < 0) {
-				/* Record this abandoned call */
-				record_abandoned(&qe);
-				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld",
-					qe.pos, qe.opos, (long) time(NULL) - qe.start);
-				if (option_verbose > 2) {
-					ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", args.queuename);
-				}
-				res = -1;
-				break;
-			}
-			if (!res)
-				break;
-			if (valid_exit(&qe, res)) {
-				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
-					qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
-				break;
-			}
-		}
+		/* This is the wait loop for callers 2 through maxlen */
+		res = wait_our_turn(&qe, ringing, &reason);
+		if (res)
+			goto stop;
+
+		/* always true... */
 		if (!res) {
 			int makeannouncement = 0;
 
@@ -3570,43 +3552,22 @@ check_turns:
 
 				if (makeannouncement) {
 					/* Make a position announcement, if enabled */
-					if (qe.parent->announcefrequency && !ringing &&
-						(res = say_position(&qe))) {
-						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
-							qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
-						break;
-					}
 
+					if (qe.parent->announcefrequency && !ringing)
+						if ((res = say_position(&qe)))
+							goto stop;
 				}
 				makeannouncement = 1;
 
 				/* Make a periodic announcement, if enabled */
-				if (qe.parent->periodicannouncefrequency && !ringing &&
-					(res = say_periodic_announcement(&qe))) {
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
-						qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
-					break;
-				}
+				if (qe.parent->periodicannouncefrequency && !ringing)
+					if ((res = say_periodic_announcement(&qe)))
+						goto stop;
 
 				/* Try calling all queue members for 'timeout' seconds */
 				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro, args.gosub);
-				if (res) {
-					if (res < 0) {
-						if (!qe.handled) {
-							record_abandoned(&qe);
-							ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON",
-								"%d|%d|%ld", qe.pos, qe.opos,
-								(long) time(NULL) - qe.start);
-						} else if (qcontinue) {
-							reason = QUEUE_CONTINUE;
-							res = 0;
-						}
-					} else if (valid_exit(&qe, res)) {
-						ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
-							qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
-					}
-					break;
-				}
+				if (res)
+					goto stop;
 
 				stat = get_member_status(qe.parent, qe.max_penalty);
 
@@ -3656,20 +3617,8 @@ check_turns:
 
 				/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 				res = wait_a_bit(&qe);
-				if (res < 0) {
-					record_abandoned(&qe);
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", args.queuename);
-					}
-					res = -1;
-					break;
-				}
-				if (res && valid_exit(&qe, res)) {
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d|%d|%ld", 
-						qe.digits, qe.pos, qe.opos, (long) time(NULL) - qe.start);
-					break;
-				}
+				if (res)
+					goto stop;
 
 				/* Since this is a priority queue and
 				 * it is not sure that we are still at the head
@@ -3681,6 +3630,23 @@ check_turns:
 				}
 			}
 		}
+
+stop:
+		if (res) {
+			if (res < 0) {
+				if (!qe.handled) {
+					record_abandoned(&qe);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON",
+						"%d|%d|%ld", qe.pos, qe.opos,
+						(long) time(NULL) - qe.start);
+				}
+				res = -1;
+			} else if (qe.valid_digits) {
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY",
+					"%s|%d", qe.digits, qe.pos);
+			}
+		}
+
 		/* Don't allow return code > 0 */
 		if (res >= 0 && res != AST_PBX_KEEPALIVE) {
 			res = 0;	
