@@ -3528,106 +3528,103 @@ check_turns:
 		if (res)
 			goto stop;
 
-		/* always true... */
-		if (!res) {
-			int makeannouncement = 0;
+		int makeannouncement = 0;
 
-			for (;;) {
-				/* This is the wait loop for the head caller*/
-				/* To exit, they may get their call answered; */
-				/* they may dial a digit from the queue context; */
-				/* or, they may timeout. */
+		for (;;) {
+			/* This is the wait loop for the head caller*/
+			/* To exit, they may get their call answered; */
+			/* they may dial a digit from the queue context; */
+			/* or, they may timeout. */
 
-				enum queue_member_status stat;
+			enum queue_member_status stat;
 
-				/* Leave if we have exceeded our queuetimeout */
-				if (qe.expire && (time(NULL) > qe.expire)) {
-					record_abandoned(&qe);
-					reason = QUEUE_TIMEOUT;
-					res = 0;
-					ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", 
-						qe.pos, qe.opos, (long) time(NULL) - qe.start);
-					break;
-				}
+			/* Leave if we have exceeded our queuetimeout */
+			if (qe.expire && (time(NULL) > qe.expire)) {
+				record_abandoned(&qe);
+				reason = QUEUE_TIMEOUT;
+				res = 0;
+				ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", 
+					qe.pos, qe.opos, (long) time(NULL) - qe.start);
+				break;
+			}
 
-				if (makeannouncement) {
-					/* Make a position announcement, if enabled */
+			if (makeannouncement) {
+				/* Make a position announcement, if enabled */
 
-					if (qe.parent->announcefrequency && !ringing)
-						if ((res = say_position(&qe)))
-							goto stop;
-				}
-				makeannouncement = 1;
-
-				/* Make a periodic announcement, if enabled */
-				if (qe.parent->periodicannouncefrequency && !ringing)
-					if ((res = say_periodic_announcement(&qe)))
+				if (qe.parent->announcefrequency && !ringing)
+					if ((res = say_position(&qe)))
 						goto stop;
+			}
+			makeannouncement = 1;
 
-				/* Try calling all queue members for 'timeout' seconds */
-				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro, args.gosub);
-				if (res)
+			/* Make a periodic announcement, if enabled */
+			if (qe.parent->periodicannouncefrequency && !ringing)
+				if ((res = say_periodic_announcement(&qe)))
 					goto stop;
 
-				stat = get_member_status(qe.parent, qe.max_penalty);
+			/* Try calling all queue members for 'timeout' seconds */
+			res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro, args.gosub);
+			if (res)
+				goto stop;
 
-				/* exit after 'timeout' cycle if 'n' option enabled */
-				if (go_on) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
-					record_abandoned(&qe);
-					reason = QUEUE_TIMEOUT;
-					res = 0;
-					break;
-				}
+			stat = get_member_status(qe.parent, qe.max_penalty);
 
-				/* leave the queue if no agents, if enabled */
-				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
-					record_abandoned(&qe);
-					reason = QUEUE_LEAVEEMPTY;
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
-					res = 0;
-					break;
-				}
+			/* exit after 'timeout' cycle if 'n' option enabled */
+			if (go_on) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+				record_abandoned(&qe);
+				reason = QUEUE_TIMEOUT;
+				res = 0;
+				break;
+			}
 
-				/* leave the queue if no reachable agents, if enabled */
-				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
-					record_abandoned(&qe);
-					reason = QUEUE_LEAVEUNAVAIL;
-					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
-					res = 0;
-					break;
-				}
-				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
-					record_abandoned(&qe);
-					reason = QUEUE_LEAVEUNAVAIL;
-					res = 0;
-					break;
-				}
+			/* leave the queue if no agents, if enabled */
+			if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
+				record_abandoned(&qe);
+				reason = QUEUE_LEAVEEMPTY;
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
+				res = 0;
+				break;
+			}
 
-				/* Leave if we have exceeded our queuetimeout */
-				if (qe.expire && (time(NULL) > qe.expire)) {
-					record_abandoned(&qe);
-					reason = QUEUE_TIMEOUT;
-					res = 0;
-					ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
-					break;
-				}
+			/* leave the queue if no reachable agents, if enabled */
+			if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS || stat == QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS)) {
+				record_abandoned(&qe);
+				reason = QUEUE_LEAVEUNAVAIL;
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITEMPTY", "%d|%d|%ld", qe.pos, qe.opos, (long)(time(NULL) - qe.start));
+				res = 0;
+				break;
+			}
+			if ((qe.parent->leavewhenempty == QUEUE_EMPTY_LOOSE) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
+				record_abandoned(&qe);
+				reason = QUEUE_LEAVEUNAVAIL;
+				res = 0;
+				break;
+			}
 
-				/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
-				res = wait_a_bit(&qe);
-				if (res)
-					goto stop;
+			/* Leave if we have exceeded our queuetimeout */
+			if (qe.expire && (time(NULL) > qe.expire)) {
+				record_abandoned(&qe);
+				reason = QUEUE_TIMEOUT;
+				res = 0;
+				ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
+				break;
+			}
 
-				/* Since this is a priority queue and
-				 * it is not sure that we are still at the head
-				 * of the queue, go and check for our turn again.
-				 */
-				if (!is_our_turn(&qe)) {
-					ast_debug(1, "Darn priorities, going back in queue (%s)!\n", qe.chan->name);
-					goto check_turns;
-				}
+			/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
+			res = wait_a_bit(&qe);
+			if (res)
+				goto stop;
+
+			/* Since this is a priority queue and
+			 * it is not sure that we are still at the head
+			 * of the queue, go and check for our turn again.
+			 */
+			if (!is_our_turn(&qe)) {
+				ast_debug(1, "Darn priorities, going back in queue (%s)!\n", qe.chan->name);
+				goto check_turns;
 			}
 		}
 
