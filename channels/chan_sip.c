@@ -1250,13 +1250,57 @@ static struct sip_auth *authl = NULL;
 
 
 /* --- Sockets and networking --------------*/
-static int sipsock  = -1;			/*!< Main socket for SIP network communication */
+
+/*! \brief Main socket for SIP communication.
+ * sipsock is shared between the manager thread (which handles reload
+ * requests), the io handler (sipsock_read()) and the user routines that
+ * issue writes (using __sip_xmit()).
+ * The socket is -1 only when opening fails (this is a permanent condition),
+ * or when we are handling a reload() that changes its address (this is
+ * a transient situation during which we might have a harmless race, see
+ * below). Because the conditions for the race to be possible are extremely
+ * rare, we don't want to pay the cost of locking on every I/O.
+ * Rather, we remember that when the race may occur, communication is
+ * bound to fail anyways, so we just live with this event and let
+ * the protocol handle this above us.
+ */
+static int sipsock  = -1;
+
 static struct sockaddr_in bindaddr = { 0, };	/*!< The address we bind to */
+
+/*! \brief our external IP address/port for SIP sessions.
+ * externip.sin_addr is only set when we know we might be behind
+ * a NAT, and this is done using a variety of (mutually exclusive)
+ * ways from the config file:
+ *
+ * + with "externip = host[:port]" we specify the address/port explicitly.
+ *   The address is looked up only once when (re)loading the config file;
+ * 
+ * + with "externhost = host[:port]" we do a similar thing, but the
+ *   hostname is stored in externhost, and the hostname->IP mapping
+ *   is refreshed every 'externrefresh' seconds;
+ * 
+ * + with "stunaddr = host[:port]" we run queries every externrefresh seconds
+ *   to the specified server, and store the result in externip.
+ *   XXX not implemented yet.
+ *
+ * Other variables (externhost, externexpire, externrefresh) are used
+ * to support the above functions.
+ */
 static struct sockaddr_in externip;		/*!< External IP address if we are behind NAT */
+
 static char externhost[MAXHOSTNAMELEN];		/*!< External host name (possibly with dynamic DNS and DHCP */
 static time_t externexpire = 0;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;
+
+/*! \brief  List of local networks
+ * We store "localnet" addresses from the config file into an access list,
+ * marked as 'DENY', so the call to ast_apply_ha() will return
+ * AST_SENSE_DENY for 'local' addresses, and AST_SENSE_ALLOW for 'non local'
+ * (i.e. presumably public) addresses.
+ */
 static struct ast_ha *localaddr;		/*!< List of local networks, on the same side of NAT as this Asterisk */
+
 static struct in_addr __ourip;
 static int ourport;
 static struct sockaddr_in debugaddr;
