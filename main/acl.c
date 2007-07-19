@@ -206,12 +206,14 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 	/* Start optimistic */
 	int res = AST_SENSE_ALLOW;
 	while (ha) {
+#if 0	/* debugging code */
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
 		/* DEBUG */
 		ast_copy_string(iabuf, ast_inet_ntoa(sin->sin_addr), sizeof(iabuf));
 		ast_copy_string(iabuf2, ast_inet_ntoa(ha->netaddr), sizeof(iabuf2));
 		ast_debug(1, "##### Testing %s with %s\n", iabuf, iabuf2);
+#endif
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
@@ -332,7 +334,10 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	int s;
 	struct sockaddr_in sin;
 	socklen_t slen;
-
+	static int prof = -1;
+	if (prof == -1)
+		prof = ast_add_profile("ast_ouraddrfor", 0); 
+	ast_mark(prof, 1);
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
 		ast_log(LOG_WARNING, "Cannot create socket\n");
@@ -354,6 +359,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	}
 	close(s);
 	*us = sin.sin_addr;
+	ast_mark(prof, 0);
 	return 0;
 }
 
