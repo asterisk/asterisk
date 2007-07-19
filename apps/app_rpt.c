@@ -1890,7 +1890,7 @@ static void *rpt_tele_thread(void *this)
 	struct rpt_link *l, *m, linkbase;
 	struct ast_channel *mychannel;
 	const char *p, *ct;
-	time_t t;
+	struct timeval tv;
 	struct ast_tm localtm;
 #ifdef  APP_RPT_LOCK_DEBUG
 	struct lockthread *t;
@@ -2339,8 +2339,8 @@ static void *rpt_tele_thread(void *this)
 		
 	case STATS_TIME:
 		wait_interval(myrpt, DLY_TELEM, mychannel); /* Wait a little bit */
-		t = time(NULL);
-		ast_localtime(&t, &localtm, NULL);
+		tv = ast_tvnow();
+		ast_localtime(&tv, &localtm, NULL);
 		/* Say the phase of the day is before the time */
 		if ((localtm.tm_hour >= 0) && (localtm.tm_hour < 12))
 			p = "rpt/goodmorning";
@@ -2358,7 +2358,7 @@ static void *rpt_tele_thread(void *this)
 			break;
 		}
 		/* Say the time */				
-		res = ast_say_time(mychannel, t, "", mychannel->language);
+		res = ast_say_time(mychannel, tv.tv_sec, "", mychannel->language);
 		if (!res) 
 			res = ast_waitstream(mychannel, "");
 		ast_stopstream(mychannel);		
@@ -5632,7 +5632,7 @@ static void do_scheduler(struct rpt *myrpt)
 	if (myrpt->lasttv.tv_sec == myrpt->curtv.tv_sec)
 		return;
 
-	ast_localtime(&myrpt->curtv.tv_sec, &tmnow, NULL);
+	ast_localtime(&myrpt->curtv, &tmnow, NULL);
 
 	/* If midnight, then reset all daily statistics */
 	
