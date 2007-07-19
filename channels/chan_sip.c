@@ -15087,7 +15087,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		else if (strcasecmp(args.field, "local_lostpackets") == 0)
 			snprintf(buf, buflen, "%u", qos.local_lostpackets);
 		else if (strcasecmp(args.field, "local_jitter") == 0)
-			snprintf(buf, buflen, "%.0lf", qos.local_jitter * 1000.0);
+			snprintf(buf, buflen, "%.0f", qos.local_jitter * 1000.0);
 		else if (strcasecmp(args.field, "local_count") == 0)
 			snprintf(buf, buflen, "%u", qos.local_count);
 		else if (strcasecmp(args.field, "remote_ssrc") == 0)
@@ -15095,11 +15095,11 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 		else if (strcasecmp(args.field, "remote_lostpackets") == 0)
 			snprintf(buf, buflen, "%u", qos.remote_lostpackets);
 		else if (strcasecmp(args.field, "remote_jitter") == 0)
-			snprintf(buf, buflen, "%.0lf", qos.remote_jitter * 1000.0);
+			snprintf(buf, buflen, "%.0f", qos.remote_jitter * 1000.0);
 		else if (strcasecmp(args.field, "remote_count") == 0)
 			snprintf(buf, buflen, "%u", qos.remote_count);
 		else if (strcasecmp(args.field, "rtt") == 0)
-			snprintf(buf, buflen, "%.0lf", qos.rtt * 1000.0);
+			snprintf(buf, buflen, "%.0f", qos.rtt * 1000.0);
 		else if (strcasecmp(args.field, "all") == 0)
 			ast_copy_string(buf, all, buflen);
 		else {
