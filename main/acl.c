@@ -334,10 +334,6 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	int s;
 	struct sockaddr_in sin;
 	socklen_t slen;
-	static int prof = -1;
-	if (prof == -1)
-		prof = ast_add_profile("ast_ouraddrfor", 0); 
-	ast_mark(prof, 1);
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
 		ast_log(LOG_WARNING, "Cannot create socket\n");
@@ -359,7 +355,6 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	}
 	close(s);
 	*us = sin.sin_addr;
-	ast_mark(prof, 0);
 	return 0;
 }
 
