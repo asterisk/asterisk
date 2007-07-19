@@ -138,7 +138,7 @@ struct mohclass {
 	int allowed_files;
 	/*! The current number of files loaded into the filearray */
 	int total_files;
-	uint64_t flags;
+	unsigned int flags;
 	/*! The format from the MOH source, not applicable to "files" mode */
 	int format;
 	/*! The pid of the external application delivering MOH */

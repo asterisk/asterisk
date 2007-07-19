@@ -104,7 +104,7 @@ static const struct ast_channel_tech local_tech = {
 
 struct local_pvt {
 	ast_mutex_t lock;			/* Channel private lock */
-	uint64_t flags;                     /* Private flags */
+	unsigned int flags;                     /* Private flags */
 	char context[AST_MAX_CONTEXT];		/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;				/* Requested format */

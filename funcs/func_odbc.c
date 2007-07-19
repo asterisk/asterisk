@@ -67,7 +67,7 @@ struct acf_odbc_query {
 	char writehandle[5][30];
 	char sql_read[2048];
 	char sql_write[2048];
-	uint64_t flags;
+	unsigned int flags;
 	int rowlimit;
 	struct ast_custom_function *acf;
 };

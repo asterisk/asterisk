@@ -1457,3 +1457,43 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 	return res;
 }
 
+/* the following function will probably only be used in app_dial, until app_dial is reorganized to
+   better handle the large number of options it provides. After it is, you need to get rid of this variant 
+   -- unless, of course, someone else digs up some use for large flag fields. */
+
+int ast_app_parse_options64(const struct ast_app_option *options, struct ast_flags64 *flags, char **args, char *optstr)
+{
+	char *s, *arg;
+	int curarg, res = 0;
+	unsigned int argloc;
+
+	flags->flags = 0;
+	
+	if (!optstr)
+		return 0;
+
+	s = optstr;
+	while (*s) {
+		curarg = *s++ & 0x7f;	/* the array (in app.h) has 128 entries */
+		ast_set_flag64(flags, options[curarg].flag);
+		argloc = options[curarg].arg_index;
+		if (*s == '(') {
+			/* Has argument */
+			arg = ++s;
+			if ((s = strchr(s, ')'))) {
+				if (argloc)
+					args[argloc - 1] = arg;
+				*s++ = '\0';
+			} else {
+				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
+				res = -1;
+				break;
+			}
+		} else if (argloc) {
+			args[argloc - 1] = NULL;
+		}
+	}
+
+	return res;
+}
+

@@ -50,7 +50,7 @@
    your variable.
 
    The flag macros below use a set of compiler tricks to verify
-   that the caller is using an "unsigned long long" variable to hold
+   that the caller is using an "unsigned int" variable to hold
    the flags, and nothing else. If the caller uses any other
    type of variable, a warning message similar to this:
 
@@ -64,7 +64,7 @@
  \endverbatim
 */
 
-extern uint64_t __unsigned_int_flags_dummy;
+extern unsigned int __unsigned_int_flags_dummy;
 
 #define ast_test_flag(p,flag) 		({ \
 					typeof ((p)->flags) __p = (p)->flags; \
@@ -115,6 +115,64 @@ extern uint64_t __unsigned_int_flags_dummy;
 					(p)->flags |= (value); \
 					} while (0)
 
+
+/* The following 64-bit flag code can most likely be erased after app_dial
+   is reorganized to either reduce the large number of options, or handle
+   them in some other way. At the time of this writing, app_dial would be
+   the only user of 64-bit option flags */
+
+extern uint64_t __unsigned_int_flags_dummy64;
+
+#define ast_test_flag64(p,flag) 		({ \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
+					(void) (&__p == &__x); \
+					((p)->flags & (flag)); \
+					})
+
+#define ast_set_flag64(p,flag) 		do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
+					(void) (&__p == &__x); \
+					((p)->flags |= (flag)); \
+					} while(0)
+
+#define ast_clear_flag64(p,flag) 		do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
+					(void) (&__p == &__x); \
+					((p)->flags &= ~(flag)); \
+					} while(0)
+
+#define ast_copy_flags64(dest,src,flagz)	do { \
+					typeof ((dest)->flags) __d = (dest)->flags; \
+					typeof ((src)->flags) __s = (src)->flags; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
+					(void) (&__d == &__x); \
+					(void) (&__s == &__x); \
+					(dest)->flags &= ~(flagz); \
+					(dest)->flags |= ((src)->flags & (flagz)); \
+					} while (0)
+
+#define ast_set2_flag64(p,value,flag)	do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
+					(void) (&__p == &__x); \
+					if (value) \
+						(p)->flags |= (flag); \
+					else \
+						(p)->flags &= ~(flag); \
+					} while (0)
+
+#define ast_set_flags_to64(p,flag,value)	do { \
+					typeof ((p)->flags) __p = (p)->flags; \
+					typeof (__unsigned_int_flags_dummy64) __x = 0; \
+					(void) (&__p == &__x); \
+					(p)->flags &= ~(flag); \
+					(p)->flags |= (value); \
+					} while (0)
+
+
 /* Non-type checking variations for non-unsigned int flags.  You
    should only use non-unsigned int flags where required by 
    protocol etc and if you know what you're doing :)  */
@@ -146,6 +204,12 @@ extern uint64_t __unsigned_int_flags_dummy;
 /*! \brief Structure used to handle boolean flags 
 */
 struct ast_flags {
+	unsigned int flags;
+};
+
+/*! \brief Structure used to handle a large number of boolean flags == used only in app_dial?
+*/
+struct ast_flags64 {
 	uint64_t flags;
 };
 

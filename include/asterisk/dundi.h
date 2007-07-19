@@ -192,7 +192,7 @@ struct dundi_peer_status {
 #define DEFAULT_MAXMS			2000
 
 struct dundi_result {
-	uint64_t flags;
+	unsigned int flags;
 	int weight;
 	int expiration;
 	int techint;

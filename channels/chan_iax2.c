@@ -315,7 +315,7 @@ struct iax2_user {
 	int encmethods;
 	int amaflags;
 	int adsi;
-	uint64_t flags;
+	unsigned int flags;
 	int capability;
 	int maxauthreq; /*!< Maximum allowed outstanding AUTHREQs */
 	int curauthreq; /*!< Current number of outstanding AUTHREQs */
@@ -353,7 +353,7 @@ struct iax2_peer {
 	int sockfd;					/*!< Socket to use for transmission */
 	struct in_addr mask;
 	int adsi;
-	uint64_t flags;
+	unsigned int flags;
 
 	/* Dynamic Registration fields */
 	struct sockaddr_in defaddr;			/*!< Default address if there is one */
@@ -604,7 +604,7 @@ struct chan_iax2_pvt {
 	/*! Associated peer for poking */
 	struct iax2_peer *peerpoke;
 	/*! IAX_ flags */
-	uint64_t flags;
+	unsigned int flags;
 	int adsi;
 
 	/*! Transferring status */
@@ -2807,7 +2807,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 
 struct create_addr_info {
 	int capability;
-	uint64_t flags;
+	unsigned int flags;
 	int maxtime;
 	int encmethods;
 	int found;

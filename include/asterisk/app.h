@@ -425,6 +425,17 @@ struct ast_app_option {
  */
 int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags *flags, char **args, char *optstr);
 
+	/*!
+  \brief Parses a string containing application options and sets flags/arguments.
+  \param options The array of possible options declared with AST_APP_OPTIONS
+  \param flags The 64-bit flag structure to have option flags set
+  \param args The array of argument pointers to hold arguments found
+  \param optstr The string containing the options to be parsed
+  \return zero for success, non-zero if an error occurs
+  \sa AST_APP_OPTIONS
+ */
+int ast_app_parse_options64(const struct ast_app_option *options, struct ast_flags64 *flags, char **args, char *optstr);
+
 /*! \brief Present a dialtone and collect a certain length extension. 
     \return Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. 
 \note Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
