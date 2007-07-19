@@ -3437,6 +3437,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	/* whether to exit Queue application after the timeout hits */
 	int go_on = 0;
 	char *parse;
+	int makeannouncement = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(options);
@@ -3528,7 +3529,7 @@ check_turns:
 		if (res)
 			goto stop;
 
-		int makeannouncement = 0;
+		makeannouncement = 0;
 
 		for (;;) {
 			/* This is the wait loop for the head caller*/
