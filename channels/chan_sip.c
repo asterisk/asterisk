@@ -11199,6 +11199,13 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	else
 		ast_cli(fd, "  SIP realtime:           Enabled\n" );
 
+	ast_cli(fd, "\nNetwork Settings:\n");
+	ast_cli(fd, "---------------------------\n");
+	ast_cli(fd, "  Externhost:             %s\n", externhost);
+	ast_cli(fd, "  Externip:               %s:%d\n", ast_inet_ntoa(externip.sin_addr), ntohs(externip.sin_port));
+	ast_cli(fd, "  Externrefresh:          %d\n", externrefresh);
+	ast_cli(fd, "  Internal IP:            %s:%d\n", ast_inet_ntoa(__ourip), ntohs(bindaddr.sin_port));
+
 	ast_cli(fd, "\nGlobal Signalling Settings:\n");
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "  Codecs:                 ");
