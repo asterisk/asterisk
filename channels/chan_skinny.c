@@ -4463,7 +4463,7 @@ static int handle_message(struct skinny_req *req, struct skinnysession *s)
 
 		sub = find_subchannel_by_instance_reference(d, lineInstance, callReference);
 
-		if (sub && (sub->owner->_state <  AST_STATE_UP)) {
+		if (sub && (sub->owner && sub->owner->_state <  AST_STATE_UP)) {
 			char dgt;
 			int digit = letohl(req->data.keypad.button);
 	
