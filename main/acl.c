@@ -70,14 +70,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/srv.h"
 
-struct ast_ha {
-	/* Host access rule */
-	struct in_addr netaddr;
-	struct in_addr netmask;
-	int sense;
-	struct ast_ha *next;
-};
-
 struct my_ifreq {
 	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "eth0", "ppp0", etc.  */
 	struct sockaddr_in ifru_addr;

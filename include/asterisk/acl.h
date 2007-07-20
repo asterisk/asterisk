@@ -36,7 +36,21 @@ extern "C" {
 
 /* Host based access control */
 
-struct ast_ha;
+/*! \brief internal representation of acl entries
+ * In principle user applications would have no need for this,
+ * but there is sometimes a need to extract individual items,
+ * e.g. to print them, and rather than defining iterators to
+ * navigate the list, and an externally visible 'struct ast_ha_entry',
+ * at least in the short term it is more convenient to make the whole
+ * thing public and let users play with them.
+ */
+struct ast_ha {
+        /* Host access rule */
+        struct in_addr netaddr;  
+        struct in_addr netmask;
+        int sense;
+        struct ast_ha *next;
+};
 
 /*! \brief Free host access list */
 void ast_free_ha(struct ast_ha *ha);
