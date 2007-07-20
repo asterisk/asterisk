@@ -113,7 +113,7 @@ struct logchannel {
 	AST_LIST_ENTRY(logchannel) list;
 };
 
-static AST_LIST_HEAD_STATIC(logchannels, logchannel);
+static AST_RWLIST_HEAD_STATIC(logchannels, logchannel);
 
 enum logmsgtypes {
 	LOGMSG_NORMAL = 0,
@@ -314,10 +314,10 @@ static void init_logger_chain(void)
 	const char *s;
 
 	/* delete our list of log channels */
-	AST_LIST_LOCK(&logchannels);
-	while ((chan = AST_LIST_REMOVE_HEAD(&logchannels, list)))
+	AST_RWLIST_WRLOCK(&logchannels);
+	while ((chan = AST_RWLIST_REMOVE_HEAD(&logchannels, list)))
 		free(chan);
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 	
 	global_logmask = 0;
 	errno = 0;
@@ -336,9 +336,9 @@ static void init_logger_chain(void)
 			return;
 		chan->type = LOGTYPE_CONSOLE;
 		chan->logmask = 28; /*warning,notice,error */
-		AST_LIST_LOCK(&logchannels);
-		AST_LIST_INSERT_HEAD(&logchannels, chan, list);
-		AST_LIST_UNLOCK(&logchannels);
+		AST_RWLIST_WRLOCK(&logchannels);
+		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
+		AST_RWLIST_UNLOCK(&logchannels);
 		global_logmask |= chan->logmask;
 		return;
 	}
@@ -366,15 +366,15 @@ static void init_logger_chain(void)
 	if ((s = ast_variable_retrieve(cfg, "general", "rotatetimestamp")))
 		rotatetimestamp = ast_true(s);
 
-	AST_LIST_LOCK(&logchannels);
+	AST_RWLIST_WRLOCK(&logchannels);
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
 		if (!(chan = make_logchannel(var->name, var->value, var->lineno)))
 			continue;
-		AST_LIST_INSERT_HEAD(&logchannels, chan, list);
+		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
 	}
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 
 	ast_config_destroy(cfg);
 }
@@ -382,16 +382,20 @@ static void init_logger_chain(void)
 void ast_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 {
 	va_list ap;
-	AST_LIST_LOCK(&logchannels);
+	char qlog_msg[8192];
+	int qlog_len;
 	if (qlog) {
 		va_start(ap, fmt);
-		fprintf(qlog, "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
-		vfprintf(qlog, fmt, ap);
-		fprintf(qlog, "\n");
+		qlog_len = snprintf(qlog_msg, sizeof(qlog_msg), "%ld|%s|%s|%s|%s|", (long)time(NULL), callid, queuename, agent, event);
+		vsnprintf(qlog_msg + qlog_len, sizeof(qlog_msg) - qlog_len, fmt, ap);
 		va_end(ap);
+	}
+	AST_RWLIST_RDLOCK(&logchannels);
+	if (qlog) {
+		fprintf(qlog, "%s\n", qlog_msg);
 		fflush(qlog);
 	}
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 }
 
 int reload_logger(int rotate)
@@ -403,7 +407,7 @@ int reload_logger(int rotate)
 	FILE *myf;
 	int x, res = 0;
 
-	AST_LIST_LOCK(&logchannels);
+	AST_RWLIST_WRLOCK(&logchannels);
 
 	if (eventlog) 
 		fclose(eventlog);
@@ -419,7 +423,7 @@ int reload_logger(int rotate)
 
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
 
-	AST_LIST_TRAVERSE(&logchannels, f, list) {
+	AST_RWLIST_TRAVERSE(&logchannels, f, list) {
 		if (f->disabled) {
 			f->disabled = 0;	/* Re-enable logging at reload */
 			manager_event(EVENT_FLAG_SYSTEM, "LogChannel", "Channel: %s\r\nEnabled: Yes\r\n", f->filename);
@@ -516,7 +520,7 @@ int reload_logger(int rotate)
 		}
 	}
 
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 
 	return res;
 }
@@ -549,8 +553,8 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 	ast_cli(fd, "Configuration\n");
 	ast_cli(fd,FORMATL, "-------", "----", "------");
 	ast_cli(fd, "-------------\n");
-	AST_LIST_LOCK(&logchannels);
-	AST_LIST_TRAVERSE(&logchannels, chan, list) {
+	AST_RWLIST_RDLOCK(&logchannels);
+	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
 		ast_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
 		ast_cli(fd, " - ");
@@ -570,7 +574,7 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 			ast_cli(fd, "Event ");
 		ast_cli(fd, "\n");
 	}
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 	ast_cli(fd, "\n");
  		
 	return RESULT_SUCCESS;
@@ -581,7 +585,7 @@ struct verb {
 	AST_LIST_ENTRY(verb) list;
 };
 
-static AST_LIST_HEAD_STATIC(verbosers, verb);
+static AST_RWLIST_HEAD_STATIC(verbosers, verb);
 
 static char logger_reload_help[] =
 "Usage: logger reload\n"
@@ -647,17 +651,17 @@ static void logger_print_normal(struct logmsg *logmsg)
 	struct logchannel *chan = NULL;
 	char buf[BUFSIZ];
 
-	AST_LIST_LOCK(&logchannels);
+	AST_RWLIST_RDLOCK(&logchannels);
 
 	if (logfiles.event_log && logmsg->level == __LOG_EVENT) {
 		fprintf(eventlog, "%s asterisk[%ld]: %s", logmsg->date, (long)getpid(), logmsg->str);
 		fflush(eventlog);
-		AST_LIST_UNLOCK(&logchannels);
+		AST_RWLIST_UNLOCK(&logchannels);
 		return;
 	}
 
-	if (!AST_LIST_EMPTY(&logchannels)) {
-		AST_LIST_TRAVERSE(&logchannels, chan, list) {
+	if (!AST_RWLIST_EMPTY(&logchannels)) {
+		AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
 			/* If the channel is disabled, then move on to the next one */
 			if (chan->disabled)
 				continue;
@@ -714,7 +718,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 		fputs(logmsg->str, stdout);
 	}
 
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 
 	/* If we need to reload because of the file size, then do so */
 	if (filesize_reload_needed) {
@@ -733,10 +737,10 @@ static void logger_print_verbose(struct logmsg *logmsg)
 	struct verb *v = NULL;
 
 	/* Iterate through the list of verbosers and pass them the log message string */
-	AST_LIST_LOCK(&verbosers);
-	AST_LIST_TRAVERSE(&verbosers, v, list)
+	AST_RWLIST_RDLOCK(&verbosers);
+	AST_RWLIST_TRAVERSE(&verbosers, v, list)
 		v->verboser(logmsg->str);
-	AST_LIST_UNLOCK(&verbosers);
+	AST_RWLIST_UNLOCK(&verbosers);
 
 	return;
 }
@@ -833,7 +837,7 @@ void close_logger(void)
 	ast_cond_signal(&logcond);
 	AST_LIST_UNLOCK(&logmsgs);
 
-	AST_LIST_LOCK(&logchannels);
+	AST_RWLIST_WRLOCK(&logchannels);
 
 	if (eventlog) {
 		fclose(eventlog);
@@ -845,7 +849,7 @@ void close_logger(void)
 		qlog = NULL;
 	}
 
-	AST_LIST_TRAVERSE(&logchannels, f, list) {
+	AST_RWLIST_TRAVERSE(&logchannels, f, list) {
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
 			fclose(f->fileptr);
 			f->fileptr = NULL;
@@ -854,7 +858,7 @@ void close_logger(void)
 
 	closelog(); /* syslog */
 
-	AST_LIST_UNLOCK(&logchannels);
+	AST_RWLIST_UNLOCK(&logchannels);
 
 	return;
 }
@@ -874,7 +878,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (!(buf = ast_str_thread_get(&log_buf, LOG_BUF_INIT_SIZE)))
 		return;
 
-	if (AST_LIST_EMPTY(&logchannels)) {
+	if (AST_RWLIST_EMPTY(&logchannels)) {
 		/*
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout
@@ -1045,9 +1049,9 @@ int ast_register_verbose(void (*v)(const char *string))
 
 	verb->verboser = v;
 
-	AST_LIST_LOCK(&verbosers);
-	AST_LIST_INSERT_HEAD(&verbosers, verb, list);
-	AST_LIST_UNLOCK(&verbosers);
+	AST_RWLIST_WRLOCK(&verbosers);
+	AST_RWLIST_INSERT_HEAD(&verbosers, verb, list);
+	AST_RWLIST_UNLOCK(&verbosers);
 	
 	return 0;
 }
@@ -1056,16 +1060,16 @@ int ast_unregister_verbose(void (*v)(const char *string))
 {
 	struct verb *cur;
 
-	AST_LIST_LOCK(&verbosers);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&verbosers, cur, list) {
+	AST_RWLIST_WRLOCK(&verbosers);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&verbosers, cur, list) {
 		if (cur->verboser == v) {
-			AST_LIST_REMOVE_CURRENT(&verbosers, list);
+			AST_RWLIST_REMOVE_CURRENT(&verbosers, list);
 			free(cur);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
-	AST_LIST_UNLOCK(&verbosers);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&verbosers);
 	
 	return cur ? 0 : -1;
 }
