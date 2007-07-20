@@ -3381,6 +3381,8 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_periodic_announce_sound = 0;
 	qe.valid_digits = 0;
 	if (!join_queue(args.queuename, &qe, &reason)) {
+		int makeannouncement = 0;
+
 		ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", S_OR(args.url, ""),
 			S_OR(chan->cid.cid_num, ""));
 check_turns:
@@ -3394,8 +3396,6 @@ check_turns:
 		res = wait_our_turn(&qe, ringing, &reason);
 		if (res)
 			goto stop;
-
-		int makeannouncement = 0;
 
 		for (;;) {
 			/* This is the wait loop for the head caller*/
