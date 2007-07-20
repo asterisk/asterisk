@@ -11139,6 +11139,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	int realtimeusers;
 	int realtimeregs;
 	char codec_buf[BUFSIZ];
+	const char *msg;	/* temporary msg pointer */
 
 	realtimepeers = ast_check_realtime("sippeers");
 	realtimeusers = ast_check_realtime("sipusers");
@@ -11201,11 +11202,32 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "\nNetwork Settings:\n");
 	ast_cli(fd, "---------------------------\n");
-	ast_cli(fd, "  Externhost:             %s\n", externhost);
+	/* determine if/how SIP address can be remapped */
+	if (localaddr == NULL)
+		msg = "Disabled, no localnet list";
+	else if (externip.sin_addr.s_addr == 0)
+		msg = "Disabled, externip is 0.0.0.0";
+	else if (externhost)
+		msg = "Enabled using externhost";
+	else
+		msg = "Enabled using externip";
+	ast_cli(fd, "  SIP address remapping:  %s\n", msg);
+	ast_cli(fd, "  Externhost:             %s\n", S_OR(externhost, "<none>"));
 	ast_cli(fd, "  Externip:               %s:%d\n", ast_inet_ntoa(externip.sin_addr), ntohs(externip.sin_port));
 	ast_cli(fd, "  Externrefresh:          %d\n", externrefresh);
 	ast_cli(fd, "  Internal IP:            %s:%d\n", ast_inet_ntoa(__ourip), ntohs(bindaddr.sin_port));
+	{
+		struct ast_ha *a;
+		const char *prefix = "Localnet:";
+		char buf[INET_ADDRSTRLEN]; /* need to print two addresses */
 
+		for (a = localaddr; a ; prefix = "", a = a->next) {
+			ast_cli(fd, "  %-24s%s/%s\n",
+			    prefix, ast_inet_ntoa(a->netaddr),
+			    inet_ntop(AF_INET, &a->netmask, buf, sizeof(buf)) );
+		}
+	}
+ 
 	ast_cli(fd, "\nGlobal Signalling Settings:\n");
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "  Codecs:                 ");
