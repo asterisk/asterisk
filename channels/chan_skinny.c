@@ -3315,15 +3315,14 @@ static int handle_offhook_message(struct skinny_req *req, struct skinnysession *
 		l = sub->parent;
 	}
 
+	transmit_ringer_mode(s, SKINNY_RING_OFF);
+	l->hookstate = SKINNY_OFFHOOK;
+
 	if (sub && sub->onhold) {
-		transmit_ringer_mode(s, SKINNY_RING_OFF);
-		l->hookstate = SKINNY_OFFHOOK;
 		return 1;
 	}
 
-	transmit_ringer_mode(s, SKINNY_RING_OFF);
 	transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
-	l->hookstate = SKINNY_OFFHOOK;
 
 	if (sub && sub->outgoing) {
 		/* We're answering a ringing call */
@@ -3379,17 +3378,17 @@ static int handle_onhook_message(struct skinny_req *req, struct skinnysession *s
 	}
 	l = sub->parent;
 
-	if (sub->onhold) {
-		l->hookstate = SKINNY_ONHOOK;
-		return 0;
-	}
-
 	if (l->hookstate == SKINNY_ONHOOK) {
 		/* Something else already put us back on hook */
 		return 0;
 	}
-	sub->cxmode = SKINNY_CX_RECVONLY;
 	l->hookstate = SKINNY_ONHOOK;
+
+	if (sub->onhold) {
+		return 0;
+	}
+
+	sub->cxmode = SKINNY_CX_RECVONLY;
 	transmit_callstate(s, l->instance, l->hookstate, sub->callid);
 	if (skinnydebug)
 		ast_verbose("Skinny %s@%s went on hook\n", l->name, d->name);
@@ -3900,37 +3899,37 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		}
 #endif
 		break;
-	case SOFTKEY_NEWCALL:
-		/* XXX Untested */
+	case SOFTKEY_NEWCALL:  /* Actually the DIAL softkey */
 		if (skinnydebug)
 			ast_verbose("Received Softkey Event: New Call(%d)\n", instance);
 
-		transmit_ringer_mode(s,SKINNY_RING_OFF);
-		transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
-		transmit_speaker_mode(s, SKINNY_SPEAKERON);
-
-		l->hookstate = SKINNY_OFFHOOK;
-
-		if (sub) {
-			ast_verbose("Uhoh, got NewCall with sub != 0\n");
-			break;
+		if (!sub || !sub->owner) {
+			c = skinny_new(l, AST_STATE_DOWN);
+		} else {
+			c = sub->owner;
 		}
 
-		c = skinny_new(l, AST_STATE_DOWN);
-
-		if(c) {
+		if (!c) {
+			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
+		} else {
 			sub = c->tech_pvt;
-			transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
+			if (l->hookstate == SKINNY_ONHOOK) {
+				l->hookstate = SKINNY_OFFHOOK;
+				transmit_speaker_mode(s, SKINNY_SPEAKERON);
+				transmit_callstate(s, l->instance, SKINNY_OFFHOOK, sub->callid);
+			}
+
+			if (skinnydebug)
+				ast_verbose("Attempting to Clear display on Skinny %s@%s\n", l->name, d->name);
 			transmit_displaymessage(s, NULL); /* clear display */
 			transmit_tone(s, SKINNY_DIALTONE);
 			transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_OFFHOOK);
+
 			/* start the switch thread */
 			if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
 				ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
 				ast_hangup(c);
 			}
-		} else {
-			ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", l->name, d->name);
 		}
 		break;
 	case SOFTKEY_HOLD:
