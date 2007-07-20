@@ -2643,10 +2643,10 @@ int ast_senddigit(struct ast_channel *chan, char digit)
 {
 	if (chan->tech->send_digit_begin) {
 		ast_senddigit_begin(chan, digit);
-		ast_safe_sleep(chan, 100); /* XXX 100ms ... probably should be configurable */
+		ast_safe_sleep(chan, AST_DEFAULT_EMULATE_DTMF_DURATION);
 	}
 	
-	return ast_senddigit_end(chan, digit, 100);
+	return ast_senddigit_end(chan, digit, AST_DEFAULT_EMULATE_DTMF_DURATION);
 }
 
 int ast_prod(struct ast_channel *chan)
