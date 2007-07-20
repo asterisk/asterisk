@@ -404,6 +404,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 	int lastuserchoice = 0;
 	char *start, *conv, *stringp = NULL;
 	const char *pos;
+	int breakout = 0;
 
 	if (ast_strlen_zero(context)) {
 		ast_log(LOG_WARNING,
@@ -527,6 +528,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 								 * user hungup
 								 */
 								lastuserchoice = 0;
+								breakout = 1;
 								break;
 							case '1':
 								/* user pressed '1' and extensions exists;
@@ -534,19 +536,23 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, struct
 								   a goto() on the channel
 								 */
 								lastuserchoice = res;
+								breakout = 1;
 								break;
 							case '*':
 								/* user pressed '*' to skip something found */
 								lastuserchoice = res;
+								breakout = 0;
 								res = 0;
 								break;
 							default:
+								breakout = 1;
 								break;
 							}
 							ast_free(conv);
-							break;
-						}
-						ast_free(conv);
+							if (breakout)
+								break;
+						} else
+							ast_free(conv);
 					}
 				}
 			}
