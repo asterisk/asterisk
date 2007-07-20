@@ -16971,6 +16971,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		peer->chanvars = NULL;
 		/* XXX should unregister ? */
 	}
+
+	/* If we have realm authentication information, remove them (reload) */
+	clear_realm_authentication(peer->auth);
+	peer->auth = NULL;
+
 	for (; v || ((v = alt) && !(alt=NULL)); v = v->next) {
 		if (handle_common_options(&peerflags[0], &mask[0], v))
 			continue;
