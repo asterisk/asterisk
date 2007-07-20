@@ -130,13 +130,13 @@ $(MOH_DIR)/.asterisk-moh-%: have_download
 	touch $@
 
 asterisk-core-%.tar.gz: have_download
-	@$(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$@
+	@if test ! -f $@ ;then $(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$@;fi
 
 asterisk-extra-%.tar.gz: have_download
-	@$(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$@
+	@if test ! -f $@ ;then $(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$@;fi
 
 asterisk-moh-%.tar.gz: have_download
-	@$(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$@
+	@if test ! -f $@ ;then $(DOWNLOAD) $(WGET_ARGS) $(SOUNDS_URL)/$@;fi
 
 dist-clean:
 	rm -f *.tar.gz
