@@ -45,7 +45,10 @@ static int split_ext(char *filename, char **name, char **ext)
 {
 	*name = *ext = filename;
 	
-	strsep(ext, ".");
+	if ((*ext = strrchr(filename, '.'))) {
+		**ext = '\0';
+		(*ext)++;
+	}
 
 	if (ast_strlen_zero(*name) || ast_strlen_zero(*ext))
 		return -1;
