@@ -12629,6 +12629,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
 	}
+	/* If we have realm authentication information, remove them (reload) */
+	clear_realm_authentication(peer->auth);
+	peer->auth = (struct sip_auth *) NULL;
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->vmexten, global_vmexten);
