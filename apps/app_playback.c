@@ -72,9 +72,17 @@ static struct ast_config *say_cfg = NULL;
  * otherwise we are sourcing from here.
  * 'say load [new|old]' will enable the new or old method, or report status
  */
-static const void * say_api_buf[40];
+static const void *say_api_buf[40];
 static const char *say_old = "old";
 static const char *say_new = "new";
+static const char say_load_usage[] = 
+"Usage: say load [new|old]\n"
+"       say load\n"
+"	   Report status of current say mode\n"
+"       say load new\n"
+"          Set say method, configured in say.conf\n"
+"       say load old\n"
+"          Set old say metod, coded in asterisk core\n";
 
 static void save_say_mode(const void *arg)
 {
@@ -326,25 +334,12 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 /*
  * remap the 'say' functions to use those in this file
  */
-static int __say_init(int fd, int argc, char *argv[])
-{
-	const char *old_mode = say_api_buf[0] ? say_new : say_old;
-	char *mode;
-
-	if (argc == 2) {
-		ast_cli(fd, "say mode is [%s]\n", old_mode);
-		return RESULT_SUCCESS;
-        } else if (argc != 3)
-                return RESULT_SHOWUSAGE;
-        mode = argv[2];
-
-	ast_log(LOG_WARNING, "init say.c from %s to %s\n", old_mode, mode);
-
-	if (!strcmp(mode, old_mode)) {
-		ast_log(LOG_WARNING, "say mode is %s already\n", mode);
-	} else if (!strcmp(mode, say_new)) {
-		if (say_cfg == NULL)
-			say_cfg = ast_config_load("say.conf");
+static int say_init_mode(char *mode) {
+	if (!strcmp(mode, say_new)) {
+		if (say_cfg == NULL) {
+			ast_log(LOG_ERROR,"There is no say.conf file to use new mode\n");
+			return -1;
+		}
 		save_say_mode(say_new);
 		ast_say_number_full = say_number_full;
 
@@ -364,14 +359,49 @@ static int __say_init(int fd, int argc, char *argv[])
 		restore_say_mode(NULL);
 	} else {
 		ast_log(LOG_WARNING, "unrecognized mode %s\n", mode);
+		return -1;
 	}
+	
+	return 0;
+}
+
+
+static int __say_cli_init(int fd, int argc, char *argv[])
+{
+	const char *old_mode = say_api_buf[0] ? say_new : say_old;
+	char *mode;
+
+	if (argc == 2) {
+		ast_cli(fd, "say mode is [%s]\n", old_mode);
+		return RESULT_SUCCESS;
+        } else if (argc != 3)
+                return RESULT_SHOWUSAGE;
+        mode = argv[2];
+	
+	if (!strcmp(mode, old_mode)) {
+		ast_log(LOG_NOTICE, "say mode is %s already\n", mode);
+	} else {
+		if (say_init_mode(mode) == 0) {
+			ast_log(LOG_NOTICE, "init say.c from %s to %s\n", old_mode, mode);
+		}
+	}
+
 	return RESULT_SUCCESS;
 }
 
+
 static struct ast_cli_entry cli_playback[] = {
         { { "say", "load", NULL },
-	__say_init, "set/show the say mode",
-	"say load new|old" },
+	__say_cli_init, "Set or show the say mode",
+	say_load_usage },
+
+        { { "say", "load", "new", NULL },
+	__say_cli_init, "Set the say mode",
+	say_load_usage },
+
+        { { "say", "load", "old", NULL },
+	__say_cli_init, "Set the say mode",
+	say_load_usage },
 };
 
 static int playback_exec(struct ast_channel *chan, void *data)
@@ -439,11 +469,23 @@ done:
 
 static int reload(void)
 {
+	struct ast_variable *v;
+
 	if (say_cfg) {
 		ast_config_destroy(say_cfg);
 		ast_log(LOG_NOTICE, "Reloading say.conf\n");
 	}
 	say_cfg = ast_config_load("say.conf");
+
+	if (say_cfg) {
+		for (v = ast_variable_browse(say_cfg, "general"); v ; v = v->next) {
+    			if (ast_extension_match(v->name, "mode")) {
+				say_init_mode(v->value);
+				break;
+			}
+		}
+	}
+	
 	/*
 	 * XXX here we should sort rules according to the same order
 	 * we have in pbx.c so we have the same matching behaviour.
@@ -467,7 +509,18 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	struct ast_variable *v;
+
 	say_cfg = ast_config_load("say.conf");
+	if (say_cfg) {
+		for (v = ast_variable_browse(say_cfg, "general"); v ; v = v->next) {
+    			if (ast_extension_match(v->name, "mode")) {
+				say_init_mode(v->value);
+				break;
+			}
+		}
+	}
+
         ast_cli_register_multiple(cli_playback, sizeof(cli_playback) / sizeof(struct ast_cli_entry));
 	return ast_register_application(app, playback_exec, synopsis, descrip);
 }

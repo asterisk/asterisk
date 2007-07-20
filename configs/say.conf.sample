@@ -1,7 +1,12 @@
-; say.conf
 ; 
 ; language configuration
 ;
+
+[general]
+mode=old	; method for playing numbers and dates
+		; old - using asterisk core function
+		; new - using this configuration file
+
 ; The new language routines produce strings of the form
 ;	prefix:[format:]data
 ; that are matched against the rules in this file to produce
