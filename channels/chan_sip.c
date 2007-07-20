@@ -11208,7 +11208,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		msg = "Disabled, no localnet list";
 	else if (externip.sin_addr.s_addr == 0)
 		msg = "Disabled, externip is 0.0.0.0";
-	else if (externhost)
+	else if (!ast_strlen_zero(externhost))
 		msg = "Enabled using externhost";
 	else
 		msg = "Enabled using externip";
