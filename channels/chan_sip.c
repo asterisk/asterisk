@@ -10356,8 +10356,9 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 	regex_t regexbuf;
 	int havepattern = FALSE;
 
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s %-10s\n"
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s %-10s\n"
+/* the last argument is left-aligned, so we don't need a size anyways */
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s %s\n"
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s %s\n"
 
 	char name[256];
 	int total_peers = 0;
