@@ -6353,6 +6353,13 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 		return -1;
 	}
 
+	/* XXX the structure may be dirty from previous usage.
+	 * Here we should state clearly how we should reinitialize it
+	 * before using it.
+	 * E.g. certainly the threadstorage should be left alone,
+	 * but other thihngs such as flags etc. maybe need cleanup ?
+	 */
+	 
 	/* Initialize the bare minimum */
 	p->method = intended_method;
 
