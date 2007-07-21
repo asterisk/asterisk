@@ -143,7 +143,7 @@ static char *descrip =
 "             go to the next step.\n"
 "      'i' -- ignore call forward requests from queue members and do nothing\n"
 "             when they are requested.\n"
-"      'r' -- ring instead of playing MOH.\n"
+"      'r' -- ring instead of playing MOH. Periodic Announcements are still made, if applicable.\n"
 "      't' -- allow the called user to transfer the calling user.\n"
 "      'T' -- allow the calling user to transfer the call.\n"
 "      'w' -- allow the called user to write the conversation to disk via Monitor.\n"
