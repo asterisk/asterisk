@@ -1655,24 +1655,24 @@ static const struct ast_channel_tech sip_tech = {
 	.description = "Session Initiation Protocol (SIP)",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
-	.requester = sip_request_call,
-	.devicestate = sip_devicestate,
-	.call = sip_call,
+	.requester = sip_request_call,			/* called with chan unlocked */
+	.devicestate = sip_devicestate,			/* called with chan unlocked (not chan-specific) */
+	.call = sip_call,			/* called with chan locked */
 	.send_html = sip_sendhtml,
-	.hangup = sip_hangup,
-	.answer = sip_answer,
-	.read = sip_read,
-	.write = sip_write,
-	.write_video = sip_write,
+	.hangup = sip_hangup,			/* called with chan locked */
+	.answer = sip_answer,			/* called with chan locked */
+	.read = sip_read,			/* called with chan locked */
+	.write = sip_write,			/* called with chan locked */
+	.write_video = sip_write,		/* called with chan locked */
 	.write_text = sip_write,
-	.indicate = sip_indicate,
-	.transfer = sip_transfer,
-	.fixup = sip_fixup,
-	.send_digit_begin = sip_senddigit_begin,
+	.indicate = sip_indicate,		/* called with chan locked */
+	.transfer = sip_transfer,		/* called with chan locked */
+	.fixup = sip_fixup,			/* called with chan locked */
+	.send_digit_begin = sip_senddigit_begin,	/* called with chan unlocked */
 	.send_digit_end = sip_senddigit_end,
-	.bridge = ast_rtp_bridge,
+	.bridge = ast_rtp_bridge,			/* XXX chan unlocked ? */
 	.early_bridge = ast_rtp_early_bridge,
-	.send_text = sip_sendtext,
+	.send_text = sip_sendtext,		/* called with chan locked */
 	.func_channel_read = acf_channel_read,
 };
 
@@ -1700,6 +1700,9 @@ static const struct ast_channel_tech sip_tech_info = {
 	.send_text = sip_sendtext,
 	.func_channel_read = acf_channel_read,
 };
+
+/* wrapper macro to tell whether t points to one of the sip_tech descriptors */
+#define IS_SIP_TECH(t)  ((t) == &sip_tech || (t) == &sip_tech_info)
 
 /**--- some list management macros. **/
  
@@ -4270,10 +4273,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	sip_pvt_lock(i);
 
-	if (ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO)
-		tmp->tech = &sip_tech_info;
-	else
-		tmp->tech = &sip_tech;
+	tmp->tech = ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO ?  &sip_tech_info : &sip_tech;
 
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
@@ -12338,7 +12338,7 @@ static int func_header_read(struct ast_channel *chan, const char *function, char
 	}
 
 	ast_channel_lock(chan);
-	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
+	if (!IS_SIP_TECH(chan->tech)) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_channel_unlock(chan);
 		return -1;
@@ -12522,7 +12522,7 @@ static int function_sipchaninfo_read(struct ast_channel *chan, const char *cmd, 
 	}
 
 	ast_channel_lock(chan);
-	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
+	if (!IS_SIP_TECH(chan->tech)) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_channel_unlock(chan);
 		return -1;
@@ -12770,7 +12770,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 				ast_log(LOG_WARNING, "Ooooh.. no tech!  That's REALLY bad\n");
 				break;
 			}
-			if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
+			if (IS_SIP_TECH(bridgepeer->tech)) {
 				bridgepvt = (struct sip_pvt*)(bridgepeer->tech_pvt);
 				if (bridgepvt->udptl) {
 					if (p->t38.state == T38_PEER_REINVITE) {
@@ -14571,7 +14571,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				if ((bridgepeer = ast_bridged_channel(p->owner))) {
 					/* We have a bridge, and this is re-invite to switchover to T38 so we send re-invite with T38 SDP, to other side of bridge*/
 					/*! XXX: we should also check here does the other side supports t38 at all !!! XXX */
-					if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
+					if (IS_SIP_TECH(bridgepeer->tech)) {
 						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
 						if (bridgepvt->t38.state == T38_DISABLED) {
 							if (bridgepvt->udptl) { /* If everything is OK with other side's udptl struct */
@@ -14621,7 +14621,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				struct ast_channel *bridgepeer = NULL;
 				struct sip_pvt *bridgepvt = NULL;
 				if ((bridgepeer = ast_bridged_channel(p->owner))) {
-					if (bridgepeer->tech == &sip_tech || bridgepeer->tech == &sip_tech_info) {
+					if (IS_SIP_TECH(bridgepeer->tech)) {
 						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
 						/* Does the bridged peer have T38 ? */
 						if (bridgepvt->t38.state == T38_ENABLED) {
@@ -15144,7 +15144,7 @@ static int acf_channel_read(struct ast_channel *chan, const char *funcname, char
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	/* Sanity check */
-	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
+	if (!IS_SIP_TECH(chan->tech)) {
 		ast_log(LOG_ERROR, "Cannot call %s on a non-SIP channel\n", funcname);
 		return 0;
 	}
@@ -18119,7 +18119,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	ast_channel_lock(chan);
-	if (chan->tech != &sip_tech && chan->tech != &sip_tech_info) {
+	if (!IS_SIP_TECH(chan->tech)) {
 		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
 		ast_channel_unlock(chan);
 		return 0;
