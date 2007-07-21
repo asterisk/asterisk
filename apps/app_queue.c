@@ -1366,7 +1366,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 	return 0;
 }
 
-static int say_position(struct queue_ent *qe)
+static int say_position(struct queue_ent *qe, int ringing)
 {
 	int res = 0, avgholdmins, avgholdsecs;
 	time_t now;
@@ -1380,7 +1380,11 @@ static int say_position(struct queue_ent *qe)
 	if ((qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency))
 		return 0;
 
-	ast_moh_stop(qe->chan);
+	if (ringing) {
+		ast_indicate(qe->chan,-1);
+	} else {
+		ast_moh_stop(qe->chan);
+	}
 	/* Say we're next, if we are */
 	if (qe->pos == 1) {
 		res = play_file(qe->chan, qe->parent->sound_next);
@@ -1467,9 +1471,12 @@ playout:
 	qe->last_pos_said = qe->pos;
 
 	/* Don't restart music on hold if we're about to exit the caller from the queue */
-	if (!res)
-		ast_moh_start(qe->chan, qe->moh, NULL);
-
+	if (!res) {
+                if (ringing)
+                        ast_indicate(qe->chan, AST_CONTROL_RINGING);
+                else
+                        ast_moh_start(qe->chan, qe->moh, NULL);
+	}
 	return res;
 }
 
@@ -1856,7 +1863,7 @@ static int store_next(struct queue_ent *qe, struct callattempt *outgoing)
 	return 0;
 }
 
-static int say_periodic_announcement(struct queue_ent *qe)
+static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 {
 	int res = 0;
 	time_t now;
@@ -1869,7 +1876,10 @@ static int say_periodic_announcement(struct queue_ent *qe)
 		return 0;
 
 	/* Stop the music on hold so we can play our own file */
-	ast_moh_stop(qe->chan);
+	if (ringing)
+		ast_indicate(qe->chan,-1);
+	else
+		ast_moh_stop(qe->chan);
 
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Playing periodic announcement\n");
@@ -1886,8 +1896,12 @@ static int say_periodic_announcement(struct queue_ent *qe)
 		res = 0;
 
 	/* Resume Music on Hold if the caller is going to stay in the queue */
-	if (!res)
-		ast_moh_start(qe->chan, qe->moh, NULL);
+	if (!res) {
+                if (ringing)
+                        ast_indicate(qe->chan, AST_CONTROL_RINGING);
+                else
+                        ast_moh_start(qe->chan, qe->moh, NULL);
+	}
 
 	/* update last_periodic_announce_time */
 	qe->last_periodic_announce_time = now;
@@ -2274,13 +2288,13 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		}
 
 		/* Make a position announcement, if enabled */
-		if (qe->parent->announcefrequency && !ringing &&
-			(res = say_position(qe)))
+		if (qe->parent->announcefrequency &&
+			(res = say_position(qe,ringing)))
 			break;
 
 		/* Make a periodic announcement, if enabled */
-		if (qe->parent->periodicannouncefrequency && !ringing &&
-			(res = say_periodic_announcement(qe)))
+		if (qe->parent->periodicannouncefrequency &&
+			(res = say_periodic_announcement(qe,ringing)))
 			break;
 
 		/* Wait a second before checking again */
@@ -2403,7 +2417,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 		qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, vars_len) : "");
 }
 
-static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi, const char *macro, const char *gosub)
+static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi, const char *macro, const char *gosub, int ringing)
 {
 	struct member *cur;
 	struct callattempt *outgoing = NULL; /* the list of calls we are building */
@@ -2617,7 +2631,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			}
 		}
 		/* Stop music on hold */
-		ast_moh_stop(qe->chan);
+		if (ringing)
+			ast_indicate(qe->chan,-1);
+		else
+			ast_moh_stop(qe->chan);
 		/* If appropriate, log that we have a destination channel */
 		if (qe->chan->cdr)
 			ast_cdr_setdestchan(qe->chan->cdr, peer->name);
@@ -3551,20 +3568,19 @@ check_turns:
 
 			if (makeannouncement) {
 				/* Make a position announcement, if enabled */
-
-				if (qe.parent->announcefrequency && !ringing)
-					if ((res = say_position(&qe)))
+				if (qe.parent->announcefrequency)
+					if ((res = say_position(&qe,ringing)))
 						goto stop;
 			}
 			makeannouncement = 1;
 
 			/* Make a periodic announcement, if enabled */
-			if (qe.parent->periodicannouncefrequency && !ringing)
-				if ((res = say_periodic_announcement(&qe)))
+			if (qe.parent->periodicannouncefrequency)
+				if ((res = say_periodic_announcement(&qe,ringing)))
 					goto stop;
 
 			/* Try calling all queue members for 'timeout' seconds */
-			res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro, args.gosub);
+			res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi, args.macro, args.gosub, ringing);
 			if (res)
 				goto stop;
 
