@@ -15550,7 +15550,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				if (!strcmp(p_old->username, p->username)) {
 					if (!strcmp(p_old->exten, p->exten) &&
 					    !strcmp(p_old->context, p->context)) {
-						p->needdestroy = 1;
+						p_old->needdestroy = 1;
 						sip_pvt_unlock(p_old);
 						break;
 					}
