@@ -286,6 +286,8 @@ AC_CHECK_FUNCS([funopen fopencookie])
 # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
 AC_CHECK_FUNCS([gethostbyname_r])
 
+AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
+
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_INITIALIZER], [PTHREAD_RWLOCK_INITIALIZER], [pthread.h])
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_PREFER_WRITER_NP], [PTHREAD_RWLOCK_PREFER_WRITER_NP], [pthread.h])
 

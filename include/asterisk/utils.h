@@ -393,11 +393,7 @@ int ast_pthread_create_detached_stack(pthread_t *thread, pthread_attr_t *attr, v
 */
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 
-#ifdef linux
-#define ast_random random
-#else
 long int ast_random(void);
-#endif
 
 /*! 
  * \brief free() wrapper

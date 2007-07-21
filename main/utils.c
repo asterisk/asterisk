@@ -40,6 +40,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifdef HAVE_DEV_URANDOM
+#include <fcntl.h>
+#endif
+
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in lock.h if required */
 #include "asterisk/lock.h"
 #include "asterisk/io.h"
@@ -501,8 +505,15 @@ const char *ast_inet_ntoa(struct in_addr ia)
 	return inet_ntop(AF_INET, &ia, buf, INET_ADDRSTRLEN);
 }
 
+#ifdef HAVE_DEV_URANDOM
+static int dev_urandom_fd;
+#endif
+
 int ast_utils_init(void)
 {
+#ifdef HAVE_DEV_URANDOM
+	dev_urandom_fd = open("/dev/urandom", O_RDONLY);
+#endif
 	base64_init();
 	return 0;
 }
@@ -807,19 +818,30 @@ struct timeval ast_tvsub(struct timeval a, struct timeval b)
 
 /*! \brief glibc puts a lock inside random(3), so that the results are thread-safe.
  * BSD libc (and others) do not. */
-#ifndef linux
 
+#ifndef linux
 AST_MUTEX_DEFINE_STATIC(randomlock);
+#endif
 
 long int ast_random(void)
 {
 	long int res;
+#ifdef HAVE_DEV_URANDOM
+	if (dev_urandom_fd >= 0) {
+		int read_res = read(dev_urandom_fd, &res, sizeof(res));
+		if (read_res > 0)
+			return res;
+	}
+#endif
+#ifdef linux
+	res = random();
+#else
 	ast_mutex_lock(&randomlock);
 	res = random();
 	ast_mutex_unlock(&randomlock);
+#endif
 	return res;
 }
-#endif
 
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 {

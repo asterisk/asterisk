@@ -95,6 +95,9 @@
 /* Define to indicate the ${CURSES_DESCRIP} library version */
 #undef HAVE_CURSES_VERSION
 
+/* Define to 1 if your system has /dev/urandom. */
+#undef HAVE_DEV_URANDOM
+
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
 #undef HAVE_DIRENT_H
