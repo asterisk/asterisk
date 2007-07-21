@@ -1013,7 +1013,7 @@ struct sip_pvt {
 	time_t lastrtptx;			/*!< Last RTP sent */
 	int rtptimeout;				/*!< RTP timeout time */
 	struct sockaddr_in recv;		/*!< Received as */
-	struct in_addr ourip;			/*!< Our IP */
+	struct sockaddr_in ourip;		/*!< Our IP (as seen from the outside) */
 	struct ast_channel *owner;		/*!< Who owns us (if we have an owner) */
 	struct sip_route *route;		/*!< Head of linked list of routing steps (fm Record-Route) */
 	int route_persistant;			/*!< Is this the "real" route? */
@@ -1266,7 +1266,15 @@ static struct sip_auth *authl = NULL;
  */
 static int sipsock  = -1;
 
-static struct sockaddr_in bindaddr = { 0, };	/*!< The address we bind to */
+static struct sockaddr_in bindaddr;	/*!< The address we bind to */
+
+/*! \brief our (internal) default address/port to put in SIP/SDP messages
+ *  internip is initialized picking a suitable address from one of the
+ * interfaces, and the same port number we bind to. It is used as the
+ * default address/port in SIP messages, and as the default address
+ * (but not port) in SDP messages.
+ */
+static struct sockaddr_in internip;
 
 /*! \brief our external IP address/port for SIP sessions.
  * externip.sin_addr is only set when we know we might be behind
@@ -1282,16 +1290,16 @@ static struct sockaddr_in bindaddr = { 0, };	/*!< The address we bind to */
  * 
  * + with "stunaddr = host[:port]" we run queries every externrefresh seconds
  *   to the specified server, and store the result in externip.
- *   XXX not implemented yet.
  *
  * Other variables (externhost, externexpire, externrefresh) are used
  * to support the above functions.
  */
 static struct sockaddr_in externip;		/*!< External IP address if we are behind NAT */
 
-static char externhost[MAXHOSTNAMELEN];		/*!< External host name (possibly with dynamic DNS and DHCP */
-static time_t externexpire = 0;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
+static char externhost[MAXHOSTNAMELEN];		/*!< External host name */
+static time_t externexpire;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;
+static struct sockaddr_in stunaddr;		/*!< stun server address */
 
 /*! \brief  List of local networks
  * We store "localnet" addresses from the config file into an access list,
@@ -1301,8 +1309,6 @@ static int externrefresh = 10;
  */
 static struct ast_ha *localaddr;		/*!< List of local networks, on the same side of NAT as this Asterisk */
 
-static struct in_addr __ourip;
-static int ourport;
 static struct sockaddr_in debugaddr;
 
 static struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
@@ -1539,7 +1545,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 static int sip_prune_realtime(int fd, int argc, char *argv[]);
 
 /*--- Internal UA client handling (outbound registrations) */
-static void ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
+static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(char *value, int lineno);
 static char *regstate2str(enum sipregistrystate regstate) attribute_const;
@@ -1996,42 +2002,63 @@ static void build_via(struct sip_pvt *p)
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	ast_string_field_build(p, via, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x%s",
-			 ast_inet_ntoa(p->ourip), ourport, p->branch, rport);
+			ast_inet_ntoa(p->ourip.sin_addr),
+			ntohs(p->ourip.sin_port), p->branch, rport);
 }
 
-/*! \brief NAT fix - decide which IP address to use for ASterisk server?
+/*! \brief NAT fix - decide which IP address to use for Asterisk server?
  *
  * Using the localaddr structure built up with localnet statements in sip.conf
  * apply it to their address to see if we need to substitute our
  * externip or can get away with our internal bindaddr
+ * 'us' is always overwritten.
  */
-static void ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
+static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us)
 {
-	struct sockaddr_in theirs, ours;
+	struct sockaddr_in theirs;
+	/* Set want_remap to non-zero if we want to remap 'us' to an externally
+	 * reachable IP address and port. This is done if:
+	 * 1. we have a localaddr list (containing 'internal' addresses marked
+	 *    as 'deny', so ast_apply_ha() will return AST_SENSE_DENY on them,
+	 *    and AST_SENSE_ALLOW on 'external' ones);
+	 * 2. either stunaddr or externip is set, so we know what to use as the
+	 *    externally visible address;
+	 * 3. the remote address, 'them', is external;
+	 * 4. the address returned by ast_ouraddrfor() is 'internal' (AST_SENSE_DENY
+	 *    when passed to ast_apply_ha() so it does need to be remapped.
+	 *    This fourth condition is checked later.
+	 */
+	int want_remap = localaddr &&
+		(externip.sin_addr.s_addr || stunaddr.sin_addr.s_addr) &&
+		ast_apply_ha(localaddr, &theirs) == AST_SENSE_ALLOW ;
 
-	/* Get our local information */
-	ast_ouraddrfor(them, us);
+	*us = internip;		/* starting guess for the internal address */
+	/* now ask the system what would it use to talk to 'them' */
+	ast_ouraddrfor(them, &us->sin_addr);
 	theirs.sin_addr = *them;
-	ours.sin_addr = *us;
 
-	if (localaddr && externip.sin_addr.s_addr &&
-	    (ast_apply_ha(localaddr, &theirs)) &&
-	    (!global_matchexterniplocally || !ast_apply_ha(localaddr, &ours))) {
+	if (want_remap &&
+	    (!global_matchexterniplocally || !ast_apply_ha(localaddr, us)) ) {
+		/* if we used externhost or stun, see if it is time to refresh the info */
 		if (externexpire && time(NULL) >= externexpire) {
-			struct ast_hostent ahp;
-			struct hostent *hp;
-
+			if (stunaddr.sin_addr.s_addr) {
+				ast_stun_request(sipsock, &stunaddr, NULL, &externip);
+			} else {
+				if (ast_parse_arg(externhost, PARSE_INADDR, &externip))
+					ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
+			}
 			externexpire = time(NULL) + externrefresh;
-			if ((hp = ast_gethostbyname(externhost, &ahp))) {
-				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
-			} else
-				ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
 		}
-		*us = externip.sin_addr;
+		if (externip.sin_addr.s_addr)
+			*us = externip;
+		else
+			ast_log(LOG_WARNING, "stun failed\n");
 		ast_debug(1, "Target address %s is not local, substituting externip\n", 
 			ast_inet_ntoa(*(struct in_addr *)&them->s_addr));
-	} else if (bindaddr.sin_addr.s_addr)
-		*us = bindaddr.sin_addr;
+	} else if (bindaddr.sin_addr.s_addr) {
+		/* no remapping, but we bind to a specific address, so use it. */
+		*us = bindaddr;
+	}
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -4650,7 +4677,7 @@ static void build_callid_pvt(struct sip_pvt *pvt)
 {
 	char buf[33];
 
-	const char *host = S_OR(pvt->fromdomain, ast_inet_ntoa(pvt->ourip));
+	const char *host = S_OR(pvt->fromdomain, ast_inet_ntoa(pvt->ourip.sin_addr));
 	
 	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 
@@ -4698,11 +4725,12 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
 		p->timer_t1 = SIP_TIMER_T1;	/* Default SIP retransmission timer T1 (RFC 3261) */
 
-	if (sin) {
+	if (!sin)
+		p->ourip = internip;
+	else {
 		p->sa = *sin;
 		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
-	} else
-		p->ourip = __ourip;
+	}
 
 	/* Copy global flags to this PVT at setup. */
 	ast_copy_flags(&p->flags[0], &global_flags[0], SIP_FLAGS_TO_COPY);
@@ -6322,11 +6350,12 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	/* Initialize the bare minimum */
 	p->method = intended_method;
 
-	if (sin) {
+	if (!sin)
+		p->ourip = internip;
+	else {
 		p->sa = *sin;
 		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
-	} else
-		p->ourip = __ourip;
+	}
 
 	p->branch = ast_random();
 	make_our_tag(p->tag, sizeof(p->tag));
@@ -6631,12 +6660,12 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 		udptldest.sin_port = p->udptlredirip.sin_port;
 		udptldest.sin_addr = p->udptlredirip.sin_addr;
 	} else {
-		udptldest.sin_addr = p->ourip;
+		udptldest.sin_addr = p->ourip.sin_addr;
 		udptldest.sin_port = udptlsin.sin_port;
 	}
 	
 	if (debug) 
-		ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(udptlsin.sin_port));
+		ast_debug(1, "T.38 UDPTL is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(udptlsin.sin_port));
 	
 	/* We break with the "recommendation" and send our IP, in order that our
 	   peer doesn't have to ast_gethostbyname() us */
@@ -6726,7 +6755,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, struct socka
 		dest->sin_port = p->redirip.sin_port;
 		dest->sin_addr = p->redirip.sin_addr;
 	} else {
-		dest->sin_addr = p->ourip;
+		dest->sin_addr = p->ourip.sin_addr;
 		dest->sin_port = sin->sin_port;
 	}
 	if (needvideo) {
@@ -6735,7 +6764,7 @@ static void get_our_media_address(struct sip_pvt *p, int needvideo, struct socka
 			vdest->sin_addr = p->vredirip.sin_addr;
 			vdest->sin_port = p->vredirip.sin_port;
 		} else {
-			vdest->sin_addr = p->ourip;
+			vdest->sin_addr = p->ourip.sin_addr;
 			vdest->sin_port = vsin->sin_port;
 		}
 	}
@@ -6839,7 +6868,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	get_our_media_address(p, needvideo, &sin, &vsin, &tsin, &dest, &vdest);
 		
 	if (debug) 
-		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(sin.sin_port));	
+		ast_verbose("Audio is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(sin.sin_port));	
 
 	/* Ok, we need video. Let's add what we need for video and set codecs.
 	   Video is handled differently than audio since we can not transcode. */
@@ -6850,7 +6879,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (p->maxcallbitrate)
 			snprintf(bandwidth, sizeof(bandwidth), "b=CT:%d\r\n", p->maxcallbitrate);
 		if (debug) 
-			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
+			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(vsin.sin_port));	
 	}
 
 	/* Check if we need text in this call */
@@ -6873,13 +6902,13 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			tdest.sin_addr = p->tredirip.sin_addr;
 			tdest.sin_port = p->tredirip.sin_port;
 		} else {
-			tdest.sin_addr = p->ourip;
+			tdest.sin_addr = p->ourip.sin_addr;
 			tdest.sin_port = tsin.sin_port;
 		}
 		ast_build_string(&m_text_next, &m_text_left, "m=text %d RTP/AVP", ntohs(tdest.sin_port));
 
-		if (debug) 
-			ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip), ntohs(tsin.sin_port));	
+		if (debug) /* XXX should I use tdest below ? */
+			ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(tsin.sin_port));	
 
 	}
 
@@ -7206,10 +7235,10 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 static void build_contact(struct sip_pvt *p)
 {
 	/* Construct Contact: header */
-	if (ourport != STANDARD_SIP_PORT)
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip), ourport);
+	if (ntohs(p->ourip.sin_port) != STANDARD_SIP_PORT)
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr), ntohs(p->ourip.sin_port));
 	else
-		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip));
+		ast_string_field_build(p, our_contact, "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(p->ourip.sin_addr));
 }
 
 /*! \brief Build the Remote Party-ID & From using callingpres options */
@@ -7279,7 +7308,7 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	}
 	
-	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip));
+	fromdomain = S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr));
 
 	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>", clin, clid, fromdomain);
 	if (send_pres_tags)
@@ -7359,10 +7388,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = tmp2;
 	}
 
-	if (ourport != STANDARD_SIP_PORT && ast_strlen_zero(p->fromdomain))
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), ourport, p->tag);
+	if (ntohs(p->ourip.sin_port) != STANDARD_SIP_PORT && ast_strlen_zero(p->fromdomain))
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)), ntohs(p->ourip.sin_port), p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)), p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
@@ -7713,7 +7742,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
-		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip)));
+		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)));
 	/* Cisco has a bug in the SIP stack where it can't accept the
 		(0/0) notification. This can temporarily be disabled in
 		sip.conf with the "buggymwi" option */
@@ -7898,7 +7927,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	} else {
 		/* Build callid for registration if we haven't registered before */
 		if (!r->callid_valid) {
-			build_callid_registry(r, __ourip, default_fromdomain);
+			build_callid_registry(r, internip.sin_addr, default_fromdomain);
 			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP packet for registration */
@@ -11208,6 +11237,8 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		msg = "Disabled, no localnet list";
 	else if (externip.sin_addr.s_addr == 0)
 		msg = "Disabled, externip is 0.0.0.0";
+	else if (stunaddr.sin_addr.s_addr != 0)
+		msg = "Enabled using STUN";
 	else if (!ast_strlen_zero(externhost))
 		msg = "Enabled using externhost";
 	else
@@ -11216,7 +11247,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Externhost:             %s\n", S_OR(externhost, "<none>"));
 	ast_cli(fd, "  Externip:               %s:%d\n", ast_inet_ntoa(externip.sin_addr), ntohs(externip.sin_port));
 	ast_cli(fd, "  Externrefresh:          %d\n", externrefresh);
-	ast_cli(fd, "  Internal IP:            %s:%d\n", ast_inet_ntoa(__ourip), ntohs(bindaddr.sin_port));
+	ast_cli(fd, "  Internal IP:            %s:%d\n", ast_inet_ntoa(internip.sin_addr), ntohs(internip.sin_port));
 	{
 		struct ast_ha *a;
 		const char *prefix = "Localnet:";
@@ -11228,6 +11259,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 			    inet_ntop(AF_INET, &a->netmask, buf, sizeof(buf)) );
 		}
 	}
+	ast_cli(fd, "  STUN server:            %s:%d\n", ast_inet_ntoa(stunaddr.sin_addr), ntohs(stunaddr.sin_port));
  
 	ast_cli(fd, "\nGlobal Signalling Settings:\n");
 	ast_cli(fd, "---------------------------\n");
@@ -11595,7 +11627,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "  SIP Transfer mode:      %s\n", transfermode2str(cur->allowtransfer));
 			ast_cli(fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(&cur->flags[0], SIP_NAT)));
-			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
+			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip.sin_addr), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
 			ast_cli(fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
@@ -17213,10 +17245,8 @@ static int reload_config(enum channelreloadreason reason)
 	struct ast_variable *v;
 	struct sip_peer *peer;
 	struct sip_user *user;
-	struct ast_hostent ahp;
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
-	struct hostent *hp;
 	struct ast_flags dummy[2];
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
@@ -17244,13 +17274,17 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
+	memset(&stunaddr, 0, sizeof(stunaddr));
+	memset(&internip, 0, sizeof(internip));
+	/* Free memory for local network address mask */
+	ast_free_ha(localaddr);
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 	memset(&default_prefs, 0 , sizeof(default_prefs));
 	memset(&global_outboundproxy, 0, sizeof(struct sip_proxy));
 	global_outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
 	global_outboundproxy.ip.sin_family = AF_INET;	/* Type of address: IPv4 */
-	ourport = STANDARD_SIP_PORT;
+	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
 	global_srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
@@ -17476,12 +17510,13 @@ static int reload_config(enum channelreloadreason reason)
 				global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 		} else if (!strcasecmp(v->name, "registerattempts")) {
 			global_regattempts_max = atoi(v->value);
+		} else if (!strcasecmp(v->name, "stunaddr")) {
+			stunaddr.sin_port = htons(3478);
+			if (ast_parse_arg(v->value, PARSE_INADDR, &stunaddr))
+				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "bindaddr")) {
-			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
+			if (ast_parse_arg(v->value, PARSE_INADDR, &bindaddr))
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
-			} else {
-				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
-			}
 		} else if (!strcasecmp(v->name, "localnet")) {
 			struct ast_ha *na;
 			int ha_error = 0;
@@ -17493,17 +17528,13 @@ static int reload_config(enum channelreloadreason reason)
 			if (ha_error)
 				ast_log(LOG_ERROR, "Bad localnet configuration value line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "externip")) {
-			if (!(hp = ast_gethostbyname(v->value, &ahp))) 
+			if (ast_parse_arg(v->value, PARSE_INADDR, &externip))
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
-			else
-				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 			externexpire = 0;
 		} else if (!strcasecmp(v->name, "externhost")) {
 			ast_copy_string(externhost, v->value, sizeof(externhost));
-			if (!(hp = ast_gethostbyname(externhost, &ahp))) 
+			if (ast_parse_arg(externhost, PARSE_INADDR, &externip))
 				ast_log(LOG_WARNING, "Invalid address for externhost keyword: %s\n", externhost);
-			else
-				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 			externexpire = time(NULL);
 		} else if (!strcasecmp(v->name, "externrefresh")) {
 			if (sscanf(v->value, "%d", &externrefresh) != 1) {
@@ -17561,8 +17592,9 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "cos_text")) {
 			ast_str2cos(v->value, &global_cos_text);
 		} else if (!strcasecmp(v->name, "bindport")) {
-			if (sscanf(v->value, "%d", &ourport) == 1) {
-				bindaddr.sin_port = htons(ourport);
+			int i;
+			if (sscanf(v->value, "%d", &i) == 1) {
+				bindaddr.sin_port = htons(i);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
 			}
@@ -17691,13 +17723,12 @@ static int reload_config(enum channelreloadreason reason)
 			}
 		}
 	}
-	if (ast_find_ourip(&__ourip, bindaddr)) {
+	bindaddr.sin_family = AF_INET;
+	internip = bindaddr;
+	if (ast_find_ourip(&internip.sin_addr, bindaddr)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
 		return 0;
 	}
-	if (!ntohs(bindaddr.sin_port))
-		bindaddr.sin_port = ntohs(STANDARD_SIP_PORT);
-	bindaddr.sin_family = AF_INET;
 	ast_mutex_lock(&netlock);
 	if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in)))) {
 		close(sipsock);
@@ -17728,7 +17759,14 @@ static int reload_config(enum channelreloadreason reason)
 				if (option_verbose > 1)
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-
+				if (stunaddr.sin_addr.s_addr != 0) {
+					ast_debug(1, "stun to %s:%d\n",
+						ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
+					ast_stun_request(sipsock, &stunaddr,
+						NULL, &externip);
+					ast_debug(1, "STUN sees us at %s:%d\n", 
+						ast_inet_ntoa(externip.sin_addr) , ntohs(externip.sin_port));
+				}
 				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip);
 			}
 		}
@@ -17805,10 +17843,10 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 		memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
 	if (!ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		if (!p->pendinginvite) {
-			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+			ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			transmit_reinvite_with_sdp(p, TRUE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+			ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(udptl ? p->udptlredirip.sin_addr : p->ourip.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 		}
 	}
@@ -17860,13 +17898,13 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 				if (flag)
 					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 				else
-					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
+					ast_debug(3, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
 				transmit_reinvite_with_sdp(p, TRUE);
 			} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
 				if (flag)
 					ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 				else
-					ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
+					ast_debug(3, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
 				ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);
 			}
 		}
@@ -17884,7 +17922,7 @@ static int sip_handle_t38_reinvite(struct ast_channel *chan, struct sip_pvt *pvt
 		if (flag)
 			ast_debug(3, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%d\n", p->callid, ast_inet_ntoa(p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
 		else
-			ast_debug(3, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip));
+			ast_debug(3, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, ast_inet_ntoa(p->ourip.sin_addr));
 		pvt->t38.state = T38_ENABLED;
 		p->t38.state = T38_ENABLED;
 		ast_debug(2, "T38 changed state to %d on channel %s\n", pvt->t38.state, pvt->owner ? pvt->owner->name : "<none>");
@@ -18038,12 +18076,12 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		if (chan->_state != AST_STATE_UP) {	/* We are in early state */
 			if (!ast_test_flag(&p->flags[0], SIP_NO_HISTORY))
 				append_history(p, "ExtInv", "Initial invite sent with remote bridge proposal.");
-			ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
+			ast_debug(1, "Early remote bridge setting SIP '%s' - Sending media to %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip.sin_addr));
 		} else if (!p->pendinginvite) {		/* We are up, and have no outstanding invite */
-			ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
+			ast_debug(3, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip.sin_addr));
 			transmit_reinvite_with_sdp(p, FALSE);
 		} else if (!ast_test_flag(&p->flags[0], SIP_PENDINGBYE)) {
-			ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip));
+			ast_debug(3, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(rtp ? p->redirip.sin_addr : p->ourip.sin_addr));
 			/* We have a pending Invite. Send re-invite when we're done with the invite */
 			ast_set_flag(&p->flags[0], SIP_NEEDREINVITE);	
 		}

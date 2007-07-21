@@ -293,41 +293,92 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Default is 0 tries, continue forever
 
 ;----------------------------------------- NAT SUPPORT ------------------------
-; The externip, externhost and localnet settings are used if you use Asterisk
-; behind a NAT device to communicate with services on the outside.
-
-;externip = 200.201.202.203	; Address that we're going to put in outbound SIP
-				; messages if we're behind a NAT
-
-				; The externip and localnet is used
-				; when registering and communicating with other proxies
-				; that we're registered with
-;externhost=foo.dyndns.net	; Alternatively you can specify an 
-				; external host, and Asterisk will 
-				; perform DNS queries periodically.  Not
-				; recommended for production 
-				; environments!  Use externip instead
-;externrefresh=10		; How often to refresh externhost if 
-				; used
-				; You may add multiple local networks.  A reasonable 
-				; set of defaults are:
-;localnet=192.168.0.0/255.255.0.0; All RFC 1918 addresses are local networks
-;localnet=10.0.0.0/255.0.0.0	; Also RFC1918
-;localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation
-;localnet=169.254.0.0/255.255.0.0 ;Zero conf local network
-
-; The nat= setting is used when Asterisk is on a public IP, communicating with
-; devices hidden behind a NAT device (broadband router).  If you have one-way
-; audio problems, you usually have problems with your NAT configuration or your
-; firewall's support of SIP+RTP ports.  You configure Asterisk choice of RTP
-; ports for incoming audio in rtp.conf
 ;
-;nat=no				; Global NAT settings  (Affects all peers and users)
-                                ; yes = Always ignore info and assume NAT
-                                ; no = Use NAT mode only according to RFC3581 (;rport)
-                                ; never = Never attempt NAT mode or RFC3581 support
-				; route = Assume NAT, don't send rport 
-				; (work around more UNIDEN bugs)
+; WARNING: SIP operation behind a NAT is tricky and you really need
+; to read and understand well the following section.
+;
+; When Asterisk is behind a NAT device, the "local" address (and port) that
+; a socket is bound to has different values when seen from the inside or
+; from the outside of the NATted network. Unfortunately this address must
+; be communicated to the outside (e.g. in SIP and SDP messages), and in
+; order to determine the correct value Asterisk needs to know:
+;
+; + whether it is talking to someone "inside" or "outside" of the NATted network.
+;   This is configured by assigning the "localnet" parameter with a list
+;   of network addresses that are considered "inside" of the NATted network.
+;   IF LOCALNET IS NOT SET, THE EXTERNAL ADDRESS WILL NOT BE SET CORRECTLY.
+;   Multiple entries are allowed, e.g. a reasonable set is the following:
+;
+;      localnet=192.168.0.0/255.255.0.0 ; RFC 1918 addresses
+;      localnet=10.0.0.0/255.0.0.0	; Also RFC1918
+;      localnet=172.16.0.0/12		; Another RFC1918 with CIDR notation
+;      localnet=169.254.0.0/255.255.0.0 ; Zero conf local network
+;
+; + the "externally visible" address and port number to be used when talking
+;   to a host outside the NAT. This information is derived by one of the
+;   following (mutually exclusive) config file parameters:
+;
+;   a. "externip = hostname[:port]" specifies a static address[:port] to
+;      be used in SIP and SDP messages.
+;      The hostname is looked up only once, when [re]loading sip.conf .
+;      If a port number is not present, use the "bindport" value (which is
+;      not guaranteed to work correctly, because a NAT box might remap the
+;      port number as well as the address).
+;      This approach can be useful if you have a NAT device where you can
+;      configure the mapping statically. Examples:
+;
+;	externip = 12.34.56.78		; use this address.
+;	externip = 12.34.56.78:9900	; use this address and port.
+;	externip = mynat.my.org:12600	; Public address of my nat box.
+;
+;   b. "externhost = hostname[:port]" is similar to "externip" except
+;      that the hostname is looked up every "externrefresh" seconds
+;      (default 10s). This can be useful when your NAT device lets you choose
+;      the port mapping, but the IP address is dynamic.
+;      Beware, you might suffer from service disruption when the name server
+;      resolution fails. Examples:
+;
+;	externhost=foo.dyndns.net	; refreshed periodically
+;	externrefresh=180		; change the refresh interval
+;
+;   c. "stunaddr = stun.server[:port]" queries the STUN server specified
+;      as an argument to obtain the external address/port.
+;      Queries are also sent periodically every "externrefresh" seconds
+;      (as a side effect, sending the query also acts as a keepalive for
+;      the state entry on the nat box):
+;
+;	stunaddr = foo.stun.com:3478
+;	externrefresh = 15
+;
+;   Note that at the moment all these mechanism work only for the SIP socket.
+;   The IP address discovered with externip/externhost/STUN is reused for
+;   media sessions as well, but the port numbers are not remapped so you
+;   may still experience problems.
+;
+; NOTE 1: in some cases, NAT boxes will use different port numbers in
+; the internal<->external mapping. In these cases, the "externip" and
+; "externhost" might not help you configure addresses properly, and you
+; really need to use STUN.
+;
+; NOTE 2: when using "externip" or "externhost", the address part is
+; also used as the external address for media sessions.
+; If you use "stunaddr", STUN queries will be sent to the same server
+; also from media sockets, and this should permit a correct mapping of
+; the port numbers as well.
+;
+; In addition to the above, Asterisk has an additional "nat" parameter to
+; address NAT-related issues in incoming SIP or media sessions.
+; In particular, depending on the 'nat= ' settings described below, Asterisk
+; may override the address/port information specified in the SIP/SDP messages,
+; and use the information (sender address) supplied by the network stack instead.
+; However, this is only useful if the external traffic can reach us.
+; The following settings are allowed (both globally and in individual sections):
+;
+;	nat = no		; default. Use NAT mode only according to RFC3581 (;rport)
+;	nat = yes		; Always ignore info and assume NAT
+;	nat = never		; Never attempt NAT mode or RFC3581 support
+;	nat = route		; route = Assume NAT, don't send rport 
+;				; (work around more UNIDEN bugs)
 
 ;----------------------------------- MEDIA HANDLING --------------------------------
 ; By default, Asterisk tries to re-invite the audio to an optimal path. If there's
