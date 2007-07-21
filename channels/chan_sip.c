@@ -749,7 +749,7 @@ struct sip_auth {
 #define SIP_PROMISCREDIR	(1 << 8)	/*!< DP: Promiscuous redirection */
 #define SIP_TRUSTRPID		(1 << 9)	/*!< DP: Trust RPID headers? */
 #define SIP_USEREQPHONE		(1 << 10)	/*!< DP: Add user=phone to numeric URI. Default off */
-#define SIP_REALTIME		(1 << 11)	/*!< P: Flag for realtime users */
+#define __SIP_REALTIME			(1 << 11)	/*!< P: Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< DP: Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< D: Direction of the last transaction in this dialog */
 #define SIP_DIALOG_ANSWEREDELSEWHERE	(1 << 14)	/*!< D: This call is cancelled due to answer on another channel */
@@ -1115,6 +1115,10 @@ struct sip_user {
 	ast_group_t pickupgroup;	/*!< Pickup Group */
 	unsigned int sipoptions;	/*!< Supported SIP options */
 	struct ast_flags flags[2];	/*!< SIP_ flags */
+
+	/* things that don't belong in flags */
+	char is_realtime;		/*!< this is a 'realtime' user */
+
 	int amaflags;			/*!< AMA flags for billing */
 	int callingpres;		/*!< Calling id presentation */
 	int capability;			/*!< Codec capability */
@@ -1164,6 +1168,10 @@ struct sip_peer {
 	int lastmsgssent;
 	unsigned int sipoptions;	/*!<  Supported SIP options */
 	struct ast_flags flags[2];	/*!<  SIP_ flags */
+
+	/* things that don't belong in flags */
+	char is_realtime;		/*!< this is a 'realtime' peer */
+
 	int expire;			/*!<  When to expire this peer registration */
 	int capability;			/*!<  Codec capability */
 	int rtptimeout;			/*!<  RTP timeout */
@@ -2795,7 +2803,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	ast_free_ha(peer->ha);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT))
 		apeerobjs--;
-	else if (ast_test_flag(&peer->flags[0], SIP_REALTIME)) {
+	else if (peer->is_realtime) {
 		rpeerobjs--;
 		ast_debug(3,"-REALTIME- peer Destroyed. Name: %s. Realtime Peer objects: %d\n", peer->name, rpeerobjs);
 	} else
@@ -2812,7 +2820,7 @@ static void update_peer(struct sip_peer *p, int expiry)
 {
 	int rtcachefriends = ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS);
 	if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE) &&
-	    (ast_test_flag(&p->flags[0], SIP_REALTIME) || rtcachefriends)) {
+	    (p->is_realtime || rtcachefriends)) {
 		realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry);
 	}
 }
@@ -2911,7 +2919,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		}
 		ASTOBJ_CONTAINER_LINK(&peerl,peer);
 	} else {
-		ast_set_flag(&peer->flags[0], SIP_REALTIME);
+		peer->is_realtime = 1;
 	}
 	ast_variables_destroy(var);
 	ast_variables_destroy(varregs);
@@ -2956,7 +2964,7 @@ static void sip_destroy_user(struct sip_user *user)
 		ast_variables_destroy(user->chanvars);
 		user->chanvars = NULL;
 	}
-	if (ast_test_flag(&user->flags[0], SIP_REALTIME))
+	if (user->is_realtime)
 		ruserobjs--;
 	else
 		suserobjs--;
@@ -3000,7 +3008,7 @@ static struct sip_user *realtime_user(const char *username)
 		/* Move counter from s to r... */
 		suserobjs--;
 		ruserobjs++;
-		ast_set_flag(&user->flags[0], SIP_REALTIME);
+		user->is_realtime = 1;
 	}
 	ast_variables_destroy(var);
 	return user;
@@ -8282,7 +8290,7 @@ static int expire_register(void *data)
 	/* Do we need to release this peer from memory? 
 		Only for realtime peers and autocreated peers
 	*/
-	if (ast_test_flag(&peer->flags[0], SIP_REALTIME))
+	if (peer->is_realtime)
 		ast_debug(3,"-REALTIME- peer expired registration. Name: %s. Realtime peer objects now %d\n", peer->name, rpeerobjs);
 
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
@@ -8531,7 +8539,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		expiry = max_expiry;
 	if (expiry < min_expiry)
 		expiry = min_expiry;
-	peer->expire = ast_test_flag(&peer->flags[0], SIP_REALTIME) ? -1 :
+	peer->expire = peer->is_realtime ? -1 :
 		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
@@ -10433,7 +10441,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
 			ntohs(iterator->addr.sin_port), status,
-			realtimepeers ? (ast_test_flag(&iterator->flags[0], SIP_REALTIME) ? "Cached RT":"") : "");
+			realtimepeers ? (iterator->is_realtime ? "Cached RT":"") : "");
 
 		if (!s)  {/* Normal CLI list */
 			ast_cli(fd, FORMAT, name, 
@@ -10443,7 +10451,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 			iterator->ha ? " A " : "   ",       /* permit/deny */
 			
 			ntohs(iterator->addr.sin_port), status,
-			realtimepeers ? (ast_test_flag(&iterator->flags[0], SIP_REALTIME) ? "Cached RT":"") : "");
+			realtimepeers ? (iterator->is_realtime ? "Cached RT":"") : "");
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
 			astman_append(s, 
@@ -10470,7 +10478,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
 			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status,
-			realtimepeers ? (ast_test_flag(&iterator->flags[0], SIP_REALTIME) ? "yes":"no") : "no");
+			realtimepeers ? (iterator->is_realtime ? "yes":"no") : "no");
 		}
 
 		ASTOBJ_UNLOCK(iterator);
@@ -10843,7 +10851,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd,"\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
 		if (realtimepeers) {	/* Realtime is enabled */
-			ast_cli(fd, "  Realtime peer: %s\n", ast_test_flag(&peer->flags[0], SIP_REALTIME) ? "Yes, cached" : "No");
+			ast_cli(fd, "  Realtime peer: %s\n", peer->is_realtime ? "Yes, cached" : "No");
 		}
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
@@ -17175,7 +17183,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE))
 		global_allowsubscribe = TRUE;	/* No global ban any more */
-	if (!found && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && !ast_test_flag(&peer->flags[0], SIP_REALTIME))
+	if (!found && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && !peer->is_realtime)
 		reg_source_db(peer);
 
 	/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
