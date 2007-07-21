@@ -1401,10 +1401,10 @@ static const char *get_sdp(struct sip_request *req, const char *name);
 static int find_sdp(struct sip_request *req);
 static int process_sdp(struct sip_pvt *p, struct sip_request *req);
 static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
-			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size);
 static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
-				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug);
 static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p);
 static void do_setnat(struct sip_pvt *p, int natflags);
@@ -6503,7 +6503,7 @@ static int add_vidupdate(struct sip_request *req)
 
 /*! \brief Add codec offer to SDP offer/answer body in INVITE or 200 OK */
 static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
-			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size)
 {
 	int rtp_code;
@@ -6520,20 +6520,20 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 		fmt = ast_codec_pref_getsize(pref, codec);
 	} else /* I dont see how you couldn't have p->rtp, but good to check for and error out if not there like earlier code */
 		return;
-	ast_build_string(m_buf, m_size, " %d", rtp_code);
-	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(m_buf, 0, " %d", rtp_code);
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 			 ast_rtp_lookup_mime_subtype(1, codec,
 						     ast_test_flag(&p->flags[0], SIP_G726_NONSTANDARD) ? AST_RTP_OPT_G726_NONSTANDARD : 0),
 			 sample_rate);
 	if (codec == AST_FORMAT_G729A) {
 		/* Indicate that we don't support VAD (G.729 annex B) */
-		ast_build_string(a_buf, a_size, "a=fmtp:%d annexb=no\r\n", rtp_code);
+		ast_str_append(a_buf, 0, "a=fmtp:%d annexb=no\r\n", rtp_code);
 	} else if (codec == AST_FORMAT_G723_1) {
 		/* Indicate that we don't support VAD (G.723.1 annex A) */
-		ast_build_string(a_buf, a_size, "a=fmtp:%d annexa=no\r\n", rtp_code);
+		ast_str_append(a_buf, 0, "a=fmtp:%d annexa=no\r\n", rtp_code);
 	} else if (codec == AST_FORMAT_ILBC) {
 		/* Add information about us using only 20/30 ms packetization */
-		ast_build_string(a_buf, a_size, "a=fmtp:%d mode=%d\r\n", rtp_code, fmt.cur_ms);
+		ast_str_append(a_buf, 0, "a=fmtp:%d mode=%d\r\n", rtp_code, fmt.cur_ms);
 	}
 
 	if (fmt.cur_ms && (fmt.cur_ms < *min_packet_size))
@@ -6547,7 +6547,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate
 /*! \brief Add video codec offer to SDP offer/answer body in INVITE or 200 OK */
 /* This is different to the audio one now so we can add more caps later */
 static void add_vcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
-			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size)
 {
 	int rtp_code;
@@ -6561,15 +6561,15 @@ static void add_vcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rat
 	if ((rtp_code = ast_rtp_lookup_code(p->vrtp, 1, codec)) == -1)
 		return;
 
-	ast_build_string(m_buf, m_size, " %d", rtp_code);
-	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(m_buf, 0, " %d", rtp_code);
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
 	/* Add fmtp code here */
 }
 
 /*! \brief Add text codec offer to SDP offer/answer body in INVITE or 200 OK */
 static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
-			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     struct ast_str **m_buf, struct ast_str **a_buf,
 			     int debug, int *min_packet_size)
 {
 	int rtp_code;
@@ -6583,8 +6583,8 @@ static void add_tcodec_to_sdp(const struct sip_pvt *p, int codec, int sample_rat
 	if ((rtp_code = ast_rtp_lookup_code(p->trtp, 1, codec)) == -1)
 		return;
 
-	ast_build_string(m_buf, m_size, " %d", rtp_code);
-	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(m_buf, 0, " %d", rtp_code);
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 			 ast_rtp_lookup_mime_subtype(1, codec, 0), sample_rate);
 	/* Add fmtp code here */
 }
@@ -6625,17 +6625,8 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	int len = 0;
 	int x = 0;
 	struct sockaddr_in udptlsin;
-	char v[256] = "";
-	char s[256] = "";
-	char o[256] = "";
-	char c[256] = "";
-	char t[256] = "";
-	char m_modem[256];
-	char a_modem[1024];
-	char *m_modem_next = m_modem;
-	size_t m_modem_left = sizeof(m_modem);
-	char *a_modem_next = a_modem;
-	size_t a_modem_left = sizeof(a_modem);
+	struct ast_str *m_modem = ast_str_alloca(1024);
+	struct ast_str *a_modem = ast_str_alloca(1024);
 	struct sockaddr_in udptldest = { 0, };
 	int debug;
 	
@@ -6676,39 +6667,34 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 			p->t38.peercapability,
 			p->t38.jointcapability);
 	}
-	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(udptldest.sin_addr));
-	snprintf(s, sizeof(s), "s=session\r\n");
-	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
-	snprintf(t, sizeof(t), "t=0 0\r\n");
-	ast_build_string(&m_modem_next, &m_modem_left, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
+	ast_str_append(&m_modem, 0, "v=0\r\n");
+	ast_str_append(&m_modem, 0, "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(udptldest.sin_addr));
+	ast_str_append(&m_modem, 0, "s=session\r\n");
+	ast_str_append(&m_modem, 0, "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
+	ast_str_append(&m_modem, 0, "t=0 0\r\n");
+	ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
 	
 	if ((p->t38.jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0)
-		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:0\r\n");
+		ast_str_append(&a_modem, 0, "a=T38FaxVersion:0\r\n");
 	if ((p->t38.jointcapability & T38FAX_VERSION) == T38FAX_VERSION_1)
-		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxVersion:1\r\n");
+		ast_str_append(&a_modem, 0, "a=T38FaxVersion:1\r\n");
 	if ((x = t38_get_rate(p->t38.jointcapability)))
-		ast_build_string(&a_modem_next, &a_modem_left, "a=T38MaxBitRate:%d\r\n",x);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxFillBitRemoval:%d\r\n", (p->t38.jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingMMR:%d\r\n", (p->t38.jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxTranscodingJBIG:%d\r\n", (p->t38.jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxRateManagement:%s\r\n", (p->t38.jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
+		ast_str_append(&a_modem, 0, "a=T38MaxBitRate:%d\r\n",x);
+	ast_str_append(&a_modem, 0, "a=T38FaxFillBitRemoval:%d\r\n", (p->t38.jointcapability & T38FAX_FILL_BIT_REMOVAL) ? 1 : 0);
+	ast_str_append(&a_modem, 0, "a=T38FaxTranscodingMMR:%d\r\n", (p->t38.jointcapability & T38FAX_TRANSCODING_MMR) ? 1 : 0);
+	ast_str_append(&a_modem, 0, "a=T38FaxTranscodingJBIG:%d\r\n", (p->t38.jointcapability & T38FAX_TRANSCODING_JBIG) ? 1 : 0);
+	ast_str_append(&a_modem, 0, "a=T38FaxRateManagement:%s\r\n", (p->t38.jointcapability & T38FAX_RATE_MANAGEMENT_LOCAL_TCF) ? "localTCF" : "transferredTCF");
 	x = ast_udptl_get_local_max_datagram(p->udptl);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxBuffer:%d\r\n",x);
-	ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxMaxDatagram:%d\r\n",x);
+	ast_str_append(&a_modem, 0, "a=T38FaxMaxBuffer:%d\r\n",x);
+	ast_str_append(&a_modem, 0, "a=T38FaxMaxDatagram:%d\r\n",x);
 	if (p->t38.jointcapability != T38FAX_UDP_EC_NONE)
-		ast_build_string(&a_modem_next, &a_modem_left, "a=T38FaxUdpEC:%s\r\n", (p->t38.jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
-	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_modem) + strlen(a_modem);
+		ast_str_append(&a_modem, 0, "a=T38FaxUdpEC:%s\r\n", (p->t38.jointcapability & T38FAX_UDP_EC_REDUNDANCY) ? "t38UDPRedundancy" : "t38UDPFEC");
+	len = m_modem->used + a_modem->used;
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
-	add_line(resp, v);
-	add_line(resp, o);
-	add_line(resp, s);
-	add_line(resp, c);
-	add_line(resp, t);
-	add_line(resp, m_modem);
-	add_line(resp, a_modem);
-	
+	add_line(resp, m_modem->str);
+	add_line(resp, a_modem->str);
+
 	/* Update lastrtprx when we send our SDP */
 	p->lastrtprx = p->lastrtptx = time(NULL);
 	
@@ -6718,7 +6704,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 /*! \brief Add RFC 2833 DTMF offer to SDP */
 static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
-				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+				struct ast_str **m_buf, struct ast_str **a_buf,
 				int debug)
 {
 	int rtp_code;
@@ -6728,19 +6714,20 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_
 	if ((rtp_code = ast_rtp_lookup_code(p->rtp, 0, format)) == -1)
 		return;
 
-	ast_build_string(m_buf, m_size, " %d", rtp_code);
-	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+	ast_str_append(m_buf, 0, " %d", rtp_code);
+	ast_str_append(a_buf, 0, "a=rtpmap:%d %s/%d\r\n", rtp_code,
 			 ast_rtp_lookup_mime_subtype(0, format, 0),
 			 sample_rate);
-	if (format == AST_RTP_DTMF)
-		/* Indicate we support DTMF and FLASH... */
-		ast_build_string(a_buf, a_size, "a=fmtp:%d 0-16\r\n", rtp_code);
+	if (format == AST_RTP_DTMF)	/* Indicate we support DTMF and FLASH... */
+		ast_str_append(a_buf, 0, "a=fmtp:%d 0-16\r\n", rtp_code);
 }
 
 /*! \brief Set all IP media addresses for this call 
 	\note called from add_sdp()
 */
-static void get_our_media_address(struct sip_pvt *p, int needvideo, struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *tsin, struct sockaddr_in *dest, struct sockaddr_in *vdest)
+static void get_our_media_address(struct sip_pvt *p, int needvideo,
+	struct sockaddr_in *sin, struct sockaddr_in *vsin, struct sockaddr_in *tsin,
+	struct sockaddr_in *dest, struct sockaddr_in *vdest)
 {
 	/* First, get our address */
 	ast_rtp_get_us(p->rtp, sin);
@@ -6794,24 +6781,12 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char *stime = "t=0 0\r\n"; 			/* Time the session is active */
 	char bandwidth[256] = "";			/* Max bitrate */
 	char *hold;
-	char m_audio[256];				/* Media declaration line for audio */
-	char m_video[256];				/* Media declaration line for video */
-	char m_text[256];				  /* Media declaration line for text */
-	char a_audio[1024];				/* Attributes for audio */
-	char a_video[1024];				/* Attributes for video */
-	char a_text[1024];				/* Attributes for text */
-	char *m_audio_next = m_audio;
-	char *m_video_next = m_video;
-	char *m_text_next = m_text;
-	size_t m_audio_left = sizeof(m_audio);
-	size_t m_video_left = sizeof(m_video);
-	size_t m_text_left = sizeof(m_text);
-	char *a_audio_next = a_audio;
-	char *a_video_next = a_video;
-	char *a_text_next = a_text;
-	size_t a_audio_left = sizeof(a_audio);
-	size_t a_video_left = sizeof(a_video);
-	size_t a_text_left = sizeof(a_text);
+	struct ast_str *m_audio = ast_str_alloca(256);  /* Media declaration line for audio */
+	struct ast_str *m_video = ast_str_alloca(256);  /* Media declaration line for video */
+	struct ast_str *m_text = ast_str_alloca(256);   /* Media declaration line for text */
+	struct ast_str *a_audio = ast_str_alloca(1024); /* Attributes for audio */
+	struct ast_str *a_video = ast_str_alloca(1024); /* Attributes for video */
+	struct ast_str *a_text = ast_str_alloca(1024);  /* Attributes for text */
 
 	int x;
 	int capability;
@@ -6824,9 +6799,6 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	char codecbuf[BUFSIZ];
 	char buf[BUFSIZ];
-
-	m_video[0] = '\0';	/* Reset the video media string if it's not needed */
-	m_text[0] = '\0';	  /* Reset the video media string if it's not needed */
 
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -6850,8 +6822,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
 	if (ast_test_flag(&p->t38.t38support, SIP_PAGE2_T38SUPPORT_RTP)) {
-		ast_build_string(&m_audio_next, &m_audio_left, " %d", 191);
-		ast_build_string(&a_audio_next, &a_audio_left, "a=rtpmap:%d %s/%d\r\n", 191, "t38", 8000);
+		ast_str_append(&m_audio, 0, " %d", 191);
+		ast_str_append(&a_audio, 0, "a=rtpmap:%d %s/%d\r\n", 191, "t38", 8000);
 	}
 #endif
 
@@ -6873,7 +6845,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Ok, we need video. Let's add what we need for video and set codecs.
 	   Video is handled differently than audio since we can not transcode. */
 	if (needvideo) {
-		ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+		ast_str_append(&m_video, 0, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 
 		/* Build max bitrate string */
 		if (p->maxcallbitrate)
@@ -6884,9 +6856,11 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	/* Check if we need text in this call */
 	if((capability & AST_FORMAT_TEXT_MASK) && !ast_test_flag(&p->flags[1], SIP_PAGE2_NOTEXT)) {
-		if (sipdebug_text) ast_verbose("We think we can do text\n");
+		if (sipdebug_text)
+			ast_verbose("We think we can do text\n");
 		if (p->trtp) {
-			if (sipdebug_text) ast_verbose("And we have a text rtp object\n");
+			if (sipdebug_text)
+				ast_verbose("And we have a text rtp object\n");
 			needtext = TRUE;
 			ast_debug(2, "This call needs text offers! \n");
 		} else
@@ -6896,7 +6870,8 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Ok, we need text. Let's add what we need for text and set codecs.
 	   Text is handled differently than audio since we can not transcode. */
 	if (needtext) {
-		if (sipdebug_text) ast_verbose("Lets set up the text sdp\n");
+		if (sipdebug_text)
+			ast_verbose("Lets set up the text sdp\n");
 		/* Determine text destination */
 		if (p->tredirip.sin_addr.s_addr) {
 			tdest.sin_addr = p->tredirip.sin_addr;
@@ -6905,7 +6880,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			tdest.sin_addr = p->ourip.sin_addr;
 			tdest.sin_port = tsin.sin_port;
 		}
-		ast_build_string(&m_text_next, &m_text_left, "m=text %d RTP/AVP", ntohs(tdest.sin_port));
+		ast_str_append(&m_text, 0, "m=text %d RTP/AVP", ntohs(tdest.sin_port));
 
 		if (debug) /* XXX should I use tdest below ? */
 			ast_verbose("Text is at %s port %d\n", ast_inet_ntoa(p->ourip.sin_addr), ntohs(tsin.sin_port));	
@@ -6919,7 +6894,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	snprintf(owner, sizeof(owner), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
 	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
-	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+	ast_str_append(&m_audio, 0, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 
 	if (ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD) == SIP_PAGE2_CALL_ONHOLD_ONEDIR)
 		hold = "a=recvonly\r\n";
@@ -6941,8 +6916,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		int codec = p->prefcodec & AST_FORMAT_AUDIO_MASK;
 
 		add_codec_to_sdp(p, codec, SDP_SAMPLE_RATE(codec),
-				 &m_audio_next, &m_audio_left,
-				 &a_audio_next, &a_audio_left,
+				 &m_audio, &a_audio,
 				 debug, &min_audio_packet_size);
 		alreadysent |= codec;
 	}
@@ -6961,8 +6935,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			continue;
 
 		add_codec_to_sdp(p, codec, SDP_SAMPLE_RATE(codec),
-				 &m_audio_next, &m_audio_left,
-				 &a_audio_next, &a_audio_left,
+				 &m_audio, &a_audio,
 				 debug, &min_audio_packet_size);
 		alreadysent |= codec;
 	}
@@ -6977,19 +6950,13 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 		if (x <= AST_FORMAT_MAX_AUDIO)
 			add_codec_to_sdp(p, x, SDP_SAMPLE_RATE(x),
-					 &m_audio_next, &m_audio_left,
-					 &a_audio_next, &a_audio_left,
-					 debug, &min_audio_packet_size);
+				 &m_audio, &a_audio, debug, &min_audio_packet_size);
 		else if (x <= AST_FORMAT_MAX_VIDEO) 
 			add_vcodec_to_sdp(p, x, 90000,
-					 &m_video_next, &m_video_left,
-					 &a_video_next, &a_video_left,
-					 debug, &min_video_packet_size);
+				 &m_video, &a_video, debug, &min_video_packet_size);
 		else if (x <= AST_FORMAT_MAX_TEXT)
 			add_tcodec_to_sdp(p, x, 1000,
-					 &m_text_next, &m_text_left,
-					 &a_text_next, &a_text_left,
-					 debug, &min_text_packet_size);
+				 &m_text, &a_text, debug, &min_text_packet_size);
 	}
 
 	/* Now add DTMF RFC2833 telephony-event as a codec */
@@ -6997,43 +6964,42 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (!(p->jointnoncodeccapability & x))
 			continue;
 
-		add_noncodec_to_sdp(p, x, 8000,
-				    &m_audio_next, &m_audio_left,
-				    &a_audio_next, &a_audio_left,
-				    debug);
+		add_noncodec_to_sdp(p, x, 8000, &m_audio, &a_audio, debug);
 	}
 
 	ast_debug(3, "-- Done with adding codecs to SDP\n");
 
 	if (!p->owner || !ast_internal_timing_enabled(p->owner))
-		ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
+		ast_str_append(&a_audio, 0, "a=silenceSupp:off - - - -\r\n");
 
 	if (min_audio_packet_size)
-		ast_build_string(&a_audio_next, &a_audio_left, "a=ptime:%d\r\n", min_audio_packet_size);
+		ast_str_append(&a_audio, 0, "a=ptime:%d\r\n", min_audio_packet_size);
 
  	/* XXX don't think you can have ptime for video */
 	if (min_video_packet_size)
-		ast_build_string(&a_video_next, &a_video_left, "a=ptime:%d\r\n", min_video_packet_size);
+		ast_str_append(&a_video, 0, "a=ptime:%d\r\n", min_video_packet_size);
 
  	/* XXX don't think you can have ptime for text */
  	if (min_text_packet_size)
- 		ast_build_string(&a_text_next, &a_text_left, "a=ptime:%d\r\n", min_text_packet_size);
+ 		ast_str_append(&a_text, 0, "a=ptime:%d\r\n", min_text_packet_size);
  
- 	if ((m_audio_left < 2) || (m_video_left < 2) || (m_text_left < 2) || 
- 		  (a_audio_left == 0) || (a_video_left == 0) || (a_text_left == 0))
+	if (m_audio->len - m_audio->used < 2 || m_video->len - m_video->used < 2 ||
+			m_text->len - m_text->used < 2 || a_text->len - a_text->used < 2 ||
+			a_audio->len - a_audio->used < 2 || a_video->len - a_video->used < 2)
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 
- 	ast_build_string(&m_audio_next, &m_audio_left, "\r\n");
+ 	ast_str_append(&m_audio, 0, "\r\n");
  	if (needvideo)
- 		ast_build_string(&m_video_next, &m_video_left, "\r\n");
+ 		ast_str_append(&m_video, 0, "\r\n");
  	if (needtext)
- 		ast_build_string(&m_text_next, &m_text_left, "\r\n");
+ 		ast_str_append(&m_text, 0, "\r\n");
 
- 	len = strlen(version) + strlen(subject) + strlen(owner) + strlen(connection) + strlen(stime) + strlen(m_audio) + strlen(a_audio) + strlen(hold);
+ 	len = strlen(version) + strlen(subject) + strlen(owner) +
+		strlen(connection) + strlen(stime) + m_audio->used + a_audio->used + strlen(hold);
  	if (needvideo) /* only if video response is appropriate */
- 		len += strlen(m_video) + strlen(a_video) + strlen(bandwidth) + strlen(hold);
+ 		len += m_video->used + a_video->used + strlen(bandwidth) + strlen(hold);
  	if (needtext) /* only if text response is appropriate */
- 		len += strlen(m_text) + strlen(a_text) + strlen(hold);
+ 		len += m_text->used + a_text->used + strlen(hold);
 
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
@@ -7044,17 +7010,17 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	if (needvideo)	 	/* only if video response is appropriate */
 		add_line(resp, bandwidth);
 	add_line(resp, stime);
-	add_line(resp, m_audio);
-	add_line(resp, a_audio);
+	add_line(resp, m_audio->str);
+	add_line(resp, a_audio->str);
 	add_line(resp, hold);
 	if (needvideo) { /* only if video response is appropriate */
-		add_line(resp, m_video);
-		add_line(resp, a_video);
+		add_line(resp, m_video->str);
+		add_line(resp, a_video->str);
 		add_line(resp, hold);	/* Repeat hold for the video stream */
 	}
 	if (needtext) { /* only if text response is appropriate */
-		add_line(resp, m_text);
-		add_line(resp, a_text);
+		add_line(resp, m_text->str);
+		add_line(resp, a_text->str);
 		add_line(resp, hold);	/* Repeat hold for the text stream */
 	}
 
@@ -7323,14 +7289,13 @@ static void build_rpid(struct sip_pvt *p)
 /*! \brief Initiate new SIP request to peer/user */
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod)
 {
-	char invite_buf[256] = "";
-	char *invite = invite_buf;
-	size_t invite_max = sizeof(invite_buf);
+	struct ast_str *invite = ast_str_alloca(256);
 	char from[256];
 	char to[256];
-	char tmp[BUFSIZ/2];
-	char tmp2[BUFSIZ/2];
-	const char *l = NULL, *n = NULL;
+	char tmp_n[BUFSIZ/2];	/* build a local copy of 'n' if needed */
+	char tmp_l[BUFSIZ/2];	/* build a local copy of 'l' if needed */
+	const char *l = NULL;	/* XXX what is this, exactly ? */
+	const char *n = NULL;	/* XXX what is this, exactly ? */
 	const char *urioptions = "";
 
 	if (ast_test_flag(&p->flags[0], SIP_USEREQPHONE)) {
@@ -7382,10 +7347,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		ast_string_field_set(p, fromname, n);
 
 	if (pedanticsipchecking) {
-		ast_uri_encode(n, tmp, sizeof(tmp), 0);
-		n = tmp;
-		ast_uri_encode(l, tmp2, sizeof(tmp2), 0);
-		l = tmp2;
+		ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
+		n = tmp_n;
+		ast_uri_encode(l, tmp_l, sizeof(tmp_l), 0);
+		l = tmp_l;
 	}
 
 	if (ntohs(p->ourip.sin_port) != STANDARD_SIP_PORT && ast_strlen_zero(p->fromdomain))
@@ -7396,29 +7361,29 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
 		/* If we have full contact, trust it */
-		ast_build_string(&invite, &invite_max, "%s", p->fullcontact);
+		ast_str_append(&invite, 0, "%s", p->fullcontact);
 	} else {
 		/* Otherwise, use the username while waiting for registration */
-		ast_build_string(&invite, &invite_max, "sip:");
+		ast_str_append(&invite, 0, "sip:");
 		if (!ast_strlen_zero(p->username)) {
 			n = p->username;
 			if (pedanticsipchecking) {
-				ast_uri_encode(n, tmp, sizeof(tmp), 0);
-				n = tmp;
+				ast_uri_encode(n, tmp_n, sizeof(tmp_n), 0);
+				n = tmp_n;
 			}
-			ast_build_string(&invite, &invite_max, "%s@", n);
+			ast_str_append(&invite, 0, "%s@", n);
 		}
-		ast_build_string(&invite, &invite_max, "%s", p->tohost);
+		ast_str_append(&invite, 0, "%s", p->tohost);
 		if (ntohs(p->sa.sin_port) != STANDARD_SIP_PORT)
-			ast_build_string(&invite, &invite_max, ":%d", ntohs(p->sa.sin_port));
-		ast_build_string(&invite, &invite_max, "%s", urioptions);
+			ast_str_append(&invite, 0, ":%d", ntohs(p->sa.sin_port));
+		ast_str_append(&invite, 0, "%s", urioptions);
 	}
 
 	/* If custom URI options have been provided, append them */
 	if (p->options && p->options->uri_options)
-		ast_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
+		ast_str_append(&invite, 0, ";%s", p->options->uri_options);
 	
-	ast_string_field_set(p, uri, invite_buf);
+	ast_string_field_set(p, uri, invite->str);
 
 	if (sipmethod == SIP_NOTIFY && !ast_strlen_zero(p->theirtag)) { 
 		/* If this is a NOTIFY, use the From: tag in the subscribe (RFC 3265) */
@@ -7430,7 +7395,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		snprintf(to, sizeof(to), "<%s>", p->uri);
 	
 	init_req(req, sipmethod, p->uri);
-	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
+	/* now tmp_n is available so reuse it to build the CSeq */
+	snprintf(tmp_n, sizeof(tmp_n), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
 
 	add_header(req, "Via", p->via);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
@@ -7447,7 +7413,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	build_contact(p);
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
-	add_header(req, "CSeq", tmp);
+	add_header(req, "CSeq", tmp_n);
 	if (!ast_strlen_zero(global_useragent))
 		add_header(req, "User-Agent", global_useragent);
 	if (!ast_strlen_zero(p->rpid))
@@ -7552,9 +7518,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 /*! \brief Used in the SUBSCRIBE notification subsystem */
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int timeout)
 {
-	char tmp[4000], from[256], to[256];
-	char *t = tmp, *c, *mfrom, *mto;
-	size_t maxbytes = sizeof(tmp);
+	struct ast_str *tmp = ast_str_alloca(4000);
+	char from[256], to[256];
+	char *c, *mfrom, *mto;
 	struct sip_request req;
 	char hint[AST_MAX_EXTENSION];
 	char *statestring = "terminated";
@@ -7668,57 +7634,56 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 	switch (p->subscribed) {
 	case XPIDF_XML:
 	case CPIM_PIDF_XML:
-		ast_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
-		ast_build_string(&t, &maxbytes, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
-		ast_build_string(&t, &maxbytes, "<presence>\n");
-		ast_build_string(&t, &maxbytes, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
-		ast_build_string(&t, &maxbytes, "<atom id=\"%s\">\n", p->exten);
-		ast_build_string(&t, &maxbytes, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
-		ast_build_string(&t, &maxbytes, "<status status=\"%s\" />\n", (local_state ==  NOTIFY_OPEN) ? "open" : (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
-		ast_build_string(&t, &maxbytes, "<msnsubstatus substatus=\"%s\" />\n", (local_state == NOTIFY_OPEN) ? "online" : (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
-		ast_build_string(&t, &maxbytes, "</address>\n</atom>\n</presence>\n");
+		ast_str_append(&tmp, 0,
+			"<?xml version=\"1.0\"?>\n"
+			"<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n"
+			"<presence>\n");
+		ast_str_append(&tmp, 0, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
+		ast_str_append(&tmp, 0, "<atom id=\"%s\">\n", p->exten);
+		ast_str_append(&tmp, 0, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
+		ast_str_append(&tmp, 0, "<status status=\"%s\" />\n", (local_state ==  NOTIFY_OPEN) ? "open" : (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
+		ast_str_append(&tmp, 0, "<msnsubstatus substatus=\"%s\" />\n", (local_state == NOTIFY_OPEN) ? "online" : (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
+		ast_str_append(&tmp, 0, "</address>\n</atom>\n</presence>\n");
 		break;
 	case PIDF_XML: /* Eyebeam supports this format */
-		ast_build_string(&t, &maxbytes, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-		ast_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
-		ast_build_string(&t, &maxbytes, "<pp:person><status>\n");
+		ast_str_append(&tmp, 0,
+			"<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n"
+			"<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
+		ast_str_append(&tmp, 0, "<pp:person><status>\n");
 		if (pidfstate[0] != '-')
-			ast_build_string(&t, &maxbytes, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
-		ast_build_string(&t, &maxbytes, "</status></pp:person>\n");
-		ast_build_string(&t, &maxbytes, "<note>%s</note>\n", pidfnote); /* Note */
-		ast_build_string(&t, &maxbytes, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
-		ast_build_string(&t, &maxbytes, "<contact priority=\"1\">%s</contact>\n", mto);
+			ast_str_append(&tmp, 0, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
+		ast_str_append(&tmp, 0, "</status></pp:person>\n");
+		ast_str_append(&tmp, 0, "<note>%s</note>\n", pidfnote); /* Note */
+		ast_str_append(&tmp, 0, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
+		ast_str_append(&tmp, 0, "<contact priority=\"1\">%s</contact>\n", mto);
 		if (pidfstate[0] == 'b') /* Busy? Still open ... */
-			ast_build_string(&t, &maxbytes, "<status><basic>open</basic></status>\n");
+			ast_str_append(&tmp, 0, "<status><basic>open</basic></status>\n");
 		else
-			ast_build_string(&t, &maxbytes, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
-		ast_build_string(&t, &maxbytes, "</tuple>\n</presence>\n");
+			ast_str_append(&tmp, 0, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
+		ast_str_append(&tmp, 0, "</tuple>\n</presence>\n");
 		break;
 	case DIALOG_INFO_XML: /* SNOM subscribes in this format */
-		ast_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
-		ast_build_string(&t, &maxbytes, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mto);
+		ast_str_append(&tmp, 0, "<?xml version=\"1.0\"?>\n");
+		ast_str_append(&tmp, 0, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mto);
 		if ((state & AST_EXTENSION_RINGING) && global_notifyringing)
-			ast_build_string(&t, &maxbytes, "<dialog id=\"%s\" direction=\"recipient\">\n", p->exten);
+			ast_str_append(&tmp, 0, "<dialog id=\"%s\" direction=\"recipient\">\n", p->exten);
 		else
-			ast_build_string(&t, &maxbytes, "<dialog id=\"%s\">\n", p->exten);
-		ast_build_string(&t, &maxbytes, "<state>%s</state>\n", statestring);
+			ast_str_append(&tmp, 0, "<dialog id=\"%s\">\n", p->exten);
+		ast_str_append(&tmp, 0, "<state>%s</state>\n", statestring);
 		if (state == AST_EXTENSION_ONHOLD) {
-			ast_build_string(&t, &maxbytes, "<local>\n<target uri=\"%s\">\n"
+			ast_str_append(&tmp, 0, "<local>\n<target uri=\"%s\">\n"
 			                                "<param pname=\"+sip.rendering\" pvalue=\"no\">\n"
 			                                "</target>\n</local>\n", mto);
 		}
-		ast_build_string(&t, &maxbytes, "</dialog>\n</dialog-info>\n");
+		ast_str_append(&tmp, 0, "</dialog>\n</dialog-info>\n");
 		break;
 	case NONE:
 	default:
 		break;
 	}
 
-	if (t > tmp + sizeof(tmp))
-		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
-
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_header_contentLength(&req, tmp->used);
+	add_line(&req, tmp->str);
 
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
@@ -7732,21 +7697,20 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten)
 {
 	struct sip_request req;
-	char tmp[500];
-	char *t = tmp;
-	size_t maxbytes = sizeof(tmp);
+	struct ast_str *out = ast_str_alloca(500);
 
 	initreqprep(&req, p, SIP_NOTIFY);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 
-	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n",
+	ast_str_append(&out, 0, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
+	ast_str_append(&out, 0, "Message-Account: sip:%s@%s\r\n",
 		S_OR(vmexten, default_vmexten), S_OR(p->fromdomain, ast_inet_ntoa(p->ourip.sin_addr)));
 	/* Cisco has a bug in the SIP stack where it can't accept the
 		(0/0) notification. This can temporarily be disabled in
 		sip.conf with the "buggymwi" option */
-	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d%s\r\n", newmsgs, oldmsgs, (ast_test_flag(&p->flags[1], SIP_PAGE2_BUGGY_MWI) ? "" : " (0/0)"));
+	ast_str_append(&out, 0, "Voice-Message: %d/%d%s\r\n",
+		newmsgs, oldmsgs, (ast_test_flag(&p->flags[1], SIP_PAGE2_BUGGY_MWI) ? "" : " (0/0)"));
 
 	if (p->subscribed) {
 		if (p->expiry)
@@ -7755,11 +7719,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 			add_header(&req, "Subscription-State", "terminated;reason=timeout");
 	}
 
-	if (t > tmp + sizeof(tmp))
-		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
-
-	add_header_contentLength(&req, strlen(tmp));
-	add_line(&req, tmp);
+	add_header_contentLength(&req, out->used);
+	add_line(&req, out->str);
 
 	if (!p->initreq.headers) 
 		initialize_initreq(p, &req);
