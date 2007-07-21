@@ -12868,6 +12868,7 @@ static int reload_config(void)
 	
 	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
+	ast_free_ha(localaddr);
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 	memset(&prefs, 0 , sizeof(prefs));
