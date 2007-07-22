@@ -1402,7 +1402,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 static int __sip_autodestruct(void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static void sip_cancel_destroy(struct sip_pvt *p);
-static void sip_destroy(struct sip_pvt *p);
+static struct sip_pvt *sip_destroy(struct sip_pvt *p);
 static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
@@ -1466,7 +1466,6 @@ static int reload_config(enum channelreloadreason reason);
 static int expire_register(void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
-static void sip_destroy(struct sip_pvt *p);
 static int sip_addrcmp(char *name, struct sockaddr_in *sin);	/* Support for peer matching */
 static int sip_refer_allocate(struct sip_pvt *p);
 static void ast_quiet_chan(struct ast_channel *chan);
@@ -2797,10 +2796,10 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
 	/* Delete it, it needs to disappear */
 	if (peer->call)
-		sip_destroy(peer->call);
+		peer->call = sip_destroy(peer->call);
 
 	if (peer->mwipvt) 	/* We have an active subscription, delete it */
-		sip_destroy(peer->mwipvt);
+		peer->mwipvt = sip_destroy(peer->mwipvt);
 
 	if (peer->mwi_event_sub) {
 		ast_event_unsubscribe(peer->mwi_event_sub);
@@ -3370,7 +3369,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		   we don't get reentered trying to grab the registry lock */
 		reg->call->registry = NULL;
 		ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
-		sip_destroy(reg->call);
+		reg->call = sip_destroy(reg->call);
 	}
 	if (reg->expire > -1)
 		ast_sched_del(sched, reg->expire);
@@ -3599,11 +3598,16 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	return 0;
 }
 
-/*! \brief Destroy SIP call structure */
-static void sip_destroy(struct sip_pvt *p)
+/*! \brief Destroy SIP call structure.
+ * Make it return NULL so the caller can do things like
+ *	foo = sip_destroy(foo);
+ * and reduce the chance of bugs due to dangling pointers.
+ */
+static struct sip_pvt * sip_destroy(struct sip_pvt *p)
 {
 	ast_debug(3, "Destroying SIP dialog %s\n", p->callid);
 	__sip_destroy(p, TRUE, TRUE);
+	return NULL;
 }
 
 /*! \brief Convert SIP hangup causes to Asterisk hangup causes */
@@ -16230,8 +16234,7 @@ static int sip_poke_noanswer(void *data)
 			register_peer_exten(peer, FALSE);
 	}
 	if (peer->call)
-		sip_destroy(peer->call);
-	peer->call = NULL;
+		peer->call = sip_destroy(peer->call);
 	peer->lastms = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
 	/* Try again quickly */
@@ -16260,7 +16263,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (peer->call) {
 		if (sipdebug)
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
-		sip_destroy(peer->call);
+		peer->call = sip_destroy(peer->call);
 	}
 	if (!(p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS)))
 		return -1;
@@ -18338,7 +18341,7 @@ static int sip_do_reload(enum channelreloadreason reason)
 		if (iterator->call) {
 			ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
 			/* This will also remove references to the registry */
-			sip_destroy(iterator->call);
+			iterator->call = sip_destroy(iterator->call);
 		}
 		ASTOBJ_UNLOCK(iterator);
 	
