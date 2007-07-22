@@ -799,9 +799,9 @@ struct sip_auth {
 #define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)	/*!< G: Save system name at registration? */
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)	/*!< G: Ignore expiration of peer  */
-#define SIP_PAGE2_DEBUG			(3 << 11)	/*!< G: Debug flags */
-#define SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)	/*!< G: Debug flags */
-#define SIP_PAGE2_DEBUG_CONSOLE 	(1 << 12)	/*!< G: Debug flags */
+#define __SIP_PAGE2_DEBUG			(3 << 11)	/*!< G: Debug flags */
+#define __SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)	/*!< G: Debug flags */
+#define __SIP_PAGE2_DEBUG_CONSOLE 		(1 << 12)	/*!< G: Debug flags */
 #define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
 #define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< P: Automatic peers need to destruct themselves */
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)	/*!< DP: Video supported if offered? */
@@ -821,7 +821,7 @@ struct sip_auth {
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: 26: Buggy CISCO MWI fix */
 #define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< GPD: 27: Text not supported  */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GPD: 28: Global text enable */
-#define SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< GPD: 29: Global text debug */
+#define __SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< GPD: 29: Global text debug */
 #define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< D: 30: Is this an outgoing call? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
@@ -860,10 +860,25 @@ struct sip_auth {
 /*!< This is default: NO MMR and JBIG transcoding, NO fill bit removal, transferredTCF TCF, UDP FEC, Version 0 and 9600 max fax rate */
 static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600;
 
-#define sipdebug		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG)
-#define sipdebug_config		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG)
-#define sipdebug_console	ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE)
-#define sipdebug_text		ast_test_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT)
+/*! \brief debugging state
+ * We store separately the debugging requests from the config file
+ * and requests from the CLI. Debugging is enabled if either is set
+ * (which means that if sipdebug is set in the config file, we can
+ * only turn it off by reloading the config).
+ */
+enum sip_debug_e {
+	sip_debug_none = 0,
+	sip_debug_config = 1,
+	sip_debug_console = 2,
+};
+
+static enum sip_debug_e sipdebug;
+
+/*! \brief extra debugging for 'text' related events.
+ * At thie moment this is set together with sip_debug_console.
+ * It should either go away or be implemented properly.
+ */
+static int sipdebug_text;
 
 /*! \brief T38 States for a call */
 enum t38state {
@@ -11873,7 +11888,7 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 	else
 		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), port);
 
-	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	sipdebug |= sip_debug_console;
 
 	return RESULT_SUCCESS;
 }
@@ -11891,7 +11906,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 			debugaddr.sin_addr = peer->addr.sin_addr;
 			debugaddr.sin_port = peer->addr.sin_port;
 			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
-			ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+			sipdebug |= sip_debug_console;
 		} else
 			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[4]);
 		unref_peer(peer);
@@ -11903,7 +11918,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 /*! \brief Turn on SIP debugging (CLI command) */
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
-	int oldsipdebug = sipdebug_console;
+	int oldsipdebug = sipdebug & sip_debug_console;
 	if (argc != 4 || strcmp(argv[3], "on") != 0) {
 		if (argc != 5) 
 			return RESULT_SHOWUSAGE;
@@ -11914,8 +11929,8 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 		else
 			return RESULT_SHOWUSAGE;
 	}
-	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
-	ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT);	/*! \note this can be a special debug command - "sip debug text" or something */
+	sipdebug |= sip_debug_console;
+	sipdebug_text = 1;	/*! \note this can be a special debug command - "sip debug text" or something */
 	memset(&debugaddr, 0, sizeof(debugaddr));
 	ast_cli(fd, "SIP Debugging %senabled\n", oldsipdebug ? "re-" : "");
 	return RESULT_SUCCESS;
@@ -11981,8 +11996,8 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
-	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_TEXT);
+	sipdebug &= ~sip_debug_console;
+	sipdebug_text = 0;
 	ast_cli(fd, "SIP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
@@ -17232,7 +17247,6 @@ static int reload_config(enum channelreloadreason reason)
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
-	struct ast_flags debugflag = {0};
 
 	cfg = ast_config_load(config);
 
@@ -17248,10 +17262,9 @@ static int reload_config(enum channelreloadreason reason)
 
 	/* Clear all flags before setting default values */
 	/* Preserve debugging settings for console */
-	ast_copy_flags(&debugflag, &global_flags[1], SIP_PAGE2_DEBUG_CONSOLE);
+	sipdebug &= sip_debug_console;
 	ast_clear_flag(&global_flags[0], AST_FLAGS_ALL);
 	ast_clear_flag(&global_flags[1], AST_FLAGS_ALL);
-	ast_copy_flags(&global_flags[1], &debugflag, SIP_PAGE2_DEBUG_CONSOLE);
 
 	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
@@ -17332,7 +17345,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Debugging settings, always default to off */
 	dumphistory = FALSE;
 	recordhistory = FALSE;
-	ast_clear_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG);
+	sipdebug &= ~sip_debug_config;
 
 	/* Misc settings for the channel */
 	global_relaxdtmf = FALSE;
@@ -17478,9 +17491,9 @@ static int reload_config(enum channelreloadreason reason)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
-		} else if (!strcasecmp(v->name, "sipdebug")) {	/* XXX maybe ast_set2_flags ? */
+		} else if (!strcasecmp(v->name, "sipdebug")) {
 			if (ast_true(v->value))
-				ast_set_flag(&global_flags[1], SIP_PAGE2_DEBUG_CONFIG);
+				sipdebug |= sip_debug_config;
 		} else if (!strcasecmp(v->name, "dumphistory")) {
 			dumphistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "recordhistory")) {
