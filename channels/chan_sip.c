@@ -15700,26 +15700,34 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* Find out SIP method for incoming request */
 	if (req->method == SIP_RESPONSE) {	/* Response to our request */
 		/* When we get here, we know this is a SIP dialog where we've sent
-		   a request and have a response, or at least get a response
-		   within an existing dialog */
-		/* Response to our request -- Do some sanity checks */	
+		 * a request and have a response, or at least get a response
+		 * within an existing dialog. Do some sanity checks, then
+		 * possibly process the request. In all cases, there function
+		 * terminates at the end of this block
+		 */
+		int ret = 0;
+
 		if (p->ocseq < seqno) {
 			ast_debug(1, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
-			return -1;
+			ret = -1;
 		} else if (p->ocseq != seqno) {
 			/* ignore means "don't do anything with it" but still have to 
-			   respond appropriately  */
+			 * respond appropriately.
+			 * But in this case this is a response already, so we really
+			 * have nothing to do with this message, and even setting the
+			 * ignore flag is pointless.
+			 */
 			req->ignore = 1;
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
 		} else if (e) {
 			e = ast_skip_blanks(e);
 			if (sscanf(e, "%d %n", &respid, &len) != 1) {
 				ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
-			} else {
-				if (respid <= 0) {
-					ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
-					return 0;
-				}
+				/* XXX maybe should do ret = -1; */
+			} else if (respid <= 0) {
+				ast_log(LOG_WARNING, "Invalid SIP response code: '%d'\n", respid);
+				/* XXX maybe should do ret = -1; */
+			} else { /* finally, something worth processing */
 				/* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
 				if ((respid == 200) || ((respid >= 300) && (respid <= 399)))
 					extract_uri(p, req);
