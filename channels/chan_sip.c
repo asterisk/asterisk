@@ -631,7 +631,14 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 #define DEC_CALL_RINGING 2
 #define INC_CALL_RINGING 3
 
-/*! \brief sip_request: The data grabbed from the UDP socket */
+/* SIP packet flags - note, they do NOT go in struct sip_pkt but
+ * in struct sip_request. */
+#define SIP_PKT_IGNORE 		(1 << 2)	/*!< This is a re-transmit, ignore it */
+
+/*! \brief sip_request: The data grabbed from the UDP socket
+ * data[] contains the packet itself, additional fields are set
+ * after parsing.
+ */
 struct sip_request {
 	char *rlPart1; 	        /*!< SIP Method Name or "SIP/2.0" protocol version */
 	char *rlPart2; 	        /*!< The Request URI or Response Status */
@@ -639,12 +646,14 @@ struct sip_request {
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
-	unsigned int flags;     /*!< SIP_PKT Flags for this packet */
+	unsigned int sdp_start; /*!< the line number where the SDP begins */
+	unsigned int sdp_end;   /*!< the line number where the SDP ends */
+	char debug;		/*!< print extra debugging if non zero */
+	char has_to_tag;	/*!< non-zero if packet has To: tag */
+	char ignore;		/*!< if non-zero This is a re-transmit, ignore it */
 	char *header[SIP_MAX_HEADERS];
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
-	unsigned int sdp_start; /*!< the line number where the SDP begins */
-	unsigned int sdp_end;   /*!< the line number where the SDP ends */
 };
 
 /*
@@ -830,10 +839,6 @@ struct sip_auth {
 	SIP_PAGE2_T38SUPPORT | SIP_PAGE2_RFC2833_COMPENSATE | SIP_PAGE2_BUGGY_MWI | \
 	SIP_PAGE2_TEXTSUPPORT )
 
-/* SIP packet flags */
-#define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
-#define SIP_PKT_WITH_TOTAG	(1 << 1)	/*!< This packet has a to-tag */
-#define SIP_PKT_IGNORE 		(1 << 2)	/*!< This is a re-transmit, ignore it */
 
 /* T.38 set of flags */
 #define T38FAX_FILL_BIT_REMOVAL		(1 << 0)	/*!< Default: 0 (unset)*/
@@ -1831,7 +1836,7 @@ static void initialize_initreq(struct sip_pvt *p, struct sip_request *req)
 	/* Use this as the basis */
 	copy_request(&p->initreq, req);
 	parse_request(&p->initreq);
-	if (ast_test_flag(req, SIP_PKT_DEBUG))
+	if (req->debug)
 		ast_verbose("Initreq: %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 }
 
@@ -4889,7 +4894,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		   in sip.conf
 		   */
 		if (gettag(req, "To", totag, sizeof(totag)))
-			ast_set_flag(req, SIP_PKT_WITH_TOTAG);	/* Used in handle_request/response */
+			req->has_to_tag = 1;	/* Used in handle_request/response */
 		gettag(req, "From", fromtag, sizeof(fromtag));
 
 		tag = (req->method == SIP_RESPONSE) ? totag : fromtag;
@@ -9039,7 +9044,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 		} else {
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT);
 			transmit_response(p, "100 Trying", req);
-			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, req->ignore))) {
 				sip_cancel_destroy(p);
 
 				/* We have a successful registration attempt with proper authentication,
@@ -9806,7 +9811,7 @@ static enum check_auth_result check_user_ok(struct sip_pvt *p, char *of,
 	replace_cid(p, rpid_num, calleridname);
 	do_setnat(p, ast_test_flag(&p->flags[0], SIP_NAT_ROUTE) );
 
-	if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+	if (!(res = check_auth(p, req, user->name, user->secret, user->md5secret, sipmethod, uri2, reliable, req->ignore))) {
 		sip_cancel_destroy(p);
 		ast_copy_flags(&p->flags[0], &user->flags[0], SIP_FLAGS_TO_COPY);
 		ast_copy_flags(&p->flags[1], &user->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
@@ -9932,7 +9937,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		ast_string_field_free(p, peersecret);
 		ast_string_field_free(p, peermd5secret);
 	}
-	if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, ast_test_flag(req, SIP_PKT_IGNORE)))) {
+	if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, req->ignore))) {
 		ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
 		ast_copy_flags(&p->flags[1], &peer->flags[1], SIP_PAGE2_FLAGS_TO_COPY);
 		/* If we have a call limit, set flag */
@@ -12687,15 +12692,15 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	switch (resp) {
 	case 100:	/* Trying */
 	case 101:	/* Dialog establishment */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE))
+		if (!req->ignore)
 			sip_cancel_destroy(p);
 		check_pendings(p);
 		break;
 
 	case 180:	/* 180 Ringing */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE))
+		if (!req->ignore)
 			sip_cancel_destroy(p);
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
+		if (!req->ignore && p->owner) {
 			ast_queue_control(p->owner, AST_CONTROL_RINGING);
 			if (p->owner->_state != AST_STATE_UP) {
 				ast_setstate(p->owner, AST_STATE_RINGING);
@@ -12704,7 +12709,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (find_sdp(req)) {
 			p->invitestate = INV_EARLY_MEDIA;
 			res = process_sdp(p, req);
-			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
+			if (!req->ignore && p->owner) {
 				/* Queue a progress frame only if we have SDP in 180 */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
@@ -12713,13 +12718,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 183:	/* Session progress */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE))
+		if (!req->ignore)
 			sip_cancel_destroy(p);
 		/* Ignore 183 Session progress without SDP */
 		if (find_sdp(req)) {
 			p->invitestate = INV_EARLY_MEDIA;
 			res = process_sdp(p, req);
-			if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
+			if (!req->ignore && p->owner) {
 				/* Queue a progress frame */
 				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
 			}
@@ -12728,11 +12733,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		break;
 
 	case 200:	/* 200 OK on invite - someone's answering our call */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE))
+		if (!req->ignore)
 			sip_cancel_destroy(p);
 		p->authtries = 0;
 		if (find_sdp(req)) {
-			if ((res = process_sdp(p, req)) && !ast_test_flag(req, SIP_PKT_IGNORE))
+			if ((res = process_sdp(p, req)) && !req->ignore)
 				if (!reinvite)
 					/* This 200 OK's SDP is not acceptable, so we need to ack, then hangup */
 					/* For re-invites, we try to recover */
@@ -12753,7 +12758,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 					should we care about resolving the contact
 					or should we just send it?
 				*/
-				if (!ast_test_flag(req, SIP_PKT_IGNORE))
+				if (!req->ignore)
 					ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 			} 
 
@@ -12804,7 +12809,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			ast_debug(1, "T38 changed state to %d on channel %s\n", p->t38.state, p->owner ? p->owner->name : "<none>");
 		}
 
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner) {
+		if (!req->ignore && p->owner) {
 			if (!reinvite) {
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 				if (global_callevents)
@@ -12818,7 +12823,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			 /* It's possible we're getting an 200 OK after we've tried to disconnect
 				  by sending CANCEL */
 			/* First send ACK, then send bye */
-			if (!ast_test_flag(req, SIP_PKT_IGNORE))
+			if (!req->ignore)
 				ast_set_flag(&p->flags[0], SIP_PENDINGBYE);	
 		}
 		/* If I understand this right, the branch is different for a non-200 ACK only */
@@ -12836,7 +12841,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 		/* Then we AUTH */
 		ast_string_field_free(p, theirtag);	/* forget their old tag, so we don't match tags when getting response */
-		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+		if (!req->ignore) {
 			if (p->authtries < MAX_AUTHTRIES)
 				p->invitestate = INV_CALLING;
 			if (p->authtries == MAX_AUTHTRIES || do_proxy_auth(p, req, resp, SIP_INVITE, 1)) {
@@ -12853,7 +12858,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		/* First we ACK */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
 		ast_log(LOG_WARNING, "Received response: \"Forbidden\" from '%s'\n", get_header(&p->initreq, "From"));
-		if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->owner)
+		if (!req->ignore && p->owner)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		p->needdestroy = 1;
 		sip_alreadygone(p);
@@ -12861,7 +12866,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 
 	case 404: /* Not found */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+		if (p->owner && !req->ignore)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		sip_alreadygone(p);
 		break;
@@ -12880,10 +12885,10 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			This transaction is already scheduled to be killed by sip_hangup().
 		*/
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE)) {
+		if (p->owner && !req->ignore) {
 			ast_queue_hangup(p->owner);
 			append_history(p, "Hangup", "Got 487 on CANCEL request from us. Queued AST hangup request");
- 		} else if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+ 		} else if (!req->ignore) {
 			update_call_counter(p, DEC_CALL_LIMIT);
 			append_history(p, "Hangup", "Got 487 on CANCEL request from us on call without owner. Killing this dialog.");
 			p->needdestroy = 1;
@@ -12907,12 +12912,12 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			   sides here? 
 			*/
 			/* While figuring that out, hangup the call */
-			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+			if (p->owner && !req->ignore)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			p->needdestroy = 1;
 		} else {
 			/* We can't set up this call, so give up */
-			if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+			if (p->owner && !req->ignore)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			p->needdestroy = 1;
 		}
@@ -12922,7 +12927,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			/* We should support the retry-after at some point */
 		/* At this point, we treat this as a congestion */
 		xmitres = transmit_request(p, SIP_ACK, seqno, XMIT_UNRELIABLE, FALSE);
-		if (p->owner && !ast_test_flag(req, SIP_PKT_IGNORE))
+		if (p->owner && !req->ignore)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		p->needdestroy = 1;
 		break;
@@ -13459,7 +13464,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					p->needdestroy = 1;
 			} else if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) {
-					if (!ast_test_flag(req, SIP_PKT_IGNORE))
+					if (!req->ignore)
 						sip_cancel_destroy(p);
 					if (find_sdp(req))
 						process_sdp(p, req);
@@ -13474,7 +13479,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 
 		   get handled here. As well as out-of-call message responses */
-		if (ast_test_flag(req, SIP_PKT_DEBUG))
+		if (req->debug)
 			ast_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
 
 		if (sipmethod == SIP_INVITE && resp == 200) {
@@ -13558,7 +13563,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		default:	/* Errors without handlers */
 			if ((resp >= 100) && (resp < 200)) {
 				if (sipmethod == SIP_INVITE) { 	/* re-invite */
-					if (!ast_test_flag(req, SIP_PKT_IGNORE))
+					if (!req->ignore)
 						sip_cancel_destroy(p);
 				}
 			}
@@ -14006,7 +14011,10 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief Handle the transfer part of INVITE with a replaces: header, 
-    meaning a target pickup or an attended transfer */
+    meaning a target pickup or an attended transfer.
+    Used only once.
+	XXX 'ignore' is unused.
+ */
 static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin)
 {
 	struct ast_frame *f;
@@ -14038,7 +14046,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	else
 		ast_debug(4, "SIP transfer: Invite Replace incoming channel should replace and hang up channel %s (one call leg)\n", replacecall->name); 
 
-	if (ast_test_flag(req, SIP_PKT_IGNORE)) {
+	if (req->ignore) {
 		ast_log(LOG_NOTICE, "Ignoring this INVITE with replaces in a stupid way.\n");
 		/* We should answer something here. If we are here, the
 			call we are replacing exists, so an accepted 
@@ -14209,7 +14217,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		return 0;
 	}
 	
-	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p->pendinginvite) {
+	if (!req->ignore && p->pendinginvite) {
 		/* We already have a pending invite. Sorry. You are on hold. */
 		transmit_response(p, "491 Request Pending", req);
 		ast_debug(1, "Got INVITE on call where we already have pending INVITE, deferring that - %s\n", p->callid);
@@ -14326,7 +14334,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	/* Check if this is an INVITE that sets up a new dialog or
 	   a re-invite in an existing dialog */
 
-	if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+	if (!req->ignore) {
 		int newcall = (p->initreq.headers ? TRUE : FALSE);
 
 		sip_cancel_destroy(p);
@@ -14364,7 +14372,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		ast_verbose("Ignoring this INVITE request\n");
 
 	
-	if (!p->lastinvite && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner) {
+	if (!p->lastinvite && !req->ignore && !p->owner) {
 		/* This is a new invite */
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, XMIT_RELIABLE, sin);
@@ -14464,7 +14472,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 	} else {
 		if (sipdebug) {
-			if (!ast_test_flag(req, SIP_PKT_IGNORE))
+			if (!req->ignore)
 				ast_debug(2, "Got a SIP re-invite for call %s\n", p->callid);
 			else
 				ast_debug(2, "Got a SIP re-transmit of INVITE for call %s\n", p->callid);
@@ -14473,14 +14481,14 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		c = p->owner;
 	}
 
-	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
+	if (!req->ignore && p)
 		p->lastinvite = seqno;
 
 	if (replace_id) { 	/* Attended transfer or call pickup - we're the target */
 		/* Go and take over the target call */
 		if (sipdebug)
 			ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-		return handle_invite_replaces(p, req, debug, ast_test_flag(req, SIP_PKT_IGNORE), seqno, sin);
+		return handle_invite_replaces(p, req, debug, req->ignore, seqno, sin);
 	}
 
 
@@ -14500,7 +14508,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				case AST_PBX_FAILED:
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 					p->invitestate = INV_COMPLETED;
-					if (ast_test_flag(req, SIP_PKT_IGNORE))
+					if (req->ignore)
 						transmit_response(p, "503 Unavailable", req);
 					else
 						transmit_response_reliable(p, "503 Unavailable", req);
@@ -14508,7 +14516,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				case AST_PBX_CALL_LIMIT:
 					ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
 					p->invitestate = INV_COMPLETED;
-					if (ast_test_flag(req, SIP_PKT_IGNORE))
+					if (req->ignore)
 						transmit_response(p, "480 Temporarily Unavailable", req);
 					else
 						transmit_response_reliable(p, "480 Temporarily Unavailable", req);
@@ -14532,7 +14540,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				*nounlock = 1;
 				if (ast_pickup_call(c)) {
 					ast_log(LOG_NOTICE, "Nothing to pick up for %s\n", p->callid);
-					if (ast_test_flag(req, SIP_PKT_IGNORE))
+					if (req->ignore)
 						transmit_response(p, "503 Unavailable", req);	/* OEJ - Right answer? */
 					else
 						transmit_response_reliable(p, "503 Unavailable", req);
@@ -14581,7 +14589,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 								bridgepvt->t38.state = T38_DISABLED;
 								sip_pvt_unlock(bridgepvt);
 								ast_debug(2,"T38 state changed to %d on channel %s\n", bridgepvt->t38.state, bridgepeer->name);
-								if (ast_test_flag(req, SIP_PKT_IGNORE))
+								if (req->ignore)
 									transmit_response(p, "488 Not acceptable here", req);
 								else
 									transmit_response_reliable(p, "488 Not acceptable here", req);
@@ -14595,7 +14603,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						}
 					} else {
 						/* Other side is not a SIP channel */
-						if (ast_test_flag(req, SIP_PKT_IGNORE))
+						if (req->ignore)
 							transmit_response(p, "488 Not acceptable here", req);
 						else
 							transmit_response_reliable(p, "488 Not acceptable here", req);
@@ -14625,7 +14633,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 						if (bridgepvt->t38.state == T38_ENABLED) {
 							ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
 							/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-							if (ast_test_flag(req, SIP_PKT_IGNORE))
+							if (req->ignore)
 								transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
 							else
 								transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req);
@@ -14637,7 +14645,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				/* Respond to normal re-invite */
 				if (sendok)
 					/* If this is not a re-invite or something to ignore - it's critical */
-					transmit_response_with_sdp(p, "200 OK", req, (reinvite || ast_test_flag(req, SIP_PKT_IGNORE)) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
+					transmit_response_with_sdp(p, "200 OK", req, (reinvite || req->ignore) ?  XMIT_UNRELIABLE : XMIT_CRITICAL);
 			}
 			p->invitestate = INV_TERMINATED;
 			break;
@@ -14656,7 +14664,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_log(LOG_NOTICE, "Unable to create/find SIP channel for this INVITE\n");
 				msg = "503 Unavailable";
 			}
-			if (ast_test_flag(req, SIP_PKT_IGNORE))
+			if (req->ignore)
 				transmit_response(p, msg, req);
 			else
 				transmit_response_reliable(p, msg, req);
@@ -14835,7 +14843,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 
 	int res = 0;
 
-	if (ast_test_flag(req, SIP_PKT_DEBUG))
+	if (req->debug)
 		ast_verbose("Call %s got a SIP call transfer from %s: (REFER)!\n", p->callid, ast_test_flag(&p->flags[0], SIP_OUTGOING) ? "callee" : "caller");
 
 	if (!p->owner) {
@@ -14843,7 +14851,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		/* We can't handle that, so decline it */
 		ast_debug(3, "Call %s: Declined REFER, outside of dialog...\n", p->callid);
 		transmit_response(p, "603 Declined (No dialog)", req);
-		if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
+		if (!req->ignore) {
 			append_history(p, "Xfer", "Refer failed. Outside of dialog.");
 			sip_alreadygone(p);
 			p->needdestroy = 1;
@@ -14861,7 +14869,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		return 0;
 	}
 
-	if(!ast_test_flag(req, SIP_PKT_IGNORE) && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
+	if (!req->ignore && ast_test_flag(&p->flags[0], SIP_GOTREFER)) {
 		/* Already have a pending REFER */	
 		transmit_response(p, "491 Request pending", req);
 		append_history(p, "Xfer", "Refer failed. Request pending.");
@@ -14884,13 +14892,13 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		case -2:	/* Syntax error */
 			transmit_response(p, "400 Bad Request (Refer-to missing)", req);
 			append_history(p, "Xfer", "Refer failed. Refer-to missing.");
-			if (ast_test_flag(req, SIP_PKT_DEBUG))
+			if (req->debug)
 				ast_debug(1, "SIP transfer to black hole can't be handled (no refer-to: )\n");
 			break;
 		case -3:
 			transmit_response(p, "603 Declined (Non sip: uri)", req);
 			append_history(p, "Xfer", "Refer failed. Non SIP uri");
-			if (ast_test_flag(req, SIP_PKT_DEBUG))
+			if (req->debug)
 				ast_debug(1, "SIP transfer to non-SIP uri denied\n");
 			break;
 		default:
@@ -14899,7 +14907,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 			append_history(p, "Xfer", "Refer failed. Bad extension.");
 			transmit_notify_with_sipfrag(p, seqno, "404 Not found", TRUE);
 			ast_clear_flag(&p->flags[0], SIP_GOTREFER);	
-			if (ast_test_flag(req, SIP_PKT_DEBUG))
+			if (req->debug)
 				ast_debug(1, "SIP transfer to bad extension: %s\n", p->refer->refer_to);
 			break;
 		} 
@@ -14922,7 +14930,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	
 	/* Is this a repeat of a current request? Ignore it */
 	/* Don't know what else to do right now. */
-	if (ast_test_flag(req, SIP_PKT_IGNORE)) 
+	if (req->ignore) 
 		return res;
 
 	/* If this is a blind transfer, we have the following
@@ -15219,7 +15227,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 	struct ast_channel *bridged_to;
 	
 	/* If we have an INCOMING invite that we haven't answered, terminate that transaction */
-	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !ast_test_flag(req, SIP_PKT_IGNORE) && !p->owner) 
+	if (p->pendinginvite && !ast_test_flag(&p->flags[0], SIP_OUTGOING) && !req->ignore && !p->owner) 
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 
 	p->invitestate = INV_TERMINATED;
@@ -15295,8 +15303,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req)
 /*! \brief Handle incoming MESSAGE request */
 static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 {
-	if (!ast_test_flag(req, SIP_PKT_IGNORE)) {
-		if (ast_test_flag(req, SIP_PKT_DEBUG))
+	if (!req->ignore) {
+		if (req->debug)
 			ast_verbose("Receiving message!\n");
 		receive_message(p, req);
 	} else
@@ -15325,7 +15333,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			/* Do not destroy session, since we will break the call if we do */
 			ast_debug(1, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
 			return 0;
-		} else if (ast_test_flag(req, SIP_PKT_DEBUG)) {
+		} else if (req->debug) {
 			if (resubscribe)
 				ast_debug(1, "Got a re-subscribe on existing subscription %s\n", p->callid);
 			else
@@ -15342,16 +15350,16 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		return 0;
 	}
 
-	if (!ast_test_flag(req, SIP_PKT_IGNORE) && !resubscribe) {	/* Set up dialog, new subscription */
+	if (!req->ignore && !resubscribe) {	/* Set up dialog, new subscription */
 		/* Use this as the basis */
-		if (ast_test_flag(req, SIP_PKT_DEBUG))
+		if (req->debug)
 			ast_verbose("Creating new subscription\n");
 
 		copy_request(&p->initreq, req);
 		if (sipdebug)
 			ast_debug(4, "Initializing initreq for method %s - callid %s\n", sip_methods[req->method].text, p->callid);
 		check_via(p, req);
-	} else if (ast_test_flag(req, SIP_PKT_DEBUG) && ast_test_flag(req, SIP_PKT_IGNORE))
+	} else if (req->debug && req->ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
 	/* Find parameters to Event: header value and remove them for now */
@@ -15518,7 +15526,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
 	}
 
-	if (!ast_test_flag(req, SIP_PKT_IGNORE) && p)
+	if (!req->ignore && p)
 		p->lastinvite = seqno;
 	if (p && !p->needdestroy) {
 		p->expiry = atoi(get_header(req, "Expires"));
@@ -15705,7 +15713,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else if (p->ocseq != seqno) {
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
-			ast_set_flag(req, SIP_PKT_IGNORE);
+			req->ignore = 1;
 			append_history(p, "Ignore", "Ignoring this retransmit\n");
 		} else if (e) {
 			e = ast_skip_blanks(e);
@@ -15744,7 +15752,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* ignore means "don't do anything with it" but still have to 
 		   respond appropriately.  We do this if we receive a repeat of
 		   the last sequence number  */
-		ast_set_flag(req, SIP_PKT_IGNORE);
+		req->ignore = 1;
 		ast_debug(3, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
 	}
 		
@@ -15768,9 +15776,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			correct according to RFC 3261  */
 		/* Check if this a new request in a new dialog with a totag already attached to it,
 			RFC 3261 - section 12.2 - and we don't want to mess with recovery  */
-		if (!p->initreq.headers && ast_test_flag(req, SIP_PKT_WITH_TOTAG)) {
+		if (!p->initreq.headers && req->has_to_tag) {
 			/* If this is a first request and it got a to-tag, it is not for us */
-			if (!ast_test_flag(req, SIP_PKT_IGNORE) && req->method == SIP_INVITE) {
+			if (!req->ignore && req->method == SIP_INVITE) {
 				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req);
 				/* Will cease to exist after ACK */
 			} else if (req->method != SIP_ACK) {
@@ -15816,9 +15824,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		res = handle_request_register(p, req, sin, e);
 		break;
 	case SIP_INFO:
-		if (ast_test_flag(req, SIP_PKT_DEBUG))
+		if (req->debug)
 			ast_verbose("Receiving INFO!\n");
-		if (!ast_test_flag(req, SIP_PKT_IGNORE)) 
+		if (!req->ignore) 
 			handle_request_info(p, req);
 		else  /* if ignoring, transmit response */
 			transmit_response(p, "200 OK", req);
@@ -15889,16 +15897,16 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		req.data[res] = '\0';
 	req.len = res;
 	if(sip_debug_test_addr(&sin))	/* Set the debug flag early on packet level */
-		ast_set_flag(&req, SIP_PKT_DEBUG);
+		req.debug = 1;
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);	/* Fix multiline headers */
-	if (ast_test_flag(&req, SIP_PKT_DEBUG))
+	if (req.debug)
 		ast_verbose("\n<--- SIP read from %s:%d --->\n%s\n<------------->\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), req.data);
 
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
 
-	if (ast_test_flag(&req, SIP_PKT_DEBUG))
+	if (req.debug)
 		ast_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
 
 	if (req.headers < 2)	/* Must have at least two headers */
