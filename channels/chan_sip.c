@@ -732,11 +732,12 @@ struct sip_auth {
 };
 
 /*--- Various flags for the flags field in the pvt structure 
-	Trying to sort these up:
-	D: Dialog only
-	DP: Dialog and peer/user
-	P: Peer/user only, not dialog
-	G: Global flag only
+	Trying to sort these up (one or more of the following):
+	D: Dialog
+	P: Peer/user
+	G: Global flag
+	When flags are used by multiple structures, it is important that
+	they have a common layout so it is easy to copy them.
 */
 #define __SIP_ALREADYGONE		(1 << 0)	/*!< D: Whether or not we've already been destroyed by our peer */
 #define __SIP_NEEDDESTROY		(1 << 1)	/*!< D: if we need to be destroyed by the monitor thread */
@@ -792,10 +793,10 @@ struct sip_auth {
 
 /*--- a new page of flags (for flags[1] */
 /* realtime flags */
-#define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< G: Should we keep RT objects in memory for extended time? */
+#define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTUPDATE		(1 << 1)	/*!< G: Update database with registration data for peer? */
-#define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< G: Should we clean memory from peers after expiry? */
-#define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)	
+#define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
+#define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)	/*!< P: ... */
 #define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)	/*!< G: Save system name at registration? */
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)	/*!< G: Ignore expiration of peer  */
