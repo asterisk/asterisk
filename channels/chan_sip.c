@@ -1505,13 +1505,8 @@ static int sip_unregister(int fd, int argc, char *argv[]);
 static int sip_show_settings(int fd, int argc, char *argv[]);
 static const char *subscription_type2str(enum subscriptiontype subtype) attribute_pure;
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
-static int sip_show_channels(int fd, int argc, char *argv[]);
-static int sip_show_subscriptions(int fd, int argc, char *argv[]);
-static char *complete_sip_channel(const char *word, int state);
 static char *complete_sip_peer(const char *word, int state, int flags2);
 static char *complete_sip_registered_peer(const char *word, int state, int flags2);
-static char *complete_sip_show_channel(const char *line, const char *word, int pos, int state);
 static char *complete_sip_show_history(const char *line, const char *word, int pos, int state);
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state);
 static char *complete_sip_unregister(const char *line, const char *word, int pos, int state);
@@ -11354,42 +11349,37 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 	return &subscription_types[0];
 }
 
-/*! \brief Show active SIP channels */
-static int sip_show_channels(int fd, int argc, char *argv[])  
-{
-	return __sip_show_channels(fd, argc, argv, 0);
-}
- 
-/*! \brief Show active SIP subscriptions */
-static int sip_show_subscriptions(int fd, int argc, char *argv[])
-{
-	return __sip_show_channels(fd, argc, argv, 1);
-}
+/*
+ * We try to structure all functions that loop on data structures as
+ * a handler for individual entries, and a mainloop that iterates
+ * on the main data structure. This way, moving the code to containers
+ * that support iteration through callbacks will be a lot easier.
+ */
 
-/*! \brief SIP show channels CLI (main function) */
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
-{
+/*! \brief argument for the 'show channels|subscriptions' callback. */
+struct __show_chan_arg { 
+	int fd;
+	int subscriptions;
+	int numchans;   /* return value */
+};
+
 #define FORMAT3 "%-15.15s  %-10.10s  %-11.11s  %-15.15s  %-13.13s  %-15.15s %-10.10s\n"
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-3.3s %-3.3s  %-15.15s %-10.10s\n"
-	struct sip_pvt *cur;
-	int numchans = 0;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	dialoglist_lock();
-	cur = dialoglist;
-	if (!subscriptions)
-		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
-	else 
-		ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
-	for (; cur; cur = cur->next) {
+/*! \brief callback for show channel|subscription */
+static int show_channels_cb(void *__cur, void *__arg, int flags)
+{
+	struct sip_pvt *cur = __cur;
+	struct __show_chan_arg *arg = __arg;
+	const struct sockaddr_in *dst = sip_real_dst(cur);
 
-		if (cur->subscribed == NONE && !subscriptions) {
+		/* XXX indentation preserved to reduce diff. Will be fixed later */
+		if (cur->subscribed == NONE && !arg->subscriptions) {
 			/* set if SIP transfer in progress */
 			const char *referstatus = cur->refer ? referstatus2str(cur->refer->status) : "";
 
-			ast_cli(fd, FORMAT, ast_inet_ntoa(cur->sa.sin_addr), 
+			ast_cli(arg->fd, FORMAT, ast_inet_ntoa(dst->sin_addr), 
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")),
 				cur->callid, 
 				cur->ocseq, cur->icseq, 
@@ -11399,10 +11389,10 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				cur->lastmsg ,
 				referstatus
 			);
-			numchans++;
+			arg->numchans++;
 		}
-		if (cur->subscribed != NONE && subscriptions) {
-			ast_cli(fd, FORMAT3, ast_inet_ntoa(cur->sa.sin_addr),
+		if (cur->subscribed != NONE && arg->subscriptions) {
+			ast_cli(arg->fd, FORMAT3, ast_inet_ntoa(dst->sin_addr),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
 				/* the 'complete' exten/context is hidden in the refer_to field for subscriptions */
@@ -11411,22 +11401,64 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				subscription_type2str(cur->subscribed),
 				cur->subscribed == MWI_NOTIFICATION ? (cur->relatedpeer ? cur->relatedpeer->mailbox : "<none>") : "<none>"
 );
-			numchans++;
+			arg->numchans++;
 		}
+
+	return 0;	/* don't care, we scan all channels */
+}
+
+/*! \brief CLI for show channels or subscriptions.
+ * This is a new-style CLI handler so a single function contains
+ * the prototype for the function, the 'generator' to produce multiple
+ * entries in case it is required, and the actual handler for the command.
+ */
+static char *sip_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct sip_pvt *cur;
+	struct __show_chan_arg arg = { .fd = a->fd, .numchans = 0 };
+
+	if (cmd == CLI_INIT) {
+		e->command = "sip show {channels|subscriptions}";
+		e->usage =
+		"Usage: sip show channels\n"
+		"       Lists all currently active SIP channels.\n"
+		"Usage: sip show subscriptions\n"
+		"       Lists active SIP subscriptions for extension states\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE)
+		return NULL;
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+	arg.subscriptions = !strcasecmp(a->argv[e->args - 1], "subscriptions");
+	if (!arg.subscriptions)
+		ast_cli(arg.fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
+	else
+		ast_cli(arg.fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type", "Mailbox");
+
+	/* iterate on the container and invoke the callback on each item */
+	dialoglist_lock();
+	for (cur = dialoglist; cur; cur = cur->next) {
+		show_channels_cb(cur, &arg, 0);
 	}
 	dialoglist_unlock();
-	if (!subscriptions)
-		ast_cli(fd, "%d active SIP channel%s\n", numchans, (numchans != 1) ? "s" : "");
-	else
-		ast_cli(fd, "%d active SIP subscription%s\n", numchans, (numchans != 1) ? "s" : "");
-	return RESULT_SUCCESS;
+
+	/* print summary information */
+	ast_cli(arg.fd, "%d active SIP %s%s\n", arg.numchans,
+		(arg.subscriptions ? "subscription" : "channel"),
+		ESS(arg.numchans));	/* ESS(n) returns an "s" if n>1 */
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 #undef FORMAT3
 }
 
-/*! \brief Support routine for 'sip show channel' and 'sip show history' CLI */
-static char *complete_sip_channel(const char *word, int state)
+/*! \brief Support routine for 'sip show channel' and 'sip show history' CLI
+ * This is in charge of generating all strings that match a prefix in the
+ * given position. As many functions of this kind, each invokation has
+ * O(state) time complexity so be careful in using it.
+ */
+static char *complete_sipch(const char *line, const char *word, int pos, int state)
 {
 	int which=0;
 	struct sip_pvt *cur;
@@ -11479,20 +11511,11 @@ static char *complete_sip_registered_peer(const char *word, int state, int flags
        return result;
 }
 
-/*! \brief Support routine for 'sip show channel' CLI */
-static char *complete_sip_show_channel(const char *line, const char *word, int pos, int state)
-{
-	if (pos == 3)
-		return complete_sip_channel(word, state);
-
-	return NULL;
-}
-
 /*! \brief Support routine for 'sip show history' CLI */
 static char *complete_sip_show_history(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
-		return complete_sip_channel(word, state);
+		return complete_sipch(line, word, pos, state);
 
 	return NULL;
 }
@@ -18397,9 +18420,7 @@ static int reload(void)
 
 /*! \brief SIP Cli commands definition */
 static struct ast_cli_entry cli_sip[] = {
-	{ { "sip", "show", "channels", NULL },
-	sip_show_channels, "List active SIP channels",
-	show_channels_usage },
+	NEW_CLI(sip_show_channels, "List active SIP channels/subscriptions"),
 
 	{ { "sip", "show", "domains", NULL },
 	sip_show_domains, "List our local SIP domains.",
@@ -18429,10 +18450,6 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_show_settings, "Show SIP global settings",
 	show_settings_usage },
 
-	{ { "sip", "show", "subscriptions", NULL },
-	sip_show_subscriptions, "List active SIP subscriptions",
-	show_subscriptions_usage },
-
 	{ { "sip", "show", "users", NULL },
 	sip_show_users, "List defined SIP users",
 	show_users_usage },
@@ -18443,7 +18460,7 @@ static struct ast_cli_entry cli_sip[] = {
 
 	{ { "sip", "show", "channel", NULL },
 	sip_show_channel, "Show detailed SIP channel info",
-	show_channel_usage, complete_sip_show_channel  },
+	show_channel_usage, complete_sipch },
 
 	{ { "sip", "show", "history", NULL },
 	sip_show_history, "Show SIP dialog history",
