@@ -1093,16 +1093,14 @@ static void dialoglist_unlock(void)
 	ast_mutex_unlock(&dialoglock);
 }
 
-#define FLAG_RESPONSE (1 << 0)
-#define FLAG_FATAL (1 << 1)
-
 /*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission */
 struct sip_pkt {
 	struct sip_pkt *next;			/*!< Next packet in linked list */
 	int retrans;				/*!< Retransmission number */
 	int method;				/*!< SIP method for this packet */
 	int seqno;				/*!< Sequence number */
-	unsigned int flags;			/*!< non-zero if this is a response packet (e.g. 200 OK) */
+	char is_resp;				/*!< 1 if this is a response packet (e.g. 200 OK), 0 if it is a request */
+	char is_fatal;				/*!< non-zero if there is a fatal error */
 	struct sip_pvt *owner;			/*!< Owner AST call */
 	int retransid;				/*!< Retransmission ID */
 	int timer_a;				/*!< SIP timer A, retransmission timer */
@@ -2181,21 +2179,23 @@ static int retrans_pkt(void *data)
 	} 
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS && xmitres == 0) {
-		if (ast_test_flag(pkt, FLAG_FATAL) || sipdebug)	/* Tell us if it's critical or if we're debugging */
-			ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
+		if (pkt->is_fatal || sipdebug)	/* Tell us if it's critical or if we're debugging */
+			ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n",
+				pkt->owner->callid, pkt->seqno,
+				pkt->is_fatal ? "Critical" : "Non-critical", pkt->is_resp ? "Response" : "Request");
 	} else if (pkt->method == SIP_OPTIONS && sipdebug) {
 			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
 
 	} 
 	if (xmitres == XMIT_ERROR) {
 		ast_log(LOG_WARNING, "Transmit error :: Cancelling transmission on Call ID %s\n", pkt->owner->callid);
-		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
 	} else 
-		append_history(pkt->owner, "MaxRetries", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+		append_history(pkt->owner, "MaxRetries", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
  		
 	pkt->retransid = -1;
 
-	if (ast_test_flag(pkt, FLAG_FATAL)) {
+	if (pkt->is_fatal) {
 		while(pkt->owner->owner && ast_channel_trylock(pkt->owner->owner)) {
 			sip_pvt_unlock(pkt->owner);	/* SIP_PVT, not channel */
 			usleep(1);
@@ -2263,11 +2263,11 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->owner = p;
 	pkt->seqno = seqno;
 	if (resp)
-		ast_set_flag(pkt, FLAG_RESPONSE);
+		pkt->is_resp = 1;
 	pkt->data[len] = '\0';
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
-		ast_set_flag(pkt, FLAG_FATAL);
+		pkt->is_fatal = 1;
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
@@ -2285,7 +2285,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	xmitres = __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
 
 	if (xmitres == XMIT_ERROR) {	/* Serious network trouble, no need to try again */
-		append_history(pkt->owner, "XmitErr", "%s", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+		append_history(pkt->owner, "XmitErr", "%s", pkt->is_fatal ? "(Critical)" : "(Non-critical)");
 		ast_sched_del(sched, pkt->retransid);	/* No more retransmission */
 		pkt->retransid = -1;
 		return AST_FAILURE;
@@ -2375,9 +2375,9 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 		p->outboundproxy = NULL;
 
 	for (cur = p->packets; cur; prev = cur, cur = cur->next) {
-		if (cur->seqno != seqno || ast_test_flag(cur, FLAG_RESPONSE) != resp)
+		if (cur->seqno != seqno || cur->is_resp != resp)
 			continue;
-		if (ast_test_flag(cur, FLAG_RESPONSE) || cur->method == sipmethod) {
+		if (cur->is_resp || cur->method == sipmethod) {
 			msg = "Found";
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_debug(1, "Acked pending invite %d\n", p->pendinginvite);
@@ -2413,7 +2413,7 @@ static void __sip_pretend_ack(struct sip_pvt *p)
 		}
 		cur = p->packets;
 		method = (cur->method) ? cur->method : find_sip_method(cur->data);
-		__sip_ack(p, cur->seqno, ast_test_flag(cur, FLAG_RESPONSE), method);
+		__sip_ack(p, cur->seqno, cur->is_resp, method);
 	}
 }
 
@@ -2424,8 +2424,8 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	int res = -1;
 
 	for (cur = p->packets; cur; cur = cur->next) {
-		if (cur->seqno == seqno && ast_test_flag(cur, FLAG_RESPONSE) == resp &&
-			(ast_test_flag(cur, FLAG_RESPONSE) || method_match(sipmethod, cur->data))) {
+		if (cur->seqno == seqno && cur->is_resp == resp &&
+			(cur->is_resp || method_match(sipmethod, cur->data))) {
 			/* this is our baby */
 			if (cur->retransid > -1) {
 				if (sipdebug)
@@ -15831,7 +15831,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (seqno == p->pendinginvite) {
 			p->invitestate = INV_TERMINATED;
 			p->pendinginvite = 0;
-			__sip_ack(p, seqno, FLAG_RESPONSE, 0);
+			__sip_ack(p, seqno, 1 /* response */, 0);
 			if (find_sdp(req)) {
 				if (process_sdp(p, req))
 					return -1;
