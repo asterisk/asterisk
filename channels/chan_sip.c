@@ -631,10 +631,6 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 #define DEC_CALL_RINGING 2
 #define INC_CALL_RINGING 3
 
-/* SIP packet flags - note, they do NOT go in struct sip_pkt but
- * in struct sip_request. */
-#define SIP_PKT_IGNORE 		(1 << 2)	/*!< This is a re-transmit, ignore it */
-
 /*! \brief sip_request: The data grabbed from the UDP socket
  * data[] contains the packet itself, additional fields are set
  * after parsing.
@@ -1658,7 +1654,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req);
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req);
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin);
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin);
 static int handle_request_notify(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e);
 static int local_attended_transfer(struct sip_pvt *transferer, struct sip_dual *current, struct sip_request *req, int seqno);
 
@@ -14015,7 +14011,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
     Used only once.
 	XXX 'ignore' is unused.
  */
-static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin)
+static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin)
 {
 	struct ast_frame *f;
 	int earlyreplace = 0;
@@ -14488,7 +14484,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		/* Go and take over the target call */
 		if (sipdebug)
 			ast_debug(4, "Sending this call to the invite/replcaes handler %s\n", p->callid);
-		return handle_invite_replaces(p, req, debug, req->ignore, seqno, sin);
+		return handle_invite_replaces(p, req, debug, seqno, sin);
 	}
 
 
