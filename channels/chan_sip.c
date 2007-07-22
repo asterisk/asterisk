@@ -8056,7 +8056,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 	else if (!ast_strlen_zero(r->nonce)) {
 		char digest[1024];
 
-		/* We have auth data to reuse, build a digest header! */
+		/* We have auth data to reuse, build a digest header.
+		 * Note, this is not always useful because some parties do not
+		 * like nonces to be reused (for good reasons!) so they will
+		 * challenge us anyways.
+		 */
 		if (sipdebug)
 			ast_debug(1, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
 		ast_string_field_set(p, realm, r->realm);
@@ -15377,7 +15381,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	/* Handle authentication */
 	res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, &authpeer);
 	/* if an authentication response was sent, we are done here */
-	if (res == AUTH_CHALLENGE_SENT)
+	if (res == AUTH_CHALLENGE_SENT)	/* authpeer = NULL here */
 		return 0;
 	if (res < 0) {
 		if (res == AUTH_FAKE_AUTH) {
@@ -15390,6 +15394,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		p->needdestroy = 1;
 		return 0;
 	}
+
+	/* At this point, authpeer cannot be NULL. Remember we hold a reference,
+	 * so we must release it when done.
+	 * XXX must remove all the checks for authpeer == NULL.
+	 */
 
 	/* Check if this user/peer is allowed to subscribe at all */
 	if (!ast_test_flag(&p->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE)) {
