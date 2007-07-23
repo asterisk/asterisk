@@ -3391,13 +3391,11 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	case STIMULUS_TRANSFER:
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Transfer(%d)\n", instance);
-		transmit_tone(s, SKINNY_DIALTONE);
 		/* XXX figure out how to transfer */
 		break;
 	case STIMULUS_CONFERENCE:
 		if (skinnydebug)
 			ast_verbose("Received Stimulus: Conference(%d)\n", instance);
-		transmit_tone(s, SKINNY_DIALTONE);
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
 	case STIMULUS_VOICEMAIL:
@@ -3458,7 +3456,6 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		/* Because it's the same thing. */
 
 		/* Do not disturb */
-		transmit_tone(s, SKINNY_DIALTONE);
 		if (l->dnd != 0){
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Disabling DND on %s@%s\n", l->name, d->name);
@@ -4272,7 +4269,6 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	case SOFTKEY_TRNSFER:
 		if (skinnydebug)
 			ast_verbose("Received Softkey Event: Transfer(%d)\n", instance);
-		transmit_tone(s, SKINNY_DIALTONE);
 		/* XXX figure out how to transfer */
 		break;
 	case SOFTKEY_CFWDALL:
@@ -4381,8 +4377,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_CONFRN:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Transfer(%d)\n", instance);
-		transmit_tone(s, SKINNY_DIALTONE);
+			ast_verbose("Received Softkey Event: Conference(%d)\n", instance);
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
 	case SOFTKEY_PARK:
@@ -4401,11 +4396,11 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_PICKUP:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: None(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Pickup(%d)\n", instance);
 		break;
 	case SOFTKEY_GPICKUP:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Group Pickup (%d)\n", instance);
+			ast_verbose("Received Softkey Event: Group Pickup(%d)\n", instance);
 		break;
 	default:
 		if (skinnydebug)
