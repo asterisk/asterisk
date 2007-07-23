@@ -351,13 +351,35 @@ enum check_auth_result {
 /*! \brief States for outbound registrations (with register= lines in sip.conf */
 enum sipregistrystate {
 	REG_STATE_UNREGISTERED = 0,	/*!< We are not registred */
+		/* Initial state. We should have a timeout scheduled for the initial
+		 * (or next) registration transmission, calling sip_reregister
+		 */
+
 	REG_STATE_REGSENT,	/*!< Registration request sent */
+		/* sent initial request, waiting for an ack or a timeout to
+		 * retransmit the initial request.
+		*/
+
 	REG_STATE_AUTHSENT,	/*!< We have tried to authenticate */
+		/* entered after transmit_register with auth info,
+		 * waiting for an ack.
+		 */
+
 	REG_STATE_REGISTERED,	/*!< Registered and done */
 	REG_STATE_REJECTED,	/*!< Registration rejected */
+		/* only used when the remote party has an expire larger than
+		 * our max-expire. This is a final state from which we do not
+		 * recover (not sure how correctly).
+		 */
+
 	REG_STATE_TIMEOUT,	/*!< Registration timed out */
+		/* XXX unused */
+
 	REG_STATE_NOAUTH,	/*!< We have no accepted credentials */
+		/* fatal - no chance to proceed */
+
 	REG_STATE_FAILED,	/*!< Registration failed after several tries */
+		/* fatal - no chance to proceed */
 };
 
 /*! \brief definition of a sip proxy server
@@ -1219,8 +1241,21 @@ struct sip_peer {
 };
 
 
-
-/*! \brief Registrations with other SIP proxies */
+/*! \brief Registrations with other SIP proxies
+ * Created by sip_register(), the entry is linked in the 'regl' list,
+ * and never deleted (other than at 'sip reload' or module unload times).
+ * The entry always has a pending timeout, either waiting for an ACK to
+ * the REGISTER message (in which case we have to retransmit the request),
+ * or waiting for the next REGISTER message to be sent (either the initial one,
+ * or once the previously completed registration one expires).
+ * The registration can be in one of many states, though at the moment
+ * the handling is a bit mixed.
+ * Note that the entire evolution of sip_registry (transmissions,
+ * incoming packets and timeouts) is driven by one single thread,
+ * do_monitor(), so there is almost no synchronization issue.
+ * The only exception  is the sip_pvt creation/lookup,
+ * as the dialoglist is also manipulated by other threads.
+ */
 struct sip_registry {
 	ASTOBJ_COMPONENTS_FULL(struct sip_registry,1,1);
 	AST_DECLARE_STRING_FIELDS(
