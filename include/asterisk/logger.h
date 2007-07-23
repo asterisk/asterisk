@@ -59,6 +59,7 @@ extern "C" {
 	\param function	Will be provided by the LOG_* macro
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
+
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
 
@@ -130,14 +131,42 @@ void ast_console_toggle_mute(int fd);
 #define LOG_DTMF    __LOG_DTMF, _A_
 
 /*!
+ * \brief Get the debug level for a file
+ * \arg file the filename
+ * \return the debug level
+ */
+unsigned int ast_debug_get_by_file(const char *file);
+
+/*!
+ * \brief Get the debug level for a file
+ * \arg file the filename
+ * \return the debug level
+ */
+unsigned int ast_verbose_get_by_file(const char *file);
+
+/*!
  * \brief Log a DEBUG message
  * \param level The minimum value of option_debug for this message
  *        to get logged
  */
 #define ast_debug(level, ...) do {       \
-	if (option_debug >= (level)) {       \
+	if (option_debug >= (level) || (ast_opt_dbg_file && ast_debug_get_by_file(__FILE__) >= (level)) ) \
 		ast_log(LOG_DEBUG, __VA_ARGS__); \
-	}                                    \
+} while (0)
+
+#define ast_verb(level, ...) do { \
+	if (option_verbose >= (level) || (ast_opt_verb_file && ast_verbose_get_by_file(__FILE__) >= (level)) ) { \
+		if (level >= 4) \
+			ast_verbose(VERBOSE_PREFIX_4 __VA_ARGS__); \
+		else if (level == 3) \
+			ast_verbose(VERBOSE_PREFIX_3 __VA_ARGS__); \
+		else if (level == 2) \
+			ast_verbose(VERBOSE_PREFIX_2 __VA_ARGS__); \
+		else if (level == 1) \
+			ast_verbose(VERBOSE_PREFIX_1 __VA_ARGS__); \
+		else \
+			ast_verbose(__VA_ARGS__); \
+	} \
 } while (0)
 
 #if defined(__cplusplus) || defined(c_plusplus)

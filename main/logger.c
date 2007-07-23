@@ -81,7 +81,6 @@ static int syslog_level_map[] = {
 #define GETTID() getpid()
 #endif
 
-
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;
@@ -909,10 +908,6 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	if (!(global_logmask & (1 << level)))
 		return;
 	
-	/* Ignore anything other than the currently debugged file if there is one */
-	if ((level == __LOG_DEBUG) && !ast_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
-		return;
-
 	/* Build string */
 	va_start(ap, fmt);
 	res = ast_str_set_va(&buf, BUFSIZ, fmt, ap);

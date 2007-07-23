@@ -75,7 +75,11 @@ enum ast_option_flags {
 	/*! Always fork, even if verbose or debug settings are non-zero */
 	AST_OPT_FLAG_ALWAYS_FORK = (1 << 21),
 	/*! Disable log/verbose output to remote consoles */
-	AST_OPT_FLAG_MUTE = (1 << 22)
+	AST_OPT_FLAG_MUTE = (1 << 22),
+	/*! There is a per-file debug setting */
+	AST_OPT_FLAG_DEBUG_FILE = (1 << 23),
+	/*! There is a per-file verbose setting */
+	AST_OPT_FLAG_VERBOSE_FILE = (1 << 24),
 };
 
 /*! These are the options that set by default when Asterisk starts */
@@ -103,6 +107,8 @@ enum ast_option_flags {
 #define ast_opt_internal_timing		ast_test_flag(&ast_options, AST_OPT_FLAG_INTERNAL_TIMING)
 #define ast_opt_always_fork		ast_test_flag(&ast_options, AST_OPT_FLAG_ALWAYS_FORK)
 #define ast_opt_mute			ast_test_flag(&ast_options, AST_OPT_FLAG_MUTE)
+#define ast_opt_dbg_file		ast_test_flag(&ast_options, AST_OPT_FLAG_DEBUG_FILE)
+#define ast_opt_verb_file		ast_test_flag(&ast_options, AST_OPT_FLAG_VERBOSE_FILE)
 
 extern struct ast_flags ast_options;
 
@@ -121,7 +127,6 @@ extern struct timeval ast_lastreloadtime;
 extern pid_t ast_mainpid;
 
 extern char record_cache_dir[AST_CACHE_DIR_LEN];
-extern char debug_filename[AST_FILENAME_MAX];
 
 extern int ast_language_is_prefix;
 

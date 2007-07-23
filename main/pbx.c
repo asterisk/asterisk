@@ -1399,8 +1399,7 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
 		if (cur == acf) {
 			AST_RWLIST_REMOVE_CURRENT(&acf_root, acflist);
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
+			ast_verb(2, "Unregistered custom function %s\n", acf->name);
 			break;
 		}
 	}
@@ -1442,8 +1441,7 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 
 	AST_RWLIST_UNLOCK(&acf_root);
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
+	ast_verb(2, "Registered custom function %s\n", acf->name);
 
 	return 0;
 }
@@ -1785,7 +1783,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 			}
 			if (option_verbose > 2) {
 				char tmp[80], tmp2[80], tmp3[EXT_DATA_SIZE];
-				ast_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\") %s\n",
+				ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\") %s\n",
 					exten, context, priority,
 					term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 					term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
@@ -2368,8 +2366,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 	/* Start by trying whatever the channel is set to */
 	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 		/* If not successful fall back to 's' */
-		if (option_verbose > 1)
-			ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
+		ast_verb(2, "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
 		/* XXX the original code used the existing priority in the call to
 		 * ast_exists_extension(), and reset it to 1 afterwards.
 		 * I believe the correct thing is to set it to 1 immediately.
@@ -2377,8 +2374,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		set_ext_pri(c, "s", 1);
 		if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			/* JK02: And finally back to default if everything else failed */
-			if (option_verbose > 1)
-				ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
+			ast_verb(2, "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
 			ast_copy_string(c->context, "default", sizeof(c->context));
 		}
 	}
@@ -2403,14 +2399,12 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 				if (res == AST_PBX_KEEPALIVE) {
 					ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-					if (option_verbose > 1)
-						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
+					ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 					error = 1;
 					break;
 				}
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
 					c->_softhangup =0;
 				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
@@ -2445,8 +2439,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 			 * Try to continue at "i", 1 or exit if the latter does not exist.
 			 */
 			if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
+				ast_verb(3, "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
 				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
 				set_ext_pri(c, "i", 1);
 			} else {
@@ -2468,8 +2461,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				const char *status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 				if (!status)
 					status = "UNKNOWN";
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_2 "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
+				ast_verb(3, "Auto fallthrough, channel '%s' status is '%s'\n", c->name, status);
 				if (!strcasecmp(status, "CONGESTION"))
 					res = pbx_builtin_congestion(c, "10");
 				else if (!strcasecmp(status, "CHANUNAVAIL"))
@@ -2489,8 +2481,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				if (!ast_strlen_zero(dst_exten)) {
 					/* An invalid extension */
 					if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
-						if (option_verbose > 2)
-							ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", dst_exten, c->context, c->name);
+						ast_verb(3, "Invalid extension '%s' in context '%s' on %s\n", dst_exten, c->context, c->name);
 						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", dst_exten);
 						set_ext_pri(c, "i", 1);
 					} else {
@@ -2501,8 +2492,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				} else {
 					/* A simple timeout */
 					if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
-						if (option_verbose > 2)
-							ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
+						ast_verb(3, "Timeout on %s\n", c->name);
 						set_ext_pri(c, "t", 1);
 					} else {
 						ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
@@ -2512,8 +2502,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 			}
 			if (c->cdr) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_2 "CDR updated on %s\n",c->name);
+				ast_verb(2, "CDR updated on %s\n",c->name);
 				ast_cdr_update(c);
 			}
 		}
@@ -2530,8 +2519,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
 				/* Something bad happened, or a hangup has been requested. */
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				break;
 			}
 			c->priority++;
@@ -2994,8 +2982,7 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	if (!cur)
 		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
 
-	if (option_verbose > 1)
-		ast_verbose( VERBOSE_PREFIX_2 "Registered application '%s'\n", term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
+	ast_verb(2, "Registered application '%s'\n", term_color(tmps, tmp->name, COLOR_BRCYAN, 0, sizeof(tmps)));
 
 	AST_RWLIST_UNLOCK(&apps);
 
@@ -3875,8 +3862,7 @@ int ast_unregister_application(const char *app)
 		if (!strcasecmp(app, tmp->name)) {
 			unreference_cached_app(tmp);
 			AST_RWLIST_REMOVE_CURRENT(&apps, list);
-			if (option_verbose > 1)
-				ast_verbose( VERBOSE_PREFIX_2 "Unregistered application '%s'\n", tmp->name);
+			ast_verb(2, "Unregistered application '%s'\n", tmp->name);
 			ast_free(tmp);
 			break;
 		}
@@ -3920,8 +3906,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 		tmp->ignorepats = NULL;
 		*local_contexts = tmp;
 		ast_debug(1, "Registered context '%s'\n", tmp->name);
-		if (option_verbose > 2)
-			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
+		ast_verb(3, "Registered extension context '%s'\n", tmp->name);
 	}
 
 	if (!extcontexts)
@@ -4369,8 +4354,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 		il->next = new_include;
 	else
 		con->includes = new_include;
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Including context '%s' in context '%s'\n", new_include->name, ast_get_context_name(con));
+	ast_verb(3, "Including context '%s' in context '%s'\n", new_include->name, ast_get_context_name(con));
 
 	ast_unlock_context(con);
 
@@ -4457,8 +4441,7 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
 	/* ... sw new context into context list, unlock, return */
 	AST_LIST_INSERT_TAIL(&con->alts, new_sw, list);
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Including switch '%s/%s' in context '%s'\n", new_sw->name, new_sw->data, ast_get_context_name(con));
+	ast_verb(3, "Including switch '%s/%s' in context '%s'\n", new_sw->name, new_sw->data, ast_get_context_name(con));
 
 	ast_unlock_context(con);
 
@@ -4893,15 +4876,15 @@ int ast_add_extension2(struct ast_context *con,
 				tmp->exten, tmp->priority, con->name);
 		}
 	}
-	if (option_verbose > 2) {
-		if (tmp->matchcid) {
-			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d (CID match '%s')to %s\n",
-				tmp->exten, tmp->priority, tmp->cidmatch, con->name);
-		} else {
-			ast_verbose( VERBOSE_PREFIX_3 "Added extension '%s' priority %d to %s\n",
-				tmp->exten, tmp->priority, con->name);
-		}
+
+	if (tmp->matchcid) {
+		ast_verb(3, "Added extension '%s' priority %d (CID match '%s')to %s\n",
+			tmp->exten, tmp->priority, tmp->cidmatch, con->name);
+	} else {
+		ast_verb(3, "Added extension '%s' priority %d to %s\n",
+			tmp->exten, tmp->priority, con->name);
 	}
+	
 	return 0;
 }
 
@@ -4947,8 +4930,7 @@ static void *async_wait(void *data)
 		if (!ast_strlen_zero(as->app)) {
 			app = pbx_findapp(as->app);
 			if (app) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Launching %s(%s) on %s\n", as->app, as->appdata, chan->name);
+				ast_verb(3, "Launching %s(%s) on %s\n", as->app, as->appdata, chan->name);
 				pbx_exec(chan, app, as->appdata);
 			} else
 				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
@@ -5030,8 +5012,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		if (chan) {
 			if (chan->_state == AST_STATE_UP) {
 					res = 0;
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
+				ast_verb(4, "Channel %s was answered.\n", chan->name);
 
 				if (sync > 1) {
 					if (channel)
@@ -5055,8 +5036,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					}
 				}
 			} else {
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
+				ast_verb(4, "Channel %s was never answered.\n", chan->name);
 
 				if (chan->cdr) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
@@ -5153,8 +5133,7 @@ static void *ast_pbx_run_app(void *data)
 	struct ast_app *app;
 	app = pbx_findapp(tmp->app);
 	if (app) {
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "Launching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
+		ast_verb(4, "Launching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
 		pbx_exec(tmp->chan, app, tmp->data);
 	} else
 		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
@@ -5202,8 +5181,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				ast_cdr_setaccount(chan, account);
 			if (chan->_state == AST_STATE_UP) {
 				res = 0;
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
+				ast_verb(4, "Channel %s was answered.\n", chan->name);
 				tmp = ast_calloc(1, sizeof(*tmp));
 				if (!tmp)
 					res = -1;
@@ -5233,8 +5211,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 					}
 				}
 			} else {
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
+				ast_verb(4, "Channel %s was never answered.\n", chan->name);
 				if (chan->cdr) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
 					 * if that fails then we set the status to failed */
@@ -5637,11 +5614,9 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	res = ast_waitfordigit(chan, ms);
 	if (!res) {
 		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, continuing...\n", chan->name);
+			ast_verb(3, "Timeout on %s, continuing...\n", chan->name);
 		} else if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, going to 't'\n", chan->name);
+			ast_verb(3, "Timeout on %s, going to 't'\n", chan->name);
 			set_ext_pri(chan, "t", 0); /* XXX is the 0 correct ? */
 		} else {
 			ast_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
@@ -5744,8 +5719,8 @@ done:
 static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 {
 	int res = ast_parseable_goto(chan, data);
-	if (!res && (option_verbose > 2))
-		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
+	if (!res)
+		ast_verb(3, "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
 	return res;
 }
 
@@ -5826,8 +5801,8 @@ void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, cons
 	headp = (chan) ? &chan->varshead : &globals;
 
 	if (value) {
-		if ((option_verbose > 1) && (headp == &globals))
-			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
+		if (headp == &globals)
+			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		if (headp == &globals)
 			ast_rwlock_wrlock(&globalslock);
@@ -5872,8 +5847,8 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	}
 
 	if (value) {
-		if ((option_verbose > 1) && (headp == &globals))
-			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
+		if (headp == &globals)
+			ast_verb(2, "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 		manager_event(EVENT_FLAG_CALL, "VarSet", 
@@ -6075,16 +6050,14 @@ int load_pbx(void)
 	int x;
 
 	/* Initialize the PBX */
-	if (option_verbose) {
-		ast_verbose( "Asterisk PBX Core Initializing\n");
-		ast_verbose( "Registering builtin applications:\n");
-	}
+	ast_verb(1, "Asterisk PBX Core Initializing\n");
+	ast_verb(1, "Registering builtin applications:\n");
+	
 	ast_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(struct ast_cli_entry));
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
-		if (option_verbose)
-			ast_verbose( VERBOSE_PREFIX_1 "[%s]\n", builtins[x].name);
+		ast_verb(1, "[%s]\n", builtins[x].name);
 		if (ast_register_application2(builtins[x].name, builtins[x].execute, builtins[x].synopsis, builtins[x].description, NULL)) {
 			ast_log(LOG_ERROR, "Unable to register builtin application '%s'\n", builtins[x].name);
 			return -1;

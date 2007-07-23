@@ -163,7 +163,6 @@ struct ast_flags ast_options = { AST_DEFAULT_OPTIONS };
 
 int option_verbose;				/*!< Verbosity level */
 int option_debug;				/*!< Debug level */
-
 double option_maxload;				/*!< Max load avg on system */
 int option_maxcalls;				/*!< Max number of active calls */
 int option_maxfiles;				/*!< Max number of open file handles (files, sockets) */
@@ -174,7 +173,6 @@ long option_minmemfree;				/*!< Minimum amount of free system memory - stop acce
 /*! @} */
 
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
-char debug_filename[AST_FILENAME_MAX] = "";
 
 static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
