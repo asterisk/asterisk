@@ -70,17 +70,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  *
  */
 
-/*
- * XXX This module is not very thread-safe.  It is for everyday stuff
- *     like reading keys and stuff, but there are all kinds of weird
- *     races with people running reload and key init at the same time
- *     for example
- *
- * XXXX
- */
-
-AST_MUTEX_DEFINE_STATIC(keylock);
-
 #define KEY_NEEDS_PASSCODE (1 << 16)
 
 struct ast_key {
@@ -100,19 +89,10 @@ struct ast_key {
 	int outfd;
 	/*! Last MD5 Digest */
 	unsigned char digest[16];
-	struct ast_key *next;
+	AST_RWLIST_ENTRY(ast_key) list;
 };
 
-static struct ast_key *keys = NULL;
-
-
-#if 0
-static int fdprint(int fd, char *s)
-{
-        return write(fd, s, strlen(s) + 1);
-}
-#endif
-
+static AST_RWLIST_HEAD_STATIC(keys, ast_key);
 
 /*!
  * \brief setting of priv key
@@ -126,25 +106,25 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
 	struct ast_key *key = (struct ast_key *)userdata;
 	char prompt[256];
-	int res;
-	int tmp;
-	if (key->infd > -1) {
-		snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
-			 key->ktype == AST_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
-		write(key->outfd, prompt, strlen(prompt));
-		memset(buf, 0, sizeof(buf));
-		tmp = ast_hide_password(key->infd);
-		memset(buf, 0, size);
-		res = read(key->infd, buf, size);
-		ast_restore_tty(key->infd, tmp);
-		if (buf[strlen(buf) -1] == '\n')
-			buf[strlen(buf) - 1] = '\0';
-		return strlen(buf);
-	} else {
+	int res, tmp;
+
+	if (key->infd < 0) {
 		/* Note that we were at least called */
 		key->infd = -2;
+		return -1;
 	}
-	return -1;
+	
+	snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
+		 key->ktype == AST_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
+	write(key->outfd, prompt, strlen(prompt));
+	memset(buf, 0, sizeof(buf));
+	tmp = ast_hide_password(key->infd);
+	memset(buf, 0, size);
+	res = read(key->infd, buf, size);
+	ast_restore_tty(key->infd, tmp);
+	if (buf[strlen(buf) -1] == '\n')
+		buf[strlen(buf) - 1] = '\0';
+	return strlen(buf);
 }
 
 /*!
@@ -154,15 +134,15 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 static struct ast_key *__ast_key_get(const char *kname, int ktype)
 {
 	struct ast_key *key;
-	ast_mutex_lock(&keylock);
-	key = keys;
-	while(key) {
+
+	AST_RWLIST_RDLOCK(&keys);
+	AST_RWLIST_TRAVERSE(&keys, key, list) {
 		if (!strcmp(kname, key->name) &&
 		    (ktype == key->ktype))
 			break;
-		key = key->next;
 	}
-	ast_mutex_unlock(&keylock);
+	AST_RWLIST_UNLOCK(&keys);
+
 	return key;
 }
 
@@ -176,57 +156,49 @@ static struct ast_key *__ast_key_get(const char *kname, int ktype)
  * \retval key on success.
  * \retval NULL on failure.
 */
-static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
+static struct ast_key *try_load_key(char *dir, char *fname, int ifd, int ofd, int *not2)
 {
-	int ktype = 0;
-	char *c = NULL;
-	char ffname[256];
+	int ktype = 0, found = 0;
+	char *c = NULL, ffname[256];
 	unsigned char digest[16];
 	FILE *f;
 	struct MD5Context md5;
 	struct ast_key *key;
 	static int notice = 0;
-	int found = 0;
 
 	/* Make sure its name is a public or private key */
-
-	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub")) {
+	if ((c = strstr(fname, ".pub")) && !strcmp(c, ".pub"))
 		ktype = AST_KEY_PUBLIC;
-	} else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key")) {
+	else if ((c = strstr(fname, ".key")) && !strcmp(c, ".key"))
 		ktype = AST_KEY_PRIVATE;
-	} else
+	else
 		return NULL;
 
 	/* Get actual filename */
 	snprintf(ffname, sizeof(ffname), "%s/%s", dir, fname);
 
-	ast_mutex_lock(&keylock);
-	key = keys;
-	while(key) {
-		/* Look for an existing version already */
-		if (!strcasecmp(key->fn, ffname)) 
-			break;
-		key = key->next;
-	}
-	ast_mutex_unlock(&keylock);
-
 	/* Open file */
-	f = fopen(ffname, "r");
-	if (!f) {
+	if (!(f = fopen(ffname, "r"))) {
 		ast_log(LOG_WARNING, "Unable to open key file %s: %s\n", ffname, strerror(errno));
 		return NULL;
 	}
+
 	MD5Init(&md5);
 	while(!feof(f)) {
 		/* Calculate a "whatever" quality md5sum of the key */
-		char buf[256];
-		memset(buf, 0, 256);
+		char buf[256] = "";
 		fgets(buf, sizeof(buf), f);
-		if (!feof(f)) {
+		if (!feof(f))
 			MD5Update(&md5, (unsigned char *) buf, strlen(buf));
-		}
 	}
 	MD5Final(digest, &md5);
+
+	/* Look for an existing key */
+	AST_RWLIST_TRAVERSE(&keys, key, list) {
+		if (!strcasecmp(key->fn, ffname))
+			break;
+	}
+
 	if (key) {
 		/* If the MD5 sum is the same, and it isn't awaiting a passcode 
 		   then this is far enough */
@@ -251,11 +223,6 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 			return NULL;
 		}
 	}
-	/* At this point we have a key structure (old or new).  Time to
-	   fill it with what we know */
-	/* Gotta lock if this one already exists */
-	if (found)
-		ast_mutex_lock(&keylock);
 	/* First the filename */
 	ast_copy_string(key->fn, ffname, sizeof(key->fn));
 	/* Then the name */
@@ -288,9 +255,9 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 			ast_log(LOG_NOTICE, "Key '%s' is not expected size.\n", key->name);
 	} else if (key->infd != -2) {
 		ast_log(LOG_WARNING, "Key load %s '%s' failed\n",key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
-		if (ofd > -1) {
+		if (ofd > -1)
 			ERR_print_errors_fp(stderr);
-		} else
+		else
 			ERR_print_errors_fp(stderr);
 	} else {
 		ast_log(LOG_NOTICE, "Key '%s' needs passcode.\n", key->name);
@@ -305,42 +272,13 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 		/* Print final notice about "init keys" when done */
 		*not2 = 1;
 	}
-	if (found)
-		ast_mutex_unlock(&keylock);
-	if (!found) {
-		ast_mutex_lock(&keylock);
-		key->next = keys;
-		keys = key;
-		ast_mutex_unlock(&keylock);
-	}
+
+	/* If this is a new key add it to the list */
+	if (!found)
+		AST_RWLIST_INSERT_TAIL(&keys, key, list);
+
 	return key;
 }
-
-#if 0
-
-static void dump(unsigned char *src, int len)
-{
-	int x; 
-	for (x=0;x<len;x++)
-		printf("%02x", *(src++));
-	printf("\n");
-}
-
-static char *binary(int y, int len)
-{
-	static char res[80];
-	int x;
-	memset(res, 0, sizeof(res));
-	for (x=0;x<len;x++) {
-		if (y & (1 << x))
-			res[(len - x - 1)] = '1';
-		else
-			res[(len - x - 1)] = '0';
-	}
-	return res;
-}
-
-#endif
 
 /*!
  * \brief signs outgoing message with public key
@@ -361,9 +299,7 @@ static int __ast_sign_bin(struct ast_key *key, const char *msg, int msglen, unsi
 	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
-	res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa);
-	
-	if (!res) {
+	if (!(res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa))) {
 		ast_log(LOG_WARNING, "RSA Signature (key %s) failed\n", key->name);
 		return -1;
 	}
@@ -383,8 +319,8 @@ static int __ast_sign_bin(struct ast_key *key, const char *msg, int msglen, unsi
 */
 static int __ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
 {
-	int res;
-	int pos = 0;
+	int res, pos = 0;
+
 	if (key->ktype != AST_KEY_PRIVATE) {
 		ast_log(LOG_WARNING, "Cannot decrypt with a public key\n");
 		return -1;
@@ -394,16 +330,17 @@ static int __ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int s
 		ast_log(LOG_NOTICE, "Tried to decrypt something not a multiple of 128 bytes\n");
 		return -1;
 	}
+
 	while(srclen) {
 		/* Process chunks 128 bytes at a time */
-		res = RSA_private_decrypt(128, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
-		if (res < 0)
+		if ((res = RSA_private_decrypt(128, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING)) < 0)
 			return -1;
 		pos += res;
 		src += 128;
 		srclen -= 128;
 		dst += res;
 	}
+
 	return pos;
 }
 
@@ -413,9 +350,8 @@ static int __ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int s
 */
 static int __ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
 {
-	int res;
-	int bytes;
-	int pos = 0;
+	int res, bytes, pos = 0;
+
 	if (key->ktype != AST_KEY_PUBLIC) {
 		ast_log(LOG_WARNING, "Cannot encrypt with a private key\n");
 		return -1;
@@ -426,8 +362,7 @@ static int __ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int s
 		if (bytes > 128 - 41)
 			bytes = 128 - 41;
 		/* Process chunks 128-41 bytes at a time */
-		res = RSA_public_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING);
-		if (res != 128) {
+		if ((res = RSA_public_encrypt(bytes, src, dst, key->rsa, RSA_PKCS1_OAEP_PADDING)) != 128) {
 			ast_log(LOG_NOTICE, "How odd, encrypted size is %d\n", res);
 			return -1;
 		}
@@ -446,14 +381,13 @@ static int __ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int s
 static int __ast_sign(struct ast_key *key, char *msg, char *sig)
 {
 	unsigned char dsig[128];
-	int siglen = sizeof(dsig);
-	int res;
-	res = ast_sign_bin(key, msg, strlen(msg), dsig);
-	if (!res)
+	int siglen = sizeof(dsig), res;
+
+	if (!(res = ast_sign_bin(key, msg, strlen(msg), dsig)))
 		/* Success -- encode (256 bytes max as documented) */
 		ast_base64encode(sig, dsig, siglen, 256);
+
 	return res;
-	
 }
 
 /*!
@@ -476,12 +410,11 @@ static int __ast_check_signature_bin(struct ast_key *key, const char *msg, int m
 	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
-	res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *)dsig, 128, key->rsa);
-	
-	if (!res) {
+	if (!(res = RSA_verify(NID_sha1, digest, sizeof(digest), (unsigned char *)dsig, 128, key->rsa))) {
 		ast_debug(1, "Key failed verification: %s\n", key->name);
 		return -1;
 	}
+
 	/* Pass */
 	return 0;
 }
@@ -496,12 +429,13 @@ static int __ast_check_signature(struct ast_key *key, const char *msg, const cha
 	int res;
 
 	/* Decode signature */
-	res = ast_base64decode(dsig, sig, sizeof(dsig));
-	if (res != sizeof(dsig)) {
+	if ((res = ast_base64decode(dsig, sig, sizeof(dsig))) != sizeof(dsig)) {
 		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
+
 	res = ast_check_signature_bin(key, msg, strlen(msg), dsig);
+
 	return res;
 }
 
@@ -513,56 +447,49 @@ static int __ast_check_signature(struct ast_key *key, const char *msg, const cha
 */
 static void crypto_load(int ifd, int ofd)
 {
-	struct ast_key *key, *nkey, *last;
+	struct ast_key *key;
 	DIR *dir = NULL;
 	struct dirent *ent;
 	int note = 0;
+
+	AST_RWLIST_WRLOCK(&keys);
+
 	/* Mark all keys for deletion */
-	ast_mutex_lock(&keylock);
-	key = keys;
-	while(key) {
+	AST_RWLIST_TRAVERSE(&keys, key, list) {
 		key->delme = 1;
-		key = key->next;
 	}
-	ast_mutex_unlock(&keylock);
+
 	/* Load new keys */
-	dir = opendir((char *)ast_config_AST_KEY_DIR);
-	if (dir) {
+	if ((dir = opendir((char *)ast_config_AST_KEY_DIR))) {
 		while((ent = readdir(dir))) {
 			try_load_key((char *)ast_config_AST_KEY_DIR, ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
 	} else
 		ast_log(LOG_WARNING, "Unable to open key directory '%s'\n", (char *)ast_config_AST_KEY_DIR);
-	if (note) {
+
+	if (note)
 		ast_log(LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
-	}
-	ast_mutex_lock(&keylock);
-	key = keys;
-	last = NULL;
-	while(key) {
-		nkey = key->next;
+
+	/* Delete any keys that are no longer present */
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&keys, key, list) {
 		if (key->delme) {
 			ast_debug(1, "Deleting key %s type %d\n", key->name, key->ktype);
-			/* Do the delete */
-			if (last)
-				last->next = nkey;
-			else
-				keys = nkey;
+			AST_RWLIST_REMOVE_CURRENT(&keys, list);
 			if (key->rsa)
 				RSA_free(key->rsa);
-			free(key);
-		} else 
-			last = key;
-		key = nkey;
+			ast_free(key);
+		}
 	}
-	ast_mutex_unlock(&keylock);
+	AST_RWLIST_TRAVERSE_SAFE_END
+
+	AST_RWLIST_UNLOCK(&keys);
 }
 
 static void md52sum(char *sum, unsigned char *md5)
 {
 	int x;
-	for (x=0;x<16;x++) 
+	for (x = 0; x < 16; x++) 
 		sum += sprintf(sum, "%02x", *(md5++));
 }
 
@@ -579,20 +506,20 @@ static int show_keys(int fd, int argc, char *argv[])
 	char sum[16 * 2 + 1];
 	int count_keys = 0;
 
-	ast_mutex_lock(&keylock);
-	key = keys;
 	ast_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
-	while(key) {
+
+	AST_RWLIST_RDLOCK(&keys);
+	AST_RWLIST_TRAVERSE(&keys, key, list) {
 		md52sum(sum, key->digest);
 		ast_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
 			(key->ktype & 0xf) == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);
-				
-		key = key->next;
 		count_keys++;
 	}
-	ast_mutex_unlock(&keylock);
+	AST_RWLIST_UNLOCK(&keys);
+
 	ast_cli(fd, "%d known RSA keys.\n", count_keys);
+
 	return RESULT_SUCCESS;
 }
 
@@ -607,19 +534,20 @@ static int init_keys(int fd, int argc, char *argv[])
 {
 	struct ast_key *key;
 	int ign;
-	char *kn;
-	char tmp[256] = "";
+	char *kn, tmp[256] = "";
 
-	key = keys;
-	while(key) {
+	AST_RWLIST_WRLOCK(&keys);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&keys, key, list) {
 		/* Reload keys that need pass codes now */
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
 			kn = key->fn + strlen(ast_config_AST_KEY_DIR) + 1;
 			ast_copy_string(tmp, kn, sizeof(tmp));
 			try_load_key((char *)ast_config_AST_KEY_DIR, tmp, fd, fd, &ign);
 		}
-		key = key->next;
 	}
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&keys);
+
 	return RESULT_SUCCESS;
 }
 
