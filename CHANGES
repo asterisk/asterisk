@@ -38,6 +38,7 @@ CLI Changes
 -----------
   * New CLI command "core show settings"
   * Added 'core show channels count' CLI command.
+  * Added the ability to set the core debug and verbose values on a per-file basis.
 
 SIP changes
 -----------
