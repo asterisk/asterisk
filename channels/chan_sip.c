@@ -10205,9 +10205,10 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 		return res;
 
 	/* Finally, apply the guest policy */
-	if (global_allowguest)
+	if (global_allowguest) {
+		replace_cid(p, rpid_num, calleridname);
 		res = AUTH_SUCCESSFUL;
-	else if (global_alwaysauthreject)
+	} else if (global_alwaysauthreject)
 		res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
 	else
 		res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
