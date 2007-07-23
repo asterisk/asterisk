@@ -1548,6 +1548,7 @@ static int sip_show_peers(int fd, int argc, char *argv[]);
 static int sip_show_objects(int fd, int argc, char *argv[]);
 static void  print_group(int fd, ast_group_t group, int crlf);
 static const char *dtmfmode2str(int mode) attribute_const;
+static int str2dtmfmode(const char *str) attribute_unused;
 static const char *insecure2str(int mode) attribute_const;
 static void cleanup_stale_contexts(char *new, char *old);
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
