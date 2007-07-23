@@ -130,11 +130,12 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 	}
 
 	for (digit = data; *digit; digit++) {
+		int digit2 = *digit;
 		char *dahdit;
-		if (*digit < 0) {
+		if (digit2 < 0) {
 			continue;
 		}
-		for (dahdit = morsecode[(int)*digit]; *dahdit; dahdit++) {
+		for (dahdit = morsecode[digit2]; *dahdit; dahdit++) {
 			if (*dahdit == '-') {
 				playtone(chan, tone, 3 * ditlen);
 			} else if (*dahdit == '.') {
