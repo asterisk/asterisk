@@ -7482,6 +7482,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_copy_flags(p, &global_flags, SIP_OSPAUTH);
 				res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", sipmethod, uri2, reliable, ignore); 
 #endif
+			} else if (!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
+				if (*calleridname)
+					ast_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
+				ast_copy_string(p->cid_num, rpid_num, sizeof(p->cid_num));
+				ast_shrink_phone_number(p->cid_num);
 			}
 		}
 
