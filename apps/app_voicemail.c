@@ -412,6 +412,8 @@ static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
 
+int my_umask;
+
 #if ODBC_STORAGE
 #define tdesc "Comedian Mail (Voicemail System) with ODBC Storage"
 #elif IMAP_STORAGE
@@ -1818,6 +1820,7 @@ static FILE *vm_mkftemp(char *template)
 {
 	FILE *p = NULL;
 	int pfd = mkstemp(template);
+	chmod(template, VOICEMAIL_FILE_MODE & ~my_umask);
 	if (pfd > -1) {
 		p = fdopen(pfd, "w+");
 		if (!p) {
@@ -1967,6 +1970,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
 			snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
 			tmpfd = mkstemp(newtmp);
+			chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "newtmp: %s\n", newtmp);
 			if (tmpfd > -1) {
@@ -3041,6 +3045,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #endif
 		snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/XXXXXX", tmpdir);
 		txtdes = mkstemp(tmptxtfile);
+		chmod(tmptxtfile, VOICEMAIL_FILE_MODE & ~my_umask);
 		if (txtdes < 0) {
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res)
@@ -7750,6 +7755,8 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+	my_umask = umask(0);
+	umask(my_umask);
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
 	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
