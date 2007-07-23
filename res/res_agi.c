@@ -117,6 +117,8 @@ enum agi_result {
 	AGI_RESULT_HANGUP,
 };
 
+static agi_command *find_command(char *cmds[], int exact);
+
 static void agi_debug_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
@@ -391,7 +393,7 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 
 	/* User information */
 	fdprintf(fd, "agi_accountcode: %s\n", chan->accountcode ? chan->accountcode : "");
-    
+
 	/* Send any parameters to the fastagi server that have been passed via the agi application */
 	/* Agi application paramaters take the form of: AGI(/path/to/example/script|${EXTEN}) */
 	for(count = 1; count < argc; count++)
@@ -669,7 +671,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 			res=0;
 	}
 
-        fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
+	fdprintf(agi->fd, "200 result=%d endpos=%ld\n", res, sample_offset);
 	return (res >= 0) ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
@@ -873,13 +875,13 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	int res = 0;
 	int ms;
 
-        struct ast_dsp *sildet=NULL;         /* silence detector dsp */
-        int totalsilence = 0;
-        int dspsilence = 0;
-        int silence = 0;                /* amount of silence to allow */
-        int gotsilence = 0;             /* did we timeout for silence? */
-        char *silencestr=NULL;
-        int rfmt=0;
+	struct ast_dsp *sildet=NULL;         /* silence detector dsp */
+	int totalsilence = 0;
+	int dspsilence = 0;
+	int silence = 0;                /* amount of silence to allow */
+	int gotsilence = 0;             /* did we timeout for silence? */
+	char *silencestr=NULL;
+	int rfmt=0;
 
 
 	/* XXX EAGI FIXME XXX */
@@ -902,27 +904,27 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				silencestr++;
 				silencestr++;
 				if (silencestr)
-	                		silence = atoi(silencestr);
-        			if (silence > 0)
-	                		silence *= 1000;
-        		}
+					silence = atoi(silencestr);
+				if (silence > 0)
+					silence *= 1000;
+			}
 		}
 	}
 
-        if (silence > 0) {
-        	rfmt = chan->readformat;
-                res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-                if (res < 0) {
-                	ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-                        return -1;
-                }
-               	sildet = ast_dsp_new();
-                if (!sildet) {
-                	ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-                        return -1;
-                }
-               	ast_dsp_set_threshold(sildet, 256);
-      	}
+	if (silence > 0) {
+		rfmt = chan->readformat;
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			return -1;
+		}
+		sildet = ast_dsp_new();
+		if (!sildet) {
+			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+			return -1;
+		}
+		ast_dsp_set_threshold(sildet, 256);
+	}
 
 	/* backward compatibility, if no offset given, arg[6] would have been
 	 * caught below and taken to be a beep, else if it is a digit then it is a
@@ -997,20 +999,20 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				 * is valid after a write, and it will then have our current
 				 * location */
 				sample_offset = ast_tellstream(fs);
-                                if (silence > 0) {
-                                	dspsilence = 0;
-                                        ast_dsp_silence(sildet, f, &dspsilence);
-                                        if (dspsilence) {
-                                       		totalsilence = dspsilence;
-                                        } else {
-                                              	totalsilence = 0;
-                                        }
-                                        if (totalsilence > silence) {
-                                             /* Ended happily with silence */
-                                                gotsilence = 1;
-                                                break;
-                                        }
-                            	}
+				if (silence > 0) {
+					dspsilence = 0;
+					ast_dsp_silence(sildet, f, &dspsilence);
+					if (dspsilence) {
+						totalsilence = dspsilence;
+					} else {
+						totalsilence = 0;
+					}
+					if (totalsilence > silence) {
+						/* Ended happily with silence */
+						gotsilence = 1;
+						break;
+					}
+				}
 				break;
 			case AST_FRAME_VIDEO:
 				ast_writestream(fs, f);
@@ -1021,7 +1023,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			ast_frfree(f);
 			if (gotsilence)
 				break;
-        	}
+		}
 
               	if (gotsilence) {
                      	ast_stream_rewind(fs, silence-1000);
@@ -1032,12 +1034,12 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		ast_closestream(fs);
 	}
 
-        if (silence > 0) {
-                res = ast_set_read_format(chan, rfmt);
-                if (res)
-                        ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
-                ast_dsp_free(sildet);
-        }
+	if (silence > 0) {
+		res = ast_set_read_format(chan, rfmt);
+		if (res)
+			ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);
+			ast_dsp_free(sildet);
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -1585,63 +1587,61 @@ static char usage_noop[] =
 "	Does nothing.\n";
 
 /*!
- * \brief AGI commands
- *
- * \todo XXX This array is not handled in a thread safe way.  There is no
- * synchronization done at all between the agi register and unregister functions
- * and the rest of this module which uses the entries here.
+ * \brief AGI commands list
  */
-static agi_command commands[MAX_COMMANDS] = {
-	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer },
-	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus },
-	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel },
-	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree },
-	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget },
-	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput },
-	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec },
-	{ { "get", "data", NULL }, handle_getdata, "Prompts for DTMF on a channel", usage_getdata },
-	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull },
-	{ { "get", "option", NULL }, handle_getoption, "Stream file, prompt for DTMF, with timeout", usage_getoption },
-	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable },
-	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup },
-	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop },
-	{ { "receive", "char", NULL }, handle_recvchar, "Receives one character from channels supporting it", usage_recvchar },
-	{ { "receive", "text", NULL }, handle_recvtext, "Receives text from channels supporting it", usage_recvtext },
-	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile },
-	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha },
-	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
-	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
-	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
-	{ { "say", "date", NULL }, handle_saydate, "Says a given date", usage_saydate },
-	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime },
-	{ { "say", "datetime", NULL }, handle_saydatetime, "Says a given time as specfied by the format given", usage_saydatetime },
-	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
-	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
-	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup },
-	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid },
-	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext },
-	{ { "set", "extension", NULL }, handle_setextension, "Changes channel extension", usage_setextension },
-	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic },
-	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority },
-	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable },
-	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
-	{ { "control", "stream", "file", NULL }, handle_controlstreamfile, "Sends audio file on channel and allows the listner to control the stream", usage_controlstreamfile },
-	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode },
-	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose },
-	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
+static struct agi_command commands[MAX_COMMANDS] = {
+	{ { "answer", NULL }, handle_answer, "Answer channel", usage_answer , 0 },
+	{ { "channel", "status", NULL }, handle_channelstatus, "Returns status of the connected channel", usage_channelstatus , 0 },
+	{ { "database", "del", NULL }, handle_dbdel, "Removes database key/value", usage_dbdel , 1 },
+	{ { "database", "deltree", NULL }, handle_dbdeltree, "Removes database keytree/value", usage_dbdeltree , 1 },
+	{ { "database", "get", NULL }, handle_dbget, "Gets database value", usage_dbget , 1 },
+	{ { "database", "put", NULL }, handle_dbput, "Adds/updates database value", usage_dbput , 1 },
+	{ { "exec", NULL }, handle_exec, "Executes a given Application", usage_exec , 1 },
+	{ { "get", "data", NULL }, handle_getdata, "Prompts for DTMF on a channel", usage_getdata , 0 },
+	{ { "get", "full", "variable", NULL }, handle_getvariablefull, "Evaluates a channel expression", usage_getvariablefull , 1 },
+	{ { "get", "option", NULL }, handle_getoption, "Stream file, prompt for DTMF, with timeout", usage_getoption , 0 },
+	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable , 1 },
+	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup , 0 },
+	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop , 1 },
+	{ { "receive", "char", NULL }, handle_recvchar, "Receives one character from channels supporting it", usage_recvchar , 0 },
+	{ { "receive", "text", NULL }, handle_recvtext, "Receives text from channels supporting it", usage_recvtext , 0 },
+	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile , 0 },
+	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha , 0 },
+	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits , 0 },
+	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber , 0 },
+	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic , 0 },
+	{ { "say", "date", NULL }, handle_saydate, "Says a given date", usage_saydate , 0 },
+	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime , 0 },
+	{ { "say", "datetime", NULL }, handle_saydatetime, "Says a given time as specfied by the format given", usage_saydatetime , 0 },
+	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage , 0 },
+	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext , 0 },
+	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup , 0 },
+	{ { "set", "callerid", NULL }, handle_setcallerid, "Sets callerid for the current channel", usage_setcallerid , 0 },
+	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext , 0 },
+	{ { "set", "extension", NULL }, handle_setextension, "Changes channel extension", usage_setextension , 0 },
+	{ { "set", "music", NULL }, handle_setmusic, "Enable/Disable Music on hold generator", usage_setmusic , 0 },
+	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority , 0 },
+	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable , 1 },
+	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile , 0 },
+	{ { "control", "stream", "file", NULL }, handle_controlstreamfile, "Sends audio file on channel and allows the listner to control the stream", usage_controlstreamfile , 0 },
+	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode , 0 },
+	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose , 1 },
+	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit , 0 },
 };
+
+AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
 
 static int help_workhorse(int fd, char *match[])
 {
 	char fullcmd[80], matchstr[80];
-	int x;
 	struct agi_command *e;
 
 	if (match)
 		ast_join(matchstr, sizeof(matchstr), match);
 
-	for (x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
-		e = &commands[x]; 
+	ast_cli(fd, "%5.5s %20.20s   %s\n","Dead","Command","Description");
+	AST_RWLIST_RDLOCK(&agi_commands);
+	AST_RWLIST_TRAVERSE(&agi_commands, e, list) {
 		if (!e->cmda[0])
 			break;
 		/* Hide commands that start with '_' */
@@ -1650,72 +1650,78 @@ static int help_workhorse(int fd, char *match[])
 		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
 		if (match && strncasecmp(matchstr, fullcmd, strlen(matchstr)))
 			continue;
-		ast_cli(fd, "%20.20s   %s\n", fullcmd, e->summary);
+		ast_cli(fd, "%5.5s %20.20s   %s\n", e->dead ? "Yes" : "No" , fullcmd, e->summary);
 	}
+	AST_RWLIST_UNLOCK(&agi_commands);
 	return 0;
 }
 
 int ast_agi_register(agi_command *agi)
 {
-	int x;
-
-	for (x = 0; x < MAX_COMMANDS - 1; x++) {
-		if (commands[x].cmda[0] == agi->cmda[0]) {
-			ast_log(LOG_WARNING, "Command already registered!\n");
-			return -1;
-		}
+	if (!find_command(agi->cmda,1)) {
+		AST_RWLIST_WRLOCK(&agi_commands);
+		AST_LIST_INSERT_TAIL(&agi_commands, agi, list);
+		AST_RWLIST_UNLOCK(&agi_commands);
+		return 1;
+	} else {
+		ast_log(LOG_WARNING, "Command already registered!\n");
+		return 0;
 	}
-	for (x = 0; x < MAX_COMMANDS - 1; x++) {
-		if (!commands[x].cmda[0]) {
-			commands[x] = *agi;
-			return 0;
-		}
-	}
-	ast_log(LOG_WARNING, "No more room for new commands!\n");
-	return -1;
 }
 
-void ast_agi_unregister(agi_command *agi)
+int ast_agi_unregister(agi_command *cmd)
 {
-	int x;
-	for (x = 0; x < MAX_COMMANDS - 1; x++) {
-		if (commands[x].cmda[0] == agi->cmda[0]) {
-			memset(&commands[x], 0, sizeof(agi_command));
+	struct agi_command *e;
+	int unregistered = 0;
+
+	AST_RWLIST_WRLOCK(&agi_commands);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&agi_commands, e, list) {
+		if (cmd == e) {
+			AST_RWLIST_REMOVE_CURRENT(&agi_commands, list);
+			unregistered=1;
+			break;
 		}
 	}
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&agi_commands);
+	if (!unregistered)
+		ast_log(LOG_WARNING, "Unable to unregister command!\n");
+	return unregistered;
 }
 
 static agi_command *find_command(char *cmds[], int exact)
 {
-	int x, y, match;
+	int y, match;
+	struct agi_command *e;
 
-	for (x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
-		if (!commands[x].cmda[0])
+	AST_RWLIST_RDLOCK(&agi_commands);
+	AST_RWLIST_TRAVERSE(&agi_commands, e, list) {
+		if (!e->cmda[0])
 			break;
-		/* start optimistic */
-		match = 1;
-		for (y = 0; match && cmds[y]; y++) {
-			/* If there are no more words in the command (and we're looking for
-			   an exact match) or there is a difference between the two words,
-			   then this is not a match */
-			if (!commands[x].cmda[y] && !exact)
-				break;
-			/* don't segfault if the next part of a command doesn't exist */
-			if (!commands[x].cmda[y])
-				return NULL;
-			if (strcasecmp(commands[x].cmda[y], cmds[y]))
+			/* start optimistic */
+			match = 1;
+			for (y = 0; match && cmds[y]; y++) {
+				/* If there are no more words in the command (and we're looking for
+				   an exact match) or there is a difference between the two words,
+				   then this is not a match */
+				if (!e->cmda[y] && !exact)
+					break;
+				/* don't segfault if the next part of a command doesn't exist */
+				if (!e->cmda[y])
+					return NULL;
+				if (strcasecmp(e->cmda[y], cmds[y]))
+					match = 0;
+			}
+			/* If more words are needed to complete the command then this is not
+			   a candidate (unless we're looking for a really inexact answer  */
+			if ((exact > -1) && e->cmda[y])
 				match = 0;
-		}
-		/* If more words are needed to complete the command then this is not
-		   a candidate (unless we're looking for a really inexact answer  */
-		if ((exact > -1) && commands[x].cmda[y])
-			match = 0;
-		if (match)
-			return &commands[x];
+			if (match)
+				return e;
 	}
+	AST_RWLIST_UNLOCK(&agi_commands);
 	return NULL;
 }
-
 
 static int parse_args(char *s, int *max, char *argv[])
 {
@@ -1780,14 +1786,14 @@ normal:
 	return 0;
 }
 
-static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
+static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf, int dead)
 {
 	char *argv[MAX_ARGS];
 	int argc = MAX_ARGS, res;
 	agi_command *c;
 
 	parse_args(buf, &argc, argv);
-	if ((c = find_command(argv, 0))) {
+	if ((c = find_command(argv, 0)) && (!dead || (dead && c->dead))) {
 		res = c->handler(chan, agi, argc, argv);
 		switch(res) {
 		case RESULT_SHOWUSAGE:
@@ -1804,6 +1810,8 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 			   appropriately */
 			return -1;
 		}
+	} else if ((c = find_command(argv, 0))) {
+		fdprintf(agi->fd, "511 Command Not Permitted on a dead channel\n");
 	} else {
 		fdprintf(agi->fd, "510 Invalid or unknown command\n");
 	}
@@ -1813,7 +1821,7 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, int *status, int dead, int argc, char *argv[])
 {
 	struct ast_channel *c;
-	int outfd, ms;
+	int outfd, ms, needhup = 0;
 	enum agi_result returnstatus = AGI_RESULT_SUCCESS;
 	struct ast_frame *f;
 	char buf[2048];
@@ -1832,6 +1840,11 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	setlinebuf(readf);
 	setup_env(chan, request, agi->fd, (agi->audio > -1), argc, argv);
 	for (;;) {
+		if (needhup) {
+			needhup = 0;
+			dead = 1;
+			kill(pid, SIGHUP);
+		}
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, dead ? 0 : 1, &agi->ctrl, 1, NULL, &outfd, &ms);
 		if (c) {
@@ -1841,7 +1854,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			if (!f) {
 				ast_debug(1, "%s hungup\n", chan->name);
 				returnstatus = AGI_RESULT_HANGUP;
-				break;
+				needhup = 1;
+				continue;
 			} else {
 				/* If it's voice, write it to the audio pipe */
 				if ((agi->audio > -1) && (f->frametype == AST_FRAME_VOICE)) {
@@ -1854,7 +1868,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 			retry = RETRY;
 			if (!fgets(buf, sizeof(buf), readf)) {
 				/* Program terminated */
-				if (returnstatus)
+				if (returnstatus && returnstatus != AST_PBX_KEEPALIVE)
 					returnstatus = -1;
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "AGI Script %s completed, returning %d\n", request, returnstatus);
@@ -1869,10 +1883,11 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				buf[strlen(buf) - 1] = 0;
 			if (agidebug)
 				ast_verbose("AGI Rx << %s\n", buf);
-			returnstatus |= agi_handle_command(chan, agi, buf);
+			returnstatus |= agi_handle_command(chan, agi, buf, dead);
 			/* If the handle_command returns -1, we need to stop */
 			if ((returnstatus < 0) || (returnstatus == AST_PBX_KEEPALIVE)) {
-				break;
+				needhup = 1;
+				continue;
 			}
 		} else {
 			if (--retry <= 0) {
@@ -1904,13 +1919,14 @@ static int handle_showagi(int fd, int argc, char *argv[])
 
 	if (argc > 2) {
 		e = find_command(argv + 2, 1);
-		if (e) 
+		if (e) {
 			ast_cli(fd, e->usage);
-		else {
+			ast_cli(fd, " Runs Dead : %s\n", e->dead ? "Yes" : "No");
+		} else {
 			if (find_command(argv + 2, -1)) {
-				return help_workhorse(fd, argv + 1);
+				return help_workhorse(fd, argv + 2);
 			} else {
-				ast_join(fullcmd, sizeof(fullcmd), argv+1);
+				ast_join(fullcmd, sizeof(fullcmd), argv + 2);
 				ast_cli(fd, "No such command '%s'.\n", fullcmd);
 			}
 		}
@@ -1955,7 +1971,6 @@ static int handle_agidumphtml(int fd, int argc, char *argv[])
 {
 	struct agi_command *e;
 	char fullcmd[80];
-	int x;
 	FILE *htmlfile;
 
 	if ((argc < 3))
@@ -1972,10 +1987,10 @@ static int handle_agidumphtml(int fd, int argc, char *argv[])
 
 	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
 
-	for (x = 0; x < sizeof(commands) / sizeof(commands[0]); x++) {
+	AST_RWLIST_RDLOCK(&agi_commands);
+	AST_RWLIST_TRAVERSE(&agi_commands, e, list) {
 		char *stringp, *tempstr;
-
-		e = &commands[x]; 
+ 
 		if (!e->cmda[0])	/* end ? */
 			break;
 		/* Hide commands that start with '_' */
@@ -2001,9 +2016,8 @@ static int handle_agidumphtml(int fd, int argc, char *argv[])
 		}
 		fprintf(htmlfile, "</TD></TR>\n");
 		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
-
 	}
-
+	AST_RWLIST_UNLOCK(&agi_commands);
 	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");
 	fclose(htmlfile);
 	ast_cli(fd, "AGI HTML Commands Dumped to: %s\n", argv[2]);
@@ -2026,8 +2040,9 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
 	}
+	if (dead)
+		ast_log(LOG_NOTICE, "Hungup channel detected, running agi in dead mode.");
 	ast_copy_string(buf, data, sizeof(buf));
-
 	memset(&agi, 0, sizeof(agi));
 	AST_STANDARD_APP_ARGS(args, tmp);
 	args.argv[args.argc] = NULL;
@@ -2035,7 +2050,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	u = ast_module_user_add(chan);
 #if 0
 	 /* Answer if need be */
-        if (chan->_state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP) {
 		if (ast_answer(chan)) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
@@ -2080,12 +2095,10 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 
 static int agi_exec(struct ast_channel *chan, void *data)
 {
-	if (ast_check_hangup(chan)) {
-		ast_log(LOG_ERROR, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
-		return 0;
-	}
-	
-	return agi_exec_full(chan, data, 0, 0);
+	if (!ast_check_hangup(chan))
+		return agi_exec_full(chan, data, 0, 0);
+	else
+		return agi_exec_full(chan, data, 0, 1);
 }
 
 static int eagi_exec(struct ast_channel *chan, void *data)
@@ -2112,11 +2125,8 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 
 static int deadagi_exec(struct ast_channel *chan, void *data)
 {
-	if (!ast_check_hangup(chan)) {
-		ast_log(LOG_ERROR,"Running DeadAGI on a live channel is not permitted, please use AGI\n");
-		return 0;
-	}
-	return agi_exec_full(chan, data, 0, 1);
+	ast_log(LOG_WARNING, "DeadAGI has been deprecated, please use AGI in all cases!");
+	return agi_exec(chan, data);
 }
 
 static char showagi_help[] =
@@ -2150,7 +2160,16 @@ static struct ast_cli_entry cli_agi[] = {
 
 static int unload_module(void)
 {
+	struct agi_command *e;
+
 	ast_cli_unregister_multiple(cli_agi, sizeof(cli_agi) / sizeof(struct ast_cli_entry));
+	AST_RWLIST_WRLOCK(&agi_commands);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&agi_commands, e, list) {
+		AST_RWLIST_REMOVE_CURRENT(&agi_commands, list);
+	}
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&agi_commands);
+	AST_RWLIST_HEAD_DESTROY(&agi_commands);
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);
 	return ast_unregister_application(app);
@@ -2158,13 +2177,18 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	int i;
+
 	ast_cli_register_multiple(cli_agi, sizeof(cli_agi) / sizeof(struct ast_cli_entry));
+	for (i=0; i < (sizeof(commands) / sizeof(struct agi_command)); i++) {
+		ast_agi_register(&commands[i]);
+	}
 	ast_register_application(deadapp, deadagi_exec, deadsynopsis, descrip);
 	ast_register_application(eapp, eagi_exec, esynopsis, descrip);
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Asterisk Gateway Interface (AGI)",
-                .load = load_module,
-                .unload = unload_module,
+		.load = load_module,
+		.unload = unload_module,
 		);
