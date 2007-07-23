@@ -84,7 +84,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n", app);
+		ast_log(LOG_WARNING, "%s requires an argument (dummy[,options])\n", app);
 		return -1;
 	}
 

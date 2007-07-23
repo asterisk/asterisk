@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/app.h"
 
 /* Maximum length of any variable */
 #define MAXRESULT	1024
@@ -83,7 +84,7 @@ static char *tryexec_descrip =
 static char *app_execif = "ExecIf";
 static char *execif_synopsis = "Executes dialplan application, conditionally";
 static char *execif_descrip = 
-"Usage:  ExecIF (<expr>|<app>|<data>)\n"
+"Usage:  ExecIF (<expr>?<app>(<data>):<app2>(<data2>))\n"
 "If <expr> is true, execute and return the result of <app>(<data>).\n"
 "If <expr> is true, but <app> is not found, then the application\n"
 "will return a non-zero value.\n";
@@ -152,33 +153,47 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 static int execif_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *myapp = NULL;
-	char *mydata = NULL;
-	char *expr = NULL;
+	char *truedata = NULL, *falsedata = NULL, *end;
 	struct ast_app *app = NULL;
+	AST_DECLARE_APP_ARGS(expr,
+		AST_APP_ARG(expr);
+		AST_APP_ARG(remainder);
+	);
+	AST_DECLARE_APP_ARGS(apps,
+		AST_APP_ARG(true);
+		AST_APP_ARG(false);
+	);
+	char *parse = ast_strdupa(data);
 
-	expr = ast_strdupa(data);
+	AST_NONSTANDARD_APP_ARGS(expr, parse, '?');
+	AST_NONSTANDARD_APP_ARGS(apps, expr.remainder, ':');
 
-	if ((myapp = strchr(expr,'|'))) {
-		*myapp = '\0';
-		myapp++;
-		if ((mydata = strchr(myapp,'|'))) {
-			*mydata = '\0';
-			mydata++;
-		} else
-			mydata = "";
+	if (apps.true && (truedata = strchr(apps.true, '('))) {
+		*truedata++ = '\0';
+		if ((end = strrchr(truedata, ')')))
+			*end = '\0';
+	}
 
-		if (pbx_checkcondition(expr)) { 
-			if ((app = pbx_findapp(myapp))) {
-				res = pbx_exec(chan, app, mydata);
-			} else {
-				ast_log(LOG_WARNING, "Count not find application! (%s)\n", myapp);
-				res = -1;
-			}
+	if (apps.false && (falsedata = strchr(apps.false, '('))) {
+		*falsedata++ = '\0';
+		if ((end = strrchr(falsedata, ')')))
+			*end = '\0';
+	}
+
+	if (pbx_checkcondition(expr.expr)) { 
+		if (!ast_strlen_zero(apps.true) && (app = pbx_findapp(apps.true))) {
+			res = pbx_exec(chan, app, S_OR(truedata, ""));
+		} else {
+			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.true);
+			res = -1;
 		}
 	} else {
-		ast_log(LOG_ERROR,"Invalid Syntax.\n");
-		res = -1;
+		if (!ast_strlen_zero(apps.false) && (app = pbx_findapp(apps.false))) {
+			res = pbx_exec(chan, app, S_OR(falsedata, ""));
+		} else {
+			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.false);
+			res = -1;
+		}
 	}
 
 	return res;

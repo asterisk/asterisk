@@ -626,33 +626,27 @@ exit:
 
 static int chanspy_exec(struct ast_channel *chan, void *data)
 {
-	char *options = NULL;
-	char *spec = NULL;
-	char *argv[2];
 	char *mygroup = NULL;
 	char *recbase = NULL;
 	int fd = 0;
 	struct ast_flags flags;
 	int oldwf = 0;
-	int argc = 0;
 	int volfactor = 0;
 	int res;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(spec);
+		AST_APP_ARG(options);
+	);
+	char *opts[OPT_ARG_ARRAY_SIZE];
 
 	data = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, data);
 
-	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		spec = argv[0];
-		if (argc > 1)
-			options = argv[1];
+	if (args.spec && !strcmp(args.spec, "all"))
+		args.spec = NULL;
 
-		if (ast_strlen_zero(spec) || !strcmp(spec, "all"))
-			spec = NULL;
-	}
-
-	if (options) {
-		char *opts[OPT_ARG_ARRAY_SIZE];
-		
-		ast_app_parse_options(spy_opts, &flags, opts, options);
+	if (args.options) {
+		ast_app_parse_options(spy_opts, &flags, opts, args.options);
 		if (ast_test_flag(&flags, OPTION_GROUP))
 			mygroup = opts[OPT_ARG_GROUP];
 
@@ -690,7 +684,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	res = common_exec(chan, &flags, volfactor, fd, mygroup, spec, NULL, NULL);
+	res = common_exec(chan, &flags, volfactor, fd, mygroup, args.spec, NULL, NULL);
 
 	if (fd)
 		close(fd);
@@ -703,35 +697,35 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 
 static int extenspy_exec(struct ast_channel *chan, void *data)
 {
-	char *options = NULL;
-	char *exten = NULL;
-	char *context = NULL;
-	char *argv[2];
+	char *ptr, *exten = NULL;
 	char *mygroup = NULL;
 	char *recbase = NULL;
 	int fd = 0;
 	struct ast_flags flags;
 	int oldwf = 0;
-	int argc = 0;
 	int volfactor = 0;
 	int res;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(context);
+		AST_APP_ARG(options);
+	);
 
 	data = ast_strdupa(data);
 
-	if ((argc = ast_app_separate_args(data, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		context = argv[0];
-		if (!ast_strlen_zero(argv[0]))
-			exten = strsep(&context, "@");
-		if (ast_strlen_zero(context))
-			context = ast_strdupa(chan->context);
-		if (argc > 1)
-			options = argv[1];
+	AST_STANDARD_APP_ARGS(args, data);
+	if (!ast_strlen_zero(args.context) && (ptr = strchr(args.context, '@'))) {
+		exten = args.context;
+		*ptr++ = '\0';
+		args.context = ptr;
 	}
 
-	if (options) {
+	if (ast_strlen_zero(args.context))
+		args.context = ast_strdupa(chan->context);
+
+	if (args.options) {
 		char *opts[OPT_ARG_ARRAY_SIZE];
 		
-		ast_app_parse_options(spy_opts, &flags, opts, options);
+		ast_app_parse_options(spy_opts, &flags, opts, args.options);
 		if (ast_test_flag(&flags, OPTION_GROUP))
 			mygroup = opts[OPT_ARG_GROUP];
 
@@ -769,7 +763,7 @@ static int extenspy_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	res = common_exec(chan, &flags, volfactor, fd, mygroup, NULL, exten, context);
+	res = common_exec(chan, &flags, volfactor, fd, mygroup, NULL, exten, args.context);
 
 	if (fd)
 		close(fd);

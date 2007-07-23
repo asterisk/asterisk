@@ -74,19 +74,35 @@ static char *descrip =
 "If the user should hangup during a recording, all data will be lost and the\n"
 "application will teminate. \n";
 
+enum {
+	OPTION_APPEND = (1 << 0),
+	OPTION_NOANSWER = (1 << 1),
+	OPTION_QUIET = (1 << 2),
+	OPTION_SKIP = (1 << 3),
+	OPTION_STAR_TERMINATE = (1 << 4),
+	OPTION_IGNORE_TERMINATE = (1 << 5),
+	FLAG_HAS_PERCENT = (1 << 6),
+};
+
+AST_APP_OPTIONS(app_opts,{
+	AST_APP_OPTION('a', OPTION_APPEND),
+	AST_APP_OPTION('n', OPTION_NOANSWER),
+	AST_APP_OPTION('q', OPTION_QUIET),
+	AST_APP_OPTION('s', OPTION_SKIP),
+	AST_APP_OPTION('t', OPTION_STAR_TERMINATE),
+	AST_APP_OPTION('x', OPTION_IGNORE_TERMINATE),
+});
 
 static int record_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	int count = 0;
-	int percentflag = 0;
-	char *filename, *ext = NULL, *silstr, *maxstr, *options;
-	char *file, *dir;
-	char *vdata, *p;
+	char *ext = NULL, *opts[0];
+	char *parse, *dir, *file;
 	int i = 0;
 	char tmp[256];
 
-	struct ast_filestream *s = '\0';
+	struct ast_filestream *s = NULL;
 	struct ast_frame *f = NULL;
 	
 	struct ast_dsp *sildet = NULL;   	/* silence detector dsp */
@@ -96,15 +112,18 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int gotsilence = 0;		/* did we timeout for silence? */
 	int maxduration = 0;		/* max duration of recording in milliseconds */
 	int gottimeout = 0;		/* did we timeout for maxduration exceeded? */
-	int option_skip = 0;
-	int option_noanswer = 0;
-	int option_append = 0;
 	int terminator = '#';
-	int option_quiet = 0;
 	int rfmt = 0;
-	int flags;
+	int ioflags;
 	int waitres;
 	struct ast_silence_generator *silgen = NULL;
+	struct ast_flags flags;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(filename);
+		AST_APP_ARG(silence);
+		AST_APP_ARG(maxduration);
+		AST_APP_ARG(options);
+	);
 	
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
@@ -112,21 +131,17 @@ static int record_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	/* Yay for strsep being easy */
-	vdata = ast_strdupa(data);
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+	if (args.argc == 4)
+		ast_app_parse_options(app_opts, &flags, opts, args.options);
 
-	p = vdata;
-	filename = strsep(&p, "|");
-	silstr = strsep(&p, "|");
-	maxstr = strsep(&p, "|");	
-	options = strsep(&p, "|");
-	
-	if (filename) {
-		if (strstr(filename, "%d"))
-			percentflag = 1;
-		ext = strrchr(filename, '.'); /* to support filename with a . in the filename, not format */
+	if (!ast_strlen_zero(args.filename)) {
+		if (strstr(args.filename, "%d"))
+			ast_set_flag(&flags, FLAG_HAS_PERCENT);
+		ext = strrchr(args.filename, '.'); /* to support filename with a . in the filename, not format */
 		if (!ext)
-			ext = strchr(filename, ':');
+			ext = strchr(args.filename, ':');
 		if (ext) {
 			*ext = '\0';
 			ext++;
@@ -136,52 +151,36 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "No extension specified to filename!\n");
 		return -1;
 	}
-	if (silstr) {
-		if ((sscanf(silstr, "%d", &i) == 1) && (i > -1)) {
+	if (args.silence) {
+		if ((sscanf(args.silence, "%d", &i) == 1) && (i > -1)) {
 			silence = i * 1000;
-		} else if (!ast_strlen_zero(silstr)) {
-			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", silstr);
+		} else if (!ast_strlen_zero(args.silence)) {
+			ast_log(LOG_WARNING, "'%s' is not a valid silence duration\n", args.silence);
 		}
 	}
 	
-	if (maxstr) {
-		if ((sscanf(maxstr, "%d", &i) == 1) && (i > -1))
+	if (args.maxduration) {
+		if ((sscanf(args.maxduration, "%d", &i) == 1) && (i > -1))
 			/* Convert duration to milliseconds */
 			maxduration = i * 1000;
-		else if (!ast_strlen_zero(maxstr))
-			ast_log(LOG_WARNING, "'%s' is not a valid maximum duration\n", maxstr);
+		else if (!ast_strlen_zero(args.maxduration))
+			ast_log(LOG_WARNING, "'%s' is not a valid maximum duration\n", args.maxduration);
 	}
-	if (options) {
-		/* Retain backwards compatibility with old style options */
-		if (!strcasecmp(options, "skip"))
-			option_skip = 1;
-		else if (!strcasecmp(options, "noanswer"))
-			option_noanswer = 1;
-		else {
-			if (strchr(options, 's'))
-				option_skip = 1;
-			if (strchr(options, 'n'))
-				option_noanswer = 1;
-			if (strchr(options, 'a'))
-				option_append = 1;
-			if (strchr(options, 't'))
-				terminator = '*';
-			if (strchr(options, 'x'))
-				terminator = 0;
-			if (strchr(options, 'q'))
-				option_quiet = 1;
-		}
-	}
-	
+
+	if (ast_test_flag(&flags, OPTION_STAR_TERMINATE))
+		terminator = '*';
+	if (ast_test_flag(&flags, OPTION_IGNORE_TERMINATE))
+		terminator = '\0';
+
 	/* done parsing */
-	
+
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
 	  create a new file with the inputed name scheme */
-	if (percentflag) {
+	if (ast_test_flag(&flags, FLAG_HAS_PERCENT)) {
 		AST_DECLARE_APP_ARGS(fname,
 			AST_APP_ARG(piece)[100];
 		);
-		char *tmp2 = ast_strdupa(filename);
+		char *tmp2 = ast_strdupa(args.filename);
 		char countstring[15];
 		int i;
 
@@ -210,27 +209,25 @@ static int record_exec(struct ast_channel *chan, void *data)
 		} while (ast_fileexists(tmp, ext, chan->language) > 0);
 		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
-		ast_copy_string(tmp, filename, sizeof(tmp));
+		ast_copy_string(tmp, args.filename, sizeof(tmp));
 	/* end of routine mentioned */
-	
-	
-	
+
 	if (chan->_state != AST_STATE_UP) {
-		if (option_skip) {
+		if (ast_test_flag(&flags, OPTION_SKIP)) {
 			/* At the user's option, skip if the line is not up */
 			return 0;
-		} else if (!option_noanswer) {
+		} else if (!ast_test_flag(&flags, OPTION_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to record while on-hook */
 			res = ast_answer(chan);
 		}
 	}
-	
+
 	if (res) {
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 		goto out;
 	}
-	
-	if (!option_quiet) {
+
+	if (!ast_test_flag(&flags, OPTION_QUIET)) {
 		/* Some code to play a nice little beep to signify the start of the record operation */
 		res = ast_streamfile(chan, "beep", chan->language);
 		if (!res) {
@@ -240,9 +237,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 		}
 		ast_stopstream(chan);
 	}
-		
+
 	/* The end of beep code.  Now the recording starts */
-		
+
 	if (silence > 0) {
 		rfmt = chan->readformat;
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
@@ -264,23 +261,23 @@ static int record_exec(struct ast_channel *chan, void *data)
 		*file++ = '\0';
 	ast_mkdir (dir, 0777);
 
-	flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
-	s = ast_writefile( tmp, ext, NULL, flags , 0, AST_FILE_MODE);
-		
+	ioflags = ast_test_flag(&flags, OPTION_APPEND) ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
+	s = ast_writefile(tmp, ext, NULL, ioflags, 0, AST_FILE_MODE);
+
 	if (!s) {
-		ast_log(LOG_WARNING, "Could not create file %s\n", filename);
+		ast_log(LOG_WARNING, "Could not create file %s\n", args.filename);
 		goto out;
 	}
 
 	if (ast_opt_transmit_silence)
 		silgen = ast_channel_start_silence_generator(chan);
-	
+
 	/* Request a video update */
 	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-	
+
 	if (maxduration <= 0)
 		maxduration = -1;
-	
+
 	while ((waitres = ast_waitfor(chan, maxduration)) > -1) {
 		if (maxduration > 0) {
 			if (waitres == 0) {
@@ -289,7 +286,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 			}
 			maxduration = waitres;
 		}
-		
+
 		f = ast_read(chan);
 		if (!f) {
 			res = -1;
@@ -297,13 +294,13 @@ static int record_exec(struct ast_channel *chan, void *data)
 		}
 		if (f->frametype == AST_FRAME_VOICE) {
 			res = ast_writestream(s, f);
-			
+
 			if (res) {
 				ast_log(LOG_WARNING, "Problem writing frame\n");
 				ast_frfree(f);
 				break;
 			}
-			
+
 			if (silence > 0) {
 				dspsilence = 0;
 				ast_dsp_silence(sildet, f, &dspsilence);
@@ -321,7 +318,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 			}
 		} else if (f->frametype == AST_FRAME_VIDEO) {
 			res = ast_writestream(s, f);
-			
+
 			if (res) {
 				ast_log(LOG_WARNING, "Problem writing frame\n");
 				ast_frfree(f);
@@ -338,9 +335,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_debug(1, "Got hangup\n");
 		res = -1;
 	}
-			
+
 	if (gotsilence) {
-		ast_stream_rewind(s, silence-1000);
+		ast_stream_rewind(s, silence - 1000);
 		ast_truncstream(s);
 	} else if (!gottimeout) {
 		/* Strip off the last 1/4 second of it */
@@ -351,8 +348,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 
 	if (silgen)
 		ast_channel_stop_silence_generator(chan, silgen);
-	
- out:
+
+out:
 	if ((silence > 0) && rfmt) {
 		res = ast_set_read_format(chan, rfmt);
 		if (res)

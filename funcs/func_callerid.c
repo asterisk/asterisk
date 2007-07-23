@@ -63,10 +63,10 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 	if (!chan)
 		return -1;
 
-	if (strchr(opt, '|')) {
+	if (strchr(opt, ',')) {
 		char name[80], num[80];
 
-		data = strsep(&opt, "|");
+		data = strsep(&opt, ",");
 		ast_callerid_split(opt, name, sizeof(name), num, sizeof(num));
 
 		if (!strncasecmp("all", data, 3)) {

@@ -140,6 +140,29 @@ static int set(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 	return 0;
 }
 
+static int acf_import(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(channel);
+		AST_APP_ARG(varname);
+	);
+	AST_STANDARD_APP_ARGS(args, data);
+	memset(buf, 0, len);
+
+	if (!ast_strlen_zero(args.varname)) {
+		struct ast_channel *chan2 = ast_get_channel_by_name_locked(args.channel);
+		if (chan2) {
+			char *s = alloca(strlen(args.varname) + 4);
+			if (s) {
+				sprintf(s, "${%s}", args.varname);
+				pbx_substitute_variables_helper(chan2, s, buf, len);
+			}
+			ast_channel_unlock(chan2);
+		}
+	}
+	return 0;
+}
+
 static struct ast_custom_function isnull_function = {
 	.name = "ISNULL",
 	.synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise",
@@ -164,7 +187,7 @@ static struct ast_custom_function exists_function = {
 static struct ast_custom_function if_function = {
 	.name = "IF",
 	.synopsis =
-		"Conditional: Returns the data following '?' if true else the data following ':'",
+		"Conditional: Returns the data following '?' if true, else the data following ':'",
 	.syntax = "IF(<expr>?[<true>][:<false>])",
 	.read = acf_if,
 };
@@ -172,9 +195,17 @@ static struct ast_custom_function if_function = {
 static struct ast_custom_function if_time_function = {
 	.name = "IFTIME",
 	.synopsis =
-		"Temporal Conditional: Returns the data following '?' if true else the data following ':'",
+		"Temporal Conditional: Returns the data following '?' if true, else the data following ':'",
 	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",
 	.read = iftime,
+};
+
+static struct ast_custom_function import_function = {
+	.name = "IMPORT",
+	.synopsis =
+		"Retrieve the value of a variable from another channel\n",
+	.syntax = "IMPORT(channel,variable)",
+	.read = acf_import,
 };
 
 static int unload_module(void)
@@ -186,6 +217,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&exists_function);
 	res |= ast_custom_function_unregister(&if_function);
 	res |= ast_custom_function_unregister(&if_time_function);
+	res |= ast_custom_function_unregister(&import_function);
 
 	return res;
 }
@@ -199,6 +231,7 @@ static int load_module(void)
 	res |= ast_custom_function_register(&exists_function);
 	res |= ast_custom_function_register(&if_function);
 	res |= ast_custom_function_register(&if_time_function);
+	res |= ast_custom_function_register(&import_function);
 
 	return res;
 }

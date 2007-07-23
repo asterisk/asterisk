@@ -60,14 +60,14 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: REALTIME(family|fieldmatch[|value[|delim1[|delim2]]]) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: REALTIME(family,fieldmatch[,value[,delim1[,delim2]]]) - missing argument!\n");
 		return -1;
 	}
 
 	AST_STANDARD_APP_ARGS(args, data);
 
 	if (!args.delim1)
-		args.delim1 = "|";
+		args.delim1 = ",";
 	if (!args.delim2)
 		args.delim2 = "=";
 
@@ -102,7 +102,7 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: REALTIME(family|fieldmatch|value|newcol) - missing argument!\n");
+		ast_log(LOG_WARNING, "Syntax: REALTIME(family,fieldmatch,value,newcol) - missing argument!\n");
 		return -1;
 	}
 
@@ -120,14 +120,14 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 struct ast_custom_function realtime_function = {
 	.name = "REALTIME",
 	.synopsis = "RealTime Read/Write Functions",
-	.syntax = "REALTIME(family|fieldmatch[|value[|delim1[|delim2]]]) on read\n"
-		  "REALTIME(family|fieldmatch|value|field) on write\n",
+	.syntax = "REALTIME(family,fieldmatch[,value[,delim1[,delim2]]]) on read\n"
+		  "REALTIME(family,fieldmatch,value,field) on write",
 	.desc = "This function will read or write values from/to a RealTime repository.\n"
 		"REALTIME(....) will read names/values from the repository, and \n"
 		"REALTIME(....)= will write a new value/field to the repository. On a\n"
 		"read, this function returns a delimited text string. The name/value \n"
 		"pairs are delimited by delim1, and the name and value are delimited \n"
-		"between each other with delim2. The default for delim1 is '|' and   \n"
+		"between each other with delim2. The default for delim1 is ',' and   \n"
 		"the default for delim2 is '='. If there is no match, NULL will be   \n"
 		"returned by the function. On a write, this function will always     \n"
 		"return NULL. \n",

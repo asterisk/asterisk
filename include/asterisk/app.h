@@ -289,7 +289,7 @@ int ast_app_group_list_unlock(void);
   the argc argument counter field.
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
-	args.argc = ast_app_separate_args(parse, '|', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
+	args.argc = ast_app_separate_args(parse, ',', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
 	
 /*!
   \brief Performs the 'nonstandard' argument separation process for an application.

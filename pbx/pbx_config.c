@@ -1386,7 +1386,7 @@ static int pbx_load_config(const char *config_file)
 				if (tc) {
 					int ipri = -2;
 					char realext[256]="";
-					char *plus, *firstp, *firstc;
+					char *plus, *firstp;
 					char *pri, *appl, *data, *cidmatch;
 					char *stringp = tc;
 					char *ext = strsep(&stringp, ",");
@@ -1433,19 +1433,12 @@ static int pbx_load_config(const char *config_file)
 						ipri = 0;
 					}
 					appl = S_OR(stringp, "");
-					/* Find the first occurrence of either '(' or ',' */
-					firstc = strchr(appl, ',');
+					/* Find the first occurrence of '(' */
 					firstp = strchr(appl, '(');
-					if (firstc && (!firstp || firstc < firstp)) {
-						/* comma found, no parenthesis */
-						/* or both found, but comma found first */
-						appl = strsep(&stringp, ",");
-						data = stringp;
-					} else if (!firstc && !firstp) {
-						/* Neither found */
+					if (!firstp) {
+						/* No arguments */
 						data = "";
 					} else {
-						/* Final remaining case is parenthesis found first */
 						appl = strsep(&stringp, "(");
 						data = stringp;
 						end = strrchr(data, ')');
@@ -1454,11 +1447,10 @@ static int pbx_load_config(const char *config_file)
 						} else {
 							ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
 						}
-						ast_process_quotes_and_slashes(data, ',', '|');
 					}
 
 					if (!data)
-						data="";
+						data = "";
 					appl = ast_skip_blanks(appl);
 					if (ipri) {
 						if (plus)
@@ -1483,7 +1475,7 @@ static int pbx_load_config(const char *config_file)
 				if (ast_context_add_ignorepat2(con, realvalue, registrar))
 					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
-				char *stringp= realvalue;
+				char *stringp = realvalue;
 				char *appl, *data;
 
 				memset(realvalue, 0, sizeof(realvalue));
@@ -1492,9 +1484,7 @@ static int pbx_load_config(const char *config_file)
 				else
 					ast_copy_string(realvalue, v->value, sizeof(realvalue));
 				appl = strsep(&stringp, "/");
-				data = strsep(&stringp, ""); /* XXX what for ? */
-				if (!data)
-					data = "";
+				data = S_OR(stringp, "");
 				if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
 					ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 			} else {

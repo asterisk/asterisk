@@ -41,10 +41,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
+#include "asterisk/app.h"
 
 static char *synopsis = "Soft Hangup Application";
 
-static char *desc = "  SoftHangup(Technology/resource|options)\n"
+static char *desc = "SoftHangup(Technology/resource[,options])\n"
 "Hangs up the requested channel.  If there are no channels to hangup,\n"
 "the application will report it.\n"
 "- 'options' may contain the following letter:\n"
@@ -52,46 +53,62 @@ static char *desc = "  SoftHangup(Technology/resource|options)\n"
 
 static char *app = "SoftHangup";
 
+enum {
+	OPTION_ALL = (1 << 0),
+};
+
+AST_APP_OPTIONS(app_opts,{
+	AST_APP_OPTION('a', OPTION_ALL),
+});
 
 static int softhangup_exec(struct ast_channel *chan, void *data)
 {
-	struct ast_channel *c=NULL;
-	char *options, *cut, *cdata, *match;
-	char name[AST_CHANNEL_NAME] = "";
-	int all = 0;
+	struct ast_channel *c = NULL;
+	char *cut, *opts[0];
+	char name[AST_CHANNEL_NAME] = "", *parse;
+	struct ast_flags flags;
+	int lenmatch;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(channel);
+		AST_APP_ARG(options);
+	);
 	
 	if (ast_strlen_zero(data)) {
-                ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
+		ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
 	}
-	
-	cdata = ast_strdupa(data);
-	match = strsep(&cdata, "|");
-	options = strsep(&cdata, "|");
-	all = options && strchr(options,'a');
-	c = ast_channel_walk_locked(NULL);
-	while (c) {
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.argc == 2)
+		ast_app_parse_options(app_opts, &flags, opts, args.options);
+	lenmatch = strlen(args.channel);
+
+	for (c = ast_walk_channel_by_name_prefix_locked(NULL, args.channel, lenmatch);
+		 c;
+		 c = ast_walk_channel_by_name_prefix_locked(c, args.channel, lenmatch)) {
 		ast_copy_string(name, c->name, sizeof(name));
-		ast_mutex_unlock(&c->lock);
-		/* XXX watch out, i think it is wrong to access c-> after unlocking! */
-		if (all) {
+		if (ast_test_flag(&flags, OPTION_ALL)) {
 			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
 			if (!strcmp(c->tech->type, "CAPI")) 
-				cut = strrchr(name,'/');
+				cut = strrchr(name, '/');
 			/* Basically everything else is Foo/Bar-Z */
 			else
-				cut = strchr(name,'-');
+				cut = strchr(name, '-');
 			/* Get rid of what we've cut */
 			if (cut)
 				*cut = 0;
 		}
-		if (!strcasecmp(name, match)) {
-			ast_log(LOG_WARNING, "Soft hanging %s up.\n",c->name);
+		if (!strcasecmp(name, args.channel)) {
+			ast_log(LOG_WARNING, "Soft hanging %s up.\n", c->name);
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-			if(!all)
+			if (!ast_test_flag(&flags, OPTION_ALL)) {
+				ast_mutex_unlock(&c->lock);
 				break;
+			}
 		}
-		c = ast_channel_walk_locked(c);
+		ast_mutex_unlock(&c->lock);
 	}
 
 	return 0;

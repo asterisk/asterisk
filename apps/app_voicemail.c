@@ -7465,8 +7465,8 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	
 	if (s) {
 		s = ast_strdupa(s);
-		user = strsep(&s, "|");
-		options = strsep(&s, "|");
+		user = strsep(&s, ",");
+		options = strsep(&s, ",");
 		if (user) {
 			s = user;
 			user = strsep(&s, "@");
@@ -8159,7 +8159,7 @@ static int load_config(void)
 			stringp = ast_strdupa(s);
 			for (x = 0 ; x < MAX_NUM_CID_CONTEXTS ; x++){
 				if (!ast_strlen_zero(stringp)) {
-					q = strsep(&stringp,",");
+					q = strsep(&stringp, ",");
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;
 					ast_copy_string(cidinternalcontexts[x], q, sizeof(cidinternalcontexts[x]));

@@ -67,7 +67,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	s = ast_strdupa(data);
 
 	varname = strsep(&s, "=");
-	file = strsep(&s, "|");
+	file = strsep(&s, ",");
 	length = s;
 
 	if (!varname || !file) {

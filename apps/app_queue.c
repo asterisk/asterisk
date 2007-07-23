@@ -930,11 +930,11 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		else
 			q->announceholdtime = 0;
 	} else if (!strcasecmp(param, "periodic-announce")) {
-		if (strchr(val, '|')) {
+		if (strchr(val, ',')) {
 			char *s, *buf = ast_strdupa(val);
 			unsigned int i = 0;
 
-			while ((s = strsep(&buf, "|"))) {
+			while ((s = strsep(&buf, ",|"))) {
 				ast_copy_string(q->sound_periodicannounce[i], s, sizeof(q->sound_periodicannounce[i]));
 				i++;
 				if (i == MAX_PERIODIC_ANNOUNCEMENTS)
@@ -3179,7 +3179,7 @@ static void reload_queue_members(void)
 			continue;
 
 		cur_ptr = queue_data;
-		while ((member = strsep(&cur_ptr, "|"))) {
+		while ((member = strsep(&cur_ptr, ",|"))) {
 			if (ast_strlen_zero(member))
 				continue;
 

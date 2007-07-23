@@ -94,20 +94,18 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	long offsetms = 0;
 	char offsetbuf[20];
 	char *tmp;
-	int argc;
-	char *argv[8] = { NULL, };
-	enum arg_ids {
-		arg_file = 0,
-		arg_skip = 1,
-		arg_fwd = 2,
-		arg_rev = 3,
-		arg_stop = 4,
-		arg_pause = 5,
-		arg_restart = 6,
-		options = 7,
-	};
 	struct ast_flags opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_LEN];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(filename);
+		AST_APP_ARG(skip);
+		AST_APP_ARG(fwd);
+		AST_APP_ARG(rev);
+		AST_APP_ARG(stop);
+		AST_APP_ARG(pause);
+		AST_APP_ARG(restart);
+		AST_APP_ARG(options);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
@@ -115,39 +113,36 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	}
 	
 	tmp = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, tmp);
 
-	argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	if (argc < 1) {
+	if (args.argc < 1) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
 
-	skipms = argv[arg_skip] ? atoi(argv[arg_skip]) : 3000;
-	if (!skipms)
-		skipms = 3000;
+	skipms = args.skip ? (atoi(args.skip) ? atoi(args.skip) : 3000) : 3000;
 
-	if (!argv[arg_fwd] || !is_on_phonepad(*argv[arg_fwd]))
-		argv[arg_fwd] = "#";
-	if (!argv[arg_rev] || !is_on_phonepad(*argv[arg_rev]))
-		argv[arg_rev] = "*";
-	if (argv[arg_stop] && !is_on_phonepad(*argv[arg_stop]))
-		argv[arg_stop] = NULL;
-	if (argv[arg_pause] && !is_on_phonepad(*argv[arg_pause]))
-		argv[arg_pause] = NULL;
-	if (argv[arg_restart] && !is_on_phonepad(*argv[arg_restart]))
-		argv[arg_restart] = NULL;
+	if (!args.fwd || !is_on_phonepad(*args.fwd))
+		args.fwd = "#";
+	if (!args.rev || !is_on_phonepad(*args.rev))
+		args.rev = "*";
+	if (args.stop && !is_on_phonepad(*args.stop))
+		args.stop = NULL;
+	if (args.pause && !is_on_phonepad(*args.pause))
+		args.pause = NULL;
+	if (args.restart && !is_on_phonepad(*args.restart))
+		args.restart = NULL;
 
-	if (argv[options]) {
-		ast_app_parse_options(cpb_opts, &opts, opt_args, argv[options]);		
+	if (args.options) {
+		ast_app_parse_options(cpb_opts, &opts, opt_args, args.options);		
 		if (ast_test_flag(&opts, OPT_OFFSET))
 			offsetms = atol(opt_args[OPT_ARG_OFFSET]);
 	}
 
-	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms, &offsetms);
+	res = ast_control_streamfile(chan, args.filename, args.fwd, args.rev, args.stop, args.pause, args.restart, skipms, &offsetms);
 
 	/* If we stopped on one of our stop keys, return 0  */
-	if (argv[arg_stop] && strchr(argv[arg_stop], res)) {
+	if (args.stop && strchr(args.stop, res)) {
 		res = 0;
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
 	} else {

@@ -66,7 +66,7 @@ static char *app = "Dial";
 static char *synopsis = "Place a call and connect to the current channel";
 
 static char *descrip =
-"  Dial(Technology/resource[&Tech2/resource2...][|timeout][|options][|URL]):\n"
+"  Dial(Technology/resource[&Tech2/resource2...][,timeout][,options][,URL]):\n"
 "This application will place calls to one or more specified channels. As soon\n"
 "as one of the requested channels answers, the originating channel will be\n"
 "answered, if it has not already been answered. These two channels will then\n"
@@ -215,7 +215,7 @@ static char *descrip =
 static char *rapp = "RetryDial";
 static char *rsynopsis = "Place a call, retrying on failure allowing optional exit extension.";
 static char *rdescrip =
-"  RetryDial(announce|sleep|retries|dialargs): This application will attempt to\n"
+"  RetryDial(announce,sleep,retries,dialargs): This application will attempt to\n"
 "place a call using the normal Dial application. If no channel can be reached,\n"
 "the 'announce' file will be played. Then, it will wait 'sleep' number of\n"
 "seconds before retying the call. After 'retires' number of attempts, the\n"
@@ -840,7 +840,7 @@ static void replace_macro_delimiter(char *s)
 {
 	for (; *s; s++)
 		if (*s == '^')
-			*s = '|';
+			*s = ',';
 }
 
 
@@ -1856,41 +1856,33 @@ static int dial_exec(struct ast_channel *chan, void *data)
 
 static int retrydial_exec(struct ast_channel *chan, void *data)
 {
-	char *announce = NULL, *dialdata = NULL;
+	char *parse;
 	const char *context = NULL;
 	int sleep = 0, loops = 0, res = -1;
-	struct ast_flags64 peerflags;
-	
+	struct ast_flags64 peerflags = { 0, };
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(announce);
+		AST_APP_ARG(sleep);
+		AST_APP_ARG(retries);
+		AST_APP_ARG(dialdata);
+	);
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "RetryDial requires an argument!\n");
 		return -1;
 	}	
 
-	announce = ast_strdupa(data);
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
 
-	memset(&peerflags, 0, sizeof(peerflags));
-
-	if ((dialdata = strchr(announce, '|'))) {
-		*dialdata++ = '\0';
-		if (sscanf(dialdata, "%d", &sleep) == 1) {
-			sleep *= 1000;
-		} else {
-			ast_log(LOG_ERROR, "%s requires the numerical argument <sleep>\n",rapp);
-			goto done;
-		}
-		if ((dialdata = strchr(dialdata, '|'))) {
-			*dialdata++ = '\0';
-			if (sscanf(dialdata, "%d", &loops) != 1) {
-				ast_log(LOG_ERROR, "%s requires the numerical argument <loops>\n",rapp);
-				goto done;
-			}
-		}
+	if ((sleep = atoi(args.sleep))) {
+		sleep *= 1000;
 	}
-	
-	if ((dialdata = strchr(dialdata, '|'))) {
-		*dialdata++ = '\0';
-	} else {
-		ast_log(LOG_ERROR, "%s requires more arguments\n",rapp);
+
+	loops = atoi(args.retries);
+
+	if (!args.dialdata) {
+		ast_log(LOG_ERROR, "%s requires a 4th argument (dialdata)\n", rapp);
 		goto done;
 	}
 		
@@ -1910,18 +1902,18 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if (ast_test_flag(chan, AST_FLAG_MOH))
 			ast_moh_stop(chan);
 
-		res = dial_exec_full(chan, dialdata, &peerflags, &continue_exec);
+		res = dial_exec_full(chan, args.dialdata, &peerflags, &continue_exec);
 		if (continue_exec)
 			break;
 
 		if (res == 0) {
 			if (ast_test_flag64(&peerflags, OPT_DTMF_EXIT)) {
-				if (!ast_strlen_zero(announce)) {
-					if (ast_fileexists(announce, NULL, chan->language) > 0) {
-						if(!(res = ast_streamfile(chan, announce, chan->language)))								
+				if (!ast_strlen_zero(args.announce)) {
+					if (ast_fileexists(args.announce, NULL, chan->language) > 0) {
+						if(!(res = ast_streamfile(chan, args.announce, chan->language)))								
 							ast_waitstream(chan, AST_DIGIT_ANY);
 					} else
-						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", announce);
+						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
 				}
 				if (!res && sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
@@ -1929,12 +1921,12 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 					res = ast_waitfordigit(chan, sleep);
 				}
 			} else {
-				if (!ast_strlen_zero(announce)) {
-					if (ast_fileexists(announce, NULL, chan->language) > 0) {
-						if (!(res = ast_streamfile(chan, announce, chan->language)))
+				if (!ast_strlen_zero(args.announce)) {
+					if (ast_fileexists(args.announce, NULL, chan->language) > 0) {
+						if (!(res = ast_streamfile(chan, args.announce, chan->language)))
 							res = ast_waitstream(chan, "");
 					} else
-						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", announce);
+						ast_log(LOG_WARNING, "Announce file \"%s\" specified in Retrydial does not exist\n", args.announce);
 				}
 				if (sleep) {
 					if (!ast_test_flag(chan, AST_FLAG_MOH))

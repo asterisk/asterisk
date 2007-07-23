@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
 #include "asterisk/options.h"
+#include "asterisk/app.h"
 
 static char *app = "SendURL";
 
@@ -56,22 +57,32 @@ static char *descrip =
 "    NOLOAD        Client failed to load URL (wait enabled)\n"
 "    UNSUPPORTED   Channel does not support URL transport\n"
 "\n"
-"If the option 'wait' is specified, execution will wait for an\n"
+"If the option 'w' is specified, execution will wait for an\n"
 "acknowledgement that the URL has been loaded before continuing\n"
 "\n"
 "SendURL continues normally if the URL was sent correctly or if the channel\n"
 "does not support HTML transport.  Otherwise, the channel is hung up.\n";
 
+enum {
+	OPTION_WAIT = (1 << 0),
+} option_flags;
+
+AST_APP_OPTIONS(app_opts,{
+	AST_APP_OPTION('w', OPTION_WAIT),
+});
 
 static int sendurl_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	char *tmp;
-	char *options;
-	int local_option_wait=0;
 	struct ast_frame *f;
-	char *stringp=NULL;
 	char *status = "FAILURE";
+	char *opts[0];
+	struct ast_flags flags;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(url);
+		AST_APP_ARG(options);
+	);
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendURL requires an argument (URL)\n");
@@ -81,24 +92,22 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 
 	tmp = ast_strdupa(data);
 
-	stringp=tmp;
-	strsep(&stringp, "|");
-	options = strsep(&stringp, "|");
-	if (options && !strcasecmp(options, "wait"))
-		local_option_wait = 1;
+	AST_STANDARD_APP_ARGS(args, tmp);
+	if (args.argc == 2)
+		ast_app_parse_options(app_opts, &flags, opts, args.options);
 	
 	if (!ast_channel_supports_html(chan)) {
 		/* Does not support transport */
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "UNSUPPORTED");
 		return 0;
 	}
-	res = ast_channel_sendurl(chan, tmp);
+	res = ast_channel_sendurl(chan, args.url);
 	if (res == -1) {
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "FAILURE");
 		return res;
 	}
 	status = "SUCCESS";
-	if (local_option_wait) {
+	if (ast_test_flag(&flags, OPTION_WAIT)) {
 		for(;;) {
 			/* Wait for an event */
 			res = ast_waitfor(chan, -1);
@@ -120,7 +129,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 					break;
 				case AST_HTML_NOSUPPORT:
 					/* Does not support transport */
-					status ="UNSUPPORTED";
+					status = "UNSUPPORTED";
 					res = 0;
 					ast_frfree(f);
 					goto out;

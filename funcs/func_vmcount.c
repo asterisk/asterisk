@@ -76,7 +76,7 @@ static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *arg
 struct ast_custom_function acf_vmcount = {
 	.name = "VMCOUNT",
 	.synopsis = "Counts the voicemail in a specified mailbox",
-	.syntax = "VMCOUNT(vmbox[@context][|folder])",
+	.syntax = "VMCOUNT(vmbox[@context][,folder])",
 	.desc =
 	"  context - defaults to \"default\"\n"
 	"  folder  - defaults to \"INBOX\"\n",

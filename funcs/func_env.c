@@ -76,7 +76,7 @@ static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 
 	*buf = '\0';
 
-	action = strsep(&data, "|");
+	action = strsep(&data, ",");
 	if (stat(data, &s)) {
 		return -1;
 	} else {

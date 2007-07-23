@@ -76,11 +76,11 @@ static int acf_rand_exec(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function acf_rand = {
 	.name = "RAND",
 	.synopsis = "Choose a random number in a range",
-	.syntax = "RAND([min][|max])",
+	.syntax = "RAND([min][,max])",
 	.desc =
 		"Choose a random number between min and max.  Min defaults to 0, if not\n"
 		"specified, while max defaults to RAND_MAX (2147483647 on many systems).\n"
-		"  Example:  Set(junky=${RAND(1|8)}); \n"
+		"  Example:  Set(junky=${RAND(1,8)}); \n"
 		"  Sets junky to a random number between 1 and 8, inclusive.\n",
 	.read = acf_rand_exec,
 };

@@ -78,7 +78,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	strings = ast_strdupa(data);
 
 	for (ptrkey = strings; *ptrkey; ptrkey++) {
-		if (*ptrkey == '|')
+		if (*ptrkey == ',')
 			count++;
 	}
 
@@ -88,7 +88,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 
 	/* Parse each into a struct */
 	count2 = 0;
-	while ((ptrkey = strsep(&strings, "|"))) {
+	while ((ptrkey = strsep(&strings, ","))) {
 		ptrvalue = index(ptrkey, ':');
 		if (!ptrvalue) {
 			count--;

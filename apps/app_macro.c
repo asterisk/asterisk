@@ -197,7 +197,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 
 	tmp = ast_strdupa(data);
 	rest = tmp;
-	macro = strsep(&rest, "|");
+	macro = strsep(&rest, ",");
 	if (ast_strlen_zero(macro)) {
 		ast_log(LOG_WARNING, "Invalid macro name specified\n");
 		return 0;
@@ -255,7 +255,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 	ast_copy_string(chan->context, fullmacro, sizeof(chan->context));
 	chan->priority = 1;
 
-	while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
+	while((cur = strsep(&rest, ",")) && (argc < MAX_ARGS)) {
 		const char *s;
   		/* Save copy of old arguments if we're overwriting some, otherwise
 	   	let them pass through to the other macro */

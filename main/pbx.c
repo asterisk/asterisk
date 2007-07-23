@@ -303,7 +303,7 @@ static struct pbx_builtin {
 
 	{ "BackGround", pbx_builtin_background,
 	"Play an audio file while waiting for digits of an extension to go to.",
-	"  Background(filename1[&filename2...][|options[|langoverride][|context]]):\n"
+	"  Background(filename1[&filename2...][,options[,langoverride][,context]]):\n"
 	"This application will play the given list of files while waiting for an\n"
 	"extension to be dialed by the calling channel. To continue waiting for digits\n"
 	"after this application has finished playing files, the WaitExten application\n"
@@ -344,14 +344,14 @@ static struct pbx_builtin {
 
 	{ "ExecIfTime", pbx_builtin_execiftime,
 	"Conditional application execution based on the current time",
-	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?appname[|appargs]):\n"
+	"  ExecIfTime(<times>,<weekdays>,<mdays>,<months>?appname[(appargs)]):\n"
 	"This application will execute the specified dialplan application, with optional\n"
 	"arguments, if the current time matches the given time specification.\n"
 	},
 
 	{ "Goto", pbx_builtin_goto,
 	"Jump to a particular priority, extension, or context",
-	"  Goto([[context|]extension|]priority): This application will set the current\n"
+	"  Goto([[context,]extension,]priority): This application will set the current\n"
 	"context, extension, and priority in the channel structure. After it completes, the\n"
 	"pbx engine will continue dialplan execution at the specified location.\n"
 	"If no specific extension, or extension and context, are specified, then this\n"
@@ -391,7 +391,7 @@ static struct pbx_builtin {
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
 	"Conditional Goto based on the current time",
-	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]exten|]priority):\n"
+	"  GotoIfTime(<times>,<weekdays>,<mdays>,<months>?[[context,]exten,]priority):\n"
 	"This application will set the context, extension, and priority in the channel structure\n"
 	"if the current time matches the given time specification. Otherwise, nothing is done.\n"
         "Further information on the time specification can be found in examples\n"
@@ -401,7 +401,7 @@ static struct pbx_builtin {
 
 	{ "ImportVar", pbx_builtin_importvar,
 	"Import a variable from a channel into a new variable",
-	"  ImportVar(newvar=channelname|variable): This application imports a variable\n"
+	"  ImportVar(newvar=channelname,variable): This application imports a variable\n"
 	"from the specified channel (as opposed to the current one) and stores it as\n"
 	"a variable in the current channel (the channel that is calling this\n"
 	"application). Variables created by this application have the same inheritance\n"
@@ -476,16 +476,13 @@ static struct pbx_builtin {
 
 	{ "Set", pbx_builtin_setvar,
 	"Set channel variable(s) or function value(s)",
-	"  Set(name1=value1|name2=value2|..[|options])\n"
+	"  Set(name1=value1)\n"
 	"This function can be used to set the value of channel variables or dialplan\n"
 	"functions. It will accept up to 24 name/value pairs. When setting variables,\n"
 	"if the variable name is prefixed with _, the variable will be inherited into\n"
 	"channels created from the current channel. If the variable name is prefixed\n"
 	"with __, the variable will be inherited into channels created from the current\n"
 	"channel and all children channels.\n"
-	"  Options:\n"
-	"    g - Set variable globally instead of on the channel\n"
-	"        (applies only to variables, not functions)\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
@@ -504,7 +501,7 @@ static struct pbx_builtin {
 
 	{ "WaitExten", pbx_builtin_waitexten,
 	"Waits for an extension to be entered",
-	"  WaitExten([seconds][|options]): This application waits for the user to enter\n"
+	"  WaitExten([seconds][,options]): This application waits for the user to enter\n"
 	"a new extension for a specified number of seconds.\n"
 	"  Note that the seconds can be passed with fractions of a second. For example,\n"
 	"'1.5' will ask the application to wait for 1.5 seconds.\n"
@@ -4252,13 +4249,13 @@ int ast_build_timing(struct ast_timing *i, const char *info_in)
 	i->daymask = 0x7fffffffU; /* 31 bits */
 	i->dowmask = 0x7f; /* 7 bits */
 	/* on each call, use strsep() to move info to the next argument */
-	get_timerange(i, strsep(&info, "|"));
+	get_timerange(i, strsep(&info, "|,"));
 	if (info)
-		i->dowmask = get_range(strsep(&info, "|"), 7, days, "day of week");
+		i->dowmask = get_range(strsep(&info, "|,"), 7, days, "day of week");
 	if (info)
-		i->daymask = get_range(strsep(&info, "|"), 31, NULL, "day");
+		i->daymask = get_range(strsep(&info, "|,"), 31, NULL, "day");
 	if (info)
-		i->monthmask = get_range(strsep(&info, "|"), 12, months, "month");
+		i->monthmask = get_range(strsep(&info, "|,"), 12, months, "month");
 	return 1;
 }
 
@@ -4329,7 +4326,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	new_include->rname = p;
 	strcpy(p, value);
 	/* Strip off timing info, and process if it is there */
-	if ( (c = strchr(p, '|')) ) {
+	if ( (c = strchr(p, ',')) ) {
 		*c++ = '\0';
 	        new_include->hastime = ast_build_timing(&(new_include->timing), c);
 	}
@@ -5499,14 +5496,14 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 	struct ast_timing timing;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?[[context|]extension|]priority\n");
+		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?[[context,]extension,]priority\n");
 		return -1;
 	}
 
 	ts = s = ast_strdupa(data);
 
 	/* Separate the Goto path */
-	strsep(&ts,"?");
+	strsep(&ts, "?");
 
 	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
 	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
@@ -5523,7 +5520,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 	char *s, *appname;
 	struct ast_timing timing;
 	struct ast_app *app;
-	static const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
+	static const char *usage = "ExecIfTime requires an argument:\n  <time range>,<days of week>,<days of month>,<months>?<appname>[(<appargs>)]";
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s\n", usage);
@@ -5532,7 +5529,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 
 	appname = ast_strdupa(data);
 
-	s = strsep(&appname,"?");	/* Separate the timerange and application name/data */
+	s = strsep(&appname, "?");	/* Separate the timerange and application name/data */
 	if (!appname) {	/* missing application */
 		ast_log(LOG_WARNING, "%s\n", usage);
 		return -1;
@@ -5546,9 +5543,16 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 	if (!ast_check_timing(&timing))	/* outside the valid time window, just return */
 		return 0;
 
-	/* now split appname|appargs */
-	if ((s = strchr(appname, '|')))
+	/* now split appname(appargs) */
+	if ((s = strchr(appname, '('))) {
+		char *e;
 		*s++ = '\0';
+		if ((e = strrchr(s, ')')))
+			*e = '\0';
+		else
+			ast_log(LOG_WARNING, "Failed to find closing parenthesis\n");
+	}
+		
 
 	if ((app = pbx_findapp(appname))) {
 		return pbx_exec(chan, app, S_OR(s, ""));
@@ -5568,7 +5572,7 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 
 	/* Wait for "n" seconds */
 	if (data && (s = atof(data)) > 0.0) {
-		ms = s*1000.0;
+		ms = s * 1000.0;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
@@ -5720,7 +5724,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 {
 	int res = ast_parseable_goto(chan, data);
 	if (!res)
-		ast_verb(3, "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
+		ast_verb(3, "Goto (%s,%s,%d)\n", chan->context, chan->exten, chan->priority + 1);
 	return res;
 }
 
@@ -5738,7 +5742,7 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, struct ast_str **b
 	(*buf)->str[0] = '\0';
 
 	AST_LIST_TRAVERSE(&chan->varshead, variables, entries) {
-		if ((var=ast_var_name(variables)) && (val=ast_var_value(variables))
+		if ((var = ast_var_name(variables)) && (val = ast_var_value(variables))
 		   /* && !ast_strlen_zero(var) && !ast_strlen_zero(val) */
 		   ) {
 			if (ast_str_append(buf, 0, "%s=%s\n", var, val) < 0) {
@@ -5819,7 +5823,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	const char *nametail = name;
 
 	/* XXX may need locking on the channel ? */
-	if (name[strlen(name)-1] == ')') {
+	if (name[strlen(name) - 1] == ')') {
 		char *function = ast_strdupa(name);
 
 		ast_func_write(chan, function, value);
@@ -5867,35 +5871,17 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 {
 	char *name, *value, *mydata;
-	int argc;
-	char *argv[24];		/* this will only support a maximum of 24 variables being set in a single operation */
-	int global = 0;
-	int x;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
+		ast_log(LOG_WARNING, "Set requires one variable name/value pair.\n");
 		return 0;
 	}
 
 	mydata = ast_strdupa(data);
-	argc = ast_app_separate_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	name = strsep(&mydata, "=");
+	value = mydata;
 
-	/* check for a trailing flags argument */
-	if ((argc > 1) && !strchr(argv[argc-1], '=')) {
-		argc--;
-		if (strchr(argv[argc], 'g'))
-			global = 1;
-	}
-
-	for (x = 0; x < argc; x++) {
-		name = argv[x];
-		if ((value = strchr(name, '='))) {
-			*value++ = '\0';
-			pbx_builtin_setvar_helper((global) ? NULL : chan, name, value);
-		} else
-			ast_log(LOG_WARNING, "Ignoring entry '%s' with no = (and not last 'options' entry)\n", name);
-	}
-
+	pbx_builtin_setvar_helper(chan, name, value);
 	return(0);
 }
 
@@ -5905,15 +5891,21 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	char *value;
 	char *channel;
 	char tmp[VAR_BUF_SIZE]="";
+	static int deprecation_warning = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
 
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "ImportVar is deprecated.  Please use Set(varname=${IMPORT(channel,variable)}) instead.\n");
+		deprecation_warning = 1;
+	}
+
 	value = ast_strdupa(data);
 	name = strsep(&value,"=");
-	channel = strsep(&value,"|");
+	channel = strsep(&value,",");
 	if (channel && value && name) { /*! \todo XXX should do !ast_strlen_zero(..) of the args ? */
 		struct ast_channel *chan2 = ast_get_channel_by_name_locked(channel);
 		if (chan2) {
@@ -5958,7 +5950,6 @@ int pbx_checkcondition(const char *condition)
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 {
 	char *condition, *branch1, *branch2, *branch;
-	int rc;
 	char *stringp;
 
 	if (ast_strlen_zero(data)) {
@@ -5977,9 +5968,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	rc = pbx_builtin_goto(chan, branch);
-
-	return rc;
+	return pbx_builtin_goto(chan, branch);
 }
 
 static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
@@ -5993,10 +5982,10 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	ast_copy_string(tmp, data, sizeof(tmp));
-	strsep(&number, "|");
-	options = strsep(&number, "|");
+	strsep(&number, ",");
+	options = strsep(&number, ",");
 	if (options) {
-		if ( strcasecmp(options, "f") && strcasecmp(options,"m") &&
+		if ( strcasecmp(options, "f") && strcasecmp(options, "m") &&
 			strcasecmp(options, "c") && strcasecmp(options, "n") ) {
 			ast_log(LOG_WARNING, "SayNumber gender option is either 'f', 'm', 'c' or 'n'\n");
 			return -1;
@@ -6313,13 +6302,13 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 	int mode = 0;
 
 	if (ast_strlen_zero(goto_string)) {
-		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
+		ast_log(LOG_WARNING, "Goto requires an argument ([[context,]extension,]priority)\n");
 		return -1;
 	}
 	stringp = ast_strdupa(goto_string);
-	context = strsep(&stringp, "|");	/* guaranteed non-null */
-	exten = strsep(&stringp, "|");
-	pri = strsep(&stringp, "|");
+	context = strsep(&stringp, ",");	/* guaranteed non-null */
+	exten = strsep(&stringp, ",");
+	pri = strsep(&stringp, ",");
 	if (!exten) {	/* Only a priority in this one */
 		pri = context;
 		exten = NULL;

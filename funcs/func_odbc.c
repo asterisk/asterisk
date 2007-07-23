@@ -179,8 +179,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	}
 
 	/* Parse values, just like arguments */
-	/* Can't use the pipe, because app Set removes them */
-	AST_NONSTANDARD_APP_ARGS(values, t, ',');
+	AST_STANDARD_APP_ARGS(values, t);
 	for (i = 0; i < values.argc; i++) {
 		snprintf(varname, sizeof(varname), "VAL%d", i + 1);
 		pbx_builtin_pushvar_helper(chan, varname, values.field[i]);

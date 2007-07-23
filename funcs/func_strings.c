@@ -88,7 +88,7 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 static struct ast_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.synopsis = "Count the fields, with an arbitrary delimiter",
-	.syntax = "FIELDQTY(<varname>|<delim>)",
+	.syntax = "FIELDQTY(<varname>,<delim>)",
 	.read = function_fieldqty,
 };
 
@@ -104,7 +104,7 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!args.string) {
-		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>|<string>)\n");
+		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>,<string>)\n");
 		return -1;
 	}
 
@@ -120,7 +120,7 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 static struct ast_custom_function filter_function = {
 	.name = "FILTER",
 	.synopsis = "Filter the string to include only the allowed characters",
-	.syntax = "FILTER(<allowed-chars>|<string>)",
+	.syntax = "FILTER(<allowed-chars>,<string>)",
 	.read = filter,
 };
 
@@ -237,15 +237,9 @@ static int array(struct ast_channel *chan, const char *cmd, char *var,
 	 * delimiter, but we'll fall back to vertical bars if commas aren't found.
 	 */
 	ast_debug(1, "array (%s=%s)\n", var, value2);
-	if (strchr(var, ','))
-		AST_NONSTANDARD_APP_ARGS(arg1, var, ',');
-	else
-		AST_STANDARD_APP_ARGS(arg1, var);
+	AST_STANDARD_APP_ARGS(arg1, var);
 
-	if (strchr(value2, ','))
-		AST_NONSTANDARD_APP_ARGS(arg2, value2, ',');
-	else
-		AST_STANDARD_APP_ARGS(arg2, value2);
+	AST_STANDARD_APP_ARGS(arg2, value2);
 
 	for (i = 0; i < arg1.argc; i++) {
 		ast_debug(1, "array set value (%s=%s)\n", arg1.var[i],
@@ -302,7 +296,7 @@ static int hash_write(struct ast_channel *chan, const char *cmd, char *var, cons
 		AST_APP_ARG(hashkey);
 	);
 
-	if (!strchr(var, '|')) {
+	if (!strchr(var, ',')) {
 		/* Single argument version */
 		return array(chan, "HASH", var, value);
 	}
@@ -363,7 +357,7 @@ static int hash_read(struct ast_channel *chan, const char *cmd, char *data, char
 static struct ast_custom_function hash_function = {
 	.name = "HASH",
 	.synopsis = "Implementation of a dialplan associative array",
-	.syntax = "HASH(hashname[|hashkey])",
+	.syntax = "HASH(hashname[,hashkey])",
 	.write = hash_write,
 	.read = hash_read,
 	.desc =
@@ -387,15 +381,13 @@ static struct ast_custom_function hashkeys_function = {
 static struct ast_custom_function array_function = {
 	.name = "ARRAY",
 	.synopsis = "Allows setting multiple variables at once",
-	.syntax = "ARRAY(var1[|var2[...][|varN]])",
+	.syntax = "ARRAY(var1[,var2[...][,varN]])",
 	.write = array,
 	.desc =
 		"The comma-separated list passed as a value to which the function is set will\n"
 		"be interpreted as a set of values to which the comma-separated list of\n"
 		"variable names in the argument should be set.\n"
-		"Hence, Set(ARRAY(var1|var2)=1\\,2) will set var1 to 1 and var2 to 2\n"
-		"Note: remember to either backslash your commas in extensions.conf or quote the\n"
-		"entire argument, since Set can take multiple arguments itself.\n",
+		"Hence, Set(ARRAY(var1,var2)=1,2) will set var1 to 1 and var2 to 2.\n",
 };
 
 static int acf_sprintf(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
@@ -533,7 +525,7 @@ sprintf_fail:
 static struct ast_custom_function sprintf_function = {
 	.name = "SPRINTF",
 	.synopsis = "Format a variable according to a format string",
-	.syntax = "SPRINTF(<format>|<arg1>[|...<argN>])",
+	.syntax = "SPRINTF(<format>,<arg1>[,...<argN>])",
 	.read = acf_sprintf,
 	.desc =
 "Parses the format string specified and returns a string matching that format.\n"
@@ -623,7 +615,7 @@ static int acf_strftime(struct ast_channel *chan, const char *cmd, char *parse,
 static struct ast_custom_function strftime_function = {
 	.name = "STRFTIME",
 	.synopsis = "Returns the current date/time in a specified format.",
-	.syntax = "STRFTIME([<epoch>][|[timezone][|format]])",
+	.syntax = "STRFTIME([<epoch>][,[timezone][,format]])",
 	.desc =
 "STRFTIME sports all of the same formats as the underlying C function\n"
 "strftime(3) - see the man page for details.  It also supports the\n"
@@ -660,7 +652,7 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 
 	if (ast_strlen_zero(args.format)) {
 		ast_log(LOG_ERROR,
-				"No format supplied to STRPTIME(<timestring>|<timezone>|<format>)");
+				"No format supplied to STRPTIME(<timestring>,<timezone>,<format>)");
 		return -1;
 	}
 
@@ -677,14 +669,14 @@ static struct ast_custom_function strptime_function = {
 	.name = "STRPTIME",
 	.synopsis =
 		"Returns the epoch of the arbitrary date/time string structured as described in the format.",
-	.syntax = "STRPTIME(<datetime>|<timezone>|<format>)",
+	.syntax = "STRPTIME(<datetime>,<timezone>,<format>)",
 	.desc =
 		"This is useful for converting a date into an EPOCH time, possibly to pass to\n"
 		"an application like SayUnixTime or to calculate the difference between two\n"
 		"date strings.\n"
 		"\n"
 		"Example:\n"
-		"  ${STRPTIME(2006-03-01 07:30:35|America/Chicago|%Y-%m-%d %H:%M:%S)} returns 1141219835\n",
+		"  ${STRPTIME(2006-03-01 07:30:35,America/Chicago,%Y-%m-%d %H:%M:%S)} returns 1141219835\n",
 	.read = acf_strptime,
 };
 

@@ -38,55 +38,61 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/app.h"
 
 static char *app_verbose = "Verbose";
 static char *verbose_synopsis = "Send arbitrary text to verbose output";
 static char *verbose_descrip =
-"Verbose([<level>|]<message>)\n"
+"Verbose([<level>,]<message>)\n"
 "  level must be an integer value.  If not specified, defaults to 0.\n";
 
 static char *app_log = "Log";
 static char *log_synopsis = "Send arbitrary text to a selected log level";
 static char *log_descrip =
-"Log(<level>|<message>)\n"
+"Log(<level>,<message>)\n"
 "  level must be one of ERROR, WARNING, NOTICE, DEBUG, VERBOSE, DTMF\n";
 
 
 static int verbose_exec(struct ast_channel *chan, void *data)
 {
-	char *vtext, *tmp;
 	int vsize;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(level);
+		AST_APP_ARG(msg);
+	);
 
-	if (ast_strlen_zero(data))
+	if (ast_strlen_zero(data)) {
 		return 0;
-	
-	vtext = ast_strdupa(data);
-	tmp = strsep(&vtext, "|");
-	if (vtext) {
-		if (sscanf(tmp, "%d", &vsize) != 1) {
-			vsize = 0;
-			ast_log(LOG_WARNING, "'%s' is not a verboser number\n", vtext);
-		}
-	} else {
-		vtext = tmp;
+	}
+
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
+	if (args.argc == 1) {
+		args.msg = args.level;
+		args.level = "0";
+	}
+
+	if (sscanf(args.level, "%d", &vsize) != 1) {
 		vsize = 0;
+		ast_log(LOG_WARNING, "'%s' is not a verboser number\n", args.level);
 	}
 	if (option_verbose >= vsize) {
 		switch (vsize) {
 		case 0:
-			ast_verbose("%s\n", vtext);
+			ast_verbose("%s\n", args.msg);
 			break;
 		case 1:
-			ast_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
+			ast_verbose(VERBOSE_PREFIX_1 "%s\n", args.msg);
 			break;
 		case 2:
-			ast_verbose(VERBOSE_PREFIX_2 "%s\n", vtext);
+			ast_verbose(VERBOSE_PREFIX_2 "%s\n", args.msg);
 			break;
 		case 3:
-			ast_verbose(VERBOSE_PREFIX_3 "%s\n", vtext);
+			ast_verbose(VERBOSE_PREFIX_3 "%s\n", args.msg);
 			break;
 		default:
-			ast_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
+			ast_verbose(VERBOSE_PREFIX_4 "%s\n", args.msg);
 		}
 	}
 
@@ -95,40 +101,43 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 
 static int log_exec(struct ast_channel *chan, void *data)
 {
-	char *level, *ltext;
+	char *parse;
 	int lnum = -1;
 	char extension[AST_MAX_EXTENSION + 5], context[AST_MAX_EXTENSION + 2];
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(level);
+		AST_APP_ARG(msg);
+	);
 
 	if (ast_strlen_zero(data))
 		return 0;
 
-	ltext = ast_strdupa(data);
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
 
-	level = strsep(&ltext, "|");
-
-	if (!strcasecmp(level, "ERROR")) {
+	if (!strcasecmp(args.level, "ERROR")) {
 		lnum = __LOG_ERROR;
-	} else if (!strcasecmp(level, "WARNING")) {
+	} else if (!strcasecmp(args.level, "WARNING")) {
 		lnum = __LOG_WARNING;
-	} else if (!strcasecmp(level, "NOTICE")) {
+	} else if (!strcasecmp(args.level, "NOTICE")) {
 		lnum = __LOG_NOTICE;
-	} else if (!strcasecmp(level, "DEBUG")) {
+	} else if (!strcasecmp(args.level, "DEBUG")) {
 		lnum = __LOG_DEBUG;
-	} else if (!strcasecmp(level, "VERBOSE")) {
+	} else if (!strcasecmp(args.level, "VERBOSE")) {
 		lnum = __LOG_VERBOSE;
-	} else if (!strcasecmp(level, "DTMF")) {
+	} else if (!strcasecmp(args.level, "DTMF")) {
 		lnum = __LOG_DTMF;
-	} else if (!strcasecmp(level, "EVENT")) {
+	} else if (!strcasecmp(args.level, "EVENT")) {
 		lnum = __LOG_EVENT;
 	} else {
-		ast_log(LOG_ERROR, "Unknown log level: '%s'\n", level);
+		ast_log(LOG_ERROR, "Unknown log level: '%s'\n", args.level);
 	}
 
 	if (lnum > -1) {
 		snprintf(context, sizeof(context), "@ %s", chan->context);
 		snprintf(extension, sizeof(extension), "Ext. %s", chan->exten);
 
-		ast_log(lnum, extension, chan->priority, context, "%s\n", ltext);
+		ast_log(lnum, extension, chan->priority, context, "%s\n", args.msg);
 	}
 
 	return 0;

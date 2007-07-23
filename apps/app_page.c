@@ -86,7 +86,7 @@ AST_APP_OPTIONS(page_opts, {
 static int page_exec(struct ast_channel *chan, void *data)
 {
 	char *options, *tech, *resource, *tmp;
-	char meetmeopts[88], originator[AST_CHANNEL_NAME];
+	char meetmeopts[88], originator[AST_CHANNEL_NAME], *opts[0];
 	struct ast_flags flags = { 0 };
 	unsigned int confid = ast_random();
 	struct ast_app *app;
@@ -109,9 +109,9 @@ static int page_exec(struct ast_channel *chan, void *data)
 	if ((tmp = strchr(originator, '-')))
 		*tmp = '\0';
 
-	tmp = strsep(&options, "|");
+	tmp = strsep(&options, ",");
 	if (options)
-		ast_app_parse_options(page_opts, &flags, NULL, options);
+		ast_app_parse_options(page_opts, &flags, opts, options);
 
 	snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe|%ud|%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
 		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );

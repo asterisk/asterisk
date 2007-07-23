@@ -58,7 +58,7 @@ static const char *app = "ExternalIVR";
 static const char *synopsis = "Interfaces with an external IVR application";
 
 static const char *descrip = 
-"  ExternalIVR(command[|arg[|arg...]]): Forks an process to run the supplied command,\n"
+"  ExternalIVR(command[,arg[,arg...]]): Forks an process to run the supplied command,\n"
 "and starts a generator on the channel. The generator's play list is\n"
 "controlled by the external application, which can add and clear entries\n"
 "via simple commands issued over its stdout. The external application\n"
@@ -244,7 +244,6 @@ static struct playlist_entry *make_entry(const char *filename)
 static int app_exec(struct ast_channel *chan, void *data)
 {
 	struct playlist_entry *entry;
-	const char *args = data;
 	int child_stdin[2] = { 0,0 };
 	int child_stdout[2] = { 0,0 };
 	int child_stderr[2] = { 0,0 };
@@ -252,7 +251,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int gen_active = 0;
 	int pid;
 	char *argv[32];
-	int argc = 1;
 	char *buf, *command;
 	FILE *child_commands = NULL;
 	FILE *child_errors = NULL;
@@ -263,6 +261,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 	};
 	struct ivr_localuser *u = &foo;
 	sigset_t fullset, oldset;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(cmd)[32];
+	);
 
 	sigfillset(&fullset);
 	pthread_sigmask(SIG_BLOCK, &fullset, &oldset);
@@ -270,14 +271,13 @@ static int app_exec(struct ast_channel *chan, void *data)
 	u->abort_current_sound = 0;
 	u->chan = chan;
 	
-	if (ast_strlen_zero(args)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
 		return -1;	
 	}
 
 	buf = ast_strdupa(data);
-
-	argc = ast_app_separate_args(buf, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	AST_STANDARD_APP_ARGS(args, buf);
 
 	if (pipe(child_stdin)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));

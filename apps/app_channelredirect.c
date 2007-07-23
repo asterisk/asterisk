@@ -45,15 +45,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app = "ChannelRedirect";
 static char *synopsis = "Redirects given channel to a dialplan target.";
 static char *descrip = 
-"ChannelRedirect(channel|[[context|]extension|]priority):\n"
+"ChannelRedirect(channel,[[context,]extension,]priority)\n"
 "  Sends the specified channel to the specified extension priority\n";
 
 
 static int asyncgoto_exec(struct ast_channel *chan, void *data)
 {
 	int res = -1;
-	char *info, *context, *exten, *priority;
-	int prio = 1;
+	char *info;
 	struct ast_channel *chan2 = NULL;
 
 	AST_DECLARE_APP_ARGS(args,
@@ -62,7 +61,7 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "%s requires an argument (channel|[[context|]exten|]priority)\n", app);
+		ast_log(LOG_WARNING, "%s requires an argument (channel,[[context,]exten,]priority)\n", app);
 		return -1;
 	}
 
@@ -70,7 +69,7 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, info);
 
 	if (ast_strlen_zero(args.channel) || ast_strlen_zero(args.label)) {
-		ast_log(LOG_WARNING, "%s requires an argument (channel|[[context|]exten|]priority)\n", app);
+		ast_log(LOG_WARNING, "%s requires an argument (channel,[[context,]exten,]priority)\n", app);
 		goto quit;
 	}
 
@@ -80,38 +79,10 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 		goto quit;
 	}
 
-	/* Parsed right to left, so standard parsing won't work */
-	context = strsep(&args.label, "|");
-	exten = strsep(&args.label, "|");
-	if (exten) {
-		priority = strsep(&args.label, "|");
-		if (!priority) {
-			priority = exten;
-			exten = context;
-			context = NULL;
-		}
-	} else {
-		priority = context;
-		context = NULL;
-	}
+	res = ast_parseable_goto(chan2, args.label);
 
-	/* ast_findlabel_extension does not convert numeric priorities; it only does a lookup */
-	if (!(prio = atoi(priority)) && !(prio = ast_findlabel_extension(chan2, S_OR(context, chan2->context),
-									S_OR(exten, chan2->exten), priority, chan2->cid.cid_num))) {
-		ast_log(LOG_WARNING, "'%s' is not a known priority or label\n", priority);
-		goto chanquit;
-	}
-
-	ast_debug(2, "Attempting async goto (%s) to %s|%s|%d\n", args.channel, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio);
-
-	if (ast_async_goto_if_exists(chan2, S_OR(context, chan2->context), S_OR(exten, chan2->exten), prio))
-		ast_log(LOG_WARNING, "%s failed for %s\n", app, args.channel);
-	else
-		res = 0;
-
- chanquit:
 	ast_mutex_unlock(&chan2->lock);
- quit:
+quit:
 
 	return res;
 }

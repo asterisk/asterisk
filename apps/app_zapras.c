@@ -68,7 +68,7 @@ static char *descrip =
 "The channel must be a clear channel (i.e. PRI source) and a Zaptel\n"
 "channel to be able to use this function (No modem emulation is included).\n"
 "Your pppd must be patched to be zaptel aware. Arguments should be\n"
-"separated by | characters.\n";
+"separated by , characters.\n";
 
 
 #define PPP_MAX_ARGS	32
@@ -122,10 +122,10 @@ static pid_t spawn_ras(struct ast_channel *chan, char *args)
 
 	/* And all the other arguments */
 	stringp=args;
-	c = strsep(&stringp, "|");
+	c = strsep(&stringp, ",");
 	while(c && strlen(c) && (argc < (PPP_MAX_ARGS - 4))) {
 		argv[argc++] = c;
-		c = strsep(&stringp, "|");
+		c = strsep(&stringp, ",");
 	}
 
 	argv[argc++] = "plugin";
