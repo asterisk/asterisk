@@ -68,6 +68,9 @@
 /* Define to indicate the ${BKTR_DESCRIP} library version */
 #undef HAVE_BKTR_VERSION
 
+/* Define to 1 if byteswap.h macros are available. */
+#undef HAVE_BYTESWAP_H
+
 /* Define to 1 if you have the `bzero' function. */
 #undef HAVE_BZERO
 
@@ -585,6 +588,13 @@
 /* Define to 1 if you have the <sys/dir.h> header file, and it defines `DIR'.
    */
 #undef HAVE_SYS_DIR_H
+
+/* Define to 1 if your sys/endian.h header file provides the bswap16 macro. */
+#undef HAVE_SYS_ENDIAN_BSWAP16
+
+/* Define to 1 if your sys/endian.h header file provides the __swap16 macro.
+   */
+#undef HAVE_SYS_ENDIAN_SWAP16
 
 /* Define to 1 if you have the <sys/file.h> header file. */
 #undef HAVE_SYS_FILE_H

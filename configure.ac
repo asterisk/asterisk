@@ -286,6 +286,24 @@ AC_CHECK_FUNCS([funopen fopencookie])
 # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
 AC_CHECK_FUNCS([gethostbyname_r])
 
+AC_CHECK_HEADER([byteswap.h], [AC_DEFINE_UNQUOTED([HAVE_BYTESWAP_H], 1, [Define to 1 if byteswap.h macros are available.])])
+
+AC_MSG_CHECKING(for __swap16 variant of <sys/endian.h> byteswapping macros)
+AC_LINK_IFELSE(
+AC_LANG_PROGRAM([#include <sys/endian.h>], [int a = 1; int b = __swap16(a);]),
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_SYS_ENDIAN_SWAP16], 1, [Define to 1 if your sys/endian.h header file provides the __swap16 macro.]),
+AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for bswap16 variant of <sys/endian.h> byteswapping macros)
+AC_LINK_IFELSE(
+AC_LANG_PROGRAM([#include <sys/endian.h>], [int a = 1; int b = bswap16(a);]),
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_SYS_ENDIAN_BSWAP16], 1, [Define to 1 if your sys/endian.h header file provides the bswap16 macro.]),
+AC_MSG_RESULT(no)
+)
+
 AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
 
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_INITIALIZER], [PTHREAD_RWLOCK_INITIALIZER], [pthread.h])
