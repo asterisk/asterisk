@@ -1554,14 +1554,11 @@ static char *complete_sip_debug_peer(const char *line, const char *word, int pos
 static char *complete_sip_user(const char *word, int state, int flags2);
 static char *complete_sip_show_user(const char *line, const char *word, int pos, int state);
 static char *complete_sipnotify(const char *line, const char *word, int pos, int state);
-static char *complete_sip_prune_realtime_peer(const char *line, const char *word, int pos, int state);
-static char *complete_sip_prune_realtime_user(const char *line, const char *word, int pos, int state);
 static int sip_show_channel(int fd, int argc, char *argv[]);
 static int sip_show_history(int fd, int argc, char *argv[]);
-static int sip_do_debug_ip(int fd, int argc, char *argv[]);
-static int sip_do_debug_peer(int fd, int argc, char *argv[]);
-static int sip_do_debug(int fd, int argc, char *argv[]);
-static int sip_no_debug(int fd, int argc, char *argv[]);
+static char *sip_do_debug_ip(int fd, char *arg);
+static char *sip_do_debug_peer(int fd, char *arg);
+static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int sip_notify(int fd, int argc, char *argv[]);
 static int sip_do_history(int fd, int argc, char *argv[]);
 static int sip_no_history(int fd, int argc, char *argv[]);
@@ -1605,7 +1602,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 static struct sip_user *realtime_user(const char *username);
 static void update_peer(struct sip_peer *p, int expiry);
 static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
-static int sip_prune_realtime(int fd, int argc, char *argv[]);
+static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*--- Internal UA client handling (outbound registrations) */
 static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us);
@@ -10665,7 +10662,7 @@ static void cleanup_stale_contexts(char *new, char *old)
 }
 
 /*! \brief Remove temporary realtime objects from memory (CLI) */
-static int sip_prune_realtime(int fd, int argc, char *argv[])
+static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct sip_peer *peer;
 	struct sip_user *user;
@@ -10675,65 +10672,75 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 	char *name = NULL;
 	regex_t regexbuf;
 
-	switch (argc) {
-	case 4:
-		if (!strcasecmp(argv[3], "user"))
-			return RESULT_SHOWUSAGE;
-		if (!strcasecmp(argv[3], "peer"))
-			return RESULT_SHOWUSAGE;
-		if (!strcasecmp(argv[3], "like"))
-			return RESULT_SHOWUSAGE;
-		if (!strcasecmp(argv[3], "all")) {
-			multi = TRUE;
-			pruneuser = prunepeer = TRUE;
-		} else {
-			pruneuser = prunepeer = TRUE;
-			name = argv[3];
+	if (cmd == CLI_INIT) {
+		e->command = "sip prune realtime [peer|user|all] [all|like]";
+		e->usage =
+		"Usage: sip prune realtime [peer|user] [<name>|all|like <pattern>]\n"
+		"       Prunes object(s) from the cache.\n"
+		"       Optional regular expression pattern is used to filter the objects.\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE) {
+		if (a->pos == 4) {
+			if (strcasestr(a->line, "realtime peer"))
+				return complete_sip_peer(a->word, a->n, SIP_PAGE2_RTCACHEFRIENDS);
+			else if (strcasestr(a->line, "realtime user"))
+				return complete_sip_user(a->word, a->n, SIP_PAGE2_RTCACHEFRIENDS);
 		}
+		return NULL;
+	}
+	switch (a->argc) {
+	case 4:
+		name = a->argv[3];
+		/* we accept a name in position 3, but keywords are not good. */
+		if (!strcasecmp(name, "user") || !strcasecmp(name, "peer") ||
+		    !strcasecmp(name, "like"))
+			return CLI_SHOWUSAGE;
+		pruneuser = prunepeer = TRUE;
+		if (!strcasecmp(name, "all")) {
+			multi = TRUE;
+			name = NULL;
+		}
+		/* else a single name, already set */
 		break;
 	case 5:
-		if (!strcasecmp(argv[4], "like"))
-			return RESULT_SHOWUSAGE;
-		if (!strcasecmp(argv[3], "all"))
-			return RESULT_SHOWUSAGE;
-		if (!strcasecmp(argv[3], "like")) {
-			multi = TRUE;
-			name = argv[4];
-			pruneuser = prunepeer = TRUE;
-		} else if (!strcasecmp(argv[3], "user")) {
+		/* sip prune realtime {user|peer|like} name */
+		name = a->argv[4];
+		if (!strcasecmp(a->argv[3], "user"))
 			pruneuser = TRUE;
-			if (!strcasecmp(argv[4], "all"))
-				multi = TRUE;
-			else
-				name = argv[4];
-		} else if (!strcasecmp(argv[3], "peer")) {
+		else if (!strcasecmp(a->argv[3], "peer"))
 			prunepeer = TRUE;
-			if (!strcasecmp(argv[4], "all"))
-				multi = TRUE;
-			else
-				name = argv[4];
+		else if (!strcasecmp(a->argv[3], "like")) {
+			pruneuser = prunepeer = TRUE;
+			multi = TRUE;
 		} else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
+		if (!strcasecmp(a->argv[4], "like"))
+			return CLI_SHOWUSAGE;
+		if (!multi && !strcasecmp(a->argv[4], "all")) {
+			multi = TRUE;
+			name = NULL;
+		}
 		break;
 	case 6:
-		if (strcasecmp(argv[4], "like"))
-			return RESULT_SHOWUSAGE;
-		if (!strcasecmp(argv[3], "user")) {
+		name = a->argv[5];
+		multi = TRUE;
+		/* sip prune realtime {user|peer} like name */
+		if (strcasecmp(a->argv[4], "like"))
+			return CLI_SHOWUSAGE;
+		if (!strcasecmp(a->argv[3], "user")) {
 			pruneuser = TRUE;
-			name = argv[5];
-		} else if (!strcasecmp(argv[3], "peer")) {
+		} else if (!strcasecmp(a->argv[3], "peer")) {
 			prunepeer = TRUE;
-			name = argv[5];
 		} else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 		break;
 	default:
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 	}
 
 	if (multi && name) {
 		if (regcomp(&regexbuf, name, REG_EXTENDED | REG_NOSUB))
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 	}
 
 	if (multi) {
@@ -10755,9 +10762,9 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 			} while (0) );
 			if (pruned) {
 				ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
-				ast_cli(fd, "%d peers pruned.\n", pruned);
+				ast_cli(a->fd, "%d peers pruned.\n", pruned);
 			} else
-				ast_cli(fd, "No peers found to prune.\n");
+				ast_cli(a->fd, "No peers found to prune.\n");
 			ASTOBJ_CONTAINER_UNLOCK(&peerl);
 		}
 		if (pruneuser) {
@@ -10778,37 +10785,37 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 			} while (0) );
 			if (pruned) {
 				ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, sip_destroy_user);
-				ast_cli(fd, "%d users pruned.\n", pruned);
+				ast_cli(a->fd, "%d users pruned.\n", pruned);
 			} else
-				ast_cli(fd, "No users found to prune.\n");
+				ast_cli(a->fd, "No users found to prune.\n");
 			ASTOBJ_CONTAINER_UNLOCK(&userl);
 		}
 	} else {
 		if (prunepeer) {
 			if ((peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name))) {
 				if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
-					ast_cli(fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", name);
+					ast_cli(a->fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", name);
 					ASTOBJ_CONTAINER_LINK(&peerl, peer);
 				} else
-					ast_cli(fd, "Peer '%s' pruned.\n", name);
+					ast_cli(a->fd, "Peer '%s' pruned.\n", name);
 				unref_peer(peer);
 			} else
-				ast_cli(fd, "Peer '%s' not found.\n", name);
+				ast_cli(a->fd, "Peer '%s' not found.\n", name);
 		}
 		if (pruneuser) {
 			if ((user = ASTOBJ_CONTAINER_FIND_UNLINK(&userl, name))) {
 				if (!ast_test_flag(&user->flags[1], SIP_PAGE2_RTCACHEFRIENDS)) {
-					ast_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", name);
+					ast_cli(a->fd, "User '%s' is not a Realtime user, cannot be pruned.\n", name);
 					ASTOBJ_CONTAINER_LINK(&userl, user);
 				} else
-					ast_cli(fd, "User '%s' pruned.\n", name);
+					ast_cli(a->fd, "User '%s' pruned.\n", name);
 				unref_user(user);
 			} else
-				ast_cli(fd, "User '%s' not found.\n", name);
+				ast_cli(a->fd, "User '%s' not found.\n", name);
 		}
 	}
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief Print codec list from preference to CLI/manager */
@@ -11672,23 +11679,6 @@ static char *complete_sipnotify(const char *line, const char *word, int pos, int
 	return NULL;
 }
 
-/*! \brief Support routine for 'sip prune realtime peer' CLI */
-static char *complete_sip_prune_realtime_peer(const char *line, const char *word, int pos, int state)
-{
-	if (pos == 4)
-		return complete_sip_peer(word, state, SIP_PAGE2_RTCACHEFRIENDS);
-	return NULL;
-}
-
-/*! \brief Support routine for 'sip prune realtime user' CLI */
-static char *complete_sip_prune_realtime_user(const char *line, const char *word, int pos, int state)
-{
-	if (pos == 4)
-		return complete_sip_user(word, state, SIP_PAGE2_RTCACHEFRIENDS);
-
-	return NULL;
-}
-
 /*! \brief Show details of one active dialog */
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
@@ -11960,24 +11950,21 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	return;
 }
 
-/*! \brief Enable SIP Debugging in CLI */
-static int sip_do_debug_ip(int fd, int argc, char *argv[])
+/*! \brief Enable SIP Debugging for a single IP */
+static char *sip_do_debug_ip(int fd, char *arg)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
-	char *p, *arg;
+	char *p;
 
-	/* sip set debug ip <ip> */
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
-	p = arg = argv[4];
+	p = arg;
 	strsep(&p, ":");
 	if (p)
 		port = atoi(p);
 	hp = ast_gethostbyname(arg, &ahp);
 	if (hp == NULL)
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 
 	debugaddr.sin_family = AF_INET;
 	memcpy(&debugaddr.sin_addr, hp->h_addr, sizeof(debugaddr.sin_addr));
@@ -11989,50 +11976,71 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 
 	sipdebug |= sip_debug_console;
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-/*! \brief  sip_do_debug_peer: Turn on SIP debugging with peer mask */
-static int sip_do_debug_peer(int fd, int argc, char *argv[])
+/*! \brief  sip_do_debug_peer: Turn on SIP debugging for a given peer */
+static char *sip_do_debug_peer(int fd, char *arg)
 {
-	struct sip_peer *peer;
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
-	peer = find_peer(argv[4], NULL, 1);
-	if (peer) {
-		if (peer->addr.sin_addr.s_addr) {
-			debugaddr.sin_family = AF_INET;
-			debugaddr.sin_addr = peer->addr.sin_addr;
-			debugaddr.sin_port = peer->addr.sin_port;
-			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
-			sipdebug |= sip_debug_console;
-		} else
-			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[4]);
+	struct sip_peer *peer = find_peer(arg, NULL, 1);
+	if (!peer)
+		ast_cli(fd, "No such peer '%s'\n", arg);
+	else if (peer->addr.sin_addr.s_addr == 0)
+		ast_cli(fd, "Unable to get IP address of peer '%s'\n", arg);
+	else {
+		debugaddr.sin_family = AF_INET;
+		debugaddr.sin_addr = peer->addr.sin_addr;
+		debugaddr.sin_port = peer->addr.sin_port;
+		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n",
+			ast_inet_ntoa(debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+		sipdebug |= sip_debug_console;
+	}
+	if (peer)
 		unref_peer(peer);
-	} else
-		ast_cli(fd, "No such peer '%s'\n", argv[4]);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief Turn on SIP debugging (CLI command) */
-static int sip_do_debug(int fd, int argc, char *argv[])
+static char *sip_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int oldsipdebug = sipdebug & sip_debug_console;
-	if (argc != 4 || strcmp(argv[3], "on") != 0) {
-		if (argc != 5) 
-			return RESULT_SHOWUSAGE;
-		else if (strcmp(argv[3], "ip") == 0)
-			return sip_do_debug_ip(fd, argc, argv);
-		else if (strcmp(argv[3], "peer") == 0)
-			return sip_do_debug_peer(fd, argc, argv);
-		else
-			return RESULT_SHOWUSAGE;
+	char *what;
+
+	if (cmd == CLI_INIT) {
+		e->command = "sip set debug {on|off|ip|peer}";
+		e->usage =
+			"Usage: sip set debug {off|on|ip addr[:port]|peer peername}\n"
+			"       Globally disables dumping of SIP packets,\n"
+			"       or enables it either globally or for a (single)\n"
+			"       IP address or registered peer.\n";
+		return NULL;
+	} else if (cmd == CLI_GENERATE) {
+		if (a->pos == 4 && strcasestr(a->line, " peer")) /* XXX should check on argv too */
+			return complete_sip_peer(a->word, a->n, 0);
+		return NULL;
+        }
+
+	what = a->argv[e->args-1];      /* guaranteed to exist */
+	if (a->argc == e->args) {       /* on/off */
+		if (!strcasecmp(what, "on")) {
+			sipdebug |= sip_debug_console;
+			sipdebug_text = 1;	/*! \note this can be a special debug command - "sip debug text" or something */
+			memset(&debugaddr, 0, sizeof(debugaddr));
+			ast_cli(a->fd, "SIP Debugging %senabled\n", oldsipdebug ? "re-" : "");
+			return CLI_SUCCESS;
+		} else if (!strcasecmp(what, "off")) {
+			sipdebug &= ~sip_debug_console;
+			sipdebug_text = 0;
+			ast_cli(a->fd, "SIP Debugging Disabled\n");
+			return CLI_SUCCESS;
+		}
+	} else if (a->argc == e->args +1) {/* ip/peer */
+		if (!strcasecmp(what, "ip"))
+			return sip_do_debug_ip(a->fd, a->argv[e->args]);
+		else if (!strcasecmp(what, "peer"))
+			return sip_do_debug_peer(a->fd, a->argv[e->args]);
 	}
-	sipdebug |= sip_debug_console;
-	sipdebug_text = 1;	/*! \note this can be a special debug command - "sip debug text" or something */
-	memset(&debugaddr, 0, sizeof(debugaddr));
-	ast_cli(fd, "SIP Debugging %senabled\n", oldsipdebug ? "re-" : "");
-	return RESULT_SUCCESS;
+	return CLI_SHOWUSAGE;   /* default, failure */
 }
 
 /*! \brief Cli command to send SIP notify to peer */
@@ -12087,17 +12095,6 @@ static int sip_notify(int fd, int argc, char *argv[])
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 
-	return RESULT_SUCCESS;
-}
-
-/*! \brief Disable SIP Debugging in CLI */
-static int sip_no_debug(int fd, int argc, char *argv[])
-{
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	sipdebug &= ~sip_debug_console;
-	sipdebug_text = 0;
-	ast_cli(fd, "SIP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -12363,11 +12360,6 @@ static const char show_peer_usage[] =
 "       Shows all details on one SIP peer and the current status.\n"
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
-static const char prune_realtime_usage[] =
-"Usage: sip prune realtime [peer|user] [<name>|all|like <pattern>]\n"
-"       Prunes object(s) from the cache.\n"
-"       Optional regular expression pattern is used to filter the objects.\n";
-
 static const char show_reg_usage[] =
 "Usage: sip show registry\n"
 "       Lists all registration requests and status.\n";
@@ -12375,22 +12367,6 @@ static const char show_reg_usage[] =
 static const char sip_unregister_usage[] =
 "Usage: sip unregister <peer>\n"
 "       Unregister (force expiration) a SIP peer from the registry\n";
-
-static const char debug_usage[] = 
-"Usage: sip set debug {on|off|ip <host[:PORT]>|peer <peername>}\n"
-"       sip set debug on\n"
-"          Enables dumping of all SIP messages for debugging purposes\n\n"
-"       sip set debug off\n"
-"          Disables dumping of all SIP messages\n\n"
-"       sip set debug ip <host[:PORT]>\n"
-"          Enables dumping of SIP messages to and from host.\n\n"
-"       sip set debug peer <peername>\n"
-"          Enables dumping of SIP messages to and from peer's IP.\n"
-"          Requires peer to be registered.\n";
-
-static const char no_debug_usage[] = 
-"Usage: sip set debug off\n"
-"       Disables dumping of SIP packets for debugging purposes\n";
 
 static const char no_history_usage[] = 
 "Usage: sip history off\n"
@@ -18540,37 +18516,8 @@ static struct ast_cli_entry cli_sip[] = {
 	sip_show_user, "Show details on specific SIP user",
 	show_user_usage, complete_sip_show_user },
 
-	{ { "sip", "prune", "realtime", NULL },
-	sip_prune_realtime, "Prune cached Realtime object(s)",
-	prune_realtime_usage },
-
-	{ { "sip", "prune", "realtime", "peer", NULL },
-	sip_prune_realtime, "Prune cached Realtime peer(s)",
-	prune_realtime_usage, complete_sip_prune_realtime_peer },
-
-	{ { "sip", "prune", "realtime", "user", NULL },
-	sip_prune_realtime, "Prune cached Realtime user(s)",
-	prune_realtime_usage, complete_sip_prune_realtime_user },
-
-	{ { "sip", "set", "debug", NULL },
-	sip_do_debug, "Enable SIP debugging",
-	debug_usage },
-
-	{ { "sip", "set", "debug", "on", NULL },
-	sip_do_debug, "Enable SIP debugging",
-	debug_usage },
-
-	{ { "sip", "set", "debug", "ip", NULL },
-	sip_do_debug, "Enable SIP debugging on IP",
-	debug_usage },
-
-	{ { "sip", "set", "debug", "peer", NULL },
-	sip_do_debug, "Enable SIP debugging on Peername",
-	debug_usage, complete_sip_debug_peer },
-
-	{ { "sip", "set", "debug", "off", NULL },
-	sip_no_debug, "Disable SIP debugging",
-	no_debug_usage },
+	NEW_CLI(sip_prune_realtime, "Prune cached Realtime users/peers"),
+	NEW_CLI(sip_do_debug, "Enable/Disable SIP debugging"),
 
 	{ { "sip", "history", NULL },
 	sip_do_history, "Enable SIP history",
