@@ -191,9 +191,9 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 			ast_set_read_format(ast, ast->readformat); \
 			ast_set_write_format(ast, ast->writeformat); \
 		} \
-		if (p->chan->readformat != ast->rawreadformat)  \
+		if (p->chan->readformat != ast->rawreadformat && !p->chan->generator)  \
 			ast_set_read_format(p->chan, ast->rawreadformat); \
-		if (p->chan->writeformat != ast->rawwriteformat) \
+		if (p->chan->writeformat != ast->rawwriteformat && !p->chan->generator) \
 			ast_set_write_format(p->chan, ast->rawwriteformat); \
 	} \
 } while(0)
