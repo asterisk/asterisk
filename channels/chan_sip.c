@@ -1550,7 +1550,6 @@ static char *complete_sip_registered_peer(const char *word, int state, int flags
 static char *complete_sip_show_history(const char *line, const char *word, int pos, int state);
 static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state);
 static char *complete_sip_unregister(const char *line, const char *word, int pos, int state);
-static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state);
 static char *complete_sip_user(const char *word, int state, int flags2);
 static char *complete_sip_show_user(const char *line, const char *word, int pos, int state);
 static char *complete_sipnotify(const char *line, const char *word, int pos, int state);
@@ -11609,15 +11608,6 @@ static char *complete_sip_unregister(const char *line, const char *word, int pos
                return complete_sip_registered_peer(word, state, 0);
 
        return NULL;
-}
-
-/*! \brief Support routine for 'sip debug peer' CLI */
-static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state)
-{
-	if (pos == 4)
-		return complete_sip_peer(word, state, 0);
-
-	return NULL;
 }
 
 /*! \brief Do completion on user name */
