@@ -735,7 +735,7 @@ struct iax2_thread {
 	struct sockaddr_in iosin;
 	unsigned char readbuf[4096]; 
 	unsigned char *buf;
-	size_t buf_len;
+	ssize_t buf_len;
 	size_t buf_size;
 	int iofd;
 	time_t checktime;
