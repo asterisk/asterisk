@@ -1768,11 +1768,13 @@ static const struct ast_channel_tech sip_tech_info = {
 	.read = sip_read,
 	.write = sip_write,
 	.write_video = sip_write,
+	.write_text = sip_write,
 	.indicate = sip_indicate,
 	.transfer = sip_transfer,
 	.fixup = sip_fixup,
 	.send_digit_end = sip_senddigit_end,
 	.bridge = ast_rtp_bridge,
+	.early_bridge = ast_rtp_early_bridge,
 	.send_text = sip_sendtext,
 	.func_channel_read = acf_channel_read,
 };
