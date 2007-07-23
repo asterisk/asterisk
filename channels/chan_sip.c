@@ -799,6 +799,7 @@ struct sip_auth {
 #define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< DP: allow media reinvite when new peer is behind NAT */
 #define SIP_REINVITE_UPDATE	(4 << 20)	/*!< DP: use UPDATE (RFC3311) when reinviting this peer */
 /* "insecure" settings */
+#define SIP_INSECURE		(3 << 23)	/*!< DP: two bits used */
 #define SIP_INSECURE_PORT	(1 << 23)	/*!< DP: don't require matching port for incoming requests */
 #define SIP_INSECURE_INVITE	(1 << 24)	/*!< DP: don't require authentication for incoming INVITEs */
 /* Sending PROGRESS in-band settings */
@@ -928,7 +929,7 @@ enum referstatus {
 	REFER_IDLE,                    /*!< No REFER is in progress */
 	REFER_SENT,                    /*!< Sent REFER to transferee */
 	REFER_RECEIVED,                /*!< Received REFER from transferrer */
-	REFER_CONFIRMED,               /*!< Refer confirmed with a 100 TRYING */
+	REFER_CONFIRMED,               /*!< Refer confirmed with a 100 TRYING (unused) */
 	REFER_ACCEPTED,                /*!< Accepted by transferee */
 	REFER_RINGING,                 /*!< Target Ringing */
 	REFER_200OK,                   /*!< Answered by transfer target */
@@ -936,19 +937,28 @@ enum referstatus {
 	REFER_NOAUTH                   /*!< We had no auth for REFER */
 };
 
-static const struct c_referstatusstring {
-	enum referstatus status;
-	char *text;
-} referstatusstrings[] = {
+/*! \brief generic struct to map between strings and integers.
+ * Fill it with x-s pairs, terminate with an entry with s = NULL;
+ * Then you can call map_x_s(...) to map an integer to a string,
+ * and map_s_x() for the string -> integer mapping.
+ */
+struct _map_x_s {
+	int x;
+	const char *s;
+};              
+
+static const struct _map_x_s referstatusstrings[] = {
 	{ REFER_IDLE,		"<none>" },
 	{ REFER_SENT,		"Request sent" },
 	{ REFER_RECEIVED,	"Request received" },
+	{ REFER_CONFIRMED,	"Confirmed" },
 	{ REFER_ACCEPTED,	"Accepted" },
 	{ REFER_RINGING,	"Target ringing" },
 	{ REFER_200OK,		"Done" },
 	{ REFER_FAILED,		"Failed" },
-	{ REFER_NOAUTH,		"Failed - auth failure" }
-} ;
+	{ REFER_NOAUTH,		"Failed - auth failure" },
+	{ -1,			NULL} /* terminator */
+};
 
 /*! \brief Structure to handle SIP transfers. Dynamically allocated when needed
 	\note OEJ: Should be moved to string fields */
@@ -963,13 +973,19 @@ struct sip_refer {
 	char replaces_callid[BUFSIZ];			/*!< Replace info: callid */
 	char replaces_callid_totag[BUFSIZ/2];		/*!< Replace info: to-tag */
 	char replaces_callid_fromtag[BUFSIZ/2];		/*!< Replace info: from-tag */
-	struct sip_pvt *refer_call;			/*!< Call we are referring */
+	struct sip_pvt *refer_call;			/*!< Call we are referring. This is just a reference to a
+							 * dialog owned by someone else, so we should not destroy
+							 * it when the sip_refer object goes.
+							 */
 	int attendedtransfer;				/*!< Attended or blind transfer? */
 	int localtransfer;				/*!< Transfer to local domain? */
 	enum referstatus status;			/*!< REFER status */
 };
 
-/*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
+/*! \brief sip_pvt: structures used for each SIP dialog, ie. a call, a registration, a subscribe.
+ * Created and initialized by sip_alloc(), the descriptor goes into the list of
+ * descriptors (dialoglist).
+ */
 struct sip_pvt {
 	ast_mutex_t pvt_lock;			/*!< Dialog private lock */
 	enum invitestates invitestate;		/*!< Track state of SIP_INVITEs */
@@ -1524,7 +1540,7 @@ static void mwi_event_cb(const struct ast_event *, void *);
 static const char *sip_nat_mode(const struct sip_pvt *p);
 static int sip_show_inuse(int fd, int argc, char *argv[]);
 static char *transfermode2str(enum transfermodes mode) attribute_const;
-static char *nat2str(int nat) attribute_const;
+static const char *nat2str(int nat) attribute_const;
 static int peer_status(struct sip_peer *peer, char *status, int statuslen);
 static int sip_show_users(int fd, int argc, char *argv[]);
 static int _sip_show_peers(int fd, int *total, struct mansession *s, const struct message *m, int argc, const char *argv[]);
@@ -1532,7 +1548,7 @@ static int sip_show_peers(int fd, int argc, char *argv[]);
 static int sip_show_objects(int fd, int argc, char *argv[]);
 static void  print_group(int fd, ast_group_t group, int crlf);
 static const char *dtmfmode2str(int mode) attribute_const;
-static const char *insecure2str(int port, int invite) attribute_const;
+static const char *insecure2str(int mode) attribute_const;
 static void cleanup_stale_contexts(char *new, char *old);
 static void print_codec_to_cli(int fd, struct ast_codec_pref *pref);
 static const char *domain_mode_to_text(const enum domain_mode mode);
@@ -1607,7 +1623,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(char *value, int lineno);
-static char *regstate2str(enum sipregistrystate regstate) attribute_const;
+static const char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(void *data);
 static int __sip_do_register(struct sip_registry *r);
 static int sip_reg_timeout(void *data);
@@ -1763,6 +1779,32 @@ static const struct ast_channel_tech sip_tech_info = {
 /* wrapper macro to tell whether t points to one of the sip_tech descriptors */
 #define IS_SIP_TECH(t)  ((t) == &sip_tech || (t) == &sip_tech_info)
 
+/*! \begin map from an integer value to a string.
+ * If no match is found, return errorstring
+ */
+static const char *map_x_s(const struct _map_x_s *table, int x, const char *errorstring)
+{
+	const struct _map_x_s *cur;
+
+	for (cur = table; cur->s; cur++)
+		if (cur->x == x)
+			return cur->s;
+	return errorstring;
+}
+
+/*! \begin map from a string to an integer value, case insensitive.
+ * If no match is found, return errorvalue.
+ */
+static int map_s_x(const struct _map_x_s *table, const char *s, int errorvalue)
+{
+	const struct _map_x_s *cur;
+
+	for (cur = table; cur->s; cur++)
+		if (!strcasecmp(cur->s, s))
+			return cur->x;
+	return errorvalue;
+}
+
 /**--- some list management macros. **/
  
 #define UNLINK(element, head, prev) do {	\
@@ -1840,14 +1882,7 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 /*! \brief Convert transfer status to string */
 static const char *referstatus2str(enum referstatus rstatus)
 {
-	int i = (sizeof(referstatusstrings) / sizeof(referstatusstrings[0]));
-	int x;
-
-	for (x = 0; x < i; x++) {
-		if (referstatusstrings[x].status ==  rstatus)
-			return referstatusstrings[x].text;
-	}
-	return "";
+	return map_x_s(referstatusstrings, rstatus, "");
 }
 
 /*! \brief Initialize the initital request packet in the pvt structure.
@@ -7838,29 +7873,22 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
+static const struct _map_x_s regstatestrings[] = {
+	{ REG_STATE_FAILED,     "Failed" },
+	{ REG_STATE_UNREGISTERED, "Unregistered"},
+	{ REG_STATE_REGSENT, "Request Sent"},
+	{ REG_STATE_AUTHSENT, "Auth. Sent"},
+	{ REG_STATE_REGISTERED, "Registered"},
+	{ REG_STATE_REJECTED, "Rejected"},
+	{ REG_STATE_TIMEOUT, "Timeout"},
+	{ REG_STATE_NOAUTH, "No Authentication"},
+	{ -1, NULL } /* terminator */
+};
+
 /*! \brief Convert registration state status to string */
-static char *regstate2str(enum sipregistrystate regstate)
+static const char *regstate2str(enum sipregistrystate regstate)
 {
-	switch(regstate) {
-	case REG_STATE_FAILED:
-		return "Failed";
-	case REG_STATE_UNREGISTERED:
-		return "Unregistered";
-	case REG_STATE_REGSENT:
-		return "Request Sent";
-	case REG_STATE_AUTHSENT:
-		return "Auth. Sent";
-	case REG_STATE_REGISTERED:
-		return "Registered";
-	case REG_STATE_REJECTED:
-		return "Rejected";
-	case REG_STATE_TIMEOUT:
-		return "Timeout";
-	case REG_STATE_NOAUTH:
-		return "No Authentication";
-	default:
-		return "Unknown";
-	}
+	return map_x_s(regstatestrings, regstate, "Unknown");
 }
 
 /*! \brief Update registration with SIP Proxy.
@@ -10314,21 +10342,18 @@ static char *transfermode2str(enum transfermodes mode)
 	return "strict";
 }
 
+static struct _map_x_s natmodes[] = {
+	{ SIP_NAT_NEVER,        "No"},
+	{ SIP_NAT_ROUTE,        "Route"},
+	{ SIP_NAT_ALWAYS,       "Always"},
+	{ SIP_NAT_RFC3581,      "RFC3581"},
+	{ -1,                   NULL}, /* terminator */
+};
+
 /*! \brief  Convert NAT setting to text string */
-static char *nat2str(int nat)
+static const char *nat2str(int nat)
 {
-	switch(nat) {
-	case SIP_NAT_NEVER:
-		return "No";
-	case SIP_NAT_ROUTE:
-		return "Route";
-	case SIP_NAT_ALWAYS:
-		return "Always";
-	case SIP_NAT_RFC3581:
-		return "RFC3581";
-	default:
-		return "Unknown";
-	}
+	return map_x_s(natmodes, nat, "Unknown");
 }
 
 /*! \brief  Report Peer status in character string
@@ -10605,33 +10630,39 @@ static void  print_group(int fd, ast_group_t group, int crlf)
 	ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_group(buf, sizeof(buf), group) );
 }
 
+/*! \brief mapping between dtmf flags and strings */
+static struct _map_x_s dtmfstr[] = {
+	{ SIP_DTMF_RFC2833,     "rfc2833" },
+	{ SIP_DTMF_INFO,        "info" },
+	{ SIP_DTMF_INBAND,      "inband" },
+	{ SIP_DTMF_AUTO,        "auto" },
+	{ -1,                   NULL }, /* terminator */
+};
+
 /*! \brief Convert DTMF mode to printable string */
 static const char *dtmfmode2str(int mode)
 {
-	switch (mode) {
-	case SIP_DTMF_RFC2833:
-		return "rfc2833";
-	case SIP_DTMF_INFO:
-		return "info";
-	case SIP_DTMF_INBAND:
-		return "inband";
-	case SIP_DTMF_AUTO:
-		return "auto";
-	}
-	return "<error>";
+	return map_x_s(dtmfstr, mode, "<error>");
 }
 
-/*! \brief Convert Insecure setting to printable string */
-static const char *insecure2str(int port, int invite)
+/*! \brief maps a string to dtmfmode, returns -1 on error */
+static int str2dtmfmode(const char *str)
 {
-	if (port && invite)
-		return "port,invite";
-	else if (port)
-		return "port";
-	else if (invite)
-		return "invite";
-	else
-		return "no";
+	return map_s_x(dtmfstr, str, -1);
+}
+
+static struct _map_x_s insecurestr[] = {
+	{ SIP_INSECURE_PORT,    "port" },
+	{ SIP_INSECURE_INVITE,  "invite" },
+	{ SIP_INSECURE_PORT | SIP_INSECURE_INVITE, "port,invite" },
+	{ 0,                    "no" },
+	{ -1,                   NULL }, /* terminator */
+};
+
+/*! \brief Convert Insecure setting to printable string */
+static const char *insecure2str(int mode)
+{
+	return map_x_s(insecurestr, mode, "<error>");
 }
 
 /*! \brief Destroy disused contexts between reloads
@@ -10977,7 +11008,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  MaxCallBR    : %d kbps\n", peer->maxcallbitrate);
 		ast_cli(fd, "  Expire       : %ld\n", ast_sched_when(sched, peer->expire));
-		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT), ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)));
+		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  T38 pt UDPTL : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_T38SUPPORT_UDPTL)?"Yes":"No");
@@ -11070,7 +11101,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Y":"N"));
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		astman_append(s, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
-		astman_append(s, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE_PORT), ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)));
+		astman_append(s, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
 		astman_append(s, "SIP-NatSupport: %s\r\n", nat2str(ast_test_flag(&peer->flags[0], SIP_NAT)));
 		astman_append(s, "ACL: %s\r\n", (peer->ha?"Y":"N"));
 		astman_append(s, "SIP-CanReinvite: %s\r\n", (ast_test_flag(&peer->flags[0], SIP_CAN_REINVITE)?"Y":"N"));
