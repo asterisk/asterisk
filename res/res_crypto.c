@@ -84,21 +84,21 @@ AST_MUTEX_DEFINE_STATIC(keylock);
 #define KEY_NEEDS_PASSCODE (1 << 16)
 
 struct ast_key {
-	/* Name of entity */
+	/*! Name of entity */
 	char name[80];
-	/* File name */
+	/*! File name */
 	char fn[256];
-	/* Key type (AST_KEY_PUB or AST_KEY_PRIV, along with flags from above) */
+	/*! Key type (AST_KEY_PUB or AST_KEY_PRIV, along with flags from above) */
 	int ktype;
-	/* RSA structure (if successfully loaded) */
+	/*! RSA structure (if successfully loaded) */
 	RSA *rsa;
-	/* Whether we should be deleted */
+	/*! Whether we should be deleted */
 	int delme;
-	/* FD for input (or -1 if no input allowed, or -2 if we needed input) */
+	/*! FD for input (or -1 if no input allowed, or -2 if we needed input) */
 	int infd;
-	/* FD for output */
+	/*! FD for output */
 	int outfd;
-	/* Last MD5 Digest */
+	/*! Last MD5 Digest */
 	unsigned char digest[16];
 	struct ast_key *next;
 };
@@ -112,6 +112,16 @@ static int fdprint(int fd, char *s)
         return write(fd, s, strlen(s) + 1);
 }
 #endif
+
+
+/*!
+ * \brief setting of priv key
+ * \param buf
+ * \param size
+ * \param rwflag
+ * \param userdata
+ * \return length of string,-1 on failure
+*/
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
 	struct ast_key *key = (struct ast_key *)userdata;
@@ -137,6 +147,10 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 	return -1;
 }
 
+/*!
+ * \brief return the ast_key structure for name
+ * \see ast_key_get
+*/
 static struct ast_key *__ast_key_get(const char *kname, int ktype)
 {
 	struct ast_key *key;
@@ -152,6 +166,16 @@ static struct ast_key *__ast_key_get(const char *kname, int ktype)
 	return key;
 }
 
+/*!
+ * \brief load RSA key from file
+ * \param dir directory string
+ * \param fname name of file
+ * \param ifd incoming file descriptor
+ * \param ofd outgoing file descriptor
+ * \param not2
+ * \retval key on success.
+ * \retval NULL on failure.
+*/
 static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
 {
 	int ktype = 0;
@@ -318,6 +342,10 @@ static char *binary(int y, int len)
 
 #endif
 
+/*!
+ * \brief signs outgoing message with public key
+ * \see ast_sign_bin
+*/
 static int __ast_sign_bin(struct ast_key *key, const char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
@@ -349,6 +377,10 @@ static int __ast_sign_bin(struct ast_key *key, const char *msg, int msglen, unsi
 	
 }
 
+/*!
+ * \brief decrypt a message
+ * \see ast_decrypt_bin
+*/
 static int __ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
 {
 	int res;
@@ -375,6 +407,10 @@ static int __ast_decrypt_bin(unsigned char *dst, const unsigned char *src, int s
 	return pos;
 }
 
+/*!
+ * \brief encrypt a message
+ * \see ast_encrypt_bin
+*/
 static int __ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int srclen, struct ast_key *key)
 {
 	int res;
@@ -403,6 +439,10 @@ static int __ast_encrypt_bin(unsigned char *dst, const unsigned char *src, int s
 	return pos;
 }
 
+/*!
+ * \brief wrapper for __ast_sign_bin then base64 encode it
+ * \see ast_sign
+*/
 static int __ast_sign(struct ast_key *key, char *msg, char *sig)
 {
 	unsigned char dsig[128];
@@ -416,6 +456,10 @@ static int __ast_sign(struct ast_key *key, char *msg, char *sig)
 	
 }
 
+/*!
+ * \brief check signature of a message
+ * \see ast_check_signature_bin
+*/
 static int __ast_check_signature_bin(struct ast_key *key, const char *msg, int msglen, const unsigned char *dsig)
 {
 	unsigned char digest[20];
@@ -442,6 +486,10 @@ static int __ast_check_signature_bin(struct ast_key *key, const char *msg, int m
 	return 0;
 }
 
+/*!
+ * \brief base64 decode then sent to __ast_check_signature_bin
+ * \see ast_check_signature
+*/
 static int __ast_check_signature(struct ast_key *key, const char *msg, const char *sig)
 {
 	unsigned char dsig[128];
@@ -457,6 +505,12 @@ static int __ast_check_signature(struct ast_key *key, const char *msg, const cha
 	return res;
 }
 
+/*!
+ * \brief refresh RSA keys from file
+ * \param ifd file descriptor
+ * \param ofd file descriptor
+ * \return void
+*/
 static void crypto_load(int ifd, int ofd)
 {
 	struct ast_key *key, *nkey, *last;
@@ -512,6 +566,13 @@ static void md52sum(char *sum, unsigned char *md5)
 		sum += sprintf(sum, "%02x", *(md5++));
 }
 
+/*! 
+ * \brief show the list of RSA keys 
+ * \param fd file descriptor
+ * \param argc no of arguements
+ * \param argv list of arguements
+ * \return RESULT_SUCCESS
+*/
 static int show_keys(int fd, int argc, char *argv[])
 {
 	struct ast_key *key;
@@ -535,6 +596,13 @@ static int show_keys(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*! 
+ * \brief initialize all RSA keys  
+ * \param fd file descriptor
+ * \param argc no of arguements
+ * \param argv list of arguements
+ * \return RESULT_SUCCESS
+*/
 static int init_keys(int fd, int argc, char *argv[])
 {
 	struct ast_key *key;
@@ -573,6 +641,7 @@ static struct ast_cli_entry cli_crypto[] = {
 	init_keys_usage },
 };
 
+/*! \brief initialise the res_crypto module */
 static int crypto_init(void)
 {
 	SSL_library_init();

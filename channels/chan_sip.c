@@ -13514,7 +13514,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					break;
-				case 482: /*
+				case 482: /*!
 					\note SIP is incapable of performing a hairpin call, which
 					is yet another failure of not having a layer 2 (again, YAY
 					 IETF for thinking ahead).  So we treat this as a call

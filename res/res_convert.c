@@ -56,7 +56,14 @@ static int split_ext(char *filename, char **name, char **ext)
 	return 0;
 }
 
-/*! \brief Convert a file from one format to another */
+/*! 
+ * \brief Convert a file from one format to another 
+ * \param fd file descriptor
+ * \param argc no arguements
+ * \param argv list of arguements
+ * \retval RESULT_SUCCESS on success.
+ * \retval RESULT_SHOWUSAGE on failure.
+*/
 static int cli_audio_convert(int fd, int argc, char *argv[])
 {
 	int ret = RESULT_FAILURE;

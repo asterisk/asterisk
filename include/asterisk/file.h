@@ -107,7 +107,7 @@ struct ast_format {
 	 * When allocating a buffer, remember to leave AST_FRIENDLY_OFFSET
 	 * spare bytes at the bginning.
 	 */
-	int buf_size;			/* size of frame buffer, if any, aligned to 8 bytes. */
+	int buf_size;			/*!< size of frame buffer, if any, aligned to 8 bytes. */
 	int desc_size;			/*!< size of private descriptor, if any */
 
 	struct ast_module *module;
@@ -134,9 +134,9 @@ struct ast_filestream {
 	int lasttimeout;
 	struct ast_channel *owner;
 	FILE *f;
-	struct ast_frame fr;	/* frame produced by read, typically */
-	char *buf;		/* buffer pointed to by ast_frame; */
-	void *private;	/* pointer to private buffer */
+	struct ast_frame fr;	/*!< frame produced by read, typically */
+	char *buf;		/*!< buffer pointed to by ast_frame; */
+	void *private;	/*!< pointer to private buffer */
 };
 
 #define SEEK_FORCECUR	10

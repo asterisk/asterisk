@@ -20,7 +20,7 @@
  */
 
 /*!
- * \mainpage res_config_sqlite
+ * \page res_config_sqlite
  * 
  * \section intro_sec Presentation
  * 
@@ -232,56 +232,58 @@ struct rt_multi_cfg_entry_args {
 };
 
 /*!
- * Allocate a variable.
- * 
- * \param var	 the address of the variable to set (it will be allocated)
- * \param name	the name of the variable (for error handling)
+ * \brief Allocate a variable.
+ * \param var the address of the variable to set (it will be allocated)
+ * \param name the name of the variable (for error handling)
  * \param value the value to store in var
- * \return 1 if an allocation error occurred, 0 otherwise
+ * \retval 0 on success
+ * \retval 1 if an allocation error occurred
  */
 static int set_var(char **var, char *name, char *value);
 
 /*!
- * Load the configuration file.
+ * \brief Load the configuration file.
+ * \see unload_config()
  * 
  * This function sets dbfile, config_table, and cdr_table. It calls
  * check_vars() before returning, and unload_config() if an error occurred.
  * 
- * \return 1 if an error occurred, 0 otherwise
- * \see unload_config()
+ * \retval 0 on success
+ * \retval 1 if an error occurred
  */
 static int load_config(void);
 
 /*!
- * Free resources related to configuration.
- * 
+ * \brief Free resources related to configuration.
  * \see load_config()
  */
 static void unload_config(void);
 
 /*!
- * Asterisk callback function for CDR support.
+ * \brief Asterisk callback function for CDR support.
+ * \param cdr the CDR entry Asterisk sends us
  * 
  * Asterisk will call this function each time a CDR entry must be logged if
  * CDR support is enabled.
  * 
- * \param cdr the CDR entry Asterisk sends us
- * \return 1 if an error occurred, 0 otherwise
+ * \retval 0 on success
+ * \retval 1 if an error occurred
  */
 static int cdr_handler(struct ast_cdr *cdr);
 
 /*!
- * SQLite callback function for static configuration.
+ * \brief SQLite callback function for static configuration.
  * 
  * This function is passed to the SQLite engine as a callback function to
  * parse a row and store it in a struct ast_config object. It relies on
  * resulting rows	being sorted by category.
  * 
- * \param arg				 a pointer to a struct cfg_entry_args object
- * \param argc				number of columns
- * \param argv				values in the row
+ * \param arg a pointer to a struct cfg_entry_args object
+ * \param argc number of columns
+ * \param argv values in the row
  * \param columnNames names and types of the columns
- * \return 1 if an error occurred, 0 otherwise
+ * \retval 0 on success
+ * \retval 1 if an error occurred
  * \see cfg_entry_args
  * \see sql_get_config_table
  * \see config_handler()
@@ -289,17 +291,18 @@ static int cdr_handler(struct ast_cdr *cdr);
 static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames);
 
 /*!
- * Asterisk callback function for static configuration.
+ * \brief Asterisk callback function for static configuration.
  * 
  * Asterisk will call this function when it loads its static configuration,
  * which usually happens at startup and reload.
  * 
  * \param database the database to use (ignored)
- * \param table		the table to use
- * \param file		 the file to load from the database
- * \param cfg			the struct ast_config object to use when storing variables
+ * \param table the table to use
+ * \param file the file to load from the database
+ * \param cfg the struct ast_config object to use when storing variables
  * \param withcomments	Integer. Flag
- * \return NULL if an error occurred, cfg otherwise
+ * \retval cfg object
+ * \retval NULL if an error occurred
  * \see add_cfg_entry()
  */
 static struct ast_config * config_handler(const char *database,
@@ -307,7 +310,7 @@ static struct ast_config * config_handler(const char *database,
 	struct ast_config *cfg, int withcomments);
 
 /*!
- * Helper function to parse a va_list object into 2 dynamic arrays of
+ * \brief Helper function to parse a va_list object into 2 dynamic arrays of
  * strings, parameters and values.
  * 
  * ap must have the following format : param1 val1 param2 val2 param3 val3 ...
@@ -322,26 +325,27 @@ static struct ast_config * config_handler(const char *database,
  * is the responsibility of the caller to release the memory of these arrays.
  * It is considered an error that va_list has a null or odd number of strings.
  * 
- * \param ap				 the va_list object to parse
+ * \param ap the va_list object to parse
  * \param params_ptr where the address of the params array is stored
- * \param vals_ptr	 where the address of the vals array is stored
- * \return 0 if an error occurred, the number of elements in the arrays (which
- *				 have the same size) otherwise
+ * \param vals_ptr where the address of the vals array is stored
+ * \retval the number of elements in the arrays (which have the same size).
+ * \retval 0 if an error occurred.
  */
 static size_t get_params(va_list ap, const char ***params_ptr,
 	const char ***vals_ptr);
 
 /*!
- * SQLite callback function for RealTime configuration.
+ * \brief SQLite callback function for RealTime configuration.
  * 
  * This function is passed to the SQLite engine as a callback function to
  * parse a row and store it in a linked list of struct ast_variable objects.
  * 
- * \param arg				 a pointer to a struct rt_cfg_entry_args object
- * \param argc				number of columns
- * \param argv				values in the row
+ * \param arg a pointer to a struct rt_cfg_entry_args object
+ * \param argc number of columns
+ * \param argv values in the row
  * \param columnNames names and types of the columns
- * \return 1 if an error occurred, 0 otherwise
+ * \retval 0 on success.
+ * \retval 1 if an error occurred.
  * \see rt_cfg_entry_args
  * \see realtime_handler()
  */
@@ -360,25 +364,27 @@ static int add_rt_cfg_entry(void *arg, int argc, char **argv,
  * \param database the database to use (ignored)
  * \param table		the table to use
  * \param ap			 list of parameters and values to match
- * \return NULL if an error occurred, a linked list of struct ast_variable
- *				 objects otherwise
+ *
+ * \retval a linked list of struct ast_variable objects
+ * \retval NULL if an error occurred
  * \see add_rt_cfg_entry()
  */
 static struct ast_variable * realtime_handler(const char *database,
 	const char *table, va_list ap);
 
 /*!
- * SQLite callback function for RealTime configuration.
+ * \brief SQLite callback function for RealTime configuration.
  * 
  * This function performs the same actions as add_rt_cfg_entry() except
  * that the rt_multi_cfg_entry_args structure is designed to store
  * categories in addition of variables.
  * 
- * \param arg				 a pointer to a struct rt_multi_cfg_entry_args object
- * \param argc				number of columns
- * \param argv				values in the row
+ * \param arg a pointer to a struct rt_multi_cfg_entry_args object
+ * \param argc number of columns
+ * \param argv values in the row
  * \param columnNames names and types of the columns
- * \return 1 if an error occurred, 0 otherwise
+ * \retval 0 on success.
+ * \retval 1 if an error occurred.
  * \see rt_multi_cfg_entry_args
  * \see realtime_multi_handler()
  */
@@ -386,17 +392,18 @@ static int add_rt_multi_cfg_entry(void *arg, int argc, char **argv,
 	char **columnNames);
 
 /*!
- * Asterisk callback function for RealTime configuration.
+ * \brief Asterisk callback function for RealTime configuration.
  * 
  * This function performs the same actions as realtime_handler() except
  * that it can store variables per category, and can return several
  * categories.
  * 
  * \param database the database to use (ignored)
- * \param table		the table to use
- * \param ap			 list of parameters and values to match
- * \return NULL if an error occurred, a struct ast_config object storing
- *				 categories and variables
+ * \param table the table to use
+ * \param ap list of parameters and values to match
+ * \retval a struct ast_config object storing categories and variables.
+ * \retval NULL if an error occurred.
+ *
  * \see add_rt_multi_cfg_entry()
  */
 static struct ast_config * realtime_multi_handler(const char *database,
@@ -404,7 +411,7 @@ static struct ast_config * realtime_multi_handler(const char *database,
 	va_list ap);
 
 /*!
- * Asterisk callback function for RealTime configuration (variable
+ * \brief Asterisk callback function for RealTime configuration (variable
  * update).
  * 
  * Asterisk will call this function each time a variable has been modified
@@ -414,64 +421,49 @@ static struct ast_config * realtime_multi_handler(const char *database,
  * same format as the other realtime functions.
  * 
  * \param database the database to use (ignored)
- * \param table		the table to use
+ * \param table the table to use
  * \param keyfield the column of the matching cell
- * \param entity	 the value of the matching cell
- * \param ap			 list of parameters and new values to update in the database
- * \return -1 if an error occurred, the number of affected rows otherwise
+ * \param entity the value of the matching cell
+ * \param ap list of parameters and new values to update in the database
+ * \retval the number of affected rows.
+ * \retval -1 if an error occurred.
  */
 static int realtime_update_handler(const char *database, const char *table,
 	const char *keyfield, const char *entity,
 	va_list ap);
 
 /*!
- * Asterisk callback function for the CLI status command.
+ * \brief Asterisk callback function for the CLI status command.
  * 
- * \param fd	 file descriptor provided by Asterisk to use with ast_cli()
+ * \param fd file descriptor provided by Asterisk to use with ast_cli()
  * \param argc number of arguments
  * \param argv arguments list
  * \return RESULT_SUCCESS
  */
 static int cli_status(int fd, int argc, char *argv[]);
 
-/*!
- * The SQLite database object.
- */
+/*! The SQLite database object. */
 static sqlite *db;
 
-/*!
- * Set to 1 if CDR support is enabled.
- */
+/*! Set to 1 if CDR support is enabled. */
 static int use_cdr;
 
-/*!
- * Set to 1 if the CDR callback function was registered.
- */
+/*! Set to 1 if the CDR callback function was registered. */
 static int cdr_registered;
 
-/*!
- * Set to 1 if the CLI status command callback function was registered.
- */
+/*! Set to 1 if the CLI status command callback function was registered. */
 static int cli_status_registered;
 
-/*!
- * The path of the database file.
- */
+/*! The path of the database file. */
 static char *dbfile;
 
-/*!
- * The name of the static configuration table.
- */
+/*! The name of the static configuration table. */
 static char *config_table;
 
-/*!
- * The name of the table used to store CDR entries.
- */
+/*! The name of the table used to store CDR entries. */
 static char *cdr_table;
 
-/*!
- * The number of registered virtual machines.
- */
+/*! The number of registered virtual machines. */
 static int vm_count;
 
 /*!
@@ -509,9 +501,7 @@ static struct ast_cli_entry cli_status_cmd =
  * Taken from Asterisk 1.2 cdr_sqlite.so.
  */
 
-/*!
- * SQL query format to create the CDR table if non existent.
- */
+/*! SQL query format to create the CDR table if non existent. */
 static char *sql_create_cdr_table =
 "CREATE TABLE '%q' ("
 "	id		INTEGER PRIMARY KEY,"
@@ -535,9 +525,7 @@ static char *sql_create_cdr_table =
 "	userfield	VARCHAR(255) NOT NULL DEFAULT ''"
 ");";
 
-/*!
- * SQL query format to insert a CDR entry.
- */
+/*! SQL query format to insert a CDR entry. */
 static char *sql_add_cdr_entry =
 "INSERT INTO '%q' ("
 "			 clid,"
@@ -583,7 +571,7 @@ static char *sql_add_cdr_entry =
  * SQL query format to fetch the static configuration of a file.
  * Rows must be sorted by category.
  * 
- * @see add_cfg_entry()
+ * \see add_cfg_entry()
  */
 static char *sql_get_config_table =
 "SELECT *"

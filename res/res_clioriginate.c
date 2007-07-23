@@ -69,6 +69,15 @@ struct ast_cli_entry cli_cliorig[] = {
 	orig_help, complete_orig },
 };
 
+/*!
+ * \brief orginate a call from the CLI
+ * \param fd file descriptor for cli
+ * \param chan channel to create type/data
+ * \param app application you want to run
+ * \param appdata data for application
+ * \retval RESULT_SUCCESS on success.
+ * \retval RESULT_SHOWUSAGE on failure.
+*/
 static int orig_app(int fd, const char *chan, const char *app, const char *appdata)
 {
 	char *chantech;
@@ -91,6 +100,14 @@ static int orig_app(int fd, const char *chan, const char *app, const char *appda
 	return RESULT_SUCCESS;
 }
 
+/*!
+ * \brief orginate from extension
+ * \param fd file descriptor for cli
+ * \param chan channel to create type/data
+ * \param data contains exten\@context
+ * \retval RESULT_SUCCESS on success.
+ * \retval RESULT_SHOWUSAGE on failure.
+*/
 static int orig_exten(int fd, const char *chan, const char *data)
 {
 	char *chantech;
@@ -122,6 +139,14 @@ static int orig_exten(int fd, const char *chan, const char *data)
 	return RESULT_SUCCESS;
 }
 
+/*!
+ * \brief handle for orgination app or exten.
+ * \param fd file descriptor
+ * \param argc no of arguements
+ * \param argv contains either application or extension arguements
+ * \retval RESULT_SUCCESS on success.
+ * \retval RESULT_SHOWUSAGE on failure.
+*/
 static int handle_orig(int fd, int argc, char *argv[])
 {
 	int res;
@@ -144,6 +169,15 @@ static int handle_orig(int fd, int argc, char *argv[])
 	return res;
 }
 
+/*!
+ * \brief complete suggestions for orginate command
+ * \param line 
+ * \param word to be completed word
+ * \param pos position
+ * \param state
+ * \retval completed word
+ * \retval NULL on failure
+*/
 static char *complete_orig(const char *line, const char *word, int pos, int state)
 {
 	static char *choices[] = { "application", "extension", NULL };
@@ -160,12 +194,14 @@ static char *complete_orig(const char *line, const char *word, int pos, int stat
 	return ret;
 }
 
+/*! \brief Unload orginate module */
 static int unload_module(void)
 {
 	ast_cli_unregister_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));
 	return 0;
 }
 
+/*! \brief Load orginate module */
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));

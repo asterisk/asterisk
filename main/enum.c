@@ -362,7 +362,7 @@ static int enum_callback(void *context, unsigned char *answer, int len, unsigned
 	return 0;
 }
 
-/*! \brief ENUM lookup */
+/* ENUM lookup */
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options, unsigned int record, struct enum_context **argcontext)
 {
 	struct enum_context *context;
@@ -532,9 +532,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	return ret;
 }
 
-/*! \brief Get TXT record from DNS.
-	Really has nothing to do with enum, but anyway...
- */
+/* Get TXT record from DNS. Really has nothing to do with enum, but anyway... */
 int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
 {
 	struct enum_context context;

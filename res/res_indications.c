@@ -80,8 +80,11 @@ char *playtones_desc=
  * Implementation of functions provided by this module
  */
 
-/*
- * ADD INDICATION command stuff
+/*!
+ * \brief Add a country to indication
+ * \param fd file descriptor of CLI
+ * \param argc no of args
+ * \param argv arguements
  */
 static int handle_add_indication(int fd, int argc, char *argv[])
 {
@@ -114,8 +117,11 @@ static int handle_add_indication(int fd, int argc, char *argv[])
 	return 0;
 }
 
-/*
- * REMOVE INDICATION command stuff
+/*!
+ * \brief Remove a country from indication
+ * \param fd file descriptor of CLI
+ * \param argc no of args
+ * \param argv arguements
  */
 static int handle_remove_indication(int fd, int argc, char *argv[])
 {
@@ -143,8 +149,11 @@ static int handle_remove_indication(int fd, int argc, char *argv[])
 	return 0;
 }
 
-/*
- * SHOW INDICATIONS command stuff
+/*!
+ * \brief Show the current indications
+ * \param fd file descriptor of CLI
+ * \param argc no of args
+ * \param argv arguements
  */
 static int handle_show_indications(int fd, int argc, char *argv[])
 {
@@ -191,8 +200,10 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 	return -1;
 }
 
-/*
- * Playtones command stuff
+/*!
+ * \brief play tone for indication country
+ * \param chan ast_channel to play the sounds back to
+ * \param data contains tone to play
  */
 static int handle_playtones(struct ast_channel *chan, void *data)
 {
@@ -213,8 +224,10 @@ static int handle_playtones(struct ast_channel *chan, void *data)
 	return res;
 }
 
-/*
- * StopPlaylist command stuff
+/*!
+ * \brief Stop tones playing
+ * \param chan 
+ * \param data 
  */
 static int handle_stopplaytones(struct ast_channel *chan, void *data)
 {
@@ -222,9 +235,7 @@ static int handle_stopplaytones(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-/*
- * Load module stuff
- */
+/*! \brief load indications module */
 static int ind_load_module(void)
 {
 	struct ast_config *cfg;
@@ -342,9 +353,7 @@ out:			v = v->next;
 	return 0;
 }
 
-/*
- * CLI entries for commands provided by this module
- */
+/*! \brief CLI entries for commands provided by this module */
 static struct ast_cli_entry cli_indications[] = {
 	{ { "indication", "add", NULL },
 	handle_add_indication, "Add the given indication to the country",
@@ -359,9 +368,7 @@ static struct ast_cli_entry cli_indications[] = {
 	help_show_indications },
 };
 
-/*
- * Standard module functions ...
- */
+/*! \brief Unload indicators module */
 static int unload_module(void)
 {
 	/* remove the registed indications... */
@@ -375,6 +382,7 @@ static int unload_module(void)
 }
 
 
+/*! \brief Load indications module */
 static int load_module(void)
 {
 	if (ind_load_module())
@@ -386,6 +394,7 @@ static int load_module(void)
 	return 0;
 }
 
+/*! \brief Reload indications module */
 static int reload(void)
 {
 	/* remove the registed indications... */

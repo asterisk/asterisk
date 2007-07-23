@@ -21,18 +21,18 @@ extern "C" {
 #endif
 
 /* configuration constants */
-	/* Number of historical timestamps to use in calculating jitter and drift */
+	/*! Number of historical timestamps to use in calculating jitter and drift */
 #define JB_HISTORY_SZ		500	
-	/* what percentage of timestamps should we drop from the history when we examine it;
+	/*! what percentage of timestamps should we drop from the history when we examine it;
 	 * this might eventually be something made configurable */
 #define JB_HISTORY_DROPPCT	3
-	/* the maximum droppct we can handle (say it was configurable). */
+	/*! the maximum droppct we can handle (say it was configurable). */
 #define JB_HISTORY_DROPPCT_MAX	4
-	/* the size of the buffer we use to keep the top and botton timestamps for dropping */
+	/*! the size of the buffer we use to keep the top and botton timestamps for dropping */
 #define JB_HISTORY_MAXBUF_SZ	JB_HISTORY_SZ * JB_HISTORY_DROPPCT_MAX / 100 
-	/* amount of additional jitterbuffer adjustment  */
+	/*! amount of additional jitterbuffer adjustment  */
 #define JB_TARGET_EXTRA 40
-	/* ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
+	/*! ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
 #define JB_ADJUST_DELAY 40
 
 enum jb_return_code {
@@ -55,36 +55,36 @@ enum jb_frame_type {
 
 typedef struct jb_conf {
 	/* settings */
-	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
- 	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
-	long max_contig_interp; /* the max interp frames to return in a row */
-	long target_extra ;      /* amount of additional jitterbuffer adjustment, overrides JB_TARGET_EXTRA */
+	long max_jitterbuf;	/*!< defines a hard clamp to use in setting the jitter buffer delay */
+ 	long resync_threshold;  /*!< the jb will resync when delay increases to (2 * jitter) + this param */
+	long max_contig_interp; /*!< the max interp frames to return in a row */
+	long target_extra ;      /*!< amount of additional jitterbuffer adjustment, overrides JB_TARGET_EXTRA */
 } jb_conf;
 
 typedef struct jb_info {
 	jb_conf conf;
 
 	/* statistics */
-	long frames_in;  	/* number of frames input to the jitterbuffer.*/
-	long frames_out;  	/* number of frames output from the jitterbuffer.*/
-	long frames_late; 	/* number of frames which were too late, and dropped.*/
-	long frames_lost; 	/* number of missing frames.*/
-	long frames_dropped; 	/* number of frames dropped (shrinkage) */
-	long frames_ooo; 	/* number of frames received out-of-order */
-	long frames_cur; 	/* number of frames presently in jb, awaiting delivery.*/
-	long jitter; 		/* jitter measured within current history interval*/
-	long min;		/* minimum lateness within current history interval */
-	long current; 		/* the present jitterbuffer adjustment */
-	long target; 		/* the target jitterbuffer adjustment */
-	long losspct; 		/* recent lost frame percentage (* 1000) */
-	long next_voice_ts;	/* the ts of the next frame to be read from the jb - in receiver's time */
-	long last_voice_ms;	/* the duration of the last voice frame */
-	long silence_begin_ts;	/* the time of the last CNG frame, when in silence */
-	long last_adjustment;   /* the time of the last adjustment */
- 	long last_delay;        /* the last now added to history */
- 	long cnt_delay_discont;	/* the count of discontinuous delays */
- 	long resync_offset;     /* the amount to offset ts to support resyncs */
-	long cnt_contig_interp; /* the number of contiguous interp frames returned */
+	long frames_in;  	/*!< number of frames input to the jitterbuffer.*/
+	long frames_out;  	/*!< number of frames output from the jitterbuffer.*/
+	long frames_late; 	/*!< number of frames which were too late, and dropped.*/
+	long frames_lost; 	/*!< number of missing frames.*/
+	long frames_dropped; 	/*!< number of frames dropped (shrinkage) */
+	long frames_ooo; 	/*!< number of frames received out-of-order */
+	long frames_cur; 	/*!< number of frames presently in jb, awaiting delivery.*/
+	long jitter; 		/*!< jitter measured within current history interval*/
+	long min;		/*!< minimum lateness within current history interval */
+	long current; 		/*!< the present jitterbuffer adjustment */
+	long target; 		/*!< the target jitterbuffer adjustment */
+	long losspct; 		/*!< recent lost frame percentage (* 1000) */
+	long next_voice_ts;	/*!< the ts of the next frame to be read from the jb - in receiver's time */
+	long last_voice_ms;	/*!< the duration of the last voice frame */
+	long silence_begin_ts;	/*!< the time of the last CNG frame, when in silence */
+	long last_adjustment;   /*!< the time of the last adjustment */
+ 	long last_delay;        /*!< the last now added to history */
+ 	long cnt_delay_discont;	/*!< the count of discontinuous delays */
+ 	long resync_offset;     /*!< the amount to offset ts to support resyncs */
+	long cnt_contig_interp; /*!< the number of contiguous interp frames returned */
 } jb_info;
 
 typedef struct jb_frame {
@@ -99,15 +99,15 @@ typedef struct jitterbuf {
 	jb_info info;
 
 	/* history */
-	long history[JB_HISTORY_SZ];   		/* history */
-	int  hist_ptr;				/* points to index in history for next entry */
-	long hist_maxbuf[JB_HISTORY_MAXBUF_SZ];	/* a sorted buffer of the max delays (highest first) */
-	long hist_minbuf[JB_HISTORY_MAXBUF_SZ];	/* a sorted buffer of the min delays (lowest first) */
-	int  hist_maxbuf_valid;			/* are the "maxbuf"/minbuf valid? */
-	unsigned int dropem:1;                  /* flag to indicate dropping frames (overload) */
+	long history[JB_HISTORY_SZ];   		/*!< history */
+	int  hist_ptr;				/*!< points to index in history for next entry */
+	long hist_maxbuf[JB_HISTORY_MAXBUF_SZ];	/*!< a sorted buffer of the max delays (highest first) */
+	long hist_minbuf[JB_HISTORY_MAXBUF_SZ];	/*!< a sorted buffer of the min delays (lowest first) */
+	int  hist_maxbuf_valid;			/*!< are the "maxbuf"/minbuf valid? */
+	unsigned int dropem:1;                  /*!< flag to indicate dropping frames (overload) */
 
-	jb_frame *frames; 		/* queued frames */
-	jb_frame *free; 		/* free frames (avoid malloc?) */
+	jb_frame *frames; 		/*!< queued frames */
+	jb_frame *free; 		/*!< free frames (avoid malloc?) */
 } jitterbuf;
 
 
@@ -146,10 +146,10 @@ enum jb_return_code jb_getall(jitterbuf *jb, jb_frame *frameout);
  * This value may change as frames are added (esp non-audio frames) */
 long			jb_next(jitterbuf *jb);
 
-/* get jitterbuf info: only "statistics" may be valid */
+/*! get jitterbuf info: only "statistics" may be valid */
 enum jb_return_code jb_getinfo(jitterbuf *jb, jb_info *stats);
 
-/* set jitterbuf conf */
+/*! set jitterbuf conf */
 enum jb_return_code jb_setconf(jitterbuf *jb, jb_conf *conf);
 
 typedef 		void (*jb_output_function_t)(const char *fmt, ...);

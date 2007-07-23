@@ -40,6 +40,10 @@ int res_snmp_enabled;
 
 static pthread_t thread = AST_PTHREADT_NULL;
 
+/*!
+ * \brief Load res_snmp.conf config file
+ * \return 1 on load, 0 file does not exist
+*/
 static int load_config(void)
 {
 	struct ast_variable *var;

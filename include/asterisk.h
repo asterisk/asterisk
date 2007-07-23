@@ -105,9 +105,10 @@ struct ast_module;
  * \note Modules are reloaded using their reload() functions, not unloading
  * them and loading them again.
  * 
- * \return Zero if the specified module was not found, 1 if the module was
- * found but cannot be reloaded, -1 if a reload operation is already in
- * progress, and 2 if the specfied module was found and reloaded.
+ * \return 0 if the specified module was not found.
+ * \retval 1 if the module was found but cannot be reloaded.
+ * \retval -1 if a reload operation is already in progress.
+ * \retval 2 if the specfied module was found and reloaded.
  */
 int ast_module_reload(const char *name);
 
@@ -115,7 +116,8 @@ int ast_module_reload(const char *name);
  * \brief Register a function to be executed before Asterisk exits.
  * \param func The callback function to use.
  *
- * \return Zero on success, -1 on error.
+ * \retval 0 on success.
+ * \retval -1 on error.
  */
 int ast_register_atexit(void (*func)(void));
 

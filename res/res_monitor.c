@@ -115,6 +115,13 @@ static char *unpausemonitor_descrip = "UnpauseMonitor\n"
 	"Unpauses monitoring of a channel on which monitoring had\n"
 	"previously been paused with PauseMonitor.\n";
 
+/*! 
+ * \brief Change state of monitored channel 
+ * \param chan 
+ * \param state monitor state
+ * \retval 0 on success.
+ * \retval -1 on failure.
+*/
 static int ast_monitor_set_state(struct ast_channel *chan, int state)
 {
 	LOCK_IF_NEEDED(chan, 1);
@@ -133,7 +140,10 @@ static int ast_monitor_set_state(struct ast_channel *chan, int state)
  * \param fname_base filename base to record to
  * \param need_lock whether to lock the channel mutex
  * \param stream_action whether to record the input and/or output streams.  X_REC_IN | X_REC_OUT is most often used
- * \returns 0 on success, -1 on failure
+ * Creates the file to record, if no format is specified it assumes WAV
+ * It also sets channel variable __MONITORED=yes
+ * \retval 0 on success
+ * \retval -1 on failure
  */
 int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		const char *fname_base, int need_lock, int stream_action)
@@ -241,7 +251,9 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 	return res;
 }
 
-/*
+/*!
+ * \brief Get audio format.
+ * \param format recording format.
  * The file format extensions that Asterisk uses are not all the same as that
  * which soxmix expects.  This function ensures that the format used as the
  * extension on the filename is something soxmix will understand.
@@ -258,7 +270,13 @@ static const char *get_soxmix_format(const char *format)
 	return res;
 }
 
-/* Stop monitoring a channel */
+/*! 
+ * \brief Stop monitoring channel 
+ * \param chan 
+ * \param need_lock
+ * Stop the recording, close any open streams, mix in/out channels if required
+ * \return Always 0
+*/
 int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 {
 	int delfiles = 0;
@@ -339,29 +357,38 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 }
 
 
-/* Pause monitoring of a channel */
+/*! \brief Pause monitoring of channel */
 int ast_monitor_pause(struct ast_channel *chan)
 {
 	return ast_monitor_set_state(chan, AST_MONITOR_PAUSED);
 }
 
-/* Unpause monitoring of a channel */
+/*! \brief Unpause monitoring of channel */
 int ast_monitor_unpause(struct ast_channel *chan)
 {
 	return ast_monitor_set_state(chan, AST_MONITOR_RUNNING);
 }
 
+/*! \brief Wrapper for ast_monitor_pause */
 static int pause_monitor_exec(struct ast_channel *chan, void *data)
 {
 	return ast_monitor_pause(chan);
 }
 
+/*! \brief Wrapper for ast_monitor_unpause */
 static int unpause_monitor_exec(struct ast_channel *chan, void *data)
 {
 	return ast_monitor_unpause(chan);
 }
 
-/* Change monitoring filename of a channel */
+/*! 
+ * \brief Change monitored filename of channel 
+ * \param chan
+ * \param fname_base new filename
+ * \param need_lock
+ * \retval 0 on success.
+ * \retval -1 on failure.
+*/
 int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, int need_lock)
 {
 	if (ast_strlen_zero(fname_base)) {
@@ -390,6 +417,14 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 	return 0;
 }
 
+ 
+/*!
+ * \brief Start monitor
+ * \param chan
+ * \param data arguements passed  fname|options
+ * \retval 0 on success.
+ * \retval -1 on failure.
+*/
 static int start_monitor_exec(struct ast_channel *chan, void *data)
 {
 	char *arg = NULL;
@@ -470,11 +505,13 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+/*! \brief Wrapper function \see ast_monitor_stop */
 static int stop_monitor_exec(struct ast_channel *chan, void *data)
 {
 	return ast_monitor_stop(chan, 1);
 }
 
+/*! \brief Wrapper function \see ast_monitor_change_fname */
 static int change_monitor_exec(struct ast_channel *chan, void *data)
 {
 	return ast_monitor_change_fname(chan, (const char*)data, 1);
@@ -494,6 +531,7 @@ static char start_monitor_action_help[] =
 "                the input and output channels together after the\n"
 "                recording is finished.\n";
 
+/*! \brief Start monitoring a channel by manager connection */
 static int start_monitor_action(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -547,6 +585,7 @@ static char stop_monitor_action_help[] =
 "  started 'Monitor' action.  The only parameter is 'Channel', the name\n"
 "  of the channel monitored.\n";
 
+/*! \brief Stop monitoring a channel by manager connection */
 static int stop_monitor_action(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -579,6 +618,7 @@ static char change_monitor_action_help[] =
 "  File        - Required.  Is the new name of the file created in the\n"
 "                monitor spool directory.\n";
 
+/*! \brief Change filename of a monitored channel by manager connection */
 static int change_monitor_action(struct mansession *s, const struct message *m)
 {
 	struct ast_channel *c = NULL;

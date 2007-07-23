@@ -93,7 +93,7 @@
  *	and reported back.
  *
  *	- Extension states
- *		\arg \ref ENUM ast_extension_states
+ *		\arg \ref AstENUM ast_extension_states
  *		\arg \ref pbx.c 
  *		\arg \ref pbx.h 
  *	- Structures

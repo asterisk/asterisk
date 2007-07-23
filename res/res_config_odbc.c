@@ -54,6 +54,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/res_odbc.h"
 #include "asterisk/utils.h"
 
+/*!
+ * \brief Excute an SQL query and return ast_variable list
+ * \param database
+ * \param table
+ * \param ap list containing one or more field/operator/value set
+ * Select database and preform query on table, prepare the sql statement
+ * Sub-in the values to the prepared statement and execute it. Return results
+ * as a ast_variable list.
+ *
+ * \retval var on success
+ * \retval NULL on failure
+*/
 static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
 	struct odbc_obj *obj;
@@ -204,6 +216,19 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	return var;
 }
 
+/*!
+ * \brief Excute an Select query and return ast_config list
+ * \param database
+ * \param table
+ * \param ap list containing one or more field/operator/value set
+ * Select database and preform query on table, prepare the sql statement
+ * Sub-in the values to the prepared statement and execute it. 
+ * Execute this prepared query against several ODBC connected databases.
+ * Return results as an ast_config variable.
+ *
+ * \retval var on success
+ * \retval NULL on failure
+*/
 static struct ast_config *realtime_multi_odbc(const char *database, const char *table, va_list ap)
 {
 	struct odbc_obj *obj;
@@ -360,6 +385,20 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	return cfg;
 }
 
+/*!
+ * \brief Excute an UPDATE query
+ * \param database
+ * \param table
+ * \param keyfield where clause field
+ * \param lookup value of field for where clause
+ * \param ap list containing one or more field/value set(s)
+ * Update a database table, prepare the sql statement using keyfield and lookup
+ * control the number of records to change. All values to be changed are stored in ap list.
+ * Sub-in the values to the prepared statement and execute it.
+ *
+ * \retval number of rows affected
+ * \retval -1 on failure
+*/
 static int update_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
 {
 	struct odbc_obj *obj;

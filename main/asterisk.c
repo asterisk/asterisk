@@ -153,9 +153,9 @@ int daemon(int, int);  /* defined in libresolv of all places */
                 "production installations.\n");
 
 /*! \defgroup main_options Main Configuration Options
- \brief Main configuration options from \ref Config_ast "asterisk.conf" or 
-  the operating system command line when starting Asterisk 
-  Some of them can be changed in the CLI 
+ * \brief Main configuration options from asterisk.conf or OS command line on starting Asterisk.
+ * \arg \ref Config_ast "asterisk.conf"
+ * \note Some of them can be changed in the CLI 
  */
 /*! @{ */
 
