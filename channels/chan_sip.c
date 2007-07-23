@@ -9335,7 +9335,14 @@ static enum check_auth_result check_user_full(struct sip_pvt *p, struct sip_requ
 					res = AUTH_FAKE_AUTH; /* reject with fake authorization request */
 				else
 					res = AUTH_SECRET_FAILED; /* we don't want any guests, authentication will fail */
-			}
+			} else if (!ast_strlen_zero(rpid_num) && ast_test_flag(&p->flags[0], SIP_TRUSTRPID)) {
+				char *tmp = ast_strdupa(rpid_num);
+				if (*calleridname)
+					ast_string_field_set(p, cid_name, calleridname);
+				if (ast_is_shrinkable_phonenumber(tmp))
+					ast_shrink_phone_number(tmp);
+				ast_string_field_set(p, cid_num, tmp);
+                        }
 		}
 
 	}
