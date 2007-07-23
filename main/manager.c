@@ -2657,10 +2657,8 @@ int __manager_event(int category, const char *event,
 	AST_LIST_UNLOCK(&sessions);
 
 	AST_RWLIST_RDLOCK(&manager_hooks);
-	if (!AST_RWLIST_EMPTY(&manager_hooks)) {
-		AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
-			hook->helper(category, event, buf->str);
-		}
+	AST_RWLIST_TRAVERSE(&manager_hooks, hook, list) {
+		hook->helper(category, event, buf->str);
 	}
 	AST_RWLIST_UNLOCK(&manager_hooks);
 
