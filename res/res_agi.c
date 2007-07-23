@@ -1629,7 +1629,7 @@ static struct agi_command commands[MAX_COMMANDS] = {
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit , 0 },
 };
 
-AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
+static AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
 
 static int help_workhorse(int fd, char *match[])
 {
@@ -2169,7 +2169,6 @@ static int unload_module(void)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END
 	AST_RWLIST_UNLOCK(&agi_commands);
-	AST_RWLIST_HEAD_DESTROY(&agi_commands);
 	ast_unregister_application(eapp);
 	ast_unregister_application(deadapp);
 	return ast_unregister_application(app);
