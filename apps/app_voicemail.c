@@ -455,6 +455,8 @@ static char VM_SPOOL_DIR[PATH_MAX];
 
 static char ext_pass_cmd[128];
 
+int my_umask;
+
 #define PWDCHANGE_INTERNAL (1 << 1)
 #define PWDCHANGE_EXTERNAL (1 << 2)
 static int pwdchange = PWDCHANGE_INTERNAL;
@@ -1988,6 +1990,7 @@ static FILE *vm_mkftemp(char *template)
 {
 	FILE *p = NULL;
 	int pfd = mkstemp(template);
+	chmod(template, VOICEMAIL_FILE_MODE & ~my_umask);
 	if (pfd > -1) {
 		p = fdopen(pfd, "w+");
 		if (!p) {
@@ -2147,6 +2150,7 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 			create_dirpath(tmpdir, sizeof(tmpdir), vmu->context, vmu->mailbox, "tmp");
 			snprintf(newtmp, sizeof(newtmp), "%s/XXXXXX", tmpdir);
 			tmpfd = mkstemp(newtmp);
+			chmod(newtmp, VOICEMAIL_FILE_MODE & ~my_umask);
 			ast_debug(3, "newtmp: %s\n", newtmp);
 			if (tmpfd > -1) {
 				snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, attach, format, newtmp, format);
@@ -3227,6 +3231,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #endif
 		snprintf(tmptxtfile, sizeof(tmptxtfile), "%s/XXXXXX", tmpdir);
 		txtdes = mkstemp(tmptxtfile);
+		chmod(tmptxtfile, VOICEMAIL_FILE_MODE & ~my_umask);
 		if (txtdes < 0) {
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res)
@@ -8488,6 +8493,8 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
+	my_umask = umask(0);
+	umask(my_umask);
 
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
