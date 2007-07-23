@@ -2014,8 +2014,12 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 {
 	enum agi_result res;
 	struct ast_module_user *u;
-	char *argv[MAX_ARGS], buf[2048] = "", *tmp = buf, *stringp;
-	int argc = 0, fds[2], efd = -1, pid;
+	char buf[2048] = "", *tmp = buf;
+	int fds[2], efd = -1, pid;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(arg)[MAX_ARGS];
+	);
+	__attribute__((unused))char *empty = NULL;
 	AGI agi;
 
 	if (ast_strlen_zero(data)) {
@@ -2025,9 +2029,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	ast_copy_string(buf, data, sizeof(buf));
 
 	memset(&agi, 0, sizeof(agi));
-        while ((stringp = strsep(&tmp, "|")) && argc < MAX_ARGS-1)
-		argv[argc++] = stringp;
-	argv[argc] = NULL;
+	AST_STANDARD_APP_ARGS(args, tmp);
+	args.argv[args.argc] = NULL;
 
 	u = ast_module_user_add(chan);
 #if 0
@@ -2039,13 +2042,13 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		}
 	}
 #endif
-	res = launch_script(argv[0], argv, fds, enhanced ? &efd : NULL, &pid);
+	res = launch_script(args.argv[0], args.argv, fds, enhanced ? &efd : NULL, &pid);
 	if (res == AGI_RESULT_SUCCESS) {
 		int status = 0;
 		agi.fd = fds[1];
 		agi.ctrl = fds[0];
 		agi.audio = efd;
-		res = run_agi(chan, argv[0], &agi, pid, &status, dead, argc, argv);
+		res = run_agi(chan, args.argv[0], &agi, pid, &status, dead, args.argc, args.argv);
 		/* If the fork'd process returns non-zero, set AGISTATUS to FAILURE */
 		if (res == AGI_RESULT_SUCCESS && status)
 			res = AGI_RESULT_FAILURE;

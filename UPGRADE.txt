@@ -96,3 +96,7 @@ Channel Drivers:
   user has not configured the automon feature, the normal "415 Unsupported media type"
   is returned, and nothing is done.
 
+* chan_local.c: the comma delimiter inside the channel name has been changed to a
+  semicolon, in order to make the Local channel driver compatible with the comma
+  delimiter change in applications.
+
