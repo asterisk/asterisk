@@ -3065,6 +3065,10 @@ static int skinny_hold(struct skinny_subchannel *sub)
 	struct skinnysession *s = d->session;
 	struct skinny_req *req;
 
+	/* Don't try to hold a channel that doesn't exist */
+	if (!sub || !sub->owner)
+		return 0;
+
 	/* Channel needs to be put on hold */
 	if (skinnydebug)
 		ast_verbose("Putting on Hold(%d)\n", l->instance);
@@ -3104,6 +3108,10 @@ static int skinny_unhold(struct skinny_subchannel *sub)
 	struct skinny_device *d = l->parent;
 	struct skinnysession *s = d->session;
 	struct skinny_req *req;
+
+	/* Don't try to unhold a channel that doesn't exist */
+	if (!sub || !sub->owner)
+		return 0;
 
 	/* Channel is on hold, so we will unhold */
 	if (skinnydebug)
