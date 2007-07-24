@@ -403,6 +403,7 @@ struct call_queue {
 	int autofill;                       /*!< Ignore the head call status and ring an available agent */
 	
 	struct member *members;             /*!< Head of the list of members */
+	int membercount;					/*!< Number of members in queue */
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
 };
@@ -743,6 +744,7 @@ static void init_queue(struct call_queue *q)
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
 	q->sound_callerannounce[0] = '\0';	/* Default, don't announce the caller that he has been answered */
+	q->membercount = 0;
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
 	ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
 	ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
@@ -1052,6 +1054,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 			} else {
 				q->members = m;
 			}
+			q->membercount++;
 		}
 	} else {
 		m->dead = 0;	/* Do not delete this one. */
@@ -1074,6 +1077,7 @@ static void free_members(struct call_queue *q, int all)
 			else
 				q->members = next;
 			remove_from_interfaces(curm->interface);
+			q->membercount--;
 			ast_free(curm);
 		} else
 			prev = curm;
@@ -1168,8 +1172,9 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		queue_set_param(q, tmp_name, v->value, -1, 0);
 	}
 
-	/* Temporarily set non-dynamic members dead so we can detect deleted ones. */
-	for (m = q->members; m; m = m->next) {
+	/* Temporarily set non-dynamic members dead so we can detect deleted ones. 
+	 * Also set the membercount correctly for realtime*/
+	for (m = q->members; m; m = m->next, q->membercount++) {
 		if (!m->dynamic)
 			m->dead = 1;
 	}
@@ -1193,6 +1198,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 				q->members = next_m;
 			}
 			remove_from_interfaces(m->interface);
+			q->membercount--;
 			ast_free(m);
 		} else {
 			prev_m = m;
@@ -2483,7 +2489,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
 			break;
 		case 'n':
-			*go_on = 1;
+			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY)
+				(*go_on)++;
+			else
+				*go_on = qe->parent->membercount;
 			break;
 		case 'i':
 			forwardsallowed = 0;
@@ -3001,10 +3010,12 @@ static int remove_from_queue(const char *queuename, const char *interface)
 		if ((last_member = interface_exists(q, interface))) {
 			if ((look = q->members) == last_member) {
 				q->members = last_member->next;
+				q->membercount--;
 			} else {
 				while (look != NULL) {
 					if (look->next == last_member) {
 						look->next = last_member->next;
+						q->membercount--;
 						break;
 					} else {
 						look = look->next;
@@ -3058,6 +3069,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 			new_member->dynamic = 1;
 			new_member->next = q->members;
 			q->members = new_member;
+			q->membercount++;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
@@ -3587,7 +3599,7 @@ check_turns:
 			stat = get_member_status(qe.parent, qe.max_penalty);
 
 			/* exit after 'timeout' cycle if 'n' option enabled */
-			if (go_on) {
+			if (go_on >= qe.parent->membercount) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
@@ -3738,7 +3750,6 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 {
 	int count = 0;
 	struct call_queue *q;
-	struct member *m;
 
 	buf[0] = '\0';
 	
@@ -3757,12 +3768,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 	AST_LIST_UNLOCK(&queues);
 
 	if (q) {
-		for (m = q->members; m; m = m->next) {
-			/* Count the agents who are logged in and presently answering calls */
-			if ((m->status != AST_DEVICE_UNAVAILABLE) && (m->status != AST_DEVICE_INVALID)) {
-				count++;
-			}
-		}
+		count = q->membercount;
 		ast_mutex_unlock(&q->lock);
 	} else
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
@@ -4019,6 +4025,7 @@ static int reload_queues(void)
 							newm->next = q->members;
 							q->members = newm;
 						}
+						q->membercount++;
 					} else {
 						queue_set_param(q, var->name, var->value, var->lineno, 1);
 					}
@@ -4041,6 +4048,7 @@ static int reload_queues(void)
 						q->members = next;
 
 					remove_from_interfaces(cur->interface);
+					q->membercount--;
 					ast_free(cur);
 				}
 
