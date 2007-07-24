@@ -273,7 +273,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 		}
 	} else {
 		__ast_mutex_logger("%s line %d (%s): Error obtaining mutex: %s\n",
-				   filename, lineno, func, strerror(errno));
+				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	}
 
