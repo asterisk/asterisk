@@ -1267,37 +1267,49 @@ static struct skinny_line *find_line_by_instance(struct skinny_device *d, int in
 static struct skinny_line *find_line_by_name(const char *dest)
 {
 	struct skinny_line *l;
+	struct skinny_line *tmpl = NULL;
 	struct skinny_device *d;
 	char line[256];
 	char *at;
 	char *device;
+	int checkdevice = 0;
 
 	ast_copy_string(line, dest, sizeof(line));
 	at = strchr(line, '@');
-	if (!at) {
-		ast_log(LOG_NOTICE, "Device '%s' has no @ (at) sign!\n", dest);
-		return NULL;
-	}
-	*at++ = '\0';
+	if (at)
+		*at++ = '\0';
 	device = at;
+
+	if (!ast_strlen_zero(device))
+		checkdevice = 1;
+
 	ast_mutex_lock(&devicelock);
 	for (d = devices; d; d = d->next) {
-		if (!strcasecmp(d->name, device)) {
+		if (checkdevice && tmpl)
+			break;
+		else if (!checkdevice) {
+			/* This is a match, since we're checking for line on every device. */
+		} else if (!strcasecmp(d->name, device)) {
 			if (skinnydebug)
-				ast_verbose("Found device: %s\n", d->name);
-			/* Found the device */
-			for (l = d->lines; l; l = l->next) {
-				/* Search for the right line */
-				if (!strcasecmp(l->name, line)) {
+				ast_verbose(VERBOSE_PREFIX_2 "Found device: %s\n", d->name);
+		} else
+			continue;
+
+		/* Found the device (or we don't care which device) */
+		for (l = d->lines; l; l = l->next) {
+			/* Search for the right line */
+			if (!strcasecmp(l->name, line)) {
+				if (tmpl) {
+					ast_verbose(VERBOSE_PREFIX_2 "Ambiguous line name: %s\n", line);
 					ast_mutex_unlock(&devicelock);
-					return l;
-				}
+					return NULL;
+				} else
+					tmpl = l;
 			}
 		}
 	}
-	/* Device not found */
 	ast_mutex_unlock(&devicelock);
-	return NULL;
+	return tmpl;
 }
 
 /* It's quicker/easier to find the subchannel when we know the instance number too */
