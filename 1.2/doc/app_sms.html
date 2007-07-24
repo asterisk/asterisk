@@ -1,0 +1,834 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+</head>
+<body>
+<h1>* Application SMS</h1>
+The SMS module for asterisk was developed by Adrian Kennard, and is an
+implementation of the ETSI specification for landline SMS, ETSI ES 201
+912, which is available from www.etsi.org. Landline SMS is starting to
+be available in various parts of Europe, and is available from BT in
+the UK. However, asterisk would allow gateways to be created in other
+locations such as the US, and use of SMS capable phones such as the
+Magic Messenger. SMS works using analogue or ISDN lines.<br>
+<h2>Background</h2>
+Short Message Service (SMS), or <span style="font-style: italic;">texting</span>
+is very popular between mobile phones. A message can be sent between
+two phones, and normally contains 160 characters. There are ways in
+which various types of data can be encoded in a text message such as
+ring tones, and small graphic, etc. Text messaging is being used for
+voting and competitions, and also SPAM...<br>
+<br>
+Sending a message involves the mobile phone contacting a message centre
+(SMSC) and passing the message to it. The message centre then contacts
+the destination mobile to deliver the message. The SMSC is responsible
+for storing the message and trying to send it until the destination
+mobile is available, or a timeout.<br>
+<br>
+Landline SMS works in basically the same way. You would normally have a
+suitable text capable landline phone, or a separate texting box such as
+a Magic Messenger on your phone line. This sends a message to a message
+centre your telco provides by making a normal call and sending the data
+using 1200 Baud FSK signaling according to the ETSI spec. To receive a
+message the message centre calls the line with a specific calling
+number, and the text capable phone answers the call and receives the
+data using 1200 Baud FSK signaling. This works particularly well in the
+UK as the calling line identity is sent before the first ring, so no
+phones in the house would ring when a message arrives.<br>
+<h2>Typical use with asterisk</h2>
+Sending messages from an asterisk box can be used for a variety of
+reasons, including notification from any monitoring systems, email
+subject lines, etc.<br>
+Receiving messages to an asterisk box is typically used just to email
+the messages to someone appropriate - we email and texts that are
+received to our direct numbers to the appropriate person. Received
+messages could also be used to control applications, manage
+competitions, votes, post items to IRC, anything.<br>
+Using a terminal such as a magic messenger, an asterisk box could ask
+as a message centre sending messages to the terminal, which will beep
+and pop up the message (and remember 100 or so messages in its memory).<br>
+<h2>Terminology</h2>
+<table style="text-align: left;" border="1" cellpadding="2"
+ cellspacing="2">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top;">SMS<br>
+      </td>
+      <td style="vertical-align: top;">Short Message Service<br>
+      </td>
+      <td style="vertical-align: top;">i.e. text messages<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">SMSC<br>
+      </td>
+      <td style="vertical-align: top;">Short Message Service Centre<br>
+      </td>
+      <td style="vertical-align: top;">The system responsible for
+storing and forwarding messages<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">MO<br>
+      </td>
+      <td style="vertical-align: top;">Mobile Originated<br>
+      </td>
+      <td style="vertical-align: top;">A message on its way from a
+mobile or landline device to the SMSC<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">MT<br>
+      </td>
+      <td style="vertical-align: top;">Mobile Terminated<br>
+      </td>
+      <td style="vertical-align: top;">A message on its way from the
+SMSC to the mobile or landline device<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">RX<br>
+      </td>
+      <td style="vertical-align: top;">Receive<br>
+      </td>
+      <td style="vertical-align: top;">A message coming in to the
+asterisk box<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">TX<br>
+      </td>
+      <td style="vertical-align: top;">Transmit<br>
+      </td>
+      <td style="vertical-align: top;">A message going out of the
+asterisk box<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2>Sub address</h2>
+When sending a message to a landline, you simply send to the landline
+number. In the UK, all of the mobile operators (bar one) understand
+sending messages to landlines and pass the messages to the BTText
+system for delivery to the landline.<br>
+<br>
+The specification for landline SMS allows for the possibility of more
+than one device on a single landline. These can be configured with <span
+ style="font-style: italic;">Sub addresses</span> which are a single
+digit. To send a message to a specific device the message is sent to
+the landline number with an extra digit appended to the end. The telco
+can define a default sub address (9 in the UK) which is used when the
+extra digit is not appended to the end. When the call comes in, part of
+the calling line ID is the sub address, so that only one device on the
+line answers the call and receives the message.<br>
+<br>
+Sub addresses also work for outgoing messages. Part of the number
+called by the device to send a message is its sub address. Sending from
+the default sub address (9 in the UK) means the message is delivered
+with the <span style="font-style: italic;">sender </span>being the
+normal landline number. Sending from any other sub address makes the <span
+ style="font-style: italic;">sender</span> the landline number with an
+extra digit on the end.<br>
+<br>
+Using asterisk, you can make use of the sub addresses for sending and
+receiving messages. Using DDI (DID, i.e. multiple numbers on the line
+on ISDN) you can also make use of many different numbers for SMS.<br>
+<h2>Build / installation</h2>
+<span style="font-weight: bold;">app_sms.c</span> is included in the
+latest cvs. It lives in the asterisk source <span
+ style="font-weight: bold;">apps</span> directory and is included in
+the object list (<span style="font-weight: bold;">app_sms.so</span>) in
+<span style="font-weight: bold;">apps/Makefile</span>.<br>
+<span style="font-weight: bold;">smsq.c</span> is a stand alone helper
+application which is used to send SMSs from the command line. It uses
+the <span style="font-weight: bold;">popt</span> library. A line for
+your make file is:-<br>
+<pre>smsq: smsq.c<br>	cc -O -o smsq smsq.c -lpopt<br></pre>
+<span style="font-family: monospace;"></span>
+<h2>extensions.conf</h2>
+The following contexts are recommended.<br>
+<pre>; Mobile Terminated, RX. This is used when an incoming call from the SMS arrives, with the queue (called number and sub address) in ${EXTEN}<br>; Running an app after receipt of the text allows the app to find all messages in the queue and handle them, e.g. email them.<br>; The app may be something like   smsq --process=somecommand --queue=${EXTEN}  to run a command for each received message<br>; See below for usage<br>[smsmtrx]<br>exten = _X.,1, SMS(${EXTEN}|a)<br>exten = _X.,2,System("someapptohandleincomingsms ${EXTEN}")<br>exten = _X.,3,Hangup<br><br>; Mobile originated, RX. This is receiving a message from a device, e.g. a Magic Messenger on a sip extension<br>; Running an app after receipt of the text allows the app to find all messages in the queue and handle then, e.g. sending them to the public SMSC<br>; The app may be something like   smsq --process=somecommand --queue=${EXTEN}  to run a command for each received message<br>; See below for example usage<br>[smsmorx]<br>exten = _X.,1, SMS(${EXTEN}|sa)<br>exten = _X.,2,System("someapptohandlelocalsms ${EXTEN}")<br>exten = _X.,3,Hangup<span
+ style="font-family: sans-serif;"></span><span
+ style="font-family: sans-serif;"></span></pre>
+<span style="font-family: sans-serif;"></span><span
+ style="font-weight: bold;">smsmtrx</span> is normally accessed by an
+incoming call from the SMSC. In the UK this call is from a CLI of
+080058752X0 where X is the sub address. As such a typical usage in the
+extensions.conf at the point of handling an incoming call is:-<br>
+<pre>exten = _X./8005875290,1,Goto(smsmtrx,${EXTEN},1)<br>exten = _X./_80058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERIDNUM:8:1},1)<br></pre>
+Alternatively, if you have the correct national prefix on incoming CLI,
+e.g. using zaphfc, you might use:-<br>
+<pre>exten = _X./08005875290,1,Goto(smsmtrx,${EXTEN},1)<br>exten = _X./_080058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERIDNUM:9:1},1)</pre>
+<span style="font-weight: bold;">smsmorx</span> is normally accessed by
+a call from a local sip device connected to a Magic Messenger. It could
+however by that you are operating asterisk as a message centre for
+calls from outside. Either way, you look at the called number and goto
+smsmorx. In the UK, the SMSC number that would be dialed is 1709400X
+where X is the caller sub address. As such typical usage in
+extension.config at the point of handling a call from a sip phone is:-<br>
+<pre>exten = 17094009,1,Goto(smsmorx,${CALLERIDNUM},1)<br>exten = _1709400[0-8],1,Goto(smsmorx,${CALLERIDNUM}-{EXTEN:7:1},1)<br></pre>
+<h2>Using smsq</h2>
+<span style="font-weight: bold;">smsq</span> is a simple helper
+application designed to make it easy to send messages from a command
+line. it is intended to run on the asterisk box and have direct access
+to the queue directories for SMS and for asterisk.<br>
+<br>
+In its simplest form you can send an SMS by a command such as <br>
+<br>
+smsq 0123456789 This is a test to 0123456789<br>
+<br>
+This would create a queue file for a mobile originated TX message in
+queue 0 to send the text "This is a test to 0123456789" to 0123456789.
+It would then place a file in the /var/spool/asterisk/outgoing
+directory to initiate a call to 17094009 (the default message centre in
+smsq) attached to application SMS with argument of the queue name (0).<br>
+<br>
+Normally smsq will queue a message ready to send, and will then create
+a file in the asterisk outgoing directory causing asterisk to actually
+connect to the message centre or device and actually send the pending
+message(s).<br>
+<br>
+Using --process, smsq can however be used on received queues to run a
+command for each file (matching the queue if specified) with various
+environment variables set based on the message (see below);<br>
+<br>
+smsq options:-<br>
+<br>
+<table style="text-align: left;" border="1" cellpadding="2"
+ cellspacing="2">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top;">--help</td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Show help text<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--usage<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Show usage<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--queue<br>
+      </td>
+      <td style="vertical-align: top;">-q<br>
+      </td>
+      <td style="vertical-align: top;">Specify a specific queue<br>
+In no specified, messages are queued under queue "0"<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--da<br>
+      </td>
+      <td style="vertical-align: top;">-d<br>
+      </td>
+      <td style="vertical-align: top;">Specify destination address<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--oa<br>
+      </td>
+      <td style="vertical-align: top;">-o<br>
+      </td>
+      <td style="vertical-align: top;">Specify originating address<br>
+This also implies that we are generating a mobile terminated message<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--ud<br>
+      </td>
+      <td style="vertical-align: top;">-m<br>
+      </td>
+      <td style="vertical-align: top;">Specify the actual message<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--ud-file<br>
+      </td>
+      <td style="vertical-align: top;">-f<br>
+      </td>
+      <td style="vertical-align: top;">Specify a file to be read for
+the context of the message<br>
+A blank filename (e.g. --ud-file= on its own) means read stdin. Very
+useful when using via ssh where command line parsing could mess up the
+message.<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mt<br>
+      </td>
+      <td style="vertical-align: top;">-t<br>
+      </td>
+      <td style="vertical-align: top;">Mobile terminated message to be
+generated<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mo<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Mobile originated message to be
+generated<br>
+Default<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--tx<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Transmit message<br>
+Default<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--rx<br>
+      </td>
+      <td style="vertical-align: top;">-r<br>
+      </td>
+      <td style="vertical-align: top;">Generate a message in the
+receive queue<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--UTF-8<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Treat the file as UTF-8 encoded
+(default) </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--UCS-1<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Treat the file as raw 8 bit
+UCS-1 data, not UTF-8 encoded<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--UCS-2<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Treat the file as raw 16 bit
+bigendian USC-2 data<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--process<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specific a command to process
+for each file in the queue<br>
+Implies --rx and --mt if not otherwise specified.<br>
+Sets environment variables for every possible variable,
+and also ud, ud8 (USC-1 hex), and ud16 (USC-2 hex) for each call.
+Removes files.<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--motx-channel<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specify the channel for motx
+calls<br>
+May contain X to use sub address based on queue name or may be full
+number<br>
+Default is Local/1709400X<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--motx-callerid<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specify the caller ID for motx
+calls<br>
+The default is the queue name without -X suffix<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--motx-wait<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Wait time for motx call<br>
+Default 10<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--motx-delay<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Retry time for motx call<br>
+Default 1<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--motx-retries<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Retries for motx call<br>
+Default 10<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mttx-channel<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specify the channel for mttx
+calls<br>
+Default is Local/ and the queue name without -X suffix<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mtttx-callerid<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specify the callerid for mttx
+calls<br>
+May include X to use sub address based on queue name or may be full
+number<br>
+Default is 080058752X0<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mttx-wait<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Wait time for mttx call<br>
+Default 10<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mttx-delay<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Retry time for mttx call<br>
+Default 30<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mttx-retries<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Retries for mttx call<br>
+Default 100<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--default-sub-address<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">The default sub address assumed
+(e.g. for X in CLI and dialled numbers as above) when none added (-X)
+to queue<br>
+Default 9<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--no-dial<br>
+      </td>
+      <td style="vertical-align: top;">-x<br>
+      </td>
+      <td style="vertical-align: top;">Create queue, but do not dial to
+send message<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--no-wait<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Do not wait if a call appears to
+be in progress<br>
+This could have a small window where a mesdsage is queued but not sent,
+so regular calls to smsq should be done to pick up any missed messages<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--concurrent<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">How many concurrent calls to
+allow (per queue), default 1<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--mr<br>
+      </td>
+      <td style="vertical-align: top;">-n<br>
+      </td>
+      <td style="vertical-align: top;">Message reference<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--pid<br>
+      </td>
+      <td style="vertical-align: top;">-p<br>
+      </td>
+      <td style="vertical-align: top;">Protocol ID<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--dcs<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Data coding scheme<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--udh<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specific hex string of user data
+header specified (not including the initial length byte)<br>
+May be a blank string to indicate header is included in the user data
+already but user data header indication to be set.<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--srr<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Status report requested<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--rp<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Return path requested<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--vp<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specify validity period (seconds)<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--scts<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Specify timestamp
+(YYYY-MM-DDTHH:MM:SS)<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">--spool-dir<br>
+      </td>
+      <td style="vertical-align: top;"><br>
+      </td>
+      <td style="vertical-align: top;">Spool dir (in which sms and
+outgoing are found)<br>
+Default /var/spool/asterisk<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<p>Other arguments starting '-' or '--' are invalid and will cause an
+error. Any trailing arguments are processed as follows:-<br>
+</p>
+<ul>
+  <li>If the message is mobile originating and no destination address
+has been specified, then the first argument is assumed to be a
+destination address</li>
+  <li>If the message is mobile terminating and no destination address
+has been specified, then the first argument is assumed to be the queue
+name</li>
+  <li>If there is no user data, or user data file specified, then any
+following arguments are assumed to be the message, which are
+concatenated.</li>
+  <li>If no user data is specified, then no message is sent. However,
+unless --no-dial is specified, smsq checks for pending messages and
+generates an outgoing anyway</li>
+</ul>
+Note that when smsq attempts to make a file in
+/var/spool/asterisk/outgoing, it checks if there is already a call
+queued for that queue. It will try several filenames, up to the
+--concorrent setting. If these files
+exists, then this means asterisk is already queued to send all messages
+for that queue, and so asterisk should pick up the message just queued.
+However, this alone could create a race condition, so if the files
+exist then smsq will wait up to 3 seconds to confirm it still exists or
+if the queued messages have been sent already.
+The --no-wait turns off this behaviour. Basically, this means that if
+you have a lot of messages to send all at
+once, asterisk will not make unlimited concurrent calls to the same
+message centre or device for the same queue. This is because it is
+generally more efficient to make one call and send all of the messages
+one after the other.<br>
+<br>
+smsq can be used with no arguments, or with a queue name only, and it
+will check for any pending messages and cause an outgoing if there are
+any. It only sets up one outgoing call at a time based on the first
+queued message it finds. A outgoing call will normally send all queued
+messages for that queue. One way to use smsq would be to run with no
+queue name (so any queue) every minute or every few seconds to send
+pending message. This is not normally necessary unless --no-dial is
+selected. Note that smsq does only check motx or mttx depending on the
+options selected, so it would need to be called twice as a general
+check.<br>
+<br>
+UTF-8 is used to parse command line arguments for user data, and is the
+default when reading a file. If an invalid UTF-8 sequence is found, it
+is treated as UCS-1 data (i.e, as is).<br>
+<br>
+The --process option causes smsq to scan the specified queue (default
+is mtrx) for messages (matching the queue specified, or any if queue
+not specified) and run a command and delete the file. The command is
+run with a number of environment variables set as follows. Note that
+these are unset if not needed and not just taken from the calling
+environment. This allows simple processing of incoming messages<br>
+<br>
+<table style="text-align: left;" border="1" cellpadding="2"
+ cellspacing="2">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top;">$queue<br>
+      </td>
+      <td style="vertical-align: top;">Set if a queue specified<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">$?srr<br>
+      </td>
+      <td style="vertical-align: top;">srr is set (to blank) if srr
+defined and has value 1.<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">$?rp<br>
+      </td>
+      <td style="vertical-align: top;">rp is set (to blank) if rp
+defined and has value 1.<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">$ud<br>
+      </td>
+      <td style="vertical-align: top;">User data, UTF-8 encoding,
+including any control characters, but with nulls stripped out<br>
+Useful for the content of emails, for example, as it includes any
+newlines, etc.<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">$ude<br>
+      </td>
+      <td style="vertical-align: top;">User data, escaped UTF-8,
+including all characters, but control characters \n, \r, \t, \f, \xxx
+and \ is escaped as \\<br>
+Useful fGuaranteed one line printable text, so useful in Subject lines
+of emails, etc<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">$ud8<br>
+      </td>
+      <td style="vertical-align: top;">Hex UCS-1 coding of user data (2
+hex digits per character)<br>
+Present only if all user data is in range U+0000 to U+00FF<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">$ud16<br>
+      </td>
+      <td style="vertical-align: top;">Hex UCS-2 coding of user data (4
+hex digits per chartacter)<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;"><span style="font-style: italic;">other</span><br>
+      </td>
+      <td style="vertical-align: top;">Other fields set using their
+field name, e.g. mr, pid, dcs, etc. udh is a hex byte string<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<h2>File formats</h2>
+By default all queues are held in a director /var/spool/asterisk/sms.
+Within this directory are sub directories mtrx, mttx, morx, motx which
+hold the received messages and the messages ready to send. Also,
+/var/log/asterisk/sms is a log file of all messages handled.<br>
+<br>
+The file name in each queue directory starts with the queue parameter
+to SMS which is normally the CLI used for an outgoing message or the
+called number on an incoming message, and may have -X (X being sub
+address) appended. If no queue ID is known, then 0 is used by smsq by
+default. After this is a dot, and then any text. Files are scanned for
+matching queue ID and a dot at the start. This means temporary files
+being created can be given a different name not starting with a queue
+(we recommend a . on the start of the file name for temp files).<br>
+<br>
+Files in these queues are in the form of a simple text file where each
+line starts with a keyword and an = and then data. udh and ud have
+options for hex encoding, see below.<br>
+<br>
+UTF-8. The user data (ud) field is treated as being UTF-8 encoded
+unless the DCS is specified indicating 8 bit formart. If 8 bit format
+is specified then the user data is sent as is.<br>
+<br>
+The keywords are as
+follows:-<br>
+<table style="text-align: left;" border="1" cellpadding="2"
+ cellspacing="2">
+  <tbody>
+    <tr>
+      <td style="vertical-align: top;">oa</td>
+      <td style="vertical-align: top;">Originating address<br>
+The phone number from which the message came<br>
+Present on mobile terminated messages and is the CLI for morx messages<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">da<br>
+      </td>
+      <td style="vertical-align: top;">Destination Address<br>
+The phone number to which the message is sent<br>
+Present on mobile originated messages<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">scts<br>
+      </td>
+      <td style="vertical-align: top;">The service centre time stamp<br>
+Format YYYY-MM-DDTHH:MM:SS<br>
+Present on mobile terminated messages<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">pid<br>
+      </td>
+      <td style="vertical-align: top;">One byte decimal protocol ID<br>
+See GSM specs for more details<br>
+Normally 0 or absent<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">dcs<br>
+      </td>
+      <td style="vertical-align: top;">One byte decimal data coding
+scheme<br>
+If omitted, a sensible default is used (see below)<br>
+See GSM specs for more details<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">mr<br>
+      </td>
+      <td style="vertical-align: top;">One byte decimal message
+reference<br>
+Present on mobile originated messages, added by default if absent<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">srr<br>
+      </td>
+      <td style="vertical-align: top;">0 or 1 for status report request<br>
+Does not work in UK yet, not implemented in app_sms yet<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">rp<br>
+      </td>
+      <td style="vertical-align: top;">0 or 1 return path<br>
+See GSM specs for details<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">vp<br>
+      </td>
+      <td style="vertical-align: top;">Validity period in seconds<br>
+Does not work in UK yet<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">udh<br>
+      </td>
+      <td style="vertical-align: top;">Hex string of user data header
+prepended to the SMS contents, excluding initial length byte.<br>
+Consistent with ud, this is specified as udh# rather than udh=<br>
+If blank, this means that the udhi flag will be set but any user data
+header must be in the ud field<br>
+      </td>
+    </tr>
+    <tr>
+      <td style="vertical-align: top;">ud<br>
+      </td>
+      <td style="vertical-align: top;">User data, may be text, or hex,
+see below<br>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<br>
+udh is specified as as udh# followed by hex (2 hex digits per byte). If
+present, then the user data header indicator bit is set, and the length
+plus the user data header is added to the start of the user data, with
+padding if necessary (to septet boundary in 7 bit format).<br>
+<br>
+User data can hold an USC character codes U+0000 to U+FFFF. Any other
+characters are coded as U+FEFF<br>
+ud can be specified as ud= followed by UTF-8 encoded text if it
+contains no control characters, i.e. only (U+0020 to U+FFFF). Any
+invalid UTF-8 sequences are treated as is (U+0080-U+00FF).<br>
+ud can also be specified as ud# followed by hex (2 hex digits per byte)
+containing characters U+0000 to U+00FF only.<br>
+ud can also be specified as ud## followed by hex (4 hex digits per
+byte) containing UCS-2 characters.<br>
+When written by app_sms (e.g. incoming messages), the file is written
+with ud= if it can be (no control characters). If it cannot, the a
+comment line ;ud= is used to show the user data for human readability
+and ud# or ud## is used.<br>
+<h2>Delivery reports</h2>
+The SMS specification allows for delivery reports. These are requested
+using the srr bit. However, as these do not work in the UK yet they are
+not fully implemented in this application. If anyone has a telco that
+does implement these, please let me know. BT in the UK have a non
+standard way to do this by starting the message with *0#, and so this
+application may have a UK specific bodge in the near future to handle
+these.<br>
+<br>
+The main changes that are proposed for delivery report handling are :-<br>
+<ul>
+  <li>New queues for sent messages, one file for each destination
+address and message reference.</li>
+  <li>New field in message format, user reference, allowing
+applications to tie up their original message with a report.</li>
+  <li>Handling of the delivery confirmation/rejection and connecting to
+the outgoing message - the received message file would then have fields
+for the original outgoing message and user reference allowing
+applications to handle confirmations better.<br>
+  </li>
+</ul>
+<br>
+</body>
+</html>

@@ -1,0 +1,92 @@
+;
+; isdn4linux
+;
+; Configuration file
+;
+[interfaces]
+;
+; By default, incoming calls should come in on the "remote" context
+;
+context=remote
+;
+; Modem Drivers to load
+;
+driver=aopen	; modem by AOpen
+;driver=i4l	; isdn4linux - an alternative to i4l is to use chan_capi
+;
+; Default language
+;
+;language=en
+;
+; We can optionally override the auto detection.  This is necessary
+; particularly if asterisk does not know about our kind of modem.
+;
+;type=autodetect
+;type=aopen
+;
+; We can strip a given number of digits on outgoing dialing, so, for example
+; you can have it dial "8871042" when given "98871042".
+;
+stripmsd=0
+;
+; Type of dialing
+;
+dialtype=tone
+;dialtype=pulse
+;
+; Mode selection.  "Immediate" means that as soon as you dial, you're connected
+; and the line is considered up.  "Ring" means we wait until the ring cadence
+; occurs at least once.  "Answer" means we wait until the other end picks up. 
+;
+;mode=answer
+;mode=ring
+mode=immediate
+;
+; List all devices we can use.
+;
+;device => /dev/ttyS3
+;
+; ISDN example (using i4l)
+;
+;msn=39907835
+;device => /dev/ttyI0
+
+;===============
+; More complex ISDN example
+;
+; A single device which listens to 3 MSNs
+; the wildcard '*' can be used when all MSN's should be accepted.
+; (The incoming number can be used to go directly into the extension
+; with the matching number. I.e. if MSN 33 is called, (context,33)
+; will tried first, than (context,s) and finally (default,s).
+;
+;msn=50780020
+;incomingmsn=50780020,50780021,50780022
+;device => /dev/ttyI2
+;
+; If set, only these numbers are allowed to be set as A number
+; when making an outbound call. callerid is used to set A
+; number.
+;outgoingmsn=50780023,50780024
+;
+
+; Set DTMF-detection/generation mode to:
+;  asterisk: Let Asterisk do inband detection (default)
+;  i4l:      Use the inband detection made by ISDN4Linux
+;  none:     Don't detect inband DTMF
+;  both:     Transmit using both in-band and out of band (generation only)
+;
+; You may specify either one mode, or the detection/generation mode
+; individually separated by a '/'.
+;
+;dtmfmode=asterisk			; Detect using Asterisk
+;dtmfmode=asterisk/both		; Detect using Asterisk, generate w/ both
+; two other devices, which are in group '1' and are used when an
+; outgoing dial used: exten => s,1,Dial,Modem/g1:1234|60|r
+; (we do not need more outgoing devices, since ISDN2 has only 2 channels.)
+; Lines can be in more than one group (0-63); comma separated list.
+;
+group=1		; group=1,2,3,9-12
+;msn=50780023
+;device => /dev/ttyI3
+;device => /dev/ttyI4

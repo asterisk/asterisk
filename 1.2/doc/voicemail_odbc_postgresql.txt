@@ -1,0 +1,436 @@
+GETTING ODBC STORAGE WITH POSTGRESQL WORKING WITH VOICEMAIL
+
+
+1) Install PostgreSQL, PostgreSQL-devel, unixODBC, and unixODBC-devel, and
+PostgreSQL-ODBC.  Make sure PostgreSQL is listening on a TCP socket, and that
+you are using md5 authentication for the database user.  The line in my
+pg_hba.conf looks like:
+
+# "local" is for Unix domain socket connections only
+local   jsmith2     jsmith2                           md5
+local   all         all                               ident sameuser
+# IPv4 local connections:
+host    all         all         127.0.0.1/32          md5
+
+
+2) Make sure you have the PostgreSQL odbc driver setup in /etc/odbcinst.ini.
+Mine looks like:
+
+[PostgreSQL]
+Description     = ODBC for PostgreSQL
+Driver          = /usr/lib/libodbcpsql.so
+Setup           = /usr/lib/libodbcpsqlS.so
+FileUsage       = 1
+
+You can confirm that unixODBC is seeing the driver by typing:
+
+[jsmith2@localhost tmp]$ odbcinst -q -d
+[PostgreSQL]
+
+
+3) Setup a DSN in /etc/odbc.ini, pointing at the PostgreSQL database and
+driver.  Mine looks like:
+
+[testing]
+Description           = ODBC Testing
+Driver                = PostgreSQL
+Trace                 = No
+TraceFile             = sql.log
+Database              = jsmith2
+Servername            = 127.0.0.1
+UserName              = jsmith2
+Password              = supersecret
+Port                  = 5432
+ReadOnly              = No
+RowVersioning         = No
+ShowSystemTables      = No
+ShowOidColumn         = No
+FakeOidIndex          = No
+ConnSettings          =
+
+You can confirm that unixODBC sees your DSN by typing:
+
+[jsmith2@localhost tmp]$ odbcinst -q -s
+[testing]
+
+
+4) Test your database connectivity through ODBC.  If this doesn't work,
+something is wrong with your ODBC setup.
+
+[jsmith2@localhost tmp]$ echo "select 1" | isql -v testing
++---------------------------------------+
+| Connected!                            |
+|                                       |
+| sql-statement                         |
+| help [tablename]                      |
+| quit                                  |
+|                                       |
++---------------------------------------+
+SQL> +------------+
+| ?column?   |
++------------+
+| 1          |
++------------+
+SQLRowCount returns 1
+1 rows fetched
+
+If your ODBC connectivity to PostgreSQL isn't working, you'll see an error
+message instead, like this:
+
+[jsmith2@localhost tmp]$ echo "select 1" | isql -v testing
+[S1000][unixODBC]Could not connect to the server;
+Could not connect to remote socket.
+[ISQL]ERROR: Could not SQLConnect
+bash: echo: write error: Broken pipe
+
+5) Compile Asterisk with support for ODBC voicemail.  Go to your Asterisk
+source directory and edit apps/Makefile, and uncomment the two lines as shown
+below:
+
+#
+# If you have UnixODBC you can use ODBC voicemail
+# storage
+#
+# Uncomment to use ODBC storage
+CFLAGS+=-DUSE_ODBC_STORAGE
+# Uncomment for extended ODBC voicemail storage
+CFLAGS+=-DEXTENDED_ODBC_STORAGE
+# See doc/README.odbcstorage for more information
+
+Recompile Asterisk and install the new version.
+
+
+6) Once you've recompiled and re-installed Asterisk, check to make sure
+res_odbc.so has been compiled.
+
+localhost*CLI> show modules like res_odbc.so
+Module                         Description                              Use Count 
+res_odbc.so                    ODBC Resource                            0         
+1 modules loaded
+
+
+7) Now it's time to get Asterisk configured.  First, we need to tell Asterisk
+about our ODBC setup.  Open /etc/asterisk/res_odbc.conf and add the following:
+
+[postgres]
+enabled => yes
+dsn => testing
+pre-connect => yes
+
+8) At the Asterisk CLI, unload and then load the res_odbc.so module.  (You
+could restart Asterisk as well, but this way makes it easier to tell what's
+happening.)  Notice how it says it's connected to "postgres", which is our ODBC
+connection as defined in res_odbc.conf, which points to the "testing" DSN in
+ODBC.
+
+localhost*CLI> unload res_odbc.so
+Jan  2 21:19:36 WARNING[8130]: res_odbc.c:498 odbc_obj_disconnect: res_odbc: disconnected 0 from postgres [testing]
+Jan  2 21:19:36 NOTICE[8130]: res_odbc.c:589 unload_module: res_odbc unloaded.
+localhost*CLI> load res_odbc.so
+ Loaded /usr/lib/asterisk/modules/res_odbc.so => (ODBC Resource)
+  == Parsing '/etc/asterisk/res_odbc.conf': Found
+Jan  2 21:19:40 NOTICE[8130]: res_odbc.c:266 load_odbc_config: Adding ENV var: INFORMIXSERVER=my_special_database
+Jan  2 21:19:40 NOTICE[8130]: res_odbc.c:266 load_odbc_config: Adding ENV var: INFORMIXDIR=/opt/informix
+Jan  2 21:19:40 NOTICE[8130]: res_odbc.c:295 load_odbc_config: registered database handle 'postgres' dsn->[testing]
+Jan  2 21:19:40 NOTICE[8130]: res_odbc.c:555 odbc_obj_connect: Connecting postgres
+Jan  2 21:19:40 NOTICE[8130]: res_odbc.c:570 odbc_obj_connect: res_odbc: Connected to postgres [testing]
+Jan  2 21:19:40 NOTICE[8130]: res_odbc.c:600 load_module: res_odbc loaded.
+
+You can also check the status of your ODBC connection at any time from the
+Asterisk CLI:
+
+localhost*CLI> odbc show
+Name: postgres 
+DSN: testing
+Connected: yes
+
+9) Now we can setup our voicemail table in PostgreSQL.  Log into PostgreSQL and
+type (or copy and paste) the following:
+
+--
+-- First, let's create our large object type, called "lo"
+--
+CREATE FUNCTION loin (cstring) RETURNS lo AS 'oidin' LANGUAGE internal IMMUTABLE STRICT;
+CREATE FUNCTION loout (lo) RETURNS cstring AS 'oidout' LANGUAGE internal IMMUTABLE STRICT;
+CREATE FUNCTION lorecv (internal) RETURNS lo AS 'oidrecv' LANGUAGE internal IMMUTABLE STRICT;
+CREATE FUNCTION losend (lo) RETURNS bytea AS 'oidrecv' LANGUAGE internal IMMUTABLE STRICT;
+
+CREATE TYPE lo ( INPUT = loin, OUTPUT = loout, RECEIVE = lorecv, SEND = losend, INTERNALLENGTH = 4, PASSEDBYVALUE );
+CREATE CAST (lo AS oid) WITHOUT FUNCTION AS IMPLICIT;
+CREATE CAST (oid AS lo) WITHOUT FUNCTION AS IMPLICIT;
+
+--
+-- If we're not already using plpgsql, then let's use it!
+--
+CREATE TRUSTED LANGUAGE plpgsql;
+
+--
+-- Next, let's create a trigger to cleanup the large object table
+-- whenever we update or delete a row from the voicemessages table
+--
+
+CREATE FUNCTION vm_lo_cleanup() RETURNS "trigger"
+    AS $$
+    declare
+      msgcount INTEGER;
+    begin
+      --    raise notice 'Starting lo_cleanup function for large object with oid %',old.recording;
+      -- If it is an update action but the BLOB (lo) field was not changed, dont do anything
+      if (TG_OP = 'UPDATE') then
+        if ((old.recording = new.recording) or (old.recording is NULL)) then
+          raise notice 'Not cleaning up the large object table, as recording has not changed';
+          return new;
+        end if;
+      end if;
+      if (old.recording IS NOT NULL) then
+        SELECT INTO msgcount COUNT(*) AS COUNT FROM voicemessages WHERE recording = old.recording;
+        if (msgcount > 0) then
+          raise notice 'Not deleting record from the large object table, as object is still referenced';
+          return new;
+        else
+          perform lo_unlink(old.recording);
+          if found then
+            raise notice 'Cleaning up the large object table';
+            return new;
+          else
+            raise exception 'Failed to cleanup the large object table';
+            return old;
+          end if;
+        end if;
+      else
+        raise notice 'No need to cleanup the large object table, no recording on old row';
+        return new;
+      end if;
+    end$$
+    LANGUAGE plpgsql;
+
+--
+-- Now, let's create our voicemessages table
+-- This is what holds the voicemail from Asterisk
+--
+
+CREATE TABLE voicemessages
+(
+  uniqueid serial PRIMARY KEY,
+  msgnum int4,
+  dir varchar(80),
+  context varchar(80),
+  macrocontext varchar(80),
+  callerid varchar(40),
+  origtime varchar(40),
+  duration varchar(20),
+  mailboxuser varchar(80),
+  mailboxcontext varchar(80),
+  recording lo,
+  label varchar(30),
+  "read" bool DEFAULT false
+);
+
+--
+-- Let's not forget to make the voicemessages table use the trigger
+--
+
+CREATE TRIGGER vm_cleanup AFTER DELETE OR UPDATE ON voicemessages FOR EACH ROW EXECUTE PROCEDURE vm_lo_cleanup();
+
+
+10) Just as a sanity check, make sure you check the voicemessages table via the
+isql utility.
+
+[jsmith2@localhost ODBC]$ echo "SELECT id, msgnum, dir, duration FROM voicemessages WHERE msgnum = 1" | isql testing
++---------------------------------------+
+| Connected!                            |
+|                                       |
+| sql-statement                         |
+| help [tablename]                      |
+| quit                                  |
+|                                       |
++---------------------------------------+
+SQL> +------------+------------+---------------------------------------------------------------------------------+---------------------+
+| id         | msgnum     | dir                                                                             | duration            |
++------------+------------+---------------------------------------------------------------------------------+---------------------+
++------------+------------+---------------------------------------------------------------------------------+---------------------+
+SQLRowCount returns 0
+
+
+11) Now we can finally configure voicemail in Asterisk to use our database.
+Open /etc/asterisk/voicemail.conf, and look in the [general] section.  I've
+changed the format to gsm (as I can't seem to get WAV or wav working), and
+specify both the odbc connection and database table to use.
+
+[general]
+; Default formats for writing Voicemail
+;format=g723sf|wav49|wav
+format=gsm
+odbcstorage=postgres
+odbctable=voicemessages
+
+You'll also want to create a new voicemail context called "odbctest" to do some
+testing, and create a sample mailbox inside that context.  Add the following to
+the very bottom of voicemail.conf:
+
+[odbctest]
+101 => 5555,Example Mailbox
+
+
+12) Once you've updated voicemail.conf, let's make the changes take effect:
+
+localhost*CLI> unload app_voicemail.so
+  == Unregistered application 'VoiceMail'
+  == Unregistered application 'VoiceMailMain'
+  == Unregistered application 'MailboxExists'
+  == Unregistered application 'VMAuthenticate'
+localhost*CLI> load app_voicemail.so
+ Loaded /usr/lib/asterisk/modules/app_voicemail.so => (Comedian Mail (Voicemail System))
+  == Registered application 'VoiceMail'
+  == Registered application 'VoiceMailMain'
+  == Registered application 'MailboxExists'
+  == Registered application 'VMAuthenticate'
+  == Parsing '/etc/asterisk/voicemail.conf': Found
+
+You can check to make sure your new mailbox exists by typing:
+
+localhost*CLI> show voicemail users for odbctest 
+Context    Mbox  User                      Zone       NewMsg
+odbctest   101   Example Mailbox                           0
+
+
+13) Now, let's add a new context called "odbc" to extensions.conf.  We'll use
+these extensions to do some testing:
+
+[odbc]
+exten => 100,1,Voicemail(101@odbctest)
+exten => 200,1,VoicemailMain(101@odbctest)
+
+
+14) Next, we need to point a phone at the odbc context.  In my case, I've got a
+SIP phone called "linksys" that is registering to Asterisk, so I'm setting its
+context to the [odbc] context we created in the previous step.  The relevant
+section of my sip.conf file looks like:
+
+[linksys]
+type=friend
+secret=verysecret
+disallow=all
+allow=ulaw
+allow=gsm
+context=odbc
+host=dynamic
+qualify=yes
+
+I can check to see that my linksys phone is registered with Asterisk correctly:
+
+localhost*CLI> sip show peers like linksys
+Name/username              Host            Dyn Nat ACL Port     Status    
+linksys/linksys            192.168.0.103    D          5060     OK (9 ms) 
+1 sip peers [1 online , 0 offline]
+
+
+15) At last, we're finally ready to leave a voicemail message and have it
+stored in our database!  (Who'd have guessed it would be this much trouble?!?)
+Pick up the phone, dial extension 100, and leave yourself a voicemail message.
+In my case, this is what appeared on the Asterisk CLI:
+
+localhost*CLI> 
+    -- Executing VoiceMail("SIP/linksys-10228cac", "101@odbctest") in new stack
+    -- Playing 'vm-intro' (language 'en')
+    -- Playing 'beep' (language 'en')
+    -- Recording the message
+    -- x=0, open writing:  /var/spool/asterisk/voicemail/odbctest/101/tmp/dlZunm format: gsm, 0x101f6534
+    -- User ended message by pressing #
+    -- Playing 'auth-thankyou' (language 'en')
+  == Parsing '/var/spool/asterisk/voicemail/odbctest/101/INBOX/msg0000.txt': Found
+
+Now, we can check the database and make sure the record actually made it into
+PostgreSQL, from within the psql utility.
+
+[jsmith2@localhost ~]$ psql
+Password: 
+Welcome to psql 8.1.4, the PostgreSQL interactive terminal.
+
+Type:  \copyright for distribution terms
+       \h for help with SQL commands
+       \? for help with psql commands
+       \g or terminate with semicolon to execute query
+       \q to quit
+
+jsmith2=# SELECT * FROM voicemessages;
+ id | msgnum |                       dir                        | context | macrocontext |       callerid        |  origtime  | duration | mailboxuser | mailboxcontext | recording | label | read | sip_id | pabx_id | iax_id 
+----+--------+--------------------------------------------------+---------+--------------+-----------------------+------------+----------+-------------+----------------+-----------+-------+------+--------+---------+--------
+ 26 |      0 | /var/spool/asterisk/voicemail/odbctest/101/INBOX | odbc    |              | "linksys" <linksys> | 1167794179 | 7        | 101         | odbctest       | 16599     |       | f    |        |         |       
+(1 row)
+
+Did you notice the the recording column is just a number?  When a recording
+gets stuck in the database, the audio isn't actually stored in the
+voicemessages table.  It's stored in a system table called the large object
+table.  We can look in the large object table and verify that the object
+actually exists there:
+
+jsmith2=# \lo_list
+    Large objects
+  ID   | Description 
+-------+-------------
+ 16599 | 
+(1 row)
+
+In my case, the OID is 16599.  Your OID will almost surely be different.  Just
+make sure the OID number in the recording column in the voicemessages table
+corresponds with a record in the large object table.  (The trigger we added to
+our voicemessages table was designed to make sure this is always the case.)
+
+We can also pull a copy of the voicemail message back out of the database and
+write it to a file, to help us as we debug things:
+
+jsmith2=# \lo_export 16599 /tmp/odcb-16599.gsm
+lo_export
+
+We can even listen to the file from the Linux command line:
+
+[jsmith2@localhost tmp]$ play /tmp/odcb-16599.gsm
+
+Input Filename : /tmp/odcb-16599.gsm
+Sample Size    : 8-bits
+Sample Encoding: gsm
+Channels       : 1
+Sample Rate    : 8000
+
+Time: 00:06.22 [00:00.00] of 00:00.00 (  0.0%) Output Buffer: 298.36K
+
+Done.
+
+
+16) Last but not least, we can pull the voicemail message back out of the
+database by dialing extension 200 and entering "5555" at the password prompt.
+You should see something like this on the Asterisk CLI:
+
+localhost*CLI> 
+    -- Executing VoiceMailMain("SIP/linksys-10228cac", "101@odbctest") in new stack
+    -- Playing 'vm-password' (language 'en')
+    -- Playing 'vm-youhave' (language 'en')
+    -- Playing 'digits/1' (language 'en')
+    -- Playing 'vm-INBOX' (language 'en')
+    -- Playing 'vm-message' (language 'en')
+    -- Playing 'vm-onefor' (language 'en')
+    -- Playing 'vm-INBOX' (language 'en')
+    -- Playing 'vm-messages' (language 'en')
+    -- Playing 'vm-opts' (language 'en')
+    -- Playing 'vm-first' (language 'en')
+    -- Playing 'vm-message' (language 'en')
+  == Parsing '/var/spool/asterisk/voicemail/odbctest/101/INBOX/msg0000.txt': Found
+    -- Playing 'vm-received' (language 'en')
+    -- Playing 'digits/at' (language 'en')
+    -- Playing 'digits/10' (language 'en')
+    -- Playing 'digits/16' (language 'en')
+    -- Playing 'digits/p-m' (language 'en')
+    -- Playing '/var/spool/asterisk/voicemail/odbctest/101/INBOX/msg0000' (language 'en')
+    -- Playing 'vm-advopts' (language 'en')
+    -- Playing 'vm-repeat' (language 'en')
+    -- Playing 'vm-delete' (language 'en')
+    -- Playing 'vm-toforward' (language 'en')
+    -- Playing 'vm-savemessage' (language 'en')
+    -- Playing 'vm-helpexit' (language 'en')
+    -- Playing 'vm-goodbye' (language 'en')
+
+That's it!
+
+Jared Smith
+2 Jan 2006

@@ -1,0 +1,142 @@
+		Open H.323 Channel Driver for Asterisk
+	  	        By Jeremy McNamara  
+		        For The NuFone Network
+
+	     First public release on November 10th, 2002
+
+		Dependancies:	openssl-0.9.6b+
+				openssl-devel-0.9.6b+
+	       			expat-1.95+
+	       			expat-dev-1.95+
+
+Tested with Open H.323 version v1.17.1, PWLib v1.9.0 and GCC v3.2.2. Usage of any
+other versions is not supported. 
+
+NOTICE: Whatever you do, DO NOT USE distrubution specific installs
+of Open H.323 and PWLib. In fact, you should check to make sure 
+your distro did not install them for you without your knowledge.
+
+
+To compile this code
+--------------------
+Once PWLib and Open H.323 have been compiled per their specific build
+instructions, issue a make in the asterisk/channels/h323 directory with
+argument used to build PWLib and OpenH323 (for example, make opt), then go
+back to the Asterisk source top level directory and issue a make install.
+
+
+The most common compile error  
+----------------------------
+If you receive ANYTHING that says 'undefined symbol' you are experiencing
+typical version skew.  For example:
+
+libh323_linux_x86_r.so.1: undefined symbol: GetNumberValueAt__C14PAbstractArrayi
+
+You need to search and destroy every version of libh323 and libpt then 
+completely recompile everything
+
+Example commands to make sure everything gets cleaned and then
+rebult in proper order:
+
+cd /path/to/pwlib
+./configure
+make clean opt
+cd /path/to/openh323
+./configure
+make clean opt 
+cd /path/to/asterisk/channels/h323
+make opt
+cd /path/to/asterisk
+make install 
+
+
+Most common run-time error
+-------------------------
+libpt_linux_x86_r.so.1: cannot open shared object file: No such 
+file or directory
+
+You have not set the LD_LIBRARY_PATH environment variable.
+
+Example environment for sh/bash:
+
+PWLIBDIR=$HOME/pwlib
+export PWLIBDIR
+OPENH323DIR=$HOME/openh323
+export OPENH323DIR
+LD_LIBRARY_PATH=$PWLIBDIR/lib:$OPENH323DIR/lib
+export LD_LIBRARY_PATH
+
+We recomend puting the above directives into your /etc/profile so 
+you do not have to remember to export those values every time you 
+want to recompile. Make sure to logout and log back in, so your
+envrionment can pick up the new variables.
+
+
+Upgrading Asterisk
+-----------------
+After you cvs update (or make update) Asterisk you have to go into
+asterisk/channels/h323 and issue a make clean all, before compiling the
+rest of asterisk. Doing this process every time you upgrade Asterisk
+will ensure a sane build.
+
+
+Dialing an H.323 channel
+------------------------
+Without a gatekeeper:
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@peer
+or
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@ip.or.hostname
+
+'peer' is defined in h323.conf as:
+
+[peer]
+type=peer
+host=1.2.3.4
+disallow=all
+allow=ulaw
+
+Using a gatekeeper:
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}
+
+When using a gatekeeper you cannot utilize the type=peer features,
+since the H.323 spec states that when a Gatekeeper is part of an H.323 network, 
+the Gatekeeper shall be used for all communication. 
+
+
+Developer Contact
+----------------
+If you have trouble contact 'JerJer' in #Asterisk on 
+irc.freenode.net and/or send reasonable debug information to support@nufone.net.
+
+If are lucky enough to segfault this code please run a 
+backtrace and send the gory details. Segmentation faults are not
+tolerated, no matter what Distro you run (even debian)!
+
+a simple bt example:
+
+# /usr/sbin/asterisk -vvvgc
+...
+[chan_h323.so]
+Segmentation Fault (core dumped)
+
+# ls core.*
+core.1976
+
+# gdb /usr/sbin/asterisk core.1976
+...lots of useless garbage here...
+(gdb) bt
+
+Send whatever shows up right after the 'bt'
+
+Also, a full debug screen output is almost needed. Make sure you are 
+in the full console mode (-c) and turn on 'h.323 debug' or worst case
+senerio 'h.323 trace 4'. A nice way to capture debug info is with 
+script (man script). 
+
+If you are motivated to update/fix this code please submit a 
+disclaimer along with the patch to the Asterisk bug 
+tracker: http://bugs.digium.com/
+
+
+Jeremy McNamara
+The NuFone Network 

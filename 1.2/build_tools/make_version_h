@@ -1,0 +1,10 @@
+#!/bin/sh
+cat << END
+/*
+ * version.h 
+ * Automatically generated
+ */
+#define ASTERISK_VERSION "${ASTERISKVERSION}"
+#define ASTERISK_VERSION_NUM ${ASTERISKVERSIONNUM}
+
+END

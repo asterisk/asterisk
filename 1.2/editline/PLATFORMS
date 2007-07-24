@@ -1,0 +1,13 @@
+This distribution of libedit is expected to work on at least the following
+platforms.  It may also work on additional platforms, but no explicit support
+for them is built into the configuration system.
+
+* Apple OS X 10.1.
+
+* FreeBSD 4.x.
+
+* NetBSD 1.5.
+
+* Red Hat Linux 7.2.
+
+* Sun Solaris 2.6.

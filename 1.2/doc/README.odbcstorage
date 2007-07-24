@@ -1,0 +1,33 @@
+ODBC Voicemail Storage
+======================
+
+ODBC Storage allows you to store voicemail messages within a database 
+instead of using a file.  This is *not* a full realtime engine and 
+*only* supports ODBC.  The table description for the "voicemessages" 
+table is as follows:
+
++----------------+-------------+------+-----+---------+-------+
+| Field          | Type        | Null | Key | Default | Extra |
++----------------+-------------+------+-----+---------+-------+
+| msgnum         | int(11)     | YES  |     | NULL    |       |
+| dir            | varchar(80) | YES  | MUL | NULL    |       |
+| context        | varchar(80) | YES  |     | NULL    |       |
+| macrocontext   | varchar(80) | YES  |     | NULL    |       |
+| callerid       | varchar(40) | YES  |     | NULL    |       |
+| origtime       | varchar(40) | YES  |     | NULL    |       |
+| duration       | varchar(20) | YES  |     | NULL    |       |
+| mailboxuser    | varchar(80) | YES  |     | NULL    |       |*
+| mailboxcontext | varchar(80) | YES  |     | NULL    |       |*
+| recording      | longblob    | YES  |     | NULL    |       |
++----------------+-------------+------+-----+---------+-------+
+
+*=Denotes new fieldnames, define EXTENDED_ODBC_STORAGE in
+apps/Makefile to enable the functionality.
+
+The database name (from /etc/asterisk/res_odbc.conf) is in the 
+"odbcstorage" variable in the general section of voicemail.conf.
+
+You may modify the voicemessages table name by using 
+odbctable=??? in voicemail.conf
+
+

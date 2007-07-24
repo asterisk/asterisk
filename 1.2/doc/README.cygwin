@@ -1,0 +1,7 @@
+Cygwin support is completely experimental and usupported at this time.  The current state of cygwin support is that it will compile, and start the cli, but will not yet take calls properly.
+
+To compile with cygwin, you will need at least a standard base cygwin install plus the following packages:
+
+minires
+minires-devel
+

@@ -1,0 +1,14 @@
+The NuFone Network's Open H.323 Channel Driver for Asterisk 
+	     
+	TODO:
+
+		- Fix Gatekeeper re-registration seg (HELP)
+
+		- Track down why calls to invalid extensions always
+		  get sent to 's' in context 'default'
+
+		- H.323 Native Bridging
+
+		- Gatekeeping support (started)
+	
+		- Acutally implement the options for broken H.323 stacks

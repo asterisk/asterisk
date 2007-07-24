@@ -1,0 +1,37 @@
+;
+; AMI - The Asterisk Manager Interface
+; 
+; Third party application call management support and PBX event supervision
+;
+; This configuration file is read every time someone logs in
+;
+; Use the "show manager commands" at the CLI to list available manager commands
+; and their authorization levels.
+;
+; "show manager command <command>" will show a help text.
+;
+; ---------------------------- SECURITY NOTE -------------------------------
+; Note that you should not enable the AMI on a public IP address. If needed,
+; block this TCP port with iptables (or another FW software) and reach it
+; with IPsec, SSH, or SSL vpn tunnel
+;
+[general]
+enabled = no
+port = 5038
+bindaddr = 0.0.0.0
+;displayconnects = yes
+
+;[mark]
+;secret = mysecret
+;deny=0.0.0.0/0.0.0.0
+;permit=209.16.236.73/255.255.255.0
+;
+; If the device connected via this user accepts input slowly,
+; the timeout for writes to it can be increased to keep it
+; from being disconnected (value is in milliseconds)
+;
+; writetimeout = 100
+;
+; Authorization for various classes 
+;read = system,call,log,verbose,command,agent,user
+;write = system,call,log,verbose,command,agent,user

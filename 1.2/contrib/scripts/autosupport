@@ -1,0 +1,155 @@
+#!/bin/sh
+#
+# Collect support information
+#
+# Copyright (C) 2005, Digium, Inc.
+#
+# Written by John Bigelow (support@digium.com)
+#
+# Distributed under the terms of the GNU General Public
+# License
+#
+
+OUTPUT=$HOME/digiuminfo
+
+if [ $UID -ne  0 ]; then
+
+  echo "You must be root to run this."
+ 
+exit 1
+fi
+
+echo
+echo "This will gather information about your system such as:"
+echo "pci listing, dmesg, running processes, and kernel version"
+echo "To continue press 'y', to quit press any other key"
+read ans
+
+if [ "$ans" = "y" ]; then
+
+  rm -f $OUTPUT
+
+  echo "------------------" >> $OUTPUT;
+  echo "PCI LIST " >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  lspci -vb >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "INTERRUPTS" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  cat /proc/interrupts >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "DMESG OUTPUT" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  dmesg >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "RUNNING PROCESSES" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  ps aux >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "KERNEL VERSION" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  uname -a >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+  
+  echo "------------------" >> $OUTPUT;
+  echo "CPU INFO" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  cat /proc/cpuinfo >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "HDPARM STATUS" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  hdparm /dev/hda >> $OUTPUT;
+  hdparm -i /dev/hda >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "ZAPTEL CONFIG" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  grep -v '^#' /etc/zaptel.conf >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "ZAPATA CONFIG" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  grep -v '^;' /etc/asterisk/zapata.conf >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+  echo "------------------" >> $OUTPUT;
+  echo "EXTENSIONS CONFIG" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  grep -v '^;' /etc/asterisk/extensions.conf >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
+
+else
+  echo "terminated";
+exit
+fi
+
+echo
+echo "Digium may require root level access to the system to help debug";
+echo "the problem you are experiencing. Do you want to provide login";
+echo "information at this time?";
+echo "Press 'y' for yes and any other key to exit and save the previous info collected"
+read login
+
+if [ "$login" = "y" ]; then
+
+  echo "------------------" >> $OUTPUT;
+  echo "LOGIN INFORMATION" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+
+  echo
+  echo "What is your root password?"
+  read rootpass
+
+  echo
+  echo "Root pass: "$rootpass >> $OUTPUT
+
+  echo
+  echo "What is your PUBLIC IP address?"
+  read ip
+
+  echo "IP address: "$ip >> $OUTPUT
+
+  echo
+  echo "Please provide any other login information that the technician"
+  echo "may need to know to login to the system'(press enter if not)'"
+  read adinfo
+
+  echo "Additional login info: "$adinfo >> $OUTPUT
+
+  echo 
+  echo "All information has been stored in $OUTPUT,"
+  echo "Please attach this file to an email ticket you already"
+  echo "have open with Digium Tech Support."
+
+else
+  echo
+  echo "All information except login info has been stored in $OUTPUT,"
+  echo "Please send this file to an email ticket you already"
+  echo "have open with Digium Tech Support."
+exit
+fi
+
+
+ 

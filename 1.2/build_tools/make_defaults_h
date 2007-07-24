@@ -1,0 +1,25 @@
+#!/bin/sh
+cat << END
+/*
+ * defaults.h 
+ * Automatically generated
+ */
+#define AST_CONFIG_DIR "${INSTALL_PATH}${ASTETCDIR}"
+#define AST_RUN_DIR    "${INSTALL_PATH}${ASTVARRUNDIR}"
+#define AST_SOCKET     "${INSTALL_PATH}${ASTVARRUNDIR}/asterisk.ctl"
+#define AST_PID        "${INSTALL_PATH}${ASTVARRUNDIR}/asterisk.pid"
+#define AST_MODULE_DIR "${INSTALL_PATH}${MODULES_DIR}"
+#define AST_SPOOL_DIR  "${INSTALL_PATH}${ASTSPOOLDIR}"
+#define AST_VAR_DIR    "${INSTALL_PATH}${ASTVARLIBDIR}"
+#define AST_LOG_DIR    "${INSTALL_PATH}${ASTLOGDIR}"
+#define AST_AGI_DIR    "${INSTALL_PATH}${AGI_DIR}"
+#define AST_KEY_DIR    "${INSTALL_PATH}${ASTVARLIBDIR}/keys"
+#define AST_DB         "${INSTALL_PATH}${ASTVARLIBDIR}/astdb"
+#define AST_TMP_DIR    "${INSTALL_PATH}${ASTSPOOLDIR}/tmp"
+
+#define AST_CONFIG_FILE "${INSTALL_PATH}${ASTCONFPATH}"
+
+#define AST_SOUNDS     "${INSTALL_PATH}${ASTVARLIBDIR}/sounds"
+#define AST_IMAGES     "${INSTALL_PATH}${ASTVARLIBDIR}/images"
+
+END

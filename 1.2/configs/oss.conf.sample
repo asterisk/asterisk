@@ -1,0 +1,39 @@
+;
+; Open Sound System Console Driver Configuration File
+;
+[general]
+;
+; Automatically answer incoming calls on the console?  Choose yes if
+; for example you want to use this as an intercom.
+;
+autoanswer=yes
+;
+; Default context (is overridden with @context syntax)
+;
+context=local
+;
+; Set overridecontext to yes if you want the context specified above
+; to override what someone places on the command line.
+;
+;overridecontext=yes
+;
+; Default extension to call
+;
+extension=s
+;
+; Default language
+;
+;language=en
+;
+; Silence supression can be enabled when sound is over a certain threshold.
+; The value for the threshold should probably be between 500 and 2000 or so,
+; but your mileage may vary.  Use the echo test to evaluate the best setting.
+;silencesuppression = yes
+;silencethreshold = 1000
+;
+; On half-duplex cards, the driver attempts to switch back and forth between
+; read and write modes.  Unfortunately, this fails sometimes on older hardware.
+; To prevent the driver from switching (ie. only play files on your speakers),
+; then set the playbackonly option to yes.  Default is no.  Note this option has
+; no effect on full-duplex cards.
+;playbackonly=no
