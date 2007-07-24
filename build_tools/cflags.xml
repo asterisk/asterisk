@@ -11,6 +11,8 @@
 		</member>
 		<member name="DO_CRASH" displayname="Crash on fatal errors">
 		</member>
+		<member name="THREAD_CRASH" displayname="Crash on mutex errors">
+		</member>
 		<member name="DONT_OPTIMIZE" displayname="Disable Optimizations by the Compiler">
 		</member>
 		<member name="DUMP_SCHEDULER" displayname="Dump Scheduler Contents for Debugging">
