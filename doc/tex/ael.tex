@@ -584,7 +584,7 @@ name/number with a slash (/) and the number to match against the Caller ID:
 \begin{verbatim}
 context zoombo 
 {
-	819/7079953345 => { NoOp(hello, 3345); }
+  819/7079953345 => { NoOp(hello, 3345); }
 }
 \end{verbatim}
 
@@ -727,8 +727,8 @@ You can declare variables in Macros, as so:
 \begin{verbatim}
 Macro myroutine(firstarg, secondarg)
 {
-	Myvar=1;
-	NoOp(Myvar is set to ${myvar});
+  Myvar=1;
+  NoOp(Myvar is set to ${myvar});
 }
 \end{verbatim}
 
@@ -747,8 +747,8 @@ before setting them to a value;
 \begin{verbatim}
 Macro myroutine(firstarg, secondarg)
 {
-	local Myvar=1;
-	NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
+  local Myvar=1;
+  NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
 }
 \end{verbatim}
 
@@ -760,8 +760,8 @@ If you need to make a local variable within the Set() application, you can do it
 \begin{verbatim}
 Macro myroutine(firstarg, secondarg)
 {
-	Set(LOCAL(Myvar)=1);
-	NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
+  Set(LOCAL(Myvar)=1);
+  NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
 }
 \end{verbatim}
 
@@ -787,9 +787,9 @@ context loops {
 }
 \end{verbatim}
 
-NOTE: The conditional expression (the "\${y} >= 0" above) is wrapped in
+NOTE: The conditional expression (the "\${y} $>$= 0" above) is wrapped in
       \$[ ] so it can be evaluated.  NOTE: The for loop test expression
-      (the "\${x} < 3" above) is wrapped in \$[ ] so it can be evaluated.
+      (the "\${x} $<$ 3" above) is wrapped in \$[ ] so it can be evaluated.
 
 
 
@@ -1134,9 +1134,7 @@ These checks will be:
       currently known functions. A warning is issued if it is not.
 \end{itemize}
 
-
-Differences with the original version of AEL
-============================================
+\section{Differences with the original version of AEL}
 
 \begin{enumerate}
    \item The \$[...] expressions have been enhanced to include the ==, ||,
@@ -1174,8 +1172,8 @@ Differences with the original version of AEL
       AEL README.
   \item Added the "return" keyword, which will jump to the end of an
       extension/Macro.
-  \item Added the ifTime (<time range>|<days of week>|<days of
-      month>|<months> ) {} [else {}] construct, which executes much
+  \item Added the ifTime ($<$time range$>$|$<$days of week$>$|$<$days of
+      month$>$|$<$months$>$ ) {} [else {}] construct, which executes much
       like an if () statement, but the decision is based on the
       current time, and the time spec provided in the ifTime. See the
       example above. (Note: all the other time-dependent Applications
@@ -1200,7 +1198,7 @@ Differences with the original version of AEL
       NoOp() added, to make sure the label exists in the extension on
       Asterisk. (0.6)
   \item (0.9) the semicolon is no longer required after a closing brace!
-      (i.e. "];" ===> "\}". You can have them there if you like, but
+      (i.e. "];" ===$>$ "\}". You can have them there if you like, but
       they are not necessary. Someday they may be rejected as a syntax
       error, maybe.
   \item (0.9) the // comments are not recognized and removed in the
@@ -1208,11 +1206,11 @@ Differences with the original version of AEL
       arguments. You may have to move a comment if you get errors in
       existing files.
   \item (0.10) the random statement has been added. Syntax: random (
-      <expr> ) <lucky-statement> [ else <unlucky-statement> ]. The
-      probability of the lucky-statement getting executed is <expr>,
+      $<$expr$>$ ) $<$lucky-statement$>$ [ else $<$unlucky-statement$>$ ]. The
+      probability of the lucky-statement getting executed is $<$expr$>$,
       which should evaluate to an integer between 0 and 100. If the
-      <lucky-statement> isn't so lucky this time around, then the
-      <unlucky-statement> gets executed, if it is present.
+      $<$lucky-statement$>$ isn't so lucky this time around, then the
+      $<$unlucky-statement$>$ gets executed, if it is present.
 \end{enumerate}
 
 

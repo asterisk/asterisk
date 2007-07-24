@@ -22,8 +22,8 @@ will be passed down to the Background command, in this example.
 
 Also, characters special to variable substitution, expression evaluation, etc
 (see below), can be quoted. For example, to literally use a \$ on the 
-string "\$1231", quote it with a preceding \\. Special characters that must
-be quoted to be used, are [ ] \$ " \\. (to write \\ itself, use \\). 
+string "\$1231", quote it with a preceding \textbackslash. Special characters that must
+be quoted to be used, are [ ] \$ " \textbackslash. (to write \textbackslash itself, use \textbackslash). 
 
 These Double quotes and escapes are evaluated at the level of the
 asterisk config file parser. 
@@ -35,7 +35,7 @@ Double quotes can also be used inside expressions, as discussed below.
 Parameter strings can include variables. Variable names are arbitrary strings. 
 They are stored in the respective channel structure. 
 
-To set a variable to a particular value, do : 
+To set a variable to a particular value, do: 
 \begin{verbatim}
     exten => 1,2,Set(varname=value)
 \end{verbatim}
@@ -52,8 +52,8 @@ requires a variable), just write the name. To refer to the variable's value,
 enclose it inside \${}. For example, Set takes as the first argument 
 (before the =) a variable name, so: 
 \begin{verbatim}
-	exten => 1,2,Set(koko=lala)
-	exten => 1,3,Set(${koko}=blabla)
+  exten => 1,2,Set(koko=lala)
+  exten => 1,3,Set(${koko}=blabla)
 \end{verbatim}
 stores to the variable "koko" the value "lala" and to variable "lala" the 
 value "blabla". 
@@ -91,14 +91,14 @@ NoOp(${__FOO}) is identical to NoOp(${FOO})
 
 The format for selecting characters from a variable can be expressed as:
 \begin{verbatim}
-	${variable_name[:offset[:length]]}
+  ${variable_name[:offset[:length]]}
 \end{verbatim}
 If you want to select the first N characters from the string assigned
 to a variable, simply append a colon and the number of characters to
 skip from the beginning of the string to the variable name.
 \begin{verbatim}
-	;Remove the first character of extension, save in "number" variable
-	exten => _9X.,1,Set(number=${EXTEN:1})
+  ; Remove the first character of extension, save in "number" variable
+  exten => _9X.,1,Set(number=${EXTEN:1})
 \end{verbatim}
 Assuming we've dialed 918005551234, the value saved to the 'number' variable
 would be 18005551234. This is useful in situations when we require users to 
@@ -110,16 +110,16 @@ of the string and then selects everything after the new position. The following
 example will save the numbers 1234 to the 'number' variable, still assuming
 we've dialed 918005551234.
 \begin{verbatim}
-	;Remove everything before the last four digits of the dialed string
-	exten => _9X.,1,Set(number=${EXTEN:-4})
+  ; Remove everything before the last four digits of the dialed string
+  exten => _9X.,1,Set(number=${EXTEN:-4})
 \end{verbatim}
 We can also limit the number of characters from our offset position that we
 wish to use. This is done by appending a second colon and length value to the
 variable name. The following example will save the numbers 555 to the 'number'
 variable.
 \begin{verbatim}
-	;Only save the middle numbers 555 from the string 918005551234
-	exten => _9X.,1,Set(number=${EXTEN:5:3})
+  ; Only save the middle numbers 555 from the string 918005551234
+  exten => _9X.,1,Set(number=${EXTEN:5:3})
 \end{verbatim}
 The length value can also be used in conjunction with a negative offset. This
 may be useful if the length of the string is unknown, but the trailing digits
@@ -127,14 +127,14 @@ are. The following example will save the numbers 555 to the 'number' variable,
 even if the string starts with more characters than expected (unlike the
 previous example).
 \begin{verbatim}
-	;Save the numbers 555 to the 'number' variable
-	exten => _9X.,1,Set(number=${EXTEN:-7:3})
+  ; Save the numbers 555 to the 'number' variable
+  exten => _9X.,1,Set(number=${EXTEN:-7:3})
 \end{verbatim}
 If a negative length value is entered, Asterisk will remove that many characters
 from the end of the string.
 \begin{verbatim}
-	;Set pin to everything but the trailing #.
-	exten => _XXXX#,1,Set(pin=${EXTEN:0:-1})
+  ; Set pin to everything but the trailing #.
+  exten => _XXXX#,1,Set(pin=${EXTEN:0:-1})
 \end{verbatim}
 
 \section{Expressions} 
@@ -258,15 +258,15 @@ with equal precedence are grouped within { } symbols.
 
       expr1 ? expr2 :: expr3
              Traditional Conditional operator. If expr1 is a number
-	     that evaluates to 0 (false), expr3 is result of the this
-	     expression evaluation.  Otherwise, expr2 is the result.
-	     If expr1 is a string, and evaluates to an empty string,
-	     or the two characters (""), then expr3 is the
-	     result. Otherwise, expr2 is the result.  In Asterisk, all
-	     3 exprs will be "evaluated"; if expr1 is "true", expr2
-	     will be the result of the "evaluation" of this
-	     expression.  expr3 will be the result otherwise. This
-	     operator has the lowest precedence.
+       that evaluates to 0 (false), expr3 is result of the this
+       expression evaluation.  Otherwise, expr2 is the result.
+       If expr1 is a string, and evaluates to an empty string,
+       or the two characters (""), then expr3 is the
+       result. Otherwise, expr2 is the result.  In Asterisk, all
+       3 exprs will be "evaluated"; if expr1 is "true", expr2
+       will be the result of the "evaluation" of this
+       expression.  expr3 will be the result otherwise. This
+       operator has the lowest precedence.
 \end{verbatim}
 
 Parentheses are used for grouping in the usual manner.
@@ -274,7 +274,7 @@ Parentheses are used for grouping in the usual manner.
 Operator precedence is applied as one would expect in any of the C
 or C derived languages.
 
-subsection{Floating Point Numbers}
+\subsection{Floating Point Numbers}
 
 In 1.6 and above, we shifted the \$\[...\] expressions to be calculated
 via floating point numbers instead of integers. We use 'long double' numbers
@@ -290,13 +290,13 @@ on integer behavior. If you were counting on 1/4 evaluating to 0, you need to no
 TRUNC(1/4). For a list of all the truncation/rounding capabilities, see the next section.
 
 
-subsection{Functions}
+\subsection{Functions}
 
-In 1.6 and above, we upgraded the $[] expressions to handle floating point numbers.
+In 1.6 and above, we upgraded the \$[] expressions to handle floating point numbers.
 Because of this, folks counting on integer behavior would be disrupted. To make
 the same results possible, some rounding and integer truncation functions have been
 added to the core of the Expr2 parser. Indeed, dialplan functions can be called from
-$[..] expressions without the ${...} operators. The only trouble might be in the fact that
+\$[..] expressions without the \$\{...\} operators. The only trouble might be in the fact that
 the arguments to these functions must be specified with a comma. If you try to call
 the MATH function, for example, and try to say 3 + MATH(7*8), the expression parser will
 evaluate 7*8 for you into 56, and the MATH function will most likely complain that its 
@@ -312,7 +312,7 @@ are available by simply calling them (read-only). In other words, you don't need
 surround function calls in \$\[...\] expressions with \$\{...\}. Don't jump to conclusions,
 though! -- you still need to wrap variable names in curly braces!
 
-\begin{Enumerate}
+\begin{enumerate}
 \item COS(x) x is in radians. Results vary from -1 to 1. 
 \item SIN(x) x is in radians. Results vary from -1 to 1.
 \item TAN(x) x is in radians.
@@ -334,94 +334,94 @@ If this quotient is 1/2, it is rounded to the nearest even number.
 \item LOG(x) returns the natural logarithm of x.
 \item LOG2(x) returns the base 2 log of x.
 \item LOG10(x) returns the base 10 log of x.
-\end{Enumerate}
+\end{enumerate}
 
-subsection{Examples}
+\subsection{Examples}
 
 \begin{verbatim}
  "One Thousand Five Hundred" =~ "(T[^ ]+)"
-	returns: Thousand
+   returns: Thousand
 
  "One Thousand Five Hundred" =~ "T[^ ]+"
-	returns: 8
+   returns: 8
 
  "One Thousand Five Hundred" : "T[^ ]+"
-	returns: 0
+   returns: 0
 
  "8015551212" : "(...)"
-	returns: 801
+   returns: 801
 
  "3075551212":"...(...)"
-	returns: 555
+   returns: 555
 
  ! "One Thousand Five Hundred" =~ "T[^ ]+"
-	returns: 0 (because it applies to the string, which is non-null,
+   returns: 0 (because it applies to the string, which is non-null,
                     which it turns to "0", and then looks for the pattern
                     in the "0", and doesn't find it)
 
  !( "One Thousand Five Hundred" : "T[^ ]+" )
-	returns: 1  (because the string doesn't start with a word starting
+   returns: 1  (because the string doesn't start with a word starting
                      with T, so the match evals to 0, and the ! operator
                      inverts it to 1 ).
 
  2 + 8 / 2
-	returns 6. (because of operator precedence; the division is done first, then the addition).
+   returns 6. (because of operator precedence; the division is done first, then the addition).
 
  2+8/2
-	returns 6. Spaces aren't necessary.
+   returns 6. Spaces aren't necessary.
 
 (2+8)/2
-	returns 5, of course.
+   returns 5, of course.
 
 (3+8)/2
-	returns 5.5 now.
+   returns 5.5 now.
 
 TRUNC((3+8)/2)
-	returns 5.
+   returns 5.
 
 FLOOR(2.5)
-	returns 2
+   returns 2
 
 FLOOR(-2.5)
-	returns -3
+   returns -3
 
 CEIL(2.5)
-	returns 3.
+   returns 3.
 
 CEIL(-2.5)
-	returns -2.
+   returns -2.
 
 ROUND(2.5)
-	returns 3.
+   returns 3.
 
 ROUND(3.5)
-	returns 4.
+   returns 4.
 
 ROUND(-2.5)
-	returns -3
+   returns -3
 
 RINT(2.5)
-	returns 2.
+   returns 2.
 
 RINT(3.5)
-	returns 4.
+   returns 4.
 
 RINT(-2.5)
-	returns -2.
+   returns -2.
 
 RINT(-3.5)
-	returns -4.
+   returns -4.
 
 TRUNC(2.5)
-	returns 2.
+   returns 2.
 
 TRUNC(3.5)
-	returns 3.
+   returns 3.
 
 TRUNC(-3.5)
-	returns -3.
+   returns -3.
 
-\begin{verbatim}
+\end{verbatim}
 
 Of course, all of the above examples use constants, but would work the
 same if any of the numeric or string constants were replaced with a
@@ -441,7 +441,7 @@ case.
 There is one conditional application - the conditional goto : 
 
 \begin{verbatim}
-	exten => 1,2,gotoif(condition?label1:label2)
+  exten => 1,2,GotoIf(condition?label1:label2)
 \end{verbatim}
 
 If condition is true go to label1, else go to label2. Labels are interpreted
@@ -453,7 +453,7 @@ This is designed to be used together with the expression syntax described
 above, eg : 
 
 \begin{verbatim}
-	exten => 1,2,gotoif($[${CALLERID} = 123456]?2|1:3|1)
+  exten => 1,2,GotoIf($[${CALLERID} = 123456]?2|1:3|1)
 \end{verbatim}
 
 Example of use : 
@@ -494,9 +494,9 @@ marked with the "\^" character.
 \subsection{NULL Strings}
 Testing to see if a string is null can be done in one of two different ways:
 \begin{verbatim}
-	exten => _XX.,1,GotoIf($["${calledid}" != ""]?3) 
+  exten => _XX.,1,GotoIf($["${calledid}" != ""]?3) 
 
-	exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3) 
+  exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3) 
 \end{verbatim}
 
 The second example above is the way suggested by the WIKI. It will 
@@ -574,7 +574,7 @@ of possible concern with "legacy" extension.conf files:
    quotes, it was no reason for concern. It is now!
 
 \item LE, GE, NE operators removed. The code supported these operators,
-   but they were not documented. The symbolic operators, <=, >=, and !=
+   but they were not documented. The symbolic operators, $<$=, $>$=, and !=
    should be used instead.
 
 \item  Added the unary '-' operator. So you can 3+ -4 and get -1.
@@ -670,43 +670,45 @@ only read in the dialplan.  Writes to such variables are silently
 ignored.
 
 \begin{verbatim}
-${ACCOUNTCODE} 	 	* Account code (if specified) (Deprecated; use ${CDR(accountcode)})
-${BLINDTRANSFER} 	The name of the channel on the other side of a blind transfer
-${BRIDGEPEER}	 	Bridged peer
-${CALLERANI}	 	* Caller ANI (PRI channels) (Deprecated; use ${CALLERID(ani)})
-${CALLERID}	 	* Caller ID (Deprecated; use ${CALLERID(all)})
-${CALLERIDNAME}	 	* Caller ID Name only (Deprecated; use ${CALLERID(name)})
-${CALLERIDNUM}	 	* Caller ID Number only (Deprecated; use ${CALLERID(num)})
-${CALLINGANI2}	 	* Caller ANI2 (PRI channels)
-${CALLINGPRES}	 	* Caller ID presentation for incoming calls (PRI channels)
-${CALLINGTNS} 	 	* Transit Network Selector (PRI channels)
-${CALLINGTON}    	* Caller Type of Number (PRI channels)
-${CHANNEL}	 	* Current channel name
-${CONTEXT}       	* Current context
-${DATETIME}	 	* Current date time in the format: DDMMYYYY-HH:MM:SS (Deprecated; use ${STRFTIME(${EPOCH},,%d%m%Y-%H:%M:%S)})
-${DB_RESULT}		Result value of DB_EXISTS() dial plan function
-${DNID}          	* Dialed Number Identifier (Deprecated; use ${CALLERID(dnid)})
-${EPOCH}	 	* Current unix style epoch
-${EXTEN}	 	* Current extension
-${ENV(VAR)}	 	Environmental variable VAR
-${GOTO_ON_BLINDXFR}	Transfer to the specified context/extension/priority
-			after a blind transfer (use ^ characters in place of
-			| to separate context/extension/priority when setting
-			this variable from the dialplan)
-${HANGUPCAUSE}	 	* Asterisk cause of hangup (inbound/outbound)
-${HINT}          	* Channel hints for this extension
-${HINTNAME}      	* Suggested Caller*ID name for this extension
-${INVALID_EXTEN} 	The invalid called extension (used in the "i" extension)
-${LANGUAGE}	 	* Current language (Deprecated; use ${LANGUAGE()})
-${LEN(VAR)}	 	* String length of VAR (integer)
-${PRIORITY}	 	* Current priority in the dialplan
-${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
-${RDNIS}         	* Redirected Dial Number ID Service (Deprecated; use ${CALLERID(rdnis)})
-${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS (Deprecated; use ${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
-${TRANSFER_CONTEXT} 	Context for transferred calls
-${FORWARD_CONTEXT}     Context for forwarded calls
-${UNIQUEID}	 	* Current call unique identifier
-${SYSTEMNAME}		* value of the systemname option of asterisk.conf
+${CDR(accountcode)}    * Account code (if specified)
+${BLINDTRANSFER}         The name of the channel on the other side of a blind transfer
+${BRIDGEPEER}            Bridged peer
+${CALLERID(ani)}       * Caller ANI (PRI channels)
+${CALLERID(all)}       * Caller ID
+${CALLERID(dnid)}      * Dialed Number Identifier
+${CALLERID(name)}      * Caller ID Name only
+${CALLERID(num)}       * Caller ID Number only
+${CALLERID(rdnis)}     * Redirected Dial Number ID Service
+${CALLINGANI2}         * Caller ANI2 (PRI channels)
+${CALLINGPRES}         * Caller ID presentation for incoming calls (PRI channels)
+${CALLINGTNS}          * Transit Network Selector (PRI channels)
+${CALLINGTON}          * Caller Type of Number (PRI channels)
+${CHANNEL}             * Current channel name
+${CONTEXT}             * Current context
+${DATETIME}            * Current date time in the format: DDMMYYYY-HH:MM:SS 
+                         (Deprecated; use ${STRFTIME(${EPOCH},,%d%m%Y-%H:%M:%S)})
+${DB_RESULT}             Result value of DB_EXISTS() dial plan function
+${EPOCH}               * Current unix style epoch
+${EXTEN}               * Current extension
+${ENV(VAR)}              Environmental variable VAR
+${GOTO_ON_BLINDXFR}      Transfer to the specified context/extension/priority
+                         after a blind transfer (use ^ characters in place of
+                         | to separate context/extension/priority when setting
+                         this variable from the dialplan)
+${HANGUPCAUSE}         * Asterisk cause of hangup (inbound/outbound)
+${HINT}                * Channel hints for this extension
+${HINTNAME}            * Suggested Caller*ID name for this extension
+${INVALID_EXTEN}         The invalid called extension (used in the "i" extension)
+${LANGUAGE}            * Current language (Deprecated; use ${LANGUAGE()})
+${LEN(VAR)}            * String length of VAR (integer)
+${PRIORITY}            * Current priority in the dialplan
+${PRIREDIRECTREASON}     Reason for redirect on PRI, if a call was directed
+${TIMESTAMP}           * Current date time in the format: YYYYMMDD-HHMMSS 
+                         (Deprecated; use ${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
+${TRANSFER_CONTEXT}      Context for transferred calls
+${FORWARD_CONTEXT}       Context for forwarded calls
+${UNIQUEID}            * Current call unique identifier
+${SYSTEMNAME}          * value of the systemname option of asterisk.conf
 \end{verbatim}
 
 \subsection{Application return values}
@@ -715,189 +717,189 @@ In Asterisk 1.2, many applications return the result in a variable
 instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
 For the various status values, see each application's help text.
 \begin{verbatim}
-${AGISTATUS}			* agi()
-${AQMSTATUS}			* addqueuemember()
-${AVAILSTATUS}			* chanisavail()
-${CHECKGROUPSTATUS}		* checkgroup()
-${CHECKMD5STATUS}		* checkmd5()
-${CPLAYBACKSTATUS}		* controlplayback()
-${DIALSTATUS}   		* dial()
-${DBGETSTATUS}			* dbget()
-${ENUMSTATUS}			* enumlookup()
-${HASVMSTATUS}			* hasnewvoicemail()
-${LOOKUPBLSTATUS}		* lookupblacklist()
-${OSPAUTHSTATUS}		* ospauth()
-${OSPLOOKUPSTATUS}		* osplookup()
-${OSPNEXTSTATUS}		* ospnext()
-${OSPFINISHSTATUS}		* ospfinish()
-${PARKEDAT}			* parkandannounce()
-${PLAYBACKSTATUS}		* playback()
-${PQMSTATUS}			* pausequeuemember()
-${PRIVACYMGRSTATUS}		* privacymanager()
-${QUEUESTATUS}			* queue()
-${RQMSTATUS}			* removequeuemember()
-${SENDIMAGESTATUS}		* sendimage()
-${SENDTEXTSTATUS}		* sendtext()
-${SENDURLSTATUS}		* sendurl()
-${SYSTEMSTATUS}			* system()
-${TRANSFERSTATUS}		* transfer()
-${TXTCIDNAMESTATUS}		* txtcidname()
-${UPQMSTATUS}			* unpausequeuemember()
-${VMSTATUS}			* voicmail()
-${VMBOXEXISTSSTATUS}		* vmboxexists()
-${WAITSTATUS}			* waitforsilence()
+${AGISTATUS}         * agi()
+${AQMSTATUS}         * addqueuemember()
+${AVAILSTATUS}       * chanisavail()
+${CHECKGROUPSTATUS}  * checkgroup()
+${CHECKMD5STATUS}    * checkmd5()
+${CPLAYBACKSTATUS}   * controlplayback()
+${DIALSTATUS}        * dial()
+${DBGETSTATUS}       * dbget()
+${ENUMSTATUS}        * enumlookup()
+${HASVMSTATUS}       * hasnewvoicemail()
+${LOOKUPBLSTATUS}    * lookupblacklist()
+${OSPAUTHSTATUS}     * ospauth()
+${OSPLOOKUPSTATUS}   * osplookup()
+${OSPNEXTSTATUS}     * ospnext()
+${OSPFINISHSTATUS}   * ospfinish()
+${PARKEDAT}          * parkandannounce()
+${PLAYBACKSTATUS}    * playback()
+${PQMSTATUS}         * pausequeuemember()
+${PRIVACYMGRSTATUS}  * privacymanager()
+${QUEUESTATUS}       * queue()
+${RQMSTATUS}         * removequeuemember()
+${SENDIMAGESTATUS}   * sendimage()
+${SENDTEXTSTATUS}    * sendtext()
+${SENDURLSTATUS}     * sendurl()
+${SYSTEMSTATUS}      * system()
+${TRANSFERSTATUS}    * transfer()
+${TXTCIDNAMESTATUS}  * txtcidname()
+${UPQMSTATUS}        * unpausequeuemember()
+${VMSTATUS}          * voicmail()
+${VMBOXEXISTSSTATUS} * vmboxexists()
+${WAITSTATUS}        * waitforsilence()
 \end{verbatim}
 
 \subsection{Various application variables}
 \begin{verbatim}
-${CURL}			* Resulting page content for curl()
-${ENUM}			* Result of application EnumLookup
-${EXITCONTEXT}		Context to exit to in IVR menu (app background())
-			or in the RetryDial() application
-${MONITOR}		* Set to "TRUE" if the channel is/has been monitored (app monitor())
-${MONITOR_EXEC}		Application to execute after monitoring a call
-${MONITOR_EXEC_ARGS}	Arguments to application
-${MONITOR_FILENAME} 	File for monitoring (recording) calls in queue
-${QUEUE_PRIO}		Queue priority
-${QUEUE_MAX_PENALTY}	Maximum member penalty allowed to answer caller
-${QUEUESTATUS} 		Status of the call, one of:
-			(TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL)
-${RECORDED_FILE} 	* Recorded file in record()
-${TALK_DETECTED} 	* Result from talkdetect()
-${TOUCH_MONITOR} 	The filename base to use with Touch Monitor (auto record)
-${TOUCH_MONITOR_FORMAT} The audio format to use with Touch Monitor (auto record)
+${CURL}                 * Resulting page content for curl()
+${ENUM}                 * Result of application EnumLookup
+${EXITCONTEXT}            Context to exit to in IVR menu (app background())
+                          or in the RetryDial() application
+${MONITOR}              * Set to "TRUE" if the channel is/has been monitored (app monitor())
+${MONITOR_EXEC}           Application to execute after monitoring a call
+${MONITOR_EXEC_ARGS}      Arguments to application
+${MONITOR_FILENAME}       File for monitoring (recording) calls in queue
+${QUEUE_PRIO}             Queue priority
+${QUEUE_MAX_PENALTY}      Maximum member penalty allowed to answer caller
+${QUEUESTATUS}            Status of the call, one of:
+                          (TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL)
+${RECORDED_FILE}        * Recorded file in record()
+${TALK_DETECTED}        * Result from talkdetect()
+${TOUCH_MONITOR}          The filename base to use with Touch Monitor (auto record)
+${TOUCH_MONITOR_FORMAT}   The audio format to use with Touch Monitor (auto record)
 ${TOUCH_MONITOR_OUTPUT} * Recorded file from Touch Monitor (auto record)
-${TXTCIDNAME}		* Result of application TXTCIDName
-${VPB_GETDTMF}		chan_vpb
+${TXTCIDNAME}           * Result of application TXTCIDName
+${VPB_GETDTMF}            chan_vpb
 \end{verbatim}
 
 \subsection{The MeetMe Conference Bridge}
 \begin{verbatim}
-${MEETME_RECORDINGFILE} 	Name of file for recording a conference with 
-				the "r" option
-${MEETME_RECORDINGFORMAT} 	Format of file to be recorded
-${MEETME_EXIT_CONTEXT} 		Context for exit out of meetme meeting
-${MEETME_AGI_BACKGROUND} 	AGI script for Meetme (zap only)
-${MEETMESECS} 			* Number of seconds a user participated in a MeetMe conference
+${MEETME_RECORDINGFILE}     Name of file for recording a conference with 
+                            the "r" option
+${MEETME_RECORDINGFORMAT}   Format of file to be recorded
+${MEETME_EXIT_CONTEXT}      Context for exit out of meetme meeting
+${MEETME_AGI_BACKGROUND}    AGI script for Meetme (zap only)
+${MEETMESECS}             * Number of seconds a user participated in a MeetMe conference
 \end{verbatim}
 
 \subsection{The VoiceMail() application}
 \begin{verbatim}
-${VM_CATEGORY}		Sets voicemail category
-${VM_NAME}		* Full name in voicemail
-${VM_DUR}		* Voicemail duration
-${VM_MSGNUM}		* Number of voicemail message in mailbox
-${VM_CALLERID}		* Voicemail Caller ID (Person leaving vm)
-${VM_CIDNAME}		* Voicemail Caller ID Name
-${VM_CIDNUM}		* Voicemail Caller ID Number
-${VM_DATE}		* Voicemail Date
-${VM_MESSAGEFILE}	* Path to message left by caller
+${VM_CATEGORY}      Sets voicemail category
+${VM_NAME}        * Full name in voicemail
+${VM_DUR}         * Voicemail duration
+${VM_MSGNUM}      * Number of voicemail message in mailbox
+${VM_CALLERID}    * Voicemail Caller ID (Person leaving vm)
+${VM_CIDNAME}     * Voicemail Caller ID Name
+${VM_CIDNUM}      * Voicemail Caller ID Number
+${VM_DATE}        * Voicemail Date
+${VM_MESSAGEFILE} * Path to message left by caller
 \end{verbatim}
 
 \subsection{The VMAuthenticate() application}
 \begin{verbatim}
-${AUTH_MAILBOX}	* Authenticated mailbox
-${AUTH_CONTEXT}	* Authenticated mailbox context
+${AUTH_MAILBOX}   * Authenticated mailbox
+${AUTH_CONTEXT}   * Authenticated mailbox context
 \end{verbatim}
 
 \subsection{DUNDiLookup()}
 \begin{verbatim}
-${DUNDTECH}	* The Technology of the result from a call to DUNDiLookup()
-${DUNDDEST}	* The Destination of the result from a call to DUNDiLookup()
+${DUNDTECH}       * The Technology of the result from a call to DUNDiLookup()
+${DUNDDEST}       * The Destination of the result from a call to DUNDiLookup()
 \end{verbatim}
 
 \subsection{chan\_zap}
 \begin{verbatim}
-${ANI2}			* The ANI2 Code provided by the network on the incoming call. 
-			(ie, Code 29 identifies call as a Prison/Inmate Call)
-${CALLTYPE}		* Type of call (Speech, Digital, etc)
-${CALLEDTON}		* Type of number for incoming PRI extension
-			i.e. 0=unknown, 1=international, 2=domestic, 3=net_specific, 
-			4=subscriber, 6=abbreviated, 7=reserved 
-${CALLINGSUBADDR}	* Called PRI Subaddress
-${FAXEXTEN}	 	* The extension called before being redirected to "fax"	
-${PRIREDIRECTREASON}	* Reason for redirect, if a call was directed
-${SMDI_VM_TYPE}		* When an call is received with an SMDI message, the 'type'
-			of message 'b' or 'u'
+${ANI2}               * The ANI2 Code provided by the network on the incoming call. 
+                        (ie, Code 29 identifies call as a Prison/Inmate Call)
+${CALLTYPE}           * Type of call (Speech, Digital, etc)
+${CALLEDTON}          * Type of number for incoming PRI extension
+                        i.e. 0=unknown, 1=international, 2=domestic, 3=net_specific, 
+                        4=subscriber, 6=abbreviated, 7=reserved 
+${CALLINGSUBADDR}     * Called PRI Subaddress
+${FAXEXTEN}           * The extension called before being redirected to "fax" 
+${PRIREDIRECTREASON}  * Reason for redirect, if a call was directed
+${SMDI_VM_TYPE}       * When an call is received with an SMDI message, the 'type'
+                        of message 'b' or 'u'
 \end{verbatim}
 
 \subsection{chan\_sip}
 \begin{verbatim}
-${SIPCALLID} 		* SIP Call-ID: header verbatim (for logging or CDR matching)
-${SIPDOMAIN}    	* SIP destination domain of an inbound call (if appropriate)
-${SIPUSERAGENT} 	* SIP user agent (deprecated)
-${SIPURI}		* SIP uri
-${SIP_CODEC} 		Set the SIP codec for a call	
-${SIP_URI_OPTIONS}	* additional options to add to the URI for an outgoing call
-${RTPAUDIOQOS}		RTCP QoS report for the audio of this call
-${RTPVIDEOQOS}		RTCP QoS report for the video of this call
+${SIPCALLID}         * SIP Call-ID: header verbatim (for logging or CDR matching)
+${SIPDOMAIN}         * SIP destination domain of an inbound call (if appropriate)
+${SIPUSERAGENT}      * SIP user agent (deprecated)
+${SIPURI}            * SIP uri
+${SIP_CODEC}           Set the SIP codec for a call  
+${SIP_URI_OPTIONS}   * additional options to add to the URI for an outgoing call
+${RTPAUDIOQOS}         RTCP QoS report for the audio of this call
+${RTPVIDEOQOS}         RTCP QoS report for the video of this call
 \end{verbatim}
 
 \subsection{chan\_agent}
 \begin{verbatim}
-${AGENTMAXLOGINTRIES}	Set the maximum number of failed logins
-${AGENTUPDATECDR}	Whether to update the CDR record with Agent channel data
-${AGENTGOODBYE}		Sound file to use for "Good Bye" when agent logs out
-${AGENTACKCALL} 	Whether the agent should acknowledge the incoming call
-${AGENTAUTOLOGOFF}	Auto logging off for an agent
-${AGENTWRAPUPTIME}	Setting the time for wrapup between incoming calls
-${AGENTNUMBER}		* Agent number (username) set at login
-${AGENTSTATUS}		* Status of login	( fail | on | off )
-${AGENTEXTEN}		* Extension for logged in agent
+${AGENTMAXLOGINTRIES}  Set the maximum number of failed logins
+${AGENTUPDATECDR}      Whether to update the CDR record with Agent channel data
+${AGENTGOODBYE}        Sound file to use for "Good Bye" when agent logs out
+${AGENTACKCALL}        Whether the agent should acknowledge the incoming call
+${AGENTAUTOLOGOFF}     Auto logging off for an agent
+${AGENTWRAPUPTIME}     Setting the time for wrapup between incoming calls
+${AGENTNUMBER}       * Agent number (username) set at login
+${AGENTSTATUS}       * Status of login ( fail | on | off )
+${AGENTEXTEN}        * Extension for logged in agent
 \end{verbatim}
 
 
 \subsection{The Dial() application}
 \begin{verbatim}
-${DIALEDPEERNAME} 		* Dialed peer name
-${DIALEDPEERNUMBER} 		* Dialed peer number
-${DIALEDTIME}   		* Time for the call (seconds)
-${ANSWEREDTIME} 		* Time from dial to answer (seconds)
-${DIALSTATUS}   		* Status of the call, one of:
-                		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER 
-					| ANSWER | CANCEL | DONTCALL | TORTURE)
-${DYNAMIC_FEATURES}		* The list of features (from the [applicationmap] section of
-				  features.conf) to activate during the call, with feature
-				  names separated by '#' characters
-${LIMIT_PLAYAUDIO_CALLER}	Soundfile for call limits
-${LIMIT_PLAYAUDIO_CALLEE}	Soundfile for call limits
-${LIMIT_WARNING_FILE}		Soundfile for call limits
-${LIMIT_TIMEOUT_FILE}		Soundfile for call limits
-${LIMIT_CONNECT_FILE}		Soundfile for call limits
-${OUTBOUND_GROUP}		Default groups for peer channels (as in SetGroup)
-* See "show application dial" for more information
+${DIALEDPEERNAME}     * Dialed peer name
+${DIALEDPEERNUMBER}   * Dialed peer number
+${DIALEDTIME}         * Time for the call (seconds)
+${ANSWEREDTIME}       * Time from dial to answer (seconds)
+${DIALSTATUS}         * Status of the call, one of:
+                        (CHANUNAVAIL | CONGESTION | BUSY | NOANSWER 
+                        | ANSWER | CANCEL | DONTCALL | TORTURE)
+${DYNAMIC_FEATURES}   * The list of features (from the [applicationmap] section of
+                        features.conf) to activate during the call, with feature
+                        names separated by '#' characters
+${LIMIT_PLAYAUDIO_CALLER}  Soundfile for call limits
+${LIMIT_PLAYAUDIO_CALLEE}  Soundfile for call limits
+${LIMIT_WARNING_FILE}      Soundfile for call limits
+${LIMIT_TIMEOUT_FILE}      Soundfile for call limits
+${LIMIT_CONNECT_FILE}      Soundfile for call limits
+${OUTBOUND_GROUP}          Default groups for peer channels (as in SetGroup)
+                           * See "show application dial" for more information
 \end{verbatim}
 
 \subsection{The chanisavail() application}
 \begin{verbatim}
-${AVAILCHAN}		* the name of the available channel if one was found	
-${AVAILORIGCHAN} 	* the canonical channel name that was used to create the channel
-${AVAILSTATUS}		* Status of requested channel
+${AVAILCHAN}          * the name of the available channel if one was found  
+${AVAILORIGCHAN}      * the canonical channel name that was used to create the channel
+${AVAILSTATUS}        * Status of requested channel
 \end{verbatim}
 
 \subsection{Dialplan Macros}
 \begin{verbatim}
-${MACRO_EXTEN}		* The calling extensions
-${MACRO_CONTEXT}	* The calling context
-${MACRO_PRIORITY}	* The calling priority
-${MACRO_OFFSET}		Offset to add to priority at return from macro
+${MACRO_EXTEN}        * The calling extensions
+${MACRO_CONTEXT}      * The calling context
+${MACRO_PRIORITY}     * The calling priority
+${MACRO_OFFSET}         Offset to add to priority at return from macro
 \end{verbatim}
 
 \subsection{The ChanSpy() application}
 \begin{verbatim}
-${SPYGROUP}		* A ':' (colon) separated list of group names.
-			  (To be set on spied on channel and matched against the g(grp) option)
+${SPYGROUP}           * A ':' (colon) separated list of group names.
+                        (To be set on spied on channel and matched against the g(grp) option)
 \end{verbatim}
 
 \subsection{OSP}
 \begin{verbatim}
-${OSPINHANDLE}		OSP handle of in_bound call
-${OSPINTIMELIMIT}	Duration limit for in_bound call
-${OSPOUTHANDLE}		OSP handle of out_bound call
-${OSPTECH}		OSP technology 
-${OSPDEST}		OSP destination
-${OSPCALLING}		OSP calling number
-${OSPOUTTOKEN}		OSP token to use for out_bound call
-${OSPOUTTIMELIMIT}	Duration limit for out_bound call
-${OSPRESULTS}		Number of remained destinations
+${OSPINHANDLE}          OSP handle of in_bound call
+${OSPINTIMELIMIT}       Duration limit for in_bound call
+${OSPOUTHANDLE}         OSP handle of out_bound call
+${OSPTECH}              OSP technology 
+${OSPDEST}              OSP destination
+${OSPCALLING}           OSP calling number
+${OSPOUTTOKEN}          OSP token to use for out_bound call
+${OSPOUTTIMELIMIT}      Duration limit for out_bound call
+${OSPRESULTS}           Number of remained destinations
 \end{verbatim}

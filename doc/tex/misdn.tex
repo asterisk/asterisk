@@ -129,15 +129,15 @@ The Optionsstring looks Like:
 the ":" character is the delimiter.
 
 The available Optchars are: 
-	d - Send display text on called phone, text is the optparam
-	n - don't detect dtmf tones on called channel
-	h - make digital outgoing call
-	c - make crypted outgoing call, param is keyindex
-	e - perform echo cancellation on this channel, 
-	    takes taps as arguments (32,64,128,256)
-	s - send Non Inband DTMF as inband
-	vr - rxgain control
-	vt - txgain control
+  d - Send display text on called phone, text is the optparam
+  n - don't detect dtmf tones on called channel
+  h - make digital outgoing call
+  c - make crypted outgoing call, param is keyindex
+  e - perform echo cancellation on this channel, 
+      takes taps as arguments (32,64,128,256)
+  s - send Non Inband DTMF as inband
+  vr - rxgain control
+  vt - txgain control
 \end{verbatim}
 
 chan\_misdn registers a new dial plan application "misdn\_set\_opt" when
@@ -182,24 +182,24 @@ Now you should see the misdn cli commands:
 
 \begin{verbatim}
 - clean
-	-> pid 		(cleans a broken call, use with care, leads often
-			 to a segmentation fault)
+  -> pid    (cleans a broken call, use with care, leads often
+       to a segmentation fault)
 - send
-	-> display	(sends a Text Message to a Asterisk channel, 
-			 this channel must be an misdn channel)
+  -> display  (sends a Text Message to a Asterisk channel, 
+       this channel must be an misdn channel)
 - set
-	-> debug	(sets debug level)
+  -> debug  (sets debug level)
 - show
-	-> config	(shows the configuration options)
-	-> channels	(shows the current active misdn channels)
-	-> channel	(shows details about the given misdn channels)
-	-> stacks	(shows the current ports, their protocols and states)
-	-> fullstacks	(shows the current active and inactive misdn channels)
+  -> config (shows the configuration options)
+  -> channels (shows the current active misdn channels)
+  -> channel  (shows details about the given misdn channels)
+  -> stacks (shows the current ports, their protocols and states)
+  -> fullstacks (shows the current active and inactive misdn channels)
 
 - restart 
-	-> port		(restarts given port (L2 Restart) )
+  -> port   (restarts given port (L2 Restart) )
 
-- reload 		(reloads misdn.conf)
+- reload    (reloads misdn.conf)
 \end{verbatim}
 
 You can only use "misdn send display" when an Asterisk channel is created and
@@ -218,8 +218,8 @@ msn (callerid) of the Phone to send the text to.
 mISDN Exports/Imports a few Variables: 
 
 \begin{verbatim}
-- MISDN_ADDRESS_COMPLETE : 	Is either set to 1 from the Provider, or you 
-				can set it to 1 to force a sending complete.
+- MISDN_ADDRESS_COMPLETE :  Is either set to 1 from the Provider, or you 
+        can set it to 1 to force a sending complete.
 \end{verbatim}
 
 
@@ -258,9 +258,7 @@ as Display Message to the Phone.
 
 \subsection{Known Problems}
 
-\begin{verbatim}
-* I cannot hear any tone after a successful CONNECT to the other end
+Q: I cannot hear any tone after a successful CONNECT to the other end
 
--> you forgot to load mISDNdsp, which is now needed by chan\_misdn for switching
+A: You forgot to load mISDNdsp, which is now needed by chan\_misdn for switching
 and dtmf tone detection
-\end{verbatim}

@@ -43,7 +43,7 @@ backwards compatible architecture. Look in the source code for instructions.
 \subsubsection{Testing and monitoring}
 
 You can test the effectiveness of PLC and the new jitterbuffer's detection of loss by using 
-the new CLI command "iax2 test losspct <n>".  This will simulate n percent packet loss 
+the new CLI command "iax2 test losspct $<$n$>$".  This will simulate n percent packet loss 
 coming \_in\_ to chan\_iax2. You should find that with PLC and the new JB, 10 percent packet 
 loss should lead to just a tiny amount of distortion, while without PLC, it would lead to 
 silent gaps in your audio.

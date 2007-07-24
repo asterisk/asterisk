@@ -6,9 +6,6 @@ functions implemented in Asterisk.
 The benefits of this architecture are many, both from a code management
 standpoint and from an installation perspective. 
 
-Additional information on the configuration of Realtime with Asterisk 
-can be found in doc/extconfig.txt
-
 The ARA is designed to be independent of storage. Currently, most
 drivers are based on SQL, but the architecture should be able to handle
 other storage methods in the future, like LDAP.
@@ -77,7 +74,7 @@ databases and reload it whenever you want. You can force a reload over
 the AMI, Asterisk Manager Interface or by calling Asterisk from a 
 shell script with 
 
-	asterisk -rx "reload"
+  asterisk -rx "reload"
 
 You may also dynamically add SIP and IAX devices and extensions 
 and making them available without a reload, by using the realtime
@@ -87,7 +84,7 @@ objects and the realtime switch.
 
 You configure the ARA in extconfig.conf (yes, it's a strange name, but
 is was defined in the early days of the realtime architecture and kind
-of stuck). Please see doc/extconfig.txt for database schemas.
+of stuck).
 
 The part of Asterisk that connects to the ARA use a well defined family
 name to find the proper database driver. The syntax is easy:
@@ -110,11 +107,8 @@ Defined well-known family names are:
   \item extensions - Realtime extensions (switch)
 \end{itemize}
 
-There is documentation of the SQL database in the file
-doc/extconfig.txt in your Asterisk source code tree.
-
-For voicemail storage with the support of ODBC, there is a 
-doc/odbcstorage.txt documentation file.
+Voicemail storage with the support of ODBC described in file 
+docs/odbcstorage.tex (\ref{odbcstorage}).
 
 \subsubsection{Limitations}
 

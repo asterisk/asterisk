@@ -268,25 +268,27 @@ option):
 
 \begin{verbatim}
 [home-introduction]
-exten => s,1,Background,intro-options   ;; Script: To hear your Introduction, dial 1.
-                                        ;;         to record a new introduction, dial 2.
-                                        ;;         to return to the main menu, dial 3.
-                                        ;;         to hear what this is all about, dial 4.
+exten => s,1,Background,intro-options ;; Script: 
+     ;; To hear your Introduction, dial 1.
+     ;;    to record a new introduction, dial 2.
+     ;;    to return to the main menu, dial 3.
+     ;;    to hear what this is all about, dial 4.
 exten => 1,1,Playback,priv-callerintros/${CALLERIDNUM}
 exten => 1,2,Goto(s,1)
 exten => 2,1,Goto(home-introduction-record,s,1)
 exten => 3,1,Goto(homeline,s,7)
-exten => 4,1,Playback,intro-intro     ;; Script:
-                                ;; This may seem a little strange, but it really is a neat
-                                ;; thing, both for you and for us. I've taped a short introduction
-                                ;; for many of the folks who normally call us. Using the Caller ID
-                                ;; from each incoming call, the system plays the introduction
-                                ;; for that phone number over a speaker, just as the call comes in.
-                                ;; This helps the folks
-                                ;; here in the house more quickly determine who is calling.
-                                ;; and gets the right ones to gravitate to the phone.
-                                ;; You can listen to, and record a new intro for your phone number
-                                ;; using this menu.
+exten => 4,1,Playback,intro-intro
+     ;; Script:
+     ;; This may seem a little strange, but it really is a neat
+     ;; thing, both for you and for us. I've taped a short introduction
+     ;; for many of the folks who normally call us. Using the Caller ID
+     ;; from each incoming call, the system plays the introduction
+     ;; for that phone number over a speaker, just as the call comes in.
+     ;; This helps the folks
+     ;; here in the house more quickly determine who is calling.
+     ;; and gets the right ones to gravitate to the phone.
+     ;; You can listen to, and record a new intro for your phone number
+     ;; using this menu.
 exten => 4,2,Goto(s,1)
 exten => t,1,Goto(s,1)
 exten => i,1,Background,invalid
@@ -295,37 +297,37 @@ exten => o,1,Goto(s,1)
 
 [home-introduction-record]
 exten => s,1,Background,intro-record-choices    ;; Script:
-                                ;;      If you want some advice about recording your
-                                ;;      introduction, dial 1. 
-                                ;;      otherwise, dial 2, and introduce yourself after
-                                ;;      the beep.
+     ;; If you want some advice about recording your
+     ;; introduction, dial 1. 
+     ;; otherwise, dial 2, and introduce yourself after
+     ;; the beep.
 exten => 1,1,Playback,intro-record
-                                ;;      Your introduction should be short and sweet and crisp.
-                                ;;      Your introduction will be limited to 4 seconds.
-                                ;;      This is NOT meant to be a voice mail message, so
-                                ;;      please, don't say anything about why you are calling.
-                                ;;      After we are done making the recording, your introduction
-                                ;;      will be saved for playback. 
-                                ;;      If you are the only person that would call from this number, 
-                                ;;      please state your name.  Otherwise, state your business
-                                ;;      or residence name instead. For instance, if you are 
-                                ;;      friend of the family, say, Olie McPherson, and both
-                                ;;      you and your kids might call here a lot, you might
-                                ;;      say: "This is the distinguished Olie McPherson Residence!"
-                                ;;      If you are the only person calling, you might say this:
-                                ;;      "This is the illustrious Kermit McFrog! Pick up the Phone, someone!!"
-                                ;;      If you are calling from a business, you might pronounce a more sedate introduction,like,
-                                ;;      "Fritz from McDonalds calling.", or perhaps the more original introduction:
-                                ;;      "John, from the Park County Morgue. You stab 'em, we slab 'em!".
-                                ;;      Just one caution: the kids will hear what you record every time
-                                ;;      you call. So watch your language!
-                                ;;      I will begin recording after the tone. 
-                                ;;      When you are done, hit the # key. Gather your thoughts and get 
-                                ;;      ready. Remember, the # key will end the recording, and play back
-                                ;;      your intro. Good Luck, and Thank you!"
+     ;; Your introduction should be short and sweet and crisp.
+     ;; Your introduction will be limited to 4 seconds.
+     ;; This is NOT meant to be a voice mail message, so
+     ;; please, don't say anything about why you are calling.
+     ;; After we are done making the recording, your introduction
+     ;; will be saved for playback. 
+     ;; If you are the only person that would call from this number, 
+     ;; please state your name.  Otherwise, state your business
+     ;; or residence name instead. For instance, if you are 
+     ;; friend of the family, say, Olie McPherson, and both
+     ;; you and your kids might call here a lot, you might
+     ;; say: "This is the distinguished Olie McPherson Residence!"
+     ;; If you are the only person calling, you might say this:
+     ;; "This is the illustrious Kermit McFrog! Pick up the Phone, someone!!"
+     ;; If you are calling from a business, you might pronounce a more sedate introduction,like,
+     ;; "Fritz from McDonalds calling.", or perhaps the more original introduction:
+     ;; "John, from the Park County Morgue. You stab 'em, we slab 'em!".
+     ;; Just one caution: the kids will hear what you record every time
+     ;; you call. So watch your language!
+     ;; I will begin recording after the tone. 
+     ;; When you are done, hit the # key. Gather your thoughts and get 
+     ;; ready. Remember, the # key will end the recording, and play back
+     ;; your intro. Good Luck, and Thank you!"
 exten => 1,2,Goto(2,1)
 exten => 2,1,Background,intro-start
-                                ;;  OK, here we go! After the beep, please give your introduction.
+     ;;  OK, here we go! After the beep, please give your introduction.
 exten => 2,2,Background,beep
 exten => 2,3,Record,priv-callerintros/${CALLERIDNUM}:gsm|4
 exten => 2,4,Background,priv-callerintros/${CALLERIDNUM}
