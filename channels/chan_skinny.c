@@ -818,7 +818,7 @@ static int mwiblink = 0;
 /* This is for flashhook transfers */
 static int transfer = 0;
 static int cancallforward = 0;
-/* static int busycount = 3;*/
+/*static int busycount = 3;*/
 static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 static char mailbox[AST_MAX_EXTENSION];
 static char regexten[AST_MAX_EXTENSION];
