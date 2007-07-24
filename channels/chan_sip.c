@@ -17623,6 +17623,7 @@ static int reload_config(enum channelreloadreason reason)
 			stunaddr.sin_port = htons(3478);
 			if (ast_parse_arg(v->value, PARSE_INADDR, &stunaddr))
 				ast_log(LOG_WARNING, "Invalid STUN server address: %s\n", v->value);
+			externexpire = time(NULL);
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (ast_parse_arg(v->value, PARSE_INADDR, &bindaddr))
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
@@ -17868,17 +17869,17 @@ static int reload_config(enum channelreloadreason reason)
 				if (option_verbose > 1)
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-				if (stunaddr.sin_addr.s_addr != 0) {
-					ast_debug(1, "stun to %s:%d\n",
-						ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
-					ast_stun_request(sipsock, &stunaddr,
-						NULL, &externip);
-					ast_debug(1, "STUN sees us at %s:%d\n", 
-						ast_inet_ntoa(externip.sin_addr) , ntohs(externip.sin_port));
-				}
 				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip);
 			}
 		}
+	}
+	if (stunaddr.sin_addr.s_addr != 0) {
+		ast_debug(1, "stun to %s:%d\n",
+			ast_inet_ntoa(stunaddr.sin_addr) , ntohs(stunaddr.sin_port));
+		ast_stun_request(sipsock, &stunaddr,
+			NULL, &externip);
+		ast_debug(1, "STUN sees us at %s:%d\n", 
+			ast_inet_ntoa(externip.sin_addr) , ntohs(externip.sin_port));
 	}
 	ast_mutex_unlock(&netlock);
 
