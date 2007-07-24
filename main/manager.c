@@ -181,11 +181,11 @@ struct ast_manager_user {
 	char *write;
 	int displayconnects;	/*!< XXX unused */
 	int keep;	/*!< mark entries created on a reload */
-	AST_LIST_ENTRY(ast_manager_user) list;
+	AST_RWLIST_ENTRY(ast_manager_user) list;
 };
 
 /*! \brief list of users found in the config file */
-static AST_LIST_HEAD_STATIC(users, ast_manager_user);
+static AST_RWLIST_HEAD_STATIC(users, ast_manager_user);
 
 /*! \brief list of actions registered */
 static struct manager_action *first_action;
@@ -433,14 +433,14 @@ static char *complete_show_manuser(const char *line, const char *word, int pos, 
 	if (pos != 3)
 		return NULL;
 	
-	AST_LIST_LOCK(&users);
-	AST_LIST_TRAVERSE(&users, user, list) {
+	AST_RWLIST_RDLOCK(&users);
+	AST_RWLIST_TRAVERSE(&users, user, list) {
 		if (!strncasecmp(word, user->username, l) && ++which > state) {
 			ret = ast_strdup(user->username);
 			break;
 		}
 	}
-	AST_LIST_UNLOCK(&users);
+	AST_RWLIST_UNLOCK(&users);
 
 	return ret;
 }
@@ -468,7 +468,7 @@ static struct ast_manager_user *get_manager_by_name_locked(const char *name)
 {
 	struct ast_manager_user *user = NULL;
 
-	AST_LIST_TRAVERSE(&users, user, list)
+	AST_RWLIST_TRAVERSE(&users, user, list)
 		if (!strcasecmp(user->username, name))
 			break;
 	return user;
@@ -483,10 +483,10 @@ static int manager_displayconnects (struct mansession *s)
 	struct ast_manager_user *user = NULL;
 	int ret = 0;
 
-	AST_LIST_LOCK(&users);
+	AST_RWLIST_RDLOCK(&users);
 	if ((user = get_manager_by_name_locked (s->username)))
 		ret = user->displayconnects;
-	AST_LIST_UNLOCK(&users);
+	AST_RWLIST_UNLOCK(&users);
 	
 	return ret;
 }
@@ -538,11 +538,11 @@ static int handle_showmanager(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	AST_LIST_LOCK(&users);
+	AST_RWLIST_RDLOCK(&users);
 
 	if (!(user = get_manager_by_name_locked(argv[3]))) {
 		ast_cli(fd, "There is no manager called %s\n", argv[3]);
-		AST_LIST_UNLOCK(&users);
+		AST_RWLIST_UNLOCK(&users);
 		return -1;
 	}
 
@@ -563,7 +563,7 @@ static int handle_showmanager(int fd, int argc, char *argv[])
 		(user->write ? user->write : "(N/A)"),
 		(user->displayconnects ? "yes" : "no"));
 
-	AST_LIST_UNLOCK(&users);
+	AST_RWLIST_UNLOCK(&users);
 
 	return RESULT_SUCCESS;
 }
@@ -577,23 +577,23 @@ static int handle_showmanagers(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	AST_LIST_LOCK(&users);
+	AST_RWLIST_RDLOCK(&users);
 
 	/* If there are no users, print out something along those lines */
-	if (AST_LIST_EMPTY(&users)) {
+	if (AST_RWLIST_EMPTY(&users)) {
 		ast_cli(fd, "There are no manager users.\n");
-		AST_LIST_UNLOCK(&users);
+		AST_RWLIST_UNLOCK(&users);
 		return RESULT_SUCCESS;
 	}
 
 	ast_cli(fd, "\nusername\n--------\n");
 
-	AST_LIST_TRAVERSE(&users, user, list) {
+	AST_RWLIST_TRAVERSE(&users, user, list) {
 		ast_cli(fd, "%s\n", user->username);
 		count_amu++;
 	}
 
-	AST_LIST_UNLOCK(&users);
+	AST_RWLIST_UNLOCK(&users);
 
 	ast_cli(fd,"-------------------\n");
 	ast_cli(fd,"%d manager users configured.\n", count_amu);
@@ -3374,7 +3374,7 @@ int init_manager(void)
 		amis_desc.sin.sin_family = AF_INET;
 
 	
-	AST_LIST_LOCK(&users);
+	AST_RWLIST_WRLOCK(&users);
 
 	while ((cat = ast_category_browse(cfg, cat))) {
 
@@ -3388,7 +3388,7 @@ int init_manager(void)
 			/* Copy name over */
 			ast_copy_string(user->username, cat, sizeof(user->username));
 			/* Insert into list */
-			AST_LIST_INSERT_TAIL(&users, user, list);
+			AST_RWLIST_INSERT_TAIL(&users, user, list);
 		}
 
 		/* Make sure we keep this user and don't destroy it during cleanup */
@@ -3428,13 +3428,13 @@ int init_manager(void)
 	}
 
 	/* Perform cleanup - essentially prune out old users that no longer exist */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&users, user, list) {
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&users, user, list) {
 		if (user->keep) {	/* valid record. clear flag for the next round */
 			user->keep = 0;
 			continue;
 		}
 		/* We do not need to keep this user so take them out of the list */
-		AST_LIST_REMOVE_CURRENT(&users, list);
+		AST_RWLIST_REMOVE_CURRENT(&users, list);
 		/* Free their memory now */
 		if (user->secret)
 			ast_free(user->secret);
@@ -3448,9 +3448,9 @@ int init_manager(void)
 			ast_free(user->write);
 		ast_free(user);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END
 
-	AST_LIST_UNLOCK(&users);
+	AST_RWLIST_UNLOCK(&users);
 
 	ast_config_destroy(cfg);
 
