@@ -477,7 +477,7 @@ static void rebuild_matrix(int samples)
 					tr_matrix[x][z].step = tr_matrix[x][y].step;
 					tr_matrix[x][z].cost = newcost;
 					tr_matrix[x][z].multistep = 1;
-					ast_debug(1, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
+					ast_debug(3, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
 					changed++;
 				}
 			}
