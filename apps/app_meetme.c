@@ -761,38 +761,44 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
 	ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
 	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
-	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
-	if (cnf->chan) {
-		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
-		ast_set_write_format(cnf->chan, AST_FORMAT_SLINEAR);
-		cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
-	} else {
-		ast_log(LOG_WARNING, "Unable to open pseudo channel - trying device\n");
-		cnf->fd = open("/dev/zap/pseudo", O_RDWR);
-		if (cnf->fd < 0) {
-			ast_log(LOG_WARNING, "Unable to open pseudo device\n");
-			free(cnf);
-			cnf = NULL;
-			goto cnfout;
-		}
-	}
-	
+
 	/* Setup a new zap conference */
 	ztc.confno = -1;
 	ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
-	if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
-		ast_log(LOG_WARNING, "Error setting conference\n");
-		if (cnf->chan)
-			ast_hangup(cnf->chan);
-		else
+	cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+	if (cnf->fd < 0 || ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
+		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
+		if (cnf->fd >= 0)
 			close(cnf->fd);
 		free(cnf);
 		cnf = NULL;
 		goto cnfout;
 	}
+
+	cnf->zapconf = ztc.confno;
+
+	/* Setup a new channel for playback of audio files */
+	cnf->chan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
+	if (cnf->chan) {
+		ast_set_read_format(cnf->chan, AST_FORMAT_SLINEAR);
+		ast_set_write_format(cnf->chan, AST_FORMAT_SLINEAR);
+		ztc.chan = 0;
+		ztc.confno = cnf->zapconf;
+		ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
+		if (ioctl(cnf->chan->fds[0], ZT_SETCONF, &ztc)) {
+			ast_log(LOG_WARNING, "Error setting conference\n");
+			if (cnf->chan)
+				ast_hangup(cnf->chan);
+			else
+				close(cnf->fd);
+			free(cnf);
+			cnf = NULL;
+			goto cnfout;
+		}
+	}
+
 	/* Fill the conference struct */
 	cnf->start = time(NULL);
-	cnf->zapconf = ztc.confno;
 	cnf->isdynamic = dynamic ? 1 : 0;
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
