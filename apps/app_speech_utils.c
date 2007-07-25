@@ -495,7 +495,7 @@ static int speech_background(struct ast_channel *chan, void *data)
         char dtmf[AST_MAX_EXTENSION] = "";
         time_t start, current;
         struct ast_datastore *datastore = NULL;
-        char *argv[2], *args = NULL, *filename_tmp = NULL, *filename = NULL, tmp[2] = "";
+        char *argv[2], *args = NULL, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
 	const char *tmp2 = NULL;
 
         args = ast_strdupa(data);
@@ -529,6 +529,14 @@ static int speech_background(struct ast_channel *chan, void *data)
 	/* See if the maximum DTMF length variable is set... we use a variable in case they want to carry it through their entire dialplan */
 	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_MAXLEN")) && !ast_strlen_zero(tmp2))
 		max_dtmf_len = atoi(tmp2);
+
+	/* See if a terminator is specified */
+	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_TERMINATOR"))) {
+		if (ast_strlen_zero(tmp2))
+			dtmf_terminator = '\0';
+		else
+			dtmf_terminator = tmp2[0];
+	}
 
         /* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
         if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
@@ -651,7 +659,7 @@ static int speech_background(struct ast_channel *chan, void *data)
                         /* Free the frame we received */
                         switch (f->frametype) {
                         case AST_FRAME_DTMF:
-				if (f->subclass == '#') {
+				if (dtmf_terminator != '\0' && f->subclass == dtmf_terminator) {
 					done = 1;
 				} else {
 					if (chan->stream != NULL) {
