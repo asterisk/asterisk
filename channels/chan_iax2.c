@@ -6988,7 +6988,7 @@ static int socket_process(struct iax2_thread *thread)
 	struct iax_frame *fr;
 	struct iax_frame *cur;
 	struct ast_frame f = { 0, };
-	struct ast_channel *c;
+	struct ast_channel *c = NULL;
 	struct iax2_dpcache *dp;
 	struct iax2_peer *peer;
 	struct iax_ies ies;
