@@ -2301,7 +2301,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 							chan->emulate_dtmf_duration = AST_MIN_DTMF_DURATION;
 					} else
 						chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
-					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %d queued on %s\n", f->subclass, chan->emulate_dtmf_duration, chan->name);
+					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %u queued on %s\n", f->subclass, chan->emulate_dtmf_duration, chan->name);
 				}
 			} else {
 				struct timeval now = ast_tvnow();
