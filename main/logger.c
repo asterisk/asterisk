@@ -964,7 +964,11 @@ void ast_backtrace(void)
 		if ((strings = backtrace_symbols(addresses, count))) {
 			ast_debug(1, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
 			for (i=0; i < count ; i++) {
-				ast_debug(1, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+#if __WORDSIZE == 32
+				ast_log(LOG_DEBUG, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+#elif __WORDSIZE == 64
+				ast_log(LOG_DEBUG, "#%d: [%016lX] %s\n", i, (unsigned long)addresses[i], strings[i]);
+#endif
 			}
 			free(strings);
 		} else {
