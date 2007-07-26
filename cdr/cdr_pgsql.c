@@ -90,6 +90,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 			PQfinish(conn);
 			ast_log(LOG_ERROR, "cdr_pgsql: Unable to connect to database server %s.  Calls will not be logged!\n", pghostname);
 			ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
+			conn = NULL;
 		}
 	}
 
@@ -148,6 +149,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 				PQfinish(conn);
 				ast_log(LOG_ERROR, "cdr_pgsql: Unable to reconnect to database server %s. Calls will not be logged!\n", pghostname);
 				ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
+				conn = NULL;
 				connected = 0;
 				ast_mutex_unlock(&pgsql_lock);
 				return -1;
@@ -183,8 +185,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 static int my_unload_module(void)
 { 
-	if (conn)
-		PQfinish(conn);
+	PQfinish(conn);
 	if (pghostname)
 		ast_free(pghostname);
 	if (pgdbname)
