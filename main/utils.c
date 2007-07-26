@@ -830,7 +830,7 @@ long int ast_random(void)
 	if (dev_urandom_fd >= 0) {
 		int read_res = read(dev_urandom_fd, &res, sizeof(res));
 		if (read_res > 0)
-			return res;
+			return labs(res);
 	}
 #endif
 #ifdef linux
