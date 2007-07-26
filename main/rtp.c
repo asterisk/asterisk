@@ -1598,6 +1598,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->lastividtimestamp = timestamp;
 		rtp->f.delivery.tv_sec = 0;
 		rtp->f.delivery.tv_usec = 0;
+		/* Pass the RTP marker bit as bit 0 in the subclass field.
+		 * This is ok because subclass is actually a bitmask, and
+		 * the low bits represent audio formats, that are not
+		 * involved here since we deal with video.
+		 */
 		if (mark)
 			rtp->f.subclass |= 0x1;
 	} else {
