@@ -11,3 +11,7 @@ TMP=`grep MENUSELECT_CFLAGS menuselect.makeopts | sed 's/MENUSELECT_CFLAGS\=//g'
 for x in ${TMP}; do
      echo "#define ${x} 1"
 done
+if grep AST_DEVMODE makeopts | grep -q yes
+then
+	echo "#define AST_DEVMODE 1"
+fi
