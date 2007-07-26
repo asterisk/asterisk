@@ -1672,6 +1672,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[31] = {1, AST_FORMAT_H261},
 	[34] = {1, AST_FORMAT_H263},
 	[97] = {1, AST_FORMAT_ILBC},
+	[98] = {1, AST_FORMAT_H263_PLUS},
 	[99] = {1, AST_FORMAT_H264},
 	[101] = {0, AST_RTP_DTMF},
 	[102] = {1, AST_FORMAT_T140},	/* Real time text chat */
