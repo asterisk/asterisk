@@ -149,8 +149,8 @@ static void fix_gotos_in_extensions(struct ael_extension *exten);
 static pval *get_extension_or_contxt(pval *p);
 static pval *get_contxt(pval *p);
 static void remove_spaces_before_equals(char *str);
-static void substitute_commas(char *str);
-
+/* static void substitute_commas(char *str); */
+#ifdef NOMORE
 /*! \brief I am adding this code to substitute commas with vertbars in the args to apps */
 static void substitute_commas(char *str)
 {
@@ -171,7 +171,7 @@ static void substitute_commas(char *str)
 		p++;
 	}
 }
-
+#endif
 
 /* PRETTY PRINTER FOR AEL:  ============================================================================= */
 
@@ -3474,7 +3474,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 					first = 0;
 				}
 				else
-					strcat(buf1,"|");
+					strcat(buf1,",");
 				strcat(buf1,p2->u1.str);
 			}
 			if (!first)
@@ -3492,8 +3492,8 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			buf1[0] = 0;
 			for (p2 = p->u2.arglist; p2; p2 = p2->next) {
 				if (p2 != p->u2.arglist )
-					strcat(buf1,"|");
-				substitute_commas(p2->u1.str);
+					strcat(buf1,",");
+				/*substitute_commas(p2->u1.str); */
 				strcat(buf1,p2->u1.str);
 			}
 			pr->app = strdup(p->u1.str);
