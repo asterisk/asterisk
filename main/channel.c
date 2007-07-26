@@ -2302,9 +2302,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				}
 			} else {
 				struct timeval now = ast_tvnow();
-				ast_clear_flag(chan, AST_FLAG_IN_DTMF);
-				if (!f->len)
-					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
+				if (ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
+					ast_clear_flag(chan, AST_FLAG_IN_DTMF);
+					if (!f->len)
+						f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
+				} else if (!f->len)
+					f->len = AST_MIN_DTMF_DURATION;
 				if (f->len < AST_MIN_DTMF_DURATION) {
 					ast_set_flag(chan, AST_FLAG_EMULATE_DTMF);
 					chan->emulate_dtmf_digit = f->subclass;
