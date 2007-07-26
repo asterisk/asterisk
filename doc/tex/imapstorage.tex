@@ -21,7 +21,7 @@ additional voicemail functionality, including:
 
 If you do not have the University of Washington's IMAP c-client
 installed on your system, you will need to download the c-client
-source distribution (http://www.washington.edu/imap/) and compile it.
+source distribution (\url{http://www.washington.edu/imap/}) and compile it.
 Asterisk supports both the 2004 and 2006 versions of c-client, however
 mail\_expunge\_full is enabled in the 2006 version.
 
@@ -79,7 +79,7 @@ authpassword=<password>
 The "expungeonhangup" flag is used to determine if the voicemail system should
 expunge all messages marked for deletion when the user hangs up the phone. 
 
-Each mailbox definition should also have imapuser=<imap username>.
+Each mailbox definition should also have imapuser=$<$imap username$>$.
 For example:
 
 \begin{verbatim}

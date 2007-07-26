@@ -27,12 +27,14 @@ supports every mISDN Hardware and provides an interface for asterisk.
 
 \subsection{Fast Installation Guide}
 
-It is easy to install mISDN and mISDNuser. Just fetch the newest head of the
-cvs, this can be done by:
+It is easy to install mISDN and mISDNuser. This can be done by:
+\begin{itemize} 
+     \item You can download latest stable releases from \url{http://www.misdn.org/downloads/}
 
-\begin{verbatim}
-cvs -d:pserver:anonymous:readonly@cvs.isdn4linux.de:/i4ldev co mISDN mISDNuser
-\end{verbatim}
+     \item Just fetch the newest head of the GIT (mISDN provect moved from CVS) 
+     In details this process described here: \url{http://www.misdn.org/index.php/GIT}
+\end{itemize}
+
 
 then compile and install both with:
 
@@ -58,7 +60,7 @@ cd asterisk ;
 That's all!
 
 Follow the instructions in the mISDN Package for how to load the Kernel
-Modules.
+Modules. Also install process described in \url{http://www.misdn.org/index.php/Installing_mISDN}
 
 \subsection{Pre-Requisites}
 
@@ -67,7 +69,7 @@ the mISDNuser package. Chan\_misdn works with both, the current release version
 and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
 be fetched from cvs.isdn4linux.de.
 
-You should use Kernels >= 2.6.9 
+You should use Kernels $>$= 2.6.9 
 
 
 \subsection{Configuration}
@@ -231,7 +233,7 @@ parts.  Misdn Debug messages begin with an 'I', asterisk messages begin with
 an '*', the rest is clear I think.
 
 Please take a trace of the problem and open a report in the Asterisk issue
-tracker at http://bugs.digium.com in the "channel drivers" project,
+tracker at \url{http://bugs.digium.com} in the "channel drivers" project,
 "chan\_misdn" category. Read the bug guidelines to make sure you
 provide all the information needed.
 

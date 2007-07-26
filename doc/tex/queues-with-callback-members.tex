@@ -57,7 +57,6 @@ queue specifies the context "dispatch". These three
 contexts must be defined somewhere in your dialplan.
 We will show them after the main menu below.
 
-<verbage explaining options above>
 In the [general] section, specifying the persistentmembers=yes,
 will cause the agent lists to be stored in astdb, and 
 recalled on startup.
@@ -234,7 +233,7 @@ And in the dispatch context, first agents of priority 10 are tried, then
 Notice that a common pattern is followed in each of the three queue contexts:
 
 First, you set QUEUE\_MAX\_PENALTY to a value, then you call
-Queue(<queue-name>,option,... (see the documentation for the Queue application));
+Queue($<$queue-name$>$,option,...) (see the Queue application documetation for details)
 
 In the above, note that the "t" option is specified, and this allows the 
 agent picking up the incoming call the luxury of transferring the call to 

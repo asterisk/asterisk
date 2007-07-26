@@ -170,10 +170,10 @@ The double quotes will be counted as part of that lexical token.
 As an example:
 
 \begin{verbatim}
-exten => s,6,GotoIf($[ "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+exten => s,6,GotoIf($[ "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
 \end{verbatim}
 
-The variable CALLERIDNAME could evaluate to "DELOREAN MOTORS" (with a space)
+The variable CALLERID(name) could evaluate to "DELOREAN MOTORS" (with a space)
 but the above will evaluate to:
 
 \begin{verbatim}
@@ -197,67 +197,77 @@ evaluate this expression, because it does not match its grammar.
 Operators are listed below in order of increasing precedence.  Operators
 with equal precedence are grouped within { } symbols.
 
-\begin{verbatim}
-     expr1 | expr2
-             Return the evaluation of expr1 if it is neither an empty string
-             nor zero; otherwise, returns the evaluation of expr2.
+\begin{itemize}
+  \item \verb!expr1 | expr2!
 
-     expr1 & expr2
-             Return the evaluation of expr1 if neither expression evaluates to
-             an empty string or zero; otherwise, returns zero.
+       Return the evaluation of expr1 if it is neither an empty string
+       nor zero; otherwise, returns the evaluation of expr2.
 
-     expr1 {=, >, >=, <, <=, !=} expr2
-             Return the results of floating point comparison if both arguments are
-             numbers; otherwise, returns the results of string comparison
-             using the locale-specific collation sequence.  The result of each
-             comparison is 1 if the specified relation is true, or 0 if the
-             relation is false.
+  \item \verb!expr1 & expr2!
 
-     expr1 {+, -} expr2
-             Return the results of addition or subtraction of floating point-valued
-             arguments.
+       Return the evaluation of expr1 if neither expression evaluates to
+       an empty string or zero; otherwise, returns zero.
 
-     expr1 {*, /, %} expr2
-             Return the results of multiplication, floating point division, or
-             remainder of arguments.
+  \item \verb+expr1 {=, >, >=, <, <=, !=} expr2+
 
-     - expr1
-            Return the result of subtracting expr1 from 0.
-            This, the unary minus operator, is right associative, and
-            has the same precedence as the ! operator.
+       Return the results of floating point comparison if both arguments are
+       numbers; otherwise, returns the results of string comparison
+       using the locale-specific collation sequence.  The result of each
+       comparison is 1 if the specified relation is true, or 0 if the
+       relation is false.
 
-     ! expr1
-            Return the result of a logical complement of expr1.
-            In other words, if expr1 is null, 0, an empty string,
-            or the string "0", return a 1. Otherwise, return a 0.
-            It has the same precedence as the unary minus operator, and
-            is also right associative.
+  \item \verb!expr1 {+, -} expr2!
 
-     expr1 : expr2
-             The `:' operator matches expr1 against expr2, which must be a
-             regular expression.  The regular expression is anchored to the
-             beginning of  the string with an implicit `^'.
+       Return the results of addition or subtraction of floating point-valued
+       arguments.
 
-             If the match succeeds and the pattern contains at least one regu-
-             lar expression subexpression `\(...\)', the string correspond-
-             ing to `\1' is returned; otherwise the matching operator
-             returns the number of characters matched.  If the match fails and
-             the pattern contains a regular expression subexpression the null
-             string is returned; otherwise 0.
+  \item \verb!expr1 {*, /, %} expr2!
 
-             Normally, the double quotes wrapping a string are left as part
-             of the string. This is disastrous to the : operator. Therefore,
-             before the regex match is made, beginning and ending double quote
-             characters are stripped from both the pattern and the string.
+       Return the results of multiplication, floating point division, or
+       remainder of arguments.
 
-      expr1 =~ expr2
-             Exactly the same as the ':' operator, except that the match is
-             not anchored to the beginning of the string. Pardon any similarity
-             to seemingly similar operators in other programming languages!
-             The ":" and "=~" operators share the same precedence.
+  \item \verb!- expr1!
 
-      expr1 ? expr2 :: expr3
-             Traditional Conditional operator. If expr1 is a number
+       Return the result of subtracting expr1 from 0.
+       This, the unary minus operator, is right associative, and
+       has the same precedence as the ! operator.
+
+  \item \verb+! expr1+
+
+       Return the result of a logical complement of expr1.
+       In other words, if expr1 is null, 0, an empty string,
+       or the string "0", return a 1. Otherwise, return a 0.
+       It has the same precedence as the unary minus operator, and
+       is also right associative.
+
+  \item \verb!expr1 : expr2!
+
+       The `:' operator matches expr1 against expr2, which must be a
+       regular expression.  The regular expression is anchored to the
+       beginning of  the string with an implicit `\^'.
+
+       If the match succeeds and the pattern contains at least one regular 
+       expression subexpression `\(...\)', the string corresponing 
+       to `\textbackslash1' is returned; otherwise the matching operator
+       returns the number of characters matched.  If the match fails and
+       the pattern contains a regular expression subexpression the null
+       string is returned; otherwise 0.
+
+       Normally, the double quotes wrapping a string are left as part
+       of the string. This is disastrous to the : operator. Therefore,
+       before the regex match is made, beginning and ending double quote
+       characters are stripped from both the pattern and the string.
+
+   \item \verb!expr1 =~ expr2!
+
+       Exactly the same as the ':' operator, except that the match is
+       not anchored to the beginning of the string. Pardon any similarity
+       to seemingly similar operators in other programming languages!
+       The ":" and "=\~" operators share the same precedence.
+
+   \item \verb!expr1 ? expr2 :: expr3!
+
+       Traditional Conditional operator. If expr1 is a number
        that evaluates to 0 (false), expr3 is result of the this
        expression evaluation.  Otherwise, expr2 is the result.
        If expr1 is a string, and evaluates to an empty string,
@@ -267,7 +277,7 @@ with equal precedence are grouped within { } symbols.
        will be the result of the "evaluation" of this
        expression.  expr3 will be the result otherwise. This
        operator has the lowest precedence.
-\end{verbatim}
+\end{itemize}
 
 Parentheses are used for grouping in the usual manner.
 
@@ -276,7 +286,7 @@ or C derived languages.
 
 \subsection{Floating Point Numbers}
 
-In 1.6 and above, we shifted the \$\[...\] expressions to be calculated
+In 1.6 and above, we shifted the \$[...] expressions to be calculated
 via floating point numbers instead of integers. We use 'long double' numbers
 when possible, which provide around 16 digits of precision with 12 byte numbers. 
 
@@ -309,7 +319,7 @@ don't want to preclude it, either.
 
 Here is a list of the 'builtin' functions in Expr2. All other dialplan functions
 are available by simply calling them (read-only). In other words, you don't need to
-surround function calls in \$\[...\] expressions with \$\{...\}. Don't jump to conclusions,
+surround function calls in \$[...] expressions with \$\{...\}. Don't jump to conclusions,
 though! -- you still need to wrap variable names in curly braces!
 
 \begin{enumerate}
@@ -338,6 +348,7 @@ If this quotient is 1/2, it is rounded to the nearest even number.
 
 \subsection{Examples}
 
+\begin{astlisting}
 \begin{verbatim}
  "One Thousand Five Hundred" =~ "(T[^ ]+)"
    returns: Thousand
@@ -422,10 +433,11 @@ TRUNC(-3.5)
    returns -3.
 
 \end{verbatim}
+\end{astlisting}
 
 Of course, all of the above examples use constants, but would work the
 same if any of the numeric or string constants were replaced with a
-variable reference \${CALLERIDNUM}, for instance.
+variable reference \${CALLERID(num)}, for instance.
 
 
 \subsection{Numbers Vs. Strings}
@@ -453,7 +465,7 @@ This is designed to be used together with the expression syntax described
 above, eg : 
 
 \begin{verbatim}
-  exten => 1,2,GotoIf($[${CALLERID} = 123456]?2|1:3|1)
+  exten => 1,2,GotoIf($[${CALLERID(all)} = 123456]?2|1:3|1)
 \end{verbatim}
 
 Example of use : 
@@ -472,7 +484,7 @@ Syntax errors are now output with 3 lines.
 If the extensions.conf file contains a line like:
 
 \begin{verbatim}
-exten => s,6,GotoIf($[ "${CALLERIDNUM}"  = "3071234567" & &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+exten => s,6,GotoIf($[ "${CALLERID(num)}"  = "3071234567" & &  "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
 \end{verbatim}
 
 You may see an error in /var/log/asterisk/messages like this:
@@ -635,7 +647,7 @@ references with '555'. You can override the 555 for variable values,
 by entering in var=val arguments after the filename on the command
 line.  So...
 
- check\_expr /etc/asterisk/extensions.conf CALLERIDNUM=3075551212 DIALSTATUS=TORTURE EXTEN=121
+ check\_expr /etc/asterisk/extensions.conf CALLERID(num)=3075551212 DIALSTATUS=TORTURE EXTEN=121
 
 will substitute any \${CALLERIDNUM} variable references with
 3075551212, any \${DIALSTATUS} variable references with 'TORTURE', and
@@ -644,15 +656,19 @@ going on in the reference, like \${EXTEN:2}, then the override will
 not work. Everything in the \${...} has to match. So, to substitute
 \${EXTEN:2} references, you'd best say:
 
- check\_expr /etc/asterisk/extensions.conf CALLERIDNUM=3075551212 DIALSTATUS=TORTURE EXTEN:2=121
+ check\_expr /etc/asterisk/extensions.conf CALLERID(num)=3075551212 DIALSTATUS=TORTURE EXTEN:2=121
 
 on stdout, you will see something like:
 
- OK -- \$[ "\${DIALSTATUS}"  = "TORTURE" | "\${DIALSTATUS}" = "DONTCALL" ] at line 416
+\begin{verbatim}
+ OK -- $[ "${DIALSTATUS}"  = "TORTURE" | "${DIALSTATUS}" = "DONTCALL" ] at line 416
+\end{verbatim}
 
 In the expr2\_log file that is generated, you will see:
 
- line 416, evaluation of \$[  "TORTURE"  = "TORTURE" | "TORTURE" = "DONTCALL"  ] result: 1
+\begin{verbatim}
+ line 416, evaluation of $[  "TORTURE"  = "TORTURE" | "TORTURE" = "DONTCALL"  ] result: 1
+\end{verbatim}
 
 check\_expr is a very simplistic algorithm, and it is far from being
 guaranteed to work in all cases, but it is hoped that it will be
@@ -712,7 +728,7 @@ ${SYSTEMNAME}          * value of the systemname option of asterisk.conf
 \end{verbatim}
 
 \subsection{Application return values}
--------------------------
+
 In Asterisk 1.2, many applications return the result in a variable
 instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
 For the various status values, see each application's help text.

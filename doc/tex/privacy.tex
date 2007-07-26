@@ -3,9 +3,9 @@ seekers/poll takers/magazine renewers/etc?
 
 \subsection{First of all}
 
-Try the FTC "Don't call" database, this alone will reduce your
+ the FTC "Don't call" database, this alone will reduce your
 telemarketing call volume considerably.  (see:
-https://www.donotcall.gov/default.aspx ) But, this list won't protect
+\url{https://www.donotcall.gov/default.aspx} ) But, this list won't protect
 from the Charities, previous business relationships, etc.
 
 \subsection{Next, Fight against autodialers!!}
@@ -71,13 +71,14 @@ exten => s,1,Answer
 exten => s,2,SetVar,repeatcount=0
 exten => s,3,Zapateller,nocallerid
 exten => s,4,PrivacyManager
-exten => s,105,Background(tt-allbusy)       ;; do this if they don't enter a number to Privacy Manager
+     ;; do this if they don't enter a number to Privacy Manager
+exten => s,105,Background(tt-allbusy)       
 exten => s,106,Background(tt-somethingwrong)
 exten => s,107,Background(tt-monkeysintro)
 exten => s,108,Background(tt-monkeys)
 exten => s,109,Background(tt-weasels)
 exten => s,110,Hangup
-exten => s,5,GotoIf($[ "${CALLERIDNUM}"  = "7773334444" &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+exten => s,5,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
 \end{verbatim}
 
 I suggest using Zapateller at the beginning of the context, before
@@ -103,7 +104,7 @@ not to enter options when encountering such systems. Don't know.
 
 I have developed an elaborate script to torture Telemarketers, and
 entertain friends. (See
-http://www.voip-info.org/wiki-Asterisk+Telemarketer+Torture )
+\url{http://www.voip-info.org/wiki-Asterisk+Telemarketer+Torture} )
 
 While mostly those that call in and traverse my teletorture scripts
 are those we know, and are doing so out of curiosity, there have been
@@ -150,8 +151,8 @@ to your party. Depending on your dial options, they will hear ringing
 indications, or get music on hold. I suggest music on hold.
 
 \item Your extension is then dialed. When (and if) you pick up, you are
-told that a caller presenting themselves as <their recorded intro is
-played> is calling, and you have options, like being connected,
+told that a caller presenting themselves as $<$their recorded intro is
+played$>$ is calling, and you have options, like being connected,
 sending them to voicemail, torture, etc.
 
 \item You make your selection, and the call is handled as you chose.
@@ -197,7 +198,7 @@ helpful.
 When there is no CallerID, P and p options will always record an intro
 for the incoming caller. This intro will be stored temporarily in the
 /var/lib/asterisk/sounds/priv-callerintros dir, under the name
-NOCALLERID\_<extension><channelname> and will be erased after the
+NOCALLERID\_$<$extension$>$ $<$channelname$>$ and will be erased after the
 callee decides what to do with the call.
 
 Of course, NOCALLERID is not stored in the database. All those with no
@@ -226,7 +227,7 @@ time they call.
 \subsubsection{Philosophical Side Note}
 The 'P' option stores the CALLERID in the database, along with the
 callee's choice of actions, as a convenience to the CALLEE, whereas
-introductions are stored and re-used for the convenience of the CALLER.]
+introductions are stored and re-used for the convenience of the CALLER.
 
 \subsubsection{Introductions}
 Unless instructed to not save introductions (see the 'n' option above),
@@ -245,7 +246,7 @@ Next of all, these intros can be used in voicemail, played over
 loudspeakers, and perhaps other nifty things. For instance:
 
 \begin{verbatim}
-exten => s,7,System(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/${CALLERIDNUM}.gsm&|0) 
+exten => s,7,System(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/${CALLERID(num)}.gsm&|0) 
 \end{verbatim}
 
 When a call comes in at the house, the above priority gets executed,
@@ -273,7 +274,7 @@ exten => s,1,Background,intro-options ;; Script:
      ;;    to record a new introduction, dial 2.
      ;;    to return to the main menu, dial 3.
      ;;    to hear what this is all about, dial 4.
-exten => 1,1,Playback,priv-callerintros/${CALLERIDNUM}
+exten => 1,1,Playback,priv-callerintros/${CALLERID(num)}
 exten => 1,2,Goto(s,1)
 exten => 2,1,Goto(home-introduction-record,s,1)
 exten => 3,1,Goto(homeline,s,7)
@@ -329,8 +330,8 @@ exten => 1,2,Goto(2,1)
 exten => 2,1,Background,intro-start
      ;;  OK, here we go! After the beep, please give your introduction.
 exten => 2,2,Background,beep
-exten => 2,3,Record,priv-callerintros/${CALLERIDNUM}:gsm|4
-exten => 2,4,Background,priv-callerintros/${CALLERIDNUM}
+exten => 2,3,Record,priv-callerintros/${CALLERID(num)}:gsm|4
+exten => 2,4,Background,priv-callerintros/${CALLERID(num)}
 exten => 2,5,Goto(home-introduction,s,1)
 exten => t,1,Goto(s,1)
 exten => i,1,Background,invalid

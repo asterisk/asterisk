@@ -6,7 +6,30 @@
 % http://www.pps.jussieu.fr/~beffara/soft/rubber/
 
 \documentclass[12pt,a4]{report}
+
 \usepackage{hyperref}
+
+\usepackage{url}
+\makeatletter
+\def\url@aststyle{%
+  \@ifundefined{selectfont}{\def\UrlFont{\sf}}{\def\UrlFont{\small\ttfamily}}}
+\makeatother
+\urlstyle{ast}
+
+\usepackage[titles]{tocloft}
+\renewcommand{\cftchapfont}{%
+  \fontsize{11}{13}\usefont{OT1}{phv}{bc}{n}\selectfont
+}
+
+\newenvironment{astlisting}
+{\begin{list}{}{\setlength{\leftmargin}{1em}}\item\scriptsize\bfseries}
+{\end{list}}
+
+\usepackage{sectsty}
+\allsectionsfont{\usefont{OT1}{phv}{bc}{n}\selectfont}
+
+\usepackage[Lenny]{fncychap}
+
 
 \author{Asterisk Development Team \\ Asterisk.org}
 \title{Asterisk Reference Information \\ Version SVN-trunk-r72921M}

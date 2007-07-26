@@ -8,7 +8,7 @@ assumes a familiarity with ENUM (RFC3761) or ENUM-like methods, as
 well as familiarity with NAPTR DNS records (RFC2915, RFC3401-3404).
 For an overview of NAPTR records, and the use of NAPTRs in the ENUM
 global phone-number-to-DNS mapping scheme, please see
-http://www.voip-info.org/tiki-index.php?page=ENUM for more detail.
+\url{http://www.voip-info.org/tiki-index.php?page=ENUM} for more detail.
 
 Using ENUM within Asterisk can be simple or complex, depending on how
 many failover methods and redundancy procedures you wish to utilize.
@@ -261,7 +261,7 @@ exten => 100,1,Set(foo=${ENUMLOOKUP(1234567890,sip,,1,enum.yoyodynelabs.com)})
   the form ABC*DEF (where ABC and DEF are at least one numeric digit)
   then perform an ISN-style lookup where the lookup is manipulated to
   C.B.A.DEF.domain.tld (all other settings and options apply.)  See
-  http://www.freenum.org/ for more details on ISN lookups.  In the
+  \url{http://www.freenum.org/} for more details on ISN lookups.  In the
   unlikely event you wish to avoid ISN re-writes, put an "n" as the
   first digit of the search string - the "n" will be ignored for the search.
 \end{itemize}
@@ -274,6 +274,7 @@ All numbers are assumed to not have a leading "+" as dialed by the
 inbound channel, so that character is added where necessary during
 ENUMLOOKUP function calls.
 
+\begin{astlisting}
 \begin{verbatim}
 ; example 1
 ;
@@ -351,3 +352,4 @@ exten => _X.,23,Dial(Zap/g1/${EXTEN})
 ; end example 3
 
 \end{verbatim}
+\end{astlisting}

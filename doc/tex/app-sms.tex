@@ -2,7 +2,7 @@
 
    The SMS module for Asterisk was developed by Adrian Kennard, and is an
    implementation of the ETSI specification for landline SMS, ETSI ES 201
-   912, which is available from www.etsi.org. Landline SMS is starting to
+   912, which is available from \url{www.etsi.org}. Landline SMS is starting to
    be available in various parts of Europe, and is available from BT in
    the UK. However, Asterisk would allow gateways to be created in other
    locations such as the US, and use of SMS capable phones such as the
@@ -123,29 +123,36 @@ to run a command for each received message
 exten = _X.,1, SMS(${EXTEN}|a)
 exten = _X.,2,System("someapptohandleincomingsms ${EXTEN}")
 exten = _X.,3,Hangup
-; Mobile originated, RX. This is receiving a message from a device, e.g. a Magi
-c Messenger on a sip extension
+; Mobile originated, RX. This is receiving a message from a device, e.g. 
+; a Magic Messenger on a sip extension
 ; Running an app after receipt of the text allows the app to find all messages 
-in the queue and handle then, e.g. sending them to the public SMSC
+; in the queue and handle then, e.g. sending them to the public SMSC
 ; The app may be something like   smsq --process=somecommand --queue=${EXTEN}  
-to run a command for each received message
+; to run a command for each received message
 ; See below for example usage
 [smsmorx]
 exten = _X.,1, SMS(${EXTEN}|sa)
 exten = _X.,2,System("someapptohandlelocalsms ${EXTEN}")
 exten = _X.,3,Hangup
+\end{verbatim}
 
    smsmtrx is normally accessed by an incoming call from the SMSC. In the
    UK this call is from a CLI of 080058752X0 where X is the sub address.
    As such a typical usage in the extensions.conf at the point of
-   handling an incoming call is:-
+   handling an incoming call is:
+
+\begin{verbatim}
 exten = _X./8005875290,1,Goto(smsmtrx,${EXTEN},1)
-exten = _X./_80058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERIDNUM:8:1},1)
+exten = _X./_80058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERID(num):8:1},1)
+\end{verbatim}
 
    Alternatively, if you have the correct national prefix on incoming
-   CLI, e.g. using zaphfc, you might use:-
+   CLI, e.g. using zaphfc, you might use:
+
+\begin{verbatim}
 exten = _X./08005875290,1,Goto(smsmtrx,${EXTEN},1)
-exten = _X./_080058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERIDNUM:9:1},1)
+exten = _X./_080058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERID(num):9:1},1)
+\end{verbatim}
 
    smsmorx is normally accessed by a call from a local sip device
    connected to a Magic Messenger. It could however by that you are
@@ -153,9 +160,11 @@ exten = _X./_080058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERIDNUM:9:1},1)
    way, you look at the called number and goto smsmorx. In the UK, the
    SMSC number that would be dialed is 1709400X where X is the caller sub
    address. As such typical usage in extension.config at the point of
-   handling a call from a sip phone is:-
-exten = 17094009,1,Goto(smsmorx,${CALLERIDNUM},1)
-exten = _1709400[0-8],1,Goto(smsmorx,${CALLERIDNUM}-{EXTEN:7:1},1)
+   handling a call from a sip phone is:
+
+\begin{verbatim}
+exten = 17094009,1,Goto(smsmorx,${CALLERID(num)},1)
+exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
 \end{verbatim}
 
 \section{Using smsq}
@@ -303,22 +312,30 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERIDNUM}-{EXTEN:7:1},1)
    --spool-dir
    Spool dir (in which sms and outgoing are found)
    Default /var/spool/asterisk
+\end{verbatim}
 
-   Other arguments starting '-' or '--' are invalid and will cause an
+   Other arguments starting '-' or '\verb!--!' are invalid and will cause an
    error. Any trailing arguments are processed as follows:-
-     * If the message is mobile originating and no destination address
+
+\begin{itemize}
+    
+     \item If the message is mobile originating and no destination address
        has been specified, then the first argument is assumed to be a
        destination address
-     * If the message is mobile terminating and no destination address
+
+     \item If the message is mobile terminating and no destination address
        has been specified, then the first argument is assumed to be the
        queue name
-     * If there is no user data, or user data file specified, then any
+
+     \item If there is no user data, or user data file specified, then any
        following arguments are assumed to be the message, which are
        concatenated.
-     * If no user data is specified, then no message is sent. However,
-       unless --no-dial is specified, smsq checks for pending messages
+
+     \item If no user data is specified, then no message is sent. However,
+       unless \verb!--no-dial! is specified, smsq checks for pending messages
        and generates an outgoing anyway
-\end{verbatim}
+\end{itemize}
+
 
    Note that when smsq attempts to make a file in
    /var/spool/asterisk/outgoing, it checks if there is already a call
@@ -478,14 +495,18 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERIDNUM}-{EXTEN:7:1},1)
    standard way to do this by starting the message with *0\#, and so this
    application may have a UK specific bodge in the near future to handle
    these.
-\begin{verbatim}
-   The main changes that are proposed for delivery report handling are :-
-     * New queues for sent messages, one file for each destination
+
+   The main changes that are proposed for delivery report handling are :
+
+\begin{itemize}
+     \item New queues for sent messages, one file for each destination
        address and message reference.
-     * New field in message format, user reference, allowing applications
+
+     \item New field in message format, user reference, allowing applications
        to tie up their original message with a report.
-     * Handling of the delivery confirmation/rejection and connecting to
+
+     \item Handling of the delivery confirmation/rejection and connecting to
        the outgoing message - the received message file would then have
        fields for the original outgoing message and user reference
        allowing applications to handle confirmations better.
-\end{verbatim}
+\end{itemize}
