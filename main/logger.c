@@ -38,7 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/stat.h>
-#if ((defined(AST_DEVMODE)) && (defined(Linux)))
+#if ((defined(AST_DEVMODE)) && (defined(linux)))
 #include <execinfo.h>
 #define MAX_BACKTRACE_FRAMES 20
 #endif
