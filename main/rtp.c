@@ -1651,9 +1651,16 @@ static struct {
 	{{1, AST_FORMAT_T140}, "text", "T140"},
 };
 
-/* Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
-   also, our own choices for dynamic payload types.  This is our master
-   table for transmission */
+/*! 
+ * \brief Mapping between Asterisk codecs and rtp payload types
+ *
+ * Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
+ * also, our own choices for dynamic payload types.  This is our master
+ * table for transmission 
+ * 
+ * See http://www.iana.org/assignments/rtp-parameters for a list of
+ * assigned values
+ */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[0] = {1, AST_FORMAT_ULAW},
 #ifdef USE_DEPRECATED_G726
