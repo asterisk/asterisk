@@ -6755,7 +6755,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 	
 	if (!p->sessionid) {
-		p->sessionid = (int)ast_random();
+		p->sessionid = (int)abs(ast_random());
 		p->sessionversion = p->sessionid;
 	} else
 		p->sessionversion++;
@@ -6926,7 +6926,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	/* Set RTP Session ID and version */
 	if (!p->sessionid) {
-		p->sessionid = (int)ast_random();
+		p->sessionid = (int)abs(ast_random());
 		p->sessionversion = p->sessionid;
 	} else
 		p->sessionversion++;
@@ -8471,7 +8471,7 @@ static void reg_source_db(struct sip_peer *peer)
 		/* SIP isn't up yet, so schedule a poke only, pretty soon */
 		if (peer->pokeexpire > -1)
 			ast_sched_del(sched, peer->pokeexpire);
-		peer->pokeexpire = ast_sched_add(sched, ast_random() % 5000 + 1, sip_poke_peer_s, peer);
+		peer->pokeexpire = ast_sched_add(sched, abs(ast_random()) % 5000 + 1, sip_poke_peer_s, peer);
 	} else
 		sip_poke_peer(peer);
 	if (peer->expire > -1)
