@@ -583,8 +583,7 @@ int ast_module_reload(const char *name)
 		}
 
 		res = 2;
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", cur->resource, info->description);
+		ast_verb(3, "Reloading module '%s' (%s)\n", cur->resource, info->description);
 		info->reload();
 	}
 	AST_LIST_UNLOCK(&module_list);
@@ -665,13 +664,11 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 	switch (res) {
 	case AST_MODULE_LOAD_SUCCESS:
 		if (!ast_fully_booted) {
-			if (option_verbose)
-				ast_verbose("%s => (%s)\n", resource_name, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
+			ast_verb(1, "%s => (%s)\n", resource_name, term_color(tmp, mod->info->description, COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
 			if (ast_opt_console && !option_verbose)
 				ast_verbose( ".");
 		} else {
-			if (option_verbose)
-				ast_verbose(VERBOSE_PREFIX_1 "Loaded %s => (%s)\n", resource_name, mod->info->description);
+			ast_verb(1, "Loaded %s => (%s)\n", resource_name, mod->info->description);
 		}
 
 		mod->flags.running = 1;
@@ -742,8 +739,7 @@ int load_modules(unsigned int preload_only)
 	/* all embedded modules have registered themselves by now */
 	embedding = 0;
 
-	if (option_verbose)
-		ast_verbose("Asterisk Dynamic Loader Starting:\n");
+	ast_verb(1, "Asterisk Dynamic Loader Starting:\n");
 
 	AST_LIST_HEAD_INIT_NOLOCK(&load_order);
 

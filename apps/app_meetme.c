@@ -826,8 +826,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 	/* Fill the conference struct */
 	cnf->start = time(NULL);
 	cnf->isdynamic = dynamic ? 1 : 0;
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+	ast_verb(3, "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 	AST_LIST_INSERT_HEAD(&confs, cnf, list);
 
 	/* Reserve conference number in map */
@@ -1463,7 +1462,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				snprintf(recordingtmp, sizeof(recordingtmp), "wav");
 				conf->recordingformat = ast_strdupa(recordingtmp);
 			}
-			ast_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n",
+			ast_verb(4, "Starting recording of MeetMe Conference %s into file %s.%s.\n",
 				    conf->confno, conf->recordingfilename, conf->recordingformat);
 		}
 	}

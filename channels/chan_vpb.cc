@@ -476,17 +476,14 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 			p1->bridge = &bridges[i];
 		} ast_mutex_unlock(&p1->lock);
 
-		if (option_verbose>1) 
-			ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Bridging call entered with [%s, %s]\n",p0->dev, c0->name, c1->name);
+		ast_verb(2, "%s: vpb_bridge: Bridging call entered with [%s, %s]\n",p0->dev, c0->name, c1->name);
 	}
 
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
+	ast_verb(3, "Native bridging %s and %s\n", c0->name, c1->name);
 
 	#ifdef HALF_DUPLEX_BRIDGE
 
-	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Starting half-duplex bridge [%s, %s]\n",p0->dev, c0->name, c1->name);
+	ast_verb(2, "%s: vpb_bridge: Starting half-duplex bridge [%s, %s]\n",p0->dev, c0->name, c1->name);
 
 	int dir = 0;
 
@@ -518,8 +515,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 	vpb_play_buf_finish(p0->handle);
 	vpb_play_buf_finish(p1->handle);
 
-	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Finished half-duplex bridge [%s, %s]\n",p0->dev, c0->name, c1->name);
+	ast_verb(2, "%s: vpb_bridge: Finished half-duplex bridge [%s, %s]\n",p0->dev, c0->name, c1->name);
 
 	res = VPB_OK;
 
@@ -602,8 +598,7 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 	p1->bridge = NULL;
 
 
-	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Bridging call done with [%s, %s] => %d\n", c0->name, c1->name, res);
+	ast_verb(2, "Bridging call done with [%s, %s] => %d\n", c0->name, c1->name, res);
 
 /*
 	ast_mutex_unlock(&p0->lock);
@@ -638,16 +633,14 @@ static void get_callerid(struct vpb_pvt *p)
 	if( ast_mutex_trylock(&p->record_lock) == 0 ) {
 
 		cid_record_time = ast_tvnow();
-		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - start\n");
+		ast_verb(4, "CID record - start\n");
 
 		/* Skip any trailing ringtone */
 		if (UsePolarityCID != 1){
 			vpb_sleep(RING_SKIP);
 		}
 
-		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - skipped %dms trailing ring\n",
+		ast_verb(4, "CID record - skipped %dms trailing ring\n",
 				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 		cid_record_time = ast_tvnow();
 
@@ -661,8 +654,7 @@ static void get_callerid(struct vpb_pvt *p)
 		vpb_wave_close_write(ws);
 #endif
 
-		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %dms between rings\n", 
+		ast_verb(4, "CID record - recorded %dms between rings\n",
 				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 
 		ast_mutex_unlock(&p->record_lock);
@@ -698,8 +690,7 @@ static void get_callerid(struct vpb_pvt *p)
 					strcpy(p->cid_name, cli_struct->cn);
 
 				}
-				if (option_verbose>3) 
-					ast_verbose(VERBOSE_PREFIX_4 "CID record - got [%s] [%s]\n",owner->cid.cid_num,owner->cid.cid_name );
+				ast_verb(4, "CID record - got [%s] [%s]\n",owner->cid.cid_num,owner->cid.cid_name );
 				snprintf(p->callerid,sizeof(p->callerid)-1,"%s %s",cli_struct->cldn,cli_struct->cn);
 			}
 			else {
@@ -735,20 +726,19 @@ static void get_callerid_ast(struct vpb_pvt *p)
 #endif
 
 	if(p->callerid_type == 1) {
-	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collected caller ID already\n");
+		ast_verb(4, "Collected caller ID already\n");
 		return;
 	}
 	else if(p->callerid_type == 2 ) {
 		which_cid=CID_SIG_V23;
-	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID v23...\n");
+		ast_verb(4, "Collecting Caller ID v23...\n");
 	}
 	else if(p->callerid_type == 3) {
 		which_cid=CID_SIG_BELL;
-	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID bell...\n");
+		ast_verb(4, "Collecting Caller ID bell...\n");
 	}
 	else {
-		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "Caller ID disabled\n");
+		ast_verb(4, "Caller ID disabled\n");
 		return;
 	}
 /*	vpb_sleep(RING_SKIP); */
@@ -770,7 +760,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 			vpb_wave_write(ws,(char*)buf,sizeof(buf)); 
 #endif
 			sam_count+=sizeof(buf);
-			if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
+			ast_verb(4, "Collecting Caller ID samples [%d][%d]...\n",sam_count,rc);
 		}
 		vpb_record_buf_finish(p->handle);
 #ifdef ANALYSE_CID
@@ -778,8 +768,7 @@ static void get_callerid_ast(struct vpb_pvt *p)
 #endif
 		if (rc == 1){
 			callerid_get(cs, &name, &number, &flags);
-			if (option_verbose>0) 
-				ast_verbose(VERBOSE_PREFIX_1 "%s: Caller ID name [%s] number [%s] flags [%d]\n",p->dev,name, number,flags);
+			ast_verb(1, "%s: Caller ID name [%s] number [%s] flags [%d]\n",p->dev,name, number,flags);
 		}
 		else {
 			ast_log(LOG_ERROR, "%s: Failed to decode Caller ID \n", p->dev );
@@ -821,9 +810,7 @@ static void stoptone( int handle)
 		vpb_tone_terminate(handle);
 		ret = vpb_get_event_ch_async(handle,&je);
 		if ((ret == VPB_OK)&&(je.type != VPB_DIALEND)){
-			if (option_verbose > 3){
-					ast_verbose(VERBOSE_PREFIX_4 "Stop tone collected a wrong event!![%d]\n",je.type);
-			}
+			ast_verb(4, "Stop tone collected a wrong event!![%d]\n",je.type);
 /*			vpb_put_event(&je); */
 		}
 		vpb_sleep(10);
@@ -835,8 +822,7 @@ static int playtone( int handle, VPB_TONE *tone)
 {
 	int ret=VPB_OK;
 	stoptone(handle);
-	if (option_verbose > 3) 
-		ast_verbose(VERBOSE_PREFIX_4 "[%02d]: Playing tone\n", handle);
+	ast_verb(4, "[%02d]: Playing tone\n", handle);
 	ret = vpb_playtone_async(handle, tone);
 	return ret;
 }
@@ -847,8 +833,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	int endbridge = 0;
 	int res=0;
 
-	if (option_verbose > 3) 
-		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: [%d=>%d]\n", p->dev, e->type, e->data);
+	ast_verb(4, "%s: handle_owned: got event: [%d=>%d]\n", p->dev, e->type, e->data);
 
 	f.src = "vpb";
 	switch (e->type) {
@@ -906,8 +891,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 		case VPB_TONEDETECT:
 			if (e->data == VPB_BUSY || e->data == VPB_BUSY_308 || e->data == VPB_BUSY_AUST ) {
-				if (option_verbose > 3) 
-					ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: BUSY\n", p->dev);
+				ast_verb(4, "%s: handle_owned: got event: BUSY\n", p->dev);
 				if (p->owner->_state == AST_STATE_UP) {
 					f.subclass = AST_CONTROL_HANGUP;
 				}
@@ -921,8 +905,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 						const char *target_context = S_OR(p->owner->macrocontext, p->owner->context);
 						
 						if (ast_exists_extension(p->owner, target_context, "fax", 1, p->owner->cid.cid_num)) {
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", p->owner->name);
+							ast_verb(3, "Redirecting %s to fax extension\n", p->owner->name);
 							/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
 							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
 							if (ast_async_goto(p->owner, target_context, "fax", 1))
@@ -939,8 +922,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 				if ( ast_tvdiff_ms(ast_tvnow(), p->lastgrunt) > gruntdetect_timeout ) {
 					/* Nothing heard on line for a very long time
 					 * Timeout connection */
-					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "grunt timeout\n");
+					ast_verb(3, "grunt timeout\n");
 					ast_log(LOG_NOTICE,"%s: Line hangup due of lack of conversation\n",p->dev); 
 					f.subclass = AST_CONTROL_HANGUP;
 				} else {
@@ -1001,8 +983,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		case VPB_DIALEND:
 			if (p->state < 5){
 				f.subclass = AST_CONTROL_ANSWER;
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "%s: Dialend\n", p->dev);
+				ast_verb(2, "%s: Dialend\n", p->dev);
 			} else {
 				f.frametype = AST_FRAME_NULL;
 			}
@@ -1024,9 +1005,9 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	}
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in handle_owned [%d]\n", p->dev,res);
+	ast_verb(4, "%s: LOCKING in handle_owned [%d]\n", p->dev,res);
 	res = ast_mutex_lock(&p->lock); 
-	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	{
 		if (p->bridge) { /* Check what happened, see if we need to report it. */
@@ -1071,13 +1052,12 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	if (endbridge){
 		res = ast_mutex_unlock(&p->lock);
 /*
-		if (option_verbose > 3) ast_verbose("%s: unLOCKING in handle_owned [%d]\n", p->dev,res);
+		ast_verb(4, "%s: unLOCKING in handle_owned [%d]\n", p->dev,res);
 */
 		return 0;
 	}
 
-	if (option_verbose > 3) 
-		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: Prepared frame type[%d]subclass[%d], bridge=%p owner=[%s]\n",
+	ast_verb(4, "%s: handle_owned: Prepared frame type[%d]subclass[%d], bridge=%p owner=[%s]\n",
 			p->dev, f.frametype, f.subclass, (void *)p->bridge, p->owner->name);
 
 	/* Trylock used here to avoid deadlock that can occur if we
@@ -1088,8 +1068,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		if (ast_mutex_trylock(&p->owner->lock)==0)  {
 			ast_queue_frame(p->owner, &f);
 			ast_mutex_unlock(&p->owner->lock);
-			if (option_verbose > 3) 
-				ast_verbose(VERBOSE_PREFIX_4 "%s: handled_owned: Queued Frame to [%s]\n", p->dev,p->owner->name);
+			ast_verb(4, "%s: handled_owned: Queued Frame to [%s]\n", p->dev,p->owner->name);
 		} else {
 			ast_verbose("%s: handled_owned: Missed event %d/%d \n",
 				p->dev,f.frametype, f.subclass);
@@ -1097,7 +1076,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	}
 	res = ast_mutex_unlock(&p->lock);
 /*
-	if (option_verbose > 3) ast_verbose("%s: unLOCKING in handle_owned [%d]\n", p->dev,res);
+	ast_verb(4, "%s: unLOCKING in handle_owned [%d]\n", p->dev,res);
 */
 
 	return 0;
@@ -1113,22 +1092,17 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 	struct ast_channel *c;
 */
 
-	if (option_verbose > 3) {
 		char str[VPB_MAX_STR];
 		vpb_translate_event(e, str);
-		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: mode=%d, event[%d][%s]=[%d]\n",
-			p->dev, p->mode, e->type,str, e->data);
-	}
+	ast_verb(4, "%s: handle_notowned: mode=%d, event[%d][%s]=[%d]\n", p->dev, p->mode, e->type,str, e->data);
 
 	switch(e->type) {
 		case VPB_LOOP_ONHOOK:
 		case VPB_LOOP_POLARITY:
 			if (UsePolarityCID == 1){
-				if (option_verbose>3)
-					ast_verbose(VERBOSE_PREFIX_4 "Polarity reversal\n");
+				ast_verb(4, "Polarity reversal\n");
 				if(p->callerid_type == 1) {
-					if (option_verbose>3)
-						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
+					ast_verb(4, "Using VPB Caller ID\n");
 					get_callerid(p);        /* UK CID before 1st ring*/
 				}
 /*				get_callerid_ast(p); */   /* Caller ID using the ast functions */
@@ -1139,8 +1113,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				vpb_new(p, AST_STATE_RING, p->context);
 				if (UsePolarityCID != 1){
 					if(p->callerid_type == 1) {
-						if (option_verbose>3)
-							ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
+						ast_verb(4, "Using VPB Caller ID\n");
 						get_callerid(p);        /* Australian CID only between 1st and 2nd ring  */
 					}
 					get_callerid_ast(p);    /* Caller ID using the ast functions */
@@ -1164,7 +1137,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			if (p->mode == MODE_IMMEDIATE) 
 				vpb_new(p,AST_STATE_RING, p->context);
 			else {
-				ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: playing dialtone\n",p->dev);
+				ast_verb(4, "%s: handle_notowned: playing dialtone\n",p->dev);
 				playtone(p->handle, &Dialtone);
 				p->state=VPB_STATE_PLAYDIAL;
 				p->wantdtmf = 1;
@@ -1192,7 +1165,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				}
 				*/
 			} else {
-				ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Got a DIALEND when not really expected\n",p->dev);
+				ast_verb(4, "%s: handle_notowned: Got a DIALEND when not really expected\n",p->dev);
 			}
 			break;
 
@@ -1205,8 +1178,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 		case VPB_TIMEREXP:
 			if (e->data == p->dtmfidd_timer_id) {
 				if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
-					if (option_verbose > 3)
-						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: DTMF IDD timer out, matching on [%s] in [%s]\n", p->dev,p->ext , p->context);
+					ast_verb(4, "%s: handle_notowned: DTMF IDD timer out, matching on [%s] in [%s]\n", p->dev,p->ext , p->context);
 
 					vpb_new(p,AST_STATE_RING, p->context);
 				}
@@ -1234,8 +1206,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 					}
 					else if ( e->data == DTMF_CID_STOP ) { /* CallerID End signal */
 						p->callerid[p->dtmf_caller_pos] = '\0';
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 " %s: DTMF CallerID %s\n",p->dev,p->callerid);
+						ast_verb(3, " %s: DTMF CallerID %s\n",p->dev,p->callerid);
 						if (owner){
 							/*
 							if (owner->cid.cid_num)
@@ -1251,11 +1222,8 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 							ast_callerid_split(p->callerid, cid_name, sizeof(cid_name), cid_num, sizeof(cid_num));
 							ast_set_callerid(owner, cid_num, cid_name, cid_num);
 
-						}
-						else {
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 " %s: DTMF CallerID: no owner to assign CID \n",p->dev);
-						}
+						} else
+							ast_verb(3, " %s: DTMF CallerID: no owner to assign CID \n",p->dev);
 					} else if ( p->dtmf_caller_pos < AST_MAX_EXTENSION ) {
 						if ( p->dtmf_caller_pos >= 0 )
 							p->callerid[p->dtmf_caller_pos] = e->data;
@@ -1282,24 +1250,20 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			#endif
 			if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				if ( ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
-					if (option_verbose > 3)
-						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Multiple matches on [%s] in [%s]\n", p->dev,p->ext , p->context);
+					ast_verb(4, "%s: handle_notowned: Multiple matches on [%s] in [%s]\n", p->dev,p->ext , p->context);
 					/* Start DTMF IDD timer */
 					vpb_timer_stop(p->dtmfidd_timer);
 					vpb_timer_start(p->dtmfidd_timer);
 				}
 				else {
-					if (option_verbose > 3)
-						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev,p->ext , p->context);
+					ast_verb(4, "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev,p->ext , p->context);
 					vpb_new(p,AST_STATE_UP, p->context);
 				}
 			} else if (!ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				if (ast_exists_extension(NULL, "default", p->ext, 1, p->callerid)) {
 					vpb_new(p,AST_STATE_UP, "default");	      
 				} else if (!ast_canmatch_extension(NULL, "default", p->ext, 1, p->callerid)) {
-					if (option_verbose > 3) {
-						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: can't match anything in %s or default\n", p->dev, p->context);
-					}
+					ast_verb(4, "%s: handle_notowned: can't match anything in %s or default\n", p->dev, p->context);
 					playtone(p->handle, &Busytone);
 					vpb_timer_stop(p->busy_timer);
 					vpb_timer_start(p->busy_timer);
@@ -1313,9 +1277,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			break;
 	}
 
-	if (option_verbose > 3) 
-		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: mode=%d, [%d=>%d]\n",
-			p->dev, p->mode, e->type, e->data);
+	ast_verb(4, "%s: handle_notowned: mode=%d, [%d=>%d]\n", p->dev, p->mode, e->type, e->data);
 
 	return 0;
 }
@@ -1325,8 +1287,7 @@ static void *do_monitor(void *unused)
 
 	/* Monitor thread, doesn't die until explicitly killed. */
 
-	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Starting vpb monitor thread[%ld]\n",
+	ast_verb(2, "Starting vpb monitor thread[%ld]\n",
 	pthread_self());
 
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -1338,20 +1299,17 @@ static void *do_monitor(void *unused)
 		struct vpb_pvt *p;
 
 		/*
-		if (option_verbose > 3)
-		     ast_verbose(VERBOSE_PREFIX_4 "Monitor waiting for event\n");
+		ast_verb(4, "Monitor waiting for event\n");
 		*/
 
 		int res = vpb_get_event_sync(&e, VPB_WAIT_TIMEOUT);
 		if( (res==VPB_NO_EVENTS) || (res==VPB_TIME_OUT) ){
 			/*
-			if (option_verbose > 3){
 				if (res ==  VPB_NO_EVENTS){
-					ast_verbose(VERBOSE_PREFIX_4 "No events....\n");
+				ast_verb(4, "No events....\n");
 				} else {
-					ast_verbose(VERBOSE_PREFIX_4 "No events, timed out....\n");
+				ast_verb(4, "No events, timed out....\n");
 				}
-			}
 			*/
 			continue;
 		}
@@ -1367,11 +1325,9 @@ static void *do_monitor(void *unused)
 		p = NULL;
 
 		ast_mutex_lock(&monlock); {
-
-			if (e.type == VPB_NULL_EVENT) {
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Monitor got null event\n");
-			}
+		//XXX useless braces, remove them and fix indenting
+			if (e.type == VPB_NULL_EVENT)
+				ast_verb(4, "Monitor got null event\n");
 			else {
 				vpb_translate_event(&e, str);
 				if (strlen(str)>1){
@@ -1384,8 +1340,8 @@ static void *do_monitor(void *unused)
 						p = p->next;
 				} ast_mutex_unlock(&iflock);
 
-				if (p && (option_verbose > 3))
-					ast_verbose(VERBOSE_PREFIX_4 "%s: Event [%d=>%s] \n", 
+				if (p)
+					ast_verb(4, "%s: Event [%d=>%s] \n",
 						p ? p->dev : "null", e.type, str );
 			}
 
@@ -1394,19 +1350,15 @@ static void *do_monitor(void *unused)
 		if (!p) {
 			if (e.type != VPB_NULL_EVENT){
 				ast_log(LOG_WARNING, "Got event [%s][%d], no matching iface!\n", str,e.type);    
-				if (option_verbose > 3){
-					ast_verbose(VERBOSE_PREFIX_4 "vpb/ERR: No interface for Event [%d=>%s] \n",e.type,str );
+				ast_verb(4, "vpb/ERR: No interface for Event [%d=>%s] \n",e.type,str );
 				}
-			}
 			continue;
 		} 
 
 		/* flush the event from the channel event Q */
 		vpb_get_event_ch_async(e.handle,&je);
-		if (option_verbose > 4){
 			vpb_translate_event(&je, str);
-			ast_verbose("%s: Flushing event [%d]=>%s\n",p->dev,je.type,str);
-		}
+		ast_verb(5, "%s: Flushing event [%d]=>%s\n",p->dev,je.type,str);
 
 		/* Check for ownership and locks */
 		if ((p->owner)&&(!p->golock)){
@@ -1451,15 +1403,13 @@ static int restart_monitor(void)
 	if (mthreadactive == -2)
 		return 0;
 
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "Restarting monitor\n");
+	ast_verb(4, "Restarting monitor\n");
 
 	ast_mutex_lock(&monlock); {
 		if (monitor_thread == pthread_self()) {
 			ast_log(LOG_WARNING, "Cannot kill myself\n");
 			error = -1;
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Monitor trying to kill monitor\n");
+			ast_verb(4, "Monitor trying to kill monitor\n");
 		}
 		else {
 			if (mthreadactive != -1) {
@@ -1469,15 +1419,13 @@ static int restart_monitor(void)
 				e.type = VPB_NULL_EVENT;
 				e.data = 0;
 
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Trying to reawake monitor\n");
+				ast_verb(4, "Trying to reawake monitor\n");
 
 				vpb_put_event(&e);
 			} else {
 				/* Start a new monitor */
 				int pid = ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL); 
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "Created new monitor thread %d\n",pid);
+				ast_verb(4, "Created new monitor thread %d\n",pid);
 				if (pid < 0) {
 					ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
 					error = -1;
@@ -1487,8 +1435,7 @@ static int restart_monitor(void)
 		}
 	} ast_mutex_unlock(&monlock);
 
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "Monitor restarted\n");
+	ast_verb(4, "Monitor restarted\n");
 
 	return error;
 }
@@ -1718,23 +1665,21 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 	int tmp = 0;
 
 	if (use_ast_ind == 1) {
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_indicate called when using Ast Indications !?!\n", p->dev);
+		ast_verb(4, "%s: vpb_indicate called when using Ast Indications !?!\n", p->dev);
 		return 0;
 	}
 
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_indicate [%d] state[%d]\n", p->dev, condition,ast->_state);
+	ast_verb(4, "%s: vpb_indicate [%d] state[%d]\n", p->dev, condition,ast->_state);
 /*
 	if (ast->_state != AST_STATE_UP) {
-		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_indicate Not in AST_STATE_UP\n", p->dev, condition,ast->_state);
+		ast_verb(4, "%s: vpb_indicate Not in AST_STATE_UP\n", p->dev, condition,ast->_state);
 		return res;
 	}
 */
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in indicate \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING in indicate \n", p->dev);
+	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
 	switch(condition) {
@@ -1751,8 +1696,7 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 			if (ast->_state == AST_STATE_UP) {
 				playtone(p->handle, &Ringbacktone);
 				p->state = VPB_STATE_PLAYRING;
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_4 "%s: vpb indicate: setting ringback timer [%d]\n", p->dev,p->ringback_timer_id);
+				ast_verb(4, "%s: vpb indicate: setting ringback timer [%d]\n", p->dev,p->ringback_timer_id);
 				
 				vpb_timer_stop(p->ringback_timer);
 				vpb_timer_start(p->ringback_timer);
@@ -1784,7 +1728,7 @@ static int vpb_indicate(struct ast_channel *ast, int condition, const void *data
 	}
 	tmp = ast_mutex_unlock(&p->lock);
 /*
-	if (option_verbose > 3) ast_verbose("%s: unLOCKING in indicate [%d]\n", p->dev,tmp);
+	ast_verb(4, "%s: unLOCKING in indicate [%d]\n", p->dev,tmp);
 */
 	return res;
 }
@@ -1795,8 +1739,8 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	int res = 0;
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in fixup \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING in fixup \n", p->dev);
+	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
 	ast_debug(1, "New owner for channel %s is %s\n", p->dev, newchan->name);
@@ -1807,20 +1751,18 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 	if (newchan->_state == AST_STATE_RINGING){
 		if (use_ast_ind == 1) {
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_fixup Calling ast_indicate\n", p->dev);
+			ast_verb(4, "%s: vpb_fixup Calling ast_indicate\n", p->dev);
 			ast_indicate(newchan, AST_CONTROL_RINGING);
 		}
 		else {
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_fixup Calling vpb_indicate\n", p->dev);
+			ast_verb(4, "%s: vpb_fixup Calling vpb_indicate\n", p->dev);
 			vpb_indicate(newchan, AST_CONTROL_RINGING, NULL, 0);
 		}
 	}
 
 	res= ast_mutex_unlock(&p->lock);
 /*
-	if (option_verbose > 3) ast_verbose("%s: unLOCKING in fixup [%d]\n", p->dev,res);
+	ast_verb(4, "%s: unLOCKING in fixup [%d]\n", p->dev,res);
 */
 	return 0;
 }
@@ -1837,14 +1779,13 @@ static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int durat
 	int res = 0;
 
 	if (use_ast_dtmf){
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_digit: asked to play digit[%c] but we are using asterisk dtmf play back?!\n", p->dev, digit);
+		ast_verb(4, "%s: vpb_digit: asked to play digit[%c] but we are using asterisk dtmf play back?!\n", p->dev, digit);
 		return 0;
 	}
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in digit \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING in digit \n", p->dev);
+	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
 
@@ -1852,8 +1793,7 @@ static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int durat
 	s[0] = digit;
 	s[1] = '\0';
 
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_digit: asked to play digit[%s]\n", p->dev, s);
+	ast_verb(4, "%s: vpb_digit: asked to play digit[%s]\n", p->dev, s);
 
 	ast_mutex_lock(&p->play_dtmf_lock);
 	strncat(p->play_dtmf,s,sizeof(*p->play_dtmf));
@@ -1861,7 +1801,7 @@ static int vpb_digit_end(struct ast_channel *ast, char digit, unsigned int durat
 
 	res = ast_mutex_unlock(&p->lock);
 /*
-	if (option_verbose > 3) ast_verbose("%s: unLOCKING in digit [%d]\n", p->dev,res);
+	ast_verb(4, "%s: unLOCKING in digit [%d]\n", p->dev,res);
 */
 	return 0;
 }
@@ -1876,12 +1816,11 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	int tmp = 0;
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in call \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING in call \n", p->dev);
+	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "%s: starting call to [%s]\n", p->dev,dest);
+	ast_verb(4, "%s: starting call to [%s]\n", p->dev,dest);
 
 	if (s)
 		s = s + 1;
@@ -1899,7 +1838,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_log(LOG_WARNING, "vpb_call on %s neither down nor reserved!\n", ast->name);
 		tmp = ast_mutex_unlock(&p->lock);
 /*
-		if (option_verbose > 3) ast_verbose("%s: unLOCKING in call [%d]\n", p->dev,tmp);
+		ast_verb(4, "%s: unLOCKING in call [%d]\n", p->dev,tmp);
 */
 		return -1;
 	}
@@ -1923,35 +1862,29 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		memcpy( &call.tone_map,  DialToneMap, sizeof(DialToneMap) );
 		vpb_set_call(p->handle, &call);
 
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "%s: Calling %s on %s \n",p->dev, dialstring, ast->name); 
+		ast_verb(2, "%s: Calling %s on %s \n",p->dev, dialstring, ast->name);
 
-		if (option_verbose > 2) {
 			int j;
-			ast_verbose(VERBOSE_PREFIX_2 "%s: Dial parms for %s %d/%dms/%dms/%dms/%dms\n", p->dev
+		ast_verb(2, "%s: Dial parms for %s %d/%dms/%dms/%dms/%dms\n", p->dev
 				, ast->name, call.dialtones, call.dialtone_timeout
 				, call.ringback_timeout, call.inter_ringback_timeout
 				, call.answer_timeout );
 			for( j=0; !call.tone_map[j].terminate; j++ )
-				ast_verbose(VERBOSE_PREFIX_2 "%s: Dial parms for %s tone %d->%d\n", p->dev,
+			ast_verb(2, "%s: Dial parms for %s tone %d->%d\n", p->dev,
 					ast->name, call.tone_map[j].tone_id, call.tone_map[j].call_id); 
-		}
 
-		if (option_verbose > 3)
-				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
+		ast_verb(4, "%s: Disabling Loop Drop detection\n",p->dev);
 		vpb_disable_event(p->handle, VPB_MDROP);
 		vpb_sethook_sync(p->handle,VPB_OFFHOOK);
 		p->state=VPB_STATE_OFFHOOK;
 
 		#ifndef DIAL_WITH_CALL_PROGRESS
 		vpb_sleep(300);
-		if (option_verbose > 3)
-				ast_verbose("%s: Enabling Loop Drop detection\n",p->dev);
+		ast_verb(4, "%s: Enabling Loop Drop detection\n",p->dev);
 		vpb_enable_event(p->handle, VPB_MDROP);
 		res = vpb_dial_async(p->handle, dialstring);
 		#else
-		if (option_verbose > 3)
-				ast_verbose("%s: Enabling Loop Drop detection\n",p->dev);
+		ast_verb(4, "%s: Enabling Loop Drop detection\n",p->dev);
 		vpb_enable_event(p->handle, VPB_MDROP);
 		res = vpb_call_async(p->handle, dialstring);
 		#endif
@@ -1963,8 +1896,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 			res = 0;
 	}
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "%s: VPB Calling %s [t=%d] on %s returned %d\n",p->dev , s, timeout, ast->name, res); 
+	ast_verb(3, "%s: VPB Calling %s [t=%d] on %s returned %d\n",p->dev , s, timeout, ast->name, res);
 	if (res == 0) {
 		ast_setstate(ast, AST_STATE_RINGING);
 		ast_queue_control(ast,AST_CONTROL_RINGING);		
@@ -1976,7 +1908,7 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 
 	tmp = ast_mutex_unlock(&p->lock);
 /*
-	if (option_verbose > 3) ast_verbose("%s: unLOCKING in call [%d]\n", p->dev,tmp);
+	ast_verb(4, "%s: unLOCKING in call [%d]\n", p->dev,tmp);
 */
 	return res;
 }
@@ -1989,19 +1921,18 @@ static int vpb_hangup(struct ast_channel *ast)
 	int res =0 ;
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING pthread_self(%d)\n", p->dev,pthread_self());
+	ast_verb(4, "%s: LOCKING in hangup \n", p->dev);
+	ast_verb(4, "%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING pthread_self(%d)\n", p->dev,pthread_self());
 	ast_mutex_lock(&p->lock);
 */
-	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup requested\n", ast->name);
+	ast_verb(2, "%s: Hangup requested\n", ast->name);
 
 	if (!ast->tech || !ast->tech_pvt) {
 		ast_log(LOG_WARNING, "%s: channel not connected?\n", ast->name);
 		res = ast_mutex_unlock(&p->lock);
 /*
-		if (option_verbose > 3) ast_verbose("%s: unLOCKING in hangup [%d]\n", p->dev,res);
+		ast_verb(4, "%s: unLOCKING in hangup [%d]\n", p->dev,res);
 */
 		/* Free up ast dsp if we have one */
 		if ((use_ast_dtmfdet)&&(p->vad)) {
@@ -2017,29 +1948,26 @@ static int vpb_hangup(struct ast_channel *ast)
 	p->stopreads = 1;
 	if( p->readthread ){
 		pthread_join(p->readthread, NULL); 
-		if(option_verbose>3) 
-			ast_verbose( VERBOSE_PREFIX_4 "%s: stopped record thread \n",ast->name);
+		ast_verb(4, "%s: stopped record thread \n",ast->name);
 	}
 
 	/* Stop play */
 	if (p->lastoutput != -1) {
-		if(option_verbose>1) 
-			ast_verbose( VERBOSE_PREFIX_2 "%s: Ending play mode \n",ast->name);
+		ast_verb(2, "%s: Ending play mode \n",ast->name);
 		vpb_play_terminate(p->handle);
 		ast_mutex_lock(&p->play_lock); {
 			vpb_play_buf_finish(p->handle);
 		} ast_mutex_unlock(&p->play_lock);
 	}
 
-	if(option_verbose>3) 
-		ast_verbose( VERBOSE_PREFIX_4 "%s: Setting state down\n",ast->name);
+	ast_verb(4, "%s: Setting state down\n",ast->name);
 	ast_setstate(ast,AST_STATE_DOWN);
 
 
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING pthread_self(%d)\n", p->dev,pthread_self());
+	ast_verb(4, "%s: LOCKING in hangup \n", p->dev);
+	ast_verb(4, "%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING pthread_self(%d)\n", p->dev,pthread_self());
 */
 	ast_mutex_lock(&p->lock);
 
@@ -2050,8 +1978,7 @@ static int vpb_hangup(struct ast_channel *ast)
 			/* This is causing a "dial end" "play tone" loop
 			playtone(p->handle, &Busytone); 
 			p->state = VPB_STATE_PLAYBUSY;
-			if(option_verbose>4) 
-				ast_verbose( VERBOSE_PREFIX_4 "%s: Station offhook[%d], playing busy tone\n",
+			ast_verb(5, "%s: Station offhook[%d], playing busy tone\n",
 								ast->name,p->state);
 			*/
 		}
@@ -2069,11 +1996,9 @@ static int vpb_hangup(struct ast_channel *ast)
 		p->state=VPB_STATE_ONHOOK;
 	}
 	while (VPB_OK==vpb_get_event_ch_async(p->handle,&je)){
-		if(option_verbose>3) {
 			vpb_translate_event(&je, str);
-			ast_verbose( VERBOSE_PREFIX_4 "%s: Flushing event [%d]=>%s\n",ast->name,je.type,str);
+		ast_verb(4, "%s: Flushing event [%d]=>%s\n",ast->name,je.type,str);
 		}
-	}
 
 	p->readthread = 0;
 	p->lastoutput = -1;
@@ -2091,17 +2016,16 @@ static int vpb_hangup(struct ast_channel *ast)
 		p->vad = NULL;
 	}
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "%s: Hangup complete\n", ast->name);
+	ast_verb(2, "%s: Hangup complete\n", ast->name);
 
 	restart_monitor();
 /*
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	res = ast_mutex_unlock(&p->lock);
 /*
-	if (option_verbose > 3) ast_verbose("%s: unLOCKING in hangup [%d]\n", p->dev,res);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: unLOCKING in hangup [%d]\n", p->dev,res);
+	ast_verb(4, "%s: LOCKING in hangup count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	return 0;
 }
@@ -2113,17 +2037,15 @@ static int vpb_answer(struct ast_channel *ast)
 /*
 	VPB_EVENT je;
 	int ret;
-	if (option_verbose > 3) ast_verbose("%s: LOCKING in answer \n", p->dev);
-	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
+	ast_verb(4, "%s: LOCKING in answer \n", p->dev);
+	ast_verb(4, "%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
 
-	if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "%s: Answering channel\n",p->dev);
+	ast_verb(4, "%s: Answering channel\n",p->dev);
 
 	if (p->mode == MODE_FXO){
-		if (option_verbose > 3)
-				ast_verbose("%s: Disabling Loop Drop detection\n",p->dev);
+		ast_verb(4, "%s: Disabling Loop Drop detection\n",p->dev);
 		vpb_disable_event(p->handle, VPB_MDROP);
 	}
 
@@ -2134,21 +2056,14 @@ static int vpb_answer(struct ast_channel *ast)
 /*			vpb_sleep(500);
 			ret = vpb_get_event_ch_async(p->handle,&je);
 			if ((ret == VPB_OK)&&((je.type != VPB_DROP)&&(je.type != VPB_RING))){
-				if (option_verbose > 3){
-						ast_verbose(VERBOSE_PREFIX_4 "%s: Answer collected a wrong event!!\n",p->dev);
-				}
+				ast_verb(4, "%s: Answer collected a wrong event!!\n",p->dev);
 				vpb_put_event(&je);
 			}
 */
 		}
 		ast_setstate(ast, AST_STATE_UP);
 
-		if(option_verbose>1) 
-/*
-			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call from %s on %s [%s]\n", p->dev, 
-					p->owner->callerid, ast->name,(p->mode == MODE_FXO)?"FXO":"FXS"); 
-*/
-			ast_verbose( VERBOSE_PREFIX_2 "%s: Answered call on %s [%s]\n", p->dev,
+		ast_verb(2, "%s: Answered call on %s [%s]\n", p->dev,
 					 ast->name,(p->mode == MODE_FXO)?"FXO":"FXS");
 
 		ast->rings = 0;
@@ -2157,25 +2072,21 @@ static int vpb_answer(struct ast_channel *ast)
 	/*		ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res); */
 			ast_pthread_create(&p->readthread, NULL, do_chanreads, (void *)p);
 		} else {
-			if(option_verbose>3) 
-				ast_verbose(VERBOSE_PREFIX_4 "%s: Record thread already running!!\n",p->dev);
+			ast_verb(4, "%s: Record thread already running!!\n",p->dev);
 		}
 	} else {
-		if(option_verbose>3) {
-			ast_verbose(VERBOSE_PREFIX_4 "%s: Answered state is up\n",p->dev);
-		}
+		ast_verb(4, "%s: Answered state is up\n",p->dev);
 	/*	res = ast_mutex_unlock(&p->lock); */
 	/*	ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res); */
 	}
 	vpb_sleep(500);
 	if (p->mode == MODE_FXO){
-		if (option_verbose > 3)
-				ast_verbose("%s: Re-enabling Loop Drop detection\n",p->dev);
+		ast_verb(4, "%s: Re-enabling Loop Drop detection\n",p->dev);
 		vpb_enable_event(p->handle,VPB_MDROP);
 	}
 	res = ast_mutex_unlock(&p->lock);
 /*
-	if(option_verbose>3) ast_verbose("%s: unLOCKING in answer [%d]\n", p->dev,res);
+	ast_verb(4, "%s: unLOCKING in answer [%d]\n", p->dev,res);
 */
 	return 0;
 }
@@ -2263,17 +2174,14 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	int tdiff;
 
 /*	ast_mutex_lock(&p->lock); */
-	if(option_verbose>5) 
-		ast_verbose("%s: vpb_write: Writing to channel\n", p->dev);
+	ast_verb(6, "%s: vpb_write: Writing to channel\n", p->dev);
 
 	if (frame->frametype != AST_FRAME_VOICE) {
-		if(option_verbose>3) 
-			ast_verbose("%s: vpb_write: Don't know how to handle from type %d\n", ast->name, frame->frametype);
+		ast_verb(4, "%s: vpb_write: Don't know how to handle from type %d\n", ast->name, frame->frametype);
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
 	} else if (ast->_state != AST_STATE_UP) {
-		if(option_verbose>3) 
-			ast_verbose("%s: vpb_write: Attempt to Write frame type[%d]subclass[%d] on not up chan(state[%d])\n",ast->name, frame->frametype, frame->subclass,ast->_state);
+		ast_verb(4, "%s: vpb_write: Attempt to Write frame type[%d]subclass[%d] on not up chan(state[%d])\n",ast->name, frame->frametype, frame->subclass,ast->_state);
 		p->lastoutput = -1;
 /*		ast_mutex_unlock(&p->lock); */
 		return 0;
@@ -2307,17 +2215,14 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	/* Check if we have set up the play_buf */
 	if (p->lastoutput == -1) {
 		vpb_play_buf_start(p->handle, fmt);
-		if(option_verbose>1) {
-			ast_verbose("%s: vpb_write: Starting play mode (codec=%d)[%s]\n",p->dev,fmt,ast2vpbformatname(frame->subclass));
-		}
+		ast_verb(2, "%s: vpb_write: Starting play mode (codec=%d)[%s]\n",p->dev,fmt,ast2vpbformatname(frame->subclass));
 		p->lastoutput = fmt;
 		ast_mutex_unlock(&p->play_lock);
 		return 0;
 	} else if (p->lastoutput != fmt) {
 		vpb_play_buf_finish(p->handle);
 		vpb_play_buf_start(p->handle, fmt);
-		if(option_verbose>1) 
-			ast_verbose("%s: vpb_write: Changed play format (%d=>%d)\n",p->dev,p->lastoutput,fmt);
+		ast_verb(2, "%s: vpb_write: Changed play format (%d=>%d)\n",p->dev,p->lastoutput,fmt);
 		ast_mutex_unlock(&p->play_lock);
 		return 0;
 	}
@@ -2336,9 +2241,9 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		play_buf_time_start = ast_tvnow();
 /*		res = vpb_play_buf_sync(p->handle, (char*)frame->data, tdiff*8*2); */
 		res = vpb_play_buf_sync(p->handle, (char*)frame->data, frame->datalen);
-		if( res == VPB_OK && option_verbose > 5 ) {
+		if(res == VPB_OK) {
 			short * data = (short*)frame->data;
-			ast_verbose("%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
+			ast_verb(6, "%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
 		}
 		p->play_buf_time = ast_tvdiff_ms(ast_tvnow(), play_buf_time_start);
 	}
@@ -2350,8 +2255,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 
 	ast_mutex_unlock(&p->play_lock);
 /*	ast_mutex_unlock(&p->lock); */
-	if(option_verbose>5) 
-		ast_verbose("%s: vpb_write: Done Writing to channel\n", p->dev);
+	ast_verb(6, "%s: vpb_write: Done Writing to channel\n", p->dev);
 	return 0;
 }
 
@@ -2375,19 +2279,15 @@ static void *do_chanreads(void *pvt)
 	fr->offset = AST_FRIENDLY_OFFSET;
 	memset(p->buf, 0, sizeof p->buf);
 
-	if (option_verbose > 2) {
-		ast_verbose("%s: chanreads: starting thread\n", p->dev);
-	}  
+	ast_verb(3, "%s: chanreads: starting thread\n", p->dev);
 	ast_mutex_lock(&p->record_lock);
 
 	p->stopreads = 0; 
 	p->read_state = 1;
 	while (!p->stopreads && p->owner) {
 
-		if (option_verbose > 4)
-			ast_verbose("%s: chanreads: Starting cycle ...\n", p->dev);
-		if (option_verbose > 4)
-			ast_verbose("%s: chanreads: Checking bridge \n", p->dev);
+		ast_verb(5, "%s: chanreads: Starting cycle ...\n", p->dev);
+		ast_verb(5, "%s: chanreads: Checking bridge \n", p->dev);
 		if (p->bridge) {
 			if (p->bridge->c0 == p->owner && (p->bridge->flags & AST_BRIDGE_REC_CHANNEL_0))
 				bridgerec = 1;
@@ -2396,12 +2296,9 @@ static void *do_chanreads(void *pvt)
 			else 
 				bridgerec = 0;
 		} else {
-			if (option_verbose > 4)
-				ast_verbose("%s: chanreads: No native bridge.\n", p->dev);
+			ast_verb(5, "%s: chanreads: No native bridge.\n", p->dev);
 			if (p->owner->_bridge){
-				if (option_verbose > 4){
-					ast_verbose("%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev,p->owner->_bridge->name);
-				}
+				ast_verb(5, "%s: chanreads: Got Asterisk bridge with [%s].\n", p->dev,p->owner->_bridge->name);
 				bridgerec = 1;
 			}
 			else {
@@ -2412,12 +2309,10 @@ static void *do_chanreads(void *pvt)
 /*		if ( (p->owner->_state != AST_STATE_UP) || !bridgerec) */
 		if ( (p->owner->_state != AST_STATE_UP) ) 
 		{
-			if (option_verbose > 4) {
 				if (p->owner->_state != AST_STATE_UP)
-					ast_verbose("%s: chanreads: Im not up[%d]\n", p->dev,p->owner->_state);
+				ast_verb(5, "%s: chanreads: Im not up[%d]\n", p->dev,p->owner->_state);
 				else
-					ast_verbose("%s: chanreads: No bridgerec[%d]\n", p->dev,bridgerec);
-			}  
+				ast_verb(5, "%s: chanreads: No bridgerec[%d]\n", p->dev,bridgerec);
 			vpb_sleep(10);
 			continue;
 		}
@@ -2433,8 +2328,7 @@ static void *do_chanreads(void *pvt)
 			ignore_dtmf = 0;
 
 		if(( ignore_dtmf != p->last_ignore_dtmf ) &&(!use_ast_dtmfdet)){
-			if(option_verbose>1) 
-				ast_verbose( VERBOSE_PREFIX_2 "%s:Now %s DTMF \n",
+			ast_verb(2, "%s:Now %s DTMF \n",
 					p->dev, ignore_dtmf ? "ignoring" : "listening for");
 			vpb_set_event_mask(p->handle, ignore_dtmf ? VPB_EVENTS_NODTMF : VPB_EVENTS_ALL );
 		}
@@ -2443,9 +2337,7 @@ static void *do_chanreads(void *pvt)
 		/* Play DTMF digits here to avoid problem you get if playing a digit during 
 		 * a record operation
 		 */
-		if (option_verbose > 5) {
-			ast_verbose("%s: chanreads: Checking dtmf's \n", p->dev);
-		}  
+		ast_verb(6, "%s: chanreads: Checking dtmf's \n", p->dev);
 		ast_mutex_lock(&p->play_dtmf_lock);
 		if( p->play_dtmf[0] ) {
 			/* Try to ignore DTMF event we get after playing digit */
@@ -2454,12 +2346,10 @@ static void *do_chanreads(void *pvt)
 				vpb_set_event_mask(p->handle, VPB_EVENTS_NODTMF );
 			if (p->bridge == NULL){
 				vpb_dial_sync(p->handle,p->play_dtmf);
-				if(option_verbose>1) 
-					ast_verbose( VERBOSE_PREFIX_2 "%s: chanreads: Played DTMF %s\n",p->dev,p->play_dtmf);
+				ast_verb(2, "%s: chanreads: Played DTMF %s\n",p->dev,p->play_dtmf);
 			}
 			else {
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "%s: chanreads: Not playing DTMF frame on native bridge\n", p->dev);
+				ast_verb(2, "%s: chanreads: Not playing DTMF frame on native bridge\n", p->dev);
 			}
 			p->play_dtmf[0] = '\0';
 			ast_mutex_unlock(&p->play_dtmf_lock);
@@ -2490,32 +2380,24 @@ static void *do_chanreads(void *pvt)
 			vpb_record_buf_start(p->handle, fmt);
 			vpb_reset_record_fifo_alarm(p->handle);
 			p->lastinput = fmt;
-			if(option_verbose>1) 
-				ast_verbose( VERBOSE_PREFIX_2 "%s: Starting record mode (codec=%d)[%s]\n",p->dev,fmt,ast2vpbformatname(afmt));
+			ast_verb(2, "%s: Starting record mode (codec=%d)[%s]\n",p->dev,fmt,ast2vpbformatname(afmt));
 			continue;
 		} else if (p->lastinput != fmt) {
 			vpb_record_buf_finish(p->handle);
 			vpb_record_buf_start(p->handle, fmt);
 			p->lastinput = fmt;
-			if(option_verbose>1) 
-				ast_verbose( VERBOSE_PREFIX_2 "%s: Changed record format (%d=>%d)\n",p->dev,p->lastinput,fmt);
+			ast_verb(2, "%s: Changed record format (%d=>%d)\n",p->dev,p->lastinput,fmt);
 			continue;
 		}
 
 		/* Read only if up and not bridged, or a bridge for which we can read. */
-		if (option_verbose > 5) {
-			ast_verbose("%s: chanreads: getting buffer!\n", p->dev);
-		}  
+		ast_verb(6, "%s: chanreads: getting buffer!\n", p->dev);
 		if( (res = vpb_record_buf_sync(p->handle, readbuf, readlen) ) == VPB_OK ) {
-			if (option_verbose > 5) {
-				ast_verbose("%s: chanreads: got buffer!\n", p->dev);
-			}  
+			ast_verb(6, "%s: chanreads: got buffer!\n", p->dev);
 			/* Apply extra gain ! */
 			if( p->rxswgain > MAX_VPB_GAIN )
 				a_gain_vector(p->rxswgain - MAX_VPB_GAIN , (short*)readbuf, readlen/sizeof(short));
-			if (option_verbose > 5) {
-				ast_verbose("%s: chanreads: applied gain\n", p->dev);
-			}  
+			ast_verb(6, "%s: chanreads: applied gain\n", p->dev);
 
 			fr->subclass = afmt;
 			fr->data = readbuf;
@@ -2543,9 +2425,7 @@ static void *do_chanreads(void *pvt)
 			 * (ast_hangup() immediately gets lock)
 			 */
 			if (p->owner && !p->stopreads ) {
-				if (option_verbose > 5) {
-					ast_verbose("%s: chanreads: queueing buffer on read frame q (state[%d])\n", p->dev,p->owner->_state);
-				}  
+				ast_verb(6, "%s: chanreads: queueing buffer on read frame q (state[%d])\n", p->dev,p->owner->_state);
 				do {
 					res = ast_mutex_trylock(&p->owner->lock);
 					trycnt++;
@@ -2554,8 +2434,7 @@ static void *do_chanreads(void *pvt)
 					ast_queue_frame(p->owner, fr);
 					ast_mutex_unlock(&p->owner->lock);
 				} else {
-					if (option_verbose > 4) 
-						ast_verbose("%s: chanreads: Couldnt get lock after %d tries!\n", p->dev,trycnt);
+					ast_verb(5, "%s: chanreads: Couldnt get lock after %d tries!\n", p->dev,trycnt);
 				}
 				trycnt=0;
 				
@@ -2566,9 +2445,9 @@ static void *do_chanreads(void *pvt)
 					ast_mutex_unlock(&p->owner->lock);
 				} else {
 					if (res == EINVAL )
-						if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EINVAL[%d]\n", p->dev,res);
+						ast_verb(5, "%s: chanreads: try owner->lock gave me EINVAL[%d]\n", p->dev,res);
 					else if (res == EBUSY )
-						if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
+						ast_verb(5, "%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
 					while(res !=0){
 					res = ast_mutex_trylock(&p->owner->lock);
 					}
@@ -2578,27 +2457,22 @@ static void *do_chanreads(void *pvt)
 					}
 					else {
 						if (res == EINVAL )
-							if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EINVAL[%d]\n", p->dev,res);
+							ast_verb(5, "%s: chanreads: try owner->lock gave me EINVAL[%d]\n", p->dev,res);
 						else if (res == EBUSY )
-							if (option_verbose > 4) ast_verbose("%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
-						if (option_verbose > 4) ast_verbose("%s: chanreads: Couldnt get lock on owner[%s][%d][%d] channel to send frame!\n", p->dev,p->owner->name,(int)p->owner->lock.__m_owner,(int)p->owner->lock.__m_count);
+							ast_verb(5, "%s: chanreads: try owner->lock gave me EBUSY[%d]\n", p->dev,res);
+						ast_verb(5, "%s: chanreads: Couldnt get lock on owner[%s][%d][%d] channel to send frame!\n", p->dev,p->owner->name,(int)p->owner->lock.__m_owner,(int)p->owner->lock.__m_count);
 					}
 				}
 */
-				if (option_verbose > 6) {
 					short * data = (short*)readbuf;
-					ast_verbose("%s: Read channel (codec=%d) %d %d\n", p->dev, fmt, data[0], data[1] );
+				ast_verb(7, "%s: Read channel (codec=%d) %d %d\n", p->dev, fmt, data[0], data[1] );
 				}  
-			}
 			else {
-				if (option_verbose > 4) {
-					ast_verbose("%s: p->stopreads[%d] p->owner[%p]\n", p->dev, p->stopreads,(void *)p->owner);
+				ast_verb(5, "%s: p->stopreads[%d] p->owner[%p]\n", p->dev, p->stopreads,(void *)p->owner);
 				}  
 			}
+		ast_verb(5, "%s: chanreads: Finished cycle...\n", p->dev);
 		}
-		if (option_verbose > 4)
-			ast_verbose("%s: chanreads: Finished cycle...\n", p->dev);
-	}
 	p->read_state=0;
 
 	/* When stopreads seen, go away! */
@@ -2606,8 +2480,7 @@ static void *do_chanreads(void *pvt)
 	p->read_state=0;
 	ast_mutex_unlock(&p->record_lock);
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "%s: Ending record mode (%d/%s)\n",
+	ast_verb(2, "%s: Ending record mode (%d/%s)\n",
 			 p->dev, p->stopreads, p->owner? "yes" : "no");     
 	return NULL;
 }
@@ -2622,8 +2495,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, enum ast_channel_state st
 	    ast_log(LOG_WARNING, "Called vpb_new on owned channel (%s) ?!\n", me->dev);
 	    return NULL;
 	}
-	if (option_verbose > 3)
-		ast_verbose("%s: New call for context [%s]\n",me->dev,context);
+	ast_verb(4, "%s: New call for context [%s]\n",me->dev,context);
 	    
 	tmp = ast_channel_alloc(1, state, 0, 0, "", me->ext, me->context, 0, me->dev);
 	if (tmp) {
@@ -2736,9 +2608,7 @@ static struct ast_channel *vpb_request(const char *type, int format, void *data,
 	} ast_mutex_unlock(&iflock);
 
 
-	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 " %s requested, got: [%s]\n",
-		name, tmp ? tmp->name : "None");
+	ast_verb(2, " %s requested, got: [%s]\n", name, tmp ? tmp->name : "None");
 
 	ast_free(name);
 

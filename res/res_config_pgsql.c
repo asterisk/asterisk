@@ -548,9 +548,7 @@ static int load_module(void)
 	}
 
 	ast_config_engine_register(&pgsql_engine);
-	if (option_verbose) {
-		ast_verbose("Postgresql RealTime driver loaded.\n");
-	}
+	ast_verb(1, "Postgresql RealTime driver loaded.\n");
 	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 
 	ast_mutex_unlock(&pgsql_lock);
@@ -569,9 +567,7 @@ static int unload_module(void)
 	};
 	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 	ast_config_engine_deregister(&pgsql_engine);
-	if (option_verbose) {
-		ast_verbose("Postgresql RealTime unloaded.\n");
-	}
+	ast_verb(1, "Postgresql RealTime unloaded.\n");
 
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&pgsql_lock);
@@ -596,7 +592,7 @@ static int reload(void)
 		ast_debug(1, "Postgresql RealTime: Cannot Connect: %s\n", PQerrorMessage(pgsqlConn));
 	}
 
-	ast_verbose(VERBOSE_PREFIX_2 "Postgresql RealTime reloaded.\n");
+	ast_verb(2, "Postgresql RealTime reloaded.\n");
 
 	/* Done reloading. Release lock so others can now use driver. */
 	ast_mutex_unlock(&pgsql_lock);

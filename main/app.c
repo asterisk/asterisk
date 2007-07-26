@@ -205,8 +205,8 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder)
 	if (ast_has_voicemail_func)
 		return ast_has_voicemail_func(mailbox, folder);
 
-	if ((option_verbose > 2) && !warned) {
-		ast_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.\n", mailbox, folder ? folder : "INBOX");
+	if (!warned) {
+		ast_verb(3, "Message check requested for mailbox %s/folder %s but voicemail not loaded.\n", mailbox, folder ? folder : "INBOX");
 		warned++;
 	}
 	return 0;
@@ -223,9 +223,9 @@ int ast_app_inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	if (ast_inboxcount_func)
 		return ast_inboxcount_func(mailbox, newmsgs, oldmsgs);
 
-	if (!warned && (option_verbose > 2)) {
+	if (!warned) {
 		warned++;
-		ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.\n", mailbox);
+		ast_verb(3, "Message count requested for mailbox %s but voicemail not loaded.\n", mailbox);
 	}
 
 	return 0;
@@ -237,9 +237,9 @@ int ast_app_messagecount(const char *context, const char *mailbox, const char *f
 	if (ast_messagecount_func)
 		return ast_messagecount_func(context, mailbox, folder);
 
-	if (!warned && (option_verbose > 2)) {
+	if (!warned) {
 		warned++;
-		ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s@%s/%s but voicemail not loaded.\n", mailbox, context, folder);
+		ast_verb(3, "Message count requested for mailbox %s@%s/%s but voicemail not loaded.\n", mailbox, context, folder);
 	}
 
 	return 0;
@@ -454,13 +454,13 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			else if (end || offset < 0) {
 				if (offset == -8) 
 					offset = 0;
-				ast_verbose(VERBOSE_PREFIX_3 "ControlPlayback seek to offset %ld from end\n", offset);
+				ast_verb(3, "ControlPlayback seek to offset %ld from end\n", offset);
 
 				ast_seekstream(chan->stream, offset, SEEK_END);
 				end = NULL;
 				offset = 0;
 			} else if (offset) {
-				ast_verbose(VERBOSE_PREFIX_3 "ControlPlayback seek to offset %ld\n", offset);
+				ast_verb(3, "ControlPlayback seek to offset %ld\n", offset);
 				ast_seekstream(chan->stream, offset, SEEK_SET);
 				offset = 0;
 			};
@@ -615,8 +615,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 	end = start = time(NULL);  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x = 0; x < fmtcnt; x++) {
 		others[x] = ast_writefile(prepend ? prependfile : recordfile, sfmt[x], comment, O_TRUNC, 0, AST_FILE_MODE);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
+		ast_verb(3, "x=%d, open writing:  %s format: %s, %p\n", x, prepend ? prependfile : recordfile, sfmt[x], others[x]);
 
 		if (!others[x])
 			break;
@@ -691,8 +690,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 
 					if (totalsilence > maxsilence) {
 						/* Ended happily with silence */
-						if (option_verbose > 2)
-							ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
+						ast_verb(3, "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 						res = 'S';
 						outmsg = 2;
 						break;
@@ -709,22 +707,19 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			} else if (f->frametype == AST_FRAME_DTMF) {
 				if (prepend) {
 				/* stop recording with any digit */
-					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+					ast_verb(3, "User ended message by pressing %c\n", f->subclass);
 					res = 't';
 					outmsg = 2;
 					break;
 				}
 				if (strchr(acceptdtmf, f->subclass)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+					ast_verb(3, "User ended message by pressing %c\n", f->subclass);
 					res = f->subclass;
 					outmsg = 2;
 					break;
 				}
 				if (strchr(canceldtmf, f->subclass)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "User cancelled message by pressing %c\n", f->subclass);
+					ast_verb(3, "User cancelled message by pressing %c\n", f->subclass);
 					res = f->subclass;
 					outmsg = 0;
 					break;
@@ -733,8 +728,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			if (maxtime) {
 				end = time(NULL);
 				if (maxtime < (end - start)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
+					ast_verb(3, "Took too long, cutting it short...\n");
 					res = 't';
 					outmsg = 2;
 					break;
@@ -743,8 +737,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_frfree(f);
 		}
 		if (!f) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "User hung up\n");
+			ast_verb(3, "User hung up\n");
 			res = -1;
 			outmsg = 1;
 		} else {
@@ -792,8 +785,7 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			ast_closestream(others[x]);
 			ast_closestream(realfiles[x]);
 			ast_filerename(prependfile, recordfile, sfmt[x]);
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x], prependfile, recordfile);
+			ast_verb(4, "Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x], prependfile, recordfile);
 			ast_filedelete(prependfile, sfmt[x]);
 		}
 	}
@@ -1127,16 +1119,16 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 			}
 		case '2':
 			/* Review */
-			ast_verbose(VERBOSE_PREFIX_3 "Reviewing the recording\n");
+			ast_verb(3, "Reviewing the recording\n");
 			cmd = ast_stream_and_wait(chan, recordfile, AST_DIGIT_ANY);
 			break;
 		case '3':
 			message_exists = 0;
 			/* Record */
 			if (recorded == 1)
-				ast_verbose(VERBOSE_PREFIX_3 "Re-recording\n");
+				ast_verb(3, "Re-recording\n");
 			else	
-				ast_verbose(VERBOSE_PREFIX_3 "Recording\n");
+				ast_verb(3, "Recording\n");
 			recorded = 1;
 			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, path);
 			if (cmd == -1) {

@@ -99,7 +99,7 @@ static int load_module(void)
 	if(!load_config())
 		return AST_MODULE_LOAD_DECLINE;
 
-	ast_verbose(VERBOSE_PREFIX_1 "Loading [Sub]Agent Module\n");
+	ast_verb(1, "Loading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 1;
 	if (res_snmp_enabled)
@@ -110,7 +110,7 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	ast_verbose(VERBOSE_PREFIX_1 "Unloading [Sub]Agent Module\n");
+	ast_verb(1, "Unloading [Sub]Agent Module\n");
 
 	res_snmp_dont_stop = 0;
 	return ((thread != AST_PTHREADT_NULL) ? pthread_join(thread, NULL) : 0);

@@ -710,8 +710,7 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 		/* Check to see if duplex set (FreeBSD Bug) */
 		res = ioctl(fd, SNDCTL_DSP_GETCAPS, &fmt);
 		if (res == 0 && (fmt & DSP_CAP_DUPLEX)) {
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Console is full duplex\n");
+			ast_verb(2, "Console is full duplex\n");
 			o->duplex = M_FULL;
 		};
 		break;
@@ -1551,10 +1550,8 @@ static struct chan_oss_pvt *store_config(struct ast_config *cfg, char *ctg)
   openit:
 #ifdef TRYOPEN
 	if (setformat(o, O_RDWR) < 0) {	/* open device */
-		if (option_verbose > 0) {
-			ast_verbose(VERBOSE_PREFIX_2 "Device %s not detected\n", ctg);
-			ast_verbose(VERBOSE_PREFIX_2 "Turn off OSS support by adding " "'noload=chan_oss.so' in /etc/asterisk/modules.conf\n");
-		}
+		ast_verb(1, "Device %s not detected\n", ctg);
+		ast_verb(1, "Turn off OSS support by adding " "'noload=chan_oss.so' in /etc/asterisk/modules.conf\n");
 		goto error;
 	}
 	if (o->duplex != M_FULL)

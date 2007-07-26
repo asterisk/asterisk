@@ -214,20 +214,17 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	if (strcasecmp(chan->tech->type, "Zap")) {
 		/* If it's not a zap channel, we're done.  Wait a couple of
 		   seconds and then hangup... */
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Channel %s is not a Zap channel\n", chan->name);
+		ast_verb(2, "Channel %s is not a Zap channel\n", chan->name);
 		sleep(2);
 	} else {
 		memset(&ztp, 0, sizeof(ztp));
 		if (ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp)) {
 			ast_log(LOG_WARNING, "Unable to get zaptel parameters\n");
 		} else if (ztp.sigtype != ZT_SIG_CLEAR) {
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Channel %s is not a clear channel\n", chan->name);
+			ast_verb(2, "Channel %s is not a clear channel\n", chan->name);
 		} else {
 			/* Everything should be okay.  Run PPP. */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Starting RAS on %s\n", chan->name);
+			ast_verb(3, "Starting RAS on %s\n", chan->name);
 			/* Execute RAS */
 			run_ras(chan, args);
 		}

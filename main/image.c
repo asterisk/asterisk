@@ -51,8 +51,7 @@ static AST_RWLIST_HEAD_STATIC(imagers, ast_imager);
 
 int ast_image_register(struct ast_imager *img)
 {
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
+	ast_verb(2, "Registered format '%s' (%s)\n", img->name, img->desc);
 	AST_RWLIST_WRLOCK(&imagers);
 	AST_RWLIST_INSERT_HEAD(&imagers, img, list);
 	AST_RWLIST_UNLOCK(&imagers);
@@ -72,8 +71,8 @@ void ast_image_unregister(struct ast_imager *img)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END
 	AST_RWLIST_UNLOCK(&imagers);
-	if (i && (option_verbose > 1))
-		ast_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
+	if (i)
+		ast_verb(2, "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
 
 int ast_supports_images(struct ast_channel *chan)

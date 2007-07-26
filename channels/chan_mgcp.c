@@ -854,7 +854,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	struct ast_var_t *current;
 
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
+		ast_verb(3, "MGCP mgcp_call(%s)\n", ast->name);
 	}
 	sub = ast->tech_pvt;
 	p = sub->parent;
@@ -872,12 +872,12 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 		if (!ast_strlen_zero(distinctive_ring)) {
 			snprintf(tone, sizeof(tone), "L/wt%s", distinctive_ring);
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_3 "MGCP distinctive callwait %s\n", tone);
+				ast_verb(3, "MGCP distinctive callwait %s\n", tone);
 			}
 		} else {
 			snprintf(tone, sizeof(tone), "L/wt");
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_3 "MGCP normal callwait %s\n", tone);
+				ast_verb(3, "MGCP normal callwait %s\n", tone);
 			}
 		}
 		break;
@@ -886,12 +886,12 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 		if (!ast_strlen_zero(distinctive_ring)) {
 			snprintf(tone, sizeof(tone), "L/r%s", distinctive_ring);
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_3 "MGCP distinctive ring %s\n", tone);
+				ast_verb(3, "MGCP distinctive ring %s\n", tone);
 			}
 		} else {
 			snprintf(tone, sizeof(tone), "L/rg");
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_3 "MGCP default ring\n");
+				ast_verb(3, "MGCP default ring\n");
 			}
 		}
 		break;
@@ -952,7 +952,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 	}
 	ast_mutex_lock(&sub->lock);
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s\n", ast->name, p->name, p->parent->name);
+		ast_verb(3, "MGCP mgcp_hangup(%s) on %s@%s\n", ast->name, p->name, p->parent->name);
 	}
 
 	if ((p->dtmfmode & MGCP_DTMF_INBAND) && p->dsp) {
@@ -961,7 +961,7 @@ static int mgcp_hangup(struct ast_channel *ast)
 			if (p->dtmfmode & MGCP_DTMF_HYBRID)
 				p->dtmfmode &= ~MGCP_DTMF_INBAND;
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_2 "MGCP free dsp on %s@%s\n", p->name, p->parent->name);
+				ast_verb(2, "MGCP free dsp on %s@%s\n", p->name, p->parent->name);
 			}
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
@@ -1013,19 +1013,18 @@ static int mgcp_hangup(struct ast_channel *ast)
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
 		p->hidecallerid = 0;
 		if (p->hascallwaiting && !p->callwaiting) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Enabling call waiting on %s\n", ast->name);
+			ast_verb(3, "Enabling call waiting on %s\n", ast->name);
 			p->callwaiting = -1;
 		}
 		if (has_voicemail(p)) {
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s set vmwi(+)\n", 
+				ast_verb(3, "MGCP mgcp_hangup(%s) on %s@%s set vmwi(+)\n",
 					ast->name, p->name, p->parent->name);
 			}
 			transmit_notify_request(sub, "L/vmwi(+)");
 		} else {
 			if (mgcpdebug) {
-				ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s set vmwi(-)\n", 
+				ast_verb(3, "MGCP mgcp_hangup(%s) on %s@%s set vmwi(-)\n",
 					ast->name, p->name, p->parent->name);
 			}
 			transmit_notify_request(sub, "L/vmwi(-)");
@@ -1192,11 +1191,8 @@ static int mgcp_answer(struct ast_channel *ast)
 	} else {
 		transmit_modify_request(sub);
 	}
-	/* verbose level check */
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_answer(%s) on %s@%s-%d\n", 
+	ast_verb(3, "MGCP mgcp_answer(%s) on %s@%s-%d\n",
 			ast->name, p->name, p->parent->name, sub->id);
-	}
 	if (ast->_state != AST_STATE_UP) {
 		ast_setstate(ast, AST_STATE_UP);
 		ast_debug(1, "mgcp_answer(%s)\n", ast->name);
@@ -1410,7 +1406,7 @@ static int mgcp_indicate(struct ast_channel *ast, int ind, const void *data, siz
 	int res = 0;
 
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP asked to indicate %d '%s' condition on channel %s\n",
+		ast_verb(3, "MGCP asked to indicate %d '%s' condition on channel %s\n",
 			ind, control2str(ind), ast->name);
 	}
 	ast_mutex_lock(&sub->lock);
@@ -1508,11 +1504,8 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 				tmp = NULL;
 			}
 		}
-		/* verbose level check */
-		if (option_verbose > 2) {
-			ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_new(%s) created in state: %s\n",
+		ast_verb(3, "MGCP mgcp_new(%s) created in state: %s\n",
 				tmp->name, ast_state2str(state));
-		}
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	}
@@ -1640,8 +1633,7 @@ static struct mgcp_subchannel *find_subchannel_and_lock(char *name, int msgid, s
 					memcpy(&g->addr, sin, sizeof(g->addr));
 					if (ast_ouraddrfor(&g->addr.sin_addr, &g->ourip))
 						memcpy(&g->ourip, &__ourip, sizeof(g->ourip));
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Registered MGCP gateway '%s' at %s port %d\n", g->name, ast_inet_ntoa(g->addr.sin_addr), ntohs(g->addr.sin_port));
+					ast_verb(3, "Registered MGCP gateway '%s' at %s port %d\n", g->name, ast_inet_ntoa(g->addr.sin_addr), ntohs(g->addr.sin_port));
 				}
 			}
 			/* not dynamic, check if the name matches */
@@ -2177,7 +2169,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 		}
 	}
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "Creating connection for %s@%s-%d in cxmode: %s callid: %s\n", 
+		ast_verb(3, "Creating connection for %s@%s-%d in cxmode: %s callid: %s\n",
 			p->name, p->parent->name, sub->id, mgcp_cxmodes[sub->cxmode], sub->callid);
 	}
 	reqprep(&resp, p, "CRCX");
@@ -2200,7 +2192,7 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
 	struct mgcp_endpoint *p = sub->parent;
 
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP Asked to indicate tone: %s on  %s@%s-%d in cxmode: %s\n", 
+		ast_verb(3, "MGCP Asked to indicate tone: %s on  %s@%s-%d in cxmode: %s\n",
 			tone, p->name, p->parent->name, sub->id, mgcp_cxmodes[sub->cxmode]);
 	}
 	ast_copy_string(p->curtone, tone, sizeof(p->curtone));
@@ -2260,7 +2252,7 @@ static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, ch
 		add_header(&resp, "S", tone2);
 	}
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP Asked to indicate tone: %s on  %s@%s-%d in cxmode: %s\n", 
+		ast_verb(3, "MGCP Asked to indicate tone: %s on  %s@%s-%d in cxmode: %s\n",
 			tone2, p->name, p->parent->name, sub->id, mgcp_cxmodes[sub->cxmode]);
 	}
 	/* fill in new fields */
@@ -2280,7 +2272,7 @@ static int transmit_modify_request(struct mgcp_subchannel *sub)
 		return 0;
 	}
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "Modified %s@%s-%d with new mode: %s on callid: %s\n", 
+		ast_verb(3, "Modified %s@%s-%d with new mode: %s on callid: %s\n",
 			p->name, p->parent->name, sub->id, mgcp_cxmodes[sub->cxmode], sub->callid);
 	}
 	reqprep(&resp, p, "MDCX");
@@ -2323,7 +2315,7 @@ static int transmit_connection_del(struct mgcp_subchannel *sub)
 	struct mgcp_request resp;
 
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "Delete connection %s %s@%s-%d with new mode: %s on callid: %s\n", 
+		ast_verb(3, "Delete connection %s %s@%s-%d with new mode: %s on callid: %s\n",
 			sub->cxident, p->name, p->parent->name, sub->id, mgcp_cxmodes[sub->cxmode], sub->callid);
 	}
 	reqprep(&resp, p, "DLCX");
@@ -2346,7 +2338,7 @@ static int transmit_connection_del_w_params(struct mgcp_endpoint *p, char *calli
 	struct mgcp_request resp;
 
 	if (mgcpdebug) {
-		ast_verbose(VERBOSE_PREFIX_3 "Delete connection %s %s@%s on callid: %s\n", 
+		ast_verb(3, "Delete connection %s %s@%s on callid: %s\n",
 			cxident ? cxident : "", p->name, p->parent->name, callid ? callid : "");
 	}
 	reqprep(&resp, p, "DLCX");
@@ -2448,10 +2440,8 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 		req = find_command(p, sub, &p->cmd_queue, &p->cmd_queue_lock, ident);
 
 	if (!req) {
-		if (option_verbose > 2) {
-			ast_verbose(VERBOSE_PREFIX_3 "No command found on [%s] for transaction %d. Ignoring...\n", 
+		ast_verb(3, "No command found on [%s] for transaction %d. Ignoring...\n",
 				gw->name, ident);
-		}
 		return;
 	}
 
@@ -2534,10 +2524,8 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 							if (len > (sizeof(cxident) - 1))
 								len = sizeof(cxident) - 1;
 							ast_copy_string(cxident, v, len);
-							if (option_verbose > 2) {
-								ast_verbose(VERBOSE_PREFIX_3 "Non existing connection id %s on %s@%s \n", 
+							ast_verb(3, "Non existing connection id %s on %s@%s \n",
 									    cxident, p->name, gw->name);
-							}
 							transmit_connection_del_w_params(p, NULL, cxident);
 						}
 					}
@@ -2559,11 +2547,8 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 							/* update the requested events according to the new hookstate */
 							transmit_notify_request(p->sub, "");
 
-							/* verbose level check */
-							if (option_verbose > 2) {
-								ast_verbose(VERBOSE_PREFIX_3 "Setting hookstate of %s@%s to ONHOOK\n", p->name, gw->name);
+							ast_verb(3, "Setting hookstate of %s@%s to ONHOOK\n", p->name, gw->name);
 							}
-						}
 					} else if (strstr(c, "hd")) {
 						if (p->hookstate != MGCP_OFFHOOK) {
 							p->hookstate = MGCP_OFFHOOK;
@@ -2571,15 +2556,12 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 							/* update the requested events according to the new hookstate */
 							transmit_notify_request(p->sub, "");
 
-							/* verbose level check */
-							if (option_verbose > 2) {
-								ast_verbose(VERBOSE_PREFIX_3 "Setting hookstate of %s@%s to OFFHOOK\n", p->name, gw->name);
+							ast_verb(3, "Setting hookstate of %s@%s to OFFHOOK\n", p->name, gw->name);
 							}
 						}
 					}
 				}
 			}
-		}
 
 		if (resp && resp->lines) {
 			/* do not process sdp if we are hanging up. this may be a late response */
@@ -2662,10 +2644,8 @@ static void *mgcp_ss(void *data)
 				if (getforward) {
 					/* Record this as the forwarding extension */
 					ast_copy_string(p->call_forward, p->dtmf_buf, sizeof(p->call_forward)); 
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
+					ast_verb(3, "Setting call forward to '%s' on channel %s\n",
 							p->call_forward, chan->name);
-					}
 					/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
 					transmit_notify_request(sub, "L/sl");
 					if (res)
@@ -2716,9 +2696,7 @@ static void *mgcp_ss(void *data)
 			ast_hangup(chan);
 			return NULL;
 		} else if (p->hascallwaiting && p->callwaiting && !strcmp(p->dtmf_buf, "*70")) {
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
-			}
+			ast_verb(3, "Disabling call waiting on %s\n", chan->name);
 			/* Disable call waiting if enabled */
 			p->callwaiting = 0;
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
@@ -2740,9 +2718,7 @@ static void *mgcp_ss(void *data)
 			ast_hangup(chan);
 			return NULL;
 		} else if (!p->hidecallerid && !strcmp(p->dtmf_buf, "*67")) {
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
-			}
+			ast_verb(3, "Disabling Caller*ID on %s\n", chan->name);
 			/* Disable Caller*ID if enabled */
 			p->hidecallerid = 1;
 			ast_set_callerid(chan, "", "", NULL);
@@ -2762,9 +2738,7 @@ static void *mgcp_ss(void *data)
 			break;
 		} else if (!strcmp(p->dtmf_buf, "*78")) {
 			/* Do not disturb */
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %s\n", chan->name);
-			}
+			ast_verb(3, "Enabled DND on channel %s\n", chan->name);
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 1;
@@ -2773,9 +2747,7 @@ static void *mgcp_ss(void *data)
 			len = 0;
 		} else if (!strcmp(p->dtmf_buf, "*79")) {
 			/* Do not disturb */
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %s\n", chan->name);
-			}
+			ast_verb(3, "Disabled DND on channel %s\n", chan->name);
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			p->dnd = 0;
@@ -2789,9 +2761,7 @@ static void *mgcp_ss(void *data)
 			memset(p->dtmf_buf, 0, sizeof(p->dtmf_buf));
 			len = 0;
 		} else if (p->cancallforward && !strcmp(p->dtmf_buf, "*73")) {
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %s\n", chan->name);
-			}
+			ast_verb(3, "Cancelling call forwarding on channel %s\n", chan->name);
 			/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
 			memset(p->call_forward, 0, sizeof(p->call_forward));
@@ -2803,14 +2773,10 @@ static void *mgcp_ss(void *data)
 			/* This is a three way call, the main call being a real channel, 
 			   and we're parking the first call. */
 			ast_masq_park_call(ast_bridged_channel(sub->next->owner), chan, 0, NULL);
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
-			}
+			ast_verb(3, "Parking call to '%s'\n", chan->name);
 			break;
 		} else if (!ast_strlen_zero(p->lastcallerid) && !strcmp(p->dtmf_buf, "*60")) {
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", p->lastcallerid);
-			}
+			ast_verb(3, "Blacklisting number %s\n", p->lastcallerid);
 			res = ast_db_put("blacklist", p->lastcallerid, "1");
 			if (!res) {
 				/*res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_DIALRECALL);*/
@@ -2819,9 +2785,7 @@ static void *mgcp_ss(void *data)
 				len = 0;
 			}
 		} else if (p->hidecallerid && !strcmp(p->dtmf_buf, "*82")) {
-			if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
-			}
+			ast_verb(3, "Enabling Caller*ID on %s\n", chan->name);
 			/* Enable Caller*ID if enabled */
 			p->hidecallerid = 0;
 			ast_set_callerid(chan, p->cid_num, p->cid_name, NULL);
@@ -2921,9 +2885,7 @@ static int attempt_transfer(struct mgcp_endpoint *p)
 			return -1;
 		}
 		/*swap_subs(p, SUB_THREEWAY, SUB_REAL);*/
-		if (option_verbose > 2) {
-			ast_verbose(VERBOSE_PREFIX_3 "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
-		}
+		ast_verb(3, "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
 		p->sub = p->sub->next;
 		unalloc_sub(p->sub->next);
 		/* Tell the caller not to hangup */
@@ -3037,15 +2999,14 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 	if (!strcasecmp(req->verb, "RSIP")) {
 		/* Test if this RSIP request is just a keepalive */
 		if(!strcasecmp( get_header(req, "RM"), "X-keepalive")) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Received keepalive request from %s@%s\n", p->name, p->parent->name);
+			ast_verb(3, "Received keepalive request from %s@%s\n", p->name, p->parent->name);
 			transmit_response(sub, "200", req, "OK");
 		} else {
 			dump_queue(p->parent, p);
 			dump_cmd_queues(p, NULL);
 			
-			if (option_verbose > 2 && (strcmp(p->name, p->parent->wcardep) != 0)) {
-				ast_verbose(VERBOSE_PREFIX_3 "Resetting interface %s@%s\n", p->name, p->parent->name);
+			if ((strcmp(p->name, p->parent->wcardep) != 0)) {
+				ast_verb(3, "Resetting interface %s@%s\n", p->name, p->parent->name);
 			}
 			/* For RSIP on wildcard we reset all endpoints */
 			if (!strcmp(p->name, p->parent->wcardep)) {
@@ -3058,9 +3019,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					/*if ((strcmp(tmp_ep->name, "*") != 0) && (strcmp(tmp_ep->name, "aaln/" "*") != 0)) {*/
 					if (strcmp(tmp_ep->name, g->wcardep) != 0) {
 						struct mgcp_subchannel *tmp_sub, *first_sub;
-						if (option_verbose > 2) {
-							ast_verbose(VERBOSE_PREFIX_3 "Resetting interface %s@%s\n", tmp_ep->name, p->parent->name);
-						}
+						ast_verb(3, "Resetting interface %s@%s\n", tmp_ep->name, p->parent->name);
 						
 						first_sub = tmp_ep->sub;
 						tmp_sub = tmp_ep->sub;
@@ -3116,18 +3075,14 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				return -1;
 
 			if (p->callwaiting || p->transfer || p->threewaycalling) {
-				if (option_verbose > 2) {
-					ast_verbose(VERBOSE_PREFIX_3 "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
-				}
+				ast_verb(3, "Swapping %d for %d on %s@%s\n", p->sub->id, p->sub->next->id, p->name, p->parent->name);
 				p->sub = p->sub->next;
 
 				/* transfer control to our next subchannel */
 				if (!sub->next->owner) {
 					/* plave the first call on hold and start up a new call */
 					sub->cxmode = MGCP_CX_MUTE;
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
-					}
+					ast_verb(3, "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 					transmit_modify_request(sub);
 					if (sub->owner && ast_bridged_channel(sub->owner))
 						ast_queue_control(sub->owner, AST_CONTROL_HOLD);
@@ -3137,10 +3092,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					/* We've got two active calls lets decide whether or not to conference or just flip flop */
 					if ((!sub->outgoing) && (!sub->next->outgoing)) {
 						/* We made both calls lets conferenct */
-						if (option_verbose > 2) {
-							ast_verbose(VERBOSE_PREFIX_3 "MGCP Conferencing %d and %d on %s@%s\n", 
+						ast_verb(3, "MGCP Conferencing %d and %d on %s@%s\n",
 								sub->id, sub->next->id, p->name, p->parent->name);
-						}
 						sub->cxmode = MGCP_CX_CONF;
 						sub->next->cxmode = MGCP_CX_CONF;
 						if (ast_bridged_channel(sub->next->owner))
@@ -3151,14 +3104,10 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						/* Let's flipflop between calls */
 						/* XXX Need to check for state up ??? */
 						/* XXX Need a way to indicate the current call, or maybe the call that's waiting */
-						if (option_verbose > 2) {
-							ast_verbose(VERBOSE_PREFIX_3 "We didn't make one of the calls FLIPFLOP %d and %d on %s@%s\n", 
+						ast_verb(3, "We didn't make one of the calls FLIPFLOP %d and %d on %s@%s\n",
 								sub->id, sub->next->id, p->name, p->parent->name);
-						}
 						sub->cxmode = MGCP_CX_MUTE;
-						if (option_verbose > 2) {
-							ast_verbose(VERBOSE_PREFIX_3 "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
-						}
+						ast_verb(3, "MGCP Muting %d on %s@%s\n", sub->id, p->name, p->parent->name);
 						transmit_modify_request(sub);
 						if (ast_bridged_channel(sub->owner))
 							ast_queue_control(sub->owner, AST_CONTROL_HOLD);
@@ -3220,11 +3169,8 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					sub->alreadygone = 1;
 					mgcp_queue_hangup(sub);
 				} else {
-					/* verbose level check */
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s-%d) ast_channel already destroyed, resending DLCX.\n",
+					ast_verb(3, "MGCP handle_request(%s@%s-%d) ast_channel already destroyed, resending DLCX.\n",
 							p->name, p->parent->name, sub->id);
-					}
 					/* Instruct the other side to remove the connection since it apparently *
 					 * still thinks the channel is active. *
 					 * For Cisco IAD2421 /BAK/ */
@@ -3234,19 +3180,14 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			if ((p->hookstate == MGCP_ONHOOK) && (!sub->rtp) && (!sub->next->rtp)) {
 				p->hidecallerid = 0;
 				if (p->hascallwaiting && !p->callwaiting) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Enabling call waiting on MGCP/%s@%s-%d\n", p->name, p->parent->name, sub->id);
+					ast_verb(3, "Enabling call waiting on MGCP/%s@%s-%d\n", p->name, p->parent->name, sub->id);
 					p->callwaiting = -1;
 				}
 				if (has_voicemail(p)) {
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s) set vmwi(+)\n", p->name, p->parent->name);
-					}
+					ast_verb(3, "MGCP handle_request(%s@%s) set vmwi(+)\n", p->name, p->parent->name);
 					transmit_notify_request(sub, "L/vmwi(+)");
 				} else {
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s) set vmwi(-)\n", p->name, p->parent->name);
-					}
+					ast_verb(3, "MGCP handle_request(%s@%s) set vmwi(-)\n", p->name, p->parent->name);
 					transmit_notify_request(sub, "L/vmwi(-)");
 				}
 			}
@@ -3432,8 +3373,7 @@ static void *do_monitor(void *data)
 		mgcp_reloading = 0;
 		ast_mutex_unlock(&mgcp_reload_lock);
 		if (reloading) {
-			if (option_verbose > 0)
-				ast_verbose(VERBOSE_PREFIX_1 "Reloading MGCP\n");
+			ast_verb(1, "Reloading MGCP\n");
 			mgcp_do_reload();
 			/* Add an I/O event to our UDP socket */
 			if (mgcpsock > -1) 
@@ -3551,11 +3491,9 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
 		return NULL;
 	}
 	
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_request(%s)\n", tmp);
-		ast_verbose(VERBOSE_PREFIX_3 "MGCP cw: %d, dnd: %d, so: %d, sno: %d\n", 
+	ast_verb(3, "MGCP mgcp_request(%s)\n", tmp);
+	ast_verb(3, "MGCP cw: %d, dnd: %d, so: %d, sno: %d\n",
 			sub->parent->callwaiting, sub->parent->dnd, sub->owner ? 1 : 0, sub->next->owner ? 1: 0);
-	}
 	/* Must be busy */
 	if (((sub->parent->callwaiting) && ((sub->owner) && (sub->next->owner))) ||
 		((!sub->parent->callwaiting) && (sub->owner)) ||
@@ -3789,7 +3727,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 						for (i = 0; i < MAX_SUBS; i++) {
 							sub = ast_calloc(1, sizeof(*sub));
 							if (sub) {
-								ast_verbose(VERBOSE_PREFIX_3 "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
+								ast_verb(3, "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
 								ast_mutex_init(&sub->lock);
 								ast_mutex_init(&sub->cx_queue_lock);
 								sub->parent = e;
@@ -3856,7 +3794,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
 					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
 					if (!ast_strlen_zero(mailbox)) {
-						ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, gw->name, e->name);
+						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", mailbox, gw->name, e->name);
 					}
 					if (!ep_reload) {
 						/* XXX potential issue due to reload */
@@ -3903,7 +3841,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 
 						if (sub) {
 							if (!ep_reload) {
-								ast_verbose(VERBOSE_PREFIX_3 "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
+								ast_verb(3, "Allocating subchannel '%d' on %s@%s\n", i, e->name, gw->name);
 								ast_mutex_init(&sub->lock);
 								ast_mutex_init(&sub->cx_queue_lock);
 								ast_copy_string(sub->magic, MGCP_SUBCHANNEL_MAGIC, sizeof(sub->magic));
@@ -4184,9 +4122,7 @@ static int reload_config(void)
 			ast_mutex_lock(&gatelock);
 			g = build_gateway(cat, ast_variable_browse(cfg, cat));
 			if (g) {
-				if (option_verbose > 2) {
-					ast_verbose(VERBOSE_PREFIX_3 "Added gateway '%s'\n", g->name);
-				}
+				ast_verb(3, "Added gateway '%s'\n", g->name);
 				g->next = gateways;
 				gateways = g;
 			}
@@ -4237,10 +4173,8 @@ static int reload_config(void)
 			close(mgcpsock);
 			mgcpsock = -1;
 		} else {
-			if (option_verbose > 1) {
-				ast_verbose(VERBOSE_PREFIX_2 "MGCP Listening on %s:%d\n", 
+			ast_verb(2, "MGCP Listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-			}
 			ast_netsock_set_qos(mgcpsock, tos, cos);
 		}
 	}
@@ -4254,7 +4188,7 @@ static int reload_config(void)
 		while (e && e->needaudit) {
 			e->needaudit = 0;
 			transmit_audit_endpoint(e);
-			ast_verbose(VERBOSE_PREFIX_3 "MGCP Auditing endpoint %s@%s for hookstate\n", e->name, g->name);
+			ast_verb(3, "MGCP Auditing endpoint %s@%s for hookstate\n", e->name, g->name);
 			e = e->next;
 		}
 		g = g->next;

@@ -435,9 +435,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 
 	ast_debug(1, "Registered handler for '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered channel type '%s' (%s)\n", chan->tech->type,
-			    chan->tech->description);
+	ast_verb(2, "Registered channel type '%s' (%s)\n", chan->tech->type, chan->tech->description);
 
 	AST_RWLIST_UNLOCK(&channels);
 	return 0;
@@ -456,8 +454,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 		if (chan->tech == tech) {
 			AST_LIST_REMOVE_CURRENT(&backends, list);
 			ast_free(chan);
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered channel type '%s'\n", tech->type);
+			ast_verb(2, "Unregistered channel type '%s'\n", tech->type);
 			break;	
 		}
 	}
@@ -4169,9 +4166,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			case AST_BRIDGE_RETRY:
 				continue;
 			default:
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s ended\n",
-						    c0->name, c1->name);
+				ast_verb(3, "Native bridging %s and %s ended\n", c0->name, c1->name);
 				/* fallthrough */
 			case AST_BRIDGE_FAILED_NOWARN:
 				nativefailed++;
@@ -4452,10 +4447,7 @@ int ast_moh_start(struct ast_channel *chan, const char *mclass, const char *inte
 	if (ast_moh_start_ptr)
 		return ast_moh_start_ptr(chan, mclass, interpclass);
 
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "Music class %s requested but no musiconhold loaded.\n", 
-			mclass ? mclass : (interpclass ? interpclass : "default"));
-	}
+	ast_verb(3, "Music class %s requested but no musiconhold loaded.\n", mclass ? mclass : (interpclass ? interpclass : "default"));
 
 	return 0;
 }

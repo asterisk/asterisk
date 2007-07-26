@@ -109,26 +109,22 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	}
 
 	dialtech = strsep(&args.dial, "/");
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Dial Tech,String: (%s,%s)\n", dialtech, args.dial);
+	ast_verb(3, "Dial Tech,String: (%s,%s)\n", dialtech, args.dial);
 
 	if (!ast_strlen_zero(args.return_context))
 		ast_parseable_goto(chan, args.return_context);
 
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "Return Context: (%s,%s,%d) ID: %s\n", chan->context, chan->exten, chan->priority, chan->cid.cid_num);
+	ast_verb(3, "Return Context: (%s,%s,%d) ID: %s\n", chan->context, chan->exten, chan->priority, chan->cid.cid_num);
 		if (!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
-			ast_verbose(VERBOSE_PREFIX_3 "Warning: Return Context Invalid, call will return to default|s\n");
+		ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 		}
-	}
 
 	/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout
 	before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
 	ast_masq_park_call(chan, NULL, timeout, &lot);
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, args.return_context);
+	ast_verb(3, "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, args.return_context);
 
 	/* Now place the call to the extension */
 
@@ -139,11 +135,9 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	if (dchan) {
 		if (dchan->_state == AST_STATE_UP) {
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", dchan->name);
+			ast_verb(4, "Channel %s was answered.\n", dchan->name);
 		} else {
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", dchan->name);
+			ast_verb(4, "Channel %s was never answered.\n", dchan->name);
         			ast_log(LOG_WARNING, "PARK: Channel %s was never answered for the announce.\n", dchan->name);
 			ast_hangup(dchan);
 			return -1;
@@ -157,16 +151,14 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	/* now we have the call placed and are ready to play stuff to it */
 
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "Announce Template:%s\n", args.template);
+	ast_verb(4, "Announce Template:%s\n", args.template);
 
 	for (looptemp = 0, tmp[looptemp++] = strsep(&args.template, ":");
 		 looptemp < sizeof(tmp) / sizeof(tmp[0]);
 		 tmp[looptemp++] = strsep(&args.template, ":"));
 
 	for (i = 0; i < looptemp; i++) {
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "Announce:%s\n", tmp[i]);
+		ast_verb(4, "Announce:%s\n", tmp[i]);
 		if (!strcmp(tmp[i], "PARKED")) {
 			ast_say_digits(dchan, lot, "", dchan->language);
 		} else {

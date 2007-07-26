@@ -904,8 +904,7 @@ static void parse_config(void)
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 		if (!strcasecmp(var->name, "genericplc")) {
 			g726tolin.useplc = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "codec_g726: %susing generic PLC\n",
+			ast_verb(3, "codec_g726: %susing generic PLC\n",
 					g726tolin.useplc ? "" : "not ");
 		}
 	}

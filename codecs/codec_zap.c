@@ -323,8 +323,7 @@ static void parse_config(void)
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 	       if (!strcasecmp(var->name, "genericplc")) {
 		       global_useplc = ast_true(var->value);
-		       if (option_verbose > 2)
-			       ast_verbose(VERBOSE_PREFIX_3 "codec_zap: %susing generic PLC\n",
+			   ast_verb(3, "codec_zap: %susing generic PLC\n",
 					   global_useplc ? "" : "not ");
 	       }
 	}
@@ -366,14 +365,13 @@ static int find_transcoders(void)
 		return 0;
 	}
 	for (info.tcnum = 0; !(res = ioctl(fd, ZT_TRANSCODE_OP, &info)); info.tcnum++) {
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Found transcoder '%s'.\n", info.name);
+		ast_verb(2, "Found transcoder '%s'.\n", info.name);
 		build_translators(&map, info.dstfmts, info.srcfmts);
 	}
 	close(fd);
 
-	if (!info.tcnum && (option_verbose > 1))
-		ast_verbose(VERBOSE_PREFIX_2 "No hardware transcoders found.\n");
+	if (!info.tcnum)
+		ast_verb(2, "No hardware transcoders found.\n");
 
 	for (x = 0; x < 32; x++) {
 		for (y = 0; y < 32; y++) {

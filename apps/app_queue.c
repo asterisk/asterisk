@@ -1420,8 +1420,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 		avgholdsecs = 0;
 	}
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
+	ast_verb(3, "Hold time for %s is %d minutes %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
 
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
@@ -1463,8 +1462,7 @@ static int say_position(struct queue_ent *qe, int ringing)
 	}
 
 posout:
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
+	ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
 			qe->chan->name, qe->parent->name, qe->pos);
 	res = play_file(qe->chan, qe->parent->sound_thanks);
 
@@ -1768,8 +1766,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	if ((res = ast_call(tmp->chan, location, 0))) {
 		/* Again, keep going even if there's an error */
 		ast_debug(1, "ast call on peer returned %d\n", res);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", tmp->interface);
+		ast_verb(3, "Couldn't call %s\n", tmp->interface);
 		do_hang(tmp);
 		(*busies)++;
 		return 0;
@@ -1792,8 +1789,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 					tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
 					qe->chan->context, qe->chan->exten, qe->chan->priority,
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", tmp->interface);
+		ast_verb(3, "Called %s\n", tmp->interface);
 	}
 
 	return 1;
@@ -1887,8 +1883,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	else
 		ast_moh_stop(qe->chan);
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Playing periodic announcement\n");
+	ast_verb(3, "Playing periodic announcement\n");
 
 	/* Check to make sure we have a sound file. If not, reset to the first sound file */
 	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || !strlen(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound])) {
@@ -1937,16 +1932,13 @@ static void record_abandoned(struct queue_ent *qe)
 /*! \brief RNA == Ring No Answer. Common code that is executed when we try a queue member and they don't answer. */
 static void rna(int rnatime, struct queue_ent *qe, char *interface, char *membername)
 {
-	if (option_verbose > 2)
-		ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", rnatime);
+	ast_verb(3, "Nobody picked up in %d ms\n", rnatime);
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, membername, "RINGNOANSWER", "%d", rnatime);
 	if (qe->parent->autopause) {
 		if (!set_member_paused(qe->parent->name, interface, 1)) {
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", interface, qe->parent->name);
+			ast_verb(3, "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", interface, qe->parent->name);
 		} else {
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Failed to pause Queue Member %s in queue %s!\n", interface, qe->parent->name);
+			ast_verb(3, "Failed to pause Queue Member %s in queue %s!\n", interface, qe->parent->name);
 		}
 	}
 	return;
@@ -2011,8 +2003,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		for (o = outgoing; o; o = o->q_next) {
 			if (o->stillgoing && (o->chan) &&  (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
-					if (option_verbose > 2)
-						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+					ast_verb(3, "%s answered %s\n", o->chan->name, in->name);
 					peer = o;
 				}
 			} else if (o->chan && (o->chan == winner)) {
@@ -2021,8 +2012,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				ast_copy_string(membername, o->member->membername, sizeof(membername));
 
 				if (!ast_strlen_zero(o->chan->call_forward) && !forwardsallowed) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s' prevented.\n", in->name, o->chan->call_forward);
+					ast_verb(3, "Forwarding %s to '%s' prevented.\n", in->name, o->chan->call_forward);
 					numnochan++;
 					do_hang(o);
 					winner = NULL;
@@ -2042,8 +2032,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						tech = "Local";
 					}
 					/* Before processing channel, go ahead and check for forwarding */
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
+					ast_verb(3, "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 					/* Setup parameters */
 					o->chan = ast_request(tech, in->nativeformats, stuff, &status);
 					if (status != o->oldstatus)
@@ -2090,14 +2079,12 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 						case AST_CONTROL_ANSWER:
 							/* This is our guy if someone answered. */
 							if (!peer) {
-								if (option_verbose > 2)
-									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
+								ast_verb(3, "%s answered %s\n", o->chan->name, in->name);
 								peer = o;
 							}
 							break;
 						case AST_CONTROL_BUSY:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", o->chan->name);
+							ast_verb(3, "%s is busy\n", o->chan->name);
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
 							do_hang(o);
@@ -2112,8 +2099,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							numbusies++;
 							break;
 						case AST_CONTROL_CONGESTION:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", o->chan->name);
+							ast_verb(3, "%s is circuit-busy\n", o->chan->name);
 							if (in->cdr)
 								ast_cdr_busy(in->cdr);
 							endtime = (long) time(NULL);
@@ -2128,8 +2114,7 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 							numbusies++;
 							break;
 						case AST_CONTROL_RINGING:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
+							ast_verb(3, "%s is ringing\n", o->chan->name);
 							if (!sentringing) {
 #if 0
 								ast_indicate(in, AST_CONTROL_RINGING);
@@ -2167,15 +2152,13 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 				return NULL;
 			}
 			if ((f->frametype == AST_FRAME_DTMF) && caller_disconnect && (f->subclass == '*')) {
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+				ast_verb(3, "User hit %c to disconnect call.\n", f->subclass);
 				*to = 0;
 				ast_frfree(f);
 				return NULL;
 			}
 			if ((f->frametype == AST_FRAME_DTMF) && valid_exit(qe, f->subclass)) {
-				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
+				ast_verb(3, "User pressed digit: %c\n", f->subclass);
 				*to = 0;
 				*digit = f->subclass;
 				ast_frfree(f);
@@ -3600,8 +3583,7 @@ check_turns:
 
 			/* exit after 'timeout' cycle if 'n' option enabled */
 			if (go_on >= qe.parent->membercount) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
+				ast_verb(3, "Exiting on time-out cycle\n");
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 				record_abandoned(&qe);
 				reason = QUEUE_TIMEOUT;

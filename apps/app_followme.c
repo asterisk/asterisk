@@ -487,8 +487,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 
 	if (!AST_LIST_EMPTY(findme_user_list)) {
 		if (!caller) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Original caller hungup. Cleanup.\n");
+			ast_verb(3, "Original caller hungup. Cleanup.\n");
 			clear_calling_tree(findme_user_list);
 			return NULL;
 		}
@@ -508,8 +507,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 					if (tmpuser->state == 3) 
 						tmpuser->digts += (towas - wtd);
 					if (tmpuser->digts && (tmpuser->digts > featuredigittimeout)) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "We've been waiting for digits longer than we should have.\n");
+						ast_verb(3, "We've been waiting for digits longer than we should have.\n");
 						if (!ast_strlen_zero(namerecloc)) {
 							tmpuser->state = 1;
 							tmpuser->digts = 0;
@@ -538,8 +536,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						else if (tmpto < 0 && !tmpuser->ochan->timingfunc) {
 							ast_stopstream(tmpuser->ochan);
 							if (tmpuser->state == 1) {
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Playback of the call-from file appears to be done.\n");
+								ast_verb(3, "Playback of the call-from file appears to be done.\n");
 								if (!ast_streamfile(tmpuser->ochan, namerecloc, tmpuser->ochan->language)) {
 									tmpuser->state = 2;
 								} else {
@@ -554,8 +551,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 									} 
 								}
 							} else if (tmpuser->state == 2) {
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Playback of name file appears to be done.\n");
+								ast_verb(3, "Playback of name file appears to be done.\n");
 								memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
 								tmpuser->ynidx = 0;
 								if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language)) {
@@ -565,8 +561,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 									return NULL;
 								} 
 							} else if (tmpuser->state == 3) {
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Playback of the next step file appears to be done.\n");
+								ast_verb(3, "Playback of the next step file appears to be done.\n");
 								tmpuser->digts = 0;
 							}
 						}
@@ -587,8 +582,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 			totalwait -= tmpto;
 			wtd = to;	
 			if (totalwait <= 0) {
-				if (option_verbose > 2)	
-					ast_verbose(VERBOSE_PREFIX_3 "We've hit our timeout for this step. Drop everyone and move on to the next one. %ld\n", totalwait);
+				ast_verb(3, "We've hit our timeout for this step. Drop everyone and move on to the next one. %ld\n", totalwait);
 				clear_calling_tree(findme_user_list);
 				return NULL;
 			}
@@ -606,22 +600,20 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 						switch(f->subclass) {
 						case AST_CONTROL_HANGUP:
 							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s received a hangup frame.\n", winner->name);
+								ast_verb(3, "%s received a hangup frame.\n", winner->name);
 							if (dg == 0) {
-								if (option_verbose > 2)
-									ast_verbose( VERBOSE_PREFIX_3 "The calling channel hungup. Need to drop everyone else.\n");
+								ast_verb(3, "The calling channel hungup. Need to drop everyone else.\n");
 								clear_calling_tree(findme_user_list);
 								ctstatus = -1;
 							}
 							break;
 						case AST_CONTROL_ANSWER:
 							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", winner->name, caller->name);
+								ast_verb(3, "%s answered %s\n", winner->name, caller->name);
 							/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
 							winner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 							caller->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "Starting playback of %s\n", callfromname);
+							ast_verb(3, "Starting playback of %s\n", callfromname);
 							if (dg > 0) {
 								if (!ast_strlen_zero(namerecloc)) {
 									if (!ast_streamfile(winner, callfromname, winner->language)) {
@@ -645,44 +637,35 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							}
 							break;
 						case AST_CONTROL_BUSY:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is busy\n", winner->name);
+							ast_verb(3, "%s is busy\n", winner->name);
 							break;
 						case AST_CONTROL_CONGESTION:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is circuit-busy\n", winner->name);
+							ast_verb(3, "%s is circuit-busy\n", winner->name);
 							break;
 						case AST_CONTROL_RINGING:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", winner->name);
+							ast_verb(3, "%s is ringing\n", winner->name);
 							break;
 						case AST_CONTROL_PROGRESS:
-							if (option_verbose > 2)
-								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", winner->name, caller->name);
+							ast_verb(3, "%s is making progress passing it to %s\n", winner->name, caller->name);
 							break;
 						case AST_CONTROL_VIDUPDATE:
-							if (option_verbose > 2)
-								ast_verbose ( VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", winner->name, caller->name);
+							ast_verb(3, "%s requested a video update, passing it to %s\n", winner->name, caller->name);
 							break;
 						case AST_CONTROL_PROCEEDING:
-							if (option_verbose > 2)
-								ast_verbose ( VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", winner->name,caller->name);
+							ast_verb(3, "%s is proceeding passing it to %s\n", winner->name,caller->name);
 							break;
 						case AST_CONTROL_HOLD:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", winner->name);
+							ast_verb(3, "Call on %s placed on hold\n", winner->name);
 							break;
 						case AST_CONTROL_UNHOLD:
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", winner->name);
+							ast_verb(3, "Call on %s left from hold\n", winner->name);
 							break;
 						case AST_CONTROL_OFFHOOK:
 						case AST_CONTROL_FLASH:
 							/* Ignore going off hook and flash */
 							break;
 						case -1:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", winner->name);
+							ast_verb(3, "%s stopped sounds\n", winner->name);
 							break;
 						default:
 							ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
@@ -727,8 +710,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 							livechannels--;
 							ast_debug(1, "live channels left %d\n", livechannels);
 							if (!livechannels) {
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "no live channels left. exiting.\n");
+								ast_verb(3, "no live channels left. exiting.\n");
 								return NULL;
 							}
 						}
@@ -740,8 +722,7 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 		}
 		
 	} else {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "couldn't reach at this number.\n");
+		ast_verb(3, "couldn't reach at this number.\n");
 	}
 	
 	/* --- WAIT FOR WINNER NUMBER END! -----------*/
@@ -809,8 +790,7 @@ static void findmeexec(struct fm_args *tpargs)
 			if (outbound) {
 				ast_set_callerid(outbound, caller->cid.cid_num, caller->cid.cid_name, caller->cid.cid_num);
 				ast_channel_inherit_variables(tpargs->chan, outbound);
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "calling %s\n", dialarg);
+				ast_verb(3, "calling %s\n", dialarg);
 				if (!ast_call(outbound,dialarg,0)) {
 					tmpuser->ochan = outbound;
 					tmpuser->state = 0;
@@ -818,8 +798,7 @@ static void findmeexec(struct fm_args *tpargs)
 					ast_copy_string(tmpuser->dialarg, dialarg, sizeof(dialarg));
 					AST_LIST_INSERT_TAIL(findme_user_list, tmpuser, entry);
 				} else {
-					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "couldn't reach at this number.\n"); 
+					ast_verb(3, "couldn't reach at this number.\n"); 
 					if (outbound) {
 						if (!outbound->cdr) 
 							outbound->cdr = ast_cdr_alloc();

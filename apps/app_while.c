@@ -229,8 +229,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		} else {
 			int pri = find_matching_endwhile(chan);
 			if (pri > 0) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Jumping to priority %d\n", pri);
+				ast_verb(3, "Jumping to priority %d\n", pri);
 				chan->priority = pri;
 			} else {
 				ast_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);

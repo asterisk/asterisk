@@ -313,14 +313,12 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 				goto out;
 			case AST_PBX_KEEPALIVE:
 				ast_debug(2, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
-				if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE in macro '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE in macro '%s' on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
 				goto out;
 				break;
 			default:
 				ast_debug(2, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
-				if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				dead = 1;
 				goto out;
 			}
@@ -382,8 +380,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		}
 
 		if (gosub_level == 0 && strcasecmp(chan->context, fullmacro)) {
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
+			ast_verb(2, "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
 			break;
 		}
 

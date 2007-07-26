@@ -1634,11 +1634,9 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					ntohs(trans->addr.sin_port), expire);
 				ast_db_put("dundi/dpeers", dundi_eid_to_str_short(eid_str, sizeof(eid_str), &peer->eid), data);
 				if (inaddrcmp(&peer->addr, &trans->addr)) {
-					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "Registered DUNDi peer '%s' at '%s:%d'\n", 
+					ast_verb(3, "Registered DUNDi peer '%s' at '%s:%d'\n",
 							dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
 							ast_inet_ntoa(trans->addr.sin_addr), ntohs(trans->addr.sin_port));
-					}
 					needqual = 1;
 				}
 					
@@ -4796,10 +4794,7 @@ static int load_module(void)
 	ast_custom_function_register(&dundi_query_function);
 	ast_custom_function_register(&dundi_result_function);
 	
-	if (option_verbose > 1) {
-		ast_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", 
-			ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-	}
+	ast_verb(2, "DUNDi Ready and Listening on %s port %d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

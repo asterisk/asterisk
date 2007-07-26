@@ -3761,12 +3761,10 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
 
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Packet2Packet bridging %s and %s\n", c0->name, c1->name);
+		ast_verb(3, "Packet2Packet bridging %s and %s\n", c0->name, c1->name);
 		res = bridge_p2p_loop(c0, c1, p0, p1, timeoutms, flags, fo, rc, pvt0, pvt1);
 	} else {
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
+		ast_verb(3, "Native bridging %s and %s\n", c0->name, c1->name);
 		res = bridge_native_loop(c0, c1, p0, p1, vp0, vp1, tp0, tp1, pr0, pr1, codec0, codec1, timeoutms, flags, fo, rc, pvt0, pvt1);
 	}
 
@@ -4046,8 +4044,7 @@ int ast_rtp_reload(void)
 		rtpstart = 5000;
 		rtpend = 31000;
 	}
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
+	ast_verb(2, "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
 	return 0;
 }
 

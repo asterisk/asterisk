@@ -656,8 +656,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	/* indicate that this is an outgoing call */
 	pvt->outgoing = 1;
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", c->transfercapability, ast_transfercapability2str(c->transfercapability));
+	ast_verb(3, "Requested transfer capability: 0x%.2x - %s\n", c->transfercapability, ast_transfercapability2str(c->transfercapability));
 	if (h323debug)
 		ast_debug(1, "Placing outgoing call to %s, %d/%d\n", called_addr, pvt->options.dtmfcodec[0], pvt->options.dtmfcodec[1]);
 	ast_mutex_unlock(&pvt->lock);
@@ -2139,15 +2138,15 @@ static call_options_t *setup_incoming_call(call_details_t *cd)
 	pvt->jointcapability = pvt->options.capability;
 
 	if (h323debug) {
-		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
-		ast_verbose(VERBOSE_PREFIX_3 " \tCall token:  [%s]\n", pvt->cd.call_token);
-		ast_verbose(VERBOSE_PREFIX_3 " \tCalling party name:  [%s]\n", pvt->cd.call_source_name);
-		ast_verbose(VERBOSE_PREFIX_3 " \tCalling party number:  [%s]\n", pvt->cd.call_source_e164);
-		ast_verbose(VERBOSE_PREFIX_3 " \tCalled party name:  [%s]\n", pvt->cd.call_dest_alias);
-		ast_verbose(VERBOSE_PREFIX_3 " \tCalled party number:  [%s]\n", pvt->cd.call_dest_e164);
+		ast_verb(3, "Setting up Call\n");
+		ast_verb(3, " \tCall token:  [%s]\n", pvt->cd.call_token);
+		ast_verb(3, " \tCalling party name:  [%s]\n", pvt->cd.call_source_name);
+		ast_verb(3, " \tCalling party number:  [%s]\n", pvt->cd.call_source_e164);
+		ast_verb(3, " \tCalled party name:  [%s]\n", pvt->cd.call_dest_alias);
+		ast_verb(3, " \tCalled party number:  [%s]\n", pvt->cd.call_dest_e164);
 		if (pvt->cd.redirect_reason >= 0)
-			ast_verbose(VERBOSE_PREFIX_3 " \tRedirecting party number:  [%s] (reason %d)\n", pvt->cd.redirect_number, pvt->cd.redirect_reason);
-		ast_verbose(VERBOSE_PREFIX_3 " \tCalling party IP:  [%s]\n", pvt->cd.sourceIp);
+			ast_verb(3, " \tRedirecting party number:  [%s] (reason %d)\n", pvt->cd.redirect_number, pvt->cd.redirect_reason);
+		ast_verb(3, " \tCalling party IP:  [%s]\n", pvt->cd.sourceIp);
 	}
 
 	/* Decide if we are allowing Gatekeeper routed calls*/
@@ -2540,9 +2539,7 @@ static void *do_monitor(void *data)
 		h323_reloading = 0;
 		ast_mutex_unlock(&h323_reload_lock);
 		if (reloading) {
-			if (option_verbose > 0) {
-				ast_verbose(VERBOSE_PREFIX_1 "Reloading H.323\n");
-			}
+			ast_verb(1, "Reloading H.323\n");
 			h323_do_reload();
 		}
 		/* Check for interfaces needing to be killed */
@@ -2691,9 +2688,9 @@ static int h323_ep_hangup(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	}
 	if (h323_soft_hangup(argv[2])) {
-		ast_verbose(VERBOSE_PREFIX_3 "Hangup succeeded on %s\n", argv[2]);
+		ast_verb(3, "Hangup succeeded on %s\n", argv[2]);
 	} else {
-		ast_verbose(VERBOSE_PREFIX_3 "Hangup failed for %s\n", argv[2]);
+		ast_verb(3, "Hangup failed for %s\n", argv[2]);
 	}
 	return RESULT_SUCCESS;
 }
@@ -2922,7 +2919,7 @@ static int reload_config(int is_reload)
 			gkroute = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(default_context, v->value, sizeof(default_context));
-			ast_verbose(VERBOSE_PREFIX_2 "Setting default context to %s\n", default_context);
+			ast_verb(2, "Setting default context to %s\n", default_context);
 		} else if (!strcasecmp(v->name, "UserByAlias")) {
 			userbyalias = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "AcceptAnonymous")) {

@@ -500,15 +500,13 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &sth);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 3)
-			ast_verbose( VERBOSE_PREFIX_4 "Failure in AllocStatement %d\n", res);
+		ast_verb(4, "Failure in AllocStatement %d\n", res);
 		return NULL;
 	}
 
 	res = SQLPrepare(sth, (unsigned char *)q->sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 3)
-			ast_verbose( VERBOSE_PREFIX_4 "Error in PREPARE %d\n", res);
+		ast_verb(4, "Error in PREPARE %d\n", res);
 		SQLFreeHandle(SQL_HANDLE_STMT, sth);
 		return NULL;
 	}
@@ -615,16 +613,14 @@ static struct ast_config_engine odbc_engine = {
 static int unload_module (void)
 {
 	ast_config_engine_deregister(&odbc_engine);
-	if (option_verbose)
-		ast_verbose("res_config_odbc unloaded.\n");
+	ast_verb(1, "res_config_odbc unloaded.\n");
 	return 0;
 }
 
 static int load_module (void)
 {
 	ast_config_engine_register(&odbc_engine);
-	if (option_verbose)
-		ast_verbose("res_config_odbc loaded.\n");
+	ast_verb(1, "res_config_odbc loaded.\n");
 	return 0;
 }
 

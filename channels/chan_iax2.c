@@ -1736,8 +1736,7 @@ static void reload_firmware(void)
 			if (de->d_name[0] != '.') {
 				snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
 				if (!try_firmware(fn)) {
-					if (option_verbose > 1)
-						ast_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
+					ast_verb(2, "Loaded firmware '%s'\n", de->d_name);
 				}
 			}
 		}
@@ -3223,8 +3222,7 @@ static int iax2_hangup(struct ast_channel *c)
 		}
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Hungup '%s'\n", c->name);
+	ast_verb(3, "Hungup '%s'\n", c->name);
 	return 0;
 }
 
@@ -3333,8 +3331,7 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	for (/* ever */;;) {
 		/* Check in case we got masqueraded into */
 		if ((c0->tech != &iax2_tech) || (c1->tech != &iax2_tech)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
+			ast_verb(3, "Can't masquerade, we're different...\n");
 			/* Remove from native mode */
 			if (c0->tech == &iax2_tech) {
 				ast_mutex_lock(&iaxsl[callno0]);
@@ -3349,13 +3346,11 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 			return AST_BRIDGE_FAILED_NOWARN;
 		}
 		if (c0->nativeformats != c1->nativeformats) {
-			if (option_verbose > 2) {
 				char buf0[255];
 				char buf1[255];
 				ast_getformatname_multiple(buf0, sizeof(buf0) -1, c0->nativeformats);
 				ast_getformatname_multiple(buf1, sizeof(buf1) -1, c1->nativeformats);
-				ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs %d[%s] %d[%s] , can't native bridge...\n", c0->nativeformats, buf0, c1->nativeformats, buf1);
-			}
+			ast_verb(3, "Operating with different codecs %d[%s] %d[%s] , can't native bridge...\n", c0->nativeformats, buf0, c1->nativeformats, buf1);
 			/* Remove from native mode */
 			lock_both(callno0, callno1);
 			if (iaxs[callno0])
@@ -5772,7 +5767,6 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 		ast_sched_del(sched, reg->expire);
 	reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if (inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) {
-		if (option_verbose > 2) {
 			if (reg->messages > 255)
 				snprintf(msgstatus, sizeof(msgstatus), " with %d new and %d old messages waiting", reg->messages & 0xff, reg->messages >> 8);
 			else if (reg->messages > 1)
@@ -5782,8 +5776,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			else
 				snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 			snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
-			ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(sin->sin_addr), ourip, msgstatus);
-		}
+		ast_verb(3, "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(sin->sin_addr), ourip, msgstatus);
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(sin->sin_addr));
 	}
 	reg->regstate = REG_STATE_REGISTERED;
@@ -5942,8 +5935,7 @@ static void reg_source_db(struct iax2_peer *p)
 				if (d) {
 					*d = '\0';
 					d++;
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
+					ast_verb(3, "Seeding '%s' at %s:%d for %d\n", p->name,
 						ast_inet_ntoa(in), atoi(c), atoi(d));
 					iax2_poke_peer(p, 0);
 					p->expiry = atoi(d);
@@ -5999,15 +5991,13 @@ static int update_registry(const char *name, struct sockaddr_in *sin, int callno
 		snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), p->expiry);
 		if (!ast_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
 			ast_db_put("IAX/Registry", p->name, data);
-			if  (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
+			ast_verb(3, "Registered IAX2 '%s' (%s) at %s:%d\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
 			register_peer_exten(p, 1);
 			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
-			if  (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
+			ast_verb(3, "Unregistered IAX2 '%s' (%s)\n", p->name,
 					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED");
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
 			register_peer_exten(p, 0);
@@ -7578,8 +7568,7 @@ retryowner:
 							send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 							if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-								if (option_verbose > 2) 
-									ast_verbose(VERBOSE_PREFIX_3 "Accepting UNAUTHENTICATED call from %s:\n"
+								ast_verb(3, "Accepting UNAUTHENTICATED call from %s:\n"
 												"%srequested format = %s,\n"
 												"%srequested prefs = %s,\n"
 												"%sactual format = %s,\n"
@@ -7602,8 +7591,7 @@ retryowner:
 							} else {
 								ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 								/* If this is a TBD call, we're ready but now what...  */
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Accepted unauthenticated TBD call from %s\n", ast_inet_ntoa(sin.sin_addr));
+								ast_verb(3, "Accepted unauthenticated TBD call from %s\n", ast_inet_ntoa(sin.sin_addr));
 							}
 						}
 					}
@@ -7701,8 +7689,7 @@ retryowner:
 					else
 						iaxs[fr->callno]->peerformat = iaxs[fr->callno]->capability;
 				}
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s (format %s)\n", ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr), ast_getformatname(iaxs[fr->callno]->peerformat));
+				ast_verb(3, "Call accepted by %s (format %s)\n", ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr), ast_getformatname(iaxs[fr->callno]->peerformat));
 				if (!(iaxs[fr->callno]->peerformat & iaxs[fr->callno]->capability)) {
 					memset(&ied0, 0, sizeof(ied0));
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
@@ -7715,8 +7702,7 @@ retryowner:
 					if (iaxs[fr->callno]->owner) {
 						/* Switch us to use a compatible format */
 						iaxs[fr->callno]->owner->nativeformats = iaxs[fr->callno]->peerformat;
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
+						ast_verb(3, "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
 retryowner2:
 						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
 							ast_mutex_unlock(&iaxsl[fr->callno]);
@@ -7957,8 +7943,7 @@ retryowner2:
 						send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 						if (strcmp(iaxs[fr->callno]->exten, "TBD")) {
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-							if (option_verbose > 2) 
-								ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s:\n"
+							ast_verb(3, "Accepting AUTHENTICATED call from %s:\n"
 											"%srequested format = %s,\n"
 											"%srequested prefs = %s,\n"
 											"%sactual format = %s,\n"
@@ -8016,8 +8001,7 @@ retryowner2:
 						} else {
 							ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_TBD);
 							/* If this is a TBD call, we're ready but now what...  */
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Accepted AUTHENTICATED TBD call from %s\n", ast_inet_ntoa(sin.sin_addr));
+							ast_verb(3, "Accepted AUTHENTICATED TBD call from %s\n", ast_inet_ntoa(sin.sin_addr));
 						}
 					}
 				}
@@ -8035,8 +8019,7 @@ retryowner2:
 						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					} else {
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
-						if (option_verbose > 2) 
-							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat);
+						ast_verb(3, "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat);
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						send_command(iaxs[fr->callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
 						if (!(c = ast_iax2_new(fr->callno, AST_STATE_RING, iaxs[fr->callno]->peerformat)))
@@ -8141,8 +8124,7 @@ retryowner2:
 				break;
 			case IAX_COMMAND_TXREJ:
 				iaxs[fr->callno]->transferring = 0;
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+				ast_verb(3, "Channel '%s' unable to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
 				memset(&iaxs[fr->callno]->transfer, 0, sizeof(iaxs[fr->callno]->transfer));
 				if (iaxs[fr->callno]->bridgecallno) {
 					if (iaxs[iaxs[fr->callno]->bridgecallno]->transferring) {
@@ -8158,15 +8140,13 @@ retryowner2:
 						iaxs[fr->callno]->transferring = TRANSFER_MREADY;
 					else
 						iaxs[fr->callno]->transferring = TRANSFER_READY;
-					if (option_verbose > 2) 
-						ast_verbose(VERBOSE_PREFIX_3 "Channel '%s' ready to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
+					ast_verb(3, "Channel '%s' ready to transfer\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>");
 					if (iaxs[fr->callno]->bridgecallno) {
 						if ((iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_READY) ||
 						    (iaxs[iaxs[fr->callno]->bridgecallno]->transferring == TRANSFER_MREADY)) {
 							/* They're both ready, now release them. */
 							if (iaxs[fr->callno]->transferring == TRANSFER_MREADY) {
-								if (option_verbose > 2) 
-									ast_verbose(VERBOSE_PREFIX_3 "Attempting media bridge of %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
+								ast_verb(3, "Attempting media bridge of %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
 										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? iaxs[iaxs[fr->callno]->bridgecallno]->owner->name : "<Unknown>");
 
 								iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_MEDIA;
@@ -8179,8 +8159,7 @@ retryowner2:
 								send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_TXMEDIA, 0, ied0.buf, ied0.pos, -1);
 								send_command(iaxs[iaxs[fr->callno]->bridgecallno], AST_FRAME_IAX, IAX_COMMAND_TXMEDIA, 0, ied1.buf, ied1.pos, -1);
 							} else {
-								if (option_verbose > 2) 
-									ast_verbose(VERBOSE_PREFIX_3 "Releasing %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
+								ast_verb(3, "Releasing %s and %s\n", iaxs[fr->callno]->owner ? iaxs[fr->callno]->owner->name : "<Unknown>",
 										iaxs[iaxs[fr->callno]->bridgecallno]->owner ? iaxs[iaxs[fr->callno]->bridgecallno]->owner->name : "<Unknown>");
 
 								iaxs[iaxs[fr->callno]->bridgecallno]->transferring = TRANSFER_RELEASED;
@@ -8604,8 +8583,7 @@ static int iax2_prov_app(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	res = iax2_provision(&iaxs[callno]->addr, iaxs[callno]->sockfd, NULL, sdata, force);
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Provisioned IAXY at '%s' with '%s'= %d\n", 
+	ast_verb(3, "Provisioned IAXY at '%s' with '%s'= %d\n",
 		ast_inet_ntoa(iaxs[callno]->addr.sin_addr),
 		sdata, res);
 	return res;
@@ -8923,8 +8901,7 @@ static int start_network_thread(void)
 	}
 	ast_pthread_create_background(&schedthreadid, NULL, sched_thread, NULL);
 	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "%d helper threaads started\n", threadcount);
+	ast_verb(2, "%d helper threaads started\n", threadcount);
 	return 0;
 }
 
@@ -9764,12 +9741,10 @@ static int set_config(char *config_file, int reload)
 				if (!(ns = ast_netsock_bind(netsock, io, v->value, portno, tos, cos, socket_read, NULL))) {
 					ast_log(LOG_WARNING, "Unable apply binding to '%s' at line %d\n", v->value, v->lineno);
 				} else {
-					if (option_verbose > 1) {
 						if (strchr(v->value, ':'))
-							ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to '%s'\n", v->value);
+						ast_verb(2, "Binding IAX2 to '%s'\n", v->value);
 						else
-							ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to '%s:%d'\n", v->value, portno);
-					}
+						ast_verb(2, "Binding IAX2 to '%s:%d'\n", v->value, portno);
 					if (defaultsockfd < 0) 
 						defaultsockfd = ast_netsock_sockfd(ns);
 					ast_netsock_unref(ns);
@@ -9904,8 +9879,7 @@ static int set_config(char *config_file, int reload)
 		if (!(ns = ast_netsock_bind(netsock, io, "0.0.0.0", portno, tos, cos, socket_read, NULL))) {
 			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 		} else {
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d\n", portno);
+			ast_verb(2, "Binding IAX2 to default address 0.0.0.0:%d\n", portno);
 			defaultsockfd = ast_netsock_sockfd(ns);
 			ast_netsock_unref(ns);
 		}
@@ -10367,8 +10341,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 			} else {
 				snprintf(req, sizeof(req), "IAX2/%s/%s", odata, exten);
 			}
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Executing Dial('%s')\n", req);
+			ast_verb(3, "Executing Dial('%s')\n", req);
 		} else {
 			AST_LIST_UNLOCK(&dpcache);
 			ast_log(LOG_WARNING, "Can't execute nonexistent extension '%s[@%s]' in data '%s'\n", exten, context, data);
@@ -10957,8 +10930,8 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
 		__unload_module();
 		return AST_MODULE_LOAD_FAILURE;
-	} else if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
+	} else
+		ast_verb(2, "IAX Ready and Listening\n");
 
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry)

@@ -346,8 +346,7 @@ static enum agi_result launch_script(char *script, char *argv[], int *fds, int *
 		_exit(1);
 	}
 	pthread_sigmask(SIG_SETMASK, &old_set, NULL);
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Launched AGI Script %s\n", script);
+	ast_verb(3, "Launched AGI Script %s\n", script);
 	fds[0] = toast[0];
 	fds[1] = fromast[1];
 	if (efd)
@@ -584,8 +583,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	vfs = ast_openvstream(chan, argv[2], chan->language);
 	ast_debug(vfs && 1, "Ooh, found a video stream, too\n");
 		
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
+	ast_verb(3, "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
 
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);
@@ -640,8 +638,7 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 	vfs = ast_openvstream(chan, argv[2], chan->language);
 	ast_debug(vfs && 1, "Ooh, found a video stream, too\n");
 	
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
+	ast_verb(3, "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
 
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);
@@ -1096,8 +1093,7 @@ static int handle_exec(struct ast_channel *chan, AGI *agi, int argc, char **argv
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
+	ast_verb(3, "AGI Script Executing Application: (%s) Options: (%s)\n", argv[1], argv[2]);
 
 	if ((app = pbx_findapp(argv[1]))) {
 		res = pbx_exec(chan, app, argv[2]);
@@ -1870,8 +1866,7 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				/* Program terminated */
 				if (returnstatus && returnstatus != AST_PBX_KEEPALIVE)
 					returnstatus = -1;
-				if (option_verbose > 2) 
-					ast_verbose(VERBOSE_PREFIX_3 "AGI Script %s completed, returning %d\n", request, returnstatus);
+				ast_verb(3, "AGI Script %s completed, returning %d\n", request, returnstatus);
 				if (pid > 0)
 					waitpid(pid, status, 0);
 				/* No need to kill the pid anymore, since they closed us */

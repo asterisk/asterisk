@@ -97,8 +97,7 @@ int __ast_format_register(const struct ast_format *f, struct ast_module *mod)
 
 	AST_RWLIST_INSERT_HEAD(&formats, tmp, list);
 	AST_RWLIST_UNLOCK(&formats);
-	if (option_verbose > 1)
-		ast_verbose( VERBOSE_PREFIX_2 "Registered file format %s, extension(s) %s\n", f->name, f->exts);
+	ast_verb(2, "Registered file format %s, extension(s) %s\n", f->name, f->exts);
 
 	return 0;
 }
@@ -119,10 +118,9 @@ int ast_format_unregister(const char *name)
 	AST_RWLIST_TRAVERSE_SAFE_END
 	AST_RWLIST_UNLOCK(&formats);
 
-	if (!res) {
-		if (option_verbose > 1)
-			ast_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
-	} else
+	if (!res)
+		ast_verb(2, "Unregistered format %s\n", name);
+	else
 		ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
 
 	return res;
@@ -797,8 +795,7 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 		ast_playstream(fs);
 		if (vfs)
 			ast_playstream(vfs);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "<%s> Playing '%s.%s' (language '%s')\n", chan->name, filename, ast_getformatname(chan->writeformat), preflang ? preflang : "default");
+		ast_verb(3, "<%s> Playing '%s.%s' (language '%s')\n", chan->name, filename, ast_getformatname(chan->writeformat), preflang ? preflang : "default");
 
 		return 0;
 	}

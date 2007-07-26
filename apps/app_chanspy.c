@@ -277,8 +277,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		return 0;
 
 	name = ast_strdupa(spyee->name);
-	if (option_verbose >= 2)
-		ast_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
+	ast_verb(2, "Spying on channel %s\n", name);
 
 	memset(&csth, 0, sizeof(csth));
 	ast_set_flag(&csth.spy, CHANSPY_FORMAT_AUDIO);
@@ -401,8 +400,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			(*volfactor)++;
 			if (*volfactor > 4)
 				*volfactor = -4;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
+			ast_verb(3, "Setting spy volume on %s to %d\n", chan->name, *volfactor);
 			csth.volfactor = *volfactor;
 			set_volume(chan, &csth);
 			if (csth.volfactor) {

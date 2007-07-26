@@ -136,8 +136,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 			     AST_APP_ARG(argSilenceThreshold);
 	);
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "AMD: %s %s %s (Fmt: %d)\n", chan->name ,chan->cid.cid_ani, chan->cid.cid_rdnis, chan->readformat);
+	ast_verb(3, "AMD: %s %s %s (Fmt: %d)\n", chan->name ,chan->cid.cid_ani, chan->cid.cid_rdnis, chan->readformat);
 
 	/* Lets parse the arguments. */
 	if (!ast_strlen_zero(parse)) {
@@ -164,8 +163,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	}
 
 	/* Now we're ready to roll! */
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "AMD: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
+	ast_verb(3, "AMD: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
 		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] \n",
 				initialSilence, greeting, afterGreetingSilence, totalAnalysisTime,
 				minimumWordLength, betweenWordsSilence, maximumNumberOfWords, silenceThreshold );
@@ -194,8 +192,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	while ((res = ast_waitfor(chan, totalAnalysisTime)) > -1) {
 		/* If we fail to read in a frame, that means they hung up */
 		if (!(f = ast_read(chan))) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "AMD: HANGUP\n");
+			ast_verb(3, "AMD: HANGUP\n");
 			ast_debug(1, "Got hangup\n");
 			strcpy(amdStatus, "HANGUP");
 			break;
@@ -241,8 +238,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				}
 				
 				if (silenceDuration >= afterGreetingSilence  &&  inGreeting == 1) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
+					ast_verb(3, "AMD: HUMAN: silenceDuration:%d afterGreetingSilence:%d\n",
 							    silenceDuration, afterGreetingSilence);
 					ast_frfree(f);
 					strcpy(amdStatus , "HUMAN");
@@ -274,8 +270,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 				}
 				
 				if (inGreeting == 1 && voiceDuration >= greeting) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", voiceDuration, greeting);
+					ast_verb(3, "AMD: ANSWERING MACHINE: voiceDuration:%d greeting:%d\n", voiceDuration, greeting);
 					ast_frfree(f);
 					strcpy(amdStatus , "MACHINE");
 					sprintf(amdCause , "LONGGREETING-%d-%d", voiceDuration, greeting);
@@ -295,8 +290,7 @@ static void isAnsweringMachine(struct ast_channel *chan, void *data)
 	
 	if (!res) {
 		/* It took too long to get a frame back. Giving up. */
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "AMD: Channel [%s]. Too long...\n", chan->name);
+		ast_verb(3, "AMD: Channel [%s]. Too long...\n", chan->name);
 		strcpy(amdStatus , "NOTSURE");
 		sprintf(amdCause , "TOOLONG-%d", iTotalTime);
 	}
@@ -368,8 +362,7 @@ static void load_config(void)
 
 	ast_config_destroy(cfg);
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "AMD defaults: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
+	ast_verb(3, "AMD defaults: initialSilence [%d] greeting [%d] afterGreetingSilence [%d] "
 		"totalAnalysisTime [%d] minimumWordLength [%d] betweenWordsSilence [%d] maximumNumberOfWords [%d] silenceThreshold [%d] \n",
 				dfltInitialSilence, dfltGreeting, dfltAfterGreetingSilence, dfltTotalAnalysisTime,
 				dfltMinimumWordLength, dfltBetweenWordsSilence, dfltMaximumNumberOfWords, dfltSilenceThreshold );

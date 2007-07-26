@@ -126,8 +126,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
+		ast_verb(11, "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		odbc_disconnect();
 		ast_mutex_unlock(&odbc_lock);
@@ -141,8 +140,7 @@ static int odbc_log(struct ast_cdr *cdr)
 	ODBC_res = SQLPrepare(ODBC_stmt, (unsigned char *)sqlcmd, SQL_NTS);
 	
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
+		ast_verb(11, "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		odbc_disconnect();
 		ast_mutex_unlock(&odbc_lock);
@@ -175,29 +173,23 @@ static int odbc_log(struct ast_cdr *cdr)
 	if (connected) {
 		res = odbc_do_query();
 		if (res < 0) {
-			if (option_verbose > 10)		
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
-			if (option_verbose > 10)
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
+			ast_verb(11, "cdr_odbc: Query FAILED Call not logged!\n");
+			ast_verb(11, "cdr_odbc: Reconnecting to dsn %s\n", dsn);
 			SQLDisconnect(ODBC_con);
 			res = odbc_init();
 			if (res < 0) {
-				if (option_verbose > 10)
-					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: %s has gone away!\n", dsn);
+				ast_verb(11, "cdr_odbc: %s has gone away!\n", dsn);
 				odbc_disconnect();
 			} else {
-				if (option_verbose > 10)
-					ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
+				ast_verb(11, "cdr_odbc: Trying Query again!\n");
 				res = odbc_do_query();
 				if (res < 0) {
-					if (option_verbose > 10)
-						ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
+					ast_verb(11, "cdr_odbc: Query FAILED Call not logged!\n");
 				}
 			}
 		}
 	} else {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
+		ast_verb(11, "cdr_odbc: Query FAILED Call not logged!\n");
 	}
 	SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 	ast_mutex_unlock(&odbc_lock);
@@ -208,29 +200,24 @@ static int odbc_unload_module(void)
 {
 	ast_mutex_lock(&odbc_lock);
 	if (connected) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Disconnecting from %s\n", dsn);
+		ast_verb(11, "cdr_odbc: Disconnecting from %s\n", dsn);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		odbc_disconnect();
 	}
 	if (dsn) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free dsn\n");
+		ast_verb(11, "cdr_odbc: free dsn\n");
 		ast_free(dsn);
 	}
 	if (username) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free username\n");
+		ast_verb(11, "cdr_odbc: free username\n");
 		ast_free(username);
 	}
 	if (password) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free password\n");
+		ast_verb(11, "cdr_odbc: free password\n");
 		ast_free(password);
 	}
 	if (table) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free table\n");
+		ast_verb(11, "cdr_odbc: free table\n");
 		ast_free(table);
 	}
 
@@ -338,25 +325,19 @@ static int odbc_load_module(void)
 		goto out;
 	}
 
-	if (option_verbose > 2) {
-		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: dsn is %s\n",dsn);
-		if (username)
-		{
-			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: username is %s\n",username);
-			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: password is [secret]\n");
-		}
-		else
-			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: retreiving username and password from odbc config\n");
-		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: table is %s\n",table);
-	}
+	ast_verb(3, "cdr_odbc: dsn is %s\n",dsn);
+	if (username) {
+		ast_verb(3, "cdr_odbc: username is %s\n",username);
+		ast_verb(3, "cdr_odbc: password is [secret]\n");
+	} else
+		ast_verb(3, "cdr_odbc: retreiving username and password from odbc config\n");
+	ast_verb(3, "cdr_odbc: table is %s\n",table);
 	
 	res = odbc_init();
 	if (res < 0) {
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
-		if (option_verbose > 2) {
-			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
+		ast_verb(3, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
 		}
-	}
 	res = ast_cdr_register(name, ast_module_info->description, odbc_log);
 	if (res) {
 		ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
@@ -375,14 +356,12 @@ static int odbc_do_query(void)
 	ODBC_res = SQLExecute(ODBC_stmt);
 	
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in Query %d\n", ODBC_res);
+		ast_verb(11, "cdr_odbc: Error in Query %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		odbc_disconnect();
 		return -1;
 	} else {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query Successful!\n");
+		ast_verb(11, "cdr_odbc: Query Successful!\n");
 		connected = 1;
 	}
 	return 0;
@@ -395,8 +374,7 @@ static int odbc_init(void)
 	if (ODBC_env == SQL_NULL_HANDLE || connected == 0) {
 		ODBC_res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &ODBC_env);
 		if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-			if (option_verbose > 10)
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error AllocHandle\n");
+			ast_verb(11, "cdr_odbc: Error AllocHandle\n");
 			connected = 0;
 			return -1;
 		}
@@ -404,8 +382,7 @@ static int odbc_init(void)
 		ODBC_res = SQLSetEnvAttr(ODBC_env, SQL_ATTR_ODBC_VERSION, (void*)SQL_OV_ODBC3, 0);
 
 		if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-			if (option_verbose > 10)
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SetEnv\n");
+			ast_verb(11, "cdr_odbc: Error SetEnv\n");
 			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 			connected = 0;
 			return -1;
@@ -414,8 +391,7 @@ static int odbc_init(void)
 		ODBC_res = SQLAllocHandle(SQL_HANDLE_DBC, ODBC_env, &ODBC_con);
 
 		if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-			if (option_verbose > 10)
-				ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error AllocHDB %d\n", ODBC_res);
+			ast_verb(11, "cdr_odbc: Error AllocHDB %d\n", ODBC_res);
 			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 			connected = 0;
 			return -1;
@@ -428,15 +404,13 @@ static int odbc_init(void)
 	ODBC_res = SQLConnect(ODBC_con, (SQLCHAR*)dsn, SQL_NTS, (SQLCHAR*)username, SQL_NTS, (SQLCHAR*)password, SQL_NTS);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
+		ast_verb(11, "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
 		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 		connected = 0;
 		return -1;
 	} else {
-		if (option_verbose > 10)
-			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Connected to %s\n", dsn);
+		ast_verb(11, "cdr_odbc: Connected to %s\n", dsn);
 		connected = 1;
 	}
 	return 0;

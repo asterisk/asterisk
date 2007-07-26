@@ -389,23 +389,20 @@ static void parse_config(void)
 		if (!strcasecmp(var->name, "quality")) {
 			res = abs(atoi(var->value));
 			if (res > -1 && res < 11) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Quality to %d\n",res);
+				ast_verb(3, "CODEC SPEEX: Setting Quality to %d\n",res);
 				quality = res;
 			} else 
 				ast_log(LOG_ERROR,"Error Quality must be 0-10\n");
 		} else if (!strcasecmp(var->name, "complexity")) {
 			res = abs(atoi(var->value));
 			if (res > -1 && res < 11) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
+				ast_verb(3, "CODEC SPEEX: Setting Complexity to %d\n",res);
 				complexity = res;
 			} else 
 				ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
 		} else if (!strcasecmp(var->name, "vbr_quality")) {
 			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0 && res_f <= 10) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
+				ast_verb(3, "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
 				vbr_quality = res_f;
 			} else
 				ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
@@ -413,70 +410,56 @@ static void parse_config(void)
 			ast_log(LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
 		} else if (!strcasecmp(var->name, "enhancement")) {
 			enhancement = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Perceptual Enhancement Mode. [%s]\n",enhancement ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: Perceptual Enhancement Mode. [%s]\n",enhancement ? "on" : "off");
 		} else if (!strcasecmp(var->name, "vbr")) {
 			vbr = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
 		} else if (!strcasecmp(var->name, "abr")) {
 			res = abs(atoi(var->value));
 			if (res >= 0) {
-				if (option_verbose > 2) {
 					if (res > 0)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
+					ast_verb(3, "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
 					else
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
-				}
+					ast_verb(3, "CODEC SPEEX: Disabling ABR\n");
 				abr = res;
 			} else 
 				ast_log(LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
 		} else if (!strcasecmp(var->name, "vad")) {
 			vad = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vad ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: VAD Mode. [%s]\n",vad ? "on" : "off");
 		} else if (!strcasecmp(var->name, "dtx")) {
 			dtx = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
 		} else if (!strcasecmp(var->name, "preprocess")) {
 			preproc = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessing. [%s]\n",preproc ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: Preprocessing. [%s]\n",preproc ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_vad")) {
 			pp_vad = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor VAD. [%s]\n",pp_vad ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: Preprocessor VAD. [%s]\n",pp_vad ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_agc")) {
 			pp_agc = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_agc_level")) {
 			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
+				ast_verb(3, "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
 				pp_agc_level = res_f;
 			} else
 				ast_log(LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
 		} else if (!strcasecmp(var->name, "pp_denoise")) {
 			pp_denoise = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Denoise. [%s]\n",pp_denoise ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: Preprocessor Denoise. [%s]\n",pp_denoise ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_dereverb")) {
 			pp_dereverb = ast_true(var->value) ? 1 : 0;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
+			ast_verb(3, "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
 		} else if (!strcasecmp(var->name, "pp_dereverb_decay")) {
 			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
+				ast_verb(3, "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
 				pp_dereverb_decay = res_f;
 			} else
 				ast_log(LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
 		} else if (!strcasecmp(var->name, "pp_dereverb_level")) {
 			if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
+				ast_verb(3, "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
 				pp_dereverb_level = res_f;
 			} else
 				ast_log(LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");

@@ -113,8 +113,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 	AST_RWLIST_WRLOCK(&entry_list);
 	AST_RWLIST_REMOVE(&entry_list, entry, list);
 	AST_RWLIST_UNLOCK(&entry_list);
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "removing dns manager for '%s'\n", entry->name);
+	ast_verb(4, "removing dns manager for '%s'\n", entry->name);
 
 	ast_mutex_destroy(&entry->lock);
 	ast_free(entry);
@@ -131,8 +130,7 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
 	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name))
 		return 0;
 
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "doing dnsmgr_lookup for '%s'\n", name);
+	ast_verb(4, "doing dnsmgr_lookup for '%s'\n", name);
 
 	/* if it's actually an IP address and not a name,
 	   there's no need for a managed lookup */
@@ -147,8 +145,7 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
 	if (!enabled)
 		return 0;
 	
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_2 "adding dns manager for '%s'\n", name);
+	ast_verb(3, "adding dns manager for '%s'\n", name);
 	*dnsmgr = ast_dnsmgr_get(name, result);
 	return !*dnsmgr;
 }
@@ -166,8 +163,8 @@ static int dnsmgr_refresh(struct ast_dnsmgr_entry *entry, int verbose)
 	int changed = 0;
         
 	ast_mutex_lock(&entry->lock);
-	if (verbose && (option_verbose > 2))
-		ast_verbose(VERBOSE_PREFIX_2 "refreshing '%s'\n", entry->name);
+	if (verbose)
+		ast_verb(3, "refreshing '%s'\n", entry->name);
 
 	if ((hp = ast_gethostbyname(entry->name, &ahp))) {
 		/* check to see if it has changed, do callback if requested (where de callback is defined ????) */
@@ -232,8 +229,7 @@ static int refresh_list(void *data)
 		return -1;
 	}
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_2 "Refreshing DNS lookups.\n");
+	ast_verb(3, "Refreshing DNS lookups.\n");
 	AST_RWLIST_RDLOCK(info->entries);
 	AST_RWLIST_TRAVERSE(info->entries, entry, list) {
 		if (info->regex_present && regexec(&info->filter, entry->name, 0, NULL, 0))

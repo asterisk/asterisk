@@ -274,16 +274,14 @@ int ast_speech_register(struct ast_speech_engine *engine)
 		return -1;
 	}
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered speech recognition engine '%s'\n", engine->name);
+	ast_verb(2, "Registered speech recognition engine '%s'\n", engine->name);
 
 	/* Add to the engine linked list and make default if needed */
 	AST_RWLIST_WRLOCK(&engines);
 	AST_RWLIST_INSERT_HEAD(&engines, engine, list);
 	if (!default_engine) {
 		default_engine = engine;
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Made '%s' the default speech recognition engine\n", engine->name);
+		ast_verb(2, "Made '%s' the default speech recognition engine\n", engine->name);
 	}
 	AST_RWLIST_UNLOCK(&engines);
 
@@ -307,8 +305,7 @@ int ast_speech_unregister(char *engine_name)
 			/* If this was the default engine, we need to pick a new one */
 			if (!default_engine)
 				default_engine = AST_RWLIST_FIRST(&engines);
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered speech recognition engine '%s'\n", engine_name);
+			ast_verb(2, "Unregistered speech recognition engine '%s'\n", engine_name);
 			/* All went well */
 			res = 0;
 			break;

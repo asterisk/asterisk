@@ -138,8 +138,8 @@ static int read_exec(struct ast_channel *chan, void *data)
 		maxdigits = atoi(arglist.maxdigits);
 		if ((maxdigits<1) || (maxdigits>255)) {
     			maxdigits = 255;
-		} else if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
+		} else
+			ast_verb(3, "Accepting a maximum of %d digits.\n", maxdigits);
 	}
 	if (ast_strlen_zero(arglist.variable)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
@@ -187,23 +187,19 @@ static int read_exec(struct ast_channel *chan, void *data)
 			if (res > -1) {
 				pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 				if (!ast_strlen_zero(tmp)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+					ast_verb(3, "User entered '%s'\n", tmp);
 					tries = 0;
 				} else {
 					tries--;
-					if (option_verbose > 2) {
 						if (tries)
-							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
+						ast_verb(3, "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
 						else
-							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
+						ast_verb(3, "User entered nothing.\n");
 					}
-				}
 				res = 0;
 			} else {
 				pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
+				ast_verb(3, "User disconnected\n");
 			}
 		}
 	}

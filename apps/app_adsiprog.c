@@ -1448,8 +1448,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 	/* Now begin the download attempt */
 	if (ast_adsi_begin_download(chan, scr->desc, scr->fdn, scr->sec, scr->ver)) {
 		/* User rejected us for some reason */
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "User rejected download attempt\n");
+		ast_verb(3, "User rejected download attempt\n");
 		ast_log(LOG_NOTICE, "User rejected download on channel %s\n", chan->name);
 		ast_free(scr);
 		return -1;
@@ -1535,8 +1534,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 		return -1;
 	if (ast_adsi_end_download(chan)) {
 		/* Download failed for some reason */
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Download attempt failed\n");
+		ast_verb(3, "Download attempt failed\n");
 		ast_log(LOG_NOTICE, "Download failed on %s\n", chan->name);
 		ast_free(scr);
 		return -1;
@@ -1554,11 +1552,9 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 		data = "asterisk.adsi";
 	
 	if (!ast_adsi_available(chan)) {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "ADSI Unavailable on CPE.  Not bothering to try.\n");
+		ast_verb(3, "ADSI Unavailable on CPE.  Not bothering to try.\n");
 	} else {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "ADSI Available on CPE.  Attempting Upload.\n");
+		ast_verb(3, "ADSI Available on CPE.  Attempting Upload.\n");
 		res = adsi_prog(chan, data);
 	}
 	

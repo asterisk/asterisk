@@ -382,8 +382,7 @@ static int phone_hangup(struct ast_channel *ast)
 	memset(p->ext, 0, sizeof(p->ext));
 	((struct phone_pvt *)(ast->tech_pvt))->owner = NULL;
 	ast_module_unref(ast_module_info->self);
-	if (option_verbose > 2) 
-		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
+	ast_verb(3, "Hungup '%s'\n", ast->name);
 	ast->tech_pvt = NULL;
 	ast_setstate(ast, AST_STATE_DOWN);
 	restart_monitor();

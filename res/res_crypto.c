@@ -247,8 +247,7 @@ static struct ast_key *try_load_key(char *dir, char *fname, int ifd, int ofd, in
 		if (RSA_size(key->rsa) == 128) {
 			/* Key loaded okay */
 			key->ktype &= ~KEY_NEEDS_PASSCODE;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Loaded %s key '%s'\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
+			ast_verb(3, "Loaded %s key '%s'\n", key->ktype == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE", key->name);
 			ast_debug(1, "Key '%s' loaded OK\n", key->name);
 			key->delme = 0;
 		} else

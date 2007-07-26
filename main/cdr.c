@@ -152,8 +152,7 @@ void ast_cdr_unregister(const char *name)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
 		if (!strcasecmp(name, i->name)) {
 			AST_RWLIST_REMOVE_CURRENT(&be_list, list);
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered '%s' CDR backend\n", name);
+			ast_verb(2, "Unregistered '%s' CDR backend\n", name);
 			ast_free(i);
 			break;
 		}

@@ -313,8 +313,7 @@ static void exit_now(GtkWidget *widget, gpointer data)
 	ast_update_use_count();
 	ast_unregister_verbose(verboser);
 	ast_unload_resource("pbx_gtkconsole", 0);
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "GTK Console Monitor Exiting\n");
+	ast_verb(2, "GTK Console Monitor Exiting\n");
 	/* XXX Trying to quit after calling this makes asterisk segfault XXX */
 }
 
@@ -488,15 +487,14 @@ static int load_module(void *mod)
 		if (!show_console()) {
 			inuse++;
 			ast_update_use_count();
-			if (option_verbose > 1)
-				ast_verbose( VERBOSE_PREFIX_2 "Launched GTK Console monitor\n");		
+			ast_verb(2, "Launched GTK Console monitor\n");
 		} else
 			ast_log(LOG_WARNING, "Unable to start GTK console\n");
 	} else {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Unable to start GTK console monitor -- ignoring\n");
-		else if (option_verbose > 1)
-			ast_verbose( VERBOSE_PREFIX_2 "GTK is not available -- skipping monitor\n");
+		else
+			ast_verb(2, "GTK is not available -- skipping monitor\n");
 	}
 	return 0;
 }

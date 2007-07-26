@@ -85,17 +85,13 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 		keytree = 0;
 	}
 
-	if (option_verbose > 2)	{
 		if (keytree)
-			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s, keytree=%s\n", family, keytree);
+		ast_verb(3, "DBdeltree: family=%s, keytree=%s\n", family, keytree);
 		else
-			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: family=%s\n", family);
-	}
+		ast_verb(3, "DBdeltree: family=%s\n", family);
 
-	if (ast_db_deltree(family, keytree)) {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBdeltree: Error deleting key from database.\n");
-	}
+	if (ast_db_deltree(family, keytree))
+		ast_verb(3, "DBdeltree: Error deleting key from database.\n");
 
 	return 0;
 }
@@ -119,12 +115,9 @@ static int del_exec(struct ast_channel *chan, void *data)
 			ast_debug(1, "Ignoring; Syntax error in argument\n");
 			return 0;
 		}
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "DBdel: family=%s, key=%s\n", family, key);
-		if (ast_db_del(family, key)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "DBdel: Error deleting key from database.\n");
-		}
+		ast_verb(3, "DBdel: family=%s, key=%s\n", family, key);
+		if (ast_db_del(family, key))
+			ast_verb(3, "DBdel: Error deleting key from database.\n");
 	} else {
 		ast_debug(1, "Ignoring, no parameters\n");
 	}

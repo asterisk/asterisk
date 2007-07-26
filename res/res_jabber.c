@@ -1389,41 +1389,39 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 				iks_delete(iq);
 		}
 	}
-	if (option_verbose > 4) {
 		switch (pak->subtype) {
 		case IKS_TYPE_AVAILABLE:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I am available ^_* %i\n", pak->subtype);
+		ast_verb(5, "JABBER: I am available ^_* %i\n", pak->subtype);
 			break;
 		case IKS_TYPE_UNAVAILABLE:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: I am unavailable ^_* %i\n", pak->subtype);
+		ast_verb(5, "JABBER: I am unavailable ^_* %i\n", pak->subtype);
 			break;
 		default:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: Ohh sexy and the wrong type: %i\n", pak->subtype);
+		ast_verb(5, "JABBER: Ohh sexy and the wrong type: %i\n", pak->subtype);
 		}
 		switch (pak->show) {
 		case IKS_SHOW_UNAVAILABLE:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
 			break;
 		case IKS_SHOW_AVAILABLE:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type is available\n");
+		ast_verb(5, "JABBER: type is available\n");
 			break;
 		case IKS_SHOW_CHAT:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
 			break;
 		case IKS_SHOW_AWAY:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type is away\n");
+		ast_verb(5, "JABBER: type is away\n");
 			break;
 		case IKS_SHOW_XA:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
 			break;
 		case IKS_SHOW_DND:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
 			break;
 		default:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: Kinky! how did that happen %i\n", pak->show);
+		ast_verb(5, "JABBER: Kinky! how did that happen %i\n", pak->show);
 		}
 	}
-}
 
 /*!
  * \brief handles subscription requests.
@@ -1455,26 +1453,24 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 		if(client->component)
 			aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), 1, client->statusmessage);
 	}
-	if (option_verbose > 4) {
 		switch (pak->subtype) {
 		case IKS_TYPE_SUBSCRIBE:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
+		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
 			break;
 		case IKS_TYPE_SUBSCRIBED:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
+		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
 			break;
 		case IKS_TYPE_UNSUBSCRIBE:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
+		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
 			break;
 		case IKS_TYPE_UNSUBSCRIBED:
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
+		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
 			break;
 		default:				/*IKS_TYPE_ERROR: */
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: This is a subcription of type %i\n", pak->subtype);
+		ast_verb(5, "JABBER: This is a subcription of type %i\n", pak->subtype);
 			break;
 		}
 	}
-}
 
 /*!
  * \brief sends messages.
@@ -1605,8 +1601,7 @@ static void *aji_recv_loop(void *data)
 	do {
 		if (res != IKS_OK) {
 			while(res != IKS_OK) {
-				if(option_verbose > 3)
-					ast_verbose("JABBER: reconnecting.\n");
+				ast_verb(4, "JABBER: reconnecting.\n");
 				res = aji_reconnect(client);
 				sleep(4);
 			}
@@ -1968,8 +1963,7 @@ static int aji_initialize(struct aji_client *client)
 int ast_aji_disconnect(struct aji_client *client)
 {
 	if (client) {
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "JABBER: Disconnecting\n");
+		ast_verb(4, "JABBER: Disconnecting\n");
 		iks_disconnect(client->p);
 		iks_parser_delete(client->p);
 		ASTOBJ_UNREF(client, aji_client_destroy);

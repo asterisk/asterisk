@@ -1168,7 +1168,7 @@ static int sms_handleincoming_proto2(sms_t *h)
 	char debug_buf[MAX_DEBUG_LEN * 3 + 1];
 
 	sz = h->imsg[1] + 2;
-	/* ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg, sz, debug_buf)); */
+	/* ast_verb(3, "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg, sz, debug_buf)); */
 
 	/* Parse message body (called payload) */
 	tv.tv_sec = h->scts = time(NULL);
@@ -1178,8 +1178,7 @@ static int sms_handleincoming_proto2(sms_t *h)
 		msgsz += (h->imsg[f++] * 256);
 		switch (msg) {
 		case 0x13:      /* Body */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Body#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_verb(3, "SMS-P2 Body#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
 			if (msgsz >= sizeof(h->imsg))
 				msgsz = sizeof(h->imsg) - 1;
 			for (i = 0; i < msgsz; i++)
@@ -1195,30 +1194,25 @@ static int sms_handleincoming_proto2(sms_t *h)
 			tm.tm_min = ( (h->imsg[f + 6] * 10) + h->imsg[f + 7] );
 			tm.tm_sec = 0;
 			h->scts = ast_mktime(&tm, NULL);
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", msg, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
+			ast_verb(3, "SMS-P2 Date#%02X=%02d/%02d %02d:%02d\n", msg, tm.tm_mday, tm.tm_mon + 1, tm.tm_hour, tm.tm_min);
 			break;
 		case 0x15:      /* Calling line (from SMSC) */
 			if (msgsz >= 20)
 				msgsz = 20 - 1;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Origin#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_verb(3, "SMS-P2 Origin#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
 			ast_copy_string(h->oa, (char *)(&h->imsg[f]), msgsz + 1);
 			break;
 		case 0x18:      /* Destination(from TE/phone) */
 			if (msgsz >= 20)
 				msgsz = 20 - 1;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Destination#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
+			ast_verb(3, "SMS-P2 Destination#%02X=[%.*s]\n", msg, msgsz, &h->imsg[f]);
 			ast_copy_string(h->da, (char *)(&h->imsg[f]), msgsz + 1);
 			break;
 		case 0x1C:      /* Notify */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Notify#%02X=%s\n", msg, sms_hexdump(&h->imsg[f], 3, debug_buf));
+			ast_verb(3, "SMS-P2 Notify#%02X=%s\n", msg, sms_hexdump(&h->imsg[f], 3, debug_buf));
 			break;
 		default:
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "SMS-P2 Par#%02X [%d]: %s\n", msg, msgsz, sms_hexdump(&h->imsg[f], msgsz, debug_buf));
+			ast_verb(3, "SMS-P2 Par#%02X [%d]: %s\n", msg, msgsz, sms_hexdump(&h->imsg[f], msgsz, debug_buf));
 			break;
 		}
 		f+=msgsz;       /* Skip to next */
@@ -1391,8 +1385,7 @@ static void sms_debug (int dir, sms_t *h)
 	}
 	if (q < n)
 		sprintf(p, "...");
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "SMS %s%s\n", dir == DIR_RX ? "RX" : "TX", txt);
+	ast_verb(3, "SMS %s%s\n", dir == DIR_RX ? "RX" : "TX", txt);
 }
 
 
@@ -1675,8 +1668,7 @@ static void sms_process(sms_t * h, int samples, signed short *data)
 			/* Protocol 2: empty connnection ready (I am master) */
 			if (h->framenumber < 0 && h->ibytec >= 160 && !memcmp(h->imsg, "UUUUUUUUUUUUUUUUUUUU", 20)) {
 				h->framenumber = 1;
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "SMS protocol 2 detected\n");
+				ast_verb(3, "SMS protocol 2 detected\n");
 				h->protocol = 2;
 				h->imsg[0] = 0xff;      /* special message (fake) */
 				h->imsg[1] = h->imsg[2] = 0x00;
@@ -1774,7 +1766,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 	if (sms_args.argc > 1)
 		ast_app_parse_options(sms_options, &sms_flags, sms_opts, sms_args.options);
 
-	ast_verbose("sms argc %d queue <%s> opts <%s> addr <%s> body <%s>\n",
+	ast_verb(1, "sms argc %d queue <%s> opts <%s> addr <%s> body <%s>\n",
 		sms_args.argc, S_OR(sms_args.queue, ""),
 		S_OR(sms_args.options, ""),
 		S_OR(sms_args.addr, ""),
@@ -1806,7 +1798,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 		h.opause_0 = atoi(sms_opts[OPTION_ARG_PAUSE]);
 	if (h.opause_0 < 25 || h.opause_0 > 2000)
 		h.opause_0 = 300;	/* default 300ms */
-	ast_verbose("initial delay %dms\n", h.opause_0);
+	ast_verb(1, "initial delay %dms\n", h.opause_0);
 
 
 	/* the following apply if there is an arg3/4 and apply to the created message file */

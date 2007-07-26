@@ -1884,7 +1884,7 @@ static int skinny_extensionstate_cb(char *context, char *exten, int state, void 
 	switch (state) {
 	case AST_EXTENSION_DEACTIVATED: /* Retry after a while */
 	case AST_EXTENSION_REMOVED:     /* Extension is gone */
-		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify Device %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", d->name);
+		ast_verb(2, "Extension state: Watcher for hint %s %s. Notify Device %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", d->name);
 		sd->stateid = -1;
 		callstate = SKINNY_ONHOOK;
 		lamp = SKINNY_LAMP_OFF;
@@ -2072,8 +2072,7 @@ static int skinny_reset_device(int fd, int argc, char *argv[])
 			else
 				req->data.reset.resetType = 1;
 
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "%s device %s.\n", (fullrestart) ? "Restarting" : "Resetting", d->id);
+			ast_verb(3, "%s device %s.\n", (fullrestart) ? "Restarting" : "Resetting", d->id);
 			transmit_response(d->session, req);
 		}
 	}
@@ -2404,10 +2403,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					ast_copy_string(l->mohsuggest, mohsuggest, sizeof(l->mohsuggest));
 					ast_copy_string(l->regexten, regexten, sizeof(l->regexten));
 					ast_copy_string(l->mailbox, mailbox, sizeof(l->mailbox));
-					if (!ast_strlen_zero(mailbox)) {
-						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
-					}
+					if (!ast_strlen_zero(mailbox))
+						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
 					if (!ast_strlen_zero(device_vmexten))
 						ast_copy_string(l->vmexten, device_vmexten, sizeof(vmexten));
 					l->msgstate = -1;
@@ -2536,8 +2533,7 @@ static void *skinny_ss(void *data)
 	int getforward=0;
 	int loop_pause = 100;
 
-	if (option_verbose > 2)
-		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s@%s'\n", l->name, d->name);
+	ast_verb(3, "Starting simple switch on '%s@%s'\n", l->name, d->name);
 
 	len = strlen(d->exten);
 
@@ -2564,8 +2560,7 @@ static void *skinny_ss(void *data)
 				if (getforward) {
 					/* Record this as the forwarding extension */
 					ast_copy_string(l->call_forward, d->exten, sizeof(l->call_forward));
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n",
+					ast_verb(3, "Setting call forward to '%s' on channel %s\n",
 							l->call_forward, c->name);
 					transmit_tone(s, SKINNY_DIALTONE);
 					if (res) {
@@ -2643,7 +2638,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 
 	if (skinnydebug)
-		ast_verbose(VERBOSE_PREFIX_3 "skinny_call(%s)\n", ast->name);
+		ast_verb(3, "skinny_call(%s)\n", ast->name);
 
 	if (l->dnd) {
 		ast_queue_control(ast, AST_CONTROL_BUSY);
@@ -2923,7 +2918,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinnysession *s = d->session;
 
 	if (skinnydebug)
-		ast_verbose(VERBOSE_PREFIX_3 "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast->name);
+		ast_verb(3, "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast->name);
 	switch(ind) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state != AST_STATE_UP) {
@@ -3170,8 +3165,7 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 		transmit_response(s, req);
 		return 0;
 	}
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Device '%s' successfully registered\n", name);
+	ast_verb(3, "Device '%s' successfully registered\n", name);
 
 	if (!(req = req_alloc(sizeof(struct register_ack_message), REGISTER_ACK_MESSAGE)))
 		return -1;
@@ -3469,14 +3463,12 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 
 		/* Do not disturb */
 		if (l->dnd != 0){
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Disabling DND on %s@%s\n", l->name, d->name);
+			ast_verb(3, "Disabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 0;
 			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
 			transmit_displaynotify(s, "DnD disabled", 10);
 		} else {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Enabling DND on %s@%s\n", l->name, d->name);
+			ast_verb(3, "Enabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 1;
 			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_OFF);
 			transmit_displaynotify(s, "DnD enabled", 10);
@@ -4289,14 +4281,12 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 		/* Do not disturb */
 		if (l->dnd != 0){
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Disabling DND on %s@%s\n", l->name, d->name);
+			ast_verb(3, "Disabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 0;
 			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
 			transmit_displaynotify(s, "DnD disabled", 10);
 		} else {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Enabling DND on %s@%s\n", l->name, d->name);
+			ast_verb(3, "Enabling DND on %s@%s\n", l->name, d->name);
 			l->dnd = 1;
 			transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_OFF);
 			transmit_displaynotify(s, "DnD enabled", 10);
@@ -4753,8 +4743,7 @@ static void *skinny_session(void *data)
 	struct skinny_req *req;
 	struct skinnysession *s = data;
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
+	ast_verb(3, "Starting Skinny session from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 
 	for (;;) {
 		res = get_input(s);
@@ -4907,9 +4896,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 		ast_log(LOG_NOTICE, "No available lines on: %s\n", dest);
 		return NULL;
 	}
-	if (option_verbose > 2) {
-		ast_verbose(VERBOSE_PREFIX_3 "skinny_request(%s)\n", tmp);
-	}
+	ast_verb(3, "skinny_request(%s)\n", tmp);
 	tmpc = skinny_new(l, AST_STATE_DOWN);
 	if (!tmpc) {
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
@@ -5062,8 +5049,7 @@ static int reload_config(void)
 		} else {
 			d = build_device(cat, ast_variable_browse(cfg, cat));
 			if (d) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Added device '%s'\n", d->name);
+				ast_verb(3, "Added device '%s'\n", d->name);
 				ast_mutex_lock(&devicelock);
 				d->next = devices;
 				devices = d;
@@ -5105,8 +5091,7 @@ static int reload_config(void)
 					ast_config_destroy(cfg);
 					return 0;
 			}
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Skinny listening on %s:%d\n",
+			ast_verb(2, "Skinny listening on %s:%d\n",
 					ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 			ast_pthread_create_background(&accept_t,NULL, accept_thread, NULL);
 		}

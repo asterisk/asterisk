@@ -324,8 +324,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		int res1 = -1;
 		if (res == SQL_NO_DATA) {
-			if (option_verbose > 3)
-				ast_verbose(VERBOSE_PREFIX_4 "Found no rows [%s]\n", sql);
+			ast_verb(4, "Found no rows [%s]\n", sql);
 			res1 = 0;
 			ast_copy_string(rowcount, "0", sizeof(rowcount));
 		} else {

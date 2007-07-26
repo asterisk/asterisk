@@ -511,8 +511,7 @@ static int create_jb(struct ast_channel *chan, struct ast_frame *frr)
 				now, frr->ts, frr->len);
 	}
 
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "%s jitterbuffer created on channel %s\n", jbimpl->name, chan->name);
+	ast_verb(3, "%s jitterbuffer created on channel %s\n", jbimpl->name, chan->name);
 	
 	/* Free the frame if it has not been queued in the jb */
 	if (res != JB_IMPL_OK)
@@ -545,8 +544,7 @@ void ast_jb_destroy(struct ast_channel *chan)
 		
 		ast_clear_flag(jb, JB_CREATED);
 
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "%s jitterbuffer destroyed on channel %s\n", jbimpl->name, chan->name);
+		ast_verb(3, "%s jitterbuffer destroyed on channel %s\n", jbimpl->name, chan->name);
 	}
 }
 

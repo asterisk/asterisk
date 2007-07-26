@@ -79,8 +79,7 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 				break;
 			}
 			if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Got a ring but still waiting for timeout\n");
+				ast_verb(3, "Got a ring but still waiting for timeout\n");
 			}
 			ast_frfree(f);
 		}
@@ -101,8 +100,7 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 					break;
 				}
 				if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_RING)) {
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Got a ring after the timeout\n");
+					ast_verb(3, "Got a ring after the timeout\n");
 					ast_frfree(f);
 					break;
 				}

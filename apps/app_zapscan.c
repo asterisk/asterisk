@@ -231,7 +231,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 						input[ic++] = '\0';
 						ic=0;
 						ret = atoi(input);
-						ast_verbose(VERBOSE_PREFIX_3 "Zapscan: change channel to %d\n",ret);
+						ast_verb(3, "Zapscan: change channel to %d\n",ret);
 						break;
 					}
 				}
@@ -300,7 +300,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	
 	desired_group = ast_strdupa(data);
 	if(!ast_strlen_zero(desired_group)) {
-		ast_verbose(VERBOSE_PREFIX_3 "Scanning for group %s\n", desired_group);
+		ast_verb(3, "Scanning for group %s\n", desired_group);
 		search_group = 1;
 	}
 
@@ -330,7 +330,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		if (tempchan && search_group) {
 			const char *mygroup;
 			if((mygroup = pbx_builtin_getvar_helper(tempchan, "GROUP")) && (!strcmp(mygroup, desired_group))) {
-				ast_verbose(VERBOSE_PREFIX_3 "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
+				ast_verb(3, "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
 			} else {
 				ast_mutex_unlock(&tempchan->lock);
 				lastchan = tempchan;
@@ -338,7 +338,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 		}
 		if (tempchan && (!strcmp(tempchan->tech->type, "Zap")) && (tempchan != chan) ) {
-			ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
+			ast_verb(3, "Zap channel %s is in-use, monitoring...\n", tempchan->name);
 			ast_copy_string(confstr, tempchan->name, sizeof(confstr));
 			ast_mutex_unlock(&tempchan->lock);
 			if ((tmp = strchr(confstr,'-'))) {

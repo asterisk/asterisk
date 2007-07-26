@@ -924,8 +924,7 @@ static void load_rpt_vars(int n, int init)
 	);
 #endif
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "%s config for repeater %s\n",
+	ast_verb(3, "%s config for repeater %s\n",
 			(init) ? "Loading initial" : "Re-Loading", rpt_vars[n].name);
 	ast_mutex_lock(&rpt_vars[n].lock);
 	if (rpt_vars[n].cfg)
@@ -2923,8 +2922,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l->chan->whentohangup = 0;
 			l->chan->appl = "Apprpt";
 			l->chan->data = "(Remote Rx)";
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
+			ast_verb(3, "rpt (remote) initiating call to %s/%s on %s\n",
 					deststr, tele, l->chan->name);
 			if (l->chan->cid.cid_num)
 				ast_free(l->chan->cid.cid_num);
@@ -2933,8 +2931,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		} else {
 			rpt_telemetry(myrpt, CONNFAIL, l);
 			ast_free(l);
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
+			ast_verb(3, "Unable to place call to %s/%s on %s\n",
 					deststr, tele, l->chan->name);
 			return DC_ERROR;
 		}
@@ -3036,8 +3033,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l->chan->whentohangup = 0;
 			l->chan->appl = "Apprpt";
 			l->chan->data = "(Remote Rx)";
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (remote) initiating call to %s/%s on %s\n",
+			ast_verb(3, "rpt (remote) initiating call to %s/%s on %s\n",
 					deststr, tele, l->chan->name);
 			if (l->chan->cid.cid_num)
 				ast_free(l->chan->cid.cid_num);
@@ -3046,8 +3042,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 		} else {
 			rpt_telemetry(myrpt, CONNFAIL, l);
 			ast_free(l);
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
+			ast_verb(3, "Unable to place call to %s/%s on %s\n",
 					deststr, tele, l->chan->name);
 			return DC_ERROR;
 		}
@@ -5459,8 +5454,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 		l->chan->whentohangup = 0;
 		l->chan->appl = "Apprpt";
 		l->chan->data = "(Remote Rx)";
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
+		ast_verb(3, "rpt (attempt_reconnect) initiating call to %s/%s on %s\n",
 				deststr, tele, l->chan->name);
 		if (l->chan->cid.cid_num)
 			ast_free(l->chan->cid.cid_num);
@@ -5468,8 +5462,7 @@ static int attempt_reconnect(struct rpt *myrpt, struct rpt_link *l)
 		ast_call(l->chan, tele, 999); 
 
 	} else {
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unable to place call to %s/%s on %s\n",
+		ast_verb(3, "Unable to place call to %s/%s on %s\n",
 				deststr, tele, l->chan->name);
 		return -1;
 	}
@@ -5698,8 +5691,7 @@ static void *rpt(void *this)
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Repeater Rx)";
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
+		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
 				tmpstr, tele, myrpt->rxchannel->name);
 		ast_call(myrpt->rxchannel, tele, 999);
 		if (myrpt->rxchannel->_state != AST_STATE_UP) {
@@ -5740,8 +5732,7 @@ static void *rpt(void *this)
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Repeater Tx)";
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
+			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
 					tmpstr, tele, myrpt->txchannel->name);
 			ast_call(myrpt->txchannel, tele, 999);
 			if (myrpt->rxchannel->_state != AST_STATE_UP) {
@@ -6897,8 +6888,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	
 		if (!ast_strlen_zero(optionarg.return_context)) {
 			if (ast_parseable_goto(chan, optionarg.return_context)) {
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Warning: Return Context Invalid, call will return to default|s\n");
+				ast_verb(3, "Warning: Return Context Invalid, call will return to default|s\n");
 			}
 		}
 
@@ -6906,8 +6896,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
 		ast_masq_park_call(chan, NULL, timeout, &lot);
-		if (option_verbose > 2)
-			ast_verbose( VERBOSE_PREFIX_3 "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, optionarg.return_context);
+		ast_verb(3, "Call Parking Called, lot: %d, timeout: %d, context: %s\n", lot, timeout, optionarg.return_context);
 
 		snprintf(tmp, sizeof(tmp), "%d,%s", lot, optionarg.template + 1);
 		rpt_telemetry(myrpt, REV_PATCH, tmp);
@@ -7112,8 +7101,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Link Rx)";
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "rpt (Rx) initiating call to %s/%s on %s\n",
+		ast_verb(3, "rpt (Rx) initiating call to %s/%s on %s\n",
 				myrpt->rxchanname, tele, myrpt->rxchannel->name);
 		rpt_mutex_unlock(&myrpt->lock);
 		ast_call(myrpt->rxchannel, tele, 999);
@@ -7140,8 +7128,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Link Tx)";
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
+			ast_verb(3, "rpt (Tx) initiating call to %s/%s on %s\n",
 					myrpt->txchanname, tele, myrpt->txchannel->name);
 			rpt_mutex_unlock(&myrpt->lock);
 			ast_call(myrpt->txchannel, tele, 999);

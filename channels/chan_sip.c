@@ -8601,8 +8601,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		peer->sipoptions = 0;
 		peer->lastms = 0;
 
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", peer->name);
+		ast_verb(3, "Unregistered SIP '%s'\n", peer->name);
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", peer->name);
 		return PARSE_REGISTER_UPDATE;
 	}
@@ -8659,8 +8658,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	/* Is this a new IP address for us? */
 	if (inaddrcmp(&peer->addr, &oldsin)) {
 		sip_poke_peer(peer);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
+		ast_verb(3, "Registered SIP '%s' at %s port %d expires %d\n", peer->name, ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry);
 		register_peer_exten(peer, TRUE);
 	}
 	
@@ -8668,8 +8666,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	useragent = get_header(req, "User-Agent");
 	if (strcasecmp(useragent, peer->useragent)) {	/* XXX copy if they are different ? */
 		ast_copy_string(peer->useragent, useragent, sizeof(peer->useragent));
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n", peer->useragent, peer->name);  
+		ast_verb(4, "Saved useragent \"%s\" for peer %s\n", peer->useragent, peer->name);
 	}
 	return PARSE_REGISTER_UPDATE;
 }
@@ -9011,7 +9008,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);	/* Delete subscription in 32 secs */
-		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
+		ast_verb(2, "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
 		p->subscribed = NONE;
 		append_history(p, "Subscribestatus", "%s", state == AST_EXTENSION_REMOVED ? "HintRemoved" : "Deactivated");
@@ -9023,8 +9020,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
 		transmit_state_notify(p, state, 1, FALSE);
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
+	ast_verb(2, "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
 
 	sip_pvt_unlock(p);
 
@@ -13498,8 +13494,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		default:
 			if ((resp >= 300) && (resp < 700)) {
 				/* Fatal response */
-				if ((option_verbose > 2) && (resp != 487))
-					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
+				if ((resp != 487))
+					ast_verb(3, "Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
 	
 				if (sipmethod == SIP_INVITE)
 					stop_media_flows(p); /* Immediately stop RTP, VRTP and UDPTL as applicable */
@@ -13662,8 +13658,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 			}
 			if ((resp >= 300) && (resp < 700)) {
-				if ((option_verbose > 2) && (resp != 487))
-					ast_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
+				if ((resp != 487))
+					ast_verb(3, "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(p->sa.sin_addr));
 				switch(resp) {
 				case 488: /* Not acceptable here - codec error */
 				case 603: /* Decline */
@@ -16226,8 +16222,7 @@ static void *do_monitor(void *data)
 		sip_reloading = FALSE;
 		ast_mutex_unlock(&sip_reload_lock);
 		if (reloading) {
-			if (option_verbose > 0)
-				ast_verbose(VERBOSE_PREFIX_1 "Reloading SIP\n");
+			ast_verb(1, "Reloading SIP\n");
 			sip_do_reload(sip_reloadreason);
 
 			/* Change the I/O fd of our UDP socket */
@@ -16831,8 +16826,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 	else
 		authlist = auth;
 
-	if (option_verbose > 2)
-		ast_verbose("Added authentication for realm %s\n", realm);
+	ast_verb(3, "Added authentication for realm %s\n", realm);
 
 	return authlist;
 
@@ -17866,8 +17860,7 @@ static int reload_config(enum channelreloadreason reason)
 				close(sipsock);
 				sipsock = -1;
 			} else {
-				if (option_verbose > 1)
-					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
+				ast_verb(2, "SIP Listening on %s:%d\n",
 						ast_inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 				ast_netsock_set_qos(sipsock, global_tos_sip, global_cos_sip);
 			}

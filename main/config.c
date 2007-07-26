@@ -825,20 +825,16 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
 			continue;
 		}
-		if (option_verbose > 1) {
-			ast_verbose(VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
+		ast_verb(2, "Parsing '%s': ", fn);
 			fflush(stdout);
-		}
 		if (!(f = fopen(fn, "r"))) {
 			ast_debug(1, "No file to parse: %s\n", fn);
-			if (option_verbose > 1)
-				ast_verbose( "Not found (%s)\n", strerror(errno));
+			ast_verb(2, "Not found (%s)\n", strerror(errno));
 			continue;
 		}
 		count++;
 		ast_debug(1, "Parsing %s\n", fn);
-		if (option_verbose > 1)
-			ast_verbose("Found\n");
+		ast_verb(2, "Found\n");
 		while (!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
@@ -971,8 +967,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 #else
 	if ((f = fopen(fn, "w"))) {
 #endif	    
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Saving '%s': ", fn);
+		ast_verb(2, "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
 		fprintf(f, ";! Automatically generated configuration file\n");
 		if (strcmp(configfile, fn))
@@ -1024,12 +1019,11 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 #endif
 			cat = cat->next;
 		}
-		if ((option_verbose > 1) && !option_debug)
-			ast_verbose("Saved\n");
+		if (!option_debug)
+			ast_verb(2, "Saved\n");
 	} else {
 		ast_debug(1, "Unable to open for writing: %s\n", fn);
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
+		ast_verb(2, "Unable to write (%s)", strerror(errno));
 		return -1;
 	}
 	fclose(f);
@@ -1078,9 +1072,7 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 	}
 	map->next = config_maps;
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",
-			    map->name, map->driver, map->database, map->table ? map->table : map->name);
+	ast_verb(2, "Binding %s to %s/%s/%s\n", map->name, map->driver, map->database, map->table ? map->table : map->name);
 
 	config_maps = map;
 	return 0;

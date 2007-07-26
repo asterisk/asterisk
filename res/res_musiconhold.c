@@ -202,8 +202,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
                         ast_closestream(chan->stream);
                         chan->stream = NULL;
                 }
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
+		ast_verb(3, "Stopped music on hold on %s\n", chan->name);
 
 		if (state->origwfmt && ast_set_write_format(chan, state->origwfmt)) {
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, state->origwfmt);
@@ -318,8 +317,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 
 		state->origwfmt = chan->writeformat;
 
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on %s\n", class->name, chan->name);
+		ast_verb(3, "Started music on hold, class '%s', on %s\n", class->name, chan->name);
 	}
 	
 	return chan->music_state;
@@ -719,8 +717,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	if (chan) {
 		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) 
 			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(oldwfmt));
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
+		ast_verb(3, "Stopped music on hold on %s\n", chan->name);
 	}
 }
 
@@ -736,8 +733,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 			moh_release(NULL, res);
 			res = NULL;
 		}
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Started music on hold, class '%s', on channel '%s'\n", class->name, chan->name);
+		ast_verb(3, "Started music on hold, class '%s', on channel '%s'\n", class->name, chan->name);
 	}
 	return res;
 }
@@ -1091,8 +1087,7 @@ static void ast_moh_destroy(void)
 	char buff[8192];
 	int bytes, tbytes = 0, stime = 0, pid = 0;
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Destroying musiconhold processes\n");
+	ast_verb(2, "Destroying musiconhold processes\n");
 
 	AST_RWLIST_WRLOCK(&mohclasses);
 	while ((moh = AST_RWLIST_REMOVE_HEAD(&mohclasses, list))) {

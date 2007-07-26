@@ -702,8 +702,7 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	}
 
 	if (udptl_debug_test_addr(&sin)) {
-		if (option_verbose)
-			ast_verbose("Got UDPTL packet from %s:%d (type %d, seq %d, len %d)\n",
+		ast_verb(1, "Got UDPTL packet from %s:%d (type %d, seq %d, len %d)\n",
 				ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), 0, seqno, res);
 	}
 #if 0
@@ -1256,8 +1255,7 @@ void ast_udptl_reload(void)
 		udptlstart = 4500;
 		udptlend = 4999;
 	}
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
+	ast_verb(2, "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
 }
 
 void ast_udptl_init(void)

@@ -507,8 +507,7 @@ int iax_provision_reload(void)
 			if (strcasecmp(cat, "general")) {
 				iax_process_template(cfg, cat, found ? "default" : NULL);
 				found++;
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Loaded provisioning template '%s'\n", cat);
+				ast_verb(3, "Loaded provisioning template '%s'\n", cat);
 			}
 			cat = ast_category_browse(cfg, cat);
 		}

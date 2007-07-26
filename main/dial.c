@@ -284,8 +284,7 @@ static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
 			channel->owner = NULL;
 		} else {
 			success++;
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
+			ast_verb(3, "Called %s\n", numsubst);
 		}
 	}
 
@@ -320,56 +319,47 @@ static void handle_frame(struct ast_dial *dial, struct ast_dial_channel *channel
 	if (fr->frametype == AST_FRAME_CONTROL) {
 		switch (fr->subclass) {
 		case AST_CONTROL_ANSWER:
-			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s answered %s\n", channel->owner->name, chan->name);
 			AST_LIST_REMOVE(&dial->channels, channel, list);
 			AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
 			set_state(dial, AST_DIAL_RESULT_ANSWERED);
 			break;
 		case AST_CONTROL_BUSY:
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "%s is busy\n", channel->owner->name);
+			ast_verb(3, "%s is busy\n", channel->owner->name);
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_CONGESTION:
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "%s is circuit-busy\n", channel->owner->name);
+			ast_verb(3, "%s is circuit-busy\n", channel->owner->name);
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 			break;
 		case AST_CONTROL_RINGING:
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", channel->owner->name);
+			ast_verb(3, "%s is ringing\n", channel->owner->name);
 			if (!dial->options[AST_DIAL_OPTION_MUSIC])
 				ast_indicate(chan, AST_CONTROL_RINGING);
 			set_state(dial, AST_DIAL_RESULT_RINGING);
 			break;
 		case AST_CONTROL_PROGRESS:
-			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "%s is making progress, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s is making progress, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_PROGRESS);
 			set_state(dial, AST_DIAL_RESULT_PROGRESS);
 			break;
 		case AST_CONTROL_VIDUPDATE:
-			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "%s requested a video update, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s requested a video update, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 			break;
 		case AST_CONTROL_PROCEEDING:
-			if (option_verbose > 2)
-				ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);
+			ast_verb(3, "%s is proceeding, passing it to %s\n", channel->owner->name, chan->name);
 			ast_indicate(chan, AST_CONTROL_PROCEEDING);
 			set_state(dial, AST_DIAL_RESULT_PROCEEDING);
 			break;
 		case AST_CONTROL_HOLD:
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", chan->name);
+			ast_verb(3, "Call on %s placed on hold\n", chan->name);
 			ast_indicate(chan, AST_CONTROL_HOLD);
 			break;
 		case AST_CONTROL_UNHOLD:
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Call on %s left from hold\n", chan->name);
+			ast_verb(3, "Call on %s left from hold\n", chan->name);
 			ast_indicate(chan, AST_CONTROL_UNHOLD);
 			break;
 		case AST_CONTROL_OFFHOOK:
@@ -396,37 +386,31 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 
 	switch (fr->subclass) {
 	case AST_CONTROL_ANSWER:
-		if (option_verbose > 2)
-			ast_verbose( VERBOSE_PREFIX_3 "%s answered\n", channel->owner->name);
+		ast_verb(3, "%s answered\n", channel->owner->name);
 		AST_LIST_REMOVE(&dial->channels, channel, list);
 		AST_LIST_INSERT_HEAD(&dial->channels, channel, list);
 		set_state(dial, AST_DIAL_RESULT_ANSWERED);
 		break;
 	case AST_CONTROL_BUSY:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "%s is busy\n", channel->owner->name);
+		ast_verb(3, "%s is busy\n", channel->owner->name);
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_CONGESTION:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "%s is circuit-busy\n", channel->owner->name);
+		ast_verb(3, "%s is circuit-busy\n", channel->owner->name);
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 		break;
 	case AST_CONTROL_RINGING:
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", channel->owner->name);
+		ast_verb(3, "%s is ringing\n", channel->owner->name);
 		set_state(dial, AST_DIAL_RESULT_RINGING);
 		break;
 	case AST_CONTROL_PROGRESS:
-		if (option_verbose > 2)
-			ast_verbose (VERBOSE_PREFIX_3 "%s is making progress\n", channel->owner->name);
+		ast_verb(3, "%s is making progress\n", channel->owner->name);
 		set_state(dial, AST_DIAL_RESULT_PROGRESS);
 		break;
 	case AST_CONTROL_PROCEEDING:
-		if (option_verbose > 2)
-			ast_verbose (VERBOSE_PREFIX_3 "%s is proceeding\n", channel->owner->name);
+		ast_verb(3, "%s is proceeding\n", channel->owner->name);
 		set_state(dial, AST_DIAL_RESULT_PROCEEDING);
 		break;
 	default:

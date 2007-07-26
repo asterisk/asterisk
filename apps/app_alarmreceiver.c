@@ -118,8 +118,7 @@ static void database_increment( char *key )
 	res = ast_db_get(db_family, key, value, sizeof(value) - 1);
 	
 	if(res){
-		if(option_verbose >= 4)
-			ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Creating database entry %s and setting to 1\n", key);
+		ast_verb(4, "AlarmReceiver: Creating database entry %s and setting to 1\n", key);
 		/* Guess we have to create it */
 		res = ast_db_put(db_family, key, "1");
 		return;
@@ -210,8 +209,7 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 				break;
 			}
 			if (ast_write(chan, &wf)){
-				if(option_verbose >= 4)
-					ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Failed to write frame on %s\n", chan->name);
+				ast_verb(4, "AlarmReceiver: Failed to write frame on %s\n", chan->name);
 				ast_log(LOG_WARNING, "AlarmReceiver Failed to write frame on %s\n",chan->name);
 				res = -1;
 				ast_frfree(f);
@@ -523,8 +521,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		
 		got_some_digits = 1;
 
-		if (option_verbose >= 2)
-			ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Received Event %s\n", event);
+		ast_verb(2, "AlarmReceiver: Received Event %s\n", event);
 		ast_debug(1, "AlarmReceiver: Received event: %s\n", event);
 		
 		/* Calculate checksum */
@@ -542,8 +539,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		}
 		
 		if(i == 16){
-			if(option_verbose >= 2)
-				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Bad DTMF character %c, trying again\n", event[j]);
+			ast_verb(2, "AlarmReceiver: Bad DTMF character %c, trying again\n", event[j]);
 			continue; /* Bad character */
 		}
 
@@ -553,8 +549,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 
 		if (checksum) {
 			database_increment("checksum-errors");
-			if (option_verbose >= 2)
-				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Nonzero checksum\n");
+			ast_verb(2, "AlarmReceiver: Nonzero checksum\n");
 			ast_debug(1, "AlarmReceiver: Nonzero checksum\n");
 			continue;
 		}
@@ -564,8 +559,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		if(strncmp(event + 4, "18", 2)){
 			if(strncmp(event + 4, "98", 2)){
 				database_increment("format-errors");
-				if(option_verbose >= 2)
-					ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Wrong message type\n");
+				ast_verb(2, "AlarmReceiver: Wrong message type\n");
 				ast_debug(1, "AlarmReceiver: Wrong message type\n");
 			continue;
 			}
@@ -635,8 +629,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	/* Set write and read formats to ULAW */
 
-	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Setting read and write formats to ULAW\n");
+	ast_verb(4, "AlarmReceiver: Setting read and write formats to ULAW\n");
 
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
@@ -655,8 +648,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	/* Answer the channel if it is not already */
 
-	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Answering channel\n");
+	ast_verb(4, "AlarmReceiver: Answering channel\n");
 
 	if (chan->_state != AST_STATE_UP) {
 		if ((res = ast_answer(chan)))
@@ -665,8 +657,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	/* Wait for the connection to settle post-answer */
 
-	if(option_verbose >= 4)
-		ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: Waiting for connection to stabilize\n");
+	ast_verb(4, "AlarmReceiver: Waiting for connection to stabilize\n");
 
 	res = ast_safe_sleep(chan, 1250);
 

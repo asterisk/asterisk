@@ -458,8 +458,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  		case AST_FRAME_CONTROL:
  			if (f->subclass == AST_CONTROL_ANSWER) {
  				if (p->ackcall) {
- 					if (option_verbose > 2)
- 						ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
+ 					ast_verb(3, "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
  					/* Don't pass answer along */
  					ast_frfree(f);
  					f = &ast_null_frame;
@@ -475,8 +474,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		case AST_FRAME_DTMF_BEGIN:
  		case AST_FRAME_DTMF_END:
  			if (!p->acknowledged && (f->subclass == '#')) {
- 				if (option_verbose > 2)
- 					ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
+ 				ast_verb(3, "%s acknowledged\n", p->chan->name);
  				p->acknowledged = 1;
  				ast_frfree(f);
  				f = &answer_frame;
@@ -628,8 +626,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	} else if (!ast_strlen_zero(p->loginchan)) {
 		time(&p->start);
 		/* Call on this agent */
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
+		ast_verb(3, "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
 		ast_set_callerid(p->chan,
 			ast->cid.cid_num, ast->cid.cid_name, NULL);
 		ast_channel_inherit_variables(ast, p->chan);
@@ -638,7 +635,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_mutex_unlock(&p->lock);
 		return res;
 	}
-	ast_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
+	ast_verb(3, "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
 	ast_debug(3, "Playing beep, lang '%s'\n", p->chan->language);
 	res = ast_streamfile(p->chan, beep, p->chan->language);
 	ast_debug(3, "Played beep, result '%d'\n", res);
@@ -1748,8 +1745,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 		if (max_login_tries < 0)
 			max_login_tries = 0;
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES");
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,chan->name);
+		ast_verb(3, "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,chan->name);
 	}
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
 		if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR")))
@@ -1757,14 +1753,12 @@ static int login_exec(struct ast_channel *chan, void *data)
 		else
 			update_cdr = 0;
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR");
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,chan->name);
+		ast_verb(3, "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,chan->name);
 	}
 	if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
 		strcpy(agent_goodbye, pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"));
 		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTGOODBYE");
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
+		ast_verb(3, "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
 	}
 	/* End Channel Specific Login Overrides */
 	
@@ -1824,24 +1818,21 @@ static int login_exec(struct ast_channel *chan, void *data)
 					else
 						p->ackcall = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
+					ast_verb(3, "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
 				}
 				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
 					p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
 					if (p->autologoff < 0)
 						p->autologoff = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
+					ast_verb(3, "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
 				}
 				if (!ast_strlen_zero(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
 					p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
 					if (p->wrapuptime < 0)
 						p->wrapuptime = 0;
 					tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
+					ast_verb(3, "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
 				}
 				/* End Channel Specific Agent Overrides */
 				if (!p->chan) {
@@ -1887,8 +1878,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 						if (update_cdr && chan->cdr)
 							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
-						if (option_verbose > 1)
-							ast_verbose(VERBOSE_PREFIX_2 "Agent '%s' logged in (format %s/%s)\n", p->agent,
+						ast_verb(2, "Agent '%s' logged in (format %s/%s)\n", p->agent,
 								    ast_getformatname(chan->readformat), ast_getformatname(chan->writeformat));
 						/* Login this channel and wait for it to go away */
 						p->chan = chan;
@@ -1963,8 +1953,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 							      "Uniqueid: %s\r\n",
 							      p->agent, logintime, chan->uniqueid);
 						ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, logintime);
-						if (option_verbose > 1)
-							ast_verbose(VERBOSE_PREFIX_2 "Agent '%s' logged out\n", p->agent);
+						ast_verb(2, "Agent '%s' logged out\n", p->agent);
 						/* If there is no owner, go ahead and kill it now */
 						ast_device_state_changed("Agent/%s", p->agent);
 						if (p->dead && !p->owner) {

@@ -126,12 +126,10 @@ static int do_waiting(struct ast_channel *chan, int silencereqd, time_t waitstar
 			}
 		}
 
-		if (option_verbose > 6)
-			ast_verbose(VERBOSE_PREFIX_3 "Got %dms silence< %dms required\n", dspsilence, silencereqd);
+		ast_verb(3, "Got %dms silence< %dms required\n", dspsilence, silencereqd);
 
 		if (dspsilence >= silencereqd) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence >= %dms required\n", dspsilence, silencereqd);
+			ast_verb(3, "Exiting with %dms silence >= %dms required\n", dspsilence, silencereqd);
 			/* Ended happily with silence */
 			res = 1;
 			pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
@@ -171,8 +169,7 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration, no timeout\n");
 	}
 
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, silencereqd, timeout);
+	ast_verb(3, "Waiting %d time(s) for %d ms silence with %d timeout\n", iterations, silencereqd, timeout);
 
 	time(&waitstart);
 	res = 1;

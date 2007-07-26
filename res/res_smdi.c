@@ -668,8 +668,7 @@ static int smdi_load(int reload)
 			iface->msg_expiry = msg_expiry;
 
                         /* start the listner thread */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Starting SMDI monitor thread for %s\n", iface->name);
+			ast_verb(3, "Starting SMDI monitor thread for %s\n", iface->name);
 			if (ast_pthread_create_background(&iface->thread, NULL, smdi_read, iface)) {
 				ast_log(LOG_ERROR, "Error starting SMDI monitor thread for %s\n", iface->name);
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);

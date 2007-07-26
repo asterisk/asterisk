@@ -1234,7 +1234,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 	int state = 0; /* no need to save anything */
 	int mf = 1;    /* +1 = Masculin; -1 = Feminin */
 	char fn[SAY_NUM_BUF_SIZE] = "";
-	ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: started. "
+	ast_verb(3, "ast_say_digits_full: started. "
 		"num: %d, options=\"%s\"\n",
 		num, options
 	);
@@ -1253,7 +1253,7 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 		 * state==0 is the normal mode and it means that we continue
 		 * to check if the number num has yet anything left.
 		 */
-		ast_verbose(VERBOSE_PREFIX_3 "ast_say_digits_full: num: %d, "
+		ast_verb(3, "ast_say_digits_full: num: %d, "
 			"state=%d, options=\"%s\", mf=%d\n",
 			num, state, options, mf
 		);

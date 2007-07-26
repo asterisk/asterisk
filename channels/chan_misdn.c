@@ -2506,8 +2506,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  					misdn_cfg_get(tmp->bc->port, MISDN_CFG_FAXDETECT_CONTEXT, &context_tmp, sizeof(context_tmp));
  					context = ast_strlen_zero(context_tmp) ? (ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext) : context_tmp;
  					if (ast_exists_extension(ast, context, "fax", 1, ast->cid.cid_num)) {
-  						if (option_verbose > 2)
- 							ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
+ 						ast_verb(3, "Redirecting %s to fax extension (context:%s)\n", ast->name, context);
   						/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
   						pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
  						if (ast_async_goto(ast, context, "fax", 1))
@@ -2519,7 +2518,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 				}
  				break;
  			case 2:
- 				ast_verbose(VERBOSE_PREFIX_3 "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
+ 				ast_verb(3, "Not redirecting %s to fax extension, nojump is set.\n", ast->name);
  				break;
  			}
  		} else {
@@ -2745,8 +2744,7 @@ static enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		misdn_lib_bridge(ch1->bc, ch2->bc);
 	}
 
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
+	ast_verb(3, "Native bridging %s and %s\n", c0->name, c1->name);
 
 	chan_misdn_log(1, ch1->bc->port, "* Making Native Bridge between %s and %s\n", ch1->bc->oad, ch2->bc->oad);
  

@@ -573,6 +573,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 {
 	static int added_cli = 0;
 	struct ast_translator *u;
+	char tmp[80];
 
 	if (!mod) {
 		ast_log(LOG_WARNING, "Missing module pointer, you need to supply one\n");
@@ -626,13 +627,9 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
   
 	calc_cost(t, 1);
 
-	if (option_verbose > 1) {
-		char tmp[80];
-
-		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n",
+	ast_verb(2, "Registered translator '%s' from format %s to %s, cost %d\n",
 			    term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)),
 			    ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
-	}
 
 	if (!added_cli) {
 		ast_cli_register_multiple(cli_translate, sizeof(cli_translate) / sizeof(struct ast_cli_entry));
@@ -676,8 +673,7 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
 			AST_RWLIST_REMOVE_CURRENT(&translators, list);
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
+			ast_verb(2, "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
 			found = 1;
 			break;
 		}

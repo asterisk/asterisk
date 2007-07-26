@@ -434,8 +434,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	AST_LIST_UNLOCK(&parkinglot);
 	/* Wake up the (presumably select()ing) thread */
 	pthread_kill(parking_thread, SIGURG);
-	if (option_verbose > 1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
+	ast_verb(2, "Parked %s on %d@%s. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, parking_con, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
 	if (pu->parkingnum != -1)
 		snprintf(pu->parkingexten, sizeof(pu->parkingexten), "%d", x);
@@ -602,8 +601,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	}
 	
 	if (callee_chan->monitor) {
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
+		ast_verb(4, "User hit '%s' to stop recording call.\n", code);
 		ast_monitor_stop(callee_chan, 1);
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -639,8 +637,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 				args[x] = '-';
 		}
 		
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
+		ast_verb(4, "User hit '%s' to record call. filename: %s\n", code, args);
 
 		pbx_exec(callee_chan, monitor_app, args);
 		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
@@ -655,8 +652,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 
 static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to disconnect call.\n", code);
+	ast_verb(4, "User hit '%s' to disconnect call.\n", code);
 	return FEATURE_RETURN_HANGUP;
 }
 
@@ -742,8 +738,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		}
 		if (!transferee->pbx) {
 			/* Doh!  Use our handy async_goto functions */
-			if (option_verbose > 2) 
-				ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
+			ast_verb(3, "Transferring %s to '%s' (context %s) priority 1\n"
 								,transferee->name, xferto, transferer_real_context);
 			if (ast_async_goto(transferee, transferer_real_context, xferto, 1))
 				ast_log(LOG_WARNING, "Async goto failed :-(\n");
@@ -755,8 +750,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		check_goto_on_transfer(transferer);
 		return res;
 	} else {
-		if (option_verbose > 2)	
-			ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
+		ast_verb(3, "Unable to find extension '%s' in context '%s'\n", xferto, transferer_real_context);
 	}
 	if (ast_stream_and_wait(transferer, xferfailsound, AST_DIGIT_ANY) < 0) {
 		finishup(transferee);
@@ -765,8 +759,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	ast_stopstream(transferer);
 	res = finishup(transferee);
 	if (res) {
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
+		ast_verb(2, "Hungup during autoservice stop on '%s'\n", transferee->name);
 		return res;
 	}
 	return FEATURE_RETURN_SUCCESS;
@@ -1040,8 +1033,7 @@ void ast_register_feature(struct ast_call_feature *feature)
 	AST_LIST_INSERT_HEAD(&feature_list,feature,feature_entry);
 	AST_LIST_UNLOCK(&feature_list);
 
-	if (option_verbose >= 2) 
-		ast_verbose(VERBOSE_PREFIX_2 "Registered Feature '%s'\n",feature->sname);
+	ast_verb(2, "Registered Feature '%s'\n",feature->sname);
 }
 
 /*! \brief This function must be called while feature_groups is locked... */
@@ -1066,8 +1058,7 @@ static struct feature_group* register_group(const char *fgname)
 
 	AST_LIST_INSERT_HEAD(&feature_groups, fg, entry);
 
-	if (option_verbose >= 2) 
-		ast_verbose(VERBOSE_PREFIX_2 "Registered group '%s'\n", fg->gname);
+	ast_verb(2, "Registered group '%s'\n", fg->gname);
 
 	return fg;
 }
@@ -1102,8 +1093,7 @@ static void register_group_feature(struct feature_group *fg, const char *exten, 
 
 	AST_LIST_INSERT_HEAD(&fg->features, fge, entry);		
 
-	if (option_verbose >= 2)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered feature '%s' for group '%s' at exten '%s'\n", 
+	ast_verb(2, "Registered feature '%s' for group '%s' at exten '%s'\n",
 					feature->sname, fg->gname, exten);
 }
 
@@ -1362,8 +1352,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 			
 		/* Feature is up for consideration */
 		if (!strcmp(feature->exten, code)) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
+			ast_verb(3, " Feature Found: %s exten: %s\n",feature->sname, tok);
 			res = feature->operation(chan, peer, config, code, sense);
 			AST_LIST_UNLOCK(&feature_list);
 			break;
@@ -1491,13 +1480,11 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 					if (f->frametype == AST_FRAME_CONTROL || f->frametype == AST_FRAME_DTMF || f->frametype == AST_FRAME_TEXT) {
 						if (f->subclass == AST_CONTROL_RINGING) {
 							state = f->subclass;
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "%s is ringing\n", chan->name);
+							ast_verb(3, "%s is ringing\n", chan->name);
 							ast_indicate(caller, AST_CONTROL_RINGING);
 						} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
 							state = f->subclass;
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "%s is busy\n", chan->name);
+							ast_verb(3, "%s is busy\n", chan->name);
 							ast_indicate(caller, AST_CONTROL_BUSY);
 							ast_frfree(f);
 							f = NULL;
@@ -1955,8 +1942,7 @@ static void *do_parking_thread(void *ignore)
 
 				post_manager_event("ParkedCallTimeOut", pu);
 
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", chan->name, pu->parkingnum, chan->context, chan->exten, chan->priority);
+				ast_verb(2, "Timeout for %s parked on %d. Returning to %s,%s,%d\n", chan->name, pu->parkingnum, chan->context, chan->exten, chan->priority);
 				/* Start up the PBX, or hang them up */
 				if (ast_pbx_start(chan))  {
 					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", chan->name);
@@ -1994,8 +1980,7 @@ static void *do_parking_thread(void *ignore)
 						post_manager_event("ParkedCallGiveUp", pu);
 
 						/* There's a problem, hang them up*/
-						if (option_verbose > 1) 
-							ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", chan->name);
+						ast_verb(2, "%s got tired of being parked\n", chan->name);
 						ast_hangup(chan);
 						/* And take them out of the parking lot */
 						AST_LIST_REMOVE_CURRENT(&parkinglot, list);
@@ -2177,8 +2162,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		}
 		/* This runs sorta backwards, since we give the incoming channel control, as if it
 		   were the person called. */
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
+		ast_verb(3, "Channel %s connected to parked call %d\n", chan->name, park);
 
 		pbx_builtin_setvar_helper(chan, "PARKEDCHANNEL", peer->name);
 		ast_cdr_setdestchan(chan->cdr, peer->name);
@@ -2204,8 +2188,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		/*! \todo XXX Play a message XXX */
 		if (ast_stream_and_wait(chan, "pbx-invalidpark", ""))
 			ast_log(LOG_WARNING, "ast_streamfile of %s failed on %s\n", "pbx-invalidpark", chan->name);
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
+		ast_verb(3, "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
 		res = -1;
 	}
 
@@ -2810,8 +2793,7 @@ static int load_config(void)
 
 		ast_register_feature(feature);
 			
-		if (option_verbose >= 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);  
+		ast_verb(2, "Mapping Feature '%s' to app '%s(%s)' with code '%s'\n", var->name, app, app_args, exten);
 	}
 
 	ast_unregister_groups();

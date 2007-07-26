@@ -92,8 +92,7 @@ static int flash_exec(struct ast_channel *chan, void *data)
 					zt_wait_event(chan->fds[0]);
 				}
 				res = ast_safe_sleep(chan, 1000);
-				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Flashed channel %s\n", chan->name);
+				ast_verb(3, "Flashed channel %s\n", chan->name);
 			} else
 				ast_log(LOG_WARNING, "Unable to flash channel %s: %s\n", chan->name, strerror(errno));
 		} else

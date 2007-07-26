@@ -1482,11 +1482,8 @@ static int action_login(struct mansession *s, const struct message *m)
 		return -1;
 	}
 	s->authenticated = 1;
-	if (option_verbose > 1) {
-		if (manager_displayconnects(s)) {
-			ast_verbose(VERBOSE_PREFIX_2 "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
-		}
-	}
+	if (manager_displayconnects(s))
+		ast_verb(2, "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 	ast_log(LOG_EVENT, "%sManager '%s' logged on from %s\n", (s->managerid ? "HTTP " : ""), s->username, ast_inet_ntoa(s->sin.sin_addr));
 	astman_send_ack(s, m, "Authentication accepted");
 	return 0;
@@ -2526,16 +2523,12 @@ static void *session_do(void *data)
 	}
 	/* session is over, explain why and terminate */
 	if (s->authenticated) {
-		if (option_verbose > 1) {
 			if (manager_displayconnects(s))
-				ast_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
-		}
+			ast_verb(2, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		ast_log(LOG_EVENT, "Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 	} else {
-		if (option_verbose > 1) {
 			if (displayconnects)
-				ast_verbose(VERBOSE_PREFIX_2 "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
-		}
+			ast_verb(2, "Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
 		ast_log(LOG_EVENT, "Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 	}
 	destroy_session(s);
@@ -2557,7 +2550,7 @@ static void purge_sessions(int n_max)
 			AST_LIST_REMOVE_CURRENT(&sessions, list);
 			ast_atomic_fetchadd_int(&num_sessions, -1);
 			if (s->authenticated && (option_verbose > 1) && manager_displayconnects(s)) {
-				ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' timed out from %s\n",
+				ast_verb(2, "HTTP Manager '%s' timed out from %s\n",
 					s->username, ast_inet_ntoa(s->sin.sin_addr));
 			}
 			free_session(s);	/* XXX outside ? */
@@ -2680,8 +2673,7 @@ int ast_manager_unregister(char *action)
 			else
 				first_action = cur->next;
 			ast_free(cur);
-			if (option_verbose > 1)
-				ast_verbose(VERBOSE_PREFIX_2 "Manager unregistered action %s\n", action);
+			ast_verb(2, "Manager unregistered action %s\n", action);
 			break;
 		}
 	}
@@ -2721,8 +2713,7 @@ static int ast_manager_register_struct(struct manager_action *act)
 		first_action = act;
 	act->next = cur;
 
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Manager registered action %s\n", act->action);
+	ast_verb(2, "Manager registered action %s\n", act->action);
 	ast_rwlock_unlock(&actionlock);
 	return 0;
 }
@@ -3091,16 +3082,12 @@ static struct ast_str *generic_http_callback(enum output_format format,
 
 	if (process_message(s, &m)) {
 		if (s->authenticated) {
-			if (option_verbose > 1) {
 				if (manager_displayconnects(s))
-					ast_verbose(VERBOSE_PREFIX_2 "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
-			}
+				ast_verb(2, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 			ast_log(LOG_EVENT, "HTTP Manager '%s' logged off from %s\n", s->username, ast_inet_ntoa(s->sin.sin_addr));
 		} else {
-			if (option_verbose > 1) {
 				if (displayconnects)
-					ast_verbose(VERBOSE_PREFIX_2 "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
-			}
+				ast_verb(2, "HTTP Connect attempt from '%s' unable to authenticate\n", ast_inet_ntoa(s->sin.sin_addr));
 			ast_log(LOG_EVENT, "HTTP Failed attempt from %s\n", ast_inet_ntoa(s->sin.sin_addr));
 		}
 		s->needdestroy = 1;

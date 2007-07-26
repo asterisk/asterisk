@@ -1124,10 +1124,8 @@ static int load_module(void)
 	}
 
 	if (soundcard_init() < 0) {
-		if (option_verbose > 1) {
-			ast_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
-			ast_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/asterisk/modules.conf\n");
-		}
+		ast_verb(2, "No sound card detected -- console channel will be unavailable\n");
+		ast_verb(2, "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/asterisk/modules.conf\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}
 

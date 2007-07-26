@@ -198,8 +198,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 
 				if(!ast_strlen_zero(tmp))
 					pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
-				if (option_verbose > 2)
-					ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
+				ast_verb(3, "Executing %s(\"%s\", \"%s\")\n",
 						 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
 						 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
 						 term_color(tmp3, S_OR(appdata, ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
