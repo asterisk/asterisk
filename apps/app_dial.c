@@ -1771,8 +1771,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		strcpy(peer->context, chan->context);
 
 		if (ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
+			int autoloopflag;
 			strcpy(peer->exten, "h");
 			peer->priority = 1;
+			autoloopflag = ast_test_flag(peer, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
+			ast_set_flag(peer, AST_FLAG_IN_AUTOLOOP);
+			
 			while (ast_exists_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num)) {
 				if ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num))) {
 					/* Something bad happened, or a hangup has been requested. */
@@ -1782,6 +1786,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				}
 				peer->priority++;
 			}
+			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
 		if (res != AST_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
