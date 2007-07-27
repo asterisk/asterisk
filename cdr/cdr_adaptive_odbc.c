@@ -198,6 +198,13 @@ static int load_config(void)
 			SQLGetData(stmt, 11, SQL_C_SHORT, &entry->nullable, sizeof(entry->nullable), NULL);
 			SQLGetData(stmt, 16, SQL_C_LONG, &entry->octetlen, sizeof(entry->octetlen), NULL);
 
+			/* Specification states that the octenlen should be the maximum number of bytes
+			 * returned in a char or binary column, but it seems that some drivers just set
+			 * it to NULL. (Bad Postgres! No biscuit!) */
+			if (entry->octetlen == 0)
+				entry->octetlen = entry->size;
+
+			ast_verb(10, "Found %s column with type %hd with len %ld, octetlen %ld, and numlen (%hd,%hd)\n", entry->name, entry->type, entry->size, entry->octetlen, entry->decimals, entry->radix);
 			/* Insert column info into column list */
 			AST_LIST_INSERT_TAIL(&(tableptr->columns), entry, list);
 			res = 0;
