@@ -3101,8 +3101,10 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 				ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
 			}
 		}
-		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold)
+		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold) {
+			ast_clear_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD);
 			sip_peer_hold(fup, 0);
+		}
 		if (option_debug > 1 || sipdebug) {
 			ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 		}
