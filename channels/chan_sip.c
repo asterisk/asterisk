@@ -8974,10 +8974,7 @@ static void sip_peer_hold(struct sip_pvt *p, int hold)
 		return;
 
 	/* If they put someone on hold, increment the value... otherwise decrement it */
-	if (hold)
-		ast_atomic_fetchadd_int(&peer->onHold, +1);
-	else
-		ast_atomic_fetchadd_int(&peer->onHold, -1);
+	ast_atomic_fetchadd_int(&peer->onHold, (hold ? +1 : -1));
 
 	/* Request device state update */
 	ast_device_state_changed("SIP/%s", peer->name);
