@@ -848,31 +848,11 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 					fprintf(output, "exten => %s,hint,%s\n",
 						    ast_get_extension_name(p),
 						    ast_get_extension_app(p));
-				} else { /* copy and replace '|' with ',' */
+				} else {
 					const char *sep, *cid;
-					char *tempdata = "";
-					char *s;
 					const char *el = ast_get_extension_label(p);
 					char label[128] = "";
  
- 					s = ast_get_extension_app_data(p);
-					if (s) {
-						char *t;
-						tempdata = alloca(strlen(tempdata) * 2 + 1);
-
-						for (t = tempdata; *s; s++, t++) {
-							if (*s == '|')
-								*t = ',';
-							else {
-								if (*s == ',')
-									*t++ = '\\';
-								*t = *s;
-							}
-						}
-						/* Terminating NULL */
-						*t = *s;
-					}
-
 					if (ast_get_extension_matchcid(p)) {
 						sep = "/";
 						cid = ast_get_extension_cidmatch(p);
@@ -885,7 +865,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 					fprintf(output, "exten => %s%s%s,%d%s,%s(%s)\n",
 					    ast_get_extension_name(p), (ast_strlen_zero(sep) ? "" : sep), (ast_strlen_zero(cid) ? "" : cid),
 					    ast_get_extension_priority(p), label,
-					    ast_get_extension_app(p), (ast_strlen_zero(tempdata) ? "" : tempdata));
+					    ast_get_extension_app(p), (ast_strlen_zero(ast_get_extension_app_data(p)) ? "" : (const char *)ast_get_extension_app_data(p)));
 				}
 			}
 		}
@@ -984,7 +964,6 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
-		ast_process_quotes_and_slashes(app_data, ',', '|');
 	} else {
 		if (app) {
 			app_data = strchr(app, ',');
@@ -1584,7 +1563,7 @@ static void pbx_load_users(void)
 			ast_add_extension2(con, 0, cat, -1, NULL, NULL, iface, NULL, NULL, registrar);
 			/* If voicemail, use "stdexten" else use plain old dial */
 			if (hasvoicemail) {
-				snprintf(tmp, sizeof(tmp), "stdexten|%s|${HINT}", cat);
+				snprintf(tmp, sizeof(tmp), "stdexten,%s,${HINT}", cat);
 				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Macro", strdup(tmp), ast_free, registrar);
 			} else {
 				ast_add_extension2(con, 0, cat, 1, NULL, NULL, "Dial", strdup("${HINT}"), ast_free, registrar);
