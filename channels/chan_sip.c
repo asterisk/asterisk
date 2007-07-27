@@ -12872,7 +12872,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 						if (p->vrtp)
 							ast_rtp_set_rtptimers_onhold(p->vrtp);	/* Turn off RTP timers while we send fax */
 					} else if (p->t38.state == T38_DISABLED && bridgepeer && (bridgepvt->t38.state == T38_ENABLED)) {
-						ast_log(LOG_WARNING, "RTP re-inivte after T38 session not handled yet !\n");
+						ast_log(LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
 						/* Insted of this we should somehow re-invite the other side of the bridge to RTP */
 						/* XXXX Should we really destroy this session here, without any response at all??? */
 						sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
