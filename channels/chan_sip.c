@@ -2386,7 +2386,11 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		return AST_SUCCESS;
 }
 
-/*! \brief Kill a SIP dialog (called by scheduler) */
+/*! \brief Kill a SIP dialog (called only by the scheduler)
+ * The scheduler has a reference to this dialog when p->autokillid != -1,
+ * and we are called using that reference. So if the event is not
+ * rescheduled, we need to call dialog_unref().
+ */
 static int __sip_autodestruct(void *data)
 {
 	struct sip_pvt *p = data;
@@ -2410,15 +2414,18 @@ static int __sip_autodestruct(void *data)
 	if (p->owner) {
 		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
+		dialog_unref(p);
 	} else if (p->refer) {
 		ast_debug(3, "Finally hanging up channel after transfer: %s\n", p->callid);
 		transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, 1);
 		append_history(p, "ReferBYE", "Sending BYE on transferer call leg %s", p->callid);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		dialog_unref(p);
 	} else {
 		append_history(p, "AutoDestroy", "%s", p->callid);
 		ast_debug(3, "Auto destroying SIP dialog '%s'\n", p->callid);
 		sip_destroy(p);		/* Go ahead and destroy dialog. All attempts to recover is done */
+		/* sip_destroy also absorbs the reference */
 	}
 	return 0;
 }
@@ -2433,21 +2440,23 @@ static void sip_scheddestroy(struct sip_pvt *p, int ms)
 	}
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n", p->callid, ms, sip_methods[p->method].text);
+	sip_cancel_destroy(p);
 	if (p->do_history)
 		append_history(p, "SchedDestroy", "%d ms", ms);
-
-	if (p->autokillid > -1)
-		ast_sched_del(sched, p->autokillid);
-	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, p);
+	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, dialog_ref(p));
 }
 
-/*! \brief Cancel destruction of SIP dialog */
+/*! \brief Cancel destruction of SIP dialog.
+ * Be careful as this also absorbs the reference - if you call it
+ * from within the scheduler, this might be the last reference.
+ */
 static void sip_cancel_destroy(struct sip_pvt *p)
 {
 	if (p->autokillid > -1) {
 		ast_sched_del(sched, p->autokillid);
 		append_history(p, "CancelDestroy", "");
 		p->autokillid = -1;
+		dialog_unref(p);
 	}
 }
 
@@ -12179,6 +12188,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		ast_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
 		transmit_sip_request(p, &req);
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		dialog_unref(p);
 	}
 
 	return RESULT_SUCCESS;
