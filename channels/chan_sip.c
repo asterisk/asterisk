@@ -1487,7 +1487,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist);
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
-static int auto_congest(void *nothing);
+static int auto_congest(void *arg);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int hangup_sip2cause(int cause);
 static const char *hangup_cause2sip(int cause);
@@ -2896,6 +2896,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
 	if (peer->outboundproxy)
 		ast_free(peer->outboundproxy);
+	peer->outboundproxy = NULL;
 
 	/* Delete it, it needs to disappear */
 	if (peer->call)
@@ -2970,11 +2971,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 		var = ast_load_realtime("sippeers", "host", ipaddr, NULL);	/* First check for fixed IP hosts */
 		if (var) {
 			if (realtimeregs) {
-				tmp = var;
-				while (tmp) {
+				for (tmp = var; tmp; tmp = tmp->next) {
 					if (!newpeername && !strcasecmp(tmp->name, "name"))
 						newpeername = tmp->value;
-					tmp = tmp->next;
 				}
 				varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
 			}
@@ -2984,11 +2983,9 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			else
 				var = ast_load_realtime("sippeers", "ipaddr", ipaddr, NULL); /* Then check for registered hosts */
 			if (varregs) {
-				tmp = varregs;
-				while (tmp) {
+				for (tmp = varregs; tmp; tmp = tmp->next) {
 					if (!newpeername && !strcasecmp(tmp->name, "name"))
 						newpeername = tmp->value;
-					tmp = tmp->next;
 				}
 				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
 			}
@@ -3034,7 +3031,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			if (peer->expire > -1) {
 				ast_sched_del(sched, peer->expire);
 			}
-			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
+			peer->expire = ast_sched_add(sched, global_rtautoclear * 1000, expire_register, (void *)peer);
 		}
 		ASTOBJ_CONTAINER_LINK(&peerl,peer);
 	} else {
@@ -3350,13 +3347,15 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 	return 0;
 }
 
-/*! \brief Scheduled congestion on a call */
-static int auto_congest(void *nothing)
+/*! \brief Scheduled congestion on a call.
+ * Only called by the scheduler, must return the reference when done.
+ */
+static int auto_congest(void *arg)
 {
-	struct sip_pvt *p = nothing;
+	struct sip_pvt *p = arg;
 
 	sip_pvt_lock(p);
-	p->initid = -1;
+	p->initid = -1;	/* event gone, will not be rescheduled */
 	if (p->owner) {
 		/* XXX fails on possible deadlock */
 		if (!ast_channel_trylock(p->owner)) {
@@ -3367,6 +3366,7 @@ static int auto_congest(void *nothing)
 		}
 	}
 	sip_pvt_unlock(p);
+	dialog_unref(p);
 	return 0;
 }
 
@@ -3376,12 +3376,11 @@ static int auto_congest(void *nothing)
 static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	int res;
-	struct sip_pvt *p;
+	struct sip_pvt *p = ast->tech_pvt;	/* chan is locked, so the reference cannot go away */
 	struct varshead *headp;
 	struct ast_var_t *current;
 	const char *referer = NULL;   /* SIP referrer */	
 
-	p = ast->tech_pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
@@ -3454,7 +3453,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		p->invitestate = INV_CALLING;
 	
 		/* Initialize auto-congest time */
-		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, p);
+		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, dialog_ref(p));
 	}
 
 	return res;
@@ -8193,8 +8192,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		ast_string_field_set(p, domain, r->domain);
 		ast_string_field_set(p, opaque, r->opaque);
 		ast_string_field_set(p, qop, r->qop);
-		r->noncecount++;
-		p->noncecount = r->noncecount;
+		p->noncecount = ++r->noncecount;
 
 		memset(digest,0,sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
@@ -8401,13 +8399,9 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 /*! \brief Remove registration data from realtime database or AST/DB when registration expires */
 static void destroy_association(struct sip_peer *peer)
 {
-	int realtimeregs;
-	char *tablename;
-	realtimeregs = ast_check_realtime("sipregs");
-	if (realtimeregs)
-		tablename = "sipregs";
-	else
-		tablename = "sippeers";
+	int realtimeregs = ast_check_realtime("sipregs");
+	char *tablename = (realtimeregs) ? "sipregs" : "sippeers";
+
 	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
 		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT))
 			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
