@@ -9701,6 +9701,46 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 
 	return -1;
 }
+
+/*! \brief check received= and rport= in a SIP response.
+ * If we get a response with received= and/or rport= in the Via:
+ * line, use them as 'p->ourip' (see RFC 3581 for rport,
+ * and RFC 3261 for received).
+ * Using these two fields SIP can produce the correct
+ * address and port in the SIP headers without the need for STUN.
+ * The address part is also reused for the media sessions.
+ * Note that ast_sip_ouraddrfor() still rewrites p->ourip
+ * if you specify externip/seternaddr/stunaddr.
+ */
+static void check_via_response(struct sip_pvt *p, struct sip_request *req)
+{
+	char via[256];
+	char *cur, *opts;
+
+	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
+
+	/* Work on the leftmost value of the topmost Via header */
+	opts = strchr(via, ',');
+	if (opts)
+		*opts = '\0';
+
+	/* parse all relevant options */
+	opts = strchr(via, ';');
+	if (!opts)
+		return;	/* no options to parse */
+	*opts++ = '\0';
+	while ( (cur = strsep(&opts, ";")) ) {
+		if (!strncmp(cur, "rport=", 6)) {
+			int port = strtol(cur+6, NULL, 10);
+			/* XXX add error checking */
+			p->ourip.sin_port = ntohs(port);
+		} else if (!strncmp(cur, "received=", 9)) {
+			if (ast_parse_arg(cur+9, PARSE_INADDR, &p->ourip))
+				;	/* XXX add error checking */
+		}
+	}
+}
+
 /*! \brief check Via: header for hostname, port and rport request/answer */
 static void check_via(struct sip_pvt *p, struct sip_request *req)
 {
@@ -13332,6 +13372,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		gettag(req, "To", tag, sizeof(tag));
 		ast_string_field_set(p, theirtag, tag);
 	}
+	check_via_response(p, req);
 	if (p->relatedpeer && p->method == SIP_OPTIONS) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
