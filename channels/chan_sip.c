@@ -12398,10 +12398,6 @@ static const char show_inuse_usage[] =
 "       List all SIP users and peers usage counters and limits.\n"
 "       Add option \"all\" to show all devices, not only those with a limit.\n";
 
-static const char show_channels_usage[] = 
-"Usage: sip show channels\n"
-"       Lists all currently active SIP channels.\n";
-
 static const char show_channel_usage[] = 
 "Usage: sip show channel <channel>\n"
 "       Provides detailed status on a given SIP channel.\n";
