@@ -8045,7 +8045,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 			build_callid_registry(r, internip.sin_addr, default_fromdomain);
 			r->callid_valid = TRUE;
 		}
-		/* Allocate SIP packet for registration */
+		/* Allocate SIP dialog for registration */
 		if (!(p = sip_alloc( r->callid, NULL, 0, SIP_REGISTER))) {
 			ast_log(LOG_WARNING, "Unable to allocate registration transaction (memory or socket error)\n");
 			return 0;
@@ -8078,7 +8078,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		else 	/* Set registry port to the port set from the peer definition/srv or default */
 			r->portno = ntohs(p->sa.sin_port);
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
-		r->call=p;			/* Save pointer to SIP packet */
+		r->call = dialog_ref(p);		/* Save pointer to SIP dialog */
 		p->registry = registry_addref(r);	/* Add pointer to registry in packet */
 		if (!ast_strlen_zero(r->secret))	/* Secret (password) */
 			ast_string_field_set(p, peersecret, r->secret);
@@ -13323,7 +13323,7 @@ static void handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_req
 		|| was_reachable != is_reachable;
 
 	peer->lastms = pingtime;
-	peer->call = NULL;
+	peer->call = dialog_unref(peer->call);
 	if (statechanged) {
 		const char *s = is_reachable ? "Reachable" : "Lagged";
 
@@ -14311,7 +14311,7 @@ static int handle_invite_replaces(struct sip_pvt *p, struct sip_request *req, in
 	sip_pvt_unlock(p);	/* Unlock SIP structure */
 
 	/* The call should be down with no ast_channel, so hang it up */
-	c->tech_pvt = NULL;
+	c->tech_pvt = dialog_unref(c->tech_pvt);
 	ast_hangup(c);
 	return 0;
 }
@@ -14450,7 +14450,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		if (p->refer->refer_call == p) {
 			ast_log(LOG_NOTICE, "INVITE with replaces into it's own call id (%s == %s)!\n", replace_id, p->callid);
-			p->refer->refer_call = NULL;
+			p->refer->refer_call = dialog_unref(p->refer->refer_call);
 			transmit_response(p, "400 Bad request", req);	/* The best way to not not accept the transfer */
 			error = 1;
 		}
