@@ -1116,6 +1116,15 @@ struct sip_pvt {
 							you know more) */
 };
 
+/*
+ * Here we implement the container for dialogs (sip_pvt), defining
+ * generic wrapper functions to ease the transition from the current
+ * implementation (a single linked list) to a different container.
+ * In addition to a reference to the container, we need functions to lock/unlock
+ * the container and individual items, and functions to add/remove
+ * references to the individual items.
+ */
+
 static struct sip_pvt *dialoglist = NULL;
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
@@ -1130,6 +1139,21 @@ static void dialoglist_lock(void)
 static void dialoglist_unlock(void)
 {
 	ast_mutex_unlock(&dialoglock);
+}
+
+/*!
+ * when we create or delete references, make sure to use these
+ * functions so we keep track of the refcounts.
+ * To simplify the code, we allow a NULL to be passed to dialog_unref().
+ */
+static struct sip_pvt *dialog_ref(struct sip_pvt *p)
+{
+	return p;
+}
+
+static struct sip_pvt *dialog_unref(struct sip_pvt *p)
+{
+	return NULL;
 }
 
 /*! \brief sip packet - raw format for outbound packets that are sent or scheduled for transmission
@@ -2329,7 +2353,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->method = sipmethod;
 	pkt->packetlen = len;
 	pkt->next = p->packets;
-	pkt->owner = p;
+	pkt->owner = dialog_ref(p);
 	pkt->seqno = seqno;
 	if (resp)
 		pkt->is_resp = 1;
@@ -2459,6 +2483,7 @@ static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 				cur->retransid = -1;
 			}
 			UNLINK(cur, p->packets, prev);
+			dialog_unref(cur->owner);
 			ast_free(cur);
 			break;
 		}
@@ -3466,7 +3491,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 
 	/* Remove link from peer to subscription of MWI */
 	if (p->relatedpeer && p->relatedpeer->mwipvt) 
-		p->relatedpeer->mwipvt = NULL;
+		p->relatedpeer->mwipvt = dialog_unref(p->relatedpeer->mwipvt);
 
 	if (dumphistory)
 		sip_dump_history(p);
@@ -3540,6 +3565,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 		p->packets = p->packets->next;
 		if (cp->retransid > -1)
 			ast_sched_del(sched, cp->retransid);
+		dialog_unref(cp->owner);
 		ast_free(cp);
 	}
 	if (p->chanvars) {
@@ -3873,7 +3899,7 @@ static int sip_hangup(struct ast_channel *ast)
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		ast_clear_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER);	/* Really hang up next time */
 		p->needdestroy = 0;
-		p->owner->tech_pvt = NULL;
+		p->owner->tech_pvt = dialog_unref(p->owner->tech_pvt);
 		p->owner = NULL;  /* Owner will be gone after we return, so take it away */
 		return 0;
 	}
@@ -3914,7 +3940,7 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_dsp_free(p->vad);
 
 	p->owner = NULL;
-	ast->tech_pvt = NULL;
+	ast->tech_pvt = dialog_unref(ast->tech_pvt);
 
 	ast_module_unref(ast_module_info->self);
 	/* Do not destroy this pvt until we have timeout or
@@ -4461,7 +4487,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp->rawwriteformat = fmt;
 	tmp->readformat = fmt;
 	tmp->rawreadformat = fmt;
-	tmp->tech_pvt = i;
+	tmp->tech_pvt = dialog_ref(i);
 
 	tmp->callgroup = i->callgroup;
 	tmp->pickupgroup = i->pickupgroup;
@@ -4935,7 +4961,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	/* Add to active dialog list */
 	dialoglist_lock();
 	p->next = dialoglist;
-	dialoglist = p;
+	dialoglist = dialog_ref(p);
 	dialoglist_unlock();
 	ast_debug(1, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
 	return p;
@@ -9691,7 +9717,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 		ast_copy_string(referdata->refer_to, c, sizeof(referdata->refer_to));
 		ast_copy_string(referdata->referred_by, "", sizeof(referdata->referred_by));
 		ast_copy_string(referdata->refer_contact, "", sizeof(referdata->refer_contact));
-		referdata->refer_call = NULL;
+		referdata->refer_call = dialog_unref(referdata->refer_call);
 		/* Set new context */
 		ast_string_field_set(p, context, transfer_context);
 		return 0;
@@ -16139,7 +16165,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	
 	if (peer->mwipvt) {
 		/* Base message on subscription */
-		p = peer->mwipvt;
+		p = dialog_ref(peer->mwipvt);
 	} else {
 		/* Build temporary dialog for this message */
 		if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY))) 
