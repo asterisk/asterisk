@@ -838,8 +838,6 @@ struct sip_auth {
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 /* Space for addition of other realtime flags in the future */
 
-#define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
-#define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< P: Automatic peers need to destruct themselves */
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)	/*!< DP: Video supported if offered? */
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< DP: Allow overlap dialing ? */
@@ -1262,6 +1260,8 @@ struct sip_peer {
 	/* things that don't belong in flags */
 	char is_realtime;		/*!< this is a 'realtime' peer */
 	char rt_fromcontact;		/*!< P: copy fromcontact from realtime */
+	char host_dynamic;		/*!< P: Dynamic Peers register with Asterisk */
+	char selfdestruct;		/*!< P: Automatic peers need to destruct themselves */
 
 	int expire;			/*!<  When to expire this peer registration */
 	int capability;			/*!<  Codec capability */
@@ -2912,7 +2912,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		ast_sched_del(sched, peer->pokeexpire);
 	register_peer_exten(peer, FALSE);
 	ast_free_ha(peer->ha);
-	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT))
+	if (peer->selfdestruct)
 		apeerobjs--;
 	else if (peer->is_realtime) {
 		rpeerobjs--;
@@ -8425,7 +8425,7 @@ static int expire_register(void *data)
 	if (peer->is_realtime)
 		ast_debug(3,"-REALTIME- peer expired registration. Name: %s. Realtime peer objects now %d\n", peer->name, rpeerobjs);
 
-	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT) ||
+	if (peer->selfdestruct ||
 	    ast_test_flag(&peer->flags[1], SIP_PAGE2_RTAUTOCLEAR)) {
 		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);	/* Remove from peer list */
 		unref_peer(peer);		/* Remove from memory */
@@ -9142,7 +9142,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			ast_rtp_codec_setpref(p->rtp, &peer->prefs);
 			p->autoframing = peer->autoframing;
 		}
-		if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)) {
+		if (!peer->host_dynamic) {
 			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			res = AUTH_PEER_NOT_DYNAMIC;
 		} else {
@@ -10604,7 +10604,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 
 		snprintf(srch, sizeof(srch), FORMAT, name,
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "(Unspecified)",
-			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
+			iterator->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
 			ntohs(iterator->addr.sin_port), status,
@@ -10613,7 +10613,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 		if (!s)  {/* Normal CLI list */
 			ast_cli(fd, FORMAT, name, 
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "(Unspecified)",
-			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
+			iterator->host_dynamic ? " D " : "   ", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ",       /* permit/deny */
 			
@@ -10639,7 +10639,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, const struc
 			iterator->name, 
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iterator->addr.sin_addr) : "-none-",
 			ntohs(iterator->addr.sin_port), 
-			ast_test_flag(&iterator->flags[1], SIP_PAGE2_DYNAMIC) ? "yes" : "no", 	/* Dynamic or not? */
+			iterator->host_dynamic ? "yes" : "no", 	/* Dynamic or not? */
 			ast_test_flag(&iterator->flags[0], SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
 			ast_test_flag(&iterator->flags[1], SIP_PAGE2_TEXTSUPPORT) ? "yes" : "no",	/* TEXTSUPPORT=yes? */
@@ -11064,7 +11064,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		if (peer->busy_level)
 			ast_cli(fd, "  Busy level   : %d\n", peer->busy_level);
-		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Yes":"No"));
+		ast_cli(fd, "  Dynamic      : %s\n", peer->host_dynamic ? "Yes" : "No");
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  MaxCallBR    : %d kbps\n", peer->maxcallbitrate);
 		ast_cli(fd, "  Expire       : %ld\n", ast_sched_when(sched, peer->expire));
@@ -11158,7 +11158,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		astman_append(s, "Call-limit: %d\r\n", peer->call_limit);
 		astman_append(s, "Busy-level: %d\r\n", peer->busy_level);
 		astman_append(s, "MaxCallBR: %d kbps\r\n", peer->maxcallbitrate);
-		astman_append(s, "Dynamic: %s\r\n", (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)?"Y":"N"));
+		astman_append(s, "Dynamic: %s\r\n", peer->host_dynamic?"Y":"N");
 		astman_append(s, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		astman_append(s, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
 		astman_append(s, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(&peer->flags[0], SIP_INSECURE)));
@@ -12605,7 +12605,7 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strcasecmp(colname, "expire")) {
 		snprintf(buf, len, "%d", peer->expire);
 	} else  if (!strcasecmp(colname, "dynamic")) {
-		ast_copy_string(buf, (ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) ? "yes" : "no"), len);
+		ast_copy_string(buf, peer->host_dynamic ? "yes" : "no", len);
 	} else  if (!strcasecmp(colname, "callerid_name")) {
 		ast_copy_string(buf, peer->cid_name, len);
 	} else  if (!strcasecmp(colname, "callerid_num")) {
@@ -17113,8 +17113,8 @@ static struct sip_peer *temp_peer(const char *name)
 
 	ast_copy_string(peer->name, name, sizeof(peer->name));
 
-	ast_set_flag(&peer->flags[1], SIP_PAGE2_SELFDESTRUCT);
-	ast_set_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
+	peer->selfdestruct = TRUE;
+	peer->host_dynamic = TRUE;
 	peer->prefs = default_prefs;
 	reg_source_db(peer);
 
@@ -17231,7 +17231,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "host")) {
 			if (!strcasecmp(v->value, "dynamic")) {
 				/* They'll register with us */
-				if (!found || !ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC)) {
+				if (!found || !peer->host_dynamic) {
 					/* Initialize stuff if this is a new peer, or if it used to
 					 * not be dynamic before the reload. */
 					memset(&peer->addr.sin_addr, 0, 4);
@@ -17241,13 +17241,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 						peer->addr.sin_port = 0;
 					}
 				}
-				ast_set_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
+				peer->host_dynamic = TRUE;
 			} else {
 				/* Non-dynamic.  Make sure we become that way if we're not */
 				if (peer->expire > -1)
 					ast_sched_del(sched, peer->expire);
 				peer->expire = -1;
-				ast_clear_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC);
+				peer->host_dynamic = FALSE;
 				if (ast_get_ip_or_srv(&peer->addr, v->value, global_srvlookup ? "_sip._udp" : NULL)) {
 					unref_peer(peer);
 					return NULL;
@@ -17269,7 +17269,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (ha_error)
 				ast_log(LOG_ERROR, "Bad ACL entry in configuration line %d : %s\n", v->lineno, v->value);
 		} else if (!strcasecmp(v->name, "port")) {
-			if (!realtime && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC))
+			if (!realtime && peer->host_dynamic)
 				peer->defaddr.sin_port = htons(atoi(v->value));
 			else
 				peer->addr.sin_port = htons(atoi(v->value));
@@ -17360,7 +17360,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->maxcallbitrate = default_maxcallbitrate;
 		}
 	}
-	if (!sip_cfg.ignore_regexpire && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
+	if (!sip_cfg.ignore_regexpire && peer->host_dynamic && realtime) {
 		time_t nowtime = time(NULL);
 
 		if ((nowtime - regseconds) > 0) {
@@ -17373,7 +17373,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	ast_copy_flags(&peer->flags[1], &peerflags[1], mask[1].flags);
 	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_ALLOWSUBSCRIBE))
 		global_allowsubscribe = TRUE;	/* No global ban any more */
-	if (!found && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && !peer->is_realtime)
+	if (!found && peer->host_dynamic && !peer->is_realtime)
 		reg_source_db(peer);
 
 	/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
