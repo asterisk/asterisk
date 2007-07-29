@@ -836,7 +836,6 @@ struct sip_auth {
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
-#define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)	/*!< P: ... */
 /* Space for addition of other realtime flags in the future */
 
 #define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
@@ -1262,6 +1261,7 @@ struct sip_peer {
 
 	/* things that don't belong in flags */
 	char is_realtime;		/*!< this is a 'realtime' peer */
+	char rt_fromcontact;		/*!< P: copy fromcontact from realtime */
 
 	int expire;			/*!<  When to expire this peer registration */
 	int capability;			/*!<  Codec capability */
@@ -8395,7 +8395,7 @@ static void destroy_association(struct sip_peer *peer)
 	char *tablename = (realtimeregs) ? "sipregs" : "sippeers";
 
 	if (!sip_cfg.ignore_regexpire) {
-		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT))
+		if (peer->rt_fromcontact)
 			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
 		else 
 			ast_db_del("SIP/Registry", peer->name);
@@ -8453,7 +8453,7 @@ static void reg_source_db(struct sip_peer *peer)
 	int port;
 	char *scan, *addr, *port_str, *expiry_str, *username, *contact;
 
-	if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 
+	if (peer->rt_fromcontact) 
 		return;
 	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data)))
 		return;
@@ -8674,7 +8674,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 		ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), expiry, peer->username, peer->fullcontact);
-	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT)) 
+	if (!peer->rt_fromcontact) 
 		ast_db_put("SIP/Registry", peer->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
 
@@ -17190,7 +17190,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			ast_copy_string(peer->name, v->value, sizeof(peer->name));
 		else if (realtime && !strcasecmp(v->name, "fullcontact")) {
 			ast_copy_string(peer->fullcontact, v->value, sizeof(peer->fullcontact));
-			ast_set_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT);
+			peer->rt_fromcontact = TRUE;
 		} else if (!strcasecmp(v->name, "secret")) 
 			ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 		else if (!strcasecmp(v->name, "md5secret")) 
