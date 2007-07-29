@@ -765,20 +765,23 @@ struct sip_auth {
 	When flags are used by multiple structures, it is important that
 	they have a common layout so it is easy to copy them.
 */
-#define SIP_NOVIDEO		(1 << 2)	/*!< D: Didn't get video in invite, don't offer */
-#define SIP_RINGING		(1 << 3)	/*!< D: Have sent 180 ringing */
-#define SIP_PROGRESS_SENT	(1 << 4)	/*!< D: Have sent 183 message progress */
-#define SIP_NEEDREINVITE	(1 << 5)	/*!< D: Do we need to send another reinvite? */
-#define SIP_PENDINGBYE		(1 << 6)	/*!< D: Need to send bye after we ack? */
-#define SIP_GOTREFER		(1 << 7)	/*!< D: Got a refer? */
+#define SIP_OUTGOING		(1 << 0)	/*!< D: Direction of the last transaction in this dialog */
+#define SIP_NOVIDEO		(1 << 1)	/*!< D: Didn't get video in invite, don't offer */
+#define SIP_RINGING		(1 << 2)	/*!< D: Have sent 180 ringing */
+#define SIP_PROGRESS_SENT	(1 << 3)	/*!< D: Have sent 183 message progress */
+#define SIP_NEEDREINVITE	(1 << 4)	/*!< D: Do we need to send another reinvite? */
+#define SIP_PENDINGBYE		(1 << 5)	/*!< D: Need to send bye after we ack? */
+#define SIP_GOTREFER		(1 << 6)	/*!< D: Got a refer? */
+#define SIP_CALL_LIMIT		(1 << 7)	/*!< D: Call limit enforced for this call */
+#define SIP_INC_COUNT		(1 << 8)	/*!< D: Did this dialog increment the counter of in-use calls? */
+#define SIP_INC_RINGING		(1 << 9)	/*!< D: Did this connection increment the counter of in-use calls? */
+#define SIP_DIALOG_ANSWEREDELSEWHERE	(1 << 10)	/*!< D: This call is cancelled due to answer on another channel */
+#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 11)	/*!< D: Do not hangup at first ast_hangup */
 
-#define SIP_PROMISCREDIR	(1 << 8)	/*!< DP: Promiscuous redirection */
-#define SIP_TRUSTRPID		(1 << 9)	/*!< DP: Trust RPID headers? */
-#define SIP_USEREQPHONE		(1 << 10)	/*!< DP: Add user=phone to numeric URI. Default off */
-#define SIP_USECLIENTCODE	(1 << 12)	/*!< DP: Trust X-ClientCode info message */
-#define SIP_OUTGOING		(1 << 13)	/*!< D: Direction of the last transaction in this dialog */
-#define SIP_DIALOG_ANSWEREDELSEWHERE	(1 << 14)	/*!< D: This call is cancelled due to answer on another channel */
-#define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< D: Do not hangup at first ast_hangup */
+#define SIP_PROMISCREDIR	(1 << 12)	/*!< DP: Promiscuous redirection */
+#define SIP_TRUSTRPID		(1 << 13)	/*!< DP: Trust RPID headers? */
+#define SIP_USEREQPHONE		(1 << 14)	/*!< DP: Add user=phone to numeric URI. Default off */
+#define SIP_USECLIENTCODE	(1 << 15)	/*!< DP: Trust X-ClientCode info message */
 
 /* DTMF flags - see str2dtmfmode() and dtmfmode2str() */
 #define SIP_DTMF		(3 << 16)	/*!< DP: DTMF Support: four settings, uses two bits */
@@ -811,16 +814,14 @@ struct sip_auth {
 #define SIP_PROG_INBAND_NO	(1 << 25)
 #define SIP_PROG_INBAND_YES	(2 << 25)
 
-#define SIP_CALL_LIMIT		(1 << 28)	/*!< D: Call limit enforced for this call */
 #define SIP_SENDRPID		(1 << 29)	/*!< DP: Remote Party-ID Support */
-#define SIP_INC_COUNT		(1 << 30)	/*!< D: Did this dialog increment the counter of in-use calls? */
 #define SIP_G726_NONSTANDARD	(1 << 31)	/*!< DP: Use non-standard packing for G726-32 data */
 
 /*! \brief Flags to copy from peer/user to dialog */
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_USECLIENTCODE | SIP_NAT | SIP_G726_NONSTANDARD | \
-	 SIP_USEREQPHONE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
+	 SIP_USEREQPHONE | SIP_INSECURE)
 
 /*--- a new page of flags (for flags[1] */
 /* realtime flags */
@@ -837,7 +838,6 @@ struct sip_auth {
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< DP: Allow overlap dialing ? */
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
-#define SIP_PAGE2_INC_RINGING		(1 << 19)	/*!< D: Did this connection increment the counter of in-use calls? */
 #define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
 #define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< GDP: 20: T38 Fax Passthrough Support */
 #define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< GDP: 21: T38 Fax Passthrough Support (not implemented) */
@@ -859,9 +859,9 @@ struct sip_auth {
 
 
 /* T.38 set of flags */
-#define T38FAX_FILL_BIT_REMOVAL		(1 << 0)	/*!< Default: 0 (unset)*/
+#define T38FAX_FILL_BIT_REMOVAL			(1 << 0)	/*!< Default: 0 (unset)*/
 #define T38FAX_TRANSCODING_MMR			(1 << 1)	/*!< Default: 0 (unset)*/
-#define T38FAX_TRANSCODING_JBIG		(1 << 2)	/*!< Default: 0 (unset)*/
+#define T38FAX_TRANSCODING_JBIG			(1 << 2)	/*!< Default: 0 (unset)*/
 /* Rate management */
 #define T38FAX_RATE_MANAGEMENT_TRANSFERED_TCF	(0 << 3)
 #define T38FAX_RATE_MANAGEMENT_LOCAL_TCF	(1 << 3)	/*!< Unset for transferredTCF (UDPTL), set for localTCF (TPKT) */
@@ -3645,9 +3645,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		} else
 			*inuse = 0;
 		/* Decrement ringing count if applicable */
-		if (inringing && ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+		if (inringing && ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 			ast_atomic_fetchadd_int(inringing, -1);
-			ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
+			ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 		}
 		/* Decrement onhold count if applicable */
 		if (ast_test_flag(&fup->flags[1], SIP_PAGE2_CALL_ONHOLD) && global_notifyhold) {
@@ -3672,9 +3672,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			}
 		}
 		if (inringing && (event == INC_CALL_RINGING)) {
-			if (!ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+			if (!ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 				ast_atomic_fetchadd_int(inringing, +1);
-				ast_set_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
+				ast_set_flag(&fup->flags[0], SIP_INC_RINGING);
 			}
 		}
 		/* Continue */
@@ -3686,9 +3686,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		break;
 
 	case DEC_CALL_RINGING:
-		if (inringing && ast_test_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING)) {
+		if (inringing && ast_test_flag(&fup->flags[0], SIP_INC_RINGING)) {
 			ast_atomic_fetchadd_int(inringing, -1);
-			ast_clear_flag(&fup->flags[1], SIP_PAGE2_INC_RINGING);
+			ast_clear_flag(&fup->flags[0], SIP_INC_RINGING);
 		}
 		break;
 
@@ -16715,8 +16715,8 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			}
 		}
 	} else if (!strcasecmp(v->name, "insecure")) {
-		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+		ast_set_flag(&mask[0], SIP_INSECURE);
+		ast_clear_flag(&flags[0], SIP_INSECURE);
 		if (!ast_false(v->value)) {
 			char buf[64];
 			char *word, *next;
