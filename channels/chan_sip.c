@@ -571,6 +571,15 @@ static char default_mohsuggest[MAX_MUSICCLASS];	   /*!< Global setting for moh c
 static int default_maxcallbitrate;	/*!< Maximum bitrate for call */
 static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
+/*! \brief a place to store all global settings for the sip channel driver */
+struct sip_settings {
+	int peer_rtupdate;	/*!< G: Update database with registration data for peer? */
+	int rtsave_sysname;	/*!< G: Save system name at registration? */
+	int ignore_regexpire;	/*!< G: Ignore expiration of peer  */
+};
+
+static struct sip_settings sip_cfg;
+
 /* Global settings only apply to the channel */
 static int global_directrtpsetup;	/*!< Enable support for Direct RTP setup (no re-invites) */
 static int global_limitonpeers;		/*!< Match call limit on peers only */
@@ -826,13 +835,10 @@ struct sip_auth {
 /*--- a new page of flags (for flags[1] */
 /* realtime flags */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)	/*!< GP: Should we keep RT objects in memory for extended time? */
-#define SIP_PAGE2_RTUPDATE		(1 << 1)	/*!< G: Update database with registration data for peer? */
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)	/*!< GP: Should we clean memory from peers after expiry? */
 #define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)	/*!< P: ... */
-#define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)	/*!< G: Save system name at registration? */
 /* Space for addition of other realtime flags in the future */
 
-#define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)	/*!< G: Ignore expiration of peer  */
 #define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
 #define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< P: Automatic peers need to destruct themselves */
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)	/*!< DP: Video supported if offered? */
@@ -2828,7 +2834,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 	
 	if (ast_strlen_zero(sysname))	/* No system name, disable this */
 		sysname = NULL;
-	else if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTSAVE_SYSNAME))
+	else if (sip_cfg.rtsave_sysname)
 		syslabel = "regserver";
 
 	if (fc)
@@ -2924,7 +2930,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 static void update_peer(struct sip_peer *p, int expiry)
 {
 	int rtcachefriends = ast_test_flag(&p->flags[1], SIP_PAGE2_RTCACHEFRIENDS);
-	if (ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE) &&
+	if (sip_cfg.peer_rtupdate &&
 	    (p->is_realtime || rtcachefriends)) {
 		realtime_update_peer(p->name, &p->addr, p->username, rtcachefriends ? p->fullcontact : NULL, expiry);
 	}
@@ -8388,7 +8394,7 @@ static void destroy_association(struct sip_peer *peer)
 	int realtimeregs = ast_check_realtime("sipregs");
 	char *tablename = (realtimeregs) ? "sipregs" : "sippeers";
 
-	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE)) {
+	if (!sip_cfg.ignore_regexpire) {
 		if (ast_test_flag(&peer->flags[1], SIP_PAGE2_RT_FROMCONTACT))
 			ast_update_realtime(tablename, "name", peer->name, "fullcontact", "", "ipaddr", "", "port", "", "regseconds", "0", "username", "", "regserver", "", NULL);
 		else 
@@ -11471,9 +11477,9 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Realtime Users:         %s\n", realtimeusers ? "Yes" : "No");
 		ast_cli(fd, "  Realtime Regs:          %s\n", realtimeregs ? "Yes" : "No");
 		ast_cli(fd, "  Cache Friends:          %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
-		ast_cli(fd, "  Update:                 %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
-		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No");
-		ast_cli(fd, "  Save sys. name:         %s\n", ast_test_flag(&global_flags[1], SIP_PAGE2_RTSAVE_SYSNAME) ? "Yes" : "No");
+		ast_cli(fd, "  Update:                 %s\n", sip_cfg.peer_rtupdate ? "Yes" : "No");
+		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", sip_cfg.ignore_regexpire ? "Yes" : "No");
+		ast_cli(fd, "  Save sys. name:         %s\n", sip_cfg.rtsave_sysname ? "Yes" : "No");
 		ast_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
 	}
 	ast_cli(fd, "\n----\n");
@@ -17354,7 +17360,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 				peer->maxcallbitrate = default_maxcallbitrate;
 		}
 	}
-	if (!ast_test_flag(&global_flags[1], SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
+	if (!sip_cfg.ignore_regexpire && ast_test_flag(&peer->flags[1], SIP_PAGE2_DYNAMIC) && realtime) {
 		time_t nowtime = time(NULL);
 
 		if ((nowtime - regseconds) > 0) {
@@ -17492,7 +17498,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_rtautoclear = 120;
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWSUBSCRIBE);	/* Default for peers, users: TRUE */
 	ast_set_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP);		/* Default for peers, users: TRUE */
-	ast_set_flag(&global_flags[1], SIP_PAGE2_RTUPDATE);
+	sip_cfg.peer_rtupdate = TRUE;
 
 	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for peers and users */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
@@ -17549,11 +17555,11 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
 			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
 		} else if (!strcasecmp(v->name, "rtsavesysname")) {
-			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTSAVE_SYSNAME);	
+			sip_cfg.rtsave_sysname = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtupdate")) {
-			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_RTUPDATE);	
+			sip_cfg.peer_rtupdate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ignoreregexpire")) {
-			ast_set2_flag(&global_flags[1], ast_true(v->value), SIP_PAGE2_IGNOREREGEXPIRE);	
+			sip_cfg.ignore_regexpire = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "t1min")) {
 			global_t1min = atoi(v->value);
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
