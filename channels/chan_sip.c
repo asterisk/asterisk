@@ -1780,31 +1780,12 @@ static const struct ast_channel_tech sip_tech = {
 };
 
 /*! \brief This version of the sip channel tech has no send_digit_begin
- *  callback.  This is for use with channels using SIP INFO DTMF so that
- *  the core knows that the channel doesn't want DTMF BEGIN frames. */
-static const struct ast_channel_tech sip_tech_info = {
-	.type = "SIP",
-	.description = "Session Initiation Protocol (SIP)",
-	.capabilities = AST_FORMAT_AUDIO_MASK,	/* all audio formats */
-	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
-	.requester = sip_request_call,
-	.devicestate = sip_devicestate,
-	.call = sip_call,
-	.hangup = sip_hangup,
-	.answer = sip_answer,
-	.read = sip_read,
-	.write = sip_write,
-	.write_video = sip_write,
-	.write_text = sip_write,
-	.indicate = sip_indicate,
-	.transfer = sip_transfer,
-	.fixup = sip_fixup,
-	.send_digit_end = sip_senddigit_end,
-	.bridge = ast_rtp_bridge,
-	.early_bridge = ast_rtp_early_bridge,
-	.send_text = sip_sendtext,
-	.func_channel_read = acf_channel_read,
-};
+ * callback so that the core knows that the channel does not want
+ * DTMF BEGIN frames.
+ * The struct is initialized just before registering the channel driver,
+ * and is for use with channels using SIP INFO DTMF.
+ */
+static struct ast_channel_tech sip_tech_info;
 
 /* wrapper macro to tell whether t points to one of the sip_tech descriptors */
 #define IS_SIP_TECH(t)  ((t) == &sip_tech || (t) == &sip_tech_info)
@@ -18650,6 +18631,13 @@ static int load_module(void)
 
 	if(reload_config(sip_reloadreason))	/* Load the configuration from sip.conf */
 		return AST_MODULE_LOAD_DECLINE;
+
+	/* Prepare the version that does not require DTMF BEGIN frames.
+	 * We need to use tricks such as memcopy and casts because the variable
+	 * has const fields.
+	 */
+	memcpy(&sip_tech_info, &sip_tech, sizeof(sip_tech));
+	*((void **)&sip_tech_info.send_digit_begin) = NULL;
 
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
