@@ -18519,10 +18519,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 		ast_verbose("Previous SIP reload not yet done\n");
 	else {
 		sip_reloading = TRUE;
-		if (fd)
-			sip_reloadreason = CHANNEL_CLI_RELOAD;
-		else
-			sip_reloadreason = CHANNEL_MODULE_RELOAD;
+		sip_reloadreason = fd ? CHANNEL_CLI_RELOAD : CHANNEL_MODULE_RELOAD;
 	}
 	ast_mutex_unlock(&sip_reload_lock);
 	restart_monitor();
