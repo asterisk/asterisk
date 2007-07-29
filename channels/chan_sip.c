@@ -831,6 +831,7 @@ struct sip_auth {
 #define SIP_PAGE2_RT_FROMCONTACT 	(1 << 4)	/*!< P: ... */
 #define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)	/*!< G: Save system name at registration? */
 /* Space for addition of other realtime flags in the future */
+
 #define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)	/*!< G: Ignore expiration of peer  */
 #define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
 #define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< P: Automatic peers need to destruct themselves */
@@ -838,19 +839,22 @@ struct sip_auth {
 #define SIP_PAGE2_ALLOWSUBSCRIBE	(1 << 16)	/*!< GP: Allow subscriptions from this peer? */
 #define SIP_PAGE2_ALLOWOVERLAP		(1 << 17)	/*!< DP: Allow overlap dialing ? */
 #define SIP_PAGE2_SUBSCRIBEMWIONLY	(1 << 18)	/*!< GP: Only issue MWI notification if subscribed to */
+
 #define SIP_PAGE2_T38SUPPORT		(7 << 20)	/*!< GDP: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< GDP: 20: T38 Fax Passthrough Support */
-#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< GDP: 21: T38 Fax Passthrough Support (not implemented) */
-#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< GDP: 22: T38 Fax Passthrough Support (not implemented) */
-#define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< D: Call hold states */
-#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< D: 23: Active hold */
-#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(2 << 23)	/*!< D: 23: One directional hold */
-#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(3 << 23)	/*!< D: 23: Inactive hold */
-#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: 25: Compensate for buggy RFC2833 implementations */
-#define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: 26: Buggy CISCO MWI fix */
-#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< GPD: 27: Text not supported  */
-#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GPD: 28: Global text enable */
-#define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< D: 30: Is this an outgoing call? */
+#define SIP_PAGE2_T38SUPPORT_UDPTL	(1 << 20)	/*!< GDP: T38 Fax Passthrough Support */
+#define SIP_PAGE2_T38SUPPORT_RTP	(2 << 20)	/*!< GDP: T38 Fax Passthrough Support (not implemented) */
+#define SIP_PAGE2_T38SUPPORT_TCP	(4 << 20)	/*!< GDP: T38 Fax Passthrough Support (not implemented) */
+
+#define SIP_PAGE2_CALL_ONHOLD		(3 << 23)	/*!< D: Call hold states: */
+#define SIP_PAGE2_CALL_ONHOLD_ACTIVE    (1 << 23)       /*!< D: Active hold */
+#define SIP_PAGE2_CALL_ONHOLD_ONEDIR	(2 << 23)	/*!< D: One directional hold */
+#define SIP_PAGE2_CALL_ONHOLD_INACTIVE	(3 << 23)	/*!< D: Inactive hold */
+
+#define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: Compensate for buggy RFC2833 implementations */
+#define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: Buggy CISCO MWI fix */
+#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< GDP: Text not supported  */
+#define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GDP: Global text enable */
+#define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< D: Is this an outgoing call? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -1752,7 +1756,7 @@ static int sip_set_udptl_peer(struct ast_channel *chan, struct ast_udptl *udptl)
 static const struct ast_channel_tech sip_tech = {
 	.type = "SIP",
 	.description = "Session Initiation Protocol (SIP)",
-	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = AST_FORMAT_AUDIO_MASK,	/* all audio formats */
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = sip_request_call,			/* called with chan unlocked */
 	.devicestate = sip_devicestate,			/* called with chan unlocked (not chan-specific) */
@@ -1781,7 +1785,7 @@ static const struct ast_channel_tech sip_tech = {
 static const struct ast_channel_tech sip_tech_info = {
 	.type = "SIP",
 	.description = "Session Initiation Protocol (SIP)",
-	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = AST_FORMAT_AUDIO_MASK,	/* all audio formats */
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = sip_request_call,
 	.devicestate = sip_devicestate,
@@ -16570,7 +16574,15 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	char *dest = data;
 
 	oldformat = format;
-	if (!(format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1))) {
+	/* mask request with some set of allowed formats.
+	 * XXX this needs to be fixed.
+	 * The original code uses AST_FORMAT_AUDIO_MASK, but it is
+	 * unclear what to use here. We have global_capabilities, which is
+	 * configured from sip.conf, and sip_tech.capabilities, which is
+	 * hardwired to all audio formats.
+	 */
+	format &= AST_FORMAT_AUDIO_MASK;
+	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(global_capability));
 		*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;	/* Can't find codec to connect to host */
 		return NULL;
