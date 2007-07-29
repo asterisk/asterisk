@@ -654,13 +654,31 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 #define INC_CALL_RINGING 3
 
 /*! \brief sip_request: The data grabbed from the UDP socket
- * data[] contains the packet itself, additional fields are set
- * after parsing.
+ *
+ * Incoming messages: we first store the data from the socket in data[],
+ * adding a trailing \0 to make string parsing routines happy.
+ * Then call parse_request() and req.method = find_sip_method();
+ * to initialize the other fields. The \r\n at the end of each line is   
+ * replaced by \0, so that data[] is not a conforming SIP message anymore.
+ * After this processing, rlPart1 is set to non-NULL to remember
+ * that we can run get_header() on this kind of packet.
+ *
+ * parse_request() splits the first line as follows:
+ * Requests have in the first line      method uri SIP/2.0
+ *      rlPart1 = method; rlPart2 = uri;
+ * Responses have in the first line     SIP/2.0 NNN description
+ *      rlPart1 = SIP/2.0; rlPart2 = NNN + description;
+ *
+ * For outgoing packets, we initialize the fields with init_req() or init_resp()
+ * (which fills the first line to "METHOD uri SIP/2.0" or "SIP/2.0 code text"),
+ * and then fill the rest with add_header() and add_line().
+ * The \r\n at the end of the line are still there, so the get_header()
+ * and similar functions don't work on these packets. 
  */
 struct sip_request {
 	char *rlPart1; 	        /*!< SIP Method Name or "SIP/2.0" protocol version */
 	char *rlPart2; 	        /*!< The Request URI or Response Status */
-	int len;                /*!< Length */
+	int len;                /*!< bytes used in data[], excluding trailing '\0'. Rarely used. */
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
@@ -673,25 +691,6 @@ struct sip_request {
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
 };
-
-/*
- * A sip packet is stored into the data[] buffer, with the header followed
- * by an empty line and the body of the message.
- * On outgoing packets, data is accumulated in data[] with len reflecting
- * the next available byte, headers and lines count the number of lines
- * in both parts. There are no '\0' in data[0..len-1].
- *
- * On received packet, the input read from the socket is copied into data[],
- * len is set and the string is NUL-terminated. Then a parser fills up
- * the other fields -header[] and line[] to point to the lines of the
- * message, rlPart1 and rlPart2 parse the first lnie as below:
- *
- * Requests have in the first line	METHOD URI SIP/2.0
- *	rlPart1 = method; rlPart2 = uri;
- * Responses have in the first line	SIP/2.0 code description
- *	rlPart1 = SIP/2.0; rlPart2 = code + description;
- *
- */
 
 /*! \brief structure used in transfers */
 struct sip_dual {
@@ -766,48 +765,52 @@ struct sip_auth {
 	When flags are used by multiple structures, it is important that
 	they have a common layout so it is easy to copy them.
 */
-#define __SIP_ALREADYGONE		(1 << 0)	/*!< D: Whether or not we've already been destroyed by our peer */
-#define __SIP_NEEDDESTROY		(1 << 1)	/*!< D: if we need to be destroyed by the monitor thread */
 #define SIP_NOVIDEO		(1 << 2)	/*!< D: Didn't get video in invite, don't offer */
 #define SIP_RINGING		(1 << 3)	/*!< D: Have sent 180 ringing */
 #define SIP_PROGRESS_SENT	(1 << 4)	/*!< D: Have sent 183 message progress */
 #define SIP_NEEDREINVITE	(1 << 5)	/*!< D: Do we need to send another reinvite? */
 #define SIP_PENDINGBYE		(1 << 6)	/*!< D: Need to send bye after we ack? */
 #define SIP_GOTREFER		(1 << 7)	/*!< D: Got a refer? */
+
 #define SIP_PROMISCREDIR	(1 << 8)	/*!< DP: Promiscuous redirection */
 #define SIP_TRUSTRPID		(1 << 9)	/*!< DP: Trust RPID headers? */
 #define SIP_USEREQPHONE		(1 << 10)	/*!< DP: Add user=phone to numeric URI. Default off */
-#define __SIP_REALTIME			(1 << 11)	/*!< P: Flag for realtime users */
 #define SIP_USECLIENTCODE	(1 << 12)	/*!< DP: Trust X-ClientCode info message */
 #define SIP_OUTGOING		(1 << 13)	/*!< D: Direction of the last transaction in this dialog */
 #define SIP_DIALOG_ANSWEREDELSEWHERE	(1 << 14)	/*!< D: This call is cancelled due to answer on another channel */
 #define SIP_DEFER_BYE_ON_TRANSFER	(1 << 15)	/*!< D: Do not hangup at first ast_hangup */
+
+/* DTMF flags - see str2dtmfmode() and dtmfmode2str() */
 #define SIP_DTMF		(3 << 16)	/*!< DP: DTMF Support: four settings, uses two bits */
 #define SIP_DTMF_RFC2833	(0 << 16)	/*!< DP: DTMF Support: RTP DTMF - "rfc2833" */
 #define SIP_DTMF_INBAND		(1 << 16)	/*!< DP: DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
 #define SIP_DTMF_INFO		(2 << 16)	/*!< DP: DTMF Support: SIP Info messages - "info" */
 #define SIP_DTMF_AUTO		(3 << 16)	/*!< DP: DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
-/* NAT settings */
+
+/* NAT settings - see nat2str() */
 #define SIP_NAT			(3 << 18)	/*!< DP: four settings, uses two bits */
 #define SIP_NAT_NEVER		(0 << 18)	/*!< DP: No nat support */
 #define SIP_NAT_RFC3581		(1 << 18)	/*!< DP: NAT RFC3581 */
 #define SIP_NAT_ROUTE		(2 << 18)	/*!< DP: NAT Only ROUTE */
 #define SIP_NAT_ALWAYS		(3 << 18)	/*!< DP: NAT Both ROUTE and RFC3581 */
+
 /* re-INVITE related settings */
 #define SIP_REINVITE		(7 << 20)	/*!< DP: three bits used */
 #define SIP_CAN_REINVITE	(1 << 20)	/*!< DP: allow peers to be reinvited to send media directly p2p */
 #define SIP_CAN_REINVITE_NAT	(2 << 20)	/*!< DP: allow media reinvite when new peer is behind NAT */
 #define SIP_REINVITE_UPDATE	(4 << 20)	/*!< DP: use UPDATE (RFC3311) when reinviting this peer */
-/* "insecure" settings */
+
+/* "insecure" settings - see insecure2str() */
 #define SIP_INSECURE		(3 << 23)	/*!< DP: two bits used */
 #define SIP_INSECURE_PORT	(1 << 23)	/*!< DP: don't require matching port for incoming requests */
 #define SIP_INSECURE_INVITE	(1 << 24)	/*!< DP: don't require authentication for incoming INVITEs */
+
 /* Sending PROGRESS in-band settings */
 #define SIP_PROG_INBAND		(3 << 25)	/*!< DP: three settings, uses two bits */
 #define SIP_PROG_INBAND_NEVER	(0 << 25)
 #define SIP_PROG_INBAND_NO	(1 << 25)
 #define SIP_PROG_INBAND_YES	(2 << 25)
-#define __SIP_NO_HISTORY		(1 << 27)	/*!< D: Suppress recording request/response history */
+
 #define SIP_CALL_LIMIT		(1 << 28)	/*!< D: Call limit enforced for this call */
 #define SIP_SENDRPID		(1 << 29)	/*!< DP: Remote Party-ID Support */
 #define SIP_INC_COUNT		(1 << 30)	/*!< D: Did this dialog increment the counter of in-use calls? */
@@ -828,9 +831,6 @@ struct sip_auth {
 #define SIP_PAGE2_RTSAVE_SYSNAME 	(1 << 5)	/*!< G: Save system name at registration? */
 /* Space for addition of other realtime flags in the future */
 #define SIP_PAGE2_IGNOREREGEXPIRE	(1 << 10)	/*!< G: Ignore expiration of peer  */
-#define __SIP_PAGE2_DEBUG			(3 << 11)	/*!< G: Debug flags */
-#define __SIP_PAGE2_DEBUG_CONFIG 		(1 << 11)	/*!< G: Debug flags */
-#define __SIP_PAGE2_DEBUG_CONSOLE 		(1 << 12)	/*!< G: Debug flags */
 #define SIP_PAGE2_DYNAMIC		(1 << 13)	/*!< P: Dynamic Peers register with Asterisk */
 #define SIP_PAGE2_SELFDESTRUCT		(1 << 14)	/*!< P: Automatic peers need to destruct themselves */
 #define SIP_PAGE2_VIDEOSUPPORT		(1 << 15)	/*!< DP: Video supported if offered? */
@@ -850,7 +850,6 @@ struct sip_auth {
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: 26: Buggy CISCO MWI fix */
 #define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< GPD: 27: Text not supported  */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GPD: 28: Global text enable */
-#define __SIP_PAGE2_DEBUG_TEXT		(1 << 29)	/*!< GPD: 29: Global text debug */
 #define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< D: 30: Is this an outgoing call? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
