@@ -1878,10 +1878,11 @@ static void unref_user(struct sip_user *user)
 	ASTOBJ_UNREF(user, sip_destroy_user);
 }
 
-static void registry_unref(struct sip_registry *reg)
+static void *registry_unref(struct sip_registry *reg)
 {
 	ast_debug(3, "SIP Registry %s: refcount now %d\n", reg->hostname, reg->refcount - 1);
 	ASTOBJ_UNREF(reg, sip_registry_destroy);
+	return NULL;
 }
 
 /*! \brief Add object reference to SIP registry */
@@ -3531,7 +3532,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	if (p->registry) {
 		if (p->registry->call == p)
 			p->registry->call = NULL;
-		registry_unref(p->registry);
+		p->registry = registry_unref(p->registry);
 	}
 
 	/* Unlink us from the owner if we have one */
@@ -7994,17 +7995,18 @@ static int sip_reg_timeout(void *data)
 		/* Unlink us, destroy old call.  Locking is not relevant here because all this happens
 		   in the single SIP manager thread. */
 		p = r->call;
-		if (p->registry) {
-			registry_unref(p->registry);
-			p->registry = NULL;
-		}
-		r->call = NULL;
 		p->needdestroy = 1;
 		/* Pretend to ACK anything just in case */
 		__sip_pretend_ack(p); /* XXX we need p locked, not sure we have */
+
+		/* decouple the two objects */
+		/* p->registry == r, so r has 2 refs, and the unref won't take the object away */
+		if (p->registry)
+			p->registry = registry_unref(p->registry);
+		r->call = dialog_unref(r->call);
 	}
 	/* If we have a limit, stop registration and give up */
-	if (global_regattempts_max && (r->regattempts > global_regattempts_max)) {
+	if (global_regattempts_max && r->regattempts > global_regattempts_max) {
 		/* Ok, enough is enough. Don't try any more */
 		/* We could add an external notification here... 
 			steal it from app_voicemail :-) */
