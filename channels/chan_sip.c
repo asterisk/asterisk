@@ -775,7 +775,6 @@ struct sip_auth {
 	they have a common layout so it is easy to copy them.
 */
 #define SIP_OUTGOING		(1 << 0)	/*!< D: Direction of the last transaction in this dialog */
-#define SIP_NOVIDEO		(1 << 1)	/*!< D: Didn't get video in invite, don't offer */
 #define SIP_RINGING		(1 << 2)	/*!< D: Have sent 180 ringing */
 #define SIP_PROGRESS_SENT	(1 << 3)	/*!< D: Have sent 183 message progress */
 #define SIP_NEEDREINVITE	(1 << 4)	/*!< D: Do we need to send another reinvite? */
@@ -784,7 +783,6 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 7)	/*!< D: Call limit enforced for this call */
 #define SIP_INC_COUNT		(1 << 8)	/*!< D: Did this dialog increment the counter of in-use calls? */
 #define SIP_INC_RINGING		(1 << 9)	/*!< D: Did this connection increment the counter of in-use calls? */
-#define SIP_DIALOG_ANSWEREDELSEWHERE	(1 << 10)	/*!< D: This call is cancelled due to answer on another channel */
 #define SIP_DEFER_BYE_ON_TRANSFER	(1 << 11)	/*!< D: Do not hangup at first ast_hangup */
 
 #define SIP_PROMISCREDIR	(1 << 12)	/*!< DP: Promiscuous redirection */
@@ -855,9 +853,7 @@ struct sip_auth {
 
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: Compensate for buggy RFC2833 implementations */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: Buggy CISCO MWI fix */
-#define SIP_PAGE2_NOTEXT		(1 << 27)	/*!< GDP: Text not supported  */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GDP: Global text enable */
-#define SIP_PAGE2_OUTGOING_CALL         (1 << 30)       /*!< D: Is this an outgoing call? */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -1049,6 +1045,10 @@ struct sip_pvt {
 	char do_history;			/*!< Set if we want to record history */
 	char alreadygone;			/*!< already destroyed by our peer */
 	char needdestroy;			/*!< need to be destroyed by the monitor thread */
+	char outgoing_call;			/*!< this is an outgoing call */
+	char answered_elsewhere;		/*!< This call is cancelled due to answer on another channel */
+	char novideo;				/*!< Didn't get video in invite, don't offer */
+	char notext;				/*!< Text not supported  (?) */
 
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
@@ -3596,7 +3596,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256];
 	int *inuse = NULL, *call_limit = NULL, *inringing = NULL;
-	int outgoing = ast_test_flag(&fup->flags[1], SIP_PAGE2_OUTGOING_CALL);
+	int outgoing = fup->outgoing_call;
 	struct sip_user *u = NULL;
 	struct sip_peer *p = NULL;
 
@@ -3883,7 +3883,7 @@ static int sip_hangup(struct ast_channel *ast)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "This call was answered elsewhere");
 		append_history(p, "Cancel", "Call answered elsewhere");
-		ast_set_flag(&p->flags[0], SIP_DIALOG_ANSWEREDELSEWHERE);
+		p->answered_elsewhere = TRUE;
 	}
 
 	if (ast_test_flag(&p->flags[0], SIP_DEFER_BYE_ON_TRANSFER)) {
@@ -4347,7 +4347,7 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 		ast_moh_stop(ast);
 		break;
 	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
-		if (p->vrtp && !ast_test_flag(&p->flags[0], SIP_NOVIDEO)) {
+		if (p->vrtp && !p->novideo) {
 			transmit_info_with_vidupdate(p);
 			/* ast_rtcp_send_h261fur(p->vrtp); */
 		} else
@@ -5451,11 +5451,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		return -1;
 	}
 	vhp = hp;	/* Copy to video address as default too */
-	thp = hp;	/* Copy to video address as default too */
+	thp = hp;	/* Copy to text address as default too */
 	
 	iterator = req->sdp_start;
-	ast_set_flag(&p->flags[0], SIP_NOVIDEO);	
-	ast_set_flag(&p->flags[1], SIP_PAGE2_NOTEXT);	
+	/* default: novideo and notext set */
+	p->novideo = TRUE;
+	p->notext = TRUE;
 
 	if (p->vrtp)
 		ast_rtp_pt_clear(newvideortp);  /* Must be cleared in case no m=video line exists */
@@ -5490,7 +5491,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		} else if ((sscanf(m, "video %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
 			video = TRUE;
-			ast_clear_flag(&p->flags[0], SIP_NOVIDEO);	
+			p->novideo = FALSE;
 			numberofmediastreams++;
 			vportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -5506,7 +5507,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		} else if ((sscanf(m, "text %d/%d RTP/AVP %n", &x, &numberofports, &len) == 2) ||
 		    (sscanf(m, "text %d RTP/AVP %n", &x, &len) == 1)) {
 			text = TRUE;
-			ast_clear_flag(&p->flags[1], SIP_PAGE2_NOTEXT);	
+			p->notext = FALSE;
 			numberofmediastreams++;
 			tportno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
@@ -6960,8 +6961,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	capability = p->jointcapability;
 
+	/* XXX note, Video and Text are negated - 'true' means 'no' */
  	ast_debug(1, "** Our capability: %s Video flag: %s Text flag: %s\n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), capability), 
- 		ast_test_flag(&p->flags[0], SIP_NOVIDEO) ? "True" : "False", ast_test_flag(&p->flags[1], SIP_PAGE2_NOTEXT) ? "True" : "False");
+ 		p->novideo ? "True" : "False", p->notext ? "True" : "False");
 	ast_debug(1, "** Our prefcodec: %s \n", ast_getformatname_multiple(codecbuf, sizeof(codecbuf), p->prefcodec));
 	
 #ifdef WHEN_WE_HAVE_T38_FOR_OTHER_TRANSPORTS
@@ -6972,7 +6974,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 #endif
 
 	/* Check if we need video in this call */
-	if ((capability & AST_FORMAT_VIDEO_MASK) && !ast_test_flag(&p->flags[0], SIP_NOVIDEO)) {
+	if ((capability & AST_FORMAT_VIDEO_MASK) && !p->novideo) {
 		if (p->vrtp) {
 			needvideo = TRUE;
 			ast_debug(2, "This call needs video offers!\n");
@@ -6999,7 +7001,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Check if we need text in this call */
-	if((capability & AST_FORMAT_TEXT_MASK) && !ast_test_flag(&p->flags[1], SIP_PAGE2_NOTEXT)) {
+	if((capability & AST_FORMAT_TEXT_MASK) && !p->notext) {
 		if (sipdebug_text)
 			ast_verbose("We think we can do text\n");
 		if (p->trtp) {
@@ -8334,7 +8336,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, enum xm
 		p->invitestate = INV_CONFIRMED;
 
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
-	if (sipmethod == SIP_CANCEL && ast_test_flag(&p->flags[0], SIP_DIALOG_ANSWEREDELSEWHERE)) 
+	if (sipmethod == SIP_CANCEL && p->answered_elsewhere) 
 		add_header(&resp, "Reason:", "SIP;cause=200;text=\"Call completed elsewhere\"");
 
 	add_header_contentLength(&resp, 0);
@@ -16592,7 +16594,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		return NULL;
 	}
 
-	ast_set_flag(&p->flags[1], SIP_PAGE2_OUTGOING_CALL);
+	p->outgoing_call = TRUE;
 
 	if (!(p->options = ast_calloc(1, sizeof(*p->options)))) {
 		sip_destroy(p);
