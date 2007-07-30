@@ -8337,7 +8337,7 @@ static void *network_thread(void *ignore)
 
 			if (f->retries < 0) {
 				/* This is not supposed to be retransmitted */
-				AST_LIST_REMOVE(&iaxq.queue, f, list);
+				AST_LIST_REMOVE_CURRENT(&iaxq.queue, list);
 				iaxq.count--;
 				/* Free the iax frame */
 				iax_frame_free(f);
