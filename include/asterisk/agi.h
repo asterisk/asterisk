@@ -30,7 +30,7 @@ extern "C" {
 typedef struct agi_state {
 	int fd;		/* FD for general output */
 	int audio;	/* FD for audio output */
-	int ctrl;	/* FD for input control */
+	int ctrl;		/* FD for input control */
 } AGI;
 
 typedef struct agi_command {
@@ -45,12 +45,17 @@ typedef struct agi_command {
 	char *usage;
 	/* Does this application run dead */
 	int dead;
+	/* Pointer to module that registered the agi command */
+	struct ast_module *mod;
 	/* Linked list pointer */
 	AST_LIST_ENTRY(agi_command) list;
 } agi_command;
 
-int ast_agi_register(agi_command *cmd);
-int ast_agi_unregister(agi_command *cmd);
+void ast_agi_fdprintf(int fd, char *fmt, ...);
+int ast_agi_register(struct ast_module *mod, agi_command *cmd);
+int ast_agi_unregister(struct ast_module *mod, agi_command *cmd);
+void ast_agi_register_multiple(struct ast_module *mod, agi_command *cmd, int len);
+void ast_agi_unregister_multiple(struct ast_module *mod, agi_command *cmd, int len);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
