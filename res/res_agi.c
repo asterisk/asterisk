@@ -139,9 +139,7 @@ int ast_agi_fdprintf(int fd, char *fmt, ...)
 	if (agidebug)
 		ast_verbose("AGI Tx >> %s", buf->str);
 
-	ast_carefulwrite(fd, buf->str, buf->used, 100);
-
-	return res;
+	return ast_carefulwrite(fd, buf->str, buf->used, 100);
 }
 
 /* launch_netscript: The fastagi handler.
