@@ -931,10 +931,11 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 	struct ast_channel *c;
 	const struct ast_channel *_prev = prev;
 
-	for (retries = 0; retries < 10; retries++) {
+	for (retries = 0; retries < 10; retries++, prev = _prev) {
 		int done;
 		AST_RWLIST_RDLOCK(&channels);
 		AST_RWLIST_TRAVERSE(&channels, c, chan_list) {
+			prev = _prev;
 			if (prev) {	/* look for next item */
 				if (c != prev)	/* not this one */
 					continue;
@@ -948,6 +949,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				/* We want prev to be NULL in case we end up doing more searching through
 				 * the channel list to find the channel (ie: name searching). If we didn't
 				 * set this to NULL the logic would just blow up
+				 * XXX Need a better explanation for this ...
 				 */
 			}
 			if (name) { /* want match by name */
