@@ -8839,7 +8839,7 @@ static void *network_thread(void *ignore)
 				continue;
 			}
 
-			f->sentyet++;
+			f->sentyet = 1;
 
 			if (iaxs[f->callno]) {
 				send_packet(f);
