@@ -3115,7 +3115,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		fmt = format & AST_FORMAT_AUDIO_MASK;
 		res = ast_translator_best_choice(&fmt, &capabilities);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
+			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native 0x%x) to 0x%x\n", type, chan->tech->capabilities, format);
 			*cause = AST_CAUSE_BEARERCAPABILITY_NOTAVAIL;
 			AST_RWLIST_UNLOCK(&channels);
 			return NULL;
