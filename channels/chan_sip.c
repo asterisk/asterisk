@@ -57,9 +57,9 @@
  * sipsock_read(). This function parses the packet and matches an existing
  * dialog or starts a new SIP dialog.
  * 
- * sipsock_read sends the packet to handle_request(), that parses a bit more.
- * if it's a response to an outbound request, it's sent to handle_response().
- * If it is a request, handle_request sends it to one of a list of functions
+ * sipsock_read sends the packet to handle_incoming(), that parses a bit more.
+ * If it is a response to an outbound request, the packet is sent to handle_response().
+ * If it is a request, handle_incoming() sends it to one of a list of functions
  * depending on the request type - INVITE, OPTIONS, REFER, BYE, CANCEL etc
  * sipsock_read locks the ast_channel if it exists (an active call) and
  * unlocks it after we have processed the SIP message.
@@ -1724,7 +1724,7 @@ static void build_contact(struct sip_pvt *p);
 static void build_rpid(struct sip_pvt *p);
 
 /*------Request handling functions */
-static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
+static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock);
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, struct sockaddr_in *sin, int *recount, char *e, int *nounlock);
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int seqno, int *nounlock);
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req);
@@ -4969,7 +4969,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 /*! \brief find or create a dialog structure for an incoming SIP message.
  * Connect incoming SIP message to current dialog or create new dialog structure
  * Returns a reference to the sip_pvt object, remember to give it back once done.
- *     Called by handle_request, sipsock_read
+ *     Called by handle_incoming(), sipsock_read
  */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
@@ -13370,7 +13370,7 @@ static void stop_media_flows(struct sip_pvt *p)
 }
 
 /*! \brief Handle SIP response in dialogue */
-/* XXX only called by handle_request */
+/* XXX only called by handle_incoming */
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int seqno)
 {
 	struct ast_channel *owner;
@@ -15823,7 +15823,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, s
 /*! \brief Handle incoming SIP requests (methods) 
 \note	This is where all incoming requests go first   */
 /* called with p and p->owner locked */
-static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
+static int handle_incoming(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
 {
 	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
 	   relatively static */
@@ -16038,7 +16038,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 /*! \brief Read data from SIP socket
 \note sipsock_read locks the owner channel while we are processing the SIP message
 \return 1 on error, 0 on success
-\note Successful messages is connected to SIP call and forwarded to handle_request() 
+\note Successful messages is connected to SIP call and forwarded to handle_incoming() 
 */
 static int sipsock_read(int *id, int fd, short events, void *ignore)
 {
@@ -16122,7 +16122,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 	nounlock = 0;
-	if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
+	if (handle_incoming(p, &req, &sin, &recount, &nounlock) == -1) {
 		/* Request failed */
 		ast_debug(1, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 	}
