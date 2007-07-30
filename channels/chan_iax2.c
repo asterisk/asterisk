@@ -2006,7 +2006,7 @@ static void __attempt_transmit(void *data)
 	/* Attempt to transmit the frame to the remote peer...
 	   Called without iaxsl held. */
 	struct iax_frame *f = data;
-	int freeme=0;
+	int freeme = 0;
 	int callno = f->callno;
 	/* Make sure this call is still active */
 	if (callno) 
@@ -2046,7 +2046,7 @@ static void __attempt_transmit(void *data)
 					}
 
 				}
-				freeme++;
+				freeme = 1;
 		} else {
 			/* Update it if it needs it */
 			update_packet(f);
@@ -2065,7 +2065,7 @@ static void __attempt_transmit(void *data)
 	} else {
 		/* Make sure it gets freed */
 		f->retries = -1;
-		freeme++;
+		freeme = 1;
 	}
 	if (callno)
 		ast_mutex_unlock(&iaxsl[callno]);
