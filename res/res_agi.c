@@ -115,7 +115,7 @@ enum agi_result {
 
 static agi_command *find_command(char *cmds[], int exact);
 
-void ast_agi_fdprintf(int fd, char *fmt, ...)
+int ast_agi_fdprintf(int fd, char *fmt, ...)
 {
 	char *stuff;
 	int res = 0;
@@ -127,13 +127,15 @@ void ast_agi_fdprintf(int fd, char *fmt, ...)
 
 	if (res == -1) {
 		ast_log(LOG_ERROR, "Out of memory\n");
-		return;
+		return -1;
 	}
 
 	if (agidebug)
 		ast_verbose("AGI Tx >> %s", stuff);
 	ast_carefulwrite(fd, stuff, strlen(stuff), 100);
 	ast_free(stuff);
+
+	return res;
 }
 
 /* launch_netscript: The fastagi handler.
@@ -205,8 +207,8 @@ static enum agi_result launch_netscript(char *agiurl, char *argv[], int *fds, in
 			return AGI_RESULT_FAILURE;
 		}
 	}
-	/* XXX in theory should check for partial writes... */
-	while (write(s, "agi_network: yes\n", strlen("agi_network: yes\n")) < 0) {
+
+	if (ast_agi_fdprintf(s, "agi_network: yes\n") < 0) {
 		if (errno != EINTR) {
 			ast_log(LOG_WARNING, "Connect to '%s' failed: %s\n", agiurl, strerror(errno));
 			close(s);
