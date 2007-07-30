@@ -929,6 +929,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 	const char *msg = prev ? "deadlock" : "initial deadlock";
 	int retries;
 	struct ast_channel *c;
+	const struct ast_channel *_prev = prev;
 
 	for (retries = 0; retries < 10; retries++) {
 		int done;
@@ -988,6 +989,11 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 		AST_RWLIST_UNLOCK(&channels);
 		if (done)
 			return c;
+		/* If we reach this point we basically tried to lock a channel and failed. Instead of
+		 * starting from the beginning of the list we can restore our saved pointer to the previous
+		 * channel and start from there.
+		 */
+		prev = _prev;
 		usleep(1);	/* give other threads a chance before retrying */
 	}
 
