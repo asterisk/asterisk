@@ -493,9 +493,9 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 			label_b++;
 		}
 		if (pbx_checkcondition(expr))
-			macro_exec(chan, label_a);
+			res = macro_exec(chan, label_a);
 		else if (label_b) 
-			macro_exec(chan, label_b);
+			res = macro_exec(chan, label_b);
 	} else
 		ast_log(LOG_WARNING, "Invalid Syntax.\n");
 
