@@ -989,6 +989,7 @@ struct sip_refer {
  * descriptors (dialoglist).
  */
 struct sip_pvt {
+	struct sip_pvt *next;			/*!< Next dialog in chain */
 	ast_mutex_t pvt_lock;			/*!< Dialog private lock */
 	enum invitestates invitestate;		/*!< Track state of SIP_INVITEs */
 	int method;				/*!< SIP method that opened this dialog */
@@ -1114,7 +1115,6 @@ struct sip_pvt {
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
-	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	int autoframing;			/*!< The number of Asters we group in a Pyroflax
 							before strolling to the Grokyzpå
@@ -2340,18 +2340,19 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 
 	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
 		return AST_FAILURE;
+	/* copy data, add a terminator and save length */
 	memcpy(pkt->data, data, len);
-	pkt->method = sipmethod;
-	pkt->packetlen = len;
-	pkt->next = p->packets;
-	pkt->owner = dialog_ref(p);
-	pkt->seqno = seqno;
-	if (resp)
-		pkt->is_resp = 1;
 	pkt->data[len] = '\0';
+	pkt->packetlen = len;
+	/* copy other parameters from the caller */
+	pkt->method = sipmethod;
+	pkt->seqno = seqno;
+	pkt->is_resp = resp;
+	pkt->is_fatal = fatal;
+	pkt->owner = dialog_ref(p);
+	pkt->next = p->packets;
+	p->packets = pkt;
 	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
-	if (fatal)
-		pkt->is_fatal = 1;
 	if (pkt->timer_t1)
 		siptimer_a = pkt->timer_t1 * 2;
 
@@ -2359,8 +2360,6 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
 	if (sipdebug)
 		ast_debug(4, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
-	pkt->next = p->packets;
-	p->packets = pkt;
 	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
 		p->pendinginvite = seqno;
