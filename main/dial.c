@@ -48,6 +48,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! \brief Main dialing structure. Contains global options, channels being dialed, and more! */
 struct ast_dial {
 	int num;                                           /*!< Current number to give to next dialed channel */
+	int timeout;                                       /*!< Maximum time allowed for dial attempts */
+	int actual_timeout;                                /*!< Actual timeout based on all factors (ie: channels) */
 	enum ast_dial_result state;                        /*!< Status of dial */
 	void *options[AST_DIAL_OPTION_MAX];                /*!< Global options */
 	ast_dial_state_callback state_callback;            /*!< Status callback */
@@ -58,8 +60,9 @@ struct ast_dial {
 /*! \brief Dialing channel structure. Contains per-channel dialing options, asterisk channel, and more! */
 struct ast_dial_channel {
 	int num;                               /*!< Unique number for dialed channel */
-	const char *tech;                      /*!< Technology being dialed */
-	const char *device;                    /*!< Device being dialed */
+	int timeout;                           /*!< Maximum time allowed for attempt */
+	char *tech;                            /*!< Technology being dialed */
+	char *device;                          /*!< Device being dialed */
 	void *options[AST_DIAL_OPTION_MAX];    /*!< Channel specific options */
 	int cause;                             /*!< Cause code in case of failure */
 	struct ast_channel *owner;             /*!< Asterisk channel */
@@ -162,6 +165,7 @@ static const struct ast_option_types {
 	{ AST_DIAL_OPTION_RINGING, NULL, NULL },                                  /*!< Always indicate ringing to caller */
 	{ AST_DIAL_OPTION_ANSWER_EXEC, answer_exec_enable, answer_exec_disable }, /*!< Execute application upon answer in async mode */
 	{ AST_DIAL_OPTION_MUSIC, music_enable, music_disable },                   /*!< Play music to the caller instead of ringing */
+	{ AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, NULL, NULL },                  /*!< Disable call forwarding on channels */
 	{ AST_DIAL_OPTION_MAX, NULL, NULL },                                      /*!< Terminator of list */
 };
 
@@ -200,6 +204,10 @@ struct ast_dial *ast_dial_create(void)
 	/* Initialize thread to NULL */
 	dial->thread = AST_PTHREADT_NULL;
 
+	/* No timeout exists... yet */
+	dial->timeout = -1;
+	dial->actual_timeout = -1;
+
 	return dial;
 }
 
@@ -220,11 +228,14 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device)
 		return -1;
 
 	/* Record technology and device for when we actually dial */
-	channel->tech = tech;
-	channel->device = device;
+	channel->tech = ast_strdup(tech);
+	channel->device = ast_strdup(device);
 
 	/* Grab reference number from dial structure */
 	channel->num = ast_atomic_fetchadd_int(&dial->num, +1);
+
+	/* No timeout exists... yet */
+	channel->timeout = -1;
 
 	/* Insert into channels list */
 	AST_LIST_INSERT_TAIL(&dial->channels, channel, list);
@@ -232,64 +243,110 @@ int ast_dial_append(struct ast_dial *dial, const char *tech, const char *device)
 	return channel->num;
 }
 
-/*! \brief Helper function that does the beginning dialing */
+/*! \brief Helper function that does the beginning dialing per-appended channel */
+static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_channel *chan)
+{
+	char numsubst[AST_MAX_EXTENSION];
+	int res = 1;
+
+	/* Copy device string over */
+	ast_copy_string(numsubst, channel->device, sizeof(numsubst));
+
+	/* If we fail to create our owner channel bail out */
+	if (!(channel->owner = ast_request(channel->tech, chan ? chan->nativeformats : AST_FORMAT_AUDIO_MASK, numsubst, &channel->cause)))
+		return -1;
+
+	channel->owner->appl = "AppDial2";
+	channel->owner->data = "(Outgoing Line)";
+	channel->owner->whentohangup = 0;
+
+	/* Inherit everything from he who spawned this dial */
+	if (chan) {
+		ast_channel_inherit_variables(chan, channel->owner);
+
+		/* Copy over callerid information */
+		S_REPLACE(channel->owner->cid.cid_num, ast_strdup(chan->cid.cid_num));
+		S_REPLACE(channel->owner->cid.cid_name, ast_strdup(chan->cid.cid_name));
+		S_REPLACE(channel->owner->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
+		S_REPLACE(channel->owner->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
+
+		ast_string_field_set(channel->owner, language, chan->language);
+		ast_string_field_set(channel->owner, accountcode, chan->accountcode);
+		channel->owner->cdrflags = chan->cdrflags;
+		if (ast_strlen_zero(channel->owner->musicclass))
+			ast_string_field_set(channel->owner, musicclass, chan->musicclass);
+
+		channel->owner->cid.cid_pres = chan->cid.cid_pres;
+		channel->owner->cid.cid_ton = chan->cid.cid_ton;
+		channel->owner->cid.cid_tns = chan->cid.cid_tns;
+		channel->owner->adsicpe = chan->adsicpe;
+		channel->owner->transfercapability = chan->transfercapability;
+	}
+
+	/* Attempt to actually call this device */
+	if ((res = ast_call(channel->owner, numsubst, 0))) {
+		res = 0;
+		ast_hangup(channel->owner);
+		channel->owner = NULL;
+	} else {
+		res = 1;
+		ast_verb(3, "Called %s\n", numsubst);
+	}
+
+	return res;
+}
+
+/*! \brief Helper function that does the beginning dialing per dial structure */
 static int begin_dial(struct ast_dial *dial, struct ast_channel *chan)
 {
 	struct ast_dial_channel *channel = NULL;
-	int success = 0, res = 0;
+	int success = 0;
 
 	/* Iterate through channel list, requesting and calling each one */
 	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-		char numsubst[AST_MAX_EXTENSION];
-
-		/* Copy device string over */
-		ast_copy_string(numsubst, channel->device, sizeof(numsubst));
-
-		/* Request that the channel be created */
-		if (!(channel->owner = ast_request(channel->tech, 
-			chan ? chan->nativeformats : AST_FORMAT_AUDIO_MASK, numsubst, &channel->cause))) {
-			continue;
-		}
-
-		channel->owner->appl = "AppDial2";
-                channel->owner->data = "(Outgoing Line)";
-                channel->owner->whentohangup = 0;
-
-		/* Inherit everything from he who spawned this Dial */
-		if (chan) {
-			ast_channel_inherit_variables(chan, channel->owner);
-
-			/* Copy over callerid information */
-			S_REPLACE(channel->owner->cid.cid_num, ast_strdup(chan->cid.cid_num));
-			S_REPLACE(channel->owner->cid.cid_name, ast_strdup(chan->cid.cid_name));
-			S_REPLACE(channel->owner->cid.cid_ani, ast_strdup(chan->cid.cid_ani));
-			S_REPLACE(channel->owner->cid.cid_rdnis, ast_strdup(chan->cid.cid_rdnis));
-	
-			ast_string_field_set(channel->owner, language, chan->language);
-			ast_string_field_set(channel->owner, accountcode, chan->accountcode);
-			channel->owner->cdrflags = chan->cdrflags;
-			if (ast_strlen_zero(channel->owner->musicclass))
-				ast_string_field_set(channel->owner, musicclass, chan->musicclass);
-	
-			channel->owner->cid.cid_pres = chan->cid.cid_pres;
-			channel->owner->cid.cid_ton = chan->cid.cid_ton;
-			channel->owner->cid.cid_tns = chan->cid.cid_tns;
-			channel->owner->adsicpe = chan->adsicpe;
-			channel->owner->transfercapability = chan->transfercapability;
-		}
-
-		/* Actually call the device */
-		if ((res = ast_call(channel->owner, numsubst, 0))) {
-			ast_hangup(channel->owner);
-			channel->owner = NULL;
-		} else {
-			success++;
-			ast_verb(3, "Called %s\n", numsubst);
-		}
+		success += begin_dial_channel(channel, chan);
 	}
 
 	/* If number of failures matches the number of channels, then this truly failed */
 	return success;
+}
+
+/*! \brief Helper function to handle channels that have been call forwarded */
+static int handle_call_forward(struct ast_dial *dial, struct ast_dial_channel *channel, struct ast_channel *chan)
+{
+	struct ast_channel *original = channel->owner;
+	char *tmp = ast_strdupa(channel->owner->call_forward);
+	char *tech = "Local", *device = tmp, *stuff;
+
+	/* If call forwarding is disabled just drop the original channel and don't attempt to dial the new one */
+	if (FIND_RELATIVE_OPTION(dial, channel, AST_DIAL_OPTION_DISABLE_CALL_FORWARDING)) {
+		ast_hangup(original);
+		channel->owner = NULL;
+		return 0;
+	}
+
+	/* Figure out the new destination */
+	if ((stuff = strchr(tmp, '/'))) {
+		*stuff++ = '\0';
+		tech = tmp;
+		device = stuff;
+	}
+
+	/* Drop old destination information */
+	ast_free(channel->tech);
+	ast_free(channel->device);
+
+	/* Update the dial channel with the new destination information */
+	channel->tech = ast_strdup(tech);
+	channel->device = ast_strdup(device);
+
+	/* Finally give it a go... send it out into the world */
+	begin_dial_channel(channel, chan);
+
+	/* Drop the original channel */
+	ast_hangup(original);
+
+	return 0;
 }
 
 /*! \brief Helper function that finds the dialed channel based on owner */
@@ -420,13 +477,43 @@ static void handle_frame_ownerless(struct ast_dial *dial, struct ast_dial_channe
 	return;
 }
 
+/*! \brief Helper function to handle when a timeout occurs on dialing attempt */
+static int handle_timeout_trip(struct ast_dial *dial, struct timeval start)
+{
+	struct ast_dial_channel *channel = NULL;
+	int diff = ast_tvdiff_ms(ast_tvnow(), start), lowest_timeout = -1, new_timeout = -1;
+
+	/* If the global dial timeout tripped switch the state to timeout so our channel loop will drop every channel */
+	if (diff >= dial->timeout) {
+		set_state(dial, AST_DIAL_RESULT_TIMEOUT);
+		new_timeout = 0;
+	}
+
+	/* Go through dropping out channels that have met their timeout */
+	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
+		if (dial->state == AST_DIAL_RESULT_TIMEOUT || diff >= channel->timeout) {
+			ast_hangup(channel->owner);
+			channel->owner = NULL;
+		} else if ((lowest_timeout == -1) || (lowest_timeout > channel->timeout)) {
+			lowest_timeout = channel->timeout;
+		}
+	}
+
+	/* Calculate the new timeout using the lowest timeout found */
+	if (lowest_timeout >= 0)
+		new_timeout = lowest_timeout - diff;
+
+	return new_timeout;
+}
+
 /*! \brief Helper function that basically keeps tabs on dialing attempts */
 static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_channel *chan)
 {
-	int timeout = -1, count = 0;
+	int timeout = -1;
 	struct ast_channel *cs[AST_MAX_WATCHERS], *who = NULL;
 	struct ast_dial_channel *channel = NULL;
 	struct answer_exec_struct *answer_exec = NULL;
+	struct timeval start;
 
 	set_state(dial, AST_DIAL_RESULT_TRYING);
 
@@ -444,9 +531,15 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		ast_string_field_set(chan, musicclass, original_moh);
 	}
 
+	/* Record start time for timeout purposes */
+	start = ast_tvnow();
+
+	/* We actually figured out the maximum timeout we can do as they were added, so we can directly access the info */
+	timeout = dial->actual_timeout;
+
 	/* Go into an infinite loop while we are trying */
 	while ((dial->state != AST_DIAL_RESULT_UNANSWERED) && (dial->state != AST_DIAL_RESULT_ANSWERED) && (dial->state != AST_DIAL_RESULT_HANGUP) && (dial->state != AST_DIAL_RESULT_TIMEOUT)) {
-		int pos = 0;
+		int pos = 0, count = 0;
 		struct ast_frame *fr = NULL;
 
 		/* Set up channel structure array */
@@ -479,13 +572,21 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		if (dial->thread == AST_PTHREADT_STOP)
 			break;
 
-		/* If we are not being cancelled and we have no channel, then timeout was tripped */
-		if (!who)
+		/* If the timeout no longer exists OR if we got no channel it basically means the timeout was tripped, so handle it */
+		if (!timeout || !who) {
+			timeout = handle_timeout_trip(dial, start);
 			continue;
+		}
 
 		/* Find relative dial channel */
 		if (!chan || !IS_CALLER(chan, who))
 			channel = find_relative_dial_channel(dial, who);
+
+		/* See if this channel has been forwarded elsewhere */
+		if (!ast_strlen_zero(who->call_forward)) {
+			handle_call_forward(dial, channel, chan);
+			continue;
+		}
 
 		/* Attempt to read in a frame */
 		if (!(fr = ast_read(who))) {
@@ -691,6 +792,8 @@ int ast_dial_destroy(struct ast_dial *dial)
 			channel->owner = NULL;
 		}
 		/* Free structure */
+		ast_free(channel->tech);
+		ast_free(channel->device);
 		ast_free(channel);
 	}
        
@@ -730,6 +833,25 @@ int ast_dial_option_global_enable(struct ast_dial *dial, enum ast_dial_option op
 	return 0;
 }
 
+/*! \brief Helper function for finding a channel in a dial structure based on number
+ */
+static struct ast_dial_channel *find_dial_channel(struct ast_dial *dial, int num)
+{
+	struct ast_dial_channel *channel = AST_LIST_LAST(&dial->channels);
+
+	/* We can try to predict programmer behavior, the last channel they added is probably the one they wanted to modify */
+	if (channel->num == num)
+		return channel;
+
+	/* Hrm not at the end... looking through the list it is! */
+	AST_LIST_TRAVERSE(&dial->channels, channel, list) {
+		if (channel->num == num)
+			break;
+	}
+	
+	return channel;
+}
+
 /*! \brief Enables an option per channel
  * \param dial Dial structure
  * \param num Channel number to enable option on
@@ -744,19 +866,8 @@ int ast_dial_option_enable(struct ast_dial *dial, int num, enum ast_dial_option 
 	/* Ensure we have required arguments */
 	if (!dial || AST_LIST_EMPTY(&dial->channels))
 		return -1;
-	
-	/* Look for channel, we can sort of cheat and predict things - the last channel in the list will probably be what they want */
-	if (AST_LIST_LAST(&dial->channels)->num != num) {
-		AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-			if (channel->num == num)
-				break;
-		}
-	} else {
-		channel = AST_LIST_LAST(&dial->channels);
-	}
 
-	/* If none found, return failure */
-	if (!channel)
+	if (!(channel = find_dial_channel(dial, num)))
 		return -1;
 
 	/* If the option is already enabled, return failure */
@@ -807,18 +918,7 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
 	if (!dial || AST_LIST_EMPTY(&dial->channels))
 		return -1;
 
-	/* Look for channel, we can sort of cheat and predict things - the last channel in the list will probably be what they want */
-	if (AST_LIST_LAST(&dial->channels)->num != num) {
-		AST_LIST_TRAVERSE(&dial->channels, channel, list) {
-			if (channel->num == num)
-				break;
-		}
-	} else {
-		channel = AST_LIST_LAST(&dial->channels);
-	}
-
-	/* If none found, return failure */
-	if (!channel)
+	if (!(channel = find_dial_channel(dial, num)))
 		return -1;
 
 	/* If the option is not enabled, return failure */
@@ -838,4 +938,40 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
 void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback)
 {
 	dial->state_callback = callback;
+}
+
+/*! \brief Set the maximum time (globally) allowed for trying to ring phones
+ * \param dial The dial structure to apply the time limit to
+ * \param timeout Maximum time allowed
+ * \return nothing
+ */
+void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout)
+{
+	dial->timeout = timeout;
+
+	if (dial->timeout > 0 && dial->actual_timeout > dial->timeout)
+		dial->actual_timeout = dial->timeout;
+
+	return;
+}
+
+/*! \brief Set the maximum time (per channel) allowed for trying to ring the phone
+ * \param dial The dial structure the channel belongs to
+ * \param num Channel number to set timeout on
+ * \param timeout Maximum time allowed
+ * \return nothing
+ */
+void ast_dial_set_timeout(struct ast_dial *dial, int num, int timeout)
+{
+	struct ast_dial_channel *channel = NULL;
+
+	if (!(channel = find_dial_channel(dial, num)))
+		return;
+
+	channel->timeout = timeout;
+
+	if (channel->timeout > 0 && dial->actual_timeout > channel->timeout)
+		dial->actual_timeout = channel->timeout;
+
+	return;
 }

@@ -37,10 +37,11 @@ typedef void (*ast_dial_state_callback)(struct ast_dial *);
 
 /*! \brief List of options that are applicable either globally or per dialed channel */
 enum ast_dial_option {
-	AST_DIAL_OPTION_RINGING,     /*!< Always indicate ringing to caller */
-	AST_DIAL_OPTION_ANSWER_EXEC, /*!< Execute application upon answer in async mode */
-	AST_DIAL_OPTION_MUSIC,       /*!< Play music on hold instead of ringing to the calling channel */
-	AST_DIAL_OPTION_MAX,         /*!< End terminator -- must always remain last */
+	AST_DIAL_OPTION_RINGING,                 /*!< Always indicate ringing to caller */
+	AST_DIAL_OPTION_ANSWER_EXEC,             /*!< Execute application upon answer in async mode */
+	AST_DIAL_OPTION_MUSIC,                   /*!< Play music on hold instead of ringing to the calling channel */
+	AST_DIAL_OPTION_DISABLE_CALL_FORWARDING, /*!< Disable call forwarding on channels */
+	AST_DIAL_OPTION_MAX,                     /*!< End terminator -- must always remain last */
 };
 
 /*! \brief List of return codes for dial run API calls */
@@ -144,6 +145,21 @@ int ast_dial_option_disable(struct ast_dial *dial, int num, enum ast_dial_option
  * \return nothing
  */
 void ast_dial_set_state_callback(struct ast_dial *dial, ast_dial_state_callback callback);
+
+/*! \brief Set the maximum time (globally) allowed for trying to ring phones
+ * \param dial The dial structure to apply the time limit to
+ * \param timeout Maximum time allowed
+ * \return nothing
+ */
+void ast_dial_set_global_timeout(struct ast_dial *dial, int timeout);
+
+/*! \brief Set the maximum time (per channel) allowed for trying to ring the phone
+ * \param dial The dial structure the channel belongs to
+ * \param num Channel number to set timeout on
+ * \param timeout Maximum time allowed
+ * \return nothing
+ */
+void ast_dial_set_timeout(struct ast_dial *dial, int num, int timeout);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
