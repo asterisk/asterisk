@@ -115,14 +115,20 @@ enum agi_result {
 
 static agi_command *find_command(char *cmds[], int exact);
 
+AST_THREADSTORAGE(agi_buf);
+#define AGI_BUF_INITSIZE 256
+
 int ast_agi_fdprintf(int fd, char *fmt, ...)
 {
-	char *stuff;
 	int res = 0;
-
 	va_list ap;
+	struct ast_str *buf;
+
+	if (!(buf = ast_str_thread_get(&agi_buf, AGI_BUF_INITSIZE)))
+		return -1;
+
 	va_start(ap, fmt);
-	res = vasprintf(&stuff, fmt, ap);
+	res = ast_str_set_va(&buf, 0, fmt, ap);
 	va_end(ap);
 
 	if (res == -1) {
@@ -131,9 +137,9 @@ int ast_agi_fdprintf(int fd, char *fmt, ...)
 	}
 
 	if (agidebug)
-		ast_verbose("AGI Tx >> %s", stuff);
-	ast_carefulwrite(fd, stuff, strlen(stuff), 100);
-	ast_free(stuff);
+		ast_verbose("AGI Tx >> %s", buf->str);
+
+	ast_carefulwrite(fd, buf->str, buf->used, 100);
 
 	return res;
 }
