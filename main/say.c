@@ -124,14 +124,16 @@ static int say_character_str_full(struct ast_channel *chan, const char *str, con
 			fnbuf[8] = ltr;
 			fn = fnbuf;
 		}
-		res = ast_streamfile(chan, fn, lang);
-		if (!res) {
-			if ((audiofd  > -1) && (ctrlfd > -1))
-				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-			else
-				res = ast_waitstream(chan, ints);
+		if (fn && ast_fileexists(fn, NULL, NULL) > 0) {
+			res = ast_streamfile(chan, fn, lang);
+			if (!res) {
+				if ((audiofd  > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
 		}
-		ast_stopstream(chan);
 		num++;
 	}
 
@@ -202,14 +204,16 @@ static int say_phonetic_str_full(struct ast_channel *chan, const char *str, cons
 			fnbuf[9] = ltr;
 			fn = fnbuf;
 		}
-		res = ast_streamfile(chan, fn, lang);
-		if (!res) {
-			if ((audiofd  > -1) && (ctrlfd > -1))
-				res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-			else
-				res = ast_waitstream(chan, ints);
+		if (fn && ast_fileexists(fn, NULL, NULL) > 0) {
+			res = ast_streamfile(chan, fn, lang);
+			if (!res) {
+				if ((audiofd  > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
 		}
-		ast_stopstream(chan);
 		num++;
 	}
 
@@ -250,7 +254,7 @@ static int say_digit_str_full(struct ast_channel *chan, const char *str, const c
 			fn = fnbuf;
 			break;
 		}
-		if (fn) {
+		if (fn && ast_fileexists(fn, NULL, NULL) > 0) {
 			res = ast_streamfile(chan, fn, lang);
 			if (!res) {
 				if ((audiofd  > -1) && (ctrlfd > -1))
