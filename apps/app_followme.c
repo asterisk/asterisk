@@ -162,7 +162,7 @@ static char statusprompt[PATH_MAX] = "followme/status";
 static char sorryprompt[PATH_MAX] = "followme/sorry";
 
 
-static AST_LIST_HEAD_STATIC(followmes, call_followme);
+static AST_RWLIST_HEAD_STATIC(followmes, call_followme);
 AST_LIST_HEAD_NOLOCK(findme_user_listptr, findme_user);
 
 static void free_numbers(struct call_followme *f)
@@ -282,7 +282,6 @@ static int reload_followme(void)
 	char *cat = NULL, *tmp;
 	struct ast_variable *var;
 	struct number *cur, *nm;
-	int new, idx;
 	char numberstr[90];
 	int timeout;
 	char *timeoutstr;
@@ -291,21 +290,21 @@ static int reload_followme(void)
 	const char *declinecallstr;
 	const char *tmpstr;
 
-	cfg = ast_config_load("followme.conf");
-	if (!cfg) {
+	if (!(cfg = ast_config_load("followme.conf"))) {
 		ast_log(LOG_WARNING, "No follow me config file (followme.conf), so no follow me\n");
 		return 0;
 	}
 
-	AST_LIST_LOCK(&followmes);
+	AST_RWLIST_WRLOCK(&followmes);
 
 	/* Reset Global Var Values */
 	featuredigittimeout = 5000;
 
 	/* Mark all profiles as inactive for the moment */
-	AST_LIST_TRAVERSE(&followmes, f, entry) {
+	AST_RWLIST_TRAVERSE(&followmes, f, entry) {
 		f->active = 0;
 	}
+
 	featuredigittostr = ast_variable_retrieve(cfg, "general", "featuredigittimeout");
 	
 	if (!ast_strlen_zero(featuredigittostr)) {
@@ -347,77 +346,83 @@ static int reload_followme(void)
 
 	/* Chug through config file */
 	while ((cat = ast_category_browse(cfg, cat))) {
+		int new = 0;
+
 		if (!strcasecmp(cat, "general"))
 			continue;
-		/* Define a new profile */
+
 		/* Look for an existing one */
 		AST_LIST_TRAVERSE(&followmes, f, entry) {
 			if (!strcasecmp(f->name, cat))
 				break;
 		}
+
 		ast_debug(1, "New profile %s.\n", cat);
+
 		if (!f) {
 			/* Make one then */
 			f = alloc_profile(cat);
 			new = 1;
-		} else
-			new = 0;
-	
-		if (f) {
-			if (!new)
-				ast_mutex_lock(&f->lock);
-			/* Re-initialize the profile */
-			init_profile(f);
-			free_numbers(f);
-			var = ast_variable_browse(cfg, cat);
-			while(var) {
-				if (!strcasecmp(var->name, "number")) {
-					/* Add a new number */
-					ast_copy_string(numberstr, var->value, sizeof(numberstr));
-					if ((tmp = strchr(numberstr, ','))) {
-						*tmp = '\0';
-						tmp++;
-						timeoutstr = ast_strdupa(tmp);
-						if ((tmp = strchr(timeoutstr, ','))) {
-							*tmp = '\0';
-							tmp++;
-							numorder = atoi(tmp);
-							if (numorder < 0)
-								numorder = 0;
-						} else 
-							numorder = 0;
-						timeout = atoi(timeoutstr);
-						if (timeout < 0) 
-							timeout = 25;
-					} else {
-						timeout = 25;
-						numorder = 0;
-					}
-
-					if (!numorder) {	
-						idx = 1;
-						AST_LIST_TRAVERSE(&f->numbers, nm, entry) 
-							idx++;
-						numorder = idx;
-					}
-					cur = create_followme_number(numberstr, timeout, numorder);
-					AST_LIST_INSERT_TAIL(&f->numbers, cur, entry);
-				} else {
-					profile_set_param(f, var->name, var->value, var->lineno, 1);
-					ast_debug(2, "Logging parameter %s with value %s from lineno %d\n", var->name, var->value, var->lineno);
-				}
-				var = var->next;
-			} /* End while(var) loop */
-
-			if (!new) 
-				ast_mutex_unlock(&f->lock);
-			else
-				AST_LIST_INSERT_HEAD(&followmes, f, entry);
 		}
+
+		/* Totally fail if we fail to find/create an entry */
+		if (!f)
+			continue;
+		
+		if (!new)
+			ast_mutex_lock(&f->lock);
+		/* Re-initialize the profile */
+		init_profile(f);
+		free_numbers(f);
+		var = ast_variable_browse(cfg, cat);
+		while(var) {
+			if (!strcasecmp(var->name, "number")) {
+				int idx = 0;
+
+				/* Add a new number */
+				ast_copy_string(numberstr, var->value, sizeof(numberstr));
+				if ((tmp = strchr(numberstr, ','))) {
+					*tmp++ = '\0';
+					timeoutstr = ast_strdupa(tmp);
+					if ((tmp = strchr(timeoutstr, ','))) {
+						*tmp++ = '\0';
+						numorder = atoi(tmp);
+						if (numorder < 0)
+							numorder = 0;
+					} else 
+						numorder = 0;
+					timeout = atoi(timeoutstr);
+					if (timeout < 0) 
+						timeout = 25;
+				} else {
+					timeout = 25;
+					numorder = 0;
+				}
+				
+				if (!numorder) {	
+					idx = 1;
+					AST_LIST_TRAVERSE(&f->numbers, nm, entry) 
+						idx++;
+					numorder = idx;
+				}
+				cur = create_followme_number(numberstr, timeout, numorder);
+				AST_LIST_INSERT_TAIL(&f->numbers, cur, entry);
+			} else {
+				profile_set_param(f, var->name, var->value, var->lineno, 1);
+				ast_debug(2, "Logging parameter %s with value %s from lineno %d\n", var->name, var->value, var->lineno);
+			}
+			var = var->next;
+		} /* End while(var) loop */
+		
+		if (!new) 
+			ast_mutex_unlock(&f->lock);
+		else
+			AST_RWLIST_INSERT_HEAD(&followmes, f, entry);
 	}
+
 	ast_config_destroy(cfg);
 
-	AST_LIST_UNLOCK(&followmes);
+	AST_RWLIST_UNLOCK(&followmes);
 
 	return 1;
 }
@@ -470,13 +475,13 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	int pos;
 	struct ast_channel *winner;
 	struct ast_frame *f;
-	int ctstatus;
+	int ctstatus = 0;
 	int dg;
 	struct findme_user *tmpuser;
 	int to = 0;
 	int livechannels = 0;
 	int tmpto;
-	long totalwait = 0, wtd, towas = 0;
+	long totalwait = 0, wtd = 0, towas = 0;
 	char *callfromname;
 	char *pressbuttonname;
 
@@ -485,244 +490,244 @@ static struct ast_channel *wait_for_winner(struct findme_user_listptr *findme_us
 	callfromname = ast_strdupa(tpargs->callfromprompt);
 	pressbuttonname = ast_strdupa(tpargs->optionsprompt);	
 
-	if (!AST_LIST_EMPTY(findme_user_list)) {
-		if (!caller) {
-			ast_verb(3, "Original caller hungup. Cleanup.\n");
+	if (AST_LIST_EMPTY(findme_user_list)) {
+		ast_verb(3, "couldn't reach at this number.\n");
+		return NULL;
+	}
+	
+	if (!caller) {
+		ast_verb(3, "Original caller hungup. Cleanup.\n");
+		clear_calling_tree(findme_user_list);
+		return NULL;
+	}
+	
+	totalwait = nm->timeout * 1000;
+	
+	while (!ctstatus) {
+		to = 1000;
+		pos = 1; 
+		livechannels = 0;
+		watchers[0] = caller;
+		
+		dg = 0;	
+		winner = NULL;	
+		AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry) {
+			if (tmpuser->state >= 0 && tmpuser->ochan) {
+				if (tmpuser->state == 3) 
+					tmpuser->digts += (towas - wtd);
+				if (tmpuser->digts && (tmpuser->digts > featuredigittimeout)) {
+					ast_verb(3, "We've been waiting for digits longer than we should have.\n");
+					if (!ast_strlen_zero(namerecloc)) {
+						tmpuser->state = 1;
+						tmpuser->digts = 0;
+						if (!ast_streamfile(tmpuser->ochan, callfromname, tmpuser->ochan->language)) {
+							ast_sched_runq(tmpuser->ochan->sched);
+						} else {
+							ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
+							return NULL;
+						}							
+					} else {
+						tmpuser->state = 2;
+						tmpuser->digts = 0;
+						if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, tmpuser->ochan->language))
+							ast_sched_runq(tmpuser->ochan->sched);
+						else {
+							ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
+							return NULL;
+						}
+					}
+				}
+				if (tmpuser->ochan->stream) {
+					ast_sched_runq(tmpuser->ochan->sched);
+					tmpto = ast_sched_wait(tmpuser->ochan->sched);
+					if (tmpto > 0 && tmpto < to)
+						to = tmpto;
+					else if (tmpto < 0 && !tmpuser->ochan->timingfunc) {
+						ast_stopstream(tmpuser->ochan);
+						if (tmpuser->state == 1) {
+							ast_verb(3, "Playback of the call-from file appears to be done.\n");
+							if (!ast_streamfile(tmpuser->ochan, namerecloc, tmpuser->ochan->language)) {
+								tmpuser->state = 2;
+							} else {
+								ast_log(LOG_NOTICE, "Unable to playback %s. Maybe the caller didn't record their name?\n", namerecloc);
+								memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
+								tmpuser->ynidx = 0;
+								if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language))
+									tmpuser->state = 3;
+								else {
+									ast_log(LOG_WARNING, "Unable to playback %s.\n", pressbuttonname);
+									return NULL;
+								} 
+							}
+						} else if (tmpuser->state == 2) {
+							ast_verb(3, "Playback of name file appears to be done.\n");
+							memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
+							tmpuser->ynidx = 0;
+							if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language)) {
+								tmpuser->state = 3;
+								
+							} else {
+								return NULL;
+							} 
+						} else if (tmpuser->state == 3) {
+							ast_verb(3, "Playback of the next step file appears to be done.\n");
+							tmpuser->digts = 0;
+						}
+					}
+				}
+				watchers[pos++] = tmpuser->ochan;
+				livechannels++;
+			}
+		}
+		
+		tmpto = to;
+		if (to < 0) {
+			to = 1000;
+			tmpto = 1000;
+		}
+		towas = to;
+		winner = ast_waitfor_n(watchers, pos, &to);
+		tmpto -= to;
+		totalwait -= tmpto;
+		wtd = to;	
+		if (totalwait <= 0) {
+			ast_verb(3, "We've hit our timeout for this step. Drop everyone and move on to the next one. %ld\n", totalwait);
 			clear_calling_tree(findme_user_list);
 			return NULL;
 		}
-		ctstatus = 0;
-		totalwait = nm->timeout * 1000;
-		wtd = 0;
-		while (!ctstatus) {
-			to = 1000;
-			pos = 1; 
-			livechannels = 0;
-			watchers[0] = caller;
-		
-			dg = 0;	
-			winner = NULL;	
-			AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry) {
-				if (tmpuser->state >= 0 && tmpuser->ochan) {
-					if (tmpuser->state == 3) 
-						tmpuser->digts += (towas - wtd);
-					if (tmpuser->digts && (tmpuser->digts > featuredigittimeout)) {
-						ast_verb(3, "We've been waiting for digits longer than we should have.\n");
-						if (!ast_strlen_zero(namerecloc)) {
-							tmpuser->state = 1;
-							tmpuser->digts = 0;
-							if (!ast_streamfile(tmpuser->ochan, callfromname, tmpuser->ochan->language)) {
-								ast_sched_runq(tmpuser->ochan->sched);
-							} else {
-								ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
-								return NULL;
-							}							
-						} else {
-							tmpuser->state = 2;
-							tmpuser->digts = 0;
-							if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, tmpuser->ochan->language))
-								ast_sched_runq(tmpuser->ochan->sched);
-							else {
-								ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
-								return NULL;
-							}
-						}
-					}
-					if (tmpuser->ochan->stream) {
-						ast_sched_runq(tmpuser->ochan->sched);
-						tmpto = ast_sched_wait(tmpuser->ochan->sched);
-						if (tmpto > 0 && tmpto < to)
-							to = tmpto;
-						else if (tmpto < 0 && !tmpuser->ochan->timingfunc) {
-							ast_stopstream(tmpuser->ochan);
-							if (tmpuser->state == 1) {
-								ast_verb(3, "Playback of the call-from file appears to be done.\n");
-								if (!ast_streamfile(tmpuser->ochan, namerecloc, tmpuser->ochan->language)) {
-									tmpuser->state = 2;
-								} else {
-									ast_log(LOG_NOTICE, "Unable to playback %s. Maybe the caller didn't record their name?\n", namerecloc);
-									memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
-									tmpuser->ynidx = 0;
-									if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language))
-										tmpuser->state = 3;
-									else {
-										ast_log(LOG_WARNING, "Unable to playback %s.\n", pressbuttonname);
-										return NULL;
-									} 
-								}
-							} else if (tmpuser->state == 2) {
-								ast_verb(3, "Playback of name file appears to be done.\n");
-								memset(tmpuser->yn, 0, sizeof(tmpuser->yn));
-								tmpuser->ynidx = 0;
-								if (!ast_streamfile(tmpuser->ochan, pressbuttonname, tmpuser->ochan->language)) {
-									tmpuser->state = 3;
-									
-								} else {
-									return NULL;
-								} 
-							} else if (tmpuser->state == 3) {
-								ast_verb(3, "Playback of the next step file appears to be done.\n");
-								tmpuser->digts = 0;
-							}
-						}
-					}
-					watchers[pos++] = tmpuser->ochan;
-					livechannels++;
-				}
-			}
-
-			tmpto = to;
-			if (to < 0) {
-				to = 1000;
-				tmpto = 1000;
-			}
-			towas = to;
-			winner = ast_waitfor_n(watchers, pos, &to);
-			tmpto -= to;
-			totalwait -= tmpto;
-			wtd = to;	
-			if (totalwait <= 0) {
-				ast_verb(3, "We've hit our timeout for this step. Drop everyone and move on to the next one. %ld\n", totalwait);
-				clear_calling_tree(findme_user_list);
-				return NULL;
-			}
-			if (winner) {
-				/* Need to find out which channel this is */
-				dg = 0;
-				while ((winner != watchers[dg]) && (dg < 256))
-					dg++;
-				AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry)
-					if (tmpuser->ochan == winner)
-						break;
-				f = ast_read(winner);
-				if (f) {
-					if (f->frametype == AST_FRAME_CONTROL) {
-						switch(f->subclass) {
-						case AST_CONTROL_HANGUP:
-							if (option_verbose > 2)
-								ast_verb(3, "%s received a hangup frame.\n", winner->name);
-							if (dg == 0) {
-								ast_verb(3, "The calling channel hungup. Need to drop everyone else.\n");
-								clear_calling_tree(findme_user_list);
-								ctstatus = -1;
-							}
-							break;
-						case AST_CONTROL_ANSWER:
-							if (option_verbose > 2)
-								ast_verb(3, "%s answered %s\n", winner->name, caller->name);
-							/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
-							winner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-							caller->hangupcause = AST_CAUSE_NORMAL_CLEARING;
-							ast_verb(3, "Starting playback of %s\n", callfromname);
-							if (dg > 0) {
-								if (!ast_strlen_zero(namerecloc)) {
-									if (!ast_streamfile(winner, callfromname, winner->language)) {
-										ast_sched_runq(winner->sched);
-										tmpuser->state = 1;
-									} else {
-										ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
-										ast_frfree(f);
-										return NULL;
-									}				
-								} else {			
-									tmpuser->state = 2;
-									if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, tmpuser->ochan->language))
-										ast_sched_runq(tmpuser->ochan->sched);
-									else {
-										ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
-										ast_frfree(f);
-										return NULL;
-									}
-								}
-							}
-							break;
-						case AST_CONTROL_BUSY:
-							ast_verb(3, "%s is busy\n", winner->name);
-							break;
-						case AST_CONTROL_CONGESTION:
-							ast_verb(3, "%s is circuit-busy\n", winner->name);
-							break;
-						case AST_CONTROL_RINGING:
-							ast_verb(3, "%s is ringing\n", winner->name);
-							break;
-						case AST_CONTROL_PROGRESS:
-							ast_verb(3, "%s is making progress passing it to %s\n", winner->name, caller->name);
-							break;
-						case AST_CONTROL_VIDUPDATE:
-							ast_verb(3, "%s requested a video update, passing it to %s\n", winner->name, caller->name);
-							break;
-						case AST_CONTROL_PROCEEDING:
-							ast_verb(3, "%s is proceeding passing it to %s\n", winner->name,caller->name);
-							break;
-						case AST_CONTROL_HOLD:
-							ast_verb(3, "Call on %s placed on hold\n", winner->name);
-							break;
-						case AST_CONTROL_UNHOLD:
-							ast_verb(3, "Call on %s left from hold\n", winner->name);
-							break;
-						case AST_CONTROL_OFFHOOK:
-						case AST_CONTROL_FLASH:
-							/* Ignore going off hook and flash */
-							break;
-						case -1:
-							ast_verb(3, "%s stopped sounds\n", winner->name);
-							break;
-						default:
-							ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
-							break;
-						}
-					} 
-					if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
-						if (winner->stream)
-							ast_stopstream(winner);
-						tmpuser->digts = 0;
-						ast_debug(1, "DTMF received: %c\n",(char) f->subclass);
-						tmpuser->yn[tmpuser->ynidx] = (char) f->subclass;
-						tmpuser->ynidx++;
-						ast_debug(1, "DTMF string: %s\n", tmpuser->yn);
-						if (tmpuser->ynidx >= ynlongest) {
-							ast_debug(1, "reached longest possible match - doing evals\n");
-							if (!strcmp(tmpuser->yn, tpargs->takecall)) {
-								ast_debug(1, "Match to take the call!\n");
-								ast_frfree(f);
-								return tmpuser->ochan;	
-							}
-							if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
-								ast_debug(1, "Next in dial plan step requested.\n");
-								*status = 1;
-								ast_frfree(f);
-								return NULL;
-							}	
-
-						}
-					}
-					
-					ast_frfree(f);
-				} else {
-					if (winner) {
-						ast_debug(1, "we didn't get a frame. hanging up. dg is %d\n",dg);					      
-						if (!dg) {
+		if (winner) {
+			/* Need to find out which channel this is */
+			dg = 0;
+			while ((winner != watchers[dg]) && (dg < 256))
+				dg++;
+			AST_LIST_TRAVERSE(findme_user_list, tmpuser, entry)
+				if (tmpuser->ochan == winner)
+					break;
+			f = ast_read(winner);
+			if (f) {
+				if (f->frametype == AST_FRAME_CONTROL) {
+					switch(f->subclass) {
+					case AST_CONTROL_HANGUP:
+						if (option_verbose > 2)
+							ast_verb(3, "%s received a hangup frame.\n", winner->name);
+						if (dg == 0) {
+							ast_verb(3, "The calling channel hungup. Need to drop everyone else.\n");
 							clear_calling_tree(findme_user_list);
-							return NULL;
-						} else {
-							tmpuser->state = -1;
-						 	ast_hangup(winner);  
-							livechannels--;
-							ast_debug(1, "live channels left %d\n", livechannels);
-							if (!livechannels) {
-								ast_verb(3, "no live channels left. exiting.\n");
-								return NULL;
+							ctstatus = -1;
+						}
+						break;
+					case AST_CONTROL_ANSWER:
+						if (option_verbose > 2)
+							ast_verb(3, "%s answered %s\n", winner->name, caller->name);
+						/* If call has been answered, then the eventual hangup is likely to be normal hangup */ 
+						winner->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+						caller->hangupcause = AST_CAUSE_NORMAL_CLEARING;
+						ast_verb(3, "Starting playback of %s\n", callfromname);
+						if (dg > 0) {
+							if (!ast_strlen_zero(namerecloc)) {
+								if (!ast_streamfile(winner, callfromname, winner->language)) {
+									ast_sched_runq(winner->sched);
+									tmpuser->state = 1;
+								} else {
+									ast_log(LOG_WARNING, "Unable to playback %s.\n", callfromname);
+									ast_frfree(f);
+									return NULL;
+								}				
+							} else {			
+								tmpuser->state = 2;
+								if (!ast_streamfile(tmpuser->ochan, tpargs->norecordingprompt, tmpuser->ochan->language))
+									ast_sched_runq(tmpuser->ochan->sched);
+								else {
+									ast_log(LOG_WARNING, "Unable to playback %s.\n", tpargs->norecordingprompt);
+									ast_frfree(f);
+									return NULL;
+								}
 							}
 						}
+						break;
+					case AST_CONTROL_BUSY:
+						ast_verb(3, "%s is busy\n", winner->name);
+						break;
+					case AST_CONTROL_CONGESTION:
+						ast_verb(3, "%s is circuit-busy\n", winner->name);
+						break;
+					case AST_CONTROL_RINGING:
+						ast_verb(3, "%s is ringing\n", winner->name);
+						break;
+					case AST_CONTROL_PROGRESS:
+						ast_verb(3, "%s is making progress passing it to %s\n", winner->name, caller->name);
+						break;
+					case AST_CONTROL_VIDUPDATE:
+						ast_verb(3, "%s requested a video update, passing it to %s\n", winner->name, caller->name);
+						break;
+					case AST_CONTROL_PROCEEDING:
+						ast_verb(3, "%s is proceeding passing it to %s\n", winner->name,caller->name);
+						break;
+					case AST_CONTROL_HOLD:
+						ast_verb(3, "Call on %s placed on hold\n", winner->name);
+						break;
+					case AST_CONTROL_UNHOLD:
+						ast_verb(3, "Call on %s left from hold\n", winner->name);
+						break;
+					case AST_CONTROL_OFFHOOK:
+					case AST_CONTROL_FLASH:
+						/* Ignore going off hook and flash */
+						break;
+					case -1:
+						ast_verb(3, "%s stopped sounds\n", winner->name);
+						break;
+					default:
+						ast_debug(1, "Dunno what to do with control type %d\n", f->subclass);
+						break;
 					}
-				}					
+				} 
+				if (tmpuser && tmpuser->state == 3 && f->frametype == AST_FRAME_DTMF) {
+					if (winner->stream)
+						ast_stopstream(winner);
+					tmpuser->digts = 0;
+					ast_debug(1, "DTMF received: %c\n",(char) f->subclass);
+					tmpuser->yn[tmpuser->ynidx] = (char) f->subclass;
+					tmpuser->ynidx++;
+					ast_debug(1, "DTMF string: %s\n", tmpuser->yn);
+					if (tmpuser->ynidx >= ynlongest) {
+						ast_debug(1, "reached longest possible match - doing evals\n");
+						if (!strcmp(tmpuser->yn, tpargs->takecall)) {
+							ast_debug(1, "Match to take the call!\n");
+							ast_frfree(f);
+							return tmpuser->ochan;	
+						}
+						if (!strcmp(tmpuser->yn, tpargs->nextindp)) {
+							ast_debug(1, "Next in dial plan step requested.\n");
+							*status = 1;
+							ast_frfree(f);
+							return NULL;
+						}	
+						
+					}
+				}
 				
-			} else
-				ast_debug(1, "timed out waiting for action\n");
-		}
-		
-	} else {
-		ast_verb(3, "couldn't reach at this number.\n");
+				ast_frfree(f);
+			} else {
+				if (winner) {
+					ast_debug(1, "we didn't get a frame. hanging up. dg is %d\n",dg);					      
+					if (!dg) {
+						clear_calling_tree(findme_user_list);
+						return NULL;
+					} else {
+						tmpuser->state = -1;
+						ast_hangup(winner);  
+						livechannels--;
+						ast_debug(1, "live channels left %d\n", livechannels);
+						if (!livechannels) {
+							ast_verb(3, "no live channels left. exiting.\n");
+							return NULL;
+						}
+					}
+				}
+			}					
+			
+		} else
+			ast_debug(1, "timed out waiting for action\n");
 	}
 	
 	/* --- WAIT FOR WINNER NUMBER END! -----------*/
@@ -889,134 +894,138 @@ static int app_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(followmeid);
 		AST_APP_ARG(options);
 	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n", app);
+		return -1;
+	}
 	
 	if (!(argstr = ast_strdupa((char *)data))) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
 		return -1;
 	}
 
-	if (!data) {
-		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n",app);
+	AST_STANDARD_APP_ARGS(args, argstr);
+
+	if (ast_strlen_zero(args.followmeid)) {
+		ast_log(LOG_WARNING, "%s requires an argument (followmeid)\n", app);
 		return -1;
 	}
 
-	AST_STANDARD_APP_ARGS(args, argstr);
-
-	if (!ast_strlen_zero(args.followmeid)) 
-		AST_LIST_LOCK(&followmes);
-	AST_LIST_TRAVERSE(&followmes, f, entry) {
+	AST_RWLIST_RDLOCK(&followmes);
+	AST_RWLIST_TRAVERSE(&followmes, f, entry) {
 		if (!strcasecmp(f->name, args.followmeid) && (f->active))
 			break;
 	}
-	AST_LIST_UNLOCK(&followmes);
-
+	AST_RWLIST_UNLOCK(&followmes);
+	
 	ast_debug(1, "New profile %s.\n", args.followmeid);
-	if (!f) { 
+
+	if (!f) {
 		ast_log(LOG_WARNING, "Profile requested, %s, not found in the configuration.\n", args.followmeid);
+		return 0;
+	}
+
+	/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */
+	if (args.options) 
+		ast_app_parse_options(followme_opts, &targs.followmeflags, NULL, args.options);
+	
+	/* Lock the profile lock and copy out everything we need to run with before unlocking it again */
+	ast_mutex_lock(&f->lock);
+	targs.mohclass = ast_strdupa(f->moh);
+	ast_copy_string(targs.context, f->context, sizeof(targs.context));
+	ast_copy_string(targs.takecall, f->takecall, sizeof(targs.takecall));
+	ast_copy_string(targs.nextindp, f->nextindp, sizeof(targs.nextindp));
+	ast_copy_string(targs.callfromprompt, f->callfromprompt, sizeof(targs.callfromprompt));
+	ast_copy_string(targs.norecordingprompt, f->norecordingprompt, sizeof(targs.norecordingprompt));
+	ast_copy_string(targs.optionsprompt, f->optionsprompt, sizeof(targs.optionsprompt));
+	ast_copy_string(targs.plsholdprompt, f->plsholdprompt, sizeof(targs.plsholdprompt));
+	ast_copy_string(targs.statusprompt, f->statusprompt, sizeof(targs.statusprompt));
+	ast_copy_string(targs.sorryprompt, f->sorryprompt, sizeof(targs.sorryprompt));
+	/* Copy the numbers we're going to use into another list in case the master list should get modified 
+	   (and locked) while we're trying to do a follow-me */
+	AST_LIST_HEAD_INIT_NOLOCK(&targs.cnumbers);
+	AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
+		newnm = create_followme_number(nm->number, nm->timeout, nm->order);
+		AST_LIST_INSERT_TAIL(&targs.cnumbers, newnm, entry);
+	}
+	ast_mutex_unlock(&f->lock);
+	
+	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
+		ast_stream_and_wait(chan, targs.statusprompt, "");
+	
+	snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
+	duration = 5;
+	
+	if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
+		if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, 128, 0, NULL) < 0)
+			goto outrun;
+	
+	/* The following call looks like we're going to playback the file, but we're actually	*/
+	/* just checking to see if we *can* play it. 						*/
+	if (ast_streamfile(chan, namerecloc, chan->language))
+		ast_copy_string(namerecloc, "", sizeof(namerecloc));					
+	else
+		ast_stopstream(chan);
+	
+	if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
+		goto outrun;
+	if (ast_waitstream(chan, "") < 0)
+		goto outrun;
+	ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
+	
+	targs.status = 0;
+	targs.chan = chan;
+	ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
+	
+	findmeexec(&targs);		
+	
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&targs.cnumbers, nm, entry) {
+		AST_LIST_REMOVE_CURRENT(&targs.cnumbers, entry);
+		ast_free(nm);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+		
+	if (!ast_strlen_zero(namerecloc))
+		unlink(namerecloc);	
+	
+	if (targs.status != 100) {
+		ast_moh_stop(chan);
+		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
+			ast_stream_and_wait(chan, targs.sorryprompt, "");
 		res = 0;
 	} else {
-		/* XXX TODO: Reinsert the db check value to see whether or not follow-me is on or off */
-
-
-		if (args.options) 
-			ast_app_parse_options(followme_opts, &targs.followmeflags, NULL, args.options);
-
-		/* Lock the profile lock and copy out everything we need to run with before unlocking it again */
-		ast_mutex_lock(&f->lock);
-		targs.mohclass = ast_strdupa(f->moh);
-		ast_copy_string(targs.context, f->context, sizeof(targs.context));
-		ast_copy_string(targs.takecall, f->takecall, sizeof(targs.takecall));
-		ast_copy_string(targs.nextindp, f->nextindp, sizeof(targs.nextindp));
-		ast_copy_string(targs.callfromprompt, f->callfromprompt, sizeof(targs.callfromprompt));
-		ast_copy_string(targs.norecordingprompt, f->norecordingprompt, sizeof(targs.norecordingprompt));
-		ast_copy_string(targs.optionsprompt, f->optionsprompt, sizeof(targs.optionsprompt));
-		ast_copy_string(targs.plsholdprompt, f->plsholdprompt, sizeof(targs.plsholdprompt));
-		ast_copy_string(targs.statusprompt, f->statusprompt, sizeof(targs.statusprompt));
-		ast_copy_string(targs.sorryprompt, f->sorryprompt, sizeof(targs.sorryprompt));
-		/* Copy the numbers we're going to use into another list in case the master list should get modified 
-				   (and locked) while we're trying to do a follow-me */
-		AST_LIST_HEAD_INIT_NOLOCK(&targs.cnumbers);
-		AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
-			newnm = create_followme_number(nm->number, nm->timeout, nm->order);
-			AST_LIST_INSERT_TAIL(&targs.cnumbers, newnm, entry);
-		}
-		ast_mutex_unlock(&f->lock);
-
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_STATUSMSG)) 
-			ast_stream_and_wait(chan, targs.statusprompt, "");
-
-		snprintf(namerecloc,sizeof(namerecloc),"%s/followme.%s",ast_config_AST_SPOOL_DIR,chan->uniqueid);
-		duration = 5;
-
-		if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_RECORDNAME)) 
-			if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, 128, 0, NULL) < 0)
-				goto outrun;
-
-		/* The following call looks like we're going to playback the file, but we're actually	*/
-		/* just checking to see if we *can* play it. 						*/
-		if (ast_streamfile(chan, namerecloc, chan->language))
-			ast_copy_string(namerecloc, "", sizeof(namerecloc));					
-		else
-			ast_stopstream(chan);
-
-		if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
+		caller = chan;
+		outbound = targs.outbound;
+		/* Bridge the two channels. */
+		
+		memset(&config,0,sizeof(struct ast_bridge_config));
+		ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
+		ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
+		ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
+		
+		ast_moh_stop(caller);
+		/* Be sure no generators are left on it */
+		ast_deactivate_generator(caller);
+		/* Make sure channels are compatible */
+		res = ast_channel_make_compatible(caller, outbound);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", caller->name, outbound->name);
+			ast_hangup(outbound);
 			goto outrun;
-		if (ast_waitstream(chan, "") < 0)
-			goto outrun;
-		ast_moh_start(chan, S_OR(targs.mohclass, NULL), NULL);
-
-		targs.status = 0;
-		targs.chan = chan;
-		ast_copy_string(targs.namerecloc, namerecloc, sizeof(targs.namerecloc));
-
-		findmeexec(&targs);		
-				
-		AST_LIST_TRAVERSE_SAFE_BEGIN(&targs.cnumbers, nm, entry) {
-			AST_LIST_REMOVE_CURRENT(&targs.cnumbers, entry);
-			ast_free(nm);
 		}
-		AST_LIST_TRAVERSE_SAFE_END
-	
-		if (!ast_strlen_zero(namerecloc))
-			unlink(namerecloc);	
-
-		if (targs.status != 100) {
-			ast_moh_stop(chan);
-			if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
-				ast_stream_and_wait(chan, targs.sorryprompt, "");
-			res = 0;
-		} else {
-			caller = chan;
-			outbound = targs.outbound;
-			/* Bridge the two channels. */
-
-			memset(&config,0,sizeof(struct ast_bridge_config));
-			ast_set_flag(&(config.features_callee), AST_FEATURE_REDIRECT);
-			ast_set_flag(&(config.features_callee), AST_FEATURE_AUTOMON);
-			ast_set_flag(&(config.features_caller), AST_FEATURE_AUTOMON);
-				
-			ast_moh_stop(caller);
-			/* Be sure no generators are left on it */
-			ast_deactivate_generator(caller);
-			/* Make sure channels are compatible */
-			res = ast_channel_make_compatible(caller, outbound);
-			if (res < 0) {
-				ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", caller->name, outbound->name);
-				ast_hangup(outbound);
-				goto outrun;
-			}
-			time(&answer_time);
-			res = ast_bridge_call(caller,outbound,&config);
-			time(&end_time);
-			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
-			pbx_builtin_setvar_helper(caller, "DIALEDTIME", toast);
-			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
-			pbx_builtin_setvar_helper(caller, "ANSWEREDTIME", toast);
-			if (outbound)
-				ast_hangup(outbound);
-			res = 1;
-		}
+		time(&answer_time);
+		res = ast_bridge_call(caller,outbound,&config);
+		time(&end_time);
+		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
+		pbx_builtin_setvar_helper(caller, "DIALEDTIME", toast);
+		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
+		pbx_builtin_setvar_helper(caller, "ANSWEREDTIME", toast);
+		if (outbound)
+			ast_hangup(outbound);
+		res = 1;
 	}
+
 	outrun:
 	
 	return res;
@@ -1029,13 +1038,13 @@ static int unload_module(void)
 	ast_unregister_application(app);
 
 	/* Free Memory. Yeah! I'm free! */
-	AST_LIST_LOCK(&followmes);
-	while ((f = AST_LIST_REMOVE_HEAD(&followmes, entry))) {
+	AST_RWLIST_WRLOCK(&followmes);
+	while ((f = AST_RWLIST_REMOVE_HEAD(&followmes, entry))) {
 		free_numbers(f);
 		ast_free(f);
 	}
 
-	AST_LIST_UNLOCK(&followmes);
+	AST_RWLIST_UNLOCK(&followmes);
 
 	return 0;
 }
