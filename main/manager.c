@@ -832,8 +832,15 @@ static int send_string(struct mansession *s, char *string)
 	return n < 0 ? -1 : 0;
 }
 
-/* XXX see if it can be moved inside the function */
+/*!
+ * \brief thread local buffer for astman_append
+ *
+ * \note This can not be defined within the astman_append() function
+ *       because it declares a couple of functions that get used to
+ *       initialize the thread local storage key.
+ */
 AST_THREADSTORAGE(astman_append_buf);
+/*! \brief initial allocated size for the astman_append_buf */
 #define ASTMAN_APPEND_BUF_INITSIZE   256
 
 /*!
