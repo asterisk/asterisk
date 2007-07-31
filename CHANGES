@@ -33,6 +33,10 @@ Dialplan functions
   * MailboxExists converted to dialplan function
   * A new option to Dial() for telling IP phones not to count the call
     as "missed" when dial times out and cancels.
+  * Added LOCK(), TRYLOCK(), and UNLOCK(), which provide a single level dialplan
+    mutex.  No deadlocks are possible, as LOCK() only allows a single lock to be
+    held for any given channel.  Also, locks are automatically freed when a
+    channel is hung up.
 
 CLI Changes
 -----------

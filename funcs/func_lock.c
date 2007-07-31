@@ -200,8 +200,9 @@ static struct ast_custom_function unlock_function = {
 	.name = "UNLOCK",
 	.synopsis = "Unlocks a named mutex",
 	.desc =
-"Unlocks a previously locked mutex.  Returns 1 if the channel had a lock\n"
-"or 0 otherwise.\n",
+"Unlocks a previously locked mutex.  Note that it is generally unnecessary to\n"
+"unlock in a hangup routine, as any lock held is automatically freed when the\n"
+"channel is destroyed.  Returns 1 if the channel had a lock or 0 otherwise.\n",
 	.syntax = "UNLOCK()",
 	.read = unlock_read,
 };
