@@ -1136,6 +1136,7 @@ static struct sip_pvt *dialoglist = NULL;
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(dialoglock);
 
+#ifndef DETECT_DEADLOCKS
 /*! \brief hide the way the list is locked/unlocked */
 static void dialoglist_lock(void)
 {
@@ -1146,6 +1147,12 @@ static void dialoglist_unlock(void)
 {
 	ast_mutex_unlock(&dialoglock);
 }
+#else
+/* we don't want to HIDE the information about where the lock was requested if trying to debug 
+ * deadlocks!  So, just make these macros! */
+#define dialoglist_lock(x) ast_mutex_lock(&dialoglock)
+#define dialoglist_unlock(x) ast_mutex_unlock(&dialoglock)
+#endif
 
 /*!
  * when we create or delete references, make sure to use these
