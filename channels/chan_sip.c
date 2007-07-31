@@ -13697,6 +13697,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (option_debug > 1)
 				ast_log(LOG_DEBUG, "%s: This call is UP.... \n", c->name);
 
+			transmit_response(p, "100 Trying", req);
+
 			if (p->t38.state == T38_PEER_REINVITE) {
 				struct ast_channel *bridgepeer = NULL;
 				struct sip_pvt *bridgepvt = NULL;
