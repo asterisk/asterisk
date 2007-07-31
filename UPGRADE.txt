@@ -71,6 +71,11 @@ Applications:
 * DISA()'s fifth argument is now an options argument.  If you have previously
   used 'NOANSWER' in this argument, you'll need to convert that to the new
   option 'n'.
+* Macro() is now deprecated.  If you need subroutines, you should use the
+  Gosub()/Return() applications.  To replace MacroExclusive(), we have
+  introduced dialplan functions LOCK(), TRYLOCK(), and UNLOCK().  You may use
+  these functions in any location where you desire to ensure that only one
+  channel is executing that path at any one time.
 
 CDR:
 
