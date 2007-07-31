@@ -66,7 +66,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *vdata)
 		AST_APP_ARG(timeout);
 	);
 
-	if (ast_strlen_zero(data)) {
+	if (ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return 0;
 	}
