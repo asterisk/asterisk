@@ -18654,11 +18654,11 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 
 	/* Prepare the version that does not require DTMF BEGIN frames.
-	 * We need to use tricks such as memcopy and casts because the variable
+	 * We need to use tricks such as memcpy and casts because the variable
 	 * has const fields.
 	 */
 	memcpy(&sip_tech_info, &sip_tech, sizeof(sip_tech));
-	*((void **)&sip_tech_info.send_digit_begin) = NULL;
+	memset((void *) &sip_tech_info.send_digit_begin, 0, sizeof(sip_tech_info.send_digit_begin));
 
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
