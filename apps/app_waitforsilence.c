@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app = "WaitForSilence";
 static char *synopsis = "Waits for a specified amount of silence";
 static char *descrip =
-"  WaitForSilence(silencerequired[|iterations][|timeout]) \n"
+"  WaitForSilence(silencerequired[,iterations][,timeout]) \n"
 "Wait for Silence: Waits for up to 'silencerequired' \n"
 "milliseconds of silence, 'iterations' times or once if omitted.\n"
 "An optional timeout specified the number of seconds to return\n"
@@ -67,9 +67,9 @@ static char *descrip =
 "include two or more calls to WaitForSilence when dealing with an answering\n"
 "machine; first waiting for the spiel to finish, then waiting for the beep, etc.\n\n"
   "Examples:\n"
-"  - WaitForSilence(500|2) will wait for 1/2 second of silence, twice\n"
+"  - WaitForSilence(500,2) will wait for 1/2 second of silence, twice\n"
 "  - WaitForSilence(1000) will wait for 1 second of silence, once\n"
-"  - WaitForSilence(300|3|10) will wait for 300ms silence, 3 times,\n"
+"  - WaitForSilence(300,3,10) will wait for 300ms silence, 3 times,\n"
 "     and returns after 10 sec, even if silence is not detected\n\n"
 "Sets the channel variable WAITSTATUS with to one of these values:\n"
 "SILENCE - if exited with silence detected\n"
@@ -163,7 +163,7 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 
 	res = ast_answer(chan); /* Answer the channel */
 
-	if (!data || ( (sscanf(data, "%d|%d|%d", &silencereqd, &iterations, &timeout) != 3) &&
+	if (!data || ( (sscanf(data, "%d,%d,%d", &silencereqd, &iterations, &timeout) != 3) &&
 		(sscanf(data, "%d|%d", &silencereqd, &iterations) != 2) &&
 		(sscanf(data, "%d", &silencereqd) != 1) ) ) {
 		ast_log(LOG_WARNING, "Using default value of 1000ms, 1 iteration, no timeout\n");

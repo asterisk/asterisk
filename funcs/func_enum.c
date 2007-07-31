@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/enum.h"
 #include "asterisk/app.h"
 
-static char *synopsis = "Syntax: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])\n";
+static char *synopsis = "Syntax: ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])\n";
 
 static int function_enum(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
@@ -293,7 +293,7 @@ finish:
 static struct ast_custom_function enum_query_function = {
 	.name = "ENUMQUERY",
 	.synopsis = "Initiate an ENUM query",
-	.syntax = "ENUMQUERY(number[|Method-type[|zone-suffix]])",
+	.syntax = "ENUMQUERY(number[,Method-type[,zone-suffix]])",
 	.desc = "This will do a ENUM lookup of the given phone number.\n"
 	"If no method-tpye is given, the default will be sip. If no\n"
 	"zone-suffix is given, the default will be \"e164.arpa\".\n"
@@ -305,7 +305,7 @@ static struct ast_custom_function enum_query_function = {
 static struct ast_custom_function enum_result_function = {
 	.name = "ENUMRESULT",
 	.synopsis = "Retrieve results from a ENUMQUERY",
-	.syntax = "ENUMRESULT(id|resultnum)",
+	.syntax = "ENUMRESULT(id,resultnum)",
 	.desc = "This function will retrieve results from a previous use\n"
 	"of the ENUMQUERY function.\n"
 	"  id - This argument is the identifier returned by the ENUMQUERY function.\n"
@@ -320,7 +320,7 @@ static struct ast_custom_function enum_function = {
 	.synopsis =
 		"General or specific querying of NAPTR records for ENUM or ENUM-like DNS pointers",
 	.syntax =
-		"ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])",
+		"ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])",
 	.desc =
 		"Option 'c' returns an integer count of the number of NAPTRs of a certain RR type.\n"
 		"Combination of 'c' and Method-type of 'ALL' will return a count of all NAPTRs for the record.\n"

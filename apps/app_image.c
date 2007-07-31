@@ -49,34 +49,21 @@ static char *app = "SendImage";
 static char *synopsis = "Send an image file";
 
 static char *descrip = 
-"  SendImage(filename): Sends an image on a channel. \n"
-"If the channel supports image transport but the image send\n"
-"fails, the channel will be hung up. Otherwise, the dialplan\n"
-"continues execution.\n"
-"This application sets the following channel variable upon completion:\n"
-"	SENDIMAGESTATUS		The status is the result of the attempt as a text string, one of\n"
-"		OK | NOSUPPORT \n";			
+"  SendImage(filename): Sends an image on a channel.\n"
+"If the channel supports image transport but the image send fails, the channel\n"
+"will be hung up.  Otherwise, the dialplan continues execution.  This\n"
+"application sets the following channel variable upon completion:\n"
+"   SENDIMAGESTATUS  The status is the result of the attempt, one of:\n"
+"                    OK | NOSUPPORT \n";			
 
 
 static int sendimage_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *parse;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(filename);
-		AST_APP_ARG(options);
-	);
-	
-	parse = ast_strdupa(data);
 
-	AST_STANDARD_APP_ARGS(args, parse);
-
-	if (ast_strlen_zero(args.filename)) {
-		ast_log(LOG_WARNING, "SendImage requires an argument (filename[|options])\n");
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
 		return -1;
-	}
-
-	if (args.options) {
 	}
 
 	if (!ast_supports_images(chan)) {
@@ -85,7 +72,7 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	if (!(res = ast_send_image(chan, args.filename)))
+	if (!(res = ast_send_image(chan, data)))
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "OK");
 		
 	return res;

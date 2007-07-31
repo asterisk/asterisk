@@ -50,35 +50,32 @@ static char *app = "SendDTMF";
 static char *synopsis = "Sends arbitrary DTMF digits";
 
 static char *descrip = 
-" SendDTMF(digits[|timeout_ms]): Sends DTMF digits on a channel. \n"
+" SendDTMF(digits[,timeout_ms]): Sends DTMF digits on a channel. \n"
 " Accepted digits: 0-9, *#abcd, w (.5s pause)\n"
 " The application will either pass the assigned digits or terminate if it\n"
 " encounters an error.\n";
 
 
-static int senddtmf_exec(struct ast_channel *chan, void *data)
+static int senddtmf_exec(struct ast_channel *chan, void *vdata)
 {
 	int res = 0;
-	char *digits = NULL, *to = NULL;
-	int timeout = 250;
+	char *data;
+	int timeout;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(digits);
+		AST_APP_ARG(timeout);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
 		return 0;
 	}
 
-	digits = ast_strdupa(data);
+	data = ast_strdupa(vdata);
+	AST_STANDARD_APP_ARGS(args, data);
 
-	if ((to = strchr(digits,'|'))) {
-		*to = '\0';
-		to++;
-		timeout = atoi(to);
-	}
-		
-	if (timeout <= 0)
-		timeout = 250;
-
-	res = ast_dtmf_stream(chan,NULL,digits,timeout);
+	timeout = atoi(args.timeout);
+	res = ast_dtmf_stream(chan, NULL, args.digits, timeout <= 0 ? 250 : timeout);
 
 	return res;
 }

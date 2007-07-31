@@ -59,7 +59,7 @@ static char *speechstart_descrip =
 	"Tell the speech recognition engine that it should start trying to get results from audio being fed to it. This has no arguments.\n";
 
 static char *speechbackground_descrip =
-"SpeechBackground(Sound File|Timeout)\n"
+"SpeechBackground(Sound File,Timeout)\n"
 "This application plays a sound file and waits for the person to speak. Once they start speaking playback of the file stops, and silence is heard.\n"
 "Once they stop talking the processing sound is played to indicate the speech recognition engine is working.\n"
 "Once results are available the application returns and results (score and text) are available using dialplan functions.\n"
@@ -82,7 +82,7 @@ static char *speechdestroy_descrip =
 	"again before calling any other application. It takes no arguments.\n";
 
 static char *speechload_descrip =
-"SpeechLoadGrammar(Grammar Name|Path)\n"
+"SpeechLoadGrammar(Grammar Name,Path)\n"
 "Load a grammar only on the channel, not globally.\n"
 "It takes the grammar name as first argument and path as second.\n";
 
@@ -365,59 +365,60 @@ static int speech_create(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-/*! \brief SpeechLoadGrammar(Grammar Name|Path) Dialplan Application */
-static int speech_load(struct ast_channel *chan, void *data)
+/*! \brief SpeechLoadGrammar(Grammar Name,Path) Dialplan Application */
+static int speech_load(struct ast_channel *chan, void *vdata)
 {
-	int res = 0, argc = 0;
+	int res = 0;
 	struct ast_speech *speech = find_speech(chan);
-	char *argv[2], *args = NULL, *name = NULL, *path = NULL;
+	char *data;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(grammar);
+		AST_APP_ARG(path);
+	);
 
-	args = ast_strdupa(data);
+	data = ast_strdupa(vdata);
+	AST_STANDARD_APP_ARGS(args, data);
 
 	if (speech == NULL)
-                return -1;
-
-	/* Parse out arguments */
-	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-	if (argc != 2)
 		return -1;
-	name = argv[0];
-	path = argv[1];
 
-        /* Load the grammar locally on the object */
-        res = ast_speech_grammar_load(speech, name, path);
+	if (args.argc != 2)
+		return -1;
 
-        return res;
+	/* Load the grammar locally on the object */
+	res = ast_speech_grammar_load(speech, args.grammar, args.path);
+
+	return res;
 }
 
 /*! \brief SpeechUnloadGrammar(Grammar Name) Dialplan Application */
 static int speech_unload(struct ast_channel *chan, void *data)
 {
-        int res = 0;
-        struct ast_speech *speech = find_speech(chan);
+	int res = 0;
+	struct ast_speech *speech = find_speech(chan);
 
-        if (speech == NULL)
+	if (speech == NULL)
 		return -1;
 
-        /* Unload the grammar */
-        res = ast_speech_grammar_unload(speech, data);
+	/* Unload the grammar */
+	res = ast_speech_grammar_unload(speech, data);
 
-        return res;
+	return res;
 }
 
 /*! \brief SpeechDeactivateGrammar(Grammar Name) Dialplan Application */
 static int speech_deactivate(struct ast_channel *chan, void *data)
 {
-        int res = 0;
-        struct ast_speech *speech = find_speech(chan);
+	int res = 0;
+	struct ast_speech *speech = find_speech(chan);
 
-        if (speech == NULL)
-                return -1;
+	if (speech == NULL)
+		return -1;
 
-        /* Deactivate the grammar on the speech object */
-        res = ast_speech_grammar_deactivate(speech, data);
+	/* Deactivate the grammar on the speech object */
+	res = ast_speech_grammar_deactivate(speech, data);
 
-        return res;
+	return res;
 }
 
 /*! \brief SpeechActivateGrammar(Grammar Name) Dialplan Application */
@@ -452,11 +453,11 @@ static int speech_start(struct ast_channel *chan, void *data)
 /*! \brief SpeechProcessingSound(Sound File) Dialplan Application */
 static int speech_processing_sound(struct ast_channel *chan, void *data)
 {
-        int res = 0;
-        struct ast_speech *speech = find_speech(chan);
+	int res = 0;
+	struct ast_speech *speech = find_speech(chan);
 
-        if (speech == NULL)
-                return -1;
+	if (speech == NULL)
+		return -1;
 
 	if (speech->processing_sound != NULL) {
 		ast_free(speech->processing_sound);
@@ -465,13 +466,13 @@ static int speech_processing_sound(struct ast_channel *chan, void *data)
 
 	speech->processing_sound = ast_strdup(data);
 
-        return res;
+	return res;
 }
 
 /*! \brief Helper function used by speech_background to playback a soundfile */
 static int speech_streamfile(struct ast_channel *chan, const char *filename, const char *preflang)
 {
-        struct ast_filestream *fs = NULL;
+	struct ast_filestream *fs = NULL;
 
 	if (!(fs = ast_openstream(chan, filename, preflang)))
 		return -1;
@@ -481,50 +482,53 @@ static int speech_streamfile(struct ast_channel *chan, const char *filename, con
 	
 	ast_playstream(fs);
 
-        return 0;
+	return 0;
 }
 
-/*! \brief SpeechBackground(Sound File|Timeout) Dialplan Application */
+/*! \brief SpeechBackground(Sound File,Timeout) Dialplan Application */
 static int speech_background(struct ast_channel *chan, void *data)
 {
-        unsigned int timeout = 0;
-        int res = 0, done = 0, argc = 0, started = 0, quieted = 0, max_dtmf_len = 0;
-        struct ast_speech *speech = find_speech(chan);
-        struct ast_frame *f = NULL;
-        int oldreadformat = AST_FORMAT_SLINEAR;
-        char dtmf[AST_MAX_EXTENSION] = "";
-        time_t start, current;
-        struct ast_datastore *datastore = NULL;
-        char *argv[2], *args = NULL, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
+	unsigned int timeout = 0;
+	int res = 0, done = 0, started = 0, quieted = 0, max_dtmf_len = 0;
+	struct ast_speech *speech = find_speech(chan);
+	struct ast_frame *f = NULL;
+	int oldreadformat = AST_FORMAT_SLINEAR;
+	char dtmf[AST_MAX_EXTENSION] = "";
+	time_t start, current;
+	struct ast_datastore *datastore = NULL;
+	char *parse, *filename_tmp = NULL, *filename = NULL, tmp[2] = "", dtmf_terminator = '#';
 	const char *tmp2 = NULL;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(soundfile);
+		AST_APP_ARG(timeout);
+	);
 
-        args = ast_strdupa(data);
+	parse = ast_strdupa(data);
+	AST_STANDARD_APP_ARGS(args, parse);
 
-        if (speech == NULL)
-                return -1;
+	if (speech == NULL)
+		return -1;
 
 	/* If channel is not already answered, then answer it */
 	if (chan->_state != AST_STATE_UP && ast_answer(chan))
 		return -1;
 
-        /* Record old read format */
-        oldreadformat = chan->readformat;
+	/* Record old read format */
+	oldreadformat = chan->readformat;
 
-        /* Change read format to be signed linear */
-        if (ast_set_read_format(chan, speech->format))
-                return -1;
+	/* Change read format to be signed linear */
+	if (ast_set_read_format(chan, speech->format))
+		return -1;
 
-        /* Parse out options */
-        argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-        if (argc > 0) {
-                /* Yay sound file */
-                filename_tmp = ast_strdupa(argv[0]);
-		if (!ast_strlen_zero(argv[1])) {
-			if ((timeout = atoi(argv[1])) == 0)
+	if (!ast_strlen_zero(args.soundfile)) {
+		/* Yay sound file */
+		filename_tmp = ast_strdupa(args.soundfile);
+		if (!ast_strlen_zero(args.timeout)) {
+			if ((timeout = atoi(args.timeout)) == 0)
 				timeout = -1;
 		} else
 			timeout = 0;
-        }
+	}
 
 	/* See if the maximum DTMF length variable is set... we use a variable in case they want to carry it through their entire dialplan */
 	if ((tmp2 = pbx_builtin_getvar_helper(chan, "SPEECH_DTMF_MAXLEN")) && !ast_strlen_zero(tmp2))
@@ -538,17 +542,17 @@ static int speech_background(struct ast_channel *chan, void *data)
 			dtmf_terminator = tmp2[0];
 	}
 
-        /* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
-        if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
+	/* Before we go into waiting for stuff... make sure the structure is ready, if not - start it again */
+	if (speech->state == AST_SPEECH_STATE_NOT_READY || speech->state == AST_SPEECH_STATE_DONE) {
 		ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
-                ast_speech_start(speech);
-        }
+		ast_speech_start(speech);
+	}
 
 	/* Ensure no streams are currently running */
 	ast_stopstream(chan);
 
-        /* Okay it's streaming so go into a loop grabbing frames! */
-        while (done == 0) {
+	/* Okay it's streaming so go into a loop grabbing frames! */
+	while (done == 0) {
 		/* If the filename is null and stream is not running, start up a new sound file */
 		if (!quieted && (chan->streamid == -1 && chan->timingfunc == NULL) && (filename = strsep(&filename_tmp, "&"))) {
 			/* Discard old stream information */
@@ -557,24 +561,23 @@ static int speech_background(struct ast_channel *chan, void *data)
 			speech_streamfile(chan, filename, chan->language);
 		}
 
-                /* Run scheduled stuff */
-                ast_sched_runq(chan->sched);
+		/* Run scheduled stuff */
+		ast_sched_runq(chan->sched);
 
-                /* Yay scheduling */
-                res = ast_sched_wait(chan->sched);
-                if (res < 0) {
-                        res = 1000;
-                }
+		/* Yay scheduling */
+		res = ast_sched_wait(chan->sched);
+		if (res < 0)
+			res = 1000;
 
-                /* If there is a frame waiting, get it - if not - oh well */
-                if (ast_waitfor(chan, res) > 0) {
-                        f = ast_read(chan);
-                        if (f == NULL) {
-                                /* The channel has hung up most likely */
-                                done = 3;
-                                break;
-                        }
-                }
+		/* If there is a frame waiting, get it - if not - oh well */
+		if (ast_waitfor(chan, res) > 0) {
+			f = ast_read(chan);
+			if (f == NULL) {
+				/* The channel has hung up most likely */
+				done = 3;
+				break;
+			}
+		}
 
 		/* Do timeout check (shared between audio/dtmf) */
 		if ((!quieted || strlen(dtmf)) && started == 1) {
@@ -587,21 +590,21 @@ static int speech_background(struct ast_channel *chan, void *data)
 			}
 		}
 
-                /* Do checks on speech structure to see if it's changed */
-                ast_mutex_lock(&speech->lock);
-                if (ast_test_flag(speech, AST_SPEECH_QUIET)) {
+		/* Do checks on speech structure to see if it's changed */
+		ast_mutex_lock(&speech->lock);
+		if (ast_test_flag(speech, AST_SPEECH_QUIET)) {
 			if (chan->stream)
 				ast_stopstream(chan);
 			ast_clear_flag(speech, AST_SPEECH_QUIET);
 			quieted = 1;
-                }
-                /* Check state so we can see what to do */
-                switch (speech->state) {
-                case AST_SPEECH_STATE_READY:
-                        /* If audio playback has stopped do a check for timeout purposes */
-                        if (chan->streamid == -1 && chan->timingfunc == NULL)
-                                ast_stopstream(chan);
-                        if (!quieted && chan->stream == NULL && timeout && started == 0 && !filename_tmp) {
+		}
+		/* Check state so we can see what to do */
+		switch (speech->state) {
+		case AST_SPEECH_STATE_READY:
+			/* If audio playback has stopped do a check for timeout purposes */
+			if (chan->streamid == -1 && chan->timingfunc == NULL)
+				ast_stopstream(chan);
+			if (!quieted && chan->stream == NULL && timeout && started == 0 && !filename_tmp) {
 				if (timeout == -1) {
 					done = 1;
 					if (f)
@@ -610,14 +613,14 @@ static int speech_background(struct ast_channel *chan, void *data)
 				}
 				time(&start);
 				started = 1;
-                        }
-                        /* Write audio frame out to speech engine if no DTMF has been received */
-                        if (!strlen(dtmf) && f != NULL && f->frametype == AST_FRAME_VOICE) {
-                                ast_speech_write(speech, f->data, f->datalen);
-                        }
-                        break;
-                case AST_SPEECH_STATE_WAIT:
-                        /* Cue up waiting sound if not already playing */
+			}
+			/* Write audio frame out to speech engine if no DTMF has been received */
+			if (!strlen(dtmf) && f != NULL && f->frametype == AST_FRAME_VOICE) {
+				ast_speech_write(speech, f->data, f->datalen);
+			}
+			break;
+		case AST_SPEECH_STATE_WAIT:
+			/* Cue up waiting sound if not already playing */
 			if (!strlen(dtmf)) {
 				if (chan->stream == NULL) {
 					if (speech->processing_sound != NULL) {
@@ -634,8 +637,8 @@ static int speech_background(struct ast_channel *chan, void *data)
 					}
 				}
 			}
-                        break;
-                case AST_SPEECH_STATE_DONE:
+			break;
+		case AST_SPEECH_STATE_DONE:
 			/* Now that we are done... let's switch back to not ready state */
 			ast_speech_change_state(speech, AST_SPEECH_STATE_NOT_READY);
 			if (!strlen(dtmf)) {
@@ -648,17 +651,17 @@ static int speech_background(struct ast_channel *chan, void *data)
 					ast_stopstream(chan);
 				}
 			}
-                        break;
-                default:
-                        break;
-                }
-                ast_mutex_unlock(&speech->lock);
+			break;
+		default:
+			break;
+		}
+		ast_mutex_unlock(&speech->lock);
 
-                /* Deal with other frame types */
-                if (f != NULL) {
-                        /* Free the frame we received */
-                        switch (f->frametype) {
-                        case AST_FRAME_DTMF:
+		/* Deal with other frame types */
+		if (f != NULL) {
+			/* Free the frame we received */
+			switch (f->frametype) {
+			case AST_FRAME_DTMF:
 				if (dtmf_terminator != '\0' && f->subclass == dtmf_terminator) {
 					done = 1;
 				} else {
@@ -677,24 +680,24 @@ static int speech_background(struct ast_channel *chan, void *data)
 					if (max_dtmf_len && strlen(dtmf) == max_dtmf_len)
 						done = 1;
 				}
-                                break;
-                        case AST_FRAME_CONTROL:
-                                switch (f->subclass) {
-                                case AST_CONTROL_HANGUP:
-                                        /* Since they hung up we should destroy the speech structure */
-                                        done = 3;
-                                default:
-                                        break;
-                                }
-                        default:
-                                break;
-                        }
-                        ast_frfree(f);
-                        f = NULL;
-                }
-        }
+				break;
+			case AST_FRAME_CONTROL:
+				switch (f->subclass) {
+				case AST_CONTROL_HANGUP:
+					/* Since they hung up we should destroy the speech structure */
+					done = 3;
+				default:
+					break;
+				}
+			default:
+				break;
+			}
+			ast_frfree(f);
+			f = NULL;
+		}
+	}
 
-	if (strlen(dtmf)) {
+	if (!ast_strlen_zero(dtmf)) {
 		/* We sort of make a results entry */
 		speech->results = ast_calloc(1, sizeof(*speech->results));
 		if (speech->results != NULL) {
@@ -704,20 +707,19 @@ static int speech_background(struct ast_channel *chan, void *data)
 		}
 	}
 
-        /* See if it was because they hung up */
-        if (done == 3) {
-                /* Destroy speech structure */
-                ast_speech_destroy(speech);
-                datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
-                if (datastore != NULL) {
-                        ast_channel_datastore_remove(chan, datastore);
-                }
-        } else {
-                /* Channel is okay so restore read format */
-                ast_set_read_format(chan, oldreadformat);
-        }
+	/* See if it was because they hung up */
+	if (done == 3) {
+		/* Destroy speech structure */
+		ast_speech_destroy(speech);
+		datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
+		if (datastore != NULL)
+			ast_channel_datastore_remove(chan, datastore);
+	} else {
+		/* Channel is okay so restore read format */
+		ast_set_read_format(chan, oldreadformat);
+	}
 
-        return 0;
+	return 0;
 }
 
 
@@ -750,7 +752,7 @@ static int unload_module(void)
 	res |= ast_unregister_application("SpeechLoadGrammar");
 	res |= ast_unregister_application("SpeechUnloadGrammar");
 	res |= ast_unregister_application("SpeechActivateGrammar");
-        res |= ast_unregister_application("SpeechDeactivateGrammar");
+	res |= ast_unregister_application("SpeechDeactivateGrammar");
 	res |= ast_unregister_application("SpeechStart");
 	res |= ast_unregister_application("SpeechBackground");
 	res |= ast_unregister_application("SpeechDestroy");
@@ -773,7 +775,7 @@ static int load_module(void)
 	res |= ast_register_application("SpeechLoadGrammar", speech_load, "Load a Grammar", speechload_descrip);
 	res |= ast_register_application("SpeechUnloadGrammar", speech_unload, "Unload a Grammar", speechunload_descrip);
 	res |= ast_register_application("SpeechActivateGrammar", speech_activate, "Activate a Grammar", speechactivategrammar_descrip);
-        res |= ast_register_application("SpeechDeactivateGrammar", speech_deactivate, "Deactivate a Grammar", speechdeactivategrammar_descrip);
+	res |= ast_register_application("SpeechDeactivateGrammar", speech_deactivate, "Deactivate a Grammar", speechdeactivategrammar_descrip);
 	res |= ast_register_application("SpeechStart", speech_start, "Start recognizing voice in the audio stream", speechstart_descrip);
 	res |= ast_register_application("SpeechBackground", speech_background, "Play a sound file and wait for speech to be recognized", speechbackground_descrip);
 	res |= ast_register_application("SpeechDestroy", speech_destroy, "End speech recognition", speechdestroy_descrip);

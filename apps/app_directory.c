@@ -59,7 +59,7 @@ static char *app = "Directory";
 
 static char *synopsis = "Provide directory of voicemail extensions";
 static char *descrip =
-"  Directory(vm-context[|dial-context[|options]]): This application will present\n"
+"  Directory(vm-context[,dial-context[,options]]): This application will present\n"
 "the calling channel with a directory of extensions from which they can search\n"
 "by name. The list of names and corresponding extensions is retrieved from the\n"
 "voicemail configuration file, voicemail.conf.\n"

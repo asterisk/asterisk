@@ -51,7 +51,7 @@ static const char *app = "SendText";
 static const char *synopsis = "Send a Text Message";
 
 static const char *descrip = 
-"  SendText(text[|options]): Sends text to current channel (callee).\n"
+"  SendText(text[,options]): Sends text to current channel (callee).\n"
 "Result of transmission will be stored in the SENDTEXTSTATUS\n"
 "channel variable:\n"
 "      SUCCESS      Transmission succeeded\n"
@@ -71,7 +71,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SendText requires an argument (text[|options])\n");
+		ast_log(LOG_WARNING, "SendText requires an argument (text[,options])\n");
 		return -1;
 	} else
 		parse = ast_strdupa(data);

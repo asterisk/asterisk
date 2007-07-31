@@ -49,7 +49,7 @@ static const char *app = "ControlPlayback";
 static const char *synopsis = "Play a file with fast forward and rewind";
 
 static const char *descrip = 
-"  ControlPlayback(file[|skipms[|ff[|rew[|stop[|pause[|restart|options]]]]]]]):\n"
+"  ControlPlayback(file[,skipms[,ff[,rew[,stop[,pause[,restart,options]]]]]]]):\n"
 "This application will play back the given filename. By default, the '*' key\n"
 "can be used to rewind, and the '#' key can be used to fast-forward.\n"
 "Parameters:\n"

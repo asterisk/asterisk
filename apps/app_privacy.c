@@ -54,7 +54,7 @@ static char *app = "PrivacyManager";
 static char *synopsis = "Require phone number to be entered, if no CallerID sent";
 
 static char *descrip =
-  "  PrivacyManager([maxretries[|minlength[|options]]]): If no Caller*ID \n"
+  "  PrivacyManager([maxretries[,minlength[,options]]]): If no Caller*ID \n"
   "is sent, PrivacyManager answers the channel and asks the caller to\n"
   "enter their phone number. The caller is given 3 attempts to do so.\n"
   "The application does nothing if Caller*ID was received on the channel.\n"

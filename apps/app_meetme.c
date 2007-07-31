@@ -263,7 +263,7 @@ static const char *descrip =
 "      '1' -- do not play message when first person enters\n";
 
 static const char *descrip2 =
-"  MeetMeCount(confno[|var]): Plays back the number of users in the specified\n"
+"  MeetMeCount(confno[,var]): Plays back the number of users in the specified\n"
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Upon app completion, MeetMeCount will hangup\n"
 "the channel, unless priority n+1 exists, in which case priority progress will\n"
@@ -294,7 +294,7 @@ static const char *descrip3 =
 "";
 
 static const char *descrip4 = 
-"  MeetMeChannelAdmin(channel|command): Run admin command for a specific\n"
+"  MeetMeChannelAdmin(channel,command): Run admin command for a specific\n"
 "channel in any coference.\n"
 "      'k' -- Kick the specified user out of the conference he is in\n"
 "      'm' -- Unmute the specified user\n"
@@ -894,10 +894,10 @@ static int meetme_cmd(int fd, int argc, char **argv)
 	if (strstr(argv[1], "lock")) {	
 		if (strcmp(argv[1], "lock") == 0) {
 			/* Lock */
-			strncat(cmdline, "|L", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, ",L", sizeof(cmdline) - strlen(cmdline) - 1);
 		} else {
 			/* Unlock */
-			strncat(cmdline, "|l", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, ",l", sizeof(cmdline) - strlen(cmdline) - 1);
 		}
 	} else if (strstr(argv[1], "mute")) { 
 		if (argc < 4)
@@ -905,17 +905,17 @@ static int meetme_cmd(int fd, int argc, char **argv)
 		if (strcmp(argv[1], "mute") == 0) {
 			/* Mute */
 			if (strcmp(argv[3], "all") == 0) {
-				strncat(cmdline, "|N", sizeof(cmdline) - strlen(cmdline) - 1);
+				strncat(cmdline, ",N", sizeof(cmdline) - strlen(cmdline) - 1);
 			} else {
-				strncat(cmdline, "|M|", sizeof(cmdline) - strlen(cmdline) - 1);	
+				strncat(cmdline, ",M,", sizeof(cmdline) - strlen(cmdline) - 1);	
 				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
 			}
 		} else {
 			/* Unmute */
 			if (strcmp(argv[3], "all") == 0) {
-				strncat(cmdline, "|n", sizeof(cmdline) - strlen(cmdline) - 1);
+				strncat(cmdline, ",n", sizeof(cmdline) - strlen(cmdline) - 1);
 			} else {
-				strncat(cmdline, "|m|", sizeof(cmdline) - strlen(cmdline) - 1);
+				strncat(cmdline, ",m,", sizeof(cmdline) - strlen(cmdline) - 1);
 				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
 			}
 		}
@@ -924,12 +924,12 @@ static int meetme_cmd(int fd, int argc, char **argv)
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[3], "all") == 0) {
 			/* Kick all */
-			strncat(cmdline, "|K", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, ",K", sizeof(cmdline) - strlen(cmdline) - 1);
 		} else {
 			/* Kick a single user */
-			strncat(cmdline, "|k|", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, ",k,", sizeof(cmdline) - strlen(cmdline) - 1);
 			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
-		}	
+		}
 	} else if(strcmp(argv[1], "list") == 0) {
 		int concise = ( 4 == argc && ( !strcasecmp(argv[3], "concise") ) );
 		/* List all the users in a conference */
@@ -2450,7 +2450,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				if (!(parse = ast_strdupa(var->value)))
 					return NULL;
 				
-				AST_NONSTANDARD_APP_ARGS(args, parse, ',');
+				AST_STANDARD_APP_ARGS(args, parse);
 				ast_log(LOG_NOTICE,"Will conf %s match %s?\n", confno, args.confno);
 				if (!strcasecmp(args.confno, confno)) {
 					/* Bingo it's a valid conference */
@@ -3093,7 +3093,7 @@ static void *recordthread(void *args)
 	}
 
 	ast_stopstream(cnf->lchan);
-	flags = O_CREAT|O_TRUNC|O_WRONLY;
+	flags = O_CREAT | O_TRUNC | O_WRONLY;
 
 
 	cnf->recording = MEETME_RECORD_ACTIVE;
@@ -3356,7 +3356,7 @@ static void *run_station(void *data)
 	trunk_ref->chan = NULL;
 	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
 		trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) {
-		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
+		strncat(conf_name, ",K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
 		trunk_ref->trunk->hold_stations = 0;
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
@@ -3374,7 +3374,7 @@ static void sla_stop_ringing_trunk(struct sla_ringing_trunk *ringing_trunk)
 	char buf[80];
 	struct sla_station_ref *station_ref;
 
-	snprintf(buf, sizeof(buf), "SLA_%s|K", ringing_trunk->trunk->name);
+	snprintf(buf, sizeof(buf), "SLA_%s,K", ringing_trunk->trunk->name);
 	admin_exec(NULL, buf);
 	sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);
 
@@ -4374,7 +4374,7 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 	trunk_ref->chan = NULL;
 	if (ast_atomic_dec_and_test((int *) &trunk_ref->trunk->active_stations) &&
 		trunk_ref->state != SLA_TRUNK_STATE_ONHOLD_BYME) {
-		strncat(conf_name, "|K", sizeof(conf_name) - strlen(conf_name) - 1);
+		strncat(conf_name, ",K", sizeof(conf_name) - strlen(conf_name) - 1);
 		admin_exec(NULL, conf_name);
 		trunk_ref->trunk->hold_stations = 0;
 		sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);

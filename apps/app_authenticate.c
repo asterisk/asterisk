@@ -66,7 +66,7 @@ static char *app = "Authenticate";
 static char *synopsis = "Authenticate a user";
 
 static char *descrip =
-"  Authenticate(password[|options[|maxdigits]]): This application asks the caller\n"
+"  Authenticate(password[,options[,maxdigits]]): This application asks the caller\n"
 "to enter a given password in order to continue dialplan execution. If the password\n"
 "begins with the '/' character, it is interpreted as a file which contains a list of\n"
 "valid passwords, listed 1 password per line in the file.\n"

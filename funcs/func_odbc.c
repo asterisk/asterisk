@@ -595,11 +595,12 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		}
  	}
 
-	if ((tmp = ast_variable_retrieve(cfg, catg, "read"))) {
+	if ((tmp = ast_variable_retrieve(cfg, catg, "readsql")))
+		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
+	else if ((tmp = ast_variable_retrieve(cfg, catg, "read"))) {
 		ast_log(LOG_WARNING, "Parameter 'read' is deprecated for category %s.  Please use 'readsql' instead.\n", catg);
 		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
-	} else if ((tmp = ast_variable_retrieve(cfg, catg, "readsql")))
-		ast_copy_string((*query)->sql_read, tmp, sizeof((*query)->sql_read));
+	}
 
 	if (!ast_strlen_zero((*query)->sql_read) && ast_strlen_zero((*query)->readhandle[0])) {
 		ast_free(*query);
@@ -608,11 +609,12 @@ static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_qu
 		return EINVAL;
 	}
 
-	if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
+	if ((tmp = ast_variable_retrieve(cfg, catg, "writesql")))
+		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+	else if ((tmp = ast_variable_retrieve(cfg, catg, "write"))) {
 		ast_log(LOG_WARNING, "Parameter 'write' is deprecated for category %s.  Please use 'writesql' instead.\n", catg);
 		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
-	} else if ((tmp = ast_variable_retrieve(cfg, catg, "writesql")))
-		ast_copy_string((*query)->sql_write, tmp, sizeof((*query)->sql_write));
+	}
 
 	if (!ast_strlen_zero((*query)->sql_write) && ast_strlen_zero((*query)->writehandle[0])) {
 		ast_free(*query);

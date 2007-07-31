@@ -121,7 +121,7 @@ static int cdr_write(struct ast_channel *chan, const char *cmd, char *parse,
 static struct ast_custom_function cdr_function = {
 	.name = "CDR",
 	.synopsis = "Gets or sets a CDR variable",
-	.syntax = "CDR(<name>[|options])",
+	.syntax = "CDR(<name>[,options])",
 	.read = cdr_read,
 	.write = cdr_write,
 	.desc =
@@ -146,9 +146,9 @@ static struct ast_custom_function cdr_function = {
 "  and this variable will be stored on the cdr.\n"
 "   raw values for disposition:\n"
 "       1 = NO ANSWER\n"
-"	2 = BUSY\n"
-"	3 = FAILED\n"
-"	4 = ANSWERED\n"
+"       2 = BUSY\n"
+"       3 = FAILED\n"
+"       4 = ANSWERED\n"
 "    raw values for amaflags:\n"
 "       1 = OMIT\n"
 "       2 = BILLING\n"

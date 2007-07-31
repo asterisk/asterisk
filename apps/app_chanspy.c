@@ -56,7 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char *tdesc = "Listen to a channel, and optionally whisper into it";
 static const char *app_chan = "ChanSpy";
 static const char *desc_chan = 
-"  ChanSpy([chanprefix][|options]): This application is used to listen to the\n"
+"  ChanSpy([chanprefix][,options]): This application is used to listen to the\n"
 "audio from an Asterisk channel. This includes the audio coming in and\n"
 "out of the channel being spied on. If the 'chanprefix' parameter is specified,\n"
 "only channels beginning with this string will be spied upon.\n"
@@ -97,7 +97,7 @@ static const char *desc_chan =
 
 static const char *app_ext = "ExtenSpy";
 static const char *desc_ext = 
-"  ExtenSpy(exten[@context][|options]): This application is used to listen to the\n"
+"  ExtenSpy(exten[@context][,options]): This application is used to listen to the\n"
 "audio from an Asterisk channel. This includes the audio coming in and\n"
 "out of the channel being spied on. Only channels created by outgoing calls for the\n"
 "specified extension will be selected for spying. If the optional context is not\n"

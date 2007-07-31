@@ -50,7 +50,7 @@ static char *app = "BackgroundDetect";
 static char *synopsis = "Background a file with talk detect";
 
 static char *descrip = 
-"  BackgroundDetect(filename[|sil[|min|[max]]]):  Plays  back  a  given\n"
+"  BackgroundDetect(filename[,sil[,min,[max]]]):  Plays  back  a  given\n"
 "filename, waiting for interruption from a given digit (the digit must\n"
 "start the beginning of a valid extension, or it will be ignored).\n"
 "During the playback of the file, audio is monitored in the receive\n"

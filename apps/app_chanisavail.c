@@ -53,7 +53,7 @@ static char *app = "ChanIsAvail";
 static char *synopsis = "Check channel availability";
 
 static char *descrip = 
-"  ChanIsAvail(Technology/resource[&Technology2/resource2...][|options]): \n"
+"  ChanIsAvail(Technology/resource[&Technology2/resource2...][,options]): \n"
 "This application will check to see if any of the specified channels are\n"
 "available. The following variables will be set by this application:\n"
 "  ${AVAILCHAN}     - the name of the available channel, if one exists\n"

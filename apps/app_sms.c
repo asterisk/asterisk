@@ -78,7 +78,7 @@ static char *app = "SMS";
 static char *synopsis = "Communicates with SMS service centres and SMS capable analogue phones";
 
 static char *descrip =
-	"  SMS(name|[a][s][t][p(d)][r][o]|addr|body):\n"
+	"  SMS(name,[a][s][t][p(d)][r][o],addr,body):\n"
 	"SMS handles exchange of SMS data with a call to/from SMS capable\n"
 	"phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
 	"Works to ETSI ES 201 912; compatible with BT SMS PSTN service in UK\n"

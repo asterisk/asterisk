@@ -62,7 +62,7 @@ static char *app = "Read";
 static char *synopsis = "Read a variable";
 
 static char *descrip = 
-"  Read(variable[|filename[&filename2...]][|maxdigits][|option][|attempts][|timeout])\n\n"
+"  Read(variable[,filename[&filename2...]][,maxdigits][,option][,attempts][,timeout])\n\n"
 "Reads a #-terminated string of digits a certain number of times from the\n"
 "user in to the given variable.\n"
 "  filename   -- file(s) to play before reading digits or tone with option i\n"
@@ -142,7 +142,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 			ast_verb(3, "Accepting a maximum of %d digits.\n", maxdigits);
 	}
 	if (ast_strlen_zero(arglist.variable)) {
-		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
+		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[,filename][,maxdigits][,option][,attempts][,timeout])\n\n");
 		return -1;
 	}
 	ts=NULL;

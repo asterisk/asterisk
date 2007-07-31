@@ -49,7 +49,7 @@ static char *app = "SendURL";
 static char *synopsis = "Send a URL";
 
 static char *descrip = 
-"  SendURL(URL[|option]): Requests client go to URL (IAX2) or sends the \n"
+"  SendURL(URL[,option]): Requests client go to URL (IAX2) or sends the \n"
 "URL to the client (other channels).\n"
 "Result is returned in the SENDURLSTATUS channel variable:\n"
 "    SUCCESS       URL successfully sent to client\n"

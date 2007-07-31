@@ -44,7 +44,7 @@ static char *app = "UserEvent";
 static char *synopsis = "Send an arbitrary event to the manager interface";
 
 static char *descrip = 
-"  UserEvent(eventname[|body]): Sends an arbitrary event to the manager\n"
+"  UserEvent(eventname[,body]): Sends an arbitrary event to the manager\n"
 "interface, with an optional body representing additional arguments.  The\n"
 "body may be specified as a | delimeted list of headers. Each additional\n"
 "argument will be placed on a new line in the event. The format of the\n"
@@ -65,7 +65,7 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
+		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname,optional event body)\n");
 		return -1;
 	}
 

@@ -167,7 +167,7 @@ static int acf_curl_exec(struct ast_channel *chan, const char *cmd, char *info, 
 struct ast_custom_function acf_curl = {
 	.name = "CURL",
 	.synopsis = "Retrieves the contents of a URL",
-	.syntax = "CURL(url[|post-data])",
+	.syntax = "CURL(url[,post-data])",
 	.desc =
 	"  url       - URL to retrieve\n"
 	"  post-data - Optional data to send as a POST (GET is default action)\n",

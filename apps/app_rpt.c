@@ -252,7 +252,7 @@ static char *app = "Rpt";
 static char *synopsis = "Radio Repeater/Remote Base Control System";
 
 static char *descrip = 
-"  Rpt(nodename[|options]):  Radio Remote Link or Remote Base Link Endpoint Process.\n"
+"  Rpt(nodename[,options]):  Radio Remote Link or Remote Base Link Endpoint Process.\n"
 "\n"
 "    Not specifying an option puts it in normal endpoint mode (where source\n"
 "    IP and nodename are verified).\n"
@@ -263,7 +263,7 @@ static char *descrip =
 "            this if you have checked security already (like with an IAX2\n"
 "            user/password or something).\n"
 "\n"
-"        Rannounce-string[|timeout[|timeout-destination]] - Amateur Radio\n"
+"        Rannounce-string[,timeout[,timeout-destination]] - Amateur Radio\n"
 "            Reverse Autopatch. Caller is put on hold, and announcement (as\n"
 "            specified by the 'announce-string') is played on radio system.\n"
 "            Users of radio system can access autopatch, dial specified\n"

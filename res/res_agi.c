@@ -79,7 +79,7 @@ static char *esynopsis = "Executes an EAGI compliant application";
 static char *deadsynopsis = "Executes AGI on a hungup channel";
 
 static char *descrip =
-"  [E|Dead]AGI(command|args): Executes an Asterisk Gateway Interface compliant\n"
+"  [E|Dead]AGI(command,args): Executes an Asterisk Gateway Interface compliant\n"
 "program on a channel. AGI allows Asterisk to launch external programs\n"
 "written in any language to control a telephony channel, play audio,\n"
 "read DTMF digits, etc. by communicating with the AGI protocol on stdin\n"

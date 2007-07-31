@@ -65,7 +65,7 @@ static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
 
-static char *monitor_descrip = "Monitor([file_format[:urlbase]|[fname_base]|[options]]):\n"
+static char *monitor_descrip = "Monitor([file_format[:urlbase],[fname_base],[options]]):\n"
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"
 "monitoring is stopped by the StopMonitor application.\n"
@@ -428,8 +428,6 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 static int start_monitor_exec(struct ast_channel *chan, void *data)
 {
 	char *arg = NULL;
-	char *format = NULL;
-	char *fname_base = NULL;
 	char *options = NULL;
 	char *delay = NULL;
 	char *urlprefix = NULL;
@@ -438,37 +436,40 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(format);
+		AST_APP_ARG(fname_base);
+		AST_APP_ARG(options);
+	);
 	
 	/* Parse arguments. */
-	if (!ast_strlen_zero((char*)data)) {
-		arg = ast_strdupa((char*)data);
-		format = arg;
-		fname_base = strchr(arg, '|');
-		if (fname_base) {
-			*fname_base = 0;
-			fname_base++;
-			if ((options = strchr(fname_base, '|'))) {
-				*options = 0;
-				options++;
-				if (strchr(options, 'm'))
-					stream_action |= X_JOIN;
-				if (strchr(options, 'b'))
-					waitforbridge = 1;
-				if (strchr(options, 'i'))
-					stream_action &= ~X_REC_IN;
-				if (strchr(options, 'o'))
-					stream_action &= ~X_REC_OUT;
-			}
-		}
-		arg = strchr(format,':');
-		if (arg) {
-			*arg++ = 0;
-			urlprefix = arg;
-		}
+	if (ast_strlen_zero((char*)data)) {
+		ast_log(LOG_ERROR, "Monitor requires an argument\n");
+		return 0;
 	}
+
+	parse = ast_strdupa((char*)data);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (strchr(args.options, 'm'))
+		stream_action |= X_JOIN;
+	if (strchr(args.options, 'b'))
+		waitforbridge = 1;
+	if (strchr(args.options, 'i'))
+		stream_action &= ~X_REC_IN;
+	if (strchr(args.options, 'o'))
+		stream_action &= ~X_REC_OUT;
+
+	arg = strchr(args.format, ':');
+	if (arg) {
+		*arg++ = 0;
+		urlprefix = arg;
+	}
+
 	if (urlprefix) {
-		snprintf(tmp,sizeof(tmp) - 1,"%s/%s.%s",urlprefix,fname_base,
-			((strcmp(format,"gsm")) ? "wav" : "gsm"));
+		snprintf(tmp, sizeof(tmp), "%s/%s.%s", urlprefix, args.fname_base,
+			((strcmp(args.format, "gsm")) ? "wav" : "gsm"));
 		if (!chan->cdr && !(chan->cdr = ast_cdr_alloc()))
 			return -1;
 		ast_cdr_setuserfield(chan, tmp);
@@ -484,15 +485,15 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 			arg = strchr(options, 'b');
 			if (arg) {
 				*arg = 'X';
-				pbx_builtin_setvar_helper(chan,"AUTO_MONITOR",delay);
+				pbx_builtin_setvar_helper(chan,"AUTO_MONITOR", delay);
 			}
 		}
 		return 0;
 	}
 
-	res = ast_monitor_start(chan, format, fname_base, 1, stream_action);
+	res = ast_monitor_start(chan, args.format, args.fname_base, 1, stream_action);
 	if (res < 0)
-		res = ast_monitor_change_fname(chan, fname_base, 1);
+		res = ast_monitor_change_fname(chan, args.fname_base, 1);
 
 	if (stream_action & X_JOIN) {
 		if ((stream_action & X_REC_IN) && (stream_action & X_REC_OUT))

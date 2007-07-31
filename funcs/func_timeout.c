@@ -153,7 +153,7 @@ static struct ast_custom_function timeout_function = {
 		"Gets or sets various channel timeouts. The timeouts that can be\n"
 		"manipulated are:\n" "\n"
 		"absolute: The absolute maximum amount of time permitted for a call.  A\n"
-		"	   setting of 0 disables the timeout.\n" "\n"
+		"          setting of 0 disables the timeout.\n" "\n"
 		"digit:    The maximum amount of time permitted between digits when the\n"
 		"          user is typing in an extension.  When this timeout expires,\n"
 		"          after the user has started to type in an extension, the\n"
@@ -165,11 +165,11 @@ static struct ast_custom_function timeout_function = {
 		"          extension, or if it doesn't exist the call would be\n"
 		"          terminated).  The default timeout is 5 seconds.\n" "\n"
 		"response: The maximum amount of time permitted after falling through a\n"
-		"	   series of priorities for a channel in which the user may\n"
-		"	   begin typing an extension.  If the user does not type an\n"
-		"	   extension in this amount of time, control will pass to the\n"
-		"	   't' extension if it exists, and if not the call would be\n"
-		"	   terminated.  The default timeout is 10 seconds.\n",
+		"          series of priorities for a channel in which the user may\n"
+		"          begin typing an extension.  If the user does not type an\n"
+		"          extension in this amount of time, control will pass to the\n"
+		"          't' extension if it exists, and if not the call would be\n"
+		"          terminated.  The default timeout is 10 seconds.\n",
 	.read = timeout_read,
 	.write = timeout_write,
 };

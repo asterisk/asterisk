@@ -47,9 +47,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app = "AMD";
 static char *synopsis = "Attempts to detect answering machines";
 static char *descrip =
-"  AMD([initialSilence][|greeting][|afterGreetingSilence][|totalAnalysisTime]\n"
-"      [|minimumWordLength][|betweenWordsSilence][|maximumNumberOfWords]\n"
-"      [|silenceThreshold])\n"
+"  AMD([initialSilence],[greeting],[afterGreetingSilence],[totalAnalysisTime]\n"
+"      ,[minimumWordLength],[betweenWordsSilence],[maximumNumberOfWords]\n"
+"      ,[silenceThreshold])\n"
 "  This application attempts to detect answering machines at the beginning\n"
 "  of outbound calls.  Simply call this application after the call\n"
 "  has been answered (outbound only, of course).\n"

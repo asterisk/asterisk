@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app = "Dictate";
 static char *synopsis = "Virtual Dictation Machine";
-static char *desc = "  Dictate([<base_dir>[|<filename>]])\n"
+static char *desc = "  Dictate([<base_dir>[,<filename>]])\n"
 "Start dictation machine using optional base dir for files.\n";
 
 

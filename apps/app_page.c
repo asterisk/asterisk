@@ -57,7 +57,7 @@ static const char *app_page= "Page";
 static const char *page_synopsis = "Pages phones";
 
 static const char *page_descrip =
-"Page(Technology/Resource&Technology2/Resource2[|options])\n"
+"Page(Technology/Resource&Technology2/Resource2[,options])\n"
 "  Places outbound calls to the given technology / resource and dumps\n"
 "them into a conference bridge as muted participants.  The original\n"
 "caller is dumped into the conference as a speaker and the room is\n"
@@ -113,7 +113,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	if (options)
 		ast_app_parse_options(page_opts, &flags, opts, options);
 
-	snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe|%ud|%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
+	snprintf(meetmeopts, sizeof(meetmeopts), "MeetMe,%ud,%s%sqxdw(5)", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m"),
 		(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
 
 	/* Go through parsing/calling each device */
@@ -165,7 +165,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (!res) {
-		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%s%sqxd", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
+		snprintf(meetmeopts, sizeof(meetmeopts), "%ud,A%s%sqxd", confid, (ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t"), 
 			(ast_test_flag(&flags, PAGE_RECORD) ? "r" : "") );
 		pbx_exec(chan, app, meetmeopts);
 	}

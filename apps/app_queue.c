@@ -130,7 +130,7 @@ static char *app = "Queue";
 static char *synopsis = "Queue a call for a call queue";
 
 static char *descrip =
-"  Queue(queuename[|options[|URL][|announceoverride][|timeout][|AGI][|macro][|gosub]):\n"
+"  Queue(queuename[,options[,URL][,announceoverride][,timeout][,AGI][,macro][,gosub]):\n"
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "This application will return to the dialplan if the queue does not exist, or\n"
 "any of the join options cause the caller to not enter the queue.\n"
@@ -167,33 +167,33 @@ static char *descrip =
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
-"   AddQueueMember(queuename[|interface[|penalty[|options[|membername]]]]):\n"
+"   AddQueueMember(queuename[,interface[,penalty[,options[,membername]]]]):\n"
 "Dynamically adds interface to an existing queue.\n"
 "If the interface is already in the queue it will return an error.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     AQMSTATUS    The status of the attempt to add a queue member as a \n"
 "                     text string, one of\n"
 "           ADDED | MEMBERALREADY | NOSUCHQUEUE \n"
-"Example: AddQueueMember(techsupport|SIP/3000)\n"
+"Example: AddQueueMember(techsupport,SIP/3000)\n"
 "";
 
 static char *app_rqm = "RemoveQueueMember" ;
 static char *app_rqm_synopsis = "Dynamically removes queue members" ;
 static char *app_rqm_descrip =
-"   RemoveQueueMember(queuename[|interface[|options]]):\n"
+"   RemoveQueueMember(queuename[,interface[,options]]):\n"
 "Dynamically removes interface to an existing queue\n"
 "If the interface is NOT in the queue it will return an error.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     RQMSTATUS      The status of the attempt to remove a queue member as a\n"
 "                     text string, one of\n"
 "           REMOVED | NOTINQUEUE | NOSUCHQUEUE \n"
-"Example: RemoveQueueMember(techsupport|SIP/3000)\n"
+"Example: RemoveQueueMember(techsupport,SIP/3000)\n"
 "";
 
 static char *app_pqm = "PauseQueueMember" ;
 static char *app_pqm_synopsis = "Pauses a queue member" ;
 static char *app_pqm_descrip =
-"   PauseQueueMember([queuename]|interface[|options]):\n"
+"   PauseQueueMember([queuename],interface[,options]):\n"
 "Pauses (blocks calls for) a queue member.\n"
 "The given interface will be paused in the given queue.  This prevents\n"
 "any calls from being sent from the queue to the interface until it is\n"
@@ -204,12 +204,12 @@ static char *app_pqm_descrip =
 "     PQMSTATUS      The status of the attempt to pause a queue member as a\n"
 "                     text string, one of\n"
 "           PAUSED | NOTFOUND\n"
-"Example: PauseQueueMember(|SIP/3000)\n";
+"Example: PauseQueueMember(,SIP/3000)\n";
 
 static char *app_upqm = "UnpauseQueueMember" ;
 static char *app_upqm_synopsis = "Unpauses a queue member" ;
 static char *app_upqm_descrip =
-"   UnpauseQueueMember([queuename]|interface[|options]):\n"
+"   UnpauseQueueMember([queuename],interface[,options]):\n"
 "Unpauses (resumes calls to) a queue member.\n"
 "This is the counterpart to PauseQueueMember and operates exactly the\n"
 "same way, except it unpauses instead of pausing the given interface.\n"
@@ -217,14 +217,14 @@ static char *app_upqm_descrip =
 "     UPQMSTATUS       The status of the attempt to unpause a queue \n"
 "                      member as a text string, one of\n"
 "            UNPAUSED | NOTFOUND\n"
-"Example: UnpauseQueueMember(|SIP/3000)\n";
+"Example: UnpauseQueueMember(,SIP/3000)\n";
 
 static char *app_ql = "QueueLog" ;
 static char *app_ql_synopsis = "Writes to the queue_log" ;
 static char *app_ql_descrip =
-"   QueueLog(queuename|uniqueid|agent|event[|additionalinfo]):\n"
+"   QueueLog(queuename,uniqueid,agent,event[,additionalinfo]):\n"
 "Allows you to write your own events into the queue log\n"
-"Example: QueueLog(101|${UNIQUEID}|${AGENT}|WENTONBREAK|600)\n";
+"Example: QueueLog(101,${UNIQUEID},${AGENT},WENTONBREAK,600)\n";
 
 /*! \brief Persistent Members astdb family */
 static const char *pm_family = "Queue/PersistentMembers";

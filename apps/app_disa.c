@@ -55,8 +55,8 @@ static char *app = "DISA";
 static char *synopsis = "DISA (Direct Inward System Access)";
 
 static char *descrip = 
-"DISA(<numeric passcode>[|<context>[|<cid>[|mailbox[|options]]]]) or\n"
-"DISA(<filename>[||||options])\n"
+"DISA(<numeric passcode>[,<context>[,<cid>[,mailbox[,options]]]]) or\n"
+"DISA(<filename>[,,,,options])\n"
 "The DISA, Direct Inward System Access, application allows someone from \n"
 "outside the telephone switch (PBX) to obtain an \"internal\" system \n"
 "dialtone and to place calls from it as if they were placing a call from \n"

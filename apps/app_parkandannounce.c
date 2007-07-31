@@ -57,7 +57,7 @@ static char *app = "ParkAndAnnounce";
 static char *synopsis = "Park and Announce";
 
 static char *descrip =
-"  ParkAndAnnounce(announce:template|timeout|dial|[return_context]):\n"
+"  ParkAndAnnounce(announce:template,timeout,dial[,return_context]):\n"
 "Park a call into the parkinglot and announce the call to another channel.\n"
 "\n"
 "announce template: Colon-separated list of files to announce.  The word PARKED\n"

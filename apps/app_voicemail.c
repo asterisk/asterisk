@@ -478,7 +478,7 @@ static char *addesc = "Comedian Mail";
 static char *synopsis_vm = "Leave a Voicemail message";
 
 static char *descrip_vm =
-	"  VoiceMail(mailbox[@context][&mailbox[@context]][...][|options]): This\n"
+	"  VoiceMail(mailbox[@context][&mailbox[@context]][...][,options]): This\n"
 	"application allows the calling party to leave a message for the specified\n"
 	"list of mailboxes. When multiple mailboxes are specified, the greeting will\n"
 	"be taken from the first mailbox specified. Dialplan execution will stop if the\n"
@@ -502,7 +502,7 @@ static char *descrip_vm =
 static char *synopsis_vmain = "Check Voicemail messages";
 
 static char *descrip_vmain =
-	"  VoiceMailMain([mailbox][@context][|options]): This application allows the\n"
+	"  VoiceMailMain([mailbox][@context][,options]): This application allows the\n"
 	"calling party to check voicemail messages. A specific mailbox, and optional\n"
 	"corresponding context, may be specified. If a mailbox is not provided, the\n"
 	"calling party will be prompted to enter one. If a context is not specified,\n"
@@ -520,7 +520,7 @@ static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
 
 static char *descrip_vm_box_exists =
-	"  MailboxExists(mailbox[@context][|options]): Check to see if the specified\n"
+	"  MailboxExists(mailbox[@context][,options]): Check to see if the specified\n"
 	"mailbox exists. If no voicemail context is specified, the 'default' context\n"
 	"will be used.\n"
 	"  This application will set the following channel variable upon completion:\n"
@@ -532,7 +532,7 @@ static char *descrip_vm_box_exists =
 static char *synopsis_vmauthenticate = "Authenticate with Voicemail passwords";
 
 static char *descrip_vmauthenticate =
-	"  VMAuthenticate([mailbox][@context][|options]): This application behaves the\n"
+	"  VMAuthenticate([mailbox][@context][,options]): This application behaves the\n"
 	"same way as the Authenticate application, but the passwords are taken from\n"
 	"voicemail.conf.\n"
 	"  If the mailbox is specified, only that mailbox's password will be considered\n"

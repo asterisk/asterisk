@@ -49,7 +49,7 @@ static char *app_datetime = "DateTime";
 static char *sayunixtime_synopsis = "Says a specified time in a custom format";
 
 static char *sayunixtime_descrip =
-"SayUnixTime([unixtime][|[timezone][|format]])\n"
+"SayUnixTime([unixtime][,[timezone][,format]])\n"
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -57,7 +57,7 @@ static char *sayunixtime_descrip =
 "  format:   a format the time is to be said in.  See voicemail.conf.\n"
 "              defaults to \"ABdY 'digits/at' IMp\"\n";
 static char *datetime_descrip =
-"DateTime([unixtime][|[timezone][|format]])\n"
+"DateTime([unixtime][,[timezone][,format]])\n"
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -69,9 +69,9 @@ static char *datetime_descrip =
 static int sayunixtime_exec(struct ast_channel *chan, void *data)
 {
 	AST_DECLARE_APP_ARGS(args,
-			     AST_APP_ARG(timeval);
-			     AST_APP_ARG(timezone);
-			     AST_APP_ARG(format);
+		AST_APP_ARG(timeval);
+		AST_APP_ARG(timezone);
+		AST_APP_ARG(format);
 	);
 	char *parse;
 	int res = 0;

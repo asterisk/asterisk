@@ -51,7 +51,7 @@ static char *app = "Record";
 static char *synopsis = "Record to a file";
 
 static char *descrip = 
-"  Record(filename.format|silence[|maxduration][|options])\n\n"
+"  Record(filename.format,silence[,maxduration][,options])\n\n"
 "Records from the channel into a given filename. If the file exists it will\n"
 "be overwritten.\n"
 "- 'format' is the format of the file type to be recorded (wav, gsm, etc).\n"
