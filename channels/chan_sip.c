@@ -1841,24 +1841,8 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
-#ifndef DETECT_DEADLOCKS
-/*! \brief Helper function to lock, hiding the underlying locking mechanism.  */
-static void sip_pvt_lock(struct sip_pvt *pvt)
-{
-	ast_mutex_lock(&pvt->pvt_lock);
-}
-
-/*! \brief Helper function to unlock pvt, hiding the underlying locking mechanism. */
-static void sip_pvt_unlock(struct sip_pvt *pvt)
-{
-	ast_mutex_unlock(&pvt->pvt_lock);
-}
-#else
-/* we don't want to HIDE the information about where the lock was requested if trying to debug 
- * deadlocks!  So, just make these macros! */
 #define sip_pvt_lock(x) ast_mutex_lock(&x->pvt_lock)
 #define sip_pvt_unlock(x) ast_mutex_unlock(&x->pvt_lock)
-#endif
 
 /*!
  * helper functions to unreference various types of objects.
