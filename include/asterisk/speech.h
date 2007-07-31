@@ -28,8 +28,9 @@ extern "C" {
 #endif
 
 /* Speech structure flags */
-#define AST_SPEECH_QUIET (1 << 0) /* Quiet down output... they are talking */
-#define AST_SPEECH_SPOKE (1 << 1) /* Speaker did not speak */
+#define AST_SPEECH_QUIET (1 << 0)        /* Quiet down output... they are talking */
+#define AST_SPEECH_SPOKE (1 << 1)        /* Speaker did not speak */
+#define AST_SPEECH_HAVE_RESULTS (1 << 2) /* Results are present */
 
 /* Speech structure states - in order of expected change */
 #define AST_SPEECH_STATE_NOT_READY 0 /* Not ready to accept audio */

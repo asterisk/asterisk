@@ -120,7 +120,7 @@ struct ast_speech_result *ast_speech_results_get(struct ast_speech *speech)
 {
 	struct ast_speech_result *result = NULL;
 
-	if (speech->engine->get != NULL) {
+	if (speech->engine->get != NULL && ast_test_flag(speech, AST_SPEECH_HAVE_RESULTS)) {
 		result = speech->engine->get(speech);
 	}
 
@@ -160,6 +160,7 @@ void ast_speech_start(struct ast_speech *speech)
 	/* Clear any flags that may affect things */
 	ast_clear_flag(speech, AST_SPEECH_SPOKE);
 	ast_clear_flag(speech, AST_SPEECH_QUIET);
+	ast_clear_flag(speech, AST_SPEECH_HAVE_RESULTS);
 
 	/* If results are on the structure, free them since we are starting again */
 	if (speech->results != NULL) {
