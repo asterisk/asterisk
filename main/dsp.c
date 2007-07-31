@@ -153,22 +153,28 @@ enum gsamp_thresh {
  * Frequency tolerance +- 1.5% will detect, +-3.5% will reject
  */
 
-#define DTMF_THRESHOLD		8.0e7
-#define FAX_THRESHOLD		8.0e7
-#define FAX_2ND_HARMONIC	2.0     /* 4dB */
-#define DTMF_NORMAL_TWIST	6.3     /* 8dB */
-#ifdef	RADIO_RELAX
-#define DTMF_REVERSE_TWIST          ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 6.5 : 2.5)     /* 4dB normal */
+#define DTMF_THRESHOLD          8.0e7
+#define FAX_THRESHOLD           8.0e7
+#define FAX_2ND_HARMONIC        2.0     /* 4dB */
+
+#ifdef  RADIO_RELAX
+#define DTMF_NORMAL_TWIST               ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 11.3 : 6.3)    /* 8dB sph 12.3 was 6.3 */
+#define DTMF_REVERSE_TWIST              ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 9.5  : 2.5)    /* 4dB normal sph 12.5 : 5.5 was 6.5 : 2.5 */
+#define DTMF_RELATIVE_PEAK_ROW  ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 3.3  : 6.3)    /* 8dB sph was 6.3 */
+#define DTMF_RELATIVE_PEAK_COL  ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 3.3  : 6.3)    /* 8dB sph was 6.3 */
+#define DTMF_TO_TOTAL_ENERGY    ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 26.0 : 42.0)
 #else
-#define DTMF_REVERSE_TWIST          ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 4.0 : 2.5)     /* 4dB normal */
+#define DTMF_NORMAL_TWIST               6.3
+#define DTMF_REVERSE_TWIST              ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 4.0  : 2.5)    /* 4dB normal */
+#define DTMF_RELATIVE_PEAK_ROW  6.3     /* 8dB */
+#define DTMF_RELATIVE_PEAK_COL  6.3     /* 8dB */
+#define DTMF_TO_TOTAL_ENERGY    42.0
 #endif
-#define DTMF_RELATIVE_PEAK_ROW	6.3     /* 8dB */
-#define DTMF_RELATIVE_PEAK_COL	6.3     /* 8dB */
-#define DTMF_2ND_HARMONIC_ROW       ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 1.7 : 2.5)     /* 4dB normal */
-#define DTMF_2ND_HARMONIC_COL	63.1    /* 18dB */
-#define DTMF_TO_TOTAL_ENERGY	42.0
 
 #ifdef OLD_DSP_ROUTINES
+#define DTMF_2ND_HARMONIC_ROW       ((digitmode & DSP_DIGITMODE_RELAXDTMF) ? 1.7 : 2.5)     /* 4dB normal */
+#define DTMF_2ND_HARMONIC_COL	63.1    /* 18dB */
+
 #define MF_THRESHOLD		8.0e7
 #define MF_NORMAL_TWIST		5.3     /* 8dB */
 #define MF_REVERSE_TWIST	4.0     /* was 2.5 */

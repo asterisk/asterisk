@@ -2956,7 +2956,9 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 		cp = (char *) data;
 		ast_log(LOG_DEBUG, "Set option RELAX DTMF, value: %s(%d) on %s\n",
 			*cp ? "ON" : "OFF", (int) *cp, chan->name);
-		ast_dsp_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
+                p->dtmfrelax = 0;
+                if (*cp) p->dtmfrelax = DSP_DIGITMODE_RELAXDTMF;
+                ast_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		break;
 	case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
 		cp = (char *) data;
