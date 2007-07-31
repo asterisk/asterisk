@@ -8,6 +8,7 @@
 		<member name="DEBUG_THREADLOCALS" displayname="Enable Thread-Local-Storage Debugging">
 		</member>
 		<member name="DETECT_DEADLOCKS" displayname="Detect Deadlocks">
+			<depend>DEBUG_THREADS</depend>
 		</member>
 		<member name="DO_CRASH" displayname="Crash on fatal errors">
 		</member>
