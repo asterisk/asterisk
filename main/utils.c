@@ -67,7 +67,7 @@ static char b2a[256];
 
 AST_THREADSTORAGE(inet_ntoa_buf, inet_ntoa_buf_init);
 
-#if !defined(HAVE_GETHOSTBYNAME_R)
+#if !defined(HAVE_GETHOSTBYNAME_R_5) && !defined(HAVE_GETHOSTBYNAME_R_6)
 
 #define ERANGE 34	/*!< duh? ERANGE value copied from web... */
 #undef gethostbyname
@@ -212,7 +212,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 		return NULL;
 		
 	}
-#ifdef SOLARIS
+#ifdef HAVE_GETHOSTBYNAME_R5
 	result = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
 
 	if (!result || !hp->hp.h_addr_list || !hp->hp.h_addr_list[0])
