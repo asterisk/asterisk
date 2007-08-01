@@ -262,6 +262,8 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent floor ftruncate getcwd gethostbyname gethostname getloadavg gettimeofday inet_ntoa isascii localtime_r memchr memmove memset mkdir munmap pow putenv re_comp regcomp rint select setenv socket sqrt strcasecmp strcasestr strchr strcspn strdup strerror strlcat strlcpy strncasecmp strndup strnlen strrchr strsep strspn strstr strtol strtoq unsetenv utime vasprintf])
 
 # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
+
 AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
 AC_LINK_IFELSE(
         AC_LANG_PROGRAM([#include <netdb.h>],
