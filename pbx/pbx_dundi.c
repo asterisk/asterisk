@@ -3484,7 +3484,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	struct timeval start;
 	
 	/* Don't do anthing for a hungup channel */
-	if (chan && chan->_softhangup)
+	if (chan && ast_check_hangup(chan))
 		return 0;
 
 	ttlms = DUNDI_FLUFF_TIME + ttl * DUNDI_TTL_TIME;
@@ -3525,7 +3525,7 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 				ast_log(LOG_DEBUG, "Waiting for similar request for '%s@%s' for '%s'\n",
 					dr.number,dr.dcontext,dundi_eid_to_str(eid_str, sizeof(eid_str), &pending->root_eid));
 			start = ast_tvnow();
-			while(check_request(pending) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
+			while(check_request(pending) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !ast_check_hangup(chan))) {
 				/* XXX Would be nice to have a way to poll/select here XXX */
 				/* XXX this is a busy wait loop!!! */
 				usleep(1);
@@ -3558,11 +3558,11 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	discover_transactions(&dr);
 	/* Wait for transaction to come back */
 	start = ast_tvnow();
-	while (!AST_LIST_EMPTY(&dr.trans) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
+	while (!AST_LIST_EMPTY(&dr.trans) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !ast_check_hangup(chan))) {
 		ms = 100;
 		ast_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
 	}
-	if (chan && chan->_softhangup && option_debug)
+	if (chan && ast_check_hangup(chan) && option_debug)
 		ast_log(LOG_DEBUG, "Hrm, '%s' hungup before their query for %s@%s finished\n", chan->name, dr.number, dr.dcontext);
 	cancel_request(&dr);
 	unregister_request(&dr);

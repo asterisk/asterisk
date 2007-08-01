@@ -1734,7 +1734,7 @@ static int ospfinished_exec(
 	ast_debug(1, "OSPFinish: connect '%ld'\n", connect);
 	ast_debug(1, "OSPFinish: end '%ld'\n", end);
 
-	release = chan->_softhangup ? 0 : 1;
+	release = ast_check_hangup(chan) ? 0 : 1;
 
 	if (osp_finish(outhandle, recorded, cause, start, connect, end, release) <= 0) {
 		ast_debug(1, "OSPFinish: Unable to report usage for outbound call\n");

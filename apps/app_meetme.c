@@ -718,7 +718,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, enu
 	int len;
 	int res = -1;
 
-	if (!chan->_softhangup)
+	if (!ast_check_hangup(chan))
 		res = ast_autoservice_start(chan);
 
 	AST_LIST_LOCK(&confs);

@@ -161,7 +161,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 			res = wait4(pid, &status, WNOHANG, NULL);
 			if (!res) {
 				/* Check for hangup */
-				if (chan->_softhangup && !signalled) {
+				if (ast_check_hangup(chan) && !signalled) {
 					ast_debug(1, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
 					kill(pid, SIGTERM);
 					signalled=1;

@@ -246,9 +246,9 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 		   we can't get everything.  Remember, we'll get another
 		   chance in just a little bit */
 		if (!ast_mutex_trylock(&(p->chan->_bridge)->lock)) {
-			if (!p->chan->_bridge->_softhangup) {
+			if (!ast_check_hangup(p->chan->_bridge)) {
 				if (!ast_mutex_trylock(&p->owner->lock)) {
-					if (!p->owner->_softhangup) {
+					if (!ast_check_hangup(p->owner)) {
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
@@ -265,9 +265,9 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && AST_LIST_EMPTY(&p->chan->readq)) {
 		/* Masquerade bridged channel into chan */
 		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
-			if (!p->owner->_bridge->_softhangup) {
+			if (!ast_check_hangup(p->owner->_bridge)) {
 				if (!ast_mutex_trylock(&p->chan->lock)) {
-					if (!p->chan->_softhangup) {
+					if (!ast_check_hangup(p->chan)) {
 						ast_channel_masquerade(p->chan, p->owner->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}

@@ -2651,7 +2651,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				}
 			}
 			res2 |= ast_autoservice_stop(qe->chan);
-			if (peer->_softhangup) {
+			if (ast_check_hangup(peer)) {
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "AGENTDUMP", "%s", "");
@@ -2943,7 +2943,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				qe->chan->exten, qe->chan->context, (long) (callstart - qe->start),
 				(long) (time(NULL) - callstart));
 			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), TRANSFER);
-		} else if (qe->chan->_softhangup) {
+		} else if (ast_check_hangup(qe->chan)) {
 			ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "COMPLETECALLER", "%ld|%ld|%d",
 				(long) (callstart - qe->start), (long) (time(NULL) - callstart), qe->opos);
 			send_agent_complete(qe, queuename, peer, member, callstart, vars, sizeof(vars), CALLER);

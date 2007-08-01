@@ -546,11 +546,11 @@ static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_
 				*rc = who;
 				ast_debug(1, "%s: vpb_bridge: Got a [%s]\n",p0->dev, f ? "digit" : "hangup");
 /*
-				if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
+				if ((c0->tech_pvt == pvt0) && (!ast_check_hangup(c0))) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
 				}
-				if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
+				if ((c1->tech_pvt == pvt1) && (!ast_check_hangup(c1))) {
 					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
 				}

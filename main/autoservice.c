@@ -71,7 +71,7 @@ static void *autoservice_run(void *ign)
 
 		AST_RWLIST_RDLOCK(&aslist);
 		AST_RWLIST_TRAVERSE(&aslist, as, list) {
-			if (!as->chan->_softhangup) {
+			if (!ast_check_hangup(as->chan)) {
 				if (x < MAX_AUTOMONS)
 					mons[x++] = as->chan;
 				else
@@ -137,7 +137,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		if (as->chan == chan) {
 			AST_RWLIST_REMOVE_CURRENT(&aslist, list);
 			ast_free(as);
-			if (!chan->_softhangup)
+			if (!ast_check_hangup(chan))
 				res = 0;
 			break;
 		}

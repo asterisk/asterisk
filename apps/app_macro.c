@@ -385,7 +385,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
 		}
 
 		/* don't stop executing extensions when we're in "h" */
-		if (chan->_softhangup && !inhangup) {
+		if (ast_check_hangup(chan) && !inhangup) {
 			ast_debug(1, "Extension %s, macroexten %s, priority %d returned normally even though call was hung up\n", chan->exten, chan->macroexten, chan->priority);
 			goto out;
 		}
@@ -434,7 +434,7 @@ static int _macro_exec(struct ast_channel *chan, void *data, int exclusive)
   		/* If we're leaving the macro normally, restore original information */
 		chan->priority = oldpriority;
 		ast_copy_string(chan->context, oldcontext, sizeof(chan->context));
-		if (!(chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO)) {
+		if (!(ast_check_hangup(chan) & AST_SOFTHANGUP_ASYNCGOTO)) {
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
 			const char *offsets;
 			ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));

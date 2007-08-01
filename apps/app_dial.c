@@ -1789,7 +1789,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}
 		if (res != AST_PBX_NO_HANGUP_PEER) {
-			if (!chan->_softhangup)
+			if (!ast_check_hangup(chan))
 				chan->hangupcause = peer->hangupcause;
 			ast_hangup(peer);
 		}
@@ -1808,7 +1808,7 @@ out:
 	senddialendevent(chan, pa.status);
 	ast_debug(1, "Exiting with DIALSTATUS=%s.\n", pa.status);
 	
-	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE)) {
+	if ((ast_test_flag64(peerflags, OPT_GO_ON)) && !ast_check_hangup(chan) && (res != AST_PBX_KEEPALIVE)) {
 		if (calldurationlimit)
 			chan->whentohangup = 0;
 		res = 0;

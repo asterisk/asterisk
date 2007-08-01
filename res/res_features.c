@@ -854,7 +854,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 		ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
 		res = ast_bridge_call(transferer, newchan, &bconfig);
-		if (newchan->_softhangup || !transferer->_softhangup) {
+		if (ast_check_hangup(newchan) || !ast_check_hangup(transferer)) {
 			ast_hangup(newchan);
 			if (ast_stream_and_wait(transferer, xfersound, ""))
 				ast_log(LOG_WARNING, "Failed to play transfer sound!\n");
@@ -1450,7 +1450,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 			x = 0;
 			started = ast_tvnow();
 			to = timeout;
-			while (!((transferee && transferee->_softhangup) && (!igncallerstate && ast_check_hangup(caller))) && timeout && (chan->_state != AST_STATE_UP)) {
+			while (!((transferee && ast_check_hangup(transferee)) && (!igncallerstate && ast_check_hangup(caller))) && timeout && (chan->_state != AST_STATE_UP)) {
 				struct ast_frame *f = NULL;
 
 				monitor_chans[0] = caller;
@@ -1504,7 +1504,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 					f = ast_read(caller);
 					if (f == NULL) { /*doh! where'd he go?*/
 						if (!igncallerstate) {
-							if (caller->_softhangup && !chan->_softhangup) {
+							if (ast_check_hangup(caller) && !ast_check_hangup(chan)) {
 								/* make this a blind transfer */
 								ready = 1;
 								break;
