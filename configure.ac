@@ -284,6 +284,8 @@ AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent floor ftruncate getcwd getho
 AC_CHECK_FUNCS([funopen fopencookie])
 
 # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
+AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
+
 AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
 AC_LINK_IFELSE(
         AC_LANG_PROGRAM([#include <netdb.h>],
