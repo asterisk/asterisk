@@ -43,6 +43,11 @@ struct ast_threadstorage {
 	void (*key_init)(void);
 };
 
+#ifdef SOLARIS
+#define THREADSTORAGE_ONCE_INIT {PTHREAD_ONCE_INIT}
+#else
+#define THREADSTORAGE_ONCE_INIT PTHREAD_ONCE_INIT
+#endif
 
 #if defined(DEBUG_THREADLOCALS)
 void __ast_threadstorage_object_add(void *key, size_t len, const char *file, const char *function, unsigned int line);
@@ -72,7 +77,7 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
-	.once = PTHREAD_ONCE_INIT,                          \
+	.once = THREADSTORAGE_ONCE_INIT,                    \
 	.key_init = name_init,                              \
 };                                                          \
 static void name_init(void)                                 \
@@ -83,7 +88,7 @@ static void name_init(void)                                 \
 #define AST_THREADSTORAGE_CUSTOM(name, name_init, cleanup)  \
 static void name_init(void);                                \
 static struct ast_threadstorage name = {                    \
-	.once = PTHREAD_ONCE_INIT,                          \
+	.once = THREADSTORAGE_ONCE_INIT,                    \
 	.key_init = name_init,                              \
 };                                                          \
 static void __cleanup_##name(void *data)		    \
