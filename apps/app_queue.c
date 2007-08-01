@@ -1258,6 +1258,56 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 	return q;
 }
 
+static void update_realtime_members(struct call_queue *q)
+{
+	struct ast_config *member_config = NULL;
+	struct member *m, *prev_m, *next_m;
+	char *interface = NULL;
+
+	member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", q->name , NULL);
+	if (!member_config) {
+		/*This queue doesn't have realtime members*/
+		ast_debug(3, "Queue %s has no realtime members defined. No need for update\n", q->name);
+		return;
+	}
+
+	ast_mutex_lock(&q->lock);
+	
+	/* Temporarily set non-dynamic members dead so we can detect deleted ones.*/ 
+	for (m = q->members; m; m = m->next) {
+		if (!m->dynamic)
+			m->dead = 1;
+	}
+
+	while ((interface = ast_category_browse(member_config, interface))) {
+		rt_handle_member_record(q, interface,
+			S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface),
+			ast_variable_retrieve(member_config, interface, "penalty"),
+			ast_variable_retrieve(member_config, interface, "paused"));
+	}
+
+	/* Delete all realtime members that have been deleted in DB. */
+	m = q->members;
+	prev_m = NULL;
+	while (m) {
+		next_m = m->next;
+		if (m->dead) {
+			if (prev_m) {
+				prev_m->next = next_m;
+			} else {
+				q->members = next_m;
+			}
+			remove_from_interfaces(m->interface);
+			q->membercount--;
+			free(m);
+		} else {
+			prev_m = m;
+		}
+		m = next_m;
+	}
+	ast_mutex_unlock(&q->lock);
+}
+
 static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
 {
 	struct call_queue *q;
@@ -3623,6 +3673,9 @@ check_turns:
 				ast_queue_log(qe.parent->name, qe.chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d|%d|%ld", qe.pos, qe.opos, (long) time(NULL) - qe.start);
 				break;
 			}
+
+			/* If using dynamic realtime members, we should regenerate the member list for this queue */
+			update_realtime_members(qe.parent);
 
 			/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 			res = wait_a_bit(&qe);
