@@ -2460,7 +2460,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 {
 	struct member *cur;
 	struct callattempt *outgoing = NULL; /* the list of calls we are building */
-	int to;
+	int to, orig;
 	char oldexten[AST_MAX_EXTENSION]="";
 	char oldcontext[AST_MAX_CONTEXT]="";
 	char queuename[256]="";
@@ -2583,6 +2583,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		to = (qe->expire - now) * 1000;
 	else
 		to = (qe->parent->timeout) ? qe->parent->timeout * 1000 : -1;
+	orig = to;
 	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
 	if (use_weight)
@@ -2918,7 +2919,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			} else
 				ast_log(LOG_WARNING, "Asked to execute an AGI on this channel, but could not find application (agi)!\n");
 		}
-		ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "CONNECT", "%ld|%s", (long) time(NULL) - qe->start, peer->uniqueid);
+		ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "CONNECT", "%ld|%s|%ld", (long) time(NULL) - qe->start, peer->uniqueid,
+													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
 					"Queue: %s\r\n"
@@ -2928,9 +2930,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					"MemberName: %s\r\n"
 					"Holdtime: %ld\r\n"
 					"BridgedChannel: %s\r\n"
+					"Ringtime: %ld\r\n"
 					"%s",
 					queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
-					(long) time(NULL) - qe->start, peer->uniqueid,
+					(long) time(NULL) - qe->start, peer->uniqueid, (long)(orig - to > 0 ? (orig - to) / 1000 : 0),
 					qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
 		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
