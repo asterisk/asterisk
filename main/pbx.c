@@ -37,7 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <time.h>
 #include <sys/time.h>
 #include <limits.h>
-#if defined(HAVE_SYSINFO) && !defined(SOLARIS)
+#if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif
 
@@ -2536,7 +2536,7 @@ static int increase_call_count(const struct ast_channel *c)
 {
 	int failed = 0;
 	double curloadavg;
-#if defined(HAVE_SYSINFO) && !defined(SOLARIS)
+#if defined(HAVE_SYSINFO)
 	long curfreemem;
 	struct sysinfo sys_info;
 #endif
@@ -2555,7 +2555,7 @@ static int increase_call_count(const struct ast_channel *c)
 			failed = -1;
 		}
 	}
-#if defined(HAVE_SYSINFO) && !defined(SOLARIS)
+#if defined(HAVE_SYSINFO)
 	if (option_minmemfree) {
 		if (!sysinfo(&sys_info)) {
 			/* make sure that the free system memory is above the configured low watermark

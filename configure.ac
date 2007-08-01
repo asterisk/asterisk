@@ -382,7 +382,7 @@ AC_SUBST(AST_DECLARATION_AFTER_STATEMENT)
 AC_MSG_CHECKING(for sysinfo)
 AC_LINK_IFELSE(
         AC_LANG_PROGRAM([#include <sys/sysinfo.h>],
-                        [struct sysinfo sys_info;]),
+                        [struct sysinfo sys_info; int uptime = sys_info.uptime]),
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_SYSINFO], 1, [Define to 1 if your system has sysinfo support]),
         AC_MSG_RESULT(no)
