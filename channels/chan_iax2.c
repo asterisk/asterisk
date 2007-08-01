@@ -745,6 +745,7 @@ struct iax2_thread {
 	time_t checktime;
 	ast_mutex_t lock;
 	ast_cond_t cond;
+	unsigned int ready_for_signal:1;
 	/*! if this thread is processing a full frame,
 	  some information about that frame will be stored
 	  here, so we can avoid dispatching any more full
@@ -1042,13 +1043,16 @@ static struct iax2_thread *find_idle_thread(void)
 		ast_cond_destroy(&thread->cond);
 		ast_mutex_destroy(&thread->lock);
 		ast_free(thread);
-		thread = NULL;
+		return NULL;
 	}
 
 	/* this thread is not processing a full frame (since it is idle),
 	   so ensure that the field for the full frame call number is empty */
-	if (thread)
-		memset(&thread->ffinfo, 0, sizeof(thread->ffinfo));
+	memset(&thread->ffinfo, 0, sizeof(thread->ffinfo));
+
+	/* Wait for the thread to be ready before returning it to the caller */
+	while (!thread->ready_for_signal)
+		usleep(1);
 
 	return thread;
 }
@@ -8369,11 +8373,15 @@ static void *iax2_process_thread(void *data)
 		/* Wait for something to signal us to be awake */
 		ast_mutex_lock(&thread->lock);
 
+		/* Flag that we're ready to accept signals */
+		thread->ready_for_signal = 1;
+		
 		/* Put into idle list if applicable */
 		if (put_into_idle)
 			insert_idle_thread(thread);
 
 		if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
+			struct iax2_thread *t = NULL;
 			/* Wait to be signalled or time out */
 			tv = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
 			ts.tv_sec = tv.tv_sec;
@@ -8381,15 +8389,19 @@ static void *iax2_process_thread(void *data)
 			if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT) {
 				ast_mutex_unlock(&thread->lock);
 				AST_LIST_LOCK(&dynamic_list);
-				AST_LIST_REMOVE(&dynamic_list, thread, list);
+				/* Account for the case where this thread is acquired *right* after a timeout */
+				if ((t = AST_LIST_REMOVE(&dynamic_list, thread, list)))
+					ast_atomic_fetchadd_int(&iaxdynamicthreadcount, -1);
 				AST_LIST_UNLOCK(&dynamic_list);
-				ast_atomic_dec_and_test(&iaxdynamicthreadcount);
-				break;		/* exiting the main loop */
+				if (t)
+					break;		/* exiting the main loop */
 			}
+			if (!t)
+				ast_mutex_unlock(&thread->lock);
 		} else {
 			ast_cond_wait(&thread->cond, &thread->lock);
+			ast_mutex_unlock(&thread->lock);
 		}
-		ast_mutex_unlock(&thread->lock);
 
 		/* Add ourselves to the active list now */
 		AST_LIST_LOCK(&active_list);
