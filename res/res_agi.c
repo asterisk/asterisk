@@ -1662,6 +1662,7 @@ int ast_agi_register(struct ast_module *mod, agi_command *cmd)
 	ast_join(fullcmd, sizeof(fullcmd), cmd->cmda);
 
  	if (!find_command(cmd->cmda,1)) {
+		cmd->mod = mod;
 		AST_RWLIST_WRLOCK(&agi_commands);
 		AST_LIST_INSERT_TAIL(&agi_commands, cmd, list);
 		AST_RWLIST_UNLOCK(&agi_commands);
@@ -1728,26 +1729,26 @@ static agi_command *find_command(char *cmds[], int exact)
 	AST_RWLIST_TRAVERSE(&agi_commands, e, list) {
 		if (!e->cmda[0])
 			break;
-			/* start optimistic */
-			match = 1;
-			for (y = 0; match && cmds[y]; y++) {
-				/* If there are no more words in the command (and we're looking for
-				   an exact match) or there is a difference between the two words,
-				   then this is not a match */
-				if (!e->cmda[y] && !exact)
-					break;
-				/* don't segfault if the next part of a command doesn't exist */
-				if (!e->cmda[y])
-					return NULL;
-				if (strcasecmp(e->cmda[y], cmds[y]))
-					match = 0;
-			}
-			/* If more words are needed to complete the command then this is not
-			   a candidate (unless we're looking for a really inexact answer  */
-			if ((exact > -1) && e->cmda[y])
+		/* start optimistic */
+		match = 1;
+		for (y = 0; match && cmds[y]; y++) {
+			/* If there are no more words in the command (and we're looking for
+			   an exact match) or there is a difference between the two words,
+			   then this is not a match */
+			if (!e->cmda[y] && !exact)
+				break;
+			/* don't segfault if the next part of a command doesn't exist */
+			if (!e->cmda[y])
+				return NULL;
+			if (strcasecmp(e->cmda[y], cmds[y]))
 				match = 0;
-			if (match)
-				return e;
+		}
+		/* If more words are needed to complete the command then this is not
+		   a candidate (unless we're looking for a really inexact answer  */
+		if ((exact > -1) && e->cmda[y])
+			match = 0;
+		if (match)
+			return e;
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
 	return NULL;
