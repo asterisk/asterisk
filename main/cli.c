@@ -1743,7 +1743,7 @@ static int help1(int fd, char *match[], int locked)
 			continue;
 		if (match && strncasecmp(matchstr, e->_full_cmd, len))
 			continue;
-		ast_cli(fd, "%25.25s  %s\n", e->_full_cmd, e->summary);
+		ast_cli(fd, "%25.25s  %s\n", e->_full_cmd, S_OR(e->summary, ""));
 		found++;
 	}
 	AST_LIST_UNLOCK(&helpers);
