@@ -121,7 +121,7 @@ unsigned int ast_verbose_get_by_file(const char *file)
 	return res;
 }
 
-static AST_LIST_HEAD_STATIC(helpers, ast_cli_entry);
+static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 
 static const char logger_mute_help[] = 
 "Usage: logger mute\n"
@@ -1347,13 +1347,13 @@ static char *find_best(char *argv[])
 	char *myargv[AST_MAX_CMD_LEN];
 	for (x=0;x<AST_MAX_CMD_LEN;x++)
 		myargv[x]=NULL;
-	AST_LIST_LOCK(&helpers);
+	AST_RWLIST_RDLOCK(&helpers);
 	for (x=0;argv[x];x++) {
 		myargv[x] = argv[x];
 		if (!find_cli(myargv, -1))
 			break;
 	}
-	AST_LIST_UNLOCK(&helpers);
+	AST_RWLIST_UNLOCK(&helpers);
 	ast_join(cmdline, sizeof(cmdline), myargv);
 	return cmdline;
 }
@@ -1366,9 +1366,9 @@ static int __ast_cli_unregister(struct ast_cli_entry *e, struct ast_cli_entry *e
 	if (e->inuse) {
 		ast_log(LOG_WARNING, "Can't remove command that is in use\n");
 	} else {
-		AST_LIST_LOCK(&helpers);
-		AST_LIST_REMOVE(&helpers, e, list);
-		AST_LIST_UNLOCK(&helpers);
+		AST_RWLIST_WRLOCK(&helpers);
+		AST_RWLIST_REMOVE(&helpers, e, list);
+		AST_RWLIST_UNLOCK(&helpers);
 		ast_free(e->_full_cmd);
 		e->_full_cmd = NULL;
 		if (e->new_handler) {
@@ -1409,7 +1409,7 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	}
 	if (set_full_cmd(e))
 		goto done;
-	AST_LIST_LOCK(&helpers);
+	AST_RWLIST_WRLOCK(&helpers);
 	
 	if (find_cli(e->cmda, 1)) {
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", e->_full_cmd);
@@ -1432,23 +1432,23 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 	}
 
 	lf = e->cmdlen;
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&helpers, cur, list) {
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&helpers, cur, list) {
 		int len = cur->cmdlen;
 		if (lf < len)
 			len = lf;
 		if (strncasecmp(e->_full_cmd, cur->_full_cmd, len) < 0) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&helpers, e, list); 
+			AST_RWLIST_INSERT_BEFORE_CURRENT(&helpers, e, list); 
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END;
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	if (!cur)
-		AST_LIST_INSERT_TAIL(&helpers, e, list); 
+		AST_RWLIST_INSERT_TAIL(&helpers, e, list); 
 	ret = 0;	/* success */
 
 done:
-	AST_LIST_UNLOCK(&helpers);
+	AST_RWLIST_UNLOCK(&helpers);
 
 	if (e->deprecate_cmd) {
 		/* This command deprecates another command.  Register that one also. */
@@ -1512,7 +1512,7 @@ static char *help1(int fd, char *match[], int locked)
 		len = strlen(matchstr);
 	}
 	if (!locked)
-		AST_LIST_LOCK(&helpers);
+		AST_RWLIST_RDLOCK(&helpers);
 	while ( (e = cli_next(&i)) ) {
 		/* Hide commands that start with '_' */
 		if (e->_full_cmd[0] == '_')
@@ -1526,7 +1526,7 @@ static char *help1(int fd, char *match[], int locked)
 		found++;
 	}
 	if (!locked)
-		AST_LIST_UNLOCK(&helpers);
+		AST_RWLIST_UNLOCK(&helpers);
 	if (!locked && !found && matchstr[0])
 		ast_cli(fd, "No such command '%s'.\n", matchstr);
 	return CLI_SUCCESS;
@@ -1558,7 +1558,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 	if (a->argc == 1)
 		return help1(a->fd, NULL, 0);
 
-	AST_LIST_LOCK(&helpers);
+	AST_RWLIST_RDLOCK(&helpers);
 	my_e = find_cli(a->argv + 1, 1);	/* try exact match first */
 	if (!my_e)
 		return help1(a->fd, a->argv + 1, 1 /* locked */);
@@ -1568,7 +1568,7 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		ast_join(fullcmd, sizeof(fullcmd), a->argv+1);
 		ast_cli(a->fd, "No help text available for '%s'.\n", fullcmd);
 	}
-	AST_LIST_UNLOCK(&helpers);
+	AST_RWLIST_UNLOCK(&helpers);
 	return RESULT_SUCCESS;
 }
 
@@ -1744,7 +1744,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 			matchlen++;
 	}
 	if (lock)
-		AST_LIST_LOCK(&helpers);
+		AST_RWLIST_RDLOCK(&helpers);
 	while ( (e = cli_next(&i)) ) {
 		/* XXX repeated code */
 		int src = 0, dst = 0, n = 0;
@@ -1792,7 +1792,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 		}
 	}
 	if (lock)
-		AST_LIST_UNLOCK(&helpers);
+		AST_RWLIST_UNLOCK(&helpers);
 	ast_free(dup);
 	return ret;
 }
@@ -1816,11 +1816,11 @@ int ast_cli_command(int fd, const char *s)
 	if (x < 1)	/* We need at least one entry, otherwise ignore */
 		goto done;
 
-	AST_LIST_LOCK(&helpers);
+	AST_RWLIST_RDLOCK(&helpers);
 	e = find_cli(args + 1, 0);
 	if (e)
 		ast_atomic_fetchadd_int(&e->inuse, 1);
-	AST_LIST_UNLOCK(&helpers);
+	AST_RWLIST_UNLOCK(&helpers);
 	if (e == NULL) {
 		ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(args + 1));
 		goto done;
@@ -1848,21 +1848,21 @@ int ast_cli_command(int fd, const char *s)
 	switch (res) {
 	case RESULT_SHOWUSAGE:
 		ast_cli(fd, "%s", S_OR(e->usage, "Invalid usage, but no usage information available.\n"));
-		AST_LIST_LOCK(&helpers);
+		AST_RWLIST_RDLOCK(&helpers);
 		if (e->deprecated)
 			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
-		AST_LIST_UNLOCK(&helpers);
+		AST_RWLIST_UNLOCK(&helpers);
 		break;
 	case RESULT_FAILURE:
 		ast_cli(fd, "Command '%s' failed.\n", s);
 		/* FALLTHROUGH */
 	default:
-		AST_LIST_LOCK(&helpers);
+		AST_RWLIST_RDLOCK(&helpers);
 		if (e->deprecated == 1) {
 			ast_cli(fd, "The '%s' command is deprecated and will be removed in a future release. Please use '%s' instead.\n", e->_full_cmd, e->_deprecated_by);
 			e->deprecated = 2;
 		}
-		AST_LIST_UNLOCK(&helpers);
+		AST_RWLIST_UNLOCK(&helpers);
 		break;
 	}
 	ast_atomic_fetchadd_int(&e->inuse, -1);
