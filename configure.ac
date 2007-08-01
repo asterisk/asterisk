@@ -322,7 +322,10 @@ AC_DEFINE([HAVE_SYS_ENDIAN_BSWAP16], 1, [Define to 1 if your sys/endian.h header
 AC_MSG_RESULT(no)
 )
 
-AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
+if test "${cross_compiling}" = "no";
+then
+  AC_CHECK_FILE(/dev/urandom, AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define to 1 if your system has /dev/urandom.]))
+fi
 
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_INITIALIZER], [PTHREAD_RWLOCK_INITIALIZER], [pthread.h])
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_PREFER_WRITER_NP], [PTHREAD_RWLOCK_PREFER_WRITER_NP], [pthread.h])
