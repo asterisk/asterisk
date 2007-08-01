@@ -177,7 +177,7 @@ struct enbloc_call_message {
 struct stimulus_message {
 	uint32_t stimulus;
 	uint32_t stimulusInstance;
-	uint32_t unknown1;
+	uint32_t callreference;
 };
 
 #define OFFHOOK_MESSAGE 0x0006
@@ -244,7 +244,7 @@ struct open_receive_channel_ack_message {
 struct soft_key_event_message {
 	uint32_t softKeyEvent;
 	uint32_t instance;
-	uint32_t reference;
+	uint32_t callreference;
 };
 
 #define UNREGISTER_MESSAGE 0x0027
@@ -3079,15 +3079,16 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	pthread_t t;
 	int event;
 	int instance;
-	int unknown1;
+	int callreference;
 	/*int res = 0;*/
 
 	event = letohl(req->data.stimulus.stimulus);
 	instance = letohl(req->data.stimulus.stimulusInstance);
-	unknown1 = letohl(req->data.stimulus.unknown1); /* No clue.. */
+	callreference = letohl(req->data.stimulus.callreference); 
 	if (skinnydebug)
-		ast_verbose("unknown1 in handle_stimulus_message is '%d'\n", unknown1);
+		ast_verbose("callreference in handle_stimulus_message is '%d'\n", callreference);
 
+	/*  Note that this call should be using the passed in instance and callreference */
 	sub = find_subchannel_by_instance_reference(d, d->lastlineinstance, d->lastcallreference);
 
 	if (!sub) {
@@ -3102,7 +3103,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 	switch(event) {
 	case STIMULUS_REDIAL:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Redial(%d)\n", instance);
+			ast_verbose("Received Stimulus: Redial(%d/%d)\n", instance, callreference);
 
 #if 0
  		if (ast_strlen_zero(l->lastnumberdialed)) {
@@ -3138,7 +3139,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		break;
 	case STIMULUS_SPEEDDIAL:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: SpeedDial(%d)\n", instance);
+			ast_verbose("Received Stimulus: SpeedDial(%d/%d)\n", instance, callreference);
 
 #if 0
 		if (!(sd = find_speeddial_by_instance(d, instance))) {
@@ -3182,7 +3183,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		break;
 	case STIMULUS_HOLD:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Hold(%d)\n", instance);
+			ast_verbose("Received Stimulus: Hold(%d/%d)\n", instance, callreference);
 
 		if (!sub)
 			break;
@@ -3195,27 +3196,27 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		break;
 	case STIMULUS_TRANSFER:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Transfer(%d)\n", instance);
+			ast_verbose("Received Stimulus: Transfer(%d/%d)\n", instance, callreference);
 		/* XXX figure out how to transfer */
 		break;
 	case STIMULUS_CONFERENCE:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Conference(%d)\n", instance);
+			ast_verbose("Received Stimulus: Conference(%d/%d)\n", instance, callreference);
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
 	case STIMULUS_VOICEMAIL:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Voicemail(%d)\n", instance);
+			ast_verbose("Received Stimulus: Voicemail(%d/%d)\n", instance, callreference);
 		/* XXX Find and dial voicemail extension */
 		break;
 	case STIMULUS_CALLPARK:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Park Call(%d)\n", instance);
+			ast_verbose("Received Stimulus: Park Call(%d/%d)\n", instance, callreference);
 		/* XXX Park the call */
 		break;
 	case STIMULUS_FORWARDALL:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Forward All(%d)\n", instance);
+			ast_verbose("Received Stimulus: Forward All(%d/%d)\n", instance, callreference);
 		/* Why is DND under FORWARDALL? */
 		/* Because it's the same thing. */
 
@@ -3236,20 +3237,20 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		break;
 	case STIMULUS_FORWARDBUSY:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Forward Busy (%d)\n", instance);
+			ast_verbose("Received Stimulus: Forward Busy (%d/%d)\n", instance, callreference);
 		break;
 	case STIMULUS_FORWARDNOANSWER:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Forward No Answer (%d)\n", instance);
+			ast_verbose("Received Stimulus: Forward No Answer (%d/%d)\n", instance, callreference);
 		break;
 	case STIMULUS_DISPLAY:
 		/* Not sure what this is */
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Display(%d)\n", instance);
+			ast_verbose("Received Stimulus: Display(%d/%d)\n", instance, callreference);
 		break;
 	case STIMULUS_LINE:
 		if (skinnydebug)
-			ast_verbose("Received Stimulus: Line(%d)\n", instance);
+			ast_verbose("Received Stimulus: Line(%d/%d)\n", instance, callreference);
 
 		l = find_line_by_instance(s->device, instance);
 
@@ -3301,7 +3302,7 @@ static int handle_stimulus_message(struct skinny_req *req, struct skinnysession 
 		break;
 	default:
 		if (skinnydebug)
-			ast_verbose("RECEIVED UNKNOWN STIMULUS:  %d(%d)\n", event, instance);
+			ast_verbose("RECEIVED UNKNOWN STIMULUS:  %d(%d/%d)\n", event, instance, callreference);
 		break;
 	}
 	return 1;
@@ -3854,16 +3855,16 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 	pthread_t t;
 	int event;
 	int instance;
-	int reference;
+	int callreference;
 
 	event = letohl(req->data.softkeyeventmessage.softKeyEvent);
 	instance = letohl(req->data.softkeyeventmessage.instance);
-	reference = letohl(req->data.softkeyeventmessage.reference);
+	callreference = letohl(req->data.softkeyeventmessage.callreference);
 
 	if (instance) {
 		l = find_line_by_instance(d, instance);
-		if (reference) {
-			sub = find_subchannel_by_instance_reference(d, instance, reference);
+		if (callreference) {
+			sub = find_subchannel_by_instance_reference(d, instance, callreference);
 		} else {
 			sub = find_subchannel_by_instance_reference(d, instance, d->lastcallreference);
 		}
@@ -3873,18 +3874,18 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 
 	if (!l) {
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: %d(%d)\n", event, instance);
+			ast_verbose("Received Softkey Event: %d(%d/%d)\n", event, instance, callreference);
 		return 0;
 	}
 
 	switch(event) {
 	case SOFTKEY_NONE:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: None(%d)\n", instance);
+			ast_verbose("Received Softkey Event: None(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_REDIAL:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Redial(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Redial(%d/%d)\n", instance, callreference);
 
 #if 0
 		if (!sub || !sub->owner) {
@@ -3917,7 +3918,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_NEWCALL:  /* Actually the DIAL softkey */
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: New Call(%d)\n", instance);
+			ast_verbose("Received Softkey Event: New Call(%d/%d)\n", instance, callreference);
 
 		if (!sub || !sub->owner) {
 			c = skinny_new(l, AST_STATE_DOWN);
@@ -3950,7 +3951,7 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_HOLD:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Hold(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Hold(%d/%d)\n", instance, callreference);
 
 		if (sub) {
 			if (sub->onhold) {
@@ -3963,12 +3964,12 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_TRNSFER:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Transfer(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Transfer(%d/%d)\n", instance, callreference);
 		/* XXX figure out how to transfer */
 		break;
 	case SOFTKEY_CFWDALL:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Forward All(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Forward All(%d/%d)\n", instance, callreference);
 
 		/* Do not disturb */
 		if (l->dnd != 0){
@@ -3987,19 +3988,19 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_CFWDBUSY:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Forward Busy (%d)\n", instance);
+			ast_verbose("Received Softkey Event: Forward Busy (%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_CFWDNOANSWER:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Forward No Answer (%d)\n", instance);
+			ast_verbose("Received Softkey Event: Forward No Answer (%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_BKSPC:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Backspace(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Backspace(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_ENDCALL:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: End Call(%d)\n", instance);
+			ast_verbose("Received Softkey Event: End Call(%d/%d)\n", instance, callreference);
 
 		if (l->hookstate == SKINNY_ONHOOK) {
 			/* Something else already put us back on hook */
@@ -4044,11 +4045,11 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_RESUME:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Resume(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Resume(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_ANSWER:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Answer(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Answer(%d/%d)\n", instance, callreference);
 
 		transmit_ringer_mode(s,SKINNY_RING_OFF);
 		transmit_lamp_indication(s, STIMULUS_LINE, l->instance, SKINNY_LAMP_ON);
@@ -4068,38 +4069,38 @@ static int handle_soft_key_event_message(struct skinny_req *req, struct skinnyse
 		break;
 	case SOFTKEY_INFO:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Info(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Info(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_CONFRN:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Conference(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Conference(%d/%d)\n", instance, callreference);
 		/* XXX determine the best way to pull off a conference.  Meetme? */
 		break;
 	case SOFTKEY_PARK:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Park Call(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Park Call(%d/%d)\n", instance, callreference);
 		/* XXX Park the call */
 		break;
 	case SOFTKEY_JOIN:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Join(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Join(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_MEETME:
 		/* XXX How is this different from CONFRN? */
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Meetme(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Meetme(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_PICKUP:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Pickup(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Pickup(%d/%d)\n", instance, callreference);
 		break;
 	case SOFTKEY_GPICKUP:
 		if (skinnydebug)
-			ast_verbose("Received Softkey Event: Group Pickup(%d)\n", instance);
+			ast_verbose("Received Softkey Event: Group Pickup(%d/%d)\n", instance, callreference);
 		break;
 	default:
 		if (skinnydebug)
-			ast_verbose("Received unknown Softkey Event: %d(%d)\n", event, instance);
+			ast_verbose("Received unknown Softkey Event: %d(%d/%d)\n", event, instance, callreference);
 		break;
 	}
 	return 1;
