@@ -2494,6 +2494,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char vars[2048];
 	int forwardsallowed = 1;
 	int callcompletedinsl;
+	int noption = 0;
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
@@ -2526,11 +2527,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				(*go_on)++;
 			else
 				*go_on = qe->parent->membercount;
+			noption = 1;
 			break;
 		case 'i':
 			forwardsallowed = 0;
 			break;
 		}
+
+	if(!noption)
+		*go_on = -1;
 
 	/* Hold the lock while we setup the outgoing calls */
 	if (use_weight)
