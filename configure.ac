@@ -284,7 +284,23 @@ AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent floor ftruncate getcwd getho
 AC_CHECK_FUNCS([funopen fopencookie])
 
 # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
-AC_CHECK_FUNCS([gethostbyname_r])
+AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
+AC_LINK_IFELSE(
+        AC_LANG_PROGRAM([#include <netdb.h>],
+                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);]),
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
+        AC_MSG_RESULT(no)
+)
+
+AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
+AC_LINK_IFELSE(
+        AC_LANG_PROGRAM([#include <netdb.h>],
+                        [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);]),
+        AC_MSG_RESULT(yes)
+        AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
+        AC_MSG_RESULT(no)
+)
 
 AC_CHECK_HEADER([byteswap.h], [AC_DEFINE_UNQUOTED([HAVE_BYTESWAP_H], 1, [Define to 1 if byteswap.h macros are available.])])
 
