@@ -4,7 +4,9 @@
 [general]
 bindaddr=0.0.0.0	; Address to bind to
 bindport=2000		; Port to bind to, default tcp/2000
-dateformat=M-D-Y	; M,D,Y in any order (5 chars max)
+dateformat=M-D-Y	; M,D,Y in any order (6 chars max)
+			; "A" may also be used, but it must be at the end.
+			; Use M for month, D for day, Y for year, A for 12-hour time.
 keepalive=120
 
 ;vmexten=8500		; Systemwide voicemailmain pilot number

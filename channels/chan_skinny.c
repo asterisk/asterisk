@@ -3198,7 +3198,7 @@ static int handle_register_message(struct skinny_req *req, struct skinnysession 
 	req->data.regack.res[0] = '0';
 	req->data.regack.res[1] = '\0';
 	req->data.regack.keepAlive = htolel(keep_alive);
-	ast_copy_string(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate));
+	memcpy(req->data.regack.dateTemplate, date_format, sizeof(req->data.regack.dateTemplate));
 	req->data.regack.res2[0] = '0';
 	req->data.regack.res2[1] = '\0';
 	req->data.regack.secondaryKeepAlive = htolel(keep_alive);
@@ -5030,7 +5030,7 @@ static int reload_config(void)
 			}
 			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 		} else if (!strcasecmp(v->name, "dateformat")) {
-			ast_copy_string(date_format, v->value, sizeof(date_format));
+			memcpy(date_format, v->value, sizeof(date_format));
 		} else if (!strcasecmp(v->name, "allow")) {
 			ast_parse_allow_disallow(&default_prefs, &default_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
