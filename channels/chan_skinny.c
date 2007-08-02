@@ -2733,6 +2733,9 @@ static int skinny_answer(struct ast_channel *ast)
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->parent;
 	struct skinnysession *s = d->session;
+	char exten[AST_MAX_EXTENSION] = "";
+
+	ast_copy_string(exten, S_OR(ast->macroexten, ast->exten), sizeof(exten));
 
 	sub->cxmode = SKINNY_CX_SENDRECV;
 	if (!sub->rtp) {
@@ -2748,7 +2751,7 @@ static int skinny_answer(struct ast_channel *ast)
 	/* order matters here...
 	   for some reason, transmit_callinfo must be before transmit_callstate,
 	   or you won't get keypad messages in some situations. */
-	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, ast->exten, ast->exten, l->instance, sub->callid, 2);
+	transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, exten, exten, l->instance, sub->callid, 2);
 	transmit_callstate(s, l->instance, SKINNY_CONNECTED, sub->callid);
 	transmit_selectsoftkeys(s, l->instance, sub->callid, KEYDEF_CONNECTED);
 	transmit_displaypromptstatus(s, "Connected", 0, l->instance, sub->callid);
@@ -2927,6 +2930,9 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinny_line *l = sub->parent;
 	struct skinny_device *d = l->parent;
 	struct skinnysession *s = d->session;
+	char exten[AST_MAX_EXTENSION] = "";
+
+	ast_copy_string(exten, S_OR(ast->macroexten, ast->exten), sizeof(exten));
 
 	if (skinnydebug)
 		ast_verb(3, "Asked to indicate '%s' condition on channel %s\n", control2str(ind), ast->name);
@@ -2936,9 +2942,9 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			if (!sub->progress) {
 				transmit_tone(s, SKINNY_ALERT, l->instance, sub->callid);
 				transmit_callstate(s, l->instance, SKINNY_RINGOUT, sub->callid);
-				transmit_dialednumber(s, ast->exten, l->instance, sub->callid);
+				transmit_dialednumber(s, exten, l->instance, sub->callid);
 				transmit_displaypromptstatus(s, "Ring Out", 0, l->instance, sub->callid);
-				transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, ast->exten, ast->exten, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
+				transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, exten, exten, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 				sub->ringing = 1;
 				break;
 			}
@@ -2967,7 +2973,7 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 			transmit_tone(s, SKINNY_ALERT, l->instance, sub->callid);
 			transmit_callstate(s, l->instance, SKINNY_PROGRESS, sub->callid);
 			transmit_displaypromptstatus(s, "Call Progress", 0, l->instance, sub->callid);
-			transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, ast->exten, ast->exten, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
+			transmit_callinfo(s, ast->cid.cid_name, ast->cid.cid_num, exten, exten, l->instance, sub->callid, 2); /* 2 = outgoing from phone */
 			sub->progress = 1;
 			break;
 		}
