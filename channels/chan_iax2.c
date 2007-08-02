@@ -1014,8 +1014,10 @@ static struct iax2_thread *find_idle_thread(void)
 	AST_LIST_UNLOCK(&idle_list);
 
 	/* If we popped a thread off the idle list, just return it */
-	if (thread)
+	if (thread) {
+		memset(&thread->ffinfo, 0, sizeof(thread->ffinfo));
 		return thread;
+	}
 
 	/* Pop the head of the dynamic list off */
 	AST_LIST_LOCK(&dynamic_list);
@@ -1023,8 +1025,10 @@ static struct iax2_thread *find_idle_thread(void)
 	AST_LIST_UNLOCK(&dynamic_list);
 
 	/* If we popped a thread off the dynamic list, just return it */
-	if (thread)
+	if (thread) {
+		memset(&thread->ffinfo, 0, sizeof(thread->ffinfo));
 		return thread;
+	}
 
 	/* If we can't create a new dynamic thread for any reason, return no thread at all */
 	if (iaxdynamicthreadcount >= iaxmaxthreadcount || !(thread = ast_calloc(1, sizeof(*thread))))
