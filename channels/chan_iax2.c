@@ -6266,7 +6266,8 @@ static void vnak_retransmit(int callno, int last)
 	AST_LIST_TRAVERSE(&frame_queue, f, list) {
 		/* Send a copy immediately */
 		if ((f->callno == callno) && iaxs[f->callno] &&
-			((unsigned char ) (f->oseqno - last) < 128)) {
+			((unsigned char ) (f->oseqno - last) < 128) &&
+			(f->retries >= 0)) {
 			send_packet(f);
 		}
 	}
