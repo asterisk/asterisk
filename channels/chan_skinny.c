@@ -1629,48 +1629,6 @@ static void transmit_microphone_mode(struct skinnysession *s, int mode)
 	transmit_response(s, req);
 }
 */
-static void transmit_callstate(struct skinnysession *s, int instance, int state, unsigned callid)
-{
-	struct skinny_req *req;
-
-	if (state == SKINNY_OFFHOOK) {
-		if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
-			return;
-
-		req->data.activatecallplane.lineInstance = htolel(instance);
-		transmit_response(s, req);
-	} else if (state == SKINNY_ONHOOK) {
-		transmit_speaker_mode(s, SKINNY_SPEAKEROFF);
-
-		if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
-			return;
-
-		req->data.activatecallplane.lineInstance = htolel(instance);
-		transmit_response(s, req);
-
-		if (!(req = req_alloc(sizeof(struct close_receive_channel_message), CLOSE_RECEIVE_CHANNEL_MESSAGE)))
-			return;
-
-		req->data.closereceivechannel.conferenceId = htolel(callid);
-		req->data.closereceivechannel.partyId = htolel(callid);
-		transmit_response(s, req);
-
-		if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
-			return;
-
-		req->data.stopmedia.conferenceId = htolel(callid);
-		req->data.stopmedia.passThruPartyId = htolel(callid);
-		transmit_response(s, req);
-	}
-
-	if (!(req = req_alloc(sizeof(struct call_state_message), CALL_STATE_MESSAGE)))
-		return;
-
-	req->data.callstate.callState = htolel(state);
-	req->data.callstate.lineInstance = htolel(instance);
-	req->data.callstate.callReference = htolel(callid);
-	transmit_response(s, req);
-}
 
 static void transmit_callinfo(struct skinnysession *s, const char *fromname, const char *fromnum, const char *toname, const char *tonum, int instance, int callid, int calltype)
 {
@@ -1882,6 +1840,51 @@ static void transmit_dialednumber(struct skinnysession *s, const char *text, int
 	req->data.dialednumber.callReference = htolel(callid);
 
 	transmit_response(s, req);
+}
+
+static void transmit_callstate(struct skinnysession *s, int instance, int state, unsigned callid)
+{
+	struct skinny_req *req;
+
+	if (state == SKINNY_ONHOOK) {
+		if (!(req = req_alloc(sizeof(struct close_receive_channel_message), CLOSE_RECEIVE_CHANNEL_MESSAGE)))
+			return;
+
+		req->data.closereceivechannel.conferenceId = htolel(callid);
+		req->data.closereceivechannel.partyId = htolel(callid);
+		transmit_response(s, req);
+
+		if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
+			return;
+
+		req->data.stopmedia.conferenceId = htolel(callid);
+		req->data.stopmedia.passThruPartyId = htolel(callid);
+		transmit_response(s, req);
+
+		transmit_speaker_mode(s, SKINNY_SPEAKEROFF);
+
+		transmit_displaypromptstatus(s, NULL, 0, instance, callid);
+	}
+
+	if (!(req = req_alloc(sizeof(struct call_state_message), CALL_STATE_MESSAGE)))
+		return;
+
+	req->data.callstate.callState = htolel(state);
+	req->data.callstate.lineInstance = htolel(instance);
+	req->data.callstate.callReference = htolel(callid);
+	transmit_response(s, req);
+
+	if (state == SKINNY_ONHOOK) {
+		transmit_selectsoftkeys(s, 0, 0, KEYDEF_ONHOOK);
+	}
+
+	if (state == SKINNY_OFFHOOK || state == SKINNY_ONHOOK) {
+		if (!(req = req_alloc(sizeof(struct activate_call_plane_message), ACTIVATE_CALL_PLANE_MESSAGE)))
+			return;
+
+		req->data.activatecallplane.lineInstance = htolel(instance);
+		transmit_response(s, req);
+	}
 }
 
 static int skinny_extensionstate_cb(char *context, char *exten, int state, void *data)
