@@ -185,6 +185,9 @@ int fsk_serie(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 	int i,j,n1,r;
 	int samples=0;
 	int olen;
+	int beginlen=*len;
+	int beginlenx;
+	
 	switch(fskd->state) {
 		/* Pick up where we left off */
 	case STATE_SEARCH_STARTBIT2:
@@ -212,12 +215,13 @@ of a transmission (what a LOSING design), we cant do it this elegantly */
 beginning of a start bit in the TDD sceanario. It just looks for sufficient
 level to maybe, perhaps, guess, maybe that its maybe the beginning of
 a start bit, perhaps. This whole thing stinks! */
+		beginlenx=beginlen; /* just to avoid unused war warnings */
 		if (demodulador(fskd,&fskd->x1,GET_SAMPLE)) return(-1);
 		samples++;
 		for(;;)
 		   {
 search_startbit2:		   
-			if (!*len) {
+			if (*len <= 0) {
 				fskd->state = STATE_SEARCH_STARTBIT2;
 				return 0;
 			}
@@ -235,7 +239,7 @@ search_startbit3:
 			fskd->state = STATE_SEARCH_STARTBIT3;
 			return 0;
 		}
-		for(;i;i--) { if (demodulador(fskd,&fskd->x1,GET_SAMPLE)) return(-1); 
+		for(;i>0;i--) { if (demodulador(fskd,&fskd->x1,GET_SAMPLE)) return(-1); 
 #if 0
 			printf("x1 = %5.5f ", fskd->x1);
 #endif			
