@@ -2935,6 +2935,11 @@ static int skinny_indicate(struct ast_channel *ast, int ind, const void *data, s
 	struct skinnysession *s = d->session;
 	char exten[AST_MAX_EXTENSION] = "";
 
+	if (!s) {
+		ast_log(LOG_NOTICE, "Asked to indicate '%s' condition on channel %s, but session does not exist.\n", control2str(ind), ast->name);
+		return -1;
+	}
+
 	ast_copy_string(exten, S_OR(ast->macroexten, ast->exten), sizeof(exten));
 
 	if (skinnydebug)
