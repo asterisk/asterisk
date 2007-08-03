@@ -81,7 +81,7 @@ static struct ast_region {
 #define HASH(a) \
 	(((unsigned long)(a)) % SOME_PRIME)
 	
-AST_MUTEX_DEFINE_STATIC(reglock);
+AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 AST_MUTEX_DEFINE_STATIC(showmemorylock);
 
 #define astmm_log(...)                               \
