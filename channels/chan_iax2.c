@@ -3478,23 +3478,24 @@ static int iax2_indicate(struct ast_channel *c, int condition, const void *data,
 
 	ast_mutex_lock(&iaxsl[callno]);
 	pvt = iaxs[callno];
-	if (!strcasecmp(pvt->mohinterpret, "passthrough")) {
-		res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
-		ast_mutex_unlock(&iaxsl[callno]);
-		return res;
-	}
 
 	switch (condition) {
 	case AST_CONTROL_HOLD:
-		ast_moh_start(c, data, pvt->mohinterpret);
+		if (strcasecmp(pvt->mohinterpret, "passthrough")) {
+			ast_moh_start(c, data, pvt->mohinterpret);
+			goto done;
+		}
 		break;
 	case AST_CONTROL_UNHOLD:
-		ast_moh_stop(c);
-		break;
-	default:
-		res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+		if (strcasecmp(pvt->mohinterpret, "passthrough")) {
+			ast_moh_stop(c);
+			goto done;
+		}
 	}
 
+	res = send_command(pvt, AST_FRAME_CONTROL, condition, 0, data, datalen, -1);
+
+done:
 	ast_mutex_unlock(&iaxsl[callno]);
 
 	return res;
