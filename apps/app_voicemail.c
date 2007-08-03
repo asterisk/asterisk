@@ -4154,8 +4154,14 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 		if (!attach_user_voicemail)
 			attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
 
+		if (attach_user_voicemail)
+			RETRIEVE(todir, msgnum, vmu->mailbox, vmu->context);
+
 		/*XXX possible imap issue, should category be NULL XXX*/
 		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, chan, category);
+
+		if (attach_user_voicemail)
+			DISPOSE(todir, msgnum);
 	}
 
 	if (!ast_strlen_zero(vmu->pager))
