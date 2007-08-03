@@ -80,8 +80,10 @@ static struct ast_region {
 
 #define HASH(a) \
 	(((unsigned long)(a)) % SOME_PRIME)
-	
-AST_MUTEX_DEFINE_STATIC(reglock);
+
+/*! Tracking this mutex will cause infinite recursion, as the mutex tracking
+ *  code allocates memory */
+AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
 AST_MUTEX_DEFINE_STATIC(showmemorylock);
 
 #define astmm_log(...)                               \

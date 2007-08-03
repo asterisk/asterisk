@@ -103,12 +103,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, { NULL }, { 0 }, 0, { NULL }, { 0 } }
+#define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, 1, { NULL }, { 0 }, 0, { NULL }, { 0 } }
+#define AST_MUTEX_INIT_VALUE_NOTRACKING \
+                             { PTHREAD_MUTEX_INIT_VALUE, 0, { NULL }, { 0 }, 0, { NULL }, { 0 } }
 
 #define AST_MAX_REENTRANCY 10
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
+	/*! Track which thread holds this lock */
+	unsigned int track:1;
 	const char *file[AST_MAX_REENTRANCY];
 	int lineno[AST_MAX_REENTRANCY];
 	int reentrancy;
@@ -121,6 +125,30 @@ typedef struct ast_mutex_info ast_mutex_t;
 typedef pthread_cond_t ast_cond_t;
 
 static pthread_mutex_t empty_mutex;
+
+/*!
+ * \brief Store lock info for the current thread
+ *
+ * This function gets called in ast_mutex_lock() and ast_mutex_trylock() so
+ * that information about this lock can be stored in this thread's
+ * lock info struct.  The lock is marked as pending as the thread is waiting
+ * on the lock.  ast_mark_lock_acquired() will mark it as held by this thread.
+ */
+void ast_store_lock_info(const char *filename, int line_num, 
+	const char *func, const char *lock_name, void *lock_addr);
+
+/*!
+ * \brief Mark the last lock as acquired
+ */
+void ast_mark_lock_acquired(void);
+
+/*!
+ * \brief remove lock info for the current thread
+ *
+ * this gets called by ast_mutex_unlock so that information on the lock can
+ * be removed from the current thread's lock info struct.
+ */
+void ast_remove_lock_info(void *lock_addr);
 
 static void __attribute__((constructor)) init_empty_mutex(void)
 {
@@ -217,6 +245,9 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 	int res;
 	int canlog = strcmp(filename, "logger.c");
 
+	if (t->track)
+		ast_store_lock_info(filename, lineno, func, mutex_name, &t->mutex);
+
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
@@ -261,6 +292,8 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 #endif /* DETECT_DEADLOCKS */
 
 	if (!res) {
+		if (t->track)
+			ast_mark_lock_acquired();
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -272,6 +305,8 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 							   filename, lineno, func, mutex_name);
 		}
 	} else {
+		if (t->track)
+			ast_remove_lock_info(&t->mutex);
 		__ast_mutex_logger("%s line %d (%s): Error obtaining mutex: %s\n",
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
@@ -294,7 +329,12 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
+	if (t->track)
+		ast_store_lock_info(filename, lineno, func, mutex_name, &t->mutex);
+
 	if (!(res = pthread_mutex_trylock(&t->mutex))) {
+		if (t->track)
+			ast_mark_lock_acquired();
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -305,6 +345,8 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
 					   filename, lineno, func, mutex_name);
 		}
+	} else if (t->track) {
+			ast_remove_lock_info(&t->mutex);
 	}
 
 	return res;
@@ -343,6 +385,9 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 		t->func[t->reentrancy] = NULL;
 		t->thread[t->reentrancy] = 0;
 	}
+
+	if (t->track)
+		ast_remove_lock_info(&t->mutex);
 
 	if ((res = pthread_mutex_unlock(&t->mutex))) {
 		__ast_mutex_logger("%s line %d (%s): Error releasing mutex: %s\n", 
@@ -412,11 +457,17 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 		t->thread[t->reentrancy] = 0;
 	}
 
+	if (t->track)
+		ast_remove_lock_info(&t->mutex);
+
 	if ((res = pthread_cond_wait(cond, &t->mutex))) {
 		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	} else {
+		if (t->track)
+			ast_store_lock_info(filename, lineno, func, mutex_name, &t->mutex);
+
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -467,11 +518,17 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 		t->thread[t->reentrancy] = 0;
 	}
 
+	if (t->track)
+		ast_remove_lock_info(&t->mutex);
+
 	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime)) && (res != ETIMEDOUT)) {
 		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	} else {
+		if (t->track)
+			ast_store_lock_info(filename, lineno, func, mutex_name, &t->mutex);
+
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -574,8 +631,8 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 /* If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
  constructors/destructors to create/destroy mutexes.  */
-#define __AST_MUTEX_DEFINE(scope, mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE; \
+#define __AST_MUTEX_DEFINE(scope, mutex, init_val) \
+	scope ast_mutex_t mutex = init_val; \
 static void  __attribute__ ((constructor)) init_##mutex(void) \
 { \
 	ast_mutex_init(&mutex); \
@@ -586,8 +643,8 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 }
 #else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
 /* By default, use static initialization of mutexes. */ 
-#define __AST_MUTEX_DEFINE(scope, mutex) \
-	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
+#define __AST_MUTEX_DEFINE(scope, mutex, init_val) \
+	scope ast_mutex_t mutex = init_val
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
 #define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
@@ -604,7 +661,8 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 #define pthread_cond_wait use_ast_cond_wait_instead_of_pthread_cond_wait
 #define pthread_cond_timedwait use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
 
-#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex)
+#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE)
+#define AST_MUTEX_DEFINE_STATIC_NOTRACKING(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE_NOTRACKING)
 
 #define AST_MUTEX_INITIALIZER __use_AST_MUTEX_DEFINE_STATIC_rather_than_AST_MUTEX_INITIALIZER__
 

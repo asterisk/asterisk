@@ -51,6 +51,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/sha1.h"
 #include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/linkedlists.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/strings.h"
@@ -509,20 +511,233 @@ const char *ast_inet_ntoa(struct in_addr ia)
 static int dev_urandom_fd;
 #endif
 
-int ast_utils_init(void)
-{
-#ifdef HAVE_DEV_URANDOM
-	dev_urandom_fd = open("/dev/urandom", O_RDONLY);
-#endif
-	base64_init();
-	return 0;
-}
-
 #ifndef __linux__
 #undef pthread_create /* For ast_pthread_create function only */
 #endif /* !__linux__ */
 
 #if !defined(LOW_MEMORY)
+
+#ifdef DEBUG_THREADS
+
+/*! \brief A reasonable maximum number of locks a thread would be holding ... */
+#define AST_MAX_LOCKS 16
+
+/* Allow direct use of pthread_mutex_t and friends */
+#undef pthread_mutex_t
+#undef pthread_mutex_lock
+#undef pthread_mutex_unlock
+#undef pthread_mutex_init
+#undef pthread_mutex_destroy
+
+/*! 
+ * \brief Keep track of which locks a thread holds 
+ *
+ * There is an instance of this struct for every active thread
+ */
+struct thr_lock_info {
+	/*! The thread's ID */
+	pthread_t thread_id;
+	/*! The thread name which includes where the thread was started */
+	const char *thread_name;
+	/*! This is the actual container of info for what locks this thread holds */
+	struct {
+		const char *file;
+		int line_num;
+		const char *func;
+		const char *lock_name;
+		void *lock_addr;
+		int times_locked;
+		/*! This thread is waiting on this lock */
+		unsigned int pending:1;
+	} locks[AST_MAX_LOCKS];
+	/*! This is the number of locks currently held by this thread.
+	 *  The index (num_locks - 1) has the info on the last one in the
+	 *  locks member */
+	unsigned int num_locks;
+	/*! Protects the contents of the locks member 
+	 * Intentionally not ast_mutex_t */
+	pthread_mutex_t lock;
+	AST_LIST_ENTRY(thr_lock_info) entry;
+};
+
+/*! 
+ * \brief Locked when accessing the lock_infos list 
+ */
+AST_MUTEX_DEFINE_STATIC(lock_infos_lock);
+/*!
+ * \brief A list of each thread's lock info 
+ */
+static AST_LIST_HEAD_NOLOCK_STATIC(lock_infos, thr_lock_info);
+
+/*!
+ * \brief Destroy a thread's lock info
+ *
+ * This gets called automatically when the thread stops
+ */
+static void lock_info_destroy(void *data)
+{
+	struct thr_lock_info *lock_info = data;
+
+	pthread_mutex_lock(&lock_infos_lock.mutex);
+	AST_LIST_REMOVE(&lock_infos, lock_info, entry);
+	pthread_mutex_unlock(&lock_infos_lock.mutex);
+
+	pthread_mutex_destroy(&lock_info->lock);
+	free((void *) lock_info->thread_name);
+	free(lock_info);
+}
+
+/*!
+ * \brief The thread storage key for per-thread lock info
+ */
+AST_THREADSTORAGE_CUSTOM(thread_lock_info, NULL, lock_info_destroy);
+
+void ast_store_lock_info(const char *filename, int line_num, 
+	const char *func, const char *lock_name, void *lock_addr)
+{
+	struct thr_lock_info *lock_info;
+	int i;
+
+	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
+		return;
+
+	pthread_mutex_lock(&lock_info->lock);
+
+	for (i = 0; i < lock_info->num_locks; i++) {
+		if (lock_info->locks[i].lock_addr == lock_addr) {
+			lock_info->locks[i].times_locked++;
+			pthread_mutex_unlock(&lock_info->lock);
+			return;
+		}
+	}
+
+	if (lock_info->num_locks == AST_MAX_LOCKS) {
+		/* Can't use ast_log here, because it will cause infinite recursion */
+		fprintf(stderr, "XXX ERROR XXX A thread holds more locks than '%d'."
+			"  Increase AST_MAX_LOCKS!\n", AST_MAX_LOCKS);
+		pthread_mutex_unlock(&lock_info->lock);
+		return;
+	}
+	
+	lock_info->locks[i].file = filename;
+	lock_info->locks[i].line_num = line_num;
+	lock_info->locks[i].func = func;
+	lock_info->locks[i].lock_name = lock_name;
+	lock_info->locks[i].lock_addr = lock_addr;
+	lock_info->locks[i].times_locked = 1;
+	lock_info->locks[i].pending = 1;
+	lock_info->num_locks++;
+
+	pthread_mutex_unlock(&lock_info->lock);
+}
+
+void ast_mark_lock_acquired(void)
+{
+	struct thr_lock_info *lock_info;
+
+	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
+		return;
+
+	pthread_mutex_lock(&lock_info->lock);
+	lock_info->locks[lock_info->num_locks - 1].pending = 0;
+	pthread_mutex_unlock(&lock_info->lock);
+}
+
+void ast_remove_lock_info(void *lock_addr)
+{
+	struct thr_lock_info *lock_info;
+	int i = 0;
+
+	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
+		return;
+
+	pthread_mutex_lock(&lock_info->lock);
+
+	for (i = lock_info->num_locks - 1; i >= 0; i--) {
+		if (lock_info->locks[i].lock_addr == lock_addr)
+			break;
+	}
+
+	if (i == -1) {
+		/* Lock not found :( */
+		pthread_mutex_unlock(&lock_info->lock);
+		return;
+	}
+
+	if (lock_info->locks[i].times_locked > 1) {
+		lock_info->locks[i].times_locked--;
+		pthread_mutex_unlock(&lock_info->lock);
+		return;
+	}
+
+	if (i < lock_info->num_locks - 1) {
+		/* Not the last one ... *should* be rare! */
+		memmove(&lock_info->locks[i], &lock_info->locks[i + 1], 
+			(lock_info->num_locks - (i + 1)) * sizeof(lock_info->locks[0]));
+	}
+
+	lock_info->num_locks--;
+
+	pthread_mutex_unlock(&lock_info->lock);
+}
+
+static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct thr_lock_info *lock_info;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show locks";
+		e->usage =
+			"Usage: core show locks\n"
+			"       This command is for lock debugging.  It prints out which locks\n"
+			"are owned by each active thread.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "\n" 
+	               "=======================================================================\n"
+	               "=== Currently Held Locks ==============================================\n"
+	               "=======================================================================\n"
+	               "===\n"
+	               "=== <file> <line num> <function> <lock name> <lock addr> (times locked)\n"
+	               "===\n");
+
+	pthread_mutex_lock(&lock_infos_lock.mutex);
+	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
+		int i;
+		ast_cli(a->fd, "=== Thread ID: %d (%s)\n", (int) lock_info->thread_id,
+			lock_info->thread_name);
+		pthread_mutex_lock(&lock_info->lock);
+		for (i = 0; i < lock_info->num_locks; i++) {
+			ast_cli(a->fd, "=== ---> %sLock #%d: %s %d %s %s %p (%d)\n", 
+				lock_info->locks[i].pending ? "Waiting for " : "", i,
+				lock_info->locks[i].file, lock_info->locks[i].line_num,
+				lock_info->locks[i].func, lock_info->locks[i].lock_name,
+				lock_info->locks[i].lock_addr, 
+				lock_info->locks[i].times_locked);
+		}
+		pthread_mutex_unlock(&lock_info->lock);
+		ast_cli(a->fd, "=== -------------------------------------------------------------------\n"
+		               "===\n");
+	}
+	pthread_mutex_unlock(&lock_infos_lock.mutex);
+
+	ast_cli(a->fd, "=======================================================================\n"
+	               "\n");
+
+	return 0;
+}
+
+static struct ast_cli_entry utils_cli[] = {
+	NEW_CLI(handle_show_locks, "Show which locks are held by which thread"),
+};
+
+#endif /* DEBUG_THREADS */
+
 /*
  * support for 'show threads'. The start routine is wrapped by
  * dummy_start(), so that ast_register_thread() and
@@ -545,6 +760,9 @@ static void *dummy_start(void *data)
 {
 	void *ret;
 	struct thr_arg a = *((struct thr_arg *) data);	/* make a local copy */
+#ifdef DEBUG_THREADS
+	struct thr_lock_info *lock_info;
+#endif
 
 	/* note that even though data->name is a pointer to allocated memory,
 	   we are not freeing it here because ast_register_thread is going to
@@ -554,7 +772,22 @@ static void *dummy_start(void *data)
 	ast_free(data);
 	ast_register_thread(a.name);
 	pthread_cleanup_push(ast_unregister_thread, (void *) pthread_self());
+
+#ifdef DEBUG_THREADS
+	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
+		return NULL;
+
+	lock_info->thread_id = pthread_self();
+	lock_info->thread_name = strdup(a.name);
+	pthread_mutex_init(&lock_info->lock, NULL);
+
+	pthread_mutex_lock(&lock_infos_lock.mutex); /* Intentionally not the wrapper */
+	AST_LIST_INSERT_TAIL(&lock_infos, lock_info, entry);
+	pthread_mutex_unlock(&lock_infos_lock.mutex); /* Intentionally not the wrapper */
+#endif /* DEBUG_THREADS */
+
 	ret = a.start_routine(a.data);
+
 	pthread_cleanup_pop(1);
 
 	return ret;
@@ -1144,3 +1377,14 @@ int ast_mkdir(const char *path, int mode)
 	return 0;
 }
 
+int ast_utils_init(void)
+{
+#ifdef HAVE_DEV_URANDOM
+	dev_urandom_fd = open("/dev/urandom", O_RDONLY);
+#endif
+	base64_init();
+#ifdef DEBUG_THREADS
+	ast_cli_register_multiple(utils_cli, sizeof(utils_cli) / sizeof(utils_cli[0]));
+#endif
+	return 0;
+}
