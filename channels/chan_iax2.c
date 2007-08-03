@@ -8413,15 +8413,12 @@ static void *iax2_process_thread(void *data)
 				/* Someone grabbed our thread *right* after we timed out.
 				 * Wait for them to set us up with something to do and signal
 				 * us to continue. */
-				ast_cond_timedwait(&thread->cond, &thread->lock, &ts);
-				ast_mutex_unlock(&thread->lock);
+				ast_cond_wait(&thread->cond, &thread->lock);
 			}
-			if (!t)
-				ast_mutex_unlock(&thread->lock);
 		} else {
 			ast_cond_wait(&thread->cond, &thread->lock);
-			ast_mutex_unlock(&thread->lock);
 		}
+		ast_mutex_unlock(&thread->lock);
 
 		/* Add ourselves to the active list now */
 		AST_LIST_LOCK(&active_list);
