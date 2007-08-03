@@ -75,6 +75,14 @@ struct ast_config *ast_config_load_with_comments(const char *filename);
  */
 void ast_config_destroy(struct ast_config *config);
 
+/*! \brief returns the root ast_variable of a config
+ * \param config pointer to an ast_config data structure
+ * \param cat name of the category for which you want the root
+ *
+ * Returns the category specified
+ */
+struct ast_variable *ast_category_root(struct ast_config *config, char *cat);
+
 /*! \brief Goes through categories 
  * \param config Which config structure you wish to "browse"
  * \param prev A pointer to a previous category.

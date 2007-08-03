@@ -1443,6 +1443,7 @@ static void append_date(struct sip_request *req);	/* Append date to SIP packet *
 static int determine_firstline_parts(struct sip_request *req);
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static const char *gettag(const struct sip_request *req, const char *header, char *tagbuf, int tagbufsize);
+static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno);
 static int find_sip_method(const char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, const char *supported);
 static void parse_request(struct sip_request *req);
@@ -2454,22 +2455,64 @@ static void update_peer(struct sip_peer *p, int expiry)
 */
 static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_in *sin)
 {
-	struct sip_peer *peer;
-	struct ast_variable *var = NULL;
+	struct sip_peer *peer=NULL;
+	struct ast_variable *var;
+	struct ast_config *peerlist = NULL;
 	struct ast_variable *tmp;
-	char ipaddr[INET_ADDRSTRLEN];
+	struct ast_flags flags = {0};
+	const char *iabuf;
+	char portstring[6]; /*up to five digits plus null terminator*/
+	const char *insecure; 
+	char *cat = NULL;
+	unsigned short portnum;
 
 	/* First check on peer name */
 	if (newpeername) 
 		var = ast_load_realtime("sippeers", "name", newpeername, NULL);
-	else if (sin) {	/* Then check on IP address for dynamic peers */
-		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
-		var = ast_load_realtime("sippeers", "host", ipaddr, NULL);	/* First check for fixed IP hosts */
+	else if (sin) {	/* Then check on IP address */
+		iabuf = ast_inet_ntoa(sin->sin_addr);
+		portnum = ntohs(sin->sin_port);
+		sprintf(portstring, "%d", portnum);
+		var = ast_load_realtime("sippeers", "host", iabuf, "port", portstring, NULL);	/* First check for fixed IP hosts */
 		if (!var)
-			var = ast_load_realtime("sippeers", "ipaddr", ipaddr, NULL);	/* Then check for registred hosts */
-	}
+			var = ast_load_realtime("sippeers", "ipaddr", iabuf, "port", portstring, NULL);	/* Then check for registered hosts */
+		if (!var) { 
+			peerlist = ast_load_realtime_multientry("sippeers", "host", iabuf, NULL); /*No exact match, see if port is insecure, try host match first*/
+			if(peerlist){ 
+				while((cat = ast_category_browse(peerlist, cat)))
+				{
+					insecure = ast_variable_retrieve(peerlist, cat, "insecure");
+					set_insecure_flags(&flags, insecure, -1);
+					if(ast_test_flag(&flags, SIP_INSECURE_PORT)) {
+						var = ast_category_root(peerlist, cat);
+						break;
+					}
+				}
+			}
+			if(!var) {
+				ast_config_destroy(peerlist);
+				peerlist = NULL; /*for safety's sake*/
+				cat = NULL;
+				peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", iabuf, NULL); /*No exact match, see if port is insecure, now try ip address match*/
+				if(peerlist) {
+					while((cat = ast_category_browse(peerlist, cat)))
+					{
+						insecure = ast_variable_retrieve(peerlist, cat, "insecure");
+						set_insecure_flags(&flags, insecure, -1);
+						if(ast_test_flag(&flags, SIP_INSECURE_PORT)) {
+							var = ast_category_root(peerlist, cat);
+							break;
+						}
+					}
+				}
+			}
+		}
+	} else
+		return NULL;
 
 	if (!var)
+		if(peerlist)
+			ast_config_destroy(peerlist);
 		return NULL;
 
 	for (tmp = var; tmp; tmp = tmp->next) {
@@ -2484,15 +2527,21 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	}
 	
 	if (!newpeername) {	/* Did not find peer in realtime */
-		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", ipaddr);
-		ast_variables_destroy(var);
+		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", iabuf);
+		if(peerlist)
+			ast_config_destroy(peerlist);
+		else
+			ast_variables_destroy(var);
 		return NULL;
 	}
 
 	/* Peer found in realtime, now build it in memory */
 	peer = build_peer(newpeername, var, NULL, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
 	if (!peer) {
-		ast_variables_destroy(var);
+		if(peerlist)
+			ast_config_destroy(peerlist);
+		else
+			ast_variables_destroy(var);
 		return NULL;
 	}
 
@@ -2509,8 +2558,10 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	} else {
 		ast_set_flag(&peer->flags[0], SIP_REALTIME);
 	}
-	ast_variables_destroy(var);
-
+	if(peerlist)
+		ast_config_destroy(peerlist);
+	else
+		ast_variables_destroy(var);
 	return peer;
 }
 
@@ -15622,6 +15673,34 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 }
 
 /*!
+ * \brief Parse the "insecure" setting from sip.conf or from realtime.
+ * \param flags a pointer to an ast_flags structure
+ * \param value the value of the SIP insecure setting
+ * \param lineno linenumber in sip.conf or -1 for realtime
+ */
+static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno)
+{
+	if (!strcasecmp(value, "very"))
+		ast_set_flag(flags, SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+	else if (ast_true(value))
+		ast_set_flag(flags, SIP_INSECURE_PORT);
+	else if (!ast_false(value)) {
+		char buf[64];
+		char *word, *next;
+		ast_copy_string(buf, value, sizeof(buf));
+		next = buf;
+		while ((word = strsep(&next, ","))) {
+			if (!strcasecmp(word, "port"))
+				ast_set_flag(flags, SIP_INSECURE_PORT);
+			else if (!strcasecmp(word, "invite"))
+				ast_set_flag(flags, SIP_INSECURE_INVITE);
+			else
+				ast_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", value, lineno);
+		}
+	}
+}
+
+/*!
   \brief Handle flag-type options common to configuration of devices - users and peers
   \param flags array of two struct ast_flags
   \param mask array of two struct ast_flags
@@ -15675,24 +15754,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
-		if (ast_true(v->value)) {
-			ast_set_flag(&flags[0], SIP_CAN_REINVITE | SIP_CAN_REINVITE_NAT);
-		} else if (!ast_false(v->value)) {
-			char buf[64];
-			char *word, *next = buf;
-
-			ast_copy_string(buf, v->value, sizeof(buf));
-			while ((word = strsep(&next, ","))) {
-				if (!strcasecmp(word, "update")) {
-					ast_set_flag(&flags[0], SIP_REINVITE_UPDATE | SIP_CAN_REINVITE);
-				} else if (!strcasecmp(word, "nonat")) {
-					ast_set_flag(&flags[0], SIP_CAN_REINVITE);
-					ast_clear_flag(&flags[0], SIP_CAN_REINVITE_NAT);
-				} else {
-					ast_log(LOG_WARNING, "Unknown canreinvite mode '%s' on line %d\n", v->value, v->lineno);
-				}
-			}
-		}
+		set_insecure_flags(flags, v->value, v->lineno);
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
