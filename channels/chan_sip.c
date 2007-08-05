@@ -9130,10 +9130,12 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 	peer = find_peer(name, NULL, 1);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		/* Peer fails ACL check */
-		if (peer)
+		if (peer) {
 			unref_peer(peer);
-		peer = NULL;
-		res = AUTH_ACL_FAILED;
+			peer = NULL;
+			res = AUTH_ACL_FAILED;
+		} else
+			res = AUTH_NOT_FOUND;
 	}
 	if (peer) {
 		/* Set Frame packetization */
