@@ -160,38 +160,38 @@ static int execif_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(remainder);
 	);
 	AST_DECLARE_APP_ARGS(apps,
-		AST_APP_ARG(true);
-		AST_APP_ARG(false);
+		AST_APP_ARG(t);
+		AST_APP_ARG(f);
 	);
 	char *parse = ast_strdupa(data);
 
 	AST_NONSTANDARD_APP_ARGS(expr, parse, '?');
 	AST_NONSTANDARD_APP_ARGS(apps, expr.remainder, ':');
 
-	if (apps.true && (truedata = strchr(apps.true, '('))) {
+	if (apps.t && (truedata = strchr(apps.t, '('))) {
 		*truedata++ = '\0';
 		if ((end = strrchr(truedata, ')')))
 			*end = '\0';
 	}
 
-	if (apps.false && (falsedata = strchr(apps.false, '('))) {
+	if (apps.f && (falsedata = strchr(apps.f, '('))) {
 		*falsedata++ = '\0';
 		if ((end = strrchr(falsedata, ')')))
 			*end = '\0';
 	}
 
 	if (pbx_checkcondition(expr.expr)) { 
-		if (!ast_strlen_zero(apps.true) && (app = pbx_findapp(apps.true))) {
+		if (!ast_strlen_zero(apps.t) && (app = pbx_findapp(apps.t))) {
 			res = pbx_exec(chan, app, S_OR(truedata, ""));
 		} else {
-			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.true);
+			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.t);
 			res = -1;
 		}
 	} else {
-		if (!ast_strlen_zero(apps.false) && (app = pbx_findapp(apps.false))) {
+		if (!ast_strlen_zero(apps.f) && (app = pbx_findapp(apps.f))) {
 			res = pbx_exec(chan, app, S_OR(falsedata, ""));
 		} else {
-			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.false);
+			ast_log(LOG_WARNING, "Could not find application! (%s)\n", apps.f);
 			res = -1;
 		}
 	}
