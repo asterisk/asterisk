@@ -71,13 +71,14 @@ static PGconn	*conn = NULL;
 static int pgsql_log(struct ast_cdr *cdr)
 {
 	struct tm tm;
+	time_t t = cdr->start.tv_sec;
 	char sqlcmd[2048] = "", timestr[128];
 	char *pgerror;
 	PGresult *result;
 
 	ast_mutex_lock(&pgsql_lock);
 
-	ast_localtime(&cdr->start.tv_sec, &tm, NULL);
+	ast_localtime(&t, &tm, NULL);
 	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
 	if ((!connected) && pghostname && pgdbuser && pgpassword && pgdbname) {
