@@ -2938,7 +2938,7 @@ static void update_peer(struct sip_peer *p, int expiry)
 
 static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config)
 {
-	struct ast_variable *var;
+	struct ast_variable *var = NULL;
 	struct ast_flags flags = {0};
 	char *cat = NULL;
 	const char *insecure;
