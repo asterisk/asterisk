@@ -989,6 +989,9 @@ static void iax2_free_variable_datastore(void *old)
 	ast_free(oldlist);
 }
 
+/* WARNING: insert_idle_thread should only ever be called within the
+ * context of an iax2_process_thread() thread.
+ */
 static void insert_idle_thread(struct iax2_thread *thread)
 {
 	if (thread->type == IAX_THREAD_TYPE_DYNAMIC) {
@@ -6723,11 +6726,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if (errno != ECONNREFUSED && errno != EAGAIN)
 			ast_log(LOG_WARNING, "Error: %s\n", strerror(errno));
 		handle_error();
-		insert_idle_thread(thread);
+		thread->iostate = IAX_IOSTATE_IDLE;
+		signal_condition(&thread->lock, &thread->cond);
 		return 1;
 	}
 	if (test_losspct && ((100.0 * ast_random() / (RAND_MAX + 1.0)) < test_losspct)) { /* simulate random loss condition */
-		insert_idle_thread(thread);
+		thread->iostate = IAX_IOSTATE_IDLE;
+		signal_condition(&thread->lock, &thread->cond);
 		return 1;
 	}
 	
@@ -6750,7 +6755,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			   so queue it up for processing later. */
 			defer_full_frame(thread, cur);
 			AST_LIST_UNLOCK(&active_list);
-			insert_idle_thread(thread);
+			thread->iostate = IAX_IOSTATE_IDLE;
+			signal_condition(&thread->lock, &thread->cond);
 			return 1;
 		} else {
 			/* this thread is going to process this frame, so mark it */
@@ -8414,12 +8420,26 @@ static void *iax2_process_thread(void *data)
 				/* Someone grabbed our thread *right* after we timed out.
 				 * Wait for them to set us up with something to do and signal
 				 * us to continue. */
-				ast_cond_wait(&thread->cond, &thread->lock);
+				tv = ast_tvadd(ast_tvnow(), ast_samp2tv(30000, 1000));
+				ts.tv_sec = tv.tv_sec;
+				ts.tv_nsec = tv.tv_usec * 1000;
+				if (ast_cond_timedwait(&thread->cond, &thread->lock, &ts) == ETIMEDOUT)
+				{
+					ast_mutex_unlock(&thread->lock);
+					break;
+				}
 			}
 		} else {
 			ast_cond_wait(&thread->cond, &thread->lock);
 		}
+
+		/* Go back into our respective list */
+		put_into_idle = 1;
+
 		ast_mutex_unlock(&thread->lock);
+
+		if (thread->iostate == IAX_IOSTATE_IDLE)
+			continue;
 
 		/* Add ourselves to the active list now */
 		AST_LIST_LOCK(&active_list);
@@ -8456,9 +8476,6 @@ static void *iax2_process_thread(void *data)
 
 		/* Make sure another frame didn't sneak in there after we thought we were done. */
 		handle_deferred_full_frames(thread);
-
-		/* Go back into our respective list */
-		put_into_idle = 1;
 	}
 
 	/* I am exiting here on my own volition, I need to clean up my own data structures
