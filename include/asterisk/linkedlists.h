@@ -748,7 +748,7 @@ struct {								\
 		while (curelm && (curelm->field.next != (elm)))			\
 			curelm = curelm->field.next;			\
 		if (curelm) { \
-			__res = curelm; \
+			__res = (elm); \
 			curelm->field.next = (elm)->field.next;			\
 			if ((head)->last == (elm))				\
 				(head)->last = curelm;				\
