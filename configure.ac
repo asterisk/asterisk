@@ -288,7 +288,8 @@ AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
 
 AC_MSG_CHECKING(for gethostbyname_r with 6 arguments)
 AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([#include <netdb.h>],
+        AC_LANG_PROGRAM([#include <stdlib.h>
+                         #include <netdb.h>],
                         [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (struct hostent **)NULL, (int *)NULL);]),
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_GETHOSTBYNAME_R_6], 1, [Define to 1 if your system has gethostbyname_r with 6 arguments.]),
@@ -297,7 +298,8 @@ AC_LINK_IFELSE(
 
 AC_MSG_CHECKING(for gethostbyname_r with 5 arguments)
 AC_LINK_IFELSE(
-        AC_LANG_PROGRAM([#include <netdb.h>],
+        AC_LANG_PROGRAM([#include <stdlib.h>
+	                 #include <netdb.h>],
                         [struct hostent *he = gethostbyname_r((const char *)NULL, (struct hostent *)NULL, (char *)NULL, (int)0, (int *)NULL);]),
         AC_MSG_RESULT(yes)
         AC_DEFINE([HAVE_GETHOSTBYNAME_R_5], 1, [Define to 1 if your system has gethostbyname_r with 5 arguments.]),
