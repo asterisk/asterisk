@@ -103,20 +103,23 @@ struct tdd_state *tdd_new(void)
 	struct tdd_state *tdd;
 	tdd = calloc(1, sizeof(*tdd));
 	if (tdd) {
-		tdd->fskd.spb = 176;        /* 45.5 baud */
+		tdd->fskd.ispb = 176;        /* 45.5 baud */
+		/* Set up for 45.5 / 8000 freq *32 to allow ints */
+		tdd->fskd.pllispb  = (int)((8000 * 32 * 2) / 90);
+		tdd->fskd.pllids   = tdd->fskd.pllispb/32;
+                tdd->fskd.pllispb2 = tdd->fskd.pllispb/2;
 		tdd->fskd.hdlc = 0;         /* Async */
 		tdd->fskd.nbit = 5;         /* 5 bits */
-		tdd->fskd.nstop = 1.5;      /* 1.5 stop bits */
+		tdd->fskd.instop = 1;       /* integer rep of 1.5 stop bits */
 		tdd->fskd.parity = 0;       /* No parity */
 		tdd->fskd.bw=0;             /* Filter 75 Hz */
 		tdd->fskd.f_mark_idx = 0;   /* 1400 Hz */
 		tdd->fskd.f_space_idx = 1;  /* 1800 Hz */
-		tdd->fskd.pcola = 0;        /* No clue */
-		tdd->fskd.cont = 0;         /* Digital PLL reset */
-		tdd->fskd.x0 = 0.0;
+		tdd->fskd.xi0  = 0;
 		tdd->fskd.state = 0;
 		tdd->pos = 0;
 		tdd->mode = 2;
+		fskmodem_init(&tdd->fskd);
 	} else
 		ast_log(LOG_WARNING, "Out of memory\n");
 	return tdd;

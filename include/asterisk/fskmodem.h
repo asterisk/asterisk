@@ -31,30 +31,39 @@
 
 #define NCOLA 0x4000
 
+/* new filter structure */
+struct filter_struct {
+
+        int icoefs[8];
+        int ip;
+        int ixv[8];
+        int iyv[8];
+};
+
 typedef struct {
-	float spb;	/*!< Samples / Bit */
 	int nbit;	/*!< Number of Data Bits (5,7,8) */
-	float nstop;	/*!< Number of Stop Bits 1,1.5,2  */
 	int parity;	/*!< Parity 0=none 1=even 2=odd */
+	int instop;	/*!< Number of Stop Bits  */
 	int hdlc;	/*!< Modo Packet */
-	float x0;
-	float x1;
-	float x2;
-	float cont;
-	int bw;				/*!< Bandwidth */
-	double fmxv[8],fmyv[8];		/*!< filter stuff for M filter */
-	int	fmp;			/*!< pointer for M filter */
-	double fsxv[8],fsyv[8];		/*!< filter stuff for S filter */
-	int	fsp;			/*!< pointer for S filter */
-	double flxv[8],flyv[8];		/*!< filter stuff for L filter */
-	int	flp;			/*!< pointer for L filter */
-	int f_mark_idx;			/*!< Mark frequency index (f_M-500)/5 */
-	int f_space_idx;		/*!< Space frequency index (f_S-500)/5 */
+	int xi0;
+	int xi1;
+	int xi2;
+	
+	int ispb;
+	int icont;
+	int bw;				/*!< Band Selector*/
+	int f_mark_idx;			/*!< Mark Frequency Index (f_M-500)/5 */
+	int f_space_idx;		/*!< Space Frequency Index (f_S-500)/5 */
 	int state;
-	int pcola;			/*!< Pointer to data queues */
-	float cola_in[NCOLA];		/*!< Queue of input samples */
-	float cola_filter[NCOLA];	/*!< Queue of samples after filters */
-	float cola_demod[NCOLA];	/*!< Queue of demodulated samples */
+
+	int pllispb;		/*!<Pll autosense */
+	int pllids;
+	int pllispb2;
+	
+	struct filter_struct mark_filter;
+	struct filter_struct space_filter;
+	struct filter_struct demod_filter;
+
 } fsk_data;
 
 /* \brief Retrieve a serial byte into outbyte.
@@ -65,7 +74,8 @@ typedef struct {
    \arg 0: Still looking for something...
    \arg 1: An output byte was received and stored in outbyte
    \arg -1: An error occured in the transmission
-   He must be called with at least 80 bytes of buffer. */
+   This must be called with at least 80 bytes of buffer. */
 int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte);
+int fskmodem_init(fsk_data *fskd);
 
 #endif /* _ASTERISK_FSKMODEM_H */
