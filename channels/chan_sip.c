@@ -2510,10 +2510,11 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	} else
 		return NULL;
 
-	if (!var)
+	if (!var) {
 		if(peerlist)
 			ast_config_destroy(peerlist);
 		return NULL;
+	}
 
 	for (tmp = var; tmp; tmp = tmp->next) {
 		/* If this is type=user, then skip this object. */
