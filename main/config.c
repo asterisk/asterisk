@@ -356,6 +356,14 @@ static struct ast_category *next_available_category(struct ast_category *cat)
 	return cat;
 }
 
+struct ast_variable *ast_category_root(struct ast_config *config, char *cat)
+{
+	struct ast_category *category = ast_category_get(config, cat);
+	if (category)
+		return category->root;
+	return NULL;
+}
+
 char *ast_category_browse(struct ast_config *config, const char *prev)
 {	
 	struct ast_category *cat = NULL;

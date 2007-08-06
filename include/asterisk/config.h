@@ -83,8 +83,15 @@ struct ast_config *ast_config_load_with_comments(const char *filename);
  */
 void ast_config_destroy(struct ast_config *config);
 
-/*! 
- * \brief Goes through categories 
+/*! \brief returns the root ast_variable of a config
+ * \param config pointer to an ast_config data structure
+ * \param cat name of the category for which you want the root
+ *
+ * Returns the category specified
+ */
+struct ast_variable *ast_category_root(struct ast_config *config, char *cat);
+
+/*! \brief Goes through categories 
  * \param config Which config structure you wish to "browse"
  * \param prev A pointer to a previous category.
  * This funtion is kind of non-intuitive in it's use.  To begin, one passes NULL as the second arguement.  It will return a pointer to the string of the first category in the file.  From here on after, one must then pass the previous usage's return value as the second pointer, and it will return a pointer to the category name afterwards.

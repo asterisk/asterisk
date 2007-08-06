@@ -1651,12 +1651,15 @@ static int sip_poke_peer_s(void *data);
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req);
 static void reg_source_db(struct sip_peer *peer);
 static void destroy_association(struct sip_peer *peer);
+static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno);
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
 
 /* Realtime device support */
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, const char *fullcontact, int expirey);
 static struct sip_user *realtime_user(const char *username);
 static void update_peer(struct sip_peer *p, int expiry);
+static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config);
+static const char *get_name_from_variable(struct ast_variable *var, const char *newpeername);
 static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
@@ -2933,12 +2936,36 @@ static void update_peer(struct sip_peer *p, int expiry)
 	}
 }
 
+static struct ast_variable *get_insecure_variable_from_config(struct ast_config *config)
+{
+	struct ast_variable *var;
+	struct ast_flags flags = {0};
+	char *cat = NULL;
+	const char *insecure;
+	while ((cat = ast_category_browse(config, cat))) {
+		insecure = ast_variable_retrieve(config, cat, "insecure");
+		set_insecure_flags(&flags, insecure, -1);
+		if (ast_test_flag(&flags, SIP_INSECURE_PORT)) {
+			var = ast_category_root(config, cat);
+			break;
+		}
+	}
+	return var;
+}
+
+static const char *get_name_from_variable(struct ast_variable *var, const char *newpeername)
+{
+	struct ast_variable *tmp;
+	for (tmp = var; tmp; tmp = tmp->next) {
+		if (!newpeername && !strcasecmp(tmp->name, "name"))
+			newpeername = tmp->value;
+	}
+	return newpeername;
+}
 
 /*! \brief  realtime_peer: Get peer from realtime storage
  * Checks the "sippeers" realtime family from extconfig.conf 
  * Checks the "sipregs" realtime family from extconfig.conf if it's configured.
- * \todo Consider adding check of port address when matching here to follow the same
- * 	algorithm as for static peers. Will we break anything by adding that?
 */
 static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_in *sin)
 {
@@ -2946,7 +2973,11 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	struct ast_variable *var = NULL;
 	struct ast_variable *varregs = NULL;
 	struct ast_variable *tmp;
+	struct ast_config *peerlist = NULL;
 	char ipaddr[INET_ADDRSTRLEN];
+	char portstring[6]; /*up to 5 digits plus null terminator*/
+	char *cat = NULL;
+	unsigned short portnum;
 	int realtimeregs = ast_check_realtime("sipregs");
 
 	/* First check on peer name */
@@ -2956,39 +2987,87 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 			varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
 	} else if (sin) {	/* Then check on IP address for dynamic peers */
 		ast_copy_string(ipaddr, ast_inet_ntoa(sin->sin_addr), sizeof(ipaddr));
-		var = ast_load_realtime("sippeers", "host", ipaddr, NULL);	/* First check for fixed IP hosts */
+		portnum = ntohs(sin->sin_port);
+		sprintf(portstring, "%u", portnum);
+		var = ast_load_realtime("sippeers", "host", ipaddr, "port", portstring, NULL);	/* First check for fixed IP hosts */
 		if (var) {
 			if (realtimeregs) {
-				for (tmp = var; tmp; tmp = tmp->next) {
-					if (!newpeername && !strcasecmp(tmp->name, "name"))
-						newpeername = tmp->value;
-				}
+				newpeername = get_name_from_variable(var, newpeername);
 				varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
 			}
 		} else {
 			if (realtimeregs)
-				varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, NULL); /* Then check for registered hosts */
+				varregs = ast_load_realtime("sipregs", "ipaddr", ipaddr, "port", portstring, NULL); /* Then check for registered hosts */
 			else
-				var = ast_load_realtime("sippeers", "ipaddr", ipaddr, NULL); /* Then check for registered hosts */
+				var = ast_load_realtime("sippeers", "ipaddr", ipaddr, "port", portstring, NULL); /* Then check for registered hosts */
 			if (varregs) {
-				for (tmp = varregs; tmp; tmp = tmp->next) {
-					if (!newpeername && !strcasecmp(tmp->name, "name"))
-						newpeername = tmp->value;
-				}
+				newpeername = get_name_from_variable(varregs, newpeername);
 				var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+			}
+		}
+		if(!var) { /*We couldn't match on ipaddress and port, so we need to check if port is insecure*/
+			peerlist = ast_load_realtime_multientry("sippeers", "host", ipaddr, NULL);
+			if (peerlist) {
+				var = get_insecure_variable_from_config(peerlist);
+				if(var) {
+					if (realtimeregs) {
+						newpeername = get_name_from_variable(var, newpeername);
+						varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+					}
+				} else { /*var wasn't found in the list of "hosts", so try "ipaddr"*/
+					peerlist = NULL;
+					cat = NULL;
+					peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", ipaddr, NULL);
+					if(peerlist) {
+						var = get_insecure_variable_from_config(peerlist);
+						if(var) {
+							if (realtimeregs) {
+								newpeername = get_name_from_variable(var, newpeername);
+								varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+							}
+						}
+					}
+				}
+			} else {
+				if(realtimeregs) {
+					peerlist = ast_load_realtime_multientry("sipregs", "ipaddr", ipaddr, NULL);
+					if (peerlist) {
+						varregs = get_insecure_variable_from_config(peerlist);
+						if (varregs) {
+							newpeername = get_name_from_variable(varregs, newpeername);
+							var = ast_load_realtime("sippeers", "name", newpeername, NULL);
+						}
+					}
+				} else {
+					peerlist = ast_load_realtime_multientry("sippeers", "ipaddr", ipaddr, NULL);
+					if (peerlist) {
+						var = get_insecure_variable_from_config(peerlist);
+						if (var) {
+							newpeername = get_name_from_variable(var, newpeername);
+							varregs = ast_load_realtime("sipregs", "name", newpeername, NULL);
+						}
+					}
+				}
 			}
 		}
 	}
 
-	if (!var)
+	if (!var) {
+		if (peerlist)
+			ast_config_destroy(peerlist);
 		return NULL;
+	}
 
 	for (tmp = var; tmp; tmp = tmp->next) {
 		/* If this is type=user, then skip this object. */
 		if (!strcasecmp(tmp->name, "type") &&
 		    !strcasecmp(tmp->value, "user")) {
-			ast_variables_destroy(var);
-			ast_variables_destroy(varregs);
+			if(peerlist)
+				ast_config_destroy(peerlist);
+			else {
+				ast_variables_destroy(var);
+				ast_variables_destroy(varregs);
+			}
 			return NULL;
 		} else if (!newpeername && !strcasecmp(tmp->name, "name")) {
 			newpeername = tmp->value;
@@ -2997,7 +3076,10 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	
 	if (!newpeername) {	/* Did not find peer in realtime */
 		ast_log(LOG_WARNING, "Cannot Determine peer name ip=%s\n", ipaddr);
-		ast_variables_destroy(var);
+		if(peerlist)
+			ast_config_destroy(peerlist);
+		else
+			ast_variables_destroy(var);
 		return NULL;
 	}
 
@@ -3005,8 +3087,12 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	/* Peer found in realtime, now build it in memory */
 	peer = build_peer(newpeername, var, varregs, !ast_test_flag(&global_flags[1], SIP_PAGE2_RTCACHEFRIENDS));
 	if (!peer) {
-		ast_variables_destroy(var);
-		ast_variables_destroy(varregs);
+		if(peerlist)
+			ast_config_destroy(peerlist);
+		else {
+			ast_variables_destroy(var);
+			ast_variables_destroy(varregs);
+		}
 		return NULL;
 	}
 
@@ -3025,8 +3111,12 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	} else {
 		peer->is_realtime = 1;
 	}
-	ast_variables_destroy(var);
-	ast_variables_destroy(varregs);
+	if (peerlist)
+		ast_config_destroy(peerlist);
+	else {
+		ast_variables_destroy(var);
+		ast_variables_destroy(varregs);
+	}
 
 	return peer;
 }
@@ -16656,6 +16746,25 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	return tmpc;
 }
 
+static void set_insecure_flags (struct ast_flags *flags, const char *value, int lineno)
+{
+	if (!ast_false(value)) {
+		char buf[64];
+		char *word, *next;
+
+		ast_copy_string(buf, value, sizeof(buf));
+		next = buf;
+		while ((word = strsep(&next, ","))) {
+			if (!strcasecmp(word, "port"))
+				ast_set_flag(&flags[0], SIP_INSECURE_PORT);
+			else if (!strcasecmp(word, "invite"))
+				ast_set_flag(&flags[0], SIP_INSECURE_INVITE);
+			else
+				ast_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", value, lineno);
+		}
+	}
+}
+
 /*!
   \brief Handle flag-type options common to configuration of devices - users and peers
   \param flags array of two struct ast_flags
@@ -16729,21 +16838,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE);
 		ast_clear_flag(&flags[0], SIP_INSECURE);
-		if (!ast_false(v->value)) {
-			char buf[64];
-			char *word, *next;
-
-			ast_copy_string(buf, v->value, sizeof(buf));
-			next = buf;
-			while ((word = strsep(&next, ","))) {
-				if (!strcasecmp(word, "port"))
-					ast_set_flag(&flags[0], SIP_INSECURE_PORT);
-				else if (!strcasecmp(word, "invite"))
-					ast_set_flag(&flags[0], SIP_INSECURE_INVITE);
-				else
-					ast_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", v->value, v->lineno);
-			}
-		}
+		set_insecure_flags(&flags[0], v->value, v->lineno);	
 	} else if (!strcasecmp(v->name, "progressinband")) {
 		ast_set_flag(&mask[0], SIP_PROG_INBAND);
 		ast_clear_flag(&flags[0], SIP_PROG_INBAND);
