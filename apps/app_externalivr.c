@@ -250,7 +250,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	int gen_active = 0;
 	int pid;
-	char *argv[32];
 	char *buf, *command;
 	FILE *child_commands = NULL;
 	FILE *child_errors = NULL;
@@ -325,8 +324,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 		dup2(child_stderr[1], STDERR_FILENO);
 		for (i = STDERR_FILENO + 1; i < 1024; i++)
 			close(i);
-		execv(argv[0], argv);
-		fprintf(stderr, "Failed to execute '%s': %s\n", argv[0], strerror(errno));
+		execv(args.cmd[0], args.cmd);
+		fprintf(stderr, "Failed to execute '%s': %s\n", args.cmd[0], strerror(errno));
 		_exit(1);
 	} else {
 		/* parent process */
