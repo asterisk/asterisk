@@ -1350,6 +1350,7 @@ static int action_agents(struct mansession *s, const struct message *m)
 	struct agent_pvt *p;
 	char *username = NULL;
 	char *loginChan = NULL;
+	char *talkingto = NULL;
 	char *talkingtoChan = NULL;
 	char *status = NULL;
 
@@ -1373,6 +1374,7 @@ static int action_agents(struct mansession *s, const struct message *m)
 
 		if (!ast_strlen_zero(p->loginchan) && !p->chan) {
 			loginChan = p->loginchan;
+			talkingto = "n/a";
 			talkingtoChan = "n/a";
 			status = "AGENT_IDLE";
 			if (p->acknowledged) {
@@ -1382,14 +1384,20 @@ static int action_agents(struct mansession *s, const struct message *m)
 		} else if (p->chan) {
 			loginChan = ast_strdupa(p->chan->name);
 			if (p->owner && p->owner->_bridge) {
-        			talkingtoChan = p->chan->cid.cid_num;
+				talkingto = p->chan->cid.cid_num;
+				if (ast_bridged_channel(p->owner))
+					talkingtoChan = ast_strdupa(ast_bridged_channel(p->owner)->name);
+				else
+					talkingtoChan = "n/a";
         			status = "AGENT_ONCALL";
 			} else {
-        			talkingtoChan = "n/a";
+				talkingto = "n/a";
+				talkingtoChan = "n/a";
         			status = "AGENT_IDLE";
 			}
 		} else {
 			loginChan = "n/a";
+			talkingto = "n/a";
 			talkingtoChan = "n/a";
 			status = "AGENT_LOGGEDOFF";
 		}
@@ -1401,9 +1409,10 @@ static int action_agents(struct mansession *s, const struct message *m)
 			"LoggedInChan: %s\r\n"
 			"LoggedInTime: %d\r\n"
 			"TalkingTo: %s\r\n"
+			"TalkingToChan: %s\r\n"
 			"%s"
 			"\r\n",
-			p->agent, username, status, loginChan, (int)p->loginstart, talkingtoChan, idText);
+			p->agent, username, status, loginChan, (int)p->loginstart, talkingto, talkingtoChan, idText);
 		ast_mutex_unlock(&p->lock);
 	}
 	AST_LIST_UNLOCK(&agents);
