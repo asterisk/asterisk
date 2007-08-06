@@ -1020,6 +1020,7 @@ struct skinny_line {
 	struct skinny_subchannel *sub;
 	struct skinny_line *next;
 	struct skinny_device *parent;
+	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 };
 
 struct skinny_speeddial {
@@ -1314,6 +1315,24 @@ static struct skinny_line *find_line_by_name(const char *dest)
 	}
 	ast_mutex_unlock(&devicelock);
 	return tmpl;
+}
+
+/*!
+ * implement the setvar config line
+ */
+static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
+{
+	struct ast_variable *tmpvar = NULL;
+	char *varname = ast_strdupa(buf), *varval = NULL;
+
+	if ((varval = strchr(varname,'='))) {
+		*varval++ = '\0';
+		if ((tmpvar = ast_variable_new(varname, varval))) {
+			tmpvar->next = list;
+			list = tmpvar;
+		}
+	}
+	return list;
 }
 
 /* It's quicker/easier to find the subchannel when we know the instance number too */
@@ -2279,6 +2298,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 	struct skinny_speeddial *sd;
 	struct skinny_addon *a;
 	char device_vmexten[AST_MAX_EXTENSION];
+	struct ast_variable *chanvars = NULL;
 	int lineInstance = 1;
 	int speeddialInstance = 1;
 	int y = 0;
@@ -2362,6 +2382,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				mwiblink = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "linelabel")) {
 				ast_copy_string(linelabel, v->value, sizeof(linelabel));
+			} else if (!strcasecmp(v->name, "setvar")) {
+				chanvars = add_var(v->value, chanvars);
 			} else if (!strcasecmp(v->name, "speeddial")) {
 				if (!(sd = ast_calloc(1, sizeof(*sd)))) {
 					return NULL;
@@ -2422,6 +2444,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 						ast_verb(3, "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
 					if (!ast_strlen_zero(device_vmexten))
 						ast_copy_string(l->vmexten, device_vmexten, sizeof(vmexten));
+					l->chanvars = chanvars;
 					l->msgstate = -1;
 					l->capability = d->capability;
 					l->prefs = d->prefs;
@@ -3009,6 +3032,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 	struct ast_channel *tmp;
 	struct skinny_subchannel *sub;
 	struct skinny_device *d = l->parent;
+	struct ast_variable *v = NULL;
 	int fmt;
 
 	tmp = ast_channel_alloc(1, state, l->cid_num, l->cid_name, l->accountcode, l->exten, l->context, l->amaflags, "Skinny/%s@%s-%d", l->name, d->name, callnums);
@@ -3078,6 +3102,10 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 
 		if (sub->rtp)
 			ast_jb_configure(tmp, &global_jbconf);
+
+		/* Set channel variables for this call from configuration */
+		for (v = l->chanvars ; v ; v = v->next)
+			pbx_builtin_setvar_helper(tmp, v->name, v->value);
 
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
