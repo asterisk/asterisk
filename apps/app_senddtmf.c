@@ -60,7 +60,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *vdata)
 {
 	int res = 0;
 	char *data;
-	int timeout, duration;
+	int timeout = 0, duration = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digits);
 		AST_APP_ARG(timeout);
@@ -75,8 +75,10 @@ static int senddtmf_exec(struct ast_channel *chan, void *vdata)
 	data = ast_strdupa(vdata);
 	AST_STANDARD_APP_ARGS(args, data);
 
-	timeout = atoi(args.timeout);
-	duration = atoi(args.duration);
+	if (!ast_strlen_zero(args.timeout))
+		timeout = atoi(args.timeout);
+	if (!ast_strlen_zero(args.duration))
+		duration = atoi(args.duration);
 	res = ast_dtmf_stream(chan, NULL, args.digits, timeout <= 0 ? 250 : timeout, duration);
 
 	return res;
