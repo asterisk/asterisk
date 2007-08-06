@@ -1527,7 +1527,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			/* Ok, done. stop autoservice */
 			res = ast_autoservice_stop(chan);
 			if (digit > 0 && !res)
-				res = ast_senddigit(chan, digit); 
+				res = ast_senddigit(chan, digit, 0); 
 			else
 				res = digit;
 
@@ -1696,12 +1696,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (!ast_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n", dtmfcalled);
-				res = ast_dtmf_stream(peer,chan,dtmfcalled,250);
+				res = ast_dtmf_stream(peer,chan,dtmfcalled,250,0);
 			}
 			if (!ast_strlen_zero(dtmfcalling)) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n", dtmfcalling);
-				res = ast_dtmf_stream(chan,peer,dtmfcalling,250);
+				res = ast_dtmf_stream(chan,peer,dtmfcalling,250,0);
 			}
 		}
 		

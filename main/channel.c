@@ -2657,14 +2657,14 @@ int ast_senddigit_end(struct ast_channel *chan, char digit, unsigned int duratio
 	return 0;
 }
 
-int ast_senddigit(struct ast_channel *chan, char digit)
+int ast_senddigit(struct ast_channel *chan, char digit, unsigned int duration)
 {
 	if (chan->tech->send_digit_begin) {
 		ast_senddigit_begin(chan, digit);
-		ast_safe_sleep(chan, AST_DEFAULT_EMULATE_DTMF_DURATION);
+		ast_safe_sleep(chan, (duration >= AST_DEFAULT_EMULATE_DTMF_DURATION ? duration : AST_DEFAULT_EMULATE_DTMF_DURATION));
 	}
 	
-	return ast_senddigit_end(chan, digit, AST_DEFAULT_EMULATE_DTMF_DURATION);
+	return ast_senddigit_end(chan, digit, (duration >= AST_DEFAULT_EMULATE_DTMF_DURATION ? duration : AST_DEFAULT_EMULATE_DTMF_DURATION));
 }
 
 int ast_prod(struct ast_channel *chan)

@@ -245,7 +245,7 @@ int ast_app_messagecount(const char *context, const char *mailbox, const char *f
 	return 0;
 }
 
-int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between) 
+int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between, unsigned int duration) 
 {
 	const char *ptr;
 	int res = 0;
@@ -274,7 +274,7 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const ch
 				/* ignore return values if not supported by channel */
 				ast_indicate(chan, AST_CONTROL_FLASH);
 			} else
-				ast_senddigit(chan, *ptr);
+				ast_senddigit(chan, *ptr, duration);
 			/* pause between digits */
 			if ((res = ast_safe_sleep(chan, between)))
 				break;

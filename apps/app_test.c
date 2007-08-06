@@ -148,7 +148,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 	res = ast_safe_sleep(chan, 3000);
 	/* Transmit client version */
 	if (!res)
-		res = ast_dtmf_stream(chan, NULL, "8378*1#", 0);
+		res = ast_dtmf_stream(chan, NULL, "8378*1#", 0, 0);
 	ast_debug(1, "Transmit client version\n");
 	
 	/* Read server version */
@@ -166,9 +166,9 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		res = ast_safe_sleep(chan, 1000);
 	/* Send test id */
 	if (!res) 
-		res = ast_dtmf_stream(chan, NULL, testid, 0);		
+		res = ast_dtmf_stream(chan, NULL, testid, 0, 0);		
 	if (!res) 
-		res = ast_dtmf_stream(chan, NULL, "#", 0);		
+		res = ast_dtmf_stream(chan, NULL, "#", 0, 0);		
 	ast_debug(1, "send test identifier: %s\n", testid);
 
 	if ((res >=0) && (!ast_strlen_zero(testid))) {
@@ -198,7 +198,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			if (!res) {
 				/* Step 2: Send "2" */
 				ast_debug(1, "TestClient: 2.  Send DTMF 2\n");
-				res = ast_dtmf_stream(chan, NULL, "2", 0);
+				res = ast_dtmf_stream(chan, NULL, "2", 0, 0);
 				fprintf(f, "SEND DTMF 2:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
 					res = 0;
@@ -265,7 +265,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 			if (!res) {
 				/* Step 10: Send "7" */
 				ast_debug(1, "TestClient: 7.  Send DTMF 7\n");
-				res = ast_dtmf_stream(chan, NULL, "7", 0);
+				res = ast_dtmf_stream(chan, NULL, "7", 0, 0);
 				fprintf(f, "SEND DTMF 7:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
 					res =0;
@@ -318,7 +318,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 
 	res = ast_safe_sleep(chan, 1000);
 	if (!res)
-		res = ast_dtmf_stream(chan, NULL, "8378*1#", 0);
+		res = ast_dtmf_stream(chan, NULL, "8378*1#", 0, 0);
 	if (res > 0)
 		res = 0;
 
@@ -344,7 +344,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			if (!res) {
 				/* Step 1: Send "1" */
 				ast_debug(1, "TestServer: 1.  Send DTMF 1\n");
-				res = ast_dtmf_stream(chan, NULL, "1", 0);
+				res = ast_dtmf_stream(chan, NULL, "1", 0,0 );
 				fprintf(f, "SEND DTMF 1:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
 					res = 0;
@@ -370,7 +370,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			if (!res) {
 				/* Step 4: Send "4" */
 				ast_debug(1, "TestServer: 4.  Send DTMF 4\n");
-				res = ast_dtmf_stream(chan, NULL, "4", 0);
+				res = ast_dtmf_stream(chan, NULL, "4", 0, 0);
 				fprintf(f, "SEND DTMF 4:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
 					res = 0;
@@ -397,7 +397,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			if (!res) {
 				/* Step 7: Send "5" */
 				ast_debug(1, "TestServer: 7.  Send DTMF 5\n");
-				res = ast_dtmf_stream(chan, NULL, "5", 0);
+				res = ast_dtmf_stream(chan, NULL, "5", 0, 0);
 				fprintf(f, "SEND DTMF 5:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
 					res = 0;
@@ -426,7 +426,7 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 			if (!res) {
 				/* Step 10: Send "8" */
 				ast_debug(1, "TestServer: 10.  Send DTMF 8\n");
-				res = ast_dtmf_stream(chan, NULL, "8", 0);
+				res = ast_dtmf_stream(chan, NULL, "8", 0, 0);
 				fprintf(f, "SEND DTMF 8:   %s\n", (res < 0) ? "FAIL" : "PASS");
 				if (res > 0)
 					res = 0;

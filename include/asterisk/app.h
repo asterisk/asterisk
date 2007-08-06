@@ -157,8 +157,9 @@ void ast_unreplace_sigchld(void);
   \param between This is the number of milliseconds to wait in between each
                  DTMF digit.  If zero milliseconds is specified, then the
                  default value of 100 will be used.
+  \param duration This is the duration that each DTMF digit should have.
 */
-int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between);
+int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between, unsigned int duration);
 
 /*! Stream a filename (or file descriptor) as a generator. */
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);

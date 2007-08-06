@@ -1678,11 +1678,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					   digits to come in for features. */
 					ast_debug(1, "Timed out for feature!\n");
 					if (!ast_strlen_zero(peer_featurecode)) {
-						ast_dtmf_stream(chan, peer, peer_featurecode, 0);
+						ast_dtmf_stream(chan, peer, peer_featurecode, 0, 0);
 						memset(peer_featurecode, 0, sizeof(peer_featurecode));
 					}
 					if (!ast_strlen_zero(chan_featurecode)) {
-						ast_dtmf_stream(peer, chan, chan_featurecode, 0);
+						ast_dtmf_stream(peer, chan, chan_featurecode, 0, 0);
 						memset(chan_featurecode, 0, sizeof(chan_featurecode));
 					}
 					if (f)
@@ -1774,7 +1774,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
 			case FEATURE_RETURN_PASSDIGITS:
-				ast_dtmf_stream(other, who, featurecode, 0);
+				ast_dtmf_stream(other, who, featurecode, 0, 0);
 				/* Fall through */
 			case FEATURE_RETURN_SUCCESS:
 				memset(featurecode, 0, sizeof(chan_featurecode));
