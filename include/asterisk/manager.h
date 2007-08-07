@@ -113,7 +113,7 @@ struct manager_action {
 	/*! Function to be called */
 	int (*func)(struct mansession *s, const struct message *m);
 	/*! For easy linking */
-	struct manager_action *next;
+	AST_RWLIST_ENTRY(manager_action) list;
 };
 
 /* External routines may register/unregister manager callbacks this way */

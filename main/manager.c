@@ -188,9 +188,9 @@ struct ast_manager_user {
 static AST_RWLIST_HEAD_STATIC(users, ast_manager_user);
 
 /*! \brief list of actions registered */
-static struct manager_action *first_action;
-AST_RWLOCK_DEFINE_STATIC(actionlock);
+static AST_RWLIST_HEAD_STATIC(actions, manager_action);
 
+/*! \brief list of hooks registered */
 static AST_RWLIST_HEAD_STATIC(manager_hooks, manager_custom_hook);
 
 /*! \brief Add a custom hook to be called when an event is fired */
@@ -412,14 +412,14 @@ static char *complete_show_mancmd(const char *line, const char *word, int pos, i
 	int l = strlen(word), which = 0;
 	char *ret = NULL;
 
-	ast_rwlock_rdlock(&actionlock);
-	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
+	AST_RWLIST_RDLOCK(&actions);
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		if (!strncasecmp(word, cur->action, l) && ++which > state) {
 			ret = ast_strdup(cur->action);
 			break;	/* make sure we exit even if ast_strdup() returns NULL */
 		}
 	}
-	ast_rwlock_unlock(&actionlock);
+	AST_RWLIST_UNLOCK(&actions);
 
 	return ret;
 }
@@ -500,8 +500,8 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	ast_rwlock_rdlock(&actionlock);
-	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
+	AST_RWLIST_RDLOCK(&actions);
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		for (num = 3; num < argc; num++) {
 			if (!strcasecmp(cur->action, argv[num])) {
 				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
@@ -511,7 +511,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 			}
 		}
 	}
-	ast_rwlock_unlock(&actionlock);
+	AST_RWLIST_UNLOCK(&actions);
 
 	return RESULT_SUCCESS;
 }
@@ -612,10 +612,10 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
 	ast_cli(fd, format, "------", "---------", "--------");
 
-	ast_rwlock_rdlock(&actionlock);
-	for (cur = first_action; cur; cur = cur->next) /* Walk the list of actions */
+	AST_RWLIST_RDLOCK(&actions);
+	AST_RWLIST_TRAVERSE(&actions, cur, list)
 		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
-	ast_rwlock_unlock(&actionlock);
+	AST_RWLIST_UNLOCK(&actions);
 
 	return RESULT_SUCCESS;
 }
@@ -1439,7 +1439,7 @@ static int action_listcommands(struct mansession *s, const struct message *m)
 	struct ast_str *temp = ast_str_alloca(BUFSIZ); /* XXX very large ? */
 
 	astman_start_ack(s, m);
-	for (cur = first_action; cur; cur = cur->next) { /* Walk the list of actions */
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
 		if ((s->writeperm & cur->authority) == cur->authority)
 			astman_append(s, "%s: %s (Priv: %s)\r\n",
 				cur->action, cur->synopsis, authority_to_str(cur->authority, &temp));
@@ -2361,8 +2361,8 @@ static int process_message(struct mansession *s, const struct message *m)
 		}
 	}
 
-	ast_rwlock_rdlock(&actionlock);	
-	for (tmp = first_action ; tmp; tmp = tmp->next) {
+	AST_RWLIST_RDLOCK(&actions);
+	AST_RWLIST_TRAVERSE(&actions, tmp, list) {
 		if (strcasecmp(action, tmp->action))
 			continue;
 		if ((s->writeperm & tmp->authority) == tmp->authority)
@@ -2371,7 +2371,8 @@ static int process_message(struct mansession *s, const struct message *m)
 			astman_send_error(s, m, "Permission denied");
 		break;
 	}
-	ast_rwlock_unlock(&actionlock);
+	AST_RWLIST_UNLOCK(&actions);
+
 	if (!tmp) {
 		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Invalid/unknown command. Use Action: ListCommands to show available commands.");
@@ -2670,21 +2671,20 @@ int __manager_event(int category, const char *event,
  */
 int ast_manager_unregister(char *action)
 {
-	struct manager_action *cur, *prev;
+	struct manager_action *cur;
 
-	ast_rwlock_wrlock(&actionlock);
-	for (cur = first_action, prev = NULL; cur; prev = cur, cur = cur->next) {
+	AST_RWLIST_WRLOCK(&actions);
+	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&actions, cur, list) {
 		if (!strcasecmp(action, cur->action)) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				first_action = cur->next;
+			AST_RWLIST_REMOVE_CURRENT(&actions, list);
 			ast_free(cur);
 			ast_verb(2, "Manager unregistered action %s\n", action);
 			break;
 		}
 	}
-	ast_rwlock_unlock(&actionlock);
+	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_UNLOCK(&actions);
+
 	return 0;
 }
 
@@ -2701,27 +2701,30 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 static int ast_manager_register_struct(struct manager_action *act)
 {
 	struct manager_action *cur, *prev = NULL;
-	int ret;
 
-	ast_rwlock_wrlock(&actionlock);
-	for (cur = first_action; cur; prev = cur, cur = cur->next) {
-		ret = strcasecmp(cur->action, act->action);
+	AST_RWLIST_WRLOCK(&actions);
+	AST_RWLIST_TRAVERSE(&actions, cur, list) {
+		int ret = strcasecmp(cur->action, act->action);
 		if (ret == 0) {
 			ast_log(LOG_WARNING, "Manager: Action '%s' already registered\n", act->action);
-			ast_rwlock_unlock(&actionlock);
+			AST_RWLIST_UNLOCK(&actions);
 			return -1;
 		}
-		if (ret > 0)	/* Insert these alphabetically */
+		if (ret > 0) { /* Insert these alphabetically */
+			prev = cur;
 			break;
+		}
 	}
-	if (prev)
-		prev->next = act;
+	
+	if (prev)	
+		AST_RWLIST_INSERT_AFTER(&actions, prev, act, list);
 	else
-		first_action = act;
-	act->next = cur;
+		AST_RWLIST_INSERT_HEAD(&actions, act, list);
 
 	ast_verb(2, "Manager registered action %s\n", act->action);
-	ast_rwlock_unlock(&actionlock);
+
+	AST_RWLIST_UNLOCK(&actions);
+
 	return 0;
 }
 
@@ -2729,10 +2732,9 @@ static int ast_manager_register_struct(struct manager_action *act)
 	the preferred way to register a manager command */
 int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, const struct message *m), const char *synopsis, const char *description)
 {
-	struct manager_action *cur;
+	struct manager_action *cur = NULL;
 
-	cur = ast_malloc(sizeof(*cur));
-	if (!cur)
+	if (!(cur = ast_calloc(1, sizeof(*cur))))
 		return -1;
 
 	cur->action = action;
@@ -2740,7 +2742,6 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 	cur->func = func;
 	cur->synopsis = synopsis;
 	cur->description = description;
-	cur->next = NULL;
 
 	ast_manager_register_struct(cur);
 
