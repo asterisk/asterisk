@@ -68,18 +68,18 @@ static char qdonedir[255];
 
 struct outgoing {
 	char fn[256];
-	/* Current number of retries */
+	/*! Current number of retries */
 	int retries;
-	/* Maximum number of retries permitted */
+	/*! Maximum number of retries permitted */
 	int maxretries;
-	/* How long to wait between retries (in seconds) */
+	/*! How long to wait between retries (in seconds) */
 	int retrytime;
-	/* How long to wait for an answer */
+	/*! How long to wait for an answer */
 	int waittime;
-	/* PID which is currently calling */
+	/*! PID which is currently calling */
 	long callingpid;
 	
-	/* What to connect to outgoing */
+	/*! What to connect to outgoing */
 	char tech[256];
 	char dest[256];
 	
@@ -96,16 +96,16 @@ struct outgoing {
 	char cid_num[256];
 	char cid_name[256];
 
-	/* account code */
+	/*! account code */
 	char account[AST_MAX_ACCOUNT_CODE];
 
-	/* Variables and Functions */
+	/*! Variables and Functions */
 	struct ast_variable *vars;
 	
-	/* Maximum length of call */
+	/*! Maximum length of call */
 	int maxlen;
 
-	/* options */
+	/*! options */
 	struct ast_flags options;
 };
 

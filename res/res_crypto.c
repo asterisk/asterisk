@@ -102,6 +102,16 @@ static AST_RWLIST_HEAD_STATIC(keys, ast_key);
  * \param userdata
  * \return length of string,-1 on failure
 */
+
+
+/*!
+ * \brief setting of priv key
+ * \param buf
+ * \param size
+ * \param rwflag
+ * \param userdata
+ * \return length of string,-1 on failure
+*/
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
 	struct ast_key *key = (struct ast_key *)userdata;
@@ -279,6 +289,10 @@ static struct ast_key *try_load_key(char *dir, char *fname, int ifd, int ofd, in
 	return key;
 }
 
+/*!
+ * \brief signs outgoing message with public key
+ * \see ast_sign_bin
+*/
 /*!
  * \brief signs outgoing message with public key
  * \see ast_sign_bin

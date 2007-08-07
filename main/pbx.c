@@ -775,21 +775,24 @@ static int ext_cmp(const char *a, const char *b)
  * third argument to extension_match_core.
  */
 enum ext_match_t {
-	E_MATCHMORE = 	0x00,	/* extension can match but only with more 'digits' */
-	E_CANMATCH =	0x01,	/* extension can match with or without more 'digits' */
-	E_MATCH =	0x02,	/* extension is an exact match */
-	E_MATCH_MASK =	0x03,	/* mask for the argument to extension_match_core() */
-	E_SPAWN =	0x12,	/* want to spawn an extension. Requires exact match */
-	E_FINDLABEL =	0x22	/* returns the priority for a given label. Requires exact match */
+	E_MATCHMORE = 	0x00,	/*!< extension can match but only with more 'digits' */
+	E_CANMATCH =	0x01,	/*!< extension can match with or without more 'digits' */
+	E_MATCH =	0x02,	/*!< extension is an exact match */
+	E_MATCH_MASK =	0x03,	/*!< mask for the argument to extension_match_core() */
+	E_SPAWN =	0x12,	/*!< want to spawn an extension. Requires exact match */
+	E_FINDLABEL =	0x22	/*!< returns the priority for a given label. Requires exact match */
 };
 
-/*
- * Internal function for ast_extension_{match|close}
- * return 0 on no-match, 1 on match, 2 on early match.
+/*!
+ * \internal
+ * \brief used ast_extension_{match|close}
  * mode is as follows:
  *	E_MATCH		success only on exact match
  *	E_MATCHMORE	success only on partial match (i.e. leftover digits in pattern)
  *	E_CANMATCH	either of the above.
+ * \retval 0 on no-match
+ * \retval 1 on match
+ * \retval 2 on early match.
  */
 
 static int _extension_match_core(const char *pattern, const char *data, enum ext_match_t mode)
@@ -944,7 +947,7 @@ static int matchcid(const char *cidpattern, const char *callerid)
 	return ast_extension_match(cidpattern, callerid);
 }
 
-/* request and result for pbx_find_extension */
+/*! request and result for pbx_find_extension */
 struct pbx_find_info {
 #if 0
 	const char *context;
@@ -1082,8 +1085,9 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	return NULL;
 }
 
-/*! \brief extract offset:length from variable name.
- * Returns 1 if there is a offset:length part, which is
+/*! 
+ * \brief extract offset:length from variable name.
+ * \return 1 if there is a offset:length part, which is
  * trimmed off (values go into variables)
  */
 static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
@@ -1108,12 +1112,15 @@ static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 	return 0;
 }
 
-/*! \brief takes a substring. It is ok to call with value == workspace.
- *
- * offset < 0 means start from the end of the string and set the beginning
+/*! 
+ *\brief takes a substring. It is ok to call with value == workspace.
+ * \param value
+ * \param offset < 0 means start from the end of the string and set the beginning
  *   to be that many characters back.
- * length is the length of the substring.  A value less than 0 means to leave
+ * \param length is the length of the substring, a value less than 0 means to leave
  * that many off the end.
+ * \param workspace
+ * \param workspace_len
  * Always return a copy in workspace.
  */
 static char *substring(const char *value, int offset, int length, char *workspace, size_t workspace_len)
@@ -1730,7 +1737,9 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
  * E_FINDLABEL maps the label to a priority, and returns
  *	the priority on success, ... XXX
  * E_SPAWN, spawn an application,
- *	and return 0 on success, -1 on failure.
+ *	
+ * \retval 0 on success.
+ * \retval  -1 on failure.
  */
 static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	const char *context, const char *exten, int priority,
@@ -1836,7 +1845,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	}
 }
 
-/*! \brief  ast_hint_extension: Find hint for given extension in context */
+/*! \brief Find hint for given extension in context */
 static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
@@ -1849,7 +1858,7 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 	return e;
 }
 
-/*! \brief  ast_extensions_state2: Check state of extension by using hints */
+/*! \brief Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION];
@@ -1934,7 +1943,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	return AST_EXTENSION_NOT_INUSE;
 }
 
-/*! \brief  ast_extension_state2str: Return extension_state as string */
+/*! \brief Return extension_state as string */
 const char *ast_extension_state2str(int extension_state)
 {
 	int i;
@@ -1946,7 +1955,7 @@ const char *ast_extension_state2str(int extension_state)
 	return "Unknown";
 }
 
-/*! \brief  ast_extension_state: Check extension state for an extension by using hint */
+/*! \brief Check extension state for an extension by using hint */
 int ast_extension_state(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
@@ -2042,7 +2051,7 @@ static void *device_state_thread(void *data)
 	return NULL;
 }
 
-/*! \brief  ast_extension_state_add: Add watcher for extension states */
+/*! \brief  Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten,
 			    ast_state_cb_type callback, void *data)
 {
@@ -2117,7 +2126,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	return cblist->id;
 }
 
-/*! \brief  ast_extension_state_del: Remove a watcher from the callback list */
+/*! \brief Remove a watcher from the callback list */
 int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
 	struct ast_state_cb **p_cur = NULL;	/* address of pointer to us */
@@ -2154,7 +2163,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	return ret;
 }
 
-/*! \brief  ast_add_hint: Add hint to hint list, check initial extension state */
+/*! \brief Add hint to hint list, check initial extension state */
 static int ast_add_hint(struct ast_exten *e)
 {
 	struct ast_hint *hint;
@@ -2188,7 +2197,7 @@ static int ast_add_hint(struct ast_exten *e)
 	return 0;
 }
 
-/*! \brief  ast_change_hint: Change hint for an extension */
+/*! \brief Change hint for an extension */
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 {
 	struct ast_hint *hint;
@@ -2207,7 +2216,7 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	return res;
 }
 
-/*! \brief  ast_remove_hint: Remove hint from extension */
+/*! \brief Remove hint from extension */
 static int ast_remove_hint(struct ast_exten *e)
 {
 	/* Cleanup the Notifys if hint is removed */
@@ -2242,7 +2251,7 @@ static int ast_remove_hint(struct ast_exten *e)
 }
 
 
-/*! \brief  ast_get_hint: Get hint for channel */
+/*! \brief Get hint for channel */
 int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e = ast_hint_extension(c, context, exten);
@@ -2290,7 +2299,7 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
 	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_SPAWN);
 }
 
-/* helper function to set extension and priority */
+/*! helper function to set extension and priority */
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 {
 	ast_copy_string(c->exten, exten, sizeof(c->exten));
@@ -2298,9 +2307,10 @@ static void set_ext_pri(struct ast_channel *c, const char *exten, int pri)
 }
 
 /*!
- * \brief collect digits from the channel into the buffer,
- * return -1 on error, 0 on timeout or done.
- */
+ * \brief collect digits from the channel into the buffer.
+ * \retval 0 on timeout or done.
+ * \retval -1 on error.
+*/
 static int collect_digits(struct ast_channel *c, int waittime, char *buf, int buflen, int pos)
 {
 	int digit;
@@ -2531,7 +2541,11 @@ static int __ast_pbx_run(struct ast_channel *c)
 	return 0;
 }
 
-/* Returns 0 on success, non-zero if a configured limit (maxcalls, maxload, minmemfree) was reached */
+/*! 
+ * \brief Increase call count for channel
+ * \retval 0 on success
+ * \retval non-zero if a configured limit (maxcalls, maxload, minmemfree) was reached 
+*/
 static int increase_call_count(const struct ast_channel *c)
 {
 	int failed = 0;
@@ -2661,9 +2675,11 @@ int pbx_set_autofallthrough(int newval)
 	return oldval;
 }
 
-/* lookup for a context with a given name,
- * return with conlock held if found, NULL if not found
- */
+/*!
+ * \brief lookup for a context with a given name,
+ * \retval with conlock held if found.
+ * \retval NULL if not found.
+*/
 static struct ast_context *find_context_locked(const char *context)
 {
 	struct ast_context *c = NULL;
@@ -2678,11 +2694,12 @@ static struct ast_context *find_context_locked(const char *context)
 	return NULL;
 }
 
-/*
+/*!
+ * \brief Remove included contexts.
  * This function locks contexts list by &conlist, search for the right context
  * structure, leave context list locked and call ast_context_remove_include2
  * which removes include, unlock contexts list and return ...
- */
+*/
 int ast_context_remove_include(const char *context, const char *include, const char *registrar)
 {
 	int ret = -1;
@@ -2696,13 +2713,14 @@ int ast_context_remove_include(const char *context, const char *include, const c
 	return ret;
 }
 
-/*
+/*!
+ * \brief Locks context, remove included contexts, unlocks context.
  * When we call this function, &conlock lock must be locked, because when
  * we giving *con argument, some process can remove/change this context
  * and after that there can be segfault.
  *
- * This function locks given context, removes include, unlock context and
- * return.
+ * \retval 0 on success.
+ * \retval -1 on failure.
  */
 int ast_context_remove_include2(struct ast_context *con, const char *include, const char *registrar)
 {
@@ -4673,9 +4691,11 @@ static int ext_strncpy(char *dst, const char *src, int len)
 	return count;
 }
 
-/*! \brief add the extension in the priority chain.
- * returns 0 on success, -1 on failure
- */
+/*! 
+ * \brief add the extension in the priority chain.
+ * \retval 0 on success.
+ * \retval -1 on failure.
+*/
 static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 	struct ast_exten *el, struct ast_exten *e, int replace)
 {
@@ -4953,11 +4973,10 @@ static void *async_wait(void *data)
 	return NULL;
 }
 
-/*! Function to post an empty cdr after a spool call fails.
- *
- *  This function posts an empty cdr for a failed spool call
- *
- */
+/*! 
+ * \brief Function to post an empty cdr after a spool call fails.
+ * \note This function posts an empty cdr for a failed spool call
+*/
 static int ast_pbx_outgoing_cdr_failed(void)
 {
 	/* allocate a channel */

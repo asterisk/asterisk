@@ -38,9 +38,11 @@
 #endif
 
 
-/* reads next USC character from null terminated UTF-8 string and advanced pointer */
-/* for non valid UTF-8 sequences, returns character as is */
-/* Does not advance pointer for null termination */
+/*!
+ * \brief reads next USC character from null terminated UTF-8 string and advanced pointer
+ * for non valid UTF-8 sequences.
+ * \return character as is Does \b NOT advance pointer for null termination 
+*/
 static int utf8decode (unsigned char **pp)
 {
    unsigned char *p = *pp;
@@ -90,8 +92,13 @@ static int utf8decode (unsigned char **pp)
    return *p;                   /* not sensible */
 }
 
-/* check for any queued messages in specific queue (queue="" means any queue) */
-/* returns 0 if nothing queued, 1 if queued and outgoing set up OK, 2 of outgoing exists */
+/*! 
+ * \brief check for any queued messages in specific queue (queue="" means any queue)
+ * \param dir,queue,subaddress,channel,callerid,wait,delay,retries,concurrent
+ * \retval 0 if nothing queued
+ * \retval 1 if queued and outgoing set up OK
+ * \retval 2 of outgoing exists 
+*/
 static char txqcheck (char *dir, char *queue, char subaddress, char *channel, char *callerid, int wait, int delay, int retries, int concurrent)
 {
    char ogname[100],
@@ -186,7 +193,10 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    return 2;
 }
 
-/* Process received queue entries and run through a process, setting environment variables */
+/*! 
+ * \brief Process received queue entries
+ * Run through a process, setting environment variables
+*/
 static void rxqcheck (char *dir, char *queue, char *process)
 {
    char *p;
