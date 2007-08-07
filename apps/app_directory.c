@@ -89,6 +89,36 @@ static char *descrip =
 
 
 #ifdef ODBC_STORAGE
+struct generic_prepare_struct {
+	const char *sql;
+	const char *param;
+};
+
+static SQLHSTMT generic_prepare(struct odbc_obj *obj, void *data)
+{
+	struct generic_prepare_struct *gps = data;
+	SQLHSTMT stmt;
+	int res;
+
+	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
+	}
+
+	res = SQLPrepare(stmt, (unsigned char *)gps->sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", (char *)gps->sql);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	if (!ast_strlen_zero(gps->param))
+		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(gps->param), 0, (void *)gps->param, 0, NULL);
+
+	return stmt;
+}
+
 static void retrieve_file(char *dir)
 {
 	int x = 0;
@@ -103,6 +133,7 @@ static void retrieve_file(char *dir)
 	SQLLEN colsize;
 	char full_fn[256];
 	struct odbc_obj *obj;
+	struct generic_prepare_struct gps = { .sql = sql, .param = dir };
 
 	obj = ast_odbc_request_obj(odbc_database, 1);
 	if (obj) {
@@ -114,23 +145,11 @@ static void retrieve_file(char *dir)
 			if (!strcasecmp(fmt, "wav49"))
 				strcpy(fmt, "WAV");
 			snprintf(full_fn, sizeof(full_fn), "%s.%s", dir, fmt);
-			res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-				break;
-			}
 			snprintf(sql, sizeof(sql), "SELECT recording FROM %s WHERE dir=? AND msgnum=-1", odbc_table);
-			res = SQLPrepare(stmt, (unsigned char *)sql, SQL_NTS);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
-				break;
-			}
-			SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dir), 0, (void *)dir, 0, NULL);
-			res = ast_odbc_smart_execute(obj, stmt);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
+
+			if (!stmt) {
 				ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				break;
 			}
 			res = SQLFetch(stmt);
