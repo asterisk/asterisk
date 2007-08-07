@@ -12087,7 +12087,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
 			confp->chan.sendcalleridafter = atoi(v->value);
 		} else if (!reload){ 
-			 if (!strcasecmp(v->name, "signalling")) {
+			 if (!strcasecmp(v->name, "signalling") || !strcasecmp(v->name, "signaling")) {
 				confp->chan.outsigmod = -1;
 				if (!strcasecmp(v->value, "em")) {
 					confp->chan.sig = SIG_EM;
