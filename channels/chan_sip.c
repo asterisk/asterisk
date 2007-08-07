@@ -2460,7 +2460,7 @@ static struct sip_peer *realtime_peer(const char *newpeername, struct sockaddr_i
 	struct ast_config *peerlist = NULL;
 	struct ast_variable *tmp;
 	struct ast_flags flags = {0};
-	const char *iabuf;
+	const char *iabuf = NULL;
 	char portstring[6]; /*up to five digits plus null terminator*/
 	const char *insecure; 
 	char *cat = NULL;
