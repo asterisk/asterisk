@@ -221,9 +221,11 @@ struct station_capabilities {
 	} payloads;
 };
 
+#define SKINNY_MAX_CAPABILITIES 18
+
 struct capabilities_res_message {
 	uint32_t count;
-	struct station_capabilities caps[18];
+	struct station_capabilities caps[SKINNY_MAX_CAPABILITIES];
 };
 
 #define SPEED_DIAL_STAT_REQ_MESSAGE 0x000A
@@ -3746,11 +3748,15 @@ static int handle_capabilities_res_message(struct skinny_req *req, struct skinny
 {
 	struct skinny_device *d = s->device;
 	struct skinny_line *l;
-	int count = 0;
+	uint32_t count = 0;
 	int codecs = 0;
 	int i;
 
 	count = letohl(req->data.caps.count);
+	if (count > SKINNY_MAX_CAPABILITIES) {
+		count = SKINNY_MAX_CAPABILITIES;
+		ast_log(LOG_WARNING, "Received more capabilities than we can handle (%d).  Ignoring the rest.\n", SKINNY_MAX_CAPABILITIES);
+	}
 
 	for (i = 0; i < count; i++) {
 		int acodec = 0;
