@@ -12215,7 +12215,7 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				} else {
 					ast_log(LOG_ERROR, "Unknown signalling method '%s'\n", v->value);
 				}
-			 } else if (!strcasecmp(v->name, "outsignalling")) {
+			 } else if (!strcasecmp(v->name, "outsignalling") || !strcasecmp(v->name, "outsignaling")) {
 				if (!strcasecmp(v->value, "em")) {
 					confp->chan.outsigmod = SIG_EM;
 				} else if (!strcasecmp(v->value, "em_e1")) {
