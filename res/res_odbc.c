@@ -486,10 +486,7 @@ static odbc_status odbc_obj_connect(struct odbc_obj *obj)
 	res = SQLAllocHandle(SQL_HANDLE_DBC, obj->parent->env, &obj->con);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-
 		ast_log(LOG_WARNING, "res_odbc: Error AllocHDB %d\n", res);
-		SQLFreeHandle(SQL_HANDLE_ENV, obj->parent->env);
-
 		ast_mutex_unlock(&obj->lock);
 		return ODBC_FAIL;
 	}
