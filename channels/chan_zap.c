@@ -1757,20 +1757,14 @@ static int restore_gains(struct zt_pvt *p)
 
 static inline int zt_set_hook(int fd, int hs)
 {
-	int x, res, count = 0;
+	int x, res;
 
 	x = hs;
 	res = ioctl(fd, ZT_HOOK, &x);
 
-	while (res < 0 && count < 20) {
-		usleep(100000); /* 1/10 sec. */
-		x = hs;
-		res = ioctl(fd, ZT_HOOK, &x);
-		count++;
-	}
-
 	if (res < 0) {
-		if (errno == EINPROGRESS) return 0;
+		if (errno == EINPROGRESS)
+			return 0;
 		ast_log(LOG_WARNING, "zt hook failed: %s\n", strerror(errno));
 	}
 
