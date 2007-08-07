@@ -2675,9 +2675,9 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	int newmsgs, oldmsgs;
 	
 	if(inboxcount(mailbox, &newmsgs, &oldmsgs))
-		return folder? oldmsgs: newmsgs;
-	else
 		return 0;
+	else
+		return folder? oldmsgs: newmsgs;
 }
 
 static int messagecount(const char *context, const char *mailbox, const char *folder)
@@ -2690,9 +2690,9 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	sprintf(tmp,"%s@%s", mailbox, ast_strlen_zero(context)? "default": context);
 
 	if(inboxcount(tmp, &newmsgs, &oldmsgs))
-		return folder? oldmsgs: newmsgs;
-	else
 		return 0;
+	else
+		return folder? oldmsgs: newmsgs;
 }
 
 #endif
