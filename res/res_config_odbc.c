@@ -57,7 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct custom_prepare_struct {
 	const char *sql;
 	const char *extra;
-	va_list *ap;
+	va_list ap;
 };
 
 static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
@@ -67,7 +67,8 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
 	const char *newparam, *newval;
 	SQLHSTMT stmt;
 	va_list ap;
-	va_copy(ap, *(cps->ap));
+
+	va_copy(ap, cps->ap);
 
 	res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -127,8 +128,9 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLSMALLINT nullable;
 	SQLLEN indicator;
 	va_list aq;
-	struct custom_prepare_struct cps = { .sql = sql, .ap = &ap };
-	
+	struct custom_prepare_struct cps = { .sql = sql };
+
+	va_copy(cps.ap, ap);
 	va_copy(aq, ap);
 
 	if (!table)
@@ -269,9 +271,10 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
 	SQLLEN indicator;
-	struct custom_prepare_struct cps = { .sql = sql, .ap = &ap };
-
+	struct custom_prepare_struct cps = { .sql = sql };
 	va_list aq;
+
+	va_copy(cps.ap, ap);
 	va_copy(aq, ap);
 
 	if (!table)
@@ -399,8 +402,9 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	const char *newparam, *newval;
 	int res;
 	va_list aq;
-	struct custom_prepare_struct cps = { .sql = sql, .ap = &ap, .extra = lookup };
-	
+	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
+
+	va_copy(cps.ap, ap);
 	va_copy(aq, ap);
 	
 	if (!table)
