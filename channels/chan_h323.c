@@ -396,8 +396,8 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 	if (pvt->update_rtp_info > 0) {
 		if (pvt->rtp) {
 			ast_jb_configure(c, &global_jbconf);
-			c->fds[0] = ast_rtp_fd(pvt->rtp);
-			c->fds[1] = ast_rtcp_fd(pvt->rtp);
+			ast_channel_set_fd(c, 0, ast_rtp_fd(pvt->rtp));
+			ast_channel_set_fd(c, 1, ast_rtcp_fd(pvt->rtp));
 			ast_queue_frame(pvt->owner, &ast_null_frame);	/* Tell Asterisk to apply changes */
 		}
 		pvt->update_rtp_info = -1;
@@ -995,8 +995,8 @@ static int __oh323_rtp_create(struct oh323_pvt *pvt)
 
 	if (pvt->owner && !ast_channel_trylock(pvt->owner)) {
 		ast_jb_configure(pvt->owner, &global_jbconf);
-		pvt->owner->fds[0] = ast_rtp_fd(pvt->rtp);
-		pvt->owner->fds[1] = ast_rtcp_fd(pvt->rtp);
+		ast_channel_set_fd(pvt->owner, 0, ast_rtp_fd(pvt->rtp));
+		ast_channel_set_fd(pvt->owner, 1, ast_rtcp_fd(pvt->rtp));
 		ast_queue_frame(pvt->owner, &ast_null_frame);	/* Tell Asterisk to apply changes */
 		ast_channel_unlock(pvt->owner);
 	} else
@@ -1040,18 +1040,18 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		ch->readformat = fmt;
 		ch->rawreadformat = fmt;
 #if 0
-		ch->fds[0] = ast_rtp_fd(pvt->rtp);
-		ch->fds[1] = ast_rtcp_fd(pvt->rtp);
+		ast_channel_set_fd(ch, 0, ast_rtp_fd(pvt->rtp));
+		ast_channel_set_fd(ch, 1, ast_rtcp_fd(pvt->rtp));
 #endif
 #ifdef VIDEO_SUPPORT
 		if (pvt->vrtp) {
-			ch->fds[2] = ast_rtp_fd(pvt->vrtp);
-			ch->fds[3] = ast_rtcp_fd(pvt->vrtp);
+			ast_channel_set_fd(ch, 2, ast_rtp_fd(pvt->vrtp));
+			ast_channel_set_fd(ch, 3, ast_rtcp_fd(pvt->vrtp));
 		}
 #endif
 #ifdef T38_SUPPORT
 		if (pvt->udptl) {
-			ch->fds[4] = ast_udptl_fd(pvt->udptl);
+			ast_channel_set_fd(ch, 4, ast_udptl_fd(pvt->udptl));
 		}
 #endif
 		if (state == AST_STATE_RING) {

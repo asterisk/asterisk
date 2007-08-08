@@ -795,12 +795,12 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (i->rtp) {
-		tmp->fds[0] = ast_rtp_fd(i->rtp);
-		tmp->fds[1] = ast_rtcp_fd(i->rtp);
+		ast_channel_set_fd(tmp, 0, ast_rtp_fd(i->rtp));
+		ast_channel_set_fd(tmp, 1, ast_rtcp_fd(i->rtp));
 	}
 	if (i->vrtp) {
-		tmp->fds[2] = ast_rtp_fd(i->vrtp);
-		tmp->fds[3] = ast_rtcp_fd(i->vrtp);
+		ast_channel_set_fd(tmp, 2, ast_rtp_fd(i->vrtp));
+		ast_channel_set_fd(tmp, 3, ast_rtcp_fd(i->vrtp));
 	}
 	if (state == AST_STATE_RING)
 		tmp->rings = 1;

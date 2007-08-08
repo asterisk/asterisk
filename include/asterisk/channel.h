@@ -316,6 +316,8 @@ struct ast_channel_tech {
 	int (* func_channel_write)(struct ast_channel *chan, const char *function, char *data, const char *value);
 };
 
+struct ast_epoll_data;
+
 /*!
  * The high bit of the frame count is used as a debug marker, so
  * increments of the counters must be done with care.
@@ -490,6 +492,11 @@ struct ast_channel {
 
 	/*! \brief Data stores on the channel */
 	AST_LIST_HEAD_NOLOCK(datastores, ast_datastore) datastores;
+
+#ifdef HAVE_EPOLL
+	int epfd;
+	struct ast_epoll_data *epfd_data[AST_MAX_FDS];
+#endif
 };
 
 /*! \brief ast_channel_tech Properties */
@@ -1183,6 +1190,15 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 void ast_deactivate_generator(struct ast_channel *chan);
 
 void ast_set_callerid(struct ast_channel *chan, const char *cidnum, const char *cidname, const char *ani);
+
+/*! Set the file descriptor on the channel */
+void ast_channel_set_fd(struct ast_channel *chan, int which, int fd);
+
+/*! Add a channel to an optimized waitfor */
+void ast_poll_channel_add(struct ast_channel *chan0, struct ast_channel *chan1);
+
+/*! Delete a channel from an optimized waitfor */
+void ast_poll_channel_del(struct ast_channel *chan0, struct ast_channel *chan1);
 
 /*! Start a tone going */
 int ast_tonepair_start(struct ast_channel *chan, int freq1, int freq2, int duration, int vol);

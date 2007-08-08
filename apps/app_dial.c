@@ -560,6 +560,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 	struct ast_channel *peer = NULL;
 	/* single is set if only one destination is enabled */
 	int single = outgoing && !outgoing->next && !ast_test_flag64(outgoing, OPT_MUSICBACK | OPT_RINGBACK);
+#ifdef HAVE_EPOLL
+	struct chanlist *epollo;
+#endif
 	
 	if (single) {
 		/* Turn off hold music, etc */
@@ -567,7 +570,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		/* If we are calling a single channel, make them compatible for in-band tone purpose */
 		ast_channel_make_compatible(outgoing->chan, in);
 	}
-	
+
+#ifdef HAVE_EPOLL
+	for (epollo = outgoing; epollo; epollo = epollo->next)
+		ast_poll_channel_add(in, epollo->chan);
+#endif	
 	
 	while (*to && !peer) {
 		struct chanlist *o;
@@ -813,6 +820,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in,
 		}
 		
 	}
+
+#ifdef HAVE_EPOLL
+	for (epollo = outgoing; epollo; epollo = epollo->next)
+		ast_poll_channel_del(in, epollo->chan);
+#endif
 
 	return peer;
 }

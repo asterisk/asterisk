@@ -332,6 +332,14 @@ fi
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_INITIALIZER], [PTHREAD_RWLOCK_INITIALIZER], [pthread.h])
 AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_PREFER_WRITER_NP], [PTHREAD_RWLOCK_PREFER_WRITER_NP], [pthread.h])
 
+AC_MSG_CHECKING(for working epoll support)
+AC_LINK_IFELSE(
+AC_LANG_PROGRAM([#include <sys/epoll.h>], [epoll_create(10);]),
+AC_MSG_RESULT(yes)
+AC_DEFINE([HAVE_EPOLL], 1, [Define to 1 if your system has working epoll support.]),
+AC_MSG_RESULT(no)
+)
+
 AC_MSG_CHECKING(for compiler atomic operations)
 AC_LINK_IFELSE(
 AC_LANG_PROGRAM([], [int foo1; int foo2 = __sync_fetch_and_add(&foo1, 1);]),

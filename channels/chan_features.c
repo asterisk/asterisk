@@ -171,8 +171,8 @@ static void restore_channel(struct feature_pvt *p, int index)
 	p->subs[index].owner->timingfd = p->subs[index].timingfdbackup;
 	p->subs[index].owner->alertpipe[0] = p->subs[index].alertpipebackup[0];
 	p->subs[index].owner->alertpipe[1] = p->subs[index].alertpipebackup[1];
-	p->subs[index].owner->fds[AST_ALERT_FD] = p->subs[index].alertpipebackup[0];
-	p->subs[index].owner->fds[AST_TIMING_FD] = p->subs[index].timingfdbackup;
+	ast_channel_set_fd(p->subs[index].owner, AST_ALERT_FD, p->subs[index].alertpipebackup[0]);
+	ast_channel_set_fd(p->subs[index].owner, AST_TIMING_FD, p->subs[index].timingfdbackup);
 }
 
 static void update_features(struct feature_pvt *p, int index)
@@ -181,9 +181,9 @@ static void update_features(struct feature_pvt *p, int index)
 	if (p->subs[index].owner) {
 		for (x=0; x<AST_MAX_FDS; x++) {
 			if (index) 
-				p->subs[index].owner->fds[x] = -1;
+				ast_channel_set_fd(p->subs[index].owner, x, -1);
 			else
-				p->subs[index].owner->fds[x] = p->subchan->fds[x];
+				ast_channel_set_fd(p->subs[index].owner, x, p->subchan->fds[x]);
 		}
 		if (!index) {
 			/* Copy timings from master channel */

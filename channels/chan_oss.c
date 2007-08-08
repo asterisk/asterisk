@@ -692,7 +692,7 @@ static int setformat(struct chan_oss_pvt *o, int mode)
 		return -1;
 	}
 	if (o->owner)
-		o->owner->fds[0] = fd;
+		ast_channel_set_fd(o->owner, 0, fd);
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 	fmt = AFMT_S16_LE;
@@ -1026,7 +1026,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 	c->tech = &oss_tech;
 	if (o->sounddev < 0)
 		setformat(o, O_RDWR);
-	c->fds[0] = o->sounddev;	/* -1 if device closed, override later */
+	ast_channel_set_fd(c, 0, o->sounddev); /* -1 if device closed, override later */
 	c->nativeformats = AST_FORMAT_SLINEAR;
 	c->readformat = AST_FORMAT_SLINEAR;
 	c->writeformat = AST_FORMAT_SLINEAR;

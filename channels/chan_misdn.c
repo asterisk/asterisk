@@ -3220,7 +3220,7 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		if (pipe(chlist->pipe) < 0)
 			ast_log(LOG_ERROR, "Pipe failed\n");
 
-		tmp->fds[0] = chlist->pipe[0];
+		ast_channel_set_fd(tmp, 0, chlist->pipe[0]);
 
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;

@@ -2515,12 +2515,12 @@ static void start_rtp(struct skinny_subchannel *sub)
 		sub->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 	
 	if (sub->rtp && sub->owner) {
-		sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
-		sub->owner->fds[1] = ast_rtcp_fd(sub->rtp);
+		ast_channel_set_fd(sub->owner, 0, ast_rtp_fd(sub->rtp));
+		ast_channel_set_fd(sub->owner, 1, ast_rtcp_fd(sub->rtp));
 	}
 	if (hasvideo && sub->vrtp && sub->owner) {
-		sub->owner->fds[2] = ast_rtp_fd(sub->vrtp);
-		sub->owner->fds[3] = ast_rtcp_fd(sub->vrtp);
+		ast_channel_set_fd(sub->owner, 2, ast_rtp_fd(sub->vrtp));
+		ast_channel_set_fd(sub->owner, 3, ast_rtcp_fd(sub->vrtp));
 	}
 	if (sub->rtp) {
 		ast_rtp_setnat(sub->rtp, l->nat);
@@ -3070,7 +3070,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 		if (skinnydebug)
 			ast_verbose("skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
 		if (sub->rtp) {
-			tmp->fds[0] = ast_rtp_fd(sub->rtp);
+			ast_channel_set_fd(tmp, 0, ast_rtp_fd(sub->rtp));
 		}
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;

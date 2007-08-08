@@ -789,7 +789,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		return NULL;
 
 	tmp->tech = &alsa_tech;
-	tmp->fds[0] = readdev;
+	ast_channel_set_fd(tmp, 0, readdev);
 	tmp->nativeformats = AST_FORMAT_SLINEAR;
 	tmp->readformat = AST_FORMAT_SLINEAR;
 	tmp->writeformat = AST_FORMAT_SLINEAR;

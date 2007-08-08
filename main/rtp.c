@@ -3212,6 +3212,8 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 	ast_channel_unlock(c0);
 	ast_channel_unlock(c1);
 
+	ast_poll_channel_add(c0, c1);
+
 	/* Throw our channels into the structure and enter the loop */
 	cs[0] = c0;
 	cs[1] = c1;
@@ -3228,6 +3230,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			if (c1->tech_pvt == pvt1)
 				if (pr1->set_rtp_peer(c1, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+			ast_poll_channel_del(c0, c1);
 			return AST_BRIDGE_RETRY;
 		}
 
@@ -3313,6 +3316,7 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			if (c1->tech_pvt == pvt1)
 				if (pr1->set_rtp_peer(c1, NULL, NULL, NULL, 0, 0))
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
+			ast_poll_channel_del(c0, c1);
 			return AST_BRIDGE_COMPLETE;
 		} else if ((fr->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
 			if ((fr->subclass == AST_CONTROL_HOLD) ||
@@ -3353,10 +3357,14 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 			ast_frfree(fr);
 		}
 		/* Swap priority */
+#ifndef HAVE_EPOLL
 		cs[2] = cs[0];
 		cs[0] = cs[1];
 		cs[1] = cs[2];
+#endif
 	}
+
+	ast_poll_channel_del(c0, c1);
 
 	if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
 		ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
@@ -3488,6 +3496,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	ast_channel_unlock(c0);
 	ast_channel_unlock(c1);
 
+	ast_poll_channel_add(c0, c1);
+
 	/* Go into a loop forwarding frames until we don't need to anymore */
 	cs[0] = c0;
 	cs[1] = c1;
@@ -3590,6 +3600,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 	/* Break out of the direct bridge */
 	p2p_set_bridge(p0, NULL);
 	p2p_set_bridge(p1, NULL);
+
+	ast_poll_channel_del(c0, c1);
 
 	return res;
 }

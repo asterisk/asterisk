@@ -4553,18 +4553,18 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
 	}
 	if (i->rtp) {
-		tmp->fds[0] = ast_rtp_fd(i->rtp);
-		tmp->fds[1] = ast_rtcp_fd(i->rtp);
+		ast_channel_set_fd(tmp, 0, ast_rtp_fd(i->rtp));
+		ast_channel_set_fd(tmp, 1, ast_rtcp_fd(i->rtp));
 	}
 	if (needvideo && i->vrtp) {
-		tmp->fds[2] = ast_rtp_fd(i->vrtp);
-		tmp->fds[3] = ast_rtcp_fd(i->vrtp);
+		ast_channel_set_fd(tmp, 2, ast_rtp_fd(i->vrtp));
+		ast_channel_set_fd(tmp, 3, ast_rtcp_fd(i->vrtp));
 	}
 	if (needtext && i->trtp) {
-		tmp->fds[4] = ast_rtp_fd(i->trtp);
+		ast_channel_set_fd(tmp, 4, ast_rtp_fd(i->trtp));
 	}
 	if (i->udptl) {
-		tmp->fds[5] = ast_udptl_fd(i->udptl);
+		ast_channel_set_fd(tmp, 5, ast_udptl_fd(i->udptl));
 	}
 	if (state == AST_STATE_RING)
 		tmp->rings = 1;

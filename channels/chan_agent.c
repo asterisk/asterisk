@@ -207,9 +207,9 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/*!< Holds the list of agents (l
 	if (p->chan) { \
 		for (x=0;x<AST_MAX_FDS;x++) {\
 			if (x != AST_TIMING_FD) \
-				ast->fds[x] = p->chan->fds[x]; \
+				ast_channel_set_fd(ast, x, p->chan->fds[x]); \
 		} \
-		ast->fds[AST_AGENT_FD] = p->chan->fds[AST_TIMING_FD]; \
+		ast_channel_set_fd(ast, AST_AGENT_FD, p->chan->fds[AST_TIMING_FD]); \
 	} \
 } while(0)
 

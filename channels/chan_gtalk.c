@@ -934,13 +934,13 @@ static struct ast_channel *gtalk_new(struct gtalk *client, struct gtalk_pvt *i, 
 
 	if (i->rtp) {
 		ast_rtp_setstun(i->rtp, 1);
-		tmp->fds[0] = ast_rtp_fd(i->rtp);
-		tmp->fds[1] = ast_rtcp_fd(i->rtp);
+		ast_channel_set_fd(tmp, 0, ast_rtp_fd(i->rtp));
+		ast_channel_set_fd(tmp, 1, ast_rtcp_fd(i->rtp));
 	}
 	if (i->vrtp) {
 		ast_rtp_setstun(i->rtp, 1);
-		tmp->fds[2] = ast_rtp_fd(i->vrtp);
-		tmp->fds[3] = ast_rtcp_fd(i->vrtp);
+		ast_channel_set_fd(tmp, 2, ast_rtp_fd(i->vrtp));
+		ast_channel_set_fd(tmp, 3, ast_rtcp_fd(i->vrtp));
 	}
 	if (state == AST_STATE_RING)
 		tmp->rings = 1;

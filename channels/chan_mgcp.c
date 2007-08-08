@@ -1456,7 +1456,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		fmt = ast_best_codec(tmp->nativeformats);
 		ast_string_field_build(tmp, name, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 		if (sub->rtp)
-			tmp->fds[0] = ast_rtp_fd(sub->rtp);
+			ast_channel_set_fd(tmp, 0, ast_rtp_fd(sub->rtp));
 		if (i->dtmfmode & (MGCP_DTMF_INBAND | MGCP_DTMF_HYBRID)) {
 			i->dsp = ast_dsp_new();
 			ast_dsp_set_features(i->dsp,DSP_FEATURE_DTMF_DETECT);
@@ -2588,7 +2588,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 	/* Allocate the RTP now */
 	sub->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 	if (sub->rtp && sub->owner)
-		sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
+		ast_channel_set_fd(sub->owner, 0, ast_rtp_fd(sub->rtp));
 	if (sub->rtp)
 		ast_rtp_setnat(sub->rtp, sub->nat);
 #if 0

@@ -1013,9 +1013,9 @@ static void swap_subs(struct zt_pvt *p, int a, int b)
 	p->subs[b].inthreeway = tinthreeway;
 
 	if (p->subs[a].owner) 
-		p->subs[a].owner->fds[0] = p->subs[a].zfd;
+		ast_channel_set_fd(p->subs[a].owner, 0, p->subs[a].zfd);
 	if (p->subs[b].owner) 
-		p->subs[b].owner->fds[0] = p->subs[b].zfd;
+		ast_channel_set_fd(p->subs[b].owner, 0, p->subs[b].zfd);
 	wakeup_sub(p, a, NULL);
 	wakeup_sub(p, b, NULL);
 }
@@ -2595,7 +2595,7 @@ static int pri_assign_bearer(struct zt_pvt *crv, struct zt_pri *pri, struct zt_p
 	bearer->realcall = crv;
 	crv->subs[SUB_REAL].zfd = bearer->subs[SUB_REAL].zfd;
 	if (crv->subs[SUB_REAL].owner)
-		crv->subs[SUB_REAL].owner->fds[0] = crv->subs[SUB_REAL].zfd;
+		ast_channel_set_fd(crv->subs[SUB_REAL].owner, 0, crv->subs[SUB_REAL].zfd);
 	crv->bearer = bearer;
 	crv->call = bearer->call;
 	crv->pri = pri;
@@ -5515,7 +5515,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		else
 			deflaw = AST_FORMAT_ULAW;
 	}
-	tmp->fds[0] = i->subs[index].zfd;
+	ast_channel_set_fd(tmp, 0, i->subs[index].zfd);
 	tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
 	/* Start out assuming ulaw since it's smaller :) */
 	tmp->rawreadformat = deflaw;
@@ -8977,7 +8977,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 							       "Zap/%d:%d-%d", pri->trunkgroup,
 							       pri->pvts[principle]->channel, 1);
 					pri->pvts[principle]->owner->tech_pvt = pri->pvts[principle];
-					pri->pvts[principle]->owner->fds[0] = pri->pvts[principle]->subs[SUB_REAL].zfd;
+					ast_channel_set_fd(pri->pvts[principle]->owner, 0, pri->pvts[principle]->subs[SUB_REAL].zfd);
 					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;
 				} else
 					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", pri->pvts[x]->channel, pri->pvts[principle]->channel);

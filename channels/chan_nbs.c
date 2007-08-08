@@ -232,7 +232,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 	tmp = ast_channel_alloc(1, state, 0, 0, "", "s", context, 0, "NBS/%s", i->stream);
 	if (tmp) {
 		tmp->tech = &nbs_tech;
-		tmp->fds[0] = nbs_fd(i->nbs);
+		ast_channel_set_fd(tmp, 0, nbs_fd(i->nbs));
 		tmp->nativeformats = prefformat;
 		tmp->rawreadformat = prefformat;
 		tmp->rawwriteformat = prefformat;
