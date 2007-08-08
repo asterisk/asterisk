@@ -11,5 +11,5 @@ protocol or also as a simple client.  Several simple functions are exposed to
 the dial plan, jabberstatus, jabbersend, and soon jabberrecv.  res_jabber is also used
 to provide the connection interface for chan_jingle.
 
-The maintainer of res_jabber is Matthew O'Gorman <mogorman@digum.com> or
+The maintainer of res_jabber is Matthew O'Gorman <mogorman@digium.com> or
 mog_work on irc or (preferred) mogorman@astjab.org over jabber.
