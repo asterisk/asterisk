@@ -2342,7 +2342,7 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	return 0;
 }
 
-static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *go_on, const char *agi)
+static int try_calling(struct queue_ent *qe, const char *options, char *announceoverride, const char *url, int *tries, int *noption, const char *agi)
 {
 	struct member *cur;
 	struct callattempt *outgoing = NULL; /* the list of calls we are building */
@@ -2377,7 +2377,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char vars[2048];
 	int forwardsallowed = 1;
 	int callcompletedinsl;
-	int noption = 0;
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
 	time(&now);
@@ -2407,18 +2406,15 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			break;
 		case 'n':
 			if (qe->parent->strategy == QUEUE_STRATEGY_ROUNDROBIN || qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY)
-				(*go_on)++;
+				(*tries)++;
 			else
-				*go_on = qe->parent->membercount;
-			noption = 1;
+				*tries = qe->parent->membercount;
+			*noption = 1;
 			break;
 		case 'i':
 			forwardsallowed = 0;
 			break;
 		}
-
-	if(!noption)
-		*go_on = -1;
 
 	/* Hold the lock while we setup the outgoing calls */
 	if (use_weight)
@@ -3367,7 +3363,8 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	int max_penalty;
 	enum queue_result reason = QUEUE_UNKNOWN;
 	/* whether to exit Queue application after the timeout hits */
-	int go_on = 0;
+	int tries = 0;
+	int noption = 0;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(queuename);
@@ -3497,14 +3494,14 @@ check_turns:
 					goto stop;
 
 			/* Try calling all queue members for 'timeout' seconds */
-			res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on, args.agi);
+			res = try_calling(&qe, args.options, args.announceoverride, args.url, &tries, &noption, args.agi);
 			if (res)
 				goto stop;
 
 			stat = get_member_status(qe.parent, qe.max_penalty);
 
 			/* exit after 'timeout' cycle if 'n' option enabled */
-			if (go_on >= qe.parent->membercount) {
+			if (noption && tries >= qe.parent->membercount) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
 				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
