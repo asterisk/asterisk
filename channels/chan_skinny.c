@@ -110,19 +110,19 @@ static char version_id[16] = "P002F202";
 #define htolel(x) (x)
 #define htoles(x) (x)
 #else
-#ifdef HAVE_BYTESWAP_H
+#if defined(HAVE_BYTESWAP_H)
 #include <byteswap.h>
 #define letohl(x) bswap_32(x)
 #define letohs(x) bswap_16(x)
 #define htolel(x) bswap_32(x)
 #define htoles(x) bswap_16(x)
-#elif HAVE_SYS_ENDIAN_SWAP16
+#elif defined(HAVE_SYS_ENDIAN_SWAP16)
 #include <sys/endian.h>
 #define letohl(x) __swap32(x)
 #define letohs(x) __swap16(x)
 #define htolel(x) __swap32(x)
 #define htoles(x) __swap16(x)
-#elif HAVE_SYS_ENDIAN_BSWAP16
+#elif defined(HAVE_SYS_ENDIAN_BSWAP16)
 #include <sys/endian.h>
 #define letohl(x) bswap32(x)
 #define letohs(x) bswap16(x)
