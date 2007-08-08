@@ -4005,6 +4005,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 		if (!cmd) {
 			AST_LIST_TRAVERSE_SAFE_BEGIN(&extensions, vmtmp, list) {
 #ifdef IMAP_STORAGE
+				char *myserveremail;
+				int attach_user_voicemail;
 				/* Need to get message content */
 				if(option_debug > 2)
 					ast_log (LOG_DEBUG,"Before mail_fetchheaders, curmsg is: %d, imap messages is %lu\n",vms->curmsg, vms->msgArray[vms->curmsg]);
@@ -4066,10 +4068,10 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 					ast_log (LOG_ERROR,"Could not find state information for mailbox %s\n",vmtmp->mailbox);
 				}
 
-				char *myserveremail = serveremail;
+				myserveremail = serveremail;
 				if (!ast_strlen_zero(vmtmp->serveremail))
 					myserveremail = vmtmp->serveremail;
-				int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
+				attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
 				attach_user_voicemail = ast_test_flag(vmtmp, VM_ATTACH);
 				/* NULL category for IMAP storage */
 				sendmail(myserveremail, vmtmp, todircount, vmtmp->context, vmtmp->mailbox, S_OR(chan->cid.cid_num, NULL), S_OR(chan->cid.cid_name, NULL), vms->fn, fmt, duration, attach_user_voicemail, chan, NULL);
