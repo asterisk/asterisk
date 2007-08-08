@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
-#include "asterisk/chanspy.h"
+#include "asterisk/audiohook.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
@@ -93,7 +93,7 @@ struct module_symbols *me;
 static const char *mixmonitor_spy_type = "MixMonitor";
 
 struct mixmonitor {
-	struct ast_channel_spy spy;
+	struct ast_audiohook audiohook;
 	char *filename;
 	char *post_process;
 	char *name;
@@ -123,17 +123,15 @@ AST_APP_OPTIONS(mixmonitor_opts, {
 	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
 });
 
-static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
+static int startmon(struct ast_channel *chan, struct ast_audiohook *audiohook) 
 {
-	struct ast_channel *peer;
-	int res;
+	struct ast_channel *peer = NULL;
+	int res = 0;
 
 	if (!chan)
 		return -1;
 
-	ast_channel_lock(chan);
-	res = ast_channel_spy_add(chan, spy);
-	ast_channel_unlock(chan);
+	ast_audiohook_attach(chan, audiohook);
 
 	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
@@ -146,7 +144,6 @@ static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy)
 static void *mixmonitor_thread(void *obj) 
 {
 	struct mixmonitor *mixmonitor = obj;
-	struct ast_frame *f = NULL;
 	struct ast_filestream *fs = NULL;
 	unsigned int oflags;
 	char *ext;
@@ -155,59 +152,48 @@ static void *mixmonitor_thread(void *obj)
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", mixmonitor->name);
 	
-	ast_mutex_lock(&mixmonitor->spy.lock);
+	ast_audiohook_lock(&mixmonitor->audiohook);
 
-	while (mixmonitor->spy.chan) {
-		struct ast_frame *next;
-		int write;
+	while (mixmonitor->audiohook.status == AST_AUDIOHOOK_STATUS_RUNNING) {
+		struct ast_frame *fr = NULL;
 
-		ast_channel_spy_trigger_wait(&mixmonitor->spy);
-		
-		if (!mixmonitor->spy.chan || mixmonitor->spy.status != CHANSPY_RUNNING)
+		ast_audiohook_trigger_wait(&mixmonitor->audiohook);
+
+		if (mixmonitor->audiohook.status != AST_AUDIOHOOK_STATUS_RUNNING)
 			break;
-		
-		while (1) {
-			if (!(f = ast_channel_spy_read_frame(&mixmonitor->spy, SAMPLES_PER_FRAME)))
-				break;
 
-			write = (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) ||
-				 ast_bridged_channel(mixmonitor->spy.chan));
+		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR)))
+			continue;
 
-			/* it is possible for ast_channel_spy_read_frame() to return a chain
-			   of frames if a queue flush was necessary, so process them
-			*/
-			for (; f; f = next) {
-				next = AST_LIST_NEXT(f, frame_list);
-				if (write && errflag == 0) {
-					if (!fs) {
-						/* Determine creation flags and filename plus extension for filestream */
-						oflags = O_CREAT | O_WRONLY;
-						oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+		/* Initialize the file if not already done so */
+		if (!fs && !errflag) {
+			oflags = O_CREAT | O_WRONLY;
+			oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
 
-						if ((ext = strrchr(mixmonitor->filename, '.')))
-							*(ext++) = '\0';
-						else
-							ext = "raw";
+			if ((ext = strrchr(mixmonitor->filename, '.')))
+				*(ext++) = '\0';
+			else
+				ext = "raw";
 
-						/* Move onto actually creating the filestream */
-						if (!(fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644))) {
-							ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
-							errflag = 1;
-						}
-
-					}
-					if (fs)
-						ast_writestream(fs, f);
-				}
-				ast_frame_free(f, 0);
+			if (!(fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644))) {
+				ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
+				errflag = 1;
 			}
 		}
+
+		/* Write out frame */
+		if (fs)
+			ast_writestream(fs, fr);
+
+		/* All done! free it. */
+		ast_frame_free(fr, 0);
+
 	}
 
-	ast_mutex_unlock(&mixmonitor->spy.lock);
+	ast_audiohook_detach(&mixmonitor->audiohook);
+	ast_audiohook_unlock(&mixmonitor->audiohook);
+	ast_audiohook_destroy(&mixmonitor->audiohook);
 
-	ast_channel_spy_free(&mixmonitor->spy);
-	
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", mixmonitor->name);
 
@@ -270,27 +256,17 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	strcpy(mixmonitor->filename, filename);
 
 	/* Setup the actual spy before creating our thread */
-	ast_set_flag(&mixmonitor->spy, CHANSPY_FORMAT_AUDIO);
-	ast_set_flag(&mixmonitor->spy, CHANSPY_MIXAUDIO);
-	mixmonitor->spy.type = mixmonitor_spy_type;
-	mixmonitor->spy.status = CHANSPY_RUNNING;
-	mixmonitor->spy.read_queue.format = AST_FORMAT_SLINEAR;
-	mixmonitor->spy.write_queue.format = AST_FORMAT_SLINEAR;
-	if (readvol) {
-		ast_set_flag(&mixmonitor->spy, CHANSPY_READ_VOLADJUST);
-		mixmonitor->spy.read_vol_adjustment = readvol;
+	if (ast_audiohook_init(&mixmonitor->audiohook, AST_AUDIOHOOK_TYPE_SPY, mixmonitor_spy_type)) {
+		free(mixmonitor);
+		return;
 	}
-	if (writevol) {
-		ast_set_flag(&mixmonitor->spy, CHANSPY_WRITE_VOLADJUST);
-		mixmonitor->spy.write_vol_adjustment = writevol;
-	}
-	ast_mutex_init(&mixmonitor->spy.lock);
 
-	if (startmon(chan, &mixmonitor->spy)) {
+	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_WRITE);
+
+	if (startmon(chan, &mixmonitor->audiohook)) {
 		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
-			mixmonitor->spy.type, chan->name);
-		/* Since we couldn't add ourselves - bail out! */
-		ast_mutex_destroy(&mixmonitor->spy.lock);
+			mixmonitor_spy_type, chan->name);
+		ast_audiohook_destroy(&mixmonitor->audiohook);
 		ast_free(mixmonitor);
 		return;
 	}
@@ -382,9 +358,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 
 static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 {
-	ast_channel_lock(chan);
-	ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
-	ast_channel_unlock(chan);
+	ast_audiohook_detach_source(chan, mixmonitor_spy_type);
 	return 0;
 }
 
@@ -400,12 +374,13 @@ static int mixmonitor_cli(int fd, int argc, char **argv)
 		return RESULT_SUCCESS;
 	}
 
-	if (!strcasecmp(argv[1], "start"))
+	if (!strcasecmp(argv[1], "start")) {
 		mixmonitor_exec(chan, argv[3]);
-	else if (!strcasecmp(argv[1], "stop"))
-		ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
-
-	ast_channel_unlock(chan);
+		ast_channel_unlock(chan);
+	} else {
+		ast_channel_unlock(chan);
+		ast_audiohook_detach_source(chan, mixmonitor_spy_type);
+	}
 
 	return RESULT_SUCCESS;
 }

@@ -316,9 +316,6 @@ struct ast_channel_tech {
 	int (* func_channel_write)(struct ast_channel *chan, const char *function, char *data, const char *value);
 };
 
-struct ast_channel_spy_list;	/*!< \todo Add explanation here */
-struct ast_channel_whisper_buffer;	/*!< \todo Add explanation here */
-
 /*!
  * The high bit of the frame count is used as a debug marker, so
  * increments of the counters must be done with care.
@@ -481,8 +478,8 @@ struct ast_channel {
 	int rawreadformat;				/*!< Raw read format */
 	int rawwriteformat;				/*!< Raw write format */
 
-	struct ast_channel_spy_list *spies;		/*!< Chan Spy stuff */
-	struct ast_channel_whisper_buffer *whisper;	/*!< Whisper Paging buffer */
+	struct ast_audiohook_list *audiohooks;
+
 	AST_LIST_ENTRY(ast_channel) chan_list;		/*!< For easy linking */
 	
 	struct ast_jb jb;				/*!< The jitterbuffer state  */
