@@ -403,7 +403,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; the call directly with media peer-2-peer without re-invites.
 				; Will not work for video and cases where the callee sends 
 				; RTP payloads and fmtp headers in the 200 OK that does not match the
-				; callers INVITE.
+				; callers INVITE. This will also fail if canreinvite is enabled when
+				; the device is actually behind NAT.
 
 ;canreinvite=nonat		; An additional option is to allow media path redirection
 				; (reinvite) but only when the peer where the media is being
