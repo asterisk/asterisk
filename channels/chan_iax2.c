@@ -8948,7 +8948,7 @@ static int start_network_thread(void)
 	}
 	ast_pthread_create_background(&schedthreadid, NULL, sched_thread, NULL);
 	ast_pthread_create_background(&netthreadid, NULL, network_thread, NULL);
-	ast_verb(2, "%d helper threaads started\n", threadcount);
+	ast_verb(2, "%d helper threads started\n", threadcount);
 	return 0;
 }
 
