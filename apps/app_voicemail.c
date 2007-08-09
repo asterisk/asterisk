@@ -2481,7 +2481,6 @@ static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 	if (oldmsgs)
 		*oldmsgs = 0;
 
-	ast_log(LOG_DEBUG, "inboxcount called\n");
 	if(option_debug > 2)
 	 	ast_log (LOG_DEBUG,"Mailbox is set to %s\n",mailbox_context);
 	/* If no mailbox, return immediately */
@@ -2518,16 +2517,10 @@ static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 	}
 	if (newmsgs)
 		if((*newmsgs = messagecount(context, mailboxnc, "INBOX")) < 0)
-		{
-			ast_log(LOG_DEBUG, "messagecount failed somehow...\n");
 			return -1;
-		}
 	if (oldmsgs)
 		if((*oldmsgs = messagecount(context, mailboxnc, "Old")) < 0)
-		{
-			ast_log(LOG_DEBUG, "messagecount failed somehow...\n");
 			return -1;
-		}
 	return 0;
 }
 	
