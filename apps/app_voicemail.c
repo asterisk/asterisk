@@ -2438,17 +2438,16 @@ yuck:
 
 static int has_voicemail(const char *mailbox, const char *folder)
 {
-	char *context, tmp[256];
+	char tmp[256], *tmp2 = tmp, *mbox, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
-	if ((context = strchr(tmp, '@')))
-		*context++ = '\0';
-	else
-		context = "default";
-
-	if (messagecount(context, tmp, folder))
-		return 1;
-	else
-		return 0;
+	while ((context = mbox = strsep(&tmp2, ","))) {
+		strsep(&context, "@");
+		if (ast_strlen_zero(context))
+			context = "default";
+		if (messagecount(context, mbox, folder))
+			return 1;
+	}
+	return 0;
 }
 
 #elif defined(IMAP_STORAGE)
@@ -2670,6 +2669,8 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
  	return 0;
  }
 
+/*! XXX \todo Fix this function to support multiple mailboxes separated
+ * by commas */
 static int has_voicemail(const char *mailbox, const char *folder)
 {
 	int newmsgs, oldmsgs;
