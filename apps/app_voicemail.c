@@ -2296,6 +2296,7 @@ static const char *mbox(int id)
 }
 
 #ifdef ODBC_STORAGE
+/*! XXX \todo Fix this function to support multiple mailboxes in the intput string */
 static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	int x = -1;
