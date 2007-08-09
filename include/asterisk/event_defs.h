@@ -103,6 +103,12 @@ enum ast_event_ie_type {
 	 * this IE is a part of.
 	 */
 	 AST_EVENT_IE_STATE    = 0x08,
+	 /*!
+	  * \brief Context IE
+	  * Used by AST_EVENT_MWI
+	  * Payload type: str
+	  */
+	 AST_EVENT_IE_CONTEXT  = 0x09,
 };
 
 /*!

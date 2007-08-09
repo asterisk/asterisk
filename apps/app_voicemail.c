@@ -3997,15 +3997,17 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 static void queue_mwi_event(const char *mbox, int new, int old)
 {
 	struct ast_event *event;
-	char *mailbox;
+	char *mailbox, *context;
 
 	/* Strip off @default */
-	mailbox = ast_strdupa(mbox);
-	if (strstr(mailbox, "@default"))
-		mailbox = strsep(&mailbox, "@");
+	context = mailbox = ast_strdupa(mbox);
+	strsep(&context, "@");
+	if (ast_strlen_zero(context))
+		context = "default";
 
 	if (!(event = ast_event_new(AST_EVENT_MWI,
 			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_UINT, new,
 			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_UINT, old,
 			AST_EVENT_IE_END))) {
@@ -4014,6 +4016,7 @@ static void queue_mwi_event(const char *mbox, int new, int old)
 
 	ast_event_queue_and_cache(event,
 		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR,
+		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR,
 		AST_EVENT_IE_END);
 }
 

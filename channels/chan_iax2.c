@@ -6054,9 +6054,16 @@ static int update_registry(const char *name, struct sockaddr_in *sin, int callno
 		if (!ast_strlen_zero(p->mailbox)) {
 			struct ast_event *event;
 			int new, old;
+			char *mailbox, *context;
+
+			context = mailbox = ast_strdupa(p->mailbox);
+			strsep(&context, "@");
+			if (ast_strlen_zero(context))
+				context = "default";
 
 			event = ast_event_get_cached(AST_EVENT_MWI,
-				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mailbox,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 				AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 				AST_EVENT_IE_END);
@@ -9315,8 +9322,14 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 		ast_free_ha(oldha);
 
 	if (!ast_strlen_zero(peer->mailbox)) {
+		char *mailbox, *context;
+		mailbox = ast_strdupa(peer->mailbox);
+		strsep(&context, "@");
+		if (ast_strlen_zero(context))
+			context = "default";
 		peer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, peer->mailbox,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 			AST_EVENT_IE_END);
 	}
 

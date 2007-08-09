@@ -15756,8 +15756,14 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 		p->subscribed = MWI_NOTIFICATION;
 		if (ast_test_flag(&authpeer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY)) {
+			char *mailbox, *context;
+			context = mailbox = ast_strdupa(authpeer->mailbox);
+			strsep(&context, "@");
+			if (ast_strlen_zero(context))
+				context = "default";
 			authpeer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, authpeer,
-				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, authpeer->mailbox,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 				AST_EVENT_IE_END);
 		}
 		if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
@@ -16244,9 +16250,15 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 		return 0;
 
 	if (!event) {
+		char *mailbox, *context = NULL;
 		/* Check the event cache for the mailbox info */
+		context = mailbox = ast_strdupa(peer->mailbox);
+		strsep(&context, "@");
+		if (ast_strlen_zero(context))
+			context = "default";
 		event = cache_event = ast_event_get_cached(AST_EVENT_MWI,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, peer->mailbox,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 			AST_EVENT_IE_END);
@@ -17488,8 +17500,14 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	 * subscribe to it now. */
 	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) && 
 		!ast_strlen_zero(peer->mailbox)) {
+		char *mailbox, *context;
+		context = mailbox = ast_strdupa(peer->mailbox);
+		strsep(&context, "@");
+		if (ast_strlen_zero(context))
+			context = "default";
 		peer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, peer,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, peer->mailbox,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 			AST_EVENT_IE_END);
 		/* Send MWI from the event cache only.  This is so we can send initial
 		 * MWI if app_voicemail got loaded before chan_sip.  If it is the other

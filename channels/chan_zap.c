@@ -1850,9 +1850,16 @@ static int has_voicemail(struct zt_pvt *p)
 {
 	int new_msgs;
 	struct ast_event *event;
+	char *mailbox, *context;
+
+	mailbox = context = ast_strdupa(p->mailbox);
+	strsep(&context, "@");
+	if (ast_strlen_zero(context))
+		context = "default";
 
 	event = ast_event_get_cached(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mailbox,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 		AST_EVENT_IE_END);
 
@@ -7850,8 +7857,14 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		ast_copy_string(tmp->cid_name, conf.chan.cid_name, sizeof(tmp->cid_name));
 		ast_copy_string(tmp->mailbox, conf.chan.mailbox, sizeof(tmp->mailbox));
 		if (!ast_strlen_zero(tmp->mailbox)) {
+			char *mailbox, *context;
+			mailbox = context = ast_strdupa(tmp->mailbox);
+			strsep(&context, "@");
+			if (ast_strlen_zero(context))
+				context = "default";
 			tmp->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
-				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, tmp->mailbox,
+				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 				AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 				AST_EVENT_IE_END);
 		}

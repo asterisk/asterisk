@@ -468,9 +468,16 @@ static int has_voicemail(struct mgcp_endpoint *p)
 {
 	int new_msgs;
 	struct ast_event *event;
+	char *mailbox, *context;
+
+	context = mailbox = ast_strdupa(p->mailbox);
+	strsep(&context, "@");
+	if (ast_strlen_zero(context))
+		context = "default";
 
 	event = ast_event_get_cached(AST_EVENT_MWI,
-		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, p->mailbox,
+		AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+		AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 		AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 		AST_EVENT_IE_END);
 
@@ -3692,8 +3699,14 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					ast_copy_string(e->musicclass, musicclass, sizeof(e->musicclass));
 					ast_copy_string(e->mailbox, mailbox, sizeof(e->mailbox));
 					if (!ast_strlen_zero(e->mailbox)) {
+						char *mailbox, *context;
+						context = mailbox = ast_strdupa(e->mailbox);
+						strsep(&context, "@");
+						if (ast_strlen_zero(context))
+							context = "default";
 						e->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, NULL,
-							AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, e->mailbox,
+							AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
+							AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
 							AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 							AST_EVENT_IE_END);
 					}
