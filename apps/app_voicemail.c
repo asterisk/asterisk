@@ -2702,14 +2702,16 @@ static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
 		context = "default";
 		mailboxnc = (char *)mailbox_context;
 	}
-	if (newmsgs)
+	if (newmsgs) {
 		if((*newmsgs = messagecount(context, mailboxnc, "INBOX")) < 0)
 			return -1;
-	if (oldmsgs)
+	}
+	if (oldmsgs) {
 		if((*oldmsgs = messagecount(context, mailboxnc, "Old")) < 0)
 			return -1;
- 	return 0;
- }
+	}
+	return 0;
+}
 	
 
 static int has_voicemail(const char *mailbox, const char *folder)
@@ -2717,9 +2719,13 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	char tmp[256], *tmp2, *mbox, *context;
 	ast_copy_string(tmp, mailbox, sizeof(tmp));
 	tmp2 = tmp;
-	while (strcmp((mbox = strsep(&tmp2, ",")), mailbox)) {
-		if (has_voicemail(mbox, folder))
-			return 1;
+	if(strchr(tmp2, ',')) {
+		while((mbox = strsep(&tmp2, ","))) {
+			if(!ast_strlen_zero(mbox)) {
+				if (has_voicemail(mbox, folder))
+					return 1;
+			}
+		}
 	}
 	if ((context= strchr(tmp, '@')))
 		*context++ = '\0';
