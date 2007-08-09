@@ -16303,7 +16303,7 @@ static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
 		struct ast_event *event;
 		event = ast_event_get_cached(AST_EVENT_MWI,
 			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, mailbox->context,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
 			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
 			AST_EVENT_IE_END);
