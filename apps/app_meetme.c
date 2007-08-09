@@ -230,8 +230,7 @@ static const char *descrip =
 "      'D' -- dynamically add conference, prompting for a PIN\n"
 "      'e' -- select an empty conference\n"
 "      'E' -- select an empty pinless conference\n"
-"      'F' -- Pass DTMF through the conference.  DTMF used to activate any\n"
-"             conference features will not be passed through.\n"
+"      'F' -- Pass DTMF through the conference.\n"
 "      'i' -- announce user join/leave with review\n"
 "      'I' -- announce user join/leave without review\n"
 "      'l' -- set listen only mode (Listen only, no talking)\n"
@@ -2002,6 +2001,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
 
+					if (confflags & CONFFLAG_PASS_DTMF)
+						conf_queue_dtmf(conf, user, f);
+
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
 					if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
@@ -2020,10 +2022,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					
 					pbx_builtin_setvar_helper(chan, "MEETME_EXIT_KEY", exitkey);
 						
+					if (confflags & CONFFLAG_PASS_DTMF)
+						conf_queue_dtmf(conf, user, f);
 					ret = 0;
 					ast_frfree(f);
 					break;
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
+					if (confflags & CONFFLAG_PASS_DTMF)
+						conf_queue_dtmf(conf, user, f);
 					if (ioctl(fd, ZT_SETCONF, &ztc_empty)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
