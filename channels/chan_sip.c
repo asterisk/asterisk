@@ -15683,10 +15683,28 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
  */
 static void set_insecure_flags(struct ast_flags *flags, const char *value, int lineno)
 {
-	if (!strcasecmp(value, "very"))
+	static int dep_insecure_very = 0;
+	static int dep_insecure_yes = 0;
+	if (!strcasecmp(value, "very")) {
 		ast_set_flag(flags, SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-	else if (ast_true(value))
+		if(!dep_insecure_very) {
+			if(lineno != -1)
+				ast_log(LOG_WARNING, "insecure=very at line %d is deprecated; use insecure=port,invite instead\n", lineno);
+			else
+				ast_log(LOG_WARNING, "insecure=very is deprecated; use insecure=port,invite instead\n");
+			dep_insecure_very = 1;
+		}
+	}
+	else if (ast_true(value)) {
 		ast_set_flag(flags, SIP_INSECURE_PORT);
+		if(!dep_insecure_yes) {
+			if(lineno != -1)
+				ast_log(LOG_WARNING, "insecure=%s at line %d is deprecated; use insecure=port instead\n", value, lineno);
+			else
+				ast_log(LOG_WARNING, "insecure=%s is deprecated; use insecure=port instead\n", value);
+			dep_insecure_yes = 1;
+		}
+	}
 	else if (!ast_false(value)) {
 		char buf[64];
 		char *word, *next;
@@ -15713,8 +15731,6 @@ static void set_insecure_flags(struct ast_flags *flags, const char *value, int l
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
 {
 	int res = 1;
-	static int dep_insecure_very = 0;
-	static int dep_insecure_yes = 0;
 
 	if (!strcasecmp(v->name, "trustrpid")) {
 		ast_set_flag(&mask[0], SIP_TRUSTRPID);
@@ -15757,39 +15773,28 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "canreinvite")) {
 		ast_set_flag(&mask[0], SIP_REINVITE);
 		ast_clear_flag(&flags[0], SIP_REINVITE);
-		set_insecure_flags(flags, v->value, v->lineno);
+		if(ast_true(v->value)) {
+			ast_set_flag(&flags[0], SIP_CAN_REINVITE | SIP_CAN_REINVITE_NAT);
+		} else if (!ast_false(v->value)) {
+			char buf[64];
+			char *word, *next = buf;
+
+			ast_copy_string(buf, v->value, sizeof(buf));
+			while ((word = strsep(&next, ","))) {
+				if(!strcasecmp(word, "update")) {
+					ast_set_flag(&flags[0], SIP_REINVITE_UPDATE | SIP_CAN_REINVITE);
+				} else if(!strcasecmp(word, "nonat")) {
+					ast_set_flag(&flags[0], SIP_CAN_REINVITE);
+					ast_clear_flag(&flags[0], SIP_CAN_REINVITE_NAT);
+				} else {
+					ast_log(LOG_WARNING, "Unknown canreinvite mode '%s' on line %d\n", v->value, v->lineno);
+				}
+			}
+		}
 	} else if (!strcasecmp(v->name, "insecure")) {
 		ast_set_flag(&mask[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		ast_clear_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-		if (!strcasecmp(v->value, "very")) {
-			ast_set_flag(&flags[0], SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-			if (!dep_insecure_very) {
-				ast_log(LOG_WARNING, "insecure=very at line %d is deprecated; use insecure=port,invite instead\n", v->lineno);
-				dep_insecure_very = 1;
-			}
-		}
-		else if (ast_true(v->value)) {
-			ast_set_flag(&flags[0], SIP_INSECURE_PORT);
-			if (!dep_insecure_yes) {
-				ast_log(LOG_WARNING, "insecure=%s at line %d is deprecated; use insecure=port instead\n", v->value, v->lineno);
-				dep_insecure_yes = 1;
-			}
-		}
-		else if (!ast_false(v->value)) {
-			char buf[64];
-			char *word, *next;
-
-			ast_copy_string(buf, v->value, sizeof(buf));
-			next = buf;
-			while ((word = strsep(&next, ","))) {
-				if (!strcasecmp(word, "port"))
-					ast_set_flag(&flags[0], SIP_INSECURE_PORT);
-				else if (!strcasecmp(word, "invite"))
-					ast_set_flag(&flags[0], SIP_INSECURE_INVITE);
-				else
-					ast_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", v->value, v->lineno);
-			}
-		}
+		set_insecure_flags(flags, v->value, v->lineno);
 	} else if (!strcasecmp(v->name, "progressinband")) {
 		ast_set_flag(&mask[0], SIP_PROG_INBAND);
 		ast_clear_flag(&flags[0], SIP_PROG_INBAND);
