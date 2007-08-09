@@ -2275,11 +2275,11 @@ static char *message_template_parse_emailbody(const char *configuration)
 	       int len = strlen("\n");
 	       switch (tmpwrite[1]) {
 	       case 'n':
-		      strncpy(tmpwrite+len, tmpwrite+2, strlen(tmpwrite+2)+1);
+		      memmove(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
 		      strncpy(tmpwrite, "\n", len);
 		      break;
 	       case 't':
-		      strncpy(tmpwrite+len, tmpwrite+2, strlen(tmpwrite+2)+1);
+		      memmove(tmpwrite + len, tmpwrite + 2, strlen(tmpwrite + 2) + 1);
 		      strncpy(tmpwrite, "\t", len);
 		      break;
 	       default:
