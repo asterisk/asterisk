@@ -1226,6 +1226,20 @@ struct sip_user {
 	int autoframing;
 };
 
+/*!
+ * \brief A peer's mailbox
+ *
+ * We could use STRINGFIELDS here, but for only two strings, it seems like
+ * too much effort ...
+ */
+struct sip_mailbox {
+	char *mailbox;
+	char *context;
+	/*! Associated MWI subscription */
+	struct ast_event_sub *event_sub;
+	AST_LIST_ENTRY(sip_mailbox) entry;
+};
+
 /*! \brief Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
 /* XXX field 'name' must be first otherwise sip_addrcmp() will fail */
 struct sip_peer {
@@ -1254,7 +1268,6 @@ struct sip_peer {
 	int busy_level;			/*!< Level of active channels where we signal busy */
 	enum transfermodes allowtransfer;	/*! SIP Refer restriction scheme */
 	char vmexten[AST_MAX_EXTENSION]; /*!< Dialplan extension for MWI notify message*/
-	char mailbox[AST_MAX_EXTENSION]; /*!< Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/*!<  Default language for prompts */
 	char mohinterpret[MAX_MUSICCLASS];/*!<  Music on Hold class */
 	char mohsuggest[MAX_MUSICCLASS];/*!<  Music on Hold class */
@@ -1263,6 +1276,9 @@ struct sip_peer {
 	int lastmsgssent;
 	unsigned int sipoptions;	/*!<  Supported SIP options */
 	struct ast_flags flags[2];	/*!<  SIP_ flags */
+	
+	/*! Mailboxes that this peer cares about */
+	AST_LIST_HEAD_NOLOCK(, sip_mailbox) mailboxes;
 
 	/* things that don't belong in flags */
 	char is_realtime;		/*!< this is a 'realtime' peer */
@@ -1293,7 +1309,6 @@ struct sip_peer {
 	struct ast_variable *chanvars;	/*!<  Variables to set for channel created by user */
 	struct sip_pvt *mwipvt;		/*!<  Subscription for MWI */
 	int autoframing;
-	struct ast_event_sub *mwi_event_sub; /*!< The MWI event subscription */
 };
 
 
@@ -2880,6 +2895,25 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 	}
 }
 
+static void destroy_mailbox(struct sip_mailbox *mailbox)
+{
+	if (mailbox->mailbox)
+		ast_free(mailbox->mailbox);
+	if (mailbox->context)
+		ast_free(mailbox->context);
+	if (mailbox->event_sub)
+		ast_event_unsubscribe(mailbox->event_sub);
+	ast_free(mailbox);
+}
+
+static void clear_peer_mailboxes(struct sip_peer *peer)
+{
+	struct sip_mailbox *mailbox;
+
+	while ((mailbox = AST_LIST_REMOVE_HEAD(&peer->mailboxes, entry)))
+		destroy_mailbox(mailbox);
+}
+
 /*! \brief Destroy peer object from memory */
 static void sip_destroy_peer(struct sip_peer *peer)
 {
@@ -2895,11 +2929,6 @@ static void sip_destroy_peer(struct sip_peer *peer)
 
 	if (peer->mwipvt) 	/* We have an active subscription, delete it */
 		peer->mwipvt = sip_destroy(peer->mwipvt);
-
-	if (peer->mwi_event_sub) {
-		ast_event_unsubscribe(peer->mwi_event_sub);
-		peer->mwi_event_sub = NULL;
-	}
 
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
@@ -2923,6 +2952,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 	peer->auth = NULL;
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
+	clear_peer_mailboxes(peer);
 	ast_free(peer);
 }
 
@@ -11098,6 +11128,19 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 	return _sip_show_peer(0, fd, NULL, NULL, argc, (const char **) argv);
 }
 
+static void peer_mailboxes_to_str(struct ast_str **mailbox_str, struct sip_peer *peer)
+{
+	struct sip_mailbox *mailbox;
+
+	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+		ast_str_append(mailbox_str, 0, "%s%s%s%s",
+			mailbox->mailbox,
+			ast_strlen_zero(mailbox->context) ? "" : "@",
+			S_OR(mailbox->context, ""),
+			AST_LIST_NEXT(mailbox, entry) ? "," : "");
+	}
+}
+
 /*! \brief Show one peer in detail (main function) */
 static int _sip_show_peer(int type, int fd, struct mansession *s, const struct message *m, int argc, const char *argv[])
 {
@@ -11132,6 +11175,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		}
 	}
 	if (peer && type==0 ) { /* Normal listing */
+		struct ast_str *mailbox_str = ast_str_alloca(512);
 		ast_cli(fd,"\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
 		if (realtimepeers) {	/* Realtime is enabled */
@@ -11159,7 +11203,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		print_group(fd, peer->callgroup, 0);
 		ast_cli(fd, "  Pickupgroup  : ");
 		print_group(fd, peer->pickupgroup, 0);
-		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
+		peer_mailboxes_to_str(&mailbox_str, peer);
+		ast_cli(fd, "  Mailbox      : %s\n", mailbox_str->str);
 		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		ast_cli(fd, "  LastMsgsSent : %d/%d\n", (peer->lastmsgssent & 0x7fff0000) >> 16, peer->lastmsgssent & 0xffff);
 		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
@@ -11234,6 +11279,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		unref_peer(peer);
 	} else  if (peer && type == 1) { /* manager listing */
 		char buf[256];
+		struct ast_str *mailbox_str = ast_str_alloca(512);
 		astman_append(s, "Channeltype: SIP\r\n");
 		astman_append(s, "ObjectName: %s\r\n", peer->name);
 		astman_append(s, "ChanObjectType: peer\r\n");
@@ -11253,7 +11299,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		astman_append(s, "%s\r\n", ast_print_group(buf, sizeof(buf), peer->callgroup));
 		astman_append(s, "Pickupgroup: ");
 		astman_append(s, "%s\r\n", ast_print_group(buf, sizeof(buf), peer->pickupgroup));
-		astman_append(s, "VoiceMailbox: %s\r\n", peer->mailbox);
+		peer_mailboxes_to_str(&mailbox_str, peer);
+		astman_append(s, "VoiceMailbox: %s\r\n", mailbox_str->str);
 		astman_append(s, "TransferMode: %s\r\n", transfermode2str(peer->allowtransfer));
 		astman_append(s, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		astman_append(s, "Call-limit: %d\r\n", peer->call_limit);
@@ -11656,6 +11703,9 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 			arg->numchans++;
 		}
 		if (cur->subscribed != NONE && arg->subscriptions) {
+			struct ast_str *mailbox_str = ast_str_alloca(512);
+			if (cur->subscribed == MWI_NOTIFICATION && cur->relatedpeer)
+				peer_mailboxes_to_str(&mailbox_str, cur->relatedpeer);
 			ast_cli(arg->fd, FORMAT3, ast_inet_ntoa(dst->sin_addr),
 				S_OR(cur->username, S_OR(cur->cid_num, "(None)")), 
 			   	cur->callid,
@@ -11663,7 +11713,7 @@ static int show_channels_cb(void *__cur, void *__arg, int flags)
 				cur->subscribed == MWI_NOTIFICATION ? "--" : cur->subscribeuri,
 				cur->subscribed == MWI_NOTIFICATION ? "<none>" : ast_extension_state2str(cur->laststate), 
 				subscription_type2str(cur->subscribed),
-				cur->subscribed == MWI_NOTIFICATION ? (cur->relatedpeer ? cur->relatedpeer->mailbox : "<none>") : "<none>"
+				cur->subscribed == MWI_NOTIFICATION ? S_OR(mailbox_str->str, "<none>") : "<none>"
 );
 			arg->numchans++;
 		}
@@ -12700,7 +12750,9 @@ static int function_sippeer(struct ast_channel *chan, const char *cmd, char *dat
 	} else  if (!strcasecmp(colname, "useragent")) {
 		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
-		ast_copy_string(buf, peer->mailbox, len);
+		struct ast_str *mailbox_str = ast_str_alloca(512);
+		peer_mailboxes_to_str(&mailbox_str, peer);
+		ast_copy_string(buf, mailbox_str->str, len);
 	} else  if (!strcasecmp(colname, "context")) {
 		ast_copy_string(buf, peer->context, len);
 	} else  if (!strcasecmp(colname, "expire")) {
@@ -15563,6 +15615,18 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req)
 	return 1;
 }
 
+static void add_peer_mwi_subs(struct sip_peer *peer)
+{
+	struct sip_mailbox *mailbox;
+
+	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+		mailbox->event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, peer,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, S_OR(mailbox->context, "default"),
+			AST_EVENT_IE_END);
+	}
+}
+
 /*! \brief  Handle incoming SUBSCRIBE request */
 static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int seqno, char *e)
 {
@@ -15745,7 +15809,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		  The subscribed URI needs to exist in the dial plan
 		  In most devices, this is configurable to the voicemailmain extension you use
 		*/
-		if (!authpeer || ast_strlen_zero(authpeer->mailbox)) {
+		if (!authpeer || AST_LIST_EMPTY(&authpeer->mailboxes)) {
 			transmit_response(p, "404 Not found (no mailbox)", req);
 			p->needdestroy = 1;
 			ast_log(LOG_NOTICE, "Received SIP subscribe for peer without mailbox: %s\n", authpeer->name);
@@ -15756,15 +15820,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 		p->subscribed = MWI_NOTIFICATION;
 		if (ast_test_flag(&authpeer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY)) {
-			char *mailbox, *context;
-			context = mailbox = ast_strdupa(authpeer->mailbox);
-			strsep(&context, "@");
-			if (ast_strlen_zero(context))
-				context = "default";
-			authpeer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, authpeer,
-				AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-				AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-				AST_EVENT_IE_END);
+			add_peer_mwi_subs(authpeer);
 		}
 		if (authpeer->mwipvt && authpeer->mwipvt != p)	/* Destroy old PVT if this is a new one */
 			/* We only allow one subscription per peer */
@@ -15801,7 +15857,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 		if (sipdebug) {
 			if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer)
-				ast_debug(2, "Adding subscription for mailbox notification - peer %s Mailbox %s\n", p->relatedpeer->name, p->relatedpeer->mailbox);
+				ast_debug(2, "Adding subscription for mailbox notification - peer %s\n", p->relatedpeer->name);
 			else
 				ast_debug(2, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 		}
@@ -16234,13 +16290,39 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	return 1;
 }
 
+/*!
+ * \brief Get cached MWI info
+ * \retval 0 At least one message is waiting
+ * \retval 1 no messages waiting
+ */
+static int get_cached_mwi(struct sip_peer *peer, int *new, int *old)
+{
+	struct sip_mailbox *mailbox;
+
+	AST_LIST_TRAVERSE(&peer->mailboxes, mailbox, entry) {
+		struct ast_event *event;
+		event = ast_event_get_cached(AST_EVENT_MWI,
+			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox->mailbox,
+			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, mailbox->context,
+			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
+			AST_EVENT_IE_END);
+		if (!event)
+			continue;
+		*new += ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
+		*old += ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
+		ast_event_destroy(event);
+	}
+
+	return (*new || *old) ? 0 : 1;
+}
+
 /*! \brief Send message waiting indication to alert peer that they've got voicemail */
 static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *event, int cache_only)
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
 	int newmsgs = 0, oldmsgs = 0;
-	struct ast_event *cache_event = NULL;
 
 	if (ast_test_flag((&peer->flags[1]), SIP_PAGE2_SUBSCRIBEMWIONLY) && !peer->mwipvt)
 		return 0;
@@ -16249,30 +16331,18 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer, const struct ast_event *e
 	if (!peer->addr.sin_addr.s_addr && !peer->defaddr.sin_addr.s_addr) 
 		return 0;
 
-	if (!event) {
-		char *mailbox, *context = NULL;
-		/* Check the event cache for the mailbox info */
-		context = mailbox = ast_strdupa(peer->mailbox);
-		strsep(&context, "@");
-		if (ast_strlen_zero(context))
-			context = "default";
-		event = cache_event = ast_event_get_cached(AST_EVENT_MWI,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-			AST_EVENT_IE_NEWMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-			AST_EVENT_IE_OLDMSGS, AST_EVENT_IE_PLTYPE_EXISTS,
-			AST_EVENT_IE_END);
-	}
-
 	if (event) {
 		newmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_NEWMSGS);
 		oldmsgs = ast_event_get_ie_uint(event, AST_EVENT_IE_OLDMSGS);
-		if (cache_event)
-			ast_event_destroy(cache_event);
+	} else if (!get_cached_mwi(peer, &newmsgs, &oldmsgs)) {
+		/* got it!  Don't keep looking. */
 	} else if (cache_only) {
 		return 0;
-	} else /* Fall back to manually checking the mailbox */
-		ast_app_inboxcount(peer->mailbox, &newmsgs, &oldmsgs);
+	} else { /* Fall back to manually checking the mailbox */
+		struct ast_str *mailbox_str = ast_str_alloca(512);
+		peer_mailboxes_to_str(&mailbox_str, peer);
+		ast_app_inboxcount(mailbox_str->str, &newmsgs, &oldmsgs);
+	}
 	
 	if (peer->mwipvt) {
 		/* Base message on subscription */
@@ -17212,11 +17282,11 @@ static void set_peer_defaults(struct sip_peer *peer)
 	peer->fromdomain[0] = '\0';
 	peer->fromuser[0] = '\0';
 	peer->regexten[0] = '\0';
-	peer->mailbox[0] = '\0';
 	peer->callgroup = 0;
 	peer->pickupgroup = 0;
 	peer->maxms = default_qualify;
 	peer->prefs = default_prefs;
+	clear_peer_mailboxes(peer);
 }
 
 /*! \brief Create temporary peer (used in autocreatepeer mode) */
@@ -17239,6 +17309,30 @@ static struct sip_peer *temp_peer(const char *name)
 	reg_source_db(peer);
 
 	return peer;
+}
+
+static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
+{
+	char *next, *mbox, *context;
+
+	next = ast_strdupa(value);
+
+	while ((mbox = context = strsep(&next, ","))) {
+		struct sip_mailbox *mailbox;
+
+		if (!(mailbox = ast_calloc(1, sizeof(*mailbox))))
+			continue;
+
+		strsep(&context, "@");
+		if (ast_strlen_zero(mbox)) {
+			free(mailbox);
+			continue;
+		}
+		mailbox->mailbox = ast_strdup(mbox);
+		mailbox->context = ast_strdup(context);
+
+		AST_LIST_INSERT_TAIL(&peer->mailboxes, mailbox, entry);
+	}
 }
 
 /*! \brief Build peer from configuration (file or realtime static/dynamic) */
@@ -17427,7 +17521,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 		} else if (!strcasecmp(v->name, "mohsuggest")) {
 			ast_copy_string(peer->mohsuggest, v->value, sizeof(peer->mohsuggest));
 		} else if (!strcasecmp(v->name, "mailbox")) {
-			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
+			add_peer_mailboxes(peer, v->value);
 		} else if (!strcasecmp(v->name, "subscribemwi")) {
 			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_SUBSCRIBEMWIONLY);
 		} else if (!strcasecmp(v->name, "vmexten")) {
@@ -17499,16 +17593,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 	/* If they didn't request that MWI is sent *only* on subscribe, go ahead and
 	 * subscribe to it now. */
 	if (!ast_test_flag(&peer->flags[1], SIP_PAGE2_SUBSCRIBEMWIONLY) && 
-		!ast_strlen_zero(peer->mailbox)) {
-		char *mailbox, *context;
-		context = mailbox = ast_strdupa(peer->mailbox);
-		strsep(&context, "@");
-		if (ast_strlen_zero(context))
-			context = "default";
-		peer->mwi_event_sub = ast_event_subscribe(AST_EVENT_MWI, mwi_event_cb, peer,
-			AST_EVENT_IE_MAILBOX, AST_EVENT_IE_PLTYPE_STR, mailbox,
-			AST_EVENT_IE_CONTEXT, AST_EVENT_IE_PLTYPE_STR, context,
-			AST_EVENT_IE_END);
+		!AST_LIST_EMPTY(&peer->mailboxes)) {
+		add_peer_mwi_subs(peer);
 		/* Send MWI from the event cache only.  This is so we can send initial
 		 * MWI if app_voicemail got loaded before chan_sip.  If it is the other
 		 * way, then we will get events when app_voicemail gets loaded. */
