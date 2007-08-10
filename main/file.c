@@ -986,6 +986,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		forward = "";
 	if (!rewind)
 		rewind = "";
+
+	/* Switch the channel to end DTMF frame only. waitstream_core doesn't care about the start of DTMF. */
+	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
 	
 	while (c->stream) {
 		int res;
@@ -1000,6 +1003,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 			res = ast_waitfor(c, ms);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 				return res;
 			}
 		} else {
@@ -1010,9 +1014,11 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				if (errno == EINTR)
 					continue;
 				ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 				return -1;
 			} else if (outfd > -1) { /* this requires cmdfd set */
 				/* The FD we were watching has something waiting */
+				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 				return 1;
 			}
 			/* if rchan is set, it is 'c' */
@@ -1020,8 +1026,10 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		}
 		if (res > 0) {
 			struct ast_frame *fr = ast_read(c);
-			if (!fr)
+			if (!fr) {
+				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 				return -1;
+			}
 			switch (fr->frametype) {
 			case AST_FRAME_DTMF_END:
 				if (context) {
@@ -1029,6 +1037,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 					if (ast_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
 						res = fr->subclass;
 						ast_frfree(fr);
+						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 						return res;
 					}
 				} else {
@@ -1039,6 +1048,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 						ast_stream_rewind(c->stream, skip_ms);
 					} else if (strchr(breakon, res)) {
 						ast_frfree(fr);
+						ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 						return res;
 					}					
 				}
@@ -1049,6 +1059,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:
 					ast_frfree(fr);
+					ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return -1;
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
@@ -1073,6 +1084,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 		}
 		ast_sched_runq(c->sched);
 	}
+
+	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+
 	return (c->_softhangup ? -1 : 0);
 }
 
