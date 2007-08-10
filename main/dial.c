@@ -289,6 +289,8 @@ static int begin_dial_channel(struct ast_dial_channel *channel, struct ast_chann
 		ast_hangup(channel->owner);
 		channel->owner = NULL;
 	} else {
+		if (chan)
+			ast_poll_channel_add(chan, channel->owner);
 		res = 1;
 		ast_verb(3, "Called %s\n", numsubst);
 	}
@@ -595,6 +597,8 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 				set_state(dial, AST_DIAL_RESULT_HANGUP);
 				break;
 			}
+			if (chan)
+				ast_poll_channel_del(chan, channel->owner);
 			ast_hangup(who);
 			channel->owner = NULL;
 			continue;
@@ -616,6 +620,8 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		AST_LIST_TRAVERSE(&dial->channels, channel, list) {
 			if (!channel->owner || channel->owner == who)
 				continue;
+			if (chan)
+				ast_poll_channel_del(chan, channel->owner);
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 		}
@@ -632,6 +638,8 @@ static enum ast_dial_result monitor_dial(struct ast_dial *dial, struct ast_chann
 		AST_LIST_TRAVERSE(&dial->channels, channel, list) {
 			if (!channel->owner)
 				continue;
+			if (chan)
+				ast_poll_channel_del(chan, channel->owner);
 			ast_hangup(channel->owner);
 			channel->owner = NULL;
 		}
