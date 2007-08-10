@@ -41,14 +41,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/cli.h"
+#include "asterisk/astdb.h"
 
-struct custom_device {
-	int state;
-	AST_RWLIST_ENTRY(custom_device) entry;
-	char name[1];
-};
-
-static AST_RWLIST_HEAD_STATIC(custom_devices, custom_device);
+static const char astdb_family[] = "CustomDevstate";
 
 static int devstate_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
@@ -59,8 +54,7 @@ static int devstate_read(struct ast_channel *chan, const char *cmd, char *data, 
 
 static int devstate_write(struct ast_channel *chan, const char *cmd, char *data, const char *value)
 {
-	struct custom_device *dev;
-	int len = strlen("Custom:");
+	size_t len = strlen("Custom:");
 
 	if (strncasecmp(data, "Custom:", len)) {
 		ast_log(LOG_WARNING, "The DEVSTATE function can only be used to set 'Custom:' device state!\n");
@@ -72,46 +66,25 @@ static int devstate_write(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
-	AST_RWLIST_WRLOCK(&custom_devices);
-	AST_RWLIST_TRAVERSE(&custom_devices, dev, entry) {
-		if (!strcasecmp(dev->name, data))
-			break;
-	}
-	if (!dev) {
-		if (!(dev = ast_calloc(1, sizeof(*dev) + strlen(data) + 1))) {
-			AST_RWLIST_UNLOCK(&custom_devices);
-			return -1;
-		}
-		strcpy(dev->name, data);
-		AST_RWLIST_INSERT_HEAD(&custom_devices, dev, entry);
-	}
-	dev->state = ast_devstate_val(value);
-	ast_devstate_changed(dev->state, "Custom:%s", dev->name);
-	AST_RWLIST_UNLOCK(&custom_devices);
+	ast_db_put(astdb_family, data, value);
+
+	ast_devstate_changed(ast_devstate_val(value), "Custom:%s", data);
 
 	return 0;
 }
 
 static enum ast_device_state custom_devstate_callback(const char *data)
 {
-	struct custom_device *dev;
-	enum ast_device_state state = AST_DEVICE_UNKNOWN;
+	char buf[256] = "";
 
-	AST_RWLIST_RDLOCK(&custom_devices);
-	AST_RWLIST_TRAVERSE(&custom_devices, dev, entry) {
-		if (!strcasecmp(dev->name, data)) {
-			state = dev->state;	
-			break;
-		}
-	}
-	AST_RWLIST_UNLOCK(&custom_devices);
+	ast_db_get(astdb_family, data, buf, sizeof(buf));
 
-	return state;
+	return ast_devstate_val(buf);
 }
 
 static char *cli_funcdevstate_list(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct custom_device *dev;
+	struct ast_db_entry *db_entry, *db_tree;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -133,12 +106,18 @@ static char *cli_funcdevstate_list(struct ast_cli_entry *e, int cmd, struct ast_
 	        "--- Custom Device States --------------------------------------------\n"
 	        "---------------------------------------------------------------------\n"
 	        "---\n");
-	AST_RWLIST_RDLOCK(&custom_devices);
-	AST_RWLIST_TRAVERSE(&custom_devices, dev, entry) {
+
+	db_entry = db_tree = ast_db_gettree(astdb_family, NULL);
+	for (; db_entry; db_entry = db_entry->next) {
+		const char *dev_name = strrchr(db_entry->key, '/') + 1;
+		if (dev_name <= (const char *) 1)
+			continue;
 		ast_cli(a->fd, "--- Name: 'Custom:%s'  State: '%s'\n"
-		               "---\n", dev->name, ast_devstate_str(dev->state));
+		               "---\n", dev_name, db_entry->data);
 	}
-	AST_RWLIST_UNLOCK(&custom_devices);
+	ast_db_freetree(db_tree);
+	db_tree = NULL;
+
 	ast_cli(a->fd,
 	        "---------------------------------------------------------------------\n"
 	        "---------------------------------------------------------------------\n"
@@ -178,17 +157,11 @@ static struct ast_custom_function devstate_function = {
 
 static int unload_module(void)
 {
-	struct custom_device *dev;
 	int res = 0;
 
 	res |= ast_custom_function_unregister(&devstate_function);
 	res |= ast_devstate_prov_del("Custom");
 	res |= ast_cli_unregister_multiple(cli_funcdevstate, ARRAY_LEN(cli_funcdevstate));
-
-	AST_RWLIST_WRLOCK(&custom_devices);
-	while ((dev = AST_RWLIST_REMOVE_HEAD(&custom_devices, entry)))
-		ast_free(dev);
-	AST_RWLIST_UNLOCK(&custom_devices);
 
 	return res;
 }
@@ -196,6 +169,20 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res = 0;
+	struct ast_db_entry *db_entry, *db_tree;
+
+	/* Populate the device state cache on the system with all of the currently
+	 * known custom device states. */
+	db_entry = db_tree = ast_db_gettree(astdb_family, NULL);
+	for (; db_entry; db_entry = db_entry->next) {
+		const char *dev_name = strrchr(db_entry->key, '/') + 1;
+		if (dev_name <= (const char *) 1)
+			continue;
+		ast_devstate_changed(ast_devstate_val(db_entry->data),
+			"Custom:%s\n", dev_name);
+	}
+	ast_db_freetree(db_tree);
+	db_tree = NULL;
 
 	res |= ast_custom_function_register(&devstate_function);
 	res |= ast_devstate_prov_add("Custom", custom_devstate_callback);
