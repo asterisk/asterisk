@@ -552,25 +552,159 @@ struct soft_key_template_definition {
 #define SOFTKEY_GPICKUP			0x12
 
 struct soft_key_template_definition soft_key_template_default[] = {
-	{ "Redial",	 	0x01 },
-	{ "NewCall",	 	0x02 },
-	{ "Hold",	 	0x03 },
-	{ "Trnsfer",	 	0x04 },
-	{ "CFwdAll",	 	0x05 },
-	{ "CFwdBusy",	 	0x06 },
-	{ "CFwdNoAnswer",	0x07 },
-	{ "<<",		 	0x08 },
-	{ "EndCall",	 	0x09 },
-	{ "Resume",		0x0A },
-	{ "Answer",		0x0B },
-	{ "Info",		0x0C },
-	{ "Confrn",		0x0D },
-	{ "Park",		0x0E },
-	{ "Join",		0x0F },
-	{ "MeetMe",		0x10 },
-	{ "PickUp",		0x11 },
-	{ "GPickUp",		0x12 },
+	{ "\200\001", 		SOFTKEY_REDIAL },
+	{ "\200\002", 		SOFTKEY_NEWCALL },
+	{ "\200\003", 		SOFTKEY_HOLD },
+	{ "\200\004", 		SOFTKEY_TRNSFER },
+	{ "\200\005", 		SOFTKEY_CFWDALL },
+	{ "\200\006", 		SOFTKEY_CFWDBUSY },
+	{ "\200\007", 		SOFTKEY_CFWDNOANSWER },
+	{ "\200\010", 		SOFTKEY_BKSPC },
+	{ "\200\011", 		SOFTKEY_ENDCALL },
+	{ "\200\012", 		SOFTKEY_RESUME },
+	{ "\200\013", 		SOFTKEY_ANSWER },
+	{ "\200\014", 		SOFTKEY_INFO },
+	{ "\200\015", 		SOFTKEY_CONFRN },
+	{ "\200\016", 		SOFTKEY_PARK },
+	{ "\200\017", 		SOFTKEY_JOIN },
+	{ "\200\020", 		SOFTKEY_MEETME },
+	{ "\200\021", 		SOFTKEY_PICKUP },
+	{ "\200\022", 		SOFTKEY_GPICKUP },
 };
+
+/* Localized message "codes" (in octal)
+   Below is en_US (taken from a 7970)
+
+   \200\xxx
+       \000: ???
+       \001: Redial
+       \002: New Call
+       \003: Hold
+       \004: Transfer
+       \005: CFwdALL
+       \006: CFwdBusy
+       \007: CFwdNoAnswer
+       \010: <<
+       \011: EndCall
+       \012: Resume
+       \013: Answer
+       \014: Info
+       \015: Confrn
+       \016: Park
+       \017: Join
+       \020: MeetMe
+       \021: PickUp
+       \022: GPickUp
+       \023: Your current options
+       \024: Off Hook
+       \025: On Hook
+       \026: Ring out
+       \027: From
+       \030: Connected
+       \031: Busy
+       \032: Line In Use
+       \033: Call Waiting
+       \034: Call Transfer
+       \035: Call Park
+       \036: Call Proceed
+       \037: In Use Remote
+       \040: Enter number
+       \041: Call park At
+       \042: Primary Only
+       \043: Temp Fail
+       \044: You Have VoiceMail
+       \045: Forwarded to
+       \046: Can Not Complete Conference
+       \047: No Conference Bridge
+       \050: Can Not Hold Primary Control
+       \051: Invalid Conference Participant
+       \052: In Conference Already
+       \053: No Participant Info
+       \054: Exceed Maximum Parties
+       \055: Key Is Not Active
+       \056: Error No License
+       \057: Error DBConfig
+       \060: Error Database
+       \061: Error Pass Limit
+       \062: Error Unknown
+       \063: Error Mismatch
+       \064: Conference
+       \065: Park Number
+       \066: Private
+       \067: Not Enough Bandwidth
+       \070: Unknown Number
+       \071: RmLstC
+       \072: Voicemail
+       \073: ImmDiv
+       \074: Intrcpt
+       \075: SetWtch
+       \076: TrnsfVM
+       \077: DND
+       \100: DivAll
+       \101: CallBack
+       \102: Network congestion,rerouting
+       \103: Barge
+       \104: Failed to setup Barge
+       \105: Another Barge exists
+       \106: Incompatible device type
+       \107: No Park Number Available
+       \110: CallPark Reversion
+       \111: Service is not Active
+       \112: High Traffic Try Again Later
+       \113: QRT
+       \114: MCID
+       \115: DirTrfr
+       \116: Select
+       \117: ConfList
+       \120: iDivert
+       \121: cBarge
+       \122: Can Not Complete Transfer
+       \123: Can Not Join Calls
+       \124: Mcid Successful
+       \125: Number Not Configured
+       \126: Security Error
+       \127: Video Bandwidth Unavailable
+       \130: VidMode
+       \131: Max Call Duration Timeout
+       \132: Max Hold Duration Timeout
+       \133: OPickUp
+       \134: ???
+       \135: ???
+       \136: ???
+       \137: ???
+       \140: ???
+       \141: External Transfer Restricted
+       \142: ???
+       \143: ???
+       \144: ???
+       \145: Mac Address
+       \146: Host Name
+       \147: Domain Name
+       \150: IP Address
+       \151: Subnet Mask
+       \152: TFTP Server 1
+       \153: Default Router 1
+       \154: Default Router 2
+       \155: Default Router 3
+       \156: Default Router 4
+       \157: Default Router 5
+       \160: DNS Server 1
+       \161: DNS Server 2
+       \162: DNS Server 3
+       \163: DNS Server 4
+       \164: DNS Server 5
+       \165: Operational VLAN Id
+       \166: Admin. VLAN Id
+       \167: CallManager 1
+       \170: CallManager 2
+       \171: CallManager 3
+       \172: CallManager 4
+       \173: CallManager 5
+       \174: Information URL
+       \175: Directories URL
+       \176: Messages URL
+       \177: Services URL
+ */
 
 struct soft_key_definitions {
 	const uint8_t mode;
