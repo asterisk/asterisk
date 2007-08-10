@@ -155,7 +155,7 @@ static void __attribute__((constructor)) init_empty_mutex(void)
 	memset(&empty_mutex, 0, sizeof(empty_mutex));
 }
 
-static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno, const char *func,
+static inline int __ast_pthread_mutex_init_attr(int track, const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t,
 						pthread_mutexattr_t *attr) 
 {
@@ -179,11 +179,12 @@ static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno
 	t->func[0] = func;
 	t->thread[0]  = 0;
 	t->reentrancy = 0;
+	t->track = track;
 
 	return pthread_mutex_init(&t->mutex, attr);
 }
 
-static inline int __ast_pthread_mutex_init(const char *filename, int lineno, const char *func,
+static inline int __ast_pthread_mutex_init(int track, const char *filename, int lineno, const char *func,
 					   const char *mutex_name, ast_mutex_t *t)
 {
 	static pthread_mutexattr_t  attr;
@@ -191,9 +192,11 @@ static inline int __ast_pthread_mutex_init(const char *filename, int lineno, con
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
 
-	return __ast_pthread_mutex_init_attr(filename, lineno, func, mutex_name, t, &attr);
+	return __ast_pthread_mutex_init_attr(track, filename, lineno, func, mutex_name, t, &attr);
 }
-#define ast_mutex_init(pmutex) __ast_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
+#define ast_mutex_init(pmutex) __ast_pthread_mutex_init(1, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
+#define ast_mutex_init_notracking(pmutex) \
+	__ast_pthread_mutex_init(0, __FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 
 static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t)
@@ -564,6 +567,8 @@ typedef pthread_mutex_t ast_mutex_t;
 #define AST_MUTEX_INIT_VALUE_NOTRACKING \
 	((ast_mutex_t) PTHREAD_MUTEX_INIT_VALUE)
 
+#define ast_mutex_init_notracking(m) ast_mutex_init(m)
+
 static inline int ast_mutex_init(ast_mutex_t *pmutex)
 {
 	pthread_mutexattr_t attr;
@@ -633,11 +638,14 @@ static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const str
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 /* If AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
  constructors/destructors to create/destroy mutexes.  */
-#define __AST_MUTEX_DEFINE(scope, mutex, init_val) \
+#define __AST_MUTEX_DEFINE(scope, mutex, init_val, track) \
 	scope ast_mutex_t mutex = init_val; \
 static void  __attribute__ ((constructor)) init_##mutex(void) \
 { \
-	ast_mutex_init(&mutex); \
+	if (track) \
+		ast_mutex_init(&mutex); \
+	else \
+		ast_mutex_init_notracking(&mutex); \
 } \
 static void  __attribute__ ((destructor)) fini_##mutex(void) \
 { \
@@ -645,7 +653,7 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 }
 #else /* !AST_MUTEX_INIT_W_CONSTRUCTORS */
 /* By default, use static initialization of mutexes. */ 
-#define __AST_MUTEX_DEFINE(scope, mutex, init_val) \
+#define __AST_MUTEX_DEFINE(scope, mutex, init_val, track) \
 	scope ast_mutex_t mutex = init_val
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -663,8 +671,8 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 #define pthread_cond_wait use_ast_cond_wait_instead_of_pthread_cond_wait
 #define pthread_cond_timedwait use_ast_cond_timedwait_instead_of_pthread_cond_timedwait
 
-#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE)
-#define AST_MUTEX_DEFINE_STATIC_NOTRACKING(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE_NOTRACKING)
+#define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE, 1)
+#define AST_MUTEX_DEFINE_STATIC_NOTRACKING(mutex) __AST_MUTEX_DEFINE(static, mutex, AST_MUTEX_INIT_VALUE_NOTRACKING, 0)
 
 #define AST_MUTEX_INITIALIZER __use_AST_MUTEX_DEFINE_STATIC_rather_than_AST_MUTEX_INITIALIZER__
 
