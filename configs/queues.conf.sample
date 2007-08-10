@@ -344,6 +344,10 @@ monitor-type = MixMonitor
 ; messages as a "friendly name".  Multiple interfaces may share a single
 ; member name.
 ;
+; It is important to ensure that channel drivers used for members are loaded
+; before app_queue.so itself or they may be marked invalid until reload. This
+; can be accomplished by explicitly listing them in modules.conf before app_queue.so
+;
 ;member => Zap/1
 ;member => Zap/2,10
 ;member => Zap/3,10,Bob Johnson
