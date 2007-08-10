@@ -748,6 +748,7 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 			ast_cdr_busy(cdr);
 			break;
 		case AST_CAUSE_FAILURE:
+		case AST_CAUSE_NORMAL_CIRCUIT_CONGESTION:
 			ast_cdr_failed(cdr);
 			break;
 		case AST_CAUSE_NORMAL:
