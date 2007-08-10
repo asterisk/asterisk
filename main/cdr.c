@@ -757,7 +757,7 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 			break;
 		default:
 			res = -1;
-			ast_log(LOG_WARNING, "Cause not handled\n");
+			ast_log(LOG_WARNING, "Cause (%d) not handled\n", cause);
 		}
 	}
 	return res;
