@@ -86,7 +86,7 @@ static int devstate_write(struct ast_channel *chan, const char *cmd, char *data,
 		AST_RWLIST_INSERT_HEAD(&custom_devices, dev, entry);
 	}
 	dev->state = ast_devstate_val(value);
-	ast_device_state_changed("Custom:%s", dev->name);
+	ast_devstate_changed(dev->state, "Custom:%s", dev->name);
 	AST_RWLIST_UNLOCK(&custom_devices);
 
 	return 0;

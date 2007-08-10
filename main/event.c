@@ -35,7 +35,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 
-#define NUM_EVENT_THREADS 5
+/* Only use one thread for now to ensure ordered delivery */
+#define NUM_EVENT_THREADS 1
 
 struct ast_event_ie {
 	enum ast_event_ie_type ie_type:16;

@@ -349,13 +349,12 @@ static int adsi_announce_park(struct ast_channel *chan, char *parkingexten)
 }
 
 /*! \brief Notify metermaids that we've changed an extension */
-static void notify_metermaids(const char *exten, char *context)
+static void notify_metermaids(const char *exten, char *context, enum ast_device_state state)
 {
-	ast_debug(4, "Notification of state change to metermaids %s@%s\n", exten, context);
+	ast_debug(4, "Notification of state change to metermaids %s@%s\n to state '%s'", 
+		exten, context, devstate2str(state));
 
-	/* Send notification to devicestate subsystem */
-	ast_device_state_changed("park:%s@%s", exten, context);
-	return;
+	ast_devstate_changed(state, "park:%s@%s", exten, context);
 }
 
 /*! \brief metermaids callback from devicestate.c */
@@ -493,7 +492,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
 	if (con) {
 		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free, registrar))
-			notify_metermaids(pu->parkingexten, parking_con);
+			notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_INUSE);
 	}
 	if (pu->notquiteyet) {
 		/* Wake up parking thread if we're really done */
@@ -2097,7 +2096,7 @@ static void *do_parking_thread(void *ignore)
 					if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
 						ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 					else
-						notify_metermaids(pu->parkingexten, parking_con);
+						notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_NOT_INUSE);
 				} else
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 				ast_free(pu);
@@ -2131,7 +2130,7 @@ static void *do_parking_thread(void *ignore)
 							if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
 								ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 							else
-								notify_metermaids(pu->parkingexten, parking_con);
+								notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_NOT_INUSE);
 						} else
 							ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 						ast_free(pu);
@@ -2246,7 +2245,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
 				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 			else
-				notify_metermaids(pu->parkingexten, parking_con);
+				notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_NOT_INUSE);
 		} else
 			ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 
@@ -3030,7 +3029,7 @@ static int load_config(void)
 	/* Remove the old parking extension */
 	if (!ast_strlen_zero(old_parking_con) && (con = ast_context_find(old_parking_con)))	{
 		if(ast_context_remove_extension2(con, old_parking_ext, 1, registrar))
-				notify_metermaids(old_parking_ext, old_parking_con);
+				notify_metermaids(old_parking_ext, old_parking_con, AST_DEVICE_NOT_INUSE);
 		ast_debug(1, "Removed old parking extension %s@%s\n", old_parking_ext, old_parking_con);
 	}
 	
@@ -3042,7 +3041,7 @@ static int load_config(void)
 	if (parkaddhints)
 		park_add_hints(parking_con, parking_start, parking_stop);
 	if (!res)
-		notify_metermaids(ast_parking_ext(), parking_con);
+		notify_metermaids(ast_parking_ext(), parking_con, AST_DEVICE_INUSE);
 	return res;
 
 }

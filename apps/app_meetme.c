@@ -1513,7 +1513,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	/* This device changed state now - if this is the first user */
 	if (conf->users == 1)
-		ast_device_state_changed("meetme:%s", conf->confno);
+		ast_devstate_changed(AST_DEVICE_INUSE, "meetme:%s", conf->confno);
 
 	ast_mutex_unlock(&conf->playlock);
 
@@ -2333,7 +2333,7 @@ bailoutandtrynormal:
 
 		/* Change any states */
 		if (!conf->users)
-			ast_device_state_changed("meetme:%s", conf->confno);
+			ast_devstate_changed(AST_DEVICE_NOT_INUSE, "meetme:%s", conf->confno);
 		
 		/* Return the number of seconds the user was in the conf */
 		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
@@ -3305,6 +3305,23 @@ static struct sla_ringing_station *sla_create_ringing_station(struct sla_station
 	return ringing_station;
 }
 
+static enum ast_device_state sla_state_to_devstate(enum sla_trunk_state state)
+{
+	switch (state) {
+	case SLA_TRUNK_STATE_IDLE:
+		return AST_DEVICE_NOT_INUSE;
+	case SLA_TRUNK_STATE_RINGING:
+		return AST_DEVICE_RINGING;
+	case SLA_TRUNK_STATE_UP:
+		return AST_DEVICE_INUSE;
+	case SLA_TRUNK_STATE_ONHOLD:
+	case SLA_TRUNK_STATE_ONHOLD_BYME:
+		return AST_DEVICE_ONHOLD;
+	}
+
+	return AST_DEVICE_UNKNOWN;
+}
+
 static void sla_change_trunk_state(const struct sla_trunk *trunk, enum sla_trunk_state state, 
 	enum sla_which_trunk_refs inactive_only, const struct sla_trunk_ref *exclude)
 {
@@ -3317,7 +3334,8 @@ static void sla_change_trunk_state(const struct sla_trunk *trunk, enum sla_trunk
 				|| trunk_ref == exclude)
 				continue;
 			trunk_ref->state = state;
-			ast_device_state_changed("SLA:%s_%s", station->name, trunk->name);
+			ast_devstate_changed(sla_state_to_devstate(state), 
+				"SLA:%s_%s", station->name, trunk->name);
 			break;
 		}
 	}
@@ -3809,7 +3827,7 @@ static void sla_handle_hold_event(struct sla_event *event)
 {
 	ast_atomic_fetchadd_int((int *) &event->trunk_ref->trunk->hold_stations, 1);
 	event->trunk_ref->state = SLA_TRUNK_STATE_ONHOLD_BYME;
-	ast_device_state_changed("SLA:%s_%s", 
+	ast_devstate_changed(AST_DEVICE_ONHOLD, "SLA:%s_%s", 
 		event->station->name, event->trunk_ref->trunk->name);
 	sla_change_trunk_state(event->trunk_ref->trunk, SLA_TRUNK_STATE_ONHOLD, 
 		INACTIVE_TRUNK_REFS, event->trunk_ref);
@@ -4319,7 +4337,8 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 			sla_change_trunk_state(trunk_ref->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
 		else {
 			trunk_ref->state = SLA_TRUNK_STATE_UP;
-			ast_device_state_changed("SLA:%s_%s", station->name, trunk_ref->trunk->name);
+			ast_devstate_changed(AST_DEVICE_INUSE, 
+				"SLA:%s_%s", station->name, trunk_ref->trunk->name);
 		}
 	}
 
@@ -4536,21 +4555,7 @@ static enum ast_device_state sla_state(const char *data)
 			AST_RWLIST_UNLOCK(&sla_trunks);
 			break;
 		}
-		switch (trunk_ref->state) {
-		case SLA_TRUNK_STATE_IDLE:
-			res = AST_DEVICE_NOT_INUSE;
-			break;
-		case SLA_TRUNK_STATE_RINGING:
-			res = AST_DEVICE_RINGING;
-			break;
-		case SLA_TRUNK_STATE_UP:
-			res = AST_DEVICE_INUSE;
-			break;
-		case SLA_TRUNK_STATE_ONHOLD:
-		case SLA_TRUNK_STATE_ONHOLD_BYME:
-			res = AST_DEVICE_ONHOLD;
-			break;
-		}
+		res = sla_state_to_devstate(trunk_ref->state);
 		AST_RWLIST_UNLOCK(&sla_trunks);
 	}
 	AST_RWLIST_UNLOCK(&sla_stations);

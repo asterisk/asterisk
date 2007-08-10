@@ -25,6 +25,7 @@
  *
  *	\arg \ref AstExtState
  */
+
 /*! \page AstExtState Extension and device states in Asterisk
  *
  *	Asterisk has an internal system that reports states
@@ -166,6 +167,17 @@ static pthread_t change_thread = AST_PTHREADT_NULL;
 /*! \brief Flag for the queue */
 static ast_cond_t change_pending;
 
+/*! \brief Whether or not to cache this device state value */
+enum devstate_cache {
+	/*! Cache this value as it is coming from a device state provider which is
+	 *  pushing up state change events to us as they happen */
+	CACHE_ON,
+	/*! Don't cache this result, since it was pulled from the device state provider.
+	 *  We only want to cache results from device state providers that are being nice
+	 *  and pushing state change events up to us as they happen. */
+	CACHE_OFF,
+};
+
 /* Forward declarations */
 static int getproviderstate(const char *provider, const char *address);
 
@@ -261,18 +273,42 @@ enum ast_device_state ast_parse_device_state(const char *device)
 	return res;
 }
 
+static enum ast_device_state devstate_cached(const char *device)
+{
+	enum ast_device_state res = AST_DEVICE_UNKNOWN;
+	struct ast_event *event;
+
+	event = ast_event_get_cached(AST_EVENT_DEVICE_STATE,
+		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
+		AST_EVENT_IE_END);
+
+	if (!event)
+		return res;
+
+	res = ast_event_get_ie_uint(event, AST_EVENT_IE_STATE);
+
+	ast_event_destroy(event);
+
+	return res;
+}
+
 /*! \brief Check device state through channel specific function or generic function */
 enum ast_device_state ast_device_state(const char *device)
 {
 	char *buf;
 	char *number;
 	const struct ast_channel_tech *chan_tech;
-	enum ast_device_state res = AST_DEVICE_UNKNOWN;
+	enum ast_device_state res;
 	/*! \brief Channel driver that provides device state */
 	char *tech;
 	/*! \brief Another provider of device state */
 	char *provider = NULL;
-	
+
+	/* If the last known state is cached, just return that */
+	res = devstate_cached(device);
+	if (res != AST_DEVICE_UNKNOWN)
+		return res;
+
 	buf = ast_strdupa(device);
 	tech = strsep(&buf, "/");
 	if (!(number = buf)) {
@@ -368,16 +404,9 @@ static int getproviderstate(const char *provider, const char *address)
 	return res;
 }
 
-/*! \brief Notify callback watchers of change, and notify PBX core for hint updates
-	Normally executed within a separate thread
-*/
-static void do_state_change(const char *device)
+static void devstate_event(const char *device, enum ast_device_state state, enum devstate_cache cache)
 {
-	enum ast_device_state state;
 	struct ast_event *event;
-
-	state = ast_device_state(device);
-	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
 	if (!(event = ast_event_new(AST_EVENT_DEVICE_STATE,
 			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR, device,
@@ -386,12 +415,31 @@ static void do_state_change(const char *device)
 		return;
 	}
 
-	ast_event_queue_and_cache(event,
-		AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
-		AST_EVENT_IE_END);
+	if (cache == CACHE_ON) {
+		/* Cache this event, replacing an event in the cache with the same
+		 * device name if it exists. */
+		ast_event_queue_and_cache(event,
+			AST_EVENT_IE_DEVICE, AST_EVENT_IE_PLTYPE_STR,
+			AST_EVENT_IE_END);
+	} else {
+		ast_event_queue(event);
+	}
 }
 
-static int __ast_device_state_changed_literal(char *buf)
+/*! Called by the state change thread to find out what the state is, and then
+ *  to queue up the state change event */
+static void do_state_change(const char *device)
+{
+	enum ast_device_state state;
+
+	state = ast_device_state(device);
+
+	ast_debug(3, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
+
+	devstate_event(device, state, CACHE_OFF);
+}
+
+static int __ast_devstate_changed_literal(enum ast_device_state state, char *buf)
 {
 	char *device;
 	struct state_change *change;
@@ -404,8 +452,10 @@ static int __ast_device_state_changed_literal(char *buf)
 	tmp = strrchr(device, '-');
 	if (tmp)
 		*tmp = '\0';
-	
-	if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
+
+	if (state != AST_DEVICE_UNKNOWN) {
+		devstate_event(device, state, CACHE_ON);
+	} else if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
 		/* there is no background thread, so process the change now */
 		do_state_change(device);
@@ -421,11 +471,34 @@ static int __ast_device_state_changed_literal(char *buf)
 	return 1;
 }
 
+int ast_devstate_changed_literal(enum ast_device_state state, const char *dev)
+{
+	char *buf;
+
+	buf = ast_strdupa(dev);
+
+	return __ast_devstate_changed_literal(state, buf);
+}
+
 int ast_device_state_changed_literal(const char *dev)
 {
 	char *buf;
+
 	buf = ast_strdupa(dev);
-	return __ast_device_state_changed_literal(buf);
+
+	return __ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf);
+}
+
+int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...) 
+{
+	char buf[AST_MAX_EXTENSION];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+
+	return __ast_devstate_changed_literal(state, buf);
 }
 
 /*! \brief Accept change notification, add it to change queue */
@@ -437,7 +510,8 @@ int ast_device_state_changed(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	va_end(ap);
-	return __ast_device_state_changed_literal(buf);
+
+	return __ast_devstate_changed_literal(AST_DEVICE_UNKNOWN, buf);
 }
 
 /*! \brief Go through the dev state change queue and update changes in the dev state thread */
