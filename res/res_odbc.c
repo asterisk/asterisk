@@ -416,8 +416,16 @@ struct odbc_obj *ast_odbc_request_obj(const char *name, int check)
 			}
 			ast_mutex_init(&obj->lock);
 			obj->parent = class;
-			odbc_obj_connect(obj);
-			AST_LIST_INSERT_TAIL(&class->odbc_obj, obj, list);
+			if (odbc_obj_connect(obj) == ODBC_FAIL) {
+				ast_log(LOG_WARNING, "Failed to connect to %s\n", name);
+				ast_mutex_destroy(&obj->lock);
+				free(obj);
+				obj = NULL;
+				class->count--;
+			} else {
+				obj->used = 1;
+				AST_LIST_INSERT_TAIL(&class->odbc_obj, obj, list);
+			}
 		}
 	} else {
 		/* Non-pooled connection: multiple modules can use the same connection. */
