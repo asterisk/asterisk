@@ -1495,9 +1495,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		tmp->cid.cid_num = ast_strdup(i->cid_num);
 		tmp->cid.cid_ani = ast_strdup(i->cid_num);
-		tmp->cid.cid_name = ast_strdup(i->cid_name);
 		
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;

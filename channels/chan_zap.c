@@ -5616,16 +5616,12 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
 #ifdef PRI_ANI
-	tmp->cid.cid_num = ast_strdup(i->cid_num);
-	tmp->cid.cid_name = ast_strdup(i->cid_name);
 	if (!ast_strlen_zero(i->cid_ani))
 		tmp->cid.cid_ani = ast_strdup(i->cid_ani);
 	else	
 		tmp->cid.cid_ani = ast_strdup(i->cid_num);
 #else
-	tmp->cid.cid_num = ast_strdup(i->cid_num);
 	tmp->cid.cid_ani = ast_strdup(i->cid_num);
-	tmp->cid.cid_name = ast_strdup(i->cid_name);
 #endif
 	tmp->cid.cid_pres = i->callingpres;
 	tmp->cid.cid_ton = i->cid_ton;

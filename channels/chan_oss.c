@@ -1036,9 +1036,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o, char *ext, char *ctx,
 		ast_string_field_set(c, language, o->language);
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a needless NewCallerID event */
-	c->cid.cid_num = ast_strdup(o->cid_num);
 	c->cid.cid_ani = ast_strdup(o->cid_num);
-	c->cid.cid_name = ast_strdup(o->cid_name);
 	if (!ast_strlen_zero(ext))
 		c->cid.cid_dnid = ast_strdup(ext);
 

@@ -3569,8 +3569,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate a NewCallerID event before the NewChannel event */
-	tmp->cid.cid_num = ast_strdup(i->cid_num);
-	tmp->cid.cid_name = ast_strdup(i->cid_name);
 	if (!ast_strlen_zero(i->ani))
 		tmp->cid.cid_ani = ast_strdup(i->ani);
 	else

@@ -1079,9 +1079,7 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		ch->cid.cid_num = ast_strdup(cid_num);
 		ch->cid.cid_ani = ast_strdup(cid_num);
-		ch->cid.cid_name = ast_strdup(cid_name);
 
 		if (pvt->cd.redirect_reason >= 0) {
 			ch->cid.cid_rdnis = ast_strdup(pvt->cd.redirect_number);

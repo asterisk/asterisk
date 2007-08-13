@@ -3206,16 +3206,10 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		else
 			chan_misdn_log(1, 0, "misdn_new: no exten given.\n");
 
-		if (callerid) {
-			char *cid_name, *cid_num;
-      
-			ast_callerid_parse(callerid, &cid_name, &cid_num);
+		if (callerid)
 			/* Don't use ast_set_callerid() here because it will
 			 * generate a needless NewCallerID event */
-			tmp->cid.cid_num = ast_strdup(cid_num);
 			tmp->cid.cid_ani = ast_strdup(cid_num);
-			tmp->cid.cid_name = ast_strdup(cid_name);
-		}
 
 		if (pipe(chlist->pipe) < 0)
 			ast_log(LOG_ERROR, "Pipe failed\n");

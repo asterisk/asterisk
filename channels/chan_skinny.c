@@ -3229,9 +3229,7 @@ static struct ast_channel *skinny_new(struct skinny_line *l, int state)
 
 		/* Don't use ast_set_callerid() here because it will
 		 * generate a needless NewCallerID event */
-		tmp->cid.cid_num = ast_strdup(l->cid_num);
 		tmp->cid.cid_ani = ast_strdup(l->cid_num);
-		tmp->cid.cid_name = ast_strdup(l->cid_name);
 
 		tmp->priority = 1;
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
