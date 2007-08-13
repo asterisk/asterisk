@@ -3568,7 +3568,7 @@ void add_extensions(struct ael_extension *exten)
 {
 	struct ael_priority *pr;
 	char *label=0;
-	char realext[256]="";
+	char realext[AST_MAX_EXTENSION];
 	if (!exten) {
 		ast_log(LOG_WARNING, "This file is Empty!\n" );
 		return;
@@ -3576,7 +3576,7 @@ void add_extensions(struct ael_extension *exten)
 	do {
 		struct ael_priority *last = 0;
 
-		realext[0] = 0; /* make sure this is properly initialized */
+		memset(realext, '\0', sizeof(realext));
 		pbx_substitute_variables_helper(NULL, exten->name, realext, sizeof(realext) - 1);
 		if (exten->hints) {
 			if (ast_add_extension2(exten->context, 0 /*no replace*/, realext, PRIORITY_HINT, NULL, exten->cidmatch, 
