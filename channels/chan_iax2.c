@@ -6127,13 +6127,21 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
 }
 
-static int registry_authrequest(const char *name, int callno)
+static int registry_authrequest(int callno)
 {
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
 	char challenge[10];
+	const char *peer_name;
+
+	peer_name = ast_strdupa(iaxs[callno]->peer);
+
 	/* SLD: third call to find_peer in registration */
-	p = find_peer(name, 1);
+	ast_mutex_unlock(&iaxsl[callno]);
+	p = find_peer(peer_name, 1);
+	ast_mutex_lock(&iaxsl[callno]);
+	if (!iaxs[callno])
+		return -1;
 	if (p) {
 		memset(&ied, 0, sizeof(ied));
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
@@ -6144,12 +6152,12 @@ static int registry_authrequest(const char *name, int callno)
 			/* snprintf(iaxs[callno]->challenge, sizeof(iaxs[callno]->challenge), "%d", (int)ast_random()); */
 			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
 		}
-		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
+		iax_ie_append_str(&ied, IAX_IE_USERNAME, peer_name);
 		if (ast_test_flag(p, IAX_TEMPONLY))
 			destroy_peer(p);
 		return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
 	} 
-	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
+	ast_log(LOG_WARNING, "No such peer '%s'\n", peer_name);
 	return 0;
 }
 
@@ -8175,7 +8183,11 @@ retryowner2:
 					}
 					break;
 				}
-				registry_authrequest(iaxs[fr->callno]->peer, fr->callno);
+				registry_authrequest(fr->callno);
+				if (!iaxs[fr->callno]) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
 				break;
 			case IAX_COMMAND_REGACK:
 				if (iax2_ack_registry(&ies, &sin, fr->callno)) 
