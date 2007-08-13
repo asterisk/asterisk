@@ -154,7 +154,7 @@ int ast_speech_write(struct ast_speech *speech, void *data, int len)
 }
 
 /*! \brief Signal to the engine that DTMF was received */
-int ast_speech_dtmf(struct ast_speech *speech, char dtmf)
+int ast_speech_dtmf(struct ast_speech *speech, const char *dtmf)
 {
 	int res = 0;
 

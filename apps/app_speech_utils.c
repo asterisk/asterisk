@@ -662,7 +662,6 @@ static int speech_background(struct ast_channel *chan, void *data)
 			/* Free the frame we received */
 			switch (f->frametype) {
 			case AST_FRAME_DTMF:
-				ast_speech_dtmf(speech, f->subclass);
 				if (dtmf_terminator != '\0' && f->subclass == dtmf_terminator) {
 					done = 1;
 				} else {
@@ -702,6 +701,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 		/* We sort of make a results entry */
 		speech->results = ast_calloc(1, sizeof(*speech->results));
 		if (speech->results != NULL) {
+			ast_speech_dtmf(speech, dtmf);
 			speech->results->score = 1000;
 			speech->results->text = ast_strdup(dtmf);
 			speech->results->grammar = ast_strdup("dtmf");
