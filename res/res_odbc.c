@@ -176,7 +176,7 @@ int ast_odbc_sanity_check(struct odbc_obj *obj)
 	SQLHSTMT stmt;
 	int res = 0;
 
-	if (obj->parent->sanitysql)
+	if (!ast_strlen_zero(obj->parent->sanitysql))
 		test_sql = obj->parent->sanitysql;
 
 	if (obj->up) {
