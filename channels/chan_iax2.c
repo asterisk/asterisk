@@ -5339,10 +5339,11 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	}
 
 	/* SLD: first call to lookup peer during registration */
+	ast_mutex_unlock(&iaxsl[callno]);
 	p = find_peer(peer, 1);
-
-	if (!p) {
-		if (authdebug)
+	ast_mutex_lock(&iaxsl[callno]);
+	if (!p || !iaxs[callno]) {
+		if (authdebug && !p)
 			ast_log(LOG_NOTICE, "No registration for peer '%s' (from %s)\n", peer, ast_inet_ntoa(sin->sin_addr));
 		return -1;
 	}
@@ -5449,8 +5450,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 
 	if (ast_test_flag(p, IAX_TEMPONLY))
 		destroy_peer(p);
+
 	return 0;
-	
 }
 
 static int authenticate(const char *challenge, const char *secret, const char *keyn, int authmethods, struct iax_ie_data *ied, struct sockaddr_in *sin, ast_aes_encrypt_key *ecx, ast_aes_decrypt_key *dcx)
@@ -6242,7 +6243,6 @@ static int auth_fail(int callno, int failcode)
 {
 	/* Schedule sending the authentication failure in one second, to prevent
 	   guessing */
-	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		iaxs[callno]->authfail = failcode;
 		if (delayreject) {
@@ -6252,7 +6252,6 @@ static int auth_fail(int callno, int failcode)
 		} else
 			auth_reject((void *)(long)callno);
 	}
-	ast_mutex_unlock(&iaxsl[callno]);
 	return 0;
 }
 
@@ -8143,9 +8142,17 @@ retryowner2:
 				if (delayreject)
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 				if (register_verify(fr->callno, &sin, &ies)) {
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
 					/* Send delayed failure */
 					auth_fail(fr->callno, IAX_COMMAND_REGREJ);
 					break;
+				}
+				if (!iaxs[fr->callno]) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
 				}
 				if ((ast_strlen_zero(iaxs[fr->callno]->secret) && ast_strlen_zero(iaxs[fr->callno]->inkeys)) || 
 						ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED)) {
