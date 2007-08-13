@@ -1397,6 +1397,8 @@ static int make_trunk(unsigned short callno, int locked)
  * However, it's too late to change that now.  Instead, we need to come up with
  * a better way of indexing active calls so that these frequent lookups are not
  * so expensive.
+ *
+ * \note Calling this function while holding another pvt lock can cause a deadlock.
  */
 static int find_callno(unsigned short callno, unsigned short dcallno, struct sockaddr_in *sin, int new, int lockpeer, int sockfd)
 {
@@ -2674,6 +2676,10 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	return 0;
 }
 
+/*!
+ * \note This function calls reg_source_db -> iax2_poke_peer -> find_callno,
+ *       so do not call this with a pvt lock held.
+ */
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
 	struct ast_variable *var;
@@ -5496,6 +5502,10 @@ static int authenticate(const char *challenge, const char *secret, const char *k
 	return res;
 }
 
+/*!
+ * \note This function calls realtime_peer -> reg_source_db -> iax2_poke_peer -> find_callno,
+ *       so do not call this function with a pvt lock held.
+ */
 static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, struct iax_ies *ies, const char *override, const char *okey)
 {
 	struct iax2_peer *peer = NULL;
@@ -5503,7 +5513,8 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 	int res = -1;
 	int authmethods = 0;
 	struct iax_ie_data ied;
-	
+	uint16_t callno = p->callno;
+
 	memset(&ied, 0, sizeof(ied));
 	
 	if (ies->username)
@@ -5540,10 +5551,20 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		if (!peer) {
 			/* We checked our list and didn't find one.  It's unlikely, but possible, 
 			   that we're trying to authenticate *to* a realtime peer */
-			if ((peer = realtime_peer(p->peer, NULL))) {
+			const char *peer_name = ast_strdupa(p->peer);
+			ast_mutex_unlock(&iaxsl[callno]);
+			if ((peer = realtime_peer(peer_name, NULL))) {
+				ast_mutex_lock(&iaxsl[callno]);
+				if (!(p = iaxs[callno]))
+					return -1;
 				res = authenticate(p->challenge, peer->secret,peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 				if (ast_test_flag(peer, IAX_TEMPONLY))
 					destroy_peer(peer);
+			}
+			if (!peer) {
+				ast_mutex_lock(&iaxsl[callno]);
+				if (!(p = iaxs[callno]))
+					return -1;
 			}
 		}
 	}
@@ -7845,6 +7866,10 @@ retryowner2:
 					ast_log(LOG_WARNING, 
 						"I don't know how to authenticate %s to %s\n", 
 						ies.username ? ies.username : "<unknown>", ast_inet_ntoa(iaxs[fr->callno]->addr.sin_addr));
+				}
+				if (!iaxs[fr->callno]) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
 				}
 				break;
 			case IAX_COMMAND_AUTHREP:
