@@ -2919,7 +2919,7 @@ int ast_set_write_format(struct ast_channel *chan, int fmt)
 			  &chan->writetrans, 1);
 }
 
-char *ast_channel_reason2str(int reason)
+const char *ast_channel_reason2str(int reason)
 {
 	switch (reason) /* the following appear to be the only ones actually returned by request_and_dial */
 	{

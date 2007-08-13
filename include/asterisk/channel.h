@@ -1458,14 +1458,12 @@ int ast_channel_whisper_feed(struct ast_channel *chan, struct ast_frame *f);
  */
 void ast_channel_whisper_stop(struct ast_channel *chan);
 
-
-
 /*!
   \brief return an english explanation of the code returned thru __ast_request_and_dial's 'outstate' argument
   \param reason  The integer argument, usually taken from AST_CONTROL_ macros
   \return char pointer explaining the code
  */
-char *ast_channel_reason2str(int reason);
+const char *ast_channel_reason2str(int reason);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)
