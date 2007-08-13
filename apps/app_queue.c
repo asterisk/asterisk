@@ -410,6 +410,7 @@ struct call_queue {
 
 static AST_LIST_HEAD_STATIC(queues, call_queue);
 
+static void update_realtime_members(struct call_queue *q);
 static int set_member_paused(const char *queuename, const char *interface, int paused);
 
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
@@ -1254,6 +1255,8 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 			ast_variables_destroy(queue_vars);
 
 		AST_LIST_UNLOCK(&queues);
+	} else {
+		update_realtime_members(q);
 	}
 	return q;
 }

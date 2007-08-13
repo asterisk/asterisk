@@ -144,6 +144,7 @@ Queue changes
      position changes frequently.
   * Added additional information to EXITWITHTIMEOUT and EXITWITHKEY events in the
      queue log.
+  * Added ability for non-realtime queues to have realtime members
 
 MeetMe Changes
 --------------
