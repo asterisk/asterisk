@@ -7447,8 +7447,15 @@ retryowner:
 				/* Ignore if it's already up */
 				if (ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
-				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
+				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
 					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
+					ast_mutex_lock(&iaxsl[fr->callno]);
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
+				}
 				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
 				if (ast_test_flag(iaxs[fr->callno], IAX_TRUNK)) {
 					int new_callno;
@@ -8109,8 +8116,15 @@ retryowner2:
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr->callno]->peer, &sin, fr->callno, ies.devicetype, fd, ies.refresh))
 						ast_log(LOG_WARNING, "Registry error\n");
-					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
+					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
 						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
+						ast_mutex_lock(&iaxsl[fr->callno]);
+						if (!iaxs[fr->callno]) {
+							ast_mutex_unlock(&iaxsl[fr->callno]);
+							return 1;
+						}
+					}
 					break;
 				}
 				registry_authrequest(iaxs[fr->callno]->peer, fr->callno);
