@@ -153,6 +153,21 @@ int ast_speech_write(struct ast_speech *speech, void *data, int len)
 	return speech->engine->write(speech, data, len);
 }
 
+/*! \brief Signal to the engine that DTMF was received */
+int ast_speech_dtmf(struct ast_speech *speech, char dtmf)
+{
+	int res = 0;
+
+	if (speech->state != AST_SPEECH_STATE_READY)
+		return -1;
+
+	if (speech->engine->dtmf != NULL) {
+		res = speech->engine->dtmf(speech, dtmf);
+	}
+
+	return res;
+}
+
 /*! \brief Change an engine specific attribute */
 int ast_speech_change(struct ast_speech *speech, char *name, const char *value)
 {

@@ -662,6 +662,7 @@ static int speech_background(struct ast_channel *chan, void *data)
 			/* Free the frame we received */
 			switch (f->frametype) {
 			case AST_FRAME_DTMF:
+				ast_speech_dtmf(speech, f->subclass);
 				if (dtmf_terminator != '\0' && f->subclass == dtmf_terminator) {
 					done = 1;
 				} else {

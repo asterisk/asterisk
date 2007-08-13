@@ -87,6 +87,8 @@ struct ast_speech_engine {
 	int (*deactivate)(struct ast_speech *speech, char *grammar_name);
 	/*! Write audio to the speech engine */
 	int (*write)(struct ast_speech *speech, void *data, int len);
+	/*! Signal DTMF was received */
+	int (*dtmf)(struct ast_speech *speech, char dtmf);
 	/*! Prepare engine to accept audio */
 	int (*start)(struct ast_speech *speech);
 	/*! Change an engine specific setting */
@@ -134,6 +136,8 @@ struct ast_speech *ast_speech_new(char *engine_name, int formats);
 int ast_speech_destroy(struct ast_speech *speech);
 /*! \brief Write audio to the speech engine */
 int ast_speech_write(struct ast_speech *speech, void *data, int len);
+/*! \brief Signal to the engine that DTMF was received */
+int ast_speech_dtmf(struct ast_speech *speech, char dtmf);
 /*! \brief Change an engine specific attribute */
 int ast_speech_change(struct ast_speech *speech, char *name, const char *value);
 /*! \brief Change the type of results we want */
