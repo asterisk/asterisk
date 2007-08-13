@@ -1184,6 +1184,10 @@ static int uncompress_subclass(unsigned char csub)
 		return csub;
 }
 
+/*!
+ * \note This funtion calls realtime_peer -> reg_source_db -> iax2_poke_peer -> find_callno,
+ *       so do not call it with a pvt lock held.
+ */
 static struct iax2_peer *find_peer(const char *name, int realtime) 
 {
 	struct iax2_peer *peer = NULL;
@@ -5988,7 +5992,7 @@ static void reg_source_db(struct iax2_peer *p)
 	}
 }
 
-static int update_registry(const char *name, struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
+static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
 {
 	/* Called from IAX thread only, with proper iaxsl lock */
 	struct iax_ie_data ied;
@@ -5996,22 +6000,30 @@ static int update_registry(const char *name, struct sockaddr_in *sin, int callno
 	int msgcount;
 	char data[80];
 	int version;
+	const char *peer_name;
 
 	memset(&ied, 0, sizeof(ied));
 
+	peer_name = ast_strdupa(iaxs[callno]->peer);
+
 	/* SLD: Another find_peer call during registration - this time when we are really updating our registration */
-	if (!(p = find_peer(name, 1))) {
-		ast_log(LOG_WARNING, "No such peer '%s'\n", name);
+	ast_mutex_unlock(&iaxsl[callno]);
+	if (!(p = find_peer(peer_name, 1))) {
+		ast_mutex_lock(&iaxsl[callno]);
+		ast_log(LOG_WARNING, "No such peer '%s'\n", peer_name);
 		return -1;
 	}
+	ast_mutex_lock(&iaxsl[callno]);
+	if (!iaxs[callno])
+		return -1;
 
 	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS))) {
 		if (sin->sin_addr.s_addr) {
 			time_t nowtime;
 			time(&nowtime);
-			realtime_update_peer(name, sin, nowtime);
+			realtime_update_peer(peer_name, sin, nowtime);
 		} else {
-			realtime_update_peer(name, sin, 0);
+			realtime_update_peer(peer_name, sin, 0);
 		}
 	}
 	if (inaddrcmp(&p->addr, sin)) {
@@ -8139,8 +8151,12 @@ retryowner2:
 						ast_test_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
-					if (update_registry(iaxs[fr->callno]->peer, &sin, fr->callno, ies.devicetype, fd, ies.refresh))
+					if (update_registry(&sin, fr->callno, ies.devicetype, fd, ies.refresh))
 						ast_log(LOG_WARNING, "Registry error\n");
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
 					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr) {
 						ast_mutex_unlock(&iaxsl[fr->callno]);
 						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
