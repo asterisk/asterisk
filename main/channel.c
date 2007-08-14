@@ -1934,6 +1934,12 @@ static struct ast_channel *ast_waitfor_nandfds_complex(struct ast_channel **c, i
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds,
 					int *exception, int *outfd, int *ms)
 {
+	/* Clear all provided values in one place. */
+	if (outfd)
+		*outfd = -99999;
+	if (exception)
+		*exception = 0;
+
 	/* If no epoll file descriptor is available resort to classic nandfds */
 	if (!n || nfds || c[0]->epfd == -1)
 		return ast_waitfor_nandfds_classic(c, n, fds, nfds, exception, outfd, ms);
