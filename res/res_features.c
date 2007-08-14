@@ -699,14 +699,18 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			ast_cdr_setdestchan(transferer->cdr, transferee->name);
 			ast_cdr_setapp(transferer->cdr, "BLINDTRANSFER","");
 		}
-		if (!transferee->pbx)
+		if (!transferee->pbx) {
+			/* Doh!  Use our handy async_goto functions */
+			if (option_verbose > 2) 
+				ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
+								,transferee->name, xferto, transferer_real_context);
+			if (ast_async_goto(transferee, transferer_real_context, xferto, 1))
+				ast_log(LOG_WARNING, "Async goto failed :-(\n");
 			res = -1;
-		
-		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
-				    ,transferee->name, xferto, transferer_real_context);
-		if (ast_async_goto(transferee, transferer_real_context, xferto, 1))
-			ast_log(LOG_WARNING, "Async goto failed :-(\n");
+		} else {
+			/* Set the channel's new extension, since it exists, using transferer context */
+			set_c_e_p(transferee, transferer_real_context, xferto, 0);
+		}
 		check_goto_on_transfer(transferer);
 		return res;
 	} else {
