@@ -5560,8 +5560,11 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			ast_mutex_unlock(&iaxsl[callno]);
 			if ((peer = realtime_peer(peer_name, NULL))) {
 				ast_mutex_lock(&iaxsl[callno]);
-				if (!(p = iaxs[callno]))
+				if (!(p = iaxs[callno])) {
+					if (ast_test_flag(peer, IAX_TEMPONLY))
+						destroy_peer(peer);
 					return -1;
+				}
 				res = authenticate(p->challenge, peer->secret,peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 				if (ast_test_flag(peer, IAX_TEMPONLY))
 					destroy_peer(peer);
