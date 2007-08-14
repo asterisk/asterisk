@@ -6079,6 +6079,7 @@ static void *ss_thread(void *data)
 				ast_hangup(chan);
 				return NULL;
 			} else if (res)  {
+				ast_debug(1,"waitfordigit returned '%c' (%d), timeout = %d\n", res, res, timeout);
 				exten[len++]=res;
 				exten[len] = '\0';
 			}
