@@ -3697,15 +3697,18 @@ void add_extensions(struct ael_extension *exten)
 {
 	struct ael_priority *pr;
 	char *label=0;
+	char realext[AST_MAX_EXTENSION];
 	if (!exten) {
 		ast_log(LOG_WARNING, "This file is Empty!\n" );
 		return;
 	}
 	do {
 		struct ael_priority *last = 0;
-		
+
+		memset(realext, '\0', sizeof(realext)); /* make sure this is properly initialized */
+		pbx_substitute_variables_helper(NULL, exten->name, realext, sizeof(realext) - 1);
 		if (exten->hints) {
-			if (ast_add_extension2(exten->context, 0 /*no replace*/, exten->name, PRIORITY_HINT, NULL, exten->cidmatch, 
+			if (ast_add_extension2(exten->context, 0 /*no replace*/, realext, PRIORITY_HINT, NULL, exten->cidmatch, 
 								  exten->hints, NULL, ast_free, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority 'hint' of extension '%s'\n",
 						exten->name);
@@ -3785,7 +3788,7 @@ void add_extensions(struct ael_extension *exten)
 			else
 				label = 0;
 			
-			if (ast_add_extension2(exten->context, 0 /*no replace*/, exten->name, pr->priority_num, (label?label:NULL), exten->cidmatch, 
+			if (ast_add_extension2(exten->context, 0 /*no replace*/, realext, pr->priority_num, (label?label:NULL), exten->cidmatch, 
 								  app, strdup(appargs), ast_free, registrar)) {
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of extension '%s'\n", pr->priority_num, 
 						exten->name);
@@ -3885,6 +3888,22 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 	struct ael_extension *exten;
 	struct ael_extension *exten_list = 0;
 
+	for (p=root; p; p=p->next ) { /* do the globals first, so they'll be there
+									 when we try to eval them */
+		switch (p->type) {
+		case PV_GLOBALS:
+			/* just VARDEC elements */
+			for (p2=p->u1.list; p2; p2=p2->next) {
+				char buf2[2000];
+				snprintf(buf2,sizeof(buf2),"%s=%s", p2->u1.str, p2->u2.val);
+				pbx_builtin_setvar(NULL, buf2);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	
 	for (p=root; p; p=p->next ) {
 		pval *lp;
 		int argc;
@@ -3948,12 +3967,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			break;
 			
 		case PV_GLOBALS:
-			/* just VARDEC elements */
-			for (p2=p->u1.list; p2; p2=p2->next) {
-				char buf2[2000];
-				snprintf(buf2,sizeof(buf2),"%s=%s", p2->u1.str, p2->u2.val);
-				pbx_builtin_setvar(NULL, buf2);
-			}
+			/* already done */
 			break;
 			
 		case PV_CONTEXT:

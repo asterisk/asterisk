@@ -164,6 +164,17 @@ void ast_unregister_file_version(void)
 	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
 
 }
+void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
+void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count)
+{
+	if (cp1 && *cp1)
+		strncpy(cp2,cp1,AST_MAX_EXTENSION); /* Right now, this routine is ONLY being called for 
+											   a possible var substitution on extension names,
+											   so....! */
+	else
+		*cp2 = 0;
+}
+
 int ast_add_extension2(struct ast_context *con,
 			int replace, const char *extension, int priority, const char *label, const char *callerid,
 			const char *application, void *data, void (*datad)(void *),

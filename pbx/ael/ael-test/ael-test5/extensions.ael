@@ -275,14 +275,14 @@ context test-phinfo {
 
 context long-distance {
 	includes {
-		local;
+		local1;
 	};
 
 	_91XXXXXXXXXX => &dialout(${EXTEN});
 	_9011. => &dialout(${EXTEN});
 };
 
-context local {
+context local1 {
 	includes {
 		default;
 	};
@@ -472,7 +472,7 @@ context app-calltrace-perform {
 		};
 	};
 
-	1 => goto local|${ct_calltrace}|1;
+	1 => goto local1|${ct_calltrace}|1;
 
 	i => {
 		Playback(vm-goodbye);
