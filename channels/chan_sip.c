@@ -18625,7 +18625,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	ast_string_field_build(p, our_contact, "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
 	transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq);
 
-	sip_scheddestroy(p, 32000);	/* Make sure we stop send this reply. */
+	sip_scheddestroy(p, SIP_TRANS_TIMEOUT);	/* Make sure we stop send this reply. */
 	sip_alreadygone(p);
 	/* hangup here */
 	return 0;
