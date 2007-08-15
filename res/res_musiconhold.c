@@ -73,41 +73,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define INITIAL_NUM_FILES   8
 
-static char *app0 = "MusicOnHold";
-static char *app1 = "WaitMusicOnHold";
-static char *app2 = "SetMusicOnHold";
-static char *app3 = "StartMusicOnHold";
-static char *app4 = "StopMusicOnHold";
+static char *play_moh = "MusicOnHold";
+static char *wait_moh = "WaitMusicOnHold";
+static char *set_moh = "SetMusicOnHold";
+static char *start_moh = "StartMusicOnHold";
+static char *stop_moh = "StopMusicOnHold";
 
-static char *synopsis0 = "Play Music On Hold indefinitely";
-static char *synopsis1 = "Wait, playing Music On Hold";
-static char *synopsis2 = "Set default Music On Hold class";
-static char *synopsis3 = "Play Music On Hold";
-static char *synopsis4 = "Stop Playing Music On Hold";
+static char *play_moh_syn = "Play Music On Hold indefinitely";
+static char *wait_moh_syn = "Wait, playing Music On Hold";
+static char *set_moh_syn = "Set default Music On Hold class";
+static char *start_moh_syn = "Play Music On Hold";
+static char *stop_moh_syn = "Stop Playing Music On Hold";
 
-static char *descrip0 = "MusicOnHold(class): "
+static char *play_moh_desc = "MusicOnHold(class): "
 "Plays hold music specified by class.  If omitted, the default\n"
 "music source for the channel will be used. Set the default \n"
 "class with the SetMusicOnHold() application.\n"
 "Returns -1 on hangup.\n"
 "Never returns otherwise.\n";
 
-static char *descrip1 = "WaitMusicOnHold(delay): "
+static char *wait_moh_desc = "WaitMusicOnHold(delay): "
 "Plays hold music specified number of seconds.  Returns 0 when\n"
 "done, or -1 on hangup.  If no hold music is available, the delay will\n"
 "still occur with no sound.\n";
 
-static char *descrip2 = "SetMusicOnHold(class): "
+static char *set_moh_desc = "SetMusicOnHold(class): "
 "Sets the default class for music on hold for a given channel.  When\n"
 "music on hold is activated, this class will be used to select which\n"
 "music is played.\n";
 
-static char *descrip3 = "StartMusicOnHold(class): "
+static char *start_moh_desc = "StartMusicOnHold(class): "
 "Starts playing music on hold, uses default music class for channel.\n"
 "Starts playing music specified by class.  If omitted, the default\n"
 "music source for the channel will be used.  Always returns 0.\n";
 
-static char *descrip4 = "StopMusicOnHold: "
+static char *stop_moh_desc = "StopMusicOnHold: "
 "Stops playing music on hold.\n";
 
 static int respawn_time = 20;
@@ -597,7 +597,7 @@ static void *monmp3thread(void *data)
 	return NULL;
 }
 
-static int moh0_exec(struct ast_channel *chan, void *data)
+static int play_moh_exec(struct ast_channel *chan, void *data)
 {
 	if (ast_moh_start(chan, data, NULL)) {
 		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
@@ -608,7 +608,7 @@ static int moh0_exec(struct ast_channel *chan, void *data)
 	return -1;
 }
 
-static int moh1_exec(struct ast_channel *chan, void *data)
+static int wait_moh_exec(struct ast_channel *chan, void *data)
 {
 	int res;
 	if (!data || !atoi(data)) {
@@ -624,7 +624,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int moh2_exec(struct ast_channel *chan, void *data)
+static int set_moh_exec(struct ast_channel *chan, void *data)
 {
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
@@ -634,7 +634,7 @@ static int moh2_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int moh3_exec(struct ast_channel *chan, void *data)
+static int start_moh_exec(struct ast_channel *chan, void *data)
 {
 	char *class = NULL;
 	if (data && strlen(data))
@@ -645,7 +645,7 @@ static int moh3_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int moh4_exec(struct ast_channel *chan, void *data)
+static int stop_moh_exec(struct ast_channel *chan, void *data)
 {
 	ast_moh_stop(chan);
 
@@ -1216,17 +1216,17 @@ static int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
+	res = ast_register_application(play_moh, play_moh_exec, play_moh_syn, play_moh_desc);
 	ast_register_atexit(ast_moh_destroy);
 	ast_cli_register_multiple(cli_moh, sizeof(cli_moh) / sizeof(struct ast_cli_entry));
 	if (!res)
-		res = ast_register_application(app1, moh1_exec, synopsis1, descrip1);
+		res = ast_register_application(wait_moh, wait_moh_exec, wait_moh_syn, wait_moh_desc);
 	if (!res)
-		res = ast_register_application(app2, moh2_exec, synopsis2, descrip2);
+		res = ast_register_application(set_moh, set_moh_exec, set_moh_syn, set_moh_desc);
 	if (!res)
-		res = ast_register_application(app3, moh3_exec, synopsis3, descrip3);
+		res = ast_register_application(start_moh, start_moh_exec, start_moh_syn, start_moh_desc);
 	if (!res)
-		res = ast_register_application(app4, moh4_exec, synopsis4, descrip4);
+		res = ast_register_application(stop_moh, stop_moh_exec, stop_moh_syn, stop_moh_desc);
 
 	if (!init_classes(0)) { 	/* No music classes configured, so skip it */
 		ast_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.\n");
