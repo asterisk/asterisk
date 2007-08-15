@@ -2319,6 +2319,15 @@ static int misdn_hangup(struct ast_channel *ast)
 
 	bc = p->bc;
 
+	if (bc) {
+		const char *tmp=pbx_builtin_getvar_helper(ast,"MISDN_USERUSER");
+		if (tmp) {
+			ast_log(LOG_NOTICE, "MISDN_USERUSER: %s\n", tmp);
+			strcpy(bc->uu, tmp);
+			bc->uulen=strlen(bc->uu);
+		}
+	}
+
 	MISDN_ASTERISK_TECH_PVT(ast) = NULL;
 	p->ast = NULL;
 

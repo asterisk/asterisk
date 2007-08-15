@@ -1348,7 +1348,7 @@ static void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, ch
 		
 	if (MISDN_IE_DEBG) printf("    protocol=%d user-user%s\n", protocol, debug);
 
-	l = user_len;
+	l = user_len+1;
 	p = msg_put(msg, l+3);
 	if (nt)
 		*ntmode = p+1;

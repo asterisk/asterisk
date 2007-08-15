@@ -797,6 +797,12 @@ static msg_t *build_disconnect (struct isdn_msg msgs[], struct misdn_bchannel *b
 	
 	enc_ie_cause(&disconnect->CAUSE, msg, (nt)?1:0, bc->out_cause,nt,bc);
 	if (nt) enc_ie_progress(&disconnect->PROGRESS, msg, 0, nt?1:5, 8 ,nt,bc);
+
+	if (bc->uulen) {
+		int  protocol=4;
+		enc_ie_useruser(&disconnect->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
+		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+	}
   
 #ifdef DEBUG 
 	printf("Building DISCONNECT Msg\n"); 
@@ -867,6 +873,12 @@ static msg_t *build_release (struct isdn_msg msgs[], struct misdn_bchannel *bc, 
   
 	if (bc->out_cause>= 0)
 		enc_ie_cause(&release->CAUSE, msg, nt?1:0, bc->out_cause, nt,bc);
+
+	if (bc->uulen) {
+		int  protocol=4;
+		enc_ie_useruser(&release->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
+		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+	}
   
 #ifdef DEBUG 
 	printf("Building RELEASE Msg\n"); 
@@ -917,6 +929,12 @@ static msg_t *build_release_complete (struct isdn_msg msgs[], struct misdn_bchan
 	release_complete=(RELEASE_COMPLETE_t*)((msg->data+HEADER_LEN)); 
 	
 	enc_ie_cause(&release_complete->CAUSE, msg, nt?1:0, bc->out_cause, nt,bc);
+
+	if (bc->uulen) {
+		int  protocol=4;
+		enc_ie_useruser(&release_complete->USER_USER, msg, protocol, bc->uu, bc->uulen, nt,bc);
+		cb_log(1,bc->port,"ENCODING USERUESRINFO:%s\n",bc->uu);
+	}
   
 #ifdef DEBUG 
 	printf("Building RELEASE_COMPLETE Msg\n"); 
