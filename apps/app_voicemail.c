@@ -5961,7 +5961,7 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 
 	if (!res && vms->oldmessages) {
 		lastnum = get_lastdigits(vms->oldmessages);
-		dcnum = vms->newmessages - lastnum;
+		dcnum = vms->oldmessages - lastnum;
 		if (dcnum)
 			res = say_and_wait(chan, dcnum, chan->language);
 		if (!res && lastnum) {
