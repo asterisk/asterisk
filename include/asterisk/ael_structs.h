@@ -25,6 +25,8 @@
 #ifndef _ASTERISK_AEL_STRUCTS_H
 #define _ASTERISK_AEL_STRUCTS_H
 
+#include "pval.h"
+
 #if !defined(SOLARIS) && !defined(__CYGWIN__)
 /* #include <err.h> */
 #else
@@ -46,118 +48,15 @@
 #  endif
 
 
-typedef enum {
-	PV_WORD, /* an ident, string, name, label, etc. A user-supplied string. */ /* 0 */
-	PV_MACRO,             /* 1 */
-	PV_CONTEXT,           /* 2 */
-	PV_MACRO_CALL,        /* 3 */
-	PV_APPLICATION_CALL,  /* 4 */
-	PV_CASE,              /* 5 */
-	PV_PATTERN,           /* 6 */
-	PV_DEFAULT,           /* 7 */
-	PV_CATCH,             /* 8 */
-	PV_SWITCHES,          /* 9 */
-	PV_ESWITCHES,         /* 10 */
-	PV_INCLUDES,          /* 11 */
-	PV_STATEMENTBLOCK,    /* 12 */
-	PV_VARDEC, /* you know, var=val; */  /* 13 */
-	PV_GOTO,              /* 14 */
-	PV_LABEL,             /* 15 */
-	PV_FOR,               /* 16 */
-	PV_WHILE,             /* 17 */
-	PV_BREAK,             /* 18 */
-	PV_RETURN,            /* 19 */
-	PV_CONTINUE,          /* 20 */
-	PV_IF,                /* 21 */
-	PV_IFTIME,            /* 22 */
-	PV_RANDOM,            /* 23 */
-	PV_SWITCH,            /* 24 */
-	PV_EXTENSION,         /* 25 */
-	PV_IGNOREPAT,         /* 26 */
-	PV_GLOBALS,           /* 27 */
-	PV_LOCALVARDEC, /* you know, local var=val; */  /* 28 */
-
-} pvaltype;
-
-/* why this horrible mess? It's always been a tradeoff-- tons of structs,
-   each storing it's specific lists of goodies, or a 'simple' single struct,
-   with lots of fields, that catches all uses at once. Either you have a long
-   list of struct names and subnames, or you have a long list of field names,
-   and where/how they are used. I'm going with a single struct, using unions
-   to reduce storage. Some simple generalizations, and a long list of types,
-   and a book about what is used with what types.... Sorry!
-*/
-
-struct pval
-{
-	pvaltype type;
-	int startline;
-	int endline;
-	int startcol;
-	int endcol;
-	char *filename;
-	
-	union
-	{
-		char *str; /* wow, used almost everywhere! */
-		struct pval *list; /* used in SWITCHES, ESWITCHES, INCLUDES, STATEMENTBLOCK, GOTO */
-		struct pval *statements;/*  used in EXTENSION */
-		char *for_init;  /* used in FOR */
-	} u1;
-	struct pval *u1_last; /* to build in-order lists -- looks like we only need one */
-	
-	union
-	{
-		struct pval *arglist; /* used in macro_call, application_call, MACRO def, also attached to PWORD, the 4 timevals for includes  */
-		struct pval *statements; /* used in case, default, catch, while's statement, CONTEXT elements, GLOBALS */
-		char *val;  /* used in VARDEC */
-		char *for_test; /* used in FOR */
-		int label_in_case; /* a boolean for LABELs */
-		struct pval *goto_target;  /* used in GOTO */
-	} u2;
-	
-	union
-	{
-		char *for_inc; /* used in FOR */
-		struct pval *else_statements; /* used in IF */
-		struct pval *macro_statements; /* used in MACRO */
-		int abstract;  /* used for context */
-		char *hints; /* used in EXTENSION */
-		int goto_target_in_case; /* used in GOTO */
-		struct ael_extension *compiled_label;
-	} u3;
-	
-	union
-	{
-		struct pval *for_statements; /* used in PV_FOR */
-		int regexten;                /* used in EXTENSION */
-	} u4;
-	
-	struct pval *next; /* the pval at the end of this ptr will ALWAYS be of the same type as this one! 
-						  EXCEPT for objects of the different types, that are in the same list, like contexts & macros, etc */
-	
-	struct pval *dad; /* the 'container' of this struct instance */
-	struct pval *prev; /* the opposite of the 'next' pointer */
-} ;
-
-
-typedef struct pval pval;
-
 #if 0
-pval *npval(pvaltype type, int first_line, int last_line, int first_column, int last_column);
-void linku1(pval *head, pval *tail);
-void print_pval_list(FILE *f, pval *item, int depth);
-void print_pval(FILE *f, pval *item, int depth);
-void ael2_semantic_check(pval *item, int *errs, int *warns, int *notes);
-struct pval *find_label_in_current_context(char *exten, char *label);
-struct pval *find_label_in_current_extension(char *label);
-int count_labels_in_current_context(char *label);
-struct pval *find_label_in_current_db(char *context, char *exten, char *label);
-void ael2_print(char *fname, pval *tree);
 #endif
+void ael2_semantic_check(pval *item, int *errs, int *warns, int *notes);
+pval *npval(pvaltype type, int first_line, int last_line, int first_column, int last_column);
+pval *linku1(pval *head, pval *tail);
+void ael2_print(char *fname, pval *tree);
 struct pval *ael2_parse(char *fname, int *errs);	/* in ael.flex */
 void destroy_pval(pval *item);
-
+ 
 extern char *prev_word;	/* in ael.flex */
 
 #ifndef YY_TYPEDEF_YY_SCANNER_T

@@ -16,7 +16,7 @@
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr
+ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael
 UTILS:=$(ALL_UTILS)
 
 include $(ASTTOPDIR)/Makefile.rules
@@ -40,6 +40,7 @@ endif
 
 ifneq ($(filter pbx_ael,$(MENUSELECT_PBX)),)
   UTILS:=$(filter-out aelparse,$(UTILS))
+  UTILS:=$(filter-out conf2ael,$(UTILS))
 endif
 
 all: $(UTILS)
@@ -57,8 +58,8 @@ uninstall:
 clean:
 	rm -f *.o $(ALL_UTILS) check_expr
 	rm -f .*.o.d .*.oo.d
-	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c
-	rm -f aelparse.c aelbison.c
+	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c pval.c
+	rm -f aelparse.c aelbison.c conf2ael
 
 md5.c: ../main/md5.c
 	@cp $< $@
@@ -80,6 +81,9 @@ strcompat.c: ../main/strcompat.c
 	@echo "   [FLEX] ../main/ast_expr2.fl -> $@"
 	@flex -o $@ --full ../main/ast_expr2.fl
 
+pval.c: ../res/ael/pval.c
+	@cp $< $@
+
 ast_expr2.c: ../main/ast_expr2.c
 	@cp $< $@
 
@@ -88,12 +92,14 @@ ast_expr2f.c: ../main/ast_expr2f.c
 
 ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
+pval.o : ASTCFLAGS+=-DSTANDALONE
+
 check_expr: check_expr.o ast_expr2.o ast_expr2f.o
 
-aelbison.c: ../pbx/ael/ael.tab.c
+aelbison.c: ../res/ael/ael.tab.c
 	@cp $< $@
-aelbison.o: aelbison.c ../pbx/ael/ael.tab.h ../include/asterisk/ael_structs.h
-aelbison.o: ASTCFLAGS+=-I../pbx/ael  -DYYENABLE_NLS=0
+aelbison.o: aelbison.c ../res/ael/ael.tab.h ../include/asterisk/ael_structs.h
+aelbison.o: ASTCFLAGS+=-I../res/ael  -DYYENABLE_NLS=0
 
 pbx_ael.c: ../pbx/pbx_ael.c
 	@cp $< $@
@@ -101,12 +107,17 @@ pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
 
 ael_main.o: ael_main.c ../include/asterisk/ael_structs.h
 
-aelparse.c: ../pbx/ael/ael_lex.c
+aelparse.c: ../res/ael/ael_lex.c
 	@cp $< $@
-aelparse.o: aelparse.c ../include/asterisk/ael_structs.h ../pbx/ael/ael.tab.h
-aelparse.o: ASTCFLAGS+=-I../pbx -DSTANDALONE_AEL
+aelparse.o: aelparse.c ../include/asterisk/ael_structs.h ../res/ael/ael.tab.h
+aelparse.o: ASTCFLAGS+=-I../res -DSTANDALONE_AEL
 
-aelparse: aelparse.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o
+aelparse: aelparse.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
+
+extconf.o : extconf.c
+
+conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o
+
 
 testexpr2s: ../main/ast_expr2f.c ../main/ast_expr2.c ../main/ast_expr2.h
 	$(CC) -g -c -I../include -DSTANDALONE_AEL ../main/ast_expr2f.c -o ast_expr2f.o

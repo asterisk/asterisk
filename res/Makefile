@@ -25,7 +25,24 @@ all: _all
 
 include $(ASTTOPDIR)/Makefile.moddir_rules
 
+ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
+ael/ael_lex.o: ASTCFLAGS+=-I. -Iael 
+
+ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
+ael/ael.tab.o: ASTCFLAGS+=-I. -Iael -DYYENABLE_NLS=0
+
 $(if $(filter res_snmp,$(EMBEDDED_MODS)),modules.link,res_snmp.so): snmp/agent.o
+
+$(if $(filter res_ael_share,$(EMBEDDED_MODS)),modules.link,res_ael_share.so): ael/ael_lex.o ael/ael.tab.o ael/pval.o
+
+ael/ael_lex.c:
+	(cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
+
+ael/ael.tab.c ael/ael.tab.h:
+	(cd ael; bison -v -d ael.y)
+
+ael/pval.o: ael/pval.c
 
 clean::
 	rm -f snmp/*.o
+	rm -f ael*.o

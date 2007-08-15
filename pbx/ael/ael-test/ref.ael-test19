@@ -2,15 +2,18 @@
 (If you find progress and other non-error messages irritating, you can use -q to suppress them)
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
-LOG: lev:2 file:pbx_ael.c  line:4092 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:pbx_ael.c  line:4099 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:4107 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:4 file:pbx_ael.c  line:2372 func: check_context_names  Error: file ./extensions.ael, line 49-62: The context name (incoming) is also declared in file ./extensions.ael, line 62-69!
-LOG: lev:3 file:pbx_ael.c  line:739 func: check_macro_returns  Warning: file ./extensions.ael, line 71-175: The macro std-priv-exten does not end with a return; I will insert one.
-LOG: lev:3 file:pbx_ael.c  line:2356 func: check_switch_expr  Warning: file ./extensions.ael, line 245-246: A default case was automatically added to the switch.
-LOG: lev:3 file:pbx_ael.c  line:2472 func: check_pval_item  Warning: file ./extensions.ael, line 312-312: macro call to non-existent funcA ! Hopefully it is present in extensions.conf! 
-LOG: lev:3 file:pbx_ael.c  line:2472 func: check_pval_item  Warning: file ./extensions.ael, line 313-313: macro call to non-existent funcD ! Hopefully it is present in extensions.conf! 
-LOG: lev:3 file:pbx_ael.c  line:1398 func: check_goto  Warning: file ./extensions.ael, line 319-319: goto:  no context test5 could be found that matches the goto target!
-LOG: lev:3 file:pbx_ael.c  line:739 func: check_macro_returns  Warning: file ./extensions.ael, line 363-366: The macro dialoutpstn does not end with a return; I will insert one.
-LOG: lev:4 file:pbx_ael.c  line:4120 func: pbx_load_module  Sorry, but 0 syntax errors and 1 semantic errors were detected. It doesn't make sense to compile.
-LOG: lev:4 file:ael2_parse  line:522 func: main  0 contexts, 0 extensions, 0 priorities
+LOG: lev:2 file:pbx_ael.c  line:1680 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:1687 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:1695 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:3 file:pval.c  line:2296 func: check_context_names  Warning: file ./extensions.ael, line 49-62: The context name (incoming) is also declared in file ./extensions.ael, line 62-69!
+LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 71-175: The macro std-priv-exten does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 245-246: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2422 func: check_pval_item  Warning: file ./extensions.ael, line 312-312: macro call to non-existent funcA! (Not even in the extensions.conf stuff!)
+LOG: lev:3 file:pval.c  line:2422 func: check_pval_item  Warning: file ./extensions.ael, line 313-313: macro call to non-existent funcD! (Not even in the extensions.conf stuff!)
+LOG: lev:3 file:pval.c  line:1342 func: check_goto  Warning: file ./extensions.ael, line 319-319: goto:  Couldn't find goto target test5|s|1, not even in extensions.conf!
+LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 363-366: The macro dialoutpstn does not end with a return; I will insert one.
+LOG: lev:2 file:pbx_ael.c  line:1698 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:1700 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:1703 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:1706 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:521 func: main  13 contexts, 51 extensions, 182 priorities

@@ -891,13 +891,11 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define argg 3
 #define comment 4
 
-#ifndef YY_NO_UNISTD_H
 /* Special case for "unistd.h", since it is non-ANSI. We include it way
  * down here because we want the user's section 1 to have been scanned first.
  * The user has a chance to override it with an option.
  */
 #include <unistd.h>
-#endif
 
 #ifndef YY_EXTRA_TYPE
 #define YY_EXTRA_TYPE void *
@@ -940,8 +938,6 @@ struct yyguts_t
     YYLTYPE * yylloc_r;
 
     }; /* end struct yyguts_t */
-
-static int yy_init_globals (yyscan_t yyscanner );
 
     /* This must go here because YYSTYPE and YYLTYPE are included
      * from bison output in section 1.*/
@@ -1093,11 +1089,9 @@ static int input (yyscan_t yyscanner );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int ael_yylex \
-               (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
+extern int ael_yylex (YYSTYPE * yylval_param,YYLTYPE * yylloc_param ,yyscan_t yyscanner);
 
-#define YY_DECL int ael_yylex \
-               (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
+#define YY_DECL int ael_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , yyscan_t yyscanner)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -1127,7 +1121,7 @@ YY_DECL
 #line 173 "ael.flex"
 
 
-#line 1130 "ael_lex.c"
+#line 1124 "ael_lex.c"
 
     yylval = yylval_param;
 
@@ -1753,7 +1747,7 @@ YY_RULE_SETUP
 #line 461 "ael.flex"
 ECHO;
 	YY_BREAK
-#line 1756 "ael_lex.c"
+#line 1750 "ael_lex.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1939,7 +1933,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			int num_to_read =
+			size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -2504,10 +2498,10 @@ YY_BUFFER_STATE ael_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
  * @note If you want to scan bytes that may contain NUL values, then use
  *       ael_yy_scan_bytes() instead.
  */
-YY_BUFFER_STATE ael_yy_scan_string (yyconst char * yy_str , yyscan_t yyscanner)
+YY_BUFFER_STATE ael_yy_scan_string (yyconst char * str , yyscan_t yyscanner)
 {
     
-	return ael_yy_scan_bytes(yy_str,strlen(yy_str) ,yyscanner);
+	return ael_yy_scan_bytes(str,strlen(str) ,yyscanner);
 }
 
 /** Setup the input buffer state to scan the given bytes. The next call to ael_yylex() will

@@ -17,6 +17,10 @@ AEL:
   not include it, but really, you should make sure that all execution
   paths within your macros end in "return;".
 
+* The conf2ael program is 'introduced' in this release; it is in a rather
+  crude state, but deemed useful for making a first pass at converting
+  extensions.conf code into AEL. More intelligence will come with time.
+
 Core:
 
 * The 'languageprefix' option in asterisk.conf is now deprecated, and

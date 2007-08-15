@@ -10,11 +10,13 @@
 #include <limits.h>
 
 #include "asterisk/compat.h"
-#include "asterisk/ast_expr.h"
 #include "asterisk/channel.h"
+#include "asterisk/ast_expr.h"
+#include "asterisk/ast_expr.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
+#include "asterisk/extconf.h"
 
 struct namelist
 {
@@ -105,6 +107,41 @@ static int use_curr_dir = 0;
 static int dump_extensions = 0;
 static int FIRST_TIME = 0;
 static FILE *dumpfile;
+
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	        va_list vars;
+		        va_start(vars,fmt);
+			
+			        printf("LOG: lev:%d file:%s  line:%d func: %s  ",
+						                   level, file, line, function);
+				        vprintf(fmt, vars);
+					        fflush(stdout);
+						        va_end(vars);
+}
+
+struct ast_exten *pbx_find_extension(struct ast_channel *chan,
+									 struct ast_context *bypass,
+									 struct pbx_find_info *q,
+									 const char *context, 
+									 const char *exten, 
+									 int priority,
+									 const char *label, 
+									 const char *callerid, 
+									 enum ext_match_t action);
+
+struct ast_exten *pbx_find_extension(struct ast_channel *chan,
+									 struct ast_context *bypass,
+									 struct pbx_find_info *q,
+									 const char *context, 
+									 const char *exten, 
+									 int priority,
+									 const char *label, 
+									 const char *callerid, 
+									 enum ext_match_t action)
+{
+	return localized_find_extension(bypass, q, context, exten, priority, label, callerid, action);
+}
 
 struct ast_app *pbx_findapp(const char *app)
 {
@@ -390,56 +427,6 @@ void ast_context_destroy(void)
 		printf("Executed ast_context_destroy();\n");
 }
 
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
-{
-        va_list vars;
-        va_start(vars,fmt);
-	if( !quiet || level > 2 ) {
-    	    printf("LOG: lev:%d file:%s  line:%d func: %s  ",
-                   level, file, line, function);
-            vprintf(fmt, vars);
-            fflush(stdout);
-            va_end(vars);
-	}
-}
-
-void ast_verbose(const char *fmt, ...)
-{
-        va_list vars;
-        va_start(vars,fmt);
-
-        printf("VERBOSE: ");
-        vprintf(fmt, vars);
-        fflush(stdout);
-        va_end(vars);
-}
-
-char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
-{
-        char *dataPut = start;
-        int inEscape = 0;
-        int inQuotes = 0;
-
-        for (; *start; start++) {
-                if (inEscape) {
-                        *dataPut++ = *start;       /* Always goes verbatim */
-                        inEscape = 0;
-                } else {
-                        if (*start == '\\') {
-                                inEscape = 1;      /* Do not copy \ into the data */
-                        } else if (*start == '\'') {
-                                inQuotes = 1-inQuotes;   /* Do not copy ' into the data */
-                        } else {
-                                /* Replace , with |, unless in quotes */
-                                *dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
-                        }
-                }
-        }
-        if (start != dataPut)
-                *dataPut = 0;
-        return dataPut;
-}
-
 void filter_leading_space_from_exprs(char *str)
 {
 	/*  Mainly for aesthetics */
@@ -478,7 +465,8 @@ void filter_newlines(char *str)
 
 
 extern struct module_symbols mod_data;
-extern int ael_external_load_module(void);
+int ael_external_load_module(void);
+
 
 int main(int argc, char **argv)
 {
@@ -511,9 +499,11 @@ int main(int argc, char **argv)
 
 	if( use_curr_dir ) {
 		strcpy(ast_config_AST_CONFIG_DIR, ".");
+		localized_use_local_dir();
 	}
 	else {
 		strcpy(ast_config_AST_CONFIG_DIR, "/etc/asterisk");
+		localized_use_conf_dir();
 	}
 	strcpy(ast_config_AST_VAR_DIR, "/var/lib/asterisk");
 	

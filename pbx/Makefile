@@ -28,20 +28,6 @@ include $(ASTTOPDIR)/Makefile.moddir_rules
 clean::
 	rm -f ael/*.o
 
-ael/ael_lex.o: ael/ael_lex.c ../include/asterisk/ael_structs.h ael/ael.tab.h
-ael/ael_lex.o: ASTCFLAGS+=-I.
-
-ael/ael.tab.o: ael/ael.tab.c ael/ael.tab.h ../include/asterisk/ael_structs.h
-ael/ael.tab.o: ASTCFLAGS+=-I. -DYYENABLE_NLS=0
-
-$(if $(filter pbx_ael,$(EMBEDDED_MODS)),modules.link,pbx_ael.so): ael/ael.tab.o ael/ael_lex.o
-
-ael/ael_lex.c:
-	(cd ael; flex ael.flex; sed -i -e "/begin standard C headers/i#include \"asterisk.h\"" ael_lex.c)
-
-ael/ael.tab.c ael/ael.tab.h:
-	(cd ael; bison -v -d ael.y)
-
 dundi-parser.o: dundi-parser.h
 dundi-parser.o: ASTCFLAGS+=-I.
 

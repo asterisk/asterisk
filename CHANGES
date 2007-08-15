@@ -186,6 +186,12 @@ AEL Changes
      by saying "local myvar=someval;"  or using Set() in this
      fashion:  Set(LOCAL(myvar)=someval);  ("local" is now
      an AEL keyword).
+  * utils/conf2ael introduced. Will convert an extensions.conf
+    file into extensions.ael. Very crude and unfinished, but 
+    will be improved as time goes by. Should be useful for a
+    first pass at conversion.
+  * aelparse will now read extensions.conf to see if a referenced
+    macro or context is there before issueing a warning.
 
 Zaptel channel driver (chan_zap) Changes
 ----------------------------------------

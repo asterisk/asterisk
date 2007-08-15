@@ -33,12 +33,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/ael_structs.h"
 
-static pval * linku1(pval *head, pval *tail);
+pval * linku1(pval *head, pval *tail);
 static void set_dads(pval *dad, pval *child_list);
 void reset_parencount(yyscan_t yyscanner);
 void reset_semicount(yyscan_t yyscanner);
 void reset_argcount(yyscan_t yyscanner );
-
+ 
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
 
@@ -63,7 +63,7 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio, char const *s);
 int ael_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , void * yyscanner);
 
 /* create a new object with start-end marker */
-static pval *npval(pvaltype type, int first_line, int last_line,
+pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column);
 
 /* create a new object with start-end marker, simplified interface.
@@ -769,7 +769,7 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 	parseio->syntax_error_count++;
 }
 
-static struct pval *npval(pvaltype type, int first_line, int last_line,
+struct pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column)
 {
 	pval *z = calloc(1, sizeof(struct pval));
@@ -802,23 +802,6 @@ static pval *nword(char *string, YYLTYPE *pos)
 	if (p)
 		p->u1.str = string;
 	return p;
-}
-
-/* append second element to the list in the first one */
-static pval * linku1(pval *head, pval *tail)
-{
-	if (!head)
-		return tail;
-	if (tail) {
-		if (!head->next) {
-			head->next = tail;
-		} else {
-			head->u1_last->next = tail;
-		}
-		head->u1_last = tail;
-		tail->prev = head; /* the dad link only points to containers */
-	}
-	return head;
 }
 
 /* this routine adds a dad ptr to each element in the list */

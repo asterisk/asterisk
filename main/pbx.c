@@ -769,21 +769,6 @@ static int ext_cmp(const char *a, const char *b)
 }
 
 /*!
- * When looking up extensions, we can have different requests
- * identified by the 'action' argument, as follows.
- * Note that the coding is such that the low 4 bits are the
- * third argument to extension_match_core.
- */
-enum ext_match_t {
-	E_MATCHMORE = 	0x00,	/*!< extension can match but only with more 'digits' */
-	E_CANMATCH =	0x01,	/*!< extension can match with or without more 'digits' */
-	E_MATCH =	0x02,	/*!< extension is an exact match */
-	E_MATCH_MASK =	0x03,	/*!< mask for the argument to extension_match_core() */
-	E_SPAWN =	0x12,	/*!< want to spawn an extension. Requires exact match */
-	E_FINDLABEL =	0x22	/*!< returns the priority for a given label. Requires exact match */
-};
-
-/*!
  * \internal
  * \brief used ast_extension_{match|close}
  * mode is as follows:
@@ -947,23 +932,7 @@ static int matchcid(const char *cidpattern, const char *callerid)
 	return ast_extension_match(cidpattern, callerid);
 }
 
-/*! request and result for pbx_find_extension */
-struct pbx_find_info {
-#if 0
-	const char *context;
-	const char *exten;
-	int priority;
-#endif
-
-	char *incstack[AST_PBX_MAX_STACK];      /* filled during the search */
-	int stacklen;                   /* modified during the search */
-	int status;                     /* set on return */
-	struct ast_switch *swo;         /* set on return */
-	const char *data;               /* set on return */
-	const char *foundcontext;       /* set on return */
-};
-
-static struct ast_exten *pbx_find_extension(struct ast_channel *chan,
+struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_context *bypass, struct pbx_find_info *q,
 	const char *context, const char *exten, int priority,
 	const char *label, const char *callerid, enum ext_match_t action)
