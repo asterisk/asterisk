@@ -202,8 +202,6 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 {
 	struct moh_files_state *state = chan->music_state;
 
-	ast_atomic_fetchadd_int(&state->class->inuse, -1);
-
 	if (chan && state) {
 		if (chan->stream) {
                         ast_closestream(chan->stream);
@@ -217,7 +215,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		}
 		state->save_pos = state->pos;
 	}
-	if (state->class->delete && !state->class->inuse)
+	if (state->class->delete && ast_atomic_dec_and_test(&state->class->inuse))
 		ast_moh_destroy_one(state->class);
 }
 
