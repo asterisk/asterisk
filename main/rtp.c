@@ -3997,15 +3997,18 @@ static struct ast_cli_entry cli_rtp[] = {
 	stun_no_debug_usage },
 };
 
-int ast_rtp_reload(void)
+static int __ast_rtp_reload(int reload)
 {
 	struct ast_config *cfg;
 	const char *s;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load("rtp.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	rtpstart = 5000;
 	rtpend = 31000;
 	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
-	cfg = ast_config_load("rtp.conf");
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
 			rtpstart = atoi(s);
@@ -4060,10 +4063,15 @@ int ast_rtp_reload(void)
 	return 0;
 }
 
+int ast_rtp_reload(void)
+{
+	return __ast_rtp_reload(1);
+}
+
 /*! \brief Initialize the RTP system in Asterisk */
 void ast_rtp_init(void)
 {
 	ast_cli_register_multiple(cli_rtp, sizeof(cli_rtp) / sizeof(struct ast_cli_entry));
-	ast_rtp_reload();
+	__ast_rtp_reload(0);
 }
 

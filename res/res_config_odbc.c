@@ -486,7 +486,7 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 	return sth;
 }
 
-static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *cfg, int withcomments)
+static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *cfg, struct ast_flags flags)
 {
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat;
@@ -500,6 +500,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	SQLHSTMT stmt;
 	char last[128] = "";
 	struct config_odbc_obj q;
+	struct ast_flags loader_flags = { 0 };
 
 	memset(&q, 0, sizeof(q));
 
@@ -542,7 +543,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	while ((res = SQLFetch(stmt)) != SQL_NO_DATA) {
 		if (!strcmp (q.var_name, "#include")) {
-			if (!ast_config_internal_load(q.var_val, cfg, 0)) {
+			if (!ast_config_internal_load(q.var_val, cfg, loader_flags)) {
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
 				return NULL;

@@ -317,16 +317,18 @@ static int amd_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static void load_config(void)
+static void load_config(int reload)
 {
 	struct ast_config *cfg = NULL;
 	char *cat = NULL;
 	struct ast_variable *var = NULL;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if (!(cfg = ast_config_load("amd.conf"))) {
+	if (!(cfg = ast_config_load("amd.conf", config_flags))) {
 		ast_log(LOG_ERROR, "Configuration file amd.conf missing.\n");
 		return;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return;
 
 	cat = ast_category_browse(cfg, NULL);
 
@@ -377,13 +379,13 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	load_config();
+	load_config(0);
 	return ast_register_application(app, amd_exec, synopsis, descrip);
 }
 
 static int reload(void)
 {
-	load_config();
+	load_config(1);
 	return 0;
 }
 

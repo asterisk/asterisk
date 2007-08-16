@@ -349,11 +349,15 @@ int dnsmgr_reload(void)
 static int do_reload(int loading)
 {
 	struct ast_config *config;
+	struct ast_flags config_flags = { loading ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	const char *interval_value;
 	const char *enabled_value;
 	int interval;
 	int was_enabled;
 	int res = -1;
+
+	if ((config = ast_config_load("dnsmgr.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	/* ensure that no refresh cycles run while the reload is in progress */
 	ast_mutex_lock(&refresh_lock);
@@ -366,7 +370,7 @@ static int do_reload(int loading)
 	if (refresh_sched > -1)
 		ast_sched_del(sched, refresh_sched);
 
-	if ((config = ast_config_load("dnsmgr.conf"))) {
+	if (config) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
 			enabled = ast_true(enabled_value);
 		}

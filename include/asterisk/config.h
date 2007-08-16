@@ -27,11 +27,25 @@
 extern "C" {
 #endif
 
+#include "asterisk/utils.h"
 #include <stdarg.h>
 
 struct ast_config;
 
 struct ast_category;
+
+/*! Options for ast_config_load()
+ */
+enum {
+	/*! Load the configuration, including comments */
+	CONFIG_FLAG_WITHCOMMENTS  = (1 << 0),
+	/*! On a reload, give us a -1 if the file hasn't changed. */
+	CONFIG_FLAG_FILEUNCHANGED = (1 << 1),
+	/*! Don't attempt to cache mtime on this config file. */
+	CONFIG_FLAG_NOCACHE       = (1 << 2),
+};
+
+#define	CONFIG_STATUS_FILEUNCHANGED	(void *)-1
 
 /*! \brief Structure for variables, used for configurations and for channel variables 
 */
@@ -47,7 +61,7 @@ struct ast_variable {
 	char stuff[0];
 };
 
-typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, int withcomments);
+typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
@@ -69,12 +83,15 @@ struct ast_config_engine {
 /*! \brief Load a config file 
  * \param filename path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
  * Create a config structure from a given configuration file.
+ * \param flags Optional flags:
+ * CONFIG_FLAG_WITHCOMMENTS - load the file with comments intact;
+ * CONFIG_FLAG_FILEUNCHANGED - check the file mtime and return CONFIG_STATUS_FILEUNCHANGED if the mtime is the same; or
+ * CONFIG_FLAG_NOCACHE - don't cache file mtime (main purpose of this option is to save memory on temporary files).
  *
  * \retval an ast_config data structure on success
  * \retval NULL on error
  */
-struct ast_config *ast_config_load(const char *filename);
-struct ast_config *ast_config_load_with_comments(const char *filename);
+struct ast_config *ast_config_load(const char *filename, struct ast_flags flags);
 
 /*! \brief Destroys a config 
  * \param config pointer to config data structure
@@ -240,7 +257,7 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 
-struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, int withcomments);
+struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags);
 
 /*! \brief Support code to parse config file arguments
  *

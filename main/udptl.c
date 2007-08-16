@@ -1183,10 +1183,14 @@ static struct ast_cli_entry cli_udptl[] = {
 	nodebug_usage },
 };
 
-void ast_udptl_reload(void)
+static void __ast_udptl_reload(int reload)
 {
 	struct ast_config *cfg;
 	const char *s;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load("udptl.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return;
 
 	udptlstart = 4500;
 	udptlend = 4999;
@@ -1195,7 +1199,7 @@ void ast_udptl_reload(void)
 	udptlfecspan = 0;
 	udptlmaxdatagram = 0;
 
-	if ((cfg = ast_config_load("udptl.conf"))) {
+	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "udptlstart"))) {
 			udptlstart = atoi(s);
 			if (udptlstart < 1024)
@@ -1258,8 +1262,13 @@ void ast_udptl_reload(void)
 	ast_verb(2, "UDPTL allocating from port range %d -> %d\n", udptlstart, udptlend);
 }
 
+void ast_udptl_reload(void)
+{
+	__ast_udptl_reload(1);
+}
+
 void ast_udptl_init(void)
 {
 	ast_cli_register_multiple(cli_udptl, sizeof(cli_udptl) / sizeof(struct ast_cli_entry));
-	ast_udptl_reload();
+	__ast_udptl_reload(0);
 }

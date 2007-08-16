@@ -513,6 +513,7 @@ static int smdi_load(int reload)
 	struct ast_config *conf;
 	struct ast_variable *v;
 	struct ast_smdi_interface *iface = NULL;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res = 0;
 
 	/* Config options */
@@ -524,13 +525,14 @@ static int smdi_load(int reload)
 	int msdstrip = 0;              /* strip zero digits */
 	long msg_expiry = SMDI_MSG_EXPIRY_TIME;
 
-	if (!(conf = ast_config_load(config_file))) {
+	if (!(conf = ast_config_load(config_file, config_flags))) {
 		if (reload)
 			ast_log(LOG_NOTICE, "Unable to reload config %s: SMDI untouched\n", config_file);
 		else
 			ast_log(LOG_NOTICE, "Unable to load config %s: SMDI disabled\n", config_file);
 		return 1;
-	}
+	} else if (conf == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	/* Mark all interfaces that we are listening on.  We will unmark them
 	 * as we find them in the config file, this way we know any interfaces

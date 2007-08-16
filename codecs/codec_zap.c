@@ -312,12 +312,13 @@ static void unregister_translators(void)
 	AST_LIST_UNLOCK(&translators);
 }
 
-static void parse_config(void)
+static void parse_config(int reload)
 {
 	struct ast_variable *var;
-	struct ast_config *cfg = ast_config_load("codecs.conf");
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
 
-	if (!cfg)
+	if (!cfg || cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return;
 
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
@@ -387,7 +388,7 @@ static int reload(void)
 {
 	struct translator *cur;
 
-	parse_config();
+	parse_config(1);
 
 	AST_LIST_LOCK(&translators);
 	AST_LIST_TRAVERSE(&translators, cur, entry)
@@ -406,7 +407,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	parse_config();
+	parse_config(0);
 	find_transcoders();
 
 	return 0;

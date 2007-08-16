@@ -213,10 +213,11 @@ static int load_odbc_config(void)
 	char *cat, *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit;
 	int connect = 0, res = 0;
+	struct ast_flags config_flags = { 0 };
 
 	struct odbc_class *new;
 
-	config = ast_config_load(cfg);
+	config = ast_config_load(cfg, config_flags);
 	if (!config) {
 		ast_log(LOG_WARNING, "Unable to load config file res_odbc.conf\n");
 		return -1;
@@ -538,6 +539,7 @@ static int reload(void)
 	char *cat, *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit;
 	int connect = 0, res = 0;
+	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
 
 	struct odbc_class *new, *class;
 	struct odbc_obj *current;
@@ -548,8 +550,8 @@ static int reload(void)
 		class->delme = 1;
 	}
 
-	config = ast_config_load(cfg);
-	if (config) {
+	config = ast_config_load(cfg, config_flags);
+	if (config != NULL && config != CONFIG_STATUS_FILEUNCHANGED) {
 		for (cat = ast_category_browse(config, NULL); cat; cat=ast_category_browse(config, cat)) {
 			if (!strcasecmp(cat, "ENV")) {
 				for (v = ast_variable_browse(config, cat); v; v = v->next) {

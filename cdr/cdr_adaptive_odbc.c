@@ -95,8 +95,9 @@ static int load_config(void)
 	SQLLEN sqlptr;
 	int res = 0;
 	SQLHSTMT stmt = NULL;
+	struct ast_flags config_flags = { 0 }; /* Part of our config comes from the database */
 
-	cfg = ast_config_load(CONFIG);
+	cfg = ast_config_load(CONFIG, config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Unable to load " CONFIG ".  No adaptive ODBC CDRs.\n");
 		return -1;

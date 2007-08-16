@@ -2636,7 +2636,7 @@ static float parse_gain_value(char *gain_type, char *value)
 }
 
 
-int unload_module()
+static int unload_module()
 {
 	struct vpb_pvt *p;
 	/* First, take us out of the channel loop */
@@ -2701,10 +2701,11 @@ int unload_module()
 	return 0;
 }
 
-int load_module()
+static int load_module()
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	struct ast_flags config_flags = { 0 };
 	struct vpb_pvt *tmp;
 	int board = 0, group = 0;
 	ast_group_t	callgroup = 0;
@@ -2721,7 +2722,7 @@ int load_module()
 	int bal3 = -1;
 	char * callerid = NULL;
 
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
@@ -2897,29 +2898,10 @@ int load_module()
 	return error;
 }
 
-int usecount()
-{
-	return usecnt;
-}
-
-const char *description()
-{
-	return (char *) desc;
-}
-
-const char *key()
-{
-	return ASTERISK_GPL_KEY;
-}
-
 /**/
 #if defined(__cplusplus) || defined(c_plusplus)
  }
 #endif
 /**/
 
-AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "VoiceTronix API driver",
-		.load = load_module,
-		.unload = unload_module,
-		.reload = reload,
-	       );
+AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "VoiceTronix API driver");

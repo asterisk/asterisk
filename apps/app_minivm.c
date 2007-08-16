@@ -2349,7 +2349,7 @@ static int apply_general_options(struct ast_variable *var)
 }
 
 /*! \brief Load minivoicemail configuration */
-static int load_config(void)
+static int load_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -2357,8 +2357,12 @@ static int load_config(void)
 	const char *chanvar;
 	int error = 0;
 	struct minivm_template *template;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	cfg = ast_config_load(VOICEMAIL_CONFIG);
+	cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
 	ast_mutex_lock(&minivmlock);
 
 	/* Destroy lists to reconfigure */
@@ -3039,7 +3043,7 @@ static int load_module(void)
 	if (res)
 		return(res);
 
-	if ((res = load_config()))
+	if ((res = load_config(0)))
 		return(res);
 
 	ast_cli_register_multiple(cli_minivm, sizeof(cli_minivm)/sizeof(cli_minivm[0]));
@@ -3053,7 +3057,7 @@ static int load_module(void)
 /*! \brief Reload mini voicemail module */
 static int reload(void)
 {
-	return(load_config());
+	return(load_config(1));
 }
 
 /*! \brief Reload cofiguration */

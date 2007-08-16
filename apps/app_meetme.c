@@ -2407,6 +2407,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
+	struct ast_flags config_flags = { 0 };
 	struct ast_conference *cnf;
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -2444,7 +2445,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			}
 		} else {
 			/* Check the config */
-			cfg = ast_config_load(CONFIG_FILE_NAME);
+			cfg = ast_config_load(CONFIG_FILE_NAME, config_flags);
 			if (!cfg) {
 				ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
 				return NULL;
@@ -2551,7 +2552,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int allowretry = 0;
 	int retrycnt = 0;
 	struct ast_conference *cnf = NULL;
-	struct ast_flags confflags = {0};
+	struct ast_flags confflags = {0}, config_flags = { 0 };
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
@@ -2609,7 +2610,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 			/* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
 			if ((empty_no_pin) || (!dynamic)) {
-				cfg = ast_config_load(CONFIG_FILE_NAME);
+				cfg = ast_config_load(CONFIG_FILE_NAME, config_flags);
 				if (cfg) {
 					var = ast_variable_browse(cfg, "rooms");
 					while (var) {
@@ -3174,11 +3175,12 @@ static enum ast_device_state meetmestate(const char *data)
 static void load_config_meetme(void)
 {
 	struct ast_config *cfg;
+	struct ast_flags config_flags = { 0 };
 	const char *val;
 
 	audio_buffers = DEFAULT_AUDIO_BUFFERS;
 
-	if (!(cfg = ast_config_load(CONFIG_FILE_NAME)))
+	if (!(cfg = ast_config_load(CONFIG_FILE_NAME, config_flags)))
 		return;
 
 	if ((val = ast_variable_retrieve(cfg, "general", "audiobuffers"))) {
@@ -4894,6 +4896,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 static int sla_load_config(int reload)
 {
 	struct ast_config *cfg;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	const char *cat = NULL;
 	int res = 0;
 	const char *val;
@@ -4903,8 +4906,10 @@ static int sla_load_config(int reload)
 		ast_cond_init(&sla.cond, NULL);
 	}
 
-	if (!(cfg = ast_config_load(SLA_CONFIG_FILE)))
+	if (!(cfg = ast_config_load(SLA_CONFIG_FILE, config_flags)))
 		return 0; /* Treat no config as normal */
+	else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	if ((val = ast_variable_retrieve(cfg, "general", "attemptcallerid")))
 		sla.attempt_callerid = ast_true(val);

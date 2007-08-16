@@ -94,8 +94,8 @@ static int aji_test(int fd, int argc, char *argv[]);
 static int aji_show_clients(int fd, int argc, char *argv[]);
 static int aji_create_client(char *label, struct ast_variable *var, int debug);
 static int aji_create_buddy(char *label, struct aji_client *client);
-static int aji_reload(void);
-static int aji_load_config(void);
+static int aji_reload(int reload);
+static int aji_load_config(int reload);
 static void aji_pruneregister(struct aji_client *client);
 static int aji_filter_roster(void *data, ikspak *pak);
 static int aji_get_roster(struct aji_client *client);
@@ -2062,7 +2062,7 @@ static int aji_do_debug(int fd, int argc, char *argv[])
  */
 static int aji_do_reload(int fd, int argc, char *argv[])
 {
-	aji_reload();
+	aji_reload(1);
 	ast_cli(fd, "Jabber Reloaded.\n");
 	return RESULT_SUCCESS;
 }
@@ -2398,17 +2398,20 @@ static int aji_create_buddy(char *label, struct aji_client *client)
 }
 
 /*!< load config file. \return 1. */
-static int aji_load_config(void)
+static int aji_load_config(int reload)
 {
 	char *cat = NULL;
 	int debug = 1;
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load(JABBER_CONFIG, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return -1;
 
 	/* Reset flags to default value */
 	ast_set_flag(&globalflags, AJI_AUTOPRUNE | AJI_AUTOREGISTER);
 
-	cfg = ast_config_load(JABBER_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", JABBER_CONFIG);
 		return 0;
@@ -2508,13 +2511,17 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
 }
 
 /*! \brief Reload the jabber module */
-static int aji_reload()
+static int aji_reload(int reload)
 {
+	int res;
+
 	ASTOBJ_CONTAINER_MARKALL(&clients);
-	if (!aji_load_config()) {
+	if (!(res = aji_load_config(reload))) {
 		ast_log(LOG_ERROR, "JABBER: Failed to load config.\n");
 		return 0;
-	}
+	} else if (res == -1)
+		return 1;
+
 	ASTOBJ_CONTAINER_PRUNE_MARKED(&clients, aji_client_destroy);
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
@@ -2566,7 +2573,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ASTOBJ_CONTAINER_INIT(&clients);
-	if(!aji_reload())
+	if(!aji_reload(0))
 		return AST_MODULE_LOAD_DECLINE;
 	ast_manager_register2("JabberSend", EVENT_FLAG_SYSTEM, manager_jabber_send,
 			"Sends a message to a Jabber Client", mandescr_jabber_send);
@@ -2580,7 +2587,7 @@ static int load_module(void)
 /*! \brief Wrapper for aji_reload */
 static int reload(void)
 {
-	aji_reload();
+	aji_reload(1);
 	return 0;
 }
 

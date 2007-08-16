@@ -275,7 +275,7 @@ static struct number *create_followme_number(char *number, int timeout, int numo
 }
 
 /*! \brief Reload followme application module */
-static int reload_followme(void)
+static int reload_followme(int reload)
 {
 	struct call_followme *f;
 	struct ast_config *cfg;
@@ -289,11 +289,13 @@ static int reload_followme(void)
 	const char *takecallstr;
 	const char *declinecallstr;
 	const char *tmpstr;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if (!(cfg = ast_config_load("followme.conf"))) {
+	if (!(cfg = ast_config_load("followme.conf", config_flags))) {
 		ast_log(LOG_WARNING, "No follow me config file (followme.conf), so no follow me\n");
 		return 0;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	AST_RWLIST_WRLOCK(&followmes);
 
@@ -1051,7 +1053,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if(!reload_followme())
+	if(!reload_followme(0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	return ast_register_application(app, app_exec, synopsis, descrip);
@@ -1059,7 +1061,7 @@ static int load_module(void)
 
 static int reload(void)
 {
-	reload_followme();
+	reload_followme(1);
 
 	return 0;	
 }

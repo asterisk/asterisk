@@ -1013,10 +1013,11 @@ static int load_moh_classes(int reload)
 	struct mohclass *class;	
 	char *cat;
 	int numclasses = 0;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	cfg = ast_config_load("musiconhold.conf");
+	cfg = ast_config_load("musiconhold.conf", config_flags);
 
-	if (!cfg)
+	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
 	cat = ast_category_browse(cfg, NULL);

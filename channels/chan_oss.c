@@ -1577,12 +1577,13 @@ static int load_module(void)
 {
 	struct ast_config *cfg = NULL;
 	char *ctg = NULL;
+	struct ast_flags config_flags = { 0 };
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	/* load config file */
-	if (!(cfg = ast_config_load(config))) {
+	if (!(cfg = ast_config_load(config, config_flags))) {
 		ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
 		return AST_MODULE_LOAD_DECLINE;
 	}

@@ -918,6 +918,7 @@ static void load_rpt_vars(int n, int init)
 	int	j;
 	struct ast_variable *vp, *var;
 	struct ast_config *cfg;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 #ifdef	__RPT_NOTCH
 	AST_DECLARE_APP_ARGS(strs,
 		AST_APP_ARG(str)[100];
@@ -929,7 +930,7 @@ static void load_rpt_vars(int n, int init)
 	ast_mutex_lock(&rpt_vars[n].lock);
 	if (rpt_vars[n].cfg)
 		ast_config_destroy(rpt_vars[n].cfg);
-	cfg = ast_config_load("rpt.conf");
+	cfg = ast_config_load("rpt.conf", config_flags);
 	if (!cfg) {
 		ast_mutex_unlock(&rpt_vars[n].lock);
 		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
@@ -7437,7 +7438,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	struct ast_config *cfg = ast_config_load("rpt.conf");
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
+	struct ast_config *cfg = ast_config_load("rpt.conf", config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file rpt.conf\n");
 		return AST_MODULE_LOAD_DECLINE;

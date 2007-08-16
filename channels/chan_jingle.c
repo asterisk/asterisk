@@ -1567,8 +1567,9 @@ static int jingle_load_config(void)
 	struct ast_codec_pref prefs;
 	struct aji_client_container *clients;
 	struct jingle_candidate *global_candidates = NULL;
+	struct ast_flags config_flags = { 0 };
 
-	cfg = ast_config_load(JINGLE_CONFIG);
+	cfg = ast_config_load(JINGLE_CONFIG, config_flags);
 	if (!cfg)
 		return 0;
 

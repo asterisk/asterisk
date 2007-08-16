@@ -305,12 +305,16 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	return chan;
 }
 
-static void init_logger_chain(void)
+static void init_logger_chain(int reload)
 {
 	struct logchannel *chan;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	const char *s;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load("logger.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return;
 
 	/* delete our list of log channels */
 	AST_RWLIST_WRLOCK(&logchannels);
@@ -322,8 +326,6 @@ static void init_logger_chain(void)
 	errno = 0;
 	/* close syslog */
 	closelog();
-	
-	cfg = ast_config_load("logger.conf");
 	
 	/* If no config file, we're fine, set default options. */
 	if (!cfg) {
@@ -454,7 +456,7 @@ int reload_logger(int rotate)
 
 	filesize_reload_needed = 0;
 	
-	init_logger_chain();
+	init_logger_chain(1);
 
 	if (logfiles.event_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
@@ -802,7 +804,7 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
   
 	/* create log channels */
-	init_logger_chain();
+	init_logger_chain(0);
 
 	/* create the eventlog */
 	if (logfiles.event_log) {

@@ -5142,12 +5142,13 @@ static int reload_config(void)
 	int oldport = ntohs(bindaddr.sin_port);
 	char *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
+	struct ast_flags config_flags = { 0 };
 
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
 		return 0;
 	}
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {

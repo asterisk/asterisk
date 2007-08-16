@@ -714,10 +714,11 @@ static int load_config(void)
 {
 	struct ast_config *cfg;
 	const char *p;
+	struct ast_flags config_flags = { 0 };
 
 	/* Read in the config file */
 
-	cfg = ast_config_load(ALMRCV_CONFIG);
+	cfg = ast_config_load(ALMRCV_CONFIG, config_flags);
                                                                                                                                   
 	if(!cfg){
 	

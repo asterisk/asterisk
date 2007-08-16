@@ -1347,7 +1347,9 @@ static int load_module(void)
 	struct phone_pvt *tmp;
 	int mode = MODE_IMMEDIATE;
 	int txgain = DEFAULT_GAIN, rxgain = DEFAULT_GAIN; /* default gain 1.0 */
-	cfg = ast_config_load(config);
+	struct ast_flags config_flags = { 0 };
+
+	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {

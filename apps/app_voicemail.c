@@ -260,7 +260,7 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION_ARG('a', OPT_AUTOPLAY, OPT_ARG_PLAYFOLDER),
 });
 
-static int load_config(void);
+static int load_config(int reload);
 
 /*! \page vmlang Voicemail Language Syntaxes Supported
 
@@ -911,12 +911,13 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	struct ast_category *cat=NULL;
 	char *category=NULL, *value=NULL, *new=NULL;
 	const char *tmp=NULL;
+	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS };
 					
 	if (!change_password_realtime(vmu, newpassword))
 		return;
 
 	/* check voicemail.conf */
-	if ((cfg = ast_config_load_with_comments(VOICEMAIL_CONFIG))) {
+	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags))) {
 		while ((category = ast_category_browse(cfg, category))) {
 			if (!strcasecmp(category, vmu->context)) {
 				if (!(tmp = ast_variable_retrieve(cfg, category, vmu->mailbox))) {
@@ -946,7 +947,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	var = NULL;
 	/* check users.conf and update the password stored for the mailbox*/
 	/* if no vmsecret entry exists create one. */
-	if ((cfg = ast_config_load_with_comments("users.conf"))) {
+	if ((cfg = ast_config_load("users.conf", config_flags))) {
 		ast_debug(4, "we are looking for %s\n", vmu->mailbox);
 		while ((category = ast_category_browse(cfg, category))) {
 			ast_debug(4, "users.conf: %s\n", category);
@@ -1427,6 +1428,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	const char *category = "";
 	struct ast_config *cfg=NULL;
 	struct odbc_obj *obj;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
 	delete_file(dir, msgnum);
 	obj = ast_odbc_request_obj(odbc_database, 0);
@@ -1443,7 +1445,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 		else
 			ast_copy_string(fn, dir, sizeof(fn));
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
-		cfg = ast_config_load(full_fn);
+		cfg = ast_config_load(full_fn, config_flags);
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
 		fd = open(full_fn, O_RDWR);
 		if (fd < 0) {
@@ -3975,6 +3977,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 	int cmd = 0;
 	int retries = 0;
 	signed char zero_gain = 0;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
 	while ((cmd >= 0) && (cmd != 't') && (cmd != '*')) {
 		if (cmd)
@@ -3995,7 +3998,7 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 			*duration = 0;
 
 			/* if we can't read the message metadata, stop now */
-			if (!(msg_cfg = ast_config_load(textfile))) {
+			if (!(msg_cfg = ast_config_load(textfile, config_flags))) {
 				cmd = 0;
 				break;
 			}
@@ -4733,6 +4736,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	char filename[256], *cid;
 	const char *origtime, *context, *category, *duration;
 	struct ast_config *msg_cfg;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
 	vms->starting = 0; 
 	make_file(vms->fn, sizeof(vms->fn), vms->curdir, vms->curmsg);
@@ -4782,7 +4786,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename, sizeof(filename), "%s.txt", vms->fn2);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
-	msg_cfg = ast_config_load(filename);
+	msg_cfg = ast_config_load(filename, config_flags);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
@@ -7850,7 +7854,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 	return RESULT_SUCCESS;
 }
 
-static int load_config(void)
+static int load_config(int reload)
 {
 	struct ast_vm_user *cur;
 	struct vm_zone *zcur;
@@ -7863,6 +7867,17 @@ static int load_config(void)
 	char *q, *stringp;
 	int x;
 	int tmpadsi[4];
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags)) == CONFIG_STATUS_FILEUNCHANGED) {
+		if ((ucfg = ast_config_load("users.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+			return 0;
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
+	} else {
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		ucfg = ast_config_load("users.conf", config_flags);
+	}
 
 	/* set audio control prompts */
 	strcpy(listen_control_forward_key,DEFAULT_LISTEN_CONTROL_FORWARD_KEY);
@@ -7871,8 +7886,6 @@ static int load_config(void)
 	strcpy(listen_control_restart_key,DEFAULT_LISTEN_CONTROL_RESTART_KEY);
 	strcpy(listen_control_stop_key,DEFAULT_LISTEN_CONTROL_STOP_KEY);
 	
-	cfg = ast_config_load(VOICEMAIL_CONFIG);
-
 	AST_LIST_LOCK(&users);
 	while ((cur = AST_LIST_REMOVE_HEAD(&users, list))) {
 		ast_set_flag(cur, VM_ALLOCED);
@@ -8259,7 +8272,7 @@ static int load_config(void)
 		if ((val = ast_variable_retrieve(cfg, "general", "pollmailboxes")))
 			poll_mailboxes = ast_true(val);
 
-		if ((ucfg = ast_config_load("users.conf"))) {	
+		if (ucfg) {	
 			for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 				if (!ast_true(ast_config_option(ucfg, cat, "hasvoicemail")))
 					continue;
@@ -8427,13 +8440,15 @@ static int load_config(void)
 	} else {
 		AST_LIST_UNLOCK(&users);
 		ast_log(LOG_WARNING, "Failed to load configuration file.\n");
+		if (ucfg)
+			ast_config_destroy(ucfg);
 		return 0;
 	}
 }
 
 static int reload(void)
 {
-	return load_config();
+	return load_config(1);
 }
 
 static int unload_module(void)
@@ -8464,7 +8479,7 @@ static int load_module(void)
 	/* compute the location of the voicemail spool directory */
 	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", ast_config_AST_SPOOL_DIR);
 
-	if ((res = load_config()))
+	if ((res = load_config(0)))
 		return res;
 
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
@@ -8555,6 +8570,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	const char *origtime, *context;
 	char *cid, *name, *num;
 	int retries = 0;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
 	vms->starting = 0; 
 #ifdef IMAP_STORAGE
@@ -8605,7 +8621,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
 	RETRIEVE(vms->curdir, vms->curmsg, vmu->mailbox, vmu->context);
-	msg_cfg = ast_config_load(filename);
+	msg_cfg = ast_config_load(filename, config_flags);
 	DISPOSE(vms->curdir, vms->curmsg);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);

@@ -375,14 +375,15 @@ static struct ast_translator lintospeex = {
 	.buf_size = BUFFER_SAMPLES * 2, /* XXX maybe a lot less ? */
 };
 
-static void parse_config(void) 
+static void parse_config(int reload) 
 {
-	struct ast_config *cfg = ast_config_load("codecs.conf");
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
 	struct ast_variable *var;
 	int res;
 	float res_f;
 
-	if (cfg == NULL)
+	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return;
 
 	for (var = ast_variable_browse(cfg, "speex"); var; var = var->next) {
@@ -470,7 +471,7 @@ static void parse_config(void)
 
 static int reload(void) 
 {
-	parse_config();
+	parse_config(1);
 
 	return 0;
 }
@@ -489,7 +490,7 @@ static int load_module(void)
 {
 	int res;
 
-	parse_config();
+	parse_config(0);
 	res=ast_register_translator(&speextolin);
 	if (!res) 
 		res=ast_register_translator(&lintospeex);

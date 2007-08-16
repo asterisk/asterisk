@@ -236,7 +236,7 @@ static int handle_stopplaytones(struct ast_channel *chan, void *data)
 }
 
 /*! \brief load indications module */
-static int ind_load_module(void)
+static int ind_load_module(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -244,12 +244,18 @@ static int ind_load_module(void)
 	char *c;
 	struct ind_tone_zone *tones;
 	const char *country = NULL;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	/* that the following cast is needed, is yuk! */
 	/* yup, checked it out. It is NOT written to. */
-	cfg = ast_config_load((char *)config);
+	cfg = ast_config_load((char *)config, config_flags);
 	if (!cfg)
 		return -1;
+	else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
+	if (reload)
+		ast_unregister_indication_country(NULL);
 
 	/* Use existing config to populate the Indication table */
 	cxt = ast_category_browse(cfg, NULL);
@@ -385,7 +391,7 @@ static int unload_module(void)
 /*! \brief Load indications module */
 static int load_module(void)
 {
-	if (ind_load_module())
+	if (ind_load_module(0))
 		return AST_MODULE_LOAD_DECLINE; 
 	ast_cli_register_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
 	ast_register_application("PlayTones", handle_playtones, "Play a tone list", playtones_desc);
@@ -397,10 +403,7 @@ static int load_module(void)
 /*! \brief Reload indications module */
 static int reload(void)
 {
-	/* remove the registed indications... */
-	ast_unregister_indication_country(NULL);
-
-	return ind_load_module();
+	return ind_load_module(1);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_GLOBAL_SYMBOLS, "Region-specific tones",

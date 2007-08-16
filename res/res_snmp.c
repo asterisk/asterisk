@@ -48,11 +48,12 @@ static int load_config(void)
 {
 	struct ast_variable *var;
 	struct ast_config *cfg;
+	struct ast_flags config_flags = { 0 };
 	char *cat;
 
 	res_snmp_enabled = 0;
 	res_snmp_agentx_subagent = 1;
-	cfg = ast_config_load("res_snmp.conf");
+	cfg = ast_config_load("res_snmp.conf", config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Could not load res_snmp.conf\n");
 		return 0;

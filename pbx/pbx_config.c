@@ -722,6 +722,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	struct ast_variable *v;
 	int incomplete = 0; /* incomplete config write? */
 	FILE *output;
+	struct ast_flags config_flags = { 0 };
 
 	const char *base, *slash, *file;
 
@@ -761,7 +762,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	}
 	snprintf(filename, sizeof(filename), "%s%s%s", base, slash, config);
 
-	cfg = ast_config_load("extensions.conf");
+	cfg = ast_config_load("extensions.conf", config_flags);
 
 	/* try to lock contexts list */
 	if (ast_rdlock_contexts()) {
@@ -1329,8 +1330,9 @@ static int pbx_load_config(const char *config_file)
 	struct ast_variable *v;
 	const char *cxt;
 	const char *aft;
+	struct ast_flags config_flags = { 0 };
 
-	cfg = ast_config_load(config_file);
+	cfg = ast_config_load(config_file, config_flags);
 	if (!cfg)
 		return 0;
 
@@ -1501,8 +1503,9 @@ static void pbx_load_users(void)
 	int hasvoicemail;
 	int start, finish, x;
 	struct ast_context *con;
+	struct ast_flags config_flags = { 0 };
 	
-	cfg = ast_config_load("users.conf");
+	cfg = ast_config_load("users.conf", config_flags);
 	if (!cfg)
 		return;
 	con = ast_context_find_or_create(&local_contexts, userscontext, registrar);

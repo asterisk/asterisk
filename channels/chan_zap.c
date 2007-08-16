@@ -12623,27 +12623,37 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 		
 static int setup_zap(int reload)
 {
-	struct ast_config *cfg;
+	struct ast_config *cfg, *ucfg;
 	struct ast_variable *v;
  	struct zt_chan_conf base_conf = zt_chan_conf_default();
  	struct zt_chan_conf conf;
-	int res;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	int res, x;
 
 #ifdef HAVE_PRI
 	char *c;
 	int spanno;
-	int i, x;
+	int i;
 	int logicalspan;
 	int trunkgroup;
 	int dchannels[NUM_DCHANS];
 #endif
 
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 
 	/* Error if we have no config file */
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
 		return 0;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		ucfg = ast_config_load("users.conf", config_flags);
+		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
+			return 0;
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		cfg = ast_config_load(config, config_flags);
+	} else {
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		ucfg = ast_config_load("users.conf", config_flags);
 	}
 
 	/* It's a little silly to lock it, but we mind as well just to be sure */
@@ -12718,25 +12728,24 @@ static int setup_zap(int reload)
 	ast_config_destroy(cfg);
 	if (res)
 		return res;
-	cfg = ast_config_load("users.conf");
-	if (cfg) {
+	if (ucfg) {
 		char *cat;
 		const char *chans;
 		process_zap(&base_conf, ast_variable_browse(cfg, "general"), 1, 1);
-		for (cat = ast_category_browse(cfg, NULL); cat ; cat = ast_category_browse(cfg, cat)) {
+		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 			if (!strcasecmp(cat, "general"))
 				continue;
-			chans = ast_variable_retrieve(cfg, cat, "zapchan");
+			chans = ast_variable_retrieve(ucfg, cat, "zapchan");
 			if (!ast_strlen_zero(chans)) {
 				if (memcpy(&conf, &base_conf, sizeof(conf)) == NULL) {
 					ast_log(LOG_ERROR, "Not enough memory for conf copy\n");
-					ast_config_destroy(cfg);
+					ast_config_destroy(ucfg);
 					return -1;
 				}
-				process_zap(&conf, ast_variable_browse(cfg, cat), reload, 0);
+				process_zap(&conf, ast_variable_browse(ucfg, cat), reload, 0);
 			}
 		}
-		ast_config_destroy(cfg);
+		ast_config_destroy(ucfg);
 	}
 #ifdef HAVE_PRI
 	if (!reload) {

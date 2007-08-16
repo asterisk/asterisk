@@ -4753,7 +4753,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 	}
 	
-	if (misdn_cfg_init(max_ports)) {
+	if (misdn_cfg_init(max_ports, 0)) {
 		ast_log(LOG_ERROR, "Unable to initialize misdn_config.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	}

@@ -147,11 +147,12 @@ static struct ast_translator lintoulaw = {
 	.buffer_samples = BUFFER_SAMPLES,
 };
 
-static void parse_config(void)
+static void parse_config(int reload)
 {
 	struct ast_variable *var;
-	struct ast_config *cfg = ast_config_load("codecs.conf");
-	if (!cfg)
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
+	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return;
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 		if (!strcasecmp(var->name, "genericplc")) {
@@ -164,7 +165,7 @@ static void parse_config(void)
 
 static int reload(void)
 {
-	parse_config();
+	parse_config(1);
 
 	return 0;
 }
@@ -183,7 +184,7 @@ static int load_module(void)
 {
 	int res;
 
-	parse_config();
+	parse_config(0);
 	res = ast_register_translator(&ulawtolin);
 	if (!res)
 		res = ast_register_translator(&lintoulaw);

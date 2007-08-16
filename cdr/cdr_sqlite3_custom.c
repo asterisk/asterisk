@@ -74,10 +74,11 @@ static char values[1024];
 static int load_config(int reload)
 {
 	struct ast_config *cfg;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_variable *mappingvar;
 	const char *tmp;
 
-	if (!(cfg = ast_config_load(config_file))) {
+	if (!(cfg = ast_config_load(config_file, config_flags))) {
 		if (reload)
 			ast_log(LOG_WARNING, "%s: Failed to reload configuration file.\n", name);
 		else {
@@ -86,10 +87,10 @@ static int load_config(int reload)
 					name);
 		}
 		return -1;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
-	if (!reload)
-		ast_mutex_lock(&lock);
+	ast_mutex_lock(&lock);
 
 	if (!(mappingvar = ast_variable_browse(cfg, "master"))) {
 		/* nothing configured */
@@ -125,8 +126,7 @@ static int load_config(int reload)
 		return -1;
 	}
 
-	if (!reload)
-		ast_mutex_unlock(&lock);
+	ast_mutex_unlock(&lock);
 
 	ast_config_destroy(cfg);
 
@@ -248,13 +248,7 @@ static int load_module(void)
 
 static int reload(void)
 {
-	int res;
-
-	ast_mutex_lock(&lock);
-	res = load_config(1);
-	ast_mutex_unlock(&lock);
-
-	return res;
+	return load_config(1);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "SQLite3 Custom CDR Module",

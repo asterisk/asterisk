@@ -17629,16 +17629,27 @@ static int reload_config(enum channelreloadreason reason)
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct ast_flags dummy[2];
+	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
 
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
 		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		ucfg = ast_config_load("users.conf", config_flags);
+		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
+			return 0;
+		/* Must reread both files, because one changed */
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		cfg = ast_config_load(config, config_flags);
+	} else {
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		ucfg = ast_config_load("users.conf", config_flags);
 	}
 	
 	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
@@ -18007,7 +18018,6 @@ static int reload_config(enum channelreloadreason reason)
  			authl = add_realm_authentication(authl, v->value, v->lineno);
  	}
 	
-	ucfg = ast_config_load("users.conf");
 	if (ucfg) {
 		struct ast_variable *gen;
 		int genhassip, genregistersip;
@@ -18181,7 +18191,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Load the list of manual NOTIFY types to support */
 	if (notify_types)
 		ast_config_destroy(notify_types);
-	notify_types = ast_config_load(notify_config);
+	notify_types = ast_config_load(notify_config, config_flags);
 
 	/* Done, tell the manager */
 	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "ChannelType: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\nUser_Count: %d\r\n\r\n", channelreloadreason2txt(reason), registry_count, peer_count, user_count);

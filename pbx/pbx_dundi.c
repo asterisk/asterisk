@@ -4555,13 +4555,14 @@ static struct ast_switch dundi_switch =
         matchmore:              dundi_matchmore,
 };
 
-static int set_config(char *config_file, struct sockaddr_in* sin)
+static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	char *cat;
 	int format;
 	int x;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	char hn[MAXHOSTNAMELEN] = "";
 	struct ast_hostent he;
 	struct hostent *hp;
@@ -4570,11 +4571,12 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	int globalpcmodel = 0;
 	dundi_eid testeid;
 
+	if ((cfg = ast_config_load(config_file, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
 	dundi_ttl = DUNDI_DEFAULT_TTL;
 	dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
-	cfg = ast_config_load(config_file);
-	
-	
+
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
@@ -4741,7 +4743,7 @@ static int reload(void)
 {
 	struct sockaddr_in sin;
 
-	if (set_config("dundi.conf", &sin))
+	if (set_config("dundi.conf", &sin, 1))
 		return -1;
 
 	return 0;
@@ -4765,7 +4767,7 @@ static int load_module(void)
 	if (!io || !sched)
 		return AST_MODULE_LOAD_FAILURE;
 
-	if (set_config("dundi.conf", &sin))
+	if (set_config("dundi.conf", &sin, 0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);

@@ -470,12 +470,17 @@ done:
 static int reload(void)
 {
 	struct ast_variable *v;
+	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
+	struct ast_config *newcfg;
+
+	if ((newcfg = ast_config_load("say.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	if (say_cfg) {
 		ast_config_destroy(say_cfg);
 		ast_log(LOG_NOTICE, "Reloading say.conf\n");
+		say_cfg = newcfg;
 	}
-	say_cfg = ast_config_load("say.conf");
 
 	if (say_cfg) {
 		for (v = ast_variable_browse(say_cfg, "general"); v ; v = v->next) {
@@ -510,8 +515,9 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_variable *v;
+	struct ast_flags config_flags = { 0 };
 
-	say_cfg = ast_config_load("say.conf");
+	say_cfg = ast_config_load("say.conf", config_flags);
 	if (say_cfg) {
 		for (v = ast_variable_browse(say_cfg, "general"); v ; v = v->next) {
     			if (ast_extension_match(v->name, "mode")) {

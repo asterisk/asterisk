@@ -52,15 +52,22 @@ static char *name = "cdr_manager";
 static int enablecdr = 0;
 struct ast_str *customfields;
 
-static int load_config(void)
+static int load_config(int reload)
 {
 	char *cat = NULL;
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	cfg = ast_config_load(CONF_FILE, config_flags);
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
+	if (reload && customfields) {
+		ast_free(customfields);
+	}
 	customfields = NULL;
 
-	cfg = ast_config_load(CONF_FILE);
 	if (!cfg) {
 		/* Standard configuration */
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
@@ -174,7 +181,7 @@ static int load_module(void)
 	int res;
 
 	/* Configuration file */
-	if (!load_config())
+	if (!load_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 	
 	res = ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
@@ -187,12 +194,7 @@ static int load_module(void)
 
 static int reload(void)
 {
-	if (customfields) {
-		ast_free(customfields);
-	}
-	
-	load_config();
-	return 0;
+	return load_config(1);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Asterisk Manager Interface CDR Backend",

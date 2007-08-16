@@ -83,6 +83,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	char phone[30];
 	struct ast_config *cfg = NULL;
 	char *parse = NULL;
+	struct ast_flags config_flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(maxretries);
 		AST_APP_ARG(minlength);
@@ -122,7 +123,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		if (!x)
 		{
 			/*Read in the config file*/
-			cfg = ast_config_load(PRIV_CONFIG);
+			cfg = ast_config_load(PRIV_CONFIG, config_flags);
 		
 			if (cfg && (s = ast_variable_retrieve(cfg, "general", "maxretries"))) {
 				if (sscanf(s, "%d", &x) == 1) 

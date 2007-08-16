@@ -422,8 +422,8 @@ static void start_rtp(struct mgcp_subchannel *sub);
 static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,  
                             int result, unsigned int ident, struct mgcp_request *resp);
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub);
-static int mgcp_do_reload(void);
 static int mgcp_reload(int fd, int argc, char *argv[]);
+static int reload_config(int reload);
 
 static struct ast_channel *mgcp_request(const char *type, int format, void *data, int *cause);
 static int mgcp_call(struct ast_channel *ast, char *dest, int timeout);
@@ -3379,7 +3379,7 @@ static void *do_monitor(void *data)
 		ast_mutex_unlock(&mgcp_reload_lock);
 		if (reloading) {
 			ast_verb(1, "Reloading MGCP\n");
-			mgcp_do_reload();
+			reload_config(1);
 			/* Add an I/O event to our UDP socket */
 			if (mgcpsock > -1) 
 				mgcpsock_read_id = ast_io_add(io, mgcpsock, mgcpsock_read, AST_IO_IN, NULL);
@@ -4042,7 +4042,7 @@ static void prune_gateways(void)
 	ast_mutex_unlock(&gatelock);
 }
 
-static int reload_config(void)
+static int reload_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -4052,18 +4052,21 @@ static int reload_config(void)
 	struct ast_hostent ahp;
 	struct hostent *hp;
 	int format;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	
 	if (gethostname(ourhost, sizeof(ourhost)-1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname, MGCP disabled\n");
 		return 0;
 	}
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, MGCP disabled\n", config);
 		return 0;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	dtmfmode = 0;
 
@@ -4222,7 +4225,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_FAILURE;
 	}
 
-	if (reload_config())
+	if (reload_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	/* Make sure we can register our mgcp channel type */
@@ -4240,13 +4243,6 @@ static int load_module(void)
 	restart_monitor();
 
 	return AST_MODULE_LOAD_SUCCESS;
-}
-
-/*! \brief  mgcp_do_reload: Reload module */
-static int mgcp_do_reload(void)
-{
-	reload_config();
-	return 0;
 }
 
 static int mgcp_reload(int fd, int argc, char *argv[])

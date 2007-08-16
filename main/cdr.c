@@ -1281,7 +1281,7 @@ static struct ast_cli_entry cli_status = {
 	"	Displays the Call Detail Record engine system status.\n"
 };
 
-static int do_reload(void)
+static int do_reload(int reload)
 {
 	struct ast_config *config;
 	const char *enabled_value;
@@ -1296,6 +1296,10 @@ static int do_reload(void)
 	int was_enabled;
 	int was_batchmode;
 	int res=0;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((config = ast_config_load("cdr.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	ast_mutex_lock(&cdr_batch_lock);
 
@@ -1312,7 +1316,7 @@ static int do_reload(void)
 	if (cdr_sched > -1)
 		ast_sched_del(sched, cdr_sched);
 
-	if ((config = ast_config_load("cdr.conf"))) {
+	if (config) {
 		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
 			enabled = ast_true(enabled_value);
 		}
@@ -1405,7 +1409,7 @@ int ast_cdr_engine_init(void)
 
 	ast_cli_register(&cli_status);
 
-	res = do_reload();
+	res = do_reload(0);
 	if (res) {
 		ast_mutex_lock(&cdr_batch_lock);
 		res = init_batch();
@@ -1424,6 +1428,6 @@ void ast_cdr_engine_term(void)
 
 int ast_cdr_engine_reload(void)
 {
-	return do_reload();
+	return do_reload(1);
 }
 

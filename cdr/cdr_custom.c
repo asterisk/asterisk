@@ -68,12 +68,16 @@ static int load_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res = -1;
+
+	if ((cfg = ast_config_load("cdr_custom.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	strcpy(format, "");
 	strcpy(master, "");
 	ast_mutex_lock(&lock);
-	if((cfg = ast_config_load("cdr_custom.conf"))) {
+	if (cfg) {
 		var = ast_variable_browse(cfg, "mappings");
 		while(var) {
 			if (!ast_strlen_zero(var->name) && !ast_strlen_zero(var->value)) {

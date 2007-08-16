@@ -422,95 +422,106 @@ static int tds_unload_module(void)
 	return 0;
 }
 
-static int tds_load_module(void)
+static int tds_load_module(int reload)
 {
 	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	const char *ptr = NULL;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 #ifdef FREETDS_PRE_0_62
 	TDS_INT result_type;
 #endif
 
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config for MSSQL CDR's: %s\n", config);
 		return 0;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	var = ast_variable_browse(cfg, "global");
 	if (!var) /* nothing configured */
 		return 0;
 
 	ptr = ast_variable_retrieve(cfg, "global", "hostname");
-	if (ptr)
-		hostname = strdup(ptr);
-	else
-		ast_log(LOG_ERROR,"Database server hostname not specified.\n");
+	if (ptr) {
+		if (hostname)
+			ast_free(hostname);
+		hostname = ast_strdup(ptr);
+	} else
+		ast_log(LOG_ERROR, "Database server hostname not specified.\n");
 
 	ptr = ast_variable_retrieve(cfg, "global", "dbname");
-	if (ptr)
-		dbname = strdup(ptr);
-	else
-		ast_log(LOG_ERROR,"Database dbname not specified.\n");
+	if (ptr) {
+		if (dbname)
+			ast_free(dbname);
+		dbname = ast_strdup(ptr);
+	} else
+		ast_log(LOG_ERROR, "Database dbname not specified.\n");
 
 	ptr = ast_variable_retrieve(cfg, "global", "user");
-	if (ptr)
-		dbuser = strdup(ptr);
-	else
-		ast_log(LOG_ERROR,"Database dbuser not specified.\n");
+	if (ptr) {
+		if (dbuser)
+			ast_free(dbuser);
+		dbuser = ast_strdup(ptr);
+	} else
+		ast_log(LOG_ERROR, "Database dbuser not specified.\n");
 
 	ptr = ast_variable_retrieve(cfg, "global", "password");
-	if (ptr)
-		password = strdup(ptr);
-	else
+	if (ptr) {
+		if (password)
+			ast_free(password);
+		password = ast_strdup(ptr);
+	} else
 		ast_log(LOG_ERROR,"Database password not specified.\n");
 
 	ptr = ast_variable_retrieve(cfg, "global", "charset");
+	if (charset)
+		ast_free(charset);
 	if (ptr)
-		charset = strdup(ptr);
+		charset = ast_strdup(ptr);
 	else
-		charset = strdup("iso_1");
+		charset = ast_strdup("iso_1");
 
+	if (language)
+		ast_free(language);
 	ptr = ast_variable_retrieve(cfg, "global", "language");
 	if (ptr)
-		language = strdup(ptr);
+		language = ast_strdup(ptr);
 	else
-		language = strdup("us_english");
+		language = ast_strdup("us_english");
 
-	ptr = ast_variable_retrieve(cfg,"global","table");
+	ptr = ast_variable_retrieve(cfg, "global", "table");
 	if (ptr == NULL) {
-		ast_debug(1,"cdr_tds: table not specified.  Assuming cdr\n");
+		ast_debug(1, "cdr_tds: table not specified.  Assuming cdr\n");
 		ptr = "cdr";
 	}
-	table = strdup(ptr);
+	if (table)
+		ast_free(table);
+	table = ast_strdup(ptr);
 
 	ast_config_destroy(cfg);
 
+	ast_mutex_lock(&tds_lock);
+	mssql_disconnect();
 	mssql_connect();
-
-	/* Register MSSQL CDR handler */
-	res = ast_cdr_register(name, ast_module_info->description, tds_log);
-	if (res)
-	{
-		ast_log(LOG_ERROR, "Unable to register MSSQL CDR handling\n");
-	}
+	ast_mutex_unlock(&tds_lock);
 
 	return res;
 }
 
 static int reload(void)
 {
-	tds_unload_module();
-	return tds_load_module();
+	return tds_load_module(1);
 }
 
 static int load_module(void)
 {
-	if(!tds_load_module())
+	if (!tds_load_module(0))
 		return AST_MODULE_LOAD_DECLINE;
-	else 
-		return AST_MODULE_LOAD_SUCCESS;
+	ast_cdr_register(name, ast_module_info->description, tds_log);
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

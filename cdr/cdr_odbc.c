@@ -226,124 +226,124 @@ static int odbc_unload_module(void)
 	return 0;
 }
 
-static int odbc_load_module(void)
+static int odbc_load_module(int reload)
 {
 	int res = 0;
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	const char *tmp;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	ast_mutex_lock(&odbc_lock);
 
-	cfg = ast_config_load(config);
-	if (!cfg) {
-		ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
-		res = AST_MODULE_LOAD_DECLINE;
-		goto out;
-	}
+	do {
+		cfg = ast_config_load(config, config_flags);
+		if (!cfg) {
+			ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
+			res = AST_MODULE_LOAD_DECLINE;
+			break;
+		} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+			break;
 	
-	var = ast_variable_browse(cfg, "global");
-	if (!var) {
-		/* nothing configured */
-		goto out;
-	}
+		var = ast_variable_browse(cfg, "global");
+		if (!var) {
+			/* nothing configured */
+			break;
+		}
 
-	tmp = ast_variable_retrieve(cfg,"global","dsn");
-	if (tmp == NULL) {
-		ast_log(LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming asteriskdb\n");
-		tmp = "asteriskdb";
-	}
-	dsn = strdup(tmp);
-	if (dsn == NULL) {
-		ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-		res = -1;
-		goto out;
-	}
-
-	tmp = ast_variable_retrieve(cfg,"global","dispositionstring");
-	if (tmp) {
-		dispositionstring = ast_true(tmp);
-	} else {
-		dispositionstring = 0;
-	}
-		
-	tmp = ast_variable_retrieve(cfg,"global","username");
-	if (tmp) {
-		username = strdup(tmp);
-		if (username == NULL) {
-			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+		if ((tmp = ast_variable_retrieve(cfg, "global", "dsn")) == NULL) {
+			ast_log(LOG_WARNING, "cdr_odbc: dsn not specified.  Assuming asteriskdb\n");
+			tmp = "asteriskdb";
+		}
+		if (dsn)
+			ast_free(dsn);
+		dsn = ast_strdup(tmp);
+		if (dsn == NULL) {
 			res = -1;
-			goto out;
+			break;
 		}
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","password");
-	if (tmp) {
-		password = strdup(tmp);
-		if (password == NULL) {
-			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+		if ((tmp = ast_variable_retrieve(cfg, "global", "dispositionstring")))
+			dispositionstring = ast_true(tmp);
+		else
+			dispositionstring = 0;
+
+		if ((tmp = ast_variable_retrieve(cfg, "global", "username"))) {
+			if (username)
+				ast_free(username);
+			username = ast_strdup(tmp);
+			if (username == NULL) {
+				res = -1;
+				break;
+			}
+		}
+
+		if ((tmp = ast_variable_retrieve(cfg, "global", "password"))) {
+			if (password)
+				ast_free(password);
+			password = ast_strdup(tmp);
+			if (password == NULL) {
+				res = -1;
+				break;
+			}
+		}
+
+		if ((tmp = ast_variable_retrieve(cfg, "global", "loguniqueid"))) {
+			loguniqueid = ast_true(tmp);
+			if (loguniqueid) {
+				ast_debug(1, "cdr_odbc: Logging uniqueid\n");
+			} else {
+				ast_debug(1, "cdr_odbc: Not logging uniqueid\n");
+			}
+		} else {
+			ast_debug(1, "cdr_odbc: Not logging uniqueid\n");
+			loguniqueid = 0;
+		}
+
+		if ((tmp = ast_variable_retrieve(cfg, "global", "usegmtime"))) {
+			usegmtime = ast_true(tmp);
+			if (usegmtime) {
+				ast_debug(1, "cdr_odbc: Logging in GMT\n");
+			} else {
+				ast_debug(1, "cdr_odbc: Not logging in GMT\n");
+			}
+		} else {
+			ast_debug(1, "cdr_odbc: Not logging in GMT\n");
+			usegmtime = 0;
+		}
+
+		if ((tmp = ast_variable_retrieve(cfg, "global", "table")) == NULL) {
+			ast_log(LOG_WARNING, "cdr_odbc: table not specified.  Assuming cdr\n");
+			tmp = "cdr";
+		}
+		if (table)
+			ast_free(table);
+		table = ast_strdup(tmp);
+		if (table == NULL) {
 			res = -1;
-			goto out;
+			break;
 		}
-	}
 
-	tmp = ast_variable_retrieve(cfg,"global","loguniqueid");
-	if (tmp) {
-		loguniqueid = ast_true(tmp);
-		if (loguniqueid) {
-			ast_debug(1,"cdr_odbc: Logging uniqueid\n");
-		} else {
-			ast_debug(1,"cdr_odbc: Not logging uniqueid\n");
+		ast_verb(3, "cdr_odbc: dsn is %s\n", dsn);
+		if (username) {
+			ast_verb(3, "cdr_odbc: username is %s\n", username);
+			ast_verb(3, "cdr_odbc: password is [secret]\n");
+		} else
+			ast_verb(3, "cdr_odbc: retrieving username and password from odbc config\n");
+		ast_verb(3, "cdr_odbc: table is %s\n", table);
+
+		res = odbc_init();
+		if (res < 0) {
+			ast_log(LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
+			ast_verb(3, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
+			}
+		res = ast_cdr_register(name, ast_module_info->description, odbc_log);
+		if (res) {
+			ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
 		}
-	} else {
-		ast_debug(1,"cdr_odbc: Not logging uniqueid\n");
-		loguniqueid = 0;
-	}
+	} while (0);
 
-	tmp = ast_variable_retrieve(cfg,"global","usegmtime");
-	if (tmp) {
-		usegmtime = ast_true(tmp);
-		if (usegmtime) {
-			ast_debug(1,"cdr_odbc: Logging in GMT\n");
-		} else {
-			ast_debug(1,"cdr_odbc: Not logging in GMT\n");
-		}
-	} else {
-		ast_debug(1,"cdr_odbc: Not logging in GMT\n");
-		usegmtime = 0;
-	}
-
-	tmp = ast_variable_retrieve(cfg,"global","table");
-	if (tmp == NULL) {
-		ast_log(LOG_WARNING,"cdr_odbc: table not specified.  Assuming cdr\n");
-		tmp = "cdr";
-	}
-	table = strdup(tmp);
-	if (table == NULL) {
-		ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-		res = -1;
-		goto out;
-	}
-
-	ast_verb(3, "cdr_odbc: dsn is %s\n",dsn);
-	if (username) {
-		ast_verb(3, "cdr_odbc: username is %s\n",username);
-		ast_verb(3, "cdr_odbc: password is [secret]\n");
-	} else
-		ast_verb(3, "cdr_odbc: retreiving username and password from odbc config\n");
-	ast_verb(3, "cdr_odbc: table is %s\n",table);
-	
-	res = odbc_init();
-	if (res < 0) {
-		ast_log(LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
-		ast_verb(3, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
-		}
-	res = ast_cdr_register(name, ast_module_info->description, odbc_log);
-	if (res) {
-		ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
-	}
-out:
-	if (cfg)
+	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED)
 		ast_config_destroy(cfg);
 	ast_mutex_unlock(&odbc_lock);
 	return res;
@@ -418,7 +418,7 @@ static int odbc_init(void)
 
 static int load_module(void)
 {
-	return odbc_load_module();
+	return odbc_load_module(0);
 }
 
 static int unload_module(void)
@@ -428,8 +428,7 @@ static int unload_module(void)
 
 static int reload(void)
 {
-	odbc_unload_module();
-	return odbc_load_module();
+	return odbc_load_module(1);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "ODBC CDR Backend",

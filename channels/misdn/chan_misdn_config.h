@@ -108,7 +108,7 @@ enum misdn_cfg_method {
 };
 
 /* you must call misdn_cfg_init before any other function of this header file */
-int misdn_cfg_init(int max_ports); 
+int misdn_cfg_init(int max_ports, int reload); 
 void misdn_cfg_reload(void);
 void misdn_cfg_destroy(void);
 

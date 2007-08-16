@@ -2768,6 +2768,7 @@ static int load_config(void)
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
 	struct feature_group *fg = NULL;
+	struct ast_flags config_flags = { 0 };
 	char old_parking_ext[AST_MAX_EXTENSION];
 	char old_parking_con[AST_MAX_EXTENSION] = "";
 	char *ctg; 
@@ -2810,7 +2811,7 @@ static int load_config(void)
 	atxferdropcall = DEFAULT_ATXFER_DROP_CALL;
 	atxfercallbackretries = DEFAULT_ATXFER_CALLBACK_RETRIES;
 
-	cfg = ast_config_load("features.conf");
+	cfg = ast_config_load("features.conf", config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING,"Could not load features.conf\n");
 		return AST_MODULE_LOAD_DECLINE;

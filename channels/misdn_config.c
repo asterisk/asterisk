@@ -1063,7 +1063,7 @@ static void _fill_defaults (void)
 
 void misdn_cfg_reload (void)
 {
-	misdn_cfg_init (0);
+	misdn_cfg_init(0, 1);
 }
 
 void misdn_cfg_destroy (void)
@@ -1082,18 +1082,20 @@ void misdn_cfg_destroy (void)
 	ast_mutex_destroy(&config_mutex);
 }
 
-int misdn_cfg_init (int this_max_ports)
+int misdn_cfg_init(int this_max_ports, int reload)
 {
 	char config[] = "misdn.conf";
 	char *cat, *p;
 	int i;
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	if (!(cfg = AST_LOAD_CFG(config))) {
+	if (!(cfg = AST_LOAD_CFG(config, config_flags))) {
 		ast_log(LOG_WARNING, "missing file: misdn.conf\n");
 		return -1;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	ast_mutex_init(&config_mutex);
 

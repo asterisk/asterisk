@@ -95,22 +95,24 @@ static char *name = "csv";
 static FILE *mf = NULL;
 
 
-static int load_config(void)
+static int load_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	const char *tmp;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	usegmtime = 0;
 	loguniqueid = 0;
 	loguserfield = 0;
 	
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 	
 	if (!cfg) {
 		ast_log(LOG_WARNING, "unable to load config: %s\n", config);
 		return 0;
-	} 
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 	
 	var = ast_variable_browse(cfg, "csv");
 	if (!var) {
@@ -316,7 +318,7 @@ static int load_module(void)
 {
 	int res;
 	
-	if(!load_config())
+	if(!load_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	res = ast_cdr_register(name, ast_module_info->description, csv_log);
@@ -330,7 +332,7 @@ static int load_module(void)
 
 static int reload(void)
 {
-	load_config();
+	load_config(1);
 
 	return 0;
 }

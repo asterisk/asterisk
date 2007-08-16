@@ -746,12 +746,13 @@ static int load_module(void)
 	int res = 0;
 	struct ast_config *cfg;
 	char *catg;
+	struct ast_flags config_flags = { 0 };
 
 	res |= ast_custom_function_register(&fetch_function);
 	res |= ast_register_application(app_odbcfinish, exec_odbcfinish, syn_odbcfinish, desc_odbcfinish);
 	AST_LIST_LOCK(&queries);
 
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config for func_odbc: %s\n", config);
 		AST_LIST_UNLOCK(&queries);
@@ -815,6 +816,11 @@ static int reload(void)
 	struct ast_config *cfg;
 	struct acf_odbc_query *oldquery;
 	char *catg;
+	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
+
+	cfg = ast_config_load(config, config_flags);
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	AST_LIST_LOCK(&queries);
 
@@ -824,7 +830,6 @@ static int reload(void)
 		free_acf_query(oldquery);
 	}
 
-	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "Unable to load config for func_odbc: %s\n", config);
 		goto reload_out;

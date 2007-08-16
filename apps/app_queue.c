@@ -3947,7 +3947,7 @@ static struct ast_custom_function queuememberlist_function = {
 	.read = queue_function_queuememberlist,
 };
 
-static int reload_queues(void)
+static int reload_queues(int reload)
 {
 	struct call_queue *q;
 	struct ast_config *cfg;
@@ -3960,16 +3960,18 @@ static int reload_queues(void)
 	char *interface;
 	char *membername;
 	int penalty;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(interface);
 		AST_APP_ARG(penalty);
 		AST_APP_ARG(membername);
 	);
 	
-	if (!(cfg = ast_config_load("queues.conf"))) {
+	if (!(cfg = ast_config_load("queues.conf", config_flags))) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
 		return 0;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 	AST_LIST_LOCK(&queues);
 	use_weight=0;
 	/* Mark all queues as dead for the moment */
@@ -4766,7 +4768,7 @@ static int load_module(void)
 	int res;
 	struct ast_context *con;
 
-	if (!reload_queues())
+	if (!reload_queues(0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	con = ast_context_find("app_queue_gosub_virtual_context");
@@ -4810,7 +4812,7 @@ static int load_module(void)
 
 static int reload(void)
 {
-	reload_queues();
+	reload_queues(1);
 	return 0;
 }
 

@@ -1773,15 +1773,22 @@ static int ospfinished_exec(
 
 /* OSP Module APIs */
 
-static int osp_load(void)
+static int osp_unload(void);
+static int osp_load(int reload)
 {
 	const char* t;
 	unsigned int v;
 	struct ast_config* cfg;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int error = OSPC_ERR_NO_ERROR;
 
-	cfg = ast_config_load(OSP_CONFIG_FILE);
+	if ((cfg = ast_config_load(OSP_CONFIG_FILE, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
 	if (cfg) {
+		if (reload)
+			osp_unload();
+
 		t = ast_variable_retrieve(cfg, OSP_GENERAL_CAT, "accelerate");
 		if (t && ast_true(t)) {
 			if ((error = OSPPInit(1)) != OSPC_ERR_NO_ERROR) {
@@ -2000,7 +2007,7 @@ static int load_module(void)
 {
 	int res;
 
-	if(!osp_load())
+	if (!osp_load(0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	ast_cli_register_multiple(cli_osp, sizeof(cli_osp) / sizeof(struct ast_cli_entry));
@@ -2028,8 +2035,7 @@ static int unload_module(void)
 
 static int reload(void)
 {
-	osp_unload();
-	osp_load();
+	osp_load(1);
 
 	return 0;
 }

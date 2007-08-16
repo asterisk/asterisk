@@ -9776,15 +9776,26 @@ static int set_config(char *config_file, int reload)
 	struct iax2_user *user;
 	struct iax2_peer *peer;
 	struct ast_netsock *ns;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 #if 0
 	static unsigned short int last_port=0;
 #endif
 
-	cfg = ast_config_load(config_file);
-	
+	cfg = ast_config_load(config_file, config_flags);
+
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		ucfg = ast_config_load("users.conf", config_flags);
+		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
+			return 0;
+		/* Otherwise we need to reread both files */
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		cfg = ast_config_load(config_file, config_flags);
+	} else { /* iax.conf changed, gotta reread users.conf, too */
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		ucfg = ast_config_load("users.conf", config_flags);
 	}
 
 	/* Reset global codec prefs */	
@@ -10048,7 +10059,6 @@ static int set_config(char *config_file, int reload)
 	}
 	iax2_capability = capability;
 	
-	ucfg = ast_config_load("users.conf");
 	if (ucfg) {
 		struct ast_variable *gen;
 		int genhasiax;
@@ -10176,7 +10186,7 @@ static int reload_config(void)
 		iax2_poke_peer(peer, 0);
 	AST_LIST_UNLOCK(&peers);
 	reload_firmware();
-	iax_provision_reload();
+	iax_provision_reload(1);
 
 	return 0;
 }
@@ -11097,7 +11107,7 @@ static int load_module(void)
 	AST_LIST_UNLOCK(&peers);
 
 	reload_firmware();
-	iax_provision_reload();
+	iax_provision_reload(0);
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

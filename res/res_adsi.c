@@ -1067,9 +1067,10 @@ static void adsi_load(void)
 	int x;
 	struct ast_config *conf;
 	struct ast_variable *v;
+	struct ast_flags config_flags = { 0 };
 	char *name, *sname;
 	init_state();
-	conf = ast_config_load("adsi.conf");
+	conf = ast_config_load("adsi.conf", config_flags);
 	if (conf) {
 		x=0;
 		for (v = ast_variable_browse(conf, "intro"); v; v = v->next) {

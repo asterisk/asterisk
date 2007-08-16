@@ -1134,6 +1134,10 @@ static int __ast_http_load(int reload)
 	char newprefix[MAX_PREFIX];
 	int have_sslbindaddr = 0;
 	struct http_uri_redirect *redirect;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load("http.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	/* default values */
 	memset(&http_desc.sin, 0, sizeof(http_desc.sin));
@@ -1159,7 +1163,6 @@ static int __ast_http_load(int reload)
 
 	destroy_post_mappings();
 
-	cfg = ast_config_load("http.conf");
 	if (cfg) {
 		v = ast_variable_browse(cfg, "general");
 		for (; v; v = v->next) {

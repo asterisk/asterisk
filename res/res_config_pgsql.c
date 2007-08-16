@@ -62,7 +62,7 @@ static char dbsock[MAX_DB_OPTION_SIZE] = "";
 static int dbport = 5432;
 static time_t connect_time = 0;
 
-static int parse_config(void);
+static int parse_config(int reload);
 static int pgsql_reconnect(const char *database);
 static int realtime_pgsql_status(int fd, int argc, char **argv);
 
@@ -431,7 +431,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 
 static struct ast_config *config_pgsql(const char *database, const char *table,
 					   const char *file, struct ast_config *cfg,
-					   int withcomments)
+					   struct ast_flags flags)
 {
 	PGresult *result = NULL;
 	long num_rows;
@@ -496,7 +496,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			char *field_var_val = PQgetvalue(result, rowIndex, 2);
 			char *field_cat_metric = PQgetvalue(result, rowIndex, 3);
 			if (!strcmp(field_var_name, "#include")) {
-				if (!ast_config_internal_load(field_var_val, cfg, 0)) {
+				if (!ast_config_internal_load(field_var_val, cfg, flags)) {
 					PQclear(result);
 					ast_mutex_unlock(&pgsql_lock);
 					return NULL;
@@ -536,35 +536,25 @@ static struct ast_config_engine pgsql_engine = {
 
 static int load_module(void)
 {
-	if(!parse_config())
+	if(!parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
-
-	ast_mutex_lock(&pgsql_lock);
-
-	if (!pgsql_reconnect(NULL)) {
-		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Couldn't establish connection. Check debug.\n");
-		ast_debug(1, "Postgresql RealTime: Cannot Connect: %s\n", PQerrorMessage(pgsqlConn));
-	}
 
 	ast_config_engine_register(&pgsql_engine);
 	ast_verb(1, "Postgresql RealTime driver loaded.\n");
 	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
-
-	ast_mutex_unlock(&pgsql_lock);
 
 	return 0;
 }
 
 static int unload_module(void)
 {
-	/* Aquire control before doing anything to the module itself. */
+	/* Acquire control before doing anything to the module itself. */
 	ast_mutex_lock(&pgsql_lock);
 
 	if (pgsqlConn) {
 		PQfinish(pgsqlConn);
 		pgsqlConn = NULL;
-	};
+	}
 	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 	ast_config_engine_deregister(&pgsql_engine);
 	ast_verb(1, "Postgresql RealTime unloaded.\n");
@@ -577,40 +567,32 @@ static int unload_module(void)
 
 static int reload(void)
 {
-	/* Aquire control before doing anything to the module itself. */
+	parse_config(1);
+
+	return 0;
+}
+
+static int parse_config(int reload)
+{
+	struct ast_config *config;
+	const char *s;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((config = ast_config_load(RES_CONFIG_PGSQL_CONF, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
+	if (!config) {
+		ast_log(LOG_WARNING, "Unable to load config %s\n", RES_CONFIG_PGSQL_CONF);
+		return 0;
+	}
+
 	ast_mutex_lock(&pgsql_lock);
 
 	if (pgsqlConn) {
 		PQfinish(pgsqlConn);
 		pgsqlConn = NULL;
-	};
-	parse_config();
-
-	if (!pgsql_reconnect(NULL)) {
-		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Couldn't establish connection. Check debug.\n");
-		ast_debug(1, "Postgresql RealTime: Cannot Connect: %s\n", PQerrorMessage(pgsqlConn));
 	}
 
-	ast_verb(2, "Postgresql RealTime reloaded.\n");
-
-	/* Done reloading. Release lock so others can now use driver. */
-	ast_mutex_unlock(&pgsql_lock);
-
-	return 0;
-}
-
-static int parse_config(void)
-{
-	struct ast_config *config;
-	const char *s;
-
-	config = ast_config_load(RES_CONFIG_PGSQL_CONF);
-
-	if (!config) {
-		ast_log(LOG_WARNING, "Unable to load config %s\n",RES_CONFIG_PGSQL_CONF);
-		return 0;
-	}
 	if (!(s = ast_variable_retrieve(config, "general", "dbuser"))) {
 		ast_log(LOG_WARNING,
 				"Postgresql RealTime: No database user found, using 'asterisk' as default.\n");
@@ -671,6 +653,17 @@ static int parse_config(void)
 		ast_debug(1, "Postgresql RealTime Password: %s\n", dbpass);
 		ast_debug(1, "Postgresql RealTime DBName: %s\n", dbname);
 	}
+
+	if (!pgsql_reconnect(NULL)) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: Couldn't establish connection. Check debug.\n");
+		ast_debug(1, "Postgresql RealTime: Cannot Connect: %s\n", PQerrorMessage(pgsqlConn));
+	}
+
+	ast_verb(2, "Postgresql RealTime reloaded.\n");
+
+	/* Done reloading. Release lock so others can now use driver. */
+	ast_mutex_unlock(&pgsql_lock);
 
 	return 1;
 }

@@ -364,9 +364,10 @@ static struct ast_config *realtime_directory(char *context)
 	const char *fullname;
 	const char *hidefromdir;
 	char tmp[100];
+	struct ast_flags config_flags = { 0 };
 
 	/* Load flat file config. */
-	cfg = ast_config_load(VOICEMAIL_CONFIG);
+	cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
 
 	if (!cfg) {
 		/* Loading config failed. */
@@ -597,6 +598,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	int fromappvm = 0;
 	const char *dirintro;
 	char *parse;
+	struct ast_flags config_flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(vmcontext);
 		AST_APP_ARG(dialcontext);
@@ -630,7 +632,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	ucfg = ast_config_load("users.conf");
+	ucfg = ast_config_load("users.conf", config_flags);
 
 	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))
@@ -674,7 +676,8 @@ static int unload_module(void)
 static int load_module(void)
 {
 #ifdef ODBC_STORAGE
-	struct ast_config *cfg = ast_config_load(VOICEMAIL_CONFIG);
+	struct ast_flags config_flags = { 0 };
+	struct ast_config *cfg = ast_config_load(VOICEMAIL_CONFIG, config_flags);
 	const char *tmp;
 
 	if (cfg) {

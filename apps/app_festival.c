@@ -306,6 +306,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	char *data;	
 	struct ast_config *cfg;
 	char *newfestivalcommand;
+	struct ast_flags config_flags = { 0 };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(text);
 		AST_APP_ARG(interrupt);
@@ -316,7 +317,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		return -1;
 	}
 
-	cfg = ast_config_load(FESTIVAL_CONFIG);
+	cfg = ast_config_load(FESTIVAL_CONFIG, config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
 		return -1;
@@ -520,7 +521,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	struct ast_config *cfg = ast_config_load(FESTIVAL_CONFIG);
+	struct ast_flags config_flags = { 0 };
+	struct ast_config *cfg = ast_config_load(FESTIVAL_CONFIG, config_flags);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
 		return AST_MODULE_LOAD_DECLINE;

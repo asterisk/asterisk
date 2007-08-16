@@ -300,14 +300,14 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames);
  * \param table the table to use
  * \param file the file to load from the database
  * \param cfg the struct ast_config object to use when storing variables
- * \param withcomments	Integer. Flag
+ * \param flags Optional flags.  Not used.
  * \retval cfg object
  * \retval NULL if an error occurred
  * \see add_cfg_entry()
  */
 static struct ast_config * config_handler(const char *database,
 	const char *table, const char *file,
-	struct ast_config *cfg, int withcomments);
+	struct ast_config *cfg, struct ast_flags flags);
 
 /*!
  * \brief Helper function to parse a va_list object into 2 dynamic arrays of
@@ -611,8 +611,9 @@ static int load_config(void)
 	struct ast_config *config;
 	struct ast_variable *var;
 	int error;
+	struct ast_flags config_flags = { 0 };
 
-	config = ast_config_load(RES_SQLITE_CONF_FILE);
+	config = ast_config_load(RES_SQLITE_CONF_FILE, config_flags);
 
 	if (!config) {
 		ast_log(LOG_ERROR, "Unable to load " RES_SQLITE_CONF_FILE "\n");
@@ -725,7 +726,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 }
 
 static struct ast_config *config_handler(const char *database, 
-	const char *table, const char *file, struct ast_config *cfg, int withcomments)
+	const char *table, const char *file, struct ast_config *cfg, struct ast_flags flags)
 {
 	struct cfg_entry_args args;
 	char *errormsg;

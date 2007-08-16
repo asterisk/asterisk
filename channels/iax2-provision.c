@@ -485,12 +485,13 @@ int iax_provision_unload(void)
 	return 0;
 }
 
-int iax_provision_reload(void)
+int iax_provision_reload(int reload)
 {
 	struct ast_config *cfg;
 	struct iax_template *cur, *prev, *next;
 	char *cat;
 	int found = 0;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	if (!provinit)
 		iax_provision_init();
 	/* Mark all as dead.  No need for locking */
@@ -499,8 +500,8 @@ int iax_provision_reload(void)
 		cur->dead = 1;
 		cur = cur->next;
 	}
-	cfg = ast_config_load("iaxprov.conf");
-	if (cfg) {
+	cfg = ast_config_load("iaxprov.conf", config_flags);
+	if (cfg != NULL && cfg != CONFIG_STATUS_FILEUNCHANGED) {
 		/* Load as appropriate */
 		cat = ast_category_browse(cfg, NULL);
 		while(cat) {
@@ -512,7 +513,9 @@ int iax_provision_reload(void)
 			cat = ast_category_browse(cfg, cat);
 		}
 		ast_config_destroy(cfg);
-	} else
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+	else
 		ast_log(LOG_NOTICE, "No IAX provisioning configuration found, IAX provisioning disabled.\n");
 	ast_mutex_lock(&provlock);
 	/* Drop dead entries while locked */

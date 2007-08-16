@@ -2290,13 +2290,14 @@ static void ast_readconfig(void)
 	struct ast_variable *v;
 	char *config = AST_CONFIG_FILE;
 	char hostname[MAXHOSTNAMELEN] = "";
+	struct ast_flags config_flags = { 0 };
 
 	if (ast_opt_override_config) {
-		cfg = ast_config_load(ast_config_AST_CONFIG_FILE);
+		cfg = ast_config_load(ast_config_AST_CONFIG_FILE, config_flags);
 		if (!cfg)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
 	} else 
-		cfg = ast_config_load(config);
+		cfg = ast_config_load(config, config_flags);
 
 	/* init with buildtime config */
 	ast_copy_string(ast_config_AST_CONFIG_DIR, AST_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));

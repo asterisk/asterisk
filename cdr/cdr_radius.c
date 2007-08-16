@@ -232,10 +232,11 @@ static int unload_module(void)
 static int load_module(void)
 {
 	struct ast_config *cfg;
+	struct ast_flags config_flags = { 0 };
 	int res;
 	const char *tmp;
 
-	if ((cfg = ast_config_load(cdr_config))) {
+	if ((cfg = ast_config_load(cdr_config, config_flags))) {
 		ast_set2_flag(&global_flags, ast_true(ast_variable_retrieve(cfg, "radius", "usegmtime")), RADIUS_FLAG_USEGMTIME);
 		ast_set2_flag(&global_flags, ast_true(ast_variable_retrieve(cfg, "radius", "loguniqueid")), RADIUS_FLAG_LOGUNIQUEID);
 		ast_set2_flag(&global_flags, ast_true(ast_variable_retrieve(cfg, "radius", "loguserfield")), RADIUS_FLAG_LOGUSERFIELD);

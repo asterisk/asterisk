@@ -1082,13 +1082,14 @@ static int load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	struct ast_flags config_flags = { 0 };
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	strcpy(mohinterpret, "default");
 
-	if (!(cfg = ast_config_load(config)))
+	if (!(cfg = ast_config_load(config, config_flags)))
 		return AST_MODULE_LOAD_DECLINE;
 
 	v = ast_variable_browse(cfg, "general");

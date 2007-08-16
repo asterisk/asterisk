@@ -605,11 +605,15 @@ static struct enum_search *enum_newtoplev(char *s)
 }
 
 /*! \brief Initialize the ENUM support subsystem */
-int ast_enum_init(void)
+static int private_enum_init(int reload)
 {
 	struct ast_config *cfg;
 	struct enum_search *s, *sl;
 	struct ast_variable *v;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load("enum.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	/* Destroy existing list */
 	ast_mutex_lock(&enumlock);
@@ -620,7 +624,6 @@ int ast_enum_init(void)
 		ast_free(sl);
 	}
 	toplevs = NULL;
-	cfg = ast_config_load("enum.conf");
 	if (cfg) {
 		sl = NULL;
 		v = ast_variable_browse(cfg, "general");
@@ -646,7 +649,12 @@ int ast_enum_init(void)
 	return 0;
 }
 
+int ast_enum_init(void)
+{
+	return private_enum_init(0);
+}
+
 int ast_enum_reload(void)
 {
-	return ast_enum_init();
+	return private_enum_init(1);
 }

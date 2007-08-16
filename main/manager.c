@@ -954,6 +954,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	struct ast_ha *ha = NULL;
 	char *password = NULL;
 	int readperm = 0, writeperm = 0;
+	struct ast_flags config_flags = { 0 };
 
 	if (ast_strlen_zero(user))	/* missing username */
 		return -1;
@@ -964,7 +965,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	 * suffices to call get_manager_by_name_locked() to fetch
 	 * the user's entry.
 	 */
-	struct ast_config *cfg = ast_config_load("manager.conf");
+	struct ast_config *cfg = ast_config_load("manager.conf", config_flags);
 	char *cat = NULL;
 	struct ast_variable *v;
 
@@ -1001,7 +1002,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	if (!cat) {
 		/* Didn't find the user in manager.conf, check users.conf */
 		int hasmanager = 0;
-		cfg = ast_config_load("users.conf");
+		cfg = ast_config_load("users.conf", config_flags);
 		if (!cfg)
 			return -1;
 		while ( (cat = ast_category_browse(cfg, cat)) ) {
@@ -1117,12 +1118,13 @@ static int action_getconfig(struct mansession *s, const struct message *m)
 	int lineno = 0;
 	char *category=NULL;
 	struct ast_variable *v;
+	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load_with_comments(fn))) {
+	if (!(cfg = ast_config_load(fn, config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
@@ -1167,13 +1169,14 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 	int comma1 = 0;
 	char *buf = NULL;
 	unsigned int buf_len = 0;
+	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 
 	if (ast_strlen_zero(fn)) {
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
 
-	if (!(cfg = ast_config_load_with_comments(fn))) {
+	if (!(cfg = ast_config_load(fn, config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
@@ -1302,12 +1305,13 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 	const char *dfn = astman_get_header(m, "DstFilename");
 	int res;
 	const char *rld = astman_get_header(m, "Reload");
+	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS | CONFIG_FLAG_NOCACHE };
 
 	if (ast_strlen_zero(sfn) || ast_strlen_zero(dfn)) {
 		astman_send_error(s, m, "Filename not specified");
 		return 0;
 	}
-	if (!(cfg = ast_config_load_with_comments(sfn))) {
+	if (!(cfg = ast_config_load(sfn, config_flags))) {
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
@@ -3246,7 +3250,7 @@ static struct server_args amis_desc = {
         .worker_fn = session_do,	/* thread handling the session */
 };
 
-int init_manager(void)
+static int __init_manager(int reload)
 {
 	struct ast_config *cfg = NULL;
 	const char *val;
@@ -3257,6 +3261,7 @@ int init_manager(void)
 	struct ast_hostent ahp;
 	struct ast_manager_user *user = NULL;
 	struct ast_variable *var;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	if (!registered) {
 		/* Register default actions */
@@ -3292,8 +3297,10 @@ int init_manager(void)
 		/* Append placeholder event so master_eventq never runs dry */
 		append_event("Event: Placeholder\r\n\r\n", 0);
 	}
+	if ((cfg = ast_config_load("manager.conf", config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
+
 	displayconnects = 1;
-	cfg = ast_config_load("manager.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open management configuration manager.conf.  Call management disabled.\n");
 		return 0;
@@ -3474,8 +3481,13 @@ int init_manager(void)
 	return 0;
 }
 
+int init_manager(void)
+{
+	return __init_manager(0);
+}
+
 int reload_manager(void)
 {
 	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Message: Reload Requested\r\n");
-	return init_manager();
+	return __init_manager(1);
 }

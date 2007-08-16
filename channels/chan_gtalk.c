@@ -1702,8 +1702,9 @@ static int gtalk_load_config(void)
 	struct gtalk_candidate *global_candidates = NULL;
 	struct hostent *hp;
 	struct ast_hostent ahp;
+	struct ast_flags config_flags = { 0 };
 
-	cfg = ast_config_load(GOOGLE_CONFIG);
+	cfg = ast_config_load(GOOGLE_CONFIG, config_flags);
 	if (!cfg)
 		return 0;
 

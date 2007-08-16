@@ -183,7 +183,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 	return 0;
 }
 
-static int my_unload_module(void)
+static int unload_module(void)
 { 
 	PQfinish(conn);
 	if (pghostname)
@@ -202,20 +202,30 @@ static int my_unload_module(void)
 	return 0;
 }
 
-static int process_my_load_module(struct ast_config *cfg)
+static int config_module(int reload)
 {
 	struct ast_variable *var;
-        char *pgerror;
+	char *pgerror;
 	const char *tmp;
+	struct ast_config *cfg;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+
+	if ((cfg = ast_config_load(config, config_flags)) == NULL) {
+		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
+		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	if (!(var = ast_variable_browse(cfg, "global")))
 		return 0;
 
-	if (!(tmp = ast_variable_retrieve(cfg,"global","hostname"))) {
-		ast_log(LOG_WARNING,"PostgreSQL server hostname not specified.  Assuming unix socket connection\n");
+	if (!(tmp = ast_variable_retrieve(cfg, "global", "hostname"))) {
+		ast_log(LOG_WARNING, "PostgreSQL server hostname not specified.  Assuming unix socket connection\n");
 		tmp = "";	/* connect via UNIX-socket by default */
 	}
-	
+
+	if (pghostname)
+		ast_free(pghostname);
 	if (!(pghostname = ast_strdup(tmp)))
 		return -1;
 
@@ -224,6 +234,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		tmp = "asteriskcdrdb";
 	}
 
+	if (pgdbname)
+		ast_free(pgdbname);
 	if (!(pgdbname = ast_strdup(tmp)))
 		return -1;
 
@@ -232,6 +244,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		tmp = "asterisk";
 	}
 
+	if (pgdbuser)
+		ast_free(pgdbuser);
 	if (!(pgdbuser = ast_strdup(tmp)))
 		return -1;
 
@@ -240,6 +254,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		tmp = "";
 	}
 
+	if (pgpassword)
+		ast_free(pgpassword);
 	if (!(pgpassword = ast_strdup(tmp)))
 		return -1;
 
@@ -248,6 +264,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		tmp = "5432";
 	}
 
+	if (pgdbport)
+		ast_free(pgdbport);
 	if (!(pgdbport = ast_strdup(tmp)))
 		return -1;
 
@@ -256,6 +274,8 @@ static int process_my_load_module(struct ast_config *cfg)
 		tmp = "cdr";
 	}
 
+	if (table)
+		ast_free(table);
 	if (!(table = ast_strdup(tmp)))
 		return -1;
 
@@ -276,49 +296,23 @@ static int process_my_load_module(struct ast_config *cfg)
 		ast_debug(1, "Successfully connected to PostgreSQL database.\n");
 		connected = 1;
 	} else {
-                pgerror = PQerrorMessage(conn);
+		pgerror = PQerrorMessage(conn);
 		ast_log(LOG_ERROR, "cdr_pgsql: Unable to connect to database server %s.  CALLS WILL NOT BE LOGGED!!\n", pghostname);
-                ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
+		ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
 		connected = 0;
 	}
 
 	return ast_cdr_register(name, ast_module_info->description, pgsql_log);
 }
 
-static int my_load_module(void)
-{
-	struct ast_config *cfg;
-	int res;
-
-	if (!(cfg = ast_config_load(config))) {
-		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
-		return AST_MODULE_LOAD_DECLINE;
-	}
-
-	res = process_my_load_module(cfg);
-	ast_config_destroy(cfg);
-
-	return res;
-}
-
 static int load_module(void)
 {
-	return my_load_module();
-}
-
-static int unload_module(void)
-{
-	return my_unload_module();
+	return config_module(0) ? AST_MODULE_LOAD_DECLINE : 0;
 }
 
 static int reload(void)
 {
-	int res;
-	ast_mutex_lock(&pgsql_lock);
-	my_unload_module();
-	res = my_load_module();
-	ast_mutex_unlock(&pgsql_lock);
-	return res;
+	return config_module(1);
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "PostgreSQL CDR Backend",

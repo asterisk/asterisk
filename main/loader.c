@@ -731,6 +731,7 @@ int load_modules(unsigned int preload_only)
 	unsigned int load_count;
 	struct load_order load_order;
 	int res = 0;
+	struct ast_flags config_flags = { 0 };
 #if LOADABLE_MODULES
 	struct dirent *dirent;
 	DIR *dir;
@@ -745,7 +746,7 @@ int load_modules(unsigned int preload_only)
 
 	AST_LIST_LOCK(&module_list);
 
-	if (!(cfg = ast_config_load(AST_MODULE_CONFIG))) {
+	if (!(cfg = ast_config_load(AST_MODULE_CONFIG, config_flags))) {
 		ast_log(LOG_WARNING, "No '%s' found, no modules will be loaded.\n", AST_MODULE_CONFIG);
 		goto done;
 	}

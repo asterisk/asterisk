@@ -2812,13 +2812,23 @@ static int reload_config(int is_reload)
 	int is_user, is_peer, is_alias;
 	char _gatekeeper[100];
 	int gk_discover, gk_disable, gk_changed;
+	struct ast_flags config_flags = { is_reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to load config %s, H.323 disabled\n", config);
 		return 1;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
+		ucfg = ast_config_load("users.conf", config_flags);
+		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
+			return 0;
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		cfg = ast_config_load(config, config_flags);
+	} else {
+		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
+		ucfg = ast_config_load("users.conf", config_flags);
 	}
 
 	/* fire up the H.323 Endpoint */
@@ -2851,8 +2861,6 @@ static int reload_config(int is_reload)
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
-	/* Load configuration from users.conf */
-	ucfg = ast_config_load("users.conf");
 	if (ucfg) {
 		struct ast_variable *gen;
 		int genhas_h323;

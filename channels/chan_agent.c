@@ -976,7 +976,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
  *
  * \returns Always 0, or so it seems.
  */
-static int read_agent_config(void)
+static int read_agent_config(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_config *ucfg;
@@ -986,17 +986,19 @@ static int read_agent_config(void)
 	const char *catname;
 	const char *hasagent;
 	int genhasagent;
+	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
 	group = 0;
 	autologoff = 0;
 	wrapuptime = 0;
 	ackcall = 0;
 	endcall = 1;
-	cfg = ast_config_load(config);
+	cfg = ast_config_load(config, config_flags);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
 		return 0;
-	}
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return -1;
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		p->dead = 1;
@@ -1081,7 +1083,7 @@ static int read_agent_config(void)
 		}
 		v = v->next;
 	}
-	if ((ucfg = ast_config_load("users.conf"))) {
+	if ((ucfg = ast_config_load("users.conf", config_flags)) && ucfg != CONFIG_STATUS_FILEUNCHANGED) {
 		genhasagent = ast_true(ast_variable_retrieve(ucfg, "general", "hasagent"));
 		catname = ast_category_browse(ucfg, NULL);
 		while(catname) {
@@ -2276,7 +2278,7 @@ static int load_module(void)
 		return -1;
 	}
 	/* Read in the config */
-	if (!read_agent_config())
+	if (!read_agent_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 	if (persistent_agents)
 		reload_agents();
@@ -2299,9 +2301,10 @@ static int load_module(void)
 
 static int reload(void)
 {
-	read_agent_config();
-	if (persistent_agents)
-		reload_agents();
+	if (!read_agent_config(1)) {
+		if (persistent_agents)
+			reload_agents();
+	}
 	return 0;
 }
 
