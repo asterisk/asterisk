@@ -21,6 +21,7 @@ AMI - The manager (TCP/TLS/HTTP)
      are currently active on the system.
   * Added a "ListAllVoicemailUsers" action that allows you to get a list of all
      the voicemail users setup.
+  * Added 'DBDel' and 'DBDelTree' manager commands.
 
 Dialplan functions
 ------------------
@@ -252,7 +253,6 @@ Miscellaneous
   * Added G729 passthrough support to chan_phone for Sigma Designs boards.
   * Added 's' option to Page application.
   * Added 'E' and 'V' commands to ExternalIVR.
-  * Added 'DBDel' and 'DBDelTree' manager commands.
   * Added 'o' and 'X' options to Chanspy.
   * Added a new CDR module, cdr_sqlite3_custom.
   * The cdr_manager module has a [mappings] feature, like cdr_custom,
