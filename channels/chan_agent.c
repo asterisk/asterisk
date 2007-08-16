@@ -2090,6 +2090,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									if (option_debug)
 										ast_log(LOG_DEBUG, "Wrapup time for %s expired!\n", p->agent);
 									p->lastdisc = ast_tv(0, 0);
+									ast_device_state_changed("Agent/%s", p->agent);
 									if (p->ackcall > 1)
 										check_beep(p, 0);
 									else
