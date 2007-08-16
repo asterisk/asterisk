@@ -4652,6 +4652,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 
 	char host[80];
 	char perceived[80];
+	int counter = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
@@ -4665,8 +4666,10 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 		ast_cli(fd, FORMAT, host, 
 					(reg->dnsmgr) ? "Y" : "N", 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
+		counter++;
 	}
 	AST_LIST_UNLOCK(&registrations);
+	ast_cli(fd, "%d IAX2 registrations.\n", counter);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
