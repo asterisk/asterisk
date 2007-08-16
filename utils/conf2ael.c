@@ -1,7 +1,7 @@
 /*  
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2006, Digium, Inc.
+ * Copyright (C) 2007, Digium, Inc.
  *
  * Steve Murphy <murf@digium.com>
  *
@@ -59,18 +59,6 @@
 
 void get_start_stop(unsigned int *word, int bitsperword, int totalbits, int *start, int *end);
 int all_bits_set(unsigned int *word, int bitsperword, int totalbits);
-void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
-{
-	        va_list vars;
-		        va_start(vars,fmt);
-			
-			        printf("LOG: lev:%d file:%s  line:%d func: %s  ",
-						                   level, file, line, function);
-				        vprintf(fmt, vars);
-					        fflush(stdout);
-						        va_end(vars);
-}
-
 extern char *days[];
 extern char *months[];
 char ast_config_AST_CONFIG_DIR[PATH_MAX];
@@ -98,7 +86,7 @@ void ast_unregister_file_version(void);
 void ast_register_file_version(void)
 {
 	/* if(!no_comp)
-		printf("Executed ast_register_file_version();\n"); */
+	   printf("Executed ast_register_file_version();\n"); */
 	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
 }
 
@@ -107,20 +95,22 @@ void ast_unregister_file_version(void)
 	/* if(!no_comp)
 		printf("Executed ast_unregister_file_version();\n"); */
 	/* I'm erasing this, because I don't think anyone really ever needs to see it anyway */
-
 }
-
-
-
-/* experiment 1: see if it's easier just to use existing config code
- *               to read in the extensions.conf file. In this scenario, 
-                 I have to rip/copy code from other modules, because they
-                 are staticly declared as-is. A solution would be to move
-                 the ripped code to another location and make them available
-                 to other modules and standalones */
 
 /* Our own version of ast_log, since the expr parser uses it. -- stolen from utils/check_expr.c */
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
+{
+	va_list vars;
+	va_start(vars,fmt);
+	
+	printf("LOG: lev:%d file:%s  line:%d func: %s  ",
+		   level, file, line, function);
+	vprintf(fmt, vars);
+	fflush(stdout);
+	va_end(vars);
+}
 
 /* stolen from pbx.c */
 struct ast_context;
@@ -369,11 +359,11 @@ int main(int argc, char **argv)
 	printf("         The result will most likely need careful attention to\n");
 	printf("         finish the job!!!!!\n");
 
-
 	strcpy(ast_config_AST_CONFIG_DIR,"/etc/asterisk");
 	
 	printf("Loading %s/%s...\n", ast_config_AST_CONFIG_DIR, config);
-	
+
+	localized_use_conf_dir();
 	localized_pbx_load_module();
 	
 	printf("... Done!\n");
@@ -383,11 +373,6 @@ int main(int argc, char **argv)
 		printf("Context: %s\n", tmp->name);
 	}
 	printf("=========\n");
-	printf("Sizeof(context)=%d\n", (int)sizeof(struct ast_context));
-	printf("Sizeof(exten)=%d\n", (int)sizeof(struct ast_exten));
-	printf("Sizeof(include)=%d\n", (int)sizeof(struct ast_include));
-	printf("Sizeof(ignorepat)=%d\n", (int)sizeof(struct ast_ignorepat));
-	printf("Sizeof(sw)=%d\n", (int)sizeof(struct ast_sw));
 	tmp = 0;
 	while ((tmp = localized_walk_contexts(tmp)) ) {
 		/* printf("Context: %s\n", tmp->name); */

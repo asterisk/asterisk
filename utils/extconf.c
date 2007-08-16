@@ -959,6 +959,8 @@ extern int ast_language_is_prefix;
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
+	/*! Track which thread holds this lock */
+	unsigned int track:1;
 	const char *file[AST_MAX_REENTRANCY];
 	int lineno[AST_MAX_REENTRANCY];
 	int reentrancy;
