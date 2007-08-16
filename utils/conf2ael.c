@@ -340,9 +340,17 @@ int main(int argc, char **argv)
 	struct ast_sw *sw = 0;
 	struct ast_ignorepat *ipi;
 	pval *incl=0;
+	int localdir = 0, i;
 
 	tree = 0;
 	tmptree = 0;
+
+	/* process the command line args */
+	for (i=1; i<argc; i++)
+	{
+		if (strcmp(argv[i],"-d")==0)
+			localdir =1;
+	}
 	
 	/* 3 simple steps: */
 	/*   1. read in the extensions.conf config file 
@@ -358,11 +366,15 @@ int main(int argc, char **argv)
 	printf("         The result will most likely need careful attention to\n");
 	printf("         finish the job!!!!!\n");
 
+	if (!localdir)
+		printf(" (You could use -d the use the extensions.conf in the current directory!)\n");
+
 	strcpy(ast_config_AST_CONFIG_DIR,"/etc/asterisk");
 	
 	printf("Loading %s/%s...\n", ast_config_AST_CONFIG_DIR, config);
 
-	localized_use_conf_dir();
+	if (!localdir)
+		localized_use_conf_dir();
 	localized_pbx_load_module();
 	
 	printf("... Done!\n");
@@ -491,28 +503,43 @@ int main(int argc, char **argv)
 			pval *exten = pvalCreateNode(PV_EXTENSION);
 			pvalContextAddStatement(tmptree, exten);
 			pvalExtenSetName(exten, ast_strdup(eroot->exten));
-			
+		
 			if (eroot->peer) {
 				pval *block = pvalCreateNode(PV_STATEMENTBLOCK);
 				pvalExtenSetStatement(exten, block);
 				
 				e = 0;
 				while ( (e = localized_walk_extension_priorities(eroot, e)) ) {
-					/* printf("           %s(%s)\n", e->app, (char*)e->data); */
 					
 					pval *statemnt = pvalCreateNode(PV_APPLICATION_CALL);
 					pval *args = pvalCreateNode(PV_WORD);
 					
+					/* printf("           %s(%s)\n", e->app, (char*)e->data); */
+
 					pvalAppCallSetAppName(statemnt, ast_strdup(e->app));
 					pvalWordSetString(args, ast_strdup(e->data));
 					pvalAppCallAddArg(statemnt, args);
 					
 					pvalStatementBlockAddStatement(block, statemnt);
 				}
-			} else {
+			} else if (eroot->priority == -1) {
+
 				pval *statemnt = pvalCreateNode(PV_APPLICATION_CALL);
 				pval *args = pvalCreateNode(PV_WORD);
 
+				/* printf("Mike, we have a hint on exten %s with data %s\n", eroot->exten, eroot->app); */
+
+				pvalAppCallSetAppName(statemnt, "NoOp");
+				pvalWordSetString(args, ast_strdup(eroot->app));
+
+
+				pvalExtenSetStatement(exten, statemnt);
+				pvalExtenSetHints(exten, ast_strdup(eroot->app));
+			} else {
+
+				pval *statemnt = pvalCreateNode(PV_APPLICATION_CALL);
+				pval *args = pvalCreateNode(PV_WORD);
+	
 				/* printf("           %s (%s)\n", eroot->app, (char *)eroot->data); */
 				
 				pvalAppCallSetAppName(statemnt, ast_strdup(eroot->app));
