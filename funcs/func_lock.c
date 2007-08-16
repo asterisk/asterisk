@@ -57,24 +57,49 @@ static struct ast_datastore_info lock_info = {
 struct lock_frame {
 	AST_LIST_ENTRY(lock_frame) entries;
 	ast_mutex_t mutex;
+	/*! count is needed so if a recursive mutex exits early, we know how many times to unlock it. */
+	unsigned int count;
+	/*! who owns us */
 	struct ast_channel *channel;
+	/*! name of the lock */
 	char name[0];
+};
+
+struct channel_lock_frame {
+	AST_LIST_ENTRY(channel_lock_frame) list;
+	/*! Need to save channel pointer here, because during destruction, we won't have it. */
+	struct ast_channel *channel;
+	struct lock_frame *lock_frame;
 };
 
 static void lock_free(void *data)
 {
-	struct lock_frame *frame = data;
-	if (!frame)
-		return;
-	frame->channel = NULL;
-	ast_mutex_unlock(&frame->mutex);
+	AST_LIST_HEAD(, channel_lock_frame) *oldlist = data;
+	struct channel_lock_frame *clframe;
+	AST_LIST_LOCK(oldlist);
+	while ((clframe = AST_LIST_REMOVE_HEAD(oldlist, list))) {
+		/* Only unlock if we own the lock */
+		if (clframe->channel == clframe->lock_frame->channel) {
+			clframe->lock_frame->channel = NULL;
+			while (clframe->lock_frame->count > 0) {
+				clframe->lock_frame->count--;
+				ast_mutex_unlock(&clframe->lock_frame->mutex);
+			}
+		}
+		ast_free(clframe);
+	}
+	AST_LIST_UNLOCK(oldlist);
+	AST_LIST_HEAD_DESTROY(oldlist);
+	ast_free(oldlist);
 }
 
 static int get_lock(struct ast_channel *chan, char *lockname, int try)
 {
 	struct ast_datastore *lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
 	struct lock_frame *current;
-	int res;
+	struct channel_lock_frame *clframe, *save_clframe;
+	AST_LIST_HEAD(, channel_lock_frame) *list;
+	int res, count_channel_locks = 0;
 
 	if (!lock_store) {
 		ast_debug(1, "Channel %s has no lock datastore, so we're allocating one.\n", chan->name);
@@ -83,17 +108,21 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 			ast_log(LOG_ERROR, "Unable to allocate new datastore.  No locks will be obtained.\n");
 			return -1;
 		}
+
+		list = ast_calloc(1, sizeof(*list));
+		if (!list) {
+			ast_log(LOG_ERROR, "Unable to allocate datastore list head.  %sLOCK will fail.\n", try ? "TRY" : "");
+			ast_channel_datastore_free(lock_store);
+			return -1;
+		}
+
+		lock_store->data = list;
+		AST_LIST_HEAD_INIT(list);
 		ast_channel_datastore_add(chan, lock_store);
-	}
+	} else
+		list = lock_store->data;
 
-	/* If the channel already has a lock, then free the existing lock */
-	if (lock_store->data) {
-		struct lock_frame *old = lock_store->data;
-		old->channel = NULL;
-		ast_mutex_unlock(&old->mutex);
-	}
-
-	/* Lock already exist? */
+	/* Lock already exists? */
 	AST_LIST_LOCK(&locklist);
 	AST_LIST_TRAVERSE(&locklist, current, entries) {
 		if (strcmp(current->name, lockname) == 0) {
@@ -119,21 +148,70 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 		ast_mutex_init(&current->mutex);
 		AST_LIST_INSERT_TAIL(&locklist, current, entries);
 	}
+	AST_LIST_UNLOCK(&locklist);
 
-	res = try ? ast_mutex_trylock(&current->mutex) : ast_mutex_lock(&current->mutex);
+	/* Found lock or created one - now find or create the corresponding link in the channel */
+	AST_LIST_LOCK(list);
+	AST_LIST_TRAVERSE(list, clframe, list) {
+		if (clframe->lock_frame == current)
+			save_clframe = clframe;
+
+		/* Only count mutexes that we currently hold */
+		if (clframe->lock_frame->channel == chan)
+			count_channel_locks++;
+	}
+
+	if (save_clframe) {
+		clframe = save_clframe;
+	} else {
+		if (unloading) {
+			/* Don't bother */
+			AST_LIST_UNLOCK(list);
+			return -1;
+		}
+
+		clframe = ast_calloc(1, sizeof(*clframe));
+		if (!clframe) {
+			ast_log(LOG_ERROR, "Unable to allocate channel lock frame.  %sLOCK will fail.\n", try ? "TRY" : "");
+			AST_LIST_UNLOCK(list);
+			return -1;
+		}
+
+		clframe->lock_frame = current;
+		clframe->channel = chan;
+		/* Count the lock just created */
+		count_channel_locks++;
+		AST_LIST_INSERT_TAIL(list, clframe, list);
+	}
+	AST_LIST_UNLOCK(list);
+
+	/* Okay, we have both frames, so now we need to try to lock the mutex. */
+	if (count_channel_locks > 1) {
+		/* If we fail after a certain number of attempts, assume a possible deadlock and bail. */
+		int x;
+		for (x = 0; x < 30; x++) {
+			if ((res = ast_mutex_trylock(&current->mutex)) == 0)
+				break;
+			usleep(1);
+		}
+	} else {
+		/* If the channel doesn't have any locks so far, then there's no possible deadlock. */
+		res = try ? ast_mutex_trylock(&current->mutex) : ast_mutex_lock(&current->mutex);
+	}
+
 	if (res == 0) {
-		lock_store->data = current;
+		current->count++;
 		current->channel = chan;
 	}
 
-	AST_LIST_UNLOCK(&locklist);
 	return res;
 }
 
 static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
 	struct ast_datastore *lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
-	struct lock_frame *current;
+	struct channel_lock_frame *clframe;
+	AST_LIST_HEAD(, channel_lock_frame) *list;
 
 	if (!lock_store) {
 		ast_log(LOG_WARNING, "No datastore for dialplan locks.  Nothing was ever locked!\n");
@@ -141,15 +219,37 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 		return 0;
 	}
 
-	current = lock_store->data;
-
-	if (!current) {
+	if (!(list = lock_store->data)) {
+		ast_debug(1, "This should NEVER happen\n");
 		ast_copy_string(buf, "0", len);
 		return 0;
 	}
 
-	current->channel = NULL;
-	ast_mutex_unlock(&current->mutex);
+	/* Find item in the channel list */
+	AST_LIST_LOCK(list);
+	AST_LIST_TRAVERSE(list, clframe, list) {
+		if (clframe->lock_frame && clframe->lock_frame->channel == chan && strcmp(clframe->lock_frame->name, data) == 0) {
+			break;
+		}
+	}
+	/* We never destroy anything until channel destruction, which will never
+	 * happen while this routine is executing, so we don't need to hold the
+	 * lock beyond this point. */
+	AST_LIST_UNLOCK(list);
+
+	if (!clframe) {
+		/* We didn't have this lock in the first place */
+		ast_copy_string(buf, "0", len);
+		return 0;
+	}
+
+	/* Decrement before we release, because if a channel is waiting on the
+	 * mutex, there's otherwise a race to alter count. */
+	clframe->lock_frame->count--;
+	/* If we get another lock, this one shouldn't count against us for deadlock avoidance. */
+	clframe->lock_frame->channel = NULL;
+	ast_mutex_unlock(&clframe->lock_frame->mutex);
+
 	ast_copy_string(buf, "1", len);
 	return 0;
 }
@@ -170,13 +270,11 @@ static struct ast_custom_function lock_function = {
 	.name = "LOCK",
 	.synopsis = "Attempt to obtain a named mutex",
 	.desc =
-"Attempts to grab a named lock exclusively, and prevents other channels\n"
-"from obtaining the same lock.  LOCK will wait for the lock to become\n"
-"available.  Returns 1 if the lock was obtained or 0 on error.\n\n"
+"Attempts to grab a named lock exclusively, and prevents other channels from\n"
+"obtaining the same lock.  LOCK will wait for the lock to become available.\n"
+"Returns 1 if the lock was obtained or 0 on error.\n\n"
 "Note: to avoid the possibility of a deadlock, LOCK will only attempt to\n"
-"grab a single lock.  If you have a lock already and you attempt to lock\n"
-"another name, LOCK will unlock the first name before attempting to lock\n"
-"the second name.\n",
+"obtain the lock for 3 seconds if the channel already has another lock.\n",
 	.syntax = "LOCK(<lockname>)",
 	.read = lock_read,
 };
@@ -187,11 +285,7 @@ static struct ast_custom_function trylock_function = {
 	.desc =
 "Attempts to grab a named lock exclusively, and prevents other channels\n"
 "from obtaining the same lock.  Returns 1 if the lock was available or 0\n"
-"otherwise.\n\n"
-"Note: to avoid the possibility of a deadlock, TRYLOCK will only attempt to\n"
-"grab a single lock.  If you have a lock already and you attempt to lock\n"
-"another name, TRYLOCK will unlock the first name before attempting to lock\n"
-"the second name.\n",
+"otherwise.\n",
 	.syntax = "TRYLOCK(<lockname>)",
 	.read = trylock_read,
 };
@@ -201,9 +295,9 @@ static struct ast_custom_function unlock_function = {
 	.synopsis = "Unlocks a named mutex",
 	.desc =
 "Unlocks a previously locked mutex.  Note that it is generally unnecessary to\n"
-"unlock in a hangup routine, as any lock held is automatically freed when the\n"
+"unlock in a hangup routine, as any locks held are automatically freed when the\n"
 "channel is destroyed.  Returns 1 if the channel had a lock or 0 otherwise.\n",
-	.syntax = "UNLOCK()",
+	.syntax = "UNLOCK(<lockname>)",
 	.read = unlock_read,
 };
 
