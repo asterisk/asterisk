@@ -1793,7 +1793,7 @@ static int base_encode(char *filename, FILE *so)
 	bio.iocp = BASEMAXINLINE;
 
 	if (!(fi = fopen(filename, "rb"))) {
-		ast_log(LOG_WARNING, "Failed to open log file: %s: %s\n", filename, strerror(errno));
+		ast_log(LOG_WARNING, "Failed to open file: %s: %s\n", filename, strerror(errno));
 		return -1;
 	}
 
