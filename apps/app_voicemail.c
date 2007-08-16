@@ -7505,6 +7505,7 @@ static int handle_voicemail_show_users(int fd, int argc, char *argv[])
 	struct ast_vm_user *vmu;
 	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
 	const char *context = NULL;
+	int users_counter = 0;
 
 	if ((argc < 3) || (argc > 5) || (argc == 4))
 		return RESULT_SHOWUSAGE;
@@ -7553,9 +7554,11 @@ static int handle_voicemail_show_users(int fd, int argc, char *argv[])
 			inboxcount(tmp, &newmsgs, &oldmsgs);
 			snprintf(count,sizeof(count),"%d",newmsgs);
 			ast_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
+			users_counter++;
 		}
 	}
 	AST_LIST_UNLOCK(&users);
+	ast_cli(fd, "%d voicemail users configured.\n", users_counter);
 	return RESULT_SUCCESS;
 }
 
