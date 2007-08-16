@@ -1496,7 +1496,7 @@ static void iax2_frame_free(struct iax_frame *fr)
 /*!
  * \brief Queue a frame to a call's owning asterisk channel
  *
- * \note This function assumes that iaxsl[callno] is locked when called.
+ * \pre This function assumes that iaxsl[callno] is locked when called.
  *
  * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
  * was valid before calling it, it may no longer be valid after calling it.
@@ -1505,7 +1505,6 @@ static void iax2_frame_free(struct iax_frame *fr)
  */
 static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
-	/* Assumes lock for callno is already held... */
 	for (;;) {
 		if (iaxs[callno] && iaxs[callno]->owner) {
 			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
@@ -1524,6 +1523,72 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 	return 0;
 }
 
+/*!
+ * \brief Queue a hangup frame on the ast_channel owner
+ *
+ * This function queues a hangup frame on the owner of the IAX2 pvt struct that
+ * is active for the given call number.
+ *
+ * \pre Assumes lock for callno is already held.
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ * This function may unlock and lock the mutex associated with this callno,
+ * meaning that another thread may grab it and destroy the call.
+ */
+static int iax2_queue_hangup(int callno)
+{
+	for (;;) {
+		if (iaxs[callno] && iaxs[callno]->owner) {
+			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
+				/* Avoid deadlock by pausing and trying again */
+				ast_mutex_unlock(&iaxsl[callno]);
+				usleep(1);
+				ast_mutex_lock(&iaxsl[callno]);
+			} else {
+				ast_queue_hangup(iaxs[callno]->owner);
+				ast_mutex_unlock(&iaxs[callno]->owner->lock);
+				break;
+			}
+		} else
+			break;
+	}
+	return 0;
+}
+
+/*!
+ * \brief Queue a control frame on the ast_channel owner
+ *
+ * This function queues a control frame on the owner of the IAX2 pvt struct that
+ * is active for the given call number.
+ *
+ * \pre Assumes lock for callno is already held.
+ *
+ * \note IMPORTANT NOTE!!! Any time this function is used, even if iaxs[callno]
+ * was valid before calling it, it may no longer be valid after calling it.
+ * This function may unlock and lock the mutex associated with this callno,
+ * meaning that another thread may grab it and destroy the call.
+ */
+static int iax2_queue_control_data(int callno, 
+	enum ast_control_frame_type control, const void *data, size_t datalen)
+{
+	for (;;) {
+		if (iaxs[callno] && iaxs[callno]->owner) {
+			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
+				/* Avoid deadlock by pausing and trying again */
+				ast_mutex_unlock(&iaxsl[callno]);
+				usleep(1);
+				ast_mutex_lock(&iaxsl[callno]);
+			} else {
+				ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
+				ast_mutex_unlock(&iaxs[callno]->owner->lock);
+				break;
+			}
+		} else
+			break;
+	}
+	return 0;
+}
 static void destroy_firmware(struct iax_firmware *cur)
 {
 	/* Close firmware */
@@ -1912,6 +1977,10 @@ static void iax2_destroy_helper(struct chan_iax2_pvt *pvt)
 	pvt->jbid = -1;
 }
 
+/*!
+ * \note Since this function calls iax2_queue_hangup(), the pvt struct
+ *       for the given call number may disappear during its execution.
+ */
 static int iax2_predestroy(int callno)
 {
 	struct ast_channel *c = NULL;
@@ -1926,9 +1995,8 @@ static int iax2_predestroy(int callno)
 	}
 
 	if ((c = pvt->owner)) {
-		c->_softhangup |= AST_SOFTHANGUP_DEV;
 		c->tech_pvt = NULL;
-		ast_queue_hangup(c);
+		iax2_queue_hangup(callno);
 		pvt->owner = NULL;
 		ast_module_unref(ast_module_info->self);
 	}
@@ -1969,7 +2037,8 @@ retry:
 
 		if (owner) {
 			/* If there's an owner, prod it to give up */
-			owner->_softhangup |= AST_SOFTHANGUP_DEV;
+			/* It is ok to use ast_queue_hangup() here instead of iax2_queue_hangup()
+			 * because we already hold the owner channel lock. */
 			ast_queue_hangup(owner);
 		}
 
@@ -3232,12 +3301,17 @@ static int iax2_hangup(struct ast_channel *c)
 		alreadygone = ast_test_flag(iaxs[callno], IAX_ALREADYGONE);
 		/* Send the hangup unless we have had a transmission error or are already gone */
  		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, (unsigned char)c->hangupcause);
-		if (!iaxs[callno]->error && !alreadygone) 
+		if (!iaxs[callno]->error && !alreadygone) {
  			send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_HANGUP, 0, ied.buf, ied.pos, -1);
+			if (!iaxs[callno]) {
+				ast_mutex_unlock(&iaxsl[callno]);
+				return 0;
+			}
+		}
 		/* Explicitly predestroy it */
 		iax2_predestroy(callno);
 		/* If we were already gone to begin with, destroy us now */
-		if (alreadygone) {
+		if (alreadygone && iaxs[callno]) {
 			ast_debug(1, "Really destroying %s now...\n", c->name);
 			iax2_destroy(callno);
 		}
@@ -4921,10 +4995,18 @@ static int send_command_locked(unsigned short callno, char type, int command, un
 	return res;
 }
 
+/*!
+ * \note Since this function calls iax2_predestroy() -> iax2_queue_hangup(),
+ *       the pvt struct for the given call number may disappear during its 
+ *       execution.
+ */
 static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
+	int call_num = i->callno;
 	/* It is assumed that the callno has already been locked */
 	iax2_predestroy(i->callno);
+	if (!iaxs[call_num])
+		return -1;
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 1);
 }
 
@@ -5181,12 +5263,19 @@ static void merge_encryption(struct chan_iax2_pvt *p, unsigned int enc)
 	}
 }
 
-static int authenticate_request(struct chan_iax2_pvt *p)
+/*!
+ * \pre iaxsl[call_num] is locked
+ *
+ * \note Since this function calls send_command_final(), the pvt struct for the given
+ *       call number may disappear while executing this function.
+ */
+static int authenticate_request(int call_num)
 {
 	struct iax2_user *user = NULL;
 	struct iax_ie_data ied;
 	int res = -1, authreq_restrict = 0;
 	char challenge[10];
+	struct chan_iax2_pvt *p = iaxs[call_num];
 
 	memset(&ied, 0, sizeof(ied));
 
@@ -5999,6 +6088,12 @@ static void reg_source_db(struct iax2_peer *p)
 	}
 }
 
+/*!
+ * \pre iaxsl[callno] is locked
+ *
+ * \note Since this function calls send_command_final(), the pvt struct for
+ *       the given call number may disappear while executing this function.
+ */
 static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
 {
 	/* Called from IAX thread only, with proper iaxsl lock */
@@ -7459,9 +7554,13 @@ retryowner:
 					if (ies.musiconhold) {
 						if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
 							const char *mohsuggest = iaxs[fr->callno]->mohsuggest;
-							ast_queue_control_data(iaxs[fr->callno]->owner, AST_CONTROL_HOLD, 
+							iax2_queue_control_data(fr->callno, AST_CONTROL_HOLD, 
 								S_OR(mohsuggest, NULL),
 								!ast_strlen_zero(mohsuggest) ? strlen(mohsuggest) + 1 : 0);
+							if (!iaxs[fr->callno]) {
+								ast_mutex_unlock(&iaxsl[fr->callno]);
+								return 1;
+							}
 						}
 					}
 				}
@@ -7478,8 +7577,13 @@ retryowner:
 					}
 
 					ast_clear_flag(iaxs[fr->callno], IAX_QUELCH);
-					if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner))
-						ast_queue_control(iaxs[fr->callno]->owner, AST_CONTROL_UNHOLD);
+					if (iaxs[fr->callno]->owner && ast_bridged_channel(iaxs[fr->callno]->owner)) {
+						iax2_queue_control_data(fr->callno, AST_CONTROL_UNHOLD, NULL, 0);
+						if (!iaxs[fr->callno]) {
+							ast_mutex_unlock(&iaxsl[fr->callno]);
+							return 1;
+						}
+					}
 				}
 				break;
 			case IAX_COMMAND_TXACC:
@@ -7553,6 +7657,10 @@ retryowner:
 						iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+						if (!iaxs[fr->callno]) {
+							ast_mutex_unlock(&iaxsl[fr->callno]);
+							return 1;
+						}
 						if (authdebug)
 							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->exten, iaxs[fr->callno]->context);
 					} else {
@@ -7596,6 +7704,10 @@ retryowner:
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 								send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+								if (!iaxs[fr->callno]) {
+									ast_mutex_unlock(&iaxsl[fr->callno]);
+									return 1;
+								}
 								if (authdebug) {
 									if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP))
 										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
@@ -7637,6 +7749,10 @@ retryowner:
 									iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr->callno]->peercapability & iaxs[fr->callno]->capability);
 									send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+									if (!iaxs[fr->callno]) {
+										ast_mutex_unlock(&iaxsl[fr->callno]);
+										return 1;
+									}
 									if (authdebug)
 										ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->peercapability, iaxs[fr->callno]->capability);
 									ast_set_flag(iaxs[fr->callno], IAX_ALREADYGONE);	
@@ -7684,8 +7800,12 @@ retryowner:
 					merge_encryption(iaxs[fr->callno],ies.encmethods);
 				else
 					iaxs[fr->callno]->encmethods = 0;
-				if (!authenticate_request(iaxs[fr->callno]))
+				if (!authenticate_request(fr->callno) && iaxs[fr->callno])
 					ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_AUTHENTICATED);
+				if (!iaxs[fr->callno]) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
 				break;
 			case IAX_COMMAND_DPREQ:
 				/* Request status in the dialplan */
@@ -7778,6 +7898,10 @@ retryowner:
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
 					if (authdebug)
 						ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat, iaxs[fr->callno]->capability);
 				} else {
@@ -7815,6 +7939,10 @@ retryowner2:
 			case IAX_COMMAND_POKE:
 				/* Send back a pong packet with the original timestamp */
 				send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_PONG, fr->ts, NULL, 0, -1);
+				if (!iaxs[fr->callno]) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
 				break;
 			case IAX_COMMAND_PING:
 			{
@@ -7934,6 +8062,10 @@ retryowner2:
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
 				} else {
 					/* Select an appropriate format */
 					if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOPREFS)) {
@@ -7980,6 +8112,10 @@ retryowner2:
 							iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 							iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 							send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+							if (!iaxs[fr->callno]) {
+								ast_mutex_unlock(&iaxsl[fr->callno]);
+								return 1;
+							}
 						} else {
 							/* Pick one... */
 							if(ast_test_flag(iaxs[fr->callno], IAX_CODEC_NOCAP)) {
@@ -8020,6 +8156,10 @@ retryowner2:
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_BEARERCAPABILITY_NOTAVAIL);
 								send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+								if (!iaxs[fr->callno]) {
+									ast_mutex_unlock(&iaxsl[fr->callno]);
+									return 1;
+								}
 							}
 						}
 					}
@@ -8104,6 +8244,10 @@ retryowner2:
 						iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No such context/extension");
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 						send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+						if (!iaxs[fr->callno]) {
+							ast_mutex_unlock(&iaxsl[fr->callno]);
+							return 1;
+						}
 					} else {
 						ast_set_flag(&iaxs[fr->callno]->state, IAX_STATE_STARTED);
 						ast_verb(3, "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(sin.sin_addr), iaxs[fr->callno]->peerformat);
@@ -8230,6 +8374,10 @@ retryowner2:
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "No authority found");
 					iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_FACILITY_NOT_SUBSCRIBED);
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
+					if (!iaxs[fr->callno]) {
+						ast_mutex_unlock(&iaxsl[fr->callno]);
+						return 1;
+					}
 				}
 				break;
 			case IAX_COMMAND_TXREJ:
@@ -8335,6 +8483,10 @@ retryowner2:
 					send_command_final(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
 				else
 					send_command(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_FWDATA, 0, ied0.buf, ied0.pos, -1);
+				if (!iaxs[fr->callno]) {
+					ast_mutex_unlock(&iaxsl[fr->callno]);
+					return 1;
+				}
 				break;
 			default:
 				ast_debug(1, "Unknown IAX command %d on %d/%d\n", f.subclass, fr->callno, iaxs[fr->callno]->peercallno);
