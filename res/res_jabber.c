@@ -1286,29 +1286,42 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 				found = NULL;
 				break;
 			}
+			/* resource list is sorted by descending priority */
 			if (tmp->priority != priority) {
 				found->priority = priority;
 				if (!last && !found->next)
+					/* resource was found to be unique,
+					   leave loop */
 					break;
+				/* search for resource in our list
+				   and take it out for the moment */
 				if (last)
 					last->next = found->next;
 				else
 					buddy->resources = found->next;
+
 				last = NULL;
 				tmp = buddy->resources;
 				if (!buddy->resources)
 					buddy->resources = found;
+				/* priority processing */
 				while (tmp) {
+					/* insert resource back according to 
+					   its priority value */
 					if (found->priority > tmp->priority) {
 						if (last)
+							/* insert within list */
 							last->next = found;
 						found->next = tmp;
 						if (!last)
+							/* insert on top */
 							buddy->resources = found;
 						break;
 					}
 					if (!tmp->next) {
+						/* insert at the end of the list */
 						tmp->next = found;
+						found->next = NULL;
 						break;
 					}
 					last = tmp;
@@ -1321,6 +1334,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		tmp = tmp->next;
 	}
 
+	/* resource not found in our list, create it */
 	if (!found && status != 6) {
 		found = ast_calloc(1, sizeof(*found));
 
@@ -1354,11 +1368,24 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		if (!tmp)
 			buddy->resources = found;
 	}
+	
+	/* if 'from' attribute does not contain 'resource' string
+	   point to the top of our resource list */
+	if (!found && !pak->from->resource && buddy->resources) {
+		found = buddy->resources;
+	}
+
 	ASTOBJ_UNLOCK(buddy);
 	ASTOBJ_UNREF(buddy, aji_buddy_destroy);
 
 	node = iks_find_attrib(iks_find(pak->x, "c"), "node");
 	ver = iks_find_attrib(iks_find(pak->x, "c"), "ver");
+
+	/* handle gmail client's special caps:c tag */
+	if (!node && !ver) {
+		node = iks_find_attrib(iks_find(pak->x, "caps:c"), "node");
+		ver = iks_find_attrib(iks_find(pak->x, "caps:c"), "ver");
+	}
 
 	if(status !=6 && !found->cap) {
 		found->cap = aji_find_version(node, ver, pak);
