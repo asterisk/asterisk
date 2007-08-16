@@ -53,7 +53,6 @@
 #include "asterisk/ael_structs.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
-#include "asterisk/ael_structs.h"
 #include "asterisk/pval.h"
 #include "asterisk/extconf.h"
 
