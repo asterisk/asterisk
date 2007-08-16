@@ -383,11 +383,11 @@ int main(int argc, char **argv)
 		printf("Context: %s\n", tmp->name);
 	}
 	printf("=========\n");
-	printf("Sizeof(context)=%d\n", sizeof(struct ast_context));
-	printf("Sizeof(exten)=%d\n", sizeof(struct ast_exten));
-	printf("Sizeof(include)=%d\n", sizeof(struct ast_include));
-	printf("Sizeof(ignorepat)=%d\n", sizeof(struct ast_ignorepat));
-	printf("Sizeof(sw)=%d\n", sizeof(struct ast_sw));
+	printf("Sizeof(context)=%d\n", (int)sizeof(struct ast_context));
+	printf("Sizeof(exten)=%d\n", (int)sizeof(struct ast_exten));
+	printf("Sizeof(include)=%d\n", (int)sizeof(struct ast_include));
+	printf("Sizeof(ignorepat)=%d\n", (int)sizeof(struct ast_ignorepat));
+	printf("Sizeof(sw)=%d\n", (int)sizeof(struct ast_sw));
 	tmp = 0;
 	while ((tmp = localized_walk_contexts(tmp)) ) {
 		/* printf("Context: %s\n", tmp->name); */
