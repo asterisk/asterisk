@@ -415,7 +415,8 @@ static void reset_global_eid(void)
 			ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
 		}
-		break;
+		close(s);
+		return;
 	}
 	close(s);
 #else
