@@ -967,7 +967,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				return CONFIG_STATUS_FILEUNCHANGED;
 			}
 		}
-		if (cfmtime)
+		if (!ast_test_flag(&flags, CONFIG_FLAG_NOCACHE))
 			AST_LIST_UNLOCK(&cfmtime_head);
 
 		/* If cfg is NULL, then we just want an answer */
