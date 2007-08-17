@@ -8,10 +8,16 @@
 ; of the logging system.
 
 [general]
+;
 ; Customize the display of debug message time stamps
 ; this example is the ISO 8601 date format (yyyy-mm-dd HH:MM:SS)
-; see strftime(3) Linux manual for format specifiers
-;dateformat=%F %T
+;
+; see strftime(3) Linux manual for format specifiers.  Note that there is also
+; a fractional second parameter which may be used in this field.  Use %1q
+; for tenths, %2q for hundredths, etc.
+; 
+;dateformat=%F %T       ; ISO 8601 date format
+;dateformat=%F %T.%3q   ; with milliseconds
 ;
 ; This appends the hostname to the name of the log files.
 ;appendhostname = yes
