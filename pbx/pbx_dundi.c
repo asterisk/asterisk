@@ -4530,7 +4530,7 @@ static int dundi_exec(struct ast_channel *chan, const char *context, const char 
 	if (x < res) {
 		/* Got a hit! */
 		dundiargs = pbx_builtin_getvar_helper(chan, "DUNDIDIALARGS");
-		snprintf(req, sizeof(req), "%s/%s||%s", results[x].tech, results[x].dest, 
+		snprintf(req, sizeof(req), "%s/%s,,%s", results[x].tech, results[x].dest, 
 			S_OR(dundiargs, ""));
 		dial = pbx_findapp("Dial");
 		if (dial)
