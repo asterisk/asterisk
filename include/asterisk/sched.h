@@ -71,6 +71,18 @@ typedef int (*ast_sched_cb)(void *data);
  */
 int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
 
+/*!
+ * \brief replace a scheduler entry
+ *
+ * This deletes the scheduler entry for old_id if it exists, and then
+ * calls ast_sched_add to create a new entry.  A negative old_id will
+ * be ignored.
+ *
+ * \retval -1 failure
+ * \retval otherwise, returns scheduled item ID
+ */
+int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data);
+
 /*!Adds a scheduled event with rescheduling support
  * \param con Scheduler context to add
  * \param when how many milliseconds to wait for event to occur
@@ -85,6 +97,18 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
  * \return Returns a schedule item ID on success, -1 on failure
  */
 int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
+
+/*!
+ * \brief replace a scheduler entry
+ *
+ * This deletes the scheduler entry for old_id if it exists, and then
+ * calls ast_sched_add to create a new entry.  A negative old_id will
+ * be ignored.
+ *
+ * \retval -1 failure
+ * \retval otherwise, returns scheduled item ID
+ */
+int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
 
 /*! \brief Deletes a scheduled event
  * Remove this event from being run.  A procedure should not remove its

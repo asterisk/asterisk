@@ -207,6 +207,12 @@ static int sched_settime(struct timeval *tv, int when)
 	return 0;
 }
 
+int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
+{
+	if (old_id > -1)
+		ast_sched_del(con, old_id);
+	return ast_sched_add_variable(con, when, callback, data, variable);
+}
 
 /*! \brief
  * Schedule callback(data) to happen when ms into the future
@@ -242,6 +248,13 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 #endif
 	ast_mutex_unlock(&con->lock);
 	return res;
+}
+
+int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data)
+{
+	if (old_id > -1)
+		ast_sched_del(con, old_id);
+	return ast_sched_add(con, when, callback, data);
 }
 
 int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
