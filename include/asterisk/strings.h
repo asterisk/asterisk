@@ -142,6 +142,13 @@ char *ast_strip(char *s),
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 /*!
+  \brief Strip backslash for "escaped" semicolons.
+  \brief s The string to be stripped (will be modified).
+  \return The stripped string.
+ */
+char *ast_unescape_semicolon(char *s);
+
+/*!
   \brief Size-limited null-terminating string copy.
   \param ast_copy_string function being used
   \param dst The destination buffer.
