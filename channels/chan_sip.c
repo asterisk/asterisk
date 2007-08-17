@@ -2373,6 +2373,8 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 		siptimer_a = pkt->timer_t1 * 2;
 
 	/* Schedule retransmission */
+	if (pkt->retransid > -1)
+		ast_sched_del(sched, pkt->retransid);
 	pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
 	if (sipdebug)
 		ast_debug(4, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
@@ -3561,6 +3563,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		p->invitestate = INV_CALLING;
 	
 		/* Initialize auto-congest time */
+		if (p->initid > -1)
+			ast_sched_del(sched, p->initid);
 		p->initid = ast_sched_add(sched, SIP_TRANS_TIMEOUT, auto_congest, dialog_ref(p));
 	}
 
@@ -13439,7 +13443,9 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->refresh= (int) expires_ms / 1000;
 
 		/* Schedule re-registration before we expire */
-		r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
+		if (r->expire > -1)
+			ast_sched_del(sched, r->expire);
+		r->expire = ast_sched_add(sched, expires_ms, sip_reregister, r); 
 		registry_unref(r);
 	}
 	return 1;
@@ -16564,6 +16570,8 @@ static int sip_poke_noanswer(void *data)
 	peer->lastms = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
 	/* Try again quickly */
+	if (peer->pokeexpire > -1)
+		ast_sched_del(sched, peer->pokeexpire);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
 	return 0;
 }
@@ -16626,8 +16634,11 @@ static int sip_poke_peer(struct sip_peer *peer)
 	peer->ps = ast_tvnow();
 	if (xmitres == XMIT_ERROR)
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
-	else
+	else {
+		if (peer->pokeexpire > -1)
+			ast_sched_del(sched, peer->pokeexpire);
 		peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
+	}
 
 	return 0;
 }
