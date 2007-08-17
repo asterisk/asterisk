@@ -12628,7 +12628,7 @@ static int setup_zap(int reload)
  	struct zt_chan_conf base_conf = zt_chan_conf_default();
  	struct zt_chan_conf conf;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
-	int res, x;
+	int res;
 
 #ifdef HAVE_PRI
 	char *c;
@@ -12749,6 +12749,7 @@ static int setup_zap(int reload)
 	}
 #ifdef HAVE_PRI
 	if (!reload) {
+		int x;
 		for (x = 0; x < NUM_SPANS; x++) {
 			if (pris[x].pvts[0]) {
 				if (start_pri(pris + x)) {
@@ -12762,6 +12763,7 @@ static int setup_zap(int reload)
 #endif
 #ifdef HAVE_SS7
 	if (!reload) {
+		int x;
 		for (x = 0; x < NUM_SPANS; x++) {
 			if (linksets[x].ss7) {
 				if (ast_pthread_create(&linksets[x].master, NULL, ss7_linkset, &linksets[x])) {
