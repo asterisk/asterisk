@@ -3064,7 +3064,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 #ifdef ODBC_STORAGE
 		int success = 
 #endif
-			RETRIEVE(prefile, -1);
+			RETRIEVE(prefile, -1, ext, context);
 		if (ast_fileexists(prefile, NULL, NULL) > 0) {
 			if (ast_streamfile(chan, prefile, chan->language) > -1) 
 				res = ast_waitstream(chan, ecodes);
