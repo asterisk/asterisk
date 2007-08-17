@@ -12310,7 +12310,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		initreqprep(&req, p, SIP_NOTIFY);
 
 		for (var = varlist; var; var = var->next)
-			add_header(&req, var->name, var->value);
+			add_header(&req, var->name, ast_unescape_semicolon(var->value));
 
 		/* Recalculate our side, and recalculate Call ID */
 		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);

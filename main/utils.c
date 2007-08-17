@@ -935,6 +935,21 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 	return s;
 }
 
+char *ast_unescape_semicolon(char *s)
+{
+	char *e;
+	char *work = s;
+
+	while ((e = strchr(work, ';'))) {
+		if ((e > work) && (*(e-1) == '\\')) {
+			memmove(e - 1, e, strlen(e) + 1);
+			work = e;
+		}
+	}
+
+	return s;
+}
+
 int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
 	int result;
