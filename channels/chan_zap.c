@@ -6397,6 +6397,8 @@ static void *ss_thread(void *data)
 						return NULL;
 					} 
 					f = ast_read(chan);
+					if (!f)
+						break;
 					if (f->frametype == AST_FRAME_DTMF) {
 						dtmfbuf[i++] = f->subclass;
 						ast_debug(1, "CID got digit '%c'\n", f->subclass);
