@@ -1362,12 +1362,10 @@ static int make_trunk(unsigned short callno, int locked)
 			iaxs[x]->callno = x;
 			iaxs[callno] = NULL;
 			/* Update the two timers that should have been started */
-			if (iaxs[x]->pingid > -1)
-				ast_sched_del(sched, iaxs[x]->pingid);
-			if (iaxs[x]->lagid > -1)
-				ast_sched_del(sched, iaxs[x]->lagid);
-			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
-			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
+			iaxs[x]->pingid = ast_sched_replace(iaxs[x]->pingid, sched, 
+				ping_time * 1000, send_ping, (void *)(long)x);
+			iaxs[x]->lagid = ast_sched_replace(iaxs[x]->lagid, sched, 
+				lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
 				ast_mutex_unlock(&iaxsl[callno]);
 			res = x;
@@ -2504,14 +2502,13 @@ static void update_jbsched(struct chan_iax2_pvt *pvt)
 	
 	when = jb_next(pvt->jb) - when;
 	
-	if(pvt->jbid > -1) ast_sched_del(sched, pvt->jbid);
-	
 	if(when <= 0) {
 		/* XXX should really just empty until when > 0.. */
 		when = 1;
 	}
 	
-	pvt->jbid = ast_sched_add(sched, when, get_from_jb, CALLNO_TO_PTR(pvt->callno));
+	pvt->jbid = ast_sched_replace(pvt->jbid, sched, when, get_from_jb, 
+		CALLNO_TO_PTR(pvt->callno));
 	
 	/* Signal scheduler thread */
 	signal_condition(&sched_lock, &sched_cond);
@@ -2815,9 +2812,8 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
 		if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
-			if (peer->expire > -1)
-				ast_sched_del(sched, peer->expire);
-			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void*)peer->name);
+			peer->expire = ast_sched_replace(peer->expire, sched, 
+				(global_rtautoclear) * 1000, expire_registry, (void *) peer->name);
 		}
 		AST_LIST_LOCK(&peers);
 		AST_LIST_INSERT_HEAD(&peers, peer, entry);
@@ -5894,9 +5890,8 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	   we are registering to
 	*/
 	reg->refresh = refresh;
-	if (reg->expire > -1)
-		ast_sched_del(sched, reg->expire);
-	reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+	reg->expire = ast_sched_replace(reg->expire, sched, 
+		(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if (inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) {
 			if (reg->messages > 255)
 				snprintf(msgstatus, sizeof(msgstatus), " with %d new and %d old messages waiting", reg->messages & 0xff, reg->messages >> 8);
@@ -6074,10 +6069,9 @@ static void reg_source_db(struct iax2_peer *p)
 					p->addr.sin_family = AF_INET;
 					p->addr.sin_addr = in;
 					p->addr.sin_port = htons(atoi(c));
-					if (p->expire > -1)
-						ast_sched_del(sched, p->expire);
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
+					p->expire = ast_sched_replace(p->expire, sched, 
+						(p->expiry + 10) * 1000, expire_registry, (void *) p->name);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -6364,9 +6358,8 @@ static int auth_fail(int callno, int failcode)
 	if (iaxs[callno]) {
 		iaxs[callno]->authfail = failcode;
 		if (delayreject) {
-			if (iaxs[callno]->authid > -1)
-				ast_sched_del(sched, iaxs[callno]->authid);
-			iaxs[callno]->authid = ast_sched_add(sched, 1000, auth_reject, (void *)(long)callno);
+			iaxs[callno]->authid = ast_sched_replace(iaxs[callno]->authid, 
+				sched, 1000, auth_reject, (void *)(long)callno);
 		} else
 			auth_reject((void *)(long)callno);
 	}
@@ -6407,9 +6400,8 @@ static void iax2_dprequest(struct iax2_dpcache *dp, int callno)
 {
 	struct iax_ie_data ied;
 	/* Auto-hangup with 30 seconds of inactivity */
-	if (iaxs[callno]->autoid > -1)
-		ast_sched_del(sched, iaxs[callno]->autoid);
-	iaxs[callno]->autoid = ast_sched_add(sched, 30000, auto_hangup, (void *)(long)callno);
+	iaxs[callno]->autoid = ast_sched_replace(iaxs[callno]->autoid, 
+		sched, 30000, auto_hangup, (void *)(long)callno);
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, dp->exten);
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_DPREQ, 0, ied.buf, ied.pos, -1);
@@ -8757,9 +8749,8 @@ static int iax2_do_register(struct iax2_registry *reg)
 		if (iaxdebug)
 			ast_debug(1, "Unable to send registration request for '%s' without IP address\n", reg->username);
 		/* Setup the next registration attempt */
-		if (reg->expire > -1)
-			ast_sched_del(sched, reg->expire);
-		reg->expire  = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+		reg->expire = ast_sched_replace(reg->expire, sched, 
+			(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 		return -1;
 	}
 
@@ -8773,11 +8764,9 @@ static int iax2_do_register(struct iax2_registry *reg)
 			ast_debug(1, "Registration created on call %d\n", reg->callno);
 		iaxs[reg->callno]->reg = reg;
 	}
-	/* Schedule the next registration attempt */
-	if (reg->expire > -1)
-		ast_sched_del(sched, reg->expire);
 	/* Setup the next registration a little early */
-	reg->expire  = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+	reg->expire = ast_sched_replace(reg->expire, sched, 
+		(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	/* Send the request */
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, reg->username);
@@ -8831,9 +8820,8 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		/* Schedule autodestruct in case they don't ever give us anything back */
-		if (iaxs[callno]->autoid > -1)
-			ast_sched_del(sched, iaxs[callno]->autoid);
-		iaxs[callno]->autoid = ast_sched_add(sched, 15000, auto_hangup, (void *)(long)callno);
+		iaxs[callno]->autoid = ast_sched_replace(iaxs[callno]->autoid, 
+			sched, 15000, auto_hangup, (void *)(long)callno);
 		ast_set_flag(iaxs[callno], IAX_PROVISION);
 		/* Got a call number now, so go ahead and send the provisioning information */
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PROVISION, 0, ied.buf, ied.pos, -1);
@@ -8966,16 +8954,15 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
 	iaxs[peer->callno]->peerpoke = peer;
 	
-	/* Remove any pending pokeexpire task */
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
-
 	/* Queue up a new task to handle no reply */
 	/* If the host is already unreachable then use the unreachable interval instead */
 	if (peer->lastms < 0) {
-		peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
-	} else
-		peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, 
+			sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
+	} else {
+		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, 
+			sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+	}
 
 	/* And send the poke */
 	send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
