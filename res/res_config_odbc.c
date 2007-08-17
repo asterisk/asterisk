@@ -450,6 +450,145 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	return -1;
 }
 
+/*!
+ * \brief Excute an INSERT query
+ * \param database
+ * \param table
+ * \param ap list containing one or more field/value set(s)
+ * Insert a new record into database table, prepare the sql statement.
+ * All values to be changed are stored in ap list.
+ * Sub-in the values to the prepared statement and execute it.
+ *
+ * \retval number of rows affected
+ * \retval -1 on failure
+*/
+static int store_odbc(const char *database, const char *table, va_list ap)
+{
+	struct odbc_obj *obj;
+	SQLHSTMT stmt;
+	char sql[256];
+	char keys[256];
+	char vals[256];
+	SQLLEN rowcount=0;
+	const char *newparam, *newval;
+	int res;
+	va_list aq;
+	struct custom_prepare_struct cps = { .sql = sql, .extra = NULL };
+
+	va_copy(cps.ap, ap);
+	va_copy(aq, ap);
+	
+	if (!table)
+		return -1;
+
+	obj = ast_odbc_request_obj(database, 0);
+	if (!obj)
+		return -1;
+
+	newparam = va_arg(aq, const char *);
+	if (!newparam)  {
+		ast_odbc_release_obj(obj);
+		return -1;
+	}
+	newval = va_arg(aq, const char *);
+	snprintf(keys, sizeof(keys), "%s", newparam);
+	snprintf(vals, sizeof(vals), "?");
+	while ((newparam = va_arg(aq, const char *))) {
+		snprintf(keys + strlen(keys), sizeof(keys) - strlen(keys), ", %s", newparam);
+		snprintf(vals + strlen(vals), sizeof(vals) - strlen(vals), ", ?");
+		newval = va_arg(aq, const char *);
+	}
+	va_end(aq);
+	snprintf(sql, sizeof(sql), "INSERT INTO %s (%s) VALUES (%s)", table, keys, vals);
+
+	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
+
+	if (!stmt) {
+		ast_odbc_release_obj(obj);
+		return -1;
+	}
+
+	res = SQLRowCount(stmt, &rowcount);
+	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	ast_odbc_release_obj(obj);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+		return -1;
+	}
+
+	if (rowcount >= 0)
+		return (int)rowcount;
+
+	return -1;
+}
+
+/*!
+ * \brief Excute an DELETE query
+ * \param database
+ * \param table
+ * \param keyfield where clause field
+ * \param lookup value of field for where clause
+ * \param ap list containing one or more field/value set(s)
+ * Dlete a row from a database table, prepare the sql statement using keyfield and lookup
+ * control the number of records to change. Additional params to match rows are stored in ap list.
+ * Sub-in the values to the prepared statement and execute it.
+ *
+ * \retval number of rows affected
+ * \retval -1 on failure
+*/
+static int destroy_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
+{
+	struct odbc_obj *obj;
+	SQLHSTMT stmt;
+	char sql[256];
+	SQLLEN rowcount=0;
+	const char *newparam, *newval;
+	int res;
+	va_list aq;
+	struct custom_prepare_struct cps = { .sql = sql, .extra = lookup };
+
+	va_copy(cps.ap, ap);
+	va_copy(aq, ap);
+	
+	if (!table)
+		return -1;
+
+	obj = ast_odbc_request_obj(database, 0);
+	if (!obj)
+		return -1;
+
+	snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE ", table);
+	while((newparam = va_arg(aq, const char *))) {
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=? AND ", newparam);
+		newval = va_arg(aq, const char *);
+	}
+	va_end(aq);
+	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), "%s=?", keyfield);
+
+	stmt = ast_odbc_prepare_and_execute(obj, custom_prepare, &cps);
+
+	if (!stmt) {
+		ast_odbc_release_obj(obj);
+		return -1;
+	}
+
+	res = SQLRowCount(stmt, &rowcount);
+	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	ast_odbc_release_obj(obj);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+		return -1;
+	}
+
+	if (rowcount >= 0)
+		return (int)rowcount;
+
+	return -1;
+}
+
+
 struct config_odbc_obj {
 	char *sql;
 	unsigned long cat_metric;
@@ -575,6 +714,8 @@ static struct ast_config_engine odbc_engine = {
 	.load_func = config_odbc,
 	.realtime_func = realtime_odbc,
 	.realtime_multi_func = realtime_multi_odbc,
+	.store_func = store_odbc,
+	.destroy_func = destroy_odbc,
 	.update_func = update_odbc
 };
 

@@ -433,6 +433,46 @@ static int realtime_update_handler(const char *database, const char *table,
 	va_list ap);
 
 /*!
+ * \brief Asterisk callback function for RealTime configuration (variable
+ * create/store).
+ * 
+ * Asterisk will call this function each time a variable has been created
+ * internally and must be stored in the backend engine. 
+ * are used to find the row to update, e.g. ap is a list of parameters and 
+ * values with the same format as the other realtime functions.
+ * 
+ * \param database the database to use (ignored)
+ * \param table the table to use
+ * \param ap list of parameters and new values to insert into the database
+ * \retval the rowid of inserted row.
+ * \retval -1 if an error occurred.
+ */
+static int realtime_store_handler(const char *database, const char *table,
+	va_list ap);
+
+/*!
+ * \brief Asterisk callback function for RealTime configuration (destroys 
+ * variable).
+ * 
+ * Asterisk will call this function each time a variable has been destroyed
+ * internally and must be removed from the backend engine. keyfield and entity
+ * are used to find the row to delete, e.g. <code>DELETE FROM table WHERE
+ * keyfield = 'entity';</code>. ap is a list of parameters and values with the
+ * same format as the other realtime functions.
+ * 
+ * \param database the database to use (ignored)
+ * \param table the table to use
+ * \param keyfield the column of the matching cell
+ * \param entity the value of the matching cell
+ * \param ap list of additional parameters for cell matching
+ * \retval the number of affected rows.
+ * \retval -1 if an error occurred.
+ */
+static int realtime_destroy_handler(const char *database, const char *table,
+	const char *keyfield, const char *entity,
+	va_list ap);
+
+/*!
  * \brief Asterisk callback function for the CLI status command.
  * 
  * \param fd file descriptor provided by Asterisk to use with ast_cli()
@@ -476,6 +516,8 @@ static struct ast_config_engine sqlite_engine =
 	.load_func = config_handler,
 	.realtime_func = realtime_handler,
 	.realtime_multi_func = realtime_multi_handler,
+	.store_func = realtime_store_handler,
+	.destroy_func = realtime_destroy_handler,
 	.update_func = realtime_update_handler
 };
 
@@ -1170,6 +1212,176 @@ static int realtime_update_handler(const char *database, const char *table,
 
 	return rows_num;
 }
+
+static int realtime_store_handler(const char *database, const char *table, va_list ap) {
+	char *errormsg, *tmp_str, *tmp_keys, *tmp_keys2, *tmp_vals, *tmp_vals2;
+	const char **params, **vals;
+	size_t params_count;
+	int error, rows_id;
+	size_t i;
+
+	if (!table) {
+		ast_log(LOG_WARNING, "Table name unspecified\n");
+		return -1;
+	}
+
+	if (!(params_count = get_params(ap, &params, &vals)))
+		return -1;
+
+/* \cond DOXYGEN_CAN_PARSE_THIS */
+#undef QUERY
+#define QUERY "INSERT into '%q' (%s) VALUES (%s);"
+/* \endcond */
+
+	tmp_keys2 = NULL;
+	tmp_vals2 = NULL;
+	for (i = 0; i < params_count; i++) {
+		if ( tmp_keys2 ) {
+			tmp_keys = sqlite_mprintf("%s, %q", tmp_keys2, params[i]);
+			sqlite_freemem(tmp_keys2);
+		} else {
+			tmp_keys = sqlite_mprintf("%q", params[i]);
+		}
+		if (!tmp_keys) {
+			ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+			ast_free(params);
+			ast_free(vals);
+			return -1;
+		}
+
+		if ( tmp_vals2 ) {
+			tmp_vals = sqlite_mprintf("%s, '%q'", tmp_vals2, params[i]);
+			sqlite_freemem(tmp_vals2);
+		} else {
+			tmp_vals = sqlite_mprintf("'%q'", params[i]);
+		}
+		if (!tmp_vals) {
+			ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+			ast_free(params);
+			ast_free(vals);
+			return -1;
+		}
+
+
+		tmp_keys2 = tmp_keys;
+		tmp_vals2 = tmp_vals;
+	}
+
+	ast_free(params);
+	ast_free(vals);
+
+	if (!(tmp_str = sqlite_mprintf(QUERY, table, tmp_keys, tmp_vals))) {
+		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+		return -1;
+	}
+
+	sqlite_freemem(tmp_keys);
+	sqlite_freemem(tmp_vals);
+
+	ast_debug(1, "SQL query: %s\n", tmp_str);
+
+	ast_mutex_lock(&mutex);
+
+	RES_SQLITE_BEGIN
+		error = sqlite_exec(db, tmp_str, NULL, NULL, &errormsg);
+	RES_SQLITE_END(error)
+
+	if (!error) {
+		rows_id = sqlite_last_insert_rowid(db);
+	} else {
+		rows_id = -1;
+	}
+
+	ast_mutex_unlock(&mutex);
+
+	sqlite_freemem(tmp_str);
+
+	if (error) {
+		ast_log(LOG_WARNING, "%s\n", errormsg);
+		ast_free(errormsg);
+	}
+
+	return rows_id;
+}
+
+static int realtime_destroy_handler(const char *database, const char *table,
+	const char *keyfield, const char *entity,
+	va_list ap)
+{
+	char *query, *errormsg, *tmp_str;
+	const char **params, **vals;
+	size_t params_count;
+	int error, rows_num;
+	size_t i;
+
+	if (!table) {
+		ast_log(LOG_WARNING, "Table name unspecified\n");
+		return -1;
+	}
+
+	if (!(params_count = get_params(ap, &params, &vals)))
+		return -1;
+
+/* \cond DOXYGEN_CAN_PARSE_THIS */
+#undef QUERY
+#define QUERY "DELETE FROM '%q' WHERE"
+/* \endcond */
+
+	if (!(query = sqlite_mprintf(QUERY, table))) {
+		ast_log(LOG_WARNING, "Unable to allocate SQL query\n");
+		ast_free(params);
+		ast_free(vals);
+		return -1;
+	}
+
+	for (i = 0; i < params_count; i++) {
+		tmp_str = sqlite_mprintf("%s %q = '%q' AND", query, params[i], vals[i]);
+		sqlite_freemem(query);
+
+		if (!tmp_str) {
+			ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+			ast_free(params);
+			ast_free(vals);
+			return -1;
+		}
+
+		query = tmp_str;
+	}
+
+	ast_free(params);
+	ast_free(vals);
+	if (!(tmp_str = sqlite_mprintf("%s %q = '%q';", query, keyfield, entity))) {
+		ast_log(LOG_WARNING, "Unable to reallocate SQL query\n");
+		return -1;
+	}
+	sqlite_freemem(query);
+	query = tmp_str;
+
+	ast_debug(1, "SQL query: %s\n", query);
+
+	ast_mutex_lock(&mutex);
+
+	RES_SQLITE_BEGIN
+		error = sqlite_exec(db, query, NULL, NULL, &errormsg);
+	RES_SQLITE_END(error)
+
+	if (!error)
+		rows_num = sqlite_changes(db);
+	else
+		rows_num = -1;
+
+	ast_mutex_unlock(&mutex);
+
+	sqlite_freemem(query);
+
+	if (error) {
+		ast_log(LOG_WARNING, "%s\n", errormsg);
+		ast_free(errormsg);
+	}
+
+	return rows_num;
+}
+
 
 static int cli_status(int fd, int argc, char *argv[])
 {
