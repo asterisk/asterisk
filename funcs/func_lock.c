@@ -97,7 +97,7 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 {
 	struct ast_datastore *lock_store = ast_channel_datastore_find(chan, &lock_info, NULL);
 	struct lock_frame *current;
-	struct channel_lock_frame *clframe, *save_clframe;
+	struct channel_lock_frame *clframe = NULL, *save_clframe = NULL;
 	AST_LIST_HEAD(, channel_lock_frame) *list;
 	int res, count_channel_locks = 0;
 

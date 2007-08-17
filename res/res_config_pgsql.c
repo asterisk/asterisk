@@ -429,6 +429,191 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	return -1;
 }
 
+static int store_pgsql(const char *database, const char *table, va_list ap)
+{
+	PGresult *result = NULL;
+	Oid insertid;
+	char sql[256];
+	char params[256];
+	char vals[256];
+	char buf[256];
+	int pgresult;
+	const char *newparam, *newval;
+
+	if (!table) {
+		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		return -1;
+	}
+
+	/* Get the first parameter and first value in our list of passed paramater/value pairs */
+	newparam = va_arg(ap, const char *);
+	newval = va_arg(ap, const char *);
+	if (!newparam || !newval) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: Realtime storage requires at least 1 parameter and 1 value to store.\n");
+		if (pgsqlConn) {
+			PQfinish(pgsqlConn);
+			pgsqlConn = NULL;
+		};
+		return -1;
+	}
+
+	/* Must connect to the server before anything else, as the escape function requires the connection handle.. */
+	ast_mutex_lock(&pgsql_lock);
+	if (!pgsql_reconnect(database)) {
+		ast_mutex_unlock(&pgsql_lock);
+		return -1;
+	}
+
+	/* Create the first part of the query using the first parameter/value pairs we just extracted
+	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
+	PQescapeStringConn(pgsqlConn, buf, newparam, sizeof(newparam), &pgresult);
+	snprintf(params, sizeof(params), "%s", buf);
+	PQescapeStringConn(pgsqlConn, buf, newval, sizeof(newval), &pgresult);
+	snprintf(vals, sizeof(vals), "'%s'", buf);
+	while ((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		PQescapeStringConn(pgsqlConn, buf, newparam, sizeof(newparam), &pgresult);
+		snprintf(params + strlen(params), sizeof(params) - strlen(params), ", %s", buf);
+		PQescapeStringConn(pgsqlConn, buf, newval, sizeof(newval), &pgresult);
+		snprintf(vals + strlen(vals), sizeof(vals) - strlen(vals), ", '%s'", buf);
+	}
+	va_end(ap);
+	snprintf(sql, sizeof(sql), "INSERT INTO (%s) VALUES (%s)", params, vals);
+
+	ast_debug(1, "Postgresql RealTime: Insert SQL: %s\n", sql);
+
+	if (!(result = PQexec(pgsqlConn, sql))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
+		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+		ast_mutex_unlock(&pgsql_lock);
+		return -1;
+	} else {
+		ExecStatusType result_status = PQresultStatus(result);
+		if (result_status != PGRES_COMMAND_OK
+			&& result_status != PGRES_TUPLES_OK
+			&& result_status != PGRES_NONFATAL_ERROR) {
+			ast_log(LOG_WARNING,
+					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
+			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+						PQresultErrorMessage(result), PQresStatus(result_status));
+			ast_mutex_unlock(&pgsql_lock);
+			return -1;
+		}
+	}
+
+	insertid = PQoidValue(result);
+	ast_mutex_unlock(&pgsql_lock);
+
+	ast_debug(1, "Postgresql RealTime: row inserted on table: %s, id: %u\n", table, insertid);
+
+	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
+	 * An integer greater than zero indicates the number of rows affected
+	 * Zero indicates that no records were updated
+	 * -1 indicates that the query returned an error (although, if the query failed, it should have been caught above.)
+	 */
+
+	if (insertid >= 0)
+		return (int) insertid;
+
+	return -1;
+}
+
+static int destroy_pgsql(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
+{
+	PGresult *result = NULL;
+	int numrows = 0;
+	int pgresult;
+	char sql[256];
+	char buf[256], buf2[256];
+	const char *newparam, *newval;
+
+	if (!table) {
+		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		return -1;
+	}
+
+	/* Get the first parameter and first value in our list of passed paramater/value pairs */
+	/*newparam = va_arg(ap, const char *);
+	newval = va_arg(ap, const char *);
+	if (!newparam || !newval) {*/
+	if (ast_strlen_zero(keyfield) || ast_strlen_zero(lookup))  {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: Realtime destroy requires at least 1 parameter and 1 value to search on.\n");
+		if (pgsqlConn) {
+			PQfinish(pgsqlConn);
+			pgsqlConn = NULL;
+		};
+		return -1;
+	}
+
+	/* Must connect to the server before anything else, as the escape function requires the connection handle.. */
+	ast_mutex_lock(&pgsql_lock);
+	if (!pgsql_reconnect(database)) {
+		ast_mutex_unlock(&pgsql_lock);
+		return -1;
+	}
+
+
+	/* Create the first part of the query using the first parameter/value pairs we just extracted
+	   If there is only 1 set, then we have our query. Otherwise, loop thru the list and concat */
+
+	PQescapeStringConn(pgsqlConn, buf, keyfield, sizeof(keyfield), &pgresult);
+	PQescapeStringConn(pgsqlConn, buf2, lookup, sizeof(lookup), &pgresult);
+	snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE %s = '%s'", table, buf, buf2);
+	while ((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		PQescapeStringConn(pgsqlConn, buf, newparam, sizeof(newparam), &pgresult);
+		PQescapeStringConn(pgsqlConn, buf2, newval, sizeof(newval), &pgresult);
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s = '%s'", buf, buf2);
+	}
+	va_end(ap);
+
+	ast_debug(1, "Postgresql RealTime: Delete SQL: %s\n", sql);
+
+	if (!(result = PQexec(pgsqlConn, sql))) {
+		ast_log(LOG_WARNING,
+				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
+		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+		ast_mutex_unlock(&pgsql_lock);
+		return -1;
+	} else {
+		ExecStatusType result_status = PQresultStatus(result);
+		if (result_status != PGRES_COMMAND_OK
+			&& result_status != PGRES_TUPLES_OK
+			&& result_status != PGRES_NONFATAL_ERROR) {
+			ast_log(LOG_WARNING,
+					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
+			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+						PQresultErrorMessage(result), PQresStatus(result_status));
+			ast_mutex_unlock(&pgsql_lock);
+			return -1;
+		}
+	}
+
+	numrows = atoi(PQcmdTuples(result));
+	ast_mutex_unlock(&pgsql_lock);
+
+	ast_debug(1, "Postgresql RealTime: Deleted %d rows on table: %s\n", numrows, table);
+
+	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
+	 * An integer greater than zero indicates the number of rows affected
+	 * Zero indicates that no records were updated
+	 * -1 indicates that the query returned an error (although, if the query failed, it should have been caught above.)
+	 */
+
+	if (numrows >= 0)
+		return (int) numrows;
+
+	return -1;
+}
+
+
 static struct ast_config *config_pgsql(const char *database, const char *table,
 					   const char *file, struct ast_config *cfg,
 					   struct ast_flags flags)
@@ -531,6 +716,8 @@ static struct ast_config_engine pgsql_engine = {
 	.load_func = config_pgsql,
 	.realtime_func = realtime_pgsql,
 	.realtime_multi_func = realtime_multi_pgsql,
+	.store_func = store_pgsql,
+	.destroy_func = destroy_pgsql,
 	.update_func = update_pgsql
 };
 
