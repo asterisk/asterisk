@@ -4828,6 +4828,7 @@ static int load_module(void)
 				 "    s - send Non Inband DTMF as inband\n"
 				 "   vr - rxgain control\n"
 				 "   vt - txgain control\n"
+                                "    i - Ignore detected dtmf tones, don't signal them to asterisk, they will be transported inband.\n"
 		);
 
 	
@@ -5181,7 +5182,12 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			} else if (strstr(tok, "not_screened")) {
 				ch->bc->pres = 1;
 			}
-
+			break;
+	  	case 'i' :
+			chan_misdn_log(1, ch->bc->port, "Ignoring dtmf tones, just use them inband\n");
+			ch->ignore_dtmf=1;
+			break;
+		default:
 			break;
 		}
 	}
