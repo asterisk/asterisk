@@ -2066,7 +2066,7 @@ static void *do_parking_thread(void *ignore)
 					}
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
-						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
+						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free, registrar);
 					}
 					if (comebacktoorigin) { 
