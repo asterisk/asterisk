@@ -17626,7 +17626,7 @@ static int reload_config(enum channelreloadreason reason)
 	char *cat, *stringp, *context, *oldregcontext;
 	char newcontexts[AST_MAX_CONTEXT], oldcontexts[AST_MAX_CONTEXT];
 	struct ast_flags dummy[2];
-	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };
+	struct ast_flags config_flags = { reason == CHANNEL_MODULE_LOAD ? 0 : CONFIG_FLAG_FILEUNCHANGED };
 	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
@@ -17640,7 +17640,7 @@ static int reload_config(enum channelreloadreason reason)
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ucfg = ast_config_load("users.conf", config_flags);
 		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
-			return 0;
+			return 1;
 		/* Must reread both files, because one changed */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		cfg = ast_config_load(config, config_flags);
@@ -17648,7 +17648,35 @@ static int reload_config(enum channelreloadreason reason)
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		ucfg = ast_config_load("users.conf", config_flags);
 	}
-	
+
+	if (reason != CHANNEL_MODULE_LOAD) {
+		ast_debug(4, "--------------- SIP reload started\n");
+
+		clear_realm_authentication(authl);
+		clear_sip_domains();
+		authl = NULL;
+
+		/* First, destroy all outstanding registry calls */
+		/* This is needed, since otherwise active registry entries will not be destroyed */
+		ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
+			ASTOBJ_RDLOCK(iterator);
+			if (iterator->call) {
+				ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
+				/* This will also remove references to the registry */
+				iterator->call = sip_destroy(iterator->call);
+			}
+			ASTOBJ_UNLOCK(iterator);
+
+		} while(0));
+
+		/* Then, actually destroy users and registry */
+		ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
+		ast_debug(4, "--------------- Done destroying user list\n");
+		ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+		ast_debug(4, "--------------- Done destroying registry list\n");
+		ASTOBJ_CONTAINER_MARKALL(&peerl);
+	}
+
 	/* Initialize copy of current global_regcontext for later use in removing stale contexts */
 	ast_copy_string(oldcontexts, global_regcontext, sizeof(oldcontexts));
 	oldregcontext = oldcontexts;
@@ -18690,31 +18718,6 @@ static void sip_send_all_registers(void)
 /*! \brief Reload module */
 static int sip_do_reload(enum channelreloadreason reason)
 {
-	ast_debug(4, "--------------- SIP reload started\n");
-
-	clear_realm_authentication(authl);
-	clear_sip_domains();
-	authl = NULL;
-
-	/* First, destroy all outstanding registry calls */
-	/* This is needed, since otherwise active registry entries will not be destroyed */
-	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
-		ASTOBJ_RDLOCK(iterator);
-		if (iterator->call) {
-			ast_debug(3, "Destroying active SIP dialog for registry %s@%s\n", iterator->username, iterator->hostname);
-			/* This will also remove references to the registry */
-			iterator->call = sip_destroy(iterator->call);
-		}
-		ASTOBJ_UNLOCK(iterator);
-	
-	} while(0));
-
-	/* Then, actually destroy users and registry */
-	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
-	ast_debug(4, "--------------- Done destroying user list\n");
-	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
-	ast_debug(4, "--------------- Done destroying registry list\n");
-	ASTOBJ_CONTAINER_MARKALL(&peerl);
 	reload_config(reason);
 
 	/* Prune peers who still are supposed to be deleted */

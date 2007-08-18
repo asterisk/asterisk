@@ -9898,6 +9898,22 @@ static void set_timing(void)
 #endif
 }
 
+static void set_config_destroy(void)
+{
+	strcpy(accountcode, "");
+	strcpy(language, "");
+	strcpy(mohinterpret, "default");
+	strcpy(mohsuggest, "");
+	global_max_trunk_mtu = MAX_TRUNK_MTU;
+	trunkmaxsize = MAX_TRUNKDATA;
+	amaflags = 0;
+	delayreject = 0;
+	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
+	ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
+	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
+	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
+	delete_users();
+}
 
 /*! \brief Load configuration */
 static int set_config(char *config_file, int reload)
@@ -9928,13 +9944,17 @@ static int set_config(char *config_file, int reload)
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ucfg = ast_config_load("users.conf", config_flags);
 		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
-			return 0;
+			return 1;
 		/* Otherwise we need to reread both files */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		cfg = ast_config_load(config_file, config_flags);
 	} else { /* iax.conf changed, gotta reread users.conf, too */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		ucfg = ast_config_load("users.conf", config_flags);
+	}
+
+	if (reload) {
+		set_config_destroy();
 	}
 
 	/* Reset global codec prefs */	
@@ -10295,35 +10315,23 @@ static int reload_config(void)
 	struct iax2_registry *reg;
 	struct iax2_peer *peer;
 
-	strcpy(accountcode, "");
-	strcpy(language, "");
-	strcpy(mohinterpret, "default");
-	strcpy(mohsuggest, "");
-	global_max_trunk_mtu = MAX_TRUNK_MTU;
-	trunkmaxsize = MAX_TRUNKDATA;
-	amaflags = 0;
-	delayreject = 0;
-	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
-	ast_clear_flag((&globalflags), IAX_TRANSFERMEDIA);	
-	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
-	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
-	delete_users();
-	set_config(config, 1);
-	prune_peers();
-	prune_users();
-	trunk_timed = trunk_untimed = 0; 
-	trunk_nmaxmtu = trunk_maxmtu = 0; 
+	if (set_config(config, 1) == 1) {
+		prune_peers();
+		prune_users();
+		trunk_timed = trunk_untimed = 0; 
+		trunk_nmaxmtu = trunk_maxmtu = 0; 
 
-	AST_LIST_LOCK(&registrations);
-	AST_LIST_TRAVERSE(&registrations, reg, entry)
-		iax2_do_register(reg);
-	AST_LIST_UNLOCK(&registrations);
+		AST_LIST_LOCK(&registrations);
+		AST_LIST_TRAVERSE(&registrations, reg, entry)
+			iax2_do_register(reg);
+		AST_LIST_UNLOCK(&registrations);
 
-	/* Qualify hosts, too */
-	AST_LIST_LOCK(&peers);
-	AST_LIST_TRAVERSE(&peers, peer, entry)
-		iax2_poke_peer(peer, 0);
-	AST_LIST_UNLOCK(&peers);
+		/* Qualify hosts, too */
+		AST_LIST_LOCK(&peers);
+		AST_LIST_TRAVERSE(&peers, peer, entry)
+			iax2_poke_peer(peer, 0);
+		AST_LIST_UNLOCK(&peers);
+	}
 	reload_firmware();
 	iax_provision_reload(1);
 

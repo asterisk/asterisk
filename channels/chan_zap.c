@@ -10712,7 +10712,7 @@ static int zap_restart(void)
 		destroy_channel(NULL, iflist, 1);
 	}
 	ast_debug(1, "Channels destroyed. Now re-reading config.\n");
-	if (setup_zap(1) != 0) {
+	if (setup_zap(2) != 0) {
 		ast_log(LOG_WARNING, "Reload channels from zap config failed!\n");
 		return 1;
 	}
@@ -12629,7 +12629,7 @@ static int setup_zap(int reload)
 	struct ast_variable *v;
  	struct zt_chan_conf base_conf = zt_chan_conf_default();
  	struct zt_chan_conf conf;
-	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	struct ast_flags config_flags = { reload == 1 ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	int res;
 
 #ifdef HAVE_PRI

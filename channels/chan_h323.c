@@ -2831,6 +2831,12 @@ static int reload_config(int is_reload)
 		ucfg = ast_config_load("users.conf", config_flags);
 	}
 
+	if (is_reload) {
+		delete_users();
+		delete_aliases();
+		prune_peers();
+	}
+
 	/* fire up the H.323 Endpoint */
 	if (!h323_end_point_exist()) {
 		h323_end_point_create();
@@ -3085,9 +3091,6 @@ static int h323_reload(int fd, int argc, char *argv[])
 
 static int h323_do_reload(void)
 {
-	delete_users();
-	delete_aliases();
-	prune_peers();
 	reload_config(1);
 	return 0;
 }
