@@ -2198,12 +2198,6 @@ static int inboxcount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		*newmsgs = atoi(rowdata);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 
-		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
-		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
-			ast_odbc_release_obj(obj);
-			goto yuck;
-		}
 		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir = '%s%s/%s/%s'", odbc_table, VM_SPOOL_DIR, context, tmp, "Old");
 		stmt = ast_odbc_prepare_and_execute(obj, generic_prepare, &gps);
 		if (!stmt) {
@@ -2363,7 +2357,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	SEARCHPGM *pgm;
 	SEARCHHEADER *hdr;
 
-	struct ast_vm_user *vmu;
+	struct ast_vm_user *vmu, vmus;
 	struct vm_state *vms_p;
 	int ret = 0;
 	int fold = folder_int(folder);
@@ -2373,7 +2367,7 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 
 	/* We have to get the user before we can open the stream! */
 	/* ast_log (LOG_DEBUG,"Before find_user, context is %s and mailbox is %s\n",context,mailbox); */
-	vmu = find_user(NULL, context, mailbox);
+	vmu = find_user(&vmus, context, mailbox);
 	if (!vmu) {
 		ast_log (LOG_ERROR,"Couldn't find mailbox %s in context %s\n",mailbox,context);
 		return -1;
@@ -2381,7 +2375,6 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		/* No IMAP account available */
 		if (vmu->imapuser[0] == '\0') {
 			ast_log (LOG_WARNING,"IMAP user not set for mailbox %s\n",vmu->mailbox);
-			free_user(vmu);
 			return -1;
 		}
 	}
@@ -2395,11 +2388,9 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		if(option_debug > 2)
 			ast_log (LOG_DEBUG,"Returning before search - user is logged in\n");
 		if(fold == 0) {/*INBOX*/
-			free_user(vmu);
 			return vms_p->newmessages;
 		}
 		if(fold == 1) {/*Old messages*/
-			free_user(vmu);
 		 	return vms_p->oldmessages;
 		}
 	}
@@ -2414,7 +2405,6 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		if(option_debug > 2)
 			ast_log (LOG_DEBUG,"Adding new vmstate for %s\n",vmu->imapuser);
 		if (!(vms_p = ast_calloc(1, sizeof(*vms_p)))) {
-			free_user(vmu);
 			return -1;
 		}
 		ast_copy_string(vms_p->imapuser,vmu->imapuser, sizeof(vms_p->imapuser));
@@ -2431,7 +2421,6 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 	ret = init_mailstream(vms_p, fold);
 	if (!vms_p->mailstream) {
 		ast_log (LOG_ERROR,"IMAP mailstream is NULL\n");
-		free_user(vmu);
 		return -1;
 	}
 	if (ret == 0) {
@@ -2460,13 +2449,11 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 			vms_p->oldmessages = vms_p->vmArrayIndex;
 		/*Freeing the searchpgm also frees the searchhdr*/
 		mail_free_searchpgm(&pgm);
-		free_user(vmu);
 		vms_p->updated = 0;
 		return vms_p->vmArrayIndex;
 	} else {  
 		mail_ping(vms_p->mailstream);
 	}
-	free_user(vmu);
 	return 0;
 }
 static int inboxcount(const char *mailbox_context, int *newmsgs, int *oldmsgs)
