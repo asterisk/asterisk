@@ -15636,7 +15636,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 int
 main ()
 {
-epoll_create(10);
+int res = epoll_create(10);
+					  if (res < 0)
+					     return 1;
+					  close (res);
+					  return 0;
   ;
   return 0;
 }

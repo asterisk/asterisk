@@ -334,7 +334,11 @@ AST_C_DEFINE_CHECK([PTHREAD_RWLOCK_PREFER_WRITER_NP], [PTHREAD_RWLOCK_PREFER_WRI
 
 AC_MSG_CHECKING(for working epoll support)
 AC_LINK_IFELSE(
-AC_LANG_PROGRAM([#include <sys/epoll.h>], [epoll_create(10);]),
+AC_LANG_PROGRAM([#include <sys/epoll.h>], [int res = epoll_create(10);
+					  if (res < 0)
+					     return 1;
+					  close (res);
+					  return 0;]),
 AC_MSG_RESULT(yes)
 AC_DEFINE([HAVE_EPOLL], 1, [Define to 1 if your system has working epoll support.]),
 AC_MSG_RESULT(no)
