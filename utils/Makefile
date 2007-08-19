@@ -94,7 +94,7 @@ ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
-check_expr: check_expr.o ast_expr2.o ast_expr2f.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o
 
 aelbison.c: ../res/ael/ael.tab.c
 	@cp $< $@
