@@ -20,6 +20,19 @@
 		</member>
 		<member name="LOW_MEMORY" displayname="Optimize for Low Memory Usage">
 		</member>
+		<member name="G711_NEW_ALGORITHM" displayname="Use the NEW ulaw/alaw codecs (slower, but cleaner)">
+			<defaultenabled>no</defaultenabled>
+		</member>
+		<member name="G711_REDUCED_BRANCHING" displayname="New ulaw/alaw codec, reduced branching (might help it run faster in some architectures)">
+			<defaultenabled>yes</defaultenabled>
+			<depend>G711_NEW_ALGORITHM</depend>
+		</member>
+		<member name="TEST_CODING_TABLES" displayname="New ulaw/alaw codec, turn on table tests on init">
+			<depend>G711_NEW_ALGORITHM</depend>
+		</member>
+		<member name="TEST_TANDEM_TRANSCODING" displayname="New ulaw/alaw codec, turn on transcoding tests on init">
+			<depend>G711_NEW_ALGORITHM</depend>
+		</member>
 		<member name="MALLOC_DEBUG" displayname="Keep Track of Memory Allocations">
 		</member>
 		<member name="MTX_PROFILE" displayname="Enable Code Profiling Using TSC Counters">

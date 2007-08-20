@@ -46,7 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 
-#define MAX_RECALC 200 /* max sample recalc */
+#define MAX_RECALC 1000 /* max sample recalc */
 
 /*! \brief the list of translators */
 static AST_RWLIST_HEAD_STATIC(translators, ast_translator);
@@ -371,6 +371,7 @@ static void calc_cost(struct ast_translator *t, int seconds)
 	int sofar=0;
 	struct ast_trans_pvt *pvt;
 	struct timeval start;
+	struct timeval end;
 	int cost;
 
 	if (!seconds)
@@ -379,13 +380,13 @@ static void calc_cost(struct ast_translator *t, int seconds)
 	/* If they don't make samples, give them a terrible score */
 	if (!t->sample) {
 		ast_log(LOG_WARNING, "Translator '%s' does not produce sample frames.\n", t->name);
-		t->cost = 99999;
+		t->cost = 999999;
 		return;
 	}
 	pvt = newpvt(t);
 	if (!pvt) {
 		ast_log(LOG_WARNING, "Translator '%s' appears to be broken and will probably fail.\n", t->name);
-		t->cost = 99999;
+		t->cost = 999999;
 		return;
 	}
 	start = ast_tvnow();
@@ -395,7 +396,7 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		if (!f) {
 			ast_log(LOG_WARNING, "Translator '%s' failed to produce a sample frame.\n", t->name);
 			destroy(pvt);
-			t->cost = 99999;
+			t->cost = 999999;
 			return;
 		}
 		framein(pvt, f);
@@ -405,7 +406,8 @@ static void calc_cost(struct ast_translator *t, int seconds)
 			ast_frfree(f);
 		}
 	}
-	cost = ast_tvdiff_ms(ast_tvnow(), start);
+	end = ast_tvnow();
+	cost = ((end.tv_sec - start.tv_sec)*1000000) + end.tv_usec - start.tv_usec;
 	destroy(pvt);
 	t->cost = cost / seconds;
 	if (!t->cost)
@@ -516,7 +518,7 @@ static int show_translation(int fd, int argc, char *argv[])
 
 	AST_RWLIST_RDLOCK(&translators);
 
-	ast_cli(fd, "         Translation times between formats (in milliseconds) for one second of data\n");
+	ast_cli(fd, "         Translation times between formats (in microseconds) for one second of data\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
@@ -530,12 +532,13 @@ static int show_translation(int fd, int argc, char *argv[])
 		ast_str_set(&out, -1, " ");
 		for (y = -1; y < SHOW_TRANS; y++) {
 			curlen = strlen(ast_getformatname(1 << (y)));
-
+			if (curlen < 5)
+				curlen = 5;
 			if (x >= 0 && y >= 0 && tr_matrix[x][y].step) {
-				/* XXX 999 is a little hackish
+				/* XXX 99999 is a little hackish
 				   We don't want this number being larger than the shortest (or current) codec
 				   For now, that is "gsm" */
-				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost > 999 ? 0 : tr_matrix[x][y].cost);
+				ast_str_append(&out, -1, "%*d", curlen + 1, tr_matrix[x][y].cost > 99999 ? 0 : tr_matrix[x][y].cost);
 			} else if (x == -1 && y >= 0) {
 				/* Top row - use a dynamic size */
 				ast_str_append(&out, -1, "%*s", curlen + 1, ast_getformatname(1 << (x + y + 1)) );
