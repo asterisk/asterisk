@@ -1163,6 +1163,8 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 			ast_variables_destroy(queue_vars);
 
 		AST_LIST_UNLOCK(&queues);
+	} else { 
+		update_realtime_member(q);
 	}
 	return q;
 }
