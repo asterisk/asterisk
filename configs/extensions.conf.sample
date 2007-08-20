@@ -5,7 +5,7 @@
 ; inbound and outbound calls in Asterisk. 
 ; 
 ; This configuration file is reloaded 
-; - With the "extensions reload" command in the CLI
+; - With the "dialplan reload" command in the CLI
 ; - With the "reload" command (that reloads everything) in the CLI
 
 ;
@@ -22,7 +22,7 @@
 static=yes
 ;
 ; if static=yes and writeprotect=no, you can save dialplan by
-; CLI command 'save dialplan' too
+; CLI command "dialplan save" too
 ;
 writeprotect=no
 ;
@@ -45,10 +45,10 @@ writeprotect=no
 ;
 ; NOTE: A complication sets in, if you put your global variables into
 ; the AEL file, instead of the extensions.conf file. With clearglobalvars
-; set, a 'reload' will often leave the globals vars cleared, because it
+; set, a "reload" will often leave the globals vars cleared, because it
 ; is not unusual to have extensions.conf (which will have no globals)
 ; load after the extensions.ael file (where the global vars are stored).
-; So, with 'reload' in this particular situation, first the AEL file will
+; So, with "reload" in this particular situation, first the AEL file will
 ; clear and then set all the global vars, then, later, when the extensions.conf
 ; file is loaded, the global vars are all cleared, and then not set, because
 ; they are not stored in the extensions.conf file.
@@ -574,8 +574,8 @@ include => demo
 ; For more information on applications, just type "core show applications" at your
 ; friendly Asterisk CLI prompt.
 ;
-; 'core show application <command>' will show details of how you
+; "core show application <command>" will show details of how you
 ; use that particular application in this file, the dial plan. 
-; 'core show functions" will list all dialplan functions
-; 'core show function <COMMAND>' will show you more information about
+; "core show functions" will list all dialplan functions
+; "core show function <COMMAND>" will show you more information about
 ; one function. Remember that function names are UPPER CASE.
