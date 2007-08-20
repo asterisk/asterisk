@@ -1570,7 +1570,7 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return OSAtomicAdd64(v, (int64_t *) p);
-#elif defined (__i386__)
+#elif defined (__i386__) || defined(__x86_64__)
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (
