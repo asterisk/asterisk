@@ -9549,7 +9549,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 
 	if (!ast_strlen_zero(peer->mailbox)) {
 		char *mailbox, *context;
-		mailbox = ast_strdupa(peer->mailbox);
+		context = mailbox = ast_strdupa(peer->mailbox);
 		strsep(&context, "@");
 		if (ast_strlen_zero(context))
 			context = "default";
