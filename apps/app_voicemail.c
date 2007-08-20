@@ -2864,11 +2864,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			if (ast_streamfile(chan, prefile, chan->language) > -1) 
 				res = ast_waitstream(chan, ecodes);
 #ifdef ODBC_STORAGE
-			if(success == -1) 
-				/*We couldn't retrieve the file from the database, but we found it on the file system. Let's put it in the database*/
-				if(option_debug)
+			if (success == -1) {
+				/* We couldn't retrieve the file from the database, but we found it on the file system. Let's put it in the database. */
+				if (option_debug)
 					ast_log(LOG_DEBUG, "Greeting not retrieved from database, but found in file storage. Inserting into database\n");
 				store_file(prefile, vmu->mailbox, vmu->context, -1);
+			}
 #endif
 		} else {
 			if (option_debug)
