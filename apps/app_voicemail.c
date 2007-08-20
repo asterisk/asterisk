@@ -235,6 +235,7 @@ static int load_config(void);
 	\arg \b gr - Greek
 	\arg \b no - Norwegian
 	\arg \b se - Swedish
+	\arg \b ua - Ukrainian
 
 German requires the following additional soundfile:
 \arg \b 1F	einE (feminine)
@@ -278,6 +279,11 @@ Dutch also uses:
 
 Spanish also uses:
 \arg \b vm-youhaveno
+
+Ukrainian requires the following additional soundfile:
+\arg \b vm-nove		'nove'
+\arg \b vm-stare	'stare'
+\arg \b digits/ua/1e	'odne'
 
 Italian requires the following additional soundfile:
 
@@ -4895,6 +4901,19 @@ static int vm_play_folder_name_pl(struct ast_channel *chan, char *mbox)
 	}
 }
 
+static int vm_play_folder_name_ua(struct ast_channel *chan, char *mbox)
+{
+	int cmd;
+
+	if (!strcasecmp(mbox, "vm-Family") || !strcasecmp(mbox, "vm-Friends") || !strcasecmp(mbox, "vm-Work")){
+		cmd = ast_play_and_wait(chan, "vm-messages");
+		return cmd ? cmd : ast_play_and_wait(chan, mbox);
+	} else {
+		cmd = ast_play_and_wait(chan, mbox);
+		return cmd ? cmd : ast_play_and_wait(chan, "vm-messages");
+	}
+}
+
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
 {
 	int cmd;
@@ -4906,6 +4925,8 @@ static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
 		return vm_play_folder_name_gr(chan, mbox);
 	} else if (!strcasecmp(chan->language, "pl")){
 		return vm_play_folder_name_pl(chan, mbox);
+	} else if (!strcasecmp(chan->language, "ua")){  /* Ukrainian syntax */
+		return vm_play_folder_name_ua(chan, mbox);
 	} else {  /* Default English */
 		cmd = ast_play_and_wait(chan, mbox);
 		return cmd ? cmd : ast_play_and_wait(chan, "vm-messages"); /* "messages */
@@ -5639,6 +5660,78 @@ static int vm_intro_ru(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
+/* UKRAINIAN syntax */
+/* in ukrainian the syntax is different so we need the following files
+ * --------------------------------------------------------
+ * /digits/ua/1e 'odne'
+ * vm-nove       'nove'
+ * vm-stare      'stare'
+ */
+
+static int vm_intro_ua(struct ast_channel *chan,struct vm_state *vms)
+{
+	int res;
+	int lastnum = 0;
+	int dcnum;
+
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (!res && vms->newmessages) {
+		lastnum = get_lastdigits(vms->newmessages);
+		dcnum = vms->newmessages - lastnum;
+		if (dcnum)
+			res = say_and_wait(chan, dcnum, chan->language);
+		if (!res && lastnum) {
+			if (lastnum == 1) 
+				res = ast_play_and_wait(chan, "digits/ua/1e");
+			else
+				res = say_and_wait(chan, lastnum, chan->language);
+		}
+
+		if (!res)
+			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-nove" : "vm-INBOX");
+
+		if (!res && vms->oldmessages)
+			res = ast_play_and_wait(chan, "vm-and");
+	}
+
+	if (!res && vms->oldmessages) {
+		lastnum = get_lastdigits(vms->oldmessages);
+		dcnum = vms->oldmessages - lastnum;
+		if (dcnum)
+			res = say_and_wait(chan, dcnum, chan->language);
+		if (!res && lastnum) {
+			if (lastnum == 1) 
+				res = ast_play_and_wait(chan, "digits/ua/1e");
+			else
+				res = say_and_wait(chan, lastnum, chan->language);
+		}
+
+		if (!res)
+			res = ast_play_and_wait(chan, (lastnum == 1) ? "vm-stare" : "vm-Old");
+	}
+
+	if (!res && !vms->newmessages && !vms->oldmessages) {
+		lastnum = 0;
+		res = ast_play_and_wait(chan, "vm-no");
+	}
+
+	if (!res) {
+		switch (lastnum) {
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+			res = ast_play_and_wait(chan, "vm-message");
+			break;
+		default:
+			res = ast_play_and_wait(chan, "vm-messages");
+			break;
+		}
+	}
+
+	return res;
+}
+
 
 static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
@@ -5678,6 +5771,8 @@ static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm
 		return vm_intro_no(chan, vms);
 	} else if (!strcasecmp(chan->language, "ru")) { /* RUSSIAN syntax */
 		return vm_intro_ru(chan, vms);
+	} else if (!strcasecmp(chan->language, "ua")) { /* UKRAINIAN syntax */
+		return vm_intro_ua(chan, vms);
 	} else {					/* Default to ENGLISH */
 		return vm_intro_en(chan, vms);
 	}
