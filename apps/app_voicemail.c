@@ -6139,8 +6139,6 @@ static int vm_intro_ua(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
-
->>>>>>> .merge-right.r80044
 static int vm_intro(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms)
 {
 	char prefile[256];
