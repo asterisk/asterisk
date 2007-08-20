@@ -236,6 +236,10 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int restart_monitor(void);
 static int h323_do_reload(void);
 
+static void delete_users(void);
+static void delete_aliases(void);
+static void prune_peers(void);
+
 static struct ast_channel *oh323_request(const char *type, int format, void *data, int *cause);
 static int oh323_digit_begin(struct ast_channel *c, char digit);
 static int oh323_digit_end(struct ast_channel *c, char digit, unsigned int duration);
