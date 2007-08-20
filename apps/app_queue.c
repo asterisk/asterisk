@@ -3121,7 +3121,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 				"Status: %d\r\n"
 				"Paused: %d\r\n",
 				q->name, new_member->interface, new_member->membername,
-				new_member->dynamic ? "dynamic" : "static",
+				"dynamic",
 				new_member->penalty, new_member->calls, (int) new_member->lastcall,
 				new_member->status, new_member->paused);
 			
