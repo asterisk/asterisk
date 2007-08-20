@@ -12733,7 +12733,7 @@ static int setup_zap(int reload)
 	if (ucfg) {
 		char *cat;
 		const char *chans;
-		process_zap(&base_conf, ast_variable_browse(cfg, "general"), 1, 1);
+		process_zap(&base_conf, ast_variable_browse(ucfg, "general"), 1, 1);
 		for (cat = ast_category_browse(ucfg, NULL); cat ; cat = ast_category_browse(ucfg, cat)) {
 			if (!strcasecmp(cat, "general"))
 				continue;
