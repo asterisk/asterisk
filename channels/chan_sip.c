@@ -1002,11 +1002,15 @@ static struct sip_pvt {
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
+	size_t history_entries;			/*!< Number of entires in the history */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	int autoframing;
 } *iflist = NULL;
+
+/*! Max entires in the history list for a sip_pvt */
+#define MAX_HISTORY_ENTRIES 50
 
 #define FLAG_RESPONSE (1 << 0)
 #define FLAG_FATAL (1 << 1)
@@ -1846,7 +1850,14 @@ static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 		return;
 	}
 	memcpy(hist->event, buf, l);
+	if (p->history_entries == MAX_HISTORY_ENTRIES) {
+		struct sip_history *oldest;
+		oldest = AST_LIST_REMOVE_HEAD(p->history, list);
+		p->history_entries--;
+		free(oldest);
+	}
 	AST_LIST_INSERT_TAIL(p->history, hist, list);
+	p->history_entries++;
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -1856,6 +1867,12 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 
 	if (!p)
 		return;
+
+	if (ast_test_flag(&p->flags[0], SIP_NO_HISTORY) 
+		&& !recordhistory && !dumphistory) {
+		return;
+	}
+
 	va_start(ap, fmt);
 	append_history_va(p, fmt, ap);
 	va_end(ap);
@@ -3053,8 +3070,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	/* Clear history */
 	if (p->history) {
 		struct sip_history *hist;
-		while( (hist = AST_LIST_REMOVE_HEAD(p->history, list)) )
+		while ( (hist = AST_LIST_REMOVE_HEAD(p->history, list)) ) {
 			free(hist);
+			p->history_entries--;
+		}
 		free(p->history);
 		p->history = NULL;
 	}
