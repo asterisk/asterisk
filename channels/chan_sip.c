@@ -1114,6 +1114,7 @@ struct sip_pvt {
 	struct ast_rtp *trtp;			/*!< Text RTP session */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
+	size_t history_entries;			/*!< Number of entires in the history */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for inbound call */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 	int autoframing;			/*!< The number of Asters we group in a Pyroflax
@@ -1122,7 +1123,10 @@ struct sip_pvt {
 							you know more) */
 };
 
-/*
+/*! Max entires in the history list for a sip_pvt */
+#define MAX_HISTORY_ENTRIES 50
+
+/*!
  * Here we implement the container for dialogs (sip_pvt), defining
  * generic wrapper functions to ease the transition from the current
  * implementation (a single linked list) to a different container.
@@ -1130,7 +1134,6 @@ struct sip_pvt {
  * the container and individual items, and functions to add/remove
  * references to the individual items.
  */
-
 static struct sip_pvt *dialoglist = NULL;
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
@@ -2209,7 +2212,14 @@ static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 		return;
 	}
 	memcpy(hist->event, buf, l);
+	if (p->history_entries == MAX_HISTORY_ENTRIES) {
+		struct sip_history *oldest;
+		oldest = AST_LIST_REMOVE_HEAD(p->history, list);
+		p->history_entries--;
+		ast_free(oldest);
+	}
 	AST_LIST_INSERT_TAIL(p->history, hist, list);
+	p->history_entries++;
 }
 
 /*! \brief Append to SIP dialog history with arg list  */
@@ -2219,6 +2229,10 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 
 	if (!p)
 		return;
+
+	if (!p->do_history && !recordhistory && !dumphistory)
+		return;
+
 	va_start(ap, fmt);
 	append_history_va(p, fmt, ap);
 	va_end(ap);
@@ -3654,8 +3668,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	/* Clear history */
 	if (p->history) {
 		struct sip_history *hist;
-		while( (hist = AST_LIST_REMOVE_HEAD(p->history, list)) )
+		while ( (hist = AST_LIST_REMOVE_HEAD(p->history, list)) ) {
 			ast_free(hist);
+			p->history_entries--;
+		}
 		ast_free(p->history);
 		p->history = NULL;
 	}
