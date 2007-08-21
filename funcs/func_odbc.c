@@ -94,7 +94,6 @@ struct odbc_datastore {
 AST_LIST_HEAD_STATIC(queries, acf_odbc_query);
 
 static int resultcount = 0;
-AST_MUTEX_DEFINE_STATIC(resultlock);
 
 static void odbc_datastore_free(void *data)
 {
@@ -448,9 +447,7 @@ end_acf_read:
 	if (resultset) {
 		int uid;
 		struct ast_datastore *odbc_store;
-		ast_mutex_lock(&resultlock);
-		uid = ++resultcount;
-		ast_mutex_unlock(&resultlock);
+		uid = ast_atomic_fetchadd_int(&resultcount, +1) + 1;
 		snprintf(buf, len, "%d", uid);
 		odbc_store = ast_channel_datastore_alloc(&odbc_info, buf);
 		if (!odbc_store) {
