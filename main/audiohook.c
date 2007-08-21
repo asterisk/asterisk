@@ -189,17 +189,18 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	/* Start with the read factory... if there are enough samples, read them in */
 	if (ast_slinfactory_available(&audiohook->read_factory) >= samples) {
-		if (ast_slinfactory_read(&audiohook->read_factory, buf1, samples))
+		if (ast_slinfactory_read(&audiohook->read_factory, buf1, samples)) {
 			read_buf = buf1;
-		/* Adjust read volume if need be */
-		if (audiohook->options.read_volume) {
-			int count = 0;
-			short adjust_value = abs(audiohook->options.read_volume);
-			for (count = 0; count < samples; count++) {
-				if (audiohook->options.read_volume > 0)
-					ast_slinear_saturated_multiply(&buf1[count], &adjust_value);
-				else if (audiohook->options.read_volume < 0)
-					ast_slinear_saturated_divide(&buf1[count], &adjust_value);
+			/* Adjust read volume if need be */
+			if (audiohook->options.read_volume) {
+				int count = 0;
+				short adjust_value = abs(audiohook->options.read_volume);
+				for (count = 0; count < samples; count++) {
+					if (audiohook->options.read_volume > 0)
+						ast_slinear_saturated_multiply(&buf1[count], &adjust_value);
+					else if (audiohook->options.read_volume < 0)
+						ast_slinear_saturated_divide(&buf1[count], &adjust_value);
+				}
 			}
 		}
 	} else if (option_debug)
@@ -207,17 +208,18 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 
 	/* Move on to the write factory... if there are enough samples, read them in */
 	if (ast_slinfactory_available(&audiohook->write_factory) >= samples) {
-		if (ast_slinfactory_read(&audiohook->write_factory, buf2, samples))
+		if (ast_slinfactory_read(&audiohook->write_factory, buf2, samples)) {
 			write_buf = buf2;
-		/* Adjust write volume if need be */
-		if (audiohook->options.write_volume) {
-			int count = 0;
-			short adjust_value = abs(audiohook->options.write_volume);
-			for (count = 0; count < samples; count++) {
-				if (audiohook->options.write_volume > 0)
-					ast_slinear_saturated_multiply(&buf2[count], &adjust_value);
-				else if (audiohook->options.write_volume < 0)
-					ast_slinear_saturated_divide(&buf2[count], &adjust_value);
+			/* Adjust write volume if need be */
+			if (audiohook->options.write_volume) {
+				int count = 0;
+				short adjust_value = abs(audiohook->options.write_volume);
+				for (count = 0; count < samples; count++) {
+					if (audiohook->options.write_volume > 0)
+						ast_slinear_saturated_multiply(&buf2[count], &adjust_value);
+					else if (audiohook->options.write_volume < 0)
+						ast_slinear_saturated_divide(&buf2[count], &adjust_value);
+				}
 			}
 		}
 	} else if (option_debug)
