@@ -48,7 +48,6 @@
 ; submission of CDR data during asterisk shutdown, set this to "yes".  Default
 ; is "yes".
 ;safeshutdown=yes
-;
 
 ; Normally, CDR's are not closed out until after all extensions are finished
 ; executing.  By enabling this option, the CDR will be ended before executing
@@ -58,7 +57,7 @@
 
 ;
 ;
-; CHOOSING A CDR "BACKEND"  (what kind of output to generate
+; CHOOSING A CDR "BACKEND"  (what kind of output to generate)
 ;
 ; To choose a backend, you have to make sure either the right category is 
 ; defined in this file, or that the appropriate config file exists, and has the 
@@ -90,34 +89,34 @@
 ; file, define the [csv] category in this file. No database necessary. The example
 ; config files are set up to provide this kind of output by default.
 ;
-; To get custom csv CDR records, make sure the cdr-custom.config file
+; To get custom csv CDR records, make sure the cdr_custom.conf file
 ; is present, and contains the proper [mappings] section. The advantage to
 ; using this backend, is that you can define which fields to output, and in
 ; what order. By default, the example configs are set up to mimic the cdr-csv
 ; output. If you don't make any changes to the mappings, you are basically generating
 ; the same thing as cdr-csv, but expending more CPU cycles to do so!
 ;
-; To get manager events generated, make sure the cdr_manager.config  file exists,
-; and the [general] section is defined, with the single variable' enabled = yes'.
+; To get manager events generated, make sure the cdr_manager.conf file exists,
+; and the [general] section is defined, with the single variable 'enabled = yes'.
 ;
-; for odbc, make sure all the proper libs are installed, that "make menuselect"
+; For odbc, make sure all the proper libs are installed, that "make menuselect"
 ; shows that the modules are available, and the cdr_odbc.conf file exists, and
 ; has a [global] section with the proper variables defined.
 ;
-; for pgsql, make sure all the proper libs are installed, that "make menuselect"
+; For pgsql, make sure all the proper libs are installed, that "make menuselect"
 ; shows that the modules are available, and the cdr_pgsql.conf file exists, and
 ; has a [global] section with the proper variables defined.
 ;
-; for logging to radius databases, make sure all the proper libs are installed, that 
+; For logging to radius databases, make sure all the proper libs are installed, that 
 ; "make menuselect" shows that the modules are available, and the [radius]
 ; category is defined in this file, and in that section, make sure the 'radiuscfg'
 ; variable is properly pointing to an existing radiusclient.conf file.
 ;
-; for logging to sqlite databases, make sure the 'cdr.db' file exists in the log directory,
+; For logging to sqlite databases, make sure the 'cdr.db' file exists in the log directory,
 ; which is usually /var/log/asterisk. Of course, the proper libraries should be available
 ; during the 'configure' operation.
 ;
-; for tds logging, make sure the proper libraries are available during the 'configure' 
+; For tds logging, make sure the proper libraries are available during the 'configure' 
 ; phase, and that cdr_tds.conf exists and is properly set up with a [global] category.
 ;
 ; Also, remember, that if you wish to log CDR info to a database, you will have to define
@@ -126,15 +125,14 @@
 ;
 
 [csv]
-usegmtime=yes ;log date/time in GMT
-loguniqueid=yes ;log uniqueid
-loguserfield=yes ;log user field
+usegmtime=yes    ; log date/time in GMT.  Default is "no"
+loguniqueid=yes  ; log uniqueid.  Default is "no
+loguserfield=yes ; log user field.  Default is "no
 
 ;[radius]
-;usegmtime=yes ;log date/time in GMT
-;loguniqueid=yes ;log uniqueid
-;loguserfield=yes ;log user field
+;usegmtime=yes    ; log date/time in GMT
+;loguniqueid=yes  ; log uniqueid
+;loguserfield=yes ; log user field
 ; Set this to the location of the radiusclient-ng configuration file
 ; The default is /etc/radiusclient-ng/radiusclient.conf
 ;radiuscfg => /usr/local/etc/radiusclient-ng/radiusclient.conf
-
