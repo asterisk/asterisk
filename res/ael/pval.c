@@ -345,8 +345,9 @@ static void print_pval(FILE *fin, pval *item, int depth)
 		if ( item->u3.hints )
 			fprintf(fin,"hints(%s) ", item->u3.hints);
 		
-		fprintf(fin,"%s => \n", item->u1.str);
+		fprintf(fin,"%s => ", item->u1.str);
 		print_pval_list(fin,item->u2.statements,depth+1);
+		fprintf(fin,"\n");
 		break;
 			
 	case PV_IGNOREPAT:
