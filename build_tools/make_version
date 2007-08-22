@@ -14,7 +14,7 @@ elif [ -d .svn ]; then
     
     if [ "${PARTS}" = "trunk" ]
 	then
-	echo SVN-'trunk'-r${REV}
+	echo SVN-trunk-r${REV}
 	exit 0
     fi
     
@@ -28,13 +28,23 @@ elif [ -d .svn ]; then
       
       if [ ${BRANCH} != 0 ]
 	  then
-	  RESULT="${RESULT}-${PART}"
+	  if [ -z ${RESULT} ]
+	    then
+	    RESULT="${PART}"
+	  else
+	    RESULT="${RESULT}-${PART}"
+	  fi
 	  break
       fi
       
       if [ ${TEAM} != 0 ]
 	  then
-	  RESULT="${RESULT}-${PART}"
+	  if [ -z ${RESULT} ]
+	    then
+	    RESULT="${PART}"
+	  else
+	    RESULT="${RESULT}-${PART}"
+	  fi
 	  continue
       fi
       
@@ -62,6 +72,6 @@ elif [ -d .svn ]; then
 	then
 	echo ${RESULT}
 	else
-	echo SVN-${RESULT##-}-r${REV}${BASE:+-${BASE}}
+	echo SVN-${RESULT}-r${REV}${BASE:+-${BASE}}
     fi
 fi
