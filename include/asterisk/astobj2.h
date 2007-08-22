@@ -433,39 +433,51 @@ void *ao2_callback(ao2_container *c,
 
 /*!
  *
-
-When we need to walk through a container, we use
-ao2_iterator to keep track of the current position.
-
-Because the navigation is typically done without holding the
-lock on the container across the loop,
-objects can be inserted or deleted or moved
-while we work. As a consequence, there is no guarantee that
-the we manage to touch all the elements on the list, or it
-is possible that we touch the same object multiple times.
-
-An iterator must be first initialized with ao2_iterator_init(),
-then we can use o = ao2_iterator_next() to move from one
-element to the next. Remember that the object returned by
-ao2_iterator_next() has its refcount incremented,
-and the reference must be explicitly released when done with it.
-Example:
-
-    \code
-
-    ao2_container *c = ... // the container we want to iterate on
-    ao2_iterator i;
-    struct my_obj *o;
-
-    i = ao2_iterator_init(c, flags);
- 
-    while ( (o = ao2_iterator_next(&i)) ) {
-	... do something on o ...
-	ao2_ref(o, -1);
-    }
-
-    \endcode
-
+ *
+ * When we need to walk through a container, we use
+ * ao2_iterator to keep track of the current position.
+ * 
+ * Because the navigation is typically done without holding the
+ * lock on the container across the loop,
+ * objects can be inserted or deleted or moved
+ * while we work. As a consequence, there is no guarantee that
+ * the we manage to touch all the elements on the list, or it
+ * is possible that we touch the same object multiple times.
+ * However, within the current hash table container, the following is true:
+ *  - It is not possible to miss an object in the container while iterating
+ *    unless it gets added after the iteration begins and is added to a bucket
+ *    that is before the one the current object is in.  In this case, even if
+ *    you locked the container around the entire iteration loop, you still would
+ *    not see this object, because it would still be waiting on the container
+ *    lock so that it can be added.
+ *  - It would be extremely rare to see an object twice.  The only way this can
+ *    happen is if an object got unlinked from the container and added again 
+ *    during the same iteration.  Furthermore, when the object gets added back,
+ *    it has to be in the current or later bucket for it to be seen again.
+ *
+ * An iterator must be first initialized with ao2_iterator_init(),
+ * then we can use o = ao2_iterator_next() to move from one
+ * element to the next. Remember that the object returned by
+ * ao2_iterator_next() has its refcount incremented,
+ * and the reference must be explicitly released when done with it.
+ *
+ * Example:
+ *
+ *  \code
+ *
+ *  ao2_container *c = ... // the container we want to iterate on
+ *  ao2_iterator i;
+ *  struct my_obj *o;
+ *
+ *  i = ao2_iterator_init(c, flags);
+ *
+ *  while ( (o = ao2_iterator_next(&i)) ) {
+ *     ... do something on o ...
+ *     ao2_ref(o, -1);
+ *  }
+ *
+ *  \endcode
+ *
  */
 
 /*!
