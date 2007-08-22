@@ -74,6 +74,10 @@ ifneq ($(wildcard makeopts),)
   include makeopts
 endif
 
+# Some build systems, such as the one in openwrt, like to pass custom target
+# CFLAGS in the COPTS variable.
+ASTCFLAGS+=$(COPTS)
+
 #Uncomment this to see all build commands instead of 'quiet' output
 #NOISY_BUILD=yes
 
