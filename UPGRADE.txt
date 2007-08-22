@@ -314,6 +314,21 @@ Functions:
 
 The IAX2 channel:
 
+* It is possible that previous configurations depended on the order in which
+  peers and users were specified in iax.conf for forcing the order in which
+  chan_iax2 matched against them.  This behavior is going away and is considered
+  deprecated in this version.  Avoid having ambiguous peer and user entries and
+  to make things easy on yourself, always set the "username" option for users
+  so that the remote end can match on that exactly instead of trying to infer
+  which user you want based on host.
+
+  If you would like to go ahead and use the new behavior which doesn't use the
+  order in the config file to influence matching order, then change the 
+  MAX_PEER_BUCKETS define in chan_iax2.c to a value greater than one.  An
+  example is provided there.  By changing this, you will get *much* better
+  performance on systems that do a lot of peer and user lookups as they will be
+  stored in memory in a much more efficient manner.
+
 * The "mailboxdetail" option has been deprecated.  Previously, if this option
   was not enabled, the 2 byte MSGCOUNT information element would be set to all
   1's to indicate there there is some number of messages waiting.  With this

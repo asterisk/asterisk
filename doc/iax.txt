@@ -16,7 +16,7 @@ the peer will select one.
 The peer uses a score to determine the best user entry to match against if
 one is not specified:
 
-1. User entry last specified in iax.conf (this is the baseline).
+1. User entry with secret and no ACL specified.
 2. User entry with secret specified and ACL specified.
 3. User entry with no secret specified and no ACL specified.
 4. User entry with no secret specified and ACL specified.
