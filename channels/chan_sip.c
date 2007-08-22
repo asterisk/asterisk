@@ -16841,6 +16841,9 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 
 static void set_insecure_flags (struct ast_flags *flags, const char *value, int lineno)
 {
+	if (ast_strlen_zero(value))
+		return;
+
 	if (!ast_false(value)) {
 		char buf[64];
 		char *word, *next;
