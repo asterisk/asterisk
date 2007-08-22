@@ -654,9 +654,7 @@ sounds:
 # last clean count we had
 
 cleantest:
-	@if ! cmp -s .cleancount .lastclean ; then \
-		$(MAKE) clean;\
-	fi
+	@cmp -s .cleancount .lastclean || $(MAKE) clean
 
 $(SUBDIRS_UNINSTALL):
 	@$(MAKE) --no-print-directory -C $(@:-uninstall=) uninstall
