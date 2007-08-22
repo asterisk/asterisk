@@ -29,8 +29,13 @@ struct ast_channel
 
 #include <../include/asterisk/compat.h>
 #include <../include/asterisk/ast_expr.h>
+
 #define AST_API_MODULE 1
 #include "asterisk/inline_api.h"
+
+#define AST_API_MODULE 1
+#include "asterisk/lock.h"
+
 #include "asterisk/strings.h"
 
 /* I included this from utils.c, so as not to have everything in that .c
