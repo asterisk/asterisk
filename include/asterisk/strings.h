@@ -23,6 +23,7 @@
 #ifndef _ASTERISK_STRINGS_H
 #define _ASTERISK_STRINGS_H
 
+#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 
@@ -418,7 +419,6 @@ int ast_str_make_space(struct ast_str **buf, size_t new_len),
 		(buf);					\
 	})
 
-
 /*!
  * \brief Retrieve a thread locally stored dynamic string
  *
@@ -661,5 +661,23 @@ int __attribute__ ((format (printf, 3, 4))) ast_str_append(
 	return res;
 }
 )
+
+/*!
+ * \brief Compute a hash value on a string
+ *
+ * This famous hash algorithm was written by Dan Bernstein and is
+ * commonly used.
+ *
+ * http://www.cse.yorku.ca/~oz/hash.html
+ */
+static force_inline int ast_str_hash(const char *str)
+{
+	int hash = 5381;
+
+	while (*str)
+		hash = hash * 33 ^ *str++;
+
+	return abs(hash);
+}
 
 #endif /* _ASTERISK_STRINGS_H */
