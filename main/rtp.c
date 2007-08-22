@@ -59,7 +59,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/unaligned.h"
 #include "asterisk/utils.h"
 
-#define MAX_TIMESTAMP_SKEW	120
+#define MAX_TIMESTAMP_SKEW	640
 
 #define RTP_SEQ_MOD     (1<<16) 	/*!< A sequence number can't be more than 16 bits */
 #define RTCP_DEFAULT_INTERVALMS   5000	/*!< Default milli-seconds between RTCP reports we send */
