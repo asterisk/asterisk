@@ -15713,6 +15713,10 @@ static void set_insecure_flags(struct ast_flags *flags, const char *value, int l
 {
 	static int dep_insecure_very = 0;
 	static int dep_insecure_yes = 0;
+
+	if (ast_strlen_zero(value))
+		return;
+
 	if (!strcasecmp(value, "very")) {
 		ast_set_flag(flags, SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		if(!dep_insecure_very) {
