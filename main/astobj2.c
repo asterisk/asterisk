@@ -339,7 +339,7 @@ void *ao2_link(ao2_container *c, void *user_data)
 	i %= c->n_buckets;
 	p->astobj = obj;
 	p->version = ast_atomic_fetchadd_int(&c->version, 1);
-	AST_LIST_INSERT_HEAD(&c->buckets[i], p, entry);
+	AST_LIST_INSERT_TAIL(&c->buckets[i], p, entry);
 	ast_atomic_fetchadd_int(&c->elements, 1);
 	ao2_unlock(c);
 	
