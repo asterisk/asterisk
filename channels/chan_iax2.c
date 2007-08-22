@@ -9406,6 +9406,9 @@ static void peer_destructor(void *obj)
 	if (peer->dnsmgr)
 		ast_dnsmgr_release(peer->dnsmgr);
 
+	if (peer->mwi_event_sub)
+		ast_event_unsubscribe(peer->mwi_event_sub);
+
 	ast_string_field_free_pools(peer);
 }
 
