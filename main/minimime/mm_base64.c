@@ -41,7 +41,7 @@ OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define XX 127
 
 static int _mm_base64_decode(char *);
-static char *_mm_base64_encode(char *, u_int32_t);
+static char *_mm_base64_encode(char *, uint32_t);
 
 /*
  * Tables for encoding/decoding base64
@@ -103,7 +103,7 @@ mm_base64_decode(char *data)
  *
  */
 char *
-mm_base64_encode(char *data, u_int32_t len) {
+mm_base64_encode(char *data, uint32_t len) {
 	char *buf;
 	char *ret;
 
@@ -125,7 +125,7 @@ mm_base64_encode(char *data, u_int32_t len) {
 static int
 _mm_base64_decode(char *input)
 {
-	u_int32_t len = 0;
+	uint32_t len = 0;
 	unsigned char *output = (unsigned char *)input;
 	int c1, c2, c3, c4;
 
@@ -158,14 +158,14 @@ _mm_base64_decode(char *input)
  * caller must free the space.
  */
 static char *
-_mm_base64_encode(char *data, u_int32_t len)
+_mm_base64_encode(char *data, uint32_t len)
 {
 	char *buf;
-	u_int32_t buflen;
+	uint32_t buflen;
 	int c1;
 	int c2;
 	int c3;
-	u_int32_t maxbuf;
+	uint32_t maxbuf;
 
 	buflen = 0;
 

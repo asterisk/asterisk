@@ -150,7 +150,7 @@ mm_codec_isregistered(const char *encoding)
  */
 int
 mm_codec_register(const char *encoding, 
-    char *(*encoder)(char *data, u_int32_t i),
+    char *(*encoder)(char *data, uint32_t i),
     char *(*decoder)(char *data))
 {
 	struct mm_codec *codec;

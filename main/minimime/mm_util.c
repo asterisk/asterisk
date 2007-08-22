@@ -353,13 +353,13 @@ mm_stripchars(char *input, char *strip)
  * returns this new string.
  */
 char *
-mm_addchars(char *input, char *add, u_int16_t linelength)
+mm_addchars(char *input, char *add, uint16_t linelength)
 {
-	u_int32_t len;
-	u_int32_t i;
-	u_int32_t l;
-	u_int32_t j;
-	u_int16_t addcrlf;
+	uint32_t len;
+	uint32_t i;
+	uint32_t l;
+	uint32_t j;
+	uint16_t addcrlf;
 	char *output;
 	char *orig;
 	

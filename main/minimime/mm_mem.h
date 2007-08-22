@@ -14,7 +14,7 @@ TAILQ_HEAD(MM_chunks, MM_mem_chunk);
 struct MM_mem_chunk {
 	void *address;
 	const char *filename;
-	u_int32_t line;
+	uint32_t line;
 	size_t size;
 	
 	TAILQ_ENTRY(MM_mem_chunk) next;

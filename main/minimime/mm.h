@@ -155,7 +155,7 @@ enum mm_warning_code
 struct mm_warning
 {
 	enum mm_warning_code warning;
-	u_int32_t lineno;
+	uint32_t lineno;
 	SLIST_ENTRY(mm_warning) next;
 };
 
@@ -167,7 +167,7 @@ struct mm_codec
 	enum mm_encoding id;
 	char *encoding;
 
-	char *(*encoder)(char *, u_int32_t);
+	char *(*encoder)(char *, uint32_t);
 	char *(*decoder)(char *);
 
 	SLIST_ENTRY(mm_codec) next;
@@ -251,7 +251,7 @@ typedef struct mm_context mm_ctx_t;
 char *mm_unquote(const char *);
 char *mm_uncomment(const char *);
 char *mm_stripchars(char *, char *);
-char *mm_addchars(char *, char *, u_int16_t);
+char *mm_addchars(char *, char *, uint16_t);
 int mm_gendate(char **);
 void mm_striptrailing(char **, const char *);
 int mm_mimeutil_genboundary(char *, size_t, char **);
@@ -337,13 +337,13 @@ char *mm_flatten_context(MM_CTX *);
 int mm_codec_isregistered(const char *);
 int mm_codec_hasdecoder(const char *);
 int mm_codec_hasencoder(const char *);
-int mm_codec_register(const char *, char *(*encoder)(char *, u_int32_t), char *(*decoder)(char *));
+int mm_codec_register(const char *, char *(*encoder)(char *, uint32_t), char *(*decoder)(char *));
 int mm_codec_unregister(const char *);
 int mm_codec_unregisterall(void);
 void mm_codec_registerdefaultcodecs(void);
 
 char *mm_base64_decode(char *);
-char *mm_base64_encode(char *, u_int32_t);
+char *mm_base64_encode(char *, uint32_t);
 
 void mm_error_init(void);
 void mm_error_setmsg(const char *, ...);
