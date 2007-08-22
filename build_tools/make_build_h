@@ -3,11 +3,7 @@ HOSTNAME=`uname -n`
 KERNEL=`uname -r`
 MACHINE=`uname -m`
 OS=`uname -s`
-if [ `uname -s` = "SunOS" ]; then
-  USER=`/usr/xpg4/bin/id -un`
-else
-  USER=`id -un`
-fi
+USER=`${ID} -un`
 DATE=`date -u "+%Y-%m-%d %H:%M:%S"`
 cat << END
 /*

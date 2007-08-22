@@ -14,7 +14,7 @@ if [ ! -d $PPATH ]; then
 fi
 
 #Solaris (and some others) don't have sed -r.  perl -p is equivalent
-if [[ `echo "xxx" | sed -r 's/x/y/g' 2>/dev/null | grep -c "yyy"` != 0 ]]; then
+if [[ `echo "xxx" | sed -r 's/x/y/g' 2>/dev/null | ${GREP} -c "yyy"` != 0 ]]; then
     EXTREGEX="sed -r -e"
 else
     EXTREGEX="perl -pe"

@@ -58,6 +58,8 @@ export PROC
 export SOLINK
 export STRIP
 export DOWNLOAD
+export GREP
+export ID
 export OSARCH
 export CURSES_DIR
 export NCURSES_DIR
