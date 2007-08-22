@@ -666,11 +666,9 @@ static AST_LIST_HEAD_STATIC(frame_queue, iax_frame);
  * containers is considered random, so you will not be able to depend on
  * the order the entires are specified in iax.conf for matching order. */
 #ifdef LOW_MEMORY
-#define MAX_PEER_BUCKETS 1
-/* #define MAX_PEER_BUCKETS 17 */
+#define MAX_PEER_BUCKETS 17
 #else
-#define MAX_PEER_BUCKETS 1
-/* #define MAX_PEER_BUCKETS 563 */
+#define MAX_PEER_BUCKETS 563
 #endif
 static ao2_container *peers;
 
