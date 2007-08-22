@@ -1902,8 +1902,14 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				ast_frfree(f);
 			}
 		} else if (outfd > -1) {
+			size_t len;
 			retry = RETRY;
-			if (!fgets(buf, sizeof(buf), readf)) {
+			buf[0] = '\0';
+retry_fgets:
+			len = strlen(buf);
+			if (!fgets(buf + len, sizeof(buf) - len, readf)) {
+				if (!feof(readf) && (errno == EINTR || errno == EAGAIN))
+					goto retry_fgets;
 				/* Program terminated */
 				if (returnstatus && returnstatus != AST_PBX_KEEPALIVE)
 					returnstatus = -1;
@@ -1914,6 +1920,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				pid = -1;
 				break;
 			}
+			if (errno == EINTR || errno == EAGAIN)
+				goto retry_fgets;
 			/* get rid of trailing newline, if any */
 			if (*buf && buf[strlen(buf) - 1] == '\n')
 				buf[strlen(buf) - 1] = 0;
