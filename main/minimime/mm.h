@@ -40,6 +40,8 @@
 #include "mm_queue.h"
 #include "mm_mem.h"
 
+#include "asterisk/compat.h"
+
 #define MM_MIME_LINELEN 998
 #define MM_BASE64_LINELEN 76
 
