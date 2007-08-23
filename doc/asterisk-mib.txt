@@ -736,7 +736,7 @@ astChanTypeChannels OBJECT-TYPE
 		"Number of active channels using the current technology."
 	::= { astChanTypeEntry 7 }
 
-astChanScalars OBJECT-IDENTIFIER ::= { asteriskChannels 5 }
+astChanScalars OBJECT IDENTIFIER ::= { asteriskChannels 5 }
 
 astNumChanBridge OBJECT-TYPE
        SYNTAX          Gauge32
@@ -744,6 +744,6 @@ astNumChanBridge OBJECT-TYPE
        STATUS          current
        DESCRIPTION
                "Number of channels currently in a bridged state."
-       ::= { asteriskChanScalars 1 }
+       ::= { astChanScalars 1 }
 
 END
