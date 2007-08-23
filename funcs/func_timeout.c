@@ -90,7 +90,6 @@ static int timeout_read(struct ast_channel *chan, const char *cmd, char *data,
 static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 			 const char *value)
 {
-	float f;
 	int x;
 	char timestr[64];
 	struct ast_tm myt;
@@ -106,10 +105,9 @@ static int timeout_write(struct ast_channel *chan, const char *cmd, char *data,
 	if (!value)
 		return -1;
 
-	f = atof(value);
-	if (f < 0)
-		f = 1.0;
-	x = (int) (f * 1000);
+	x = atoi(value);
+	if (x < 0)
+		x = 0;
 
 	switch (*data) {
 	case 'a':
