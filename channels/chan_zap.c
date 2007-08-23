@@ -11346,8 +11346,9 @@ static int action_zapshowchannels(struct mansession *s, const struct message *m)
 
 static int __unload_module(void)
 {
-	int x = 0;
+	int x;
 	struct zt_pvt *p, *pl;
+
 #ifdef HAVE_PRI
 	int i;
 	for (i = 0; i < NUM_SPANS; i++) {
@@ -11396,7 +11397,7 @@ static int __unload_module(void)
 			zt_close(p->subs[SUB_REAL].zfd);
 		pl = p;
 		p = p->next;
-		x++;
+		x = pl->channel;
 		/* Free associated memory */
 		if (pl)
 			destroy_zt_pvt(&pl);
