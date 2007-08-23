@@ -495,7 +495,7 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
 }
 
 /*! \brief support routing for one touch call parking */
-static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *parker;
         struct ast_channel *parkee;
@@ -528,7 +528,7 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
 
 }
 
-static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
 	int x = 0;
@@ -612,7 +612,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	return -1;
 }
 
-static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	if (option_verbose > 3)
 		ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to disconnect call.\n", code);
@@ -639,7 +639,7 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
         return s;  
 }
 
-static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
@@ -742,7 +742,7 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
 	return 0;
 }
 
-static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
@@ -948,19 +948,12 @@ static struct ast_call_feature *find_dynamic_feature(const char *name)
 }
 
 /*! \brief exec an app by feature */
-static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_app *app;
-	struct ast_call_feature *feature;
+	struct ast_call_feature *feature = data;
 	struct ast_channel *work, *idle;
 	int res;
-
-	AST_LIST_LOCK(&feature_list);
-	AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
-		if (!strcasecmp(feature->exten, code))
-			break;
-	}
-	AST_LIST_UNLOCK(&feature_list);
 
 	if (!feature) { /* shouldn't ever happen! */
 		ast_log(LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
@@ -1066,7 +1059,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
 			if (!strcmp(builtin_features[x].exten, code)) {
-				res = builtin_features[x].operation(chan, peer, config, code, sense);
+				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
 				if (res == FEATURE_RETURN_PASSDIGITS)
@@ -1092,7 +1085,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		if (!strcmp(feature->exten, code)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
-			res = feature->operation(chan, peer, config, code, sense);
+			res = feature->operation(chan, peer, config, code, sense, feature);
 			AST_LIST_UNLOCK(&feature_list);
 			break;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
