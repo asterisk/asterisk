@@ -5706,10 +5706,12 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			    /* No specified host, or this is our host */
 				) {
 				res = authenticate(p->challenge, peer->secret, peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
-				peer_unref(peer);
-				if (!res)
-					break;	
+				if (!res) {
+					peer_unref(peer);
+					break;
+				}
 			}
+			peer_unref(peer);
 		}
 		if (!peer) {
 			/* We checked our list and didn't find one.  It's unlikely, but possible, 
