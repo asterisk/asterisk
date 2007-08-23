@@ -11199,7 +11199,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		}
 		ast_cli(fd, "  Context      : %s\n", peer->context);
 		ast_cli(fd, "  Subscr.Cont. : %s\n", S_OR(peer->subscribecontext, "<Not set>") );
-		ast_cli(fd, "  Language     : %s\n", peer->language);
+		ast_cli(fd, "  Language     : %s\n", S_OR(peer->language, "(Defaults to English)"));
 		if (!ast_strlen_zero(peer->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(peer->amaflags));
@@ -11394,7 +11394,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(user->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(user->md5secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  Context      : %s\n", user->context);
-		ast_cli(fd, "  Language     : %s\n", user->language);
+		ast_cli(fd, "  Language     : %s\n", S_OR(user->language, "(Defaults to English)"));
 		if (!ast_strlen_zero(user->accountcode))
 			ast_cli(fd, "  Accountcode  : %s\n", user->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
