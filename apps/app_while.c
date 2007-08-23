@@ -243,7 +243,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		size = strlen(chan->context) + strlen(chan->exten) + 32;
 		goto_str = alloca(size);
 		memset(goto_str, 0, size);
-		snprintf(goto_str, size, "%s|%s|%d", chan->context, chan->exten, chan->priority);
+		snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority);
 		pbx_builtin_setvar_helper(chan, varname, goto_str);
 	} 
 
@@ -255,7 +255,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 			size = strlen(chan->context) + strlen(chan->exten) + 32;
 			goto_str = alloca(size);
 			memset(goto_str, 0, size);
-			snprintf(goto_str, size, "%s|%s|%d", chan->context, chan->exten, chan->priority+1);
+			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);
 		}
 		ast_parseable_goto(chan, while_pri);
