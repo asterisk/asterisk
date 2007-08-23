@@ -570,10 +570,11 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
  * \param config unsed
  * \param code unused
  * \param sense feature options 
+ * \param data
  * Setup channel, set return exten,priority to 's,1'
  * answer chan, sleep chan, park call
 */
-static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *parker;
         struct ast_channel *parkee;
@@ -613,12 +614,13 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
  * \param config
  * \param code
  * \param sense
+ * \param data
  * Check monitor app enabled, setup channels, both caller/callee chans not null
  * get TOUCH_MONITOR variable for filename if exists, exec monitor app.
  * \retval FEATURE_RETURN_SUCCESS on success.
  * \retval -1 on error.
 */
-static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
 	int x = 0;
@@ -700,7 +702,7 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	return -1;
 }
 
-static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	ast_verb(4, "User hit '%s' to disconnect call.\n", code);
 	return FEATURE_RETURN_HANGUP;
@@ -739,12 +741,13 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
  * \param config
  * \param code
  * \param sense
+ * \param data
  * Place peer on hold, check if tranfered to parkinglot extension,
  * otherwise check extension exists and transfer caller.
  * \retval FEATURE_RETURN_SUCCESS.
  * \retval -1 on failure.
 */
-static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
@@ -858,12 +861,13 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
  * \param config
  * \param code
  * \param sense
+ * \param data
  * Get extension to transfer to, if you cannot generate channel (or find extension) 
  * return to host channel. After called channel answered wait for hangup of transferer,
  * bridge call between transfer peer (taking them off hold) to attended transfer channel.
  * \return -1 means what failure/success both?
 */
-static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
@@ -1311,19 +1315,12 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
  * \retval -1 error.
  * \retval -2 when an application cannot be found.
 */
-static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
 	struct ast_app *app;
-	struct ast_call_feature *feature;
+	struct ast_call_feature *feature = data;
 	struct ast_channel *work, *idle;
 	int res;
-
-	AST_LIST_LOCK(&feature_list);
-	AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
-		if (!strcasecmp(feature->exten, code))
-			break;
-	}
-	AST_LIST_UNLOCK(&feature_list);
 
 	if (!feature) { /* shouldn't ever happen! */
 		ast_log(LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
@@ -1437,7 +1434,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
 			if (!strcmp(builtin_features[x].exten, code)) {
-				res = builtin_features[x].operation(chan, peer, config, code, sense);
+				res = builtin_features[x].operation(chan, peer, config, code, sense, NULL);
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
 				if (res == FEATURE_RETURN_PASSDIGITS)
@@ -1458,7 +1455,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		fg = find_group(tok);
 
 		if (fg && (fge = find_group_exten(fg, code))) {
-			res = fge->feature->operation(chan, peer, config, code, sense);
+			res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
 			AST_RWLIST_UNLOCK(&feature_groups);
 			continue;
 		}
@@ -1474,7 +1471,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		/* Feature is up for consideration */
 		if (!strcmp(feature->exten, code)) {
 			ast_verb(3, " Feature Found: %s exten: %s\n",feature->sname, tok);
-			res = feature->operation(chan, peer, config, code, sense);
+			res = feature->operation(chan, peer, config, code, sense, feature);
 			AST_LIST_UNLOCK(&feature_list);
 			break;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
