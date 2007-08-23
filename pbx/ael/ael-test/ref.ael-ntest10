@@ -8,32 +8,23 @@
 LOG: lev:2 file:pbx_ael.c  line:1680 func: pbx_load_module  Starting AEL load process.
 LOG: lev:2 file:pbx_ael.c  line:1687 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:1695 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 1-4: The macro endsess does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 6-9: The macro nullchk does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 11-26: The macro endcall does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 13-13: A default case was automatically added to the switch.
-LOG: lev:3 file:extconf.c  line:3959 func: add_pri  Unable to register extension '_', priority 1 in 'test6', already in use
-LOG: lev:3 file:extconf.c  line:3959 func: add_pri  Unable to register extension '_X.', priority 1 in 'test6', already in use
-=== Loading extensions.conf ===
-Context: test6
-Context: test5
-Context: macro-funcA
-Context: macro-funcB
-Context: macro-funcC
-=========
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 28-44: The macro endcall2 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 36-36: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 46-68: The macro endcall3 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 48-48: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 60-60: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 70-96: The macro endcall4 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 72-72: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 84-84: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 87-87: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:668 func: check_macro_returns  Warning: file ./extensions.ael, line 98-131: The macro endcall5 does not end with a return; I will insert one.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 106-106: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 119-119: A default case was automatically added to the switch.
-LOG: lev:3 file:pval.c  line:2280 func: check_switch_expr  Warning: file ./extensions.ael, line 122-122: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 1-4: The macro endsess does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 6-9: The macro nullchk does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 11-26: The macro endcall does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 13-13: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 28-44: The macro endcall2 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 36-36: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 46-68: The macro endcall3 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 48-48: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 60-60: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 70-96: The macro endcall4 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 72-72: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 84-84: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 87-87: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:669 func: check_macro_returns  Warning: file ./extensions.ael, line 98-131: The macro endcall5 does not end with a return; I will insert one.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 106-106: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 119-119: A default case was automatically added to the switch.
+LOG: lev:3 file:pval.c  line:2281 func: check_switch_expr  Warning: file ./extensions.ael, line 122-122: A default case was automatically added to the switch.
 LOG: lev:2 file:pbx_ael.c  line:1698 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
 Executed ast_context_create(conts, name=endsess, registrar=pbx_ael);
 Executed ast_context_create(conts, name=nullchk, registrar=pbx_ael);
@@ -168,4 +159,4 @@ Executed ast_merge_contexts_and_delete();
 LOG: lev:2 file:pbx_ael.c  line:1703 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 Executed ast_walk_contexts();
 LOG: lev:2 file:pbx_ael.c  line:1706 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:521 func: main  7 contexts, 27 extensions, 121 priorities
+LOG: lev:4 file:ael2_parse  line:523 func: main  7 contexts, 27 extensions, 121 priorities

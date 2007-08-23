@@ -154,7 +154,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 /* there will be two shift/reduce conflicts, they involve the if statement, where a single statement occurs not wrapped in curlies in the "true" section
    the default action to shift will attach the else to the preceeding if. */
-%expect 8
+%expect 3
 %error-verbose
 
 /*
@@ -234,7 +234,7 @@ globals : KW_GLOBALS LC global_statements RC {
 
 global_statements : { $$ = NULL; }
 	| assignment global_statements {$$ = linku1($1, $2); }
-	| global_statements error {$$=$1;}
+	| error global_statements {$$=$2;}
 	;
 
 assignment : word EQ { reset_semicount(parseio->scanner); }  word SEMI {
@@ -258,7 +258,7 @@ arglist : /* empty */ { $$ = NULL; }
 
 elements : {$$=0;}
 	| element elements { $$ = linku1($1, $2); }
-	| elements error   { $$=$1;}
+	| error elements  { $$=$2;}
 	;
 
 element : extension {$$=$1;}
@@ -303,7 +303,7 @@ extension : word EXTENMARK statement {
 /* list of statements in a block or after a case label - can be empty */
 statements : /* empty */ { $$ = NULL; }
 	| statement statements { $$ = linku1($1, $2); }
-	| statements error {$$=$1;}
+	| error statements {$$=$2;}
 	;
 
 /* hh:mm-hh:mm, due to the way the parser works we do not
@@ -478,7 +478,7 @@ statement : LC statements RC {
 opt_else : KW_ELSE statement { $$ = $2; }
 	| { $$ = NULL ; }
 
-
+ 
 target : goto_word { $$ = nword($1, &@1); }
 	| goto_word BAR goto_word {
 		$$ = nword($1, &@1);
@@ -607,7 +607,7 @@ switchlist : /* empty */ { $$ = NULL; }
 	| word SEMI switchlist { $$ = linku1(nword($1, &@1), $3); }
 	| word AT word SEMI switchlist { char *x; asprintf(&x,"%s@%s", $1,$3); free($1); free($3);
 									  $$ = linku1(nword(x, &@1), $5);}
-	| switchlist error {$$=$1;}
+	| error switchlist {$$=$2;}
 	;
 
 included_entry : context_name { $$ = nword($1, &@1); }
