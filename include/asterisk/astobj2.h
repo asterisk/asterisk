@@ -368,8 +368,15 @@ int ao2_container_count(ao2_container *c);
  * This function insert an object in a container according its key.
  *
  * \note Remember to set the key before calling this function.
+ *
+ * For Asterisk 1.4 only, there is a dirty hack here to ensure that chan_iax2
+ * can have objects linked in to the container at the head instead of tail
+ * when it is just a linked list.  This is to maintain some existing behavior
+ * where the order must be maintained as it was before this conversion so that
+ * matching behavior doesn't change.
  */
-void *ao2_link(ao2_container *c, void *newobj);
+#define ao2_link(c, o) __ao2_link(c, o, 0)
+void *__ao2_link(ao2_container *c, void *newobj, int iax2_hack);
 void *ao2_unlink(ao2_container *c, void *newobj);
 
 /*! \struct Used as return value if the flag OBJ_MULTIPLE is set */

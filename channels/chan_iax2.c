@@ -9735,14 +9735,14 @@ static int set_config(char *config_file, int reload)
 					/* Start with general parameters, then specific parameters, user and peer */
 					user = build_user(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (user) {
-						ao2_link(users, user);
+						__ao2_link(users, user, (MAX_PEER_BUCKETS == 1) ? 1 : 0);
 						user = NULL;
 					}
 					peer = build_peer(cat, gen, ast_variable_browse(ucfg, cat), 0);
 					if (peer) {
 						if (ast_test_flag(peer, IAX_DYNAMIC))
 							reg_source_db(peer);
-						ao2_link(peers, peer);
+						__ao2_link(peers, peer, (MAX_PEER_BUCKETS == 1) ? 1 : 0);
 						peer = NULL;
 					}
 				}
@@ -9779,7 +9779,7 @@ static int set_config(char *config_file, int reload)
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
 					user = build_user(cat, ast_variable_browse(cfg, cat), NULL, 0);
 					if (user) {
-						ao2_link(users, user);
+						__ao2_link(users, user, (MAX_PEER_BUCKETS == 1) ? 1 : 0);
 						user = NULL;
 					}
 				}
@@ -9788,7 +9788,7 @@ static int set_config(char *config_file, int reload)
 					if (peer) {
 						if (ast_test_flag(peer, IAX_DYNAMIC))
 							reg_source_db(peer);
-						ao2_link(peers, peer);
+						__ao2_link(peers, peer, (MAX_PEER_BUCKETS == 1) ? 1 : 0);
 						peer = NULL;
 					}
 				} else if (strcasecmp(utype, "user")) {

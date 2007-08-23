@@ -316,7 +316,7 @@ struct bucket_list {
 /*
  * link an object to a container
  */
-void *ao2_link(ao2_container *c, void *user_data)
+void *__ao2_link(ao2_container *c, void *user_data, int iax2_hack)
 {
 	int i;
 	/* create a new list entry */
@@ -339,7 +339,10 @@ void *ao2_link(ao2_container *c, void *user_data)
 	i %= c->n_buckets;
 	p->astobj = obj;
 	p->version = ast_atomic_fetchadd_int(&c->version, 1);
-	AST_LIST_INSERT_TAIL(&c->buckets[i], p, entry);
+	if (iax2_hack)
+		AST_LIST_INSERT_HEAD(&c->buckets[i], p, entry);
+	else
+		AST_LIST_INSERT_TAIL(&c->buckets[i], p, entry);
 	ast_atomic_fetchadd_int(&c->elements, 1);
 	ao2_unlock(c);
 	
