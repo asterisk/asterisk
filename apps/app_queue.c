@@ -2260,7 +2260,8 @@ static int is_our_turn(struct queue_ent *qe)
 				switch (cur->status) {
 				case AST_DEVICE_NOT_INUSE:
 				case AST_DEVICE_UNKNOWN:
-					avl++;
+					if (!cur->paused)
+						avl++;
 					break;
 				}
 			}
