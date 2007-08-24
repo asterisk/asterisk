@@ -738,27 +738,23 @@ void ast_cdr_noanswer(struct ast_cdr *cdr)
 	}
 }
 
+/* everywhere ast_cdr_disposition is called, it will call ast_cdr_failed() 
+   if ast_cdr_disposition returns a non-zero value */
+
 int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 {
 	int res = 0;
 
 	for (; cdr; cdr = cdr->next) {
-		switch (cause) {
+		switch (cause) {  /* handle all the non failure, busy cases, return 0 not to set disposition,
+							return -1 to set disposition to FAILED */
 		case AST_CAUSE_BUSY:
 			ast_cdr_busy(cdr);
 			break;
-		case AST_CAUSE_FAILURE:
-		case AST_CAUSE_NORMAL_CIRCUIT_CONGESTION:
-			ast_cdr_failed(cdr);
-			break;
 		case AST_CAUSE_NORMAL:
-			break;
-		case AST_CAUSE_NOTDEFINED:
-			res = -1;
 			break;
 		default:
 			res = -1;
-			ast_log(LOG_WARNING, "Cause (%d) not handled\n", cause);
 		}
 	}
 	return res;
