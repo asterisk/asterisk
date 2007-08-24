@@ -476,13 +476,13 @@ static struct pbx_builtin {
 
 	{ "Set", pbx_builtin_setvar,
 	"Set channel variable(s) or function value(s)",
-	"  Set(name1=value1)\n"
+	"  Set(name=value)\n"
 	"This function can be used to set the value of channel variables or dialplan\n"
-	"functions. It will accept up to 24 name/value pairs. When setting variables,\n"
-	"if the variable name is prefixed with _, the variable will be inherited into\n"
-	"channels created from the current channel. If the variable name is prefixed\n"
-	"with __, the variable will be inherited into channels created from the current\n"
-	"channel and all children channels.\n"
+	"functions. When setting variables, if the variable name is prefixed with _,\n"
+	"the variable will be inherited into channels created from the current\n"
+	"channel. If the variable name is prefixed with __, the variable will be\n"
+	"inherited into channels created from the current channel and all children\n"
+	"channels.\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
