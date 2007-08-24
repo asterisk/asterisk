@@ -9001,8 +9001,8 @@ static int iax2_poke_peer_cb(void *obj, void *arg, int flags)
 
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 {
-	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
-		/* IF we have no IP, or this isn't to be monitored, return
+	if (!peer->maxms || (!peer->addr.sin_addr.s_addr && !peer->dnsmgr)) {
+		/* IF we have no IP without dnsmgr, or this isn't to be monitored, return
 		  immediately after clearing things out */
 		peer->lastms = 0;
 		peer->historicms = 0;
