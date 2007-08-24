@@ -7179,6 +7179,11 @@ static void *do_monitor(void *data)
 							if (last->msgstate != res) {
 								int x;
 								ast_debug(1, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
+#ifdef ZT_VMWI
+								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_VMWI, res);
+								if (res2)
+									ast_log(LOG_DEBUG, "Unable to control message waiting led on channel %d\n", last->channel);
+#endif
 								x = ZT_FLUSH_BOTH;
 								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 								if (res2)
