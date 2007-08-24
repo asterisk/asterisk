@@ -16,8 +16,8 @@
 #include "asterisk/ael_structs.h"
 
 /*** MODULEINFO
- * 	<depend>pbx_ael</depend>
- * 	 ***/
+  	<depend>pbx_ael</depend>
+ ***/
 
 struct namelist
 {
