@@ -22,7 +22,9 @@
  *
  */
 
-
+/*** MODULEINFO
+ * 	<depend>res_ael_share</depend>
+ * 	 ***/
 
 #include "asterisk/autoconfig.h"
 

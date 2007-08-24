@@ -18,6 +18,10 @@
 #include "asterisk/ael_structs.h"
 #include "asterisk/extconf.h"
 
+/*** MODULEINFO
+ * 	<depend>res_ael_share</depend>
+ * 	 ***/
+
 struct namelist
 {
 	char name[100];
