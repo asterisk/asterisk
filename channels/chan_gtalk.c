@@ -622,6 +622,30 @@ static int gtalk_is_answered(struct gtalk *client, ikspak *pak)
 	return 1;
 }
 
+static int gtalk_is_accepted(struct gtalk *client, ikspak *pak)
+{
+	struct gtalk_pvt *tmp;
+	char *from;
+
+	ast_log(LOG_DEBUG, "The client is %s\n", client->name);
+	/* find corresponding call */
+	for (tmp = client->p; tmp; tmp = tmp->next) {
+		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid))
+			break;
+	}
+
+	from = iks_find_attrib(pak->x, "to");
+	if(!from)
+		from = client->connection->jid->full;
+
+	if (!tmp)
+		ast_log(LOG_NOTICE, "Whoa, didn't find call!\n");
+
+	/* answer 'iq' packet to let the remote peer know that we're alive */
+	gtalk_response(client, from, pak, NULL, NULL);
+	return 1;
+}
+
 static int gtalk_handle_dtmf(struct gtalk *client, ikspak *pak)
 {
 	struct gtalk_pvt *tmp;
@@ -1571,8 +1595,10 @@ static int gtalk_parser(void *data, ikspak *pak)
 		ast_debug(3, "About to add candidate!\n");
 		gtalk_add_candidate(client, pak);
 		ast_debug(3, "Candidate Added!\n");
-	} else if (iks_find_with_attrib(pak->x, "session", "type", "accept") || iks_find_with_attrib(pak->x, "session", "type", "transport-accept")) {
+	} else if (iks_find_with_attrib(pak->x, "session", "type", "accept")) {
 		gtalk_is_answered(client, pak);
+	} else if (iks_find_with_attrib(pak->x, "session", "type", "transport-accept")) {
+		gtalk_is_accepted(client, pak);
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "content-info")) {
 		gtalk_handle_dtmf(client, pak);
 	} else if (iks_find_with_attrib(pak->x, "session", "type", "terminate")) {
