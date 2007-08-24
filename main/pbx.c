@@ -5857,9 +5857,14 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	/* check for a trailing flags argument */
 	if ((argc > 1) && !strchr(argv[argc-1], '=')) {
 		argc--;
-		if (strchr(argv[argc], 'g'))
+		if (strchr(argv[argc], 'g')) {
+			ast_log(LOG_WARNING, "The use of the 'g' flag is deprecated.  Please use Set(GLOBAL(foo)=bar) instead\n");
 			global = 1;
+		}
 	}
+
+	if (argc > 1)
+		ast_log(LOG_WARNING, "Setting multiple variables at once within Set is deprecated.  Please separate each name/value pair into its own line.\n");
 
 	for (x = 0; x < argc; x++) {
 		name = argv[x];
