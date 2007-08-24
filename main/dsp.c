@@ -218,7 +218,7 @@ typedef struct
 	int hit3;
 	int hit4;
 #else
-	int hits[3];
+	int lasthit;
 #endif	
 	int mhit;
 	float energy;
@@ -383,7 +383,7 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 	s->hit4 = 
 	s->hit2 = 0;
 #else
-	s->hits[0] = s->hits[1] = s->hits[2] = 0;
+	s->lasthit = 0;
 #endif
 	for (i = 0;  i < 4;  i++) {
 		goertzel_init (&s->row_out[i], dtmf_row[i], 102);
@@ -588,6 +588,7 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 						amp[i] = 0;
 					*writeback = 1;
 				}
+#ifdef OLD_DSP_ROUTINES
 				/* Look for two successive similar results */
 				/* The logic in the next test is:
 				   We need two successive identical clean detects, with
@@ -595,20 +596,7 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 				   back to back differing digits. More importantly, it
 				   can work with nasty phones that give a very wobbly start
 				   to a digit */
-#ifdef OLD_DSP_ROUTINES
 				if (hit == s->hit3  &&  s->hit3 != s->hit2) {
-					s->mhit = hit;
-					s->digit_hits[(best_row << 2) + best_col]++;
-					s->detected_digits++;
-					if (s->current_digits < MAX_DTMF_DIGITS) {
-						s->digits[s->current_digits++] = hit;
-						s->digits[s->current_digits] = '\0';
-					} else {
-						s->lost_digits++;
-					}
-				}
-#else				
-				if (hit == s->hits[2]  &&  hit != s->hits[1]  &&  hit != s->hits[0]) {
 					s->mhit = hit;
 					s->digit_hits[(best_row << 2) + best_col]++;
 					s->detected_digits++;
@@ -622,6 +610,30 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 #endif
 			}
 		} 
+
+#ifndef OLD_DSP_ROUTINES
+		/* Look for two successive similar results */
+		/* The logic in the next test is:
+		   We need two successive identical clean detects, with
+		   something different preceeding it. This can work with
+		   back to back differing digits. More importantly, it
+		   can work with nasty phones that give a very wobbly start
+		   to a digit */
+		if (hit == s->lasthit  &&  hit != s->mhit) {
+			if (hit) {
+				s->digit_hits[(best_row << 2) + best_col]++;
+				s->detected_digits++;
+				if (s->current_digits < MAX_DTMF_DIGITS) {
+					s->digits[s->current_digits++] = hit;
+					s->digits[s->current_digits] = '\0';
+				} else {
+					s->lost_digits++;
+				}
+			}
+			s->mhit = hit;
+		}
+#endif
+
 #ifdef FAX_DETECT
 		if (!hit && (fax_energy >= FAX_THRESHOLD) && 
 			(fax_energy >= DTMF_TO_TOTAL_ENERGY*s->energy) &&
@@ -652,9 +664,7 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 		s->hit2 = s->hit3;
 		s->hit3 = hit;
 #else
-		s->hits[0] = s->hits[1];
-		s->hits[1] = s->hits[2];
-		s->hits[2] = hit;
+		s->lasthit = hit;
 #endif		
 		/* Reinitialise the detector for the next block */
 		for (i = 0;  i < 4;  i++) {
@@ -674,11 +684,15 @@ static int dtmf_detect (dtmf_detect_state_t *s, int16_t amp[], int samples,
 		s->energy = 0.0;
 		s->current_sample = 0;
 	}
+#ifdef OLD_DSP_ROUTINES
 	if ((!s->mhit) || (s->mhit != hit)) {
 		s->mhit = 0;
 		return(0);
 	}
 	return (hit);
+#else
+	return (s->mhit);	/* return the debounced hit */
+#endif
 }
 
 /* MF goertzel size */
@@ -1690,7 +1704,7 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 #endif
 		dsp->td.dtmf.hit1 = dsp->td.dtmf.hit2 = dsp->td.dtmf.hit3 = dsp->td.dtmf.hit4 = dsp->td.dtmf.mhit = 0;
 #else
-		dsp->td.dtmf.hits[2] = dsp->td.dtmf.hits[1] = dsp->td.dtmf.hits[0] =  dsp->td.dtmf.mhit = 0;
+		dsp->td.dtmf.lasthit = dsp->td.dtmf.mhit = 0;
 #endif		
 		dsp->td.dtmf.energy = 0.0;
 		dsp->td.dtmf.current_sample = 0;
