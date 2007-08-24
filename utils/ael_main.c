@@ -15,6 +15,10 @@
 #include "asterisk/app.h"
 #include "asterisk/ael_structs.h"
 
+/*** MODULEINFO
+ * 	<depend>pbx_ael</depend>
+ * 	 ***/
+
 struct namelist
 {
 	char name[100];
