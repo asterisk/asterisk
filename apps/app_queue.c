@@ -1939,7 +1939,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	ast_verb(3, "Playing periodic announcement\n");
 
 	/* Check to make sure we have a sound file. If not, reset to the first sound file */
-	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || !strlen(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound])) {
+	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || ast_strlen_zero(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound])) {
 		qe->last_periodic_announce_sound = 0;
 	}
 	
