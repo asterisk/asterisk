@@ -772,7 +772,6 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 	int totallen;
 	int x;
 	int skipfirst=0;
-	struct dundi_ie_data ied;
 	char eid_str[20];
 	char *s;
 	pthread_t lookupthread;
@@ -806,17 +805,16 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 
 		trans->thread = 1;
 		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_query_thread, st)) {
+			struct dundi_ie_data ied = { 0, };
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
 			free(st);
-			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
 			return -1;
 		}
 	} else {
-		ast_log(LOG_WARNING, "Out of memory!\n");
-		memset(&ied, 0, sizeof(ied));
+		struct dundi_ie_data ied = { 0, };
 		dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of memory");
 		dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
 		return -1;
