@@ -1103,6 +1103,26 @@ static int __schedule_action(void (*func)(void *data), void *data, const char *f
 #define schedule_action(func, data) __schedule_action(func, data, __PRETTY_FUNCTION__)
 #endif
 
+static int iax2_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data)
+{
+	int res;
+
+	res = ast_sched_replace(old_id, con, when, callback, data);
+	signal_condition(&sched_lock, &sched_cond);
+
+	return res;
+}
+
+static int iax2_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
+{
+	int res;
+
+	res = ast_sched_add(con, when, callback, data);
+	signal_condition(&sched_lock, &sched_cond);
+
+	return res;
+}
+
 static int send_ping(void *data);
 
 static void __send_ping(void *data)
@@ -1111,7 +1131,7 @@ static void __send_ping(void *data)
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno] && iaxs[callno]->pingid != -1) {
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PING, 0, NULL, 0, -1);
-		iaxs[callno]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, data);
+		iaxs[callno]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, data);
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
 }
@@ -1146,7 +1166,7 @@ static void __send_lagrq(void *data)
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno] && iaxs[callno]->lagid != -1) {
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_LAGRQ, 0, NULL, 0, -1);
-		iaxs[callno]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
+		iaxs[callno]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, data);
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
 }
@@ -1433,9 +1453,9 @@ static int make_trunk(unsigned short callno, int locked)
 			iaxs[x]->callno = x;
 			iaxs[callno] = NULL;
 			/* Update the two timers that should have been started */
-			iaxs[x]->pingid = ast_sched_replace(iaxs[x]->pingid, sched, 
+			iaxs[x]->pingid = iax2_sched_replace(iaxs[x]->pingid, sched, 
 				ping_time * 1000, send_ping, (void *)(long)x);
-			iaxs[x]->lagid = ast_sched_replace(iaxs[x]->lagid, sched, 
+			iaxs[x]->lagid = iax2_sched_replace(iaxs[x]->lagid, sched, 
 				lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
 				ast_mutex_unlock(&iaxsl[callno]);
@@ -1536,8 +1556,8 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->callno = x;
 			iaxs[x]->pingtime = DEFAULT_RETRY_TIME;
 			iaxs[x]->expiry = min_reg_expire;
-			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
-			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
+			iaxs[x]->pingid = iax2_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
+			iaxs[x]->lagid = iax2_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
 			ast_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_TRANSFERMEDIA | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 			
@@ -2216,7 +2236,7 @@ static void __attempt_transmit(void *data)
 			/* Transfer messages max out at one second */
 			if (f->transfer && (f->retrytime > 1000))
 				f->retrytime = 1000;
-			f->retrans = ast_sched_add(sched, f->retrytime, attempt_transmit, f);
+			f->retrans = iax2_sched_add(sched, f->retrytime, attempt_transmit, f);
 		}
 	} else {
 		/* Make sure it gets freed */
@@ -2582,11 +2602,8 @@ static void update_jbsched(struct chan_iax2_pvt *pvt)
 		when = 1;
 	}
 	
-	pvt->jbid = ast_sched_replace(pvt->jbid, sched, when, get_from_jb, 
+	pvt->jbid = iax2_sched_replace(pvt->jbid, sched, when, get_from_jb, 
 		CALLNO_TO_PTR(pvt->callno));
-	
-	/* Signal scheduler thread */
-	signal_condition(&sched_lock, &sched_cond);
 }
 
 static void __get_from_jb(void *p) 
@@ -2886,7 +2903,7 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
 		if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
-			peer->expire = ast_sched_replace(peer->expire, sched, 
+			peer->expire = iax2_sched_replace(peer->expire, sched, 
 				(global_rtautoclear) * 1000, expire_registry, (void *) peer->name);
 		}
 		ao2_link(peers, peer_ref(peer));
@@ -3297,10 +3314,10 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	if (iaxs[callno]->maxtime) {
 		/* Initialize pingtime and auto-congest time */
 		iaxs[callno]->pingtime = iaxs[callno]->maxtime / 2;
-		iaxs[callno]->initid = ast_sched_add(sched, iaxs[callno]->maxtime * 2, auto_congest, CALLNO_TO_PTR(callno));
+		iaxs[callno]->initid = iax2_sched_add(sched, iaxs[callno]->maxtime * 2, auto_congest, CALLNO_TO_PTR(callno));
 	} else if (autokill) {
 		iaxs[callno]->pingtime = autokill / 2;
-		iaxs[callno]->initid = ast_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
+		iaxs[callno]->initid = iax2_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
 
 	/* Check if there is an OSP token set by IAXCHANINFO function */
@@ -5960,7 +5977,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	   we are registering to
 	*/
 	reg->refresh = refresh;
-	reg->expire = ast_sched_replace(reg->expire, sched, 
+	reg->expire = iax2_sched_replace(reg->expire, sched, 
 		(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if (inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) {
 			if (reg->messages > 255)
@@ -6134,7 +6151,7 @@ static void reg_source_db(struct iax2_peer *p)
 					p->addr.sin_addr = in;
 					p->addr.sin_port = htons(atoi(c));
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = ast_sched_replace(p->expire, sched, 
+					p->expire = iax2_sched_replace(p->expire, sched, 
 						(p->expiry + 10) * 1000, expire_registry, (void *) p->name);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
@@ -6239,7 +6256,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		p->expiry = refresh;
 	}
 	if (p->expiry && sin->sin_addr.s_addr)
-		p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
+		p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
@@ -6425,7 +6442,7 @@ static int auth_fail(int callno, int failcode)
 	if (iaxs[callno]) {
 		iaxs[callno]->authfail = failcode;
 		if (delayreject) {
-			iaxs[callno]->authid = ast_sched_replace(iaxs[callno]->authid, 
+			iaxs[callno]->authid = iax2_sched_replace(iaxs[callno]->authid, 
 				sched, 1000, auth_reject, (void *)(long)callno);
 		} else
 			auth_reject((void *)(long)callno);
@@ -6467,7 +6484,7 @@ static void iax2_dprequest(struct iax2_dpcache *dp, int callno)
 {
 	struct iax_ie_data ied;
 	/* Auto-hangup with 30 seconds of inactivity */
-	iaxs[callno]->autoid = ast_sched_replace(iaxs[callno]->autoid, 
+	iaxs[callno]->autoid = iax2_sched_replace(iaxs[callno]->autoid, 
 		sched, 30000, auto_hangup, (void *)(long)callno);
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, dp->exten);
@@ -8045,9 +8062,9 @@ retryowner2:
 						ast_sched_del(sched, peer->pokeexpire);
 					/* Schedule the next cycle */
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
-						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
+						peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 					else
-						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer);
+						peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer);
 					/* and finally send the ack */
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 					/* And wrap up the qualify call */
@@ -8816,7 +8833,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 		if (iaxdebug)
 			ast_debug(1, "Unable to send registration request for '%s' without IP address\n", reg->username);
 		/* Setup the next registration attempt */
-		reg->expire = ast_sched_replace(reg->expire, sched, 
+		reg->expire = iax2_sched_replace(reg->expire, sched, 
 			(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 		return -1;
 	}
@@ -8832,7 +8849,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 		iaxs[reg->callno]->reg = reg;
 	}
 	/* Setup the next registration a little early */
-	reg->expire = ast_sched_replace(reg->expire, sched, 
+	reg->expire = iax2_sched_replace(reg->expire, sched, 
 		(5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	/* Send the request */
 	memset(&ied, 0, sizeof(ied));
@@ -8887,7 +8904,7 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		/* Schedule autodestruct in case they don't ever give us anything back */
-		iaxs[callno]->autoid = ast_sched_replace(iaxs[callno]->autoid, 
+		iaxs[callno]->autoid = iax2_sched_replace(iaxs[callno]->autoid, 
 			sched, 15000, auto_hangup, (void *)(long)callno);
 		ast_set_flag(iaxs[callno], IAX_PROVISION);
 		/* Got a call number now, so go ahead and send the provisioning information */
@@ -8976,7 +8993,7 @@ static void __iax2_poke_noanswer(void *data)
 	peer->callno = 0;
 	peer->lastms = -1;
 	/* Try again quickly */
-	peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
+	peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 }
 
 static int iax2_poke_noanswer(void *data)
@@ -9033,10 +9050,10 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	/* Queue up a new task to handle no reply */
 	/* If the host is already unreachable then use the unreachable interval instead */
 	if (peer->lastms < 0) {
-		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, 
+		peer->pokeexpire = iax2_sched_replace(peer->pokeexpire, 
 			sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
 	} else {
-		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, 
+		peer->pokeexpire = iax2_sched_replace(peer->pokeexpire, 
 			sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
 	}
 
@@ -9212,7 +9229,7 @@ static void *network_thread(void *ignore)
 			} else {
 				/* We need reliable delivery.  Schedule a retransmission */
 				f->retries++;
-				f->retrans = ast_sched_add(sched, f->retrytime, attempt_transmit, f);
+				f->retrans = iax2_sched_add(sched, f->retrytime, attempt_transmit, f);
 				signal_condition(&sched_lock, &sched_cond);
 			}
 		}
