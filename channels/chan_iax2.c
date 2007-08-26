@@ -9230,7 +9230,6 @@ static void *network_thread(void *ignore)
 				/* We need reliable delivery.  Schedule a retransmission */
 				f->retries++;
 				f->retrans = iax2_sched_add(sched, f->retrytime, attempt_transmit, f);
-				signal_condition(&sched_lock, &sched_cond);
 			}
 		}
 		AST_LIST_TRAVERSE_SAFE_END
