@@ -42,17 +42,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/options.h"
+#include "asterisk/features.h"
 
 #define PICKUPMARK "PICKUPMARK"
 
 static const char *app = "Pickup";
 static const char *synopsis = "Directed Call Pickup";
 static const char *descrip =
-"  Pickup(extension[@context][&extension2@context...]): This application can pickup any ringing channel\n"
-"that is calling the specified extension. If no context is specified, the current\n"
-"context will be used. If you use the special string \"PICKUPMARK\" for the context parameter, for example\n"
-"10@PICKUPMARK, this application tries to find a channel which has defined a channel variable with the same content\n"
-"as \"extension\".";
+"  Pickup([extension[@context][&extension2@context...]]):  This application can\n"
+"pickup any ringing channel that is calling the specified extension.  If no\n"
+"context is specified, the current context will be used. If you use the special\n"
+"string \"PICKUPMARK\" for the context parameter, for example 10@PICKUPMARK,\n"
+"this application tries to find a channel which has defined a ${PICKUPMARK}\n"
+"channel variable with the same value as \"extension\" (in this example, \"10\").\n"
+"When no parameter is specified, the application will pickup a channel matching\n"
+"the pickup group of the active channel.";
 
 /* Perform actual pickup between two channels */
 static int pickup_do(struct ast_channel *chan, struct ast_channel *target)
@@ -137,8 +141,8 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	char *exten = NULL, *context = NULL;
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Pickup requires an argument (extension)!\n");
-		return -1;	
+		res = ast_pickup_call(chan);
+		return res;
 	}
 	
 	/* Parse extension (and context if there) */
