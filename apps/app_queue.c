@@ -1198,7 +1198,9 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 			} else {
 				q->members = next_m;
 			}
+			ast_mutex_unlock(&q->lock);
 			remove_from_interfaces(m->interface);
+			ast_mutex_lock(&q->lock);
 			q->membercount--;
 			ast_free(m);
 		} else {
@@ -1300,7 +1302,9 @@ static void update_realtime_members(struct call_queue *q)
 			} else {
 				q->members = next_m;
 			}
+			ast_mutex_unlock(&q->lock);
 			remove_from_interfaces(m->interface);
+			ast_mutex_lock(&q->lock);
 			q->membercount--;
 			free(m);
 		} else {
