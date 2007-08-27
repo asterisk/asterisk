@@ -259,7 +259,8 @@ struct dundi_peer {
 	struct dundi_transaction *qualtrans;   /*!< Qualify transaction */
 	int model;                             /*!< Pull model */
 	int pcmodel;                           /*!< Push/precache model */
-	int dynamic;                           /*!< Are we dynamic? */
+	/*! Dynamic peers register with us */
+	unsigned int dynamic:1;
 	int lastms;                            /*!< Last measured latency */
 	int maxms;                             /*!< Max permissible latency */
 	struct timeval qualtx;                 /*!< Time of transmit */
