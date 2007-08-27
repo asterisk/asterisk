@@ -117,8 +117,8 @@ struct moh_files_state {
 	int origwfmt;
 	int samples;
 	int sample_queue;
-	unsigned char pos;
-	unsigned char save_pos;
+	int pos;
+	int save_pos;
 };
 
 #define MOH_QUIET		(1 << 0)
@@ -214,7 +214,7 @@ static void moh_files_release(struct ast_channel *chan, void *data)
 		}
 		state->save_pos = state->pos;
 	}
-	if (state->class->delete && ast_atomic_dec_and_test(&state->class->inuse))
+	if (ast_atomic_dec_and_test(&state->class->inuse) && state->class->delete)
 		ast_moh_destroy_one(state->class);
 }
 
@@ -231,9 +231,9 @@ static int ast_moh_files_next(struct ast_channel *chan)
 	}
 
 	/* If a specific file has been saved, use it */
-	if (state->save_pos) {
+	if (state->save_pos >= 0) {
 		state->pos = state->save_pos;
-		state->save_pos = 0;
+		state->save_pos = -1;
 	} else if (ast_test_flag(state->class, MOH_RANDOMIZE)) {
 		/* Get a random file and ensure we can open it */
 		for (tries = 0; tries < 20; tries++) {
