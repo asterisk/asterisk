@@ -472,6 +472,12 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  			}
  			break;
 		case AST_FRAME_DTMF_BEGIN:
+			/*ignore DTMF begin's as it can cause issues with queue announce files*/
+			if((!p->acknowledged && f->subclass == '#') || (f->subclass == '*' && endcall)){
+				ast_frfree(f);
+				f = &ast_null_frame;
+			}
+			break;
  		case AST_FRAME_DTMF_END:
  			if (!p->acknowledged && (f->subclass == '#')) {
  				ast_verb(3, "%s acknowledged\n", p->chan->name);
