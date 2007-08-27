@@ -2416,7 +2416,7 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 		ast_verbose("  SSRC:		 %u\n", rtp->ssrc);
 		ast_verbose("  Sent packets:	 %u\n", rtp->txcount);
 		ast_verbose("  Lost packets:	 %u\n", rtp->rtcp->reported_lost);
-		ast_verbose("  Jitter:		 %u\n", rtp->rtcp->reported_jitter);
+		ast_verbose("  Jitter:		 %u\n", rtp->rtcp->reported_jitter / (unsigned int)65536.0);
 		ast_verbose("  SR-count:	 %u\n", rtp->rtcp->sr_count);
 		ast_verbose("  RTT:		 %f\n", rtp->rtcp->rtt);
 	}
