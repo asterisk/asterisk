@@ -315,7 +315,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 	return chan;
 }
 
-static void init_logger_chain(int reload)
+static void init_logger_chain(int reload, int locked)
 {
 	struct logchannel *chan;
 	struct ast_config *cfg;
@@ -327,10 +327,12 @@ static void init_logger_chain(int reload)
 		return;
 
 	/* delete our list of log channels */
-	AST_RWLIST_WRLOCK(&logchannels);
+	if (!locked)
+		AST_RWLIST_WRLOCK(&logchannels);
 	while ((chan = AST_RWLIST_REMOVE_HEAD(&logchannels, list)))
 		free(chan);
-	AST_RWLIST_UNLOCK(&logchannels);
+	if (!locked)
+		AST_RWLIST_UNLOCK(&logchannels);
 	
 	global_logmask = 0;
 	errno = 0;
@@ -347,9 +349,11 @@ static void init_logger_chain(int reload)
 			return;
 		chan->type = LOGTYPE_CONSOLE;
 		chan->logmask = 28; /*warning,notice,error */
-		AST_RWLIST_WRLOCK(&logchannels);
+		if (!locked)
+			AST_RWLIST_WRLOCK(&logchannels);
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
-		AST_RWLIST_UNLOCK(&logchannels);
+		if (!locked)
+			AST_RWLIST_UNLOCK(&logchannels);
 		global_logmask |= chan->logmask;
 		return;
 	}
@@ -392,7 +396,8 @@ static void init_logger_chain(int reload)
 		}
 	}
 
-	AST_RWLIST_WRLOCK(&logchannels);
+	if (!locked)
+		AST_RWLIST_WRLOCK(&logchannels);
 	var = ast_variable_browse(cfg, "logfiles");
 	for (; var; var = var->next) {
 		if (!(chan = make_logchannel(var->name, var->value, var->lineno)))
@@ -400,7 +405,8 @@ static void init_logger_chain(int reload)
 		AST_RWLIST_INSERT_HEAD(&logchannels, chan, list);
 		global_logmask |= chan->logmask;
 	}
-	AST_RWLIST_UNLOCK(&logchannels);
+	if (!locked)
+		AST_RWLIST_UNLOCK(&logchannels);
 
 	ast_config_destroy(cfg);
 }
@@ -568,7 +574,7 @@ int reload_logger(int rotate)
 
 	filesize_reload_needed = 0;
 
-	init_logger_chain(1);
+	init_logger_chain(1, 1);
 
 	if (logfiles.event_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
@@ -593,7 +599,9 @@ int reload_logger(int rotate)
 
 		qlog = fopen(old, "a");
 		if (qlog) {
+			AST_RWLIST_UNLOCK(&logchannels);
 			ast_queue_log("NONE", "NONE", "NONE", "CONFIGRELOAD", "%s", "");
+			AST_RWLIST_WRLOCK(&logchannels);
 			ast_log(LOG_EVENT, "Restarted Asterisk Queue Logger\n");
 			if (option_verbose)
 				ast_verbose("Asterisk Queue Logger restarted\n");
@@ -886,7 +894,7 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
   
 	/* create log channels */
-	init_logger_chain(0);
+	init_logger_chain(0, 0);
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
