@@ -3934,7 +3934,9 @@ static int dundi_query_read(struct ast_channel *chan, const char *cmd, char *dat
 	if (drds->num_results > 0)
 		sort_results(drds->results, drds->num_results);
 
+	ast_channel_lock(chan);
 	ast_channel_datastore_add(chan, datastore);
+	ast_channel_unlock(chan);
 
 	ast_module_user_remove(u);
 
@@ -3991,11 +3993,16 @@ static int dundi_result_read(struct ast_channel *chan, const char *cmd, char *da
 		ast_log(LOG_ERROR, "A result number must be given to DUNDIRESULT!\n");
 		goto finish;
 	}
+	
+	ast_channel_lock(chan);
+	datastore = ast_channel_datastore_find(chan, &dundi_result_datastore_info, args.id);
+	ast_channel_unlock(chan);
 
-	if (!(datastore = ast_channel_datastore_find(chan, &dundi_result_datastore_info, args.id))) {
+	if (!datastore) {
 		ast_log(LOG_WARNING, "No DUNDi results found for query ID '%s'\n", args.id);
 		goto finish;
 	}
+
 	drds = datastore->data;
 
 	if (!strcasecmp(args.resultnum, "getnum")) {
