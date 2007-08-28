@@ -4490,6 +4490,11 @@ static int unload_module(void)
 	close(netsocket);
 	io_context_destroy(io);
 	sched_context_destroy(sched);
+	/* Mark all mappings/peers as dead and then prune them */
+	mark_mappings();
+	prune_mappings();
+	mark_peers();
+	prune_peers();
 
 	return 0;
 }
