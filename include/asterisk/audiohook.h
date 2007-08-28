@@ -165,18 +165,12 @@ void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook);
 /*! \brief Lock an audiohook
  * \param audiohook Audiohook structure
  */
-static inline int ast_audiohook_lock(struct ast_audiohook *audiohook)
-{
-	return ast_mutex_lock(&audiohook->lock);
-}
+#define ast_audiohook_lock(ah) ast_mutex_lock(&(ah)->lock)
 
 /*! \brief Unlock an audiohook
  * \param audiohook Audiohook structure
  */
-static inline int ast_audiohook_unlock(struct ast_audiohook *audiohook)
-{
-	return ast_mutex_unlock(&audiohook->lock);
-}
+#define ast_audiohook_unlock(ah) ast_mutex_unlock(&(ah)->lock)
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
