@@ -195,7 +195,7 @@ struct ast_datastore_info {
 
 /*! \brief Structure for a channel data store */
 struct ast_datastore {
-	char *uid;		/*!< Unique data store identifier */
+	const char *uid;		/*!< Unique data store identifier */
 	void *data;		/*!< Contained data */
 	const struct ast_datastore_info *info;	/*!< Data store type information */
 	unsigned int inheritance;	/*!< Number of levels this item will continue to be inherited */
@@ -615,8 +615,14 @@ enum channelreloadreason {
 	CHANNEL_MANAGER_RELOAD,
 };
 
-/*! \brief Create a channel datastore structure */
-struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, char *uid);
+/*! 
+ * \brief Create a channel datastore structure 
+ *
+ * \note None of the datastore API calls lock the ast_channel they are using.
+ *       So, the channel should be locked before calling the functions that
+ *       take a channel argument.
+ */
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid);
 
 /*! \brief Free a channel datastore structure */
 int ast_channel_datastore_free(struct ast_datastore *datastore);
@@ -631,7 +637,7 @@ int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *da
 int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore *datastore);
 
 /*! \brief Find a datastore on a channel */
-struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, char *uid);
+struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, const char *uid);
 
 /*! \brief Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, enum ast_channel_state);

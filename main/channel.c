@@ -1167,7 +1167,7 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_device_state_changed_literal(name);
 }
 
-struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, char *uid)
+struct ast_datastore *ast_channel_datastore_alloc(const struct ast_datastore_info *info, const char *uid)
 {
 	struct ast_datastore *datastore = NULL;
 
@@ -1201,7 +1201,7 @@ int ast_channel_datastore_free(struct ast_datastore *datastore)
 
 	/* Free allocated UID memory */
 	if (datastore->uid != NULL) {
-		ast_free(datastore->uid);
+		ast_free((void *) datastore->uid);
 		datastore->uid = NULL;
 	}
 
@@ -1255,7 +1255,7 @@ int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore 
 	return res;
 }
 
-struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, char *uid)
+struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, const char *uid)
 {
 	struct ast_datastore *datastore = NULL;
 	
