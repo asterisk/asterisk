@@ -30,10 +30,22 @@
 ; (defaults to queue_log)
 ;queue_log_name = queue_log
 ;
-; Rename the logfiles using a timestamp instead of a
-; sequence number when "logger rotate" is executed
-; (defaults to no).
-;rotatetimestamp = yes
+; Log rotation strategy:
+; sequential:  Rename archived logs in order, such that the newest
+;              has the highest sequence number [default].
+; rotate:  Rotate all the old files, such that the oldest has the
+;          highest sequence number [this is the expected behavior
+;          for Unix administrators].
+; timestamp:  Rename the logfiles using a timestamp instead of a
+;             sequence number when "logger rotate" is executed.
+;rotatestrategy = rotate
+;
+; Run a system command after rotating the files.  This is mainly
+; useful for rotatestrategy=rotate. The example allows the last
+; two archive files to remain uncompressed, but after that point,
+; they are compressed on disk.
+;
+; exec_after_rotate=gzip -9 ${filename}.2
 ;
 ; This determines whether or not we log generic events to a file
 ; (defaults to yes).

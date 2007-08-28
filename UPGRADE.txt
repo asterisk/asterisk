@@ -49,6 +49,10 @@ Core:
   dialplans less painful in the future, albeit with the pain of a one-time
   conversion.
 
+* The logger.conf option 'rotatetimestamp' has been deprecated in favor of
+  'rotatestrategy'.  This new option supports a 'rotate' strategy that more
+  closely mimics the system logger in terms of file rotation.
+
 Voicemail:
 
 * The voicemail configuration values 'maxmessage' and 'minmessage' have

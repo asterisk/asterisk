@@ -37,7 +37,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/types.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 #if ((defined(AST_DEVMODE)) && (defined(linux)))
 #include <execinfo.h>
 #define MAX_BACKTRACE_FRAMES 20
@@ -70,6 +72,8 @@ static int syslog_level_map[] = {
 #include "asterisk/manager.h"
 #include "asterisk/threadstorage.h"
 #include "asterisk/strings.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
 
 #if defined(__linux__) && !defined(__NR_gettid)
 #include <asm/unistd.h>
@@ -84,10 +88,16 @@ static int syslog_level_map[] = {
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 static char queue_log_name[256] = QUEUELOG;
+static char exec_after_rotate[256] = "";
 
 static int filesize_reload_needed;
 static int global_logmask = -1;
-static int rotatetimestamp;
+
+enum rotatestrategy {
+	SEQUENTIAL = 1 << 0,     /* Original method - create a new file, in order */
+	ROTATE = 1 << 1,         /* Rotate all files, such that the oldest file has the highest suffix */
+	TIMESTAMP = 1 << 2,      /* Append the epoch timestamp onto the end of the archived file */
+} rotatestrategy = SEQUENTIAL;
 
 static struct {
 	unsigned int queue_log:1;
@@ -348,7 +358,7 @@ static void init_logger_chain(int reload)
 		if (ast_true(s)) {
 			if (gethostname(hostname, sizeof(hostname) - 1)) {
 				ast_copy_string(hostname, "unknown", sizeof(hostname));
-				ast_log(LOG_WARNING, "What box has no hostname???\n");
+				fprintf(stderr, "What box has no hostname???\n");
 			}
 		} else
 			hostname[0] = '\0';
@@ -364,8 +374,23 @@ static void init_logger_chain(int reload)
 		logfiles.event_log = ast_true(s);
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log_name")))
 		ast_copy_string(queue_log_name, s, sizeof(queue_log_name));
-	if ((s = ast_variable_retrieve(cfg, "general", "rotatetimestamp")))
-		rotatetimestamp = ast_true(s);
+	if ((s = ast_variable_retrieve(cfg, "general", "exec_after_rotate")))
+		ast_copy_string(exec_after_rotate, s, sizeof(exec_after_rotate));
+	if ((s = ast_variable_retrieve(cfg, "general", "rotatestrategy"))) {
+		if (strcasecmp(s, "timestamp") == 0)
+			rotatestrategy = TIMESTAMP;
+		else if (strcasecmp(s, "rotate") == 0)
+			rotatestrategy = ROTATE;
+		else if (strcasecmp(s, "sequential") == 0)
+			rotatestrategy = SEQUENTIAL;
+		else
+			fprintf(stderr, "Unknown rotatestrategy: %s\n", s);
+	} else {
+		if ((s = ast_variable_retrieve(cfg, "general", "rotatetimestamp"))) {
+			rotatestrategy = ast_true(s) ? TIMESTAMP : SEQUENTIAL;
+			fprintf(stderr, "rotatetimestamp option has been deprecated.  Please use rotatestrategy instead.\n");
+		}
+	}
 
 	AST_RWLIST_WRLOCK(&logchannels);
 	var = ast_variable_browse(cfg, "logfiles");
@@ -399,26 +424,130 @@ void ast_queue_log(const char *queuename, const char *callid, const char *agent,
 	AST_RWLIST_UNLOCK(&logchannels);
 }
 
+static int rotate_file(const char *filename)
+{
+	char old[PATH_MAX];
+	char new[PATH_MAX];
+	int x, y, which, found, res = 0, fd;
+	char *suffixes[4] = { "", ".gz", ".bz2", ".Z" };
+
+	switch (rotatestrategy) {
+	case SEQUENTIAL:
+		for (x = 0; ; x++) {
+			snprintf(new, sizeof(new), "%s.%d", filename, x);
+			fd = open(new, O_RDONLY);
+			if (fd > -1)
+				close(fd);
+			else
+				break;
+		}
+		if (rename(filename, new)) {
+			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", filename, new);
+			res = -1;
+		}
+		break;
+	case TIMESTAMP:
+		snprintf(new, sizeof(new), "%s.%ld", filename, (long)time(NULL));
+		if (rename(filename, new)) {
+			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", filename, new);
+			res = -1;
+		}
+		break;
+	case ROTATE:
+		/* Find the next empty slot, including a possible suffix */
+		for (x = 0; ; x++) {
+			found = 0;
+			for (which = 0; which < sizeof(suffixes) / sizeof(suffixes[0]); which++) {
+				snprintf(new, sizeof(new), "%s.%d%s", filename, x, suffixes[which]);
+				fd = open(new, O_RDONLY);
+				if (fd > -1)
+					close(fd);
+				else {
+					found = 1;
+					break;
+				}
+			}
+			if (!found)
+				break;
+		}
+
+		/* Found an empty slot */
+		for (y = x; y > -1; y--) {
+			for (which = 0; which < sizeof(suffixes) / sizeof(suffixes[0]); which++) {
+				snprintf(old, sizeof(old), "%s.%d%s", filename, y - 1, suffixes[which]);
+				fd = open(old, O_RDONLY);
+				if (fd > -1) {
+					/* Found the right suffix */
+					close(fd);
+					snprintf(new, sizeof(new), "%s.%d%s", filename, y, suffixes[which]);
+					if (rename(old, new)) {
+						fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
+						res = -1;
+					}
+					break;
+				}
+			}
+		}
+
+		/* Finally, rename the current file */
+		snprintf(new, sizeof(new), "%s.0", filename);
+		if (rename(filename, new)) {
+			fprintf(stderr, "Unable to rename file '%s' to '%s'\n", filename, new);
+			res = -1;
+		}
+	}
+
+	if (!ast_strlen_zero(exec_after_rotate)) {
+		struct ast_channel *c = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Logger/rotate");
+		char buf[512] = "";
+		pbx_builtin_setvar_helper(c, "filename", filename);
+		pbx_substitute_variables_helper(c, exec_after_rotate, buf, sizeof(buf));
+		system(buf);
+		ast_channel_free(c);
+	}
+	return res;
+}
+
 int reload_logger(int rotate)
 {
 	char old[PATH_MAX] = "";
-	char new[PATH_MAX];
 	int event_rotate = rotate, queue_rotate = rotate;
 	struct logchannel *f;
-	FILE *myf;
-	int x, res = 0;
+	int res = 0;
+	struct stat st;
 
 	AST_RWLIST_WRLOCK(&logchannels);
 
-	if (eventlog) 
-		fclose(eventlog);
-	else 
+	if (eventlog) {
+		if (rotate < 0) {
+			/* Check filesize - this one typically doesn't need an auto-rotate */
+			snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
+			if (stat(old, &st) != 0 || st.st_size > 0x40000000) { /* Arbitrarily, 1 GB */
+				fclose(eventlog);
+				eventlog = NULL;
+			} else
+				event_rotate = 0;
+		} else {
+			fclose(eventlog);
+			eventlog = NULL;
+		}
+	} else
 		event_rotate = 0;
-	eventlog = NULL;
 
-	if (qlog) 
-		fclose(qlog);
-	else 
+	if (qlog) {
+		if (rotate < 0) {
+			/* Check filesize - this one typically doesn't need an auto-rotate */
+			snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
+			if (stat(old, &st) != 0 || st.st_size > 0x40000000) { /* Arbitrarily, 1 GB */
+				fclose(qlog);
+				qlog = NULL;
+			} else
+				event_rotate = 0;
+		} else {
+			fclose(qlog);
+			qlog = NULL;
+		}
+	} else 
 		queue_rotate = 0;
 	qlog = NULL;
 
@@ -432,51 +561,19 @@ int reload_logger(int rotate)
 		if (f->fileptr && (f->fileptr != stdout) && (f->fileptr != stderr)) {
 			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
-			if (rotate) {
-				ast_copy_string(old, f->filename, sizeof(old));
-				
-				if (!rotatetimestamp) { 
-					for (x = 0; ; x++) {
-						snprintf(new, sizeof(new), "%s.%d", f->filename, x);
-						myf = fopen(new, "r");
-						if (myf)
-							fclose(myf);
-						else
-							break;
-					}
-				} else 
-					snprintf(new, sizeof(new), "%s.%ld", f->filename, (long)time(NULL));
-
-				/* do it */
-				if (rename(old,new))
-					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
-			}
+			if (rotate)
+				rotate_file(f->filename);
 		}
 	}
 
 	filesize_reload_needed = 0;
-	
+
 	init_logger_chain(1);
 
 	if (logfiles.event_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
-		if (event_rotate) {
-			if (!rotatetimestamp) { 
-				for (x=0;;x++) {
-					snprintf(new, sizeof(new), "%s/%s.%d", ast_config_AST_LOG_DIR, EVENTLOG,x);
-					myf = fopen(new, "r");
-					if (myf) 	/* File exists */
-						fclose(myf);
-					else
-						break;
-				}
-			} else 
-				snprintf(new, sizeof(new), "%s/%s.%ld", ast_config_AST_LOG_DIR, EVENTLOG,(long)time(NULL));
-	
-			/* do it */
-			if (rename(old,new))
-				ast_log(LOG_ERROR, "Unable to rename file '%s' to '%s'\n", old, new);
-		}
+		if (event_rotate)
+			rotate_file(old);
 
 		eventlog = fopen(old, "a");
 		if (eventlog) {
@@ -491,23 +588,8 @@ int reload_logger(int rotate)
 
 	if (logfiles.queue_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, queue_log_name);
-		if (queue_rotate) {
-			if (!rotatetimestamp) { 
-				for (x = 0; ; x++) {
-					snprintf(new, sizeof(new), "%s/%s.%d", ast_config_AST_LOG_DIR, queue_log_name, x);
-					myf = fopen(new, "r");
-					if (myf) 	/* File exists */
-						fclose(myf);
-					else
-						break;
-				}
-	
-			} else 
-				snprintf(new, sizeof(new), "%s/%s.%ld", ast_config_AST_LOG_DIR, queue_log_name,(long)time(NULL));
-			/* do it */
-			if (rename(old, new))
-				ast_log(LOG_ERROR, "Unable to rename file '%s' to '%s'\n", old, new);
-		}
+		if (queue_rotate)
+			rotate_file(old);
 
 		qlog = fopen(old, "a");
 		if (qlog) {
@@ -723,7 +805,7 @@ static void logger_print_normal(struct logmsg *logmsg)
 
 	/* If we need to reload because of the file size, then do so */
 	if (filesize_reload_needed) {
-		reload_logger(1);
+		reload_logger(-1);
 		ast_log(LOG_EVENT, "Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		if (option_verbose)
 			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
