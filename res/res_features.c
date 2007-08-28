@@ -1578,6 +1578,9 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 			x = 0;
 			started = ast_tvnow();
 			to = timeout;
+
+			ast_poll_channel_add(caller, chan);
+
 			while (!((transferee && ast_check_hangup(transferee)) && (!igncallerstate && ast_check_hangup(caller))) && timeout && (chan->_state != AST_STATE_UP)) {
 				struct ast_frame *f = NULL;
 
@@ -1665,6 +1668,9 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 				if (f)
 					ast_frfree(f);
 			} /* end while */
+
+			ast_poll_channel_del(caller, chan);
+
 		} else
 			ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
 	} else {
