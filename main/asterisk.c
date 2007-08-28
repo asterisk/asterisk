@@ -2453,6 +2453,16 @@ static void ast_readconfig(void)
 			}
 		} else if (!strcasecmp(v->name, "languageprefix")) {
 			ast_language_is_prefix = ast_true(v->value);
+ 		} else if (!strcasecmp(v->name, "lockmode")) {
+ 			if (!strcasecmp(v->value, "lockfile")) {
+ 				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
+ 			} else if (!strcasecmp(v->value, "flock")) {
+ 				ast_set_lock_type(AST_LOCK_TYPE_FLOCK);
+ 			} else {
+				ast_log(LOG_WARNING, "'%s' is not a valid setting for the lockmode option, "
+					"defaulting to 'lockfile'\n", v->value);
+ 				ast_set_lock_type(AST_LOCK_TYPE_LOCKFILE);
+			}
 #if defined(HAVE_SYSINFO)
 		} else if (!strcasecmp(v->name, "minmemfree")) {
 			/* specify the minimum amount of free memory to retain.  Asterisk should stop accepting new calls

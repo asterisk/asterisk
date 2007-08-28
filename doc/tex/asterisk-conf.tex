@@ -118,6 +118,12 @@ systemname = <a_string>
 ; (only affects relative paths for sound files)
 languageprefix = yes | no			
 
+; Locking mode for voicemail
+;  - lockfile: default, for normal use
+;  - flock: for where the lockfile locking method doesn't work
+;           eh. on SMB/CIFS mounts
+lockmode = lockfile | flock
+  
 
 [files]
 ; Changing the following lines may compromise your security

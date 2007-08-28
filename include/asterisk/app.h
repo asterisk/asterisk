@@ -202,6 +202,18 @@ enum AST_LOCK_RESULT {
 	AST_LOCK_FAILURE = -3,
 };
 
+/*! \brief Type of locking to use in ast_lock_path / ast_unlock_path */
+enum AST_LOCK_TYPE {
+	AST_LOCK_TYPE_LOCKFILE = 0,
+	AST_LOCK_TYPE_FLOCK = 1,
+};
+
+/*!
+ * \brief Set the type of locks used by ast_lock_path()
+ * \param type the locking type to use
+ */
+void ast_set_lock_type(enum AST_LOCK_TYPE type);
+
 /*!
  * \brief Lock a filesystem path.
  * \param path the path to be locked

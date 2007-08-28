@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/file.h>
 #include <regex.h>
 
 #include "asterisk/channel.h"
@@ -158,6 +159,8 @@ int ast_app_getdata(struct ast_channel *c, const char *prompt, char *s, int maxl
 	return res;
 }
 
+/* The lock type used by ast_lock_path() / ast_unlock_path() */
+static enum AST_LOCK_TYPE ast_lock_type = AST_LOCK_TYPE_LOCKFILE;
 
 int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
 {
@@ -1026,7 +1029,7 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 	return argc;
 }
 
-enum AST_LOCK_RESULT ast_lock_path(const char *path)
+static enum AST_LOCK_RESULT ast_lock_path_lockfile(const char *path)
 {
 	char *s;
 	char *fs;
@@ -1035,10 +1038,8 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	int lp = strlen(path);
 	time_t start;
 
-	if (!(s = alloca(lp + 10)) || !(fs = alloca(lp + 20))) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
-		return AST_LOCK_FAILURE;
-	}
+	s = alloca(lp + 10); 
+	fs = alloca(lp + 20);
 
 	snprintf(fs, strlen(path) + 19, "%s/.lock-%08lx", path, ast_random());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, AST_FILE_MODE);
@@ -1064,15 +1065,12 @@ enum AST_LOCK_RESULT ast_lock_path(const char *path)
 	}
 }
 
-int ast_unlock_path(const char *path)
+static int ast_unlock_path_lockfile(const char *path)
 {
 	char *s;
 	int res;
 
-	if (!(s = alloca(strlen(path) + 10))) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
-		return -1;
-	}
+	s = alloca(strlen(path) + 10);
 
 	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
 
@@ -1083,6 +1081,170 @@ int ast_unlock_path(const char *path)
 	}
 
 	return res;
+}
+
+struct path_lock {
+	AST_LIST_ENTRY(path_lock) le;
+	int fd;
+	char *path;
+};
+
+static AST_LIST_HEAD_STATIC(path_lock_list, path_lock);
+
+static void path_lock_destroy(struct path_lock *obj)
+{
+	if (obj->fd >= 0)
+		close(obj->fd);
+	if (obj->path)
+		free(obj->path);
+	free(obj);
+}
+
+static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
+{
+	char *fs;
+	int res;
+	int fd;
+	time_t start;
+	struct path_lock *pl;
+	struct stat st, ost;
+
+	fs = alloca(strlen(path) + 20);
+
+	snprintf(fs, strlen(path) + 19, "%s/lock", path);
+	if (lstat(fs, &st) == 0) {
+		if ((st.st_mode & S_IFMT) == S_IFLNK) {
+			ast_log(LOG_WARNING, "Unable to create lock file "
+					"'%s': it's already a symbolic link\n",
+					fs);
+			return AST_LOCK_FAILURE;
+		}
+		if (st.st_nlink > 1) {
+			ast_log(LOG_WARNING, "Unable to create lock file "
+					"'%s': %u hard links exist\n",
+					fs, (unsigned int) st.st_nlink);
+			return AST_LOCK_FAILURE;
+		}
+	}
+	fd = open(fs, O_WRONLY | O_CREAT, 0600);
+	if (fd < 0) {
+		ast_log(LOG_WARNING, "Unable to create lock file '%s': %s\n",
+				fs, strerror(errno));
+		return AST_LOCK_PATH_NOT_FOUND;
+	}
+	pl = ast_calloc(1, sizeof(*pl));
+	if (!pl) {
+		/* We don't unlink the lock file here, on the possibility that
+		 * someone else created it - better to leave a little mess
+		 * than create a big one by destroying someone elses lock
+		 * and causing something to be corrupted.
+		 */
+		close(fd);
+		return AST_LOCK_FAILURE;
+	}
+	pl->fd = fd;
+	pl->path = strdup(path);
+
+	time(&start);
+	while (((res = flock(pl->fd, LOCK_EX | LOCK_NB)) < 0) &&
+			(errno == EWOULDBLOCK) && (time(NULL) - start < 5))
+		usleep(1000);
+	if (res) {
+		ast_log(LOG_WARNING, "Failed to lock path '%s': %s\n",
+				path, strerror(errno));
+		/* No unlinking of lock done, since we tried and failed to
+		 * flock() it.
+		 */
+		path_lock_destroy(pl);
+		return AST_LOCK_TIMEOUT;
+	}
+
+	/* Check for the race where the file is recreated or deleted out from
+	 * underneath us.
+	 */
+	if (lstat(fs, &st) != 0 && fstat(pl->fd, &ost) != 0 &&
+			st.st_dev != ost.st_dev &&
+			st.st_ino != ost.st_ino) {
+		ast_log(LOG_WARNING, "Unable to create lock file '%s': "
+				"file changed underneath us\n", fs);
+		path_lock_destroy(pl);
+		return AST_LOCK_FAILURE;
+	}
+
+	/* Success: file created, flocked, and is the one we started with */
+	AST_LIST_LOCK(&path_lock_list);
+	AST_LIST_INSERT_TAIL(&path_lock_list, pl, le);
+	AST_LIST_UNLOCK(&path_lock_list);
+
+	ast_debug(1, "Locked path '%s'\n", path);
+
+	return AST_LOCK_SUCCESS;
+}
+
+static int ast_unlock_path_flock(const char *path)
+{
+	char *s;
+	struct path_lock *p;
+
+	s = alloca(strlen(path) + 20);
+
+	AST_LIST_LOCK(&path_lock_list);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&path_lock_list, p, le) {
+		if (!strcmp(p->path, path)) {
+			AST_LIST_REMOVE_CURRENT(&path_lock_list, le);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&path_lock_list);
+
+	if (p) {
+		snprintf(s, strlen(path) + 19, "%s/lock", path);
+		unlink(s);
+		path_lock_destroy(p);
+		ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+	} else
+		ast_log(LOG_DEBUG, "Failed to unlock path '%s': "
+				"lock not found\n", path);
+
+	return 0;
+}
+
+void ast_set_lock_type(enum AST_LOCK_TYPE type)
+{
+	ast_lock_type = type;
+}
+
+enum AST_LOCK_RESULT ast_lock_path(const char *path)
+{
+	enum AST_LOCK_RESULT r = AST_LOCK_FAILURE;
+
+	switch (ast_lock_type) {
+	case AST_LOCK_TYPE_LOCKFILE:
+		r = ast_lock_path_lockfile(path);
+		break;
+	case AST_LOCK_TYPE_FLOCK:
+		r = ast_lock_path_flock(path);
+		break;
+	}
+
+	return r;
+}
+
+int ast_unlock_path(const char *path)
+{
+	int r = 0;
+
+	switch (ast_lock_type) {
+	case AST_LOCK_TYPE_LOCKFILE:
+		r = ast_unlock_path_lockfile(path);
+		break;
+	case AST_LOCK_TYPE_FLOCK:
+		r = ast_unlock_path_flock(path);
+		break;
+	}
+
+	return r;
 }
 
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path) 
