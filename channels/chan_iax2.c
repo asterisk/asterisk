@@ -8616,7 +8616,7 @@ retryowner2:
 		if (iaxs[fr->callno]->voiceformat > 0)
 			f.subclass = iaxs[fr->callno]->voiceformat;
 		else {
-			ast_log(LOG_WARNING, "Received mini frame before first full voice frame\n ");
+			ast_debug(1, "Received mini frame before first full voice frame\n");
 			iax2_vnak(fr->callno);
 			ast_mutex_unlock(&iaxsl[fr->callno]);
 			return 1;
