@@ -242,7 +242,7 @@ sub validmailbox()
                                 my $dbh = DBI->connect("DBI:mysql:$dbname:$dbhost",$dbuser,$dbpass);
                                 my $sth = $dbh->prepare(qq{select fullname,context from voicemail where mailbox='$mbox' and password='$pass' and context='$context'});
                                 $sth->execute();
-				if (($fullname, $category) = $sth->fetchrow_array()) {;
+				if (($fullname, $context) = $sth->fetchrow_array()) {;
                                         return ($fullname ? $fullname : "unknown", $category);
                                 }
                         }
