@@ -118,6 +118,7 @@ ringmobile = 400+450/400,0/200,400+450/400,0/2000
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
 description = Bulgaria
 ringdance = 1000,4000
+;
 dial = 425
 busy = 425/500,0/500
 ring = 425/1000,0/4000
@@ -536,16 +537,20 @@ info = 950/330,1400/330,1800/330,0/1000
 stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,425
 
 [ru]
-description = Russia / ex Soviet Union
-ringcadence = 800,3200
+; References:
+;	http://www.minsvyaz.ru/site.shtml?id=1806
+;	http://www.aboutphone.info/lib/gost/45-223-2001.html
+description = Russian Federation / ex Soviet Union
+ringcadence = 1000,4000
 dial = 425
 busy = 425/350,0/350
-ring = 425/800,0/3200
-congestion = 425/350,0/350
+ring = 425/1000,0/4000
+congestion = 425/175,0/175
 callwaiting = 425/200,0/5000
-dialrecall = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,350+440
-record = 1400/500,0/15000
-info = !950/330,!1400/330,!1800/330,0
+record = 1400/400,0/15000
+info = 950/330,1400/330,1800/330,0/1000
+dialrecall = 425/400,0/40
+stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,425
 
 [se]
 description = Sweden
