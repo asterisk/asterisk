@@ -1265,6 +1265,25 @@ static struct call_queue *load_realtime_queue(const char *queuename)
 	return q;
 }
 
+static int update_realtime_member_field(struct member *mem, const char *queue_name, const char *field, const char *value)
+{
+	struct ast_variable *var;
+	int ret = -1;
+
+	if(!(var = ast_load_realtime("queue_members", "interface", mem->interface, "queue_name", queue_name, NULL))) 
+		return ret;
+	while (var) {
+		if(!strcmp(var->name, "uniqueid"))
+			break;
+		var = var->next;
+	}
+	if(var && !ast_strlen_zero(var->value)) {
+		if ((ast_update_realtime("queue_members", "uniqueid", var->value, field, value, NULL)) > -1)
+			ret = 0;
+	}
+	return ret;
+}
+
 static void update_realtime_members(struct call_queue *q)
 {
 	struct ast_config *member_config = NULL;
@@ -3172,6 +3191,9 @@ static int set_member_paused(const char *queuename, const char *interface, int p
 
 				if (queue_persistent_members)
 					dump_queue_members(q);
+
+				if(mem->realtime)
+					update_realtime_member_field(mem, queuename, "paused", paused ? "1" : "0");
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
 
