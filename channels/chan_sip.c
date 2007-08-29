@@ -16427,13 +16427,10 @@ static void check_rtp_timeout(struct sip_pvt *dialog, time_t t)
 					usleep(1);
 					sip_pvt_lock(dialog);
 				}
-				if (!(ast_rtp_get_bridged(dialog->rtp))) {
-					ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
-						dialog->owner->name, (long) (t - dialog->lastrtprx));
-					/* Issue a softhangup */
-					ast_softhangup_nolock(dialog->owner, AST_SOFTHANGUP_DEV);
-				} else
-					ast_log(LOG_NOTICE, "'%s' will not be disconnected in %ld seconds because it is directly bridged to another RTP stream\n", dialog->owner->name, (long) (t - dialog->lastrtprx));
+				ast_log(LOG_NOTICE, "Disconnecting call '%s' for lack of RTP activity in %ld seconds\n",
+					dialog->owner->name, (long) (t - dialog->lastrtprx));
+				/* Issue a softhangup */
+				ast_softhangup_nolock(dialog->owner, AST_SOFTHANGUP_DEV);
 				ast_channel_unlock(dialog->owner);
 				/* forget the timeouts for this call, since a hangup
 				   has already been requested and we don't want to
