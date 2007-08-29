@@ -413,4 +413,61 @@ const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_i
  */
 enum ast_event_type ast_event_get_type(const struct ast_event *event);
 
+/*!
+ * \brief Initialize an event iterator instance
+ *
+ * \param iterator The iterator instance to initialize
+ * \param event The event that will be iterated through
+ *
+ * \return Nothing
+ */
+void ast_event_iterator_init(struct ast_event_iterator *iterator, const struct ast_event *event);
+
+/*!
+ * \brief Move iterator instance to next IE
+ *
+ * \param iterator The iterator instance
+ *
+ * \retval 0 on success
+ * \retval -1 if end is reached
+ */
+int ast_event_iterator_next(struct ast_event_iterator *iterator);
+
+/*!
+ * \brief Get the type of the current IE in the iterator instance
+ *
+ * \param iterator The iterator instance
+ *
+ * \return the ie type as represented by one of the value sin the
+ *         ast_event_ie_type enum
+ */
+enum ast_event_ie_type ast_event_iterator_get_ie_type(struct ast_event_iterator *iterator);
+
+/*!
+ * \brief Get the value of the current IE in the ierator as an integer payload
+ *
+ * \param iterator The iterator instance
+ *
+ * \return This returns the payload of the information element as a uint.
+ */
+uint32_t ast_event_iteragor_get_ie_uint(struct ast_event_iterator *iterator);
+
+/*!
+ * \brief Get the value of the current IE in the iterator as a string payload
+ *
+ * \param iterator The iterator instance
+ *
+ * \return This returns the payload of the information element as a string.
+ */
+const char *ast_event_iterator_get_ie_str(struct ast_event_iterator *iterator);
+
+/*!
+ * \brief Get the value of the current IE in the iterator instance that has a raw payload
+ *
+ * \param iterator The iterator instance
+ *
+ * \return This returns the payload of the information element as type raw.
+ */
+void *ast_event_iterator_get_ie_raw(struct ast_event_iterator *iterator);
+
 #endif /* AST_EVENT_H */
