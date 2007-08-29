@@ -116,7 +116,7 @@ static AST_RWLIST_HEAD(ast_event_ref_list, ast_event_ref) ast_event_cache[AST_EV
 static void ast_event_ie_val_destroy(struct ast_event_ie_val *ie_val)
 {
 	if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
-		ast_free((void *) ie_val->payload.str);
+		ast_free((char *) ie_val->payload.str);
 
 	ast_free(ie_val);
 }
@@ -365,14 +365,14 @@ void ast_event_iterator_init(struct ast_event_iterator *iterator, const struct a
 {
 	iterator->event_len = ntohs(event->event_len);
 	iterator->event = event;
-	iterator->ie = ((void *) event) + sizeof(*event);
+	iterator->ie = (struct ast_event_ie *) ( ((char *) event) + sizeof(*event) );
 	return;
 }
 
 int ast_event_iterator_next(struct ast_event_iterator *iterator)
 {
-	iterator->ie = ((void *) iterator->ie) + sizeof(*iterator->ie) + ntohs(iterator->ie->ie_payload_len);
-	return ((iterator->event_len < (((void *) iterator->ie) - ((void *) iterator->event))) ? -1 : 0);
+	iterator->ie = (struct ast_event_ie *) ( ((char *) iterator->ie) + sizeof(*iterator->ie) ) + ntohs(iterator->ie->ie_payload_len);
+	return ((iterator->event_len < (((char *) iterator->ie) - ((char *) iterator->event))) ? -1 : 0);
 }
 
 enum ast_event_ie_type ast_event_iterator_get_ie_type(struct ast_event_iterator *iterator)
@@ -455,7 +455,7 @@ int ast_event_append_ie_raw(struct ast_event **event, enum ast_event_ie_type ie_
 	if (!(*event = ast_realloc(*event, event_len + extra_len)))
 		return -1;
 
-	ie = ((void *) *event) + event_len;
+	ie = (struct ast_event_ie *) ( ((char *) *event) + event_len );
 	ie->ie_type = htons(ie_type);
 	ie->ie_payload_len = htons(data_len);
 	memcpy(ie->ie_payload, data, data_len);
