@@ -116,7 +116,7 @@ static AST_RWLIST_HEAD(ast_event_ref_list, ast_event_ref) ast_event_cache[AST_EV
 static void ast_event_ie_val_destroy(struct ast_event_ie_val *ie_val)
 {
 	if (ie_val->ie_pltype == AST_EVENT_IE_PLTYPE_STR)
-		ast_free((char *) ie_val->payload.str);
+		ast_free((void *) ie_val->payload.str);
 
 	ast_free(ie_val);
 }
@@ -371,7 +371,7 @@ void ast_event_iterator_init(struct ast_event_iterator *iterator, const struct a
 
 int ast_event_iterator_next(struct ast_event_iterator *iterator)
 {
-	iterator->ie = (struct ast_event_ie *) ( ((char *) iterator->ie) + sizeof(*iterator->ie) ) + ntohs(iterator->ie->ie_payload_len);
+	iterator->ie = (struct ast_event_ie *) ( ((char *) iterator->ie) + sizeof(*iterator->ie) + ntohs(iterator->ie->ie_payload_len));
 	return ((iterator->event_len < (((char *) iterator->ie) - ((char *) iterator->event))) ? -1 : 0);
 }
 
