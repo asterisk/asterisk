@@ -318,7 +318,7 @@ struct member {
 	int penalty;                        /*!< Are we a last resort? */
 	int calls;                          /*!< Number of calls serviced by this member */
 	int dynamic;                        /*!< Are we dynamically added? */
-	int realtime;						/*!< Is this member realtime? */
+	int realtime;                       /*!< Is this member realtime? */
 	int status;                         /*!< Status of queue member */
 	int paused;                         /*!< Are we paused (not accepting calls)? */
 	time_t lastcall;                    /*!< When last successful call was hungup */
