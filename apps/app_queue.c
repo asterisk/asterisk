@@ -318,6 +318,7 @@ struct member {
 	int penalty;                        /*!< Are we a last resort? */
 	int calls;                          /*!< Number of calls serviced by this member */
 	int dynamic;                        /*!< Are we dynamically added? */
+	int realtime;						/*!< Is this member realtime? */
 	int status;                         /*!< Status of queue member */
 	int paused;                         /*!< Are we paused (not accepting calls)? */
 	time_t lastcall;                    /*!< When last successful call was hungup */
@@ -1049,6 +1050,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 	if (!m) {
 		if ((m = create_queue_member(interface, membername, penalty, paused))) {
 			m->dead = 0;
+			m->realtime = 1;
 			add_to_interfaces(interface);
 			if (prev_m) {
 				prev_m->next = m;
@@ -1173,10 +1175,10 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		queue_set_param(q, tmp_name, v->value, -1, 0);
 	}
 
-	/* Temporarily set non-dynamic members dead so we can detect deleted ones. 
+	/* Temporarily set realtime members dead so we can detect deleted ones. 
 	 * Also set the membercount correctly for realtime*/
 	for (m = q->members; m; m = m->next, q->membercount++) {
-		if (!m->dynamic)
+		if (m->realtime)
 			m->dead = 1;
 	}
 
@@ -1278,9 +1280,9 @@ static void update_realtime_members(struct call_queue *q)
 
 	ast_mutex_lock(&q->lock);
 	
-	/* Temporarily set non-dynamic members dead so we can detect deleted ones.*/ 
+	/* Temporarily set realtime  members dead so we can detect deleted ones.*/ 
 	for (m = q->members; m; m = m->next) {
-		if (!m->dynamic)
+		if (m->realtime)
 			m->dead = 1;
 	}
 
@@ -4188,8 +4190,9 @@ static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
 				ast_str_set(&out, 0, "      %s", mem->interface);
 				if (mem->penalty)
 					ast_str_append(&out, 0, " with penalty %d", mem->penalty);
-				ast_str_append(&out, 0, "%s%s (%s)",
+				ast_str_append(&out, 0, "%s%s%s (%s)",
 					mem->dynamic ? " (dynamic)" : "",
+					mem->realtime ? " (realtime)" : "",
 					mem->paused ? " (paused)" : "",
 					devstate2str(mem->status));
 				if (mem->calls)
