@@ -135,7 +135,11 @@ asterisk: $(OBJS) editline/libedit.a db1-ast/libdb1.a $(AST_EMBED_LDSCRIPTS)
 	@rm -f $(ASTTOPDIR)/include/asterisk/build.h.tmp
 	@$(CC) -c -o buildinfo.o $(ASTCFLAGS) buildinfo.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
+ifneq ($(findstring chan_h323,$(MENUSELECT_CHANNELS)),)
+	$(CMD_PREFIX) $(CC) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS)
+else
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(ASTLINK) $(AST_EMBED_LDFLAGS) $(ASTLDFLAGS) $(H323LDFLAGS) $^ buildinfo.o $(AST_LIBS) $(AST_EMBED_LIBS) $(H323LDLIBS)
+endif
 	@$(ASTTOPDIR)/build_tools/strip_nonapi $@
 
 clean::
