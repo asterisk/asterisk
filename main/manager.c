@@ -791,7 +791,7 @@ struct ast_variable *astman_get_variables(const struct message *m)
 			strsep(&val, "=");
 			if (!val || ast_strlen_zero(var))
 				continue;
-			cur = ast_variable_new(var, val);
+			cur = ast_variable_new(var, val, "");
 			cur->next = head;
 			head = cur;
 		}
@@ -1224,7 +1224,7 @@ static int action_getconfigjson(struct mansession *s, const struct message *m)
 }
 
 /* helper function for action_updateconfig */
-static void handle_updates(struct mansession *s, const struct message *m, struct ast_config *cfg)
+static void handle_updates(struct mansession *s, const struct message *m, struct ast_config *cfg, const char *dfn)
 {
 	int x;
 	char hdr[40];
@@ -1253,7 +1253,7 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 		match = astman_get_header(m, hdr);
 		if (!strcasecmp(action, "newcat")) {
 			if (!ast_strlen_zero(cat)) {
-				category = ast_category_new(cat);
+				category = ast_category_new(cat, dfn, 99999);
 				if (category) {
 					ast_category_append(cfg, category);
 				}
@@ -1276,7 +1276,7 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 		} else if (!strcasecmp(action, "append")) {
 			if (!ast_strlen_zero(cat) && !ast_strlen_zero(var) &&
 				(category = ast_category_get(cfg, cat)) &&
-				(v = ast_variable_new(var, value))){
+				(v = ast_variable_new(var, value, dfn))){
 				if (object || (match && !strcasecmp(match, "object")))
 					v->object = 1;
 				ast_variable_append(category, v);
@@ -1315,7 +1315,8 @@ static int action_updateconfig(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, "Config file not found");
 		return 0;
 	}
-	handle_updates(s, m, cfg);
+	handle_updates(s, m, cfg, dfn);
+	ast_include_rename(cfg, sfn, dfn); /* change the include references from dfn to sfn, so things match up */
 	res = config_text_file_save(dfn, cfg, "Manager");
 	ast_config_destroy(cfg);
 	if (res) {

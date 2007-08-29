@@ -567,7 +567,7 @@ static struct ast_str *handle_uri(struct server_instance *ser, char *uri, int *s
 			else 
 				val = "";
 			ast_uri_decode(var);
-			if ((v = ast_variable_new(var, val))) {
+			if ((v = ast_variable_new(var, val, ""))) {
 				if (vars)
 					prev->next = v;
 				else
@@ -778,7 +778,7 @@ static void *httpd_helper_thread(void *data)
 			value = ast_skip_blanks(value);
 			if (ast_strlen_zero(value))
 				continue;
-			var = ast_variable_new(name, value);
+			var = ast_variable_new(name, value, "");
 			if (!var)
 				continue;
 			var->next = headers;
@@ -818,7 +818,7 @@ static void *httpd_helper_thread(void *data)
 			vval++;
 		if ( (l = strlen(vval)) )
 			vval[l - 1] = '\0';	/* trim trailing quote */
-		var = ast_variable_new(vname, vval);
+		var = ast_variable_new(vname, vval, "");
 		if (var) {
 			if (prev)
 				prev->next = var;

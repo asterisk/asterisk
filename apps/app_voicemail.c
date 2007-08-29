@@ -960,7 +960,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 			if (!strcasecmp(category, vmu->mailbox)) {
 				if (!(tmp = ast_variable_retrieve(cfg, category, "vmsecret"))) {
 					ast_debug(3, "looks like we need to make vmsecret!\n");
-					var = ast_variable_new("vmsecret", newpassword);
+					var = ast_variable_new("vmsecret", newpassword, "");
 				} 
 				new = alloca(strlen(newpassword)+1);
 				sprintf(new, "%s", newpassword);

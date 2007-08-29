@@ -2141,7 +2141,7 @@ static int create_vmaccount(char *name, struct ast_variable *var, int realtime)
 			if (varname && (varval = strchr(varname, '='))) {
 				*varval = '\0';
 				varval++;
-				if ((tmpvar = ast_variable_new(varname, varval))) {
+				if ((tmpvar = ast_variable_new(varname, varval, ""))) {
 					tmpvar->next = vmu->chanvars;
 					vmu->chanvars = tmpvar;
 				}

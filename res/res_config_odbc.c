@@ -219,11 +219,11 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 			chunk = strsep(&stringp, ";");
 			if (!ast_strlen_zero(ast_strip(chunk))) {
 				if (prev) {
-					prev->next = ast_variable_new(coltitle, chunk);
+					prev->next = ast_variable_new(coltitle, chunk, "");
 					if (prev->next)
 						prev = prev->next;
 				} else 
-					prev = var = ast_variable_new(coltitle, chunk);
+					prev = var = ast_variable_new(coltitle, chunk, "");
 			}
 		}
 	}
@@ -334,7 +334,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
 			continue;
 		}
-		cat = ast_category_new("");
+		cat = ast_category_new("","",99999);
 		if (!cat) {
 			ast_log(LOG_WARNING, "Out of memory!\n");
 			continue;
@@ -366,7 +366,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				if (!ast_strlen_zero(ast_strip(chunk))) {
 					if (initfield && !strcmp(initfield, coltitle))
 						ast_category_rename(cat, chunk);
-					var = ast_variable_new(coltitle, chunk);
+					var = ast_variable_new(coltitle, chunk, "");
 					ast_variable_append(cat, var);
 				}
 			}
@@ -625,7 +625,7 @@ static SQLHSTMT config_odbc_prepare(struct odbc_obj *obj, void *data)
 	return sth;
 }
 
-static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *cfg, struct ast_flags flags)
+static struct ast_config *config_odbc(const char *database, const char *table, const char *file, struct ast_config *cfg, struct ast_flags flags, const char *sugg_incl)
 {
 	struct ast_variable *new_v;
 	struct ast_category *cur_cat;
@@ -682,7 +682,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 
 	while ((res = SQLFetch(stmt)) != SQL_NO_DATA) {
 		if (!strcmp (q.var_name, "#include")) {
-			if (!ast_config_internal_load(q.var_val, cfg, loader_flags)) {
+			if (!ast_config_internal_load(q.var_val, cfg, loader_flags, "")) {
 				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 				ast_odbc_release_obj(obj);
 				return NULL;
@@ -690,7 +690,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 			continue;
 		} 
 		if (strcmp(last, q.category) || last_cat_metric != q.cat_metric) {
-			cur_cat = ast_category_new(q.category);
+			cur_cat = ast_category_new(q.category, "", 99999);
 			if (!cur_cat) {
 				ast_log(LOG_WARNING, "Out of memory!\n");
 				break;
@@ -700,7 +700,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 			ast_category_append(cfg, cur_cat);
 		}
 
-		new_v = ast_variable_new(q.var_name, q.var_val);
+		new_v = ast_variable_new(q.var_name, q.var_val, "");
 		ast_variable_append(cur_cat, new_v);
 	}
 

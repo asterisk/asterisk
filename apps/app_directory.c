@@ -386,7 +386,7 @@ static struct ast_config *realtime_directory(char *context)
 	/* Does the context exist within the config file? If not, make one */
 	cat = ast_category_get(cfg, context);
 	if (!cat) {
-		cat = ast_category_new(context);
+		cat = ast_category_new(context, "", 99999);
 		if (!cat) {
 			ast_log(LOG_WARNING, "Out of memory\n");
 			ast_config_destroy(cfg);
@@ -402,7 +402,7 @@ static struct ast_config *realtime_directory(char *context)
 		snprintf(tmp, sizeof(tmp), "no-password,%s,hidefromdir=%s",
 			 fullname ? fullname : "",
 			 hidefromdir ? hidefromdir : "no");
-		var = ast_variable_new(mailbox, tmp);
+		var = ast_variable_new(mailbox, tmp, "");
 		if (var)
 			ast_variable_append(cat, var);
 		else

@@ -219,7 +219,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					c2 = c;
 					strsep(&c2, "=");
 					if (c2) {
-						var = ast_variable_new(c, c2);
+						var = ast_variable_new(c, c2, fn);
 						if (var) {
 							var->next = o->vars;
 							o->vars = var;

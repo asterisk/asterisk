@@ -175,12 +175,12 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 					chunk = strsep(&stringp, ";");
 					if (!ast_strlen_zero(ast_strip(chunk))) {
 						if (prev) {
-							prev->next = ast_variable_new(fieldnames[i], chunk);
+							prev->next = ast_variable_new(fieldnames[i], chunk, "");
 							if (prev->next) {
 								prev = prev->next;
 							}
 						} else {
-							prev = var = ast_variable_new(fieldnames[i], chunk);
+							prev = var = ast_variable_new(fieldnames[i], chunk, "");
 						}
 					}
 				}
@@ -313,7 +313,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
 		for (rowIndex = 0; rowIndex < num_rows; rowIndex++) {
 			var = NULL;
-			if (!(cat = ast_category_new("")))
+			if (!(cat = ast_category_new("","",99999)))
 				continue;
 			for (i = 0; i < numFields; i++) {
 				stringp = PQgetvalue(result, rowIndex, i);
@@ -323,7 +323,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 						if (initfield && !strcmp(initfield, fieldnames[i])) {
 							ast_category_rename(cat, chunk);
 						}
-						var = ast_variable_new(fieldnames[i], chunk);
+						var = ast_variable_new(fieldnames[i], chunk, "");
 						ast_variable_append(cat, var);
 					}
 				}
@@ -615,8 +615,8 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 
 
 static struct ast_config *config_pgsql(const char *database, const char *table,
-					   const char *file, struct ast_config *cfg,
-					   struct ast_flags flags)
+									   const char *file, struct ast_config *cfg,
+									   struct ast_flags flags, const char *suggested_incl)
 {
 	PGresult *result = NULL;
 	long num_rows;
@@ -681,7 +681,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			char *field_var_val = PQgetvalue(result, rowIndex, 2);
 			char *field_cat_metric = PQgetvalue(result, rowIndex, 3);
 			if (!strcmp(field_var_name, "#include")) {
-				if (!ast_config_internal_load(field_var_val, cfg, flags)) {
+				if (!ast_config_internal_load(field_var_val, cfg, flags, "")) {
 					PQclear(result);
 					ast_mutex_unlock(&pgsql_lock);
 					return NULL;
@@ -690,14 +690,14 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			}
 
 			if (strcmp(last, field_category) || last_cat_metric != atoi(field_cat_metric)) {
-				cur_cat = ast_category_new(field_category);
+				cur_cat = ast_category_new(field_category, "", 99999);
 				if (!cur_cat)
 					break;
 				strcpy(last, field_category);
 				last_cat_metric = atoi(field_cat_metric);
 				ast_category_append(cfg, cur_cat);
 			}
-			new_v = ast_variable_new(field_var_name, field_var_val);
+			new_v = ast_variable_new(field_var_name, field_var_val, "");
 			ast_variable_append(cur_cat, new_v);
 		}
 	} else {

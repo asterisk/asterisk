@@ -305,9 +305,8 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames);
  * \retval NULL if an error occurred
  * \see add_cfg_entry()
  */
-static struct ast_config * config_handler(const char *database,
-	const char *table, const char *file,
-	struct ast_config *cfg, struct ast_flags flags);
+static struct ast_config * config_handler(const char *database, const char *table, const char *file,
+struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl);
 
 /*!
  * \brief Helper function to parse a va_list object into 2 dynamic arrays of
@@ -736,7 +735,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 	args = arg;
 
 	if (!args->cat_name || strcmp(args->cat_name, argv[RES_SQLITE_CONFIG_CATEGORY])) {
-		args->cat = ast_category_new(argv[RES_SQLITE_CONFIG_CATEGORY]);
+		args->cat = ast_category_new(argv[RES_SQLITE_CONFIG_CATEGORY], "", 99999);
 
 		if (!args->cat) {
 			ast_log(LOG_WARNING, "Unable to allocate category\n");
@@ -755,7 +754,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 	}
 
 	var = ast_variable_new(argv[RES_SQLITE_CONFIG_VAR_NAME],
-		 argv[RES_SQLITE_CONFIG_VAR_VAL]);
+						   argv[RES_SQLITE_CONFIG_VAR_VAL], "");
 
 	if (!var) {
 		ast_log(LOG_WARNING, "Unable to allocate variable");
@@ -767,8 +766,8 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 	return 0;
 }
 
-static struct ast_config *config_handler(const char *database, 
-	const char *table, const char *file, struct ast_config *cfg, struct ast_flags flags)
+static struct ast_config *config_handler(const char *database,	const char *table, const char *file,
+struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl)
 {
 	struct cfg_entry_args args;
 	char *errormsg;
@@ -856,7 +855,7 @@ static int add_rt_cfg_entry(void *arg, int argc, char **argv, char **columnNames
 		if (!argv[i])
 			continue;
 
-		if (!(var = ast_variable_new(columnNames[i], argv[i])))
+		if (!(var = ast_variable_new(columnNames[i], argv[i], "")))
 			return 1;
 
 		if (!args->var)
@@ -990,7 +989,7 @@ static int add_rt_multi_cfg_entry(void *arg, int argc, char **argv, char **colum
 		return 1;
 	}
 
-	if (!(cat = ast_category_new(cat_name))) {
+	if (!(cat = ast_category_new(cat_name, "", 99999))) {
 		ast_log(LOG_WARNING, "Unable to allocate category\n");
 		return 1;
 	}
@@ -1001,7 +1000,7 @@ static int add_rt_multi_cfg_entry(void *arg, int argc, char **argv, char **colum
 		if (!argv[i] || !strcmp(args->initfield, columnNames[i]))
 			continue;
 
-		if (!(var = ast_variable_new(columnNames[i], argv[i]))) {
+		if (!(var = ast_variable_new(columnNames[i], argv[i], ""))) {
 			ast_log(LOG_WARNING, "Unable to allocate variable\n");
 			return 1;
 		}

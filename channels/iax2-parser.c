@@ -917,7 +917,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 					int len = strlen(var2->value) + strlen(tmp2) + 1;
 					char *tmp3 = alloca(len);
 					snprintf(tmp3, len, "%s%s", var2->value, tmp2);
-					var = ast_variable_new(tmp, tmp3);
+					var = ast_variable_new(tmp, tmp3, var2->file);
 					var->next = var2->next;
 					if (prev)
 						prev->next = var;
@@ -928,7 +928,7 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				}
 			}
 			if (!var2) {
-				var = ast_variable_new(tmp, tmp2);
+				var = ast_variable_new(tmp, tmp2, "");
 				var->next = ies->vars;
 				ies->vars = var;
 			}

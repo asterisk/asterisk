@@ -52,6 +52,7 @@ enum {
 struct ast_variable {
 	char *name;
 	char *value;
+	char *file;
 	int lineno;
 	int object;		/*!< 0 for variable, 1 for object */
 	int blanklines; 	/*!< Number of blanklines following entry */
@@ -61,7 +62,7 @@ struct ast_variable {
 	char stuff[0];
 };
 
-typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags);
+typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, struct ast_flags flags, const char *suggested_include_file);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
@@ -242,23 +243,25 @@ struct ast_category *ast_config_get_current_category(const struct ast_config *cf
 void ast_config_set_current_category(struct ast_config *cfg, const struct ast_category *cat);
 const char *ast_config_option(struct ast_config *cfg, const char *cat, const char *var);
 
-struct ast_category *ast_category_new(const char *name);
+struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno);
 void ast_category_append(struct ast_config *config, struct ast_category *cat);
 int ast_category_delete(struct ast_config *cfg, const char *category);
 void ast_category_destroy(struct ast_category *cat);
 struct ast_variable *ast_category_detach_variables(struct ast_category *cat);
 void ast_category_rename(struct ast_category *cat, const char *name);
 
-struct ast_variable *ast_variable_new(const char *name, const char *value);
+struct ast_variable *ast_variable_new(const char *name, const char *value, const char *filename);
+struct ast_config_include *ast_include_new(struct ast_config *conf, const char *from_file, const char *included_file, int is_exec, const char *exec_file, int from_lineno, char *real_included_file_name, int real_included_file_name_size);
+struct ast_config_include *ast_include_find(struct ast_config *conf, const char *included_file);
+void ast_include_rename(struct ast_config *conf, const char *from_file, const char *to_file);
 void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
 int ast_variable_delete(struct ast_category *category, const char *variable, const char *match);
 int ast_variable_update(struct ast_category *category, const char *variable, 
-	const char *value, const char *match, unsigned int object);
+						const char *value, const char *match, unsigned int object);
 
 int config_text_file_save(const char *filename, const struct ast_config *cfg, const char *generator);
 
-struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags);
-
+struct ast_config *ast_config_internal_load(const char *configfile, struct ast_config *cfg, struct ast_flags flags, const char *suggested_incl_file);
 /*! \brief Support code to parse config file arguments
  *
  * The function ast_parse_arg() provides a generic interface to parse

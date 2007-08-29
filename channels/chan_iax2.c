@@ -5225,7 +5225,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		/* We found our match (use the first) */
 		/* copy vars */
 		for (v = user->vars ; v ; v = v->next) {
-			if((tmpvar = ast_variable_new(v->name, v->value))) {
+			if((tmpvar = ast_variable_new(v->name, v->value, v->file))) {
 				tmpvar->next = iaxs[callno]->vars; 
 				iaxs[callno]->vars = tmpvar;
 			}
@@ -9741,7 +9741,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 				if (varname && (varval = strchr(varname,'='))) {
 					*varval = '\0';
 					varval++;
-					if((tmpvar = ast_variable_new(varname, varval))) {
+					if((tmpvar = ast_variable_new(varname, varval, ""))) {
 						tmpvar->next = user->vars; 
 						user->vars = tmpvar;
 					}

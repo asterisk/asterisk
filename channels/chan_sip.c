@@ -10028,7 +10028,7 @@ static struct ast_variable *copy_vars(struct ast_variable *src)
 	struct ast_variable *res = NULL, *tmp, *v = NULL;
 
 	for (v = src ; v ; v = v->next) {
-		if ((tmp = ast_variable_new(v->name, v->value))) {
+		if ((tmp = ast_variable_new(v->name, v->value, v->file))) {
 			tmp->next = res;
 			res = tmp;
 		}
@@ -17137,7 +17137,7 @@ static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 	
 	if ((varval = strchr(varname,'='))) {
 		*varval++ = '\0';
-		if ((tmpvar = ast_variable_new(varname, varval))) {
+		if ((tmpvar = ast_variable_new(varname, varval, ""))) {
 			tmpvar->next = list;
 			list = tmpvar;
 		}

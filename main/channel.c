@@ -177,10 +177,10 @@ struct ast_variable *ast_channeltype_list(void)
 	struct ast_variable *var=NULL, *prev = NULL;
 	AST_LIST_TRAVERSE(&backends, cl, list) {
 		if (prev)  {
-			if ((prev->next = ast_variable_new(cl->tech->type, cl->tech->description)))
+			if ((prev->next = ast_variable_new(cl->tech->type, cl->tech->description, "")))
 				prev = prev->next;
 		} else {
-			var = ast_variable_new(cl->tech->type, cl->tech->description);
+			var = ast_variable_new(cl->tech->type, cl->tech->description, "");
 			prev = var;
 		}
 	}

@@ -1463,7 +1463,7 @@ static struct ast_variable *add_var(const char *buf, struct ast_variable *list)
 
 	if ((varval = strchr(varname,'='))) {
 		*varval++ = '\0';
-		if ((tmpvar = ast_variable_new(varname, varval))) {
+		if ((tmpvar = ast_variable_new(varname, varval, ""))) {
 			tmpvar->next = list;
 			list = tmpvar;
 		}

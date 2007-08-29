@@ -620,6 +620,8 @@ struct ast_category {
 	char name[80];
 	int ignored;			/*!< do not let user of the config see this category */
 	int include_level;	
+    char *file;                /*!< the file name from whence this declaration was read */
+    int lineno;
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_variable *root;
@@ -634,9 +636,22 @@ struct ast_config {
 	struct ast_category *last_browse;		/*!< used to cache the last category supplied via category_browse */
 	int include_level;
 	int max_include_level;
+    struct ast_config_include *includes;  /*!< a list of inclusions, which should describe the entire tree */
 };
 
-typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, int withcomments);
+struct ast_config_include {
+	char *include_location_file;     /*!< file name in which the include occurs */
+	int  include_location_lineno;    /*!< lineno where include occurred */
+	int  exec;                       /*!< set to non-zero if itsa #exec statement */
+	char *exec_file;                 /*!< if it's an exec, you'll have both the /var/tmp to read, and the original script */
+	char *included_file;             /*!< file name included */
+	int inclusion_count;             /*!< if the file is included more than once, a running count thereof -- but, worry not,
+									   we explode the instances and will include those-- so all entries will be unique */
+	int output;                      /*!< a flag to indicate if the inclusion has been output */
+	struct ast_config_include *next; /*!< ptr to next inclusion in the list */
+};
+
+typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config, int withcomments, const char *suggested_include_file);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
 typedef struct ast_config *realtime_multi_get(const char *database, const char *table, va_list ap);
 typedef int realtime_update(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
@@ -653,11 +668,89 @@ struct ast_config_engine {
 
 static struct ast_config_engine *config_engine_list;
 
+/* taken from strings.h */
+
+static force_inline int ast_strlen_zero(const char *s)
+{
+	return (!s || (*s == '\0'));
+}
+
+#define S_OR(a, b)	(!ast_strlen_zero(a) ? (a) : (b))
+
+AST_INLINE_API(
+void ast_copy_string(char *dst, const char *src, size_t size),
+{
+	while (*src && size) {
+		*dst++ = *src++;
+		size--;
+	}
+	if (__builtin_expect(!size, 0))
+		dst--;
+	*dst = '\0';
+}
+)
+
+AST_INLINE_API(
+char *ast_skip_blanks(const char *str),
+{
+	while (*str && *str < 33)
+		str++;
+	return (char *)str;
+}
+)
+
+/*!
+  \brief Trims trailing whitespace characters from a string.
+  \param ast_trim_blanks function being used
+  \param str the input string
+  \return a pointer to the modified string
+ */
+AST_INLINE_API(
+char *ast_trim_blanks(char *str),
+{
+	char *work = str;
+
+	if (work) {
+		work += strlen(work) - 1;
+		/* It's tempting to only want to erase after we exit this loop, 
+		   but since ast_trim_blanks *could* receive a constant string
+		   (which we presumably wouldn't have to touch), we shouldn't
+		   actually set anything unless we must, and it's easier just
+		   to set each position to \0 than to keep track of a variable
+		   for it */
+		while ((work >= str) && *work < 33)
+			*(work--) = '\0';
+	}
+	return str;
+}
+)
+
+/*!
+  \brief Strip leading/trailing whitespace from a string.
+  \param s The string to be stripped (will be modified).
+  \return The stripped string.
+
+  This functions strips all leading and trailing whitespace
+  characters from the input string, and returns a pointer to
+  the resulting string. The string is modified in place.
+*/
+AST_INLINE_API(
+char *ast_strip(char *s),
+{
+	s = ast_skip_blanks(s);
+	if (s)
+		ast_trim_blanks(s);
+	return s;
+} 
+)
+
+
 /* from config.h */
 
 struct ast_variable {
 	char *name;
 	char *value;
+	char *file;
 	int lineno;
 	int object;		/*!< 0 for variable, 1 for object */
 	int blanklines; 	/*!< Number of blanklines following entry */
@@ -668,30 +761,136 @@ struct ast_variable {
 };
 
 static const char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
-static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, int withcomments);
+static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, int withcomments, const char *suggested_include_file);
 
 struct ast_config *localized_config_load_with_comments(const char *filename);
 static char *ast_category_browse(struct ast_config *config, const char *prev);
 static struct ast_variable *ast_variable_browse(const struct ast_config *config, const char *category);
 static void ast_variables_destroy(struct ast_variable *v);
 static void ast_config_destroy(struct ast_config *cfg);
+static struct ast_config_include *ast_include_new(struct ast_config *conf, const char *from_file, const char *included_file, int is_exec, const char *exec_file, int from_lineno, char *real_included_file_name, int real_included_file_name_size);
+static struct ast_config_include *ast_include_find(struct ast_config *conf, const char *included_file);
+void localized_ast_include_rename(struct ast_config *conf, const char *from_file, const char *to_file);
 
-static struct ast_variable *ast_variable_new(const char *name, const char *value);
+static struct ast_variable *ast_variable_new(const char *name, const char *value, const char *filename);
 
-static struct ast_variable *ast_variable_new(const char *name, const char *value) 
+static struct ast_variable *ast_variable_new(const char *name, const char *value, const char *filename) 
 {
 	struct ast_variable *variable;
 	int name_len = strlen(name) + 1;	
 
-	if ((variable = ast_calloc(1, name_len + strlen(value) + 1 + sizeof(*variable)))) {
+	if ((variable = ast_calloc(1, name_len + strlen(value) + 1 + strlen(filename) + 1 + sizeof(*variable)))) {
 		variable->name = variable->stuff;
 		variable->value = variable->stuff + name_len;		
+		variable->file = variable->value + strlen(value) + 1;		
 		strcpy(variable->name,name);
 		strcpy(variable->value,value);
+		strcpy(variable->file,filename);
 	}
 
 	return variable;
 }
+
+static struct ast_config_include *ast_include_new(struct ast_config *conf, const char *from_file, const char *included_file, int is_exec, const char *exec_file, int from_lineno, char *real_included_file_name, int real_included_file_name_size)
+{
+	/* a file should be included ONCE. Otherwise, if one of the instances is changed,
+       then all be changed. -- how do we know to include it? -- Handling modified 
+       instances is possible, I'd have
+       to create a new master for each instance. */
+	struct ast_config_include *inc;
+    
+	inc = ast_include_find(conf, included_file);
+	if (inc)
+	{
+		inc->inclusion_count++;
+		snprintf(real_included_file_name, real_included_file_name_size, "%s~~%d", included_file, inc->inclusion_count);
+		ast_log(LOG_WARNING,"'%s', line %d:  Same File included more than once! This data will be saved in %s if saved back to disk.\n", from_file, from_lineno, real_included_file_name);
+	} else
+		*real_included_file_name = 0;
+	
+	inc = ast_calloc(1,sizeof(struct ast_config_include));
+	inc->include_location_file = ast_strdup(from_file);
+	inc->include_location_lineno = from_lineno;
+	if (!ast_strlen_zero(real_included_file_name))
+		inc->included_file = ast_strdup(real_included_file_name);
+	else
+		inc->included_file = ast_strdup(included_file);
+	
+	inc->exec = is_exec;
+	if (is_exec)
+		inc->exec_file = ast_strdup(exec_file);
+	
+	/* attach this new struct to the conf struct */
+	inc->next = conf->includes;
+	conf->includes = inc;
+    
+	return inc;
+}
+
+void localized_ast_include_rename(struct ast_config *conf, const char *from_file, const char *to_file)
+{
+	struct ast_config_include *incl;
+	struct ast_category *cat;
+	struct ast_variable *v;
+    
+	int from_len = strlen(from_file);
+	int to_len = strlen(to_file);
+    
+	if (strcmp(from_file, to_file) == 0) /* no use wasting time if the name is the same */
+		return;
+	
+	/* the manager code allows you to read in one config file, then
+       write it back out under a different name. But, the new arrangement
+	   ties output lines to the file name. So, before you try to write
+       the config file to disk, better riffle thru the data and make sure
+       the file names are changed.
+	*/
+	/* file names are on categories, includes (of course), and on variables. So,
+	   traverse all this and swap names */
+	
+	for (incl = conf->includes; incl; incl=incl->next) {
+		if (strcmp(incl->include_location_file,from_file) == 0) {
+			if (from_len >= to_len)
+				strcpy(incl->include_location_file, to_file);
+			else {
+				free(incl->include_location_file);
+				incl->include_location_file = strdup(to_file);
+			}
+		}
+	}
+	for (cat = conf->root; cat; cat = cat->next) {
+		if (strcmp(cat->file,from_file) == 0) {
+			if (from_len >= to_len)
+				strcpy(cat->file, to_file);
+			else {
+				free(cat->file);
+				cat->file = strdup(to_file);
+			}
+		}
+		for (v = cat->root; v; v = v->next) {
+			if (strcmp(v->file,from_file) == 0) {
+				if (from_len >= to_len)
+					strcpy(v->file, to_file);
+				else {
+					free(v->file);
+					v->file = strdup(to_file);
+				}
+			}
+		}
+	}
+}
+
+static struct ast_config_include *ast_include_find(struct ast_config *conf, const char *included_file)
+{
+	struct ast_config_include *x;
+	for (x=conf->includes;x;x=x->next)
+	{
+		if (strcmp(x->included_file,included_file) == 0)
+			return x;
+	}
+	return 0;
+}
+
 
 static void ast_variable_append(struct ast_category *category, struct ast_variable *variable);
 
@@ -768,7 +967,7 @@ static const char *ast_variable_retrieve(const struct ast_config *config, const 
 
 static struct ast_variable *variable_clone(const struct ast_variable *old)
 {
-	struct ast_variable *new = ast_variable_new(old->name, old->value);
+	struct ast_variable *new = ast_variable_new(old->name, old->value, old->file);
 
 	if (new) {
 		new->lineno = old->lineno;
@@ -791,6 +990,22 @@ static void ast_variables_destroy(struct ast_variable *v)
 	}
 }
 
+static void ast_includes_destroy(struct ast_config_include *incls)
+{
+	struct ast_config_include *incl,*inclnext;
+    
+	for (incl=incls; incl; incl = inclnext) {
+		inclnext = incl->next;
+		if (incl->include_location_file)
+			free(incl->include_location_file);
+		if (incl->exec_file)
+			free(incl->exec_file);
+		if (incl->included_file)
+			free(incl->included_file);
+		free(incl);
+	}
+}
+
 static void ast_config_destroy(struct ast_config *cfg)
 {
 	struct ast_category *cat, *catn;
@@ -798,6 +1013,8 @@ static void ast_config_destroy(struct ast_config *cfg)
 	if (!cfg)
 		return;
 
+	ast_includes_destroy(cfg->includes);
+	
 	cat = cfg->root;
 	while (cat) {
 		ast_variables_destroy(cat->root);
@@ -2431,83 +2648,6 @@ static int clearglobalvars_config = 0;
 static void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
 
 
-/* taken from strings.h */
-
-static force_inline int ast_strlen_zero(const char *s)
-{
-	return (!s || (*s == '\0'));
-}
-
-#define S_OR(a, b)	(!ast_strlen_zero(a) ? (a) : (b))
-
-AST_INLINE_API(
-void ast_copy_string(char *dst, const char *src, size_t size),
-{
-	while (*src && size) {
-		*dst++ = *src++;
-		size--;
-	}
-	if (__builtin_expect(!size, 0))
-		dst--;
-	*dst = '\0';
-}
-)
-
-AST_INLINE_API(
-char *ast_skip_blanks(const char *str),
-{
-	while (*str && *str < 33)
-		str++;
-	return (char *)str;
-}
-)
-
-/*!
-  \brief Trims trailing whitespace characters from a string.
-  \param ast_trim_blanks function being used
-  \param str the input string
-  \return a pointer to the modified string
- */
-AST_INLINE_API(
-char *ast_trim_blanks(char *str),
-{
-	char *work = str;
-
-	if (work) {
-		work += strlen(work) - 1;
-		/* It's tempting to only want to erase after we exit this loop, 
-		   but since ast_trim_blanks *could* receive a constant string
-		   (which we presumably wouldn't have to touch), we shouldn't
-		   actually set anything unless we must, and it's easier just
-		   to set each position to \0 than to keep track of a variable
-		   for it */
-		while ((work >= str) && *work < 33)
-			*(work--) = '\0';
-	}
-	return str;
-}
-)
-
-/*!
-  \brief Strip leading/trailing whitespace from a string.
-  \param s The string to be stripped (will be modified).
-  \return The stripped string.
-
-  This functions strips all leading and trailing whitespace
-  characters from the input string, and returns a pointer to
-  the resulting string. The string is modified in place.
-*/
-AST_INLINE_API(
-char *ast_strip(char *s),
-{
-	s = ast_skip_blanks(s);
-	if (s)
-		ast_trim_blanks(s);
-	return s;
-} 
-)
-
-
 /* stolen from callerid.c */
 
 /*! \brief Clean up phone string
@@ -3160,12 +3300,12 @@ static struct ast_config_engine *find_engine(const char *family, char *database,
 				ret = eng;
 		}
 	}
-
+	
 	
 	/* if we found a mapping, but the engine is not available, then issue a warning */
 	if (map && !ret)
 		ast_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
-
+	
 	return ret;
 }
 
@@ -3176,15 +3316,17 @@ struct ast_category *ast_config_get_current_category(const struct ast_config *cf
 	return cfg->current;
 }
 
-static struct ast_category *ast_category_new(const char *name);
+static struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno);
 
-static struct ast_category *ast_category_new(const char *name) 
+static struct ast_category *ast_category_new(const char *name, const char *in_file, int lineno)
 {
 	struct ast_category *category;
 
 	if ((category = ast_calloc(1, sizeof(*category))))
 		ast_copy_string(category->name, name, sizeof(category->name));
-	return category;
+	category->file = strdup(in_file);
+	category->lineno = lineno; /* if you don't know the lineno, set it to 999999 or something real big */
+ 	return category;
 }
 
 struct ast_category *localized_category_get(const struct ast_config *config, const char *category_name);
@@ -3236,6 +3378,9 @@ static void ast_category_destroy(struct ast_category *cat);
 static void ast_category_destroy(struct ast_category *cat)
 {
 	ast_variables_destroy(cat->root);
+	if (cat->file)
+		free(cat->file);
+	
 	free(cat);
 }
 
@@ -3245,9 +3390,9 @@ static struct ast_config_engine text_file_engine = {
 };
 
 
-static struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments);
+static struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments, const char *suggested_incl_file);
 
-static struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments)
+static struct ast_config *ast_config_internal_load(const char *filename, struct ast_config *cfg, int withcomments, const char *suggested_incl_file)
 {
 	char db[256];
 	char table[256];
@@ -3279,7 +3424,7 @@ static struct ast_config *ast_config_internal_load(const char *filename, struct 
 		}
 	}
 
-	result = loader->load_func(db, table, filename, cfg, withcomments);
+	result = loader->load_func(db, table, filename, cfg, withcomments, suggested_incl_file);
 	/* silence is golden 
 	   ast_log(LOG_WARNING, "finished internal loading file %s level=%d\n", filename, cfg->include_level);
 	*/
@@ -3291,7 +3436,7 @@ static struct ast_config *ast_config_internal_load(const char *filename, struct 
 }
 
 
-static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile, int withcomments)
+static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile, int withcomments, const char *suggested_include_file)
 {
 	char *c;
 	char *cur = buf;
@@ -3315,9 +3460,11 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
  		if (*c++ != '(')
  			c = NULL;
 		catname = cur;
-		if (!(*cat = newcat = ast_category_new(catname))) {
+		if (!(*cat = newcat = ast_category_new(catname, ast_strlen_zero(suggested_include_file)?configfile:suggested_include_file, lineno))) {
 			return -1;
 		}
+		(*cat)->lineno = lineno;
+        
 		/* add comments */
 		if (withcomments && comment_buffer && comment_buffer[0] ) {
 			newcat->precomments = ALLOC_COMMENT(comment_buffer);
@@ -3390,10 +3537,15 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		}
 		if (do_include || do_exec) {
 			if (c) {
+				char *cur2;
+				char real_inclusion_name[256];
+				struct ast_config_include *inclu;
+                
 				/* Strip off leading and trailing "'s and <>'s */
 				while((*c == '<') || (*c == '>') || (*c == '\"')) c++;
 				/* Get rid of leading mess */
 				cur = c;
+				cur2 = cur;
 				while (!ast_strlen_zero(cur)) {
 					c = cur + strlen(cur) - 1;
 					if ((*c == '>') || (*c == '<') || (*c == '\"'))
@@ -3413,7 +3565,10 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				/* A #include */
 				/* ast_log(LOG_WARNING, "Reading in included file %s withcomments=%d\n", cur, withcomments); */
 				
-				do_include = ast_config_internal_load(cur, cfg, withcomments) ? 1 : 0;
+				/* record this inclusion */
+				inclu = ast_include_new(cfg, configfile, cur, do_exec, cur2, lineno, real_inclusion_name, sizeof(real_inclusion_name));
+				
+				do_include = ast_config_internal_load(cur, cfg, withcomments, real_inclusion_name) ? 1 : 0;
 				if(!ast_strlen_zero(exec_file))
 					unlink(exec_file);
 				if(!do_include)
@@ -3447,7 +3602,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				c++;
 			} else
 				object = 0;
-			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c)))) {
+			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), configfile))) {
 				v->lineno = lineno;
 				v->object = object;
 				/* Put and reset comments */
@@ -3489,7 +3644,7 @@ void localized_use_conf_dir(void)
 }
 
 
-static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, int withcomments)
+static struct ast_config *config_text_file_load(const char *database, const char *table, const char *filename, struct ast_config *cfg, int withcomments, const char *suggested_include_file)
 {
 	char fn[256];
 	char buf[8192];
@@ -3635,7 +3790,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, filename, withcomments)) {
+						if (process_text_line(cfg, &cat, buf, lineno, filename, withcomments, suggested_include_file)) {
 							cfg = NULL;
 							break;
 						}
@@ -3695,7 +3850,7 @@ struct ast_config *localized_config_load(const char *filename)
 	if (!cfg)
 		return NULL;
 
-	result = ast_config_internal_load(filename, cfg, 0);
+	result = ast_config_internal_load(filename, cfg, 0, "");
 	if (!result)
 		ast_config_destroy(cfg);
 
@@ -3713,7 +3868,7 @@ struct ast_config *localized_config_load_with_comments(const char *filename)
 	if (!cfg)
 		return NULL;
 
-	result = ast_config_internal_load(filename, cfg, 1);
+	result = ast_config_internal_load(filename, cfg, 1, "");
 	if (!result)
 		ast_config_destroy(cfg);
 
@@ -3769,26 +3924,94 @@ void ast_config_set_current_category(struct ast_config *cfg, const struct ast_ca
 	cfg->current = (struct ast_category *) cat;
 }
 
+/* NOTE: categories and variables each have a file and lineno attribute. On a save operation, these are used to determine
+   which file and line number to write out to. Thus, an entire hierarchy of config files (via #include statements) can be
+   recreated. BUT, care must be taken to make sure that every cat and var has the proper file name stored, or you may
+   be shocked and mystified as to why things are not showing up in the files! 
+   
+   Also, All #include/#exec statements are recorded in the "includes" LL in the ast_config structure. The file name
+   and line number are stored for each include, plus the name of the file included, so that these statements may be
+   included in the output files on a file_save operation. 
+   
+   The lineno's are really just for relative placement in the file. There is no attempt to make sure that blank lines
+   are included to keep the lineno's the same between input and output. The lineno fields are used mainly to determine
+   the position of the #include and #exec directives. So, blank lines tend to disappear from a read/rewrite operation,
+   and a header gets added.
+   
+   vars and category heads are output in the order they are stored in the config file. So, if the software
+   shuffles these at all, then the placement of #include directives might get a little mixed up, because the
+   file/lineno data probably won't get changed.
+   
+*/
+
+static void gen_header(FILE *f1, const char *configfile, const char *fn, const char *generator)
+{
+	char date[256]="";
+	time_t t;
+	time(&t);
+	ast_copy_string(date, ctime(&t), sizeof(date));
+	
+	fprintf(f1, ";!\n");
+	fprintf(f1, ";! Automatically generated configuration file\n");
+	if (strcmp(configfile, fn))
+		fprintf(f1, ";! Filename: %s (%s)\n", configfile, fn);
+	else
+		fprintf(f1, ";! Filename: %s\n", configfile);
+	fprintf(f1, ";! Generator: %s\n", generator);
+	fprintf(f1, ";! Creation Date: %s", date);
+	fprintf(f1, ";!\n");
+}
+
+static void set_fn(char *fn, int fn_size, const char *file, const char *configfile)
+{
+	if (!file || file[0] == 0) {
+		if (configfile[0] == '/')
+			ast_copy_string(fn, configfile, fn_size);
+		else
+			snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
+	} else if (file[0] == '/') 
+		ast_copy_string(fn, file, fn_size);
+	else
+		snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, file);
+}
+
 int localized_config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator);
 
 int localized_config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
 	FILE *f;
 	char fn[256];
-	char date[256]="";
-	time_t t;
 	struct ast_variable *var;
 	struct ast_category *cat;
 	struct ast_comment *cmt;
+	struct ast_config_include *incl;
 	int blanklines = 0;
-
-	if (configfile[0] == '/') {
-		ast_copy_string(fn, configfile, sizeof(fn));
-	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
+	
+	/* reset all the output flags, in case this isn't our first time saving this data */
+	
+	for (incl=cfg->includes; incl; incl = incl->next)
+		incl->output = 0;
+	
+	/* go thru all the inclusions and make sure all the files involved (configfile plus all its inclusions)
+	   are all truncated to zero bytes and have that nice header*/
+	
+	for (incl=cfg->includes; incl; incl = incl->next)
+	{
+		if (!incl->exec) { /* leave the execs alone -- we'll write out the #exec directives, but won't zero out the include files or exec files*/
+			FILE *f1;
+			
+			set_fn(fn, sizeof(fn), incl->included_file, configfile); /* normally, fn is just set to incl->included_file, prepended with config dir if relative */
+			f1 = fopen(fn,"w");
+			if (f1) {
+				gen_header(f1, configfile, fn, generator);
+				fclose(f1); /* this should zero out the file */
+			} else {
+				ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
+			}
+		}
 	}
-	time(&t);
-	ast_copy_string(date, ctime(&t), sizeof(date));
+	
+	set_fn(fn, sizeof(fn), 0, configfile); /* just set fn to absolute ver of configfile */
 #ifdef __CYGWIN__	
 	if ((f = fopen(fn, "w+"))) {
 #else
@@ -3796,36 +4019,76 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 #endif	    
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Saving '%s': ", fn);
-		fprintf(f, ";!\n");
-		fprintf(f, ";! Automatically generated configuration file\n");
-		if (strcmp(configfile, fn))
-			fprintf(f, ";! Filename: %s (%s)\n", configfile, fn);
-		else
-			fprintf(f, ";! Filename: %s\n", configfile);
-		fprintf(f, ";! Generator: %s\n", generator);
-		fprintf(f, ";! Creation Date: %s", date);
-		fprintf(f, ";!\n");
+
+		gen_header(f, configfile, fn, generator);
 		cat = cfg->root;
+		fclose(f);
+        
+		/* from here out, we open each involved file and concat the stuff we need to add to the end and immediately close... */
+		/* since each var, cat, and associated comments can come from any file, we have to be 
+		   mobile, and open each file, print, and close it on an entry-by-entry basis */
+		
 		while(cat) {
-			/* Dump section with any appropriate comment */
-			for (cmt = cat->precomments; cmt; cmt=cmt->next)
+			set_fn(fn, sizeof(fn), cat->file, configfile);
+			f = fopen(fn, "a");
+			if (!f)
 			{
+				ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
+				return -1;
+			}
+			
+			/* dump any includes that happen before this category header */
+			for (incl=cfg->includes; incl; incl = incl->next) {
+				if (strcmp(incl->include_location_file, cat->file) == 0){
+					if (cat->lineno > incl->include_location_lineno && !incl->output) {
+						if (incl->exec)
+							fprintf(f,"#exec \"%s\"\n", incl->exec_file);
+						else
+							fprintf(f,"#include \"%s\"\n", incl->included_file);
+						incl->output = 1;
+					}
+				}
+			}
+            
+			/* Dump section with any appropriate comment */
+			for (cmt = cat->precomments; cmt; cmt=cmt->next) {
 				if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 					fprintf(f,"%s", cmt->cmt);
 			}
 			if (!cat->precomments)
 				fprintf(f,"\n");
 			fprintf(f, "[%s]", cat->name);
-			for(cmt = cat->sameline; cmt; cmt=cmt->next)
-			{
+			for(cmt = cat->sameline; cmt; cmt=cmt->next) {
 				fprintf(f,"%s", cmt->cmt);
 			}
 			if (!cat->sameline)
 				fprintf(f,"\n");
+			fclose(f);
+            
 			var = cat->root;
 			while(var) {
-				for (cmt = var->precomments; cmt; cmt=cmt->next)
+				set_fn(fn, sizeof(fn), var->file, configfile);
+				f = fopen(fn, "a");
+				if (!f)
 				{
+					ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
+					return -1;
+				}
+                
+				/* dump any includes that happen before this category header */
+				for (incl=cfg->includes; incl; incl = incl->next) {
+					if (strcmp(incl->include_location_file, var->file) == 0){
+						if (var->lineno > incl->include_location_lineno && !incl->output) {
+							if (incl->exec)
+								fprintf(f,"#exec \"%s\"\n", incl->exec_file);
+							else
+								fprintf(f,"#include \"%s\"\n", incl->included_file);
+							incl->output = 1;
+						}
+					}
+				}
+                
+				for (cmt = var->precomments; cmt; cmt=cmt->next) {
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 						fprintf(f,"%s", cmt->cmt);
 				}
@@ -3838,13 +4101,12 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 					while (blanklines--)
 						fprintf(f, "\n");
 				}
-					
+				
+				fclose(f);
+                
+				
 				var = var->next;
 			}
-#if 0
-			/* Put an empty line */
-			fprintf(f, "\n");
-#endif
 			cat = cat->next;
 		}
 		if ((option_verbose > 1) && !option_debug)
@@ -3856,7 +4118,31 @@ int localized_config_text_file_save(const char *configfile, const struct ast_con
 			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
 		return -1;
 	}
-	fclose(f);
+
+	/* Now, for files with trailing #include/#exec statements,
+	   we have to make sure every entry is output */
+	
+	for (incl=cfg->includes; incl; incl = incl->next) {
+		if (!incl->output) {
+			/* open the respective file */
+			set_fn(fn, sizeof(fn), incl->include_location_file, configfile);
+			f = fopen(fn, "a");
+			if (!f)
+			{
+				ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
+				return -1;
+			}
+            
+			/* output the respective include */
+			if (incl->exec)
+				fprintf(f,"#exec \"%s\"\n", incl->exec_file);
+			else
+				fprintf(f,"#include \"%s\"\n", incl->included_file);
+			fclose(f);
+			incl->output = 1;
+		}
+	}
+	
 	return 0;
 }
 
