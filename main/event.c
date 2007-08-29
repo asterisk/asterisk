@@ -49,7 +49,7 @@ struct ast_event_ie {
  * \brief An event
  *
  * \note The format of this structure is important, and can not change, since
- *       they are sent directly over the network (via IAX2).
+ *       they may be sent directly over the network.
  *
  */
 struct ast_event {
