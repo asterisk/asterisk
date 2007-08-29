@@ -318,6 +318,7 @@ struct member {
 	int penalty;                        /*!< Are we a last resort? */
 	int calls;                          /*!< Number of calls serviced by this member */
 	int dynamic;                        /*!< Are we dynamically added? */
+	int realtime;						/*!< Is this member realtime? */
 	int status;                         /*!< Status of queue member */
 	int paused;                         /*!< Are we paused (not accepting calls)? */
 	time_t lastcall;                    /*!< When last successful call was hungup */
@@ -954,6 +955,7 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 	if (!m) {
 		if ((m = create_queue_member(interface, membername, penalty, paused))) {
 			m->dead = 0;
+			m->realtime = 1;
 			add_to_interfaces(interface);
 			if (prev_m) {
 				prev_m->next = m;
@@ -1081,10 +1083,10 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	if (q->strategy == QUEUE_STRATEGY_ROUNDROBIN)
 		rr_dep_warning();
 
-	/* Temporarily set non-dynamic members dead so we can detect deleted ones. 
+	/* Temporarily set realtime members dead so we can detect deleted ones. 
 	 * Also set the membercount correctly for realtime*/
 	for (m = q->members; m; m = m->next, q->membercount++) {
-		if (!m->dynamic)
+		if (m->realtime)
 			m->dead = 1;
 	}
 
@@ -1138,9 +1140,9 @@ static void update_realtime_members(struct call_queue *q)
 
 	ast_mutex_lock(&q->lock);
 	
-	/* Temporarily set non-dynamic members dead so we can detect deleted ones.*/ 
+	/* Temporarily set realtime  members dead so we can detect deleted ones.*/ 
 	for (m = q->members; m; m = m->next) {
-		if (!m->dynamic)
+		if (m->realtime)
 			m->dead = 1;
 	}
 
@@ -4026,6 +4028,8 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 					ast_build_string(&max, &max_left, " with penalty %d", mem->penalty);
 				if (mem->dynamic)
 					ast_build_string(&max, &max_left, " (dynamic)");
+				if (mem->realtime)
+					ast_build_string(&max, &max_left, " (realtime)");
 				if (mem->paused)
 					ast_build_string(&max, &max_left, " (paused)");
 				ast_build_string(&max, &max_left, " (%s)", devstate2str(mem->status));
