@@ -38,6 +38,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Only use one thread for now to ensure ordered delivery */
 #define NUM_EVENT_THREADS 1
 
+/*!
+ * \brief An event information element
+ *
+ * \note The format of this structure is important.  Since these events may
+ *       be sent directly over a network, changing this structure will break
+ *       compatibility with older versions.  However, at this point, this code
+ *       has not made it into a release, so it is still fair game for change.
+ */
 struct ast_event_ie {
 	enum ast_event_ie_type ie_type:16;
 	/*! Total length of the IE payload */
@@ -48,9 +56,13 @@ struct ast_event_ie {
 /*!
  * \brief An event
  *
- * \note The format of this structure is important, and can not change, since
- *       they may be sent directly over the network.
+ * An ast_event consists of an event header (this structure), and zero or
+ * more information elements defined by ast_event_ie.
  *
+ * \note The format of this structure is important.  Since these events may
+ *       be sent directly over a network, changing this structure will break
+ *       compatibility with older versions.  However, at this point, this code
+ *       has not made it into a release, so it is still fair game for change.
  */
 struct ast_event {
 	/*! Event type */
