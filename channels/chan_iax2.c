@@ -3710,7 +3710,6 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	struct ast_channel *tmp;
 	struct chan_iax2_pvt *i;
 	struct ast_variable *v = NULL;
-	struct ast_datastore *variablestore = NULL;
 
 	if (!(i = iaxs[callno])) {
 		ast_log(LOG_WARNING, "No IAX2 pvt found for callno '%d' !\n", callno);
@@ -3759,29 +3758,8 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 
 	/* Set inherited variables */
 	if (i->vars) {
-		AST_LIST_HEAD(, ast_var_t) *varlist;
-		varlist = ast_calloc(1, sizeof(*varlist));
-		variablestore = ast_channel_datastore_alloc(&iax2_variable_datastore_info, NULL);
-		if (variablestore && varlist) {
-			variablestore->data = varlist;
-			variablestore->inheritance = DATASTORE_INHERIT_FOREVER;
-			AST_LIST_HEAD_INIT(varlist);
-			for (v = i->vars ; v ; v = v->next) {
-				struct ast_var_t *newvar = ast_var_assign(v->name, v->value);
-				if (!newvar) {
-					ast_log(LOG_ERROR, "Out of memory\n");
-					break;
-				}
-				AST_LIST_INSERT_TAIL(varlist, newvar, entries);
-			}
-			ast_channel_datastore_add(tmp, variablestore);
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			if (variablestore)
-				ast_channel_datastore_free(variablestore);
-			if (varlist)
-				ast_free(varlist);
-		}
+		for (v = i->vars ; v ; v = v->next)
+			pbx_builtin_setvar_helper(tmp, v->name, v->value);
 	}
 
 	if (state != AST_STATE_DOWN) {
