@@ -380,7 +380,7 @@ enum ast_event_ie_type ast_event_iterator_get_ie_type(struct ast_event_iterator 
 	return iterator->ie->ie_type;
 }
 
-uint32_t ast_event_iteragor_get_ie_uint(struct ast_event_iterator *iterator)
+uint32_t ast_event_iterator_get_ie_uint(struct ast_event_iterator *iterator)
 {
 	return ntohl(*iterator->ie->ie_payload);
 }
@@ -416,13 +416,19 @@ const char *ast_event_get_ie_str(const struct ast_event *event, enum ast_event_i
 
 const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_ie_type ie_type)
 {
-	struct ast_event_iterator iterator;
-
-	for (ast_event_iterator_init(&iterator, event); !ast_event_iterator_next(&iterator); ) {
-		if (ast_event_iterator_get_ie_type(&iterator) == ie_type)
-			return ast_event_iterator_get_ie_raw(&iterator);
+	struct ast_event_ie *ie;
+	uint16_t event_len;
+	
+	ie_type = ntohs(ie_type);
+	event_len = ntohs(event->event_len);
+	
+	ie = ((void *) event) + sizeof(*event);
+	
+	while ((((void *) ie) - ((void *) event)) < event_len) {
+		if (ie->ie_type == ie_type)
+			return ie->ie_payload;
 	}
-
+	
 	return NULL;
 }
 

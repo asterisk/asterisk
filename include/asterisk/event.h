@@ -450,7 +450,7 @@ enum ast_event_ie_type ast_event_iterator_get_ie_type(struct ast_event_iterator 
  *
  * \return This returns the payload of the information element as a uint.
  */
-uint32_t ast_event_iteragor_get_ie_uint(struct ast_event_iterator *iterator);
+uint32_t ast_event_iterator_get_ie_uint(struct ast_event_iterator *iterator);
 
 /*!
  * \brief Get the value of the current IE in the iterator as a string payload
