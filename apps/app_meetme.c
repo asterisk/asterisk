@@ -2420,7 +2420,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	ast_log(LOG_NOTICE,"The requested confno is '%s'?\n", confno);
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
-		ast_log(LOG_NOTICE,"Does conf %s match %s?\n", confno, cnf->confno);
+		ast_debug(3,"Does conf %s match %s?\n", confno, cnf->confno);
 		if (!strcmp(confno, cnf->confno)) 
 			break;
 	}
@@ -2458,7 +2458,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					return NULL;
 				
 				AST_STANDARD_APP_ARGS(args, parse);
-				ast_log(LOG_NOTICE,"Will conf %s match %s?\n", confno, args.confno);
+				ast_debug(3,"Will conf %s match %s?\n", confno, args.confno);
 				if (!strcasecmp(args.confno, confno)) {
 					/* Bingo it's a valid conference */
 					cnf = build_conf(args.confno,
