@@ -427,6 +427,7 @@ const void *ast_event_get_ie_raw(const struct ast_event *event, enum ast_event_i
 	while ((((void *) ie) - ((void *) event)) < event_len) {
 		if (ie->ie_type == ie_type)
 			return ie->ie_payload;
+		ie = ((void *) ie) + sizeof(*ie) + ntohs(ie->ie_payload_len);
 	}
 	
 	return NULL;
