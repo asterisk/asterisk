@@ -53,6 +53,10 @@
 #ifndef AST_EVENT_H
 #define AST_EVENT_H
 
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
+
 #include "asterisk/event_defs.h"
 
 /*! 
@@ -469,5 +473,9 @@ const char *ast_event_iterator_get_ie_str(struct ast_event_iterator *iterator);
  * \return This returns the payload of the information element as type raw.
  */
 void *ast_event_iterator_get_ie_raw(struct ast_event_iterator *iterator);
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}
+#endif
 
 #endif /* AST_EVENT_H */
