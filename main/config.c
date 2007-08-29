@@ -636,8 +636,6 @@ int ast_variable_update(struct ast_category *category, const char *variable,
 {
 	struct ast_variable *cur, *prev=NULL, *newer;
 
-	newer->object = object;
-
 	for (cur = category->root; cur; prev = cur, cur = cur->next) {
 		if (strcasecmp(cur->name, variable) ||
 			(!ast_strlen_zero(match) && strcasecmp(cur->value, match)))
