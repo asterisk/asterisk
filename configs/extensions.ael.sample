@@ -3,11 +3,11 @@
 //
 //
 // Static extension configuration file, used by
-// the pbx_config module. This is where you configure all your 
+// the pbx_ael module. This is where you configure all your 
 // inbound and outbound calls in Asterisk. 
 // 
 // This configuration file is reloaded 
-// - With the "extensions reload" command in the CLI
+// - With the "ael reload" command in the CLI
 // - With the "reload" command (that reloads everything) in the CLI
 
 // The "Globals" category contains global variables that can be referenced
