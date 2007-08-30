@@ -9359,7 +9359,7 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 				transmit_fake_auth_response(p, &p->initreq, 1);
 			} else {
 				/* URI not found */
-				if (res == AUTH_UNKNOWN_DOMAIN || res == AUTH_PEER_NOT_DYNAMIC)
+				if (res == AUTH_PEER_NOT_DYNAMIC)
 					transmit_response(p, "403 Forbidden", &p->initreq);
 				else
 					transmit_response(p, "404 Not found", &p->initreq);
