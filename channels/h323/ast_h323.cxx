@@ -287,7 +287,9 @@ int MyH323EndPoint::MyMakeCall(const PString & dest, PString & token, void *_cal
 		cout << "\t-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
 		cout << "\t-- Call token is " << (const char *)token << endl;
 		cout << "\t-- Call reference is " << *callReference << endl;
+#ifdef PTRACING
 		cout << "\t-- DTMF Payload is " << connection->dtmfCodec << endl;
+#endif
 	}
 	connection->Unlock();
 	return 0;
@@ -1649,10 +1651,12 @@ void MyH323Connection::OnSendCapabilitySet(H245_TerminalCapabilitySet & pdu)
 				H245_AudioTelephonyEventCapability & atec = cap;
 				atec.m_dynamicRTPPayloadType = dtmfCodec;
 //				on_set_rfc2833_payload(GetCallReference(), (const char *)GetCallToken(), (int)dtmfCodec);
+#ifdef PTRACING
 				if (h323debug) {
 					cout << "\t-- Transmitting RFC2833 on payload " <<
 						atec.m_dynamicRTPPayloadType << endl;
 				}
+#endif
 			}
 		}
 	}
@@ -1712,9 +1716,11 @@ BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCa
 		on_set_rfc2833_payload(GetCallReference(), (const char *)GetCallToken(), (int)pt);
 		if ((dtmfMode == H323_DTMF_RFC2833) && (sendUserInputMode == SendUserInputAsTone))
 			sendUserInputMode = SendUserInputAsInlineRFC2833;
+#ifdef PTRACING
 		if (h323debug) {
 			cout << "\t-- Inbound RFC2833 on payload " << pt << endl;
 		}
+#endif
 	}
 	memset(&prefs, 0, sizeof(prefs));
 	int peer_capabilities = 0;
