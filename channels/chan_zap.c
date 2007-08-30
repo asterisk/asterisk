@@ -111,6 +111,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SMDI_MD_WAIT_TIMEOUT 1500 /* 1.5 seconds */
 
+#ifdef ZT_SPANINFO_HAS_LINECONFIG
+static const char *lbostr[] = {
+"0 db (CSU)/0-133 feet (DSX-1)",
+"133-266 feet (DSX-1)",
+"266-399 feet (DSX-1)",
+"399-533 feet (DSX-1)",
+"533-655 feet (DSX-1)",
+"-7.5db (CSU)",
+"-15db (CSU)",
+"-22.5db (CSU)"
+};
+#endif
+
 /*! Global jitterbuffer configuration - by default, jb is disabled */
 static struct ast_jb_conf default_jbconf =
 {
@@ -11026,8 +11039,13 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 
 /* Based on irqmiss.c */
 static int zap_show_status(int fd, int argc, char *argv[]) {
+#ifdef ZT_SPANINFO_HAS_LINECONFIG
+	#define FORMAT "%-40.40s %-7.7s %-6d %-6d %-6d %-3.3s %-4.4s %-8.8s %s\n"
+	#define FORMAT2 "%-40.40s %-7.7s %-6.6s %-6.6s %-6.6s %-3.3s %-4.4s %-8.8s %s\n"
+#else
 	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
 	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
+#endif
 
 	int span;
 	int res;
@@ -11042,7 +11060,11 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 		ast_cli(fd, "No Zaptel interface found.\n");
 		return RESULT_FAILURE;
 	}
-	ast_cli(fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4");
+	ast_cli(fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4"
+#ifdef ZT_SPANINFO_HAS_LINECONFIG
+			, "Framing", "Coding", "Options", "LBO"
+#endif
+		);
 
 	for (span = 1; span < ZT_MAX_SPANS; ++span) {
 		s.spanno = span;
@@ -11077,7 +11099,21 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 				strcpy(alarms, "UNCONFIGURED");
 		}
 
-		ast_cli(fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count);
+		ast_cli(fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count
+#ifdef ZT_SPANINFO_HAS_LINECONFIG
+				, s.lineconfig & ZT_CONFIG_D4 ? "D4" :
+				  s.lineconfig & ZT_CONFIG_ESF ? "ESF" :
+				  s.lineconfig & ZT_CONFIG_CCS ? "CCS" :
+				  "CAS"
+				, s.lineconfig & ZT_CONFIG_B8ZS ? "B8ZS" :
+				  s.lineconfig & ZT_CONFIG_HDB3 ? "HDB3" :
+				  s.lineconfig & ZT_CONFIG_AMI ? "AMI" :
+				  "Unk"
+				, s.lineconfig & ZT_CONFIG_CRC4 ?
+				  s.lineconfig & ZT_CONFIG_NOTOPEN ? "CRC4/YEL" : "CRC4" : "YEL"
+				, lbostr[s.lbo]
+#endif
+			);
 	}
 	close(ctl);
 
