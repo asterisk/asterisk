@@ -574,7 +574,7 @@ int reload_logger(int rotate)
 
 	filesize_reload_needed = 0;
 
-	init_logger_chain(1, 1);
+	init_logger_chain(rotate ? 0 : 1 /* reload */, 1 /* locked */);
 
 	if (logfiles.event_log) {
 		snprintf(old, sizeof(old), "%s/%s", ast_config_AST_LOG_DIR, EVENTLOG);
@@ -894,7 +894,7 @@ int init_logger(void)
 	ast_mkdir(ast_config_AST_LOG_DIR, 0777);
   
 	/* create log channels */
-	init_logger_chain(0, 0);
+	init_logger_chain(0 /* reload */, 0 /* locked */);
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
