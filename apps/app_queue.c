@@ -2658,8 +2658,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					res2 |= ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
 				}
 				if (!res2 && announce) {
-					if (play_file(peer, announce))
-						ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
+					play_file(peer, announce);
 				}
 				if (!res2 && qe->parent->reportholdtime) {
 					if (!play_file(peer, qe->parent->sound_reporthold)) {
