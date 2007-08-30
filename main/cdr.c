@@ -821,8 +821,6 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 	for ( ; cdr ; cdr = cdr->next) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			chan = S_OR(cdr->channel, "<unknown>");
-			if (!ast_strlen_zero(cdr->channel)) 
-				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 			ast_copy_string(cdr->channel, c->name, sizeof(cdr->channel));
 			set_one_cid(cdr, c);
 
