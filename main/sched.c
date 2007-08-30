@@ -209,7 +209,8 @@ static int sched_settime(struct timeval *tv, int when)
 
 int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
 {
-	if (old_id > -1)
+	/* 0 means the schedule item is new; do not delete */
+	if (old_id > 0)
 		ast_sched_del(con, old_id);
 	return ast_sched_add_variable(con, when, callback, data, variable);
 }
