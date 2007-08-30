@@ -2659,9 +2659,9 @@ static int handle_minivm_show_stats(int fd, int argc, char *argv[])
 	ast_cli(fd, "* Mini-Voicemail statistics\n");
 	ast_cli(fd, "  -------------------------\n");
 	ast_cli(fd, "\n");
-	ast_cli(fd, "  Voicemail accounts:                  %-5.5d\n", global_stats.voicemailaccounts);
-	ast_cli(fd, "  Templates:                           %-5.5d\n", global_stats.templates);
-	ast_cli(fd, "  Timezones:                           %-5.5d\n", global_stats.timezones);
+	ast_cli(fd, "  Voicemail accounts:                  %5d\n", global_stats.voicemailaccounts);
+	ast_cli(fd, "  Templates:                           %5d\n", global_stats.templates);
+	ast_cli(fd, "  Timezones:                           %5d\n", global_stats.timezones);
 	if (global_stats.receivedmessages == 0) {
 		ast_cli(fd, "  Received messages since last reset:  <none>\n");
 	} else {
