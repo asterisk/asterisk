@@ -1557,9 +1557,6 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 		case EVENT_PROGRESS:
 		case EVENT_PROCEEDING:
 		case EVENT_SETUP_ACKNOWLEDGE:
-
-		setup_bc(bc);
-
 		case EVENT_SETUP:
 		{
 			if (bc->channel == 0xff || bc->channel<=0)
@@ -1571,6 +1568,8 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 				return -1;
 			}
 		}
+
+		setup_bc(bc);
 		break;
 
 		case EVENT_RELEASE_COMPLETE:

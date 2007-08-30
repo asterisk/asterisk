@@ -2562,15 +2562,39 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 		return NULL;
 	}
 
-	len = read(tmp->pipe[0], tmp->ast_rd_buf, sizeof(tmp->ast_rd_buf));
+	fd_set rrfs;
+	struct timeval tv;
+	tv.tv_sec=0;
+	tv.tv_usec=20000;
 
-	if (len <= 0) {
-		/* we hangup here, since our pipe is closed */
-		chan_misdn_log(2, tmp->bc->port, "misdn_read: Pipe closed, hanging up\n");
+	FD_ZERO(&rrfs);
+	FD_SET(tmp->pipe[0],&rrfs);
+
+	int t=select(FD_SETSIZE,&rrfs,NULL, NULL,&tv);
+
+	if (!t) {
+		chan_misdn_log(3, tmp->bc->port, "read Select Timed out\n");
+		len=160;
+	}
+
+	if (t<0) {
+		chan_misdn_log(-1, tmp->bc->port, "Select Error (err=%s)\n",strerror(errno));
 		return NULL;
 	}
 
-	tmp->frame.frametype = AST_FRAME_VOICE;
+	if (FD_ISSET(tmp->pipe[0],&rrfs)) {
+		len=read(tmp->pipe[0],tmp->ast_rd_buf,sizeof(tmp->ast_rd_buf));
+
+		if (len<=0) {
+			/* we hangup here, since our pipe is closed */
+			chan_misdn_log(2,tmp->bc->port,"misdn_read: Pipe closed, hanging up\n");
+			return NULL;
+		}
+
+	} else {
+		return NULL;
+	}
+
 	tmp->frame.subclass = AST_FORMAT_ALAW;
 	tmp->frame.datalen = len;
 	tmp->frame.samples = len;
@@ -4304,8 +4328,15 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 		}
 	}
+	ch->l3id=bc->l3_id;
+	ch->addr=bc->addr;
+
+	start_bc_tones(ch);
 	
-	/* notice that we don't break here!*/
+	ch->state = MISDN_CONNECTED;
+	
+	ast_queue_control(ch->ast, AST_CONTROL_ANSWER);
+	break;
 	case EVENT_CONNECT_ACKNOWLEDGE:
 	{
 		ch->l3id = bc->l3_id;
@@ -4314,11 +4345,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		start_bc_tones(ch);
 
 		ch->state = MISDN_CONNECTED;
-
-		if (!ch->ast)
-			break;
-
-		ast_queue_control(ch->ast, AST_CONTROL_ANSWER);
 	}
 	break;
 	case EVENT_DISCONNECT:
@@ -4377,9 +4403,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 			hangup_chan(ch);
 			release_chan(bc);
-		
-			if (bc->need_release_complete) 
-				misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
 		}
 		break;
 	case EVENT_RELEASE_COMPLETE:
