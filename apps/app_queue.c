@@ -582,7 +582,7 @@ static void *changethread(void *data)
 					"LastCall: %d\r\n"
 					"Status: %d\r\n"
 					"Paused: %d\r\n",
-					q->name, cur->interface, cur->membername, cur->dynamic ? "dynamic" : "static",
+					q->name, cur->interface, cur->membername, cur->dynamic ? "dynamic" : cur->realtime ? "realtime" : "static",
 					cur->penalty, cur->calls, (int)cur->lastcall, cur->status, cur->paused);
 			}
 		}
@@ -1561,7 +1561,7 @@ static int update_status(struct call_queue *q, struct member *member, int status
 				"LastCall: %d\r\n"
 				"Status: %d\r\n"
 				"Paused: %d\r\n",
-				q->name, cur->interface, cur->membername, cur->dynamic ? "dynamic" : "static",
+				q->name, cur->interface, cur->membername, cur->dynamic ? "dynamic" : cur->realtime ? "realtime": "static",
 				cur->penalty, cur->calls, (int)cur->lastcall, cur->status, cur->paused);
 		}
 	}
