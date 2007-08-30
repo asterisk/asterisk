@@ -272,3 +272,5 @@ Miscellaneous
   * The device state functionality in the Local channel driver has been updated
      to indicate INUSE or NOT_INUSE when a Local channel is being used as opposed
      to just UNKNOWN if the extension exists.
+  * When originating a call using AMI or pbx_spool that fails the reason for failure
+     will now be available in the failed extension using the REASON dialplan variable.
