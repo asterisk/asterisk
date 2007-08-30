@@ -2546,8 +2546,10 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
 static struct ast_frame *misdn_read(struct ast_channel *ast)
 {
 	struct chan_list *tmp;
-	int len;
-	
+	fd_set rrfs;
+	struct timeval tv;
+	int len, t;
+
 	if (!ast) {
 		chan_misdn_log(1, 0, "misdn_read called without ast\n");
 		return NULL;
@@ -2562,15 +2564,13 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 		return NULL;
 	}
 
-	fd_set rrfs;
-	struct timeval tv;
 	tv.tv_sec=0;
 	tv.tv_usec=20000;
 
 	FD_ZERO(&rrfs);
 	FD_SET(tmp->pipe[0],&rrfs);
 
-	int t=select(FD_SETSIZE,&rrfs,NULL, NULL,&tv);
+	t=select(FD_SETSIZE,&rrfs,NULL, NULL,&tv);
 
 	if (!t) {
 		chan_misdn_log(3, tmp->bc->port, "read Select Timed out\n");
