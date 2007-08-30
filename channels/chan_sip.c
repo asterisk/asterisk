@@ -17716,6 +17716,7 @@ static int reload_config(enum channelreloadreason reason)
 	global_outboundproxy.ip.sin_port = htons(STANDARD_SIP_PORT);
 	global_outboundproxy.ip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	bindaddr.sin_port = htons(STANDARD_SIP_PORT);
+	externip.sin_port = htons(STANDARD_SIP_PORT);
 	global_srvlookup = DEFAULT_SRVLOOKUP;
 	global_tos_sip = DEFAULT_TOS_SIP;
 	global_tos_audio = DEFAULT_TOS_AUDIO;
