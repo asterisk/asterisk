@@ -135,6 +135,7 @@ monitor-type = MixMonitor
 ; MEMBERLASTCALL is the last time the member took a call. 
 ; MEMBERPENALTY is the penalty of the member 
 ; MEMBERDYNAMIC indicates if a member is dynamic or not
+; MEMBERREALTIME indicates if a member is realtime or not
 ;
 ;setinterfacevar=no
 ;
