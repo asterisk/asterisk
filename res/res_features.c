@@ -1864,7 +1864,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			}
 		}
 		if (res < 0) {
-			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
+			if (!ast_test_flag(chan, AST_FLAG_ZOMBIE) && !ast_test_flag(peer, AST_FLAG_ZOMBIE))
+				ast_log(LOG_WARNING, "Bridge failed on channels %s and %s, res = %d\n", chan->name, peer->name, res);
 			return -1;
 		}
 		
