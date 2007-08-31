@@ -124,6 +124,10 @@ static char *descrip =
 "    i    - Asterisk will ignore any forwarding requests it may receive on this\n"
 "           dial attempt.\n"
 "    j    - Jump to priority n+101 if all of the requested channels were busy.\n"
+"    k    - Allow the called party to enable parking of the call by sending\n"
+"           the DTMF sequence defined for call parking in features.conf.\n"
+"    K    - Allow the calling party to enable parking of the call by sending\n"
+"           the DTMF sequence defined for call parking in features.conf.\n"
 "    L(x[:y][:z]) - Limit the call to 'x' ms. Play a warning when 'y' ms are\n"
 "           left. Repeat the warning every 'z' ms. The following special\n"
 "           variables can be used with this option:\n"
@@ -190,11 +194,7 @@ static char *descrip =
 "    w    - Allow the called party to enable recording of the call by sending\n"
 "           the DTMF sequence defined for one-touch recording in features.conf.\n"
 "    W    - Allow the calling party to enable recording of the call by sending\n"
-"           the DTMF sequence defined for one-touch recording in features.conf.\n"
-"    k    - Allow the called party to enable parking of the call by sending\n"
-"           the DTMF sequence defined for call parking in features.conf.\n"
-"    K    - Allow the calling party to enable parking of the call by sending\n"
-"           the DTMF sequence defined for call parking in features.conf.\n";
+"           the DTMF sequence defined for one-touch recording in features.conf.\n";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static char *rapp = "RetryDial";
@@ -272,13 +272,15 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
 	AST_APP_OPTION('i', OPT_IGNORE_FORWARDING),
 	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
+	AST_APP_OPTION('k', OPT_CALLEE_PARK),
+	AST_APP_OPTION('K', OPT_CALLER_PARK),
 	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
 	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
 	AST_APP_OPTION('n', OPT_SCREEN_NOINTRO),
 	AST_APP_OPTION('N', OPT_SCREEN_NOCLID),
-	AST_APP_OPTION_ARG('O', OPT_OPERMODE,OPT_ARG_OPERMODE),
 	AST_APP_OPTION('o', OPT_ORIGINAL_CLID),
+	AST_APP_OPTION_ARG('O', OPT_OPERMODE,OPT_ARG_OPERMODE),
 	AST_APP_OPTION('p', OPT_SCREENING),
 	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
 	AST_APP_OPTION('r', OPT_RINGBACK),
@@ -287,8 +289,6 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
 	AST_APP_OPTION('w', OPT_CALLEE_MONITOR),
 	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
-	AST_APP_OPTION('k', OPT_CALLEE_PARK),
-	AST_APP_OPTION('K', OPT_CALLER_PARK),
 });
 
 /* We define a custom "local user" structure because we
