@@ -4003,8 +4003,10 @@ static int reload_queues(int reload)
 	AST_LIST_LOCK(&queues);
 	use_weight=0;
 	/* Mark all queues as dead for the moment */
-	AST_LIST_TRAVERSE(&queues, q, list)
-		q->dead = 1;
+	AST_LIST_TRAVERSE(&queues, q, list) {
+		if(!q->realtime)
+			q->dead = 1;
+	}
 
 	/* Chug through config file */
 	cat = NULL;
