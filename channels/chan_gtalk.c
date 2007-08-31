@@ -1568,13 +1568,54 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 /*! \brief CLI command "gtalk show channels" */
 static int gtalk_show_channels(int fd, int argc, char **argv)
 {
+#define FORMAT  "%-30.30s  %-30.30s  %-15.15s  %-5.5s %-5.5s \n"
+	struct gtalk_pvt *p;
+	struct ast_channel *chan;
+	int numchans = 0;
+	char them[100];
+	char *jid = NULL;
+	char *resource = NULL;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	ast_mutex_lock(&gtalklock);
-//	if (!gtalk_list->p)
-		ast_cli(fd, "No gtalk channels in use\n");
+	ast_cli(fd, FORMAT, "Channel", "Jabber ID", "Resource", "Read", "Write");
+	ASTOBJ_CONTAINER_TRAVERSE(&gtalk_list, 1, {
+		ASTOBJ_WRLOCK(iterator);
+		p = iterator->p;
+		while(p) {
+			chan = p->owner;
+			ast_copy_string(them, p->them, sizeof(them));
+			jid = them;
+			resource = strchr(them, '/');
+			if (!resource)
+				resource = "None";
+			else {
+				*resource = '\0';
+				resource ++;
+			}
+			if (chan)
+				ast_cli(fd, FORMAT, 
+					chan->name,
+					jid,
+					resource,
+					ast_getformatname(chan->readformat),
+					ast_getformatname(chan->writeformat)					
+					);
+			else 
+				ast_log(LOG_WARNING, "No available channel\n");
+			numchans ++;
+			p = p->next;
+		}
+		ASTOBJ_UNLOCK(iterator);
+	});
+
 	ast_mutex_unlock(&gtalklock);
+
+	ast_cli(fd, "%d active gtalk channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
+#undef FORMAT
 }
 
 /*! \brief CLI command "gtalk show channels" */
