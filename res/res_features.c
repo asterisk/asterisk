@@ -1625,14 +1625,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 							f = NULL;
 							ready=1;
 							break;
-						} else if (f->subclass == -1) {
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", chan->name);
-							ast_indicate(caller, -1);
-							ast_frfree(f);
-							f = NULL;
-							break;
-						} else {
+						} else if (f->subclass != -1) {
 							ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
 						}
 						/* else who cares */
