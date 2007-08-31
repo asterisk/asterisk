@@ -92,7 +92,7 @@ int ast_speech_grammar_unload(struct ast_speech *speech, char *grammar_name)
 /*! \brief Return the results of a recognition from the speech structure */
 struct ast_speech_result *ast_speech_results_get(struct ast_speech *speech)
 {
-	return ((speech->engine->get && ast_test_flag(speech, AST_SPEECH_HAVE_RESULTS)) ? speech->engine->get(speech) : NULL);
+	return (speech->engine->get ? speech->engine->get(speech) : NULL);
 }
 
 /*! \brief Free a list of results */
