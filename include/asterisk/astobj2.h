@@ -89,7 +89,7 @@ parameters. At the moment, this is done as follows:
 
     ao2_container *c;
 
-    c = ao2_container_alloc(MAX_BUCKETS, my_hash_fn, my_cmp_fn, my_dump_fn);
+    c = ao2_container_alloc(MAX_BUCKETS, my_hash_fn, my_cmp_fn);
 
 where
 - MAX_BUCKETS is the number of buckets in the hash table,
@@ -98,7 +98,6 @@ where
   by the container's code);
 - my_cmp_fn() is the default comparison function used when doing
   searches on the container,
-- my_dump_fn() is a helper function used only for debugging.
 
 A container knows little or nothing about the object itself,
 other than the fact that it has been created by ao2_alloc()
