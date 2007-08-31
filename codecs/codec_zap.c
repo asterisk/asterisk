@@ -51,6 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/options.h"
 #include "asterisk/module.h"
+#include "asterisk/cli.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/utils.h"
@@ -59,6 +60,37 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define BUFFER_SAMPLES	8000
 
 static unsigned int global_useplc = 0;
+
+static struct channel_usage {
+	int total;
+	int encoders;
+	int decoders;
+} channels;
+
+static char show_transcoder_usage[] =
+"Usage: show transcoder\n"
+"       Displays channel utilization of Zaptel transcoder(s).\n";
+
+static char transcoder_show_usage[] =
+"Usage: transcoder show\n"
+"       Displays channel utilization of Zaptel transcoder(s).\n";
+
+static int transcoder_show(int fd, int argc, char **argv);
+
+static struct ast_cli_entry cli_deprecated[] = {
+	{ { "show", "transcoder", NULL },
+	  transcoder_show,
+	  "Display Zaptel transcoder utilization.",
+	  show_transcoder_usage}
+};
+
+static struct ast_cli_entry cli[] = {
+	{ { "transcoder", "show", NULL },
+	  transcoder_show,
+	  "Display Zaptel transcoder utilization.",
+	  transcoder_show_usage, NULL,
+	  &cli_deprecated[0]}
+};
 
 struct format_map {
 	unsigned int map[32][32];
@@ -83,6 +115,20 @@ struct pvt {
 	struct zt_transcode_header *hdr;
 	struct ast_frame f;
 };
+
+static int transcoder_show(int fd, int argc, char **argv)
+{
+	struct channel_usage copy;
+
+	copy = channels;
+
+	if (copy.total == 0)
+		ast_cli(fd, "No Zaptel transcoders found.\n");
+	else
+		ast_cli(fd, "%d/%d encoders/decoders of %d channels are in use.\n", copy.encoders, copy.decoders, copy.total);
+
+	return RESULT_SUCCESS;
+}
 
 static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
 {
@@ -173,6 +219,17 @@ static void zap_destroy(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
 
+	ast_atomic_fetchadd_int(&channels.total, -1);
+	switch (ztp->hdr->dstfmt) {
+	case AST_FORMAT_G729A:
+	case AST_FORMAT_G723_1:
+		ast_atomic_fetchadd_int(&channels.encoders, -1);
+		break;
+	default:
+		ast_atomic_fetchadd_int(&channels.decoders, -1);
+		break;
+	}
+
 	munmap(ztp->hdr, sizeof(*ztp->hdr));
 	close(ztp->fd);
 }
@@ -223,6 +280,17 @@ static int zap_translate(struct ast_trans_pvt *pvt, int dest, int source)
 	ztp = pvt->pvt;
 	ztp->fd = fd;
 	ztp->hdr = hdr;
+
+	ast_atomic_fetchadd_int(&channels.total, +1);
+	switch (hdr->dstfmt) {
+	case AST_FORMAT_G729A:
+	case AST_FORMAT_G723_1:
+		ast_atomic_fetchadd_int(&channels.encoders, +1);
+		break;
+	default:
+		ast_atomic_fetchadd_int(&channels.decoders, +1);
+		break;
+	}
 
 	return 0;
 }
@@ -400,6 +468,7 @@ static int reload(void)
 
 static int unload_module(void)
 {
+	ast_cli_unregister_multiple(cli, sizeof(cli) / sizeof(cli[0]));
 	unregister_translators();
 
 	return 0;
@@ -409,6 +478,7 @@ static int load_module(void)
 {
 	parse_config(0);
 	find_transcoders();
+	ast_cli_register_multiple(cli, sizeof(cli) / sizeof(cli[0]));
 
 	return 0;
 }
