@@ -430,6 +430,7 @@ void *ao2_callback(ao2_container *c,
 	enum search_flags flags,
 	ao2_callback_fn cb_fn, void *arg);
 
+int ao2_match_by_addr(void *user_data, void *arg, int flags);
 /*!
  *
  *

@@ -349,7 +349,7 @@ void *ao2_link(ao2_container *c, void *user_data)
 /*!
  * \brief another convenience function is a callback that matches on address
  */
-static int match_by_addr(void *user_data, void *arg, int flags)
+int ao2_match_by_addr(void *user_data, void *arg, int flags)
 {
 	return (user_data == arg) ? (CMP_MATCH | CMP_STOP) : 0;
 }
@@ -363,7 +363,7 @@ void *ao2_unlink(ao2_container *c, void *user_data)
 	if (INTERNAL_OBJ(user_data) == NULL)	/* safety check on the argument */
 		return NULL;
 
-	ao2_callback(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, match_by_addr, user_data);
+	ao2_callback(c, OBJ_UNLINK | OBJ_POINTER | OBJ_NODATA, ao2_match_by_addr, user_data);
 
 	return NULL;
 }
