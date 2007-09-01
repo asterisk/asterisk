@@ -3814,7 +3814,7 @@ static int reload_queues(void)
 	}
 	AST_LIST_LOCK(&queues);
 	use_weight=0;
-	/* Mark all queues as dead for the moment */
+	/* Mark all non-realtime queues as dead for the moment */
 	AST_LIST_TRAVERSE(&queues, q, list) {
 		if(!q->realtime)
 			q->dead = 1;
