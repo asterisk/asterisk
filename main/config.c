@@ -235,12 +235,14 @@ struct ast_config_include *ast_include_new(struct ast_config *conf, const char *
        instances is possible, I'd have
        to create a new master for each instance. */
 	struct ast_config_include *inc;
+	struct stat statbuf;
 	
 	inc = ast_include_find(conf, included_file);
-	if (inc)
-	{
-		inc->inclusion_count++;
-		snprintf(real_included_file_name, real_included_file_name_size, "%s~~%d", included_file, inc->inclusion_count);
+	if (inc) {
+		do {
+			inc->inclusion_count++;
+			snprintf(real_included_file_name, real_included_file_name_size, "%s~~%d", included_file, inc->inclusion_count);
+		} while (stat(real_included_file_name, &statbuf) == 0);
 		ast_log(LOG_WARNING,"'%s', line %d:  Same File included more than once! This data will be saved in %s if saved back to disk.\n", from_file, from_lineno, real_included_file_name);
 	} else
 		*real_included_file_name = 0;
