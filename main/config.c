@@ -1135,6 +1135,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			continue;
 		}
 		count++;
+		/* If we get to this point, then we're loading regardless */
+		ast_clear_flag(&flags, CONFIG_FLAG_FILEUNCHANGED);
 		ast_debug(1, "Parsing %s\n", fn);
 		ast_verb(2, "Found\n");
 		while (!feof(f)) {
