@@ -9517,20 +9517,16 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 						ast_sched_del(sched, peer->expire);
 					peer->expire = -1;
 					ast_clear_flag(peer, IAX_DYNAMIC);
-					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr)) {
-						ast_string_field_free_pools(peer);
+					if (ast_dnsmgr_lookup(v->value, &peer->addr.sin_addr, &peer->dnsmgr))
 						return peer_unref(peer);
-					}
 					if (!peer->addr.sin_port)
 						peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
 			} else if (!strcasecmp(v->name, "defaultip")) {
-				if (ast_get_ip(&peer->defaddr, v->value)) {
-					ast_string_field_free_pools(peer);
+				if (ast_get_ip(&peer->defaddr, v->value))
 					return peer_unref(peer);
-				}
 			} else if (!strcasecmp(v->name, "sourceaddress")) {
 				peer_set_srcaddr(peer, v->value);
 			} else if (!strcasecmp(v->name, "permit") ||
