@@ -93,27 +93,30 @@ static int iftime(struct ast_channel *chan, const char *cmd, char *data, char *b
 static int acf_if(struct ast_channel *chan, const char *cmd, char *data, char *buf,
 		  size_t len)
 {
-	char *expr;
-	char *iftrue;
-	char *iffalse;
+	AST_DECLARE_APP_ARGS(args1,
+		AST_APP_ARG(expr);
+		AST_APP_ARG(remainder);
+	);
+	AST_DECLARE_APP_ARGS(args2,
+		AST_APP_ARG(iftrue);
+		AST_APP_ARG(iffalse);
+	);
 
-	data = ast_strip_quoted(data, "\"", "\"");
-	expr = strsep(&data, "?");
-	iftrue = strsep(&data, ":");
-	iffalse = data;
+	AST_NONSTANDARD_APP_ARGS(args1, data, '?');
+	AST_NONSTANDARD_APP_ARGS(args2, args1.remainder, ':');
 
-	if (ast_strlen_zero(expr) || !(iftrue || iffalse)) {
+	if (ast_strlen_zero(args1.expr) || !(args2.iftrue || args2.iffalse)) {
 		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
 		return -1;
 	}
 
-	expr = ast_strip(expr);
-	if (iftrue)
-		iftrue = ast_strip_quoted(iftrue, "\"", "\"");
-	if (iffalse)
-		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
+	args1.expr = ast_strip(args1.expr);
+	if (args2.iftrue)
+		args2.iftrue = ast_strip(args2.iftrue);
+	if (args2.iffalse)
+		args2.iffalse = ast_strip(args2.iffalse);
 
-	ast_copy_string(buf, pbx_checkcondition(expr) ? (S_OR(iftrue, "")) : (S_OR(iffalse, "")), len);
+	ast_copy_string(buf, pbx_checkcondition(args1.expr) ? (S_OR(args2.iftrue, "")) : (S_OR(args2.iffalse, "")), len);
 
 	return 0;
 }
