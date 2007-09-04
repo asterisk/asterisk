@@ -9108,11 +9108,11 @@ static enum check_auth_result check_auth(struct sip_pvt *p, struct sip_request *
 	}
 
 	/* Ok, we have a bad username/secret pair */
-	/* Challenge again, and again, and again */
-	transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
-	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+	/* Tell the UAS not to re-send this authentication data, because
+	   it will continue to fail
+	*/
 
-	return AUTH_CHALLENGE_SENT;
+	return AUTH_SECRET_FAILED;
 }
 
 /*! \brief Change onhold state of a peer using a pvt structure */
