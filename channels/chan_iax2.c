@@ -1886,7 +1886,7 @@ static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev
 }
 
 
-static void reload_firmware(void)
+static void reload_firmware(int unload)
 {
 	struct iax_firmware *cur = NULL;
 	DIR *fwd;
@@ -1900,20 +1900,22 @@ static void reload_firmware(void)
 		cur->dead = 1;
 
 	/* Now that we have marked them dead... load new ones */
-	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
-	fwd = opendir(dir);
-	if (fwd) {
-		while((de = readdir(fwd))) {
-			if (de->d_name[0] != '.') {
-				snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
-				if (!try_firmware(fn)) {
-					ast_verb(2, "Loaded firmware '%s'\n", de->d_name);
+	if (!unload) {
+		snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
+		fwd = opendir(dir);
+		if (fwd) {
+			while((de = readdir(fwd))) {
+				if (de->d_name[0] != '.') {
+					snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
+					if (!try_firmware(fn)) {
+						ast_verb(2, "Loaded firmware '%s'\n", de->d_name);
+					}
 				}
 			}
-		}
-		closedir(fwd);
-	} else 
-		ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
+			closedir(fwd);
+		} else 
+			ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
+	}
 
 	/* Clean up leftovers */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&firmwares, cur, list) {
@@ -10382,7 +10384,7 @@ static int reload_config(void)
 		ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
 	}
 
-	reload_firmware();
+	reload_firmware(0);
 	iax_provision_reload(1);
 
 	return 0;
@@ -11187,6 +11189,7 @@ static int __unload_module(void)
 	delete_users();
 	iax_provision_unload();
 	sched_context_destroy(sched);
+	reload_firmware(1);
 
 	for (x = 0; x < IAX_MAX_CALLS; x++)
 		ast_mutex_destroy(&iaxsl[x]);
@@ -11317,7 +11320,7 @@ static int load_module(void)
 	ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
 
 
-	reload_firmware();
+	reload_firmware(0);
 	iax_provision_reload(0);
 
 	return AST_MODULE_LOAD_SUCCESS;
