@@ -1731,7 +1731,7 @@ static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev
 }
 
 
-static void reload_firmware(void)
+static void reload_firmware(int unload)
 {
 	struct iax_firmware *cur, *curl, *curp;
 	DIR *fwd;
@@ -1745,22 +1745,25 @@ static void reload_firmware(void)
 		cur->dead = 1;
 		cur = cur->next;
 	}
+
 	/* Now that we've freed them, load the new ones */
-	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
-	fwd = opendir(dir);
-	if (fwd) {
-		while((de = readdir(fwd))) {
-			if (de->d_name[0] != '.') {
-				snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
-				if (!try_firmware(fn)) {
-					if (option_verbose > 1)
-						ast_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
+	if (!unload) {
+		snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_DATA_DIR);
+		fwd = opendir(dir);
+		if (fwd) {
+			while((de = readdir(fwd))) {
+				if (de->d_name[0] != '.') {
+					snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
+					if (!try_firmware(fn)) {
+						if (option_verbose > 1)
+							ast_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
+					}
 				}
 			}
-		}
-		closedir(fwd);
-	} else 
-		ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
+			closedir(fwd);
+		} else 
+			ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
+	}
 
 	/* Clean up leftovers */
 	cur = waresl.wares;
@@ -9834,7 +9837,7 @@ static int reload_config(void)
 	AST_LIST_UNLOCK(&registrations);
 	/* Qualify hosts, too */
 	ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
-	reload_firmware();
+	reload_firmware(0);
 	iax_provision_reload();
 
 	return 0;
@@ -10616,6 +10619,7 @@ static int __unload_module(void)
 	delete_users();
 	iax_provision_unload();
 	sched_context_destroy(sched);
+	reload_firmware(1);
 
 	ast_mutex_destroy(&waresl.lock);
 
@@ -10747,7 +10751,7 @@ static int load_module(void)
 	ao2_callback(peers, 0, peer_set_sock_cb, NULL);
 	ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
 
-	reload_firmware();
+	reload_firmware(0);
 	iax_provision_reload();
 	return res;
 }
