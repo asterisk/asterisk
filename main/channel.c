@@ -1991,11 +1991,13 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 
 int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 {
-	int begin_digit = 0;
-
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c))
 		return -1;
+
+	/* Only look for the end of DTMF, don't bother with the beginning and don't emulate things */
+	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
+
 	/* Wait for a digit, no more than ms milliseconds total. */
 	
 	while (ms) {
@@ -2009,10 +2011,12 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			if (errno == 0 || errno == EINTR)
 				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+			ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 			return -1;
 		} else if (outfd > -1) {
 			/* The FD we were watching has something waiting */
 			ast_log(LOG_WARNING, "The FD we were waiting for has something waiting. Waitfordigit returning numeric 1\n");
+			ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 			return 1;
 		} else if (rchan) {
 			int res;
@@ -2022,18 +2026,17 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 
 			switch (f->frametype) {
 			case AST_FRAME_DTMF_BEGIN:
-				begin_digit = f->subclass;
 				break;
 			case AST_FRAME_DTMF_END:
-				if (begin_digit != f->subclass)
-					break;
 				res = f->subclass;
 				ast_frfree(f);
+				ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 				return res;
 			case AST_FRAME_CONTROL:
 				switch (f->subclass) {
 				case AST_CONTROL_HANGUP:
 					ast_frfree(f);
+					ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 					return -1;
 				case AST_CONTROL_RINGING:
 				case AST_CONTROL_ANSWER:
@@ -2055,6 +2058,9 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 			ast_frfree(f);
 		}
 	}
+
+	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
+
 	return 0; /* Time is up */
 }
 
