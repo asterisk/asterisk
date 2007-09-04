@@ -963,12 +963,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 		if (ast_play_and_record(chan, "vm-rec-name", namerecloc, 5, "sln", &duration, 128, 0, NULL) < 0)
 			goto outrun;
 	
-	/* The following call looks like we're going to playback the file, but we're actually	*/
-	/* just checking to see if we *can* play it. 						*/
-	if (ast_streamfile(chan, namerecloc, chan->language))
+	if (!ast_fileexists(namerecloc, NULL, chan->language))
 		ast_copy_string(namerecloc, "", sizeof(namerecloc));					
-	else
-		ast_stopstream(chan);
 	
 	if (ast_streamfile(chan, targs.plsholdprompt, chan->language))
 		goto outrun;
