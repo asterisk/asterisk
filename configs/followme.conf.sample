@@ -67,7 +67,7 @@ followme-norecording-prompt=>followme/no-recording
 ; not to leave their name or the option isn't set for them to do so. Default
 ; is the global default.
 ;
-followme-options-prompt=>followme/followme-options
+followme-options-prompt=>followme/options
 ; The 'Press 1 to accept this call or press 2 to decline it' message prompt.
 ; Default is the global default.
 ;
@@ -75,11 +75,11 @@ followme-pls-hold-prompt=>followme/pls-hold-while-try
 ; The 'Please hold while we try and connect your call' message prompt.
 ; Default is the global default.
 ;
-followme-status-prompt=>followme/followme-status
+followme-status-prompt=>followme/status
 ; The 'The party you're calling isn't at their desk' message prompt.
 ; Default is the global default.
 ;
-followme-sorry-prompt=>followme/followme-sorry  
+followme-sorry-prompt=>followme/sorry  
 ; The 'I'm sorry, but we were unable to locate your party' message prompt. Default
 ; is the global default.
 
