@@ -670,10 +670,10 @@ static AST_LIST_HEAD_STATIC(frame_queue, iax_frame);
 #else
 #define MAX_PEER_BUCKETS 563
 #endif
-static ao2_container *peers;
+static struct ao2_container *peers;
 
 #define MAX_USER_BUCKETS MAX_PEER_BUCKETS
-static ao2_container *users;
+static struct ao2_container *users;
 
 static AST_LIST_HEAD_STATIC(firmwares, iax_firmware);
 
@@ -1302,7 +1302,7 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len)
 {
 	struct iax2_peer *peer = NULL;
 	int res = 0;
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
@@ -2427,7 +2427,7 @@ static char *complete_iax2_show_peer(const char *line, const char *word, int pos
 	struct iax2_peer *peer;
 	char *res = NULL;
 	int wordlen = strlen(word);
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
 	if (pos != 3)
@@ -3690,7 +3690,7 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 {
 	struct iax2_peer *peer;
 	int res = 0;
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
@@ -4438,7 +4438,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	struct iax2_user *user = NULL;
 	char auth[90];
 	char *pstr = "";
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	switch (argc) {
 	case 5:
@@ -4496,7 +4496,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 	int online_peers = 0;
 	int offline_peers = 0;
 	int unmonitored_peers = 0;
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 #define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s"
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s"
@@ -4698,7 +4698,7 @@ static char *complete_iax2_unregister(const char *line, const char *word, int po
 
 	/* 0 - iax2; 1 - unregister; 2 - <peername> */
 	if (pos == 2) {
-		ao2_iterator i = ao2_iterator_init(peers, 0);
+		struct ao2_iterator i = ao2_iterator_init(peers, 0);
 		while ((p = ao2_iterator_next(&i))) {
 			if (!strncasecmp(p->name, word, wordlen) && 
 				++which > state && p->expire > 0) {
@@ -5102,7 +5102,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	int bestscore = 0;
 	int gotcapability = 0;
 	struct ast_variable *v = NULL, *tmpvar = NULL;
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	if (!iaxs[callno])
 		return res;
@@ -5693,7 +5693,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		/* Normal password authentication */
 		res = authenticate(p->challenge, override, okey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 	} else {
-		ao2_iterator i = ao2_iterator_init(peers, 0);
+		struct ao2_iterator i = ao2_iterator_init(peers, 0);
 		while ((peer = ao2_iterator_next(&i))) {
 			if ((ast_strlen_zero(p->peer) || !strcmp(p->peer, peer->name)) 
 			    /* No peer specified at our end, or this is the peer */
@@ -9918,7 +9918,7 @@ static void delete_users(void)
 static void prune_users(void)
 {
 	struct iax2_user *user;
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	i = ao2_iterator_init(users, 0);
 	while ((user = ao2_iterator_next(&i))) {
@@ -9932,7 +9932,7 @@ static void prune_users(void)
 static void prune_peers(void)
 {
 	struct iax2_peer *peer;
-	ao2_iterator i;
+	struct ao2_iterator i;
 
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {

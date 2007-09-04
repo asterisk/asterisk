@@ -87,7 +87,7 @@ parameters. At the moment, this is done as follows:
     <b>Sample Usage:</b>
     \code
 
-    ao2_container *c;
+    struct ao2_container *c;
 
     c = ao2_container_alloc(MAX_BUCKETS, my_hash_fn, my_cmp_fn);
 
@@ -239,8 +239,8 @@ Operations on container include:
     iterate on a container
 	this is done with the following sequence
 
-	    ao2_container *c = ... // our container
-	    ao2_iterator i;
+	    struct ao2_container *c = ... // our container
+	    struct ao2_iterator i;
 	    void *o;
 
 	    i = ao2_iterator_init(c, flags);
@@ -320,14 +320,7 @@ typedef int (*ao2_callback_fn)(void *obj, void *arg, int flags);
 /*!
  * Here start declarations of containers.
  */
-
-/*!
- * This structure contains the total number of buckets 
- * and variable size array of object pointers.
- * It is opaque, defined in astobj2.c, so we only need
- * a type declaration.
- */
-typedef struct __ao2_container ao2_container;
+struct ao2_container;
 
 /*!
  * Allocate and initialize a container 
@@ -343,13 +336,13 @@ typedef struct __ao2_container ao2_container;
  *
  * destructor is set implicitly.
  */
-ao2_container *ao2_container_alloc(const uint n_buckets,
+struct ao2_container *ao2_container_alloc(const uint n_buckets,
 		ao2_hash_fn hash_fn, ao2_callback_fn cmp_fn);
 
 /*!
  * Returns the number of elements in a container.
  */
-int ao2_container_count(ao2_container *c);
+int ao2_container_count(struct ao2_container *c);
 
 /*
  * Here we have functions to manage objects.
@@ -368,8 +361,8 @@ int ao2_container_count(ao2_container *c);
  *
  * \note Remember to set the key before calling this function.
  */
-void *ao2_link(ao2_container *c, void *newobj);
-void *ao2_unlink(ao2_container *c, void *newobj);
+void *ao2_link(struct ao2_container *c, void *newobj);
+void *ao2_unlink(struct ao2_container *c, void *newobj);
 
 /*! \struct Used as return value if the flag OBJ_MULTIPLE is set */
 struct ao2_list {
@@ -425,8 +418,8 @@ struct ao2_list {
  * be used to free the additional reference possibly created by this function.
  */
 /* XXX order of arguments to find */
-void *ao2_find(ao2_container *c, void *arg, enum search_flags flags);
-void *ao2_callback(ao2_container *c,
+void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
+void *ao2_callback(struct ao2_container *c,
 	enum search_flags flags,
 	ao2_callback_fn cb_fn, void *arg);
 
@@ -465,8 +458,8 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags);
  *
  *  \code
  *
- *  ao2_container *c = ... // the container we want to iterate on
- *  ao2_iterator i;
+ *  struct ao2_container *c = ... // the container we want to iterate on
+ *  struct ao2_iterator i;
  *  struct my_obj *o;
  *
  *  i = ao2_iterator_init(c, flags);
@@ -503,9 +496,9 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags);
  * A freshly-initialized iterator has bucket=0, version = 0.
  */
 
-struct __ao2_iterator {
+struct ao2_iterator {
 	/*! the container */
-	ao2_container *c;
+	struct ao2_container *c;
 	/*! operation flags */
 	int flags;
 #define	F_AO2I_DONTLOCK	1	/*!< don't lock when iterating */
@@ -517,11 +510,10 @@ struct __ao2_iterator {
 	void *obj;
 	/*! container version when the object was created */
 	uint version;
-};              
-typedef struct __ao2_iterator ao2_iterator;
+};
 
-ao2_iterator ao2_iterator_init(ao2_container *c, int flags);
+struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags);
 
-void *ao2_iterator_next(ao2_iterator *a);
+void *ao2_iterator_next(struct ao2_iterator *a);
 
 #endif /* _ASTERISK_ASTOBJ2_H */

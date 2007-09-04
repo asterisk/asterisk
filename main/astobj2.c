@@ -243,7 +243,7 @@ AST_LIST_HEAD_NOLOCK(bucket, bucket_list);
  * This will be more efficient as we can do the freelist management while
  * we hold the lock (that we need anyways).
  */
-struct __ao2_container {
+struct ao2_container {
 	ao2_hash_fn hash_fn;
 	ao2_callback_fn cmp_fn;
 	int n_buckets;
@@ -272,15 +272,15 @@ static int hash_zero(const void *user_obj, const int flags)
 /*
  * A container is just an object, after all!
  */
-ao2_container *
+struct ao2_container *
 ao2_container_alloc(const uint n_buckets, ao2_hash_fn hash_fn,
 		ao2_callback_fn cmp_fn)
 {
 	/* XXX maybe consistency check on arguments ? */
 	/* compute the container size */
-	size_t container_size = sizeof(ao2_container) + n_buckets * sizeof(struct bucket);
+	size_t container_size = sizeof(struct ao2_container) + n_buckets * sizeof(struct bucket);
 
-	ao2_container *c = ao2_alloc(container_size, container_destruct);
+	struct ao2_container *c = ao2_alloc(container_size, container_destruct);
 
 	if (!c)
 		return NULL;
@@ -297,7 +297,7 @@ ao2_container_alloc(const uint n_buckets, ao2_hash_fn hash_fn,
 /*!
  * return the number of elements in the container
  */
-int ao2_container_count(ao2_container *c)
+int ao2_container_count(struct ao2_container *c)
 {
 	return c->elements;
 }
@@ -316,7 +316,7 @@ struct bucket_list {
 /*
  * link an object to a container
  */
-void *ao2_link(ao2_container *c, void *user_data)
+void *ao2_link(struct ao2_container *c, void *user_data)
 {
 	int i;
 	/* create a new list entry */
@@ -358,7 +358,7 @@ int ao2_match_by_addr(void *user_data, void *arg, int flags)
  * Unlink an object from the container
  * and destroy the associated * ao2_bucket_list structure.
  */
-void *ao2_unlink(ao2_container *c, void *user_data)
+void *ao2_unlink(struct ao2_container *c, void *user_data)
 {
 	if (INTERNAL_OBJ(user_data) == NULL)	/* safety check on the argument */
 		return NULL;
@@ -381,7 +381,7 @@ static int cb_true(void *user_data, void *arg, int flags)
  * \return Is a pointer to an object or to a list of object if OBJ_MULTIPLE is 
  * specified.
  */
-void *ao2_callback(ao2_container *c,
+void *ao2_callback(struct ao2_container *c,
 	const enum search_flags flags,
 	ao2_callback_fn cb_fn, void *arg)
 {
@@ -485,7 +485,7 @@ void *ao2_callback(ao2_container *c,
 /*!
  * the find function just invokes the default callback with some reasonable flags.
  */
-void *ao2_find(ao2_container *c, void *arg, enum search_flags flags)
+void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags)
 {
 	return ao2_callback(c, flags, c->cmp_fn, arg);
 }
@@ -493,9 +493,9 @@ void *ao2_find(ao2_container *c, void *arg, enum search_flags flags)
 /*!
  * initialize an iterator so we start from the first object
  */
-ao2_iterator ao2_iterator_init(ao2_container *c, int flags)
+struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags)
 {
-	ao2_iterator a = {
+	struct ao2_iterator a = {
 		.c = c,
 		.flags = flags
 	};
@@ -506,7 +506,7 @@ ao2_iterator ao2_iterator_init(ao2_container *c, int flags)
 /*
  * move to the next element in the container.
  */
-void * ao2_iterator_next(ao2_iterator *a)
+void * ao2_iterator_next(struct ao2_iterator *a)
 {
 	int lim;
 	struct bucket_list *p = NULL;
@@ -571,7 +571,7 @@ static int cd_cb(void *obj, void *arg, int flag)
 	
 static void container_destruct(void *_c)
 {
-	ao2_container *c = _c;
+	struct ao2_container *c = _c;
 
 	ao2_callback(c, OBJ_UNLINK, cd_cb, NULL);
 	ast_atomic_fetchadd_int(&ao2.total_containers, -1);
@@ -604,7 +604,7 @@ static int handle_astobj2_stats(int fd, int argc, char *argv[])
  */
 static int handle_astobj2_test(int fd, int argc, char *argv[])
 {
-	ao2_container *c1;
+	struct ao2_container *c1;
 	int i, lim;
 	char *obj;
 	static int prof_id = -1;
@@ -642,7 +642,7 @@ static int handle_astobj2_test(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "testing iterators, remove every second object\n");
 	{
-		ao2_iterator ai;
+		struct ao2_iterator ai;
 		int x = 0;
 
 		ai = ao2_iterator_init(c1, 0);
