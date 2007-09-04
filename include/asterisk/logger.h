@@ -26,6 +26,7 @@
 #define _ASTERISK_LOGGER_H
 
 #include "asterisk/compat.h"
+#include "asterisk/options.h"
 
 #include <stdarg.h>
 
