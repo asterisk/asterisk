@@ -280,7 +280,7 @@ int ast_search_dns(void *context,
 			ast_log(LOG_WARNING, "DNS Parse error for %s\n", dname);
 			ret = -1;
 		}
-		else if (ret == 0) {
+		else if (res == 0) {
 			ast_debug(1, "No matches found in DNS for %s\n", dname);
 			ret = 0;
 		}
