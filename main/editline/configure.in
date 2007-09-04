@@ -95,8 +95,6 @@ AC_CHECK_HEADERS(termcap.h, , \
 AC_CHECK_HEADERS(sys/cdefs.h vis.h)
 
 AC_CHECK_FUNCS(issetugid)
-AC_CHECK_FUNCS(strlcat, , CCSRCS="$CCSRCS np/strlcat.c")
-AC_CHECK_FUNCS(strlcpy, , CCSRCS="$CCSRCS np/strlcpy.c")
 AC_CHECK_FUNCS(fgetln, , CCSRCS="$CCSRCS np/fgetln.c")
 AC_CHECK_FUNCS(strvis, , CCSRCS="$CCSRCS np/vis.c")
 AC_CHECK_FUNCS(strunvis, , CCSRCS="$CCSRCS np/unvis.c")
