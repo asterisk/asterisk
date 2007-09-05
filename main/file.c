@@ -614,39 +614,68 @@ struct ast_frame *ast_readframe(struct ast_filestream *s)
 	return f;
 }
 
-static int ast_readaudio_callback(void *data)
+enum fsread_res {
+	FSREAD_FAILURE,
+	FSREAD_SUCCESS_SCHED,
+	FSREAD_SUCCESS_NOSCHED,
+};
+
+static int ast_fsread_audio(void *data);
+
+static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 {
-	struct ast_filestream *s = data;
 	int whennext = 0;
 
-	while(!whennext) {
-		struct ast_frame *fr = s->fmt->read(s, &whennext);
+	while (!whennext) {
+		struct ast_frame *fr;
+		
+		if (s->orig_chan_name && strcasecmp(s->owner->name, s->orig_chan_name))
+			goto return_failure;
+		
+		fr = s->fmt->read(s, &whennext);
 		if (!fr /* stream complete */ || ast_write(s->owner, fr) /* error writing */) {
 			if (fr)
 				ast_log(LOG_WARNING, "Failed to write frame\n");
-			s->owner->streamid = -1;
-#ifdef HAVE_ZAPTEL
-			ast_settimeout(s->owner, 0, NULL, NULL);
-#endif			
-			return 0;
+			goto return_failure;
 		}
 	}
 	if (whennext != s->lasttimeout) {
 #ifdef HAVE_ZAPTEL
 		if (s->owner->timingfd > -1)
-			ast_settimeout(s->owner, whennext, ast_readaudio_callback, s);
+			ast_settimeout(s->owner, whennext, ast_fsread_audio, s);
 		else
 #endif		
-			s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_readaudio_callback, s);
+			s->owner->streamid = ast_sched_add(s->owner->sched, whennext/8, ast_fsread_audio, s);
 		s->lasttimeout = whennext;
-		return 0;
+		return FSREAD_SUCCESS_NOSCHED;
 	}
-	return 1;
+	return FSREAD_SUCCESS_SCHED;
+
+return_failure:
+	s->owner->streamid = -1;
+#ifdef HAVE_ZAPTEL
+	ast_settimeout(s->owner, 0, NULL, NULL);
+#endif			
+	return FSREAD_FAILURE;
 }
 
-static int ast_readvideo_callback(void *data)
+static int ast_fsread_audio(void *data)
 {
-	struct ast_filestream *s = data;
+	struct ast_filestream *fs = data;
+	enum fsread_res res;
+
+	res = ast_readaudio_callback(fs);
+
+	if (res == FSREAD_SUCCESS_SCHED)
+		return 1;
+	
+	return 0;
+}
+
+static int ast_fsread_video(void *data);
+
+static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
+{
 	int whennext = 0;
 
 	while (!whennext) {
@@ -655,15 +684,31 @@ static int ast_readvideo_callback(void *data)
 			if (fr)
 				ast_log(LOG_WARNING, "Failed to write frame\n");
 			s->owner->vstreamid = -1;
-			return 0;
+			return FSREAD_FAILURE;
 		}
 	}
+
 	if (whennext != s->lasttimeout) {
-		s->owner->vstreamid = ast_sched_add(s->owner->sched, whennext/8, ast_readvideo_callback, s);
+		s->owner->vstreamid = ast_sched_add(s->owner->sched, whennext / 8, 
+			ast_fsread_video, s);
 		s->lasttimeout = whennext;
-		return 0;
+		return FSREAD_SUCCESS_NOSCHED;
 	}
-	return 1;
+
+	return FSREAD_SUCCESS_SCHED;
+}
+
+static int ast_fsread_video(void *data)
+{
+	struct ast_filestream *fs = data;
+	enum fsread_res res;
+
+	res = ast_readvideo_callback(fs);
+
+	if (res == FSREAD_SUCCESS_SCHED)
+		return 1;
+	
+	return 0;
 }
 
 int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
@@ -674,11 +719,14 @@ int ast_applystream(struct ast_channel *chan, struct ast_filestream *s)
 
 int ast_playstream(struct ast_filestream *s)
 {
+	enum fsread_res res;
+
 	if (s->fmt->format < AST_FORMAT_MAX_AUDIO)
-		ast_readaudio_callback(s);
+		res = ast_readaudio_callback(s);
 	else
-		ast_readvideo_callback(s);
-	return 0;
+		res = ast_readvideo_callback(s);
+
+	return (res == FSREAD_FAILURE) ? -1 : 0;
 }
 
 int ast_seekstream(struct ast_filestream *fs, off_t sample_offset, int whence)
@@ -748,6 +796,8 @@ int ast_closestream(struct ast_filestream *f)
 	fclose(f->f);
 	if (f->vfs)
 		ast_closestream(f->vfs);
+	if (f->orig_chan_name)
+		free((void *) f->orig_chan_name);
 	ast_module_unref(f->fmt->module);
 	free(f);
 	return 0;
@@ -798,17 +848,20 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 	if (vfs)
 		ast_log(LOG_DEBUG, "Ooh, found a video stream, too, format %s\n", ast_getformatname(vfs->fmt->format));
 	if (fs){
+		int res;
+		if (ast_test_flag(chan, AST_FLAG_MASQ_NOSTREAM))
+			fs->orig_chan_name = ast_strdup(chan->name);
 		if (ast_applystream(chan, fs))
 			return -1;
 		if (vfs && ast_applystream(chan, vfs))
 			return -1;
-		ast_playstream(fs);
-		if (vfs)
-			ast_playstream(vfs);
+		res = ast_playstream(fs);
+		if (!res && vfs)
+			res = ast_playstream(vfs);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "<%s> Playing '%s' (language '%s')\n", chan->name, filename, preflang ? preflang : "default");
 
-		return 0;
+		return res;
 	}
 	ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname_multiple(fmt, sizeof(fmt), chan->nativeformats), strerror(errno));
 	return -1;
@@ -997,6 +1050,9 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 	const char *forward, const char *rewind, int skip_ms,
 	int audiofd, int cmdfd,  const char *context)
 {
+	const char *orig_chan_name = NULL;
+	int err = 0;
+
 	if (!breakon)
 		breakon = "";
 	if (!forward)
@@ -1006,10 +1062,22 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 
 	/* Switch the channel to end DTMF frame only. waitstream_core doesn't care about the start of DTMF. */
 	ast_set_flag(c, AST_FLAG_END_DTMF_ONLY);
-	
+
+	if (ast_test_flag(c, AST_FLAG_MASQ_NOSTREAM))
+		orig_chan_name = ast_strdupa(c->name);
+
 	while (c->stream) {
 		int res;
-		int ms = ast_sched_wait(c->sched);
+		int ms;
+
+		if (orig_chan_name && strcasecmp(orig_chan_name, c->name)) {
+			ast_stopstream(c);
+			err = 1;
+			break;
+		}
+
+		ms = ast_sched_wait(c->sched);
+
 		if (ms < 0 && !c->timingfunc) {
 			ast_stopstream(c);
 			break;
@@ -1104,7 +1172,7 @@ static int waitstream_core(struct ast_channel *c, const char *breakon,
 
 	ast_clear_flag(c, AST_FLAG_END_DTMF_ONLY);
 
-	return (c->_softhangup ? -1 : 0);
+	return (err || c->_softhangup) ? -1 : 0;
 }
 
 int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms)

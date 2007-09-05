@@ -478,6 +478,9 @@ enum {
 	/*! This is set to tell the channel not to generate DTMF begin frames, and
 	 *  to instead only generate END frames. */
 	AST_FLAG_END_DTMF_ONLY = (1 << 14),
+	/*! This flag indicates that on a masquerade, an active stream should not
+	 *  be carried over */
+	AST_FLAG_MASQ_NOSTREAM = (1 << 15),
 };
 
 /*! \brief ast_bridge_config flags */
