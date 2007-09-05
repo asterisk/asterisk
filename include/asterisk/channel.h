@@ -546,6 +546,9 @@ enum {
 	/*! Flag to show channels that this call is hangup due to the fact that the call
 	    was indeed anwered, but in another channel */
 	AST_FLAG_ANSWERED_ELSEWHERE = (1 << 15),
+	/*! This flag indicates that on a masquerade, an active stream should not
+	 *  be carried over */
+	AST_FLAG_MASQ_NOSTREAM = (1 << 16),
 };
 
 /*! \brief ast_bridge_config flags */

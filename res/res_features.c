@@ -491,8 +491,12 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	if (!con)	/* Still no context? Bad */
 		ast_log(LOG_ERROR, "Parking context '%s' does not exist and unable to create\n", parking_con);
 	/* Tell the peer channel the number of the parking space */
-	if (peer && pu->parkingnum != -1) /* Only say number if it's a number */
+	if (peer && pu->parkingnum != -1) { /* Only say number if it's a number */
+		/* Make sure we don't start saying digits to the channel being parked */
+		ast_set_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 		ast_say_digits(peer, pu->parkingnum, "", peer->language);
+		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
+	}
 	if (con) {
 		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free, registrar))
 			notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_INUSE);

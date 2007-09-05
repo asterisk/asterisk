@@ -260,9 +260,9 @@ static int say_digit_str_full(struct ast_channel *chan, const char *str, const c
 			res = ast_streamfile(chan, fn, lang);
 			if (!res) {
 				if ((audiofd  > -1) && (ctrlfd > -1))
-                                        res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-                                else
-                                        res = ast_waitstream(chan, ints);
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
 			}
 			ast_stopstream(chan);
 		}
