@@ -50,10 +50,14 @@ static char *descrip =
 "  Zapateller(options):  Generates special information tone to block\n"
 "telemarketers from calling you.  Options is a pipe-delimited list of\n" 
 "options.  The following options are available:\n"
-"'answer' causes the line to be answered before playing the tone,\n" 
-"'nocallerid' causes Zapateller to only play the tone if there\n"
-"is no callerid information available.  Options should be separated by |\n"
-"characters\n";
+"    'answer'     - causes the line to be answered before playing the tone,\n" 
+"    'nocallerid' - causes Zapateller to only play the tone if there is no\n"
+"                   callerid information available.  Options should be\n"
+"                   separated by | characters\n\n"
+"  This application will set the following channel variable upon completion:\n"
+"    ZAPATELLERSTATUS - This will contain the last action accomplished by the\n"
+"                        Zapateller application. Possible values include:\n"
+"                        NOTHING | ANSWERED | ZAPPED\n\n";
 
 
 static int zapateller_exec(struct ast_channel *chan, void *data)
@@ -74,10 +78,13 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 			nocallerid = 1;
 	}
 
+	pbx_builtin_setvar_helper(chan, "ZAPATELLERSTATUS", "NOTHING");
 	ast_stopstream(chan);
 	if (chan->_state != AST_STATE_UP) {
-		if (answer) 
+		if (answer) {
 			res = ast_answer(chan);
+			pbx_builtin_setvar_helper(chan, "ZAPATELLERSTATUS", "ANSWERED");
+		}
 		if (!res)
 			res = ast_safe_sleep(chan, 500);
 	}
@@ -93,7 +100,8 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 		res = ast_tonepair(chan, 1800, 0, 330, 0);
 	if (!res) 
 		res = ast_tonepair(chan, 0, 0, 1000, 0);
-
+	
+	pbx_builtin_setvar_helper(chan, "ZAPATELLERSTATUS", "ZAPPED");
 	return res;
 }
 
