@@ -2041,9 +2041,16 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	char on[80] = "";
 	char membername[80] = "";
 	long starttime = 0;
-	long endtime = 0;	
+	long endtime = 0;
+#ifdef HAVE_EPOLL
+	struct callattempt *epollo;
+#endif
 
 	starttime = (long) time(NULL);
+#ifdef HAVE_EPOLL
+	for (epollo = outgoing; epollo; epollo = epollo->q_next)
+		ast_poll_channel_add(in, epollo->chan);
+#endif
 	
 	while (*to && !peer) {
 		int numlines, retry, pos = 1;
@@ -2247,6 +2254,11 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 		if (!*to)
 			rna(orig, qe, on, membername);
 	}
+
+#ifdef HAVE_EPOLL
+	for(epollo = outgoing; epollo; epollo = epollo->q_next)
+		ast_poll_channel_del(in, epollo->chan);
+#endif
 
 	return peer;
 }
