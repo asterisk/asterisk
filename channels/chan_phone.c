@@ -1284,7 +1284,8 @@ static int __unload_module(void)
 {
 	struct phone_pvt *p, *pl;
 	/* First, take us out of the channel loop */
-	ast_channel_unregister(cur_tech);
+	if (cur_tech)
+		ast_channel_unregister(cur_tech);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -1359,7 +1360,7 @@ static int load_module(void)
 	if (ast_mutex_lock(&iflock)) {
 		/* It's a little silly to lock it, but we mind as well just to be sure */
 		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	v = ast_variable_browse(cfg, "interfaces");
 	while(v) {
@@ -1375,7 +1376,7 @@ static int load_module(void)
 					ast_config_destroy(cfg);
 					ast_mutex_unlock(&iflock);
 					__unload_module();
-					return -1;
+					return AST_MODULE_LOAD_FAILURE;
 				}
 		} else if (!strcasecmp(v->name, "silencesupression")) {
 			silencesupression = ast_true(v->value);
@@ -1445,12 +1446,12 @@ static int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register channel class 'Phone'\n");
 		ast_config_destroy(cfg);
 		__unload_module();
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_config_destroy(cfg);
 	/* And start the monitor for the first time */
 	restart_monitor();
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Linux Telephony API Support");
