@@ -3633,6 +3633,7 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 	int count = 0;
 	struct call_queue *q;
 	struct ast_module_user *lu;
+	struct member *m;
 
 	buf[0] = '\0';
 	
