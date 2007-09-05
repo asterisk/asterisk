@@ -1449,12 +1449,10 @@ static void spy_detach(struct ast_channel_spy *spy, struct ast_channel *chan)
 		/* Poke the spy if needed */
 		if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
 			ast_cond_signal(&spy->trigger);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Spy %s removed from channel %s\n", spy->type, chan->name);
 		ast_mutex_unlock(&spy->lock);
 	}
-
-	/* Print it out while we still have a lock so the structure can't go away (if signalled above) */
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Spy %s removed from channel %s\n", spy->type, chan->name);
 
 	return;
 }
