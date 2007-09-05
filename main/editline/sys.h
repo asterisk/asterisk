@@ -69,16 +69,6 @@ typedef void	*ioctl_t;
 
 #include <stdio.h>
 
-#ifndef HAVE_STRLCAT
-#define	strlcat libedit_strlcat
-size_t	strlcat(char *dst, const char *src, size_t size);
-#endif
-
-#ifndef HAVE_STRLCPY
-#define	strlcpy libedit_strlcpy
-size_t	strlcpy(char *dst, const char *src, size_t size);
-#endif
-
 #ifndef HAVE_FGETLN
 #define	fgetln libedit_fgetln
 char	*fgetln(FILE *fp, size_t *len);
