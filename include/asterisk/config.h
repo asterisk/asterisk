@@ -58,6 +58,7 @@ struct ast_variable {
 	int blanklines; 	/*!< Number of blanklines following entry */
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
+	struct ast_comment *trailing; /*!< the last object in the list will get assigned any trailing comments when EOF is hit */
 	struct ast_variable *next;
 	char stuff[0];
 };

@@ -185,6 +185,7 @@ struct ast_category {
 	int lineno;
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
+	struct ast_comment *trailing; /*!< the last object in the list will get assigned any trailing comments when EOF is hit */
 	struct ast_variable *root;
 	struct ast_variable *last;
 	struct ast_category *next;
@@ -797,7 +798,7 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 }
 
 static int process_text_line(struct ast_config *cfg, struct ast_category **cat, char *buf, int lineno, const char *configfile, struct ast_flags flags,
-							 char **comment_buffer, int *comment_buffer_size, char **lline_buffer, int *lline_buffer_size, const char *suggested_include_file)
+							 char **comment_buffer, int *comment_buffer_size, char **lline_buffer, int *lline_buffer_size, const char *suggested_include_file, struct ast_category **last_cat, struct ast_variable **last_var)
 {
 	char *c;
 	char *cur = buf;
@@ -825,6 +826,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 			return -1;
 		}
 		(*cat)->lineno = lineno;
+		*last_var = 0;
+		*last_cat = newcat;
 		
 		/* add comments */
 		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && *comment_buffer && (*comment_buffer)[0] ) {
@@ -967,6 +970,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c), *suggested_include_file ? suggested_include_file : configfile))) {
 				v->lineno = lineno;
 				v->object = object;
+				*last_cat = 0;
+				*last_var = v;
 				/* Put and reset comments */
 				v->blanklines = 0;
 				ast_variable_append(*cat, v);
@@ -1003,6 +1008,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	struct stat statbuf;
 	struct cache_file_mtime *cfmtime = NULL;
 	struct cache_file_include *cfinclude;
+	struct ast_variable *last_var = 0;
+	struct ast_category *last_cat = 0;
 	/*! Growable string buffer */
 	char *comment_buffer=0;   /*!< this will be a comment collector.*/
 	int   comment_buffer_size=0;  /*!< the amount of storage so far alloc'd for the comment_buffer */
@@ -1210,7 +1217,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				if (process_buf) {
 					char *buf = ast_strip(process_buf);
 					if (!ast_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, &comment_buffer, &comment_buffer_size, &lline_buffer, &lline_buffer_size, suggested_include_file)) {
+						if (process_text_line(cfg, &cat, buf, lineno, fn, flags, &comment_buffer, &comment_buffer_size, &lline_buffer, &lline_buffer_size, suggested_include_file, &last_cat, &last_var)) {
 							cfg = NULL;
 							break;
 						}
@@ -1218,6 +1225,23 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				}
 			}
 		}
+		/* end of file-- anything in a comment buffer? */
+		if (last_cat) {
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] ) {
+				last_cat->trailing = ALLOC_COMMENT(comment_buffer);
+			}
+		} else if (last_var) {
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] ) {
+				last_var->trailing = ALLOC_COMMENT(comment_buffer);
+			}
+		} else {
+			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && (comment_buffer)[0] ) {
+				ast_debug(1, "Nothing to attach comments to, discarded: %s\n", comment_buffer);
+			}
+		}
+		if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS))
+			CB_RESET(&comment_buffer, &lline_buffer);
+
 		fclose(f);		
 	} while (0);
 	if (comment) {
@@ -1385,6 +1409,10 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			}
 			if (!cat->sameline)
 				fprintf(f,"\n");
+			for (cmt = cat->trailing; cmt; cmt=cmt->next) {
+				if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
+					fprintf(f,"%s", cmt->cmt);
+			}
 			fclose(f);
 			
 			var = cat->root;
@@ -1419,6 +1447,10 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 					fprintf(f, "%s %s %s  %s", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
 				else	
 					fprintf(f, "%s %s %s\n", var->name, (var->object ? "=>" : "="), var->value);
+				for (cmt = var->trailing; cmt; cmt=cmt->next) {
+					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
+						fprintf(f,"%s", cmt->cmt);
+				}
 				if (var->blanklines) {
 					blanklines = var->blanklines;
 					while (blanklines--)
