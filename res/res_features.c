@@ -211,6 +211,7 @@ static void set_c_e_p(struct ast_channel *chan, const char *context, const char 
 /*!
  * \brief Check goto on transfer
  * \param chan
+ *
  * Check if channel has 'GOTO_ON_BLINDXFR' set, if not exit.
  * When found make sure the types are compatible. Check if channel is valid
  * if so start the new channel else hangup the call. 
@@ -255,7 +256,8 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 
 /*!
  * \brief bridge the call 
- * \param data thread bridge 
+ * \param data thread bridge.
+ *
  * Set Last Data for respective channels, reset cdr for channels
  * bridge call, check if we're going back to dialplan
  * if not hangup both legs of the call
@@ -309,6 +311,7 @@ static void *ast_bridge_call_thread(void *data)
 /*!
  * \brief create thread for the parked call
  * \param data
+ *
  * Create thread and attributes, call ast_bridge_call_thread
 */
 static void ast_bridge_call_thread_launch(void *data) 
@@ -327,8 +330,8 @@ static void ast_bridge_call_thread_launch(void *data)
 
 /*!
  * \brief Announce call parking by ADSI
- * \param chan
- * \param parkingexten
+ * \param chan .
+ * \param parkingexten .
  * Create message to show for ADSI, display message.
  * \retval 0 on success.
  * \retval -1 on failure.
@@ -549,6 +552,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 /*! 
  * \brief set caller and callee according to the direction 
  * \param caller, callee, peer, chan, sense
+ *
  * Detect who triggered feature and set callee/caller variables accordingly
 */
 static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
@@ -569,7 +573,8 @@ static void set_peers(struct ast_channel **caller, struct ast_channel **callee,
  * \param peer channel to be parked
  * \param config unsed
  * \param code unused
- * \param sense feature options 
+ * \param sense feature options
+ *
  * \param data
  * Setup channel, set return exten,priority to 's,1'
  * answer chan, sleep chan, park call
@@ -613,7 +618,8 @@ static int builtin_parkcall(struct ast_channel *chan, struct ast_channel *peer, 
  * \param peer channel to be monitored
  * \param config
  * \param code
- * \param sense
+ * \param sense feature options
+ *
  * \param data
  * Check monitor app enabled, setup channels, both caller/callee chans not null
  * get TOUCH_MONITOR variable for filename if exists, exec monitor app.
@@ -719,6 +725,7 @@ static int finishup(struct ast_channel *chan)
  * \brief Find the context for the transfer
  * \param transferer
  * \param transferee
+ * 
  * Grab the TRANSFER_CONTEXT, if fails try grabbing macrocontext.
  * \return a context string
 */
@@ -736,13 +743,14 @@ static const char *real_ctx(struct ast_channel *transferer, struct ast_channel *
 
 /*!
  * \brief Blind transfer user to another extension
- * \param chan channel initiated blind transfer
- * \param peer channel to be transfered
+ * \param chan channel to be transfered
+ * \param peer channel initiated blind transfer
  * \param config
  * \param code
- * \param sense
  * \param data
- * Place peer on hold, check if tranfered to parkinglot extension,
+ * \param sense  feature options
+ * 
+ * Place chan on hold, check if transferred to parkinglot extension,
  * otherwise check extension exists and transfer caller.
  * \retval FEATURE_RETURN_SUCCESS.
  * \retval -1 on failure.
@@ -856,16 +864,18 @@ static int check_compat(struct ast_channel *c, struct ast_channel *newchan)
 
 /*!
  * \brief Attended transfer
- * \param chan
- * \param peer
+ * \param chan transfered user
+ * \param peer person transfering call
  * \param config
  * \param code
- * \param sense
+ * \param sense feature options
+ * 
  * \param data
  * Get extension to transfer to, if you cannot generate channel (or find extension) 
  * return to host channel. After called channel answered wait for hangup of transferer,
  * bridge call between transfer peer (taking them off hold) to attended transfer channel.
- * \return -1 means what failure/success both?
+ *
+ * \return -1 on failure
 */
 static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense, void *data)
 {
@@ -1129,7 +1139,8 @@ void ast_register_feature(struct ast_call_feature *feature)
 
 /*! 
  * \brief Add new feature group
- * \param fgname feature group name
+ * \param fgname feature group name.
+ *
  * Add new feature group to the feature group list insert at head of list.
  * \note This function MUST be called while feature_groups is locked.
 */
@@ -1163,7 +1174,8 @@ static struct feature_group* register_group(const char *fgname)
  * \brief Add feature to group
  * \param fg feature group
  * \param exten
- * \param feature feature to add
+ * \param feature feature to add.
+ *
  * Check fg and feature specified, add feature to list
  * \note This function MUST be called while feature_groups is locked. 
 */
@@ -1309,7 +1321,8 @@ struct ast_call_feature *ast_find_call_feature(const char *name)
 
 /*!
  * \brief exec an app by feature 
- * \param chan,peer,config,code,sense
+ * \param chan,peer,config,code,sense,data
+ *
  * Find a feature, determine which channel activated
  * \retval FEATURE_RETURN_PBX_KEEPALIVE,FEATURE_RETURN_NO_HANGUP_PEER
  * \retval -1 error.
@@ -1407,6 +1420,7 @@ static int remap_feature(const char *name, const char *value)
 /*!
  * \brief Check the dynamic features
  * \param chan,peer,config,code,sense
+ *
  * Lock features list, browse for code, unlock list
  * \retval res on success.
  * \retval -1 on failure.
@@ -1526,11 +1540,13 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 }
 
 /*! 
- * \brief
+ * \brief Get feature and dial
  * \param caller,transferee,type,format,data,timeout,outstate,cid_num,cid_name,igncallerstate
+ *
  * Request channel, set channel variables, initiate call,check if they want to disconnect
  * go into loop, check if timeout has elapsed, check if person to be transfered hung up,
  * check for answer break loop, set cdr return channel.
+ *
  * \todo XXX Check - this is very similar to the code in channel.c 
  * \return always a channel
 */
@@ -1724,6 +1740,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 /*!
  * \brief bridge the call and set CDR
  * \param chan,peer,config
+ * 
  * Set start time, check for two channels,check if monitor on
  * check for feature activation, create new CDR
  * \retval res on success.
@@ -2023,7 +2040,8 @@ static void post_manager_event(const char *s, struct parkeduser *pu)
 
 /*! 
  * \brief Take care of parked calls and unpark them if needed 
- * \param ignore unused var
+ * \param ignore unused var.
+ * 
  * Start inf loop, lock parking lot, check if any parked channels have gone above timeout
  * if so, remove channel from parking lot and return it to the extension that parked it.
  * Check if parked channel decided to hangup, wait until next FD via select().
@@ -2393,6 +2411,7 @@ static char mandescr_bridge[] =
  * \brief Actual bridge
  * \param chan
  * \param tmpchan
+ * 
  * Stop hold music, lock both channels, masq channels,
  * after bridge return channel to next priority.
 */
@@ -2416,11 +2435,13 @@ static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *t
  * \brief Bridge channels together
  * \param s
  * \param m
+ * 
  * Make sure valid channels were specified, 
  * send errors if any of the channels could not be found/locked, answer channels if needed,
  * create the placeholder channels and grab the other channels 
  * make the channels compatible, send error if we fail doing so 
- * setup the bridge thread object and start the bridge. 
+ * setup the bridge thread object and start the bridge.
+ * 
  * \retval 0 on success or on incorrect use.
  * \retval 1 on failure to bridge channels.
 */
@@ -2528,6 +2549,7 @@ static char showfeatures_help[] =
  * \param e 
  * \param cmd
  * \param a
+ *  
  * Check right usage, lock parking lot, display parked calls, unlock parking lot list.
  * \retval CLI_SUCCESS on success.
  * \retval CLI_SHOWUSAGE on incorrect number of arguements.
@@ -2592,6 +2614,7 @@ static struct ast_cli_entry cli_features[] = {
  * \brief Dump parking lot status
  * \param s
  * \param m
+ * 
  * Lock parking lot, iterate list and append parked calls status, unlock parking lot.
  * \return Always RESULT_SUCCESS 
 */
@@ -2646,6 +2669,7 @@ static char mandescr_park[] =
  * \brief Create manager event for parked calls
  * \param s
  * \param m
+ *
  * Get channels involved in park, create event.
  * \return Always 0
 */
@@ -2705,7 +2729,8 @@ static int manager_park(struct mansession *s, const struct message *m)
 
 /*!
  * \brief Pickup a call
- * \param chan channel that initiated pickup
+ * \param chan channel that initiated pickup.
+ *
  * Walk list of channels, checking it is not itself, channel is pbx one,
  * check that the callgroup for both channels are the same and the channel is ringing.
  * Answer calling channel, flag channel as answered on queue, masq channels together.
@@ -3074,7 +3099,8 @@ END_OPTIONS );
 /*!
  * \brief Bridge channels
  * \param chan
- * \param data channel to bridge with
+ * \param data channel to bridge with.
+ * 
  * Split data, check we aren't bridging with ourself, check valid channel,
  * answer call if not already, check compatible channels, setup bridge config
  * now bridge call, if transfered party hangs up return to PBX extension.

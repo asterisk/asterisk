@@ -98,7 +98,8 @@ static SQLHSTMT custom_prepare(struct odbc_obj *obj, void *data)
  * \brief Excute an SQL query and return ast_variable list
  * \param database
  * \param table
- * \param ap list containing one or more field/operator/value set
+ * \param ap list containing one or more field/operator/value set.
+ *
  * Select database and preform query on table, prepare the sql statement
  * Sub-in the values to the prepared statement and execute it. Return results
  * as a ast_variable list.
@@ -238,7 +239,8 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
  * \brief Excute an Select query and return ast_config list
  * \param database
  * \param table
- * \param ap list containing one or more field/operator/value set
+ * \param ap list containing one or more field/operator/value set.
+ *
  * Select database and preform query on table, prepare the sql statement
  * Sub-in the values to the prepared statement and execute it. 
  * Execute this prepared query against several ODBC connected databases.
@@ -385,7 +387,8 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
  * \param table
  * \param keyfield where clause field
  * \param lookup value of field for where clause
- * \param ap list containing one or more field/value set(s)
+ * \param ap list containing one or more field/value set(s).
+ *
  * Update a database table, prepare the sql statement using keyfield and lookup
  * control the number of records to change. All values to be changed are stored in ap list.
  * Sub-in the values to the prepared statement and execute it.
@@ -455,6 +458,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
  * \param database
  * \param table
  * \param ap list containing one or more field/value set(s)
+ *
  * Insert a new record into database table, prepare the sql statement.
  * All values to be changed are stored in ap list.
  * Sub-in the values to the prepared statement and execute it.
@@ -530,7 +534,8 @@ static int store_odbc(const char *database, const char *table, va_list ap)
  * \param keyfield where clause field
  * \param lookup value of field for where clause
  * \param ap list containing one or more field/value set(s)
- * Dlete a row from a database table, prepare the sql statement using keyfield and lookup
+ *
+ * Delete a row from a database table, prepare the sql statement using keyfield and lookup
  * control the number of records to change. Additional params to match rows are stored in ap list.
  * Sub-in the values to the prepared statement and execute it.
  *

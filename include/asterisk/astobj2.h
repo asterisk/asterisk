@@ -90,7 +90,7 @@ parameters. At the moment, this is done as follows:
     struct ao2_container *c;
 
     c = ao2_container_alloc(MAX_BUCKETS, my_hash_fn, my_cmp_fn);
-
+    \endcode
 where
 - MAX_BUCKETS is the number of buckets in the hash table,
 - my_hash_fn() is the (user-supplied) function that returns a
@@ -153,7 +153,7 @@ void ao2_bt(void);	/* backtrace */
  *
  * Allocates a struct astobj2 with sufficient space for the
  * user-defined structure.
- * \notes:
+ * \note
  * - storage is zeroed; XXX maybe we want a flag to enable/disable this.
  * - the refcount of the object just created is 1
  * - the returned pointer cannot be free()'d or realloc()'ed;
@@ -329,8 +329,9 @@ struct ao2_container;
  * We allocate space for a struct astobj_container, struct container
  * and the buckets[] array.
  *
- * \param my_hash_fn Pointer to a function computing a hash value.
- * \param my_cmp_fn Pointer to a function comparating key-value 
+ * \param n_buckets Number of buckets for hash
+ * \param hash_fn Pointer to a function computing a hash value.
+ * \param cmp_fn Pointer to a function comparating key-value 
  * 			with a string. (can be NULL)
  * \return A pointer to a struct container.
  *
@@ -354,7 +355,7 @@ int ao2_container_count(struct ao2_container *c);
  * Add an object to a container.
  *
  * \param c the container to operate on.
- * \param obj the object to be added.
+ * \param newobj the object to be added.
  * \return NULL on errors, other values on success.
  *
  * This function insert an object in a container according its key.
@@ -364,7 +365,7 @@ int ao2_container_count(struct ao2_container *c);
 void *ao2_link(struct ao2_container *c, void *newobj);
 void *ao2_unlink(struct ao2_container *c, void *newobj);
 
-/*! \struct Used as return value if the flag OBJ_MULTIPLE is set */
+/*! \brief Used as return value if the flag OBJ_MULTIPLE is set */
 struct ao2_list {
 	struct ao2_list *next;
 	void *obj;	/* pointer to the user portion of the object */

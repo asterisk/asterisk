@@ -73,7 +73,7 @@ void SHA1ProcessMessageBlock(SHA1Context *);
 
 /*!
  * \brief SHA1Reset
- * \param context the context to be reset
+ * \param context the context to be reset.
  * This function will initialize the SHA1Context in preparation
  * for computing a new SHA1 message digest.
  * \return sha Error Code.
@@ -146,7 +146,7 @@ int SHA1Result( SHA1Context *context,
  * \param context [in/out] The SHA context to update
  * \param message_array [in] An array of characters representing the next portion of
  *		   the message.
- * \param length [in] The length of the message in message_array
+ * \param length [in] The length of the message in message_array.
  *  This function accepts an array of octets as the next portion
  *  of the message.
  * \return sha Error Code.
@@ -281,7 +281,7 @@ void SHA1ProcessMessageBlock(SHA1Context *context)
 
 /*!
  * \brief Pad message to be 512 bits.
- * \param context [in/out]  The context to pad
+ * \param context [in/out]  The context to pad.
  * 
  * According to the standard, the message must be padded to an even
  *  512 bits.  The first padding bit must be a '1'.  The last 64

@@ -261,7 +261,7 @@ static void unload_config(void);
 
 /*!
  * \brief Asterisk callback function for CDR support.
- * \param cdr the CDR entry Asterisk sends us
+ * \param cdr the CDR entry Asterisk sends us.
  * 
  * Asterisk will call this function each time a CDR entry must be logged if
  * CDR support is enabled.
@@ -301,6 +301,7 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames);
  * \param file the file to load from the database
  * \param cfg the struct ast_config object to use when storing variables
  * \param flags Optional flags.  Not used.
+ * \param suggested_incl suggest include.
  * \retval cfg object
  * \retval NULL if an error occurred
  * \see add_cfg_entry()

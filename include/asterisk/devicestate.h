@@ -135,7 +135,7 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
  * \brief Tells Asterisk the State for Device is changed
  *
  * \param state the new state of the device
- * \param fmt device name like a dial string with format parameters
+ * \param device device name like a dial string with format parameters
  *
  * The new state of the device will be sent off to any subscribers
  * of device states.  It will also be stored in the internal event

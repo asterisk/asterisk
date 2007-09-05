@@ -53,7 +53,8 @@ struct ast_call_feature {
  * \param chan the channel to actually be parked
  * \param host the channel which will have the parked location read to.
  * \param timeout is a timeout in milliseconds
- * \param extout is a parameter to an int that will hold the parked location, or NULL if you want
+ * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
+ * 
  * Park the channel chan, and read back the parked location to the host. 
  * If the call is not picked up within a specified period of time, 
  * then the call will return to the last step that it was in 
@@ -68,7 +69,8 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *host, int timeou
  * \param rchan the real channel to be parked
  * \param host the channel to have the parking read to.
  * \param timeout is a timeout in milliseconds
- * \param extout is a parameter to an int that will hold the parked location, or NULL if you want
+ * \param extout is a parameter to an int that will hold the parked location, or NULL if you want.
+ * 
  * Masquerade the channel rchan into a new, empty channel which is then parked with ast_park_call
  * \retval 0 on success.
  * \retval -1 on failure.

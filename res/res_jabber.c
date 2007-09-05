@@ -508,7 +508,8 @@ static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incom
  * \param prs the XML parser
  * \param type the SASL authentication type. Supported types are PLAIN and MD5
  * \param username
- * \param pass
+ * \param pass password.
+ *
  * If SASL authentication type is MD5, we simply call iks_start_sasl().
  * If type is PLAIN, we compute the authentication string by ourselves, 
  * because it looks like Google's jabber server does not accept the value 

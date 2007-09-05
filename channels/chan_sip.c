@@ -662,8 +662,8 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
 #define DEC_CALL_RINGING 2
 #define INC_CALL_RINGING 3
 
-/*! \brief sip_request: The data grabbed from the UDP socket
- *
+/*! \brief The data grabbed from the UDP socket
+ * \verbatim
  * Incoming messages: we first store the data from the socket in data[],
  * adding a trailing \0 to make string parsing routines happy.
  * Then call parse_request() and req.method = find_sip_method();
@@ -683,11 +683,12 @@ static int *sipsock_read_id;            /*!< ID of IO entry for sipsock FD */
  * and then fill the rest with add_header() and add_line().
  * The \r\n at the end of the line are still there, so the get_header()
  * and similar functions don't work on these packets. 
+ * \endverbatim
  */
 struct sip_request {
 	char *rlPart1; 	        /*!< SIP Method Name or "SIP/2.0" protocol version */
 	char *rlPart2; 	        /*!< The Request URI or Response Status */
-	int len;                /*!< bytes used in data[], excluding trailing '\0'. Rarely used. */
+	int len;                /*!< bytes used in data[], excluding trailing null terminator. Rarely used. */
 	int headers;            /*!< # of SIP Headers */
 	int method;             /*!< Method of this request */
 	int lines;              /*!< Body Content */
@@ -1824,7 +1825,7 @@ static struct ast_channel_tech sip_tech_info;
 /* wrapper macro to tell whether t points to one of the sip_tech descriptors */
 #define IS_SIP_TECH(t)  ((t) == &sip_tech || (t) == &sip_tech_info)
 
-/*! \begin map from an integer value to a string.
+/*! \brief map from an integer value to a string.
  * If no match is found, return errorstring
  */
 static const char *map_x_s(const struct _map_x_s *table, int x, const char *errorstring)
@@ -1837,7 +1838,7 @@ static const char *map_x_s(const struct _map_x_s *table, int x, const char *erro
 	return errorstring;
 }
 
-/*! \begin map from a string to an integer value, case insensitive.
+/*! \brief map from a string to an integer value, case insensitive.
  * If no match is found, return errorvalue.
  */
 static int map_s_x(const struct _map_x_s *table, const char *s, int errorvalue)

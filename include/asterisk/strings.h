@@ -238,14 +238,14 @@ int ast_true(const char *val);
 int ast_false(const char *val);
 
 /*
-  \brief Join an array of strings into a single string.
-  \param s the resulting string buffer
-  \param len the length of the result buffer, s
-  \param w an array of strings to join
-
-  This function will join all of the strings in the array 'w' into a single
-  string.  It will also place a space in the result buffer in between each
-  string from 'w'.
+ *  \brief Join an array of strings into a single string.
+ * \param s the resulting string buffer
+ * \param len the length of the result buffer, s
+ * \param w an array of strings to join.
+ *
+ * This function will join all of the strings in the array 'w' into a single
+ * string.  It will also place a space in the result buffer in between each
+ * string from 'w'.
 */
 void ast_join(char *s, size_t len, char * const w[]);
 

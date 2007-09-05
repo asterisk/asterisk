@@ -60,6 +60,8 @@ struct ast_audiohook_list {
 
 /*! \brief Initialize an audiohook structure
  * \param audiohook Audiohook structure
+ * \param type
+ * \param source
  * \return Returns 0 on success, -1 on failure
  */
 int ast_audiohook_init(struct ast_audiohook *audiohook, enum ast_audiohook_type type, const char *source)

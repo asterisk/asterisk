@@ -163,12 +163,12 @@ struct ast_frame *ast_audiohook_write_list(struct ast_channel *chan, struct ast_
 void ast_audiohook_trigger_wait(struct ast_audiohook *audiohook);
 
 /*! \brief Lock an audiohook
- * \param audiohook Audiohook structure
+ * \param ah Audiohook structure
  */
 #define ast_audiohook_lock(ah) ast_mutex_lock(&(ah)->lock)
 
 /*! \brief Unlock an audiohook
- * \param audiohook Audiohook structure
+ * \param ah Audiohook structure
  */
 #define ast_audiohook_unlock(ah) ast_mutex_unlock(&(ah)->lock)
 

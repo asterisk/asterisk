@@ -144,7 +144,7 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr, size_t size,
   \param needed Amount of space needed for this field
   \param fields Pointer to the first entry of the field array
   \param num_fields Number of fields in the array
-  \return NULL on failure, an address for the field on success
+  \return NULL on failure, an address for the field on success.
 
   This function will allocate the requested amount of space from
   the field pool. If the requested amount of space is not available,
@@ -356,7 +356,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 /*!
   \brief Free the stringfield storage pools attached to a structure
   \param x Pointer to a structure containing fields
-  \return nothing
+  \return nothing.
 
   After calling this macro, fields can no longer be accessed in
   structure; it should only be called immediately before freeing
@@ -373,7 +373,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
 /*!
   \brief Free the stringfields in a structure
   \param x Pointer to a structure containing fields
-  \return nothing
+  \return nothing.
 
   After calling this macro, the most recently allocated pool
   attached to the structure will be available for use by
