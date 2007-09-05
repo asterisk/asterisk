@@ -3839,7 +3839,12 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 	AST_LIST_UNLOCK(&queues);
 
 	if (q) {
-		count = q->membercount;
+		for (m = q->members; m; m = m->next) {
+			/* Count the agents who are logged in and presently answering calls */
+			if ((m->status != AST_DEVICE_UNAVAILABLE) && (m->status != AST_DEVICE_INVALID)) {
+				count++;
+			}
+		}
 		ast_mutex_unlock(&q->lock);
 	} else
 		ast_log(LOG_WARNING, "queue %s was not found\n", data);
