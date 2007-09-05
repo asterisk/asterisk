@@ -789,7 +789,11 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (
+#ifdef sun
+	"       lock;  xaddl   %0, %1 ;        "
+#else
 	"       lock   xaddl   %0, %1 ;        "
+#endif
 	: "+r" (v),                     /* 0 (result) */   
 	  "=m" (*p)                     /* 1 */
 	: "m" (*p));                    /* 2 */
