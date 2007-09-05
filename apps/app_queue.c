@@ -3773,6 +3773,7 @@ static int queue_function_var(struct ast_channel *chan, const char *cmd, char *d
 {
 	int res = -1;
 	struct call_queue *q;
+	struct member *m;
 
 	char interfacevar[256]="";
         float sl = 0;
