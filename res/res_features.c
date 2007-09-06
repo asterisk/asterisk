@@ -1990,7 +1990,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			
 			/* absorb the peer cdr */
 			ast_cdr_merge(bridge_cdr, peer->cdr);
-			if (ast_test_flag(peer->cdr, AST_CDR_FLAG_LOCKED))
+			if (!ast_test_flag(peer->cdr, AST_CDR_FLAG_LOCKED))
 				ast_cdr_discard(peer->cdr); /* if locked cdrs are in peer, they are taken over in the merge */
 			
 			peer->cdr = NULL;
