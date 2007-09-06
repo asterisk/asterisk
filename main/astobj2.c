@@ -26,7 +26,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 
 /*!
- * astobj2 objects are always prepended this data structure,
+ * astobj2 objects are always preceded by this data structure,
  * which contains a lock, a reference counter,
  * the flags and a pointer to a destructor.
  * The refcount is used to decide when it is time to
@@ -244,8 +244,8 @@ AST_LIST_HEAD_NOLOCK(bucket, bucket_list);
  * we hold the lock (that we need anyways).
  */
 struct ao2_container {
-	ao2_hash_fn hash_fn;
-	ao2_callback_fn cmp_fn;
+	ao2_hash_fn *hash_fn;
+	ao2_callback_fn *cmp_fn;
 	int n_buckets;
 	/*! Number of elements in the container */
 	int elements;
@@ -273,8 +273,8 @@ static int hash_zero(const void *user_obj, const int flags)
  * A container is just an object, after all!
  */
 struct ao2_container *
-ao2_container_alloc(const uint n_buckets, ao2_hash_fn hash_fn,
-		ao2_callback_fn cmp_fn)
+ao2_container_alloc(const uint n_buckets, ao2_hash_fn *hash_fn,
+		ao2_callback_fn *cmp_fn)
 {
 	/* XXX maybe consistency check on arguments ? */
 	/* compute the container size */
@@ -383,7 +383,7 @@ static int cb_true(void *user_data, void *arg, int flags)
  */
 void *ao2_callback(struct ao2_container *c,
 	const enum search_flags flags,
-	ao2_callback_fn cb_fn, void *arg)
+	ao2_callback_fn *cb_fn, void *arg)
 {
 	int i, last;	/* search boundaries */
 	void *ret = NULL;
@@ -397,15 +397,6 @@ void *ao2_callback(struct ao2_container *c,
 	}
 
 	/* override the match function if necessary */
-#if 0
-	/* Removing this slightly changes the meaning of OBJ_POINTER, but makes it
-	 * do what I want it to.  I'd like to hint to ao2_callback that the arg is
-	 * of the same object type, so it can be passed to the hash function.
-	 * However, I don't want to imply that this is the object being searched for. */
-	if (flags & OBJ_POINTER)
-		cb_fn = match_by_addr;
-	else
-#endif
 	if (cb_fn == NULL)	/* if NULL, match everything */
 		cb_fn = cb_true;
 	/*

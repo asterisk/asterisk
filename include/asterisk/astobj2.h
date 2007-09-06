@@ -23,39 +23,45 @@
  *
  * \brief Object Model implementing objects and containers.
 
-These functions implement an abstraction for objects (with
-locks and reference counts) and containers for these user-defined objects,
-supporting locking, reference counting and callbacks.
+This module implements an abstraction for objects (with locks and
+reference counts), and containers for these user-defined objects,
+also supporting locking, reference counting and callbacks.
 
-The internal implementation of the container is opaque to the user,
+The internal implementation of objects and containers is opaque to the user,
 so we can use different data structures as needs arise.
-
-At the moment, however, the only internal data structure is a hash
-table. When other structures will be implemented, the initialization
-function may change.
 
 USAGE - OBJECTS
 
-An object is a block of memory that must be allocated with the
-function ao2_alloc(), and for which the system keeps track (with
-abit of help from the programmer) of the number of references around.
-When an object has no more references, it is destroyed, by first
+An ao2 object is a block of memory that the user code can access,
+and for which the system keeps track (with a bit of help from the
+programmer) of the number of references around.  When an object has
+no more references (refcount == 0), it is destroyed, by first
 invoking whatever 'destructor' function the programmer specifies
-(it can be NULL), and then freeing the memory.
+(it can be NULL if none is necessary), and then freeing the memory.
 This way objects can be shared without worrying who is in charge
 of freeing them.
+As an additional feature, ao2 objects are associated to individual
+locks.
 
-Basically, creating an object requires the size of the object and
+Creating an object requires the size of the object and
 and a pointer to the destructor function:
  
     struct foo *o;
  
     o = ao2_alloc(sizeof(struct foo), my_destructor_fn);
 
-The object returned has a refcount = 1.
-Note that the memory for the object is allocated and zeroed.
-- We cannot realloc() the object itself.
-- We cannot call free(o) to dispose of the object; rather we
+The value returned points to the user-visible portion of the objects
+(user-data), but is also used as an identifier for all object-related
+operations such as refcount and lock manipulations.
+
+On return from ao2_alloc():
+- the object has a refcount = 1;
+
+- the memory for the object is allocated dynamically and zeroed;
+
+- we cannot realloc() the object itself;
+
+- we cannot call free(o) to dispose of the object. Rather, we
   tell the system that we do not need the reference anymore:
 
     ao2_ref(o, -1)
@@ -68,17 +74,16 @@ Note that the memory for the object is allocated and zeroed.
 
 - ao2_ref(o, +1) can be used to modify the refcount on the
   object in case we want to pass it around.
-	
 
-- other calls on the object are ao2_lock(obj), ao2_unlock(),
-  ao2_trylock(), to manipulate the lock.
+- ao2_lock(obj), ao2_unlock(obj), ao2_trylock(obj) can be used
+  to manipulate the lock associated with the object.
 
 
 USAGE - CONTAINERS
 
-A containers is an abstract data structure where we can store
-objects, search them (hopefully in an efficient way), and iterate
-or apply a callback function to them. A container is just an object
+An ao2 container is an abstract data structure where we can store
+ao2 objects, search them (hopefully in an efficient way), and iterate
+or apply a callback function to them. A container is just an ao2 object
 itself.
 
 A container must first be allocated, specifying the initial
@@ -94,18 +99,18 @@ parameters. At the moment, this is done as follows:
 where
 - MAX_BUCKETS is the number of buckets in the hash table,
 - my_hash_fn() is the (user-supplied) function that returns a
-  hash key for the object (further reduced moduly MAX_BUCKETS
+  hash key for the object (further reduced modulo MAX_BUCKETS
   by the container's code);
 - my_cmp_fn() is the default comparison function used when doing
   searches on the container,
 
-A container knows little or nothing about the object itself,
-other than the fact that it has been created by ao2_alloc()
-All knowledge of the (user-defined) internals of the object
+A container knows little or nothing about the objects it stores,
+other than the fact that they have been created by ao2_alloc().
+All knowledge of the (user-defined) internals of the objects
 is left to the (user-supplied) functions passed as arguments
 to ao2_container_alloc().
 
-If we want to insert the object in the container, we should
+If we want to insert an object in a container, we should
 initialize its fields -- especially, those used by my_hash_fn() --
 to compute the bucket to use.
 Once done, we can link an object to a container with
@@ -116,40 +121,38 @@ The function returns NULL in case of errors (and the object
 is not inserted in the container). Other values mean success
 (we are not supposed to use the value as a pointer to anything).
 
-\note inserting the object in the container grabs the reference
-to the object (which is now owned by the container) so we do not
-need to drop ours when we are done.
+\note inserting an object in a container grabs the reference
+to the object (which is now owned by the container), so we do not
+need to drop our reference - in fact, we don't own it anymore,
+so we are not even supposed to access the object as someone might
+delete it.
 
 \note While an object o is in a container, we expect that
 my_hash_fn(o) will always return the same value. The function
 does not lock the object to be computed, so modifications of
 those fields that affect the computation of the hash should
-be done by extractiong the object from the container, and
+be done by extracting the object from the container, and
 reinserting it after the change (this is not terribly expensive).
 
 \note A container with a single buckets is effectively a linked
 list. However there is no ordering among elements.
 
-Objects implement a reference counter keeping the count
-of the number of references that reference an object.
-
-When this number becomes zero the destructor will be
-called and the object will be free'd.
  */
 
 /*!
- * Invoked just before freeing the memory for the object.
- * It is passed a pointer to user data.
+ * Typedef for an object destructor. This is called just before freeing
+ * the memory for the object. It is passed a pointer to the user-defined
+ * data of the object.
  */
 typedef void (*ao2_destructor_fn)(void *);
 
-void ao2_bt(void);	/* backtrace */
+
 /*!
  * Allocate and initialize an object.
  * 
- * \param data_size The sizeof() of user-defined structure.
- * \param destructor_fn The function destructor (can be NULL)
- * \return A pointer to user data. 
+ * \param data_size The sizeof() of the user-defined structure.
+ * \param destructor_fn The destructor function (can be NULL)
+ * \return A pointer to user-data. 
  *
  * Allocates a struct astobj2 with sufficient space for the
  * user-defined structure.
@@ -203,7 +206,7 @@ int ao2_unlock(void *a);
  *
  * Containers
 
-containers are data structures meant to store several objects,
+Containers are data structures meant to store several objects,
 and perform various operations on them.
 Internally, objects are stored in lists, hash tables or other
 data structures depending on the needs.
@@ -256,55 +259,15 @@ Operations on container include:
     ao2_ref(c, -1)
 	dropping a reference to a container destroys it, very simple!
  
-Containers are astobj2 object themselves, and this is why their
+Containers are ao2 objects themselves, and this is why their
 implementation is simple too.
 
  */
 
 /*!
- * We can perform different operation on an object. We do this
- * according the following flags.
- */
-enum search_flags {
-	/*! unlink the object found */
-	OBJ_UNLINK	 = (1 << 0),
-	/*! on match, don't return the object or increase its reference count. */
-	OBJ_NODATA	 = (1 << 1),
-	/*! don't stop at the first match 
-	 *  \note This is not fully implemented. */
-	OBJ_MULTIPLE = (1 << 2),
-	/*! obj is an object of the same type as the one being searched for.
-	 *  This implies that it can be passed to the object's hash function
-	 *  for optimized searching. */
-	OBJ_POINTER	 = (1 << 3),
-};
-
-/*!
- * Type of a generic function to generate a hash value from an object.
- *
- */
-typedef int (*ao2_hash_fn)(const void *obj, const int flags);
-
-/*!
- * valid callback results:
- * We return a combination of
- * CMP_MATCH when the object matches the request,
- * and CMP_STOP when we should not continue the search further.
- */
-enum _cb_results {
-	CMP_MATCH	= 0x1,
-	CMP_STOP	= 0x2,
-};
-
-/*!
- * generic function to compare objects.
- * This, as other callbacks, should return a combination of
- * _cb_results as described above.
- *
- * \param o	object from container
- * \param arg	search parameters (directly from ao2_find)
- * \param flags	passed directly from ao2_find
- *	XXX explain.
+ * Before declaring containers, we need to declare the types of the
+ * arguments passed to the constructor - in turn, this requires
+ * to define callback and hash functions and their arguments.
  */
 
 /*!
@@ -312,10 +275,50 @@ enum _cb_results {
  * \param obj  pointer to the (user-defined part) of an object.
  * \param arg callback argument from ao2_callback()
  * \param flags flags from ao2_callback()
- * The return values are the same as a compare function.
- * In fact, they are the same thing.
+ * The return values are a combination of enum _cb_results.
+ * Callback functions are used to search or manipulate objects in a container,
  */
-typedef int (*ao2_callback_fn)(void *obj, void *arg, int flags);
+typedef int (ao2_callback_fn)(void *obj, void *arg, int flags);
+
+/*! a very common callback is one that matches by address. */
+ao2_callback_fn ao2_match_by_addr;
+
+/*!
+ * A callback function will return a combination of CMP_MATCH and CMP_STOP.
+ * The latter will terminate the search in a container.
+ */
+enum _cb_results {
+	CMP_MATCH	= 0x1,	/*!< the object matches the request */
+	CMP_STOP	= 0x2,	/*!< stop the search now */
+};
+
+/*!
+ * Flags passed to ao2_callback() and ao2_hash_fn() to modify its behaviour.
+ */
+enum search_flags {
+	/*! Unlink the object for which the callback function
+	 *  returned CMP_MATCH . This is the only way to extract
+	 *  objects from a container. */
+	OBJ_UNLINK	 = (1 << 0),
+	/*! On match, don't return the object hence do not increase
+	 *  its refcount. */
+	OBJ_NODATA	 = (1 << 1),
+	/*! Don't stop at the first match in ao2_callback()
+	 *  \note This is not fully implemented. */
+	OBJ_MULTIPLE = (1 << 2),
+	/*! obj is an object of the same type as the one being searched for,
+	 *  so use the object's hash function for optimized searching.
+	 *  The search function is unaffected (i.e. use the one passed as
+	 *  argument, or match_by_addr if none specified). */
+	OBJ_POINTER	 = (1 << 3),
+};
+
+/*!
+ * Type of a generic function to generate a hash value from an object.
+ * flags is ignored at the moment. Eventually, it will include the
+ * value of OBJ_POINTER passed to ao2_callback().
+ */
+typedef int (ao2_hash_fn)(const void *obj, const int flags);
 
 /*!
  * Here start declarations of containers.
@@ -338,7 +341,7 @@ struct ao2_container;
  * destructor is set implicitly.
  */
 struct ao2_container *ao2_container_alloc(const uint n_buckets,
-		ao2_hash_fn hash_fn, ao2_callback_fn cmp_fn);
+		ao2_hash_fn *hash_fn, ao2_callback_fn *cmp_fn);
 
 /*!
  * Returns the number of elements in a container.
@@ -372,9 +375,8 @@ struct ao2_list {
 };
 
 /*!
- * ao2_callback() and astob2_find() are the same thing with only one difference:
- * the latter uses as a callback the function passed as my_cmp_f() at
- * the time of the creation of the container.
+ * ao2_callback() is a generic function that applies cb_fn() to all objects
+ * in a container, as described below.
  * 
  * \param c A pointer to the container to operate on.
  * \param arg passed to the callback.
@@ -389,6 +391,16 @@ struct ao2_list {
  * Also, in case of multiple values returned, the list used
  * to store the objects must be freed by the caller.
  *
+ * Typically, ao2_callback() is used for two purposes:
+ * - to perform some action (including removal from the container) on one
+ *   or more objects; in this case, cb_fn() can modify the object itself,
+ *   and to perform deletion should set CMP_MATCH on the matching objects,
+ *   and have OBJ_UNLINK set in flags.
+ * - to look for a specific object in a container; in this case, cb_fn()
+ *   should not modify the object, but just return a combination of
+ *   CMP_MATCH and CMP_STOP on the desired object.
+ * Other usages are also possible, of course.
+
  * This function searches through a container and performs operations
  * on objects according on flags passed.
  * XXX describe better
@@ -418,13 +430,15 @@ struct ao2_list {
  * \note When the returned object is no longer in use, ao2_ref() should
  * be used to free the additional reference possibly created by this function.
  */
-/* XXX order of arguments to find */
-void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
 void *ao2_callback(struct ao2_container *c,
 	enum search_flags flags,
-	ao2_callback_fn cb_fn, void *arg);
+	ao2_callback_fn *cb_fn, void *arg);
 
-int ao2_match_by_addr(void *user_data, void *arg, int flags);
+/*! ao2_find() is a short hand for ao2_callback(c, flags, c->cmp_fn, arg)
+ * XXX possibly change order of arguments ?
+ */
+void *ao2_find(struct ao2_container *c, void *arg, enum search_flags flags);
+
 /*!
  *
  *
@@ -517,4 +531,6 @@ struct ao2_iterator ao2_iterator_init(struct ao2_container *c, int flags);
 
 void *ao2_iterator_next(struct ao2_iterator *a);
 
+/* extra functions */
+void ao2_bt(void);	/* backtrace */
 #endif /* _ASTERISK_ASTOBJ2_H */
