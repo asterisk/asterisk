@@ -14008,8 +14008,17 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	transferer->readformat = chan2->readformat;
 	transferer->writeformat = chan2->writeformat;
 
-	/* Prepare for taking over the channel */
+	/* Prepare for taking over the channel.  Go ahead and grab this channel
+	 * lock here to avoid a deadlock with callbacks into the channel driver
+	 * that hold the channel lock and want the pvt lock.  */
+	while (ast_channel_trylock(chan2)) {
+		struct sip_pvt *pvt = chan2->tech_pvt;
+		ast_mutex_unlock(&pvt->lock);
+		usleep(1);
+		ast_mutex_lock(&pvt->lock);
+	}
 	ast_channel_masquerade(transferer, chan2);
+	ast_channel_unlock(chan2);
 
 	/* Setup the extensions and such */
 	ast_copy_string(transferer->context, chan2->context, sizeof(transferer->context));
