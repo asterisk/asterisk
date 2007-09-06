@@ -1819,13 +1819,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (musiconhold == 0 && (confflags & CONFFLAG_MOH)) {
 						ast_moh_start(chan, NULL, NULL);
 						musiconhold = 1;
-					} else {
-						ztc.confmode = ZT_CONF_CONF;
-						if (ioctl(fd, ZT_SETCONF, &ztc)) {
-							ast_log(LOG_WARNING, "Error setting conference\n");
-							close(fd);
-							goto outrun;
-						}
 					}
 				} else if(currentmarked >= 1 && lastmarked == 0) {
 					/* Marked user entered, so cancel timeout */
