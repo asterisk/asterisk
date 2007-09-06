@@ -42,6 +42,8 @@ Dialplan functions
     Hints are mappings between extensions and devices for the sake of 
     determining the state of an extension.  This function can retrieve the list
     of devices or the name associated with a hint.
+  * Added EXTENSION_STATE() dialplan function which allows retrieving the state
+    of any extension.
 
 CLI Changes
 -----------
