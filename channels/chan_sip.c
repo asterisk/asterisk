@@ -14013,9 +14013,9 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	 * that hold the channel lock and want the pvt lock.  */
 	while (ast_channel_trylock(chan2)) {
 		struct sip_pvt *pvt = chan2->tech_pvt;
-		ast_mutex_unlock(&pvt->lock);
+		sip_pvt_unlock(pvt);
 		usleep(1);
-		ast_mutex_lock(&pvt->lock);
+		sip_pvt_lock(pvt);
 	}
 	ast_channel_masquerade(transferer, chan2);
 	ast_channel_unlock(chan2);
