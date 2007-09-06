@@ -1402,7 +1402,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 			if(query && iq)  {
 				iks_insert_attrib(iq, "type", "get");
 				iks_insert_attrib(iq, "to", pak->from->full);
-				iks_insert_attrib(iq,"from",iks_find_attrib(pak->x,"to"));
+				iks_insert_attrib(iq,"from", client->jid->full);
 				iks_insert_attrib(iq, "id", client->mid);
 				ast_aji_increment_mid(client->mid);
 				iks_insert_attrib(query, "xmlns", "http://jabber.org/protocol/disco#info");
