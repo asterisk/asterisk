@@ -8831,7 +8831,22 @@ static void *ss7_linkset(void *data)
 				ss7_block_cics(linkset, e->cgu.startcic, e->cgu.endcic, e->cgu.status, 0);
  				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, p->dpc, e->cgu.status, e->cgu.type);
 				break;
+			case ISUP_EVENT_UCIC:
+				ast_verb(3,"Got UCIC message on CIC %d\n", e->ucic.cic);
+				chanpos = ss7_find_cic(linkset, e->ucic.cic);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "UCIC on unconfigured CIC %d\n", e->ucic.cic);
+					break;
+				}
+				p = linkset->pvts[chanpos];
+				ast_debug(1, "Unequiped Circuit Id Code on CIC %d\n", e->ucic.cic);
+				ast_mutex_lock(&p->lock);
+				p->remotelyblocked = 1;
+				p->inservice = 0;
+				ast_mutex_unlock(&p->lock);			//doesn't require a SS7 acknowledgement
+				break;
 			case ISUP_EVENT_BLO:
+				ast_verb(3,"Got BLO acknowledgement from CIC %d\n", e->ubl.cic);
 				chanpos = ss7_find_cic(linkset, e->blo.cic);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "BLO on unconfigured CIC %d\n", e->blo.cic);
@@ -8841,10 +8856,12 @@ static void *ss7_linkset(void *data)
 				ast_debug(1, "Blocking CIC %d\n", e->blo.cic);
 				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 1;
+				p->inservice = 0;
 				ast_mutex_unlock(&p->lock);
 				isup_bla(linkset->ss7, e->blo.cic, p->dpc);
 				break;
 			case ISUP_EVENT_UBL:
+				ast_verb(3,"Got UBL acknowledgement from CIC %d\n", e->ubl.cic);
 				chanpos = ss7_find_cic(linkset, e->ubl.cic);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "UBL on unconfigured CIC %d\n", e->ubl.cic);
@@ -8854,6 +8871,7 @@ static void *ss7_linkset(void *data)
 				ast_debug(1, "Unblocking CIC %d\n", e->ubl.cic);
 				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 0;
+				p->inservice = 1;
 				ast_mutex_unlock(&p->lock);
 				isup_uba(linkset->ss7, e->ubl.cic, p->dpc);
 				break;
