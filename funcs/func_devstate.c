@@ -58,12 +58,12 @@ static int devstate_write(struct ast_channel *chan, const char *cmd, char *data,
 	size_t len = strlen("Custom:");
 
 	if (strncasecmp(data, "Custom:", len)) {
-		ast_log(LOG_WARNING, "The DEVSTATE function can only be used to set 'Custom:' device state!\n");
+		ast_log(LOG_WARNING, "The DEVICE_STATE function can only be used to set 'Custom:' device state!\n");
 		return -1;
 	}
 	data += len;
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "DEVSTATE function called with no custom device name!\n");
+		ast_log(LOG_WARNING, "DEVICE_STATE function called with no custom device name!\n");
 		return -1;
 	}
 
@@ -139,7 +139,7 @@ static char *cli_funcdevstate_list(struct ast_cli_entry *e, int cmd, struct ast_
 		e->usage =
 			"Usage: funcdevstate list\n"
 			"       List all custom device states that have been set by using\n"
-			"       the DEVSTATE dialplan function.\n";
+			"       the DEVICE_STATE dialplan function.\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -178,19 +178,19 @@ static struct ast_cli_entry cli_funcdevstate[] = {
 };
 
 static struct ast_custom_function devstate_function = {
-	.name = "DEVSTATE",
+	.name = "DEVICE_STATE",
 	.synopsis = "Get or Set a device state",
-	.syntax = "DEVSTATE(device)",
+	.syntax = "DEVICE_STATE(device)",
 	.desc =
-	"  The DEVSTATE function can be used to retrieve the device state from any\n"
+	"  The DEVICE_STATE function can be used to retrieve the device state from any\n"
 	"device state provider.  For example:\n"
-	"   NoOp(SIP/mypeer has state ${DEVSTATE(SIP/mypeer)})\n"
-	"   NoOp(Conference number 1234 has state ${DEVSTATE(MeetMe:1234)})\n"
+	"   NoOp(SIP/mypeer has state ${DEVICE_STATE(SIP/mypeer)})\n"
+	"   NoOp(Conference number 1234 has state ${DEVICE_STATE(MeetMe:1234)})\n"
 	"\n"
-	"  The DEVSTATE function can also be used to set custom device state from\n"
+	"  The DEVICE_STATE function can also be used to set custom device state from\n"
 	"the dialplan.  The \"Custom:\" prefix must be used.  For example:\n"
-	"  Set(DEVSTATE(Custom:lamp1)=BUSY)\n"
-	"  Set(DEVSTATE(Custom:lamp2)=NOT_INUSE)\n"
+	"  Set(DEVICE_STATE(Custom:lamp1)=BUSY)\n"
+	"  Set(DEVICE_STATE(Custom:lamp2)=NOT_INUSE)\n"
 	"You can subscribe to the status of a custom device state using a hint in\n"
 	"the dialplan:\n"
 	"  exten => 1234,hint,Custom:lamp1\n"
