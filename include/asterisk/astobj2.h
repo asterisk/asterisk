@@ -17,8 +17,6 @@
 #ifndef _ASTERISK_ASTOBJ2_H
 #define _ASTERISK_ASTOBJ2_H
 
-#include "asterisk/lock.h"
-
 /*! \file 
  *
  * \brief Object Model implementing objects and containers.
