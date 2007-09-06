@@ -996,7 +996,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 	struct iax_frame *fr = NULL;
 
 #if !defined(LOW_MEMORY)
-	struct iax_frames *iax_frames;
+	struct iax_frames *iax_frames = NULL;
 
 	/* Attempt to get a frame from this thread's cache */
 	if ((iax_frames = ast_threadstorage_get(&frame_cache, sizeof(*iax_frames)))) {
@@ -1040,7 +1040,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 void iax_frame_free(struct iax_frame *fr)
 {
 #if !defined(LOW_MEMORY)
-	struct iax_frames *iax_frames;
+	struct iax_frames *iax_frames = NULL;
 #endif
 
 	/* Note: does not remove from scheduler! */
