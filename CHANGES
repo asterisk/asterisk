@@ -25,7 +25,7 @@ AMI - The manager (TCP/TLS/HTTP)
 
 Dialplan functions
 ------------------
-  * Added the DEVSTATE() dialplan function which allows retrieving any device
+  * Added the DEVICE_STATE() dialplan function which allows retrieving any device
     state in the dialplan, as well as creating custom device states that are
     controllable from the dialplan.
   * Extend CALLERID() function with "pres" and "ton" parameters to
