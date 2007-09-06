@@ -38,6 +38,10 @@ Dialplan functions
     mutex.  No deadlocks are possible, as LOCK() only allows a single lock to be
     held for any given channel.  Also, locks are automatically freed when a
     channel is hung up.
+  * Added HINT() dialplan function that allows retrieving hint information.
+    Hints are mappings between extensions and devices for the sake of 
+    determining the state of an extension.  This function can retrieve the list
+    of devices or the name associated with a hint.
 
 CLI Changes
 -----------
