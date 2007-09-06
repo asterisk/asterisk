@@ -49,6 +49,19 @@
 #include "asterisk/astobj.h"
 #include "asterisk/linkedlists.h"
 
+/* 
+ * As per RFC 3920 - section 3.1, the maximum length for a full Jabber ID 
+ * is 3071 bytes.
+ * The ABNF syntax for jid :
+ * jid = [node "@" ] domain [ "/" resource ]
+ * Each allowable portion of a JID (node identifier, domain identifier,
+ * and resource identifier) MUST NOT be more than 1023 bytes in length,
+ * resulting in a maximum total size (including the '@' and '/' separators) 
+ * of 3071 bytes.
+ */
+#define AJI_MAX_JIDLEN 3071
+#define AJI_MAX_RESJIDLEN 1023
+
 enum aji_state {
 	AJI_DISCONNECTING,
 	AJI_DISCONNECTED,
@@ -82,7 +95,7 @@ struct aji_capabilities {
 
 struct aji_resource {
 	int status;
-	char resource[80];
+	char resource[AJI_MAX_RESJIDLEN];
 	char *description;
 	struct aji_version *cap;
 	int priority;
@@ -98,7 +111,7 @@ struct aji_message {
 };
 
 struct aji_buddy {
-	ASTOBJ_COMPONENTS(struct aji_buddy);
+	ASTOBJ_COMPONENTS_FULL(struct aji_buddy, AJI_MAX_JIDLEN, 1);
 	char channel[160];
 	struct aji_resource *resources;
 	enum aji_btype btype;
@@ -116,9 +129,8 @@ struct aji_transport_container {
 struct aji_client {
 	ASTOBJ_COMPONENTS(struct aji_client);
 	char password[160];
-	char user[160];
-	char serverhost[160];
-	char context[100];
+	char user[AJI_MAX_JIDLEN];
+	char serverhost[AJI_MAX_RESJIDLEN];
 	char statusmessage[256];
 	char sid[10]; /* Session ID */
 	char mid[6]; /* Message ID */

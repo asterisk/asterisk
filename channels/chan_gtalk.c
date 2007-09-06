@@ -111,8 +111,8 @@ struct gtalk_pvt {
 	time_t laststun;
 	struct gtalk *parent;	         /*!< Parent client */
 	char sid[100];
-	char us[100];
-	char them[100];
+	char us[AJI_MAX_JIDLEN];
+	char them[AJI_MAX_JIDLEN];
 	char ring[10];                   /*!< Message ID of ring */
 	iksrule *ringrule;               /*!< Rule for matching RING request */
 	int initiator;                   /*!< If we're the initiator */
@@ -154,8 +154,8 @@ struct gtalk {
 	struct gtalk_pvt *p;
 	struct ast_codec_pref prefs;
 	int amaflags;			/*!< AMA Flags */
-	char user[100];
-	char context[100];
+	char user[AJI_MAX_JIDLEN];
+	char context[AST_MAX_CONTEXT];
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/*!< Account code */
 	int capability;
 	ast_group_t callgroup;	/*!< Call group */
@@ -1572,7 +1572,7 @@ static int gtalk_show_channels(int fd, int argc, char **argv)
 	struct gtalk_pvt *p;
 	struct ast_channel *chan;
 	int numchans = 0;
-	char them[100];
+	char them[AJI_MAX_JIDLEN];
 	char *jid = NULL;
 	char *resource = NULL;
 
@@ -1760,7 +1760,7 @@ static int gtalk_load_config(void)
 {
 	char *cat = NULL;
 	struct ast_config *cfg = NULL;
-	char context[100];
+	char context[AST_MAX_CONTEXT];
 	int allowguest = 1;
 	struct ast_variable *var;
 	struct gtalk *member;
