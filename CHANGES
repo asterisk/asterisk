@@ -84,6 +84,10 @@ IAX2 changes
   * Added support for OSP.  The token is set and retrieved through the CHANNEL()
      dialplan function.
 
+Skinny changes
+-------------
+  * Added skinny show device, skinny show line, and skinny show settings CLI commands.
+
 DUNDi changes
 -------------
   * Added the ability to specify arguments to the Dial application when using

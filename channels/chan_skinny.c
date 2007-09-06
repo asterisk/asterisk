@@ -2179,9 +2179,9 @@ static struct ast_rtp_protocol skinny_rtp = {
 
 static int skinny_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3) {
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	}
+
 	skinnydebug = 1;
 	ast_cli(fd, "Skinny Debugging Enabled\n");
 	return RESULT_SUCCESS;
@@ -2189,26 +2189,52 @@ static int skinny_do_debug(int fd, int argc, char *argv[])
 
 static int skinny_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 4) {
+	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	}
+
 	skinnydebug = 0;
 	ast_cli(fd, "Skinny Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
-static char *complete_skinny_reset(const char *line, const char *word, int pos, int state)
+static char *complete_skinny_devices(const char *word, int state)
 {
 	struct skinny_device *d;
-
 	char *result = NULL;
-	int wordlen = strlen(word);
-	int which = 0;
+	int wordlen = strlen(word), which = 0;
 
-	if (pos == 2) {
-		for (d = devices; d && !result; d = d->next) {
-			if (!strncasecmp(word, d->id, wordlen) && ++which > state)
-				result = ast_strdup(d->id);
+	for (d = devices; d && !result; d = d->next) {
+		if (!strncasecmp(word, d->id, wordlen) && ++which > state)
+			result = ast_strdup(d->id);
+	}
+
+	return result;
+}
+
+static char *complete_skinny_show_device(const char *line, const char *word, int pos, int state)
+{
+	return (pos == 3 ? ast_strdup(complete_skinny_devices(word, state)) : NULL);
+}
+
+static char *complete_skinny_reset(const char *line, const char *word, int pos, int state)
+{
+	return (pos == 2 ? ast_strdup(complete_skinny_devices(word, state)) : NULL);
+}
+
+static char *complete_skinny_show_lines(const char *line, const char *word, int pos, int state)
+{
+	struct skinny_device *d;
+	struct skinny_line *l;
+	char *result = NULL;
+	int wordlen = strlen(word), which = 0;
+
+	if (pos != 3)
+		return NULL;
+	
+	for (d = devices; d && !result; d = d->next) {
+		for (l = d->lines; l && !result; l = l->next) {
+			if (!strncasecmp(word, l->name, wordlen) && ++which > state)
+				result = ast_strdup(l->name);
 		}
 	}
 
@@ -2220,14 +2246,14 @@ static int skinny_reset_device(int fd, int argc, char *argv[])
 	struct skinny_device *d;
 	struct skinny_req *req;
 
-	if (argc < 3 || argc > 4) {
+	if (argc < 3 || argc > 4)
 		return RESULT_SHOWUSAGE;
-	}
+
 	ast_mutex_lock(&devicelock);
 
 	for (d = devices; d; d = d->next) {
 		int fullrestart = 0;
-		if (!strcasecmp(argv[2], d->id) || !strcasecmp(argv[2], "all")) {
+		if (!strcasecmp(argv[2], d->id) || !strcasecmp(argv[2], d->name) || !strcasecmp(argv[2], "all")) {
 			if (!(d->session))
 				continue;
 
@@ -2321,32 +2347,97 @@ static char *device2str(int type)
 	}
 }
 
+/*! \brief Print codec list from preference to CLI/manager */
+static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
+{
+	int x, codec;
+
+	for(x = 0; x < 32 ; x++) {
+		codec = ast_codec_pref_index(pref, x);
+		if (!codec)
+			break;
+		ast_cli(fd, "%s", ast_getformatname(codec));
+		ast_cli(fd, ":%d", pref->framing[x]);
+		if (x < 31 && ast_codec_pref_index(pref, x + 1))
+			ast_cli(fd, ",");
+	}
+	if (!x)
+		ast_cli(fd, "none");
+}
+
 static int skinny_show_devices(int fd, int argc, char *argv[])
 {
 	struct skinny_device *d;
 	struct skinny_line *l;
-	int numlines = 0;
 
-	if (argc != 3) {
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	}
+
 	ast_mutex_lock(&devicelock);
 
 	ast_cli(fd, "Name                 DeviceId         IP              Type            R NL\n");
 	ast_cli(fd, "-------------------- ---------------- --------------- --------------- - --\n");
-	for (d = devices; d; d = d->next) {
-		numlines = 0;
-		for (l = d->lines; l; l = l->next) {
-			numlines++;
-		}
 
+	for (d = devices; d; d = d->next) {
+		int numlines = 0;
+
+		for (l = d->lines; l; l = l->next)
+			numlines++;
+		
 		ast_cli(fd, "%-20s %-16s %-15s %-15s %c %2d\n",
-				d->name,
-				d->id,
-				d->session?ast_inet_ntoa(d->session->sin.sin_addr):"",
-				device2str(d->type),
-				d->registered?'Y':'N',
-				numlines);
+			d->name,
+			d->id,
+			d->session?ast_inet_ntoa(d->session->sin.sin_addr):"",
+			device2str(d->type),
+			d->registered?'Y':'N',
+			numlines);
+	}
+
+	ast_mutex_unlock(&devicelock);
+
+	return RESULT_SUCCESS;
+}
+
+/*! \brief Show device information */
+static int skinny_show_device(int fd, int argc, char *argv[])
+{
+	struct skinny_device *d;
+	struct skinny_line *l;
+	struct skinny_speeddial *sd;
+	struct skinny_addon *a;
+
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+
+	ast_mutex_lock(&devicelock);
+	for (d = devices; d; d = d->next) {
+		if (!strcasecmp(argv[3], d->id) || !strcasecmp(argv[3], d->name)) {
+			int numlines = 0, numaddons = 0, numspeeddials = 0;
+
+			for (l = d->lines; l; l = l->next)
+				numlines++;
+
+			ast_cli(fd, "Name:        %s\n", d->name);
+			ast_cli(fd, "Id:          %s\n", d->id);
+			ast_cli(fd, "version:     %s\n", S_OR(d->version_id, "Unknown"));
+			ast_cli(fd, "Ip address:  %s\n", (d->session ? ast_inet_ntoa(d->session->sin.sin_addr) : "Unknown"));
+			ast_cli(fd, "Port:        %d\n", (d->session ? ntohs(d->session->sin.sin_port) : 0));
+			ast_cli(fd, "Device Type: %s\n", device2str(d->type));
+			ast_cli(fd, "Registered:  %s\n", (d->registered ? "Yes" : "No"));
+			ast_cli(fd, "Lines:       %d\n", numlines);
+			for (l = d->lines; l; l = l->next)
+				ast_cli(fd, "  %s (%s)\n", l->name, l->label);
+			for (a = d->addons; a; a = a->next)
+				numaddons++;
+			ast_cli(fd, "Addons:      %d\n", numaddons);
+			for (a = d->addons; a; a = a->next)
+				ast_cli(fd, "  %s\n", a->type);
+			for (sd = d->speeddials; sd; sd = sd->next)
+				numspeeddials++;
+			ast_cli(fd, "Speeddials:  %d\n", numspeeddials);
+			for (sd = d->speeddials; sd; sd = sd->next)
+				ast_cli(fd, "  %s (%s) ishint: %d\n", sd->exten, sd->label, sd->isHint);
+		}
 	}
 	ast_mutex_unlock(&devicelock);
 	return RESULT_SUCCESS;
@@ -2357,11 +2448,11 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 	struct skinny_device *d;
 	struct skinny_line *l;
 
-	if (argc != 3) {
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	}
+	
 	ast_mutex_lock(&devicelock);
-
+	
 	ast_cli(fd, "Device Name          Instance Name                 Label               \n");
 	ast_cli(fd, "-------------------- -------- -------------------- --------------------\n");
 	for (d = devices; d; d = d->next) {
@@ -2373,8 +2464,97 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 				l->label);
 		}
 	}
-
+	
 	ast_mutex_unlock(&devicelock);
+	return RESULT_SUCCESS;
+}
+
+/*! \brief List line information. */
+static int skinny_show_line(int fd, int argc, char *argv[])
+{
+	struct skinny_device *d;
+	struct skinny_line *l;
+
+	char codec_buf[512];
+	char group_buf[256];
+
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+	
+	ast_mutex_lock(&devicelock);
+
+	/* Show all lines matching the one supplied */
+	for (d = devices; d; d = d->next) {
+		if (argc == 6 && (strcasecmp(argv[5], d->id) && strcasecmp(argv[5], d->name)))
+			continue;
+		for (l = d->lines; l; l = l->next) {
+			if (strcasecmp(argv[3], l->name))
+				continue;
+			ast_cli(fd, "Line:             %s\n", l->name);
+			ast_cli(fd, "On Device:        %s\n", d->name);
+			ast_cli(fd, "Line Label:       %s\n", l->label);
+			ast_cli(fd, "Extension:        %s\n", S_OR(l->exten, "<not set>"));
+			ast_cli(fd, "Context:          %s\n", l->context);
+			ast_cli(fd, "CallGroup:        %s\n", ast_print_group(group_buf, sizeof(group_buf), l->callgroup));
+			ast_cli(fd, "PickupGroup:      %s\n", ast_print_group(group_buf, sizeof(group_buf), l->pickupgroup));
+			ast_cli(fd, "Language:         %s\n", S_OR(l->language, "<not set>"));
+			ast_cli(fd, "Accountcode:      %s\n", S_OR(l->accountcode, "<not set>"));
+			ast_cli(fd, "AmaFlag:          %s\n", ast_cdr_flags2str(l->amaflags));
+			ast_cli(fd, "CallerId Number:  %s\n", S_OR(l->cid_num, "<not set>"));
+			ast_cli(fd, "CallerId Name:    %s\n", S_OR(l->cid_name, "<not set>"));
+			ast_cli(fd, "Hide CallerId:    %s\n", (l->hidecallerid ? "Yes" : "No"));
+			ast_cli(fd, "CallForward:      %s\n", S_OR(l->call_forward, "<not set>"));
+			ast_cli(fd, "VoicemailBox:     %s\n", S_OR(l->mailbox, "<not set>"));
+			ast_cli(fd, "VoicemailNumber:  %s\n", S_OR(l->vmexten, "<not set>"));
+			ast_cli(fd, "MWIblink:         %d\n", l->mwiblink);
+			ast_cli(fd, "Regextension:     %s\n", S_OR(l->regexten, "<not set>"));
+			ast_cli(fd, "Regcontext:       %s\n", S_OR(l->regcontext, "<not set>"));
+			ast_cli(fd, "MoHInterpret:     %s\n", S_OR(l->mohinterpret, "<not set>"));
+			ast_cli(fd, "MoHSuggest:       %s\n", S_OR(l->mohsuggest, "<not set>"));
+			ast_cli(fd, "Last dialed nr:   %s\n", S_OR(l->lastnumberdialed, "<no calls made yet>"));
+			ast_cli(fd, "Last CallerID:    %s\n", S_OR(l->lastcallerid, "<not set>"));
+			ast_cli(fd, "Transfer enabled: %s\n", (l->transfer ? "Yes" : "No"));
+			ast_cli(fd, "Callwaiting:      %s\n", (l->callwaiting ? "Yes" : "No"));
+			ast_cli(fd, "3Way Calling:     %s\n", (l->threewaycalling ? "Yes" : "No"));
+			ast_cli(fd, "Can forward:      %s\n", (l->cancallforward ? "Yes" : "No"));
+			ast_cli(fd, "Do Not Disturb:   %s\n", (l->dnd ? "Yes" : "No"));
+			ast_cli(fd, "NAT:              %s\n", (l->nat ? "Yes" : "No"));
+			ast_cli(fd, "immediate:        %s\n", (l->immediate ? "Yes" : "No"));
+			ast_cli(fd, "Group:            %d\n", l->group);
+			ast_cli(fd, "Codecs:           ");
+			ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, l->capability);
+			ast_cli(fd, "%s\n", codec_buf);
+			ast_cli(fd, "Codec Order:      (");
+			print_codec_to_cli(fd, &l->prefs);
+			ast_cli(fd, ")\n");
+			ast_cli(fd, "\n");
+		}
+	}
+	
+	ast_mutex_unlock(&devicelock);
+	return RESULT_SUCCESS;
+}
+
+/*! \brief List global settings for the Skinny subsystem. */
+static int skinny_show_settings(int fd, int argc, char *argv[])
+{
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+
+	ast_cli(fd, "\nGlobal Settings:\n");
+	ast_cli(fd, "  Skinny Port:            %d\n", ntohs(bindaddr.sin_port));
+	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(bindaddr.sin_addr));
+	ast_cli(fd, "  KeepAlive:              %d\n", keep_alive);
+	ast_cli(fd, "  Date Format:            %s\n", date_format);
+	ast_cli(fd, "  Voice Mail Extension:   %s\n", S_OR(vmexten, "(not set)"));
+	ast_cli(fd, "  Reg. context:           %s\n", S_OR(regcontext, "(not set)"));
+	ast_cli(fd, "  Jitterbuffer enabled:   %s\n", (ast_test_flag(&global_jbconf, AST_JB_ENABLED) ? "Yes" : "No"));
+	ast_cli(fd, "  Jitterbuffer forced:    %s\n", (ast_test_flag(&global_jbconf, AST_JB_FORCED) ? "Yes" : "No"));
+	ast_cli(fd, "  Jitterbuffer max size:  %ld\n", global_jbconf.max_size);
+	ast_cli(fd, "  Jitterbuffer resync:    %ld\n", global_jbconf.resync_threshold);
+	ast_cli(fd, "  Jitterbuffer impl:      %s\n", global_jbconf.impl);
+	ast_cli(fd, "  Jitterbuffer log:       %s\n", (ast_test_flag(&global_jbconf, AST_JB_LOG) ? "Yes" : "No"));
+
 	return RESULT_SUCCESS;
 }
 
@@ -2382,9 +2562,21 @@ static const char show_devices_usage[] =
 "Usage: skinny show devices\n"
 "       Lists all devices known to the Skinny subsystem.\n";
 
+static const char show_device_usage[] =
+"Usage: skinny show device <DeviceId|DeviceName>\n"
+"       Lists all deviceinformation of a specific device known to the Skinny subsystem.\n";
+
 static const char show_lines_usage[] =
 "Usage: skinny show lines\n"
 "       Lists all lines known to the Skinny subsystem.\n";
+
+static const char show_line_usage[] =
+"Usage: skinny show line <Line> [ on <DeviceID|DeviceName> ]\n"
+"       List all lineinformation of a specific line known to the Skinny subsystem.\n";
+
+static const char show_settings_usage[] =
+"Usage: skinny show settings\n"
+"       Lists all global configuration settings of the Skinny subsystem.\n";
 
 static const char debug_usage[] =
 "Usage: skinny set debug\n"
@@ -2395,7 +2587,7 @@ static const char no_debug_usage[] =
 "       Disables dumping of Skinny packets for debugging purposes\n";
 
 static const char reset_usage[] =
-"Usage: skinny reset <DeviceId|all> [restart]\n"
+"Usage: skinny reset <DeviceId|DeviceName|all> [restart]\n"
 "       Causes a Skinny device to reset itself, optionally with a full restart\n";
 
 static struct ast_cli_entry cli_skinny[] = {
@@ -2403,9 +2595,21 @@ static struct ast_cli_entry cli_skinny[] = {
 	skinny_show_devices, "List defined Skinny devices",
 	show_devices_usage },
 
+	{ { "skinny", "show", "device", NULL },
+	skinny_show_device, "List Skinny device information",
+	show_device_usage, complete_skinny_show_device },
+
 	{ { "skinny", "show", "lines", NULL },
 	skinny_show_lines, "List defined Skinny lines per device",
 	show_lines_usage },
+
+	{ { "skinny", "show", "line", NULL },
+	skinny_show_line, "List Skinny line information",
+	show_line_usage, complete_skinny_show_lines },
+
+	{ { "skinny", "show", "settings", NULL },
+	skinny_show_settings, "List global Skinny settings",
+	show_settings_usage },
 
 	{ { "skinny", "set", "debug", NULL },
 	skinny_do_debug, "Enable Skinny debugging",
