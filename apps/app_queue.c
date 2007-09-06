@@ -2507,11 +2507,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			/* Must gotten hung up */
 			res = -1;
 		} else {
+			/* User exited by pressing a digit */
 			res = digit;
-			if (res > 0 && !valid_exit(qe, res))
-				res = 0;
 		}
-		if (option_debug)
+		if (option_debug && res == -1)
 			ast_log(LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
 	} else { /* peer is valid */
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
