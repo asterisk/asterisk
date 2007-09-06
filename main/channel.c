@@ -2313,8 +2313,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 						chan->emulate_dtmf_duration = AST_DEFAULT_EMULATE_DTMF_DURATION;
 					ast_log(LOG_DTMF, "DTMF begin emulation of '%c' with duration %u queued on %s\n", f->subclass, chan->emulate_dtmf_duration, chan->name);
 				}
-				if (chan->audiohooks)
+				if (chan->audiohooks) {
+					struct ast_frame *old_frame = f;
 					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+					if (old_frame != f)
+						ast_frfree(old_frame);
+				}
 			} else {
 				struct timeval now = ast_tvnow();
 				if (ast_test_flag(chan, AST_FLAG_IN_DTMF)) {
@@ -2336,8 +2340,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					ast_log(LOG_DTMF, "DTMF end passthrough '%c' on %s\n", f->subclass, chan->name);
 					chan->dtmf_tv = now;
 				}
-				if (chan->audiohooks)
+				if (chan->audiohooks) {
+					struct ast_frame *old_frame = f;
 					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+					if (old_frame != f)
+						ast_frfree(old_frame);
+				}
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
@@ -2399,8 +2407,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					f->subclass = chan->emulate_dtmf_digit;
 					f->len = ast_tvdiff_ms(now, chan->dtmf_tv);
 					chan->dtmf_tv = now;
-					if (chan->audiohooks)
+					if (chan->audiohooks) {
+						struct ast_frame *old_frame = f;
 						f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+						if (old_frame != f)
+							ast_frfree(old_frame);
+					}
 					ast_log(LOG_DTMF, "DTMF end emulation of '%c' queued on %s\n", f->subclass, chan->name);
 				} else {
 					/* Drop voice frames while we're still in the middle of the digit */
@@ -2416,8 +2428,12 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				f = &ast_null_frame;
 			} else if ((f->frametype == AST_FRAME_VOICE)) {
 				/* Send frame to audiohooks if present */
-				if (chan->audiohooks)
+				if (chan->audiohooks) {
+					struct ast_frame *old_frame = f;
 					f = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_READ, f);
+					if (old_frame != f)
+						ast_frfree(old_frame);
+				}
 				if (chan->monitor && chan->monitor->read_stream ) {
 					/* XXX what does this do ? */
 #ifndef MONITOR_CONSTANT_DELAY
@@ -2707,7 +2723,7 @@ int ast_write_video(struct ast_channel *chan, struct ast_frame *fr)
 int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 {
 	int res = -1;
-	struct ast_frame *f = NULL;
+	struct ast_frame *f = NULL, *f2 = NULL;
 
 	/* Stop if we're a zombie or need a soft hangup */
 	ast_channel_lock(chan);
@@ -2755,8 +2771,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->tech->indicate(chan, fr->subclass, fr->data, fr->datalen);
 		break;
 	case AST_FRAME_DTMF_BEGIN:
-		if (chan->audiohooks)
+		if (chan->audiohooks) {
+			struct ast_frame *old_frame = fr;
 			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+			if (old_frame != fr)
+				f = fr;
+		}
 		send_dtmf_event(chan, "Sent", fr->subclass, "Yes", "No");
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
@@ -2765,8 +2785,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		CHECK_BLOCKING(chan);
 		break;
 	case AST_FRAME_DTMF_END:
-		if (chan->audiohooks)
+		if (chan->audiohooks) {
+			struct ast_frame *old_frame = fr;
 			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
+			if (old_frame != fr)
+				f = fr;
+		}
 		send_dtmf_event(chan, "Sent", fr->subclass, "No", "Yes");
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_channel_unlock(chan);
@@ -2801,9 +2825,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			break;	/*! \todo XXX should return 0 maybe ? */
 
 		/* If audiohooks are present, write the frame out */
-		if (chan->audiohooks)
+		if (chan->audiohooks) {
+			struct ast_frame *old_frame = fr;
 			fr = ast_audiohook_write_list(chan, chan->audiohooks, AST_AUDIOHOOK_DIRECTION_WRITE, fr);
-		
+			if (old_frame != fr)
+				f2 = fr;
+		}
+
 		/* If the frame is in the raw write format, then it's easy... just use the frame - otherwise we will have to translate */
 		if (fr->subclass == chan->rawwriteformat)
 			f = fr;
@@ -2858,6 +2886,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 
 	if (f && f != fr)
 		ast_frfree(f);
+	if (f2)
+		ast_frfree(f2);
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)

@@ -582,8 +582,6 @@ static struct ast_frame *audio_audiohook_write_list(struct ast_channel *chan, st
 			/* Here's the scoop... middle frame is no longer of use to us */
 			ast_frfree(middle_frame);
 		}
-		/* Yay let's rid ourselves of the start frame */
-		ast_frfree(start_frame);
 	} else {
 		/* No frame was modified, we can just drop our middle frame and pass the frame we got in out */
 		ast_frfree(middle_frame);
