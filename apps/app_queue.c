@@ -2742,6 +2742,27 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", qe->parent->sound_callerannounce);
 		}
 
+		ast_mutex_lock(&qe->parent->lock);
+		/* if setinterfacevar is defined, make member variables available to the channel */
+		/* use  pbx_builtin_setvar to set a load of variables with one call */
+		if (qe->parent->setinterfacevar) {
+			snprintf(interfacevar,sizeof(interfacevar), "MEMBERINTERFACE=%s|MEMBERNAME=%s|MEMBERCALLS=%d|MEMBERLASTCALL=%ld|MEMBERPENALTY=%d|MEMBERDYNAMIC=%d|MEMBERREALTIME=%d",
+				member->interface, member->membername, member->calls, (long)member->lastcall, member->penalty, member->dynamic, member->realtime);
+		 	pbx_builtin_setvar(qe->chan, interfacevar);
+		}
+		
+		/* if setqueueentryvar is defined, make queue entry (i.e. the caller) variables available to the channel */
+		/* use  pbx_builtin_setvar to set a load of variables with one call */
+		if (qe->parent->setqueueentryvar) {
+			snprintf(interfacevar,sizeof(interfacevar), "QEHOLDTIME=%ld|QEORIGINALPOS=%d",
+				(long) time(NULL) - qe->start, qe->opos);
+			pbx_builtin_setvar(qe->chan, interfacevar);
+		}
+	
+		/* try to set queue variables if configured to do so*/
+		set_queue_variables(qe);
+		ast_mutex_unlock(&qe->parent->lock);
+		
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
@@ -2835,27 +2856,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_debug(1, "app_queue: sendurl=%s.\n", url);
 			ast_channel_sendurl(peer, url);
 		}
-		
-		ast_mutex_lock(&qe->parent->lock);
-		/* if setinterfacevar is defined, make member variables available to the channel */
-		/* use  pbx_builtin_setvar to set a load of variables with one call */
-		if (qe->parent->setinterfacevar) {
-			snprintf(interfacevar,sizeof(interfacevar), "MEMBERINTERFACE=%s|MEMBERNAME=%s|MEMBERCALLS=%d|MEMBERLASTCALL=%ld|MEMBERPENALTY=%d|MEMBERDYNAMIC=%d|MEMBERREALTIME=%d",
-				member->interface, member->membername, member->calls, (long)member->lastcall, member->penalty, member->dynamic, member->realtime);
-		 	pbx_builtin_setvar(qe->chan, interfacevar);
-		}
-		
-		/* if setqueueentryvar is defined, make queue entry (i.e. the caller) variables available to the channel */
-		/* use  pbx_builtin_setvar to set a load of variables with one call */
-		if (qe->parent->setqueueentryvar) {
-			snprintf(interfacevar,sizeof(interfacevar), "QEHOLDTIME=%ld|QEORIGINALPOS=%d",
-				(long) time(NULL) - qe->start, qe->opos);
-			pbx_builtin_setvar(qe->chan, interfacevar);
-		}
-	
-		/* try to set queue variables if configured to do so*/
-		set_queue_variables(qe);
-		ast_mutex_unlock(&qe->parent->lock);
 		
 		/* run a macro for this connection if defined. The macro simply returns, no action is taken on the result */
 		/* use macro from dialplan if passed as a option, otherwise use the default queue macro */
