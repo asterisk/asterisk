@@ -193,13 +193,15 @@ static char *app_rqm_descrip =
 static char *app_pqm = "PauseQueueMember" ;
 static char *app_pqm_synopsis = "Pauses a queue member" ;
 static char *app_pqm_descrip =
-"   PauseQueueMember([queuename],interface[,options]):\n"
+"   PauseQueueMember([queuename],interface[,options[,reason]]):\n"
 "Pauses (blocks calls for) a queue member.\n"
 "The given interface will be paused in the given queue.  This prevents\n"
 "any calls from being sent from the queue to the interface until it is\n"
 "unpaused with UnpauseQueueMember or the manager interface.  If no\n"
 "queuename is given, the interface is paused in every queue it is a\n"
 "member of. The application will fail if the interface is not found.\n"
+"The reason string is entirely optional and is used to add extra information\n"
+"to the appropriate queue_log entries and manager events.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     PQMSTATUS      The status of the attempt to pause a queue member as a\n"
 "                     text string, one of\n"
@@ -209,10 +211,12 @@ static char *app_pqm_descrip =
 static char *app_upqm = "UnpauseQueueMember" ;
 static char *app_upqm_synopsis = "Unpauses a queue member" ;
 static char *app_upqm_descrip =
-"   UnpauseQueueMember([queuename],interface[,options]):\n"
+"   UnpauseQueueMember([queuename],interface[,options[,reason]]):\n"
 "Unpauses (resumes calls to) a queue member.\n"
 "This is the counterpart to PauseQueueMember and operates exactly the\n"
 "same way, except it unpauses instead of pausing the given interface.\n"
+"The reason string is entirely optional and is used to add extra information\n"
+"to the appropriate queue_log entries and manager events.\n"
 "  This application sets the following channel variable upon completion:\n"
 "     UPQMSTATUS       The status of the attempt to unpause a queue \n"
 "                      member as a text string, one of\n"
@@ -412,7 +416,7 @@ struct call_queue {
 static AST_LIST_HEAD_STATIC(queues, call_queue);
 
 static void update_realtime_members(struct call_queue *q);
-static int set_member_paused(const char *queuename, const char *interface, int paused);
+static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused);
 
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
@@ -2013,7 +2017,7 @@ static void rna(int rnatime, struct queue_ent *qe, char *interface, char *member
 	ast_verb(3, "Nobody picked up in %d ms\n", rnatime);
 	ast_queue_log(qe->parent->name, qe->chan->uniqueid, membername, "RINGNOANSWER", "%d", rnatime);
 	if (qe->parent->autopause) {
-		if (!set_member_paused(qe->parent->name, interface, 1)) {
+		if (!set_member_paused(qe->parent->name, interface, "Auto-Pause", 1)) {
 			ast_verb(3, "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", interface, qe->parent->name);
 		} else {
 			ast_verb(3, "Failed to pause Queue Member %s in queue %s!\n", interface, qe->parent->name);
@@ -3178,7 +3182,7 @@ static int add_to_queue(const char *queuename, const char *interface, const char
 	return res;
 }
 
-static int set_member_paused(const char *queuename, const char *interface, int paused)
+static int set_member_paused(const char *queuename, const char *interface, const char *reason, int paused)
 {
 	int found = 0;
 	struct call_queue *q;
@@ -3206,14 +3210,24 @@ static int set_member_paused(const char *queuename, const char *interface, int p
 				if(mem->realtime)
 					update_realtime_member_field(mem, queuename, "paused", paused ? "1" : "0");
 
-				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
-
-				manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
-					"Queue: %s\r\n"
-					"Location: %s\r\n"
-					"MemberName: %s\r\n"
-					"Paused: %d\r\n",
-						q->name, mem->interface, mem->membername, paused);
+				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
+				
+				if (!ast_strlen_zero(reason)) {
+					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
+						"Queue: %s\r\n"
+						"Location: %s\r\n"
+						"MemberName: %s\r\n"
+						"Paused: %d\r\n"
+						"Reason: %s\r\n",
+							q->name, mem->interface, mem->membername, paused, reason);
+				} else {
+					manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
+						"Queue: %s\r\n"
+						"Location: %s\r\n"
+						"MemberName: %s\r\n"
+						"Paused: %d\r\n",
+							q->name, mem->interface, mem->membername, paused);
+				}
 			}
 		}
 		ast_mutex_unlock(&q->lock);
@@ -3325,10 +3339,11 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
 		AST_APP_ARG(options);
+		AST_APP_ARG(reason);
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface[|options])\n");
+		ast_log(LOG_WARNING, "PauseQueueMember requires an argument ([queuename]|interface[|options][|reason])\n");
 		return -1;
 	}
 
@@ -3337,11 +3352,11 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
+		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options[|reason]])\n");
 		return -1;
 	}
 
-	if (set_member_paused(args.queuename, args.interface, 1)) {
+	if (set_member_paused(args.queuename, args.interface, args.reason, 1)) {
 		ast_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", args.interface);
 		pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 		return -1;
@@ -3359,10 +3374,11 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(queuename);
 		AST_APP_ARG(interface);
 		AST_APP_ARG(options);
+		AST_APP_ARG(reason);
 	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface[|options])\n");
+		ast_log(LOG_WARNING, "UnpauseQueueMember requires an argument ([queuename]|interface[|options[|reason]])\n");
 		return -1;
 	}
 
@@ -3371,11 +3387,11 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options])\n");
+		ast_log(LOG_WARNING, "Missing interface argument to PauseQueueMember ([queuename]|interface[|options[|reason]])\n");
 		return -1;
 	}
 
-	if (set_member_paused(args.queuename, args.interface, 0)) {
+	if (set_member_paused(args.queuename, args.interface, args.reason, 0)) {
 		ast_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", args.interface);
 		pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 		return -1;
@@ -4553,12 +4569,13 @@ static int manager_remove_queue_member(struct mansession *s, const struct messag
 
 static int manager_pause_queue_member(struct mansession *s, const struct message *m)
 {
-	const char *queuename, *interface, *paused_s;
+	const char *queuename, *interface, *paused_s, *reason;
 	int paused;
 
 	interface = astman_get_header(m, "Interface");
 	paused_s = astman_get_header(m, "Paused");
-	queuename = astman_get_header(m, "Queue");	/* Optional - if not supplied, pause the given Interface in all queues */
+	queuename = astman_get_header(m, "Queue");      /* Optional - if not supplied, pause the given Interface in all queues */
+	reason = astman_get_header(m, "Reason");        /* Optional - Only used for logging purposes */
 
 	if (ast_strlen_zero(interface) || ast_strlen_zero(paused_s)) {
 		astman_send_error(s, m, "Need 'Interface' and 'Paused' parameters.");
@@ -4567,7 +4584,7 @@ static int manager_pause_queue_member(struct mansession *s, const struct message
 
 	paused = abs(ast_true(paused_s));
 
-	if (set_member_paused(queuename, interface, paused))
+	if (set_member_paused(queuename, interface, reason, paused))
 		astman_send_error(s, m, "Interface not found");
 	else
 		astman_send_ack(s, m, paused ? "Interface paused successfully" : "Interface unpaused successfully");
