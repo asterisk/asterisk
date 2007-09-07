@@ -2598,6 +2598,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_hangup(peer);
 			return -1;
 		}
+
+		if (qe->parent->setinterfacevar)
+				pbx_builtin_setvar_helper(qe->chan, "MEMBERINTERFACE", member->interface);
+
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
 			if (!qe->parent->montype) {
@@ -2695,8 +2699,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
 			ast_channel_sendurl(peer, url);
 		}
-		if (qe->parent->setinterfacevar)
-				pbx_builtin_setvar_helper(qe->chan, "MEMBERINTERFACE", member->interface);
 		if (!ast_strlen_zero(agi)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "app_queue: agi=%s.\n", agi);
