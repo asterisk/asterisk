@@ -42,7 +42,20 @@ struct ast_slinfactory {
 };
 
 void ast_slinfactory_init(struct ast_slinfactory *sf);
+
+/*!
+ * \brief Destroy the contents of a slinfactory
+ *
+ * \arg sf the slinfactory that is no longer needed
+ *
+ * This function will free any memory allocated for the contents of the
+ * slinfactory.  It does not free the slinfactory itself.  If the sf is
+ * malloc'd, then it must be explicitly free'd after calling this function.
+ *
+ * \return nothing
+ */
 void ast_slinfactory_destroy(struct ast_slinfactory *sf);
+
 int ast_slinfactory_feed(struct ast_slinfactory *sf, struct ast_frame *f);
 int ast_slinfactory_read(struct ast_slinfactory *sf, short *buf, size_t samples);
 unsigned int ast_slinfactory_available(const struct ast_slinfactory *sf);
