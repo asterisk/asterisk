@@ -4618,7 +4618,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 {
 	BODY *body;
 	char *header_content;
-	char cid[256];
+	char cid[256], cidN[256];
 	char context[256];
 	char origtime[32];
 	char duration[16];
@@ -4682,11 +4682,16 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	}
 
 	/* Get info from headers!! */
+	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:", buf, sizeof(buf))))
+		ast_copy_string(cidN, temp, sizeof(cidN));
+	else
+		cidN[0] = '\0';
+
 	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf))))
-		ast_copy_string(cid, temp, sizeof(cid)); 
-	else 
+		snprintf(cid, sizeof(cid), "\"%s\" <%s>", cidN, temp);
+	else
 		cid[0] = '\0';
-	
+
 	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Context:", buf, sizeof(buf))))
 		ast_copy_string(context, temp, sizeof(context)); 
 	else
@@ -8656,14 +8661,16 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 {
 	int res = 0;
 #ifdef IMAP_STORAGE
-	char origtimeS[256], cidS[256], contextS[256];
+	char origtimeS[256], cidN[256], cid[256], contextS[256];
 	char *header_content, *temp;
 	char buf[1024];
+#else
+	char *cid;
 #endif
 	char filename[PATH_MAX];
 	struct ast_config *msg_cfg = NULL;
 	const char *origtime, *context;
-	char *cid, *name, *num;
+	char *name, *num;
 	int retries = 0;
 	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
@@ -8686,12 +8693,14 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	}
 	
 	/* Get info from headers!! */
-	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf))))
-		ast_copy_string(cidS, temp, sizeof(cidS));
+	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Name:", buf, sizeof(buf))))
+		ast_copy_string(cidN, temp, sizeof(cidN));
 	else
-		cidS[0] = '\0';
-	
-	cid = &cidS[0];
+		cidN[0] = '\0';
+
+	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Caller-ID-Num:", buf, sizeof(buf))))
+		snprintf(cid, sizeof(cid), "\"%s\" <%s>",cidN, temp);
+	else
 
 	if ((temp = get_header_by_tag(header_content, "X-Asterisk-VM-Context:", buf, sizeof(buf))))
 		ast_copy_string(contextS,temp, sizeof(contextS));
