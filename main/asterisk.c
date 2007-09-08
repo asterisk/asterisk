@@ -671,22 +671,26 @@ static char *complete_show_version_files(const char *line, const char *word, int
 
 int ast_register_atexit(void (*func)(void))
 {
-	int res = -1;
 	struct ast_atexit *ae;
+
+	if (!(ae = ast_calloc(1, sizeof(*ae))))
+		return -1;
+
+	ae->func = func;
+
 	ast_unregister_atexit(func);	
+
 	AST_RWLIST_WRLOCK(&atexits);
-	if ((ae = ast_calloc(1, sizeof(*ae)))) {
-		AST_RWLIST_INSERT_HEAD(&atexits, ae, list);
-		ae->func = func;
-		res = 0;
-	}
+	AST_RWLIST_INSERT_HEAD(&atexits, ae, list);
 	AST_RWLIST_UNLOCK(&atexits);
-	return res;
+
+	return 0;
 }
 
 void ast_unregister_atexit(void (*func)(void))
 {
-	struct ast_atexit *ae;
+	struct ast_atexit *ae = NULL;
+
 	AST_RWLIST_WRLOCK(&atexits);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
 		if (ae->func == func) {
@@ -696,6 +700,9 @@ void ast_unregister_atexit(void (*func)(void))
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END
 	AST_RWLIST_UNLOCK(&atexits);
+
+	if (ae)
+		free(ae);
 }
 
 static int fdprint(int fd, const char *s)
