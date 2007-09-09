@@ -786,19 +786,27 @@ AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	return OSAtomicAdd64(v, (int64_t *) p);
 #elif defined (__i386__) || defined(__x86_64__)
+#ifdef sun
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
 	__asm __volatile (
-#ifdef sun
 	"       lock;  xaddl   %0, %1 ;        "
-#else
-	"       lock   xaddl   %0, %1 ;        "
-#endif
 	: "+r" (v),                     /* 0 (result) */   
 	  "=m" (*p)                     /* 1 */
 	: "m" (*p));                    /* 2 */
 	return (v);
 })
+#else /* ifndef sun */
+AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
+{
+	__asm __volatile (
+	"       lock   xaddl   %0, %1 ;        "
+	: "+r" (v),                     /* 0 (result) */   
+	  "=m" (*p)                     /* 1 */
+	: "m" (*p));                    /* 2 */
+	return (v);
+})
+#endif
 #else   /* low performance version in utils.c */
 AST_INLINE_API(int ast_atomic_fetchadd_int(volatile int *p, int v),
 {
