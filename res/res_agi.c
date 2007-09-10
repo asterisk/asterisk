@@ -581,9 +581,10 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	if (!(fs = ast_openstream(chan, argv[2], chan->language))) {
 		ast_agi_fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
-	}	
-	vfs = ast_openvstream(chan, argv[2], chan->language);
-	ast_debug(vfs && 1, "Ooh, found a video stream, too\n");
+	}
+
+	if ((vfs = ast_openvstream(chan, argv[2], chan->language)))
+		ast_debug(1, "Ooh, found a video stream, too\n");
 		
 	ast_verb(3, "Playing '%s' (escape_digits=%s) (sample_offset %ld)\n", argv[2], edigits, sample_offset);
 
@@ -637,8 +638,9 @@ static int handle_getoption(struct ast_channel *chan, AGI *agi, int argc, char *
 		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
 		return RESULT_SUCCESS;
 	}
-	vfs = ast_openvstream(chan, argv[2], chan->language);
-	ast_debug(vfs && 1, "Ooh, found a video stream, too\n");
+
+	if ((vfs = ast_openvstream(chan, argv[2], chan->language)))
+		ast_debug(1, "Ooh, found a video stream, too\n");
 	
 	ast_verb(3, "Playing '%s' (escape_digits=%s) (timeout %d)\n", argv[2], edigits, timeout);
 
