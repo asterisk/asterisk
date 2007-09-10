@@ -16,7 +16,7 @@
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael
+ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2
 UTILS:=$(ALL_UTILS)
 
 include $(ASTTOPDIR)/Makefile.rules
@@ -113,6 +113,26 @@ aelparse.o: aelparse.c ../include/asterisk/ael_structs.h ../res/ael/ael.tab.h
 aelparse.o: ASTCFLAGS+=-I../res -DSTANDALONE_AEL
 
 aelparse: aelparse.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
+
+astobj2.c : ../main/astobj2.c  ../include/asterisk/astobj2.h
+	cp ../main/astobj2.c .
+
+utils.c : ../main/utils.c
+	cp ../main/utils.c .
+
+sha1.c : ../main/sha1.c
+	cp ../main/sha1.c .
+
+sha1.o : sha1.c
+utils.o : utils.c
+
+astobj2.o : astobj2.c
+
+hashtest2.o : hashtest2.c
+	$(CC) -g -O0 -c hashtest2.c -I/usr/include -I../include
+
+hashtest2 : hashtest2.o md5.o utils.o astobj2.o sha1.o
+	$(CC) -g -O0 -o hashtest2 hashtest2.o astobj2.o utils.o md5.o sha1.o -lpthread
 
 extconf.o : extconf.c
 
