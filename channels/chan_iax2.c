@@ -4505,7 +4505,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 	char name[256];
 	int registeredonly=0;
 	char *term = manager ? "\r\n" : "\n";
-
+	char idtext[256] = "";
 	switch (argc) {
 	case 6:
  		if (!strcasecmp(argv[3], "registered"))
@@ -4540,9 +4540,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 	}
 
 
-	if (s)
-		astman_append(s, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
-	else
+	if (!s)
 		ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
 
 	i = ao2_iterator_init(peers, 0);
@@ -4581,12 +4579,21 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 			 peer->encmethods ? "(E)" : "   ", status, term);
 		
 		if (s)
-			astman_append(s, FORMAT, name, 
-				      peer->addr.sin_addr.s_addr ? ast_inet_ntoa( peer->addr.sin_addr) : "(Unspecified)",
-				      ast_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
-				      nm,
-				      ntohs(peer->addr.sin_port), ast_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
-				      peer->encmethods ? "(E)" : "   ", status, term);
+			astman_append(s, 
+				"Event: PeerEntry\r\n%s"
+				"Channeltype: IAX2\r\n"
+				"ObjectName: %s\r\n"
+				"IPaddress: %s\r\n"
+				"IPport: %d\r\n"
+				"Dynamic: %s\r\n"
+				"Status: %s\r\n\r\n",
+				idtext,
+				name,
+				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "-none-",
+				ntohs(peer->addr.sin_port),
+				ast_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no",
+				status);
+		
 		else
 			ast_cli(fd, FORMAT, name, 
 				peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
@@ -4597,9 +4604,7 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 		total_peers++;
 	}
 
-	if (s)
-		astman_append(s,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
-	else
+	if (!s)
 		ast_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
 
 	if (havepattern)
@@ -4748,14 +4753,13 @@ static int iax2_show_firmware(int fd, int argc, char *argv[])
 static int manager_iax2_show_peers(struct mansession *s, const struct message *m)
 {
 	char *a[] = { "iax2", "show", "users" };
-	int ret;
 	const char *id = astman_get_header(m,"ActionID");
+	char idtext[256] = "";
 
 	if (!ast_strlen_zero(id))
-		astman_append(s, "ActionID: %s\r\n",id);
-	ret = __iax2_show_peers(1, -1, s, 3, a );
-	astman_append(s, "\r\n\r\n" );
-	return ret;
+		snprintf(idtext, sizeof(idtext), "ActionID: %s\r\n", id);
+	astman_send_ack(s, m, "Peer status list will follow");
+	return __iax2_show_peers(1, -1, s, 3, a );
 } /* /JDG */
 
 static char *regstate2str(int regstate)
