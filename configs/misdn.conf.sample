@@ -227,8 +227,6 @@ te_choose_channel=no
 ; default: no
 ;
 pmp_l1_check=no
-pp_l2_check=no
-
 
 
 ;
@@ -369,14 +367,6 @@ screen=-1
 ; default value: no
 ;
 ;echocancel=no
-
-; this disables echocancellation when the call is bridged between 
-; mISDN channels
-;
-; default value: no
-;
-echocancelwhenbridged=no
-
 
 ; Set this to no to disable echotraining. You can enter a number > 10
 ; the value is a multiple of 0.125 ms. 
