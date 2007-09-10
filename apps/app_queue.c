@@ -2079,8 +2079,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 
 	starttime = (long) time(NULL);
 #ifdef HAVE_EPOLL
-	for (epollo = outgoing; epollo; epollo = epollo->q_next)
-		ast_poll_channel_add(in, epollo->chan);
+	for (epollo = outgoing; epollo; epollo = epollo->q_next) {
+		if(epollo->chan)
+			ast_poll_channel_add(in, epollo->chan);
+	}
 #endif
 	
 	while (*to && !peer) {
@@ -2287,8 +2289,10 @@ static struct callattempt *wait_for_answer(struct queue_ent *qe, struct callatte
 	}
 
 #ifdef HAVE_EPOLL
-	for(epollo = outgoing; epollo; epollo = epollo->q_next)
-		ast_poll_channel_del(in, epollo->chan);
+	for(epollo = outgoing; epollo; epollo = epollo->q_next) {
+		if(epollo->chan)
+			ast_poll_channel_del(in, epollo->chan);
+	}
 #endif
 
 	return peer;
