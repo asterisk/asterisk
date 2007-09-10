@@ -501,6 +501,7 @@ void * ao2_iterator_next(struct ao2_iterator *a)
 {
 	int lim;
 	struct bucket_list *p = NULL;
+	void *ret = NULL;
 
 	if (INTERNAL_OBJ(a->c) == NULL)
 		return NULL;
@@ -541,14 +542,15 @@ found:
 		a->version = p->version;
 		a->obj = p;
 		a->c_version = a->c->version;
+		ret = EXTERNAL_OBJ(p->astobj);
 		/* inc refcount of returned object */
-		ao2_ref(EXTERNAL_OBJ(p->astobj), 1);
+		ao2_ref(ret, 1);
 	}
 
 	if (!(a->flags & F_AO2I_DONTLOCK))
 		ao2_unlock(a->c);
 
-	return p ? EXTERNAL_OBJ(p->astobj) : NULL;
+	return ret;
 }
 
 /* callback for destroying container.
