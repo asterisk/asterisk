@@ -104,6 +104,7 @@ int ast_db_deltree(const char *family, const char *keytree)
 	char *keys;
 	int res;
 	int pass;
+	int counter = 0;
 	
 	if (family) {
 		if (keytree) {
@@ -135,11 +136,12 @@ int ast_db_deltree(const char *family, const char *keytree)
 		}
 		if (keymatch(keys, prefix)) {
 			astdb->del(astdb, &key, 0);
+			counter++;
 		}
 	}
 	astdb->sync(astdb, 0);
 	ast_mutex_unlock(&dblock);
-	return 0;
+	return counter;
 }
 
 int ast_db_put(const char *family, const char *keys, const char *value)
@@ -291,10 +293,10 @@ static int database_deltree(int fd, int argc, char *argv[])
 	} else {
 		res = ast_db_deltree(argv[2], NULL);
 	}
-	if (res) {
+	if (res < 0) {
 		ast_cli(fd, "Database entries do not exist.\n");
 	} else {
-		ast_cli(fd, "Database entries removed.\n");
+		ast_cli(fd, "%d database entries removed.\n",res);
 	}
 	return RESULT_SUCCESS;
 }
@@ -629,7 +631,7 @@ static int manager_dbdeltree(struct mansession *s, const struct message *m)
 	else
 		res = ast_db_deltree(family, NULL);
 
-	if (res)
+	if (res < 0)
 		astman_send_error(s, m, "Database entry not found");
 	else
 		astman_send_ack(s, m, "Key tree deleted successfully");
