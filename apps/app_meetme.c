@@ -2410,7 +2410,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	);
 
 	/* Check first in the conference list */
-	ast_log(LOG_NOTICE,"The requested confno is '%s'?\n", confno);
+	ast_debug(1,"The requested confno is '%s'?\n", confno);
 	AST_LIST_LOCK(&confs);
 	AST_LIST_TRAVERSE(&confs, cnf, list) {
 		ast_debug(3,"Does conf %s match %s?\n", confno, cnf->confno);
