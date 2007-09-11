@@ -625,13 +625,18 @@ static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
 	char *format = "  %-15.15s  %-15.15s\n";
+	int count = 0;
 
 	ast_cli(fd, format, "Username", "IP Address");
 
 	AST_LIST_LOCK(&sessions);
-	AST_LIST_TRAVERSE(&sessions, s, list)
+	AST_LIST_TRAVERSE(&sessions, s, list) {
 		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
+		count++;
+	}
 	AST_LIST_UNLOCK(&sessions);
+
+	ast_cli(fd, "%d users connected.\n", count);
 
 	return RESULT_SUCCESS;
 }
