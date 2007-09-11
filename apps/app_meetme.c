@@ -849,8 +849,8 @@ static int meetme_cmd(int fd, int argc, char **argv)
 	int hr, min, sec;
 	int i = 0, total = 0;
 	time_t now;
-	char *header_format = "%-14s %-14s %-10s %-8s  %-8s\n";
-	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s\n";
+	char *header_format = "%-14s %-14s %-10s %-8s  %-8s  %-6s\n";
+	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s  %-6s\n";
 	char cmdline[1024] = "";
 
 	if (argc > 8)
@@ -869,7 +869,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 			AST_LIST_UNLOCK(&confs);
 			return RESULT_SUCCESS;
 		}
-		ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
+		ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
 		AST_LIST_TRAVERSE(&confs, cnf, list) {
 			if (cnf->markedusers == 0)
 				strcpy(cmdline, "N/A ");
@@ -879,7 +879,7 @@ static int meetme_cmd(int fd, int argc, char **argv)
 			min = ((now - cnf->start) % 3600) / 60;
 			sec = (now - cnf->start) % 60;
 
-			ast_cli(fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
+			ast_cli(fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
 
 			total += cnf->users; 	
 		}
