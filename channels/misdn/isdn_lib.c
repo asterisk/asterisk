@@ -1824,6 +1824,7 @@ handle_event_nt(void *dat, void *arg)
 				free(hold_bc);
 
 				bc->holded=0;
+				bc->b_stid=0;
 			}
 			
 		}
@@ -2860,7 +2861,6 @@ static int handle_mgmt(msg_t *msg)
 		case SSTATUS_L1_DEACTIVATED:
 			cb_log(3, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
 			stack->l1link=0;
-
 			clear_l3(stack);
 			break;
 
