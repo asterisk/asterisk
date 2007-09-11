@@ -273,6 +273,13 @@ static AST_LIST_HEAD_NOLOCK_STATIC(mappings, dundi_mapping);
 static AST_LIST_HEAD_NOLOCK_STATIC(requests, dundi_request);
 static AST_LIST_HEAD_NOLOCK_STATIC(alltrans, dundi_transaction);
 
+/*!
+ * \brief Wildcard peer
+ *
+ * This peer is created if the [*] entry is specified in dundi.conf
+ */
+static struct dundi_peer *any_peer;
+
 static int dundi_xmit(struct dundi_packet *pack);
 
 static void dundi_debug_output(const char *data)
@@ -493,6 +500,9 @@ static struct dundi_peer *find_peer(dundi_eid *eid)
 		if (!dundi_eid_cmp(&cur->eid,eid))
 			break;
 	}
+
+	if (!cur && any_peer)
+		cur = any_peer;
 
 	return cur;
 }
@@ -1529,7 +1539,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	unsigned char *bufcpy;
 	struct dundi_ie_data ied;
 	struct dundi_ies ies;
-	struct dundi_peer *peer;
+	struct dundi_peer *peer = NULL;
 	char eid_str[20];
 	char eid_str2[20];
 	memset(&ied, 0, sizeof(ied));
@@ -1614,6 +1624,23 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 	case DUNDI_COMMAND_REGREQ:
 		/* A register request -- should only have one entity */
 		peer = find_peer(ies.eids[0]);
+		
+		/* if the peer is not found and we have a valid 'any_peer' setting */
+		if (any_peer && peer == any_peer) {
+			/* copy any_peer into a new peer object */
+			peer = ast_calloc(1, sizeof(*peer));
+			if (peer) {
+				memcpy(peer, any_peer, sizeof(*peer));
+
+				/* set EID to remote EID */
+				peer->eid = *ies.eids[0];
+
+				AST_LIST_LOCK(&peers);
+				AST_LIST_INSERT_HEAD(&peers, peer, list);
+				AST_LIST_UNLOCK(&peers);
+			}
+		}
+
 		if (!peer || !peer->dynamic) {
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_NOAUTH, NULL);
 			dundi_send(trans, DUNDI_COMMAND_REGRESPONSE, 0, 1, &ied);
@@ -4583,7 +4610,10 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
 	dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
-
+	any_peer = NULL;
+	
+	cfg = ast_config_load(config_file, config_flags);
+	
 	if (!cfg) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
@@ -4705,7 +4735,10 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 			/* Entries */
 			if (!dundi_str_to_eid(&testeid, cat))
 				build_peer(&testeid, ast_variable_browse(cfg, cat), &globalpcmodel);
-			else
+			else if (!strcasecmp(cat, "*")) {
+				build_peer(&empty_eid, ast_variable_browse(cfg, cat), &globalpcmodel);
+				any_peer = find_peer(NULL);
+			} else
 				ast_log(LOG_NOTICE, "Ignoring invalid EID entry '%s'\n", cat);
 		}
 		cat = ast_category_browse(cfg, cat);
