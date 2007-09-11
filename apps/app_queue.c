@@ -853,13 +853,15 @@ static int add_to_interfaces(const char *interface)
 static int interface_exists_global(const char *interface)
 {
 	struct call_queue *q;
-	struct member *mem;
+	struct member *mem, tmpmem;
 	int ret = 0;
+
+	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
 		ast_mutex_lock(&q->lock);
-		if ((mem = ao2_find(q->members, (char *)interface, 0))) {
+		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
 			ao2_ref(mem, -1);
 			ret = 1;
 		}
@@ -1078,7 +1080,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 
 static void rt_handle_member_record(struct call_queue *q, char *interface, const char *membername, const char *penalty_str, const char *paused_str)
 {
-	struct member *m;
+	struct member *m, tmpmem;
 	int penalty = 0;
 	int paused  = 0;
 
@@ -1095,7 +1097,8 @@ static void rt_handle_member_record(struct call_queue *q, char *interface, const
 	}
 
 	/* Find the member, or the place to put a new one. */
-	m = ao2_find(q->members, interface, 0);
+	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
+	m = ao2_find(q->members, &tmpmem, OBJ_POINTER);
 
 	/* Create a new one if not found, else update penalty */
 	if (!m) {
@@ -1734,7 +1737,7 @@ static int compare_weight(struct call_queue *rq, struct member *member)
 			continue;
 		ast_mutex_lock(&q->lock);
 		if (q->count && q->members) {
-			if ((mem = ao2_find(q->members, member->interface, 0))) {
+			if ((mem = ao2_find(q->members, member, OBJ_POINTER))) {
 				ast_debug(1, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
 				if (q->weight > rq->weight) {
 					ast_debug(1, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
@@ -3118,8 +3121,10 @@ static void dump_queue_members(struct call_queue *pm_queue)
 static int remove_from_queue(const char *queuename, const char *interface)
 {
 	struct call_queue *q;
-	struct member *mem;
+	struct member *mem, tmpmem;
 	int res = RES_NOSUCHQUEUE;
+
+	ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
 
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
@@ -3129,7 +3134,7 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			continue;
 		}
 
-		if ((mem = ao2_find(q->members, (char *)interface, OBJ_UNLINK))) {
+		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK))) {
 			q->membercount--;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
 				"Queue: %s\r\n"
@@ -4126,6 +4131,8 @@ static int reload_queues(int reload)
 				}
 				for (var = ast_variable_browse(cfg, cat); var; var = var->next) {
 					if (!strcasecmp(var->name, "member")) {
+						struct member tmpmem;
+
 						/* Add a new member */
 						ast_copy_string(parse, var->value, sizeof(parse));
 						
@@ -4149,7 +4156,8 @@ static int reload_queues(int reload)
 							membername = interface;
 
 						/* Find the old position in the list */
-						cur = ao2_find(q->members, interface, OBJ_UNLINK);
+						ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
+						cur = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK);
 
 						newm = create_queue_member(interface, membername, penalty, cur ? cur->paused : 0);
 						ao2_link(q->members, newm);
