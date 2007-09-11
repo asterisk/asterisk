@@ -4491,6 +4491,11 @@ static int unload_module(void)
 	io_context_destroy(io);
 	sched_context_destroy(sched);
 
+	mark_mappings();
+	prune_mappings();
+	mark_peers();
+	prune_peers();
+
 	return 0;
 }
 
