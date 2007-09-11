@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "asterisk/compat.h"
 #include "asterisk/lock.h"
 #include "asterisk/astobj2.h"
 #include "asterisk/channel.h"
