@@ -1664,6 +1664,8 @@ static void hangupcalls(struct callattempt *outgoing, struct ast_channel *except
 			ast_hangup(outgoing->chan);
 		oo = outgoing;
 		outgoing = outgoing->q_next;
+		if (oo->member)
+			ao2_ref(oo->member, -1);
 		ast_free(oo);
 	}
 }
