@@ -1160,6 +1160,12 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				else
 					process_buf = buf;
 				
+				if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] && (ast_strlen_zero(buf) || strlen(buf) == strspn(buf," \t\n\r"))) {
+					/* blank line? really? Can we add it to an existing comment and maybe preserve inter- and post- comment spacing? */
+					CB_ADD(&comment_buffer, &comment_buffer_size, "\n");       /* add a newline to the comment buffer */
+					continue; /* go get a new line, then */
+				}
+				
 				while ((comment_p = strchr(new_buf, COMMENT_META))) {
 					if ((comment_p > new_buf) && (*(comment_p-1) == '\\')) {
 						/* Escaped semicolons aren't comments. */
@@ -1228,10 +1234,14 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		/* end of file-- anything in a comment buffer? */
 		if (last_cat) {
 			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] ) {
+				CB_ADD(&comment_buffer, &comment_buffer_size, lline_buffer);       /* add the current lline buffer to the comment buffer */
+				lline_buffer[0] = 0;        /* erase the lline buffer */
 				last_cat->trailing = ALLOC_COMMENT(comment_buffer);
 			}
 		} else if (last_var) {
 			if (ast_test_flag(&flags, CONFIG_FLAG_WITHCOMMENTS) && comment_buffer && comment_buffer[0] ) {
+				CB_ADD(&comment_buffer, &comment_buffer_size, lline_buffer);       /* add the current lline buffer to the comment buffer */
+				lline_buffer[0] = 0;        /* erase the lline buffer */
 				last_var->trailing = ALLOC_COMMENT(comment_buffer);
 			}
 		} else {
@@ -1321,6 +1331,27 @@ static void set_fn(char *fn, int fn_size, const char *file, const char *configfi
 		ast_copy_string(fn, file, fn_size);
 	else
 		snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, file);
+}
+
+static int count_linefeeds(char *str)
+{
+	int count = 0;
+	while (*str) {
+		if (*str =='\n')
+			count++;
+	}
+	return count;
+}
+
+static int count_linefeeds_in_comments(struct ast_comment *x)
+{
+	int count = 0;
+	while (x)
+	{
+		count += count_linefeeds(x->cmt);
+		x = x->next;
+	}
+	return count;
 }
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
