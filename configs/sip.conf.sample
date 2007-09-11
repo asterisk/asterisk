@@ -704,7 +704,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;callingpres=allowed_passed_screen	; Set caller ID presentation
 				; See README.callingpres for more information
 
-
 ;[xlite1]
 ; Turn off silence suppression in X-Lite ("Transmit Silence"=YES)!
 ; Note that Xlite sends NAT keep-alive packets, so qualify=yes is not needed
@@ -719,7 +718,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;allow=ulaw
 ;allow=alaw
 ;mailbox=1234@default,1233@default	; Subscribe to status of multiple mailboxes
-
+;registertrying=yes             ; Send a 100 Trying when the device registers.
 
 ;[snom]
 ;type=friend			; Friends place calls and receive calls
