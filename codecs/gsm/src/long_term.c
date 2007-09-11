@@ -162,7 +162,10 @@ static void Calculation_of_the_LTP_parameters P4((d,dp,bc_out,Nc_out),
 	word		* Nc_out	/* 		OUT	*/
 )
 {
-	register int  	k, lambda;
+	register int  	k;
+#ifndef K6OPT
+	register int lambda;
+#endif
 	word		Nc, bc;
 	word		wt[40];
 
