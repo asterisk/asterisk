@@ -129,10 +129,10 @@ utils.o : utils.c
 astobj2.o : astobj2.c
 
 hashtest2.o : hashtest2.c
-	$(CC) -g -O0 -c hashtest2.c -I/usr/include -I../include
+	$(CC) -g -O0 -c hashtest2.c $(PTHREAD_CFLAGS) -I/usr/include -I../include
 
 hashtest2 : hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o
-	$(CC) -g -O0 -o hashtest2 hashtest2.o astobj2.o utils.o md5.o sha1.o strcompat.o -lpthread
+	$(CC) -g -O0 -o hashtest2 hashtest2.o astobj2.o utils.o md5.o sha1.o strcompat.o $(PTHREAD_CFLAGS) $(PTHREAD_LIBS)
 
 extconf.o : extconf.c
 
