@@ -579,6 +579,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             outboundproxy
 ;                             rfc2833compensate
 ;                             callbackextension
+;                             registertrying
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)

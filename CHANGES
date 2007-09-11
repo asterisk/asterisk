@@ -81,7 +81,10 @@ SIP changes
   * Added rtpdest option to CHANNEL() dialplan function.
   * Added SIPREFERRINGCONTEXT and SIPREFERREDBYHDR variables which are set when a transfer takes place.
   * SIP now adds a header to the CANCEL if the call was answered by another phone
-    in the same dial command, or if the new c option in dial() is used.
+     in the same dial command, or if the new c option in dial() is used.
+  * The new default is that 100 Trying is not sent on REGISTER attempts as the RFC specifically
+     states it is not needed. For phones, however, that do require it the registertrying option
+     has been added so it can be enabled. 
 
 IAX2 changes
 ------------

@@ -855,6 +855,7 @@ struct sip_auth {
 #define SIP_PAGE2_RFC2833_COMPENSATE    (1 << 25)	/*!< DP: Compensate for buggy RFC2833 implementations */
 #define SIP_PAGE2_BUGGY_MWI		(1 << 26)	/*!< DP: Buggy CISCO MWI fix */
 #define SIP_PAGE2_TEXTSUPPORT		(1 << 28)	/*!< GDP: Global text enable */
+#define SIP_PAGE2_REGISTERTRYING        (1 << 29)       /*!< DP: Send 100 Trying on REGISTER attempts */
 
 #define SIP_PAGE2_FLAGS_TO_COPY \
 	(SIP_PAGE2_ALLOWSUBSCRIBE | SIP_PAGE2_ALLOWOVERLAP | SIP_PAGE2_VIDEOSUPPORT | \
@@ -9280,7 +9281,8 @@ static enum check_auth_result register_verify(struct sip_pvt *p, struct sockaddr
 			res = AUTH_PEER_NOT_DYNAMIC;
 		} else {
 			ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_NAT);
-			transmit_response(p, "100 Trying", req);
+			if (ast_test_flag(&p->flags[1], SIP_PAGE2_REGISTERTRYING))
+				transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, XMIT_UNRELIABLE, req->ignore))) {
 				sip_cancel_destroy(p);
 
@@ -11277,6 +11279,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, const struct m
 		ast_cli(fd, ")\n");
 
 		ast_cli(fd, "  Auto-Framing:  %s \n", cli_yesno(peer->autoframing));
+		ast_cli(fd, "  100 on REG   : %s\n", ast_test_flag(&peer->flags[1], SIP_PAGE2_REGISTERTRYING) ? "Yes" : "No");
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n",status);
@@ -17562,6 +17565,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			int error =  ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, FALSE);
 			if (error)
 				ast_log(LOG_WARNING, "Codec configuration errors found in line %d : %s = %s\n", v->lineno, v->name, v->value);
+		} else if (!strcasecmp(v->name, "registertrying")) {
+			ast_set2_flag(&peer->flags[1], ast_true(v->value), SIP_PAGE2_REGISTERTRYING);
 		} else if (!strcasecmp(v->name, "autoframing")) {
 			peer->autoframing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
