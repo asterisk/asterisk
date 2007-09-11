@@ -977,6 +977,8 @@ static void post_cdr(struct ast_cdr *cdr)
 	struct ast_cdr_beitem *i;
 
 	for ( ; cdr ; cdr = cdr->next) {
+		if (cdr->disposition < AST_CDR_ANSWERED && (ast_strlen_zero(cdr->channel) || ast_strlen_zero(cdr->dstchannel)))
+			continue; /* people don't want to see unanswered single-channel events */
 		chan = S_OR(cdr->channel, "<unknown>");
 		check_post(cdr);
 		if (ast_tvzero(cdr->end))
