@@ -3981,6 +3981,7 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 			buflen += strlen(m->interface);
 			/* Safeguard against overflow (negative length) */
 			if (buflen >= len - 2) {
+				ao2_ref(m, -1);
 				ast_log(LOG_WARNING, "Truncating list\n");
 				break;
 			}
@@ -4787,6 +4788,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 					ao2_ref(m, -1);
 					return tmp;
 				}
+				ao2_ref(m, -1);
 			}
 			ast_mutex_unlock(&q->lock);
 		}
