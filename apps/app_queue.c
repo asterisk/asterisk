@@ -2623,6 +2623,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		struct callattempt *tmp = ast_calloc(1, sizeof(*tmp));
 
 		if (!tmp) {
+			ao2_ref(cur, -1);
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight)
 				AST_LIST_UNLOCK(&queues);
