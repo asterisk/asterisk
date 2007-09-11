@@ -2090,7 +2090,6 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(arg)[MAX_ARGS];
 	);
-	__attribute__((unused))char *empty = NULL;
 	AGI agi;
 
 	if (ast_strlen_zero(data)) {
