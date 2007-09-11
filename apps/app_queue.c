@@ -408,7 +408,12 @@ struct call_queue {
 	int autofill;                       /*!< Ignore the head call status and ring an available agent */
 	
 	struct ao2_container *members;             /*!< Head of the list of members */
-	int membercount;					/*!< Number of members in queue */
+	/*! 
+	 * \brief Number of members _logged in_
+	 * \note There will be members in the members container that are not logged
+	 *       in, so this can not simply be replaced with ao2_container_count(). 
+	 */
+	int membercount;
 	struct queue_ent *head;             /*!< Head of the list of callers */
 	AST_LIST_ENTRY(call_queue) list;    /*!< Next call queue */
 };
