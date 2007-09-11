@@ -4517,7 +4517,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			if (FD_ISSET(ch->pipe[1], &wrfs)) {
 				chan_misdn_log(9, bc->port, "writing %d bytes 2 asterisk\n", bc->bframe_len);
 				if (write(ch->pipe[1], bc->bframe, bc->bframe_len) <= 0) {
-					chan_misdn_log(-1, bc->port, "Write returned <=0 (err=%s) --> hanging up channel\n", strerror(errno));
+					chan_misdn_log(0, bc->port, "Write returned <=0 (err=%s) --> hanging up channel\n", strerror(errno));
 
 					stop_bc_tones(ch);
 					hangup_chan(ch);
@@ -4585,7 +4585,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		struct ast_channel *hold_ast;
 
 		if (!ch) {
-			chan_misdn_log(4, bc->port, " --> no CH, searching in holded");
+			chan_misdn_log(4, bc->port, " --> no CH, searching in holded\n");
 			ch = find_holded_l3(cl_te, bc->l3_id, 1);
 		}
 
@@ -4607,9 +4607,11 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		if (hold_ast) {
 			ast_moh_stop(hold_ast);
 		}
-
-		if (misdn_lib_send_event(bc, EVENT_RETRIEVE_ACKNOWLEDGE) < 0)
+	
+		if (misdn_lib_send_event(bc, EVENT_RETRIEVE_ACKNOWLEDGE) < 0) {
+			chan_misdn_log(4, bc->port, " --> RETRIEVE_ACK failed\n");
 			misdn_lib_send_event(bc, EVENT_RETRIEVE_REJECT);
+		}
 	}
 	break;
     
