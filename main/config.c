@@ -1333,27 +1333,6 @@ static void set_fn(char *fn, int fn_size, const char *file, const char *configfi
 		snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, file);
 }
 
-static int count_linefeeds(char *str)
-{
-	int count = 0;
-	while (*str) {
-		if (*str =='\n')
-			count++;
-	}
-	return count;
-}
-
-static int count_linefeeds_in_comments(struct ast_comment *x)
-{
-	int count = 0;
-	while (x)
-	{
-		count += count_linefeeds(x->cmt);
-		x = x->next;
-	}
-	return count;
-}
-
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
 	FILE *f;
