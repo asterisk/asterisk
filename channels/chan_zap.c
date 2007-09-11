@@ -8903,7 +8903,10 @@ static void *ss7_linkset(void *data)
 				} else {
 					p = linkset->pvts[chanpos];
 					ast_mutex_lock(&p->lock);
-					p->ss7call = NULL;
+					if (p->alreadyhungup)
+						p->ss7call = NULL;
+					else
+						ast_log(LOG_NOTICE, "Received RLC out and we haven't sent REL.  Ignoring.\n");
 					ast_mutex_unlock(&p->lock);
 				}
 				break;
