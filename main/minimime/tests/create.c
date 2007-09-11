@@ -40,7 +40,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <err.h>
 
 #include "mm.h"
 

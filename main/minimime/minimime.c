@@ -38,7 +38,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <getopt.h>
-#include <err.h>
 
 #include "mm.h"
 
@@ -106,20 +105,20 @@ main(int argc, char **argv)
 			i = mm_parse_file(ctx, argv[0], MM_PARSE_LOOSE, 0);
 		} else {
 			if (stat(argv[0], &st) == -1) {
-				err(1, "stat");
+				fprintf(stderr, "INFO: stat");
 			}
 	
 			if ((fd = open(argv[0], O_RDONLY)) == -1) {
-				err(1, "open");
+				fdprintf(stderr, "INFO: open");
 			}
 
 			buf = (char *)malloc(st.st_size);
 			if (buf == NULL) {
-				err(1, "malloc");
+				fdprintf(stderr, "INFO: malloc");
 			}	
 
 			if (read(fd, buf, st.st_size) != st.st_size) {
-				err(1, "read");
+				fdprintf(stderr, "INFO: read");
 			}
 
 			close(fd);

@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <err.h>
 #include <assert.h>
 
 #include "mm_internal.h"
@@ -55,11 +54,11 @@ MM_malloc(size_t size, char *filename, int line)
 
 	pointer = malloc(size);
 	if (pointer == NULL)
-		err(1, "malloc");
+		fdprintf(stderr, "INFO: malloc");
 
 	chunk = (struct MM_mem_chunk *)malloc(sizeof(struct MM_mem_chunk));
 	if (chunk == NULL)
-		err(1, "malloc");
+		fdprintf(stderr, "INFO: malloc");
 
 	chunk->address = pointer;
 	chunk->size = size;
