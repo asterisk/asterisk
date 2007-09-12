@@ -24,11 +24,7 @@
 #ifndef _ASTERISK_LOCALTIME_H
 #define _ASTERISK_LOCALTIME_H
 
-int ast_tzsetwall(void);
-void ast_tzset(const char *name);
 struct tm *ast_localtime(const time_t *timep, struct tm *p_tm, const char *zone);
 time_t ast_mktime(struct tm * const tmp, const char *zone);
-char *ast_ctime(const time_t * const timep);
-char *ast_ctime_r(const time_t * const timep, char *buf);
 
 #endif /* _ASTERISK_LOCALTIME_H */
