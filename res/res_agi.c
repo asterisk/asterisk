@@ -1905,25 +1905,10 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				ast_frfree(f);
 			}
 		} else if (outfd > -1) {
-			size_t len = sizeof(buf);
-			size_t buflen = 0;
-
 			retry = AGI_NANDFS_RETRY;
 			buf[0] = '\0';
 
-			while (buflen < (len - 1)) {
-				fgets(buf + buflen, len, readf);
-				if (feof(readf)) 
-					break;
-				if (ferror(readf) && ((errno != EINTR) && (errno != EAGAIN))) 
-					break;
-				buflen = strlen(buf);
-				len -= buflen;
-				if (agidebug)
-					ast_verbose( "AGI Rx << temp buffer %s - errno %s\n", buf, strerror(errno));
-			}
-
-			if (!buf[0]) {
+			if (!fgets(buf, sizeof(buf), readf)) {
 				/* Program terminated */
 				if (returnstatus && returnstatus != AST_PBX_KEEPALIVE)
 					returnstatus = -1;
