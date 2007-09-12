@@ -131,7 +131,7 @@ static void check_msgArray(struct vm_state *vms);
 static void copy_msgArray(struct vm_state *dst, struct vm_state *src);
 static int save_body(BODY *body, struct vm_state *vms, char *section, char *format);
 static int make_gsm_file(char *dest, char *imapuser, char *dir, int num);
-static void get_mailbox_delimiter(struct vm_state *vms);
+static void get_mailbox_delimiter(MAILSTREAM *stream);
 static void mm_parsequota (MAILSTREAM *stream, unsigned char *msg, QUOTALIST *pquota);
 static void imap_mailbox_name(char *spec, struct vm_state *vms, int box, int target);
 static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum, struct ast_channel *chan, struct ast_vm_user *vmu, char *fmt, int duration, struct vm_state *vms);
@@ -358,7 +358,6 @@ struct vm_state {
 	int starting;
 	int repeats;
 #ifdef IMAP_STORAGE
-	ast_mutex_t lock; /*Lock used around c-client mail_* calls so there are no races*/
 	int updated; /* decremented on each mail check until 1 -allows delay */
 	long msgArray[256];
 	MAILSTREAM *mailstream;
@@ -891,9 +890,7 @@ static void vm_imap_delete(int msgnum, struct vm_state *vms)
 		ast_log(LOG_DEBUG, "deleting msgnum %d, which is mailbox message %lu\n",msgnum,messageNum);
 	/* delete message */
 	sprintf (arg,"%lu",messageNum);
-	ast_mutex_lock(&vms->lock);
 	mail_setflag (vms->mailstream,arg,"\\DELETED");
-	ast_mutex_unlock(&vms->lock);
 }
 
 #endif
@@ -2349,10 +2346,8 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 		INIT(&str, mail_string, buf, len);
 		init_mailstream(vms, 0);
 		imap_mailbox_name(mailbox, vms, 0, 1);
-		ast_mutex_lock(&vms->lock);
 		if(!mail_append(vms->mailstream, mailbox, &str))
 			ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
-		ast_mutex_unlock(&vms->lock);
 		fclose(p);
 		unlink(tmp);
 		ast_free(buf);
@@ -2435,7 +2430,6 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		return -1;
 	}
 	if (ret == 0) {
-		ast_mutex_lock(&vms_p->lock);
 		pgm = mail_newsearchpgm ();
 		hdr = mail_newsearchheader ("X-Asterisk-VM-Extension", (char *)mailbox);
 		pgm->header = hdr;
@@ -2462,12 +2456,9 @@ static int messagecount(const char *context, const char *mailbox, const char *fo
 		/*Freeing the searchpgm also frees the searchhdr*/
 		mail_free_searchpgm(&pgm);
 		vms_p->updated = 0;
-		ast_mutex_unlock(&vms_p->lock);
 		return vms_p->vmArrayIndex;
 	} else {  
-		ast_mutex_lock(&vms_p->lock);
 		mail_ping(vms_p->mailstream);
-		ast_mutex_unlock(&vms_p->lock);
 	}
 	return 0;
 }
@@ -2566,12 +2557,8 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	}
 	imap_mailbox_name(dest, destvms, imbox, 1);
 	snprintf(messagestring, sizeof(messagestring), "%ld", sendvms->msgArray[msgnum]);
-	ast_mutex_lock(&sendvms->lock);
-	if((mail_copy(sendvms->mailstream, messagestring, dest) == T)) {
-		ast_mutex_unlock(&sendvms->lock);
+	if((mail_copy(sendvms->mailstream, messagestring, dest) == T))
 		return 0;
-	}
-	ast_mutex_unlock(&sendvms->lock);
 	ast_log(LOG_WARNING, "Unable to copy message from mailbox %s to mailbox %s\n", vmu->mailbox, recip->mailbox);
 	return -1;
 }
@@ -3213,9 +3200,7 @@ static int save_to_folder(struct ast_vm_user *vmu, struct vm_state *vms, int msg
 	imap_mailbox_name(dbox, vms, box, 1);
 	if(option_debug > 2)
 		ast_log(LOG_DEBUG, "Copying sequence %s to mailbox %s\n",sequence,dbox);
-	ast_mutex_lock(&vms->lock);
 	res = mail_copy(vms->mailstream,sequence,dbox);
-	ast_mutex_unlock(&vms->lock);
 	if (res == 1) return 0;
 	return 1;
 #else
@@ -4095,9 +4080,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				}
 
 				/* This will only work for new messages... */
-				ast_mutex_lock(&vms->lock);
 				header_content = mail_fetchheader (vms->mailstream, vms->msgArray[vms->curmsg]);
-				ast_mutex_unlock(&vms->lock);
 				/* empty string means no valid header */
 				if (ast_strlen_zero(header_content)) {
 					ast_log (LOG_ERROR,"Could not fetch header for message number %ld\n",vms->msgArray[vms->curmsg]);
@@ -4130,9 +4113,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				if(option_debug > 2)
 					ast_log (LOG_DEBUG,"Before mail_fetchstructure, message number is %ld, filename is:%s\n",vms->msgArray[vms->curmsg], vms->fn);
 				/*mail_fetchstructure (mailstream, vmArray[0], &body); */
-				ast_mutex_lock(&vms->lock);
 				mail_fetchstructure (vms->mailstream, vms->msgArray[vms->curmsg], &body);
-				ast_mutex_unlock(&vms->lock);
 				save_body(body,vms,"3","gsm");
 				/* should not assume "fmt" here! */
 				save_body(body,vms,"2",fmt);
@@ -4428,19 +4409,16 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	}
 
 	/* This will only work for new messages... */
-	ast_mutex_lock(&vms->lock);
 	header_content = mail_fetchheader (vms->mailstream, vms->msgArray[vms->curmsg]);
 	/* empty string means no valid header */
 	if (ast_strlen_zero(header_content)) {
 		ast_log (LOG_ERROR,"Could not fetch header for message number %ld\n",vms->msgArray[vms->curmsg]);
-		ast_mutex_unlock(&vms->lock);
 		return -1;
 	}
 	snprintf(todir, sizeof(todir), "%s%s/%s/tmp", VM_SPOOL_DIR, vmu->context, vmu->mailbox);
 	make_gsm_file(vms->fn, vms->imapuser, todir, vms->curmsg);
 
 	mail_fetchstructure (vms->mailstream,vms->msgArray[vms->curmsg],&body);
-	ast_mutex_unlock(&vms->lock);
 	
 	/* We have the body, now we extract the file name of the first attachment. */
 	if (body->nested.part && body->nested.part->next && body->nested.part->next->body.parameter->value) {
@@ -4699,14 +4677,12 @@ static int init_mailstream(struct vm_state *vms, int box)
 #include "linkage.c"
 		/* Connect to INBOX first to get folders delimiter */
 		imap_mailbox_name(tmp, vms, 0, 0);
-		ast_mutex_lock(&vms->lock);
 		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
-		ast_mutex_unlock(&vms->lock);
 		if (stream == NIL) {
 			ast_log (LOG_ERROR, "Can't connect to imap server %s\n", tmp);
 			return NIL;
 		}
-		get_mailbox_delimiter(vms);
+		get_mailbox_delimiter(stream);
 		/* update delimiter in imapfolder */
 		for(cp = imapfolder; *cp; cp++)
 			if(*cp == '/')
@@ -4716,9 +4692,7 @@ static int init_mailstream(struct vm_state *vms, int box)
 	imap_mailbox_name(tmp, vms, box, 1);
 	if(option_debug > 2)
 		ast_log (LOG_DEBUG,"Before mail_open, server: %s, box:%d\n", tmp, box);
-	ast_mutex_lock(&vms->lock);
 	vms->mailstream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
-	ast_mutex_unlock(&vms->lock);
 	if (vms->mailstream == NIL) {
 		return -1;
 	} else {
@@ -4743,13 +4717,10 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	}
 
 	/* Check Quota (here for now to test) */
-	ast_mutex_lock(&vms->lock);
 	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
-	ast_mutex_unlock(&vms->lock);
 	imap_mailbox_name(dbox, vms, box, 1);
 	imap_getquotaroot(vms->mailstream, dbox);
 
-	ast_mutex_lock(&vms->lock);
 	pgm = mail_newsearchpgm();
 
 	/* Check IMAP folder for Asterisk messages only... */
@@ -4776,7 +4747,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 	vms->lastmsg = vms->vmArrayIndex - 1;
 
 	mail_free_searchpgm(&pgm);
-	ast_mutex_unlock(&vms->lock);
 	return 0;
 }
 #else
@@ -6898,14 +6868,12 @@ out:
 	if(option_debug > 2)
 		ast_log(LOG_DEBUG, "*** Checking if we can expunge, deleted set to %d, expungeonhangup set to %d\n",deleted,expungeonhangup);
 	if (vmu && deleted == 1 && expungeonhangup == 1) {
-		ast_mutex_lock(&vms.lock);
 #ifdef HAVE_IMAP_TK2006
 		if (LEVELUIDPLUS (vms.mailstream)) {
 			mail_expunge_full(vms.mailstream,NIL,EX_UID);
 		} else 
 #endif
 			mail_expunge(vms.mailstream);
-		ast_mutex_unlock(&vms.lock);
 	}
 	/*  before we delete the state, we should copy pertinent info
 	 *  back to the persistent model */
@@ -7954,9 +7922,7 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	}
 
 	/* This will only work for new messages... */
-	ast_mutex_lock(&vms->lock);
 	header_content = mail_fetchheader (vms->mailstream, vms->msgArray[vms->curmsg]);
-	ast_mutex_unlock(&vms->lock);
 	/* empty string means no valid header */
 	if (ast_strlen_zero(header_content)) {
 		ast_log (LOG_ERROR,"Could not fetch header for message number %ld\n",vms->msgArray[vms->curmsg]);
@@ -8992,7 +8958,6 @@ static void vmstate_delete(struct vm_state *vms)
 	if (!vf) {
 		ast_log(LOG_ERROR, "No vmstate found for user:%s, mailbox %s\n",vms->imapuser,vms->username);
 	} else {
-		ast_mutex_destroy(&vf->vms->lock);
 		free(vf);
 	}
 	ast_mutex_unlock(&vmstate_lock);
@@ -9024,7 +8989,6 @@ static void init_vm_state(struct vm_state *vms)
 	for (x = 0; x < 256; x++) {
 		vms->msgArray[x] = 0;
 	}
-	ast_mutex_init(&vms->lock);
 }
 
 static void check_msgArray(struct vm_state *vms) 
@@ -9057,9 +9021,7 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 	if (!body || body == NIL)
 		return -1;
 	display_body (body, NIL, (long) 0);
-	ast_mutex_lock(&vms->lock);
 	body_content = mail_fetchbody (vms->mailstream, vms->msgArray[vms->curmsg], section, &len);
-	ast_mutex_unlock(&vms->lock);
 	if (body_content != NIL) {
 		sprintf(filename,"%s.%s", vms->fn, format);
 		/* ast_log (LOG_DEBUG,body_content); */
@@ -9070,12 +9032,10 @@ static int save_body(BODY *body, struct vm_state *vms, char *section, char *form
 }
 
 /* get delimiter via mm_list callback */
-static void get_mailbox_delimiter(struct vm_state *vms) {
+static void get_mailbox_delimiter(MAILSTREAM *stream) {
 	char tmp[50];
 	sprintf(tmp, "{%s}", imapserver);
-	ast_mutex_lock(&vms->lock);
-	mail_list(vms->mailstream, tmp, "*");
-	ast_mutex_unlock(&vms->lock);
+	mail_list(stream, tmp, "*");
 }
 
 #endif /* IMAP_STORAGE */
