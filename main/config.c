@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
+#include "asterisk/astobj2.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"
@@ -162,6 +163,40 @@ static struct ast_comment *ALLOC_COMMENT(const char *buffer)
 	return x;
 }
 
+/* I need to keep track of each config file, and all its inclusions,
+   so that we can track blank lines in each */
+
+struct inclfile
+{
+	char *fname;
+	int lineno;
+};
+
+static int hash_string(const void *obj, const int flags)
+{
+	char *str = ((struct inclfile*)obj)->fname;
+	int total;
+
+	for (total=0; *str; str++)
+	{
+		unsigned int tmp = total;
+		total <<= 1; /* multiply by 2 */
+		total += tmp; /* multiply by 3 */
+		total <<= 2; /* multiply by 12 */
+		total += tmp; /* multiply by 13 */
+        
+		total += ((unsigned int)(*str));
+	}
+	if (total < 0)
+		total = -total;
+	return total;
+}
+
+static int hashtab_compare_strings(void *a, void *b, int flags)
+{
+	const struct inclfile *ae = a, *be = b;
+	return !strcmp(ae->fname, be->fname) ? CMP_MATCH : 0;
+}
 
 static struct ast_config_map {
 	struct ast_config_map *next;
@@ -1320,8 +1355,18 @@ static void gen_header(FILE *f1, const char *configfile, const char *fn, const c
 	fprintf(f1, ";!\n");
 }
 
-static void set_fn(char *fn, int fn_size, const char *file, const char *configfile)
+static void   inclfile_destroy(void *obj)
 {
+	const struct inclfile *o = obj;
+	if (o->fname)
+		free(o->fname);
+}
+
+
+static void set_fn(char *fn, int fn_size, const char *file, const char *configfile, struct ao2_container *fileset, struct inclfile **fi)
+{
+	struct inclfile lookup;
+	
 	if (!file || file[0] == 0) {
 		if (configfile[0] == '/')
 			ast_copy_string(fn, configfile, fn_size);
@@ -1331,6 +1376,54 @@ static void set_fn(char *fn, int fn_size, const char *file, const char *configfi
 		ast_copy_string(fn, file, fn_size);
 	else
 		snprintf(fn, fn_size, "%s/%s", ast_config_AST_CONFIG_DIR, file);
+	lookup.fname = fn;
+	*fi = ao2_find(fileset, &lookup, OBJ_POINTER);
+	if (!(*fi)) {
+		/* set up a file scratch pad */
+		struct inclfile *fx = ao2_alloc(sizeof(struct inclfile), inclfile_destroy);
+		fx->fname = ast_strdup(fn);
+		fx->lineno = 1;
+		*fi = fx;
+		ao2_link(fileset, fx);
+		ao2_ref(fx,1); /* bump the ref count, so it looks like we just got the ref from find */
+	}
+}
+
+static int count_linefeeds(char *str)
+{
+	int count = 0;
+	while (*str) {
+		if (*str =='\n')
+			count++;
+		str++;
+	}
+	return count;
+}
+
+static int count_linefeeds_in_comments(struct ast_comment *x)
+{
+	int count = 0;
+	while (x)
+	{
+		count += count_linefeeds(x->cmt);
+		x = x->next;
+	}
+	return count;
+}
+
+static void insert_leading_blank_lines(FILE *fp, struct inclfile *fi, struct ast_comment *precomments, int lineno)
+{
+	int precomment_lines = count_linefeeds_in_comments(precomments);
+	int i;
+
+	/* I don't have to worry about those ;! comments, they are
+	   stored in the precomments, but not printed back out.
+	   I did have to make sure that comments following
+	   the ;! header comments were not also deleted in the process */
+	for (i=fi->lineno;i<lineno - precomment_lines; i++) {
+		fprintf(fp,"\n");
+	}
+	fi->lineno = lineno+1; /* Advance the file lineno */
 }
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
@@ -1342,6 +1435,8 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	struct ast_comment *cmt;
 	struct ast_config_include *incl;
 	int blanklines = 0;
+	struct ao2_container *fileset = ao2_container_alloc(180000, hash_string, hashtab_compare_strings);
+	struct inclfile *fi = 0;
 
 	/* reset all the output flags, in case this isn't our first time saving this data */
 
@@ -1356,7 +1451,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		if (!incl->exec) { /* leave the execs alone -- we'll write out the #exec directives, but won't zero out the include files or exec files*/
 			FILE *f1;
 
-			set_fn(fn, sizeof(fn), incl->included_file, configfile); /* normally, fn is just set to incl->included_file, prepended with config dir if relative */
+			set_fn(fn, sizeof(fn), incl->included_file, configfile, fileset, &fi); /* normally, fn is just set to incl->included_file, prepended with config dir if relative */
 			f1 = fopen(fn,"w");
 			if (f1) {
 				gen_header(f1, configfile, fn, generator);
@@ -1365,10 +1460,12 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
 				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
 			}
+			ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+			fi = 0;
 		}
 	}
 
-	set_fn(fn, sizeof(fn), 0, configfile); /* just set fn to absolute ver of configfile */
+	set_fn(fn, sizeof(fn), 0, configfile, fileset, &fi); /* just set fn to absolute ver of configfile */
 #ifdef __CYGWIN__	
 	if ((f = fopen(fn, "w+"))) {
 #else
@@ -1378,18 +1475,20 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		gen_header(f, configfile, fn, generator);
 		cat = cfg->root;
 		fclose(f);
+		ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
 		
 		/* from here out, we open each involved file and concat the stuff we need to add to the end and immediately close... */
 		/* since each var, cat, and associated comments can come from any file, we have to be 
 		   mobile, and open each file, print, and close it on an entry-by-entry basis */
 
 		while (cat) {
-			set_fn(fn, sizeof(fn), cat->file, configfile);
+			set_fn(fn, sizeof(fn), cat->file, configfile, fileset, &fi);
 			f = fopen(fn, "a");
 			if (!f)
 			{
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
 				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+				ao2_ref(fileset, -1);
 				return -1;
 			}
 
@@ -1406,10 +1505,18 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 				}
 			}
 			
+			insert_leading_blank_lines(f, fi, cat->precomments, cat->lineno);
 			/* Dump section with any appropriate comment */
 			for (cmt = cat->precomments; cmt; cmt=cmt->next) {
-				if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
-					fprintf(f,"%s", cmt->cmt);
+				char *cmtp = cmt->cmt;
+				while (*cmtp == ';' && *(cmtp+1) == '!') {
+					char *cmtp2 = strchr(cmtp+1, '\n');
+					if (cmtp2)
+						cmtp = cmtp2+1;
+					else cmtp = 0;
+				}
+				if (cmtp)
+					fprintf(f,"%s", cmtp);
 			}
 			if (!cat->precomments)
 				fprintf(f,"\n");
@@ -1424,15 +1531,20 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 					fprintf(f,"%s", cmt->cmt);
 			}
 			fclose(f);
+			ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+			fi = 0;
 			
 			var = cat->root;
 			while (var) {
-				set_fn(fn, sizeof(fn), var->file, configfile);
+				set_fn(fn, sizeof(fn), var->file, configfile, fileset, &fi);
 				f = fopen(fn, "a");
 				if (!f)
 				{
 					ast_debug(1, "Unable to open for writing: %s\n", fn);
 					ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+					ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+					fi = 0;
+					ao2_ref(fileset, -1);
 					return -1;
 				}
 				
@@ -1449,6 +1561,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 					}
 				}
 				
+				insert_leading_blank_lines(f, fi, var->precomments, var->lineno);
 				for (cmt = var->precomments; cmt; cmt=cmt->next) {
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
 						fprintf(f,"%s", cmt->cmt);
@@ -1468,6 +1581,8 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 				}
 				
 				fclose(f);
+				ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+				fi = 0;
 				
 				var = var->next;
 			}
@@ -1478,6 +1593,8 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	} else {
 		ast_debug(1, "Unable to open for writing: %s\n", fn);
 		ast_verb(2, "Unable to write (%s)", strerror(errno));
+		ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+		ao2_ref(fileset, -1);
 		return -1;
 	}
 
@@ -1487,12 +1604,15 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	for (incl=cfg->includes; incl; incl = incl->next) {
 		if (!incl->output) {
 			/* open the respective file */
-			set_fn(fn, sizeof(fn), incl->include_location_file, configfile);
+			set_fn(fn, sizeof(fn), incl->include_location_file, configfile, fileset, &fi);
 			f = fopen(fn, "a");
 			if (!f)
 			{
 				ast_debug(1, "Unable to open for writing: %s\n", fn);
 				ast_verb(2, "Unable to write %s (%s)", fn, strerror(errno));
+				ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+				fi = 0;
+				ao2_ref(fileset, -1);
 				return -1;
 			}
 			
@@ -1503,8 +1623,11 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 				fprintf(f,"#include \"%s\"\n", incl->included_file);
 			fclose(f);
 			incl->output = 1;
+			ao2_ref(fi,-1); /* we are giving up this reference to the object ptd to by fi */
+			fi = 0;
 		}
 	}
+	ao2_ref(fileset, -1); /* this should destroy the hash container */
 				
 	return 0;
 }
