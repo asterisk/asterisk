@@ -148,16 +148,17 @@ static void add_element(void)
 	els_added++; /* unprotected, sometimes off, but, not really important, either */
 }
 
+static int do_nothing_cb(void *obj, void *arg, int flags)
+{
+	return 0;
+}
+
 static void traverse_elements(void)
 {
-	struct ht_element *el;
-	struct ao2_iterator it = ao2_iterator_init(glob_hashtab, 0);
 #ifdef DEBUG
 	printf("Traverse hashtab\n");
 #endif
-	while ((el = ao2_iterator_next(&it))) {
-		ao2_ref(el,-1);
-	}
+	ao2_callback(glob_hashtab, OBJ_NODATA, do_nothing_cb, NULL);
 	els_traversals++; /* unprotected, sometimes off, but, not really important, either */
 }
 
