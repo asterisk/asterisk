@@ -10007,7 +10007,7 @@ static int set_config(char *config_file, int reload)
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED) {
 		ucfg = ast_config_load("users.conf", config_flags);
 		if (ucfg == CONFIG_STATUS_FILEUNCHANGED)
-			return 1;
+			return 0;
 		/* Otherwise we need to reread both files */
 		ast_clear_flag(&config_flags, CONFIG_FLAG_FILEUNCHANGED);
 		cfg = ast_config_load(config_file, config_flags);
@@ -10365,7 +10365,7 @@ static int set_config(char *config_file, int reload)
 	}
 	ast_config_destroy(cfg);
 	set_timing();
-	return capability;
+	return 1;
 }
 
 static int reload_config(void)
@@ -10373,7 +10373,7 @@ static int reload_config(void)
 	char *config = "iax.conf";
 	struct iax2_registry *reg;
 
-	if (set_config(config, 1) == 1) {
+	if (set_config(config, 1) > 0) {
 		prune_peers();
 		prune_users();
 		trunk_timed = trunk_untimed = 0; 
