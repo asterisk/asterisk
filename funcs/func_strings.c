@@ -659,7 +659,8 @@ static int acf_strptime(struct ast_channel *chan, const char *cmd, char *data,
 	if (!strptime(args.timestring, args.format, &t.time)) {
 		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
 	} else {
-		snprintf(buf, len, "%d", (int) ast_mktime(&t.atm, args.timezone));
+		struct timeval tv = ast_mktime(&t.atm, args.timezone);
+		snprintf(buf, len, "%d", (int) tv.tv_sec);
 	}
 
 	return 0;

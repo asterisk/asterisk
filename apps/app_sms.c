@@ -202,7 +202,7 @@ typedef struct sms_s {
 	char queue[30];              /*!< queue name */
 	char oa[20];                 /*!< originating address */
 	char da[20];                 /*!< destination address */
-	time_t scts;                 /*!< time stamp, UTC */
+	struct timeval scts;         /*!< time stamp, UTC */
 	unsigned char pid;           /*!< protocol ID */
 	unsigned char dcs;           /*!< data coding scheme */
 	short mr;                    /*!< message reference - actually a byte, but use -1 for not set */
@@ -766,7 +766,7 @@ static void sms_readfile(sms_t * h, char *fn)
 	h->rx = h->udl = *h->oa = *h->da = h->pid = h->srr = h->udhi = h->rp = h->vp = h->udhl = 0;
 	h->mr = -1;
 	h->dcs = 0xF1;			/* normal messages class 1 */
-	h->scts = time(NULL);
+	h->scts = ast_tvnow();
 	s = fopen(fn, "r");
 	if (s) {
 		if (unlink(fn)) {	/* concurrent access, we lost */
@@ -825,7 +825,7 @@ static void sms_readfile(sms_t * h, char *fn)
 						  M,
 						  S;
 						if (sscanf (p, "%d-%d-%dT%d:%d:%d", &Y, &m, &d, &H, &M, &S) == 6) {
-							struct tm t;
+							struct ast_tm t = { 0, };
 							t.tm_year = Y - 1900;
 							t.tm_mon = m - 1;
 							t.tm_mday = d;
@@ -833,8 +833,8 @@ static void sms_readfile(sms_t * h, char *fn)
 							t.tm_min = M;
 							t.tm_sec = S;
 							t.tm_isdst = -1;
-							h->scts = mktime(&t);
-							if (h->scts == (time_t) - 1)
+							h->scts = ast_mktime(&t, NULL);
+							if (h->scts.tv_sec == 0)
 								ast_log(LOG_WARNING, "Bad date/timein %s: %s", fn, p);
 						}
 					} else
@@ -925,7 +925,7 @@ static void sms_writefile(sms_t * h)
 	snprintf(fn, sizeof(fn), "%s/sms/%s", ast_config_AST_SPOOL_DIR, h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
 	ast_mkdir(fn, 0777);			/* ensure it exists */
 	ast_copy_string(fn2, fn, sizeof(fn2));
-	snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%d", h->queue, isodate(h->scts, buf, sizeof(buf)), seq++);
+	snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%d", h->queue, isodate(h->scts.tv_sec, buf, sizeof(buf)), seq++);
 	snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
 	o = fopen(fn, "w");
 	if (o == NULL)
@@ -982,9 +982,9 @@ static void sms_writefile(sms_t * h)
 			}
 		}
 	}
-	if (h->scts) {
+	if (h->scts.tv_sec) {
 		char buf[30];
-		fprintf(o, "scts=%s\n", isodate(h->scts, buf, sizeof(buf)));
+		fprintf(o, "scts=%s\n", isodate(h->scts.tv_sec, buf, sizeof(buf)));
 	}
 	if (h->pid)
 		fprintf(o, "pid=%d\n", h->pid);
@@ -1027,7 +1027,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 			h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
 			h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
 			ast_copy_string(h->oa, h->cli, sizeof(h->oa));
-			h->scts = time(NULL);
+			h->scts = ast_tvnow();
 			h->mr = h->imsg[p++];
 			p += unpackaddress(h->da, h->imsg + p);
 			h->pid = h->imsg[p++];
@@ -1065,7 +1065,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 			p += unpackaddress(h->oa, h->imsg + p);
 			h->pid = h->imsg[p++];
 			h->dcs = h->imsg[p++];
-			h->scts = unpackdate(h->imsg + p);
+			h->scts.tv_sec = unpackdate(h->imsg + p);
 			p += 7;
 			p += unpacksms(h->dcs, h->imsg + p, h->udh, &h->udhl, h->ud, &h->udl, h->udhi);
 			h->rx = 1;				 /* received message */
@@ -1116,7 +1116,7 @@ static void putdummydata_proto2(sms_t *h)
 static void sms_compose2(sms_t *h, int more)
 {
 	struct ast_tm tm;
-	struct timeval tv = { h->scts, 0 };
+	struct timeval tv = h->scts;
 	char stm[9];
 
 	h->omsg[0] = 0x00;       /* set later... */
@@ -1171,7 +1171,7 @@ static int sms_handleincoming_proto2(sms_t *h)
 	/* ast_verb(3, "SMS-P2 Frame: %s\n", sms_hexdump(h->imsg, sz, debug_buf)); */
 
 	/* Parse message body (called payload) */
-	tv.tv_sec = h->scts = time(NULL);
+	tv = h->scts = ast_tvnow();
 	for (f = 4; f < sz; ) {
 		msg = h->imsg[f++];
 		msgsz = h->imsg[f++];
@@ -1186,7 +1186,7 @@ static int sms_handleincoming_proto2(sms_t *h)
 			h->udl = msgsz;
 			break;
 		case 0x14:      /* Date SCTS */
-			tv.tv_sec = h->scts = time(NULL);
+			tv = h->scts = ast_tvnow();
 			ast_localtime(&tv, &tm, NULL);
 			tm.tm_mon = ( (h->imsg[f] * 10) + h->imsg[f + 1] ) - 1;
 			tm.tm_mday = ( (h->imsg[f + 2] * 10) + h->imsg[f + 3] );
@@ -1302,7 +1302,7 @@ static void sms_compose1(sms_t *h, int more)
 		p += packaddress(h->omsg + p, h->oa);
 		h->omsg[p++] = h->pid;
 		h->omsg[p++] = h->dcs;
-		packdate(h->omsg + p, h->scts);
+		packdate(h->omsg + p, h->scts.tv_sec);
 		p += 7;
 		p += packsms(h->dcs, h->omsg + p, h->udhl, h->udh, h->udl, h->ud);
 	} else {			 /* submit */
@@ -1823,7 +1823,7 @@ static int sms_exec(struct ast_channel *chan, void *data)
 
 		/* submitting a message, not taking call. */
 		/* deprecated, use smsq instead */
-		h.scts = time(NULL);
+		h.scts = ast_tvnow();
 		if (ast_strlen_zero(sms_args.addr) || strlen(sms_args.addr) >= sizeof(h.oa)) {
 			ast_log(LOG_ERROR, "Address too long %s\n", sms_args.addr);
 			goto done;

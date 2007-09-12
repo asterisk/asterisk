@@ -40,11 +40,8 @@ struct ast_tm {
 	int tm_usec;        /* microseconds */
 };
 
-int ast_tzsetwall(void);
-void ast_tzset(const char *name);
 struct ast_tm *ast_localtime(const struct timeval *timep, struct ast_tm *p_tm, const char *zone);
-time_t ast_mktime(struct ast_tm * const tmp, const char *zone);
-char *ast_ctime(const struct timeval * const timep, char *buf);
+struct timeval ast_mktime(struct ast_tm * const tmp, const char *zone);
 int ast_strftime(char *buf, size_t len, const char *format, const struct ast_tm *tm);
 
 #endif /* _ASTERISK_LOCALTIME_H */
