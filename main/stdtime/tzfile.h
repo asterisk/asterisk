@@ -33,11 +33,7 @@ static char	__attribute__((unused)) tzfilehid[] = "@(#)tzfile.h	8.1";
 #ifdef SOLARIS
 #define TZDIR	"/usr/share/lib/zoneinfo"
 #else
-#ifdef FREEBSD
-#define TZDIR	"/usr/local/etc/zoneinfo" /* Time zone object file directory */
-#else
 #define TZDIR	"/usr/share/zoneinfo"
-#endif /* defined FREEBSD */
 #endif /* defined SOLARIS */
 #endif /* !defined TZDIR */
 
