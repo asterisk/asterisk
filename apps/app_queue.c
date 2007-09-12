@@ -1109,9 +1109,9 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		ast_mutex_lock(&q->lock);
 		clear_queue(q);
 		q->realtime = 1;
+		init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 		AST_LIST_INSERT_HEAD(&queues, q, list);
 	}
-	init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 
 	memset(tmpbuf, 0, sizeof(tmpbuf));
 	for (v = queue_vars; v; v = v->next) {
@@ -4056,7 +4056,6 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 				continue;
 			}
 		}
-		ast_log(LOG_DEBUG, "MEMBERCOUNT is %d\n", q->membercount);
 		max_buf[0] = '\0';
 		max = max_buf;
 		max_left = sizeof(max_buf);
