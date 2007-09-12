@@ -343,6 +343,8 @@ struct ast_conference {
 	unsigned int isdynamic:1;               /*!< Created on the fly? */
 	unsigned int locked:1;                  /*!< Is the conference locked? */
 	pthread_t recordthread;                 /*!< thread for recording */
+	ast_mutex_t recordthreadlock;		/*!< control threads trying to start recordthread */
+	pthread_attr_t attr;                    /*!< thread attribute */
 	const char *recordingfilename;          /*!< Filename to record the Conference into */
 	const char *recordingformat;            /*!< Format to record the Conference in */
 	char pin[MAX_PIN];                      /*!< If protected by a PIN */
@@ -781,6 +783,8 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 
 	ast_mutex_init(&cnf->playlock);
 	ast_mutex_init(&cnf->listenlock);
+	cnf->recordthread = AST_PTHREADT_NULL;
+	ast_mutex_init(&cnf->recordthreadlock);
 	ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
 	ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
 	ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
@@ -1281,7 +1285,10 @@ static int conf_free(struct ast_conference *conf)
 		ast_hangup(conf->chan);
 	else
 		close(conf->fd);
-	
+
+	ast_mutex_destroy(&conf->playlock);
+	ast_mutex_destroy(&conf->listenlock);
+	ast_mutex_destroy(&conf->recordthreadlock);
 	ast_free(conf);
 
 	return 0;
@@ -1466,7 +1473,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 
-	if ((conf->recording == MEETME_RECORD_OFF) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
+	ast_mutex_lock(&conf->recordthreadlock);
+	if ((conf->recordthread == AST_PTHREADT_NULL) && (confflags & CONFFLAG_RECORDCONF) && ((conf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL)))) {
 		ast_set_read_format(conf->lchan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(conf->lchan, AST_FORMAT_SLINEAR);
 		ztc.chan = 0;
@@ -1480,6 +1488,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_pthread_create_detached_background(&conf->recordthread, NULL, recordthread, conf);
 		}
 	}
+	ast_mutex_unlock(&conf->recordthreadlock);
 
 	time(&user->jointime);
 
