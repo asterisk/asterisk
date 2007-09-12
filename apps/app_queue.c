@@ -542,7 +542,6 @@ static enum queue_member_status get_member_status(struct call_queue *q, int max_
 		}
 	}
 
-	ao2_ref(member, -1);
 	ast_mutex_unlock(&q->lock);
 	return result;
 }
