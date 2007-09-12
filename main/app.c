@@ -39,6 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <regex.h>
+#include <fcntl.h>
 
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
@@ -1146,8 +1147,14 @@ static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
 	pl->path = strdup(path);
 
 	time(&start);
-	while (((res = flock(pl->fd, LOCK_EX | LOCK_NB)) < 0) &&
-			(errno == EWOULDBLOCK) && (time(NULL) - start < 5))
+	while ((
+		#ifdef SOLARIS
+		(res = fcntl(pl->fd, F_SETLK, fcntl(pl->fd,F_GETFL)|O_NONBLOCK)) < 0) &&
+		#else
+		(res = flock(pl->fd, LOCK_EX | LOCK_NB)) < 0) &&
+		#endif
+			(errno == EWOULDBLOCK) && 
+			(time(NULL) - start < 5))
 		usleep(1000);
 	if (res) {
 		ast_log(LOG_WARNING, "Failed to lock path '%s': %s\n",

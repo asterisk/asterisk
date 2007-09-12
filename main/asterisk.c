@@ -95,6 +95,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <netdb.h>
 #if defined(SOLARIS)
 int daemon(int, int);  /* defined in libresolv of all places */
+#include <sys/loadavg.h>
 #endif
 #endif
 

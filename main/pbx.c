@@ -40,6 +40,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(HAVE_SYSINFO)
 #include <sys/sysinfo.h>
 #endif
+#if defined(SOLARIS)
+#include <sys/loadavg.h>
+#endif
 
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
