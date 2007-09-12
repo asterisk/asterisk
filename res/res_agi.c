@@ -1201,7 +1201,7 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 	} else {
 		chan2 = chan;
 	}
-	if (chan) { /* XXX isn't this chan2 ? */
+	if (chan2) {
 		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
 		ast_agi_fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
 	} else {
