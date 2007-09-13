@@ -37,7 +37,9 @@
 #define JINGLE_NODE "jingle"
 #define GOOGLE_NODE "session"
 
-#define JINGLE_NS "http://jabber.org/protocol/jingle"
+#define JINGLE_NS "http://www.xmpp.org/extensions/xep-0166.html#ns"
+#define JINGLE_DTMF_NS "http://www.xmpp.org/extensions/xep-0181.html#ns"
+#define JINGLE_DTMF_NS_ERROR "http://www.xmpp.org/extensions/xep-0181.html#ns"
 #define GOOGLE_NS "http://www.google.com/session"
 
 #define JINGLE_SID "sid"

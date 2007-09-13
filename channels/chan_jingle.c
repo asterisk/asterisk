@@ -367,7 +367,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		iks_insert_attrib(iq, "id", client->connection->mid);
 		ast_aji_increment_mid(client->connection->mid);
 
-		iks_insert_attrib(jingle, "xmlns", "http://www.google.com/session");
+		iks_insert_attrib(jingle, "xmlns", GOOGLE_NS);
 		iks_insert_attrib(jingle, "type", JINGLE_ACCEPT);
 		iks_insert_attrib(jingle, "initiator",
 						  p->initiator ? client->connection->jid->full : p->from);
@@ -525,7 +525,7 @@ static int jingle_handle_dtmf(struct jingle *client, ikspak *pak)
 		if(iks_find_with_attrib(pak->x, "dtmf-method", "method", "rtp")) {
 			jingle_response(client,pak,
 					"feature-not-implemented xmlns='urn:ietf:params:xml:ns:xmpp-stanzas'",
-					"unsupported-dtmf-method xmlns='http://jabber.org/protocol/jingle/info/dtmf#errors'");
+					"unsupported-dtmf-method xmlns='http://www.xmpp.org/extensions/xep-0181.html#ns-errors'");
 			return -1;
 		}
 		if ((dtmfnode = iks_find(pak->x, "dtmf"))) {
@@ -861,7 +861,7 @@ static int jingle_action(struct jingle *client, struct jingle_pvt *p, const char
 			iks_insert_attrib(session, "id", p->sid);
 			iks_insert_attrib(session, "initiator",
 							  p->initiator ? client->connection->jid->full : p->from);
-			iks_insert_attrib(session, "xmlns", "http://www.google.com/session");
+			iks_insert_attrib(session, "xmlns", GOOGLE_NS);
 			iks_insert_node(request, session);
 			iks_send(client->connection->p, request);
 			iks_delete(session);
@@ -1220,11 +1220,11 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 	iks_insert_attrib(iq, "from", client->connection->jid->full);
 	iks_insert_attrib(iq, "id", client->connection->mid);
 	ast_aji_increment_mid(client->connection->mid);
-	iks_insert_attrib(jingle, "xmlns", "http://jabber.org/protocol/jingle");
+	iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
 	iks_insert_attrib(jingle, "action", "session-info");
 	iks_insert_attrib(jingle, "initiator", p->initiator ? client->connection->jid->full : p->from);
 	iks_insert_attrib(jingle, "sid", p->sid);
-	iks_insert_attrib(dtmf, "xmlns", "http://jabber.org/protocol/jingle/info/dtmf");
+	iks_insert_attrib(dtmf, "xmlns", JINGLE_DTMF_NS);
 	iks_insert_attrib(dtmf, "code", buffer);
 	iks_insert_node(iq, jingle);
 	iks_insert_node(jingle, dtmf);
@@ -1279,7 +1279,7 @@ static int jingle_transmit_invite(struct jingle_pvt *p)
 	iks_insert_attrib(session, "type", "initiate");
 	iks_insert_attrib(session, "id", p->sid);
 	iks_insert_attrib(session, "initiator", client->jid->full);
-	iks_insert_attrib(session, "xmlns", "http://www.google.com/session");
+	iks_insert_attrib(session, "xmlns", GOOGLE_NS);
 	iks_insert_attrib(desc, "xmlns", "http://www.google.com/session/phone");
 	payload_pcmu = iks_new("payload-type");
 	iks_insert_attrib(payload_pcmu, "id", "0");
