@@ -57,6 +57,11 @@ struct astobj2 {
 	void *user_data[0];
 };
 
+#ifdef AST_DEVMODE
+#define AO2_DEBUG 1
+#endif
+
+#ifdef AO2_DEBUG
 struct ao2_stats {
 	volatile int total_objects;
 	volatile int total_mem;
@@ -66,6 +71,7 @@ struct ao2_stats {
 };
 
 static struct ao2_stats ao2;
+#endif
 
 #ifndef HAVE_BKTR	/* backtrace support */
 void ao2_bt(void) {}
@@ -126,7 +132,9 @@ int ao2_lock(void *user_data)
 	if (p == NULL)
 		return -1;
 
+#ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_locked, 1);
+#endif
 
 	return ast_mutex_lock(&p->priv_data.lock);
 }
@@ -138,7 +146,9 @@ int ao2_unlock(void *user_data)
 	if (p == NULL)
 		return -1;
 
+#ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_locked, -1);
+#endif
 
 	return ast_mutex_unlock(&p->priv_data.lock);
 }
@@ -161,9 +171,12 @@ int ao2_ref(void *user_data, const int delta)
 
 	/* we modify with an atomic operation the reference counter */
 	ret = ast_atomic_fetchadd_int(&obj->priv_data.ref_counter, delta);
-	ast_atomic_fetchadd_int(&ao2.total_refs, delta);
 	current_value = ret + delta;
-	
+
+#ifdef AO2_DEBUG	
+	ast_atomic_fetchadd_int(&ao2.total_refs, delta);
+#endif
+
 	/* this case must never happen */
 	if (current_value < 0)
 		ast_log(LOG_ERROR, "refcount %d on object %p\n", current_value, user_data);
@@ -173,13 +186,15 @@ int ao2_ref(void *user_data, const int delta)
 			obj->priv_data.destructor_fn(user_data);
 
 		ast_mutex_destroy(&obj->priv_data.lock);
+#ifdef AO2_DEBUG
 		ast_atomic_fetchadd_int(&ao2.total_mem, - obj->priv_data.data_size);
+		ast_atomic_fetchadd_int(&ao2.total_objects, -1);
+#endif
 		/* for safety, zero-out the astobj2 header and also the
 		 * first word of the user-data, which we make sure is always
 		 * allocated. */
 		bzero(obj, sizeof(struct astobj2 *) + sizeof(void *) );
 		free(obj);
-		ast_atomic_fetchadd_int(&ao2.total_objects, -1);
 	}
 
 	return ret;
@@ -207,9 +222,12 @@ void *ao2_alloc(size_t data_size, ao2_destructor_fn destructor_fn)
 	obj->priv_data.data_size = data_size;
 	obj->priv_data.ref_counter = 1;
 	obj->priv_data.destructor_fn = destructor_fn;	/* can be NULL */
+
+#ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_objects, 1);
 	ast_atomic_fetchadd_int(&ao2.total_mem, data_size);
 	ast_atomic_fetchadd_int(&ao2.total_refs, 1);
+#endif
 
 	/* return a pointer to the user data */
 	return EXTERNAL_OBJ(obj);
@@ -289,8 +307,11 @@ ao2_container_alloc(const uint n_buckets, ao2_hash_fn *hash_fn,
 	c->n_buckets = n_buckets;
 	c->hash_fn = hash_fn ? hash_fn : hash_zero;
 	c->cmp_fn = cmp_fn;
+
+#ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_containers, 1);
-	
+#endif
+
 	return c;
 }
 
@@ -567,7 +588,10 @@ static void container_destruct(void *_c)
 	struct ao2_container *c = _c;
 
 	ao2_callback(c, OBJ_UNLINK, cd_cb, NULL);
+
+#ifdef AO2_DEBUG
 	ast_atomic_fetchadd_int(&ao2.total_containers, -1);
+#endif
 }
 
 static int print_cb(void *obj, void *arg, int flag)
@@ -579,6 +603,7 @@ static int print_cb(void *obj, void *arg, int flag)
 	return 0;
 }
 
+#ifdef AO2_DEBUG
 /*
  * Print stats
  */
@@ -669,10 +694,13 @@ static struct ast_cli_entry cli_astobj2[] = {
 	handle_astobj2_stats, "Print astobj2 statistics", },
 	{ { "astobj2", "test", NULL } , handle_astobj2_test, "Test astobj2", },
 };
+#endif /* AO2_DEBUG */
 
-int astobj2_init(void);
 int astobj2_init(void)
 {
+#ifdef AO2_DEBUG
 	ast_cli_register_multiple(cli_astobj2, ARRAY_LEN(cli_astobj2));
+#endif
+
 	return 0;
 }
