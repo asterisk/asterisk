@@ -48,6 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
+#include "asterisk/lock.h"
 
 #define CSV_LOG_DIR "/cdr-csv"
 #define CSV_MASTER  "/Master.csv"
@@ -92,8 +93,8 @@ static char *config = "cdr.conf";
 
 static char *name = "csv";
 
-static FILE *mf = NULL;
-
+AST_MUTEX_DEFINE_STATIC(mf_lock);
+AST_MUTEX_DEFINE_STATIC(acf_lock);
 
 static int load_config(int reload)
 {
@@ -263,18 +264,26 @@ static int writefile(char *s, char *acc)
 		return -1;
 	}
 	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", (char *)ast_config_AST_LOG_DIR,CSV_LOG_DIR, acc);
+
+	ast_mutex_lock(&acf_lock);
 	f = fopen(tmp, "a");
-	if (!f)
+	if (!f) {
+		ast_mutex_unlock(&acf_lock);
+		ast_log(LOG_ERROR, "Unable to open file %s : %s\n", tmp, strerror(errno));
 		return -1;
+	}
 	fputs(s, f);
 	fflush(f);
 	fclose(f);
+	ast_mutex_unlock(&acf_lock);
+
 	return 0;
 }
 
 
 static int csv_log(struct ast_cdr *cdr)
 {
+	FILE *mf = NULL;
 	/* Make sure we have a big enough buf */
 	char buf[1024];
 	char csvmaster[PATH_MAX];
@@ -288,16 +297,19 @@ static int csv_log(struct ast_cdr *cdr)
 		/* because of the absolutely unconditional need for the
 		   highest reliability possible in writing billing records,
 		   we open write and close the log file each time */
+		ast_mutex_lock(&mf_lock);
 		mf = fopen(csvmaster, "a");
-		if (!mf) {
-			ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
-		}
 		if (mf) {
 			fputs(buf, mf);
 			fflush(mf); /* be particularly anal here */
 			fclose(mf);
 			mf = NULL;
+			ast_mutex_unlock(&mf_lock);
+		} else {
+			ast_mutex_unlock(&mf_lock);
+			ast_log(LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
 		}
+
 		if (!ast_strlen_zero(cdr->accountcode)) {
 			if (writefile(buf, cdr->accountcode))
 				ast_log(LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
@@ -308,8 +320,6 @@ static int csv_log(struct ast_cdr *cdr)
 
 static int unload_module(void)
 {
-	if (mf)
-		fclose(mf);
 	ast_cdr_unregister(name);
 	return 0;
 }
@@ -324,8 +334,6 @@ static int load_module(void)
 	res = ast_cdr_register(name, ast_module_info->description, csv_log);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register CSV CDR handling\n");
-		if (mf)
-			fclose(mf);
 	}
 	return res;
 }
