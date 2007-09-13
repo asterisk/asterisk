@@ -1221,7 +1221,7 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 	iks_insert_attrib(iq, "id", client->connection->mid);
 	ast_aji_increment_mid(client->connection->mid);
 	iks_insert_attrib(jingle, "xmlns", "http://jabber.org/protocol/jingle");
-	iks_insert_attrib(jingle, "action", "content-info");
+	iks_insert_attrib(jingle, "action", "session-info");
 	iks_insert_attrib(jingle, "initiator", p->initiator ? client->connection->jid->full : p->from);
 	iks_insert_attrib(jingle, "sid", p->sid);
 	iks_insert_attrib(dtmf, "xmlns", "http://jabber.org/protocol/jingle/info/dtmf");
@@ -1442,7 +1442,7 @@ static int jingle_parser(void *data, ikspak *pak)
 		ast_debug(3, "Candidate Added!\n");
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", GOOGLE_ACCEPT)) {
 		jingle_is_answered(client, pak);
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "content-info")) {
+	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "session-info")) {
 		jingle_handle_dtmf(client, pak);
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "terminate")) {
 		jingle_hangup_farend(client, pak);
