@@ -594,6 +594,7 @@ static void container_destruct(void *_c)
 #endif
 }
 
+#ifdef AO2_DEBUG
 static int print_cb(void *obj, void *arg, int flag)
 {
 	int *fd = arg;
@@ -603,7 +604,6 @@ static int print_cb(void *obj, void *arg, int flag)
 	return 0;
 }
 
-#ifdef AO2_DEBUG
 /*
  * Print stats
  */
