@@ -514,21 +514,17 @@ static enum queue_member_status get_member_status(struct call_queue *q, int max_
 
 	ast_mutex_lock(&q->lock);
 	mem_iter = ao2_iterator_init(q->members, 0);
-	while ((member = ao2_iterator_next(&mem_iter))) {
-		if (max_penalty && (member->penalty > max_penalty)) {
-			ao2_ref(member, -1);
+	for (; (member = ao2_iterator_next(&mem_iter)); ao2_ref(member, -1)) {
+		if (max_penalty && (member->penalty > max_penalty))
 			continue;
-		}
 
 		switch (member->status) {
 		case AST_DEVICE_INVALID:
 			/* nothing to do */
-			ao2_ref(member, -1);
 			break;
 		case AST_DEVICE_UNAVAILABLE:
 			if (result != QUEUE_NO_UNPAUSED_REACHABLE_MEMBERS) 
 				result = QUEUE_NO_REACHABLE_MEMBERS;
-			ao2_ref(member, -1);
 			break;
 		default:
 			if (member->paused) {
