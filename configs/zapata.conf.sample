@@ -395,6 +395,8 @@ group=1
 callgroup=1
 pickupgroup=1
 
+;setvar=CHANNEL=42             ; Channel variable to be set for all calls from this channel
+
 ;
 ; Specify whether the channel should be answered immediately or if the simple
 ; switch should provide dialtone, read digits, etc.

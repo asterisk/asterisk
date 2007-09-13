@@ -220,6 +220,7 @@ Zaptel channel driver (chan_zap) Changes
     those carriers that transmit CID via dtmf after a polarity change.
   * CID matching information is now shown when doing 'dialplan show'.
   * Added zap show version CLI command to chan_zap.
+  * Added setvar support to zapata.conf channel entries.
 
 H.323 Changes
 -------------

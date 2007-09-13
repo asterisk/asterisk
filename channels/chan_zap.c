@@ -604,6 +604,7 @@ static struct zt_pvt {
 	int propconfno;					/*!< Propagated conference number */
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
+	struct ast_variable *vars;
 	int channel;					/*!< Channel Number or CRV */
 	int span;					/*!< Span number */
 	time_t guardtime;				/*!< Must wait this much time before using for new call */
@@ -2489,6 +2490,8 @@ static void destroy_zt_pvt(struct zt_pvt **pvt)
 		ASTOBJ_UNREF(p->smdi_iface, ast_smdi_interface_destroy);
 	if (p->mwi_event_sub)
 		ast_event_unsubscribe(p->mwi_event_sub);
+	if (p->vars)
+		ast_variables_destroy(p->vars);
 	ast_mutex_destroy(&p->lock);
 	ast_free(p);
 	*pvt = NULL;
@@ -5492,6 +5495,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	int x,y;
 	int features;
 	struct ast_str *chan_name;
+	struct ast_variable *v;
 	ZT_PARAMS ps;
 	if (i->subs[index].owner) {
 		ast_log(LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[index]);
@@ -5653,6 +5657,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	zt_confmute(i, 0);
 	/* Configure the new channel jb */
 	ast_jb_configure(tmp, &global_jbconf);
+
+	for (v = i->vars ; v ; v = v->next)
+                pbx_builtin_setvar_helper(tmp, v->name, v->value);
+
 	if (startpbx) {
 		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -7889,6 +7897,10 @@ static struct zt_pvt *mkintf(int channel, struct zt_chan_conf conf, struct zt_pr
 		tmp->group = conf.chan.group;
 		tmp->callgroup = conf.chan.callgroup;
 		tmp->pickupgroup= conf.chan.pickupgroup;
+		if (conf.chan.vars) {
+			tmp->vars = conf.chan.vars;
+			conf.chan.vars = NULL;
+		}
 		tmp->cid_rxgain = conf.chan.cid_rxgain;
 		tmp->rxgain = conf.chan.rxgain;
 		tmp->txgain = conf.chan.txgain;
@@ -10953,6 +10965,12 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Caller ID: %s\n", tmp->cid_num);
 			ast_cli(fd, "Calling TON: %d\n", tmp->cid_ton);
 			ast_cli(fd, "Caller ID name: %s\n", tmp->cid_name);
+			if (tmp->vars) {
+				struct ast_variable *v;
+				ast_cli(fd, "Variables:\n");
+				for (v = tmp->vars ; v ; v = v->next)
+					ast_cli(fd, "       %s = %s\n", v->name, v->value);
+			}
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
 			ast_cli(fd, "InAlarm: %d\n", tmp->inalarm);
 			ast_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
@@ -12102,6 +12120,16 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				confp->chan.pickupgroup = 0;
 			else
 				confp->chan.pickupgroup = ast_get_group(v->value);
+		} else if (!strcasecmp(v->name, "setvar")) {
+			char *varname = ast_strdupa(v->value), *varval = NULL;
+			struct ast_variable *tmpvar;
+			if (varname && (varval = strchr(varname, '='))) {
+				*varval++ = '\0';
+				if ((tmpvar = ast_variable_new(varname, varval, ""))) {
+					tmpvar->next = confp->chan.vars;
+					confp->chan.vars = tmpvar;
+				}
+			}
 		} else if (!strcasecmp(v->name, "immediate")) {
 			confp->chan.immediate = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfertobusy")) {
