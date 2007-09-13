@@ -3239,7 +3239,7 @@ static int set_member_paused(const char *queuename, const char *interface, const
 					dump_queue_members(q);
 
 				if(mem->realtime)
-					update_realtime_member_field(mem, queuename, "paused", paused ? "1" : "0");
+					update_realtime_member_field(mem, q->name, "paused", paused ? "1" : "0");
 
 				ast_queue_log(q->name, "NONE", mem->membername, (paused ? "PAUSE" : "UNPAUSE"), "%s", S_OR(reason, ""));
 				
