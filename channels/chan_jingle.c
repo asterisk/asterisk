@@ -1537,10 +1537,11 @@ static int jingle_create_member(char *label, struct ast_variable *var, int allow
 		else if (!strcasecmp(var->name, "connection")) {
 			if ((client = ast_aji_get_client(var->value))) {
 				member->connection = client;
-				iks_filter_add_rule(client->f, jingle_parser, member, IKS_RULE_TYPE,
-									IKS_PAK_IQ, IKS_RULE_FROM_PARTIAL, member->user,
-									IKS_RULE_NS, "http://jabber.org/protocol/jingle",
-									IKS_RULE_DONE);
+				iks_filter_add_rule(client->f, jingle_parser, member,
+						    IKS_RULE_TYPE, IKS_PAK_IQ,
+						    IKS_RULE_FROM_PARTIAL, member->user,
+						    IKS_RULE_NS, JINGLE_NS,
+						    IKS_RULE_DONE);
 			} else {
 				ast_log(LOG_ERROR, "connection referenced not found!\n");
 				return 0;
@@ -1645,8 +1646,7 @@ static int jingle_load_config(void)
 						ASTOBJ_WRLOCK(iterator);
 						ASTOBJ_WRLOCK(member);
 						member->connection = iterator;
-						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,
-										"http://jabber.org/protocol/jingle", IKS_RULE_DONE);
+						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_NS, IKS_RULE_DONE);
 						ASTOBJ_UNLOCK(member);
 						ASTOBJ_CONTAINER_LINK(&jingles, member);
 						ASTOBJ_UNLOCK(iterator);
