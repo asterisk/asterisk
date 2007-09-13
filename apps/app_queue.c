@@ -4816,12 +4816,12 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 
 static char *complete_queue_pause_member(const char *line, const char *word, int pos, int state)
 {
-	/* 0 - queue; 1 - pause; 2 - member; 3 - <interface>; 4 - in; 5 - <queue>; 6 - reason; 7 - <reason> */
+	/* 0 - queue; 1 - pause; 2 - member; 3 - <interface>; 4 - queue; 5 - <queue>; 6 - reason; 7 - <reason> */
 	switch (pos) {
 	case 3:	/* Don't attempt to complete name of interface (infinite possibilities) */
 		return NULL;
-	case 4:	/* only one possible match, "in" */
-		return state == 0 ? ast_strdup("in") : NULL;
+	case 4:	/* only one possible match, "queue" */
+		return state == 0 ? ast_strdup("queue") : NULL;
 	case 5:	/* <queue> */
 		return complete_queue(line, word, pos, state);
 	case 6: /* "reason" */
@@ -4842,7 +4842,7 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 	case CLI_INIT:
 		e->command = "queue {pause|unpause} member";
 		e->usage = 
-			"Usage: queue {pause|unpause} member <member> [in <queue> [reason <reason>]]\n"
+			"Usage: queue {pause|unpause} member <member> [queue <queue> [reason <reason>]]\n"
 			"		Pause or unpause a queue member. Not specifying a particular queue\n"
 			"		will pause or unpause a member across all queues to which the member\n"
 			"		belongs.\n";
@@ -4853,7 +4853,9 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 
 	if (a->argc < 4 || a->argc == 5 || a->argc == 7 || a->argc > 8) {
 		return CLI_SHOWUSAGE;
-	} else if (a->argc >= 5 && strcmp(a->argv[4], "in")) {
+	} else if (a->argc >= 5 && strcmp(a->argv[4], "queue")) {
+		return CLI_SHOWUSAGE;
+	} else if (a->argc == 8 && strcmp(a->argv[6], "reason")) {
 		return CLI_SHOWUSAGE;
 	}
 
