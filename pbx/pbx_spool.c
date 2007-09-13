@@ -201,7 +201,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					}
 				} else if (!strcasecmp(buf, "waittime")) {
 					if ((sscanf(c, "%d", &o->waittime) != 1) || (o->waittime < 1)) {
-						ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
+						ast_log(LOG_WARNING, "Invalid waittime at line %d of %s\n", lineno, fn);
 						o->waittime = 45;
 					}
 				} else if (!strcasecmp(buf, "retry")) {
