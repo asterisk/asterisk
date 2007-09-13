@@ -2858,6 +2858,8 @@ int main(int argc, char *argv[])
 
 	threadstorage_init();
 
+	astobj2_init();
+
 	if (load_modules(1)) {
 		printf(term_quit());
 		exit(1);
