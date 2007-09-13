@@ -1,4 +1,4 @@
--------------------------------------------------------------------------------
+------------------------------------------------------------------------------
 --- Functionality changes since Asterisk 1.4-beta was branched ----------------
 -------------------------------------------------------------------------------
 
@@ -50,6 +50,7 @@ CLI Changes
   * New CLI command "core show settings"
   * Added 'core show channels count' CLI command.
   * Added the ability to set the core debug and verbose values on a per-file basis.
+  * Added 'queue pause member' and 'queue unpause member' CLI commands
 
 SIP changes
 -----------

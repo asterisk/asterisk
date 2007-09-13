@@ -4814,6 +4814,74 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 	return NULL;
 }
 
+static char *complete_queue_pause_member(const char *line, const char *word, int pos, int state)
+{
+	/* 0 - queue; 1 - pause; 2 - member; 3 - <interface>; 4 - in; 5 - <queue>; 6 - reason; 7 - <reason> */
+	switch (pos) {
+	case 3:	/* Don't attempt to complete name of interface (infinite possibilities) */
+		return NULL;
+	case 4:	/* only one possible match, "in" */
+		return state == 0 ? ast_strdup("in") : NULL;
+	case 5:	/* <queue> */
+		return complete_queue(line, word, pos, state);
+	case 6: /* "reason" */
+		return state == 0 ? ast_strdup("reason") : NULL;
+	case 7: /* Can't autocomplete a reason, since it's 100% customizeable */
+		return NULL;
+	default:
+		return NULL;
+	}
+}
+
+static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *queuename, *interface, *reason;
+	int paused;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "queue {pause|unpause} member";
+		e->usage = 
+			"Usage: queue {pause|unpause} member <member> [in <queue> [reason <reason>]]\n"
+			"		Pause or unpause a queue member. Not specifying a particular queue\n"
+			"		will pause or unpause a member across all queues to which the member\n"
+			"		belongs.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_pause_member(a->line, a-> word, a->pos, a->n);
+	}
+
+	if (a->argc < 4 || a->argc == 5 || a->argc == 7 || a->argc > 8) {
+		return CLI_SHOWUSAGE;
+	} else if (a->argc >= 5 && strcmp(a->argv[4], "in")) {
+		return CLI_SHOWUSAGE;
+	}
+
+
+	interface = a->argv[3];
+	queuename = a->argc >= 6 ? a->argv[5] : NULL;
+	reason = a->argc == 8 ? a->argv[7] : NULL;
+	paused = !strcasecmp(a->argv[1], "pause");
+
+	if(set_member_paused(queuename, interface, reason, paused) == RESULT_SUCCESS) {
+		ast_cli(a->fd, "%spaused interface '%s'", paused ? "" : "un", interface);
+		if(!ast_strlen_zero(queuename))
+			ast_cli(a->fd, " in queue '%s'", queuename);
+		if(!ast_strlen_zero(reason))
+			ast_cli(a->fd, " for reason '%s'", reason);
+		ast_cli(a->fd, "\n");
+		return CLI_SUCCESS;
+	} else {
+		ast_cli(a->fd, "Unable to %spause interface '%s'", paused ? "" : "un", interface);
+		if(!ast_strlen_zero(queuename))
+			ast_cli(a->fd, " in queue '%s'", queuename);
+		if(!ast_strlen_zero(reason))
+			ast_cli(a->fd, " for reason '%s'", reason);
+		ast_cli(a->fd, "\n");
+		return CLI_FAILURE;
+	}
+}
+
 static const char queue_show_usage[] =
 "Usage: queue show\n"
 "       Provides summary information on a specified queue.\n";
@@ -4823,6 +4891,12 @@ static const char qam_cmd_usage[] =
 
 static const char qrm_cmd_usage[] =
 "Usage: queue remove member <channel> from <queue>\n";
+
+static const char qpm_cmd_usage[] = 
+"Usage: queue pause member <channel> in <queue> reason <reason>\n";
+
+static const char qum_cmd_usage[] =
+"Usage: queue unpause member <channel> in <queue> reason <reason>\n";
 
 static struct ast_cli_entry cli_queue[] = {
 	{ { "queue", "show", NULL },
@@ -4836,6 +4910,8 @@ static struct ast_cli_entry cli_queue[] = {
 	{ { "queue", "remove", "member", NULL },
 	handle_queue_remove_member, "Removes a channel from a specified queue",
 	qrm_cmd_usage, complete_queue_remove_member, NULL },
+
+	NEW_CLI(handle_queue_pause_member, "Pause or unpause a queue member"),
 };
 
 static int unload_module(void)
