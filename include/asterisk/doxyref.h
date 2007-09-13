@@ -252,6 +252,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link Config_enum ENUM configuration  \endlink
  * \arg \link Config_moh Music on Hold configuration  \endlink
  * \arg \link Config_vm Voicemail configuration  \endlink
+ * \arg \link res_config_sqlite SQLite Resource driver configuration \endlink
  */
 
 /*! \page Config_ast Asterisk.conf
@@ -550,4 +551,14 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  *  \section ami AMI - The manager Interface
  *  \arg \link Config_ami Configuration file \endlink
  *  \verbinclude ajam.txt
+ */
+
+/*! \page res_config_sqlite SQLite Resource driver configuration
+ * \arg Implemented in \ref res_config_sqlite.c
+ * \arg Configuration file:
+ * \verbinclude res_config_sqlite.conf
+ * \arg SQL tables:
+ * \verbinclude res_config_sqlite.txt
+ * \arg See also:
+ * http://www.sqlite.org
  */
