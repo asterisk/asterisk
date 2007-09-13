@@ -368,6 +368,7 @@ struct call_queue {
 	unsigned int strategy:3;
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
+	unsigned int found:1;
 	int announcefrequency;              /*!< How often to announce their position */
 	int minannouncefrequency;           /*!< The minimum number of seconds between position announcements (def. 15) */
 	int periodicannouncefrequency;      /*!< How often to play periodic announcement */
@@ -795,6 +796,7 @@ static void init_queue(struct call_queue *q)
 	q->sound_callerannounce[0] = '\0';	/* Default, don't announce the caller that he has been answered */
 	q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
 	q->membercount = 0;
+	q->found = 1;
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
 	ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
 	ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
@@ -1164,6 +1166,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 				ast_mutex_unlock(&q->lock);
 				return NULL;
 			} else {
+				ast_log(LOG_WARNING, "Static queue '%s' already exists. Not loading from realtime\n", q->name);
 				ast_mutex_unlock(&q->lock);
 				return q;
 			}
@@ -4074,8 +4077,10 @@ static int reload_queues(int reload)
 	use_weight=0;
 	/* Mark all queues as dead for the moment */
 	AST_LIST_TRAVERSE(&queues, q, list) {
-		if(!q->realtime)
+		if(!q->realtime) {
 			q->dead = 1;
+			q->found = 0;
+		}
 	}
 
 	/* Chug through config file */
@@ -4113,6 +4118,13 @@ static int reload_queues(int reload)
 			if (q) {
 				if (!new)
 					ast_mutex_lock(&q->lock);
+				/* Check if a queue with this name already exists */
+				if (q->found) {
+					ast_log(LOG_WARNING, "Queue '%s' already defined! Skipping!\n", cat);
+					if(!new)
+						ast_mutex_unlock(&q->lock);
+					continue;
+				}
 				/* Re-initialize the queue, and clear statistics */
 				init_queue(q);
 				if (!queue_keep_stats) 
