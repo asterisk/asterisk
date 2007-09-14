@@ -204,6 +204,7 @@ AST_EXT_LIB_SETUP([FREETDS], [FreeTDS], [tds])
 AST_EXT_LIB_SETUP([TERMCAP], [Termcap], [termcap])
 AST_EXT_LIB_SETUP([TINFO], [Term Info], [tinfo])
 AST_EXT_LIB_SETUP([TONEZONE], [tonezone], [tonezone])
+AST_EXT_LIB_SETUP([USB], [usb], [usb])
 AST_EXT_LIB_SETUP([VORBIS], [Vorbis], [vorbis])
 AST_EXT_LIB_SETUP([VPB], [Voicetronix API], [vpb])
 AST_EXT_LIB_SETUP([ZLIB], [zlib], [z])
@@ -979,6 +980,8 @@ if test "${host_os}" != "linux-gnu" ; then
 fi
 
 AST_EXT_LIB_CHECK([TONEZONE], [tonezone], [tone_zone_find], [zaptel/tonezone.h], [${tonezone_extra}])
+
+AST_EXT_LIB_CHECK([USB], [usb], [usb_init], [usb.h], [])
 
 AST_EXT_LIB_CHECK([VORBIS], [vorbis], [vorbis_info_init], [vorbis/codec.h], [-lm -lvorbisenc])
 
