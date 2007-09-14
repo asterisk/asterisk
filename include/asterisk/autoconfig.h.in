@@ -666,6 +666,12 @@
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV
 
+/* Define this to indicate the ${USB_DESCRIP} library */
+#undef HAVE_USB
+
+/* Define to indicate the ${USB_DESCRIP} library version */
+#undef HAVE_USB_VERSION
+
 /* Define to 1 if you have the `utime' function. */
 #undef HAVE_UTIME
 
