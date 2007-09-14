@@ -2949,6 +2949,9 @@ struct zt_params par;
 		free(mytele);		
 		pthread_exit(NULL);
 	}
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(mychannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	rpt_mutex_lock(&myrpt->lock);
 	mytele->chan = mychannel;
 	rpt_mutex_unlock(&myrpt->lock);
@@ -4177,6 +4180,9 @@ struct ast_channel *mychannel,*genchannel;
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		pthread_exit(NULL);
 	}
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(mychannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf; /* use the pseudo conference */
 	ci.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
@@ -4197,6 +4203,9 @@ struct ast_channel *mychannel,*genchannel;
 		ast_hangup(mychannel);
 		pthread_exit(NULL);
 	}
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(genchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
 	ci.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER
@@ -4562,6 +4571,9 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	if (l->chan){
 		ast_set_read_format(l->chan, AST_FORMAT_SLINEAR);
 		ast_set_write_format(l->chan, AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+		ast_set_flag(l->chan->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 		l->chan->whentohangup = 0;
 		l->chan->appl = "Apprpt";
 		l->chan->data = "(Remote Rx)";
@@ -4596,6 +4608,9 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	}
 	ast_set_read_format(l->pchan, AST_FORMAT_SLINEAR);
 	ast_set_write_format(l->pchan, AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = myrpt->conf;
@@ -8807,6 +8822,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		}
 		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+		ast_set_flag(myrpt->rxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Repeater Rx)";
@@ -8859,6 +8877,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			}			
 			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+			ast_set_flag(myrpt->txchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Repeater Tx)";
@@ -8902,6 +8923,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(myrpt->pchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	if (!myrpt->zaprxchannel) myrpt->zaprxchannel = myrpt->pchannel;
 	if (!myrpt->zaptxchannel)
 	{
@@ -8919,6 +8943,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		}
 		ast_set_read_format(myrpt->zaptxchannel,AST_FORMAT_SLINEAR);
 		ast_set_write_format(myrpt->zaptxchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+		ast_set_flag(myrpt->zaptxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	}
 	/* allocate a pseudo-channel thru asterisk */
 	myrpt->monchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
@@ -8934,6 +8961,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	}
 	ast_set_read_format(myrpt->monchannel,AST_FORMAT_SLINEAR);
 	ast_set_write_format(myrpt->monchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(myrpt->monchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
@@ -9025,6 +9055,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(myrpt->txpchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	/* make a conference for the tx */
 	ci.chan = 0;
 	ci.confno = myrpt->txconf;
@@ -10913,6 +10946,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		}
 		ast_set_read_format(l->pchan,AST_FORMAT_SLINEAR);
 		ast_set_write_format(l->pchan,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+		ast_set_flag(l->pchan->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 		/* make a conference for the tx */
 		ci.chan = 0;
 		ci.confno = myrpt->conf;
@@ -10997,6 +11033,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	{
 		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+		ast_set_flag(myrpt->rxchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Link Rx)";
@@ -11033,6 +11072,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		{
 			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+			ast_set_flag(myrpt->txchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Link Tx)";
@@ -11069,6 +11111,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	ast_set_read_format(myrpt->pchannel,AST_FORMAT_SLINEAR);
 	ast_set_write_format(myrpt->pchannel,AST_FORMAT_SLINEAR);
+#ifdef	AST_CDR_FLAG_POST_DISABLED
+	ast_set_flag(myrpt->pchannel->cdr,AST_CDR_FLAG_POST_DISABLED);
+#endif
 	if (!myrpt->zaprxchannel) myrpt->zaprxchannel = myrpt->pchannel;
 	if (!myrpt->zaptxchannel) myrpt->zaptxchannel = myrpt->pchannel;
 	/* make a conference for the pseudo */
