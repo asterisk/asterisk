@@ -513,11 +513,11 @@ static int jingle_is_answered(struct jingle *client, ikspak *pak)
 static int jingle_handle_dtmf(struct jingle *client, ikspak *pak)
 {
 	struct jingle_pvt *tmp;
-	iks *dtmfnode = NULL;
+	iks *dtmfnode = NULL, *dtmfchild = NULL;
 	char *dtmf;
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
+		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid) || iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid))
 			break;
 	}
 
@@ -545,6 +545,22 @@ static int jingle_handle_dtmf(struct jingle *client, ikspak *pak)
 					f.subclass = dtmf[0];
 					ast_queue_frame(tmp->owner, &f);
 					ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+				}
+			}
+		} else if ((dtmfnode = iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "session-info"))) {
+			if((dtmfchild = iks_find(dtmfnode, "dtmf"))) {
+				if((dtmf = iks_find_attrib(dtmfchild, "code"))) {
+					if(iks_find_with_attrib(dtmfnode, "dtmf", "action", "button-up")) {
+						struct ast_frame f = {AST_FRAME_DTMF_END, };
+						f.subclass = dtmf[0];
+						ast_queue_frame(tmp->owner, &f);
+						ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+					} else if(iks_find_with_attrib(dtmfnode, "dtmf", "action", "button-down")) {
+						struct ast_frame f = {AST_FRAME_DTMF_BEGIN, };
+						f.subclass = dtmf[0];
+						ast_queue_frame(tmp->owner, &f);
+						ast_verbose("JINGLE! DTMF-relay event received: %c\n", f.subclass);
+					}
 				}
 			}
 		}
@@ -1230,9 +1246,9 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 	iks_insert_node(jingle, dtmf);
 
 	ast_mutex_lock(&p->lock);
-	if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN) {
+	if (ast->dtmff.frametype == AST_FRAME_DTMF_BEGIN || duration == 0) {
 		iks_insert_attrib(dtmf, "action", "button-down");
-	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END) {
+	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END || duration != 0) {
 		iks_insert_attrib(dtmf, "action", "button-up");
 	}
 	iks_send(client->connection->p, iq);
@@ -1442,7 +1458,7 @@ static int jingle_parser(void *data, ikspak *pak)
 		ast_debug(3, "Candidate Added!\n");
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", GOOGLE_ACCEPT)) {
 		jingle_is_answered(client, pak);
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "session-info")) {
+	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "session-info") || iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "session-info")) {
 		jingle_handle_dtmf(client, pak);
 	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "terminate")) {
 		jingle_hangup_farend(client, pak);
@@ -1647,6 +1663,7 @@ static int jingle_load_config(void)
 						ASTOBJ_WRLOCK(member);
 						member->connection = iterator;
 						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_NS, IKS_RULE_DONE);
+						iks_filter_add_rule(iterator->f, jingle_parser, member, IKS_RULE_TYPE, IKS_PAK_IQ, IKS_RULE_NS,	JINGLE_DTMF_NS, IKS_RULE_DONE);
 						ASTOBJ_UNLOCK(member);
 						ASTOBJ_CONTAINER_LINK(&jingles, member);
 						ASTOBJ_UNLOCK(iterator);
