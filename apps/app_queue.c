@@ -4253,7 +4253,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"Paused: %d\r\n"
 						"%s"
 						"\r\n",
-						q->name, mem-membername, mem->interface, mem->dynamic ? "dynamic" : "static",
+						q->name, mem->membername, mem->interface, mem->dynamic ? "dynamic" : "static",
 						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
 				}
 				ao2_ref(mem, -1);
