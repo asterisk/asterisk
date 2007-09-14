@@ -34,6 +34,7 @@
 
 /*** MODULEINFO
 	<depend>ossaudio</depend>
+	<defaultenabled>no</defaultenabled>
  ***/
 
 #include "asterisk.h"
