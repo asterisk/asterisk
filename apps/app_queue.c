@@ -1893,6 +1893,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 		manager_event(EVENT_FLAG_AGENT, "AgentCalled",
 					"Queue: %s\r\n"
 					"AgentCalled: %s\r\n"
+					"AgentName: %s\r\n"
 					"ChannelCalling: %s\r\n"
 					"DestinationChannel: %s\r\n"
 					"CallerIDNum: %s\r\n"
@@ -1901,7 +1902,7 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 					"Extension: %s\r\n"
 					"Priority: %d\r\n"
 					"%s",
-					qe->parent->name, tmp->interface, qe->chan->name, tmp->chan->name,
+					qe->parent->name, tmp->interface, tmp->member->membername, qe->chan->name, tmp->chan->name,
 					tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown",
 					tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown",
 					qe->chan->context, qe->chan->exten, qe->chan->priority,
@@ -4482,6 +4483,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 				if (ast_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter)) {
 					astman_append(s, "Event: QueueMember\r\n"
 						"Queue: %s\r\n"
+						"Name: %s\r\n"
 						"Location: %s\r\n"
 						"Membership: %s\r\n"
 						"Penalty: %d\r\n"
@@ -4491,7 +4493,7 @@ static int manager_queues_status(struct mansession *s, const struct message *m)
 						"Paused: %d\r\n"
 						"%s"
 						"\r\n",
-						q->name, mem->interface, mem->dynamic ? "dynamic" : "static",
+						q->name, mem->membername, mem->interface, mem->dynamic ? "dynamic" : "static",
 						mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
 				}
 				ao2_ref(mem, -1);
