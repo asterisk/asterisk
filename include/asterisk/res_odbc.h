@@ -93,6 +93,16 @@ void ast_odbc_release_obj(struct odbc_obj *obj);
  */
 int ast_odbc_sanity_check(struct odbc_obj *obj);
 
+/*! \brief Executes an non prepared statement and returns the resulting
+ * statement handle.
+ * \param obj The ODBC object
+ * \param exec_cb A function callback, which, when called, should return a statement handle with result columns bound.
+ * \param data A parameter to be passed to the exec_cb parameter function, indicating which statement handle is to be prepared.
+ * \retval a statement handle
+ * \retval NULL on error
+ */
+SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struct odbc_obj *obj, void *data), void *data);
+
 /*! 
  * \brief Prepares, executes, and returns the resulting statement handle.
  * \param obj The ODBC object

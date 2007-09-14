@@ -77,6 +77,28 @@ static odbc_status odbc_obj_disconnect(struct odbc_obj *obj);
 static int odbc_register_class(struct odbc_class *class, int connect);
 
 
+SQLHSTMT ast_odbc_direct_execute(struct odbc_obj *obj, SQLHSTMT (*exec_cb)(struct odbc_obj *obj, void *data), void *data)
+{
+	int attempt;
+	SQLHSTMT stmt;
+
+	for (attempt = 0; attempt < 2; attempt++) {
+		stmt = exec_cb(obj, data);
+
+		if (stmt) {
+			break;
+		} else {
+			obj->up = 0;
+			ast_log(LOG_WARNING, "SQL Exec Direct failed.  Attempting a reconnect...\n");
+
+			odbc_obj_disconnect(obj);
+			odbc_obj_connect(obj);
+		}
+	}
+
+	return stmt;
+}
+
 SQLHSTMT ast_odbc_prepare_and_execute(struct odbc_obj *obj, SQLHSTMT (*prepare_cb)(struct odbc_obj *obj, void *data), void *data)
 {
 	int res = 0, i, attempt;
