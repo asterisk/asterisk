@@ -229,7 +229,7 @@ benefit in this:
 struct foo {
 	int bar;
 };
-typedef foo_t struct foo;
+typedef struct foo foo_t;
 
 In fact, don't use 'variable type' suffixes at all; it's much preferable to
 just type 'struct foo' rather than 'foo_s'.
