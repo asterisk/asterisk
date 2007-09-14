@@ -339,6 +339,9 @@ callreturn=yes
 ; Use either "yes", "no", or a power of two from 32 to 256 if you wish to
 ; actually set the number of taps of cancellation.
 ;
+; Note that when setting the number of taps, the number 256 does not translate
+; to 256 ms of echo cancellation.  echocancel=256 means 256 / 8 = 32 ms.
+;
 ; Note that if any of your Zaptel cards have hardware echo cancellers,
 ; then this setting only turns them on and off; numeric settings will
 ; be treated as "yes". There are no special settings required for
