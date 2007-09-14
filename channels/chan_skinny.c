@@ -964,6 +964,7 @@ static char mailbox[AST_MAX_EXTENSION];
 static char regexten[AST_MAX_EXTENSION];
 static int amaflags = 0;
 static int callnums = 1;
+static int canreinvite = 0;
 
 #define SKINNY_DEVICE_UNKNOWN		-1
 #define SKINNY_DEVICE_NONE		0
@@ -1151,6 +1152,7 @@ struct skinny_line {
 	int immediate;
 	int hookstate;
 	int nat;
+	int canreinvite;
 
 	struct ast_codec_pref prefs;
 	struct skinny_subchannel *sub;
@@ -1250,7 +1252,7 @@ static const struct ast_channel_tech skinny_tech = {
 	.fixup = skinny_fixup,
 	.send_digit_begin = skinny_senddigit_begin,
 	.send_digit_end = skinny_senddigit_end,
-/*	.bridge = ast_rtp_bridge, */
+	.bridge = ast_rtp_bridge,  
 };
 
 static int skinny_extensionstate_cb(char *context, char* exten, int state, void *data);
@@ -2150,24 +2152,107 @@ static enum ast_rtp_get_result skinny_get_vrtp_peer(struct ast_channel *c, struc
 static enum ast_rtp_get_result skinny_get_rtp_peer(struct ast_channel *c, struct ast_rtp **rtp)
 {
 	struct skinny_subchannel *sub = NULL;
+	struct skinny_line *l;
+	enum ast_rtp_get_result res = AST_RTP_TRY_NATIVE;
 
-	if (!(sub = c->tech_pvt) || !(sub->rtp))
+	if (skinnydebug)
+		ast_verbose("skinny_get_rtp_peer() Channel = %s\n", c->name);
+
+
+	if (!(sub = c->tech_pvt))
 		return AST_RTP_GET_FAILED;
 
+	ast_mutex_lock(&sub->lock);
+
+	if (!(sub->rtp)){
+		ast_mutex_unlock(&sub->lock);
+		return AST_RTP_GET_FAILED;
+	}
+	
 	*rtp = sub->rtp;
 
-	return AST_RTP_TRY_NATIVE;
+	l = sub->parent;
+
+	if (!l->canreinvite || l->nat){
+		res = AST_RTP_TRY_PARTIAL;
+		if (skinnydebug)
+			ast_verbose("skinny_get_rtp_peer() Using AST_RTP_TRY_PARTIAL \n");
+	}
+
+	ast_mutex_unlock(&sub->lock);
+
+	return res;
+
 }
 
 static int skinny_set_rtp_peer(struct ast_channel *c, struct ast_rtp *rtp, struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active)
 {
 	struct skinny_subchannel *sub;
+	struct skinny_line *l;
+	struct skinny_device *d;
+	struct skinnysession *s;
+	struct ast_format_list fmt;
+	struct sockaddr_in us;
+	struct sockaddr_in them;
+	struct skinny_req *req;
+	
 	sub = c->tech_pvt;
-	if (sub) {
-		/* transmit_modify_with_sdp(sub, rtp); @@FIXME@@ if needed */
+
+	if (c->_state != AST_STATE_UP)
+		return 0;
+
+	if (!sub) {
+		return -1;
+	}
+
+	l = sub->parent;
+	d = l->parent;
+	s = d->session;
+
+	if (rtp){
+		ast_rtp_get_peer(rtp, &them);
+
+		/* Shutdown any early-media or previous media on re-invite */
+		if (!(req = req_alloc(sizeof(struct stop_media_transmission_message), STOP_MEDIA_TRANSMISSION_MESSAGE)))
+			return -1;
+
+		req->data.stopmedia.conferenceId = htolel(sub->callid);
+		req->data.stopmedia.passThruPartyId = htolel(sub->callid);
+		transmit_response(s, req);
+
+		if (skinnydebug)
+			ast_verbose("Peerip = %s:%d\n", ast_inet_ntoa(them.sin_addr), ntohs(them.sin_port));
+
+		if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
+			return -1;
+
+		fmt = ast_codec_pref_getsize(&l->prefs, ast_best_codec(l->capability));
+
+		if (skinnydebug)
+			ast_verbose("Setting payloadType to '%d' (%d ms)\n", fmt.bits, fmt.cur_ms);
+
+		req->data.startmedia.conferenceId = htolel(sub->callid);
+		req->data.startmedia.passThruPartyId = htolel(sub->callid);
+		if (!(l->canreinvite) || (l->nat)){
+			ast_rtp_get_us(rtp, &us);
+			req->data.startmedia.remoteIp = htolel(d->ourip.s_addr);
+			req->data.startmedia.remotePort = htolel(ntohs(us.sin_port));
+		} else {
+			req->data.startmedia.remoteIp = htolel(them.sin_addr.s_addr);
+			req->data.startmedia.remotePort = htolel(ntohs(them.sin_port));
+		}
+		req->data.startmedia.packetSize = htolel(fmt.cur_ms);
+		req->data.startmedia.payloadType = htolel(codec_ast2skinny(fmt.bits));
+		req->data.startmedia.qualifier.precedence = htolel(127);
+		req->data.startmedia.qualifier.vad = htolel(0);
+		req->data.startmedia.qualifier.packets = htolel(0);
+		req->data.startmedia.qualifier.bitRate = htolel(0);
+		transmit_response(s, req);
+
 		return 0;
 	}
-	return -1;
+	/* Need a return here to break the bridge */
+	return 0;
 }
 
 static struct ast_rtp_protocol skinny_rtp = {
@@ -2676,6 +2761,8 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				ast_parse_allow_disallow(&d->prefs, &d->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "version")) {
 				ast_copy_string(d->version_id, v->value, sizeof(d->version_id));
+			} else if (!strcasecmp(v->name, "canreinvite")) {
+				canreinvite = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -2808,6 +2895,7 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 					/* ASSUME we're onhook at this point */
 					l->hookstate = SKINNY_ONHOOK;
 					l->nat = nat;
+					l->canreinvite = canreinvite;
 
 					l->next = d->lines;
 					d->lines = l;
@@ -4423,10 +4511,8 @@ static int handle_open_receive_channel_ack_message(struct skinny_req *req, struc
 		return 0;
 	}
 
-	if (skinnydebug) {
+	if (skinnydebug)
 		ast_verbose("ipaddr = %s:%d\n", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
-		ast_verbose("ourip = %s:%d\n", ast_inet_ntoa(d->ourip), ntohs(us.sin_port));
-	}
 
 	if (!(req = req_alloc(sizeof(struct start_media_transmission_message), START_MEDIA_TRANSMISSION_MESSAGE)))
 		return -1;
