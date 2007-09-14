@@ -308,20 +308,22 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 	}
 
 	for (; cdr; cdr = recur ? cdr->next : NULL) {
-		headp = &cdr->varshead;
-		AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
-			if (!strcasecmp(ast_var_name(newvariable), name)) {
-				/* there is already such a variable, delete it */
-				AST_LIST_REMOVE_CURRENT(headp, entries);
-				ast_var_delete(newvariable);
-				break;
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			headp = &cdr->varshead;
+			AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
+				if (!strcasecmp(ast_var_name(newvariable), name)) {
+					/* there is already such a variable, delete it */
+					AST_LIST_REMOVE_CURRENT(headp, entries);
+					ast_var_delete(newvariable);
+					break;
+				}
 			}
-		}
-		AST_LIST_TRAVERSE_SAFE_END;
+			AST_LIST_TRAVERSE_SAFE_END;
 
-		if (value) {
-			newvariable = ast_var_assign(name, value);
-			AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+			if (value) {
+				newvariable = ast_var_assign(name, value);
+				AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+			}
 		}
 	}
 
@@ -691,11 +693,13 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 {
 
 	for (; cdr; cdr = cdr->next) {
-		check_post(cdr);
-		if (cdr->disposition < AST_CDR_ANSWERED)
-			cdr->disposition = AST_CDR_ANSWERED;
-		if (ast_tvzero(cdr->answer))
-			cdr->answer = ast_tvnow();
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			check_post(cdr);
+			if (cdr->disposition < AST_CDR_ANSWERED)
+				cdr->disposition = AST_CDR_ANSWERED;
+			if (ast_tvzero(cdr->answer))
+				cdr->answer = ast_tvnow();
+		}
 	}
 }
 
@@ -841,15 +845,17 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 void ast_cdr_end(struct ast_cdr *cdr)
 {
 	for ( ; cdr ; cdr = cdr->next) {
-		check_post(cdr);
-		if (ast_tvzero(cdr->end))
-			cdr->end = ast_tvnow();
-		if (ast_tvzero(cdr->start)) {
-			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", S_OR(cdr->channel, "<unknown>"));
-			cdr->disposition = AST_CDR_FAILED;
-		} else
-			cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
-		cdr->billsec = ast_tvzero(cdr->answer) ? 0 : cdr->end.tv_sec - cdr->answer.tv_sec;
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			check_post(cdr);
+			if (ast_tvzero(cdr->end))
+				cdr->end = ast_tvnow();
+			if (ast_tvzero(cdr->start)) {
+				ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", S_OR(cdr->channel, "<unknown>"));
+				cdr->disposition = AST_CDR_FAILED;
+			} else
+				cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec;
+			cdr->billsec = ast_tvzero(cdr->answer) ? 0 : cdr->end.tv_sec - cdr->answer.tv_sec;
+		}
 	}
 }
 
