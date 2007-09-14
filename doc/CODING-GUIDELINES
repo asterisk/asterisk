@@ -241,7 +241,7 @@ options that they are in fact intended to be global.
 - Don't use un-necessary typedef's
 Don't use 'typedef' just to shorten the amount of typing; there is no substantial
 benefit in this:
-struct foo { int bar; }; typedef foo_t struct foo;
+struct foo { int bar; }; typedef struct foo foo_t;
 
 In fact, don't use 'variable type' suffixes at all; it's much preferable to
 just type 'struct foo' rather than 'foo_s'.
