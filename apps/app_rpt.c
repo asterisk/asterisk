@@ -18,11 +18,10 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
-
 /*! \file
  *
  * \brief Radio Repeater / Remote Base program 
- *  version 0.70 07/22/07
+ *  version 0.73 09/04/07
  * 
  * \author Jim Dixon, WB6NIL <jim@lambdatel.com>
  *
@@ -179,7 +178,7 @@
 
 #define	RETRY_TIMER_MS 5000
 
-#define	START_DELAY 10
+#define	START_DELAY 2
 
 #define MAXPEERSTR 31
 #define	MAXREMSTR 15
@@ -226,6 +225,8 @@
 #define	DTMF_LOCAL_STARTTIME 500
 
 #define	IC706_PL_MEMORY_OFFSET 50
+
+#define	ALLOW_LOCAL_CHANNELS
 
 enum {REM_OFF,REM_MONITOR,REM_TX};
 
@@ -301,6 +302,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 #include "asterisk/cdr.h"
+#include "asterisk/options.h"
 #include <termios.h>
 
 /* Start a tone-list going */
@@ -308,7 +310,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char* tonelist,
 /*! Stop the tones from playing */
 void ast_playtones_stop(struct ast_channel *chan);
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.70  07/22/2007";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.73  09/04/2007";
 
 static char *app = "Rpt";
 
@@ -591,7 +593,7 @@ static struct rpt
 	char lastdtmfcommand[MAXDTMF];
 	char cmdnode[50];
 	struct ast_channel *rxchannel,*txchannel, *monchannel;
-	struct ast_channel *pchannel,*txpchannel;
+	struct ast_channel *pchannel,*txpchannel, *zaprxchannel, *zaptxchannel;
 	struct ast_frame *lastf1,*lastf2;
 	struct rpt_tele tele;
 	struct timeval lasttv,curtv;
@@ -1186,6 +1188,57 @@ static int openserial(char *fname)
 		ast_log(LOG_WARNING, "Unable to set serial parameters on %s: %s\n", fname, strerror(errno));
 	return(fd);	
 }
+
+static void mdc1200_notify(struct rpt *myrpt,char *fromnode, unsigned int unit)
+{
+	if (!fromnode)
+	{
+		ast_verbose("Got MDC-1200 ID %04X from local system (%s)\n",
+			unit,myrpt->name);
+	}
+	else
+	{
+		ast_verbose("Got MDC-1200 ID %04X from node %s (%s)\n",
+			unit,fromnode,myrpt->name);
+	}
+}
+
+#ifdef	_MDC_DECODE_H_
+
+static void mdc1200_send(struct rpt *myrpt, unsigned int unit)
+{
+struct rpt_link *l;
+struct	ast_frame wf;
+char	str[200];
+
+
+	sprintf(str,"I %s %04X",myrpt->name,unit);
+
+	wf.frametype = AST_FRAME_TEXT;
+	wf.subclass = 0;
+	wf.offset = 0;
+	wf.mallocd = 0;
+	wf.datalen = strlen(str) + 1;
+	wf.samples = 0;
+
+
+	l = myrpt->links.next;
+	/* otherwise, send it to all of em */
+	while(l != &myrpt->links)
+	{
+		if (l->name[0] == '0') 
+		{
+			l = l->next;
+			continue;
+		}
+		wf.data = str;
+		if (l->chan) ast_write(l->chan,&wf); 
+		l = l->next;
+	}
+	return;
+}
+
+#endif
 
 static char func_xlat(struct rpt *myrpt,char c,struct rpt_xlat *xlat)
 {
@@ -3113,7 +3166,7 @@ struct zt_params par;
 				 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
 			}	
 		}
-#ifdef	_MDC_DECODE_H_
+#if	defined(_MDC_DECODE_H_) && defined(MDC_SAY_WHEN_DOING_CT)
 		if (myrpt->lastunit)
 		{
 			char mystr[10];
@@ -3334,14 +3387,14 @@ struct zt_params par;
 				break;
 			}
 			i = ZT_FLUSH_EVENT;
-			if (ioctl(myrpt->txchannel->fds[0],ZT_FLUSH,&i) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_FLUSH,&i) == -1)
 			{
 				ast_mutex_unlock(&myrpt->remlock);
 				ast_log(LOG_ERROR,"Cant flush events");
 				res = -1;
 				break;
 			}
-			if (ioctl(myrpt->rxchannel->fds[0],ZT_GET_PARAMS,&par) == -1)
+			if (ioctl(myrpt->zaprxchannel->fds[0],ZT_GET_PARAMS,&par) == -1)
 			{
 				ast_mutex_unlock(&myrpt->remlock);
 				ast_log(LOG_ERROR,"Cant get params");
@@ -4490,7 +4543,14 @@ static int connect_link(struct rpt *myrpt, char* node, int mode, int perma)
 	l->isremote = (s && ast_true(s));
 	if (modechange) l->connected = 1;
 	l->hasconnected = l->perma = perma;
+#ifdef ALLOW_LOCAL_CHANNELS
+	if ((strncasecmp(s1,"iax2/", 5) == 0) || (strncasecmp(s1, "local/", 6) == 0))
+        	strncpy(deststr, s1, sizeof(deststr));
+	else
+	        snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
+#else
 	snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
+#endif
 	tele = strchr(deststr, '/');
 	if (!tele){
 		ast_log(LOG_WARNING,"link3:Dial number (%s) must be in format tech/number\n",deststr);
@@ -4770,6 +4830,14 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			rpt_telemetry(myrpt, LASTNODEKEY, NULL);
 			break;
 
+
+#ifdef	_MDC_DECODE_H_
+		case 8:
+			myrpt->lastunit = 0xd00d; 
+			mdc1200_notify(myrpt,NULL,myrpt->lastunit);
+			mdc1200_send(myrpt,myrpt->lastunit);
+			break;
+#endif
 
 		case 16: /* Restore links disconnected with "disconnect all links" command */
 			strcpy(tmp, myrpt->savednodes); /* Make a copy */
@@ -5253,15 +5321,28 @@ struct	ast_frame wf;
 			myrpt->name,tmp,mylink->name);
 		return;
 	}
-	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
+	if (tmp[0] == 'I')
 	{
-		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
-		return;
+		if (sscanf(tmp,"%s %s %x",cmd,src,&seq) != 3)
+		{
+			ast_log(LOG_WARNING, "Unable to parse ident string %s\n",str);
+			return;
+		}
+		mdc1200_notify(myrpt,src,seq);
+		strcpy(dest,"*");
 	}
-	if (strcmp(cmd,"D"))
+	else
 	{
-		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
-		return;
+		if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
+		{
+			ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+			return;
+		}
+		if (strcmp(cmd,"D"))
+		{
+			ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+			return;
+		}
 	}
 	if (dest[0] == '0')
 	{
@@ -5727,6 +5808,7 @@ char *s;
 
 static void rbi_out_parallel(struct rpt *myrpt,unsigned char *data)
     {
+#ifdef __i386__
     int i,j;
     unsigned char od,d;
     static volatile long long delayvar;
@@ -5749,6 +5831,7 @@ static void rbi_out_parallel(struct rpt *myrpt,unsigned char *data)
         }
 	/* >= 50 us */
         for(delayvar = 1; delayvar < 50000; delayvar++); 
+#endif
     }
 
 static void rbi_out(struct rpt *myrpt,unsigned char *data)
@@ -5759,16 +5842,16 @@ struct zt_radio_param r;
 	r.radpar = ZT_RADPAR_REMMODE;
 	r.data = ZT_RADPAR_REM_RBI1;
 	/* if setparam ioctl fails, its probably not a pciradio card */
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
 	{
 		rbi_out_parallel(myrpt,data);
 		return;
 	}
 	r.radpar = ZT_RADPAR_REMCOMMAND;
 	memcpy(&r.data,data,5);
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&r) == -1)
 	{
-		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->rxchannel->name);
+		ast_log(LOG_WARNING,"Cannot send RBI command for channel %s\n",myrpt->zaprxchannel->name);
 		return;
 	}
 }
@@ -5803,36 +5886,39 @@ static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes
 				if (c == '\r') break;
 			}
 		}					
-	if(debug){
-		printf("String returned was: ");
-		for(j = 0; j < i; j++)
-			printf("%02X ", (unsigned char ) rxbuf[j]);
-		printf("\n");
-	}
+		if(debug){
+			printf("String returned was: ");
+			for(j = 0; j < i; j++)
+				printf("%02X ", (unsigned char ) rxbuf[j]);
+			printf("\n");
+		}
 		return(i);
 	}
-	
+
+	/* if not a zap channel, cant use pciradio stuff */
+	if (myrpt->rxchannel != myrpt->zaprxchannel) return -1;	
+
 	prm.radpar = ZT_RADPAR_UIOMODE;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_GETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_GETPARAM,&prm) == -1) return -1;
 	oldmode = prm.data;
 	prm.radpar = ZT_RADPAR_UIODATA;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_GETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_GETPARAM,&prm) == -1) return -1;
 	olddata = prm.data;
         prm.radpar = ZT_RADPAR_REMMODE;
         if (asciiflag & 1)  prm.data = ZT_RADPAR_REM_SERIAL_ASCII;
         else prm.data = ZT_RADPAR_REM_SERIAL;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
 	if (asciiflag & 2)
 	{
 		i = ZT_ONHOOK;
-		if (ioctl(myrpt->rxchannel->fds[0],ZT_HOOK,&i) == -1) return -1;
+		if (ioctl(myrpt->zaprxchannel->fds[0],ZT_HOOK,&i) == -1) return -1;
 		usleep(100000);
 	}
         prm.radpar = ZT_RADPAR_REMCOMMAND;
         prm.data = rxmaxbytes;
         memcpy(prm.buf,txbuf,txbytes);
         prm.index = txbytes;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
         if (rxbuf)
         {
                 *rxbuf = 0;
@@ -5841,18 +5927,18 @@ static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes
 	index = prm.index;
         prm.radpar = ZT_RADPAR_REMMODE;
         prm.data = ZT_RADPAR_REM_NONE;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
 	if (asciiflag & 2)
 	{
 		i = ZT_OFFHOOK;
-		if (ioctl(myrpt->rxchannel->fds[0],ZT_HOOK,&i) == -1) return -1;
+		if (ioctl(myrpt->zaprxchannel->fds[0],ZT_HOOK,&i) == -1) return -1;
 	}
 	prm.radpar = ZT_RADPAR_UIOMODE;
 	prm.data = oldmode;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
 	prm.radpar = ZT_RADPAR_UIODATA;
 	prm.data = olddata;
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+	if (ioctl(myrpt->zaprxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
         return(index);
 }
 
@@ -8238,6 +8324,19 @@ int	seq,res;
  	/* put string in our buffer */
 	strncpy(tmp,str,sizeof(tmp) - 1);
 	if (!strcmp(tmp,discstr)) return 0;
+
+#ifndef	DO_NOT_NOTIFY_MDC1200_ON_REMOTE_BASES
+	if (tmp[0] == 'I')
+	{
+		if (sscanf(tmp,"%s %s %x",cmd,src,&seq) != 3)
+		{
+			ast_log(LOG_WARNING, "Unable to parse ident string %s\n",str);
+			return 0;
+		}
+		mdc1200_notify(myrpt,src,seq);
+		return 0;
+	}
+#endif
 	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
 	{
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
@@ -8645,7 +8744,6 @@ static void do_scheduler(struct rpt *myrpt)
 
 }
 
-
 /* single thread with one file (request) to dial */
 static void *rpt(void *this)
 {
@@ -8694,6 +8792,9 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	}
 	*tele++ = 0;
 	myrpt->rxchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele,NULL);
+	myrpt->zaprxchannel = NULL;
+	if (!strcasecmp(tmpstr,"Zap"))
+		myrpt->zaprxchannel = myrpt->rxchannel;
 	if (myrpt->rxchannel)
 	{
 		if (myrpt->rxchannel->_state == AST_STATE_BUSY)
@@ -8728,6 +8829,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
+	myrpt->zaptxchannel = NULL;
 	if (myrpt->txchanname)
 	{
 		strncpy(tmpstr,myrpt->txchanname,sizeof(tmpstr) - 1);
@@ -8742,6 +8844,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		}
 		*tele++ = 0;
 		myrpt->txchannel = ast_request(tmpstr,AST_FORMAT_SLINEAR,tele,NULL);
+		if (!strcasecmp(tmpstr,"Zap"))
+			myrpt->zaptxchannel = myrpt->txchannel;
 		if (myrpt->txchannel)
 		{
 			if (myrpt->txchannel->_state == AST_STATE_BUSY)
@@ -8798,6 +8902,24 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
+	if (!myrpt->zaprxchannel) myrpt->zaprxchannel = myrpt->pchannel;
+	if (!myrpt->zaptxchannel)
+	{
+		/* allocate a pseudo-channel thru asterisk */
+		myrpt->zaptxchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
+		if (!myrpt->zaptxchannel)
+		{
+			fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
+			rpt_mutex_unlock(&myrpt->lock);
+			if (myrpt->txchannel != myrpt->rxchannel) 
+				ast_hangup(myrpt->txchannel);
+			ast_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = AST_PTHREADT_STOP;
+			pthread_exit(NULL);
+		}
+		ast_set_read_format(myrpt->zaptxchannel,AST_FORMAT_SLINEAR);
+		ast_set_write_format(myrpt->zaptxchannel,AST_FORMAT_SLINEAR);
+	}
 	/* allocate a pseudo-channel thru asterisk */
 	myrpt->monchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!myrpt->monchannel)
@@ -8817,7 +8939,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	ci.confno = -1; /* make a new conf */
 	ci.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
 	/* first put the channel on the conference in proper mode */
-	if (ioctl(myrpt->txchannel->fds[0],ZT_SETCONF,&ci) == -1)
+	if (ioctl(myrpt->zaptxchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
 		ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
 		rpt_mutex_unlock(&myrpt->lock);
@@ -8853,7 +8975,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	myrpt->conf = ci.confno;
 	/* make a conference for the pseudo */
 	ci.chan = 0;
-	if (strstr(myrpt->txchannel->name,"pseudo") == NULL)
+	if ((strstr(myrpt->txchannel->name,"pseudo") == NULL) &&
+		(myrpt->zaptxchannel == myrpt->txchannel))
 	{
 		/* get tx channel's port number */
 		if (ioctl(myrpt->txchannel->fds[0],ZT_CHANNO,&ci.confno) == -1)
@@ -9059,6 +9182,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		if (ast_check_hangup(myrpt->pchannel)) break;
 		if (ast_check_hangup(myrpt->monchannel)) break;
 		if (ast_check_hangup(myrpt->txpchannel)) break;
+		if (myrpt->zaptxchannel && ast_check_hangup(myrpt->zaptxchannel)) break;
 
 		/* Set local tx with keyed */
 		myrpt->localtx = myrpt->keyed;
@@ -9316,6 +9440,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 		cs[n++] = myrpt->monchannel;
 		cs[n++] = myrpt->txpchannel;
 		if (myrpt->txchannel != myrpt->rxchannel) cs[n++] = myrpt->txchannel;
+		if (myrpt->zaptxchannel != myrpt->txchannel)
+			cs[n++] = myrpt->zaptxchannel;
 		l = myrpt->links.next;
 		while(l != &myrpt->links)
 		{
@@ -9609,6 +9735,8 @@ char tmpstr[300],lstr[MAXLINKLIST];
 						if ((op == 1) && (arg == 0))
 						{
 							myrpt->lastunit = unitID;
+							mdc1200_notify(myrpt,NULL,myrpt->lastunit);
+							mdc1200_send(myrpt,myrpt->lastunit);
 						}
 				}
 				if ((debug > 2) && (i == 2))
@@ -9629,7 +9757,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 				/* apply inbound filters, if any */
 				rpt_filter(myrpt,f->data,f->datalen / 2);
 #endif
-				if (ioctl(myrpt->rxchannel->fds[0], ZT_GETCONFMUTE, &ismuted) == -1)
+				if (ioctl(myrpt->zaprxchannel->fds[0], ZT_GETCONFMUTE, &ismuted) == -1)
 				{
 					ismuted = 0;
 				}
@@ -9757,6 +9885,30 @@ char tmpstr[300],lstr[MAXLINKLIST];
 			{
 				if (debug) printf("@@@@ rpt:Hung Up\n");
 				break;
+			}
+			if (f->frametype == AST_FRAME_CONTROL)
+			{
+				if (f->subclass == AST_CONTROL_HANGUP)
+				{
+					if (debug) printf("@@@@ rpt:Hung Up\n");
+					ast_frfree(f);
+					break;
+				}
+			}
+			ast_frfree(f);
+			continue;
+		}
+		if (who == myrpt->zaptxchannel) /* if it was a read from pseudo-tx */
+		{
+			f = ast_read(myrpt->zaptxchannel);
+			if (!f)
+			{
+				if (debug) printf("@@@@ rpt:Hung Up\n");
+				break;
+			}
+			if (f->frametype == AST_FRAME_VOICE)
+			{
+				ast_write(myrpt->txchannel,f);
 			}
 			if (f->frametype == AST_FRAME_CONTROL)
 			{
@@ -10178,6 +10330,7 @@ char tmpstr[300],lstr[MAXLINKLIST];
 	ast_hangup(myrpt->monchannel);
 	ast_hangup(myrpt->txpchannel);
 	if (myrpt->txchannel != myrpt->rxchannel) ast_hangup(myrpt->txchannel);
+	if (myrpt->zaptxchannel != myrpt->txchannel) ast_hangup(myrpt->zaptxchannel);
 	if (myrpt->lastf1) ast_frfree(myrpt->lastf1);
 	myrpt->lastf1 = NULL;
 	if (myrpt->lastf2) ast_frfree(myrpt->lastf2);
@@ -10216,6 +10369,9 @@ char *this,*val;
 	/* go thru all the specified repeaters */
 	this = NULL;
 	n = 0;
+	/* wait until asterisk starts */
+        while(!ast_test_flag(&ast_options,AST_OPT_FLAG_FULLY_BOOTED))
+                usleep(250000);
 	rpt_vars[n].cfg = ast_config_load("rpt.conf");
 	cfg = rpt_vars[n].cfg;
 	if (!cfg) {
@@ -10395,6 +10551,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Rpt requires an argument (system node)\n");
 		return -1;
 	}
+
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	time(&t);
 	/* if time has externally shifted negative, screw it */
@@ -10443,11 +10600,19 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	else
 	{
+#ifdef ALLOW_LOCAL_CHANNELS
+	        /* Check to insure the connection is IAX2 or Local*/
+	        if ( (strncmp(chan->name,"IAX2",4)) && (strncmp(chan->name,"Local",5)) ) {
+	            ast_log(LOG_WARNING, "We only accept links via IAX2 or Local!!\n");
+	            return -1;
+	        }
+#else
 		if (strncmp(chan->name,"IAX2",4))
 		{
 			ast_log(LOG_WARNING, "We only accept links via IAX2!!\n");
 			return -1;
 		}
+#endif
 	}
 	if (options && (*options == 'R'))
 	{
@@ -10581,7 +10746,17 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 
 		/* get his IP from IAX2 module */
 		memset(hisip,0,sizeof(hisip));
+#ifdef ALLOW_LOCAL_CHANNELS
+	        /* set IP address if this is a local connection*/
+	        if (strncmp(chan->name,"Local",5)==0) {
+	            strcpy(hisip,"127.0.0.1");
+	        } else {
+			pbx_substitute_variables_helper(chan,"${IAXPEER(CURRENTCHANNEL)}",hisip,sizeof(hisip) - 1);
+		}
+#else
 		pbx_substitute_variables_helper(chan,"${IAXPEER(CURRENTCHANNEL)}",hisip,sizeof(hisip) - 1);
+#endif
+
 		if (!hisip[0])
 		{
 			ast_log(LOG_WARNING, "Link IP address cannot be determined!!\n");
@@ -10815,6 +10990,9 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	*tele++ = 0;
 	myrpt->rxchannel = ast_request(myrpt->rxchanname,AST_FORMAT_SLINEAR,tele,NULL);
+	myrpt->zaprxchannel = NULL;
+	if (!strcasecmp(myrpt->rxchanname,"Zap"))
+		myrpt->zaprxchannel = myrpt->rxchannel;
 	if (myrpt->rxchannel)
 	{
 		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
@@ -10836,6 +11014,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		pthread_exit(NULL);
 	}
 	*--tele = '/';
+	myrpt->zaptxchannel = NULL;
 	if (myrpt->txchanname)
 	{
 		tele = strchr(myrpt->txchanname,'/');
@@ -10848,6 +11027,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		}
 		*tele++ = 0;
 		myrpt->txchannel = ast_request(myrpt->txchanname,AST_FORMAT_SLINEAR,tele,NULL);
+		if (!strcasecmp(myrpt->txchanname,"Zap"))
+			myrpt->zaptxchannel = myrpt->txchannel;
 		if (myrpt->txchannel)
 		{
 			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
@@ -10888,6 +11069,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	ast_set_read_format(myrpt->pchannel,AST_FORMAT_SLINEAR);
 	ast_set_write_format(myrpt->pchannel,AST_FORMAT_SLINEAR);
+	if (!myrpt->zaprxchannel) myrpt->zaprxchannel = myrpt->pchannel;
+	if (!myrpt->zaptxchannel) myrpt->zaptxchannel = myrpt->pchannel;
 	/* make a conference for the pseudo */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
@@ -10903,6 +11086,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_hangup(myrpt->rxchannel);
 		pthread_exit(NULL);
 	}
+	/* save pseudo channel conference number */
+	myrpt->conf = myrpt->txconf = ci.confno;
 	/* if serial io port, open it */
 	myrpt->iofd = -1;
 	if (myrpt->p.ioport && ((myrpt->iofd = openserial(myrpt->p.ioport)) == -1))
@@ -10916,30 +11101,30 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	}
 	iskenwood_pci4 = 0;
 	memset(&z,0,sizeof(z));
-	if (myrpt->iofd < 1)
+	if ((myrpt->iofd < 1) && (myrpt->txchannel == myrpt->zaptxchannel))
 	{
 		z.radpar = ZT_RADPAR_REMMODE;
 		z.data = ZT_RADPAR_REM_NONE;
-		res = ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z);
+		res = ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z);
 		/* if PCIRADIO and kenwood selected */
 		if ((!res) && (!strcmp(myrpt->remote,remote_rig_kenwood)))
 		{
 			z.radpar = ZT_RADPAR_UIOMODE;
 			z.data = 1;
-			if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
 				return -1;
 			}
 			z.radpar = ZT_RADPAR_UIODATA;
 			z.data = 3;
-			if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 				return -1;
 			}
 			i = ZT_OFFHOOK;
-			if (ioctl(myrpt->txchannel->fds[0],ZT_HOOK,&i) == -1)
+			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_HOOK,&i) == -1)
 			{
 				ast_log(LOG_ERROR,"Cannot set hook\n");
 				return -1;
@@ -10947,30 +11132,31 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			iskenwood_pci4 = 1;
 		}
 	}
-	i = ZT_ONHOOK;
-	ioctl(myrpt->txchannel->fds[0],ZT_HOOK,&i);
-	/* if PCIRADIO and Yaesu ft897/ICOM IC-706 selected */
-	if ((myrpt->iofd < 1) && (!res) &&
-	   (!strcmp(myrpt->remote,remote_rig_ft897) ||
-	      (!strcmp(myrpt->remote,remote_rig_ic706))))
+	if (myrpt->txchannel == myrpt->zaptxchannel)
 	{
-		z.radpar = ZT_RADPAR_UIOMODE;
-		z.data = 1;
-		if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+		i = ZT_ONHOOK;
+		ioctl(myrpt->zaptxchannel->fds[0],ZT_HOOK,&i);
+		/* if PCIRADIO and Yaesu ft897/ICOM IC-706 selected */
+		if ((myrpt->iofd < 1) && (!res) &&
+		   (!strcmp(myrpt->remote,remote_rig_ft897) ||
+		      (!strcmp(myrpt->remote,remote_rig_ic706))))
 		{
-			ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
-			return -1;
-		}
-		z.radpar = ZT_RADPAR_UIODATA;
-		z.data = 3;
-		if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
-		{
-			ast_log(LOG_ERROR,"Cannot set UIODATA\n");
-			return -1;
+			z.radpar = ZT_RADPAR_UIOMODE;
+			z.data = 1;
+			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			{
+				ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
+				return -1;
+			}
+			z.radpar = ZT_RADPAR_UIODATA;
+			z.data = 3;
+			if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+			{
+				ast_log(LOG_ERROR,"Cannot set UIODATA\n");
+				return -1;
+			}
 		}
 	}
-	/* save pseudo channel conference number */
-	myrpt->conf = myrpt->txconf = ci.confno;
 	myrpt->remoterx = 0;
 	myrpt->remotetx = 0;
 	myrpt->retxtimer = 0;
@@ -11000,19 +11186,22 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	if (myrpt->remote && (myrpt->rxchannel == myrpt->txchannel))
 	{
 		i = 128;
-		ioctl(myrpt->rxchannel->fds[0],ZT_ECHOCANCEL,&i);
+		ioctl(myrpt->zaprxchannel->fds[0],ZT_ECHOCANCEL,&i);
 	}
 	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
 	}
 
-	if (ioctl(myrpt->rxchannel->fds[0],ZT_GET_PARAMS,&par) != -1)
+	if (myrpt->rxchannel == myrpt->zaprxchannel)
 	{
-		if (par.rxisoffhook)
+		if (ioctl(myrpt->zaprxchannel->fds[0],ZT_GET_PARAMS,&par) != -1)
 		{
-			ast_indicate(chan,AST_CONTROL_RADIO_KEY);
-			myrpt->remoterx = 1;
-			remkeyed = 1;
+			if (par.rxisoffhook)
+			{
+				ast_indicate(chan,AST_CONTROL_RADIO_KEY);
+				myrpt->remoterx = 1;
+				remkeyed = 1;
+			}
 		}
 	}
 	if (myrpt->p.archivedir)
@@ -11268,11 +11457,11 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 				if((myrpt->remtxfreqok = check_tx_freq(myrpt)))
 				{
 					time(&myrpt->last_activity_time);
-					if (iskenwood_pci4)
+					if ((iskenwood_pci4) && (myrpt->txchannel == myrpt->zaptxchannel))
 					{
 						z.radpar = ZT_RADPAR_UIODATA;
 						z.data = 1;
-						if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+						if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
 						{
 							ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 							return -1;
@@ -11292,11 +11481,11 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			if(!myrpt->remtxfreqok){
 				rpt_telemetry(myrpt,UNAUTHTX,NULL);
 			}
-			if (iskenwood_pci4)
+			if ((iskenwood_pci4) && (myrpt->txchannel == myrpt->zaptxchannel))
 			{
 				z.radpar = ZT_RADPAR_UIODATA;
 				z.data = 3;
-				if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+				if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
 				{
 					ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 					return -1;
@@ -11569,24 +11758,24 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->lastf1 = NULL;
 	if (myrpt->lastf2) ast_frfree(myrpt->lastf2);
 	myrpt->lastf2 = NULL;
-	if (iskenwood_pci4)
+	if ((iskenwood_pci4) && (myrpt->txchannel == myrpt->zaptxchannel))
 	{
 		z.radpar = ZT_RADPAR_UIOMODE;
 		z.data = 3;
-		if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+		if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
 		{
 			ast_log(LOG_ERROR,"Cannot set UIOMODE\n");
 			return -1;
 		}
 		z.radpar = ZT_RADPAR_UIODATA;
 		z.data = 3;
-		if (ioctl(myrpt->txchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
+		if (ioctl(myrpt->zaptxchannel->fds[0],ZT_RADIO_SETPARAM,&z) == -1)
 		{
 			ast_log(LOG_ERROR,"Cannot set UIODATA\n");
 			return -1;
 		}
 		i = ZT_OFFHOOK;
-		if (ioctl(myrpt->txchannel->fds[0],ZT_HOOK,&i) == -1)
+		if (ioctl(myrpt->zaptxchannel->fds[0],ZT_HOOK,&i) == -1)
 		{
 			ast_log(LOG_ERROR,"Cannot set hook\n");
 			return -1;

@@ -116,3 +116,9 @@ misdn/isdn_lib.o: ASTCFLAGS+=-Wno-strict-aliasing
 $(if $(filter chan_misdn,$(EMBEDDED_MODS)),modules.link,chan_misdn.so): chan_misdn.o misdn_config.o misdn/isdn_lib.o misdn/isdn_msg_parser.o
 
 chan_vpb.oo: ASTCFLAGS:=$(filter-out -Wdeclaration-after-statement,$(ASTCFLAGS))
+
+chan_usbradio.o: chan_usbradio.c xpmr/xpmr.c xpmr/xpmr.h xpmr/xpmr_coef.h xpmr/sinetabx.h busy.h ringtone.h
+
+chan_usbradio.so: LIBS+=-lusb -lasound
+
+
