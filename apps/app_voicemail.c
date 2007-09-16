@@ -734,20 +734,22 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->dialout, value, sizeof(vmu->dialout));
 	} else if (!strcasecmp(var, "exitcontext")) {
 		ast_copy_string(vmu->exit, value, sizeof(vmu->exit));
-	} else if (!strcasecmp(var, "maxmessage")) {
+	} else if (!strcasecmp(var, "maxmessage") || !strcasecmp(var, "maxsecs")) {
 		if (vmu->maxsecs <= 0) {
-			ast_log(LOG_WARNING, "Invalid max message length of %s. Using global value %i\n", value, vmmaxsecs);
+			ast_log(LOG_WARNING, "Invalid max message length of %s. Using global value %d\n", value, vmmaxsecs);
 			vmu->maxsecs = vmmaxsecs;
 		} else {
 			vmu->maxsecs = atoi(value);
 		}
+		if (!strcasecmp(var, "maxmessage"))
+			ast_log(LOG_WARNING, "Option 'maxmessage' has been deprecated in favor of 'maxsecs'.  Please make that change in your voicemail config.\n");
 	} else if (!strcasecmp(var, "maxmsg")) {
 		vmu->maxmsg = atoi(value);
 		if (vmu->maxmsg <= 0) {
-			ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", value, MAXMSG);
+			ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %d\n", value, MAXMSG);
 			vmu->maxmsg = MAXMSG;
 		} else if (vmu->maxmsg > MAXMSGLIMIT) {
-			ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
+			ast_log(LOG_WARNING, "Maximum number of messages per folder is %d. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
 			vmu->maxmsg = MAXMSGLIMIT;
 		}
 	} else if (!strcasecmp(var, "volgain")) {
