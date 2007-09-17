@@ -15,6 +15,8 @@
  */
 CREATE TABLE ast_config (
 	id		INTEGER,
+	cat_metric	INT(11)		NOT NULL	DEFAULT 0,
+	var_metric	INT(11)		NOT NULL	DEFAULT 0,
 	commented	TINYINT(1)	NOT NULL	DEFAULT 0,
 	filename	VARCHAR(128)	NOT NULL	DEFAULT '',
 	category	VARCHAR(128)	NOT NULL	DEFAULT 'default',
@@ -23,8 +25,9 @@ CREATE TABLE ast_config (
 	PRIMARY KEY	(id)
 );
 
+CREATE INDEX ast_config__idx__cat_metric		ON ast_config(cat_metric);
+CREATE INDEX ast_config__idx__var_metric		ON ast_config(var_metric);
 CREATE INDEX ast_config__idx__filename_commented	ON ast_config(filename, commented);
-CREATE INDEX ast_config__idx__category			ON ast_config(category);
 
 /*
  * CDR table (this table is automatically created if non existent).

@@ -113,6 +113,8 @@
 
 enum {
 	RES_CONFIG_SQLITE_CONFIG_ID,
+	RES_CONFIG_SQLITE_CONFIG_CAT_METRIC,
+	RES_CONFIG_SQLITE_CONFIG_VAR_METRIC,
 	RES_CONFIG_SQLITE_CONFIG_COMMENTED,
 	RES_CONFIG_SQLITE_CONFIG_FILENAME,
 	RES_CONFIG_SQLITE_CONFIG_CATEGORY,
@@ -184,6 +186,7 @@ struct cfg_entry_args {
 	struct ast_config *cfg;
 	struct ast_category *cat;
 	char *cat_name;
+	struct ast_flags flags;
 };
 
 /*!
@@ -589,7 +592,7 @@ static char *sql_get_config_table =
 "SELECT *"
 "	FROM '%q'"
 "	WHERE filename = '%q' AND commented = 0"
-"	ORDER BY category;";
+"	ORDER BY cat_metric ASC, var_metric ASC;";
 
 static int set_var(char **var, char *name, char *value)
 {
@@ -715,6 +718,22 @@ static int add_cfg_entry(void *arg, int argc, char **argv, char **columnNames)
 
 	args = arg;
 
+	if (!strcmp(argv[RES_CONFIG_SQLITE_CONFIG_VAR_NAME], "#include")) {
+		struct ast_config *cfg;
+		char *val;
+
+		val = argv[RES_CONFIG_SQLITE_CONFIG_VAR_VAL];
+		cfg = ast_config_internal_load(val, args->cfg, args->flags, "");
+
+		if (!cfg) {
+			ast_log(LOG_WARNING, "Unable to include %s\n", val);
+			return 1;
+		} else {
+			args->cfg = cfg;
+			return 0;
+		}
+	}
+
 	if (!args->cat_name || strcmp(args->cat_name, argv[RES_CONFIG_SQLITE_CONFIG_CATEGORY])) {
 		args->cat = ast_category_new(argv[RES_CONFIG_SQLITE_CONFIG_CATEGORY], "", 99999);
 
@@ -772,6 +791,7 @@ static struct ast_config *config_handler(const char *database,	const char *table
 	args.cfg = cfg;
 	args.cat = NULL;
 	args.cat_name = NULL;
+	args.flags = flags;
 
 	ast_mutex_lock(&mutex);
 
