@@ -1142,6 +1142,7 @@ static struct tm *localsub(const time_t *timep, const long offset, struct tm *tm
 struct tm *ast_localtime(const time_t *timep, struct tm *tmp, const char *zone)
 {
 	const struct state *sp = ast_tzset(zone);
+	memset(tmp, 0, sizeof(*tmp));
 	return sp ? localsub(timep, 0L, tmp, sp) : NULL;
 }
 

@@ -1783,8 +1783,6 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #define ENDL "\n"
 #endif
 
-	memset(&tm, 0, sizeof(tm));
-
 	gethostname(host, sizeof(host) - 1);
 	if (strchr(srcemail, '@'))
 		ast_copy_string(who, srcemail, sizeof(who));
@@ -2053,7 +2051,6 @@ static int get_date(char *s, int len)
 	time_t t;
 
 	time(&t);
-	memset(&tm, 0, sizeof(tm));
 
 	ast_localtime(&t, &tm, NULL);
 
