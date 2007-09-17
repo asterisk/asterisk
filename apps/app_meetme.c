@@ -4715,7 +4715,7 @@ static int sla_build_trunk(struct ast_config *cfg, const char *cat)
 			return -1;
 		}
 		if (ast_add_extension2(context, 0 /* don't replace */, "s", 1,
-			NULL, NULL, slatrunk_app, ast_strdup(trunk->name), ast_free, sla_registrar)) {
+			NULL, NULL, slatrunk_app, ast_strdup(trunk->name), ast_free_ptr, sla_registrar)) {
 			ast_log(LOG_ERROR, "Failed to automatically create extension "
 				"for trunk '%s'!\n", trunk->name);
 			destroy_trunk(trunk);
@@ -4854,7 +4854,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 		/* The extension for when the handset goes off-hook.
 		 * exten => station1,1,SLAStation(station1) */
 		if (ast_add_extension2(context, 0 /* don't replace */, station->name, 1,
-			NULL, NULL, slastation_app, ast_strdup(station->name), ast_free, sla_registrar)) {
+			NULL, NULL, slastation_app, ast_strdup(station->name), ast_free_ptr, sla_registrar)) {
 			ast_log(LOG_ERROR, "Failed to automatically create extension "
 				"for trunk '%s'!\n", station->name);
 			destroy_station(station);
@@ -4869,7 +4869,7 @@ static int sla_build_station(struct ast_config *cfg, const char *cat)
 			/* Extension for this line button 
 			 * exten => station1_line1,1,SLAStation(station1_line1) */
 			if (ast_add_extension2(context, 0 /* don't replace */, exten, 1,
-				NULL, NULL, slastation_app, ast_strdup(exten), ast_free, sla_registrar)) {
+				NULL, NULL, slastation_app, ast_strdup(exten), ast_free_ptr, sla_registrar)) {
 				ast_log(LOG_ERROR, "Failed to automatically create extension "
 					"for trunk '%s'!\n", station->name);
 				destroy_station(station);

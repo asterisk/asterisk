@@ -2906,7 +2906,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		}
 		if (onoff)
 			ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
-				 ast_strdup(peer->name), ast_free, "SIP");
+				 ast_strdup(peer->name), ast_free_ptr, "SIP");
 		else
 			ast_context_remove_extension(context, ext, 1, NULL);
 	}

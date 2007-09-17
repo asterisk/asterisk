@@ -4979,7 +4979,7 @@ static int load_module(void)
 	if (!con)
 		ast_log(LOG_ERROR, "Queue virtual context 'app_queue_gosub_virtual_context' does not exist and unable to create\n");
 	else
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free, "app_queue");
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_queue");
 
 	if (queue_persistent_members)
 		reload_queue_members();

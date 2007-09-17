@@ -408,20 +408,22 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 
 long int ast_random(void);
 
+#define ast_free free
+
 /*! 
  * \brief free() wrapper
  *
- * ast_free should be used when a function pointer for free() needs to be passed
+ * ast_free_ptr should be used when a function pointer for free() needs to be passed
  * as the argument to a function. Otherwise, astmm will cause seg faults.
  */
 #ifdef __AST_DEBUG_MALLOC
-static void ast_free(void *ptr) attribute_unused;
-static void ast_free(void *ptr)
+static void ast_free_ptr(void *ptr) attribute_unused;
+static void ast_free_ptr(void *ptr)
 {
-	free(ptr);
+	ast_free(ptr);
 }
 #else
-#define ast_free free
+#define ast_free_ptr ast_free
 #endif
 
 #ifndef __AST_DEBUG_MALLOC

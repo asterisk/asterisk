@@ -6057,7 +6057,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 			if (onoff) {
 				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
 					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL,
-							  "Noop", ast_strdup(peer->name), ast_free, "IAX2");
+							  "Noop", ast_strdup(peer->name), ast_free_ptr, "IAX2");
 			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}

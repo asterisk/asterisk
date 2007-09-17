@@ -1970,7 +1970,7 @@ static int load_module(void)
 	if (!con)
 		ast_log(LOG_ERROR, "Dial virtual context 'app_dial_gosub_virtual_context' does not exist and unable to create\n");
 	else
-		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free, "app_dial");
+		ast_add_extension2(con, 1, "s", 1, NULL, NULL, "KeepAlive", ast_strdup(""), ast_free_ptr, "app_dial");
 
 	res = ast_register_application(app, dial_exec, synopsis, descrip);
 	res |= ast_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);

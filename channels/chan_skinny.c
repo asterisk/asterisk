@@ -1628,7 +1628,7 @@ static void register_exten(struct skinny_line *l)
 			context = regcontext;
 		}
 		ast_add_extension(context, 1, ext, 1, NULL, NULL, "Noop",
-			 ast_strdup(l->name), ast_free, "Skinny");
+			 ast_strdup(l->name), ast_free_ptr, "Skinny");
 	}
 }
 

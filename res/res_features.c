@@ -498,7 +498,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		ast_clear_flag(peer, AST_FLAG_MASQ_NOSTREAM);
 	}
 	if (con) {
-		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free, registrar))
+		if (!ast_add_extension2(con, 1, pu->parkingexten, 1, NULL, NULL, parkedcall, ast_strdup(pu->parkingexten), ast_free_ptr, registrar))
 			notify_metermaids(pu->parkingexten, parking_con, AST_DEVICE_INUSE);
 	}
 	if (pu->notquiteyet) {
@@ -2091,7 +2091,7 @@ static void *do_parking_thread(void *ignore)
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
 						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
-						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free, registrar);
+						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
 					}
 					if (comebacktoorigin) { 
 						set_c_e_p(chan, parking_con_dial, peername, 1);
