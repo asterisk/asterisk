@@ -3480,7 +3480,7 @@ static void print_ext(struct ast_exten *e, char * buf, int buflen)
 	} else {
 		snprintf(buf, buflen, "%d. %s(%s)",
 			prio, ast_get_extension_app(e),
-			(char *)ast_get_extension_app_data(e));
+			(!ast_strlen_zero(ast_get_extension_app_data(e)) ? (char *)ast_get_extension_app_data(e) : ""));
 	}
 }
 
