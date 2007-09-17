@@ -209,7 +209,8 @@ static int load_module(void)
 			ast_log(LOG_ERROR, "%s: Unable to register custom SQLite3 CDR handling\n", name);
 			return AST_MODULE_LOAD_DECLINE;
 		}
-	}
+	} else
+		return AST_MODULE_LOAD_DECLINE;
 
 	/* is the database there? */
 	snprintf(fn, sizeof(fn), "%s/master.db", ast_config_AST_LOG_DIR);
