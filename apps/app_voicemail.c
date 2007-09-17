@@ -1958,6 +1958,8 @@ static void make_email_file(FILE *p, char *srcemail, struct ast_vm_user *vmu, in
 #endif
 
 	gethostname(host, sizeof(host)-1);
+	memset(&tm, 0, sizeof(tm));
+
 	if (strchr(srcemail, '@'))
 		ast_copy_string(who, srcemail, sizeof(who));
 	else 
@@ -2235,7 +2237,10 @@ static int get_date(char *s, int len)
 {
 	struct ast_tm tm;
 	struct timeval t = ast_tvnow();
+	
+	memset(&tm, 0, sizeof(tm));
 	ast_localtime(&t, &tm, NULL);
+
 	return ast_strftime(s, len, "%a %b %e %r %Z %Y", &tm);
 }
 
