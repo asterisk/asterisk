@@ -5835,7 +5835,7 @@ static void reg_source_db(struct iax2_peer *p)
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)(char *)p->name);
+					p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
