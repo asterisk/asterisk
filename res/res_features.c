@@ -549,6 +549,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 #define FEATURE_RETURN_PASSDIGITS	 21
 #define FEATURE_RETURN_STOREDIGITS	 22
 #define FEATURE_RETURN_SUCCESS	 	 23
+#define FEATURE_RETURN_KEEPTRYING    24
 
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
@@ -1287,23 +1288,6 @@ static struct feature_group *find_group(const char *name) {
 	return fg;
 }
 
-/*! 
- * \brief Find a feature extension 
- * \param fg, code
- * \retval feature group extension on success.
- * \retval NULL on failure.
-*/
-static struct feature_group_exten *find_group_exten(struct feature_group *fg, const char *code) {
-	struct feature_group_exten *fge = NULL;
-
-	AST_LIST_TRAVERSE(&fg->features, fge, entry) {
-		if(!strcasecmp(fge->exten, code))
-			break;
-	}
-
-	return fge;
-}
-
 void ast_rdlock_call_features(void)
 {
 	ast_rwlock_rdlock(&features_lock);
@@ -1347,7 +1331,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 
 	if (sense == FEATURE_SENSE_CHAN) {
 		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLER))
-			return FEATURE_RETURN_PASSDIGITS;
+			return FEATURE_RETURN_KEEPTRYING;
 		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
 			work = chan;
 			idle = peer;
@@ -1357,7 +1341,7 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 		}
 	} else {
 		if (!ast_test_flag(feature, AST_FEATURE_FLAG_BYCALLEE))
-			return FEATURE_RETURN_PASSDIGITS;
+			return FEATURE_RETURN_KEEPTRYING;
 		if (ast_test_flag(feature, AST_FEATURE_FLAG_ONSELF)) {
 			work = peer;
 			idle = chan;
@@ -1473,10 +1457,20 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 
 		fg = find_group(tok);
 
-		if (fg && (fge = find_group_exten(fg, code))) {
-			res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
-			AST_RWLIST_UNLOCK(&feature_groups);
-			continue;
+		if (fg) {
+			AST_LIST_TRAVERSE(&fg->features, fge, entry) {
+				if (strcasecmp(fge->exten, code))
+					continue;
+
+				res = fge->feature->operation(chan, peer, config, code, sense, fge->feature);
+				if (res != FEATURE_RETURN_KEEPTRYING) {
+					AST_RWLIST_UNLOCK(&feature_groups);
+					break;
+				}
+				res = FEATURE_RETURN_PASSDIGITS;
+			}
+			if (fge)
+				break;
 		}
 
 		AST_RWLIST_UNLOCK(&feature_groups);
@@ -1491,8 +1485,11 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 		if (!strcmp(feature->exten, code)) {
 			ast_verb(3, " Feature Found: %s exten: %s\n",feature->sname, tok);
 			res = feature->operation(chan, peer, config, code, sense, feature);
-			AST_LIST_UNLOCK(&feature_list);
-			break;
+			if (res != FEATURE_RETURN_KEEPTRYING) {
+				AST_LIST_UNLOCK(&feature_list);
+				break;
+			}
+			res = FEATURE_RETURN_PASSDIGITS;
 		} else if (!strncmp(feature->exten, code, strlen(code)))
 			res = FEATURE_RETURN_STOREDIGITS;
 
