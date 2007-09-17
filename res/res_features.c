@@ -1041,7 +1041,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
 				xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1);
 				if (ast_autoservice_stop(transferee) < 0) {
-					ast_hangup(newchan);
+					if (newchan)
+						ast_hangup(newchan);
 					return -1;
 				}
 				if (!newchan) {
