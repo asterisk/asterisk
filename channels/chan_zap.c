@@ -924,13 +924,13 @@ static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
 #endif			
 	for (;;) {
 		if (p->subs[a].owner) {
-			if (ast_mutex_trylock(&p->subs[a].owner->lock)) {
+			if (ast_channel_trylock(p->subs[a].owner)) {
 				ast_mutex_unlock(&p->lock);
 				usleep(1);
 				ast_mutex_lock(&p->lock);
 			} else {
 				ast_queue_frame(p->subs[a].owner, &ast_null_frame);
-				ast_mutex_unlock(&p->subs[a].owner->lock);
+				ast_channel_unlock(p->subs[a].owner);
 				break;
 			}
 		} else
@@ -971,13 +971,13 @@ static void zap_queue_frame(struct zt_pvt *p, struct ast_frame *f, void *data)
 #endif		
 	for (;;) {
 		if (p->owner) {
-			if (ast_mutex_trylock(&p->owner->lock)) {
+			if (ast_channel_trylock(p->owner)) {
 				ast_mutex_unlock(&p->lock);
 				usleep(1);
 				ast_mutex_lock(&p->lock);
 			} else {
 				ast_queue_frame(p->owner, f);
-				ast_mutex_unlock(&p->owner->lock);
+				ast_channel_unlock(p->owner);
 				break;
 			}
 		} else
@@ -3474,23 +3474,22 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return AST_BRIDGE_FAILED_NOWARN;
 
-	ast_mutex_lock(&c0->lock);
-	ast_mutex_lock(&c1->lock);
+	ast_channel_lock_both(c0, c1);
 
 	p0 = c0->tech_pvt;
 	p1 = c1->tech_pvt;
 	/* cant do pseudo-channels here */
 	if (!p0 || (!p0->sig) || !p1 || (!p1->sig)) {
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED_NOWARN;
 	}
 
 	oi0 = zt_get_index(c0, p0, 0);
 	oi1 = zt_get_index(c1, p1, 0);
 	if ((oi0 < 0) || (oi1 < 0)) {
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		return AST_BRIDGE_FAILED;
 	}
 
@@ -3503,16 +3502,16 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 
 	if (ast_mutex_trylock(&p0->lock)) {
 		/* Don't block, due to potential for deadlock */
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		ast_log(LOG_NOTICE, "Avoiding deadlock...\n");
 		return AST_BRIDGE_RETRY;
 	}
 	if (ast_mutex_trylock(&p1->lock)) {
 		/* Don't block, due to potential for deadlock */
 		ast_mutex_unlock(&p0->lock);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 		ast_log(LOG_NOTICE, "Avoiding deadlock...\n");
 		return AST_BRIDGE_RETRY;
 	}
@@ -3617,8 +3616,8 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 	ast_mutex_unlock(&p0->lock);
 	ast_mutex_unlock(&p1->lock);
 
-	ast_mutex_unlock(&c0->lock);
-	ast_mutex_unlock(&c1->lock);
+	ast_channel_unlock(c0);
+	ast_channel_unlock(c1);
 
 	/* Native bridge failed */
 	if ((!master || !slave) && !nothingok) {
@@ -3641,8 +3640,8 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
-		ast_mutex_lock(&c0->lock);
-		ast_mutex_lock(&c1->lock);
+		ast_channel_lock_both(c0, c1);
+
 		p0 = c0->tech_pvt;
 		p1 = c1->tech_pvt;
 
@@ -3650,8 +3649,9 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 			i0 = zt_get_index(c0, p0, 1);
 		if (op1 == p1)
 			i1 = zt_get_index(c1, p1, 1);
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
+
+		ast_channel_unlock(c0);
+		ast_channel_unlock(c1);
 
 		if (!timeoutms || 
 		    (op0 != p0) ||
@@ -3821,7 +3821,7 @@ static int attempt_transfer(struct zt_pvt *p)
 			return -1;
 		}
 		/* Orphan the channel after releasing the lock */
-		ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+		ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 		unalloc_sub(p, SUB_THREEWAY);
 	} else if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner)) {
 		ast_queue_control(p->subs[SUB_REAL].owner, AST_CONTROL_UNHOLD);
@@ -3850,7 +3850,7 @@ static int attempt_transfer(struct zt_pvt *p)
 		}
 		/* Three-way is now the REAL */
 		swap_subs(p, SUB_THREEWAY, SUB_REAL);
-		ast_mutex_unlock(&p->subs[SUB_REAL].owner->lock);
+		ast_channel_unlock(p->subs[SUB_REAL].owner);
 		unalloc_sub(p, SUB_THREEWAY);
 		/* Tell the caller not to hangup */
 		return 1;
@@ -4167,15 +4167,15 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						unsigned int mssinceflash;
 						/* Here we have to retain the lock on both the main channel, the 3-way channel, and
 						   the private structure -- not especially easy or clean */
-						while (p->subs[SUB_THREEWAY].owner && ast_mutex_trylock(&p->subs[SUB_THREEWAY].owner->lock)) {
+						while (p->subs[SUB_THREEWAY].owner && ast_channel_trylock(p->subs[SUB_THREEWAY].owner)) {
 							/* Yuck, didn't get the lock on the 3-way, gotta release everything and re-grab! */
 							ast_mutex_unlock(&p->lock);
-							ast_mutex_unlock(&ast->lock);
+							ast_channel_unlock(ast);
 							usleep(1);
 							/* We can grab ast and p in that order, without worry.  We should make sure
 							   nothing seriously bad has happened though like some sort of bizarre double
 							   masquerade! */
-							ast_mutex_lock(&ast->lock);
+							ast_channel_lock(ast);
 							ast_mutex_lock(&p->lock);
 							if (p->owner != ast) {
 								ast_log(LOG_WARNING, "This isn't good...\n");
@@ -4195,7 +4195,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								ast_queue_hangup(p->subs[SUB_THREEWAY].owner);
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_debug(1, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
-							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+							ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 						} else if ((ast->pbx) || (ast->_state == AST_STATE_UP)) {
 							if (p->transfer) {
 								/* In any case this isn't a threeway call anymore */
@@ -4203,7 +4203,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								p->subs[SUB_THREEWAY].inthreeway = 0;
 								/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
 								if (!p->transfertobusy && ast->_state == AST_STATE_BUSY) {
-									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 									/* Swap subs and dis-own channel */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									p->owner = NULL;
@@ -4213,21 +4213,21 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									if ((res = attempt_transfer(p)) < 0) {
 										p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 										if (p->subs[SUB_THREEWAY].owner)
-											ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+											ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 									} else if (res) {
 										/* Don't actually hang up at this point */
 										if (p->subs[SUB_THREEWAY].owner)
-											ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+											ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 										break;
 									}
 								}
 							} else {
 								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 								if (p->subs[SUB_THREEWAY].owner)
-									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 							}
 						} else {
-							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+							ast_channel_unlock(p->subs[SUB_THREEWAY].owner);
 							/* Swap subs and dis-own channel */
 							swap_subs(p, SUB_THREEWAY, SUB_REAL);
 							p->owner = NULL;
@@ -9238,7 +9238,7 @@ static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 	do {
 		redo = 0;
 		for (x = 0; x < 3; x++) {
-			while (p->subs[x].owner && ast_mutex_trylock(&p->subs[x].owner->lock)) {
+			while (p->subs[x].owner && ast_channel_trylock(p->subs[x].owner)) {
 				redo++;
 				ast_mutex_unlock(&p->lock);
 				usleep(1);
@@ -9246,7 +9246,7 @@ static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 			}
 			if (p->subs[x].owner) {
 				ast_queue_hangup(p->subs[x].owner);
-				ast_mutex_unlock(&p->subs[x].owner->lock);
+				ast_channel_unlock(p->subs[x].owner);
 			}
 		}
 	} while (redo);

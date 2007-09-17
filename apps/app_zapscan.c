@@ -332,7 +332,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			if((mygroup = pbx_builtin_getvar_helper(tempchan, "GROUP")) && (!strcmp(mygroup, desired_group))) {
 				ast_verb(3, "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
 			} else {
-				ast_mutex_unlock(&tempchan->lock);
+				ast_channel_unlock(tempchan);
 				lastchan = tempchan;
 				continue;
 			}

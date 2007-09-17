@@ -508,7 +508,7 @@ static int alsa_text(struct ast_channel *c, const char *text)
 
 static void grab_owner(void)
 {
-	while (alsa.owner && ast_mutex_trylock(&alsa.owner->lock)) {
+	while (alsa.owner && ast_channel_trylock(alsa.owner)) {
 		ast_mutex_unlock(&alsalock);
 		usleep(1);
 		ast_mutex_lock(&alsalock);
@@ -527,7 +527,7 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 		if (alsa.owner) {
 			f.subclass = AST_CONTROL_ANSWER;
 			ast_queue_frame(alsa.owner, &f);
-			ast_mutex_unlock(&alsa.owner->lock);
+			ast_channel_unlock(alsa.owner);
 		}
 	} else {
 		ast_verbose(" << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
@@ -535,7 +535,7 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 		if (alsa.owner) {
 			f.subclass = AST_CONTROL_RINGING;
 			ast_queue_frame(alsa.owner, &f);
-			ast_mutex_unlock(&alsa.owner->lock);
+			ast_channel_unlock(alsa.owner);
 		}
 		write(sndcmd[1], &res, sizeof(res));
 	}
@@ -901,7 +901,7 @@ static int console_answer(int fd, int argc, char *argv[])
 		if (alsa.owner) {
 			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 			ast_queue_frame(alsa.owner, &f);
-			ast_mutex_unlock(&alsa.owner->lock);
+			ast_channel_unlock(alsa.owner);
 		}
 		answer_sound();
 	}
@@ -950,7 +950,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 			f.data = NULL;
 			f.datalen = 0;
 			ast_queue_frame(alsa.owner, &f);
-			ast_mutex_unlock(&alsa.owner->lock);
+			ast_channel_unlock(alsa.owner);
 		}
 	}
 
@@ -982,7 +982,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 		grab_owner();
 		if (alsa.owner) {
 			ast_queue_hangup(alsa.owner);
-			ast_mutex_unlock(&alsa.owner->lock);
+			ast_channel_unlock(alsa.owner);
 		}
 	}
 
@@ -1010,7 +1010,6 @@ static int console_dial(int fd, int argc, char *argv[])
 	if (alsa.owner) {
 		if (argc == 3) {
 			d = argv[2];
-			grab_owner();
 			if (alsa.owner) {
 				struct ast_frame f = { AST_FRAME_DTMF };
 				while (*d) {
@@ -1018,7 +1017,6 @@ static int console_dial(int fd, int argc, char *argv[])
 					ast_queue_frame(alsa.owner, &f);
 					d++;
 				}
-				ast_mutex_unlock(&alsa.owner->lock);
 			}
 		} else {
 			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");

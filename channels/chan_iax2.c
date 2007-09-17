@@ -1596,14 +1596,14 @@ static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
 	for (;;) {
 		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
+			if (ast_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
 				ast_mutex_unlock(&iaxsl[callno]);
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
 				ast_queue_frame(iaxs[callno]->owner, f);
-				ast_mutex_unlock(&iaxs[callno]->owner->lock);
+				ast_channel_unlock(iaxs[callno]->owner);
 				break;
 			}
 		} else
@@ -1629,14 +1629,14 @@ static int iax2_queue_hangup(int callno)
 {
 	for (;;) {
 		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
+			if (ast_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
 				ast_mutex_unlock(&iaxsl[callno]);
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
 				ast_queue_hangup(iaxs[callno]->owner);
-				ast_mutex_unlock(&iaxs[callno]->owner->lock);
+				ast_channel_unlock(iaxs[callno]->owner);
 				break;
 			}
 		} else
@@ -1663,14 +1663,14 @@ static int iax2_queue_control_data(int callno,
 {
 	for (;;) {
 		if (iaxs[callno] && iaxs[callno]->owner) {
-			if (ast_mutex_trylock(&iaxs[callno]->owner->lock)) {
+			if (ast_channel_trylock(iaxs[callno]->owner)) {
 				/* Avoid deadlock by pausing and trying again */
 				ast_mutex_unlock(&iaxsl[callno]);
 				usleep(1);
 				ast_mutex_lock(&iaxsl[callno]);
 			} else {
 				ast_queue_control_data(iaxs[callno]->owner, control, data, datalen);
-				ast_mutex_unlock(&iaxs[callno]->owner->lock);
+				ast_channel_unlock(iaxs[callno]->owner);
 				break;
 			}
 		} else
@@ -2109,7 +2109,7 @@ retry:
 	owner = pvt ? pvt->owner : NULL;
 
 	if (owner) {
-		if (ast_mutex_trylock(&owner->lock)) {
+		if (ast_channel_trylock(owner)) {
 			ast_log(LOG_NOTICE, "Avoiding IAX destroy deadlock\n");
 			ast_mutex_unlock(&iaxsl[callno]);
 			usleep(1);
@@ -2160,7 +2160,7 @@ retry:
 		}
 	}
 	if (owner) {
-		ast_mutex_unlock(&owner->lock);
+		ast_channel_unlock(owner);
 	}
 	if (callno & 0x4000)
 		update_max_trunk();
@@ -7543,7 +7543,7 @@ static int socket_process(struct iax2_thread *thread)
 					if (iaxs[fr->callno]->owner) {
 						int orignative;
 retryowner:
-						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
+						if (ast_channel_trylock(iaxs[fr->callno]->owner)) {
 							ast_mutex_unlock(&iaxsl[fr->callno]);
 							usleep(1);
 							ast_mutex_lock(&iaxsl[fr->callno]);
@@ -7556,7 +7556,7 @@ retryowner:
 								if (iaxs[fr->callno]->owner->readformat)
 									ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);
 								iaxs[fr->callno]->owner->nativeformats = orignative;
-								ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
+								ast_channel_unlock(iaxs[fr->callno]->owner);
 							}
 						} else {
 							ast_debug(1, "Neat, somebody took away the channel at a magical time but i found it!\n");
@@ -7971,7 +7971,7 @@ retryowner:
 						iaxs[fr->callno]->owner->nativeformats = iaxs[fr->callno]->peerformat;
 						ast_verb(3, "Format for call is %s\n", ast_getformatname(iaxs[fr->callno]->owner->nativeformats));
 retryowner2:
-						if (ast_mutex_trylock(&iaxs[fr->callno]->owner->lock)) {
+						if (ast_channel_trylock(iaxs[fr->callno]->owner)) {
 							ast_mutex_unlock(&iaxsl[fr->callno]);
 							usleep(1);
 							ast_mutex_lock(&iaxsl[fr->callno]);
@@ -7984,7 +7984,7 @@ retryowner2:
 								ast_set_write_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->writeformat);	
 							if (iaxs[fr->callno]->owner->readformat)
 								ast_set_read_format(iaxs[fr->callno]->owner, iaxs[fr->callno]->owner->readformat);	
-							ast_mutex_unlock(&iaxs[fr->callno]->owner->lock);
+							ast_channel_unlock(iaxs[fr->callno]->owner);
 						}
 					}
 				}

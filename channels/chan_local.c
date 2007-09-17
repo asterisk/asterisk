@@ -184,11 +184,11 @@ retrylock:
 		ast_clear_flag(p, LOCAL_GLARE_DETECT);
 		return 0;
 	}
-	if (ast_mutex_trylock(&other->lock)) {
+	if (ast_channel_trylock(other)) {
 		/* Failed to lock.  Release main lock and try again */
 		ast_mutex_unlock(&p->lock);
 		if (us) {
-			if (ast_mutex_unlock(&us->lock)) {
+			if (ast_channel_unlock(us)) {
 				ast_log(LOG_WARNING, "%s wasn't locked while sending %d/%d\n",
 					us->name, f->frametype, f->subclass);
 				us = NULL;
@@ -198,12 +198,12 @@ retrylock:
 		usleep(1);
 		/* Only we can destroy ourselves, so we can't disappear here */
 		if (us)
-			ast_mutex_lock(&us->lock);
+			ast_channel_lock(us);
 		ast_mutex_lock(&p->lock);
 		goto retrylock;
 	}
 	ast_queue_frame(other, f);
-	ast_mutex_unlock(&other->lock);
+	ast_channel_unlock(other);
 	ast_clear_flag(p, LOCAL_GLARE_DETECT);
 	return 0;
 }
@@ -245,16 +245,16 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
 		   chance in just a little bit */
-		if (!ast_mutex_trylock(&(p->chan->_bridge)->lock)) {
+		if (!ast_channel_trylock(p->chan->_bridge)) {
 			if (!ast_check_hangup(p->chan->_bridge)) {
-				if (!ast_mutex_trylock(&p->owner->lock)) {
+				if (!ast_channel_trylock(p->owner)) {
 					if (!ast_check_hangup(p->owner)) {
 						ast_channel_masquerade(p->owner, p->chan->_bridge);
 						ast_set_flag(p, LOCAL_ALREADY_MASQED);
 					}
-					ast_mutex_unlock(&p->owner->lock);
+					ast_channel_unlock(p->owner);
 				}
-				ast_mutex_unlock(&(p->chan->_bridge)->lock);
+				ast_channel_unlock(p->chan->_bridge);
 			}
 		}
 	/* We only allow masquerading in one 'direction'... it's important to preserve the state
