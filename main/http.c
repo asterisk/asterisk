@@ -841,6 +841,9 @@ static void *httpd_helper_thread(void *data)
 	/* If they aren't mopped up already, clean up the cookies */
 	if (vars)
 		ast_variables_destroy(vars);
+	/* Clean up all the header information pulled as well */
+	if (headers)
+		ast_variables_destroy(headers);
 
 	if (out) {
 		struct timeval tv = ast_tvnow();
