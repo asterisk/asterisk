@@ -722,7 +722,10 @@ static struct member *create_queue_member(const char *interface, const char *mem
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
-		ast_copy_string(cur->membername, membername, sizeof(cur->membername));
+		if(!ast_strlen_zero(membername))
+			ast_copy_string(cur->membername, membername, sizeof(cur->membername));
+		else
+			ast_copy_string(cur->membername, interface, sizeof(cur->membername));
 		if (!strchr(cur->interface, '/'))
 			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
 		cur->status = ast_device_state(interface);
@@ -1237,7 +1240,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 
 	while ((interface = ast_category_browse(member_config, interface))) {
 		rt_handle_member_record(q, interface,
-			S_OR(ast_variable_retrieve(member_config, interface, "membername"), interface),
+			ast_variable_retrieve(member_config, interface, "membername"),
 			ast_variable_retrieve(member_config, interface, "penalty"),
 			ast_variable_retrieve(member_config, interface, "paused"));
 	}
@@ -3282,7 +3285,7 @@ static void reload_queue_members(void)
 	char *queue_name;
 	char *member;
 	char *interface;
-	char *membername;
+	char *membername = NULL;
 	char *penalty_tok;
 	int penalty = 0;
 	char *paused_tok;
@@ -3524,10 +3527,6 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 			penalty = 0;
 		}
 	}
-
-	if (ast_strlen_zero(args.membername))
-		args.membername = args.interface;
-
 
 	switch (add_to_queue(args.queuename, args.interface, args.membername, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
@@ -4169,8 +4168,7 @@ static int reload_queues(int reload)
 						if (!ast_strlen_zero(args.membername)) {
 							membername = args.membername;
 							while (*membername && *membername < 33) membername++;
-						} else
-							membername = interface;
+						}
 
 						/* Find the old position in the list */
 						ast_copy_string(tmpmem.interface, interface, sizeof(tmpmem.interface));
@@ -4570,9 +4568,6 @@ static int manager_add_queue_member(struct mansession *s, const struct message *
 	else
 		paused = abs(ast_true(paused_s));
 
-	if (ast_strlen_zero(membername))
-		membername = interface;
-
 	switch (add_to_queue(queuename, interface, membername, penalty, paused, queue_persistent_members)) {
 	case RES_OKAY:
 		ast_queue_log(queuename, "MANAGER", interface, "ADDMEMBER", "%s", "");
@@ -4670,7 +4665,7 @@ static int manager_queue_log_custom(struct mansession *s, const struct message *
 
 static int handle_queue_add_member(int fd, int argc, char *argv[])
 {
-	char *queuename, *interface, *membername;
+	char *queuename, *interface, *membername = NULL;
 	int penalty;
 
 	if ((argc != 6) && (argc != 8) && (argc != 10)) {
@@ -4701,8 +4696,6 @@ static int handle_queue_add_member(int fd, int argc, char *argv[])
 
 	if (argc >= 10) {
 		membername = argv[9];
-	} else {
-		membername = interface;
 	}
 
 	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members)) {
