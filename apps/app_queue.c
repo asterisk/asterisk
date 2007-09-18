@@ -4064,7 +4064,7 @@ static int reload_queues(int reload)
 	const char *general_val = NULL;
 	char parse[80];
 	char *interface;
-	char *membername;
+	char *membername = NULL;
 	int penalty;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	AST_DECLARE_APP_ARGS(args,
