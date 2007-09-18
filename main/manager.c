@@ -1976,19 +1976,25 @@ static int process_events(struct mansession *s)
 	struct eventqent *eqe;
 	int ret = 0;
 	ast_mutex_lock(&s->__lock);
-	if (s->fd > -1) {
-		if (!s->eventq)
-			s->eventq = master_eventq;
-		while(s->eventq->next) {
-			eqe = s->eventq->next;
-			if ((s->authenticated && (s->readperm & eqe->category) == eqe->category) &&
-			    ((s->send_events & eqe->category) == eqe->category)) {
+	if (!s->eventq)
+		s->eventq = master_eventq;
+	while(s->eventq->next) {
+		eqe = s->eventq->next;
+		if ((s->authenticated && (s->readperm & eqe->category) == eqe->category) &&
+				   ((s->send_events & eqe->category) == eqe->category)) {
+			if (s->fd > -1) {
 				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->writetimeout) < 0)
 					ret = -1;
+			} else {
+				if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr)))) {
+					ast_mutex_unlock(&s->__lock);
+					return;
+				}
+				ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);
 			}
-			unuse_eventqent(s->eventq);
-			s->eventq = eqe;
-		}
+				   }
+				   unuse_eventqent(s->eventq);
+				   s->eventq = eqe;
 	}
 	ast_mutex_unlock(&s->__lock);
 	return ret;
