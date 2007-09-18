@@ -1527,6 +1527,36 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	return 1;
 }
 
+static void deep_copy_peer(struct dundi_peer *peer_dst, const struct dundi_peer *peer_src)
+{
+	struct permission *cur, *perm;
+
+	memcpy(peer_dst, peer_src, sizeof(*peer_dst));
+	
+	memset(&peer_dst->permit, 0, sizeof(peer_dst->permit));
+	memset(&peer_dst->include, 0, sizeof(peer_dst->permit));
+
+	AST_LIST_TRAVERSE(&peer_src->permit, cur, list) {
+		if (!(perm = ast_calloc(1, sizeof(*perm) + strlen(cur->name) + 1)))
+			continue;
+
+		perm->allow = cur->allow;
+		strcpy(perm->name, cur->name);
+
+		AST_LIST_INSERT_HEAD(&peer_dst->permit, perm, list);
+	}
+
+	AST_LIST_TRAVERSE(&peer_src->include, cur, list) {
+		if (!(perm = ast_calloc(1, sizeof(*perm) + strlen(cur->name) + 1)))
+			continue;
+
+		perm->allow = cur->allow;
+		strcpy(perm->name, cur->name);
+
+		AST_LIST_INSERT_HEAD(&peer_dst->include, perm, list);
+	}
+}
+
 static int handle_command_response(struct dundi_transaction *trans, struct dundi_hdr *hdr, int datalen, int encrypted)
 {
 	/* Handle canonical command / response */
@@ -1630,7 +1660,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 			/* copy any_peer into a new peer object */
 			peer = ast_calloc(1, sizeof(*peer));
 			if (peer) {
-				memcpy(peer, any_peer, sizeof(*peer));
+				deep_copy_peer(peer, any_peer);
 
 				/* set EID to remote EID */
 				peer->eid = *ies.eids[0];
