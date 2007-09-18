@@ -470,7 +470,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; for external calls to this domain
 ;domain=1.2.3.4			; Add IP address as local domain
 				; You can have several "domain" settings
-;allowexternalinvites=no	; Disable INVITE and REFER to non-local domains
+;allowexternaldomains=no	; Disable INVITE and REFER to non-local domains
 				; Default is yes
 ;autodomain=yes			; Turn this on to have Asterisk add local host
 				; name and local IP to domain list.
