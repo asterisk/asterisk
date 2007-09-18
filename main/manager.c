@@ -749,9 +749,9 @@ static void destroy_session(struct mansession *s)
 {
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_REMOVE(&sessions, s, list);
+	ast_atomic_fetchadd_int(&num_sessions, -1);
 	AST_LIST_UNLOCK(&sessions);
 
-	ast_atomic_fetchadd_int(&num_sessions, -1);
 	free_session(s);
 }
 
@@ -2527,9 +2527,9 @@ static void *session_do(void *data)
 	s->f = ser->f;
 	s->sin = ser->requestor;
 
-	ast_atomic_fetchadd_int(&num_sessions, 1);
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_INSERT_HEAD(&sessions, s, list);
+	ast_atomic_fetchadd_int(&num_sessions, 1);
 	AST_LIST_UNLOCK(&sessions);
 	/* Hook to the tail of the event queue */
 	s->last_ev = grab_last();
@@ -3076,8 +3076,8 @@ static struct ast_str *generic_http_callback(enum output_format format,
 		s->last_ev = grab_last();
 		AST_LIST_LOCK(&sessions);
 		AST_LIST_INSERT_HEAD(&sessions, s, list);
-		AST_LIST_UNLOCK(&sessions);
 		ast_atomic_fetchadd_int(&num_sessions, 1);
+		AST_LIST_UNLOCK(&sessions);
 	}
 
 	ast_mutex_unlock(&s->__lock);
