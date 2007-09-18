@@ -254,6 +254,9 @@ static int montype_default = 0;
 /*! \brief Subscription to device state change events */
 static struct ast_event_sub *device_state_sub;
 
+/*! \brief queues.conf [general] option */
+static int update_cdr = 0;
+
 enum queue_result {
 	QUEUE_UNKNOWN = 0,
 	QUEUE_TIMEOUT = 1,
@@ -2995,6 +2998,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "CONNECT", "%ld|%s|%ld", (long) time(NULL) - qe->start, peer->uniqueid,
 													(long)(orig - to > 0 ? (orig - to) / 1000 : 0));
+		if (update_cdr && qe->chan->cdr) 
+			ast_copy_string(qe->chan->cdr->dstchannel, member->membername, sizeof(qe->chan->cdr->dstchannel));
 		if (qe->parent->eventwhencalled)
 			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
 					"Queue: %s\r\n"
@@ -4101,9 +4106,13 @@ static int reload_queues(int reload)
 			if ((general_val = ast_variable_retrieve(cfg, "general", "autofill")))
 				autofill_default = ast_true(general_val);
 			montype_default = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type")))
+			if ((general_val = ast_variable_retrieve(cfg, "general", "monitor-type"))) {
 				if (!strcasecmp(general_val, "mixmonitor"))
 					montype_default = 1;
+			}
+			update_cdr = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr")))
+				update_cdr = ast_true(general_val);
 		} else {	/* Define queue */
 			/* Look for an existing one */
 			AST_LIST_TRAVERSE(&queues, q, list) {
