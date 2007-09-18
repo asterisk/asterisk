@@ -1985,16 +1985,13 @@ static int process_events(struct mansession *s)
 			if (s->fd > -1) {
 				if (!ret && ast_carefulwrite(s->fd, eqe->eventdata, strlen(eqe->eventdata), s->writetimeout) < 0)
 					ret = -1;
-			} else {
-				if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr)))) {
-					ast_mutex_unlock(&s->__lock);
-					return;
-				}
-				ast_dynamic_str_append(&s->outputstr, 0, "%s", buf->str);
-			}
-				   }
-				   unuse_eventqent(s->eventq);
-				   s->eventq = eqe;
+			} else if (!s->outputstr && !(s->outputstr = ast_calloc(1, sizeof(*s->outputstr)))) 
+				ret = -1;
+			else 
+				ast_dynamic_str_append(&s->outputstr, 0, "%s", eqe->eventdata);
+		}
+		unuse_eventqent(s->eventq);
+		s->eventq = eqe;
 	}
 	ast_mutex_unlock(&s->__lock);
 	return ret;
