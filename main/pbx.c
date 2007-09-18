@@ -1246,35 +1246,46 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	}
 }
 
-static int handle_show_functions(int fd, int argc, char *argv[])
+static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_custom_function *acf;
 	int count_acf = 0;
 	int like = 0;
 
-	if (argc == 5 && (!strcmp(argv[3], "like")) ) {
-		like = 1;
-	} else if (argc != 3) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show functions [like]";
+		e->usage = 
+			"Usage: core show functions [like <text>]\n"
+			"       List builtin functions, optionally only those matching a given string\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 
-	ast_cli(fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
+	if (a->argc == 5 && (!strcmp(a->argv[3], "like")) ) {
+		like = 1;
+	} else if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
+
+	ast_cli(a->fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
 
 	AST_RWLIST_RDLOCK(&acf_root);
 	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
-		if (!like || strstr(acf->name, argv[4])) {
+		if (!like || strstr(acf->name, a->argv[4])) {
 			count_acf++;
-			ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
+			ast_cli(a->fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
 		}
 	}
 	AST_RWLIST_UNLOCK(&acf_root);
 
-	ast_cli(fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
+	ast_cli(a->fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_show_function(int fd, int argc, char *argv[])
+static char *handle_show_function(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_custom_function *acf;
 	/* Maximum number of characters added by terminal coloring is 22 */
@@ -1282,13 +1293,38 @@ static int handle_show_function(int fd, int argc, char *argv[])
 	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
 	char stxtitle[40], *syntax = NULL;
 	int synopsis_size, description_size, syntax_size;
+	char *ret = NULL;
+	int which = 0;
+	int wordlen;
 
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show function";
+		e->usage = 
+			"Usage: core show function <function>\n"
+			"       Describe a particular dialplan function.\n";
+		return NULL;
+	case CLI_GENERATE:	
+		wordlen = strlen(a->word);
+		/* case-insensitive for convenience in this 'complete' function */
+		AST_RWLIST_RDLOCK(&acf_root);
+		AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
+			if (!strncasecmp(a->word, acf->name, wordlen) && ++which > a->n) {
+				ret = ast_strdup(acf->name);
+				break;
+			}
+		}
+		AST_RWLIST_UNLOCK(&acf_root);
 
-	if (!(acf = ast_custom_function_find(argv[3]))) {
-		ast_cli(fd, "No function by that name registered.\n");
-		return RESULT_FAILURE;
+		return ret;
+	}
+
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+
+	if (!(acf = ast_custom_function_find(a->argv[3]))) {
+		ast_cli(a->fd, "No function by that name registered.\n");
+		return CLI_FAILURE;
 
 	}
 
@@ -1325,29 +1361,9 @@ static int handle_show_function(int fd, int argc, char *argv[])
 		   acf->desc ? acf->desc : "Not available",
 		   COLOR_CYAN, 0, description_size);
 
-	ast_cli(fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle, stxtitle, syntax, syntitle, synopsis, destitle, description);
+	ast_cli(a->fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle, stxtitle, syntax, syntitle, synopsis, destitle, description);
 
-	return RESULT_SUCCESS;
-}
-
-static char *complete_show_function(const char *line, const char *word, int pos, int state)
-{
-	struct ast_custom_function *acf;
-	char *ret = NULL;
-	int which = 0;
-	int wordlen = strlen(word);
-
-	/* case-insensitive for convenience in this 'complete' function */
-	AST_RWLIST_RDLOCK(&acf_root);
-	AST_RWLIST_TRAVERSE(&acf_root, acf, acflist) {
- 		if (!strncasecmp(word, acf->name, wordlen) && ++which > state) {
- 			ret = ast_strdup(acf->name);
-			break;
-		}
-	}
-	AST_RWLIST_UNLOCK(&acf_root);
-
-	return ret;
+	return CLI_SUCCESS;
 }
 
 struct ast_custom_function *ast_custom_function_find(const char *name)
@@ -3008,89 +3024,55 @@ void ast_unregister_switch(struct ast_switch *sw)
 /*
  * Help for CLI commands ...
  */
-static char show_applications_help[] =
-"Usage: core show applications [{like|describing} <text>]\n"
-"       List applications which are currently available.\n"
-"       If 'like', <text> will be a substring of the app name\n"
-"       If 'describing', <text> will be a substring of the description\n";
-
-static char show_functions_help[] =
-"Usage: core show functions [like <text>]\n"
-"       List builtin functions, optionally only those matching a given string\n";
-
-static char show_switches_help[] =
-"Usage: core show switches\n"
-"       List registered switches\n";
-
-static char show_hints_help[] =
-"Usage: core show hints\n"
-"       List registered hints\n";
-
-static char show_globals_help[] =
-"Usage: core show globals\n"
-"       List current global dialplan variables and their values\n";
-
-static char show_application_help[] =
-"Usage: core show application <application> [<application> [<application> [...]]]\n"
-"       Describes a particular application.\n";
-
-static char show_function_help[] =
-"Usage: core show function <function>\n"
-"       Describe a particular dialplan function.\n";
-
-static char show_dialplan_help[] =
-"Usage: core show dialplan [exten@][context]\n"
-"       Show dialplan\n";
-
-static char set_global_help[] =
-"Usage: core set global <name> <value>\n"
-"       Set global dialplan variable <name> to <value>\n";
-
 
 /*
- * \brief 'show application' CLI command implementation functions ...
+ * \brief 'show application' CLI command implementation function...
  */
-
-/*
- * There is a possibility to show informations about more than one
- * application at one time. You can type 'show application Dial Echo' and
- * you will see informations about these two applications ...
- */
-static char *complete_show_application(const char *line, const char *word, int pos, int state)
+static char *handle_show_application(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_app *a;
+	struct ast_app *aa;
+	int app, no_registered_app = 1;
 	char *ret = NULL;
 	int which = 0;
-	int wordlen = strlen(word);
+	int wordlen;
 
-	/* return the n-th [partial] matching entry */
-	AST_RWLIST_RDLOCK(&apps);
-	AST_RWLIST_TRAVERSE(&apps, a, list) {
-		if (!strncasecmp(word, a->name, wordlen) && ++which > state) {
-			ret = ast_strdup(a->name);
-			break;
+	switch (cmd) {
+	case CLI_INIT:	
+		e->command = "core show application";
+		e->usage = 
+			"Usage: core show application <application> [<application> [<application> [...]]]\n"
+			"       Describes a particular application.\n";
+		return NULL;
+	case CLI_GENERATE:
+		/*
+		 * There is a possibility to show informations about more than one
+		 * application at one time. You can type 'show application Dial Echo' and
+		 * you will see informations about these two applications ...
+		 */
+		wordlen = strlen(a->word);
+		/* return the n-th [partial] matching entry */
+		AST_RWLIST_RDLOCK(&apps);
+		AST_RWLIST_TRAVERSE(&apps, aa, list) {
+			if (!strncasecmp(a->word, aa->name, wordlen) && ++which > a->n) {
+				ret = ast_strdup(aa->name);
+				break;
+			}
 		}
+		AST_RWLIST_UNLOCK(&apps);
+
+		return ret;
 	}
-	AST_RWLIST_UNLOCK(&apps);
 
-	return ret;
-}
-
-static int handle_show_application(int fd, int argc, char *argv[])
-{
-	struct ast_app *a;
-	int app, no_registered_app = 1;
-
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
 
 	/* ... go through all applications ... */
 	AST_RWLIST_RDLOCK(&apps);
-	AST_RWLIST_TRAVERSE(&apps, a, list) {
+	AST_RWLIST_TRAVERSE(&apps, aa, list) {
 		/* ... compare this application name with all arguments given
 		 * to 'show application' command ... */
-		for (app = 3; app < argc; app++) {
-			if (!strcasecmp(a->name, argv[app])) {
+		for (app = 3; app < a->argc; app++) {
+			if (!strcasecmp(aa->name, a->argv[app])) {
 				/* Maximum number of characters added by terminal coloring is 22 */
 				char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
 				char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
@@ -3098,39 +3080,39 @@ static int handle_show_application(int fd, int argc, char *argv[])
 
 				no_registered_app = 0;
 
-				if (a->synopsis)
-					synopsis_size = strlen(a->synopsis) + 23;
+				if (aa->synopsis)
+					synopsis_size = strlen(aa->synopsis) + 23;
 				else
 					synopsis_size = strlen("Not available") + 23;
 				synopsis = alloca(synopsis_size);
 
-				if (a->description)
-					description_size = strlen(a->description) + 23;
+				if (aa->description)
+					description_size = strlen(aa->description) + 23;
 				else
 					description_size = strlen("Not available") + 23;
 				description = alloca(description_size);
 
 				if (synopsis && description) {
-					snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about application '%s' =- \n\n", a->name);
+					snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about application '%s' =- \n\n", aa->name);
 					term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
 					term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
 					term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
 					term_color(synopsis,
-									a->synopsis ? a->synopsis : "Not available",
+									aa->synopsis ? aa->synopsis : "Not available",
 									COLOR_CYAN, 0, synopsis_size);
 					term_color(description,
-									a->description ? a->description : "Not available",
+									aa->description ? aa->description : "Not available",
 									COLOR_CYAN, 0, description_size);
 
-					ast_cli(fd,"%s%s%s\n\n%s%s\n", infotitle, syntitle, synopsis, destitle, description);
+					ast_cli(a->fd,"%s%s%s\n\n%s%s\n", infotitle, syntitle, synopsis, destitle, description);
 				} else {
 					/* ... one of our applications, show info ...*/
-					ast_cli(fd,"\n  -= Info about application '%s' =- \n\n"
+					ast_cli(a->fd,"\n  -= Info about application '%s' =- \n\n"
 						"[Synopsis]\n  %s\n\n"
 						"[Description]\n%s\n",
-						a->name,
-						a->synopsis ? a->synopsis : "Not available",
-						a->description ? a->description : "Not available");
+						aa->name,
+						aa->synopsis ? aa->synopsis : "Not available",
+						aa->description ? aa->description : "Not available");
 				}
 			}
 		}
@@ -3139,112 +3121,148 @@ static int handle_show_application(int fd, int argc, char *argv[])
 
 	/* we found at least one app? no? */
 	if (no_registered_app) {
-		ast_cli(fd, "Your application(s) is (are) not registered\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Your application(s) is (are) not registered\n");
+		return CLI_FAILURE;
 	}
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief  handle_show_hints: CLI support for listing registered dial plan hints */
-static int handle_show_hints(int fd, int argc, char *argv[])
+static char *handle_show_hints(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_hint *hint;
 	int num = 0;
 	int watchers;
 	struct ast_state_cb *watcher;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show hints";
+		e->usage = 
+			"Usage: core show hints\n"
+			"       List registered hints\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
 	AST_RWLIST_RDLOCK(&hints);
 	if (AST_RWLIST_EMPTY(&hints)) {
-		ast_cli(fd, "There are no registered dialplan hints\n");
+		ast_cli(a->fd, "There are no registered dialplan hints\n");
 		AST_RWLIST_UNLOCK(&hints);
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	}
 	/* ... we have hints ... */
-	ast_cli(fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
+	ast_cli(a->fd, "\n    -= Registered Asterisk Dial Plan Hints =-\n");
 	AST_RWLIST_TRAVERSE(&hints, hint, list) {
 		watchers = 0;
 		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
 			watchers++;
-		ast_cli(fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
+		ast_cli(a->fd, "   %20s@%-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			ast_get_extension_name(hint->exten),
 			ast_get_context_name(ast_get_extension_context(hint->exten)),
 			ast_get_extension_app(hint->exten),
 			ast_extension_state2str(hint->laststate), watchers);
 		num++;
 	}
-	ast_cli(fd, "----------------\n");
-	ast_cli(fd, "- %d hints registered\n", num);
+	ast_cli(a->fd, "----------------\n");
+	ast_cli(a->fd, "- %d hints registered\n", num);
 	AST_RWLIST_UNLOCK(&hints);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief  handle_show_switches: CLI support for listing registered dial plan switches */
-static int handle_show_switches(int fd, int argc, char *argv[])
+static char *handle_show_switches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_switch *sw;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show switches";
+		e->usage = 
+			"Usage: core show switches\n"
+			"       List registered switches\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 
 	AST_RWLIST_RDLOCK(&switches);
 
 	if (AST_RWLIST_EMPTY(&switches)) {
 		AST_RWLIST_UNLOCK(&switches);
-		ast_cli(fd, "There are no registered alternative switches\n");
+		ast_cli(a->fd, "There are no registered alternative switches\n");
 		return RESULT_SUCCESS;
 	}
 
-	ast_cli(fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
+	ast_cli(a->fd, "\n    -= Registered Asterisk Alternative Switches =-\n");
 	AST_RWLIST_TRAVERSE(&switches, sw, list)
-		ast_cli(fd, "%s: %s\n", sw->name, sw->description);
+		ast_cli(a->fd, "%s: %s\n", sw->name, sw->description);
 
 	AST_RWLIST_UNLOCK(&switches);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_show_applications(int fd, int argc, char *argv[])
+static char *handle_show_applications(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct ast_app *a;
+	struct ast_app *aa;
 	int like = 0, describing = 0;
 	int total_match = 0; 	/* Number of matches in like clause */
 	int total_apps = 0; 	/* Number of apps registered */
+	static char* choices[] = { "like", "describing", NULL };
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show applications [like|describing]";
+		e->usage = 
+			"Usage: core show applications [{like|describing} <text>]\n"
+			"       List applications which are currently available.\n"
+			"       If 'like', <text> will be a substring of the app name\n"
+			"       If 'describing', <text> will be a substring of the description\n";
+		return NULL;
+	case CLI_GENERATE:
+		return (a->pos != 3) ? NULL : ast_cli_complete(a->word, choices, a->n);
+	}
 
 	AST_RWLIST_RDLOCK(&apps);
 
 	if (AST_RWLIST_EMPTY(&apps)) {
-		ast_cli(fd, "There are no registered applications\n");
+		ast_cli(a->fd, "There are no registered applications\n");
 		AST_RWLIST_UNLOCK(&apps);
-		return -1;
+		return CLI_SUCCESS;
 	}
 
 	/* core list applications like <keyword> */
-	if ((argc == 5) && (!strcmp(argv[3], "like"))) {
+	if ((a->argc == 5) && (!strcmp(a->argv[3], "like"))) {
 		like = 1;
-	} else if ((argc > 4) && (!strcmp(argv[3], "describing"))) {
+	} else if ((a->argc > 4) && (!strcmp(a->argv[3], "describing"))) {
 		describing = 1;
 	}
 
 	/* core list applications describing <keyword1> [<keyword2>] [...] */
 	if ((!like) && (!describing)) {
-		ast_cli(fd, "    -= Registered Asterisk Applications =-\n");
+		ast_cli(a->fd, "    -= Registered Asterisk Applications =-\n");
 	} else {
-		ast_cli(fd, "    -= Matching Asterisk Applications =-\n");
+		ast_cli(a->fd, "    -= Matching Asterisk Applications =-\n");
 	}
 
-	AST_RWLIST_TRAVERSE(&apps, a, list) {
+	AST_RWLIST_TRAVERSE(&apps, aa, list) {
 		int printapp = 0;
 		total_apps++;
 		if (like) {
-			if (strcasestr(a->name, argv[4])) {
+			if (strcasestr(aa->name, a->argv[4])) {
 				printapp = 1;
 				total_match++;
 			}
 		} else if (describing) {
-			if (a->description) {
+			if (aa->description) {
 				/* Match all words on command line */
 				int i;
 				printapp = 1;
-				for (i = 4; i < argc; i++) {
-					if (!strcasestr(a->description, argv[i])) {
+				for (i = 4; i < a->argc; i++) {
+					if (!strcasestr(aa->description, a->argv[i])) {
 						printapp = 0;
 					} else {
 						total_match++;
@@ -3256,25 +3274,18 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		}
 
 		if (printapp) {
-			ast_cli(fd,"  %20s: %s\n", a->name, a->synopsis ? a->synopsis : "<Synopsis not available>");
+			ast_cli(a->fd,"  %20s: %s\n", aa->name, aa->synopsis ? aa->synopsis : "<Synopsis not available>");
 		}
 	}
 	if ((!like) && (!describing)) {
-		ast_cli(fd, "    -= %d Applications Registered =-\n",total_apps);
+		ast_cli(a->fd, "    -= %d Applications Registered =-\n",total_apps);
 	} else {
-		ast_cli(fd, "    -= %d Applications Matching =-\n",total_match);
+		ast_cli(a->fd, "    -= %d Applications Matching =-\n",total_match);
 	}
 
 	AST_RWLIST_UNLOCK(&apps);
 
-	return RESULT_SUCCESS;
-}
-
-static char *complete_show_applications(const char *line, const char *word, int pos, int state)
-{
-	static char* choices[] = { "like", "describing", NULL };
-
-	return (pos != 3) ? NULL : ast_cli_complete(word, choices, state);
+	return CLI_SUCCESS;
 }
 
 /*
@@ -3485,59 +3496,70 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 	return (dpc->total_exten == old_total_exten) ? -1 : res;
 }
 
-static int handle_show_dialplan(int fd, int argc, char *argv[])
+static char *handle_show_dialplan(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *exten = NULL, *context = NULL;
 	/* Variables used for different counters */
 	struct dialplan_counters counters;
-
 	const char *incstack[AST_PBX_MAX_STACK];
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dialplan show";
+		e->usage = 
+			"Usage: core show dialplan [exten@][context]\n"
+			"       Show dialplan\n";
+		return NULL;
+	case CLI_GENERATE:	
+		return complete_show_dialplan_context(a->line, a->word, a->pos, a->n);
+	}
+
 	memset(&counters, 0, sizeof(counters));
 
-	if (argc != 2 && argc != 3)
-		return RESULT_SHOWUSAGE;
+	if (a->argc != 2 && a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	/* we obtain [exten@]context? if yes, split them ... */
-	if (argc == 3) {
-		if (strchr(argv[2], '@')) {	/* split into exten & context */
-			context = ast_strdupa(argv[2]);
+	if (a->argc == 3) {
+		if (strchr(a->argv[2], '@')) {	/* split into exten & context */
+			context = ast_strdupa(a->argv[2]);
 			exten = strsep(&context, "@");
 			/* change empty strings to NULL */
 			if (ast_strlen_zero(exten))
 				exten = NULL;
 		} else { /* no '@' char, only context given */
-			context = argv[2];
+			context = a->argv[2];
 		}
 		if (ast_strlen_zero(context))
 			context = NULL;
 	}
 	/* else Show complete dial plan, context and exten are NULL */
-	show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
+	show_dialplan_helper(a->fd, context, exten, &counters, NULL, 0, incstack);
 
 	/* check for input failure and throw some error messages */
 	if (context && !counters.context_existence) {
-		ast_cli(fd, "There is no existence of '%s' context\n", context);
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "There is no existence of '%s' context\n", context);
+		return CLI_FAILURE;
 	}
 
 	if (exten && !counters.extension_existence) {
 		if (context)
-			ast_cli(fd, "There is no existence of %s@%s extension\n",
+			ast_cli(a->fd, "There is no existence of %s@%s extension\n",
 				exten, context);
 		else
-			ast_cli(fd,
+			ast_cli(a->fd,
 				"There is no existence of '%s' extension in all contexts\n",
 				exten);
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	}
 
-	ast_cli(fd,"-= %d %s (%d %s) in %d %s. =-\n",
+	ast_cli(a->fd,"-= %d %s (%d %s) in %d %s. =-\n",
 				counters.total_exten, counters.total_exten == 1 ? "extension" : "extensions",
 				counters.total_prio, counters.total_prio == 1 ? "priority" : "priorities",
 				counters.total_context, counters.total_context == 1 ? "context" : "contexts");
 
 	/* everything ok */
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief Send ack once */
@@ -3751,74 +3773,68 @@ static char mandescr_show_dialplan[] =
 
 
 /*! \brief CLI support for listing global variables in a parseable way */
-static int handle_show_globals(int fd, int argc, char *argv[])
+static char *handle_show_globals(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i = 0;
 	struct ast_var_t *newvariable;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show globals";
+		e->usage = 
+			"Usage: core show globals\n"
+			"       List current global dialplan variables and their values\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
 	ast_rwlock_rdlock(&globalslock);
 	AST_LIST_TRAVERSE (&globals, newvariable, entries) {
 		i++;
-		ast_cli(fd, "   %s=%s\n", ast_var_name(newvariable), ast_var_value(newvariable));
+		ast_cli(a->fd, "   %s=%s\n", ast_var_name(newvariable), ast_var_value(newvariable));
 	}
 	ast_rwlock_unlock(&globalslock);
-	ast_cli(fd, "\n    -- %d variables\n", i);
+	ast_cli(a->fd, "\n    -- %d variables\n", i);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_set_global(int fd, int argc, char *argv[])
+static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core set global";
+		e->usage = 
+			"Usage: core set global <name> <value>\n"
+			"       Set global dialplan variable <name> to <value>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 
-	pbx_builtin_setvar_helper(NULL, argv[3], argv[4]);
-	ast_cli(fd, "\n    -- Global variable %s set to %s\n", argv[3], argv[4]);
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
 
-	return RESULT_SUCCESS;
+	pbx_builtin_setvar_helper(NULL, a->argv[3], a->argv[4]);
+	ast_cli(a->fd, "\n    -- Global variable %s set to %s\n", a->argv[3], a->argv[4]);
+
+	return CLI_SUCCESS;
 }
-
-
 
 /*
  * CLI entries for upper commands ...
  */
 static struct ast_cli_entry pbx_cli[] = {
-	{ { "core", "show", "applications", NULL },
-	handle_show_applications, "Shows registered dialplan applications",
-	show_applications_help, complete_show_applications },
-
-	{ { "core", "show", "functions", NULL },
-	handle_show_functions, "Shows registered dialplan functions",
-	show_functions_help },
-
-	{ { "core", "show", "switches", NULL },
-	handle_show_switches, "Show alternative switches",
-	show_switches_help },
-
-	{ { "core", "show", "hints", NULL },
-	handle_show_hints, "Show dialplan hints",
-	show_hints_help },
-
-	{ { "core", "show", "globals", NULL },
-	handle_show_globals, "Show global dialplan variables",
-	show_globals_help },
-
-	{ { "core", "show" , "function", NULL },
-	handle_show_function, "Describe a specific dialplan function",
-	show_function_help, complete_show_function },
-
-	{ { "core", "show", "application", NULL },
-	handle_show_application, "Describe a specific dialplan application",
-	show_application_help, complete_show_application },
-
-	{ { "core", "set", "global", NULL },
-	handle_set_global, "Set global dialplan variable",
-	set_global_help },
-
-	{ { "dialplan", "show", NULL },
-	handle_show_dialplan, "Show dialplan",
-	show_dialplan_help, complete_show_dialplan_context },
+	NEW_CLI(handle_show_applications, "Shows registered dialplan applications"),
+	NEW_CLI(handle_show_functions, "Shows registered dialplan functions"),
+	NEW_CLI(handle_show_switches, "Show alternative switches"),
+	NEW_CLI(handle_show_hints, "Show dialplan hints"),
+	NEW_CLI(handle_show_globals, "Show global dialplan variables"),
+	NEW_CLI(handle_show_function, "Describe a specific dialplan function"),
+	NEW_CLI(handle_show_application, "Describe a specific dialplan application"),
+	NEW_CLI(handle_set_global, "Set global dialplan variable"),
+	NEW_CLI(handle_show_dialplan, "Show dialplan"),
 };
 
 static void unreference_cached_app(struct ast_app *app)

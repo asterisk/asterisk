@@ -838,26 +838,6 @@ static struct ast_channel *alsa_request(const char *type, int format, void *data
 	return tmp;
 }
 
-static int console_autoanswer(int fd, int argc, char *argv[])
-{
-	int res = RESULT_SUCCESS;;
-	if ((argc != 2) && (argc != 3))
-		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&alsalock);
-	if (argc == 2) {
-		ast_cli(fd, "Auto answer is %s.\n", autoanswer ? "on" : "off");
-	} else {
-		if (!strcasecmp(argv[2], "on"))
-			autoanswer = -1;
-		else if (!strcasecmp(argv[2], "off"))
-			autoanswer = 0;
-		else
-			res = RESULT_SHOWUSAGE;
-	}
-	ast_mutex_unlock(&alsalock);
-	return res;
-}
-
 static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
 {
 #ifndef MIN
@@ -876,24 +856,65 @@ static char *autoanswer_complete(const char *line, const char *word, int pos, in
 	return NULL;
 }
 
-static const char autoanswer_usage[] =
-	"Usage: console autoanswer [on|off]\n"
-	"       Enables or disables autoanswer feature.  If used without\n"
-	"       argument, displays the current on/off status of autoanswer.\n"
-	"       The default value of autoanswer is in 'alsa.conf'.\n";
-
-static int console_answer(int fd, int argc, char *argv[])
+static char *console_autoanswer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int res = RESULT_SUCCESS;
+	char *res = CLI_SUCCESS;
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console autoanswer";
+		e->usage =
+			"Usage: console autoanswer [on|off]\n"
+			"       Enables or disables autoanswer feature.  If used without\n"
+			"       argument, displays the current on/off status of autoanswer.\n"
+			"       The default value of autoanswer is in 'alsa.conf'.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return autoanswer_complete(a->line, a->word, a->pos, a->n);
+	}
+
+	if ((a->argc != 2) && (a->argc != 3))
+		return CLI_SHOWUSAGE;
+	ast_mutex_lock(&alsalock);
+	if (a->argc == 2) {
+		ast_cli(a->fd, "Auto answer is %s.\n", autoanswer ? "on" : "off");
+	} else {
+		if (!strcasecmp(a->argv[2], "on"))
+			autoanswer = -1;
+		else if (!strcasecmp(a->argv[2], "off"))
+			autoanswer = 0;
+		else
+			res = CLI_SHOWUSAGE;
+	}
+	ast_mutex_unlock(&alsalock);
+	return res;
+}
+
+static char *console_answer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *res = CLI_SUCCESS;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console answer";
+		e->usage =
+			"Usage: console answer\n"
+			"       Answers an incoming call on the console (ALSA) channel.\n";
+
+		return NULL;
+	case CLI_GENERATE:
+		return NULL; 
+	}
+ 
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 
 	ast_mutex_lock(&alsalock);
 
 	if (!alsa.owner) {
-		ast_cli(fd, "No one is calling us\n");
-		res = RESULT_FAILURE;
+		ast_cli(a->fd, "No one is calling us\n");
+		res = CLI_FAILURE;
 	} else {
 		hookstate = 1;
 		cursound = -1;
@@ -911,32 +932,39 @@ static int console_answer(int fd, int argc, char *argv[])
 
 	ast_mutex_unlock(&alsalock);
 
-	return RESULT_SUCCESS;
+	return res;
 }
 
-static const char sendtext_usage[] =
-	"Usage: console send text <message>\n"
-	"       Sends a text message for display on the remote terminal.\n";
-
-static int console_sendtext(int fd, int argc, char *argv[])
+static char *console_sendtext(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int tmparg = 3;
-	int res = RESULT_SUCCESS;
+	char *res = CLI_SUCCESS;
 
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console send text";
+		e->usage =
+			"Usage: console send text <message>\n"
+			"       Sends a text message for display on the remote terminal.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL; 
+	}
+
+	if (a->argc < 3)
+		return CLI_SHOWUSAGE;
 
 	ast_mutex_lock(&alsalock);
 
 	if (!alsa.owner) {
-		ast_cli(fd, "No one is calling us\n");
-		res = RESULT_FAILURE;
+		ast_cli(a->fd, "No one is calling us\n");
+		res = CLI_FAILURE;
 	} else {
 		struct ast_frame f = { AST_FRAME_TEXT, 0 };
 		char text2send[256] = "";
 		text2send[0] = '\0';
-		while (tmparg < argc) {
-			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
+		while (tmparg < a->argc) {
+			strncat(text2send, a->argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
 			strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 		}
 		text2send[strlen(text2send) - 1] = '\n';
@@ -959,24 +987,32 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	return res;
 }
 
-static const char answer_usage[] =
-	"Usage: console answer\n"
-	"       Answers an incoming call on the console (ALSA) channel.\n";
-
-static int console_hangup(int fd, int argc, char *argv[])
+static char *console_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int res = RESULT_SUCCESS;
+	char *res = CLI_SUCCESS;
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console hangup";
+		e->usage =
+			"Usage: console hangup\n"
+			"       Hangs up any call currently placed on the console.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL; 
+	}
+ 
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 
 	cursound = -1;
 
 	ast_mutex_lock(&alsalock);
 
 	if (!alsa.owner && !hookstate) {
-		ast_cli(fd, "No call to hangup up\n");
-		res = RESULT_FAILURE;
+		ast_cli(a->fd, "No call to hangup up\n");
+		res = CLI_FAILURE;
 	} else {
 		hookstate = 0;
 		grab_owner();
@@ -991,25 +1027,32 @@ static int console_hangup(int fd, int argc, char *argv[])
 	return res;
 }
 
-static const char hangup_usage[] =
-	"Usage: console hangup\n"
-	"       Hangs up any call currently placed on the console.\n";
-
-static int console_dial(int fd, int argc, char *argv[])
+static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char tmp[256], *tmp2;
 	char *mye, *myc;
 	char *d;
-	int res = RESULT_SUCCESS;
+	char *res = CLI_SUCCESS;
 
-	if ((argc != 2) && (argc != 3))
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console dial";
+		e->usage =
+			"Usage: console dial [extension[@context]]\n"
+			"       Dials a given extension (and context if specified)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if ((a->argc != 2) && (a->argc != 3))
+		return CLI_SHOWUSAGE;
 
 	ast_mutex_lock(&alsalock);
 
 	if (alsa.owner) {
-		if (argc == 3) {
-			d = argv[2];
+		if (a->argc == 3) {
+			d = a->argv[2];
 			if (alsa.owner) {
 				struct ast_frame f = { AST_FRAME_DTMF };
 				while (*d) {
@@ -1019,15 +1062,15 @@ static int console_dial(int fd, int argc, char *argv[])
 				}
 			}
 		} else {
-			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
-			res = RESULT_FAILURE;
+			ast_cli(a->fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
+			res = CLI_FAILURE;
 		}
 	} else {
 		mye = exten;
 		myc = context;
-		if (argc == 3) {
+		if (a->argc == 3) {
 			char *stringp = NULL;
-			ast_copy_string(tmp, argv[2], sizeof(tmp));
+			ast_copy_string(tmp, a->argv[2], sizeof(tmp));
 			stringp = tmp;
 			strsep(&stringp, "@");
 			tmp2 = strsep(&stringp, "@");
@@ -1042,7 +1085,7 @@ static int console_dial(int fd, int argc, char *argv[])
 			hookstate = 1;
 			alsa_new(&alsa, AST_STATE_RINGING);
 		} else
-			ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
+			ast_cli(a->fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	}
 
 	ast_mutex_unlock(&alsalock);
@@ -1050,30 +1093,12 @@ static int console_dial(int fd, int argc, char *argv[])
 	return res;
 }
 
-static const char dial_usage[] =
-	"Usage: console dial [extension[@context]]\n"
-	"       Dials a given extension (and context if specified)\n";
-
 static struct ast_cli_entry cli_alsa[] = {
-	{ { "console", "answer", NULL },
-	console_answer, "Answer an incoming console call",
-	answer_usage },
-
-	{ { "console", "hangup", NULL },
-	console_hangup, "Hangup a call on the console",
-	hangup_usage },
-
-	{ { "console", "dial", NULL },
-	console_dial, "Dial an extension on the console",
-	dial_usage },
-
-	{ { "console", "send", "text", NULL },
-	console_sendtext, "Send text to the remote device",
-	sendtext_usage },
-
-	{ { "console", "autoanswer", NULL },
-	console_autoanswer, "Sets/displays autoanswer",
-	autoanswer_usage, autoanswer_complete },
+	NEW_CLI(console_answer, "Answer an incoming console call"),
+	NEW_CLI(console_hangup, "Hangup a call on the console"),
+	NEW_CLI(console_dial, "Dial an extension on the console"),
+	NEW_CLI(console_sendtext, "Send text to the remote device"),
+	NEW_CLI(console_autoanswer, "Sets/displays autoanswer"),
 };
 
 static int load_module(void)

@@ -255,28 +255,48 @@ void dnsmgr_start_refresh(void)
 
 static int do_reload(int loading);
 
-static int handle_cli_reload(int fd, int argc, char *argv[])
+static char *handle_cli_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc > 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dnsmgr reload";
+		e->usage = 
+			"Usage: dnsmgr reload\n"
+			"       Reloads the DNS manager configuration.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	if (a->argc > 2)
+		return CLI_SHOWUSAGE;
 
 	do_reload(0);
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int handle_cli_refresh(int fd, int argc, char *argv[])
+static char *handle_cli_refresh(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct refresh_info info = {
 		.entries = &entry_list,
 		.verbose = 1,
 	};
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dnsmgr refresh";
+		e->usage = 
+			"Usage: dnsmgr refresh [pattern]\n"
+			"       Peforms an immediate refresh of the managed DNS entries.\n"
+			"       Optional regular expression pattern is used to filter the entries to refresh.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	if (a->argc > 3)
+		return CLI_SHOWUSAGE;
 
-	if (argc > 3)
-		return RESULT_SHOWUSAGE;
-
-	if (argc == 3) {
-		if (regcomp(&info.filter, argv[2], REG_EXTENDED | REG_NOSUB))
-			return RESULT_SHOWUSAGE;
+	if (a->argc == 3) {
+		if ( regcomp(&info.filter, a->argv[2], REG_EXTENDED | REG_NOSUB) )
+			return CLI_SHOWUSAGE;
 		else
 			info.regex_present = 1;
 	}
@@ -286,49 +306,41 @@ static int handle_cli_refresh(int fd, int argc, char *argv[])
 	if (info.regex_present)
 		regfree(&info.filter);
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int handle_cli_status(int fd, int argc, char *argv[])
+static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int count = 0;
 	struct ast_dnsmgr_entry *entry;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dnsmgr status";
+		e->usage = 
+			"Usage: dnsmgr status\n"
+			"       Displays the DNS manager status.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 
-	if (argc > 2)
-		return RESULT_SHOWUSAGE;
+	if (a->argc > 2)
+		return CLI_SHOWUSAGE;
 
-	ast_cli(fd, "DNS Manager: %s\n", enabled ? "enabled" : "disabled");
-	ast_cli(fd, "Refresh Interval: %d seconds\n", refresh_interval);
+	ast_cli(a->fd, "DNS Manager: %s\n", enabled ? "enabled" : "disabled");
+	ast_cli(a->fd, "Refresh Interval: %d seconds\n", refresh_interval);
 	AST_RWLIST_RDLOCK(&entry_list);
 	AST_RWLIST_TRAVERSE(&entry_list, entry, list)
 		count++;
 	AST_RWLIST_UNLOCK(&entry_list);
-	ast_cli(fd, "Number of entries: %d\n", count);
+	ast_cli(a->fd, "Number of entries: %d\n", count);
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_reload = {
-	{ "dnsmgr", "reload", NULL },
-	handle_cli_reload, "Reloads the DNS manager configuration",
-	"Usage: dnsmgr reload\n"
-	"       Reloads the DNS manager configuration.\n"
-};
-
-static struct ast_cli_entry cli_refresh = {
-	{ "dnsmgr", "refresh", NULL },
-	handle_cli_refresh, "Performs an immediate refresh",
-	"Usage: dnsmgr refresh [pattern]\n"
-	"       Peforms an immediate refresh of the managed DNS entries.\n"
-	"       Optional regular expression pattern is used to filter the entries to refresh.\n",
-};
-
-static struct ast_cli_entry cli_status = {
-	{ "dnsmgr", "status", NULL },
-	handle_cli_status, "Display the DNS manager status",
-	"Usage: dnsmgr status\n"
-	"       Displays the DNS manager status.\n"
-};
+static struct ast_cli_entry cli_reload = NEW_CLI(handle_cli_reload, "Reloads the DNS manager configuration");
+static struct ast_cli_entry cli_refresh = NEW_CLI(handle_cli_refresh, "Performs an immediate refresh");
+static struct ast_cli_entry cli_status = NEW_CLI(handle_cli_status, "Display the DNS manager status");
 
 int dnsmgr_init(void)
 {
@@ -338,6 +350,7 @@ int dnsmgr_init(void)
 	}
 	ast_cli_register(&cli_reload);
 	ast_cli_register(&cli_status);
+	ast_cli_register(&cli_refresh);
 	return do_reload(1);
 }
 

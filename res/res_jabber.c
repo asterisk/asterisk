@@ -87,11 +87,11 @@ static void *aji_recv_loop(void *data);
 static int aji_initialize(struct aji_client *client);
 static int aji_client_connect(void *data, ikspak *pak);
 static void aji_set_presence(struct aji_client *client, char *to, char *from, int level, char *desc);
-static int aji_do_debug(int fd, int argc, char *argv[]);
-static int aji_do_reload(int fd, int argc, char *argv[]);
-static int aji_no_debug(int fd, int argc, char *argv[]);
-static int aji_test(int fd, int argc, char *argv[]);
-static int aji_show_clients(int fd, int argc, char *argv[]);
+static char *aji_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *aji_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *aji_no_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int aji_create_client(char *label, struct ast_variable *var, int debug);
 static int aji_create_buddy(char *label, struct aji_client *client);
 static int aji_reload(int reload);
@@ -113,43 +113,12 @@ static int aji_register_transport(void *data, ikspak *pak);
 static int aji_register_transport2(void *data, ikspak *pak);
 */
 
-static const char debug_usage[] = 
-"Usage: jabber debug\n" 
-"       Enables dumping of Jabber packets for debugging purposes.\n";
-
-static const char no_debug_usage[] = 
-"Usage: jabber debug off\n" 
-"       Disables dumping of Jabber packets for debugging purposes.\n";
-
-static const char reload_usage[] = 
-"Usage: jabber reload\n" 
-"       Enables reloading of Jabber module.\n";
-
-static const char test_usage[] = 
-"Usage: jabber test [client]\n" 
-"       Sends test message for debugging purposes.  A specific client\n"
-"       as configured in jabber.conf can be optionally specified.\n";
-
 static struct ast_cli_entry aji_cli[] = {
-	{ { "jabber", "debug", NULL},
-	aji_do_debug, "Enable Jabber debugging",
-	debug_usage },
-
-	{ { "jabber", "reload", NULL},
-	aji_do_reload, "Reload Jabber configuration",
-	reload_usage },
-
-	{ { "jabber", "show", "connected", NULL},
-	aji_show_clients, "Show state of clients and components",
-	debug_usage },
-
-	{ { "jabber", "debug", "off", NULL},
-	aji_no_debug, "Disable Jabber debug",
-	no_debug_usage },
-
-	{ { "jabber", "test", NULL},
-	aji_test, "Shows roster, but is generally used for mog's debugging.",
-	test_usage },
+	NEW_CLI(aji_do_debug, "Enable jabber debugging"),
+	NEW_CLI(aji_no_debug, "Disable Jabber debug"),
+	NEW_CLI(aji_do_reload, "Reload Jabber configuration"),
+	NEW_CLI(aji_show_clients, "Show state of clients and components"),
+	NEW_CLI(aji_test, "Shows roster, but is generally used for mog's debugging."),
 };
 
 static char *app_ajisend = "JabberSend";
@@ -2037,67 +2006,101 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 }
 
 /*!
- * \brief turnon console debugging.
- * \param fd
- * \param argc Integer. Number of args
- * \param argv List of arguements
- * \return RESULT_SUCCESS.
+ * \brief Turn on console debugging.
+ * \return CLI_SUCCESS.
  */
-static int aji_do_debug(int fd, int argc, char *argv[])
+static char *aji_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "jabber debug";
+		e->usage =
+			"Usage: jabber debug\n"
+			"       Enables dumping of Jabber packets for debugging purposes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator); 
 		iterator->debug = 1;
 		ASTOBJ_UNLOCK(iterator);
 	});
-	ast_cli(fd, "Jabber Debugging Enabled.\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Jabber Debugging Enabled.\n");
+	return CLI_SUCCESS;
 }
 
 /*!
- * \brief reload jabber module.
- * \param fd
- * \param argc no of args
- * \param argv list of arguements
- * \return RESULT_SUCCESS.
+ * \brief Reload jabber module.
+ * \return CLI_SUCCESS.
  */
-static int aji_do_reload(int fd, int argc, char *argv[])
+static char *aji_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "jabber reload";
+		e->usage =
+			"Usage: jabber reload\n"
+			"       Reloads the Jabber module.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
 	aji_reload(1);
-	ast_cli(fd, "Jabber Reloaded.\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Jabber Reloaded.\n");
+	return CLI_SUCCESS;
 }
 
 /*!
- * \brief turnoff console debugging.
- * \param fd
- * \param argc Integer. number of args
- * \param argv list of arguements
- * \return RESULT_SUCCESS.
+ * \brief Turn off console debugging.
+ * \return CLI_SUCCESS.
  */
-static int aji_no_debug(int fd, int argc, char *argv[])
+static char *aji_no_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "jabber debug off";
+		e->usage =
+			"Usage: jabber debug off\n"
+			"       Disables dumping of Jabber packets for debugging purposes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		iterator->debug = 0;
 		ASTOBJ_UNLOCK(iterator);
 	});
-	ast_cli(fd, "Jabber Debugging Disabled.\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Jabber Debugging Disabled.\n");
+	return CLI_SUCCESS;
 }
 
 /*!
- * \brief show client status.
- * \param fd
- * \param argc Integer. number of args
- * \param argv list of arguements
- * \return RESULT_SUCCESS.
+ * \brief Show client status.
+ * \return CLI_SUCCESS.
  */
-static int aji_show_clients(int fd, int argc, char *argv[])
+static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *status;
 	int count = 0;
-	ast_cli(fd, "Jabber Users and their status:\n");
+	
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "jabber show connected";
+		e->usage =
+			"Usage: jabber show connected\n"
+			"       Shows state of clients and components\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "Jabber Users and their status:\n");
 	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		count++;
@@ -2114,36 +2117,45 @@ static int aji_show_clients(int fd, int argc, char *argv[])
 		default:
 			status = "Unknown";
 		}
-		ast_cli(fd, "       User: %s     - %s\n", iterator->user, status);
+		ast_cli(a->fd, "       User: %s     - %s\n", iterator->user, status);
 		ASTOBJ_UNLOCK(iterator);
 	});
-	ast_cli(fd, "----\n");
-	ast_cli(fd, "   Number of users: %d\n", count);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "----\n");
+	ast_cli(a->fd, "   Number of users: %d\n", count);
+	return CLI_SUCCESS;
 }
 
 /*!
- * \brief send test message for debugging.
- * \param fd
- * \param argc Integer. number of args
- * \param argv list of arguements
- * \return RESULT_SUCCESS,RESULT_FAILURE.
+ * \brief Send test message for debugging.
+ * \return CLI_SUCCESS,CLI_FAILURE.
  */
-static int aji_test(int fd, int argc, char *argv[])
+static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct aji_client *client;
 	struct aji_resource *resource;
 	const char *name = "asterisk";
 	struct aji_message *tmp;
 
-	if (argc > 3)
-		return RESULT_SHOWUSAGE;
-	else if (argc == 3)
-		name = argv[2];
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "jabber test";
+		e->usage =
+			"Usage: jabber test [client]\n"
+			"       Sends test message for debugging purposes.  A specific client\n"
+			"       as configured in jabber.conf can be optionally specified.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > 3)
+		return CLI_SHOWUSAGE;
+	else if (a->argc == 3)
+		name = a->argv[2];
 
 	if (!(client = ASTOBJ_CONTAINER_FIND(&clients, name))) {
-		ast_cli(fd, "Unable to find client '%s'!\n", name);
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Unable to find client '%s'!\n", name);
+		return CLI_FAILURE;
 	}
 
 	/* XXX Does Matt really want everyone to use his personal address for tests? */ /* XXX yes he does */
@@ -2172,7 +2184,7 @@ static int aji_test(int fd, int argc, char *argv[])
 	AST_LIST_UNLOCK(&client->messages);
 	ASTOBJ_UNREF(client, aji_client_destroy);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*!

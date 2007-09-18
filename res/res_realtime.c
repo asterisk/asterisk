@@ -47,68 +47,78 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 
 
-static int cli_realtime_load(int fd, int argc, char **argv) 
+static char *cli_realtime_load(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) 
 {
 	char *header_format = "%30s  %-30s\n";
 	struct ast_variable *var=NULL;
 
-	if(argc<5) {
-		ast_cli(fd, "You must supply a family name, a column to match on, and a value to match to.\n");
-		return RESULT_FAILURE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "realtime load";
+		e->usage =
+			"Usage: realtime load <family> <colmatch> <value>\n"
+			"       Prints out a list of variables using the RealTime driver.\n"
+			"       You must supply a family name, a column to match on, and a value to match to.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 
-	var = ast_load_realtime_all(argv[2], argv[3], argv[4], NULL);
 
-	if(var) {
-		ast_cli(fd, header_format, "Column Name", "Column Value");
-		ast_cli(fd, header_format, "--------------------", "--------------------");
-		while(var) {
-			ast_cli(fd, header_format, var->name, var->value);
+	if (a->argc < 5) 
+		return CLI_SHOWUSAGE;
+
+	var = ast_load_realtime_all(a->argv[2], a->argv[3], a->argv[4], NULL);
+
+	if (var) {
+		ast_cli(a->fd, header_format, "Column Name", "Column Value");
+		ast_cli(a->fd, header_format, "--------------------", "--------------------");
+		while (var) {
+			ast_cli(a->fd, header_format, var->name, var->value);
 			var = var->next;
 		}
 	} else {
-		ast_cli(fd, "No rows found matching search criteria.\n");
+		ast_cli(a->fd, "No rows found matching search criteria.\n");
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int cli_realtime_update(int fd, int argc, char **argv) {
+static char *cli_realtime_update(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) {
 	int res = 0;
 
-	if(argc<7) {
-		ast_cli(fd, "You must supply a family name, a column to update on, a new value, column to match, and value to to match.\n");
-		ast_cli(fd, "Ex: realtime update sipfriends name bobsphone port 4343\n will execute SQL as UPDATE sipfriends SET port = 4343 WHERE name = bobsphone\n");
-		return RESULT_FAILURE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "realtime update";
+		e->usage =
+			"Usage: realtime update <family> <colupdate> <newvalue> <colmatch> <valuematch>\n"
+			"       Update a single variable using the RealTime driver.\n"
+			"       You must supply a family name, a column to update on, a new value, column to match, and value to match.\n"
+			"       Ex: realtime update sipfriends name bobsphone port 4343\n"
+			"       will execute SQL as UPDATE sipfriends SET port = 4343 WHERE name = bobsphone\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 
-	res = ast_update_realtime(argv[2], argv[3], argv[4], argv[5], argv[6], NULL);
+
+	if (a->argc < 7) 
+		return CLI_SHOWUSAGE;
+
+	res = ast_update_realtime(a->argv[2], a->argv[3], a->argv[4], a->argv[5], a->argv[6], NULL);
 
 	if(res < 0) {
-		ast_cli(fd, "Failed to update. Check the debug log for possible SQL related entries.\n");
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Failed to update. Check the debug log for possible SQL related entries.\n");
+		return CLI_FAILURE;
 	}
 
-       ast_cli(fd, "Updated %d RealTime record%s.\n", res, ESS(res));
+       ast_cli(a->fd, "Updated %d RealTime record%s.\n", res, ESS(res));
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char cli_realtime_load_usage[] =
-"Usage: realtime load <family> <colmatch> <value>\n"
-"       Prints out a list of variables using the RealTime driver.\n";
-
-static const char cli_realtime_update_usage[] =
-"Usage: realtime update <family> <colmatch> <value>\n"
-"       Update a single variable using the RealTime driver.\n";
-
 static struct ast_cli_entry cli_realtime[] = {
-	{ { "realtime", "load", NULL, NULL },
-	cli_realtime_load, "Used to print out RealTime variables.",
-	cli_realtime_load_usage, NULL },
-
-	{ { "realtime", "update", NULL, NULL },
-	cli_realtime_update, "Used to update RealTime variables.",
-	cli_realtime_update_usage, NULL },
+	NEW_CLI(cli_realtime_load, "Used to print out RealTime variables."),
+	NEW_CLI(cli_realtime_update, "Used to update RealTime variables."),
 };
 
 static int unload_module(void)

@@ -616,59 +616,88 @@ int reload_logger(int rotate)
 	return res;
 }
 
-static int handle_logger_reload(int fd, int argc, char *argv[])
+static char *handle_logger_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger reload";
+		e->usage = 
+			"Usage: logger reload\n"
+			"       Reloads the logger subsystem state.  Use after restarting syslogd(8) if you are using syslog logging.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 	if (reload_logger(0)) {
-		ast_cli(fd, "Failed to reload the logger\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Failed to reload the logger\n");
+		return CLI_FAILURE;
 	} else
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 }
 
-static int handle_logger_rotate(int fd, int argc, char *argv[])
+static char *handle_logger_rotate(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger rotate";
+		e->usage = 
+			"Usage: logger rotate\n"
+			"       Rotates and Reopens the log files.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 	if (reload_logger(1)) {
-		ast_cli(fd, "Failed to reload the logger and rotate log files\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Failed to reload the logger and rotate log files\n");
+		return CLI_FAILURE;
 	} else
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 }
 
 /*! \brief CLI command to show logging system configuration */
-static int handle_logger_show_channels(int fd, int argc, char *argv[])
+static char *handle_logger_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMATL	"%-35.35s %-8.8s %-9.9s "
 	struct logchannel *chan;
-
-	ast_cli(fd,FORMATL, "Channel", "Type", "Status");
-	ast_cli(fd, "Configuration\n");
-	ast_cli(fd,FORMATL, "-------", "----", "------");
-	ast_cli(fd, "-------------\n");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger show channels";
+		e->usage = 
+			"Usage: logger show channels\n"
+			"       List configured logger channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	ast_cli(a->fd,FORMATL, "Channel", "Type", "Status");
+	ast_cli(a->fd, "Configuration\n");
+	ast_cli(a->fd,FORMATL, "-------", "----", "------");
+	ast_cli(a->fd, "-------------\n");
 	AST_RWLIST_RDLOCK(&logchannels);
 	AST_RWLIST_TRAVERSE(&logchannels, chan, list) {
-		ast_cli(fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
+		ast_cli(a->fd, FORMATL, chan->filename, chan->type==LOGTYPE_CONSOLE ? "Console" : (chan->type==LOGTYPE_SYSLOG ? "Syslog" : "File"),
 			chan->disabled ? "Disabled" : "Enabled");
-		ast_cli(fd, " - ");
+		ast_cli(a->fd, " - ");
 		if (chan->logmask & (1 << __LOG_DEBUG)) 
-			ast_cli(fd, "Debug ");
+			ast_cli(a->fd, "Debug ");
 		if (chan->logmask & (1 << __LOG_DTMF)) 
-			ast_cli(fd, "DTMF ");
+			ast_cli(a->fd, "DTMF ");
 		if (chan->logmask & (1 << __LOG_VERBOSE)) 
-			ast_cli(fd, "Verbose ");
+			ast_cli(a->fd, "Verbose ");
 		if (chan->logmask & (1 << __LOG_WARNING)) 
-			ast_cli(fd, "Warning ");
+			ast_cli(a->fd, "Warning ");
 		if (chan->logmask & (1 << __LOG_NOTICE)) 
-			ast_cli(fd, "Notice ");
+			ast_cli(a->fd, "Notice ");
 		if (chan->logmask & (1 << __LOG_ERROR)) 
-			ast_cli(fd, "Error ");
+			ast_cli(a->fd, "Error ");
 		if (chan->logmask & (1 << __LOG_EVENT)) 
-			ast_cli(fd, "Event ");
-		ast_cli(fd, "\n");
+			ast_cli(a->fd, "Event ");
+		ast_cli(a->fd, "\n");
 	}
 	AST_RWLIST_UNLOCK(&logchannels);
-	ast_cli(fd, "\n");
+	ast_cli(a->fd, "\n");
  		
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 struct verb {
@@ -678,30 +707,10 @@ struct verb {
 
 static AST_RWLIST_HEAD_STATIC(verbosers, verb);
 
-static char logger_reload_help[] =
-"Usage: logger reload\n"
-"       Reloads the logger subsystem state.  Use after restarting syslogd(8) if you are using syslog logging.\n";
-
-static char logger_rotate_help[] =
-"Usage: logger rotate\n"
-"       Rotates and Reopens the log files.\n";
-
-static char logger_show_channels_help[] =
-"Usage: logger show channels\n"
-"       List configured logger channels.\n";
-
 static struct ast_cli_entry cli_logger[] = {
-	{ { "logger", "show", "channels", NULL }, 
-	handle_logger_show_channels, "List configured log channels",
-	logger_show_channels_help },
-
-	{ { "logger", "reload", NULL }, 
-	handle_logger_reload, "Reopens the log files",
-	logger_reload_help },
-
-	{ { "logger", "rotate", NULL }, 
-	handle_logger_rotate, "Rotates and reopens the log files",
-	logger_rotate_help },
+	NEW_CLI(handle_logger_show_channels, "List configured log channels"),
+	NEW_CLI(handle_logger_reload, "Reopens the log files"),
+	NEW_CLI(handle_logger_rotate, "Rotates and reopens the log files")
 };
 
 static int handle_SIGXFSZ(int sig) 

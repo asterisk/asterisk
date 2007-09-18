@@ -333,47 +333,70 @@ static int load_odbc_config(void)
 	return res;
 }
 
-static int odbc_show_command(int fd, int argc, char **argv)
+static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct odbc_class *class;
 	struct odbc_obj *current;
+	int length = 0;
+	int which = 0;
+	char *ret = NULL;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "odbc show";
+		e->usage =
+				"Usage: odbc show [class]\n"
+				"       List settings of a particular ODBC class or,\n"
+				"       if not specified, all classes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos != 2)
+			return NULL;
+		length = strlen(a->word);
+		AST_LIST_LOCK(&odbc_list);
+		AST_LIST_TRAVERSE(&odbc_list, class, list) {
+			if (!strncasecmp(a->word, class->name, length) && ++which > a->n) {
+				ret = ast_strdup(class->name);
+				break;
+			}
+		}
+		if (!ret && !strncasecmp(a->word, "all", length) && ++which > a->n) {
+			ret = ast_strdup("all");
+		}
+		AST_LIST_UNLOCK(&odbc_list);
+		return ret;
+	}
+
+	ast_cli(a->fd, "\nODBC DSN Settings\n");
+	ast_cli(a->fd, "-----------------\n\n");
 	AST_LIST_LOCK(&odbc_list);
 	AST_LIST_TRAVERSE(&odbc_list, class, list) {
-		if ((argc == 2) || (argc == 3 && !strcmp(argv[2], "all")) || (!strcmp(argv[2], class->name))) {
+		if ((a->argc == 2) || (a->argc == 3 && !strcmp(a->argv[2], "all")) || (!strcmp(a->argv[2], class->name))) {
 			int count = 0;
-			ast_cli(fd, "Name: %s\nDSN: %s\n", class->name, class->dsn);
+			ast_cli(a->fd, "  Name:   %s\n  DSN:    %s\n", class->name, class->dsn);
 
 			if (class->haspool) {
-				ast_cli(fd, "Pooled: yes\nLimit: %d\nConnections in use: %d\n", class->limit, class->count);
+				ast_cli(a->fd, "  Pooled: Yes\n  Limit:  %d\n  Connections in use: %d\n", class->limit, class->count);
 
 				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-					ast_cli(fd, "  Connection %d: %s\n", ++count, current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
+					ast_cli(a->fd, "    - Connection %d: %s\n", ++count, current->up && ast_odbc_sanity_check(current) ? "Connected" : "Disconnected");
 				}
 			} else {
 				/* Should only ever be one of these */
 				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-					ast_cli(fd, "Pooled: no\nConnected: %s\n", current->up && ast_odbc_sanity_check(current) ? "yes" : "no");
+					ast_cli(a->fd, "  Pooled: No\n  Connected: %s\n", current->up && ast_odbc_sanity_check(current) ? "Yes" : "No");
 				}
 			}
-
-				ast_cli(fd, "\n");
+			ast_cli(a->fd, "\n");
 		}
 	}
 	AST_LIST_UNLOCK(&odbc_list);
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static const char show_usage[] =
-"Usage: odbc show [<class>]\n"
-"       List settings of a particular ODBC class.\n"
-"       or, if not specified, all classes.\n";
-
 static struct ast_cli_entry cli_odbc[] = {
-	{ { "odbc", "show", NULL },
-	odbc_show_command, "List ODBC DSN(s)",
-	show_usage },
+	NEW_CLI(handle_cli_odbc_show, "List ODBC DSN(s)")
 };
 
 static int odbc_register_class(struct odbc_class *class, int connect)

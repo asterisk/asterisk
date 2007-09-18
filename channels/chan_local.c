@@ -670,35 +670,40 @@ static struct ast_channel *local_request(const char *type, int format, void *dat
 }
 
 /*! \brief CLI command "local show channels" */
-static int locals_show(int fd, int argc, char **argv)
+static char *locals_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct local_pvt *p = NULL;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "local show channels";
+		e->usage =
+			"Usage: local show channels\n"
+			"       Provides summary information on active local proxy channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	AST_LIST_LOCK(&locals);
 	if (!AST_LIST_EMPTY(&locals)) {
 		AST_LIST_TRAVERSE(&locals, p, list) {
 			ast_mutex_lock(&p->lock);
-			ast_cli(fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
+			ast_cli(a->fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
 			ast_mutex_unlock(&p->lock);
 		}
 	} else
-		ast_cli(fd, "No local channels in use\n");
+		ast_cli(a->fd, "No local channels in use\n");
 	AST_LIST_UNLOCK(&locals);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char show_locals_usage[] = 
-"Usage: local show channels\n"
-"       Provides summary information on active local proxy channels.\n";
-
 static struct ast_cli_entry cli_local[] = {
-	{ { "local", "show", "channels", NULL },
-	locals_show, "List status of local channels",
-	show_locals_usage },
+	NEW_CLI(locals_show, "List status of local channels"),
 };
 
 /*! \brief Load module into PBX, register channel */

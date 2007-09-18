@@ -1232,56 +1232,65 @@ static int __ast_http_load(int reload)
 	return 0;
 }
 
-static int handle_show_http(int fd, int argc, char *argv[])
+static char *handle_show_http(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_http_uri *urih;
 	struct http_uri_redirect *redirect;
 	struct ast_http_post_mapping *post_map;
-
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-
-	ast_cli(fd, "HTTP Server Status:\n");
-	ast_cli(fd, "Prefix: %s\n", prefix);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "http show status";
+		e->usage = 
+			"Usage: http show status\n"
+			"       Lists status of internal HTTP engine\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	ast_cli(a->fd, "HTTP Server Status:\n");
+	ast_cli(a->fd, "Prefix: %s\n", prefix);
 	if (!http_desc.oldsin.sin_family)
-		ast_cli(fd, "Server Disabled\n\n");
+		ast_cli(a->fd, "Server Disabled\n\n");
 	else {
-		ast_cli(fd, "Server Enabled and Bound to %s:%d\n\n",
+		ast_cli(a->fd, "Server Enabled and Bound to %s:%d\n\n",
 			ast_inet_ntoa(http_desc.oldsin.sin_addr),
 			ntohs(http_desc.oldsin.sin_port));
 		if (http_tls_cfg.enabled)
-			ast_cli(fd, "HTTPS Server Enabled and Bound to %s:%d\n\n",
+			ast_cli(a->fd, "HTTPS Server Enabled and Bound to %s:%d\n\n",
 				ast_inet_ntoa(https_desc.oldsin.sin_addr),
 				ntohs(https_desc.oldsin.sin_port));
 	}
 
-	ast_cli(fd, "Enabled URI's:\n");
+	ast_cli(a->fd, "Enabled URI's:\n");
 	AST_RWLIST_RDLOCK(&uris);
 	if (AST_RWLIST_EMPTY(&uris)) {
-		ast_cli(fd, "None.\n");
+		ast_cli(a->fd, "None.\n");
 	} else {
 		AST_RWLIST_TRAVERSE(&uris, urih, entry)
-			ast_cli(fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
+			ast_cli(a->fd, "%s/%s%s => %s\n", prefix, urih->uri, (urih->has_subtree ? "/..." : "" ), urih->description);
 	}
 	AST_RWLIST_UNLOCK(&uris);
 
-	ast_cli(fd, "\nEnabled Redirects:\n");
+	ast_cli(a->fd, "\nEnabled Redirects:\n");
 	AST_RWLIST_RDLOCK(&uri_redirects);
 	AST_RWLIST_TRAVERSE(&uri_redirects, redirect, entry)
-		ast_cli(fd, "  %s => %s\n", redirect->target, redirect->dest);
+		ast_cli(a->fd, "  %s => %s\n", redirect->target, redirect->dest);
 	if (AST_RWLIST_EMPTY(&uri_redirects))
-		ast_cli(fd, "  None.\n");
+		ast_cli(a->fd, "  None.\n");
 	AST_RWLIST_UNLOCK(&uri_redirects);
 
 
-	ast_cli(fd, "\nPOST mappings:\n");
+	ast_cli(a->fd, "\nPOST mappings:\n");
 	AST_RWLIST_RDLOCK(&post_mappings);
 	AST_LIST_TRAVERSE(&post_mappings, post_map, entry)
-		ast_cli(fd, "%s/%s => %s\n", prefix, post_map->from, post_map->to);
-	ast_cli(fd, "%s\n", AST_LIST_EMPTY(&post_mappings) ? "None.\n" : "");
+		ast_cli(a->fd, "%s/%s => %s\n", prefix, post_map->from, post_map->to);
+	ast_cli(a->fd, "%s\n", AST_LIST_EMPTY(&post_mappings) ? "None.\n" : "");
 	AST_RWLIST_UNLOCK(&post_mappings);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 int ast_http_reload(void)
@@ -1289,14 +1298,8 @@ int ast_http_reload(void)
 	return __ast_http_load(1);
 }
 
-static char show_http_help[] =
-"Usage: http show status\n"
-"       Lists status of internal HTTP engine\n";
-
 static struct ast_cli_entry cli_http[] = {
-	{ { "http", "show", "status", NULL },
-	handle_show_http, "Display HTTP server status",
-	show_http_help },
+	NEW_CLI(handle_show_http, "Display HTTP server status"),
 };
 
 int ast_http_init(void)

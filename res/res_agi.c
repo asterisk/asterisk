@@ -1300,30 +1300,33 @@ static int handle_dbdeltree(struct ast_channel *chan, AGI *agi, int argc, char *
 	return RESULT_SUCCESS;
 }
 
-static const char debug_usage[] = 
-"Usage: agi debug\n"
-"       Enables dumping of AGI transactions for debugging purposes\n";
-
-static const char no_debug_usage[] = 
-"Usage: agi debug off\n"
-"       Disables dumping of AGI transactions for debugging purposes\n";
-
-static int agi_do_debug(int fd, int argc, char *argv[])
+static char *handle_cli_agi_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	agidebug = 1;
-	ast_cli(fd, "AGI Debugging Enabled\n");
-	return RESULT_SUCCESS;
-}
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "agi debug [off]";
+		e->usage =
+			"Usage: agi debug [off]\n"
+			"       Enables/disables dumping of AGI transactions for\n"
+			"       debugging purposes.\n";
+		return NULL;
 
-static int agi_no_debug(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	agidebug = 0;
-	ast_cli(fd, "AGI Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < e->args - 1 || a->argc > e->args )
+		return CLI_SHOWUSAGE;
+	if (a->argc == e->args - 1) {
+		agidebug = 1;
+	} else {
+		if (strncasecmp(a->argv[e->args - 1], "off", 3) == 0) {
+			agidebug = 0;
+		} else {
+			return CLI_SHOWUSAGE;
+		}
+	}
+	ast_cli(a->fd, "AGI Debugging %sabled\n", agidebug ? "En" : "Dis");
+	return CLI_SUCCESS;
 }
 
 static int handle_noop(struct ast_channel *chan, AGI *agi, int arg, char *argv[])
@@ -1634,7 +1637,7 @@ static struct agi_command commands[] = {
 
 static AST_RWLIST_HEAD_STATIC(agi_commands, agi_command);
 
-static int help_workhorse(int fd, char *match[])
+static char *help_workhorse(int fd, char *match[])
 {
 	char fullcmd[80], matchstr[80];
 	struct agi_command *e;
@@ -1656,7 +1659,8 @@ static int help_workhorse(int fd, char *match[])
 		ast_cli(fd, "%5.5s %20.20s   %s\n", e->dead ? "Yes" : "No" , fullcmd, e->summary);
 	}
 	AST_RWLIST_UNLOCK(&agi_commands);
-	return 0;
+
+	return CLI_SUCCESS;
 }
 
 int ast_agi_register(struct ast_module *mod, agi_command *cmd)
@@ -1951,31 +1955,42 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 	return returnstatus;
 }
 
-static int handle_showagi(int fd, int argc, char *argv[])
+static char *handle_cli_agi_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct agi_command *e;
+	struct agi_command *command;
 	char fullcmd[80];
 
-	if ((argc < 2))
-		return RESULT_SHOWUSAGE;
-
-	if (argc > 2) {
-		e = find_command(argv + 2, 1);
-		if (e) {
-			ast_cli(fd, e->usage);
-			ast_cli(fd, " Runs Dead : %s\n", e->dead ? "Yes" : "No");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "agi show";
+		e->usage =
+			"Usage: agi show [topic]\n"
+			"       When called with a topic as an argument, displays usage\n"
+			"       information on the given command.  If called without a\n"
+			"       topic, it provides a list of AGI commands.\n";
+		break;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < e->args)
+		return CLI_SHOWUSAGE;
+	if (a->argc > e->args) {
+		command = find_command(a->argv + e->args, 1);
+		if (command) {
+			ast_cli(a->fd, command->usage);
+			ast_cli(a->fd, " Runs Dead : %s\n", command->dead ? "Yes" : "No");
 		} else {
-			if (find_command(argv + 2, -1)) {
-				return help_workhorse(fd, argv + 2);
+			if (find_command(a->argv + e->args, -1)) {
+				return help_workhorse(a->fd, a->argv + e->args);
 			} else {
-				ast_join(fullcmd, sizeof(fullcmd), argv + 2);
-				ast_cli(fd, "No such command '%s'.\n", fullcmd);
+				ast_join(fullcmd, sizeof(fullcmd), a->argv + e->args);
+				ast_cli(a->fd, "No such command '%s'.\n", fullcmd);
 			}
 		}
 	} else {
-		return help_workhorse(fd, NULL);
+		return help_workhorse(a->fd, NULL);
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief Convert string to use HTML escaped characters
@@ -2009,49 +2024,57 @@ static void write_html_escaped(FILE *htmlfile, char *str)
 	return;
 }
 
-static int handle_agidumphtml(int fd, int argc, char *argv[])
+static char *handle_cli_agi_dumphtml(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct agi_command *e;
+	struct agi_command *command;
 	char fullcmd[80];
 	FILE *htmlfile;
 
-	if ((argc < 3))
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "agi dumphtml";
+		e->usage =
+			"Usage: agi dumphtml <filename>\n"
+			"       Dumps the AGI command list in HTML format to the given\n"
+			"       file.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < e->args + 1)
+		return CLI_SHOWUSAGE;
 
-	if (!(htmlfile = fopen(argv[2], "wt"))) {
-		ast_cli(fd, "Could not create file '%s'\n", argv[2]);
-		return RESULT_SHOWUSAGE;
+	if (!(htmlfile = fopen(a->argv[2], "wt"))) {
+		ast_cli(a->fd, "Could not create file '%s'\n", a->argv[2]);
+		return CLI_SHOWUSAGE;
 	}
 
 	fprintf(htmlfile, "<HTML>\n<HEAD>\n<TITLE>AGI Commands</TITLE>\n</HEAD>\n");
 	fprintf(htmlfile, "<BODY>\n<CENTER><B><H1>AGI Commands</H1></B></CENTER>\n\n");
-
-
 	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
 
 	AST_RWLIST_RDLOCK(&agi_commands);
-	AST_RWLIST_TRAVERSE(&agi_commands, e, list) {
+	AST_RWLIST_TRAVERSE(&agi_commands, command, list) {
 		char *stringp, *tempstr;
  
-		if (!e->cmda[0])	/* end ? */
+		if (!command->cmda[0])	/* end ? */
 			break;
 		/* Hide commands that start with '_' */
-		if ((e->cmda[0])[0] == '_')
+		if ((command->cmda[0])[0] == '_')
 			continue;
-		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
+		ast_join(fullcmd, sizeof(fullcmd), command->cmda);
 
 		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n");
-		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TH></TR>\n", fullcmd,e->summary);
+		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TH></TR>\n", fullcmd, command->summary);
 
-		stringp=e->usage;
+		stringp = command->usage;
 		tempstr = strsep(&stringp, "\n");
 
 		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">");
 		write_html_escaped(htmlfile, tempstr);
 		fprintf(htmlfile, "</TD></TR>\n");
-
-		
 		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">\n");
+
 		while ((tempstr = strsep(&stringp, "\n")) != NULL) {
 			write_html_escaped(htmlfile, tempstr);
 			fprintf(htmlfile, "<BR>\n");
@@ -2062,8 +2085,8 @@ static int handle_agidumphtml(int fd, int argc, char *argv[])
 	AST_RWLIST_UNLOCK(&agi_commands);
 	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");
 	fclose(htmlfile);
-	ast_cli(fd, "AGI HTML Commands Dumped to: %s\n", argv[2]);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "AGI HTML commands dumped to: %s\n", a->argv[2]);
+	return CLI_SUCCESS;
 }
 
 static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int dead)
@@ -2170,38 +2193,14 @@ static int deadagi_exec(struct ast_channel *chan, void *data)
 	return agi_exec(chan, data);
 }
 
-static char showagi_help[] =
-"Usage: agi show [topic]\n"
-"       When called with a topic as an argument, displays usage\n"
-"       information on the given command.  If called without a\n"
-"       topic, it provides a list of AGI commands.\n";
-
-
-static char dumpagihtml_help[] =
-"Usage: agi dumphtml <filename>\n"
-"	Dumps the agi command list in html format to given filename\n";
-
 static struct ast_cli_entry cli_agi[] = {
-	{ { "agi", "debug", NULL },
-	agi_do_debug, "Enable AGI debugging",
-	debug_usage },
-
-	{ { "agi", "debug", "off", NULL },
-	agi_no_debug, "Disable AGI debugging",
-	no_debug_usage },
-
-	{ { "agi", "show", NULL },
-	handle_showagi, "List AGI commands or specific help",
-	showagi_help },
-
-	{ { "agi", "dumphtml", NULL },
-	handle_agidumphtml, "Dumps a list of agi commands in html format",
-	dumpagihtml_help },
+	NEW_CLI(handle_cli_agi_debug,    "Enable/Disable AGI debugging"),
+	NEW_CLI(handle_cli_agi_show,     "List AGI commands or specific help"),
+	NEW_CLI(handle_cli_agi_dumphtml, "Dumps a list of AGI commands in HTML format")
 };
 
 static int unload_module(void)
 {
-
 	ast_cli_unregister_multiple(cli_agi, sizeof(cli_agi) / sizeof(struct ast_cli_entry));
 	ast_agi_unregister_multiple(ast_module_info->self, commands, sizeof(commands) / sizeof(struct agi_command));
 	ast_unregister_application(eapp);

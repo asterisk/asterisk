@@ -406,45 +406,6 @@ static int strings_to_mask(const char *string)
 	return get_perm(string);
 }
 
-static char *complete_show_mancmd(const char *line, const char *word, int pos, int state)
-{
-	struct manager_action *cur;
-	int l = strlen(word), which = 0;
-	char *ret = NULL;
-
-	AST_RWLIST_RDLOCK(&actions);
-	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		if (!strncasecmp(word, cur->action, l) && ++which > state) {
-			ret = ast_strdup(cur->action);
-			break;	/* make sure we exit even if ast_strdup() returns NULL */
-		}
-	}
-	AST_RWLIST_UNLOCK(&actions);
-
-	return ret;
-}
-
-static char *complete_show_manuser(const char *line, const char *word, int pos, int state)
-{
-	struct ast_manager_user *user = NULL;
-	int l = strlen(word), which = 0;
-	char *ret = NULL;
-
-	if (pos != 3)
-		return NULL;
-	
-	AST_RWLIST_RDLOCK(&users);
-	AST_RWLIST_TRAVERSE(&users, user, list) {
-		if (!strncasecmp(word, user->username, l) && ++which > state) {
-			ret = ast_strdup(user->username);
-			break;
-		}
-	}
-	AST_RWLIST_UNLOCK(&users);
-
-	return ret;
-}
-
 static int check_manager_session_inuse(const char *name)
 {
 	struct mansession *session = NULL;
@@ -491,63 +452,116 @@ static int manager_displayconnects (struct mansession *s)
 	return ret;
 }
 
-static int handle_showmancmd(int fd, int argc, char *argv[])
+static char *handle_showmancmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct manager_action *cur;
-	struct ast_str *authority = ast_str_alloca(80);
-	int num;
-
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	struct ast_str *authority;
+	int num, l, which;
+	char *ret = NULL;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show command";
+		e->usage = 
+			"Usage: manager show command <actionname>\n"
+			"	Shows the detailed description for a specific Asterisk manager interface command.\n";
+		return NULL;
+	case CLI_GENERATE:
+		l = strlen(a->word);
+		which = 0;
+		AST_RWLIST_RDLOCK(&actions);
+		AST_RWLIST_TRAVERSE(&actions, cur, list) {
+			if (!strncasecmp(a->word, cur->action, l) && ++which > a->n) {
+				ret = ast_strdup(cur->action);
+				break;	/* make sure we exit even if ast_strdup() returns NULL */
+			}
+		}
+		AST_RWLIST_UNLOCK(&actions);
+		return ret;
+	}
+	authority = ast_str_alloca(80);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list) {
-		for (num = 3; num < argc; num++) {
-			if (!strcasecmp(cur->action, argv[num])) {
-				ast_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
+		for (num = 3; num < a->argc; num++) {
+			if (!strcasecmp(cur->action, a->argv[num])) {
+				ast_cli(a->fd, "Action: %s\nSynopsis: %s\nPrivilege: %s\n%s\n",
 					cur->action, cur->synopsis,
 					authority_to_str(cur->authority, &authority),
-					S_OR(cur->description, "") );
+					S_OR(cur->description, ""));
 			}
 		}
 	}
 	AST_RWLIST_UNLOCK(&actions);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_mandebug(int fd, int argc, char *argv[])
+static char *handle_mandebug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc == 2)
-		ast_cli(fd, "manager debug is %s\n", manager_debug? "on" : "off");
-	else if (argc == 3) {
-		if (!strcasecmp(argv[2], "on"))
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager debug [on|off]";
+		e->usage = "Usage: manager debug [on|off]\n	Show, enable, disable debugging of the manager code.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	if (a->argc == 2)
+		ast_cli(a->fd, "manager debug is %s\n", manager_debug? "on" : "off");
+	else if (a->argc == 3) {
+		if (!strcasecmp(a->argv[2], "on"))
 			manager_debug = 1;
-		else if (!strcasecmp(argv[2], "off"))
+		else if (!strcasecmp(a->argv[2], "off"))
 			manager_debug = 0;
 		else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_showmanager(int fd, int argc, char *argv[])
+static char *handle_showmanager(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_manager_user *user = NULL;
+	int l, which;
+	char *ret = NULL;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show user";
+		e->usage = 
+			" Usage: manager show user <user>\n"
+			"        Display all information related to the manager user specified.\n";
+		return NULL;
+	case CLI_GENERATE:
+		l = strlen(a->word);
+		which = 0;
+		if (a->pos != 3)
+			return NULL;
+		AST_RWLIST_RDLOCK(&users);
+		AST_RWLIST_TRAVERSE(&users, user, list) {
+			if ( !strncasecmp(a->word, user->username, l) && ++which > a->n ) {
+				ret = ast_strdup(user->username);
+				break;
+			}
+		}
+		AST_RWLIST_UNLOCK(&users);
+		return ret;
+	}
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
 	AST_RWLIST_RDLOCK(&users);
 
-	if (!(user = get_manager_by_name_locked(argv[3]))) {
-		ast_cli(fd, "There is no manager called %s\n", argv[3]);
+	if (!(user = get_manager_by_name_locked(a->argv[3]))) {
+		ast_cli(a->fd, "There is no manager called %s\n", a->argv[3]);
 		AST_RWLIST_UNLOCK(&users);
-		return -1;
+		return CLI_SUCCESS;
 	}
 
-	ast_cli(fd,"\n");
-	ast_cli(fd,
+	ast_cli(a->fd,"\n");
+	ast_cli(a->fd,
 		"       username: %s\n"
 		"         secret: %s\n"
 		"           deny: %s\n"
@@ -565,154 +579,147 @@ static int handle_showmanager(int fd, int argc, char *argv[])
 
 	AST_RWLIST_UNLOCK(&users);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 
-static int handle_showmanagers(int fd, int argc, char *argv[])
+static char *handle_showmanagers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_manager_user *user = NULL;
 	int count_amu = 0;
-
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show users";
+		e->usage = 
+			"Usage: manager show users\n"
+			"       Prints a listing of all managers that are currently configured on that\n"
+			" system.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	AST_RWLIST_RDLOCK(&users);
 
 	/* If there are no users, print out something along those lines */
 	if (AST_RWLIST_EMPTY(&users)) {
-		ast_cli(fd, "There are no manager users.\n");
+		ast_cli(a->fd, "There are no manager users.\n");
 		AST_RWLIST_UNLOCK(&users);
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	}
 
-	ast_cli(fd, "\nusername\n--------\n");
+	ast_cli(a->fd, "\nusername\n--------\n");
 
 	AST_RWLIST_TRAVERSE(&users, user, list) {
-		ast_cli(fd, "%s\n", user->username);
+		ast_cli(a->fd, "%s\n", user->username);
 		count_amu++;
 	}
 
 	AST_RWLIST_UNLOCK(&users);
 
-	ast_cli(fd,"-------------------\n");
-	ast_cli(fd,"%d manager users configured.\n", count_amu);
+	ast_cli(a->fd,"-------------------\n");
+	ast_cli(a->fd,"%d manager users configured.\n", count_amu);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 
 /*! \brief  CLI command  manager list commands */
-static int handle_showmancmds(int fd, int argc, char *argv[])
+static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct manager_action *cur;
-	struct ast_str *authority = ast_str_alloca(80);
-	char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
-
-	ast_cli(fd, format, "Action", "Privilege", "Synopsis");
-	ast_cli(fd, format, "------", "---------", "--------");
+	struct ast_str *authority;
+	static const char *format = "  %-15.15s  %-15.15s  %-55.55s\n";
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show commands";
+		e->usage = 
+			"Usage: manager show commands\n"
+			"	Prints a listing of all the available Asterisk manager interface commands.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}	
+	authority = ast_str_alloca(80);
+	ast_cli(a->fd, format, "Action", "Privilege", "Synopsis");
+	ast_cli(a->fd, format, "------", "---------", "--------");
 
 	AST_RWLIST_RDLOCK(&actions);
 	AST_RWLIST_TRAVERSE(&actions, cur, list)
-		ast_cli(fd, format, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
+		ast_cli(a->fd, format, cur->action, authority_to_str(cur->authority, &authority), cur->synopsis);
 	AST_RWLIST_UNLOCK(&actions);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief CLI command manager list connected */
-static int handle_showmanconn(int fd, int argc, char *argv[])
+static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct mansession *s;
-	char *format = "  %-15.15s  %-15.15s\n";
+	static const char *format = "  %-15.15s  %-15.15s\n";
 	int count = 0;
-
-	ast_cli(fd, format, "Username", "IP Address");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show connected";
+		e->usage = 
+			"Usage: manager show connected\n"
+			"	Prints a listing of the users that are currently connected to the\n"
+			"Asterisk manager interface.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	ast_cli(a->fd, format, "Username", "IP Address");
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_cli(fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
+		ast_cli(a->fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
 		count++;
 	}
 	AST_LIST_UNLOCK(&sessions);
 
-	ast_cli(fd, "%d users connected.\n", count);
+	ast_cli(a->fd, "%d users connected.\n", count);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*! \brief CLI command manager list eventq */
 /* Should change to "manager show connected" */
-static int handle_showmaneventq(int fd, int argc, char *argv[])
+static char *handle_showmaneventq(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct eventqent *s;
-
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "manager show eventq";
+		e->usage = 
+			"Usage: manager show eventq\n"
+			"	Prints a listing of all events pending in the Asterisk manger\n"
+			"event queue.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 	AST_LIST_LOCK(&all_events);
 	AST_LIST_TRAVERSE(&all_events, s, eq_next) {
-		ast_cli(fd, "Usecount: %d\n",s->usecount);
-		ast_cli(fd, "Category: %d\n", s->category);
-		ast_cli(fd, "Event:\n%s", s->eventdata);
+		ast_cli(a->fd, "Usecount: %d\n",s->usecount);
+		ast_cli(a->fd, "Category: %d\n", s->category);
+		ast_cli(a->fd, "Event:\n%s", s->eventdata);
 	}
 	AST_LIST_UNLOCK(&all_events);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char showmancmd_help[] =
-"Usage: manager show command <actionname>\n"
-"	Shows the detailed description for a specific Asterisk manager interface command.\n";
-
-static char showmancmds_help[] =
-"Usage: manager show commands\n"
-"	Prints a listing of all the available Asterisk manager interface commands.\n";
-
-static char showmanconn_help[] =
-"Usage: manager show connected\n"
-"	Prints a listing of the users that are currently connected to the\n"
-"Asterisk manager interface.\n";
-
-static char showmaneventq_help[] =
-"Usage: manager show eventq\n"
-"	Prints a listing of all events pending in the Asterisk manger\n"
-"event queue.\n";
-
-static char showmanagers_help[] =
-"Usage: manager show users\n"
-"       Prints a listing of all managers that are currently configured on that\n"
-" system.\n";
-
-static char showmanager_help[] =
-" Usage: manager show user <user>\n"
-"        Display all information related to the manager user specified.\n";
-
 static struct ast_cli_entry cli_manager[] = {
-	{ { "manager", "show", "command", NULL },
-	handle_showmancmd, "Show a manager interface command",
-	showmancmd_help, complete_show_mancmd },
-
-	{ { "manager", "show", "commands", NULL },
-	handle_showmancmds, "List manager interface commands",
-	showmancmds_help },
-
-	{ { "manager", "show", "connected", NULL },
-	handle_showmanconn, "List connected manager interface users",
-	showmanconn_help },
-
-	{ { "manager", "show", "eventq", NULL },
-	handle_showmaneventq, "List manager interface queued events",
-	showmaneventq_help },
-
-	{ { "manager", "show", "users", NULL },
-	handle_showmanagers, "List configured manager users",
-	showmanagers_help, NULL, NULL },
-
-	{ { "manager", "show", "user", NULL },
-	handle_showmanager, "Display information on a specific manager user",
-	showmanager_help, complete_show_manuser, NULL },
-
-	{ { "manager", "debug", NULL },
-	handle_mandebug, "Show, enable, disable debugging of the manager code",
-	"Usage: manager debug [on|off]\n	Show, enable, disable debugging of the manager code.\n", NULL, NULL },
+	NEW_CLI(handle_showmancmd, "Show a manager interface command"),
+	NEW_CLI(handle_showmancmds, "List manager interface commands"),
+	NEW_CLI(handle_showmanconn, "List connected manager interface users"),
+	NEW_CLI(handle_showmaneventq, "List manager interface queued events"),
+	NEW_CLI(handle_showmanagers, "List configured manager users"),
+	NEW_CLI(handle_showmanager, "Display information on a specific manager user"),
+	NEW_CLI(handle_mandebug, "Show, enable, disable debugging of the manager code"),
 };
 
 /*

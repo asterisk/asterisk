@@ -509,36 +509,41 @@ static struct ast_channel *features_request(const char *type, int format, void *
 	return chan;
 }
 
-static int features_show(int fd, int argc, char **argv)
+static char *features_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct feature_pvt *p;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "feature show channels";
+		e->usage =
+			"Usage: feature show channels\n"
+			"       Provides summary information on feature channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	if (AST_LIST_EMPTY(&features)) {
-		ast_cli(fd, "No feature channels in use\n");
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No feature channels in use\n");
+		return CLI_SUCCESS;
 	}
 
 	AST_LIST_LOCK(&features);
 	AST_LIST_TRAVERSE(&features, p, list) {
 		ast_mutex_lock(&p->lock);
-		ast_cli(fd, "%s -- %s/%s\n", p->owner ? p->owner->name : "<unowned>", p->tech, p->dest);
+		ast_cli(a->fd, "%s -- %s/%s\n", p->owner ? p->owner->name : "<unowned>", p->tech, p->dest);
 		ast_mutex_unlock(&p->lock);
 	}
 	AST_LIST_UNLOCK(&features);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char show_features_usage[] = 
-"Usage: feature show channels\n"
-"       Provides summary information on feature channels.\n";
-
 static struct ast_cli_entry cli_features[] = {
-	{ { "feature", "show", "channels", NULL },
-	features_show, "List status of feature channels",
-	show_features_usage },
+	NEW_CLI(features_show, "List status of feature channels"),
 };
 
 static int load_module(void)

@@ -230,6 +230,7 @@ static int agent_indicate(struct ast_channel *ast, int condition, const void *da
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 static void set_agentbycallerid(const char *callerid, const char *agent);
+static char *complete_agent_logoff_cmd(const char *line, const char *word, int pos, int state);
 
 /*! \brief Channel interface description for PBX integration */
 static const struct ast_channel_tech agent_tech = {
@@ -1496,22 +1497,34 @@ static int agent_logoff(const char *agent, int soft)
 	return ret;
 }
 
-static int agent_logoff_cmd(int fd, int argc, char **argv)
+static char *agent_logoff_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int ret;
 	char *agent;
 
-	if (argc < 3 || argc > 4)
-		return RESULT_SHOWUSAGE;
-	if (argc == 4 && strcasecmp(argv[3], "soft"))
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "agent logoff";
+		e->usage =
+			"Usage: agent logoff <channel> [soft]\n"
+			"       Sets an agent as no longer logged in.\n"
+			"       If 'soft' is specified, do not hangup existing calls.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_agent_logoff_cmd(a->line, a->word, a->pos, a->n); 
+	}
 
-	agent = argv[2] + 6;
-	ret = agent_logoff(agent, argc == 4);
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 4 && strcasecmp(a->argv[3], "soft"))
+		return CLI_SHOWUSAGE;
+
+	agent = a->argv[2] + 6;
+	ret = agent_logoff(agent, a->argc == 4);
 	if (ret == 0)
-		ast_cli(fd, "Logging out %s\n", agent);
+		ast_cli(a->fd, "Logging out %s\n", agent);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*!
@@ -1565,7 +1578,7 @@ static char *complete_agent_logoff_cmd(const char *line, const char *word, int p
 /*!
  * Show agents in cli.
  */
-static int agents_show(int fd, int argc, char **argv)
+static char *agents_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct agent_pvt *p;
 	char username[AST_MAX_BUF];
@@ -1575,16 +1588,29 @@ static int agents_show(int fd, int argc, char **argv)
 	int count_agents = 0;		/*!< Number of agents configured */
 	int online_agents = 0;		/*!< Number of online agents */
 	int offline_agents = 0;		/*!< Number of offline agents */
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "agent show";
+		e->usage =
+			"Usage: agent show\n"
+			"       Provides summary information on agents.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		ast_mutex_lock(&p->lock);
 		if (p->pending) {
 			if (p->group)
-				ast_cli(fd, "-- Pending call to group %d\n", powerof(p->group));
+				ast_cli(a->fd, "-- Pending call to group %d\n", powerof(p->group));
 			else
-				ast_cli(fd, "-- Pending call to agent %s\n", p->agent);
+				ast_cli(a->fd, "-- Pending call to agent %s\n", p->agent);
 		} else {
 			if (!ast_strlen_zero(p->name))
 				snprintf(username, sizeof(username), "(%s) ", p->name);
@@ -1613,7 +1639,7 @@ static int agents_show(int fd, int argc, char **argv)
 			}
 			if (!ast_strlen_zero(p->moh))
 				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
-			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
+			ast_cli(a->fd, "%-12.12s %s%s%s%s\n", p->agent, 
 				username, location, talkingto, moh);
 			count_agents++;
 		}
@@ -1621,16 +1647,16 @@ static int agents_show(int fd, int argc, char **argv)
 	}
 	AST_LIST_UNLOCK(&agents);
 	if ( !count_agents ) 
-		ast_cli(fd, "No Agents are configured in %s\n",config);
+		ast_cli(a->fd, "No Agents are configured in %s\n",config);
 	else 
-		ast_cli(fd, "%d agents configured [%d online , %d offline]\n",count_agents, online_agents, offline_agents);
-	ast_cli(fd, "\n");
+		ast_cli(a->fd, "%d agents configured [%d online , %d offline]\n",count_agents, online_agents, offline_agents);
+	ast_cli(a->fd, "\n");
 	                
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 
-static int agents_show_online(int fd, int argc, char **argv)
+static char *agents_show_online(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct agent_pvt *p;
 	char username[AST_MAX_BUF];
@@ -1640,8 +1666,21 @@ static int agents_show_online(int fd, int argc, char **argv)
 	int count_agents = 0;           /* Number of agents configured */
 	int online_agents = 0;          /* Number of online agents */
 	int agent_status = 0;           /* 0 means offline, 1 means online */
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "agent show online";
+		e->usage =
+			"Usage: agent show online\n"
+			"       Provides a list of all online agents.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
 	AST_LIST_LOCK(&agents);
 	AST_LIST_TRAVERSE(&agents, p, list) {
 		agent_status = 0;       /* reset it to offline */
@@ -1669,28 +1708,18 @@ static int agents_show_online(int fd, int argc, char **argv)
 		if (!ast_strlen_zero(p->moh))
 			snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
 		if (agent_status)
-			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, username, location, talkingto, moh);
+			ast_cli(a->fd, "%-12.12s %s%s%s%s\n", p->agent, username, location, talkingto, moh);
 		count_agents++;
 		ast_mutex_unlock(&p->lock);
 	}
 	AST_LIST_UNLOCK(&agents);
 	if (!count_agents) 
-		ast_cli(fd, "No Agents are configured in %s\n", config);
+		ast_cli(a->fd, "No Agents are configured in %s\n", config);
 	else
-		ast_cli(fd, "%d agents online\n", online_agents);
-	ast_cli(fd, "\n");
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "%d agents online\n", online_agents);
+	ast_cli(a->fd, "\n");
+	return CLI_SUCCESS;
 }
-
-
-
-static const char show_agents_usage[] = 
-"Usage: agent show\n"
-"       Provides summary information on agents.\n";
-
-static const char show_agents_online_usage[] =
-"Usage: agent show online\n"
-"	Provides a list of all online agents.\n";
 
 static const char agent_logoff_usage[] =
 "Usage: agent logoff <channel> [soft]\n"
@@ -1698,17 +1727,9 @@ static const char agent_logoff_usage[] =
 "       If 'soft' is specified, do not hangup existing calls.\n";
 
 static struct ast_cli_entry cli_agents[] = {
-	{ { "agent", "show", NULL },
-	agents_show, "Show status of agents",
-	show_agents_usage },
-
-	{ { "agent", "show", "online" },
-	agents_show_online, "Show all online agents",
-	show_agents_online_usage },
-
-	{ { "agent", "logoff", NULL },
-	agent_logoff_cmd, "Sets an agent offline",
-	agent_logoff_usage, complete_agent_logoff_cmd },
+	NEW_CLI(agents_show, "Show status of agents"),
+	NEW_CLI(agents_show_online, "Show all online agents"),
+	NEW_CLI(agent_logoff_cmd, "Sets an agent offline"),
 };
 
 /*!

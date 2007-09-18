@@ -854,10 +854,8 @@ static int moh_scan_files(struct mohclass *class) {
 		if (!S_ISREG(statbuf.st_mode))
 			continue;
 
-		if ((ext = strrchr(filepath, '.'))) {
+		if ((ext = strrchr(filepath, '.')))
 			*ext = '\0';
-			ext++;
-		}
 
 		/* if the file is present in multiple formats, ensure we only put it into the list once */
 		for (i = 0; i < class->total_files; i++)
@@ -1147,66 +1145,102 @@ static void ast_moh_destroy(void)
 	AST_RWLIST_UNLOCK(&mohclasses);
 }
 
-static int moh_cli(int fd, int argc, char *argv[]) 
+static char *handle_cli_moh_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "moh reload";
+		e->usage =
+			"Usage: moh reload\n"
+			"       Reloads the MusicOnHold module.\n"
+			"       Alias for 'module reload res_musiconhold.so'\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
 	reload();
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int cli_files_show(int fd, int argc, char *argv[])
+static char *handle_cli_moh_show_files(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i;
 	struct mohclass *class;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "moh show files";
+		e->usage =
+			"Usage: moh show files\n"
+			"       Lists all loaded file-based MusicOnHold classes and their\n"
+			"       files.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
 
 	AST_RWLIST_RDLOCK(&mohclasses);
 	AST_RWLIST_TRAVERSE(&mohclasses, class, list) {
 		if (!class->total_files)
 			continue;
 
-		ast_cli(fd, "Class: %s\n", class->name);
+		ast_cli(a->fd, "Class: %s\n", class->name);
 		for (i = 0; i < class->total_files; i++)
-			ast_cli(fd, "\tFile: %s\n", class->filearray[i]);
+			ast_cli(a->fd, "\tFile: %s\n", class->filearray[i]);
 	}
 	AST_RWLIST_UNLOCK(&mohclasses);
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int moh_classes_show(int fd, int argc, char *argv[])
+static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct mohclass *class;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "moh show classes";
+		e->usage =
+			"Usage: moh show classes\n"
+			"       Lists all MusicOnHold classes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
 	AST_RWLIST_RDLOCK(&mohclasses);
 	AST_RWLIST_TRAVERSE(&mohclasses, class, list) {
-		ast_cli(fd, "Class: %s\n", class->name);
-		ast_cli(fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
-		ast_cli(fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
-		ast_cli(fd, "\tUse Count: %d\n", class->inuse);
+		ast_cli(a->fd, "Class: %s\n", class->name);
+		ast_cli(a->fd, "\tMode: %s\n", S_OR(class->mode, "<none>"));
+		ast_cli(a->fd, "\tDirectory: %s\n", S_OR(class->dir, "<none>"));
+		ast_cli(a->fd, "\tUse Count: %d\n", class->inuse);
 		if (class->digit)
-			ast_cli(fd, "\tDigit: %c\n", class->digit);
+			ast_cli(a->fd, "\tDigit: %c\n", class->digit);
 		if (ast_test_flag(class, MOH_CUSTOM))
-			ast_cli(fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
+			ast_cli(a->fd, "\tApplication: %s\n", S_OR(class->args, "<none>"));
 		if (strcasecmp(class->mode, "files"))
-			ast_cli(fd, "\tFormat: %s\n", ast_getformatname(class->format));
+			ast_cli(a->fd, "\tFormat: %s\n", ast_getformatname(class->format));
 	}
 	AST_RWLIST_UNLOCK(&mohclasses);
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_moh[] = {
-	{ { "moh", "reload"},
-	moh_cli, "Music On Hold",
-	"Music On Hold" },
-
-	{ { "moh", "show", "classes"},
-	moh_classes_show, "List MOH classes",
-	"Lists all MOH classes" },
-
-	{ { "moh", "show", "files"},
-	cli_files_show, "List MOH file-based classes",
-	"Lists all loaded file-based MOH classes and their files" },
+	NEW_CLI(handle_cli_moh_reload,       "Reload MusicOnHold"),
+	NEW_CLI(handle_cli_moh_show_classes, "List MusicOnHold classes"),
+	NEW_CLI(handle_cli_moh_show_files,   "List MusicOnHold file-based classes")
 };
 
 static int init_classes(int reload) 

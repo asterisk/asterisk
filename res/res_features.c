@@ -2364,41 +2364,61 @@ static int park_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int handle_showfeatures(int fd, int argc, char *argv[])
-{
+/*!
+ * \brief CLI command to list configured features
+ * \param e
+ * \param cmd
+ * \param a
+ *
+ * \retval CLI_SUCCESS on success.
+ * \retval NULL when tab completion is used.
+ */
+static char *handle_feature_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) {
 	int i;
 	struct ast_call_feature *feature;
 	char format[] = "%-25s %-7s %-7s\n";
 
-	ast_cli(fd, format, "Builtin Feature", "Default", "Current");
-	ast_cli(fd, format, "---------------", "-------", "-------");
+	switch (cmd) {
+	
+	case CLI_INIT:
+		e->command = "features show";
+		e->usage =
+			"Usage: features show\n"
+			"       Lists configured features\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+        }
 
-	ast_cli(fd, format, "Pickup", "*8", ast_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
+	ast_cli(a->fd, format, "Builtin Feature", "Default", "Current");
+	ast_cli(a->fd, format, "---------------", "-------", "-------");
+
+	ast_cli(a->fd, format, "Pickup", "*8", ast_pickup_ext());          /* default hardcoded above, so we'll hardcode it here */
 
 	ast_rwlock_rdlock(&features_lock);
 	for (i = 0; i < FEATURES_COUNT; i++)
-		ast_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
+		ast_cli(a->fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
 	ast_rwlock_unlock(&features_lock);
 
-	ast_cli(fd, "\n");
-	ast_cli(fd, format, "Dynamic Feature", "Default", "Current");
-	ast_cli(fd, format, "---------------", "-------", "-------");
+	ast_cli(a->fd, "\n");
+	ast_cli(a->fd, format, "Dynamic Feature", "Default", "Current");
+	ast_cli(a->fd, format, "---------------", "-------", "-------");
 	if (AST_LIST_EMPTY(&feature_list))
-		ast_cli(fd, "(none)\n");
+		ast_cli(a->fd, "(none)\n");
 	else {
 		AST_LIST_LOCK(&feature_list);
 		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry)
-			ast_cli(fd, format, feature->sname, "no def", feature->exten);	
+			ast_cli(a->fd, format, feature->sname, "no def", feature->exten);
 		AST_LIST_UNLOCK(&feature_list);
 	}
-	ast_cli(fd, "\nCall parking\n");
-	ast_cli(fd, "------------\n");
-	ast_cli(fd,"%-20s:	%s\n", "Parking extension", parking_ext);
-	ast_cli(fd,"%-20s:	%s\n", "Parking context", parking_con);
-	ast_cli(fd,"%-20s:	%d-%d\n", "Parked call extensions", parking_start, parking_stop);
-	ast_cli(fd,"\n");
-	
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "\nCall parking\n");
+	ast_cli(a->fd, "------------\n");
+	ast_cli(a->fd,"%-20s:      %s\n", "Parking extension", parking_ext);
+	ast_cli(a->fd,"%-20s:      %s\n", "Parking context", parking_con);
+	ast_cli(a->fd,"%-20s:      %d-%d\n", "Parked call extensions", parking_start, parking_stop);
+	ast_cli(a->fd,"\n");
+
+	return CLI_SUCCESS;
 }
 
 static char mandescr_bridge[] =
@@ -2542,10 +2562,6 @@ static int action_bridge(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static char showfeatures_help[] =
-"Usage: feature list\n"
-"       Lists currently configured features.\n";
-
 /*!
  * \brief CLI command to list parked calls
  * \param e 
@@ -2605,10 +2621,7 @@ static char *handle_parkedcalls_deprecated(struct ast_cli_entry *e, int cmd, str
 static struct ast_cli_entry cli_show_parkedcalls_deprecated = NEW_CLI(handle_parkedcalls_deprecated, "List currently parked calls.");
 
 static struct ast_cli_entry cli_features[] = {
-	{ { "feature", "show", NULL },
-	handle_showfeatures, "Lists configured features",
-	showfeatures_help },
-
+	NEW_CLI(handle_feature_show, "Lists configured features"),
 	NEW_CLI(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
 };
 
