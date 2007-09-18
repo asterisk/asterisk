@@ -51,6 +51,9 @@ silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
 ;
+; Move heard messages to the 'Old' folder automagically.  Defaults to on.
+;moveheard=yes
+;
 ; User context is where entries from users.conf are registered.  The
 ; default value is 'default'
 ;
@@ -279,7 +282,7 @@ european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 ;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central|maxmsg=10
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
 ;4310 => -5432,Sales,sales@marko.net
-;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|sayduration=yes|saydurationm=1
+;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|moveheard=yes|sayduration=yes|saydurationm=1
 ;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
 ;4235 => 1234,Jim Holmes,jim@astricon.ips,,Tz=european

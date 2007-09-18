@@ -223,6 +223,7 @@ static AST_LIST_HEAD_STATIC(vmstates, vmstate);
 #define VM_ALLOCED       (1 << 13)
 #define VM_SEARCH        (1 << 14)
 #define VM_TEMPGREETWARN (1 << 15)  /*!< Remind user tempgreeting is set */
+#define VM_MOVEHEARD     (1 << 16)  /*!< Move a "heard" message to Old after listening to it */
 #define ERROR_LOCK_PATH  -100
 
 
@@ -716,6 +717,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_set2_flag(vmu, ast_true(value), VM_OPERATOR);	
 	} else if (!strcasecmp(var, "envelope")){
 		ast_set2_flag(vmu, ast_true(value), VM_ENVELOPE);	
+	} else if (!strcasecmp(var, "moveheard")){
+		ast_set2_flag(vmu, ast_true(value), VM_MOVEHEARD);
 	} else if (!strcasecmp(var, "sayduration")){
 		ast_set2_flag(vmu, ast_true(value), VM_SAYDURATION);	
 	} else if (!strcasecmp(var, "saydurationm")){
@@ -5183,7 +5186,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		return ERROR_LOCK_PATH;
 	 
 	for (x = 0; x < vmu->maxmsg; x++) { 
-		if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
+		if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x] || (vms->heard[x] && !ast_test_flag(vmu, VM_MOVEHEARD)))) { 
 			/* Save this message.  It's not in INBOX or hasn't been heard */ 
 			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
 			if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
@@ -5193,7 +5196,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			if (strcmp(vms->fn, vms->fn2)) { 
 				RENAME(vms->curdir, x, vmu->mailbox,vmu->context, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
 			} 
-		} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
+		} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && ast_test_flag(vmu, VM_MOVEHEARD) && !vms->deleted[x]) { 
 			/* Move to old folder before deleting */ 
 			res = save_to_folder(vmu, vms, x, 1);
 			if (res == ERROR_LOCK_PATH) {
@@ -8295,6 +8298,12 @@ static int load_config(int reload)
 			val = "yes";
 		}
 		ast_set2_flag((&globalflags), ast_true(val), VM_ENVELOPE);	
+
+		if (!(val = ast_variable_retrieve(cfg, "general", "moveheard"))) {
+			ast_debug(1,"Move Heard enabled globally\n");
+			val = "yes";
+		}
+		ast_set2_flag((&globalflags), ast_true(val), VM_MOVEHEARD);	
 
 		if (!(val = ast_variable_retrieve(cfg, "general", "sayduration"))) {
 			ast_debug(1,"Duration info before msg enabled globally\n");
