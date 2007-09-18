@@ -87,7 +87,7 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
  * \endcode
  */
 #define AST_THREADSTORAGE(name) \
-	AST_THREADSTORAGE_CUSTOM(name, NULL, ast_free) 
+	AST_THREADSTORAGE_CUSTOM(name, NULL, ast_free_ptr) 
 
 /*!
  * \brief Define a thread storage variable, with custom initialization and cleanup
