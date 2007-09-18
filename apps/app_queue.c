@@ -3981,7 +3981,6 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 	if (q) {
 		int buflen = 0, count = 0;
 		struct ao2_iterator mem_iter = ao2_iterator_init(q->members, 0);
-		const char *name_to_list;
 
 		while ((m = ao2_iterator_next(&mem_iter))) {
 			/* strcat() is always faster than printf() */
@@ -3989,9 +3988,8 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 				strncat(buf + buflen, ",", len - buflen - 1);
 				buflen++;
 			}
-			name_to_list = ast_strlen_zero(m->membername) ? m->interface : m->membername;
-			strncat(buf + buflen, name_to_list, len - buflen - 1);
-			buflen += strlen(name_to_list);
+			strncat(buf + buflen, m->membername, len - buflen - 1);
+			buflen += strlen(m->membername);
 			/* Safeguard against overflow (negative length) */
 			if (buflen >= len - 2) {
 				ao2_ref(m, -1);
@@ -4294,7 +4292,7 @@ static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
 			do_print(s, fd, "   Members: ");
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((mem = ao2_iterator_next(&mem_iter))) {
-				ast_str_set(&out, 0, "      %s", ast_strlen_zero(mem->membername) ? mem->interface : mem->membername);
+				ast_str_set(&out, 0, "      %s", mem->membername);
 				if (mem->penalty)
 					ast_str_append(&out, 0, " with penalty %d", mem->penalty);
 				ast_str_append(&out, 0, "%s%s%s (%s)",
@@ -4814,7 +4812,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 				if (++which > state) {
 					char *tmp;
 					ast_mutex_unlock(&q->lock);
-					tmp = ast_strdup((ast_strlen_zero(m->membername) ? m->interface : m->membername));
+					tmp = m->membername;
 					ao2_ref(m, -1);
 					return tmp;
 				}
