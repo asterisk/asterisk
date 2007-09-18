@@ -3773,7 +3773,6 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 	if (q) {
 		int buflen = 0, count = 0;
 		struct ao2_iterator mem_iter = ao2_iterator_init(q->members, 0);
-		const char *name_to_list;
 
 		while ((m = ao2_iterator_next(&mem_iter))) {
 			/* strcat() is always faster than printf() */
@@ -3781,9 +3780,8 @@ static int queue_function_queuememberlist(struct ast_channel *chan, char *cmd, c
 				strncat(buf + buflen, ",", len - buflen - 1);
 				buflen++;
 			}
-			name_to_list = ast_strlen_zero(m->membername) ? m->interface : m->membername;
-			strncat(buf + buflen, name_to_list, len - buflen - 1);
-			buflen += strlen(name_to_list);
+			strncat(buf + buflen, m->membername, len - buflen - 1);
+			buflen += strlen(m->membername);
 			/* Safeguard against overflow (negative length) */
 			if (buflen >= len - 2) {
 				ao2_ref(m, -1);
@@ -4113,13 +4111,9 @@ static int __queues_show(struct mansession *s, int manager, int fd, int argc, ch
 				} else
 					ast_build_string(&max, &max_left, " has taken no calls yet");
 				if (s)
-					astman_append(s, "      %s%s%s",
-						      ast_strlen_zero(mem->membername) ? mem->interface : mem->membername,
-						      max_buf, term);
+					astman_append(s, "      %s%s%s", mem->membername, max_buf, term);
 				else
-					ast_cli(fd, "      %s%s%s",
-						ast_strlen_zero(mem->membername) ? mem->interface : mem->membername,
-						max_buf, term);
+					ast_cli(fd, "      %s%s%s", mem->membername, max_buf, term);
 				ao2_ref(mem, -1);
 			}
 		} else if (s)
@@ -4547,7 +4541,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 				if (++which > state) {
 					char *tmp;
 					ast_mutex_unlock(&q->lock);
-					tmp = ast_strdup((ast_strlen_zero(m->membername) ? m->interface : m->membername));
+					tmp = m->membername;
 					ao2_ref(m, -1);
 					return tmp;
 				}
