@@ -3849,7 +3849,7 @@ static int reload_queues(void)
 	const char *general_val = NULL;
 	char parse[80];
 	char *interface;
-	char *membername;
+	char *membername = NULL;
 	int penalty;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(interface);
