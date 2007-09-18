@@ -3474,7 +3474,8 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return AST_BRIDGE_FAILED_NOWARN;
 
-	ast_channel_lock_both(c0, c1);
+	ast_channel_lock(c0);
+	ast_channel_lock(c1);
 
 	p0 = c0->tech_pvt;
 	p1 = c1->tech_pvt;
@@ -3640,7 +3641,8 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
-		ast_channel_lock_both(c0, c1);
+		ast_channel_lock(c0);
+		ast_channel_lock(c1);
 
 		p0 = c0->tech_pvt;
 		p1 = c1->tech_pvt;
