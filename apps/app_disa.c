@@ -120,17 +120,16 @@ static void play_dialtone(struct ast_channel *chan, char *mailbox)
 
 static int disa_exec(struct ast_channel *chan, void *data)
 {
-	int i,j,k,x,did_ignore,special_noanswer;
-	int firstdigittimeout = 20000;
-	int digittimeout = 10000;
+	int i = 0, j, k = 0, did_ignore = 0, special_noanswer = 0;
+	int firstdigittimeout = (chan->pbx ? chan->pbx->rtimeout * 1000 : 20000);
+	int digittimeout = (chan->pbx ? chan->pbx->dtimeout * 1000 : 10000);
 	struct ast_flags flags;
-	char *tmp, exten[AST_MAX_EXTENSION],acctcode[20]="";
+	char *tmp, exten[AST_MAX_EXTENSION] = "", acctcode[20]="";
 	char pwline[256];
 	char ourcidname[256],ourcidnum[256];
 	struct ast_frame *f;
 	struct timeval lastdigittime;
 	int res;
-	time_t rstart;
 	FILE *fp;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(passcode);
@@ -142,20 +141,6 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "DISA requires an argument (passcode/passcode file)\n");
-		return -1;
-	}
-	
-	if (chan->pbx) {
-		firstdigittimeout = chan->pbx->rtimeout*1000;
-		digittimeout = chan->pbx->dtimeout*1000;
-	}
-	
-	if (ast_set_write_format(chan,AST_FORMAT_ULAW)) {
-		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n", chan->name);
-		return -1;
-	}
-	if (ast_set_read_format(chan,AST_FORMAT_ULAW)) {
-		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n", chan->name);
 		return -1;
 	}
 	
@@ -175,18 +160,13 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	ast_debug(1, "Mailbox: %s\n",args.mailbox);
 
-	special_noanswer = 0;
-	if (ast_test_flag(&flags, NOANSWER_FLAG)) {
+	if (!ast_test_flag(&flags, NOANSWER_FLAG)) {
 		if (chan->_state != AST_STATE_UP) {
 			/* answer */
 			ast_answer(chan);
 		}
-	} else special_noanswer = 1;
-	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
-	did_ignore = 0;
-	exten[0] = 0;
-	acctcode[0] = 0;
-	/* can we access DISA without password? */ 
+	} else
+		special_noanswer = 1;
 
 	ast_debug(1, "Context: %s\n",args.context);
 
@@ -194,38 +174,33 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		k |= 1; /* We have the password */
 		ast_debug(1, "DISA no-password login success\n");
 	}
+
 	lastdigittime = ast_tvnow();
 
 	play_dialtone(chan, args.mailbox);
 
 	for (;;) {
 		  /* if outa time, give em reorder */
-		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > 
-		    ((k&2) ? digittimeout : firstdigittimeout)) {
+		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > ((k&2) ? digittimeout : firstdigittimeout)) {
 			ast_debug(1,"DISA %s entry timeout on chan %s\n",
-				((k&1) ? "extension" : "password"),chan->name);
+				  ((k&1) ? "extension" : "password"),chan->name);
 			break;
 		}
+		
 		if ((res = ast_waitfor(chan, -1) < 0)) {
 			ast_debug(1, "Waitfor returned %d\n", res);
 			continue;
 		}
-			
-		f = ast_read(chan);
-		if (f == NULL) {
+
+		if (!(f = ast_read(chan)))
 			return -1;
-		}
-		if ((f->frametype == AST_FRAME_CONTROL) &&
-		    (f->subclass == AST_CONTROL_HANGUP)) {
+
+		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
 			ast_frfree(f);
 			return -1;
-		}
-		if (f->frametype == AST_FRAME_VOICE) {
-			ast_frfree(f);
-			continue;
 		}
 
-		/* if not DTMF, just do it again */
+		/* If the frame coming in is not DTMF, just drop it and continue */
 		if (f->frametype != AST_FRAME_DTMF) {
 			ast_frfree(f);
 			continue;
@@ -233,12 +208,15 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 		j = f->subclass;  /* save digit */
 		ast_frfree(f);
-		if (i == 0) {
-			k|=2; /* We have the first digit */ 
+
+		if (!i) {
+			k |= 2; /* We have the first digit */ 
 			ast_playtones_stop(chan);
 		}
+
 		lastdigittime = ast_tvnow();
-		  /* got a DTMF tone */
+
+		/* got a DTMF tone */
 		if (i < AST_MAX_EXTENSION) { /* if still valid number of digits */
 			if (!(k&1)) { /* if in password state */
 				if (j == '#') { /* end of password */
@@ -360,19 +338,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	/* Received invalid, but no "i" extension exists in the given context */
 
 reorder:
+	/* Play congestion for a bit */
+	ast_indicate(chan, AST_CONTROL_CONGESTION);
+	ast_safe_sleep(chan, 10*1000);
 
-	ast_indicate(chan,AST_CONTROL_CONGESTION);
-	/* something is invalid, give em reorder for several seconds */
-	time(&rstart);
-	while(time(NULL) < rstart + 10) {
-		if (ast_waitfor(chan, -1) < 0)
-			break;
-		f = ast_read(chan);
-		if (!f)
-			break;
-		ast_frfree(f);
-	}
 	ast_playtones_stop(chan);
+
 	return -1;
 }
 
