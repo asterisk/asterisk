@@ -279,11 +279,9 @@ static void add_codec_to_answer(const struct jingle_pvt *p, int codec, iks *dcod
 		payload_pcmu = iks_new("payload-type");
 		iks_insert_attrib(payload_pcmu, "id", "0");
 		iks_insert_attrib(payload_pcmu, "name", "PCMU");
-		iks_insert_attrib(payload_pcmu, "xmlns", "http://www.google.com/session/phone");
 		payload_eg711u = iks_new("payload-type");
 		iks_insert_attrib(payload_eg711u, "id", "100");
 		iks_insert_attrib(payload_eg711u, "name", "EG711U");
-		iks_insert_attrib(payload_eg711u, "xmlns", "http://www.google.com/session/phone");
 		iks_insert_node(dcodecs, payload_pcmu);
 		iks_insert_node(dcodecs, payload_eg711u);
 	}
@@ -292,11 +290,9 @@ static void add_codec_to_answer(const struct jingle_pvt *p, int codec, iks *dcod
 		iks *payload_pcma = iks_new("payload-type");
 		iks_insert_attrib(payload_pcma, "id", "8");
 		iks_insert_attrib(payload_pcma, "name", "PCMA");
-		iks_insert_attrib(payload_pcma, "xmlns", "http://www.google.com/session/phone");
 		payload_eg711a = iks_new("payload-type");
 		iks_insert_attrib(payload_eg711a, "id", "101");
 		iks_insert_attrib(payload_eg711a, "name", "EG711A");
-		iks_insert_attrib(payload_eg711a, "xmlns", "http://www.google.com/session/phone");
 		iks_insert_node(dcodecs, payload_pcma);
 		iks_insert_node(dcodecs, payload_eg711a);
 	}
@@ -304,14 +300,12 @@ static void add_codec_to_answer(const struct jingle_pvt *p, int codec, iks *dcod
 		iks *payload_ilbc = iks_new("payload-type");
 		iks_insert_attrib(payload_ilbc, "id", "97");
 		iks_insert_attrib(payload_ilbc, "name", "iLBC");
-		iks_insert_attrib(payload_ilbc, "xmlns", "http://www.google.com/session/phone");
 		iks_insert_node(dcodecs, payload_ilbc);
 	}
 	if (!strcasecmp("g723", format)) {
 		iks *payload_g723 = iks_new("payload-type");
 		iks_insert_attrib(payload_g723, "id", "4");
 		iks_insert_attrib(payload_g723, "name", "G723");
-		iks_insert_attrib(payload_g723, "xmlns", "http://www.google.com/session/phone");
 		iks_insert_node(dcodecs, payload_g723);
 	}
 	ast_rtp_lookup_code(p->rtp, 1, codec);
@@ -351,15 +345,12 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		payload_red = iks_new("payload-type");
 		iks_insert_attrib(payload_red, "id", "117");
 		iks_insert_attrib(payload_red, "name", "red");
-		iks_insert_attrib(payload_red, "xmlns", "http://www.google.com/session/phone");
 		payload_audio = iks_new("payload-type");
 		iks_insert_attrib(payload_audio, "id", "106");
 		iks_insert_attrib(payload_audio, "name", "audio/telephone-event");
-		iks_insert_attrib(payload_audio, "xmlns", "http://www.google.com/session/phone");
 		payload_cn = iks_new("payload-type");
 		iks_insert_attrib(payload_cn, "id", "13");
 		iks_insert_attrib(payload_cn, "name", "CN");
-		iks_insert_attrib(payload_cn, "xmlns", "http://www.google.com/session/phone");
 
 
 		iks_insert_attrib(iq, "type", "set");
@@ -369,8 +360,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 
 		iks_insert_attrib(jingle, "xmlns", GOOGLE_NS);
 		iks_insert_attrib(jingle, "type", JINGLE_ACCEPT);
-		iks_insert_attrib(jingle, "initiator",
-						  p->initiator ? client->connection->jid->full : p->from);
+		iks_insert_attrib(jingle, "initiator", p->initiator ? client->connection->jid->full : p->from);
 		iks_insert_attrib(jingle, GOOGLE_SID, tmp->sid);
 		iks_insert_node(iq, jingle);
 		iks_insert_node(jingle, dcodecs);
