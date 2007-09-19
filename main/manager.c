@@ -147,6 +147,7 @@ struct mansession {
 	int needdestroy;	/*!< Whether an HTTP session should be destroyed */
 	pthread_t waiting_thread;	/*!< Sleeping thread using this descriptor */
 	unsigned long managerid;	/*!< Unique manager identifier, 0 for AMI sessions */
+	time_t sessionstart;    /*!< Session start time */
 	time_t sessiontimeout;	/*!< Session timeout if HTTP */
 	char username[80];	/*!< Logged in username */
 	char challenge[10];	/*!< Authentication challenge */
@@ -658,7 +659,9 @@ static char *handle_showmancmds(struct ast_cli_entry *e, int cmd, struct ast_cli
 static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct mansession *s;
-	static const char *format = "  %-15.15s  %-15.15s\n";
+	time_t now = time(NULL);
+	static const char *format = "  %-15.15s  %-15.15s  %-10.10s  %-10.10s  %-8.8s  %-8.8s  %-5.5s  %-5.5s\n";
+	static const char *format2 = "  %-15.15s  %-15.15s  %-10d  %-10d  %-8d  %-8d  %-5.5d  %-5.5d\n";
 	int count = 0;
 	switch (cmd) {
 	case CLI_INIT:
@@ -671,11 +674,12 @@ static char *handle_showmanconn(struct ast_cli_entry *e, int cmd, struct ast_cli
 	case CLI_GENERATE:
 		return NULL;	
 	}
-	ast_cli(a->fd, format, "Username", "IP Address");
+
+	ast_cli(a->fd, format, "Username", "IP Address", "Start", "Elapsed", "FileDes", "HttpCnt", "Read", "Write");
 
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE(&sessions, s, list) {
-		ast_cli(a->fd, format,s->username, ast_inet_ntoa(s->sin.sin_addr));
+		ast_cli(a->fd, format2, s->username, ast_inet_ntoa(s->sin.sin_addr), (int)(s->sessionstart), (int)(now - s->sessionstart), s->fd, s->inuse, s->readperm, s->writeperm);
 		count++;
 	}
 	AST_LIST_UNLOCK(&sessions);
@@ -1100,6 +1104,7 @@ static int authenticate(struct mansession *s, const struct message *m)
 	ast_copy_string(s->username, user, sizeof(s->username));
 	s->readperm = readperm;
 	s->writeperm = writeperm;
+	s->sessionstart = time(NULL);
 	set_eventmask(s, astman_get_header(m, "Events"));
 	return 0;
 }
