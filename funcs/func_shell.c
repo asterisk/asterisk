@@ -49,6 +49,8 @@ static int shell_helper(struct ast_channel *chan, const char *cmd, char *data,
 		return -1;
 	}
 
+	ast_autoservice_start(chan);
+
 	if (len >= 1) {
 		FILE *ptr;
 		char plbuff[4096];
@@ -59,6 +61,8 @@ static int shell_helper(struct ast_channel *chan, const char *cmd, char *data,
 		}
 		pclose(ptr);
 	}
+
+	ast_autoservice_stop(chan);
 
 	return 0;
 }
