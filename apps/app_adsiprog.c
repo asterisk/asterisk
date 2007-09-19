@@ -228,9 +228,9 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 
 static char *get_token(char **buf, char *script, int lineno)
 {
-	char *tmp = *buf;
-	char *keyword;
+	char *tmp = *buf, *keyword;
 	int quoted = 0;
+
 	/* Advance past any white space */
 	while(*tmp && (*tmp < 33))
 		tmp++;
@@ -260,19 +260,21 @@ static char *validdtmf = "123456789*0#ABCD";
 
 static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char dtmfstr[80];
-	char *a;
-	int bytes=0;
-	a = get_token(&args, script, lineno);
-	if (!a) {
+	char dtmfstr[80], *a;
+	int bytes = 0;
+
+	if (!(a = get_token(&args, script, lineno))) {
 		ast_log(LOG_WARNING, "Expecting something to send for SENDDTMF at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(dtmfstr, a, sizeof(dtmfstr) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid token for SENDDTMF at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	a = dtmfstr;
+
 	while(*a) {
 		if (strchr(validdtmf, *a)) {
 			*buf = *a;
@@ -282,21 +284,22 @@ static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_scri
 			ast_log(LOG_WARNING, "'%c' is not a valid DTMF tone at line %d of %s\n", *a, lineno, script);
 		a++;
 	}
+
 	return bytes;
 }
 
 static int goto_line(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *page;
-	char *gline;
+	char *page = get_token(&args, script, lineno);
+	char *gline = get_token(&args, script, lineno);
 	int line;
 	unsigned char cmd;
-	page = get_token(&args, script, lineno);
-	gline = get_token(&args, script, lineno);
+
 	if (!page || !gline) {
 		ast_log(LOG_WARNING, "Expecting page and line number for GOTOLINE at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (!strcasecmp(page, "INFO")) {
 		cmd = 0;
 	} else if (!strcasecmp(page, "COMM")) {
@@ -305,28 +308,31 @@ static int goto_line(char *buf, char *name, int id, char *args, struct adsi_scri
 		ast_log(LOG_WARNING, "Expecting either 'INFO' or 'COMM' page, got got '%s' at line %d of %s\n", page, lineno, script);
 		return 0;
 	}
+
 	if (process_token(&line, gline, sizeof(line), ARG_NUMBER)) {
 		ast_log(LOG_WARNING, "Invalid line number '%s' at line %d of %s\n", gline, lineno, script);
 		return 0;
 	}
+
 	cmd |= line;
 	buf[0] = 0x8b;
 	buf[1] = cmd;
+
 	return 2;
 }
 
 static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *dir;
-	char *gline;
+	char *dir = get_token(&args, script, lineno);
+	char *gline = get_token(&args, script, lineno);
 	int line;
 	unsigned char cmd;
-	dir = get_token(&args, script, lineno);
-	gline = get_token(&args, script, lineno);
+
 	if (!dir || !gline) {
 		ast_log(LOG_WARNING, "Expecting direction and number of lines for GOTOLINEREL at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (!strcasecmp(dir, "UP")) {
 		cmd = 0;
 	} else if (!strcasecmp(dir, "DOWN")) {
@@ -335,267 +341,315 @@ static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_
 		ast_log(LOG_WARNING, "Expecting either 'UP' or 'DOWN' direction, got '%s' at line %d of %s\n", dir, lineno, script);
 		return 0;
 	}
+
 	if (process_token(&line, gline, sizeof(line), ARG_NUMBER)) {
 		ast_log(LOG_WARNING, "Invalid line number '%s' at line %d of %s\n", gline, lineno, script);
 		return 0;
 	}
+
 	cmd |= line;
 	buf[0] = 0x8c;
 	buf[1] = cmd;
+
 	return 2;
 }
 
 static int send_delay(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *gtime;
+	char *gtime = get_token(&args, script, lineno);
 	int ms;
-	gtime = get_token(&args, script, lineno);
+
 	if (!gtime) {
 		ast_log(LOG_WARNING, "Expecting number of milliseconds to wait at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(&ms, gtime, sizeof(ms), ARG_NUMBER)) {
 		ast_log(LOG_WARNING, "Invalid delay milliseconds '%s' at line %d of %s\n", gtime, lineno, script);
 		return 0;
 	}
+
 	buf[0] = 0x90;
+
 	if (id == 11)
 		buf[1] = ms / 100;
 	else
 		buf[1] = ms / 10;
+
 	return 2;
 }
 
 static int set_state(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *gstate;
+	char *gstate = get_token(&args, script, lineno);
 	int state;
-	gstate = get_token(&args, script, lineno);
+
 	if (!gstate) {
 		ast_log(LOG_WARNING, "Expecting state number at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(&state, gstate, sizeof(state), ARG_NUMBER)) {
 		ast_log(LOG_WARNING, "Invalid state number '%s' at line %d of %s\n", gstate, lineno, script);
 		return 0;
 	}
+
 	buf[0] = id;
 	buf[1] = state;
+
 	return 2;
 }
 
 static int cleartimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
-	tok = get_token(&args, script, lineno);
+	char *tok = get_token(&args, script, lineno);
+
 	if (tok) 
 		ast_log(LOG_WARNING, "Clearing timer requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
 	buf[0] = id;
+
 	/* For some reason the clear code is different slightly */
 	if (id == 7)
 		buf[1] = 0x10;
 	else
 		buf[1] = 0x00;
+
 	return 2;
 }
 
 static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
 {
 	int x;
-	for (x=0;x<state->numflags;x++) 
+
+	for (x = 0; x < state->numflags; x++) {
 		if (!strcasecmp(state->flags[x].vname, name)) 
 			return &state->flags[x];
+	}
+
 	/* Return now if we're not allowed to create */
 	if (!create)
 		return NULL;
+
 	if (state->numflags > 6) {
 		ast_log(LOG_WARNING, "No more flag space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
+
 	ast_copy_string(state->flags[state->numflags].vname, name, sizeof(state->flags[state->numflags].vname));
 	state->flags[state->numflags].id = state->numflags + 1;
 	state->numflags++;
+
 	return &state->flags[state->numflags-1];
 }
 
 static int setflag(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
+	char *tok = get_token(&args, script, lineno);
 	char sname[80];
 	struct adsi_flag *flag;
-	tok = get_token(&args, script, lineno);
+
 	if (!tok) {
 		ast_log(LOG_WARNING, "Setting flag requires a flag number at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(sname, tok, sizeof(sname) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid flag '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	flag = getflagbyname(state, sname, script, lineno, 0);
-	if (!flag) {
+
+	if (!(flag = getflagbyname(state, sname, script, lineno, 0))) {
 		ast_log(LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", sname, lineno, script);
 		return 0;
 	}
+
 	buf[0] = id;
 	buf[1] = ((flag->id & 0x7) << 4) | 1;
+
 	return 2;
 }
 
 static int clearflag(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
+	char *tok = get_token(&args, script, lineno);
 	struct adsi_flag *flag;
 	char sname[80];
-	tok = get_token(&args, script, lineno);
+
 	if (!tok) {
 		ast_log(LOG_WARNING, "Clearing flag requires a flag number at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(sname, tok, sizeof(sname) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid flag '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	flag = getflagbyname(state, sname, script, lineno, 0);
-	if (!flag) {
+
+	if (!(flag = getflagbyname(state, sname, script, lineno, 0))) {
 		ast_log(LOG_WARNING, "Flag '%s' is undeclared at line %d of %s\n", sname, lineno, script);
 		return 0;
 	}
+
 	buf[0] = id;
 	buf[1] = ((flag->id & 0x7) << 4);
+
 	return 2;
 }
 
 static int starttimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	char *tok = get_token(&args, script, lineno);
 	int secs;
-	tok = get_token(&args, script, lineno);
+
 	if (!tok) {
 		ast_log(LOG_WARNING, "Missing number of seconds at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(&secs, tok, sizeof(secs), ARG_NUMBER)) {
 		ast_log(LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
+
 	buf[0] = id;
 	buf[1] = 0x1;
 	buf[2] = secs;
+
 	return 3;
 }
 
 static int geteventbyname(char *name)
 {
 	int x;
-	for (x=0;x<sizeof(events) / sizeof(events[0]); x++) {
+
+	for (x = 0; x < sizeof(events) / sizeof(events[0]); x++) {
 		if (!strcasecmp(events[x].name, name))
 			return events[x].id;
 	}
+
 	return 0;
 }
 
 static int getjustifybyname(char *name)
 {
 	int x;
-	for (x=0;x<sizeof(justify) / sizeof(justify[0]); x++) {
+
+	for (x = 0; x <sizeof(justify) / sizeof(justify[0]); x++) {
 		if (!strcasecmp(justify[x].name, name))
 			return justify[x].id;
 	}
+
 	return -1;
 }
 
 static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name, char *script, int lineno)
 {
 	int x;
-	for (x=0;x<state->numkeys;x++) 
+
+	for (x = 0; x < state->numkeys; x++) {
 		if (!strcasecmp(state->keys[x].vname, name)) 
 			return &state->keys[x];
+	}
+
 	if (state->numkeys > 61) {
 		ast_log(LOG_WARNING, "No more key space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
+
 	ast_copy_string(state->keys[state->numkeys].vname, name, sizeof(state->keys[state->numkeys].vname));
 	state->keys[state->numkeys].id = state->numkeys + 2;
 	state->numkeys++;
+
 	return &state->keys[state->numkeys-1];
 }
 
 static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name, char *script, int lineno)
 {
 	int x;
-	for (x=0;x<state->numsubs;x++) 
+
+	for (x = 0; x < state->numsubs; x++) {
 		if (!strcasecmp(state->subs[x].vname, name)) 
 			return &state->subs[x];
+	}
+
 	if (state->numsubs > 127) {
 		ast_log(LOG_WARNING, "No more subscript space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
+
 	ast_copy_string(state->subs[state->numsubs].vname, name, sizeof(state->subs[state->numsubs].vname));
 	state->subs[state->numsubs].id = state->numsubs;
 	state->numsubs++;
+
 	return &state->subs[state->numsubs-1];
 }
 
 static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
 {
 	int x;
-	for (x=0;x<state->numstates;x++) 
+
+	for (x = 0; x <state->numstates; x++) {
 		if (!strcasecmp(state->states[x].vname, name)) 
 			return &state->states[x];
+	}
+
 	/* Return now if we're not allowed to create */
 	if (!create)
 		return NULL;
+
 	if (state->numstates > 253) {
 		ast_log(LOG_WARNING, "No more state space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
+
 	ast_copy_string(state->states[state->numstates].vname, name, sizeof(state->states[state->numstates].vname));
 	state->states[state->numstates].id = state->numstates + 1;
 	state->numstates++;
+
 	return &state->states[state->numstates-1];
 }
 
 static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
 {
 	int x;
-	for (x=0;x<state->numdisplays;x++) 
+
+	for (x = 0; x < state->numdisplays; x++) {
 		if (!strcasecmp(state->displays[x].vname, name)) 
 			return &state->displays[x];
+	}
+
 	/* Return now if we're not allowed to create */
 	if (!create)
 		return NULL;
+
 	if (state->numdisplays > 61) {
 		ast_log(LOG_WARNING, "No more display space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
+
 	ast_copy_string(state->displays[state->numdisplays].vname, name, sizeof(state->displays[state->numdisplays].vname));
 	state->displays[state->numdisplays].id = state->numdisplays + 1;
 	state->numdisplays++;
+
 	return &state->displays[state->numdisplays-1];
 }
 
 static int showkeys(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
-	char newkey[80];
-	int bytes;
+	char *tok, newkey[80];
+	int bytes, x, flagid = 0;
 	unsigned char keyid[6];
-	int x;
-	int flagid=0;
 	struct adsi_soft_key *key;
 	struct adsi_flag *flag;
 
-	for (x=0;x<7;x++) {
+	for (x = 0; x < 7; x++) {
 		/* Up to 6 key arguments */
-		tok = get_token(&args, script, lineno);
-		if (!tok)
+		if (!(tok = get_token(&args, script, lineno)))
 			break;
 		if (!strcasecmp(tok, "UNLESS")) {
 			/* Check for trailing UNLESS flag */
-			tok = get_token(&args, script, lineno);
-			if (!tok) {
+			if (!(tok = get_token(&args, script, lineno))) {
 				ast_log(LOG_WARNING, "Missing argument for UNLESS clause at line %d of %s\n", lineno, script);
 			} else if (process_token(newkey, tok, sizeof(newkey) - 1, ARG_STRING)) {
 				ast_log(LOG_WARNING, "Invalid flag name '%s' at line %d of %s\n", tok, lineno, script);
@@ -616,14 +670,13 @@ static int showkeys(char *buf, char *name, int id, char *args, struct adsi_scrip
 			continue;
 		}
 				   
-		key = getkeybyname(state, newkey, script, lineno);
-		if (!key)
+		if (!(key = getkeybyname(state, newkey, script, lineno)))
 			break;
 		keyid[x] = key->id;
 	}
 	buf[0] = id;
 	buf[1] = (flagid & 0x7) << 3 | (x & 0x7);
-	for (bytes=0;bytes<x;bytes++) {
+	for (bytes = 0; bytes < x; bytes++) {
 		buf[bytes + 2] = keyid[bytes];
 	}
 	return 2 + x;
@@ -631,45 +684,40 @@ static int showkeys(char *buf, char *name, int id, char *args, struct adsi_scrip
 
 static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
-	char dispname[80];
-	int line=0;
-	int flag=0;
-	int cmd = 3;
+	char *tok, dispname[80];
+	int line = 0, flag = 0, cmd = 3;
 	struct adsi_display *disp;
 
 	/* Get display */
-	tok = get_token(&args, script, lineno);
-	if (!tok || process_token(dispname, tok, sizeof(dispname) - 1, ARG_STRING)) {
+	if (!(tok = get_token(&args, script, lineno)) || process_token(dispname, tok, sizeof(dispname) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid display name: %s at line %d of %s\n", tok ? tok : "<nothing>", lineno, script);
 		return 0;
 	}
-	disp = getdisplaybyname(state, dispname, script, lineno, 0);
-	if (!disp) {
+
+	if (!(disp = getdisplaybyname(state, dispname, script, lineno, 0))) {
 		ast_log(LOG_WARNING, "Display '%s' is undefined at line %d of %s\n", dispname, lineno, script);
 		return 0;
 	}
 
-	tok = get_token(&args, script, lineno);
-	if (!tok || strcasecmp(tok, "AT")) {
+	if (!(tok = get_token(&args, script, lineno)) || strcasecmp(tok, "AT")) {
 		ast_log(LOG_WARNING, "Missing token 'AT' at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	/* Get line number */
-	tok = get_token(&args, script, lineno);
-	if (!tok || process_token(&line, tok, sizeof(line), ARG_NUMBER)) {
+	if (!(tok = get_token(&args, script, lineno)) || process_token(&line, tok, sizeof(line), ARG_NUMBER)) {
 		ast_log(LOG_WARNING, "Invalid line: '%s' at line %d of %s\n", tok ? tok : "<nothing>", lineno, script);
 		return 0;
 	}
-	tok = get_token(&args, script, lineno);
-	if (tok && !strcasecmp(tok, "NOUPDATE")) {
+
+	if ((tok = get_token(&args, script, lineno)) && !strcasecmp(tok, "NOUPDATE")) {
 		cmd = 1;
 		tok = get_token(&args, script, lineno);
 	}
+
 	if (tok && !strcasecmp(tok, "UNLESS")) {
 		/* Check for trailing UNLESS flag */
-		tok = get_token(&args, script, lineno);
-		if (!tok) {
+		if (!(tok = get_token(&args, script, lineno))) {
 			ast_log(LOG_WARNING, "Missing argument for UNLESS clause at line %d of %s\n", lineno, script);
 		} else if (process_token(&flag, tok, sizeof(flag), ARG_NUMBER)) {
 			ast_log(LOG_WARNING, "Invalid flag number '%s' at line %d of %s\n", tok, lineno, script);
@@ -681,13 +729,14 @@ static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_sc
 	buf[0] = id;
 	buf[1] = (cmd << 6) | (disp->id & 0x3f); 
 	buf[2] = ((line & 0x1f) << 3) | (flag & 0x7);
+
 	return 3;
 }
 
 static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
-	tok = get_token(&args, script, lineno);
+	char *tok = get_token(&args, script, lineno);
+
 	if (tok) 
 		ast_log(LOG_WARNING, "Clearing display requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
@@ -698,8 +747,8 @@ static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_s
 
 static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
-	tok = get_token(&args, script, lineno);
+	char *tok = get_token(&args, script, lineno);
+
 	if (tok) 
 		ast_log(LOG_WARNING, "Digitdirect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
@@ -710,8 +759,8 @@ static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_sc
 
 static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
-	tok = get_token(&args, script, lineno);
+	char *tok = get_token(&args, script, lineno);
+
 	if (tok)
 		ast_log(LOG_WARNING, "CLEARCB1 requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
@@ -722,8 +771,8 @@ static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_scr
 
 static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
-	tok = get_token(&args, script, lineno);
+	char *tok = get_token(&args, script, lineno);
+
 	if (tok) 
 		ast_log(LOG_WARNING, "Digitcollect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
 
@@ -734,47 +783,46 @@ static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_s
 
 static int subscript(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
+	char *tok = get_token(&args, script, lineno);
 	char subscript[80];
 	struct adsi_subscript *sub;
-	tok = get_token(&args, script, lineno);
+
 	if (!tok) {
 		ast_log(LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
+
 	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
 		ast_log(LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	sub = getsubbyname(state, subscript, script, lineno);
-	if (!sub) 
+
+	if (!(sub = getsubbyname(state, subscript, script, lineno)))
 		return 0;
+
 	buf[0] = 0x9d;
 	buf[1] = sub->id;
+
 	return 2;
 }
 
 static int onevent(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
-	char subscript[80];
-	char sname[80];
-	int sawin=0;
-	int event;
-	int snums[8];
-	int scnt = 0;
-	int x;
+	char *tok = get_token(&args, script, lineno);
+	char subscript[80], sname[80];
+	int sawin = 0, event, snums[8], scnt = 0, x;
 	struct adsi_subscript *sub;
-	tok = get_token(&args, script, lineno);
+
 	if (!tok) {
 		ast_log(LOG_WARNING, "Missing event for 'ONEVENT' at line %d of %s\n", lineno, script);
 		return 0;
 	}
-	event = geteventbyname(tok);
-	if (event < 1) {
+
+	if ((event = geteventbyname(tok)) < 1) {
 		ast_log(LOG_WARNING, "'%s' is not a valid event name, at line %d of %s\n", args, lineno, script);
 		return 0;
 	}
+
 	tok = get_token(&args, script, lineno);
 	while ((!sawin && !strcasecmp(tok, "IN")) ||
 	       (sawin && !strcasecmp(tok, "OR"))) {
@@ -794,8 +842,7 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 			return 0;
 		}
 		scnt++;
-		tok = get_token(&args, script, lineno);
-		if (!tok)
+		if (!(tok = get_token(&args, script, lineno)))
 			break;
 	}
 	if (!tok || strcasecmp(tok, "GOTO")) {
@@ -806,8 +853,7 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 		else
 			ast_log(LOG_WARNING, "Got '%s' while looking for 'GOTO' or 'IN' at line %d of %s\n", tok, lineno, script);
 	}
-	tok = get_token(&args, script, lineno);
-	if (!tok) {
+	if (!(tok = get_token(&args, script, lineno))) {
 		ast_log(LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
@@ -815,13 +861,12 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 		ast_log(LOG_WARNING, "Invalid subscript '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	sub = getsubbyname(state, subscript, script, lineno);
-	if (!sub) 
+	if (!(sub = getsubbyname(state, subscript, script, lineno)))
 		return 0;
 	buf[0] = 8;
 	buf[1] = event;
 	buf[2] = sub->id | 0x80;
-	for (x=0;x<scnt;x++)
+	for (x = 0; x < scnt; x++)
 		buf[3 + x] = snums[x];
 	return 3 + scnt;
 }
@@ -896,10 +941,10 @@ static struct adsi_key_cmd opcmds[] = {
 
 static int process_returncode(struct adsi_soft_key *key, char *code, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	int x;
+	int x, res;
 	char *unused;
-	int res;
-	for (x=0;x<sizeof(kcmds) / sizeof(kcmds[0]);x++) {
+
+	for (x = 0; x < sizeof(kcmds) / sizeof(kcmds[0]); x++) {
 		if ((kcmds[x].id > -1) && !strcasecmp(kcmds[x].name, code)) {
 			if (kcmds[x].add_args) {
 				res = kcmds[x].add_args(key->retstr + key->retstrlen,
@@ -925,11 +970,10 @@ static int process_returncode(struct adsi_soft_key *key, char *code, char *args,
 
 static int process_opcode(struct adsi_subscript *sub, char *code, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	int x;
+	int x, res, max = sub->id ? MAX_SUB_LEN : MAX_MAIN_LEN;
 	char *unused;
-	int res;
-	int max = sub->id ? MAX_SUB_LEN : MAX_MAIN_LEN;
-	for (x=0;x<sizeof(opcmds) / sizeof(opcmds[0]);x++) {
+
+	for (x = 0; x < sizeof(opcmds) / sizeof(opcmds[0]); x++) {
 		if ((opcmds[x].id > -1) && !strcasecmp(opcmds[x].name, code)) {
 			if (opcmds[x].add_args) {
 				res = opcmds[x].add_args(sub->data + sub->datalen,
@@ -963,53 +1007,43 @@ static int process_opcode(struct adsi_subscript *sub, char *code, char *args, st
 
 static int adsi_process(struct adsi_script *state, char *buf, char *script, int lineno)
 {
-	char *keyword;
-	char *args;
-	char vname[256];
-	char tmp[80];
-	char tmp2[80];
-	int lrci;
-	int wi;
-	int event;
+	char *keyword = get_token(&buf, script, lineno);
+	char *args, vname[256], tmp[80], tmp2[80];
+	int lrci, wi, event;
 	struct adsi_display *disp;
 	struct adsi_subscript *newsub;
-	/* Find the first keyword */
-	keyword = get_token(&buf, script, lineno);
+
 	if (!keyword) 
 		return 0;
+
 	switch(state->state) {
 	case STATE_NORMAL:
 		if (!strcasecmp(keyword, "DESCRIPTION")) {
-			args = get_token(&buf, script, lineno);
-			if (args) {
+			if ((args = get_token(&buf, script, lineno))) {
 				if (process_token(state->desc, args, sizeof(state->desc) - 1, ARG_STRING))
 					ast_log(LOG_WARNING, "'%s' is not a valid token for DESCRIPTION at line %d of %s\n", args, lineno, script);
 			} else
 				ast_log(LOG_WARNING, "Missing argument for DESCRIPTION at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "VERSION")) {
-			args = get_token(&buf, script, lineno);
-			if (args) {
+			if ((args = get_token(&buf, script, lineno))) {
 				if (process_token(&state->ver, args, sizeof(state->ver) - 1, ARG_NUMBER))
 					ast_log(LOG_WARNING, "'%s' is not a valid token for VERSION at line %d of %s\n", args, lineno, script);
 			} else
 				ast_log(LOG_WARNING, "Missing argument for VERSION at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "SECURITY")) {
-			args = get_token(&buf, script, lineno);
-			if (args) {
+			if ((args = get_token(&buf, script, lineno))) {
 				if (process_token(state->sec, args, sizeof(state->sec) - 1, ARG_STRING | ARG_NUMBER))
 					ast_log(LOG_WARNING, "'%s' is not a valid token for SECURITY at line %d of %s\n", args, lineno, script);
 			} else
 				ast_log(LOG_WARNING, "Missing argument for SECURITY at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "FDN")) {
-			args = get_token(&buf, script, lineno);
-			if (args) {
+			if ((args = get_token(&buf, script, lineno))) {
 				if (process_token(state->fdn, args, sizeof(state->fdn) - 1, ARG_STRING | ARG_NUMBER))
 					ast_log(LOG_WARNING, "'%s' is not a valid token for FDN at line %d of %s\n", args, lineno, script);
 			} else
 				ast_log(LOG_WARNING, "Missing argument for FDN at line %d of %s\n", lineno, script);
 		} else if (!strcasecmp(keyword, "KEY")) {
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "KEY definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1017,8 +1051,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
-			state->key = getkeybyname(state, vname, script, lineno);
-			if (!state->key) {
+			if (!(state->key = getkeybyname(state, vname, script, lineno))) {
 				ast_log(LOG_WARNING, "Out of key space at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1026,13 +1059,11 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				ast_log(LOG_WARNING, "Cannot redefine key '%s' at line %d of %s\n", vname, lineno, script);
 				break;
 			}
-			args = get_token(&buf, script, lineno);
-			if (!args || strcasecmp(args, "IS")) {
+			if (!(args = get_token(&buf, script, lineno)) || strcasecmp(args, "IS")) {
 				ast_log(LOG_WARNING, "Expecting 'IS', but got '%s' at line %d of %s\n", args ? args : "<nothing>", lineno, script);
 				break;
 			}
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "KEY definition missing short name at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1040,14 +1071,12 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY short name at line %d of %s\n", args, lineno, script);
 				break;
 			}
-			args = get_token(&buf, script, lineno);
-			if (args) {
+			if ((args = get_token(&buf, script, lineno))) {
 				if (strcasecmp(args, "OR")) {
 					ast_log(LOG_WARNING, "Expecting 'OR' but got '%s' instead at line %d of %s\n", args, lineno, script);
 					break;
 				}
-				args = get_token(&buf, script, lineno);
-				if (!args) {
+				if (!(args = get_token(&buf, script, lineno))) {
 					ast_log(LOG_WARNING, "KEY definition missing optional long name at line %d of %s\n", lineno, script);
 					break;
 				}
@@ -1086,8 +1115,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			state->key->initlen = state->key->retstrlen;
 			state->state = STATE_INKEY;
 		} else if (!strcasecmp(keyword, "SUB")) {
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "SUB definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1095,8 +1123,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				ast_log(LOG_WARNING, "'%s' is not a valid token for a KEY name at line %d of %s\n", args, lineno, script);
 				break;
 			}
-			state->sub = getsubbyname(state, vname, script, lineno);
-			if (!state->sub) {
+			if (!(state->sub = getsubbyname(state, vname, script, lineno))) {
 				ast_log(LOG_WARNING, "Out of subroutine space at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1117,15 +1144,13 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				state->sub->data[6] = 0xff;
 				state->sub->datalen = 7;
 			}
-			args = get_token(&buf, script, lineno);
-			if (!args || strcasecmp(args, "IS")) {
+			if (!(args = get_token(&buf, script, lineno)) || strcasecmp(args, "IS")) {
 				ast_log(LOG_WARNING, "Expecting 'IS', but got '%s' at line %d of %s\n", args ? args : "<nothing>", lineno, script);
 				break;
 			}
 			state->state = STATE_INSUB;
  		} else if (!strcasecmp(keyword, "STATE")) {
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "STATE definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1139,8 +1164,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 			}
 			getstatebyname(state, vname, script, lineno, 1);
  		} else if (!strcasecmp(keyword, "FLAG")) {
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "FLAG definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1156,8 +1180,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 		} else if (!strcasecmp(keyword, "DISPLAY")) {
 			lrci = 0;
 			wi = 0;
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "SUB definition missing name at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1169,16 +1192,13 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				ast_log(LOG_WARNING, "State '%s' is already defined\n", vname);
 				break;
 			}
-			disp = getdisplaybyname(state, vname, script, lineno, 1);
-			if (!disp)
+			if (!(disp = getdisplaybyname(state, vname, script, lineno, 1)))
 				break;
-			args = get_token(&buf, script, lineno);
-			if (!args || strcasecmp(args, "IS")) {
+			if (!(args = get_token(&buf, script, lineno)) || strcasecmp(args, "IS")) {
 				ast_log(LOG_WARNING, "Missing 'IS' at line %d of %s\n", lineno, script);
 				break;
 			}
-			args = get_token(&buf, script, lineno);
-			if (!args) {
+			if (!(args = get_token(&buf, script, lineno))) {
 				ast_log(LOG_WARNING, "Missing Column 1 text at line %d of %s\n", lineno, script);
 				break;
 			}
@@ -1260,8 +1280,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				/* Store the proper number of instructions */
 				state->sub->ifdata[2] = state->sub->ifinscount;
 			} else if (!strcasecmp(keyword, "GOTO")) {
-				args = get_token(&buf, script, lineno);
-				if (!args) {
+				if (!(args = get_token(&buf, script, lineno))) {
 					ast_log(LOG_WARNING, "GOTO clause missing Subscript name at line %d of %s\n", lineno, script);
 					break;
 				}
@@ -1269,8 +1288,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 					ast_log(LOG_WARNING, "'%s' is not a valid subscript name token at line %d of %s\n", args, lineno, script);
 					break;
 				}
-				newsub = getsubbyname(state, tmp, script, lineno);
-				if (!newsub) 
+				if (!(newsub = getsubbyname(state, tmp, script, lineno)))
 					break;
 				/* Somehow you use GOTO to go to another place */
 				state->sub->data[state->sub->datalen++] = 0x8;
@@ -1301,18 +1319,15 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 				}
 				state->sub = NULL;
 			} else if (!strcasecmp(keyword, "IFEVENT")) {
-				args = get_token(&buf, script, lineno);
-				if (!args) {
+				if (!(args = get_token(&buf, script, lineno))) {
 					ast_log(LOG_WARNING, "IFEVENT clause missing Event name at line %d of %s\n", lineno, script);
 					break;
 				}
-				event = geteventbyname(args);
-				if (event < 1) {
+				if ((event = geteventbyname(args)) < 1) {
 					ast_log(LOG_WARNING, "'%s' is not a valid event\n", args);
 					break;
 				}
-				args = get_token(&buf, script, lineno);
-				if (!args || strcasecmp(args, "THEN")) {
+				if (!(args = get_token(&buf, script, lineno)) || strcasecmp(args, "THEN")) {
 					ast_log(LOG_WARNING, "IFEVENT clause missing 'THEN' at line %d of %s\n", lineno, script);
 					break;
 				}
@@ -1342,25 +1357,25 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 static struct adsi_script *compile_script(char *script)
 {
 	FILE *f;
-	char fn[256];
-	char buf[256];
-	char *c;
-	int lineno=0;
-	int x, err;
+	char fn[256], buf[256], *c;
+	int lineno = 0, x, err;
 	struct adsi_script *scr;
+
 	if (script[0] == '/')
 		ast_copy_string(fn, script, sizeof(fn));
 	else
 		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, script);
-	f = fopen(fn, "r");
-	if (!f) {
+
+	if (!(f = fopen(fn, "r"))) {
 		ast_log(LOG_WARNING, "Can't open file '%s'\n", fn);
 		return NULL;
 	}
+
 	if (!(scr = ast_calloc(1, sizeof(*scr)))) {
 		fclose(f);
 		return NULL;
 	}
+
 	/* Create "main" as first subroutine */
 	getsubbyname(scr, "main", NULL, 0);
 	while(!feof(f)) {
@@ -1369,9 +1384,8 @@ static struct adsi_script *compile_script(char *script)
 			lineno++;
 			/* Trim off trailing return */
 			buf[strlen(buf) - 1] = '\0';
-			c = strchr(buf, ';');
 			/* Strip comments */
-			if (c)
+			if ((c = strchr(buf, ';')))
 				*c = '\0';
 			if (!ast_strlen_zero(buf))
 				adsi_process(scr, buf, script, lineno);
@@ -1394,7 +1408,7 @@ static struct adsi_script *compile_script(char *script)
 	err = 0;
 
 	/* Resolve all keys and record their lengths */
-	for (x=0;x<scr->numkeys;x++) {
+	for (x = 0; x < scr->numkeys; x++) {
 		if (!scr->keys[x].defined) {
 			ast_log(LOG_WARNING, "Key '%s' referenced but never defined in file %s\n", scr->keys[x].vname, fn);
 			err++;
@@ -1402,7 +1416,7 @@ static struct adsi_script *compile_script(char *script)
 	}
 
 	/* Resolve all subs */
-	for (x=0;x<scr->numsubs;x++) {
+	for (x = 0; x < scr->numsubs; x++) {
 		if (!scr->subs[x].defined) {
 			ast_log(LOG_WARNING, "Subscript '%s' referenced but never defined in file %s\n", scr->subs[x].vname, fn);
 			err++;
@@ -1425,7 +1439,7 @@ static void dump_message(char *type, char *vname, unsigned char *buf, int buflen
 {
 	int x;
 	printf("%s %s: [ ", type, vname);
-	for (x=0;x<buflen;x++)
+	for (x = 0; x < buflen; x++)
 		printf("%02x ", buf[x]);
 	printf("]\n");
 }
@@ -1434,11 +1448,10 @@ static void dump_message(char *type, char *vname, unsigned char *buf, int buflen
 static int adsi_prog(struct ast_channel *chan, char *script)
 {
 	struct adsi_script *scr;
-	int x;
+	int x, bytes;
 	unsigned char buf[1024];
-	int bytes;
-	scr = compile_script(script);
-	if (!scr) 
+
+	if (!(scr = compile_script(script)))
 		return -1;
 
 	/* Start an empty ADSI Session */
@@ -1456,7 +1469,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 
 	bytes = 0;
 	/* Start with key definitions */
-	for (x=0;x<scr->numkeys;x++) {
+	for (x = 0; x < scr->numkeys; x++) {
 		if (bytes + scr->keys[x].retstrlen > 253) {
 			/* Send what we've collected so far */
 			if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
@@ -1480,7 +1493,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 
 	bytes = 0;
 	/* Continue with the display messages */
-	for (x=0;x<scr->numdisplays;x++) {
+	for (x = 0; x < scr->numdisplays; x++) {
 		if (bytes + scr->displays[x].datalen > 253) {
 			/* Send what we've collected so far */
 			if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
@@ -1504,7 +1517,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 
 	bytes = 0;
 	/* Send subroutines */
-	for (x=0;x<scr->numsubs;x++) {
+	for (x = 0; x < scr->numsubs; x++) {
 		if (bytes + scr->subs[x].datalen > 253) {
 			/* Send what we've collected so far */
 			if (ast_adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD)) {
