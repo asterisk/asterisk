@@ -54,9 +54,10 @@ static char *app = "Flash";
 static char *synopsis = "Flashes a Zap Trunk";
 
 static char *descrip = 
-"  Flash(): Sends a flash on a zap trunk.  This is only a hack for\n"
-"people who want to perform transfers and such via AGI and is generally\n"
-"quite useless oths application will only work on Zap trunks.\n";
+"Performs a flash on a zap trunk.  This can be used\n"
+"to access features provided on an incoming analogue circuit\n"
+"such as conference and call waiting. Use with SendDTMF() to\n"
+"perform external transfers\n";
 
 
 static inline int zt_wait_event(int fd)
