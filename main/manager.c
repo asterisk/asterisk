@@ -684,9 +684,8 @@ static void destroy_session(struct mansession *s)
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_REMOVE(&sessions, s, list);
 	num_sessions--;
-	AST_LIST_UNLOCK(&sessions);
-
 	free_session(s);
+	AST_LIST_UNLOCK(&sessions);
 }
 
 const char *astman_get_header(const struct message *m, char *var)
