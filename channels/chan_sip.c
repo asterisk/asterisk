@@ -16593,6 +16593,8 @@ static int reload_config(enum channelreloadreason reason)
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(default_context, v->value, sizeof(default_context));
+		} else if (!strcasecmp(v->name, "subscribecontext")) {
+			ast_copy_string(default_subscribecontext, v->value, sizeof(default_subscribecontext));
   		} else if (!strcasecmp(v->name, "allowguest")) {
 			global_allowguest = ast_true(v->value) ? 1 : 0;
 		} else if (!strcasecmp(v->name, "realm")) {
