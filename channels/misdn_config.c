@@ -231,6 +231,10 @@ static const struct misdn_cfg_spec port_spec[] = {
 		"\tinstead." },
 	{ "senddtmf", MISDN_CFG_SENDDTMF, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this if we should produce DTMF Tones ourselves." },
+	{ "astdtmf", MISDN_CFG_ASTDTMF, MISDN_CTYPE_BOOL, "no", NONE,
+		"Enable this if you want to use the Asterisk dtmf detector\n"
+		"instead of the mISDN_dsp/hfcmulti one."
+		},
 	{ "hold_allowed", MISDN_CFG_HOLD_ALLOWED, MISDN_CTYPE_BOOL, "no", NONE,
 		"Enable this to have support for hold and retrieve." },
 	{ "early_bconnect", MISDN_CFG_EARLY_BCONNECT, MISDN_CTYPE_BOOL, "yes", NONE,

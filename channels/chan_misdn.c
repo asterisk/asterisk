@@ -1749,7 +1749,6 @@ static int read_config(struct chan_list *ch, int orig)
 	}
 	
 	port = bc->port;
-
 	chan_misdn_log(1, port, "read_config: Getting Config\n");
 
 	misdn_cfg_get(port, MISDN_CFG_LANGUAGE, lang, sizeof(lang));
@@ -1764,6 +1763,12 @@ static int read_config(struct chan_list *ch, int orig)
 	misdn_cfg_get(port, MISDN_CFG_INCOMING_EARLY_AUDIO, &ch->incoming_early_audio, sizeof(ch->incoming_early_audio));
 
 	misdn_cfg_get(port, MISDN_CFG_SENDDTMF, &bc->send_dtmf, sizeof(bc->send_dtmf));
+	
+	misdn_cfg_get( port, MISDN_CFG_ASTDTMF, &ch->ast_dsp, sizeof(int));
+
+	if (ch->ast_dsp) {
+		ch->ignore_dtmf=1;
+	}
 
 	misdn_cfg_get(port, MISDN_CFG_NEED_MORE_INFOS, &bc->need_more_infos, sizeof(bc->need_more_infos));
 	misdn_cfg_get(port, MISDN_CFG_NTTIMEOUT, &ch->nttimeout, sizeof(ch->nttimeout));
@@ -1909,12 +1914,16 @@ static int read_config(struct chan_list *ch, int orig)
 
 	ch->overlap_dial_task = -1;
 	
-	if (ch->faxdetect) {
+	if (ch->faxdetect  || ch->ast_dsp) {
 		misdn_cfg_get(port, MISDN_CFG_FAXDETECT_TIMEOUT, &ch->faxdetect_timeout, sizeof(ch->faxdetect_timeout));
 		if (!ch->dsp)
 			ch->dsp = ast_dsp_new();
-		if (ch->dsp)
-			ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+		if (ch->dsp) {
+			if (ch->faxdetect) 
+				ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_DETECT);
+			else 
+				ast_dsp_set_features(ch->dsp, DSP_FEATURE_DTMF_DETECT );
+		}
 		if (!ch->trans)
 			ch->trans = ast_translator_build_path(AST_FORMAT_SLINEAR, AST_FORMAT_ALAW);
 	}
@@ -2539,7 +2548,7 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass);
  	}
 
-	return frame;
+	return f;
 }
 
 

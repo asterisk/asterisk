@@ -48,6 +48,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_NODIALTONE,    /* int (bool) */
 	MISDN_CFG_IMMEDIATE,           /* int (bool) */
 	MISDN_CFG_SENDDTMF,           /* int (bool) */
+	MISDN_CFG_ASTDTMF,            /* int (bool) */
 	MISDN_CFG_HOLD_ALLOWED,        /* int (bool) */
 	MISDN_CFG_EARLY_BCONNECT,      /* int (bool) */
 	MISDN_CFG_INCOMING_EARLY_AUDIO,      /* int (bool) */
