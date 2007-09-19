@@ -4248,7 +4248,7 @@ static void do_print(struct mansession *s, int fd, const char *str)
 		ast_cli(fd, "%s\n", str);
 }
 
-static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
+static char *__queues_show(struct mansession *s, int fd, int argc, char **argv)
 {
 	struct call_queue *q;
 	struct ast_str *out = ast_str_alloca(240);
@@ -4257,7 +4257,7 @@ static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
 	struct ao2_iterator mem_iter;
 
 	if (argc != 2 && argc != 3)
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 
 	/* We only want to load realtime queues when a specific queue is asked for. */
 	if (argc == 3)	/* specific queue */
@@ -4338,12 +4338,7 @@ static int __queues_show(struct mansession *s, int fd, int argc, char **argv)
 			ast_str_set(&out, 0, "No queues.");
 		do_print(s, fd, out->str);
 	}
-	return RESULT_SUCCESS;
-}
-
-static int queue_show(int fd, int argc, char **argv)
-{
-	return __queues_show(NULL, fd, argc, argv);
+	return CLI_SUCCESS;
 }
 
 static char *complete_queue(const char *line, const char *word, int pos, int state)
@@ -4352,11 +4347,11 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	char *ret = NULL;
 	int which = 0;
 	int wordlen = strlen(word);
-	
+
 	AST_LIST_LOCK(&queues);
 	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (!strncasecmp(word, q->name, wordlen) && ++which > state) {
-			ret = ast_strdup(q->name);	
+			ret = ast_strdup(q->name);
 			break;
 		}
 	}
@@ -4370,6 +4365,22 @@ static char *complete_queue_show(const char *line, const char *word, int pos, in
 	if (pos == 2)
 		return complete_queue(line, word, pos, state);
 	return NULL;
+}
+
+static char *queue_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch ( cmd ) {
+	case CLI_INIT:
+		e->command = "queue show";
+		e->usage =
+			"Usage: queue show\n"
+			"       Provides summary information on a specified queue.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_show(a->line, a->word, a->pos, a->n);	
+	}
+
+	return __queues_show(NULL, a->fd, a->argc, a->argv);
 }
 
 /*!\brief callback to display queues status in manager
@@ -4667,74 +4678,20 @@ static int manager_queue_log_custom(struct mansession *s, const struct message *
 	return 0;
 }
 
-static int handle_queue_add_member(int fd, int argc, char *argv[])
-{
-	char *queuename, *interface, *membername = NULL;
-	int penalty;
-
-	if ((argc != 6) && (argc != 8) && (argc != 10)) {
-		return RESULT_SHOWUSAGE;
-	} else if (strcmp(argv[4], "to")) {
-		return RESULT_SHOWUSAGE;
-	} else if ((argc == 8) && strcmp(argv[6], "penalty")) {
-		return RESULT_SHOWUSAGE;
-	} else if ((argc == 10) && strcmp(argv[8], "as")) {
-		return RESULT_SHOWUSAGE;
-	}
-
-	queuename = argv[5];
-	interface = argv[3];
-	if (argc >= 8) {
-		if (sscanf(argv[7], "%d", &penalty) == 1) {
-			if (penalty < 0) {
-				ast_cli(fd, "Penalty must be >= 0\n");
-				penalty = 0;
-			}
-		} else {
-			ast_cli(fd, "Penalty must be an integer >= 0\n");
-			penalty = 0;
-		}
-	} else {
-		penalty = 0;
-	}
-
-	if (argc >= 10) {
-		membername = argv[9];
-	}
-
-	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members)) {
-	case RES_OKAY:
-		ast_queue_log(queuename, "CLI", interface, "ADDMEMBER", "%s", "");
-		ast_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
-		return RESULT_SUCCESS;
-	case RES_EXISTS:
-		ast_cli(fd, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
-		return RESULT_FAILURE;
-	case RES_NOSUCHQUEUE:
-		ast_cli(fd, "Unable to add interface to queue '%s': No such queue\n", queuename);
-		return RESULT_FAILURE;
-	case RES_OUTOFMEMORY:
-		ast_cli(fd, "Out of memory\n");
-		return RESULT_FAILURE;
-	default:
-		return RESULT_FAILURE;
-	}
-}
-
 static char *complete_queue_add_member(const char *line, const char *word, int pos, int state)
 {
 	/* 0 - queue; 1 - add; 2 - member; 3 - <interface>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty>; 8 - as; 9 - <membername> */
 	switch (pos) {
-	case 3:	/* Don't attempt to complete name of interface (infinite possibilities) */
+	case 3: /* Don't attempt to complete name of interface (infinite possibilities) */
 		return NULL;
-	case 4:	/* only one possible match, "to" */
+	case 4: /* only one possible match, "to" */
 		return state == 0 ? ast_strdup("to") : NULL;
-	case 5:	/* <queue> */
+	case 5: /* <queue> */
 		return complete_queue(line, word, pos, state);
 	case 6: /* only one possible match, "penalty" */
 		return state == 0 ? ast_strdup("penalty") : NULL;
 	case 7:
-		if (state < 100) {	/* 0-99 */
+		if (state < 100) {      /* 0-99 */
 			char *num;
 			if ((num = ast_malloc(3))) {
 				sprintf(num, "%d", state);
@@ -4745,42 +4702,74 @@ static char *complete_queue_add_member(const char *line, const char *word, int p
 		}
 	case 8: /* only one possible match, "as" */
 		return state == 0 ? ast_strdup("as") : NULL;
-	case 9:	/* Don't attempt to complete name of member (infinite possibilities) */
+	case 9: /* Don't attempt to complete name of member (infinite possibilities) */
 		return NULL;
 	default:
 		return NULL;
 	}
 }
 
-static int handle_queue_remove_member(int fd, int argc, char *argv[])
+static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *queuename, *interface;
+	char *queuename, *interface, *membername = NULL;
+	int penalty;
 
-	if (argc != 6) {
-		return RESULT_SHOWUSAGE;
-	} else if (strcmp(argv[4], "from")) {
-		return RESULT_SHOWUSAGE;
+	switch ( cmd ) {
+	case CLI_INIT:
+		e->command = "queue add member";
+		e->usage =
+			"Usage: queue add member <channel> to <queue> [penalty <penalty>]\n"; 
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_add_member(a->line, a->word, a->pos, a->n);
 	}
 
-	queuename = argv[5];
-	interface = argv[3];
+	if ((a->argc != 6) && (a->argc != 8) && (a->argc != 10)) {
+		return CLI_SHOWUSAGE;
+	} else if (strcmp(a->argv[4], "to")) {
+		return CLI_SHOWUSAGE;
+	} else if ((a->argc == 8) && strcmp(a->argv[6], "penalty")) {
+		return CLI_SHOWUSAGE;
+	} else if ((a->argc == 10) && strcmp(a->argv[8], "as")) {
+		return CLI_SHOWUSAGE;
+	}
 
-	switch (remove_from_queue(queuename, interface)) {
+	queuename = a->argv[5];
+	interface = a->argv[3];
+	if (a->argc >= 8) {
+		if (sscanf(a->argv[7], "%d", &penalty) == 1) {
+			if (penalty < 0) {
+				ast_cli(a->fd, "Penalty must be >= 0\n");
+				penalty = 0;
+			}
+		} else {
+			ast_cli(a->fd, "Penalty must be an integer >= 0\n");
+			penalty = 0;
+		}
+	} else {
+		penalty = 0;
+	}
+
+	if (a->argc >= 10) {
+		membername = a->argv[9];
+	}
+
+	switch (add_to_queue(queuename, interface, membername, penalty, 0, queue_persistent_members)) {
 	case RES_OKAY:
-		ast_queue_log(queuename, "CLI", interface, "REMOVEMEMBER", "%s", "");
-		ast_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
-		return RESULT_SUCCESS;
+		ast_queue_log(queuename, "CLI", interface, "ADDMEMBER", "%s", "");
+		ast_cli(a->fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
+		return CLI_SUCCESS;
 	case RES_EXISTS:
-		ast_cli(fd, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
+		return CLI_FAILURE;
 	case RES_NOSUCHQUEUE:
-		ast_cli(fd, "Unable to remove interface from queue '%s': No such queue\n", queuename);
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Unable to add interface to queue '%s': No such queue\n", queuename);
+		return CLI_FAILURE;
 	case RES_OUTOFMEMORY:
-		ast_cli(fd, "Out of memory\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Out of memory\n");
+		return CLI_FAILURE;
 	default:
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	}
 }
 
@@ -4790,14 +4779,15 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 	struct call_queue *q;
 	struct member *m;
 	struct ao2_iterator mem_iter;
+	int wordlen = strlen(word);
 
 	/* 0 - queue; 1 - remove; 2 - member; 3 - <member>; 4 - from; 5 - <queue> */
 	if (pos > 5 || pos < 3)
 		return NULL;
-	if (pos == 4)	/* only one possible match, 'from' */
-		return state == 0 ? ast_strdup("from") : NULL;
+	if (pos == 4)   /* only one possible match, 'from' */
+		return (state == 0 ? ast_strdup("from") : NULL);
 
-	if (pos == 5)	/* No need to duplicate code */
+	if (pos == 5)   /* No need to duplicate code */
 		return complete_queue(line, word, pos, state);
 
 	/* here is the case for 3, <member> */
@@ -4806,7 +4796,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 			ast_mutex_lock(&q->lock);
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((m = ao2_iterator_next(&mem_iter))) {
-				if (++which > state) {
+				if (!strncasecmp(word, m->membername, wordlen) && ++which > state) {
 					char *tmp;
 					ast_mutex_unlock(&q->lock);
 					tmp = m->membername;
@@ -4820,6 +4810,47 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 	}
 
 	return NULL;
+}
+
+static char *handle_queue_remove_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *queuename, *interface;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "queue remove member";
+		e->usage = "Usage: queue remove member <channel> from <queue>\n"; 
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_remove_member(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 6) {
+		return CLI_SHOWUSAGE;
+	} else if (strcmp(a->argv[4], "from")) {
+		return CLI_SHOWUSAGE;
+	}
+
+	queuename = a->argv[5];
+	interface = a->argv[3];
+
+	switch (remove_from_queue(queuename, interface)) {
+	case RES_OKAY:
+		ast_queue_log(queuename, "CLI", interface, "REMOVEMEMBER", "%s", "");
+		ast_cli(a->fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
+		return CLI_SUCCESS;
+	case RES_EXISTS:
+		ast_cli(a->fd, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
+		return CLI_FAILURE;
+	case RES_NOSUCHQUEUE:
+		ast_cli(a->fd, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+		return CLI_FAILURE;
+	case RES_OUTOFMEMORY:
+		ast_cli(a->fd, "Out of memory\n");
+		return CLI_FAILURE;
+	default:
+		return CLI_FAILURE;
+	}
 }
 
 static char *complete_queue_pause_member(const char *line, const char *word, int pos, int state)
@@ -4892,16 +4923,6 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 	}
 }
 
-static const char queue_show_usage[] =
-"Usage: queue show\n"
-"       Provides summary information on a specified queue.\n";
-
-static const char qam_cmd_usage[] =
-"Usage: queue add member <channel> to <queue> [penalty <penalty>]\n";
-
-static const char qrm_cmd_usage[] =
-"Usage: queue remove member <channel> from <queue>\n";
-
 static const char qpm_cmd_usage[] = 
 "Usage: queue pause member <channel> in <queue> reason <reason>\n";
 
@@ -4909,18 +4930,9 @@ static const char qum_cmd_usage[] =
 "Usage: queue unpause member <channel> in <queue> reason <reason>\n";
 
 static struct ast_cli_entry cli_queue[] = {
-	{ { "queue", "show", NULL },
-	queue_show, "Show status of a specified queue",
-	queue_show_usage, complete_queue_show, NULL },
-
-	{ { "queue", "add", "member", NULL },
-	handle_queue_add_member, "Add a channel to a specified queue",
-	qam_cmd_usage, complete_queue_add_member, NULL },
-
-	{ { "queue", "remove", "member", NULL },
-	handle_queue_remove_member, "Removes a channel from a specified queue",
-	qrm_cmd_usage, complete_queue_remove_member, NULL },
-
+	NEW_CLI(queue_show, "Show status of a specified queue"),
+	NEW_CLI(handle_queue_add_member, "Add a channel to a specified queue"),
+	NEW_CLI(handle_queue_remove_member, "Removes a channel from a specified queue"),
 	NEW_CLI(handle_queue_pause_member, "Pause or unpause a queue member"),
 };
 

@@ -845,155 +845,6 @@ cnfout:
 	return cnf;
 }
 
-static int meetme_cmd(int fd, int argc, char **argv) 
-{
-	/* Process the command */
-	struct ast_conference *cnf;
-	struct ast_conf_user *user;
-	int hr, min, sec;
-	int i = 0, total = 0;
-	time_t now;
-	char *header_format = "%-14s %-14s %-10s %-8s  %-8s  %-6s\n";
-	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s  %-6s\n";
-	char cmdline[1024] = "";
-
-	if (argc > 8)
-		ast_cli(fd, "Invalid Arguments.\n");
-	/* Check for length so no buffer will overflow... */
-	for (i = 0; i < argc; i++) {
-		if (strlen(argv[i]) > 100)
-			ast_cli(fd, "Invalid Arguments.\n");
-	}
-	if (argc == 1) {
-		/* 'MeetMe': List all the conferences */	
-		now = time(NULL);
-		AST_LIST_LOCK(&confs);
-		if (AST_LIST_EMPTY(&confs)) {
-			ast_cli(fd, "No active MeetMe conferences.\n");
-			AST_LIST_UNLOCK(&confs);
-			return RESULT_SUCCESS;
-		}
-		ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
-		AST_LIST_TRAVERSE(&confs, cnf, list) {
-			if (cnf->markedusers == 0)
-				strcpy(cmdline, "N/A ");
-			else 
-				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
-			hr = (now - cnf->start) / 3600;
-			min = ((now - cnf->start) % 3600) / 60;
-			sec = (now - cnf->start) % 60;
-
-			ast_cli(fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
-
-			total += cnf->users; 	
-		}
-		AST_LIST_UNLOCK(&confs);
-		ast_cli(fd, "* Total number of MeetMe users: %d\n", total);
-		return RESULT_SUCCESS;
-	}
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
-	ast_copy_string(cmdline, argv[2], sizeof(cmdline));	/* Argv 2: conference number */
-	if (strstr(argv[1], "lock")) {	
-		if (strcmp(argv[1], "lock") == 0) {
-			/* Lock */
-			strncat(cmdline, ",L", sizeof(cmdline) - strlen(cmdline) - 1);
-		} else {
-			/* Unlock */
-			strncat(cmdline, ",l", sizeof(cmdline) - strlen(cmdline) - 1);
-		}
-	} else if (strstr(argv[1], "mute")) { 
-		if (argc < 4)
-			return RESULT_SHOWUSAGE;
-		if (strcmp(argv[1], "mute") == 0) {
-			/* Mute */
-			if (strcmp(argv[3], "all") == 0) {
-				strncat(cmdline, ",N", sizeof(cmdline) - strlen(cmdline) - 1);
-			} else {
-				strncat(cmdline, ",M,", sizeof(cmdline) - strlen(cmdline) - 1);	
-				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
-			}
-		} else {
-			/* Unmute */
-			if (strcmp(argv[3], "all") == 0) {
-				strncat(cmdline, ",n", sizeof(cmdline) - strlen(cmdline) - 1);
-			} else {
-				strncat(cmdline, ",m,", sizeof(cmdline) - strlen(cmdline) - 1);
-				strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
-			}
-		}
-	} else if (strcmp(argv[1], "kick") == 0) {
-		if (argc < 4)
-			return RESULT_SHOWUSAGE;
-		if (strcmp(argv[3], "all") == 0) {
-			/* Kick all */
-			strncat(cmdline, ",K", sizeof(cmdline) - strlen(cmdline) - 1);
-		} else {
-			/* Kick a single user */
-			strncat(cmdline, ",k,", sizeof(cmdline) - strlen(cmdline) - 1);
-			strncat(cmdline, argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
-		}
-	} else if(strcmp(argv[1], "list") == 0) {
-		int concise = ( 4 == argc && ( !strcasecmp(argv[3], "concise") ) );
-		/* List all the users in a conference */
-		if (AST_LIST_EMPTY(&confs)) {
-			if ( !concise )
-				ast_cli(fd, "No active conferences.\n");
-			return RESULT_SUCCESS;	
-		}
-		/* Find the right conference */
-		AST_LIST_LOCK(&confs);
-		AST_LIST_TRAVERSE(&confs, cnf, list) {
-			if (strcmp(cnf->confno, argv[2]) == 0)
-				break;
-		}
-		if (!cnf) {
-			if ( !concise )
-				ast_cli(fd, "No such conference: %s.\n",argv[2]);
-			AST_LIST_UNLOCK(&confs);
-			return RESULT_SUCCESS;
-		}
-		/* Show all the users */
-		time(&now);
-		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
-			hr = (now - user->jointime) / 3600;
-			min = ((now - user->jointime) % 3600) / 60;
-			sec = (now - user->jointime) % 60;
-			if ( !concise )
-				ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
-					user->user_no,
-					S_OR(user->chan->cid.cid_num, "<unknown>"),
-					S_OR(user->chan->cid.cid_name, "<no name>"),
-					user->chan->name,
-					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
-					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
-					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
-					istalking(user->talking), hr, min, sec); 
-			else 
-				ast_cli(fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
-					user->user_no,
-					S_OR(user->chan->cid.cid_num, ""),
-					S_OR(user->chan->cid.cid_name, ""),
-					user->chan->name,
-					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
-					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
-					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)  ? "1" : "",
-					user->talking, hr, min, sec);
-			
-		}
-		if ( !concise )
-			ast_cli(fd,"%d users in that conference.\n",cnf->users);
-		AST_LIST_UNLOCK(&confs);
-		return RESULT_SUCCESS;
-	} else 
-		return RESULT_SHOWUSAGE;
-
-	ast_debug(1, "Cmdline: %s\n", cmdline);
-
-	admin_exec(NULL, cmdline);
-
-	return 0;
-}
 
 static char *complete_meetmecmd(const char *line, const char *word, int pos, int state)
 {
@@ -1056,10 +907,167 @@ static char *complete_meetmecmd(const char *line, const char *word, int pos, int
 
 	return NULL;
 }
-	
-static const char meetme_usage[] =
-"Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
-"       Executes a command for the conference or on a conferee\n";
+
+static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	/* Process the command */
+	struct ast_conference *cnf;
+	struct ast_conf_user *user;
+	int hr, min, sec;
+	int i = 0, total = 0;
+	time_t now;
+	char *header_format = "%-14s %-14s %-10s %-8s  %-8s  %-6s\n";
+	char *data_format = "%-12.12s   %4.4d	      %4.4s       %02d:%02d:%02d  %-8s  %-6s\n";
+	char cmdline[1024] = "";
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "meetme";
+		e->usage =
+			"Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
+			"       Executes a command for the conference or on a conferee\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_meetmecmd(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc > 8)
+		ast_cli(a->fd, "Invalid Arguments.\n");
+	/* Check for length so no buffer will overflow... */
+	for (i = 0; i < a->argc; i++) {
+		if (strlen(a->argv[i]) > 100)
+			ast_cli(a->fd, "Invalid Arguments.\n");
+	}
+	if (a->argc == 1) {
+		/* 'MeetMe': List all the conferences */	
+		now = time(NULL);
+		AST_LIST_LOCK(&confs);
+		if (AST_LIST_EMPTY(&confs)) {
+			ast_cli(a->fd, "No active MeetMe conferences.\n");
+			AST_LIST_UNLOCK(&confs);
+			return CLI_SUCCESS;
+		}
+		ast_cli(a->fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
+		AST_LIST_TRAVERSE(&confs, cnf, list) {
+			if (cnf->markedusers == 0)
+				strcpy(cmdline, "N/A ");
+			else 
+				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
+			hr = (now - cnf->start) / 3600;
+			min = ((now - cnf->start) % 3600) / 60;
+			sec = (now - cnf->start) % 60;
+
+			ast_cli(a->fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
+
+			total += cnf->users; 	
+		}
+		AST_LIST_UNLOCK(&confs);
+		ast_cli(a->fd, "* Total number of MeetMe users: %d\n", total);
+		return CLI_SUCCESS;
+	}
+	if (a->argc < 3)
+		return CLI_SHOWUSAGE;
+	ast_copy_string(cmdline, a->argv[2], sizeof(cmdline));	/* Argv 2: conference number */
+	if (strstr(a->argv[1], "lock")) {	
+		if (strcmp(a->argv[1], "lock") == 0) {
+			/* Lock */
+			strncat(cmdline, ",L", sizeof(cmdline) - strlen(cmdline) - 1);
+		} else {
+			/* Unlock */
+			strncat(cmdline, ",l", sizeof(cmdline) - strlen(cmdline) - 1);
+		}
+	} else if (strstr(a->argv[1], "mute")) { 
+		if (a->argc < 4)
+			return CLI_SHOWUSAGE;
+		if (strcmp(a->argv[1], "mute") == 0) {
+			/* Mute */
+			if (strcmp(a->argv[3], "all") == 0) {
+				strncat(cmdline, ",N", sizeof(cmdline) - strlen(cmdline) - 1);
+			} else {
+				strncat(cmdline, ",M,", sizeof(cmdline) - strlen(cmdline) - 1);	
+				strncat(cmdline, a->argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			}
+		} else {
+			/* Unmute */
+			if (strcmp(a->argv[3], "all") == 0) {
+				strncat(cmdline, ",n", sizeof(cmdline) - strlen(cmdline) - 1);
+			} else {
+				strncat(cmdline, ",m,", sizeof(cmdline) - strlen(cmdline) - 1);
+				strncat(cmdline, a->argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+			}
+		}
+	} else if (strcmp(a->argv[1], "kick") == 0) {
+		if (a->argc < 4)
+			return CLI_SHOWUSAGE;
+		if (strcmp(a->argv[3], "all") == 0) {
+			/* Kick all */
+			strncat(cmdline, ",K", sizeof(cmdline) - strlen(cmdline) - 1);
+		} else {
+			/* Kick a single user */
+			strncat(cmdline, ",k,", sizeof(cmdline) - strlen(cmdline) - 1);
+			strncat(cmdline, a->argv[3], sizeof(cmdline) - strlen(cmdline) - 1);
+		}
+	} else if(strcmp(a->argv[1], "list") == 0) {
+		int concise = ( 4 == a->argc && ( !strcasecmp(a->argv[3], "concise") ) );
+		/* List all the users in a conference */
+		if (AST_LIST_EMPTY(&confs)) {
+			if ( !concise )
+				ast_cli(a->fd, "No active conferences.\n");
+			return CLI_SUCCESS;	
+		}
+		/* Find the right conference */
+		AST_LIST_LOCK(&confs);
+		AST_LIST_TRAVERSE(&confs, cnf, list) {
+			if (strcmp(cnf->confno, a->argv[2]) == 0)
+				break;
+		}
+		if (!cnf) {
+			if ( !concise )
+				ast_cli(a->fd, "No such conference: %s.\n",a->argv[2]);
+			AST_LIST_UNLOCK(&confs);
+			return CLI_SUCCESS;
+		}
+		/* Show all the users */
+		time(&now);
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+			hr = (now - user->jointime) / 3600;
+			min = ((now - user->jointime) % 3600) / 60;
+			sec = (now - user->jointime) % 60;
+			if ( !concise )
+				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
+					user->user_no,
+					S_OR(user->chan->cid.cid_num, "<unknown>"),
+					S_OR(user->chan->cid.cid_name, "<no name>"),
+					user->chan->name,
+					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
+					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
+					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
+					istalking(user->talking), hr, min, sec); 
+			else 
+				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
+					user->user_no,
+					S_OR(user->chan->cid.cid_num, ""),
+					S_OR(user->chan->cid.cid_name, ""),
+					user->chan->name,
+					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
+					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
+					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)  ? "1" : "",
+					user->talking, hr, min, sec);
+			
+		}
+		if ( !concise )
+			ast_cli(a->fd,"%d users in that conference.\n",cnf->users);
+		AST_LIST_UNLOCK(&confs);
+		return CLI_SUCCESS;
+	} else 
+		return CLI_SHOWUSAGE;
+
+	ast_debug(1, "Cmdline: %s\n", cmdline);
+
+	admin_exec(NULL, cmdline);
+
+	return CLI_SUCCESS;
+}
 
 static const char *sla_hold_str(unsigned int hold_access)
 {
@@ -1078,11 +1086,22 @@ static const char *sla_hold_str(unsigned int hold_access)
 	return hold;
 }
 
-static int sla_show_trunks(int fd, int argc, char **argv)
+static char *sla_show_trunks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const struct sla_trunk *trunk;
 
-	ast_cli(fd, "\n"
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sla show trunks";
+		e->usage =
+			"Usage: sla show trunks\n"
+			"       This will list all trunks defined in sla.conf\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "\n"
 	            "=============================================================\n"
 	            "=== Configured SLA Trunks ===================================\n"
 	            "=============================================================\n"
@@ -1093,7 +1112,7 @@ static int sla_show_trunks(int fd, int argc, char **argv)
 		char ring_timeout[16] = "(none)";
 		if (trunk->ring_timeout)
 			snprintf(ring_timeout, sizeof(ring_timeout), "%u Seconds", trunk->ring_timeout);
-		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		ast_cli(a->fd, "=== ---------------------------------------------------------\n"
 		            "=== Trunk Name:       %s\n"
 		            "=== ==> Device:       %s\n"
 		            "=== ==> AutoContext:  %s\n"
@@ -1108,16 +1127,14 @@ static int sla_show_trunks(int fd, int argc, char **argv)
 		            sla_hold_str(trunk->hold_access));
 		AST_RWLIST_RDLOCK(&sla_stations);
 		AST_LIST_TRAVERSE(&trunk->stations, station_ref, entry)
-			ast_cli(fd, "===    ==> Station name: %s\n", station_ref->station->name);
+			ast_cli(a->fd, "===    ==> Station name: %s\n", station_ref->station->name);
 		AST_RWLIST_UNLOCK(&sla_stations);
-		ast_cli(fd, "=== ---------------------------------------------------------\n"
-		            "===\n");
+		ast_cli(a->fd, "=== ---------------------------------------------------------\n===\n");
 	}
 	AST_RWLIST_UNLOCK(&sla_trunks);
-	ast_cli(fd, "=============================================================\n"
-	            "\n");
+	ast_cli(a->fd, "=============================================================\n\n");
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static const char *trunkstate2str(enum sla_trunk_state state)
@@ -1134,15 +1151,22 @@ static const char *trunkstate2str(enum sla_trunk_state state)
 #undef S
 }
 
-static const char sla_show_trunks_usage[] =
-"Usage: sla show trunks\n"
-"       This will list all trunks defined in sla.conf\n";
-
-static int sla_show_stations(int fd, int argc, char **argv)
+static char *sla_show_stations(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const struct sla_station *station;
 
-	ast_cli(fd, "\n" 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "sla show stations";
+		e->usage =
+			"Usage: sla show stations\n"
+			"       This will list all stations defined in sla.conf\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "\n" 
 	            "=============================================================\n"
 	            "=== Configured SLA Stations =================================\n"
 	            "=============================================================\n"
@@ -1160,7 +1184,7 @@ static int sla_show_stations(int fd, int argc, char **argv)
 			snprintf(ring_delay, sizeof(ring_delay), 
 				"%u", station->ring_delay);
 		}
-		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		ast_cli(a->fd, "=== ---------------------------------------------------------\n"
 		            "=== Station Name:    %s\n"
 		            "=== ==> Device:      %s\n"
 		            "=== ==> AutoContext: %s\n"
@@ -1184,7 +1208,7 @@ static int sla_show_stations(int fd, int argc, char **argv)
 					"%u", trunk_ref->ring_delay);
 			} else
 				strcpy(ring_delay, "(none)");
-			ast_cli(fd, "===    ==> Trunk Name: %s\n"
+				ast_cli(a->fd, "===    ==> Trunk Name: %s\n"
 			            "===       ==> State:       %s\n"
 			            "===       ==> RingTimeout: %s\n"
 			            "===       ==> RingDelay:   %s\n",
@@ -1193,32 +1217,20 @@ static int sla_show_stations(int fd, int argc, char **argv)
 			            ring_timeout, ring_delay);
 		}
 		AST_RWLIST_UNLOCK(&sla_trunks);
-		ast_cli(fd, "=== ---------------------------------------------------------\n"
+		ast_cli(a->fd, "=== ---------------------------------------------------------\n"
 		            "===\n");
 	}
 	AST_RWLIST_UNLOCK(&sla_stations);
-	ast_cli(fd, "============================================================\n"
+	ast_cli(a->fd, "============================================================\n"
 	            "\n");
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char sla_show_stations_usage[] =
-"Usage: sla show stations\n"
-"       This will list all stations defined in sla.conf\n";
-
 static struct ast_cli_entry cli_meetme[] = {
-	{ { "meetme", NULL, NULL },
-	meetme_cmd, "Execute a command on a conference or conferee",
-	meetme_usage, complete_meetmecmd },
-
-	{ { "sla", "show", "trunks", NULL },
-	sla_show_trunks, "Show SLA Trunks",
-	sla_show_trunks_usage, NULL },
-
-	{ { "sla", "show", "stations", NULL },
-	sla_show_stations, "Show SLA Stations",
-	sla_show_stations_usage, NULL },
+	NEW_CLI(meetme_cmd, "Execute a command on a conference or conferee"),
+	NEW_CLI(sla_show_trunks, "Show SLA Trunks"),
+	NEW_CLI(sla_show_stations, "Show SLA Stations"),
 };
 
 static void conf_flush(int fd, struct ast_channel *chan)

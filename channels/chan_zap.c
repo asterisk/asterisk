@@ -10463,61 +10463,88 @@ static char *complete_span_5(const char *line, const char *word, int pos, int st
 	return complete_span_helper(line,word,pos,state,4);
 }
 
-static int handle_pri_set_debug_file(int fd, int argc, char **argv)
+static char *handle_pri_unset_debug_file(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int myfd;
-
-	if (!strncasecmp(argv[1], "set", 3)) {
-		if (argc < 5) 
-			return RESULT_SHOWUSAGE;
-
-		if (ast_strlen_zero(argv[4]))
-			return RESULT_SHOWUSAGE;
-
-		myfd = open(argv[4], O_CREAT|O_WRONLY, AST_FILE_MODE);
-		if (myfd < 0) {
-			ast_cli(fd, "Unable to open '%s' for writing\n", argv[4]);
-			return RESULT_SUCCESS;
-		}
-
-		ast_mutex_lock(&pridebugfdlock);
-
-		if (pridebugfd >= 0)
-			close(pridebugfd);
-
-		pridebugfd = myfd;
-		ast_copy_string(pridebugfilename,argv[4],sizeof(pridebugfilename));
-		
-		ast_mutex_unlock(&pridebugfdlock);
-
-		ast_cli(fd, "PRI debug output will be sent to '%s'\n", argv[4]);
-	} else {
-		/* Assume it is unset */
-		ast_mutex_lock(&pridebugfdlock);
-		close(pridebugfd);
-		pridebugfd = -1;
-		ast_cli(fd, "PRI debug output to file disabled\n");
-		ast_mutex_unlock(&pridebugfdlock);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri unset debug file";
+		e->usage = "Usage: pri unset debug file\n"
+			   "       Stop sending debug output to the previously \n"
+		           "       specified file\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
 	}
-
-	return RESULT_SUCCESS;
+	/* Assume it is unset */
+	ast_mutex_lock(&pridebugfdlock);
+	close(pridebugfd);
+	pridebugfd = -1;
+	ast_cli(a->fd, "PRI debug output to file disabled\n");
+	ast_mutex_unlock(&pridebugfdlock);
+	return CLI_SUCCESS;
 }
 
-static int handle_pri_debug(int fd, int argc, char *argv[])
+static char *handle_pri_set_debug_file(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	int myfd;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri set debug file";
+		e->usage = "Usage: pri set debug file [output-file]\n"
+			   "       Sends PRI debug output to the specified output file\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	if (a->argc < 5)
+		return CLI_SHOWUSAGE;
+
+	if (ast_strlen_zero(a->argv[4]))
+		return CLI_SHOWUSAGE;
+
+	myfd = open(a->argv[4], O_CREAT|O_WRONLY, AST_FILE_MODE);
+	if (myfd < 0) {
+		ast_cli(a->fd, "Unable to open '%s' for writing\n", a->argv[4]);
+		return CLI_SUCCESS;
+	}
+
+	ast_mutex_lock(&pridebugfdlock);
+
+	if (pridebugfd >= 0)
+		close(pridebugfd);
+
+	pridebugfd = myfd;
+	ast_copy_string(pridebugfilename,a->argv[4],sizeof(pridebugfilename));
+	ast_mutex_unlock(&pridebugfdlock);
+	ast_cli(a->fd, "PRI debug output will be sent to '%s'\n", a->argv[4]);
+	return CLI_SUCCESS;
+}
+
+static char *handle_pri_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
 	int x;
-	if (argc < 4) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:	
+		e->command = "pri debug span";
+		e->usage = 
+			"Usage: pri debug span <span>\n"
+			"       Enables debugging on a given PRI span\n";
+		return NULL;
+	case CLI_GENERATE:	
+		return complete_span_4(a->line, a->word, a->pos, a->n);
 	}
-	span = atoi(argv[3]);
+	if (a->argc < 4) {
+		return CLI_SHOWUSAGE;
+	}
+	span = atoi(a->argv[3]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid span %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		ast_cli(fd, "No PRI running on span %d\n", span);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No PRI running on span %d\n", span);
+		return CLI_SUCCESS;
 	}
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if (pris[span-1].dchans[x])
@@ -10525,49 +10552,71 @@ static int handle_pri_debug(int fd, int argc, char *argv[])
 			                                      PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE |
 			                                      PRI_DEBUG_Q921_STATE);
 	}
-	ast_cli(fd, "Enabled debugging on span %d\n", span);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Enabled debugging on span %d\n", span);
+	return CLI_SUCCESS;
 }
 
 
 
-static int handle_pri_no_debug(int fd, int argc, char *argv[])
+static char *handle_pri_no_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
 	int x;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[4]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri no debug span";
+		e->usage = 
+			"Usage: pri no debug span <span>\n"
+			"       Disables debugging on a given PRI span\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_span_5(a->line, a->word, a->pos, a->n);
+	}
+	if (a->argc < 5)
+		return CLI_SHOWUSAGE;
+
+	span = atoi(a->argv[4]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid span %s.  Should be a number %d to %d\n", a->argv[4], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		ast_cli(fd, "No PRI running on span %d\n", span);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No PRI running on span %d\n", span);
+		return CLI_SUCCESS;
 	}
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if (pris[span-1].dchans[x])
 			pri_set_debug(pris[span-1].dchans[x], 0);
 	}
-	ast_cli(fd, "Disabled debugging on span %d\n", span);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Disabled debugging on span %d\n", span);
+	return CLI_SUCCESS;
 }
 
-static int handle_pri_really_debug(int fd, int argc, char *argv[])
+static char *handle_pri_really_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
 	int x;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[4]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri intensive debug span";
+		e->usage = 
+			"Usage: pri intensive debug span <span>\n"
+			"       Enables debugging down to the Q.921 level\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_span_5(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc < 5)
+		return CLI_SHOWUSAGE;
+	span = atoi(a->argv[4]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid span %s.  Should be a number %d to %d\n", a->argv[4], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		ast_cli(fd, "No PRI running on span %d\n", span);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No PRI running on span %d\n", span);
+		return CLI_SUCCESS;
 	}
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if (pris[span-1].dchans[x])
@@ -10575,8 +10624,8 @@ static int handle_pri_really_debug(int fd, int argc, char *argv[])
 			                                      PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE |
 			                                      PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_STATE);
 	}
-	ast_cli(fd, "Enabled EXTENSIVE debugging on span %d\n", span);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Enabled EXTENSIVE debugging on span %d\n", span);
+	return CLI_SUCCESS;
 }
 
 static void build_status(char *s, size_t len, int status, int active)
@@ -10600,72 +10649,103 @@ static void build_status(char *s, size_t len, int status, int active)
 	s[len - 1] = '\0';
 }
 
-static int handle_pri_show_spans(int fd, int argc, char *argv[])
+static char *handle_pri_show_spans(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
 	int x;
 	char status[256];
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "pri show spans";
+		e->usage = 
+			"Usage: pri show spans\n"
+			"       Displays PRI Information\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	for (span = 0; span < NUM_SPANS; span++) {
 		if (pris[span].pri) {
 			for (x = 0; x < NUM_DCHANS; x++) {
 				if (pris[span].dchannels[x]) {
 					build_status(status, sizeof(status), pris[span].dchanavail[x], pris[span].dchans[x] == pris[span].pri);
-					ast_cli(fd, "PRI span %d/%d: %s\n", span + 1, x, status);
+					ast_cli(a->fd, "PRI span %d/%d: %s\n", span + 1, x, status);
 				}
 			}
 		}
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_pri_show_span(int fd, int argc, char *argv[])
+static char *handle_pri_show_span(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
 	int x;
 	char status[256];
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:	
+		e->command = "pri show span";
+		e->usage = 
+			"Usage: pri show span <span>\n"
+			"       Displays PRI Information on a given PRI span\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_span_4(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+	span = atoi(a->argv[3]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid span '%s'.  Should be a number from %d to %d\n", argv[3], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid span '%s'.  Should be a number from %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		ast_cli(fd, "No PRI running on span %d\n", span);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No PRI running on span %d\n", span);
+		return CLI_SUCCESS;
 	}
 	for (x = 0; x < NUM_DCHANS; x++) {
 		if (pris[span-1].dchannels[x]) {
 #ifdef PRI_DUMP_INFO_STR
 			char *info_str = NULL;
 #endif
-			ast_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
+			ast_cli(a->fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
 			build_status(status, sizeof(status), pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
-			ast_cli(fd, "Status: %s\n", status);
+			ast_cli(a->fd, "Status: %s\n", status);
 #ifdef PRI_DUMP_INFO_STR
 			info_str = pri_dump_info_str(pris[span-1].pri);
 			if (info_str) {
-				ast_cli(fd, "%s", info_str);
+				ast_cli(a->fd, "%s", info_str);
 				ast_free(info_str);
 			}
 #else
 			pri_dump_info(pris[span-1].pri);
 #endif
-			ast_cli(fd, "Overlap Recv: %s\n\n", (pris[span-1].overlapdial & ZAP_OVERLAPDIAL_INCOMING)?"Yes":"No");
+			ast_cli(a->fd, "Overlap Recv: %s\n\n", (pris[span-1].overlapdial & ZAP_OVERLAPDIAL_INCOMING)?"Yes":"No");
 		}
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_pri_show_debug(int fd, int argc, char *argv[])
+static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int x;
 	int span;
 	int count=0;
 	int debug=0;
+
+	switch (cmd) {
+	case CLI_INIT:	
+		e->command = "pri show debug";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 
 	for (span = 0; span < NUM_SPANS; span++) {
 	        if (pris[span].pri) {
@@ -10673,7 +10753,7 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 				debug = 0;
 	        		if (pris[span].dchans[x]) {
 	        			debug = pri_get_debug(pris[span].dchans[x]);
-					ast_cli(fd, "Span %d: Debug: %s\tIntense: %s\n", span+1, (debug&PRI_DEBUG_Q931_STATE)? "Yes" : "No" ,(debug&PRI_DEBUG_Q921_RAW)? "Yes" : "No" );
+					ast_cli(a->fd, "Span %d: Debug: %s\tIntense: %s\n", span+1, (debug&PRI_DEBUG_Q931_STATE)? "Yes" : "No" ,(debug&PRI_DEBUG_Q921_RAW)? "Yes" : "No" );
 					count++;
 				}
 			}
@@ -10682,77 +10762,47 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 	}
 	ast_mutex_lock(&pridebugfdlock);
 	if (pridebugfd >= 0) 
-		ast_cli(fd, "Logging PRI debug to file %s\n", pridebugfilename);
+		ast_cli(a->fd, "Logging PRI debug to file %s\n", pridebugfilename);
 	ast_mutex_unlock(&pridebugfdlock);
 	    
 	if (!count) 
-		ast_cli(fd, "No debug set or no PRI running\n");
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "No debug set or no PRI running\n");
+	return CLI_SUCCESS;
 }
 
-static const char pri_debug_help[] = 
-	"Usage: pri debug span <span>\n"
-	"       Enables debugging on a given PRI span\n";
-	
-static const char pri_no_debug_help[] = 
-	"Usage: pri no debug span <span>\n"
-	"       Disables debugging on a given PRI span\n";
-
-static const char pri_really_debug_help[] = 
-	"Usage: pri intensive debug span <span>\n"
-	"       Enables debugging down to the Q.921 level\n";
-
-static const char pri_show_span_help[] = 
-	"Usage: pri show span <span>\n"
-	"       Displays PRI Information on a given PRI span\n";
-
-static const char pri_show_spans_help[] = 
-	"Usage: pri show spans\n"
-	"       Displays PRI Information\n";
-
 static struct ast_cli_entry zap_pri_cli[] = {
-	{ { "pri", "debug", "span", NULL },
-	handle_pri_debug, "Enables PRI debugging on a span",
-	pri_debug_help, complete_span_4 },
-
-	{ { "pri", "no", "debug", "span", NULL },
-	handle_pri_no_debug, "Disables PRI debugging on a span",
-	pri_no_debug_help, complete_span_5 },
-
-	{ { "pri", "intense", "debug", "span", NULL },
-	handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging",
-	pri_really_debug_help, complete_span_5 },
-
-	{ { "pri", "show", "spans", NULL },
-	handle_pri_show_spans, "Displays PRI Information",
-	pri_show_spans_help },
-
-	{ { "pri", "show", "span", NULL },
-	handle_pri_show_span, "Displays PRI Information",
-	pri_show_span_help, complete_span_4 },
-
-	{ { "pri", "show", "debug", NULL },
-	handle_pri_show_debug, "Displays current PRI debug settings" },
-
-	{ { "pri", "set", "debug", "file", NULL },
-	handle_pri_set_debug_file, "Sends PRI debug output to the specified file" },
-
-	{ { "pri", "unset", "debug", "file", NULL },
-	handle_pri_set_debug_file, "Ends PRI debug output to file" },
+	NEW_CLI(handle_pri_debug, "Enables PRI debugging on a span"),
+	NEW_CLI(handle_pri_no_debug, "Disables PRI debugging on a span"),
+	NEW_CLI(handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging"),
+	NEW_CLI(handle_pri_show_spans, "Displays PRI Information"),
+	NEW_CLI(handle_pri_show_span, "Displays PRI Information"),
+	NEW_CLI(handle_pri_show_debug, "Displays current PRI debug settings"),
+	NEW_CLI(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
+	NEW_CLI(handle_pri_unset_debug_file, "Ends PRI debug output to file"),
 };
 
 #endif /* HAVE_PRI */
 
-static int zap_destroy_channel(int fd, int argc, char **argv)
+static char *zap_destroy_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
+	int ret;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap destroy channel";
+		e->usage = 
+			"Usage: zap destroy channel <chan num>\n"
+			"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	
-	channel = atoi(argv[3]);
-
-	return zap_destroy_channel_bynum(channel);
+	channel = atoi(a->argv[3]);
+	ret = zap_destroy_channel_bynum(channel);
+	return ( RESULT_SUCCESS == ret ) ? CLI_SUCCESS : CLI_FAILURE;
 }
 
 static int setup_zap(int reload);
@@ -10772,15 +10822,25 @@ static int zap_restart(void)
 	return 0;
 }
 
-static int zap_restart_cmd(int fd, int argc, char **argv)
+static char *zap_restart_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap restart";
+		e->usage = 
+			"Usage: zap restart\n"
+			"	Restarts the zaptel channels: destroys them all and then\n"
+			"	re-reads them from zapata.conf.\n"
+			"	Note that this will STOP any running CALL on zaptel channels.\n"
+			"";
+		return NULL;
 	}
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 
 	if (zap_restart() != 0)
-		return RESULT_FAILURE;
-	return RESULT_SUCCESS;
+		return CLI_FAILURE;
+	return CLI_SUCCESS;
 }
 
 static int action_zaprestart(struct mansession *s, const struct message *m)
@@ -10793,7 +10853,7 @@ static int action_zaprestart(struct mansession *s, const struct message *m)
 	return 0;
 }
 
-static int zap_show_channels(int fd, int argc, char **argv)
+static char *zap_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s\n"
 #define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-20.20s %-10.10s %-10.10s\n"
@@ -10810,21 +10870,32 @@ static int zap_show_channels(int fd, int argc, char **argv)
 	struct zt_pri *pri = NULL;
 	int x;
 #endif
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap show channels [trunkgroup|group|context]";
+		e->usage = 
+			"Usage: zap show channels [ trunkgroup <trunkgroup> | group <group> | context <context> ]\n"
+			"	Shows a list of available channels with optional filtering\n"
+			"	<group> must be a number between 0 and 63\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 
 	lock = &iflock;
 	start = iflist;
 
 	/* syntax: zap show channels [ group <group> | context <context> | trunkgroup <trunkgroup> ] */
 
-	if (!((argc == 3) || (argc == 5)))
-		return RESULT_SHOWUSAGE;
+	if (!((a->argc == 3) || (a->argc == 5)))
+		return CLI_SHOWUSAGE;
 
-	if (argc == 5) {
+	if (a->argc == 5) {
 #ifdef HAVE_PRI
-		if (!strcasecmp(argv[3], "trunkgroup")) {
+		if (!strcasecmp(a->argv[3], "trunkgroup")) {
 			/* this option requires no special handling, so leave filtertype to zero */
-			if ((trunkgroup = atoi(argv[4])) < 1)
-				return RESULT_SHOWUSAGE;
+			if ((trunkgroup = atoi(a->argv[4])) < 1)
+				return CLI_SHOWUSAGE;
 			for (x = 0; x < NUM_SPANS; x++) {
 				if (pris[x].trunkgroup == trunkgroup) {
 					pri = pris + x;
@@ -10835,27 +10906,27 @@ static int zap_show_channels(int fd, int argc, char **argv)
 				start = pri->crvs;
 				lock = &pri->lock;
 			} else {
-				ast_cli(fd, "No such trunk group %d\n", trunkgroup);
-				return RESULT_FAILURE;
+				ast_cli(a->fd, "No such trunk group %d\n", trunkgroup);
+				return CLI_FAILURE;
 			}
 		} else
 #endif	
-		if (!strcasecmp(argv[3], "group")) {
-			targetnum = atoi(argv[4]);
+		if (!strcasecmp(a->argv[3], "group")) {
+			targetnum = atoi(a->argv[4]);
 			if ((targetnum < 0) || (targetnum > 63))
-				return RESULT_SHOWUSAGE;
+				return CLI_SHOWUSAGE;
 			targetnum = 1 << targetnum;
 			filtertype = 1;
-		} else if (!strcasecmp(argv[3], "context")) {
+		} else if (!strcasecmp(a->argv[3], "context")) {
 			filtertype = 2;
 		}
 	}
 
 	ast_mutex_lock(lock);
 #ifdef HAVE_PRI
-	ast_cli(fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
+	ast_cli(a->fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
 #else
-	ast_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
+	ast_cli(a->fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MOH Interpret", "Blocked", "State");
 #endif	
 	
 	tmp = start;
@@ -10869,7 +10940,7 @@ static int zap_show_channels(int fd, int argc, char **argv)
 				}
 				break;
 			case 2: /* zap show channels context <context> */
-				if (strcasecmp(tmp->context, argv[4])) {
+				if (strcasecmp(tmp->context, a->argv[4])) {
 					tmp = tmp->next;
 					continue;
 				}
@@ -10897,16 +10968,16 @@ static int zap_show_channels(int fd, int argc, char **argv)
 
 		snprintf(statestr, sizeof(statestr), "%s", tmp->inservice ? "In Service" : "Out of Service");
 
-		ast_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr);
+		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr);
 		tmp = tmp->next;
 	}
 	ast_mutex_unlock(lock);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int zap_show_channel(int fd, int argc, char **argv)
+static char *zap_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int channel;
 	struct zt_pvt *tmp = NULL;
@@ -10920,18 +10991,28 @@ static int zap_show_channel(int fd, int argc, char **argv)
 	int trunkgroup;
 	struct zt_pri *pri=NULL;
 #endif
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap show channel";
+		e->usage = 
+			"Usage: zap show channel <chan num>\n"
+			"	Detailed information about a given channel\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 
 	lock = &iflock;
 	start = iflist;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 #ifdef HAVE_PRI
-	if ((c = strchr(argv[3], ':'))) {
-		if (sscanf(argv[3], "%d:%d", &trunkgroup, &channel) != 2)
-			return RESULT_SHOWUSAGE;
+	if ((c = strchr(a->argv[3], ':'))) {
+		if (sscanf(a->argv[3], "%d:%d", &trunkgroup, &channel) != 2)
+			return CLI_SHOWUSAGE;
 		if ((trunkgroup < 1) || (channel < 1))
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 		for (x = 0; x < NUM_SPANS; x++) {
 			if (pris[x].trunkgroup == trunkgroup) {
 				pri = pris + x;
@@ -10942,12 +11023,12 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			start = pri->crvs;
 			lock = &pri->lock;
 		} else {
-			ast_cli(fd, "No such trunk group %d\n", trunkgroup);
-			return RESULT_FAILURE;
+			ast_cli(a->fd, "No such trunk group %d\n", trunkgroup);
+			return CLI_FAILURE;
 		}
 	} else
 #endif
-		channel = atoi(argv[3]);
+		channel = atoi(a->argv[3]);
 
 	ast_mutex_lock(lock);
 	tmp = start;
@@ -10955,68 +11036,68 @@ static int zap_show_channel(int fd, int argc, char **argv)
 		if (tmp->channel == channel) {
 #ifdef HAVE_PRI
 			if (pri) 
-				ast_cli(fd, "Trunk/CRV: %d/%d\n", trunkgroup, tmp->channel);
+				ast_cli(a->fd, "Trunk/CRV: %d/%d\n", trunkgroup, tmp->channel);
 			else
 #endif			
-			ast_cli(fd, "Channel: %d\n", tmp->channel);
-			ast_cli(fd, "File Descriptor: %d\n", tmp->subs[SUB_REAL].zfd);
-			ast_cli(fd, "Span: %d\n", tmp->span);
-			ast_cli(fd, "Extension: %s\n", tmp->exten);
-			ast_cli(fd, "Dialing: %s\n", tmp->dialing ? "yes" : "no");
-			ast_cli(fd, "Context: %s\n", tmp->context);
-			ast_cli(fd, "Caller ID: %s\n", tmp->cid_num);
-			ast_cli(fd, "Calling TON: %d\n", tmp->cid_ton);
-			ast_cli(fd, "Caller ID name: %s\n", tmp->cid_name);
+			ast_cli(a->fd, "Channel: %d\n", tmp->channel);
+			ast_cli(a->fd, "File Descriptor: %d\n", tmp->subs[SUB_REAL].zfd);
+			ast_cli(a->fd, "Span: %d\n", tmp->span);
+			ast_cli(a->fd, "Extension: %s\n", tmp->exten);
+			ast_cli(a->fd, "Dialing: %s\n", tmp->dialing ? "yes" : "no");
+			ast_cli(a->fd, "Context: %s\n", tmp->context);
+			ast_cli(a->fd, "Caller ID: %s\n", tmp->cid_num);
+			ast_cli(a->fd, "Calling TON: %d\n", tmp->cid_ton);
+			ast_cli(a->fd, "Caller ID name: %s\n", tmp->cid_name);
 			if (tmp->vars) {
 				struct ast_variable *v;
-				ast_cli(fd, "Variables:\n");
+				ast_cli(a->fd, "Variables:\n");
 				for (v = tmp->vars ; v ; v = v->next)
-					ast_cli(fd, "       %s = %s\n", v->name, v->value);
+					ast_cli(a->fd, "       %s = %s\n", v->name, v->value);
 			}
-			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
-			ast_cli(fd, "InAlarm: %d\n", tmp->inalarm);
-			ast_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
-			ast_cli(fd, "Radio: %d\n", tmp->radio);
-			ast_cli(fd, "Owner: %s\n", tmp->owner ? tmp->owner->name : "<None>");
-			ast_cli(fd, "Real: %s%s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "", tmp->subs[SUB_REAL].linear ? " (Linear)" : "");
-			ast_cli(fd, "Callwait: %s%s%s\n", tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>", tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "", tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "");
-			ast_cli(fd, "Threeway: %s%s%s\n", tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>", tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : "", tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "");
-			ast_cli(fd, "Confno: %d\n", tmp->confno);
-			ast_cli(fd, "Propagated Conference: %d\n", tmp->propconfno);
-			ast_cli(fd, "Real in conference: %d\n", tmp->inconference);
-			ast_cli(fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
-			ast_cli(fd, "TDD: %s\n", tmp->tdd ? "yes" : "no");
-			ast_cli(fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
-			ast_cli(fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
-			ast_cli(fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
-			ast_cli(fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
-			ast_cli(fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
-			ast_cli(fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
+			ast_cli(a->fd, "Destroy: %d\n", tmp->destroy);
+			ast_cli(a->fd, "InAlarm: %d\n", tmp->inalarm);
+			ast_cli(a->fd, "Signalling Type: %s\n", sig2str(tmp->sig));
+			ast_cli(a->fd, "Radio: %d\n", tmp->radio);
+			ast_cli(a->fd, "Owner: %s\n", tmp->owner ? tmp->owner->name : "<None>");
+			ast_cli(a->fd, "Real: %s%s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "", tmp->subs[SUB_REAL].linear ? " (Linear)" : "");
+			ast_cli(a->fd, "Callwait: %s%s%s\n", tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>", tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "", tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "");
+			ast_cli(a->fd, "Threeway: %s%s%s\n", tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>", tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : "", tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "");
+			ast_cli(a->fd, "Confno: %d\n", tmp->confno);
+			ast_cli(a->fd, "Propagated Conference: %d\n", tmp->propconfno);
+			ast_cli(a->fd, "Real in conference: %d\n", tmp->inconference);
+			ast_cli(a->fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
+			ast_cli(a->fd, "TDD: %s\n", tmp->tdd ? "yes" : "no");
+			ast_cli(a->fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
+			ast_cli(a->fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
+			ast_cli(a->fd, "Default law: %s\n", tmp->law == ZT_LAW_MULAW ? "ulaw" : tmp->law == ZT_LAW_ALAW ? "alaw" : "unknown");
+			ast_cli(a->fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
+			ast_cli(a->fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
+			ast_cli(a->fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
 			if (tmp->master)
-				ast_cli(fd, "Master Channel: %d\n", tmp->master->channel);
+				ast_cli(a->fd, "Master Channel: %d\n", tmp->master->channel);
 			for (x = 0; x < MAX_SLAVES; x++) {
 				if (tmp->slaves[x])
-					ast_cli(fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
+					ast_cli(a->fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
 			}
 #ifdef HAVE_SS7
 			if (tmp->ss7) {
-				ast_cli(fd, "CIC: %d\n", tmp->cic);
+				ast_cli(a->fd, "CIC: %d\n", tmp->cic);
 			}
 #endif
 #ifdef HAVE_PRI
 			if (tmp->pri) {
-				ast_cli(fd, "PRI Flags: ");
+				ast_cli(a->fd, "PRI Flags: ");
 				if (tmp->resetting)
-					ast_cli(fd, "Resetting ");
+					ast_cli(a->fd, "Resetting ");
 				if (tmp->call)
-					ast_cli(fd, "Call ");
+					ast_cli(a->fd, "Call ");
 				if (tmp->bearer)
-					ast_cli(fd, "Bearer ");
-				ast_cli(fd, "\n");
+					ast_cli(a->fd, "Bearer ");
+				ast_cli(a->fd, "\n");
 				if (tmp->logicalspan) 
-					ast_cli(fd, "PRI Logical Span: %d\n", tmp->logicalspan);
+					ast_cli(a->fd, "PRI Logical Span: %d\n", tmp->logicalspan);
 				else
-					ast_cli(fd, "PRI Logical Span: Implicit\n");
+					ast_cli(a->fd, "PRI Logical Span: Implicit\n");
 			}
 				
 #endif
@@ -11024,37 +11105,43 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ps.channo = tmp->channel;
 			if (tmp->subs[SUB_REAL].zfd > -1) {
 				if (!ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONF, &ci)) {
-					ast_cli(fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
+					ast_cli(a->fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
 				}
 #ifdef ZT_GETCONFMUTE
 				if (!ioctl(tmp->subs[SUB_REAL].zfd, ZT_GETCONFMUTE, &x)) {
-					ast_cli(fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
+					ast_cli(a->fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
 				}
 #endif
 				if (ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &ps) < 0) {
 					ast_log(LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
 				} else {
-					ast_cli(fd, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
+					ast_cli(a->fd, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
 				}
 			}
 			ast_mutex_unlock(lock);
-			return RESULT_SUCCESS;
+			return CLI_SUCCESS;
 		}
 		tmp = tmp->next;
 	}
 	
-	ast_cli(fd, "Unable to find given channel %d\n", channel);
+	ast_cli(a->fd, "Unable to find given channel %d\n", channel);
 	ast_mutex_unlock(lock);
-	return RESULT_FAILURE;
+	return CLI_FAILURE;
 }
 
-static char zap_show_cadences_help[] =
-"Usage: zap show cadences\n"
-"       Shows all cadences currently defined\n";
-
-static int handle_zap_show_cadences(int fd, int argc, char *argv[])
+static char *handle_zap_show_cadences(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i, j;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap show cadences";
+		e->usage = 
+			"Usage: zap show cadences\n"
+			"       Shows all cadences currently defined\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 	for (i = 0; i < num_cadence; i++) {
 		char output[1024];
 		char tmp[16], tmp2[64];
@@ -11073,13 +11160,14 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 				strncat(output, ",", sizeof(output) - strlen(output) - 1);
 			strncat(output, tmp2, sizeof(output) - strlen(output) - 1);
 		}
-		ast_cli(fd,"%s\n",output);
+		ast_cli(a->fd,"%s\n",output);
 	}
-	return 0;
+	return CLI_SUCCESS;
 }
 
 /* Based on irqmiss.c */
-static int zap_show_status(int fd, int argc, char *argv[]) {
+static char *zap_show_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a) 
+{
 #ifdef ZT_SPANINFO_HAS_LINECONFIG
 	#define FORMAT "%-40.40s %-7.7s %-6d %-6d %-6d %-3.3s %-4.4s %-8.8s %s\n"
 	#define FORMAT2 "%-40.40s %-7.7s %-6.6s %-6.6s %-6.6s %-3.3s %-4.4s %-8.8s %s\n"
@@ -11087,7 +11175,6 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
 	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
 #endif
-
 	int span;
 	int res;
 	char alarms[50];
@@ -11095,13 +11182,22 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	int ctl;
 	ZT_SPANINFO s;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap show status";
+		e->usage = 
+			"Usage: zap show status\n"
+			"       Shows a list of Zaptel cards with status\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;	
+	}
 	ctl = open("/dev/zap/ctl", O_RDWR);
 	if (ctl < 0) {
-		ast_log(LOG_WARNING, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
-		ast_cli(fd, "No Zaptel interface found.\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "No Zaptel interface found. Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		return CLI_FAILURE;
 	}
-	ast_cli(fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4"
+	ast_cli(a->fd, FORMAT2, "Description", "Alarms", "IRQ", "bpviol", "CRC4"
 #ifdef ZT_SPANINFO_HAS_LINECONFIG
 			, "Framing", "Coding", "Options", "LBO"
 #endif
@@ -11140,7 +11236,7 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 				strcpy(alarms, "UNCONFIGURED");
 		}
 
-		ast_cli(fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count
+		ast_cli(a->fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count
 #ifdef ZT_SPANINFO_HAS_LINECONFIG
 				, s.lineconfig & ZT_CONFIG_D4 ? "D4" :
 				  s.lineconfig & ZT_CONFIG_ESF ? "ESF" :
@@ -11158,90 +11254,52 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	}
 	close(ctl);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int zap_show_version(int fd, int argc, char *argv[])
+static char *zap_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int pseudo_fd = -1;
 	struct zt_versioninfo vi;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "zap show version";
+		e->usage = 
+			"Usage: zap show version\n"
+			"       Shows the Zaptel version in use\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 	if ((pseudo_fd = open("/dev/zap/ctl", O_RDONLY)) < 0) {
-		ast_cli(fd, "Failed to open control file to get version.\n");
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Failed to open control file to get version.\n");
+		return CLI_SUCCESS;
 	}
 
 	strcpy(vi.version, "Unknown");
 	strcpy(vi.echo_canceller, "Unknown");
 
 	if (ioctl(pseudo_fd, ZT_GETVERSION, &vi))
-		ast_cli(fd, "Failed to get version from control file.\n");
+		ast_cli(a->fd, "Failed to get version from control file.\n");
 	else
-		ast_cli(fd, "Zaptel Version: %s Echo Canceller: %s\n", vi.version, vi.echo_canceller);
+		ast_cli(a->fd, "Zaptel Version: %s Echo Canceller: %s\n", vi.version, vi.echo_canceller);
 
 	close(pseudo_fd);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char show_channels_usage[] =
-	"Usage: zap show channels [ trunkgroup <trunkgroup> | group <group> | context <context> ]\n"
-	"	Shows a list of available channels with optional filtering\n"
-	"	<group> must be a number between 0 and 63\n";
-
-static const char show_channel_usage[] =
-	"Usage: zap show channel <chan num>\n"
-	"	Detailed information about a given channel\n";
-
-static const char zap_show_status_usage[] =
-	"Usage: zap show status\n"
-	"       Shows a list of Zaptel cards with status\n";
-
-static const char destroy_channel_usage[] =
-	"Usage: zap destroy channel <chan num>\n"
-	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
-
-static const char zap_restart_usage[] =
-	"Usage: zap restart\n"
-	"	Restarts the zaptel channels: destroys them all and then\n"
-	"	re-reads them from zapata.conf.\n"
-	"	Note that this will STOP any running CALL on zaptel channels.\n"
-	"";
-
-static char zap_show_version_usage[] =
-        "Usage: zap show version\n"
-        "       Shows the Zaptel version in use\n";
-
 static struct ast_cli_entry zap_cli[] = {
-	{ { "zap", "show", "cadences", NULL },
-	handle_zap_show_cadences, "List cadences",
-	zap_show_cadences_help },
-
-	{ { "zap", "show", "channels", NULL},
-	zap_show_channels, "Show active zapata channels",
-	show_channels_usage },
-
-	{ { "zap", "show", "channel", NULL},
-	zap_show_channel, "Show information on a channel",
-	show_channel_usage },
-
-	{ { "zap", "destroy", "channel", NULL},
-	zap_destroy_channel, "Destroy a channel",
-	destroy_channel_usage },
-
-	{ { "zap", "restart", NULL},
-	zap_restart_cmd, "Fully restart zaptel channels",
-	zap_restart_usage },
-
-	{ { "zap", "show", "status", NULL},
-	zap_show_status, "Show all Zaptel cards status",
-	zap_show_status_usage },
-
-	{ { "zap", "show", "version", NULL},
-	zap_show_version, "Show the Zaptel version in use",
-	zap_show_version_usage },
+	NEW_CLI(handle_zap_show_cadences, "List cadences"),
+	NEW_CLI(zap_show_channels, "Show active zapata channels"),
+	NEW_CLI(zap_show_channel, "Show information on a channel"),
+	NEW_CLI(zap_destroy_channel, "Destroy a channel"),
+	NEW_CLI(zap_restart_cmd, "Fully restart zaptel channels"),
+	NEW_CLI(zap_show_status, "Show all Zaptel cards status"),
+	NEW_CLI(zap_show_version, "Show the Zaptel version in use"),
 };
 
 #define TRANSFER	0
@@ -11625,72 +11683,102 @@ static int linkset_addsigchan(int sigchan)
 	return 0;
 }
 
-static int handle_ss7_no_debug(int fd, int argc, char *argv[])
+static char *handle_ss7_no_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
-	if (argc < 5)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[4]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 no debug linkset";
+		e->usage = 
+			"Usage: ss7 no debug linkset <span>\n"
+			"       Disables debugging on a given SS7 linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 5)
+		return CLI_SHOWUSAGE;
+	span = atoi(a->argv[4]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid linkset %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number from %d to %d\n", a->argv[4], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!linksets[span-1].ss7) {
-		ast_cli(fd, "No SS7 running on linkset %d\n", span);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", span);
+		return CLI_SUCCESS;
 	}
 	if (linksets[span-1].ss7)
 		ss7_set_debug(linksets[span-1].ss7, 0);
 
-	ast_cli(fd, "Disabled debugging on linkset %d\n", span);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Disabled debugging on linkset %d\n", span);
+	return CLI_SUCCESS;
 }
 
-static int handle_ss7_debug(int fd, int argc, char *argv[])
+static char *handle_ss7_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int span;
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
-	span = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 debug linkset";
+		e->usage = 
+			"Usage: ss7 debug linkset <linkset>\n"
+			"       Enables debugging on a given SS7 linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+	span = atoi(a->argv[3]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		ast_cli(fd, "Invalid linkset %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number from %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!linksets[span-1].ss7) {
-		ast_cli(fd, "No SS7 running on linkset %d\n", span);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", span);
+		return CLI_SUCCESS;
 	}
 	if (linksets[span-1].ss7)
 		ss7_set_debug(linksets[span-1].ss7, SS7_DEBUG_MTP2 | SS7_DEBUG_MTP3 | SS7_DEBUG_ISUP);
 
-	ast_cli(fd, "Enabled debugging on linkset %d\n", span);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Enabled debugging on linkset %d\n", span);
+	return CLI_SUCCESS;
 }
 
-static int handle_ss7_block_cic(int fd, int argc, char *argv[])
+static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset, cic;
 	int blocked = -1, i;
-	if (argc == 5)
-		linkset = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 block cic";
+		e->usage = 
+			"Usage: ss7 block cic <linkset> <CIC>\n"
+			"       Sends a remote blocking request for the given CIC on the specified linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc == 5)
+		linkset = atoi(a->argv[3]);
 	else
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
-		ast_cli(fd, "Invalid linkset %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 
 	if (!linksets[linkset-1].ss7) {
-		ast_cli(fd, "No SS7 running on linkset %d\n", linkset);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
 	}
 
-	cic = atoi(argv[4]);
+	cic = atoi(a->argv[4]);
 
 	if (cic < 1) {
-		ast_cli(fd, "Invalid CIC specified!\n");
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid CIC specified!\n");
+		return CLI_SUCCESS;
 	}
 
 	for (i = 0; i < linksets[linkset-1].numchans; i++) {
@@ -11708,42 +11796,53 @@ static int handle_ss7_block_cic(int fd, int argc, char *argv[])
 	}
 
 	if (blocked < 0) {
-		ast_cli(fd, "Invalid CIC specified!\n");
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid CIC specified!\n");
+		return CLI_SUCCESS;
 	}
 
 	if (!blocked)
-		ast_cli(fd, "Sent blocking request for linkset %d on CIC %d\n", linkset, cic);
+		ast_cli(a->fd, "Sent blocking request for linkset %d on CIC %d\n", linkset, cic);
 	else
-		ast_cli(fd, "CIC %d already locally blocked\n", cic);
+		ast_cli(a->fd, "CIC %d already locally blocked\n", cic);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
 {
 	int linkset, cic;
 	int i, blocked = -1;
-	if (argc == 5)
-		linkset = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 unblock cic";
+		e->usage = 
+			"Usage: ss7 unblock cic <linkset> <CIC>\n"
+			"       Sends a remote unblocking request for the given CIC on the specified linkset\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 5)
+		linkset = atoi(a->argv[3]);
 	else
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
-		ast_cli(fd, "Invalid linkset %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 
 	if (!linksets[linkset-1].ss7) {
-		ast_cli(fd, "No SS7 running on linkset %d\n", linkset);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
+		return CLI_SUCCESS;
 	}
 
-	cic = atoi(argv[4]);
+	cic = atoi(a->argv[4]);
 
 	if (cic < 1) {
-		ast_cli(fd, "Invalid CIC specified!\n");
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid CIC specified!\n");
+		return CLI_SUCCESS;
 	}
 
 	for (i = 0; i < linksets[linkset-1].numchans; i++) {
@@ -11761,64 +11860,50 @@ static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
 	}
 
 	if (blocked > 0)
-		ast_cli(fd, "Sent unblocking request for linkset %d on CIC %d\n", linkset, cic);
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "Sent unblocking request for linkset %d on CIC %d\n", linkset, cic);
+	return CLI_SUCCESS;
 }
 
-static int handle_ss7_show_linkset(int fd, int argc, char *argv[])
+static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset;
 	struct zt_ss7 *ss7;
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
-	linkset = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ss7 show linkset";
+		e->usage = 
+			"Usage: ss7 show linkset <span>\n"
+			"       Shows the status of an SS7 linkset.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+	linkset = atoi(a->argv[3]);
 	if ((linkset < 1) || (linkset > NUM_SPANS)) {
-		ast_cli(fd, "Invalid linkset %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Invalid linkset %s.  Should be a number %d to %d\n", a->argv[3], 1, NUM_SPANS);
+		return CLI_SUCCESS;
 	}
 	if (!linksets[linkset-1].ss7) {
 		ast_cli(fd, "No SS7 running on linkset %d\n", linkset);
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	}
 	if (linksets[linkset-1].ss7)
 		ss7 = &linksets[linkset-1];
 
-	ast_cli(fd, "SS7 linkset %d status: %s\n", linkset, (ss7->state == LINKSET_STATE_UP) ? "Up" : "Down");
+	ast_cli(a->fd, "SS7 linkset %d status: %s\n", linkset, (ss7->state == LINKSET_STATE_UP) ? "Up" : "Down");
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char ss7_debug_help[] = 
-	"Usage: ss7 debug linkset <linkset>\n"
-	"       Enables debugging on a given SS7 linkset\n";
-	
-static char ss7_no_debug_help[] = 
-	"Usage: ss7 no debug linkset <span>\n"
-	"       Disables debugging on a given SS7 linkset\n";
-
-static char ss7_block_cic_help[] = 
-	"Usage: ss7 block cic <linkset> <CIC>\n"
-	"       Sends a remote blocking request for the given CIC on the specified linkset\n";
-
-static char ss7_unblock_cic_help[] = 
-	"Usage: ss7 unblock cic <linkset> <CIC>\n"
-	"       Sends a remote unblocking request for the given CIC on the specified linkset\n";
-
-static char ss7_show_linkset_help[] = 
-	"Usage: ss7 show linkset <span>\n"
-	"       Shows the status of an SS7 linkset.\n";
-
 static struct ast_cli_entry zap_ss7_cli[] = {
-	{ { "ss7", "debug", "linkset", NULL }, handle_ss7_debug,
-	  "Enables SS7 debugging on a linkset", ss7_debug_help, NULL },
-	{ { "ss7", "no", "debug", "linkset", NULL }, handle_ss7_no_debug,
-	  "Disables SS7 debugging on a linkset", ss7_no_debug_help, NULL },
-	{ { "ss7", "block", "cic", NULL }, handle_ss7_block_cic,
-	  "Disables SS7 debugging on a linkset", ss7_block_cic_help, NULL },
-	{ { "ss7", "unblock", "cic", NULL }, handle_ss7_unblock_cic,
-	  "Disables SS7 debugging on a linkset", ss7_unblock_cic_help, NULL },
-	{ { "ss7", "show", "linkset", NULL }, handle_ss7_show_linkset,
-	  "Shows the status of a linkset", ss7_show_linkset_help, NULL },
+	NEW_CLI(handle_ss7_debug, "Enables SS7 debugging on a linkset"), 
+	NEW_CLI(handle_ss7_no_debug, "Disables SS7 debugging on a linkset"), 
+	NEW_CLI(handle_ss7_block_cic, "Disables SS7 debugging on a linkset"),
+	NEW_CLI(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset")
+	NEW_CLI(handle_ss7_show_linkset, "Shows the status of a linkset"),
 };
 #endif /* HAVE_SS7 */
 
