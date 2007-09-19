@@ -2660,7 +2660,6 @@ static struct ast_frame *process_ast_dsp(struct chan_list *tmp, struct ast_frame
  	
  	if (tmp->ast_dsp && (f->subclass != 'f')) {
  		chan_misdn_log(2, tmp->bc->port, " --> * SEND: DTMF (AST_DSP) :%c\n", f->subclass);
-		//ast_queue_frame(tmp->ast, f);
  	}
 
 	return f;
