@@ -2882,8 +2882,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s|b%s", tmpid2, monitor_options);
 						
 					ast_debug(1, "Arguments being passed to MixMonitor: %s\n", mixmonargs);
-
+					/* We purposely lock the CDR so that pbx_exec does not update the application data */
+					if (qe->chan->cdr)
+						ast_set_flag(qe->chan->cdr, AST_CDR_FLAG_LOCKED);
 					ret = pbx_exec(qe->chan, mixmonapp, mixmonargs);
+					if (qe->chan->cdr)
+						ast_clear_flag(qe->chan->cdr, AST_CDR_FLAG_LOCKED);
 
 				} else
 					ast_log(LOG_WARNING, "Asked to run MixMonitor on this call, but cannot find the MixMonitor app!\n");
