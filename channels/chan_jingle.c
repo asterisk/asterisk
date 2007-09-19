@@ -324,10 +324,10 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		return 1;
 
 	iq = iks_new("iq");
-	jingle = iks_new(GOOGLE_NODE);
+	jingle = iks_new(JINGLE_NODE);
 	dcodecs = iks_new("description");
 	if (iq && jingle && dcodecs) {
-		iks_insert_attrib(dcodecs, "xmlns", "http://www.google.com/session/phone");
+		iks_insert_attrib(dcodecs, "xmlns", JINGLE_AUDIO_RTP_NS);
 
 		for (x = 0; x < 32; x++) {
 			if (!(pref_codec = ast_codec_pref_index(&client->prefs, x)))
@@ -358,10 +358,10 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		iks_insert_attrib(iq, "id", client->connection->mid);
 		ast_aji_increment_mid(client->connection->mid);
 
-		iks_insert_attrib(jingle, "xmlns", GOOGLE_NS);
+		iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
 		iks_insert_attrib(jingle, "type", JINGLE_ACCEPT);
 		iks_insert_attrib(jingle, "initiator", p->initiator ? client->connection->jid->full : p->from);
-		iks_insert_attrib(jingle, GOOGLE_SID, tmp->sid);
+		iks_insert_attrib(jingle, JINGLE_SID, tmp->sid);
 		iks_insert_node(iq, jingle);
 		iks_insert_node(jingle, dcodecs);
 		iks_insert_node(dcodecs, payload_red);
@@ -487,7 +487,7 @@ static int jingle_is_answered(struct jingle *client, ikspak *pak)
 	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
+		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid))
 			break;
 	}
 
@@ -507,7 +507,7 @@ static int jingle_handle_dtmf(struct jingle *client, ikspak *pak)
 	char *dtmf;
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid) || iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid))
+		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid))
 			break;
 	}
 
@@ -571,7 +571,7 @@ static int jingle_hangup_farend(struct jingle *client, ikspak *pak)
 	ast_debug(1, "The client is %s\n", client->name);
 	/* Make sure our new call doesn't exist yet */
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid))
+		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid))
 			break;
 	}
 
@@ -598,7 +598,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 
 
 	iq = iks_new("iq");
-	jingle = iks_new(GOOGLE_NODE);
+	jingle = iks_new(JINGLE_NODE);
 	candidate = iks_new("candidate");
 	if (!iq || !jingle || !candidate) {
 		ast_log(LOG_ERROR, "Memory allocation error\n");
@@ -670,7 +670,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 		iks_insert_attrib(jingle, "type", "candidates");
 		iks_insert_attrib(jingle, "id", sid);
 		iks_insert_attrib(jingle, "initiator", (p->initiator) ? c->jid->full : from);
-		iks_insert_attrib(jingle, "xmlns", GOOGLE_NS);
+		iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
 		iks_insert_attrib(candidate, "name", tmp->name);
 		iks_insert_attrib(candidate, "address", tmp->ip);
 		iks_insert_attrib(candidate, "port", port);
@@ -867,7 +867,7 @@ static int jingle_action(struct jingle *client, struct jingle_pvt *p, const char
 			iks_insert_attrib(session, "id", p->sid);
 			iks_insert_attrib(session, "initiator",
 							  p->initiator ? client->connection->jid->full : p->from);
-			iks_insert_attrib(session, "xmlns", GOOGLE_NS);
+			iks_insert_attrib(session, "xmlns", JINGLE_NS);
 			iks_insert_node(request, session);
 			iks_send(client->connection->p, request);
 			iks_delete(session);
@@ -925,7 +925,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 
 	/* Make sure our new call doesn't exist yet */
 	while (tmp) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid)) {
+		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid)) {
 			ast_log(LOG_NOTICE, "Ignoring duplicate call setup on SID %s\n", tmp->sid);
 			jingle_response(client, pak, "out-of-order", NULL);
 			return -1;
@@ -933,7 +933,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		tmp = tmp->next;
 	}
 
-	p = jingle_alloc(client, pak->from->partial, iks_find_attrib(pak->query, GOOGLE_SID));
+	p = jingle_alloc(client, pak->from->partial, iks_find_attrib(pak->query, JINGLE_SID));
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to allocate jingle structure!\n");
 		return -1;
@@ -942,8 +942,8 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 	if (chan) {
 		ast_mutex_lock(&p->lock);
 		ast_copy_string(p->from, pak->from->full, sizeof(p->from));
-		if (iks_find_attrib(pak->query, GOOGLE_SID)) {
-			ast_copy_string(p->sid, iks_find_attrib(pak->query, GOOGLE_SID),
+		if (iks_find_attrib(pak->query, JINGLE_SID)) {
+			ast_copy_string(p->sid, iks_find_attrib(pak->query, JINGLE_SID),
 							sizeof(p->sid));
 		}
 
@@ -971,7 +971,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		case AST_PBX_SUCCESS:
 			jingle_response(client, pak, NULL, NULL);
 			jingle_create_candidates(client, p,
-					iks_find_attrib(pak->query, GOOGLE_SID),
+					iks_find_attrib(pak->query, JINGLE_SID),
 					iks_find_attrib(pak->x, "from"));
 			/* nothing to do */
 			break;
@@ -1019,7 +1019,7 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 	if (!newcandidate)
 		return 0;
 	for (tmp = client->p; tmp; tmp = tmp->next) {
-		if (iks_find_with_attrib(pak->x, GOOGLE_NODE, GOOGLE_SID, tmp->sid)) {
+		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid)) {
 			p = tmp;
 			break;
 		}
@@ -1453,20 +1453,20 @@ static int jingle_parser(void *data, ikspak *pak)
 {
 	struct jingle *client = ASTOBJ_REF((struct jingle *) data);
 
-	if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", JINGLE_INITIATE)) {
+	if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", JINGLE_INITIATE)) {
 		/* New call */
 		jingle_newcall(client, pak);
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", GOOGLE_NEGOTIATE)) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", JINGLE_NEGOTIATE)) {
 		ast_debug(3, "About to add candidate!\n");
 		jingle_add_candidate(client, pak);
 		ast_debug(3, "Candidate Added!\n");
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", GOOGLE_ACCEPT)) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", JINGLE_ACCEPT)) {
 		jingle_is_answered(client, pak);
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "session-info") || iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "session-info")) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "session-info")) {
 		jingle_handle_dtmf(client, pak);
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "terminate")) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", "terminate")) {
 		jingle_hangup_farend(client, pak);
-	} else if (iks_find_with_attrib(pak->x, GOOGLE_NODE, "type", "reject")) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", "reject")) {
 		jingle_hangup_farend(client, pak);
 	}
 	ASTOBJ_UNREF(client, jingle_member_destroy);
