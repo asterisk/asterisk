@@ -10368,6 +10368,17 @@ static int set_config(char *config_file, int reload)
 	return 1;
 }
 
+static void poke_all_peers(void)
+{
+	struct ao2_iterator i;
+	struct iax2_peer *peer;
+
+	i = ao2_iterator_init(peers, 0);
+	while ((peer = ao2_iterator_next(&i))) {
+		iax2_poke_peer(peer, 0);
+		peer_unref(peer);
+	}
+}
 static int reload_config(void)
 {
 	char *config = "iax.conf";
@@ -10385,9 +10396,9 @@ static int reload_config(void)
 		AST_LIST_UNLOCK(&registrations);
 
 		/* Qualify hosts, too */
-		ao2_callback(peers, 0, iax2_poke_peer_cb, NULL);
+		poke_all_peers();
 	}
-
+	
 	reload_firmware(0);
 	iax_provision_reload(1);
 
