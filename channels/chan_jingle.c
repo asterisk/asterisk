@@ -1277,40 +1277,54 @@ static int jingle_sendhtml(struct ast_channel *ast, int subclass, const char *da
 }
 static int jingle_transmit_invite(struct jingle_pvt *p)
 {
-	struct jingle *jingle = NULL;
+	struct jingle *aux = NULL;
 	struct aji_client *client = NULL;
-	iks *iq, *desc, *session;
+	iks *iq, *jingle, *content, *description, *transport;
 	iks *payload_eg711u, *payload_pcmu;
 
-	jingle = p->parent;
-	client = jingle->connection;
+	aux = p->parent;
+	client = aux->connection;
 	iq = iks_new("iq");
-	desc = iks_new("description");
-	session = iks_new("session");
+	jingle = iks_new(JINGLE_NODE);
+	content = iks_new("content");
+	description = iks_new("description");
+	transport = iks_new("transport");
+	payload_pcmu = iks_new("payload-type");
+	payload_eg711u = iks_new("payload-type");
+
 	iks_insert_attrib(iq, "type", "set");
 	iks_insert_attrib(iq, "to", p->from);
 	iks_insert_attrib(iq, "from", client->jid->full);
 	iks_insert_attrib(iq, "id", client->mid);
 	ast_aji_increment_mid(client->mid);
-	iks_insert_attrib(session, "type", "initiate");
-	iks_insert_attrib(session, "id", p->sid);
-	iks_insert_attrib(session, "initiator", client->jid->full);
-	iks_insert_attrib(session, "xmlns", GOOGLE_NS);
-	iks_insert_attrib(desc, "xmlns", "http://www.google.com/session/phone");
-	payload_pcmu = iks_new("payload-type");
+	iks_insert_attrib(jingle, "action", JINGLE_INITIATE);
+	iks_insert_attrib(jingle, JINGLE_SID, p->sid);
+	iks_insert_attrib(jingle, "initiator", client->jid->full);
+	iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
+	iks_insert_attrib(content, "creator", "initiator");
+	iks_insert_attrib(content, "name", "Asterisk audio content");
+	iks_insert_attrib(content, "profile", "RTP/AVP");
+	iks_insert_attrib(description, "xmlns", JINGLE_AUDIO_RTP_NS);
+	iks_insert_attrib(transport, "xmlns", JINGLE_ICE_UDP_NS);
 	iks_insert_attrib(payload_pcmu, "id", "0");
 	iks_insert_attrib(payload_pcmu, "name", "PCMU");
-	payload_eg711u = iks_new("payload-type");
 	iks_insert_attrib(payload_eg711u, "id", "100");
 	iks_insert_attrib(payload_eg711u, "name", "EG711U");
-	iks_insert_node(desc, payload_pcmu);
-	iks_insert_node(desc, payload_eg711u);
-	iks_insert_node(iq, session);
-	iks_insert_node(session, desc);
+
+	iks_insert_node(description, payload_pcmu);
+	iks_insert_node(description, payload_eg711u);
+	iks_insert_node(content, description);
+	iks_insert_node(content, transport);
+	iks_insert_node(jingle, content);
+	iks_insert_node(iq, jingle);
+
 	iks_send(client->p, iq);
+
 	iks_delete(iq);
-	iks_delete(desc);
-	iks_delete(session);
+	iks_delete(jingle);
+	iks_delete(content);
+	iks_delete(description);
+	iks_delete(transport);
 	iks_delete(payload_eg711u);
 	iks_delete(payload_pcmu);
 	return 0;
