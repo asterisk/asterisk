@@ -283,6 +283,10 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					ast_debug(1,"Successful DISA log-in on chan %s\n", chan->name);
 					continue;
 				}
+			} else {
+				if (j == '#') { /* end of extension */
+					break;
+				}
 			}
 
 			exten[i++] = j;  /* save digit */
