@@ -2541,7 +2541,6 @@ int main(int argc, char *argv[])
 	ast_alaw_init();
 	callerid_init();
 	ast_builtins_init();
-	ast_event_init();
 	ast_utils_init();
 	tdd_init();
 	/* When Asterisk restarts after it has dropped the root privileges,
@@ -2840,6 +2839,8 @@ int main(int argc, char *argv[])
 	/* Test recursive mutex locking. */
 	if (test_for_thread_safety())
 		ast_verbose("Warning! Asterisk is not thread safe.\n");
+
+	ast_event_init();
 
 	ast_makesocket();
 	sigemptyset(&sigs);
