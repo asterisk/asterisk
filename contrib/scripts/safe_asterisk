@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # vim:textwidth=80:tabstop=4:shiftwidth=4:smartindent:autoindent
 
 CLIARGS="$*"				# Grab any args passed to safe_asterisk
