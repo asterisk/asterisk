@@ -1604,7 +1604,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 	
 	dsp->gsamp_size = modes[dsp->progmode].size;
 	dsp->gsamps = 0;
-	for (x=0;x<sizeof(modes[dsp->progmode].freqs) / sizeof(modes[dsp->progmode].freqs[0]);x++) {
+	for (x = 0; x < sizeof(modes[dsp->progmode].freqs) / sizeof(modes[dsp->progmode].freqs[0]); x++) {
 		if (modes[dsp->progmode].freqs[x]) {
 			goertzel_init(&dsp->freqs[x], (float)modes[dsp->progmode].freqs[x], dsp->gsamp_size);
 			max = x + 1;
