@@ -1391,7 +1391,7 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 		return res;
 	case AST_ACTION_MENU:
 		res = ast_ivr_menu_run_internal(chan, (struct ast_ivr_menu *)option->adata, cbdata);
-		/* Do not pass entry errors back up, treaat ast though ti was an "UPONE" */
+		/* Do not pass entry errors back up, treat as though it was an "UPONE" */
 		if (res == -2)
 			res = 0;
 		return res;
