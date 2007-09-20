@@ -10214,7 +10214,7 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 	if (peer->callingpres)	/* Peer calling pres setting will override RPID */
 		p->callingpres = peer->callingpres;
 	if (peer->maxms && peer->lastms)
-		p->timer_t1 = peer->lastms;
+		p->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
 	if (ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)) {
 		/* Pretend there is no required authentication */
 		ast_string_field_free(p, peersecret);
