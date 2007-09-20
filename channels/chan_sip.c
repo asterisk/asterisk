@@ -2392,7 +2392,7 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 	pkt->retransid = ast_sched_replace_variable(pkt->retransid, sched, 
 		siptimer_a, retrans_pkt, pkt, 1);
 	if (sipdebug)
-		ast_debug(4, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
+		ast_debug(4, "*** SIP TIMER: Initializing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
 		p->pendinginvite = seqno;
