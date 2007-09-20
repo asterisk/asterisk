@@ -1137,7 +1137,7 @@ static enum AST_LOCK_RESULT ast_lock_path_flock(const char *path)
 	if (!pl) {
 		/* We don't unlink the lock file here, on the possibility that
 		 * someone else created it - better to leave a little mess
-		 * than create a big one by destroying someone elses lock
+		 * than create a big one by destroying someone else's lock
 		 * and causing something to be corrupted.
 		 */
 		close(fd);
