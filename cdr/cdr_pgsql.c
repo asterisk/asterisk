@@ -216,8 +216,10 @@ static int config_module(int reload)
 	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
-	if (!(var = ast_variable_browse(cfg, "global")))
+	if (!(var = ast_variable_browse(cfg, "global"))) {
+		ast_config_destroy(cfg);
 		return 0;
+	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "hostname"))) {
 		ast_log(LOG_WARNING, "PostgreSQL server hostname not specified.  Assuming unix socket connection\n");
@@ -226,8 +228,10 @@ static int config_module(int reload)
 
 	if (pghostname)
 		ast_free(pghostname);
-	if (!(pghostname = ast_strdup(tmp)))
+	if (!(pghostname = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
 		return -1;
+	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "dbname"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database not specified.  Assuming asterisk\n");
@@ -236,8 +240,10 @@ static int config_module(int reload)
 
 	if (pgdbname)
 		ast_free(pgdbname);
-	if (!(pgdbname = ast_strdup(tmp)))
+	if (!(pgdbname = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
 		return -1;
+	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "user"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database user not specified.  Assuming asterisk\n");
@@ -246,8 +252,10 @@ static int config_module(int reload)
 
 	if (pgdbuser)
 		ast_free(pgdbuser);
-	if (!(pgdbuser = ast_strdup(tmp)))
+	if (!(pgdbuser = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
 		return -1;
+	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "password"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database password not specified.  Assuming blank\n");
@@ -256,8 +264,10 @@ static int config_module(int reload)
 
 	if (pgpassword)
 		ast_free(pgpassword);
-	if (!(pgpassword = ast_strdup(tmp)))
+	if (!(pgpassword = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
 		return -1;
+	}
 
 	if (!(tmp = ast_variable_retrieve(cfg,"global","port"))) {
 		ast_log(LOG_WARNING,"PostgreSQL database port not specified.  Using default 5432.\n");
@@ -266,8 +276,10 @@ static int config_module(int reload)
 
 	if (pgdbport)
 		ast_free(pgdbport);
-	if (!(pgdbport = ast_strdup(tmp)))
+	if (!(pgdbport = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
 		return -1;
+	}
 
 	if (!(tmp = ast_variable_retrieve(cfg, "global", "table"))) {
 		ast_log(LOG_WARNING,"CDR table not specified.  Assuming cdr\n");
@@ -276,8 +288,10 @@ static int config_module(int reload)
 
 	if (table)
 		ast_free(table);
-	if (!(table = ast_strdup(tmp)))
+	if (!(table = ast_strdup(tmp))) {
+		ast_config_destroy(cfg);
 		return -1;
+	}
 
 	if (option_debug) {
 	    	if (ast_strlen_zero(pghostname))
@@ -301,6 +315,8 @@ static int config_module(int reload)
 		ast_log(LOG_ERROR, "cdr_pgsql: Reason: %s\n", pgerror);
 		connected = 0;
 	}
+
+	ast_config_destroy(cfg);
 
 	return ast_cdr_register(name, ast_module_info->description, pgsql_log);
 }

@@ -4635,19 +4635,16 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	int globalpcmodel = 0;
 	dundi_eid testeid;
 
-	if ((cfg = ast_config_load(config_file, config_flags)) == CONFIG_STATUS_FILEUNCHANGED)
+	if (!(cfg = ast_config_load(config_file, config_flags))) {
+		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
+		return -1;
+	} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
 		return 0;
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
 	dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
 	any_peer = NULL;
-	
-	cfg = ast_config_load(config_file, config_flags);
-	
-	if (!cfg) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
-		return -1;
-	}
+
 	ipaddr[0] = '\0';
 	if (!gethostname(hn, sizeof(hn)-1)) {
 		hp = ast_gethostbyname(hn, &he);

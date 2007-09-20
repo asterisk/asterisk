@@ -765,6 +765,7 @@ void ast_config_destroy(struct ast_config *cfg)
 		ast_variables_destroy(cat->root);
 		catn = cat;
 		cat = cat->next;
+		ast_free(catn->file);
 		ast_free(catn);
 	}
 	ast_free(cfg);
