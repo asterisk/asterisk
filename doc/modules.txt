@@ -3,7 +3,7 @@ All modules must have at least the following:
 static int load_module():
 
 	Do what you need to do when you get started.  This function can return
-AST_MODULE_LOAD_FAILURE if a action fails and the module is prevented from loading,
+AST_MODULE_LOAD_FAILURE if an action fails and the module is prevented from loading,
 AST_MODULE_LOAD_DECLINE if the module can not load because of a non-critical failure
 (the configuration file was not found), or AST_MODULE_LOAD_SUCCESS if the module
 loaded fine.
