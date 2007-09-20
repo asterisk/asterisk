@@ -2977,7 +2977,7 @@ int main(int argc, char *argv[])
 		set_title(title);
 
 		for (;;) {
-			buf = (char *)el_gets(el, &num);
+			buf = (char *) el_gets(el, &num);
 
 			if (!buf && write(1, "", 1) < 0)
 				goto lostterm;
