@@ -307,7 +307,7 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 	return size;
 }
 
-static int handle_show_memory(int fd, int argc, char *argv[])
+static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *fn = NULL;
 	struct ast_region *reg;
@@ -317,8 +317,21 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 	unsigned int count = 0;
 	unsigned int *fence;
 
-	if (argc > 3)
-		fn = argv[3];
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "memory show allocations";
+		e->usage =
+			"Usage: memory show allocations [<file>]\n"
+			"       Dumps a list of all segments of allocated memory, optionally\n"
+			"       limited to those from a specific file\n";
+		break;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+
+	if (a->argc > 3)
+		fn = a->argv[3];
 
 	ast_mutex_lock(&showmemorylock);
 	for (x = 0; x < SOME_PRIME; x++) {
@@ -336,7 +349,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 				}
 			}
 			if (!fn || !strcasecmp(fn, reg->file)) {
-				ast_cli(fd, "%10d bytes allocated%s in %20s at line %5d of %s\n", 
+				ast_cli(a->fd, "%10d bytes allocated%s in %20s at line %5d of %s\n", 
 					(int) reg->len, reg->cache ? " (cache)" : "", 
 					reg->func, reg->lineno, reg->file);
 				len += reg->len;
@@ -349,14 +362,14 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 	ast_mutex_unlock(&showmemorylock);
 	
 	if (cache_len)
-		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
+		ast_cli(a->fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
 	else
-		ast_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
+		ast_cli(a->fd, "%d bytes allocated in %d allocations\n", len, count);
 	
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_show_memory_summary(int fd, int argc, char *argv[])
+static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *fn = NULL;
 	int x;
@@ -372,8 +385,20 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 		struct file_summary *next;
 	} *list = NULL, *cur;
 	
-	if (argc > 3) 
-		fn = argv[3];
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "memory show summary";
+		e->usage =
+			"Usage: memory show summary [<file>]\n"
+			"       Summarizes heap memory allocations by file, or optionally\n"
+			"by function, if a file is specified\n";
+		break;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > 3) 
+		fn = a->argv[3];
 
 	ast_mutex_lock(&reglock);
 	for (x = 0; x < SOME_PRIME; x++) {
@@ -408,49 +433,34 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 		count += cur->count;
 		if (cur->cache_len) {
 			if (fn) {
-				ast_cli(fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
+				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
 					cur->len, cur->cache_len, cur->count, cur->fn, fn);
 			} else {
-				ast_cli(fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
+				ast_cli(a->fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
 					cur->len, cur->cache_len, cur->count, cur->fn);
 			}
 		} else {
 			if (fn) {
-				ast_cli(fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
+				ast_cli(a->fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
 					cur->len, cur->count, cur->fn, fn);
 			} else {
-				ast_cli(fd, "%10d bytes in %d allocations in file '%s'\n", 
+				ast_cli(a->fd, "%10d bytes in %d allocations in file '%s'\n", 
 					cur->len, cur->count, cur->fn);
 			}
 		}
 	}
 
 	if (cache_len)
-		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
+		ast_cli(a->fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
 	else
-		ast_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
+		ast_cli(a->fd, "%d bytes allocated in %d allocations\n", len, count);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static char show_memory_help[] = 
-"Usage: memory show allocations [<file>]\n"
-"       Dumps a list of all segments of allocated memory, optionally\n"
-"limited to those from a specific file\n";
-
-static char show_memory_summary_help[] = 
-"Usage: memory show summary [<file>]\n"
-"       Summarizes heap memory allocations by file, or optionally\n"
-"by function, if a file is specified\n";
-
 static struct ast_cli_entry cli_memory[] = {
-	{ { "memory", "show", "allocations", NULL },
-	handle_show_memory, "Display outstanding memory allocations",
-	show_memory_help },
-
-	{ { "memory", "show", "summary", NULL },
-	handle_show_memory_summary, "Summarize outstanding memory allocations",
-	show_memory_summary_help },
+	NEW_CLI(handle_memory_show, "Display outstanding memory allocations"),
+	NEW_CLI(handle_memory_show_summary, "Summarize outstanding memory allocations"),
 };
 
 void __ast_mm_init(void)
