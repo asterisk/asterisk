@@ -110,7 +110,7 @@ struct parse_io
 void ast_yyset_column(int column_no, yyscan_t yyscanner);
 int ast_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
-static char *expr2_token_subst(char *mess);
+static char *expr2_token_subst(const char *mess);
 %}
 
 %option prefix="ast_yy"
@@ -348,11 +348,11 @@ static char *expr2_token_equivs2[] =
 };
 
 
-static char *expr2_token_subst(char *mess)
+static char *expr2_token_subst(const char *mess)
 {
 	/* calc a length, malloc, fill, and return; yyerror had better free it! */
 	int len=0,i;
-	char *p;
+	const char *p;
 	char *res, *s,*t;
 	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
 
@@ -397,7 +397,7 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 	char spacebuf[8000]; /* best safe than sorry */
 	char spacebuf2[8000]; /* best safe than sorry */
 	int i=0;
-	char *s2 = expr2_token_subst((char *)s);
+	char *s2 = expr2_token_subst(s);
 	spacebuf[0] = 0;
 	
 	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,

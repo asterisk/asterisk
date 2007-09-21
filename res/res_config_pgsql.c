@@ -820,7 +820,7 @@ static int parse_config(int reload)
 		dbport = atoi(s);
 	}
 
-	if (dbhost && !(s = ast_variable_retrieve(config, "general", "dbsock"))) {
+	if (!ast_strlen_zero(dbhost) && !(s = ast_variable_retrieve(config, "general", "dbsock"))) {
 		ast_log(LOG_WARNING,
 				"Postgresql RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
 		strcpy(dbsock, "/tmp/pgsql.sock");
@@ -830,7 +830,7 @@ static int parse_config(int reload)
 	ast_config_destroy(config);
 
 	if (option_debug) {
-		if (dbhost) {
+		if (!ast_strlen_zero(dbhost)) {
 			ast_debug(1, "Postgresql RealTime Host: %s\n", dbhost);
 			ast_debug(1, "Postgresql RealTime Port: %i\n", dbport);
 		} else {
@@ -868,7 +868,7 @@ static int pgsql_reconnect(const char *database)
 		pgsqlConn = NULL;
 	}
 
-	if ((!pgsqlConn) && (dbhost || dbsock) && dbuser && dbpass && my_database) {
+	if ((!pgsqlConn) && (!ast_strlen_zero(dbhost) || !ast_strlen_zero(dbsock)) && !ast_strlen_zero(dbuser) && !ast_strlen_zero(dbpass) && !ast_strlen_zero(my_database)) {
 		char *connInfo = NULL;
 		unsigned int size = 100 + strlen(dbhost)
 			+ strlen(dbuser)
@@ -909,15 +909,15 @@ static int realtime_pgsql_status(int fd, int argc, char **argv)
 	int ctime = time(NULL) - connect_time;
 
 	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
-		if (dbhost) {
+		if (!ast_strlen_zero(dbhost)) {
 			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbhost, dbport);
-		} else if (dbsock) {
+		} else if (!ast_strlen_zero(dbsock)) {
 			snprintf(status, 255, "Connected to %s on socket file %s", dbname, dbsock);
 		} else {
 			snprintf(status, 255, "Connected to %s@%s", dbname, dbhost);
 		}
 
-		if (dbuser && *dbuser) {
+		if (!ast_strlen_zero(dbuser)) {
 			snprintf(status2, 99, " with username %s", dbuser);
 		}
 

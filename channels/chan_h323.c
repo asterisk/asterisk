@@ -311,9 +311,9 @@ static void oh323_destroy_peer(struct oh323_peer *peer)
 	ast_free(peer);
 }
 
-static int oh323_simulate_dtmf_end(void *data)
+static int oh323_simulate_dtmf_end(const void *data)
 {
-	struct oh323_pvt *pvt = data;
+	struct oh323_pvt *pvt = (struct oh323_pvt *)data;
 
 	if (pvt) {
 		ast_mutex_lock(&pvt->lock);

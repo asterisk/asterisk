@@ -428,7 +428,7 @@ struct ast_channel {
 	int oldwriteformat;				/*!< Original writer format */
 	
 	int timingfd;					/*!< Timing fd */
-	int (*timingfunc)(void *data);
+	int (*timingfunc)(const void *data);
 	void *timingdata;
 
 	enum ast_channel_state _state;			/*!< State of line -- Don't write directly, use ast_setstate() */
@@ -1234,7 +1234,7 @@ int ast_autoservice_stop(struct ast_channel *chan);
 
 /* If built with zaptel optimizations, force a scheduled expiration on the
    timer fd, at which point we call the callback function / data */
-int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), void *data);
+int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data);
 
 /*!	\brief Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
    and 1 if supported and requested 

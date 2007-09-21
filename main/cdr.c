@@ -1123,7 +1123,7 @@ void ast_cdr_submit_batch(int shutdown)
 	}
 }
 
-static int submit_scheduled_batch(void *data)
+static int submit_scheduled_batch(const void *data)
 {
 	ast_cdr_submit_batch(0);
 	/* manually reschedule from this point in time */

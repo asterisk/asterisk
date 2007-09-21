@@ -181,10 +181,10 @@ struct ast_rtp {
 };
 
 /* Forward declarations */
-static int ast_rtcp_write(void *data);
+static int ast_rtcp_write(const void *data);
 static void timeval2ntp(struct timeval tv, unsigned int *msw, unsigned int *lsw);
-static int ast_rtcp_write_sr(void *data);
-static int ast_rtcp_write_rr(void *data);
+static int ast_rtcp_write_sr(const void *data);
+static int ast_rtcp_write_rr(const void *data);
 static unsigned int ast_rtcp_calc_interval(struct ast_rtp *rtp);
 static int ast_rtp_senddigit_continuation(struct ast_rtp *rtp);
 int ast_rtp_senddigit_end(struct ast_rtp *rtp, char digit);
@@ -2654,9 +2654,9 @@ int ast_rtcp_send_h261fur(void *data)
 }
 
 /*! \brief Send RTCP sender's report */
-static int ast_rtcp_write_sr(void *data)
+static int ast_rtcp_write_sr(const void *data)
 {
-	struct ast_rtp *rtp = data;
+	struct ast_rtp *rtp = (struct ast_rtp *)data;
 	int res;
 	int len = 0;
 	struct timeval now;
@@ -2791,9 +2791,9 @@ static int ast_rtcp_write_sr(void *data)
 }
 
 /*! \brief Send RTCP recipient's report */
-static int ast_rtcp_write_rr(void *data)
+static int ast_rtcp_write_rr(const void *data)
 {
-	struct ast_rtp *rtp = data;
+	struct ast_rtp *rtp = (struct ast_rtp *)data;
 	int res;
 	int len = 32;
 	unsigned int lost;
@@ -2890,9 +2890,9 @@ static int ast_rtcp_write_rr(void *data)
 /*! \brief Write and RTCP packet to the far end
  * \note Decide if we are going to send an SR (with Reception Block) or RR 
  * RR is sent if we have not sent any rtp packets in the previous interval */
-static int ast_rtcp_write(void *data)
+static int ast_rtcp_write(const void *data)
 {
-	struct ast_rtp *rtp = data;
+	struct ast_rtp *rtp = (struct ast_rtp *)data;
 	int res;
 	
 	if (!rtp || !rtp->rtcp)

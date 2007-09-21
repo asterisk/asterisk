@@ -1545,13 +1545,13 @@ void ast_deactivate_generator(struct ast_channel *chan)
 	ast_channel_unlock(chan);
 }
 
-static int generator_force(void *data)
+static int generator_force(const void *data)
 {
 	/* Called if generator doesn't have data */
 	void *tmp;
 	int res;
 	int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
-	struct ast_channel *chan = data;
+	struct ast_channel *chan = (struct ast_channel *)data;
 	tmp = chan->generatordata;
 	chan->generatordata = NULL;
 	generate = chan->generator->generate;
@@ -1971,7 +1971,7 @@ int ast_waitfordigit(struct ast_channel *c, int ms)
 	return ast_waitfordigit_full(c, ms, -1, -1);
 }
 
-int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), void *data)
+int ast_settimeout(struct ast_channel *c, int samples, int (*func)(const void *data), void *data)
 {
 	int res = -1;
 #ifdef HAVE_ZAPTEL
@@ -2182,7 +2182,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
 			if (chan->timingfunc) {
 				/* save a copy of func/data before unlocking the channel */
-				int (*func)(void *) = chan->timingfunc;
+				int (*func)(const void *) = chan->timingfunc;
 				void *data = chan->timingdata;
 				ast_channel_unlock(chan);
 				func(data);

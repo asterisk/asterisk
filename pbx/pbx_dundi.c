@@ -1295,9 +1295,9 @@ static void apply_peer(struct dundi_transaction *trans, struct dundi_peer *p)
 }
 
 /*! \note Called with the peers list already locked */
-static int do_register_expire(void *data)
+static int do_register_expire(const void *data)
 {
-	struct dundi_peer *peer = data;
+	struct dundi_peer *peer = (struct dundi_peer *)data;
 	char eid_str[20];
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
@@ -2984,12 +2984,11 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 		free(trans);
 }
 
-static int dundi_rexmit(void *data)
+static int dundi_rexmit(const void *data)
 {
-	struct dundi_packet *pack;
+	struct dundi_packet *pack = (struct dundi_packet *)data;
 	int res;
 	AST_LIST_LOCK(&peers);
-	pack = data;
 	if (pack->retrans < 1) {
 		pack->retransid = -1;
 		if (!ast_test_flag(pack->parent, FLAG_ISQUAL))
@@ -3079,9 +3078,9 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 	return -1;
 }
 
-static int do_autokill(void *data)
+static int do_autokill(const void *data)
 {
-	struct dundi_transaction *trans = data;
+	struct dundi_transaction *trans = (struct dundi_transaction *)data;
 	char eid_str[20];
 	ast_log(LOG_NOTICE, "Transaction to '%s' took too long to ACK, destroying\n", 
 		dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
@@ -4267,10 +4266,10 @@ static void build_mapping(char *name, char *value)
 }
 
 /* \note Called with the peers list already locked */
-static int do_register(void *data)
+static int do_register(const void *data)
 {
 	struct dundi_ie_data ied;
-	struct dundi_peer *peer = data;
+	struct dundi_peer *peer = (struct dundi_peer *)data;
 	char eid_str[20];
 	char eid_str2[20];
 	if (option_debug)
@@ -4294,10 +4293,9 @@ static int do_register(void *data)
 	return 0;
 }
 
-static int do_qualify(void *data)
+static int do_qualify(const void *data)
 {
-	struct dundi_peer *peer;
-	peer = data;
+	struct dundi_peer *peer = (struct dundi_peer *)data;
 	peer->qualifyid = -1;
 	qualify_peer(peer, 0);
 	return 0;

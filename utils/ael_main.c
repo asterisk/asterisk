@@ -61,8 +61,8 @@ void destroy_namelist(struct namelist *x)
 	}
 }
 
-struct namelist *create_name(char *name);
-struct namelist *create_name(char *name)
+struct namelist *create_name(const char *name);
+struct namelist *create_name(const char *name)
 {
 	struct namelist *x = calloc(1, sizeof(*x));
 	if (!x)
@@ -333,12 +333,12 @@ int ast_add_extension2(struct ast_context *con,
 
 void pbx_builtin_setvar(void *chan, void *data)
 {
-	struct namelist *x = create_name((char*)data);
+	struct namelist *x = create_name(data);
 	if(!no_comp)
 		printf("Executed pbx_builtin_setvar(chan, data=%s);\n", (char*)data);
 
 	if( dump_extensions ) {
-		x = create_name((char*)data);
+		x = create_name(data);
 		ADD_LAST(globalvars,x);
 	}
 }
@@ -365,7 +365,7 @@ void ast_context_add_ignorepat2(struct ast_context *con, const char *value, cons
 		printf("Executed ast_context_add_ignorepat2(con, value=%s, registrar=%s);\n", value, registrar);
 	if( dump_extensions ) {
 		struct namelist *x;
-		x = create_name((char*)value);
+		x = create_name(value);
 		ADD_LAST(con->ignorepats,x);
 	}
 }

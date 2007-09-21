@@ -621,7 +621,7 @@ static inline void misdn_tasks_wakeup (void)
 	pthread_kill(misdn_tasks_thread, SIGUSR1);
 }
 
-static inline int _misdn_tasks_add_variable (int timeout, ast_sched_cb callback, void *data, int variable)
+static inline int _misdn_tasks_add_variable (int timeout, ast_sched_cb callback, const void *data, int variable)
 {
 	int task_id;
 
@@ -634,12 +634,12 @@ static inline int _misdn_tasks_add_variable (int timeout, ast_sched_cb callback,
 	return task_id;
 }
 
-static int misdn_tasks_add (int timeout, ast_sched_cb callback, void *data)
+static int misdn_tasks_add (int timeout, ast_sched_cb callback, const void *data)
 {
 	return _misdn_tasks_add_variable(timeout, callback, data, 0);
 }
 
-static int misdn_tasks_add_variable (int timeout, ast_sched_cb callback, void *data)
+static int misdn_tasks_add_variable (int timeout, ast_sched_cb callback, const void *data)
 {
 	return _misdn_tasks_add_variable(timeout, callback, data, 1);
 }
@@ -649,14 +649,14 @@ static void misdn_tasks_remove (int task_id)
 	ast_sched_del(misdn_tasks, task_id);
 }
 
-static int misdn_l1_task (void *data)
+static int misdn_l1_task (const void *data)
 {
 	misdn_lib_isdn_l1watcher(*(int *)data);
 	chan_misdn_log(5, *(int *)data, "L1watcher timeout\n");
 	return 1;
 }
 
-static int misdn_overlap_dial_task (void *data)
+static int misdn_overlap_dial_task (const void *data)
 {
 	struct timeval tv_end, tv_now;
 	int diff;

@@ -56,7 +56,7 @@ struct sched {
 	struct timeval when;          /*!< Absolute time event should take place */
 	int resched;                  /*!< When to reschedule */
 	int variable;                 /*!< Use return value from callback to reschedule */
-	void *data;                   /*!< Data */
+	const void *data;             /*!< Data */
 	ast_sched_cb callback;        /*!< Callback */
 };
 
@@ -207,7 +207,7 @@ static int sched_settime(struct timeval *tv, int when)
 	return 0;
 }
 
-int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
+int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable)
 {
 	/* 0 means the schedule item is new; do not delete */
 	if (old_id > 0)
@@ -218,7 +218,7 @@ int ast_sched_replace_variable(int old_id, struct sched_context *con, int when, 
 /*! \brief
  * Schedule callback(data) to happen when ms into the future
  */
-int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
+int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable)
 {
 	struct sched *tmp;
 	int res = -1;
@@ -251,14 +251,14 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 	return res;
 }
 
-int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, void *data)
+int ast_sched_replace(int old_id, struct sched_context *con, int when, ast_sched_cb callback, const void *data)
 {
 	if (old_id > -1)
 		ast_sched_del(con, old_id);
 	return ast_sched_add(con, when, callback, data);
 }
 
-int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
+int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data)
 {
 	return ast_sched_add_variable(con, when, callback, data, 0);
 }

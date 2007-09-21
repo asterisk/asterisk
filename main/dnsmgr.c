@@ -217,9 +217,9 @@ static void *do_refresh(void *data)
 	return NULL;
 }
 
-static int refresh_list(void *data)
+static int refresh_list(const void *data)
 {
-	struct refresh_info *info = data;
+	struct refresh_info *info = (struct refresh_info *)data;
 	struct ast_dnsmgr_entry *entry;
 
 	/* if a refresh or reload is already in progress, exit now */
