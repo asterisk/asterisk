@@ -52,12 +52,15 @@ static char *name = "cdr_manager";
 static int enablecdr = 0;
 struct ast_str *customfields;
 
+static int manager_log(struct ast_cdr *cdr);
+
 static int load_config(int reload)
 {
 	char *cat = NULL;
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
+	int newenablecdr = 0;
 
 	cfg = ast_config_load(CONF_FILE, config_flags);
 	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
@@ -71,6 +74,8 @@ static int load_config(int reload)
 	if (!cfg) {
 		/* Standard configuration */
 		ast_log(LOG_WARNING, "Failed to load configuration file. Module not activated.\n");
+		if (enablecdr)
+			ast_cdr_unregister(name);
 		enablecdr = 0;
 		return 0;
 	}
@@ -79,9 +84,8 @@ static int load_config(int reload)
 		if (!strcasecmp(cat, "general")) {
 			v = ast_variable_browse(cfg, cat);
 			while (v) {
-				if (!strcasecmp(v->name, "enabled")) {
-					enablecdr = ast_true(v->value);
-				}
+				if (!strcasecmp(v->name, "enabled"))
+					newenablecdr = ast_true(v->value);
 				
 				v = v->next;
 			}
@@ -105,6 +109,12 @@ static int load_config(int reload)
 	}
 	
 	ast_config_destroy(cfg);
+
+	if (enablecdr && !newenablecdr)
+		ast_cdr_unregister(name);
+	else if (!enablecdr && newenablecdr)
+		ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
+
 	return 1;
 }
 
@@ -178,18 +188,11 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res;
-
 	/* Configuration file */
 	if (!load_config(0))
 		return AST_MODULE_LOAD_DECLINE;
-	
-	res = ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
-	if (res) {
-		ast_log(LOG_ERROR, "Unable to register Asterisk Call Manager CDR handling\n");
-	}
-	
-	return res;
+
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)
