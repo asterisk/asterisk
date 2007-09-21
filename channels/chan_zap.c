@@ -11808,7 +11808,7 @@ static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_c
 	return CLI_SUCCESS;
 }
 
-static int handle_ss7_unblock_cic(int fd, int argc, char *argv[])
+static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int linkset, cic;
 	int i, blocked = -1;
@@ -11887,7 +11887,7 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 		return CLI_SUCCESS;
 	}
 	if (!linksets[linkset-1].ss7) {
-		ast_cli(fd, "No SS7 running on linkset %d\n", linkset);
+		ast_cli(a->fd, "No SS7 running on linkset %d\n", linkset);
 		return CLI_SUCCESS;
 	}
 	if (linksets[linkset-1].ss7)
@@ -11902,7 +11902,7 @@ static struct ast_cli_entry zap_ss7_cli[] = {
 	NEW_CLI(handle_ss7_debug, "Enables SS7 debugging on a linkset"), 
 	NEW_CLI(handle_ss7_no_debug, "Disables SS7 debugging on a linkset"), 
 	NEW_CLI(handle_ss7_block_cic, "Disables SS7 debugging on a linkset"),
-	NEW_CLI(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset")
+	NEW_CLI(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset"),
 	NEW_CLI(handle_ss7_show_linkset, "Shows the status of a linkset"),
 };
 #endif /* HAVE_SS7 */
