@@ -55,7 +55,7 @@ void sched_context_destroy(struct sched_context *c);
  * \return returns a 0 if it should not be run again, or non-zero if it should be
  * rescheduled to run again
  */
-typedef int (*ast_sched_cb)(void *data);
+typedef int (*ast_sched_cb)(const void *data);
 #define AST_SCHED_CB(a) ((ast_sched_cb)(a))
 
 /*! \brief Adds a scheduled event
@@ -69,7 +69,7 @@ typedef int (*ast_sched_cb)(void *data);
  * \param data data to pass to the callback
  * \return Returns a schedule item ID on success, -1 on failure
  */
-int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
+int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data);
 
 /*!Adds a scheduled event with rescheduling support
  * \param con Scheduler context to add
@@ -84,7 +84,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
  * If callback returns 0, no further events will be re-scheduled
  * \return Returns a schedule item ID on success, -1 on failure
  */
-int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
+int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable);
 
 /*! \brief Deletes a scheduled event
  * Remove this event from being run.  A procedure should not remove its

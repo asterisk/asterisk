@@ -620,7 +620,7 @@ enum fsread_res {
 	FSREAD_SUCCESS_NOSCHED,
 };
 
-static int ast_fsread_audio(void *data);
+static int ast_fsread_audio(const void *data);
 
 static enum fsread_res ast_readaudio_callback(struct ast_filestream *s)
 {
@@ -659,9 +659,9 @@ return_failure:
 	return FSREAD_FAILURE;
 }
 
-static int ast_fsread_audio(void *data)
+static int ast_fsread_audio(const void *data)
 {
-	struct ast_filestream *fs = data;
+	struct ast_filestream *fs = (struct ast_filestream *)data;
 	enum fsread_res res;
 
 	res = ast_readaudio_callback(fs);
@@ -672,7 +672,7 @@ static int ast_fsread_audio(void *data)
 	return 0;
 }
 
-static int ast_fsread_video(void *data);
+static int ast_fsread_video(const void *data);
 
 static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 {
@@ -698,9 +698,9 @@ static enum fsread_res ast_readvideo_callback(struct ast_filestream *s)
 	return FSREAD_SUCCESS_SCHED;
 }
 
-static int ast_fsread_video(void *data)
+static int ast_fsread_video(const void *data)
 {
-	struct ast_filestream *fs = data;
+	struct ast_filestream *fs = (struct ast_filestream *)data;
 	enum fsread_res res;
 
 	res = ast_readvideo_callback(fs);

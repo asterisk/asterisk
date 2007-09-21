@@ -1225,7 +1225,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore);
 static int __sip_xmit(struct sip_pvt *p, char *data, int len);
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod);
 static int __transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req, enum xmittype reliable);
-static int retrans_pkt(void *data);
+static int retrans_pkt(const void *data);
 static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req);
 static int transmit_response_using_temp(ast_string_field callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method, const struct sip_request *req, const char *msg);
 static int transmit_response(struct sip_pvt *p, const char *msg, const struct sip_request *req);
@@ -1258,7 +1258,7 @@ static int does_peer_need_mwi(struct sip_peer *peer);
 /*--- Dialog management */
 static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *sin,
 				 int useglobal_nat, const int intended_method);
-static int __sip_autodestruct(void *data);
+static int __sip_autodestruct(const void *data);
 static void sip_scheddestroy(struct sip_pvt *p, int ms);
 static void sip_cancel_destroy(struct sip_pvt *p);
 static void sip_destroy(struct sip_pvt *p);
@@ -1266,7 +1266,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner);
 static void __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
 static void __sip_pretend_ack(struct sip_pvt *p);
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod);
-static int auto_congest(void *nothing);
+static int auto_congest(const void *nothing);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static int hangup_sip2cause(int cause);
 static const char *hangup_cause2sip(int cause);
@@ -1321,7 +1321,7 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, con
 /*--- Misc functions */
 static int sip_do_reload(enum channelreloadreason reason);
 static int reload_config(enum channelreloadreason reason);
-static int expire_register(void *data);
+static int expire_register(const void *data);
 static void *do_monitor(void *data);
 static int restart_monitor(void);
 static int sip_send_mwi_to_peer(struct sip_peer *peer);
@@ -1334,7 +1334,7 @@ static int attempt_transfer(struct sip_dual *transferer, struct sip_dual *target
 /*--- Device monitoring and Device/extension state handling */
 static int cb_extensionstate(char *context, char* exten, int state, void *data);
 static int sip_devicestate(void *data);
-static int sip_poke_noanswer(void *data);
+static int sip_poke_noanswer(const void *data);
 static int sip_poke_peer(struct sip_peer *peer);
 static void sip_poke_all_peers(void);
 static void sip_peer_hold(struct sip_pvt *p, int hold);
@@ -1413,14 +1413,14 @@ static int update_call_counter(struct sip_pvt *fup, int event);
 static void sip_destroy_peer(struct sip_peer *peer);
 static void sip_destroy_user(struct sip_user *user);
 static int sip_poke_peer(struct sip_peer *peer);
-static int sip_poke_peer_s(void *data);
+static int sip_poke_peer_s(const void *data);
 static void set_peer_defaults(struct sip_peer *peer);
 static struct sip_peer *temp_peer(const char *name);
 static void register_peer_exten(struct sip_peer *peer, int onoff);
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime);
 static struct sip_user *find_user(const char *name, int realtime);
 static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req);
-static int expire_register(void *data);
+static int expire_register(const void *data);
 static void reg_source_db(struct sip_peer *peer);
 static void destroy_association(struct sip_peer *peer);
 static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v);
@@ -1437,9 +1437,9 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us);
 static void sip_registry_destroy(struct sip_registry *reg);
 static int sip_register(char *value, int lineno);
 static char *regstate2str(enum sipregistrystate regstate) attribute_const;
-static int sip_reregister(void *data);
+static int sip_reregister(const void *data);
 static int __sip_do_register(struct sip_registry *r);
-static int sip_reg_timeout(void *data);
+static int sip_reg_timeout(const void *data);
 static void sip_send_all_registers(void);
 
 /*--- Parsing SIP requests and responses */
@@ -1881,9 +1881,9 @@ static void append_history_full(struct sip_pvt *p, const char *fmt, ...)
 }
 
 /*! \brief Retransmit SIP message if no answer (Called from scheduler) */
-static int retrans_pkt(void *data)
+static int retrans_pkt(const void *data)
 {
-	struct sip_pkt *pkt = data, *prev, *cur = NULL;
+	struct sip_pkt *pkt = (struct sip_pkt *)data, *prev, *cur = NULL;
 	int reschedule = DEFAULT_RETRANS;
 	int xmitres = 0;
 
@@ -2054,9 +2054,9 @@ static enum sip_result __sip_reliable_xmit(struct sip_pvt *p, int seqno, int res
 }
 
 /*! \brief Kill a SIP dialog (called by scheduler) */
-static int __sip_autodestruct(void *data)
+static int __sip_autodestruct(const void *data)
 {
-	struct sip_pvt *p = data;
+	struct sip_pvt *p = (struct sip_pvt *)data;
 
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (p->subscribed) {
@@ -2868,9 +2868,9 @@ static int create_addr(struct sip_pvt *dialog, const char *opeer)
 }
 
 /*! \brief Scheduled congestion on a call */
-static int auto_congest(void *nothing)
+static int auto_congest(const void *nothing)
 {
-	struct sip_pvt *p = nothing;
+	struct sip_pvt *p = (struct sip_pvt *)nothing;
 
 	ast_mutex_lock(&p->lock);
 	p->initid = -1;
@@ -7279,7 +7279,7 @@ static char *regstate2str(enum sipregistrystate regstate)
 }
 
 /*! \brief Update registration with SIP Proxy */
-static int sip_reregister(void *data) 
+static int sip_reregister(const void *data) 
 {
 	/* if we are here, we know that we need to reregister. */
 	struct sip_registry *r= ASTOBJ_REF((struct sip_registry *) data);
@@ -7311,7 +7311,7 @@ static int __sip_do_register(struct sip_registry *r)
 }
 
 /*! \brief Registration timeout, register again */
-static int sip_reg_timeout(void *data)
+static int sip_reg_timeout(const void *data)
 {
 
 	/* if we are here, our registration timed out, so we'll just do it over */
@@ -7716,9 +7716,9 @@ static void destroy_association(struct sip_peer *peer)
 }
 
 /*! \brief Expire registration of SIP peer */
-static int expire_register(void *data)
+static int expire_register(const void *data)
 {
-	struct sip_peer *peer = data;
+	struct sip_peer *peer = (struct sip_peer *)data;
 	
 	if (!peer)		/* Hmmm. We have no peer. Weird. */
 		return 0;
@@ -7745,9 +7745,9 @@ static int expire_register(void *data)
 }
 
 /*! \brief Poke peer (send qualify to check if peer is alive and well) */
-static int sip_poke_peer_s(void *data)
+static int sip_poke_peer_s(const void *data)
 {
-	struct sip_peer *peer = data;
+	struct sip_peer *peer = (struct sip_peer *)data;
 
 	peer->pokeexpire = -1;
 	sip_poke_peer(peer);
@@ -15442,9 +15442,9 @@ static int restart_monitor(void)
 }
 
 /*! \brief React to lack of answer to Qualify poke */
-static int sip_poke_noanswer(void *data)
+static int sip_poke_noanswer(const void *data)
 {
-	struct sip_peer *peer = data;
+	struct sip_peer *peer = (struct sip_peer *)data;
 	
 	peer->pokeexpire = -1;
 	if (peer->lastms > -1) {

@@ -56,7 +56,7 @@ struct sched {
 	struct timeval when;          /*!< Absolute time event should take place */
 	int resched;                  /*!< When to reschedule */
 	int variable;                 /*!< Use return value from callback to reschedule */
-	void *data;                   /*!< Data */
+	const void *data;             /*!< Data */
 	ast_sched_cb callback;        /*!< Callback */
 };
 
@@ -211,7 +211,7 @@ static int sched_settime(struct timeval *tv, int when)
 /*! \brief
  * Schedule callback(data) to happen when ms into the future
  */
-int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
+int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, const void *data, int variable)
 {
 	struct sched *tmp;
 	int res = -1;
@@ -244,7 +244,7 @@ int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb cal
 	return res;
 }
 
-int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
+int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data)
 {
 	return ast_sched_add_variable(con, when, callback, data, 0);
 }

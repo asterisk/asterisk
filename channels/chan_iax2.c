@@ -710,8 +710,8 @@ struct iax2_thread {
 	int type;
 	int iostate;
 #ifdef SCHED_MULTITHREADED
-	void (*schedfunc)(void *);
-	void *scheddata;
+	void (*schedfunc)(const void *);
+	const void *scheddata;
 #endif
 #ifdef DEBUG_SCHED_MULTITHREAD
 	char curfunc[80];
@@ -812,7 +812,7 @@ static ast_mutex_t iaxsl[IAX_MAX_CALLS];
 static struct timeval lastused[IAX_MAX_CALLS];
 
 static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
-static int expire_registry(void *data);
+static int expire_registry(const void *data);
 static int iax2_answer(struct ast_channel *c);
 static int iax2_call(struct ast_channel *c, char *dest, int timeout);
 static int iax2_devicestate(void *data);
@@ -935,7 +935,7 @@ static struct iax2_thread *find_idle_thread(void)
 }
 
 #ifdef SCHED_MULTITHREADED
-static int __schedule_action(void (*func)(void *data), void *data, const char *funcname)
+static int __schedule_action(void (*func)(const void *data), const void *data, const char *funcname)
 {
 	struct iax2_thread *thread = NULL;
 	static time_t lasterror;
@@ -963,7 +963,7 @@ static int __schedule_action(void (*func)(void *data), void *data, const char *f
 #define schedule_action(func, data) __schedule_action(func, data, __PRETTY_FUNCTION__)
 #endif
 
-static int iax2_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
+static int iax2_sched_add(struct sched_context *con, int when, ast_sched_cb callback, const void *data)
 {
 	int res;
 
@@ -973,9 +973,9 @@ static int iax2_sched_add(struct sched_context *con, int when, ast_sched_cb call
 	return res;
 }
 
-static int send_ping(void *data);
+static int send_ping(const void *data);
 
-static void __send_ping(void *data)
+static void __send_ping(const void *data)
 {
 	int callno = (long)data;
 	ast_mutex_lock(&iaxsl[callno]);
@@ -986,7 +986,7 @@ static void __send_ping(void *data)
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
-static int send_ping(void *data)
+static int send_ping(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_ping, data))
@@ -1007,9 +1007,9 @@ static int get_encrypt_methods(const char *s)
 	return e;
 }
 
-static int send_lagrq(void *data);
+static int send_lagrq(const void *data);
 
-static void __send_lagrq(void *data)
+static void __send_lagrq(const void *data)
 {
 	int callno = (long)data;
 	/* Ping only if it's real not if it's bridged */
@@ -1021,7 +1021,7 @@ static void __send_lagrq(void *data)
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
-static int send_lagrq(void *data)
+static int send_lagrq(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__send_lagrq, data))
@@ -2033,12 +2033,12 @@ static int update_packet(struct iax_frame *f)
 	return 0;
 }
 
-static int attempt_transmit(void *data);
-static void __attempt_transmit(void *data)
+static int attempt_transmit(const void *data);
+static void __attempt_transmit(const void *data)
 {
 	/* Attempt to transmit the frame to the remote peer...
 	   Called without iaxsl held. */
-	struct iax_frame *f = data;
+	struct iax_frame *f = (struct iax_frame *)data;
 	int freeme=0;
 	int callno = f->callno;
 	/* Make sure this call is still active */
@@ -2115,7 +2115,7 @@ static void __attempt_transmit(void *data)
 	}
 }
 
-static int attempt_transmit(void *data)
+static int attempt_transmit(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__attempt_transmit, data))
@@ -2136,7 +2136,7 @@ static int iax2_prune_realtime(int fd, int argc, char *argv[])
 	} else if ((peer = find_peer(argv[3], 0))) {
 		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry((void *)peer->name);
+			expire_registry((const void *)peer->name);
 			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
 		} else {
 			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
@@ -2411,7 +2411,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 	}
 }
 
-static int get_from_jb(void *p);
+static int get_from_jb(const void *p);
 
 static void update_jbsched(struct chan_iax2_pvt *pvt)
 {
@@ -2431,7 +2431,7 @@ static void update_jbsched(struct chan_iax2_pvt *pvt)
 	pvt->jbid = iax2_sched_add(sched, when, get_from_jb, CALLNO_TO_PTR(pvt->callno));
 }
 
-static void __get_from_jb(void *p) 
+static void __get_from_jb(const void *p) 
 {
 	int callno = PTR_TO_CALLNO(p);
 	struct chan_iax2_pvt *pvt = NULL;
@@ -2508,7 +2508,7 @@ static void __get_from_jb(void *p)
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
-static int get_from_jb(void *data)
+static int get_from_jb(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__get_from_jb, data))
@@ -2914,7 +2914,7 @@ return_unref:
 	return res;
 }
 
-static void __auto_congest(void *nothing)
+static void __auto_congest(const void *nothing)
 {
 	int callno = PTR_TO_CALLNO(nothing);
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_CONGESTION };
@@ -2927,7 +2927,7 @@ static void __auto_congest(void *nothing)
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
-static int auto_congest(void *data)
+static int auto_congest(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__auto_congest, data))
@@ -5479,14 +5479,14 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 
 static int iax2_do_register(struct iax2_registry *reg);
 
-static void __iax2_do_register_s(void *data)
+static void __iax2_do_register_s(const void *data)
 {
-	struct iax2_registry *reg = data;
+	struct iax2_registry *reg = (struct iax2_registry *)data;
 	reg->expire = -1;
 	iax2_do_register(reg);
 }
 
-static int iax2_do_register_s(void *data)
+static int iax2_do_register_s(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__iax2_do_register_s, data))
@@ -5762,9 +5762,9 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 }
 static void prune_peers(void);
 
-static void __expire_registry(void *data)
+static void __expire_registry(const void *data)
 {
-	char *name = data;
+	const char *name = data;
 	struct iax2_peer *peer = NULL;
 	struct iax2_peer tmp_peer = {
 		.name = name,
@@ -5797,7 +5797,7 @@ static void __expire_registry(void *data)
 	peer_unref(peer);
 }
 
-static int expire_registry(void *data)
+static int expire_registry(const void *data)
 {
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__expire_registry, data))
@@ -5941,7 +5941,7 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 		p->expiry = refresh;
 	}
 	if (p->expiry && sin->sin_addr.s_addr)
-		p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
+		p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (const void *)p->name);
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
@@ -6065,7 +6065,7 @@ static void stop_stuff(int callno)
 	iax2_destroy_helper(iaxs[callno]);
 }
 
-static void __auth_reject(void *nothing)
+static void __auth_reject(const void *nothing)
 {
 	/* Called from IAX thread only, without iaxs lock */
 	int callno = (int)(long)(nothing);
@@ -6085,7 +6085,7 @@ static void __auth_reject(void *nothing)
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
-static int auth_reject(void *data)
+static int auth_reject(const void *data)
 {
 	int callno = (int)(long)(data);
 	ast_mutex_lock(&iaxsl[callno]);
@@ -6115,7 +6115,7 @@ static int auth_fail(int callno, int failcode)
 	return 0;
 }
 
-static void __auto_hangup(void *nothing)
+static void __auto_hangup(const void *nothing)
 {
 	/* Called from IAX thread only, without iaxs lock */
 	int callno = (int)(long)(nothing);
@@ -6130,7 +6130,7 @@ static void __auto_hangup(void *nothing)
 	ast_mutex_unlock(&iaxsl[callno]);
 }
 
-static int auto_hangup(void *data)
+static int auto_hangup(const void *data)
 {
 	int callno = (int)(long)(data);
 	ast_mutex_lock(&iaxsl[callno]);
@@ -6179,15 +6179,15 @@ static void vnak_retransmit(int callno, int last)
 	AST_LIST_UNLOCK(&iaxq.queue);
 }
 
-static void __iax2_poke_peer_s(void *data)
+static void __iax2_poke_peer_s(const void *data)
 {
-	struct iax2_peer *peer = data;
+	struct iax2_peer *peer = (struct iax2_peer *)data;
 	iax2_poke_peer(peer, 0);
 }
 
-static int iax2_poke_peer_s(void *data)
+static int iax2_poke_peer_s(const void *data)
 {
-	struct iax2_peer *peer = data;
+	struct iax2_peer *peer = (struct iax2_peer *)data;
 	peer->pokeexpire = -1;
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__iax2_poke_peer_s, data))
@@ -8460,9 +8460,9 @@ static int iax2_prov_cmd(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static void __iax2_poke_noanswer(void *data)
+static void __iax2_poke_noanswer(const void *data)
 {
-	struct iax2_peer *peer = data;
+	struct iax2_peer *peer = (struct iax2_peer *)data;
 	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE! Time: %d\n", peer->name, peer->lastms);
 		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, peer->lastms);
@@ -8479,9 +8479,9 @@ static void __iax2_poke_noanswer(void *data)
 	peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 }
 
-static int iax2_poke_noanswer(void *data)
+static int iax2_poke_noanswer(const void *data)
 {
-	struct iax2_peer *peer = data;
+	struct iax2_peer *peer = (struct iax2_peer *)data;
 	peer->pokeexpire = -1;
 #ifdef SCHED_MULTITHREADED
 	if (schedule_action(__iax2_poke_noanswer, data))
