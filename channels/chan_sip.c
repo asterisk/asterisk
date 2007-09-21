@@ -3901,7 +3901,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	struct ast_variable *v = NULL;
 	int fmt;
 	int what;
-	int needvideo = 0;
+	int needvideo = 0, video = 0;
 	{
 		const char *my_name;    /* pick a good name */
 
@@ -3930,15 +3930,19 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
-	if (i->jointcapability)	 	/* The joint capabilities of us and peer */
+	if (i->jointcapability) {	 	/* The joint capabilities of us and peer */
 		what = i->jointcapability;
-	else if (i->capability)		/* Our configured capability for this peer */
+		video = i->jointcapability & AST_FORMAT_VIDEO_MASK;
+	} else if (i->capability)	{	/* Our configured capability for this peer */
 		what = i->capability;
-	else
+		video = i->capability & AST_FORMAT_VIDEO_MASK;
+	} else {
 		what = global_capability;	/* Global codec support */
+		video = global_capability & AST_FORMAT_VIDEO_MASK;
+	}
 
 	/* Set the native formats for audio  and merge in video */
-	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
+	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | video;
 	if (option_debug > 2) {
 		char buf[BUFSIZ];
 		ast_log(LOG_DEBUG, "*** Our native formats are %s \n", ast_getformatname_multiple(buf, BUFSIZ, tmp->nativeformats));
