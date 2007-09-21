@@ -454,6 +454,18 @@
 /* Define to 1 if you have the `rint' function. */
 #undef HAVE_RINT
 
+/* Define this to indicate the ${ROUND_DESCRIP} library */
+#undef HAVE_ROUND
+
+/* Define this to indicate the ${ROUNDL_DESCRIP} library */
+#undef HAVE_ROUNDL
+
+/* Define to indicate the ${ROUNDL_DESCRIP} library version */
+#undef HAVE_ROUNDL_VERSION
+
+/* Define to indicate the ${ROUND_DESCRIP} library version */
+#undef HAVE_ROUND_VERSION
+
 /* Define if your system has the RTLD_NOLOAD headers. */
 #undef HAVE_RTLD_NOLOAD
 
@@ -653,6 +665,18 @@
 
 /* Define to indicate the ${TONEZONE_DESCRIP} library version */
 #undef HAVE_TONEZONE_VERSION
+
+/* Define this to indicate the ${TRUNC_DESCRIP} library */
+#undef HAVE_TRUNC
+
+/* Define this to indicate the ${TRUNCL_DESCRIP} library */
+#undef HAVE_TRUNCL
+
+/* Define to indicate the ${TRUNCL_DESCRIP} library version */
+#undef HAVE_TRUNCL_VERSION
+
+/* Define to indicate the ${TRUNC_DESCRIP} library version */
+#undef HAVE_TRUNC_VERSION
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H

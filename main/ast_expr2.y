@@ -15,9 +15,10 @@
 #include <sys/types.h>
 #include <stdio.h>
 
-#ifdef STANDALONE /* I guess somewhere, the feature is set in the asterisk includes */
+/* Instead of looking for an arbitrary keyword, just test for various C99 function presence */
+#if (defined(HAVE_ROUNDL) || defined(HAVE_TRUNCL) || defined(HAVE_LOG10L) || defined(HAVE_LOG2L))
 #ifndef __USE_ISOC99
-#define __USE_ISOC99 1
+#define __USE_ISOC99
 #endif
 #endif
 
@@ -37,33 +38,61 @@
 #define FUNC_SQRT       sqrtl
 #define FUNC_FLOOR      floorl
 #define FUNC_CEIL      ceill
-#define FUNC_ROUND     roundl
 #define FUNC_RINT     rintl
-#define FUNC_TRUNC     truncl
 #define FUNC_EXP       expl
+#define FUNC_LOG       logl
+#define FUNC_REMAINDER       remainderl
+
+#ifdef HAVE_ROUNDL
+#define FUNC_ROUND     roundl
+#else /* HAVE_ROUNDL */
+#ifdef HAVE_ROUND
+#define FUNC_ROUND     round
+#else /* HAVE_ROUND */
+#undef FUNC_ROUND
+#endif /* HAVE_ROUND */
+#endif /* HAVE_ROUNDL */
+
+#ifdef HAVE_TRUNCL
+#define FUNC_TRUNC     truncl
+#else /* HAVE_TRUNCL */
+#ifdef HAVE_TRUNC
+#define FUNC_TRUNC     trunc
+#else /* HAVE_TRUNC */
+#undef FUNC_TRUNC
+#endif /* HAVE_TRUNC */
+#endif /* HAVE_TRUNCL */
+
+/*! \note
+ * Oddly enough, some platforms have some ISO C99 functions, but not others, so
+ * we define the missing functions in terms of their mathematical identities.
+ */
 #ifdef HAVE_EXP2L
 #define FUNC_EXP2       exp2l
 #else
-#define	FUNC_EXP2(x)	expl((x) * logl(2))
+#define	FUNC_EXP2(x)	expl((x) * logl(2.0))
 #endif
+
 #ifdef HAVE_EXP10L
 #define FUNC_EXP10       exp10l
 #else
-#define	FUNC_EXP10(x)	expl((x) * logl(10))
+#define	FUNC_EXP10(x)	expl((x) * logl(10.0))
 #endif
-#define FUNC_LOG       logl
+
 #ifdef HAVE_LOG2L
 #define FUNC_LOG2       log2l
 #else
-#define	FUNC_LOG2(x)	(logl(x) / logl(2))
+#define	FUNC_LOG2(x)	(logl(x) / logl(2.0))
 #endif
+
 #ifdef HAVE_LOG10L
 #define FUNC_LOG10       log10l
 #else
-#define	FUNC_LOG10(x)	(logl(x) / logl(10))
+#define	FUNC_LOG10(x)	(logl(x) / logl(10.0))
 #endif
-#define FUNC_REMAINDER       remainderl
-#else
+
+#else /* defined(__USE_ISOC99) */
+
 #define FP___PRINTF "%.16g"
 #define FP___FMOD   fmod
 #define FP___STRTOD  strtod
@@ -79,33 +108,49 @@
 #define FUNC_SQRT       sqrt
 #define FUNC_FLOOR      floor
 #define FUNC_CEIL      ceil
-#define FUNC_ROUND     round
 #define FUNC_RINT     rint
-#define FUNC_TRUNC     trunc
 #define FUNC_EXP       exp
+#define FUNC_LOG       log
+#define FUNC_REMAINDER       remainder
+
+#ifdef HAVE_ROUND
+#define FUNC_ROUND     round
+#else
+#undef FUNC_ROUND
+#endif
+
+#ifdef HAVE_TRUNC
+#define FUNC_TRUNC     round
+#else
+#undef FUNC_TRUNC
+#endif
+
 #ifdef HAVE_EXP2
 #define FUNC_EXP2       exp2
 #else
-#define	FUNC_EXP2(x)	exp((x) * log(2))
+#define	FUNC_EXP2(x)	exp((x) * log(2.0))
 #endif
+
 #ifdef HAVE_EXP10
 #define FUNC_EXP10       exp10
 #else
-#define	FUNC_EXP10(x)	exp((x) * log(10))
+#define	FUNC_EXP10(x)	exp((x) * log(10.0))
 #endif
-#define FUNC_LOG       log
+
 #ifdef HAVE_LOG2
 #define FUNC_LOG2       log2
 #else
-#define	FUNC_LOG2(x)	(log(x) / log(2))
+#define	FUNC_LOG2(x)	(log(x) / log(2.0))
 #endif
+
 #ifdef HAVE_LOG10
 #define FUNC_LOG10       log10
 #else
-#define	FUNC_LOG10(x)	(log(x) / log(10))
+#define	FUNC_LOG10(x)	(log(x) / log(10.0))
 #endif
-#define FUNC_REMAINDER       remainder
-#endif
+
+#endif /* defined(__USE_ISOC99) */
+
 
 #include <stdlib.h>
 #ifndef _GNU_SOURCE
@@ -801,6 +846,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#ifdef FUNC_ROUND
 		} else if (strcmp(funcname->u.s,"ROUND") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -810,6 +856,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#endif /* defined(FUNC_ROUND) */
 		} else if (strcmp(funcname->u.s,"RINT") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -819,6 +866,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#ifdef FUNC_TRUNC
 		} else if (strcmp(funcname->u.s,"TRUNC") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);
@@ -828,6 +876,7 @@ static struct val *op_func(struct val *funcname, struct expr_node *arglist, stru
 				ast_log(LOG_WARNING,"Wrong args to %s() function\n",funcname->u.s);
 				return make_number(0.0);
 			}
+#endif /* defined(FUNC_TRUNC) */
 		} else if (strcmp(funcname->u.s,"EXP") == 0) {
 			if (arglist && !arglist->right && arglist->val){
 				to_number(arglist->val);

@@ -92,7 +92,7 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 260 "../main/ast_expr2.y"
+#line 305 "../main/ast_expr2.y"
 {
 	struct val *val;
 	struct expr_node *arglist;
