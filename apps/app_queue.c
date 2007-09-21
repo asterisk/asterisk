@@ -2858,16 +2858,28 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
 				if (!monitorfilename) {
 					if (qe->chan->cdr)
-						ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid)-1);
+						ast_copy_string(tmpid, qe->chan->cdr->uniqueid, sizeof(tmpid));
 					else
 						snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
 				} else {
-					ast_copy_string(tmpid2, monitorfilename, sizeof(tmpid2)-1);
-					for (p = tmpid2; *p ; p++) {
-						if (*p == '^' && *(p+1) == '{') {
-							*p = '$';
+					const char *m = monitorfilename;
+					for (p = tmpid2; p < tmpid2 + sizeof(tmpid2) - 1; p++, m++) {
+						switch (*m) {
+						case '^':
+							if (*(m + 1) == '{')
+								*p = '$';
+							break;
+						case ',':
+							*p++ = '\\';
+							/* Fall through */
+						default:
+							*p = *m;
 						}
+						if (*m == '\0')
+							break;
 					}
+					if (p == tmpid2 + sizeof(tmpid2))
+						tmpid2[sizeof(tmpid2) - 1] = '\0';
 
 					memset(tmpid, 0, sizeof(tmpid));
 					pbx_substitute_variables_helper(qe->chan, tmpid2, tmpid, sizeof(tmpid) - 1);
@@ -2877,40 +2889,42 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				monitor_options = pbx_builtin_getvar_helper(qe->chan, "MONITOR_OPTIONS");
 
 				if (monitor_exec) {
-					ast_copy_string(meid2, monitor_exec, sizeof(meid2)-1);
-					for (p = meid2; *p ; p++) {
-						if (*p == '^' && *(p+1) == '{') {
-							*p = '$';
+					const char *m = monitor_exec;
+					for (p = meid2; p < meid2 + sizeof(meid2) - 1; p++, m++) {
+						switch (*m) {
+						case '^':
+							if (*(m + 1) == '{')
+								*p = '$';
+							break;
+						case ',':
+							*p++ = '\\';
+							/* Fall through */
+						default:
+							*p = *m;
 						}
+						if (*m == '\0')
+							break;
 					}
+					if (p == meid2 + sizeof(meid2))
+						meid2[sizeof(meid2) - 1] = '\0';
 
 					memset(meid, 0, sizeof(meid));
 					pbx_substitute_variables_helper(qe->chan, meid2, meid, sizeof(meid) - 1);
 				}
 	
-				snprintf(tmpid2, sizeof(tmpid2)-1, "%s.%s", tmpid, qe->parent->monfmt);
+				snprintf(tmpid2, sizeof(tmpid2), "%s.%s", tmpid, qe->parent->monfmt);
 
 				mixmonapp = pbx_findapp("MixMonitor");
-
-				if (strchr(tmpid2, '|')) {
-					ast_log(LOG_WARNING, "monitor-format (in queues.conf) and MONITOR_FILENAME cannot contain a '|'! Not recording.\n");
-					mixmonapp = NULL;
-				}
 
 				if (!monitor_options)
 					monitor_options = "";
 				
-				if (strchr(monitor_options, '|')) {
-					ast_log(LOG_WARNING, "MONITOR_OPTIONS cannot contain a '|'! Not recording.\n");
-					mixmonapp = NULL;
-				}
-
 				if (mixmonapp) {
 					if (!ast_strlen_zero(monitor_exec))
-						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s,b%s,%s", tmpid2, monitor_options, monitor_exec);
+						snprintf(mixmonargs, sizeof(mixmonargs), "%s,b%s,%s", tmpid2, monitor_options, monitor_exec);
 					else
-						snprintf(mixmonargs, sizeof(mixmonargs)-1, "%s,b%s", tmpid2, monitor_options);
-						
+						snprintf(mixmonargs, sizeof(mixmonargs), "%s,b%s", tmpid2, monitor_options);
+
 					ast_debug(1, "Arguments being passed to MixMonitor: %s\n", mixmonargs);
 					/* We purposely lock the CDR so that pbx_exec does not update the application data */
 					if (qe->chan->cdr)
@@ -2950,7 +2964,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			}
 			
 			app = pbx_findapp("Macro");
-			
+
 			if (app) {
 				res = pbx_exec(qe->chan, app, macroexec);
 				ast_debug(1, "Macro exited with status %d\n", res);
@@ -2959,7 +2973,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_log(LOG_ERROR, "Could not find application Macro\n");
 				res = -1;
 			}
-		
+
 			if (ast_autoservice_stop(qe->chan) < 0) {
 				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
 				res = -1;
@@ -2995,13 +3009,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_copy_string(qe->chan->exten, "s", sizeof(qe->chan->exten));
 				qe->chan->priority = 0;
 
-				gosub_argstart = strchr(gosubexec, '|');
+				gosub_argstart = strchr(gosubexec, ',');
 				if (gosub_argstart) {
 					*gosub_argstart = 0;
-					asprintf(&gosub_args, "%s|s|1(%s)", gosubexec, gosub_argstart + 1);
+					asprintf(&gosub_args, "%s,s,1(%s)", gosubexec, gosub_argstart + 1);
 					*gosub_argstart = '|';
 				} else {
-					asprintf(&gosub_args, "%s|s|1", gosubexec);
+					asprintf(&gosub_args, "%s,s,1", gosubexec);
 				}
 				if (gosub_args) {
 					res = pbx_exec(qe->chan, app, gosub_args);
