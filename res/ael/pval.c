@@ -3147,20 +3147,52 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			} else
 				for_init->appargs = strdup(p->u1.for_init);
 
-			for_inc->app = strdup("Set");
 
 			strcpy(buf2,p->u3.for_inc);
 			remove_spaces_before_equals(buf2);
 			strp = strchr(buf2, '=');
-			strp2 = strchr(p->u3.for_inc, '=');
-			if (strp) {
+			if (strp) {  /* there's an = in this part; that means an assignment. set it up */
+				strp2 = strchr(p->u3.for_inc, '=');
 				*(strp+1) = 0;
 				strcat(buf2,"$[");
 				strncat(buf2,strp2+1, sizeof(buf2)-strlen(strp2+1)-2);
 				strcat(buf2,"]");
 				for_inc->appargs = strdup(buf2);
-			} else
-				for_inc->appargs = strdup(p->u3.for_inc);
+				for_inc->app = strdup("Set");
+			} else {
+				strp2 = p->u3.for_inc;
+				while (*strp2 && isspace(*strp2))
+					strp2++;
+				if (*strp2 == '&') { /* itsa macro call  */
+					char *strp3 = strp2+1;
+					while (*strp3 && isspace(*strp3))
+						strp3++;
+					strcpy(buf2, strp3);
+					strp3 = strchr(buf2,'(');
+					if (strp3) {
+						*strp3 = ',';
+					}
+					strp3 = strrchr(buf2, ')');
+					if (strp3)
+						*strp3 = 0; /* remove the closing paren */
+
+					for_inc->appargs = strdup(buf2);
+
+					for_inc->app = strdup("Macro");
+				} else {  /* must be a regular app call */
+					char *strp3;
+					strcpy(buf2, strp2);
+					strp3 = strchr(buf2,'(');
+					if (strp3) {
+						*strp3 = 0;
+						for_inc->app = strdup(buf2);
+						for_inc->appargs = strdup(strp3+1);
+						strp3 = strrchr(for_inc->appargs, ')');
+						if (strp3)
+							*strp3 = 0; /* remove the closing paren */
+					}
+				}
+			}
 			snprintf(buf1,sizeof(buf1),"$[%s]",p->u2.for_test);
 			for_test->app = 0;
 			for_test->appargs = strdup(buf1);
