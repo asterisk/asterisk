@@ -55,10 +55,6 @@ int testno = 2;
 
 /* stuff we need to make this work with the astobj2 stuff */
 
-void ast_cli(int *fd, char *str, ...)
-{
-}
-
 int64_t ast_mark(int prof_id, int x)
 {
 }
@@ -349,10 +345,6 @@ void ast_module_unregister(const struct ast_module_info *x)
 {
 }
 
-
-void ast_cli_register_multiple(void)
-{
-}
 
 void ast_register_file_version(const char *file, const char *version)
 {

@@ -94,7 +94,7 @@ ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
-check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o clicompat.o ../main/threadstorage.o
 
 aelbison.c: ../res/ael/ael.tab.c
 	@cp $< $@
@@ -131,8 +131,8 @@ astobj2.o : astobj2.c
 hashtest2.o : hashtest2.c
 	$(CC) -g -O0 -c hashtest2.c $(PTHREAD_CFLAGS) -I/usr/include -I../include
 
-hashtest2 : hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o
-	$(CC) -g -O0 -o hashtest2 hashtest2.o astobj2.o utils.o md5.o sha1.o strcompat.o $(PTHREAD_CFLAGS) $(PTHREAD_LIBS) $(LIBS)
+hashtest2 : hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o ../main/threadstorage.o clicompat.o
+	$(CC) -g -O0 -o hashtest2 hashtest2.o astobj2.o utils.o md5.o sha1.o strcompat.o ../main/threadstorage.o clicompat.o $(PTHREAD_CFLAGS) $(PTHREAD_LIBS) $(LIBS)
 
 extconf.o : extconf.c
 
