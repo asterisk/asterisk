@@ -18,6 +18,18 @@
 /* Define to 1 if using `alloca.c'. */
 #undef C_ALLOCA
 
+/* Define this to indicate the ${ACOS_DESCRIP} library */
+#undef HAVE_ACOS
+
+/* Define this to indicate the ${ACOSL_DESCRIP} library */
+#undef HAVE_ACOSL
+
+/* Define to indicate the ${ACOSL_DESCRIP} library version */
+#undef HAVE_ACOSL_VERSION
+
+/* Define to indicate the ${ACOS_DESCRIP} library version */
+#undef HAVE_ACOS_VERSION
+
 /* Define to 1 if you have the `alarm' function. */
 #undef HAVE_ALARM
 
@@ -37,8 +49,44 @@
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
+/* Define this to indicate the ${ASIN_DESCRIP} library */
+#undef HAVE_ASIN
+
+/* Define this to indicate the ${ASINL_DESCRIP} library */
+#undef HAVE_ASINL
+
+/* Define to indicate the ${ASINL_DESCRIP} library version */
+#undef HAVE_ASINL_VERSION
+
+/* Define to indicate the ${ASIN_DESCRIP} library version */
+#undef HAVE_ASIN_VERSION
+
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
+
+/* Define this to indicate the ${ATAN_DESCRIP} library */
+#undef HAVE_ATAN
+
+/* Define this to indicate the ${ATAN2_DESCRIP} library */
+#undef HAVE_ATAN2
+
+/* Define this to indicate the ${ATAN2L_DESCRIP} library */
+#undef HAVE_ATAN2L
+
+/* Define to indicate the ${ATAN2L_DESCRIP} library version */
+#undef HAVE_ATAN2L_VERSION
+
+/* Define to indicate the ${ATAN2_DESCRIP} library version */
+#undef HAVE_ATAN2_VERSION
+
+/* Define this to indicate the ${ATANL_DESCRIP} library */
+#undef HAVE_ATANL
+
+/* Define to indicate the ${ATANL_DESCRIP} library version */
+#undef HAVE_ATANL_VERSION
+
+/* Define to indicate the ${ATAN_DESCRIP} library version */
+#undef HAVE_ATAN_VERSION
 
 /* Define to 1 if you have the `atexit' function. */
 #undef HAVE_ATEXIT
@@ -80,8 +128,32 @@
 /* Define to indicate the ${CAP_DESCRIP} library version */
 #undef HAVE_CAP_VERSION
 
+/* Define this to indicate the ${CEIL_DESCRIP} library */
+#undef HAVE_CEIL
+
+/* Define this to indicate the ${CEILL_DESCRIP} library */
+#undef HAVE_CEILL
+
+/* Define to indicate the ${CEILL_DESCRIP} library version */
+#undef HAVE_CEILL_VERSION
+
+/* Define to indicate the ${CEIL_DESCRIP} library version */
+#undef HAVE_CEIL_VERSION
+
 /* Define to 1 if your system has a working `chown' function. */
 #undef HAVE_CHOWN
+
+/* Define this to indicate the ${COS_DESCRIP} library */
+#undef HAVE_COS
+
+/* Define this to indicate the ${COSL_DESCRIP} library */
+#undef HAVE_COSL
+
+/* Define to indicate the ${COSL_DESCRIP} library version */
+#undef HAVE_COSL_VERSION
+
+/* Define to indicate the ${COS_DESCRIP} library version */
+#undef HAVE_COS_VERSION
 
 /* Define this to indicate the ${CRYPTO_DESCRIP} library */
 #undef HAVE_CRYPTO
@@ -117,6 +189,9 @@
 /* Define to 1 if your system has working epoll support. */
 #undef HAVE_EPOLL
 
+/* Define this to indicate the ${EXP_DESCRIP} library */
+#undef HAVE_EXP
+
 /* Define this to indicate the ${EXP10_DESCRIP} library */
 #undef HAVE_EXP10
 
@@ -141,11 +216,41 @@
 /* Define to indicate the ${EXP2_DESCRIP} library version */
 #undef HAVE_EXP2_VERSION
 
+/* Define this to indicate the ${EXPL_DESCRIP} library */
+#undef HAVE_EXPL
+
+/* Define to indicate the ${EXPL_DESCRIP} library version */
+#undef HAVE_EXPL_VERSION
+
+/* Define to indicate the ${EXP_DESCRIP} library version */
+#undef HAVE_EXP_VERSION
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
-/* Define to 1 if you have the `floor' function. */
+/* Define this to indicate the ${FLOOR_DESCRIP} library */
 #undef HAVE_FLOOR
+
+/* Define this to indicate the ${FLOORL_DESCRIP} library */
+#undef HAVE_FLOORL
+
+/* Define to indicate the ${FLOORL_DESCRIP} library version */
+#undef HAVE_FLOORL_VERSION
+
+/* Define to indicate the ${FLOOR_DESCRIP} library version */
+#undef HAVE_FLOOR_VERSION
+
+/* Define this to indicate the ${FMOD_DESCRIP} library */
+#undef HAVE_FMOD
+
+/* Define this to indicate the ${FMODL_DESCRIP} library */
+#undef HAVE_FMODL
+
+/* Define to indicate the ${FMODL_DESCRIP} library version */
+#undef HAVE_FMODL_VERSION
+
+/* Define to indicate the ${FMOD_DESCRIP} library version */
+#undef HAVE_FMOD_VERSION
 
 /* Define to 1 if you have the `fopencookie' function. */
 #undef HAVE_FOPENCOOKIE
@@ -268,6 +373,9 @@
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
+/* Define this to indicate the ${LOG_DESCRIP} library */
+#undef HAVE_LOG
+
 /* Define this to indicate the ${LOG10_DESCRIP} library */
 #undef HAVE_LOG10
 
@@ -291,6 +399,15 @@
 
 /* Define to indicate the ${LOG2_DESCRIP} library version */
 #undef HAVE_LOG2_VERSION
+
+/* Define this to indicate the ${LOGL_DESCRIP} library */
+#undef HAVE_LOGL
+
+/* Define to indicate the ${LOGL_DESCRIP} library version */
+#undef HAVE_LOGL_VERSION
+
+/* Define to indicate the ${LOG_DESCRIP} library version */
+#undef HAVE_LOG_VERSION
 
 /* Define this to indicate the ${LTDL_DESCRIP} library */
 #undef HAVE_LTDL
@@ -397,8 +514,17 @@
 /* Define to indicate the ${POPT_DESCRIP} library version */
 #undef HAVE_POPT_VERSION
 
-/* Define to 1 if you have the `pow' function. */
+/* Define this to indicate the ${POW_DESCRIP} library */
 #undef HAVE_POW
+
+/* Define this to indicate the ${POWL_DESCRIP} library */
+#undef HAVE_POWL
+
+/* Define to indicate the ${POWL_DESCRIP} library version */
+#undef HAVE_POWL_VERSION
+
+/* Define to indicate the ${POW_DESCRIP} library version */
+#undef HAVE_POW_VERSION
 
 /* Define this to indicate the ${PRI_DESCRIP} library */
 #undef HAVE_PRI
@@ -442,6 +568,18 @@
 /* Define to 1 if you have the `regcomp' function. */
 #undef HAVE_REGCOMP
 
+/* Define this to indicate the ${REMAINDER_DESCRIP} library */
+#undef HAVE_REMAINDER
+
+/* Define this to indicate the ${REMAINDERL_DESCRIP} library */
+#undef HAVE_REMAINDERL
+
+/* Define to indicate the ${REMAINDERL_DESCRIP} library version */
+#undef HAVE_REMAINDERL_VERSION
+
+/* Define to indicate the ${REMAINDER_DESCRIP} library version */
+#undef HAVE_REMAINDER_VERSION
+
 /* Define to 1 if your system has the ndestroy resolver function. */
 #undef HAVE_RES_NDESTROY
 
@@ -451,8 +589,17 @@
 /* Define to 1 if you have the `re_comp' function. */
 #undef HAVE_RE_COMP
 
-/* Define to 1 if you have the `rint' function. */
+/* Define this to indicate the ${RINT_DESCRIP} library */
 #undef HAVE_RINT
+
+/* Define this to indicate the ${RINTL_DESCRIP} library */
+#undef HAVE_RINTL
+
+/* Define to indicate the ${RINTL_DESCRIP} library version */
+#undef HAVE_RINTL_VERSION
+
+/* Define to indicate the ${RINT_DESCRIP} library version */
+#undef HAVE_RINT_VERSION
 
 /* Define this to indicate the ${ROUND_DESCRIP} library */
 #undef HAVE_ROUND
@@ -478,6 +625,18 @@
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
 
+/* Define this to indicate the ${SIN_DESCRIP} library */
+#undef HAVE_SIN
+
+/* Define this to indicate the ${SINL_DESCRIP} library */
+#undef HAVE_SINL
+
+/* Define to indicate the ${SINL_DESCRIP} library version */
+#undef HAVE_SINL_VERSION
+
+/* Define to indicate the ${SIN_DESCRIP} library version */
+#undef HAVE_SIN_VERSION
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
@@ -499,8 +658,17 @@
 /* Define to indicate the ${SQLITE_DESCRIP} library version */
 #undef HAVE_SQLITE_VERSION
 
-/* Define to 1 if you have the `sqrt' function. */
+/* Define this to indicate the ${SQRT_DESCRIP} library */
 #undef HAVE_SQRT
+
+/* Define this to indicate the ${SQRTL_DESCRIP} library */
+#undef HAVE_SQRTL
+
+/* Define to indicate the ${SQRTL_DESCRIP} library version */
+#undef HAVE_SQRTL_VERSION
+
+/* Define to indicate the ${SQRT_DESCRIP} library version */
+#undef HAVE_SQRT_VERSION
 
 /* Define this to indicate the ${SS7_DESCRIP} library */
 #undef HAVE_SS7
@@ -582,8 +750,20 @@
 /* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
+/* Define this to indicate the ${STRTOD_DESCRIP} library */
+#undef HAVE_STRTOD
+
+/* Define to indicate the ${STRTOD_DESCRIP} library version */
+#undef HAVE_STRTOD_VERSION
+
 /* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
+
+/* Define this to indicate the ${STRTOLD_DESCRIP} library */
+#undef HAVE_STRTOLD
+
+/* Define to indicate the ${STRTOLD_DESCRIP} library version */
+#undef HAVE_STRTOLD_VERSION
 
 /* Define to 1 if you have the `strtoq' function. */
 #undef HAVE_STRTOQ
@@ -644,6 +824,18 @@
 
 /* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
 #undef HAVE_SYS_WAIT_H
+
+/* Define this to indicate the ${TAN_DESCRIP} library */
+#undef HAVE_TAN
+
+/* Define this to indicate the ${TANL_DESCRIP} library */
+#undef HAVE_TANL
+
+/* Define to indicate the ${TANL_DESCRIP} library version */
+#undef HAVE_TANL_VERSION
+
+/* Define to indicate the ${TAN_DESCRIP} library version */
+#undef HAVE_TAN_VERSION
 
 /* Define this to indicate the ${TERMCAP_DESCRIP} library */
 #undef HAVE_TERMCAP
