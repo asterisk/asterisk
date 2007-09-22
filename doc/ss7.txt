@@ -20,8 +20,8 @@ To Use:
 =======
 In order to use libss7, you must get at least the following versions of Zaptel and Asterisk:
 Zaptel: 1.4.x
-Asterisk: trunk
 libss7: trunk (currently, there *only* is a trunk release).
+Asterisk: trunk
 
 You must then do a `make; make install` in each of the directories that you installed
 in the given order (Zaptel first, libss7 second, and Asterisk last).
