@@ -2983,16 +2983,51 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 			strcpy(buf2,p->u1.for_init);
 			remove_spaces_before_equals(buf2);
 			strp = strchr(buf2, '=');
-			strp2 = strchr(p->u1.for_init, '=');
 			if (strp) {
+				strp2 = strchr(p->u1.for_init, '=');
 				*(strp+1) = 0;
 				strcat(buf2,"$[");
 				strncat(buf2,strp2+1, sizeof(buf2)-strlen(strp2+1)-2);
 				strcat(buf2,"]");
 				for_init->appargs = strdup(buf2);
-			} else
-				for_init->appargs = strdup(p->u1.for_init);
+				for_init->app = strdup("Set");
+			} else {
+				strp2 = p->u1.for_init;
+				while (*strp2 && isspace(*strp2))
+					strp2++;
+				if (*strp2 == '&') { /* itsa macro call */
+					char *strp3 = strp2+1;
+					while (*strp3 && isspace(*strp3))
+						strp3++;
+					strcpy(buf2, strp3);
+					strp3 = strchr(buf2,'(');
+					if (strp3) {
+						*strp3 = '|';
+					}
+					while ((strp3=strchr(buf2,','))) {
+						*strp3 = '|';
+					}
+					strp3 = strrchr(buf2, ')');
+					if (strp3)
+						*strp3 = 0; /* remove the closing paren */
 
+					for_init->appargs = strdup(buf2);
+
+					for_init->app = strdup("Macro");
+				} else {  /* must be a regular app call */
+					char *strp3;
+					strcpy(buf2, strp2);
+					strp3 = strchr(buf2,'(');
+					if (strp3) {
+						*strp3 = 0;
+						for_init->app = strdup(buf2);
+						for_init->appargs = strdup(strp3+1);
+						strp3 = strrchr(for_init->appargs, ')');
+						if (strp3)
+							*strp3 = 0; /* remove the closing paren */
+					}
+				}
+			}
 
 			strcpy(buf2,p->u3.for_inc);
 			remove_spaces_before_equals(buf2);
