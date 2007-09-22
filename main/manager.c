@@ -2337,6 +2337,28 @@ static int action_corestatus(struct mansession *s, const struct message *m)
 	return 0;
 }
 
+static char mandescr_reload[] =
+"Description: Send a reload event.\n"
+"Variables: (Names marked with * are optional)\n"
+"       *ActionID: ActionID of this transaction\n"
+"       *Module: Name of the module to reload\n";
+
+/*! \brief Send a reload event */
+static int action_reload(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	const char *module = astman_get_header(m, "Module");
+	int res = ast_module_reload(S_OR(module, NULL));
+	char idText[80] = "";
+
+	if (!ast_strlen_zero(actionid))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+	if (res == 2)
+		astman_append(s, "Response: Success\r\n%s", idText);
+	else
+		astman_send_error(s, m, s == 0 ? "No such module" : "Module does not support reload");
+	return 0;
+}
 
 /*
  * Done with the action handlers here, we start with the code in charge
@@ -3307,6 +3329,7 @@ static int __init_manager(int reload)
 		ast_manager_register2("WaitEvent", 0, action_waitevent, "Wait for an event to occur", mandescr_waitevent);
 		ast_manager_register2("CoreSettings", EVENT_FLAG_SYSTEM, action_coresettings, "Show PBX core settings (version etc)", mandescr_coresettings);
 		ast_manager_register2("CoreStatus", EVENT_FLAG_SYSTEM, action_corestatus, "Show PBX core status variables", mandescr_corestatus);
+		ast_manager_register2("Reload", EVENT_FLAG_CONFIG, action_reload, "Send a reload event", mandescr_reload);
 
 		ast_cli_register_multiple(cli_manager, sizeof(cli_manager) / sizeof(struct ast_cli_entry));
 		ast_extension_state_add(NULL, NULL, manager_state_cb, NULL);

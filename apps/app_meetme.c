@@ -3099,6 +3099,81 @@ static int action_meetmeunmute(struct mansession *s, const struct message *m)
 	return meetmemute(s, m, 0);
 }
 
+static char mandescr_meetmelist[] =
+"Description: Lists all users in a particular MeetMe conference.\n"
+"MeetmeList will follow as separate events, followed by a final event called\n"
+"MeetmeListComplete.\n"
+"Variables:\n"
+"    *ActionId: <id>\n"
+"    *Conference: <confno>\n";
+
+static int action_meetmelist(struct mansession *s, const struct message *m)
+{
+	const char *actionid = astman_get_header(m, "ActionID");
+	const char *conference = astman_get_header(m, "Conference");
+	char idText[80] = "";
+	struct ast_conference *cnf;
+	struct ast_conf_user *user;
+	int total = 0;
+
+	if (!ast_strlen_zero(actionid))
+		snprintf(idText, sizeof(idText), "ActionID: %s\r\n", actionid);
+
+	if (AST_LIST_EMPTY(&confs)) {
+		astman_send_error(s, m, "No active conferences.");
+		return 0;
+	}
+
+	astman_send_listack(s, m, "Meetme user list will follow", "start");
+
+	/* Find the right conference */
+	AST_LIST_LOCK(&confs);
+	AST_LIST_TRAVERSE(&confs, cnf, list) {
+		/* If we ask for one particular, and this isn't it, skip it */
+		if (!ast_strlen_zero(conference) && strcmp(cnf->confno, conference))
+			continue;
+
+		/* Show all the users */
+		AST_LIST_TRAVERSE(&cnf->userlist, user, list) {
+			total++;
+			astman_append(s,
+			"Event: MeetmeList\r\n"
+			"%s"
+			"Conference: %s\r\n"
+			"UserNumber: %d\r\n"
+			"CallerIDNum: %s\r\n"
+			"CallerIDName: %s\r\n"
+			"Channel: %s\r\n"
+			"Admin: %s\r\n"
+			"Role: %s\r\n"
+			"MarkedUser: %s\r\n"
+			"Muted: %s\r\n"
+			"Talking: %s\r\n"
+			"\r\n",
+			idText,
+			cnf->confno,
+			user->user_no,
+			S_OR(user->chan->cid.cid_num, "<unknown>"),
+			S_OR(user->chan->cid.cid_name, "<no name>"),
+			user->chan->name,
+			user->userflags & CONFFLAG_ADMIN ? "Yes" : "No",
+			user->userflags & CONFFLAG_MONITOR ? "Listen only" : user->userflags & CONFFLAG_TALKER ? "Talk only" : "Talk and listen",
+			user->userflags & CONFFLAG_MARKEDUSER ? "Yes" : "No",
+			user->adminflags & ADMINFLAG_MUTED ? "By admin" : user->adminflags & ADMINFLAG_SELFMUTED ? "By self" : "No",
+			user->talking > 0 ? "Yes" : user->talking == 0 ? "No" : "Not monitored"); 
+		}
+	}
+	AST_LIST_UNLOCK(&confs);
+	/* Send final confirmation */
+	astman_append(s,
+	"Event: MeetmeListComplete\r\n"
+	"EventList: Complete\r\n"
+	"ListItems: %d\r\n"
+	"%s"
+	"\r\n", total, idText);
+	return 0;
+}
+
 static void *recordthread(void *args)
 {
 	struct ast_conference *cnf = args;
@@ -4976,6 +5051,7 @@ static int unload_module(void)
 	ast_cli_unregister_multiple(cli_meetme, ARRAY_LEN(cli_meetme));
 	res = ast_manager_unregister("MeetmeMute");
 	res |= ast_manager_unregister("MeetmeUnmute");
+	res |= ast_manager_unregister("MeetmeList");
 	res |= ast_unregister_application(app4);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
@@ -5002,6 +5078,8 @@ static int load_module(void)
 				    action_meetmemute, "Mute a Meetme user");
 	res |= ast_manager_register("MeetmeUnmute", EVENT_FLAG_CALL, 
 				    action_meetmeunmute, "Unmute a Meetme user");
+	res |= ast_manager_register2("MeetmeList", EVENT_FLAG_REPORTING, 
+				    action_meetmelist, "List participants in a conference", mandescr_meetmelist);
 	res |= ast_register_application(app4, channel_admin_exec, synopsis4, descrip4);
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
 	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
