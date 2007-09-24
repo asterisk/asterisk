@@ -843,7 +843,7 @@ int ast_app_group_split_group(const char *data, char *group, int group_max, char
 	if (!ast_strlen_zero(grp))
 		ast_copy_string(group, grp, group_max);
 	else
-		res = -1;
+		*group = '\0';
 
 	if (!ast_strlen_zero(cat))
 		ast_copy_string(category, cat, category_max);
