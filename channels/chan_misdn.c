@@ -269,7 +269,8 @@ static struct robin_list* get_robin_position (char *group)
 	}
 	new = (struct robin_list *)calloc(1, sizeof(struct robin_list));
 	new->group = strndup(group, strlen(group));
-	new->channel = 1;
+	new->port = 0;
+	new->channel = 0;
 	if (robin) {
 		new->next = robin;
 		robin->prev = new;
@@ -3131,63 +3132,66 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 			chan_misdn_log(4, port, " --> STARTING ROUND ROBIN...\n");
 			rr = get_robin_position(group);
 		}
-		
-			
+
 		if (rr) {
-			int robin_channel = rr->channel;
-			int port_start;
-			int next_chan = 1;
+			if (!rr->port)
+				rr->port = misdn_cfg_get_next_port_spin(rr->port);
+			
+			int port_start = 0;
+			int port_bak = rr->port;
+			int chan_bak = rr->channel;
 
-			do {
-				port_start = 0;
-				for (port = misdn_cfg_get_next_port_spin(rr->port); port > 0 && port != port_start;
-					 port = misdn_cfg_get_next_port_spin(port)) {
+			for (; rr->port > 0 && rr->port != port_start;
+				 rr->port = misdn_cfg_get_next_port_spin(rr->port)) {
 
-					if (!port_start)
-						port_start = port;
+				if (!port_start)
+					port_start = rr->port;
 
-					if (port >= port_start)
-						next_chan = 1;
-					
-					if (port <= port_start && next_chan) {
-						int maxbchans=misdn_lib_get_maxchans(port);
-						if (++robin_channel >= maxbchans) {
-							robin_channel = 1;
-						}
-						next_chan = 0;
-					}
+				misdn_cfg_get(rr->port, MISDN_CFG_GROUPNAME, cfg_group, BUFFERSIZE);
+				if (strcasecmp(cfg_group, group))
+					continue;
 
-					misdn_cfg_get(port, MISDN_CFG_GROUPNAME, cfg_group, BUFFERSIZE);
-					
-					if (!strcasecmp(cfg_group, group)) {
-						int port_up;
-						int check;
-						misdn_cfg_get(port, MISDN_CFG_PMP_L1_CHECK, &check, sizeof(int));
-						port_up = misdn_lib_port_up(port, check);
+				int port_up;
+				int check;
+				misdn_cfg_get(rr->port, MISDN_CFG_PMP_L1_CHECK, &check, sizeof(int));
+				port_up = misdn_lib_port_up(rr->port, check);
 
-						if (check && !port_up) 
-							chan_misdn_log(1,port,"L1 is not Up on this Port\n");
-						
-						if (check && port_up<0) {
-							ast_log(LOG_WARNING,"This port (%d) is blocked\n", port);
-						}
-						
-						
-						if ( port_up>0 )	{
-							newbc = misdn_lib_get_free_bc(port, robin_channel,0, 0);
-							if (newbc) {
-								chan_misdn_log(4, port, " Success! Found port:%d channel:%d\n", newbc->port, newbc->channel);
-								if (port_up)
-									chan_misdn_log(4, port, "portup:%d\n",  port_up);
-								rr->port = newbc->port;
-								rr->channel = newbc->channel;
-								break;
-							}
-						}
+				if (check && !port_up) 
+					chan_misdn_log(1, rr->port, "L1 is not Up on this Port\n");
+
+				if (check && port_up < 0)
+					ast_log(LOG_WARNING,"This port (%d) is blocked\n", rr->port);
+
+				if (port_up <= 0)
+					continue;
+
+				int max_chan = misdn_lib_get_maxchans(rr->port);
+				int last_chance = 0;
+
+				for (++rr->channel; !last_chance && rr->channel <= max_chan; ++rr->channel) {
+					if (rr->port == port_bak && rr->channel == chan_bak)
+						last_chance = 1;
+
+					chan_misdn_log(1, 0, "trying port:%d channel:%d\n", rr->port, rr->channel);
+					newbc = misdn_lib_get_free_bc(rr->port, rr->channel, 0, 0);
+					if (newbc) {
+						chan_misdn_log(4, rr->port, " Success! Found port:%d channel:%d\n", newbc->port, newbc->channel);
+						if (port_up)
+							chan_misdn_log(4, rr->port, "portup:%d\n",  port_up);
+						port = rr->port;
+						break;
 					}
 				}
-			} while (!newbc && robin_channel != rr->channel);
-			
+
+				if (newbc || last_chance)
+					break;
+
+				rr->channel = 0;
+			}
+			if (!newbc) {
+				rr->port = port_bak;
+				rr->channel = chan_bak;
+			}
 		} else {		
 			for (port=misdn_cfg_get_next_port(0); port > 0;
 				 port=misdn_cfg_get_next_port(port)) {
