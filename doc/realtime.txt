@@ -113,9 +113,7 @@ doc/odbcstorage.txt documentation file.
 
 * Limitations
 -------------
-Currently, realtime extensions do not support realtime hints.  There is
-a workaround available by using func_odbc.  See the sample func_odbc.conf
-for more information.
+Currently, realtime extensions do not support realtime hints.
 
 
 * FreeTDS supported with connection pooling
