@@ -884,6 +884,7 @@ static int interface_exists_global(const char *interface)
 			ao2_ref(mem, -1);
 			ao2_unlock(q);
 			queue_unref(q);
+			ret = 1;
 			break;
 		}
 		ao2_unlock(q);
