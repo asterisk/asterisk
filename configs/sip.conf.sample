@@ -113,6 +113,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; The default user agent string also contains the Asterisk
 				; version. If you don't want to expose this, change the
 				; useragent string.
+;sdpsession=Asterisk PBX	; Allows you to change the SDP session name string, (s=)
+				; Like the useragent parameter, the default user agent string
+				; also contains the Asterisk version.
+;sdpowner=root			; Allows you to change the username field in the SDP owner string, (o=)
+				; This field MUST NOT contain spaces
 ;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
 	                       	; Note that promiscredir when redirects are made to the
        	                	; local system will cause loops since Asterisk is incapable

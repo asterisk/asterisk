@@ -553,6 +553,8 @@ static const struct cfsip_options {
 #define DEFAULT_MAX_CALL_BITRATE (384)		/*!< Max bitrate for video */
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
+#define DEFAULT_SDPSESSION "Asterisk PBX"	/*!< Default SDP session name, (s=) header unless re-defined in sip.conf */
+#define DEFAULT_SDPOWNER "root"		/*!< Default SDP username field in (o=) header unless re-defined in sip.conf */
 #endif
 
 /* Default setttings are used as a channel setting and as a default when
@@ -614,6 +616,8 @@ static int dumphistory;			/*!< Dump history to verbose before destroying SIP dia
 static char global_realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
 static char global_regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
+static char global_sdpsession[AST_MAX_EXTENSION];	/*!< SDP session name for the SIP channel */
+static char global_sdpowner[AST_MAX_EXTENSION];	/*!< SDP owner name for the SIP channel */
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
 static int global_t1min;		/*!< T1 roundtrip time minimum */
@@ -6947,8 +6951,8 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 			p->t38.jointcapability);
 	}
 	ast_str_append(&m_modem, 0, "v=0\r\n");
-	ast_str_append(&m_modem, 0, "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(udptldest.sin_addr));
-	ast_str_append(&m_modem, 0, "s=session\r\n");
+	ast_str_append(&m_modem, 0, "o=%s %d %d IN IP4 %s\r\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner , p->sessionid, p->sessionversion, ast_inet_ntoa(udptldest.sin_addr));
+	ast_str_append(&m_modem, 0, "s=%s\r\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
 	ast_str_append(&m_modem, 0, "c=IN IP4 %s\r\n", ast_inet_ntoa(udptldest.sin_addr));
 	ast_str_append(&m_modem, 0, "t=0 0\r\n");
 	ast_str_append(&m_modem, 0, "m=image %d udptl t38\r\n", ntohs(udptldest.sin_port));
@@ -7054,7 +7058,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	/* SDP fields */
 	char *version = 	"v=0\r\n";		/* Protocol version */
-	char *subject = 	"s=session\r\n";	/* Subject of the session */
+	char subject[256];				/* Subject of the session */
 	char owner[256];				/* Session owner/creator */
 	char connection[256];				/* Connection data */
 	char *stime = "t=0 0\r\n"; 			/* Time the session is active */
@@ -7078,6 +7082,9 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	char codecbuf[BUFSIZ];
 	char buf[BUFSIZ];
+
+	/* Set the SDP session name */
+	snprintf(subject, sizeof(subject), "s=%s\r\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
 
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -7172,7 +7179,7 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* We break with the "recommendation" and send our IP, in order that our
 	   peer doesn't have to ast_gethostbyname() us */
 
-	snprintf(owner, sizeof(owner), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
+	snprintf(owner, sizeof(owner), "o=%s %d %d IN IP4 %s\r\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner, p->sessionid, p->sessionversion, ast_inet_ntoa(dest.sin_addr));
 	snprintf(connection, sizeof(connection), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 	ast_str_append(&m_audio, 0, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 
@@ -11642,6 +11649,8 @@ static char *sip_show_settings(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	ast_cli(a->fd, "  Call limit peers only:  %s\n", cli_yesno(global_limitonpeers));
 	ast_cli(a->fd, "  Direct RTP setup:       %s\n", cli_yesno(global_directrtpsetup));
 	ast_cli(a->fd, "  User Agent:             %s\n", global_useragent);
+	ast_cli(a->fd, "  SDP Session Name:       %s\n", ast_strlen_zero(global_sdpsession) ? "-" : global_sdpsession);
+	ast_cli(a->fd, "  SDP Owner Name:         %s\n", ast_strlen_zero(global_sdpowner) ? "-" : global_sdpowner);
 	ast_cli(a->fd, "  Reg. context:           %s\n", S_OR(global_regcontext, "(not set)"));
 	ast_cli(a->fd, "  Regexten on Qualify:    %s\n", cli_yesno(global_regextenonqualify));
 	ast_cli(a->fd, "  Caller ID:              %s\n", default_callerid);
@@ -17858,6 +17867,8 @@ static int reload_config(enum channelreloadreason reason)
 	global_alwaysauthreject = 0;
 	global_allowsubscribe = FALSE;
 	snprintf(global_useragent, sizeof(global_useragent), "%s %s", DEFAULT_USERAGENT, ASTERISK_VERSION);
+	snprintf(global_sdpsession, sizeof(global_sdpsession), "%s %s", DEFAULT_SDPSESSION, ASTERISK_VERSION);
+	snprintf(global_sdpowner, sizeof(global_sdpowner), "%s", DEFAULT_SDPOWNER);
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(global_realm, S_OR(ast_config_AST_SYSTEM_NAME, DEFAULT_REALM), sizeof(global_realm));
 	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
@@ -17930,6 +17941,14 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "useragent")) {
 			ast_copy_string(global_useragent, v->value, sizeof(global_useragent));
 			ast_debug(1, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
+		} else if (!strcasecmp(v->name, "sdpsession")) {
+			ast_copy_string(global_sdpsession, v->value, sizeof(global_sdpsession));
+		} else if (!strcasecmp(v->name, "sdpowner")) {
+			/* Field cannot contain spaces */
+			if (!strstr(v->value, " "))
+				ast_copy_string(global_sdpowner, v->value, sizeof(global_sdpowner));
+			else
+				ast_log(LOG_WARNING, "'%s' must not contain spaces at line %d.  Using default.\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "allowtransfer")) {
 			global_allowtransfer = ast_true(v->value) ? TRANSFER_OPENFORALL : TRANSFER_CLOSED;
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
