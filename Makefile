@@ -108,6 +108,8 @@ ifeq ($(OSARCH),SunOS)
   ASTETCDIR=/var/etc/asterisk
   ASTLIBDIR=/opt/asterisk/lib
   ASTVARLIBDIR=/var/opt/asterisk
+  ASTDBDIR=$(ASTVARLIBDIR)
+  ASTKEYDIR=$(ASTVARLIBDIR)
   ASTSPOOLDIR=/var/spool/asterisk
   ASTLOGDIR=/var/log/asterisk
   ASTHEADERDIR=/opt/asterisk/include
@@ -128,9 +130,12 @@ else
 ifneq ($(findstring BSD,$(OSARCH)),)
   ASTVARLIBDIR=$(prefix)/share/asterisk
   ASTVARRUNDIR=$(localstatedir)/run/asterisk
+  ASTDBDIR=$(localstatedir)/db/asterisk
 else
   ASTVARLIBDIR=$(localstatedir)/lib/asterisk
+  ASTDBDIR=$(ASTVARLIBDIR)
 endif
+  ASTKEYDIR=$(ASTVARLIBDIR)
 endif
 ifeq ($(ASTDATADIR),)
   ASTDATADIR:=$(ASTVARLIBDIR)
@@ -556,6 +561,8 @@ samples: adsi
 		echo "astetcdir => $(ASTETCDIR)" ; \
 		echo "astmoddir => $(MODULES_DIR)" ; \
 		echo "astvarlibdir => $(ASTVARLIBDIR)" ; \
+		echo "astdbdir => $(ASTDBDIR)" ; \
+		echo "astkeydir => $(ASTKEYDIR)" ; \
 		echo "astdatadir => $(ASTDATADIR)" ; \
 		echo "astagidir => $(AGI_DIR)" ; \
 		echo "astspooldir => $(ASTSPOOLDIR)" ; \

@@ -2301,6 +2301,10 @@ static void ast_readconfig(void)
 	char *config = AST_CONFIG_FILE;
 	char hostname[MAXHOSTNAMELEN] = "";
 	struct ast_flags config_flags = { 0 };
+	struct {
+		unsigned int dbdir:1;
+		unsigned int keydir:1;
+	} found = { 0, 0 };
 
 	if (ast_opt_override_config) {
 		cfg = ast_config_load(ast_config_AST_CONFIG_FILE, config_flags);
@@ -2348,10 +2352,18 @@ static void ast_readconfig(void)
 			snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
 			ast_copy_string(ast_config_AST_VAR_DIR, v->value, sizeof(ast_config_AST_VAR_DIR));
+			if (!found.dbdir)
+				snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
+		} else if (!strcasecmp(v->name, "astdbdir")) {
 			snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/astdb", v->value);
+			found.dbdir = 1;
 		} else if (!strcasecmp(v->name, "astdatadir")) {
 			ast_copy_string(ast_config_AST_DATA_DIR, v->value, sizeof(ast_config_AST_DATA_DIR));
+			if (!found.keydir)
+				snprintf(ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+		} else if (!strcasecmp(v->name, "astkeydir")) {
 			snprintf(ast_config_AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR), "%s/keys", v->value);
+			found.keydir = 1;
 		} else if (!strcasecmp(v->name, "astlogdir")) {
 			ast_copy_string(ast_config_AST_LOG_DIR, v->value, sizeof(ast_config_AST_LOG_DIR));
 		} else if (!strcasecmp(v->name, "astagidir")) {
