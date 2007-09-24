@@ -14,7 +14,7 @@ cat << END
 #define AST_DATA_DIR   "${INSTALL_PATH}${ASTDATADIR}"
 #define AST_LOG_DIR    "${INSTALL_PATH}${ASTLOGDIR}"
 #define AST_AGI_DIR    "${INSTALL_PATH}${AGI_DIR}"
-#define AST_KEY_DIR    "${INSTALL_PATH}${ASTVARLIBDIR}/keys"
+#define AST_KEY_DIR    "${INSTALL_PATH}${ASTDATADIR}/keys"
 #define AST_DB         "${INSTALL_PATH}${ASTVARLIBDIR}/astdb"
 #define AST_TMP_DIR    "${INSTALL_PATH}${ASTSPOOLDIR}/tmp"
 
