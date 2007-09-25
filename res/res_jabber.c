@@ -90,8 +90,9 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 static char *aji_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_no_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
-static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *aji_show_buddies(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int aji_create_client(char *label, struct ast_variable *var, int debug);
 static int aji_create_buddy(char *label, struct aji_client *client);
 static int aji_reload(int reload);
@@ -118,6 +119,7 @@ static struct ast_cli_entry aji_cli[] = {
 	NEW_CLI(aji_no_debug, "Disable Jabber debug"),
 	NEW_CLI(aji_do_reload, "Reload Jabber configuration"),
 	NEW_CLI(aji_show_clients, "Show state of clients and components"),
+	NEW_CLI(aji_show_buddies, "Show buddy lists of our clients"),
 	NEW_CLI(aji_test, "Shows roster, but is generally used for mog's debugging."),
 };
 
@@ -2122,6 +2124,52 @@ static char *aji_show_clients(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 	});
 	ast_cli(a->fd, "----\n");
 	ast_cli(a->fd, "   Number of users: %d\n", count);
+	return CLI_SUCCESS;
+}
+
+/*!
+ * \brief Show buddy lists
+ * \return CLI_SUCCESS.
+ */
+static char *aji_show_buddies(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct aji_resource *resource;
+	struct aji_client *client;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "jabber show buddies";
+		e->usage =
+			"Usage: jabber show buddies\n"
+			"       Shows buddy lists of our clients\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, "Jabber buddy lists\n");
+	ASTOBJ_CONTAINER_TRAVERSE(&clients, 1, {
+		ast_cli(a->fd,"Client: %s\n", iterator->user);
+		client = iterator;
+		ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
+			ASTOBJ_RDLOCK(iterator);
+			ast_cli(a->fd,"\tBuddy:\t%s\n", iterator->name);
+			if (!iterator->resources)
+				ast_cli(a->fd,"\t\tResource: None\n");	
+			for (resource = iterator->resources; resource; resource = resource->next) {
+				ast_cli(a->fd,"\t\tResource: %s\n", resource->resource);
+				if(resource->cap) {
+					ast_cli(a->fd,"\t\t\tnode: %s\n", resource->cap->parent->node);
+					ast_cli(a->fd,"\t\t\tversion: %s\n", resource->cap->version);
+					ast_cli(a->fd,"\t\t\tJingle capable: %s\n", resource->cap->jingle ? "yes" : "no");
+				}
+				ast_cli(a->fd,"\t\tStatus: %d\n", resource->status);
+				ast_cli(a->fd,"\t\tPriority: %d\n", resource->priority);
+			}
+			ASTOBJ_UNLOCK(iterator);
+		});
+		iterator = client;
+	});
 	return CLI_SUCCESS;
 }
 
