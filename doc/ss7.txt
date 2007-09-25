@@ -87,7 +87,7 @@ cicbeginswith = 17	; Now for Zap/17 to Zap/31, they are CICs 17-31 so we initial
 
 channel = 17-31		; This assigns CICs 17-31 to channels 17-31
 
-signchan = 16		; This is where you declare which Zap channel is your signalling
+sigchan = 16		; This is where you declare which Zap channel is your signalling
 			; channel.  In our case it is Zap/16.  You can add redundant
 			; signalling channels by adding additional sigchan= lines.
 			
