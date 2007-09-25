@@ -3144,7 +3144,6 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 				strncat(buf2,strp2+1, sizeof(buf2)-strlen(strp2+1)-2);
 				strcat(buf2,"]");
 				for_init->appargs = strdup(buf2);
-				for_init->app = strdup("Set");
 			} else {
 				strp2 = p->u1.for_init;
 				while (*strp2 && isspace(*strp2))
@@ -3166,7 +3165,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 						*strp3 = 0; /* remove the closing paren */
 
 					for_init->appargs = strdup(buf2);
-
+					free(for_init->app);
 					for_init->app = strdup("Macro");
 				} else {  /* must be a regular app call */
 					char *strp3;
@@ -3174,6 +3173,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 					strp3 = strchr(buf2,'(');
 					if (strp3) {
 						*strp3 = 0;
+						free(for_init->app);
 						for_init->app = strdup(buf2);
 						for_init->appargs = strdup(strp3+1);
 						strp3 = strrchr(for_init->appargs, ')');
