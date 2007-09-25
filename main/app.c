@@ -876,7 +876,9 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END
 
-	if ((gi = calloc(1, len))) {
+	if (ast_strlen_zero(group)) {
+		/* Enable unsetting the group */
+	} else if ((gi = calloc(1, len))) {
 		gi->chan = chan;
 		gi->group = (char *) gi + sizeof(*gi);
 		strcpy(gi->group, group);
