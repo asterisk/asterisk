@@ -49,10 +49,13 @@
 
 #define JINGLE_INITIATE "session-initiate"
 
-#define JINGLE_ACCEPT "accept"
+#define JINGLE_ACCEPT "session-accept"
 #define GOOGLE_ACCEPT "accept"
 
-#define JINGLE_NEGOTIATE "negotiate"
+#define JINGLE_NEGOTIATE "transport-info"
 #define GOOGLE_NEGOTIATE "candidates"
+
+#define JINGLE_INFO "session-info"
+#define JINGLE_TERMINATE "session-terminate"
 
 #endif

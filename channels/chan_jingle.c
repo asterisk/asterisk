@@ -96,14 +96,15 @@ static struct ast_jb_conf default_jbconf =
 static struct ast_jb_conf global_jbconf;
 
 enum jingle_protocol {
-	AJI_PROTOCOL_UDP = 1,
-	AJI_PROTOCOL_SSLTCP = 2,
+	AJI_PROTOCOL_UDP,
+	AJI_PROTOCOL_SSLTCP,
 };
 
 enum jingle_connect_type {
-	AJI_CONNECT_STUN = 1,
-	AJI_CONNECT_LOCAL = 2,
-	AJI_CONNECT_RELAY = 3,
+	AJI_CONNECT_HOST,
+	AJI_CONNECT_PRFLX,
+	AJI_CONNECT_RELAY,
+	AJI_CONNECT_SRFLX,
 };
 
 struct jingle_pvt {
@@ -132,17 +133,18 @@ struct jingle_pvt {
 };
 
 struct jingle_candidate {
-	char name[100];
+	unsigned int component;          /*!< ex. : 1 for RTP, 2 for RTCP */
+	unsigned int foundation;         /*!< Function of IP, protocol, type */
+	unsigned int generation;
+	char ip[16];
+	unsigned int network;
+	unsigned int port;
+	unsigned int priority;
 	enum jingle_protocol protocol;
-	double preference;
-	char username[100];
 	char password[100];
 	enum jingle_connect_type type;
-	char network[6];
-	int generation;
-	char ip[16];
-	int port;
-	int receipt;
+	char ufrag[100];
+	unsigned int preference;
 	struct jingle_candidate *next;
 };
 
@@ -359,7 +361,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		ast_aji_increment_mid(client->connection->mid);
 
 		iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
-		iks_insert_attrib(jingle, "type", JINGLE_ACCEPT);
+		iks_insert_attrib(jingle, "action", JINGLE_ACCEPT);
 		iks_insert_attrib(jingle, "initiator", p->initiator ? client->connection->jid->full : p->from);
 		iks_insert_attrib(jingle, JINGLE_SID, tmp->sid);
 		iks_insert_node(iq, jingle);
@@ -593,14 +595,17 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	struct sockaddr_in sin;
 	struct sockaddr_in dest;
 	struct in_addr us;
-	iks *iq, *jingle, *candidate;
-	char user[17], pass[17], preference[5], port[7];
+	struct in_addr externaddr;
+	iks *iq, *jingle, *content, *transport, *candidate;
+	char component[16], foundation[16], generation[16], network[16], pass[16], port[7], priority[16], user[16];
 
 
 	iq = iks_new("iq");
 	jingle = iks_new(JINGLE_NODE);
+	content = iks_new("content");
+	transport = iks_new("transport");
 	candidate = iks_new("candidate");
-	if (!iq || !jingle || !candidate) {
+	if (!iq || !jingle || !content || !transport || !candidate) {
 		ast_log(LOG_ERROR, "Memory allocation error\n");
 		goto safeout;
 	}
@@ -608,8 +613,11 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	ours2 = ast_calloc(1, sizeof(*ours2));
 	if (!ours1 || !ours2)
 		goto safeout;
+
 	iks_insert_node(iq, jingle);
-	iks_insert_node(jingle, candidate);
+	iks_insert_node(jingle, content);
+	iks_insert_node(content, transport);
+	iks_insert_node(transport, candidate);
 
 	for (; p; p = p->next) {
 		if (!strcasecmp(p->sid, sid))
@@ -624,33 +632,41 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 	ast_rtp_get_us(p->rtp, &sin);
 	ast_find_ourip(&us, bindaddr);
 
-	/* Setup our jingle candidates */
-	ast_copy_string(ours1->name, "rtp", sizeof(ours1->name));
-	ours1->port = ntohs(sin.sin_port);
-	ours1->preference = 1;
-	snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
-	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
-	ast_copy_string(ours1->username, user, sizeof(ours1->username));
-	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
-	ast_copy_string(ours1->ip, ast_inet_ntoa(us), sizeof(ours1->ip));
-	ours1->protocol = AJI_PROTOCOL_UDP;
-	ours1->type = AJI_CONNECT_LOCAL;
+	/* Setup our first jingle candidate */
+	ours1->component = 1;
+	ours1->foundation = (unsigned int)bindaddr.sin_addr.s_addr | AJI_CONNECT_HOST | AJI_PROTOCOL_UDP;
 	ours1->generation = 0;
+	ast_copy_string(ours1->ip, ast_inet_ntoa(us), sizeof(ours1->ip));
+	ours1->network = 0;
+	ours1->port = ntohs(sin.sin_port);
+	ours1->priority = 1678246398;
+	ours1->protocol = AJI_PROTOCOL_UDP;
+	snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
+	ast_copy_string(ours1->password, pass, sizeof(ours1->password));
+	ours1->type = AJI_CONNECT_HOST;
+	snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
+	ast_copy_string(ours1->ufrag, user, sizeof(ours1->ufrag));
 	p->ourcandidates = ours1;
 
 	if (!ast_strlen_zero(externip)) {
 		/* XXX We should really stun for this one not just go with externip XXX */
-		snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
-		snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
-		ast_copy_string(ours2->username, user, sizeof(ours2->username));
-		ast_copy_string(ours2->password, pass, sizeof(ours2->password));
-		ast_copy_string(ours2->ip, externip, sizeof(ours2->ip));
-		ast_copy_string(ours2->name, "rtp", sizeof(ours1->name));
-		ours2->port = ntohs(sin.sin_port);
-		ours2->preference = 0.9;
-		ours2->protocol = AJI_PROTOCOL_UDP;
-		ours2->type = AJI_CONNECT_STUN;
+		if (inet_aton(externip, &externaddr))
+			ast_log(LOG_WARNING, "Invalid extern IP : %s\n", externip);
+
+		ours2->component = 1;
+		ours2->foundation = (unsigned int)externaddr.s_addr | AJI_CONNECT_PRFLX | AJI_PROTOCOL_UDP;
 		ours2->generation = 0;
+		ast_copy_string(ours2->ip, externip, sizeof(ours2->ip));
+		ours2->network = 0;
+		ours2->port = ntohs(sin.sin_port);
+		ours2->priority = 1678246397;
+		ours2->protocol = AJI_PROTOCOL_UDP;
+		snprintf(pass, sizeof(pass), "%08lx%08lx", ast_random(), ast_random());
+		ast_copy_string(ours2->password, pass, sizeof(ours2->password));
+		ours2->type = AJI_CONNECT_PRFLX;
+
+		snprintf(user, sizeof(user), "%08lx%08lx", ast_random(), ast_random());
+		ast_copy_string(ours2->ufrag, user, sizeof(ours2->ufrag));
 		ours1->next = ours2;
 		ours2 = NULL;
 	}
@@ -660,35 +676,57 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 
 
 	for (tmp = p->ourcandidates; tmp; tmp = tmp->next) {
-		snprintf(port, sizeof(port), "%d", tmp->port);
-		snprintf(preference, sizeof(preference), "%.2f", tmp->preference);
+		snprintf(component, sizeof(component), "%u", tmp->component);
+		snprintf(foundation, sizeof(foundation), "%u", tmp->foundation);
+		snprintf(generation, sizeof(generation), "%u", tmp->generation);
+		snprintf(network, sizeof(network), "%u", tmp->network);
+		snprintf(port, sizeof(port), "%u", tmp->port);
+		snprintf(priority, sizeof(priority), "%u", tmp->priority);
+
 		iks_insert_attrib(iq, "from", c->jid->full);
 		iks_insert_attrib(iq, "to", from);
 		iks_insert_attrib(iq, "type", "set");
 		iks_insert_attrib(iq, "id", c->mid);
 		ast_aji_increment_mid(c->mid);
-		iks_insert_attrib(jingle, "type", "candidates");
-		iks_insert_attrib(jingle, "id", sid);
+		iks_insert_attrib(jingle, "action", JINGLE_NEGOTIATE);
+		iks_insert_attrib(jingle, JINGLE_SID, sid);
 		iks_insert_attrib(jingle, "initiator", (p->initiator) ? c->jid->full : from);
 		iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
-		iks_insert_attrib(candidate, "name", tmp->name);
-		iks_insert_attrib(candidate, "address", tmp->ip);
+		iks_insert_attrib(content, "creator", p->initiator ? "initiator" : "responder");
+		iks_insert_attrib(content, "name", "asterisk-audio-content");
+		iks_insert_attrib(transport, "xmlns", JINGLE_ICE_UDP_NS);
+		iks_insert_attrib(candidate, "component", component);
+		iks_insert_attrib(candidate, "foundation", foundation);
+		iks_insert_attrib(candidate, "generation", generation);
+		iks_insert_attrib(candidate, "ip", tmp->ip);
+		iks_insert_attrib(candidate, "network", network);
 		iks_insert_attrib(candidate, "port", port);
-		iks_insert_attrib(candidate, "username", tmp->username);
-		iks_insert_attrib(candidate, "password", tmp->password);
-		iks_insert_attrib(candidate, "preference", preference);
-		if (tmp->protocol == AJI_PROTOCOL_UDP)
+		iks_insert_attrib(candidate, "priority", priority);
+		switch (tmp->protocol) {
+		case AJI_PROTOCOL_UDP:
 			iks_insert_attrib(candidate, "protocol", "udp");
-		if (tmp->protocol == AJI_PROTOCOL_SSLTCP)
+			break;
+		case AJI_PROTOCOL_SSLTCP:
 			iks_insert_attrib(candidate, "protocol", "ssltcp");
-		if (tmp->type == AJI_CONNECT_STUN)
-			iks_insert_attrib(candidate, "type", "stun");
-		if (tmp->type == AJI_CONNECT_LOCAL)
-			iks_insert_attrib(candidate, "type", "local");
-		if (tmp->type == AJI_CONNECT_RELAY)
+			break;
+		}
+		iks_insert_attrib(candidate, "pwd", tmp->password);
+		switch (tmp->type) {
+		case AJI_CONNECT_HOST:
+			iks_insert_attrib(candidate, "type", "host");
+			break;
+		case AJI_CONNECT_PRFLX:
+			iks_insert_attrib(candidate, "type", "prflx");
+			break;
+		case AJI_CONNECT_RELAY:
 			iks_insert_attrib(candidate, "type", "relay");
-		iks_insert_attrib(candidate, "network", "0");
-		iks_insert_attrib(candidate, "generation", "0");
+			break;
+		case AJI_CONNECT_SRFLX:
+			iks_insert_attrib(candidate, "type", "srflx");
+			break;
+		}
+		iks_insert_attrib(candidate, "ufrag", tmp->ufrag);
+
 		iks_send(c->p, iq);
 	}
 	p->laststun = 0;
@@ -702,6 +740,10 @@ safeout:
 		iks_delete(iq);
 	if (jingle)
 		iks_delete(jingle);
+	if (content)
+		iks_delete(content);
+	if (transport)
+		iks_delete(transport);
 	if (candidate)
 		iks_delete(candidate);
 	return 1;
@@ -851,29 +893,31 @@ static struct ast_channel *jingle_new(struct jingle *client, struct jingle_pvt *
 
 static int jingle_action(struct jingle *client, struct jingle_pvt *p, const char *action)
 {
-	iks *request, *session = NULL;
+	iks *iq, *jingle = NULL;
 	int res = -1;
 
-	request = iks_new("iq");
-	if (request) {
-		iks_insert_attrib(request, "type", "set");
-		iks_insert_attrib(request, "from", client->connection->jid->full);
-		iks_insert_attrib(request, "to", p->from);
-		iks_insert_attrib(request, "id", client->connection->mid);
+	iq = iks_new("iq");
+	jingle = iks_new("jingle");
+	
+	if (iq) {
+		iks_insert_attrib(iq, "type", "set");
+		iks_insert_attrib(iq, "from", client->connection->jid->full);
+		iks_insert_attrib(iq, "to", p->from);
+		iks_insert_attrib(iq, "id", client->connection->mid);
 		ast_aji_increment_mid(client->connection->mid);
-		session = iks_new("session");
-		if (session) {
-			iks_insert_attrib(session, "type", action);
-			iks_insert_attrib(session, "id", p->sid);
-			iks_insert_attrib(session, "initiator",
-							  p->initiator ? client->connection->jid->full : p->from);
-			iks_insert_attrib(session, "xmlns", JINGLE_NS);
-			iks_insert_node(request, session);
-			iks_send(client->connection->p, request);
-			iks_delete(session);
+		if (jingle) {
+			iks_insert_attrib(jingle, "action", action);
+			iks_insert_attrib(jingle, JINGLE_SID, p->sid);
+			iks_insert_attrib(jingle, "initiator", p->initiator ? client->connection->jid->full : p->from);
+			iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
+
+			iks_insert_node(iq, jingle);
+
+			iks_send(client->connection->p, iq);
+			iks_delete(jingle);
 			res = 0;
 		}
-		iks_delete(request);
+		iks_delete(iq);
 	}
 	return res;
 }
@@ -921,7 +965,7 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 	struct jingle_pvt *p, *tmp = client->p;
 	struct ast_channel *chan;
 	int res;
-	iks *codec;
+	iks *payload_type;
 
 	/* Make sure our new call doesn't exist yet */
 	while (tmp) {
@@ -947,14 +991,13 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 							sizeof(p->sid));
 		}
 
-		codec = iks_child(iks_child(iks_child(pak->x)));
-		while (codec) {
-			ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(codec, "id")));
-			ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(codec, "id")), "audio",
-						iks_find_attrib(codec, "name"), 0);
-			codec = iks_next(codec);
+		payload_type = iks_child(iks_child(iks_child(iks_child(pak->x))));
+		while (payload_type) {
+			ast_rtp_set_m_type(p->rtp, atoi(iks_find_attrib(payload_type, "id")));
+			ast_rtp_set_rtpmap_type(p->rtp, atoi(iks_find_attrib(payload_type, "id")), "audio", iks_find_attrib(payload_type, "name"), 0);
+			payload_type = iks_next(payload_type);
 		}
-		
+
 		ast_mutex_unlock(&p->lock);
 		ast_setstate(chan, AST_STATE_RING);
 		res = ast_pbx_start(chan);
@@ -971,8 +1014,8 @@ static int jingle_newcall(struct jingle *client, ikspak *pak)
 		case AST_PBX_SUCCESS:
 			jingle_response(client, pak, NULL, NULL);
 			jingle_create_candidates(client, p,
-					iks_find_attrib(pak->query, JINGLE_SID),
-					iks_find_attrib(pak->x, "from"));
+						 iks_find_attrib(pak->query, JINGLE_SID),
+						 iks_find_attrib(pak->x, "from"));
 			/* nothing to do */
 			break;
 		}
@@ -1000,8 +1043,7 @@ static int jingle_update_stun(struct jingle *client, struct jingle_pvt *p)
 		sin.sin_family = AF_INET;
 		memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 		sin.sin_port = htons(tmp->port);
-		snprintf(username, sizeof(username), "%s%s", tmp->username,
-				 p->ourcandidates->username);
+		snprintf(username, sizeof(username), "%s:%s", tmp->ufrag, p->ourcandidates->ufrag);
 
 		ast_rtp_stun_request(p->rtp, &sin, username);
 		tmp = tmp->next;
@@ -1038,29 +1080,26 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 			newcandidate = ast_calloc(1, sizeof(*newcandidate));
 			if (!newcandidate)
 				return 0;
-			ast_copy_string(newcandidate->name, iks_find_attrib(traversenodes, "name"),
-							sizeof(newcandidate->name));
 			ast_copy_string(newcandidate->ip, iks_find_attrib(traversenodes, "address"),
 							sizeof(newcandidate->ip));
 			newcandidate->port = atoi(iks_find_attrib(traversenodes, "port"));
-			ast_copy_string(newcandidate->username, iks_find_attrib(traversenodes, "username"),
-							sizeof(newcandidate->username));
 			ast_copy_string(newcandidate->password, iks_find_attrib(traversenodes, "password"),
 							sizeof(newcandidate->password));
-			newcandidate->preference = atof(iks_find_attrib(traversenodes, "preference"));
 			if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "udp"))
 				newcandidate->protocol = AJI_PROTOCOL_UDP;
 			if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "ssltcp"))
 				newcandidate->protocol = AJI_PROTOCOL_SSLTCP;
 		
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "stun"))
-				newcandidate->type = AJI_CONNECT_STUN;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "local"))
-				newcandidate->type = AJI_CONNECT_LOCAL;
+			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "host"))
+				newcandidate->type = AJI_CONNECT_HOST;
+			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "prflx"))
+				newcandidate->type = AJI_CONNECT_PRFLX;
 			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "relay"))
 				newcandidate->type = AJI_CONNECT_RELAY;
-			ast_copy_string(newcandidate->network, iks_find_attrib(traversenodes, "network"),
-							sizeof(newcandidate->network));
+			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "srflx"))
+				newcandidate->type = AJI_CONNECT_SRFLX;
+
+			newcandidate->network = atoi(iks_find_attrib(traversenodes, "network"));
 			newcandidate->generation = atoi(iks_find_attrib(traversenodes, "generation"));
 			newcandidate->next = NULL;
 		
@@ -1292,7 +1331,7 @@ static int jingle_transmit_invite(struct jingle_pvt *p)
 	iks_insert_attrib(jingle, "initiator", client->jid->full);
 	iks_insert_attrib(jingle, "xmlns", JINGLE_NS);
 	iks_insert_attrib(content, "creator", "initiator");
-	iks_insert_attrib(content, "name", "Asterisk audio content");
+	iks_insert_attrib(content, "name", "asterisk-audio-content");
 	iks_insert_attrib(content, "profile", "RTP/AVP");
 	iks_insert_attrib(description, "xmlns", JINGLE_AUDIO_RTP_NS);
 	iks_insert_attrib(transport, "xmlns", JINGLE_ICE_UDP_NS);
@@ -1375,7 +1414,7 @@ static int jingle_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->tech_pvt = NULL;
 	if (!p->alreadygone)
-		jingle_action(client, p, "terminate");
+		jingle_action(client, p, JINGLE_TERMINATE);
 	ast_mutex_unlock(&p->lock);
 
 	jingle_free_pvt(client, p);
@@ -1452,21 +1491,22 @@ static int jingle_show(int fd, int argc, char **argv)
 static int jingle_parser(void *data, ikspak *pak)
 {
 	struct jingle *client = ASTOBJ_REF((struct jingle *) data);
+	ast_log(LOG_NOTICE, "Filter matched\n");
 
-	if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", JINGLE_INITIATE)) {
+	if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", JINGLE_INITIATE)) {
 		/* New call */
 		jingle_newcall(client, pak);
-	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", JINGLE_NEGOTIATE)) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", JINGLE_NEGOTIATE)) {
 		ast_debug(3, "About to add candidate!\n");
 		jingle_add_candidate(client, pak);
 		ast_debug(3, "Candidate Added!\n");
-	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", JINGLE_ACCEPT)) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", JINGLE_ACCEPT)) {
 		jingle_is_answered(client, pak);
-	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "session-info")) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", JINGLE_INFO)) {
 		jingle_handle_dtmf(client, pak);
-	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", "terminate")) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", JINGLE_TERMINATE)) {
 		jingle_hangup_farend(client, pak);
-	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "type", "reject")) {
+	} else if (iks_find_with_attrib(pak->x, JINGLE_NODE, "action", "reject")) {
 		jingle_hangup_farend(client, pak);
 	}
 	ASTOBJ_UNREF(client, jingle_member_destroy);
@@ -1507,12 +1547,14 @@ static struct jingle_candidate *jingle_create_candidate(char *args)
 			res->protocol = AJI_PROTOCOL_SSLTCP;
 	}
 	if (type) {
-		if (!strcasecmp("stun", type))
-			res->type = AJI_CONNECT_STUN;
-		if (!strcasecmp("local", type))
-			res->type = AJI_CONNECT_LOCAL;
+		if (!strcasecmp("host", type))
+			res->type = AJI_CONNECT_HOST;
+		if (!strcasecmp("prflx", type))
+			res->type = AJI_CONNECT_PRFLX;
 		if (!strcasecmp("relay", type))
 			res->type = AJI_CONNECT_RELAY;
+		if (!strcasecmp("srflx", type))
+			res->type = AJI_CONNECT_SRFLX;
 	}
 
 	return res;
@@ -1585,6 +1627,8 @@ static int jingle_load_config(void)
 	int allowguest = 1;
 	struct ast_variable *var;
 	struct jingle *member;
+	struct hostent *hp;
+	struct ast_hostent ahp;
 	struct ast_codec_pref prefs;
 	struct aji_client_container *clients;
 	struct jingle_candidate *global_candidates = NULL;
@@ -1614,6 +1658,13 @@ static int jingle_load_config(void)
 			ast_copy_string(context, var->value, sizeof(context));
 		else if (!strcasecmp(var->name, "externip"))
 			ast_copy_string(externip, var->value, sizeof(externip));
+		else if (!strcasecmp(var->name, "bindaddr")) {
+			if (!(hp = ast_gethostbyname(var->value, &ahp))) {
+				ast_log(LOG_WARNING, "Invalid address: %s\n", var->value);
+			} else {
+				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
+			}
+		}
 /*  Idea to allow for custom candidates  */
 /*
 		else if (!strcasecmp(var->name, "candidate")) {
