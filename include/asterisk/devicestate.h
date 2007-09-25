@@ -125,8 +125,6 @@ enum ast_device_state ast_device_state(const char *device);
  *
  * \retval 0 on success 
  * \retval -1 on failure
- *
- * \note This is deprecated in favor of ast_devstate_changed()
  */
 int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
@@ -143,8 +141,6 @@ int ast_devstate_changed(enum ast_device_state state, const char *fmt, ...)
  *
  * \retval 0 on success 
  * \retval -1 on failure
- *
- * \note This is deprecated in favor of ast_devstate_changed()
  */
 int ast_devstate_changed_literal(enum ast_device_state state, const char *device);
 
