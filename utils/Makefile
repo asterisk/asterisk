@@ -60,6 +60,7 @@ clean:
 	rm -f .*.o.d .*.oo.d
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c pval.c
 	rm -f aelparse.c aelbison.c conf2ael
+	rm -f utils.c sha1.c astobj2.c hashtest2
 
 md5.c: ../main/md5.c
 	@cp $< $@
