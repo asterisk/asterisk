@@ -5204,7 +5204,6 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct zt_pvt *p = ast->tech_pvt;
 	int res;
-	unsigned char outbuf[4096];
 	int index;
 	index = zt_get_index(ast, p, 0);
 	if (index < 0) {
@@ -5255,10 +5254,6 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 	/* Return if it's not valid data */
 	if (!frame->data || !frame->datalen)
 		return 0;
-	if (frame->datalen > sizeof(outbuf) * 2) {
-		ast_log(LOG_WARNING, "Frame too large\n");
-		return 0;
-	}
 
 	if (frame->subclass == AST_FORMAT_SLINEAR) {
 		if (!p->subs[index].linear) {
