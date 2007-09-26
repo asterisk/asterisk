@@ -266,8 +266,11 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context);
  */
 int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
 
-/* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
-   1 if monfd is ready for reading */
+/*!
+ * Same as waitstream, but with audio output to fd and monitored fd checking.  
+ *
+ * \return 1 if monfd is ready for reading 
+ */
 int ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd, int monfd);
 
 /*! 
