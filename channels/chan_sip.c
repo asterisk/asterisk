@@ -13661,11 +13661,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				transmit_response_reliable(p, "484 Address Incomplete", req);
 			else {
 				transmit_response_reliable(p, "404 Not Found", req);
-				if (option_verbose > 2) {
-					ast_verbose(VERBOSE_PREFIX_3 "Call from '%s' to extension"
-						" '%s' rejected because extension not found.\n",
-						S_OR(p->username, p->peername), p->exten);
-				}
+				ast_log(LOG_NOTICE, "Call from '%s' to extension"
+					" '%s' rejected because extension not found.\n",
+					S_OR(p->username, p->peername), p->exten);
 			}
 			p->invitestate = INV_COMPLETED;	
 			update_call_counter(p, DEC_CALL_LIMIT);
