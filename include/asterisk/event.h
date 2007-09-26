@@ -28,7 +28,7 @@
  * Events have an associated event type, as well as information elements.  The
  * information elements are the meta data that go along with each event.  For
  * example, in the case of message waiting indication, the event type is MWI,
- * and each MWI event containts at least three information elements: the
+ * and each MWI event contains at least three information elements: the
  * mailbox, the number of new messages, and the number of old messages.
  *
  * Subscriptions to events consist of an event type and information elements,
