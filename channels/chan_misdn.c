@@ -3134,15 +3134,19 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 		}
 
 		if (rr) {
-			if (!rr->port)
-				rr->port = misdn_cfg_get_next_port_spin(rr->port);
-			
 			int port_start = 0;
 			int port_bak = rr->port;
 			int chan_bak = rr->channel;
 
+			if (!rr->port)
+				rr->port = misdn_cfg_get_next_port_spin(rr->port);
+			
 			for (; rr->port > 0 && rr->port != port_start;
 				 rr->port = misdn_cfg_get_next_port_spin(rr->port)) {
+				int port_up;
+				int check;
+				int max_chan;
+				int last_chance = 0;
 
 				if (!port_start)
 					port_start = rr->port;
@@ -3151,8 +3155,6 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				if (strcasecmp(cfg_group, group))
 					continue;
 
-				int port_up;
-				int check;
 				misdn_cfg_get(rr->port, MISDN_CFG_PMP_L1_CHECK, &check, sizeof(int));
 				port_up = misdn_lib_port_up(rr->port, check);
 
@@ -3165,8 +3167,7 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 				if (port_up <= 0)
 					continue;
 
-				int max_chan = misdn_lib_get_maxchans(rr->port);
-				int last_chance = 0;
+				max_chan = misdn_lib_get_maxchans(rr->port);
 
 				for (++rr->channel; !last_chance && rr->channel <= max_chan; ++rr->channel) {
 					if (rr->port == port_bak && rr->channel == chan_bak)
