@@ -231,6 +231,8 @@ static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
 static void set_agentbycallerid(const char *callerid, const char *agent);
 static char *complete_agent_logoff_cmd(const char *line, const char *word, int pos, int state);
+static struct ast_channel* agent_get_base_channel(struct ast_channel *chan);
+static int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base);
 
 /*! \brief Channel interface description for PBX integration */
 static const struct ast_channel_tech agent_tech = {
@@ -253,6 +255,8 @@ static const struct ast_channel_tech agent_tech = {
 	.indicate = agent_indicate,
 	.fixup = agent_fixup,
 	.bridged_channel = agent_bridgedchannel,
+	.get_base_channel = agent_get_base_channel,
+	.set_base_channel = agent_set_base_channel,
 };
 
 /*!
@@ -696,6 +700,37 @@ static void set_agentbycallerid(const char *callerid, const char *agent)
 
 	snprintf(buf, sizeof(buf), "%s_%s", GETAGENTBYCALLERID, callerid);
 	pbx_builtin_setvar_helper(NULL, buf, agent);
+}
+
+struct ast_channel* agent_get_base_channel(struct ast_channel *chan)
+{
+	struct agent_pvt *p = NULL;
+	struct ast_channel *base = NULL;
+	
+	if (!chan || !chan->tech_pvt) {
+		ast_log(LOG_ERROR, "whoa, you need a channel (0x%ld) with a tech_pvt (0x%ld) to get a base channel.\n", (long)chan, (chan)?(long)chan->tech_pvt:(long)NULL);
+	} else {
+		p = chan->tech_pvt;
+		base = p->chan;
+	}
+	return base;
+}
+
+int agent_set_base_channel(struct ast_channel *chan, struct ast_channel *base)
+{
+	struct agent_pvt *p = NULL;
+	
+	if (!chan || !base) {
+		ast_log(LOG_ERROR, "whoa, you need a channel (0x%ld) and a base channel (0x%ld) for setting.\n", (long)chan, (long)base);
+		return -1;
+	}
+	p = chan->tech_pvt;
+	if (!p) {
+		ast_log(LOG_ERROR, "whoa, channel %s is missing his tech_pvt structure!!.\n", chan->name);
+		return -1;
+	}
+	p->chan = base;
+	return 0;
 }
 
 static int agent_hangup(struct ast_channel *ast)

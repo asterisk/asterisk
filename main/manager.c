@@ -1787,7 +1787,7 @@ static int action_redirect(struct mansession *s, const struct message *m)
 	const char *exten = astman_get_header(m, "Exten");
 	const char *context = astman_get_header(m, "Context");
 	const char *priority = astman_get_header(m, "Priority");
-	struct ast_channel *chan, *chan2 = NULL;
+	struct ast_channel *base, *chan, *chan2 = NULL;
 	int pi = 0;
 	int res;
 
@@ -1809,6 +1809,14 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		astman_send_error(s, m, buf);
 		return 0;
 	}
+	if (chan->tech->get_base_channel) {
+		base = chan->tech->get_base_channel(chan);
+		if (base) {
+			ast_mutex_unlock(&chan->lock);
+			chan = base;
+			ast_mutex_lock(&chan->lock);
+		}
+	}
 	if (ast_check_hangup(chan)) {
 		astman_send_error(s, m, "Redirect failed, channel not up.\n");
 		ast_channel_unlock(chan);
@@ -1821,6 +1829,14 @@ static int action_redirect(struct mansession *s, const struct message *m)
 		ast_channel_unlock(chan);
 		ast_channel_unlock(chan2);
 		return 0;
+	}
+	if (chan2 && chan2->tech->get_base_channel) {
+		base = chan2->tech->get_base_channel(chan2);
+		if (base) {
+			ast_mutex_unlock(&chan2->lock);
+			chan2 = base;
+			ast_mutex_lock(&chan2->lock);
+		}
 	}
 	res = ast_async_goto(chan, context, exten, pi);
 	if (!res) {
