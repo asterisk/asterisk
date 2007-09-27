@@ -264,6 +264,12 @@ struct ast_channel_tech {
 
 	/*! \brief Provide additional write items for CHANNEL() dialplan function */
 	int (* func_channel_write)(struct ast_channel *chan, char *function, char *data, const char *value);
+
+	/*! \brief Retrieve base channel (agent and local) */
+	struct ast_channel* (* get_base_channel)(struct ast_channel *chan);
+	
+	/*! \brief Set base channel (agent and local) */
+	int (* set_base_channel)(struct ast_channel *chan, struct ast_channel *base);
 };
 
 struct ast_channel_spy_list;
