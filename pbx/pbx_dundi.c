@@ -19,8 +19,6 @@
 /*! \file
  *
  * \brief Distributed Universal Number Discovery (DUNDi)
- *
- * \todo XXX This module leaks most of the memory it allocates on unload.
  */
 
 /*** MODULEINFO
