@@ -368,7 +368,8 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 		ast_debug(1, "Opening device %s in %s mode\n", dev, (stream == SND_PCM_STREAM_CAPTURE) ? "read" : "write");
 	}
 
-	snd_pcm_hw_params_alloca(&hwparams);
+	hwparams = alloca(snd_pcm_hw_params_sizeof());
+	memset(hwparams, 0, snd_pcm_hw_params_sizeof());
 	snd_pcm_hw_params_any(handle, hwparams);
 
 	err = snd_pcm_hw_params_set_access(handle, hwparams, SND_PCM_ACCESS_RW_INTERLEAVED);
@@ -419,7 +420,8 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	if (err < 0)
 		ast_log(LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
 
-	snd_pcm_sw_params_alloca(&swparams);
+	swparams = alloca(snd_pcm_sw_params_sizeof());
+	memset(swparams, 0, snd_pcm_sw_params_sizeof());
 	snd_pcm_sw_params_current(handle, swparams);
 
 #if 1
