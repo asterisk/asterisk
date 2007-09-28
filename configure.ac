@@ -6,7 +6,7 @@
 # this file just have to remember to set the AC_PREREQ argument
 # to something that suits their needs.
 
-AC_PREREQ(2.59)
+AC_PREREQ(2.60)
 
 m4_define([PBX_VERSION],
           m4_bpatsubst(m4_esyscmd([build_tools/make_version .]),
