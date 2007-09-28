@@ -3333,7 +3333,11 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
 {
 	int res = -1;
-	struct ast_channel *final_orig = original, *final_clone = clone;
+	struct ast_channel *final_orig, *final_clone;
+
+retrymasq:
+	final_orig = original;
+	final_clone = clone;
 
 	ast_channel_lock(original);
 	while (ast_channel_trylock(clone)) {
@@ -3351,11 +3355,19 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 		final_clone = clone->_bridge;
 
 	if ((final_orig != original) || (final_clone != clone)) {
-		ast_channel_lock(final_orig);
-		while (ast_channel_trylock(final_clone)) {
+		/* Lots and lots of deadlock avoidance.  The main one we're competing with
+		 * is ast_write(), which locks channels recursively, when working with a
+		 * proxy channel. */
+		if (ast_channel_trylock(final_orig)) {
+			ast_channel_unlock(clone);
+			ast_channel_unlock(original);
+			goto retrymasq;
+		}
+		if (ast_channel_trylock(final_clone)) {
 			ast_channel_unlock(final_orig);
-			usleep(1);
-			ast_channel_lock(final_orig);
+			ast_channel_unlock(clone);
+			ast_channel_unlock(original);
+			goto retrymasq;
 		}
 		ast_channel_unlock(clone);
 		ast_channel_unlock(original);
