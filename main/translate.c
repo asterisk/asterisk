@@ -30,6 +30,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -370,8 +371,8 @@ static void calc_cost(struct ast_translator *t, int seconds)
 {
 	int sofar=0;
 	struct ast_trans_pvt *pvt;
-	struct timeval start;
-	struct timeval end;
+	struct rusage start;
+	struct rusage end;
 	int cost;
 
 	if (!seconds)
@@ -389,7 +390,7 @@ static void calc_cost(struct ast_translator *t, int seconds)
 		t->cost = 999999;
 		return;
 	}
-	start = ast_tvnow();
+	getrusage(RUSAGE_SELF, &start);
 	/* Call the encoder until we've processed the required number of samples */
 	while (sofar < seconds * 8000) {
 		struct ast_frame *f = t->sample();
@@ -406,8 +407,9 @@ static void calc_cost(struct ast_translator *t, int seconds)
 			ast_frfree(f);
 		}
 	}
-	end = ast_tvnow();
-	cost = ((end.tv_sec - start.tv_sec)*1000000) + end.tv_usec - start.tv_usec;
+	getrusage(RUSAGE_SELF, &end);
+	cost = ((end.ru_utime.tv_sec - start.ru_utime.tv_sec)*1000000) + end.ru_utime.tv_usec - start.ru_utime.tv_usec;
+	cost += ((end.ru_stime.tv_sec - start.ru_stime.tv_sec)*1000000) + end.ru_stime.tv_usec - start.ru_stime.tv_usec;
 	destroy(pvt);
 	t->cost = cost / seconds;
 	if (!t->cost)
