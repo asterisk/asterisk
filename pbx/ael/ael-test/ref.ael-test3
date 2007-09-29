@@ -2,17 +2,17 @@
 (If you find progress and other non-error messages irritating, you can use -q to suppress them)
 
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
-LOG: lev:2 file:pbx_ael.c  line:3859 func: pbx_load_module  Starting AEL load process.
-LOG: lev:2 file:pbx_ael.c  line:3866 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include1.ael2, 78 chars
-LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include2.ael2, 98 chars
-LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include3.ael2, 57 chars
-LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include5.ael2, 56 chars
-LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./include4.ael2, 87 chars
-LOG: lev:2 file:ael.flex  line:429 func: ael_yylex    --Read in included file ./telemarket_torture.ael2, 28036 chars
-LOG: lev:2 file:pbx_ael.c  line:3874 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3877 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3879 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3882 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
-LOG: lev:2 file:pbx_ael.c  line:3885 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:483 func: main  172 contexts, 858 extensions, 2326 priorities
+LOG: lev:2 file:pbx_ael.c  line:4048 func: pbx_load_module  Starting AEL load process.
+LOG: lev:2 file:pbx_ael.c  line:4055 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
+LOG: lev:2 file:ael.flex  line:654 func: setup_filestack    --Read in included file ./include1.ael2, 78 chars
+LOG: lev:2 file:ael.flex  line:654 func: setup_filestack    --Read in included file ./include2.ael2, 98 chars
+LOG: lev:2 file:ael.flex  line:654 func: setup_filestack    --Read in included file ./include3.ael2, 57 chars
+LOG: lev:2 file:ael.flex  line:654 func: setup_filestack    --Read in included file ./include5.ael2, 56 chars
+LOG: lev:2 file:ael.flex  line:654 func: setup_filestack    --Read in included file ./include4.ael2, 87 chars
+LOG: lev:2 file:ael.flex  line:654 func: setup_filestack    --Read in included file ./telemarket_torture.ael2, 28036 chars
+LOG: lev:2 file:pbx_ael.c  line:4063 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4066 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4068 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4071 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
+LOG: lev:2 file:pbx_ael.c  line:4074 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
+LOG: lev:4 file:ael2_parse  line:527 func: main  172 contexts, 858 extensions, 2326 priorities
