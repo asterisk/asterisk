@@ -114,6 +114,7 @@ static int load_config(int reload)
 		ast_cdr_unregister(name);
 	else if (!enablecdr && newenablecdr)
 		ast_cdr_register(name, "Asterisk Manager Interface CDR Backend", manager_log);
+	enablecdr = newenablecdr;
 
 	return 1;
 }
