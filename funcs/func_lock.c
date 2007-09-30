@@ -187,11 +187,12 @@ static int get_lock(struct ast_channel *chan, char *lockname, int try)
 
 	/* Okay, we have both frames, so now we need to try to lock the mutex. */
 	if (count_channel_locks > 1) {
-		/* If we fail after a certain number of attempts, assume a possible deadlock and bail. */
-		int x;
-		for (x = 0; x < 30; x++) {
+		struct timeval start = ast_tvnow();
+		for (;;) {
 			if ((res = ast_mutex_trylock(&current->mutex)) == 0)
 				break;
+			if (ast_tvdiff_ms(ast_tvnow(), start) > 3000)
+				break; /* bail after 3 seconds of waiting */
 			usleep(1);
 		}
 	} else {
@@ -256,13 +257,19 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 
 static int lock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
+	ast_autoservice_start(chan);
 	ast_copy_string(buf, get_lock(chan, data, 0) ? "0" : "1", len);
+	ast_autoservice_stop(chan);
+
 	return 0;
 }
 
 static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
+	ast_autoservice_start(chan);
 	ast_copy_string(buf, get_lock(chan, data, 1) ? "0" : "1", len);
+	ast_autoservice_stop(chan);
+
 	return 0;
 }
 
