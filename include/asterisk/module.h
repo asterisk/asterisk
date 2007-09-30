@@ -224,8 +224,8 @@ void ast_module_unref(struct ast_module *);
 	static struct ast_module_info __mod_info = {	\
 		NULL,					\
 		load_func,				\
-		unload_func,				\
 		reload_func,				\
+		unload_func,				\
 		AST_MODULE,				\
 		desc,					\
 		keystr,					\
