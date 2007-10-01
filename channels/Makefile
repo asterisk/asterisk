@@ -68,7 +68,6 @@ ifneq ($(wildcard h323/Makefile.ast),)
 H323LDFLAGS+=-Wl,--version-script=h323/noexport.map
 clean::
 	$(MAKE) -C h323 clean
-	rm -f h323/Makefile
 else
 h323/libchanh323.a h323/Makefile.ast:
 	$(CMD_PREFIX) $(MAKE) -C h323
@@ -80,6 +79,9 @@ h323/libchanh323.a h323/Makefile.ast:
 	$(CMD_PREFIX) echo "***************************************************************"
 	$(CMD_PREFIX) exit 1
 endif
+
+dist-clean::
+	rm -f h323/Makefile
 
 gentone: gentone.c
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
