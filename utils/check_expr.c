@@ -88,6 +88,22 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 	return res;
 }
 
+void ast_store_lock_info(enum ast_lock_type type, const char *filename,
+		        int line_num, const char *func, const char *lock_name, void *lock_addr)
+{
+    /* not a lot to do in a standalone w/o threading! */
+}
+
+void ast_mark_lock_acquired(void)
+{
+    /* not a lot to do in a standalone w/o threading! */
+}
+
+void ast_remove_lock_info(void *lock_addr)
+{
+    /* not a lot to do in a standalone w/o threading! */
+}
+
 static int global_lineno = 1;
 static int global_expr_count=0;
 static int global_expr_max_size=0;
