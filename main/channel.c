@@ -3410,7 +3410,7 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
 {
 	int res = -1;
-	struct ast_channel *final_orig, *final_clone;
+	struct ast_channel *final_orig, *final_clone, *base;
 
 retrymasq:
 	final_orig = original;
@@ -3430,6 +3430,10 @@ retrymasq:
 
 	if (clone->_bridge && (clone->_bridge != ast_bridged_channel(clone)) && (clone->_bridge->_bridge != clone))
 		final_clone = clone->_bridge;
+	
+	if (final_clone->tech->get_base_channel && (base = final_clone->tech->get_base_channel(final_clone))) {
+		final_clone = base;
+	}
 
 	if ((final_orig != original) || (final_clone != clone)) {
 		/* Lots and lots of deadlock avoidance.  The main one we're competing with
