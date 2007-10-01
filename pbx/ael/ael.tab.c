@@ -2123,8 +2123,8 @@ yyreduce:
 		if (!(yyvsp[(5) - (6)].pval)) {
                         ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Warning! The empty context %s will be IGNORED!\n", 
 				my_file, (yylsp[(4) - (6)]).first_line, (yylsp[(4) - (6)]).first_column, (yylsp[(4) - (6)]).last_column, (yyvsp[(3) - (6)].str) );
+			(yyval.pval) = 0;
 			free((yyvsp[(3) - (6)].str));
-
 		} else {
 			(yyval.pval) = npval2(PV_CONTEXT, &(yylsp[(1) - (6)]), &(yylsp[(6) - (6)]));
 			(yyval.pval)->u1.str = (yyvsp[(3) - (6)].str);

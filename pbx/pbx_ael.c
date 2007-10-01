@@ -109,9 +109,9 @@ void destroy_pval_item(pval *item);
 int is_float(char *arg );
 int is_int(char *arg );
 int is_empty(char *arg);
-static pval *current_db;
-static pval *current_context;
-static pval *current_extension;
+static pval *current_db=0;
+static pval *current_context=0;
+static pval *current_extension=0;
 
 static const char *match_context;
 static const char *match_exten;
@@ -2733,6 +2733,8 @@ static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *
 #endif
 	struct argapp *apps=0;
 
+	if (!item)
+		return; /* don't check an empty tree */
 #ifdef AAL_ARGCHECK
 	rfilename = alloca(10 + strlen(ast_config_AST_VAR_DIR));
 	sprintf(rfilename, "%s/applist", ast_config_AST_VAR_DIR);
