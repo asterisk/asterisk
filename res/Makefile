@@ -45,4 +45,4 @@ ael/pval.o: ael/pval.c
 
 clean::
 	rm -f snmp/*.o
-	rm -f ael*.o
+	rm -f ael/*.o
