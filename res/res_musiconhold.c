@@ -312,6 +312,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
 		chan->music_state = state;
 		state->class = class;
+		state->save_pos = -1;
 	} else 
 		state = chan->music_state;
 
