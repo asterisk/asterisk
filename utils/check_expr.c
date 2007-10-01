@@ -87,7 +87,13 @@ int __ast_str_helper(struct ast_str **buf, size_t max_len,
 
 	return res;
 }
-
+#ifndef DEBUG_THREADS
+enum ast_lock_type {
+	        AST_MUTEX,
+	        AST_RDLOCK,
+	        AST_WRLOCK,
+};
+#endif
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 		        int line_num, const char *func, const char *lock_name, void *lock_addr);
 void ast_store_lock_info(enum ast_lock_type type, const char *filename,
