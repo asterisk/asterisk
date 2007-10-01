@@ -313,7 +313,9 @@ AST_APP_OPTIONS(dial_exec_options, {
 	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
 });
 
-#define CAN_EARLY_BRIDGE(flags) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP) && !ast_test_flag64(flags, OPT_CALLER_HANGUP) && !ast_test_flag64(flags, OPT_CALLEE_TRANSFER) && !ast_test_flag64(flags, OPT_CALLER_TRANSFER) && !ast_test_flag64(flags, OPT_CALLEE_MONITOR) && !ast_test_flag64(flags, OPT_CALLER_MONITOR) && !ast_test_flag64(flags, OPT_CALLEE_PARK) && !ast_test_flag64(flags, OPT_CALLER_PARK))
+#define CAN_EARLY_BRIDGE(flags) (!ast_test_flag64(flags, OPT_CALLEE_HANGUP | \
+	OPT_CALLER_HANGUP | OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER | \
+	OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR | OPT_CALLEE_PARK | OPT_CALLER_PARK))
 
 /*
  * The list of active channels
