@@ -547,6 +547,7 @@ struct thr_lock_info {
 		const char *lock_name;
 		void *lock_addr;
 		int times_locked;
+		enum ast_lock_type type;
 		/*! This thread is waiting on this lock */
 		unsigned int pending:1;
 	} locks[AST_MAX_LOCKS];
@@ -592,8 +593,8 @@ static void lock_info_destroy(void *data)
  */
 AST_THREADSTORAGE_CUSTOM(thread_lock_info, NULL, lock_info_destroy);
 
-void ast_store_lock_info(const char *filename, int line_num, 
-	const char *func, const char *lock_name, void *lock_addr)
+void ast_store_lock_info(enum ast_lock_type type, const char *filename,
+	int line_num, const char *func, const char *lock_name, void *lock_addr)
 {
 	struct thr_lock_info *lock_info;
 	int i;
@@ -625,6 +626,7 @@ void ast_store_lock_info(const char *filename, int line_num,
 	lock_info->locks[i].lock_name = lock_name;
 	lock_info->locks[i].lock_addr = lock_addr;
 	lock_info->locks[i].times_locked = 1;
+	lock_info->locks[i].type = type;
 	lock_info->locks[i].pending = 1;
 	lock_info->num_locks++;
 
@@ -681,6 +683,20 @@ void ast_remove_lock_info(void *lock_addr)
 	pthread_mutex_unlock(&lock_info->lock);
 }
 
+static const char *locktype2str(enum ast_lock_type type)
+{
+	switch (type) {
+	case AST_MUTEX:
+		return "MUTEX";
+	case AST_RDLOCK:
+		return "RDLOCK";
+	case AST_WRLOCK:
+		return "WRLOCK";
+	}
+
+	return "UNKNOWN";
+}
+
 static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct thr_lock_info *lock_info;
@@ -713,9 +729,11 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			lock_info->thread_name);
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; i < lock_info->num_locks; i++) {
-			ast_cli(a->fd, "=== ---> %sLock #%d: %s %d %s %s %p (%d)\n", 
+			ast_cli(a->fd, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
 				lock_info->locks[i].pending ? "Waiting for " : "", i,
-				lock_info->locks[i].file, lock_info->locks[i].line_num,
+				lock_info->locks[i].file, 
+				locktype2str(lock_info->locks[i].type),
+				lock_info->locks[i].line_num,
 				lock_info->locks[i].func, lock_info->locks[i].lock_name,
 				lock_info->locks[i].lock_addr, 
 				lock_info->locks[i].times_locked);
