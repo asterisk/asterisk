@@ -82,7 +82,7 @@ static void dump_addr(char *output, int maxlen, void *value, int len)
 		memcpy(&sin, value, len);
 		snprintf(output, maxlen, "IPV4 %s:%d", ast_inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 	} else {
-		snprintf(output, maxlen, "Invalid Address");
+		ast_copy_string(output, "Invalid Address", maxlen);
 	}
 }
 

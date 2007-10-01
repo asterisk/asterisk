@@ -2586,7 +2586,7 @@ static void add_blank(struct sip_request *req)
 {
 	if (!req->lines) {
 		/* Add extra empty return. add_header() reserves 4 bytes so cannot be truncated */
-		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n");
+		ast_copy_string(req->data + req->len, "\r\n", sizeof(req->data) - req->len);
 		req->len += strlen(req->data + req->len);
 	}
 }
@@ -6175,7 +6175,7 @@ static int add_line(struct sip_request *req, const char *line)
 	}
 	if (!req->lines) {
 		/* Add extra empty return */
-		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n");
+		ast_copy_string(req->data + req->len, "\r\n", sizeof(req->data) - req->len);
 		req->len += strlen(req->data + req->len);
 	}
 	if (req->len >= sizeof(req->data) - 4) {

@@ -496,7 +496,7 @@ static int store_odbc(const char *database, const char *table, va_list ap)
 	}
 	newval = va_arg(aq, const char *);
 	snprintf(keys, sizeof(keys), "%s", newparam);
-	snprintf(vals, sizeof(vals), "?");
+	ast_copy_string(vals, "?", sizeof(vals));
 	while ((newparam = va_arg(aq, const char *))) {
 		snprintf(keys + strlen(keys), sizeof(keys) - strlen(keys), ", %s", newparam);
 		snprintf(vals + strlen(vals), sizeof(vals) - strlen(vals), ", ?");

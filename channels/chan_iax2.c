@@ -5969,9 +5969,9 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			else if (reg->messages > 1)
 				snprintf(msgstatus, sizeof(msgstatus), " with %d new messages waiting\n", reg->messages);
 			else if (reg->messages > 0)
-				snprintf(msgstatus, sizeof(msgstatus), " with 1 new message waiting\n");
+				ast_copy_string(msgstatus, " with 1 new message waiting\n", sizeof(msgstatus));
 			else
-				snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
+				ast_copy_string(msgstatus, " with no messages waiting\n", sizeof(msgstatus));
 			snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
 		ast_verb(3, "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(sin->sin_addr), ourip, msgstatus);
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "ChannelType: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(sin->sin_addr));

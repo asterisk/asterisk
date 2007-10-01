@@ -1477,7 +1477,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			}
 			conf->recordingformat = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT");
 			if (!conf->recordingformat) {
-				snprintf(recordingtmp, sizeof(recordingtmp), "wav");
+				ast_copy_string(recordingtmp, "wav", sizeof(recordingtmp));
 				conf->recordingformat = ast_strdupa(recordingtmp);
 			}
 			ast_verb(4, "Starting recording of MeetMe Conference %s into file %s.%s.\n",

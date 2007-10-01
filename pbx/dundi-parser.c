@@ -229,7 +229,7 @@ static void dump_int(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned int))
 		snprintf(output, maxlen, "%lu", (unsigned long)ntohl(*((unsigned int *)value)));
 	else
-		snprintf(output, maxlen, "Invalid INT");
+		ast_copy_string(output, "Invalid INT", maxlen);
 }
 
 static void dump_short(char *output, int maxlen, void *value, int len)
@@ -237,7 +237,7 @@ static void dump_short(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned short))
 		snprintf(output, maxlen, "%d", ntohs(*((unsigned short *)value)));
 	else
-		snprintf(output, maxlen, "Invalid SHORT");
+		ast_copy_string(output, "Invalid SHORT", maxlen);
 }
 
 static void dump_byte(char *output, int maxlen, void *value, int len)
@@ -245,7 +245,7 @@ static void dump_byte(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned char))
 		snprintf(output, maxlen, "%d", *((unsigned char *)value));
 	else
-		snprintf(output, maxlen, "Invalid BYTE");
+		ast_copy_string(output, "Invalid BYTE", maxlen);
 }
 
 static char *proto2str(int proto, char *buf, int bufsiz)

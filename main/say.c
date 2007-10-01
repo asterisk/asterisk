@@ -486,14 +486,14 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 
 	while (!res && (num || playh)) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else	if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -588,7 +588,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 	
 	while (!res && (num || playh)) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
@@ -608,17 +608,17 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 		} else if (num < 1000) {
 			hundered = num / 100;
 			if ( hundered == 1 ) {
-				snprintf(fn, sizeof(fn), "digits/1sto");
+				ast_copy_string(fn, "digits/1sto", sizeof(fn));
 			} else if ( hundered == 2 ) {
-				snprintf(fn, sizeof(fn), "digits/2ste");
+				ast_copy_string(fn, "digits/2ste", sizeof(fn));
 			} else {
 					res = ast_say_number_full_cz(chan,hundered,ints,language,options,audiofd,ctrlfd);
 				if (res)
 					return res;
 				if (hundered == 3 || hundered == 4) {	
-					snprintf(fn, sizeof(fn), "digits/sta");
+					ast_copy_string(fn, "digits/sta", sizeof(fn));
 				} else if ( hundered > 4 ) {
-					snprintf(fn, sizeof(fn), "digits/set");
+					ast_copy_string(fn, "digits/set", sizeof(fn));
 				}
 			}
 			num -= (hundered * 100);
@@ -691,20 +691,20 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 		*   four-and thirty" and 1000012 is "one million and twelve".
 		*/
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			snprintf(fn, sizeof(fn), "digits/and");
+			ast_copy_string(fn, "digits/and", sizeof(fn));
 			playa = 0;
 		} else if (num == 1 && cn == -1) {
-			snprintf(fn, sizeof(fn), "digits/1N");
+			ast_copy_string(fn, "digits/1N", sizeof(fn));
 			num = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -722,7 +722,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 			if (num < 1000) {
 				int hundreds = num / 100;
 				if (hundreds == 1)
-					snprintf(fn, sizeof(fn), "digits/1N");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
 				else
 					snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
 
@@ -737,7 +737,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 					if (res)
 						return res;
 					num = num % 1000;
-					snprintf(fn, sizeof(fn), "digits/thousand");
+					ast_copy_string(fn, "digits/thousand", sizeof(fn));
 				} else {
 					if (num < 1000000000) {
 						int millions = num / 1000000;
@@ -745,9 +745,9 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, const char 
 						if (res)
 							return res;
 						if (millions == 1)
-							snprintf(fn, sizeof(fn), "digits/million");
+							ast_copy_string(fn, "digits/million", sizeof(fn));
 						else
-							snprintf(fn, sizeof(fn), "digits/millions");
+							ast_copy_string(fn, "digits/millions", sizeof(fn));
 						num = num % 1000000;
 					} else {
 						ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -804,14 +804,14 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 		* - "million" is different in singular and plural form
 		*/
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (num < 100 && t) {
-			snprintf(fn, sizeof(fn), "digits/and");
+			ast_copy_string(fn, "digits/and", sizeof(fn));
 			t = 0;
 		} else if (num == 1 && mf == -1) {
 			snprintf(fn, sizeof(fn), "digits/%dF", num);
@@ -829,60 +829,60 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, const char 
 				num = 0;
 			}
 		} else if (num == 100 && t == 0) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			num = 0;
 		} else if (num < 1000) {
 			int hundreds = num / 100;
 			num = num % 100;
 			if (hundreds == 1) {
-				snprintf(fn, sizeof(fn), "digits/1N");
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
 			} else {
 				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
 			}
-			snprintf(fna, sizeof(fna), "digits/hundred");
+			ast_copy_string(fna, "digits/hundred", sizeof(fna));
 			t = 1;
 		} else if (num == 1000 && t == 0) {
-			snprintf(fn, sizeof(fn), "digits/thousand");
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			num = 0;
 		} else 	if (num < 1000000) {
 			int thousands = num / 1000;
 			num = num % 1000;
 			t = 1;
 			if (thousands == 1) {
-				snprintf(fn, sizeof(fn), "digits/1N");
-				snprintf(fna, sizeof(fna), "digits/thousand");
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
+				ast_copy_string(fna, "digits/thousand", sizeof(fna));
 			} else {
 				res = ast_say_number_full_de(chan, thousands, ints, language, options, audiofd, ctrlfd);
 				if (res)
 					return res;
-				snprintf(fn, sizeof(fn), "digits/thousand");
+				ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			}
 		} else if (num < 1000000000) {
 			int millions = num / 1000000;
 			num = num % 1000000;
 			t = 1;
 			if (millions == 1) {
-				snprintf(fn, sizeof(fn), "digits/1F");
-				snprintf(fna, sizeof(fna), "digits/million");
+				ast_copy_string(fn, "digits/1F", sizeof(fn));
+				ast_copy_string(fna, "digits/million", sizeof(fna));
 			} else {
 				res = ast_say_number_full_de(chan, millions, ints, language, options, audiofd, ctrlfd);
 				if (res)
 					return res;
-				snprintf(fn, sizeof(fn), "digits/millions");
+				ast_copy_string(fn, "digits/millions", sizeof(fn));
 			}
 		} else if (num <= INT_MAX) {
 			int billions = num / 1000000000;
 			num = num % 1000000000;
 			t = 1;
 			if (billions == 1) {
-				snprintf(fn, sizeof(fn), "digits/1F");
-				snprintf(fna, sizeof(fna), "digits/milliard");
+				ast_copy_string(fn, "digits/1F", sizeof(fn));
+				ast_copy_string(fna, "digits/milliard", sizeof(fna));
 			} else {
 				res = ast_say_number_full_de(chan, billions, ints, language, options, audiofd, ctrlfd);
 				if (res) {
 					return res;
 				}
-				snprintf(fn, sizeof(fn), "digits/milliards");
+				ast_copy_string(fn, "digits/milliards", sizeof(fn));
 			}
 		} else {
 			ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -926,17 +926,17 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 
 	while (!res && (num || playh || playa )) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			snprintf(fn, sizeof(fn), "digits/and");
+			ast_copy_string(fn, "digits/and", sizeof(fn));
 			playa = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -1158,7 +1158,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, const char 
 			res = ast_say_number_full_fr(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 			if (res)
 				return res;
-			snprintf(fn, sizeof(fn), "digits/thousand");
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			num = num % 1000;
 		} else	if (num < 1000000000) {
 			res = ast_say_number_full_fr(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
@@ -1262,13 +1262,13 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			num, state, options, mf
 		);
 		if (state==1) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			state = 0;
 		} else if (state==2) {
-			snprintf(fn, sizeof(fn), "digits/ve");
+			ast_copy_string(fn, "digits/ve", sizeof(fn));
 			state = 0;
 		} else if (state==3) {
-			snprintf(fn, sizeof(fn), "digits/thousands");
+			ast_copy_string(fn, "digits/thousands", sizeof(fn));
 			state=0;
 		} else if (num <21) {
 			if (mf < 0)
@@ -1281,11 +1281,11 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			num = num % 10;
 			if (num>0) state=2;
 		} else if (num < 200) {
-			snprintf(fn, sizeof(fn), "digits/1hundred");
+			ast_copy_string(fn, "digits/1hundred", sizeof(fn));
 			num = num - 100;
 			state=2;
 		} else if (num < 300) {
-			snprintf(fn, sizeof(fn), "digits/2hundred");
+			ast_copy_string(fn, "digits/2hundred", sizeof(fn));
 			num = num - 200;
 			state=2;
 		} else if (num < 1000) {
@@ -1293,10 +1293,10 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			state=1;
 			num = num % 100;
 		} else if (num < 2000) {
-			snprintf(fn, sizeof(fn), "digits/thousand");
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			num = num - 1000;
 		} else if (num < 3000) {
-			snprintf(fn, sizeof(fn), "digits/2thousand");
+			ast_copy_string(fn, "digits/2thousand", sizeof(fn));
 			num = num - 2000;
                         if (num>0) state=2;
 		} else if (num < 20000) {
@@ -1307,13 +1307,13 @@ static int ast_say_number_full_he(struct ast_channel *chan, int num,
 			res = ast_say_number_full_he(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 			if (res)
 				return res;
-			snprintf(fn, sizeof(fn), "digits/thousand");
+			ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			num = num % 1000;
 		} else	if (num < 1000000000) {
 			res = ast_say_number_full_he(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
 			if (res)
 				return res;
-			snprintf(fn, sizeof(fn), "digits/million");
+			ast_copy_string(fn, "digits/million", sizeof(fn));
 			num = num % 1000000;
 		} else {
 			ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -1450,14 +1450,14 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 
 	while (!res && (num || playh)) {
 			if (num < 0) {
-				snprintf(fn, sizeof(fn), "digits/minus");
+				ast_copy_string(fn, "digits/minus", sizeof(fn));
 				if ( num > INT_MIN ) {
 					num = -num;
 				} else {
 					num = 0;
 				}	
 			} else if (playh) {
-				snprintf(fn, sizeof(fn), "digits/hundred");
+				ast_copy_string(fn, "digits/hundred", sizeof(fn));
 				playh = 0;
 			} else if (num < 20) {
 				snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -1519,7 +1519,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 						snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 						playh++;
 					} else {
-						snprintf(fn, sizeof(fn), "digits/hundred");
+						ast_copy_string(fn, "digits/hundred", sizeof(fn));
 					}
 					num %= 100;
 				} else {
@@ -1531,9 +1531,9 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 						tempnum = num;
 						num %= 1000;
 						if ((tempnum / 1000) < 2)
-							snprintf(fn, sizeof(fn), "digits/thousand");
+							ast_copy_string(fn, "digits/thousand", sizeof(fn));
 						else /* for 1000 it says mille, for >1000 (eg 2000) says mila */
-							snprintf(fn, sizeof(fn), "digits/thousands");
+							ast_copy_string(fn, "digits/thousands", sizeof(fn));
 					} else {
 						if (num < 1000000000) { /* 1,000,000,000 */
 							if ((num / 1000000) > 1)
@@ -1543,9 +1543,9 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 							tempnum = num;
 							num %= 1000000;
 							if ((tempnum / 1000000) < 2)
-								snprintf(fn, sizeof(fn), "digits/million");
+								ast_copy_string(fn, "digits/million", sizeof(fn));
 							else
-								snprintf(fn, sizeof(fn), "digits/millions");
+								ast_copy_string(fn, "digits/millions", sizeof(fn));
 						} else {
 							ast_debug(1, "Number '%d' is too big for me\n", num);
 							res = -1;
@@ -1579,14 +1579,14 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 	while (!res && (num || playh )) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -1598,7 +1598,7 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 				if (res)
 					return res;
 				num = num - units;
-				snprintf(fn, sizeof(fn), "digits/nl-en");
+				ast_copy_string(fn, "digits/nl-en", sizeof(fn));
 			} else {
 				snprintf(fn, sizeof(fn), "digits/%d", num - units);
 				num = 0;
@@ -1682,20 +1682,20 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 		*   thirty-four" and 1000012 is "one million and twelve".
 		*/
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (playa) {
-			snprintf(fn, sizeof(fn), "digits/and");
+			ast_copy_string(fn, "digits/and", sizeof(fn));
 			playa = 0;
 		} else if (num == 1 && cn == -1) {
-			snprintf(fn, sizeof(fn), "digits/1N");
+			ast_copy_string(fn, "digits/1N", sizeof(fn));
 			num = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -1706,7 +1706,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 		} else if (num < 1000) {
 			int hundreds = num / 100;
 			if (hundreds == 1)
-				snprintf(fn, sizeof(fn), "digits/1N");
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
 			else
 				snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
 
@@ -2063,7 +2063,7 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 
 	while (!res && num ) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
@@ -2082,9 +2082,9 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 			num = num % 10;
 		} else if (num < 1000) {
 			if (num == 100)
-				snprintf(fn, sizeof(fn), "digits/100");
+				ast_copy_string(fn, "digits/100", sizeof(fn));
 			else if (num < 200)
-				snprintf(fn, sizeof(fn), "digits/100E");
+				ast_copy_string(fn, "digits/100E", sizeof(fn));
 			else {
 				if (mf < 0 && num > 199)
 					snprintf(fn, sizeof(fn), "digits/%dF", (num / 100) * 100);
@@ -2100,7 +2100,7 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 				if (res)
 					return res;
 			}
-			snprintf(fn, sizeof(fn), "digits/1000");
+			ast_copy_string(fn, "digits/1000", sizeof(fn));
 			if ((num % 1000) && ((num % 1000) < 100  || !(num % 100)))
 				playh = 1;
 			num = num % 1000;
@@ -2109,9 +2109,9 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 			if (res)
 				return res;
 			if (num < 2000000)
-				snprintf(fn, sizeof(fn), "digits/1000000");
+				ast_copy_string(fn, "digits/1000000", sizeof(fn));
 			else
-				snprintf(fn, sizeof(fn), "digits/1000000S");
+				ast_copy_string(fn, "digits/1000000S", sizeof(fn));
  
 			if ((num % 1000000) &&
 				/* no thousands */
@@ -2156,14 +2156,14 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 
 	while (!res && (num || playh)) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/hundred");
+			ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			playh = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -2172,7 +2172,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
 			num %= 10;
 		} else if (num == 1 && cn == -1) {	/* En eller ett? */
-		 	snprintf(fn, sizeof(fn), "digits/1N");
+		 	ast_copy_string(fn, "digits/1N", sizeof(fn));
 			num = 0;
 		} else {
 			if (num < 1000){
@@ -2226,14 +2226,14 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 
 	while (!res && (num || playh)) {
 			if (num < 0) {
-				snprintf(fn, sizeof(fn), "digits/minus");
+				ast_copy_string(fn, "digits/minus", sizeof(fn));
 				if ( num > INT_MIN ) {
 					num = -num;
 				} else {
 					num = 0;
 				}	
 			} else if (playh) {
-				snprintf(fn, sizeof(fn), "digits/hundred");
+				ast_copy_string(fn, "digits/hundred", sizeof(fn));
 				playh = 0;
 			} else	if (num < 10) {
 				snprintf(fn, sizeof(fn), "digits/%d", num);
@@ -2318,7 +2318,7 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 
 	while (!res && (num)) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus");
+			ast_copy_string(fn, "digits/minus", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
@@ -2348,11 +2348,11 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 			if (res)
 				return res;
 			if (lastdigits == 1) {
-				snprintf(fn, sizeof(fn), "digits/thousand");
+				ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			} else if (lastdigits > 1 && lastdigits < 5) {
-				snprintf(fn, sizeof(fn), "digits/thousands-i");
+				ast_copy_string(fn, "digits/thousands-i", sizeof(fn));
 			} else {
-				snprintf(fn, sizeof(fn), "digits/thousands");
+				ast_copy_string(fn, "digits/thousands", sizeof(fn));
 			}
 			num %= 1000;
 		} else 	if (num < 1000000000) {	/* 1,000,000,000 */
@@ -2362,11 +2362,11 @@ static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char 
 			if (res)
 				return res;
 			if (lastdigits == 1) {
-				snprintf(fn, sizeof(fn), "digits/million");
+				ast_copy_string(fn, "digits/million", sizeof(fn));
 			} else if (lastdigits > 1 && lastdigits < 5) {
-				snprintf(fn, sizeof(fn), "digits/million-a");
+				ast_copy_string(fn, "digits/million-a", sizeof(fn));
 			} else {
-				snprintf(fn, sizeof(fn), "digits/millions");
+				ast_copy_string(fn, "digits/millions", sizeof(fn));
 			}
 			num %= 1000000;
 		} else {
@@ -2396,14 +2396,14 @@ static int ast_say_number_full_th(struct ast_channel *chan, int num, const char 
 
 	while(!res && (num || playh)) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/lop");
+			ast_copy_string(fn, "digits/lop", sizeof(fn));
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (playh) {
-			snprintf(fn, sizeof(fn), "digits/roi");
+			ast_copy_string(fn, "digits/roi", sizeof(fn));
 			playh = 0;
 		} else if (num < 100) {
 			if ((num <= 20) || ((num % 10) == 1)) {
@@ -2480,7 +2480,7 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 	
 	while (!res && num) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus"); /* kind of senseless for enumerations, but our best effort for error checking */
+			ast_copy_string(fn, "digits/minus", sizeof(fn)); /* kind of senseless for enumerations, but our best effort for error checking */
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
@@ -2506,9 +2506,9 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 			if (res)
 				return res;
 			if (num) {
-				snprintf(fn, sizeof(fn), "digits/hundred");
+				ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			} else {
-				snprintf(fn, sizeof(fn), "digits/h-hundred");
+				ast_copy_string(fn, "digits/h-hundred", sizeof(fn));
 			}
 		} else if (num < 1000000) {
 			int thousands = num / 1000;
@@ -2519,9 +2519,9 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 			if (res)
 				return res;
 			if (num) {					
-				snprintf(fn, sizeof(fn), "digits/thousand");
+				ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			} else {
-				snprintf(fn, sizeof(fn), "digits/h-thousand");
+				ast_copy_string(fn, "digits/h-thousand", sizeof(fn));
 			}
 			t = 1;
 		} else if (num < 1000000000) {
@@ -2532,9 +2532,9 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 			if (res)
 				return res;
 			if (num) {					
-				snprintf(fn, sizeof(fn), "digits/million");
+				ast_copy_string(fn, "digits/million", sizeof(fn));
 			} else {
-				snprintf(fn, sizeof(fn), "digits/h-million");
+				ast_copy_string(fn, "digits/h-million", sizeof(fn));
 			}
 		} else if (num < INT_MAX) {
 			int billions = num / 1000000000;
@@ -2544,12 +2544,12 @@ static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const 
 			if (res)
 				return res;
 			if (num) {					
-				snprintf(fn, sizeof(fn), "digits/billion");
+				ast_copy_string(fn, "digits/billion", sizeof(fn));
 			} else {
-				snprintf(fn, sizeof(fn), "digits/h-billion");
+				ast_copy_string(fn, "digits/h-billion", sizeof(fn));
 			}
 		} else if (num == INT_MAX) {
-			snprintf(fn, sizeof(fn), "digits/h-last");
+			ast_copy_string(fn, "digits/h-last", sizeof(fn));
 			num = 0;
 		} else {
 			ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -2591,14 +2591,14 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 
 	while (!res && num) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus"); /* kind of senseless for enumerations, but our best effort for error checking */
+			ast_copy_string(fn, "digits/minus", sizeof(fn)); /* kind of senseless for enumerations, but our best effort for error checking */
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (num < 100 && t) {
-			snprintf(fn, sizeof(fn), "digits/and");
+			ast_copy_string(fn, "digits/and", sizeof(fn));
 			t = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/h-%d%s", num, gender);
@@ -2619,12 +2619,12 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 			int hundreds = num / 100;
 			num = num % 100;
 			if (hundreds == 1) {
-				snprintf(fn, sizeof(fn), "digits/1N");
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
 			} else {
 				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
 			}
 			if (num) {					
-				snprintf(fna, sizeof(fna), "digits/hundred");
+				ast_copy_string(fna, "digits/hundred", sizeof(fna));
 			} else {
 				snprintf(fna, sizeof(fna), "digits/h-hundred%s", gender);
 			}
@@ -2634,11 +2634,11 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 			num = num % 1000;
 			if (thousands == 1) {
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/1N");
-					snprintf(fna, sizeof(fna), "digits/thousand");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
+					ast_copy_string(fna, "digits/thousand", sizeof(fna));
 				} else {
 					if (t) {
-						snprintf(fn, sizeof(fn), "digits/1N");
+						ast_copy_string(fn, "digits/1N", sizeof(fn));
 						snprintf(fna, sizeof(fna), "digits/h-thousand%s", gender);
 					} else {
 						snprintf(fn, sizeof(fn), "digits/h-thousand%s", gender);
@@ -2650,7 +2650,7 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 					return res;
 				}
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/thousand");
+					ast_copy_string(fn, "digits/thousand", sizeof(fn));
 				} else {
 					snprintf(fn, sizeof(fn), "digits/h-thousand%s", gender);
 				}
@@ -2661,10 +2661,10 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 			num = num % 1000000;
 			if (millions == 1) {
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/1F");
-					snprintf(fna, sizeof(fna), "digits/million");
+					ast_copy_string(fn, "digits/1F", sizeof(fn));
+					ast_copy_string(fna, "digits/million", sizeof(fna));
 				} else {
-					snprintf(fn, sizeof(fn), "digits/1N");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
 					snprintf(fna, sizeof(fna), "digits/h-million%s", gender);
 				}
 			} else {
@@ -2673,7 +2673,7 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 					return res;
 				}
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/millions");
+					ast_copy_string(fn, "digits/millions", sizeof(fn));
 				} else {
 					snprintf(fn, sizeof(fn), "digits/h-million%s", gender);
 				}
@@ -2684,10 +2684,10 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 			num = num % 1000000000;
 			if (billions == 1) {
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/1F");
-					snprintf(fna, sizeof(fna), "digits/milliard");
+					ast_copy_string(fn, "digits/1F", sizeof(fn));
+					ast_copy_string(fna, "digits/milliard", sizeof(fna));
 				} else {
-					snprintf(fn, sizeof(fn), "digits/1N");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
 					snprintf(fna, sizeof(fna), "digits/h-milliard%s", gender);
 				}
 			} else {
@@ -2695,7 +2695,7 @@ static int ast_say_enumeration_full_da(struct ast_channel *chan, int num, const 
 				if (res)
 					return res;
 				if (num) {					
-					snprintf(fn, sizeof(fna), "digits/milliards");
+					ast_copy_string(fn, "digits/milliards", sizeof(fna));
 				} else {
 					snprintf(fn, sizeof(fna), "digits/h-milliard%s", gender);
 				}
@@ -2754,14 +2754,14 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 
 	while (!res && num) {
 		if (num < 0) {
-			snprintf(fn, sizeof(fn), "digits/minus"); /* kind of senseless for enumerations, but our best effort for error checking */
+			ast_copy_string(fn, "digits/minus", sizeof(fn)); /* kind of senseless for enumerations, but our best effort for error checking */
 			if ( num > INT_MIN ) {
 				num = -num;
 			} else {
 				num = 0;
 			}	
 		} else if (num < 100 && t) {
-			snprintf(fn, sizeof(fn), "digits/and");
+			ast_copy_string(fn, "digits/and", sizeof(fn));
 			t = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/h-%d%s", num, gender);
@@ -2782,12 +2782,12 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 			int hundreds = num / 100;
 			num = num % 100;
 			if (hundreds == 1) {
-				snprintf(fn, sizeof(fn), "digits/1N");
+				ast_copy_string(fn, "digits/1N", sizeof(fn));
 			} else {
 				snprintf(fn, sizeof(fn), "digits/%d", hundreds);
 			}
 			if (num) {					
-				snprintf(fna, sizeof(fna), "digits/hundred");
+				ast_copy_string(fna, "digits/hundred", sizeof(fna));
 			} else {
 				snprintf(fna, sizeof(fna), "digits/h-hundred%s", gender);
 			}
@@ -2797,11 +2797,11 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 			num = num % 1000;
 			if (thousands == 1) {
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/1N");
-					snprintf(fna, sizeof(fna), "digits/thousand");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
+					ast_copy_string(fna, "digits/thousand", sizeof(fna));
 				} else {
 					if (t) {
-						snprintf(fn, sizeof(fn), "digits/1N");
+						ast_copy_string(fn, "digits/1N", sizeof(fn));
 						snprintf(fna, sizeof(fna), "digits/h-thousand%s", gender);
 					} else {
 						snprintf(fn, sizeof(fn), "digits/h-thousand%s", gender);
@@ -2813,7 +2813,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 					return res;
 				}
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/thousand");
+					ast_copy_string(fn, "digits/thousand", sizeof(fn));
 				} else {
 					snprintf(fn, sizeof(fn), "digits/h-thousand%s", gender);
 				}
@@ -2824,10 +2824,10 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 			num = num % 1000000;
 			if (millions == 1) {
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/1F");
-					snprintf(fna, sizeof(fna), "digits/million");
+					ast_copy_string(fn, "digits/1F", sizeof(fn));
+					ast_copy_string(fna, "digits/million", sizeof(fna));
 				} else {
-					snprintf(fn, sizeof(fn), "digits/1N");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
 					snprintf(fna, sizeof(fna), "digits/h-million%s", gender);
 				}
 			} else {
@@ -2836,7 +2836,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 					return res;
 				}
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/millions");
+					ast_copy_string(fn, "digits/millions", sizeof(fn));
 				} else {
 					snprintf(fn, sizeof(fn), "digits/h-million%s", gender);
 				}
@@ -2847,10 +2847,10 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 			num = num % 1000000000;
 			if (billions == 1) {
 				if (num) {					
-					snprintf(fn, sizeof(fn), "digits/1F");
-					snprintf(fna, sizeof(fna), "digits/milliard");
+					ast_copy_string(fn, "digits/1F", sizeof(fn));
+					ast_copy_string(fna, "digits/milliard", sizeof(fna));
 				} else {
-					snprintf(fn, sizeof(fn), "digits/1N");
+					ast_copy_string(fn, "digits/1N", sizeof(fn));
 					snprintf(fna, sizeof(fna), "digits/h-milliard%s", gender);
 				}
 			} else {
@@ -2858,7 +2858,7 @@ static int ast_say_enumeration_full_de(struct ast_channel *chan, int num, const 
 				if (res)
 					return res;
 				if (num) {					
-					snprintf(fn, sizeof(fna), "digits/milliards");
+					ast_copy_string(fn, "digits/milliards", sizeof(fna));
 				} else {
 					snprintf(fn, sizeof(fna), "digits/h-milliard%s", gender);
 				}
@@ -3153,7 +3153,7 @@ int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const 
 	if (!res) {
 		snprintf(fn, sizeof(fn), "digits/day-%d", tm.tm_wday);
 		res = ast_streamfile(chan, fn, lang);
-		snprintf(fn, sizeof(fn), "digits/tee");
+		ast_copy_string(fn, "digits/tee", sizeof(fn));
 		res = ast_streamfile(chan, fn, lang);
 		if (!res)
 			res = ast_waitstream(chan, ints);
@@ -3163,7 +3163,7 @@ int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const 
 	if (!res)
 		res = ast_waitstream(chan, ints);
 	if (!res) {
-		snprintf(fn, sizeof(fn), "digits/duan");
+		ast_copy_string(fn, "digits/duan", sizeof(fn));
 		res = ast_streamfile(chan, fn, lang);
 		snprintf(fn, sizeof(fn), "digits/mon-%d", tm.tm_mon);
 		res = ast_streamfile(chan, fn, lang);
@@ -3171,7 +3171,7 @@ int ast_say_date_th(struct ast_channel *chan, time_t t, const char *ints, const 
 			res = ast_waitstream(chan, ints);
 	}
 	if (!res){
-		snprintf(fn, sizeof(fn), "digits/posor");
+		ast_copy_string(fn, "digits/posor", sizeof(fn));
 		res = ast_streamfile(chan, fn, lang);
 		res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
 	}	
@@ -3309,7 +3309,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -3367,9 +3367,9 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -3557,7 +3557,7 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				/* 12-Hour */
 				res = wait_file(chan,ints,"digits/oclock",lang);
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -3593,9 +3593,9 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -3758,7 +3758,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -3793,9 +3793,9 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -3937,7 +3937,7 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/24");
+					ast_copy_string(nextmsg, "digits/24", sizeof(nextmsg));
 				snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
@@ -3945,7 +3945,7 @@ int ast_say_date_with_format_th(struct ast_channel *chan, time_t time, const cha
 			case 'k':
 				/* 24-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/24");
+					ast_copy_string(nextmsg, "digits/24", sizeof(nextmsg));
 				snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
@@ -4168,9 +4168,9 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -4315,7 +4315,7 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -4530,7 +4530,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -4557,9 +4557,9 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -4741,7 +4741,7 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -4767,9 +4767,9 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 					res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -4974,7 +4974,7 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -4997,9 +4997,9 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -5166,7 +5166,7 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg, sizeof(nextmsg), "digits/t-12");
+					ast_copy_string(nextmsg, "digits/t-12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg, sizeof(nextmsg), "digits/t-%d", tm.tm_hour - 12);
 				else 
@@ -5199,9 +5199,9 @@ int ast_say_date_with_format_pl(struct ast_channel *chan, time_t thetime, const 
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg, sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg, sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan, ints, nextmsg, lang);
 				break;
 			case 'Q':
@@ -5705,7 +5705,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 			case 'l':
 				/* 12-Hour */
 				if (tm.tm_hour == 0)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+					ast_copy_string(nextmsg, "digits/12", sizeof(nextmsg));
 				else if (tm.tm_hour > 12)
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
 				else
@@ -5760,9 +5760,9 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 			case 'p':
 				/* AM/PM */
 				if (tm.tm_hour > 11)
-					snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+					ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 				else
-					snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+					ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'Q':
@@ -6429,7 +6429,7 @@ int ast_say_datetime_th(struct ast_channel *chan, time_t t, const char *ints, co
 			res = ast_waitstream(chan, ints);
 	}
 	if (!res){
-		snprintf(fn, sizeof(fn), "digits/posor");
+		ast_copy_string(fn, "digits/posor", sizeof(fn));
 		res = ast_streamfile(chan, fn, lang);
 		res = ast_say_number(chan, tm.tm_year + 1900 + 543, ints, lang, (char *) NULL);
 	}	
@@ -6440,7 +6440,7 @@ int ast_say_datetime_th(struct ast_channel *chan, time_t t, const char *ints, co
 	if (!hour)
 		hour = 24;
 	if (!res){
-		snprintf(fn, sizeof(fn), "digits/wela");
+		ast_copy_string(fn, "digits/wela", sizeof(fn));
 		res = ast_streamfile(chan, fn, lang);
 	}	
 	if (!res)
@@ -6633,14 +6633,14 @@ int ast_say_datetime_from_now_pt(struct ast_channel *chan, time_t t, const char 
 	}	/* Otherwise, it was today */
 	if (!strcasecmp(lang, "pt_BR")) {
 		if (tm.tm_hour > 1) {
-			snprintf(fn, sizeof(fn), "digits/pt-as");
+			ast_copy_string(fn, "digits/pt-as", sizeof(fn));
 		} else {
-			snprintf(fn, sizeof(fn), "digits/pt-a");
+			ast_copy_string(fn, "digits/pt-a", sizeof(fn));
 		}
 		if (!res)
 			res = wait_file(chan, ints, fn, lang);
 	} else {
-		snprintf(fn, sizeof(fn), "digits/pt-ah");
+		ast_copy_string(fn, "digits/pt-ah", sizeof(fn));
 		if (!res)
 			res = wait_file(chan, ints, fn, lang);
 		if (tm.tm_hour != 1)
@@ -6713,7 +6713,7 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 
  
 	if (!num) {
-		snprintf(fn, sizeof(fn), "digits/0");
+		ast_copy_string(fn, "digits/0", sizeof(fn));
 		res = ast_streamfile(chan, fn, chan->language);
 		if (!res)
 			return  ast_waitstream(chan, ints);
@@ -6992,9 +6992,9 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 		case 'p':
 			/* AM/PM */
 			if (tm.tm_hour > 11)
-				snprintf(nextmsg,sizeof(nextmsg), "digits/p-m");
+				ast_copy_string(nextmsg, "digits/p-m", sizeof(nextmsg));
 			else
-				snprintf(nextmsg,sizeof(nextmsg), "digits/a-m");
+				ast_copy_string(nextmsg, "digits/a-m", sizeof(nextmsg));
 			res = wait_file(chan,ints,nextmsg,lang);
 			break;
 		case 'Q':
@@ -7054,12 +7054,12 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			break;
 		case 'S':
 			/* Seconds */
-			snprintf(nextmsg,sizeof(nextmsg), "digits/kai");
+			ast_copy_string(nextmsg, "digits/kai", sizeof(nextmsg));
 			res = wait_file(chan,ints,nextmsg,lang);
 			if (!res)
 				res = ast_say_number_full_gr(chan, tm.tm_sec, ints, lang, -1, -1);
 			if (!res)
-				snprintf(nextmsg,sizeof(nextmsg), "digits/seconds");
+				ast_copy_string(nextmsg, "digits/seconds", sizeof(nextmsg));
 			res = wait_file(chan,ints,nextmsg,lang);
 			break;
 		case 'T':

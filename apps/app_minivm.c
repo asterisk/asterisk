@@ -934,7 +934,7 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		char tmpcmd[PATH_MAX];
 		int tmpfd;
 
-		snprintf(newtmp, sizeof(newtmp), "/tmp/XXXXXX");
+		ast_copy_string(newtmp, "/tmp/XXXXXX", sizeof(newtmp));
 		ast_debug(3, "newtmp: %s\n", newtmp);
 		tmpfd = mkstemp(newtmp);
 		snprintf(tmpcmd, sizeof(tmpcmd), "sox -v %.4f %s.%s %s.%s", vmu->volgain, filename, format, newtmp, format);

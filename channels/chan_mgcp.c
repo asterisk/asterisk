@@ -882,7 +882,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 				ast_verb(3, "MGCP distinctive callwait %s\n", tone);
 			}
 		} else {
-			snprintf(tone, sizeof(tone), "L/wt");
+			ast_copy_string(tone, "L/wt", sizeof(tone));
 			if (mgcpdebug) {
 				ast_verb(3, "MGCP normal callwait %s\n", tone);
 			}
@@ -896,7 +896,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 				ast_verb(3, "MGCP distinctive ring %s\n", tone);
 			}
 		} else {
-			snprintf(tone, sizeof(tone), "L/rg");
+			ast_copy_string(tone, "L/rg", sizeof(tone));
 			if (mgcpdebug) {
 				ast_verb(3, "MGCP default ring\n");
 			}
@@ -1932,7 +1932,7 @@ static int add_line(struct mgcp_request *req, char *line)
 	}
 	if (!req->lines) {
 		/* Add extra empty return */
-		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n");
+		ast_copy_string(req->data + req->len, "\r\n", sizeof(req->data) - req->len);
 		req->len += strlen(req->data + req->len);
 	}
 	req->line[req->lines] = req->data + req->len;
@@ -2065,11 +2065,11 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	if (mgcpdebug) {
 		ast_verbose("We're at %s port %d\n", ast_inet_ntoa(p->parent->ourip), ntohs(sin.sin_port));
 	}
-	snprintf(v, sizeof(v), "v=0\r\n");
+	ast_copy_string(v, "v=0\r\n", sizeof(v));
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", (int)getpid(), (int)getpid(), ast_inet_ntoa(dest.sin_addr));
-	snprintf(s, sizeof(s), "s=session\r\n");
+	ast_copy_string(s, "s=session\r\n", sizeof(s));
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
-	snprintf(t, sizeof(t), "t=0 0\r\n");
+	ast_copy_string(t, "t=0 0\r\n", sizeof(t));
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
@@ -2136,7 +2136,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 		ast_rtp_get_peer(rtp, &sub->tmpdest);
 		return 0;
 	}
-	snprintf(local, sizeof(local), "p:20");
+	ast_copy_string(local, "p:20", sizeof(local));
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
@@ -2166,7 +2166,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	int x;
 	struct mgcp_endpoint *p = sub->parent;
 
-	snprintf(local, sizeof(local), "p:20");
+	ast_copy_string(local, "p:20", sizeof(local));
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));

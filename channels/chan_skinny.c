@@ -4221,8 +4221,8 @@ static int handle_speed_dial_stat_req_message(struct skinny_req *req, struct ski
 		return -1;
 
 	req->data.speeddialreq.speedDialNumber = htolel(instance);
-	snprintf(req->data.speeddial.speedDialDirNumber, sizeof(req->data.speeddial.speedDialDirNumber), sd->exten);
-	snprintf(req->data.speeddial.speedDialDisplayName, sizeof(req->data.speeddial.speedDialDisplayName), sd->label);
+	ast_copy_string(req->data.speeddial.speedDialDirNumber, sd->exten, sizeof(req->data.speeddial.speedDialDirNumber));
+	ast_copy_string(req->data.speeddial.speedDialDisplayName, sd->label, sizeof(req->data.speeddial.speedDialDisplayName));
 
 	transmit_response(s, req);
 	return 1;
@@ -4442,7 +4442,7 @@ static int handle_version_req_message(struct skinny_req *req, struct skinnysessi
 	if (!(req = req_alloc(sizeof(struct version_res_message), VERSION_RES_MESSAGE)))
 		return -1;
 
-	snprintf(req->data.version.version, sizeof(req->data.version.version), d->version_id);
+	ast_copy_string(req->data.version.version, d->version_id, sizeof(req->data.version.version));
 	transmit_response(s, req);
 	return 1;
 }

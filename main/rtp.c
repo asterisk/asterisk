@@ -2113,7 +2113,7 @@ char *ast_rtp_lookup_mime_multiple(char *buf, size_t size, const int capability,
 	}
 
 	if (start == end)
-		snprintf(start, size, "nothing)"); 
+		ast_copy_string(start, "nothing)", size); 
 	else if (size > 1)
 		*(end -1) = ')';
 	

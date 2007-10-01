@@ -1880,7 +1880,7 @@ static char *cli_prompt(EditLine *el)
 	} else if (remotehostname)
 		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT2, remotehostname);
 	else
-		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT);
+		ast_copy_string(prompt, ASTERISK_PROMPT, sizeof(prompt));
 
 	return(prompt);	
 }
@@ -2206,7 +2206,7 @@ static void ast_remotecontrol(char * data)
 	snprintf(tmp, sizeof(tmp), "core set debug atleast %d", option_debug);
 	fdprint(ast_consock, tmp);
 	if (ast_opt_mute) {
-		snprintf(tmp, sizeof(tmp), "log and verbose output currently muted ('logger unmute' to unmute)");
+		ast_copy_string(tmp, "log and verbose output currently muted ('logger unmute' to unmute)", sizeof(tmp));
 		fdprint(ast_consock, tmp);
 	}
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);

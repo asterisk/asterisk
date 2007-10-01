@@ -1701,7 +1701,7 @@ static int update_pipeline_config(struct misdn_bchannel *bc)
 
 	misdn_cfg_get(bc->port, MISDN_CFG_ECHOCANCEL, &ec, sizeof(ec));
 	if (ec == 1)
-		snprintf(bc->pipeline, sizeof(bc->pipeline), "mg2ec");
+		ast_copy_string(bc->pipeline, "mg2ec", sizeof(bc->pipeline));
 	else if (ec > 1)
 		snprintf(bc->pipeline, sizeof(bc->pipeline), "mg2ec(deftaps=%d)", ec);
 
