@@ -500,25 +500,25 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, const char 
 			num = 0;
 		} else	if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
+			num %= 10;
 		} else {
 			if (num < 1000){
 				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 				playh++;
-				num -= ((num / 100) * 100);
+				num %= 100;
 			} else {
 				if (num < 1000000) { /* 1,000,000 */
 					res = ast_say_number_full_en(chan, num / 1000, ints, language, audiofd, ctrlfd);
 					if (res)
 						return res;
-					num = num % 1000;
+					num %= 1000;
 					snprintf(fn, sizeof(fn), "digits/thousand");
 				} else {
 					if (num < 1000000000) {	/* 1,000,000,000 */
 						res = ast_say_number_full_en(chan, num / 1000000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
-						num = num % 1000000;
+						num %= 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
 						ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -604,7 +604,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, const char 
 			num = 0;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
+			num %= 10;
 		} else if (num < 1000) {
 			hundered = num / 100;
 			if ( hundered == 1 ) {
@@ -943,7 +943,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 			num = 0;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
+			num %= 10;
 		} else if (num < 1000) {
 			int hundreds = num / 100;
 			snprintf(fn, sizeof(fn), "digits/%d", (num / 100));
@@ -957,7 +957,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 			if (res)
 				return res;
 			snprintf(fn, sizeof(fn), "digits/thousand");
-			num = num % 1000;
+			num %= 1000;
 			if (num && num < 100)
 				playa++;
 		} else 	if (num < 1000000000) {
@@ -966,7 +966,7 @@ static int ast_say_number_full_en_GB(struct ast_channel *chan, int num, const ch
 				if (res)
 					return res;
 				snprintf(fn, sizeof(fn), "digits/million");
-				num = num % 1000000;
+				num %= 1000000;
 				if (num && num < 100)
 					playa++;
 		} else {
@@ -1033,7 +1033,7 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 			num = 0;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num/10)*10);
-			num -= ((num/10)*10);
+			num %= 10;
 			if (num)
 				playa++;
 		} else if (num == 100) {
@@ -1045,16 +1045,16 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 		} else {
 			if (num < 1000) {
 				snprintf(fn, sizeof(fn), "digits/%d", (num/100)*100);
-				num -= ((num/100)*100);
+				num %= 100;
 			} else if (num < 2000) {
-				num = num % 1000;
+				num %= 1000;
 				snprintf(fn, sizeof(fn), "digits/thousand");
 			} else {
 				if (num < 1000000) {
 					res = ast_say_number_full_es(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 					if (res)
 						return res;
-					num = num % 1000;
+					num %= 1000;
 					snprintf(fn, sizeof(fn), "digits/thousand");
 				} else {
 					if (num < 2147483640) {
@@ -1069,7 +1069,7 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 								return res;
 							snprintf(fn, sizeof(fn), "digits/millions");
 						}
-						num = num % 1000000;
+						num %= 1000000;
 					} else {
 						ast_debug(1, "Number '%d' is too big for me\n", num);
 						res = -1;
@@ -1367,31 +1367,31 @@ static int ast_say_number_full_hu(struct ast_channel *chan, int num, const char 
 			num = 0;
 		} else if (num < 20) {
 			snprintf(fn, sizeof(fn), "digits/10en");
-			num = (num - 10);
+			num -= 10;
 		} else if (num < 30) {
 			snprintf(fn, sizeof(fn), "digits/20on");
-			num = (num - 20);
+			num -= 20;
 		} else	if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
+			num %= 10;
 		} else {
 			if (num < 1000){
 				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 				playh++;
-				num -= ((num / 100) * 100);
+				num %= 100;
 			} else {
 				if (num < 1000000) { /* 1,000,000 */
 					res = ast_say_number_full_hu(chan, num / 1000, ints, language, audiofd, ctrlfd);
 					if (res)
 						return res;
-					num = num % 1000;
+					num %= 1000;
 					snprintf(fn, sizeof(fn), "digits/thousand");
 				} else {
 					if (num < 1000000000) {	/* 1,000,000,000 */
 						res = ast_say_number_full_hu(chan, num / 1000000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
-						num = num % 1000000;
+						num %= 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
 						ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -1512,7 +1512,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 				num = 0;
 			} else if (num < 100) {
 				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-				num -= ((num / 10) * 10);
+				num %= 10;
 			} else {
 				if (num < 1000) {
 					if ((num / 100) > 1) {
@@ -1521,7 +1521,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 					} else {
 						snprintf(fn, sizeof(fn), "digits/hundred");
 					}
-					num -= ((num / 100) * 100);
+					num %= 100;
 				} else {
 					if (num < 1000000) { /* 1,000,000 */
 						if ((num/1000) > 1)
@@ -1529,7 +1529,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 						if (res)
 							return res;
 						tempnum = num;
-						num = num % 1000;
+						num %= 1000;
 						if ((tempnum / 1000) < 2)
 							snprintf(fn, sizeof(fn), "digits/thousand");
 						else /* for 1000 it says mille, for >1000 (eg 2000) says mila */
@@ -1541,7 +1541,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, const char 
 							if (res)
 								return res;
 							tempnum = num;
-							num = num % 1000000;
+							num %= 1000000;
 							if ((tempnum / 1000000) < 2)
 								snprintf(fn, sizeof(fn), "digits/million");
 							else
@@ -1606,35 +1606,35 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, const char 
 		} else if (num < 200) {
 			/* hundred, not one-hundred */
 			ast_copy_string(fn, "digits/hundred", sizeof(fn));
-			num -= ((num / 100) * 100);
+			num %= 100;
 		} else if (num < 1000) {
 			snprintf(fn, sizeof(fn), "digits/%d", num / 100);
 			playh++;
-			num -= ((num / 100) * 100);
+			num %= 100;
 		} else {
 			if (num < 1100) {
 				/* thousand, not one-thousand */
-				num = num % 1000;
+				num %= 1000;
 				ast_copy_string(fn, "digits/thousand", sizeof(fn));
 			} else if (num < 10000)	{ /* 1,100 to 9,9999 */
 				res = ast_say_number_full_nl(chan, num / 100, ints, language, audiofd, ctrlfd);
 				if (res)
 					return res;
-				num = num % 100;
+				num %= 100;
 				ast_copy_string(fn, "digits/hundred", sizeof(fn));
 			} else {
 				if (num < 1000000) { /* 1,000,000 */
 					res = ast_say_number_full_nl(chan, num / 1000, ints, language, audiofd, ctrlfd);
 					if (res)
 						return res;
-					num = num % 1000;
+					num %= 1000;
 					snprintf(fn, sizeof(fn), "digits/thousand");
 				} else {
 					if (num < 1000000000) { /* 1,000,000,000 */
 						res = ast_say_number_full_nl(chan, num / 1000000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
-						num = num % 1000000;
+						num %= 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
 						ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -1702,7 +1702,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 			num = 0;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
+			num %= 10;
 		} else if (num < 1000) {
 			int hundreds = num / 100;
 			if (hundreds == 1)
@@ -1719,7 +1719,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 			if (res)
 				return res;
 			snprintf(fn, sizeof(fn), "digits/thousand");
-			num = num % 1000;
+			num %= 1000;
 			if (num && num < 100)
 				playa++;
 		} else 	if (num < 1000000000) {
@@ -1728,7 +1728,7 @@ static int ast_say_number_full_no(struct ast_channel *chan, int num, const char 
 				if (res)
 					return res;
 				snprintf(fn, sizeof(fn), "digits/million");
-				num = num % 1000000;
+				num %= 1000000;
 				if (num && num < 100)
 					playa++;
 		} else {
@@ -2170,7 +2170,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 			num = 0;
 		} else if (num < 100) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10);
+			num %= 10;
 		} else if (num == 1 && cn == -1) {	/* En eller ett? */
 		 	snprintf(fn, sizeof(fn), "digits/1N");
 			num = 0;
@@ -2178,14 +2178,14 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 			if (num < 1000){
 				snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 				playh++;
-				num -= ((num / 100) * 100);
+				num %= 100;
 			} else {
 				if (num < 1000000) { /* 1,000,000 */
 					res = ast_say_number_full_se(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 					if (res) {
 						return res;
 					}
-					num = num % 1000;
+					num %= 1000;
 					snprintf(fn, sizeof(fn), "digits/thousand");
 				} else {
 					if (num < 1000000000) {	/* 1,000,000,000 */
@@ -2193,7 +2193,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 						if (res) {
 							return res;
 						}
-						num = num % 1000000;
+						num %= 1000000;
 						snprintf(fn, sizeof(fn), "digits/million");
 					} else {
 						ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -2240,25 +2240,25 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 				num = 0;
 			} else	if (num < 100) {
 				snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-				num -= ((num / 10) * 10);
+				num %= 10;
 			} else {
 				if (num < 1000){
 					snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 					playh++;
-					num -= ((num / 100) * 100);
+					num %= 100;
 				} else {
 					if (num < 1000000) { /* 1,000,000 */
 						res = ast_say_number_full_tw(chan, num / 1000, ints, language, audiofd, ctrlfd);
 						if (res)
 							return res;
-						num = num % 1000;
+						num %= 1000;
 						snprintf(fn, sizeof(fn), "digits/thousand");
 					} else {
 						if (num < 1000000000) {	/* 1,000,000,000 */
 							res = ast_say_number_full_tw(chan, num / 1000000, ints, language, audiofd, ctrlfd);
 							if (res)
 								return res;
-							num = num % 1000000;
+							num %= 1000000;
 							snprintf(fn, sizeof(fn), "digits/million");
 						} else {
 							ast_debug(1, "Number '%d' is too big for me\n", num);
@@ -2411,35 +2411,35 @@ static int ast_say_number_full_th(struct ast_channel *chan, int num, const char 
 				num = 0;
 			} else {
 				snprintf(fn, sizeof(fn), "digits/%d", (num / 10) * 10);
-				num -= ((num / 10) * 10);
+				num %= 10;
 			}
 		} else if (num < 1000) {
 			snprintf(fn, sizeof(fn), "digits/%d", (num/100));
 			playh++;
-			num -= ((num / 100) * 100);
+			num %= 100;
 		} else if (num < 10000) { /* 10,000 */
 			res = ast_say_number_full_th(chan, num / 1000, ints, language, audiofd, ctrlfd);
 			if (res)
 				return res;
-			num = num % 1000;
+			num %= 1000;
 			snprintf(fn, sizeof(fn), "digits/pan");
 		} else if (num < 100000) { /* 100,000 */
 			res = ast_say_number_full_th(chan, num / 10000, ints, language, audiofd, ctrlfd);
 			if (res)
 				return res;
-			num = num % 10000;
+			num %= 10000;
 			snprintf(fn, sizeof(fn), "digits/muan");
 		} else if (num < 1000000) { /* 1,000,000 */
 			res = ast_say_number_full_th(chan, num / 100000, ints, language, audiofd, ctrlfd);
 			if (res)
 				return res;
-			num = num % 100000;
+			num %= 100000;
 			snprintf(fn, sizeof(fn), "digits/san");
 		} else {
 			res = ast_say_number_full_th(chan, num / 1000000, ints, language, audiofd, ctrlfd);
 			if (res)
 				return res;
-			num = num % 1000000;
+			num %= 1000000;
 			snprintf(fn, sizeof(fn), "digits/larn");
 		}
 		if (!res) {
@@ -6727,18 +6727,18 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 		} else if (num <= 100) {
 			/* 13 < num <= 100  */
 			snprintf(fn, sizeof(fn), "digits/%d", (num /10) * 10);
-			num -= ((num / 10) * 10); 
+			num %= 10; 
 		} else if (num < 200) {
 			/* 100 < num < 200 */
 			snprintf(fn, sizeof(fn), "digits/hundred-100");
-			num -= ((num / 100) * 100);
+			num %= 100;
 		}else if (num < 1000) {
 			/* 200 < num < 1000 */
 			snprintf(fn, sizeof(fn), "digits/hundred-%d", (num/100)*100);
-			num -= ((num / 100) * 100);
+			num %= 100;
 		}else if (num < 2000){
 			snprintf(fn, sizeof(fn), "digits/xilia");
-			num -= ((num / 1000) * 1000);
+			num %= 1000;
 		}
 		else {
 			/* num >  1000 */ 
@@ -6746,14 +6746,14 @@ static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char 
 				res = ast_say_number_full_gr(chan, (num / 1000), ints, chan->language, audiofd, ctrlfd);
 				if (res)
 					return res;
-				num = num % 1000;
+				num %= 1000;
 				snprintf(fn, sizeof(fn), "digits/thousands");
 			}  else {
 				if (num < 1000000000) { /* 1,000,000,000 */
 					res = ast_say_number_full_gr(chan, (num / 1000000), ints, chan->language ,audiofd, ctrlfd);
 					if (res)
 						return res;
-					num = num % 1000000;
+					num %= 1000000;
 					snprintf(fn, sizeof(fn), "digits/millions");
 				} else {
 					ast_debug(1, "Number '%d' is too big for me\n", num);
