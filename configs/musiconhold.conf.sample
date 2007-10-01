@@ -39,11 +39,16 @@ directory=/var/lib/asterisk/moh
 ;[native-random]
 ;mode=files
 ;directory=/var/lib/asterisk/moh
-;random=yes     ; Play the files in a random order
 ;digit=#        ; If this option is set for a class, then when callers are
 ;               ; listening to music on hold, they can press this digit, and
 ;               ; they will switch to listening to this music class.
+;sort=random    ; Sort the files in random order
 
+;[native-alphabetical]
+;mode=files
+;directory=/var/lib/asterisk/moh
+;sort=alpha     ; Sort the files in alphabetical order.  If this option is
+;               ; not specified, the sort order is undefined.
 
 ; =========
 ; Other (non-native) playback methods

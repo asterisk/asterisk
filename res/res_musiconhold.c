@@ -125,6 +125,7 @@ struct moh_files_state {
 #define MOH_SINGLE		(1 << 1)
 #define MOH_CUSTOM		(1 << 2)
 #define MOH_RANDOMIZE		(1 << 3)
+#define MOH_SORTALPHA		(1 << 4)
 
 struct mohclass {
 	char name[MAX_MUSICCLASS];
@@ -810,6 +811,16 @@ static int moh_add_file(struct mohclass *class, const char *filepath)
 	return 0;
 }
 
+static int moh_sort_compare(const void *i1, const void *i2)
+{
+	char *s1, *s2;
+
+	s1 = ((char **)i1)[0];
+	s2 = ((char **)i2)[0];
+
+	return strcasecmp(s1, s2);
+}
+
 static int moh_scan_files(struct mohclass *class) {
 
 	DIR *files_DIR;
@@ -871,6 +882,8 @@ static int moh_scan_files(struct mohclass *class) {
 
 	closedir(files_DIR);
 	chdir(path);
+	if (ast_test_flag(class, MOH_SORTALPHA))
+		qsort(&class->filearray[0], class->total_files, sizeof(char *), moh_sort_compare);
 	return class->total_files;
 }
 
@@ -1061,6 +1074,10 @@ static int load_moh_classes(int reload)
 					class->digit = *var->value;
 				else if (!strcasecmp(var->name, "random"))
 					ast_set2_flag(class, ast_true(var->value), MOH_RANDOMIZE);
+				else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "random"))
+					ast_set_flag(class, MOH_RANDOMIZE);
+				else if (!strcasecmp(var->name, "sort") && !strcasecmp(var->value, "alpha")) 
+					ast_set_flag(class, MOH_SORTALPHA);
 				else if (!strcasecmp(var->name, "format")) {
 					class->format = ast_getformatbyname(var->value);
 					if (!class->format) {
