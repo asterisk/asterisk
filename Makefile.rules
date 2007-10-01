@@ -17,6 +17,8 @@
 
 -include $(ASTTOPDIR)/makeopts
 
+.PHONY: dist-clean
+
 ifeq ($(NOISY_BUILD),)
    ECHO_PREFIX=@
    CMD_PREFIX=@
@@ -79,3 +81,5 @@ endif
 %: %.o
 	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
 	$(CMD_PREFIX) $(CXX) $(STATIC_BUILD) -o $@ $(PTHREAD_CFLAGS) $(ASTLDFLAGS) $^ $(PTHREAD_LIBS) $(LIBS)
+
+dist-clean::
