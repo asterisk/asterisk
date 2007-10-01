@@ -4042,7 +4042,7 @@ static int aeldebug = 0;
 
 static int pbx_load_module(void)
 {
-	int errs, sem_err, sem_warn, sem_note;
+	int errs=0, sem_err=0, sem_warn=0, sem_note=0;
 	char *rfilename;
 	struct ast_context *local_contexts=NULL, *con;
 	struct pval *parse_tree;
