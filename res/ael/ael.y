@@ -205,8 +205,8 @@ context : opt_abstract KW_CONTEXT context_name LC elements RC {
 		if (!$5) {
                         ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Warning! The empty context %s will be IGNORED!\n", 
 				my_file, @4.first_line, @4.first_column, @4.last_column, $3 );
+			$$ = 0;
 			free($3);
-
 		} else {
 			$$ = npval2(PV_CONTEXT, &@1, &@6);
 			$$->u1.str = $3;

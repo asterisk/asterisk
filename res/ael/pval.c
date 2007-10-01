@@ -2871,6 +2871,8 @@ void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_not
 #endif
 	struct argapp *apps=0;
 
+	if (!item)
+		return; /* don't check an empty tree */
 #ifdef AAL_ARGCHECK
 	rfilename = alloca(10 + strlen(ast_config_AST_VAR_DIR));
 	sprintf(rfilename, "%s/applist", ast_config_AST_VAR_DIR);
