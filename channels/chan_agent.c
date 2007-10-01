@@ -702,17 +702,20 @@ static void set_agentbycallerid(const char *callerid, const char *agent)
 	pbx_builtin_setvar_helper(NULL, buf, agent);
 }
 
+/*! \brief return the channel or base channel if one exists.  This function assumes the channel it is called on is already locked */
 struct ast_channel* agent_get_base_channel(struct ast_channel *chan)
 {
 	struct agent_pvt *p = NULL;
-	struct ast_channel *base = NULL;
-	
+	struct ast_channel *base = chan;
+
+	/* chan is locked by the calling function */
 	if (!chan || !chan->tech_pvt) {
 		ast_log(LOG_ERROR, "whoa, you need a channel (0x%ld) with a tech_pvt (0x%ld) to get a base channel.\n", (long)chan, (chan)?(long)chan->tech_pvt:(long)NULL);
-	} else {
-		p = chan->tech_pvt;
-		base = p->chan;
+		return NULL;
 	}
+	p = chan->tech_pvt;
+	if (p->chan) 
+		base = p->chan;
 	return base;
 }
 
