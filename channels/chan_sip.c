@@ -5856,7 +5856,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 			/* Note: should really look at the 'freq' and '#chans' params too */
 			/* Note: This should all be done in the context of the m= above */
-			if (!strncasecmp(mimeSubtype, "H26",3)) {         /* Video */
+			if (!strncasecmp(mimeSubtype, "H26", 3) || !strncasecmp(mimeSubtype, "MP4", 3)) {         /* Video */
 				/* Not going to do anything here for the moment, but we will soon */
 			} else if (!strncasecmp(mimeSubtype, "T140",4)) { /* Text */
 				if (p->trtp) {
