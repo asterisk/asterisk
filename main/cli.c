@@ -1407,16 +1407,14 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 		}
 		*dst++ = NULL;
 	}
-	if (set_full_cmd(e))
-		goto done;
 	AST_RWLIST_WRLOCK(&helpers);
 	
 	if (find_cli(e->cmda, 1)) {
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", e->_full_cmd);
-		ast_free(e->_full_cmd);
-		e->_full_cmd = NULL;
 		goto done;
 	}
+	if (set_full_cmd(e))
+		goto done;
 	if (!ed) {
 		e->deprecated = 0;
 	} else {
