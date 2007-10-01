@@ -408,7 +408,6 @@ static int do_reload(int loading)
 			if (ast_pthread_create_background(&refresh_thread, NULL, do_refresh, NULL) < 0) {
 				ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
 			}
-			ast_cli_register(&cli_refresh);
 		}
 		/* make a background refresh happen right away */
 		refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
