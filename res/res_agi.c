@@ -1926,6 +1926,8 @@ static enum agi_result run_agi(struct ast_channel *chan, char *request, AGI *agi
 				if (res != NULL && !agi->fast)
 					break;
 				buflen = strlen(buf);
+				if (buflen && buf[buflen - 1] == '\n')
+					break;
 				len -= buflen;
 				if (agidebug)
 					ast_verbose( "AGI Rx << temp buffer %s - errno %s\n", buf, strerror(errno));
