@@ -702,6 +702,84 @@ static inline int ast_rwlock_destroy(ast_rwlock_t *prwlock)
 	return pthread_rwlock_destroy(prwlock);
 }
 
+#ifdef DEBUG_THREADS
+#define ast_rwlock_unlock(a) \
+	_ast_rwlock_unlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+static inline int _ast_rwlock_unlock(ast_rwlock_t *lock, const char *name,
+	const char *file, int line, const char *func)
+{
+	int res;
+	res = pthread_rwlock_unlock(lock);
+	ast_remove_lock_info(lock);
+	return res;
+}
+
+#define ast_rwlock_rdlock(a) \
+	_ast_rwlock_rdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+static inline int _ast_rwlock_rdlock(ast_rwlock_t *lock, const char *name,
+	const char *file, int line, const char *func)
+{
+	int res;
+	ast_store_lock_info(file, line, func, name, lock);
+	res = pthread_rwlock_rdlock(lock);
+	if (!res)
+		ast_mark_lock_acquired();
+	else
+		ast_remove_lock_info(lock);
+	return res;
+}
+
+#define ast_rwlock_wrlock(a) \
+	_ast_rwlock_wrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+static inline int _ast_rwlock_wrlock(ast_rwlock_t *lock, const char *name,
+	const char *file, int line, const char *func)
+{
+	int res;
+	ast_store_lock_info(file, line, func, name, lock);
+	res = pthread_rwlock_wrlock(lock);
+	if (!res)
+		ast_mark_lock_acquired();
+	else
+		ast_remove_lock_info(lock);
+	return res;
+}
+
+#define ast_rwlock_tryrdlock(a) \
+	_ast_rwlock_tryrdlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+static inline int _ast_rwlock_tryrdlock(ast_rwlock_t *lock, const char *name,
+	const char *file, int line, const char *func)
+{
+	int res;
+	ast_store_lock_info(file, line, func, name, lock);
+	res = pthread_rwlock_tryrdlock(lock);
+	if (!res)
+		ast_mark_lock_acquired();
+	else
+		ast_remove_lock_info(lock);
+	return res;
+}
+
+#define ast_rwlock_trywrlock(a) \
+	_ast_rwlock_trywrlock(a, # a, __FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+static inline int _ast_rwlock_trywrlock(ast_rwlock_t *lock, const char *name,
+	const char *file, int line, const char *func)
+{
+	int res;
+	ast_store_lock_info(file, line, func, name, lock);
+	res = pthread_rwlock_trywrlock(lock);
+	if (!res)
+		ast_mark_lock_acquired();
+	else
+		ast_remove_lock_info(lock);
+	return res;
+}
+
+#else
 static inline int ast_rwlock_unlock(ast_rwlock_t *prwlock)
 {
 	return pthread_rwlock_unlock(prwlock);
@@ -726,6 +804,7 @@ static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
 {
 	return pthread_rwlock_trywrlock(prwlock);
 }
+#endif /* DEBUG_THREADS */
 
 /* Statically declared read/write locks */
 
