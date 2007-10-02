@@ -820,7 +820,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		/* we do mean transferee here, NOT transferer */
 		finishup(transferee);
 		return -1;
-	};
+	}
 	memset(&bconfig,0,sizeof(struct ast_bridge_config));
 	ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 	ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
@@ -837,7 +837,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	if (check_compat(transferee, newchan)) {
 		finishup(transferee);
 		return -1;
-	};
+	}
 
 	ast_indicate(transferee, AST_CONTROL_UNHOLD);
 	
