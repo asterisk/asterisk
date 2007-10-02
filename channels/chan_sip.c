@@ -6939,7 +6939,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			if (!ast_strlen_zero(p->refer->refer_to))
 				add_header(&req, "Refer-To", p->refer->refer_to);
 			if (!ast_strlen_zero(p->refer->referred_by)) {
-				sprintf(buf, "%s <%s>", p->refer->referred_by_name, p->refer->referred_by);
+				snprintf(buf, sizeof(buf), "%s <%s>", p->refer->referred_by_name, p->refer->referred_by);
 				add_header(&req, "Referred-By", buf);
 			}
 		}
