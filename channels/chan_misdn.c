@@ -3828,7 +3828,8 @@ void export_ch(struct ast_channel *chan, struct misdn_bchannel *bc, struct chan_
 		pbx_builtin_setvar_helper(chan,"MISDN_URATE",tmp);
 	}
 
-	if (bc->uulen) {
+	if (bc->uulen && (bc->uulen < sizeof(bc->uu))) {
+		bc->uu[bc->uulen]=0;
 		pbx_builtin_setvar_helper(chan,"MISDN_USERUSER",bc->uu);
 	}
 
