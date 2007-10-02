@@ -3586,9 +3586,11 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 			ast_frfree(fr);
 		}
 		/* Swap priority */
+#ifndef HAVE_EPOLL
 		cs[2] = cs[0];
 		cs[0] = cs[1];
 		cs[1] = cs[2];
+#endif
 	}
 
 	/* If we are totally avoiding the core, then restore our link to it */
