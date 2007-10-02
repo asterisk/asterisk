@@ -270,6 +270,7 @@ static int pbx_builtin_saydigits(struct ast_channel *, void *);
 static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
+static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 
 AST_RWLOCK_DEFINE_STATIC(globalslock);
@@ -478,7 +479,7 @@ static struct pbx_builtin {
 	},
 
 	{ "Set", pbx_builtin_setvar,
-	"Set channel variable(s) or function value(s)",
+	"Set channel variable or function value",
 	"  Set(name=value)\n"
 	"This function can be used to set the value of channel variables or dialplan\n"
 	"functions. When setting variables, if the variable name is prefixed with _,\n"
@@ -486,6 +487,19 @@ static struct pbx_builtin {
 	"channel. If the variable name is prefixed with __, the variable will be\n"
 	"inherited into channels created from the current channel and all children\n"
 	"channels.\n"
+	},
+
+	{ "MSet", pbx_builtin_setvar_multiple,
+	"Set channel variable(s) or function value(s)",
+	"  MSet(name1=value1,name2=value2,...)\n"
+	"This function can be used to set the value of channel variables or dialplan\n"
+	"functions. When setting variables, if the variable name is prefixed with _,\n"
+	"the variable will be inherited into channels created from the current\n"
+	"channel. If the variable name is prefixed with __, the variable will be\n"
+	"inherited into channels created from the current channel and all children\n"
+	"channels.\n\n"
+	"MSet behaves in a similar fashion to the way Set worked in 1.2/1.4 and is thus\n"
+	"prone to doing things that you may not expect.  Avoid its use if possible.\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
@@ -5893,6 +5907,37 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 
 	pbx_builtin_setvar_helper(chan, name, value);
 	return(0);
+}
+
+static int pbx_builtin_setvar_multiple(struct ast_channel *chan, void *vdata)
+{
+	char *data;
+	int x;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(pair)[24];
+	);
+	AST_DECLARE_APP_ARGS(pair,
+		AST_APP_ARG(name);
+		AST_APP_ARG(value);
+	);
+
+	if (ast_strlen_zero(vdata) || !chan) {
+		ast_log(LOG_WARNING, "MSet requires at least one variable name/value pair.\n");
+		return 0;
+	}
+
+	data = ast_strdupa(vdata);
+	AST_STANDARD_APP_ARGS(args, data);
+
+	for (x = 0; x < args.argc; x++) {
+		AST_NONSTANDARD_APP_ARGS(pair, args.pair[x], '=');
+		if (pair.argc == 2)
+			pbx_builtin_setvar_helper(chan, pair.name, pair.value);
+		else
+			ast_log(LOG_WARNING, "MSet: ignoring entry '%s' with no '=' (in %s@%s:%d\n", pair.name, chan->exten, chan->context, chan->priority);
+	}
+
+	return 0;
 }
 
 int pbx_builtin_importvar(struct ast_channel *chan, void *data)
