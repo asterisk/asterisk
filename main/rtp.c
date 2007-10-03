@@ -961,6 +961,10 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		resp = 'A' + (event - 12);
 	} else if (event < 17) {	/* Event 16: Hook flash */
 		resp = 'X';	
+	} else {
+		/* Not a supported event */
+		ast_log(LOG_DEBUG, "Ignoring RTP 2833 Event: %08x. Not a DTMF Digit.\n", event);
+		return &ast_null_frame;
 	}
 	
 	if (ast_test_flag(rtp, FLAG_DTMF_COMPENSATE)) {
