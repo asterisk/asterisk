@@ -3038,7 +3038,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 	struct ael_priority *pr;
 	struct ael_priority *for_init, *for_test, *for_inc, *for_loop, *for_end;
 	struct ael_priority *while_test, *while_loop, *while_end;
-	struct ael_priority *switch_test, *switch_end, *fall_thru;
+	struct ael_priority *switch_test, *switch_end, *fall_thru, *switch_empty;
 	struct ael_priority *if_test, *if_end, *if_skip, *if_false;
 #ifdef OLD_RAND_ACTION
 	struct ael_priority *rand_test, *rand_end, *rand_skip;
@@ -3052,7 +3052,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 	int first;
 	struct ael_priority *loop_break_save;
 	struct ael_priority *loop_continue_save;
-	struct ael_extension *switch_case;
+	struct ael_extension *switch_case,*switch_null;
 	
 	for (p=statement; p; p=p->next) {
 		switch (p->type) {
@@ -3451,11 +3451,30 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 						switch_case-> return_target = np2;
 					}
 				} else if (p2->type == PV_DEFAULT) {
-					default_exists++;
 					/* ok, generate a extension and link it in */
 					switch_case = new_exten();
 					switch_case->context = this_context;
 					switch_case->is_switch = 1;
+					
+					/* new: the default case intros a pattern with ., which covers ALMOST everything.
+					   but it doesn't cover a NULL pattern. So, we'll define a null extension to match
+					   that goto's the default extension. */
+
+					default_exists++;
+					switch_null = new_exten();
+					switch_null->context = this_context;
+					switch_null->is_switch = 1;
+					switch_empty = new_prio();
+					snprintf(buf1,sizeof(buf1),"sw-%d-.|10",local_control_statement_count);
+					switch_empty->app = strdup("Goto");
+					switch_empty->appargs = strdup(buf1);
+					linkprio(switch_null, switch_empty);
+					snprintf(buf1,sizeof(buf1),"sw-%d-", local_control_statement_count);
+					switch_null->name = strdup(buf1);
+					switch_null->loop_break = exten->loop_break;
+					switch_null->loop_continue = exten->loop_continue;
+					linkexten(exten,switch_null);
+
 					/* the break/continue locations are inherited from parent */
 					switch_case->loop_break = exten->loop_break;
 					switch_case->loop_continue = exten->loop_continue;
@@ -3465,7 +3484,7 @@ static void gen_prios(struct ael_extension *exten, char *label, pval *statement,
 					
 					snprintf(new_label,sizeof(new_label),"sw-%s-default-%d", label, local_control_statement_count);
 					
-					gen_prios(switch_case, new_label, p2->u2.statements, exten, this_context); /* this will link in all the while body statements here */
+					gen_prios(switch_case, new_label, p2->u2.statements, exten, this_context); /* this will link in all the default:  body statements here */
 					
 					/* here is where we write code to "fall thru" to the next case... if there is one... */
 					for (p3=p2->u2.statements; p3; p3=p3->next) {
