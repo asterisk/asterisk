@@ -248,6 +248,16 @@ static struct {
 	.thread = AST_PTHREADT_NULL,
 };
 
+struct pbx_exception {
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(context);	/*!< Context associated with this exception */
+		AST_STRING_FIELD(exten);	/*!< Exten associated with this exception */
+		AST_STRING_FIELD(type);		/*!< The type of exception */
+	);
+
+	int priority;				/*!< Priority associated with this exception */
+};
+
 static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
 static int pbx_builtin_hangup(struct ast_channel *, void *);
@@ -272,6 +282,7 @@ static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
+static void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
 
 AST_RWLOCK_DEFINE_STATIC(globalslock);
 static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
@@ -432,6 +443,13 @@ static struct pbx_builtin {
 	"Indicate progress",
 	"  Progress(): This application will request that in-band progress information\n"
 	"be provided to the calling channel.\n"
+	},
+
+	{ "RaiseException", pbx_builtin_raise_exception,
+	"Handle an exceptional condition",
+	"  RaiseException(<reason>): This application will jump to the \"e\" extension\n"
+	"in the current context, setting the dialplan function EXCEPTION().  If the \"e\"\n"
+	"extension does not exist, the call will hangup.\n"
 	},
 
 	{ "ResetCDR", pbx_builtin_resetcdr,
@@ -1259,6 +1277,84 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			*ret = substring(*ret, offset, length, workspace, workspacelen);
 	}
 }
+
+static void exception_store_free(void *data)
+{
+	struct pbx_exception *exception = data;
+	ast_string_field_free_pools(exception);
+	ast_free(exception);
+}
+
+static struct ast_datastore_info exception_store_info = {
+	.type = "EXCEPTION",
+	.destroy = exception_store_free,
+};
+
+int pbx_builtin_raise_exception(struct ast_channel *chan, void *vtype)
+{
+	const char *type = vtype;
+	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
+	struct pbx_exception *exception = NULL;
+
+	if (!ds) {
+		ds = ast_channel_datastore_alloc(&exception_store_info, NULL);
+		if (!ds)
+			return -1;
+		exception = ast_calloc(1, sizeof(struct pbx_exception));
+		if (!ds->data) {
+			ast_channel_datastore_free(ds);
+			return -1;
+		}
+		if (ast_string_field_init(exception, 128)) {
+			ast_free(exception);
+			ast_channel_datastore_free(ds);
+			return -1;
+		}
+		ds->data = exception;
+		ast_channel_datastore_add(chan, ds);
+	} else
+		exception = ds->data;
+
+	ast_string_field_set(exception, type, type);
+	ast_string_field_set(exception, context, chan->context);
+	ast_string_field_set(exception, exten, chan->exten);
+	exception->priority = chan->priority;
+	set_ext_pri(chan, "e", 1);
+	return 0;
+}
+
+static int acf_exception_read(struct ast_channel *chan, const char *name, char *data, char *buf, size_t buflen)
+{
+	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
+	struct pbx_exception *exception = NULL;
+	if (!ds || !ds->data)
+		return -1;
+	exception = ds->data;
+	if (!strcasecmp(data, "TYPE"))
+		ast_copy_string(buf, exception->type, buflen);
+	else if (!strcasecmp(data, "CONTEXT"))
+		ast_copy_string(buf, exception->context, buflen);
+	else if (!strncasecmp(data, "EXTEN", 5))
+		ast_copy_string(buf, exception->exten, buflen);
+	else if (!strcasecmp(data, "PRIORITY"))
+		snprintf(buf, buflen, "%d", exception->priority);
+	else
+		return -1;
+	return 0;
+}
+
+static struct ast_custom_function exception_function = {
+	.name = "EXCEPTION",
+	.synopsis = "Retrieve the details of the current dialplan exception",
+	.desc =
+"The following fields are available for retrieval:\n"
+"  type      INVALID, ERROR, RESPONSETIMEOUT, or ABSOLUTETIMEOUT\n"
+"  context   The context executing when the exception occurred\n"
+"  exten     The extension executing when the exception occurred\n"
+"  priority  The numeric priority executing when the exception occurred\n",
+	.syntax = "EXCEPTION(<field>)",
+	.read = acf_exception_read,
+};
 
 static char *handle_show_functions(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
@@ -2414,8 +2510,22 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+
+ 				if ((res == AST_PBX_ERROR) && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+ 					/* if we are already on the 'e' exten, don't jump to it again */
+ 					if (!strcmp(c->exten, "e")) {
+ 						if (option_verbose > 1)
+ 							ast_verbose(VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
+ 						error = 1;
+						break;
+ 					} else {
+						pbx_builtin_raise_exception(c, "ERROR");
+ 						continue;
+ 					}
+ 				}
+
 				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
-					c->_softhangup =0;
+					c->_softhangup = 0;
 				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
 					/* atimeout, nothing bad */
 				} else {
@@ -2425,8 +2535,13 @@ static int __ast_pbx_run(struct ast_channel *c)
 					break;
 				}
 			}
-			if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c,c->context,"T",1,c->cid.cid_num)) {
+			if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "T", 1, c->cid.cid_num)) {
 				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
+				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+				c->whentohangup = 0;
+				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
+			} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+				pbx_builtin_raise_exception(c, "ABSOLUTETIMEOUT");
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				c->whentohangup = 0;
 				c->_softhangup &= ~AST_SOFTHANGUP_TIMEOUT;
@@ -2441,16 +2556,23 @@ static int __ast_pbx_run(struct ast_channel *c)
 		if (error)
 			break;
 
-		/* XXX we get here on non-existing extension or a keypress or hangup ? */
+		/*!\note
+		 * We get here on a failure of some kind:  non-existing extension or
+		 * hangup.  We have options, here.  We can either catch the failure
+		 * and continue, or we can drop out entirely. */
 
 		if (!ast_exists_extension(c, c->context, c->exten, 1, c->cid.cid_num)) {
-			/* If there is no match at priority 1, it is not a valid extension anymore.
-			 * Try to continue at "i", 1 or exit if the latter does not exist.
+			/*!\note
+			 * If there is no match at priority 1, it is not a valid extension anymore.
+			 * Try to continue at "i" (for invalid) or "e" (for exception) or exit if
+			 * neither exist.
 			 */
 			if (ast_exists_extension(c, c->context, "i", 1, c->cid.cid_num)) {
 				ast_verb(3, "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
 				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
 				set_ext_pri(c, "i", 1);
+			} else if (ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+				pbx_builtin_raise_exception(c, "INVALID");
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
 					c->name, c->exten, c->context);
@@ -2493,6 +2615,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 						ast_verb(3, "Invalid extension '%s' in context '%s' on %s\n", dst_exten, c->context, c->name);
 						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", dst_exten);
 						set_ext_pri(c, "i", 1);
+					} else if (ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+						pbx_builtin_raise_exception(c, "INVALID");
 					} else {
 						ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", dst_exten, c->context);
 						found = 1; /* XXX disable message */
@@ -2503,6 +2627,8 @@ static int __ast_pbx_run(struct ast_channel *c)
 					if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
 						ast_verb(3, "Timeout on %s\n", c->name);
 						set_ext_pri(c, "t", 1);
+					} else if (ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+						pbx_builtin_raise_exception(c, "RESPONSETIMEOUT");
 					} else {
 						ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
 						found = 1; /* XXX disable message */
@@ -6098,6 +6224,7 @@ int load_pbx(void)
 	ast_verb(1, "Registering builtin applications:\n");
 	
 	ast_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(struct ast_cli_entry));
+	ast_custom_function_register(&exception_function);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {

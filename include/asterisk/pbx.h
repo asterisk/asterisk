@@ -37,6 +37,9 @@ extern "C" {
 #define AST_PBX_REPLACE 1
 
 /*! \brief Special return values from applications to the PBX { */
+#define AST_PBX_HANGUP	        -1	/*!< Jump to the 'h' exten */
+#define AST_PBX_OK	        0	/*!< No errors */
+#define AST_PBX_ERROR	        1	/*!< Jump to the 'e' exten */
 #define AST_PBX_KEEPALIVE	10	/*!< Destroy the thread, but don't hang up the channel */
 #define AST_PBX_NO_HANGUP_PEER	11
 /*! } */
@@ -840,6 +843,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp);
 void pbx_builtin_clear_globals(void);
 int pbx_builtin_setvar(struct ast_channel *chan, void *data);
+int pbx_builtin_raise_exception(struct ast_channel *chan, void *data);
 void pbx_substitute_variables_helper(struct ast_channel *c,const char *cp1,char *cp2,int count);
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count);
 

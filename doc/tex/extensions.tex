@@ -66,6 +66,14 @@ There are some extensions with important meanings:
           timeout is reached.  See "show function TIMEOUT" for more
           information on setting timeouts.	
   \end{itemize}
+  \item e
+  \begin{itemize}
+    \item This extension will substitute as a catchall for any of the
+          'i', 't', or 'T' extensions, if any of them do not exist and
+          catching the error in a single routine is desired.  The
+          function EXCEPTION may be used to query the type of exception
+          or the location where it occurred.
+  \end{itemize}
 \end{itemize}
 
 And finally, the extension context "default" is used when either a) an 
