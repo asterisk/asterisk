@@ -4824,7 +4824,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 				tmp = m->membername;
 				ao2_ref(m, -1);
 				queue_unref(q);
-				return tmp;
+				return ast_strdup(tmp);
 			}
 			ao2_ref(m, -1);
 		}
