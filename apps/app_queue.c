@@ -815,7 +815,8 @@ static void init_queue(struct call_queue *q)
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
 	q->sound_callerannounce[0] = '\0';	/* Default, don't announce the caller that he has been answered */
-	q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+	if(!q->members)
+		q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
 	q->membercount = 0;
 	q->found = 1;
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
