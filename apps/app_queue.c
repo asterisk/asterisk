@@ -4426,6 +4426,7 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 	int qmemcount = 0;
 	int qmemavail = 0;
 	int qchancount = 0;
+	int qlongestholdtime = 0;
 	const char *id = astman_get_header(m, "ActionID");
 	const char *queuefilter = astman_get_header(m, "Queue");
 	char idText[256] = "";
@@ -4445,6 +4446,12 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 
 		/* List queue properties */
 		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
+			/* Reset the necessary local variables if no queuefilter is set*/
+			qmemcount = 0;
+			qmemavail = 0;
+			qchancount = 0;
+			qlongestholdtime = 0;
+
 			/* List Queue Members */
 			mem_iter = ao2_iterator_init(q->members, 0);
 			while ((mem = ao2_iterator_next(&mem_iter))) {
@@ -4457,6 +4464,9 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 				ao2_ref(mem, -1);
 			}
 			for (qe = q->head; qe; qe = qe->next) {
+				if ((now - qe->start) > qlongestholdtime) {
+					qlongestholdtime = now - qe->start;
+				}
 				++qchancount;
 			}
 			astman_append(s, "Event: QueueSummary\r\n"
@@ -4465,9 +4475,10 @@ static int manager_queues_summary(struct mansession *s, const struct message *m)
 				"Available: %d\r\n"
 				"Callers: %d\r\n" 
 				"HoldTime: %d\r\n"
+				"LongestHoldTime: %d\r\n"
 				"%s"
 				"\r\n",
-				q->name, qmemcount, qmemavail, qchancount, q->holdtime, idText);
+				q->name, qmemcount, qmemavail, qchancount, q->holdtime, qlongestholdtime, idText);
 		}
 		ao2_unlock(q);
 		queue_unref(q);
