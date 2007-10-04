@@ -6224,7 +6224,7 @@ int load_pbx(void)
 	ast_verb(1, "Registering builtin applications:\n");
 	
 	ast_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(struct ast_cli_entry));
-	ast_custom_function_register(&exception_function);
+	__ast_custom_function_register(&exception_function, NULL);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
