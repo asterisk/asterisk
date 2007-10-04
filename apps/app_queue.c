@@ -4540,7 +4540,7 @@ static char *complete_queue_remove_member(const char *line, const char *word, in
 					ast_mutex_unlock(&q->lock);
 					tmp = m->membername;
 					ao2_ref(m, -1);
-					return tmp;
+					return ast_strdup(tmp);
 				}
 				ao2_ref(m, -1);
 			}
