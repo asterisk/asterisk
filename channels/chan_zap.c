@@ -1359,25 +1359,25 @@ static char *zap_sig2str(int sig)
 	case SIG_FXOKS:
 		return "FXO Kewlstart";
 	case SIG_PRI:
-		return "PRI Signalling";
+		return "ISDN PRI";
 	case SIG_SS7:
-		return "SS7 Signalling";
+		return "SS7";
 	case SIG_SF:
-		return "SF (Tone) Signalling Immediate";
+		return "SF (Tone) Immediate";
 	case SIG_SFWINK:
-		return "SF (Tone) Signalling Wink";
+		return "SF (Tone) Wink";
 	case SIG_SF_FEATD:
-		return "SF (Tone) Signalling with Feature Group D (DTMF)";
+		return "SF (Tone) with Feature Group D (DTMF)";
 	case SIG_SF_FEATDMF:
-		return "SF (Tone) Signalling with Feature Group D (MF)";
+		return "SF (Tone) with Feature Group D (MF)";
 	case SIG_SF_FEATB:
-		return "SF (Tone) Signalling with Feature Group B (MF)";
+		return "SF (Tone) with Feature Group B (MF)";
 	case SIG_GR303FXOKS:
-		return "GR-303 Signalling with FXOKS";
+		return "GR-303 with FXOKS";
 	case SIG_GR303FXSKS:
-		return "GR-303 Signalling with FXSKS";
+		return "GR-303 with FXSKS";
 	case 0:
-		return "Pseudo Signalling";
+		return "Pseudo";
 	default:
 		snprintf(buf, sizeof(buf), "Unknown signalling %d", sig);
 		return buf;
