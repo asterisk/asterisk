@@ -3167,7 +3167,11 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		return AST_BRIDGE_FAILED_NOWARN;
 
 	ast_mutex_lock(&c0->lock);
-	ast_mutex_lock(&c1->lock);
+	while (ast_mutex_trylock(&c1->lock)) {
+		ast_mutex_unlock(&c0->lock);
+		usleep(1);
+		ast_mutex_lock(&c0->lock);
+	}
 
 	p0 = c0->tech_pvt;
 	p1 = c1->tech_pvt;
@@ -3335,7 +3339,12 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
 		ast_mutex_lock(&c0->lock);
-		ast_mutex_lock(&c1->lock);
+		while (ast_mutex_trylock(&c1->lock)) {
+			ast_mutex_unlock(&c0->lock);
+			usleep(1);
+			ast_mutex_lock(&c0->lock);
+		}
+
 		p0 = c0->tech_pvt;
 		p1 = c1->tech_pvt;
 
