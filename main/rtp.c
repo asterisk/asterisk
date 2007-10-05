@@ -3339,6 +3339,11 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 					else
 						pr0->set_rtp_peer(c0, p1, vp1, tp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE));
 				}
+				/* Update local address information */
+				ast_rtp_get_peer(p0, &t0);
+				memcpy(&ac0, &t0, sizeof(ac0));
+				ast_rtp_get_peer(p1, &t1);
+				memcpy(&ac1, &t1, sizeof(ac1));
 				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
 				ast_frfree(fr);
 			} else {
