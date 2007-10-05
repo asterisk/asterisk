@@ -1133,8 +1133,8 @@ static void handle_updates(struct mansession *s, const struct message *m, struct
 }
 
 static char mandescr_updateconfig[] =
-"Description: A 'UpdateConfig' action will dump the contents of a configuration\n"
-"file by category and contents.\n"
+"Description: A 'UpdateConfig' action will modify, create, or delete\n"
+"configuration elements in Asterisk configuration files.\n"
 "Variables (X's represent 6 digit number beginning with 000000):\n"
 "   SrcFilename:   Configuration filename to read(e.g. foo.conf)\n"
 "   DstFilename:   Configuration filename to write(e.g. foo.conf)\n"
