@@ -1185,7 +1185,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	tmp = buddy->resources;
 	descrip = ast_strdup(iks_find_cdata(pak->x,"status"));
 
-	while (tmp) {
+	while (tmp && pak->from->resource) {
 		if (!strcasecmp(tmp->resource, pak->from->resource)) {
 			tmp->status = status;
 			if (tmp->description) free(tmp->description);
@@ -1258,7 +1258,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	}
 
 	/* resource not found in our list, create it */
-	if (!found && status != 6) {
+	if (!found && status != 6 && pak->from->resource) {
 		found = (struct aji_resource *) malloc(sizeof(struct aji_resource));
 		memset(found, 0, sizeof(struct aji_resource));
 
@@ -1293,12 +1293,6 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 			buddy->resources = found;
 	}
 	
-	/* if 'from' attribute does not contain 'resource' string
-	   point to the top of our resource list */
-	if (!found && !pak->from->resource && buddy->resources) {
-		found = buddy->resources;
-	}
-
 	ASTOBJ_UNLOCK(buddy);
 	ASTOBJ_UNREF(buddy, aji_buddy_destroy);
 
@@ -1311,7 +1305,8 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		ver = iks_find_attrib(iks_find(pak->x, "caps:c"), "ver");
 	}
 
-	if(status !=6 && !found->cap) {
+	/* retrieve capabilites of the new resource */
+	if(status !=6 && found && !found->cap) {
 		found->cap = aji_find_version(node, ver, pak);
 		if(gtalk_yuck(pak->x)) /* gtalk should do discover */
 			found->cap->jingle = 1;
