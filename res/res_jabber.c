@@ -1433,39 +1433,39 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 				iks_delete(iq);
 		}
 	}
-		switch (pak->subtype) {
-		case IKS_TYPE_AVAILABLE:
-			ast_verb(5, "JABBER: I am available ^_* %i\n", pak->subtype);
-			break;
-		case IKS_TYPE_UNAVAILABLE:
-			ast_verb(5, "JABBER: I am unavailable ^_* %i\n", pak->subtype);
-			break;
-		default:
+	switch (pak->subtype) {
+	case IKS_TYPE_AVAILABLE:
+		ast_verb(5, "JABBER: I am available ^_* %i\n", pak->subtype);
+		break;
+	case IKS_TYPE_UNAVAILABLE:
+		ast_verb(5, "JABBER: I am unavailable ^_* %i\n", pak->subtype);
+		break;
+	default:
 			ast_verb(5, "JABBER: Ohh sexy and the wrong type: %i\n", pak->subtype);
-		}
-		switch (pak->show) {
-		case IKS_SHOW_UNAVAILABLE:
-			ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-			break;
-		case IKS_SHOW_AVAILABLE:
-			ast_verb(5, "JABBER: type is available\n");
-			break;
-		case IKS_SHOW_CHAT:
-			ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-			break;
-		case IKS_SHOW_AWAY:
-			ast_verb(5, "JABBER: type is away\n");
-			break;
-		case IKS_SHOW_XA:
-			ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-			break;
-		case IKS_SHOW_DND:
-			ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
-			break;
-		default:
-			ast_verb(5, "JABBER: Kinky! how did that happen %i\n", pak->show);
-		}
 	}
+	switch (pak->show) {
+	case IKS_SHOW_UNAVAILABLE:
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		break;
+	case IKS_SHOW_AVAILABLE:
+		ast_verb(5, "JABBER: type is available\n");
+		break;
+	case IKS_SHOW_CHAT:
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		break;
+	case IKS_SHOW_AWAY:
+		ast_verb(5, "JABBER: type is away\n");
+		break;
+	case IKS_SHOW_XA:
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		break;
+	case IKS_SHOW_DND:
+		ast_verb(5, "JABBER: type: %i subtype %i\n", pak->subtype, pak->show);
+		break;
+	default:
+		ast_verb(5, "JABBER: Kinky! how did that happen %i\n", pak->show);
+	}
+}
 
 /*!
  * \brief handles subscription requests.
