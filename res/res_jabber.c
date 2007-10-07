@@ -1279,7 +1279,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 	}
 	type = iks_find_attrib(pak->x, "type");
 	if(client->component && type &&!strcasecmp("probe", type)) {
-		aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), 1, client->statusmessage);
+		aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), client->status, client->statusmessage);
 		ast_verbose("what i was looking for \n");
 	}
 	ASTOBJ_WRLOCK(buddy);
@@ -1499,7 +1499,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 		if (status)
 			iks_delete(status);
 		if (client->component)
-			aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), 1, client->statusmessage);
+			aji_set_presence(client, pak->from->full, iks_find_attrib(pak->x, "to"), client->status, client->statusmessage);
 	}
 
 	switch (pak->subtype) {
@@ -1948,7 +1948,7 @@ static int aji_get_roster(struct aji_client *client)
 	roster = iks_make_iq(IKS_TYPE_GET, IKS_NS_ROSTER);
 	if(roster) {
 		iks_insert_attrib(roster, "id", "roster");
-		aji_set_presence(client, NULL, client->jid->full, 1, client->statusmessage);
+		aji_set_presence(client, NULL, client->jid->full, client->status, client->statusmessage);
 		iks_send(client->p, roster);
 	}
 	if (roster)
@@ -2036,13 +2036,16 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 	iks *presence = iks_make_pres(level, desc);
 	iks *cnode = iks_new("c");
 	iks *priority = iks_new("priority");
+	char priorityS[10];
 
-	iks_insert_cdata(priority, "0", 1);
-	if (presence && cnode && client) {
+	if (presence && cnode && client && priority) {
 		if(to)
 			iks_insert_attrib(presence, "to", to);
 		if(from)
 			iks_insert_attrib(presence, "from", from);
+		snprintf(priorityS, sizeof(priorityS), "%d", client->priority);
+		iks_insert_cdata(priority, priorityS, strlen(priorityS));
+		iks_insert_node(presence, priority);
 		iks_insert_attrib(cnode, "node", "http://www.asterisk.org/xmpp/client/caps");
 		iks_insert_attrib(cnode, "ver", "asterisk-xmpp");
 		iks_insert_attrib(cnode, "ext", "voice-v1");
@@ -2055,6 +2058,8 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 		iks_delete(cnode);
 	if (presence)
 		iks_delete(presence);
+	if (priority)
+		iks_delete(priority);
 }
 
 /*!
@@ -2330,6 +2335,8 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 	AST_LIST_HEAD_INIT(&client->messages);
 	client->component = 0;
 	ast_copy_string(client->statusmessage, "Online and Available", sizeof(client->statusmessage));
+	client->priority = 0;
+	client->status = IKS_SHOW_AVAILABLE;
 
 	if (flag) {
 		client->authorized = 0;
@@ -2367,6 +2374,42 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 			ast_set2_flag(client, ast_true(var->value), AJI_AUTOREGISTER);
 		else if (!strcasecmp(var->name, "buddy"))
 				aji_create_buddy(var->value, client);
+		else if (!strcasecmp(var->name, "priority"))
+			client->priority = atoi(var->value);
+		else if (!strcasecmp(var->name, "status")) {
+			if (!strcasecmp(var->value, "unavailable"))
+				client->status = IKS_SHOW_UNAVAILABLE;
+			else
+			if (!strcasecmp(var->value, "available")
+			 || !strcasecmp(var->value, "online"))
+				client->status = IKS_SHOW_AVAILABLE;
+			else
+			if (!strcasecmp(var->value, "chat")
+			 || !strcasecmp(var->value, "chatty"))
+				client->status = IKS_SHOW_CHAT;
+			else
+			if (!strcasecmp(var->value, "away"))
+				client->status = IKS_SHOW_AWAY;
+			else
+			if (!strcasecmp(var->value, "xa")
+			 || !strcasecmp(var->value, "xaway"))
+				client->status = IKS_SHOW_XA;
+			else
+			if (!strcasecmp(var->value, "dnd"))
+				client->status = IKS_SHOW_DND;
+			else
+			if (!strcasecmp(var->value, "invisible"))
+			#ifdef IKS_SHOW_INVISIBLE
+				client->status = IKS_SHOW_INVISIBLE;
+			#else
+			{
+				ast_log(LOG_WARNING, "Your iksemel doesn't support invisible status: falling back to DND\n");
+				client->status = IKS_SHOW_DND;
+			}
+			#endif
+			else
+				ast_log(LOG_WARNING, "Unknown presence status: %s\n", var->value);
+		}
 	/* no transport support in this version */
 	/*	else if (!strcasecmp(var->name, "transport"))
 				aji_create_transport(var->value, client);

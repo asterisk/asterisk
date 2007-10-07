@@ -155,6 +155,8 @@ struct aji_client {
 	AST_LIST_HEAD(messages,aji_message) messages;
 	void *jingle;
 	pthread_t thread;
+	int priority;
+	enum ikshowtype status;
 };
 
 struct aji_client_container{
