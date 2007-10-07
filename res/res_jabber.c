@@ -1269,8 +1269,12 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 		aji_create_buddy(pak->from->partial, client);
 
 	buddy = ASTOBJ_CONTAINER_FIND(&client->buddies, pak->from->partial);
-	if (!buddy) {
-		ast_log(LOG_NOTICE, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
+	if (!buddy && pak->from->partial) {
+		/* allow our jid to be used to log in with another resource */
+		if (!strcmp((const char *)pak->from->partial, (const char *)client->jid->partial))
+			aji_create_buddy(pak->from->partial, client);
+		else
+			ast_log(LOG_NOTICE, "Got presence packet from %s, someone not in our roster!!!!\n", pak->from->partial);
 		return;
 	}
 	type = iks_find_attrib(pak->x, "type");
