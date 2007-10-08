@@ -145,6 +145,8 @@
 #include <stdio.h>
 #include "asterisk.h"
 
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #define FP___PRINTF "%.18Lg"
 #define FP___TYPE    long double
 

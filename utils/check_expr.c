@@ -145,6 +145,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	fflush(stdout);
 	va_end(vars);
 }
+void ast_add_profile(void);
 void ast_register_file_version(const char *file, const char *version);
 void ast_unregister_file_version(const char *file);
 
@@ -153,6 +154,10 @@ void set_var(const char *varname, const char *varval);
 unsigned int check_expr(char* buffer, char* error_report);
 int check_eval(char *buffer, char *error_report);
 void parse_file(const char *fname);
+
+void ast_add_profile(void)
+{
+}
 
 void ast_register_file_version(const char *file, const char *version)
 {

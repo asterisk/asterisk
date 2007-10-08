@@ -81,9 +81,13 @@ char ast_config_AST_SYSTEM_NAME[20] = ""; */
 extern char ast_config_AST_CONFIG_DIR[PATH_MAX];
 
 /* modulation */
+void ast_add_profile(void);
 void ast_register_file_version(void);
 void ast_unregister_file_version(void);
 
+void ast_add_profile(void)
+{
+}
 void ast_register_file_version(void)
 {
 	/* if(!no_comp)
