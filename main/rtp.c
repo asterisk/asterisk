@@ -3345,9 +3345,9 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 				ast_rtp_get_peer(p1, &t1);
 				memcpy(&ac1, &t1, sizeof(ac1));
 				/* Update codec information */
-				if (pr0->get_codec)
+				if (pr0->get_codec && c0->tech_pvt)
 					oldcodec0 = codec0 = pr0->get_codec(c0);
-				if (pr1->get_codec)
+				if (pr1->get_codec && c1->tech_pvt)
 					oldcodec1 = codec1 = pr1->get_codec(c1);
 				ast_indicate_data(other, fr->subclass, fr->data, fr->datalen);
 				ast_frfree(fr);
