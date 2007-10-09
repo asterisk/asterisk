@@ -302,7 +302,7 @@ static int pbx_start_chan(struct chan_list *ch);
 #define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
 #define MISDN_ASTERISK_PVT(ast) 1
 
-#include <asterisk/strings.h>
+#include "asterisk/strings.h"
 
 /* #define MISDN_DEBUG 1 */
 
