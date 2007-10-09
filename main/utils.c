@@ -549,7 +549,7 @@ struct thr_lock_info {
 		int times_locked;
 		enum ast_lock_type type;
 		/*! This thread is waiting on this lock */
-		unsigned int pending:1;
+		int pending:2;
 	} locks[AST_MAX_LOCKS];
 	/*! This is the number of locks currently held by this thread.
 	 *  The index (num_locks - 1) has the info on the last one in the
@@ -645,6 +645,19 @@ void ast_mark_lock_acquired(void)
 	pthread_mutex_unlock(&lock_info->lock);
 }
 
+void ast_mark_lock_failed(void)
+{
+	struct thr_lock_info *lock_info;
+
+	if (!(lock_info = ast_threadstorage_get(&thread_lock_info, sizeof(*lock_info))))
+		return;
+
+	pthread_mutex_lock(&lock_info->lock);
+	lock_info->locks[lock_info->num_locks - 1].pending = -1;
+	lock_info->locks[lock_info->num_locks - 1].times_locked--;
+	pthread_mutex_unlock(&lock_info->lock);
+}
+
 void ast_remove_lock_info(void *lock_addr)
 {
 	struct thr_lock_info *lock_info;
@@ -730,7 +743,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; i < lock_info->num_locks; i++) {
 			ast_cli(a->fd, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
-				lock_info->locks[i].pending ? "Waiting for " : "", i,
+				lock_info->locks[i].pending > 0 ? "Waiting for " : lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
 				lock_info->locks[i].file, 
 				locktype2str(lock_info->locks[i].type),
 				lock_info->locks[i].line_num,

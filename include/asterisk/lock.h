@@ -149,6 +149,11 @@ void ast_store_lock_info(enum ast_lock_type type, const char *filename,
 void ast_mark_lock_acquired(void);
 
 /*!
+ * \brief Mark the last lock as failed (trylock)
+ */
+void ast_mark_lock_failed(void);
+
+/*!
  * \brief remove lock info for the current thread
  *
  * this gets called by ast_mutex_unlock so that information on the lock can
@@ -165,6 +170,7 @@ static inline int __ast_pthread_mutex_init_attr(int track, const char *filename,
 						const char *mutex_name, ast_mutex_t *t,
 						pthread_mutexattr_t *attr) 
 {
+	int i;
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
 	int canlog = strcmp(filename, "logger.c");
 
@@ -180,10 +186,12 @@ static inline int __ast_pthread_mutex_init_attr(int track, const char *filename,
 	}
 #endif
 
-	t->file[0] = filename;
-	t->lineno[0] = lineno;
-	t->func[0] = func;
-	t->thread[0]  = 0;
+	for (i = 0; i < AST_MAX_REENTRANCY; i++) {
+		t->file[i] = NULL;
+		t->lineno[i] = 0;
+		t->func[i] = NULL;
+		t->thread[i]  = 0;
+	}
 	t->reentrancy = 0;
 	t->track = track;
 
