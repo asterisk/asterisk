@@ -2181,6 +2181,7 @@ static void ast_read_generator_actions(struct ast_channel *chan, struct ast_fram
 static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 {
 	struct ast_frame *f = NULL;	/* the return value */
+	struct ast_channel *base = NULL;
 	int blah;
 	int prestate;
 
@@ -2203,6 +2204,23 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		goto done;
 	}
 	prestate = chan->_state;
+
+	/* Check if there's an underlying channel */
+	if (chan->tech->get_base_channel && (base = chan->tech->get_base_channel(chan)) != chan) {
+		int count = 0;
+		while (!base || ast_mutex_trylock(&base->lock)) {
+			if (count++ > 10) {
+				f = &ast_null_frame;
+				goto done;
+			}
+			ast_mutex_unlock(&chan->lock);
+			usleep(1);
+			ast_mutex_lock(&chan->lock);
+			base = chan->tech->get_base_channel(chan);
+		}
+		ast_mutex_unlock(&chan->lock);
+		chan = base;
+	}
 
 	if (!ast_test_flag(chan, AST_FLAG_DEFER_DTMF | AST_FLAG_EMULATE_DTMF | AST_FLAG_IN_DTMF) && 
 	    !ast_strlen_zero(chan->dtmfq) && 
@@ -2941,9 +2959,20 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			/* and now put it through the regular translator */
 			f = (chan->writetrans) ? ast_translate(chan->writetrans, f, 0) : f;
 		}
-		if (f)
-			res = chan->tech->write(chan, f);
-		else
+		if (f) {
+			struct ast_channel *base = NULL;
+			if (!chan->tech->get_base_channel || chan == chan->tech->get_base_channel(chan))
+				res = chan->tech->write(chan, f);
+			else {
+				while (chan->tech->get_base_channel && (((base = chan->tech->get_base_channel(chan)) && ast_mutex_trylock(&base->lock)) || base == NULL)) {
+					ast_mutex_unlock(&chan->lock);
+					usleep(1);
+					ast_mutex_lock(&chan->lock);
+				}
+				res = base->tech->write(base, f);
+				ast_mutex_unlock(&base->lock);
+			}
+		} else
 			res = 0;
 		break;
 	case AST_FRAME_NULL:
