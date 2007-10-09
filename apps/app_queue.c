@@ -150,6 +150,10 @@ static char *descrip =
 "      'T' -- allow the calling user to transfer the call.\n"
 "      'w' -- allow the called user to write the conversation to disk via Monitor.\n"
 "      'W' -- allow the calling user to write the conversation to disk via Monitor.\n"
+"      'k' -- Allow the called party to enable parking of the call by sending\n"
+"             the DTMF sequence defined for call parking in features.conf.\n"
+"      'K' -- Allow the calling party to enable parking of the call by sending\n"
+"             the DTMF sequence defined for call parking in features.conf.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports\n"
@@ -2636,6 +2640,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		case 'H':
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT);
 			break;
+                case 'k':
+                        ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_PARKCALL);
+                        break;
+                case 'K':
+                        ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
+                        break;
 		case 'n':
 			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY)
 				(*tries)++;
