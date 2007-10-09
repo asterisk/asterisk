@@ -66,6 +66,13 @@ static const char tdesc[] = "Local Proxy Channel Driver";
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
+static struct ast_jb_conf g_jb_conf = {
+	.flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = "",
+};
+
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause);
 static int local_digit_begin(struct ast_channel *ast, char digit);
 static int local_digit_end(struct ast_channel *ast, char digit, unsigned int duration);
@@ -108,6 +115,7 @@ struct local_pvt {
 	char context[AST_MAX_CONTEXT];		/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;				/* Requested format */
+	struct ast_jb_conf jb_conf;		/*!< jitterbuffer configuration for this local channel */
 	struct ast_channel *owner;		/* Master Channel */
 	struct ast_channel *chan;		/* Outbound channel */
 	struct ast_module_user *u_owner;	/*! reference to keep the module loaded while in use */
@@ -563,11 +571,21 @@ static struct local_pvt *local_alloc(const char *data, int format)
 	ast_mutex_init(&tmp->lock);
 	ast_copy_string(tmp->exten, data, sizeof(tmp->exten));
 
+	memcpy(&tmp->jb_conf, &g_jb_conf, sizeof(tmp->jb_conf));
+
 	/* Look for options */
 	if ((opts = strchr(tmp->exten, '/'))) {
 		*opts++ = '\0';
 		if (strchr(opts, 'n'))
 			ast_set_flag(tmp, LOCAL_NO_OPTIMIZATION);
+		if (strchr(opts, 'j')) {
+			if (ast_test_flag(tmp, LOCAL_NO_OPTIMIZATION))
+				ast_set_flag(&tmp->jb_conf, AST_JB_ENABLED);
+			else {
+				ast_log(LOG_ERROR, "You must use the 'n' option for chan_local "
+					"to use the 'j' option to enable the jitterbuffer\n");
+			}
+		}
 	}
 
 	/* Look for a context */
@@ -651,6 +669,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	ast_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
 	tmp->priority = 1;
 	tmp2->priority = 1;
+
+	ast_jb_configure(tmp, &p->jb_conf);
 
 	return tmp;
 }

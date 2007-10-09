@@ -9,6 +9,8 @@ chan\_local is a pseudo-channel. Use of this channel simply loops calls back int
 
 Adding "/n" at the end of the string will make the Local channel not do a native transfer (the "n" stands for "n"o release) upon the remote end answering the line. This is an esoteric, but important feature if you expect the Local channel to handle calls exactly like a normal channel. If you do not have the "no release" feature set, then as soon as the destination (inside of the Local channel) answers the line, the variables and dial plan will revert back to that of the original call, and the Local channel will become a zombie and be removed from the active channels list. This is desirable in some circumstances, but can result in unexpected dialplan behavior if you are doing fancy things with variables in your call handling.
 
+There is another option that can be used with local channels, which is the "j" option.  The "j" option must be used with the "n" option to make sure that the local channel does not get optimized out of the call.  This option will enable a jitterbuffer on the local channel.  The jitterbuffer will be used to de-jitter audio that it receives from the channel that called the local channel.  This is especially in the case of putting chan\_local in between an incoming SIP call and Asterisk applications, so that the incoming audio will be de-jittered.
+
 \subsection{Purpose}
 
 The Local channel construct can be used to establish dialing into any part of the dialplan.
