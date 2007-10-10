@@ -393,10 +393,7 @@ struct ast_frame *ast_fralloc(char *source, int len);
  */
 void ast_frame_free(struct ast_frame *fr, int cache);
 
-static void force_inline ast_frfree(struct ast_frame *fr)
-{
-	ast_frame_free(fr, 1);
-}
+#define ast_frfree(fr) ast_frame_free(fr, 1)
 
 /*! \brief Makes a frame independent of any static storage
  * \param fr frame to act upon
