@@ -16865,6 +16865,9 @@ static int sip_devicestate(void *data)
 		}
 		unref_peer(p);
 	} else {
+		char *port = strchr(host, ':');
+		if (port)
+			*port = '\0';
 		hp = ast_gethostbyname(host, &ahp);
 		if (hp)
 			res = AST_DEVICE_UNKNOWN;
