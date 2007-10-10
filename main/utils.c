@@ -716,7 +716,7 @@ static int handle_show_locks(int fd, int argc, char *argv[])
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
 		int i;
-		ast_cli(fd, "=== Thread ID: %d (%s)\n", (int) lock_info->thread_id,
+		ast_cli(fd, "=== Thread ID: %u (%s)\n", (int) lock_info->thread_id,
 			lock_info->thread_name);
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; i < lock_info->num_locks; i++) {
