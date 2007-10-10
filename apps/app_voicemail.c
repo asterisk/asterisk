@@ -3064,6 +3064,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 		if (txt) {
 			if (duration < vmminmessage) {
+				fclose(txt);
 				if (option_verbose > 2) 
 					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
 				ast_filedelete(tmptxtfile, NULL);
