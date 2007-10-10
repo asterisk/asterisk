@@ -859,10 +859,6 @@ static void *logger_thread(void *data)
 		AST_LIST_HEAD_INIT_NOLOCK(&logmsgs);
 		AST_LIST_UNLOCK(&logmsgs);
 
-		/* If we should stop, then stop */
-		if (close_logger_thread)
-			break;
-
 		/* Otherwise go through and process each message in the order added */
 		while ((msg = next)) {
 			/* Get the next entry now so that we can free our current structure later */
@@ -877,6 +873,10 @@ static void *logger_thread(void *data)
 			/* Free the data since we are done */
 			free(msg);
 		}
+
+		/* If we should stop, then stop */
+		if (close_logger_thread)
+			break;
 	}
 
 	return NULL;
@@ -936,6 +936,9 @@ void close_logger(void)
 	close_logger_thread = 1;
 	ast_cond_signal(&logcond);
 	AST_LIST_UNLOCK(&logmsgs);
+
+	if (logthread != AST_PTHREADT_NULL)
+		pthread_join(logthread, NULL);
 
 	AST_RWLIST_WRLOCK(&logchannels);
 
