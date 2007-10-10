@@ -14,16 +14,16 @@ check_for_app() {
 
 uname -s | grep -q BSD
 if [ $? = 0 ] ; then	# BSD case
-	uname -s | grep -q FreeBSD
-	if [ $? = 0 ] ; then # FreeBSD case
-		MY_AC_VER=259
-		MY_AM_VER=19
-	fi
-	uname -s | grep -q OpenBSD
-	if [ $? = 0 ] ; then # OpenBSD case
-		MY_AC_VER=-2.61
-		MY_AM_VER=-1.9
-	fi
+	case `uname -sr` in
+		'FreeBSD 4'*)	# FreeBSD 4.x has a different naming
+			MY_AC_VER=259
+			MY_AM_VER=19
+			;;
+		*)
+			MY_AC_VER=-2.61
+			MY_AM_VER=-1.9
+			;;
+	esac
 else	# linux case
 	MY_AC_VER=
 	MY_AM_VER=
