@@ -1573,6 +1573,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				nextexp = nextthing;
 				pos = nextexp - whereweare;
 				break;
+			default:
+				pos = 1;
 			}
 		}
 
@@ -1731,8 +1733,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				count -= length;
 				cp2 += length;
 			}
-		} else
-			break;
+		}
 	}
 }
 
