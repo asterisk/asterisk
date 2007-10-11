@@ -563,7 +563,7 @@ static struct zt_pvt {
 	unsigned int inservice:1;
 	unsigned int locallyblocked:1;
 	unsigned int remotelyblocked:1;
-#if defined(HAVE_PRI)
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 	unsigned int alerting:1;
 	unsigned int alreadyhungup:1;
 	unsigned int isidlecall:1;
@@ -583,7 +583,7 @@ static struct zt_pvt {
 	char language[MAX_LANGUAGE];
 	char mohinterpret[MAX_MUSICCLASS];
 	char mohsuggest[MAX_MUSICCLASS];
-#ifdef PRI_ANI
+#if defined(PRI_ANI) || defined(HAVE_SS7)
 	char cid_ani[AST_MAX_EXTENSION];
 #endif
 	char cid_num[AST_MAX_EXTENSION];
