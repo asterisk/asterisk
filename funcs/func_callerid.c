@@ -92,7 +92,9 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 				ast_copy_string(buf, chan->cid.cid_num, len);
 			}
 		} else if (!strncasecmp("ani", data, 3)) {
-			if (chan->cid.cid_ani) {
+			if (!strncasecmp(data + 3, "2", 1)) {
+				snprintf(buf, len, "%d", chan->cid.cid_ani2);
+			} else if (chan->cid.cid_ani) {
 				ast_copy_string(buf, chan->cid.cid_ani, len);
 			}
 		} else if (!strncasecmp("dnid", data, 4)) {
@@ -107,8 +109,6 @@ static int callerid_read(struct ast_channel *chan, const char *cmd, char *data,
 			ast_copy_string(buf, ast_named_caller_presentation(chan->cid.cid_pres), len);
 		} else if (!strncasecmp("ton", data, 3)) {
 			snprintf(buf, len, "%d", chan->cid.cid_ton);
-		} else if (!strncasecmp("ani2", data, 4)) {
-			snprintf(buf, len, "%d", chan->cid.cid_ani2);
 		} else {
 			ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 		}
@@ -134,7 +134,11 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 	} else if (!strncasecmp("num", data, 3)) { 
 		ast_set_callerid(chan, value, NULL, NULL);
 	} else if (!strncasecmp("ani", data, 3)) {
-		ast_set_callerid(chan, NULL, NULL, value);
+		if (!strncasecmp(data + 3, "2", 1)) {
+			int i = atoi(value);
+			chan->cid.cid_ani2 = i;
+		} else
+			ast_set_callerid(chan, NULL, NULL, value);
 	} else if (!strncasecmp("dnid", data, 4)) {
 		/* do we need to lock chan here? */
 		if (chan->cid.cid_dnid)
@@ -173,9 +177,6 @@ static int callerid_write(struct ast_channel *chan, const char *cmd, char *data,
 	} else if (!strncasecmp("ton", data, 3)) {
 		int i = atoi(value);
 		chan->cid.cid_ton = i;
-	} else if (!strncasecmp("ani2", data, 4)) {
-		int i = atoi(value);
-		chan->cid.cid_ani2 = i;
 	} else {
 		ast_log(LOG_ERROR, "Unknown callerid data type '%s'.\n", data);
 	}
