@@ -586,6 +586,7 @@ static struct zt_pvt {
 #if defined(PRI_ANI) || defined(HAVE_SS7)
 	char cid_ani[AST_MAX_EXTENSION];
 #endif
+	int cid_ani2;
 	char cid_num[AST_MAX_EXTENSION];
 	int cid_ton;					/*!< Type Of Number (TON) */
 	char cid_name[AST_MAX_EXTENSION];
@@ -2301,6 +2302,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->use_callingpres ? cid_pres2ss7pres(ast->cid.cid_pres) : (l ? SS7_PRESENTATION_ALLOWED : SS7_PRESENTATION_RESTRICTED),
 			p->use_callingpres ? cid_pres2ss7screen(ast->cid.cid_pres) : SS7_SCREENING_USER_PROVIDED );
 
+		isup_set_oli(p->ss7call, ast->cid.cid_ani2);
 		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
 
 		isup_iam(p->ss7->ss7, p->ss7call);
@@ -5649,6 +5651,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 #endif
 	tmp->cid.cid_pres = i->callingpres;
 	tmp->cid.cid_ton = i->cid_ton;
+	tmp->cid.cid_ani2 = i->cid_ani2;
 #if defined(HAVE_PRI) || defined(HAVE_SS7)
 	tmp->transfercapability = transfercapability;
 	pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
@@ -8764,6 +8767,7 @@ static void *ss7_linkset(void *data)
 				/* Need to fill these fields */
 				p->cid_ani[0] = '\0';
 				p->cid_name[0] = '\0';
+				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
