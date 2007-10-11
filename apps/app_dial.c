@@ -1405,6 +1405,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tc->cid.cid_pres = chan->cid.cid_pres;
 		tc->cid.cid_ton = chan->cid.cid_ton;
 		tc->cid.cid_tns = chan->cid.cid_tns;
+		tc->cid.cid_ani2 = chan->cid.cid_ani2;
 		tc->adsicpe = chan->adsicpe;
 		tc->transfercapability = chan->transfercapability;
 
