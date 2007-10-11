@@ -9841,6 +9841,7 @@ static void *pri_dchannel(void *vpri)
 							if (e->ring.ani2 >= 0) {
 								snprintf(ani2str, 5, "%.2d", e->ring.ani2);
 								pbx_builtin_setvar_helper(c, "ANI2", ani2str);
+								pri->pvts[chanpos]->cid_ani2 = e->ring.ani2;
 							}
 
 #ifdef SUPPORT_USERUSER
@@ -9879,6 +9880,7 @@ static void *pri_dchannel(void *vpri)
 								if (e->ring.ani2 >= 0) {
 									snprintf(ani2str, 5, "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
+									pri->pvts[chanpos]->cid_ani2 = e->ring.ani2;
 								}
 
 #ifdef SUPPORT_USERUSER
