@@ -10970,7 +10970,7 @@ static char *zap_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_
 
 		blockstr[2] = '\0';
 
-		snprintf(statestr, sizeof(statestr), "%s", tmp->inservice ? "In Service" : "Out of Service");
+		snprintf(statestr, sizeof(statestr), "%s", "In Service");
 
 		ast_cli(a->fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->mohinterpret, blockstr, statestr);
 		tmp = tmp->next;
