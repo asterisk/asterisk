@@ -1861,10 +1861,7 @@ static int osp_unload(void)
 	return 0;
 }
 
-static int osp_show(
-	int fd,
-	int argc,
-	char* argv[])
+static char *handle_cli_osp_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int i;
 	int found = 0;
@@ -1872,12 +1869,21 @@ static int osp_show(
 	const char* provider = NULL;
 	const char* tokenalgo;
 
-	if ((argc < 2) || (argc > 3)) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "osp show";
+		e->usage =
+			"Usage: osp show\n"
+			"       Displays information on Open Settlement Protocol support\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	if (argc > 2) {
-		provider = argv[2];
-	}
+
+	if ((a->argc < 2) || (a->argc > 3))
+		return CLI_SHOWUSAGE;
+	if (a->argc > 2) 
+		provider = a->argv[2];
 	if (!provider) {
 		switch (osp_tokenformat) {
 			case TOKEN_ALGO_BOTH:
@@ -1891,7 +1897,7 @@ static int osp_show(
 				tokenalgo = "Signed";
 				break;
 		}
-		ast_cli(fd, "OSP: %s %s %s\n",
+		ast_cli(a->fd, "OSP: %s %s %s\n",
 			osp_initialized ? "Initialized" : "Uninitialized", osp_hardware ? "Accelerated" : "Normal", tokenalgo);
 	}
 
@@ -1900,25 +1906,25 @@ static int osp_show(
 	while(p) {
 		if (!provider || !strcasecmp(p->name, provider)) {
 			if (found) {
-				ast_cli(fd, "\n");
+				ast_cli(a->fd, "\n");
 			}
-			ast_cli(fd, " == OSP Provider '%s' == \n", p->name);
-			ast_cli(fd, "Local Private Key: %s\n", p->privatekey);
-			ast_cli(fd, "Local Certificate: %s\n", p->localcert);
+			ast_cli(a->fd, " == OSP Provider '%s' == \n", p->name);
+			ast_cli(a->fd, "Local Private Key: %s\n", p->privatekey);
+			ast_cli(a->fd, "Local Certificate: %s\n", p->localcert);
 			for (i = 0; i < p->cacount; i++) {
-				ast_cli(fd, "CA Certificate %d:  %s\n", i + 1, p->cacerts[i]);
+				ast_cli(a->fd, "CA Certificate %d:  %s\n", i + 1, p->cacerts[i]);
 			}
 			for (i = 0; i < p->spcount; i++) {
-				ast_cli(fd, "Service Point %d:   %s\n", i + 1, p->srvpoints[i]);
+				ast_cli(a->fd, "Service Point %d:   %s\n", i + 1, p->srvpoints[i]);
 			}
-			ast_cli(fd, "Max Connections:   %d\n", p->maxconnections);
-			ast_cli(fd, "Retry Delay:       %d seconds\n", p->retrydelay);
-			ast_cli(fd, "Retry Limit:       %d\n", p->retrylimit);
-			ast_cli(fd, "Timeout:           %d milliseconds\n", p->timeout);
-			ast_cli(fd, "Source:            %s\n", strlen(p->source) ? p->source : "<unspecified>");
-			ast_cli(fd, "Auth Policy        %d\n", p->authpolicy);
-			ast_cli(fd, "Default protocol   %s\n", p->defaultprotocol);
-			ast_cli(fd, "OSP Handle:        %d\n", p->handle);
+			ast_cli(a->fd, "Max Connections:   %d\n", p->maxconnections);
+			ast_cli(a->fd, "Retry Delay:       %d seconds\n", p->retrydelay);
+			ast_cli(a->fd, "Retry Limit:       %d\n", p->retrylimit);
+			ast_cli(a->fd, "Timeout:           %d milliseconds\n", p->timeout);
+			ast_cli(a->fd, "Source:            %s\n", strlen(p->source) ? p->source : "<unspecified>");
+			ast_cli(a->fd, "Auth Policy        %d\n", p->authpolicy);
+			ast_cli(a->fd, "Default protocol   %s\n", p->defaultprotocol);
+			ast_cli(a->fd, "OSP Handle:        %d\n", p->handle);
 			found++;
 		}
 		p = p->next;
@@ -1927,12 +1933,12 @@ static int osp_show(
 
 	if (!found) {
 		if (provider) {
-			ast_cli(fd, "Unable to find OSP provider '%s'\n", provider);
+			ast_cli(a->fd, "Unable to find OSP provider '%s'\n", provider);
 		} else {
-			ast_cli(fd, "No OSP providers configured\n");
-		}
+			ast_cli(a->fd, "No OSP providers configured\n");
+		}	
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static const char* app1= "OSPAuth";
@@ -1993,14 +1999,8 @@ static const char* descrip4 =
 "	OSPFINISHSTATUS The status of the OSP Finish attempt as a text string, one of\n"
 "		SUCCESS | FAILED | ERROR \n";
 
-static const char osp_usage[] =
-"Usage: osp show\n"
-"       Displays information on Open Settlement Protocol support\n";
-
 static struct ast_cli_entry cli_osp[] = {
-	{ {"osp", "show", NULL},
-	osp_show, "Displays OSP information",
-	osp_usage },
+	NEW_CLI(handle_cli_osp_show, "Displays OSF information")
 };
 
 static int load_module(void)

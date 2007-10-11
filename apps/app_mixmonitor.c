@@ -362,46 +362,44 @@ static int stop_mixmonitor_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int mixmonitor_cli(int fd, int argc, char **argv) 
+static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *chan;
 
-	if (argc < 3)
-		return RESULT_SHOWUSAGE;
-
-	if (!(chan = ast_get_channel_by_name_prefix_locked(argv[2], strlen(argv[2])))) {
-		ast_cli(fd, "No channel matching '%s' found.\n", argv[2]);
-		return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mixmonitor [start|stop]";
+		e->usage =
+			"Usage: mixmonitor <start|stop> <chan_name> [args]\n"
+			"       The optional arguments are passed to the MixMonitor\n"
+			"       application when the 'start' command is used.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
 	}
 
-	if (!strcasecmp(argv[1], "start")) {
-		mixmonitor_exec(chan, argv[3]);
+	if (a->argc < 3)
+		return CLI_SHOWUSAGE;
+
+	if (!(chan = ast_get_channel_by_name_prefix_locked(a->argv[2], strlen(a->argv[2])))) {
+		ast_cli(a->fd, "No channel matching '%s' found.\n", a->argv[2]);
+		/* Technically this is a failure, but we don't want 2 errors printing out */
+		return CLI_SUCCESS;
+	}
+
+	if (!strcasecmp(a->argv[1], "start")) {
+		mixmonitor_exec(chan, a->argv[3]);
 		ast_channel_unlock(chan);
 	} else {
 		ast_channel_unlock(chan);
 		ast_audiohook_detach_source(chan, mixmonitor_spy_type);
 	}
 
-	return RESULT_SUCCESS;
-}
-
-static char *complete_mixmonitor_cli(const char *line, const char *word, int pos, int state)
-{
-	char *options[] = {"start", "stop", NULL};
-
-	if (pos == 1)
-		return ast_cli_complete (word, options, state);
-
-	return ast_complete_channels(line, word, pos, state, 2);
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_mixmonitor[] = {
-	{ { "mixmonitor", NULL, NULL },
-	mixmonitor_cli, "Execute a MixMonitor command.",
-	"mixmonitor <start|stop> <chan_name> [args]\n\n"
-	"The optional arguments are passed to the\n"
-	"MixMonitor application when the 'start' command is used.\n",
-	complete_mixmonitor_cli },
+	NEW_CLI(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
 
 static int unload_module(void)

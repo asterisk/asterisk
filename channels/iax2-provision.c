@@ -166,15 +166,16 @@ char *iax_prov_complete_template(const char *line, const char *word, int pos, in
 	char *ret = NULL;
 	int wordlen = strlen(word);
 
-	ast_mutex_lock(&provlock);
-	for (c = templates; c; c = c->next) {
-		if (!strncasecmp(word, c->name, wordlen) && ++which > state) {
-			ret = ast_strdup(c->name);
-			break;
+	if (pos == 3) {
+		ast_mutex_lock(&provlock);
+		for (c = templates; c; c = c->next) {
+			if (!strncasecmp(word, c->name, wordlen) && ++which > state) {
+				ret = ast_strdup(c->name);
+				break;
+			}
 		}
+		ast_mutex_unlock(&provlock);
 	}
-	ast_mutex_unlock(&provlock);
-	
 	return ret;
 }
 
@@ -398,11 +399,6 @@ static int iax_process_template(struct ast_config *cfg, char *s, char *def)
 	return 0;
 }
 
-static const char show_provisioning_usage[] = 
-"Usage: iax list provisioning [template]\n"
-"       Lists all known IAX provisioning templates or a\n"
-"       specific one if specified.\n";
-
 static const char *ifthere(const char *s)
 {
 	if (strlen(s))
@@ -424,51 +420,62 @@ static const char *iax_server(unsigned int addr)
 }
 
 
-static int iax_show_provisioning(int fd, int argc, char *argv[])
+static char *iax_show_provisioning(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax_template *cur;
 	char server[INET_ADDRSTRLEN];
 	char alternate[INET_ADDRSTRLEN];
 	char flags[80];	/* Has to be big enough for 'flags' too */
 	int found = 0;
-	if ((argc != 3) && (argc != 4))
-		return RESULT_SHOWUSAGE;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show provisioning";
+		e->usage =
+			"Usage: iax2 show provisioning [template]\n"
+			"       Lists all known IAX provisioning templates or a\n"
+			"       specific one if specified.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return iax_prov_complete_template(a->line, a->word, a->pos, a->n);
+	}
+
+	if ((a->argc != 3) && (a->argc != 4))
+		return CLI_SHOWUSAGE;
 	ast_mutex_lock(&provlock);
 	for (cur = templates;cur;cur = cur->next) {
-		if ((argc == 3) || (!strcasecmp(argv[3], cur->name)))  {
+		if ((a->argc == 3) || (!strcasecmp(a->argv[3], cur->name)))  {
 			if (found) 
-				ast_cli(fd, "\n");
+				ast_cli(a->fd, "\n");
 			ast_copy_string(server, iax_server(cur->server), sizeof(server));
 			ast_copy_string(alternate, iax_server(cur->altserver), sizeof(alternate));
-			ast_cli(fd, "== %s ==\n", cur->name);
-			ast_cli(fd, "Base Templ:   %s\n", strlen(cur->src) ? cur->src : "<none>");
-			ast_cli(fd, "Username:     %s\n", ifthere(cur->user));
-			ast_cli(fd, "Secret:       %s\n", ifthere(cur->pass));
-			ast_cli(fd, "Language:     %s\n", ifthere(cur->lang));
-			ast_cli(fd, "Bind Port:    %d\n", cur->port);
-			ast_cli(fd, "Server:       %s\n", server);
-			ast_cli(fd, "Server Port:  %d\n", cur->serverport);
-			ast_cli(fd, "Alternate:    %s\n", alternate);
-			ast_cli(fd, "Flags:        %s\n", iax_provflags2str(flags, sizeof(flags), cur->flags));
-			ast_cli(fd, "Format:       %s\n", ast_getformatname(cur->format));
-			ast_cli(fd, "TOS:          0x%x\n", cur->tos);
+			ast_cli(a->fd, "== %s ==\n", cur->name);
+			ast_cli(a->fd, "Base Templ:   %s\n", strlen(cur->src) ? cur->src : "<none>");
+			ast_cli(a->fd, "Username:     %s\n", ifthere(cur->user));
+			ast_cli(a->fd, "Secret:       %s\n", ifthere(cur->pass));
+			ast_cli(a->fd, "Language:     %s\n", ifthere(cur->lang));
+			ast_cli(a->fd, "Bind Port:    %d\n", cur->port);
+			ast_cli(a->fd, "Server:       %s\n", server);
+			ast_cli(a->fd, "Server Port:  %d\n", cur->serverport);
+			ast_cli(a->fd, "Alternate:    %s\n", alternate);
+			ast_cli(a->fd, "Flags:        %s\n", iax_provflags2str(flags, sizeof(flags), cur->flags));
+			ast_cli(a->fd, "Format:       %s\n", ast_getformatname(cur->format));
+			ast_cli(a->fd, "TOS:          0x%x\n", cur->tos);
 			found++;
 		}
 	}
 	ast_mutex_unlock(&provlock);
 	if (!found) {
-		if (argc == 3)
-			ast_cli(fd, "No provisioning templates found\n");
+		if (a->argc == 3)
+			ast_cli(a->fd, "No provisioning templates found\n");
 		else
-			ast_cli(fd, "No provisioning template matching '%s' found\n", argv[3]);
+			ast_cli(a->fd, "No provisioning template matching '%s' found\n", a->argv[3]);
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_iax2_provision[] = {
-	{ { "iax2", "show", "provisioning", NULL },
-	iax_show_provisioning, "Display iax provisioning",
-	show_provisioning_usage, iax_prov_complete_template, },
+	NEW_CLI(iax_show_provisioning, "Display iax provisioning"),
 };
 
 static int iax_provision_init(void)

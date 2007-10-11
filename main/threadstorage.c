@@ -104,15 +104,30 @@ void __ast_threadstorage_object_replace(void *key_old, void *key_new, size_t len
 	AST_RWLIST_UNLOCK(&tls_objects);
 }
 
-static int handle_show_allocations(int fd, int argc, char *argv[])
+static char *handle_cli_threadstorage_show_allocations(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *fn = NULL;
 	size_t len = 0;
 	unsigned int count = 0;
 	struct tls_object *to;
 
-	if (argc > 3)
-		fn = argv[3];
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "threadstorage show allocations";
+		e->usage =
+			"Usage: threadstorage show allocations [<file>]\n"
+			"       Dumps a list of all thread-specific memory allocations,\n"
+			"       optionally limited to those from a specific file\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > 4)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc > 3)
+		fn = a->argv[3];
 
 	AST_RWLIST_RDLOCK(&tls_objects);
 
@@ -120,7 +135,7 @@ static int handle_show_allocations(int fd, int argc, char *argv[])
 		if (fn && strcasecmp(to->file, fn))
 			continue;
 
-		ast_cli(fd, "%10d bytes allocated in %20s at line %5d of %25s (thread %p)\n",
+		ast_cli(a->fd, "%10d bytes allocated in %20s at line %5d of %25s (thread %p)\n",
 			(int) to->size, to->function, to->line, to->file, (void *) to->thread);
 		len += to->size;
 		count++;
@@ -128,12 +143,12 @@ static int handle_show_allocations(int fd, int argc, char *argv[])
 
 	AST_RWLIST_UNLOCK(&tls_objects);
 
-	ast_cli(fd, "%10d bytes allocated in %d allocation%s\n", (int) len, count, count > 1 ? "s" : "");
+	ast_cli(a->fd, "%10d bytes allocated in %d allocation%s\n", (int) len, count, count > 1 ? "s" : "");
 	
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int handle_show_summary(int fd, int argc, char *argv[])
+static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *fn = NULL;
 	size_t len = 0;
@@ -145,10 +160,26 @@ static int handle_show_summary(int fd, int argc, char *argv[])
 		unsigned int count;
 		AST_LIST_ENTRY(file) entry;
 	} *file;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "threadstorage show summary";
+		e->usage =
+			"Usage: threadstorage show summary [<file>]\n"
+			"       Summarizes thread-specific memory allocations by file, or optionally\n"
+			"       by function, if a file is specified\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > 4)
+		return CLI_SHOWUSAGE;
+
 	AST_LIST_HEAD_NOLOCK_STATIC(file_summary, file);
 
-	if (argc > 3)
-		fn = argv[3];
+	if (a->argc > 3)
+		fn = a->argv[3];
 
 	AST_RWLIST_RDLOCK(&tls_objects);
 
@@ -178,38 +209,22 @@ static int handle_show_summary(int fd, int argc, char *argv[])
 		len += file->len;
 		count += file->count;
 		if (fn) {
-			ast_cli(fd, "%10d bytes in %d allocation%ss in function %s\n",
+			ast_cli(a->fd, "%10d bytes in %d allocation%ss in function %s\n",
 				(int) file->len, file->count, file->count > 1 ? "s" : "", file->name);
 		} else {
-			ast_cli(fd, "%10d bytes in %d allocation%s in file %s\n",
+			ast_cli(a->fd, "%10d bytes in %d allocation%s in file %s\n",
 				(int) file->len, file->count, file->count > 1 ? "s" : "", file->name);
 		}
 	}
 
-	ast_cli(fd, "%10d bytes allocated in %d allocation%s\n", (int) len, count, count > 1 ? "s" : "");
-	
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%10d bytes allocated in %d allocation%s\n", (int) len, count, count > 1 ? "s" : "");
+
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli[] = {
-	{
-		.cmda = { "threadstorage", "show", "allocations", NULL },
-		.handler = handle_show_allocations,
-		.summary = "Display outstanding thread local storage allocations",
-		.usage =
-		"Usage: threadstorage show allocations [<file>]\n"
-		"       Dumps a list of all thread-specific memory allocations,\n"
-		"optionally limited to those from a specific file\n",
-	},
-	{
-		.cmda = { "threadstorage", "show", "summary", NULL },
-		.handler = handle_show_summary,
-		.summary = "Summarize outstanding memory allocations",
-		.usage =
-		"Usage: threadstorage show summary [<file>]\n"
-		"       Summarizes thread-specific memory allocations by file, or optionally\n"
-		"by function, if a file is specified\n",
-	},
+	NEW_CLI(handle_cli_threadstorage_show_allocations, "Display outstanding thread local storage allocations"),
+	NEW_CLI(handle_cli_threadstorage_show_summary,     "Summarize outstanding memory allocations")
 };
 
 void threadstorage_init(void)

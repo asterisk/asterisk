@@ -499,27 +499,43 @@ static void md52sum(char *sum, unsigned char *md5)
  * \param argv list of arguements
  * \return RESULT_SUCCESS
 */
-static int show_keys(int fd, int argc, char *argv[])
+static char *handle_cli_keys_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+#define FORMAT "%-18s %-8s %-16s %-33s\n"
+
 	struct ast_key *key;
 	char sum[16 * 2 + 1];
 	int count_keys = 0;
 
-	ast_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "keys show";
+		e->usage =
+			"Usage: keys show\n"
+			"       Displays information about RSA keys known by Asterisk\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	ast_cli(a->fd, FORMAT, "Key Name", "Type", "Status", "Sum");
+	ast_cli(a->fd, FORMAT, "------------------", "--------", "----------------", "--------------------------------");
 
 	AST_RWLIST_RDLOCK(&keys);
 	AST_RWLIST_TRAVERSE(&keys, key, list) {
 		md52sum(sum, key->digest);
-		ast_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
+		ast_cli(a->fd, FORMAT, key->name, 
 			(key->ktype & 0xf) == AST_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);
 		count_keys++;
 	}
 	AST_RWLIST_UNLOCK(&keys);
 
-	ast_cli(fd, "%d known RSA keys.\n", count_keys);
+	ast_cli(a->fd, "\n%d known RSA keys.\n", count_keys);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
+
+#undef FORMAT
 }
 
 /*! 
@@ -529,11 +545,26 @@ static int show_keys(int fd, int argc, char *argv[])
  * \param argv list of arguements
  * \return RESULT_SUCCESS
 */
-static int init_keys(int fd, int argc, char *argv[])
+static char *handle_cli_keys_init(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_key *key;
 	int ign;
 	char *kn, tmp[256] = "";
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "keys init";
+		e->usage =
+			"Usage: keys init\n"
+			"       Initializes private keys (by reading in pass code from\n"
+			"       the user)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 
 	AST_RWLIST_WRLOCK(&keys);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&keys, key, list) {
@@ -541,31 +572,18 @@ static int init_keys(int fd, int argc, char *argv[])
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
 			kn = key->fn + strlen(ast_config_AST_KEY_DIR) + 1;
 			ast_copy_string(tmp, kn, sizeof(tmp));
-			try_load_key((char *)ast_config_AST_KEY_DIR, tmp, fd, fd, &ign);
+			try_load_key((char *) ast_config_AST_KEY_DIR, tmp, a->fd, a->fd, &ign);
 		}
 	}
 	AST_RWLIST_TRAVERSE_SAFE_END
 	AST_RWLIST_UNLOCK(&keys);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char show_key_usage[] =
-"Usage: keys show\n"
-"       Displays information about RSA keys known by Asterisk\n";
-
-static const char init_keys_usage[] =
-"Usage: keys init\n"
-"       Initializes private keys (by reading in pass code from the user)\n";
-
 static struct ast_cli_entry cli_crypto[] = {
-	{ { "keys", "show", NULL },
-	show_keys, "Displays RSA key information",
-	show_key_usage },
-
-	{ { "keys", "init", NULL },
-	init_keys, "Initialize RSA key passcodes",
-	init_keys_usage },
+	NEW_CLI(handle_cli_keys_show, "Displays RSA key information"),
+	NEW_CLI(handle_cli_keys_init, "Initialize RSA key passcodes")
 };
 
 /*! \brief initialise the res_crypto module */

@@ -2227,34 +2227,67 @@ static int start_network_thread(void)
 	return 0;
 }
 
-static int dundi_do_debug(int fd, int argc, char *argv[])
+static char *dundi_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi debug";
+		e->usage = 
+			"Usage: dundi debug\n"
+			"       Enables dumping of DUNDi packets for debugging purposes\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 	dundidebug = 1;
-	ast_cli(fd, "DUNDi Debugging Enabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "DUNDi Debugging Enabled\n");
+	return CLI_SUCCESS;
 }
 
-static int dundi_do_store_history(int fd, int argc, char *argv[])
+static char *dundi_do_store_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi store history";
+		e->usage = 
+			"Usage: dundi store history\n"
+			"       Enables storing of DUNDi requests and times for debugging\n"
+			"purposes\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	global_storehistory = 1;
-	ast_cli(fd, "DUNDi History Storage Enabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "DUNDi History Storage Enabled\n");
+	return CLI_SUCCESS;
 }
 
-static int dundi_flush(int fd, int argc, char *argv[])
+static char *dundi_flush(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int stats = 0;
-	if ((argc < 2) || (argc > 3))
-		return RESULT_SHOWUSAGE;
-	if (argc > 2) {
-		if (!strcasecmp(argv[2], "stats"))
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi flush [stats]";
+		e->usage = 
+			"Usage: dundi flush [stats]\n"
+			"       Flushes DUNDi answer cache, used primarily for debug.  If\n"
+			"'stats' is present, clears timer statistics instead of normal\n"
+			"operation.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if ((a->argc < 2) || (a->argc > 3))
+		return CLI_SHOWUSAGE;
+	if (a->argc > 2) {
+		if (!strcasecmp(a->argv[2], "stats"))
 			stats = 1;
 		else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 	}
 	if (stats) {
 		/* Flush statistics */
@@ -2273,27 +2306,48 @@ static int dundi_flush(int fd, int argc, char *argv[])
 		AST_LIST_UNLOCK(&peers);
 	} else {
 		ast_db_deltree("dundi/cache", NULL);
-		ast_cli(fd, "DUNDi Cache Flushed\n");
+		ast_cli(a->fd, "DUNDi Cache Flushed\n");
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int dundi_no_debug(int fd, int argc, char *argv[])
+static char *dundi_no_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi no debug";
+		e->usage = 
+			"Usage: dundi no debug\n"
+			"       Disables dumping of DUNDi packets for debugging purposes\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	dundidebug = 0;
-	ast_cli(fd, "DUNDi Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "DUNDi Debugging Disabled\n");
+	return CLI_SUCCESS;
 }
 
-static int dundi_no_store_history(int fd, int argc, char *argv[])
+static char *dundi_no_store_history(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi no store history";
+		e->usage =
+			"Usage: dundi no store history\n"
+			"       Disables storing of DUNDi requests and times for debugging\n"
+			"purposes\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	global_storehistory = 0;
-	ast_cli(fd, "DUNDi History Storage Disabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "DUNDi History Storage Disabled\n");
+	return CLI_SUCCESS;
 }
 
 static char *model2str(int model)
@@ -2330,11 +2384,6 @@ static char *complete_peer_helper(const char *line, const char *word, int pos, i
 	return ret;
 }
 
-static char *complete_peer_4(const char *line, const char *word, int pos, int state)
-{
-	return complete_peer_helper(line, word, pos, state, 3);
-}
-
 static int rescomp(const void *a, const void *b)
 {
 	const struct dundi_result *resa, *resb;
@@ -2352,7 +2401,7 @@ static void sort_results(struct dundi_result *results, int count)
 	qsort(results, count, sizeof(results[0]), rescomp);
 }
 
-static int dundi_do_lookup(int fd, int argc, char *argv[])
+static char *dundi_do_lookup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int res;
 	char tmp[256];
@@ -2362,15 +2411,28 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 	int bypass = 0;
 	struct dundi_result dr[MAX_RESULTS];
 	struct timeval start;
-	if ((argc < 3) || (argc > 4))
-		return RESULT_SHOWUSAGE;
-	if (argc > 3) {
-		if (!strcasecmp(argv[3], "bypass"))
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi lookup";
+		e->usage =
+			"Usage: dundi lookup <number>[@context] [bypass]\n"
+			"       Lookup the given number within the given DUNDi context\n"
+			"(or e164 if none is specified).  Bypasses cache if 'bypass'\n"
+			"keyword is specified.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if ((a->argc < 3) || (a->argc > 4))
+		return CLI_SHOWUSAGE;
+	if (a->argc > 3) {
+		if (!strcasecmp(a->argv[3], "bypass"))
 			bypass=1;
 		else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 	}
-	ast_copy_string(tmp, argv[2], sizeof(tmp));
+	ast_copy_string(tmp, a->argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2380,28 +2442,40 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 	res = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp, bypass);
 	
 	if (res < 0) 
-		ast_cli(fd, "DUNDi lookup returned error.\n");
+		ast_cli(a->fd, "DUNDi lookup returned error.\n");
 	else if (!res) 
-		ast_cli(fd, "DUNDi lookup returned no results.\n");
+		ast_cli(a->fd, "DUNDi lookup returned no results.\n");
 	else
 		sort_results(dr, res);
 	for (x=0;x<res;x++) {
-		ast_cli(fd, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
-		ast_cli(fd, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
+		ast_cli(a->fd, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
+		ast_cli(a->fd, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
 	}
-	ast_cli(fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
+	return CLI_SUCCESS;
 }
 
-static int dundi_do_precache(int fd, int argc, char *argv[])
+static char *dundi_do_precache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int res;
 	char tmp[256];
 	char *context;
 	struct timeval start;
-	if ((argc < 3) || (argc > 3))
-		return RESULT_SHOWUSAGE;
-	ast_copy_string(tmp, argv[2], sizeof(tmp));
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi precache";
+		e->usage = 
+			"Usage: dundi precache <number>[@context]\n"
+			"       Lookup the given number within the given DUNDi context\n"
+			"(or e164 if none is specified) and precaches the results to any\n"
+			"upstream DUNDi push servers.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if ((a->argc < 3) || (a->argc > 3))
+		return CLI_SHOWUSAGE;
+	ast_copy_string(tmp, a->argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2411,27 +2485,39 @@ static int dundi_do_precache(int fd, int argc, char *argv[])
 	res = dundi_precache(context, tmp);
 	
 	if (res < 0) 
-		ast_cli(fd, "DUNDi precache returned error.\n");
+		ast_cli(a->fd, "DUNDi precache returned error.\n");
 	else if (!res) 
-		ast_cli(fd, "DUNDi precache returned no error.\n");
-	ast_cli(fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "DUNDi precache returned no error.\n");
+	ast_cli(a->fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
+	return CLI_SUCCESS;
 }
 
-static int dundi_do_query(int fd, int argc, char *argv[])
+static char *dundi_do_query(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int res;
 	char tmp[256];
 	char *context;
 	dundi_eid eid;
 	struct dundi_entity_info dei;
-	if ((argc < 3) || (argc > 3))
-		return RESULT_SHOWUSAGE;
-	if (dundi_str_to_eid(&eid, argv[2])) {
-		ast_cli(fd, "'%s' is not a valid EID!\n", argv[2]);
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi query";
+		e->usage = 
+			"Usage: dundi query <entity>[@context]\n"
+			"       Attempts to retrieve contact information for a specific\n"
+			"DUNDi entity identifier (EID) within a given DUNDi context (or\n"
+			"e164 if none is specified).\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	ast_copy_string(tmp, argv[2], sizeof(tmp));
+	if ((a->argc < 3) || (a->argc > 3))
+		return CLI_SHOWUSAGE;
+	if (dundi_str_to_eid(&eid, a->argv[2])) {
+		ast_cli(a->fd, "'%s' is not a valid EID!\n", a->argv[2]);
+		return CLI_SHOWUSAGE;
+	}
+	ast_copy_string(tmp, a->argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2439,36 +2525,45 @@ static int dundi_do_query(int fd, int argc, char *argv[])
 	}
 	res = dundi_query_eid(&dei, context, eid);
 	if (res < 0) 
-		ast_cli(fd, "DUNDi Query EID returned error.\n");
+		ast_cli(a->fd, "DUNDi Query EID returned error.\n");
 	else if (!res) 
-		ast_cli(fd, "DUNDi Query EID returned no results.\n");
+		ast_cli(a->fd, "DUNDi Query EID returned no results.\n");
 	else {
-		ast_cli(fd, "DUNDi Query EID succeeded:\n");
-		ast_cli(fd, "Department:      %s\n", dei.orgunit);
-		ast_cli(fd, "Organization:    %s\n", dei.org);
-		ast_cli(fd, "City/Locality:   %s\n", dei.locality);
-		ast_cli(fd, "State/Province:  %s\n", dei.stateprov);
-		ast_cli(fd, "Country:         %s\n", dei.country);
-		ast_cli(fd, "E-mail:          %s\n", dei.email);
-		ast_cli(fd, "Phone:           %s\n", dei.phone);
-		ast_cli(fd, "IP Address:      %s\n", dei.ipaddr);
+		ast_cli(a->fd, "DUNDi Query EID succeeded:\n");
+		ast_cli(a->fd, "Department:      %s\n", dei.orgunit);
+		ast_cli(a->fd, "Organization:    %s\n", dei.org);
+		ast_cli(a->fd, "City/Locality:   %s\n", dei.locality);
+		ast_cli(a->fd, "State/Province:  %s\n", dei.stateprov);
+		ast_cli(a->fd, "Country:         %s\n", dei.country);
+		ast_cli(a->fd, "E-mail:          %s\n", dei.email);
+		ast_cli(a->fd, "Phone:           %s\n", dei.phone);
+		ast_cli(a->fd, "IP Address:      %s\n", dei.ipaddr);
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int dundi_show_peer(int fd, int argc, char *argv[])
+static char *dundi_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct dundi_peer *peer;
 	struct permission *p;
 	char *order;
 	char eid_str[20];
 	int x, cnt;
-	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show peer";
+		e->usage =
+			"Usage: dundi show peer [peer]\n"
+			"       Provide a detailed description of a specifid DUNDi peer.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_peer_helper(a->line, a->word, a->pos, a->n, 3);
+	}
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE(&peers, peer, list) {
-		if (!strcasecmp(dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), argv[3]))
+		if (!strcasecmp(dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), a->argv[3]))
 			break;
 	}
 	if (peer) {
@@ -2488,39 +2583,39 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 		default:
 			order = "Unknown";
 		}
-		ast_cli(fd, "Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-		ast_cli(fd, "Model:   %s\n", model2str(peer->model));
-		ast_cli(fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "<Unspecified>");
-		ast_cli(fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
-		ast_cli(fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
-		ast_cli(fd, "In Key:  %s\n", ast_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
-		ast_cli(fd, "Out Key: %s\n", ast_strlen_zero(peer->outkey) ? "<None>" : peer->outkey);
+		ast_cli(a->fd, "Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
+		ast_cli(a->fd, "Model:   %s\n", model2str(peer->model));
+		ast_cli(a->fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "<Unspecified>");
+		ast_cli(a->fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
+		ast_cli(a->fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
+		ast_cli(a->fd, "In Key:  %s\n", ast_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
+		ast_cli(a->fd, "Out Key: %s\n", ast_strlen_zero(peer->outkey) ? "<None>" : peer->outkey);
 		if (!AST_LIST_EMPTY(&peer->include))
-			ast_cli(fd, "Include logic%s:\n", peer->model & DUNDI_MODEL_OUTBOUND ? "" : " (IGNORED)");
+			ast_cli(a->fd, "Include logic%s:\n", peer->model & DUNDI_MODEL_OUTBOUND ? "" : " (IGNORED)");
 		AST_LIST_TRAVERSE(&peer->include, p, list)
-			ast_cli(fd, "-- %s %s\n", p->allow ? "include" : "do not include", p->name);
+			ast_cli(a->fd, "-- %s %s\n", p->allow ? "include" : "do not include", p->name);
 		if (!AST_LIST_EMPTY(&peer->permit))
-			ast_cli(fd, "Query logic%s:\n", peer->model & DUNDI_MODEL_INBOUND ? "" : " (IGNORED)");
+			ast_cli(a->fd, "Query logic%s:\n", peer->model & DUNDI_MODEL_INBOUND ? "" : " (IGNORED)");
 		AST_LIST_TRAVERSE(&peer->permit, p, list)
-			ast_cli(fd, "-- %s %s\n", p->allow ? "permit" : "deny", p->name);
+			ast_cli(a->fd, "-- %s %s\n", p->allow ? "permit" : "deny", p->name);
 		cnt = 0;
 		for (x = 0;x < DUNDI_TIMING_HISTORY; x++) {
 			if (peer->lookups[x]) {
 				if (!cnt)
-					ast_cli(fd, "Last few query times:\n");
-				ast_cli(fd, "-- %d. %s (%d ms)\n", x + 1, peer->lookups[x], peer->lookuptimes[x]);
+					ast_cli(a->fd, "Last few query times:\n");
+				ast_cli(a->fd, "-- %d. %s (%d ms)\n", x + 1, peer->lookups[x], peer->lookuptimes[x]);
 				cnt++;
 			}
 		}
 		if (cnt)
-			ast_cli(fd, "Average query time: %d ms\n", peer->avgms);
+			ast_cli(a->fd, "Average query time: %d ms\n", peer->avgms);
 	} else
-		ast_cli(fd, "No such peer '%s'\n", argv[3]);
+		ast_cli(a->fd, "No such peer '%s'\n", a->argv[3]);
 	AST_LIST_UNLOCK(&peers);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int dundi_show_peers(int fd, int argc, char *argv[])
+static char *dundi_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-20.20s %-15.15s     %-10.10s %-8.8s %-15.15s\n"
 #define FORMAT "%-20.20s %-15.15s %s %-10.10s %-8.8s %-15.15s\n"
@@ -2532,17 +2627,28 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 	int offline_peers = 0;
 	int unmonitored_peers = 0;
 	int total_peers = 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show peers [registered|include|exclude|begin]";
+		e->usage = 
+			"Usage: dundi show peers [registered|include|exclude|begin]\n"
+			"       Lists all known DUNDi peers.\n"
+			"       If 'registered' is present, only registered peers are shown.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	if ((argc != 3) && (argc != 4) && (argc != 5))
-		return RESULT_SHOWUSAGE;
-	if ((argc == 4)) {
- 		if (!strcasecmp(argv[3], "registered")) {
+	if ((a->argc != 3) && (a->argc != 4) && (a->argc != 5))
+		return CLI_SHOWUSAGE;
+	if ((a->argc == 4)) {
+ 		if (!strcasecmp(a->argv[3], "registered")) {
 			registeredonly = 1;
 		} else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
  	}
 	AST_LIST_LOCK(&peers);
-	ast_cli(fd, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
+	ast_cli(a->fd, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
 	AST_LIST_TRAVERSE(&peers, peer, list) {
 		char status[20];
 		int print_line = -1;
@@ -2579,12 +2685,12 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 
-                if (argc == 5) {
-                  if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
+                if (a->argc == 5) {
+                  if (!strcasecmp(a->argv[3],"include") && strstr(srch,a->argv[4])) {
                         print_line = -1;
-                   } else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
+                   } else if (!strcasecmp(a->argv[3],"exclude") && !strstr(srch,a->argv[4])) {
                         print_line = 1;
-                   } else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
+                   } else if (!strcasecmp(a->argv[3],"begin") && !strncasecmp(srch,a->argv[4],strlen(a->argv[4]))) {
                         print_line = -1;
                    } else {
                         print_line = 0;
@@ -2592,106 +2698,155 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
                 }
 		
         if (print_line) {
-			ast_cli(fd, FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
+			ast_cli(a->fd, FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
 					peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 		}
 	}
-	ast_cli(fd, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
+	ast_cli(a->fd, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
 	AST_LIST_UNLOCK(&peers);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int dundi_show_trans(int fd, int argc, char *argv[])
+static char *dundi_show_trans(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-22.22s %-5.5s %-5.5s %-3.3s %-3.3s %-3.3s\n"
 #define FORMAT "%-16.16s:%5d %-5.5d %-5.5d %-3.3d %-3.3d %-3.3d\n"
 	struct dundi_transaction *trans;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show trans";
+		e->usage = 
+			"Usage: dundi show trans\n"
+			"       Lists all known DUNDi transactions.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
-	ast_cli(fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
+	ast_cli(a->fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
 	AST_LIST_TRAVERSE(&alltrans, trans, all) {
-		ast_cli(fd, FORMAT, ast_inet_ntoa(trans->addr.sin_addr), 
+		ast_cli(a->fd, FORMAT, ast_inet_ntoa(trans->addr.sin_addr), 
 			ntohs(trans->addr.sin_port), trans->strans, trans->dtrans, trans->oseqno, trans->iseqno, trans->aseqno);
 	}
 	AST_LIST_UNLOCK(&peers);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int dundi_show_entityid(int fd, int argc, char *argv[])
+static char *dundi_show_entityid(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char eid_str[20];
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show entityid";
+		e->usage =
+			"Usage: dundi show entityid\n"
+			"       Displays the global entityid for this host.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
 	dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
 	AST_LIST_UNLOCK(&peers);
-	ast_cli(fd, "Global EID for this system is '%s'\n", eid_str);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "Global EID for this system is '%s'\n", eid_str);
+	return CLI_SUCCESS;
 }
 
-static int dundi_show_requests(int fd, int argc, char *argv[])
+static char *dundi_show_requests(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-15s %-15s %-15s %-3.3s %-3.3s\n"
 #define FORMAT "%-15s %-15s %-15s %-3.3d %-3.3d\n"
 	struct dundi_request *req;
 	char eidstr[20];
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show requests";
+		e->usage = 
+			"Usage: dundi show requests\n"
+			"       Lists all known pending DUNDi requests.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
-	ast_cli(fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
+	ast_cli(a->fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
 	AST_LIST_TRAVERSE(&requests, req, list) {
-		ast_cli(fd, FORMAT, req->number, req->dcontext,
+		ast_cli(a->fd, FORMAT, req->number, req->dcontext,
 			dundi_eid_zero(&req->root_eid) ? "<unspecified>" : dundi_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
 	}
 	AST_LIST_UNLOCK(&peers);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
 /* Grok-a-dial DUNDi */
 
-static int dundi_show_mappings(int fd, int argc, char *argv[])
+static char *dundi_show_mappings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-12.12s %-7.7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
 #define FORMAT "%-12.12s %-7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
 	struct dundi_mapping *map;
 	char fs[256];
 	char weight[8];
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show mappings";
+		e->usage = 
+			"Usage: dundi show mappings\n"
+			"       Lists all known DUNDi mappings.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	AST_LIST_LOCK(&peers);
-	ast_cli(fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
+	ast_cli(a->fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	AST_LIST_TRAVERSE(&mappings, map, list) {
 		snprintf(weight, sizeof(weight), "%d", get_mapping_weight(map));
-		ast_cli(fd, FORMAT, map->dcontext, weight,
+		ast_cli(a->fd, FORMAT, map->dcontext, weight,
 			ast_strlen_zero(map->lcontext) ? "<none>" : map->lcontext, 
 			dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);
 	}
 	AST_LIST_UNLOCK(&peers);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int dundi_show_precache(int fd, int argc, char *argv[])
+static char *dundi_show_precache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-12.12s %-12.12s %-10.10s\n"
 #define FORMAT "%-12.12s %-12.12s %02d:%02d:%02d\n"
 	struct dundi_precache_queue *qe;
 	int h,m,s;
 	time_t now;
-	
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "dundi show precache";
+		e->usage = 
+			"Usage: dundi show precache\n"
+			"       Lists all known DUNDi scheduled precache updates.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	time(&now);
-	ast_cli(fd, FORMAT2, "Number", "Context", "Expiration");
+	ast_cli(a->fd, FORMAT2, "Number", "Context", "Expiration");
 	AST_LIST_LOCK(&pcq);
 	AST_LIST_TRAVERSE(&pcq, qe, list) {
 		s = qe->expiration - now;
@@ -2699,145 +2854,31 @@ static int dundi_show_precache(int fd, int argc, char *argv[])
 		s = s % 3600;
 		m = s / 60;
 		s = s % 60;
-		ast_cli(fd, FORMAT, qe->number, qe->context, h,m,s);
+		ast_cli(a->fd, FORMAT, qe->number, qe->context, h,m,s);
 	}
 	AST_LIST_UNLOCK(&pcq);
 	
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static const char debug_usage[] = 
-"Usage: dundi debug\n"
-"       Enables dumping of DUNDi packets for debugging purposes\n";
-
-static const char no_debug_usage[] = 
-"Usage: dundi no debug\n"
-"       Disables dumping of DUNDi packets for debugging purposes\n";
-
-static const char store_history_usage[] = 
-"Usage: dundi store history\n"
-"       Enables storing of DUNDi requests and times for debugging\n"
-"purposes\n";
-
-static const char no_store_history_usage[] = 
-"Usage: dundi no store history\n"
-"       Disables storing of DUNDi requests and times for debugging\n"
-"purposes\n";
-
-static const char show_peers_usage[] = 
-"Usage: dundi show peers\n"
-"       Lists all known DUNDi peers.\n";
-
-static const char show_trans_usage[] = 
-"Usage: dundi show trans\n"
-"       Lists all known DUNDi transactions.\n";
-
-static const char show_mappings_usage[] = 
-"Usage: dundi show mappings\n"
-"       Lists all known DUNDi mappings.\n";
-
-static const char show_precache_usage[] = 
-"Usage: dundi show precache\n"
-"       Lists all known DUNDi scheduled precache updates.\n";
-
-static const char show_entityid_usage[] = 
-"Usage: dundi show entityid\n"
-"       Displays the global entityid for this host.\n";
-
-static const char show_peer_usage[] = 
-"Usage: dundi show peer [peer]\n"
-"       Provide a detailed description of a specifid DUNDi peer.\n";
-
-static const char show_requests_usage[] = 
-"Usage: dundi show requests\n"
-"       Lists all known pending DUNDi requests.\n";
-
-static const char lookup_usage[] =
-"Usage: dundi lookup <number>[@context] [bypass]\n"
-"       Lookup the given number within the given DUNDi context\n"
-"(or e164 if none is specified).  Bypasses cache if 'bypass'\n"
-"keyword is specified.\n";
-
-static const char precache_usage[] =
-"Usage: dundi precache <number>[@context]\n"
-"       Lookup the given number within the given DUNDi context\n"
-"(or e164 if none is specified) and precaches the results to any\n"
-"upstream DUNDi push servers.\n";
-
-static const char query_usage[] =
-"Usage: dundi query <entity>[@context]\n"
-"       Attempts to retrieve contact information for a specific\n"
-"DUNDi entity identifier (EID) within a given DUNDi context (or\n"
-"e164 if none is specified).\n";
-
-static const char flush_usage[] =
-"Usage: dundi flush [stats]\n"
-"       Flushes DUNDi answer cache, used primarily for debug.  If\n"
-"'stats' is present, clears timer statistics instead of normal\n"
-"operation.\n";
-
 static struct ast_cli_entry cli_dundi[] = {
-	{ { "dundi", "debug", NULL },
-	dundi_do_debug, "Enable DUNDi debugging",
-	debug_usage },
-
-	{ { "dundi", "store", "history", NULL },
-	dundi_do_store_history, "Enable DUNDi historic records",
-	store_history_usage },
-
-	{ { "dundi", "no", "store", "history", NULL },
-	dundi_no_store_history, "Disable DUNDi historic records",
-	no_store_history_usage },
-
-	{ { "dundi", "flush", NULL },
-	dundi_flush, "Flush DUNDi cache",
-	flush_usage },
-
-	{ { "dundi", "no", "debug", NULL },
-	dundi_no_debug, "Disable DUNDi debugging",
-	no_debug_usage },
-
-	{ { "dundi", "show", "peers", NULL },
-	dundi_show_peers, "Show defined DUNDi peers",
-	show_peers_usage },
-
-	{ { "dundi", "show", "trans", NULL },
-	dundi_show_trans, "Show active DUNDi transactions",
-	show_trans_usage },
-
-	{ { "dundi", "show", "entityid", NULL },
-	dundi_show_entityid, "Display Global Entity ID",
-	show_entityid_usage },
-
-	{ { "dundi", "show", "mappings", NULL },
-	dundi_show_mappings, "Show DUNDi mappings",
-	show_mappings_usage },
-
-	{ { "dundi", "show", "precache", NULL },
-	dundi_show_precache, "Show DUNDi precache",
-	show_precache_usage },
-
-	{ { "dundi", "show", "requests", NULL },
-	dundi_show_requests, "Show DUNDi requests",
-	show_requests_usage },
-
-	{ { "dundi", "show", "peer", NULL },
-	dundi_show_peer, "Show info on a specific DUNDi peer",
-	show_peer_usage, complete_peer_4 },
-
-	{ { "dundi", "lookup", NULL },
-	dundi_do_lookup, "Lookup a number in DUNDi",
-	lookup_usage },
-
-	{ { "dundi", "precache", NULL },
-	dundi_do_precache, "Precache a number in DUNDi",
-	precache_usage },
-
-	{ { "dundi", "query", NULL },
-	dundi_do_query, "Query a DUNDi EID",
-	query_usage },
+	NEW_CLI(dundi_do_debug, "Enable DUNDi debugging"),
+	NEW_CLI(dundi_no_debug, "Disable DUNDi debugging"),
+	NEW_CLI(dundi_do_store_history, "Enable DUNDi historic records"),
+	NEW_CLI(dundi_no_store_history, "Disable DUNDi historic records"),
+	NEW_CLI(dundi_flush, "Flush DUNDi cache"),
+	NEW_CLI(dundi_show_peers, "Show defined DUNDi peers"),
+	NEW_CLI(dundi_show_trans, "Show active DUNDi transactions"),
+	NEW_CLI(dundi_show_entityid, "Display Global Entity ID"),
+	NEW_CLI(dundi_show_mappings, "Show DUNDi mappings"),
+	NEW_CLI(dundi_show_precache, "Show DUNDi precache"),
+	NEW_CLI(dundi_show_requests, "Show DUNDi requests"),
+	NEW_CLI(dundi_show_peer, "Show info on a specific DUNDi peer"),
+	NEW_CLI(dundi_do_precache, "Precache a number in DUNDi"),
+	NEW_CLI(dundi_do_lookup, "Lookup a number in DUNDi"),
+	NEW_CLI(dundi_do_query, "Query a DUNDi EID"),
 };
 
 static struct dundi_transaction *create_transaction(struct dundi_peer *p)

@@ -1202,37 +1202,44 @@ int ast_stream_and_wait(struct ast_channel *chan, const char *file, const char *
         return res;
 } 
 
-static int show_file_formats(int fd, int argc, char *argv[])
+static char *handle_cli_core_show_file_formats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT "%-10s %-10s %-20s\n"
 #define FORMAT2 "%-10s %-10s %-20s\n"
 	struct ast_format *f;
 	int count_fmt = 0;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT, "Format", "Name", "Extensions");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show file formats";
+		e->usage =
+			"Usage: core show file formats\n"
+			"       Displays currently registered file formats (if any).\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, FORMAT, "Format", "Name", "Extensions");
+	ast_cli(a->fd, FORMAT, "------", "----", "----------");
 
 	AST_RWLIST_RDLOCK(&formats);
 	AST_RWLIST_TRAVERSE(&formats, f, list) {
-		ast_cli(fd, FORMAT2, ast_getformatname(f->format), f->name, f->exts);
+		ast_cli(a->fd, FORMAT2, ast_getformatname(f->format), f->name, f->exts);
 		count_fmt++;
 	}
 	AST_RWLIST_UNLOCK(&formats);
-	ast_cli(fd, "%d file formats registered.\n", count_fmt);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d file formats registered.\n", count_fmt);
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static const char show_file_formats_usage[] = 
-"Usage: core show file formats\n"
-"       Displays currently registered file formats (if any)\n";
-
 struct ast_cli_entry cli_file[] = {
-	{ { "core", "show", "file", "formats" },
-	show_file_formats, "Displays file formats",
-	show_file_formats_usage },
+	NEW_CLI(handle_cli_core_show_file_formats, "Displays file formats")
 };
 
 int ast_file_init(void)

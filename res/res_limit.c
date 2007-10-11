@@ -49,21 +49,21 @@ static struct limits {
 	char limit[3];
 	char desc[40];
 } limits[] = {
-	{ RLIMIT_CPU, "-t", "cpu time" },
-	{ RLIMIT_FSIZE, "-f", "file size" },
-	{ RLIMIT_DATA, "-d", "program data segment" },
-	{ RLIMIT_STACK, "-s", "program stack size" },
-	{ RLIMIT_CORE, "-c", "core file size" },
+	{ RLIMIT_CPU,     "-t", "cpu time" },
+	{ RLIMIT_FSIZE,   "-f", "file size" },
+	{ RLIMIT_DATA,    "-d", "program data segment" },
+	{ RLIMIT_STACK,   "-s", "program stack size" },
+	{ RLIMIT_CORE,    "-c", "core file size" },
 #ifdef RLIMIT_RSS
-	{ RLIMIT_RSS, "-m", "resident memory" },
+	{ RLIMIT_RSS,     "-m", "resident memory" },
 	{ RLIMIT_MEMLOCK, "-l", "amount of memory locked into RAM" },
 #endif
 #ifdef RLIMIT_NPROC
-	{ RLIMIT_NPROC, "-u", "number of processes" },
+	{ RLIMIT_NPROC,   "-u", "number of processes" },
 #endif
-	{ RLIMIT_NOFILE, "-n", "number of file descriptors" },
+	{ RLIMIT_NOFILE,  "-n", "number of file descriptors" },
 #ifdef VMEM_DEF
-	{ VMEM_DEF, "-v", "virtual memory" },
+	{ VMEM_DEF,       "-v", "virtual memory" },
 #endif
 };
 
@@ -87,43 +87,105 @@ static const char *str2desc(const char *string)
 	return "<unknown>";
 }
 
-static int my_ulimit(int fd, int argc, char **argv)
+static char *complete_ulimit(struct ast_cli_args *a)
+{
+	int which = 0, i;
+	int wordlen = strlen(a->word);
+
+	if (a->pos > 1)
+		return NULL;
+	for (i = 0; i < sizeof(limits) / sizeof(limits[0]); i++) {
+		if (!strncasecmp(limits[i].limit, a->word, wordlen)) {
+			if (++which > a->n)
+				return ast_strdup(limits[i].limit);
+		}
+	}
+	return NULL;
+}
+
+static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int resource;
 	struct rlimit rlimit = { 0, 0 };
-	if (argc > 3)
-		return RESULT_SHOWUSAGE;
 
-	if (argc == 1) {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ulimit";
+		e->usage =
+			"Usage: ulimit {-d|"
+#ifdef RLIMIT_RSS
+			"-l|"
+#endif
+			"-f|"
+#ifdef RLIMIT_RSS
+			"-m|"
+#endif
+			"-s|-t|"
+#ifdef RLIMIT_NPROC
+			"-u|"
+#endif
+#ifdef VMEM_DEF
+			"-v|"
+#endif
+			"-c|-n} [<num>]\n"
+			"       Shows or sets the corresponding resource limit.\n"
+			"         -d  Process data segment [readonly]\n"
+#ifdef RLIMIT_RSS
+			"         -l  Memory lock size [readonly]\n"
+#endif
+			"         -f  File size\n"
+#ifdef RLIMIT_RSS
+			"         -m  Process resident memory [readonly]\n"
+#endif
+			"         -s  Process stack size [readonly]\n"
+			"         -t  CPU usage [readonly]\n"
+#ifdef RLIMIT_NPROC
+			"         -u  Child processes\n"
+#endif
+#ifdef VMEM_DEF
+			"         -v  Process virtual memory [readonly]\n"
+#endif
+			"         -c  Core dump file size\n"
+			"         -n  Number of file descriptors\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ulimit(a);
+	}
+
+	if (a->argc > 3)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc == 1) {
 		char arg2[3];
 		char *newargv[2] = { "ulimit", arg2 };
 		for (resource = 0; resource < sizeof(limits) / sizeof(limits[0]); resource++) {
+			struct ast_cli_args newArgs = { .argv = newargv, .argc = 2 };
 			ast_copy_string(arg2, limits[resource].limit, sizeof(arg2));
-			my_ulimit(fd, 2, newargv);
+			handle_cli_ulimit(e, CLI_HANDLER, &newArgs);
 		}
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	} else {
-		resource = str2limit(argv[1]);
+		resource = str2limit(a->argv[1]);
 		if (resource == -1) {
-			ast_cli(fd, "Unknown resource\n");
-			return RESULT_FAILURE;
+			ast_cli(a->fd, "Unknown resource\n");
+			return CLI_FAILURE;
 		}
 
-		if (argc == 3) {
+		if (a->argc == 3) {
 			int x;
 #ifdef RLIMIT_NPROC
 			if (resource != RLIMIT_NOFILE && resource != RLIMIT_CORE && resource != RLIMIT_NPROC && resource != RLIMIT_FSIZE) {
 #else
-			  if (resource != RLIMIT_NOFILE && resource != RLIMIT_CORE && resource != RLIMIT_FSIZE) {
+			if (resource != RLIMIT_NOFILE && resource != RLIMIT_CORE && resource != RLIMIT_FSIZE) {
 #endif
-				ast_cli(fd, "Resource not permitted to be set\n");
-				return RESULT_FAILURE;
+				ast_cli(a->fd, "Resource not permitted to be set\n");
+				return CLI_FAILURE;
 			}
 
-			sscanf(argv[2], "%d", &x);
+			sscanf(a->argv[2], "%d", &x);
 			rlimit.rlim_max = rlimit.rlim_cur = x;
 			setrlimit(resource, &rlimit);
-			return RESULT_SUCCESS;
+			return CLI_SUCCESS;
 		} else {
 			if (!getrlimit(resource, &rlimit)) {
 				char printlimit[32];
@@ -131,51 +193,18 @@ static int my_ulimit(int fd, int argc, char **argv)
 				if (rlimit.rlim_max == RLIM_INFINITY)
 					ast_copy_string(printlimit, "effectively unlimited", sizeof(printlimit));
 				else
-					snprintf(printlimit, sizeof(printlimit), "limited to %d", (int)rlimit.rlim_cur);
-				desc = str2desc(argv[1]);
-				ast_cli(fd, "%c%s (%s) is %s.\n", toupper(desc[0]), desc + 1, argv[1], printlimit);
+					snprintf(printlimit, sizeof(printlimit), "limited to %d", (int) rlimit.rlim_cur);
+				desc = str2desc(a->argv[1]);
+				ast_cli(a->fd, "%c%s (%s) is %s.\n", toupper(desc[0]), desc + 1, a->argv[1], printlimit);
 			} else
-				ast_cli(fd, "Could not retrieve resource limits for %s: %s\n", str2desc(argv[1]), strerror(errno));
-			return RESULT_SUCCESS;
+				ast_cli(a->fd, "Could not retrieve resource limits for %s: %s\n", str2desc(a->argv[1]), strerror(errno));
+			return CLI_SUCCESS;
 		}
 	}
 }
 
-static char *complete_ulimit(const char *line, const char *word, int pos, int state)
-{
-	int which = 0, i;
-	int wordlen = strlen(word);
-
-	if (pos > 2)
-		return NULL;
-	for (i = 0; i < sizeof(limits) / sizeof(limits[0]); i++) {
-		if (!strncasecmp(limits[i].limit, word, wordlen)) {
-			if (++which > state)
-				return ast_strdup(limits[i].limit);
-		}
-	}
-	return NULL;
-}
-
-static const char ulimit_usage[] =
-"Usage: ulimit {-d|-l|-f|-m|-s|-t|-u|-v|-c|-n} [<num>]\n"
-"       Shows or sets the corresponding resource limit.\n"
-"         -d  Process data segment [readonly]\n"
-"         -l  Memory lock size [readonly]\n"
-"         -f  File size\n"
-"         -m  Process resident memory [readonly]\n"
-"         -s  Process stack size [readonly]\n"
-"         -t  CPU usage [readonly]\n"
-"         -u  Child processes\n"
-#ifdef VMEM_DEF
-"         -v  Process virtual memory [readonly]\n"
-#endif
-"         -c  Core dump file size\n"
-"         -n  Number of file descriptors\n";
-
-static struct ast_cli_entry cli_ulimit = {
-	{ "ulimit", NULL }, my_ulimit,
-	"Set or show process resource limits", ulimit_usage, complete_ulimit };
+static struct ast_cli_entry cli_ulimit =
+	NEW_CLI(handle_cli_ulimit, "Set or show process resource limits");
 
 static int unload_module(void)
 {
@@ -184,7 +213,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	return ast_cli_register(&cli_ulimit)? AST_MODULE_LOAD_FAILURE: AST_MODULE_LOAD_SUCCESS;
+	return ast_cli_register(&cli_ulimit) ? AST_MODULE_LOAD_FAILURE : AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Resource limits");

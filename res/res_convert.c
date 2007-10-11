@@ -61,45 +61,60 @@ static int split_ext(char *filename, char **name, char **ext)
  * \param fd file descriptor
  * \param argc no arguements
  * \param argv list of arguements
- * \retval RESULT_SUCCESS on success.
- * \retval RESULT_SHOWUSAGE on failure.
+ * \retval CLI_SUCCESS on success.
+ * \retval CLI_SHOWUSAGE or CLI_FAILURE on failure.
 */
-static int cli_audio_convert(int fd, int argc, char *argv[])
+static char *handle_cli_file_convert(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int ret = RESULT_FAILURE;
+	char *ret = CLI_FAILURE;
 	struct ast_filestream *fs_in = NULL, *fs_out = NULL;
 	struct ast_frame *f;
 	struct timeval start;
 	int cost;
 	char *file_in = NULL, *file_out = NULL;
 	char *name_in, *ext_in, *name_out, *ext_out;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "file convert";
+		e->usage =
+			"Usage: file convert <file_in> <file_out>\n"
+			"       Convert from file_in to file_out. If an absolute path\n"
+			"       is not given, the default Asterisk sounds directory\n"
+			"       will be used.\n\n"
+			"       Example:\n"
+			"           file convert tt-weasels.gsm tt-weasels.ulaw\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 	
 	/* ugly, can be removed when CLI entries have ast_module pointers */
 	ast_module_ref(ast_module_info->self);
 
-	if (argc != 4 || ast_strlen_zero(argv[2]) || ast_strlen_zero(argv[3])) {
-		ret = RESULT_SHOWUSAGE;
+	if (a->argc != 4 || ast_strlen_zero(a->argv[2]) || ast_strlen_zero(a->argv[3])) {
+		ret = CLI_SHOWUSAGE;
 		goto fail_out;	
 	}
 
-	file_in = ast_strdupa(argv[2]);
-	file_out = ast_strdupa(argv[3]);
+	file_in = ast_strdupa(a->argv[2]);
+	file_out = ast_strdupa(a->argv[3]);
 
 	if (split_ext(file_in, &name_in, &ext_in)) {
-		ast_cli(fd, "'%s' is an invalid filename!\n", argv[2]);
+		ast_cli(a->fd, "'%s' is an invalid filename!\n", a->argv[2]);
 		goto fail_out;
 	}
 	if (!(fs_in = ast_readfile(name_in, ext_in, NULL, O_RDONLY, 0, 0))) {
-		ast_cli(fd, "Unable to open input file: %s\n", argv[2]);
+		ast_cli(a->fd, "Unable to open input file: %s\n", a->argv[2]);
 		goto fail_out;
 	}
 	
 	if (split_ext(file_out, &name_out, &ext_out)) {
-		ast_cli(fd, "'%s' is an invalid filename!\n", argv[3]);
+		ast_cli(a->fd, "'%s' is an invalid filename!\n", a->argv[3]);
 		goto fail_out;
 	}
 	if (!(fs_out = ast_writefile(name_out, ext_out, NULL, O_CREAT|O_TRUNC|O_WRONLY, 0, AST_FILE_MODE))) {
-		ast_cli(fd, "Unable to open output file: %s\n", argv[3]);
+		ast_cli(a->fd, "Unable to open output file: %s\n", a->argv[3]);
 		goto fail_out;
 	}
 
@@ -107,19 +122,19 @@ static int cli_audio_convert(int fd, int argc, char *argv[])
 	
 	while ((f = ast_readframe(fs_in))) {
 		if (ast_writestream(fs_out, f)) {
-			ast_cli(fd, "Failed to convert %s.%s to %s.%s!\n", name_in, ext_in, name_out, ext_out);
+			ast_cli(a->fd, "Failed to convert %s.%s to %s.%s!\n", name_in, ext_in, name_out, ext_out);
 			goto fail_out;
 		}
 	}
 
 	cost = ast_tvdiff_ms(ast_tvnow(), start);
-	ast_cli(fd, "Converted %s.%s to %s.%s in %dms\n", name_in, ext_in, name_out, ext_out, cost);
-	ret = RESULT_SUCCESS;
+	ast_cli(a->fd, "Converted %s.%s to %s.%s in %dms\n", name_in, ext_in, name_out, ext_out, cost);
+	ret = CLI_SUCCESS;
 
 fail_out:
 	if (fs_out) {
 		ast_closestream(fs_out);
-		if (ret != RESULT_SUCCESS)
+		if (ret != CLI_SUCCESS)
 			ast_filedelete(name_out, ext_out);
 	}
 
@@ -131,17 +146,8 @@ fail_out:
 	return ret;
 }
 
-static char usage_audio_convert[] =
-"Usage: file convert <file_in> <file_out>\n"
-"    Convert from file_in to file_out. If an absolute path is not given, the\n"
-"default Asterisk sounds directory will be used.\n\n"
-"Example:\n"
-"    file convert tt-weasels.gsm tt-weasels.ulaw\n";
-
 static struct ast_cli_entry cli_convert[] = {
-	{ { "file", "convert" , NULL },
-	cli_audio_convert, "Convert audio file",
-	usage_audio_convert },
+	NEW_CLI(handle_cli_file_convert, "Convert audio file")
 };
 
 static int unload_module(void)

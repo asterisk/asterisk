@@ -123,22 +123,6 @@ unsigned int ast_verbose_get_by_file(const char *file)
 
 static AST_RWLIST_HEAD_STATIC(helpers, ast_cli_entry);
 
-static const char logger_mute_help[] = 
-"Usage: logger mute\n"
-"       Disables logging output to the current console, making it possible to\n"
-"       gather information without being disturbed by scrolling lines.\n";
-
-static const char softhangup_help[] =
-"Usage: soft hangup <channel>\n"
-"       Request that a channel be hung up. The hangup takes effect\n"
-"       the next time the driver reads or writes from the channel\n";
-
-static const char group_show_channels_help[] = 
-"Usage: group show channels [pattern]\n"
-"       Lists all currently active channels with channel group(s) specified.\n"
-"       Optional regular expression pattern is matched to group names for each\n"
-"       channel.\n";
-
 static char *complete_fn(const char *word, int state)
 {
 	char *c;
@@ -373,12 +357,24 @@ done:
 	return CLI_SUCCESS;
 }
 
-static int handle_logger_mute(int fd, int argc, char *argv[])
+static char *handle_logger_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	ast_console_toggle_mute(fd);
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "logger mute";
+		e->usage = 
+			"Usage: logger mute\n"
+			"       Disables logging output to the current console, making it possible to\n"
+			"       gather information without being disturbed by scrolling lines.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+	ast_console_toggle_mute(a->fd);
+	return CLI_SUCCESS;
 }
 
 static char *handle_unload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -690,56 +686,61 @@ static char *handle_chanlist(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 #undef VERBOSE_FORMAT_STRING2
 }
 
-static const char showchan_help[] = 
-"Usage: core show channel <channel>\n"
-"       Shows lots of information about the specified channel.\n";
-
-static const char commandcomplete_help[] = 
-"Usage: _command complete \"<line>\" text state\n"
-"       This function is used internally to help with command completion and should.\n"
-"       never be called by the user directly.\n";
-
-static const char commandnummatches_help[] = 
-"Usage: _command nummatches \"<line>\" text \n"
-"       This function is used internally to help with command completion and should.\n"
-"       never be called by the user directly.\n";
-
-static const char commandmatchesarray_help[] = 
-"Usage: _command matchesarray \"<line>\" text \n"
-"       This function is used internally to help with command completion and should.\n"
-"       never be called by the user directly.\n";
-
-static int handle_softhangup(int fd, int argc, char *argv[])
+static char *handle_softhangup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *c=NULL;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	c = ast_get_channel_by_name_locked(argv[2]);
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "soft hangup";
+		e->usage =
+			"Usage: soft hangup <channel>\n"
+			"       Request that a channel be hung up. The hangup takes effect\n"
+			"       the next time the driver reads or writes from the channel\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 2);
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	c = ast_get_channel_by_name_locked(a->argv[2]);
 	if (c) {
-		ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
+		ast_cli(a->fd, "Requested Hangup on channel '%s'\n", c->name);
 		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 		ast_channel_unlock(c);
 	} else
-		ast_cli(fd, "%s is not a known channel\n", argv[2]);
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "%s is not a known channel\n", a->argv[2]);
+	return CLI_SUCCESS;
 }
 
 static char *__ast_cli_generator(const char *text, const char *word, int state, int lock);
 
-static int handle_commandmatchesarray(int fd, int argc, char *argv[])
+static char *handle_commandmatchesarray(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *buf, *obuf;
 	int buflen = 2048;
 	int len = 0;
 	char **matches;
 	int x, matchlen;
+	
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "_command matchesarray";
+		e->usage = 
+			"Usage: _command matchesarray \"<line>\" text \n"
+			"       This function is used internally to help with command completion and should.\n"
+			"       never be called by the user directly.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	if (!(buf = ast_malloc(buflen)))
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	buf[len] = '\0';
-	matches = ast_cli_completion_matches(argv[2], argv[3]);
+	matches = ast_cli_completion_matches(a->argv[2], a->argv[3]);
 	if (matches) {
 		for (x=0; matches[x]; x++) {
 			matchlen = strlen(matches[x]) + 1;
@@ -759,43 +760,65 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 	}
 
 	if (buf) {
-		ast_cli(fd, "%s%s",buf, AST_CLI_COMPLETE_EOF);
+		ast_cli(a->fd, "%s%s",buf, AST_CLI_COMPLETE_EOF);
 		ast_free(buf);
 	} else
-		ast_cli(fd, "NULL\n");
+		ast_cli(a->fd, "NULL\n");
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 
 
-static int handle_commandnummatches(int fd, int argc, char *argv[])
+static char *handle_commandnummatches(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int matches = 0;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "_command nummatches";
+		e->usage = 
+			"Usage: _command nummatches \"<line>\" text \n"
+			"       This function is used internally to help with command completion and should.\n"
+			"       never be called by the user directly.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	matches = ast_cli_generatornummatches(argv[2], argv[3]);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	ast_cli(fd, "%d", matches);
+	matches = ast_cli_generatornummatches(a->argv[2], a->argv[3]);
 
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d", matches);
+
+	return CLI_SUCCESS;
 }
 
-static int handle_commandcomplete(int fd, int argc, char *argv[])
+static char *handle_commandcomplete(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *buf;
-
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
-	buf = __ast_cli_generator(argv[2], argv[3], atoi(argv[4]), 0);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "_command complete";
+		e->usage = 
+			"Usage: _command complete \"<line>\" text state\n"
+			"       This function is used internally to help with command completion and should.\n"
+			"       never be called by the user directly.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+	buf = __ast_cli_generator(a->argv[2], a->argv[3], atoi(a->argv[4]), 0);
 	if (buf) {
-		ast_cli(fd, buf);
+		ast_cli(a->fd, buf);
 		ast_free(buf);
 	} else
-		ast_cli(fd, "NULL\n");
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "NULL\n");
+	return CLI_SUCCESS;
 }
 
 static char *handle_core_set_debug_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
@@ -891,7 +914,7 @@ static char *handle_nodebugchan_deprecated(struct ast_cli_entry *e, int cmd, str
 	return res;
 }
 		
-static int handle_showchan(int fd, int argc, char *argv[])
+static char *handle_showchan(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_channel *c=NULL;
 	struct timeval now;
@@ -900,14 +923,25 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	char nf[256], wf[256], rf[256];
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show channel";
+		e->usage = 
+			"Usage: core show channel <channel>\n"
+			"       Shows lots of information about the specified channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return ast_complete_channels(a->line, a->word, a->pos, a->n, 3);
+	}
 	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	now = ast_tvnow();
-	c = ast_get_channel_by_name_locked(argv[3]);
+	c = ast_get_channel_by_name_locked(a->argv[3]);
 	if (!c) {
-		ast_cli(fd, "%s is not a known channel\n", argv[3]);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "%s is not a known channel\n", a->argv[3]);
+		return CLI_SUCCESS;
 	}
 	if (c->cdr) {
 		elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
@@ -917,7 +951,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
 	} else
 		strcpy(cdrtime, "N/A");
-	ast_cli(fd, 
+	ast_cli(a->fd, 
 		" -- General --\n"
 		"           Name: %s\n"
 		"           Type: %s\n"
@@ -970,12 +1004,12 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
 	
 	if (pbx_builtin_serialize_variables(c, &out))
-		ast_cli(fd,"      Variables:\n%s\n", out->str);
+		ast_cli(a->fd,"      Variables:\n%s\n", out->str);
 	if (c->cdr && ast_cdr_serialize_variables(c->cdr, &out, '=', '\n', 1))
-		ast_cli(fd,"  CDR Variables:\n%s\n", out->str);
+		ast_cli(a->fd,"  CDR Variables:\n%s\n", out->str);
 	
 	ast_channel_unlock(c);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /*
@@ -1015,17 +1049,7 @@ char *ast_complete_channels(const char *line, const char *word, int pos, int sta
 	return ret == &notfound ? NULL : ret;
 }
 
-static char *complete_ch_3(const char *line, const char *word, int pos, int state)
-{
-	return ast_complete_channels(line, word, pos, state, 2);
-}
-
-static char *complete_ch_4(const char *line, const char *word, int pos, int state)
-{
-	return ast_complete_channels(line, word, pos, state, 3);
-}
-
-static int group_show_channels(int fd, int argc, char *argv[])
+static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
@@ -1034,23 +1058,36 @@ static int group_show_channels(int fd, int argc, char *argv[])
 	regex_t regexbuf;
 	int havepattern = 0;
 
-	if (argc < 3 || argc > 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "group show channels";
+		e->usage = 
+			"Usage: group show channels [pattern]\n"
+			"       Lists all currently active channels with channel group(s) specified.\n"
+			"       Optional regular expression pattern is matched to group names for each\n"
+			"       channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
 	
-	if (argc == 4) {
-		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
-			return RESULT_SHOWUSAGE;
+	if (a->argc == 4) {
+		if (regcomp(&regexbuf, a->argv[3], REG_EXTENDED | REG_NOSUB))
+			return CLI_SHOWUSAGE;
 		havepattern = 1;
 	}
 
-	ast_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
+	ast_cli(a->fd, FORMAT_STRING, "Channel", "Group", "Category");
 
 	ast_app_group_list_rdlock();
 	
 	gi = ast_app_group_list_head();
 	while (gi) {
 		if (!havepattern || !regexec(&regexbuf, gi->group, 0, NULL, 0)) {
-			ast_cli(fd, FORMAT_STRING, gi->chan->name, gi->group, (ast_strlen_zero(gi->category) ? "(default)" : gi->category));
+			ast_cli(a->fd, FORMAT_STRING, gi->chan->name, gi->group, (ast_strlen_zero(gi->category) ? "(default)" : gi->category));
 			numchans++;
 		}
 		gi = AST_LIST_NEXT(gi, list);
@@ -1061,8 +1098,8 @@ static int group_show_channels(int fd, int argc, char *argv[])
 	if (havepattern)
 		regfree(&regexbuf);
 
-	ast_cli(fd, "%d active channel%s\n", numchans, ESS(numchans));
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d active channel%s\n", numchans, ESS(numchans));
+	return CLI_SUCCESS;
 #undef FORMAT_STRING
 }
 
@@ -1072,18 +1109,9 @@ static int group_show_channels(int fd, int argc, char *argv[])
  */
 static struct ast_cli_entry builtins[] = {
 	/* Keep alphabetized, with longer matches first (example: abcd before abc) */
-	{ { "_command", "complete", NULL },
-	handle_commandcomplete, "Command complete",
-	commandcomplete_help },
-
-	{ { "_command", "nummatches", NULL },
-	handle_commandnummatches, "Returns number of command matches",
-	commandnummatches_help },
-
-	{ { "_command", "matchesarray", NULL },
-	handle_commandmatchesarray, "Returns command matches array",
-	commandmatchesarray_help },
-
+	NEW_CLI(handle_commandcomplete, "Command complete"),
+	NEW_CLI(handle_commandnummatches, "Returns number of command matches"),
+	NEW_CLI(handle_commandmatchesarray, "Returns command matches array"),
 	{ { NULL }, NULL, NULL, NULL }
 };
 
@@ -1100,24 +1128,18 @@ static struct ast_cli_entry cli_cli[] = {
 
 	NEW_CLI(handle_chanlist, "Display information on channels"),
 
-	{ { "core", "show", "channel", NULL },
-	handle_showchan, "Display information on a specific channel",
-	showchan_help, complete_ch_4 },
+	NEW_CLI(handle_showchan, "Display information on a specific channel"),
 
 	NEW_CLI(handle_core_set_debug_channel, "Enable/disable debugging on a channel",
 		.deprecate_cmd = &cli_debug_channel_deprecated),
 
 	NEW_CLI(handle_verbose, "Set level of debug/verbose chattiness"),
 
-	{ { "group", "show", "channels", NULL },
-	group_show_channels, "Display active channels with group(s)",
-	group_show_channels_help },
+	NEW_CLI(group_show_channels, "Display active channels with group(s)"),
 
 	NEW_CLI(handle_help, "Display help list, or specific help on a command"),
 
-	{ { "logger", "mute", NULL },
-	handle_logger_mute, "Toggle logging output to a console",
-	logger_mute_help },
+	NEW_CLI(handle_logger_mute, "Toggle logging output to a console"),
 
 	NEW_CLI(handle_modlist, "List modules and info"),
 
@@ -1129,9 +1151,7 @@ static struct ast_cli_entry cli_cli[] = {
 
 	NEW_CLI(handle_showuptime, "Show uptime information"),
 
-	{ { "soft", "hangup", NULL },
-	handle_softhangup, "Request a hangup on a given channel",
-	softhangup_help, complete_ch_3 },
+	NEW_CLI(handle_softhangup, "Request a hangup on a given channel"),
 };
 
 /*!

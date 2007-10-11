@@ -422,7 +422,7 @@ static void start_rtp(struct mgcp_subchannel *sub);
 static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,  
                             int result, unsigned int ident, struct mgcp_request *resp);
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub);
-static int mgcp_reload(int fd, int argc, char *argv[]);
+static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 static int reload_config(int reload);
 
 static struct ast_channel *mgcp_request(const char *type, int format, void *data, int *cause);
@@ -1041,71 +1041,72 @@ static int mgcp_hangup(struct ast_channel *ast)
 	return 0;
 }
 
-static int mgcp_show_endpoints(int fd, int argc, char *argv[])
+static char *handle_mgcp_show_endpoints(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct mgcp_gateway  *g;
-	struct mgcp_endpoint *e;
+	struct mgcp_gateway  *mg;
+	struct mgcp_endpoint *me;
 	int hasendpoints = 0;
 
-	if (argc != 3) 
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mgcp show endpoints";
+		e->usage =
+			"Usage: mgcp show endpoints\n"
+			"       Lists all endpoints known to the MGCP (Media Gateway Control Protocol) subsystem.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) 
+		return CLI_SHOWUSAGE;
 	ast_mutex_lock(&gatelock);
-	g = gateways;
-	while(g) {
-		e = g->endpoints;
-		ast_cli(fd, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? ast_inet_ntoa(g->addr.sin_addr) : ast_inet_ntoa(g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
-		while(e) {
+	mg = gateways;
+	while(mg) {
+		me = mg->endpoints;
+		ast_cli(a->fd, "Gateway '%s' at %s (%s)\n", mg->name, mg->addr.sin_addr.s_addr ? ast_inet_ntoa(mg->addr.sin_addr) : ast_inet_ntoa(mg->defaddr.sin_addr), mg->dynamic ? "Dynamic" : "Static");
+		while(me) {
 			/* Don't show wilcard endpoint */
-			if (strcmp(e->name, g->wcardep) !=0)
-				ast_cli(fd, "   -- '%s@%s in '%s' is %s\n", e->name, g->name, e->context, e->sub->owner ? "active" : "idle");
+			if (strcmp(me->name, mg->wcardep) != 0)
+				ast_cli(a->fd, "   -- '%s@%s in '%s' is %s\n", me->name, mg->name, me->context, me->sub->owner ? "active" : "idle");
 			hasendpoints = 1;
-			e = e->next;
+			me = me->next;
 		}
 		if (!hasendpoints) {
-			ast_cli(fd, "   << No Endpoints Defined >>     ");
+			ast_cli(a->fd, "   << No Endpoints Defined >>     ");
 		}
-		g = g->next;
+		mg = mg->next;
 	}
 	ast_mutex_unlock(&gatelock);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char show_endpoints_usage[] = 
-"Usage: mgcp show endpoints\n"
-"       Lists all endpoints known to the MGCP (Media Gateway Control Protocol) subsystem.\n";
-
-static const char audit_endpoint_usage[] = 
-"Usage: mgcp audit endpoint <endpointid>\n"
-"       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
-"       mgcp debug MUST be on to see the results of this command.\n";
-
-static const char debug_usage[] = 
-"Usage: mgcp set debug\n"
-"       Enables dumping of MGCP packets for debugging purposes\n";
-
-static const char no_debug_usage[] = 
-"Usage: mgcp set debug off\n"
-"       Disables dumping of MGCP packets for debugging purposes\n";
-
-static const char mgcp_reload_usage[] =
-"Usage: mgcp reload\n"
-"       Reloads MGCP configuration from mgcp.conf\n"
-"       Deprecated:  please use 'reload chan_mgcp.so' instead.\n";
-
-static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
+static char *handle_mgcp_audit_endpoint(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct mgcp_gateway  *g;
-	struct mgcp_endpoint *e;
+	struct mgcp_gateway  *mg;
+	struct mgcp_endpoint *me;
 	int found = 0;
 	char *ename,*gname, *c;
 
-	if (!mgcpdebug) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mgcp audit endpoint";
+		e->usage =
+			"Usage: mgcp audit endpoint <endpointid>\n"
+			"       Lists the capabilities of an endpoint in the MGCP (Media Gateway Control Protocol) subsystem.\n"
+			"       mgcp debug MUST be on to see the results of this command.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	if (argc != 4) 
-		return RESULT_SHOWUSAGE;
+
+	if (!mgcpdebug) {
+		return CLI_SHOWUSAGE;
+	}
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	/* split the name into parts by null */
-	ename = argv[3];
+	ename = a->argv[3];
 	gname = ename;
 	while (*gname) {
 		if (*gname == '@') {
@@ -1120,69 +1121,77 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 	if ((c = strrchr(gname, ']')))
 		*c = '\0';
 	ast_mutex_lock(&gatelock);
-	g = gateways;
-	while(g) {
-		if (!strcasecmp(g->name, gname)) {
-			e = g->endpoints;
-			while(e) {
-				if (!strcasecmp(e->name, ename)) {
+	mg = gateways;
+	while(mg) {
+		if (!strcasecmp(mg->name, gname)) {
+			me = mg->endpoints;
+			while(me) {
+				if (!strcasecmp(me->name, ename)) {
 					found = 1;
-					transmit_audit_endpoint(e);
+					transmit_audit_endpoint(me);
 					break;
 				}
-				e = e->next;
+				me = me->next;
 			}
 			if (found) {
 				break;
 			}
 		}
-		g = g->next;
+		mg = mg->next;
 	}
 	if (!found) {
-		ast_cli(fd, "   << Could not find endpoint >>     ");
+		ast_cli(a->fd, "   << Could not find endpoint >>     ");
 	}
 	ast_mutex_unlock(&gatelock);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int mgcp_do_debug(int fd, int argc, char *argv[])
+static char *handle_mgcp_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mgcp set debug";
+		e->usage =
+			"Usage: mgcp set debug\n"
+			"       Enables dumping of MGCP packets for debugging purposes\n";	
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	mgcpdebug = 1;
-	ast_cli(fd, "MGCP Debugging Enabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "MGCP Debugging Enabled\n");
+	return CLI_SUCCESS;
 }
 
-static int mgcp_no_debug(int fd, int argc, char *argv[])
+static char *handle_mgcp_set_debug_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "mgcp set debug off";
+		e->usage =
+			"Usage: mgcp set debug off\n"
+			"       Disables dumping of MGCP packets for debugging purposes\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	mgcpdebug = 0;
-	ast_cli(fd, "MGCP Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "MGCP Debugging Disabled\n");
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_mgcp[] = {
-	{ { "mgcp", "audit", "endpoint", NULL },
-	mgcp_audit_endpoint, "Audit specified MGCP endpoint",
-	audit_endpoint_usage },
-
-	{ { "mgcp", "show", "endpoints", NULL },
-	mgcp_show_endpoints, "List defined MGCP endpoints",
-	show_endpoints_usage },
-
-	{ { "mgcp", "set", "debug", NULL },
-	mgcp_do_debug, "Enable MGCP debugging",
-	debug_usage },
-
-	{ { "mgcp", "set", "debug", "off", NULL },
-	mgcp_no_debug, "Disable MGCP debugging",
-	no_debug_usage },
-
-	{ { "mgcp", "reload", NULL },
-	mgcp_reload, "Reload MGCP configuration",
-	mgcp_reload_usage },
+	NEW_CLI(handle_mgcp_audit_endpoint, "Audit specified MGCP endpoint"),
+	NEW_CLI(handle_mgcp_show_endpoints, "List defined MGCP endpoints"),
+	NEW_CLI(handle_mgcp_set_debug, "Enable MGCP debugging"),
+	NEW_CLI(handle_mgcp_set_debug_off, "Disable MGCP debugging"),
+	NEW_CLI(mgcp_reload, "Reload MGCP configuration"),
 };
 
 static int mgcp_answer(struct ast_channel *ast)
@@ -4242,10 +4251,24 @@ static int load_module(void)
 	return AST_MODULE_LOAD_SUCCESS;
 }
 
-static int mgcp_reload(int fd, int argc, char *argv[])
+static char *mgcp_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	static int deprecated = 0;
-	if (!deprecated && argc > 0) {
+
+	if (e) {
+		switch (cmd) {
+		case CLI_INIT:
+			e->command = "mgcp reload";
+			e->usage =
+				"Usage: mgcp reload\n"
+				"       'mgcp reload' is deprecated.  Please use 'reload chan_mgcp.so' instead.\n";
+			return NULL;
+		case CLI_GENERATE:
+			return NULL;
+		}
+	}
+
+	if (!deprecated && a && a->argc > 0) {
 		ast_log(LOG_WARNING, "'mgcp reload' is deprecated.  Please use 'reload chan_mgcp.so' instead.\n");
 		deprecated = 1;
 	}
@@ -4257,12 +4280,12 @@ static int mgcp_reload(int fd, int argc, char *argv[])
 		mgcp_reloading = 1;
 	ast_mutex_unlock(&mgcp_reload_lock);
 	restart_monitor();
-	return 0;
+	return CLI_SUCCESS;
 }
 
 static int reload(void)
 {
-	mgcp_reload(0, 0, NULL);
+	mgcp_reload(NULL, 0, NULL);
 	return 0;
 }
 
@@ -4297,7 +4320,7 @@ static int unload_module(void)
 		/* We always want to leave this in a consistent state */
 		ast_channel_register(&mgcp_tech);
 		mgcp_reloading = 0;
-		mgcp_reload(0, 0, NULL);
+		mgcp_reload(NULL, 0, NULL);
 		return -1;
 	}
 
@@ -4317,7 +4340,7 @@ static int unload_module(void)
 		/* Allow the monitor to restart */
 		monitor_thread = AST_PTHREADT_NULL;
 		mgcp_reloading = 0;
-		mgcp_reload(0, 0, NULL);
+		mgcp_reload(NULL, 0, NULL);
 		return -1;
 	}
 

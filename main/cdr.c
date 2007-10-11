@@ -1225,64 +1225,74 @@ static void *do_cdr(void *data)
 	return NULL;
 }
 
-static int handle_cli_status(int fd, int argc, char *argv[])
+static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_cdr_beitem *beitem=NULL;
 	int cnt=0;
 	long nextbatchtime=0;
 
-	if (argc > 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "cdr status";
+		e->usage = 
+			"Usage: cdr status\n"
+			"	Displays the Call Detail Record engine system status.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	ast_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
-	ast_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
+	if (a->argc > 2)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
+	ast_cli(a->fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
 	if (enabled) {
 		if (batchmode) {
 			if (batch)
 				cnt = batch->size;
 			if (cdr_sched > -1)
 				nextbatchtime = ast_sched_when(sched, cdr_sched);
-			ast_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
-			ast_cli(fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
-			ast_cli(fd, "CDR current batch size: %d record%s\n", cnt, ESS(cnt));
-			ast_cli(fd, "CDR maximum batch size: %d record%s\n", batchsize, ESS(batchsize));
-			ast_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, ESS(batchtime));
-			ast_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, ESS(nextbatchtime));
+			ast_cli(a->fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
+			ast_cli(a->fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
+			ast_cli(a->fd, "CDR current batch size: %d record%s\n", cnt, ESS(cnt));
+			ast_cli(a->fd, "CDR maximum batch size: %d record%s\n", batchsize, ESS(batchsize));
+			ast_cli(a->fd, "CDR maximum batch time: %d second%s\n", batchtime, ESS(batchtime));
+			ast_cli(a->fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, ESS(nextbatchtime));
 		}
 		AST_RWLIST_RDLOCK(&be_list);
 		AST_RWLIST_TRAVERSE(&be_list, beitem, list) {
-			ast_cli(fd, "CDR registered backend: %s\n", beitem->name);
+			ast_cli(a->fd, "CDR registered backend: %s\n", beitem->name);
 		}
 		AST_RWLIST_UNLOCK(&be_list);
 	}
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int handle_cli_submit(int fd, int argc, char *argv[])
+static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc > 2)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "cdr submit";
+		e->usage = 
+			"Usage: cdr submit\n"
+			"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc > 2)
+		return CLI_SHOWUSAGE;
 
 	submit_unscheduled_batch();
-	ast_cli(fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
+	ast_cli(a->fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_submit = {
-	{ "cdr", "submit", NULL },
-	handle_cli_submit, "Posts all pending batched CDR data",
-	"Usage: cdr submit\n"
-	"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n"
-};
-
-static struct ast_cli_entry cli_status = {
-	{ "cdr", "status", NULL },
-	handle_cli_status, "Display the CDR status",
-	"Usage: cdr status\n"
-	"	Displays the Call Detail Record engine system status.\n"
-};
+static struct ast_cli_entry cli_submit = NEW_CLI(handle_cli_submit, "Posts all pending batched CDR data");
+static struct ast_cli_entry cli_status = NEW_CLI(handle_cli_status, "Display the CDR status");
 
 static int do_reload(int reload)
 {

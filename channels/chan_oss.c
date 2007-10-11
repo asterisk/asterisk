@@ -1333,68 +1333,82 @@ static char *console_mute(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 	return CLI_SUCCESS;
 }
 
-static int console_transfer(int fd, int argc, char *argv[])
+static char *console_transfer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 	struct ast_channel *b = NULL;
 	char *tmp, *ext, *ctx;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	if (o == NULL)
-		return RESULT_FAILURE;
-	if (o->owner == NULL || (b = ast_bridged_channel(o->owner)) == NULL) {
-		ast_cli(fd, "There is no call to transfer\n");
-		return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console transfer";
+		e->usage =
+			"Usage: console transfer <extension>[@context]\n"
+			"       Transfers the currently connected call to the given extension (and\n"
+			"       context if specified)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 
-	tmp = ast_ext_ctx(argv[2], &ext, &ctx);
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	if (o == NULL)
+		return CLI_FAILURE;
+	if (o->owner == NULL || (b = ast_bridged_channel(o->owner)) == NULL) {
+		ast_cli(a->fd, "There is no call to transfer\n");
+		return CLI_SUCCESS;
+	}
+
+	tmp = ast_ext_ctx(a->argv[2], &ext, &ctx);
 	if (ctx == NULL)			/* supply default context if needed */
 		ctx = o->owner->context;
 	if (!ast_exists_extension(b, ctx, ext, 1, b->cid.cid_num))
-		ast_cli(fd, "No such extension exists\n");
+		ast_cli(a->fd, "No such extension exists\n");
 	else {
-		ast_cli(fd, "Whee, transferring %s to %s@%s.\n", b->name, ext, ctx);
+		ast_cli(a->fd, "Whee, transferring %s to %s@%s.\n", b->name, ext, ctx);
 		if (ast_async_goto(b, ctx, ext, 1))
-			ast_cli(fd, "Failed to transfer :(\n");
+			ast_cli(a->fd, "Failed to transfer :(\n");
 	}
 	if (tmp)
 		ast_free(tmp);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char transfer_usage[] =
-	"Usage: console transfer <extension>[@context]\n"
-	"       Transfers the currently connected call to the given extension (and\n"
-	"context if specified)\n";
-
-static int console_active(int fd, int argc, char *argv[])
+static char *console_active(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc == 2)
-		ast_cli(fd, "active console is [%s]\n", oss_active);
-	else if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console active";
+		e->usage =
+			"Usage: console active [device]\n"
+			"       If used without a parameter, displays which device is the current\n"
+			"       console.  If a device is specified, the console sound device is changed to\n"
+			"       the device specified.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 2)
+		ast_cli(a->fd, "active console is [%s]\n", oss_active);
+	else if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 	else {
 		struct chan_oss_pvt *o;
-		if (strcmp(argv[2], "show") == 0) {
+		if (strcmp(a->argv[2], "show") == 0) {
 			for (o = oss_default.next; o; o = o->next)
-				ast_cli(fd, "device [%s] exists\n", o->name);
-			return RESULT_SUCCESS;
+				ast_cli(a->fd, "device [%s] exists\n", o->name);
+			return CLI_SUCCESS;
 		}
-		o = find_desc(argv[2]);
+		o = find_desc(a->argv[2]);
 		if (o == NULL)
-			ast_cli(fd, "No device [%s] exists\n", argv[2]);
+			ast_cli(a->fd, "No device [%s] exists\n", a->argv[2]);
 		else
 			oss_active = o->name;
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
-
-static const char active_usage[] =
-	"Usage: console active [device]\n"
-	"       If used without a parameter, displays which device is the current\n"
-	"console.  If a device is specified, the console sound device is changed to\n"
-	"the device specified.\n";
 
 /*!
  * \brief store the boost factor
@@ -1418,15 +1432,26 @@ static void store_boost(struct chan_oss_pvt *o, char *s)
 	ast_log(LOG_WARNING, "setting boost %s to %d\n", s, o->boost);
 }
 
-static int do_boost(int fd, int argc, char *argv[])
+static char *console_boost(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
 
-	if (argc == 2)
-		ast_cli(fd, "boost currently %5.1f\n", 20 * log10(((double) o->boost / (double) BOOST_SCALE)));
-	else if (argc == 3)
-		store_boost(o, argv[2]);
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "console boost";
+		e->usage =
+			"Usage: console boost [boost in dB]\n"
+			"       Sets or display mic boost in dB\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 2)
+		ast_cli(a->fd, "boost currently %5.1f\n", 20 * log10(((double) o->boost / (double) BOOST_SCALE)));
+	else if (a->argc == 3)
+		store_boost(o, a->argv[2]);
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_oss[] = {
@@ -1435,20 +1460,11 @@ static struct ast_cli_entry cli_oss[] = {
 	NEW_CLI(console_flash, "Flash a call on the console"),
 	NEW_CLI(console_dial, "Dial an extension on the console"),
 	NEW_CLI(console_mute, "Disable/Enable mic input"),
-	{ { "console", "transfer", NULL },
-	console_transfer, "Transfer a call to a different extension",
-	transfer_usage },
-
+	NEW_CLI(console_transfer, "Transfer a call to a different extension"),	
 	NEW_CLI(console_sendtext, "Send text to the remote device"),
 	NEW_CLI(console_autoanswer, "Sets/displays autoanswer"),
-
-	{ { "console", "boost", NULL },
-	do_boost, "Sets/displays mic boost in dB",
-	NULL },
-
-	{ { "console", "active", NULL },
-	console_active, "Sets/displays active console",
-	active_usage },
+	NEW_CLI(console_boost, "Sets/displays mic boost in dB"),
+	NEW_CLI(console_active, "Sets/displays active console"),
 };
 
 /*!

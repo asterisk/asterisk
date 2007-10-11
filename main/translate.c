@@ -491,28 +491,42 @@ static void rebuild_matrix(int samples)
 	}
 }
 
-static int show_translation(int fd, int argc, char *argv[])
+static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define SHOW_TRANS 13
 	int x, y, z;
 	int curlen = 0, longest = 0;
 
-	if (argc > 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show translation [recalc]";
+		e->usage =
+			"Usage: core show translation [recalc] [<recalc seconds>]\n"
+			"       Displays known codec translators and the cost associated\n"
+			"       with each conversion.  If the argument 'recalc' is supplied along\n"
+			"       with optional number of seconds to test a new test will be performed\n"
+			"       as the chart is being displayed.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc > 5)
+		return CLI_SHOWUSAGE;
 	
-	if (argv[3] && !strcasecmp(argv[3], "recalc")) {
-		z = argv[4] ? atoi(argv[4]) : 1;
+	if (a->argv[3] && !strcasecmp(a->argv[3], "recalc")) {
+		z = a->argv[4] ? atoi(a->argv[4]) : 1;
 
 		if (z <= 0) {
-			ast_cli(fd, "         C'mon let's be serious here... defaulting to 1.\n");
+			ast_cli(a->fd, "         Recalc must be greater than 0.  Defaulting to 1.\n");
 			z = 1;
 		}
 
 		if (z > MAX_RECALC) {
-			ast_cli(fd, "         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC, MAX_RECALC);
+			ast_cli(a->fd, "         Maximum limit of recalc exceeded by %d, truncating value to %d\n", z - MAX_RECALC, MAX_RECALC);
 			z = MAX_RECALC;
 		}
-		ast_cli(fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
+		ast_cli(a->fd, "         Recalculating Codec Translation (number of sample seconds: %d)\n\n", z);
 		AST_RWLIST_WRLOCK(&translators);
 		rebuild_matrix(z);
 		AST_RWLIST_UNLOCK(&translators);
@@ -520,8 +534,8 @@ static int show_translation(int fd, int argc, char *argv[])
 
 	AST_RWLIST_RDLOCK(&translators);
 
-	ast_cli(fd, "         Translation times between formats (in microseconds) for one second of data\n");
-	ast_cli(fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
+	ast_cli(a->fd, "         Translation times between formats (in microseconds) for one second of data\n");
+	ast_cli(a->fd, "          Source Format (Rows) Destination Format (Columns)\n\n");
 	/* Get the length of the longest (usable?) codec name, so we know how wide the left side should be */
 	for (x = 0; x < SHOW_TRANS; x++) {
 		curlen = strlen(ast_getformatname(1 << (x + 1)));
@@ -554,23 +568,14 @@ static int show_translation(int fd, int argc, char *argv[])
 			}
 		}
 		ast_str_append(&out, -1, "\n");
-		ast_cli(fd, out->str);			
+		ast_cli(a->fd, out->str);			
 	}
 	AST_RWLIST_UNLOCK(&translators);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static const char show_trans_usage[] =
-"Usage: core show translation [recalc] [<recalc seconds>]\n"
-"       Displays known codec translators and the cost associated\n"
-"with each conversion.  If the argument 'recalc' is supplied along\n"
-"with optional number of seconds to test a new test will be performed\n"
-"as the chart is being displayed.\n";
-
 static struct ast_cli_entry cli_translate[] = {
-	{ { "core", "show", "translation", NULL },
-	show_translation, "Display translation matrix",
-	show_trans_usage, NULL, NULL },
+	NEW_CLI(handle_cli_core_show_translation, "Display translation matrix")
 };
 
 /*! \brief register codec translator */

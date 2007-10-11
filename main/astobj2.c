@@ -607,40 +607,65 @@ static int print_cb(void *obj, void *arg, int flag)
 /*
  * Print stats
  */
-static int handle_astobj2_stats(int fd, int argc, char *argv[])
+static char *handle_astobj2_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	ast_cli(fd, "Objects    : %d\n", ao2.total_objects);
-	ast_cli(fd, "Containers : %d\n", ao2.total_containers);
-	ast_cli(fd, "Memory     : %d\n", ao2.total_mem);
-	ast_cli(fd, "Locked     : %d\n", ao2.total_locked);
-	ast_cli(fd, "Refs       : %d\n", ao2.total_refs);
-	return 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "astobj2 stats";
+		e->usage = "Usage: astobj2 stats\n"
+			   "       Show astobj2 stats\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	ast_cli(a->fd, "Objects    : %d\n", ao2.total_objects);
+	ast_cli(a->fd, "Containers : %d\n", ao2.total_containers);
+	ast_cli(a->fd, "Memory     : %d\n", ao2.total_mem);
+	ast_cli(a->fd, "Locked     : %d\n", ao2.total_locked);
+	ast_cli(a->fd, "Refs       : %d\n", ao2.total_refs);
+	return CLI_SUCCESS;
 }
 
 /*
  * This is testing code for astobj
  */
-static int handle_astobj2_test(int fd, int argc, char *argv[])
+static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ao2_container *c1;
 	int i, lim;
 	char *obj;
 	static int prof_id = -1;
+	struct ast_cli_args fake_args = { a->fd, 0, NULL };
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "astobj2 test";
+		e->usage = "Usage: astobj2 test <num>\n"
+			   "       Runs astobj2 test. Creates 'num' objects,\n"
+			   "       and test iterators, callbacks and may be other stuff\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3) {
+		return CLI_SHOWUSAGE;
+	}
 
 	if (prof_id == -1)
 		prof_id = ast_add_profile("ao2_alloc", 0);
 
-	ast_cli(fd, "argc %d argv %s %s %s\n", argc, argv[0], argv[1], argv[2]);
-	lim = atoi(argv[2]);
-	ast_cli(fd, "called astobj_test\n");
+	ast_cli(a->fd, "argc %d argv %s %s %s\n", a->argc, a->argv[0], a->argv[1], a->argv[2]);
+	lim = atoi(a->argv[2]);
+	ast_cli(a->fd, "called astobj_test\n");
 
-	handle_astobj2_stats(fd, 0, NULL);
+	handle_astobj2_stats(e, CLI_HANDLER, &fake_args);
 	/*
 	 * allocate a container with no default callback, and no hash function.
 	 * No hash means everything goes in the same bucket.
 	 */
 	c1 = ao2_container_alloc(100, NULL /* no callback */, NULL /* no hash */);
-	ast_cli(fd, "container allocated as %p\n", c1);
+	ast_cli(a->fd, "container allocated as %p\n", c1);
 
 	/*
 	 * fill the container with objects.
@@ -651,48 +676,47 @@ static int handle_astobj2_test(int fd, int argc, char *argv[])
 		ast_mark(prof_id, 1 /* start */);
 		obj = ao2_alloc(80, NULL);
 		ast_mark(prof_id, 0 /* stop */);
-		ast_cli(fd, "object %d allocated as %p\n", i, obj);
+		ast_cli(a->fd, "object %d allocated as %p\n", i, obj);
 		sprintf(obj, "-- this is obj %d --", i);
 		ao2_link(c1, obj);
 	}
-	ast_cli(fd, "testing callbacks\n");
-	ao2_callback(c1, 0, print_cb, &fd);
+	ast_cli(a->fd, "testing callbacks\n");
+	ao2_callback(c1, 0, print_cb, &a->fd);
 
-	ast_cli(fd, "testing iterators, remove every second object\n");
+	ast_cli(a->fd, "testing iterators, remove every second object\n");
 	{
 		struct ao2_iterator ai;
 		int x = 0;
 
 		ai = ao2_iterator_init(c1, 0);
 		while ( (obj = ao2_iterator_next(&ai)) ) {
-			ast_cli(fd, "iterator on <%s>\n", obj);
+			ast_cli(a->fd, "iterator on <%s>\n", obj);
 			if (x++ & 1)
 				ao2_unlink(c1, obj);
 			ao2_ref(obj, -1);
 		}
-		ast_cli(fd, "testing iterators again\n");
+		ast_cli(a->fd, "testing iterators again\n");
 		ai = ao2_iterator_init(c1, 0);
 		while ( (obj = ao2_iterator_next(&ai)) ) {
-			ast_cli(fd, "iterator on <%s>\n", obj);
+			ast_cli(a->fd, "iterator on <%s>\n", obj);
 			ao2_ref(obj, -1);
 		}
 	}
-	ast_cli(fd, "testing callbacks again\n");
-	ao2_callback(c1, 0, print_cb, &fd);
+	ast_cli(a->fd, "testing callbacks again\n");
+	ao2_callback(c1, 0, print_cb, &a->fd);
 
 	ast_verbose("now you should see an error message:\n");
 	ao2_ref(&i, -1);	/* i is not a valid object so we print an error here */
 
-	ast_cli(fd, "destroy container\n");
+	ast_cli(a->fd, "destroy container\n");
 	ao2_ref(c1, -1);	/* destroy container */
-	handle_astobj2_stats(fd, 0, NULL);
-	return 0;
+	handle_astobj2_stats(e, CLI_HANDLER, &fake_args);
+	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_astobj2[] = {
-	{ { "astobj2", "stats", NULL },
-	handle_astobj2_stats, "Print astobj2 statistics", },
-	{ { "astobj2", "test", NULL } , handle_astobj2_test, "Test astobj2", },
+	NEW_CLI(handle_astobj2_stats, "Print astobj2 statistics"),
+	NEW_CLI(handle_astobj2_test, "Test astobj2"),
 };
 #endif /* AO2_DEBUG */
 

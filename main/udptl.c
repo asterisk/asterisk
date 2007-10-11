@@ -1107,7 +1107,7 @@ int ast_udptl_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	return -1;
 }
 
-static int udptl_do_debug_ip(int fd, int argc, char *argv[])
+static char *handle_cli_udptl_debug_ip(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -1115,10 +1115,22 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 	char *p;
 	char *arg;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "udptl debug ip";
+		e->usage =
+			"Usage: udptl debug [ip host[:port]]\n"
+			"       Enable dumping of all UDPTL packets to and from host.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
 	port = 0;
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	arg = argv[3];
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+	arg = a->argv[3];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -1127,60 +1139,67 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
 	}
 	hp = ast_gethostbyname(arg, &ahp);
 	if (hp == NULL)
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 	udptldebugaddr.sin_family = AF_INET;
 	memcpy(&udptldebugaddr.sin_addr, hp->h_addr, sizeof(udptldebugaddr.sin_addr));
 	udptldebugaddr.sin_port = htons(port);
 	if (port == 0)
-		ast_cli(fd, "UDPTL Debugging Enabled for IP: %s\n", ast_inet_ntoa(udptldebugaddr.sin_addr));
+		ast_cli(a->fd, "UDPTL Debugging Enabled for IP: %s\n", ast_inet_ntoa(udptldebugaddr.sin_addr));
 	else
-		ast_cli(fd, "UDPTL Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(udptldebugaddr.sin_addr), port);
+		ast_cli(a->fd, "UDPTL Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(udptldebugaddr.sin_addr), port);
 	udptldebug = 1;
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int udptl_do_debug(int fd, int argc, char *argv[])
+static char *handle_cli_udptl_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2) {
-		if (argc != 4)
-			return RESULT_SHOWUSAGE;
-		return udptl_do_debug_ip(fd, argc, argv);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "udptl debug";
+		e->usage =
+			"Usage: udptl debug\n"
+			"       Enable dumping of all UDPTL packets.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
 	udptldebug = 1;
-	memset(&udptldebugaddr,0,sizeof(udptldebugaddr));
-	ast_cli(fd, "UDPTL Debugging Enabled\n");
-	return RESULT_SUCCESS;
+	memset(&udptldebugaddr, 0, sizeof(udptldebugaddr));
+
+	ast_cli(a->fd, "UDPTL Debugging Enabled\n");
+	return CLI_SUCCESS;
 }
 
-static int udptl_nodebug(int fd, int argc, char *argv[])
+static char *handle_cli_udptl_debug_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "udptl debug off";
+		e->usage =
+			"Usage: udptl debug off\n"
+			"       Disable dumping of all UDPTL packets.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
 	udptldebug = 0;
-	ast_cli(fd,"UDPTL Debugging Disabled\n");
-	return RESULT_SUCCESS;
+
+	ast_cli(a->fd, "UDPTL Debugging Disabled\n");
+	return CLI_SUCCESS;
 }
-
-static const char debug_usage[] =
-  "Usage: udptl debug [ip host[:port]]\n"
-  "       Enable dumping of all UDPTL packets to and from host.\n";
-
-static const char nodebug_usage[] =
-  "Usage: udptl debug off\n"
-  "       Disable all UDPTL debugging\n";
 
 static struct ast_cli_entry cli_udptl[] = {
-	{ { "udptl", "debug", NULL },
-	udptl_do_debug, "Enable UDPTL debugging",
-	debug_usage },
-
-	{ { "udptl", "debug", "ip", NULL },
-	udptl_do_debug, "Enable UDPTL debugging on IP",
-	debug_usage },
-
-	{ { "udptl", "debug", "off", NULL },
-	udptl_nodebug, "Disable UDPTL debugging",
-	nodebug_usage },
+	NEW_CLI(handle_cli_udptl_debug,     "Enable UDPTL debugging"),
+	NEW_CLI(handle_cli_udptl_debug_ip,  "Enable UDPTL debugging on IP"),
+	NEW_CLI(handle_cli_udptl_debug_off, "Disable UDPTL debugging")
 };
 
 static void __ast_udptl_reload(int reload)

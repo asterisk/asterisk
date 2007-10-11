@@ -191,8 +191,8 @@ static int gtalk_indicate(struct ast_channel *ast, int condition, const void *da
 static int gtalk_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int gtalk_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 static struct gtalk_pvt *gtalk_alloc(struct gtalk *client, const char *us, const char *them, const char *sid);
-static int gtalk_do_reload(int fd, int argc, char **argv);
-static int gtalk_show_channels(int fd, int argc, char **argv);
+static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
+static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 /*----- RTP interface functions */
 static int gtalk_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp,
 							   struct ast_rtp *vrtp, struct ast_rtp *trtp, int codecs, int nat_active);
@@ -226,7 +226,6 @@ static struct sched_context *sched;	/*!< The scheduling context */
 static struct io_context *io;	/*!< The IO context */
 static struct in_addr __ourip;
 
-
 /*! \brief RTP driver interface */
 static struct ast_rtp_protocol gtalk_rtp = {
 	type: "Gtalk",
@@ -235,21 +234,10 @@ static struct ast_rtp_protocol gtalk_rtp = {
 	get_codec: gtalk_get_codec,
 };
 
-static const char debug_usage[] = 
-"Usage: gtalk show channels\n" 
-"       Shows current state of the Gtalk channels.\n";
-
-static const char reload_usage[] = 
-"Usage: gtalk reload\n" 
-"       Reload gtalk channel driver.\n";
-
-
 static struct ast_cli_entry gtalk_cli[] = {
-	{{ "gtalk", "reload", NULL}, gtalk_do_reload, "Enable Jabber debugging", reload_usage },
-	{{ "gtalk", "show", "channels", NULL}, gtalk_show_channels, "Show GoogleTalk Channels", debug_usage },
- };
-
-
+	NEW_CLI(gtalk_do_reload, "Enable Jabber debugging"),
+	NEW_CLI(gtalk_show_channels, "Show GoogleTalk Channels"),
+};
 
 static char externip[16];
 
@@ -265,7 +253,7 @@ static struct gtalk *find_gtalk(char *name, char *connection)
 	struct gtalk *gtalk = NULL;
 	char *domain = NULL , *s = NULL;
 
-	if(strchr(connection, '@')) {
+	if (strchr(connection, '@')) {
 		s = ast_strdupa(connection);
 		domain = strsep(&s, "@");
 		ast_verbose("OOOOH domain = %s\n", domain);
@@ -1581,7 +1569,7 @@ static struct ast_channel *gtalk_request(const char *type, int format, void *dat
 }
 
 /*! \brief CLI command "gtalk show channels" */
-static int gtalk_show_channels(int fd, int argc, char **argv)
+static char *gtalk_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT  "%-30.30s  %-30.30s  %-15.15s  %-5.5s %-5.5s \n"
 	struct gtalk_pvt *p;
@@ -1591,11 +1579,22 @@ static int gtalk_show_channels(int fd, int argc, char **argv)
 	char *jid = NULL;
 	char *resource = NULL;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "gtalk show channels";
+		e->usage =
+			"Usage: gtalk show channels\n"
+			"       Shows current state of the Gtalk channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	ast_mutex_lock(&gtalklock);
-	ast_cli(fd, FORMAT, "Channel", "Jabber ID", "Resource", "Read", "Write");
+	ast_cli(a->fd, FORMAT, "Channel", "Jabber ID", "Resource", "Read", "Write");
 	ASTOBJ_CONTAINER_TRAVERSE(&gtalk_list, 1, {
 		ASTOBJ_WRLOCK(iterator);
 		p = iterator->p;
@@ -1611,7 +1610,7 @@ static int gtalk_show_channels(int fd, int argc, char **argv)
 				resource ++;
 			}
 			if (chan)
-				ast_cli(fd, FORMAT, 
+				ast_cli(a->fd, FORMAT, 
 					chan->name,
 					jid,
 					resource,
@@ -1628,16 +1627,27 @@ static int gtalk_show_channels(int fd, int argc, char **argv)
 
 	ast_mutex_unlock(&gtalklock);
 
-	ast_cli(fd, "%d active gtalk channel%s\n", numchans, (numchans != 1) ? "s" : "");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d active gtalk channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	return CLI_SUCCESS;
 #undef FORMAT
 }
 
-/*! \brief CLI command "gtalk show channels" */
-static int gtalk_do_reload(int fd, int argc, char **argv)
+/*! \brief CLI command "gtalk reload" */
+static char *gtalk_do_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "gtalk reload";
+		e->usage =
+			"Usage: gtalk reload\n"
+			"       Reload gtalk channel driver.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}	
+	
 	ast_verbose("IT DOES WORK!\n");
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static int gtalk_parser(void *data, ikspak *pak)

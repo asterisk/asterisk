@@ -948,65 +948,62 @@ static int pbx_load_module(void)
 }
 
 /* CLI interface */
-static int ael2_debug_read(int fd, int argc, char *argv[])
+static char *handle_cli_ael_debug_multiple(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	aeldebug |= DEBUG_READ;
-	return 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ael debug [read|tokens|macros|contexts|off]";
+		e->usage =
+			"Usage: ael debug [read|tokens|macros|contexts|off]\n"
+			"       Enable AEL read, token, macro, or context debugging,\n"
+			"       or disable all AEL debugging messages.  Note: this\n"
+			"       currently does nothing.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	if (!strcasecmp(a->argv[2], "read"))
+		aeldebug |= DEBUG_READ;
+	else if (!strcasecmp(a->argv[2], "tokens"))
+		aeldebug |= DEBUG_TOKENS;
+	else if (!strcasecmp(a->argv[2], "macros"))
+		aeldebug |= DEBUG_MACROS;
+	else if (!strcasecmp(a->argv[2], "contexts"))
+		aeldebug |= DEBUG_CONTEXTS;
+	else if (!strcasecmp(a->argv[2], "off"))
+		aeldebug = 0;
+	else
+		return CLI_SHOWUSAGE;
+
+	return CLI_SUCCESS;
 }
 
-static int ael2_debug_tokens(int fd, int argc, char *argv[])
+static char *handle_cli_ael_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	aeldebug |= DEBUG_TOKENS;
-	return 0;
-}
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "ael reload";
+		e->usage =
+			"Usage: ael reload\n"
+			"       Reloads AEL configuration.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-static int ael2_debug_macros(int fd, int argc, char *argv[])
-{
-	aeldebug |= DEBUG_MACROS;
-	return 0;
-}
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 
-static int ael2_debug_contexts(int fd, int argc, char *argv[])
-{
-	aeldebug |= DEBUG_CONTEXTS;
-	return 0;
+	return (pbx_load_module() ? CLI_FAILURE : CLI_SUCCESS);
 }
-
-static int ael2_no_debug(int fd, int argc, char *argv[])
-{
-	aeldebug = 0;
-	return 0;
-}
-
-static int ael2_reload(int fd, int argc, char *argv[])
-{
-	return (pbx_load_module());
-}
-
-static struct ast_cli_entry cli_ael_no_debug = {
-	{ "ael", "no", "debug", NULL },
-	ael2_no_debug, NULL,
-	NULL };
 
 static struct ast_cli_entry cli_ael[] = {
-	{ { "ael", "reload", NULL },
-	ael2_reload, "Reload AEL configuration" },
-
-	{ { "ael", "debug", "read", NULL },
-	ael2_debug_read, "Enable AEL read debug (does nothing)" },
-
-	{ { "ael", "debug", "tokens", NULL },
-	ael2_debug_tokens, "Enable AEL tokens debug (does nothing)" },
-
-	{ { "ael", "debug", "macros", NULL },
-	ael2_debug_macros, "Enable AEL macros debug (does nothing)" },
-
-	{ { "ael", "debug", "contexts", NULL },
-	ael2_debug_contexts, "Enable AEL contexts debug (does nothing)" },
-
-	{ { "ael", "nodebug", NULL },
-	ael2_no_debug, "Disable AEL debug messages",
-	NULL, NULL, &cli_ael_no_debug },
+	NEW_CLI(handle_cli_ael_reload,         "Reload AEL configuration"),
+	NEW_CLI(handle_cli_ael_debug_multiple, "Enable AEL debugging flags")
 };
 
 static int unload_module(void)

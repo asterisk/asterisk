@@ -179,27 +179,39 @@ int ast_send_image(struct ast_channel *chan, char *filename)
 	return res;
 }
 
-static int show_image_formats(int fd, int argc, char *argv[])
+static char *handle_core_show_image_formats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT "%10s %10s %50s %10s\n"
 #define FORMAT2 "%10s %10s %50s %10s\n"
 	struct ast_imager *i;
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
+	int count_fmt = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show image formats";
+		e->usage =
+			"Usage: core show image formats\n"
+			"       Displays currently registered image formats (if any).\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+	ast_cli(a->fd, FORMAT, "Name", "Extensions", "Description", "Format");
+	ast_cli(a->fd, FORMAT, "----", "----------", "-----------", "------");
 	AST_RWLIST_RDLOCK(&imagers);
 	AST_RWLIST_TRAVERSE(&imagers, i, list) {
-		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
+		ast_cli(a->fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
+		count_fmt++;
 	}
 	AST_RWLIST_UNLOCK(&imagers);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "\n%d image format%s registered.\n", count_fmt, count_fmt == 1 ? "" : "s");
+	return CLI_SUCCESS;
 }
 
 struct ast_cli_entry cli_image[] = {
-	{ { "core", "show", "image", "formats" },
-	show_image_formats, "Displays image formats",
-	"Usage: core show image formats\n"
-	"       displays currently registered image formats (if any)\n" },
+	NEW_CLI(handle_core_show_image_formats, "Displays image formats")
 };
 
 int ast_image_init(void)

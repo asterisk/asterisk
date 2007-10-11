@@ -188,60 +188,106 @@ struct ast_variable *ast_channeltype_list(void)
 }
 
 /*! \brief Show channel types - CLI command */
-static int show_channeltypes(int fd, int argc, char *argv[])
+static char *handle_cli_core_show_channeltypes(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT  "%-10.10s  %-40.40s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
 	int count_chan = 0;
 
-	ast_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
-	ast_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show channeltypes";
+		e->usage =
+			"Usage: core show channeltypes\n"
+			"       Lists available channel types registered in your\n"
+			"       Asterisk server.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
+	ast_cli(a->fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
 	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
-		return -1;
+		return CLI_FAILURE;
 	}
 	AST_LIST_TRAVERSE(&backends, cl, list) {
-		ast_cli(fd, FORMAT, cl->tech->type, cl->tech->description,
+		ast_cli(a->fd, FORMAT, cl->tech->type, cl->tech->description,
 			(cl->tech->devicestate) ? "yes" : "no",
 			(cl->tech->indicate) ? "yes" : "no",
 			(cl->tech->transfer) ? "yes" : "no");
 		count_chan++;
 	}
 	AST_RWLIST_UNLOCK(&channels);
-	ast_cli(fd, "----------\n%d channel drivers registered.\n", count_chan);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "----------\n%d channel drivers registered.\n", count_chan);
+	return CLI_SUCCESS;
 
 #undef FORMAT
+}
 
+static char *complete_channeltypes(struct ast_cli_args *a)
+{
+	struct chanlist *cl;
+	int which = 0;
+	int wordlen;
+	char *ret = NULL;
+
+	if (a->pos != 3)
+		return NULL;
+
+	wordlen = strlen(a->word);
+
+	AST_LIST_TRAVERSE(&backends, cl, list) {
+		if (!strncasecmp(a->word, cl->tech->type, wordlen) && ++which > a->n) {
+			ret = ast_strdup(cl->tech->type);
+			break;
+		}
+	}
+	
+	return ret;
 }
 
 /*! \brief Show details about a channel driver - CLI command */
-static int show_channeltype(int fd, int argc, char *argv[])
+static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct chanlist *cl = NULL;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show channeltype";
+		e->usage =
+			"Usage: core show channeltype <name>\n"
+			"	Show details about the specified channel type, <name>.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_channeltypes(a);
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 	
 	if (AST_RWLIST_RDLOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	}
 
 	AST_LIST_TRAVERSE(&backends, cl, list) {
-		if (!strncasecmp(cl->tech->type, argv[3], strlen(cl->tech->type))) {
+		if (!strncasecmp(cl->tech->type, a->argv[3], strlen(cl->tech->type)))
 			break;
-		}
 	}
 
 
 	if (!cl) {
-		ast_cli(fd, "\n%s is not a registered channel driver.\n", argv[3]);
+		ast_cli(a->fd, "\n%s is not a registered channel driver.\n", a->argv[3]);
 		AST_RWLIST_UNLOCK(&channels);
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	}
 
-	ast_cli(fd,
+	ast_cli(a->fd,
 		"-- Info about channel driver: %s --\n"
 		"  Device State: %s\n"
 		"    Indication: %s\n"
@@ -266,47 +312,12 @@ static int show_channeltype(int fd, int argc, char *argv[])
 	);
 
 	AST_RWLIST_UNLOCK(&channels);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
-
-static char *complete_channeltypes(const char *line, const char *word, int pos, int state)
-{
-	struct chanlist *cl;
-	int which = 0;
-	int wordlen;
-	char *ret = NULL;
-
-	if (pos != 3)
-		return NULL;
-
-	wordlen = strlen(word);
-
-	AST_LIST_TRAVERSE(&backends, cl, list) {
-		if (!strncasecmp(word, cl->tech->type, wordlen) && ++which > state) {
-			ret = ast_strdup(cl->tech->type);
-			break;
-		}
-	}
-	
-	return ret;
-}
-
-static const char show_channeltypes_usage[] =
-"Usage: core show channeltypes\n"
-"       Lists available channel types registered in your Asterisk server.\n";
-
-static const char show_channeltype_usage[] =
-"Usage: core show channeltype <name>\n"
-"	Show details about the specified channel type, <name>.\n";
 
 static struct ast_cli_entry cli_channel[] = {
-	{ { "core", "show", "channeltypes", NULL },
-	show_channeltypes, "List available channel types",
-	show_channeltypes_usage },
-
-	{ { "core", "show", "channeltype", NULL },
-	show_channeltype, "Give more details on that channel type",
-	show_channeltype_usage, complete_channeltypes },
+	NEW_CLI(handle_cli_core_show_channeltypes, "List available channel types"),
+	NEW_CLI(handle_cli_core_show_channeltype,  "Give more details on that channel type")
 };
 
 /*! \brief Checks to see if a channel is needing hang up */
