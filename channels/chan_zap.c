@@ -666,6 +666,7 @@ static struct zt_pvt {
 	int transcap;
 	int cic;							/*!< CIC associated with channel */
 	unsigned int dpc;						/*!< CIC's DPC */
+	unsigned int loopedback:1;
 #endif
 	char begindigit;
 } *iflist = NULL, *ifend = NULL;
@@ -8467,9 +8468,12 @@ static void ss7_reset_linkset(struct zt_ss7 *linkset)
 
 static void zt_loopback(struct zt_pvt *p, int enable)
 {
-	if (ioctl(p->subs[SUB_REAL].zfd, ZT_LOOPBACK, &enable)) {
-		ast_log(LOG_WARNING, "Unable to set loopback on channel %d\n", p->channel);
-		return;
+	if (p->loopedback != enable) {
+		if (ioctl(p->subs[SUB_REAL].zfd, ZT_LOOPBACK, &enable)) {
+			ast_log(LOG_WARNING, "Unable to set loopback on channel %d\n", p->channel);
+			return;
+		}
+		p->loopedback = enable;
 	}
 }
 
@@ -8790,6 +8794,22 @@ static void *ss7_linkset(void *data)
 				
 				ss7_start_call(p, linkset);
 				break;
+			case ISUP_EVENT_CCR:
+				ast_debug(1, "Got CCR request on CIC %d\n", e->ccr.cic);
+				chanpos = ss7_find_cic(linkset, e->ccr.cic);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "CCR on unconfigured CIC %d\n", e->ccr.cic);
+					break;
+				}
+
+				p = linkset->pvts[chanpos];
+
+				ast_mutex_lock(&p->lock);
+				zt_loopback(p, 1);
+				ast_mutex_unlock(&p->lock);
+
+				isup_lpa(linkset->ss7, e->ccr.cic, p->dpc);
+				break;
 			case ISUP_EVENT_REL:
 				chanpos = ss7_find_cic(linkset, e->rel.cic);
 				if (chanpos < 0) {
@@ -8803,6 +8823,9 @@ static void *ss7_linkset(void *data)
 					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 				} else
 					ast_log(LOG_WARNING, "REL on channel (CIC %d) without owner!\n", p->cic);
+
+				/* End the loopback if we have one */
+				zt_loopback(p, 0);
 
 				isup_rlc(ss7, e->rel.call);
 				p->ss7call = NULL;
