@@ -178,12 +178,12 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 
 	if (var) {
 		char *tmp="";
-		char app[256];
+		char *app = NULL;
 		struct ast_variable *v;
 
 		for (v = var; v ; v = v->next) {
 			if (!strcasecmp(v->name, "app"))
-				ast_copy_string(app, v->value, sizeof(app));
+				app = ast_strdupa(v->value);
 			else if (!strcasecmp(v->name, "appdata"))
 				tmp = ast_strdupa(v->value);
 		}
@@ -216,6 +216,8 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				res = pbx_exec(chan, a, appdata);
 			} else
 				ast_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
+		} else {
+			ast_log(LOG_WARNING, "No application specified for realtime extension '%s' in context '%s'\n", exten, context);
 		}
 	}
 	return res;
