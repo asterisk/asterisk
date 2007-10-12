@@ -92,6 +92,73 @@ static struct ast_custom_function fieldqty_function = {
 	.read = function_fieldqty,
 };
 
+static int get_filter_char(const char *stream, char *result, size_t *consumed)
+{
+	int i;
+	*consumed = 1;
+	*result = 0;
+	if (*stream == '\\') {
+		*consumed = 2;
+		switch (*(stream + 1)) {
+		case 'n':
+			*result = '\n';
+			break;
+		case 'r':
+			*result = '\r';
+			break;
+		case 't':
+			*result = '\t';
+			break;
+		case 'x':
+			/* Hexadecimal */
+			if (strchr("0123456789ABCDEFabcdef", *(stream + 2)) && *(stream + 2) != '\0') {
+				*consumed = 3;
+				if (*(stream + 2) <= '9')
+					*result = *(stream + 2) - '0';
+				else if (*(stream + 2) <= 'F')
+					*result = *(stream + 2) - 'A' + 10;
+				else
+					*result = *(stream + 2) - 'a' + 10;
+			} else {
+				ast_log(LOG_ERROR, "Illegal character '%c' in hexadecimal string\n", *(stream + 2));
+				return -1;
+			}
+
+			if (strchr("0123456789ABCDEFabcdef", *(stream + 3)) && *(stream + 3) != '\0') {
+				*consumed = 4;
+				*result <<= 4;
+				if (*(stream + 3) <= '9')
+					*result += *(stream + 3) - '0';
+				else if (*(stream + 3) <= 'F')
+					*result += *(stream + 3) - 'A' + 10;
+				else
+					*result += *(stream + 3) - 'a' + 10;
+			}
+			break;
+		case '0':
+			/* Octal */
+			*consumed = 2;
+			for (i = 2; ; i++) {
+				if (strchr("01234567", *(stream + i)) && *(stream + i) != '\0') {
+					(*consumed)++;
+					ast_debug(5, "result was %d, ", *result);
+					*result <<= 3;
+					*result += *(stream + i) - '0';
+					ast_debug(5, "is now %d\n", *result);
+				} else
+					break;
+			}
+			break;
+		default:
+			*result = *(stream + 1);
+		}
+	} else {
+		*result = *stream;
+		*consumed = 1;
+	}
+	return 0;
+}
+
 static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
 		  size_t len)
 {
@@ -99,7 +166,9 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 			     AST_APP_ARG(allowed);
 			     AST_APP_ARG(string);
 	);
-	char *outbuf = buf;
+	char *outbuf = buf, ac;
+	char allowed[256] = "";
+	size_t allowedlen = 0;
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -108,8 +177,40 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 		return -1;
 	}
 
+	/* Expand ranges */
+	for (; *(args.allowed) && allowedlen < sizeof(allowed); (args.allowed)++) {
+		char c1 = 0, c2 = 0;
+		size_t consumed = 0;
+
+		if (get_filter_char(args.allowed, &c1, &consumed))
+			return -1;
+		args.allowed += consumed;
+
+		if (*(args.allowed) == '-') {
+			if (get_filter_char(args.allowed + 1, &c2, &consumed))
+				c2 = -1;
+			args.allowed += consumed + 1;
+
+			/*!\note
+			 * Looks a little strange, until you realize that we can overflow
+			 * the size of a char.
+			 */
+			for (ac = c1; ac != c2 && allowedlen < sizeof(allowed) - 1; ac++)
+				allowed[allowedlen++] = ac;
+			allowed[allowedlen++] = ac;
+
+			ast_debug(4, "c1=%d, c2=%d\n", c1, c2);
+
+			/* Decrement before the loop increment */
+			(args.allowed)--;
+		} else
+			allowed[allowedlen++] = c1;
+	}
+
+	ast_debug(1, "Allowed: %s\n", allowed);
+
 	for (; *(args.string) && (buf + len - 1 > outbuf); (args.string)++) {
-		if (strchr(args.allowed, *(args.string)))
+		if (strchr(allowed, *(args.string)))
 			*outbuf++ = *(args.string);
 	}
 	*outbuf = '\0';
