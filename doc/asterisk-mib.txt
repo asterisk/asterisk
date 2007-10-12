@@ -16,7 +16,7 @@ asterisk MODULE-IDENTITY
 	CONTACT-INFO
 		"Mark A. Spencer
 		Postal: Digium, Inc.
-		        150 West Park Loop, Suite 100
+		        445 Jan Davis Drive
 		        Huntsville, AL 35806
 		        USA
 		   Tel: +1 256 428 6000
