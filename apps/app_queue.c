@@ -372,6 +372,7 @@ struct call_queue {
 	unsigned int wrapped:1;
 	unsigned int timeoutrestart:1;
 	unsigned int announceholdtime:2;
+	unsigned int announceposition:1;
 	unsigned int strategy:3;
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
@@ -803,6 +804,7 @@ static void init_queue(struct call_queue *q)
 	q->announcefrequency = 0;
 	q->minannouncefrequency = DEFAULT_MIN_ANNOUNCE_FREQUENCY;
 	q->announceholdtime = 0;
+	q->announceholdtime = 1;
 	q->roundingseconds = 0; /* Default - don't announce seconds */
 	q->servicelevel = 0;
 	q->ringinuse = 1;
@@ -1013,6 +1015,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
 		else
 			q->announceholdtime = 0;
+	} else if (!strcasecmp(param, "announce-position")) {
+		q->announceposition = ast_true(val);
 	} else if (!strcasecmp(param, "periodic-announce")) {
 		if (strchr(val, ',')) {
 			char *s, *buf = ast_strdupa(val);
@@ -1532,23 +1536,25 @@ static int say_position(struct queue_ent *qe, int ringing)
 	} else {
 		ast_moh_stop(qe->chan);
 	}
-	/* Say we're next, if we are */
-	if (qe->pos == 1) {
-		res = play_file(qe->chan, qe->parent->sound_next);
-		if (res)
-			goto playout;
-		else
-			goto posout;
-	} else {
-		res = play_file(qe->chan, qe->parent->sound_thereare);
-		if (res)
-			goto playout;
-		res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
-		if (res)
-			goto playout;
-		res = play_file(qe->chan, qe->parent->sound_calls);
-		if (res)
-			goto playout;
+	if (qe->parent->announceposition) {
+		/* Say we're next, if we are */
+		if (qe->pos == 1) {
+			res = play_file(qe->chan, qe->parent->sound_next);
+			if (res)
+				goto playout;
+			else
+				goto posout;
+		} else {
+			res = play_file(qe->chan, qe->parent->sound_thereare);
+			if (res)
+				goto playout;
+			res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
+			if (res)
+				goto playout;
+			res = play_file(qe->chan, qe->parent->sound_calls);
+			if (res)
+				goto playout;
+		}
 	}
 	/* Round hold time to nearest minute */
 	avgholdmins = abs(((qe->parent->holdtime + 30) - (now - qe->start)) / 60);
@@ -1603,8 +1609,10 @@ static int say_position(struct queue_ent *qe, int ringing)
 	}
 
 posout:
-	ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
+	if (qe->parent->announceposition) {
+		ast_verb(3, "Told %s in %s their queue position (which was %d)\n",
 			qe->chan->name, qe->parent->name, qe->pos);
+	}
 	res = play_file(qe->chan, qe->parent->sound_thanks);
 
 playout:

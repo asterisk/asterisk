@@ -199,7 +199,12 @@ monitor-type = MixMonitor
 ; or "less than 2 minutes" when appropriate.
 ;
 ;announce-holdtime = yes|no|once
-
+;
+; Queue position announce?
+; Either yes or no. If turned off, only the holdtime will be announced (as
+; configured in announce-holdtime)
+;
+;announce-position = yes
 ;
 ; What's the rounding time for the seconds?
 ; If this is non-zero, then we announce the seconds as well as the minutes
