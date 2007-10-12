@@ -2243,6 +2243,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		int called_nai_strip;
 		char ss7_calling_nai;
 		int calling_nai_strip;
+		const char *charge_str = NULL;
 
 		c = strchr(dest, '/');
 		if (c)
@@ -2305,6 +2306,12 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 
 		isup_set_oli(p->ss7call, ast->cid.cid_ani2);
 		isup_init_call(p->ss7->ss7, p->ss7call, p->cic, p->dpc);
+
+		/* Set the charge number if it is set */
+		charge_str = pbx_builtin_getvar_helper(ast, "SS7_CHARGE_NUMBER");
+		if (charge_str)
+			isup_set_charge(p->ss7call, charge_str, SS7_ANI_CALLING_PARTY_SUB_NUMBER, 0x10);
+
 
 		isup_iam(p->ss7->ss7, p->ss7call);
 		ast_setstate(ast, AST_STATE_DIALING);
