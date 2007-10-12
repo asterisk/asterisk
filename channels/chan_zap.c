@@ -664,6 +664,7 @@ static struct zt_pvt {
 #ifdef HAVE_SS7
 	struct zt_ss7 *ss7;
 	struct isup_call *ss7call;
+	char charge_number[50];
 	int transcap;
 	int cic;							/*!< CIC associated with channel */
 	unsigned int dpc;						/*!< CIC's DPC */
@@ -8509,6 +8510,13 @@ static void ss7_start_call(struct zt_pvt *p, struct zt_ss7 *linkset)
 		ast_verb(3, "Accepting call to '%s' on CIC %d\n", p->exten, p->cic);
 	else
 		ast_log(LOG_WARNING, "Unable to start PBX on CIC %d\n", p->cic);
+
+	if (!ast_strlen_zero(p->charge_number)) {
+		pbx_builtin_setvar_helper(c, "SS7_CHARGE_NUMBER", p->charge_number);
+		/* Clear this after we set it */
+		p->charge_number[0] = 0;
+	}
+
 }
 
 static void ss7_apply_plan_to_number(char *buf, size_t size, const struct zt_ss7 *ss7, const char *number, const unsigned nai)
@@ -8769,6 +8777,9 @@ static void *ss7_linkset(void *data)
 				p->cid_name[0] = '\0';
 				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
+				
+				ast_copy_string(p->charge_number, e->iam.charge_number, sizeof(p->charge_number));
+
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
 					ss7_apply_plan_to_number(p->dnid, sizeof(p->dnid), linkset, e->iam.called_party_num, e->iam.called_nai);
