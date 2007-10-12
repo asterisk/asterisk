@@ -29,7 +29,7 @@ I highly advise Zapateller for those seeking the nirvana of "privacy".
 \subsection{Next, Fight against the empty CALLERID!}
 
 A considerable percentage of the calls you don't want, come from
-sites that do not provide CallerID. 
+sites that do not provide CallerID.
 
 Null callerid's are a fact of life, and could be a friend with an
 unlisted number, or some charity looking for a handout. The
@@ -65,6 +65,8 @@ This will also immediately foil all autodialers that simply belch a
 message in your ear and hang up.
 
 \subsubsection{Example usage of Zapateller and PrivacyManager}
+
+\begin{astlisting}
 \begin{verbatim}
 [homeline]
 exten => s,1,Answer
@@ -72,14 +74,15 @@ exten => s,2,SetVar,repeatcount=0
 exten => s,3,Zapateller,nocallerid
 exten => s,4,PrivacyManager
      ;; do this if they don't enter a number to Privacy Manager
-exten => s,105,Background(tt-allbusy)       
+exten => s,105,Background(tt-allbusy)
 exten => s,106,Background(tt-somethingwrong)
 exten => s,107,Background(tt-monkeysintro)
 exten => s,108,Background(tt-monkeys)
 exten => s,109,Background(tt-weasels)
 exten => s,110,Hangup
-exten => s,5,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+exten => s,5,GotoIf($[ "${CALLERID(num)}"  = "7773334444" & "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
 \end{verbatim}
+\end{astlisting}
 
 I suggest using Zapateller at the beginning of the context, before
 anything else, on incoming calls.This can be followed by the
@@ -97,7 +100,7 @@ other paths to my torture scripts, I wanted to have some fun.
 In nearly all cases now, the telemarketers/charity-seekers that
 usually get thru to my main intro, hang up. I guess they can see it's
 pointless, or the average telemarketer/charity-seeker is instructed
-not to enter options when encountering such systems. Don't know. 
+not to enter options when encountering such systems. Don't know.
 
 
 \subsection{Next: Torture Them!}
@@ -163,15 +166,11 @@ There are some variations, and these will be explained in due course.
 
 To use these options, set your Dial to something like:
 \begin{verbatim}
-exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmPA(beep))
-
-or 
-
-exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmP(something)A(beep))
-
-or 
-
-exten => 3,3,Dial(Zap/5r3&Zap/6r3|35|tmpA(beep))
+exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmPA(beep))
+    or
+exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmP(something)A(beep))
+    or
+exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmpA(beep))
 \end{verbatim}
 
 The 't' allows the dialed party to transfer the call using '\#'. It's
@@ -188,7 +187,7 @@ P(some-shared-key). Also, if the same person has multiple extensions,
 use P(unique-id) on all their dial commands.
 
 Use little 'p' for screening. Every incoming call will include a
-prompt for the callee's choice. 
+prompt for the callee's choice.
 
 the A(beep), will generate a 'beep' that the callee will hear if they
 choose to talk to the caller. It's kind of a prompt to let the callee
@@ -197,7 +196,7 @@ helpful.
 
 When there is no CallerID, P and p options will always record an intro
 for the incoming caller. This intro will be stored temporarily in the
-/var/lib/asterisk/sounds/priv-callerintros dir, under the name
+\path{/var/lib/asterisk/sounds/priv-callerintros} dir, under the name
 NOCALLERID\_$<$extension$>$ $<$channelname$>$ and will be erased after the
 callee decides what to do with the call.
 
@@ -232,7 +231,7 @@ introductions are stored and re-used for the convenience of the CALLER.
 \subsubsection{Introductions}
 Unless instructed to not save introductions (see the 'n' option above),
 the screening modes will save the recordings of the caller's names in
-the directory /var/lib/asterisk/sounds/priv-callerintros, if they have
+the directory \path{/var/lib/asterisk/sounds/priv-callerintros}, if they have
 a CallerID.  Just the 10-digit callerid numbers are used as filenames,
 with a ".gsm" at the end.
 
@@ -246,14 +245,15 @@ Next of all, these intros can be used in voicemail, played over
 loudspeakers, and perhaps other nifty things. For instance:
 
 \begin{verbatim}
-exten => s,7,System(/usr/bin/play /var/lib/asterisk/sounds/priv-callerintros/${CALLERID(num)}.gsm&|0) 
+exten => s,6,Set(PATH=/var/lib/asterisk/sounds/priv-callerintros)
+exten => s,7,System(/usr/bin/play ${PATH}/${CALLERID(num)}.gsm&,0)
 \end{verbatim}
 
 When a call comes in at the house, the above priority gets executed,
 and the callers intro is played over the phone systems speakers. This
 gives us a hint who is calling.
 
-(Note: the |0 option at the end of the System command above, is a
+(Note: the ,0 option at the end of the System command above, is a
 local mod I made to the System command. It forces a 0 result code to
 be returned, whether the play command successfully completed or
 not. Therefore, I don't have to ensure that the file exists or
@@ -264,12 +264,13 @@ handle it a little more intelligently)
 And one other thing. You can easily supply your callers with an option
 to listen to, and re-record their introductions. Here's what I did in
 the home system's extensions.conf. (assume that a
-Goto(home-introduction|s|1) exists somewhere in your main menu as an
+Goto(home-introduction,s,1) exists somewhere in your main menu as an
 option):
 
+\begin{astlisting}
 \begin{verbatim}
 [home-introduction]
-exten => s,1,Background,intro-options ;; Script: 
+exten => s,1,Background(intro-options) ;; Script:
      ;; To hear your Introduction, dial 1.
      ;;    to record a new introduction, dial 2.
      ;;    to return to the main menu, dial 3.
@@ -278,7 +279,7 @@ exten => 1,1,Playback,priv-callerintros/${CALLERID(num)}
 exten => 1,2,Goto(s,1)
 exten => 2,1,Goto(home-introduction-record,s,1)
 exten => 3,1,Goto(homeline,s,7)
-exten => 4,1,Playback,intro-intro
+exten => 4,1,Playback(intro-intro)
      ;; Script:
      ;; This may seem a little strange, but it really is a neat
      ;; thing, both for you and for us. I've taped a short introduction
@@ -292,26 +293,26 @@ exten => 4,1,Playback,intro-intro
      ;; using this menu.
 exten => 4,2,Goto(s,1)
 exten => t,1,Goto(s,1)
-exten => i,1,Background,invalid
+exten => i,1,Background(invalid)
 exten => i,2,Goto(s,1)
 exten => o,1,Goto(s,1)
 
 [home-introduction-record]
-exten => s,1,Background,intro-record-choices    ;; Script:
+exten => s,1,Background(intro-record-choices)    ;; Script:
      ;; If you want some advice about recording your
-     ;; introduction, dial 1. 
+     ;; introduction, dial 1.
      ;; otherwise, dial 2, and introduce yourself after
      ;; the beep.
-exten => 1,1,Playback,intro-record
+exten => 1,1,Playback(intro-record)
      ;; Your introduction should be short and sweet and crisp.
      ;; Your introduction will be limited to 4 seconds.
      ;; This is NOT meant to be a voice mail message, so
      ;; please, don't say anything about why you are calling.
      ;; After we are done making the recording, your introduction
-     ;; will be saved for playback. 
-     ;; If you are the only person that would call from this number, 
+     ;; will be saved for playback.
+     ;; If you are the only person that would call from this number,
      ;; please state your name.  Otherwise, state your business
-     ;; or residence name instead. For instance, if you are 
+     ;; or residence name instead. For instance, if you are
      ;; friend of the family, say, Olie McPherson, and both
      ;; you and your kids might call here a lot, you might
      ;; say: "This is the distinguished Olie McPherson Residence!"
@@ -322,22 +323,23 @@ exten => 1,1,Playback,intro-record
      ;; "John, from the Park County Morgue. You stab 'em, we slab 'em!".
      ;; Just one caution: the kids will hear what you record every time
      ;; you call. So watch your language!
-     ;; I will begin recording after the tone. 
-     ;; When you are done, hit the # key. Gather your thoughts and get 
+     ;; I will begin recording after the tone.
+     ;; When you are done, hit the # key. Gather your thoughts and get
      ;; ready. Remember, the # key will end the recording, and play back
      ;; your intro. Good Luck, and Thank you!"
 exten => 1,2,Goto(2,1)
-exten => 2,1,Background,intro-start
+exten => 2,1,Background(intro-start)
      ;;  OK, here we go! After the beep, please give your introduction.
-exten => 2,2,Background,beep
-exten => 2,3,Record,priv-callerintros/${CALLERID(num)}:gsm|4
-exten => 2,4,Background,priv-callerintros/${CALLERID(num)}
+exten => 2,2,Background(beep)
+exten => 2,3,Record(priv-callerintros/${CALLERID(num)}:gsm,4)
+exten => 2,4,Background(priv-callerintros/${CALLERID(num)})
 exten => 2,5,Goto(home-introduction,s,1)
 exten => t,1,Goto(s,1)
-exten => i,1,Background,invalid
+exten => i,1,Background(invalid)
 exten => i,2,Goto(s,1)
 exten => o,1,Goto(s,1)
 \end{verbatim}
+\end{astlisting}
 
 In the above, you'd most likely reword the messages to your liking,
 and maybe do more advanced things with the 'error' conditions (i,o,t priorities),

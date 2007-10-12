@@ -16,13 +16,13 @@
    can be encoded in a text message such as ring tones, and small
    graphic, etc. Text messaging is being used for voting and
    competitions, and also SPAM...
-   
+
    Sending a message involves the mobile phone contacting a message
    centre (SMSC) and passing the message to it. The message centre then
    contacts the destination mobile to deliver the message. The SMSC is
    responsible for storing the message and trying to send it until the
    destination mobile is available, or a timeout.
-   
+
    Landline SMS works in basically the same way. You would normally have
    a suitable text capable landline phone, or a separate texting box such
    as a Magic Messenger on your phone line. This sends a message to a
@@ -111,30 +111,33 @@
 \section{extensions.conf}
 
    The following contexts are recommended.
+
+\begin{astlisting}
 \begin{verbatim}
 ; Mobile Terminated, RX. This is used when an incoming call from the SMS arrive
 s, with the queue (called number and sub address) in ${EXTEN}
-; Running an app after receipt of the text allows the app to find all messages 
+; Running an app after receipt of the text allows the app to find all messages
 in the queue and handle them, e.g. email them.
-; The app may be something like   smsq --process=somecommand --queue=${EXTEN}  
+; The app may be something like   smsq --process=somecommand --queue=${EXTEN}
 to run a command for each received message
 ; See below for usage
 [smsmtrx]
-exten = _X.,1, SMS(${EXTEN}|a)
+exten = _X.,1, SMS(${EXTEN},a)
 exten = _X.,2,System("someapptohandleincomingsms ${EXTEN}")
 exten = _X.,3,Hangup
-; Mobile originated, RX. This is receiving a message from a device, e.g. 
+; Mobile originated, RX. This is receiving a message from a device, e.g.
 ; a Magic Messenger on a sip extension
-; Running an app after receipt of the text allows the app to find all messages 
+; Running an app after receipt of the text allows the app to find all messages
 ; in the queue and handle then, e.g. sending them to the public SMSC
-; The app may be something like   smsq --process=somecommand --queue=${EXTEN}  
+; The app may be something like   smsq --process=somecommand --queue=${EXTEN}
 ; to run a command for each received message
 ; See below for example usage
 [smsmorx]
-exten = _X.,1, SMS(${EXTEN}|sa)
+exten = _X.,1, SMS(${EXTEN},sa)
 exten = _X.,2,System("someapptohandlelocalsms ${EXTEN}")
 exten = _X.,3,Hangup
 \end{verbatim}
+\end{astlisting}
 
    smsmtrx is normally accessed by an incoming call from the SMSC. In the
    UK this call is from a CLI of 080058752X0 where X is the sub address.
@@ -318,7 +321,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    error. Any trailing arguments are processed as follows:-
 
 \begin{itemize}
-    
+
      \item If the message is mobile originating and no destination address
        has been specified, then the first argument is assumed to be a
        destination address
@@ -405,7 +408,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    Within this directory are sub directories mtrx, mttx, morx, motx which
    hold the received messages and the messages ready to send. Also,
    /var/log/asterisk/sms is a log file of all messages handled.
-   
+
    The file name in each queue directory starts with the queue parameter
    to SMS which is normally the CLI used for an outgoing message or the
    called number on an incoming message, and may have -X (X being sub

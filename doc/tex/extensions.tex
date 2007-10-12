@@ -15,10 +15,10 @@ pattern, "N", "X", and "Z" are interpreted as classes of digits.
 
 For each extension, several actions may be listed and must be given a unique
 priority. When each action completes, the call continues at the next priority
-(except for some modules which use explicitly GOTO's). 
+(except for some modules which use explicitly GOTO's).
 
 When each action completes, it generally moves to the next priority (except for
-some modules which use explicitly GOTO's. 
+some modules which use explicitly GOTO's.
 
 Extensions frequently have data they pass to the executing application
 (most frequently a string).  You can see the available dialplan applications
@@ -30,7 +30,7 @@ functions in your Asterisk, use the "show functions" command.
 
 \subsubsection{Example dialplan}
 
-The example dial plan, in the configs/extensions.conf.sample file
+The example dial plan, in the \path{configs/extensions.conf.sample} file
 is installed as extensions.conf if you run "make samples" after
 installation of Asterisk. This file includes many more instructions
 and examples than this file, so it's worthwhile to read it.
@@ -44,7 +44,7 @@ There are some extensions with important meanings:
   \begin{itemize}
     \item What to do when an extension context is entered (unless
           overridden by the low level channel interface)
-          This is used in macros, and some special cases. 
+          This is used in macros, and some special cases.
           "s" is not a generic catch-all wildcard extension.
   \end{itemize}
   \item i
@@ -76,7 +76,7 @@ There are some extensions with important meanings:
   \end{itemize}
 \end{itemize}
 
-And finally, the extension context "default" is used when either a) an 
+And finally, the extension context "default" is used when either a) an
 extension context is deleted while an extension is in use, or b) a specific
 starting extension handler has not been defined (unless overridden by the
 low level channel interface).

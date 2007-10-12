@@ -24,7 +24,7 @@ function is then up to the administrator to implement in a way that
 best suits their environment.
 
 \begin{verbatim}
-Function: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])
+Function: ENUMLOOKUP(number[,Method-type[,options[,record#[,zone-suffix]]]])
 \end{verbatim}
 
   Performs an ENUM tree lookup on the specified number, method type, and
@@ -34,7 +34,7 @@ Function: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])
    \item post-parsed NAPTR of one method (URI) type
    \item count of elements of one method (URI) type
    \item count of all method types
-   \item full URI of method at a particular point in the list of all possible methods 
+   \item full URI of method at a particular point in the list of all possible methods
 \end{enumerate}
 
 \subsection{Arguments}
@@ -48,7 +48,7 @@ Function: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])
   \end{itemize}
 
   \item service\_type
-  \begin{itemize} 
+  \begin{itemize}
      \item tel, sip, h323, iax2, mailto, ...[any other string],
      ALL. Default type is "sip".
      Special name of "ALL" will create a list of method types across
@@ -58,7 +58,7 @@ Function: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])
      record (lowest value) in the list.  The service types are not
      hardcoded in Asterisk except for the default (sip) if no other
      service type specified; any method type string (IANA-approved or
-     not) may be used except for the string "ALL".  
+     not) may be used except for the string "ALL".
   \end{itemize}
 
   \item options
@@ -72,7 +72,7 @@ Function: ENUMLOOKUP(number[|Method-type[|options[|record#[|zone-suffix]]]])
     \end{itemize}
   \end{itemize}
 
-  \item record\# 
+  \item record\#
   \begin{itemize}
     \item which record to present if multiple answers are returned
     <integer> = The record in priority/order sequence based on the
@@ -103,17 +103,17 @@ and it is included as a more complex regexp example, though other
 simpler NAPTRs will work just as well.
 
 \begin{verbatim}
-0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 10 100 "u" 
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 10 100 "u"
      "E2U+tel" "!^\\+13015611020$!tel:+12125551212!" .
-0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 21 100 "u" 
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 21 100 "u"
      "E2U+tel" "!^\\+13015611020$!tel:+14155551212!" .
-0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 25 100 "u" 
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 25 100 "u"
      "E2U+sip" "!^\\+13015611020$!sip:2203@sip.fox-den.com!" .
-0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 26 100 "u" 
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 26 100 "u"
      "E2U+sip" "!^\\+13015611020$!sip:1234@sip-2.fox-den.com!" .
-0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 30 100 "u" 
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 30 100 "u"
      "E2U+sip" "!^\\+*([^\\*]*)!sip:\\1@sip-3.fox-den.com!" .
-0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 55 100 "u" 
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 55 100 "u"
      "E2U+mailto" "!^\\+13015611020$!mailto:jtodd@fox-den.com!" .
 \end{verbatim}
 
@@ -282,18 +282,18 @@ ENUMLOOKUP function calls.
 ; Look up the first SIP result and send the call there, otherwise
 ;  send the call out a PRI.  This is the most simple possible
 ;  ENUM example, but only uses the first SIP reply in the list of
-;  NAPTR(s). 
+;  NAPTR(s).
 ;
 exten => _011.,1,Set(enumresult=${ENUMLOOKUP(+${EXTEN:3})})
 exten => _011.,n,Dial(SIP/${enumresult})
 exten => _011.,n,Dial(Zap/g1/${EXTEN})
-; 
+;
 ; end example 1
 
 ; example 2
 ;
 ; Assumes North American international dialing (011) prefix.
-; Check to see if there are multiple SIP NAPTRs returned by 
+; Check to see if there are multiple SIP NAPTRs returned by
 ;  the lookup, and dial each in order.  If none work (or none
 ;  exist) then send the call out a PRI, group 1.
 ;

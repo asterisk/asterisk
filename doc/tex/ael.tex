@@ -1,9 +1,9 @@
 \section{Introduction}
 
-AEL is a specialized language intended purely for 
+AEL is a specialized language intended purely for
 describing Asterisk dial plans.
 
-The current version was written by Steve Murphy, and is a rewrite of 
+The current version was written by Steve Murphy, and is a rewrite of
 the original version.
 
 This new version further extends AEL, and
@@ -18,7 +18,7 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
 
     \item The second syntax is the Expression Syntax, which is normally
      handled by Asterisk extension engine, as expressions enclosed in
-     \$[...]. The right hand side of assignments are wrapped in \$[ ... ] 
+     \$[...]. The right hand side of assignments are wrapped in \$[ ... ]
      by AEL, and so are the if and while expressions, among others.
 
     \item The third syntax is the Variable Reference Syntax, the stuff
@@ -139,16 +139,16 @@ Right at this moment, the following commands are available, but do
 nothing:
 
 Enable AEL contexts debug
-   *CLI> ael debug contexts 
+   *CLI> ael debug contexts
 
 Enable AEL macros debug
-   *CLI> ael debug macros 
+   *CLI> ael debug macros
 
 Enable AEL read debug
    *CLI> ael debug read
 
 Enable AEL tokens debug
-   *CLI> ael debug tokens 
+   *CLI> ael debug tokens
 
 Disable AEL debug messages
    *CLI> ael no debug
@@ -201,7 +201,7 @@ be included on a single line. Whatever you think is best!
 You can just as easily say,
 
 \begin{verbatim}
-if(${x}=1) { NoOp(hello!); goto s|3; } else { NoOp(Goodbye!); goto s|12; }
+if(${x}=1) { NoOp(hello!); goto s,3; } else { NoOp(Goodbye!); goto s,12; }
 \end{verbatim}
 
 as you can say:
@@ -210,12 +210,12 @@ as you can say:
 if(${x}=1)
 {
        NoOp(hello!);
-   goto s|3;
+   goto s,3;
 }
 else
 {
        NoOp(Goodbye!);
-       goto s|12;
+       goto s,12;
 }
 \end{verbatim}
 
@@ -224,10 +224,10 @@ or:
 \begin{verbatim}
 if(${x}=1) {
        NoOp(hello!);
-   goto s|3;
+   goto s,3;
 } else {
        NoOp(Goodbye!);
-       goto s|12;
+       goto s,12;
 }
 \end{verbatim}
 
@@ -235,9 +235,9 @@ or:
 
 \begin{verbatim}
 if (${x}=1) {
-       NoOp(hello!); goto s|3;
+       NoOp(hello!); goto s,3;
 } else {
-       NoOp(Goodbye!); goto s|12;
+       NoOp(Goodbye!); goto s,12;
 }
 \end{verbatim}
 
@@ -274,12 +274,12 @@ The following are keywords in the AEL language:
     \item while
     \item case
     \item pattern
-    \item default   NOTE: the "default" keyword can be used as a context name, 
+    \item default   NOTE: the "default" keyword can be used as a context name,
                       for those who would like to do so.
     \item catch
     \item switches
     \item eswitches
-    \item includes 
+    \item includes
 \end{itemize}
 
 
@@ -288,15 +288,15 @@ The following are keywords in the AEL language:
 AEL first parses the extensions.ael file into a memory structure representing the file.
 The entire file is represented by a tree of "pval" structures linked together.
 
-This tree is then handed to the semantic check routine. 
+This tree is then handed to the semantic check routine.
 
-Then the tree is handed to the compiler. 
+Then the tree is handed to the compiler.
 
 After that, it is freed from memory.
 
 A program could be written that could build a tree of pval structures, and
 a pretty printing function is provided, that would dump the data to a file,
-or the tree could be handed to the compiler to merge the data into the 
+or the tree could be handed to the compiler to merge the data into the
 asterisk dialplan. The modularity of the design offers several opportunities
 for developers to simplify apps to generate dialplan data.
 
@@ -307,6 +307,7 @@ for developers to simplify apps to generate dialplan data.
 
 First, some basic objects
 
+\begin{astlisting}
 \begin{verbatim}
 ------------------------
 <word>    a lexical token consisting of characters matching this pattern: [-a-zA-Z0-9"_/.\<\>\*\+!$#\[\]][-a-zA-Z0-9"_/.!\*\+\<\>\{\}$#\[\]]*
@@ -490,9 +491,8 @@ First, some basic objects
 
 <includes> :== 'includes' '{' <includeslist> '}'
        | 'includes' '{' '}'
-
 \end{verbatim}
-
+\end{astlisting}
 
 \section{AEL Example USAGE}
 
@@ -582,7 +582,7 @@ CID matching is done as with the extensions.conf file. Follow the extension
 name/number with a slash (/) and the number to match against the Caller ID:
 
 \begin{verbatim}
-context zoombo 
+context zoombo
 {
   819/7079953345 => { NoOp(hello, 3345); }
 }
@@ -701,14 +701,14 @@ context foo {
 }
 \end{verbatim}
 
-NOTE: AEL wraps the right hand side of an assignment with \$[ ] to allow 
-expressions to be used If this is unwanted, you can protect the right hand 
-side from being wrapped by using the Set() application. 
-Read the README.variables about the requirements and behavior 
+NOTE: AEL wraps the right hand side of an assignment with \$[ ] to allow
+expressions to be used If this is unwanted, you can protect the right hand
+side from being wrapped by using the Set() application.
+Read the README.variables about the requirements and behavior
 of \$[ ] expressions.
 
-NOTE: These things are wrapped up in a \$[ ] expression: The while() test; 
-the if() test; the middle expression in the for( x; y; z) statement 
+NOTE: These things are wrapped up in a \$[ ] expression: The while() test;
+the if() test; the middle expression in the for( x; y; z) statement
 (the y expression); Assignments - the right hand side, so a = b -> Set(a=\$[b])
 
 Writing to a dialplan function is treated the same as writing to a variable.
@@ -719,7 +719,7 @@ context blah {
          CALLERID(name)=ChickenMan;
          NoOp(My name is ${CALLERID(name)} !);
     }
-} 
+}
 \end{verbatim}
 
 You can declare variables in Macros, as so:
@@ -739,7 +739,7 @@ arguments and associated ARG1, ARG2, etc variables. Sorry.
 
 In trunk (1.6 and higher), we have made all arguments local variables to
 a macro call. They will not affect channel variables of the same name.
-This includes the ARG1, ARG2, etc variables. 
+This includes the ARG1, ARG2, etc variables.
 
 Users can declare their own local variables by using the keyword 'local'
 before setting them to a value;
@@ -753,7 +753,7 @@ Macro myroutine(firstarg, secondarg)
 \end{verbatim}
 
 In the above example, Myvar, firstarg, and secondarg are all local variables,
-and will not be visible to the calling code, be it an extension, or another Macro. 
+and will not be visible to the calling code, be it an extension, or another Macro.
 
 If you need to make a local variable within the Set() application, you can do it this way:
 
@@ -812,7 +812,7 @@ context conditional {
          }
          else
               Voicemail(${EXTEN}|u);
-         ifTime (14:00-25:00|sat-sun|*|*) 
+         ifTime (14:00-25:00|sat-sun|*|*)
               Voicemail(${EXTEN}|b);
          else
          {
@@ -858,7 +858,7 @@ context conditional {
 \end{verbatim}
 
 NOTE: The conditional expression in if() statements (the
-      "\${DIALSTATUS}" = "BUSY" above) is wrapped by the compiler in 
+      "\${DIALSTATUS}" = "BUSY" above) is wrapped by the compiler in
       \$[] for evaluation.
 
 NOTE: Neither the switch nor case values are wrapped in \$[ ]; they can
@@ -926,7 +926,7 @@ begin:
 
 context gotoexample2 {
      s =>  {
-   end: 
+   end:
            goto gotoexample|s|begin;   // go to label in different context
      }
 }
@@ -962,7 +962,7 @@ begin:
 
 context gotoexample2 {
      s =>  {
-   end: 
+   end:
            jump s@gotoexample;   // go to label in different context
      }
 }
@@ -980,7 +980,7 @@ NOTE: goto labels follow the same requirements as the Goto()
 NOTE  AEL introduces the special label "1", which is the beginning
       context number for most extensions.
 
-NOTE: A NEW addition to AEL: you can now use ',' instead of '|' to 
+NOTE: A NEW addition to AEL: you can now use ',' instead of '|' to
       separate the items in the target address. You can't have a mix,
       though, of '|' and ',' in the target. It's either one, or the other.
 
@@ -1099,7 +1099,7 @@ tree, and makes several checks:
           o the times have to be in range of 0 to 24 hours.
           o The weekdays have to match the internal list, if they are provided;
           o the day of the month, if provided, must be in range of 1 to 31;
-          o the month name or names have to match those in the internal list. 
+          o the month name or names have to match those in the internal list.
     \item (0.5) If an expression is wrapped in \$[ ... ], and the compiler
       will wrap it again, a warning is issued.
     \item (0.5) If an expression had operators (you know,
@@ -1107,7 +1107,7 @@ tree, and makes several checks:
       issued. Maybe someone forgot to wrap a variable name?
     \item (0.12) check for duplicate context names.
     \item (0.12) check for abstract contexts that are not included by any context.
-    \item (0.13) Issue a warning if a label is a numeric value. 
+    \item (0.13) Issue a warning if a label is a numeric value.
 \end{itemize}
 
 There are a subset of checks that have been removed until the proposed
@@ -1249,18 +1249,18 @@ available through AEL, via:
       commands
 
     \item Functions: Functions were implemented inside \${ .. } variable
-      references, and supply many useful capabilities. 
+      references, and supply many useful capabilities.
 
     \item Expressions: An expression evaluation engine handles items
       wrapped inside \$[...]. This includes some string manipulation
-      facilities, arithmetic expressions, etc. 
+      facilities, arithmetic expressions, etc.
 
     \item Application Gateway Interface: Asterisk can fork external
       processes that communicate via pipe. AGI applications can be
       written in any language. Very powerful applications can be added
-      this way. 
+      this way.
 
     \item Variables: Channels of communication have variables associated
       with them, and asterisk provides some global variables. These can be
-      manipulated and/or consulted by the above mechanisms. 
+      manipulated and/or consulted by the above mechanisms.
 \end{itemize}

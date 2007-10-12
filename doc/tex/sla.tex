@@ -100,7 +100,7 @@ device=Local/disa@line4_outbound
 exten => 12564286000,1,SLATrunk(line4)
 
 [line4_outbound]
-exten => disa,1,Disa(no-password|line4_outbound)
+exten => disa,1,Disa(no-password,line4_outbound)
 exten => _1NXXNXXXXXX,1,Dial(SIP/\${EXTEN}@mytrunk)
 \end{verbatim}
 
@@ -277,18 +277,18 @@ extensions.conf:
 \begin{verbatim}
 [macro-slaline]
 exten => s,1,SLATrunk(${ARG1})
-exten => s,n,Goto(s-${SLATRUNK_STATUS}|1)
-exten => s-FAILURE,1,Voicemail(1234|u)
-exten => s-UNANSWERED,1,Voicemail(1234|u)
+exten => s,n,Goto(s-${SLATRUNK_STATUS},1)
+exten => s-FAILURE,1,Voicemail(1234,u)
+exten => s-UNANSWERED,1,Voicemail(1234,u)
 
 [line1]
-exten => s,1,Macro(slaline|line1)
+exten => s,1,Macro(slaline,line1)
 
 [line2]
-exten => s,2,Macro(slaline|line2)
+exten => s,2,Macro(slaline,line2)
 
 [line1_outbound]
-exten => disa,1,Disa(no-password|line1_outbound)
+exten => disa,1,Disa(no-password,line1_outbound)
 exten => _1NXXNXXXXXX,1,Dial(Zap/1/${EXTEN})
 exten => 8500,1,VoicemailMain(1234)
 

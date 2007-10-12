@@ -61,43 +61,50 @@ You can get more information about a manager command
 with the "manager show command $<$command$>$" CLI command in Asterisk.
 
 \section{Examples}
-\begin{verbatim}
+
 Login - Log a user into the manager interface.
 
+\begin{verbatim}
    Action: Login
    Username: testuser
    Secret: testsecret
+\end{verbatim}
 
 Originate - Originate a call from a channel to an extension.
 
+\begin{verbatim}
    Action: Originate
    Channel: sip/12345
    Exten: 1234
    Context: default
+\end{verbatim}
 
 Originate - Originate a call from a channel to an extension without waiting
 for call to complete.
 
+\begin{verbatim}
    Action: Originate
    Channel: sip/12345
    Exten: 1234
    Context: default
    Async: yes
-
+\end{verbatim}
 
 Redirect with ExtraChannel:
+
   Attempted goal:
   Have a 'robot' program Redirect both ends of an already-connected call
   to a meetme room using the ExtraChannel feature through the management interface.
 
+\begin{verbatim}
   Action: Redirect
   Channel: Zap/1-1
   ExtraChannel: SIP/3064-7e00 (varies)
   Exten: 680
   Priority: 1
+\end{verbatim}
 
 Where 680 is an extension that sends you to a MeetMe room.
-\end{verbatim}
 
 There are a number of GUI tools that use the manager interface, please search
 the mailing list archives and the documentation page on the 
