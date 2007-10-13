@@ -83,7 +83,7 @@ int ast_unregister_verbose(void (*verboser)(const char *string));
 void ast_console_puts(const char *string);
 
 void ast_console_puts_mutable(const char *string);
-void ast_console_toggle_mute(int fd);
+void ast_console_toggle_mute(int fd, int silent);
 
 #define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
 

@@ -402,9 +402,12 @@ static int handle_debuglevel_deprecated(int fd, int argc, char *argv[])
 
 static int handle_logger_mute(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc < 2 || argc > 3)
 		return RESULT_SHOWUSAGE;
-	ast_console_toggle_mute(fd);
+	if (argc == 3 && !strcasecmp(argv[2], "silent"))
+		ast_console_toggle_mute(fd, 1);
+	else
+		ast_console_toggle_mute(fd, 0);
 	return RESULT_SUCCESS;
 }
 
