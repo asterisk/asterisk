@@ -371,9 +371,14 @@ static char *handle_logger_mute(struct ast_cli_entry *e, int cmd, struct ast_cli
 		return NULL;
 	}
 
-	if (a->argc != 2)
+	if (a->argc < 2 || a->argc > 3)
 		return CLI_SHOWUSAGE;
-	ast_console_toggle_mute(a->fd);
+
+	if (a->argc == 3 && !strcasecmp(argv[2], "silent"))
+		ast_console_toggle_mute(a->fd, 1);
+	else
+		ast_console_toggle_mute(a->fd, 0);
+
 	return CLI_SUCCESS;
 }
 
