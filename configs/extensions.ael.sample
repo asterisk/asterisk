@@ -309,10 +309,10 @@ macro ael-std-exten-ael( ext , dev ) {
         Dial(${dev}/${ext},20);
         switch(${DIALSTATUS}) {
         case BUSY:
-                Voicemail(b${ext});
+                Voicemail(${ext},b);
                 break;
         default:
-                Voicemail(u${ext});
+                Voicemail(${ext},u);
         };
         catch a {
                 VoiceMailMain(${ext});
@@ -405,10 +405,10 @@ context ael-default {
 //        Dial(${HINT}/5245},20,rtT);                    // Use hint as listed
 //        switch(${DIALSTATUS}) {
 //        case BUSY:
-//                Voicemail(b6245);
+//                Voicemail(6245,b);
 //				return;
 //        default:
-//                Voicemail(u6245);
+//                Voicemail(6245,u);
 //				return;
 //        };
 //       };
