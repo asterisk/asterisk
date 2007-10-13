@@ -108,6 +108,14 @@ char *ast_cli_complete(const char *word, char *const choices[], int pos);
  */
 int ast_cli_command(int fd, const char *s);
 
+/*! 
+ * \brief Executes multiple CLI commands
+ * Interpret strings separated by '\0' and execute each one, sending output to fd
+ * \param size is the total size of the string
+ * \retval number of commands executed
+ */
+int ast_cli_command_multiple(int fd, size_t size, const char *s);
+
 /*! \brief Registers a command or an array of commands
  * \param e which cli entry to register
  * Register your own command
