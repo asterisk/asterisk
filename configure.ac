@@ -881,7 +881,7 @@ AST_EXT_LIB_CHECK([POPT], [popt], [poptStrerror], [popt.h])
 
 AST_EXT_LIB_CHECK([PRI], [pri], [pri_keypad_facility], [libpri.h])
 
-AST_EXT_LIB_CHECK([SS7], [ss7], [ss7_new], [libss7.h])
+AST_EXT_LIB_CHECK([SS7], [ss7], [isup_set_charge], [libss7.h])
 
 if test "${USE_PWLIB}" != "no"; then
 	if test -n "${PWLIB_DIR}"; then
