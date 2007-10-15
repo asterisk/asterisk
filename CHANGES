@@ -295,3 +295,5 @@ Miscellaneous
      SIP call to Voicemail by putting a Local channel in the middle.  This
      feature is enabled by using the 'j' option in the Dial string to the Local
      channel in conjunction with the existing 'n' option for local channels.
+  * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
+     It allows you to configure a prefix for auto-monitor recordings.
