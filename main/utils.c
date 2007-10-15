@@ -720,13 +720,16 @@ static int handle_show_locks(int fd, int argc, char *argv[])
 				"=== <file> <line num> <function> <lock name> <lock addr> (times locked)\n"
 				"===\n");
 
+	if (!str)
+		return RESULT_FAILURE;
+
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
 		int i;
 		ast_dynamic_str_append(&str, 0, "=== Thread ID: %u (%s)\n", (int) lock_info->thread_id,
 			lock_info->thread_name);
 		pthread_mutex_lock(&lock_info->lock);
-		for (i = 0; i < lock_info->num_locks; i++) {
+		for (i = 0; str && i < lock_info->num_locks; i++) {
 			ast_dynamic_str_append(&str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
 				lock_info->locks[i].pending > 0 ? "Waiting for " : 
 					lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
@@ -738,13 +741,23 @@ static int handle_show_locks(int fd, int argc, char *argv[])
 				lock_info->locks[i].times_locked);
 		}
 		pthread_mutex_unlock(&lock_info->lock);
+		if (!str)
+			break;
 		ast_dynamic_str_append(&str, 0, "=== -------------------------------------------------------------------\n"
 		            "===\n");
+		if (!str)
+			break;
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 
+	if (!str)
+		return RESULT_FAILURE;
+
 	ast_dynamic_str_append(&str, 0, "=======================================================================\n"
 	            "\n");
+
+	if (!str)
+		return RESULT_FAILURE;
 
 	ast_cli(fd, "%s", str->str);
 
