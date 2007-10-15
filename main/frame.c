@@ -116,7 +116,7 @@ static struct ast_format_list AST_FORMAT_LIST[] = {
 	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX", 10, 10, 60, 10, 20 },		                                  /*!< codec_speex.c */
 	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC", 50, 30, 30, 30, 30 },		                                  /*!< codec_ilbc.c */ /* inc=30ms - workaround */
 	{ 1, AST_FORMAT_G726_AAL2, "g726aal2", "G.726 AAL2", 40, 10, 300, 10, 20 },	                          /*!< codec_g726.c */
-	{ 1, AST_FORMAT_G722, "g722", "G722"},					                                  /*!< G722 Passthrough */
+	{ 1, AST_FORMAT_G722, "g722", "G722", 80, 10, 150, 10, 20 },		                                  /*!< G722 Passthrough */
 	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },	
 	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},	                                                          /*!< See format_jpeg.c */
 	{ 1, AST_FORMAT_PNG, "png", "PNG image"},	                                                          /*!< PNG Image format */
