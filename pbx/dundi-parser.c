@@ -34,6 +34,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stddef.h>
 
 #include "asterisk/frame.h"
 #include "asterisk/utils.h"
@@ -126,18 +127,15 @@ int dundi_eid_cmp(dundi_eid *eid1, dundi_eid *eid2)
 
 static void dump_string(char *output, int maxlen, void *value, int len)
 {
-	maxlen--;
-	if (maxlen > len)
-		maxlen = len;
-	strncpy(output, value, maxlen);
-	output[maxlen] = '\0';
+	if (maxlen > len + 1)
+		maxlen = len + 1;
+
+	snprintf(output, maxlen, "%s", (char *) value);
 }
 
 static void dump_cbypass(char *output, int maxlen, void *value, int len)
 {
-	maxlen--;
-	strncpy(output, "Bypass Caches", maxlen);
-	output[maxlen] = '\0';
+	snprintf(output, maxlen, "Bypass Caches");
 }
 
 static void dump_eid(char *output, int maxlen, void *value, int len)
@@ -170,20 +168,30 @@ char *dundi_hint2str(char *buf, int bufsiz, int flags)
 
 static void dump_hint(char *output, int maxlen, void *value, int len)
 {
-	unsigned short flags;
-	char tmp[512];
 	char tmp2[256];
-	if (len < 2) {
-		strncpy(output, "<invalid contents>", maxlen);
+	char tmp3[256];
+	int datalen;
+	struct dundi_hint *hint;
+	if (len < sizeof(*hint)) {
+		snprintf(output, maxlen, "<invalid contents>");
 		return;
 	}
-	memcpy(&flags, value, sizeof(flags));
-	flags = ntohs(flags);
-	memset(tmp, 0, sizeof(tmp));
-	dundi_hint2str(tmp2, sizeof(tmp2), flags);
-	snprintf(tmp, sizeof(tmp), "[%s] ", tmp2);
-	memcpy(tmp + strlen(tmp), value + 2, len - 2);
-	strncpy(output, tmp, maxlen - 1);
+
+	hint = (struct dundi_hint *) value;;
+
+	datalen = len - offsetof(struct dundi_hint, data);
+	if (datalen > sizeof(tmp3) - 1)
+		datalen = sizeof(tmp3) - 1;
+
+	memcpy(tmp3, hint->data, datalen);
+	tmp3[datalen] = '\0';
+
+	dundi_hint2str(tmp2, sizeof(tmp2), ntohs(hint->flags));
+
+	if (ast_strlen_zero(tmp3))
+		snprintf(output, maxlen, "[%s]", tmp2);
+	else
+		snprintf(output, maxlen, "[%s] %s", tmp2, tmp3);
 }
 
 static void dump_cause(char *output, int maxlen, void *value, int len)
@@ -194,34 +202,37 @@ static void dump_cause(char *output, int maxlen, void *value, int len)
 		"DYNAMIC",
 		"NOAUTH" ,
 		};
-	char tmp[256];
 	char tmp2[256];
-	int mlen;
-	unsigned char cause;
-	if (len < 1) {
-		strncpy(output, "<invalid contents>", maxlen);
+	struct dundi_cause *cause;
+	int datalen;
+	int causecode;
+
+	if (len < sizeof(*cause)) {
+		snprintf(output, maxlen, "<invalid contents>");
 		return;
 	}
-	cause = *((unsigned char *)value);
-	memset(tmp2, 0, sizeof(tmp2));
-	mlen = len - 1;
-	if (mlen > 255)
-		mlen = 255;
-	memcpy(tmp2, value + 1, mlen);
-	if (cause < sizeof(causes) / sizeof(causes[0])) {
-		if (len > 1)
-			snprintf(tmp, sizeof(tmp), "%s: %s", causes[cause], tmp2);
+
+	cause = (struct dundi_cause*) value;
+	causecode = cause->causecode;
+
+	datalen = len - offsetof(struct dundi_cause, desc);
+	if (datalen > sizeof(tmp2) - 1)
+		datalen = sizeof(tmp2) - 1;
+
+	memcpy(tmp2, cause->desc, datalen);
+	tmp2[datalen] = '\0';
+
+	if (causecode < sizeof(causes) / sizeof(causes[0])) {
+		if (ast_strlen_zero(tmp2))
+			snprintf(output, maxlen, "%s", causes[causecode]);
 		else
-			snprintf(tmp, sizeof(tmp), "%s", causes[cause]);
+			snprintf(output, maxlen, "%s: %s", causes[causecode], tmp2);
 	} else {
-		if (len > 1)
-			snprintf(tmp, sizeof(tmp), "%d: %s", cause, tmp2);
+		if (ast_strlen_zero(tmp2))
+			snprintf(output, maxlen, "%d", causecode);
 		else
-			snprintf(tmp, sizeof(tmp), "%d", cause);
+			snprintf(output, maxlen, "%d: %s", causecode, tmp2);
 	}
-	
-	strncpy(output,tmp, maxlen);
-	output[maxlen] = '\0';
 }
 
 static void dump_int(char *output, int maxlen, void *value, int len)
@@ -315,17 +326,28 @@ static void dump_answer(char *output, int maxlen, void *value, int len)
 	char flags[40];
 	char eid_str[40];
 	char tmp[512]="";
-	if (len >= 10) {
-		answer = (struct dundi_answer *)(value);
-		memcpy(tmp, answer->data, (len >= 500) ? 500 : len - 10);
-		dundi_eid_to_str(eid_str, sizeof(eid_str), &answer->eid);
-		snprintf(output, maxlen, "[%s] %d <%s/%s> from [%s]", 
-			dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)), 
-			ntohs(answer->weight),
-			proto2str(answer->protocol, proto, sizeof(proto)), 
-				tmp, eid_str);
-	} else
-		strncpy(output, "Invalid Answer", maxlen - 1);
+	int datalen;
+
+	if (len < sizeof(*answer)) {
+		snprintf(output, maxlen, "Invalid Answer");
+		return;
+	}
+
+	answer = (struct dundi_answer *)(value);
+
+	datalen = len - offsetof(struct dundi_answer, data);
+	if (datalen > sizeof(tmp) - 1)
+		datalen = sizeof(tmp) - 1;
+
+	memcpy(tmp, answer->data, datalen);
+	tmp[datalen] = '\0';
+
+	dundi_eid_to_str(eid_str, sizeof(eid_str), &answer->eid);
+	snprintf(output, maxlen, "[%s] %d <%s/%s> from [%s]", 
+		dundi_flags2str(flags, sizeof(flags), ntohs(answer->flags)), 
+		ntohs(answer->weight),
+		proto2str(answer->protocol, proto, sizeof(proto)), 
+			tmp, eid_str);
 }
 
 static void dump_encrypted(char *output, int maxlen, void *value, int len)
