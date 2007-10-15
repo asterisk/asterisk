@@ -524,14 +524,14 @@ static enum queue_member_status get_member_status(struct call_queue *q, int max_
 }
 
 struct statechange {
+	AST_LIST_ENTRY(statechange) entry;
 	int state;
 	char dev[0];
 };
 
-static void *changethread(void *data)
+static void *handle_statechange(struct statechange *sc)
 {
 	struct call_queue *q;
-	struct statechange *sc = data;
 	struct member *cur;
 	struct ao2_iterator mem_iter;
 	struct member_interface *curint;
@@ -618,26 +618,65 @@ static void *changethread(void *data)
 	return NULL;
 }
 
+/*!
+ * \brief Data used by the device state thread
+ */
+static struct {
+	/*! Set to 1 to stop the thread */
+	unsigned int stop:1;
+	/*! The device state monitoring thread */
+	pthread_t thread;
+	/*! Lock for the state change queue */
+	ast_mutex_t lock;
+	/*! Condition for the state change queue */
+	ast_cond_t cond;
+	/*! Queue of state changes */
+	AST_LIST_HEAD_NOLOCK(, statechange) state_change_q;
+} device_state = {
+	.thread = AST_PTHREADT_NULL,
+};
+
+static void *device_state_thread(void *data)
+{
+	struct statechange *sc;
+
+	while (!device_state.stop) {
+		ast_mutex_lock(&device_state.lock);
+		if (!(sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry))) {
+			ast_cond_wait(&device_state.cond, &device_state.lock);
+			sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry);
+		}
+		ast_mutex_unlock(&device_state.lock);
+
+		/* Check to see if we were woken up to see the request to stop */
+		if (device_state.stop)
+			return NULL;
+
+		if (!sc)
+			continue;
+
+		handle_statechange(sc);
+
+		free(sc);
+	}
+
+	return NULL;
+}
+
 static int statechange_queue(const char *dev, int state, void *ign)
 {
-	/* Avoid potential for deadlocks by spawning a new thread to handle
-	   the event */
 	struct statechange *sc;
-	pthread_t t;
-	pthread_attr_t attr;
 
 	if (!(sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1)))
 		return 0;
 
 	sc->state = state;
 	strcpy(sc->dev, dev);
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create_background(&t, &attr, changethread, sc)) {
-		ast_log(LOG_WARNING, "Failed to create update thread!\n");
-		free(sc);
-	}
-	pthread_attr_destroy(&attr);
+
+	ast_mutex_lock(&device_state.lock);
+	AST_LIST_INSERT_TAIL(&device_state.state_change_q, sc, entry);
+	ast_cond_signal(&device_state.cond);
+	ast_mutex_unlock(&device_state.lock);
 
 	return 0;
 }
@@ -4600,6 +4639,14 @@ static int unload_module(void)
 {
 	int res;
 
+	if (device_state.thread != AST_PTHREADT_NULL) {
+		device_state.stop = 1;
+		ast_mutex_lock(&device_state.lock);
+		ast_cond_signal(&device_state.cond);
+		ast_mutex_unlock(&device_state.lock);
+		pthread_join(device_state.thread, NULL);
+	}
+
 	ast_cli_unregister_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
 	res = ast_manager_unregister("QueueStatus");
 	res |= ast_manager_unregister("Queues");
@@ -4629,10 +4676,17 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int res;
-	if(!reload_queues())
+
+	if (!reload_queues())
 		return AST_MODULE_LOAD_DECLINE;
+
 	if (queue_persistent_members)
 		reload_queue_members();
+
+	ast_mutex_init(&device_state.lock);
+	ast_cond_init(&device_state.cond, NULL);
+	ast_pthread_create(&device_state.thread, NULL, device_state_thread, NULL);
+
 	ast_cli_register_multiple(cli_queue, sizeof(cli_queue) / sizeof(struct ast_cli_entry));
 	res = ast_register_application(app, queue_exec, synopsis, descrip);
 	res |= ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip);
