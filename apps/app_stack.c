@@ -138,10 +138,10 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 	label2 = args;
 
 	if (pbx_checkcondition(condition)) {
-		if (label1) {
+		if (!ast_strlen_zero(label1)) {
 			res = gosub_exec(chan, label1);
 		}
-	} else if (label2) {
+	} else if (!ast_strlen_zero(label2)) {
 		res = gosub_exec(chan, label2);
 	}
 
