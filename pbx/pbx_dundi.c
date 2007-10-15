@@ -578,8 +578,8 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 		} else {
 			/* No answers...  Find the fewest number of digits from the
 			   number for which we have no answer. */
-			char tmp[AST_MAX_EXTENSION];
-			for (x=0;x<AST_MAX_EXTENSION;x++) {
+			char tmp[AST_MAX_EXTENSION + 1] = "";
+			for (x = 0; x < (sizeof(tmp) - 1); x++) {
 				tmp[x] = called_number[x];
 				if (!tmp[x])
 					break;
