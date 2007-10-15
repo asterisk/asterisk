@@ -5623,13 +5623,9 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 			case 'B':
 			case 'b':
 			case 'h':
+			case 'm':
 				/* January - December */
 				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
-				res = wait_file(chan,ints,nextmsg,lang);
-				break;
-			case 'm':
-				/* First - Twelfth */
-				snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mon +1);
 				res = wait_file(chan,ints,nextmsg,lang);
 				break;
 			case 'd':
@@ -5646,7 +5642,7 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
 				}
-                if(!res) res = wait_file(chan,ints,"ri",lang);
+				if(!res) res = wait_file(chan,ints,"digits/day",lang);
 				break;
 			case 'Y':
 				/* Year */
