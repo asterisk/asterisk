@@ -199,7 +199,7 @@ static int jingle_get_codec(struct ast_channel *chan);
 
 /*! \brief PBX interface structure for channel registration */
 static const struct ast_channel_tech jingle_tech = {
-	.type = type,
+	.type = "Jingle",
 	.description = "Jingle Channel Driver",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.requester = jingle_request,
@@ -227,7 +227,7 @@ static struct in_addr __ourip;
 
 /*! \brief RTP driver interface */
 static struct ast_rtp_protocol jingle_rtp = {
-	type: "jingle",
+	type: "Jingle",
 	get_rtp_info: jingle_get_rtp_peer,
 	set_rtp_peer: jingle_set_rtp_peer,
 	get_codec: jingle_get_codec,
