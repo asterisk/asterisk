@@ -638,7 +638,7 @@ static struct {
 
 static void *device_state_thread(void *data)
 {
-	struct statechange *sc;
+	struct statechange *sc = NULL;
 
 	while (!device_state.stop) {
 		ast_mutex_lock(&device_state.lock);
@@ -650,7 +650,7 @@ static void *device_state_thread(void *data)
 
 		/* Check to see if we were woken up to see the request to stop */
 		if (device_state.stop)
-			return NULL;
+			break;
 
 		if (!sc)
 			continue;
@@ -658,7 +658,14 @@ static void *device_state_thread(void *data)
 		handle_statechange(sc);
 
 		free(sc);
+		sc = NULL;
 	}
+
+	if (sc)
+		free(sc);
+
+	while ((sc = AST_LIST_REMOVE_HEAD(&device_state.state_change_q, entry)))
+		free(sc);
 
 	return NULL;
 }
