@@ -8,11 +8,11 @@
     \item ForkCDR - Save current CDR and start a new CDR for this call
     \item Authenticate - Authenticates and sets the account code
     \item SetCDRUserField - Set CDR user field
-    \item AppendCDRUserField - Append data to CDR User field 
+    \item AppendCDRUserField - Append data to CDR User field
 \end{itemize}
 
-For more information, use the "core show application <application>" command.
-You can set default account codes and AMA flags for devices in 
+For more information, use the "core show application $<$application$>$" command.
+You can set default account codes and AMA flags for devices in
 channel configuration files, like sip.conf, iax.conf etc.
 
 \section{Fields of the CDR in Asterisk}
@@ -33,15 +33,15 @@ channel configuration files, like sip.conf, iax.conf etc.
    \item duration:  Total time in system, in seconds (integer), from dial to hangup
    \item billsec:  Total time call is up, in seconds (integer), from answer to hangup
    \item disposition:  What happened to the call: ANSWERED, NO ANSWER, BUSY
-   \item amaflags:  What flags to use: DOCUMENTATION, BILL, IGNORE etc, 
+   \item amaflags:  What flags to use: DOCUMENTATION, BILL, IGNORE etc,
             specified on a per channel basis like accountcode.
-   \item user field:  A user-defined field, maximum 255 characters 
+   \item user field:  A user-defined field, maximum 255 characters
 \end{itemize}
 
 In some cases, uniqueid is appended:
 
 \begin{itemize}
-   \item uniqueid:  Unique Channel Identifier (32 characters) 
+   \item uniqueid:  Unique Channel Identifier (32 characters)
       This needs to be enabled in the source code at compile time
 \end{itemize}
 
@@ -55,13 +55,13 @@ have to traverse the middle server(s) in the call).
 
 \section{CDR Variables}
 
-If the channel has a cdr, that cdr record has its own set of variables which 
+If the channel has a cdr, that cdr record has its own set of variables which
 can be accessed just like channel variables. The following builtin variables
 are available.
 
 \begin{verbatim}
 ${CDR(clid)}         Caller ID
-${CDR(src)}          Source 
+${CDR(src)}          Source
 ${CDR(dst)}          Destination
 ${CDR(dcontext)}     Destination context
 ${CDR(channel)}      Channel name

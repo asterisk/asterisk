@@ -22,7 +22,7 @@ AEL is really the merger of 4 different 'languages', or syntaxes:
      by AEL, and so are the if and while expressions, among others.
 
     \item The third syntax is the Variable Reference Syntax, the stuff
-      enclosed in \${..} curly braces. It's a bit more involved than just
+      enclosed in \$\{..\} curly braces. It's a bit more involved than just
       putting a variable name in there. You can include one of dozens of
       'functions', and their arguments, and there are even some string
       manipulation notation in there.
@@ -118,20 +118,17 @@ The AEL parser (pbx\_ael.so) is completely separate from the module
 that parses extensions.conf (pbx\_config.so). To use AEL, the only
 thing that has to be done is the module pbx\_ael.so must be loaded by
 Asterisk. This will be done automatically if using 'autoload=yes' in
-/etc/asterisk/modules.conf. When the module is loaded, it will look
-for 'extensions.ael' in /etc/asterisk/. extensions.conf and
+\path{/etc/asterisk/modules.conf}. When the module is loaded, it will look
+for 'extensions.ael' in \path{/etc/asterisk/}. extensions.conf and
 extensions.ael can be used in conjunction with
 each other if that is what is desired. Some users may want to keep
 extensions.conf for the features that are configured in the 'general'
 section of extensions.conf.
 
-Reloading extensions.ael
-
 To reload extensions.ael, the following command can be issued at the
 CLI:
 
     *CLI> ael reload
-
 
 \section{Debugging}
 
@@ -139,24 +136,29 @@ Right at this moment, the following commands are available, but do
 nothing:
 
 Enable AEL contexts debug
-   *CLI> ael debug contexts
+
+   *CLI$>$ ael debug contexts
 
 Enable AEL macros debug
-   *CLI> ael debug macros
+
+   *CLI$>$ ael debug macros
 
 Enable AEL read debug
-   *CLI> ael debug read
+
+   *CLI$>$ ael debug read
 
 Enable AEL tokens debug
-   *CLI> ael debug tokens
+
+   *CLI$>$ ael debug tokens
 
 Disable AEL debug messages
-   *CLI> ael no debug
+
+   *CLI$>$ ael no debug
 
 If things are going wrong in your dialplan, you can use the following
 facilities to debug your file:
 
-1. The messages log in /var/log/asterisk. (from the checks done at load time).
+1. The messages log in \path{/var/log/asterisk}. (from the checks done at load time).
 2. the "show dialplan" command in asterisk
 3. the standalone executable, "aelparse" built in the utils/ dir in the source.
 
@@ -177,7 +179,7 @@ aelparse has two optional arguments:
   \item -d
   \begin{itemize}
     \item Override the normal location of the config file dir, (usually
-       /etc/asterisk), and use the current directory instead as the
+       \path{/etc/asterisk}), and use the current directory instead as the
        config file dir. Aelparse will then expect to find the file
        "./extensions.ael" in the current directory, and any included
        files in the current directory as well.
@@ -200,12 +202,13 @@ be included on a single line. Whatever you think is best!
 
 You can just as easily say,
 
+\begin{astlisting}
 \begin{verbatim}
 if(${x}=1) { NoOp(hello!); goto s,3; } else { NoOp(Goodbye!); goto s,12; }
 \end{verbatim}
-
+\end{astlisting}
 as you can say:
-
+\begin{astlisting}
 \begin{verbatim}
 if(${x}=1)
 {
@@ -218,9 +221,11 @@ else
        goto s,12;
 }
 \end{verbatim}
+\end{astlisting}
 
 or:
 
+\begin{astlisting}
 \begin{verbatim}
 if(${x}=1) {
        NoOp(hello!);
@@ -230,9 +235,11 @@ if(${x}=1) {
        goto s,12;
 }
 \end{verbatim}
+\end{astlisting}
 
 or:
 
+\begin{astlisting}
 \begin{verbatim}
 if (${x}=1) {
        NoOp(hello!); goto s,3;
@@ -240,6 +247,7 @@ if (${x}=1) {
        NoOp(Goodbye!); goto s,12;
 }
 \end{verbatim}
+\end{astlisting}
 
 \section{Keywords}
 
@@ -510,32 +518,33 @@ comments is after terminating semicolons, or on otherwise empty lines.
 
 Contexts in AEL represent a set of extensions in the same way that
 they do in extensions.conf.
-
+\begin{astlisting}
 \begin{verbatim}
 context default {
 
 }
-
+\end{verbatim}
+\end{astlisting}
 
 A context can be declared to be "abstract", in which case, this
 declaration expresses the intent of the writer, that this context will
 only be included by another context, and not "stand on its own". The
 current effect of this keyword is to prevent "goto " statements from
 being checked.
-
+\begin{astlisting}
 \begin{verbatim}
 abstract context longdist {
      _1NXXNXXXXXX => NoOp(generic long distance dialing actions in the US);
 }
 \end{verbatim}
-
+\end{astlisting}
 
 \subsection{Extensions}
 
 To specify an extension in a context, the following syntax is used. If
 more than one application is be called in an extension, they can be
 listed in order inside of a block.
-
+\begin{astlisting}
 \begin{verbatim}
 context default {
     1234 => Playback(tt-monkeys);
@@ -547,6 +556,7 @@ context default {
     _5XXX => NoOp(it's a pattern!);
 }
 \end{verbatim}
+\end{astlisting}
 
 Two optional items have been added to the AEL syntax, that allow the
 specification of hints, and a keyword, regexten, that will force the
@@ -554,39 +564,45 @@ numbering of priorities to start at 2.
 
 The ability to make extensions match by CID is preserved in
 AEL; just use '/' and the CID number in the specification. See below.
-
+\begin{astlisting}
 \begin{verbatim}
 context default {
 
     regexten _5XXX => NoOp(it's a pattern!);
 }
 \end{verbatim}
+\end{astlisting}
 
+\begin{astlisting}
 \begin{verbatim}
 context default {
 
     hint(Sip/1) _5XXX => NoOp(it's a pattern!);
 }
 \end{verbatim}
+\end{astlisting}
 
+\begin{astlisting}
 \begin{verbatim}
 context default {
 
     regexten hint(Sip/1) _5XXX => NoOp(it's a pattern!);
 }
 \end{verbatim}
+\end{astlisting}
 
 The regexten must come before the hint if they are both present.
 
 CID matching is done as with the extensions.conf file. Follow the extension
 name/number with a slash (/) and the number to match against the Caller ID:
-
+\begin{astlisting}
 \begin{verbatim}
 context zoombo
 {
   819/7079953345 => { NoOp(hello, 3345); }
 }
 \end{verbatim}
+\end{astlisting}
 
 In the above,  the 819/7079953345 extension will only be matched if the
 CallerID is 7079953345, and the dialed number is 819. Hopefully you have
@@ -599,6 +615,7 @@ as to have 7079953345 as their CallerID!
 Contexts can be included in other contexts. All included contexts are
 listed within a single block.
 
+\begin{astlisting}
 \begin{verbatim}
 context default {
     includes {
@@ -608,11 +625,13 @@ context default {
     }
 }
 \end{verbatim}
+\end{astlisting}
 
 Time-limited inclusions can be specified, as in extensions.conf
 format, with the fields described in the wiki page Asterisk cmd
 GotoIfTime.
 
+\begin{astlisting}
 \begin{verbatim}
 context default {
     includes {
@@ -622,14 +641,17 @@ context default {
     }
 }
 \end{verbatim}
+\end{astlisting}
 
 \subsection{\#include}
 
 You can include other files with the \#include "filepath" construct.
 
+\begin{astlisting}
 \begin{verbatim}
    #include "/etc/asterisk/testfor.ael"
 \end{verbatim}
+\end{astlisting}
 
 An interesting property of the \#include, is that you can use it almost
 anywhere in the .ael file. It is possible to include the contents of
@@ -637,7 +659,7 @@ a file in a macro, context, or even extension.  The \#include does not
 have to occur at the beginning of a line. Included files can include
 other files, up to 50 levels deep. If the path provided in quotes is a
 relative path, the parser looks in the config file directory for the
-file (usually /etc/asterisk).
+file (usually \path{/etc/asterisk}).
 
 
 
@@ -647,6 +669,7 @@ Switches are listed in their own block within a context. For clues as
 to what these are used for, see Asterisk - dual servers, and Asterisk
 config extensions.conf.
 
+\begin{astlisting}
 \begin{verbatim}
 context default {
     switches {
@@ -658,20 +681,20 @@ context default {
     }
 }
 \end{verbatim}
-
+\end{astlisting}
 
 \subsection{Ignorepat}
 
 ignorepat can be used to instruct channel drivers to not cancel
 dialtone upon receipt of a particular pattern. The most commonly used
 example is '9'.
-
+\begin{astlisting}
 \begin{verbatim}
 context outgoing {
     ignorepat => 9;
 }
 \end{verbatim}
-
+\end{astlisting}
 
 \subsection{Variables}
 
@@ -680,16 +703,18 @@ just has to be specified with a value.
 
 Global variables are set in their own block.
 
+\begin{astlisting}
 \begin{verbatim}
 globals {
     CONSOLE=Console/dsp;
     TRUNK=Zap/g2;
 }
 \end{verbatim}
-
+\end{astlisting}
 
 Variables can be set within extensions as well.
 
+\begin{astlisting}
 \begin{verbatim}
 context foo {
     555 => {
@@ -700,6 +725,7 @@ context foo {
     }
 }
 \end{verbatim}
+\end{astlisting}
 
 NOTE: AEL wraps the right hand side of an assignment with \$[ ] to allow
 expressions to be used If this is unwanted, you can protect the right hand
@@ -713,6 +739,7 @@ the if() test; the middle expression in the for( x; y; z) statement
 
 Writing to a dialplan function is treated the same as writing to a variable.
 
+\begin{astlisting}
 \begin{verbatim}
 context blah {
     s => {
@@ -721,9 +748,11 @@ context blah {
     }
 }
 \end{verbatim}
+\end{astlisting}
 
 You can declare variables in Macros, as so:
 
+\begin{astlisting}
 \begin{verbatim}
 Macro myroutine(firstarg, secondarg)
 {
@@ -731,6 +760,7 @@ Macro myroutine(firstarg, secondarg)
   NoOp(Myvar is set to ${myvar});
 }
 \end{verbatim}
+\end{astlisting}
 
 \subsection{Local Variables}
 
@@ -744,6 +774,7 @@ This includes the ARG1, ARG2, etc variables.
 Users can declare their own local variables by using the keyword 'local'
 before setting them to a value;
 
+\begin{astlisting}
 \begin{verbatim}
 Macro myroutine(firstarg, secondarg)
 {
@@ -751,12 +782,13 @@ Macro myroutine(firstarg, secondarg)
   NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
 }
 \end{verbatim}
+\end{astlisting}
 
 In the above example, Myvar, firstarg, and secondarg are all local variables,
 and will not be visible to the calling code, be it an extension, or another Macro.
 
 If you need to make a local variable within the Set() application, you can do it this way:
-
+\begin{astlisting}
 \begin{verbatim}
 Macro myroutine(firstarg, secondarg)
 {
@@ -764,12 +796,12 @@ Macro myroutine(firstarg, secondarg)
   NoOp(Myvar is set to ${Myvar}, and firstarg is ${firstarg}, and secondarg is ${secondarg});
 }
 \end{verbatim}
-
+\end{astlisting}
 
 \subsection{Loops}
 
 AEL has implementations of 'for' and 'while' loops.
-
+\begin{astlisting}
 \begin{verbatim}
 context loops {
     1 => {
@@ -786,8 +818,9 @@ context loops {
     }
 }
 \end{verbatim}
+\end{astlisting}
 
-NOTE: The conditional expression (the "\${y} $>$= 0" above) is wrapped in
+NOTE: The conditional expression (the "\$\{y\} $>$= 0" above) is wrapped in
       \$[ ] so it can be evaluated.  NOTE: The for loop test expression
       (the "\${x} $<$ 3" above) is wrapped in \$[ ] so it can be evaluated.
 
@@ -801,6 +834,7 @@ braces around a single statement in the "true" branch of an if(), the
 random(), or an ifTime() statement. The if(), ifTime(), and random()
 statements allow optional else clause.
 
+\begin{astlisting}
 \begin{verbatim}
 context conditional {
     _8XXX => {
@@ -808,15 +842,15 @@ context conditional {
          if ("${DIALSTATUS}" = "BUSY")
          {
               NoOp(yessir);
-              Voicemail(${EXTEN}|b);
+              Voicemail(${EXTEN},b);
          }
          else
-              Voicemail(${EXTEN}|u);
-         ifTime (14:00-25:00|sat-sun|*|*)
-              Voicemail(${EXTEN}|b);
+              Voicemail(${EXTEN},u);
+         ifTime (14:00-25:00,sat-sun,*,*)
+              Voicemail(${EXTEN},b);
          else
          {
-              Voicemail(${EXTEN}|u);
+              Voicemail(${EXTEN},u);
               NoOp(hi, there!);
          }
          random(51) NoOp(This should appear 51% of the time);
@@ -856,13 +890,14 @@ context conditional {
     }
 }
 \end{verbatim}
+\end{astlisting}
 
 NOTE: The conditional expression in if() statements (the
-      "\${DIALSTATUS}" = "BUSY" above) is wrapped by the compiler in
+      "\$\{DIALSTATUS\}" = "BUSY" above) is wrapped by the compiler in
       \$[] for evaluation.
 
 NOTE: Neither the switch nor case values are wrapped in \$[ ]; they can
-      be constants, or \${var} type references only.
+      be constants, or \$\{var\} type references only.
 
 NOTE: AEL generates each case as a separate extension. case clauses
       with no terminating 'break', or 'goto', have a goto inserted, to
@@ -908,6 +943,7 @@ context, or macro, and can be used anywhere.
 
 This is an example of how to do a goto in AEL.
 
+\begin{astlisting}
 \begin{verbatim}
 context gotoexample {
     s => {
@@ -917,20 +953,21 @@ begin:
          goto begin;    // go to label in same extension
     }
     3 => {
-            goto s|begin;   // go to label in different extension
+            goto s,begin;   // go to label in different extension
      }
      4 => {
-            goto gotoexample|s|begin;  // overkill go to label in same context
+            goto gotoexample,s,begin;  // overkill go to label in same context
      }
 }
 
 context gotoexample2 {
      s =>  {
    end:
-           goto gotoexample|s|begin;   // go to label in different context
+           goto gotoexample,s,begin;   // go to label in different context
      }
 }
 \end{verbatim}
+\end{astlisting}
 
 You can use the special label of "1" in the goto and jump
 statements. It means the "first" statement in the extension. I would
@@ -944,6 +981,7 @@ extension[,priority][@context] If priority is absent, it defaults to
 "1". If context is not present, it is assumed to be the same as that
 which contains the "jump".
 
+\begin{astlisting}
 \begin{verbatim}
 context gotoexample {
     s => {
@@ -967,24 +1005,19 @@ context gotoexample2 {
      }
 }
 \end{verbatim}
+\end{astlisting}
 
 NOTE: goto labels follow the same requirements as the Goto()
       application, except the last value has to be a label. If the
       label does not exist, you will have run-time errors. If the
       label exists, but in a different extension, you have to specify
-      both the extension name and label in the goto, as in: goto s|z;
+      both the extension name and label in the goto, as in: goto s,z;
       if the label is in a different context, you specify
-      context|extension|label. There is a note about using goto's in a
+      context,extension,label. There is a note about using goto's in a
       switch statement below...
 
 NOTE  AEL introduces the special label "1", which is the beginning
       context number for most extensions.
-
-NOTE: A NEW addition to AEL: you can now use ',' instead of '|' to
-      separate the items in the target address. You can't have a mix,
-      though, of '|' and ',' in the target. It's either one, or the other.
-
-
 
 
 \subsection{Macros}
@@ -994,15 +1027,16 @@ macro are specified with the name of the macro. They are then referred
 to by that same name. A catch block can be specified to catch special
 extensions.
 
+\begin{astlisting}
 \begin{verbatim}
 macro std-exten( ext , dev ) {
        Dial(${dev}/${ext},20);
        switch(${DIALSTATUS) {
        case BUSY:
-               Voicemail(b${ext});
+               Voicemail(${ext},b);
                break;
        default:
-               Voicemail(u${ext});
+               Voicemail(${ext},u);
 
        }
        catch a {
@@ -1011,11 +1045,13 @@ macro std-exten( ext , dev ) {
        }
 }
 \end{verbatim}
+\end{astlisting}
 
 A macro is then called by preceding the macro name with an
 ampersand. Empty arguments can be passed simply with nothing between
 comments(0.11).
 
+\begin{astlisting}
 \begin{verbatim}
 context example {
     _5XXX => &std-exten(${EXTEN}, "IAX2");
@@ -1024,10 +1060,12 @@ context example {
     _8XXX => &std-exten(,);
 }
 \end{verbatim}
+\end{astlisting}
 
 
 \section{Examples}
 
+\begin{astlisting}
 \begin{verbatim}
 context demo {
     s => {
@@ -1045,34 +1083,35 @@ instructions:
     }
     2 => {
          Background(demo-moreinfo);
-         goto s|instructions;
+         goto s,instructions;
     }
     3 => {
          LANGUAGE()=fr;
-         goto s|restart;
+         goto s,restart;
     }
 
     500 => {
          Playback(demo-abouttotry);
          Dial(IAX2/guest@misery.digium.com);
          Playback(demo-nogo);
-         goto s|instructions;
+         goto s,instructions;
     }
     600 => {
          Playback(demo-echotest);
          Echo();
          Playback(demo-echodone);
-         goto s|instructions;
+         goto s,instructions;
     }
     # => {
 hangup:
          Playback(demo-thanks);
          Hangup();
     }
-    t => goto #|hangup;
+    t => goto #,hangup;
     i => Playback(invalid);
 }
 \end{verbatim}
+\end{astlisting}
 
 
 \section{Semantic Checks}
@@ -1128,7 +1167,7 @@ These checks will be:
       the application that would set that variable is not called in
       the same extension. This is a warning only...
     \item Calls to applications not in the "applist" database (installed
-      in /var/lib/asterisk/applist" on most systems).
+      in \path{/var/lib/asterisk/applist}" on most systems).
     \item In an assignment statement, if the assignment is to a function,
       the function name used is checked to see if it one of the
       currently known functions. A warning is issued if it is not.
@@ -1137,9 +1176,9 @@ These checks will be:
 \section{Differences with the original version of AEL}
 
 \begin{enumerate}
-   \item The \$[...] expressions have been enhanced to include the ==, ||,
+   \item The \$[...] expressions have been enhanced to include the ==, $|$$|$,
       and \&\& operators. These operators are exactly equivalent to the
-      =, |, and \& operators, respectively. Why? So the C, Java, C++
+      =, $|$, and \& operators, respectively. Why? So the C, Java, C++
       hackers feel at home here.
    \item It is more free-form. The newline character means very little,
       and is pulled out of the white-space only for line numbers in
@@ -1161,19 +1200,19 @@ These checks will be:
    \item A pretty printer function is available within pbx\_ael.so.
    \item In the utils directory, two standalone programs are supplied for
       debugging AEL files. One is called "aelparse", and it reads in
-      the /etc/asterisk/extensions.ael file, and shows the results of
+      the \path{/etc/asterisk/extensions.ael} file, and shows the results of
       syntax and semantic checking on stdout, and also shows the
       results of compilation to stdout. The other is "aelparse1",
       which uses the original ael compiler to do the same work,
-      reading in "/etc/asterisk/extensions.ael", using the original
+      reading in "\path{/etc/asterisk/extensions.ael}", using the original
       'pbx\_ael.so' instead.
   \item AEL supports the "jump" statement, and the "pattern" statement
       in switch constructs. Hopefully these will be documented in the
       AEL README.
   \item Added the "return" keyword, which will jump to the end of an
       extension/Macro.
-  \item Added the ifTime ($<$time range$>$|$<$days of week$>$|$<$days of
-      month$>$|$<$months$>$ ) {} [else {}] construct, which executes much
+  \item Added the ifTime ($<$time range$>$$|$$<$days of week$>$$|$$<$days of
+      month$>$$|$$<$months$>$ ) {} [else {}] construct, which executes much
       like an if () statement, but the decision is based on the
       current time, and the time spec provided in the ifTime. See the
       example above. (Note: all the other time-dependent Applications
@@ -1216,15 +1255,15 @@ These checks will be:
 
 \section{Hints and Bugs}
 
-     The safest way to check for a null strings is to say \$[ "\${x}" =
+     The safest way to check for a null strings is to say \$[ "\$\{x\}" =
      "" ] The old way would do as shell scripts often do, and append
-     something on both sides, like this: \$[ \${x}foo = foo ]. The
+     something on both sides, like this: \$[ \$\{x\}foo = foo ]. The
      trouble with the old way, is that, if x contains any spaces, then
      problems occur, usually syntax errors. It is better practice and
      safer wrap all such tests with double quotes! Also, there are now
      some functions that can be used in a variable reference,
      ISNULL(), and LEN(), that can be used to test for an empty string:
-     \${ISNULL(\${x})} or \$[ \${LEN(\${x}) = 0 ].
+     \$\{ISNULL(\$\{x\})\} or \$[ \$\{LEN(\$\{x\})\} = 0 ].
 
       Assignment vs. Set(). Keep in mind that setting a variable to
       value can be done two different ways. If you choose say 'x=y;',
@@ -1248,7 +1287,7 @@ available through AEL, via:
     \item Applications: See Asterisk - documentation of application
       commands
 
-    \item Functions: Functions were implemented inside \${ .. } variable
+    \item Functions: Functions were implemented inside \$\{ .. \} variable
       references, and supply many useful capabilities.
 
     \item Expressions: An expression evaluation engine handles items

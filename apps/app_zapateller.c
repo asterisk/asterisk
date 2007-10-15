@@ -53,7 +53,7 @@ static char *descrip =
 "    'answer'     - causes the line to be answered before playing the tone,\n" 
 "    'nocallerid' - causes Zapateller to only play the tone if there is no\n"
 "                   callerid information available.  Options should be\n"
-"                   separated by | characters\n\n"
+"                   separated by , characters\n\n"
 "  This application will set the following channel variable upon completion:\n"
 "    ZAPATELLERSTATUS - This will contain the last action accomplished by the\n"
 "                        Zapateller application. Possible values include:\n"

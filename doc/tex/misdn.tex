@@ -1,7 +1,7 @@
 \subsection{Introduction}
 
-This package contains the mISDN Channel Driver for the Asterisk PBX. It 
-supports every mISDN Hardware and provides an interface for asterisk. 
+This package contains the mISDN Channel Driver for the Asterisk PBX. It
+supports every mISDN Hardware and provides an interface for asterisk.
 
 \subsection{Features}
 
@@ -10,15 +10,15 @@ supports every mISDN Hardware and provides an interface for asterisk.
 \item  PP and PMP mode
 \item  BRI and PRI (with BNE1 and BN2E1 Cards)
 \item  Hardware Bridging
-\item  DTMF Detection in HW+mISDNdsp 
+\item  DTMF Detection in HW+mISDNdsp
 \item  Display Messages on Phones (on those that support display msg)
 \item  app\_SendText
 \item  HOLD/RETRIEVE/TRANSFER on ISDN Phones : )
 \item  Screen/ Not Screen User Number
-\item  EchoCancellation 
-\item  Volume Control 
+\item  EchoCancellation
+\item  Volume Control
 \item  Crypting with mISDNdsp (Blowfish)
-\item  Data (HDLC) callthrough 
+\item  Data (HDLC) callthrough
 \item  Data Calling (with app\_ptyfork +pppd)
 \item  Echo cancellation
 \item  CallDeflection
@@ -28,35 +28,35 @@ supports every mISDN Hardware and provides an interface for asterisk.
 \subsection{Fast Installation Guide}
 
 It is easy to install mISDN and mISDNuser. This can be done by:
-\begin{itemize} 
+\begin{itemize}
      \item You can download latest stable releases from \url{http://www.misdn.org/downloads/}
 
-     \item Just fetch the newest head of the GIT (mISDN provect moved from CVS) 
+     \item Just fetch the newest head of the GIT (mISDN provect moved from CVS)
      In details this process described here: \url{http://www.misdn.org/index.php/GIT}
 \end{itemize}
 
 
 then compile and install both with:
-
+\begin{astlisting}
 \begin{verbatim}
 cd mISDN ;
 make && make install
 \end{verbatim}
-
+\end{astlisting}
 (you will need at least your kernel headers to compile mISDN).
-
+\begin{astlisting}
 \begin{verbatim}
 cd mISDNuser ;
 make && make install
 \end{verbatim}
-
-Now you can compile chan\_misdn, just by making asterisk: 
-
+\end{astlisting}
+Now you can compile chan\_misdn, just by making asterisk:
+\begin{astlisting}
 \begin{verbatim}
-cd asterisk ; 
+cd asterisk ;
 ./configure && make && make install
 \end{verbatim}
-
+\end{astlisting}
 That's all!
 
 Follow the instructions in the mISDN Package for how to load the Kernel
@@ -69,7 +69,7 @@ the mISDNuser package. Chan\_misdn works with both, the current release version
 and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
 be fetched from cvs.isdn4linux.de.
 
-You should use Kernels $>$= 2.6.9 
+You should use Kernels $>$= 2.6.9
 
 
 \subsection{Configuration}
@@ -77,12 +77,12 @@ You should use Kernels $>$= 2.6.9
 First of all you must configure the mISDN drivers, please follow the
 instructions in the mISDN package to do that, the main config file and config
 script is:
-
+\begin{astlisting}
 \begin{verbatim}
 /etc/init.d/misdn-init  and
 /etc/misdn-init.conf
 \end{verbatim}
-
+\end{astlisting}
 Now you will want to configure the misdn.conf file which resides in the
 asterisk config directory (normally /etc/asterisk).
 
@@ -122,6 +122,7 @@ send incoming calls to in the Asterisk dial plan (extension.conf).
 The dial string of chan\_misdn got more complex, because we added more features,
 so the generic dial string looks like:
 
+\begin{astlisting}
 \begin{verbatim}
 mISDN/<port>|g:<group>/<extension>[/<OPTIONSSTRING>]
 
@@ -130,17 +131,18 @@ The Optionsstring looks Like:
 
 the ":" character is the delimiter.
 
-The available Optchars are: 
+The available Optchars are:
   d - Send display text on called phone, text is the optparam
   n - don't detect dtmf tones on called channel
   h - make digital outgoing call
   c - make crypted outgoing call, param is keyindex
-  e - perform echo cancellation on this channel, 
+  e - perform echo cancellation on this channel,
       takes taps as arguments (32,64,128,256)
   s - send Non Inband DTMF as inband
   vr - rxgain control
   vt - txgain control
 \end{verbatim}
+\end{astlisting}
 
 chan\_misdn registers a new dial plan application "misdn\_set\_opt" when
 loaded. This application takes the Optionsstring as argument. The Syntax is:
@@ -155,7 +157,7 @@ incoming channel. So if you like to use static encryption, the scenario looks
 as follows:
 
 \begin{verbatim}
-Phone1 --> * Box 1 --> PSTN_TE 
+Phone1 --> * Box 1 --> PSTN_TE
 PSTN_TE --> * Box 2 --> Phone2
 \end{verbatim}
 
@@ -174,20 +176,21 @@ exten => ${CRYPT_MSN},2,dial(${PHONE2})
 
 \subsection{mISDN CLI commands}
 
-At the Asterisk cli you can try to type in: 
+At the Asterisk cli you can try to type in:
 
 \begin{verbatim}
 misdn <tab> <tab>
 \end{verbatim}
 
-Now you should see the misdn cli commands: 
+Now you should see the misdn cli commands:
 
+\begin{astlisting}
 \begin{verbatim}
 - clean
   -> pid    (cleans a broken call, use with care, leads often
        to a segmentation fault)
 - send
-  -> display  (sends a Text Message to a Asterisk channel, 
+  -> display  (sends a Text Message to a Asterisk channel,
        this channel must be an misdn channel)
 - set
   -> debug  (sets debug level)
@@ -198,11 +201,12 @@ Now you should see the misdn cli commands:
   -> stacks (shows the current ports, their protocols and states)
   -> fullstacks (shows the current active and inactive misdn channels)
 
-- restart 
+- restart
   -> port   (restarts given port (L2 Restart) )
 
 - reload    (reloads misdn.conf)
 \end{verbatim}
+\end{astlisting}
 
 You can only use "misdn send display" when an Asterisk channel is created and
 isdn is in the correct state. "correct state" means that you have established a
@@ -217,10 +221,10 @@ msn (callerid) of the Phone to send the text to.
 
 \subsection{mISDN Variables}
 
-mISDN Exports/Imports a few Variables: 
+mISDN Exports/Imports a few Variables:
 
 \begin{verbatim}
-- MISDN_ADDRESS_COMPLETE :  Is either set to 1 from the Provider, or you 
+- MISDN_ADDRESS_COMPLETE :  Is either set to 1 from the Provider, or you
         can set it to 1 to force a sending complete.
 \end{verbatim}
 
@@ -243,6 +247,7 @@ provide all the information needed.
 Here are some examples of how to use chan\_misdn in the dialplan
 (extensions.conf):
 
+\begin{astlisting}
 \begin{verbatim}
 [globals]
 OUT_PORT=1 ; The physical Port of the Card
@@ -254,6 +259,7 @@ exten => _0X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1})
 exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello)
 exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello Test:n)
 \end{verbatim}
+\end{astlisting}
 
 On the last line, you will notice the last argument (Hello); this is sent
 as Display Message to the Phone.

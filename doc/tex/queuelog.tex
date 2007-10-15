@@ -2,16 +2,16 @@ In order to properly manage ACD queues, it is important to be able to
 keep track of details of call setups and teardowns in much greater detail
 than traditional call detail records provide.  In order to support this,
 extensive and detailed tracing of every queued call is stored in the
-queue log, located (by default) in /var/log/asterisk/queue\_log.
+queue log, located (by default) in \path{/var/log/asterisk/queue_log}.
 
 These are the events (and associated information) in the queue log:
 
-\textbf{ABANDON(position|origposition|waittime)}
+\textbf{ABANDON(position$|$origposition$|$waittime)}
 
 The caller abandoned their position in the queue.  The position is the
 caller's position in the queue when they hungup, the origposition is
 the original position the caller was when they first entered the
-queue, and the waittime is how long the call had been waiting in the 
+queue, and the waittime is how long the call had been waiting in the
 queue at the time of disconnect.
 
 \textbf{AGENTDUMP}
@@ -26,26 +26,26 @@ The agent logged in.  The channel is recorded.
 
 The callback agent logged in.  The login extension and context is recorded.
 
-\textbf{AGENTLOGOFF(channel|logintime)}
+\textbf{AGENTLOGOFF(channel$|$logintime)}
 
 The agent logged off.  The channel is recorded, along with the total time
 the agent was logged in.
 
-\textbf{AGENTCALLBACKLOGOFF(exten@context|logintime|reason)}
+\textbf{AGENTCALLBACKLOGOFF(exten@context$|$logintime$|$reason)}
 
 The callback agent logged off.  The last login extension and context is
 recorded, along with the total time the agent was logged in, and the
-reason for the logoff if it was not a normal logoff 
+reason for the logoff if it was not a normal logoff
 (e.g., Autologoff, Chanunavail)
 
-\textbf{COMPLETEAGENT(holdtime|calltime|origposition)}
+\textbf{COMPLETEAGENT(holdtime$|$calltime$|$origposition)}
 
 The caller was connected to an agent, and the call was terminated normally
 by the *agent*.  The caller's hold time and the length of the call are both
 recorded.  The caller's original position in the queue is recorded in
 origposition.
 
-\textbf{COMPLETECALLER(holdtime|calltime|origposition)}
+\textbf{COMPLETECALLER(holdtime$|$calltime$|$origposition)}
 
 The caller was connected to an agent, and the call was terminated normally
 by the *caller*.  The caller's hold time and the length of the call are both
@@ -56,7 +56,7 @@ origposition.
 
 The configuration has been reloaded (e.g. with asterisk -rx reload)
 
-\textbf{CONNECT(holdtime|bridgedchanneluniqueid|ringtime)}
+\textbf{CONNECT(holdtime$|$bridgedchanneluniqueid$|$ringtime)}
 
 The caller was connected to an agent.  Hold time represents the amount
 of time the caller was on hold. The bridged channel unique ID contains
@@ -65,27 +65,27 @@ is useful when trying to link recording filenames to a particular
 call in the queue. Ringtime represents the time the queue members phone
 was ringing prior to being answered.
 
-\textbf{ENTERQUEUE(url|callerid)}
+\textbf{ENTERQUEUE(url$|$callerid)}
 
 A call has entered the queue.  URL (if specified) and Caller*ID are placed
 in the log.
 
-\textbf{EXITEMPTY(position|origposition|waittime)}
+\textbf{EXITEMPTY(position$|$origposition$|$waittime)}
 
 The caller was exited from the queue forcefully because the queue had no
 reachable members and it's configured to do that to callers when there
 are no reachable members. The position is the caller's position in the
-queue when they hungup, the origposition is the original position the 
-caller was when they first entered the queue, and the waittime is how 
+queue when they hungup, the origposition is the original position the
+caller was when they first entered the queue, and the waittime is how
 long the call had been waiting in the queue at the time of disconnect.
 
-\textbf{EXITWITHKEY(key|position|origposition|waittime)}
+\textbf{EXITWITHKEY(key$|$position$|$origposition$|$waittime)}
 
 The caller elected to use a menu key to exit the queue.  The key and
 the caller's position in the queue are recorded.  The caller's entry
 position and amoutn of time waited is also recorded.
 
-\textbf{EXITWITHTIMEOUT(position|origposition|waittime)}
+\textbf{EXITWITHTIMEOUT(position$|$origposition$|$waittime)}
 
 The caller was on hold too long and the timeout expired.  The position in the
 queue when the timeout occurred, the entry position, and the amount of time
@@ -103,10 +103,10 @@ member!
 
 \textbf{SYSCOMPAT}
 
-A call was answered by an agent, but the call was dropped because the 
+A call was answered by an agent, but the call was dropped because the
 channels were not compatible.
 
-\textbf{TRANSFER(extension|context|holdtime|calltime)}
+\textbf{TRANSFER(extension$|$context$|$holdtime$|$calltime)}
 
 Caller was transferred to a different extension.  Context and extension
 are recorded. The caller's hold time and the length of the call are both

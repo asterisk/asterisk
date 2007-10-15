@@ -471,7 +471,7 @@ context agents
 \end{verbatim}
 \end{astlisting}
 
-In the above, the variables \${RAQUEL}, etc stand for
+In the above, the variables \$\{RAQUEL\}, etc stand for
 actual devices to ring that person's
 phone (like Zap/37).
 
@@ -513,7 +513,7 @@ macro callagent(device,exten)
 \end{verbatim}
 \end{astlisting}
 
-In the callagent macro above, the \${exten} will
+In the callagent macro above, the \$\{exten\} will
 be 6121, or 6165, etc, which is the extension of the agent.
 
 The use of the GROUP\_COUNT, and OUTBOUND\_GROUP follow this line
@@ -522,7 +522,7 @@ current priority. If some of those agents are already talking, they
 would get bothersome call-waiting tones. To avoid this inconvenience,
 when an agent gets a call, the OUTBOUND\_GROUP assigns that
 conversation to the group specified, for instance 6171@agents.
-The \${GROUP\_COUNT()} variable on a subsequent call should return
+The \$\{GROUP\_COUNT()\} variable on a subsequent call should return
 "1" for that group. If GROUP\_COUNT returns 1, then the busy()
 is returned without actually trying to dial the agent.
 

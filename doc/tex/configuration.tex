@@ -7,20 +7,23 @@ templates in configuration files, and use these as templates when we
 configure phones, voicemail accounts and queues.
 
 These changes are general to the configuration parser, and works in
-all configuration files. 
+all configuration files.
 
 \subsubsection{General syntax}
 Asterisk configuration files are defined as follows:
 
+\begin{astlisting}
 \begin{verbatim}
 	[section]
 	label = value
 	label2 = value
 \end{verbatim}
+\end{astlisting}
 
 In some files, (e.g. mgcp.conf, zapata.conf and agents.conf), the syntax
 is a bit different. In these files the syntax is as follows:
 	
+\begin{astlisting}
 \begin{verbatim}
 	[section]
 	label1 = value1
@@ -31,17 +34,20 @@ is a bit different. In these files the syntax is as follows:
 	label2 = value4
 	object2 => name2
 \end{verbatim}
+\end{astlisting}
 
 In this syntax, we create objects with the settings defined above the object
-creation. Note that settings are inherited from the top, so in the example 
+creation. Note that settings are inherited from the top, so in the example
 above object2 has inherited the setting for "label1" from the first object.
 
 For template configurations, the syntax for defining a section is changed
 to:
+\begin{astlisting}
 \begin{verbatim}
 	[section](options)
 	label = value
 \end{verbatim}
+\end{astlisting}
 
 The options field is used to define templates, refer to templates and hide
 templates. Any object can be used as a template.
@@ -53,52 +59,61 @@ No whitespace is allowed between the closing "]" and the parenthesis "(".
 All lines that starts with semi-colon ";" is treated as comments
 and is not parsed.
 
-The ";--" is a marker for a multi-line comment. Everything after
-that marker will be treated as a comment until the end-marker "--;"
+The "\verb!;--!" is a marker for a multi-line comment. Everything after
+that marker will be treated as a comment until the end-marker "\verb!--;!"
 is found. Parsing begins directly after the end-marker.
 
+\begin{astlisting}
 \begin{verbatim}
 	;This is a comment
 	label = value
-	;-- This is 
+	;-- This is
 	a comment --;
 	
 	;-- Comment --; exten=> 1000,1,dial(SIP/lisa)	
 \end{verbatim}
+\end{astlisting}
 
 \subsubsection{Including other files}
 In all of the configuration files, you may include the content of another
 file with the \#include statement. The content of the other file will be
 included at the row that the \#include statement occurred.
 	
+\begin{astlisting}
 \begin{verbatim}
 	#include myusers.conf
 \end{verbatim}
+\end{astlisting}
 
 You may also include the output of a program with the \#exec directive,
 if you enable it in asterisk.conf
 	
 In asterisk.conf, add the execincludes = yes statement in the options
 section:
+\begin{astlisting}
 \begin{verbatim}
 	[options]
 	execincludes=yes
 \end{verbatim}
+\end{astlisting}
 
 The exec directive is used like this:
-	
+\begin{astlisting}	
 \begin{verbatim}
 	#exec /usr/local/bin/myasteriskconfigurator.sh
 \end{verbatim}
+\end{astlisting}
 
 \subsubsection{Adding to an existing section}
+\begin{astlisting}
 \begin{verbatim}
-	[section] 
+	[section]
 	label = value
 	
 	[section](+)
 	label2 = value2	
 \end{verbatim}	
+\end{astlisting}
 
 In this case, the plus sign indicates that the second section (with the
 same name) is an addition to the first section. The second section can
@@ -107,29 +122,34 @@ name referred to before the plus is missing, the configuration will fail
 to load.
 
 \subsubsection{Defining a template-only section}
+\begin{astlisting}
 \begin{verbatim}
 	[section](!)
 	label = value
 \end{verbatim}
+\end{astlisting}
 
 The exclamation mark indicates to the config parser that this is a only
 a template and should not itself be used by the Asterisk module for
-configuration. The section can be inherited by other sections (see 
+configuration. The section can be inherited by other sections (see
 section "Using templates" below) but is not used by itself.
 
 \subsubsection{Using templates (or other configuration sections)}
+\begin{astlisting}
 \begin{verbatim}
 	[section](name[,name])
 	label = value
 \end{verbatim}
+\end{astlisting}
 
 The name within the parenthesis refers to other sections, either
 templates or standard sections. The referred sections are included
 before the configuration engine parses the local settings within the
-section as though their entire contents (and anything they were 
-previously based upon) were included in the new section.  For example 
+section as though their entire contents (and anything they were
+previously based upon) were included in the new section.  For example
 consider the following:
 
+\begin{astlisting}
 \begin{verbatim}
 [foo]
 permit=192.168.0.2
@@ -145,10 +165,12 @@ deny=192.168.1.1
 permit=192.168.3.1
 host=bnm
 \end{verbatim}
+\end{astlisting}
 
-The [baz] section will be processed as though it had been written in the 
+The [baz] section will be processed as though it had been written in the
 following way:
 
+\begin{astlisting}
 \begin{verbatim}
 [baz]
 permit=192.168.0.2
@@ -160,11 +182,13 @@ deny=192.168.1.1
 permit=192.168.3.1
 host=bnm
 \end{verbatim}
+\end{astlisting}
 
 \subsubsection{Additional Examples}
 
 (in top-level sip.conf)
 
+\begin{astlisting}
 \begin{verbatim}
 [defaults](!)
 type=friend
@@ -176,9 +200,11 @@ allow=alaw
 
 #include accounts/*/sip.conf
 \end{verbatim}
+\end{astlisting}
 
-(in accounts/customer1/sip.conf)
+(in \path{accounts/customer1/sip.conf})
 
+\begin{astlisting}
 \begin{verbatim}
 [def-customer1](!,defaults)
 secret=this_is_not_secret
@@ -192,6 +218,7 @@ mailbox=phone1@customer1
 [phone2](def-customer1)
 mailbox=phone2@customer1
 \end{verbatim}
+\end{astlisting}
 
 This example defines two phones - phone1 and phone2 with settings
 inherited from "def-customer1".  The "def-customer1" is a template that

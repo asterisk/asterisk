@@ -13,9 +13,11 @@ by various modules in Asterisk. These standard variables are
 listed at the end of this document.
 
 \section{Parameter Quoting}
+\begin{astlisting}
 \begin{verbatim}
 exten => s,5,BackGround,blabla
 \end{verbatim}
+\end{astlisting}
 The parameter (blabla) can be quoted ("blabla"). In this case, a
 comma does not terminate the field. However, the double quotes
 will be passed down to the Background command, in this example.
@@ -36,29 +38,35 @@ Parameter strings can include variables. Variable names are arbitrary strings.
 They are stored in the respective channel structure.
 
 To set a variable to a particular value, do:
+\begin{astlisting}
 \begin{verbatim}
     exten => 1,2,Set(varname=value)
 \end{verbatim}
-You can substitute the value of a variable everywhere using \${variablename}.
+\end{astlisting}
+You can substitute the value of a variable everywhere using \$\{variablename\}.
 For example, to stringwise append \$lala to \$blabla and store result in \$koko,
 do:
+\begin{astlisting}
 \begin{verbatim}
    exten => 1,2,Set(koko=${blabla}${lala})
 \end{verbatim}
+\end{astlisting}
 
 There are two reference modes - reference by value and reference by name.
 To refer to a variable with its name (as an argument to a function that
 requires a variable), just write the name. To refer to the variable's value,
-enclose it inside \${}. For example, Set takes as the first argument
+enclose it inside \$\{\}. For example, Set takes as the first argument
 (before the =) a variable name, so:
+\begin{astlisting}
 \begin{verbatim}
   exten => 1,2,Set(koko=lala)
   exten => 1,3,Set(${koko}=blabla)
 \end{verbatim}
+\end{astlisting}
 stores to the variable "koko" the value "lala" and to variable "lala" the
 value "blabla".
 
-In fact, everything contained \${here} is just replaced with the value of
+In fact, everything contained \$\{here\} is just replaced with the value of
 the variable "here".
 
 \section{Variable Inheritance}
@@ -76,30 +84,33 @@ version of the variable removes any other version of the variable,
 regardless of prefix.
 
 \subsection{Example}
+\begin{astlisting}
 \begin{verbatim}
 Set(__FOO=bar) ; Sets an inherited version of "FOO" variable
 Set(FOO=bar)   ; Removes the inherited version and sets a local
                ; variable.
-
-However,
-
-NoOp(${__FOO}) is identical to NoOp(${FOO})
 \end{verbatim}
+\end{astlisting}
 
+However, NoOp(\$\{\_\_FOO\}) is identical to NoOp(\$\{FOO\})
 
 \section{Selecting Characters from Variables}
 
 The format for selecting characters from a variable can be expressed as:
+\begin{astlisting}
 \begin{verbatim}
   ${variable_name[:offset[:length]]}
 \end{verbatim}
+\end{astlisting}
 If you want to select the first N characters from the string assigned
 to a variable, simply append a colon and the number of characters to
 skip from the beginning of the string to the variable name.
+\begin{astlisting}
 \begin{verbatim}
   ; Remove the first character of extension, save in "number" variable
   exten => _9X.,1,Set(number=${EXTEN:1})
 \end{verbatim}
+\end{astlisting}
 Assuming we've dialed 918005551234, the value saved to the 'number' variable
 would be 18005551234. This is useful in situations when we require users to
 dial a number to access an outside line, but do not wish to pass the first
@@ -109,33 +120,41 @@ If you use a negative offset number, Asterisk starts counting from the end
 of the string and then selects everything after the new position. The following
 example will save the numbers 1234 to the 'number' variable, still assuming
 we've dialed 918005551234.
+\begin{astlisting}
 \begin{verbatim}
   ; Remove everything before the last four digits of the dialed string
   exten => _9X.,1,Set(number=${EXTEN:-4})
 \end{verbatim}
+\end{astlisting}
 We can also limit the number of characters from our offset position that we
 wish to use. This is done by appending a second colon and length value to the
 variable name. The following example will save the numbers 555 to the 'number'
 variable.
+\begin{astlisting}
 \begin{verbatim}
   ; Only save the middle numbers 555 from the string 918005551234
   exten => _9X.,1,Set(number=${EXTEN:5:3})
 \end{verbatim}
+\end{astlisting}
 The length value can also be used in conjunction with a negative offset. This
 may be useful if the length of the string is unknown, but the trailing digits
 are. The following example will save the numbers 555 to the 'number' variable,
 even if the string starts with more characters than expected (unlike the
 previous example).
+\begin{astlisting}
 \begin{verbatim}
   ; Save the numbers 555 to the 'number' variable
   exten => _9X.,1,Set(number=${EXTEN:-7:3})
 \end{verbatim}
+\end{astlisting}
 If a negative length value is entered, Asterisk will remove that many characters
 from the end of the string.
+\begin{astlisting}
 \begin{verbatim}
   ; Set pin to everything but the trailing #.
   exten => _XXXX#,1,Set(pin=${EXTEN:0:-1})
 \end{verbatim}
+\end{astlisting}
 
 \section{Expressions}
 
@@ -146,16 +165,20 @@ considered as an expression and it is evaluated. Evaluation works similar to
 evaluation.
 
 For example, after the sequence:
+\begin{astlisting}
 \begin{verbatim}
 exten => 1,1,Set(lala=$[1 + 2])
 exten => 1,2,Set(koko=$[2 * ${lala}])
 \end{verbatim}
+\end{astlisting}
 the value of variable koko is "6".
 
 and, further:
+\begin{astlisting}
 \begin{verbatim}
 exten => 1,1,Set,(lala=$[  1 +    2   ]);
 \end{verbatim}
+\end{astlisting}
 will parse as intended. Extra spaces are ignored.
 
 
@@ -169,9 +192,11 @@ The double quotes will be counted as part of that lexical token.
 
 As an example:
 
+\begin{astlisting}
 \begin{verbatim}
 exten => s,6,GotoIf($[ "${CALLERID(name)}" : "Privacy Manager" ]?callerid-liar,s,1:s,7)
 \end{verbatim}
+\end{astlisting}
 
 The variable CALLERID(name) could evaluate to "DELOREAN MOTORS" (with a space)
 but the above will evaluate to:
@@ -195,7 +220,7 @@ evaluate this expression, because it does not match its grammar.
 \subsection{Operators}
 
 Operators are listed below in order of increasing precedence.  Operators
-with equal precedence are grouped within { } symbols.
+with equal precedence are grouped within \{ \} symbols.
 
 \begin{itemize}
   \item \verb!expr1 | expr2!
@@ -337,8 +362,7 @@ though! -- you still need to wrap variable names in curly braces!
 \item ROUND(x) rounds x to the nearest integer, but round halfway cases away from zero.
 \item RINT(x) rounds x to the nearest integer, rounding halfway cases to the nearest even integer.
 \item TRUNC(x) rounds x to the nearest integer not larger in absolute value.
-\item REMAINDER(x,y) computes the remainder of dividing x by y. The return value is x - n*y, where n is the value x/y, rounded to the nearest integer.
-If this quotient is 1/2, it is rounded to the nearest even number.
+\item REMAINDER(x,y) computes the remainder of dividing x by y. The return value is x - n*y, where n is the value x/y, rounded to the nearest integer. If this quotient is 1/2, it is rounded to the nearest even number.
 \item EXP(x) returns e to the x power.
 \item EXP2(x) returns 2 to the x power.
 \item LOG(x) returns the natural logarithm of x.
@@ -436,7 +460,7 @@ TRUNC(-3.5)
 
 Of course, all of the above examples use constants, but would work the
 same if any of the numeric or string constants were replaced with a
-variable reference \${CALLERID(num)}, for instance.
+variable reference \$\{CALLERID(num)\}, for instance.
 
 
 \subsection{Numbers Vs. Strings}
@@ -450,10 +474,11 @@ case.
 \subsection{Conditionals}
 
 There is one conditional application - the conditional goto :
-
+\begin{astlisting}
 \begin{verbatim}
   exten => 1,2,GotoIf(condition?label1:label2)
 \end{verbatim}
+\end{astlisting}
 
 If condition is true go to label1, else go to label2. Labels are interpreted
 exactly as in the normal goto command.
@@ -463,18 +488,21 @@ is considered to be false, if it's anything else, the condition is true.
 This is designed to be used together with the expression syntax described
 above, eg :
 
+\begin{astlisting}
 \begin{verbatim}
   exten => 1,2,GotoIf($[${CALLERID(all)} = 123456]?2,1:3,1)
 \end{verbatim}
+\end{astlisting}
 
 Example of use :
-
+\begin{astlisting}
 \begin{verbatim}
 exten => s,2,Set(vara=1)
 exten => s,3,Set(varb=$[${vara} + 2])
 exten => s,4,Set(varc=$[${varb} * 2])
 exten => s,5,GotoIf($[${varc} = 6]?99,1:s,6)
 \end{verbatim}
+\end{astlisting}
 
 \subsection{Parse Errors}
 
@@ -488,7 +516,7 @@ exten => s,6,GotoIf($[ "${CALLERID(num)}"  = "3071234567" & &  "${CALLERID(name)
 \end{verbatim}
 \end{astlisting}
 
-You may see an error in /var/log/asterisk/messages like this:
+You may see an error in \path{/var/log/asterisk/messages} like this:
 \begin{astlisting}
 \begin{verbatim}
 Jul 15 21:27:49 WARNING[1251240752]: ast_yyerror(): syntax error: parse error, unexpected TOK_AND, expecting TOK_MINUS or TOK_LP or TOKEN; Input:
@@ -508,11 +536,13 @@ marked with the "\^" character.
 
 \subsection{NULL Strings}
 Testing to see if a string is null can be done in one of two different ways:
+\begin{astlisting}
 \begin{verbatim}
   exten => _XX.,1,GotoIf($["${calledid}" != ""]?3)
-
+    or
   exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3)
 \end{verbatim}
+\end{astlisting}
 
 The second example above is the way suggested by the WIKI. It will
 work as long as there are no spaces in the evaluated value.
@@ -578,10 +608,10 @@ of possible concern with "legacy" extension.conf files:
    and the average regex expression is full of operators that
    the scanner will recognize as expression operators. Thus, unless
    the pattern is wrapped in double quotes, there will be trouble.
-   For instance,      \${VAR1} : (Who|What*)+
+   For instance,      \$\{VAR1\} : (Who$|$What*)+
    may have have worked before, but unless you wrap the pattern
    in double quotes now, look out for trouble! This is better:
-         "\${VAR1}" : "(Who|What*)+"
+         "\$\{VAR1\}" : "(Who$|$What*)+"
    and should work as previous.
 
 \item Variables and Double Quotes
@@ -602,7 +632,7 @@ of possible concern with "legacy" extension.conf files:
     match anywhere in the string. The only diff with the ':' is that
     match doesn't have to be anchored to the beginning of the string.
 
-\item  Added the conditional operator  'expr1 ? true\_expr :: false\_expr'
+\item  Added the conditional operator  'expr1 ? true\_expr : false\_expr'
     First, all 3 exprs are evaluated, and if expr1 is false, the 'false\_expr'
     is returned as the result. See above for details.
 
@@ -615,23 +645,29 @@ There are two utilities you can build to help debug the \$[ ] in
 your extensions.conf file.
 
 The first, and most simplistic, is to issue the command:
-
+\begin{astlisting}
+\begin{verbatim}
 make testexpr2
-
+\end{verbatim}
+\end{astlisting}
 in the top level asterisk source directory. This will build a small
 executable, that is able to take the first command line argument, and
 run it thru the expression parser. No variable substitutions will be
 performed. It might be safest to wrap the expression in single
 quotes...
-
+\begin{astlisting}
+\begin{verbatim}
 testexpr2 '2*2+2/2'
-
+\end{verbatim}
+\end{astlisting}
 is an example.
 
 And, in the utils directory, you can say:
-
-make check\_expr
-
+\begin{astlisting}
+\begin{verbatim}
+make check_expr
+\end{verbatim}
+\end{astlisting}
 and a small program will be built, that will check the file mentioned
 in the first command line argument, for any expressions that might be
 have problems when you move to flex-2.5.31.  It was originally
@@ -645,33 +681,41 @@ are any parse errors, they will be reported in the log file. You can
 use check\_expr to do a quick sanity check of the expressions in your
 extensions.conf file, to see if they pass a crude syntax check.
 
-The "simple-minded" variable substitution replaces \${varname} variable
+The "simple-minded" variable substitution replaces \$\{varname\} variable
 references with '555'. You can override the 555 for variable values,
 by entering in var=val arguments after the filename on the command
 line.  So...
-
- check\_expr /etc/asterisk/extensions.conf CALLERID(num)=3075551212 DIALSTATUS=TORTURE EXTEN=121
-
-will substitute any \${CALLERIDNUM} variable references with
-3075551212, any \${DIALSTATUS} variable references with 'TORTURE', and
-any \${EXTEN} references with '121'.  If there is any fancy stuff
-going on in the reference, like \${EXTEN:2}, then the override will
-not work. Everything in the \${...} has to match. So, to substitute
-\${EXTEN:2} references, you'd best say:
-
- check\_expr /etc/asterisk/extensions.conf CALLERID(num)=3075551212 DIALSTATUS=TORTURE EXTEN:2=121
-
+\begin{astlisting}
+\begin{verbatim}
+ check_expr /etc/asterisk/extensions.conf CALLERID(num)=3075551212 DIALSTATUS=TORTURE EXTEN=121
+\end{verbatim}
+\end{astlisting}
+will substitute any \$\{CALLERID(num)\} variable references with
+3075551212, any \$\{DIALSTATUS\} variable references with 'TORTURE', and
+any \$\{EXTEN\} references with '121'.  If there is any fancy stuff
+going on in the reference, like \$\{EXTEN:2\}, then the override will
+not work. Everything in the \$\{...\} has to match. So, to substitute
+\$\{EXTEN:2\} references, you'd best say:
+\begin{astlisting}
+\begin{verbatim}
+ check_expr /etc/asterisk/extensions.conf CALLERID(num)=3075551212 DIALSTATUS=TORTURE EXTEN:2=121
+\end{verbatim}
+\end{astlisting}
 on stdout, you will see something like:
 
+\begin{astlisting}
 \begin{verbatim}
  OK -- $[ "${DIALSTATUS}"  = "TORTURE" | "${DIALSTATUS}" = "DONTCALL" ] at line 416
 \end{verbatim}
+\end{astlisting}
 
 In the expr2\_log file that is generated, you will see:
 
+\begin{astlisting}
 \begin{verbatim}
  line 416, evaluation of $[  "TORTURE"  = "TORTURE" | "TORTURE" = "DONTCALL"  ] result: 1
 \end{verbatim}
+\end{astlisting}
 
 check\_expr is a very simplistic algorithm, and it is far from being
 guaranteed to work in all cases, but it is hoped that it will be

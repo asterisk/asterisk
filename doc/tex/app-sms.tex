@@ -143,19 +143,21 @@ exten = _X.,3,Hangup
    UK this call is from a CLI of 080058752X0 where X is the sub address.
    As such a typical usage in the extensions.conf at the point of
    handling an incoming call is:
-
+\begin{astlisting}
 \begin{verbatim}
 exten = _X./8005875290,1,Goto(smsmtrx,${EXTEN},1)
 exten = _X./_80058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERID(num):8:1},1)
 \end{verbatim}
+\end{astlisting}
 
    Alternatively, if you have the correct national prefix on incoming
    CLI, e.g. using zaphfc, you might use:
-
+\begin{astlisting}
 \begin{verbatim}
 exten = _X./08005875290,1,Goto(smsmtrx,${EXTEN},1)
 exten = _X./_080058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERID(num):9:1},1)
 \end{verbatim}
+\end{astlisting}
 
    smsmorx is normally accessed by a call from a local sip device
    connected to a Magic Messenger. It could however by that you are
@@ -164,11 +166,12 @@ exten = _X./_080058752[0-8]0,1,Goto(smsmtrx,${EXTEN}-${CALLERID(num):9:1},1)
    SMSC number that would be dialed is 1709400X where X is the caller sub
    address. As such typical usage in extension.config at the point of
    handling a call from a sip phone is:
-
+\begin{astlisting}
 \begin{verbatim}
 exten = 17094009,1,Goto(smsmorx,${CALLERID(num)},1)
 exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
 \end{verbatim}
+\end{astlisting}
 
 \section{Using smsq}
 
@@ -181,7 +184,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    smsq 0123456789 This is a test to 0123456789
    This would create a queue file for a mobile originated TX message in
    queue 0 to send the text "This is a test to 0123456789" to 0123456789.
-   It would then place a file in the /var/spool/asterisk/outgoing
+   It would then place a file in the \path{/var/spool/asterisk/outgoing}
    directory to initiate a call to 17094009 (the default message centre
    in smsq) attached to application SMS with argument of the queue name
    (0).
@@ -191,10 +194,10 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    connect to the message centre or device and actually send the pending
    message(s).
 
-   Using --process, smsq can however be used on received queues to run a
+   Using \verb!--process!, smsq can however be used on received queues to run a
    command for each file (matching the queue if specified) with various
    environment variables set based on the message (see below);
-   smsq options:-
+   smsq options:
 \begin{verbatim}
    --help
    Show help text
@@ -341,14 +344,14 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
 
 
    Note that when smsq attempts to make a file in
-   /var/spool/asterisk/outgoing, it checks if there is already a call
+   \path{/var/spool/asterisk/outgoing}, it checks if there is already a call
    queued for that queue. It will try several filenames, up to the
-   --concurrent setting. If these files exist, then this means Asterisk
+   \verb!--concurrent! setting. If these files exist, then this means Asterisk
    is already queued to send all messages for that queue, and so Asterisk
    should pick up the message just queued. However, this alone could
    create a race condition, so if the files exist then smsq will wait up
    to 3 seconds to confirm it still exists or if the queued messages have
-   been sent already. The --no-wait turns off this behaviour. Basically,
+   been sent already. The \verb!--no-wait! turns off this behaviour. Basically,
    this means that if you have a lot of messages to send all at once,
    Asterisk will not make unlimited concurrent calls to the same message
    centre or device for the same queue. This is because it is generally
@@ -361,7 +364,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    queued message it finds. A outgoing call will normally send all queued
    messages for that queue. One way to use smsq would be to run with no
    queue name (so any queue) every minute or every few seconds to send
-   pending message. This is not normally necessary unless --no-dial is
+   pending message. This is not normally necessary unless \verb!--no-dial! is
    selected. Note that smsq does only check motx or mttx depending on the
    options selected, so it would need to be called twice as a general
    check.
@@ -369,7 +372,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    UTF-8 is used to parse command line arguments for user data, and is
    the default when reading a file. If an invalid UTF-8 sequence is
    found, it is treated as UCS-1 data (i.e, as is).
-   The --process option causes smsq to scan the specified queue (default
+   The \verb!--process! option causes smsq to scan the specified queue (default
    is mtrx) for messages (matching the queue specified, or any if queue
    not specified) and run a command and delete the file. The command is
    run with a number of environment variables set as follows. Note that
@@ -404,10 +407,10 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
 
 \section{File formats}
 
-   By default all queues are held in a director /var/spool/asterisk/sms.
+   By default all queues are held in a director \path{/var/spool/asterisk/sms}.
    Within this directory are sub directories mtrx, mttx, morx, motx which
    hold the received messages and the messages ready to send. Also,
-   /var/log/asterisk/sms is a log file of all messages handled.
+   \path{/var/log/asterisk/sms} is a log file of all messages handled.
 
    The file name in each queue directory starts with the queue parameter
    to SMS which is normally the CLI used for an outgoing message or the
@@ -424,7 +427,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    UTF-8. The user data (ud) field is treated as being UTF-8 encoded
    unless the DCS is specified indicating 8 bit format. If 8 bit format
    is specified then the user data is sent as is.
-   The keywords are as follows:-
+   The keywords are as follows:
 \begin{verbatim}
    oa Originating address
    The phone number from which the message came
@@ -450,7 +453,7 @@ exten = _1709400[0-8],1,Goto(smsmorx,${CALLERID(num)}-{EXTEN:7:1},1)
    Present on mobile originated messages, added by default if absent
    srr
    0 or 1 for status report request
-   Does not work in UK yet, not implemented in app\_sms yet
+   Does not work in UK yet, not implemented in app_sms yet
    rp
    0 or 1 return path
    See GSM specs for details

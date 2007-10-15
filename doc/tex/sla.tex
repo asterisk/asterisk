@@ -56,13 +56,14 @@ An SLA trunk is a mapping between a virtual trunk and a real Asterisk device.
 This device may be an analog FXO line, or something like a SIP trunk.  A trunk
 must be configured in two places.  First, configure the device itself in the
 channel specific configuration file such as zapata.conf or sip.conf.  Once the
-trunk is configured, then map it to an SLA trunk in sla.conf.  
-
+trunk is configured, then map it to an SLA trunk in sla.conf.
+\begin{astlisting}
 \begin{verbatim}
 [line1]
 type=trunk
 device=Zap/1
 \end{verbatim}
+\end{astlisting}
 
 Be sure to configure the trunk's context to be the same one that is set for the
 "autocontext" option in sla.conf if automatic dialplan configuration is used.
@@ -84,26 +85,27 @@ going to say that they are calling the number "12564286000".  Also, let's say
 that the numbers that are valid for calling out this trunk are NANP numbers,
 of the form \_1NXXNXXXXXX.
 
-In sip.conf,  there would be an entry for [mytrunk].  For [mytrunk], 
+In sip.conf,  there would be an entry for [mytrunk].  For [mytrunk],
 set context=line4.
 
-
+\begin{astlisting}
 \begin{verbatim}
 [line4]
 type=trunk
 device=Local/disa@line4_outbound
 \end{verbatim}
+\end{astlisting}
 
-
+\begin{astlisting}
 \begin{verbatim}
 [line4]
 exten => 12564286000,1,SLATrunk(line4)
 
 [line4_outbound]
 exten => disa,1,Disa(no-password,line4_outbound)
-exten => _1NXXNXXXXXX,1,Dial(SIP/\${EXTEN}@mytrunk)
+exten => _1NXXNXXXXXX,1,Dial(SIP/${EXTEN}@mytrunk)
 \end{verbatim}
-
+\end{astlisting}
 
 So, when a station picks up their phone and connects to line 4, they are
 connected to the local dialplan.  The Disa application plays dialtone to the
@@ -116,8 +118,9 @@ SIP trunk.
 An SLA station is a mapping between a virtual station and a real Asterisk device.
 Currently, the only channel driver that has all of the features necessary to
 support an SLA environment is chan\_sip.  So, to configure a SIP phone to use
-as a station, you must configure sla.conf and sip.conf.  
+as a station, you must configure sla.conf and sip.conf.
 
+\begin{astlisting}
 \begin{verbatim}
 [station1]
 type=station
@@ -125,6 +128,7 @@ device=SIP/station1
 trunk=line1
 trunk=line2
 \end{verbatim}
+\end{astlisting}
 
 Here are some hints on configuring a SIP phone for use with SLA:
 
@@ -141,7 +145,7 @@ Here are some hints on configuring a SIP phone for use with SLA:
    Let's say this phone is called "station1" in sla.conf, and it uses trunks
    named "line1" and line2".
    \begin{enumerate}
-  
+
    \item Two line buttons must be configured to subscribe to the state of the
       following extensions:
         - station1\_line1
@@ -165,6 +169,7 @@ This is an example of the most basic SLA setup.  It uses the automatic
 dialplan generation so the configuration is minimal.
 
 sla.conf:
+\begin{astlisting}
 \begin{verbatim}
 [line1]
 type=trunk
@@ -190,8 +195,8 @@ device=SIP/station2
 
 [station3](station)
 device=SIP/station3
-	
 \end{verbatim}
+\end{astlisting}
 
 With this configuration, the dialplan is generated automatically.  The first
 zap channel should have its context set to "line1" and the second should be
@@ -199,6 +204,7 @@ set to "line2" in zapata.conf.  In sip.conf, station1, station2, and station3
 should all have their context set to "sla\_stations".
 
 For reference, here is the automatically generated dialplan for this situation:
+\begin{astlisting}
 \begin{verbatim}
 [line1]
 exten => s,1,SLATrunk(line1)
@@ -225,7 +231,7 @@ exten => station3_line1,1,SLAStation(station3_line1)
 exten => station3_line2,hint,SLA:station3_line2
 exten => station3_line2,1,SLAStation(station3_line2)	
 \end{verbatim}
-
+\end{astlisting}
 
 \subsection{SLA and Voicemail}
 \label{voicemail}
@@ -247,6 +253,7 @@ NANP numbers for outbound calls, or 8500 for checking voicemail.
 
 
 sla.conf:
+\begin{astlisting}
 \begin{verbatim}
 [line1]
 type=trunk
@@ -271,9 +278,10 @@ device=SIP/station2
 device=SIP/station3
 	
 \end{verbatim}
-
+\end{astlisting}
 
 extensions.conf:
+\begin{astlisting}
 \begin{verbatim}
 [macro-slaline]
 exten => s,1,SLATrunk(${ARG1})
@@ -318,6 +326,7 @@ exten => station3_line2,hint,SLA:station3_line2
 exten => station3_line2,1,SLAStation(station3_line2)
 	
 \end{verbatim}
+\end{astlisting}
 
 \section{Call Handling}
 \subsection{Summary}

@@ -22,11 +22,11 @@ some modules which use explicitly GOTO's.
 
 Extensions frequently have data they pass to the executing application
 (most frequently a string).  You can see the available dialplan applications
-by entering the "show applications" command in the CLI.
+by entering the "core show applications" command in the CLI.
 
 In this version of Asterisk, dialplan functions are added. These can
 be used as arguments to any application. For a list of the installed
-functions in your Asterisk, use the "show functions" command.
+functions in your Asterisk, use the "core show functions" command.
 
 \subsubsection{Example dialplan}
 
@@ -63,7 +63,7 @@ There are some extensions with important meanings:
   \item T
   \begin{itemize}
     \item This is the extension that is executed when the 'absolute'
-          timeout is reached.  See "show function TIMEOUT" for more
+          timeout is reached.  See "core show function TIMEOUT" for more
           information on setting timeouts.	
   \end{itemize}
   \item e

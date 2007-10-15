@@ -114,14 +114,16 @@ are those we know, and are doing so out of curiosity, there have been
 these others from Jan 1st,2004 thru June 1st, 2004:
 (the numbers may or may not be correct.)
 
-603890zzzz     hung up telemarket options.
-"Integrated Sale"  called a couple times. hung up in telemarket options
-"UNITED STATES GOV"  (-- maybe a military recruiter, trying to lure one of my sons).
-800349zzzz -- hung up in charity intro
-800349zzzz -- hung up in charity choices, intro, about the only one who actually travelled to the bitter bottom of the scripts!
-216377zzzz -- hung up the magazine section
-626757zzzz = "LIR    " (pronounced "Liar"?) hung up in telemarket intro, then choices
-757821zzzz -- hung up in new magazine subscription options.
+\begin{itemize}
+    \item 603890zzzz -- hung up telemarket options.
+    \item "Integrated Sale" -- called a couple times. hung up in telemarket options
+    \item "UNITED STATES GOV" -- maybe a military recruiter, trying to lure one of my sons.
+    \item 800349zzzz -- hung up in charity intro
+    \item 800349zzzz -- hung up in charity choices, intro, about the only one who actually travelled to the bitter bottom of the scripts!
+    \item 216377zzzz -- hung up the magazine section
+    \item 626757zzzz = "LIR    " (pronounced "Liar"?) hung up in telemarket intro, then choices
+    \item 757821zzzz -- hung up in new magazine subscription options.
+\end{itemize}
 
 That averages out to maybe 1 a month. That puts into question whether
 the ratio of the amount of labor it took to make the scripts versus
@@ -165,6 +167,7 @@ There are some variations, and these will be explained in due course.
 
 
 To use these options, set your Dial to something like:
+\begin{astlisting}
 \begin{verbatim}
 exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmPA(beep))
     or
@@ -172,6 +175,7 @@ exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmP(something)A(beep))
     or
 exten => 3,3,Dial(Zap/5r3&Zap/6r3,35,tmpA(beep))
 \end{verbatim}
+\end{astlisting}
 
 The 't' allows the dialed party to transfer the call using '\#'. It's
 optional.
@@ -244,10 +248,12 @@ having to supply their name, which shortens their call a bit.
 Next of all, these intros can be used in voicemail, played over
 loudspeakers, and perhaps other nifty things. For instance:
 
+\begin{astlisting}
 \begin{verbatim}
 exten => s,6,Set(PATH=/var/lib/asterisk/sounds/priv-callerintros)
 exten => s,7,System(/usr/bin/play ${PATH}/${CALLERID(num)}.gsm&,0)
 \end{verbatim}
+\end{astlisting}
 
 When a call comes in at the house, the above priority gets executed,
 and the callers intro is played over the phone systems speakers. This

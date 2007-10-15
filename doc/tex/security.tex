@@ -1,11 +1,11 @@
 \subsection{Introduction}
 
-PLEASE READ THE FOLLOWING IMPORTANT SECURITY RELATED INFORMATION.  
+PLEASE READ THE FOLLOWING IMPORTANT SECURITY RELATED INFORMATION.
 IMPROPER CONFIGURATION OF ASTERISK COULD ALLOW UNAUTHORIZED USE OF YOUR
 FACILITIES, POTENTIALLY INCURRING SUBSTANTIAL CHARGES.
 
 Asterisk security involves both network security (encryption, authentication)
-as well as dialplan security (authorization - who can access services in 
+as well as dialplan security (authorization - who can access services in
 your pbx). If you are setting up Asterisk in production use, please make
 sure you understand the issues involved.
 
@@ -37,7 +37,7 @@ INCOMING CONNECTIONS.
 
 You should consider that if any channel, incoming line, etc can enter an
 extension context that it has the capability of accessing any extension
-within that context. 
+within that context.
 
 Therefore, you should NOT allow access to outgoing or toll services in
 contexts that are accessible (especially without a password) from incoming
@@ -46,12 +46,15 @@ stations within you network.  In particular, never ever put outgoing toll
 services in the "default" context.  To make things easier, you can include
 the "default" context within other private contexts by using:
 
+\begin{astlisting}
 \begin{verbatim}
 	include => default
 \end{verbatim}
+\end{astlisting}
 
 in the appropriate section.  A well designed PBX might look like this:
 
+\begin{astlisting}
 \begin{verbatim}
 [longdistance]
 exten => _91NXXNXXXXXX,1,Dial(Zap/g2/${EXTEN:1})
@@ -64,13 +67,14 @@ include => default
 [default]
 exten => 6123,Dial(Zap/1)
 \end{verbatim}
+\end{astlisting}
 
 DON'T FORGET TO TAKE THE DEMO CONTEXT OUT OF YOUR DEFAULT CONTEXT.  There
-isn't really a security reason, it just will keep people from wanting to 
+isn't really a security reason, it just will keep people from wanting to
 play with your Asterisk setup remotely.
 
 \subsection{Log Security}
 
 Please note that the Asterisk log files, as well as information printed to the
-Asterisk CLI, may contain sensitive information such as passwords and call 
+Asterisk CLI, may contain sensitive information such as passwords and call
 history.  Keep this in mind when providing access to these resources.

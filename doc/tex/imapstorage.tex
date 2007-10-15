@@ -11,7 +11,7 @@ additional voicemail functionality, including:
    mailbox automatically.
  \item Accessing a voicemail recording email message will turn off the message
    waiting indicator (MWI) on the user's phone.
- \item Deleting a voicemail recording email will also turn off the message 
+ \item Deleting a voicemail recording email will also turn off the message
    waiting indicator, and delete the message from the voicemail system.
 \end{itemize}
 
@@ -38,13 +38,16 @@ is outside the scope of this document.
 Building the c-client library is fairly straightforward; for example, on a
 Debian system there are two possibilities:
 
-\begin{verbatim}
-1) if you will not be using SSL to connect to the IMAP server:
-   $ make slx SSLTYPE=none
-
-2) if you will be using SSL to connect to the IMAP server:
+\begin{enumerate}
+    \item If you will not be using SSL to connect to the IMAP server:
+   \begin{verbatim}
+        $ make slx SSLTYPE=none!
+   \end{verbatim}
+    \item If you will be using SSL to connect to the IMAP server:
+   \begin{verbatim}
    $ make slx EXTRACFLAGS="-I/usr/include/openssl"
-\end{verbatim}
+   \end{verbatim}
+\end{enumerate}
 
 Once this completes you can proceed with the Asterisk build; there is no
 need to run 'make install'.
@@ -66,7 +69,7 @@ normally.
 \subsection{Modify voicemail.conf}
 
 The following directives have been added to voicemail.conf:
-
+\begin{astlisting}
 \begin{verbatim}
 imapserver=<name or IP address of IMAP mail server>
 imapport=<IMAP port, defaults to 143>
@@ -75,27 +78,29 @@ expungeonhangup=<yes or no>
 authuser=<username>
 authpassword=<password>
 \end{verbatim}
+\end{astlisting}
 
 The "expungeonhangup" flag is used to determine if the voicemail system should
-expunge all messages marked for deletion when the user hangs up the phone. 
+expunge all messages marked for deletion when the user hangs up the phone.
 
 Each mailbox definition should also have imapuser=$<$imap username$>$.
 For example:
-
+\begin{astlisting}
 \begin{verbatim}
 4123=>4123,James Rothenberger,jar@onebiztone.com,,attach=yes|imapuser=jar
 \end{verbatim}
+\end{astlisting}
 
 The directives "authuser" and "authpassword" are not needed when using
-Kerberos. They are defined to allow Asterisk to authenticate as a single 
+Kerberos. They are defined to allow Asterisk to authenticate as a single
 user that has access to all mailboxes as an alternative to Kerberos.
 
 
 \subsection{IMAP Folders}
 
-Besides INBOX, users should create "Old", "Work", "Family" and "Friends" 
-IMAP folders at the same level of hierarchy as the INBOX.  These will be 
-used as alternate folders for storing voicemail messages to mimic the 
+Besides INBOX, users should create "Old", "Work", "Family" and "Friends"
+IMAP folders at the same level of hierarchy as the INBOX.  These will be
+used as alternate folders for storing voicemail messages to mimic the
 behavior of the current (file-based) voicemail system.
 
 
@@ -103,22 +108,22 @@ behavior of the current (file-based) voicemail system.
 
 As administrator you will have to decide if you want to send the voicemail
 messages to a separate IMAP account or use each user's existing IMAP mailbox
-for voicemail storage.  The IMAP storage mechanism will work either way. 
+for voicemail storage.  The IMAP storage mechanism will work either way.
 
 By implementing a single IMAP mailbox, the user will see voicemail messages
 appear in the same INBOX as other messages.  The disadvantage of this method
 is that if the IMAP server does NOT support UIDPLUS, Asterisk voicemail will
-expunge ALL messages marked for deletion when the user exits the voicemail 
+expunge ALL messages marked for deletion when the user exits the voicemail
 system, not just the VOICEMAIL messages marked for deletion.
 
-By implementing separate IMAP mailboxes for voicemail and email, voicemail 
+By implementing separate IMAP mailboxes for voicemail and email, voicemail
 expunges will not remove regular email flagged for deletion.
 
 
 \subsection{IMAP Server Implementations}
 
 There are various IMAP server implementations, each supports a potentially
-different set of features.  
+different set of features.
 
 
 \subsubsection{UW IMAP-2005 or earlier}
@@ -134,23 +139,23 @@ feature allow the system to expunge ONLY pertinent messages, instead of the
 default behavior, which is to expunge ALL messages marked for deletion when
 EXPUNGE is called.  The IMAP storage mechanism is this version of Asterisk
 will check if the UID\_EXPUNGE feature is supported by the server, and use it
-if possible. 
+if possible.
 
 \subsubsection{Cyrus IMAP}
 
-Cyrus IMAP server v2.3.3 has been tested using a hierarchy delimiter of '/'.  
+Cyrus IMAP server v2.3.3 has been tested using a hierarchy delimiter of '/'.
 
 
 \subsection{Quota Support}
 
 If the IMAP server supports quotas, Asterisk will check the quota when
-accessing voicemail.  Currently only a warning is given to the user that 
-their quota is exceeded. 
+accessing voicemail.  Currently only a warning is given to the user that
+their quota is exceeded.
 
 
 \subsection{Application Notes}
 
-Since the primary storage mechanism is IMAP, all message information that 
+Since the primary storage mechanism is IMAP, all message information that
 was previously stored in an associated text file, AND the recording itself,
 is now stored in a single email message.  This means that the .gsm recording
 will ALWAYS be attached to the message (along with the user's preference of
