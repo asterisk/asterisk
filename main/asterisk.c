@@ -1764,6 +1764,10 @@ static int ast_el_read_char(EditLine *el, char *cp)
 							fprintf(stderr, "Reconnect succeeded after %.3f seconds\n", 1.0 / reconnects_per_second * tries);
 							printf(term_quit());
 							WELCOME_MESSAGE;
+							if (!ast_opt_mute)
+								fdprint(ast_consock, "logger mute silent");
+							else 
+								printf("log and verbose output currently muted ('logger mute' to unmute)\n");
 							break;
 						} else {
 							usleep(1000000 / reconnects_per_second);
