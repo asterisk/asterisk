@@ -561,10 +561,10 @@ static int aji_start_sasl(iksparser *prs, enum ikssasltype type, char *username,
 	iks_insert_attrib(x, "xmlns", IKS_NS_XMPP_SASL);
 	len = strlen(username) + strlen(pass) + 3;
 	s = alloca(len);
-	base64 = alloca((len + 1) * 4 / 3);
+	base64 = alloca((len + 2) * 4 / 3);
 	iks_insert_attrib(x, "mechanism", "PLAIN");
 	snprintf(s, len, "%c%s%c%s", 0, username, 0, pass);
-	ast_base64encode(base64, (const unsigned char *) s, len, (len + 1) * 4 / 3);
+	ast_base64encode(base64, (const unsigned char *) s, len, (len + 2) * 4 / 3);
 	iks_insert_cdata(x, base64, 0);
 	iks_send(prs, x);
 	iks_delete(x);
