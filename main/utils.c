@@ -716,6 +716,10 @@ static const char *locktype2str(enum ast_lock_type type)
 static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct thr_lock_info *lock_info;
+	struct ast_str *str;
+
+	if (!(str = ast_str_create(4096)))
+		return CLI_FAILURE;
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -730,7 +734,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 		return NULL;
 	}
 
-	ast_cli(a->fd, "\n" 
+	ast_str_append(&str, 0, "\n" 
 	               "=======================================================================\n"
 	               "=== Currently Held Locks ==============================================\n"
 	               "=======================================================================\n"
@@ -741,12 +745,13 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	pthread_mutex_lock(&lock_infos_lock.mutex);
 	AST_LIST_TRAVERSE(&lock_infos, lock_info, entry) {
 		int i;
-		ast_cli(a->fd, "=== Thread ID: %d (%s)\n", (int) lock_info->thread_id,
+		ast_str_append(&str, 0, "=== Thread ID: %d (%s)\n", (int) lock_info->thread_id,
 			lock_info->thread_name);
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; i < lock_info->num_locks; i++) {
-			ast_cli(a->fd, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
-				lock_info->locks[i].pending > 0 ? "Waiting for " : lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
+			ast_str_append(&str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
+				lock_info->locks[i].pending > 0 ? "Waiting for " : 
+					lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
 				lock_info->locks[i].file, 
 				locktype2str(lock_info->locks[i].type),
 				lock_info->locks[i].line_num,
@@ -755,13 +760,17 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				lock_info->locks[i].times_locked);
 		}
 		pthread_mutex_unlock(&lock_info->lock);
-		ast_cli(a->fd, "=== -------------------------------------------------------------------\n"
+		ast_str_append(&str, 0, "=== -------------------------------------------------------------------\n"
 		               "===\n");
 	}
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 
-	ast_cli(a->fd, "=======================================================================\n"
+	ast_str_append(&str, 0, "=======================================================================\n"
 	               "\n");
+
+	ast_cli(a->fd, "%s", str->str);
+
+	free(str);
 
 	return 0;
 }
