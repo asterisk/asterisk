@@ -1108,18 +1108,6 @@ static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT_STRING
 }
 
-/* XXX Nothing in this array can currently be deprecated...
-   You have to change the way find_cli works in order to remove this array
-   I recommend doing this eventually...
- */
-static struct ast_cli_entry builtins[] = {
-	/* Keep alphabetized, with longer matches first (example: abcd before abc) */
-	NEW_CLI(handle_commandcomplete, "Command complete"),
-	NEW_CLI(handle_commandnummatches, "Returns number of command matches"),
-	NEW_CLI(handle_commandmatchesarray, "Returns command matches array"),
-	{ { NULL }, NULL, NULL, NULL }
-};
-
 static struct ast_cli_entry cli_debug_channel_deprecated = NEW_CLI(handle_debugchan_deprecated, "Enable debugging on channel");
 static struct ast_cli_entry cli_module_load_deprecated = NEW_CLI(handle_load_deprecated, "Load a module");
 static struct ast_cli_entry cli_module_reload_deprecated = NEW_CLI(handle_reload_deprecated, "reload modules by name");
@@ -1129,6 +1117,10 @@ static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
+	NEW_CLI(handle_commandcomplete, "Command complete"),
+	NEW_CLI(handle_commandnummatches, "Returns number of command matches"),
+	NEW_CLI(handle_commandmatchesarray, "Returns command matches array"),
+
 	NEW_CLI(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 
 	NEW_CLI(handle_chanlist, "Display information on channels"),
@@ -1189,47 +1181,15 @@ static int set_full_cmd(struct ast_cli_entry *e)
 /*! \brief initialize the _full_cmd string in * each of the builtins. */
 void ast_builtins_init(void)
 {
-	struct ast_cli_entry *e;
-
-	for (e = builtins; e->cmda[0] != NULL; e++)
-		set_full_cmd(e);
-
 	ast_cli_register_multiple(cli_cli, sizeof(cli_cli) / sizeof(struct ast_cli_entry));
 }
 
-/*
- * We have two sets of commands: builtins are stored in a
- * NULL-terminated array of ast_cli_entry, whereas external
- * commands are in a list.
- * When navigating, we need to keep two pointers and get
- * the next one in lexicographic order. For the purpose,
- * we use a structure.
- */
-
-struct cli_iterator {
-	struct ast_cli_entry *builtins;
-	struct ast_cli_entry *helpers;
-};
-
-static struct ast_cli_entry *cli_next(struct cli_iterator *i)
+static struct ast_cli_entry *cli_next(struct ast_cli_entry *e)
 {
-	struct ast_cli_entry *e;
-
-	if (i->builtins == NULL && i->helpers == NULL) {
-		/* initialize */
-		i->builtins = builtins;
-		i->helpers = AST_LIST_FIRST(&helpers);
-	}
-	e = i->builtins; /* temporary */
-	if (!e->cmda[0] || (i->helpers &&
-		    strcmp(i->helpers->_full_cmd, e->_full_cmd) < 0)) {
-		/* Use helpers */
-		e = i->helpers;
-		if (e)
-			i->helpers = AST_LIST_NEXT(e, list);
-	} else { /* use builtin. e is already set  */
-		(i->builtins)++;	/* move to next */
-	}
+	if (e == NULL)
+		e = AST_LIST_FIRST(&helpers);
+	if (e) 
+		e = AST_LIST_NEXT(e, list);
 	return e;
 }
 
@@ -1324,9 +1284,8 @@ static struct ast_cli_entry *find_cli(char *const cmds[], int match_type)
 {
 	int matchlen = -1;	/* length of longest match so far */
 	struct ast_cli_entry *cand = NULL, *e=NULL;
-	struct cli_iterator i = { NULL, NULL};
 
-	while ( (e = cli_next(&i)) ) {
+	while ( (e = cli_next(e)) ) {
 		/* word-by word regexp comparison */
 		char * const *src = cmds;
 		char * const *dst = e->cmda;
@@ -1525,10 +1484,9 @@ int ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 static char *help1(int fd, char *match[], int locked)
 {
 	char matchstr[80] = "";
-	struct ast_cli_entry *e;
+	struct ast_cli_entry *e = NULL;
 	int len = 0;
 	int found = 0;
-	struct cli_iterator i = { NULL, NULL};
 
 	if (match) {
 		ast_join(matchstr, sizeof(matchstr), match);
@@ -1536,7 +1494,7 @@ static char *help1(int fd, char *match[], int locked)
 	}
 	if (!locked)
 		AST_RWLIST_RDLOCK(&helpers);
-	while ( (e = cli_next(&i)) ) {
+	while ( (e = cli_next(e)) ) {
 		/* Hide commands that start with '_' */
 		if (e->_full_cmd[0] == '_')
 			continue;
@@ -1742,8 +1700,7 @@ static int more_words (char * const *dst)
 static char *__ast_cli_generator(const char *text, const char *word, int state, int lock)
 {
 	char *argv[AST_MAX_ARGS];
-	struct ast_cli_entry *e;
-	struct cli_iterator i = { NULL, NULL };
+	struct ast_cli_entry *e = NULL;
 	int x = 0, argindex, matchlen;
 	int matchnum=0;
 	char *ret = NULL;
@@ -1768,7 +1725,7 @@ static char *__ast_cli_generator(const char *text, const char *word, int state, 
 	}
 	if (lock)
 		AST_RWLIST_RDLOCK(&helpers);
-	while ( (e = cli_next(&i)) ) {
+	while ( (e = cli_next(e)) ) {
 		/* XXX repeated code */
 		int src = 0, dst = 0, n = 0;
 
