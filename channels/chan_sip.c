@@ -532,7 +532,7 @@ static const struct cfsip_options {
 #define DEFAULT_CALLERID 	"asterisk"
 #define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
 #define DEFAULT_ALLOWGUEST	TRUE
-#define DEFAULT_SRVLOOKUP	FALSE		/*!< Recommended setting is ON */
+#define DEFAULT_SRVLOOKUP	TRUE		/*!< Recommended setting is ON */
 #define DEFAULT_COMPACTHEADERS	FALSE
 #define DEFAULT_TOS_SIP         0               /*!< Call signalling packets should be marked as DSCP CS3, but the default is 0 to be compatible with previous versions. */
 #define DEFAULT_TOS_AUDIO       0               /*!< Audio packets should be marked as DSCP EF (Expedited Forwarding), but the default is 0 to be compatible with previous versions. */
@@ -589,7 +589,7 @@ static int global_rtautoclear;
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int global_notifyhold;		/*!< Send notifications on hold */
 static int global_alwaysauthreject;	/*!< Send 401 Unauthorized for all failing requests */
-static int global_srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
+static int global_srvlookup;			/*!< SRV Lookup on or off. Default is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
 static int global_match_auth_username;		/*!< Match auth username if available instead of From: Default off. */
