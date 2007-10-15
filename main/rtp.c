@@ -3226,7 +3226,8 @@ static enum ast_bridge_result bridge_native_loop(struct ast_channel *c0, struct 
 		/* Check if anything changed */
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
-		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
+		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
+		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks)) {
 			ast_debug(1, "Oooh, something is weird, backing out\n");
 			if (c0->tech_pvt == pvt0)
 				if (pr0->set_rtp_peer(c0, NULL, NULL, NULL, 0, 0))
@@ -3520,7 +3521,8 @@ static enum ast_bridge_result bridge_p2p_loop(struct ast_channel *c0, struct ast
 		/* Check if anything changed */
 		if ((c0->tech_pvt != pvt0) ||
 		    (c1->tech_pvt != pvt1) ||
-		    (c0->masq || c0->masqr || c1->masq || c1->masqr)) {
+		    (c0->masq || c0->masqr || c1->masq || c1->masqr) ||
+		    (c0->monitor || c0->audiohooks || c1->monitor || c1->audiohooks)) {
 			ast_debug(3, "p2p-rtp-bridge: Oooh, something is weird, backing out\n");
 			/* If a masquerade needs to happen we have to try to read in a frame so that it actually happens. Without this we risk being called again and going into a loop */
 			if ((c0->masq || c0->masqr) && (fr = ast_read(c0)))
