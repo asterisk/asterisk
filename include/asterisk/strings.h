@@ -50,7 +50,7 @@ static force_inline int ast_strlen_zero(const char *s)
 AST_INLINE_API(
 char *ast_skip_blanks(const char *str),
 {
-	while (*str && *str < 33)
+	while (*str && ((unsigned char) *str) < 33)
 		str++;
 	return (char *)str;
 }
@@ -75,7 +75,7 @@ char *ast_trim_blanks(char *str),
 		   actually set anything unless we must, and it's easier just
 		   to set each position to \0 than to keep track of a variable
 		   for it */
-		while ((work >= str) && *work < 33)
+		while ((work >= str) && ((unsigned char) *work) < 33)
 			*(work--) = '\0';
 	}
 	return str;
@@ -91,7 +91,7 @@ char *ast_trim_blanks(char *str),
 AST_INLINE_API(
 char *ast_skip_nonblanks(char *str),
 {
-	while (*str && *str > 32)
+	while (*str && ((unsigned char) *str) > 32)
 		str++;
 	return str;
 }
