@@ -223,6 +223,13 @@ static struct ast_custom_function filter_function = {
 	.synopsis = "Filter the string to include only the allowed characters",
 	.syntax = "FILTER(<allowed-chars>,<string>)",
 	.read = filter,
+	.desc =
+"Permits all characters listed in <allowed-chars>, filtering all others out.\n"
+"In addition to literally listing the characters, you may also use ranges of\n"
+"characters (delimited by a '-'), as well as hexadecimal characters started\n"
+"with a \\x (i.e. \\x20) and octal characters started with \\0 (i.e. \\040).\n"
+"Also, \\t, \\n, and \\r are recognized.  If you want a literal '-' character,\n"
+"simply prefix it with a '\\'\n",
 };
 
 static int regex(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
