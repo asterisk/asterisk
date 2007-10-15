@@ -27,6 +27,9 @@
 ;bindaddr=0.0.0.0
 ;port=4520
 ;
+; See doc/qos.tex for a description of the tos parameter.
+;tos=ef
+;
 ; Our entity identifier (Should generally be the MAC address of the
 ; machine it's running on.  Defaults to the first eth address, but you
 ; can override it here, as long as you set it to the MAC of *something*

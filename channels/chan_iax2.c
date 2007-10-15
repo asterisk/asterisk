@@ -108,9 +108,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
    thread is actually doing. */
 #define DEBUG_SCHED_MULTITHREAD
 
-#ifndef IPTOS_MINCOST
-#define IPTOS_MINCOST 0x02
-#endif
 
 #ifdef SO_NO_CHECK
 static int nochecksums = 0;

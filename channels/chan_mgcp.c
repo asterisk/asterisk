@@ -79,10 +79,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/event.h"
 
-#ifndef IPTOS_MINCOST
-#define IPTOS_MINCOST 0x02
-#endif
-
 /*
  * Define to work around buggy dlink MGCP phone firmware which
  * appears not to know that "rt" is part of the "G" package.

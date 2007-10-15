@@ -53,15 +53,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/sockio.h>
 #endif
 
-/* netinet/ip.h may not define the following (See RFCs 791 and 1349) */
-#if !defined(IPTOS_LOWCOST)
-#define       IPTOS_LOWCOST           0x02
-#endif
-
-#if !defined(IPTOS_MINCOST)
-#define       IPTOS_MINCOST           IPTOS_LOWCOST
-#endif
-
 #include "asterisk/acl.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"

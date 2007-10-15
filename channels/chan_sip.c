@@ -156,9 +156,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define XMIT_ERROR		-2
 
 #define VIDEO_CODEC_MASK        0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
-#ifndef IPTOS_MINCOST
-#define IPTOS_MINCOST           0x02
-#endif
 
 /* #define VOCAL_DATA_HACK */
 

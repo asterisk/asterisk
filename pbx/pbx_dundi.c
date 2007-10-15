@@ -115,7 +115,7 @@ static struct sched_context *sched;
 static int netsocket = -1;
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 static pthread_t precachethreadid = AST_PTHREADT_NULL;
-static int tos = 0;
+static unsigned int tos = 0;
 static int dundidebug = 0;
 static int authdebug = 0;
 static int dundi_ttl = DUNDI_DEFAULT_TTL;
@@ -4661,7 +4661,6 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	char *cat;
-	int format;
 	int x;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	char hn[MAXHOSTNAMELEN] = "";
@@ -4738,26 +4737,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin, int reload)
 			else
 				ast_log(LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &format) == 1)
-				tos = format & 0xff;
-			else if (!strcasecmp(v->value, "lowdelay"))
-				tos = IPTOS_LOWDELAY;
-			else if (!strcasecmp(v->value, "throughput"))
-				tos = IPTOS_THROUGHPUT;
-			else if (!strcasecmp(v->value, "reliability"))
-				tos = IPTOS_RELIABILITY;
-#if !defined(__NetBSD__) && !defined(__OpenBSD__) && !defined(SOLARIS)
-			else if (!strcasecmp(v->value, "mincost"))
-				tos = IPTOS_MINCOST;
-#endif
-			else if (!strcasecmp(v->value, "none"))
-				tos = 0;
-			else
-#if !defined(__NetBSD__) && !defined(__OpenBSD__) && !defined(SOLARIS)
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
-#else
-				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
-#endif
+			if (ast_str2tos(v->value, &tos)) 
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, please read docs/qos.tex\n", v->lineno);
 		} else if (!strcasecmp(v->name, "department")) {
 			ast_copy_string(dept, v->value, sizeof(dept));
 		} else if (!strcasecmp(v->name, "organization")) {

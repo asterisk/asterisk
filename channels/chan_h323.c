@@ -54,11 +54,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <sys/socket.h>
 #include <sys/signal.h>
 #include <sys/param.h>
-#if defined(BSD)
-#ifndef IPTOS_MINCOST
-#define IPTOS_MINCOST 0x02
-#endif
-#endif
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/in.h>

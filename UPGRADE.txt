@@ -1,12 +1,6 @@
 Information for Upgrading From Previous Asterisk Releases
 =========================================================
 
-Manager:
-
-* The CallerID fields across Manager events have now been made more
-  consistent. CallerID Number will be sent as CallerIDNum and CallerID
-  Name will be sent as CallerIDName wherever used.
-
 AEL:
 
 * Macros are now implemented underneath with the Gosub() application.
@@ -113,7 +107,17 @@ Channel Drivers:
   semicolon, in order to make the Local channel driver compatible with the comma
   delimiter change in applications.
 
+Configuration:
+
+* pbx_dundi.c: tos parameter changed to use new values. Old values like lowdelay,
+  lowcost and other is not acceptable now. Look into qos.tex for description of 
+  this parameter.
+
 Manager:
+
+* The CallerID fields across Manager events have now been made more
+  consistent. CallerID Number will be sent as CallerIDNum and CallerID
+  Name will be sent as CallerIDName wherever used.
 
 * The IAXpeers command output has been changed to more closely resemble the
   output of the SIPpeers command.
