@@ -416,7 +416,7 @@ static enum ast_rtp_get_result jingle_get_rtp_peer(struct ast_channel *chan, str
 	ast_mutex_lock(&p->lock);
 	if (p->rtp) {
 		*rtp = p->rtp;
-		res = AST_RTP_TRY_NATIVE;
+		res = AST_RTP_TRY_PARTIAL;
 	}
 	ast_mutex_unlock(&p->lock);
 
@@ -1071,31 +1071,38 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 
 	traversenodes = pak->query;
 	while(traversenodes) {
-		if(!strcasecmp(iks_name(traversenodes), "session")) {
+		if(!strcasecmp(iks_name(traversenodes), "jingle")) {
 			traversenodes = iks_child(traversenodes);
 			continue;
 		}
+		if(!strcasecmp(iks_name(traversenodes), "content")) {
+			traversenodes = iks_child(traversenodes);
+			continue;
+		}
+		if(!strcasecmp(iks_name(traversenodes), "transport")) {
+			traversenodes = iks_child(traversenodes);
+			continue;
+		}
+
 		if(!strcasecmp(iks_name(traversenodes), "candidate")) {
 			newcandidate = ast_calloc(1, sizeof(*newcandidate));
 			if (!newcandidate)
 				return 0;
-			ast_copy_string(newcandidate->ip, iks_find_attrib(traversenodes, "address"),
-							sizeof(newcandidate->ip));
+			ast_copy_string(newcandidate->ip, iks_find_attrib(traversenodes, "ip"), sizeof(newcandidate->ip));
 			newcandidate->port = atoi(iks_find_attrib(traversenodes, "port"));
-			ast_copy_string(newcandidate->password, iks_find_attrib(traversenodes, "password"),
-							sizeof(newcandidate->password));
+			ast_copy_string(newcandidate->password, iks_find_attrib(traversenodes, "pwd"), sizeof(newcandidate->password));
 			if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "udp"))
 				newcandidate->protocol = AJI_PROTOCOL_UDP;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "ssltcp"))
+			else if (!strcasecmp(iks_find_attrib(traversenodes, "protocol"), "ssltcp"))
 				newcandidate->protocol = AJI_PROTOCOL_SSLTCP;
-		
+			
 			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "host"))
 				newcandidate->type = AJI_CONNECT_HOST;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "prflx"))
+			else if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "prflx"))
 				newcandidate->type = AJI_CONNECT_PRFLX;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "relay"))
+			else if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "relay"))
 				newcandidate->type = AJI_CONNECT_RELAY;
-			if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "srflx"))
+			else if (!strcasecmp(iks_find_attrib(traversenodes, "type"), "srflx"))
 				newcandidate->type = AJI_CONNECT_SRFLX;
 
 			newcandidate->network = atoi(iks_find_attrib(traversenodes, "network"));
