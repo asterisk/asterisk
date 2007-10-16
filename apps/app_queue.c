@@ -124,6 +124,7 @@ static struct strategy {
 #define	RES_EXISTS	(-1)		/* Entry already exists */
 #define	RES_OUTOFMEMORY	(-2)		/* Out of memory */
 #define	RES_NOSUCHQUEUE	(-3)		/* No such queue */
+#define RES_NOT_DYNAMIC (-4)		/* Member is not dynamic */
 
 static char *app = "Queue";
 
@@ -2962,13 +2963,21 @@ static int remove_from_queue(const char *queuename, const char *interface)
 			continue;
 		}
 
-		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER | OBJ_UNLINK))) {
+		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
+			/* XXX future changes should beware of this assumption!! */
+			if(!mem->dynamic) {
+				res = RES_NOT_DYNAMIC;
+				ao2_ref(mem, -1);
+				ast_mutex_unlock(&q->lock);
+				break;
+			}
 			q->membercount--;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
 				"Queue: %s\r\n"
 				"Location: %s\r\n"
 				"MemberName: %s\r\n",
 				q->name, mem->interface, mem->membername);
+			ao2_unlink(q->members, mem);
 			ao2_ref(mem, -1);
 
 			if (queue_persistent_members)
@@ -3343,6 +3352,11 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	case RES_NOSUCHQUEUE:
 		ast_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", args.queuename);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOSUCHQUEUE");
+		res = 0;
+		break;
+	case RES_NOT_DYNAMIC:
+		ast_log(LOG_WARNING, "Unable to remove interface from queue '%s': '%s' is not a dynamic member\n", args.queuename, args.interface);
+		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTDYNAMIC");
 		res = 0;
 		break;
 	}
@@ -4411,6 +4425,9 @@ static int manager_remove_queue_member(struct mansession *s, const struct messag
 	case RES_OUTOFMEMORY:
 		astman_send_error(s, m, "Out of memory");
 		break;
+	case RES_NOT_DYNAMIC:
+		astman_send_error(s, m, "Member not dynamic");
+		break;
 	}
 
 	return 0;
@@ -4550,6 +4567,9 @@ static int handle_queue_remove_member(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	case RES_OUTOFMEMORY:
 		ast_cli(fd, "Out of memory\n");
+		return RESULT_FAILURE;
+	case RES_NOT_DYNAMIC:
+		ast_cli(fd, "Member not dynamic\n");
 		return RESULT_FAILURE;
 	default:
 		return RESULT_FAILURE;
