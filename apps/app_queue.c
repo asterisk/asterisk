@@ -3214,10 +3214,9 @@ static int remove_from_queue(const char *queuename, const char *interface)
 		if ((mem = ao2_find(q->members, &tmpmem, OBJ_POINTER))) {
 			/* XXX future changes should beware of this assumption!! */
 			if(!mem->dynamic) {
-				res = RES_NOT_DYNAMIC;
 				ao2_ref(mem, -1);
-				ast_mutex_unlock(&q->lock);
-				break;
+				ao2_unlock(q);
+				return RES_NOT_DYNAMIC;
 			}
 			q->membercount--;
 			manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
@@ -4844,8 +4843,8 @@ static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct as
 		ast_cli(a->fd, "Out of memory\n");
 		return CLI_FAILURE;
 	case RES_NOT_DYNAMIC:
-		ast_cli(fd, "Member not dynamic\n");
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "Member not dynamic\n");
+		return CLI_FAILURE;
 	default:
 		return CLI_FAILURE;
 	}
