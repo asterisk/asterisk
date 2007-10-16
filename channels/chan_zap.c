@@ -4106,22 +4106,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_ALARM:
 #ifdef HAVE_PRI
-			if (!p->pri || !p->pri->pri || (pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0)) {
-				/* T309 is not enabled : hangup calls when alarm occurs */
-				if (p->call) {
-					if (p->pri && p->pri->pri) {
-						if (!pri_grab(p, p->pri)) {
-							pri_hangup(p->pri->pri, p->call, -1);
-							pri_destroycall(p->pri->pri, p->call);
-							p->call = NULL;
-							pri_rel(p->pri);
+			if (p->sig == SIG_PRI) {
+				if (!p->pri || !p->pri->pri || (pri_get_timer(p->pri->pri, PRI_TIMER_T309) < 0)) {
+					/* T309 is not enabled : hangup calls when alarm occurs */
+					if (p->call) {
+						if (p->pri && p->pri->pri) {
+							if (!pri_grab(p, p->pri)) {
+								pri_hangup(p->pri->pri, p->call, -1);
+								pri_destroycall(p->pri->pri, p->call);
+								p->call = NULL;
+								pri_rel(p->pri);
+							} else
+								ast_log(LOG_WARNING, "Failed to grab PRI!\n");
 						} else
-							ast_log(LOG_WARNING, "Failed to grab PRI!\n");
-					} else
-						ast_log(LOG_WARNING, "The PRI Call has not been destroyed\n");
+							ast_log(LOG_WARNING, "The PRI Call has not been destroyed\n");
+					}
+					if (p->owner)
+						p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 				}
-				if (p->owner)
-					p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			}
 			if (p->bearer)
 				p->bearer->inalarm = 1;
@@ -4140,6 +4142,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			} else {
 				break;
 			}
+#endif
+#ifdef HAVE_SS7
+			if (p->sig == SIG_SS7)
+				break;
 #endif
 		case ZT_EVENT_ONHOOK:
 			if (p->radio) {
