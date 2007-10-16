@@ -108,7 +108,6 @@ static char authuser[32];
 static char authpassword[42];
 
 static int expungeonhangup = 1;
-AST_MUTEX_DEFINE_STATIC(delimiter_lock);
 static char delimiter = '\0';
 
 struct vm_state;
@@ -8549,9 +8548,7 @@ void mm_notify(MAILSTREAM * stream, char *string, long errflg)
 void mm_list(MAILSTREAM * stream, int delim, char *mailbox, long attributes)
 {
 	if (delimiter == '\0') {
-		ast_mutex_lock(&delimiter_lock);
 		delimiter = delim;
-		ast_mutex_unlock(&delimiter_lock);
 	}
 	if (option_debug > 4) {
 		ast_log(LOG_DEBUG, "Delimiter set to %c and mailbox %s\n",delim, mailbox);
