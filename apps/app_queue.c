@@ -423,6 +423,15 @@ static void rr_dep_warning(void)
 	}
 }
 
+static void monjoin_dep_warning(void)
+{
+	static unsigned int warned = 0;
+	if (!warned) {
+		ast_log(LOG_NOTICE, "The 'monitor-join' queue option is deprecated. Please use monitor-type=mixmonitor instead.\n");
+		warned = 1;
+	}
+}
+
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
 	int i;
@@ -901,6 +910,7 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "setinterfacevar")) {
 		q->setinterfacevar = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-join")) {
+		monjoin_dep_warning();
 		q->monjoin = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-format")) {
 		ast_copy_string(q->monfmt, val, sizeof(q->monfmt));
