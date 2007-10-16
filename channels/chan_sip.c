@@ -7815,7 +7815,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int tim
 
 	memset(from, 0, sizeof(from));
 	memset(to, 0, sizeof(to));
-	memset(tmp, 0, sizeof(tmp));
 
 	switch (state) {
 	case (AST_EXTENSION_RINGING | AST_EXTENSION_INUSE):
