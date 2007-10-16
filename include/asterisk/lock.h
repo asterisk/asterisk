@@ -284,8 +284,8 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	t->file[0] = filename;
 	t->lineno[0] = lineno;
 	t->func[0] = func;
-	t->reentrancy=0;
-	t->thread[0]  = 0;
+	t->reentrancy = 0;
+	t->thread[0] = 0;
 	reentrancy_unlock_cs(t);
 	delete_reentrancy_cs(t);
 
