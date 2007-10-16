@@ -204,13 +204,6 @@ monitor-type = MixMonitor
 ;
 ; monitor-type = MixMonitor
 ;
-; ----------------------- TYPE MONITOR OPTIONS --------------------------------
-;
-; If you wish to have the two files joined together when the call ends, set this
-; to yes.
-;
-; monitor-join = yes
-;
 ; ----------------------- TYPE MIXMONITOR OPTIONS -----------------------------
 ;
 ;
