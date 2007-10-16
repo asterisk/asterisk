@@ -191,6 +191,11 @@ Applications:
   provides more 'true' round-robin call delivery. For the Asterisk 1.6 release,
   'rrmemory' will be renamed 'roundrobin'.
 
+* The app_queue application option called 'monitor-join' has been deprecated
+  for this release. Users are encouraged to use 'monitor-type=mixmonitor' instead,
+  since it provides the same functionality but is not dependent on soxmix or some
+  other external program in order to mix the audio.
+
 * app_meetme: The 'm' option (monitor) is renamed to 'l' (listen only), and
   the 'm' option now provides the functionality of "initially muted". 
   In practice, most existing dialplans using the 'm' flag should not notice
