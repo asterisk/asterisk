@@ -127,8 +127,14 @@ static int read_exec(struct ast_channel *chan, void *data)
 		tosec = atof(arglist.timeout);
 		if (tosec <= 0)
 			to = 0;
-		else
+		else {
 			to = tosec * 1000.0;
+			if (to <= 0) {
+				/* Make sure we don't use the default timeout. */
+				ast_log(LOG_WARNING, "Read timeout less than 1 ms, assuming 1 ms timeout\n");
+				to = 1;
+			}
+		}
 	}
 
 	if (ast_strlen_zero(arglist.filename)) {
