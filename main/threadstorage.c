@@ -160,6 +160,7 @@ static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int 
 		unsigned int count;
 		AST_LIST_ENTRY(file) entry;
 	} *file;
+	AST_LIST_HEAD_NOLOCK_STATIC(file_summary, file);
 
 	switch (cmd) {
 	case CLI_INIT:
@@ -175,8 +176,6 @@ static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int 
 
 	if (a->argc > 4)
 		return CLI_SHOWUSAGE;
-
-	AST_LIST_HEAD_NOLOCK_STATIC(file_summary, file);
 
 	if (a->argc > 3)
 		fn = a->argv[3];
