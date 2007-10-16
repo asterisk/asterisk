@@ -55,6 +55,9 @@ static int acf_vmcount_exec(struct ast_channel *chan, const char *cmd, char *arg
 
 	buf[0] = '\0';
 
+	if (ast_strlen_zero(argsstr))
+		return -1;
+
 	AST_STANDARD_APP_ARGS(args, argsstr);
 
 	if (strchr(args.vmbox, '@')) {
