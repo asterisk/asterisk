@@ -161,6 +161,9 @@ static int acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *argsstr, 
 		AST_APP_ARG(folder);
 	);
 
+	if (ast_strlen_zero(argsstr))
+		return -1;
+
 	u = ast_module_user_add(chan);
 
 	buf[0] = '\0';
