@@ -360,7 +360,6 @@ struct call_queue {
 	char moh[80];                       /*!< Music On Hold class to be used */
 	char announce[80];                  /*!< Announcement to play when call is answered */
 	char context[AST_MAX_CONTEXT];      /*!< Exit context */
-	unsigned int monjoin:1;
 	unsigned int dead:1;
 	unsigned int joinempty:2;
 	unsigned int eventwhencalled:2;
@@ -968,8 +967,6 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 		q->setqueuevar = ast_true(val);
 	} else if (!strcasecmp(param, "setqueueentryvar")) {
 		q->setqueueentryvar = ast_true(val);
-	} else if (!strcasecmp(param, "monitor-join")) {
-		q->monjoin = ast_true(val);
 	} else if (!strcasecmp(param, "monitor-format")) {
 		ast_copy_string(q->monfmt, val, sizeof(q->monfmt));
 	} else if (!strcasecmp(param, "membermacro")) {
@@ -2879,8 +2876,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					snprintf(tmpid, sizeof(tmpid), "chan-%lx", ast_random());
 					ast_monitor_start(which, qe->parent->monfmt, tmpid, 1, X_REC_IN | X_REC_OUT);
 				}
-				if (qe->parent->monjoin)
-					ast_monitor_setjoinfiles(which, 1);
 			} else {
 				ast_debug(1, "Starting MixMonitor as requested.\n");
 				monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
