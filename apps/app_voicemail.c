@@ -2545,7 +2545,7 @@ static int imap_store_file(char *dir, char *mailboxuser, char *mailboxcontext, i
 	((char *)buf)[len] = '\0';
 	INIT(&str, mail_string, buf, len);
 	init_mailstream(vms, NEW_FOLDER);
-	imap_mailbox_name(mailbox, vms, NEW_FOLDER, 1);
+	imap_mailbox_name(mailbox, sizeof(mailbox), vms, NEW_FOLDER, 1);
 	if(!mail_append(vms->mailstream, mailbox, &str))
 		ast_log(LOG_ERROR, "Error while sending the message to %s\n", mailbox);
 	fclose(p);
