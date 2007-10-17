@@ -13,6 +13,25 @@
 			; the audio from the speaker. Minimum value is 2,
 			; maximum value is 32.
 ;
+; Conferences may be scheduled from realtime?
+;schedule=yes
+;
+; Update realtime when members login/out of the conference
+;logmembercount=no
+;
+; How much earlier than the start time should we allow participants to
+; join the conference (in seconds)?
+;fuzzystart=300
+;
+; If the participants join too early, how much time should we allow
+; to tell them that they've joined too early, rather than telling them
+; the conference simply doesn't exist (in seconds)?
+;earlyalert=3600
+;
+; How many seconds before the scheduled end of the conference should
+; the participants be warned?
+;endalert=120
+;
 [rooms]
 ;
 ; Usage is conf => confno[,pin][,adminpin]	

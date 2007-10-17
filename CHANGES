@@ -179,6 +179,11 @@ MeetMe Changes
      This is a very useful feature in combination with the 'X' option to ChanSpy.
   * Added 'C' option to Meetme which causes a caller to continue in the dialplan
      when kicked out.
+  * Added new RealTime functionality to provide support for scheduled conferencing.
+     This includes optional messages to the caller if they attempt to join before
+     the schedule start time, or to allow the caller to join the conference early.
+     Also included is optional support for limiting the number of callers per
+     RealTime conference.
 
 Music On Hold Changes
 ---------------------
