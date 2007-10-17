@@ -1817,8 +1817,8 @@ t_pmr_chan	*createPmrChannel(t_pmr_chan *tChan, i16 numSamples)
 
 	#if XPMR_DEBUG0 == 1
 	{
-		TRACEX((" configure tracing\n"));
 	    t_tdet     	*ptdet;
+		TRACEX((" configure tracing\n"));
 		
 		pChan->rxCtcss->pDebug0=calloc(numSamples,2);
 		pChan->rxCtcss->pDebug1=calloc(numSamples,2);
@@ -1846,6 +1846,7 @@ t_pmr_chan	*createPmrChannel(t_pmr_chan *tChan, i16 numSamples)
 i16 destroyPmrChannel(t_pmr_chan *pChan)
 {
 	t_pmr_sps  	*pmr_sps, *tmp_sps;
+	i16 i;
 
 	TRACEX(("destroyPmrChannel()\n"));
 
@@ -1888,7 +1889,6 @@ i16 destroyPmrChannel(t_pmr_chan *pChan)
 	free(pChan->ptxDebug2);
 	free(pChan->ptxDebug3);
 
-	i16 i;
 	for(i=0;i<CTCSS_NUM_CODES;i++)
 	{
 		free(pChan->rxCtcss->tdet[i].pDebug0);

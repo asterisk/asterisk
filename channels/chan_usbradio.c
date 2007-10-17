@@ -2446,6 +2446,7 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 	struct ast_variable *v;
 	struct chan_usbradio_pvt *o;
 	struct ast_config *cfg1;
+	struct ast_flags config_flags = { 0 };
 
 	if (ctg == NULL) {
 		traceusb1((" store_config() ctg == NULL\n"));
@@ -2510,7 +2511,7 @@ static struct chan_usbradio_pvt *store_config(struct ast_config *cfg, char *ctg)
 			);
 	}
 	
-	cfg1 = ast_config_load(config1);
+	cfg1 = ast_config_load(config1, config_flags);
 	if (!cfg1)
 	{
 		o->rxmixerset = 500;
@@ -2733,12 +2734,13 @@ static int load_module(void)
 {
 	struct ast_config *cfg = NULL;
 	char *ctg = NULL;
+	struct ast_flags config_flags = { 0 };
 
 	/* Copy the default jb config over global_jbconf */
 	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	/* load config file */
-	if (!(cfg = ast_config_load(config))) {
+	if (!(cfg = ast_config_load(config, config_flags))) {
 		ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
 		return AST_MODULE_LOAD_DECLINE;
 	}
