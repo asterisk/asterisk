@@ -167,21 +167,6 @@ void ast_unregister_file_version(const char *file)
 {
 }
 
-void ast_cli(int fd, const char *fmt, ...);
-void ast_cli(int fd, const char *fmt, ...)
-{
-}
-
-struct ast_cli_entry {
-	char * const cmda; /* just something to satisfy compile & link; will never be used */
-};
-
-int ast_cli_register_multiple(struct ast_cli_entry *e, int len);
-int ast_cli_register_multiple(struct ast_cli_entry *e, int len)
-{
- return 0;
-}
-
 char *find_var(const char *varname) /* the list should be pretty short, if there's any list at all */
 {
 	struct varz *t;
