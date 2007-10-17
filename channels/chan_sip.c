@@ -10453,14 +10453,16 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 
 	if (strcmp(content_type, "text/plain")) { /* No text/plain attachment */
 		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		if (!p->owner)
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	}
 
 	if (get_msg_text(buf, sizeof(buf), req)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
 		transmit_response(p, "202 Accepted", req);
-		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+		if (!p->owner)
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 		return;
 	}
 
@@ -10478,6 +10480,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	} else { /* Message outside of a call, we do not support that */
 		ast_log(LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req,"To"), get_header(req,"From"), content_type, buf);
 		transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
+		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
 	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	return;
