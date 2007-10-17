@@ -10482,7 +10482,6 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	}
-	sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	return;
 }
 
