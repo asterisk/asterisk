@@ -359,7 +359,7 @@ struct call_queue {
 	unsigned int wrapped:1;
 	unsigned int timeoutrestart:1;
 	unsigned int announceholdtime:2;
-	unsigned int strategy:3;
+	int strategy:4;
 	unsigned int maskmemberstatus:1;
 	unsigned int realtime:1;
 	unsigned int found:1;
