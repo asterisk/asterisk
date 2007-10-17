@@ -76,6 +76,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /*! each buffer is 20ms, so this is 640ms total */
 #define DEFAULT_AUDIO_BUFFERS  32
 
+/*! String format for scheduled conferences */
+#define DATE_FORMAT "%Y-%m-%d %H:%M:%S"
+
 enum {
 	ADMINFLAG_MUTED =     (1 << 1), /*!< User is muted */
 	ADMINFLAG_SELFMUTED = (1 << 2), /*!< User muted self */
@@ -210,6 +213,15 @@ static const char *synopsis4 = "MeetMe conference Administration (channel specif
 static const char *slastation_synopsis = "Shared Line Appearance Station";
 static const char *slatrunk_synopsis = "Shared Line Appearance Trunk";
 
+/* Lookup RealTime conferences based on confno and current time */
+static int rt_schedule;
+static int fuzzystart;
+static int earlyalert;
+static int endalert;
+
+/* Log participant count to the RealTime backend */
+static int rt_log_members;
+
 static const char *descrip =
 "  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe\n"
 "conference.  If the conference number is omitted, the user will be prompted\n"
@@ -337,6 +349,8 @@ struct ast_conference {
 	int zapconf;                            /*!< Zaptel Conf # */
 	int users;                              /*!< Number of active users */
 	int markedusers;                        /*!< Number of marked users */
+	int maxusers;				/*!< Participant limit if scheduled */
+	int endalert;				/*!< When to play conf ending message */
 	time_t start;                           /*!< Start time (s) */
 	int refcount;                           /*!< reference count of usage */
 	enum recording_state recording:2;       /*!< recording status */
@@ -350,6 +364,7 @@ struct ast_conference {
 	char pin[MAX_PIN];                      /*!< If protected by a PIN */
 	char pinadmin[MAX_PIN];                 /*!< If protected by a admin PIN */
 	char uniqueid[32];
+	char endtime[19];			/*!< When to end the conf if scheduled */
 	struct ast_frame *transframe[32];
 	struct ast_frame *origframe;
 	struct ast_trans_pvt *transpath[32];
@@ -828,6 +843,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 
 	/* Fill the conference struct */
 	cnf->start = time(NULL);
+	cnf->maxusers = 0x7fffffff;
 	cnf->isdynamic = dynamic ? 1 : 0;
 	ast_verb(3, "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 	AST_LIST_INSERT_HEAD(&confs, cnf, list);
@@ -1433,7 +1449,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int duration=20;
 	int hr, min, sec;
 	int sent_event = 0;
-	time_t now;
+	int checked = 0;
+	int announcement_played = 0;
+	struct timeval now;
 	struct ast_dsp *dsp=NULL;
 	struct ast_app *app;
 	const char *agifile;
@@ -1521,6 +1539,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	else
 		user->user_no = AST_LIST_LAST(&conf->userlist)->user_no + 1;
 
+	if (rt_schedule && conf->maxusers)
+		if (user->user_no > conf->maxusers){
+			/* Sorry, but this confernce has reached the participant limit! */	
+			if (!ast_streamfile(chan, "conf-full", chan->language))
+				ast_waitstream(chan, "");
+			goto outrun;
+		}
+
 	AST_LIST_INSERT_TAIL(&conf->userlist, user, list);
 
 	user->chan = chan;
@@ -1528,10 +1554,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	user->adminflags = (confflags & CONFFLAG_STARTMUTED) ? ADMINFLAG_SELFMUTED : 0;
 	user->talking = -1;
 	conf->users++;
-	/* Update table */
-	snprintf(members, sizeof(members), "%d", conf->users);
-	ast_update_realtime("meetme", "confno", conf->confno, "members", members , NULL);
-
+	if (rt_log_members) {
+		/* Update table */
+		snprintf(members, sizeof(members), "%d", conf->users);
+		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
+	}
 	/* This device changed state now - if this is the first user */
 	if (conf->users == 1)
 		ast_devstate_changed(AST_DEVICE_INUSE, "meetme:%s", conf->confno);
@@ -1775,8 +1802,44 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
 			res = -1;
 		}
-		for(;;) {
+		for (;;) {
 			int menu_was_active = 0;
+
+			if (rt_schedule) {
+				char currenttime[32];
+				struct ast_tm tm;
+
+				now = ast_tvnow();
+				if (now.tv_sec % 60 == 0) {
+					if (!checked) {
+						ast_localtime(&now, &tm, NULL);
+						ast_strftime(currenttime, sizeof(currenttime), DATE_FORMAT, &tm);
+						if (strcmp(currenttime, conf->endtime) > 0){
+							ast_verbose("Quitting time...\n");
+							goto outrun;
+						}
+
+						if (!announcement_played && conf->endalert) {
+							now.tv_sec += conf->endalert; 
+							ast_localtime(&now, &tm, NULL);
+							ast_strftime(currenttime, sizeof(currenttime), DATE_FORMAT, &tm);
+							if (strcmp(currenttime, conf->endtime) > 0){
+								if (!ast_streamfile(chan, "conf-will-end-in", chan->language))
+									ast_waitstream(chan, "");
+								ast_say_digits(chan, conf->endalert / 60, "", chan->language);
+								if (!ast_streamfile(chan, "minutes", chan->language))
+									ast_waitstream(chan, "");
+								announcement_played = 1;
+
+							}
+						}
+						checked = 1;
+						
+					}
+				} else {
+					checked = 0;
+				}
+			}
 
 			outfd = -1;
 			ms = -1;
@@ -2315,10 +2378,10 @@ bailoutandtrynormal:
 		ast_dsp_free(dsp);
 	
 	if (user->user_no) { /* Only cleanup users who really joined! */
-		now = time(NULL);
-		hr = (now - user->jointime) / 3600;
-		min = ((now - user->jointime) % 3600) / 60;
-		sec = (now - user->jointime) % 60;
+		now = ast_tvnow();
+		hr = (now.tv_sec - user->jointime) / 3600;
+		min = ((now.tv_sec - user->jointime) % 3600) / 60;
+		sec = (now.tv_sec - user->jointime) % 60;
 
 		if (sent_event) {
 			manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
@@ -2333,13 +2396,15 @@ bailoutandtrynormal:
 				      user->user_no,
 				      S_OR(user->chan->cid.cid_num, "<unknown>"),
 				      S_OR(user->chan->cid.cid_name, "<unknown>"),
-				      (long)(now - user->jointime));
+				      (long)(now.tv_sec - user->jointime));
 		}
 
 		conf->users--;
-		/* Update table */
-		snprintf(members, sizeof(members), "%d", conf->users);
-		ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
+		if (rt_log_members){
+			/* Update table */
+			snprintf(members, sizeof(members), "%d", conf->users);
+			ast_update_realtime("meetme", "confno", conf->confno, "members", members, NULL);
+		}
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
 		/* Remove ourselves from the list */
@@ -2360,10 +2425,13 @@ bailoutandtrynormal:
 }
 
 static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char *confno, int make, int dynamic,
-						 char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags)
+				char *dynamic_pin, size_t pin_buf_len, int refcount, struct ast_flags *confflags,
+				char *optargs[], int *too_early)
 {
 	struct ast_variable *var;
 	struct ast_conference *cnf;
+
+	*too_early = 0;
 
 	/* Check first in the conference list */
 	AST_LIST_LOCK(&confs);
@@ -2378,8 +2446,40 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 
 	if (!cnf) {
 		char *pin = NULL, *pinadmin = NULL; /* For temp use */
-		
-		var = ast_load_realtime("meetme", "confno", confno, NULL);
+		int maxusers = 0;
+		struct timeval now;
+		char currenttime[19] = "";
+		char startTime[19] = "";
+		char endtime[19] = "";
+		char eatime[19] = "";
+		char userOpts[32] = "";
+		char adminOpts[32] = "";
+		struct ast_tm tm, etm;
+
+		if (rt_schedule){
+			now = ast_tvnow();
+
+			if (fuzzystart)
+				now.tv_sec += fuzzystart;
+
+			ast_localtime(&now, &tm, NULL);
+			ast_strftime(currenttime, sizeof(currenttime), DATE_FORMAT, &tm);
+
+			if (earlyalert){
+				now.tv_sec += earlyalert;
+				ast_localtime(&now, &etm, NULL);
+				ast_strftime(eatime, sizeof(eatime), DATE_FORMAT, &etm);
+			} else {
+				ast_copy_string(eatime, currenttime, sizeof(eatime));
+			}
+
+			ast_debug(1, "Looking for conference %s that starts after %s\n", confno, eatime);
+
+			var = ast_load_realtime("meetme", "confno",
+				confno, "startTime<= ", eatime, "endtime>= ",
+				currenttime, NULL);
+		} else
+			 var = ast_load_realtime("meetme", "confno", confno, NULL);
 
 		if (!var)
 			return NULL;
@@ -2389,12 +2489,39 @@ static struct ast_conference *find_conf_realtime(struct ast_channel *chan, char 
 				pin = ast_strdupa(var->value);
 			} else if (!strcasecmp(var->name, "adminpin")) {
 				pinadmin = ast_strdupa(var->value);
+			} else if (!strcasecmp(var->name, "opts")) {
+				ast_copy_string(userOpts, var->value, sizeof(userOpts));
+			} else if (!strcasecmp(var->name, "maxusers")) {
+				maxusers = atoi(var->value);
+			} else if (!strcasecmp(var->name, "adminopts")) {
+				ast_copy_string(adminOpts, var->value, sizeof(adminOpts));
+			} else if (!strcasecmp(var->name, "endtime")) {
+				ast_copy_string(endtime, var->value, sizeof(endtime));
+			} else if (!strcasecmp(var->name, "starttime")) {
+				ast_copy_string(startTime, var->value, sizeof(startTime));
 			}
+
 			var = var->next;
 		}
 		ast_variables_destroy(var);
-		
+
+		if (earlyalert) {
+			if (strcmp(startTime, currenttime) > 0) {
+				/* Announce that the caller is early and exit */
+				if (!ast_streamfile(chan, "conf-has-not-started", chan->language))
+					 ast_waitstream(chan, "");
+				*too_early = 1;
+				return NULL;
+			}
+		}
+
 		cnf = build_conf(confno, pin ? pin : "", pinadmin ? pinadmin : "", make, dynamic, refcount, chan);
+
+		if (cnf) {
+			cnf->maxusers = maxusers;
+			cnf->endalert = endalert;
+			ast_copy_string(cnf->endtime, endtime, sizeof(cnf->endtime));
+		}
 	}
 
 	if (cnf) {
@@ -2472,7 +2599,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					return NULL;
 				
 				AST_STANDARD_APP_ARGS(args, parse);
-				ast_debug(3,"Will conf %s match %s?\n", confno, args.confno);
+				ast_debug(3, "Will conf %s match %s?\n", confno, args.confno);
 				if (!strcasecmp(args.confno, confno)) {
 					/* Bingo it's a valid conference */
 					cnf = build_conf(args.confno,
@@ -2713,17 +2840,21 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			cnf = find_conf(chan, confno, 1, dynamic, the_pin, 
 				sizeof(the_pin), 1, &confflags);
 			if (!cnf) {
+				int too_early = 0;
 				cnf = find_conf_realtime(chan, confno, 1, dynamic, 
-					the_pin, sizeof(the_pin), 1, &confflags);
+					the_pin, sizeof(the_pin), 1, &confflags, optargs, &too_early);
+				if (rt_schedule && too_early)
+					allowretry = 0;
 			}
 
 			if (!cnf) {
-				res = ast_streamfile(chan, "conf-invalid", chan->language);
-				if (!res)
-					ast_waitstream(chan, "");
-				res = -1;
-				if (allowretry)
+				if (allowretry) {
 					confno[0] = '\0';
+					res = ast_streamfile(chan, "conf-invalid", chan->language);
+					if (!res)
+						ast_waitstream(chan, "");
+					res = -1;
+				}
 			} else {
 				if ((!ast_strlen_zero(cnf->pin) &&
 				     !ast_test_flag(&confflags, CONFFLAG_ADMIN)) ||
@@ -3267,10 +3398,19 @@ static void load_config_meetme(void)
 	struct ast_flags config_flags = { 0 };
 	const char *val;
 
-	audio_buffers = DEFAULT_AUDIO_BUFFERS;
-
 	if (!(cfg = ast_config_load(CONFIG_FILE_NAME, config_flags)))
 		return;
+
+	audio_buffers = DEFAULT_AUDIO_BUFFERS;
+
+	/*  Scheduling support is off by default */
+	rt_schedule = 0;
+	fuzzystart = 0;
+	earlyalert = 0;
+	endalert = 0;
+
+	/*  Logging of participants defaults to ON for compatibility reasons */
+	rt_log_members = 1;  
 
 	if ((val = ast_variable_retrieve(cfg, "general", "audiobuffers"))) {
 		if ((sscanf(val, "%d", &audio_buffers) != 1)) {
@@ -3283,6 +3423,29 @@ static void load_config_meetme(void)
 		}
 		if (audio_buffers != DEFAULT_AUDIO_BUFFERS)
 			ast_log(LOG_NOTICE, "Audio buffers per channel set to %d\n", audio_buffers);
+	}
+
+	if ((val = ast_variable_retrieve(cfg, "general", "schedule")))
+		rt_schedule = ast_true(val);
+	if ((val = ast_variable_retrieve(cfg, "general", "logmembercount")))
+		rt_log_members = ast_true(val);
+	if ((val = ast_variable_retrieve(cfg, "general", "fuzzystart"))) {
+		if ((sscanf(val, "%d", &fuzzystart) != 1)) {
+			ast_log(LOG_WARNING, "fuzzystart must be a number, not '%s'\n", val);
+			fuzzystart = 0;
+		} 
+	}
+	if ((val = ast_variable_retrieve(cfg, "general", "earlyalert"))) {
+		if ((sscanf(val, "%d", &earlyalert) != 1)) {
+			ast_log(LOG_WARNING, "earlyalert must be a number, not '%s'\n", val);
+			earlyalert = 0;
+		} 
+	}
+	if ((val = ast_variable_retrieve(cfg, "general", "endalert"))) {
+		if ((sscanf(val, "%d", &endalert) != 1)) {
+			ast_log(LOG_WARNING, "endalert must be a number, not '%s'\n", val);
+			endalert = 0;
+		} 
 	}
 
 	ast_config_destroy(cfg);
