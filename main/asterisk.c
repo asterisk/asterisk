@@ -2617,7 +2617,7 @@ int main(int argc, char *argv[])
 	FILE *f;
 	sigset_t sigs;
 	int num;
-	int is_child_of_nonroot = 0;
+	int isroot = 1;
 	char *buf;
 	char *runuser = NULL, *rungroup = NULL;
 
@@ -2629,6 +2629,9 @@ int main(int argc, char *argv[])
 	for (x=0; x<argc; x++)
 		_argv[x] = argv[x];
 	_argv[x] = NULL;
+
+	if (geteuid() != 0)
+		isroot = 0;
 
 	/* if the progname is rasterisk consider it a remote console */
 	if (argv[0] && (strstr(argv[0], "rasterisk")) != NULL) {
@@ -2643,11 +2646,7 @@ int main(int argc, char *argv[])
 	ast_builtins_init();
 	ast_utils_init();
 	tdd_init();
-	/* When Asterisk restarts after it has dropped the root privileges,
-	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
-	 */
-	if (getenv("ASTERISK_ALREADY_NONROOT"))
-		is_child_of_nonroot=1;
+
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check for options */
@@ -2792,10 +2791,10 @@ int main(int argc, char *argv[])
 
 #ifndef __CYGWIN__
 
-	if (!is_child_of_nonroot) 
+	if (isroot) 
 		ast_set_priority(ast_opt_high_priority);
 
-	if (!is_child_of_nonroot && rungroup) {
+	if (isroot && rungroup) {
 		struct group *gr;
 		gr = getgrnam(rungroup);
 		if (!gr) {
@@ -2814,7 +2813,7 @@ int main(int argc, char *argv[])
 			ast_verbose("Running as group '%s'\n", rungroup);
 	}
 
-	if (!is_child_of_nonroot && runuser) {
+	if (runuser && !ast_test_flag(&ast_options, AST_OPT_FLAG_REMOTE)) {
 #ifdef HAVE_CAP
 		int has_cap = 1;
 #endif /* HAVE_CAP */
@@ -2830,6 +2829,10 @@ int main(int argc, char *argv[])
 			has_cap = 0;
 		}
 #endif /* HAVE_CAP */
+		if (!isroot && pw->pw_uid != geteuid()) {
+			ast_log(LOG_ERROR, "Asterisk started as nonroot, but runuser '%s' requested.\n", runuser);
+			exit(1);
+		}
 		if (!rungroup) {
 			if (setgid(pw->pw_gid)) {
 				ast_log(LOG_WARNING, "Unable to setgid to %d!\n", (int)pw->pw_gid);
@@ -2844,7 +2847,6 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", (int)pw->pw_uid, runuser);
 			exit(1);
 		}
-		setenv("ASTERISK_ALREADY_NONROOT", "yes", 1);
 		if (option_verbose)
 			ast_verbose("Running as user '%s'\n", runuser);
 #ifdef HAVE_CAP
