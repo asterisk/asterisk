@@ -14429,13 +14429,19 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 
 	res = get_destination(p, req);
 	build_contact(p);
+
 	/* XXX Should we authenticate OPTIONS? XXX */
+
 	if (ast_strlen_zero(p->context))
 		ast_string_field_set(p, context, default_context);
-	if (res < 0)
+
+	if (ast_shutting_down())
+		transmit_response_with_allow(p, "503 Unavailable", req, 0);
+	else if (res < 0)
 		transmit_response_with_allow(p, "404 Not Found", req, 0);
 	else 
 		transmit_response_with_allow(p, "200 OK", req, 0);
+
 	/* Destroy if this OPTIONS was the opening request, but not if
 	   it's in the middle of a normal call flow. */
 	if (!p->lastinvite)
