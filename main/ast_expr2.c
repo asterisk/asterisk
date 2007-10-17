@@ -145,200 +145,122 @@
 #include <stdio.h>
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
 #define FP___PRINTF "%.18Lg"
 #define FP___TYPE    long double
 
 #ifdef HAVE_COSL
 #define FUNC_COS   cosl
-#else
-#ifdef HAVE_COS
+#elif defined(HAVE_COS)
 #define FUNC_COS	(long double)cos
-#else
-#undef FUNC_COS
-#endif
 #endif
 
 #ifdef HAVE_SINL
 #define FUNC_SIN   sinl
-#else
-#ifdef HAVE_SIN
+#elif defined(HAVE_SIN)
 #define FUNC_SIN	(long double)sin
-#else
-#undef FUNC_SIN
-#endif
 #endif
 
 #ifdef HAVE_TANL
 #define FUNC_TAN   tanl
-#else
-#ifdef HAVE_TAN
+#elif defined(HAVE_TAN)
 #define FUNC_TAN	(long double)tan
-#else
-#undef FUNC_TAN
-#endif
 #endif
 
 #ifdef HAVE_ACOSL
 #define FUNC_ACOS   acosl
-#else
-#ifdef HAVE_ACOS
+#elif defined(HAVE_ACOS)
 #define FUNC_ACOS	(long double)acos
-#else
-#undef FUNC_ACOS
-#endif
 #endif
 
 #ifdef HAVE_ASINL
 #define FUNC_ASIN   asinl
-#else
-#ifdef HAVE_ASIN
+#elif defined(HAVE_ASIN)
 #define FUNC_ASIN	(long double)asin
-#else
-#undef FUNC_ASIN
-#endif
 #endif
 
 #ifdef HAVE_ATANL
 #define FUNC_ATAN   atanl
-#else
-#ifdef HAVE_ATAN
+#elif defined(HAVE_ATAN)
 #define FUNC_ATAN	(long double)atan
-#else
-#undef FUNC_ATAN
-#endif
 #endif
 
 #ifdef HAVE_ATAN2L
 #define FUNC_ATAN2   atan2l
-#else
-#ifdef HAVE_ATAN2
+#elif defined(HAVE_ATAN2)
 #define FUNC_ATAN2	(long double)atan2
-#else
-#undef FUNC_ATAN2
-#endif
 #endif
 
 #ifdef HAVE_POWL
 #define FUNC_POW   powl
-#else
-#ifdef HAVE_POW
+#elif defined(HAVE_POW)
 #define FUNC_POW	(long double)pow
-#else
-#undef FUNC_POW
-#endif
 #endif
 
 #ifdef HAVE_SQRTL
 #define FUNC_SQRT   sqrtl
-#else
-#ifdef HAVE_SQRT
+#elif defined(HAVE_SQRT)
 #define FUNC_SQRT	(long double)sqrt
-#else
-#undef FUNC_SQRT
-#endif
 #endif
 
 #ifdef HAVE_RINTL
 #define FUNC_RINT   rintl
-#else
-#ifdef HAVE_RINT
+#elif defined(HAVE_RINT)
 #define FUNC_RINT	(long double)rint
-#else
-#undef FUNC_RINT
-#endif
 #endif
 
 #ifdef HAVE_EXPL
 #define FUNC_EXP   expl
-#else
-#ifdef HAVE_EXP
+#elif defined(HAVE_EXP)
 #define FUNC_EXP	(long double)exp
-#else
-#undef FUNC_EXP
-#endif
 #endif
 
 #ifdef HAVE_LOGL
 #define FUNC_LOG   logl
-#else
-#ifdef HAVE_LOG
+#elif defined(HAVE_LOG)
 #define FUNC_LOG	(long double)log
-#else
-#undef FUNC_LOG
-#endif
 #endif
 
 #ifdef HAVE_REMINDERL
 #define FUNC_REMINDER   reminderl
-#else
-#ifdef HAVE_REMINDER
+#elif defined(HAVE_REMINDER)
 #define FUNC_REMINDER	(long double)reminder
-#else
-#undef FUNC_REMINDER
-#endif
 #endif
 
 #ifdef HAVE_FMODL
 #define FUNC_FMOD   fmodl
-#else
-#ifdef HAVE_FMOD
+#elif defined(HAVE_FMOD)
 #define FUNC_FMOD	(long double)fmod
-#else
-#undef FUNC_FMOD
-#endif
 #endif
 
 #ifdef HAVE_STRTOLD
 #define FUNC_STRTOD  strtold
-#else
-#ifdef HAVE_STRTOD
+#elif defined(HAVE_STRTOD)
 #define FUNC_STRTOD  (long double)strtod
-#else
-#undef FUNC_STRTOD
-#endif
 #endif
 
 #ifdef HAVE_FLOORL
 #define FUNC_FLOOR      floorl
-#else
-#ifdef HAVE_FLOOR
+#elif defined(HAVE_FLOOR)
 #define FUNC_FLOOR	(long double)floor
-#else
-#undef FUNC_FLOOR
-#endif /* defined(HAVE_FLOOR) */
-#endif /* defined(HAVE_FLOORL) */
+#endif
 
 #ifdef HAVE_CEILL
 #define FUNC_CEIL      ceill
-#else
-#ifdef HAVE_CEIL
+#elif defined(HAVE_CEIL)
 #define FUNC_CEIL	(long double)ceil
-#else
-#undef FUNC_CEIL
-#endif /* defined(HAVE_CEIL) */
-#endif /* defined(HAVE_CEILL) */
+#endif
 
 #ifdef HAVE_ROUNDL
 #define FUNC_ROUND     roundl
-#else /* HAVE_ROUNDL */
-#ifdef HAVE_ROUND
+#elif defined(HAVE_ROUND)
 #define FUNC_ROUND     (long double)round
-#else /* HAVE_ROUND */
-#undef FUNC_ROUND
-#endif /* HAVE_ROUND */
-#endif /* HAVE_ROUNDL */
+#endif
 
 #ifdef HAVE_TRUNCL
 #define FUNC_TRUNC     truncl
-#else /* HAVE_TRUNCL */
-#ifdef HAVE_TRUNC
+#elif defined(HAVE_TRUNC)
 #define FUNC_TRUNC     (long double)trunc
-#else /* HAVE_TRUNC */
-#undef FUNC_TRUNC
-#endif /* HAVE_TRUNC */
-#endif /* HAVE_TRUNCL */
+#endif
 
 /*! \note
  * Oddly enough, some platforms have some ISO C99 functions, but not others, so
@@ -346,51 +268,43 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  */
 #ifdef HAVE_EXP2L
 #define FUNC_EXP2       exp2l
-#else
-#if (defined(HAVE_EXPL) && defined(HAVE_LOGL))
+#elif (defined(HAVE_EXPL) && defined(HAVE_LOGL))
 #define	FUNC_EXP2(x)	expl((x) * logl(2.0))
-#else
-#if (defined(HAVE_EXP) && defined(HAVE_LOG))
+#elif (defined(HAVE_EXP) && defined(HAVE_LOG))
 #define	FUNC_EXP2(x)	(long double)exp((x) * log(2.0))
-#endif /* defined(HAVE_EXP) && defined(HAVE_LOG) */
-#endif /* defined(HAVE_EXPL) && defined(HAVE_LOGL) */
-#endif /* defined(HAVE_EXP2L) */
+#endif
 
 #ifdef HAVE_EXP10L
 #define FUNC_EXP10       exp10l
-#else
-#if (defined(HAVE_EXPL) && defined(HAVE_LOGL))
+#elif (defined(HAVE_EXPL) && defined(HAVE_LOGL))
 #define	FUNC_EXP10(x)	expl((x) * logl(10.0))
-#else
-#if (defined(HAVE_EXP) && defined(HAVE_LOG))
+#elif (defined(HAVE_EXP) && defined(HAVE_LOG))
 #define	FUNC_EXP10(x)	(long double)exp((x) * log(10.0))
-#endif /* defined(HAVE_EXP) && defined(HAVE_LOG) */
-#endif /* defined(HAVE_EXPL) && defined(HAVE_LOGL) */
-#endif /* defined(HAVE_EXP10L) */
+#endif
 
 #ifdef HAVE_LOG2L
 #define FUNC_LOG2       log2l
-#else
-#ifdef HAVE_LOGL
+#elif defined(HAVE_LOGL)
 #define	FUNC_LOG2(x)	(logl(x) / logl(2.0))
-#else
-#ifdef HAVE_LOG
+#elif defined(HAVE_LOG10L)
+#define	FUNC_LOG2(x)	(log10l(x) / log10l(2.0))
+#elif defined(HAVE_LOG2)
+#define FUNC_LOG2       (long double)log2
+#elif defined(HAVE_LOG)
 #define	FUNC_LOG2(x)	((long double)log(x) / log(2.0))
-#endif /* defined(HAVE_LOG) */
-#endif /* defined(HAVE_LOGL) */
-#endif /* defined(HAVE_LOG2L) */
+#endif
 
 #ifdef HAVE_LOG10L
 #define FUNC_LOG10       log10l
-#else
-#ifdef HAVE_LOGL
+#elif defined(HAVE_LOGL)
 #define	FUNC_LOG10(x)	(logl(x) / logl(10.0))
-#else
-#ifdef HAVE_LOG
+#elif defined(HAVE_LOG2L)
+#define	FUNC_LOG10(x)	(log2l(x) / log2l(10.0))
+#elif defined(HAVE_LOG10)
+#define	FUNC_LOG10(x)	(long double)log10(x)
+#elif defined(HAVE_LOG)
 #define	FUNC_LOG10(x)	((long double)log(x) / log(10.0))
-#endif /* defined(HAVE_LOG) */
-#endif /* defined(HAVE_LOGL) */
-#endif /* defined(HAVE_LOG10L) */
+#endif
 
 
 #include <stdlib.h>
@@ -555,13 +469,13 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 414 "../main/ast_expr2.y"
+#line 330 "../main/ast_expr2.y"
 {
 	struct val *val;
 	struct expr_node *arglist;
 }
 /* Line 187 of yacc.c.  */
-#line 563 "../main/ast_expr2.c"
+#line 479 "../main/ast_expr2.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -583,13 +497,13 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 419 "../main/ast_expr2.y"
+#line 335 "../main/ast_expr2.y"
 
 extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
 /* Line 216 of yacc.c.  */
-#line 591 "../main/ast_expr2.c"
+#line 507 "../main/ast_expr2.c"
 
 #ifdef short
 # undef short
@@ -885,9 +799,9 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   445,   445,   453,   460,   461,   470,   476,   477,   481,
-     485,   489,   493,   497,   501,   505,   509,   513,   517,   521,
-     525,   529,   533,   537,   541,   545,   549
+       0,   361,   361,   369,   376,   377,   386,   392,   393,   397,
+     401,   405,   409,   413,   417,   421,   425,   429,   433,   437,
+     441,   445,   449,   453,   457,   461,   465
 };
 #endif
 
@@ -1540,114 +1454,114 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
   switch (yytype)
     {
       case 4: /* "TOK_COLONCOLON" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1544 "../main/ast_expr2.c"
+#line 1460 "../main/ast_expr2.c"
 	break;
       case 5: /* "TOK_COND" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1549 "../main/ast_expr2.c"
+#line 1465 "../main/ast_expr2.c"
 	break;
       case 6: /* "TOK_OR" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1554 "../main/ast_expr2.c"
+#line 1470 "../main/ast_expr2.c"
 	break;
       case 7: /* "TOK_AND" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1559 "../main/ast_expr2.c"
+#line 1475 "../main/ast_expr2.c"
 	break;
       case 8: /* "TOK_NE" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1564 "../main/ast_expr2.c"
+#line 1480 "../main/ast_expr2.c"
 	break;
       case 9: /* "TOK_LE" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1569 "../main/ast_expr2.c"
+#line 1485 "../main/ast_expr2.c"
 	break;
       case 10: /* "TOK_GE" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1574 "../main/ast_expr2.c"
+#line 1490 "../main/ast_expr2.c"
 	break;
       case 11: /* "TOK_LT" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1579 "../main/ast_expr2.c"
+#line 1495 "../main/ast_expr2.c"
 	break;
       case 12: /* "TOK_GT" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1584 "../main/ast_expr2.c"
+#line 1500 "../main/ast_expr2.c"
 	break;
       case 13: /* "TOK_EQ" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1589 "../main/ast_expr2.c"
+#line 1505 "../main/ast_expr2.c"
 	break;
       case 14: /* "TOK_MINUS" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1594 "../main/ast_expr2.c"
+#line 1510 "../main/ast_expr2.c"
 	break;
       case 15: /* "TOK_PLUS" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1599 "../main/ast_expr2.c"
+#line 1515 "../main/ast_expr2.c"
 	break;
       case 16: /* "TOK_MOD" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1604 "../main/ast_expr2.c"
+#line 1520 "../main/ast_expr2.c"
 	break;
       case 17: /* "TOK_DIV" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1609 "../main/ast_expr2.c"
+#line 1525 "../main/ast_expr2.c"
 	break;
       case 18: /* "TOK_MULT" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1614 "../main/ast_expr2.c"
+#line 1530 "../main/ast_expr2.c"
 	break;
       case 19: /* "TOK_COMPL" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1619 "../main/ast_expr2.c"
+#line 1535 "../main/ast_expr2.c"
 	break;
       case 20: /* "TOK_EQTILDE" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1624 "../main/ast_expr2.c"
+#line 1540 "../main/ast_expr2.c"
 	break;
       case 21: /* "TOK_COLON" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1629 "../main/ast_expr2.c"
+#line 1545 "../main/ast_expr2.c"
 	break;
       case 22: /* "TOK_LP" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1634 "../main/ast_expr2.c"
+#line 1550 "../main/ast_expr2.c"
 	break;
       case 23: /* "TOK_RP" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1639 "../main/ast_expr2.c"
+#line 1555 "../main/ast_expr2.c"
 	break;
       case 24: /* "TOKEN" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1644 "../main/ast_expr2.c"
+#line 1560 "../main/ast_expr2.c"
 	break;
       case 28: /* "expr" */
-#line 439 "../main/ast_expr2.y"
+#line 355 "../main/ast_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1649 "../main/ast_expr2.c"
+#line 1565 "../main/ast_expr2.c"
 	break;
 
       default:
@@ -1970,7 +1884,7 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 445 "../main/ast_expr2.y"
+#line 361 "../main/ast_expr2.y"
     { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = (yyvsp[(1) - (1)].val)->type;
               if( (yyvsp[(1) - (1)].val)->type == AST_EXPR_number )
@@ -1982,7 +1896,7 @@ yyreduce:
     break;
 
   case 3:
-#line 453 "../main/ast_expr2.y"
+#line 369 "../main/ast_expr2.y"
     {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = AST_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
@@ -1990,12 +1904,12 @@ yyreduce:
     break;
 
   case 4:
-#line 460 "../main/ast_expr2.y"
+#line 376 "../main/ast_expr2.y"
     { (yyval.arglist) = alloc_expr_node(AST_EXPR_NODE_VAL); (yyval.arglist)->val = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 5:
-#line 461 "../main/ast_expr2.y"
+#line 377 "../main/ast_expr2.y"
     {struct expr_node *x = alloc_expr_node(AST_EXPR_NODE_VAL);
                                  struct expr_node *t;
 								 DESTROY((yyvsp[(2) - (3)].val));
@@ -2005,7 +1919,7 @@ yyreduce:
     break;
 
   case 6:
-#line 470 "../main/ast_expr2.y"
+#line 386 "../main/ast_expr2.y"
     { (yyval.val) = op_func((yyvsp[(1) - (4)].val),(yyvsp[(3) - (4)].arglist), ((struct parse_io *)parseio)->chan);
 		                            DESTROY((yyvsp[(2) - (4)].val));
 									DESTROY((yyvsp[(4) - (4)].val));
@@ -2015,12 +1929,12 @@ yyreduce:
     break;
 
   case 7:
-#line 476 "../main/ast_expr2.y"
+#line 392 "../main/ast_expr2.y"
     {(yyval.val) = (yyvsp[(1) - (1)].val);;}
     break;
 
   case 8:
-#line 477 "../main/ast_expr2.y"
+#line 393 "../main/ast_expr2.y"
     { (yyval.val) = (yyvsp[(2) - (3)].val);
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;
@@ -2028,7 +1942,7 @@ yyreduce:
     break;
 
   case 9:
-#line 481 "../main/ast_expr2.y"
+#line 397 "../main/ast_expr2.y"
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2036,7 +1950,7 @@ yyreduce:
     break;
 
   case 10:
-#line 485 "../main/ast_expr2.y"
+#line 401 "../main/ast_expr2.y"
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2044,7 +1958,7 @@ yyreduce:
     break;
 
   case 11:
-#line 489 "../main/ast_expr2.y"
+#line 405 "../main/ast_expr2.y"
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2052,7 +1966,7 @@ yyreduce:
     break;
 
   case 12:
-#line 493 "../main/ast_expr2.y"
+#line 409 "../main/ast_expr2.y"
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
@@ -2060,7 +1974,7 @@ yyreduce:
     break;
 
   case 13:
-#line 497 "../main/ast_expr2.y"
+#line 413 "../main/ast_expr2.y"
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2068,7 +1982,7 @@ yyreduce:
     break;
 
   case 14:
-#line 501 "../main/ast_expr2.y"
+#line 417 "../main/ast_expr2.y"
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2076,7 +1990,7 @@ yyreduce:
     break;
 
   case 15:
-#line 505 "../main/ast_expr2.y"
+#line 421 "../main/ast_expr2.y"
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2084,7 +1998,7 @@ yyreduce:
     break;
 
   case 16:
-#line 509 "../main/ast_expr2.y"
+#line 425 "../main/ast_expr2.y"
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2092,7 +2006,7 @@ yyreduce:
     break;
 
   case 17:
-#line 513 "../main/ast_expr2.y"
+#line 429 "../main/ast_expr2.y"
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2100,7 +2014,7 @@ yyreduce:
     break;
 
   case 18:
-#line 517 "../main/ast_expr2.y"
+#line 433 "../main/ast_expr2.y"
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2108,7 +2022,7 @@ yyreduce:
     break;
 
   case 19:
-#line 521 "../main/ast_expr2.y"
+#line 437 "../main/ast_expr2.y"
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
@@ -2116,7 +2030,7 @@ yyreduce:
     break;
 
   case 20:
-#line 525 "../main/ast_expr2.y"
+#line 441 "../main/ast_expr2.y"
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
@@ -2124,7 +2038,7 @@ yyreduce:
     break;
 
   case 21:
-#line 529 "../main/ast_expr2.y"
+#line 445 "../main/ast_expr2.y"
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2132,7 +2046,7 @@ yyreduce:
     break;
 
   case 22:
-#line 533 "../main/ast_expr2.y"
+#line 449 "../main/ast_expr2.y"
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2140,7 +2054,7 @@ yyreduce:
     break;
 
   case 23:
-#line 537 "../main/ast_expr2.y"
+#line 453 "../main/ast_expr2.y"
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2148,7 +2062,7 @@ yyreduce:
     break;
 
   case 24:
-#line 541 "../main/ast_expr2.y"
+#line 457 "../main/ast_expr2.y"
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2156,7 +2070,7 @@ yyreduce:
     break;
 
   case 25:
-#line 545 "../main/ast_expr2.y"
+#line 461 "../main/ast_expr2.y"
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
@@ -2164,7 +2078,7 @@ yyreduce:
     break;
 
   case 26:
-#line 549 "../main/ast_expr2.y"
+#line 465 "../main/ast_expr2.y"
     { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)); 
 						DESTROY((yyvsp[(2) - (5)].val));	
 						DESTROY((yyvsp[(4) - (5)].val));	
@@ -2174,7 +2088,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 2176 "../main/ast_expr2.c"
+#line 2092 "../main/ast_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2394,7 +2308,7 @@ yyreturn:
 }
 
 
-#line 556 "../main/ast_expr2.y"
+#line 472 "../main/ast_expr2.y"
 
 
 static struct expr_node *alloc_expr_node(enum node_type nt)

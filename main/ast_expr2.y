@@ -21,193 +21,117 @@
 
 #ifdef HAVE_COSL
 #define FUNC_COS   cosl
-#else
-#ifdef HAVE_COS
+#elif defined(HAVE_COS)
 #define FUNC_COS	(long double)cos
-#else
-#undef FUNC_COS
-#endif
 #endif
 
 #ifdef HAVE_SINL
 #define FUNC_SIN   sinl
-#else
-#ifdef HAVE_SIN
+#elif defined(HAVE_SIN)
 #define FUNC_SIN	(long double)sin
-#else
-#undef FUNC_SIN
-#endif
 #endif
 
 #ifdef HAVE_TANL
 #define FUNC_TAN   tanl
-#else
-#ifdef HAVE_TAN
+#elif defined(HAVE_TAN)
 #define FUNC_TAN	(long double)tan
-#else
-#undef FUNC_TAN
-#endif
 #endif
 
 #ifdef HAVE_ACOSL
 #define FUNC_ACOS   acosl
-#else
-#ifdef HAVE_ACOS
+#elif defined(HAVE_ACOS)
 #define FUNC_ACOS	(long double)acos
-#else
-#undef FUNC_ACOS
-#endif
 #endif
 
 #ifdef HAVE_ASINL
 #define FUNC_ASIN   asinl
-#else
-#ifdef HAVE_ASIN
+#elif defined(HAVE_ASIN)
 #define FUNC_ASIN	(long double)asin
-#else
-#undef FUNC_ASIN
-#endif
 #endif
 
 #ifdef HAVE_ATANL
 #define FUNC_ATAN   atanl
-#else
-#ifdef HAVE_ATAN
+#elif defined(HAVE_ATAN)
 #define FUNC_ATAN	(long double)atan
-#else
-#undef FUNC_ATAN
-#endif
 #endif
 
 #ifdef HAVE_ATAN2L
 #define FUNC_ATAN2   atan2l
-#else
-#ifdef HAVE_ATAN2
+#elif defined(HAVE_ATAN2)
 #define FUNC_ATAN2	(long double)atan2
-#else
-#undef FUNC_ATAN2
-#endif
 #endif
 
 #ifdef HAVE_POWL
 #define FUNC_POW   powl
-#else
-#ifdef HAVE_POW
+#elif defined(HAVE_POW)
 #define FUNC_POW	(long double)pow
-#else
-#undef FUNC_POW
-#endif
 #endif
 
 #ifdef HAVE_SQRTL
 #define FUNC_SQRT   sqrtl
-#else
-#ifdef HAVE_SQRT
+#elif defined(HAVE_SQRT)
 #define FUNC_SQRT	(long double)sqrt
-#else
-#undef FUNC_SQRT
-#endif
 #endif
 
 #ifdef HAVE_RINTL
 #define FUNC_RINT   rintl
-#else
-#ifdef HAVE_RINT
+#elif defined(HAVE_RINT)
 #define FUNC_RINT	(long double)rint
-#else
-#undef FUNC_RINT
-#endif
 #endif
 
 #ifdef HAVE_EXPL
 #define FUNC_EXP   expl
-#else
-#ifdef HAVE_EXP
+#elif defined(HAVE_EXP)
 #define FUNC_EXP	(long double)exp
-#else
-#undef FUNC_EXP
-#endif
 #endif
 
 #ifdef HAVE_LOGL
 #define FUNC_LOG   logl
-#else
-#ifdef HAVE_LOG
+#elif defined(HAVE_LOG)
 #define FUNC_LOG	(long double)log
-#else
-#undef FUNC_LOG
-#endif
 #endif
 
 #ifdef HAVE_REMINDERL
 #define FUNC_REMINDER   reminderl
-#else
-#ifdef HAVE_REMINDER
+#elif defined(HAVE_REMINDER)
 #define FUNC_REMINDER	(long double)reminder
-#else
-#undef FUNC_REMINDER
-#endif
 #endif
 
 #ifdef HAVE_FMODL
 #define FUNC_FMOD   fmodl
-#else
-#ifdef HAVE_FMOD
+#elif defined(HAVE_FMOD)
 #define FUNC_FMOD	(long double)fmod
-#else
-#undef FUNC_FMOD
-#endif
 #endif
 
 #ifdef HAVE_STRTOLD
 #define FUNC_STRTOD  strtold
-#else
-#ifdef HAVE_STRTOD
+#elif defined(HAVE_STRTOD)
 #define FUNC_STRTOD  (long double)strtod
-#else
-#undef FUNC_STRTOD
-#endif
 #endif
 
 #ifdef HAVE_FLOORL
 #define FUNC_FLOOR      floorl
-#else
-#ifdef HAVE_FLOOR
+#elif defined(HAVE_FLOOR)
 #define FUNC_FLOOR	(long double)floor
-#else
-#undef FUNC_FLOOR
-#endif /* defined(HAVE_FLOOR) */
-#endif /* defined(HAVE_FLOORL) */
+#endif
 
 #ifdef HAVE_CEILL
 #define FUNC_CEIL      ceill
-#else
-#ifdef HAVE_CEIL
+#elif defined(HAVE_CEIL)
 #define FUNC_CEIL	(long double)ceil
-#else
-#undef FUNC_CEIL
-#endif /* defined(HAVE_CEIL) */
-#endif /* defined(HAVE_CEILL) */
+#endif
 
 #ifdef HAVE_ROUNDL
 #define FUNC_ROUND     roundl
-#else /* HAVE_ROUNDL */
-#ifdef HAVE_ROUND
+#elif defined(HAVE_ROUND)
 #define FUNC_ROUND     (long double)round
-#else /* HAVE_ROUND */
-#undef FUNC_ROUND
-#endif /* HAVE_ROUND */
-#endif /* HAVE_ROUNDL */
+#endif
 
 #ifdef HAVE_TRUNCL
 #define FUNC_TRUNC     truncl
-#else /* HAVE_TRUNCL */
-#ifdef HAVE_TRUNC
+#elif defined(HAVE_TRUNC)
 #define FUNC_TRUNC     (long double)trunc
-#else /* HAVE_TRUNC */
-#undef FUNC_TRUNC
-#endif /* HAVE_TRUNC */
-#endif /* HAVE_TRUNCL */
+#endif
 
 /*! \note
  * Oddly enough, some platforms have some ISO C99 functions, but not others, so
@@ -215,51 +139,43 @@
  */
 #ifdef HAVE_EXP2L
 #define FUNC_EXP2       exp2l
-#else
-#if (defined(HAVE_EXPL) && defined(HAVE_LOGL))
+#elif (defined(HAVE_EXPL) && defined(HAVE_LOGL))
 #define	FUNC_EXP2(x)	expl((x) * logl(2.0))
-#else
-#if (defined(HAVE_EXP) && defined(HAVE_LOG))
+#elif (defined(HAVE_EXP) && defined(HAVE_LOG))
 #define	FUNC_EXP2(x)	(long double)exp((x) * log(2.0))
-#endif /* defined(HAVE_EXP) && defined(HAVE_LOG) */
-#endif /* defined(HAVE_EXPL) && defined(HAVE_LOGL) */
-#endif /* defined(HAVE_EXP2L) */
+#endif
 
 #ifdef HAVE_EXP10L
 #define FUNC_EXP10       exp10l
-#else
-#if (defined(HAVE_EXPL) && defined(HAVE_LOGL))
+#elif (defined(HAVE_EXPL) && defined(HAVE_LOGL))
 #define	FUNC_EXP10(x)	expl((x) * logl(10.0))
-#else
-#if (defined(HAVE_EXP) && defined(HAVE_LOG))
+#elif (defined(HAVE_EXP) && defined(HAVE_LOG))
 #define	FUNC_EXP10(x)	(long double)exp((x) * log(10.0))
-#endif /* defined(HAVE_EXP) && defined(HAVE_LOG) */
-#endif /* defined(HAVE_EXPL) && defined(HAVE_LOGL) */
-#endif /* defined(HAVE_EXP10L) */
+#endif
 
 #ifdef HAVE_LOG2L
 #define FUNC_LOG2       log2l
-#else
-#ifdef HAVE_LOGL
+#elif defined(HAVE_LOGL)
 #define	FUNC_LOG2(x)	(logl(x) / logl(2.0))
-#else
-#ifdef HAVE_LOG
+#elif defined(HAVE_LOG10L)
+#define	FUNC_LOG2(x)	(log10l(x) / log10l(2.0))
+#elif defined(HAVE_LOG2)
+#define FUNC_LOG2       (long double)log2
+#elif defined(HAVE_LOG)
 #define	FUNC_LOG2(x)	((long double)log(x) / log(2.0))
-#endif /* defined(HAVE_LOG) */
-#endif /* defined(HAVE_LOGL) */
-#endif /* defined(HAVE_LOG2L) */
+#endif
 
 #ifdef HAVE_LOG10L
 #define FUNC_LOG10       log10l
-#else
-#ifdef HAVE_LOGL
+#elif defined(HAVE_LOGL)
 #define	FUNC_LOG10(x)	(logl(x) / logl(10.0))
-#else
-#ifdef HAVE_LOG
+#elif defined(HAVE_LOG2L)
+#define	FUNC_LOG10(x)	(log2l(x) / log2l(10.0))
+#elif defined(HAVE_LOG10)
+#define	FUNC_LOG10(x)	(long double)log10(x)
+#elif defined(HAVE_LOG)
 #define	FUNC_LOG10(x)	((long double)log(x) / log(10.0))
-#endif /* defined(HAVE_LOG) */
-#endif /* defined(HAVE_LOGL) */
-#endif /* defined(HAVE_LOG10L) */
+#endif
 
 
 #include <stdlib.h>
