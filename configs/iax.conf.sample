@@ -152,16 +152,7 @@ forcejitterbuffer=no
 ; minregexpire = 60
 ; maxregexpire = 60
 ;
-; With a large amount of traffic on IAX2 trunks, there is a risk of bad voice quality due to
-; the fact that the IAX2 trunking scheme depends on the Linux system to handle fragmentation of
-; UDP packets. This may not be very efficient. 
-; This setting sets the maximum transmission unit for IAX2 UDP trunking.
-; default is 1240 bytes. Zero disables this functionality and let's the O/S handle fragmentation.
-;
-; trunkmtu = 0
-;
 ; IAX helper threads
-
 ; Establishes the number of iax helper threads to handle I/O.
 ; iaxthreadcount = 10
 ; Establishes the number of extra dynamic threads that may be spawned to handle I/O
