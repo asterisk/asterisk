@@ -218,6 +218,11 @@ static struct ast_frame *zap_frameout(struct ast_trans_pvt *pvt)
 static void zap_destroy(struct ast_trans_pvt *pvt)
 {
 	struct pvt *ztp = pvt->pvt;
+	unsigned int x;
+
+	x = ZT_TCOP_RELEASE;
+	if (ioctl(ztp->fd, ZT_TRANSCODE_OP, &x))
+		ast_log(LOG_WARNING, "Failed to release transcoder channel: %s\n", strerror(errno));
 
 	ast_atomic_fetchadd_int(&channels.total, -1);
 	switch (ztp->hdr->dstfmt) {
