@@ -1621,7 +1621,7 @@ posout:
 	res = play_file(qe->chan, qe->parent->sound_thanks);
 
 playout:
-	if (res > 0 && !valid_exit(qe, res))
+	if ((res > 0 && !valid_exit(qe, res)) || res < 0)
 		res = 0;
 
 	/* Set our last_pos indicators */
@@ -2065,7 +2065,7 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	/* play the announcement */
 	res = play_file(qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]);
 
-	if (res > 0 && !valid_exit(qe, res))
+	if ((res > 0 && !valid_exit(qe, res)) || res < 0)
 		res = 0;
 
 	/* Resume Music on Hold if the caller is going to stay in the queue */
