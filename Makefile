@@ -562,7 +562,7 @@ samples: adsi
 		echo ";internal_timing = yes" ; \
 		echo ";systemname = my_system_name ; prefix uniqueid with a system name for global uniqueness issues" ; \
 		echo ";maxcalls = 10 ; Maximum amount of calls allowed" ; \
-		echo ";minmemfree = 1 ; in MBs, Asterisk stops accepting new calls if the amount of free memory falls below this watermark" ; \
+		echo ";maxload = 0.9 ; Asterisk stops accepting new calls if the load average exceed this limit" ; \
 		echo ";cache_record_files = yes ; Cache recorded sound files to another directory during recording" ; \
 		echo ";record_cache_dir = /tmp ; Specify cache directory (used in cnjunction with cache_record_files)" ; \
 		echo ";transmit_silence_during_record = yes ; Transmit SLINEAR silence while a channel is being recorded" ; \
