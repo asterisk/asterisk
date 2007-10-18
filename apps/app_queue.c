@@ -2070,10 +2070,10 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 
 	/* Resume Music on Hold if the caller is going to stay in the queue */
 	if (!res) {
-                if (ringing)
-                        ast_indicate(qe->chan, AST_CONTROL_RINGING);
-                else
-                        ast_moh_start(qe->chan, qe->moh, NULL);
+		if (ringing)
+			ast_indicate(qe->chan, AST_CONTROL_RINGING);
+		else
+			ast_moh_start(qe->chan, qe->moh, NULL);
 	}
 
 	/* update last_periodic_announce_time */
