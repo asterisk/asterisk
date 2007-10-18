@@ -887,6 +887,23 @@ static int moh_scan_files(struct mohclass *class) {
 	return class->total_files;
 }
 
+static int moh_diff(struct mohclass *old, struct mohclass *new)
+{
+	if (!old || !new)
+		return -1;
+
+	if (strcmp(old->dir, new->dir))
+		return -1;
+	else if (strcmp(old->mode, new->mode))
+		return -1;
+	else if (strcmp(old->args, new->args))
+		return -1;
+	else if (old->flags != new->flags)
+		return -1;
+
+	return 0;
+}
+
 static int moh_register(struct mohclass *moh, int reload)
 {
 #ifdef HAVE_ZAPTEL
@@ -895,7 +912,7 @@ static int moh_register(struct mohclass *moh, int reload)
 	struct mohclass *mohclass = NULL;
 
 	AST_RWLIST_WRLOCK(&mohclasses);
-	if ((mohclass = get_mohbyname(moh->name, 0))) {
+	if ((mohclass = get_mohbyname(moh->name, 0)) && !moh_diff(mohclass, moh)) {
 		mohclass->delete = 0;
 		if (reload) {
 			ast_debug(1, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
