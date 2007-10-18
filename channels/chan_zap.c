@@ -10891,6 +10891,8 @@ static char *zap_restart_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_ar
 			"	Note that this will STOP any running CALL on zaptel channels.\n"
 			"";
 		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 	if (a->argc != 2)
 		return CLI_SHOWUSAGE;
