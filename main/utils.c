@@ -352,9 +352,6 @@ int ast_base64decode(unsigned char *dst, const char *src, int max)
 			cnt++;
 		}
 	}
-	if (cnt == max)
-		dst--;
-	*dst = '\0';
 	/* Dont worry about left over bits, they're extra anyway */
 	return cnt;
 }
