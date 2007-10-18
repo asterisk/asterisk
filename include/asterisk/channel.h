@@ -141,6 +141,7 @@ typedef unsigned long long ast_group_t;
 struct ast_generator {
 	void *(*alloc)(struct ast_channel *chan, void *params);
 	void (*release)(struct ast_channel *chan, void *data);
+	/*! This function gets called with the channel locked */
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 };
 

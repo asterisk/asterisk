@@ -2270,17 +2270,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		} else if (blah == ZT_EVENT_TIMER_EXPIRED) {
 			ioctl(chan->timingfd, ZT_TIMERACK, &blah);
 			if (chan->timingfunc) {
-				/* save a copy of func/data before unlocking the channel */
-				int (*func)(const void *) = chan->timingfunc;
-				void *data = chan->timingdata;
-				ast_channel_unlock(chan);
-				func(data);
+				chan->timingfunc(chan->timingdata);
 			} else {
 				blah = 0;
 				ioctl(chan->timingfd, ZT_TIMERCONFIG, &blah);
 				chan->timingdata = NULL;
-				ast_channel_unlock(chan);
 			}
+			ast_channel_unlock(chan);
 			/* cannot 'goto done' because the channel is already unlocked */
 			return &ast_null_frame;
 		} else
