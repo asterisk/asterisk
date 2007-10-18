@@ -577,6 +577,17 @@ samples: adsi
 		echo ";internal_timing = yes" ; \
 		echo ";systemname = my_system_name ; prefix uniqueid with a system name for global uniqueness issues" ; \
 		echo ";autosystemname = yes ; automatically set systemname to hostname - uses 'localhost' on failure, or systemname if set" ; \
+		echo ";maxcalls = 10 ; Maximum amount of calls allowed" ; \
+		echo ";maxload = 0.9 ; Asterisk stops accepting new calls if the load average exceed this limit" ; \
+		echo ";maxfiles = 1000 ; Maximum amount of openfiles" ; \
+		echo ";minmemfree = 1 ; in MBs, Asterisk stops accepting new calls if the amount of free memory falls below this watermark" ; \
+		echo ";cache_record_files = yes ; Cache recorded sound files to another directory during recording" ; \
+		echo ";record_cache_dir = /tmp ; Specify cache directory (used in cnjunction with cache_record_files)" ; \
+		echo ";transmit_silence_during_record = yes ; Transmit SLINEAR silence while a channel is being recorded" ; \
+		echo ";transcode_via_sln = yes ; Build transcode paths via SLINEAR, instead of directly" ; \
+		echo ";runuser = asterisk ; The user to run as" ; \
+		echo ";rungroup = asterisk ; The group to run as" ; \
+		echo "" ; \
 		echo "; Changing the following lines may compromise your security." ; \
 		echo ";[files]" ; \
 		echo ";astctlpermissions = 0660" ; \
