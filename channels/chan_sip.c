@@ -8875,13 +8875,18 @@ static int get_refer_info(struct sip_pvt *transferer, struct sip_request *outgoi
 	}
 	
 	if ((ptr = strchr(refer_to, '@'))) {	/* Separate domain */
-		char *urioption;
-
+		char *urioption = NULL, *domain;
 		*ptr++ = '\0';
-		if ((urioption = strchr(ptr, ';')))
+
+		if ((urioption = strchr(ptr, ';'))) /* Separate urioptions */
 			*urioption++ = '\0';
+		
+		domain = ptr;
+		if ((ptr = strchr(domain, ':')))	/* Remove :port */
+			*ptr = '\0';
+		
 		/* Save the domain for the dial plan */
-		ast_copy_string(referdata->refer_to_domain, ptr, sizeof(referdata->refer_to_domain));
+		ast_copy_string(referdata->refer_to_domain, domain, sizeof(referdata->refer_to_domain));
 		if (urioption)
 			ast_copy_string(referdata->refer_to_urioption, urioption, sizeof(referdata->refer_to_urioption));
 	}
@@ -14166,11 +14171,10 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 		p->refer->localtransfer = 1;
 		if (sipdebug && option_debug > 2)
 			ast_log(LOG_DEBUG, "This SIP transfer is local : %s\n", p->refer->refer_to_domain);
-	} else if (AST_LIST_EMPTY(&domain_list)) {
-		/* This PBX don't bother with SIP domains, so all transfers are local */
+	} else if (AST_LIST_EMPTY(&domain_list) || check_sip_domain(p->refer->refer_to_domain, NULL, 0)) {
+		/* This PBX doesn't bother with SIP domains or domain is local, so this transfer is local */
 		p->refer->localtransfer = 1;
-	} else
-		if (sipdebug && option_debug > 2)
+	} else if (sipdebug && option_debug > 2)
 			ast_log(LOG_DEBUG, "This SIP transfer is to a remote SIP extension (remote domain %s)\n", p->refer->refer_to_domain);
 	
 	/* Is this a repeat of a current request? Ignore it */
