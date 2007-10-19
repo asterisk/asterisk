@@ -518,6 +518,10 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 	if (offsetms) 
 		*offsetms = offset / 8; /* samples --> ms ... XXX Assumes 8 kHz */
 
+	/* If we are returning a digit cast it as char */
+	if (res > 0 || chan->stream)
+		res = (char)res;
+
 	ast_stopstream(chan);
 
 	return res;
