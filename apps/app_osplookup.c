@@ -520,8 +520,8 @@ static int osp_validate_token(
 	int res;
 	int tokenlen;
 	unsigned char tokenstr[OSP_TOKSTR_SIZE];
-	char src[OSP_TOKSTR_SIZE];
-	char dst[OSP_TOKSTR_SIZE];
+	char src[OSP_NORSTR_SIZE];
+	char dst[OSP_NORSTR_SIZE];
 	unsigned int authorised;
 	unsigned int dummy = 0;
 	int error;
