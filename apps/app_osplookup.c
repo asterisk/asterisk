@@ -398,6 +398,26 @@ static int osp_create_transaction(const char* provider, int* transaction, unsign
 }
 
 /*!
+ * \brief Convert address to "[x.x.x.x]" or "host.domain" format
+ * \param src Source address string
+ * \param dst Destination address string
+ * \param buffersize Size of dst buffer
+ */
+static void osp_convert_address(
+	const char* src,
+	char* dst,
+	int buffersize)
+{
+	struct in_addr inp;
+
+	if (inet_aton(src, &inp) != 0) {
+		snprintf(dst, buffersize, "[%s]", src);
+	} else {
+		snprintf(dst, buffersize, "%s", src);
+	}
+}
+
+/*!
  * \brief Validate OSP token of inbound call
  * \param transaction OSP transaction handle
  * \param source Source of inbound call
@@ -413,14 +433,18 @@ static int osp_validate_token(int transaction, const char* source, const char* d
 	int res;
 	int tokenlen;
 	unsigned char tokenstr[OSP_TOKSTR_SIZE];
+	char src[OSP_NORSTR_SIZE];
+	char dst[OSP_NORSTR_SIZE];
 	unsigned int authorised;
 	unsigned int dummy = 0;
 	int error;
 
 	tokenlen = ast_base64decode(tokenstr, token, strlen(token));
+	osp_convert_address(source, src, sizeof(src));
+	osp_convert_address(dest, dst, sizeof(dst));
 	error = OSPPTransactionValidateAuthorisation(
 		transaction, 
-		source, dest, NULL, NULL,
+		src, dst, NULL, NULL,
 		calling ? calling : "", OSPC_E164, 
 		called, OSPC_E164, 
 		0, NULL,
@@ -622,6 +646,8 @@ static int osp_lookup(const char* provider, const char* srcdev, const char* call
 	char destination[OSP_NORSTR_SIZE];
 	unsigned int tokenlen;
 	char token[OSP_TOKSTR_SIZE];
+	char src[OSP_NORSTR_SIZE];
+	char dev[OSP_NORSTR_SIZE];
 	unsigned int dummy = 0;
 	enum OSPEFAILREASON reason;
 	int error;
@@ -643,8 +669,10 @@ static int osp_lookup(const char* provider, const char* srcdev, const char* call
 		return -1;
 	}
 
+	osp_convert_address(source, src, sizeof(src));
+	osp_convert_address(srcdev, dev, sizeof(dev));
 	result->numresults = OSP_DEF_DESTINATIONS;
-	error = OSPPTransactionRequestAuthorisation(result->outhandle, source, srcdev, calling ? calling : "",
+	error = OSPPTransactionRequestAuthorisation(result->outhandle, src, dev, calling ? calling : "",
 			OSPC_E164, called, OSPC_E164, NULL, 0, NULL, NULL, &result->numresults, &dummy, NULL);
 	if (error != OSPC_ERR_NO_ERROR) {
 		ast_log(LOG_DEBUG, "OSP: Unable to request authorization\n");
