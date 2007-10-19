@@ -1606,77 +1606,134 @@ static struct ast_channel *usbradio_request(const char *type, int format, void *
 	return c;
 }
 
-static int console_key(int fd, int argc, char *argv[])
+static char *handle_cli_radio_key(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct chan_usbradio_pvt *o = find_desc(usbradio_active);
+	struct chan_usbradio_pvt *o = NULL;
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE; 
-	o->txtestkey = 1;
-	return RESULT_SUCCESS;
-}
-
-static int console_unkey(int fd, int argc, char *argv[])
-{
-	struct chan_usbradio_pvt *o = find_desc(usbradio_active);
-
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	o->txtestkey = 0;
-
-	return RESULT_SUCCESS;
-}
-
-static int radio_tune(int fd, int argc, char *argv[])
-{
-	struct chan_usbradio_pvt *o = find_desc(usbradio_active);
-	int i=0;
-
-	if ((argc < 2) || (argc > 4))
-		return RESULT_SHOWUSAGE; 
-
-	if (argc == 2) /* just show stuff */
-	{
-		ast_cli(fd,"Output A is currently set to ");
-		if(o->txmixa==TX_OUT_COMPOSITE)ast_cli(fd,"composite.\n");
-		else if (o->txmixa==TX_OUT_VOICE)ast_cli(fd,"voice.\n");
-		else if (o->txmixa==TX_OUT_LSD)ast_cli(fd,"tone.\n");
-		else if (o->txmixa==TX_OUT_AUX)ast_cli(fd,"auxvoice.\n");
-		else ast_cli(fd,"off.\n");
-
-		ast_cli(fd,"Output B is currently set to ");
-		if(o->txmixb==TX_OUT_COMPOSITE)ast_cli(fd,"composite.\n");
-		else if (o->txmixb==TX_OUT_VOICE)ast_cli(fd,"voice.\n");
-		else if (o->txmixb==TX_OUT_LSD)ast_cli(fd,"tone.\n");
-		else if (o->txmixb==TX_OUT_AUX)ast_cli(fd,"auxvoice.\n");
-		else ast_cli(fd,"off.\n");
-
-		ast_cli(fd,"Tx Voice Level currently set to %d\n",o->txmixaset);
-		ast_cli(fd,"Tx Tone Level currently set to %d\n",o->txctcssadj);
-		ast_cli(fd,"Rx Squelch currently set to %d\n",o->rxsquelchadj);
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "radio key";
+		e->usage =
+			"Usage: radio key\n"
+			"       Simulates COR active.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
 
-	if (!strcasecmp(argv[2],"rxnoise")) tune_rxinput(o);
-	else if (!strcasecmp(argv[2],"rxvoice")) tune_rxvoice(o);
-	else if (!strcasecmp(argv[2],"rxtone")) tune_rxctcss(o);
-	else if (!strcasecmp(argv[2],"rxsquelch"))
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
+	o = find_desc(usbradio_active);
+	o->txtestkey = 1;
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_radio_unkey(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct chan_usbradio_pvt *o = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "radio unkey";
+		e->usage =
+			"Usage: radio unkey\n"
+			"       Simulates COR un-active.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
+	o = find_desc(usbradio_active);
+	o->txtestkey = 0;
+
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_radio_tune(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	struct chan_usbradio_pvt *o = NULL;
+	int i = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "radio tune [rxnoise|rxvoice|rxtone|rxsquelch|rxcap|rxtracecap|"
+			"txvoice|txtone|txcap|txtracecap|auxvoice|nocap|dump|save]";
+		/* radio tune 6 3000        measured tx value */
+		e->usage =
+			"Usage: radio tune <function>\n"
+			"       rxnoise\n"
+			"       rxvoice\n"
+			"       rxtone\n"
+			"       rxsquelch [newsetting]\n"
+			"       rxcap\n"
+			"       rxtracecap\n"
+			"       txvoice [newsetting]\n"
+			"       txtone [newsetting]\n"
+			"       txcap\n"
+			"       txtracecap\n"
+			"       auxvoice [newsetting]\n"
+			"       nocap\n"
+			"       dump\n"
+			"       save (settings to tuning file)\n"
+			"\n"
+			"       All [newsetting]s are values 0-999\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if ((a->argc < 2) || (a->argc > 4))
+		return CLI_SHOWUSAGE; 
+
+	if (a->argc == 2) /* just show stuff */
 	{
-		if (argc == 3)
+		ast_cli(a->fd,"Output A is currently set to ");
+		if(o->txmixa==TX_OUT_COMPOSITE)ast_cli(a->fd,"composite.\n");
+		else if (o->txmixa==TX_OUT_VOICE)ast_cli(a->fd,"voice.\n");
+		else if (o->txmixa==TX_OUT_LSD)ast_cli(a->fd,"tone.\n");
+		else if (o->txmixa==TX_OUT_AUX)ast_cli(a->fd,"auxvoice.\n");
+		else ast_cli(a->fd,"off.\n");
+
+		ast_cli(a->fd,"Output B is currently set to ");
+		if(o->txmixb==TX_OUT_COMPOSITE)ast_cli(a->fd,"composite.\n");
+		else if (o->txmixb==TX_OUT_VOICE)ast_cli(a->fd,"voice.\n");
+		else if (o->txmixb==TX_OUT_LSD)ast_cli(a->fd,"tone.\n");
+		else if (o->txmixb==TX_OUT_AUX)ast_cli(a->fd,"auxvoice.\n");
+		else ast_cli(a->fd,"off.\n");
+
+		ast_cli(a->fd,"Tx Voice Level currently set to %d\n",o->txmixaset);
+		ast_cli(a->fd,"Tx Tone Level currently set to %d\n",o->txctcssadj);
+		ast_cli(a->fd,"Rx Squelch currently set to %d\n",o->rxsquelchadj);
+		return CLI_SHOWUSAGE;
+	}
+
+	o = find_desc(usbradio_active);
+
+	if (!strcasecmp(a->argv[2],"rxnoise")) tune_rxinput(o);
+	else if (!strcasecmp(a->argv[2],"rxvoice")) tune_rxvoice(o);
+	else if (!strcasecmp(a->argv[2],"rxtone")) tune_rxctcss(o);
+	else if (!strcasecmp(a->argv[2],"rxsquelch"))
+	{
+		if (a->argc == 3)
 		{
-		    ast_cli(fd,"Current Signal Strength is %d\n",((32767-o->pmrChan->rxRssi)*1000/32767));
-		    ast_cli(fd,"Current Squelch setting is %d\n",o->rxsquelchadj);
-			//ast_cli(fd,"Current Raw RSSI        is %d\n",o->pmrChan->rxRssi);
-		    //ast_cli(fd,"Current (real) Squelch setting is %d\n",*(o->pmrChan->prxSquelchAdjust));
+		    ast_cli(a->fd,"Current Signal Strength is %d\n",((32767-o->pmrChan->rxRssi)*1000/32767));
+		    ast_cli(a->fd,"Current Squelch setting is %d\n",o->rxsquelchadj);
+			//ast_cli(a->fd,"Current Raw RSSI        is %d\n",o->pmrChan->rxRssi);
+		    //ast_cli(a->fd,"Current (real) Squelch setting is %d\n",*(o->pmrChan->prxSquelchAdjust));
 		} else {
-			i = atoi(argv[3]);
-			if ((i < 0) || (i > 999)) return RESULT_SHOWUSAGE;
-			ast_cli(fd,"Changed Squelch setting to %d\n",i);
+			i = atoi(a->argv[3]);
+			if ((i < 0) || (i > 999)) return CLI_SHOWUSAGE;
+			ast_cli(a->fd,"Changed Squelch setting to %d\n",i);
 			o->rxsquelchadj = i;
 			*(o->pmrChan->prxSquelchAdjust)= ((999 - i) * 32767) / 1000;
 		}
 	}
-	else if (!strcasecmp(argv[2],"txvoice")) {
+	else if (!strcasecmp(a->argv[2],"txvoice")) {
 		i = 0;
 
 		if( (o->txmixa!=TX_OUT_VOICE) && (o->txmixb!=TX_OUT_VOICE) &&
@@ -1685,87 +1742,87 @@ static int radio_tune(int fd, int argc, char *argv[])
 		{
 			ast_log(LOG_ERROR,"No txvoice output configured.\n");
 		}
-		else if (argc == 3)
+		else if (a->argc == 3)
 		{
 			if((o->txmixa==TX_OUT_VOICE)||(o->txmixa==TX_OUT_COMPOSITE))
-				ast_cli(fd,"Current txvoice setting on Channel A is %d\n",o->txmixaset);
+				ast_cli(a->fd,"Current txvoice setting on Channel A is %d\n",o->txmixaset);
 			else
-				ast_cli(fd,"Current txvoice setting on Channel B is %d\n",o->txmixbset);
+				ast_cli(a->fd,"Current txvoice setting on Channel B is %d\n",o->txmixbset);
 		}
 		else
 		{
-			i = atoi(argv[3]);
-			if ((i < 0) || (i > 999)) return RESULT_SHOWUSAGE;
+			i = atoi(a->argv[3]);
+			if ((i < 0) || (i > 999)) return CLI_SHOWUSAGE;
 
 			if((o->txmixa==TX_OUT_VOICE)||(o->txmixa==TX_OUT_COMPOSITE))
 			{
 			 	o->txmixaset=i;
-				ast_cli(fd,"Changed txvoice setting on Channel A to %d\n",o->txmixaset);
+				ast_cli(a->fd,"Changed txvoice setting on Channel A to %d\n",o->txmixaset);
 			}
 			else
 			{
 			 	o->txmixbset=i;   
-				ast_cli(fd,"Changed txvoice setting on Channel B to %d\n",o->txmixbset);
+				ast_cli(a->fd,"Changed txvoice setting on Channel B to %d\n",o->txmixbset);
 			}
 			mixer_write(o);
 			mult_set(o);
-			ast_cli(fd,"Changed Tx Voice Output setting to %d\n",i);
+			ast_cli(a->fd,"Changed Tx Voice Output setting to %d\n",i);
 		}
 		tune_txoutput(o,i);
 	}
-	else if (!strcasecmp(argv[2],"auxvoice")) {
+	else if (!strcasecmp(a->argv[2],"auxvoice")) {
 		i = 0;
 		if( (o->txmixa!=TX_OUT_AUX) && (o->txmixb!=TX_OUT_AUX))
 		{
 			ast_log(LOG_WARNING,"No auxvoice output configured.\n");
 		}
-		else if (argc == 3)
+		else if (a->argc == 3)
 		{
 			if(o->txmixa==TX_OUT_AUX)
-				ast_cli(fd,"Current auxvoice setting on Channel A is %d\n",o->txmixaset);
+				ast_cli(a->fd,"Current auxvoice setting on Channel A is %d\n",o->txmixaset);
 			else
-				ast_cli(fd,"Current auxvoice setting on Channel B is %d\n",o->txmixbset);
+				ast_cli(a->fd,"Current auxvoice setting on Channel B is %d\n",o->txmixbset);
 		}
 		else
 		{
-			i = atoi(argv[3]);
-			if ((i < 0) || (i > 999)) return RESULT_SHOWUSAGE;
+			i = atoi(a->argv[3]);
+			if ((i < 0) || (i > 999)) return CLI_SHOWUSAGE;
 			if(o->txmixa==TX_OUT_AUX)
 			{
 				o->txmixbset=i;
-				ast_cli(fd,"Changed auxvoice setting on Channel A to %d\n",o->txmixaset);
+				ast_cli(a->fd,"Changed auxvoice setting on Channel A to %d\n",o->txmixaset);
 			}
 			else
 			{
 				o->txmixbset=i;
-				ast_cli(fd,"Changed auxvoice setting on Channel B to %d\n",o->txmixbset);
+				ast_cli(a->fd,"Changed auxvoice setting on Channel B to %d\n",o->txmixbset);
 			}
 			mixer_write(o);
 			mult_set(o);
 		}
 		//tune_auxoutput(o,i);
 	}
-	else if (!strcasecmp(argv[2],"txtone"))
+	else if (!strcasecmp(a->argv[2],"txtone"))
 	{
-		if (argc == 3)
-			ast_cli(fd,"Current Tx CTCSS modulation setting = %d\n",o->txctcssadj);
+		if (a->argc == 3)
+			ast_cli(a->fd,"Current Tx CTCSS modulation setting = %d\n",o->txctcssadj);
 		else
 		{
-			i = atoi(argv[3]);
-			if ((i < 0) || (i > 999)) return RESULT_SHOWUSAGE;
+			i = atoi(a->argv[3]);
+			if ((i < 0) || (i > 999)) return CLI_SHOWUSAGE;
 			o->txctcssadj = i;
 			set_txctcss_level(o);
-			ast_cli(fd,"Changed Tx CTCSS modulation setting to %i\n",i);
+			ast_cli(a->fd,"Changed Tx CTCSS modulation setting to %i\n",i);
 		}
 		o->txtestkey=1;
 		usleep(5000000);
 		o->txtestkey=0;
 	}
-	else if (!strcasecmp(argv[2],"dump")) pmrdump(o);
-	else if (!strcasecmp(argv[2],"nocap")) 
+	else if (!strcasecmp(a->argv[2],"dump")) pmrdump(o);
+	else if (!strcasecmp(a->argv[2],"nocap")) 
 	{
-		ast_cli(fd,"File capture (trace) was rx=%d tx=%d and now off.\n",o->b.rxcap2,o->b.txcap2);
-		ast_cli(fd,"File capture (raw)   was rx=%d tx=%d and now off.\n",o->b.rxcapraw,o->b.txcapraw);
+		ast_cli(a->fd,"File capture (trace) was rx=%d tx=%d and now off.\n",o->b.rxcap2,o->b.txcap2);
+		ast_cli(a->fd,"File capture (raw)   was rx=%d tx=%d and now off.\n",o->b.rxcapraw,o->b.txcapraw);
 		o->b.rxcapraw=o->b.txcapraw=o->b.rxcap2=o->b.txcap2=o->pmrChan->b.rxCapture=o->pmrChan->b.txCapture=0;
 		if (frxcapraw) { fclose(frxcapraw); frxcapraw = NULL; }
 		if (frxcaptrace) { fclose(frxcaptrace); frxcaptrace = NULL; }
@@ -1774,37 +1831,37 @@ static int radio_tune(int fd, int argc, char *argv[])
 		if (ftxcaptrace) { fclose(ftxcaptrace); ftxcaptrace = NULL; }
 		if (ftxoutraw) { fclose(ftxoutraw); ftxoutraw = NULL; }
 	}
-	else if (!strcasecmp(argv[2],"rxtracecap")) 
+	else if (!strcasecmp(a->argv[2],"rxtracecap")) 
 	{
 		if (!frxcaptrace) frxcaptrace= fopen(RX_CAP_TRACE_FILE,"w");
-		ast_cli(fd,"Trace rx on.\n");
+		ast_cli(a->fd,"Trace rx on.\n");
 		o->b.rxcap2=o->pmrChan->b.rxCapture=1;
 	}
-	else if (!strcasecmp(argv[2],"txtracecap")) 
+	else if (!strcasecmp(a->argv[2],"txtracecap")) 
 	{
 		if (!ftxcaptrace) ftxcaptrace= fopen(TX_CAP_TRACE_FILE,"w");
-		ast_cli(fd,"Trace tx on.\n");
+		ast_cli(a->fd,"Trace tx on.\n");
 		o->b.txcap2=o->pmrChan->b.txCapture=1;
 	}
-	else if (!strcasecmp(argv[2],"rxcap")) 
+	else if (!strcasecmp(a->argv[2],"rxcap")) 
 	{
 		if (!frxcapraw) frxcapraw = fopen(RX_CAP_RAW_FILE,"w");
-		ast_cli(fd,"cap rx raw on.\n");
+		ast_cli(a->fd,"cap rx raw on.\n");
 		o->b.rxcapraw=1;
 	}
-	else if (!strcasecmp(argv[2],"txcap")) 
+	else if (!strcasecmp(a->argv[2],"txcap")) 
 	{
 		if (!ftxcapraw) ftxcapraw = fopen(TX_CAP_RAW_FILE,"w");
-		ast_cli(fd,"cap tx raw on.\n");
+		ast_cli(a->fd,"cap tx raw on.\n");
 		o->b.txcapraw=1;
 	}
-	else if (!strcasecmp(argv[2],"save"))
+	else if (!strcasecmp(a->argv[2],"save"))
 	{
 		tune_write(o);
-		ast_cli(fd,"Saved radio tuning settings to usbradio_tune.conf\n");
+		ast_cli(a->fd,"Saved radio tuning settings to usbradio_tune.conf\n");
 	}
-	else return RESULT_SHOWUSAGE;
-	return RESULT_SUCCESS;
+	else return CLI_SHOWUSAGE;
+	return CLI_SUCCESS;
 }
 
 /*
@@ -1835,68 +1892,41 @@ static int set_txctcss_level(struct chan_usbradio_pvt *o)
 /*
 	CLI debugging on and off
 */
-static int radio_set_debug(int fd, int argc, char *argv[])
+static char *handle_cli_radio_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct chan_usbradio_pvt *o = find_desc(usbradio_active);
+	struct chan_usbradio_pvt *o = NULL;
 
-	o->debuglevel=1;
-	ast_cli(fd,"usbradio debug on.\n");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "radio set debug [off]";
+		e->usage =
+			"Usage: radio set debug [off]\n"
+			"       Enable/Disable radio debugging.\n";
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 4 && strncasecmp(a->argv[3], "off", 3))
+		return CLI_SHOWUSAGE;
 
-	return RESULT_SUCCESS;
+	o = find_desc(usbradio_active);
+
+	if (a->argc == 3)
+		o->debuglevel = 1;
+	else
+		o->debuglevel = 0;
+
+	ast_cli(a->fd, "USB Radio debugging %s.\n", o->debuglevel ? "enabled" : "disabled");
+
+	return CLI_SUCCESS;
 }
 
-static int radio_set_debug_off(int fd, int argc, char *argv[])
-{
-	struct chan_usbradio_pvt *o = find_desc(usbradio_active);
-
-	o->debuglevel=0;
-	ast_cli(fd,"usbradio debug off.\n");
-	return RESULT_SUCCESS;
-}
-
-static char key_usage[] =
-	"Usage: radio key\n"
-	"       Simulates COR active.\n";
-
-static char unkey_usage[] =
-	"Usage: radio unkey\n"
-	"       Simulates COR un-active.\n";
-
-/*
-radio tune 6 3000		measured tx value
-*/
-static char radio_tune_usage[] =
-	"Usage: radio tune <function>\n"
-	"       rxnoise\n"
-	"       rxvoice\n"
-	"       rxtone\n"
-	"       rxsquelch [newsetting]\n"
-	"       txvoice [newsetting]\n"
-	"       txtone [newsetting]\n"
-	"       auxvoice [newsetting]\n"
-	"       save (settings to tuning file)\n"
-	"\n       All [newsetting]'s are values 0-999\n\n";
-					  
 static struct ast_cli_entry cli_usbradio[] = {
-	{ { "radio", "key", NULL },
-	console_key, "Simulate Rx Signal Present",
-	key_usage, NULL, NULL},
-
-	{ { "radio", "unkey", NULL },
-	console_unkey, "Simulate Rx Signal Lusb",
-	unkey_usage, NULL, NULL },
-
-	{ { "radio", "tune", NULL },
-	radio_tune, "Radio Tune",
-	radio_tune_usage, NULL, NULL },
-
-	{ { "radio", "set", "debug", NULL },
-	radio_set_debug, "Radio Debug",
-	radio_tune_usage, NULL, NULL },
-
-	{ { "radio", "set", "debug", "off", NULL },
-	radio_set_debug_off, "Radio Debug",
-	radio_tune_usage, NULL, NULL },
+	NEW_CLI(handle_cli_radio_key,       "Simulate Rx Signal Present"),
+	NEW_CLI(handle_cli_radio_unkey,     "Simulate Rx Signal Lusb"),
+	NEW_CLI(handle_cli_radio_tune,      "Radio Tune"),
+	NEW_CLI(handle_cli_radio_set_debug, "Enable/Disable Radio Debugging"),
 };
 
 /*

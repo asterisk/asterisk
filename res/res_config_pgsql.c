@@ -3,21 +3,21 @@
  *
  * Copyright (C) 1999-2005, Digium, Inc.
  * 
- * Manuel Guesdon <mguesdon@oxymium.net> - Postgresql RealTime Driver Author/Adaptor
+ * Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  * Mark Spencer <markster@digium.com>  - Asterisk Author
  * Matthew Boehm <mboehm@cytelcom.com> - MySQL RealTime Driver Author
  *
- * res_config_pgsql.c <Postgresql plugin for RealTime configuration engine>
+ * res_config_pgsql.c <PostgreSQL plugin for RealTime configuration engine>
  *
  * v1.0   - (07-11-05) - Initial version based on res_config_mysql v2.0
  */
 
 /*! \file
  *
- * \brief Postgresql plugin for Asterisk RealTime Architecture
+ * \brief PostgreSQL plugin for Asterisk RealTime Architecture
  *
  * \author Mark Spencer <markster@digium.com>
- * \author Manuel Guesdon <mguesdon@oxymium.net> - Postgresql RealTime Driver Author/Adaptor
+ * \author Manuel Guesdon <mguesdon@oxymium.net> - PostgreSQL RealTime Driver Author/Adaptor
  *
  * \arg http://www.postgresql.org
  */
@@ -64,16 +64,10 @@ static time_t connect_time = 0;
 
 static int parse_config(int reload);
 static int pgsql_reconnect(const char *database);
-static int realtime_pgsql_status(int fd, int argc, char **argv);
-
-static const char cli_realtime_pgsql_status_usage[] =
-	"Usage: realtime pgsql status\n"
-	"       Shows connection information for the Postgresql RealTime driver\n";
+static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_realtime[] = {
-	{ { "realtime", "pgsql", "status", NULL },
-	realtime_pgsql_status, "Shows connection information for the Postgresql RealTime driver",
-	cli_realtime_pgsql_status_usage },
+	NEW_CLI(handle_cli_realtime_pgsql_status, "Shows connection information for the PostgreSQL RealTime driver"),
 };
 
 static struct ast_variable *realtime_pgsql(const char *database, const char *table, va_list ap)
@@ -88,7 +82,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	struct ast_variable *var = NULL, *prev = NULL;
 
 	if (!table) {
-		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return NULL;
 	}
 
@@ -97,7 +91,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+				"PostgreSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		if (pgsqlConn) {
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
@@ -131,9 +125,9 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 
 	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
 		return NULL;
 	} else {
@@ -142,16 +136,16 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 			&& result_status != PGRES_TUPLES_OK
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
 			return NULL;
 		}
 	}
 
-	ast_debug(1, "1Postgresql RealTime: Result=%p Query: %s\n", result, sql);
+	ast_debug(1, "PostgreSQL RealTime: Result=%p Query: %s\n", result, sql);
 
 	if ((num_rows = PQntuples(result)) > 0) {
 		int i = 0;
@@ -159,7 +153,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		int numFields = PQnfields(result);
 		char **fieldnames = NULL;
 
-		ast_debug(1, "Postgresql RealTime: Found %d rows.\n", num_rows);
+		ast_debug(1, "PostgreSQL RealTime: Found %d rows.\n", num_rows);
 
 		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			ast_mutex_unlock(&pgsql_lock);
@@ -189,7 +183,7 @@ static struct ast_variable *realtime_pgsql(const char *database, const char *tab
 		ast_free(fieldnames);
 	} else {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Could not find any rows in table %s.\n", table);
+				"PostgreSQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	ast_mutex_unlock(&pgsql_lock);
@@ -213,7 +207,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	struct ast_category *cat = NULL;
 
 	if (!table) {
-		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return NULL;
 	}
 
@@ -225,7 +219,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+				"PostgreSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		if (pgsqlConn) {
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
@@ -273,9 +267,9 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 
 	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
 		return NULL;
 	} else {
@@ -284,16 +278,16 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 			&& result_status != PGRES_TUPLES_OK
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
 			return NULL;
 		}
 	}
 
-	ast_debug(1, "2Postgresql RealTime: Result=%p Query: %s\n", result, sql);
+	ast_debug(1, "PostgreSQL RealTime: Result=%p Query: %s\n", result, sql);
 
 	if ((num_rows = PQntuples(result)) > 0) {
 		int numFields = PQnfields(result);
@@ -301,7 +295,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		int rowIndex = 0;
 		char **fieldnames = NULL;
 
-		ast_debug(1, "Postgresql RealTime: Found %d rows.\n", num_rows);
+		ast_debug(1, "PostgreSQL RealTime: Found %d rows.\n", num_rows);
 
 		if (!(fieldnames = ast_calloc(1, numFields * sizeof(char *)))) {
 			ast_mutex_unlock(&pgsql_lock);
@@ -333,7 +327,7 @@ static struct ast_config *realtime_multi_pgsql(const char *database, const char 
 		ast_free(fieldnames);
 	} else {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Could not find any rows in table %s.\n", table);
+				"PostgreSQL RealTime: Could not find any rows in table %s.\n", table);
 	}
 
 	ast_mutex_unlock(&pgsql_lock);
@@ -351,7 +345,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	const char *newparam, *newval;
 
 	if (!table) {
-		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return -1;
 	}
 
@@ -360,7 +354,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
+				"PostgreSQL RealTime: Realtime retrieval requires at least 1 parameter and 1 value to search on.\n");
 		if (pgsqlConn) {
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
@@ -381,7 +375,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s = '%s'", keyfield,
 			 lookup);
 
-	ast_debug(1, "Postgresql RealTime: Update SQL: %s\n", sql);
+	ast_debug(1, "PostgreSQL RealTime: Update SQL: %s\n", sql);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	ast_mutex_lock(&pgsql_lock);
@@ -392,9 +386,9 @@ static int update_pgsql(const char *database, const char *table, const char *key
 
 	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	} else {
@@ -403,9 +397,9 @@ static int update_pgsql(const char *database, const char *table, const char *key
 			&& result_status != PGRES_TUPLES_OK
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
 			return -1;
@@ -415,7 +409,7 @@ static int update_pgsql(const char *database, const char *table, const char *key
 	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
 
-	ast_debug(1, "Postgresql RealTime: Updated %d rows on table: %s\n", numrows, table);
+	ast_debug(1, "PostgreSQL RealTime: Updated %d rows on table: %s\n", numrows, table);
 
 	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -441,7 +435,7 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 	const char *newparam, *newval;
 
 	if (!table) {
-		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return -1;
 	}
 
@@ -450,7 +444,7 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 	newval = va_arg(ap, const char *);
 	if (!newparam || !newval) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Realtime storage requires at least 1 parameter and 1 value to store.\n");
+				"PostgreSQL RealTime: Realtime storage requires at least 1 parameter and 1 value to store.\n");
 		if (pgsqlConn) {
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
@@ -481,13 +475,13 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 	va_end(ap);
 	snprintf(sql, sizeof(sql), "INSERT INTO (%s) VALUES (%s)", params, vals);
 
-	ast_debug(1, "Postgresql RealTime: Insert SQL: %s\n", sql);
+	ast_debug(1, "PostgreSQL RealTime: Insert SQL: %s\n", sql);
 
 	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	} else {
@@ -496,9 +490,9 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 			&& result_status != PGRES_TUPLES_OK
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
 			return -1;
@@ -508,7 +502,7 @@ static int store_pgsql(const char *database, const char *table, va_list ap)
 	insertid = PQoidValue(result);
 	ast_mutex_unlock(&pgsql_lock);
 
-	ast_debug(1, "Postgresql RealTime: row inserted on table: %s, id: %u\n", table, insertid);
+	ast_debug(1, "PostgreSQL RealTime: row inserted on table: %s, id: %u\n", table, insertid);
 
 	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -532,7 +526,7 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	const char *newparam, *newval;
 
 	if (!table) {
-		ast_log(LOG_WARNING, "Postgresql RealTime: No table specified.\n");
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: No table specified.\n");
 		return -1;
 	}
 
@@ -542,7 +536,7 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	if (!newparam || !newval) {*/
 	if (ast_strlen_zero(keyfield) || ast_strlen_zero(lookup))  {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Realtime destroy requires at least 1 parameter and 1 value to search on.\n");
+				"PostgreSQL RealTime: Realtime destroy requires at least 1 parameter and 1 value to search on.\n");
 		if (pgsqlConn) {
 			PQfinish(pgsqlConn);
 			pgsqlConn = NULL;
@@ -572,13 +566,13 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	}
 	va_end(ap);
 
-	ast_debug(1, "Postgresql RealTime: Delete SQL: %s\n", sql);
+	ast_debug(1, "PostgreSQL RealTime: Delete SQL: %s\n", sql);
 
 	if (!(result = PQexec(pgsqlConn, sql))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
 		return -1;
 	} else {
@@ -587,9 +581,9 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 			&& result_status != PGRES_TUPLES_OK
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
 			return -1;
@@ -599,7 +593,7 @@ static int destroy_pgsql(const char *database, const char *table, const char *ke
 	numrows = atoi(PQcmdTuples(result));
 	ast_mutex_unlock(&pgsql_lock);
 
-	ast_debug(1, "Postgresql RealTime: Deleted %d rows on table: %s\n", numrows, table);
+	ast_debug(1, "PostgreSQL RealTime: Deleted %d rows on table: %s\n", numrows, table);
 
 	/* From http://dev.pgsql.com/doc/pgsql/en/pgsql-affected-rows.html
 	 * An integer greater than zero indicates the number of rows affected
@@ -631,7 +625,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	last[0] = '\0';
 
 	if (!file || !strcmp(file, RES_CONFIG_PGSQL_CONF)) {
-		ast_log(LOG_WARNING, "Postgresql RealTime: Cannot configure myself.\n");
+		ast_log(LOG_WARNING, "PostgreSQL RealTime: Cannot configure myself.\n");
 		return NULL;
 	}
 
@@ -639,7 +633,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	ast_build_string(&sql, &sqlleft, "WHERE filename='%s' and commented=0", file);
 	ast_build_string(&sql, &sqlleft, "ORDER BY cat_metric DESC, var_metric ASC, category, var_name ");
 
-	ast_debug(1, "Postgresql RealTime: Static SQL: %s\n", sqlbuf);
+	ast_debug(1, "PostgreSQL RealTime: Static SQL: %s\n", sqlbuf);
 
 	/* We now have our complete statement; Lets connect to the server and execute it. */
 	ast_mutex_lock(&pgsql_lock);
@@ -650,9 +644,9 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 
 	if (!(result = PQexec(pgsqlConn, sqlbuf))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-		ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-		ast_debug(1, "Postgresql RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+		ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+		ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s\n", PQerrorMessage(pgsqlConn));
 		ast_mutex_unlock(&pgsql_lock);
 		return NULL;
 	} else {
@@ -661,9 +655,9 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 			&& result_status != PGRES_TUPLES_OK
 			&& result_status != PGRES_NONFATAL_ERROR) {
 			ast_log(LOG_WARNING,
-					"Postgresql RealTime: Failed to query database. Check debug for more info.\n");
-			ast_debug(1, "Postgresql RealTime: Query: %s\n", sql);
-			ast_debug(1, "Postgresql RealTime: Query Failed because: %s (%s)\n",
+					"PostgreSQL RealTime: Failed to query database. Check debug for more info.\n");
+			ast_debug(1, "PostgreSQL RealTime: Query: %s\n", sql);
+			ast_debug(1, "PostgreSQL RealTime: Query Failed because: %s (%s)\n",
 						PQresultErrorMessage(result), PQresStatus(result_status));
 			ast_mutex_unlock(&pgsql_lock);
 			return NULL;
@@ -673,7 +667,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 	if ((num_rows = PQntuples(result)) > 0) {
 		int rowIndex = 0;
 
-		ast_debug(1, "Postgresql RealTime: Found %ld rows.\n", num_rows);
+		ast_debug(1, "PostgreSQL RealTime: Found %ld rows.\n", num_rows);
 
 		for (rowIndex = 0; rowIndex < num_rows; rowIndex++) {
 			char *field_category = PQgetvalue(result, rowIndex, 0);
@@ -702,7 +696,7 @@ static struct ast_config *config_pgsql(const char *database, const char *table,
 		}
 	} else {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Could not find config '%s' in database.\n", file);
+				"PostgreSQL RealTime: Could not find config '%s' in database.\n", file);
 	}
 
 	PQclear(result);
@@ -727,7 +721,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE;
 
 	ast_config_engine_register(&pgsql_engine);
-	ast_verb(1, "Postgresql RealTime driver loaded.\n");
+	ast_verb(1, "PostgreSQL RealTime driver loaded.\n");
 	ast_cli_register_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 
 	return 0;
@@ -744,7 +738,7 @@ static int unload_module(void)
 	}
 	ast_cli_unregister_multiple(cli_realtime, sizeof(cli_realtime) / sizeof(struct ast_cli_entry));
 	ast_config_engine_deregister(&pgsql_engine);
-	ast_verb(1, "Postgresql RealTime unloaded.\n");
+	ast_verb(1, "PostgreSQL RealTime unloaded.\n");
 
 	/* Unlock so something else can destroy the lock. */
 	ast_mutex_unlock(&pgsql_lock);
@@ -782,7 +776,7 @@ static int parse_config(int reload)
 
 	if (!(s = ast_variable_retrieve(config, "general", "dbuser"))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: No database user found, using 'asterisk' as default.\n");
+				"PostgreSQL RealTime: No database user found, using 'asterisk' as default.\n");
 		strcpy(dbuser, "asterisk");
 	} else {
 		ast_copy_string(dbuser, s, sizeof(dbuser));
@@ -790,7 +784,7 @@ static int parse_config(int reload)
 
 	if (!(s = ast_variable_retrieve(config, "general", "dbpass"))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: No database password found, using 'asterisk' as default.\n");
+				"PostgreSQL RealTime: No database password found, using 'asterisk' as default.\n");
 		strcpy(dbpass, "asterisk");
 	} else {
 		ast_copy_string(dbpass, s, sizeof(dbpass));
@@ -798,7 +792,7 @@ static int parse_config(int reload)
 
 	if (!(s = ast_variable_retrieve(config, "general", "dbhost"))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: No database host found, using localhost via socket.\n");
+				"PostgreSQL RealTime: No database host found, using localhost via socket.\n");
 		dbhost[0] = '\0';
 	} else {
 		ast_copy_string(dbhost, s, sizeof(dbhost));
@@ -806,7 +800,7 @@ static int parse_config(int reload)
 
 	if (!(s = ast_variable_retrieve(config, "general", "dbname"))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: No database name found, using 'asterisk' as default.\n");
+				"PostgreSQL RealTime: No database name found, using 'asterisk' as default.\n");
 		strcpy(dbname, "asterisk");
 	} else {
 		ast_copy_string(dbname, s, sizeof(dbname));
@@ -814,7 +808,7 @@ static int parse_config(int reload)
 
 	if (!(s = ast_variable_retrieve(config, "general", "dbport"))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: No database port found, using 5432 as default.\n");
+				"PostgreSQL RealTime: No database port found, using 5432 as default.\n");
 		dbport = 5432;
 	} else {
 		dbport = atoi(s);
@@ -822,7 +816,7 @@ static int parse_config(int reload)
 
 	if (!ast_strlen_zero(dbhost) && !(s = ast_variable_retrieve(config, "general", "dbsock"))) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
+				"PostgreSQL RealTime: No database socket found, using '/tmp/pgsql.sock' as default.\n");
 		strcpy(dbsock, "/tmp/pgsql.sock");
 	} else {
 		ast_copy_string(dbsock, s, sizeof(dbsock));
@@ -831,23 +825,23 @@ static int parse_config(int reload)
 
 	if (option_debug) {
 		if (!ast_strlen_zero(dbhost)) {
-			ast_debug(1, "Postgresql RealTime Host: %s\n", dbhost);
-			ast_debug(1, "Postgresql RealTime Port: %i\n", dbport);
+			ast_debug(1, "PostgreSQL RealTime Host: %s\n", dbhost);
+			ast_debug(1, "PostgreSQL RealTime Port: %i\n", dbport);
 		} else {
-			ast_debug(1, "Postgresql RealTime Socket: %s\n", dbsock);
+			ast_debug(1, "PostgreSQL RealTime Socket: %s\n", dbsock);
 		}
-		ast_debug(1, "Postgresql RealTime User: %s\n", dbuser);
-		ast_debug(1, "Postgresql RealTime Password: %s\n", dbpass);
-		ast_debug(1, "Postgresql RealTime DBName: %s\n", dbname);
+		ast_debug(1, "PostgreSQL RealTime User: %s\n", dbuser);
+		ast_debug(1, "PostgreSQL RealTime Password: %s\n", dbpass);
+		ast_debug(1, "PostgreSQL RealTime DBName: %s\n", dbname);
 	}
 
 	if (!pgsql_reconnect(NULL)) {
 		ast_log(LOG_WARNING,
-				"Postgresql RealTime: Couldn't establish connection. Check debug.\n");
-		ast_debug(1, "Postgresql RealTime: Cannot Connect: %s\n", PQerrorMessage(pgsqlConn));
+				"PostgreSQL RealTime: Couldn't establish connection. Check debug.\n");
+		ast_debug(1, "PostgreSQL RealTime: Cannot Connect: %s\n", PQerrorMessage(pgsqlConn));
 	}
 
-	ast_verb(2, "Postgresql RealTime reloaded.\n");
+	ast_verb(2, "PostgreSQL RealTime reloaded.\n");
 
 	/* Done reloading. Release lock so others can now use driver. */
 	ast_mutex_unlock(&pgsql_lock);
@@ -887,61 +881,72 @@ static int pgsql_reconnect(const char *database)
 		connInfo = NULL;
 		ast_debug(1, "pgsqlConn=%p\n", pgsqlConn);
 		if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
-			ast_debug(1, "Postgresql RealTime: Successfully connected to database.\n");
+			ast_debug(1, "PostgreSQL RealTime: Successfully connected to database.\n");
 			connect_time = time(NULL);
 			return 1;
 		} else {
 			ast_log(LOG_ERROR,
-					"Postgresql RealTime: Failed to connect database server %s on %s. Check debug for more info.\n",
+					"PostgreSQL RealTime: Failed to connect database server %s on %s. Check debug for more info.\n",
 					dbname, dbhost);
-			ast_debug(1, "Postgresql RealTime: Cannot Connect: %s\n", PQresultErrorMessage(NULL));
+			ast_debug(1, "PostgreSQL RealTime: Cannot Connect: %s\n", PQresultErrorMessage(NULL));
 			return 0;
 		}
 	} else {
-		ast_debug(1, "Postgresql RealTime: Everything is fine.\n");
+		ast_debug(1, "PostgreSQL RealTime: Everything is fine.\n");
 		return 1;
 	}
 }
 
-static int realtime_pgsql_status(int fd, int argc, char **argv)
+static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char status[256], status2[100] = "";
 	int ctime = time(NULL) - connect_time;
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "realtime pgsql status";
+		e->usage =
+			"Usage: realtime pgsql status\n"
+			"       Shows connection information for the PostgreSQL RealTime driver\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
 	if (pgsqlConn && PQstatus(pgsqlConn) == CONNECTION_OK) {
-		if (!ast_strlen_zero(dbhost)) {
+		if (!ast_strlen_zero(dbhost))
 			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbhost, dbport);
-		} else if (!ast_strlen_zero(dbsock)) {
+		else if (!ast_strlen_zero(dbsock))
 			snprintf(status, 255, "Connected to %s on socket file %s", dbname, dbsock);
-		} else {
+		else
 			snprintf(status, 255, "Connected to %s@%s", dbname, dbhost);
-		}
 
-		if (!ast_strlen_zero(dbuser)) {
+		if (!ast_strlen_zero(dbuser))
 			snprintf(status2, 99, " with username %s", dbuser);
-		}
 
-		if (ctime > 31536000) {
-			ast_cli(fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
+		if (ctime > 31536000)
+			ast_cli(a->fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n",
 					status, status2, ctime / 31536000, (ctime % 31536000) / 86400,
 					(ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 86400) {
-			ast_cli(fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status,
+		else if (ctime > 86400)
+			ast_cli(a->fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status,
 					status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60,
 					ctime % 60);
-		} else if (ctime > 3600) {
-			ast_cli(fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2,
+		else if (ctime > 3600)
+			ast_cli(a->fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2,
 					ctime / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 60) {
-			ast_cli(fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60,
+		else if (ctime > 60)
+			ast_cli(a->fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60,
 					ctime % 60);
-		} else {
-			ast_cli(fd, "%s%s for %d seconds.\n", status, status2, ctime);
-		}
+		else
+			ast_cli(a->fd, "%s%s for %d seconds.\n", status, status2, ctime);
 
-		return RESULT_SUCCESS;
+		return CLI_SUCCESS;
 	} else {
-		return RESULT_FAILURE;
+		return CLI_FAILURE;
 	}
 }
 

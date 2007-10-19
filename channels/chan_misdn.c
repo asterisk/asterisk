@@ -114,6 +114,9 @@ available data is returned and the return value indicates the number
 of data. */
 int misdn_jb_empty(struct misdn_jb *jb, char *data, int len);
 
+static char *complete_ch(struct ast_cli_args *a);
+static char *complete_debug_port(struct ast_cli_args *a);
+static char *complete_show_config(struct ast_cli_args *a);
 
 /* BEGIN: chan_misdn.h */
 
@@ -735,24 +738,36 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
 		ast_debug(1, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
 	}
 }
+
 /*** CLI HANDLING ***/
-static int misdn_set_debug(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int level;
 
-	if (argc != 4 && argc != 5 && argc != 6 && argc != 7)
-		return RESULT_SHOWUSAGE; 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn set debug";
+		e->usage =
+			"Usage: misdn set debug <level> [only] | [port <port> [only]]\n"
+			"       Set the debug level of the mISDN channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_debug_port(a);
+	}
 
-	level = atoi(argv[3]);
+	if (a->argc < 4 || a->argc > 7)
+		return CLI_SHOWUSAGE;
 
-	switch (argc) {
+	level = atoi(a->argv[3]);
+
+	switch (a->argc) {
 	case 4:	
 	case 5:
 		{
 			int only = 0, i;
-			if (argc == 5) {
-				if (strncasecmp(argv[4], "only", strlen(argv[4])))
-					return RESULT_SHOWUSAGE;
+			if (a->argc == 5) {
+				if (strncasecmp(a->argv[4], "only", strlen(a->argv[4])))
+					return CLI_SHOWUSAGE;
 				else
 					only = 1;
 			}
@@ -761,138 +776,193 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 				misdn_debug[i] = level;
 				misdn_debug_only[i] = only;
 			}
-			ast_cli(fd, "changing debug level for all ports to %d%s\n",misdn_debug[0], only?" (only)":"");
+			ast_cli(a->fd, "changing debug level for all ports to %d%s\n",misdn_debug[0], only?" (only)":"");
 		}
 		break;
 	case 6: 
 	case 7:
 		{
 			int port;
-			if (strncasecmp(argv[4], "port", strlen(argv[4])))
-				return RESULT_SHOWUSAGE;
-			port = atoi(argv[5]);
+			if (strncasecmp(a->argv[4], "port", strlen(a->argv[4])))
+				return CLI_SHOWUSAGE;
+			port = atoi(a->argv[5]);
 			if (port <= 0 || port > max_ports) {
 				switch (max_ports) {
 				case 0:
-					ast_cli(fd, "port number not valid! no ports available so you won't get lucky with any number here...\n");
+					ast_cli(a->fd, "port number not valid! no ports available so you won't get lucky with any number here...\n");
 					break;
 				case 1:
-					ast_cli(fd, "port number not valid! only port 1 is availble.\n");
+					ast_cli(a->fd, "port number not valid! only port 1 is availble.\n");
 					break;
 				default:
-					ast_cli(fd, "port number not valid! only ports 1 to %d are available.\n", max_ports);
+					ast_cli(a->fd, "port number not valid! only ports 1 to %d are available.\n", max_ports);
 				}
 				return 0;
 			}
-			if (argc == 7) {
-				if (strncasecmp(argv[6], "only", strlen(argv[6])))
-					return RESULT_SHOWUSAGE;
+			if (a->argc == 7) {
+				if (strncasecmp(a->argv[6], "only", strlen(a->argv[6])))
+					return CLI_SHOWUSAGE;
 				else
 					misdn_debug_only[port] = 1;
 			} else
 				misdn_debug_only[port] = 0;
 			misdn_debug[port] = level;
-			ast_cli(fd, "changing debug level to %d%s for port %d\n", misdn_debug[port], misdn_debug_only[port]?" (only)":"", port);
+			ast_cli(a->fd, "changing debug level to %d%s for port %d\n", misdn_debug[port], misdn_debug_only[port]?" (only)":"", port);
 		}
 	}
-	return 0;
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_set_crypt_debug(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_set_crypt_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 5)
-		return RESULT_SHOWUSAGE; 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn set crypt debug";
+		e->usage =
+			"Usage: misdn set crypt debug <level>\n"
+			"       Set the crypt debug level of the mISDN channel. Level\n"
+			"       must be 1 or 2.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	return 0;
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+
+	/* Is this supposed to not do anything? */
+
+	return CLI_SUCCESS;
 }
 
-
-static int misdn_port_block(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_port_block(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int port;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn port block";
+		e->usage =
+			"Usage: misdn port block <port>\n"
+			"       Block the specified port by <port>.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
-	port = atoi(argv[3]);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	misdn_lib_port_block(port);
+	misdn_lib_port_block(atoi(a->argv[3]));
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int misdn_port_unblock(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_port_unblock(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int port;
-  
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
-	port = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn port unblock";
+		e->usage =
+			"Usage: misdn port unblock <port>\n"
+			"       Unblock the port specified by <port>.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	misdn_lib_port_unblock(port);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	return 0;
+	misdn_lib_port_unblock(atoi(a->argv[3]));
+
+	return CLI_SUCCESS;
 }
 
-
-static int misdn_restart_port (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_restart_port(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int port;
-  
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
-	port = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn restart port";
+		e->usage =
+			"Usage: misdn restart port <port>\n"
+			"       Restart the given port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	misdn_lib_port_restart(port);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	return 0;
+	misdn_lib_port_restart(atoi(a->argv[3]));
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_restart_pid (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_restart_pid(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int pid;
-  
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
-	pid = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn restart pid";
+		e->usage =
+			"Usage: misdn restart pid <pid>\n"
+			"       Restart the given pid\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	misdn_lib_pid_restart(pid);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	return 0;
+	misdn_lib_pid_restart(atoi(a->argv[3]));
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_port_up (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_port_up(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int port;
-	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	
-	port = atoi(argv[3]);
-	
-	misdn_lib_get_port_up(port);
-  
-	return 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn port up";
+		e->usage =
+			"Usage: misdn port up <port>\n"
+			"       Try to establish L1 on the given port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	misdn_lib_get_port_up(atoi(a->argv[3]));
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_port_down (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_port_down(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int port;
-	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	
-	port = atoi(argv[3]);
-	
-	misdn_lib_get_port_down(port);
-  
-	return 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn port down";
+		e->usage =
+			"Usage: misdn port down <port>\n"
+			"       Try to deacivate the L1 on the given port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	misdn_lib_get_port_down(atoi(a->argv[3]));
+
+	return CLI_SUCCESS;
 }
 
-static inline void show_config_description (int fd, enum misdn_cfg_elements elem)
+static inline void show_config_description(int fd, enum misdn_cfg_elements elem)
 {
 	char section[BUFFERSIZE];
 	char name[BUFFERSIZE];
@@ -913,9 +983,11 @@ static inline void show_config_description (int fd, enum misdn_cfg_elements elem
 		ast_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
 	else
 		ast_cli(fd, "[%s] %s\n\t%s\n", section, name, desc);
+
+	return;
 }
 
-static int misdn_show_config (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_show_config(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
@@ -923,75 +995,83 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 	int onlyport = -1;
 	int ok = 0;
 
-	if (argc >= 4) {
-		if (!strcmp(argv[3], "description")) {
-			if (argc == 5) {
-				enum misdn_cfg_elements elem = misdn_cfg_get_elem(argv[4]);
-				if (elem == MISDN_CFG_FIRST)
-					ast_cli(fd, "Unknown element: %s\n", argv[4]);
-				else
-					show_config_description(fd, elem);
-				return 0;
-			}
-			return RESULT_SHOWUSAGE;
-		}
-		if (!strcmp(argv[3], "descriptions")) {
-			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "general"))) {
-				for (elem = MISDN_GEN_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
-					show_config_description(fd, elem);
-					ast_cli(fd, "\n");
-				}
-				ok = 1;
-			}
-			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "ports"))) {
-				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST - 1 /* the ptp hack, remove the -1 when ptp is gone */; ++elem) {
-					show_config_description(fd, elem);
-					ast_cli(fd, "\n");
-				}
-				ok = 1;
-			}
-			return ok ? 0 : RESULT_SHOWUSAGE;
-		}
-		if (!sscanf(argv[3], "%d", &onlyport) || onlyport < 0) {
-			ast_cli(fd, "Unknown option: %s\n", argv[3]);
-			return RESULT_SHOWUSAGE;
-		}
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn show config";
+		e->usage =
+			"Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
+	        "       Use 0 for <port> to only print the general config.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_show_config(a);
 	}
-	
-	if (argc == 3 || onlyport == 0) {
-		ast_cli(fd,"Misdn General-Config: \n"); 
+
+	if (a->argc >= 4) {
+		if (!strcmp(a->argv[3], "description")) {
+			if (a->argc == 5) {
+				enum misdn_cfg_elements elem = misdn_cfg_get_elem(a->argv[4]);
+				if (elem == MISDN_CFG_FIRST)
+					ast_cli(a->fd, "Unknown element: %s\n", a->argv[4]);
+				else
+					show_config_description(a->fd, elem);
+				return CLI_SUCCESS;
+			}
+			return CLI_SHOWUSAGE;
+		} else if (!strcmp(a->argv[3], "descriptions")) {
+			if ((a->argc == 4) || ((a->argc == 5) && !strcmp(a->argv[4], "general"))) {
+				for (elem = MISDN_GEN_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
+					show_config_description(a->fd, elem);
+					ast_cli(a->fd, "\n");
+				}
+				ok = 1;
+			}
+			if ((a->argc == 4) || ((a->argc == 5) && !strcmp(a->argv[4], "ports"))) {
+				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST - 1 /* the ptp hack, remove the -1 when ptp is gone */; ++elem) {
+					show_config_description(a->fd, elem);
+					ast_cli(a->fd, "\n");
+				}
+				ok = 1;
+			}
+			return ok ? CLI_SUCCESS : CLI_SHOWUSAGE;
+		} else if (!sscanf(a->argv[3], "%d", &onlyport) || onlyport < 0) {
+			ast_cli(a->fd, "Unknown option: %s\n", a->argv[3]);
+			return CLI_SHOWUSAGE;
+		}
+	} else if (a->argc == 3 || onlyport == 0) {
+		ast_cli(a->fd, "mISDN General-Config:\n");
 		for (elem = MISDN_GEN_FIRST + 1, linebreak = 1; elem < MISDN_GEN_LAST; elem++, linebreak++) {
 			misdn_cfg_get_config_string(0, elem, buffer, sizeof(buffer));
-			ast_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+			ast_cli(a->fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 		}
-		ast_cli(fd, "\n");
+		ast_cli(a->fd, "\n");
 	}
 
 	if (onlyport < 0) {
 		int port = misdn_cfg_get_next_port(0);
 		for (; port > 0; port = misdn_cfg_get_next_port(port)) {
-			ast_cli(fd, "\n[PORT %d]\n", port);
+			ast_cli(a->fd, "\n[PORT %d]\n", port);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
 				misdn_cfg_get_config_string(port, elem, buffer, sizeof(buffer));
-				ast_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+				ast_cli(a->fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
-			ast_cli(fd, "\n");
+			ast_cli(a->fd, "\n");
 		}
 	}
 	
 	if (onlyport > 0) {
 		if (misdn_cfg_is_port_valid(onlyport)) {
-			ast_cli(fd, "[PORT %d]\n", onlyport);
+			ast_cli(a->fd, "[PORT %d]\n", onlyport);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
 				misdn_cfg_get_config_string(onlyport, elem, buffer, sizeof(buffer));
-				ast_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+				ast_cli(a->fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
-			ast_cli(fd, "\n");
+			ast_cli(a->fd, "\n");
 		} else {
-			ast_cli(fd, "Port %d is not active!\n", onlyport);
+			ast_cli(a->fd, "Port %d is not active!\n", onlyport);
 		}
 	}
-	return 0;
+
+	return CLI_SUCCESS;
 }
 
 struct state_struct {
@@ -1064,11 +1144,26 @@ static void reload_config(void)
 	}
 }
 
-static int misdn_reload (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	ast_cli(fd, "Reloading mISDN Config\n");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn reload";
+		e->usage =
+			"Usage: misdn reload\n"
+			"       Reload internal mISDN config, read from the config\n"
+			"       file.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "Reloading mISDN configuration\n");
 	reload_config();
-	return 0;
+	return CLI_SUCCESS;
 }
 
 static void print_bc_info (int fd, struct chan_list *help, struct misdn_bchannel *bc)
@@ -1126,27 +1221,42 @@ static void print_bc_info (int fd, struct chan_list *help, struct misdn_bchannel
 
 }
 
-static int misdn_show_cls(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct chan_list *help = cl_te;
+	struct chan_list *help = NULL;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn show channels";
+		e->usage =
+			"Usage: misdn show channels\n"
+			"       Show the internal mISDN channel list\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	help = cl_te;
   
-	ast_cli(fd, "Chan List: %p\n", cl_te); 
+	ast_cli(a->fd, "Channel List: %p\n", cl_te); 
   
 	for (; help; help = help->next) {
 		struct misdn_bchannel *bc = help->bc;   
 		struct ast_channel *ast = help->ast;
 		if (misdn_debug[0] > 2)
-			ast_cli(fd, "Bc:%p Ast:%p\n", bc, ast);
+			ast_cli(a->fd, "Bc:%p Ast:%p\n", bc, ast);
 		if (bc) {
-			print_bc_info(fd, help, bc);
+			print_bc_info(a->fd, help, bc);
 		} else {
 			if (help->state == MISDN_HOLDED) {
-				ast_cli(fd, "ITS A HOLDED BC:\n");
-				ast_cli(fd, " --> l3_id: %x\n"
+				ast_cli(a->fd, "ITS A HOLDED BC:\n");
+				ast_cli(a->fd, " --> l3_id: %x\n"
 						" --> dad:%s oad:%s\n"
 						" --> hold_port: %d\n"
 						" --> hold_channel: %d\n",
-				
 						help->l3id,
 						ast->exten,
 						ast->cid.cid_num,
@@ -1154,178 +1264,261 @@ static int misdn_show_cls(int fd, int argc, char *argv[])
 						help->hold_info.channel
 						);
 			} else {
-				ast_cli(fd, "* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", ast->exten, ast->cid.cid_num);
+				ast_cli(a->fd, "* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", ast->exten, ast->cid.cid_num);
 			}
 		}
 	}
 
  	misdn_dump_chanlist();
-	return 0;
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_show_cl (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_show_channel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	struct chan_list *help=cl_te;
+	struct chan_list *help = NULL;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn show channel";
+		e->usage =
+			"Usage: misdn show channel <channel>\n"
+			"       Show an internal mISDN channel\n.";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ch(a);
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	help = cl_te;
+
 	for (; help; help = help->next) {
 		struct misdn_bchannel *bc = help->bc;   
 		struct ast_channel *ast = help->ast;
     
 		if (bc && ast) {
-			if (!strcasecmp(ast->name, argv[3])) {
-				print_bc_info(fd, help, bc);
+			if (!strcasecmp(ast->name, a->argv[3])) {
+				print_bc_info(a->fd, help, bc);
 				break; 
 			}
 		} 
 	}
-  
-  
-	return 0;
+
+	return CLI_SUCCESS;
 }
 
 ast_mutex_t lock;
 int MAXTICS = 8;
 
-static int misdn_set_tics (int fd, int argc, char *argv[])
+static char *handle_cli_misdn_set_tics(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
-	MAXTICS = atoi(argv[3]);
-  
-	return 0;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn set tics";
+		e->usage =
+			"Usage: misdn set tics <value>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	MAXTICS = atoi(a->argv[3]);
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_show_stacks(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_show_stacks(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int port;
 
-	ast_cli(fd, "BEGIN STACK_LIST:\n");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn show stacks";
+		e->usage =
+			"Usage: misdn show stacks\n"
+			"       Show internal mISDN stack_list.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "BEGIN STACK_LIST:\n");
 	for (port = misdn_cfg_get_next_port(0); port > 0;
 	     port = misdn_cfg_get_next_port(port)) {
 		char buf[128];
 		get_show_stack_details(port, buf);
-		ast_cli(fd,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port] ? "(only)" : "");
+		ast_cli(a->fd,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port] ? "(only)" : "");
 	}
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-
-static int misdn_show_ports_stats(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_show_ports_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int port;
 
-	ast_cli(fd, "Port\tin_calls\tout_calls\n");
-	
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn show ports stats";
+		e->usage =
+			"Usage: misdn show ports stats\n"
+			"       Show mISDNs channel's call statistics per port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "Port\tin_calls\tout_calls\n");
 	for (port = misdn_cfg_get_next_port(0); port > 0;
 	     port = misdn_cfg_get_next_port(port)) {
-		ast_cli(fd, "%d\t%d\t\t%d\n", port, misdn_in_calls[port], misdn_out_calls[port]);
+		ast_cli(a->fd, "%d\t%d\t\t%d\n", port, misdn_in_calls[port], misdn_out_calls[port]);
 	}
-	ast_cli(fd, "\n");
+	ast_cli(a->fd, "\n");
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-
-static int misdn_show_port(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_show_port(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int port;
 	char buf[128];
-	
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-  
-	port = atoi(argv[3]);
-  
-	ast_cli(fd, "BEGIN STACK_LIST:\n");
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn show port";
+		e->usage =
+			"Usage: misdn show port <port>\n"
+			"       Show detailed information for given port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	port = atoi(a->argv[3]);
+  
+	ast_cli(a->fd, "BEGIN STACK_LIST:\n");
 	get_show_stack_details(port, buf);
-	ast_cli(fd, "  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port] ? "(only)" : "");
+	ast_cli(a->fd, "  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port] ? "(only)" : "");
 
-	
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static int misdn_send_cd(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_send_calldeflect(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *channame; 
 	char *nr;
 	struct chan_list *tmp;
-  
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
-  
-	channame = argv[3];
-	nr = argv[4];
 
-	ast_cli(fd, "Sending Calldeflection (%s) to %s\n", nr, channame);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn send calldeflect";
+		e->usage =
+			"Usage: misdn send calldeflect <channel> \"<nr>\"\n"
+			"       Send CallDeflection to mISDN Channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ch(a);
+	}
+
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+
+	channame = a->argv[3];
+	nr = a->argv[4];
+
+	ast_cli(a->fd, "Sending Calldeflection (%s) to %s\n", nr, channame);
 	
 	tmp = get_chan_by_ast_name(channame);
 	if (!tmp) {
-		ast_cli(fd, "Sending CD with nr %s to %s failed: Channel does not exist.\n",nr, channame);
-		return 0; 
+		ast_cli(a->fd, "Sending CD with nr %s to %s failed: Channel does not exist.\n", nr, channame);
+		return CLI_SUCCESS;
 	}
 
 	if (strlen(nr) >= 15) {
-		ast_cli(fd, "Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n",nr, channame);
-		return 0; 
+		ast_cli(a->fd, "Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n", nr, channame);
+		return CLI_SUCCESS;
 	}
 	tmp->bc->fac_out.Function = Fac_CD;
 	ast_copy_string((char *)tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr, sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber));
 	misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
 
-	return 0; 
+	return CLI_SUCCESS;
 }
 
-static int misdn_send_restart(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_send_restart(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	int port;
-	int channel;
-	
-	if ( (argc < 4) ||  (argc >  5) )
-		return RESULT_SHOWUSAGE;
-  
-	port = atoi(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn send restart";
+		e->usage =
+			"Usage: misdn send restart [port [channel]]\n"
+			"       Send a restart for every bchannel on the given port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	if (argc==5) {
-		channel = atoi(argv[4]);
- 		misdn_lib_send_restart(port, channel);
-	} else
- 		misdn_lib_send_restart(port, -1 );
-	
-	return 0;
+	if (a->argc < 4 || a->argc > 5)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc == 5)
+ 		misdn_lib_send_restart(atoi(a->argv[3]), atoi(a->argv[4]));
+	else
+ 		misdn_lib_send_restart(atoi(a->argv[3]), -1);
+
+	return CLI_SUCCESS;
 }
 
-static int misdn_send_digit(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_send_digit(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *channame; 
 	char *msg; 
 	struct chan_list *tmp;
 	int i, msglen;
 
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn send digit";
+		e->usage =
+			"Usage: misdn send digit <channel> \"<msg>\" \n"
+			"       Send <digit> to <channel> as DTMF Tone\n"
+			"       when channel is a mISDN channel\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ch(a);
+	}
 
-	channame = argv[3];
-	msg = argv[4];
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+
+	channame = a->argv[3];
+	msg = a->argv[4];
 	msglen = strlen(msg);
 
-	ast_cli(fd, "Sending %s to %s\n", msg, channame);
+	ast_cli(a->fd, "Sending %s to %s\n", msg, channame);
 
 	tmp = get_chan_by_ast_name(channame);
-
 	if (!tmp) {
-		ast_cli(fd, "Sending %s to %s failed Channel does not exist\n", msg, channame);
-		return 0; 
+		ast_cli(a->fd, "Sending %s to %s failed Channel does not exist\n", msg, channame);
+		return CLI_SUCCESS; 
 	}
 #if 1
 	for (i = 0; i < msglen; i++) {
-		ast_cli(fd, "Sending: %c\n", msg[i]);
+		ast_cli(a->fd, "Sending: %c\n", msg[i]);
 		send_digit_to_chan(tmp, msg[i]);
 		/* res = ast_safe_sleep(tmp->ast, 250); */
 		usleep(250000);
@@ -1335,26 +1528,36 @@ static int misdn_send_digit(int fd, int argc, char *argv[])
 	ast_dtmf_stream(tmp->ast, NULL, msg, 250);
 #endif
 
-	return 0; 
+	return CLI_SUCCESS;
 }
 
-static int misdn_toggle_echocancel(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_toggle_echocancel(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *channame;
 	struct chan_list *tmp;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	
-	channame = argv[3];
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn toggle echocancel";
+		e->usage =
+			"Usage: misdn toggle echocancel <channel>\n"
+			"       Toggle EchoCancel on mISDN Channel.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ch(a);
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	channame = a->argv[3];
   
-	ast_cli(fd, "Toggling EchoCancel on %s\n", channame);
+	ast_cli(a->fd, "Toggling EchoCancel on %s\n", channame);
   
 	tmp = get_chan_by_ast_name(channame);
-    
 	if (!tmp) {
-		ast_cli(fd, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
-		return 0; 
+		ast_cli(a->fd, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
+		return CLI_SUCCESS;
 	}
 
 	tmp->toggle_ec = tmp->toggle_ec?0:1;
@@ -1370,45 +1573,57 @@ static int misdn_toggle_echocancel(int fd, int argc, char *argv[])
 		manager_ec_disable(tmp->bc);
 	}
 
-	return 0; 
+	return CLI_SUCCESS;
 }
 
-static int misdn_send_display(int fd, int argc, char *argv[])
+static char *handle_cli_misdn_send_display(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	char *channame; 
-	char *msg; 
+	char *channame;
+	char *msg;
 	struct chan_list *tmp;
 
-	if (argc != 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "misdn send display";
+		e->usage =
+			"Usage: misdn send display <channel> \"<msg>\" \n"
+			"       Send <msg> to <channel> as Display Message\n"
+			"       when channel is a mISDN channel\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_ch(a);
+	}
 
-	channame = argv[3];
-	msg = argv[4];
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
 
-	ast_cli(fd, "Sending %s to %s\n", msg, channame);
+	channame = a->argv[3];
+	msg = a->argv[4];
+
+	ast_cli(a->fd, "Sending %s to %s\n", msg, channame);
 	tmp = get_chan_by_ast_name(channame);
     
 	if (tmp && tmp->bc) {
 		ast_copy_string(tmp->bc->display, msg, sizeof(tmp->bc->display));
 		misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
 	} else {
-		ast_cli(fd, "No such channel %s\n", channame);
-		return RESULT_FAILURE;
+		ast_cli(a->fd, "No such channel %s\n", channame);
+		return CLI_SUCCESS;
 	}
 
-	return RESULT_SUCCESS ;
+	return CLI_SUCCESS;
 }
 
-static char *complete_ch_helper(const char *line, const char *word, int pos, int state, int rpos)
+static char *complete_ch_helper(struct ast_cli_args *a, int rpos)
 {
 	struct ast_channel *c;
 	int which = 0;
 	char *ret;
-	if (pos != rpos)
+	if (a->pos != rpos)
 		return NULL;
 	for (c = ast_channel_walk_locked(NULL); c; c = ast_channel_walk_locked(c)) {
-		if (!strncasecmp(word, c->name, strlen(word))) {
-			if (++which > state)
+		if (!strncasecmp(a->word, c->name, strlen(a->word))) {
+			if (++which > a->n)
 				break;
 		}
 		ast_mutex_unlock(&c->lock);
@@ -1421,69 +1636,69 @@ static char *complete_ch_helper(const char *line, const char *word, int pos, int
 	return ret;
 }
 
-static char *complete_ch(const char *line, const char *word, int pos, int state)
+static char *complete_ch(struct ast_cli_args *a)
 {
-	return complete_ch_helper(line, word, pos, state, 3);
+	return complete_ch_helper(a, 3);
 }
 
-static char *complete_debug_port (const char *line, const char *word, int pos, int state)
+static char *complete_debug_port (struct ast_cli_args *a)
 {
-	if (state)
+	if (a->n)
 		return NULL;
 
-	switch (pos) {
+	switch (a->pos) {
 	case 4:
-		if (*word == 'p')
+		if (a->word[0] == 'p')
 			return ast_strdup("port");
-		else if (*word == 'o')
+		else if (a->word[0] == 'o')
 			return ast_strdup("only");
 		break;
 	case 6:
-		if (*word == 'o')
+		if (a->word[0] == 'o')
 			return ast_strdup("only");
 		break;
 	}
 	return NULL;
 }
 
-static char *complete_show_config (const char *line, const char *word, int pos, int state)
+static char *complete_show_config(struct ast_cli_args *a)
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
-	int wordlen = strlen(word);
+	int wordlen = strlen(a->word);
 	int which = 0;
 	int port = 0;
 
-	switch (pos) {
+	switch (a->pos) {
 	case 3:
-		if ((!strncmp(word, "description", wordlen)) && (++which > state))
+		if ((!strncmp(a->word, "description", wordlen)) && (++which > a->n))
 			return ast_strdup("description");
-		if ((!strncmp(word, "descriptions", wordlen)) && (++which > state))
+		if ((!strncmp(a->word, "descriptions", wordlen)) && (++which > a->n))
 			return ast_strdup("descriptions");
-		if ((!strncmp(word, "0", wordlen)) && (++which > state))
+		if ((!strncmp(a->word, "0", wordlen)) && (++which > a->n))
 			return ast_strdup("0");
 		while ((port = misdn_cfg_get_next_port(port)) != -1) {
 			snprintf(buffer, sizeof(buffer), "%d", port);
-			if ((!strncmp(word, buffer, wordlen)) && (++which > state)) {
+			if ((!strncmp(a->word, buffer, wordlen)) && (++which > a->n)) {
 				return ast_strdup(buffer);
 			}
 		}
 		break;
 	case 4:
-		if (strstr(line, "description ")) {
+		if (strstr(a->line, "description ")) {
 			for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
 				if ((elem == MISDN_CFG_LAST) || (elem == MISDN_GEN_FIRST))
 					continue;
 				misdn_cfg_get_name(elem, buffer, sizeof(buffer));
-				if (!wordlen || !strncmp(word, buffer, wordlen)) {
-					if (++which > state)
+				if (!wordlen || !strncmp(a->word, buffer, wordlen)) {
+					if (++which > a->n)
 						return ast_strdup(buffer);
 				}
 			}
-		} else if (strstr(line, "descriptions ")) {
-			if ((!wordlen || !strncmp(word, "general", wordlen)) && (++which > state))
+		} else if (strstr(a->line, "descriptions ")) {
+			if ((!wordlen || !strncmp(a->word, "general", wordlen)) && (++which > a->n))
 				return ast_strdup("general");
-			if ((!wordlen || !strncmp(word, "ports", wordlen)) && (++which > state))
+			if ((!wordlen || !strncmp(a->word, "ports", wordlen)) && (++which > a->n))
 				return ast_strdup("ports");
 		}
 		break;
@@ -1492,54 +1707,27 @@ static char *complete_show_config (const char *line, const char *word, int pos, 
 }
 
 static struct ast_cli_entry chan_misdn_clis[] = {
-	{ {"misdn","send","calldeflect", NULL}, misdn_send_cd, "Sends CallDeflection to mISDN Channel",
-		"Usage: misdn send calldeflect <channel> \"<nr>\" \n", complete_ch },
-	{ {"misdn","send","digit", NULL}, misdn_send_digit,	"Sends DTMF Digit to mISDN Channel",
-		"Usage: misdn send digit <channel> \"<msg>\" \n"
-		"       Send <digit> to <channel> as DTMF Tone\n"
-		"       when channel is a mISDN channel\n", complete_ch },
-	{ {"misdn","toggle","echocancel", NULL}, misdn_toggle_echocancel, "Toggles EchoCancel on mISDN Channel",
-		"Usage: misdn toggle echocancel <channel>\n", complete_ch },
-	{ {"misdn","send","display", NULL}, misdn_send_display, "Sends Text to mISDN Channel", 
-		"Usage: misdn send display <channel> \"<msg>\" \n"
-		"       Send <msg> to <channel> as Display Message\n"
-		"       when channel is a mISDN channel\n", complete_ch },
-	{ {"misdn","show","config", NULL}, misdn_show_config, "Shows internal mISDN config, read from cfg-file",
-		"Usage: misdn show config [<port> | description <config element> | descriptions [general|ports]]\n"
-		"       Use 0 for <port> to only print the general config.\n", complete_show_config },
-	{ {"misdn","reload", NULL}, misdn_reload, "Reloads internal mISDN config, read from cfg-file",
-		"Usage: misdn reload\n" },
-	{ {"misdn","set","tics", NULL}, misdn_set_tics, "", 
-		"\n" },
-	{ {"misdn","show","channels", NULL}, misdn_show_cls, "Shows internal mISDN chan_list",
-		"Usage: misdn show channels\n" },
-	{ {"misdn","show","channel", NULL}, misdn_show_cl, "Shows internal mISDN chan_list",
-		"Usage: misdn show channels\n", complete_ch },
-	{ {"misdn","port","block", NULL}, misdn_port_block, "Blocks the given port",
-		"Usage: misdn port block\n" },
-	{ {"misdn","port","unblock", NULL}, misdn_port_unblock, "Unblocks the given port",
-		"Usage: misdn port unblock\n" },
-	{ {"misdn","restart","port", NULL}, misdn_restart_port, "Restarts the given port",
-		"Usage: misdn restart port\n" },
-	{ {"misdn","send","restart", NULL},  misdn_send_restart, 
-	  "Sends a restart for every bchannel on the given port", 
-	  "Usage: misdn send restart <port>\n"},
-	{ {"misdn","restart","pid", NULL}, misdn_restart_pid, "Restarts the given pid",
-		"Usage: misdn restart pid\n" },
-	{ {"misdn","port","up", NULL}, misdn_port_up, "Tries to establish L1 on the given port",
-		"Usage: misdn port up <port>\n" },
-	{ {"misdn","port","down", NULL}, misdn_port_down, "Tries to deacivate the L1 on the given port",
-		"Usage: misdn port down <port>\n" },
-	{ {"misdn","show","stacks", NULL}, misdn_show_stacks, "Shows internal mISDN stack_list",
-		"Usage: misdn show stacks\n" },
-	{ {"misdn","show","ports","stats", NULL}, misdn_show_ports_stats, "Shows chan_misdns call statistics per port",
-		"Usage: misdn show port stats\n" },
-	{ {"misdn","show","port", NULL}, misdn_show_port, "Shows detailed information for given port",
-		"Usage: misdn show port <port>\n" },
-	{ {"misdn","set","debug", NULL}, misdn_set_debug, "Sets Debuglevel of chan_misdn",
-		"Usage: misdn set debug <level> [only] | [port <port> [only]]\n", complete_debug_port },
-	{ {"misdn","set","crypt","debug", NULL}, misdn_set_crypt_debug, "Sets CryptDebuglevel of chan_misdn, at the moment, level={1,2}",
-		"Usage: misdn set crypt debug <level>\n" }
+	NEW_CLI(handle_cli_misdn_port_block,        "Block the given port"),
+	NEW_CLI(handle_cli_misdn_port_down,         "Try to deacivate the L1 on the given port"),
+	NEW_CLI(handle_cli_misdn_port_unblock,      "Unblock the given port"),
+	NEW_CLI(handle_cli_misdn_port_up,           "Try to establish L1 on the given port"),
+	NEW_CLI(handle_cli_misdn_reload,            "Reload internal mISDN config, read from the config file"),
+	NEW_CLI(handle_cli_misdn_restart_pid,       "Restart the given pid"),
+	NEW_CLI(handle_cli_misdn_restart_port,      "Restart the given port"),
+	NEW_CLI(handle_cli_misdn_show_channel,      "Show an internal mISDN channel"),
+	NEW_CLI(handle_cli_misdn_show_channels,     "Show the internal mISDN channel list"),
+	NEW_CLI(handle_cli_misdn_show_config,       "Show internal mISDN config, read from the config file"),
+	NEW_CLI(handle_cli_misdn_show_port,         "Show detailed information for given port"),
+	NEW_CLI(handle_cli_misdn_show_ports_stats,  "Show mISDNs channel's call statistics per port"),
+	NEW_CLI(handle_cli_misdn_show_stacks,       "Show internal mISDN stack_list"),
+	NEW_CLI(handle_cli_misdn_send_calldeflect,  "Send CallDeflection to mISDN Channel"),
+	NEW_CLI(handle_cli_misdn_send_digit,        "Send DTMF digit to mISDN Channel"),
+	NEW_CLI(handle_cli_misdn_send_display,      "Send Text to mISDN Channel"),
+	NEW_CLI(handle_cli_misdn_send_restart,      "Send a restart for every bchannel on the given port"),
+	NEW_CLI(handle_cli_misdn_set_crypt_debug,   "Set CryptDebuglevel of chan_misdn, at the moment, level={1,2}"),
+	NEW_CLI(handle_cli_misdn_set_debug,         "Set Debuglevel of chan_misdn"),
+	NEW_CLI(handle_cli_misdn_set_tics,          "???"),
+	NEW_CLI(handle_cli_misdn_toggle_echocancel, "Toggle EchoCancel on mISDN Channel"),
 };
 
 static int update_config(struct chan_list *ch, int orig) 

@@ -3801,16 +3801,14 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	return res;
 }
 
-static int rtp_do_debug_ip(int fd, int argc, char *argv[])
+static char *rtp_do_debug_ip(struct ast_cli_args *a)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
 	char *p, *arg;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	arg = argv[3];
+	arg = a->argv[3];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -3818,29 +3816,29 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 		port = atoi(p);
 	}
 	hp = ast_gethostbyname(arg, &ahp);
-	if (hp == NULL)
-		return RESULT_SHOWUSAGE;
+	if (hp == NULL) {
+		ast_cli(a->fd, "Lookup failed for '%s'\n", arg);
+		return CLI_FAILURE;
+	}
 	rtpdebugaddr.sin_family = AF_INET;
 	memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
 	rtpdebugaddr.sin_port = htons(port);
 	if (port == 0)
-		ast_cli(fd, "RTP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtpdebugaddr.sin_addr));
+		ast_cli(a->fd, "RTP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtpdebugaddr.sin_addr));
 	else
-		ast_cli(fd, "RTP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtpdebugaddr.sin_addr), port);
+		ast_cli(a->fd, "RTP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtpdebugaddr.sin_addr), port);
 	rtpdebug = 1;
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int rtcp_do_debug_ip(int fd, int argc, char *argv[])
+static char *rtcp_do_debug_ip(struct ast_cli_args *a)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	int port = 0;
 	char *p, *arg;
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
 
-	arg = argv[3];
+	arg = a->argv[3];
 	p = strstr(arg, ":");
 	if (p) {
 		*p = '\0';
@@ -3848,171 +3846,143 @@ static int rtcp_do_debug_ip(int fd, int argc, char *argv[])
 		port = atoi(p);
 	}
 	hp = ast_gethostbyname(arg, &ahp);
-	if (hp == NULL)
-		return RESULT_SHOWUSAGE;
+	if (hp == NULL) {
+		ast_cli(a->fd, "Lookup failed for '%s'\n", arg);
+		return CLI_FAILURE;
+	}
 	rtcpdebugaddr.sin_family = AF_INET;
 	memcpy(&rtcpdebugaddr.sin_addr, hp->h_addr, sizeof(rtcpdebugaddr.sin_addr));
 	rtcpdebugaddr.sin_port = htons(port);
 	if (port == 0)
-		ast_cli(fd, "RTCP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr));
+		ast_cli(a->fd, "RTCP Debugging Enabled for IP: %s\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr));
 	else
-		ast_cli(fd, "RTCP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr), port);
+		ast_cli(a->fd, "RTCP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(rtcpdebugaddr.sin_addr), port);
 	rtcpdebug = 1;
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int rtp_do_debug(int fd, int argc, char *argv[])
+static char *handle_cli_rtp_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2) {
-		if (argc != 4)
-			return RESULT_SHOWUSAGE;
-		return rtp_do_debug_ip(fd, argc, argv);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtp debug [off|ip]";
+		e->usage =
+			"Usage: rtp debug [off]|[ip host[:port]]\n"
+			"       Enable/Disable dumping of all RTP packets. If 'ip' is\n"
+			"       specified, limit the dumped packets to those to and from\n"
+			"       the specified 'host' with optional port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	rtpdebug = 1;
-	memset(&rtpdebugaddr,0,sizeof(rtpdebugaddr));
-	ast_cli(fd, "RTP Debugging Enabled\n");
-	return RESULT_SUCCESS;
-}
-   
-static int rtcp_do_debug(int fd, int argc, char *argv[])
-{
-	if (argc != 2) {
-		if (argc != 4)
-			return RESULT_SHOWUSAGE;
-		return rtcp_do_debug_ip(fd, argc, argv);
+
+	if (a->argc < 2 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 2) {
+		rtpdebug = 1;
+		memset(&rtpdebugaddr, 0, sizeof(rtpdebugaddr));
+		ast_cli(a->fd, "RTP Debugging Enabled\n");
+	} else if (a->argc == 3) {
+		if (strncasecmp(a->argv[2], "off", 3))
+			return CLI_SHOWUSAGE;
+		rtpdebug = 0;
+		ast_cli(a->fd, "RTP Debugging Disabled\n");
+	} else {
+		if (strncasecmp(a->argv[2], "ip", 2))
+			return CLI_SHOWUSAGE;
+		return rtp_do_debug_ip(a);
 	}
-	rtcpdebug = 1;
-	memset(&rtcpdebugaddr,0,sizeof(rtcpdebugaddr));
-	ast_cli(fd, "RTCP Debugging Enabled\n");
-	return RESULT_SUCCESS;
+
+	return CLI_SUCCESS;
 }
 
-static int rtcp_do_stats(int fd, int argc, char *argv[])
+static char *handle_cli_rtcp_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	rtcpstats = 1;
-	ast_cli(fd, "RTCP Stats Enabled\n");
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtcp debug [off|ip]";
+		e->usage =
+			"Usage: rtcp debug [off]|[ip host[:port]]\n"
+			"       Enable/Disable dumping of all RTCP packets. If 'ip' is\n"
+			"       specified, limit the dumped packets to those to and from\n"
+			"       the specified 'host' with optional port.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 2 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 2) {
+		rtcpdebug = 1;
+		memset(&rtcpdebugaddr, 0, sizeof(rtcpdebugaddr));
+		ast_cli(a->fd, "RTCP Debugging Enabled\n");
+	} else if (a->argc == 3) {
+		if (strncasecmp(a->argv[2], "off", 3))
+			return CLI_SHOWUSAGE;
+		rtcpdebug = 0;
+		ast_cli(a->fd, "RTCP Debugging Disabled\n");
+	} else {
+		if (strncasecmp(a->argv[2], "ip", 2))
+			return CLI_SHOWUSAGE;
+		return rtcp_do_debug_ip(a);
+	}
+
+	return CLI_SUCCESS;
 }
 
-static int rtp_no_debug(int fd, int argc, char *argv[])
+static char *handle_cli_rtcp_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	rtpdebug = 0;
-	ast_cli(fd,"RTP Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "rtcp stats [off]";
+		e->usage =
+			"Usage: rtcp stats [off]\n"
+			"       Enable/Disable dumping of RTCP stats.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 2 || a->argc > 3)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 3 && strncasecmp(a->argv[2], "off", 3))
+		return CLI_SHOWUSAGE;
+
+	rtcpstats = (a->argc == 3) ? 0 : 1;
+	ast_cli(a->fd, "RTCP Stats %s\n", rtcpstats ? "Enabled" : "Disabled");
+	return CLI_SUCCESS;
 }
 
-static int rtcp_no_debug(int fd, int argc, char *argv[])
+static char *handle_cli_stun_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	rtcpdebug = 0;
-	ast_cli(fd,"RTCP Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "stun debug [off]";
+		e->usage =
+			"Usage: stun debug [off]\n"
+			"       Enable/Disable STUN (Simple Traversal of UDP through NATs)\n"
+			"       debugging\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc < 2 || a->argc > 3)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 3 && strncasecmp(a->argv[2], "off", 3))
+		return CLI_SHOWUSAGE;
+
+	stundebug = (a->argc == 3) ? 0 : 1;
+	ast_cli(a->fd, "STUN Debugging %s\n", stundebug ? "Enabled" : "Disabled");
+	return CLI_SUCCESS;
 }
-
-static int rtcp_no_stats(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	rtcpstats = 0;
-	ast_cli(fd,"RTCP Stats Disabled\n");
-	return RESULT_SUCCESS;
-}
-
-static int stun_do_debug(int fd, int argc, char *argv[])
-{
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	stundebug = 1;
-	ast_cli(fd, "STUN Debugging Enabled\n");
-	return RESULT_SUCCESS;
-}
-   
-static int stun_no_debug(int fd, int argc, char *argv[])
-{
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	stundebug = 0;
-	ast_cli(fd, "STUN Debugging Disabled\n");
-	return RESULT_SUCCESS;
-}
-
-static const char debug_usage[] =
-  "Usage: rtp debug [ip host[:port]]\n"
-  "       Enable dumping of all RTP packets to and from host.\n";
-
-static const char no_debug_usage[] =
-  "Usage: rtp debug off\n"
-  "       Disable all RTP debugging\n";
-
-static const char stun_debug_usage[] =
-  "Usage: stun debug\n"
-  "       Enable STUN (Simple Traversal of UDP through NATs) debugging\n";
-
-static const char stun_no_debug_usage[] =
-  "Usage: stun debug off\n"
-  "       Disable STUN debugging\n";
-
-static const char rtcp_debug_usage[] =
-  "Usage: rtcp debug [ip host[:port]]\n"
-  "       Enable dumping of all RTCP packets to and from host.\n";
-  
-static const char rtcp_no_debug_usage[] =
-  "Usage: rtcp debug off\n"
-  "       Disable all RTCP debugging\n";
-
-static const char rtcp_stats_usage[] =
-  "Usage: rtcp stats\n"
-  "       Enable dumping of RTCP stats.\n";
-  
-static const char rtcp_no_stats_usage[] =
-  "Usage: rtcp stats off\n"
-  "       Disable all RTCP stats\n";
 
 static struct ast_cli_entry cli_rtp[] = {
-	{ { "rtp", "debug", "ip", NULL },
-	rtp_do_debug, "Enable RTP debugging on IP",
-	debug_usage },
-
-	{ { "rtp", "debug", NULL },
-	rtp_do_debug, "Enable RTP debugging",
-	debug_usage },
-
-	{ { "rtp", "debug", "off", NULL },
-	rtp_no_debug, "Disable RTP debugging",
-	no_debug_usage },
-
-	{ { "rtcp", "debug", "ip", NULL },
-	rtcp_do_debug, "Enable RTCP debugging on IP",
-	rtcp_debug_usage },
-
-	{ { "rtcp", "debug", NULL },
-	rtcp_do_debug, "Enable RTCP debugging",
-	rtcp_debug_usage },
-
-	{ { "rtcp", "debug", "off", NULL },
-	rtcp_no_debug, "Disable RTCP debugging",
-	rtcp_no_debug_usage },
-
-	{ { "rtcp", "stats", NULL },
-	rtcp_do_stats, "Enable RTCP stats",
-	rtcp_stats_usage },
-
-	{ { "rtcp", "stats", "off", NULL },
-	rtcp_no_stats, "Disable RTCP stats",
-	rtcp_no_stats_usage },
-
-	{ { "stun", "debug", NULL },
-	stun_do_debug, "Enable STUN debugging",
-	stun_debug_usage },
-
-	{ { "stun", "debug", "off", NULL },
-	stun_no_debug, "Disable STUN debugging",
-	stun_no_debug_usage },
+	NEW_CLI(handle_cli_rtp_debug,  "Enable/Disable RTP debugging"),
+	NEW_CLI(handle_cli_rtcp_debug, "Enable/Disable RTCP debugging"),
+	NEW_CLI(handle_cli_rtcp_stats, "Enable/Disable RTCP stats"),
+	NEW_CLI(handle_cli_stun_debug, "Enable/Disable STUN debugging"),
 };
 
 static int __ast_rtp_reload(int reload)

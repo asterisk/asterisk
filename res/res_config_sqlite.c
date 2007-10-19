@@ -106,10 +106,6 @@
 #define RES_CONFIG_SQLITE_DRIVER "sqlite"
 #define RES_CONFIG_SQLITE_DESCRIPTION "Resource Module for SQLite 2"
 #define RES_CONFIG_SQLITE_CONF_FILE "res_config_sqlite.conf"
-#define RES_CONFIG_SQLITE_STATUS_SUMMARY "Show status information about the SQLite 2 driver"
-#define RES_CONFIG_SQLITE_STATUS_USAGE			\
-	"Usage: show sqlite status\n"			\
-	"	" RES_CONFIG_SQLITE_STATUS_SUMMARY "\n"
 
 enum {
 	RES_CONFIG_SQLITE_CONFIG_ID,
@@ -456,7 +452,7 @@ static int realtime_destroy_handler(const char *database, const char *table,
  * \param argv arguments list
  * \return RESULT_SUCCESS
  */
-static int cli_status(int fd, int argc, char *argv[]);
+static char *handle_cli_show_sqlite_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 /*! The SQLite database object. */
 static sqlite *db;
@@ -503,12 +499,8 @@ AST_MUTEX_DEFINE_STATIC(mutex);
  * Structure containing details and callback functions for the CLI status
  * command.
  */
-static struct ast_cli_entry cli_status_cmd =
-{
-	.cmda = {"show", "sqlite", "status", NULL},
-	.handler = cli_status,
-	.summary = RES_CONFIG_SQLITE_STATUS_SUMMARY,
-	.usage = RES_CONFIG_SQLITE_STATUS_USAGE
+static struct ast_cli_entry cli_status[] = {
+	NEW_CLI(handle_cli_show_sqlite_status, "Show status information about the SQLite 2 driver"),
 };
 
 /*
@@ -1382,31 +1374,44 @@ static int realtime_destroy_handler(const char *database, const char *table,
 	return rows_num;
 }
 
-
-static int cli_status(int fd, int argc, char *argv[])
+static char *handle_cli_show_sqlite_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	ast_cli(fd, "SQLite database path: %s\n", dbfile);
-	ast_cli(fd, "config_table: ");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "show sqlite status";
+		e->usage =
+			"Usage: show sqlite status\n"
+			"       Show status information about the SQLite 2 driver\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "SQLite database path: %s\n", dbfile);
+	ast_cli(a->fd, "config_table: ");
 
 	if (!config_table)
-		ast_cli(fd, "unspecified, must be present in extconfig.conf\n");
+		ast_cli(a->fd, "unspecified, must be present in extconfig.conf\n");
 	else
-		ast_cli(fd, "%s\n", config_table);
+		ast_cli(a->fd, "%s\n", config_table);
 
-	ast_cli(fd, "cdr_table: ");
+	ast_cli(a->fd, "cdr_table: ");
 
 	if (!cdr_table)
-		ast_cli(fd, "unspecified, CDR support disabled\n");
+		ast_cli(a->fd, "unspecified, CDR support disabled\n");
 	else
-		ast_cli(fd, "%s\n", cdr_table);
+		ast_cli(a->fd, "%s\n", cdr_table);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static int unload_module(void)
 {
 	if (cli_status_registered)
-		ast_cli_unregister(&cli_status_cmd);
+		ast_cli_unregister_multiple(cli_status, sizeof(cli_status) / sizeof(struct ast_cli_entry));
 
 	if (cdr_registered)
 		ast_cdr_unregister(RES_CONFIG_SQLITE_NAME);
@@ -1516,7 +1521,7 @@ static int load_module(void)
 		cdr_registered = 1;
 	}
 
-	error = ast_cli_register(&cli_status_cmd);
+	error = ast_cli_register_multiple(cli_status, sizeof(cli_status) / sizeof(struct ast_cli_entry));
 
 	if (error) {
 		unload_module();

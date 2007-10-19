@@ -2143,37 +2143,42 @@ int ast_parse_arg(const char *arg, enum ast_parse_flags flags,
 	return error;
 }
 
-static int config_command(int fd, int argc, char **argv) 
+static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ast_config_engine *eng;
 	struct ast_config_map *map;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "core show config mappings";
+		e->usage =
+			"Usage: core show config mappings\n"
+			"	Shows the filenames to config engines.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 	
 	ast_mutex_lock(&config_lock);
 
-	ast_cli(fd, "\n\n");
+	ast_cli(a->fd, "\n\n");
 	for (eng = config_engine_list; eng; eng = eng->next) {
-		ast_cli(fd, "\nConfig Engine: %s\n", eng->name);
+		ast_cli(a->fd, "\nConfig Engine: %s\n", eng->name);
 		for (map = config_maps; map; map = map->next)
 			if (!strcasecmp(map->driver, eng->name)) {
-				ast_cli(fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+				ast_cli(a->fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
 					map->table ? map->table : map->name);
 			}
 	}
-	ast_cli(fd,"\n\n");
+	ast_cli(a->fd,"\n\n");
 	
 	ast_mutex_unlock(&config_lock);
 
-	return 0;
+	return CLI_SUCCESS;
 }
 
-static char show_config_help[] =
-	"Usage: core show config mappings\n"
-	"	Shows the filenames to config engines.\n";
-
 static struct ast_cli_entry cli_config[] = {
-	{ { "core", "show", "config", "mappings", NULL },
-	config_command, "Display config mappings (file names to config engines)",
-	show_config_help },
+	NEW_CLI(handle_cli_core_show_config_mappings, "Display config mappings (file names to config engines)"),
 };
 
 int register_config_cli() 

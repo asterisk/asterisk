@@ -67,29 +67,10 @@ static struct channel_usage {
 	int decoders;
 } channels;
 
-static char show_transcoder_usage[] =
-"Usage: show transcoder\n"
-"       Displays channel utilization of Zaptel transcoder(s).\n";
-
-static char transcoder_show_usage[] =
-"Usage: transcoder show\n"
-"       Displays channel utilization of Zaptel transcoder(s).\n";
-
-static int transcoder_show(int fd, int argc, char **argv);
-
-static struct ast_cli_entry cli_deprecated[] = {
-	{ { "show", "transcoder", NULL },
-	  transcoder_show,
-	  "Display Zaptel transcoder utilization.",
-	  show_transcoder_usage}
-};
+static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli[] = {
-	{ { "transcoder", "show", NULL },
-	  transcoder_show,
-	  "Display Zaptel transcoder utilization.",
-	  transcoder_show_usage, NULL,
-	  &cli_deprecated[0]}
+	NEW_CLI(handle_cli_transcoder_show, "Display Zaptel transcoder utilization.")
 };
 
 struct format_map {
@@ -116,18 +97,32 @@ struct pvt {
 	struct ast_frame f;
 };
 
-static int transcoder_show(int fd, int argc, char **argv)
+static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct channel_usage copy;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "transcoder show";
+		e->usage =
+			"Usage: transcoder show\n"
+			"       Displays channel utilization of Zaptel transcoder(s).\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
 
 	copy = channels;
 
 	if (copy.total == 0)
-		ast_cli(fd, "No Zaptel transcoders found.\n");
+		ast_cli(a->fd, "No Zaptel transcoders found.\n");
 	else
-		ast_cli(fd, "%d/%d encoders/decoders of %d channels are in use.\n", copy.encoders, copy.decoders, copy.total);
+		ast_cli(a->fd, "%d/%d encoders/decoders of %d channels are in use.\n", copy.encoders, copy.decoders, copy.total);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static int zap_framein(struct ast_trans_pvt *pvt, struct ast_frame *f)
@@ -492,4 +487,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic Zaptel Transcode
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
-	       );
+		);

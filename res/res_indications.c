@@ -52,22 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Globals */
 static const char config[] = "indications.conf";
 
-/*
- * Help for commands provided by this module ...
- */
-static char help_add_indication[] =
-"Usage: indication add <country> <indication> \"<tonelist>\"\n"
-"       Add the given indication to the country.\n";
-
-static char help_remove_indication[] =
-"Usage: indication remove <country> <indication>\n"
-"       Remove the given indication from the country.\n";
-
-static char help_show_indications[] =
-"Usage: indication show [<country> ...]\n"
-"       Display either a condensed for of all country/indications, or the\n"
-"       indications for the specified countries.\n";
-
 char *playtones_desc=
 "PlayTones(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
 "while the tones continue to play.\n"
@@ -82,122 +66,159 @@ char *playtones_desc=
 
 /*!
  * \brief Add a country to indication
- * \param fd file descriptor of CLI
- * \param argc no of args
- * \param argv arguements
+ * \param e the ast_cli_entry for this CLI command
+ * \param cmd the reason we are being called
+ * \param a the arguments being passed to us
  */
-static int handle_add_indication(int fd, int argc, char *argv[])
+static char *handle_cli_indication_add(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ind_tone_zone *tz;
 	int created_country = 0;
-	if (argc != 5) return RESULT_SHOWUSAGE;
 
-	tz = ast_get_indication_zone(argv[2]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "indication add";
+		e->usage =
+			"Usage: indication add <country> <indication> \"<tonelist>\"\n"
+			"       Add the given indication to the country.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 5)
+		return CLI_SHOWUSAGE;
+
+	tz = ast_get_indication_zone(a->argv[2]);
 	if (!tz) {
 		/* country does not exist, create it */
-		ast_log(LOG_NOTICE, "Country '%s' does not exist, creating it.\n",argv[2]);
+		ast_log(LOG_NOTICE, "Country '%s' does not exist, creating it.\n", a->argv[2]);
 		
 		if (!(tz = ast_calloc(1, sizeof(*tz)))) {
-			return -1;
+			return CLI_FAILURE;
 		}
-		ast_copy_string(tz->country,argv[2],sizeof(tz->country));
+		ast_copy_string(tz->country, a->argv[2], sizeof(tz->country));
 		if (ast_register_indication_country(tz)) {
 			ast_log(LOG_WARNING, "Unable to register new country\n");
 			ast_free(tz);
-			return -1;
+			return CLI_FAILURE;
 		}
 		created_country = 1;
 	}
-	if (ast_register_indication(tz,argv[3],argv[4])) {
-		ast_log(LOG_WARNING, "Unable to register indication %s/%s\n",argv[2],argv[3]);
+	if (ast_register_indication(tz, a->argv[3], a->argv[4])) {
+		ast_log(LOG_WARNING, "Unable to register indication %s/%s\n", a->argv[2], a->argv[3]);
 		if (created_country)
-			ast_unregister_indication_country(argv[2]);
-		return -1;
+			ast_unregister_indication_country(a->argv[2]);
+		return CLI_FAILURE;
 	}
-	return 0;
+	return CLI_SUCCESS;
 }
 
 /*!
  * \brief Remove a country from indication
- * \param fd file descriptor of CLI
- * \param argc no of args
- * \param argv arguements
+ * \param e the ast_cli_entry for this CLI command
+ * \param cmd the reason we are being called
+ * \param a the arguments being passed to us
  */
-static int handle_remove_indication(int fd, int argc, char *argv[])
+static char *handle_cli_indication_remove(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ind_tone_zone *tz;
-	if (argc != 3 && argc != 4) return RESULT_SHOWUSAGE;
 
-	if (argc == 3) {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "indication remove";
+		e->usage =
+			"Usage: indication remove <country> <indication>\n"
+			"       Remove the given indication from the country.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3 && a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	if (a->argc == 3) {
 		/* remove entiry country */
-		if (ast_unregister_indication_country(argv[2])) {
-			ast_log(LOG_WARNING, "Unable to unregister indication country %s\n",argv[2]);
-			return -1;
+		if (ast_unregister_indication_country(a->argv[2])) {
+			ast_log(LOG_WARNING, "Unable to unregister indication country %s\n", a->argv[2]);
+			return CLI_FAILURE;
 		}
-		return 0;
+		return CLI_SUCCESS;
 	}
 
-	tz = ast_get_indication_zone(argv[2]);
+	tz = ast_get_indication_zone(a->argv[2]);
 	if (!tz) {
-		ast_log(LOG_WARNING, "Unable to unregister indication %s/%s, country does not exists\n",argv[2],argv[3]);
-		return -1;
+		ast_log(LOG_WARNING, "Unable to unregister indication %s/%s, country does not exists\n", a->argv[2], a->argv[3]);
+		return CLI_FAILURE;
 	}
-	if (ast_unregister_indication(tz,argv[3])) {
-		ast_log(LOG_WARNING, "Unable to unregister indication %s/%s\n",argv[2],argv[3]);
-		return -1;
+	if (ast_unregister_indication(tz, a->argv[3])) {
+		ast_log(LOG_WARNING, "Unable to unregister indication %s/%s\n", a->argv[2], a->argv[3]);
+		return CLI_FAILURE;
 	}
-	return 0;
+	return CLI_SUCCESS;
 }
 
 /*!
  * \brief Show the current indications
- * \param fd file descriptor of CLI
- * \param argc no of args
- * \param argv arguements
+ * \param e the ast_cli_entry for this CLI command
+ * \param cmd the reason we are being called
+ * \param a the arguments being passed to us
  */
-static int handle_show_indications(int fd, int argc, char *argv[])
+static char *handle_cli_indication_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct ind_tone_zone *tz = NULL;
 	char buf[256];
 	int found_country = 0;
 
-	if (argc == 2) {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "indication show";
+		e->usage =
+			"Usage: indication show [<country> ...]\n"
+			"       Display either a condensed for of all country/indications, or the\n"
+			"       indications for the specified countries.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc == 2) {
 		/* no arguments, show a list of countries */
-		ast_cli(fd,"Country Alias   Description\n"
-			   "===========================\n");
-		while ( (tz = ast_walk_indications(tz) ) )
-			ast_cli(fd,"%-7.7s %-7.7s %s\n", tz->country, tz->alias, tz->description);
-		return 0;
+		ast_cli(a->fd, "Country Alias   Description\n");
+		ast_cli(a->fd, "===========================\n");
+		while ((tz = ast_walk_indications(tz)))
+			ast_cli(a->fd, "%-7.7s %-7.7s %s\n", tz->country, tz->alias, tz->description);
+		return CLI_SUCCESS;
 	}
 	/* there was a request for specific country(ies), lets humor them */
-	while ( (tz = ast_walk_indications(tz) ) ) {
-		int i,j;
-		for (i=2; i<argc; i++) {
-			if (strcasecmp(tz->country,argv[i])==0 &&
-			    !tz->alias[0]) {
+	while ((tz = ast_walk_indications(tz))) {
+		int i, j;
+		for (i = 2; i < a->argc; i++) {
+			if (strcasecmp(tz->country, a->argv[i]) == 0 && !tz->alias[0]) {
 				struct ind_tone_zone_sound* ts;
 				if (!found_country) {
 					found_country = 1;
-					ast_cli(fd,"Country Indication      PlayList\n"
-						   "=====================================\n");
+					ast_cli(a->fd, "Country Indication      PlayList\n");
+					ast_cli(a->fd, "=====================================\n");
 				}
-				j = snprintf(buf,sizeof(buf),"%-7.7s %-15.15s ",tz->country,"<ringcadence>");
-				for (i=0; i<tz->nrringcadence; i++) {
-					j += snprintf(buf+j,sizeof(buf)-j,"%d,",tz->ringcadence[i]);
+				j = snprintf(buf, sizeof(buf), "%-7.7s %-15.15s ", tz->country, "<ringcadence>");
+				for (i = 0; i < tz->nrringcadence; i++) {
+					j += snprintf(buf + j, sizeof(buf) - j, "%d,", tz->ringcadence[i]);
 				}
 				if (tz->nrringcadence)
 					j--;
-				ast_copy_string(buf+j,"\n",sizeof(buf)-j);
-				ast_cli(fd,buf);
-				for (ts=tz->tones; ts; ts=ts->next)
-					ast_cli(fd,"%-7.7s %-15.15s %s\n",tz->country,ts->name,ts->data);
+				ast_copy_string(buf + j, "\n", sizeof(buf) - j);
+				ast_cli(a->fd, buf);
+				for (ts = tz->tones; ts; ts = ts->next)
+					ast_cli(a->fd, "%-7.7s %-15.15s %s\n", tz->country, ts->name, ts->data);
 				break;
 			}
 		}
 	}
 	if (!found_country)
-		ast_cli(fd,"No countries matched your criteria.\n");
-	return -1;
+		ast_cli(a->fd, "No countries matched your criteria.\n");
+	return CLI_SUCCESS;
 }
 
 /*!
@@ -361,17 +382,9 @@ out:			v = v->next;
 
 /*! \brief CLI entries for commands provided by this module */
 static struct ast_cli_entry cli_indications[] = {
-	{ { "indication", "add", NULL },
-	handle_add_indication, "Add the given indication to the country",
-	help_add_indication, NULL },
-
-	{ { "indication", "remove", NULL },
-	handle_remove_indication, "Remove the given indication from the country",
-	help_remove_indication, NULL },
-
-	{ { "indication", "show", NULL },
-	handle_show_indications, "Display a list of all countries/indications",
-	help_show_indications },
+	NEW_CLI(handle_cli_indication_add,    "Add the given indication to the country"),
+	NEW_CLI(handle_cli_indication_remove, "Remove the given indication from the country"),
+	NEW_CLI(handle_cli_indication_show,   "Display a list of all countries/indications")
 };
 
 /*! \brief Unload indicators module */

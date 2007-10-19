@@ -292,8 +292,6 @@ enum iax2_flags {
 static int global_rtautoclear = 120;
 
 static int reload_config(void);
-static int iax2_reload(int fd, int argc, char *argv[]);
-
 
 struct iax2_user {
 	AST_DECLARE_STRING_FIELDS(
@@ -711,6 +709,8 @@ static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt);
+static char *complete_iax2_show_peer(const char *line, const char *word, int pos, int state);
+static char *complete_iax2_unregister(const char *line, const char *word, int pos, int state);
 
 enum iax2_thread_iostate {
 	IAX_IOSTATE_IDLE,
@@ -2265,72 +2265,128 @@ static int attempt_transmit(const void *data)
 	return 0;
 }
 
-static int iax2_prune_realtime(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax2_peer *peer;
 
-	if (argc != 4)
-        return RESULT_SHOWUSAGE;
-	if (!strcmp(argv[3],"all")) {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 prune realtime";
+		e->usage =
+			"Usage: iax2 prune realtime [<peername>|all]\n"
+			"       Prunes object(s) from the cache\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_iax2_show_peer(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 4)
+        return CLI_SHOWUSAGE;
+	if (!strcmp(a->argv[3], "all")) {
 		reload_config();
-		ast_cli(fd, "OK cache is flushed.\n");
-	} else if ((peer = find_peer(argv[3], 0))) {
+		ast_cli(a->fd, "Cache flushed successfully.\n");
+	} else if ((peer = find_peer(a->argv[3], 0))) {
 		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry((const void *)peer->name);
-			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
+			expire_registry((const void *) peer->name);
+			ast_cli(a->fd, "Peer %s was removed from the cache.\n", a->argv[3]);
 		} else {
-			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
+			ast_cli(a->fd, "Peer %s is not eligible for this operation.\n", a->argv[3]);
 		}
 		peer_unref(peer);
 	} else {
-		ast_cli(fd, "SORRY peer %s was not found in the cache.\n", argv[3]);
+		ast_cli(a->fd, "Peer %s was not found in the cache.\n", a->argv[3]);
 	}
 	
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int iax2_test_losspct(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_test_losspct(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-       if (argc != 4)
-               return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 test losspct";
+		e->usage =
+			"Usage: iax2 test losspct <percentage>\n"
+			"       For testing, throws away <percentage> percent of incoming packets\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-       test_losspct = atoi(argv[3]);
+	test_losspct = atoi(a->argv[3]);
 
-       return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 #ifdef IAXTESTS
-static int iax2_test_late(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_test_late(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 test late";
+		e->usage =
+			"Usage: iax2 test late <ms>\n"
+			"       For testing, count the next frame as <ms> ms late\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	test_late = atoi(argv[3]);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	return RESULT_SUCCESS;
+	test_late = atoi(a->argv[3]);
+
+	return CLI_SUCCESS;
 }
 
-static int iax2_test_resync(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_test_resync(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 test resync";
+		e->usage =
+			"Usage: iax2 test resync <ms>\n"
+			"       For testing, adjust all future frames by <ms> ms\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	test_resync = atoi(argv[3]);
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
 
-	return RESULT_SUCCESS;
+	test_resync = atoi(a->argv[3]);
+
+	return CLI_SUCCESS;
 }
 
-static int iax2_test_jitter(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_test_jitter(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 4 || argc > 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 test jitter";
+		e->usage =
+			"Usage: iax2 test jitter <ms> <pct>\n"
+			"       For testing, simulate maximum jitter of +/- <ms> on <pct>\n"
+			"       percentage of packets. If <pct> is not specified, adds\n"
+			"       jitter to all packets.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	test_jit = atoi(argv[3]);
-	if (argc == 5) 
-		test_jitpct = atoi(argv[4]);
+	if (a->argc < 4 || a->argc > 5)
+		return CLI_SHOWUSAGE;
 
-	return RESULT_SUCCESS;
+	test_jit = atoi(a->argv[3]);
+	if (a->argc == 5)
+		test_jitpct = atoi(a->argv[4]);
+
+	return CLI_SUCCESS;
 }
 #endif /* IAXTESTS */
 
@@ -2359,7 +2415,7 @@ static int peer_status(struct iax2_peer *peer, char *status, int statuslen)
 }
 
 /*! \brief Show one peer in detail */
-static int iax2_show_peer(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_peer(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char status[30];
 	char cbuf[256];
@@ -2367,55 +2423,66 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 	char codec_buf[512];
 	int x = 0, codec = 0, load_realtime = 0;
 
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show peer";
+		e->usage =
+			"Usage: iax2 show peer <name>\n"
+			"       Display details on specific IAX peer\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_iax2_show_peer(a->line, a->word, a->pos, a->n);
+	}
 
-	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
 
-	peer = find_peer(argv[3], load_realtime);
+	load_realtime = (a->argc == 5 && !strcmp(a->argv[4], "load")) ? 1 : 0;
+
+	peer = find_peer(a->argv[3], load_realtime);
 	if (peer) {
-		ast_cli(fd,"\n\n");
-		ast_cli(fd, "  * Name       : %s\n", peer->name);
-		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
-		ast_cli(fd, "  Context      : %s\n", peer->context);
-		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
-		ast_cli(fd, "  Dynamic      : %s\n", ast_test_flag(peer, IAX_DYNAMIC) ? "Yes":"No");
-		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
-		ast_cli(fd, "  Expire       : %d\n", peer->expire);
-		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
-		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
-		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
-		ast_cli(fd, "  Username     : %s\n", peer->username);
-		ast_cli(fd, "  Codecs       : ");
+		ast_cli(a->fd, "\n\n");
+		ast_cli(a->fd, "  * Name       : %s\n", peer->name);
+		ast_cli(a->fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret) ? "<Not set>" : "<Set>");
+		ast_cli(a->fd, "  Context      : %s\n", peer->context);
+		ast_cli(a->fd, "  Mailbox      : %s\n", peer->mailbox);
+		ast_cli(a->fd, "  Dynamic      : %s\n", ast_test_flag(peer, IAX_DYNAMIC) ? "Yes" : "No");
+		ast_cli(a->fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
+		ast_cli(a->fd, "  Expire       : %d\n", peer->expire);
+		ast_cli(a->fd, "  ACL          : %s\n", (peer->ha ? "Yes" : "No"));
+		ast_cli(a->fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
+		ast_cli(a->fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
+		ast_cli(a->fd, "  Username     : %s\n", peer->username);
+		ast_cli(a->fd, "  Codecs       : ");
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
-		ast_cli(fd, "%s\n", codec_buf);
+		ast_cli(a->fd, "%s\n", codec_buf);
 
-		ast_cli(fd, "  Codec Order  : (");
+		ast_cli(a->fd, "  Codec Order  : (");
 		for(x = 0; x < 32 ; x++) {
 			codec = ast_codec_pref_index(&peer->prefs,x);
 			if(!codec)
 				break;
-			ast_cli(fd, "%s", ast_getformatname(codec));
+			ast_cli(a->fd, "%s", ast_getformatname(codec));
 			if(x < 31 && ast_codec_pref_index(&peer->prefs,x+1))
-				ast_cli(fd, "|");
+				ast_cli(a->fd, "|");
 		}
 
 		if (!x)
-			ast_cli(fd, "none");
-		ast_cli(fd, ")\n");
+			ast_cli(a->fd, "none");
+		ast_cli(a->fd, ")\n");
 
-		ast_cli(fd, "  Status       : ");
+		ast_cli(a->fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));	
-		ast_cli(fd, "%s\n",status);
-		ast_cli(fd, "  Qualify      : every %dms when OK, every %dms when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, peer->smoothing ? "On" : "Off");
-		ast_cli(fd,"\n");
+		ast_cli(a->fd, "%s\n",status);
+		ast_cli(a->fd, "  Qualify      : every %dms when OK, every %dms when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, peer->smoothing ? "On" : "Off");
+		ast_cli(a->fd, "\n");
 		peer_unref(peer);
 	} else {
-		ast_cli(fd,"Peer %s not found.\n", argv[3]);
-		ast_cli(fd,"\n");
+		ast_cli(a->fd, "Peer %s not found.\n", a->argv[3]);
+		ast_cli(a->fd, "\n");
 	}
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static char *complete_iax2_show_peer(const char *line, const char *word, int pos, int state)
@@ -2443,13 +2510,24 @@ static char *complete_iax2_show_peer(const char *line, const char *word, int pos
 	return res;
 }
 
-static int iax2_show_stats(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax_frame *cur;
-	int cnt = 0, dead=0, final=0;
+	int cnt = 0, dead = 0, final = 0;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show stats";
+		e->usage =
+			"Usage: iax2 show stats\n"
+			"       Display statistics on IAX channel driver.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
 	AST_LIST_LOCK(&frame_queue);
 	AST_LIST_TRAVERSE(&frame_queue, cur, list) {
@@ -2461,57 +2539,83 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 	}
 	AST_LIST_UNLOCK(&frame_queue);
 
-	ast_cli(fd, "    IAX Statistics\n");
-	ast_cli(fd, "---------------------\n");
-	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
-	ast_cli(fd, "%d timed and %d untimed transmits; MTU %d/%d/%d\n", trunk_timed, trunk_untimed,
+	ast_cli(a->fd, "    IAX Statistics\n");
+	ast_cli(a->fd, "---------------------\n");
+	ast_cli(a->fd, "Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
+	ast_cli(a->fd, "%d timed and %d untimed transmits; MTU %d/%d/%d\n", trunk_timed, trunk_untimed,
 		trunk_maxmtu, trunk_nmaxmtu, global_max_trunk_mtu);
-
-	ast_cli(fd, "Packets in transmit queue: %d dead, %d final, %d total\n\n", dead, final, cnt);
+	ast_cli(a->fd, "Packets in transmit queue: %d dead, %d final, %d total\n\n", dead, final, cnt);
 
 	trunk_timed = trunk_untimed = 0;
 	if (trunk_maxmtu > trunk_nmaxmtu)
 		trunk_nmaxmtu = trunk_maxmtu;
-	
-	return RESULT_SUCCESS;
+
+	return CLI_SUCCESS;
 }
 
 /*! \brief Set trunk MTU from CLI */
-static int iax2_set_mtu(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_set_mtu(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int mtuv;
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE; 
-	if (strncasecmp(argv[3], "default", strlen(argv[3])) == 0) 
-		mtuv = MAX_TRUNK_MTU; 
-	else                                         
-		mtuv = atoi(argv[3]); 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set mtu";
+		e->usage =
+			"Usage: iax2 set mtu <value>\n"
+			"       Set the system-wide IAX IP mtu to <value> bytes net or\n"
+			"       zero to disable. Disabling means that the operating system\n"
+			"       must handle fragmentation of UDP packets when the IAX2 trunk\n"
+			"       packet exceeds the UDP payload size. This is substantially\n"
+			"       below the IP mtu. Try 1240 on ethernets. Must be 172 or\n"
+			"       greater for G.711 samples.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE; 
+	if (strncasecmp(a->argv[3], "default", strlen(a->argv[3])) == 0)
+		mtuv = MAX_TRUNK_MTU;
+	else
+		mtuv = atoi(a->argv[3]);
 
 	if (mtuv == 0) {
-		ast_cli(fd, "Trunk MTU control disabled (mtu was %d)\n", global_max_trunk_mtu); 
+		ast_cli(a->fd, "Trunk MTU control disabled (mtu was %d)\n", global_max_trunk_mtu); 
 		global_max_trunk_mtu = 0; 
-		return RESULT_SUCCESS; 
+		return CLI_SUCCESS; 
 	}
 	if (mtuv < 172 || mtuv > 4000) {
-		ast_cli(fd, "Trunk MTU must be between 172 and 4000\n"); 
-		return RESULT_SHOWUSAGE; 
+		ast_cli(a->fd, "Trunk MTU must be between 172 and 4000\n"); 
+		return CLI_SHOWUSAGE; 
 	}
-	ast_cli(fd, "Trunk MTU changed from %d to %d\n", global_max_trunk_mtu, mtuv); 
+	ast_cli(a->fd, "Trunk MTU changed from %d to %d\n", global_max_trunk_mtu, mtuv); 
 	global_max_trunk_mtu = mtuv; 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int iax2_show_cache(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_cache(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax2_dpcache *dp = NULL;
 	char tmp[1024], *pc = NULL;
 	int s, x, y;
 	struct timeval tv = ast_tvnow();
 
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show cache";
+		e->usage =
+			"Usage: iax2 show cache\n"
+			"       Display currently cached IAX Dialplan results.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
 	AST_LIST_LOCK(&dpcache);
 
-	ast_cli(fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
+	ast_cli(a->fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
 
 	AST_LIST_TRAVERSE(&dpcache, dp, cache_list) {
 		s = dp->expiry.tv_sec - tv.tv_sec;
@@ -2537,24 +2641,24 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 			tmp[strlen(tmp) - 1] = '\0';
 		else
 			ast_copy_string(tmp, "(none)", sizeof(tmp));
-		y=0;
+		y = 0;
 		pc = strchr(dp->peercontext, '@');
 		if (!pc)
 			pc = dp->peercontext;
 		else
 			pc++;
-		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
+		for (x = 0; x < sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
 			if (dp->waiters[x] > -1)
 				y++;
 		if (s > 0)
-			ast_cli(fd, "%-20.20s %-12.12s %-9d %-8d %s\n", pc, dp->exten, s, y, tmp);
+			ast_cli(a->fd, "%-20.20s %-12.12s %-9d %-8d %s\n", pc, dp->exten, s, y, tmp);
 		else
-			ast_cli(fd, "%-20.20s %-12.12s %-9.9s %-8d %s\n", pc, dp->exten, "(expired)", y, tmp);
+			ast_cli(a->fd, "%-20.20s %-12.12s %-9.9s %-8d %s\n", pc, dp->exten, "(expired)", y, tmp);
 	}
 
 	AST_LIST_LOCK(&dpcache);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
@@ -4424,7 +4528,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	return res;
 }
 
-static int iax2_show_users(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_users(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -4437,21 +4541,33 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	char *pstr = "";
 	struct ao2_iterator i;
 
-	switch (argc) {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show users [like]";
+		e->usage =
+			"Usage: iax2 show users [like <pattern>]\n"
+			"       Lists all known IAX2 users.\n"
+			"       Optional regular expression pattern is used to filter the user list.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	switch (a->argc) {
 	case 5:
-		if (!strcasecmp(argv[3], "like")) {
-			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
-				return RESULT_SHOWUSAGE;
+		if (!strcasecmp(a->argv[3], "like")) {
+			if (regcomp(&regexbuf, a->argv[4], REG_EXTENDED | REG_NOSUB))
+				return CLI_SHOWUSAGE;
 			havepattern = 1;
 		} else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 	case 3:
 		break;
 	default:
-		return RESULT_SHOWUSAGE;
+		return CLI_SHOWUSAGE;
 	}
 
-	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C","Codec Pref");
+	ast_cli(a->fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C","Codec Pref");
 	i = ao2_iterator_init(users, 0);
 	for (user = ao2_iterator_next(&i); user; 
 		user_unref(user), user = ao2_iterator_next(&i)) {
@@ -4459,7 +4575,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 			continue;
 		
 		if (!ast_strlen_zero(user->secret)) {
-  			ast_copy_string(auth,user->secret,sizeof(auth));
+  			ast_copy_string(auth,user->secret, sizeof(auth));
 		} else if (!ast_strlen_zero(user->inkeys)) {
   			snprintf(auth, sizeof(auth), "Key: %-15.15s ", user->inkeys);
  		} else
@@ -4472,7 +4588,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 		else
 			pstr = ast_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host";
 		
-		ast_cli(fd, FORMAT2, user->name, auth, user->authmethods, 
+		ast_cli(a->fd, FORMAT2, user->name, auth, user->authmethods, 
 			user->contexts ? user->contexts->context : context,
 			user->ha ? "Yes" : "No", pstr);
 	}
@@ -4480,7 +4596,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	if (havepattern)
 		regfree(&regexbuf);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
@@ -4612,32 +4728,42 @@ static int __iax2_show_peers(int manager, int fd, struct mansession *s, int argc
 #undef FORMAT2
 }
 
-static int iax2_show_threads(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_threads(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax2_thread *thread = NULL;
 	time_t t;
 	int threadcount = 0, dynamiccount = 0;
 	char type;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show threads";
+		e->usage =
+			"Usage: iax2 show threads\n"
+			"       Lists status of IAX helper threads\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 		
-	ast_cli(fd, "IAX2 Thread Information\n");
+	ast_cli(a->fd, "IAX2 Thread Information\n");
 	time(&t);
-	ast_cli(fd, "Idle Threads:\n");
+	ast_cli(a->fd, "Idle Threads:\n");
 	AST_LIST_LOCK(&idle_list);
 	AST_LIST_TRAVERSE(&idle_list, thread, list) {
 #ifdef DEBUG_SCHED_MULTITHREAD
-		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, func ='%s'\n", 
+		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d, func='%s'\n", 
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d\n", 
+		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d\n", 
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		threadcount++;
 	}
 	AST_LIST_UNLOCK(&idle_list);
-	ast_cli(fd, "Active Threads:\n");
+	ast_cli(a->fd, "Active Threads:\n");
 	AST_LIST_LOCK(&active_list);
 	AST_LIST_TRAVERSE(&active_list, thread, list) {
 		if (thread->type == IAX_THREAD_TYPE_DYNAMIC)
@@ -4645,50 +4771,62 @@ static int iax2_show_threads(int fd, int argc, char *argv[])
 		else
 			type = 'P';
 #ifdef DEBUG_SCHED_MULTITHREAD
-		ast_cli(fd, "Thread %c%d: state=%d, update=%d, actions=%d, func ='%s'\n", 
+		ast_cli(a->fd, "Thread %c%d: state=%d, update=%d, actions=%d, func='%s'\n", 
 			type, thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-		ast_cli(fd, "Thread %c%d: state=%d, update=%d, actions=%d\n", 
+		ast_cli(a->fd, "Thread %c%d: state=%d, update=%d, actions=%d\n", 
 			type, thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		threadcount++;
 	}
 	AST_LIST_UNLOCK(&active_list);
-	ast_cli(fd, "Dynamic Threads:\n");
+	ast_cli(a->fd, "Dynamic Threads:\n");
 	AST_LIST_LOCK(&dynamic_list);
 	AST_LIST_TRAVERSE(&dynamic_list, thread, list) {
 #ifdef DEBUG_SCHED_MULTITHREAD
-		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d, func ='%s'\n",
+		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d, func='%s'\n",
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions, thread->curfunc);
 #else
-		ast_cli(fd, "Thread %d: state=%d, update=%d, actions=%d\n",
+		ast_cli(a->fd, "Thread %d: state=%d, update=%d, actions=%d\n",
 			thread->threadnum, thread->iostate, (int)(t - thread->checktime), thread->actions);
 #endif
 		dynamiccount++;
 	}
 	AST_LIST_UNLOCK(&dynamic_list);
-	ast_cli(fd, "%d of %d threads accounted for with %d dynamic threads\n", threadcount, iaxthreadcount, dynamiccount);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d of %d threads accounted for with %d dynamic threads\n", threadcount, iaxthreadcount, dynamiccount);
+	return CLI_SUCCESS;
 }
 
-static int iax2_unregister(int fd, int argc, char *argv[]) {
+static char *handle_cli_iax2_unregister(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
 	struct iax2_peer *p;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 unregister";
+		e->usage =
+			"Usage: iax2 unregister <peername>\n"
+			"       Unregister (force expiration) an IAX2 peer from the registry.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_iax2_unregister(a->line, a->word, a->pos, a->n);
+	}
 
-	p = find_peer(argv[2], 1);	
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
+	p = find_peer(a->argv[2], 1);
 	if (p) {
 		if (p->expire > 0) {
-			expire_registry(argv[2]);
-			ast_cli(fd, "Peer %s unregistered\n", argv[2]);
+			expire_registry(a->argv[2]);
+			ast_cli(a->fd, "Peer %s unregistered\n", a->argv[2]);
 		} else {
-			ast_cli(fd, "Peer %s not registered\n", argv[2]);
+			ast_cli(a->fd, "Peer %s not registered\n", a->argv[2]);
 		}
 	} else {
-		ast_cli(fd, "Peer unknown: %s. Not unregistered\n", argv[2]);
+		ast_cli(a->fd, "Peer unknown: %s. Not unregistered\n", a->argv[2]);
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 static char *complete_iax2_unregister(const char *line, const char *word, int pos, int state)
@@ -4715,10 +4853,31 @@ static char *complete_iax2_unregister(const char *line, const char *word, int po
 	return res;
 }
 
-static int iax2_show_peers(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_peers(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	return __iax2_show_peers(0, fd, NULL, argc, argv);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show peers";
+		e->usage =
+			"Usage: iax2 show peers [registered] [like <pattern>]\n"
+			"       Lists all known IAX2 peers.\n"
+			"       Optional 'registered' argument lists only peers with known addresses.\n"
+			"       Optional regular expression pattern is used to filter the peer list.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	switch (__iax2_show_peers(0, a->fd, NULL, a->argc, a->argv)) {
+	case RESULT_SHOWUSAGE:
+		return CLI_SHOWUSAGE;
+	case RESULT_FAILURE:
+		return CLI_FAILURE;
+	default:
+		return CLI_SUCCESS;
+	}
 }
+
 static int manager_iax2_show_netstats(struct mansession *s, const struct message *m)
 {
 	ast_cli_netstats(s, -1, 0);
@@ -4726,24 +4885,35 @@ static int manager_iax2_show_netstats(struct mansession *s, const struct message
 	return RESULT_SUCCESS;
 }
 
-static int iax2_show_firmware(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_firmware(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct iax_firmware *cur = NULL;
 
-	if ((argc != 3) && (argc != 4))
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show firmware";
+		e->usage =
+			"Usage: iax2 show firmware\n"
+			"       Lists all known IAX firmware images.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
 
-	ast_cli(fd, "%-15.15s  %-15.15s %-15.15s\n", "Device", "Version", "Size");
+	if (a->argc != 3 && a->argc != 4)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "%-15.15s  %-15.15s %-15.15s\n", "Device", "Version", "Size");
 	AST_LIST_LOCK(&firmwares);
 	AST_LIST_TRAVERSE(&firmwares, cur, list) {
-		if ((argc == 3) || (!strcasecmp(argv[3], (char *)cur->fwh->devname)))  {
-			ast_cli(fd, "%-15.15s  %-15d %-15d\n", cur->fwh->devname, 
+		if ((a->argc == 3) || (!strcasecmp(a->argv[3], (char *) cur->fwh->devname)))  {
+			ast_cli(a->fd, "%-15.15s  %-15d %-15d\n", cur->fwh->devname, 
 				ntohs(cur->fwh->version), (int)ntohl(cur->fwh->datalen));
 		}
 	}
 	AST_LIST_UNLOCK(&firmwares);
 
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
 /* JDG: callback to display iax peers in manager */
@@ -4781,18 +4951,28 @@ static char *regstate2str(int regstate)
 	}
 }
 
-static int iax2_show_registry(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_registry(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-20.20s  %-6.6s  %-10.10s  %-20.20s %8.8s  %s\n"
 #define FORMAT  "%-20.20s  %-6.6s  %-10.10s  %-20.20s %8d  %s\n"
 	struct iax2_registry *reg = NULL;
-
 	char host[80];
 	char perceived[80];
 	int counter = 0;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show registry";
+		e->usage =
+			"Usage: iax2 show registry\n"
+			"       Lists all registration requests and status.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	ast_cli(a->fd, FORMAT2, "Host", "dnsmgr", "Username", "Perceived", "Refresh", "State");
 	AST_LIST_LOCK(&registrations);
 	AST_LIST_TRAVERSE(&registrations, reg, entry) {
 		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(reg->addr.sin_addr), ntohs(reg->addr.sin_port));
@@ -4800,19 +4980,19 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 			snprintf(perceived, sizeof(perceived), "%s:%d", ast_inet_ntoa(reg->us.sin_addr), ntohs(reg->us.sin_port));
 		else
 			ast_copy_string(perceived, "<Unregistered>", sizeof(perceived));
-		ast_cli(fd, FORMAT, host, 
+		ast_cli(a->fd, FORMAT, host, 
 					(reg->dnsmgr) ? "Y" : "N", 
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 		counter++;
 	}
 	AST_LIST_UNLOCK(&registrations);
-	ast_cli(fd, "%d IAX2 registrations.\n", counter);
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d IAX2 registrations.\n", counter);
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int iax2_show_channels(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 #define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
 #define FORMAT  "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-4.4dms  %-6.6s\n"
@@ -4820,16 +5000,27 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 	int x;
 	int numchans = 0;
 
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
-	for (x=0;x<IAX_MAX_CALLS;x++) {
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show channels";
+		e->usage =
+			"Usage: iax2 show channels\n"
+			"       Lists all currently active IAX channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	ast_cli(a->fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
+	for (x = 0; x < IAX_MAX_CALLS; x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 			int lag, jitter, localdelay;
 			jb_info jbinfo;
 			
-			if(ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
+			if (ast_test_flag(iaxs[x], IAX_USEJITTERBUF)) {
 				jb_getinfo(iaxs[x]->jb, &jbinfo);
 				jitter = jbinfo.jitter;
 				localdelay = jbinfo.current - jbinfo.min;
@@ -4838,7 +5029,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 				localdelay = 0;
 			}
 			lag = iaxs[x]->remote_rr.delay;
-			ast_cli(fd, FORMAT,
+			ast_cli(a->fd, FORMAT,
 				iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 				ast_inet_ntoa(iaxs[x]->addr.sin_addr), 
 				S_OR(iaxs[x]->username, "(None)"),
@@ -4852,8 +5043,8 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 		}
 		ast_mutex_unlock(&iaxsl[x]);
 	}
-	ast_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	return CLI_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 #undef FORMATB
@@ -4935,70 +5126,141 @@ static int ast_cli_netstats(struct mansession *s, int fd, int limit_fmt)
 	return numchans;
 }
 
-static int iax2_show_netstats(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_show_netstats(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int numchans = 0;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
-	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
-	numchans = ast_cli_netstats(NULL, fd, 1);
-	ast_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
-	return RESULT_SUCCESS;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 show netstats";
+		e->usage =
+			"Usage: iax2 show netstats\n"
+			"       Lists network status for all currently active IAX channels.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	ast_cli(a->fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
+	ast_cli(a->fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
+	numchans = ast_cli_netstats(NULL, a->fd, 1);
+	ast_cli(a->fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	return CLI_SUCCESS;
 }
 
-static int iax2_do_debug(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 2 || argc > 3)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug";
+		e->usage =
+			"Usage: iax2 set debug\n"
+			"       Enables dumping of IAX packets for debugging purposes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 2 || a->argc > 3)
+		return CLI_SHOWUSAGE;
 	iaxdebug = 1;
-	ast_cli(fd, "IAX2 Debugging Enabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "IAX2 Debugging Enabled\n");
+	return CLI_SUCCESS;
 }
 
-static int iax2_do_trunk_debug(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_set_debug_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 3 || argc > 4)
-		return RESULT_SHOWUSAGE;
-	iaxtrunkdebug = 1;
-	ast_cli(fd, "IAX2 Trunk Debug Requested\n");
-	return RESULT_SUCCESS;
-}
-
-static int iax2_do_jb_debug(int fd, int argc, char *argv[])
-{
-	if (argc < 3 || argc > 4)
-		return RESULT_SHOWUSAGE;
-	jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
-	ast_cli(fd, "IAX2 Jitterbuffer Debugging Enabled\n");
-	return RESULT_SUCCESS;
-}
-
-static int iax2_no_debug(int fd, int argc, char *argv[])
-{
-	if (argc < 3 || argc > 4)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug off";
+		e->usage =
+			"Usage: iax2 set debug off\n"
+			"       Disables dumping of IAX packets for debugging purposes.\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
 	iaxdebug = 0;
-	ast_cli(fd, "IAX2 Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "IAX2 Debugging Disabled\n");
+	return CLI_SUCCESS;
 }
 
-static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_set_debug_trunk(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 4 || argc > 5)
-		return RESULT_SHOWUSAGE;
-	iaxtrunkdebug = 0;
-	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug trunk";
+		e->usage =
+			"Usage: iax2 set debug trunk\n"
+			"       Requests current status of IAX trunking\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	iaxtrunkdebug = 1;
+	ast_cli(a->fd, "IAX2 Trunk Debugging Requested\n");
+	return CLI_SUCCESS;
 }
 
-static int iax2_no_jb_debug(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_set_debug_trunk_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 4 || argc > 5)
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug trunk off";
+		e->usage =
+			"Usage: iax2 set debug trunk off\n"
+			"       Disables debugging of IAX trunking\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 4 || a->argc > 5)
+		return CLI_SHOWUSAGE;
 	iaxtrunkdebug = 0;
-	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	ast_cli(a->fd, "IAX2 Trunk Debugging Disabled\n");
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_iax2_set_debug_jb(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug jb";
+		e->usage =
+			"Usage: iax2 set debug jb\n"
+			"       Enables jitterbuffer debugging information\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
+	ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Enabled\n");
+	return CLI_SUCCESS;
+}
+
+static char *handle_cli_iax2_set_debug_jb_off(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 set debug jb off";
+		e->usage =
+			"Usage: iax2 set debug jb off\n"
+			"       Disables jitterbuffer debugging information\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+	if (a->argc < 4 || a->argc > 5)
+		return CLI_SHOWUSAGE;
+	jb_setoutput(jb_error_output, jb_warning_output, NULL);
+	ast_cli(a->fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	return CLI_SUCCESS;
 }
 
 static int iax2_write(struct ast_channel *c, struct ast_frame *f)
@@ -8841,13 +9103,6 @@ static int iax2_do_register(struct iax2_registry *reg)
 	return 0;
 }
 
-static char *iax2_prov_complete_template_3rd(const char *line, const char *word, int pos, int state)
-{
-	if (pos != 3)
-		return NULL;
-	return iax_prov_complete_template(line, word, pos, state);
-}
-
 static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force)
 {
 	/* Returns 1 if provisioned, -1 if not able to find destination, or 0 if no provisioning
@@ -8935,27 +9190,43 @@ static int iax2_prov_app(struct ast_channel *chan, void *data)
 	return res;
 }
 
-
-static int iax2_prov_cmd(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_provision(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	int force = 0;
 	int res;
-	if (argc < 4)
-		return RESULT_SHOWUSAGE;
-	if ((argc > 4)) {
-		if (!strcasecmp(argv[4], "forced"))
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 provision";
+		e->usage = 
+			"Usage: iax2 provision <host> <template> [forced]\n"
+			"       Provisions the given peer or IP address using a template\n"
+			"       matching either 'template' or '*' if the template is not\n"
+			"       found.  If 'forced' is specified, even empty provisioning\n"
+			"       fields will be provisioned as empty fields.\n";
+		return NULL;
+	case CLI_GENERATE:
+		if (a->pos == 3)
+			return iax_prov_complete_template(a->line, a->word, a->pos, a->n);
+		return NULL;
+	}
+
+	if (a->argc < 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc > 4) {
+		if (!strcasecmp(a->argv[4], "forced"))
 			force = 1;
 		else
-			return RESULT_SHOWUSAGE;
+			return CLI_SHOWUSAGE;
 	}
-	res = iax2_provision(NULL, -1, argv[2], argv[3], force);
+	res = iax2_provision(NULL, -1, a->argv[2], a->argv[3], force);
 	if (res < 0)
-		ast_cli(fd, "Unable to find peer/address '%s'\n", argv[2]);
+		ast_cli(a->fd, "Unable to find peer/address '%s'\n", a->argv[2]);
 	else if (res < 1)
-		ast_cli(fd, "No template (including wildcard) matching '%s'\n", argv[3]);
+		ast_cli(a->fd, "No template (including wildcard) matching '%s'\n", a->argv[3]);
 	else
-		ast_cli(fd, "Provisioning '%s' with template '%s'%s\n", argv[2], argv[3], force ? ", forced" : "");
-	return RESULT_SUCCESS;
+		ast_cli(a->fd, "Provisioning '%s' with template '%s'%s\n", a->argv[2], a->argv[3], force ? ", forced" : "");
+	return CLI_SUCCESS;
 }
 
 static void __iax2_poke_noanswer(const void *data)
@@ -10402,9 +10673,22 @@ static int reload_config(void)
 	return 0;
 }
 
-static int iax2_reload(int fd, int argc, char *argv[])
+static char *handle_cli_iax2_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	return reload_config();
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "iax2 reload";
+		e->usage =
+			"Usage: iax2 reload\n"
+			"       Reloads IAX configuration from iax.conf\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	reload_config();
+
+	return CLI_SUCCESS;
 }
 
 static int reload(void)
@@ -10908,126 +11192,15 @@ static int iax2_devicestate(void *data)
 
 static struct ast_switch iax2_switch = 
 {
-	name: 			"IAX2",
-	description: 		"IAX Remote Dialplan Switch",
-	exists:			iax2_exists,
-	canmatch:		iax2_canmatch,
-	exec:			iax2_exec,
-	matchmore:		iax2_matchmore,
+	name:        "IAX2",
+	description: "IAX Remote Dialplan Switch",
+	exists:      iax2_exists,
+	canmatch:    iax2_canmatch,
+	exec:        iax2_exec,
+	matchmore:   iax2_matchmore,
 };
 
-static const char show_stats_usage[] =
-"Usage: iax2 show stats\n"
-"       Display statistics on IAX channel driver.\n";
-
-static const char set_mtu_usage[] =
-"Usage: iax2 set mtu <value>\n"
-"       Set the system-wide IAX IP mtu to <value> bytes net or zero to disable.\n"
-"       Disabling means that the operating system must handle fragmentation of UDP packets\n"
-"       when the IAX2 trunk packet exceeds the UDP payload size.\n"
-"       This is substantially below the IP mtu. Try 1240 on ethernets.\n"
-"       Must be 172 or greater for G.711 samples.\n"; 
-static const char show_cache_usage[] =
-"Usage: iax2 show cache\n"
-"       Display currently cached IAX Dialplan results.\n";
-
-static const char show_peer_usage[] =
-"Usage: iax2 show peer <name>\n"
-"       Display details on specific IAX peer\n";
-
-static const char prune_realtime_usage[] =
-"Usage: iax2 prune realtime [<peername>|all]\n"
-"       Prunes object(s) from the cache\n";
-
-static const char iax2_reload_usage[] =
-"Usage: iax2 reload\n"
-"       Reloads IAX configuration from iax.conf\n";
-
-static const char show_prov_usage[] =
-"Usage: iax2 provision <host> <template> [forced]\n"
-"       Provisions the given peer or IP address using a template\n"
-"       matching either 'template' or '*' if the template is not\n"
-"       found.  If 'forced' is specified, even empty provisioning\n"
-"       fields will be provisioned as empty fields.\n";
-
-static const char show_users_usage[] = 
-"Usage: iax2 show users [like <pattern>]\n"
-"       Lists all known IAX2 users.\n"
-"       Optional regular expression pattern is used to filter the user list.\n";
-
-static const char show_channels_usage[] = 
-"Usage: iax2 show channels\n"
-"       Lists all currently active IAX channels.\n";
-
-static const char show_netstats_usage[] = 
-"Usage: iax2 show netstats\n"
-"       Lists network status for all currently active IAX channels.\n";
-
-static const char show_threads_usage[] = 
-"Usage: iax2 show threads\n"
-"       Lists status of IAX helper threads\n";
-
-static const char unregister_usage[] =
-"Usage: iax2 unregister <peername>\n"
-"       Unregister (force expiration) an IAX2 peer from the registry.\n";
-
-static const char show_peers_usage[] = 
-"Usage: iax2 show peers [registered] [like <pattern>]\n"
-"       Lists all known IAX2 peers.\n"
-"       Optional 'registered' argument lists only peers with known addresses.\n"
-"       Optional regular expression pattern is used to filter the peer list.\n";
-
-static const char show_firmware_usage[] = 
-"Usage: iax2 show firmware\n"
-"       Lists all known IAX firmware images.\n";
-
-static const char show_reg_usage[] =
-"Usage: iax2 show registry\n"
-"       Lists all registration requests and status.\n";
-
-static const char debug_usage[] = 
-"Usage: iax2 set debug\n"
-"       Enables dumping of IAX packets for debugging purposes\n";
-
-static const char no_debug_usage[] = 
-"Usage: iax2 set debug off\n"
-"       Disables dumping of IAX packets for debugging purposes\n";
-
-static const char debug_trunk_usage[] =
-"Usage: iax2 set debug trunk\n"
-"       Requests current status of IAX trunking\n";
-
-static const char no_debug_trunk_usage[] =
-"Usage: iax2 set debug trunk off\n"
-"       Requests current status of IAX trunking\n";
-
-static const char debug_jb_usage[] =
-"Usage: iax2 set debug jb\n"
-"       Enables jitterbuffer debugging information\n";
-
-static const char no_debug_jb_usage[] =
-"Usage: iax2 set debug jb off\n"
-"       Disables jitterbuffer debugging information\n";
-
-static const char iax2_test_losspct_usage[] =
-"Usage: iax2 test losspct <percentage>\n"
-"       For testing, throws away <percentage> percent of incoming packets\n";
-
-#ifdef IAXTESTS
-static const char iax2_test_late_usage[] =
-"Usage: iax2 test late <ms>\n"
-"       For testing, count the next frame as <ms> ms late\n";
-
-static const char iax2_test_resync_usage[] =
-"Usage: iax2 test resync <ms>\n"
-"       For testing, adjust all future frames by <ms> ms\n";
-
-static const char iax2_test_jitter_usage[] =
-"Usage: iax2 test jitter <ms> <pct>\n"
-"       For testing, simulate maximum jitter of +/- <ms> on <pct> percentage of packets. If <pct> is not specified, adds jitter to all packets.\n";
-#endif /* IAXTESTS */
-
-static struct ast_cli_entry cli_iax2[] = {
+/*
 	{ { "iax2", "show", "cache", NULL },
 	iax2_show_cache, "Display IAX cached dialplan",
 	show_cache_usage },
@@ -11128,6 +11301,36 @@ static struct ast_cli_entry cli_iax2[] = {
 	{ { "iax2", "test", "jitter", NULL },
 	iax2_test_jitter, "Simulates jitter for testing",
 	iax2_test_jitter_usage },
+#endif
+*/
+
+static struct ast_cli_entry cli_iax2[] = {
+	NEW_CLI(handle_cli_iax2_provision,           "Provision an IAX device"),
+	NEW_CLI(handle_cli_iax2_prune_realtime,      "Prune a cached realtime lookup"),
+	NEW_CLI(handle_cli_iax2_reload,              "Reload IAX configuration"),
+	NEW_CLI(handle_cli_iax2_set_mtu,             "Set the IAX systemwide trunking MTU"),
+	NEW_CLI(handle_cli_iax2_set_debug,           "Enable IAX debugging"),
+	NEW_CLI(handle_cli_iax2_set_debug_trunk,     "Enable IAX trunk debugging"),
+	NEW_CLI(handle_cli_iax2_set_debug_jb,        "Enable IAX jitterbuffer debugging"),
+	NEW_CLI(handle_cli_iax2_set_debug_off,       "Disable IAX debugging"),
+	NEW_CLI(handle_cli_iax2_set_debug_trunk_off, "Disable IAX trunk debugging"),
+	NEW_CLI(handle_cli_iax2_set_debug_jb_off,    "Disable IAX jitterbuffer debugging"),
+	NEW_CLI(handle_cli_iax2_show_cache,          "Display IAX cached dialplan"),
+	NEW_CLI(handle_cli_iax2_show_channels,       "List active IAX channels"),
+	NEW_CLI(handle_cli_iax2_show_firmware,       "List available IAX firmware"),
+	NEW_CLI(handle_cli_iax2_show_netstats,       "List active IAX channel netstats"),
+	NEW_CLI(handle_cli_iax2_show_peer,           "Show details on specific IAX peer"),
+	NEW_CLI(handle_cli_iax2_show_peers,          "List defined IAX peers"),
+	NEW_CLI(handle_cli_iax2_show_registry,       "Display IAX registration status"),
+	NEW_CLI(handle_cli_iax2_show_stats,          "Display IAX statistics"),
+	NEW_CLI(handle_cli_iax2_show_threads,        "Display IAX helper thread info"),
+	NEW_CLI(handle_cli_iax2_show_users,          "List defined IAX users"),
+	NEW_CLI(handle_cli_iax2_test_losspct,        "Set IAX2 incoming frame loss percentage"),
+	NEW_CLI(handle_cli_iax2_unregister,          "Unregister (force expiration) an IAX2 peer from the registry"),
+#ifdef IAXTESTS
+	NEW_CLI(handle_cli_iax2_test_jitter,         "Simulates jitter for testing"),
+	NEW_CLI(handle_cli_iax2_test_late,           "Test the receipt of a late frame"),
+	NEW_CLI(handle_cli_iax2_test_resync,         "Test a resync in received timestamps"),
 #endif /* IAXTESTS */
 };
 
@@ -11342,4 +11545,4 @@ AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Inter Asterisk eXchange 
 		.load = load_module,
 		.unload = unload_module,
 		.reload = reload,
-	       );
+		);

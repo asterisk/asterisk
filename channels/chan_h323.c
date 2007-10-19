@@ -2623,51 +2623,71 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static int h323_do_trace(int fd, int argc, char *argv[])
+static char *handle_cli_h323_set_trace(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 4) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 set trace [off]";
+		e->usage =
+			"Usage: h323 set trace (off|<trace level>)\n"
+			"       Enable/Disable H.323 stack tracing for debugging purposes\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	h323_debug(1, atoi(argv[3]));
-	ast_cli(fd, "H.323 trace set to level %s\n", argv[2]);
-	return RESULT_SUCCESS;
+
+	if (a->argc != 4)
+		return CLI_SHOWUSAGE;
+	if (!strcasecmp(a->argv[3], "off")) {
+		h323_debug(0, 0);
+		ast_cli(a->fd, "H.323 Trace Disabled\n");
+	} else {
+		int tracelevel = atoi(a->argv[3]);
+		h323_debug(1, tracelevel);
+		ast_cli(a->fd, "H.323 Trace Enabled (Trace Level: %d)\n", tracelevel);
+	}
+	return CLI_SUCCESS;
 }
 
-static int h323_no_trace(int fd, int argc, char *argv[])
+static char *handle_cli_h323_set_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 3 || argc > 4) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 set debug [off]";
+		e->usage =
+			"Usage: h323 set debug [off]\n"
+			"       Enable/Disable H.323 debugging output\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	h323_debug(0,0);
-	ast_cli(fd, "H.323 trace disabled\n");
-	return RESULT_SUCCESS;
+
+	if (a->argc < 3 || a->argc > 4)
+		return CLI_SHOWUSAGE;
+	if (a->argc == 4 && strcasecmp(a->argv[3], "off"))
+		return CLI_SHOWUSAGE;
+
+	h323debug = (a->argc == 3) ? 1 : 0;
+	ast_cli(a->fd, "H.323 Debugging %s\n", h323debug ? "Enabled" : "Disabled");
+	return CLI_SUCCESS;
 }
 
-static int h323_do_debug(int fd, int argc, char *argv[])
+static char *handle_cli_h323_cycle_gk(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc < 2 || argc > 3) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 cycle gk";
+		e->usage =
+			"Usage: h323 cycle gk\n"
+			"       Manually re-register with the Gatekeper (Currently Disabled)\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	h323debug = 1;
-	ast_cli(fd, "H.323 debug enabled\n");
-	return RESULT_SUCCESS;
-}
 
-static int h323_no_debug(int fd, int argc, char *argv[])
-{
-	if (argc < 3 || argc > 4) {
-		return RESULT_SHOWUSAGE;
-	}
-	h323debug = 0;
-	ast_cli(fd, "H.323 debug disabled\n");
-	return RESULT_SUCCESS;
-}
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
 
-static int h323_gk_cycle(int fd, int argc, char *argv[])
-{
-	if (argc != 3) {
-		return RESULT_SHOWUSAGE;
-	}
 	h323_gk_urq();
 
 	/* Possibly register with a GK */
@@ -2676,126 +2696,59 @@ static int h323_gk_cycle(int fd, int argc, char *argv[])
 			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 		}
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int h323_ep_hangup(int fd, int argc, char *argv[])
+static char *handle_cli_h323_hangup(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 hangup";
+		e->usage =
+			"Usage: h323 hangup <token>\n"
+			"       Manually try to hang up the call identified by <token>\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
-	if (h323_soft_hangup(argv[2])) {
-		ast_verb(3, "Hangup succeeded on %s\n", argv[2]);
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	if (h323_soft_hangup(a->argv[2])) {
+		ast_verb(3, "Hangup succeeded on %s\n", a->argv[2]);
 	} else {
-		ast_verb(3, "Hangup failed for %s\n", argv[2]);
+		ast_verb(3, "Hangup failed for %s\n", a->argv[2]);
 	}
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int h323_tokens_show(int fd, int argc, char *argv[])
+static char *handle_cli_h323_show_tokens(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3) {
-		return RESULT_SHOWUSAGE;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 show tokens";
+		e->usage =
+			"Usage: h323 show tokens\n"
+			"       Print out all active call tokens\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
 	}
+
+	if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+
 	h323_show_tokens();
-	return RESULT_SUCCESS;
+
+	return CLI_SUCCESS;
 }
-
-static char trace_usage[] =
-"Usage: h323 trace <level num>\n"
-"       Enables H.323 stack tracing for debugging purposes\n";
-
-static char no_trace_usage[] =
-"Usage: h323 no trace\n"
-"       Disables H.323 stack tracing for debugging purposes\n";
-
-static char debug_usage[] =
-"Usage: h323 debug\n"
-"       Enables H.323 debug output\n";
-
-static char no_debug_usage[] =
-"Usage: h323 no debug\n"
-"       Disables H.323 debug output\n";
-
-static char show_cycle_usage[] =
-"Usage: h323 gk cycle\n"
-"       Manually re-register with the Gatekeper (Currently Disabled)\n";
-
-static char show_hangup_usage[] =
-"Usage: h323 hangup <token>\n"
-"       Manually try to hang up call identified by <token>\n";
-
-static char show_tokens_usage[] =
-"Usage: h323 show tokens\n"
-"       Print out all active call tokens\n";
-
-static char h323_reload_usage[] =
-"Usage: h323 reload\n"
-"       Reloads H.323 configuration from h323.conf\n";
-
-static struct ast_cli_entry cli_h323_trace_deprecated =
-	{ { "h.323", "trace", NULL },
-	h323_do_trace, "Enable H.323 Stack Tracing",
-	trace_usage };
-
-static struct ast_cli_entry cli_h323_no_trace_deprecated =
-	{ { "h.323", "no", "trace", NULL },
-	h323_no_trace, "Disable H.323 Stack Tracing",
-	no_trace_usage };
-
-static struct ast_cli_entry cli_h323_debug_deprecated =
-	{ { "h.323", "debug", NULL },
-	h323_do_debug, "Enable H.323 debug",
-	debug_usage };
-
-static struct ast_cli_entry cli_h323_no_debug_deprecated =
-	{ { "h.323", "no", "debug", NULL },
-	h323_no_debug, "Disable H.323 debug",
-	no_debug_usage };
-
-static struct ast_cli_entry cli_h323_gk_cycle_deprecated =
-	{ { "h.323", "gk", "cycle", NULL },
-	h323_gk_cycle, "Manually re-register with the Gatekeper",
-	show_cycle_usage };
-
-static struct ast_cli_entry cli_h323_hangup_deprecated =
-	{ { "h.323", "hangup", NULL },
-	h323_ep_hangup, "Manually try to hang up a call",
-	show_hangup_usage };
-
-static struct ast_cli_entry cli_h323_show_tokens_deprecated =
-	{ { "h.323", "show", "tokens", NULL },
-	h323_tokens_show, "Show all active call tokens",
-	show_tokens_usage };
 
 static struct ast_cli_entry cli_h323[] = {
-	{ { "h323", "set", "trace", NULL },
-	h323_do_trace, "Enable H.323 Stack Tracing",
-	trace_usage, NULL, &cli_h323_trace_deprecated },
-
-	{ { "h323", "set", "trace", "off", NULL },
-	h323_no_trace, "Disable H.323 Stack Tracing",
-	no_trace_usage, NULL, &cli_h323_no_trace_deprecated },
-
-	{ { "h323", "set", "debug", NULL },
-	h323_do_debug, "Enable H.323 debug",
-	debug_usage, NULL, &cli_h323_debug_deprecated },
-
-	{ { "h323", "set", "debug", "off", NULL },
-	h323_no_debug, "Disable H.323 debug",
-	no_debug_usage, NULL, &cli_h323_no_debug_deprecated },
-
-	{ { "h323", "cycle", "gk", NULL },
-	h323_gk_cycle, "Manually re-register with the Gatekeper",
-	show_cycle_usage, NULL, &cli_h323_gk_cycle_deprecated },
-
-	{ { "h323", "hangup", NULL },
-	h323_ep_hangup, "Manually try to hang up a call",
-	show_hangup_usage, NULL, &cli_h323_hangup_deprecated },
-
-	{ { "h323", "show", "tokens", NULL },
-	h323_tokens_show, "Show all active call tokens",
-	show_tokens_usage, NULL, &cli_h323_show_tokens_deprecated },
+	NEW_CLI(handle_cli_h323_set_trace,   "Enable/Disable H.323 Stack Tracing"),
+	NEW_CLI(handle_cli_h323_set_debug,   "Enable/Disable H.323 Debugging"),
+	NEW_CLI(handle_cli_h323_cycle_gk,    "Manually re-register with the Gatekeper"),
+	NEW_CLI(handle_cli_h323_hangup,      "Manually try to hang up a call"),
+	NEW_CLI(handle_cli_h323_show_tokens, "Show all active call tokens"),
 };
 
 static int reload_config(int is_reload)
@@ -3075,7 +3028,7 @@ static void prune_peers(void)
 	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, oh323_destroy_peer);
 }
 
-static int h323_reload(int fd, int argc, char *argv[])
+static int h323_reload(void)
 {
 	ast_mutex_lock(&h323_reload_lock);
 	if (h323_reloading) {
@@ -3086,6 +3039,27 @@ static int h323_reload(int fd, int argc, char *argv[])
 	ast_mutex_unlock(&h323_reload_lock);
 	restart_monitor();
 	return 0;
+}
+
+static char *handle_cli_h323_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "h323 reload";
+		e->usage =
+			"Usage: h323 reload\n"
+			"       Reloads H.323 configuration from h323.conf\n";
+		return NULL;
+	case CLI_GENERATE:
+		return NULL;
+	}
+
+	if (a->argc != 2)
+		return CLI_SHOWUSAGE;
+
+	h323_reload();
+
+	return CLI_SUCCESS;
 }
 
 static int h323_do_reload(void)
@@ -3100,20 +3074,11 @@ static int reload(void)
 		ast_log(LOG_NOTICE, "Unload and load chan_h323.so again in order to receive configuration changes.\n");
 		return 0;
 	}
-	return h323_reload(0, 0, NULL);
+	return h323_reload();
 }
 
-static struct ast_cli_entry cli_h323_reload_deprecated =
-	{ { "h.323", "reload", NULL },
-	h323_reload, "Reload H.323 configuration",
-	h323_reload_usage
-};
-
 static struct ast_cli_entry cli_h323_reload =
-	{ { "h323", "reload", NULL },
-	h323_reload, "Reload H.323 configuration",
-	h323_reload_usage, NULL, &cli_h323_reload_deprecated
-};
+	NEW_CLI(handle_cli_h323_reload, "Reload H.323 configuration");
 
 static enum ast_rtp_get_result oh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {
