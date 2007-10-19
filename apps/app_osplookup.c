@@ -2000,7 +2000,7 @@ static const char* descrip4 =
 "		SUCCESS | FAILED | ERROR \n";
 
 static struct ast_cli_entry cli_osp[] = {
-	NEW_CLI(handle_cli_osp_show, "Displays OSF information")
+	AST_CLI(handle_cli_osp_show, "Displays OSF information")
 };
 
 static int load_module(void)

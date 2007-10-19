@@ -2864,21 +2864,21 @@ static char *dundi_show_precache(struct ast_cli_entry *e, int cmd, struct ast_cl
 }
 
 static struct ast_cli_entry cli_dundi[] = {
-	NEW_CLI(dundi_do_debug, "Enable DUNDi debugging"),
-	NEW_CLI(dundi_no_debug, "Disable DUNDi debugging"),
-	NEW_CLI(dundi_do_store_history, "Enable DUNDi historic records"),
-	NEW_CLI(dundi_no_store_history, "Disable DUNDi historic records"),
-	NEW_CLI(dundi_flush, "Flush DUNDi cache"),
-	NEW_CLI(dundi_show_peers, "Show defined DUNDi peers"),
-	NEW_CLI(dundi_show_trans, "Show active DUNDi transactions"),
-	NEW_CLI(dundi_show_entityid, "Display Global Entity ID"),
-	NEW_CLI(dundi_show_mappings, "Show DUNDi mappings"),
-	NEW_CLI(dundi_show_precache, "Show DUNDi precache"),
-	NEW_CLI(dundi_show_requests, "Show DUNDi requests"),
-	NEW_CLI(dundi_show_peer, "Show info on a specific DUNDi peer"),
-	NEW_CLI(dundi_do_precache, "Precache a number in DUNDi"),
-	NEW_CLI(dundi_do_lookup, "Lookup a number in DUNDi"),
-	NEW_CLI(dundi_do_query, "Query a DUNDi EID"),
+	AST_CLI(dundi_do_debug, "Enable DUNDi debugging"),
+	AST_CLI(dundi_no_debug, "Disable DUNDi debugging"),
+	AST_CLI(dundi_do_store_history, "Enable DUNDi historic records"),
+	AST_CLI(dundi_no_store_history, "Disable DUNDi historic records"),
+	AST_CLI(dundi_flush, "Flush DUNDi cache"),
+	AST_CLI(dundi_show_peers, "Show defined DUNDi peers"),
+	AST_CLI(dundi_show_trans, "Show active DUNDi transactions"),
+	AST_CLI(dundi_show_entityid, "Display Global Entity ID"),
+	AST_CLI(dundi_show_mappings, "Show DUNDi mappings"),
+	AST_CLI(dundi_show_precache, "Show DUNDi precache"),
+	AST_CLI(dundi_show_requests, "Show DUNDi requests"),
+	AST_CLI(dundi_show_peer, "Show info on a specific DUNDi peer"),
+	AST_CLI(dundi_do_precache, "Precache a number in DUNDi"),
+	AST_CLI(dundi_do_lookup, "Lookup a number in DUNDi"),
+	AST_CLI(dundi_do_query, "Query a DUNDi EID"),
 };
 
 static struct dundi_transaction *create_transaction(struct dundi_peer *p)

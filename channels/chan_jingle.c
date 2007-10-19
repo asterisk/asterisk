@@ -236,8 +236,8 @@ static struct ast_rtp_protocol jingle_rtp = {
 };
 
 static struct ast_cli_entry jingle_cli[] = {
-	NEW_CLI(jingle_do_reload, "Reload Jingle configuration"),
-	NEW_CLI(jingle_show_channels, "Show Jingle channels"),
+	AST_CLI(jingle_do_reload, "Reload Jingle configuration"),
+	AST_CLI(jingle_show_channels, "Show Jingle channels"),
 };
 
 

@@ -70,7 +70,7 @@ static struct channel_usage {
 static char *handle_cli_transcoder_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli[] = {
-	NEW_CLI(handle_cli_transcoder_show, "Display Zaptel transcoder utilization.")
+	AST_CLI(handle_cli_transcoder_show, "Display Zaptel transcoder utilization.")
 };
 
 struct format_map {

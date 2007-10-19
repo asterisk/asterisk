@@ -235,8 +235,8 @@ static struct ast_rtp_protocol gtalk_rtp = {
 };
 
 static struct ast_cli_entry gtalk_cli[] = {
-	NEW_CLI(gtalk_do_reload, "Reload GoogleTalk configuration"),
-	NEW_CLI(gtalk_show_channels, "Show GoogleTalk channels"),
+	AST_CLI(gtalk_do_reload, "Reload GoogleTalk configuration"),
+	AST_CLI(gtalk_show_channels, "Show GoogleTalk channels"),
 };
 
 static char externip[16];

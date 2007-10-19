@@ -316,8 +316,8 @@ static char *handle_cli_core_show_channeltype(struct ast_cli_entry *e, int cmd, 
 }
 
 static struct ast_cli_entry cli_channel[] = {
-	NEW_CLI(handle_cli_core_show_channeltypes, "List available channel types"),
-	NEW_CLI(handle_cli_core_show_channeltype,  "Give more details on that channel type")
+	AST_CLI(handle_cli_core_show_channeltypes, "List available channel types"),
+	AST_CLI(handle_cli_core_show_channeltype,  "Give more details on that channel type")
 };
 
 /*! \brief Checks to see if a channel is needing hang up */

@@ -204,7 +204,7 @@ static char *handle_cli_ulimit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 }
 
 static struct ast_cli_entry cli_ulimit =
-	NEW_CLI(handle_cli_ulimit, "Set or show process resource limits");
+	AST_CLI(handle_cli_ulimit, "Set or show process resource limits");
 
 static int unload_module(void)
 {

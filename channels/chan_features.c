@@ -543,7 +543,7 @@ static char *features_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 }
 
 static struct ast_cli_entry cli_features[] = {
-	NEW_CLI(features_show, "List status of feature channels"),
+	AST_CLI(features_show, "List status of feature channels"),
 };
 
 static int load_module(void)

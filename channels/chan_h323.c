@@ -2744,11 +2744,11 @@ static char *handle_cli_h323_show_tokens(struct ast_cli_entry *e, int cmd, struc
 }
 
 static struct ast_cli_entry cli_h323[] = {
-	NEW_CLI(handle_cli_h323_set_trace,   "Enable/Disable H.323 Stack Tracing"),
-	NEW_CLI(handle_cli_h323_set_debug,   "Enable/Disable H.323 Debugging"),
-	NEW_CLI(handle_cli_h323_cycle_gk,    "Manually re-register with the Gatekeper"),
-	NEW_CLI(handle_cli_h323_hangup,      "Manually try to hang up a call"),
-	NEW_CLI(handle_cli_h323_show_tokens, "Show all active call tokens"),
+	AST_CLI(handle_cli_h323_set_trace,   "Enable/Disable H.323 Stack Tracing"),
+	AST_CLI(handle_cli_h323_set_debug,   "Enable/Disable H.323 Debugging"),
+	AST_CLI(handle_cli_h323_cycle_gk,    "Manually re-register with the Gatekeper"),
+	AST_CLI(handle_cli_h323_hangup,      "Manually try to hang up a call"),
+	AST_CLI(handle_cli_h323_show_tokens, "Show all active call tokens"),
 };
 
 static int reload_config(int is_reload)
@@ -3078,7 +3078,7 @@ static int reload(void)
 }
 
 static struct ast_cli_entry cli_h323_reload =
-	NEW_CLI(handle_cli_h323_reload, "Reload H.323 configuration");
+	AST_CLI(handle_cli_h323_reload, "Reload H.323 configuration");
 
 static enum ast_rtp_get_result oh323_get_rtp_peer(struct ast_channel *chan, struct ast_rtp **rtp)
 {

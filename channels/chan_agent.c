@@ -1765,9 +1765,9 @@ static const char agent_logoff_usage[] =
 "       If 'soft' is specified, do not hangup existing calls.\n";
 
 static struct ast_cli_entry cli_agents[] = {
-	NEW_CLI(agents_show, "Show status of agents"),
-	NEW_CLI(agents_show_online, "Show all online agents"),
-	NEW_CLI(agent_logoff_cmd, "Sets an agent offline"),
+	AST_CLI(agents_show, "Show status of agents"),
+	AST_CLI(agents_show_online, "Show all online agents"),
+	AST_CLI(agent_logoff_cmd, "Sets an agent offline"),
 };
 
 /*!

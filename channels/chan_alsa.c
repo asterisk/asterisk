@@ -1096,11 +1096,11 @@ static char *console_dial(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 }
 
 static struct ast_cli_entry cli_alsa[] = {
-	NEW_CLI(console_answer, "Answer an incoming console call"),
-	NEW_CLI(console_hangup, "Hangup a call on the console"),
-	NEW_CLI(console_dial, "Dial an extension on the console"),
-	NEW_CLI(console_sendtext, "Send text to the remote device"),
-	NEW_CLI(console_autoanswer, "Sets/displays autoanswer"),
+	AST_CLI(console_answer, "Answer an incoming console call"),
+	AST_CLI(console_hangup, "Hangup a call on the console"),
+	AST_CLI(console_dial, "Dial an extension on the console"),
+	AST_CLI(console_sendtext, "Send text to the remote device"),
+	AST_CLI(console_autoanswer, "Sets/displays autoanswer"),
 };
 
 static int load_module(void)

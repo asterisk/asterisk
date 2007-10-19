@@ -115,12 +115,12 @@ static int aji_register_transport2(void *data, ikspak *pak);
 */
 
 static struct ast_cli_entry aji_cli[] = {
-	NEW_CLI(aji_do_debug, "Enable jabber debugging"),
-	NEW_CLI(aji_no_debug, "Disable Jabber debug"),
-	NEW_CLI(aji_do_reload, "Reload Jabber configuration"),
-	NEW_CLI(aji_show_clients, "Show state of clients and components"),
-	NEW_CLI(aji_show_buddies, "Show buddy lists of our clients"),
-	NEW_CLI(aji_test, "Shows roster, but is generally used for mog's debugging."),
+	AST_CLI(aji_do_debug, "Enable jabber debugging"),
+	AST_CLI(aji_no_debug, "Disable Jabber debug"),
+	AST_CLI(aji_do_reload, "Reload Jabber configuration"),
+	AST_CLI(aji_show_clients, "Show state of clients and components"),
+	AST_CLI(aji_show_buddies, "Show buddy lists of our clients"),
+	AST_CLI(aji_test, "Shows roster, but is generally used for mog's debugging."),
 };
 
 static char *app_ajisend = "JabberSend";

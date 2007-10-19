@@ -1291,8 +1291,8 @@ static char *handle_cli_submit(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_submit = NEW_CLI(handle_cli_submit, "Posts all pending batched CDR data");
-static struct ast_cli_entry cli_status = NEW_CLI(handle_cli_status, "Display the CDR status");
+static struct ast_cli_entry cli_submit = AST_CLI(handle_cli_submit, "Posts all pending batched CDR data");
+static struct ast_cli_entry cli_status = AST_CLI(handle_cli_status, "Display the CDR status");
 
 static int do_reload(int reload)
 {

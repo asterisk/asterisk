@@ -471,7 +471,7 @@ static char *iax_show_provisioning(struct ast_cli_entry *e, int cmd, struct ast_
 }
 
 static struct ast_cli_entry cli_iax2_provision[] = {
-	NEW_CLI(iax_show_provisioning, "Display iax provisioning"),
+	AST_CLI(iax_show_provisioning, "Display iax provisioning"),
 };
 
 static int iax_provision_init(void)

@@ -459,8 +459,8 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 }
 
 static struct ast_cli_entry cli_memory[] = {
-	NEW_CLI(handle_memory_show, "Display outstanding memory allocations"),
-	NEW_CLI(handle_memory_show_summary, "Summarize outstanding memory allocations"),
+	AST_CLI(handle_memory_show, "Display outstanding memory allocations"),
+	AST_CLI(handle_memory_show_summary, "Summarize outstanding memory allocations"),
 };
 
 void __ast_mm_init(void)

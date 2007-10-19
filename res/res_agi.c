@@ -2217,9 +2217,9 @@ static int deadagi_exec(struct ast_channel *chan, void *data)
 }
 
 static struct ast_cli_entry cli_agi[] = {
-	NEW_CLI(handle_cli_agi_debug,    "Enable/Disable AGI debugging"),
-	NEW_CLI(handle_cli_agi_show,     "List AGI commands or specific help"),
-	NEW_CLI(handle_cli_agi_dumphtml, "Dumps a list of AGI commands in HTML format")
+	AST_CLI(handle_cli_agi_debug,    "Enable/Disable AGI debugging"),
+	AST_CLI(handle_cli_agi_show,     "List AGI commands or specific help"),
+	AST_CLI(handle_cli_agi_dumphtml, "Dumps a list of AGI commands in HTML format")
 };
 
 static int unload_module(void)

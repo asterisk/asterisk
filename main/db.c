@@ -549,12 +549,12 @@ void ast_db_freetree(struct ast_db_entry *dbe)
 }
 
 struct ast_cli_entry cli_database[] = {
-	NEW_CLI(handle_cli_database_show,    "Shows database contents"),
-	NEW_CLI(handle_cli_database_showkey, "Shows database contents"),
-	NEW_CLI(handle_cli_database_get,     "Gets database value"),
-	NEW_CLI(handle_cli_database_put,     "Adds/updates database value"),
-	NEW_CLI(handle_cli_database_del,     "Removes database key/value"),
-	NEW_CLI(handle_cli_database_deltree, "Removes database keytree/values")
+	AST_CLI(handle_cli_database_show,    "Shows database contents"),
+	AST_CLI(handle_cli_database_showkey, "Shows database contents"),
+	AST_CLI(handle_cli_database_get,     "Gets database value"),
+	AST_CLI(handle_cli_database_put,     "Adds/updates database value"),
+	AST_CLI(handle_cli_database_del,     "Removes database key/value"),
+	AST_CLI(handle_cli_database_deltree, "Removes database keytree/values")
 };
 
 static int manager_dbput(struct mansession *s, const struct message *m)

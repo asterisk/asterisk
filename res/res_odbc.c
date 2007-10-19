@@ -396,7 +396,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 }
 
 static struct ast_cli_entry cli_odbc[] = {
-	NEW_CLI(handle_cli_odbc_show, "List ODBC DSN(s)")
+	AST_CLI(handle_cli_odbc_show, "List ODBC DSN(s)")
 };
 
 static int odbc_register_class(struct odbc_class *class, int connect)

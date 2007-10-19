@@ -1002,8 +1002,8 @@ static char *handle_cli_ael_reload(struct ast_cli_entry *e, int cmd, struct ast_
 }
 
 static struct ast_cli_entry cli_ael[] = {
-	NEW_CLI(handle_cli_ael_reload,         "Reload AEL configuration"),
-	NEW_CLI(handle_cli_ael_debug_multiple, "Enable AEL debugging flags")
+	AST_CLI(handle_cli_ael_reload,         "Reload AEL configuration"),
+	AST_CLI(handle_cli_ael_debug_multiple, "Enable AEL debugging flags")
 };
 
 static int unload_module(void)

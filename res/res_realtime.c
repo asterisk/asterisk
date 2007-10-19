@@ -117,8 +117,8 @@ static char *cli_realtime_update(struct ast_cli_entry *e, int cmd, struct ast_cl
 }
 
 static struct ast_cli_entry cli_realtime[] = {
-	NEW_CLI(cli_realtime_load, "Used to print out RealTime variables."),
-	NEW_CLI(cli_realtime_update, "Used to update RealTime variables."),
+	AST_CLI(cli_realtime_load, "Used to print out RealTime variables."),
+	AST_CLI(cli_realtime_update, "Used to update RealTime variables."),
 };
 
 static int unload_module(void)

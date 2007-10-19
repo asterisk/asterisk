@@ -222,8 +222,8 @@ static char *handle_cli_threadstorage_show_summary(struct ast_cli_entry *e, int 
 }
 
 static struct ast_cli_entry cli[] = {
-	NEW_CLI(handle_cli_threadstorage_show_allocations, "Display outstanding thread local storage allocations"),
-	NEW_CLI(handle_cli_threadstorage_show_summary,     "Summarize outstanding memory allocations")
+	AST_CLI(handle_cli_threadstorage_show_allocations, "Display outstanding thread local storage allocations"),
+	AST_CLI(handle_cli_threadstorage_show_summary,     "Summarize outstanding memory allocations")
 };
 
 void threadstorage_init(void)

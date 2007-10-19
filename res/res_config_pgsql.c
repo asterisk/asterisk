@@ -67,7 +67,7 @@ static int pgsql_reconnect(const char *database);
 static char *handle_cli_realtime_pgsql_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_realtime[] = {
-	NEW_CLI(handle_cli_realtime_pgsql_status, "Shows connection information for the PostgreSQL RealTime driver"),
+	AST_CLI(handle_cli_realtime_pgsql_status, "Shows connection information for the PostgreSQL RealTime driver"),
 };
 
 static struct ast_variable *realtime_pgsql(const char *database, const char *table, va_list ap)

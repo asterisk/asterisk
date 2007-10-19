@@ -3967,15 +3967,15 @@ static char *handle_set_global(struct ast_cli_entry *e, int cmd, struct ast_cli_
  * CLI entries for upper commands ...
  */
 static struct ast_cli_entry pbx_cli[] = {
-	NEW_CLI(handle_show_applications, "Shows registered dialplan applications"),
-	NEW_CLI(handle_show_functions, "Shows registered dialplan functions"),
-	NEW_CLI(handle_show_switches, "Show alternative switches"),
-	NEW_CLI(handle_show_hints, "Show dialplan hints"),
-	NEW_CLI(handle_show_globals, "Show global dialplan variables"),
-	NEW_CLI(handle_show_function, "Describe a specific dialplan function"),
-	NEW_CLI(handle_show_application, "Describe a specific dialplan application"),
-	NEW_CLI(handle_set_global, "Set global dialplan variable"),
-	NEW_CLI(handle_show_dialplan, "Show dialplan"),
+	AST_CLI(handle_show_applications, "Shows registered dialplan applications"),
+	AST_CLI(handle_show_functions, "Shows registered dialplan functions"),
+	AST_CLI(handle_show_switches, "Show alternative switches"),
+	AST_CLI(handle_show_hints, "Show dialplan hints"),
+	AST_CLI(handle_show_globals, "Show global dialplan variables"),
+	AST_CLI(handle_show_function, "Describe a specific dialplan function"),
+	AST_CLI(handle_show_application, "Describe a specific dialplan application"),
+	AST_CLI(handle_set_global, "Set global dialplan variable"),
+	AST_CLI(handle_show_dialplan, "Show dialplan"),
 };
 
 static void unreference_cached_app(struct ast_app *app)

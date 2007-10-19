@@ -174,7 +174,7 @@ static char *cli_funcdevstate_list(struct ast_cli_entry *e, int cmd, struct ast_
 }
 
 static struct ast_cli_entry cli_funcdevstate[] = {
-	NEW_CLI(cli_funcdevstate_list, "List currently known custom device states"),
+	AST_CLI(cli_funcdevstate_list, "List currently known custom device states"),
 };
 
 static struct ast_custom_function devstate_function = {
