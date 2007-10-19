@@ -8212,9 +8212,10 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		}
 		/* Copy back Call-ID in case create_addr changed it */
 		ast_string_field_set(r, callid, p->callid);
-		if (r->portno)
+		if (r->portno) {
 			p->sa.sin_port = htons(r->portno);
-		else 	/* Set registry port to the port set from the peer definition/srv or default */
+			p->recv.sin_port = htons(r->portno);
+		} else 	/* Set registry port to the port set from the peer definition/srv or default */
 			r->portno = ntohs(p->sa.sin_port);
 		ast_set_flag(&p->flags[0], SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call = dialog_ref(p);		/* Save pointer to SIP dialog */
