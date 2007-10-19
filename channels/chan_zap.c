@@ -8790,9 +8790,8 @@ static void *ss7_linkset(void *data)
 				p->cid_name[0] = '\0';
 				p->cid_ani2 = e->iam.oli_ani2;
 				p->cid_ton = 0;
-				
 				ast_copy_string(p->charge_number, e->iam.charge_number, sizeof(p->charge_number));
-
+					
 				/* Set DNID */
 				if (!ast_strlen_zero(e->iam.called_party_num))
 					ss7_apply_plan_to_number(p->dnid, sizeof(p->dnid), linkset, e->iam.called_party_num, e->iam.called_nai);
@@ -8901,7 +8900,6 @@ static void *ss7_linkset(void *data)
  				isup_cgua(linkset->ss7, e->cgu.startcic, e->cgu.endcic, p->dpc, e->cgu.status, e->cgu.type);
 				break;
 			case ISUP_EVENT_UCIC:
-				ast_verb(3,"Got UCIC message on CIC %d\n", e->ucic.cic);
 				chanpos = ss7_find_cic(linkset, e->ucic.cic);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "UCIC on unconfigured CIC %d\n", e->ucic.cic);
@@ -8915,7 +8913,6 @@ static void *ss7_linkset(void *data)
 				ast_mutex_unlock(&p->lock);			//doesn't require a SS7 acknowledgement
 				break;
 			case ISUP_EVENT_BLO:
-				ast_verb(3,"Got BLO acknowledgement from CIC %d\n", e->ubl.cic);
 				chanpos = ss7_find_cic(linkset, e->blo.cic);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "BLO on unconfigured CIC %d\n", e->blo.cic);
@@ -8925,12 +8922,22 @@ static void *ss7_linkset(void *data)
 				ast_debug(1, "Blocking CIC %d\n", e->blo.cic);
 				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 1;
-				p->inservice = 0;
 				ast_mutex_unlock(&p->lock);
 				isup_bla(linkset->ss7, e->blo.cic, p->dpc);
 				break;
+			case ISUP_EVENT_BLA:
+				chanpos = ss7_find_cic(linkset, e->bla.cic);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "BLA on unconfigured CIC %d\n", e->bla.cic);
+					break;
+				}
+				ast_debug(1, "Blocking CIC %d\n", e->bla.cic);
+				p = linkset->pvts[chanpos];
+				ast_mutex_lock(&p->lock);
+				p->locallyblocked = 1;
+				ast_mutex_unlock(&p->lock);
+				break;
 			case ISUP_EVENT_UBL:
-				ast_verb(3,"Got UBL acknowledgement from CIC %d\n", e->ubl.cic);
 				chanpos = ss7_find_cic(linkset, e->ubl.cic);
 				if (chanpos < 0) {
 					ast_log(LOG_WARNING, "UBL on unconfigured CIC %d\n", e->ubl.cic);
@@ -8940,9 +8947,20 @@ static void *ss7_linkset(void *data)
 				ast_debug(1, "Unblocking CIC %d\n", e->ubl.cic);
 				ast_mutex_lock(&p->lock);
 				p->remotelyblocked = 0;
-				p->inservice = 1;
 				ast_mutex_unlock(&p->lock);
 				isup_uba(linkset->ss7, e->ubl.cic, p->dpc);
+				break;
+			case ISUP_EVENT_UBA:
+				chanpos = ss7_find_cic(linkset, e->uba.cic);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "UBA on unconfigured CIC %d\n", e->uba.cic);
+					break;
+				}
+				p = linkset->pvts[chanpos];
+				ast_debug(1, "Unblocking CIC %d\n", e->uba.cic);
+				ast_mutex_lock(&p->lock);
+				p->locallyblocked = 0;
+				ast_mutex_unlock(&p->lock);
 				break;
 			case ISUP_EVENT_CON:
 			case ISUP_EVENT_ANM:
@@ -11844,9 +11862,6 @@ static char *handle_ss7_block_cic(struct ast_cli_entry *e, int cmd, struct ast_c
 		if (linksets[linkset-1].pvts[i]->cic == cic) {
 			blocked = linksets[linkset-1].pvts[i]->locallyblocked;
 			if (!blocked) {
-				ast_mutex_lock(&linksets[linkset-1].pvts[i]->lock);
-				linksets[linkset-1].pvts[i]->locallyblocked = 1;
-				ast_mutex_unlock(&linksets[linkset-1].pvts[i]->lock);
 				ast_mutex_lock(&linksets[linkset-1].lock);
 				isup_blo(linksets[linkset-1].ss7, cic, linksets[linkset-1].pvts[i]->dpc);
 				ast_mutex_unlock(&linksets[linkset-1].lock);
@@ -11908,9 +11923,6 @@ static char *handle_ss7_unblock_cic(struct ast_cli_entry *e, int cmd, struct ast
 		if (linksets[linkset-1].pvts[i]->cic == cic) {
 			blocked = linksets[linkset-1].pvts[i]->locallyblocked;
 			if (blocked) {
-				ast_mutex_lock(&linksets[linkset-1].pvts[i]->lock);
-				linksets[linkset-1].pvts[i]->locallyblocked = 0;
-				ast_mutex_unlock(&linksets[linkset-1].pvts[i]->lock);
 				ast_mutex_lock(&linksets[linkset-1].lock);
 				isup_ubl(linksets[linkset-1].ss7, cic, linksets[linkset-1].pvts[i]->dpc);
 				ast_mutex_unlock(&linksets[linkset-1].lock);
