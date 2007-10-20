@@ -7,8 +7,19 @@
 ; CLI> reload chan_zap.so 
 ;		will reload the configuration file,
 ;		but not all configuration options are 
-; 		re-configured during a reload.
-
+; 		re-configured during a reload (signalling, as well as
+;               PRI and SS7-related settings cannot be changed on a
+;               reload.
+; 
+; This file documents many configuration variables.  Normally unless you
+; know what a variable means or that it should be changed, there's no
+; reason to unrem lines.
+;
+; remmed-out examples below (those lines that begin with a ';' but no
+; space afterwards) typically show a value that is not the defauult value,
+; but would make sense under cetain circumstances. The default values
+; are usually sane. Thus you should typically not touch them unless you 
+; know what they mean or you know you should change them.
 
 
 [trunkgroups]
@@ -45,9 +56,9 @@
 ;
 ;language=en
 ;
-; Default context
+; Context for calls. Defaults to 'default'
 ;
-context=default
+;context=incoming
 ;
 ; Switchtype:  Only used for PRI.
 ;
@@ -55,18 +66,23 @@ context=default
 ; dms100:	  Nortel DMS100
 ; 4ess:           AT&T 4ESS
 ; 5ess:	          Lucent 5ESS
-; euroisdn:       EuroISDN
+; euroisdn:       EuroISDN (common in Europe)
 ; ni1:            Old National ISDN 1
 ; qsig:           Q.SIG
 ;
-switchtype=national
+;switchtype=euroisdn
 ;
 ; Some switches (AT&T especially) require network specific facility IE
 ; supported values are currently 'none', 'sdn', 'megacom', 'tollfreemegacom', 'accunet'
 ;
+; nsf cannot be changed on a reload.
+;
 ;nsf=none
 ;
 ; PRI Dialplan:  Only RARELY used for PRI.
+; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's 
+; numbering plan)
+; pridialplan and prilocaldialplan cannot be changed on a reload.
 ;
 ; unknown:        Unknown
 ; private:        Private ISDN
@@ -74,25 +90,17 @@ switchtype=national
 ; national:	  National ISDN
 ; international:  International ISDN
 ; dynamic:	  Dynamically selects the appropriate dialplan
-; redundant:      Same as dynamic, except that the underlying number is not changed (not common)
+; redundant:      Same as dynamic, except that the underlying number is not 
+;                 changed (not common)
 ;
 ;pridialplan=national
-;
-; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's numbering plan)
-;
-; unknown:        Unknown
-; private:        Private ISDN
-; local:          Local ISDN
-; national:	  National ISDN
-; international:  International ISDN
-; dynamic:	  Dynamically selects the appropriate dialplan
-; redundant:      Same as dynamic, except that the underlying number is not changed (not common)
-;
 ;prilocaldialplan=national
 ;
-; PRI callerid prefixes based on the given TON/NPI (dialplan)
-; This is especially needed for euroisdn E1-PRIs
+; PRI caller ID prefixes based on the given TON/NPI (dialplan)
+; This is especially needed for EuroISDN E1-PRIs
 ; 
+; None of the prefix settings can be changed on reload.
+;
 ; sample 1 for Germany 
 ;internationalprefix = 00
 ;nationalprefix = 0
@@ -115,6 +123,7 @@ switchtype=national
 ;resetinterval = 3600 
 ;
 ; Overlap dialing mode (sending overlap digits)
+; Cannot be changed on a reload.
 ;
 ;overlapdial=yes
 ;
@@ -124,13 +133,18 @@ switchtype=national
 ; with all telcos.
 ; 
 ; outofband:      Signal Busy/Congestion out of band with RELEASE/DISCONNECT
-; inband:         Signal Busy/Congestion using in-band tones
+; inband:         Signal Busy/Congestion using in-band tones (default)
 ;
-; priindication = outofband
+; priindication cannot be changed on a reload.
+;
+;priindication = outofband
 ;
 ; If you need to override the existing channels selection routine and force all
 ; PRI channels to be marked as exclusively selected, set this to yes.
-; priexclusive = yes
+;
+; priexclusive cannot be changed on a reload.
+;
+;priexclusive = yes
 ;
 ; ISDN Timers
 ; All of the ISDN timers and counters that are used are configurable.  Specify
@@ -141,21 +155,26 @@ switchtype=national
 ; T203: Layer 2 max time without frames being exchanged (default 10000 ms)
 ; T305: Wait for DISCONNECT acknowledge (default 30000 ms)
 ; T308: Wait for RELEASE acknowledge (default 4000 ms)
-; T309: Maintain active calls on Layer 2 disconnection (default -1, Asterisk clears calls)
+; T309: Maintain active calls on Layer 2 disconnection (default -1, 
+        Asterisk clears calls)
 ;       EuroISDN: 6000 to 12000 ms, according to (N200 + 1) x T200 + 2s
 ;       May vary in other ISDN standards (Q.931 1993 : 90000 ms)
 ; T313: Wait for CONNECT acknowledge, CPE side only (default 3000 ms)
 ;
-; pritimer => t200,1000
-; pritimer => t313,4000
+;pritimer => t200,1000
+;pritimer => t313,4000
 ;
 ; To enable transmission of facility-based ISDN supplementary services (such
 ; as caller name from CPE over facility), enable this option.
-; facilityenable = yes
+; Cannot be changed on a reload.
 ;
+;facilityenable = yes
+;
+; pritimer cannot be changed on a reload.
 ;
 ; Signalling method (default is fxs).  Valid values:
 ; em:             E & M
+; em_e1:          E & M E1
 ; em_w:           E & M Wink
 ; featd:          Feature Group D (The fake, Adtran style, DTMF)
 ; featdmf:        Feature Group D (The real thing, MF (domestic, US))
@@ -180,6 +199,7 @@ switchtype=national
 ; sf_featdmf:     SF Feature Group D (The real thing, MF (domestic, US))
 ; sf_featb:       SF Feature Group B (MF (domestic, US))
 ; e911:           E911 (MF) style signalling
+; ss7:            Signalling System 7
 ;
 ; The following are used for Radio interfaces:
 ; fxs_rx:         Receive audio/COR on an FXS kewlstart interface (FXO at the
@@ -202,6 +222,8 @@ switchtype=national
 ; sf_rxtx:        Same as sf_txrx (for our dyslexic friends)
 ; ss7:            Signalling System 7
 ;
+; signalling of a channel can not be changed on a reload.
+;
 signalling=fxo_ls
 ;
 ; If you have an outbound signalling format that is different from format
@@ -210,16 +232,27 @@ signalling=fxo_ls
 ; format. If you only specify 'signalling', then it will be the format for
 ; both inbound and outbound.
 ; 
-; signalling=featdmf
-; outsignalling=featb
+; outsignalling can only be one of: 
+;   em, em_e1, em_w, sf, sf_w, sf_featd, sf_featdmf, sf_featb, featd,
+;   featdmf, featdmf_ta, e911, fgccama, fgccamamf
+; 
+; outsignalling cannot be changed on a reload.
+;
+;signalling=featdmf
+;
+;outsignalling=featb
 ;
 ; For Feature Group D Tandem access, to set the default CIC and OZZ use these
-; parameters:
+; parameters (Will not be updated on reload):
+;
 ;defaultozz=0000
 ;defaultcic=303
 ;
 ; A variety of timing parameters can be specified as well
-; Including:
+; The default values for those are "-1", which is to use the
+; compile-time defaults of the Zaptel kernel modules. The timing
+; parameters, (with the standard default from Zaptel):
+;
 ;    prewink:     Pre-wink time (default 50ms)
 ;    preflash:    Pre-flash time (default 50ms)
 ;    wink:        Wink time (default 150ms)
@@ -229,43 +262,55 @@ signalling=fxo_ls
 ;    rxflash:     Receiver flashtime (default 1250ms)
 ;    debounce:    Debounce timing (default 600ms)
 ;
-rxwink=300		; Atlas seems to use long (250ms) winks
+; None of them will update on a reload.
 ;
 ; How long generated tones (DTMF and MF) will be played on the channel
-; (in milliseconds)
+; (in milliseconds). 
+;
+; This is a global, rather than a per-channel setting. It will not be 
+; updated on a reload.
+;
 ;toneduration=100
 ;
-; Whether or not to do distinctive ring detection on FXO lines
+; Whether or not to do distinctive ring detection on FXO lines:
 ;
 ;usedistinctiveringdetection=yes
-;distinctiveringaftercid=yes	; enable dring detection after callerid for those countries like Australia
-				; where the ring cadence is changed *after* the callerid spill.
 ;
-; Whether or not to use caller ID
+; enable dring detection after caller ID for those countries like Australia
+; where the ring cadence is changed *after* the caller ID spill:
+;
+;distinctiveringaftercid=yes	
+;
+; Whether or not to use caller ID:
 ;
 usecallerid=yes
 ;
+; Hide the name part and leave just the number part of the caller ID
+; string. Only applies to PRI channels.
+;hidecalleridname=yes
+;
 ; Type of caller ID signalling in use
-;     bell     = bell202 as used in US
+;     bell     = bell202 as used in US (default)
 ;     v23      = v23 as used in the UK
 ;     v23_jp   = v23 as used in Japan
 ;     dtmf     = DTMF as used in Denmark, Sweden and Netherlands
-;     smdi     = Use SMDI for callerid.  Requires SMDI to be enabled (usesmdi).
+;     smdi     = Use SMDI for caller ID.  Requires SMDI to be enabled (usesmdi).
 ;
-;cidsignalling=bell
+;cidsignalling=v23
 ;
 ; What signals the start of caller ID
-;     ring     = a ring signals the start
-;     polarity = polarity reversal signals the start
+;     ring        = a ring signals the start (default)
+;     polarity    = polarity reversal signals the start
 ;     polarity_IN = polarity reversal signals the start, for India, 
-;                    for dtmf dialtone detection; using DTMF.
-;                    (see doc/India-CID.txt)
+;                   for dtmf dialtone detection; using DTMF.
+;                   (see doc/India-CID.txt)
 ;
-;cidstart=ring
+;cidstart=polarity
 ;
 ; Whether or not to hide outgoing caller ID (Override with *67 or *82)
+; (If your dialplan doesn't catch it)
 ;
-hidecallerid=no
+;hidecallerid=yes
 ;
 ; Whether or not to enable call waiting on internal extensions
 ; With this set to 'yes', busy extensions will hear the call-waiting
@@ -282,18 +327,18 @@ callwaiting=yes
 ;
 ; Whether or not use the caller ID presentation for the outgoing call that the
 ; calling switch is sending.
-; See README.callingpres
+; See README.callingpres. FIXME: file no longer exists.
 ;
 usecallingpres=yes
 ;
 ; Some countries (UK) have ring tones with different ring tones (ring-ring),
-; which means the callerid needs to be set later on, and not just after
-; the first ring, as per the default. 
+; which means the caller ID needs to be set later on, and not just after
+; the first ring, as per the default (1). 
 ;
-;sendcalleridafter=1
+;sendcalleridafter = 2
 ;
 ;
-; Support Caller*ID on Call Waiting
+; Support caller ID on Call Waiting
 ;
 callwaitingcallerid=yes
 ;
@@ -315,7 +360,8 @@ canpark=yes
 ;
 cancallforward=yes
 ;
-; Whether or not to support Call Return (*69)
+; Whether or not to support Call Return (*69, if your dialplan doesn't
+; catch this first)
 ;
 callreturn=yes
 ;
@@ -382,39 +428,72 @@ echocancelwhenbridged=yes
 ;
 ; You may also set the default receive and transmit gains (in dB)
 ;
-rxgain=0.0
-txgain=0.0
+; Gain Settings: increasing / decreasing the volume level on a channel.
+;                The values are in db (decibells). A positive number
+;                increases the volume level on a channel, and a
+;                negavive value decreases volume level.
 ;
-; Logical groups can be assigned to allow outgoing rollover.  Groups range
-; from 0 to 63, and multiple groups can be specified.
+;                There are several independent gain settings:
+;   rxgain: gain for the rx (receive - into Asterisk) channel. Default: 0.0
+;   txgain: gain for the tx (transmit - out of Asterisk Asterisk) channel. 
+;           Default: 0.0
+;   cid_rxgain: set the gain just for the caller ID sounds Asterisk
+;               emits. Default: 5.0 .
+
+;rxgain=2.0
+;txgain=3.0
+;
+; Logical groups can be assigned to allow outgoing roll-over.  Groups range
+; from 0 to 63, and multiple groups can be specified. By default the
+; channel is not a member of any group.
+;
+; Note that an explicit empty value for 'group' is invalid, and will not
+; override a previous non-empty one. The same applies to callgroup and
+; pickupgroup as well.
 ;
 group=1
 ;
 ; Ring groups (a.k.a. call groups) and pickup groups.  If a phone is ringing
 ; and it is a member of a group which is one of your pickup groups, then
-; you can answer it by picking up and dialling *8#.  For simple offices, just
+; you can answer it by picking up and dialing *8#.  For simple offices, just
 ; make these both the same.  Groups range from 0 to 63.
 ;
 callgroup=1
 pickupgroup=1
 
-;setvar=CHANNEL=42             ; Channel variable to be set for all calls from this channel
+; Channel variable to be set for all calls from this channel
+;setvar=CHANNEL=42             
 
 ;
 ; Specify whether the channel should be answered immediately or if the simple
 ; switch should provide dialtone, read digits, etc.
 ;
-immediate=no
+;immediate=yes
 ;
 ; Specify whether flash-hook transfers to 'busy' channels should complete or
 ; return to the caller performing the transfer (default is yes).
 ;
 ;transfertobusy=no
 ;
-; CallerID can be set to "asreceived" or a specific number if you want to
+; caller ID can be set to "asreceived" or a specific number if you want to
 ; override it.  Note that "asreceived" only applies to trunk interfaces.
+; fullname sets just the 
 ;
-;callerid=2564286000
+; fullname: sets just the name part.
+; cid_number: sets just the number part: 
+;
+;callerid = 123456
+;
+;callerid = My Name <2564286000>
+; Which can also be written as:
+;cid_number = 2564286000
+;fullname = My Name
+;
+;callerid = asreceived
+;
+; should we use the caller ID from incoming call on zap transfer?
+;
+;useincomingcalleridonzaptransfer = yes
 ;
 ; AMA flags affects the recording of Call Detail Records.  If specified
 ; it may be 'default', 'omit', 'billing', or 'documentation'.
@@ -447,12 +526,12 @@ immediate=no
 ;busydetect=yes
 ;
 ; If busydetect is enabled, it is also possible to specify how many busy tones
-; to wait for before hanging up.  The default is 4, but better results can be
-; achieved if set to 6 or even 8.  Mind that the higher the number, the more
+; to wait for before hanging up.  The default is 3, but it might be
+; safer to set to 6 or even 8.  Mind that the higher the number, the more
 ; time that will be needed to hangup a channel, but lowers the probability
 ; that you will get random hangups.
 ;
-;busycount=4
+;busycount=6
 ;
 ; If busydetect is enabled, it is also possible to specify the cadence of your
 ; busy signal.  In many countries, it is 500msec on, 500msec off.  Without
@@ -479,6 +558,10 @@ immediate=no
 ;
 ;hanguponpolarityswitch=yes
 ;
+; polarityonanswerdelay: minimal time period (ms) between the answer 
+;                        polarity switch and hangup polarity switch. 
+;                        (default: 600ms)
+;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
 ; progress attempts to determine answer, busy, and ringing on phone lines.
@@ -486,21 +569,39 @@ immediate=no
 ; so don't count on it being very accurate.
 ;
 ; Few zones are supported at the time of this writing, but may be selected
-; with "progzone"
+; with "progzone".
+;
+; progzone also affects the pattern used for buzydetect (unless
+; busypattern is set explicitly). The possible values are: 
+;   us (default)
+;   ca (alias for 'us')
+;   cr (Costa Rica)
+;   br (Brazil, alias for 'cr')
+;   uk
 ;
 ; This feature can also easily detect false hangups. The symptoms of this is
 ; being disconnected in the middle of a call for no reason.
 ;
 ;callprogress=yes
-;progzone=us
+;progzone=uk
+;
+; Set the tonezone. Equivalent of the defaultzone settings in
+; /etc/zaptel.conf . This sets the tone zone by number.
+; Note that you'd still need to load tonezones (loadzone in zaptel.conf).
+; The default is -1: not to set anything.
+;tonezone = 0 ; 0 is US
 ;
 ; FXO (FXS signalled) devices must have a timeout to determine if there was a
 ; hangup before the line was answered.  This value can be tweaked to shorten
 ; how long it takes before Zap considers a non-ringing line to have hungup.
 ;
+; ringtimeout will not update on a reload.
+;
 ;ringtimeout=8000
 ;
 ; For FXO (FXS signalled) devices, whether to use pulse dial instead of DTMF
+; Pulse digits from phones (FXS devices, FXO signalling) are always
+; detected.
 ;
 ;pulsedial=yes
 ;
@@ -520,13 +621,10 @@ immediate=no
 ; passed through as signalling instead of generating hold music locally. This
 ; setting is only valid when used on a channel that uses digital signalling.
 ;
-; This option may be specified globally, or on a per-user or per-peer basis.
-;
 ;mohinterpret=default
 ;
 ; This option specifies which music on hold class to suggest to the peer channel
-; when this channel places the peer on hold. It may be specified globally or on
-; a per-user or per-peer basis.
+; when this channel places the peer on hold. 
 ;
 ;mohsuggest=default
 ;
@@ -540,12 +638,15 @@ immediate=no
 ; multilink PPP, thus more efficiently utilizing combined voice/data services
 ; than conventional fixed mappings/muxings.
 ;
+; Those settings cannot be changed on reload.
+;
 ;idledial=6999
 ;idleext=6999@dialout
 ;minunused=2
 ;minidle=1
 ;
-; Configure jitter buffers in zapata (each one is 20ms, default is 4)
+; Configure jitter buffers in Zapata (each one is 20ms, default is 4)
+; This is set globally, rather than per-channel.
 ;
 ;jitterbuffers=4
 ;
@@ -573,9 +674,12 @@ immediate=no
 ;-----------------------------------------------------------------------------------
 ;
 ; You can define your own custom ring cadences here.  You can define up to 8
-; pairs.  If the silence is negative, it indicates where the callerid spill is
+; pairs.  If the silence is negative, it indicates where the caller ID spill is
 ; to be placed.  Also, if you define any custom cadences, the default cadences
 ; will be turned off.
+;
+; This setting is global, rather than per-channel. It will not update on
+; a reload.
 ;
 ; Syntax is:  cadence=ring,silence[,ring,silence[...]]
 ;
@@ -600,9 +704,7 @@ immediate=no
 ;channel => 1
 ;callerid="Black Phone"<(256) 428-6122>
 ;channel => 2
-;callerid="CallerID Phone" <(256) 428-6123>
 ;callerid="CallerID Phone" <(630) 372-1564>
-;callerid="CallerID Phone" <(256) 704-4666>
 ;channel => 3
 ;callerid="Pac Tel Phone" <(256) 428-6124>
 ;channel => 4
@@ -648,6 +750,8 @@ immediate=no
 ; pri_cpe or pri_net for CPE or Network termination, and generally you will
 ; want to create a single "group" for all channels of the PRI.
 ;
+; switchtype cannot be changed on a reload.
+;
 ; switchtype = national
 ; signalling = pri_cpe
 ; group = 2
@@ -675,6 +779,8 @@ immediate=no
 ;channel => 1 
 
 ; ---------------- Options for use with signalling=ss7 -----------------
+; None of them can be changed by a reload.
+;
 ; Variant of SS7 signaling:
 ; Options are itu and ansi
 ;ss7type = itu
@@ -736,4 +842,7 @@ immediate=no
 
 ; Channels to associate with CICs on this linkset
 ;channel = 25-47
+;
+; For more information on setting up SS7, see the README file in libss7 or
+; the doc/ss7.txt file in the Asterisk source tree.
 ; ----------------- SS7 Options ----------------------------------------
