@@ -963,7 +963,7 @@ static void *netconsole(void *vconsole)
 				break;
 			}
 			tmp[res] = 0;
-			ast_cli_command(con->fd, tmp);
+			ast_cli_command_multiple(con->fd, res, tmp);
 		}
 		if (fds[1].revents) {
 			res = read(con->p[0], tmp, sizeof(tmp));

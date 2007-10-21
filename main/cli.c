@@ -1850,3 +1850,20 @@ done:
 	ast_free(dup);
 	return 0;
 }
+
+int ast_cli_command_multiple(int fd, size_t size, const char *s)
+{
+	char cmd[512];
+	int x, y = 0, count = 0;
+
+	for (x = 0; x < size; x++) {
+		cmd[y] = s[x];
+		y++;
+		if (s[x] == '\0') {
+			ast_cli_command(fd, cmd);
+			y = 0;
+			count++;
+		}
+	}
+	return count;
+}
