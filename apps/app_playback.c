@@ -357,7 +357,6 @@ static int say_init_mode(char *mode) {
 	return 0;
 }
 
-
 static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	const char *old_mode = say_api_buf[0] ? say_new : say_old;
@@ -368,11 +367,11 @@ static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		e->usage = 
 			"Usage: say load [new|old]\n"
 			"       say load\n"
-			"	   Report status of current say mode\n"
+			"           Report status of current say mode\n"
 			"       say load new\n"
-			"          Set say method, configured in say.conf\n"
+			"           Set say method, configured in say.conf\n"
 			"       say load old\n"
-			"          Set old say metod, coded in asterisk core\n";
+			"           Set old say method, coded in asterisk core\n";
 		return NULL;
 	case CLI_GENERATE:
 		return NULL;
@@ -380,24 +379,20 @@ static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 	if (a->argc == 2) {
 		ast_cli(a->fd, "say mode is [%s]\n", old_mode);
 		return CLI_SUCCESS;
-        } else if (a->argc != 3)
-                return CLI_SHOWUSAGE;
-        mode = a->argv[2];
-	
-	if (!strcmp(mode, old_mode)) {
+	} else if (a->argc != 3)
+		return CLI_SHOWUSAGE;
+	mode = a->argv[2];
+	if (!strcmp(mode, old_mode))
 		ast_log(LOG_NOTICE, "say mode is %s already\n", mode);
-	} else {
-		if (say_init_mode(mode) == 0) {
+	else
+		if (say_init_mode(mode) == 0)
 			ast_log(LOG_NOTICE, "init say.c from %s to %s\n", old_mode, mode);
-		}
-	}
+
 	return CLI_SUCCESS;
 }
 
 static struct ast_cli_entry cli_playback[] = {
 	AST_CLI_DEFINE(__say_cli_init, "Set or show the say mode"),
-	AST_CLI_DEFINE(__say_cli_init, "Set the say mode"),
-	AST_CLI_DEFINE(__say_cli_init, "Set the say mode"),
 };
 
 static int playback_exec(struct ast_channel *chan, void *data)
