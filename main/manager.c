@@ -717,13 +717,13 @@ static char *handle_showmaneventq(struct ast_cli_entry *e, int cmd, struct ast_c
 }
 
 static struct ast_cli_entry cli_manager[] = {
-	AST_CLI(handle_showmancmd, "Show a manager interface command"),
-	AST_CLI(handle_showmancmds, "List manager interface commands"),
-	AST_CLI(handle_showmanconn, "List connected manager interface users"),
-	AST_CLI(handle_showmaneventq, "List manager interface queued events"),
-	AST_CLI(handle_showmanagers, "List configured manager users"),
-	AST_CLI(handle_showmanager, "Display information on a specific manager user"),
-	AST_CLI(handle_mandebug, "Show, enable, disable debugging of the manager code"),
+	AST_CLI_DEFINE(handle_showmancmd, "Show a manager interface command"),
+	AST_CLI_DEFINE(handle_showmancmds, "List manager interface commands"),
+	AST_CLI_DEFINE(handle_showmanconn, "List connected manager interface users"),
+	AST_CLI_DEFINE(handle_showmaneventq, "List manager interface queued events"),
+	AST_CLI_DEFINE(handle_showmanagers, "List configured manager users"),
+	AST_CLI_DEFINE(handle_showmanager, "Display information on a specific manager user"),
+	AST_CLI_DEFINE(handle_mandebug, "Show, enable, disable debugging of the manager code"),
 };
 
 /*

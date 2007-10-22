@@ -1244,9 +1244,9 @@ static char *sla_show_stations(struct ast_cli_entry *e, int cmd, struct ast_cli_
 }
 
 static struct ast_cli_entry cli_meetme[] = {
-	AST_CLI(meetme_cmd, "Execute a command on a conference or conferee"),
-	AST_CLI(sla_show_trunks, "Show SLA Trunks"),
-	AST_CLI(sla_show_stations, "Show SLA Stations"),
+	AST_CLI_DEFINE(meetme_cmd, "Execute a command on a conference or conferee"),
+	AST_CLI_DEFINE(sla_show_trunks, "Show SLA Trunks"),
+	AST_CLI_DEFINE(sla_show_stations, "Show SLA Stations"),
 };
 
 static void conf_flush(int fd, struct ast_channel *chan)

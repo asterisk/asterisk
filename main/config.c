@@ -2178,7 +2178,7 @@ static char *handle_cli_core_show_config_mappings(struct ast_cli_entry *e, int c
 }
 
 static struct ast_cli_entry cli_config[] = {
-	AST_CLI(handle_cli_core_show_config_mappings, "Display config mappings (file names to config engines)"),
+	AST_CLI_DEFINE(handle_cli_core_show_config_mappings, "Display config mappings (file names to config engines)"),
 };
 
 int register_config_cli() 

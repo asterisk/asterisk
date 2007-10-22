@@ -582,8 +582,8 @@ static char *handle_cli_keys_init(struct ast_cli_entry *e, int cmd, struct ast_c
 }
 
 static struct ast_cli_entry cli_crypto[] = {
-	AST_CLI(handle_cli_keys_show, "Displays RSA key information"),
-	AST_CLI(handle_cli_keys_init, "Initialize RSA key passcodes")
+	AST_CLI_DEFINE(handle_cli_keys_show, "Displays RSA key information"),
+	AST_CLI_DEFINE(handle_cli_keys_init, "Initialize RSA key passcodes")
 };
 
 /*! \brief initialise the res_crypto module */

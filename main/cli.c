@@ -1108,47 +1108,47 @@ static char *group_show_channels(struct ast_cli_entry *e, int cmd, struct ast_cl
 #undef FORMAT_STRING
 }
 
-static struct ast_cli_entry cli_debug_channel_deprecated = AST_CLI(handle_debugchan_deprecated, "Enable debugging on channel");
-static struct ast_cli_entry cli_module_load_deprecated = AST_CLI(handle_load_deprecated, "Load a module");
-static struct ast_cli_entry cli_module_reload_deprecated = AST_CLI(handle_reload_deprecated, "reload modules by name");
-static struct ast_cli_entry cli_module_unload_deprecated = AST_CLI(handle_unload_deprecated, "unload modules by name");
+static struct ast_cli_entry cli_debug_channel_deprecated = AST_CLI_DEFINE(handle_debugchan_deprecated, "Enable debugging on channel");
+static struct ast_cli_entry cli_module_load_deprecated = AST_CLI_DEFINE(handle_load_deprecated, "Load a module");
+static struct ast_cli_entry cli_module_reload_deprecated = AST_CLI_DEFINE(handle_reload_deprecated, "reload modules by name");
+static struct ast_cli_entry cli_module_unload_deprecated = AST_CLI_DEFINE(handle_unload_deprecated, "unload modules by name");
 
 static char *handle_help(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_cli[] = {
 	/* Deprecated, but preferred command is now consolidated (and already has a deprecated command for it). */
-	AST_CLI(handle_commandcomplete, "Command complete"),
-	AST_CLI(handle_commandnummatches, "Returns number of command matches"),
-	AST_CLI(handle_commandmatchesarray, "Returns command matches array"),
+	AST_CLI_DEFINE(handle_commandcomplete, "Command complete"),
+	AST_CLI_DEFINE(handle_commandnummatches, "Returns number of command matches"),
+	AST_CLI_DEFINE(handle_commandmatchesarray, "Returns command matches array"),
 
-	AST_CLI(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
+	AST_CLI_DEFINE(handle_nodebugchan_deprecated, "Disable debugging on channel(s)"),
 
-	AST_CLI(handle_chanlist, "Display information on channels"),
+	AST_CLI_DEFINE(handle_chanlist, "Display information on channels"),
 
-	AST_CLI(handle_showchan, "Display information on a specific channel"),
+	AST_CLI_DEFINE(handle_showchan, "Display information on a specific channel"),
 
-	AST_CLI(handle_core_set_debug_channel, "Enable/disable debugging on a channel",
+	AST_CLI_DEFINE(handle_core_set_debug_channel, "Enable/disable debugging on a channel",
 		.deprecate_cmd = &cli_debug_channel_deprecated),
 
-	AST_CLI(handle_verbose, "Set level of debug/verbose chattiness"),
+	AST_CLI_DEFINE(handle_verbose, "Set level of debug/verbose chattiness"),
 
-	AST_CLI(group_show_channels, "Display active channels with group(s)"),
+	AST_CLI_DEFINE(group_show_channels, "Display active channels with group(s)"),
 
-	AST_CLI(handle_help, "Display help list, or specific help on a command"),
+	AST_CLI_DEFINE(handle_help, "Display help list, or specific help on a command"),
 
-	AST_CLI(handle_logger_mute, "Toggle logging output to a console"),
+	AST_CLI_DEFINE(handle_logger_mute, "Toggle logging output to a console"),
 
-	AST_CLI(handle_modlist, "List modules and info"),
+	AST_CLI_DEFINE(handle_modlist, "List modules and info"),
 
-	AST_CLI(handle_load, "Load a module by name", .deprecate_cmd = &cli_module_load_deprecated),
+	AST_CLI_DEFINE(handle_load, "Load a module by name", .deprecate_cmd = &cli_module_load_deprecated),
 
-	AST_CLI(handle_reload, "Reload configuration", .deprecate_cmd = &cli_module_reload_deprecated),
+	AST_CLI_DEFINE(handle_reload, "Reload configuration", .deprecate_cmd = &cli_module_reload_deprecated),
 
-	AST_CLI(handle_unload, "Unload a module by name", .deprecate_cmd = &cli_module_unload_deprecated ),
+	AST_CLI_DEFINE(handle_unload, "Unload a module by name", .deprecate_cmd = &cli_module_unload_deprecated ),
 
-	AST_CLI(handle_showuptime, "Show uptime information"),
+	AST_CLI_DEFINE(handle_showuptime, "Show uptime information"),
 
-	AST_CLI(handle_softhangup, "Request a hangup on a given channel"),
+	AST_CLI_DEFINE(handle_softhangup, "Request a hangup on a given channel"),
 };
 
 /*!

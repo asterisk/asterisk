@@ -723,7 +723,7 @@ static char *locals_show(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 }
 
 static struct ast_cli_entry cli_local[] = {
-	AST_CLI(locals_show, "List status of local channels"),
+	AST_CLI_DEFINE(locals_show, "List status of local channels"),
 };
 
 /*! \brief Load module into PBX, register channel */

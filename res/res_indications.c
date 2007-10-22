@@ -382,9 +382,9 @@ out:			v = v->next;
 
 /*! \brief CLI entries for commands provided by this module */
 static struct ast_cli_entry cli_indications[] = {
-	AST_CLI(handle_cli_indication_add,    "Add the given indication to the country"),
-	AST_CLI(handle_cli_indication_remove, "Remove the given indication from the country"),
-	AST_CLI(handle_cli_indication_show,   "Display a list of all countries/indications")
+	AST_CLI_DEFINE(handle_cli_indication_add,    "Add the given indication to the country"),
+	AST_CLI_DEFINE(handle_cli_indication_remove, "Remove the given indication from the country"),
+	AST_CLI_DEFINE(handle_cli_indication_show,   "Display a list of all countries/indications")
 };
 
 /*! \brief Unload indicators module */

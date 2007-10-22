@@ -706,12 +706,12 @@ static char *handle_cli_rpt_reload(struct ast_cli_entry *e, int cmd, struct ast_
 static char *handle_cli_rpt_restart(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);
 
 static struct ast_cli_entry cli_rpt[] = {
-	AST_CLI(handle_cli_rpt_debug_level, "Enable app_rpt debuggin"),
-	AST_CLI(handle_cli_rpt_dump,        "Dump app_rpt structs for debugging"),
-	AST_CLI(handle_cli_rpt_stats,       "Dump node statistics"),
-	AST_CLI(handle_cli_rpt_lstats,      "Dump link statistics"),
-	AST_CLI(handle_cli_rpt_reload,      "Reload app_rpt config"),
-	AST_CLI(handle_cli_rpt_restart,     "Restart app_rpt")
+	AST_CLI_DEFINE(handle_cli_rpt_debug_level, "Enable app_rpt debuggin"),
+	AST_CLI_DEFINE(handle_cli_rpt_dump,        "Dump app_rpt structs for debugging"),
+	AST_CLI_DEFINE(handle_cli_rpt_stats,       "Dump node statistics"),
+	AST_CLI_DEFINE(handle_cli_rpt_lstats,      "Dump link statistics"),
+	AST_CLI_DEFINE(handle_cli_rpt_reload,      "Reload app_rpt config"),
+	AST_CLI_DEFINE(handle_cli_rpt_restart,     "Restart app_rpt")
 };
 
 /*

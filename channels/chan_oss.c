@@ -1455,16 +1455,16 @@ static char *console_boost(struct ast_cli_entry *e, int cmd, struct ast_cli_args
 }
 
 static struct ast_cli_entry cli_oss[] = {
-	AST_CLI(console_answer, "Answer an incoming console call"),
-	AST_CLI(console_hangup, "Hangup a call on the console"),
-	AST_CLI(console_flash, "Flash a call on the console"),
-	AST_CLI(console_dial, "Dial an extension on the console"),
-	AST_CLI(console_mute, "Disable/Enable mic input"),
-	AST_CLI(console_transfer, "Transfer a call to a different extension"),	
-	AST_CLI(console_sendtext, "Send text to the remote device"),
-	AST_CLI(console_autoanswer, "Sets/displays autoanswer"),
-	AST_CLI(console_boost, "Sets/displays mic boost in dB"),
-	AST_CLI(console_active, "Sets/displays active console"),
+	AST_CLI_DEFINE(console_answer, "Answer an incoming console call"),
+	AST_CLI_DEFINE(console_hangup, "Hangup a call on the console"),
+	AST_CLI_DEFINE(console_flash, "Flash a call on the console"),
+	AST_CLI_DEFINE(console_dial, "Dial an extension on the console"),
+	AST_CLI_DEFINE(console_mute, "Disable/Enable mic input"),
+	AST_CLI_DEFINE(console_transfer, "Transfer a call to a different extension"),	
+	AST_CLI_DEFINE(console_sendtext, "Send text to the remote device"),
+	AST_CLI_DEFINE(console_autoanswer, "Sets/displays autoanswer"),
+	AST_CLI_DEFINE(console_boost, "Sets/displays mic boost in dB"),
+	AST_CLI_DEFINE(console_active, "Sets/displays active console"),
 };
 
 /*!

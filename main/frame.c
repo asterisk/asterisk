@@ -913,10 +913,10 @@ static char *show_frame_stats(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 
 /* Builtin Asterisk CLI-commands for debugging */
 static struct ast_cli_entry my_clis[] = {
-	AST_CLI(show_codecs, "Displays a list of codecs"),
-	AST_CLI(show_codec_n, "Shows a specific codec"),
+	AST_CLI_DEFINE(show_codecs, "Displays a list of codecs"),
+	AST_CLI_DEFINE(show_codec_n, "Shows a specific codec"),
 #ifdef TRACE_FRAMES
-	AST_CLI(show_frame_stats, "Shows frame statistics"),
+	AST_CLI_DEFINE(show_frame_stats, "Shows frame statistics"),
 #endif
 };
 

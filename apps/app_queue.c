@@ -5004,10 +5004,10 @@ static const char qum_cmd_usage[] =
 "Usage: queue unpause member <channel> in <queue> reason <reason>\n";
 
 static struct ast_cli_entry cli_queue[] = {
-	AST_CLI(queue_show, "Show status of a specified queue"),
-	AST_CLI(handle_queue_add_member, "Add a channel to a specified queue"),
-	AST_CLI(handle_queue_remove_member, "Removes a channel from a specified queue"),
-	AST_CLI(handle_queue_pause_member, "Pause or unpause a queue member"),
+	AST_CLI_DEFINE(queue_show, "Show status of a specified queue"),
+	AST_CLI_DEFINE(handle_queue_add_member, "Add a channel to a specified queue"),
+	AST_CLI_DEFINE(handle_queue_remove_member, "Removes a channel from a specified queue"),
+	AST_CLI_DEFINE(handle_queue_pause_member, "Pause or unpause a queue member"),
 };
 
 static int unload_module(void)

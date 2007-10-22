@@ -1923,10 +1923,10 @@ static char *handle_cli_radio_set_debug(struct ast_cli_entry *e, int cmd, struct
 }
 
 static struct ast_cli_entry cli_usbradio[] = {
-	AST_CLI(handle_cli_radio_key,       "Simulate Rx Signal Present"),
-	AST_CLI(handle_cli_radio_unkey,     "Simulate Rx Signal Lusb"),
-	AST_CLI(handle_cli_radio_tune,      "Radio Tune"),
-	AST_CLI(handle_cli_radio_set_debug, "Enable/Disable Radio Debugging"),
+	AST_CLI_DEFINE(handle_cli_radio_key,       "Simulate Rx Signal Present"),
+	AST_CLI_DEFINE(handle_cli_radio_unkey,     "Simulate Rx Signal Lusb"),
+	AST_CLI_DEFINE(handle_cli_radio_tune,      "Radio Tune"),
+	AST_CLI_DEFINE(handle_cli_radio_set_debug, "Enable/Disable Radio Debugging"),
 };
 
 /*

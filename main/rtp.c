@@ -3979,10 +3979,10 @@ static char *handle_cli_stun_debug(struct ast_cli_entry *e, int cmd, struct ast_
 }
 
 static struct ast_cli_entry cli_rtp[] = {
-	AST_CLI(handle_cli_rtp_debug,  "Enable/Disable RTP debugging"),
-	AST_CLI(handle_cli_rtcp_debug, "Enable/Disable RTCP debugging"),
-	AST_CLI(handle_cli_rtcp_stats, "Enable/Disable RTCP stats"),
-	AST_CLI(handle_cli_stun_debug, "Enable/Disable STUN debugging"),
+	AST_CLI_DEFINE(handle_cli_rtp_debug,  "Enable/Disable RTP debugging"),
+	AST_CLI_DEFINE(handle_cli_rtcp_debug, "Enable/Disable RTCP debugging"),
+	AST_CLI_DEFINE(handle_cli_rtcp_stats, "Enable/Disable RTCP stats"),
+	AST_CLI_DEFINE(handle_cli_stun_debug, "Enable/Disable STUN debugging"),
 };
 
 static int __ast_rtp_reload(int reload)

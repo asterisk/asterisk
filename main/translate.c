@@ -575,7 +575,7 @@ static char *handle_cli_core_show_translation(struct ast_cli_entry *e, int cmd, 
 }
 
 static struct ast_cli_entry cli_translate[] = {
-	AST_CLI(handle_cli_core_show_translation, "Display translation matrix")
+	AST_CLI_DEFINE(handle_cli_core_show_translation, "Display translation matrix")
 };
 
 /*! \brief register codec translator */

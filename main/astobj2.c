@@ -715,8 +715,8 @@ static char *handle_astobj2_test(struct ast_cli_entry *e, int cmd, struct ast_cl
 }
 
 static struct ast_cli_entry cli_astobj2[] = {
-	AST_CLI(handle_astobj2_stats, "Print astobj2 statistics"),
-	AST_CLI(handle_astobj2_test, "Test astobj2"),
+	AST_CLI_DEFINE(handle_astobj2_stats, "Print astobj2 statistics"),
+	AST_CLI_DEFINE(handle_astobj2_test, "Test astobj2"),
 };
 #endif /* AO2_DEBUG */
 

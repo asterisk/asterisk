@@ -786,7 +786,7 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 }
 
 static struct ast_cli_entry utils_cli[] = {
-	AST_CLI(handle_show_locks, "Show which locks are held by which thread"),
+	AST_CLI_DEFINE(handle_show_locks, "Show which locks are held by which thread"),
 };
 
 #endif /* DEBUG_THREADS */

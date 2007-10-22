@@ -1239,7 +1239,7 @@ static char *handle_cli_core_show_file_formats(struct ast_cli_entry *e, int cmd,
 }
 
 struct ast_cli_entry cli_file[] = {
-	AST_CLI(handle_cli_core_show_file_formats, "Displays file formats")
+	AST_CLI_DEFINE(handle_cli_core_show_file_formats, "Displays file formats")
 };
 
 int ast_file_init(void)

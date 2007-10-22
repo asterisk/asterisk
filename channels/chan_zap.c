@@ -10845,14 +10845,14 @@ static char *handle_pri_show_debug(struct ast_cli_entry *e, int cmd, struct ast_
 }
 
 static struct ast_cli_entry zap_pri_cli[] = {
-	AST_CLI(handle_pri_debug, "Enables PRI debugging on a span"),
-	AST_CLI(handle_pri_no_debug, "Disables PRI debugging on a span"),
-	AST_CLI(handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging"),
-	AST_CLI(handle_pri_show_spans, "Displays PRI Information"),
-	AST_CLI(handle_pri_show_span, "Displays PRI Information"),
-	AST_CLI(handle_pri_show_debug, "Displays current PRI debug settings"),
-	AST_CLI(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
-	AST_CLI(handle_pri_unset_debug_file, "Ends PRI debug output to file"),
+	AST_CLI_DEFINE(handle_pri_debug, "Enables PRI debugging on a span"),
+	AST_CLI_DEFINE(handle_pri_no_debug, "Disables PRI debugging on a span"),
+	AST_CLI_DEFINE(handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging"),
+	AST_CLI_DEFINE(handle_pri_show_spans, "Displays PRI Information"),
+	AST_CLI_DEFINE(handle_pri_show_span, "Displays PRI Information"),
+	AST_CLI_DEFINE(handle_pri_show_debug, "Displays current PRI debug settings"),
+	AST_CLI_DEFINE(handle_pri_set_debug_file, "Sends PRI debug output to the specified file"),
+	AST_CLI_DEFINE(handle_pri_unset_debug_file, "Ends PRI debug output to file"),
 };
 
 #endif /* HAVE_PRI */
@@ -11369,13 +11369,13 @@ static char *zap_show_version(struct ast_cli_entry *e, int cmd, struct ast_cli_a
 }
 
 static struct ast_cli_entry zap_cli[] = {
-	AST_CLI(handle_zap_show_cadences, "List cadences"),
-	AST_CLI(zap_show_channels, "Show active zapata channels"),
-	AST_CLI(zap_show_channel, "Show information on a channel"),
-	AST_CLI(zap_destroy_channel, "Destroy a channel"),
-	AST_CLI(zap_restart_cmd, "Fully restart zaptel channels"),
-	AST_CLI(zap_show_status, "Show all Zaptel cards status"),
-	AST_CLI(zap_show_version, "Show the Zaptel version in use"),
+	AST_CLI_DEFINE(handle_zap_show_cadences, "List cadences"),
+	AST_CLI_DEFINE(zap_show_channels, "Show active zapata channels"),
+	AST_CLI_DEFINE(zap_show_channel, "Show information on a channel"),
+	AST_CLI_DEFINE(zap_destroy_channel, "Destroy a channel"),
+	AST_CLI_DEFINE(zap_restart_cmd, "Fully restart zaptel channels"),
+	AST_CLI_DEFINE(zap_show_status, "Show all Zaptel cards status"),
+	AST_CLI_DEFINE(zap_show_version, "Show the Zaptel version in use"),
 };
 
 #define TRANSFER	0
@@ -11969,11 +11969,11 @@ static char *handle_ss7_show_linkset(struct ast_cli_entry *e, int cmd, struct as
 }
 
 static struct ast_cli_entry zap_ss7_cli[] = {
-	AST_CLI(handle_ss7_debug, "Enables SS7 debugging on a linkset"), 
-	AST_CLI(handle_ss7_no_debug, "Disables SS7 debugging on a linkset"), 
-	AST_CLI(handle_ss7_block_cic, "Disables SS7 debugging on a linkset"),
-	AST_CLI(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset"),
-	AST_CLI(handle_ss7_show_linkset, "Shows the status of a linkset"),
+	AST_CLI_DEFINE(handle_ss7_debug, "Enables SS7 debugging on a linkset"), 
+	AST_CLI_DEFINE(handle_ss7_no_debug, "Disables SS7 debugging on a linkset"), 
+	AST_CLI_DEFINE(handle_ss7_block_cic, "Disables SS7 debugging on a linkset"),
+	AST_CLI_DEFINE(handle_ss7_unblock_cic, "Disables SS7 debugging on a linkset"),
+	AST_CLI_DEFINE(handle_ss7_show_linkset, "Shows the status of a linkset"),
 };
 #endif /* HAVE_SS7 */
 

@@ -2991,12 +2991,12 @@ static int minivm_counter_func_write(struct ast_channel *chan, const char *cmd, 
 
 /*! \brief CLI commands for Mini-voicemail */
 static struct ast_cli_entry cli_minivm[] = {
-	AST_CLI(handle_minivm_show_users, "List defined mini-voicemail boxes"),
-	AST_CLI(handle_minivm_show_zones, "List zone message formats"),
-	AST_CLI(handle_minivm_list_templates, "List message templates"),	
-	AST_CLI(handle_minivm_reload, "Reload Mini-voicemail configuration"),
-	AST_CLI(handle_minivm_show_stats, "Show some mini-voicemail statistics"),
-	AST_CLI(handle_minivm_show_settings, "Show mini-voicemail general settings"),
+	AST_CLI_DEFINE(handle_minivm_show_users, "List defined mini-voicemail boxes"),
+	AST_CLI_DEFINE(handle_minivm_show_zones, "List zone message formats"),
+	AST_CLI_DEFINE(handle_minivm_list_templates, "List message templates"),	
+	AST_CLI_DEFINE(handle_minivm_reload, "Reload Mini-voicemail configuration"),
+	AST_CLI_DEFINE(handle_minivm_show_stats, "Show some mini-voicemail statistics"),
+	AST_CLI_DEFINE(handle_minivm_show_settings, "Show mini-voicemail general settings"),
 };
 
 static struct ast_custom_function minivm_counter_function = {

@@ -211,7 +211,7 @@ static char *handle_core_show_image_formats(struct ast_cli_entry *e, int cmd, st
 }
 
 struct ast_cli_entry cli_image[] = {
-	AST_CLI(handle_core_show_image_formats, "Displays image formats")
+	AST_CLI_DEFINE(handle_core_show_image_formats, "Displays image formats")
 };
 
 int ast_image_init(void)

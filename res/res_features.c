@@ -2629,11 +2629,11 @@ static char *handle_parkedcalls_deprecated(struct ast_cli_entry *e, int cmd, str
 	return res;
 }
 
-static struct ast_cli_entry cli_show_parkedcalls_deprecated = AST_CLI(handle_parkedcalls_deprecated, "List currently parked calls.");
+static struct ast_cli_entry cli_show_parkedcalls_deprecated = AST_CLI_DEFINE(handle_parkedcalls_deprecated, "List currently parked calls.");
 
 static struct ast_cli_entry cli_features[] = {
-	AST_CLI(handle_feature_show, "Lists configured features"),
-	AST_CLI(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
+	AST_CLI_DEFINE(handle_feature_show, "Lists configured features"),
+	AST_CLI_DEFINE(handle_parkedcalls, "List currently parked calls", .deprecate_cmd = &cli_show_parkedcalls_deprecated),
 };
 
 /*! 

@@ -147,7 +147,7 @@ fail_out:
 }
 
 static struct ast_cli_entry cli_convert[] = {
-	AST_CLI(handle_cli_file_convert, "Convert audio file")
+	AST_CLI_DEFINE(handle_cli_file_convert, "Convert audio file")
 };
 
 static int unload_module(void)

@@ -1299,7 +1299,7 @@ int ast_http_reload(void)
 }
 
 static struct ast_cli_entry cli_http[] = {
-	AST_CLI(handle_show_http, "Display HTTP server status"),
+	AST_CLI_DEFINE(handle_show_http, "Display HTTP server status"),
 };
 
 int ast_http_init(void)

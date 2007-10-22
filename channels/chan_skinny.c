@@ -2731,14 +2731,14 @@ static char *handle_skinny_show_settings(struct ast_cli_entry *e, int cmd, struc
 }
 
 static struct ast_cli_entry cli_skinny[] = {
-	AST_CLI(handle_skinny_show_devices, "List defined Skinny devices"),
-	AST_CLI(handle_skinny_show_device, "List Skinny device information"),
-	AST_CLI(handle_skinny_show_lines, "List defined Skinny lines per device"),	
-	AST_CLI(handle_skinny_show_line, "List Skinny line information"),
-	AST_CLI(handle_skinny_show_settings, "List global Skinny settings"),
-	AST_CLI(handle_skinny_set_debug, "Enable Skinny debugging"),
-	AST_CLI(handle_skinny_set_debug_off, "Disable Skinny debugging"),
-	AST_CLI(handle_skinny_reset, "Reset Skinny device(s)"),
+	AST_CLI_DEFINE(handle_skinny_show_devices, "List defined Skinny devices"),
+	AST_CLI_DEFINE(handle_skinny_show_device, "List Skinny device information"),
+	AST_CLI_DEFINE(handle_skinny_show_lines, "List defined Skinny lines per device"),	
+	AST_CLI_DEFINE(handle_skinny_show_line, "List Skinny line information"),
+	AST_CLI_DEFINE(handle_skinny_show_settings, "List global Skinny settings"),
+	AST_CLI_DEFINE(handle_skinny_set_debug, "Enable Skinny debugging"),
+	AST_CLI_DEFINE(handle_skinny_set_debug_off, "Disable Skinny debugging"),
+	AST_CLI_DEFINE(handle_skinny_reset, "Reset Skinny device(s)"),
 };
 
 #if 0

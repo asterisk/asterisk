@@ -399,7 +399,7 @@ static char *handle_cli_mixmonitor(struct ast_cli_entry *e, int cmd, struct ast_
 }
 
 static struct ast_cli_entry cli_mixmonitor[] = {
-	AST_CLI(handle_cli_mixmonitor, "Execute a MixMonitor command")
+	AST_CLI_DEFINE(handle_cli_mixmonitor, "Execute a MixMonitor command")
 };
 
 static int unload_module(void)

@@ -84,7 +84,7 @@ void ast_cli(int fd, const char *fmt, ...)
 
 	...
 	// this is how we create the entry to register 
-	AST_CLI(new_setdebug, "short description")
+	AST_CLI_DEFINE(new_setdebug, "short description")
 	...
 
    To help the transition, we make the pointer to the struct ast_cli_entry
@@ -197,7 +197,7 @@ struct ast_cli_entry {
 
 /* XXX the parser in gcc 2.95 gets confused if you don't put a space
  * between the last arg before VA_ARGS and the comma */
-#define AST_CLI(fn, txt , ... )	{ .new_handler = fn, .summary = txt, ## __VA_ARGS__ }
+#define AST_CLI_DEFINE(fn, txt , ... )	{ .new_handler = fn, .summary = txt, ## __VA_ARGS__ }
 
 /*!
  * Helper function to generate cli entries from a NULL-terminated array.

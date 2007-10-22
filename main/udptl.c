@@ -1197,9 +1197,9 @@ static char *handle_cli_udptl_debug_off(struct ast_cli_entry *e, int cmd, struct
 }
 
 static struct ast_cli_entry cli_udptl[] = {
-	AST_CLI(handle_cli_udptl_debug,     "Enable UDPTL debugging"),
-	AST_CLI(handle_cli_udptl_debug_ip,  "Enable UDPTL debugging on IP"),
-	AST_CLI(handle_cli_udptl_debug_off, "Disable UDPTL debugging")
+	AST_CLI_DEFINE(handle_cli_udptl_debug,     "Enable UDPTL debugging"),
+	AST_CLI_DEFINE(handle_cli_udptl_debug_ip,  "Enable UDPTL debugging on IP"),
+	AST_CLI_DEFINE(handle_cli_udptl_debug_off, "Disable UDPTL debugging")
 };
 
 static void __ast_udptl_reload(int reload)

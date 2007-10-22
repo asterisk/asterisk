@@ -176,7 +176,7 @@ static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 }
 
 static struct ast_cli_entry cli_cliorig[] = {
-	AST_CLI(handle_orig, "Originate a call"),
+	AST_CLI_DEFINE(handle_orig, "Originate a call"),
 };
 
 /*! \brief Unload orginate module */

@@ -1273,9 +1273,9 @@ static char *handle_cli_moh_show_classes(struct ast_cli_entry *e, int cmd, struc
 }
 
 static struct ast_cli_entry cli_moh[] = {
-	AST_CLI(handle_cli_moh_reload,       "Reload MusicOnHold"),
-	AST_CLI(handle_cli_moh_show_classes, "List MusicOnHold classes"),
-	AST_CLI(handle_cli_moh_show_files,   "List MusicOnHold file-based classes")
+	AST_CLI_DEFINE(handle_cli_moh_reload,       "Reload MusicOnHold"),
+	AST_CLI_DEFINE(handle_cli_moh_show_classes, "List MusicOnHold classes"),
+	AST_CLI_DEFINE(handle_cli_moh_show_files,   "List MusicOnHold file-based classes")
 };
 
 static int init_classes(int reload) 

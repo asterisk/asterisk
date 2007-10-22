@@ -500,7 +500,7 @@ AST_MUTEX_DEFINE_STATIC(mutex);
  * command.
  */
 static struct ast_cli_entry cli_status[] = {
-	AST_CLI(handle_cli_show_sqlite_status, "Show status information about the SQLite 2 driver"),
+	AST_CLI_DEFINE(handle_cli_show_sqlite_status, "Show status information about the SQLite 2 driver"),
 };
 
 /*

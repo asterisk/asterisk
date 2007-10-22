@@ -338,9 +338,9 @@ static char *handle_cli_status(struct ast_cli_entry *e, int cmd, struct ast_cli_
 	return CLI_SUCCESS;
 }
 
-static struct ast_cli_entry cli_reload = AST_CLI(handle_cli_reload, "Reloads the DNS manager configuration");
-static struct ast_cli_entry cli_refresh = AST_CLI(handle_cli_refresh, "Performs an immediate refresh");
-static struct ast_cli_entry cli_status = AST_CLI(handle_cli_status, "Display the DNS manager status");
+static struct ast_cli_entry cli_reload = AST_CLI_DEFINE(handle_cli_reload, "Reloads the DNS manager configuration");
+static struct ast_cli_entry cli_refresh = AST_CLI_DEFINE(handle_cli_refresh, "Performs an immediate refresh");
+static struct ast_cli_entry cli_status = AST_CLI_DEFINE(handle_cli_status, "Display the DNS manager status");
 
 int dnsmgr_init(void)
 {

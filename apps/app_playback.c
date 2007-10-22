@@ -395,9 +395,9 @@ static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 }
 
 static struct ast_cli_entry cli_playback[] = {
-	AST_CLI(__say_cli_init, "Set or show the say mode"),
-	AST_CLI(__say_cli_init, "Set the say mode"),
-	AST_CLI(__say_cli_init, "Set the say mode"),
+	AST_CLI_DEFINE(__say_cli_init, "Set or show the say mode"),
+	AST_CLI_DEFINE(__say_cli_init, "Set the say mode"),
+	AST_CLI_DEFINE(__say_cli_init, "Set the say mode"),
 };
 
 static int playback_exec(struct ast_channel *chan, void *data)

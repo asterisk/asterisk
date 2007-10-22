@@ -708,9 +708,9 @@ struct verb {
 static AST_RWLIST_HEAD_STATIC(verbosers, verb);
 
 static struct ast_cli_entry cli_logger[] = {
-	AST_CLI(handle_logger_show_channels, "List configured log channels"),
-	AST_CLI(handle_logger_reload, "Reopens the log files"),
-	AST_CLI(handle_logger_rotate, "Rotates and reopens the log files")
+	AST_CLI_DEFINE(handle_logger_show_channels, "List configured log channels"),
+	AST_CLI_DEFINE(handle_logger_reload, "Reopens the log files"),
+	AST_CLI_DEFINE(handle_logger_rotate, "Rotates and reopens the log files")
 };
 
 static int handle_SIGXFSZ(int sig) 

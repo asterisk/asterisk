@@ -7735,8 +7735,8 @@ static char *handle_voicemail_show_zones(struct ast_cli_entry *e, int cmd, struc
 }
 
 static struct ast_cli_entry cli_voicemail[] = {
-	AST_CLI(handle_voicemail_show_users, "List defined voicemail boxes"),
-	AST_CLI(handle_voicemail_show_zones, "List zone message formats"),
+	AST_CLI_DEFINE(handle_voicemail_show_users, "List defined voicemail boxes"),
+	AST_CLI_DEFINE(handle_voicemail_show_zones, "List zone message formats"),
 };
 
 static void poll_subscribed_mailboxes(void)

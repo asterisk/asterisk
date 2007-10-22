@@ -1183,11 +1183,11 @@ static char *handle_mgcp_set_debug_off(struct ast_cli_entry *e, int cmd, struct 
 }
 
 static struct ast_cli_entry cli_mgcp[] = {
-	AST_CLI(handle_mgcp_audit_endpoint, "Audit specified MGCP endpoint"),
-	AST_CLI(handle_mgcp_show_endpoints, "List defined MGCP endpoints"),
-	AST_CLI(handle_mgcp_set_debug, "Enable MGCP debugging"),
-	AST_CLI(handle_mgcp_set_debug_off, "Disable MGCP debugging"),
-	AST_CLI(mgcp_reload, "Reload MGCP configuration"),
+	AST_CLI_DEFINE(handle_mgcp_audit_endpoint, "Audit specified MGCP endpoint"),
+	AST_CLI_DEFINE(handle_mgcp_show_endpoints, "List defined MGCP endpoints"),
+	AST_CLI_DEFINE(handle_mgcp_set_debug, "Enable MGCP debugging"),
+	AST_CLI_DEFINE(handle_mgcp_set_debug_off, "Disable MGCP debugging"),
+	AST_CLI_DEFINE(mgcp_reload, "Reload MGCP configuration"),
 };
 
 static int mgcp_answer(struct ast_channel *ast)

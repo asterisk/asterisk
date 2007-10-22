@@ -1734,26 +1734,26 @@ static char *show_license(struct ast_cli_entry *e, int cmd, struct ast_cli_args 
 #define ASTERISK_PROMPT2 "%s*CLI> "
 
 static struct ast_cli_entry cli_asterisk[] = {
-	AST_CLI(handle_abort_shutdown, "Cancel a running shutdown"),
-	AST_CLI(handle_stop_now, "Shut down Asterisk immediately"),
-	AST_CLI(handle_stop_gracefully, "Gracefully shut down Asterisk"),
-	AST_CLI(handle_stop_when_convenient, "Shut down Asterisk at empty call volume"),
-	AST_CLI(handle_restart_now, "Restart Asterisk immediately"), 
-	AST_CLI(handle_restart_gracefully, "Restart Asterisk gracefully"),
-	AST_CLI(handle_restart_when_convenient, "Restart Asterisk at empty call volume"),
-	AST_CLI(show_warranty, "Show the warranty (if any) for this copy of Asterisk"),
-	AST_CLI(show_license, "Show the license(s) for this copy of Asterisk"),
-	AST_CLI(handle_version, "Display version info"),
-	AST_CLI(handle_bang, "Execute a shell command"),
+	AST_CLI_DEFINE(handle_abort_shutdown, "Cancel a running shutdown"),
+	AST_CLI_DEFINE(handle_stop_now, "Shut down Asterisk immediately"),
+	AST_CLI_DEFINE(handle_stop_gracefully, "Gracefully shut down Asterisk"),
+	AST_CLI_DEFINE(handle_stop_when_convenient, "Shut down Asterisk at empty call volume"),
+	AST_CLI_DEFINE(handle_restart_now, "Restart Asterisk immediately"), 
+	AST_CLI_DEFINE(handle_restart_gracefully, "Restart Asterisk gracefully"),
+	AST_CLI_DEFINE(handle_restart_when_convenient, "Restart Asterisk at empty call volume"),
+	AST_CLI_DEFINE(show_warranty, "Show the warranty (if any) for this copy of Asterisk"),
+	AST_CLI_DEFINE(show_license, "Show the license(s) for this copy of Asterisk"),
+	AST_CLI_DEFINE(handle_version, "Display version info"),
+	AST_CLI_DEFINE(handle_bang, "Execute a shell command"),
 #if !defined(LOW_MEMORY)
-	AST_CLI(handle_show_version_files, "List versions of files used to build Asterisk"),
-	AST_CLI(handle_show_threads, "Show running threads"),
+	AST_CLI_DEFINE(handle_show_version_files, "List versions of files used to build Asterisk"),
+	AST_CLI_DEFINE(handle_show_threads, "Show running threads"),
 #if defined(HAVE_SYSINFO)
-	AST_CLI(handle_show_sysinfo, "Show System Information"),
+	AST_CLI_DEFINE(handle_show_sysinfo, "Show System Information"),
 #endif
-	AST_CLI(handle_show_profile, "Display profiling info"),
-	AST_CLI(handle_show_settings, "Show some core settings"),
-	AST_CLI(handle_clear_profile, "Clear profiling info"),
+	AST_CLI_DEFINE(handle_show_profile, "Display profiling info"),
+	AST_CLI_DEFINE(handle_show_settings, "Show some core settings"),
+	AST_CLI_DEFINE(handle_clear_profile, "Clear profiling info"),
 #endif /* ! LOW_MEMORY */
 };
 
