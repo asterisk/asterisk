@@ -9383,8 +9383,8 @@ static char *get_header_by_tag(char *header, char *tag, char *buf, size_t len)
 	memset(buf, 0, len);
 
 	ast_copy_string(buf, start+taglen, len);
-	eol_pnt = strchr(buf,'\n');
-	*eol_pnt = '\0';
+	if ((eol_pnt = strchr(buf,'\r')) || (eol_pnt = strchr(buf,'\n')))
+		*eol_pnt = '\0';
 	return buf;
 }
 
