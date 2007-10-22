@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/http.h"
 #include "asterisk/lock.h"
 
-#ifdefdef DLFCNCOMPAT
+#ifdef DLFCNCOMPAT
 #include "asterisk/dlfcn-compat.h"
 #else
 #include <dlfcn.h>
@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/utils.h"
 
-#ifdefndef RTLD_NOW
+#ifndef RTLD_NOW
 #define RTLD_NOW 0
 #endif
 
@@ -391,7 +391,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   on the already-opened library to what we want... if not, we have to
 	   close it and start over
 	*/
-#ifdef defined(HAVE_RTLD_NOLOAD) && !defined(__Darwin__)
+#if defined(HAVE_RTLD_NOLOAD) && !defined(__Darwin__)
 	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Unable to promote flags on module '%s': %s\n", resource_in, dlerror());
 		while (!dlclose(lib));
