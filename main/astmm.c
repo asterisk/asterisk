@@ -473,7 +473,7 @@ void __ast_mm_init(void)
 		ast_verbose("Asterisk Malloc Debugger Started (see %s))\n", filename);
 	
 	if ((mmlog = fopen(filename, "a+"))) {
-		fprintf(mmlog, "%ld - New session\n", time(NULL));
+		fprintf(mmlog, "%ld - New session\n", (long)time(NULL));
 		fflush(mmlog);
 	}
 }
