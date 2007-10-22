@@ -701,10 +701,8 @@ static int misdn_overlap_dial_task (const void *data)
 		} else {
 misdn_overlap_dial_task_disconnect:
 			hanguptone_indicate(ch);
-			if (ch->bc->nt)
-				misdn_lib_send_event(ch->bc, EVENT_RELEASE_COMPLETE );
-			else
-				misdn_lib_send_event(ch->bc, EVENT_RELEASE);
+			ch->bc->out_cause=1;
+			misdn_lib_send_event(ch->bc, EVENT_DISCONNECT);
 		}
 		ch->overlap_dial_task = -1;
 		return 0;

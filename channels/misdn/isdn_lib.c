@@ -1247,17 +1247,6 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 
 		stack->nt=1;
 		break;
-
-#ifndef MISDN_1_2
-	case ISDN_PID_L0_TE_U:
-		break;
-	case ISDN_PID_L0_NT_U:
-		break;
-	case ISDN_PID_L0_TE_UP2:
-		break;
-	case ISDN_PID_L0_NT_UP2:
-		break;
-#endif
 	case ISDN_PID_L0_TE_E1:
 		cb_log(8, port, "TE S2M Stack\n");
 		stack->nt=0;
