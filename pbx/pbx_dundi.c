@@ -2377,8 +2377,10 @@ static char *complete_peer_helper(const char *line, const char *word, int pos, i
 	len = strlen(word);
 	AST_LIST_TRAVERSE(&peers, p, list) {
 		const char *s = dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid);
-		if (!strncasecmp(word, s, len) && ++which > state)
+		if (!strncasecmp(word, s, len) && ++which > state) {
 			ret = ast_strdup(s);
+			break;
+		}
 	}
 	AST_LIST_UNLOCK(&peers);
 	return ret;
