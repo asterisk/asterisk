@@ -206,15 +206,19 @@ static inline int __ast_pthread_mutex_init_attr(int track, const char *filename,
 						const char *mutex_name, ast_mutex_t *t,
 						pthread_mutexattr_t *attr) 
 {
+
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-	int canlog = strcmp(filename, "logger.c");
+	int canlog = strcmp(filename, "logger.c") && track;
 
 	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		if ((t->mutex) != (empty_mutex)) {
 			__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is already initialized.\n",
 					   filename, lineno, func, mutex_name);
-			__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
+			/* Don't print track info about nontracked mutex */
+			if (track) {
+				__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
 					   t->file[0], t->lineno[0], t->func[0], mutex_name);
+			}
 			DO_THREAD_CRASH;
 			return 0;
 		}
@@ -248,9 +252,11 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	int canlog = strcmp(filename, "logger.c");
 
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	canlog &= t->track;
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
+		return 0; /* mutex is uninitialized */
 	}
 #endif
 
@@ -302,10 +308,13 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 		ast_store_lock_info(AST_MUTEX, filename, lineno, func, mutex_name, &t->mutex);
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
+	canlog &= t->track;
+
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				 filename, lineno, func, mutex_name);
-		ast_mutex_init(t);
+		__ast_pthread_mutex_init(t->track, filename, lineno, func, mutex_name, t);
+			
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -379,10 +388,12 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 	int canlog = strcmp(filename, "logger.c");
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
+	canlog &= t->track;
+	
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
-		ast_mutex_init(t);
+		__ast_pthread_mutex_init(t->track, filename, lineno, func, mutex_name, t);
 	}
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
@@ -418,6 +429,8 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	int canlog = strcmp(filename, "logger.c");
 
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	canlog &= t->track;
+	
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
@@ -491,6 +504,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 	int canlog = strcmp(filename, "logger.c");
 
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	canlog &= t->track;
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
@@ -556,6 +570,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 	int canlog = strcmp(filename, "logger.c");
 
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	canlog &= t->track;
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
 				   filename, lineno, func, mutex_name);
