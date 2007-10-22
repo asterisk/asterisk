@@ -132,7 +132,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
 
 	/* If we stopped on one of our stop keys, return 0  */
-	if (argv[arg_stop] && strchr(argv[arg_stop], res)) {
+	if (res > 0 && argv[arg_stop] && strchr(argv[arg_stop], res)) {
 		res = 0;
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
 	} else {
