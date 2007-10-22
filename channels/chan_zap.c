@@ -719,7 +719,7 @@ static struct zt_chan_conf zt_chan_conf_default(void) {
 			.localprefix = "",
 			.privateprefix = "",
 			.unknownprefix = "",
-			.resetinteral = -1,
+			.resetinterval = -1,
 		},
 #endif
 #ifdef HAVE_SS7
