@@ -52,7 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/http.h"
 #include "asterisk/lock.h"
 
-#ifdef DLFCNCOMPAT
+#ifdefdef DLFCNCOMPAT
 #include "asterisk/dlfcn-compat.h"
 #else
 #include <dlfcn.h>
@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 #include "asterisk/utils.h"
 
-#ifndef RTLD_NOW
+#ifdefndef RTLD_NOW
 #define RTLD_NOW 0
 #endif
 
@@ -318,7 +318,7 @@ static struct ast_module *find_resource(const char *resource, int do_lock)
 	return cur;
 }
 
-#if LOADABLE_MODULES
+#ifdef LOADABLE_MODULES
 static void unload_dynamic_module(struct ast_module *mod)
 {
 	void *lib = mod->lib;
@@ -391,7 +391,7 @@ static struct ast_module *load_dynamic_module(const char *resource_in, unsigned 
 	   on the already-opened library to what we want... if not, we have to
 	   close it and start over
 	*/
-#if defined(HAVE_RTLD_NOLOAD) && !defined(__Darwin__)
+#ifdef defined(HAVE_RTLD_NOLOAD) && !defined(__Darwin__)
 	if (!dlopen(fn, RTLD_NOLOAD | (wants_global ? RTLD_LAZY | RTLD_GLOBAL : RTLD_NOW | RTLD_LOCAL))) {
 		ast_log(LOG_WARNING, "Unable to promote flags on module '%s': %s\n", resource_in, dlerror());
 		while (!dlclose(lib));
@@ -500,7 +500,7 @@ int ast_unload_resource(const char *resource_name, enum ast_module_unload_mode f
 	if (!error && !mod->lib)
 		mod->info->restore_globals();
 
-#if LOADABLE_MODULES
+#ifdef LOADABLE_MODULES
 	if (!error)
 		unload_dynamic_module(mod);
 #endif
@@ -627,7 +627,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 		if (global_symbols_only && !ast_test_flag(mod->info, AST_MODFLAG_GLOBAL_SYMBOLS))
 			return AST_MODULE_LOAD_SKIP;
 	} else {
-#if LOADABLE_MODULES
+#ifdef LOADABLE_MODULES
 		if (!(mod = load_dynamic_module(resource_name, global_symbols_only))) {
 			/* don't generate a warning message during load_modules() */
 			if (!global_symbols_only) {
@@ -645,7 +645,7 @@ static enum ast_module_load_result load_resource(const char *resource_name, unsi
 
 	if (inspect_module(mod)) {
 		ast_log(LOG_WARNING, "Module '%s' could not be loaded.\n", resource_name);
-#if LOADABLE_MODULES
+#ifdef LOADABLE_MODULES
 		unload_dynamic_module(mod);
 #endif
 		return AST_MODULE_LOAD_DECLINE;
@@ -732,7 +732,7 @@ int load_modules(unsigned int preload_only)
 	struct load_order load_order;
 	int res = 0;
 	struct ast_flags config_flags = { 0 };
-#if LOADABLE_MODULES
+#ifdef LOADABLE_MODULES
 	struct dirent *dirent;
 	DIR *dir;
 #endif
@@ -771,7 +771,7 @@ int load_modules(unsigned int preload_only)
 			order = add_to_load_order(mod->resource, &load_order);
 		}
 
-#if LOADABLE_MODULES
+#ifdef LOADABLE_MODULES
 		/* if we are allowed to load dynamic modules, scan the directory for
 		   for all available modules and add them as well */
 		if ((dir  = opendir(ast_config_AST_MODULE_DIR))) {

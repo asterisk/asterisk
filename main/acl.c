@@ -127,7 +127,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int 
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
 	int x;
-	char *tmp = strdupa(stuff);
+	char *tmp = ast_strdupa(stuff);
 
 	ret = path;
 	while (path) {
