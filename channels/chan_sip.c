@@ -5718,7 +5718,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 
 	init_resp(resp, msg);
 	copy_via_headers(p, resp, req, "Via");
-	if (msg[0] == '2')
+	if (msg[0] == '1' || msg[0] == '2')
 		copy_all_header(resp, req, "Record-Route");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
