@@ -965,7 +965,7 @@ static void parse_facility (struct isdn_msg msgs[], msg_t *msg, struct misdn_bch
 	
 	err = decodeFac(p, &(bc->fac_in));
 	if (err) {
-		cb_log(1, bc->port, "Decoding FACILITY failed! (%d)\n", err);
+		cb_log(5, bc->port, "Decoding FACILITY failed! (%d)\n", err);
 	}
 }
 

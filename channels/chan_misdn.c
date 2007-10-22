@@ -452,38 +452,46 @@ static char *bearer2str(int cap) {
 static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 {
 	switch (fac->Function) {
-	case Fac_CD:
-		chan_misdn_log(1,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
-					   fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
-		break;
-	case Fac_AOCDCurrency:
-		if (fac->u.AOCDcur.chargeNotAvailable)
-			chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
-		else if (fac->u.AOCDcur.freeOfCharge)
-			chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
-		else if (fac->u.AOCDchu.billingId >= 0)
-			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d billingId:%d\n",
-						   fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
-						   (fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
-		else
-			chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d\n",
-						   fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
-						   (fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
-		break;
-	case Fac_AOCDChargingUnit:
-		if (fac->u.AOCDchu.chargeNotAvailable)
-			chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
-		else if (fac->u.AOCDchu.freeOfCharge)
-			chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
-		else if (fac->u.AOCDchu.billingId >= 0)
-			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
-						   fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
-		else
-			chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
-						   fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
-		break;
-	default:
-		chan_misdn_log(1,bc->port," --> unknown\n");
+		case Fac_RESULT:
+			chan_misdn_log(0, bc->port," --> Received RESULT Operation\n");
+			break;
+		case Fac_ERROR:
+			chan_misdn_log(0, bc->port," --> Received Error Operation\n");
+			chan_misdn_log(0, bc->port," --> Value:%d Error:%s\n",fac->u.ERROR.errorValue, fac->u.ERROR.error);
+			break;
+		case Fac_CD:
+			chan_misdn_log(1,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
+					fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
+			break;
+		case Fac_AOCDCurrency:
+			if (fac->u.AOCDcur.chargeNotAvailable)
+				chan_misdn_log(1,bc->port," --> AOCD currency: charge not available\n");
+			else if (fac->u.AOCDcur.freeOfCharge)
+				chan_misdn_log(1,bc->port," --> AOCD currency: free of charge\n");
+			else if (fac->u.AOCDchu.billingId >= 0)
+				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d billingId:%d\n",
+						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDcur.billingId);
+			else
+				chan_misdn_log(1,bc->port," --> AOCD currency: currency:%s amount:%d multiplier:%d typeOfChargingInfo:%d\n",
+						fac->u.AOCDcur.currency, fac->u.AOCDcur.currencyAmount, fac->u.AOCDcur.multiplier,
+						(fac->u.AOCDcur.typeOfChargingInfo == 0) ? "subTotal" : "total");
+			break;
+		case Fac_AOCDChargingUnit:
+			if (fac->u.AOCDchu.chargeNotAvailable)
+				chan_misdn_log(1,bc->port," --> AOCD charging unit: charge not available\n");
+			else if (fac->u.AOCDchu.freeOfCharge)
+				chan_misdn_log(1,bc->port," --> AOCD charging unit: free of charge\n");
+			else if (fac->u.AOCDchu.billingId >= 0)
+				chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s billingId:%d\n",
+						fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total", fac->u.AOCDchu.billingId);
+			else
+				chan_misdn_log(1,bc->port," --> AOCD charging unit: recordedUnits:%d typeOfChargingInfo:%s\n",
+						fac->u.AOCDchu.recordedUnits, (fac->u.AOCDchu.typeOfChargingInfo == 0) ? "subTotal" : "total");
+			break;
+		case Fac_None:
+		default:
+			chan_misdn_log(1,bc->port," --> unknown facility\n");
 	}
 }
 
@@ -1417,44 +1425,93 @@ static char *handle_cli_misdn_show_port(struct ast_cli_entry *e, int cmd, struct
 	return CLI_SUCCESS;
 }
 
-static char *handle_cli_misdn_send_calldeflect(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+static char *handle_cli_misdn_send_facility(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *channame; 
 	char *nr;
 	struct chan_list *tmp;
-
-	switch (cmd) {
+	int port; 
+	char *served_nr;
+	struct misdn_bchannel dummy, *bc=&dummy;
+ 
+ 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "misdn send calldeflect";
-		e->usage =
-			"Usage: misdn send calldeflect <channel> \"<nr>\"\n"
-			"       Send CallDeflection to mISDN Channel.\n";
+		e->command = "misdn send facility";
+		e->usage = "Usage: misdn send facility <type> <channel|port> \"<args>\" \n"
+		"\t type is one of:\n"
+		"\t - calldeflect\n"
+		"\t - CFActivate\n"
+		"\t - CFDeactivate\n";
+
 		return NULL;
 	case CLI_GENERATE:
 		return complete_ch(a);
 	}
 
-	if (a->argc != 5)
+	if (a->argc < 5)
 		return CLI_SHOWUSAGE;
+ 
+	if (strstr(a->argv[3], "calldeflect")) {
+		if (a->argc < 6) {
+			ast_verbose("calldeflect requires 1 arg: ToNumber\n\n");
+			return 0;
+		}
+		channame = a->argv[4];
+		nr = a->argv[5];
 
-	channame = a->argv[3];
-	nr = a->argv[4];
+		ast_verbose("Sending Calldeflection (%s) to %s\n", nr, channame);
+		tmp = get_chan_by_ast_name(channame);
+		if (!tmp) {
+			ast_verbose("Sending CD with nr %s to %s failed: Channel does not exist.\n",nr, channame);
+			return 0; 
+		}
 
-	ast_cli(a->fd, "Sending Calldeflection (%s) to %s\n", nr, channame);
-	
-	tmp = get_chan_by_ast_name(channame);
-	if (!tmp) {
-		ast_cli(a->fd, "Sending CD with nr %s to %s failed: Channel does not exist.\n", nr, channame);
-		return CLI_SUCCESS;
+		if (strlen(nr) >= 15) {
+			ast_verbose("Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n",nr, channame);
+			return 0; 
+		}
+		tmp->bc->fac_out.Function = Fac_CD;
+		ast_copy_string((char *)tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr, sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber));
+		misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
+	} else if (strstr(a->argv[3],"CFActivate")) {
+		if (a->argc < 7) {
+			ast_verbose("CFActivate requires 2 args: 1.FromNumber, 2.ToNumber\n\n");
+			return 0;
+		}
+		port = atoi(a->argv[4]);
+		served_nr = a->argv[5];
+		nr = a->argv[6];
+
+		misdn_make_dummy(bc, port, 0, misdn_lib_port_is_nt(port), 0);
+
+		ast_verbose("Sending CFActivate  Port:(%d) FromNr. (%s) to Nr. (%s)\n", port, served_nr, nr);
+
+		bc->fac_out.Function = Fac_CFActivate;
+		bc->fac_out.u.CFActivate.BasicService = 0; //All Services
+		bc->fac_out.u.CFActivate.Procedure = 0; //Unconditional
+		ast_copy_string((char *)bc->fac_out.u.CFActivate.ServedUserNumber, served_nr, sizeof(bc->fac_out.u.CFActivate.ServedUserNumber));
+		ast_copy_string((char *)bc->fac_out.u.CFActivate.ForwardedToNumber, nr, sizeof(bc->fac_out.u.CFActivate.ForwardedToNumber));
+
+		misdn_lib_send_event(bc, EVENT_FACILITY);
+	} else if (strstr(a->argv[3],"CFDeactivate")) {
+
+		if (a->argc < 6) {
+			ast_verbose("CFActivate requires 1 arg: FromNumber\n\n");
+			return 0;
+		}
+		port = atoi(a->argv[4]);
+		served_nr = a->argv[5];
+		
+		misdn_make_dummy(bc, port, 0, misdn_lib_port_is_nt(port), 0);
+		ast_verbose("Sending CFDeactivate  Port:(%d) FromNr. (%s)\n", port, served_nr);
+
+		bc->fac_out.Function = Fac_CFDeactivate;
+		bc->fac_out.u.CFDeactivate.BasicService = 0; //All Services
+		bc->fac_out.u.CFDeactivate.Procedure = 0; //Unconditional
+		
+		ast_copy_string((char *)bc->fac_out.u.CFActivate.ServedUserNumber, served_nr, sizeof(bc->fac_out.u.CFActivate.ServedUserNumber));
+		misdn_lib_send_event(bc, EVENT_FACILITY);
 	}
-
-	if (strlen(nr) >= 15) {
-		ast_cli(a->fd, "Sending CD with nr %s to %s failed: Number too long (up to 15 digits are allowed).\n", nr, channame);
-		return CLI_SUCCESS;
-	}
-	tmp->bc->fac_out.Function = Fac_CD;
-	ast_copy_string((char *)tmp->bc->fac_out.u.CDeflection.DeflectedToNumber, nr, sizeof(tmp->bc->fac_out.u.CDeflection.DeflectedToNumber));
-	misdn_lib_send_event(tmp->bc, EVENT_FACILITY);
 
 	return CLI_SUCCESS;
 }
@@ -1720,7 +1777,7 @@ static struct ast_cli_entry chan_misdn_clis[] = {
 	AST_CLI(handle_cli_misdn_show_port,         "Show detailed information for given port"),
 	AST_CLI(handle_cli_misdn_show_ports_stats,  "Show mISDNs channel's call statistics per port"),
 	AST_CLI(handle_cli_misdn_show_stacks,       "Show internal mISDN stack_list"),
-	AST_CLI(handle_cli_misdn_send_calldeflect,  "Send CallDeflection to mISDN Channel"),
+	AST_CLI(handle_cli_misdn_send_facility,     "Sends a Facility Message to the mISDN Channel"),
 	AST_CLI(handle_cli_misdn_send_digit,        "Send DTMF digit to mISDN Channel"),
 	AST_CLI(handle_cli_misdn_send_display,      "Send Text to mISDN Channel"),
 	AST_CLI(handle_cli_misdn_send_restart,      "Send a restart for every bchannel on the given port"),
@@ -4850,17 +4907,13 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 	break;
 	
 	case EVENT_FACILITY:
-		if (!ch) {
-			/* This may come from a call we don't know nothing about, so we ignore it. */
-			chan_misdn_log(-1, bc->port, "Got EVENT_FACILITY but we don't have a ch!\n");
-			break;
-		}
-
 		print_facility(&(bc->fac_in), bc);
 		
 		switch (bc->fac_in.Function) {
+		case Fac_RESULT:
+		break;
 		case Fac_CD:
-			{
+			if (ch) {
 				struct ast_channel *bridged = ast_bridged_channel(ch->ast);
 				struct chan_list *ch_br;
 				if (bridged && MISDN_ASTERISK_TECH_PVT(bridged)) {
@@ -4879,17 +4932,24 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			} 
 			break;
 		case Fac_AOCDCurrency:
-			bc->AOCDtype = Fac_AOCDCurrency;
-			memcpy(&(bc->AOCD.currency), &(bc->fac_in.u.AOCDcur), sizeof(bc->AOCD.currency));
-			bc->AOCD_need_export = 1;
-			export_aoc_vars(ch->originator, ch->ast, bc);
+			if (ch) {
+				bc->AOCDtype = Fac_AOCDCurrency;
+				memcpy(&(bc->AOCD.currency), &(bc->fac_in.u.AOCDcur), sizeof(bc->AOCD.currency));
+				bc->AOCD_need_export = 1;
+				export_aoc_vars(ch->originator, ch->ast, bc);
+			}
 			break;
 		case Fac_AOCDChargingUnit:
-			bc->AOCDtype = Fac_AOCDChargingUnit;
-			memcpy(&(bc->AOCD.chargingUnit), &(bc->fac_in.u.AOCDchu), sizeof(bc->AOCD.chargingUnit));
-			bc->AOCD_need_export = 1;
-			export_aoc_vars(ch->originator, ch->ast, bc);
+			if (ch) {
+				bc->AOCDtype = Fac_AOCDChargingUnit;
+				memcpy(&(bc->AOCD.chargingUnit), &(bc->fac_in.u.AOCDchu), sizeof(bc->AOCD.chargingUnit));
+				bc->AOCD_need_export = 1;
+				export_aoc_vars(ch->originator, ch->ast, bc);
+			}
 			break;
+		case Fac_None:
+		case Fac_ERROR:
+		break;
 		default:
 			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);
 		}

@@ -41,11 +41,27 @@ int misdn_lib_port_is_pri(int port)
 	return -1;
 }
 
-static void make_dummy(struct misdn_bchannel *dummybc, int port, int l3id, int nt, int channel) 
+int misdn_lib_port_is_nt(int port)
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	for ( ; stack; stack=stack->next) {
+		if (stack->port == port) {
+			return stack->nt;
+		}
+	}
+	
+	return -1;
+}
+
+void misdn_make_dummy(struct misdn_bchannel *dummybc, int port, int l3id, int nt, int channel) 
 {
 	memset (dummybc,0,sizeof(struct misdn_bchannel));
 	dummybc->port=port;
-	dummybc->l3_id=l3id;
+	if (l3id==0) 
+		dummybc->l3_id = MISDN_ID_DUMMY;
+	else
+		dummybc->l3_id=l3id;
+
 	dummybc->nt=nt;
 	dummybc->dummy=1;
 	dummybc->channel=channel;
@@ -1619,7 +1635,7 @@ static int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
       
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", frm->dinfo);
-				make_dummy(&dummybc, stack->port, frm->dinfo, stack->nt, 0);
+				misdn_make_dummy(&dummybc, stack->port, frm->dinfo, stack->nt, 0);
 				
 				bc=&dummybc; 
 			}
@@ -1930,7 +1946,7 @@ handle_event_nt(void *dat, void *arg)
 			/** removing procid **/
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", hh->dinfo);
-				make_dummy(&dummybc, stack->port, hh->dinfo, stack->nt, 0);
+				misdn_make_dummy(&dummybc, stack->port, hh->dinfo, stack->nt, 0);
 				bc=&dummybc; 
 			}
 	
@@ -2029,7 +2045,7 @@ handle_event_nt(void *dat, void *arg)
     
 		if (!bc) {
 			cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x).\n", hh->dinfo);
-			make_dummy(&dummybc, stack->port,  hh->dinfo, stack->nt, 0);
+			misdn_make_dummy(&dummybc, stack->port,  hh->dinfo, stack->nt, 0);
 			bc=&dummybc; 
 		}
 		if (bc ) {
@@ -2586,7 +2602,7 @@ static int handle_frm(msg_t *msg)
 		bc=find_bc_by_l3id(stack, frm->dinfo);
 
 		if (!bc && (frm->prim==(CC_RESTART|CONFIRM)) ) {
-			make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
+			misdn_make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 			bc=&dummybc;
 		}
     
@@ -2681,7 +2697,11 @@ handle_frm_bc:
       
 		} else {
 			struct misdn_bchannel dummybc;
-			cb_log(0, stack->port, " --> Didn't find BC so temporarly creating dummy BC (l3id:%x) on this port.\n", frm->dinfo);
+			if (frm->prim!=(CC_FACILITY|INDICATION))
+				cb_log(0, stack->port, " --> Didn't find BC so temporarly creating dummy BC (l3id:%x) on this port.\n", frm->dinfo);
+			else
+				cb_log(5, stack->port, " --> Using Dummy BC for FACILITy\n");
+
 			memset (&dummybc,0,sizeof(dummybc));
 			dummybc.port=stack->port;
 			dummybc.l3_id=frm->dinfo;
@@ -3673,7 +3693,7 @@ int misdn_lib_send_restart(int port, int channel)
 	
 	cb_log(0, port, "Sending Restarts on this port.\n");
 	
-	make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
+	misdn_make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 
 	/*if a channel is specified we restart only this one*/
 	if (channel > 0) {
@@ -3825,10 +3845,13 @@ static void manager_event_handler(void *arg)
 					if (bc) 
 						send_msg(glob_mgr->midev, bc, msg);
 					else  {
-						if (frm->dinfo == MISDN_ID_GLOBAL) {
+						if (frm->dinfo == MISDN_ID_GLOBAL || frm->dinfo == MISDN_ID_DUMMY ) {
 							struct misdn_bchannel dummybc;
-							make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
+							cb_log(5,0," --> GLOBAL/DUMMY\n");
+							misdn_make_dummy(&dummybc, stack->port, frm->dinfo, stack->nt, 0);
 							send_msg(glob_mgr->midev, &dummybc, msg);
+						} else {
+							cb_log(0,0,"No bc for Message\n");
 						}
 					}
 				}
