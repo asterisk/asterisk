@@ -99,12 +99,19 @@ static int acf_if(struct ast_channel *chan, char *cmd, char *data, char *buf,
 		AST_APP_ARG(iftrue);
 		AST_APP_ARG(iffalse);
 	);
-
+	args2.iftrue = args2.iffalse = NULL; /* you have to set these, because if there is nothing after the '?',
+											then args1.remainder will be NULL, not a pointer to a null string, and
+											then any garbage in args2.iffalse will not be cleared, and you'll crash.
+										    -- and if you mod the ast_app_separate_args func instead, you'll really
+											mess things up badly, because the rest of everything depends on null args
+											for non-specified stuff. */
+	
 	AST_NONSTANDARD_APP_ARGS(args1, data, '?');
 	AST_NONSTANDARD_APP_ARGS(args2, args1.remainder, ':');
 
 	if (ast_strlen_zero(args1.expr) || !(args2.iftrue || args2.iffalse)) {
-		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
+		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])  (expr must be non-null, and either <true> or <false> must be non-null)\n");
+		ast_log(LOG_WARNING, "      In this case, <expr>='%s', <true>='%s', and <false>='%s'\n", args1.expr, args2.iftrue, args2.iffalse);
 		return -1;
 	}
 
