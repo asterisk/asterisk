@@ -106,6 +106,8 @@ ast_expr2.c ast_expr2.h:
 
 ast_expr2f.c:
 	flex -o $@ --full ast_expr2.fl
+	sed 's@free( (char \*) ptr );@if(ptr) free( (char *) ptr );@' ast_expr2f.c > zz
+	mv zz ast_expr2f.c
 
 testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	$(CC) -g -c -Iinclude -DSTANDALONE ast_expr2f.c
