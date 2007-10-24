@@ -257,6 +257,9 @@ static int autofill_default = 0;
 /*! \brief queues.conf [general] option */
 static int montype_default = 0;
 
+/*! \brief queues.conf [general] option */
+static int shared_lastcall = 0;
+
 /*! \brief Subscription to device state change events */
 static struct ast_event_sub *device_state_sub;
 
@@ -300,6 +303,7 @@ struct callattempt {
 	int metric;
 	int oldstatus;
 	time_t lastcall;
+	struct call_queue *lastqueue;
 	struct member *member;
 };
 
@@ -336,6 +340,7 @@ struct member {
 	int status;                         /*!< Status of queue member */
 	int paused;                         /*!< Are we paused (not accepting calls)? */
 	time_t lastcall;                    /*!< When last successful call was hungup */
+	struct call_queue *lastqueue;	    /*!< Last queue we received a call */
 	unsigned int dead:1;                /*!< Used to detect members deleted in realtime */
 	unsigned int delme:1;               /*!< Flag to delete entry on reload */
 };
@@ -797,7 +802,7 @@ static int member_hash_fn(const void *obj, const int flags)
 static int member_cmp_fn(void *obj1, void *obj2, int flags)
 {
 	struct member *mem1 = obj1, *mem2 = obj2;
-	return strcmp(mem1->interface, mem2->interface) ? 0 : CMP_MATCH;
+	return strcasecmp(mem1->interface, mem2->interface) ? 0 : CMP_MATCH;
 }
 
 static void init_queue(struct call_queue *q)
@@ -1858,8 +1863,10 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 	char *location;
 
 	/* on entry here, we know that tmp->chan == NULL */
-	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
-		ast_debug(1, "Wrapuptime not yet expired for %s\n", tmp->interface);
+	if ((tmp->lastqueue && tmp->lastqueue->wrapuptime && (time(NULL) - tmp->lastcall < tmp->lastqueue->wrapuptime)) ||
+		(!tmp->lastqueue && qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))) {
+		ast_debug(1, "Wrapuptime not yet expired on queue %s for %s\n", 
+				(tmp->lastqueue ? tmp->lastqueue->name : qe->parent->name), tmp->interface);
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
@@ -2492,9 +2499,31 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 
 static int update_queue(struct call_queue *q, struct member *member, int callcompletedinsl)
 {
+	struct member *mem;
+	struct call_queue *qtmp;
+	struct ao2_iterator queue_iter;	
+	
+	if (shared_lastcall) {
+		queue_iter = ao2_iterator_init(queues, 0);
+		while ((qtmp = ao2_iterator_next(&queue_iter))) {
+			ao2_lock(qtmp);
+			if ((mem = ao2_find(qtmp->members, member, OBJ_POINTER))) {
+				time(&mem->lastcall);
+				mem->calls++;
+				mem->lastqueue = q;
+				ao2_ref(mem, -1);
+			}
+			ao2_unlock(qtmp);
+			ao2_ref(qtmp, -1);
+		}
+	} else {
+		ao2_lock(q);
+		time(&member->lastcall);
+		member->calls++;
+		member->lastqueue = q;
+		ao2_unlock(q);
+	}	
 	ao2_lock(q);
-	time(&member->lastcall);
-	member->calls++;
 	q->callscompleted++;
 	if (callcompletedinsl)
 		q->callscompletedinsl++;
@@ -2698,6 +2727,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		tmp->member = cur;
 		tmp->oldstatus = cur->status;
 		tmp->lastcall = cur->lastcall;
+		tmp->lastqueue = cur->lastqueue;
 		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
 		/* Special case: If we ring everyone, go ahead and ring them, otherwise
 		   just calculate their metric for the appropriate strategy */
@@ -4169,6 +4199,9 @@ static int reload_queues(int reload)
 			update_cdr = 0;
 			if ((general_val = ast_variable_retrieve(cfg, "general", "updatecdr")))
 				update_cdr = ast_true(general_val);
+			shared_lastcall = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "shared_lastcall")))
+				shared_lastcall = ast_true(general_val);
 		} else {	/* Define queue */
 			/* Look for an existing one */
 			ast_copy_string(tmpq.name, cat, sizeof(tmpq.name));

@@ -60,6 +60,13 @@ monitor-type = MixMonitor
 ; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
 ; example: Queue(dave|t|||45)
 
+; shared_lastcall will make the lastcall and calls received be the same in
+; members logged in more than one queue.
+; This is useful to make the queue respect the wrapuptime of another queue
+; for a shared member
+;
+shared_lastcall=no
+;
 ;[markq]
 ;
 ; A sample call queue
@@ -124,7 +131,7 @@ monitor-type = MixMonitor
 ; at same time until there are no more waiting callers or no more
 ; available members. The per-queue setting of autofill allows you
 ; to override the default setting on an individual queue level.
-; 
+;
 ;autofill=yes
 ;
 ; Autopause will pause a queue member if they fail to answer a call
