@@ -352,6 +352,10 @@ hint_word : word { $$ = $1; }
 		asprintf(&($$), "%s %s", $1, $2);
 		free($1);
 		free($2); }
+	| hint_word COLON word {
+		asprintf(&($$), "%s:%s", $1, $3);
+		free($1);
+		free($3); }
 	| hint_word AMPER word {  /* there are often '&' in hints */
 		asprintf(&($$), "%s&%s", $1, $3);
 		free($1);
