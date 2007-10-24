@@ -2336,17 +2336,18 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			c++;
 		else
 			c = dest;
-		if (!p->hidecalleridname)
-			n = ast->cid.cid_name;
-		else
-			n = NULL;
+
+		l = NULL;
+		n = NULL;
+
 		if (!p->hidecallerid) {
 			l = ast->cid.cid_num;
-			n = ast->cid.cid_name;
-		} else {
-			l = NULL;
-			n = NULL;
+			if (!p->hidecalleridname) {
+				n = ast->cid.cid_name;
+			}
 		}
+
+
 		if (strlen(c) < p->stripmsd) {
 			ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 			ast_mutex_unlock(&p->lock);
