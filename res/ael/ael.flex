@@ -406,7 +406,11 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 		} else {
 			strncpy(fnamebuf, p1+1, p2-p1-1);
 			fnamebuf[p2-p1-1] = 0;
-		
+		if (fnamebuf[0] != '/') {
+		   char fnamebuf2[1024];
+		   snprintf(fnamebuf2,sizeof(fnamebuf2), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, fnamebuf);
+		   ast_copy_string(fnamebuf,fnamebuf2,sizeof(fnamebuf));
+		}
 #ifdef SOLARIS
 			glob_ret = glob(fnamebuf, GLOB_NOCHECK, NULL, &globbuf);
 #else

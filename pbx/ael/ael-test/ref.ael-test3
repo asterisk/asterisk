@@ -4,12 +4,12 @@
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
 LOG: lev:2 file:pbx_ael.c  line:913 func: pbx_load_module  Starting AEL load process.
 LOG: lev:2 file:pbx_ael.c  line:920 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./include1.ael2, 78 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./include2.ael2, 98 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./include3.ael2, 57 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./include5.ael2, 56 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./include4.ael2, 87 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./telemarket_torture.ael2, 28036 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././include1.ael2, 78 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././include2.ael2, 98 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././include3.ael2, 57 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././include5.ael2, 56 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././include4.ael2, 87 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././telemarket_torture.ael2, 28036 chars
 LOG: lev:2 file:pbx_ael.c  line:928 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
 LOG: lev:3 file:pval.c  line:670 func: check_macro_returns  Warning: file ./extensions.ael, line 14-34: The macro std-exten does not end with a return; I will insert one.
 LOG: lev:3 file:pval.c  line:1360 func: check_goto  Warning: file ./extensions.ael, line 17-17: It's bad form to have a goto in a macro to a target outside the macro!

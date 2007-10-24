@@ -7,17 +7,17 @@
 (You can use the -w option to dump extensions.conf format to extensions.conf.aeldump)
 LOG: lev:2 file:pbx_ael.c  line:913 func: pbx_load_module  Starting AEL load process.
 LOG: lev:2 file:pbx_ael.c  line:920 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t1/a.ael, 41 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t1/b.ael, 42 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t1/c.ael, 106 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t2/d.ael, 41 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t2/e.ael, 42 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t2/f.ael, 82 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./qq.ael, 45 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t3/g.ael, 41 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t3/h.ael, 42 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t3/i.ael, 41 chars
-LOG: lev:2 file:ael.flex  line:656 func: setup_filestack    --Read in included file ./t3/j.ael, 43 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t1/a.ael, 41 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t1/b.ael, 42 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t1/c.ael, 106 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t2/d.ael, 41 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t2/e.ael, 42 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t2/f.ael, 82 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././qq.ael, 45 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t3/g.ael, 41 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t3/h.ael, 42 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t3/i.ael, 41 chars
+LOG: lev:2 file:ael.flex  line:659 func: setup_filestack    --Read in included file ././t3/j.ael, 43 chars
 LOG: lev:2 file:pbx_ael.c  line:928 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:931 func: pbx_load_module  AEL load process: checked config file name './extensions.ael'.
 Executed ast_context_create(conts, name=a, registrar=pbx_ael);
