@@ -3579,7 +3579,6 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 	/* XXX Is this always correct?  We have to in order to keep MACROS working XXX */
 	if (AST_LIST_FIRST(&clone->varshead))
 		AST_LIST_APPEND_LIST(&original->varshead, &clone->varshead, entries);
-	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 
 	/* then, dup the varshead list into the clone */
 	

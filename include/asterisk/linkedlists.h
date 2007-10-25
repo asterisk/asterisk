@@ -686,6 +686,9 @@ struct {								\
   \param list This is a pointer to the list to be appended.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
+
+  Note: The source list (the \a list parameter) will be empty after
+  calling this macro (the list entries are \b moved to the target list).
  */
 #define AST_LIST_APPEND_LIST(head, list, field) do {			\
       if (!(head)->first) {						\
@@ -695,6 +698,8 @@ struct {								\
 		(head)->last->field.next = (list)->first;		\
 		(head)->last = (list)->last;				\
       }									\
+      (list)->first = NULL;						\
+      (list)->last = NULL;						\
 } while (0)
 
 #define AST_RWLIST_APPEND_LIST AST_LIST_APPEND_LIST
