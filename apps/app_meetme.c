@@ -82,7 +82,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 enum {
 	ADMINFLAG_MUTED =     (1 << 1), /*!< User is muted */
 	ADMINFLAG_SELFMUTED = (1 << 2), /*!< User muted self */
-	ADMINFLAG_KICKME =    (1 << 3)  /*!< User has been kicked */
+	ADMINFLAG_KICKME =    (1 << 3),  /*!< User has been kicked */
+	/*! User has requested to speak */
+	ADMINFLAG_T_REQUEST = (1 << 4),
 };
 
 #define MEETME_DELAYDETECTTALK     300
@@ -1050,7 +1052,7 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			min = ((now - user->jointime) % 3600) / 60;
 			sec = (now - user->jointime) % 60;
 			if ( !concise )
-				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
+				ast_cli(a->fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %s %02d:%02d:%02d\n",
 					user->user_no,
 					S_OR(user->chan->cid.cid_num, "<unknown>"),
 					S_OR(user->chan->cid.cid_name, "<no name>"),
@@ -1058,9 +1060,10 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 					user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 					user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
 					user->adminflags & ADMINFLAG_MUTED ? "(Admin Muted)" : user->adminflags & ADMINFLAG_SELFMUTED ? "(Muted)" : "",
+					user->adminflags & ADMINFLAG_T_REQUEST ? "(Request to Talk)" : "",
 					istalking(user->talking), hr, min, sec); 
 			else 
-				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
+				ast_cli(a->fd, "%d!%s!%s!%s!%s!%s!%s!%s!%d!%02d:%02d:%02d\n",
 					user->user_no,
 					S_OR(user->chan->cid.cid_num, ""),
 					S_OR(user->chan->cid.cid_name, ""),
@@ -1068,6 +1071,7 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 					user->userflags  & CONFFLAG_ADMIN   ? "1" : "",
 					user->userflags  & CONFFLAG_MONITOR ? "1" : "",
 					user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)  ? "1" : "",
+					user->adminflags & ADMINFLAG_T_REQUEST ? "1" : "",
 					user->talking, hr, min, sec);
 			
 		}
@@ -1445,6 +1449,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int ret = -1;
 	int x;
 	int menu_active = 0;
+	int talkreq_manager = 0;
 	int using_pseudo = 0;
 	int duration=20;
 	int hr, min, sec;
@@ -1991,7 +1996,33 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						"Status: off\r\n",
 						chan->name, chan->uniqueid, conf->confno, user->user_no);
 			}
+			
+			if ((user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && 
+				(user->adminflags & ADMINFLAG_T_REQUEST) && !(talkreq_manager)) {
+				talkreq_manager = 1;
 
+				manager_event(EVENT_FLAG_CALL, "MeetmeTalkRequest", 
+					      "Channel: %s\r\n"
+							      "Uniqueid: %s\r\n"
+							      "Meetme: %s\r\n"
+							      "Usernum: %i\r\n"
+							      "Status: on\r\n",
+							      chan->name, chan->uniqueid, conf->confno, user->user_no);
+			}
+
+			
+			if (!(user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED)) && 
+				!(user->adminflags & ADMINFLAG_T_REQUEST) && (talkreq_manager)) {
+				talkreq_manager = 0;
+				manager_event(EVENT_FLAG_CALL, "MeetmeTalkRequest", 
+					      "Channel: %s\r\n"
+							      "Uniqueid: %s\r\n"
+							      "Meetme: %s\r\n"
+							      "Usernum: %i\r\n"
+							      "Status: off\r\n",
+							     chan->name, chan->uniqueid, conf->confno, user->user_no);
+			}
+			
 			/* If I have been kicked, exit the conference */
 			if (user->adminflags & ADMINFLAG_KICKME) {
 				//You have been kicked.
@@ -2226,6 +2257,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 									if (!ast_streamfile(chan, "conf-unmuted", chan->language))
 										ast_waitstream(chan, "");
 								}
+								break;
+							case '2':
+								menu_active = 0;
+								if (user->adminflags & (ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED))
+									user->adminflags |= ADMINFLAG_T_REQUEST;
+									
+								if (user->adminflags & ADMINFLAG_T_REQUEST)
+									if (!ast_streamfile(chan, "beep", chan->language))
+										ast_waitstream(chan, "");
 								break;
 							case '4':
 								tweak_listen_volume(user, VOL_DOWN);
@@ -3022,13 +3062,13 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		break;					
 	case 109: /* m: Unmute */ 
 		if (user) {
-			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
+			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
 		} else
 			ast_log(LOG_NOTICE, "Specified User not found!\n");
 		break;
 	case 110: /* n: Unmute all users */
 		AST_LIST_TRAVERSE(&cnf->userlist, user, list)
-			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);
+			user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);
 		break;
 	case 107: /* k: Kick user */ 
 		if (user)
@@ -3210,7 +3250,7 @@ static int meetmemute(struct mansession *s, const struct message *m, int mute)
 	if (mute)
 		user->adminflags |= ADMINFLAG_MUTED;	/* request user muting */
 	else
-		user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED);	/* request user unmuting */
+		user->adminflags &= ~(ADMINFLAG_MUTED | ADMINFLAG_SELFMUTED | ADMINFLAG_T_REQUEST);	/* request user unmuting */
 
 	AST_LIST_UNLOCK(&confs);
 
