@@ -13070,7 +13070,7 @@ static int load_module(void)
 	if (ast_channel_register(&zap_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Zap'\n");
 		__unload_module();
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 #ifdef HAVE_PRI
 	ast_string_field_init(&inuse, 16);

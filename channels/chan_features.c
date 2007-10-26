@@ -551,10 +551,10 @@ static int load_module(void)
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&features_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Feature'\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_cli_register_multiple(cli_features, sizeof(cli_features) / sizeof(struct ast_cli_entry));
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

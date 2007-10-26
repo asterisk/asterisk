@@ -2339,7 +2339,7 @@ static int load_module(void)
 	/* Make sure we can register our agent channel type */
 	if (ast_channel_register(&agent_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	/* Read in the config */
 	if (!read_agent_config(0))
@@ -2360,7 +2360,7 @@ static int load_module(void)
 	/* Dialplan Functions */
 	ast_custom_function_register(&agent_function);
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)

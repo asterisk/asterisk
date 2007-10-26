@@ -617,7 +617,7 @@ static int load_module(void)
 		crypto_load(STDIN_FILENO, STDOUT_FILENO);
 	else
 		crypto_load(-1, -1);
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

@@ -732,10 +732,10 @@ static int load_module(void)
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&local_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
-		return -1;
+		return AST_MODULE_LOAD_FAILURE;
 	}
 	ast_cli_register_multiple(cli_local, sizeof(cli_local) / sizeof(struct ast_cli_entry));
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /*! \brief Unload the local proxy channel from Asterisk */
