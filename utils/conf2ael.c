@@ -630,6 +630,13 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 	return localized_context_create(extcontexts, name, registrar);
 }
 
+struct ast_context *ast_context_find_or_create(struct ast_context **extcontexts, const char *name, const char *registrar)
+{
+	printf("find/Creating context %s, registrar=%s\n", name, registrar);
+	
+	return localized_context_create(extcontexts, name, registrar);
+}
+
 void ast_cli_register_multiple(void);
 
 void ast_cli_register_multiple(void)

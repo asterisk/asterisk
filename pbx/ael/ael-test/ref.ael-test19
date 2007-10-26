@@ -5,7 +5,7 @@
 LOG: lev:2 file:pbx_ael.c  line:913 func: pbx_load_module  Starting AEL load process.
 LOG: lev:2 file:pbx_ael.c  line:920 func: pbx_load_module  AEL load process: calculated config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:928 func: pbx_load_module  AEL load process: parsed config file name './extensions.ael'.
-LOG: lev:3 file:pval.c  line:2298 func: check_context_names  Warning: file ./extensions.ael, line 49-62: The context name (incoming) is also declared in file ./extensions.ael, line 62-69!
+LOG: lev:3 file:pval.c  line:2298 func: check_context_names  Warning: file ./extensions.ael, line 49-62: The context name (incoming) is also declared in file ./extensions.ael, line 62-69! (and neither is marked 'extend')
 LOG: lev:3 file:pval.c  line:670 func: check_macro_returns  Warning: file ./extensions.ael, line 71-175: The macro std-priv-exten does not end with a return; I will insert one.
 LOG: lev:3 file:pval.c  line:2282 func: check_switch_expr  Warning: file ./extensions.ael, line 245-246: A default case was automatically added to the switch.
 LOG: lev:3 file:pval.c  line:2424 func: check_pval_item  Warning: file ./extensions.ael, line 312-312: macro call to non-existent funcA! (Not even in the extensions.conf stuff!)
@@ -16,4 +16,4 @@ LOG: lev:2 file:pbx_ael.c  line:931 func: pbx_load_module  AEL load process: che
 LOG: lev:2 file:pbx_ael.c  line:933 func: pbx_load_module  AEL load process: compiled config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:936 func: pbx_load_module  AEL load process: merged config file name './extensions.ael'.
 LOG: lev:2 file:pbx_ael.c  line:939 func: pbx_load_module  AEL load process: verified config file name './extensions.ael'.
-LOG: lev:4 file:ael2_parse  line:527 func: main  13 contexts, 57 extensions, 188 priorities
+LOG: lev:4 file:ael2_parse  line:543 func: main  13 contexts, 57 extensions, 188 priorities

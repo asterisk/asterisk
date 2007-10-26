@@ -2293,9 +2293,9 @@ static void check_context_names(void)
 		if (i->type == PV_CONTEXT || i->type == PV_MACRO) {
 			for (j=i->next; j; j=j->next) {
 				if ( j->type == PV_CONTEXT || j->type == PV_MACRO ) {
-					if ( !strcmp(i->u1.str, j->u1.str) )
+					if ( !strcmp(i->u1.str, j->u1.str) && !(i->u3.abstract&2) && !(j->u3.abstract&2) )
 					{
-						ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d!\n",
+						ast_log(LOG_WARNING,"Warning: file %s, line %d-%d: The context name (%s) is also declared in file %s, line %d-%d! (and neither is marked 'extend')\n",
 								i->filename, i->startline, i->endline, i->u1.str,  j->filename, j->startline, j->endline);
 						warns++;
 					}
@@ -4031,7 +4031,7 @@ void ast_compile_ael2(struct ast_context **local_contexts, struct pval *root)
 			break;
 			
 		case PV_CONTEXT:
-			context = ast_context_create(local_contexts, p->u1.str, registrar);
+			context = ast_context_find_or_create(local_contexts, p->u1.str, registrar);
 			
 			/* contexts contain: ignorepat, includes, switches, eswitches, extensions,  */
 			for (p2=p->u2.statements; p2; p2=p2->next) {
