@@ -118,6 +118,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
 {
 	char *parse;
+	size_t delim_consumed;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(varname);
 		AST_APP_ARG(delimiter);
@@ -134,7 +135,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	if (args.argc < 3) {
 		return ERROR_NOARG;
 	} else {
-		char d, ds[2];
+		char d, ds[2] = "";
 		char *tmp = alloca(strlen(args.varname) + 4);
 		char varvalue[MAXRESULT], *tmp2=varvalue;
 
@@ -145,22 +146,11 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 			return ERROR_NOMEM;
 		}
 
-		if (args.delimiter[0] == '\\') {
-			if (args.delimiter[1] == 'n')
-				d = '\n';
-			else if (args.delimiter[1] == 't')
-				d = '\t';
-			else if (args.delimiter[1])
-				d = args.delimiter[1];
-			else
-				d = '-';
-		} else if (args.delimiter[0])
-			d = args.delimiter[0];
-		else
-			d = '-';
+		if (ast_get_encoded_char(args.delimiter, ds, &delim_consumed))
+			return ERROR_NOARG;
 
 		/* String form of the delimiter, for use with strsep(3) */
-		snprintf(ds, sizeof(ds), "%c", d);
+		d = *ds;
 
 		pbx_substitute_variables_helper(chan, tmp, tmp2, MAXRESULT - 1);
 

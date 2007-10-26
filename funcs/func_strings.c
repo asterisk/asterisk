@@ -54,19 +54,13 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 			     AST_APP_ARG(varname);
 			     AST_APP_ARG(delim);
 		);
+	char delim[2] = "";
+	size_t delim_used;
 
 	AST_STANDARD_APP_ARGS(args, parse);
 	if (args.delim) {
-		if (args.delim[0] == '\\') {
-			if (args.delim[1] == 'n')
-				ast_copy_string(args.delim, "\n", 2);
-			else if (args.delim[1] == 't')
-				ast_copy_string(args.delim, "\t", 2);
-			else if (args.delim[1])
-				ast_copy_string(args.delim, &args.delim[1], 2);
-			else
-				ast_copy_string(args.delim, "-", 2);
-		}
+		ast_get_encoded_char(args.delim, delim, &delim_used);
+
 		varsubst = alloca(strlen(args.varname) + 4);
 
 		sprintf(varsubst, "${%s}", args.varname);
@@ -74,7 +68,7 @@ static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 		if (ast_strlen_zero(varval2))
 			fieldcount = 0;
 		else {
-			while (strsep(&varval2, args.delim))
+			while (strsep(&varval2, delim))
 				fieldcount++;
 		}
 	} else {
@@ -91,73 +85,6 @@ static struct ast_custom_function fieldqty_function = {
 	.syntax = "FIELDQTY(<varname>,<delim>)",
 	.read = function_fieldqty,
 };
-
-static int get_filter_char(const char *stream, char *result, size_t *consumed)
-{
-	int i;
-	*consumed = 1;
-	*result = 0;
-	if (*stream == '\\') {
-		*consumed = 2;
-		switch (*(stream + 1)) {
-		case 'n':
-			*result = '\n';
-			break;
-		case 'r':
-			*result = '\r';
-			break;
-		case 't':
-			*result = '\t';
-			break;
-		case 'x':
-			/* Hexadecimal */
-			if (strchr("0123456789ABCDEFabcdef", *(stream + 2)) && *(stream + 2) != '\0') {
-				*consumed = 3;
-				if (*(stream + 2) <= '9')
-					*result = *(stream + 2) - '0';
-				else if (*(stream + 2) <= 'F')
-					*result = *(stream + 2) - 'A' + 10;
-				else
-					*result = *(stream + 2) - 'a' + 10;
-			} else {
-				ast_log(LOG_ERROR, "Illegal character '%c' in hexadecimal string\n", *(stream + 2));
-				return -1;
-			}
-
-			if (strchr("0123456789ABCDEFabcdef", *(stream + 3)) && *(stream + 3) != '\0') {
-				*consumed = 4;
-				*result <<= 4;
-				if (*(stream + 3) <= '9')
-					*result += *(stream + 3) - '0';
-				else if (*(stream + 3) <= 'F')
-					*result += *(stream + 3) - 'A' + 10;
-				else
-					*result += *(stream + 3) - 'a' + 10;
-			}
-			break;
-		case '0':
-			/* Octal */
-			*consumed = 2;
-			for (i = 2; ; i++) {
-				if (strchr("01234567", *(stream + i)) && *(stream + i) != '\0') {
-					(*consumed)++;
-					ast_debug(5, "result was %d, ", *result);
-					*result <<= 3;
-					*result += *(stream + i) - '0';
-					ast_debug(5, "is now %d\n", *result);
-				} else
-					break;
-			}
-			break;
-		default:
-			*result = *(stream + 1);
-		}
-	} else {
-		*result = *stream;
-		*consumed = 1;
-	}
-	return 0;
-}
 
 static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *buf,
 		  size_t len)
@@ -182,12 +109,12 @@ static int filter(struct ast_channel *chan, const char *cmd, char *parse, char *
 		char c1 = 0, c2 = 0;
 		size_t consumed = 0;
 
-		if (get_filter_char(args.allowed, &c1, &consumed))
+		if (ast_get_encoded_char(args.allowed, &c1, &consumed))
 			return -1;
 		args.allowed += consumed;
 
 		if (*(args.allowed) == '-') {
-			if (get_filter_char(args.allowed + 1, &c2, &consumed))
+			if (ast_get_encoded_char(args.allowed + 1, &c2, &consumed))
 				c2 = -1;
 			args.allowed += consumed + 1;
 

@@ -1664,3 +1664,70 @@ int ast_app_parse_options64(const struct ast_app_option *options, struct ast_fla
 	return res;
 }
 
+int ast_get_encoded_char(const char *stream, char *result, size_t *consumed)
+{
+	int i;
+	*consumed = 1;
+	*result = 0;
+	if (*stream == '\\') {
+		*consumed = 2;
+		switch (*(stream + 1)) {
+		case 'n':
+			*result = '\n';
+			break;
+		case 'r':
+			*result = '\r';
+			break;
+		case 't':
+			*result = '\t';
+			break;
+		case 'x':
+			/* Hexadecimal */
+			if (strchr("0123456789ABCDEFabcdef", *(stream + 2)) && *(stream + 2) != '\0') {
+				*consumed = 3;
+				if (*(stream + 2) <= '9')
+					*result = *(stream + 2) - '0';
+				else if (*(stream + 2) <= 'F')
+					*result = *(stream + 2) - 'A' + 10;
+				else
+					*result = *(stream + 2) - 'a' + 10;
+			} else {
+				ast_log(LOG_ERROR, "Illegal character '%c' in hexadecimal string\n", *(stream + 2));
+				return -1;
+			}
+
+			if (strchr("0123456789ABCDEFabcdef", *(stream + 3)) && *(stream + 3) != '\0') {
+				*consumed = 4;
+				*result <<= 4;
+				if (*(stream + 3) <= '9')
+					*result += *(stream + 3) - '0';
+				else if (*(stream + 3) <= 'F')
+					*result += *(stream + 3) - 'A' + 10;
+				else
+					*result += *(stream + 3) - 'a' + 10;
+			}
+			break;
+		case '0':
+			/* Octal */
+			*consumed = 2;
+			for (i = 2; ; i++) {
+				if (strchr("01234567", *(stream + i)) && *(stream + i) != '\0') {
+					(*consumed)++;
+					ast_debug(5, "result was %d, ", *result);
+					*result <<= 3;
+					*result += *(stream + i) - '0';
+					ast_debug(5, "is now %d\n", *result);
+				} else
+					break;
+			}
+			break;
+		default:
+			*result = *(stream + 1);
+		}
+	} else {
+		*result = *stream;
+		*consumed = 1;
+	}
+	return 0;
+}
+

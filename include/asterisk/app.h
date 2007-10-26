@@ -457,6 +457,9 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 /*! Allow to record message and have a review option */
 int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration, const char *path);
 
+/*! Decode an encoded control or extended ASCII character */
+int ast_get_encoded_char(const char *stream, char *result, size_t *consumed);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
