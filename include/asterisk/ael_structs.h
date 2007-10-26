@@ -97,10 +97,11 @@ struct pval
 		char *for_inc; /* used in FOR */
 		struct pval *else_statements; /* used in IF */
 		struct pval *macro_statements; /* used in MACRO */
-		int abstract;  /* used for context */
+		int abstract;  /* used for context 1=abstract; 2=extend; 3=both */
 		char *hints; /* used in EXTENSION */
 		int goto_target_in_case; /* used in GOTO */
 		struct ael_extension *compiled_label;
+		struct pval *extend; /* to link extended contexts to the 'original' */
 	} u3;
 	
 	union

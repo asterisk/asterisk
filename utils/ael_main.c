@@ -88,6 +88,7 @@ int ast_add_extension2(struct ast_context *con,
 					   const char *registrar);
 void pbx_builtin_setvar(void *chan, void *data);
 struct ast_context * ast_context_create(void **extcontexts, const char *name, const char *registrar);
+struct ast_context * ast_context_find_or_create(void **extcontexts, const char *name, const char *registrar);
 void ast_context_add_ignorepat2(struct ast_context *con, const char *value, const char *registrar);
 void ast_context_add_include2(struct ast_context *con, const char *value, const char *registrar);
 void ast_context_add_switch2(struct ast_context *con, const char *value, const char *data, int eval, const char *registrar);
@@ -306,6 +307,21 @@ struct ast_context * ast_context_create(void **extcontexts, const char *name, co
 	context_list = x;
 	if (!no_comp)
 		printf("Executed ast_context_create(conts, name=%s, registrar=%s);\n", name, registrar);
+	conts++;
+	strncpy(x->name, name, sizeof(x->name) - 1);
+	strncpy(x->registrar, registrar, sizeof(x->registrar) - 1);
+	return x;
+}
+
+struct ast_context * ast_context_find_or_create(void **extcontexts, const char *name, const char *registrar)
+{
+	struct ast_context *x = calloc(1, sizeof(*x));
+	if (!x)
+		return NULL;
+	x->next = context_list;
+	context_list = x;
+	if (!no_comp)
+		printf("Executed ast_context_find_or_create(conts, name=%s, registrar=%s);\n", name, registrar);
 	conts++;
 	strncpy(x->name, name, sizeof(x->name) - 1);
 	strncpy(x->registrar, registrar, sizeof(x->registrar) - 1);

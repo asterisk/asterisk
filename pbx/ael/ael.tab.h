@@ -50,24 +50,25 @@
      KW_ELSE = 276,
      KW_RANDOM = 277,
      KW_ABSTRACT = 278,
-     EXTENMARK = 279,
-     KW_GOTO = 280,
-     KW_JUMP = 281,
-     KW_RETURN = 282,
-     KW_BREAK = 283,
-     KW_CONTINUE = 284,
-     KW_REGEXTEN = 285,
-     KW_HINT = 286,
-     KW_FOR = 287,
-     KW_WHILE = 288,
-     KW_CASE = 289,
-     KW_PATTERN = 290,
-     KW_DEFAULT = 291,
-     KW_CATCH = 292,
-     KW_SWITCHES = 293,
-     KW_ESWITCHES = 294,
-     KW_INCLUDES = 295,
-     word = 296
+     KW_EXTEND = 279,
+     EXTENMARK = 280,
+     KW_GOTO = 281,
+     KW_JUMP = 282,
+     KW_RETURN = 283,
+     KW_BREAK = 284,
+     KW_CONTINUE = 285,
+     KW_REGEXTEN = 286,
+     KW_HINT = 287,
+     KW_FOR = 288,
+     KW_WHILE = 289,
+     KW_CASE = 290,
+     KW_PATTERN = 291,
+     KW_DEFAULT = 292,
+     KW_CATCH = 293,
+     KW_SWITCHES = 294,
+     KW_ESWITCHES = 295,
+     KW_INCLUDES = 296,
+     word = 297
    };
 #endif
 /* Tokens.  */
@@ -92,24 +93,25 @@
 #define KW_ELSE 276
 #define KW_RANDOM 277
 #define KW_ABSTRACT 278
-#define EXTENMARK 279
-#define KW_GOTO 280
-#define KW_JUMP 281
-#define KW_RETURN 282
-#define KW_BREAK 283
-#define KW_CONTINUE 284
-#define KW_REGEXTEN 285
-#define KW_HINT 286
-#define KW_FOR 287
-#define KW_WHILE 288
-#define KW_CASE 289
-#define KW_PATTERN 290
-#define KW_DEFAULT 291
-#define KW_CATCH 292
-#define KW_SWITCHES 293
-#define KW_ESWITCHES 294
-#define KW_INCLUDES 295
-#define word 296
+#define KW_EXTEND 279
+#define EXTENMARK 280
+#define KW_GOTO 281
+#define KW_JUMP 282
+#define KW_RETURN 283
+#define KW_BREAK 284
+#define KW_CONTINUE 285
+#define KW_REGEXTEN 286
+#define KW_HINT 287
+#define KW_FOR 288
+#define KW_WHILE 289
+#define KW_CASE 290
+#define KW_PATTERN 291
+#define KW_DEFAULT 292
+#define KW_CATCH 293
+#define KW_SWITCHES 294
+#define KW_ESWITCHES 295
+#define KW_INCLUDES 296
+#define word 297
 
 
 
@@ -123,7 +125,7 @@ typedef union YYSTYPE
 	struct pval *pval;	/* full objects */
 }
 /* Line 1536 of yacc.c.  */
-#line 127 "ael.tab.h"
+#line 129 "ael.tab.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1

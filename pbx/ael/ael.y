@@ -80,7 +80,7 @@ static pval *update_last(pval *, YYLTYPE *);
 
 
 %token KW_CONTEXT LC RC LP RP SEMI EQ COMMA COLON AMPER BAR AT
-%token KW_MACRO KW_GLOBALS KW_IGNOREPAT KW_SWITCH KW_IF KW_IFTIME KW_ELSE KW_RANDOM KW_ABSTRACT
+%token KW_MACRO KW_GLOBALS KW_IGNOREPAT KW_SWITCH KW_IF KW_IFTIME KW_ELSE KW_RANDOM KW_ABSTRACT KW_EXTEND
 %token EXTENMARK KW_GOTO KW_JUMP KW_RETURN KW_BREAK KW_CONTINUE KW_REGEXTEN KW_HINT
 %token KW_FOR KW_WHILE KW_CASE KW_PATTERN KW_DEFAULT KW_CATCH KW_SWITCHES KW_ESWITCHES
 %token KW_INCLUDES
@@ -201,22 +201,19 @@ context_name : word { $$ = $1; }
 	;
 
 context : opt_abstract KW_CONTEXT context_name LC elements RC {
-		if (!$5) {
-                        ast_log(LOG_WARNING, "==== File: %s, Line %d, Cols: %d-%d: Warning! The empty context %s will be IGNORED!\n", 
-				my_file, @4.first_line, @4.first_column, @4.last_column, $3 );
-			$$ = 0;
-			free($3);
-		} else {
-			$$ = npval2(PV_CONTEXT, &@1, &@6);
-			$$->u1.str = $3;
-			$$->u2.statements = $5;
-			set_dads($$,$5);
-			$$->u3.abstract = $1;} }
+		$$ = npval2(PV_CONTEXT, &@1, &@6);
+		$$->u1.str = $3;
+		$$->u2.statements = $5;
+		set_dads($$,$5);
+		$$->u3.abstract = $1;} 
 	;
 
 /* optional "abstract" keyword  XXX there is no regression test for this */
 opt_abstract: KW_ABSTRACT { $$ = 1; }
 	| /* nothing */ { $$ = 0; }
+	| KW_EXTEND { $$ = 2; }
+	| KW_EXTEND KW_ABSTRACT { $$=3; }
+	| KW_ABSTRACT KW_EXTEND { $$=3; }
 	;
 
 macro : KW_MACRO word LP arglist RP LC macro_statements RC {
