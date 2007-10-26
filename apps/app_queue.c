@@ -100,7 +100,8 @@ enum {
 	QUEUE_STRATEGY_LEASTRECENT,
 	QUEUE_STRATEGY_FEWESTCALLS,
 	QUEUE_STRATEGY_RANDOM,
-	QUEUE_STRATEGY_RRMEMORY
+	QUEUE_STRATEGY_RRMEMORY,
+	QUEUE_STRATEGY_LINEAR
 };
 
 static struct strategy {
@@ -112,6 +113,7 @@ static struct strategy {
 	{ QUEUE_STRATEGY_FEWESTCALLS, "fewestcalls" },
 	{ QUEUE_STRATEGY_RANDOM, "random" },
 	{ QUEUE_STRATEGY_RRMEMORY, "rrmemory" },
+	{ QUEUE_STRATEGY_LINEAR, "linear" },
 };
 
 #define DEFAULT_RETRY		5
@@ -324,6 +326,8 @@ struct queue_ent {
 	int opos;                           /*!< Where we started in the queue */
 	int handled;                        /*!< Whether our call was handled */
 	int max_penalty;                    /*!< Limit the members that can take this call to this penalty or lower */
+	int linpos;							/*!< If using linear strategy, what position are we at? */
+	int linwrapped;						/*!< Is the linpos wrapped? */
 	time_t start;                       /*!< When we started holding */
 	time_t expire;                      /*!< When this entry should expire (time out of queue) */
 	struct ast_channel *chan;           /*!< Our channel */
@@ -833,8 +837,13 @@ static void init_queue(struct call_queue *q)
 	q->monfmt[0] = '\0';
 	q->periodicannouncefrequency = 0;
 	q->sound_callerannounce[0] = '\0';	/* Default, don't announce the caller that he has been answered */
-	if(!q->members)
-		q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+	if(!q->members) {
+		if(q->strategy == QUEUE_STRATEGY_LINEAR)
+			/* linear strategy depends on order, so we have to place all members in a single bucket */
+			q->members = ao2_container_alloc(1, member_hash_fn, member_cmp_fn);
+		else
+			q->members = ao2_container_alloc(37, member_hash_fn, member_cmp_fn);
+	}
 	q->membercount = 0;
 	q->found = 1;
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
@@ -1063,12 +1072,8 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 	} else if (!strcasecmp(param, "servicelevel")) {
 		q->servicelevel= atoi(val);
 	} else if (!strcasecmp(param, "strategy")) {
-		q->strategy = strat2int(val);
-		if (q->strategy < 0) {
-			ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
-				val, q->name);
-			q->strategy = QUEUE_STRATEGY_RINGALL;
-		}
+		/* We already have set this, no need to do it again */
+		return;
 	} else if (!strcasecmp(param, "joinempty")) {
 		if (!strcasecmp(val, "loose"))
 			q->joinempty = QUEUE_EMPTY_LOOSE;
@@ -1914,7 +1919,9 @@ static int ring_entry(struct queue_ent *qe, struct callattempt *tmp, int *busies
 
 		ao2_lock(qe->parent);
 		qe->parent->rrpos++;
+		qe->linpos++;
 		ao2_unlock(qe->parent);
+
 
 		(*busies)++;
 		return 0;
@@ -2021,7 +2028,7 @@ static int ring_one(struct queue_ent *qe, struct callattempt *outgoing, int *bus
 	return ret;
 }
 
-static int store_next(struct queue_ent *qe, struct callattempt *outgoing)
+static int store_next_rr(struct queue_ent *qe, struct callattempt *outgoing)
 {
 	struct callattempt *best = find_best(outgoing);
 
@@ -2040,6 +2047,29 @@ static int store_next(struct queue_ent *qe, struct callattempt *outgoing)
 		}
 	}
 	qe->parent->wrapped = 0;
+
+	return 0;
+}
+
+static int store_next_lin(struct queue_ent *qe, struct callattempt *outgoing)
+{
+	struct callattempt *best = find_best(outgoing);
+
+	if (best) {
+		/* Ring just the best channel */
+		ast_debug(1, "Next is '%s' with metric %d\n", best->interface, best->metric);
+		qe->linpos = best->metric % 1000;
+	} else {
+		/* Just increment rrpos */
+		if (qe->linwrapped) {
+			/* No more channels, start over */
+			qe->linpos = 0;
+		} else {
+			/* Prioritize next entry */
+			qe->linpos++;
+		}
+	}
+	qe->linwrapped = 0;
 
 	return 0;
 }
@@ -2541,6 +2571,17 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 		/* Everyone equal, except for penalty */
 		tmp->metric = mem->penalty * 1000000;
 		break;
+	case QUEUE_STRATEGY_LINEAR:
+		if (pos < qe->linpos) {
+			tmp->metric = 1000 + pos;
+		} else {
+			if (pos > qe->linpos)
+				/* Indicate there is another priority */
+				qe->linwrapped = 1;
+			tmp->metric = pos;
+		}
+		tmp->metric += mem->penalty * 1000000;
+		break;
 	case QUEUE_STRATEGY_RRMEMORY:
 		if (pos < q->rrpos) {
 			tmp->metric = 1000 + pos;
@@ -2689,7 +2730,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                         ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_PARKCALL);
                         break;
 		case 'n':
-			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY)
+			if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY || qe->parent->strategy == QUEUE_STRATEGY_LINEAR)
 				(*tries)++;
 			else
 				*tries = qe->parent->membercount;
@@ -2757,7 +2798,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT), forwardsallowed);
 	ao2_lock(qe->parent);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
-		store_next(qe, outgoing);
+		store_next_rr(qe, outgoing);
+	}
+	if (qe->parent->strategy == QUEUE_STRATEGY_LINEAR) {
+		store_next_lin(qe, outgoing);
 	}
 	ao2_unlock(qe->parent);
 	peer = lpeer ? lpeer->chan : NULL;
@@ -4214,6 +4258,7 @@ static int reload_queues(int reload)
 			} else
 				new = 0;
 			if (q) {
+				const char *tmpvar;
 				if (!new)
 					ao2_lock(q);
 				/* Check if a queue with this name already exists */
@@ -4223,6 +4268,20 @@ static int reload_queues(int reload)
 						ao2_unlock(q);
 					continue;
 				}
+				/* Due to the fact that the "linear" strategy will have a different allocation
+				 * scheme for queue members, we must devise the queue's strategy before other initializations
+				 */
+				if((tmpvar = ast_variable_retrieve(cfg, cat, "strategy"))) {
+					ast_log(LOG_DEBUG, "Success!!\n");
+					q->strategy = strat2int(tmpvar);
+					ast_log(LOG_DEBUG, "Queue strategy set to '%s'\n", int2strat(q->strategy));
+					if (q->strategy < 0) {
+						ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+						tmpvar, q->name);
+						q->strategy = QUEUE_STRATEGY_RINGALL;
+					}
+				} else
+					q->strategy = QUEUE_STRATEGY_RINGALL;
 				/* Re-initialize the queue, and clear statistics */
 				init_queue(q);
 				if (!queue_keep_stats) 
