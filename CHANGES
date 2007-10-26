@@ -165,6 +165,7 @@ Queue changes
   * Added additional information to EXITWITHTIMEOUT and EXITWITHKEY events in the
      queue log.
   * Added ability for non-realtime queues to have realtime members
+  * Added the "linear" strategy to queues.
 
 MeetMe Changes
 --------------
