@@ -145,7 +145,8 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 
 	AST_STANDARD_APP_ARGS(args, info);	
 
-	ast_autoservice_start(chan);
+	if (chan)
+		ast_autoservice_start(chan);
 
 	if (!curl_internal(&chunk, args.url, args.postdata)) {
 		if (chunk.memory) {
@@ -160,7 +161,8 @@ static int acf_curl_exec(struct ast_channel *chan, char *cmd, char *info, char *
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 	}
 
-	ast_autoservice_stop(chan);
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	ast_module_user_remove(u);
 
