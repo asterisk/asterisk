@@ -8430,6 +8430,38 @@ static int ss7_find_cic(struct zt_ss7 *linkset, int cic)
 	return winner;
 }
 
+static void ss7_handle_cqm(struct zt_ss7 *linkset, int startcic, int endcic)
+{
+	unsigned char status[32];
+	struct zt_pvt *p = NULL;
+	int i, offset;
+
+	for (i = 0; i < linkset->numchans; i++) {
+		if (linkset->pvts[i] && ((linkset->pvts[i]->cic >= startcic) && (linkset->pvts[i]->cic <= endcic))) {
+			p = linkset->pvts[i];
+			offset = p->cic - startcic;
+			status[offset] = 0;
+			if (p->locallyblocked)
+				status[offset] |= (1 << 0) | (1 << 4);
+			if (p->remotelyblocked)
+				status[offset] |= (1 << 1) | (1 << 5);
+			if (p->ss7call) {
+				if (p->outgoing)
+					status[offset] |= (1 << 3);
+				else
+					status[offset] |= (1 << 2);
+			} else
+				status[offset] |= 0x3 << 2;
+		}
+	}
+
+	if (p)
+		isup_cqr(linkset->ss7, startcic, endcic, p->dpc, status);
+	else
+		ast_log(LOG_WARNING, "Could not find any equipped circuits within CQM CICs\n");
+	
+}
+
 static inline void ss7_block_cics(struct zt_ss7 *linkset, int startcic, int endcic, unsigned char state[], int block)
 {
 	int i;
@@ -8737,6 +8769,10 @@ static void *ss7_linkset(void *data)
 				p = linkset->pvts[chanpos];
 				isup_gra(ss7, e->grs.startcic, e->grs.endcic, p->dpc);
 				ss7_block_cics(linkset, e->grs.startcic, e->grs.endcic, NULL, 0);
+				break;
+			case ISUP_EVENT_CQM:
+				ast_debug(1, "Got Circuit group query message from CICs %d to %d\n", e->cqm.startcic, e->cqm.endcic);
+				ss7_handle_cqm(linkset, e->cqm.startcic, e->cqm.endcic);
 				break;
 			case ISUP_EVENT_GRA:
 				ast_verbose("Got reset acknowledgement from CIC %d to %d.\n", e->gra.startcic, e->gra.endcic);
