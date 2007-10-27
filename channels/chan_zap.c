@@ -5604,7 +5604,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 				i->dsp = NULL;
 			if (i->dsp) {
 				i->dsp_features = features & ~DSP_PROGRESS_TALK;
-#ifdef HAVE_PRI
+#if defined(HAVE_PRI) || defined(HAVE_SS7)
 				/* We cannot do progress detection until receives PROGRESS message */
 				if (i->outgoing && ((i->sig == SIG_PRI) || (i->sig == SIG_SS7))) {
 					/* Remember requested DSP features, don't treat
@@ -8699,6 +8699,10 @@ static void *ss7_linkset(void *data)
 						ast_debug(1, "Queuing frame PROGRESS on CIC %d\n", p->cic);
 						zap_queue_frame(p, &f, linkset);
 						p->progress = 1;
+						if (p->dsp && p->dsp_features) {
+						        ast_dsp_set_features(p->dsp, p->dsp_features);
+						        p->dsp_features = 0;
+						}
 					}
 					break;
 				default:
@@ -8978,6 +8982,10 @@ static void *ss7_linkset(void *data)
 					p = linkset->pvts[chanpos];
 					ast_mutex_lock(&p->lock);
 					p->subs[SUB_REAL].needanswer = 1;
+					if (p->dsp && p->dsp_features) {
+					        ast_dsp_set_features(p->dsp, p->dsp_features);
+					        p->dsp_features = 0;
+					}
 					zt_enable_ec(p);
 					ast_mutex_unlock(&p->lock);
 				}
