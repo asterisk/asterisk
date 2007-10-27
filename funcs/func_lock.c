@@ -256,19 +256,27 @@ static int unlock_read(struct ast_channel *chan, const char *cmd, char *data, ch
 }
 
 static int lock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
-{
-	ast_autoservice_start(chan);
+{	
+	if (chan)
+		ast_autoservice_start(chan);
+
 	ast_copy_string(buf, get_lock(chan, data, 0) ? "0" : "1", len);
-	ast_autoservice_stop(chan);
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }
 
 static int trylock_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
-	ast_autoservice_start(chan);
+	if (chan)
+		ast_autoservice_start(chan);
+
 	ast_copy_string(buf, get_lock(chan, data, 1) ? "0" : "1", len);
-	ast_autoservice_stop(chan);
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }
