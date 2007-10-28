@@ -99,7 +99,7 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char *t, buf[2048]="", varname[15];
-	int i;
+	int i, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
 	);
@@ -130,12 +130,24 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 		return -1;
 	}
 
+	if (!chan) {
+		if ((chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc")))
+			bogus_chan = 1;
+	}
+
+	if (chan)
+		ast_autoservice_start(chan);
+
 	/* Parse our arguments */
 	t = value ? ast_strdupa(value) : "";
 
 	if (!s || !t) {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		AST_LIST_UNLOCK(&queries);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return -1;
 	}
 
@@ -193,6 +205,11 @@ static int acf_odbc_write(struct ast_channel *chan, char *cmd, char *s, const ch
 	if (obj)
 		ast_odbc_release_obj(obj);
 
+	if (chan)
+		ast_autoservice_stop(chan);
+	if (bogus_chan)
+		ast_channel_free(chan);
+
 	return 0;
 }
 
@@ -201,7 +218,7 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	struct odbc_obj *obj;
 	struct acf_odbc_query *query;
 	char sql[2048] = "", varname[15];
-	int res, x, buflen = 0, escapecommas;
+	int res, x, buflen = 0, escapecommas, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
@@ -230,6 +247,14 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		return -1;
 	}
 
+	if (!chan) {
+		if ((chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc")))
+			bogus_chan = 1;
+	}
+
+	if (chan)
+		ast_autoservice_start(chan);
+
 	AST_STANDARD_APP_ARGS(args, s);
 	for (x = 0; x < args.argc; x++) {
 		snprintf(varname, sizeof(varname), "ARG%d", x + 1);
@@ -253,6 +278,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 
 	if (!stmt) {
 		ast_odbc_release_obj(obj);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return -1;
 	}
 
@@ -262,6 +291,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		SQLCloseCursor(stmt);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return -1;
 	}
 
@@ -281,6 +314,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 		SQLCloseCursor(stmt);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return res1;
 	}
 
@@ -300,6 +337,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 			SQLCloseCursor(stmt);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
+			if (chan)
+				ast_autoservice_stop(chan);
+			if (bogus_chan)
+				ast_channel_free(chan);
 			return -1;
 		}
 
@@ -326,6 +367,10 @@ static int acf_odbc_read(struct ast_channel *chan, char *cmd, char *s, char *buf
 	SQLCloseCursor(stmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
+	if (chan)
+		ast_autoservice_stop(chan);
+	if (bogus_chan)
+		ast_channel_free(chan);
 	return 0;
 }
 

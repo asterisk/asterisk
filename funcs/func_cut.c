@@ -125,7 +125,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	);
 
 	memset(buffer, 0, buflen); 
-	
+
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -253,7 +253,10 @@ static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *b
 	int ret = -1;
 	struct ast_module_user *u;
 
-	u = ast_module_user_add(chan);
+	if (chan) {
+		ast_autoservice_start(chan);
+		u = ast_module_user_add(chan);
+	}
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
@@ -272,7 +275,10 @@ static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *b
 		ast_log(LOG_ERROR, "Unknown internal error\n");
 	}
 
-	ast_module_user_remove(u);
+	if (chan) {
+		ast_module_user_remove(u);
+		ast_autoservice_stop(chan);
+	}
 
 	return ret;
 }

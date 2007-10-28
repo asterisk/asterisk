@@ -53,6 +53,9 @@ static int function_fieldqty(struct ast_channel *chan, char *cmd,
 			     AST_APP_ARG(delim);
 		);
 
+	if (chan)
+		ast_autoservice_start(chan);
+
 	AST_STANDARD_APP_ARGS(args, parse);
 	if (args.delim) {
 		varsubst = alloca(strlen(args.varname) + 4);
@@ -69,6 +72,9 @@ static int function_fieldqty(struct ast_channel *chan, char *cmd,
 		fieldcount = 1;
 	}
 	snprintf(buf, len, "%d", fieldcount);
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }
@@ -178,6 +184,9 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 	if (!var || !value2)
 		return -1;
 
+	if (chan)
+		ast_autoservice_start(chan);
+
 	/* The functions this will generally be used with are SORT and ODBC_*, which
 	 * both return comma-delimited lists.  However, if somebody uses literal lists,
 	 * their commas will be translated to vertical bars by the load, and I don't
@@ -208,6 +217,9 @@ static int array(struct ast_channel *chan, char *cmd, char *var,
 			pbx_builtin_setvar_helper(chan, arg1.var[i], "");
 		}
 	}
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }
@@ -517,7 +529,11 @@ static int function_eval(struct ast_channel *chan, char *cmd, char *data,
 		return -1;
 	}
 
+	if (chan)
+		ast_autoservice_start(chan);
 	pbx_substitute_variables_helper(chan, data, buf, len - 1);
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }
