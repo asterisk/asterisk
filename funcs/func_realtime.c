@@ -71,9 +71,14 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	if (!args.delim2)
 		args.delim2 = "=";
 
+	if (chan)
+		ast_autoservice_start(chan);
+
 	head = ast_load_realtime_all(args.family, args.fieldmatch, args.value, NULL);
 
 	if (!head)
+		if (chan)
+			ast_autoservice_stop(chan);
 		return -1;
 
 	resultslen = 0;
@@ -87,6 +92,9 @@ static int function_realtime_read(struct ast_channel *chan, const char *cmd, cha
 	for (var = head; var; var = var->next)
 		ast_str_append(&out, 0, "%s%s%s%s", var->name, args.delim2, var->value, args.delim1);
 	ast_copy_string(buf, out->str, len);
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }
@@ -106,6 +114,9 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 		return -1;
 	}
 
+	if (chan)
+		ast_autoservice_start(chan);
+
 	AST_STANDARD_APP_ARGS(args, data);
 
 	res = ast_update_realtime(args.family, args.fieldmatch, args.value, args.field, (char *)value, NULL);
@@ -113,6 +124,9 @@ static int function_realtime_write(struct ast_channel *chan, const char *cmd, ch
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to update. Check the debug log for possible data repository related entries.\n");
 	}
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return 0;
 }

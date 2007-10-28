@@ -126,7 +126,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	);
 
 	memset(buffer, 0, buflen); 
-	
+
 	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
@@ -235,6 +235,9 @@ static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, c
 {
 	int ret = -1;
 
+	if (chan)
+		ast_autoservice_start(chan);
+
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
 		ast_log(LOG_ERROR, "Syntax: CUT(<varname>,<char-delim>,<range-spec>) - missing argument!\n");
@@ -251,6 +254,9 @@ static int acf_cut_exec(struct ast_channel *chan, const char *cmd, char *data, c
 	default:
 		ast_log(LOG_ERROR, "Unknown internal error\n");
 	}
+
+	if (chan)
+		ast_autoservice_stop(chan);
 
 	return ret;
 }

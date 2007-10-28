@@ -139,7 +139,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
 	char *t, buf[2048]="", varname[15];
-	int i, dsn;
+	int i, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
 	);
@@ -162,12 +162,24 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 		return -1;
 	}
 
+	if (!chan) {
+		if ((chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc")))
+			bogus_chan = 1;
+	}
+
+	if (chan)
+		ast_autoservice_start(chan);
+
 	/* Parse our arguments */
 	t = value ? ast_strdupa(value) : "";
 
 	if (!s || !t) {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		AST_LIST_UNLOCK(&queries);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return -1;
 	}
 
@@ -232,6 +244,11 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 	if (obj)
 		ast_odbc_release_obj(obj);
 
+	if (chan)
+		ast_autoservice_stop(chan);
+	if (bogus_chan)
+		ast_channel_free(chan);
+
 	return 0;
 }
 
@@ -240,7 +257,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
 	char sql[2048] = "", varname[15], colnames[2048] = "", rowcount[12] = "-1";
-	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, dsn;
+	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];
 	);
@@ -264,6 +281,14 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
 		return -1;
 	}
+
+	if (!chan) {
+		if ((chan = ast_channel_alloc(0, 0, "", "", "", "", "", 0, "Bogus/func_odbc")))
+			bogus_chan = 1;
+	}
+
+	if (chan)
+		ast_autoservice_start(chan);
 
 	AST_STANDARD_APP_ARGS(args, s);
 	for (x = 0; x < args.argc; x++) {
@@ -306,6 +331,10 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		if (obj)
 			ast_odbc_release_obj(obj);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return -1;
 	}
 
@@ -316,6 +345,10 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return -1;
 	}
 
@@ -333,6 +366,10 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 		ast_odbc_release_obj(obj);
 		pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+		if (chan)
+			ast_autoservice_stop(chan);
+		if (bogus_chan)
+			ast_channel_free(chan);
 		return res1;
 	}
 
@@ -380,6 +417,10 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 						SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 						ast_odbc_release_obj(obj);
 						pbx_builtin_setvar_helper(chan, "ODBCROWS", rowcount);
+						if (chan)
+							ast_autoservice_stop(chan);
+						if (bogus_chan)
+							ast_channel_free(chan);
 						return -1;
 					}
 					resultset = tmp;
@@ -456,6 +497,10 @@ end_acf_read:
 			SQLCloseCursor(stmt);
 			SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 			ast_odbc_release_obj(obj);
+			if (chan)
+				ast_autoservice_stop(chan);
+			if (bogus_chan)
+				ast_channel_free(chan);
 			return -1;
 		}
 		odbc_store->data = resultset;
@@ -464,6 +509,10 @@ end_acf_read:
 	SQLCloseCursor(stmt);
 	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 	ast_odbc_release_obj(obj);
+	if (chan)
+		ast_autoservice_stop(chan);
+	if (bogus_chan)
+		ast_channel_free(chan);
 	return 0;
 }
 
