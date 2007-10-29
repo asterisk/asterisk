@@ -200,7 +200,11 @@ ifeq ($(OSARCH),linux-gnu)
   endif
 endif
 
-ASTCFLAGS+=-pipe -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
+ifeq ($(findstring -save-temps,$(ASTCFLAGS)),)
+ASTCFLAGS+=-pipe
+endif
+
+ASTCFLAGS+=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG)
 
 ASTCFLAGS+=-include $(ASTTOPDIR)/include/asterisk/autoconfig.h
 
