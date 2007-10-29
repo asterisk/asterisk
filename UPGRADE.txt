@@ -79,6 +79,11 @@ Applications:
   these functions in any location where you desire to ensure that only one
   channel is executing that path at any one time.
 
+Dialplan Functions:
+
+* QUEUE_MEMBER_COUNT() has been deprecated in favor of the QUEUE_MEMBER() function. For
+  more information, issue a "show function QUEUE_MEMBER" from the CLI.
+
 CDR:
 
 * The cdr_sqlite module has been marked as deprecated in favor of

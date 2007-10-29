@@ -4033,6 +4033,67 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 	struct call_queue *q, tmpq;
 	struct member *m;
 	struct ao2_iterator mem_iter;
+	char *queuename, *option;
+
+	buf[0] = '\0';
+	
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
+		return -1;
+	}
+
+	queuename = data;
+	if ((option = strchr(data, ',')))
+		*option++ = '\0';
+	else
+		option = "logged";
+
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
+	
+	if ((q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
+		ao2_lock(q);
+		if(!strcasecmp(option, "logged")) {
+			mem_iter = ao2_iterator_init(q->members, 0);
+			while ((m = ao2_iterator_next(&mem_iter))) {
+				/* Count the agents who are logged in and presently answering calls */
+				if ((m->status != AST_DEVICE_UNAVAILABLE) && (m->status != AST_DEVICE_INVALID)) {
+					count++;
+				}
+				ao2_ref(m, -1);
+			}
+		} else if(!strcasecmp(option, "free")) {
+			mem_iter = ao2_iterator_init(q->members, 0);
+			while ((m = ao2_iterator_next(&mem_iter))) {
+				/* Count the agents who are logged in and presently answering calls */
+				if ((m->status == AST_DEVICE_NOT_INUSE) && (!m->paused)) {
+					count++;
+				}
+				ao2_ref(m, -1);
+			}
+		} else /* must be "count" */
+			count = q->membercount;
+		ao2_unlock(q);
+		queue_unref(q);
+	} else
+		ast_log(LOG_WARNING, "queue %s was not found\n", data);
+
+	snprintf(buf, len, "%d", count);
+
+	return 0;
+}
+
+static int queue_function_qac_dep(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	int count = 0;
+	struct call_queue *q, tmpq;
+	struct member *m;
+	struct ao2_iterator mem_iter;
+	static int depflag = 1;
+	if(depflag)
+	{
+		depflag = 0;
+		ast_log(LOG_NOTICE, "The function QUEUE_MEMBER_COUNT has been deprecated in favor of the QUEUE_MEMBER function and will not be in further releases.\n");
+	}
 
 	buf[0] = '\0';
 	
@@ -4062,6 +4123,7 @@ static int queue_function_qac(struct ast_channel *chan, const char *cmd, char *d
 
 	return 0;
 }
+
 
 static int queue_function_queuewaitingcount(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
 {
@@ -4156,12 +4218,26 @@ static struct ast_custom_function queuevar_function = {
 };
 
 static struct ast_custom_function queuemembercount_function = {
+	.name = "QUEUE_MEMBER",
+	.synopsis = "Count number of members answering a queue",
+	.syntax = "QUEUE_MEMBER(<queuename>, <option>)",
+	.desc =
+"Returns the number of members currently associated with the specified queue.\n"
+"One of three options may be passed to determine the count returned:\n"
+	"\"logged\" - Returns the number of logged-in members for the specified queue\n"
+	"\"free\" - Returns the number of logged-in members for the specified queue available to take a call\n"
+	"\"count\" - Returns the total number of members for the specified queue\n",
+	.read = queue_function_qac,
+};
+
+static struct ast_custom_function queuemembercount_dep = {
 	.name = "QUEUE_MEMBER_COUNT",
 	.synopsis = "Count number of members answering a queue",
 	.syntax = "QUEUE_MEMBER_COUNT(<queuename>)",
 	.desc =
-"Returns the number of members currently associated with the specified queue.\n",
-	.read = queue_function_qac,
+"Returns the number of members currently associated with the specified queue.\n\n"
+"This function has been deprecated in favor of the QUEUE_MEMBER function\n",
+	.read = queue_function_qac_dep,
 };
 
 static struct ast_custom_function queuewaitingcount_function = {
@@ -5132,6 +5208,7 @@ static int unload_module(void)
 	res |= ast_unregister_application(app);
 	res |= ast_custom_function_unregister(&queuevar_function);
 	res |= ast_custom_function_unregister(&queuemembercount_function);
+	res |= ast_custom_function_unregister(&queuemembercount_dep);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
 
@@ -5190,6 +5267,7 @@ static int load_module(void)
 	res |= ast_manager_register("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom, "Adds custom entry in queue_log");
 	res |= ast_custom_function_register(&queuevar_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
+	res |= ast_custom_function_register(&queuemembercount_dep);
 	res |= ast_custom_function_register(&queuememberlist_function);
 	res |= ast_custom_function_register(&queuewaitingcount_function);
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
