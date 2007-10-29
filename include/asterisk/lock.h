@@ -167,17 +167,17 @@ static void __attribute__((constructor)) init_empty_mutex(void)
 	memset(&empty_mutex, 0, sizeof(empty_mutex));
 }
 
-static inline void reentrancy_lock_cs(ast_mutex_t *p_ast_mutex)
+static inline void ast_reentrancy_lock(ast_mutex_t *p_ast_mutex)
 {
 	pthread_mutex_lock(&p_ast_mutex->reentr_mutex);
 }
 
-static inline void reentrancy_unlock_cs(ast_mutex_t *p_ast_mutex)
+static inline void ast_reentrancy_unlock(ast_mutex_t *p_ast_mutex)
 {
 	pthread_mutex_unlock(&p_ast_mutex->reentr_mutex);
 }
 
-static inline void init_reentrancy_cs(ast_mutex_t *p_ast_mutex)
+static inline void ast_reentrancy_init(ast_mutex_t *p_ast_mutex)
 {
 	int i;
 	static pthread_mutexattr_t reentr_attr;
@@ -225,7 +225,7 @@ static inline int __ast_pthread_mutex_init_attr(int track, const char *filename,
 	}
 #endif
 
-	init_reentrancy_cs(t);
+	ast_reentrancy_init(t);
 	t->track = track;
 
 	return pthread_mutex_init(&t->mutex, attr);
@@ -272,10 +272,10 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	case EBUSY:
 		__ast_mutex_logger("%s line %d (%s): Error: attempt to destroy locked mutex '%s'.\n",
 				   filename, lineno, func, mutex_name);
-		reentrancy_lock_cs(t);
+		ast_reentrancy_lock(t);
 		__ast_mutex_logger("%s line %d (%s): Error: '%s' was locked here.\n",
 			    t->file[t->reentrancy-1], t->lineno[t->reentrancy-1], t->func[t->reentrancy-1], mutex_name);
-		reentrancy_unlock_cs(t);
+		ast_reentrancy_unlock(t);
 		break;
 	}
 
@@ -286,13 +286,13 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	else
 		t->mutex = PTHREAD_MUTEX_INIT_VALUE;
 #endif
-	reentrancy_lock_cs(t);
+	ast_reentrancy_lock(t);
 	t->file[0] = filename;
 	t->lineno[0] = lineno;
 	t->func[0] = func;
 	t->reentrancy = 0;
 	t->thread[0] = 0;
-	reentrancy_unlock_cs(t);
+	ast_reentrancy_unlock(t);
 	delete_reentrancy_cs(t);
 
 	return res;
@@ -335,11 +335,11 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 				if ((current - seconds) && (!((current - seconds) % 5))) {
 					__ast_mutex_logger("%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
 							   filename, lineno, func, (int)(current - seconds), mutex_name);
-					reentrancy_lock_cs(t);
+					ast_reentrancy_lock(t);
 					__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
 							   t->file[t->reentrancy-1], t->lineno[t->reentrancy-1],
 							   t->func[t->reentrancy-1], mutex_name);
-					reentrancy_unlock_cs(t);
+					ast_reentrancy_unlock(t);
 				}
 				usleep(200);
 			}
@@ -356,7 +356,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 #endif /* DETECT_DEADLOCKS */
 
 	if (!res) {
-		reentrancy_lock_cs(t);
+		ast_reentrancy_lock(t);
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -367,7 +367,7 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
 							   filename, lineno, func, mutex_name);
 		}
-		reentrancy_unlock_cs(t);
+		ast_reentrancy_unlock(t);
 		if (t->track)
 			ast_mark_lock_acquired();
 	} else {
@@ -401,7 +401,7 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 		ast_store_lock_info(AST_MUTEX, filename, lineno, func, mutex_name, &t->mutex);
 
 	if (!(res = pthread_mutex_trylock(&t->mutex))) {
-		reentrancy_lock_cs(t);
+		ast_reentrancy_lock(t);
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -412,7 +412,7 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
 					   filename, lineno, func, mutex_name);
 		}
-		reentrancy_unlock_cs(t);
+		ast_reentrancy_unlock(t);
 		if (t->track)
 			ast_mark_lock_acquired();
 	} else if (t->track) {
@@ -437,7 +437,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	}
 #endif
 
-	reentrancy_lock_cs(t);
+	ast_reentrancy_lock(t);
 	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
@@ -458,7 +458,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 		t->func[t->reentrancy] = NULL;
 		t->thread[t->reentrancy] = 0;
 	}
-	reentrancy_unlock_cs(t);
+	ast_reentrancy_unlock(t);
 
 	if (t->track)
 		ast_remove_lock_info(&t->mutex);
@@ -511,7 +511,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 	}
 #endif
 
-	reentrancy_lock_cs(t);
+	ast_reentrancy_lock(t);
 	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
@@ -532,7 +532,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 		t->func[t->reentrancy] = NULL;
 		t->thread[t->reentrancy] = 0;
 	}
-	reentrancy_unlock_cs(t);
+	ast_reentrancy_unlock(t);
 
 	if (t->track)
 		ast_remove_lock_info(&t->mutex);
@@ -542,7 +542,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	} else {
-		reentrancy_lock_cs(t);
+		ast_reentrancy_lock(t);
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -553,7 +553,7 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
 							   filename, lineno, func, mutex_name);
 		}
-		reentrancy_unlock_cs(t);
+		ast_reentrancy_unlock(t);
 
 		if (t->track)
 			ast_store_lock_info(AST_MUTEX, filename, lineno, func, mutex_name, &t->mutex);
@@ -577,7 +577,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 	}
 #endif
 
-	reentrancy_lock_cs(t);
+	ast_reentrancy_lock(t);
 	if (t->reentrancy && (t->thread[t->reentrancy-1] != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
@@ -598,7 +598,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 		t->func[t->reentrancy] = NULL;
 		t->thread[t->reentrancy] = 0;
 	}
-	reentrancy_unlock_cs(t);
+	ast_reentrancy_unlock(t);
 
 	if (t->track)
 		ast_remove_lock_info(&t->mutex);
@@ -608,7 +608,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 				   filename, lineno, func, strerror(res));
 		DO_THREAD_CRASH;
 	} else {
-		reentrancy_lock_cs(t);
+		ast_reentrancy_lock(t);
 		if (t->reentrancy < AST_MAX_REENTRANCY) {
 			t->file[t->reentrancy] = filename;
 			t->lineno[t->reentrancy] = lineno;
@@ -619,7 +619,7 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 			__ast_mutex_logger("%s line %d (%s): '%s' really deep reentrancy!\n",
 							   filename, lineno, func, mutex_name);
 		}
-		reentrancy_unlock_cs(t);
+		ast_reentrancy_unlock(t);
 
 		if (t->track)
 			ast_store_lock_info(AST_MUTEX, filename, lineno, func, mutex_name, &t->mutex);
