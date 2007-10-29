@@ -74,4 +74,4 @@ $(LIB): $(OBJ)
 	$(CMD_PREFIX) $(RANLIB) $@
 
 clean:
-	rm -f *.o $(LIB) .*.d
+	rm -f *.o $(LIB) .*.d *.s *.i

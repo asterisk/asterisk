@@ -70,7 +70,7 @@ modules.link:
 	@for file in $(patsubst %,$(SUBDIR)/%,$(filter-out %.o,$^)); do echo "INPUT (../$${file})" >> $@; done
 
 clean::
-	rm -f *.so *.o *.oo
+	rm -f *.so *.o *.oo *.s *.i
 	rm -f .*.o.d .*.oo.d
 	rm -f modules.link
 

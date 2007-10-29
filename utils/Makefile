@@ -55,7 +55,7 @@ uninstall:
 	for x in $(ALL_UTILS); do rm -f $$x $(DESTDIR)$(ASTSBINDIR)/$$x; done
 
 clean:
-	rm -f *.o $(ALL_UTILS) check_expr
+	rm -f *.o $(ALL_UTILS) check_expr *.s *.i
 	rm -f .*.o.d .*.oo.d
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c
 	rm -f aelparse.c aelbison.c
