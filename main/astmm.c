@@ -84,7 +84,6 @@ static struct ast_region {
 /*! Tracking this mutex will cause infinite recursion, as the mutex tracking
  *  code allocates memory */
 AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
-AST_MUTEX_DEFINE_STATIC(showmemorylock);
 
 #define astmm_log(...)                               \
 	do {                                         \
@@ -333,7 +332,7 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 	if (a->argc > 3)
 		fn = a->argv[3];
 
-	ast_mutex_lock(&showmemorylock);
+	ast_mutex_lock(&reglock);
 	for (x = 0; x < SOME_PRIME; x++) {
 		for (reg = regions[x]; reg; reg = reg->next) {
 			if (!fn || !strcasecmp(fn, reg->file) || !strcasecmp(fn, "anomolies")) {
@@ -359,7 +358,7 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 			}
 		}
 	}
-	ast_mutex_unlock(&showmemorylock);
+	ast_mutex_unlock(&reglock);
 	
 	if (cache_len)
 		ast_cli(a->fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
