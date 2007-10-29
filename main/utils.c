@@ -942,6 +942,8 @@ char *ast_unescape_semicolon(char *s)
 		if ((e > work) && (*(e-1) == '\\')) {
 			memmove(e - 1, e, strlen(e) + 1);
 			work = e;
+		} else {
+			work = e + 1;
 		}
 	}
 
