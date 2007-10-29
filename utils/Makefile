@@ -96,50 +96,44 @@ ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
-check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o clicompat.o ../main/threadstorage.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o clicompat.o threadstorage.o
 
 aelbison.c: ../res/ael/ael.tab.c
 	@cp $< $@
-aelbison.o: aelbison.c ../res/ael/ael.tab.h ../include/asterisk/ael_structs.h
+
 aelbison.o: ASTCFLAGS+=-I../res/ael  -DYYENABLE_NLS=0
 
 pbx_ael.c: ../pbx/pbx_ael.c
 	@cp $< $@
-pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
 
-ael_main.o: ael_main.c ../include/asterisk/ael_structs.h
+pbx_ael.o: ASTCFLAGS+=-DSTANDALONE_AEL
 
 aelparse.c: ../res/ael/ael_lex.c
 	@cp $< $@
-aelparse.o: aelparse.c ../include/asterisk/ael_structs.h ../res/ael/ael.tab.h
+
 aelparse.o: ASTCFLAGS+=-I../res -DSTANDALONE_AEL
 
 aelparse: aelparse.o aelbison.o pbx_ael.o ael_main.o ast_expr2f.o ast_expr2.o strcompat.o pval.o extconf.o
 
-astobj2.c : ../main/astobj2.c  ../include/asterisk/astobj2.h
-	cp ../main/astobj2.c .
+astobj2.c: ../main/astobj2.c
+	@cp $< $@
 
-utils.c : ../main/utils.c
-	cp ../main/utils.c .
+utils.c: ../main/utils.c
+	@cp $< $@
 
-sha1.c : ../main/sha1.c
-	cp ../main/sha1.c .
+sha1.c: ../main/sha1.c
+	@cp $< $@
 
-sha1.o : sha1.c
-utils.o : utils.c
+threadstorage.c: ../main/threadstorage.c
+	@cp $< $@
 
-astobj2.o : astobj2.c
+hashtest2.o: ASTCFLAGS+=-O0
 
-hashtest2.o : hashtest2.c
-	$(CC) -g -O0 -c hashtest2.c $(PTHREAD_CFLAGS) -I/usr/include -I../include
-
-hashtest2 : hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o ../main/threadstorage.o clicompat.o
-	$(CC) -g -O0 -o hashtest2 hashtest2.o astobj2.o utils.o md5.o sha1.o strcompat.o ../main/threadstorage.o clicompat.o $(PTHREAD_CFLAGS) $(PTHREAD_LIBS) $(LIBS)
+hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
 
 extconf.o : extconf.c
 
 conf2ael: conf2ael.o ast_expr2f.o ast_expr2.o aelbison.o aelparse.o pbx_ael.o pval.o extconf.o strcompat.o
-
 
 testexpr2s: ../main/ast_expr2f.c ../main/ast_expr2.c ../main/ast_expr2.h
 	$(CC) -g -c -I../include -DSTANDALONE_AEL ../main/ast_expr2f.c -o ast_expr2f.o

@@ -59,6 +59,7 @@ int testno = 2;
 
 int64_t ast_mark(int prof_id, int x)
 {
+	return 0;
 }
 
 /* my OBJECT */
@@ -71,7 +72,7 @@ struct ht_element
 
 static int hash_string(const void *obj, const int flags)
 {
-	unsigned char *str = ((struct ht_element*)obj)->key;
+	char *str = ((struct ht_element*)obj)->key;
 	int total;
 
 	for (total=0; *str; str++)
@@ -97,7 +98,7 @@ static int hashtab_compare_strings(void *a, void *b, int flags)
 
 /* random numbers */
 
-my_rand(int incl_low, int incl_high, unsigned int *seedp)
+static int my_rand(int incl_low, int incl_high, unsigned int *seedp)
 {
 	if (incl_high == 0)
 		return 0;
@@ -121,7 +122,7 @@ int els_traversals = 0;
 
 /* all the operations to perform on the hashtab */
 
-void ht_destroy(void *obj)
+static void ht_destroy(void *obj)
 {
 	const struct ht_element *o = obj;
 	if (o->key)
@@ -219,13 +220,13 @@ static void *hashtest(void *data)
 	int my_els_found = 0;
 	int my_els_traversals = 0;
 	int my_testno = testno++;
+	int its;
 	
 	/* data will be a random number == use as a seed for random numbers */
 	unsigned long seed = (unsigned long)data;
 	printf("hashtest thread created... test beginning\n");
 	
 	/* main test routine-- a global hashtab exists, pound it like crazy  */
-	int its;
 	for(its=0;its<100000;its++)
 	{
 		void *seed2 = &seed;
@@ -269,7 +270,7 @@ static void *hashtest(void *data)
 	pthread_exit(0);
 }
 
-void run_hashtest(int numthr)
+static void run_hashtest(int numthr)
 {
 	pthread_t thr[numthr];
 	void *thrres[numthr];
@@ -321,13 +322,9 @@ int main(int argc,char **argv)
 }
 
 
-struct ast_app *pbx_findapp(const char *app)
+int ast_add_profile(const char *x, uint64_t scale)
 {
-	return (struct ast_app*)1; /* so as not to trigger an error */
-}
-
-int  ast_add_profile(const char *x, uint64_t scale)
-{
+	return 0;
 }
 
 int ast_loader_register(int (*updater)(void))
@@ -355,14 +352,6 @@ void ast_register_file_version(const char *file, const char *version)
 void ast_unregister_file_version(const char *file)
 {
 
-}
-
-void ast_cli_unregister_multiple(void)
-{
-}
-
-void ast_context_destroy(void)
-{
 }
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
