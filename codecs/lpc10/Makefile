@@ -75,3 +75,4 @@ $(LIB): $(OBJ)
 
 clean:
 	rm -f *.o $(LIB) .*.d
+	rm -f *.s *.i

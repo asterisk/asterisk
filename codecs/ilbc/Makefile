@@ -18,3 +18,4 @@ $(LIB): $(OBJS)
 
 clean:
 	rm -f $(LIB) *.o .*.d
+	rm -f *.s *.i

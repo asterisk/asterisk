@@ -47,6 +47,7 @@ clean-depend:
 
 clean:
 	rm -f $(LIBDB) $(LIBDBSO) $(OBJS) $(SHOBJS)
+	rm -f *.s *.i
 
 ASTCFLAGS:=-Wall -D__DBINTERFACE_PRIVATE -I. -I.. -Iinclude -Ihash -Ibtree -Irecno $(ASTCFLAGS)
 
