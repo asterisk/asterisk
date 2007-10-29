@@ -1803,7 +1803,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			x = 1;
 			ast_channel_setoption(chan, AST_OPTION_TONE_VERIFY, &x, sizeof(char), 0);
 		}	
-		if (!(dsp = ast_dsp_new())) {
+		if (!(confflags & CONFFLAG_MONITOR) && !(dsp = ast_dsp_new())) {
 			ast_log(LOG_WARNING, "Unable to allocate DSP!\n");
 			res = -1;
 		}
@@ -2060,7 +2060,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					if (user->talk.actual)
 						ast_frame_adjust_volume(f, user->talk.actual);
 
-					{
+					if (!(confflags & CONFFLAG_MONITOR)) {
 						int totalsilence;
 
 						if (user->talking == -1)
