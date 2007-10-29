@@ -452,13 +452,17 @@ static char *bearer2str(int cap) {
 static void print_facility(struct FacParm *fac, struct misdn_bchannel *bc)
 {
 	switch (fac->Function) {
+#ifdef HAVE_MISDN_FAC_RESULT
 		case Fac_RESULT:
 			chan_misdn_log(0, bc->port," --> Received RESULT Operation\n");
 			break;
+#endif
+#ifdef HAVE_MISDN_FAC_ERROR
 		case Fac_ERROR:
 			chan_misdn_log(0, bc->port," --> Received Error Operation\n");
 			chan_misdn_log(0, bc->port," --> Value:%d Error:%s\n",fac->u.ERROR.errorValue, fac->u.ERROR.error);
 			break;
+#endif
 		case Fac_CD:
 			chan_misdn_log(1,bc->port," --> calldeflect to: %s, screened: %s\n", fac->u.CDeflection.DeflectedToNumber,
 					fac->u.CDeflection.PresentationAllowed ? "yes" : "no");
@@ -4908,8 +4912,10 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		print_facility(&(bc->fac_in), bc);
 		
 		switch (bc->fac_in.Function) {
+#ifdef HAVE_MISDN_FAC_RESULT
 		case Fac_RESULT:
 		break;
+#endif
 		case Fac_CD:
 			if (ch) {
 				struct ast_channel *bridged = ast_bridged_channel(ch->ast);
@@ -4946,7 +4952,9 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 			break;
 		case Fac_None:
+#ifdef HAVE_MISDN_FAC_ERROR
 		case Fac_ERROR:
+#endif
 		break;
 		default:
 			chan_misdn_log(0, bc->port," --> not yet handled: facility type:%p\n", bc->fac_in.Function);

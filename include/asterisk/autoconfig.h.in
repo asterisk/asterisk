@@ -433,6 +433,18 @@
 /* Define this to indicate the ${MISDN_DESCRIP} library */
 #undef HAVE_MISDN
 
+/* Define if your system has the MISDN_FAC_ERROR headers. */
+#undef HAVE_MISDN_FAC_ERROR
+
+/* Define MISDN_FAC_ERROR headers version */
+#undef HAVE_MISDN_FAC_ERROR_VERSION
+
+/* Define if your system has the MISDN_FAC_RESULT headers. */
+#undef HAVE_MISDN_FAC_RESULT
+
+/* Define MISDN_FAC_RESULT headers version */
+#undef HAVE_MISDN_FAC_RESULT_VERSION
+
 /* Define to indicate the ${MISDN_DESCRIP} library version */
 #undef HAVE_MISDN_VERSION
 
