@@ -117,7 +117,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int ioflags;
 	int waitres;
 	struct ast_silence_generator *silgen = NULL;
-	struct ast_flags flags;
+	struct ast_flags flags = { 0, };
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filename);
 		AST_APP_ARG(silence);
