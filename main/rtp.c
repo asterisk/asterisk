@@ -1111,7 +1111,8 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		length &= 0xffff;
     
 		if ((i + length) > packetwords) {
-			ast_log(LOG_WARNING, "RTCP Read too short\n");
+			if (option_debug || rtpdebug)
+				ast_log(LOG_DEBUG, "RTCP Read too short\n");
 			return &ast_null_frame;
 		}
 		
