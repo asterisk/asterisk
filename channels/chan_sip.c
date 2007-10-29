@@ -4111,6 +4111,7 @@ static int sip_hangup(struct ast_channel *ast)
 					   INVITE, but do set an autodestruct just in case we never get it. */
 					needdestroy = 0;
 					sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+					p->invitestate = INV_CANCELLED;
 				}
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
@@ -4123,6 +4124,7 @@ static int sip_hangup(struct ast_channel *ast)
 					transmit_response_reliable(p, res, &p->initreq);
 				else 
 					transmit_response_reliable(p, "603 Declined", &p->initreq);
+				p->invitestate = INV_TERMINATED;
 			}
 		} else {	/* Call is in UP state, send BYE */
 			if (!p->pendinginvite) {
@@ -15560,7 +15562,16 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req)
 		
 	check_via(p, req);
 	sip_alreadygone(p);
-	p->invitestate = INV_CANCELLED;
+
+	/* At this point, we could have cancelled the invite at the same time
+	   as the other side sends a CANCEL. Our final reply with error code
+	   might not have been received by the other side before the CANCEL
+	   was sent, so let's just give up retransmissions and waiting for
+	   ACK on our error code. The call is hanging up any way. */
+	if (p->invitestate == INV_TERMINATED)
+		__sip_pretend_ack(p);
+	else
+		p->invitestate = INV_CANCELLED;
 	
 	if (p->owner && p->owner->_state == AST_STATE_UP) {
 		/* This call is up, cancel is ignored, we need a bye */
