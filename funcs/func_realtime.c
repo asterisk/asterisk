@@ -103,7 +103,7 @@ static int function_realtime_read(struct ast_channel *chan, char *cmd, char *dat
 
 static int function_realtime_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
 {
-        struct ast_module_user *u;
+        struct ast_module_user *u = NULL;
 	int res = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(family);

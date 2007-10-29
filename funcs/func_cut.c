@@ -251,7 +251,7 @@ static int acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *
 static int acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	int ret = -1;
-	struct ast_module_user *u;
+	struct ast_module_user *u = NULL;
 
 	if (chan) {
 		ast_autoservice_start(chan);
