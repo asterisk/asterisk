@@ -749,6 +749,9 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 			lock_info->thread_name);
 		pthread_mutex_lock(&lock_info->lock);
 		for (i = 0; str && i < lock_info->num_locks; i++) {
+			int j;
+			ast_mutex_t *lock;
+
 			ast_str_append(&str, 0, "=== ---> %sLock #%d (%s): %s %d %s %s %p (%d)\n", 
 				lock_info->locks[i].pending > 0 ? "Waiting for " : 
 					lock_info->locks[i].pending < 0 ? "Tried and failed to get " : "", i,
@@ -758,6 +761,18 @@ static char *handle_show_locks(struct ast_cli_entry *e, int cmd, struct ast_cli_
 				lock_info->locks[i].func, lock_info->locks[i].lock_name,
 				lock_info->locks[i].lock_addr, 
 				lock_info->locks[i].times_locked);
+
+			if (!lock_info->locks[i].pending)
+				continue;
+
+			lock = lock_info->locks[i].lock_addr;
+
+			ast_reentrancy_lock(lock);
+			for (j = 0; str && j < lock->reentrancy; j++) {
+				ast_str_append(&str, 0, "=== --- ---> Locked Here: %s line %d (%s)\n",
+					lock->file[j], lock->lineno[j], lock->func[j]);
+			}
+			ast_reentrancy_unlock(lock);	
 		}
 		pthread_mutex_unlock(&lock_info->lock);
 		if (!str)
