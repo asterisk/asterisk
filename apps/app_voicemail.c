@@ -4717,11 +4717,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu, int box)
 		return -1;
 	}
 
-	/* Check Quota (here for now to test) */
-	mail_parameters(NULL, SET_QUOTA, (void *) mm_parsequota);
-	imap_mailbox_name(dbox, sizeof(dbox), vms, box, 1);
-	imap_getquotaroot(vms->mailstream, dbox);
-
 	pgm = mail_newsearchpgm();
 
 	/* Check IMAP folder for Asterisk messages only... */
