@@ -82,7 +82,6 @@ static struct ast_region {
 	(((unsigned long)(a)) % SOME_PRIME)
 	
 AST_MUTEX_DEFINE_STATIC_NOTRACKING(reglock);
-AST_MUTEX_DEFINE_STATIC(showmemorylock);
 
 #define astmm_log(...)                               \
 	do {                                         \
@@ -318,7 +317,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 	if (argc > 3)
 		fn = argv[3];
 
-	ast_mutex_lock(&showmemorylock);
+	ast_mutex_lock(&reglock);
 	for (x = 0; x < SOME_PRIME; x++) {
 		for (reg = regions[x]; reg; reg = reg->next) {
 			if (!fn || !strcasecmp(fn, reg->file) || !strcasecmp(fn, "anomolies")) {
@@ -344,7 +343,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 			}
 		}
 	}
-	ast_mutex_unlock(&showmemorylock);
+	ast_mutex_unlock(&reglock);
 	
 	if (cache_len)
 		ast_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
