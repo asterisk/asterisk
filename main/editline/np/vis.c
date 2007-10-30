@@ -54,7 +54,7 @@ __weak_alias(svis,_svis)
 __weak_alias(vis,_vis)
 #endif
 
-#if !HAVE_VIS_H
+#ifndef HAVE_VIS_H
 #include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
@@ -69,7 +69,6 @@ __weak_alias(vis,_vis)
 
 #ifdef SOLARIS
 #include <alloca.h>
-typedef unsigned int	u_int32_t;
 #endif
 
 #define isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
