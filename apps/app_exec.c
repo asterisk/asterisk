@@ -166,6 +166,11 @@ static int execif_exec(struct ast_channel *chan, void *data)
 	char *parse = ast_strdupa(data);
 
 	AST_NONSTANDARD_APP_ARGS(expr, parse, '?');
+	if (ast_strlen_zero(expr.remainder)) {
+		ast_log(LOG_ERROR, "Usage: ExecIf(<cond>?<appiftrue>(<args>):<appiffalse>(<args))\n");
+		return -1;
+	}
+
 	AST_NONSTANDARD_APP_ARGS(apps, expr.remainder, ':');
 
 	if (apps.t && (truedata = strchr(apps.t, '('))) {
