@@ -78,6 +78,7 @@ static char *descrip =
 struct number {
 	char number[512];	/*!< Phone Number(s) and/or Extension(s) */
 	long timeout;		/*!< Dial Timeout, if used. */
+	char language[MAX_LANGUAGE]; /*!< The language to be used on this dial, if used. */
 	int order;		/*!< The order to dial in */
 	AST_LIST_ENTRY(number) entry; /*!< Next Number record */
 };
@@ -255,7 +256,7 @@ static void profile_set_param(struct call_followme *f, const char *param, const 
 }
 
 /*! \brief Add a new number */
-static struct number *create_followme_number(char *number, int timeout, int numorder)
+static struct number *create_followme_number(char *number, char *language, int timeout, int numorder)
 {
 	struct number *cur;
 	char *tmp;
@@ -268,6 +269,7 @@ static struct number *create_followme_number(char *number, int timeout, int numo
 	if ((tmp = strchr(number, ','))) 
 		*tmp = '\0';
 	ast_copy_string(cur->number, number, sizeof(cur->number));
+	ast_copy_string(cur->language, language, sizeof(cur->language));
 	cur->order = numorder;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Created a number, %s, order of , %d, with a timeout of %ld.\n", cur->number, cur->order, cur->timeout);
@@ -916,6 +918,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	struct ast_module_user *u;
 	char *argstr;
 	char namerecloc[255];
+	char *fname = NULL;
 	int duration = 0;
 	struct ast_channel *caller;
 	struct ast_channel *outbound;
@@ -1011,10 +1014,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 			free(nm);
 		}
 		AST_LIST_TRAVERSE_SAFE_END
-	
-		if (!ast_strlen_zero(namerecloc))
-			unlink(namerecloc);	
-
 		if (targs.status != 100) {
 			ast_moh_stop(chan);
 			if (ast_test_flag(&targs.followmeflags, FOLLOWMEFLAG_UNREACHABLEMSG)) 
@@ -1053,6 +1052,12 @@ static int app_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	outrun:
+
+	if (!ast_strlen_zero(namerecloc)){
+		fname = alloca(strlen(namerecloc) + 5);
+		sprintf(fname, "%s.sln", namerecloc);
+		unlink(fname);
+	}
 	
 	ast_module_user_remove(u);
 
