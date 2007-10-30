@@ -1301,7 +1301,7 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, void *vtype)
 		if (!ds)
 			return -1;
 		exception = ast_calloc(1, sizeof(struct pbx_exception));
-		if (!ds->data) {
+		if (!exception) {
 			ast_channel_datastore_free(ds);
 			return -1;
 		}
