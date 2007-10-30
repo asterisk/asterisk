@@ -404,7 +404,7 @@ static int reload_followme(void)
 							idx++;
 						numorder = idx;
 					}
-					cur = create_followme_number(numberstr, timeout, numorder);
+					cur = create_followme_number(numberstr, "", timeout, numorder);
 					AST_LIST_INSERT_TAIL(&f->numbers, cur, entry);
 				} else {
 					profile_set_param(f, var->name, var->value, var->lineno, 1);
@@ -979,7 +979,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 				   (and locked) while we're trying to do a follow-me */
 		AST_LIST_HEAD_INIT_NOLOCK(&targs.cnumbers);
 		AST_LIST_TRAVERSE(&f->numbers, nm, entry) {
-			newnm = create_followme_number(nm->number, nm->timeout, nm->order);
+			newnm = create_followme_number(nm->number, "", nm->timeout, nm->order);
 			AST_LIST_INSERT_TAIL(&targs.cnumbers, newnm, entry);
 		}
 		ast_mutex_unlock(&f->lock);
