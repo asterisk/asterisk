@@ -2136,7 +2136,7 @@ static int iax2_prune_realtime(int fd, int argc, char *argv[])
 	} else if ((peer = find_peer(argv[3], 0))) {
 		if(ast_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			ast_set_flag(peer, IAX_RTAUTOCLEAR);
-			expire_registry((const void *)peer->name);
+			expire_registry(peer_ref(peer));
 			ast_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
 		} else {
 			ast_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
@@ -2730,9 +2730,15 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
 		if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
-			if (peer->expire > -1)
-				ast_sched_del(sched, peer->expire);
-			peer->expire = iax2_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void*)peer->name);
+			if (peer->expire > -1) {
+				if (!ast_sched_del(sched, peer->expire)) {
+					peer->expire = -1;
+					peer_unref(peer);
+				}
+			}
+			peer->expire = iax2_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, peer_ref(peer));
+			if (peer->expire == -1)
+				peer_unref(peer);
 		}
 		ao2_link(peers, peer_ref(peer));
 		if (ast_test_flag(peer, IAX_DYNAMIC))
@@ -5762,15 +5768,29 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 }
 static void prune_peers(void);
 
+static void unlink_peer(struct iax2_peer *peer)
+{
+	if (peer->expire > -1) {
+		if (!ast_sched_del(sched, peer->expire)) {
+			peer->expire = -1;
+			peer_unref(peer);
+		}
+	}
+
+	if (peer->pokeexpire > -1) {
+		if (!ast_sched_del(sched, peer->pokeexpire)) {
+			peer->pokeexpire = -1;
+			peer_unref(peer);
+		}
+	}
+
+	ao2_unlink(peers, peer);
+}
+
 static void __expire_registry(const void *data)
 {
-	const char *name = data;
-	struct iax2_peer *peer = NULL;
-	struct iax2_peer tmp_peer = {
-		.name = name,
-	};
+	struct iax2_peer *peer = (struct iax2_peer *) data;
 
-	peer = ao2_find(peers, &tmp_peer, OBJ_POINTER);
 	if (!peer)
 		return;
 
@@ -5792,7 +5812,7 @@ static void __expire_registry(const void *data)
 		iax2_regfunk(peer->name, 0);
 
 	if (ast_test_flag(peer, IAX_RTAUTOCLEAR))
-		ao2_unlink(peers, peer);
+		unlink_peer(peer);
 
 	peer_unref(peer);
 }
@@ -5832,10 +5852,16 @@ static void reg_source_db(struct iax2_peer *p)
 					p->addr.sin_family = AF_INET;
 					p->addr.sin_addr = in;
 					p->addr.sin_port = htons(atoi(c));
-					if (p->expire > -1)
-						ast_sched_del(sched, p->expire);
+					if (p->expire > -1) {
+						if (!ast_sched_del(sched, p->expire)) {
+							p->expire = -1;
+							peer_unref(p);
+						}
+					}
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p->name);
+					p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, peer_ref(p));
+					if (p->expire == -1)
+						peer_unref(p);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -5924,8 +5950,12 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	/* Store socket fd */
 	p->sockfd = fd;
 	/* Setup the expiry */
-	if (p->expire > -1)
-		ast_sched_del(sched, p->expire);
+	if (p->expire > -1) {
+		if (!ast_sched_del(sched, p->expire)) {
+			p->expire = -1;
+			peer_unref(p);
+		}
+	}
 	/* treat an unspecified refresh interval as the minimum */
 	if (!refresh)
 		refresh = min_reg_expire;
@@ -5940,8 +5970,11 @@ static int update_registry(struct sockaddr_in *sin, int callno, char *devtype, i
 	} else {
 		p->expiry = refresh;
 	}
-	if (p->expiry && sin->sin_addr.s_addr)
-		p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (const void *)p->name);
+	if (p->expiry && sin->sin_addr.s_addr) {
+		p->expire = iax2_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, peer_ref(p));
+		if (p->expire == -1)
+			peer_unref(p);
+	}
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
 	if (sin->sin_addr.s_addr) {
@@ -6183,6 +6216,7 @@ static void __iax2_poke_peer_s(const void *data)
 {
 	struct iax2_peer *peer = (struct iax2_peer *)data;
 	iax2_poke_peer(peer, 0);
+	peer_unref(peer);
 }
 
 static int iax2_poke_peer_s(const void *data)
@@ -7595,13 +7629,19 @@ retryowner2:
 						peer->historicms = iaxs[fr->callno]->pingtime;
 
 					/* Remove scheduled iax2_poke_noanswer */
-					if (peer->pokeexpire > -1)
-						ast_sched_del(sched, peer->pokeexpire);
+					if (peer->pokeexpire > -1) {
+						if (!ast_sched_del(sched, peer->pokeexpire)) {
+							peer_unref(peer);
+							peer->pokeexpire = -1;
+						}
+					}
 					/* Schedule the next cycle */
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
-						peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
+						peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer_ref(peer));
 					else
-						peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer);
+						peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer_ref(peer));
+					if (peer->pokeexpire == -1)
+						peer_unref(peer);
 					/* and finally send the ack */
 					send_command_immediate(iaxs[fr->callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr->ts, NULL, 0,fr->iseqno);
 					/* And wrap up the qualify call */
@@ -8476,7 +8516,9 @@ static void __iax2_poke_noanswer(const void *data)
 	peer->callno = 0;
 	peer->lastms = -1;
 	/* Try again quickly */
-	peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
+	peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer_ref(peer));
+	if (peer->pokeexpire == -1)
+		peer_unref(peer);
 }
 
 static int iax2_poke_noanswer(const void *data)
@@ -8487,6 +8529,7 @@ static int iax2_poke_noanswer(const void *data)
 	if (schedule_action(__iax2_poke_noanswer, data))
 #endif		
 		__iax2_poke_noanswer(data);
+	peer_unref(peer);
 	return 0;
 }
 
@@ -8531,15 +8574,22 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	iaxs[peer->callno]->peerpoke = peer;
 	
 	/* Remove any pending pokeexpire task */
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
+	if (peer->pokeexpire > -1) {
+		if (!ast_sched_del(sched, peer->pokeexpire)) {
+			peer->pokeexpire = -1;
+			peer_unref(peer);
+		}
+	}
 
 	/* Queue up a new task to handle no reply */
 	/* If the host is already unreachable then use the unreachable interval instead */
 	if (peer->lastms < 0) {
-		peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
+		peer->pokeexpire = iax2_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer_ref(peer));
 	} else
-		peer->pokeexpire = iax2_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+		peer->pokeexpire = iax2_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer_ref(peer));
+
+	if (peer->pokeexpire == -1)
+		peer_unref(peer);
 
 	/* And send the poke */
 	send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
@@ -8894,11 +8944,6 @@ static void peer_destructor(void *obj)
 
 	ast_free_ha(peer->ha);
 
-	/* Delete it, it needs to disappear */
-	if (peer->expire > -1)
-		ast_sched_del(sched, peer->expire);
-	if (peer->pokeexpire > -1)
-		ast_sched_del(sched, peer->pokeexpire);
 	if (peer->callno > 0) {
 		ast_mutex_lock(&iaxsl[peer->callno]);
 		iax2_destroy(peer->callno);
@@ -8937,7 +8982,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, st
 			oldha = peer->ha;
 			peer->ha = NULL;
 		}
-		ao2_unlink(peers, peer);
+		unlink_peer(peer);
 	} else if ((peer = ao2_alloc(sizeof(*peer), peer_destructor))) {
 		peer->expire = -1;
 		peer->pokeexpire = -1;
@@ -9437,7 +9482,7 @@ static void prune_peers(void)
 	i = ao2_iterator_init(peers, 0);
 	while ((peer = ao2_iterator_next(&i))) {
 		if (ast_test_flag(peer, IAX_DELME))
-			ao2_unlink(peers, peer);
+			unlink_peer(peer);
 		peer_unref(peer);
 	}
 }
