@@ -448,7 +448,8 @@ static struct pbx_builtin {
 	{ "RaiseException", pbx_builtin_raise_exception,
 	"Handle an exceptional condition",
 	"  RaiseException(<reason>): This application will jump to the \"e\" extension\n"
-	"in the current context, setting the dialplan function EXCEPTION().  If the \"e\"\n"
+	"in the current context, setting the dialplan function EXCEPTION().\n"
+	"You can access the value of <reason> with ${EXCEPTION(type)}. If the \"e\"\n"
 	"extension does not exist, the call will hangup.\n"
 	},
 
