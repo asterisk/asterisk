@@ -1319,7 +1319,7 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, void *vtype)
 	ast_string_field_set(exception, context, chan->context);
 	ast_string_field_set(exception, exten, chan->exten);
 	exception->priority = chan->priority;
-	set_ext_pri(chan, "e", 1);
+	set_ext_pri(chan, "e", 0);
 	return 0;
 }
 
