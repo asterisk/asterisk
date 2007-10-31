@@ -479,10 +479,12 @@ static int load_module(void)
 	for (index = 0; index < (sizeof(alaw_silence) / sizeof(alaw_silence[0])); index++)
 		alaw_silence[index] = AST_LIN2A(0);
 
-	return ast_format_register(&pcm_f)
+	if ( ast_format_register(&pcm_f)
 		|| ast_format_register(&alaw_f)
 		|| ast_format_register(&au_f)
-		|| ast_format_register(&g722_f);
+		|| ast_format_register(&g722_f) )
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

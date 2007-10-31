@@ -255,10 +255,10 @@ static int load_module(void)
 	for (i = 0; f[i].format ; i++) {
 		if (ast_format_register(&f[i])) {	/* errors are fatal */
 			ast_log(LOG_WARNING, "Failed to register format %s.\n", f[i].name);
-			return -1;
+			return AST_MODULE_LOAD_FAILURE;
 		}
 	}
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

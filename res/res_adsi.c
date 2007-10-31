@@ -1106,7 +1106,7 @@ static int load_module(void)
 	ast_adsi_input_control = _ast_adsi_input_control;
 	ast_adsi_input_format = _ast_adsi_input_format;
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

@@ -114,7 +114,9 @@ static struct ast_imager jpeg_format = {
 
 static int load_module(void)
 {
-	return ast_image_register(&jpeg_format);
+	if (ast_image_register(&jpeg_format))
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

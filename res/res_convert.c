@@ -159,7 +159,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_convert, sizeof(cli_convert) / sizeof(struct ast_cli_entry));
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "File format conversion CLI command");

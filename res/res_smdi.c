@@ -715,7 +715,7 @@ static int load_module(void)
 		ast_log(LOG_WARNING, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	} else
-		return 0;
+		return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

@@ -1322,7 +1322,7 @@ static int load_module(void)
 		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 	}
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int reload(void)

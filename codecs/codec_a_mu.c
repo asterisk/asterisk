@@ -161,8 +161,9 @@ static int load_module(void)
 		res = ast_register_translator(&ulawtoalaw);
 	else
 		ast_unregister_translator(&alawtoulaw);
-
-	return res;
+	if (res)
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "A-law and Mulaw direct Coder/Decoder");

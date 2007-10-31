@@ -190,7 +190,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	ast_cli_register_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination from the CLI");

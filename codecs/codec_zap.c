@@ -380,14 +380,16 @@ static void unregister_translators(void)
 	AST_LIST_UNLOCK(&translators);
 }
 
-static void parse_config(int reload)
+static int parse_config(int reload)
 {
 	struct ast_variable *var;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
 
-	if (!cfg || cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return;
+	if (!cfg)
+		return -1;
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	for (var = ast_variable_browse(cfg, "plc"); var; var = var->next) {
 	       if (!strcasecmp(var->name, "genericplc")) {
@@ -396,8 +398,8 @@ static void parse_config(int reload)
 					   global_useplc ? "" : "not ");
 	       }
 	}
-
 	ast_config_destroy(cfg);
+	return 0;
 }
 
 static void build_translators(struct format_map *map, unsigned int dstfmts, unsigned int srcfmts)
@@ -456,14 +458,15 @@ static int reload(void)
 {
 	struct translator *cur;
 
-	parse_config(1);
+	if (parse_config(1))
+		return AST_MODULE_LOAD_DECLINE;
 
 	AST_LIST_LOCK(&translators);
 	AST_LIST_TRAVERSE(&translators, cur, entry)
 		cur->t.useplc = global_useplc;
 	AST_LIST_UNLOCK(&translators);
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
@@ -476,11 +479,11 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	parse_config(0);
+	if (parse_config(0))
+		return AST_MODULE_LOAD_DECLINE;
 	find_transcoders();
 	ast_cli_register_multiple(cli, sizeof(cli) / sizeof(cli[0]));
-
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Generic Zaptel Transcoder Codec Translator",

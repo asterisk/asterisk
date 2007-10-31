@@ -375,7 +375,7 @@ static struct ast_translator lintospeex = {
 	.buf_size = BUFFER_SAMPLES * 2, /* XXX maybe a lot less ? */
 };
 
-static void parse_config(int reload) 
+static int parse_config(int reload) 
 {
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 	struct ast_config *cfg = ast_config_load("codecs.conf", config_flags);
@@ -384,7 +384,9 @@ static void parse_config(int reload)
 	float res_f;
 
 	if (cfg == NULL || cfg == CONFIG_STATUS_FILEUNCHANGED)
-		return;
+		return -1;
+	if (cfg == CONFIG_STATUS_FILEUNCHANGED)
+		return 0;
 
 	for (var = ast_variable_browse(cfg, "speex"); var; var = var->next) {
 		if (!strcasecmp(var->name, "quality")) {
@@ -467,13 +469,14 @@ static void parse_config(int reload)
 		}
 	}
 	ast_config_destroy(cfg);
+	return 0;
 }
 
 static int reload(void) 
 {
-	parse_config(1);
-
-	return 0;
+	if (parse_config(1))
+		return AST_MODULE_LOAD_DECLINE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)
@@ -490,14 +493,16 @@ static int load_module(void)
 {
 	int res;
 
-	parse_config(0);
+	if (parse_config(0))
+		return AST_MODULE_LOAD_DECLINE;
 	res=ast_register_translator(&speextolin);
 	if (!res) 
 		res=ast_register_translator(&lintospeex);
 	else
 		ast_unregister_translator(&speextolin);
-
-	return res;
+	if (res)
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO(ASTERISK_GPL_KEY, AST_MODFLAG_DEFAULT, "Speex Coder/Decoder",

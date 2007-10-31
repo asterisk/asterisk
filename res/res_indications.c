@@ -410,7 +410,7 @@ static int load_module(void)
 	ast_register_application("PlayTones", handle_playtones, "Play a tone list", playtones_desc);
 	ast_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list","Stop playing a tone list");
 
-	return 0;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 /*! \brief Reload indications module */

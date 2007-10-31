@@ -170,7 +170,9 @@ static const struct ast_format gsm_f = {
 
 static int load_module(void)
 {
-	return ast_format_register(&gsm_f);
+	if (ast_format_register(&gsm_f))
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 static int unload_module(void)

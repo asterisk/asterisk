@@ -237,8 +237,9 @@ static int load_module(void)
 		res=ast_register_translator(&lintoilbc);
 	else
 		ast_unregister_translator(&ilbctolin);
-
-	return res;
+	if (res)
+		return AST_MODULE_LOAD_FAILURE;
+	return AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "iLBC Coder/Decoder");
