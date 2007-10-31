@@ -277,6 +277,7 @@ static struct aji_version *aji_find_version(char *node, char *version, ikspak *p
 		res = (struct aji_version *)malloc(sizeof(struct aji_version));
 		if(!res) {
 			ast_log(LOG_ERROR, "Out of memory!\n");
+			ast_free(list);
 			return NULL;
 		}
 		ast_copy_string(list->node, node, sizeof(list->node));
