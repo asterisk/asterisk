@@ -98,6 +98,7 @@ struct mixmonitor {
 	char *post_process;
 	char *name;
 	unsigned int flags;
+	struct ast_channel *chan;
 };
 
 enum {
@@ -165,25 +166,27 @@ static void *mixmonitor_thread(void *obj)
 		if (!(fr = ast_audiohook_read_frame(&mixmonitor->audiohook, SAMPLES_PER_FRAME, AST_AUDIOHOOK_DIRECTION_BOTH, AST_FORMAT_SLINEAR)))
 			continue;
 
-		/* Initialize the file if not already done so */
-		if (!fs && !errflag) {
-			oflags = O_CREAT | O_WRONLY;
-			oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
-
-			if ((ext = strrchr(mixmonitor->filename, '.')))
-				*(ext++) = '\0';
-			else
-				ext = "raw";
-
-			if (!(fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644))) {
-				ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
-				errflag = 1;
+		if (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) || ast_bridged_channel(mixmonitor->chan)) {
+			/* Initialize the file if not already done so */
+			if (!fs && !errflag) {
+				oflags = O_CREAT | O_WRONLY;
+				oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+				
+				if ((ext = strrchr(mixmonitor->filename, '.')))
+					*(ext++) = '\0';
+				else
+					ext = "raw";
+				
+				if (!(fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644))) {
+					ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
+					errflag = 1;
+				}
 			}
+			
+			/* Write out frame */
+			if (fs)
+				ast_writestream(fs, fr);
 		}
-
-		/* Write out frame */
-		if (fs)
-			ast_writestream(fs, fr);
 
 		/* All done! free it. */
 		ast_frame_free(fr, 0);
@@ -245,6 +248,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	/* Copy over flags and channel name */
 	mixmonitor->flags = flags;
+	mixmonitor->chan = chan;
 	mixmonitor->name = (char *) mixmonitor + sizeof(*mixmonitor);
 	strcpy(mixmonitor->name, chan->name);
 	if (!ast_strlen_zero(postprocess2)) {
