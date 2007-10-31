@@ -1334,7 +1334,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 							if (*s == '|')
 								*t = ',';
 							else {
-								if (*s == ',')
+								if (*s == ',' || *s == ';')
 									*t++ = '\\';
 								*t = *s;
 							}
