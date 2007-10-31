@@ -37,40 +37,37 @@ T.38 testing. (http://www.grandstream.com)
 Jim Dixon - Zapata Telephony and app_rpt
 	http://www.zapatatelephony.org/app_rpt.html
 
-Russell Bryant - Asterisk 1.0 maintainer and misc. enhancements
-	russelb@clemson.edu
+Russell Bryant - Asterisk release manager and countless enhancements and bug
+	fixes.
+	russell(AT)digium.com
 
-Anthony Minessale II - Countless big and small fixes, and relentless forward push
-	ChanSpy, ForkCDR, ControlPlayback, While/EndWhile, DumpChan, Dictate,
-	MacroIf, ExecIf, ExecIfTime, RetryDial, MixMonitor applications; many realtime
-	concepts and implementation pieces, including res_config_odbc; format_slin;
-	cdr_custom; several features in Dial including L(), G() and enhancements to
-	M() and D(); several CDR enhancements including CDR variables; attended
-	transfer; one touch record; native MOH; manager eventmask; command line '-t'
-	flag to allow recording/voicemail on nfs shares; #exec command and multiline
-	comments in config files; setvar in iax and sip configs.
-	anthmct@yahoo.com              http://www.asterlink.com
+Anthony Minessale II - Countless big and small fixes, and relentless forward
+	push. ChanSpy, ForkCDR, ControlPlayback, While/EndWhile, DumpChan, Dictate,
+	MacroIf, ExecIf, ExecIfTime, RetryDial, MixMonitor applications; many
+	realtime concepts and implementation pieces, including res_config_odbc;
+	format_slin; cdr_custom; several features in Dial including L(), G() and
+	enhancements to M() and D(); several CDR enhancements including CDR
+	variables; attended transfer; one touch record; native MOH; manager
+	eventmask; command line '-t' flag to allow recording/voicemail on nfs
+	shares; #exec command and multiline comments in config files; setvar in iax
+	and sip configs.
+	anthmct(AT)yahoo.com              http://www.asterlink.com
 
 James Golovich - Innumerable contributions
 	You can find him and asterisk-perl at http://asterisk.gnuinter.net
 
 Andre Bierwirth - Extension hints and status
 
-Oliver Daudey - ISDN4Linux fixes
-
-Pauline Middelink - ISDN4Linux patches and some general patches.
-	She can be found at http://www.polyware.nl/~middelink/En/
-
 Jean-Denis Girard - Various contributions from the South Pacific Islands
-	jd-girard@esoft.pf             http://www.esoft.pf
+	jd-girard(AT)esoft.pf             http://www.esoft.pf
 
 William Jordan / Vonage - MySQL enhancements to Voicemail
-	wjordan@vonage.com
+	wjordan(AT)vonage.com
 
 Jac Kersing - Various fixes
 
 Steven Critchfield - Seek and Trunc functions for playback and recording
-	critch@basesys.com
+	critch(AT)basesys.com
 
 Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
 
@@ -79,63 +76,65 @@ Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
 Ross Finlayson - Dynamic RTP payload support
 
 Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
-	format, and various fixes. Can be contacted at mahmut@oa.com.au
+	format, and various fixes. Can be contacted at mahmut(AT)oa.com.au
 
 James Dennis - Cisco SIP compatibility patches to work with SIP service
-	providers. Can be contacted at asterisk@jdennis.net
+	providers. Can be contacted at asterisk(AT)jdennis.net
 
 Tilghman Lesher - ast_localtime(); ast_say_date_with_format(); 
-	GotoIfTime, Random, SayUnixTime, HasNewVoicemail applications;
-	CUT, SORT, EVAL, CURL, FIELDQTY, STRFTIME, QUEUEAGENT* functions;
-	and other innumerable bug fixes. http://asterisk.drunkcoder.com/
+	GotoIfTime, SayUnixTime, HasNewVoicemail applications;
+	CUT, SORT, EVAL, CURL, FIELDQTY, STRFTIME, some QUEUE* functions;
+	func_odbc, cdr_adaptive_odbc, and other innumerable bug fixes.
+	tilghman(AT)digium.com            http://asterisk.drunkcoder.com/
 
 Jayson Vantuyl - Manager protocol changes, various other bugs.
-	jvantuyl@computingedge.net
+	jvantuyl(AT)computingedge.net
 
 Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
 	dialplan include verification, route lookup on OpenBSD, SNMP agent
-	support (res_snmp), various other bugs. tholo@sigmasoft.com
+	support (res_snmp), various other bugs. tholo(AT)sigmasoft.com
 
-Brian West - ODBC support and Bug Marshaling  
+Josh Roberson - chan_zap reload support, Advanced Voicemail Features, & other
+	misc. patches. - josh(AT)asteriasgi.com, http://www.asteriasgi.com
 
-Josh Roberson - chan_zap reload support, Advanced Voicemail Features, other misc. patches,
-	and Bug Marshalling. - josh@asteriasgi.com, http://www.asteriasgi.com
-
-William Waites - syslog support, SIP NAT traversal for SIP-UA. ww@styx.org
+William Waites - syslog support, SIP NAT traversal for SIP-UA. ww(AT)styx.org
 
 Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
-	rich@whiteoaklabs.com  http://whiteoaklabs.com
+	rich(AT)whiteoaklabs.com  http://whiteoaklabs.com
 
 Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
-	simon@slimey.org
+	simon(AT)slimey.org
 
-Olle E. Johansson - SIP RFC compliance, documentation and testing, testing, testing,
-	- MiniVM - the small voicemail system, many documentation updates/corrections
-	and many bug fixes.
-	oej@edvina.net, http://edvina.net
+Olle E. Johansson - SIP RFC compliance, documentation and testing, testing,
+	testing; MiniVM - the small voicemail system, many documentation
+	updates/corrections, and many bug fixes.
+	oej(AT)edvina.net, http://edvina.net
 
 Steve Kann - new jitter buffer for IAX2
-	stevek@stevek.com
+	stevek(AT)stevek.com
 
 Constantine Filin - major contributions to the Asterisk Realtime Architecture
 
-Steve Murphy - privacy support, $[ ] parser upgrade, AEL2 parser upgrade
+Steve Murphy - privacy support, $[ ] parser upgrade, AEL2 parser upgrade.
+	murf(AT)digium.com
 
 Claude Patry - bug fixes, feature enhancements, and bug marshalling
-	cpatry@gmail.com
+	cpatry(AT)gmail.com
 
-Miroslav Nachev, miro@space-comm.com COSMOS Software Enterprises, Ltd.
+Miroslav Nachev, miro(AT)space-comm.com COSMOS Software Enterprises, Ltd.
 	- for Variable for No Answer Timeout for Attended Transfer
 
 Slav Klenov & Vanheuverzwijn Joachim - development of the generic jitterbuffer
-	Securax Ltd. info@securax.be
+	Securax Ltd. info(AT)securax.be
 
 Roy Sigurd Karlsbakk - providing funding for generic jitterbuffer development
-	roy@karlsbakk.net, Briiz Telecom AS
+	roy(AT)karlsbakk.net, Briiz Telecom AS
 
-Voop AS, Nuvio Inc, Inotel S.A and Foniris Telecom A/S - funding for rewrite of SIP transfers
+Voop AS, Nuvio Inc, Inotel S.A and Foniris Telecom A/S - funding for rewrite
+	of SIP transfers
 
-Philippe Sultan - RADIUS CDR module, many fixes to res_jabber and gtalk/jingle channel drivers
+Philippe Sultan - RADIUS CDR module, many fixes to res_jabber and gtalk/jingle
+	channel drivers.
 	INRIA, http://www.inria.fr/
 
 John Martin, Aupix - Improved video support in the SIP channel
@@ -143,19 +142,26 @@ John Martin, Aupix - Improved video support in the SIP channel
 
 Steve Underwood - Provided T.38 pass through support.
 
-George Konstantoulakis - Support for Greek in voicemail added by InAccess Networks (work funded by HOL, www.hol.gr) gkon@inaccessnetworks.com
+George Konstantoulakis - Support for Greek in voicemail added by InAccess
+	Networks (work funded by HOL, www.hol.gr) gkon(AT)inaccessnetworks.com
 
-Daniel Nylander - Support for Swedish and Norwegian languages in voicemail. http://www.danielnylander.se/
+Daniel Nylander - Support for Swedish and Norwegian languages in voicemail.
+	http://www.danielnylander.se/
 
-Stojan Sljivic - An option for maximum number of messsages per mailbox in voicemail.  Also an issue with voicemail synchronization has been fixed.  GDS Partners www.gdspartners.com .  stojan.sljivic@gdspartners.com
+Stojan Sljivic - An option for maximum number of messsages per mailbox in
+	voicemail.  Also an issue with voicemail synchronization has been fixed.
+	GDS Partners www.gdspartners.com .  stojan.sljivic(AT)gdspartners.com
 
-Bartosz Supczinski - Support for Polish added by DIR (www.dir.pl) Bartosz.Supczinski@dir.pl
+Bartosz Supczinski - Support for Polish added by DIR (www.dir.pl)
+	Bartosz.Supczinski(AT)dir.pl
 
-James Rothenberger - Support for IMAP storage integration added by OneBizTone LLC Work funded by University of Pennsylvania jar@onebiztone.com
+James Rothenberger - Support for IMAP storage integration added by
+	OneBizTone LLC Work funded by University of Pennsylvania jar(AT)onebiztone.com
 
 Paul Cadach - Bringing chan_h323 up to date, bug fixes, and more!
 
-Voop AS - Financial support for a lot of work with the SIP driver and the IAX trunk MTU patch
+Voop AS - Financial support for a lot of work with the SIP driver and the IAX
+	trunk MTU patch
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
@@ -163,7 +169,7 @@ Michael Jerris - bug marshaling
 Leif Madsen, Jared Smith and Jim van Meggelen - the Asterisk book
 	available under a Creative Commons License at http://www.asteriskdocs.org
 Brian M. Clapper - poll.c emulation
-	This product includes software developed by Brian M. Clapper <bmc@clapper.org>
+	This product includes software developed by Brian M. Clapper <bmc(AT)clapper.org>
 
 === HOLD MUSIC ===
 Music provided by www.freeplaymusic.com
