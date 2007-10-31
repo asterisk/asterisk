@@ -818,8 +818,9 @@ static void check_includes(pval *includes)
 		/* find a matching context name */
 		struct pval *that_other_context = find_context(incl_context);
 		if (!that_other_context && strcmp(incl_context, "parkedcalls") != 0) {
-			ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The included context '%s' cannot be found.\n",
-					includes->filename, includes->startline, includes->endline, incl_context);
+			ast_log(LOG_WARNING, "Warning: file %s, line %d-%d: The included context '%s' cannot be found.\n\
+ (You may ignore this warning if '%s' exists in extensions.conf, or is created by another module. I cannot check for those.)\n",
+					includes->filename, includes->startline, includes->endline, incl_context, incl_context);
 			warns++;
 		}
 	}
