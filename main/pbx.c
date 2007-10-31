@@ -1819,10 +1819,15 @@ void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, 
 
 static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e)
 {
+	const char *tmp;
 	memset(passdata, 0, datalen);
 
+	/* Nothing more to do */
+	if (!e->data)
+		return;
+
 	/* No variables or expressions in e->data, so why scan it? */
-	if (e->data && !strchr(e->data, '$') && !strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
+	if ((!(tmp = strchr(e->data, '$'))) || (!strstr(tmp, "${") && !strstr(tmp, "$["))) {
 		ast_copy_string(passdata, e->data, datalen);
 		return;
 	}
