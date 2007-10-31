@@ -540,8 +540,6 @@ enum {
 	AST_FLAG_IN_AUTOLOOP =   (1 << 9),
 	/*! This is an outgoing call */
 	AST_FLAG_OUTGOING =      (1 << 10),
-	/*! This channel is being whispered on */
-	AST_FLAG_WHISPER =       (1 << 11),
 	/*! A DTMF_BEGIN frame has been read from this channel, but not yet an END */
 	AST_FLAG_IN_DTMF =       (1 << 12),
 	/*! A DTMF_END was received when not IN_DTMF, so the length of the digit is 
@@ -1440,39 +1438,6 @@ const char *channelreloadreason2txt(enum channelreloadreason reason);
 
 /*! \brief return an ast_variable list of channeltypes */
 struct ast_variable *ast_channeltype_list(void);
-
-/*!
-  \brief Begin 'whispering' onto a channel
-  \param chan The channel to whisper onto
-  \return 0 for success, non-zero for failure
-
-  This function will add a whisper buffer onto a channel and set a flag
-  causing writes to the channel to reduce the volume level of the written
-  audio samples, and then to mix in audio from the whisper buffer if it
-  is available.
-
-  \note Note: This function performs no locking; you must hold the channel's lock before
-  calling this function.
- */
-int ast_channel_whisper_start(struct ast_channel *chan);
-
-/*!
-  \brief Feed an audio frame into the whisper buffer on a channel
-  \param chan The channel to whisper onto
-  \param f The frame to to whisper onto chan
-  \return 0 for success, non-zero for failure
- */
-int ast_channel_whisper_feed(struct ast_channel *chan, struct ast_frame *f);
-
-/*!
-  \brief Stop 'whispering' onto a channel
-  \param chan The channel to whisper onto
-  \return 0 for success, non-zero for failure
-
-  Note: This function performs no locking; you must hold the channel's lock before
-  calling this function.
- */
-void ast_channel_whisper_stop(struct ast_channel *chan);
 
 /*!
   \brief return an english explanation of the code returned thru __ast_request_and_dial's 'outstate' argument
