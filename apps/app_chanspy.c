@@ -266,6 +266,15 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		start_spying(spyee, chan, &csth.whisper_audiohook);
 	}
 
+	csth.volfactor = *volfactor;
+
+	if (csth.volfactor) {
+		csth.spy_audiohook.options.read_volume = csth.volfactor;
+		csth.spy_audiohook.options.write_volume = csth.volfactor;
+	}
+
+	csth.fd = fd;
+
 	if (ast_test_flag(flags, OPTION_PRIVATE))
 		silgen = ast_channel_start_silence_generator(chan);
 	else
@@ -341,6 +350,10 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 			if (*volfactor > 4)
 				*volfactor = -4;
 			ast_verb(3, "Setting spy volume on %s to %d\n", chan->name, *volfactor);
+
+			csth.volfactor = *volfactor;
+			csth.spy_audiohook.options.read_volume = csth.volfactor;
+			csth.spy_audiohook.options.write_volume = csth.volfactor;
 		}
 	}
 
