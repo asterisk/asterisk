@@ -1064,9 +1064,7 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 	struct aji_client *c = client->connection;
 	struct jingle_candidate *newcandidate = NULL;
 	iks *traversenodes = NULL, *receipt = NULL;
-	newcandidate = ast_calloc(1, sizeof(*newcandidate));
-	if (!newcandidate)
-		return 0;
+
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, JINGLE_NODE, JINGLE_SID, tmp->sid)) {
 			p = tmp;

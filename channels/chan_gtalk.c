@@ -1215,9 +1215,6 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	if(!from)
 		from = c->jid->full;
 
-	newcandidate = ast_calloc(1, sizeof(*newcandidate));
-	if (!newcandidate)
-		return 0;
 	for (tmp = client->p; tmp; tmp = tmp->next) {
 		if (iks_find_with_attrib(pak->x, "session", "id", tmp->sid)) {
 			p = tmp;
