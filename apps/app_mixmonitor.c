@@ -267,6 +267,11 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	ast_set_flag(&mixmonitor->audiohook, AST_AUDIOHOOK_TRIGGER_WRITE);
 
+	if (readvol)
+		mixmonitor->audiohook.options.read_volume = readvol;
+	if (writevol)
+		mixmonitor->audiohook.options.write_volume = writevol;
+
 	if (startmon(chan, &mixmonitor->audiohook)) {
 		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
 			mixmonitor_spy_type, chan->name);
