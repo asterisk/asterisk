@@ -314,8 +314,18 @@ static int odbc_log(struct ast_cdr *cdr)
 	SQLHSTMT stmt = NULL;
 	SQLLEN rows = 0;
 
+	if (!sql || !sql2) {
+		if (sql)
+			ast_free(sql);
+		if (sql2)
+			ast_free(sql2);
+		return -1;
+	}
+
 	if (AST_RWLIST_RDLOCK(&odbc_tables)) {
 		ast_log(LOG_ERROR, "Unable to lock table list.  Insert CDR(s) failed.\n");
+		ast_free(sql);
+		ast_free(sql2);
 		return -1;
 	}
 
