@@ -815,7 +815,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		ast_log(LOG_WARNING, "Unable to open pseudo device\n");
 		if (cnf->fd >= 0)
 			close(cnf->fd);
-		free(cnf);
+		ast_free(cnf);
 		cnf = NULL;
 		goto cnfout;
 	}

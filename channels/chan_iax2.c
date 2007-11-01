@@ -2206,7 +2206,7 @@ static void __attempt_transmit(const void *data)
 							/* Hangup the fd */
 							fr.frametype = AST_FRAME_CONTROL;
 							fr.subclass = AST_CONTROL_HANGUP;
-							iax2_queue_frame(callno, &fr); // XXX
+							iax2_queue_frame(callno, &fr); /* XXX */
 							/* Remember, owner could disappear */
 							if (iaxs[callno] && iaxs[callno]->owner)
 								iaxs[callno]->owner->hangupcause = AST_CAUSE_DESTINATION_OUT_OF_ORDER;
@@ -6037,7 +6037,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 				}
 			}
 			if (prev)
-				free(prev);
+				ast_free(prev);
 			ies->vars = NULL;
 			ast_channel_datastore_add(p->owner, variablestore);
 		} else {
@@ -7828,7 +7828,7 @@ static int socket_process(struct iax2_thread *thread)
 							}
 						}
 						if (prev)
-							free(prev);
+							ast_free(prev);
 						ies.vars = NULL;
 						ast_channel_datastore_add(c, variablestore);
 					} else {
@@ -8586,7 +8586,7 @@ retryowner2:
 										}
 									}
 									if (prev)
-										free(prev);
+										ast_free(prev);
 									ies.vars = NULL;
 									ast_channel_datastore_add(c, variablestore);
 								} else {
