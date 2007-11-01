@@ -300,12 +300,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
-/* Define this to indicate the ${GNUTLS_DESCRIP} library */
-#undef HAVE_GNUTLS
-
-/* Define to indicate the ${GNUTLS_DESCRIP} library version */
-#undef HAVE_GNUTLS_VERSION
-
 /* Define to indicate the GSM library */
 #undef HAVE_GSM
 
