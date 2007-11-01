@@ -68,6 +68,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/event.h"
 #include "asterisk/module.h"
+#include "asterisk/indications.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -106,9 +107,11 @@ AST_APP_OPTIONS(background_opts, {
 });
 
 #define WAITEXTEN_MOH		(1 << 0)
+#define WAITEXTEN_DIALTONE	(1 << 1)
 
 AST_APP_OPTIONS(waitexten_opts, {
 	AST_APP_OPTION_ARG('m', WAITEXTEN_MOH, 0),
+	AST_APP_OPTION_ARG('d', WAITEXTEN_DIALTONE, 0),
 });
 
 struct ast_context;
@@ -5760,9 +5763,15 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	
 	if (ast_test_flag(&flags, WAITEXTEN_MOH) && !opts[0] ) {
 		ast_log(LOG_WARNING, "The 'm' option has been specified for WaitExten without a class.\n"); 
-	} else if (ast_test_flag(&flags, WAITEXTEN_MOH))
+	} else if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
 		ast_indicate_data(chan, AST_CONTROL_HOLD, opts[0], strlen(opts[0]));
-
+	} else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE)) {
+		const struct ind_tone_zone_sound *ts = ast_get_indication_tone(chan->zone, "dial");
+		if (ts)
+			ast_playtones_start(chan, 0, ts->data, 0);
+		else
+			ast_tonepair_start(chan, 350, 440, 0, 0);
+	}
 	/* Wait for "n" seconds */
 	if (args.timeout && (s = atof(args.timeout)) > 0)
 		 ms = s * 1000.0;
@@ -5786,6 +5795,8 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 
 	if (ast_test_flag(&flags, WAITEXTEN_MOH))
 		ast_indicate(chan, AST_CONTROL_UNHOLD);
+	else if (ast_test_flag(&flags, WAITEXTEN_DIALTONE))
+		ast_playtones_stop(chan);
 
 	return res;
 }
