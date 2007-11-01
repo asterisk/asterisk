@@ -90,6 +90,10 @@ CDR:
   cdr_sqlite3_custom.  It will potentially be removed from the tree
   after Asterisk 1.6 is released.
 
+* The cdr_odbc module now uses res_odbc to manage its connections.  The
+  username and password parameters in cdr_odbc.conf, therefore, are no
+  longer used.  The dsn parameter now points to an entry in res_odbc.conf.
+
 Formats:
 
 * format_wav: The GAIN preprocessor definition and source code that used it

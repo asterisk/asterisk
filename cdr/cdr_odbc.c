@@ -45,64 +45,40 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include <unistd.h>
 #include <time.h>
 
-#ifndef __CYGWIN__
-#include <sql.h>
-#include <sqlext.h>
-#include <sqltypes.h>
-#else
-#include <windows.h>
-#include <w32api/sql.h>
-#include <w32api/sqlext.h>
-#include <w32api/sqltypes.h>
-#endif
-
 #include "asterisk/config.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
+#include "asterisk/res_odbc.h"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
 static char *name = "ODBC";
-static char *config = "cdr_odbc.conf";
-static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
-static int loguniqueid = 0;
-static int usegmtime = 0;
-static int dispositionstring = 0;
-static int connected = 0;
+static char *config_file = "cdr_odbc.conf";
+static char *dsn = NULL, *table = NULL;
 
-AST_MUTEX_DEFINE_STATIC(odbc_lock);
+enum {
+	CONFIG_LOGUNIQUEID =       1 << 0,
+	CONFIG_USEGMTIME =         1 << 1,
+	CONFIG_DISPOSITIONSTRING = 1 << 2,
+};
 
-static int odbc_do_query(void);
-static int odbc_init(void);
+static struct ast_flags config = { 0 };
 
-static SQLHENV	ODBC_env = SQL_NULL_HANDLE;	/* global ODBC Environment */
-static SQLHDBC	ODBC_con;			/* global ODBC Connection Handle */
-static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
-
-static void odbc_disconnect(void)
+static SQLHSTMT prepare_cb(struct odbc_obj *obj, void *data)
 {
-	SQLDisconnect(ODBC_con);
-	SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
-	SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
-	connected = 0;
-}
-
-static int odbc_log(struct ast_cdr *cdr)
-{
-	int ODBC_res;
+	struct ast_cdr *cdr = data;
+	SQLRETURN ODBC_res;
 	char sqlcmd[2048] = "", timestr[128];
-	int res = 0;
 	struct ast_tm tm;
+	SQLHSTMT stmt;
 
-	ast_localtime(&cdr->start, &tm, usegmtime ? "GMT" : NULL);
+	ast_localtime(&cdr->start, &tm, ast_test_flag(&config, CONFIG_USEGMTIME) ? "GMT" : NULL);
 
-	ast_mutex_lock(&odbc_lock);
 	ast_strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
-	memset(sqlcmd,0,2048);
-	if (loguniqueid) {
+	if (ast_test_flag(&config, CONFIG_LOGUNIQUEID)) {
 		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
 		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
@@ -114,115 +90,71 @@ static int odbc_log(struct ast_cdr *cdr)
 		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
 	}
 
-	if (!connected) {
-		res = odbc_init();
-		if (res < 0) {
-			odbc_disconnect();
-			ast_mutex_unlock(&odbc_lock);
-			return 0;
-		}				
-	}
-
-	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
+	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		ast_verb(11, "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		odbc_disconnect();
-		ast_mutex_unlock(&odbc_lock);
-		return 0;
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
 	}
 
-	/* We really should only have to do this once.  But for some
-	   strange reason if I don't it blows holes in memory like
-	   like a shotgun.  So we just do this so its safe. */
-
-	ODBC_res = SQLPrepare(ODBC_stmt, (unsigned char *)sqlcmd, SQL_NTS);
+	ODBC_res = SQLPrepare(stmt, (unsigned char *)sqlcmd, SQL_NTS);
 	
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 		ast_verb(11, "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		odbc_disconnect();
-		ast_mutex_unlock(&odbc_lock);
-		return 0;
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		return NULL;
 	}
 
-	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(timestr), 0, &timestr, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dcontext), 0, cdr->dcontext, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->channel), 0, cdr->channel, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dstchannel), 0, cdr->dstchannel, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastapp), 0, cdr->lastapp, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
-	if (dispositionstring)
-		SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
+	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(timestr), 0, &timestr, 0, NULL);
+	SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
+	SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
+	SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
+	SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dcontext), 0, cdr->dcontext, 0, NULL);
+	SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->channel), 0, cdr->channel, 0, NULL);
+	SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dstchannel), 0, cdr->dstchannel, 0, NULL);
+	SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastapp), 0, cdr->lastapp, 0, NULL);
+	SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
+	SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
+	SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
+	if (ast_test_flag(&config, CONFIG_DISPOSITIONSTRING))
+		SQLBindParameter(stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ast_cdr_disp2str(cdr->disposition)) + 1, 0, ast_cdr_disp2str(cdr->disposition), 0, NULL);
 	else
-		SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
+		SQLBindParameter(stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
+	SQLBindParameter(stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
+	SQLBindParameter(stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
 
-	if (loguniqueid) {
-		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
-		SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
+	if (ast_test_flag(&config, CONFIG_LOGUNIQUEID)) {
+		SQLBindParameter(stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
+		SQLBindParameter(stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
 	}
 
-	if (connected) {
-		res = odbc_do_query();
-		if (res < 0) {
-			ast_verb(11, "cdr_odbc: Query FAILED Call not logged!\n");
-			ast_verb(11, "cdr_odbc: Reconnecting to dsn %s\n", dsn);
-			SQLDisconnect(ODBC_con);
-			res = odbc_init();
-			if (res < 0) {
-				ast_verb(11, "cdr_odbc: %s has gone away!\n", dsn);
-				odbc_disconnect();
-			} else {
-				ast_verb(11, "cdr_odbc: Trying Query again!\n");
-				res = odbc_do_query();
-				if (res < 0) {
-					ast_verb(11, "cdr_odbc: Query FAILED Call not logged!\n");
-				}
-			}
-		}
-	} else {
-		ast_verb(11, "cdr_odbc: Query FAILED Call not logged!\n");
-	}
-	SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-	ast_mutex_unlock(&odbc_lock);
-	return 0;
+	return stmt;
 }
 
-static int odbc_unload_module(void)
+
+static int odbc_log(struct ast_cdr *cdr)
 {
-	ast_mutex_lock(&odbc_lock);
-	if (connected) {
-		ast_verb(11, "cdr_odbc: Disconnecting from %s\n", dsn);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		odbc_disconnect();
-	}
-	if (dsn) {
-		ast_verb(11, "cdr_odbc: free dsn\n");
-		ast_free(dsn);
-	}
-	if (username) {
-		ast_verb(11, "cdr_odbc: free username\n");
-		ast_free(username);
-	}
-	if (password) {
-		ast_verb(11, "cdr_odbc: free password\n");
-		ast_free(password);
-	}
-	if (table) {
-		ast_verb(11, "cdr_odbc: free table\n");
-		ast_free(table);
+	struct odbc_obj *obj = ast_odbc_request_obj(dsn, 0);
+	SQLHSTMT stmt;
+
+	if (!obj) {
+		ast_log(LOG_ERROR, "Unable to retrieve database handle.  CDR failed.\n");
+		return -1;
 	}
 
-	ast_cdr_unregister(name);
-	ast_mutex_unlock(&odbc_lock);
+	stmt = ast_odbc_prepare_and_execute(obj, prepare_cb, cdr);
+	if (stmt) {
+		SQLINTEGER rows = 0;
+
+		SQLRowCount(stmt, &rows);
+		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
+		if (rows == 0)
+			ast_log(LOG_WARNING, "CDR successfully ran, but inserted 0 rows?\n");
+	} else
+		ast_log(LOG_ERROR, "CDR prepare or execute failed\n");
+	ast_odbc_release_obj(obj);
 	return 0;
 }
 
@@ -234,12 +166,10 @@ static int odbc_load_module(int reload)
 	const char *tmp;
 	struct ast_flags config_flags = { reload ? CONFIG_FLAG_FILEUNCHANGED : 0 };
 
-	ast_mutex_lock(&odbc_lock);
-
 	do {
-		cfg = ast_config_load(config, config_flags);
+		cfg = ast_config_load(config_file, config_flags);
 		if (!cfg) {
-			ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config);
+			ast_log(LOG_WARNING, "cdr_odbc: Unable to load config for ODBC CDR's: %s\n", config_file);
 			res = AST_MODULE_LOAD_DECLINE;
 			break;
 		} else if (cfg == CONFIG_STATUS_FILEUNCHANGED)
@@ -263,53 +193,25 @@ static int odbc_load_module(int reload)
 			break;
 		}
 
-		if ((tmp = ast_variable_retrieve(cfg, "global", "dispositionstring")))
-			dispositionstring = ast_true(tmp);
+		if (((tmp = ast_variable_retrieve(cfg, "global", "dispositionstring"))) && ast_true(tmp))
+			ast_set_flag(&config, CONFIG_DISPOSITIONSTRING);
 		else
-			dispositionstring = 0;
+			ast_clear_flag(&config, CONFIG_DISPOSITIONSTRING);
 
-		if ((tmp = ast_variable_retrieve(cfg, "global", "username"))) {
-			if (username)
-				ast_free(username);
-			username = ast_strdup(tmp);
-			if (username == NULL) {
-				res = -1;
-				break;
-			}
-		}
-
-		if ((tmp = ast_variable_retrieve(cfg, "global", "password"))) {
-			if (password)
-				ast_free(password);
-			password = ast_strdup(tmp);
-			if (password == NULL) {
-				res = -1;
-				break;
-			}
-		}
-
-		if ((tmp = ast_variable_retrieve(cfg, "global", "loguniqueid"))) {
-			loguniqueid = ast_true(tmp);
-			if (loguniqueid) {
-				ast_debug(1, "cdr_odbc: Logging uniqueid\n");
-			} else {
-				ast_debug(1, "cdr_odbc: Not logging uniqueid\n");
-			}
+		if (((tmp = ast_variable_retrieve(cfg, "global", "loguniqueid"))) && ast_true(tmp)) {
+			ast_set_flag(&config, CONFIG_LOGUNIQUEID);
+			ast_debug(1, "cdr_odbc: Logging uniqueid\n");
 		} else {
+			ast_clear_flag(&config, CONFIG_LOGUNIQUEID);
 			ast_debug(1, "cdr_odbc: Not logging uniqueid\n");
-			loguniqueid = 0;
 		}
 
-		if ((tmp = ast_variable_retrieve(cfg, "global", "usegmtime"))) {
-			usegmtime = ast_true(tmp);
-			if (usegmtime) {
-				ast_debug(1, "cdr_odbc: Logging in GMT\n");
-			} else {
-				ast_debug(1, "cdr_odbc: Not logging in GMT\n");
-			}
+		if (((tmp = ast_variable_retrieve(cfg, "global", "usegmtime"))) && ast_true(tmp)) {
+			ast_set_flag(&config, CONFIG_USEGMTIME);
+			ast_debug(1, "cdr_odbc: Logging in GMT\n");
 		} else {
-			ast_debug(1, "cdr_odbc: Not logging in GMT\n");
-			usegmtime = 0;
+			ast_clear_flag(&config, CONFIG_USEGMTIME);
+			ast_debug(1, "cdr_odbc: Logging in local time\n");
 		}
 
 		if ((tmp = ast_variable_retrieve(cfg, "global", "table")) == NULL) {
@@ -325,18 +227,8 @@ static int odbc_load_module(int reload)
 		}
 
 		ast_verb(3, "cdr_odbc: dsn is %s\n", dsn);
-		if (username) {
-			ast_verb(3, "cdr_odbc: username is %s\n", username);
-			ast_verb(3, "cdr_odbc: password is [secret]\n");
-		} else
-			ast_verb(3, "cdr_odbc: retrieving username and password from odbc config\n");
 		ast_verb(3, "cdr_odbc: table is %s\n", table);
 
-		res = odbc_init();
-		if (res < 0) {
-			ast_log(LOG_ERROR, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
-			ast_verb(3, "cdr_odbc: Unable to connect to datasource: %s\n", dsn);
-			}
 		res = ast_cdr_register(name, ast_module_info->description, odbc_log);
 		if (res) {
 			ast_log(LOG_ERROR, "cdr_odbc: Unable to register ODBC CDR handling\n");
@@ -345,75 +237,7 @@ static int odbc_load_module(int reload)
 
 	if (cfg && cfg != CONFIG_STATUS_FILEUNCHANGED)
 		ast_config_destroy(cfg);
-	ast_mutex_unlock(&odbc_lock);
 	return res;
-}
-
-static int odbc_do_query(void)
-{
-	int ODBC_res;
-	
-	ODBC_res = SQLExecute(ODBC_stmt);
-	
-	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		ast_verb(11, "cdr_odbc: Error in Query %d\n", ODBC_res);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		odbc_disconnect();
-		return -1;
-	} else {
-		ast_verb(11, "cdr_odbc: Query Successful!\n");
-		connected = 1;
-	}
-	return 0;
-}
-
-static int odbc_init(void)
-{
-	int ODBC_res;
-
-	if (ODBC_env == SQL_NULL_HANDLE || connected == 0) {
-		ODBC_res = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &ODBC_env);
-		if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-			ast_verb(11, "cdr_odbc: Error AllocHandle\n");
-			connected = 0;
-			return -1;
-		}
-
-		ODBC_res = SQLSetEnvAttr(ODBC_env, SQL_ATTR_ODBC_VERSION, (void*)SQL_OV_ODBC3, 0);
-
-		if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-			ast_verb(11, "cdr_odbc: Error SetEnv\n");
-			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
-			connected = 0;
-			return -1;
-		}
-
-		ODBC_res = SQLAllocHandle(SQL_HANDLE_DBC, ODBC_env, &ODBC_con);
-
-		if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-			ast_verb(11, "cdr_odbc: Error AllocHDB %d\n", ODBC_res);
-			SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
-			connected = 0;
-			return -1;
-		}
-		SQLSetConnectAttr(ODBC_con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *)10, 0);	
-	}
-
-	/* Note that the username and password could be NULL here, but that is allowed in ODBC.
-           In this case, the default username and password will be used from odbc.conf */
-	ODBC_res = SQLConnect(ODBC_con, (SQLCHAR*)dsn, SQL_NTS, (SQLCHAR*)username, SQL_NTS, (SQLCHAR*)password, SQL_NTS);
-
-	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		ast_verb(11, "cdr_odbc: Error SQLConnect %d\n", ODBC_res);
-		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
-		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
-		connected = 0;
-		return -1;
-	} else {
-		ast_verb(11, "cdr_odbc: Connected to %s\n", dsn);
-		connected = 1;
-	}
-	return 0;
 }
 
 static int load_module(void)
@@ -423,7 +247,18 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	return odbc_unload_module();
+	ast_cdr_unregister(name);
+
+	if (dsn) {
+		ast_verb(11, "cdr_odbc: free dsn\n");
+		ast_free(dsn);
+	}
+	if (table) {
+		ast_verb(11, "cdr_odbc: free table\n");
+		ast_free(table);
+	}
+
+	return 0;
 }
 
 static int reload(void)
