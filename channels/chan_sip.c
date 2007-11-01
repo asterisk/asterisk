@@ -17490,7 +17490,7 @@ static void add_peer_mailboxes(struct sip_peer *peer, const char *value)
 
 		strsep(&context, "@");
 		if (ast_strlen_zero(mbox)) {
-			free(mailbox);
+			ast_free(mailbox);
 			continue;
 		}
 		mailbox->mailbox = ast_strdup(mbox);

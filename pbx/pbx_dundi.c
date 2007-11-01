@@ -679,7 +679,7 @@ static void *dundi_lookup_thread(void *data)
 		st->trans->thread = 0;
 	}
 	AST_LIST_UNLOCK(&peers);
-	free(st);
+	ast_free(st);
 	return NULL;	
 }
 
@@ -712,7 +712,7 @@ static void *dundi_precache_thread(void *data)
 		st->trans->thread = 0;
 	}
 	AST_LIST_UNLOCK(&peers);
-	free(st);
+	ast_free(st);
 	return NULL;	
 }
 
@@ -772,7 +772,7 @@ static void *dundi_query_thread(void *data)
 		st->trans->thread = 0;
 	}
 	AST_LIST_UNLOCK(&peers);
-	free(st);
+	ast_free(st);
 	return NULL;	
 }
 
@@ -818,7 +818,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 			struct dundi_ie_data ied = { 0, };
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
-			free(st);
+			ast_free(st);
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_EIDRESPONSE, 0, 1, &ied);
 			return -1;
@@ -1042,7 +1042,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_precache_thread, st)) {
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
-			free(st);
+			ast_free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_PRECACHERP, 0, 1, &ied);
@@ -1126,7 +1126,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 		if (ast_pthread_create_detached(&lookupthread, NULL, dundi_lookup_thread, st)) {
 			trans->thread = 0;
 			ast_log(LOG_WARNING, "Unable to create thread!\n");
-			free(st);
+			ast_free(st);
 			memset(&ied, 0, sizeof(ied));
 			dundi_ie_append_cause(&ied, DUNDI_IE_CAUSE, DUNDI_CAUSE_GENERAL, "Out of threads");
 			dundi_send(trans, DUNDI_COMMAND_DPRESPONSE, 0, 1, &ied);
@@ -1975,7 +1975,7 @@ static void destroy_packets(struct packetlist *p)
 	while ((pack = AST_LIST_REMOVE_HEAD(p, list))) {
 		if (pack->retransid > -1)
 			ast_sched_del(sched, pack->retransid);
-		free(pack);
+		ast_free(pack);
 	}
 }
 
@@ -2199,7 +2199,7 @@ static void *process_precache(void *ign)
 			if (!qe->expiration) {
 				/* Gone...  Remove... */
 				AST_LIST_REMOVE_HEAD(&pcq, list);
-				free(qe);
+				ast_free(qe);
 			} else if (qe->expiration < now) {
 				/* Process this entry */
 				qe->expiration = 0;
@@ -2297,7 +2297,7 @@ static char *dundi_flush(struct ast_cli_entry *e, int cmd, struct ast_cli_args *
 		AST_LIST_TRAVERSE(&peers, p, list) {
 			for (x = 0;x < DUNDI_TIMING_HISTORY; x++) {
 				if (p->lookups[x])
-					free(p->lookups[x]);
+					ast_free(p->lookups[x]);
 				p->lookups[x] = NULL;
 				p->lookuptimes[x] = 0;
 			}
@@ -2937,7 +2937,7 @@ static void destroy_packet(struct dundi_packet *pack, int needfree)
 	if (pack->retransid > -1)
 		ast_sched_del(sched, pack->retransid);
 	if (needfree)
-		free(pack);
+		ast_free(pack);
 	else
 		pack->retransid = -1;
 }
@@ -2978,7 +2978,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 						peer->avgms = 0;
 						cnt = 0;
 						if (peer->lookups[DUNDI_TIMING_HISTORY-1])
-							free(peer->lookups[DUNDI_TIMING_HISTORY-1]);
+							ast_free(peer->lookups[DUNDI_TIMING_HISTORY-1]);
 						for (x=DUNDI_TIMING_HISTORY-1;x>0;x--) {
 							peer->lookuptimes[x] = peer->lookuptimes[x-1];
 							peer->lookups[x] = peer->lookups[x-1];
@@ -3022,7 +3022,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 		/* If used by a thread, mark as dead and be done */
 		ast_set_flag(trans, FLAG_DEAD);
 	} else
-		free(trans);
+		ast_free(trans);
 }
 
 static int dundi_rexmit(const void *data)
@@ -3113,7 +3113,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 			ast_log(LOG_NOTICE, "Failed to send packet to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
 				
 		if (cmdresp == DUNDI_COMMAND_ACK)
-			free(pack);
+			ast_free(pack);
 		return res;
 	}
 	return -1;
@@ -3958,7 +3958,7 @@ struct dundi_result_datastore {
 
 static void drds_destroy(struct dundi_result_datastore *drds)
 {
-	free(drds);
+	ast_free(drds);
 }
 
 static void drds_destroy_cb(void *data)
@@ -4165,7 +4165,7 @@ static void destroy_permissions(struct permissionlist *permlist)
 	struct permission *perm;
 
 	while ((perm = AST_LIST_REMOVE_HEAD(permlist, list)))
-		free(perm);
+		ast_free(perm);
 }
 
 static void destroy_peer(struct dundi_peer *peer)
@@ -4178,14 +4178,14 @@ static void destroy_peer(struct dundi_peer *peer)
 		ast_sched_del(sched, peer->qualifyid);
 	destroy_permissions(&peer->permit);
 	destroy_permissions(&peer->include);
-	free(peer);
+	ast_free(peer);
 }
 
 static void destroy_map(struct dundi_mapping *map)
 {
 	if (map->weightstr)
-		free(map->weightstr);
-	free(map);
+		ast_free(map->weightstr);
+	ast_free(map);
 }
 
 static void prune_peers(void)
