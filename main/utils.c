@@ -584,7 +584,8 @@ static void lock_info_destroy(void *data)
 	pthread_mutex_unlock(&lock_infos_lock.mutex);
 
 	pthread_mutex_destroy(&lock_info->lock);
-	free((void *) lock_info->thread_name);
+	if (lock_info->thread_name)
+		free((void *) lock_info->thread_name);
 	free(lock_info);
 }
 
