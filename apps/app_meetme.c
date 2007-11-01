@@ -1654,7 +1654,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 
-	retryzap = strcasecmp(chan->tech->type, "Zap");
+	retryzap = (strcasecmp(chan->tech->type, "Zap") || chan->audiohooks ? 1 : 0);
 	user->zapchannel = !retryzap;
 
  zapretry:
@@ -2039,14 +2039,14 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				break;
 
 			if (c) {
-				if (c->fds[0] != origfd) {
+				if (c->fds[0] != origfd || (user->zapchannel && chan->audiohooks)) {
 					if (using_pseudo) {
 						/* Kill old pseudo */
 						close(fd);
 						using_pseudo = 0;
 					}
 					ast_debug(1, "Ooh, something swapped out under us, starting over\n");
-					retryzap = strcasecmp(c->tech->type, "Zap");
+					retryzap = (strcasecmp(chan->tech->type, "Zap") || chan->audiohooks ? 1 : 0);
 					user->zapchannel = !retryzap;
 					goto zapretry;
 				}
