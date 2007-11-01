@@ -45,6 +45,19 @@
 #ifndef _ASTERISK_JABBER_H
 #define _ASTERISK_JABBER_H
 
+#ifdef HAVE_OPENSSL
+
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#define TRY_SECURE 2
+#define SECURE 4
+/* file is read by blocks with this size */
+#define NET_IO_BUF_SIZE 4096
+/* Return value for timeout connection expiration */
+#define IKS_NET_EXPIRED 12
+
+#endif /* HAVE_OPENSSL */
+
 #include <iksemel.h>
 #include "asterisk/astobj.h"
 #include "asterisk/linkedlists.h"
@@ -132,12 +145,19 @@ struct aji_client {
 	char user[AJI_MAX_JIDLEN];
 	char serverhost[AJI_MAX_RESJIDLEN];
 	char statusmessage[256];
+	char name_space[256];
 	char sid[10]; /* Session ID */
 	char mid[6]; /* Message ID */
 	iksid *jid;
 	iksparser *p;
 	iksfilter *f;
 	ikstack *stack;
+#ifdef HAVE_OPENSSL
+	SSL_CTX *ssl_context;
+	SSL *ssl_session;
+	SSL_METHOD *ssl_method;
+	unsigned int stream_flags;
+#endif /* HAVE_OPENSSL */
 	enum aji_state state;
 	int port;
 	int debug;
