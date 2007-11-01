@@ -252,7 +252,7 @@ struct pbx_exception {
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(context);	/*!< Context associated with this exception */
 		AST_STRING_FIELD(exten);	/*!< Exten associated with this exception */
-		AST_STRING_FIELD(type);		/*!< The type of exception */
+		AST_STRING_FIELD(reason);		/*!< The exception reason */
 	);
 
 	int priority;				/*!< Priority associated with this exception */
@@ -448,8 +448,7 @@ static struct pbx_builtin {
 	{ "RaiseException", pbx_builtin_raise_exception,
 	"Handle an exceptional condition",
 	"  RaiseException(<reason>): This application will jump to the \"e\" extension\n"
-	"in the current context, setting the dialplan function EXCEPTION().\n"
-	"You can access the value of <reason> with ${EXCEPTION(type)}. If the \"e\"\n"
+	"in the current context, setting the dialplan function EXCEPTION(). If the \"e\"\n"
 	"extension does not exist, the call will hangup.\n"
 	},
 
@@ -1291,9 +1290,9 @@ static struct ast_datastore_info exception_store_info = {
 	.destroy = exception_store_free,
 };
 
-int pbx_builtin_raise_exception(struct ast_channel *chan, void *vtype)
+int pbx_builtin_raise_exception(struct ast_channel *chan, void *vreason)
 {
-	const char *type = vtype;
+	const char *reason = vreason;
 	struct ast_datastore *ds = ast_channel_datastore_find(chan, &exception_store_info, NULL);
 	struct pbx_exception *exception = NULL;
 
@@ -1316,7 +1315,7 @@ int pbx_builtin_raise_exception(struct ast_channel *chan, void *vtype)
 	} else
 		exception = ds->data;
 
-	ast_string_field_set(exception, type, type);
+	ast_string_field_set(exception, reason, reason);
 	ast_string_field_set(exception, context, chan->context);
 	ast_string_field_set(exception, exten, chan->exten);
 	exception->priority = chan->priority;
@@ -1331,8 +1330,8 @@ static int acf_exception_read(struct ast_channel *chan, const char *name, char *
 	if (!ds || !ds->data)
 		return -1;
 	exception = ds->data;
-	if (!strcasecmp(data, "TYPE"))
-		ast_copy_string(buf, exception->type, buflen);
+	if (!strcasecmp(data, "REASON"))
+		ast_copy_string(buf, exception->reason, buflen);
 	else if (!strcasecmp(data, "CONTEXT"))
 		ast_copy_string(buf, exception->context, buflen);
 	else if (!strncasecmp(data, "EXTEN", 5))
@@ -1349,7 +1348,8 @@ static struct ast_custom_function exception_function = {
 	.synopsis = "Retrieve the details of the current dialplan exception",
 	.desc =
 "The following fields are available for retrieval:\n"
-"  type      INVALID, ERROR, RESPONSETIMEOUT, or ABSOLUTETIMEOUT\n"
+"  reason    INVALID, ERROR, RESPONSETIMEOUT, ABSOLUTETIMEOUT, or custom\n"
+"               value set by the RaiseException() application\n"
 "  context   The context executing when the exception occurred\n"
 "  exten     The extension executing when the exception occurred\n"
 "  priority  The numeric priority executing when the exception occurred\n",
