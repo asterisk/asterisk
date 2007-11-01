@@ -1791,19 +1791,19 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 		if (ast_test_flag64(&opts, OPT_PEER_H) && ast_exists_extension(peer, peer->context, "h", 1, peer->cid.cid_num)) {
 			int autoloopflag;
+			int found;
 			strcpy(peer->exten, "h");
 			peer->priority = 1;
 			autoloopflag = ast_test_flag(peer, AST_FLAG_IN_AUTOLOOP);	/* save value to restore at the end */
 			ast_set_flag(peer, AST_FLAG_IN_AUTOLOOP);
 			
-			while (ast_exists_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num)) {
-				if ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num))) {
-					/* Something bad happened, or a hangup has been requested. */
-					ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
-					ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
-					break;
-				}
+			while ((res = ast_spawn_extension(peer, peer->context, peer->exten, peer->priority, peer->cid.cid_num, &found,1))) {
 				peer->priority++;
+			}
+			if (found && res) {
+				/* Something bad happened, or a hangup has been requested. */
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", peer->context, peer->exten, peer->priority, peer->name);
 			}
 			ast_set2_flag(peer, autoloopflag, AST_FLAG_IN_AUTOLOOP);  /* set it back the way it was */
 		}

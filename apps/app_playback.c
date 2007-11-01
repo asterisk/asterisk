@@ -202,7 +202,6 @@ static int do_say(say_args_t *a, const char *s, const char *options, int depth)
 		ast_trim_blanks(x);
 
 		/* replace variables */
-		memset(fn, 0, sizeof(fn)); /* XXX why isn't done in pbx_substitute_variables_helper! */
 		pbx_substitute_variables_varshead(&head, x, fn, sizeof(fn));
 		ast_log(LOG_WARNING, "doing [%s]\n", fn);
 

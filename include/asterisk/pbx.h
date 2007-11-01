@@ -522,7 +522,7 @@ int ast_extension_close(const char *pattern, const char *data, int needmore);
  * \retval -1 on failure.
  */
 int ast_spawn_extension(struct ast_channel *c, const char *context, 
-	const char *exten, int priority, const char *callerid);
+      const char *exten, int priority, const char *callerid, int *found, int combined_find_spawn);
 
 /*! 
  * \brief Add a context include

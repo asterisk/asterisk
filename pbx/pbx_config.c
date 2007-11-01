@@ -1390,7 +1390,6 @@ static int pbx_load_config(const char *config_file)
 		ast_copy_string(userscontext, "default", sizeof(userscontext));
 								    
 	for (v = ast_variable_browse(cfg, "globals"); v; v = v->next) {
-		memset(realvalue, 0, sizeof(realvalue));
 		pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 		pbx_builtin_setvar_helper(NULL, v->name, realvalue);
 	}
@@ -1487,20 +1486,17 @@ static int pbx_load_config(const char *config_file)
 					free(tc);
 				}
 			} else if (!strcasecmp(v->name, "include")) {
-				memset(realvalue, 0, sizeof(realvalue));
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_include2(con, realvalue, registrar))
 					ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 			} else if (!strcasecmp(v->name, "ignorepat")) {
-				memset(realvalue, 0, sizeof(realvalue));
 				pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				if (ast_context_add_ignorepat2(con, realvalue, registrar))
 					ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 			} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 				char *stringp = realvalue;
 				char *appl, *data;
-
-				memset(realvalue, 0, sizeof(realvalue));
+				
 				if (!strcasecmp(v->name, "switch"))
 					pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 				else

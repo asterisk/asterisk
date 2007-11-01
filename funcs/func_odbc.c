@@ -138,7 +138,7 @@ static int acf_odbc_write(struct ast_channel *chan, const char *cmd, char *s, co
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
-	char *t, buf[2048]="", varname[15];
+	char *t, buf[2048], varname[15];
 	int i, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(values,
 		AST_APP_ARG(field)[100];
@@ -256,7 +256,7 @@ static int acf_odbc_read(struct ast_channel *chan, const char *cmd, char *s, cha
 {
 	struct odbc_obj *obj = NULL;
 	struct acf_odbc_query *query;
-	char sql[2048] = "", varname[15], colnames[2048] = "", rowcount[12] = "-1";
+	char sql[2048], varname[15], colnames[2048] = "", rowcount[12] = "-1";
 	int res, x, y, buflen = 0, escapecommas, rowlimit = 1, dsn, bogus_chan = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(field)[100];

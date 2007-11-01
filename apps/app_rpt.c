@@ -6936,7 +6936,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		struct ast_hostent ahp;
 		struct hostent *hp;
 		struct in_addr ia;
-		char hisip[100] = "", nodeip[100];
+		char hisip[100], nodeip[100];
 		const char *val;
 		char *s, *s1, *s2;
 

@@ -141,7 +141,6 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 		if (tmp) {
 			snprintf(tmp, strlen(args.varname) + 4, "${%s}", args.varname);
-			memset(varvalue, 0, sizeof(varvalue));
 		} else {
 			return ERROR_NOMEM;
 		}

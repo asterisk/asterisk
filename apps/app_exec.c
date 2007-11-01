@@ -92,7 +92,7 @@ static char *execif_descrip =
 static int exec_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *s, *appname, *endargs, args[MAXRESULT] = "";
+	char *s, *appname, *endargs, args[MAXRESULT];
 	struct ast_app *app;
 
 	if (ast_strlen_zero(data))
@@ -122,7 +122,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 static int tryexec_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char *s, *appname, *endargs, args[MAXRESULT] = "";
+	char *s, *appname, *endargs, args[MAXRESULT];
 	struct ast_app *app;
 
 	if (ast_strlen_zero(data))

@@ -191,7 +191,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 		if (!ast_strlen_zero(app)) {
 			struct ast_app *a = pbx_findapp(app);
 			if (a) {
-				char appdata[512]="";
+				char appdata[512];
 				char tmp1[80];
 				char tmp2[80];
 				char tmp3[EXT_DATA_SIZE];

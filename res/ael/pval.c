@@ -3788,7 +3788,6 @@ void add_extensions(struct ael_extension *exten)
 	do {
 		struct ael_priority *last = 0;
 		
-		memset(realext, '\0', sizeof(realext)); /* make sure this is properly initialized */
 		pbx_substitute_variables_helper(NULL, exten->name, realext, sizeof(realext) - 1);
 		if (exten->hints) {
 			if (ast_add_extension2(exten->context, 0 /*no replace*/, realext, PRIORITY_HINT, NULL, exten->cidmatch, 

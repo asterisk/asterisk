@@ -1618,8 +1618,7 @@ int ast_func_write(struct ast_channel *chan, const char *function, const char *v
 
 static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
 {
-	/* Substitutes variables into cp2, based on string cp1, and assuming cp2 to be
-	   zero-filled */
+	/* Substitutes variables into cp2, based on string cp1, cp2 NO LONGER NEEDS TO BE ZEROED OUT!!!!  */
 	char *cp4;
 	const char *tmp, *whereweare;
 	int length, offset, offset2, isfunction;
@@ -1628,7 +1627,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 	char *nextvar, *nextexp, *nextthing;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
-
+	
+	*cp2 = 0; /* just in case nothing ends up there */
 	whereweare=tmp=cp1;
 	while (!ast_strlen_zero(whereweare) && count) {
 		/* Assume we're copying the whole remaining string */
@@ -1662,6 +1662,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 			count -= pos;
 			cp2 += pos;
 			whereweare += pos;
+			*cp2 = 0;
 		}
 
 		if (nextvar) {
@@ -1702,7 +1703,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				if (!ltmp)
 					ltmp = alloca(VAR_BUF_SIZE);
 
-				memset(ltmp, 0, VAR_BUF_SIZE);
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
 				vars = ltmp;
 			} else {
@@ -1746,6 +1746,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				memcpy(cp2, cp4, length);
 				count -= length;
 				cp2 += length;
+				*cp2 = 0;
 			}
 		} else if (nextexp) {
 			/* We have an expression.  Find the start and end, and determine
@@ -1789,7 +1790,6 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				if (!ltmp)
 					ltmp = alloca(VAR_BUF_SIZE);
 
-				memset(ltmp, 0, VAR_BUF_SIZE);
 				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
 				vars = ltmp;
 			} else {
@@ -1802,6 +1802,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				ast_debug(1, "Expression result is '%s'\n", cp2);
 				count -= length;
 				cp2 += length;
+				*cp2 = 0;
 			}
 		}
 	}
@@ -1820,7 +1821,6 @@ void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, 
 static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e)
 {
 	const char *tmp;
-	memset(passdata, 0, datalen);
 
 	/* Nothing more to do */
 	if (!e->data)
@@ -1847,8 +1847,8 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
  * \retval  -1 on failure.
  */
 static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
-	const char *context, const char *exten, int priority,
-	const char *label, const char *callerid, enum ext_match_t action)
+  const char *context, const char *exten, int priority,
+  const char *label, const char *callerid, enum ext_match_t action, int *found, int combined_find_spawn)
 {
 	struct ast_exten *e;
 	struct ast_app *app;
@@ -1857,10 +1857,14 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 	char passdata[EXT_DATA_SIZE];
 
 	int matching_action = (action == E_MATCH || action == E_CANMATCH || action == E_MATCHMORE);
-
+	
 	ast_rdlock_contexts();
+	if (found)
+		*found = 0;
 	e = pbx_find_extension(c, con, &q, context, exten, priority, label, callerid, action);
 	if (e) {
+		if (found)
+			*found = 1;
 		if (matching_action) {
 			ast_unlock_contexts();
 			return -1;	/* success, we found it */
@@ -1927,19 +1931,19 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con,
 		ast_unlock_contexts();
 		switch (q.status) {
 		case STATUS_NO_CONTEXT:
-			if (!matching_action)
+			if (!matching_action && !combined_find_spawn)
 				ast_log(LOG_NOTICE, "Cannot find extension context '%s'\n", context);
 			break;
 		case STATUS_NO_EXTENSION:
-			if (!matching_action)
+			if (!matching_action && !combined_find_spawn)
 				ast_log(LOG_NOTICE, "Cannot find extension '%s' in context '%s'\n", exten, context);
 			break;
 		case STATUS_NO_PRIORITY:
-			if (!matching_action)
+			if (!matching_action && !combined_find_spawn)
 				ast_log(LOG_NOTICE, "No such priority %d in extension '%s' in context '%s'\n", priority, exten, context);
 			break;
 		case STATUS_NO_LABEL:
-			if (context)
+			if (context && !combined_find_spawn)
 				ast_log(LOG_NOTICE, "No such label '%s' in extension '%s' in context '%s'\n", label, exten, context);
 			break;
 		default:
@@ -2376,32 +2380,32 @@ int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_
 
 int ast_exists_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_MATCH);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_MATCH, 0, 0);
 }
 
 int ast_findlabel_extension(struct ast_channel *c, const char *context, const char *exten, const char *label, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, 0, label, callerid, E_FINDLABEL);
+	return pbx_extension_helper(c, NULL, context, exten, 0, label, callerid, E_FINDLABEL, 0, 0);
 }
 
 int ast_findlabel_extension2(struct ast_channel *c, struct ast_context *con, const char *exten, const char *label, const char *callerid)
 {
-	return pbx_extension_helper(c, con, NULL, exten, 0, label, callerid, E_FINDLABEL);
+	return pbx_extension_helper(c, con, NULL, exten, 0, label, callerid, E_FINDLABEL, 0, 0);
 }
 
 int ast_canmatch_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_CANMATCH);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_CANMATCH, 0, 0);
 }
 
 int ast_matchmore_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_MATCHMORE);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_MATCHMORE, 0, 0);
 }
 
-int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid)
+int ast_spawn_extension(struct ast_channel *c, const char *context, const char *exten, int priority, const char *callerid, int *found, int combined_find_spawn)
 {
-	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_SPAWN);
+	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, E_SPAWN, found, combined_find_spawn);
 }
 
 /*! helper function to set extension and priority */
@@ -2498,50 +2502,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 		int digit = 0;
 
 		/* loop on priorities in this context/exten */
-		while (ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
-			found = 1;
-			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
-				/* Something bad happened, or a hangup has been requested. */
-				if (strchr("0123456789ABCDEF*#", res)) {
-					ast_debug(1, "Oooh, got something to jump out with ('%c')!\n", res);
-					pos = 0;
-					dst_exten[pos++] = digit = res;
-					dst_exten[pos] = '\0';
-					break;
-				}
-				if (res == AST_PBX_KEEPALIVE) {
-					ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-					ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
-					error = 1;
-					break;
-				}
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-
- 				if ((res == AST_PBX_ERROR) && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
- 					/* if we are already on the 'e' exten, don't jump to it again */
- 					if (!strcmp(c->exten, "e")) {
- 						if (option_verbose > 1)
- 							ast_verbose(VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
- 						error = 1;
-						break;
- 					} else {
-						pbx_builtin_raise_exception(c, "ERROR");
- 						continue;
- 					}
- 				}
-
-				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
-					c->_softhangup = 0;
-				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
-					/* atimeout, nothing bad */
-				} else {
-					if (c->cdr)
-						ast_cdr_update(c);
-					error = 1;
-					break;
-				}
-			}
+		while ( !(res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found,1))) {
 			if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT && ast_exists_extension(c, c->context, "T", 1, c->cid.cid_num)) {
 				set_ext_pri(c, "T", 0); /* 0 will become 1 with the c->priority++; at the end */
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
@@ -2560,6 +2521,45 @@ static int __ast_pbx_run(struct ast_channel *c)
 			}
 			c->priority++;
 		} /* end while  - from here on we can use 'break' to go out */
+		if (found && res) {
+			/* Something bad happened, or a hangup has been requested. */
+			if (strchr("0123456789ABCDEF*#", res)) {
+				ast_debug(1, "Oooh, got something to jump out with ('%c')!\n", res);
+				pos = 0;
+				dst_exten[pos++] = digit = res;
+				dst_exten[pos] = '\0';
+			}
+			if (res == AST_PBX_KEEPALIVE) {
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
+				error = 1;
+			}
+			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+			
+			if ((res == AST_PBX_ERROR) && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+				/* if we are already on the 'e' exten, don't jump to it again */
+				if (!strcmp(c->exten, "e")) {
+					if (option_verbose > 1)
+						ast_verbose(VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
+					error = 1;
+				} else {
+					pbx_builtin_raise_exception(c, "ERROR");
+					continue;
+				}
+			}
+			
+			if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+				c->_softhangup = 0;
+			} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
+				/* atimeout, nothing bad */
+			} else {
+				if (c->cdr)
+					ast_cdr_update(c);
+				error = 1;
+				break;
+			}
+		}
 		if (error)
 			break;
 
@@ -2657,14 +2657,13 @@ static int __ast_pbx_run(struct ast_channel *c)
 		if (c->cdr && ast_opt_end_cdr_before_h_exten)
 			ast_cdr_end(c->cdr);
 		set_ext_pri(c, "h", 1);
-		while (ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
-			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num))) {
-				/* Something bad happened, or a hangup has been requested. */
-				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				break;
-			}
+		while ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->cid.cid_num, &found,1))) {
 			c->priority++;
+		}
+		if (found && res) {
+			/* Something bad happened, or a hangup has been requested. */
+			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
 		}
 	}
 	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
@@ -4930,7 +4929,7 @@ int ast_add_extension2(struct ast_context *con,
 	int res;
 	int length;
 	char *p;
-	char expand_buf[VAR_BUF_SIZE] = { 0, };
+	char expand_buf[VAR_BUF_SIZE];
 
 	/* if we are adding a hint, and there are global variables, and the hint
 	   contains variable references, then expand them
@@ -6078,7 +6077,7 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	char *name;
 	char *value;
 	char *channel;
-	char tmp[VAR_BUF_SIZE]="";
+	char tmp[VAR_BUF_SIZE];
 	static int deprecation_warning = 0;
 
 	if (ast_strlen_zero(data)) {

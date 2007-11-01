@@ -158,7 +158,7 @@ static int sqlite3_log(struct ast_cdr *cdr)
 
 	{ /* Make it obvious that only sql_cmd should be used outside of this block */
 		char *sql_tmp_cmd;
-		char sql_insert_cmd[2048] = "";
+		char sql_insert_cmd[2048];
 		sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%q)", table, columns, values);
 		dummy.cdr = cdr;
 		pbx_substitute_variables_helper(&dummy, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd) - 1);

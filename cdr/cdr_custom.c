@@ -119,7 +119,6 @@ static int custom_log(struct ast_cdr *cdr)
 	if (ast_strlen_zero(master))
 		return 0;
 
-	memset(buf, 0 , sizeof(buf));
 	/* Quite possibly the first use of a static struct ast_channel, we need it so the var funcs will work */
 	memset(&dummy, 0, sizeof(dummy));
 	dummy.cdr = cdr;

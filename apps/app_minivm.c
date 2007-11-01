@@ -1025,7 +1025,6 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 
 		ast_debug(4, "-_-_- Fromaddress template: %s\n", fromaddress);
 		if ((passdata = alloca(vmlen))) {
-			memset(passdata, 0, vmlen);
 			pbx_substitute_variables_helper(ast, fromaddress, passdata, vmlen);
 			len_passdata = strlen(passdata) * 2 + 3;
 			passdata2 = alloca(len_passdata);
@@ -1050,7 +1049,6 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		char *passdata;
 		int vmlen = strlen(template->subject) * 3 + 200;
 		if ((passdata = alloca(vmlen))) {
-			memset(passdata, 0, vmlen);
 			pbx_substitute_variables_helper(ast, template->subject, passdata, vmlen);
 			fprintf(p, "Subject: %s\n", passdata);
 		} else {
@@ -1082,7 +1080,6 @@ static int sendmail(struct minivm_template *template, struct minivm_account *vmu
 		char *passdata;
 		int vmlen = strlen(template->body)*3 + 200;
 		if ((passdata = alloca(vmlen))) {
-			memset(passdata, 0, vmlen);
 			pbx_substitute_variables_helper(ast, template->body, passdata, vmlen);
 			ast_debug(3, "Message now: %s\n-----\n", passdata);
 			fprintf(p, "%s\n", passdata);

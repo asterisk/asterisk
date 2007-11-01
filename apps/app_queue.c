@@ -2978,7 +2978,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					if (p == tmpid2 + sizeof(tmpid2))
 						tmpid2[sizeof(tmpid2) - 1] = '\0';
 
-					memset(tmpid, 0, sizeof(tmpid));
 					pbx_substitute_variables_helper(qe->chan, tmpid2, tmpid, sizeof(tmpid) - 1);
 				}
 
@@ -3005,7 +3004,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 					if (p == meid2 + sizeof(meid2))
 						meid2[sizeof(meid2) - 1] = '\0';
 
-					memset(meid, 0, sizeof(meid));
 					pbx_substitute_variables_helper(qe->chan, meid2, meid, sizeof(meid) - 1);
 				}
 	

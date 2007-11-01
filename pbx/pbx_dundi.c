@@ -533,7 +533,7 @@ struct dundi_query_state {
 
 static int get_mapping_weight(struct dundi_mapping *map)
 {
-	char buf[32] = "";
+	char buf[32];
 
 	if (map->weightstr) {
 		pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);

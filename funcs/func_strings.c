@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static int function_fieldqty(struct ast_channel *chan, const char *cmd,
 			     char *parse, char *buf, size_t len)
 {
-	char *varsubst, varval[8192] = "", *varval2 = varval;
+	char *varsubst, varval[8192], *varval2 = varval;
 	int fieldcount = 0;
 	AST_DECLARE_APP_ARGS(args,
 			     AST_APP_ARG(varname);
@@ -734,8 +734,6 @@ static struct ast_custom_function strptime_function = {
 static int function_eval(struct ast_channel *chan, const char *cmd, char *data,
 			 char *buf, size_t len)
 {
-	memset(buf, 0, len);
-
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
 		return -1;

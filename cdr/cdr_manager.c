@@ -143,7 +143,6 @@ static int manager_log(struct ast_cdr *cdr)
 	ast_strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
 	/* Custom fields handling */
-	memset(buf, 0 , sizeof(buf));
 	if (customfields != NULL && customfields->used > 0) {
 		memset(&dummy, 0, sizeof(dummy));
 		dummy.cdr = cdr;

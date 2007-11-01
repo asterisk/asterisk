@@ -220,7 +220,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 {
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
-	char postprocess2[1024] = "";
+	char postprocess2[1024];
 	size_t len;
 
 	len = sizeof(*mixmonitor) + strlen(chan->name) + strlen(filename) + 2;
@@ -235,7 +235,6 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 				*p2 = '$';
 			}
 		}
-
 		pbx_substitute_variables_helper(chan, p1, postprocess2, sizeof(postprocess2) - 1);
 		if (!ast_strlen_zero(postprocess2))
 			len += strlen(postprocess2) + 1;
