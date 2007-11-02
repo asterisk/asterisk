@@ -11003,7 +11003,12 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			transmit_response(p, "403 Unauthorized", req);
 		}
 		return;
+	} else if (ast_strlen_zero(c = get_header(req, "Content-Length")) || !strcasecmp(c, "0")) {
+		/* This is probably just a packet making sure the signalling is still up, just send back a 200 OK */
+		transmit_response(p, "200 OK", req);
+		return;
 	}
+
 	/* Other type of INFO message, not really understood by Asterisk */
 	/* if (get_msg_text(buf, sizeof(buf), req)) { */
 
