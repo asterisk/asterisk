@@ -8688,17 +8688,27 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			ast_string_field_set(p, context, domain_context);
 	}
 
+	/* If the request coming in is a subscription and subscribecontext has been specified use it */
+	if (req->method == SIP_SUBSCRIBE && !ast_strlen_zero(p->subscribecontext))
+		ast_string_field_set(p, context, p->subscribecontext);
+
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
 
-	/* Check the dialplan for the username part of the request URI,
-	   the domain will be stored in the SIPDOMAIN variable
-		Return 0 if we have a matching extension */
-	if (ast_exists_extension(NULL, p->context, uri, 1, from) ||
-		!strcmp(uri, ast_pickup_ext())) {
-		if (!oreq)
-			ast_string_field_set(p, exten, uri);
-		return 0;
+	/* If this is a subscription we actually just need to see if a hint exists for the extension */
+	if (req->method == SIP_SUBSCRIBE) {
+		char hint[AST_MAX_EXTENSION];
+		return (ast_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten) ? 0 : -1);
+	} else {
+		/* Check the dialplan for the username part of the request URI,
+		   the domain will be stored in the SIPDOMAIN variable
+		   Return 0 if we have a matching extension */
+		if (ast_exists_extension(NULL, p->context, uri, 1, from) ||
+		    !strcmp(uri, ast_pickup_ext())) {
+			if (!oreq)
+				ast_string_field_set(p, exten, uri);
+			return 0;
+		}
 	}
 
 	/* Return 1 for pickup extension or overlap dialling support (if we support it) */
@@ -14656,16 +14666,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	/* Get destination right away */
 	gotdest = get_destination(p, NULL);
-
-	/* Initialize the context if it hasn't been already;
-	   note this is done _after_ handling any domain lookups,
-	   because the context specified there is for calls, not
-	   subscriptions
-	*/
-	if (!ast_strlen_zero(p->subscribecontext))
-		ast_string_field_set(p, context, p->subscribecontext);
-	else if (ast_strlen_zero(p->context))
-		ast_string_field_set(p, context, default_context);
 
 	/* Get full contact header - this needs to be used as a request URI in NOTIFY's */
 	parse_ok_contact(p, req);
