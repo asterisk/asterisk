@@ -303,3 +303,5 @@ Miscellaneous
      channel in conjunction with the existing 'n' option for local channels.
   * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
      It allows you to configure a prefix for auto-monitor recordings.
+  * Added support for running your dialplan by writing one in lua.  See
+     configs/extensions.lua.sample for examples of how to do this.
