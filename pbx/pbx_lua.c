@@ -153,18 +153,21 @@ static int lua_pbx_findapp(lua_State *L)
  */
 static int lua_pbx_exec(lua_State *L)
 {
-	int nargs = lua_gettop(L);
+	int res, nargs = lua_gettop(L);
 	char data[LUA_EXT_DATA_SIZE] = "";
-	char *data_next = data;
+	char *data_next = data, *app_name;
+	char *context, *exten;
+	char tmp[80], tmp2[80], tmp3[LUA_EXT_DATA_SIZE];
+	int priority, autoservice;
 	size_t data_left = sizeof(data);
-	int res;
+	struct ast_app *app;
+	struct ast_channel *chan;
 	
 	lua_getfield(L, 1, "name");
-	char *app_name = ast_strdupa(lua_tostring(L, -1));
+	app_name = ast_strdupa(lua_tostring(L, -1));
 	lua_pop(L, 1);
 	
-	struct ast_app *app = pbx_findapp(app_name);
-	if (!app) {
+	if (!(app = pbx_findapp(app_name))) {
 		lua_pushstring(L, "application '");
 		lua_pushstring(L, app_name);
 		lua_pushstring(L, "' not found");
@@ -174,28 +177,29 @@ static int lua_pbx_exec(lua_State *L)
 	
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 	
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "context");
-	char *context = ast_strdupa(lua_tostring(L, -1));
+	context = ast_strdupa(lua_tostring(L, -1));
 	lua_pop(L, 1);
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "exten");
-	char *exten = ast_strdupa(lua_tostring(L, -1));
+	exten = ast_strdupa(lua_tostring(L, -1));
 	lua_pop(L, 1);
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "priority");
-	int priority = lua_tointeger(L, -1);
+	priority = lua_tointeger(L, -1);
 	lua_pop(L, 1);
 
 
 	if (nargs > 1) {
+		int i;
+
 		if (!lua_isnil(L, 2))
 			ast_build_string(&data_next, &data_left, "%s", luaL_checkstring(L, 2));
 
-		int i;
 		for (i = 3; i <= nargs; i++) {
 			if (lua_isnil(L, i))
 				ast_build_string(&data_next, &data_left, ",");
@@ -204,7 +208,6 @@ static int lua_pbx_exec(lua_State *L)
 		}
 	}
 	
-	char tmp[80], tmp2[80], tmp3[LUA_EXT_DATA_SIZE];
 	ast_verb(3, "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
 			exten, context, priority,
 			term_color(tmp, app_name, COLOR_BRCYAN, 0, sizeof(tmp)),
@@ -212,7 +215,7 @@ static int lua_pbx_exec(lua_State *L)
 			term_color(tmp3, data, COLOR_BRMAGENTA, 0, sizeof(tmp3)));
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
-	int autoservice = lua_toboolean(L, -1);
+	autoservice = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
 	if (autoservice)
@@ -245,8 +248,11 @@ static int lua_pbx_exec(lua_State *L)
  */
 static int lua_get_variable_value(lua_State *L)
 {
-	char *value = NULL;
+	struct ast_channel *chan;
+	char *value = NULL, *name;
 	char *workspace = alloca(LUA_BUF_SIZE);
+	int autoservice;
+
 	workspace[0] = '\0';
 
 	if (!lua_istable(L, 1)) {
@@ -255,15 +261,15 @@ static int lua_get_variable_value(lua_State *L)
 	}
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
 	lua_getfield(L, 1, "name");
-	char *name = ast_strdupa(lua_tostring(L, -1));
+	name = ast_strdupa(lua_tostring(L, -1));
 	lua_pop(L, 1);
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
-	int autoservice = lua_toboolean(L, -1);
+	autoservice = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
 	if (autoservice)
@@ -302,23 +308,27 @@ static int lua_get_variable_value(lua_State *L)
  */
 static int lua_set_variable_value(lua_State *L)
 {
+	const char *name, *value;
+	struct ast_channel *chan;
+	int autoservice;
+
 	if (!lua_istable(L, 1)) {
 		lua_pushstring(L, "User probably used '.' instead of ':' for setting a channel variable");
 		return lua_error(L);
 	}
 
 	lua_getfield(L, 1, "name");
-	const char *name = ast_strdupa(lua_tostring(L, -1));
+	name = ast_strdupa(lua_tostring(L, -1));
 	lua_pop(L, 1);
 
-	const char *value = luaL_checkstring(L, 2);
+	value = luaL_checkstring(L, 2);
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
-	int autoservice = lua_toboolean(L, -1);
+	autoservice = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
 	if (autoservice)
@@ -482,13 +492,14 @@ static void lua_create_autoservice_functions(lua_State *L)
  */
 static int lua_get_variable(lua_State *L)
 {
+	struct ast_channel *chan;
 	char *name = ast_strdupa(luaL_checkstring(L, 2));
 	char *value = NULL;
 	char *workspace = alloca(LUA_BUF_SIZE);
 	workspace[0] = '\0';
 	
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
 	lua_push_variable_table(L, name);
@@ -520,15 +531,17 @@ static int lua_get_variable(lua_State *L)
  */
 static int lua_set_variable(lua_State *L)
 {
+	struct ast_channel *chan;
+	int autoservice;
 	const char *name = luaL_checkstring(L, 2);
 	const char *value = luaL_checkstring(L, 3);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "autoservice");
-	int autoservice = lua_toboolean(L, -1);
+	autoservice = lua_toboolean(L, -1);
 	lua_pop(L, 1);
 
 	if (autoservice)
@@ -562,20 +575,21 @@ static int lua_func_read(lua_State *L)
 {
 	int nargs = lua_gettop(L);
 	char fullname[LUA_EXT_DATA_SIZE] = "";
-	char *fullname_next = fullname;
+	char *fullname_next = fullname, *name;
 	size_t fullname_left = sizeof(fullname);
 	
 	lua_getfield(L, 1, "name");
-	char *name = ast_strdupa(lua_tostring(L, -1));
+	name = ast_strdupa(lua_tostring(L, -1));
 	lua_pop(L, 1);
 
 	ast_build_string(&fullname_next, &fullname_left, "%s(", name);
 	
 	if (nargs > 1) {
+		int i;
+
 		if (!lua_isnil(L, 2))
 			ast_build_string(&fullname_next, &fullname_left, "%s", luaL_checkstring(L, 2));
 
-		int i;
 		for (i = 3; i <= nargs; i++) {
 			if (lua_isnil(L, i))
 				ast_build_string(&fullname_next, &fullname_left, ",");
@@ -606,11 +620,14 @@ static int lua_func_read(lua_State *L)
  */
 static int lua_autoservice_start(lua_State *L)
 {
+	struct ast_channel *chan;
+	int res;
+
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
-	int res = ast_autoservice_start(chan);
+	res = ast_autoservice_start(chan);
 
 	lua_pushboolean(L, !res);
 	lua_setfield(L, LUA_REGISTRYINDEX, "autoservice");
@@ -634,11 +651,14 @@ static int lua_autoservice_start(lua_State *L)
  */
 static int lua_autoservice_stop(lua_State *L)
 {
+	struct ast_channel *chan;
+	int res;
+
 	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
-	struct ast_channel *chan = lua_touserdata(L, -1);
+	chan = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 
-	int res = ast_autoservice_stop(chan);
+	res = ast_autoservice_stop(chan);
 
 	lua_pushboolean(L, 0);
 	lua_setfield(L, LUA_REGISTRYINDEX, "autoservice");
@@ -672,16 +692,18 @@ static int lua_autoservice_status(lua_State *L)
  */
 static int lua_sort_extensions(lua_State *L)
 {
+	int extensions, extensions_order;
+
 	/* create the extensions_order table */
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, "extensions_order");
 	lua_getfield(L, LUA_REGISTRYINDEX, "extensions_order");
-	int extensions_order = lua_gettop(L);
+	extensions_order = lua_gettop(L);
 
 	/* sort each context in the extensions table */
 	/* load the 'extensions' table */
 	lua_getglobal(L, "extensions");
-	int extensions = lua_gettop(L);
+	extensions = lua_gettop(L);
 	if (lua_isnil(L, -1)) {
 		lua_pop(L, 1);
 		lua_pushstring(L, "Unable to find 'extensions' table in extensions.lua\n");
@@ -695,10 +717,11 @@ static int lua_sort_extensions(lua_State *L)
 	for (lua_pushnil(L); lua_next(L, extensions); lua_pop(L, 1)) {
 		int context = lua_gettop(L);
 		int context_name = context - 1;
+		int context_order;
 
 		lua_pushvalue(L, context_name);
 		lua_newtable(L);
-		int context_order = lua_gettop(L);
+		context_order = lua_gettop(L);
 
 		/* iterate through this context an popluate the corrisponding
 		 * table in the extensions_order table */
@@ -769,11 +792,12 @@ static int lua_extension_cmp(lua_State *L)
  */
 static char *lua_read_extensions_file(lua_State *L, long *size)
 {
+	FILE *f;
+	char *data;
 	char *path = alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
 	sprintf(path, "%s/%s", ast_config_AST_CONFIG_DIR, config);
 
-	FILE *f = fopen(path, "r");
-	if (!f) {
+	if (!(f = fopen(path, "r"))) {
 		lua_pushstring(L, "cannot open '");
 		lua_pushstring(L, path);
 		lua_pushstring(L, "' for reading: ");
@@ -788,8 +812,7 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
 
 	fseek(f, 0l, SEEK_SET);
 
-	char *data = ast_malloc(*size);
-	if (!data) {
+	if (!(data = ast_malloc(*size))) {
 		*size = 0;
 		fclose(f);
 		lua_pushstring(L, "not enough memory");
@@ -913,6 +936,8 @@ static void lua_free_extensions()
 static lua_State *lua_get_state(struct ast_channel *chan)
 {
 	struct ast_datastore *datastore = NULL;
+	lua_State *L;
+
 	if (!chan) {
 		lua_State *L = luaL_newstate();
 		if (!L) {
@@ -949,7 +974,7 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 			ast_channel_datastore_add(chan, datastore);
 			ast_channel_unlock(chan);
 
-			lua_State *L = datastore->data;
+			L = datastore->data;
 
 			if (lua_load_extensions(L, chan)) {
 				const char *error = lua_tostring(L, -1);
@@ -970,19 +995,21 @@ static lua_State *lua_get_state(struct ast_channel *chan)
 
 static int exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	int res;
+	lua_State *L;
 	struct ast_module_user *u = ast_module_user_add(chan);
 	if (!u) {
 		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
 		return 0;
 	}
 
-	lua_State *L = lua_get_state(chan);
+	L = lua_get_state(chan);
 	if (!L) {
 		ast_module_user_remove(u);
 		return 0;
 	}
 
-	int res = lua_find_extension(L, context, exten, priority, &exists, 0);
+	res = lua_find_extension(L, context, exten, priority, &exists, 0);
 
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
@@ -991,19 +1018,21 @@ static int exists(struct ast_channel *chan, const char *context, const char *ext
 
 static int canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	int res;
+	lua_State *L;
 	struct ast_module_user *u = ast_module_user_add(chan);
 	if (!u) {
 		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
 		return 0;
 	}
 
-	lua_State *L = lua_get_state(chan);
+	L = lua_get_state(chan);
 	if (!L) {
 		ast_module_user_remove(u);
 		return 0;
 	}
 
-	int res =  lua_find_extension(L, context, exten, priority, &canmatch, 0);
+	res = lua_find_extension(L, context, exten, priority, &canmatch, 0);
 
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
@@ -1012,19 +1041,21 @@ static int canmatch(struct ast_channel *chan, const char *context, const char *e
 
 static int matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	int res;
+	lua_State *L;
 	struct ast_module_user *u = ast_module_user_add(chan);
 	if (!u) {
 		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
 		return 0;
 	}
 
-	lua_State *L = lua_get_state(chan);
+	L = lua_get_state(chan);
 	if (!L) {
 		ast_module_user_remove(u);
 		return 0;
 	}
 	
-	int res =  lua_find_extension(L, context, exten, priority, &matchmore, 0);
+	res = lua_find_extension(L, context, exten, priority, &matchmore, 0);
 
 	if (!chan) lua_close(L);
 	ast_module_user_remove(u);
@@ -1034,15 +1065,15 @@ static int matchmore(struct ast_channel *chan, const char *context, const char *
 
 static int exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	int res;
+	lua_State *L;
 	struct ast_module_user *u = ast_module_user_add(chan);
 	if (!u) {
 		ast_log(LOG_ERROR, "Error adjusting use count, probably could not allocate memory\n");
 		return -1;
 	}
 	
-	int res;
-	
-	lua_State *L = lua_get_state(chan);
+	L = lua_get_state(chan);
 	if (!L) {
 		ast_module_user_remove(u);
 		return -1;
@@ -1095,6 +1126,8 @@ static int exec(struct ast_channel *chan, const char *context, const char *exten
  */
 static int lua_find_extension(lua_State *L, const char *context, const char *exten, int priority, ast_switch_f *func, int push_func)
 {
+	int context_table, context_order_table, i;
+
 	ast_debug(2, "Looking up %s@%s:%i\n", exten, context, priority);
 	if (priority != 1)
 		return 0;
@@ -1117,7 +1150,7 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 	/* remove the extensions table */
 	lua_remove(L, -2);
 
-	int context_table = lua_gettop(L);
+	context_table = lua_gettop(L);
 
 	/* load the extensions order table for this context */
 	lua_getfield(L, LUA_REGISTRYINDEX, "extensions_order");
@@ -1125,29 +1158,29 @@ static int lua_find_extension(lua_State *L, const char *context, const char *ext
 
 	lua_remove(L, -2);  /* remove the extensions order table */
 
-	int context_order_table = lua_gettop(L);
+	context_order_table = lua_gettop(L);
 	
 	/* step through the extensions looking for a match */
-	int i;
 	for (i = 1; i < lua_objlen(L, context_order_table) + 1; i++) {
+		int e_index, isnumber, match = 0;
+		const char *e;
+
 		lua_pushinteger(L, i);
 		lua_gettable(L, context_order_table);
-		int e_index = lua_gettop(L);
-		int isnumber = lua_isnumber(L, e_index);
+		e_index = lua_gettop(L);
+		isnumber = lua_isnumber(L, e_index);
 
-		const char *e = lua_tostring(L, e_index);
-		if (!e) {
+		if (!(e = lua_tostring(L, e_index))) {
 			lua_pop(L, 1);
 			continue;
 		}
 
 		/* make sure this is not the 'include' extension */
-		if(!strcasecmp(e, "include")) {
+		if (!strcasecmp(e, "include")) {
 			lua_pop(L, 1);
 			continue;
 		}
 
-		int match = 0;
 		if (func == &matchmore)
 			match = ast_extension_close(e, exten, E_MATCHMORE);
 		else if (func == &canmatch)
@@ -1239,13 +1272,13 @@ static struct ast_switch lua_switch = {
 
 static int load_or_reload_lua_stuff(void)
 {
+	int res = AST_MODULE_LOAD_SUCCESS;
+
 	lua_State *L = luaL_newstate();
 	if (!L) {
 		ast_log(LOG_ERROR, "Error allocating lua_State, no memory\n");
 		return AST_MODULE_LOAD_FAILURE;
 	}
-
-	int res = AST_MODULE_LOAD_SUCCESS;
 
 	if (lua_reload_extensions(L)) {
 		const char *error = lua_tostring(L, -1);
