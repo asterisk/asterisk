@@ -818,6 +818,12 @@ static void config_cache_attribute(const char *configfile, enum config_cache_att
 
 	switch (attrtype) {
 	case ATTRIBUTE_INCLUDE:
+		AST_LIST_TRAVERSE(&cfmtime->includes, cfinclude, list) {
+			if (!strcmp(cfinclude->include, filename)) {
+				AST_LIST_UNLOCK(&cfmtime_head);
+				return;
+			}
+		}
 		cfinclude = ast_calloc(1, sizeof(*cfinclude) + strlen(filename) + 1);
 		if (!cfinclude) {
 			AST_LIST_UNLOCK(&cfmtime_head);
