@@ -145,7 +145,7 @@ static int odbc_log(struct ast_cdr *cdr)
 
 	stmt = ast_odbc_prepare_and_execute(obj, prepare_cb, cdr);
 	if (stmt) {
-		SQLINTEGER rows = 0;
+		SQLLEN rows = 0;
 
 		SQLRowCount(stmt, &rows);
 		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
