@@ -305,3 +305,6 @@ Miscellaneous
      It allows you to configure a prefix for auto-monitor recordings.
   * Added support for running your dialplan by writing one in lua.  See
      configs/extensions.lua.sample for examples of how to do this.
+ * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
+    configs/unistim.conf.sample for details.  This new channel driver allows
+	you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
