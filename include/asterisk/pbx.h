@@ -508,6 +508,20 @@ int ast_extension_match(const char *pattern, const char *extension);
 int ast_extension_close(const char *pattern, const char *data, int needmore);
 
 /*! 
+ * \brief Determine if one extension should match before another
+ * 
+ * \param a extension to compare with b
+ * \param b extension to compare with a
+ *
+ * Checks whether or extension a should match before extension b
+ *
+ * \retval 0 if the two extensions have equal matching priority
+ * \retval 1 on a > b
+ * \retval -1 on a < b
+ */
+int ast_extension_cmp(const char *a, const char *b);
+
+/*! 
  * \brief Launch a new extension (i.e. new stack)
  * 
  * \param c not important

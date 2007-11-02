@@ -806,6 +806,11 @@ static int ext_cmp(const char *a, const char *b)
 		return (ret > 0) ? 1 : -1;
 }
 
+int ast_extension_cmp(const char *a, const char *b)
+{
+	return ext_cmp(a, b);
+}
+
 /*!
  * \internal
  * \brief used ast_extension_{match|close}

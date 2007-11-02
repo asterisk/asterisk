@@ -409,6 +409,12 @@
 /* Define to indicate the ${LTDL_DESCRIP} library version */
 #undef HAVE_LTDL_VERSION
 
+/* Define this to indicate the ${LUA_DESCRIP} library */
+#undef HAVE_LUA
+
+/* Define to indicate the ${LUA_DESCRIP} library version */
+#undef HAVE_LUA_VERSION
+
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
 
