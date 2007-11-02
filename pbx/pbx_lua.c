@@ -1304,12 +1304,14 @@ static int reload(void)
 
 static int load_module(void)
 {
-	if (load_or_reload_lua_stuff())
-		return AST_MODULE_LOAD_FAILURE;
+	int res;
+
+	if ((res = load_or_reload_lua_stuff()))
+		return res;
 
 	if (ast_register_switch(&lua_switch)) {
 		ast_log(LOG_ERROR, "Unable to register LUA PBX switch\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	return AST_MODULE_LOAD_SUCCESS;
