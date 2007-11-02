@@ -5619,10 +5619,13 @@ chanreg_failed:
 	/*! XXX \todo Leaking anything allocated by reload_config() ... */
 reload_failed:
 	sched_context_destroy(sched);
+	sched = NULL;
 sched_failed:
 	io_context_destroy(io);
+	io = NULL;
 io_failed:
 	free(buff);
+	buff = NULL;
 buff_failed:
 	return AST_MODULE_LOAD_DECLINE;
 }
@@ -5630,7 +5633,8 @@ buff_failed:
 static int unload_module(void)
 {
 	/* First, take us out of the channel loop */
-	sched_context_destroy(sched);
+	if (sched)
+		sched_context_destroy(sched);
 
 	ast_cli_unregister_multiple(unistim_cli, ARRAY_LEN(unistim_cli));
 
@@ -5646,8 +5650,10 @@ static int unload_module(void)
 	monitor_thread = AST_PTHREADT_STOP;
 	ast_mutex_unlock(&monlock);
 
-	free(buff);
-	close(unistimsock);
+	if (buff)
+		free(buff);
+	if (unistimsock > -1)
+		close(unistimsock);
 
 	return 0;
 }
