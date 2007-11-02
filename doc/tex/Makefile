@@ -15,7 +15,7 @@ else
 	@echo "** located at asterisk.pdf.                ***"	
 	@echo "**********************************************"
 	@cp asterisk.tex asterisk.tex.orig
-	@sed -i -e 's/ASTERISKVERSION/$(ASTERISKVERSION)/' asterisk.tex
+	sed -i -e 's/ASTERISKVERSION/$(shell echo $(ASTERISKVERSION) | sed -e 's/\//\\\//g')/' asterisk.tex
 	@$(RUBBER) --pdf asterisk.tex
 	@mv asterisk.tex.orig asterisk.tex
 endif
