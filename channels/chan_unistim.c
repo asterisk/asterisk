@@ -208,7 +208,6 @@ static void dummy(char *dummy, ...)
 #define DEBUG_TIMER dummy
 /*! Enable verbose output. can also be set with the CLI */
 static int unistimdebug = 0;
-static int unistim_reload(int fd, int argc, char *argv[]);
 static int unistim_port;
 static enum autoprovision autoprovisioning = AUTOPROVISIONING_NO;
 static int unistim_keepalive;
@@ -4706,7 +4705,7 @@ static struct ast_channel *unistim_request(const char *type, int format, void *d
 	return tmpc;
 }
 
-static int unistim_info(int fd, int argc, char *argv[])
+static char *unistim_info(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	struct unistim_device *device = devices;
 	struct unistim_line *line;
@@ -4715,16 +4714,29 @@ static int unistim_info(int fd, int argc, char *argv[])
 	int i;
 	struct ast_channel *tmp;
 
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "Dumping internal structures :\ndevice\n->line\n-->sub\n");
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "unistim info";
+		e->usage =
+			"Usage: unistim info\n" 
+			"       Dump internal structures.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;	/* no completion */
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	ast_cli(a->fd, "Dumping internal structures :\ndevice\n->line\n-->sub\n");
 	while (device) {
-		ast_cli(fd, "\nname=%s id=%s line=%p ha=%p sess=%p device=%p\n",
+		ast_cli(a->fd, "\nname=%s id=%s line=%p ha=%p sess=%p device=%p\n",
 				device->name, device->id, device->lines, device->ha, device->session,
 				device);
 		line = device->lines;
 		while (line) {
-			ast_cli(fd,
+			ast_cli(a->fd,
 					"->name=%s fullname=%s exten=%s callid=%s cap=%d device=%p line=%p\n",
 					line->name, line->fullname, line->exten, line->cid_num,
 					line->capability, line->parent, line);
@@ -4737,9 +4749,9 @@ static int unistim_info(int fd, int argc, char *argv[])
 				else
 					tmp = sub->owner->_bridge;
 				if (sub->subtype != i)
-					ast_cli(fd, "Warning ! subchannel->subs[%d] have a subtype=%d\n", i,
+					ast_cli(a->fd, "Warning ! subchannel->subs[%d] have a subtype=%d\n", i,
 							sub->subtype);
-				ast_cli(fd,
+				ast_cli(a->fd,
 						"-->subtype=%d chan=%p rtp=%p bridge=%p line=%p alreadygone=%d\n",
 						sub->subtype, sub->owner, sub->rtp, tmp, sub->parent,
 						sub->alreadygone);
@@ -4748,20 +4760,22 @@ static int unistim_info(int fd, int argc, char *argv[])
 		}
 		device = device->next;
 	}
-	ast_cli(fd, "\nSessions:\n");
+	ast_cli(a->fd, "\nSessions:\n");
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
 	while (s) {
-		ast_cli(fd,
+		ast_cli(a->fd,
 				"sin=%s timeout=%u state=%d macaddr=%s device=%p session=%p\n",
 				ast_inet_ntoa(s->sin.sin_addr), s->timeout, s->state, s->macaddr,
 				s->device, s);
 		s = s->next;
 	}
 	ast_mutex_unlock(&sessionlock);
-	return RESULT_SUCCESS;
+
+	return CLI_SUCCESS;
 }
-static int unistim_sp(int fd, int argc, char *argv[])
+
+static char *unistim_sp(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	BUFFSEND;
 	struct unistim_subchannel *sub;
@@ -4769,32 +4783,47 @@ static int unistim_sp(int fd, int argc, char *argv[])
 	unsigned char c, cc;
 	char tmp[256];
 
-	if (argc != 4)
-		return RESULT_SHOWUSAGE;
-	if (strlen(argv[2]) < 9)
-		return RESULT_SHOWUSAGE;
-	len = strlen(argv[3]);
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "unistim sp";
+		e->usage =
+			"Usage: unistim sp USTM/line@name hexa\n"
+			"       unistim sp USTM/1000@hans 19040004\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;	/* no completion */
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (strlen(a->argv[2]) < 9)
+		return CLI_SHOWUSAGE;
+
+	len = strlen(a->argv[3]);
 	if (len % 2)
-		return RESULT_SHOWUSAGE;
-	ast_copy_string(tmp, argv[2] + 5, sizeof(tmp));
+		return CLI_SHOWUSAGE;
+
+	ast_copy_string(tmp, a->argv[2] + 5, sizeof(tmp));
 	sub = find_subchannel_by_name(tmp);
 	if (!sub) {
-		ast_cli(fd, "Can't find '%s'\n", tmp);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "Can't find '%s'\n", tmp);
+		return CLI_SUCCESS;
 	}
 	if (!sub->parent->parent->session) {
-		ast_cli(fd, "'%s' is not connected\n", tmp);
-		return RESULT_SUCCESS;
+		ast_cli(a->fd, "'%s' is not connected\n", tmp);
+		return CLI_SUCCESS;
 	}
-	ast_cli(fd, "Sending '%s' to %s (%p)\n", argv[3], tmp, sub->parent->parent->session);
+	ast_cli(a->fd, "Sending '%s' to %s (%p)\n", a->argv[3], tmp, sub->parent->parent->session);
 	for (i = 0; i < len; i++) {
-		c = argv[3][i];
+		c = a->argv[3][i];
 		if (c >= 'a')
 			c -= 'a' - 10;
 		else
 			c -= '0';
 		i++;
-		cc = argv[3][i];
+		cc = a->argv[3][i];
 		if (cc >= 'a')
 			cc -= 'a' - 10;
 		else
@@ -4803,49 +4832,78 @@ static int unistim_sp(int fd, int argc, char *argv[])
 	}
 	memcpy(buffsend + SIZE_HEADER, tmp, j);
 	send_client(SIZE_HEADER + j, buffsend, sub->parent->parent->session);
-	return RESULT_SUCCESS;
+	return CLI_SUCCESS;
 }
 
-static int unistim_do_debug(int fd, int argc, char *argv[])
+static char *unistim_do_debug(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 2)
-		return RESULT_SHOWUSAGE;
-	unistimdebug = 1;
-	ast_cli(fd, "UNISTIM Debugging Enabled\n");
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "unistim set debug {on|off}";
+		e->usage =
+			"Usage: unistim set debug\n" 
+			"       Display debug messages.\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;	/* no completion */
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (!strcasecmp(a->argv[3], "on")) {
+		unistimdebug = 1;
+		ast_cli(a->fd, "UNISTIM Debugging Enabled\n");
+	} else if (!strcasecmp(a->argv[3], "off")) {
+		unistimdebug = 0;
+		ast_cli(a->fd, "UNISTIM Debugging Disabled\n");
+	} else
+		return CLI_SHOWUSAGE;
+
+	return CLI_SUCCESS;
 }
 
-static int unistim_no_debug(int fd, int argc, char *argv[])
+/*! \brief --- unistim_reload: Force reload of module from cli ---
+ * Runs in the asterisk main thread, so don't do anything useful
+ * but setting a flag and waiting for do_monitor to do the job
+ * in our thread */
+static char *unistim_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	unistimdebug = 0;
-	ast_cli(fd, "UNISTIM Debugging Disabled\n");
-	return RESULT_SUCCESS;
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "unistim reload";
+		e->usage =
+			"Usage: unistim reload\n" 
+			"       Reloads UNISTIM configuration from unistim.conf\n";
+		return NULL;
+
+	case CLI_GENERATE:
+		return NULL;	/* no completion */
+	}
+
+	if (a->argc != e->args)
+		return CLI_SHOWUSAGE;
+
+	if (unistimdebug)
+		ast_verbose("reload unistim\n");
+
+	ast_mutex_lock(&unistim_reload_lock);
+	if (!unistim_reloading)
+		unistim_reloading = 1;
+	ast_mutex_unlock(&unistim_reload_lock);
+
+	restart_monitor();
+
+	return CLI_SUCCESS;
 }
 
-static char info_usage[] = "Usage: unistim info\n" "       Dump internal structures.\n";
-
-static char debug_usage[] = "Usage: unistim debug\n" "       Display debug messages.\n";
-
-static char no_debug_usage[] =
-	"Usage: unistim no debug\n" "       Stop debug messages.\n";
-static char unistim_reload_usage[] =
-	"Usage: unistim reload\n" "       Reloads UNISTIM configuration from unistim.conf\n";
-
-static char sp_usage[] =
-	"Usage: unistim sp USTM/line@name hexa\n"
-	"       unistim sp USTM/1000@hans 19040004\n";
 static struct ast_cli_entry unistim_cli[] = {
-	{{"unistim", "reload", NULL}, unistim_reload,"Reload UNISTIM configuration", unistim_reload_usage},
-	{{ "unistim", "info", NULL}, unistim_info, "Show UNISTIM info",
-info_usage },
-	{{ "unistim", "sp", NULL}, unistim_sp,"Send packet (for reverse engineering)", sp_usage },
-	{{"unistim", "debug", NULL}, unistim_do_debug, "Enable UNISTIM debugging",debug_usage },
-	{{"unistim", "no", "debug", NULL}, unistim_no_debug,"Disable UNISTIM debugging", no_debug_usage},
+	AST_CLI_DEFINE(unistim_reload, "Reload UNISTIM configuration"),
+	AST_CLI_DEFINE(unistim_info, "Show UNISTIM info"),
+	AST_CLI_DEFINE(unistim_sp, "Send packet (for reverse engineering)"),
+	AST_CLI_DEFINE(unistim_do_debug, "Toggle UNITSTIM debugging"),
 };
-
-
 
 static void unquote(char *out, const char *src, int maxlen)
 {
@@ -5518,26 +5576,6 @@ static struct ast_rtp_protocol unistim_rtp = {
 	.get_vrtp_info = unistim_get_vrtp_peer,
 	.set_rtp_peer = unistim_set_rtp_peer,
 };
-
-/*! \brief --- unistim_reload: Force reload of module from cli ---
- * Runs in the asterisk main thread, so don't do anything useful
- * but setting a flag and waiting for do_monitor to do the job
- * in our thread */
-static int unistim_reload(int fd, int argc, char *argv[])
-{
-	if (unistimdebug)
-		ast_verbose("reload unistim\n");
-
-	ast_mutex_lock(&unistim_reload_lock);
-	if (!unistim_reloading)
-		unistim_reloading = 1;
-	ast_mutex_unlock(&unistim_reload_lock);
-
-	restart_monitor();
-
-	return 0;
-}
-
 
 /*--- load_module: PBX load module - initialization ---*/
 int load_module(void)
