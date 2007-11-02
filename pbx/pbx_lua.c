@@ -1277,13 +1277,13 @@ static int load_or_reload_lua_stuff(void)
 	lua_State *L = luaL_newstate();
 	if (!L) {
 		ast_log(LOG_ERROR, "Error allocating lua_State, no memory\n");
-		return AST_MODULE_LOAD_FAILURE;
+		return AST_MODULE_LOAD_DECLINE;
 	}
 
 	if (lua_reload_extensions(L)) {
 		const char *error = lua_tostring(L, -1);
 		ast_log(LOG_ERROR, "Error loading extensions.lua: %s\n", error);
-		res = AST_MODULE_LOAD_FAILURE;
+		res = AST_MODULE_LOAD_DECLINE;
 	}
 
 	lua_close(L);
