@@ -429,7 +429,7 @@ static char *handle_cli_database_showkey(struct ast_cli_entry *e, int cmd, struc
 
 	switch (cmd) {
 	case CLI_INIT:
-		e->command = "database show";
+		e->command = "database showkey";
 		e->usage =
 			"Usage: database showkey <keytree>\n"
 			"       Shows Asterisk database contents, restricted to a given key.\n";
