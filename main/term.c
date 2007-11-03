@@ -80,16 +80,8 @@ int ast_term_init(void)
 	int termfd = -1, parseokay = 0, i;
 
 	if (!term)
-#ifdef linux
-		term = "linux";
-#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-		term = "cons25";
-#elif defined(SOLARIS)
-		term = "sun-color";
-#else
 		return 0;
-#endif
-	if (ast_opt_no_color)
+	if (!ast_opt_console || ast_opt_no_color || !ast_opt_no_fork)
 		return 0;
 
 	for (i=0 ;; i++) {
