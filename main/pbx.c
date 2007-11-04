@@ -1289,7 +1289,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 static void exception_store_free(void *data)
 {
 	struct pbx_exception *exception = data;
-	ast_string_field_free_pools(exception);
+	ast_string_field_free_memory(exception);
 	ast_free(exception);
 }
 

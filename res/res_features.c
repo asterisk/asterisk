@@ -1272,11 +1272,11 @@ static void ast_unregister_groups(void)
 	AST_RWLIST_WRLOCK(&feature_groups);
 	while ((fg = AST_LIST_REMOVE_HEAD(&feature_groups, entry))) {
 		while ((fge = AST_LIST_REMOVE_HEAD(&fg->features, entry))) {
-			ast_string_field_free_all(fge);
+			ast_string_field_free_memory(fge);
 			ast_free(fge);
 		}
 
-		ast_string_field_free_all(fg);
+		ast_string_field_free_memory(fg);
 		ast_free(fg);
 	}
 	AST_RWLIST_UNLOCK(&feature_groups);

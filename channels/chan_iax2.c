@@ -2152,7 +2152,7 @@ retry:
 				iax2_frame_free(frame.data);
 			jb_destroy(pvt->jb);
 			/* gotta free up the stringfields */
-			ast_string_field_free_pools(pvt);
+			ast_string_field_free_memory(pvt);
 			ast_free(pvt);
 		}
 	}
@@ -9735,7 +9735,7 @@ static void peer_destructor(void *obj)
 	if (peer->mwi_event_sub)
 		ast_event_unsubscribe(peer->mwi_event_sub);
 
-	ast_string_field_free_pools(peer);
+	ast_string_field_free_memory(peer);
 }
 
 /*! \brief Create peer structure based on configuration */
@@ -9987,7 +9987,7 @@ static void user_destructor(void *obj)
 		ast_variables_destroy(user->vars);
 		user->vars = NULL;
 	}
-	ast_string_field_free_pools(user);
+	ast_string_field_free_memory(user);
 }
 
 /*! \brief Create in-memory user structure from configuration */
@@ -10028,7 +10028,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, st
 	
 	if (user) {
 		if (firstpass) {
-			ast_string_field_free_pools(user);
+			ast_string_field_free_memory(user);
 			memset(user, 0, sizeof(struct iax2_user));
 			if (ast_string_field_init(user, 32)) {
 				user = user_unref(user);

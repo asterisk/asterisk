@@ -3602,7 +3602,7 @@ static void sip_registry_destroy(struct sip_registry *reg)
 		ast_sched_del(sched, reg->expire);
 	if (reg->timeout > -1)
 		ast_sched_del(sched, reg->timeout);
-	ast_string_field_free_pools(reg);
+	ast_string_field_free_memory(reg);
 	regobjs--;
 	ast_free(reg);
 	
@@ -3709,7 +3709,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner, int lockdialoglist)
 	}
 	ast_mutex_destroy(&p->pvt_lock);
 
-	ast_string_field_free_pools(p);
+	ast_string_field_free_memory(p);
 
 	ast_free(p);
 }
@@ -6455,7 +6455,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg
 
 	if (!ast_strlen_zero(p->url)) {
 		add_header(resp, "Access-URL", p->url);
-		ast_string_field_free(p, url);
+		ast_string_field_set(p, url, NULL);
 	}
 
 	return 0;
@@ -6565,7 +6565,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	if (!ast_strlen_zero(p->url)) {
 		add_header(req, "Access-URL", p->url);
-		ast_string_field_free(p, url);
+		ast_string_field_set(p, url, NULL);
 	}
 
 	return 0;
@@ -6607,7 +6607,7 @@ static void temp_pvt_cleanup(void *data)
 {
 	struct sip_pvt *p = data;
 
-	ast_string_field_free_pools(p);
+	ast_string_field_free_memory(p);
 
 	ast_free(data);
 }
@@ -6657,7 +6657,7 @@ static int transmit_response_using_temp(ast_string_field callid, struct sockaddr
 	__transmit_response(p, msg, req, XMIT_UNRELIABLE);
 
 	/* Free the string fields, but not the pool space */
-	ast_string_field_free_all(p);
+	ast_string_field_init(p, 0);
 
 	return 0;
 }
@@ -8178,7 +8178,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, const char *
 		} else {
 			p = r->call;
 			make_our_tag(p->tag, sizeof(p->tag));	/* create a new local tag for every register attempt */
-			ast_string_field_free(p, theirtag);	/* forget their old tag, so we don't match tags when getting response */
+			ast_string_field_set(p, theirtag, NULL);	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
 		/* Build callid for registration if we haven't registered before */
@@ -10238,8 +10238,8 @@ static enum check_auth_result check_peer_ok(struct sip_pvt *p, char *of,
 		p->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
 	if (ast_test_flag(&peer->flags[0], SIP_INSECURE_INVITE)) {
 		/* Pretend there is no required authentication */
-		ast_string_field_free(p, peersecret);
-		ast_string_field_free(p, peermd5secret);
+		ast_string_field_set(p, peersecret, NULL);
+		ast_string_field_set(p, peermd5secret, NULL);
 	}
 	if (!(res = check_auth(p, req, peer->name, p->peersecret, p->peermd5secret, sipmethod, uri2, reliable, req->ignore))) {
 		ast_copy_flags(&p->flags[0], &peer->flags[0], SIP_FLAGS_TO_COPY);
@@ -12633,13 +12633,13 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	/* table of recognised keywords, and places where they should be copied */
 	const struct x {
 		const char *key;
-		int field_index;
+		const ast_string_field *field;
 	} *i, keys[] = {
-		{ "realm=", ast_string_field_index(p, realm) },
-		{ "nonce=", ast_string_field_index(p, nonce) },
-		{ "opaque=", ast_string_field_index(p, opaque) },
-		{ "qop=", ast_string_field_index(p, qop) },
-		{ "domain=", ast_string_field_index(p, domain) },
+		{ "realm=", &p->realm },
+		{ "nonce=", &p->nonce },
+		{ "opaque=", &p->opaque },
+		{ "qop=", &p->qop },
+		{ "domain=", &p->domain },
 		{ NULL, 0 },
 	};
 
@@ -12667,7 +12667,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 				separator = ",";
 			}
 			strsep(&c, separator); /* clear separator and move ptr */
-			ast_string_field_index_set(p, i->field_index, src);
+			ast_string_field_ptr_set(p, i->field, src);
 			break;
 		}
 		if (i->key == NULL) /* not found, try ',' */
@@ -13285,7 +13285,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			p->options->auth_type = resp;
 
 		/* Then we AUTH */
-		ast_string_field_free(p, theirtag);	/* forget their old tag, so we don't match tags when getting response */
+		ast_string_field_set(p, theirtag, NULL);	/* forget their old tag, so we don't match tags when getting response */
 		if (!req->ignore) {
 			if (p->authtries < MAX_AUTHTRIES)
 				p->invitestate = INV_CALLING;
@@ -14853,7 +14853,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 			p->invitestate = INV_COMPLETED;	
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			ast_string_field_free(p, theirtag);
+			ast_string_field_set(p, theirtag, NULL);
 			return 0;
 		}
 
@@ -16974,7 +16974,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	   SIP/peername will still use the full contact */
 	if (ext) {
 		ast_string_field_set(p, username, ext);
-		ast_string_field_free(p, fullcontact);
+		ast_string_field_set(p, fullcontact, NULL);
 	}
 #if 0
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);

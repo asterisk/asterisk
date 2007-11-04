@@ -1207,100 +1207,141 @@ void ast_join(char *s, size_t len, char * const w[])
 	s[ofs] = '\0';
 }
 
-const char __ast_string_field_empty[] = "";
+/*
+ * stringfields support routines.
+ */
 
-static int add_string_pool(struct ast_string_field_mgr *mgr, size_t size)
+const char __ast_string_field_empty[] = ""; /*!< the empty string */
+
+/*! \brief add a new block to the pool.
+ * We can only allocate from the topmost pool, so the
+ * fields in *mgr reflect the size of that only.
+ */
+static int add_string_pool(struct ast_string_field_mgr *mgr,
+	struct ast_string_field_pool **pool_head, size_t size)
 {
 	struct ast_string_field_pool *pool;
 
 	if (!(pool = ast_calloc(1, sizeof(*pool) + size)))
 		return -1;
 	
-	pool->prev = mgr->pool;
-	mgr->pool = pool;
+	pool->prev = *pool_head;
+	*pool_head = pool;
 	mgr->size = size;
-	mgr->space = size;
 	mgr->used = 0;
 
 	return 0;
 }
 
-int __ast_string_field_init(struct ast_string_field_mgr *mgr, size_t size,
-			    ast_string_field *fields, int num_fields)
+/*
+ * This is an internal API, code should not use it directly.
+ * It initializes all fields as empty, then uses 'size' for 3 functions:
+ * size > 0 means initialize the pool list with a pool of given size.
+ *	This must be called right after allocating the object.
+ * size = 0 means release all pools except the most recent one.
+ *	This is useful to e.g. reset an object to the initial value.
+ * size < 0 means release all pools.
+ *	This must be done before destroying the object.
+ */
+int __ast_string_field_init(struct ast_string_field_mgr *mgr,
+	struct ast_string_field_pool **pool_head, size_t size)
 {
-	int index;
+	const char **p = (const char **)pool_head + 1;
+	struct ast_string_field_pool *cur = *pool_head;
 
-	if (add_string_pool(mgr, size))
-		return -1;
-
-	for (index = 0; index < num_fields; index++)
-		fields[index] = __ast_string_field_empty;
-
+	/* clear fields - this is always necessary */
+	while ((struct ast_string_field_mgr *)p != mgr)
+		*p++ = __ast_string_field_empty;
+	if (size > 0) {			/* allocate the initial pool */
+		*pool_head = NULL;
+		return add_string_pool(mgr, pool_head, size);
+	}
+	if (size < 0) {			/* reset all pools */
+		*pool_head = NULL;
+	} else {			/* preserve the first pool */
+		if (cur == NULL) {
+			ast_log(LOG_WARNING, "trying to reset empty pool\n");
+			return -1;
+		}
+		cur = cur->prev;
+		(*pool_head)->prev = NULL;
+		mgr->used = 0;
+	}
+	while (cur) {
+		struct ast_string_field_pool *prev = cur->prev;
+		ast_free(cur);
+		cur = prev;
+	}
 	return 0;
 }
 
-ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr, size_t needed,
-						ast_string_field *fields, int num_fields)
+ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr,
+	struct ast_string_field_pool **pool_head, size_t needed)
 {
 	char *result = NULL;
+	size_t space = mgr->size - mgr->used;
 
-	if (__builtin_expect(needed > mgr->space, 0)) {
+	if (__builtin_expect(needed > space, 0)) {
 		size_t new_size = mgr->size * 2;
 
 		while (new_size < needed)
 			new_size *= 2;
 
-		if (add_string_pool(mgr, new_size))
+		if (add_string_pool(mgr, pool_head, new_size))
 			return NULL;
 	}
 
-	result = mgr->pool->base + mgr->used;
+	result = (*pool_head)->base + mgr->used;
 	mgr->used += needed;
-	mgr->space -= needed;
 	return result;
 }
 
-void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
-				    ast_string_field *fields, int num_fields,
-				    int index, const char *format, va_list ap1, va_list ap2)
+void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
+	struct ast_string_field_pool **pool_head,
+	const ast_string_field *ptr, const char *format, va_list ap1, va_list ap2)
 {
 	size_t needed;
+	char *dst = (*pool_head)->base + mgr->used;
+	const char **p = (const char **)ptr;
+	size_t space = mgr->size - mgr->used;
 
-	needed = vsnprintf(mgr->pool->base + mgr->used, mgr->space, format, ap1) + 1;
+	/* try to write using available space */
+	needed = vsnprintf(dst, space, format, ap1) + 1;
 
 	va_end(ap1);
 
-	if (needed > mgr->space) {
+	if (needed > space) {	/* if it fails, reallocate */
 		size_t new_size = mgr->size * 2;
 
 		while (new_size < needed)
 			new_size *= 2;
 
-		if (add_string_pool(mgr, new_size))
+		if (add_string_pool(mgr, pool_head, new_size))
 			return;
 
-		vsprintf(mgr->pool->base + mgr->used, format, ap2);
+		dst = (*pool_head)->base + mgr->used;
+		vsprintf(dst, format, ap2);
 	}
 
-	fields[index] = mgr->pool->base + mgr->used;
+	*p = dst;
 	mgr->used += needed;
-	mgr->space -= needed;
 }
 
-void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
-				    ast_string_field *fields, int num_fields,
-				    int index, const char *format, ...)
+void __ast_string_field_ptr_build(struct ast_string_field_mgr *mgr,
+	struct ast_string_field_pool **pool_head,
+	const ast_string_field *ptr, const char *format, ...)
 {
 	va_list ap1, ap2;
 
 	va_start(ap1, format);
 	va_start(ap2, format);		/* va_copy does not exist on FreeBSD */
 
-	__ast_string_field_index_build_va(mgr, fields, num_fields, index, format, ap1, ap2);
+	__ast_string_field_ptr_build_va(mgr, pool_head, ptr, format, ap1, ap2);
 
 	va_end(ap1);
 	va_end(ap2);
 }
+/* end of stringfields support */
 
 AST_MUTEX_DEFINE_STATIC(fetchadd_m); /* used for all fetc&add ops */
 
