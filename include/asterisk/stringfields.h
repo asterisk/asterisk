@@ -74,7 +74,7 @@
   and their storage pool must be freed:
   
   \code
-  ast_string_field_free_all(sample);
+  ast_string_field_free_memory(sample);
   free(sample);
   \endcode
 */
@@ -361,7 +361,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
   structure; it should only be called immediately before freeing
   the structure itself.
 */
-#define ast_string_field_free_pools(x) do { \
+#define ast_string_field_free_memory(x) do { \
 	struct ast_string_field_pool *this, *prev; \
 	for (this = (x)->__field_mgr.pool; this; this = prev) { \
 		prev = this->prev; \
@@ -378,7 +378,7 @@ void __ast_string_field_index_build_va(struct ast_string_field_mgr *mgr,
   attached to the structure will be available for use by
   stringfields again.
 */
-#define ast_string_field_free_all(x) do { \
+#define ast_string_field_reset_all(x) do { \
 	int index; \
 	for (index = 0; index < ast_string_field_count(x); index++) \
 		ast_string_field_index_free(x, index); \

@@ -776,7 +776,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
 			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
-			ast_string_field_free_pools(tmp);
+			ast_string_field_free_memory(tmp);
 			free(tmp);
 			return NULL;
 		} else {
@@ -1265,7 +1265,7 @@ void ast_channel_free(struct ast_channel *chan)
 	/* Destroy the jitterbuffer */
 	ast_jb_destroy(chan);
 
-	ast_string_field_free_pools(chan);
+	ast_string_field_free_memory(chan);
 	free(chan);
 	AST_LIST_UNLOCK(&channels);
 

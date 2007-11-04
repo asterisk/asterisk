@@ -4406,7 +4406,7 @@ static void destroy_trunk(struct sla_trunk *trunk)
 	while ((station_ref = AST_LIST_REMOVE_HEAD(&trunk->stations, entry)))
 		free(station_ref);
 
-	ast_string_field_free_all(trunk);
+	ast_string_field_free_memory(trunk);
 	free(trunk);
 }
 
@@ -4432,7 +4432,7 @@ static void destroy_station(struct sla_station *station)
 	while ((trunk_ref = AST_LIST_REMOVE_HEAD(&station->trunks, entry)))
 		free(trunk_ref);
 
-	ast_string_field_free_all(station);
+	ast_string_field_free_memory(station);
 	free(station);
 }
 
