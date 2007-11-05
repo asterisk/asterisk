@@ -4847,7 +4847,7 @@ static int find_sdp(struct sip_request *req)
 /*! \brief Change hold state for a call */
 static void change_hold_state(struct sip_pvt *dialog, struct sip_request *req, int holdstate, int sendonly)
 {
-	if (global_notifyhold)
+	if (global_notifyhold && (!holdstate || !ast_test_flag(&dialog->flags[1], SIP_PAGE2_CALL_ONHOLD)))
 		sip_peer_hold(dialog, holdstate);
 	if (global_callevents)
 		manager_event(EVENT_FLAG_CALL, holdstate ? "Hold" : "Unhold",
