@@ -322,7 +322,7 @@ static int odbc_show_command(int fd, int argc, char **argv)
 				ast_cli(fd, "Pooled: yes\nLimit: %d\nConnections in use: %d\n", class->limit, class->count);
 
 				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-					ast_cli(fd, "  Connection %d: %s\n", ++count, current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
+					ast_cli(fd, "  Connection %d: %s\n", ++count, current->used ? "in use" : current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
 				}
 			} else {
 				/* Should only ever be one of these */
