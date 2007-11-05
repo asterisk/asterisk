@@ -539,32 +539,42 @@ install: datafiles bininstall $(SUBDIRS_INSTALL)
 
 upgrade: bininstall
 
+# XXX why *.adsi is installed first ?
 adsi:
-	mkdir -p $(DESTDIR)$(ASTETCDIR)
-	for x in configs/*.adsi; do \
-		if [ ! -f $(DESTDIR)$(ASTETCDIR)/$$x ]; then \
-			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x` ; \
+	@echo Installing adsi config files...
+	@mkdir -p $(DESTDIR)$(ASTETCDIR)
+	@for x in configs/*.adsi; do \
+		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x`" ; \
+		if [ -f $${dst} ] ; then \
+			echo "Overwriting $$x" ; \
+		else \
+			echo "Installing $$x" ; \
 		fi ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x` ; \
 	done
 
 samples: adsi
-	mkdir -p $(DESTDIR)$(ASTETCDIR)
-	for x in configs/*.sample; do \
-		if [ -f $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample` ]; then \
+	@echo Installing other config files...
+	@mkdir -p $(DESTDIR)$(ASTETCDIR)
+	@for x in configs/*.sample; do \
+		dst="$(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample`" ;	\
+		if [ -f $${dst} ]; then \
 			if [ "$(OVERWRITE)" = "y" ]; then \
-				if cmp -s $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample` $$x ; then \
+				if cmp -s $${dst} $$x ; then \
 					echo "Config file $$x is unchanged"; \
 					continue; \
 				fi ; \
-				mv -f $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample` $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample`.old ; \
+				mv -f $${dst} $${dst}.old ; \
 			else \
 				echo "Skipping config file $$x"; \
 				continue; \
 			fi ;\
 		fi ; \
-		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`$(BASENAME) $$x .sample` ;\
+		echo "Installing file $$x"; \
+		$(INSTALL) -m 644 $$x $${dst} ;\
 	done
-	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTCONFPATH) ]; then \
+	@if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTCONFPATH) ]; then \
+		echo "Creating asterisk.conf"; \
 		( \
 		echo "[directories]" ; \
 		echo "astetcdir => $(ASTETCDIR)" ; \
