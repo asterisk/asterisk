@@ -270,7 +270,6 @@ MOD_SUBDIRS_EMBED_LIBS:=$(MOD_SUBDIRS:%=%-embed-libs)
 
 ifneq ($(findstring darwin,$(OSARCH)),)
   ASTCFLAGS+=-D__Darwin__
-  AUDIO_LIBS=-framework CoreAudio
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
 # These are used for all but Darwin
@@ -351,7 +350,7 @@ $(MOD_SUBDIRS):
 
 $(OTHER_SUBDIRS):
 	@echo "   [enter SUBDIR $@/]"
-	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" AUDIO_LIBS="$(AUDIO_LIBS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 	@echo "   [exit SUBDIR $@/]"
 
 defaults.h: makeopts
