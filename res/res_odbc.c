@@ -379,7 +379,7 @@ static char *handle_cli_odbc_show(struct ast_cli_entry *e, int cmd, struct ast_c
 				ast_cli(a->fd, "  Pooled: Yes\n  Limit:  %d\n  Connections in use: %d\n", class->limit, class->count);
 
 				AST_LIST_TRAVERSE(&(class->odbc_obj), current, list) {
-					ast_cli(a->fd, "    - Connection %d: %s\n", ++count, current->up && ast_odbc_sanity_check(current) ? "Connected" : "Disconnected");
+					ast_cli(a->fd, "    - Connection %d: %s\n", ++count, current->used ? "in use" : current->up && ast_odbc_sanity_check(current) ? "connected" : "disconnected");
 				}
 			} else {
 				/* Should only ever be one of these */
