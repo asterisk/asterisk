@@ -18329,6 +18329,7 @@ static int reload_config(enum channelreloadreason reason)
 	internip = bindaddr;
 	if (ast_find_ourip(&internip.sin_addr, bindaddr)) {
 		ast_log(LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
+		ast_config_destroy(cfg);
 		return 0;
 	}
 	ast_mutex_lock(&netlock);
@@ -18340,6 +18341,7 @@ static int reload_config(enum channelreloadreason reason)
 		sipsock = socket(AF_INET, SOCK_DGRAM, 0);
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
+			ast_config_destroy(cfg);
 			return -1;
 		} else {
 			/* Allow SIP clients on the same host to access us: */
