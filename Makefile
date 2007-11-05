@@ -15,7 +15,6 @@
 #
 # ASTCFLAGS - compiler options
 # ASTLDFLAGS - linker flags (not libraries)
-# AST_LIBS - libraries to build binaries XXX
 # LIBS - additional libraries, at top-level for all links,
 #      on a single object just for that object
 # SOLINK - linker flags used only for creating shared objects (.so files),
@@ -229,7 +228,6 @@ ifeq ($(OSARCH),FreeBSD)
   # -V is understood by BSD Make, not by GNU make.
   BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
   ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-  AST_LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 endif
 
 ifeq ($(OSARCH),NetBSD)
@@ -348,7 +346,7 @@ main: $(filter-out main,$(MOD_SUBDIRS))
 
 $(MOD_SUBDIRS):
 	@echo "   [enter MOD_SUBDIR $@/]"
-	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" AST_LIBS="$(AST_LIBS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
+	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
 	@echo "   [exit MOD_SUBDIR $@/]"
 
 $(OTHER_SUBDIRS):

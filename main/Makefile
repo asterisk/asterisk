@@ -85,6 +85,9 @@ else
 endif
 
 ifeq ($(OSARCH),FreeBSD)
+  # -V is understood by BSD Make, not by GNU make.
+  BSDVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
+  AST_LIBS+=$(shell if test $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
   AST_LIBS+=-lcrypto
 endif
 
