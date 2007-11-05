@@ -293,16 +293,21 @@ else
   HAVEDOT=no
 endif
 
+# $(MAKE) is printed in several places, and we want it to be a
+# fixed size string. Define a variable whose name has also the
+# same size, so we can easily align text.
+ifeq ($(MAKE), gmake)
+	mK="gmake"
+else
+	mK=" make"
+endif
+
 all: _all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, and +"  
 	@echo " + can be installed by running:              +"
 	@echo " +                                           +"
-ifeq ($(MAKE), gmake)
-	@echo " +               $(MAKE) install               +"  
-else
-	@echo " +               $(MAKE) install                +"  
-endif
+	@echo " +               $(mK) install               +"  
 	@echo " +-------------------------------------------+"  
 
 _all: cleantest $(SUBDIRS)
@@ -518,22 +523,14 @@ install: datafiles bininstall $(SUBDIRS_INSTALL)
 	@echo " + configuration files (overwriting any      +"
 	@echo " + existing config files), run:              +"  
 	@echo " +                                           +"
-ifeq ($(MAKE), gmake)
-	@echo " +               $(MAKE) samples               +"
-else
-	@echo " +               $(MAKE) samples                +"
-endif
+	@echo " +               $(mK) samples               +"
 	@echo " +                                           +"
 	@echo " +-----------------  or ---------------------+"
 	@echo " +                                           +"
 	@echo " + You can go ahead and install the asterisk +"
 	@echo " + program documentation now or later run:   +"
 	@echo " +                                           +"
-ifeq ($(MAKE), gmake)
-	@echo " +              $(MAKE) progdocs               +"
-else
-	@echo " +              $(MAKE) progdocs                +"
-endif
+	@echo " +              $(mK) progdocs               +"
 	@echo " +                                           +"
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
@@ -730,11 +727,7 @@ uninstall: _uninstall
 	@echo " + directories, and logs, run the following  +"
 	@echo " + command:                                  +"
 	@echo " +                                           +"
-ifeq ($(MAKE), gmake)
-	@echo " +            $(MAKE) uninstall-all            +"  
-else
-	@echo " +            $(MAKE) uninstall-all             +"  
-endif
+	@echo " +            $(mK) uninstall-all            +"  
 	@echo " +-------------------------------------------+"  
 
 uninstall-all: _uninstall
