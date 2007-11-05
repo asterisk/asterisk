@@ -21,7 +21,7 @@
 .PHONY: dist-clean
 
 # extra cflags to build dependencies. Recursively expanded.
-_CFLAGS2= -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
+MAKE_DEPS= -MMD -MT $@ -MF .$(subst /,_,$@).d -MP
 
 ifeq ($(NOISY_BUILD),)
     ECHO_PREFIX=@
@@ -45,23 +45,23 @@ endif
 # build rules for various targets
 %.o: %.c
 	$(ECHO_PREFIX) echo "   [CC] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(_CFLAGS2)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
 
 %.o: %.i
 	$(ECHO_PREFIX) echo "   [CCi] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(_CFLAGS2)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
 
 %.i: %.c
 	$(ECHO_PREFIX) echo "   [CPP] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -E $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(_CFLAGS2)
+	$(CMD_PREFIX) $(CC) -o $@ -E $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
 
 %.o: %.s
 	$(ECHO_PREFIX) echo "   [AS] $< -> $@"
-	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(_CFLAGS2)
+	$(CMD_PREFIX) $(CC) -o $@ -c $< $(PTHREAD_CFLAGS) $(ASTCFLAGS) $(MAKE_DEPS)
 
 %.oo: %.cc
 	$(ECHO_PREFIX) echo "   [CXX] $< -> $@"
-	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations,$(ASTCFLAGS)) $(_CFLAGS2)
+	$(CMD_PREFIX) $(CXX) -o $@ -c $< $(PTHREAD_CFLAGS) $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations,$(ASTCFLAGS)) $(MAKE_DEPS)
 
 %.c: %.y
 	$(ECHO_PREFIX) echo "   [BISON] $< -> $@"
