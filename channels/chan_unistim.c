@@ -1169,7 +1169,7 @@ static void close_client(struct unistimsession *s)
 		else
 			sessions = cur->next;
 		ast_mutex_destroy(&s->lock);
-		free(s);
+		ast_free(s);
 	} else
 		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);
 	ast_mutex_unlock(&sessionlock);
@@ -1549,7 +1549,7 @@ static int unalloc_sub(struct unistim_line *p, int x)
 		ast_log(LOG_DEBUG, "Released sub %d of channel %s@%s\n", x, p->name,
 				p->parent->name);
 	ast_mutex_destroy(&p->lock);
-	free(p->subs[x]);
+	ast_free(p->subs[x]);
 	p->subs[x] = 0;
 	return 0;
 }
@@ -1588,16 +1588,25 @@ static void rcv_mac_addr(struct unistimsession *pte, const unsigned char *buf)
 				while (d) {
 					if (!strcasecmp(d->name, "template")) {
 						/* Found, cloning this entry */
-						if (!(newd = ast_malloc(sizeof(struct unistim_device))));
-						return;
-
-						memcpy(newd, d, sizeof(struct unistim_device));
-						if (!(newl = ast_malloc(sizeof(struct unistim_line))));
-						return;
-
-						memcpy(newl, d->lines, sizeof(struct unistim_line));
-						if (!alloc_sub(newl, SUB_REAL))
+						if (!(newd = ast_malloc(sizeof(*newd)))) {
+							ast_mutex_unlock(&devicelock);
 							return;
+						}
+
+						memcpy(newd, d, sizeof(*newd));
+						if (!(newl = ast_malloc(sizeof(*newl)))) {
+							ast_free(newd);
+							ast_mutex_unlock(&devicelock);
+							return;
+						}
+
+						memcpy(newl, d->lines, sizeof(*newl));
+						if (!alloc_sub(newl, SUB_REAL)) {
+							ast_free(newd);
+							ast_free(newl);
+							ast_mutex_unlock(&devicelock);
+							return;
+						}
 						/* Ok, now updating some fields */
 						ast_copy_string(newd->id, addrmac, sizeof(newd->id));
 						ast_copy_string(newd->name, addrmac, sizeof(newd->name));
@@ -1853,20 +1862,20 @@ static int write_history(struct unistimsession *pte, char way, char ismissed)
 		return -1;
 	}
 	if (fread(histbuf, size, 1, f) != 1) {
-		free(histbuf);
+		ast_free(histbuf);
 		fclose(f);
 		fclose(f2);
 		display_last_error("Unable to read previous history entries.");
 		return -1;
 	}
 	if (fwrite(histbuf, size, 1, f2) != 1) {
-		free(histbuf);
+		ast_free(histbuf);
 		fclose(f);
 		fclose(f2);
 		display_last_error("Unable to write previous history entries.");
 		return -1;
 	}
-	free(histbuf);
+	ast_free(histbuf);
 	if (fclose(f))
 		display_last_error("Unable to close history log.");
 	if (fclose(f2))
@@ -4466,10 +4475,14 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 	struct unistim_line *l;
 	int fmt;
 
-	if (!sub)
+	if (!sub) {
 		ast_log(LOG_WARNING, "subchannel null in unistim_new\n");
-	if (!sub->parent)
+		return NULL;
+	}
+	if (!sub->parent) {
 		ast_log(LOG_WARNING, "no line for subchannel %p\n", sub);
+		return NULL;
+	}
 	l = sub->parent;
 	tmp = ast_channel_alloc(1, state, l->cid_num, NULL, l->accountcode, l->exten, 
 		l->context, l->amaflags, "%s-%08x", l->fullname, (int) (long) sub);
@@ -4523,7 +4536,7 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 			ast_callerid_parse(instr, &name, &loc);
 			tmp->cid.cid_num = ast_strdup(loc);
 			tmp->cid.cid_name = ast_strdup(name);
-			free(instr);
+			ast_free(instr);
 		}
 	}
 	tmp->priority = 1;
@@ -4794,8 +4807,8 @@ static char *unistim_sp(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	case CLI_GENERATE:
 		return NULL;	/* no completion */
 	}
-
-	if (a->argc != e->args)
+	
+	if (a->argc < 4)
 		return CLI_SHOWUSAGE;
 
 	if (strlen(a->argv[2]) < 9)
@@ -4882,7 +4895,7 @@ static char *unistim_reload(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return NULL;	/* no completion */
 	}
 
-	if (a->argc != e->args)
+	if (e && a && a->argc != e->args)
 		return CLI_SHOWUSAGE;
 
 	if (unistimdebug)
@@ -5066,7 +5079,7 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			return NULL;
 
 		if (!(l = ast_calloc(1, sizeof(*l)))) {
-			free(d);
+			ast_free(d);
 			return NULL;
 		}
 		ast_copy_string(d->name, cat, sizeof(d->name));
@@ -5178,8 +5191,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 				ast_log(LOG_WARNING,
 						"You must use bookmark AFTER line=>. Only one line is supported in this version\n");
 				if (create) {
-					free(d);
-					free(l);
+					ast_free(d);
+					ast_free(l);
 				}
 				return NULL;
 			}
@@ -5231,8 +5244,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 			if (create) {
 				if (!alloc_sub(l, SUB_REAL)) {
 					ast_mutex_destroy(&l->lock);
-					free(l);
-					free(d);
+					ast_free(l);
+					ast_free(d);
 					return NULL;
 				}
 				l->next = d->lines;
@@ -5255,8 +5268,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 	if (!d->lines) {
 		ast_log(LOG_ERROR, "An Unistim device must have at least one line!\n");
 		ast_mutex_destroy(&l->lock);
-		free(l);
-		free(d);
+		ast_free(l);
+		ast_free(d);
 		return NULL;
 	}
 	if ((autoprovisioning == AUTOPROVISIONING_TN) &&
@@ -5272,8 +5285,8 @@ static struct unistim_device *build_device(const char *cat, const struct ast_var
 		if (strcmp(d->name, "template")) {
 			ast_log(LOG_ERROR, "You must specify the mac address with device=\n");
 			ast_mutex_destroy(&l->lock);
-			free(l);
-			free(d);
+			ast_free(l);
+			ast_free(d);
 			return NULL;
 		} else
 			strcpy(d->id, "000000000000");
@@ -5376,12 +5389,14 @@ static int reload_config(void)
 		(unistim_keepalive >
 		 255 - (((NB_MAX_RETRANSMIT + 1) * RETRANSMIT_TIMER) / 1000))) {
 		ast_log(LOG_ERROR, "keepalive is invalid in %s\n", config);
+		ast_config_destroy(cfg);
 		return -1;
 	}
 	packet_send_ping[4] =
 		unistim_keepalive + (((NB_MAX_RETRANSMIT + 1) * RETRANSMIT_TIMER) / 1000);
 	if ((unistim_port < 1) || (unistim_port > 65535)) {
 		ast_log(LOG_ERROR, "port is not set or invalid in %s\n", config);
+		ast_config_destroy(cfg);
 		return -1;
 	}
 	unistim_keepalive *= 1000;
@@ -5412,11 +5427,13 @@ static int reload_config(void)
 				ast_verbose("Removing device '%s'\n", d->name);
 			if (!d->lines) {
 				ast_log(LOG_ERROR, "Device '%s' without a line !, aborting\n", d->name);
+				ast_config_destroy(cfg);
 				return 0;
 			}
 			if (!d->lines->subs[0]) {
 				ast_log(LOG_ERROR, "Device '%s' without a subchannel !, aborting\n",
 						d->name);
+				ast_config_destroy(cfg);
 				return 0;
 			}
 			if (d->lines->subs[0]->owner) {
@@ -5427,7 +5444,7 @@ static int reload_config(void)
 				continue;
 			}
 			ast_mutex_destroy(&d->lines->subs[0]->lock);
-			free(d->lines->subs[0]);
+			ast_free(d->lines->subs[0]);
 			for (i = 1; i < MAX_SUBS; i++) {
 				if (d->lines->subs[i]) {
 					ast_log(LOG_WARNING,
@@ -5441,7 +5458,7 @@ static int reload_config(void)
 				continue;
 			}
 			ast_mutex_destroy(&d->lines->lock);
-			free(d->lines);
+			ast_free(d->lines);
 			if (d->session) {
 				if (sessions == d->session)
 					sessions = d->session->next;
@@ -5456,7 +5473,7 @@ static int reload_config(void)
 					}
 				}
 				ast_mutex_destroy(&d->session->lock);
-				free(d->session);
+				ast_free(d->session);
 			}
 			if (devices == d)
 				devices = d->next;
@@ -5470,7 +5487,7 @@ static int reload_config(void)
 					d2 = d2->next;
 				}
 			}
-			free(d);
+			ast_free(d);
 			d = devices;
 			continue;
 		}
@@ -5599,7 +5616,7 @@ int load_module(void)
 
 	res = reload_config();
 	if (res)
-		goto reload_failed;
+		return AST_MODULE_LOAD_DECLINE;
 
 	/* Make sure we can register our unistim channel type */
 	if (ast_channel_register(&unistim_tech)) {
@@ -5617,17 +5634,16 @@ int load_module(void)
 
 chanreg_failed:
 	/*! XXX \todo Leaking anything allocated by reload_config() ... */
-reload_failed:
 	sched_context_destroy(sched);
 	sched = NULL;
 sched_failed:
 	io_context_destroy(io);
 	io = NULL;
 io_failed:
-	free(buff);
+	ast_free(buff);
 	buff = NULL;
 buff_failed:
-	return AST_MODULE_LOAD_DECLINE;
+	return AST_MODULE_LOAD_FAILURE;
 }
 
 static int unload_module(void)
@@ -5651,7 +5667,7 @@ static int unload_module(void)
 	ast_mutex_unlock(&monlock);
 
 	if (buff)
-		free(buff);
+		ast_free(buff);
 	if (unistimsock > -1)
 		close(unistimsock);
 
@@ -5661,7 +5677,7 @@ static int unload_module(void)
 /*! reload: Part of Asterisk module interface ---*/
 int reload(void)
 {
-	unistim_reload(0, 0, NULL);
+	unistim_reload(NULL, 0, NULL);
 	return 0;
 }
 
