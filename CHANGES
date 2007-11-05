@@ -303,7 +303,7 @@ Miscellaneous
      channel in conjunction with the existing 'n' option for local channels.
   * Added support for reading the TOUCH_MONITOR_PREFIX channel variable.
      It allows you to configure a prefix for auto-monitor recordings.
-  * Added support for running your dialplan by writing one in lua.  See
+  * Added support for writing and running your dialplan in lua.  See
      configs/extensions.lua.sample for examples of how to do this.
  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
     configs/unistim.conf.sample for details.  This new channel driver allows
