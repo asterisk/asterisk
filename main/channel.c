@@ -3786,8 +3786,7 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Move data stores over */
 	if (AST_LIST_FIRST(&clone->datastores))
-                AST_LIST_INSERT_TAIL(&original->datastores, AST_LIST_FIRST(&clone->datastores), entry);
-	AST_LIST_HEAD_INIT_NOLOCK(&clone->datastores);
+		AST_LIST_APPEND_LIST(&original->datastores, &clone->datastores, entry);
 
 	clone_variables(original, clone);
 	/* Presense of ADSI capable CPE follows clone */
