@@ -50,91 +50,196 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dns.h"
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
+#include "asterisk/linkedlists.h"
 
 #ifdef __APPLE__
 #undef T_SRV
 #define T_SRV 33
 #endif
 
-struct srv {
+struct srv_entry {
 	unsigned short priority;
 	unsigned short weight;
-	unsigned short portnum;
-} __attribute__ ((__packed__));
+	unsigned short port;
+	unsigned int weight_sum;
+	AST_LIST_ENTRY(srv_entry) list;
+	char host[1];
+};
 
-static int parse_srv(char *host, int hostlen, int *portno, unsigned char *answer, int len, unsigned char *msg)
+struct srv_context {
+	unsigned int have_weights:1;
+	AST_LIST_HEAD_NOLOCK(srv_entries, srv_entry) entries;
+};
+
+static int parse_srv(unsigned char *answer, int len, unsigned char *msg, struct srv_entry **result)
 {
+	struct srv {
+		unsigned short priority;
+		unsigned short weight;
+		unsigned short port;
+	} __attribute__ ((__packed__)) *srv = (struct srv *) answer;
+
 	int res = 0;
-	struct srv *srv = (struct srv *)answer;
 	char repl[256] = "";
+	struct srv_entry *entry;
 
-	if (len < sizeof(struct srv)) {
-		printf("Length too short\n");
+	if (len < sizeof(*srv))
 		return -1;
-	}
-	answer += sizeof(struct srv);
-	len -= sizeof(struct srv);
 
-	if ((res = dn_expand(msg, answer + len, answer, repl, sizeof(repl) - 1)) < 0) {
+	answer += sizeof(*srv);
+	len -= sizeof(*srv);
+
+	if ((res = dn_expand(msg, answer + len, answer, repl, sizeof(repl) - 1)) <= 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	}
-	if (res && strcmp(repl, ".")) {
-		if (option_verbose > 3)
-			ast_verbose( VERBOSE_PREFIX_3 "parse_srv: SRV mapped to host %s, port %d\n", repl, ntohs(srv->portnum));
-		if (host) {
-			ast_copy_string(host, repl, hostlen);
-			host[hostlen-1] = '\0';
-		}
-		if (portno)
-			*portno = ntohs(srv->portnum);
-		return 0;
-	}
-	return -1;
-}
 
-struct srv_context {
-	char *host;
-	int hostlen;
-	int *port;
-};
+	/* the magic value "." for the target domain means that this service
+	   is *NOT* available at the domain we searched */
+	if (!strcmp(repl, "."))
+		return -1;
+
+	if (!(entry = ast_calloc(1, sizeof(*entry) + strlen(repl))))
+		return -1;
+	
+	entry->priority = ntohs(srv->priority);
+	entry->weight = ntohs(srv->weight);
+	entry->port = ntohs(srv->port);
+	strcpy(entry->host, repl);
+
+	*result = entry;
+	
+	return 0;
+}
 
 static int srv_callback(void *context, unsigned char *answer, int len, unsigned char *fullanswer)
 {
-	struct srv_context *c = (struct srv_context *)context;
+	struct srv_context *c = (struct srv_context *) context;
+	struct srv_entry *entry = NULL;
+	struct srv_entry *current;
 
-	if (parse_srv(c->host, c->hostlen, c->port, answer, len, fullanswer)) {
-		ast_log(LOG_WARNING, "Failed to parse srv\n");
+	if (parse_srv(answer, len, fullanswer, &entry))
 		return -1;
-	}
 
-	if (!ast_strlen_zero(c->host))
-		return 1;
+	if (entry->weight)
+		c->have_weights = 1;
+
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&c->entries, current, list) {
+		/* insert this entry just before the first existing
+		   entry with a higher priority */
+		if (current->priority <= entry->priority)
+			continue;
+
+		AST_LIST_INSERT_BEFORE_CURRENT(&c->entries, entry, list);
+		entry = NULL;
+		break;
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+
+	/* if we didn't find a place to insert the entry before an existing
+	   entry, then just add it to the end */
+	if (entry)
+		AST_LIST_INSERT_TAIL(&c->entries, entry, list);
 
 	return 0;
 }
 
+/* Do the bizarre SRV record weight-handling algorithm
+   involving sorting and random number generation...
+
+   See RFC 2782 if you want know why this code does this
+*/
+static void process_weights(struct srv_context *context)
+{
+	struct srv_entry *current;
+	struct srv_entries newlist = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+
+	while (AST_LIST_FIRST(&context->entries)) {
+		unsigned int random_weight;
+		unsigned int weight_sum;
+		unsigned short cur_priority = AST_LIST_FIRST(&context->entries)->priority;
+		struct srv_entries temp_list = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
+		weight_sum = 0;
+
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&context->entries, current, list) {
+			if (current->priority != cur_priority)
+				break;
+
+			AST_LIST_REMOVE_CURRENT(&context->entries, list);
+			AST_LIST_INSERT_TAIL(&temp_list, current, list);
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+
+		while (AST_LIST_FIRST(&temp_list)) {
+			weight_sum = 0;
+			AST_LIST_TRAVERSE(&temp_list, current, list)
+				current->weight_sum = weight_sum += current->weight;
+
+			/* if all the remaining entries have weight == 0,
+			   then just append them to the result list and quit */
+			if (weight_sum == 0) {
+				AST_LIST_APPEND_LIST(&newlist, &temp_list, list);
+				break;
+			}
+
+			random_weight = 1 + (unsigned int) ((float) weight_sum * (ast_random() / ((float) RAND_MAX + 1.0)));
+
+			AST_LIST_TRAVERSE_SAFE_BEGIN(&temp_list, current, list) {
+				if (current->weight < random_weight)
+					continue;
+
+				AST_LIST_REMOVE_CURRENT(&temp_list, list);
+				AST_LIST_INSERT_TAIL(&newlist, current, list);
+			}
+			AST_LIST_TRAVERSE_SAFE_END;
+		}
+
+	}
+
+	/* now that the new list has been ordered,
+	   put it in place */
+
+	AST_LIST_APPEND_LIST(&context->entries, &newlist, list);
+}
+
 int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service)
 {
-	struct srv_context context;
+	struct srv_context context = { .entries = AST_LIST_HEAD_NOLOCK_INIT_VALUE };
+	struct srv_entry *current;
 	int ret;
-
-	context.host = host;
-	context.hostlen = hostlen;
-	context.port = port;
 
 	if (chan && ast_autoservice_start(chan) < 0)
 		return -1;
 
 	ret = ast_search_dns(&context, service, C_IN, T_SRV, srv_callback);
 
+	if (context.have_weights)
+		process_weights(&context);
+
 	if (chan)
 		ret |= ast_autoservice_stop(chan);
 
-	if (ret <= 0) {
+	/* TODO: there could be a "." entry in the returned list of
+	   answers... if so, this requires special handling */
+
+	/* the list of entries will be sorted in the proper selection order
+	   already, so we just need the first one (if any) */
+
+	if ((ret > 0) && (current = AST_LIST_REMOVE_HEAD(&context.entries, list))) {
+		ast_copy_string(host, current->host, hostlen);
+		*port = current->port;
+		ast_free(current);
+		if (option_verbose > 3) {
+			ast_verbose(VERBOSE_PREFIX_3 "ast_get_srv: SRV lookup for '%s' mapped to host %s, port %d\n",
+				    service, host, *port);
+		}
+	} else {
 		host[0] = '\0';
 		*port = -1;
-		return ret;
 	}
+
+	while ((current = AST_LIST_REMOVE_HEAD(&context.entries, list)))
+		ast_free(current);
+
 	return ret;
 }
