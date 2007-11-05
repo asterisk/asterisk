@@ -6089,6 +6089,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			sip_peer_hold(p, FALSE);
 		ast_clear_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD); /* Clear both flags */
 	} else if (!sin.sin_addr.s_addr || (sendonly && sendonly != -1)) {
+		int already_on_hold = ast_test_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD);
 		ast_queue_control_data(p->owner, AST_CONTROL_HOLD, 
 				       S_OR(p->mohsuggest, NULL),
 				       !ast_strlen_zero(p->mohsuggest) ? strlen(p->mohsuggest) + 1 : 0);
@@ -6112,7 +6113,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_INACTIVE);
 		else
 			ast_set_flag(&p->flags[1], SIP_PAGE2_CALL_ONHOLD_ACTIVE);
-		if (global_notifyhold)
+		if (global_notifyhold && !already_on_hold)
 			sip_peer_hold(p, TRUE);
 	}
 	
