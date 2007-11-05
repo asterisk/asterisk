@@ -7752,8 +7752,12 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	add_header(&req, "Supported", SUPPORTED_EXTENSIONS);
 	if (p->options && p->options->addsipheaders && p->owner) {
-		struct ast_channel *ast = p->owner; /* The owner channel */
-		struct varshead *headp = &ast->varshead;
+		struct ast_channel *chan = p->owner; /* The owner channel */
+		struct varshead *headp;
+	
+		ast_channel_lock(chan);
+
+		headp = &chan->varshead;
 
 		if (!headp)
 			ast_log(LOG_WARNING,"No Headp for the channel...ooops!\n");
@@ -7784,6 +7788,8 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 				}
 			}
 		}
+
+		ast_channel_unlock(chan);
 	}
 	if (sdp) {
 		if (p->udptl && p->t38.state == T38_LOCAL_DIRECT) {
