@@ -8683,10 +8683,15 @@ static void *ss7_linkset(void *data)
 				}
 			}
 
-			if (pollers[i].revents & POLLIN)
+			if (pollers[i].revents & POLLIN) {
+				ast_mutex_lock(&linkset->lock);
 				res = ss7_read(ss7, pollers[i].fd);
+				ast_mutex_unlock(&linkset->lock);
+			}
 			if (pollers[i].revents & POLLOUT) {
+				ast_mutex_lock(&linkset->lock);
 				res = ss7_write(ss7, pollers[i].fd);
+				ast_mutex_unlock(&linkset->lock);
 				if (res < 0) {
 					ast_log(LOG_ERROR, "Error in write %s", strerror(errno));
 				}
@@ -11771,7 +11776,7 @@ static int linkset_addsigchan(int sigchan)
 			return -1;
 		}
 
-		ss7_add_link(link->ss7, link->fds[curfd]);
+		ss7_add_link(link->ss7, SS7_TRANSPORT_ZAP, link->fds[curfd]);
 		link->numsigchans++;
 
 		memset(&si, 0, sizeof(si));
