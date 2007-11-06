@@ -323,7 +323,7 @@ static char *handle_memory_show(struct ast_cli_entry *e, int cmd, struct ast_cli
 			"Usage: memory show allocations [<file>]\n"
 			"       Dumps a list of all segments of allocated memory, optionally\n"
 			"       limited to those from a specific file\n";
-		break;
+		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
