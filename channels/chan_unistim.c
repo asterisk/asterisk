@@ -202,6 +202,17 @@ static void dummy(char *dummy, ...)
 	return;
 }
 
+/*! \brief Global jitterbuffer configuration - by default, jb is disabled */
+static struct ast_jb_conf default_jbconf =
+{
+        .flags = 0,
+	.max_size = -1,
+	.resync_threshold = -1,
+	.impl = ""
+};
+static struct ast_jb_conf global_jbconf;
+				
+
 /* #define DUMP_PACKET 1 */
 /* #define DEBUG_TIMER ast_verbose */
 
@@ -697,7 +708,7 @@ static const struct ast_channel_tech unistim_tech = {
 	.type = type,
 	.description = tdesc,
 	.capabilities = CAPABILITY,
-	.properties = AST_CHAN_TP_WANTSJITTER,
+	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = unistim_request,
 	.call = unistim_call,
 	.hangup = unistim_hangup,
@@ -4509,6 +4520,9 @@ static struct ast_channel *unistim_new(struct unistim_subchannel *sub, int state
 		tmp->fds[0] = ast_rtp_fd(sub->rtp);
 		tmp->fds[1] = ast_rtcp_fd(sub->rtp);
 	}
+	if (sub->rtp)
+		ast_jb_configure(tmp, &global_jbconf);
+		
 /*      tmp->type = type; */
 	ast_setstate(tmp, state);
 	if (state == AST_STATE_RING)
@@ -5353,11 +5367,18 @@ static int reload_config(void)
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
 		return -1;
 	}
+	
+	/* Copy the default jb config over global_jbconf */
+	memcpy(&global_jbconf, &default_jbconf, sizeof(struct ast_jb_conf));
 
 	unistim_keepalive = 120;
 	unistim_port = 0;
 	v = ast_variable_browse(cfg, "general");
 	while (v) {
+		/* handle jb conf */
+		if (!ast_jb_read_conf(&global_jbconf, v->name, v->value))
+			continue;	
+	
 		if (!strcasecmp(v->name, "keepalive"))
 			unistim_keepalive = atoi(v->value);
 		else if (!strcasecmp(v->name, "port"))
