@@ -163,13 +163,17 @@ enum {
 	CONFFLAG_SLA_STATION = (1 << 26),
 	CONFFLAG_SLA_TRUNK = (1 << 27),
 	/*! If set, the user should continue in the dialplan if kicked out */
-	CONFFLAG_KICK_CONTINUE = (1 << 28)
+	CONFFLAG_KICK_CONTINUE = (1 << 28),
+	CONFFLAG_DURATION_STOP = (1 << 29),
+	CONFFLAG_DURATION_LIMIT = (1 << 30),
 };
 
 enum {
 	OPT_ARG_WAITMARKED = 0,
 	OPT_ARG_EXITKEYS   = 1,
-	OPT_ARG_ARRAY_SIZE = 2,
+	OPT_ARG_DURATION_STOP = 2,
+	OPT_ARG_DURATION_LIMIT = 3,
+	OPT_ARG_ARRAY_SIZE = 4,
 };
 
 AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
@@ -199,6 +203,8 @@ AST_APP_OPTIONS(meetme_opts, BEGIN_OPTIONS
 	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
 	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
 	AST_APP_OPTION('1', CONFFLAG_NOONLYPERSON ),
+ 	AST_APP_OPTION_ARG('S', CONFFLAG_DURATION_STOP, OPT_ARG_DURATION_STOP),
+	AST_APP_OPTION_ARG('L', CONFFLAG_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
 END_OPTIONS );
 
 static const char *app = "MeetMe";
@@ -273,7 +279,15 @@ static const char *descrip =
 "      'X' -- allow user to exit the conference by entering a valid single\n"
 "             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
 "             if that variable is not defined.\n"
-"      '1' -- do not play message when first person enters\n";
+"      '1' -- do not play message when first person enters\n"
+"      'S(x)' -- Kick the user 'x' seconds *after* he entered into the conference.\n"
+"      'L(x[:y][:z])' - Limit the conference to 'x' ms. Play a warning when 'y' ms are\n"
+"             left. Repeat the warning every 'z' ms. The following special\n"
+"             variables can be used with this option:\n"
+"              * CONF_LIMIT_TIMEOUT_FILE       File to play when time is up.\n"
+"              * CONF_LIMIT_WARNING_FILE       File to play as warning if 'y' is defined.\n"
+"                                              The default is to say the time remaining.\n"
+"";
 
 static const char *descrip2 =
 "  MeetMeCount(confno[,var]): Plays back the number of users in the specified\n"
@@ -394,6 +408,13 @@ struct ast_conf_user {
 	char usrvalue[50];                      /*!< Custom User Value */
 	char namerecloc[PATH_MAX];				/*!< Name Recorded file Location */
 	time_t jointime;                        /*!< Time the user joined the conference */
+ 	time_t kicktime;                        /*!< Time the user will be kicked from the conference */
+ 	struct timeval start_time;              /*!< Time the user entered into the conference */
+ 	long timelimit;                         /*!< Time limit for the user to be in the conference L(x:y:z) */
+ 	long play_warning;                      /*!< Play a warning when 'y' ms are left */
+ 	long warning_freq;                      /*!< Repeat the warning every 'z' ms */
+ 	const char *warning_sound;              /*!< File to play as warning if 'y' is defined */
+ 	const char *end_sound;                  /*!< File to play when time is up. */
 	struct volume talk;
 	struct volume listen;
 	AST_LIST_ENTRY(ast_conf_user) list;
@@ -1471,7 +1492,18 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
 	char *exitkeys = NULL;
-
+ 	time_t myt;
+ 	unsigned int calldurationlimit = 0;
+ 	long timelimit = 0;
+ 	long play_warning = 0;
+ 	long warning_freq = 0;
+ 	const char *warning_sound = NULL;
+ 	const char *end_sound = NULL;
+ 	char *parse;	
+ 	long time_left_ms = 0;
+ 	struct timeval nexteventts = { 0, };
+ 	int to;
+ 
 	if (!(user = ast_calloc(1, sizeof(*user))))
 		return ret;
 
@@ -1482,7 +1514,64 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		(opt_waitmarked_timeout > 0)) {
 		timeout = time(NULL) + opt_waitmarked_timeout;
 	}
-	
+	 	
+ 	if ((confflags & CONFFLAG_DURATION_STOP) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_STOP])) {
+ 		calldurationlimit = atoi(optargs[OPT_ARG_DURATION_STOP]);
+ 		if (option_verbose > 2)
+ 			ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n",calldurationlimit);
+ 	}
+ 	
+ 	if ((confflags & CONFFLAG_DURATION_LIMIT) && !ast_strlen_zero(optargs[OPT_ARG_DURATION_LIMIT])) {
+ 		char *limit_str, *warning_str, *warnfreq_str;
+		const char *var;
+ 
+ 		parse = optargs[OPT_ARG_DURATION_LIMIT];
+ 		limit_str = strsep(&parse, ":");
+ 		warning_str = strsep(&parse, ":");
+ 		warnfreq_str = parse;
+ 
+ 		timelimit = atol(limit_str);
+ 		if (warning_str)
+ 			play_warning = atol(warning_str);
+ 		if (warnfreq_str)
+ 			warning_freq = atol(warnfreq_str);
+ 
+ 		if (!timelimit) {
+ 			timelimit = play_warning = warning_freq = 0;
+ 			warning_sound = NULL;
+ 		} else if (play_warning > timelimit) {			
+ 			if (!warning_freq) {
+ 				play_warning = 0;
+ 			} else {
+ 				while (play_warning > timelimit)
+ 					play_warning -= warning_freq;
+ 				if (play_warning < 1)
+ 					play_warning = warning_freq = 0;
+ 			}
+ 		}
+ 			
+ 		var = pbx_builtin_getvar_helper(chan,"CONF_LIMIT_WARNING_FILE");
+ 		warning_sound = var ? var : "timeleft";
+ 		
+ 		var = pbx_builtin_getvar_helper(chan,"CONF_LIMIT_TIMEOUT_FILE");
+ 		end_sound = var ? var : NULL;
+ 			
+ 		/* undo effect of S(x) in case they are both used */
+ 		calldurationlimit = 0;
+ 		/* more efficient do it like S(x) does since no advanced opts */
+ 		if (!play_warning && !end_sound && timelimit) { 
+ 			calldurationlimit = timelimit / 1000;
+ 			timelimit = play_warning = warning_freq = 0;
+ 		} else {
+ 			ast_debug(2, "Limit Data for this call:\n");
+			ast_debug(2, "- timelimit     = %ld\n", timelimit);
+ 			ast_debug(2, "- play_warning  = %ld\n", play_warning);
+ 			ast_debug(2, "- warning_freq  = %ld\n", warning_freq);
+ 			ast_debug(2, "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
+ 			ast_debug(2, "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
+ 		}
+ 	}
+
 	/* Get exit keys */
 	if ((confflags & CONFFLAG_KEYEXIT)) {
 		if (!ast_strlen_zero(optargs[OPT_ARG_EXITKEYS]))
@@ -1526,6 +1615,26 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	ast_mutex_unlock(&conf->recordthreadlock);
 
 	time(&user->jointime);
+	
+	user->timelimit = timelimit;
+	user->play_warning = play_warning;
+	user->warning_freq = warning_freq;
+	user->warning_sound = warning_sound;
+	user->end_sound = end_sound;	
+	
+	if (calldurationlimit > 0) {
+		time(&user->kicktime);
+		user->kicktime = user->kicktime + calldurationlimit;
+	}
+	
+	if (ast_tvzero(user->start_time))
+		user->start_time = ast_tvnow();
+	time_left_ms = user->timelimit;
+	
+	if (user->timelimit) {
+		nexteventts = ast_tvadd(user->start_time, ast_samp2tv(user->timelimit, 1000));
+		nexteventts = ast_tvsub(nexteventts, ast_samp2tv(user->play_warning, 1000));
+	}
 
 	if (conf->locked && (!(confflags & CONFFLAG_ADMIN))) {
 		/* Sorry, but this conference is locked! */	
@@ -1810,6 +1919,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		for (;;) {
 			int menu_was_active = 0;
 
+			outfd = -1;
+			ms = -1;
+
 			if (rt_schedule) {
 				char currenttime[32];
 				struct ast_tm tm;
@@ -1846,8 +1958,70 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 				}
 			}
 
-			outfd = -1;
-			ms = -1;
+ 			time(&myt); /* get current time */
+ 			if (user->kicktime && (user->kicktime < myt)) 
+				break;
+  
+ 			to = -1;
+ 			if (user->timelimit) {
+ 				struct timeval now;
+				int minutes = 0, seconds = 0, remain = 0;
+ 				
+ 				now = ast_tvnow();
+ 				to = ast_tvdiff_ms(nexteventts, now);
+ 				if (to < 0)
+ 					to = 0;
+ 				time_left_ms = user->timelimit - ast_tvdiff_ms(now, user->start_time);
+ 				if (time_left_ms < to)
+ 					to = time_left_ms;
+ 	
+ 				if (time_left_ms <= 0) {
+ 					if (user->end_sound){						
+ 						res = ast_streamfile(chan, user->end_sound, chan->language);
+ 						res = ast_waitstream(chan, "");
+ 					}
+ 					break;
+ 				}
+ 				
+ 				if (!to) {
+ 					if (time_left_ms >= 5000) {						
+ 						
+ 						remain = (time_left_ms + 500) / 1000;
+ 						if (remain / 60 >= 1) {
+ 							minutes = remain / 60;
+ 							seconds = remain % 60;
+ 						} else {
+ 							seconds = remain;
+ 						}
+ 						
+ 						/* force the time left to round up if appropriate */
+ 						if (user->warning_sound && user->play_warning){
+ 							if (!strcmp(user->warning_sound,"timeleft")) {
+ 								
+ 								res = ast_streamfile(chan, "vm-youhave", chan->language);
+ 								res = ast_waitstream(chan, "");
+ 								if (minutes) {
+ 									res = ast_say_number(chan, minutes, AST_DIGIT_ANY, chan->language, (char *) NULL);
+ 									res = ast_streamfile(chan, "queue-minutes", chan->language);
+ 									res = ast_waitstream(chan, "");
+ 								}
+ 								if (seconds) {
+ 									res = ast_say_number(chan, seconds, AST_DIGIT_ANY, chan->language, (char *) NULL);
+ 									res = ast_streamfile(chan, "queue-seconds", chan->language);
+ 									res = ast_waitstream(chan, "");
+ 								}
+ 							} else {
+ 								res = ast_streamfile(chan, user->warning_sound, chan->language);
+ 								res = ast_waitstream(chan, "");
+ 							}
+ 						}
+ 					}
+ 					if (user->warning_freq)
+ 						nexteventts = ast_tvadd(nexteventts, ast_samp2tv(user->warning_freq, 1000));
+ 					else
+ 						nexteventts = ast_tvadd(user->start_time, ast_samp2tv(user->timelimit, 1000));
+ 				}
+ 			}
 
 			if (timeout && time(NULL) >= timeout)
 				break;

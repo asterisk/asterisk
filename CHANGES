@@ -185,6 +185,10 @@ MeetMe Changes
      the schedule start time, or to allow the caller to join the conference early.
      Also included is optional support for limiting the number of callers per
      RealTime conference.
+  * Added the S() and L() options to the MeetMe application.  These are pretty
+     much identical to the S() and L() options to Dial().  They let you set
+     timeouts for the conference, as well as have warning sounds played to
+     let the caller know how much time is left, and when it is running out.
 
 Music On Hold Changes
 ---------------------
@@ -307,4 +311,4 @@ Miscellaneous
      configs/extensions.lua.sample for examples of how to do this.
  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
     configs/unistim.conf.sample for details.  This new channel driver allows
-	you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+    you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
