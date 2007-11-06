@@ -2541,36 +2541,36 @@ static int __ast_pbx_run(struct ast_channel *c)
 				pos = 0;
 				dst_exten[pos++] = digit = res;
 				dst_exten[pos] = '\0';
-			}
-			if (res == AST_PBX_KEEPALIVE) {
+			} else if (res == AST_PBX_KEEPALIVE) {
 				ast_debug(1, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 				ast_verb(2, "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
 				error = 1;
-			}
-			ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-			ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-			
-			if ((res == AST_PBX_ERROR) && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
-				/* if we are already on the 'e' exten, don't jump to it again */
-				if (!strcmp(c->exten, "e")) {
-					if (option_verbose > 1)
-						ast_verbose(VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
-					error = 1;
-				} else {
-					pbx_builtin_raise_exception(c, "ERROR");
-					continue;
-				}
-			}
-			
-			if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
-				c->_softhangup = 0;
-			} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
-				/* atimeout, nothing bad */
 			} else {
-				if (c->cdr)
-					ast_cdr_update(c);
-				error = 1;
-				break;
+				ast_debug(1, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				ast_verb(2, "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				
+				if ((res == AST_PBX_ERROR) && ast_exists_extension(c, c->context, "e", 1, c->cid.cid_num)) {
+					/* if we are already on the 'e' exten, don't jump to it again */
+					if (!strcmp(c->exten, "e")) {
+						if (option_verbose > 1)
+							ast_verbose(VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited ERROR while already on 'e' exten on '%s'\n", c->context, c->exten, c->priority, c->name);
+						error = 1;
+					} else {
+						pbx_builtin_raise_exception(c, "ERROR");
+						continue;
+					}
+				}
+				
+				if (c->_softhangup == AST_SOFTHANGUP_ASYNCGOTO) {
+					c->_softhangup = 0;
+				} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
+					/* atimeout, nothing bad */
+				} else {
+					if (c->cdr)
+						ast_cdr_update(c);
+					error = 1;
+					break;
+				}
 			}
 		}
 		if (error)
