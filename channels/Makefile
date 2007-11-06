@@ -83,15 +83,15 @@ endif
 dist-clean::
 	rm -f h323/Makefile
 
+# gentone must be built with the HOST environment
 gentone: gentone.c
-	$(ECHO_PREFIX) echo "   [LD] $^ -> $@"
-	$(CMD_PREFIX) $(HOST_CC) $(STATIC_BUILD) -o $@ $(HOST_CFLAGS) $(HOST_LDFLAGS) $^ $(LIBS)
-gentone: LIBS+=-lm
+	$(ECHO_PREFIX) echo "   [HOST_CC] $^ -> $@"
+	$(CMD_PREFIX) $(HOST_CC) -o $@ $^ -lm
 
-busy.h:
+busy.h: gentone
 	./gentone busy 480 620
 
-ringtone.h:
+ringtone.h: gentone
 	./gentone ringtone 440 480
 
 $(if $(filter chan_iax2,$(EMBEDDED_MODS)),modules.link,chan_iax2.so): iax2-parser.o iax2-provision.o
