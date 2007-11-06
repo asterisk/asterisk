@@ -4196,8 +4196,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    (c0->tech->bridge == c1->tech->bridge) &&
 		    !nativefailed && !c0->monitor && !c1->monitor &&
 		    !c0->audiohooks && !c1->audiohooks && 
-		    !ast_test_flag(&(config->features_callee),AST_FEATURE_REDIRECT) &&
-		    !ast_test_flag(&(config->features_caller),AST_FEATURE_REDIRECT) &&
 		    !c0->masq && !c0->masqr && !c1->masq && !c1->masqr) {
 			/* Looks like they share a bridge method and nothing else is in the way */
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
