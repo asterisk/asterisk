@@ -101,7 +101,8 @@ enum {
 	QUEUE_STRATEGY_FEWESTCALLS,
 	QUEUE_STRATEGY_RANDOM,
 	QUEUE_STRATEGY_RRMEMORY,
-	QUEUE_STRATEGY_LINEAR
+	QUEUE_STRATEGY_LINEAR,
+	QUEUE_STRATEGY_WRANDOM
 };
 
 static struct strategy {
@@ -114,6 +115,7 @@ static struct strategy {
 	{ QUEUE_STRATEGY_RANDOM, "random" },
 	{ QUEUE_STRATEGY_RRMEMORY, "rrmemory" },
 	{ QUEUE_STRATEGY_LINEAR, "linear" },
+	{ QUEUE_STRATEGY_WRANDOM, "wrandom"},
 };
 
 #define DEFAULT_RETRY		5
@@ -2596,6 +2598,9 @@ static int calc_metric(struct call_queue *q, struct member *mem, int pos, struct
 	case QUEUE_STRATEGY_RANDOM:
 		tmp->metric = ast_random() % 1000;
 		tmp->metric += mem->penalty * 1000000;
+		break;
+	case QUEUE_STRATEGY_WRANDOM:
+		tmp->metric = ast_random() % ((1 + mem->penalty) * 1000);
 		break;
 	case QUEUE_STRATEGY_FEWESTCALLS:
 		tmp->metric = mem->calls;

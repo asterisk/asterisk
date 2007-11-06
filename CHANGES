@@ -166,6 +166,7 @@ Queue changes
      queue log.
   * Added ability for non-realtime queues to have realtime members
   * Added the "linear" strategy to queues.
+  * Added the "wrandom" strategy to queues.
 
 MeetMe Changes
 --------------
