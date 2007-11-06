@@ -107,12 +107,12 @@ static inline int ibpdfilter(struct filter_struct * fs, int in)
 		15 * (fs->ixv[(fs->ip+2)&7] + fs->ixv[(fs->ip+4)&7]) +
 		20 *  fs->ixv[(fs->ip+3)&7];
 	
-	for (i=1,j=fs->ip; i < 7; i++,j++) {
+	for (i=1, j=fs->ip; i < 7; i++,j++) {
 		/* Promote operation to 64 bit to prevent overflow that occurred in 32 bit) */
 		s_interim = (int64_t)(fs->iyv[j & 7]) * 
 				(int64_t)(fs->icoefs[i]) /
 				(int64_t)(1024);
-		s += (int)s_interim;
+		s += (int) s_interim;
 	}
 	fs->iyv[ j & 7] = s;
 	fs->ip++;
@@ -123,7 +123,7 @@ static inline int ibpdfilter(struct filter_struct * fs, int in)
 /*! Integer Band Pass filter */
 static inline int ibpfilter(struct filter_struct * fs, int in)
 {
-	int i,j;
+	int i, j;
 	int s;
 	int64_t s_interim;
 	
@@ -138,7 +138,7 @@ static inline int ibpfilter(struct filter_struct * fs, int in)
 		s_interim = (int64_t)(fs->iyv[j&7]) * 
 				(int64_t)(fs->icoefs[i]) / 
 				(int64_t)(256);
-		s+= (int)s_interim;
+		s+= (int) s_interim;
 	}
 	fs->iyv[j&7]=s;
 	fs->ip++; fs->ip &= 7;
@@ -176,7 +176,7 @@ static int get_bit_raw(fsk_data *fskd, short *buffer, int *len)
 					fskd->icont+=fskd->pllids; 
 				else 
 					fskd->icont-=fskd->pllids;
-				f=1;
+				f = 1;
 			}
 		}
 		fskd->xi0=ix;
@@ -220,10 +220,10 @@ int fskmodem_init(fsk_data *fskd)
 int fsk_serial(fsk_data *fskd, short *buffer, int *len, int *outbyte)
 {
 	int a;
-	int i,j,n1,r;
-	int samples=0;
+	int i, j, n1, r;
+	int samples = 0;
 	int olen;
-	int beginlen=*len;
+	int beginlen = *len;
 	int beginlenx;
 	
 	switch (fskd->state) {
@@ -318,9 +318,9 @@ getbyte:
 		if (i) 
 			n1++;
 		a >>= 1; 
-		a |=  i;
+		a |= i;
 	}
-	j = 8-fskd->nbit;
+	j = 8 - fskd->nbit;
 	a >>= j;
 
 	/* We read parity bit (if exists) and check parity */
@@ -333,17 +333,17 @@ getbyte:
 		if (i) 
 			n1++;
 		if (fskd->parity == 1) {	/* parity=1 (even) */
-			if (n1&1) 
+			if (n1 & 1) 
 				a |= 0x100;			/* error */
 		} else {					/* parity=2 (odd) */
-			if (!(n1&1)) 
+			if (!(n1 & 1)) 
 				a |= 0x100;			/* error */
 		}
 	}
 	
 	/* We read STOP bits. All of them must be 1 */
 	
-	for (j=fskd->instop; j; j--) {
+	for (j = fskd->instop; j; j--) {
 		r = get_bit_raw(fskd, buffer, len);
 		if (r == -1) 
 			return -1;
