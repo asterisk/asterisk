@@ -264,13 +264,17 @@ int ast_expr(char *expr, char *buf, int length, struct ast_channel *chan)
 			res_length = snprintf(buf, length, FP___PRINTF, io.val->u.i);
 			return_value = (res_length <= length) ? res_length : length;
 		} else {
+			if (io.val->u.s)
 #if defined(STANDALONE) || defined(LOW_MEMORY) || defined(STANDALONE_AEL)
-			strncpy(buf, io.val->u.s, length - 1);
+				strncpy(buf, io.val->u.s, length - 1);
 #else /* !STANDALONE && !LOW_MEMORY */
-			ast_copy_string(buf, io.val->u.s, length);
+				ast_copy_string(buf, io.val->u.s, length);
 #endif /* STANDALONE || LOW_MEMORY */
+			else
+				buf[0] = 0;
 			return_value = strlen(buf);
-			free(io.val->u.s);
+			if (io.val->u.s)
+				free(io.val->u.s);
 		}
 		free(io.val);
 	}
