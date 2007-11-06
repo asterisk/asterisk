@@ -61,12 +61,6 @@ export DOWNLOAD
 export GREP
 export ID
 export OSARCH
-export CURSES_DIR
-export NCURSES_DIR
-export TERMCAP_DIR
-export TINFO_DIR
-export GTK2_LIB
-export GTK2_INCLUDE
 
 # even though we could use '-include makeopts' here, use a wildcard
 # lookup anyway, so that make won't try to build makeopts if it doesn't
