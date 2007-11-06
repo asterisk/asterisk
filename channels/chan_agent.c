@@ -83,7 +83,7 @@ static const char synopsis[] = "Call agent login";
 static const char synopsis3[] = "Record agent's outgoing call";
 
 static const char descrip[] =
-"  AgentLogin([AgentNo][|options]):\n"
+"  AgentLogin([AgentNo][,options]):\n"
 "Asks the agent to login to the system.  Always returns -1.  While\n"
 "logged in, the agent can receive calls and will hear a 'beep'\n"
 "when a new call comes in. The agent can dump the call by pressing\n"
