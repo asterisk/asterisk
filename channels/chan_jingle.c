@@ -372,7 +372,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 		iks_insert_node(dcodecs, payload_audio);
 		iks_insert_node(dcodecs, payload_cn);
 
-		iks_send(c->p, iq);
+		ast_aji_send(c, iq);
 		iks_delete(payload_red);
 		iks_delete(payload_audio);
 		iks_delete(payload_cn);
@@ -473,7 +473,7 @@ static int jingle_response(struct jingle *client, ikspak *pak, const char *reaso
 				iks_insert_node(response, error);
 			}
 		}
-		iks_send(client->connection->p, response);
+		ast_aji_send(client->connection, response);
 		if (reason)
 			iks_delete(reason);
 		if (error)
@@ -729,7 +729,7 @@ static int jingle_create_candidates(struct jingle *client, struct jingle_pvt *p,
 		}
 		iks_insert_attrib(candidate, "ufrag", tmp->ufrag);
 
-		iks_send(c->p, iq);
+		ast_aji_send(c, iq);
 	}
 	p->laststun = 0;
 
@@ -915,7 +915,7 @@ static int jingle_action(struct jingle *client, struct jingle_pvt *p, const char
 
 			iks_insert_node(iq, jingle);
 
-			iks_send(client->connection->p, iq);
+			ast_aji_send(client->connection, iq);
 			iks_delete(jingle);
 			res = 0;
 		}
@@ -1124,7 +1124,7 @@ static int jingle_add_candidate(struct jingle *client, ikspak *pak)
 	iks_insert_attrib(receipt, "from", c->jid->full);
 	iks_insert_attrib(receipt, "to", iks_find_attrib(pak->x, "from"));
 	iks_insert_attrib(receipt, "id", iks_find_attrib(pak->x, "id"));
-	iks_send(c->p, receipt);
+	ast_aji_send(c, receipt);
 	iks_delete(receipt);
 
 	return 1;
@@ -1287,7 +1287,7 @@ static int jingle_digit(struct ast_channel *ast, char digit, unsigned int durati
 	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END || duration != 0) {
 		iks_insert_attrib(dtmf, "action", "button-up");
 	}
-	iks_send(client->connection->p, iq);
+	ast_aji_send(client->connection, iq);
 	iks_delete(iq);
 	iks_delete(jingle);
 	iks_delete(dtmf);
@@ -1354,7 +1354,7 @@ static int jingle_transmit_invite(struct jingle_pvt *p)
 	iks_insert_node(jingle, content);
 	iks_insert_node(iq, jingle);
 
-	iks_send(client->p, iq);
+	ast_aji_send(client, iq);
 
 	iks_delete(iq);
 	iks_delete(jingle);

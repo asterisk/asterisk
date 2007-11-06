@@ -436,7 +436,7 @@ static int gtalk_invite(struct gtalk_pvt *p, char *to, char *from, char *sid, in
 	iks_insert_node(gtalk, transport);
 	iks_insert_node(dcodecs, payload_telephone);
 
-	iks_send(client->connection->p, iq);
+	ast_aji_send(client->connection, iq);
 	iks_delete(payload_telephone);
 	iks_delete(transport);
 	iks_delete(dcodecs);
@@ -473,7 +473,7 @@ static int gtalk_invite_response(struct gtalk_pvt *p, char *to , char *from, cha
 	iks_insert_attrib(transport, "xmlns", "http://www.google.com/transport/p2p");
 	iks_insert_node(iq,session);
 	iks_insert_node(session,transport);
-	iks_send(p->parent->connection->p, iq);
+	ast_aji_send(p->parent->connection, iq);
 	iks_delete(transport);
 	iks_delete(session);
 	iks_delete(iq);
@@ -570,7 +570,7 @@ static int gtalk_response(struct gtalk *client, char *from, ikspak *pak, const c
 				iks_insert_node(response, error);
 			}
 		}
-		iks_send(client->connection->p, response);
+		ast_aji_send(client->connection, response);
 		if (reason)
 			iks_delete(reason);
 		if (error)
@@ -830,7 +830,7 @@ static int gtalk_create_candidates(struct gtalk *client, struct gtalk_pvt *p, ch
 			iks_insert_attrib(candidate, "type", "relay");
 		iks_insert_attrib(candidate, "network", "0");
 		iks_insert_attrib(candidate, "generation", "0");
-		iks_send(c->p, iq);
+		ast_aji_send(c, iq);
 	}
 	p->laststun = 0;
 
@@ -1036,7 +1036,7 @@ static int gtalk_action(struct gtalk *client, struct gtalk_pvt *p, const char *a
 			iks_insert_attrib(session, "initiator", p->initiator ? p->us : p->them);
 			iks_insert_attrib(session, "xmlns", "http://www.google.com/session");
 			iks_insert_node(request, session);
-			iks_send(client->connection->p, request);
+			ast_aji_send(client->connection, request);
 			iks_delete(session);
 			res = 0;
 		}
@@ -1274,7 +1274,7 @@ static int gtalk_add_candidate(struct gtalk *client, ikspak *pak)
 	iks_insert_attrib(receipt, "from", from);
 	iks_insert_attrib(receipt, "to", iks_find_attrib(pak->x, "from"));
 	iks_insert_attrib(receipt, "id", iks_find_attrib(pak->x, "id"));
-	iks_send(c->p, receipt);
+	ast_aji_send(c, receipt);
 	iks_delete(receipt);
 
 	return 1;
@@ -1447,7 +1447,7 @@ static int gtalk_digit(struct ast_channel *ast, char digit, unsigned int duratio
 	} else if (ast->dtmff.frametype == AST_FRAME_DTMF_END || duration != 0) {
 		iks_insert_attrib(dtmf, "action", "button-up");
 	}
-	iks_send(client->connection->p, iq);
+	ast_aji_send(client->connection, iq);
 	iks_delete(iq);
 	iks_delete(gtalk);
 	iks_delete(dtmf);

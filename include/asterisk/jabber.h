@@ -181,8 +181,10 @@ struct aji_client_container{
 	ASTOBJ_CONTAINER_COMPONENTS(struct aji_client);
 };
 
-/*! Send jabber message from connected client to jabber URI */
-int ast_aji_send(struct aji_client *client, const char *address, const char *message);
+/* !Send XML stanza over the established XMPP connection */
+int ast_aji_send(struct aji_client *client, iks *x);
+/*! Send jabber chat message from connected client to jabber URI */
+int ast_aji_send_chat(struct aji_client *client, const char *address, const char *message);
 /*! Disconnect jabber client */
 int ast_aji_disconnect(struct aji_client *client);
 int ast_aji_check_roster(void);

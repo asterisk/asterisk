@@ -80,7 +80,6 @@ static int aji_tls_handshake(struct aji_client *client);
 static int aji_io_recv(struct aji_client *client, char *buffer, size_t buf_len, int timeout);
 static int aji_recv(struct aji_client *client, int timeout);
 static int aji_send_header(struct aji_client *client, const char *to);
-static int aji_send(struct aji_client *client, iks *x);
 static int aji_send_raw(struct aji_client *client, const char *xmlstr);
 static void aji_log_hook(void *data, const char *xmpp, size_t size, int is_incoming);
 static int aji_start_sasl(struct aji_client *client, enum ikssasltype type, char *username, char *pass);
@@ -502,7 +501,7 @@ static int aji_send_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (strchr(args.recipient, '@') && !ast_strlen_zero(args.message))
-		ast_aji_send(client, args.recipient, args.message);
+		ast_aji_send_chat(client, args.recipient, args.message);
 	return 0;
 }
 
@@ -714,7 +713,7 @@ static int aji_send_header(struct aji_client *client, const char *to)
  * \param x the XMPP packet to send
  * \return IKS_OK on success, any other value on failure
  */
-static int aji_send(struct aji_client *client, iks *x)
+int ast_aji_send(struct aji_client *client, iks *x)
 {
 	return aji_send_raw(client, iks_string(iks_stack(x), x));
 }
@@ -818,7 +817,7 @@ static int aji_start_sasl(struct aji_client *client, enum ikssasltype type, char
 	snprintf(s, len, "%c%s%c%s", 0, username, 0, pass);
 	ast_base64encode(base64, (const unsigned char *) s, len, (len + 2) * 4 / 3);
 	iks_insert_cdata(x, base64, 0);
-	aji_send(client, x);
+	ast_aji_send(client, x);
 	iks_delete(x);
 
 	return IKS_OK;
@@ -870,7 +869,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 					iks_insert_attrib(auth, "id", client->mid);
 					iks_insert_attrib(auth, "to", client->jid->server);
 					ast_aji_increment_mid(client->mid);
-					aji_send(client, auth);
+					ast_aji_send(client, auth);
 					iks_delete(auth);
 				} else
 					ast_log(LOG_ERROR, "Out of memory.\n");
@@ -896,7 +895,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 							if (auth) {
 								iks_insert_attrib(auth, "id", client->mid);
 								ast_aji_increment_mid(client->mid);
-								aji_send(client, auth);
+								ast_aji_send(client, auth);
 								iks_delete(auth);
 							} else {
 								ast_log(LOG_ERROR, "Out of memory.\n");
@@ -909,7 +908,7 @@ static int aji_act_hook(void *data, int type, iks *node)
 							if (auth) {
 								iks_insert_attrib(auth, "id", "auth");
 								ast_aji_increment_mid(client->mid);
-								aji_send(client, auth);
+								ast_aji_send(client, auth);
 								iks_delete(auth);
 							} else {
 								ast_log(LOG_ERROR, "Out of memory.\n");
@@ -1040,7 +1039,7 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 			iks_insert_attrib(iq, "to", pak->from->full);
 			iks_insert_attrib(iq, "id", pak->id);
 			iks_insert_attrib(iq, "type", "result");
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 
 			iks_insert_attrib(presence, "from", client->jid->full);
 			iks_insert_attrib(presence, "to", pak->from->partial);
@@ -1049,7 +1048,7 @@ static int aji_register_approve_handler(void *data, ikspak *pak)
 			iks_insert_attrib(presence, "type", "subscribe");
 			iks_insert_attrib(x, "xmlns", "vcard-temp:x:update");
 			iks_insert_node(presence, x);
-			aji_send(client, presence); 
+			ast_aji_send(client, presence); 
 		}
 	} else {
 		ast_log(LOG_ERROR, "Out of memory.\n");
@@ -1099,7 +1098,7 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 			iks_insert_node(iq, query);
 			iks_insert_node(iq, error);
 			iks_insert_node(error, notacceptable);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1126,7 +1125,7 @@ static int aji_register_query_handler(void *data, ikspak *pak)
 			iks_insert_cdata(instructions, explain, 0);
 			iks_insert_node(iq, query);
 			iks_insert_node(query, instructions);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1170,7 +1169,7 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 
 			iks_insert_node(iq, query);
 			iks_insert_node(query, item);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1199,7 +1198,7 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 
 			iks_insert_node(iq, query);
 			iks_insert_node(query, confirm);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1226,7 +1225,7 @@ static int aji_ditems_handler(void *data, ikspak *pak)
 			iks_insert_attrib(feature, "var", "http://jabber.org/protocol/commands");
 			iks_insert_node(iq, query);
 			iks_insert_node(query, feature);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1287,7 +1286,7 @@ static int aji_client_info_handler(void *data, ikspak *pak)
 			iks_insert_node(query, ident);
 			iks_insert_node(query, google);
 			iks_insert_node(query, disco);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else
 			ast_log(LOG_ERROR, "Out of Memory.\n");
 		if (iq)
@@ -1374,7 +1373,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 			iks_insert_node(query, version);
 			iks_insert_node(query, vcard);
 			iks_insert_node(query, search);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1418,7 +1417,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 			iks_insert_attrib(confirm, "jid", client->user);
 			iks_insert_node(iq, query);
 			iks_insert_node(query, confirm);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1445,7 +1444,7 @@ static int aji_dinfo_handler(void *data, ikspak *pak)
 			iks_insert_attrib(feature, "var", "http://jabber.org/protocol/commands");
 			iks_insert_node(iq, query);
 			iks_insert_node(query, feature);
-			aji_send(client, iq);
+			ast_aji_send(client, iq);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1686,7 +1685,7 @@ static void aji_handle_presence(struct aji_client *client, ikspak *pak)
 				ast_aji_increment_mid(client->mid);
 				iks_insert_attrib(query, "xmlns", "http://jabber.org/protocol/disco#info");
 				iks_insert_node(iq, query);
-				aji_send(client, iq);
+				ast_aji_send(client, iq);
 				
 			} else
 				ast_log(LOG_ERROR, "Out of memory.\n");
@@ -1750,7 +1749,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
 				iks_insert_attrib(presence, "id", pak->id);
 			iks_insert_cdata(status, "Asterisk has approved subscription", 0);
 			iks_insert_node(presence, status);
-			aji_send(client, presence);
+			ast_aji_send(client, presence);
 		} else
 			ast_log(LOG_ERROR, "Unable to allocate nodes\n");
 		if (presence)
@@ -1787,7 +1786,7 @@ static void aji_handle_subscribe(struct aji_client *client, ikspak *pak)
  * \param message
  * \return 1.
  */
-int ast_aji_send(struct aji_client *client, const char *address, const char *message)
+int ast_aji_send_chat(struct aji_client *client, const char *address, const char *message)
 {
 	int res = 0;
 	iks *message_packet = NULL;
@@ -1795,7 +1794,7 @@ int ast_aji_send(struct aji_client *client, const char *address, const char *mes
 		message_packet = iks_make_msg(IKS_TYPE_CHAT, address, message);
 		if (message_packet) {
 			iks_insert_attrib(message_packet, "from", client->jid->full);
-			res = aji_send(client, message_packet);
+			res = ast_aji_send(client, message_packet);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory.\n");
 		}
@@ -1824,7 +1823,7 @@ int ast_aji_create_chat(struct aji_client *client, char *room, char *server, cha
 		iks_insert_attrib(iq, "to", server);
 		iks_insert_attrib(iq, "id", client->mid);
 		ast_aji_increment_mid(client->mid);
-		aji_send(client, iq);
+		ast_aji_send(client, iq);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	return res;
@@ -1846,10 +1845,10 @@ int ast_aji_join_chat(struct aji_client *client, char *room)
 		iks_insert_cdata(priority, "0", 1);
 		iks_insert_attrib(presence, "to", room);
 		iks_insert_node(presence, priority);
-		res = aji_send(client, presence);
+		res = ast_aji_send(client, presence);
 		iks_insert_cdata(priority, "5", 1);
 		iks_insert_attrib(presence, "to", room);
-		res = aji_send(client, presence);
+		res = ast_aji_send(client, presence);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	if (presence)
@@ -1884,7 +1883,7 @@ int ast_aji_invite_chat(struct aji_client *client, char *user, char *room, char 
 		iks_insert_attrib(namespace, "jid", room);
 		iks_insert_node(invite, body);
 		iks_insert_node(invite, namespace);
-		res = aji_send(client, invite);
+		res = ast_aji_send(client, invite);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	if (body)
@@ -1997,7 +1996,7 @@ static int aji_register_transport(void *data, ikspak *pak)
 		iks_insert_attrib(send, "id", client->mid);
 		ast_aji_increment_mid(client->mid);
 		iks_insert_attrib(send, "from", client->user);
-		res = aji_send(client, send);
+		res = ast_aji_send(client, send);
 	} else 
 		ast_log(LOG_ERROR, "Out of memory.\n");
 
@@ -2042,7 +2041,7 @@ static int aji_register_transport2(void *data, ikspak *pak)
 		iks_insert_node(regiq, regquery);
 		iks_insert_node(regquery, reguser);
 		iks_insert_node(regquery, regpass);
-		res = aji_send(client, regiq);
+		res = ast_aji_send(client, regiq);
 	} else
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	if (regiq)
@@ -2079,10 +2078,10 @@ static void aji_pruneregister(struct aji_client *client)
 			/* For an aji_buddy, both AUTOPRUNE and AUTOREGISTER will never
 			 * be called at the same time */
 			if (ast_test_flag(iterator, AJI_AUTOPRUNE)) {
-				res = aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
+				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBE, iterator->name,
 						"GoodBye your status is no longer needed by Asterisk the Open Source PBX"
 						" so I am no longer subscribing to your presence.\n"));
-				res = aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBED, iterator->name,
+				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_UNSUBSCRIBED, iterator->name,
 						"GoodBye you are no longer in the asterisk config file so I am removing"
 						" your access to my presence.\n"));
 				iks_insert_attrib(removeiq, "from", client->jid->full); 
@@ -2090,9 +2089,9 @@ static void aji_pruneregister(struct aji_client *client)
 				iks_insert_attrib(removequery, "xmlns", "jabber:iq:roster");
 				iks_insert_attrib(removeitem, "jid", iterator->name);
 				iks_insert_attrib(removeitem, "subscription", "remove");
-				res = aji_send(client, removeiq);
+				res = ast_aji_send(client, removeiq);
 			} else if (ast_test_flag(iterator, AJI_AUTOREGISTER)) {
-				res = aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
+				res = ast_aji_send(client, iks_make_s10n(IKS_TYPE_SUBSCRIBE, iterator->name, 
 						"Greetings I am the Asterisk Open Source PBX and I want to subscribe to your presence\n"));
 				ast_clear_flag(iterator, AJI_AUTOREGISTER);
 			}
@@ -2220,7 +2219,7 @@ static int aji_get_roster(struct aji_client *client)
 	if(roster) {
 		iks_insert_attrib(roster, "id", "roster");
 		aji_set_presence(client, NULL, client->jid->full, client->status, client->statusmessage);
-		aji_send(client, roster);
+		ast_aji_send(client, roster);
 	}
 	if (roster)
 		iks_delete(roster);
@@ -2329,7 +2328,7 @@ static void aji_set_presence(struct aji_client *client, char *to, char *from, in
 		iks_insert_attrib(cnode, "ext", "voice-v1");
 		iks_insert_attrib(cnode, "xmlns", "http://jabber.org/protocol/caps");
 		iks_insert_node(presence, cnode);
-		res = aji_send(client, presence);
+		res = ast_aji_send(client, presence);
 	} else
 		ast_log(LOG_ERROR, "Out of memory.\n");
 	if (cnode)
@@ -2540,7 +2539,7 @@ static char *aji_test(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 	}
 
 	/* XXX Does Matt really want everyone to use his personal address for tests? */ /* XXX yes he does */
-	ast_aji_send(client, "mogorman@astjab.org", "blahblah");
+	ast_aji_send_chat(client, "mogorman@astjab.org", "blahblah");
 	ASTOBJ_CONTAINER_TRAVERSE(&client->buddies, 1, {
 		ASTOBJ_RDLOCK(iterator);
 		ast_verbose("User: %s\n", iterator->name);
@@ -2932,7 +2931,7 @@ static int manager_jabber_send(struct mansession *s, const struct message *m)
 		return 0;
 	}	
 	if (strchr(screenname, '@') && message){
-		ast_aji_send(client, screenname, message);	
+		ast_aji_send_chat(client, screenname, message);	
 		if (!ast_strlen_zero(id))
 			astman_append(s, "ActionID: %s\r\n",id);
 		astman_append(s, "Response: Success\r\n");
