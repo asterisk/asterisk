@@ -83,10 +83,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/abstract_jb.h"
 #include "asterisk/event.h"
 
-/*! IP_PKTINFO is not portable. It's used to retrieve our IP.
-   Comment the next line if your running *BSD */
-#define HAVE_PKTINFO 1
-
 /*! Beware, G729 and G723 are not supported by asterisk, except with the proper licence */
 #define CAPABILITY AST_FORMAT_ALAW | AST_FORMAT_ULAW    /* | AST_FORMAT_G729A | AST_FORMAT_G723_1 */
 

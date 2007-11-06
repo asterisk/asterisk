@@ -284,6 +284,15 @@ AC_CHECK_FUNCS([asprintf atexit bzero dup2 endpwent ftruncate getcwd gethostbyna
 # fopencookie on linux
 AC_CHECK_FUNCS([funopen fopencookie])
 
+# check if we have IP_PKTINFO constant defined
+AC_LINK_IFELSE(
+		AC_LANG_PROGRAM([#include <netinet/in.h>],
+						[int pi = IP_PKTINFO;]),
+		AC_MSG_RESULT(yes)
+		AC_DEFINE([HAVE_PKTINFO], 1, [Define to 1 if your system defines IP_PKTINFO.]),
+		AC_MSG_RESULT(no)
+)
+
 # some systems already have gethostbyname_r so we don't need to build ours in main/utils.c
 AC_SEARCH_LIBS(gethostbyname_r, [socket nsl])
 
