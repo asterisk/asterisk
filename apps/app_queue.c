@@ -3421,6 +3421,79 @@ static int set_member_paused(const char *queuename, const char *interface, const
 	return found ? RESULT_SUCCESS : RESULT_FAILURE;
 }
 
+/* \brief Sets members penalty, if queuename=NULL we set member penalty in all the queues. */
+static int set_member_penalty(char *queuename, char *interface, int penalty)
+{
+	int foundinterface = 0, foundqueue = 0;
+	struct call_queue *q;
+	struct member *mem;
+	struct ao2_iterator queue_iter;
+
+	queue_iter = ao2_iterator_init(queues, 0);
+	while ((q = ao2_iterator_next(&queue_iter))) {
+		ao2_lock(q);
+		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
+			foundqueue++;
+			if ((mem = interface_exists(q, interface))) {
+				foundinterface++;
+				mem->penalty = penalty;
+				
+				ast_queue_log(q->name, "NONE", interface, "PENALTY", "%d", penalty);
+				manager_event(EVENT_FLAG_AGENT, "QueueMemberPenalty",
+					"Queue: %s\r\n"
+					"Location: %s\r\n"
+					"Penalty: %d\r\n",
+					q->name, mem->interface, penalty);
+
+			}
+		}
+		ao2_unlock(q);
+		queue_unref(q);
+	}
+
+	if (foundinterface) {
+		return RESULT_SUCCESS;
+	} else if (foundqueue) {
+		ast_log (LOG_ERROR, "Invalid queuename\n"); 
+	} else {
+		ast_log (LOG_ERROR, "Invalid interface\n");
+	}	
+
+	return RESULT_FAILURE;
+}
+
+/* \brief Gets members penalty. 
+ * 
+ * \return Return the members penalty or RESULT_FAILURE on error. */
+static int get_member_penalty(char *queuename, char *interface)
+{
+	int foundqueue = 0, penalty;
+	struct call_queue *q, tmpq;
+	struct member *mem;
+	
+	ast_copy_string(tmpq.name, queuename, sizeof(tmpq.name));
+	if((q = ao2_find(queues, &tmpq, OBJ_POINTER))) {
+		foundqueue = 1;
+		ao2_lock(q);
+		if ((mem = interface_exists(q, interface))) {
+			penalty = mem->penalty;
+			ao2_unlock(q);
+			queue_unref(q);
+			return penalty;
+		}
+		ao2_unlock(q);
+		queue_unref(q);
+	}
+
+	/* some useful debuging */
+	if (foundqueue) 
+		ast_log (LOG_ERROR, "Invalid queuename\n");
+	else 
+		ast_log (LOG_ERROR, "Invalid interface\n");
+
+	return RESULT_FAILURE;
+}
+
 /* Reload dynamic queue members persisted into the astdb */
 static void reload_queue_members(void)
 {
@@ -4197,6 +4270,88 @@ static int queue_function_queuememberlist(struct ast_channel *chan, const char *
 	return 0;
 }
 
+/*! \brief Dialplan function QUEUE_MEMBER_PENALTY() 
+ * Gets the members penalty. */
+static int queue_function_memberpenalty_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len) {
+	struct ast_module_user *lu;
+	int penalty;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(queuename);
+		AST_APP_ARG(interface);
+        );
+	/* Make sure the returned value on error is NULL. */
+	buf[0] = '\0';
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
+		return -1;
+	}
+
+	lu = ast_module_user_add(chan);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc < 2) {
+		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
+		ast_module_user_remove(lu);
+		return -1;
+	}
+
+	penalty = get_member_penalty (args.queuename, args.interface);
+	
+	if (penalty >= 0) /* remember that buf is already '\0' */
+		snprintf (buf, len, "%d", penalty);
+	
+	ast_module_user_remove(lu);
+	return 0;
+}
+
+/*! Dialplan function QUEUE_MEMBER_PENALTY() 
+ * Sets the members penalty. */
+static int queue_function_memberpenalty_write(struct ast_channel *chan, const char *cmd, char *data, const char *value) {
+	struct ast_module_user *lu;
+	int penalty;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(queuename);
+		AST_APP_ARG(interface);
+	);
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
+		return -1;
+	}
+
+	lu = ast_module_user_add(chan);
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (args.argc < 2) {
+		ast_log(LOG_ERROR, "Missing argument. QUEUE_MEMBER_PENALTY(<queuename>,<interface>)\n");
+		ast_module_user_remove(lu);
+		return -1;
+	}
+
+	penalty = atoi(value);
+	if (penalty < 0) {
+		ast_log(LOG_ERROR, "Invalid penalty\n");
+		ast_module_user_remove(lu);
+		return -1;
+	}
+
+	if (ast_strlen_zero(args.interface)) {
+		ast_log (LOG_ERROR, "<interface> parameter can't be null\n");
+		ast_module_user_remove(lu);
+		return -1;
+	}
+
+	/* if queuename = NULL then penalty will be set for interface in all the queues. */
+	set_member_penalty(args.queuename, args.interface, penalty);
+
+	ast_module_user_remove(lu);
+
+	return 0;
+}
+
 static struct ast_custom_function queuevar_function = {
 	.name = "QUEUE_VARIABLES",
 	.synopsis = "Return Queue information in variables",
@@ -4255,6 +4410,17 @@ static struct ast_custom_function queuememberlist_function = {
 "Returns a comma-separated list of members associated with the specified queue.\n",
 	.read = queue_function_queuememberlist,
 };
+
+static struct ast_custom_function queuememberpenalty_function = {
+	.name = "QUEUE_MEMBER_PENALTY",
+	.synopsis = "Gets or sets queue members penalty.",
+	.syntax = "QUEUE_MEMBER_PENALTY(<queuename>,<interface>)",
+	.desc =
+"Gets or sets queue members penalty\n",
+	.read = queue_function_memberpenalty_read,
+	.write = queue_function_memberpenalty_write,
+};
+
 
 static int reload_queues(int reload)
 {
@@ -4944,6 +5110,31 @@ static char *complete_queue_add_member(const char *line, const char *word, int p
 	}
 }
 
+static int manager_queue_member_penalty(struct mansession *s, const struct message *m)
+{
+	const char *queuename, *interface, *penalty_s;
+	int penalty;
+
+	interface = astman_get_header(m, "Interface");
+	penalty_s = astman_get_header(m, "Penalty");
+	/* Optional - if not supplied, set the penalty value for the given Interface in all queues */
+	queuename = astman_get_header(m, "Queue");
+
+	if (ast_strlen_zero(interface) || ast_strlen_zero(penalty_s)) {
+		astman_send_error(s, m, "Need 'Interface' and 'Penalty' parameters.");
+		return 0;
+	}
+ 
+	penalty = atoi(penalty_s);
+
+	if (set_member_penalty((char *)queuename, (char *)interface, penalty))
+		astman_send_error(s, m, "Invalid interface or queuename");
+	else
+		astman_send_ack(s, m, "Interface penalty set successfully");
+
+	return 0;
+}
+
 static char *handle_queue_add_member(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {
 	char *queuename, *interface, *membername = NULL;
@@ -5163,17 +5354,89 @@ static char *handle_queue_pause_member(struct ast_cli_entry *e, int cmd, struct 
 	}
 }
 
+static char *complete_queue_set_member_penalty(const char *line, const char *word, int pos, int state)
+{
+	/* 0 - queue; 1 - set; 2 - penalty; 3 - <penalty>; 4 - on; 5 - <member>; 6 - in; 7 - <queue>;*/
+	switch (pos) {
+	case 4:
+		if (state == 0) {
+			return ast_strdup("on");
+		} else {
+			return NULL;
+		}
+	case 6:
+		if (state == 0) {
+			return ast_strdup("in");
+		} else {
+			return NULL;
+		}
+	case 7:
+		return complete_queue(line, word, pos, state);
+	default:
+		return NULL;
+	}
+}
+ 
+static char *handle_queue_set_member_penalty(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
+{
+	char *queuename = NULL, *interface;
+	int penalty = 0;
+
+	switch (cmd) {
+	case CLI_INIT:
+		e->command = "queue set penalty";
+		e->usage = 
+		"Usage: queue set penalty <penalty> on <interface> [in <queue>]\n"
+		"Set a member's penalty in the queue specified. If no queue is specified\n"
+		"then that interface's penalty is set in all queues to which that interface is a member\n";
+		return NULL;
+	case CLI_GENERATE:
+		return complete_queue_set_member_penalty(a->line, a->word, a->pos, a->n);
+	}
+
+	if (a->argc != 6 && a->argc != 8) {
+		return CLI_SHOWUSAGE;
+	} else if (strcmp(a->argv[5], "from")) {
+		return CLI_SHOWUSAGE;
+	}
+
+	if(a->argc == 8)
+		queuename = a->argv[7];
+	interface = a->argv[5];
+	penalty = atoi(a->argv[3]);
+
+	if (penalty < 0) {
+		ast_cli(a->fd, "Invalid penalty (%d)\n", penalty);
+		return CLI_FAILURE;
+	}
+
+	switch (set_member_penalty(queuename, interface, penalty)) {
+	case RESULT_SUCCESS:
+		ast_cli(a->fd, "Set penalty on interface '%s' from queue '%s'\n", interface, queuename);
+		return CLI_SUCCESS;
+	case RESULT_FAILURE:
+		ast_cli(a->fd, "Failed to set penalty on interface '%s' from queue '%s'\n", interface, queuename);
+		return CLI_FAILURE;
+	default:
+		return CLI_FAILURE;
+	}
+}
+
 static const char qpm_cmd_usage[] = 
 "Usage: queue pause member <channel> in <queue> reason <reason>\n";
 
 static const char qum_cmd_usage[] =
 "Usage: queue unpause member <channel> in <queue> reason <reason>\n";
 
+static const char qsmp_cmd_usage[] =
+"Usage: queue set member penalty <channel> from <queue> <penalty>\n";
+
 static struct ast_cli_entry cli_queue[] = {
 	AST_CLI_DEFINE(queue_show, "Show status of a specified queue"),
 	AST_CLI_DEFINE(handle_queue_add_member, "Add a channel to a specified queue"),
 	AST_CLI_DEFINE(handle_queue_remove_member, "Removes a channel from a specified queue"),
 	AST_CLI_DEFINE(handle_queue_pause_member, "Pause or unpause a queue member"),
+	AST_CLI_DEFINE(handle_queue_set_member_penalty, "Set penalty for a channel of a specified queue"),
 };
 
 static int unload_module(void)
@@ -5198,6 +5461,7 @@ static int unload_module(void)
 	res |= ast_manager_unregister("QueueRemove");
 	res |= ast_manager_unregister("QueuePause");
 	res |= ast_manager_unregister("QueueLog");
+	res |= ast_manager_unregister("QueuePenalty");
 	res |= ast_unregister_application(app_aqm);
 	res |= ast_unregister_application(app_rqm);
 	res |= ast_unregister_application(app_pqm);
@@ -5209,6 +5473,7 @@ static int unload_module(void)
 	res |= ast_custom_function_unregister(&queuemembercount_dep);
 	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_custom_function_unregister(&queuewaitingcount_function);
+	res |= ast_custom_function_unregister(&queuememberpenalty_function);
 
 	if (device_state_sub)
 		ast_event_unsubscribe(device_state_sub);
@@ -5263,11 +5528,13 @@ static int load_module(void)
 	res |= ast_manager_register("QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue.");
 	res |= ast_manager_register("QueuePause", EVENT_FLAG_AGENT, manager_pause_queue_member, "Makes a queue member temporarily unavailable");
 	res |= ast_manager_register("QueueLog", EVENT_FLAG_AGENT, manager_queue_log_custom, "Adds custom entry in queue_log");
+	res |= ast_manager_register("QueuePenalty", EVENT_FLAG_AGENT, manager_queue_member_penalty, "Set the penalty for a queue member"); 
 	res |= ast_custom_function_register(&queuevar_function);
 	res |= ast_custom_function_register(&queuemembercount_function);
 	res |= ast_custom_function_register(&queuemembercount_dep);
 	res |= ast_custom_function_register(&queuememberlist_function);
 	res |= ast_custom_function_register(&queuewaitingcount_function);
+	res |= ast_custom_function_register(&queuememberpenalty_function);
 	if (!(device_state_sub = ast_event_subscribe(AST_EVENT_DEVICE_STATE, device_state_cb, NULL, AST_EVENT_IE_END)))
 		res = -1;
 
