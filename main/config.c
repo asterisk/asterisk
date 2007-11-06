@@ -159,10 +159,17 @@ static struct ast_config_engine *config_engine_list;
 
 #define MAX_INCLUDE_LEVEL 10
 
+struct ast_category_template_instance {
+	char name[80]; /* redundant? */
+	const struct ast_category *inst;
+	AST_LIST_ENTRY(ast_category_template_instance) next;
+};
+
 struct ast_category {
 	char name[80];
 	int ignored;			/*!< do not let user of the config see this category */
 	int include_level;	
+	AST_LIST_HEAD_NOLOCK(template_instance_list, ast_category_template_instance) template_instances;
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_variable *root;
@@ -340,9 +347,36 @@ void ast_category_append(struct ast_config *config, struct ast_category *categor
 	config->current = category;
 }
 
+static void ast_destroy_comments(struct ast_category *cat)
+{
+	struct ast_comment *n, *p;
+	for (p=cat->precomments; p; p=n) {
+		n = p->next;
+		free(p);
+	}
+	for (p=cat->sameline; p; p=n) {
+		n = p->next;
+		free(p);
+	}
+	cat->precomments = NULL;
+	cat->sameline = NULL;
+}
+
+static void ast_destroy_template_list(struct ast_category *cat)
+{
+	struct ast_category_template_instance *x;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&cat->template_instances, x, next) {
+		AST_LIST_REMOVE_CURRENT(&cat->template_instances, next);
+		free(x);
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+}
+
 void ast_category_destroy(struct ast_category *cat)
 {
 	ast_variables_destroy(cat->root);
+	ast_destroy_comments(cat);
+	ast_destroy_template_list(cat);
 	free(cat);
 }
 
@@ -412,7 +446,10 @@ void ast_category_rename(struct ast_category *cat, const char *name)
 static void inherit_category(struct ast_category *new, const struct ast_category *base)
 {
 	struct ast_variable *var;
-
+	struct ast_category_template_instance *x = ast_calloc(1,sizeof(struct ast_category_template_instance));
+	strcpy(x->name, base->name);
+	x->inst = base;
+	AST_LIST_INSERT_TAIL(&new->template_instances, x, next);
 	for (var = base->root; var; var = var->next)
 		ast_variable_append(new, variable_clone(var));
 }
@@ -519,7 +556,6 @@ int ast_category_delete(struct ast_config *cfg, char *category)
 	cat = cfg->root;
 	while(cat) {
 		if (cat->name == category) {
-			ast_variables_destroy(cat->root);
 			if (prev) {
 				prev->next = cat->next;
 				if (cat == cfg->last)
@@ -529,7 +565,7 @@ int ast_category_delete(struct ast_config *cfg, char *category)
 				if (cat == cfg->last)
 					cfg->last = NULL;
 			}
-			free(cat);
+			ast_category_destroy(cat);
 			return 0;
 		}
 		prev = cat;
@@ -540,7 +576,6 @@ int ast_category_delete(struct ast_config *cfg, char *category)
 	cat = cfg->root;
 	while(cat) {
 		if (!strcasecmp(cat->name, category)) {
-			ast_variables_destroy(cat->root);
 			if (prev) {
 				prev->next = cat->next;
 				if (cat == cfg->last)
@@ -550,7 +585,7 @@ int ast_category_delete(struct ast_config *cfg, char *category)
 				if (cat == cfg->last)
 					cfg->last = NULL;
 			}
-			free(cat);
+			ast_category_destroy(cat);
 			return 0;
 		}
 		prev = cat;
@@ -568,10 +603,9 @@ void ast_config_destroy(struct ast_config *cfg)
 
 	cat = cfg->root;
 	while(cat) {
-		ast_variables_destroy(cat->root);
 		catn = cat;
 		cat = cat->next;
-		free(catn);
+		ast_category_destroy(catn);
 	}
 	free(cfg);
 }
@@ -999,6 +1033,18 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			if (!cat->precomments)
 				fprintf(f,"\n");
 			fprintf(f, "[%s]", cat->name);
+			if (cat->ignored)
+				fprintf(f, "(!)");
+			if (!AST_LIST_EMPTY(&cat->template_instances)) {
+				struct ast_category_template_instance *x;
+				fprintf(f, "(");
+				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
+					fprintf(f,"%s",x->name);
+					if (x != AST_LIST_LAST(&cat->template_instances))
+						fprintf(f,",");
+				}
+				fprintf(f, ")");
+			}
 			for(cmt = cat->sameline; cmt; cmt=cmt->next)
 			{
 				fprintf(f,"%s", cmt->cmt);
@@ -1007,6 +1053,19 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 				fprintf(f,"\n");
 			var = cat->root;
 			while(var) {
+				struct ast_category_template_instance *x;
+				int found = 0;
+				AST_LIST_TRAVERSE(&cat->template_instances, x, next) {
+					const char *pvalue = ast_variable_retrieve(cfg, x->name, var->name);
+					if (pvalue && !strcmp(pvalue, var->value)) {
+						found = 1;
+						break;
+					}
+				}
+				if (found) {
+					var = var->next;
+					continue;
+				}
 				for (cmt = var->precomments; cmt; cmt=cmt->next)
 				{
 					if (cmt->cmt[0] != ';' || cmt->cmt[1] != '!')
