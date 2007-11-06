@@ -190,6 +190,10 @@ MeetMe Changes
      much identical to the S() and L() options to Dial().  They let you set
      timeouts for the conference, as well as have warning sounds played to
      let the caller know how much time is left, and when it is running out.
+  * Added the ability to do "meetme concise" with the "meetme" CLI command.
+     This extends the concise capabilities of this CLI command to include
+     listing all conferences, instead of an addition to the other sub commands
+     for the "meetme" command.
 
 Music On Hold Changes
 ---------------------

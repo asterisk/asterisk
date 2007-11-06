@@ -887,7 +887,7 @@ cnfout:
 
 static char *complete_meetmecmd(const char *line, const char *word, int pos, int state)
 {
-	static char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list", NULL};
+	static char *cmds[] = {"concise", "lock", "unlock", "mute", "unmute", "kick", "list", NULL};
 
 	int len = strlen(word);
 	int which = 0;
@@ -963,7 +963,7 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 	case CLI_INIT:
 		e->command = "meetme";
 		e->usage =
-			"Usage: meetme (un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
+			"Usage: meetme concise|(un)lock|(un)mute|kick|list [concise] <confno> <usernumber>\n"
 			"       Executes a command for the conference or on a conferee\n";
 		return NULL;
 	case CLI_GENERATE:
@@ -977,16 +977,19 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 		if (strlen(a->argv[i]) > 100)
 			ast_cli(a->fd, "Invalid Arguments.\n");
 	}
-	if (a->argc == 1) {
+	if (a->argc == 1  || ( a->argc == 2 && !strcasecmp(a->argv[1], "concise") )) {
 		/* 'MeetMe': List all the conferences */	
+		int concise = ( a->argc == 2 && !strcasecmp(a->argv[1], "concise") );
 		now = time(NULL);
 		AST_LIST_LOCK(&confs);
 		if (AST_LIST_EMPTY(&confs)) {
-			ast_cli(a->fd, "No active MeetMe conferences.\n");
+			if (!concise)
+				ast_cli(a->fd, "No active MeetMe conferences.\n");
 			AST_LIST_UNLOCK(&confs);
 			return CLI_SUCCESS;
 		}
-		ast_cli(a->fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
+		if (!concise)
+			ast_cli(a->fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation", "Locked");
 		AST_LIST_TRAVERSE(&confs, cnf, list) {
 			if (cnf->markedusers == 0)
 				strcpy(cmdline, "N/A ");
@@ -995,13 +998,23 @@ static char *meetme_cmd(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 			hr = (now - cnf->start) / 3600;
 			min = ((now - cnf->start) % 3600) / 60;
 			sec = (now - cnf->start) % 60;
-
-			ast_cli(a->fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
+			if (!concise)
+				ast_cli(a->fd, data_format, cnf->confno, cnf->users, cmdline, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static", cnf->locked ? "Yes" : "No");
+			else {
+				ast_cli(a->fd, "%s!%d!%d!%02d:%02d:%02d!%d!%d\n", 
+					cnf->confno, 
+					cnf->users, 
+					cnf->markedusers, 
+					hr, min, sec,
+					cnf->isdynamic, 
+					cnf->locked);
+			}
 
 			total += cnf->users; 	
 		}
 		AST_LIST_UNLOCK(&confs);
-		ast_cli(a->fd, "* Total number of MeetMe users: %d\n", total);
+		if (!concise)
+			ast_cli(a->fd, "* Total number of MeetMe users: %d\n", total);
 		return CLI_SUCCESS;
 	}
 	if (a->argc < 3)
