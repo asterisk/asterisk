@@ -95,6 +95,14 @@ struct ast_module {
 
 static AST_LIST_HEAD_STATIC(module_list, ast_module);
 
+/*
+ * module_list is cleared by its constructor possibly after
+ * we start accumulating embedded modules, so we need to
+ * use another list (without the lock) to accumulate them.
+ * Then we update the main list when embedding is done.
+ */
+static struct module_list embedded_module_list;
+
 struct loadupdate {
 	int (*updater)(void);
 	AST_LIST_ENTRY(loadupdate) entry;
@@ -133,18 +141,23 @@ void ast_module_register(const struct ast_module_info *info)
 	   might be unsafe to use the list lock at that point... so
 	   let's avoid it altogether
 	*/
-	if (!embedding)
+	if (embedding) {
+		static int i;
+		fprintf(stderr, "---- embedding [%d] %p %p %s\n",
+			i++, embedded_module_list.first,
+			embedded_module_list.last,
+			info->name);
+		AST_LIST_INSERT_TAIL(&embedded_module_list, mod, entry);
+	} else {
 		AST_LIST_LOCK(&module_list);
-
-	/* it is paramount that the new entry be placed at the tail of
-	   the list, otherwise the code that uses dlopen() to load
-	   dynamic modules won't be able to find out if the module it
-	   just opened was registered or failed to load
-	*/
-	AST_LIST_INSERT_TAIL(&module_list, mod, entry);
-
-	if (!embedding)
+		/* it is paramount that the new entry be placed at the tail of
+		   the list, otherwise the code that uses dlopen() to load
+		   dynamic modules won't be able to find out if the module it
+		   just opened was registered or failed to load
+		*/
+		AST_LIST_INSERT_TAIL(&module_list, mod, entry);
 		AST_LIST_UNLOCK(&module_list);
+	}
 
 	/* give the module a copy of its own handle, for later use in registrations and the like */
 	*((struct ast_module **) &(info->self)) = mod;
@@ -746,6 +759,12 @@ int load_modules(unsigned int preload_only)
 
 	AST_LIST_LOCK(&module_list);
 
+	if (embedded_module_list.first) {
+		module_list.first = embedded_module_list.first;
+		module_list.last = embedded_module_list.last;
+		embedded_module_list.first = NULL;
+	}
+
 	if (!(cfg = ast_config_load(AST_MODULE_CONFIG, config_flags))) {
 		ast_log(LOG_WARNING, "No '%s' found, no modules will be loaded.\n", AST_MODULE_CONFIG);
 		goto done;
@@ -900,7 +919,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 
 	if (AST_LIST_TRYLOCK(&module_list))
 		unlock = 0;
-
+ 
 	AST_LIST_TRAVERSE(&module_list, cur, entry) {
 		total_mod_loaded += modentry(cur->resource, cur->info->description, cur->usecount, like);
 	}
