@@ -675,11 +675,6 @@ static inline int ast_mutex_init(ast_mutex_t *pmutex)
 	int res;
 	pthread_mutexattr_t attr;
 
-#ifdef BSD
-	/* Check for already init'ed mutex for BSD */
-	if (*pmutex != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
-		return 0;
-#endif /* BSD */
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
 
@@ -692,42 +687,21 @@ static inline int ast_mutex_init(ast_mutex_t *pmutex)
 
 static inline int ast_mutex_unlock(ast_mutex_t *pmutex)
 {
-#ifdef BSD
-	/* Check for uninitialized mutex for BSD */
-	if (*pmutex == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
-		ast_mutex_init(pmutex);
-		return 0;
-	}
-#endif /* BSD */
 	return pthread_mutex_unlock(pmutex);
 }
 
 static inline int ast_mutex_destroy(ast_mutex_t *pmutex)
 {
-#ifdef BSD
-	if (*pmutex == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
-		return 0;
-#endif /* BSD */
 	return pthread_mutex_destroy(pmutex);
 }
 
 static inline int ast_mutex_lock(ast_mutex_t *pmutex)
 {
-#ifdef BSD
-	/* Check for uninitialized mutex for BSD */
-	if (*pmutex == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
-		ast_mutex_init(pmutex);
-#endif /* BSD */
 	__MTX_PROF(pmutex);
 }
 
 static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 {
-#ifdef BSD
-	/* Check for uninitialized mutex for BSD */
-	if (*pmutex == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
-		ast_mutex_init(pmutex);
-#endif /* BSD */
 	return pthread_mutex_trylock(pmutex);
 }
 
@@ -1037,11 +1011,6 @@ static inline int ast_rwlock_init(ast_rwlock_t *prwlock)
 	int res;
 	pthread_rwlockattr_t attr;
 
-#ifdef BSD
-	/* Check for already init'ed lock for BSD */
-	if (*prwlock != ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE))
-		return 0;
-#endif /* BSD */
 	pthread_rwlockattr_init(&attr);
 
 #ifdef HAVE_PTHREAD_RWLOCK_PREFER_WRITER_NP
@@ -1055,67 +1024,31 @@ static inline int ast_rwlock_init(ast_rwlock_t *prwlock)
 
 static inline int ast_rwlock_destroy(ast_rwlock_t *prwlock)
 {
-#ifdef BSD
-	/* Check for uninitialized mutex for BSD */
-	if (*prwlock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE))
-		return 0;
-#endif /* BSD */
 	return pthread_rwlock_destroy(prwlock);
 }
 
 static inline int ast_rwlock_unlock(ast_rwlock_t *prwlock)
 {
-#ifdef BSD
-	/* Check for uninitialized lock for BSD */
-	if (*prwlock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
-		ast_rwlock_init(prwlock);
-		return 0;
-	}
-#endif /* BSD */
 	return pthread_rwlock_unlock(prwlock);
 }
 
 static inline int ast_rwlock_rdlock(ast_rwlock_t *prwlock)
 {
-#ifdef BSD
-	/* Check for uninitialized lock for BSD */
-	if (*prwlock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
-		ast_rwlock_init(prwlock);
-	}
-#endif /* BSD */
 	return pthread_rwlock_rdlock(prwlock);
 }
 
 static inline int ast_rwlock_tryrdlock(ast_rwlock_t *prwlock)
 {
-#ifdef BSD
-	/* Check for uninitialized lock for BSD */
-	if (*prwlock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
-		ast_rwlock_init(prwlock);
-	}
-#endif /* BSD */
 	return pthread_rwlock_tryrdlock(prwlock);
 }
 
 static inline int ast_rwlock_wrlock(ast_rwlock_t *prwlock)
 {
-#ifdef BSD
-	/* Check for uninitialized lock for BSD */
-	if (*prwlock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
-		ast_rwlock_init(prwlock);
-	}
-#endif /* BSD */
 	return pthread_rwlock_wrlock(prwlock);
 }
 
 static inline int ast_rwlock_trywrlock(ast_rwlock_t *prwlock)
 {
-#ifdef BSD 
-	/* Check for uninitialized lock for BSD */
-	if (*prwlock == ((ast_rwlock_t) AST_RWLOCK_INIT_VALUE)) {
-		ast_rwlock_init(prwlock);
-	}
-#endif /* BSD */
 	return pthread_rwlock_trywrlock(prwlock);
 }
 #endif /* !DEBUG_THREADS */
