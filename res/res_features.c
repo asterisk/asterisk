@@ -892,7 +892,6 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_channel *transferee;
 	const char *transferer_real_context;
 	char xferto[256] = "";
-	char callbackto[256] = "";
 	int res;
 	int outstate=0;
 	struct ast_channel *newchan;
@@ -1031,25 +1030,28 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 		if (!newchan) {
 			unsigned int tries = 0;
+			char *transferer_tech, *transferer_name = ast_strdupa(transferer->name);
 
-			/* newchan wasn't created - we should callback to transferer */
-			if (!ast_exists_extension(transferer, transferer_real_context, transferer->cid.cid_num, 1, transferee->cid.cid_num)) {
-				ast_log(LOG_WARNING, "Extension %s does not exist in context %s - callback failed\n",transferer->cid.cid_num,transferer_real_context);
+			transferer_tech = strsep(&transferer_name, "/");
+			transferer_name = strsep(&transferer_name, "-");
+
+			if (ast_strlen_zero(transferer_name) || ast_strlen_zero(transferer_tech)) {
+				ast_log(LOG_WARNING, "Transferer has invalid channel name: '%s'\n", transferer->name);
 				if (ast_stream_and_wait(transferee, "beeperr", ""))
 					return -1;
 				return FEATURE_RETURN_SUCCESS;
 			}
-			snprintf(callbackto, sizeof(callbackto), "%s@%s/n", transferer->cid.cid_num, transferer_real_context);  /* append context */
 
-			newchan = ast_feature_request_and_dial(transferee, NULL, "Local", ast_best_codec(transferee->nativeformats),
-				callbackto, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
+			ast_log(LOG_NOTICE, "We're trying to call %s/%s\n", transferer_tech, transferer_name);
+			newchan = ast_feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
+				transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
 			while (!newchan && !atxferdropcall && tries < atxfercallbackretries) {
 				/* Trying to transfer again */
 				ast_autoservice_start(transferee);
 				ast_indicate(transferee, AST_CONTROL_HOLD);
 
 				newchan = ast_feature_request_and_dial(transferer, transferee, "Local", ast_best_codec(transferer->nativeformats),
-				xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1);
+					xferto, atxfernoanswertimeout, &outstate, transferer->cid.cid_num, transferer->cid.cid_name, 1);
 				if (ast_autoservice_stop(transferee) < 0) {
 					if (newchan)
 						ast_hangup(newchan);
@@ -1060,8 +1062,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					ast_debug(1, "Sleeping for %d ms before callback.\n", atxferloopdelay);
 					ast_safe_sleep(transferee, atxferloopdelay);
 					ast_debug(1, "Trying to callback...\n");
-					newchan = ast_feature_request_and_dial(transferee, NULL, "Local", ast_best_codec(transferee->nativeformats),
-						callbackto, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
+					newchan = ast_feature_request_and_dial(transferee, NULL, transferer_tech, ast_best_codec(transferee->nativeformats),
+						transferer_name, atxfernoanswertimeout, &outstate, transferee->cid.cid_num, transferee->cid.cid_name, 0);
 				}
 				tries++;
 			}
