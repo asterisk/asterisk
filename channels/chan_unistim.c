@@ -1557,7 +1557,7 @@ static int unalloc_sub(struct unistim_line *p, int x)
 		return -1;
 	}
 	if (unistimdebug)
-		ast_log(LOG_DEBUG, "Released sub %d of channel %s@%s\n", x, p->name,
+		ast_debug(1, "Released sub %d of channel %s@%s\n", x, p->name,
 				p->parent->name);
 	ast_mutex_destroy(&p->lock);
 	ast_free(p->subs[x]);
@@ -2486,7 +2486,7 @@ static void HandleCallOutgoing(struct unistimsession *s)
 					 p->subs[SUB_THREEWAY]->owner, p->subs[SUB_THREEWAY]->owner->name,
 					 p->subs[SUB_THREEWAY]->subtype);
 		} else
-			ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
+			ast_debug(1, "Current sub [%s] already has owner\n", sub->owner->name);
 	}
 	return;
 }
@@ -3518,7 +3518,7 @@ static void process_request(int size, unsigned char *buf, struct unistimsession 
 	strcpy(tmpbuf, ast_inet_ntoa(pte->sin.sin_addr));
 	strcat(tmpbuf, " Unknown request packet\n");
 	if (unistimdebug)
-		ast_log(LOG_DEBUG, tmpbuf);
+		ast_debug(1, "%s", tmpbuf);
 	return;
 }
 
@@ -3776,7 +3776,7 @@ static int unistim_hangup(struct ast_channel *ast)
 	s = channel_to_session(ast);
 	sub = ast->tech_pvt;
 	if (!s) {
-		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
+		ast_debug(1, "Asked to hangup channel not connected\n");
 		ast_mutex_lock(&sub->lock);
 		sub->owner = NULL;
 		ast->tech_pvt = NULL;
@@ -3995,7 +3995,7 @@ static struct ast_frame *unistim_rtp_read(const struct ast_channel *ast,
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (f->subclass != sub->owner->nativeformats) {
-				ast_log(LOG_DEBUG,
+				ast_debug(1,
 						"Oooh, format changed from %s (%d) to %s (%d)\n",
 						ast_getformatname(sub->owner->nativeformats),
 						sub->owner->nativeformats, ast_getformatname(f->subclass),
@@ -4066,7 +4066,7 @@ static int unistim_fixup(struct ast_channel *oldchan, struct ast_channel *newcha
 
 	ast_mutex_lock(&p->lock);
 
-	ast_log(LOG_DEBUG, "New owner for channel USTM/%s@%s-%d is %s\n", l->name,
+	ast_debug(1, "New owner for channel USTM/%s@%s-%d is %s\n", l->name,
 			l->parent->name, p->subtype, newchan->name);
 
 	if (p->owner != oldchan) {
