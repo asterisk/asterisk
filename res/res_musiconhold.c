@@ -231,6 +231,11 @@ static int ast_moh_files_next(struct ast_channel *chan)
 		chan->stream = NULL;
 	}
 
+	if (!state->class->total_files) {
+		ast_log(LOG_WARNING, "No files available for class '%s'\n", state->class->name);
+		return -1;
+	}
+
 	/* If a specific file has been saved, use it */
 	if (state->save_pos >= 0) {
 		state->pos = state->save_pos;
@@ -321,7 +326,7 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 			/* initialize */
 			memset(state, 0, sizeof(*state));
 			state->class = class;
-			if (ast_test_flag(state->class, MOH_RANDOMIZE))
+			if (ast_test_flag(state->class, MOH_RANDOMIZE) && class->total_files)
 				state->pos = ast_random() % class->total_files;
 		}
 
@@ -1259,8 +1264,15 @@ static int init_classes(int reload)
 			AST_LIST_REMOVE_CURRENT(&mohclasses, list);
 			if (!moh->inuse)
 				ast_moh_destroy_one(moh);
-		} else if (moh->total_files)
-			moh_scan_files(moh);
+		} else if (moh->total_files) {
+			if (moh_scan_files(moh)) {
+				ast_log(LOG_WARNING, "No files found for class '%s'\n", moh->name);
+				moh->delete = 1;
+				AST_LIST_REMOVE_CURRENT(&mohclasses, list);
+				if (!moh->inuse)
+					ast_moh_destroy_one(moh);
+			}
+		}
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&mohclasses);
