@@ -422,7 +422,7 @@ static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, 
 		if (t->track)
 			ast_mark_lock_acquired();
 	} else if (t->track) {
-			ast_remove_lock_info(&t->mutex);
+		ast_mark_lock_failed();
 	}
 
 	return res;
