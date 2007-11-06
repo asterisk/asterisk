@@ -34,35 +34,29 @@ typedef struct tdd_state TDDSTATE;
  */
 void tdd_init(void);
 
-/*! 
- * \brief Generates a CallerID FSK stream in ulaw format suitable for transmission.
+/*! Generates a CallerID FSK stream in ulaw format suitable for transmission.
  * \param tdd tdd structure
  * \param buf Buffer to use. This needs to be large enough to accomodate all the generated samples.
  * \param string This is the string to send.
- * This function creates a stream of TDD data in ulaw format. 
- * \return The size (in bytes) of the data (if it returns a size of 0, there is probably an error)
+ * This function creates a stream of TDD data in ulaw format. It returns the size
+ * (in bytes) of the data (if it returns a size of 0, there is probably an error)
 */
 int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *string);
 
-/*! 
- * \brief Create a TDD state machine. 
+/*! Create a TDD state machine 
  * This function returns a malloc'd instance of the tdd_state data structure.
- * \retval a pointer to a malloc'd tdd_state structure
- * \retval NULL on error.
+ * Returns a pointer to a malloc'd tdd_state structure, or NULL on error.
  */
 struct tdd_state *tdd_new(void);
 
-/*! 
- * \brief Read samples into the state machine, and return character (if any).
+/*! Read samples into the state machine, and return character (if any).
  * \param tdd Which state machine to act upon
  * \param ubuf containing your samples
  * \param samples number of samples contained within the buffer.
  *
  * Send received audio to the TDD demodulator.
- * 
- * \retval -1 on error
- * \retval 0 for "needs more samples"
- * \retval > 0 (the character) if reception of a character is complete.
+ * Returns -1 on error, 0 for "needs more samples",
+ * and > 0 (the character) if reception of a character is complete.
  */
 int tdd_feed(struct tdd_state *tdd, unsigned char *ubuf, int samples);
 
@@ -75,9 +69,14 @@ void tdd_free(struct tdd_state *tdd);
 /*! Generate Echo Canceller disable tone (2100HZ) 
  * \param outbuf This is the buffer to receive the tone data
  * \param len This is the length (in samples) of the tone data to generate
- * \retval 0 if no error
- * \retval -1 if error.
+ * Returns 0 if no error, and -1 if error.
  */
 int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len);
+
+
+/*! Generate hold tone 
+ * \param outbuf This is the buffer to receive the tone data
+*/
+int tdd_gen_holdtone(unsigned char* outbuf);
 
 #endif /* _ASTERISK_TDD_H */

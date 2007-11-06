@@ -261,6 +261,18 @@ static inline float tdd_getcarrier(float *cr, float *ci, int bit)
 	PUT_TDD_STOP;	/* Stop bit */ \
 } while(0);	
 
+/*! Generate TDD hold tone */
+int tdd_gen_holdtone(unsigned char *buf)
+{
+	int bytes=0;
+	float scont=0.0,cr=1.0,ci=0.0;
+	while(scont < tddsb*10.0) {
+		PUT_AUDIO_SAMPLE(tdd_getcarrier(&cr, &ci, 1));
+		scont += 1.0;
+	}
+	return bytes;
+}
+
 int tdd_generate(struct tdd_state *tdd, unsigned char *buf, const char *str)
 {
 	int bytes=0;
