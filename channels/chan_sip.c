@@ -155,8 +155,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define XMIT_ERROR		-2
 
-#define VIDEO_CODEC_MASK        0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
-
 /* #define VOCAL_DATA_HACK */
 
 #define DEFAULT_DEFAULT_EXPIRY  120
@@ -7228,20 +7226,20 @@ static enum sip_result add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Now send any other common audio and video codecs, and non-codec formats: */
-	for (x = 1; x <= (needtext ? AST_FORMAT_MAX_TEXT : (needvideo ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO)); x <<= 1) {
+	for (x = 1; x <= (needtext ? AST_FORMAT_TEXT_MASK : (needvideo ? AST_FORMAT_VIDEO_MASK : AST_FORMAT_AUDIO_MASK)); x <<= 1) {
 		if (!(capability & x))	/* Codec not requested */
 			continue;
 
 		if (alreadysent & x)	/* Already added to SDP */
 			continue;
 
-		if (x <= AST_FORMAT_MAX_AUDIO)
+		if (x & AST_FORMAT_AUDIO_MASK)
 			add_codec_to_sdp(p, x, SDP_SAMPLE_RATE(x),
 				 &m_audio, &a_audio, debug, &min_audio_packet_size);
-		else if (x <= AST_FORMAT_MAX_VIDEO) 
+		else if (x & AST_FORMAT_VIDEO_MASK) 
 			add_vcodec_to_sdp(p, x, 90000,
 				 &m_video, &a_video, debug, &min_video_packet_size);
-		else if (x <= AST_FORMAT_MAX_TEXT)
+		else if (x & AST_FORMAT_TEXT_MASK)
 			add_tcodec_to_sdp(p, x, 1000,
 				 &m_text, &a_text, debug, &min_text_packet_size);
 	}

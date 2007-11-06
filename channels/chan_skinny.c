@@ -1239,7 +1239,7 @@ static int handle_time_date_req_message(struct skinny_req *req, struct skinnyses
 static const struct ast_channel_tech skinny_tech = {
 	.type = "Skinny",
 	.description = tdesc,
-	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = skinny_request,
 	.devicestate = skinny_devicestate,
@@ -5395,7 +5395,7 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 
 	oldformat = format;
 	
-	if (!(format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1))) {
+	if (!(format &= AST_FORMAT_AUDIO_MASK)) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;	
 	}		

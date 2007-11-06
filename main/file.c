@@ -148,7 +148,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 	int res = -1;
 	int alt = 0;
 	if (f->frametype == AST_FRAME_VIDEO) {
-		if (fs->fmt->format < AST_FORMAT_MAX_AUDIO) {
+		if (fs->fmt->format & AST_FORMAT_AUDIO_MASK) {
 			/* This is the audio portion.  Call the video one... */
 			if (!fs->vfs && fs->filename) {
 				const char *type = ast_getformatname(f->subclass & ~0x1);
@@ -381,7 +381,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 				struct ast_filestream *s;
 
 				if ( !(chan->writeformat & f->format) &&
-				     !(f->format >= AST_FORMAT_MAX_AUDIO && fmt)) {
+				     !(f->format & AST_FORMAT_AUDIO_MASK && fmt)) {
 					ast_free(fn);
 					continue;	/* not a supported format */
 				}
@@ -407,7 +407,7 @@ static int ast_filehelper(const char *filename, const void *arg2, const char *fm
 				s->fmt = f;
 				s->trans = NULL;
 				s->filename = NULL;
-				if (s->fmt->format < AST_FORMAT_MAX_AUDIO) {
+				if (s->fmt->format & AST_FORMAT_AUDIO_MASK) {
 					if (chan->stream)
 						ast_closestream(chan->stream);
 					chan->stream = s;
@@ -577,7 +577,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	if (buf == NULL)
 		return NULL;
 
-	for (format = AST_FORMAT_MAX_AUDIO << 1; format <= AST_FORMAT_MAX_VIDEO; format = format << 1) {
+	for (format = AST_FORMAT_AUDIO_MASK + 1; format <= AST_FORMAT_VIDEO_MASK; format = format << 1) {
 		int fd;
 		const char *fmt;
 
@@ -710,7 +710,7 @@ int ast_playstream(struct ast_filestream *s)
 {
 	enum fsread_res res;
 
-	if (s->fmt->format < AST_FORMAT_MAX_AUDIO)
+	if (s->fmt->format & AST_FORMAT_AUDIO_MASK)
 		res = ast_readaudio_callback(s);
 	else
 		res = ast_readvideo_callback(s);
@@ -749,7 +749,7 @@ int ast_closestream(struct ast_filestream *f)
 	size_t size = 0;
 	/* Stop a running stream if there is one */
 	if (f->owner) {
-		if (f->fmt->format < AST_FORMAT_MAX_AUDIO) {
+		if (f->fmt->format & AST_FORMAT_AUDIO_MASK) {
 			f->owner->stream = NULL;
 			if (f->owner->streamid > -1)
 				ast_sched_del(f->owner->sched, f->owner->streamid);

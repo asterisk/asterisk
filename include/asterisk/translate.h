@@ -44,7 +44,7 @@ struct ast_trans_pvt;	/* declared below */
  * related to run-time operation (size of buffers, auxiliary
  * descriptors, etc).
  *
- * A coded registers itself by filling the relevant fields
+ * A codec registers itself by filling the relevant fields
  * of a structure and passing it as an argument to
  * ast_register_translator(). The structure should not be
  * modified after a successful registration, and its address

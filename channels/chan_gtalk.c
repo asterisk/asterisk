@@ -198,7 +198,7 @@ static int gtalk_get_codec(struct ast_channel *chan);
 static const struct ast_channel_tech gtalk_tech = {
 	.type = "Gtalk",
 	.description = "Gtalk Channel Driver",
-	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.requester = gtalk_request,
 	.send_digit_begin = gtalk_digit_begin,
 	.send_digit_end = gtalk_digit_end,

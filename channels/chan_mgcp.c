@@ -2076,7 +2076,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(dest.sin_addr));
 	ast_copy_string(t, "t=0 0\r\n", sizeof(t));
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
 		if (p->capability & x) {
 			if (mgcpdebug) {
 				ast_verbose("Answering with capability %d\n", x);
@@ -2142,7 +2142,7 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 		return 0;
 	}
 	ast_copy_string(local, "p:20", sizeof(local));
-	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);
@@ -2172,7 +2172,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	struct mgcp_endpoint *p = sub->parent;
 
 	ast_copy_string(local, "p:20", sizeof(local));
-	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; x <= AST_FORMAT_AUDIO_MASK; x <<= 1) {
 		if (p->capability & x) {
 			snprintf(tmp, sizeof(tmp), ", a:%s", ast_rtp_lookup_mime_subtype(1, x, 0));
 			strncat(local, tmp, sizeof(local) - strlen(local) - 1);

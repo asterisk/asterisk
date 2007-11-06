@@ -806,7 +806,7 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	   known audio formats to determine whether there exists
 	   a translation path from the source format to the
 	   destination format. */
-	for (x = 1; src_audio && x < AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; src_audio && (x & AST_FORMAT_AUDIO_MASK); x <<= 1) {
 		/* if this is not a desired format, nothing to do */
 		if (!dest & x)
 			continue;
@@ -832,7 +832,7 @@ unsigned int ast_translate_available_formats(unsigned int dest, unsigned int src
 	   known video formats to determine whether there exists
 	   a translation path from the source format to the
 	   destination format. */
-	for (; src_video && x < AST_FORMAT_MAX_VIDEO; x <<= 1) {
+	for (; src_video && (x & AST_FORMAT_VIDEO_MASK); x <<= 1) {
 		/* if this is not a desired format, nothing to do */
 		if (!dest & x)
 			continue;

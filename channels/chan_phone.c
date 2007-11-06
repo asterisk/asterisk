@@ -594,7 +594,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	}
 	p->fr.samples = 240;
 	p->fr.datalen = res;
-	p->fr.frametype = p->lastinput <= AST_FORMAT_MAX_AUDIO ?
+	p->fr.frametype = p->lastinput <= AST_FORMAT_AUDIO_MASK ?
                           AST_FRAME_VOICE : 
 			  p->lastinput <= AST_FORMAT_PNG ? AST_FRAME_IMAGE 
 			  : AST_FRAME_VIDEO;

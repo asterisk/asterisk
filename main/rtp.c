@@ -1571,7 +1571,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return f ? f : &ast_null_frame;
 	}
 	rtp->lastrxformat = rtp->f.subclass = rtpPT.code;
-	rtp->f.frametype = (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) ? AST_FRAME_VOICE : (rtp->f.subclass < AST_FORMAT_MAX_VIDEO) ? AST_FRAME_VIDEO : AST_FRAME_TEXT;
+	rtp->f.frametype = (rtp->f.subclass & AST_FORMAT_AUDIO_MASK) ? AST_FRAME_VOICE : (rtp->f.subclass & AST_FORMAT_VIDEO_MASK) ? AST_FRAME_VIDEO : AST_FRAME_TEXT;
 
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
@@ -1586,7 +1586,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.seqno = seqno;
-	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) {
+	if (rtp->f.subclass & AST_FORMAT_AUDIO_MASK) {
 		rtp->f.samples = ast_codec_get_samples(&rtp->f);
 		if (rtp->f.subclass == AST_FORMAT_SLINEAR) 
 			ast_frame_byteswap_be(&rtp->f);
@@ -1595,7 +1595,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		rtp->f.has_timing_info = 1;
 		rtp->f.ts = timestamp / 8;
 		rtp->f.len = rtp->f.samples / 8;
-	} else if(rtp->f.subclass < AST_FORMAT_MAX_VIDEO) {
+	} else if(rtp->f.subclass & AST_FORMAT_VIDEO_MASK) {
 		/* Video -- samples is # of samples vs. 90000 */
 		if (!rtp->lastividtimestamp)
 			rtp->lastividtimestamp = timestamp;
@@ -2958,7 +2958,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
-	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
+	if (f->subclass & AST_FORMAT_AUDIO_MASK) {
 		pred = rtp->lastts + f->samples;
 
 		/* Re-calculate last TS */
@@ -2973,7 +2973,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 				mark = 1;
 			}
 		}
-	} else if(f->subclass < AST_FORMAT_MAX_VIDEO) {
+	} else if(f->subclass & AST_FORMAT_VIDEO_MASK) {
 		mark = f->subclass & 0x1;
 		pred = rtp->lastovidtimestamp + f->samples;
 		/* Re-calculate last TS */

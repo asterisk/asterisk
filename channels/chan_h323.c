@@ -249,7 +249,7 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static const struct ast_channel_tech oh323_tech = {
 	.type = "H323",
 	.description = tdesc,
-	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.properties = AST_CHAN_TP_WANTSJITTER | AST_CHAN_TP_CREATESJITTER,
 	.requester = oh323_request,
 	.send_digit_begin = oh323_digit_begin,
@@ -1739,7 +1739,7 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 		return NULL;
 	}
 	oldformat = format;
-	format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1);
+	format &= AST_FORMAT_AUDIO_MASK;
 	if (!format) {
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		oh323_destroy(pvt);

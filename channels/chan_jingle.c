@@ -198,7 +198,7 @@ static int jingle_get_codec(struct ast_channel *chan);
 static const struct ast_channel_tech jingle_tech = {
 	.type = "Jingle",
 	.description = "Jingle Channel Driver",
-	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
+	.capabilities = AST_FORMAT_AUDIO_MASK,
 	.requester = jingle_request,
 	.send_digit_begin = jingle_digit_begin,
 	.send_digit_end = jingle_digit_end,
@@ -340,10 +340,7 @@ static int jingle_accept_call(struct jingle *client, struct jingle_pvt *p)
 				continue;
 			if (alreadysent & pref_codec)
 				continue;
-			if (pref_codec <= AST_FORMAT_MAX_AUDIO)
-				add_codec_to_answer(p, pref_codec, dcodecs);
-			else
-				add_codec_to_answer(p, pref_codec, dcodecs);
+			add_codec_to_answer(p, pref_codec, dcodecs);
 			alreadysent |= pref_codec;
 		}
 		payload_red = iks_new("payload-type");

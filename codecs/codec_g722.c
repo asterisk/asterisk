@@ -74,12 +74,30 @@ static int lintog722_new(struct ast_trans_pvt *pvt)
 	return 0;
 }
 
+static int lin16tog722_new(struct ast_trans_pvt *pvt)
+{
+	struct g722_encoder_pvt *tmp = pvt->pvt;
+
+	g722_encode_init(&tmp->g722, 64000, 0);
+
+	return 0;
+}
+
 /*! \brief init a new instance of g722_encoder_pvt. */
 static int g722tolin_new(struct ast_trans_pvt *pvt)
 {
 	struct g722_decoder_pvt *tmp = pvt->pvt;
 
 	g722_decode_init(&tmp->g722, 64000, G722_SAMPLE_RATE_8000);
+
+	return 0;
+}
+
+static int g722tolin16_new(struct ast_trans_pvt *pvt)
+{
+	struct g722_decoder_pvt *tmp = pvt->pvt;
+
+	g722_decode_init(&tmp->g722, 64000, 0);
 
 	return 0;
 }
@@ -125,11 +143,39 @@ static struct ast_frame *g722tolin_sample(void)
 	return &f;
 }
 
+static struct ast_frame *g722tolin16_sample(void)
+{
+	static struct ast_frame f = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass = AST_FORMAT_G722,
+		.datalen = sizeof(slin_g722_ex),
+		.samples = sizeof(slin_g722_ex) / sizeof(slin_g722_ex[0]),
+		.src = __PRETTY_FUNCTION__,
+		.data = slin_g722_ex,
+	};
+
+	return &f;
+}
+
 static struct ast_frame *lintog722_sample (void)
 {
 	static struct ast_frame f = {
 		.frametype = AST_FRAME_VOICE,
 		.subclass = AST_FORMAT_SLINEAR,
+		.datalen = sizeof(slin_g722_ex),
+		.samples = sizeof(slin_g722_ex) / sizeof(slin_g722_ex[0]),
+		.src = __PRETTY_FUNCTION__,
+		.data = slin_g722_ex,
+	};
+
+	return &f;
+}
+
+static struct ast_frame *lin16tog722_sample (void)
+{
+	static struct ast_frame f = {
+		.frametype = AST_FRAME_VOICE,
+		.subclass = AST_FORMAT_SLINEAR16,
 		.datalen = sizeof(slin_g722_ex),
 		.samples = sizeof(slin_g722_ex) / sizeof(slin_g722_ex[0]),
 		.src = __PRETTY_FUNCTION__,
@@ -159,6 +205,31 @@ static struct ast_translator lintog722 = {
 	.newpvt = lintog722_new,	/* same for both directions */
 	.framein = lintog722_framein,
 	.sample = lintog722_sample,
+	.desc_size = sizeof(struct g722_encoder_pvt),
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES,
+};
+
+static struct ast_translator g722tolin16 = {
+	.name = "g722tolin16",
+	.srcfmt = AST_FORMAT_G722,
+	.dstfmt = AST_FORMAT_SLINEAR16,
+	.newpvt = g722tolin16_new,	/* same for both directions */
+	.framein = g722tolin_framein,
+	.sample = g722tolin16_sample,
+	.desc_size = sizeof(struct g722_decoder_pvt),
+	.buffer_samples = BUFFER_SAMPLES,
+	.buf_size = BUFFER_SAMPLES,
+	.plc_samples = 160,
+};
+
+static struct ast_translator lin16tog722 = {
+	.name = "lin16tog722",
+	.srcfmt = AST_FORMAT_SLINEAR16,
+	.dstfmt = AST_FORMAT_G722,
+	.newpvt = lin16tog722_new,	/* same for both directions */
+	.framein = lintog722_framein,
+	.sample = lin16tog722_sample,
 	.desc_size = sizeof(struct g722_encoder_pvt),
 	.buffer_samples = BUFFER_SAMPLES,
 	.buf_size = BUFFER_SAMPLES,
@@ -198,6 +269,8 @@ static int unload_module(void)
 
 	res |= ast_unregister_translator(&g722tolin);
 	res |= ast_unregister_translator(&lintog722);
+	res |= ast_unregister_translator(&g722tolin16);
+	res |= ast_unregister_translator(&lin16tog722);
 
 	return res;
 }
@@ -206,12 +279,13 @@ static int load_module(void)
 {
 	int res = 0;
 
-
 	if (parse_config(0))
 		return AST_MODULE_LOAD_DECLINE;
 
 	res |= ast_register_translator(&g722tolin);
 	res |= ast_register_translator(&lintog722);
+	res |= ast_register_translator(&g722tolin16);
+	res |= ast_register_translator(&lin16tog722);
 
 	if (res) {
 		unload_module();
