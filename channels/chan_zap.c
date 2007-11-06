@@ -905,7 +905,13 @@ static int zt_open(char *fn)
 		}
 	}
 	bs = READ_SIZE;
-	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1) return -1;
+	if (ioctl(fd, ZT_SET_BLOCKSIZE, &bs) == -1) {
+		ast_log(LOG_WARNING, "Unable to set blocksize '%d': %s\n", bs,  strerror(errno));
+		x = errno;
+		close(fd);
+		errno = x;
+		return -1;
+	}
 	return fd;
 }
 
@@ -11406,8 +11412,10 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 			continue;
 		}
 		  /* if got exception */
-		if (fds[0].revents & POLLPRI)
+		if (fds[0].revents & POLLPRI) {
+			ast_free(mybuf);
 			return -1;
+		}
 		if (!(fds[0].revents & POLLOUT)) {
 			ast_log(LOG_DEBUG, "write fd not ready on channel %d\n", p->channel);
 			continue;
