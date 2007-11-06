@@ -48,7 +48,7 @@ static char *app = "GetCPEID";
 static char *synopsis = "Get ADSI CPE ID";
 
 static char *descrip =
-"  GetCPEID: Obtains and displays ADSI CPE ID and other information in order\n"
+"  GetCPEID(): Obtains and displays ADSI CPE ID and other information in order\n"
 "to properly setup zapata.conf for on-hook operations.\n";
 
 

@@ -61,7 +61,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app = "FollowMe";
 static char *synopsis = "Find-Me/Follow-Me application";
 static char *descrip = 
-"  FollowMe(followmeid,options):\n"
+"  FollowMe(followmeid[,options]):\n"
 "This application performs Find-Me/Follow-Me functionality for the caller\n"
 "as defined in the profile matching the <followmeid> parameter in\n"
 "followme.conf. If the specified <followmeid> profile doesn't exist in\n"

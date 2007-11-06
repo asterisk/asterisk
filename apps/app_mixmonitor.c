@@ -60,7 +60,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char *app = "MixMonitor";
 static const char *synopsis = "Record a call and mix the audio during the recording";
 static const char *desc = ""
-"  MixMonitor(<file>.<ext>[,<options>[,<command>]])\n\n"
+"  MixMonitor(<file>.<ext>[,<options>[,<command>]]):\n"
 "Records the audio on the current channel to the specified file.\n"
 "If the filename is an absolute path, uses that path, otherwise\n"
 "creates the file in the configured monitoring directory from\n"
@@ -83,7 +83,7 @@ static const char *desc = ""
 static const char *stop_app = "StopMixMonitor";
 static const char *stop_synopsis = "Stop recording a call through MixMonitor";
 static const char *stop_desc = ""
-"  StopMixMonitor()\n\n"
+"  StopMixMonitor():\n"
 "Stops the audio recording that was started with a call to MixMonitor()\n"
 "on the current channel.\n"
 "";

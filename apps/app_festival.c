@@ -66,7 +66,7 @@ static char *app = "Festival";
 static char *synopsis = "Say text to the user";
 
 static char *descrip = 
-"  Festival(text[,intkeys]):  Connect to Festival, send the argument, get back the waveform,"
+"  Festival(text[,intkeys]):  Connect to Festival, send the argument, get back the waveform,\n"
 "play it to the user, allowing any given interrupt keys to immediately terminate and return\n"
 "the value, or 'any' to allow any number back (useful in dialplan)\n";
 

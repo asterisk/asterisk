@@ -60,8 +60,8 @@ static char *app = "NBScat";
 static char *synopsis = "Play an NBS local stream";
 
 static char *descrip = 
-"  NBScat: Executes nbscat to listen to the local NBS stream.\n"
-"User can exit by pressing any key\n.";
+"  NBScat(): Executes nbscat to listen to the local NBS stream.\n"
+"User can exit by pressing any key.\n";
 
 
 static int NBScatplay(int fd)

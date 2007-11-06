@@ -49,13 +49,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 static char *tests_descrip = 
-	 "TestServer(): Perform test server function and write call report.\n"
+	 "  TestServer(): Perform test server function and write call report.\n"
 	 "Results stored in /var/log/asterisk/testreports/<testid>-server.txt";
 static char *tests_app = "TestServer";
 static char *tests_synopsis = "Execute Interface Test Server";
 
 static char *testc_descrip = 
-	 "TestClient(testid): Executes test client with given testid.\n"
+	 "  TestClient(testid): Executes test client with given testid.\n"
 	 "Results stored in /var/log/asterisk/testreports/<testid>-client.txt";
 
 static char *testc_app = "TestClient";

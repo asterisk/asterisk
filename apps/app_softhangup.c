@@ -45,11 +45,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *synopsis = "Soft Hangup Application";
 
-static char *desc = "SoftHangup(Technology/resource[,options])\n"
+static char *desc = "  SoftHangup(Technology/resource[,options]):\n"
 "Hangs up the requested channel.  If there are no channels to hangup,\n"
 "the application will report it.\n"
-"- 'options' may contain the following letter:\n"
-"     'a' : hang up all channels on a specified device instead of a single resource\n";
+"  Options:\n"
+"     'a'  - hang up all channels on a specified device instead of a single resource\n";
 
 static char *app = "SoftHangup";
 

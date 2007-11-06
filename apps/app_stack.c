@@ -55,20 +55,20 @@ static const char *return_synopsis = "Return from gosub routine";
 static const char *pop_synopsis = "Remove one address from gosub stack";
 
 static const char *gosub_descrip =
-"Gosub([[context,]exten,]priority[(arg1[,...][,argN])])\n"
-"  Jumps to the label specified, saving the return address.\n";
+"  Gosub([[context,]exten,]priority[(arg1[,...][,argN])]):\n"
+"Jumps to the label specified, saving the return address.\n";
 static const char *gosubif_descrip =
-"GosubIf(condition?labeliftrue[(arg1[,...])][:labeliffalse[(arg1[,...])]])\n"
-"  If the condition is true, then jump to labeliftrue.  If false, jumps to\n"
+"  GosubIf(condition?labeliftrue[(arg1[,...])][:labeliffalse[(arg1[,...])]]):\n"
+"If the condition is true, then jump to labeliftrue.  If false, jumps to\n"
 "labeliffalse, if specified.  In either case, a jump saves the return point\n"
 "in the dialplan, to be returned to with a Return.\n";
 static const char *return_descrip =
-"Return([return-value])\n"
-"  Jumps to the last label on the stack, removing it.  The return value, if\n"
+"  Return([return-value]):\n"
+"Jumps to the last label on the stack, removing it.  The return value, if\n"
 "any, is saved in the channel variable GOSUB_RETVAL.\n";
 static const char *pop_descrip =
-"StackPop()\n"
-"  Removes last label on the stack, discarding it.\n";
+"  StackPop():\n"
+"Removes last label on the stack, discarding it.\n";
 
 
 static void gosub_free(void *data);

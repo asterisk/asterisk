@@ -65,7 +65,7 @@ static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
 
-static char *monitor_descrip = "Monitor([file_format[:urlbase],[fname_base],[options]]):\n"
+static char *monitor_descrip = "  Monitor([file_format[:urlbase],[fname_base],[options]]):\n"
 "Used to start monitoring a channel. The channel's input and output\n"
 "voice packets are logged to files until the channel hangs up or\n"
 "monitoring is stopped by the StopMonitor application.\n"
@@ -85,9 +85,7 @@ static char *monitor_descrip = "Monitor([file_format[:urlbase],[fname_base],[opt
 "          administrator interface\n"
 "\n"
 "    b   - Don't begin recording unless a call is bridged to another channel\n"
-"\n"
 "    i   - Skip recording of input stream (disables m option)\n"
-"\n"
 "    o   - Skip recording of output stream (disables m option)\n"
 "\nReturns -1 if monitor files can't be opened or if the channel is already\n"
 "monitored, otherwise 0.\n"
@@ -95,23 +93,23 @@ static char *monitor_descrip = "Monitor([file_format[:urlbase],[fname_base],[opt
 
 static char *stopmonitor_synopsis = "Stop monitoring a channel";
 
-static char *stopmonitor_descrip = "StopMonitor\n"
+static char *stopmonitor_descrip = "  StopMonitor():\n"
 	"Stops monitoring a channel. Has no effect if the channel is not monitored\n";
 
 static char *changemonitor_synopsis = "Change monitoring filename of a channel";
 
-static char *changemonitor_descrip = "ChangeMonitor(filename_base)\n"
-	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored\n"
+static char *changemonitor_descrip = "  ChangeMonitor(filename_base):\n"
+	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored.\n"
 	"The argument is the new filename base to use for monitoring this channel.\n";
 
 static char *pausemonitor_synopsis = "Pause monitoring of a channel";
 
-static char *pausemonitor_descrip = "PauseMonitor\n"
+static char *pausemonitor_descrip = "  PauseMonitor():\n"
 	"Pauses monitoring of a channel until it is re-enabled by a call to UnpauseMonitor.\n";
 
 static char *unpausemonitor_synopsis = "Unpause monitoring of a channel";
 
-static char *unpausemonitor_descrip = "UnpauseMonitor\n"
+static char *unpausemonitor_descrip = "  UnpauseMonitor():\n"
 	"Unpauses monitoring of a channel on which monitoring had\n"
 	"previously been paused with PauseMonitor.\n";
 

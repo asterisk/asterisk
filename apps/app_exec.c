@@ -61,8 +61,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *app_exec = "Exec";
 static char *exec_synopsis = "Executes dialplan application";
 static char *exec_descrip =
-"Usage: Exec(appname(arguments))\n"
-"  Allows an arbitrary application to be invoked even when not\n"
+"  Exec(appname(arguments)):\n"
+"Allows an arbitrary application to be invoked even when not\n"
 "hardcoded into the dialplan.  If the underlying application\n"
 "terminates the dialplan, or if the application cannot be found,\n"
 "Exec will terminate the dialplan.\n"
@@ -72,11 +72,11 @@ static char *exec_descrip =
 static char *app_tryexec = "TryExec";
 static char *tryexec_synopsis = "Executes dialplan application, always returning";
 static char *tryexec_descrip =
-"Usage: TryExec(appname(arguments))\n"
-"  Allows an arbitrary application to be invoked even when not\n"
+"  TryExec(appname(arguments)):\n"
+"Allows an arbitrary application to be invoked even when not\n"
 "hardcoded into the dialplan. To invoke external applications\n"
 "see the application System.  Always returns to the dialplan.\n"
-"The channel variable TRYSTATUS will be set to:\n"
+"The channel variable TRYSTATUS will be set to one of:\n"
 "    SUCCESS   if the application returned zero\n"
 "    FAILED    if the application returned non-zero\n"
 "    NOAPP     if the application was not found or was not specified\n";
@@ -84,7 +84,7 @@ static char *tryexec_descrip =
 static char *app_execif = "ExecIf";
 static char *execif_synopsis = "Executes dialplan application, conditionally";
 static char *execif_descrip = 
-"Usage:  ExecIF (<expr>?<app>(<data>):<app2>(<data2>))\n"
+"  ExecIF (<expr>?<app>(<data>):<app2>(<data2>))\n"
 "If <expr> is true, execute and return the result of <app>(<data>).\n"
 "If <expr> is true, but <app> is not found, then the application\n"
 "will return a non-zero value.\n";

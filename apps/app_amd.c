@@ -69,7 +69,7 @@ static char *descrip =
 "- 'maximumNumberOfWords'is the maximum number of words in the greeting. \n"
 "   If exceeded then MACHINE.\n"
 "- 'silenceThreshold' is the silence threshold.\n"
-"This application sets the following channel variable upon completion:\n"
+"This application sets the following channel variables upon completion:\n"
 "    AMDSTATUS - This is the status of the answering machine detection.\n"
 "                Possible values are:\n"
 "                MACHINE | HUMAN | NOTSURE | HANGUP\n"

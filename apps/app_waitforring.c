@@ -45,7 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *synopsis = "Wait for Ring Application";
 
-static char *desc = "  WaitForRing(timeout)\n"
+static char *desc = "  WaitForRing(timeout):\n"
 "Returns 0 after waiting at least timeout seconds. and\n"
 "only after the next ring has completed.  Returns 0 on\n"
 "success or -1 on hangup\n";

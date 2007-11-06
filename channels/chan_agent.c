@@ -89,7 +89,7 @@ static const char descrip[] =
 "when a new call comes in. The agent can dump the call by pressing\n"
 "the star key.\n"
 "The option string may contain zero or more of the following characters:\n"
-"      's' -- silent login - do not announce the login ok segment after agent logged in/off\n";
+"      's' -- silent login - do not announce the login ok segment after agent logged on/off\n";
 
 static const char descrip3[] =
 "  AgentMonitorOutgoing([options]):\n"
@@ -97,11 +97,11 @@ static const char descrip3[] =
 "comparison of the callerid of the current interface and the global variable \n"
 "placed by the AgentCallbackLogin application. That's why it should be used only\n"
 "with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent \n"
-"instead of Monitor application. That have to be configured in the agents.conf file.\n"
+"instead of Monitor application. That has to be configured in the agents.conf file.\n"
 "\nReturn value:\n"
 "Normally the app returns 0 unless the options are passed.\n"
 "\nOptions:\n"
-"	'd' - make the app return -1 if there is an error condition"
+"	'd' - make the app return -1 if there is an error condition\n"
 "	'c' - change the CDR so that the source of the call is 'Agent/agent_id'\n"
 "	'n' - don't generate the warnings when there is no callerid or the\n"
 "	      agentid is not known.\n"

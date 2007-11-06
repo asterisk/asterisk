@@ -73,7 +73,7 @@ static const char *desc_chan =
 "        and a digit sequence.\n"
 "  Options:\n"
 "    b             - Only spy on channels involved in a bridged call.\n"
-"    g(grp)        - Match only channels where their ${SPYGROUP} variable is set to\n"
+"    g(grp)        - Match only channels where their SPYGROUP variable is set to\n"
 "                    contain 'grp' in an optional : delimited list.\n"
 "    q             - Don't play a beep when beginning to spy on a channel, or speak the\n"
 "                    selected channel name.\n"

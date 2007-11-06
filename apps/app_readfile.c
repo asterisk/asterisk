@@ -44,13 +44,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *app_readfile = "ReadFile";
 
-static char *readfile_synopsis = "ReadFile(varname=file,length)";
+static char *readfile_synopsis = "Read the contents of a text file into a channel variable";
 
 static char *readfile_descrip =
 "ReadFile(varname=file,length)\n"
-"  Varname - Result stored here.\n"
-"  File - The name of the file to read.\n"
-"  Length - Maximum number of characters to capture.\n";
+"  varname  - Result stored here.\n"
+"  file     - The name of the file to read.\n"
+"  length   - Maximum number of characters to capture.\n";
 
 
 static int readfile_exec(struct ast_channel *chan, void *data)

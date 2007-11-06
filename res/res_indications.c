@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char config[] = "indications.conf";
 
 char *playtones_desc=
-"PlayTones(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
+"  PlayTones(arg): Plays a tone list. Execution will continue with the next step immediately,\n"
 "while the tones continue to play.\n"
 "Arg is either the tone name defined in the indications.conf configuration file, or a directly\n"
 "specified list of frequencies and durations.\n"
@@ -408,7 +408,7 @@ static int load_module(void)
 		return AST_MODULE_LOAD_DECLINE; 
 	ast_cli_register_multiple(cli_indications, sizeof(cli_indications) / sizeof(struct ast_cli_entry));
 	ast_register_application("PlayTones", handle_playtones, "Play a tone list", playtones_desc);
-	ast_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list","Stop playing a tone list");
+	ast_register_application("StopPlayTones", handle_stopplaytones, "Stop playing a tone list","  StopPlayTones(): Stop playing a tone list");
 
 	return AST_MODULE_LOAD_SUCCESS;
 }

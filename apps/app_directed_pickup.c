@@ -49,7 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static const char *app = "Pickup";
 static const char *synopsis = "Directed Call Pickup";
 static const char *descrip =
-"  Pickup([extension[@context][&extension2@context...]]):  This application can\n"
+"  Pickup([extension[@context][&extension2@[context]...]]):  This application can\n"
 "pickup any ringing channel that is calling the specified extension.  If no\n"
 "context is specified, the current context will be used. If you use the special\n"
 "string \"PICKUPMARK\" for the context parameter, for example 10@PICKUPMARK,\n"

@@ -46,7 +46,7 @@ static char *app_morsecode = "Morsecode";
 static char *morsecode_synopsis = "Plays morse code";
 
 static char *morsecode_descrip =
-"Usage: Morsecode(<string>)\n"
+"  Morsecode(<string>):\n"
 "Plays the Morse code equivalent of the passed string.  If the variable\n"
 "MORSEDITLEN is set, it will use that value for the length (in ms) of the dit\n"
 "(defaults to 80).  Additionally, if MORSETONE is set, it will use that tone\n"

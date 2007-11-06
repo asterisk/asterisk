@@ -435,11 +435,12 @@ static struct pbx_builtin {
 	},
 
 	{ "NoOp", pbx_builtin_noop,
-	"Do Nothing",
-	"  NoOp(): This applicatiion does nothing. However, it is useful for debugging\n"
+	"Do Nothing (No Operation)",
+	"  NoOp(): This application does nothing. However, it is useful for debugging\n"
 	"purposes. Any text that is provided as arguments to this application can be\n"
 	"viewed at the Asterisk CLI. This method can be used to see the evaluations of\n"
-	"variables or functions without having any effect."
+	"variables or functions without having any effect. Alternatively, see the\n"
+  "Verbose() application for finer grain control of output at custom verbose levels.\n"
 	},
 
 	{ "Progress", pbx_builtin_progress,

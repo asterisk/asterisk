@@ -230,7 +230,7 @@ static char *app_minivm_accmess = "MinivmAccMess";	/* Record personal voicemail 
 
 static char *synopsis_minivm_record = "Receive Mini-Voicemail and forward via e-mail";
 static char *descrip_minivm_record = 
-	"Syntax: MinivmRecord(username@domain[,options])\n"
+	"  MinivmRecord(username@domain[,options]):\n"
 	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
 	"MiniVM records audio file in configured format and forwards message to e-mail and pager.\n"
 	"If there's no user account for that address, a temporary account will\n"
@@ -253,7 +253,7 @@ static char *descrip_minivm_record =
 
 static char *synopsis_minivm_greet = "Play Mini-Voicemail prompts";
 static char *descrip_minivm_greet = 
-	"Syntax: MinivmGreet(username@domain[,options])\n"
+	"  MinivmGreet(username@domain[,options]):\n"
 	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
 	"MinivmGreet() plays default prompts or user specific prompts for an account.\n"
 	"Busy and unavailable messages can be choosen, but will be overridden if a temporary\n"
@@ -270,7 +270,7 @@ static char *descrip_minivm_greet =
 
 static char *synopsis_minivm_notify = "Notify voicemail owner about new messages.";
 static char *descrip_minivm_notify = 
-	"Syntax: MinivmNotify(username@domain[,template])\n"
+	"  MinivmNotify(username@domain[,template]):\n"
 	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
 	"MiniVMnotify forwards messages about new voicemail to e-mail and pager.\n"
 	"If there's no user account for that address, a temporary account will\n"
@@ -289,7 +289,7 @@ static char *descrip_minivm_notify =
 
 static char *synopsis_minivm_delete = "Delete Mini-Voicemail voicemail messages";
 static char *descrip_minivm_delete = 
-	"Syntax: MinivmDelete(filename)\n"
+	"  MinivmDelete(filename):\n"
 	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
 	"It deletes voicemail file set in MVM_FILENAME or given filename.\n"
 	"\n"
@@ -300,7 +300,7 @@ static char *descrip_minivm_delete =
 
 static char *synopsis_minivm_accmess = "Record account specific messages";
 static char *descrip_minivm_accmess = 
-	"Syntax: MinivmAccmess(username@domain,option)\n"
+	"  MinivmAccmess(username@domain,option):\n"
 	"This application is part of the Mini-Voicemail system, configured in minivm.conf.\n"
 	"Use this application to record account specific audio/video messages for\n"
 	"busy, unavailable and temporary messages.\n"

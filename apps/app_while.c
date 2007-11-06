@@ -46,30 +46,26 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *start_app = "While";
 static char *start_desc = 
-"Usage:  While(<expr>)\n"
-"Start a While Loop.  Execution will return to this point when\n"
-"EndWhile is called until expr is no longer true.\n";
+"  While(<expr>): Start a While Loop.  Execution will return to this\n"
+"point when EndWhile() is called until expr is no longer true.\n";
 
 static char *start_synopsis = "Start a while loop";
 
 
 static char *stop_app = "EndWhile";
 static char *stop_desc = 
-"Usage:  EndWhile()\n"
-"Return to the previous called While\n";
+"  EndWhile(): Return to the previous called While()\n";
 
 static char *stop_synopsis = "End a while loop";
 
 static char *exit_app = "ExitWhile";
 static char *exit_desc =
-"Usage:  ExitWhile()\n"
-"Exits a While loop, whether or not the conditional has been satisfied.\n";
+"  ExitWhile(): Exits a While() loop, whether or not the conditional has been satisfied.\n";
 static char *exit_synopsis = "End a While loop";
 
 static char *continue_app = "ContinueWhile";
 static char *continue_desc =
-"Usage:  ContinueWhile()\n"
-"Returns to the top of the while loop and re-evaluates the conditional.\n";
+"  ContinueWhile(): Returns to the top of the while loop and re-evaluates the conditional.\n";
 static char *continue_synopsis = "Restart a While loop";
 
 #define VAR_SIZE 64

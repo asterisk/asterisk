@@ -134,7 +134,7 @@ static char *registrar = "res_features";		   /*!< Registrar for operations */
 /* module and CLI command definitions */
 static char *synopsis = "Answer a parked call";
 
-static char *descrip = "ParkedCall(exten):"
+static char *descrip = "ParkedCall(exten): "
 "Used to connect to a parked call.  This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
@@ -144,14 +144,14 @@ static char *parkcall = "Park";
 
 static char *synopsis2 = "Park yourself";
 
-static char *descrip2 = "Park():"
+static char *descrip2 = "Park(): "
 "Used to park yourself (typically in combination with a supervised\n"
 "transfer to know the parking space). This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context (or the context specified in features.conf).\n\n"
 "If you set the PARKINGEXTEN variable to an extension in your\n"
-"parking context, park() will park the call on that extension, unless\n"
+"parking context, Park() will park the call on that extension, unless\n"
 "it already exists. In that case, execution will continue at next\n"
 "priority.\n" ;
 
@@ -3107,12 +3107,14 @@ static int load_config(void)
 static char *app_bridge = "Bridge";
 static char *bridge_synopsis = "Bridge two channels";
 static char *bridge_descrip =
-"Usage: Bridge(channel[|options])\n"
+"Usage: Bridge(channel[,options])\n"
 "	Allows the ability to bridge two channels via the dialplan.\n"
 "The current channel is bridged to the specified 'channel'.\n"
-"The following options are supported:\n"
-"   p - Play a courtesy tone to 'channel'.\n"
-"BRIDGERESULT dial plan variable will contain SUCCESS, FAILURE, LOOP, NONEXISTENT or INCOMPATIBLE.\n";
+"  Options:\n"
+"    p - Play a courtesy tone to 'channel'.\n"
+"This application sets the following channel variable upon completion:\n"
+" BRIDGERESULT    The result of the bridge attempt as a text string, one of\n"
+"           SUCCESS | FAILURE | LOOP | NONEXISTENT | INCOMPATIBLE\n";
 
 enum {
 	BRIDGE_OPT_PLAYTONE = (1 << 0),

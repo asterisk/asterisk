@@ -47,8 +47,9 @@ static char *synopsis =
 "Forks the Call Data Record";
 static char *descrip = 
 "  ForkCDR([options]):  Causes the Call Data Record to fork an additional\n"
-	"cdr record starting from the time of the fork call\n"
-"If the option 'v' is passed all cdr variables will be passed along also.\n";
+"cdr record starting from the time of the fork call\n"
+"  Options:\n"
+"    v  - If the option is passed all cdr variables will be passed along also.\n";
 
 
 static void ast_cdr_fork(struct ast_channel *chan) 

@@ -55,14 +55,15 @@ static char *synopsis = "Check channel availability";
 static char *descrip = 
 "  ChanIsAvail(Technology/resource[&Technology2/resource2...][,options]): \n"
 "This application will check to see if any of the specified channels are\n"
-"available. The following variables will be set by this application:\n"
-"  ${AVAILCHAN}     - the name of the available channel, if one exists\n"
-"  ${AVAILORIGCHAN} - the canonical channel name that was used to create the channel\n"
-"  ${AVAILSTATUS}   - the status code for the available channel\n"
+"available.\n"
 "  Options:\n"
-"    s - Consider the channel unavailable if the channel is in use at all\n"
+"    s - Consider the channel unavailable if the channel is in use at all.\n"
 "    t - Simply checks if specified channels exist in the channel list\n"
-"        (implies option s) \n";
+"        (implies option s).\n"
+"This application sets the following channel variable upon completion:\n"
+"  AVAILCHAN     - the name of the available channel, if one exists\n"
+"  AVAILORIGCHAN - the canonical channel name that was used to create the channel\n"
+"  AVAILSTATUS   - the status code for the available channel\n";
 
 
 static int chanavail_exec(struct ast_channel *chan, void *data)

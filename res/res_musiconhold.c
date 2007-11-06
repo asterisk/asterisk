@@ -85,29 +85,29 @@ static char *set_moh_syn = "Set default Music On Hold class";
 static char *start_moh_syn = "Play Music On Hold";
 static char *stop_moh_syn = "Stop Playing Music On Hold";
 
-static char *play_moh_desc = "MusicOnHold(class): "
+static char *play_moh_desc = "  MusicOnHold(class):\n"
 "Plays hold music specified by class.  If omitted, the default\n"
 "music source for the channel will be used. Set the default \n"
 "class with the SetMusicOnHold() application.\n"
 "Returns -1 on hangup.\n"
 "Never returns otherwise.\n";
 
-static char *wait_moh_desc = "WaitMusicOnHold(delay): "
+static char *wait_moh_desc = "  WaitMusicOnHold(delay):\n"
 "Plays hold music specified number of seconds.  Returns 0 when\n"
 "done, or -1 on hangup.  If no hold music is available, the delay will\n"
 "still occur with no sound.\n";
 
-static char *set_moh_desc = "SetMusicOnHold(class): "
+static char *set_moh_desc = "  SetMusicOnHold(class):\n"
 "Sets the default class for music on hold for a given channel.  When\n"
 "music on hold is activated, this class will be used to select which\n"
 "music is played.\n";
 
-static char *start_moh_desc = "StartMusicOnHold(class): "
+static char *start_moh_desc = "  StartMusicOnHold(class):\n"
 "Starts playing music on hold, uses default music class for channel.\n"
 "Starts playing music specified by class.  If omitted, the default\n"
 "music source for the channel will be used.  Always returns 0.\n";
 
-static char *stop_moh_desc = "StopMusicOnHold: "
+static char *stop_moh_desc = "  StopMusicOnHold(): "
 "Stops playing music on hold.\n";
 
 static int respawn_time = 20;

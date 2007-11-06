@@ -45,49 +45,57 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$");
 
 /* Descriptions for each application */
 static char *speechcreate_descrip =
-"SpeechCreate(engine name)\n"
-"This application creates information to be used by all the other applications. It must be called before doing any speech recognition activities such as activating a grammar.\n"
+"  SpeechCreate(engine name):\n"
+"This application creates information to be used by all the other applications.\n"
+"It must be called before doing any speech recognition activities such as activating a grammar.\n"
 "It takes the engine name to use as the argument, if not specified the default engine will be used.\n";
 
 static char *speechactivategrammar_descrip =
-"SpeechActivateGrammar(Grammar Name)\n"
-"This activates the specified grammar to be recognized by the engine. A grammar tells the speech recognition engine what to recognize, \n"
-	"and how to portray it back to you in the dialplan. The grammar name is the only argument to this application.\n";
+"  SpeechActivateGrammar(Grammar Name):\n"
+"This activates the specified grammar to be recognized by the engine.\n"
+"A grammar tells the speech recognition engine what to recognize, and how to portray it back to you \n"
+"in the dialplan. The grammar name is the only argument to this application.\n";
 
 static char *speechstart_descrip =
-"SpeechStart()\n"
-	"Tell the speech recognition engine that it should start trying to get results from audio being fed to it. This has no arguments.\n";
+"  SpeechStart():\n"
+"Tell the speech recognition engine that it should start trying to get results from audio being \n"
+"fed to it. This has no arguments.\n";
 
 static char *speechbackground_descrip =
-"SpeechBackground(Sound File,Timeout)\n"
-"This application plays a sound file and waits for the person to speak. Once they start speaking playback of the file stops, and silence is heard.\n"
-"Once they stop talking the processing sound is played to indicate the speech recognition engine is working.\n"
-"Once results are available the application returns and results (score and text) are available using dialplan functions.\n"
-"The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)} and ${SPEECH_SCORE(1)}.\n"
-"The first argument is the sound file and the second is the timeout integer in seconds. Note the timeout will only start once the sound file has stopped playing.\n";
+"  SpeechBackground(Sound File,Timeout):\n"
+"This application plays a sound file and waits for the person to speak. Once they start speaking playback\n"
+"of the file stops, and silence is heard. Once they stop talking the processing sound is played to indicate\n"
+"the speech recognition engine is working. Once results are available the application returns and results \n"
+"(score and text) are available using dialplan functions.\n"
+"The first text and score are ${SPEECH_TEXT(0)} AND ${SPEECH_SCORE(0)} while the second are ${SPEECH_TEXT(1)}\n"
+"and ${SPEECH_SCORE(1)}.\n"
+"The first argument is the sound file and the second is the timeout integer in seconds. Note the timeout will\n"
+"only start once the sound file has stopped playing.\n";
 
 static char *speechdeactivategrammar_descrip =
-"SpeechDeactivateGrammar(Grammar Name)\n"
-	"This deactivates the specified grammar so that it is no longer recognized. The only argument is the grammar name to deactivate.\n";
+"  SpeechDeactivateGrammar(Grammar Name):\n"
+"This deactivates the specified grammar so that it is no longer recognized.\n"
+"The only argument is the grammar name to deactivate.\n";
 
 static char *speechprocessingsound_descrip =
-"SpeechProcessingSound(Sound File)\n"
-"This changes the processing sound that SpeechBackground plays back when the speech recognition engine is processing and working to get results.\n"
-	"It takes the sound file as the only argument.\n";
+"  SpeechProcessingSound(Sound File):\n"
+"This changes the processing sound that SpeechBackground plays back when the speech recognition engine is\n"
+"processing and working to get results.\n"
+"It takes the sound file as the only argument.\n";
 
 static char *speechdestroy_descrip =
-"SpeechDestroy()\n"
+"  SpeechDestroy():\n"
 "This destroys the information used by all the other speech recognition applications.\n"
 "If you call this application but end up wanting to recognize more speech, you must call SpeechCreate\n"
 	"again before calling any other application. It takes no arguments.\n";
 
 static char *speechload_descrip =
-"SpeechLoadGrammar(Grammar Name,Path)\n"
+"  SpeechLoadGrammar(Grammar Name,Path):\n"
 "Load a grammar only on the channel, not globally.\n"
 "It takes the grammar name as first argument and path as second.\n";
 
 static char *speechunload_descrip =
-"SpeechUnloadGrammar(Grammar Name)\n"
+"  SpeechUnloadGrammar(Grammar Name):\n"
 "Unload a grammar. It takes the grammar name as the only argument.\n";
 
 /*! \brief Helper function used by datastores to destroy the speech structure upon hangup */

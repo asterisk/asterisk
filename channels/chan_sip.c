@@ -18703,14 +18703,14 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 }
 
 static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
-static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
+static char *descrip_dtmfmode = "  SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
 static char *app_dtmfmode = "SIPDtmfMode";
 
 static char *app_sipaddheader = "SIPAddHeader";
 static char *synopsis_sipaddheader = "Add a SIP header to the outbound call";
 
 static char *descrip_sipaddheader = ""
-"  SIPAddHeader(Header: Content)\n"
+"  SIPAddHeader(Header: Content):\n"
 "Adds a header to a SIP call placed with DIAL.\n"
 "Remember to user the X-header if you are adding non-standard SIP\n"
 "headers, like \"X-Asterisk-Accountcode:\". Use this with care.\n"

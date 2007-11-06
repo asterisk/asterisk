@@ -79,7 +79,7 @@ static char *if_descrip =
 "  MacroIf(<expr>?macroname_a[,arg1][:macroname_b[,arg1]])\n"
 "Executes macro defined in <macroname_a> if <expr> is true\n"
 "(otherwise <macroname_b> if provided)\n"
-"Arguments and return values as in application macro()\n";
+"Arguments and return values as in application Macro()\n";
 
 static char *exclusive_descrip =
 "  MacroExclusive(macroname,arg1,arg2...):\n"

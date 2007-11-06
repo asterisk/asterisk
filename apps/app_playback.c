@@ -53,8 +53,8 @@ static char *synopsis = "Play a file";
 
 static char *descrip = 
 "  Playback(filename[&filename2...][,option]):  Plays back given filenames (do not put\n"
-"extension). Options may also be included following a pipe symbol. The 'skip'\n"
-"option causes the playback of the message to be skipped if the channel\n"
+"extension). Options may also be included following a comma.\n"
+"The 'skip' option causes the playback of the message to be skipped if the channel\n"
 "is not in the 'up' state (i.e. it hasn't been  answered  yet). If 'skip' is \n"
 "specified, the application will return immediately should the channel not be\n"
 "off hook.  Otherwise, unless 'noanswer' is specified, the channel will\n"
