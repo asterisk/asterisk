@@ -1265,7 +1265,7 @@ static int init_classes(int reload)
 			if (!moh->inuse)
 				ast_moh_destroy_one(moh);
 		} else if (moh->total_files) {
-			if (moh_scan_files(moh)) {
+			if (moh_scan_files(moh) <= 0) {
 				ast_log(LOG_WARNING, "No files found for class '%s'\n", moh->name);
 				moh->delete = 1;
 				AST_LIST_REMOVE_CURRENT(&mohclasses, list);
