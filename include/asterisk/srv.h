@@ -26,10 +26,9 @@
 /*!
   \file srv.h
   \brief Support for DNS SRV records, used in to locate SIP services.
-  \note Note: This SRV record support is very minimal; it will only
-        return the first (lowest priority) answer that is received, and
-	has no provisions for the 'weight' elements of the records or
-	retrying if the first returned result fails.
+  \note Note: This SRV record support will respect the priority and
+        weight elements of the records that are returned, but there are
+	no provisions for retrying or failover between records.
 */
 
 /*! Lookup entry in SRV records Returns 1 if found, 0 if not found, -1 on hangup 
