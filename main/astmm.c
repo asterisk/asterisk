@@ -391,7 +391,7 @@ static char *handle_memory_show_summary(struct ast_cli_entry *e, int cmd, struct
 			"Usage: memory show summary [<file>]\n"
 			"       Summarizes heap memory allocations by file, or optionally\n"
 			"by function, if a file is specified\n";
-		break;
+		return NULL;
 	case CLI_GENERATE:
 		return NULL;
 	}
