@@ -8718,7 +8718,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		/* Check the dialplan for the username part of the request URI,
 		   the domain will be stored in the SIPDOMAIN variable
 		   Return 0 if we have a matching extension */
-		if (ast_exists_extension(NULL, p->context, uri, 1, from) ||
+		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) ||
 		    !strcmp(uri, ast_pickup_ext())) {
 			if (!oreq)
 				ast_string_field_set(p, exten, uri);
@@ -8741,7 +8741,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 
 	/* Return 1 for pickup extension or overlap dialling support (if we support it) */
 	if((ast_test_flag(&global_flags[1], SIP_PAGE2_ALLOWOVERLAP) && 
- 	    ast_canmatch_extension(NULL, p->context, uri, 1, from)) ||
+ 	    ast_canmatch_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from))) ||
 	    !strncmp(uri, ast_pickup_ext(), strlen(uri))) {
 		return 1;
 	}
