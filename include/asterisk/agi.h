@@ -52,7 +52,7 @@ typedef struct agi_command {
 	AST_LIST_ENTRY(agi_command) list;
 } agi_command;
 
-int ast_agi_fdprintf(int fd, char *fmt, ...);
+int ast_agi_fdprintf(struct ast_channel *chan, int fd, char *fmt, ...);
 int ast_agi_register(struct ast_module *mod, agi_command *cmd);
 int ast_agi_unregister(struct ast_module *mod, agi_command *cmd);
 void ast_agi_register_multiple(struct ast_module *mod, agi_command *cmd, int len);

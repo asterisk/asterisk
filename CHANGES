@@ -317,3 +317,5 @@ Miscellaneous
  * Added a new channel driver, chan_unistim.  See doc/unistim.txt and
     configs/unistim.conf.sample for details.  This new channel driver allows
     you to use Nortel i2002, i2004, and i2050 phones with Asterisk.
+ * Enhanced "agi debug" to print the channel name as a prefix to the debug
+    output to make debugging on busy systems much easier.
