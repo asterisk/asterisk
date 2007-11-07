@@ -328,7 +328,7 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 static int say_init_mode(char *mode) {
 	if (!strcmp(mode, say_new)) {
 		if (say_cfg == NULL) {
-			ast_log(LOG_ERROR,"There is no say.conf file to use new mode\n");
+			ast_log(LOG_ERROR, "There is no say.conf file to use new mode\n");
 			return -1;
 		}
 		save_say_mode(say_new);
@@ -348,7 +348,7 @@ static int say_init_mode(char *mode) {
 		ast_say_date_with_format = say_date_with_format;
 	} else if (!strcmp(mode, say_old) && say_api_buf[0] == say_new) {
 		restore_say_mode(NULL);
-	} else {
+	} else if (strcmp(mode, say_old)) {
 		ast_log(LOG_WARNING, "unrecognized mode %s\n", mode);
 		return -1;
 	}
@@ -382,10 +382,10 @@ static char *__say_cli_init(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 		return CLI_SHOWUSAGE;
 	mode = a->argv[2];
 	if (!strcmp(mode, old_mode))
-		ast_log(LOG_NOTICE, "say mode is %s already\n", mode);
+		ast_cli(a->fd, "say mode is %s already\n", mode);
 	else
 		if (say_init_mode(mode) == 0)
-			ast_log(LOG_NOTICE, "init say.c from %s to %s\n", old_mode, mode);
+			ast_cli(a->fd, "setting say mode from %s to %s\n", old_mode, mode);
 
 	return CLI_SUCCESS;
 }
