@@ -2353,7 +2353,6 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			}
 		}
 
-
 		if (strlen(c) < p->stripmsd) {
 			ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 			ast_mutex_unlock(&p->lock);
@@ -2434,6 +2433,56 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				pridialplan = PRI_LOCAL_ISDN;
  			}
  		}
+		while (c[p->stripmsd] > '9' && c[p->stripmsd] != '*' && c[p->stripmsd] != '#') {
+			switch (c[p->stripmsd]) {
+			case 'U':
+				pridialplan = (PRI_TON_UNKNOWN << 4) | (pridialplan & 0xf);
+				break;
+			case 'I':
+				pridialplan = (PRI_TON_INTERNATIONAL << 4) | (pridialplan & 0xf);
+				break;
+			case 'N':
+				pridialplan = (PRI_TON_NATIONAL << 4) | (pridialplan & 0xf);
+				break;
+			case 'L':
+				pridialplan = (PRI_TON_NET_SPECIFIC << 4) | (pridialplan & 0xf);
+				break;
+			case 'S':
+				pridialplan = (PRI_TON_SUBSCRIBER << 4) | (pridialplan & 0xf);
+				break;
+			case 'A':
+				pridialplan = (PRI_TON_ABBREVIATED << 4) | (pridialplan & 0xf);
+				break;
+			case 'R':
+				pridialplan = (PRI_TON_RESERVED << 4) | (pridialplan & 0xf);
+				break;
+			case 'u':
+				pridialplan = PRI_NPI_UNKNOWN | (pridialplan & 0xf0);
+				break;
+			case 'e':
+				pridialplan = PRI_NPI_E163_E164 | (pridialplan & 0xf0);
+				break;
+			case 'x':
+				pridialplan = PRI_NPI_X121 | (pridialplan & 0xf0);
+				break;
+			case 'f':
+				pridialplan = PRI_NPI_F69 | (pridialplan & 0xf0);
+				break;
+			case 'n':
+				pridialplan = PRI_NPI_NATIONAL | (pridialplan & 0xf0);
+				break;
+			case 'p':
+				pridialplan = PRI_NPI_PRIVATE | (pridialplan & 0xf0);
+				break;
+			case 'r':
+				pridialplan = PRI_NPI_RESERVED | (pridialplan & 0xf0);
+				break;
+			default:
+				if (isalpha(*c))
+					ast_log(LOG_WARNING, "Unrecognized pridialplan %s modifier: %c\n", *c > 'Z' ? "NPI" : "TON", *c);
+			}
+			c++;
+		}
  		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan, s ? 1 : 0);
 
 		ldp_strip = 0;
@@ -2451,6 +2500,58 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				prilocaldialplan = PRI_NATIONAL_ISDN;
 			} else {
 				prilocaldialplan = PRI_LOCAL_ISDN;
+			}
+		}
+		if (l != NULL) {
+			while (*l > '9' && *l != '*' && *l != '#') {
+				switch (*l) {
+				case 'U':
+					prilocaldialplan = (PRI_TON_UNKNOWN << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'I':
+					prilocaldialplan = (PRI_TON_INTERNATIONAL << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'N':
+					prilocaldialplan = (PRI_TON_NATIONAL << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'L':
+					prilocaldialplan = (PRI_TON_NET_SPECIFIC << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'S':
+					prilocaldialplan = (PRI_TON_SUBSCRIBER << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'A':
+					prilocaldialplan = (PRI_TON_ABBREVIATED << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'R':
+					prilocaldialplan = (PRI_TON_RESERVED << 4) | (prilocaldialplan & 0xf);
+					break;
+				case 'u':
+					prilocaldialplan = PRI_NPI_UNKNOWN | (prilocaldialplan & 0xf0);
+					break;
+				case 'e':
+					prilocaldialplan = PRI_NPI_E163_E164 | (prilocaldialplan & 0xf0);
+					break;
+				case 'x':
+					prilocaldialplan = PRI_NPI_X121 | (prilocaldialplan & 0xf0);
+					break;
+				case 'f':
+					prilocaldialplan = PRI_NPI_F69 | (prilocaldialplan & 0xf0);
+					break;
+				case 'n':
+					prilocaldialplan = PRI_NPI_NATIONAL | (prilocaldialplan & 0xf0);
+					break;
+				case 'p':
+					prilocaldialplan = PRI_NPI_PRIVATE | (prilocaldialplan & 0xf0);
+					break;
+				case 'r':
+					prilocaldialplan = PRI_NPI_RESERVED | (prilocaldialplan & 0xf0);
+					break;
+				default:
+					if (isalpha(*l))
+						ast_log(LOG_WARNING, "Unrecognized prilocaldialplan %s modifier: %c\n", *c > 'Z' ? "NPI" : "TON", *c);
+				}
+				l++;
 			}
 		}
 		pri_sr_set_caller(sr, l ? (l + ldp_strip) : NULL, n, prilocaldialplan,

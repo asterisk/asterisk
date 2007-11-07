@@ -87,14 +87,41 @@
 ; unknown:        Unknown
 ; private:        Private ISDN
 ; local:          Local ISDN
-; national:	  National ISDN
+; national:       National ISDN
 ; international:  International ISDN
-; dynamic:	  Dynamically selects the appropriate dialplan
+; dynamic:        Dynamically selects the appropriate dialplan
 ; redundant:      Same as dynamic, except that the underlying number is not 
 ;                 changed (not common)
 ;
 ;pridialplan=national
 ;prilocaldialplan=national
+; 
+; pridialplan may be also set at dialtime, by prefixing the dialled number with
+; one of the following letters:
+; U - Unknown
+; P - Private
+; L - Local
+; N - National
+; I - International
+; D - Dynamic
+; R - Redundant
+;
+; Additionally, you may also set the following NPI bits (also by prefixing the
+; dialled string with one of the following letters):
+; u - Unknown
+; e - E.163/E.164
+; x - X.121
+; f - F.69
+; n - National
+; p - Private
+; r - Reserved
+;
+; You may also set the prilocaldialplan in the same way, but by prefixing the
+; Caller*ID Number, rather than the dialled number.  Please note that telcos
+; which require this kind of additional manipulation of the TON/NPI are *rare*.
+; Most telco PRIs will work fine simply by setting pridialplan to unknown or
+; dynamic.
+;
 ;
 ; PRI caller ID prefixes based on the given TON/NPI (dialplan)
 ; This is especially needed for EuroISDN E1-PRIs
