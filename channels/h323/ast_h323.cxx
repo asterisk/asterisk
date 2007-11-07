@@ -1890,8 +1890,6 @@ void MyH323Connection::SetCapabilities(int caps, int dtmf_mode, void *_prefs, in
 		else if (y || (!(codec = ast_codec_pref_index(prefs, x)))) {
 			if (!y)
 				y = 1;
-			else if (y == AST_FORMAT_MAX_AUDIO)
-				break;
 			else
 				y <<= 1;
 			codec = y;
