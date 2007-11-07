@@ -2354,6 +2354,7 @@ static int aji_load_config(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
+	ast_config_destroy(cfg); /* or leak memory */
 	return 1;
 }
 
