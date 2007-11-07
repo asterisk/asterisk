@@ -176,6 +176,7 @@ macro ael-dundi-e164(exten) {
 // ARG1 is the extension to Dial
 //
 	goto ${exten}|1;
+	return;
 };
 
 //
@@ -275,7 +276,6 @@ context ael-local {
 	ignorepat => 9;
 	includes {
 		ael-default;
-		ael-parkedcalls;
 		ael-trunklocal;
 		ael-iaxtel700;
 		ael-trunktollfree;
@@ -318,6 +318,7 @@ macro ael-std-exten-ael( ext , dev ) {
                 VoiceMailMain(${ext});
                 return;
         };
+	return;
 };
 
 context ael-demo {
