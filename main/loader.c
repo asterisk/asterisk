@@ -142,11 +142,6 @@ void ast_module_register(const struct ast_module_info *info)
 	   let's avoid it altogether
 	*/
 	if (embedding) {
-		static int i;
-		fprintf(stderr, "---- embedding [%d] %p %p %s\n",
-			i++, embedded_module_list.first,
-			embedded_module_list.last,
-			info->name);
 		AST_LIST_INSERT_TAIL(&embedded_module_list, mod, entry);
 	} else {
 		AST_LIST_LOCK(&module_list);
