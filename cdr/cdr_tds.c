@@ -441,9 +441,11 @@ static int tds_load_module(int reload)
 		return 0;
 
 	var = ast_variable_browse(cfg, "global");
-	if (!var) /* nothing configured */
+	if (!var) /* nothing configured */ {
+		ast_config_destroy(cfg);
 		return 0;
-
+	}
+	
 	ptr = ast_variable_retrieve(cfg, "global", "hostname");
 	if (ptr) {
 		if (hostname)

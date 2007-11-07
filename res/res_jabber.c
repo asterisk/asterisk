@@ -2867,6 +2867,7 @@ static int aji_load_config(int reload)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
+	ast_config_destroy(cfg); /* or leak memory */
 	return 1;
 }
 
