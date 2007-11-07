@@ -4910,8 +4910,8 @@ static int init_mailstream(struct vm_state *vms, int box)
 #else
 #include "linkage.c"
 #endif
-		/* Connect to INBOX first to get folders delimiter */
-		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 0);
+		/* Connect to mailbox to get mailstream so we can get delimiter */ 
+		imap_mailbox_name(tmp, sizeof(tmp), vms, 0, 1);
 		stream = mail_open (stream, tmp, debug ? OP_DEBUG : NIL);
 		if (stream == NIL) {
 			ast_log (LOG_ERROR, "Can't connect to imap server %s\n", tmp);
