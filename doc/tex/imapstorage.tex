@@ -74,11 +74,25 @@ The following directives have been added to voicemail.conf:
 imapserver=<name or IP address of IMAP mail server>
 imapport=<IMAP port, defaults to 143>
 imapflags=<IMAP flags, "novalidate-cert" for example>
+imapfolder=<IMAP folder to store messages to>
+imapgreetings=<yes or no>
+greetingsfolder=<IMAP folder to store greetings in if imapgreetings is enabled>
 expungeonhangup=<yes or no>
 authuser=<username>
 authpassword=<password>
 \end{verbatim}
 \end{astlisting}
+
+The "imapfolder" can be used to specify an alternative folder on your IMAP server
+to store voicemails in. If not specified, the default folder 'INBOX' will be used.
+
+The "imapgreetings" parameter can be enabled in order to store voicemail greetings
+on the IMAP server. If disabled, then they will be stored on the local file system
+as normal.
+
+The "greetingsfolder" can be set to store greetings on the IMAP server when
+"imapgreetings" is enabled in an alternative folder than that set by "imapfolder"
+or the default folder for voicemails.
 
 The "expungeonhangup" flag is used to determine if the voicemail system should
 expunge all messages marked for deletion when the user hangs up the phone.
