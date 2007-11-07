@@ -338,14 +338,10 @@ $(SUBDIRS): include/asterisk/version.h include/asterisk/build.h include/asterisk
 main: $(filter-out main,$(MOD_SUBDIRS))
 
 $(MOD_SUBDIRS):
-	@echo "   [enter MOD_SUBDIR $@/]"
 	@ASTCFLAGS="$(MOD_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
-	@echo "   [exit MOD_SUBDIR $@/]"
 
 $(OTHER_SUBDIRS):
-	@echo "   [enter SUBDIR $@/]"
 	@ASTCFLAGS="$(OTHER_SUBDIR_CFLAGS) $(ASTCFLAGS)" ASTLDFLAGS="$(ASTLDFLAGS)" $(MAKE) --no-print-directory --no-builtin-rules -C $@ SUBDIR=$@ all
-	@echo "   [exit SUBDIR $@/]"
 
 defaults.h: makeopts
 	@build_tools/make_defaults_h > $@.tmp
