@@ -2836,6 +2836,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		callcompletedinsl = ((now - qe->start) <= qe->parent->servicelevel);
 		ao2_unlock(qe->parent);
 		member = lpeer->member;
+		/* Increment the refcount for this member, since we're going to be using it for awhile in here. */
+		ao2_ref(member, 1);
 		hangupcalls(outgoing, peer);
 		outgoing = NULL;
 		if (announce || qe->parent->reportholdtime || qe->parent->memberdelay) {
@@ -2882,6 +2884,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 							queuename, qe->chan->uniqueid, peer->name, member->interface, member->membername,
 							qe->parent->eventwhencalled == QUEUE_EVENT_VARIABLES ? vars2manager(qe->chan, vars, sizeof(vars)) : "");
 				ast_hangup(peer);
+				ao2_ref(member, -1);
 				goto out;
 			} else if (res2) {
 				/* Caller must have hung up just before being connected*/
@@ -2889,6 +2892,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				ast_queue_log(queuename, qe->chan->uniqueid, member->membername, "ABANDON", "%d|%d|%ld", qe->pos, qe->opos, (long) time(NULL) - qe->start);
 				record_abandoned(qe);
 				ast_hangup(peer);
+				ao2_ref(member, -1);
 				return -1;
 			}
 		}
@@ -2907,6 +2911,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
 			record_abandoned(qe);
 			ast_hangup(peer);
+			ao2_ref(member, -1);
 			return -1;
 		}
 
@@ -3190,6 +3195,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_hangup(peer);
 		update_queue(qe->parent, member, callcompletedinsl);
 		res = bridge ? bridge : 1;
+		ao2_ref(member, -1);
 	}
 out:
 	hangupcalls(outgoing, NULL);
