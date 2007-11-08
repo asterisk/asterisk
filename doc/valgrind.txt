@@ -11,7 +11,7 @@ of information about the crash.
 2.  Rebuild and install Asterisk.
 
 3.  Run Asterisk as follows:
-	valgrind --log-file-exact=valgrind.txt asterisk -vvvvcg 2>malloc_debug.txt
+	valgrind --log-file-exactly=valgrind.txt asterisk -vvvvcg 2>malloc_debug.txt
 
 4.  Reproduce the issue.  Following the manifestation of the issue (or when
 	the process crashes), upload the two files, valgrind.txt and
