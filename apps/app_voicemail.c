@@ -7939,7 +7939,7 @@ static int manager_list_voicemail_users(struct mansession *s, const struct messa
 			      "ExitContext: %s\r\n"
 			      "SayDurationMinimum: %d\r\n"
 			      "AttachmentFormat: %s\r\n"
-			      "VolumeGain: %.2lf\r\n"
+			      "VolumeGain: %.2f\r\n"
 			      "MaxMessageCount: %d\r\n"
 			      "MaxMessageLength: %d\r\n"
 			      "NewMessageCount: %d\r\n"
