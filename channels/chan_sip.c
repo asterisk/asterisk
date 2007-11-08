@@ -942,6 +942,7 @@ static struct sip_pvt {
 	ast_group_t callgroup;			/*!< Call group */
 	ast_group_t pickupgroup;		/*!< Pickup group */
 	int lastinvite;				/*!< Last Cseq of invite */
+	int lastnoninvite;                      /*!< Last Cseq of non-invite */
 	struct ast_flags flags[2];		/*!< SIP_ flags */
 	int timer_t1;				/*!< SIP timer T1, ms rtt */
 	unsigned int sipoptions;		/*!< Supported SIP options on the other end */
@@ -7264,6 +7265,8 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq, char *messa
 
 	if (!p->initreq.headers)
 		initialize_initreq(p, &req);
+
+	p->lastnoninvite = p->ocseq;
 
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
@@ -14983,11 +14986,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
 			ast_set_flag(&p->flags[0], SIP_NEEDDESTROY);	
 			return 0;
-		} else if (p->ocseq && (p->ocseq < seqno)) {
+		} else if (p->ocseq && (p->ocseq < seqno) && (seqno != p->lastnoninvite)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
 			return -1;
-		} else if (p->ocseq && (p->ocseq != seqno)) {
+		} else if (p->ocseq && (p->ocseq != seqno) && (seqno != p->lastnoninvite)) {
 			/* ignore means "don't do anything with it" but still have to 
 			   respond appropriately  */
 			ignore = TRUE;
