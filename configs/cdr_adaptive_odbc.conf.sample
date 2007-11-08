@@ -17,20 +17,20 @@
 ; table names, you will get duplicate records in that table.  So be careful.
 ;
 
-[first]
-connection=mysql1
-table=cdr
+;[first]
+;connection=mysql1
+;table=cdr
 
-[second]
-connection=mysql1
-table=extracdr
+;[second]
+;connection=mysql1
+;table=extracdr
 
-[third]
-connection=sqlserver
-table=AsteriskCDR
-alias src => source
-alias channel => source_channel
-alias dst => dest
-alias dstchannel => dest_channel
+;[third]
+;connection=sqlserver
+;table=AsteriskCDR
+;alias src => source
+;alias channel => source_channel
+;alias dst => dest
+;alias dstchannel => dest_channel
 
 

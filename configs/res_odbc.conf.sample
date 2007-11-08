@@ -10,7 +10,7 @@ INFORMIXDIR => /opt/informix
 ; All other sections are arbitrary names for database connections.
 
 [asterisk]
-enabled => yes
+enabled => no
 dsn => asterisk
 ;username => myuser
 ;password => mypass
