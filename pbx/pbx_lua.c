@@ -73,6 +73,7 @@ static int lua_func_read(lua_State *L);
 static int lua_autoservice_start(lua_State *L);
 static int lua_autoservice_stop(lua_State *L);
 static int lua_autoservice_status(lua_State *L);
+static int lua_check_hangup(lua_State *L);
 
 static void lua_update_registry(lua_State *L, const char *context, const char *exten, int priority);
 static void lua_push_variable_table(lua_State *L, const char *name);
@@ -81,6 +82,7 @@ static void lua_create_channel_table(lua_State *L);
 static void lua_create_variable_metatable(lua_State *L);
 static void lua_create_application_metatable(lua_State *L);
 static void lua_create_autoservice_functions(lua_State *L);
+static void lua_create_hangup_function(lua_State *L);
 
 void lua_state_destroy(void *data);
 static lua_State *lua_get_state(struct ast_channel *chan);
@@ -479,6 +481,17 @@ static void lua_create_autoservice_functions(lua_State *L)
 }
 
 /*!
+ * \brief Create the hangup check function
+ *
+ * \param L the lua_State to use
+ */
+static void lua_create_hangup_function(lua_State *L)
+{
+	lua_pushcfunction(L, &lua_check_hangup);
+	lua_setglobal(L, "check_hangup");
+}
+
+/*!
  * \brief [lua_CFunction] Return a lua 'variable' object (for access from lua, don't call
  * directly)
  * 
@@ -683,6 +696,25 @@ static int lua_autoservice_status(lua_State *L)
 }
 
 /*!
+ * \brief [lua_CFunction] Check if this channel has been hungup or not (for
+ * access from lua, don't call directly)
+ *
+ * \param L the lua_State to use
+ *
+ * \return This function returns true if the channel was hungup
+ */
+static int lua_check_hangup(lua_State *L)
+{
+	struct ast_channel *chan;
+	lua_getfield(L, LUA_REGISTRYINDEX, "channel");
+	chan = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	lua_pushboolean(L, ast_check_hangup(chan));
+	return 1;
+}
+
+/*!
  * \brief Store the sort order of each context
  
  * In the event of an error, an error string will be pushed onto the lua stack.
@@ -872,6 +904,7 @@ static int lua_load_extensions(lua_State *L, struct ast_channel *chan)
 	lua_create_application_metatable(L);
 
 	lua_create_autoservice_functions(L);
+	lua_create_hangup_function(L);
 
 	return 0;
 }
