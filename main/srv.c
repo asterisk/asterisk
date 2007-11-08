@@ -190,6 +190,7 @@ static void process_weights(struct srv_context *context)
 
 				AST_LIST_REMOVE_CURRENT(&temp_list, list);
 				AST_LIST_INSERT_TAIL(&newlist, current, list);
+				break;
 			}
 			AST_LIST_TRAVERSE_SAFE_END;
 		}
