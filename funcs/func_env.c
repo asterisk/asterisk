@@ -111,6 +111,49 @@ static int stat_read(struct ast_channel *chan, const char *cmd, char *data,
 	return 0;
 }
 
+static int file_read(struct ast_channel *chan, const char *cmd, char *data, char *buf, size_t len)
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(filename);
+		AST_APP_ARG(offset);
+		AST_APP_ARG(length);
+	);
+	int offset = 0, length;
+	char *contents;
+
+	AST_STANDARD_APP_ARGS(args, data);
+	if (args.argc > 1)
+		offset = atoi(args.offset);
+
+	if (args.argc > 2) {
+		if ((length = atoi(args.length)) < 1) {
+			ast_log(LOG_WARNING, "Invalid length '%s'.  Returning the max (%d)\n", args.length, len);
+			length = len;
+		} else if (length > len) {
+			ast_log(LOG_WARNING, "Length %d is greater than the max (%d).  Truncating output.\n", length, len);
+			length = len;
+		}
+	} else
+		length = len;
+
+	if (!(contents = ast_read_textfile(args.filename)))
+		return -1;
+
+	if (offset >= 0)
+		ast_copy_string(buf, &contents[offset], length);
+	else {
+		size_t tmp = strlen(contents);
+		if (offset * -1 > tmp) {
+			ast_log(LOG_WARNING, "Offset is larger than the file size.\n");
+			offset = tmp * -1;
+		}
+		ast_copy_string(buf, &contents[tmp + offset], length);
+	}
+	ast_free(contents);
+
+	return 0;
+}
+
 static struct ast_custom_function env_function = {
 	.name = "ENV",
 	.synopsis = "Gets or sets the environment variable specified",
@@ -136,12 +179,29 @@ static struct ast_custom_function stat_function = {
 		"  M - Returns the epoch at which the file was last modified\n",
 };
 
+static struct ast_custom_function file_function = {
+	.name = "FILE",
+	.synopsis = "Obtains the contents of a file",
+	.syntax = "FILE(<filename>,<offset>,<length>)",
+	.read = file_read,
+	/*
+	 * Some enterprising programmer could probably add write functionality
+	 * to FILE(), although I'm not sure how useful it would be.  Hence why
+	 * it's called FILE and not READFILE (like the app was).
+	 */
+	.desc =
+"<offset> may be specified as any number.  If negative, <offset> specifies\n"
+"    the number of bytes back from the end of the file.\n"
+"<length>, if specified, will limit the length of the data read to that size.\n",
+};
+
 static int unload_module(void)
 {
 	int res = 0;
 
 	res |= ast_custom_function_unregister(&env_function);
 	res |= ast_custom_function_unregister(&stat_function);
+	res |= ast_custom_function_unregister(&file_function);
 
 	return res;
 }
@@ -152,6 +212,7 @@ static int load_module(void)
 
 	res |= ast_custom_function_register(&env_function);
 	res |= ast_custom_function_register(&stat_function);
+	res |= ast_custom_function_register(&file_function);
 
 	return res;
 }

@@ -58,6 +58,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	char *s, *varname=NULL, *file=NULL, *length=NULL, *returnvar=NULL;
 	int len=0;
+	static int deprecation_warning = 0;
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ReadFile require an argument!\n");
@@ -69,6 +70,9 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	varname = strsep(&s, "=");
 	file = strsep(&s, ",");
 	length = s;
+
+	if (deprecation_warning++ % 10 == 0)
+		ast_log(LOG_WARNING, "ReadFile has been deprecated in favor of Set(%s=${FILE(%s,0,%s)})\n", varname, file, length);
 
 	if (!varname || !file) {
 		ast_log(LOG_ERROR, "No file or variable specified!\n");
