@@ -4220,7 +4220,7 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'S':
 				/* Seconds */
-				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char * ) NULL);
+				res = ast_say_number(chan, tm.tm_sec, ints, lang, (char * ) NULL);
 				if (!res) {
 					res = wait_file(chan,ints, "digits/second",lang);
 				}
