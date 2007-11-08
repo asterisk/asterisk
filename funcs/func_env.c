@@ -127,10 +127,10 @@ static int file_read(struct ast_channel *chan, const char *cmd, char *data, char
 
 	if (args.argc > 2) {
 		if ((length = atoi(args.length)) < 1) {
-			ast_log(LOG_WARNING, "Invalid length '%s'.  Returning the max (%d)\n", args.length, len);
+			ast_log(LOG_WARNING, "Invalid length '%s'.  Returning the max (%d)\n", args.length, (int)len);
 			length = len;
 		} else if (length > len) {
-			ast_log(LOG_WARNING, "Length %d is greater than the max (%d).  Truncating output.\n", length, len);
+			ast_log(LOG_WARNING, "Length %d is greater than the max (%d).  Truncating output.\n", length, (int)len);
 			length = len;
 		}
 	} else
