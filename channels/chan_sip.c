@@ -4503,17 +4503,6 @@ static int sip_indicate(struct ast_channel *ast, int condition, const void *data
 	return res;
 }
 
-static char *translate_escaped_pound(char *exten)
-{
-	char *rest, *marker;
-	while((marker = strstr(exten, "%23"))) {
-		rest = marker + 3;
-		*marker++ = '#';
-		memmove(marker, rest, strlen(rest) + 1);
-	}
-	return exten;
-}
-
 
 /*! \brief Initiate a call in the SIP channel
 	called from sip_request_call (calls from the pbx ) for outbound channels
@@ -4531,6 +4520,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	int needvideo = 0;
 	int needtext = 0;
 	char buf[BUFSIZ];
+	char *decoded_exten;
 	{
 		const char *my_name;	/* pick a good name */
 	
@@ -4648,7 +4638,13 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	i->owner = tmp;
 	ast_module_ref(ast_module_info->self);
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-	ast_copy_string(tmp->exten, translate_escaped_pound(ast_strdupa(i->exten)), sizeof(tmp->exten));
+	/*Since it is valid to have extensions in the dialplan that have unescaped characters in them
+	 * we should decode the uri before storing it in the channel, but leave it encoded in the sip_pvt
+	 * structure so that there aren't issues when forming URI's
+	 */
+	decoded_exten = ast_strdupa(i->exten);
+	ast_uri_decode(decoded_exten);
+	ast_copy_string(tmp->exten, decoded_exten, sizeof(tmp->exten));
 
 	/* Don't use ast_set_callerid() here because it will
 	 * generate an unnecessary NewCallerID event  */
@@ -9600,26 +9596,17 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	} else {
 		/* Check the dialplan for the username part of the request URI,
 		   the domain will be stored in the SIPDOMAIN variable
+		   Since extensions.conf can have unescaped characters, try matching a decoded
+		   uri in addition to the non-decoded uri
 		   Return 0 if we have a matching extension */
-		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) ||
+		char *decoded_uri = ast_strdupa(uri);
+		ast_uri_decode(decoded_uri);
+		if (ast_exists_extension(NULL, p->context, uri, 1, S_OR(p->cid_num, from)) || ast_exists_extension(NULL, p->context, decoded_uri, 1, S_OR(p->cid_num, from)) ||
 		    !strcmp(uri, ast_pickup_ext())) {
 			if (!oreq)
 				ast_string_field_set(p, exten, uri);
 			return 0;
-		} else { /*Could be trying to match a literal '#'. Try replacing and see if that works.*/
-			char *tmpuri = ast_strdupa(uri);
-			char *rest, *marker;
-			while((marker = strstr(tmpuri, "%23"))) {
-				rest = marker + 3;
-				*marker++ = '#';
-				memmove(marker, rest, strlen(rest) + 1);
-			}
-			if(ast_exists_extension(NULL, p->context, tmpuri, 1, from) || !strcmp(uri, ast_pickup_ext())) {
-				if(!oreq)
-					ast_string_field_set(p, exten, uri);
-				return 0;
-			}
-		}
+		} 
 	}
 
 	/* Return 1 for pickup extension or overlap dialling support (if we support it) */
