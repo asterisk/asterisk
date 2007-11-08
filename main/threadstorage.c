@@ -78,7 +78,7 @@ void __ast_threadstorage_object_remove(void *key)
 	AST_RWLIST_WRLOCK(&tls_objects);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&tls_objects, to, entry) {
 		if (to->key == key) {
-			AST_LIST_REMOVE_CURRENT(&tls_objects, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			break;
 		}
 	}
