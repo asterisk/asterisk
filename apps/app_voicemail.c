@@ -920,7 +920,6 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	char *category=NULL, *value=NULL, *new=NULL;
 	const char *tmp=NULL;
 	struct ast_flags config_flags = { CONFIG_FLAG_WITHCOMMENTS };
-					
 	if (!change_password_realtime(vmu, newpassword))
 		return;
 
@@ -8685,13 +8684,13 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 	char buf[1024];
 #else
 	char *cid;
+	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 #endif
 	char filename[PATH_MAX];
 	struct ast_config *msg_cfg = NULL;
 	const char *origtime, *context;
 	char *name, *num;
 	int retries = 0;
-	struct ast_flags config_flags = { CONFIG_FLAG_NOCACHE };
 
 	vms->starting = 0; 
 #ifdef IMAP_STORAGE
@@ -9531,7 +9530,7 @@ static void vmstate_delete(struct vm_state *vms)
 	AST_LIST_LOCK(&vmstates);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&vmstates, vc, list) {
 		if (vc->vms == vms) {
-			AST_LIST_REMOVE_CURRENT(&vmstates, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
