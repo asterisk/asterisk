@@ -935,7 +935,7 @@ static void send_end_call(struct unistimsession *pte)
 
 static void set_ping_timer(struct unistimsession *pte)
 {
-	unsigned int tick;
+	unsigned int tick = 0;	/* XXX what is this for, anyways */
 
 	pte->timeout = pte->tick_next_ping;
 	DEBUG_TIMER("tick = %u next ping at %u tick\n", tick, pte->timeout);
