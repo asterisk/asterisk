@@ -571,7 +571,7 @@ static int unload_module(void)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&features, p, list) {
 		if (p->owner)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		AST_LIST_REMOVE_CURRENT(&features, list);
+		AST_LIST_REMOVE_CURRENT(list);
 		ast_free(p);
 	}
 	AST_LIST_TRAVERSE_SAFE_END
