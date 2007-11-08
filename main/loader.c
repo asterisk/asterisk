@@ -169,7 +169,7 @@ void ast_module_unregister(const struct ast_module_info *info)
 	AST_LIST_LOCK(&module_list);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&module_list, mod, entry) {
 		if (mod->info == info) {
-			AST_LIST_REMOVE_CURRENT(&module_list, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			break;
 		}
 	}
@@ -825,7 +825,7 @@ int load_modules(unsigned int preload_only)
 
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&load_order, order, entry) {
 			if (!resource_name_match(order->resource, v->value)) {
-				AST_LIST_REMOVE_CURRENT(&load_order, entry);
+				AST_LIST_REMOVE_CURRENT(entry);
 				ast_free(order->resource);
 				ast_free(order);
 			}
@@ -849,7 +849,7 @@ int load_modules(unsigned int preload_only)
 		switch (load_resource(order->resource, 1)) {
 		case AST_MODULE_LOAD_SUCCESS:
 		case AST_MODULE_LOAD_DECLINE:
-			AST_LIST_REMOVE_CURRENT(&load_order, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			ast_free(order->resource);
 			ast_free(order);
 			break;
@@ -868,7 +868,7 @@ int load_modules(unsigned int preload_only)
 		switch (load_resource(order->resource, 0)) {
 		case AST_MODULE_LOAD_SUCCESS:
 		case AST_MODULE_LOAD_DECLINE:
-			AST_LIST_REMOVE_CURRENT(&load_order, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			ast_free(order->resource);
 			ast_free(order);
 			break;
@@ -961,7 +961,7 @@ int ast_loader_unregister(int (*v)(void))
 	AST_LIST_LOCK(&module_list);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&updaters, cur, entry) {
 		if (cur->updater == v)	{
-			AST_LIST_REMOVE_CURRENT(&updaters, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			break;
 		}
 	}

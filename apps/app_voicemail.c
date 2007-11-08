@@ -4381,7 +4381,7 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				copy_message(chan, sender, 0, curmsg, duration, vmtmp, fmt, dir);
 #endif
 				saved_messages++;
-				AST_LIST_REMOVE_CURRENT(&extensions, list);
+				AST_LIST_REMOVE_CURRENT(list);
 				free_user(vmtmp);
 				if (res)
 					break;
@@ -7804,7 +7804,7 @@ static void mwi_unsub_event_cb(const struct ast_event *event, void *userdata)
 	AST_RWLIST_WRLOCK(&mwi_subs);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&mwi_subs, mwi_sub, entry) {
 		if (mwi_sub->uniqueid == uniqueid) {
-			AST_LIST_REMOVE_CURRENT(&mwi_subs, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			break;
 		}
 	}

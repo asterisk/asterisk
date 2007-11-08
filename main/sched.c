@@ -177,11 +177,11 @@ static void schedule(struct sched_context *con, struct sched *s)
 	
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, cur, list) {
 		if (ast_tvcmp(s->when, cur->when) == -1) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&con->schedq, s, list);
+			AST_LIST_INSERT_BEFORE_CURRENT(s, list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	if (!cur)
 		AST_LIST_INSERT_TAIL(&con->schedq, s, list);
 	
@@ -278,13 +278,13 @@ int ast_sched_del(struct sched_context *con, int id)
 	ast_mutex_lock(&con->lock);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&con->schedq, s, list) {
 		if (s->id == id) {
-			AST_LIST_REMOVE_CURRENT(&con->schedq, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			con->schedcnt--;
 			sched_release(con, s);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 #ifdef DUMP_SCHEDULER
 	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */

@@ -127,14 +127,15 @@ static struct ast_chan *find_chan(char *name)
 static void del_chan(char *name)
 {
 	struct ast_chan *chan;
+
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&chans, chan, list) {
 		if (!strcmp(name, chan->name)) {
-			AST_LIST_REMOVE_CURRENT(&chans, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			free(chan);
 			return;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 }
 
 static void fdprintf(int fd, char *fmt, ...)

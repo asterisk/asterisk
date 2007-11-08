@@ -1918,10 +1918,10 @@ static void reload_firmware(int unload)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&firmwares, cur, list) {
 		if (!cur->dead)
 			continue;
-		AST_LIST_REMOVE_CURRENT(&firmwares, list);
+		AST_LIST_REMOVE_CURRENT(list);
 		destroy_firmware(cur);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	AST_LIST_UNLOCK(&firmwares);
 }
@@ -6127,7 +6127,7 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, peer_list) {
 		if (strcmp(dp->exten, exten))
 			continue;
-		AST_LIST_REMOVE_CURRENT(&dpcache, peer_list);
+		AST_LIST_REMOVE_CURRENT(peer_list);
 		dp->callno = 0;
 		dp->expiry.tv_sec = dp->orig.tv_sec + expiry;
 		if (dp->flags & CACHE_FLAG_PENDING) {
@@ -6140,7 +6140,7 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 			if (dp->waiters[x] > -1)
 				write(dp->waiters[x], "asdf", 4);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&dpcache);
 
 	return 0;
@@ -6908,7 +6908,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		if (!drop && iax2_trunk_expired(tpeer, &now)) {
 			/* Take it out of the list, but don't free it yet, because it
 			   could be in use */
-			AST_LIST_REMOVE_CURRENT(&tpeers, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			drop = tpeer;
 		} else {
 			res = send_trunk(tpeer, &now);
@@ -6920,7 +6920,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		res = 0;
 		ast_mutex_unlock(&tpeer->lock);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&tpeers);
 
 	if (drop) {
@@ -7209,7 +7209,7 @@ static void defer_full_frame(struct iax2_thread *from_here, struct iax2_thread *
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&to_here->full_frames, cur_pkt_buf, entry) {
 		cur_fh = (struct ast_iax2_full_hdr *) cur_pkt_buf->buf;
 		if (fh->oseqno < cur_fh->oseqno) {
-			AST_LIST_INSERT_BEFORE_CURRENT(&to_here->full_frames, pkt_buf, entry);
+			AST_LIST_INSERT_BEFORE_CURRENT(pkt_buf, entry);
 			break;
 		}
 	}
@@ -7478,12 +7478,12 @@ static int acf_iaxvar_write(struct ast_channel *chan, const char *cmd, char *dat
 	AST_LIST_LOCK(varlist);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(varlist, var, entries) {
 		if (strcmp(var->name, data) == 0) {
-			AST_LIST_REMOVE_CURRENT(varlist, entries);
+			AST_LIST_REMOVE_CURRENT(entries);
 			ast_var_delete(var);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	var = ast_var_assign(data, value);
 	if (var)
 		AST_LIST_INSERT_TAIL(varlist, var, entries);
@@ -9538,7 +9538,7 @@ static void *network_thread(void *ignore)
 
 			if (f->retries < 0) {
 				/* This is not supposed to be retransmitted */
-				AST_LIST_REMOVE_CURRENT(&frame_queue, list);
+				AST_LIST_REMOVE_CURRENT(list);
 				/* Free the iax frame */
 				iax_frame_free(f);
 			} else {
@@ -9547,7 +9547,7 @@ static void *network_thread(void *ignore)
 				f->retrans = iax2_sched_add(sched, f->retrytime, attempt_transmit, f);
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 		AST_LIST_UNLOCK(&frame_queue);
 
 		pthread_testcancel();
@@ -10832,7 +10832,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&dpcache, dp, cache_list) {
 		if (ast_tvcmp(tv, dp->expiry) > 0) {
-			AST_LIST_REMOVE_CURRENT(&dpcache, cache_list);
+			AST_LIST_REMOVE_CURRENT(cache_list);
 			if ((dp->flags & CACHE_FLAG_PENDING) || dp->callno)
 				ast_log(LOG_WARNING, "DP still has peer field or pending or callno (flags = %d, peer = blah, callno = %d)\n", dp->flags, dp->callno);
 			else
@@ -10842,7 +10842,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		if (!strcmp(dp->peercontext, data) && !strcmp(dp->exten, exten))
 			break;
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	if (!dp) {
 		/* No matching entry.  Create a new one. */
@@ -11420,27 +11420,18 @@ static int __unload_module(void)
 
 	/* Call for all threads to halt */
 	AST_LIST_LOCK(&idle_list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&idle_list, thread, list) {
-		AST_LIST_REMOVE_CURRENT(&idle_list, list);
+	while ((thread = AST_LIST_REMOVE_HEAD(&idle_list, list)))
 		pthread_cancel(thread->threadid);
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-			AST_LIST_UNLOCK(&idle_list);
+	AST_LIST_UNLOCK(&idle_list);
 
 	AST_LIST_LOCK(&active_list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&active_list, thread, list) {
-		AST_LIST_REMOVE_CURRENT(&active_list, list);
+	while ((thread = AST_LIST_REMOVE_HEAD(&active_list, list)))
 		pthread_cancel(thread->threadid);
-	}
-	AST_LIST_TRAVERSE_SAFE_END
-			AST_LIST_UNLOCK(&active_list);
+	AST_LIST_UNLOCK(&active_list);
 
 	AST_LIST_LOCK(&dynamic_list);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&dynamic_list, thread, list) {
-		AST_LIST_REMOVE_CURRENT(&dynamic_list, list);
+	while ((thread = AST_LIST_REMOVE_HEAD(&dynamic_list, list)))
 		pthread_cancel(thread->threadid);
-	}
-	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&dynamic_list);
 	
 	/* Wait for threads to exit */

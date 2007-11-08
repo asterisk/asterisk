@@ -65,11 +65,11 @@ void ast_image_unregister(struct ast_imager *img)
 	AST_RWLIST_WRLOCK(&imagers);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&imagers, i, list) {	
 		if (i == img) {
-			AST_RWLIST_REMOVE_CURRENT(&imagers, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&imagers);
 	if (i)
 		ast_verb(2, "Unregistered format '%s' (%s)\n", img->name, img->desc);

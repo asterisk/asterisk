@@ -706,15 +706,13 @@ static int reload(void)
 	/* Purge classes that we know can go away (pooled with 0, only) */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&odbc_list, class, list) {
 		if (class->delme && class->haspool && class->count == 0) {
-			AST_LIST_TRAVERSE_SAFE_BEGIN(&(class->odbc_obj), current, list) {
-				AST_LIST_REMOVE_CURRENT(&(class->odbc_obj), list);
+			while ((current = AST_LIST_REMOVE_HEAD(&class->odbc_obj, list))) {
 				odbc_obj_disconnect(current);
 				ast_mutex_destroy(&current->lock);
 				ast_free(current);
 			}
-			AST_LIST_TRAVERSE_SAFE_END;
 
-			AST_LIST_REMOVE_CURRENT(&odbc_list, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(class);
 		}
 	}

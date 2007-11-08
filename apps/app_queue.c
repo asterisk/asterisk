@@ -933,7 +933,7 @@ static int remove_from_interfaces(const char *interface)
 		if (!strcasecmp(curint->interface, interface)) {
 			if (!interface_exists_global(interface)) {
 				ast_debug(1, "Removing %s from the list of interfaces that make up all of our queue members.\n", interface);
-				AST_LIST_REMOVE_CURRENT(&interfaces, list);
+				AST_LIST_REMOVE_CURRENT(list);
 				ast_free(curint);
 			}
 			break;

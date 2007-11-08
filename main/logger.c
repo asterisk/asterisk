@@ -1166,12 +1166,12 @@ int ast_unregister_verbose(void (*v)(const char *string))
 	AST_RWLIST_WRLOCK(&verbosers);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&verbosers, cur, list) {
 		if (cur->verboser == v) {
-			AST_RWLIST_REMOVE_CURRENT(&verbosers, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			free(cur);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&verbosers);
 	
 	return cur ? 0 : -1;

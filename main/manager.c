@@ -2598,7 +2598,7 @@ static void purge_sessions(int n_max)
 	AST_LIST_LOCK(&sessions);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sessions, s, list) {
 		if (s->sessiontimeout && (now > s->sessiontimeout) && !s->inuse) {
-			AST_LIST_REMOVE_CURRENT(&sessions, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			ast_atomic_fetchadd_int(&num_sessions, -1);
 			if (s->authenticated && (option_verbose > 1) && manager_displayconnects(s)) {
 				ast_verb(2, "HTTP Manager '%s' timed out from %s\n",
@@ -2609,7 +2609,7 @@ static void purge_sessions(int n_max)
 				break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&sessions);
 }
 
@@ -2719,13 +2719,13 @@ int ast_manager_unregister(char *action)
 	AST_RWLIST_WRLOCK(&actions);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&actions, cur, list) {
 		if (!strcasecmp(action, cur->action)) {
-			AST_RWLIST_REMOVE_CURRENT(&actions, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(cur);
 			ast_verb(2, "Manager unregistered action %s\n", action);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&actions);
 
 	return 0;
@@ -3476,7 +3476,7 @@ static int __init_manager(int reload)
 			continue;
 		}
 		/* We do not need to keep this user so take them out of the list */
-		AST_RWLIST_REMOVE_CURRENT(&users, list);
+		AST_RWLIST_REMOVE_CURRENT(list);
 		/* Free their memory now */
 		if (user->secret)
 			ast_free(user->secret);
@@ -3490,7 +3490,7 @@ static int __init_manager(int reload)
 			ast_free(user->write);
 		ast_free(user);
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	AST_RWLIST_UNLOCK(&users);
 

@@ -1003,13 +1003,13 @@ struct iax_frame *iax_frame_new(int direction, int datalen, unsigned int cacheab
 		AST_LIST_TRAVERSE_SAFE_BEGIN(iax_frames, fr, list) {
 			if (fr->afdatalen >= datalen) {
 				size_t afdatalen = fr->afdatalen;
-				AST_LIST_REMOVE_CURRENT(iax_frames, list);
+				AST_LIST_REMOVE_CURRENT(list);
 				memset(fr, 0, sizeof(*fr));
 				fr->afdatalen = afdatalen;
 				break;
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 	if (!fr) {
 		if (!(fr = ast_calloc_cache(1, sizeof(*fr) + datalen)))

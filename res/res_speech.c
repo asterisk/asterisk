@@ -317,7 +317,7 @@ int ast_speech_unregister(char *engine_name)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&engines, engine, list) {
 		if (!strcasecmp(engine->name, engine_name)) {
 			/* We have our engine... removed it */
-			AST_RWLIST_REMOVE_CURRENT(&engines, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			/* If this was the default engine, we need to pick a new one */
 			if (!default_engine)
 				default_engine = AST_RWLIST_FIRST(&engines);
@@ -327,7 +327,7 @@ int ast_speech_unregister(char *engine_name)
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&engines);
 
 	return res;

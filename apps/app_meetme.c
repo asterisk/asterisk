@@ -3971,14 +3971,14 @@ static struct sla_ringing_trunk *sla_choose_ringing_trunk(struct sla_station *st
 				continue;
 
 			if (remove)
-				AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+				AST_LIST_REMOVE_CURRENT(entry);
 
 			if (trunk_ref)
 				*trunk_ref = s_trunk_ref;
 
 			break;
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	
 		if (ringing_trunk)
 			break;
@@ -4006,11 +4006,11 @@ static void sla_handle_dial_state_event(void)
 		case AST_DIAL_RESULT_FAILED:
 		case AST_DIAL_RESULT_TIMEOUT:
 		case AST_DIAL_RESULT_UNANSWERED:
-			AST_LIST_REMOVE_CURRENT(&sla.ringing_stations, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			sla_stop_ringing_station(ringing_station, SLA_STATION_HANGUP_NORMAL);
 			break;
 		case AST_DIAL_RESULT_ANSWERED:
-			AST_LIST_REMOVE_CURRENT(&sla.ringing_stations, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			/* Find the appropriate trunk to answer. */
 			ast_mutex_lock(&sla.lock);
 			ringing_trunk = sla_choose_ringing_trunk(ringing_station->station, &s_trunk_ref, 1);
@@ -4055,7 +4055,7 @@ static void sla_handle_dial_state_event(void)
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 }
 
 /*! \brief Check to see if this station is already ringing 
@@ -4085,7 +4085,7 @@ static int sla_check_failed_station(const struct sla_station *station)
 		if (station != failed_station->station)
 			continue;
 		if (ast_tvdiff_ms(ast_tvnow(), failed_station->last_try) > 1000) {
-			AST_LIST_REMOVE_CURRENT(&sla.failed_stations, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			ast_free(failed_station);
 			break;
 		}
@@ -4284,7 +4284,7 @@ static void sla_hangup_stations(void)
 				break;
 		}
 		if (!trunk_ref) {
-			AST_LIST_REMOVE_CURRENT(&sla.ringing_stations, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			ast_dial_join(ringing_station->station->dial);
 			ast_dial_destroy(ringing_station->station->dial);
 			ringing_station->station->dial = NULL;
@@ -4341,7 +4341,7 @@ static int sla_calc_trunk_timeouts(unsigned int *timeout)
 		time_left = (ringing_trunk->trunk->ring_timeout * 1000) - time_elapsed;
 		if (time_left <= 0) {
 			pbx_builtin_setvar_helper(ringing_trunk->trunk->chan, "SLATRUNK_STATUS", "RINGTIMEOUT");
-			AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			sla_stop_ringing_trunk(ringing_trunk);
 			res = 1;
 			continue;
@@ -4349,7 +4349,7 @@ static int sla_calc_trunk_timeouts(unsigned int *timeout)
 		if (time_left < *timeout)
 			*timeout = time_left;
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	return res;
 }
@@ -4422,7 +4422,7 @@ static int sla_calc_station_timeouts(unsigned int *timeout)
 
 		/* If there is no time left, the station needs to stop ringing */
 		if (time_left <= 0) {
-			AST_LIST_REMOVE_CURRENT(&sla.ringing_stations, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			sla_stop_ringing_station(ringing_station, SLA_STATION_HANGUP_TIMEOUT);
 			res = 1;
 			continue;
@@ -4433,7 +4433,7 @@ static int sla_calc_station_timeouts(unsigned int *timeout)
 		if (time_left < *timeout)
 			*timeout = time_left;
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	return res;
 }
@@ -4992,11 +4992,11 @@ static int sla_trunk_exec(struct ast_channel *chan, void *data)
 	ast_mutex_lock(&sla.lock);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, ringing_trunk, entry) {
 		if (ringing_trunk->trunk == trunk) {
-			AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	ast_mutex_unlock(&sla.lock);
 	if (ringing_trunk) {
 		sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_IDLE, ALL_TRUNK_REFS, NULL);

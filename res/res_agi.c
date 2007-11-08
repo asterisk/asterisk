@@ -1701,14 +1701,14 @@ int ast_agi_unregister(struct ast_module *mod, agi_command *cmd)
 	AST_RWLIST_WRLOCK(&agi_commands);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&agi_commands, e, list) {
 		if (cmd == e) {
-			AST_RWLIST_REMOVE_CURRENT(&agi_commands, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			if (mod != ast_module_info->self)
 				ast_module_unref(ast_module_info->self);
 			unregistered=1;
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&agi_commands);
 	if (unregistered)
 		ast_verb(2, "AGI Command '%s' unregistered\n",fullcmd);

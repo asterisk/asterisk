@@ -654,7 +654,7 @@ int __ast_register_translator(struct ast_translator *t, struct ast_module *mod)
 		if ((u->srcfmt == t->srcfmt) &&
 		    (u->dstfmt == t->dstfmt) &&
 		    (u->cost > t->cost)) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(&translators, t, list);
+			AST_RWLIST_INSERT_BEFORE_CURRENT(t, list);
 			t = NULL;
 		}
 	}
@@ -682,7 +682,7 @@ int ast_unregister_translator(struct ast_translator *t)
 	AST_RWLIST_WRLOCK(&translators);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
-			AST_RWLIST_REMOVE_CURRENT(&translators, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_verb(2, "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
 			found = 1;
 			break;

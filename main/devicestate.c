@@ -372,7 +372,7 @@ int ast_devstate_prov_del(const char *label)
 	AST_RWLIST_WRLOCK(&devstate_provs);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&devstate_provs, devcb, list) {
 		if (!strcasecmp(devcb->label, label)) {
-			AST_RWLIST_REMOVE_CURRENT(&devstate_provs, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(devcb);
 			res = 0;
 			break;

@@ -2129,7 +2129,7 @@ static void *do_parking_thread(void *ignore)
 					ast_hangup(chan);
 				}
 				/* And take them out of the parking lot */
-				AST_LIST_REMOVE_CURRENT(&parkinglot, list);
+				AST_LIST_REMOVE_CURRENT(list);
 				con = ast_context_find(parking_con);
 				if (con) {
 					if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
@@ -2163,7 +2163,7 @@ static void *do_parking_thread(void *ignore)
 						ast_verb(2, "%s got tired of being parked\n", chan->name);
 						ast_hangup(chan);
 						/* And take them out of the parking lot */
-						AST_LIST_REMOVE_CURRENT(&parkinglot, list);
+						AST_LIST_REMOVE_CURRENT(list);
 						con = ast_context_find(parking_con);
 						if (con) {
 							if (ast_context_remove_extension2(con, pu->parkingexten, 1, NULL))
@@ -2270,7 +2270,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 	AST_LIST_LOCK(&parkinglot);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&parkinglot, pu, list) {
 		if (pu->parkingnum == park) {
-			AST_LIST_REMOVE_CURRENT(&parkinglot, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}

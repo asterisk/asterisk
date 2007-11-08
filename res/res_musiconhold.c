@@ -1293,14 +1293,14 @@ static int init_classes(int reload)
 	AST_RWLIST_WRLOCK(&mohclasses);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&mohclasses, moh, list) {
 		if (reload && moh->delete) {
-			AST_RWLIST_REMOVE_CURRENT(&mohclasses, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			if (!moh->inuse)
 				ast_moh_destroy_one(moh);
 		} else if (moh->total_files) {
 			if (moh_scan_files(moh) <= 0) {
 				ast_log(LOG_WARNING, "No files found for class '%s'\n", moh->name);
 				moh->delete = 1;
-				AST_LIST_REMOVE_CURRENT(&mohclasses, list);
+				AST_LIST_REMOVE_CURRENT(list);
 				if (!moh->inuse)
 					ast_moh_destroy_one(moh);
 			}

@@ -452,7 +452,8 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 		AST_LIST_TRAVERSE_SAFE_BEGIN(&frames->list, out, frame_list) {
 			if (out->mallocd_hdr_len >= len) {
 				size_t mallocd_len = out->mallocd_hdr_len;
-				AST_LIST_REMOVE_CURRENT(&frames->list, frame_list);
+
+				AST_LIST_REMOVE_CURRENT(frame_list);
 				memset(out, 0, sizeof(*out));
 				out->mallocd_hdr_len = mallocd_len;
 				buf = out;
@@ -460,7 +461,7 @@ struct ast_frame *ast_frdup(const struct ast_frame *f)
 				break;
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 #endif
 

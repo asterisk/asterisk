@@ -708,11 +708,11 @@ int ast_event_queue_and_cache(struct ast_event *event, ...)
 		}
 		if (!cache_arg) {
 			/* All parameters were matched on this cache entry, so remove it */
-			AST_LIST_REMOVE_CURRENT(&ast_event_cache[host_event_type], entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			ast_event_ref_destroy(event_ref);
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	res = ast_event_dup_and_cache(event);
 	AST_RWLIST_UNLOCK(&ast_event_cache[host_event_type]);
 

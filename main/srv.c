@@ -132,7 +132,7 @@ static int srv_callback(void *context, unsigned char *answer, int len, unsigned 
 		if (current->priority <= entry->priority)
 			continue;
 
-		AST_LIST_INSERT_BEFORE_CURRENT(&c->entries, entry, list);
+		AST_LIST_INSERT_BEFORE_CURRENT(entry, list);
 		entry = NULL;
 		break;
 	}
@@ -167,8 +167,7 @@ static void process_weights(struct srv_context *context)
 			if (current->priority != cur_priority)
 				break;
 
-			AST_LIST_REMOVE_CURRENT(&context->entries, list);
-			AST_LIST_INSERT_TAIL(&temp_list, current, list);
+			AST_LIST_MOVE_CURRENT(&temp_list, list);
 		}
 		AST_LIST_TRAVERSE_SAFE_END;
 
@@ -190,8 +189,7 @@ static void process_weights(struct srv_context *context)
 				if (current->weight < random_weight)
 					continue;
 
-				AST_LIST_REMOVE_CURRENT(&temp_list, list);
-				AST_LIST_INSERT_TAIL(&newlist, current, list);
+				AST_LIST_MOVE_CURRENT(&newlist, list);
 			}
 			AST_LIST_TRAVERSE_SAFE_END;
 		}

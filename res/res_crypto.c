@@ -474,13 +474,13 @@ static void crypto_load(int ifd, int ofd)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&keys, key, list) {
 		if (key->delme) {
 			ast_debug(1, "Deleting key %s type %d\n", key->name, key->ktype);
-			AST_RWLIST_REMOVE_CURRENT(&keys, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			if (key->rsa)
 				RSA_free(key->rsa);
 			ast_free(key);
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	AST_RWLIST_UNLOCK(&keys);
 }

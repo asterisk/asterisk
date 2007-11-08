@@ -545,11 +545,9 @@ static void ast_destroy_comments(struct ast_category *cat)
 static void ast_destroy_template_list(struct ast_category *cat)
 {
 	struct ast_category_template_instance *x;
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&cat->template_instances, x, next) {
-		AST_LIST_REMOVE_CURRENT(&cat->template_instances, next);
+
+	while ((x = AST_LIST_REMOVE_HEAD(&cat->template_instances, next)))
 		free(x);
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
 }
 
 void ast_category_destroy(struct ast_category *cat)

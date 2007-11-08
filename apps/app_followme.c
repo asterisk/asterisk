@@ -840,13 +840,12 @@ static void findmeexec(struct fm_args *tpargs)
 			winner = wait_for_winner(findme_user_list, nm, caller, tpargs->namerecloc, &status, tpargs);
 		
 					
-		AST_LIST_TRAVERSE_SAFE_BEGIN(findme_user_list, fmuser, entry) {
+		while ((fmuser = AST_LIST_REMOVE_HEAD(findme_user_list, entry))) {
 			if (!fmuser->cleared && fmuser->ochan != winner)
 				clear_caller(fmuser);
-			AST_LIST_REMOVE_CURRENT(findme_user_list, entry);
 			ast_free(fmuser);
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+
 		fmuser = NULL;
 		tmpuser = NULL;
 		headuser = NULL;	
@@ -978,11 +977,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 	
 	findmeexec(&targs);		
 	
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&targs.cnumbers, nm, entry) {
-		AST_LIST_REMOVE_CURRENT(&targs.cnumbers, entry);
+	while ((nm = AST_LIST_REMOVE_HEAD(&targs.cnumbers, entry)))
 		ast_free(nm);
-	}
-	AST_LIST_TRAVERSE_SAFE_END
 		
 	if (!ast_strlen_zero(namerecloc))
 		unlink(namerecloc);	

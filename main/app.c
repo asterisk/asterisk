@@ -873,12 +873,12 @@ int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 	AST_RWLIST_WRLOCK(&groups);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
 		if ((gi->chan == chan) && ((ast_strlen_zero(category) && ast_strlen_zero(gi->category)) || (!ast_strlen_zero(gi->category) && !strcasecmp(gi->category, category)))) {
-			AST_RWLIST_REMOVE_CURRENT(&groups, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			free(gi);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	if (ast_strlen_zero(group)) {
 		/* Enable unsetting the group */
@@ -964,11 +964,11 @@ int ast_app_group_discard(struct ast_channel *chan)
 	AST_RWLIST_WRLOCK(&groups);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&groups, gi, list) {
 		if (gi->chan == chan) {
-			AST_RWLIST_REMOVE_CURRENT(&groups, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(gi);
 		}
 	}
-        AST_RWLIST_TRAVERSE_SAFE_END
+        AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&groups);
 	
 	return 0;
@@ -1204,7 +1204,7 @@ static int ast_unlock_path_flock(const char *path)
 	AST_LIST_LOCK(&path_lock_list);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&path_lock_list, p, le) {
 		if (!strcmp(p->path, path)) {
-			AST_LIST_REMOVE_CURRENT(&path_lock_list, le);
+			AST_LIST_REMOVE_CURRENT(le);
 			break;
 		}
 	}

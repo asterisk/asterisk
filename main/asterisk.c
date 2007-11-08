@@ -286,7 +286,7 @@ void ast_unregister_file_version(const char *file)
 	AST_RWLIST_WRLOCK(&file_versions);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
 		if (!strcasecmp(find->file, file)) {
-			AST_RWLIST_REMOVE_CURRENT(&file_versions, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
@@ -325,7 +325,7 @@ void ast_unregister_thread(void *id)
 	AST_RWLIST_WRLOCK(&thread_list);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&thread_list, x, list) {
 		if ((void *) x->id == id) {
-			AST_RWLIST_REMOVE_CURRENT(&thread_list, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
@@ -747,11 +747,11 @@ void ast_unregister_atexit(void (*func)(void))
 	AST_RWLIST_WRLOCK(&atexits);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
 		if (ae->func == func) {
-			AST_RWLIST_REMOVE_CURRENT(&atexits, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&atexits);
 
 	if (ae)

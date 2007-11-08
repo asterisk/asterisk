@@ -1514,12 +1514,12 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 	AST_RWLIST_WRLOCK(&acf_root);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
 		if (cur == acf) {
-			AST_RWLIST_REMOVE_CURRENT(&acf_root, acflist);
+			AST_RWLIST_REMOVE_CURRENT(acflist);
 			ast_verb(2, "Unregistered custom function %s\n", acf->name);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&acf_root);
 
 	return acf ? 0 : -1;
@@ -1547,11 +1547,11 @@ int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_m
 	/* Store in alphabetical order */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
 		if (strcasecmp(acf->name, cur->name) < 0) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(&acf_root, acf, acflist);
+			AST_RWLIST_INSERT_BEFORE_CURRENT(acf, acflist);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	if (!cur)
 		AST_RWLIST_INSERT_TAIL(&acf_root, acf, acflist);
 
@@ -2361,13 +2361,13 @@ static int ast_remove_hint(struct ast_exten *e)
 				ast_free(cbprev);
 	    		}
 	    		hint->callbacks = NULL;
-			AST_RWLIST_REMOVE_CURRENT(&hints, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 	    		ast_free(hint);
 	   		res = 0;
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	return res;
 }
@@ -2935,13 +2935,13 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
 		if (!strcmp(i->name, sw) && !strcmp(i->data, data) &&
 			(!registrar || !strcmp(i->registrar, registrar))) {
 			/* found, remove from list */
-			AST_LIST_REMOVE_CURRENT(&con->alts, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(i); /* free switch and return */
 			ret = 0;
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	ast_unlock_context(con);
 
@@ -3136,11 +3136,11 @@ int ast_register_application2(const char *app, int (*execute)(struct ast_channel
 	/* Store in alphabetical order */
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, cur, list) {
 		if (strcasecmp(tmp->name, cur->name) < 0) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(&apps, tmp, list);
+			AST_RWLIST_INSERT_BEFORE_CURRENT(tmp, list);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	if (!cur)
 		AST_RWLIST_INSERT_TAIL(&apps, tmp, list);
 
@@ -4023,13 +4023,13 @@ int ast_unregister_application(const char *app)
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&apps, tmp, list) {
 		if (!strcasecmp(app, tmp->name)) {
 			unreference_cached_app(tmp);
-			AST_RWLIST_REMOVE_CURRENT(&apps, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_verb(2, "Unregistered application '%s'\n", tmp->name);
 			ast_free(tmp);
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&apps);
 
 	return tmp ? 0 : -1;

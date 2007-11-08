@@ -356,7 +356,7 @@ static void drop_translator(int dst, int src)
 		if (cur->t.dstfmt != dst)
 			continue;
 
-		AST_LIST_REMOVE_CURRENT(&translators, entry);
+		AST_LIST_REMOVE_CURRENT(entry);
 		ast_unregister_translator(&cur->t);
 		ast_free(cur);
 		global_format_map.map[dst][src] = 0;

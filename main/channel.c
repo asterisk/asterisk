@@ -451,13 +451,13 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&backends, chan, list) {
 		if (chan->tech == tech) {
-			AST_LIST_REMOVE_CURRENT(&backends, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			ast_free(chan);
 			ast_verb(2, "Unregistered channel type '%s'\n", tech->type);
 			break;	
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	AST_RWLIST_UNLOCK(&channels);
 }
@@ -1256,12 +1256,12 @@ int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore 
 	/* Find our position and remove ourselves */
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore2, entry) {
 		if (datastore2 == datastore) {
-			AST_LIST_REMOVE_CURRENT(&chan->datastores, entry);
+			AST_LIST_REMOVE_CURRENT(entry);
 			res = 0;
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 
 	return res;
 }

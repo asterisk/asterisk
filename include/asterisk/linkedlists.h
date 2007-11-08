@@ -496,10 +496,11 @@ struct {								\
   the \a current pointer without affecting the loop traversal.
 */
 #define AST_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
-	typeof((head)->first) __list_next;						\
-	typeof((head)->first) __list_prev = NULL;					\
-	typeof((head)->first) __new_prev = NULL;					\
-	for ((var) = (head)->first, __new_prev = (var),					\
+	typeof((head)) __list_head = head;						\
+	typeof(__list_head->first) __list_next;						\
+	typeof(__list_head->first) __list_prev = NULL;					\
+	typeof(__list_head->first) __new_prev = NULL;					\
+	for ((var) = __list_head->first, __new_prev = (var),				\
 	      __list_next = (var) ? (var)->field.next : NULL;				\
 	     (var);									\
 	     __list_prev = __new_prev, (var) = __list_next,				\
@@ -511,7 +512,6 @@ struct {								\
 
 /*!
   \brief Removes the \a current entry from a list during a traversal.
-  \param head This is a pointer to the list head structure
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
 
@@ -520,22 +520,29 @@ struct {								\
   the list traversal (and without having to re-traverse the list to modify the
   previous entry, if any).
  */
-#define AST_LIST_REMOVE_CURRENT(head, field) do { \
+#define AST_LIST_REMOVE_CURRENT(field) do { \
 	__new_prev->field.next = NULL;							\
 	__new_prev = __list_prev;							\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
 	else										\
-		(head)->first = __list_next;						\
+		__list_head->first = __list_next;					\
 	if (!__list_next)								\
-		(head)->last = __list_prev; \
+		__list_head->last = __list_prev; 					\
 	} while (0)
 
 #define AST_RWLIST_REMOVE_CURRENT AST_LIST_REMOVE_CURRENT
 
+#define AST_LIST_MOVE_CURRENT(newhead, field) do { \
+	typeof ((newhead)->first) __list_cur = __new_prev;				\
+	AST_LIST_REMOVE_CURRENT(field);							\
+	AST_LIST_INSERT_TAIL((newhead), __list_cur, field);				\
+	} while (0)
+
+#define AST_RWLIST_MOVE_CURRENT AST_LIST_MOVE_CURRENT
+
 /*!
   \brief Inserts a list entry before the current entry during a traversal.
-  \param head This is a pointer to the list head structure
   \param elm This is a pointer to the entry to be inserted.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
@@ -543,13 +550,13 @@ struct {								\
   \note This macro can \b only be used inside an AST_LIST_TRAVERSE_SAFE_BEGIN()
   block.
  */
-#define AST_LIST_INSERT_BEFORE_CURRENT(head, elm, field) do {		\
+#define AST_LIST_INSERT_BEFORE_CURRENT(elm, field) do {			\
 	if (__list_prev) {						\
 		(elm)->field.next = __list_prev->field.next;		\
 		__list_prev->field.next = elm;				\
 	} else {							\
-		(elm)->field.next = (head)->first;			\
-		(head)->first = (elm);					\
+		(elm)->field.next = __list_head->first;			\
+		__list_head->first = (elm);				\
 	}								\
 	__new_prev = (elm);						\
 } while (0)

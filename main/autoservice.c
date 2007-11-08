@@ -135,14 +135,14 @@ int ast_autoservice_stop(struct ast_channel *chan)
 	AST_RWLIST_WRLOCK(&aslist);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
 		if (as->chan == chan) {
-			AST_RWLIST_REMOVE_CURRENT(&aslist, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(as);
 			if (!ast_check_hangup(chan))
 				res = 0;
 			break;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 
 	if (asthread != AST_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);

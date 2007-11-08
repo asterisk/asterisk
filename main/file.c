@@ -110,12 +110,12 @@ int ast_format_unregister(const char *name)
 	AST_RWLIST_WRLOCK(&formats);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
-			AST_RWLIST_REMOVE_CURRENT(&formats, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_free(tmp);
 			res = 0;
 		}
 	}
-	AST_RWLIST_TRAVERSE_SAFE_END
+	AST_RWLIST_TRAVERSE_SAFE_END;
 	AST_RWLIST_UNLOCK(&formats);
 
 	if (!res)

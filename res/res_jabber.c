@@ -1493,14 +1493,14 @@ static void aji_handle_message(struct aji_client *client, ikspak *pak)
 	AST_LIST_LOCK(&client->messages);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&client->messages, tmp, list) {
 		if (flag) {
-			AST_LIST_REMOVE_CURRENT(&client->messages, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			if (tmp->from)
 				ast_free(tmp->from);
 			if (tmp->message)
 				ast_free(tmp->message);
 		} else if (difftime(time(NULL), tmp->arrived) >= client->message_timeout) {
 			flag = 1;
-			AST_LIST_REMOVE_CURRENT(&client->messages, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			if (tmp->from)
 				ast_free(tmp->from);
 			if (tmp->message)

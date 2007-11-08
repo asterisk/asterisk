@@ -467,7 +467,7 @@ void *ao2_callback(struct ao2_container *c,
 
 				/* we are going to modify the container, so update version */
 				ast_atomic_fetchadd_int(&c->version, 1);
-				AST_LIST_REMOVE_CURRENT(&c->buckets[i], entry);
+				AST_LIST_REMOVE_CURRENT(entry);
 				/* update number of elements and version */
 				ast_atomic_fetchadd_int(&c->elements, -1);
 				ao2_ref(EXTERNAL_OBJ(x->astobj), -1);
@@ -488,7 +488,7 @@ void *ao2_callback(struct ao2_container *c,
 #endif
 			}
 		}
-		AST_LIST_TRAVERSE_SAFE_END
+		AST_LIST_TRAVERSE_SAFE_END;
 	}
 	ao2_unlock(c);
 	return ret;

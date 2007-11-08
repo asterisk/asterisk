@@ -1152,7 +1152,7 @@ static int read_agent_config(int reload)
 	}
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&agents, p, list) {
 		if (p->dead) {
-			AST_LIST_REMOVE_CURRENT(&agents, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			/* Destroy if  appropriate */
 			if (!p->owner) {
 				if (!p->chan) {
@@ -1166,7 +1166,7 @@ static int read_agent_config(int reload)
 			}
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&agents);
 	ast_config_destroy(cfg);
 	return 1;

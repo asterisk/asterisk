@@ -151,7 +151,7 @@ void ast_cdr_unregister(const char *name)
 	AST_RWLIST_WRLOCK(&be_list);
 	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&be_list, i, list) {
 		if (!strcasecmp(name, i->name)) {
-			AST_RWLIST_REMOVE_CURRENT(&be_list, list);
+			AST_RWLIST_REMOVE_CURRENT(list);
 			ast_verb(2, "Unregistered '%s' CDR backend\n", name);
 			ast_free(i);
 			break;
@@ -313,7 +313,7 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 			AST_LIST_TRAVERSE_SAFE_BEGIN(headp, newvariable, entries) {
 				if (!strcasecmp(ast_var_name(newvariable), name)) {
 					/* there is already such a variable, delete it */
-					AST_LIST_REMOVE_CURRENT(headp, entries);
+					AST_LIST_REMOVE_CURRENT(entries);
 					ast_var_delete(newvariable);
 					break;
 				}
@@ -491,9 +491,8 @@ static void cdr_merge_vars(struct ast_cdr *to, struct ast_cdr *from)
 		} else if (tovarname && strcasecmp(fromvarval,tovarval) == 0) /* if they are the same, the job is done */
 			continue;
 
-		/*rip this var out of the from cdr, and stick it in the to cdr */
-		AST_LIST_REMOVE_CURRENT(headpfrom, entries);
-		AST_LIST_INSERT_HEAD(headpto, variablesfrom, entries);
+		/* rip this var out of the from cdr, and stick it in the to cdr */
+		AST_LIST_MOVE_CURRENT(headpto, entries);
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 }

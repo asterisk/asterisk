@@ -3690,11 +3690,11 @@ static void reschedule_precache(const char *number, const char *context, int exp
 	AST_LIST_LOCK(&pcq);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&pcq, qe, list) {
 		if (!strcmp(number, qe->number) && !strcasecmp(context, qe->context)) {
-			AST_LIST_REMOVE_CURRENT(&pcq, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			break;
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	if (!qe) {
 		len = sizeof(*qe);
 		len += strlen(number) + 1;
@@ -4195,11 +4195,11 @@ static void prune_peers(void)
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&peers, peer, list) {
 		if (peer->dead) {
-			AST_LIST_REMOVE_CURRENT(&peers, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			destroy_peer(peer);
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&peers);
 }
 
@@ -4210,11 +4210,11 @@ static void prune_mappings(void)
 	AST_LIST_LOCK(&peers);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&mappings, map, list) {
 		if (map->dead) {
-			AST_LIST_REMOVE_CURRENT(&mappings, list);
+			AST_LIST_REMOVE_CURRENT(list);
 			destroy_map(map);
 		}
 	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&peers);
 }
 

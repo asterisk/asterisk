@@ -1420,7 +1420,7 @@ static int __ast_cli_register(struct ast_cli_entry *e, struct ast_cli_entry *ed)
 		if (lf < len)
 			len = lf;
 		if (strncasecmp(e->_full_cmd, cur->_full_cmd, len) < 0) {
-			AST_RWLIST_INSERT_BEFORE_CURRENT(&helpers, e, list); 
+			AST_RWLIST_INSERT_BEFORE_CURRENT(e, list); 
 			break;
 		}
 	}
