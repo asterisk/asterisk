@@ -568,13 +568,11 @@ static int unload_module(void)
 	if (!AST_LIST_LOCK(&features))
 		return -1;
 	/* Hangup all interfaces if they have an owner */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&features, p, list) {
+	while ((p = AST_LIST_REMOVE_HEAD(&features, list))) {
 		if (p->owner)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		AST_LIST_REMOVE_CURRENT(list);
 		ast_free(p);
 	}
-	AST_LIST_TRAVERSE_SAFE_END
 	AST_LIST_UNLOCK(&features);
 	
 	return 0;
