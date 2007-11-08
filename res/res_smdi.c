@@ -712,7 +712,7 @@ static int load_module(void)
 	if (res < 0) {
 		return res;
 	} else if (res == 1) {
-		ast_log(LOG_WARNING, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
+		ast_log(LOG_NOTICE, "No SMDI interfaces are available to listen on, not starting SMDI listener.\n");
 		return AST_MODULE_LOAD_DECLINE;
 	} else
 		return AST_MODULE_LOAD_SUCCESS;
