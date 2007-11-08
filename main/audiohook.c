@@ -206,7 +206,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 			}
 		}
 	} else if (option_debug)
-		ast_log(LOG_DEBUG, "Failed to get %zd samples from read factory %p\n", samples, &audiohook->read_factory);
+		ast_log(LOG_DEBUG, "Failed to get %d samples from read factory %p\n", (int)samples, &audiohook->read_factory);
 
 	/* Move on to the write factory... if there are enough samples, read them in */
 	if (ast_slinfactory_available(&audiohook->write_factory) >= samples) {
@@ -225,7 +225,7 @@ static struct ast_frame *audiohook_read_frame_both(struct ast_audiohook *audioho
 			}
 		}
 	} else if (option_debug)
-		ast_log(LOG_DEBUG, "Failed to get %zd samples from write factory %p\n", samples, &audiohook->write_factory);
+		ast_log(LOG_DEBUG, "Failed to get %d samples from write factory %p\n", (int)samples, &audiohook->write_factory);
 
 	/* Basically we figure out which buffer to use... and if mixing can be done here */
 	if (!read_buf && !write_buf)
