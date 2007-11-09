@@ -94,6 +94,7 @@ static int load_config(int reload)
 
 	if (!(mappingvar = ast_variable_browse(cfg, "master"))) {
 		/* nothing configured */
+		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		return 0;
 	}
@@ -113,6 +114,7 @@ static int load_config(int reload)
 	else {
 		ast_log(LOG_WARNING, "%s: Column names not specified. Module not loaded.\n",
 				name);
+		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		return -1;
 	}
@@ -122,6 +124,7 @@ static int load_config(int reload)
 		ast_copy_string(values, tmp, sizeof(values));
 	else {
 		ast_log(LOG_WARNING, "%s: Values not specified. Module not loaded.\n", name);
+		ast_mutex_unlock(&lock);
 		ast_config_destroy(cfg);
 		return -1;
 	}
