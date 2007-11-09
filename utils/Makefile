@@ -16,7 +16,7 @@
 .PHONY: clean all uninstall
 
 # to get check_expr, add it to the ALL_UTILS list
-ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2
+ALL_UTILS:=astman smsq stereorize streamplayer aelparse muted check_expr conf2ael hashtest2 hashtest
 UTILS:=$(ALL_UTILS)
 
 include $(ASTTOPDIR)/Makefile.rules
@@ -65,7 +65,7 @@ clean:
 	rm -f *.s *.i
 	rm -f md5.c strcompat.c ast_expr2.c ast_expr2f.c pbx_ael.c pval.c
 	rm -f aelparse.c aelbison.c conf2ael
-	rm -f utils.c threadstorage.c sha1.c astobj2.c hashtest2
+	rm -f utils.c threadstorage.c sha1.c astobj2.c hashtest2 hashtest
 
 md5.c: ../main/md5.c
 	@cp $< $@
@@ -75,6 +75,9 @@ astman: LIBS+=$(NEWT_LIB)
 
 stereorize: stereorize.o frame.o
 stereorize: LIBS+=-lm
+
+hashtab.c: ../main/hashtab.c
+	@cp $< $@
 
 strcompat.c: ../main/strcompat.c
 	@cp $< $@
@@ -100,7 +103,7 @@ ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
-check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o clicompat.o threadstorage.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o
 
 aelbison.c: ../res/ael/ael.tab.c
 	@cp $< $@
@@ -134,6 +137,11 @@ threadstorage.c: ../main/threadstorage.c
 hashtest2.o: ASTCFLAGS+=-O0
 
 hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
+
+hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o
+
+hashtest.o : hashtest.c
+	$(CC) -g -O0 -c hashtest.c -I/usr/include -I../include
 
 extconf.o : extconf.c
 

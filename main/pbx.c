@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/stringfields.h"
 #include "asterisk/event.h"
+#include "asterisk/hashtab.h"
 #include "asterisk/module.h"
 #include "asterisk/indications.h"
 
@@ -77,6 +78,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * aspects of this PBX.  The switching scheme as it exists right now isn't
  * terribly bad (it's O(N+M), where N is the # of extensions and M is the avg #
  * of priorities, but a constant search time here would be great ;-)
+ *
+ * A new algorithm to do searching based on a 'compiled' pattern tree is introduced
+ * here, and shows a fairly flat (constant) search time, even for over
+ * 1000 patterns. Might Still needs some work-- there are some fine points of the matching
+ * spec about tie-breaking based on the characters in character sets, but this
+ * should be do-able via the weight system currently being used.
+ *
+ * Also, using a hash table for context/priority name lookup can help prevent
+ * the find_extension routines from absorbing exponential cpu cycles. I've tested
+ * find_extension with red-black trees, which have O(log2(n)) speed. Right now,
+ * I'm using hash tables, which do searches (ideally) in O(1) time.
  *
  */
 
@@ -135,6 +147,8 @@ struct ast_exten {
 	void *data;			/*!< Data to use (arguments) */
 	void (*datad)(void *);		/*!< Data destructor */
 	struct ast_exten *peer;		/*!< Next higher priority with our extension */
+	struct ast_hashtab *peer_tree;    /*!< Priorities list in tree form -- only on the head of the peer list */
+	struct ast_hashtab *peer_label_tree; /*!< labeled priorities in the peer list -- only on the head of the peer list */
 	const char *registrar;		/*!< Registrar */
 	struct ast_exten *next;		/*!< Extension with a greater ID */
 	char stuff[0];
@@ -169,10 +183,34 @@ struct ast_ignorepat {
 	const char pattern[0];
 };
 
+/*! \brief match_char: forms a syntax tree for quick matching of extension patterns */
+struct match_char
+{
+	int is_pattern; /* the pattern started with '_' */
+	int deleted;    /* if this is set, then... don't return it */
+	char *x;       /* the pattern itself-- matches a single char */
+	int specificity; /* simply the strlen of x, or 10 for X, 9 for Z, and 8 for N; and '.' and '!' will add 11 ? */
+	struct match_char *alt_char;
+	struct match_char *next_char;
+	struct ast_exten *exten; /* attached to last char of a pattern for exten */
+};
+
+struct scoreboard  /* make sure all fields are 0 before calling new_find_extension */
+{
+	int total_specificity;
+	int total_length;
+	char last_char;   /* set to ! or . if they are the end of the pattern */
+	int canmatch;     /* if the string to match was just too short */
+	struct ast_exten *canmatch_exten;
+	struct ast_exten *exten;
+};
+
 /*! \brief ast_context: An extension context */
 struct ast_context {
 	ast_rwlock_t lock; 			/*!< A lock to prevent multiple threads from clobbering the context */
 	struct ast_exten *root;			/*!< The root of the list of extensions */
+	struct ast_hashtab *root_tree;            /*!< For exact matches on the extensions in the pattern tree, and for traversals of the pattern_tree  */
+ 	struct match_char *pattern_tree;        /*!< A tree to speed up extension pattern matching */
 	struct ast_context *next;		/*!< Link them together */
 	struct ast_include *includes;		/*!< Include other contexts */
 	struct ast_ignorepat *ignorepats;	/*!< Patterns for which to continue playing dialtone */
@@ -286,6 +324,88 @@ int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_setvar_multiple(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 static void set_ext_pri(struct ast_channel *c, const char *exten, int pri);
+void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid);
+struct match_char *already_in_tree(struct match_char *current, char *pat);
+struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1);
+struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity);
+void create_match_char_tree(struct ast_context *con);
+struct ast_exten *get_canmatch_exten(struct match_char *node);
+void destroy_pattern_tree(struct match_char *pattern_tree);
+static int hashtab_compare_contexts(const void *ah_a, const void *ah_b);
+static int hashtab_compare_extens(const void *ha_a, const void *ah_b);
+static int hashtab_compare_exten_numbers(const void *ah_a, const void *ah_b);
+static int hashtab_compare_exten_labels(const void *ah_a, const void *ah_b);
+static unsigned int hashtab_hash_contexts(const void *obj);
+static unsigned int hashtab_hash_extens(const void *obj);
+static unsigned int hashtab_hash_priority(const void *obj);
+static unsigned int hashtab_hash_labels(const void *obj);
+
+/* labels, contexts are case sensitive  priority numbers are ints */
+static int hashtab_compare_contexts(const void *ah_a, const void *ah_b)
+{
+	const struct ast_context *ac = ah_a;
+	const struct ast_context *bc = ah_b;
+	/* assume context names are registered in a string table! */
+	return strcmp(ac->name, bc->name);
+}
+
+static int hashtab_compare_extens(const void *ah_a, const void *ah_b)
+{
+	const struct ast_exten *ac = ah_a;
+	const struct ast_exten *bc = ah_b;
+	int x = strcmp(ac->exten, bc->exten);
+	if (x) /* if exten names are diff, then return */
+		return x;
+	/* but if they are the same, do the cidmatch values match? */
+	if (ac->matchcid && bc->matchcid) {
+		return strcmp(ac->cidmatch,bc->cidmatch);
+	} else {
+		return 1; /* if there's matchcid on one but not the other, they are different */
+	}
+}
+
+static int hashtab_compare_exten_numbers(const void *ah_a, const void *ah_b)
+{
+	const struct ast_exten *ac = ah_a;
+	const struct ast_exten *bc = ah_b;
+	return ac->priority != bc->priority;
+}
+
+static int hashtab_compare_exten_labels(const void *ah_a, const void *ah_b)
+{
+	const struct ast_exten *ac = ah_a;
+	const struct ast_exten *bc = ah_b;
+	return strcmp(ac->label, bc->label);
+}
+
+static unsigned int hashtab_hash_contexts(const void *obj)
+{
+	const struct ast_context *ac = obj;
+	return ast_hashtab_hash_string(ac->name);
+}
+
+static unsigned int hashtab_hash_extens(const void *obj)
+{
+	const struct ast_exten *ac = obj;
+	unsigned int x = ast_hashtab_hash_string(ac->exten);
+	unsigned int y = 0;
+	if (ac->matchcid)
+		y = ast_hashtab_hash_string(ac->cidmatch);
+	return x+y;
+}
+
+static unsigned int hashtab_hash_priority(const void *obj)
+{
+	const struct ast_exten *ac = obj;
+	return ast_hashtab_hash_int(ac->priority);
+}
+
+static unsigned int hashtab_hash_labels(const void *obj)
+{
+	const struct ast_exten *ac = obj;
+	return ast_hashtab_hash_string(ac->label);
+}
+
 
 AST_RWLOCK_DEFINE_STATIC(globalslock);
 static struct varshead globals = AST_LIST_HEAD_NOLOCK_INIT_VALUE;
@@ -558,6 +678,8 @@ static struct pbx_builtin {
 };
 
 static struct ast_context *contexts;
+static struct ast_hashtab *contexts_tree = NULL;
+
 AST_RWLOCK_DEFINE_STATIC(conlock); 		/*!< Lock for the ast_context list */
 
 static AST_RWLIST_HEAD_STATIC(apps, ast_app);
@@ -651,6 +773,391 @@ static inline int include_valid(struct ast_include *i)
 static void pbx_destroy(struct ast_pbx *p)
 {
 	ast_free(p);
+}
+
+/* form a tree that fully describes all the patterns in a context's extensions 
+ * in this tree, a "node" consists of a series of match_char structs linked in a chain
+ * via the alt_char pointers. More than one pattern can share the same parts of the 
+ * tree as other extensions with the same pattern to that point. The algorithm to
+ * find which pattern best matches a string, would follow **all** matching paths. As
+ * complete matches are found, a "max" match record would be updated if the match first involves 
+ * a longer string, then, on a tie, a smaller total of specificity. This can be accomplished
+ * by recursive calls affecting a shared scoreboard.
+ * As and example, consider these 4 extensions:
+ * (a) NXXNXXXXXX
+ * (b) 307754XXXX 
+ * (c) fax
+ * (d) NXXXXXXXXX
+ *
+ * In the above, between (a) and (d), (a) is a more specific pattern than (d), and would win over
+ * most numbers. For all numbers beginning with 307754, (b) should always win.
+ *
+ * These pattern should form a tree that looks like this:
+ *   { "N" }  --next-->  { "X" }  --next--> { "X" } --next--> { "N" } --next--> { "X" } ... blah ... --> { "X" exten_match: (a) }
+ *      |                                                        |
+ *      |                                                        |alt
+ *      |alt                                                     |
+ *      |                                                     { "X" } --next--> { "X" } ... blah ... --> { "X" exten_match: (d) }
+ *      |
+ *   { "3" }  --next-->  { "0" }  --next--> { "7" } --next--> { "7" } --next--> { "5" } ... blah ... --> { "X" exten_match: (b) }
+ *      |
+ *      |alt
+ *      |
+ *   { "f" }  --next-->  { "a" }  --next--> { "x"  exten_match: (c) }
+ *
+ *   In the above, I could easily turn "N" into "23456789", but I think that a quick "if( *z >= '2' && *z <= '9' )" might take
+ *   fewer CPU cycles than a call to index("23456789",*z), where *z is the char to match...
+ *
+ *   traversal is pretty simple: one routine merely traverses the alt list, and for each match in the pattern,  it calls itself
+ *   on the corresponding next pointer, incrementing also the pointer of the string to be matched, and passing the total specificity and length.
+ *   We pass a pointer to a scoreboard down through, also.
+ *   When an exten_match pointer is set, or a '.' or a '!' is encountered, we update the scoreboard only if the length is greater, or in case
+ *   of equal length, if the specificity is lower, and return. Hope the limit on stack depth won't be a problem... this routine should 
+ *   be pretty lean as far a stack usage goes. Any non-match terminates the recursion down a branch.
+ *
+ *   In the above example, with the number "3077549999" as the pattern, the traversor should match extensions a, b and d.  All are
+ *   of length 10; but they have total specificities of  96, 46, and 98, respectively. (b) wins with its lower specificity number!
+ *
+ *   Just how much time this algorithm might save over a plain linear traversal over all possible patterns is unknown. But, it should
+ *   be pretty close to optimal for this sort of overall algorithm.
+ *
+ * */
+
+/* you only really update the scoreboard, if the new score is BETTER than the 
+ * one stored there. ignore it otherwise.
+ */
+
+
+static void update_scoreboard(struct scoreboard *board, int length, int spec, struct ast_exten *exten, char last, const char *callerid)
+{
+	/* doing a matchcid() check here would be easy and cheap, but...
+	   unfortunately, it only works if an extension can have only one 
+	   cid to match. That's not real life. CID patterns need to exist 
+	   in the tree for this sort of thing to work properly. */
+
+	if (length > board->total_length) {
+		board->total_specificity = spec;
+		board->total_length = length;
+		board->exten = exten;
+		board->last_char = last;
+	} else if (length == board->total_length && spec < board->total_specificity) {
+		board->total_specificity = spec;
+		board->total_length = length;
+		board->exten = exten;
+		board->last_char = last;
+	}
+}
+
+#ifdef NEED_DEBUG
+static void log_match_char_tree(struct match_char *node, char *prefix)
+{
+	char my_prefix[1024];
+	
+	ast_log(LOG_DEBUG,"%s%s:%c:%d:%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN":"");
+	strcpy(my_prefix,prefix);
+	strcat(my_prefix,"+-----------------");
+	if (node->next_char)
+		print_match_char_tree(node->next_char, my_prefix);
+	if (node->alt_char)
+		print_match_char_tree(node->alt_char, prefix);
+}
+#endif
+
+static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
+{
+	char my_prefix[1024];
+	
+	ast_cli(fd, "%s%s:%c:%d:%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN":"");
+	strcpy(my_prefix,prefix);
+	strcat(my_prefix,"+-----------------");
+	if (node->next_char)
+		cli_match_char_tree(node->next_char, my_prefix, fd);
+	if (node->alt_char)
+		cli_match_char_tree(node->alt_char, prefix, fd);
+}
+
+struct ast_exten *get_canmatch_exten(struct match_char *node)
+{
+	/* find the exten at the end of the rope */
+	struct match_char *node2 = node;
+	for (node2 = node; node2; node2 = node2->next_char)
+		if (node2->exten)
+			return node2->exten;
+	return 0;
+}
+
+void new_find_extension(const char *str, struct scoreboard *score, struct match_char *tree, int length, int spec, const char *callerid)
+{
+	struct match_char *p; /* note minimal stack storage requirements */
+	for (p=tree; p; p=p->alt_char) {
+		if (p->x[0] == 'N' && p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
+			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+
+			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
+				if (*(str+1))
+					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
+				else
+					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+			} else if (p->next_char && !*(str+1)) {
+				score->canmatch = 1;
+				score->canmatch_exten = get_canmatch_exten(p);
+			} else {
+				return;
+			}
+		} else if (p->x[0] == 'Z' && p->x[1] == 0 && *str >= '1' && *str <= '9' ) {
+			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+
+			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
+				if (*(str+1))
+					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
+				else
+					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+			} else if (p->next_char && !*(str+1)) {
+				score->canmatch = 1;
+				score->canmatch_exten = get_canmatch_exten(p);
+			} else {
+				return;
+			}
+		} else if (p->x[0] == 'X' && p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
+			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+
+			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
+				if (*(str+1))
+					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
+				else
+					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+			} else if (p->next_char && !*(str+1)) {
+				score->canmatch = 1;
+				score->canmatch_exten = get_canmatch_exten(p);
+			} else {
+				return;
+			}
+		} else if (p->x[0] == '.' && p->x[1] == 0) {
+			update_scoreboard(score, length+1, spec+11, p->exten, '.', callerid);
+			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
+				new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+			}
+			return;
+		} else if (p->x[0] == '!' && p->x[1] == 0) {
+			update_scoreboard(score, length+1, spec+11, p->exten, '!', callerid);
+			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
+				new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+			}
+			return;
+		} else if (p->x[0] == '/' && p->x[1] == 0) {
+			/* the pattern in the tree includes the cid match! */
+			if (p->next_char && callerid && *callerid) {
+				new_find_extension(callerid, score, p->next_char, length+1, spec, callerid);
+			}
+		} else if (index(p->x, *str)) {
+			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
+				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+
+
+			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
+				if (*(str+1)) {
+					new_find_extension(str+1, score, p->next_char, length+1, spec+p->specificity, callerid);
+				} else {
+					new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+				}
+			} else if (p->next_char && !*(str+1)) {
+				score->canmatch = 1;
+				score->canmatch_exten = get_canmatch_exten(p);
+			} else {
+				return;
+			}
+		}
+	}
+}
+
+/* the algorithm for forming the extension pattern tree is also a bit simple; you 
+ * traverse all the extensions in a context, and for each char of the extension,
+ * you see if it exists in the tree; if it doesn't, you add it at the appropriate
+ * spot. What more can I say? At the end of the list, you cap it off by adding the
+ * address of the extension involved. Duplicate patterns will be complained about.
+ *
+ * Ideally, this would be done for each context after it is created and fully 
+ * filled. It could be done as a finishing step after extensions.conf or .ael is
+ * loaded, or it could be done when the first search is encountered. It should only
+ * have to be done once, until the next unload or reload.
+ *
+ * I guess forming this pattern tree would be analogous to compiling a regex.
+ */
+
+
+struct match_char *already_in_tree(struct match_char *current, char *pat)
+{
+	struct match_char *t;
+	if (!current)
+		return 0;
+	for (t=current; t; t=t->alt_char) {
+		if (strcmp(pat,t->x) == 0) /* uh, we may want to sort exploded [] contents to make matching easy */
+			return t;
+	}
+	return 0;
+}
+
+struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity)
+{
+	struct match_char *m = ast_calloc(1,sizeof(struct match_char));
+	m->x = strdup(pattern);
+	m->is_pattern = is_pattern;
+	if (specificity == 1 && is_pattern && pattern[0] == 'N')
+		m->specificity = 8;
+	else if (specificity == 1 && is_pattern && pattern[0] == 'Z')
+		m->specificity = 9;
+	else if (specificity == 1 && is_pattern && pattern[0] == 'X')
+		m->specificity = 10;
+	else if (specificity == 1 && is_pattern && pattern[0] == '.')
+		m->specificity = 11;
+	else if (specificity == 1 && is_pattern && pattern[0] == '!')
+		m->specificity = 11;
+	else
+		m->specificity = specificity;
+	
+	if (!con->pattern_tree) {
+		con->pattern_tree = m;
+	} else {
+		if (already) { /* switch to the new regime (traversing vs appending)*/
+			m->alt_char = current->alt_char;
+			current->alt_char = m;
+		} else {
+			if (current->next_char) {
+				m->alt_char = current->next_char->alt_char;
+				current->next_char = m;
+			} else {
+				current->next_char = m;
+			}
+		}
+	}
+	return m;
+}
+
+struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast_exten *e1)
+{
+	struct match_char *m1=0,*m2=0;
+	int specif;
+	int already;
+	int pattern = 0;
+	char buf[256];
+	char extenbuf[512];
+	char *s1 = extenbuf;
+	int l1 = strlen(e1->exten) + strlen(e1->cidmatch) + 2;
+	
+
+	strncpy(extenbuf,e1->exten,sizeof(extenbuf));
+	if (e1->matchcid &&  l1 <= sizeof(extenbuf)) {
+		strcat(extenbuf,"/");
+		strcat(extenbuf,e1->cidmatch);
+	} else if (l1 > sizeof(extenbuf)) {
+		ast_log(LOG_ERROR,"The pattern %s/%s is too big to deal with: it will be ignored! Disaster!\n", e1->exten, e1->cidmatch);
+		return 0;
+	}
+#ifdef NEED_DEBUG
+	ast_log(LOG_DEBUG,"Adding exten %s%c%s to tree\n", s1, e1->matchcid? '/':' ', e1->matchcid? e1->cidmatch : "");
+#endif
+	m1 = con->pattern_tree; /* each pattern starts over at the root of the pattern tree */
+	already = 1;
+
+	if ( *s1 == '_') {
+		pattern = 1;
+		s1++;
+	}
+	while( *s1 ) {
+		if (pattern && *s1 == '[' && *(s1-1) != '\\') {
+			char *s2 = buf;
+			while (*s1 != ']' && *(s1-1) != '\\' ) {
+				if (*s1 == '\\') {
+					if (*(s1+1) == ']') {
+						*s2++ = ']';
+						s1++;s1++;
+					} else if (*(s1+1) == '\\') {
+						*s2++ = '\\';
+						s1++;s1++;
+					} else if (*(s1+1) == '-') {
+						*s2++ = '-';
+						s1++; s1++;
+					} else if (*(s1+1) == '[') {
+						*s2++ = '[';
+						s1++; s1++;
+					}
+				} else if (*s1 == '-') { /* remember to add some error checking to all this! */
+					char s3 = *(s1-1);
+					char s4 = *(s1+1);
+					for (s3++; s3 <= s4; s3++) {
+						*s2++ = s3;
+					}
+					s1++; s1++;
+				} else {
+					*s2++ = *s1++;
+				}
+			}
+			specif = strlen(buf);
+		} else {
+			if (*s1 == '\\') {
+				s1++;
+				buf[0] = *s1;
+			} else {
+				buf[0] = *s1;
+			}
+			buf[1] = 0;
+			specif = 1;
+		}
+		
+		if (already && (m2=already_in_tree(m1,buf))) {
+			if (!(*(s1+1)))  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
+								a shorter pattern might win if the longer one doesn't match */
+				m1->exten = e1;
+			m1 = m2->next_char; /* m1 points to the node to compare against */
+		} else {
+			m1 = add_pattern_node(con, m1, buf, pattern, already,specif); /* m1 is the node just added */
+			if (!(*(s1+1)))
+				m1->exten = e1;
+			already = 0;
+		}
+		s1++; /* advance to next char */
+	}
+	return m1;
+}
+
+void create_match_char_tree(struct ast_context *con)
+{
+	struct ast_hashtab_iter *t1;
+	struct ast_exten *e1;
+#ifdef NEED_DEBUG
+	int biggest_bucket, resizes, numobjs, numbucks;
+	
+	ast_log(LOG_DEBUG,"Creating Extension Trie for context %s\n", con->name);
+	ast_hashtab_get_stats(con->root_tree, &biggest_bucket, &resizes, &numobjs, &numbucks);
+	ast_log(LOG_DEBUG,"This tree has %d objects in %d bucket lists, longest list=%d objects, and has resized %d times\n",
+			numobjs, numbucks, biggest_bucket, resizes);
+#endif
+	t1 = ast_hashtab_start_traversal(con->root_tree);
+	while( (e1 = ast_hashtab_next(t1)) ) {
+		add_exten_to_pattern_tree(con, e1);
+	}
+	ast_hashtab_end_traversal(t1);
+}
+
+void destroy_pattern_tree(struct match_char *pattern_tree) /* pattern tree is a simple binary tree, sort of, so the proper way to destroy it is... recursively! */
+{
+	/* destroy all the alternates */
+	if (pattern_tree->alt_char) {
+		destroy_pattern_tree(pattern_tree->alt_char);
+		pattern_tree->alt_char = 0;
+	}
+	/* destroy all the nexts */
+	if (pattern_tree->next_char) {
+		destroy_pattern_tree(pattern_tree->next_char);
+		pattern_tree->next_char = 0;
+	}
+	pattern_tree->exten = 0; /* never hurts to make sure there's no pointers laying around */
+	if (pattern_tree->x)
+		free(pattern_tree->x);
+	free(pattern_tree);
 }
 
 /*
@@ -947,13 +1454,34 @@ int ast_extension_close(const char *pattern, const char *data, int needmore)
 	return extension_match_core(pattern, data, needmore);
 }
 
+struct fake_context /* this struct is purely for matching in the hashtab */
+{
+	ast_rwlock_t lock; 			
+	struct ast_exten *root;		
+	struct ast_hashtab *root_tree;            
+	struct match_char *pattern_tree;       
+	struct ast_context *next;	
+	struct ast_include *includes;		
+	struct ast_ignorepat *ignorepats;	
+	const char *registrar;	
+	AST_LIST_HEAD_NOLOCK(, ast_sw) alts;	
+	ast_mutex_t macrolock;		
+	char name[256];		
+};
+
 struct ast_context *ast_context_find(const char *name)
 {
 	struct ast_context *tmp = NULL;
+	struct fake_context item;
+	strncpy(item.name,name,256);
 	ast_rdlock_contexts();
-	while ( (tmp = ast_walk_contexts(tmp)) ) {
-		if (!name || !strcasecmp(name, tmp->name))
-			break;
+	if( contexts_tree ) {
+		tmp = ast_hashtab_lookup(contexts_tree,&item);
+    } else {
+		while ( (tmp = ast_walk_contexts(tmp)) ) {
+			if (!name || !strcasecmp(name, tmp->name))
+				break;
+		}
 	}
 	ast_unlock_contexts();
 	return tmp;
@@ -965,17 +1493,6 @@ struct ast_context *ast_context_find(const char *name)
 #define STATUS_NO_LABEL		4
 #define STATUS_SUCCESS		5
 
-static int matchcid(const char *cidpattern, const char *callerid)
-{
-	/* If the Caller*ID pattern is empty, then we're matching NO Caller*ID, so
-	   failing to get a number should count as a match, otherwise not */
-
-	if (ast_strlen_zero(callerid))
-		return ast_strlen_zero(cidpattern) ? 1 : 0;
-
-	return ast_extension_match(cidpattern, callerid);
-}
-
 struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_context *bypass, struct pbx_find_info *q,
 	const char *context, const char *exten, int priority,
@@ -986,6 +1503,12 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	struct ast_exten *e, *eroot;
 	struct ast_include *i;
 	struct ast_sw *sw;
+	struct ast_exten pattern;
+	struct scoreboard score;
+
+	pattern.label = label;
+	pattern.priority = priority;
+
 
 	/* Initialize status if appropriate */
 	if (q->stacklen == 0) {
@@ -1007,18 +1530,72 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	if (bypass)	/* bypass means we only look there */
 		tmp = bypass;
 	else {	/* look in contexts */
+		struct fake_context item;
+		strncpy(item.name,context,256);
+		tmp = ast_hashtab_lookup(contexts_tree,&item);
+#ifdef NOTNOW
 		tmp = NULL;
 		while ((tmp = ast_walk_contexts(tmp)) ) {
 			if (!strcmp(tmp->name, context))
 				break;
 		}
+#endif
 		if (!tmp)
 			return NULL;
 	}
 
 	if (q->status < STATUS_NO_EXTENSION)
 		q->status = STATUS_NO_EXTENSION;
+	
+	/* Do a search for matching extension */
+	eroot = NULL;
+	score.total_specificity = 0;
+	score.exten = 0;
+	score.total_length = 0;
+	if (!tmp->pattern_tree)
+	{
+		create_match_char_tree(tmp);
+#ifdef NEED_DEBUG
+		ast_log(LOG_DEBUG,"Tree Created in context %s:\n", context);
+		print_match_char_tree(tmp->pattern_tree," ");
+#endif
+	}
+	
+	new_find_extension(exten, &score, tmp->pattern_tree, 0, 0, callerid);
+	eroot = score.exten;
 
+	if (score.last_char == '!' && action == E_MATCHMORE) {
+		/* We match an extension ending in '!'.
+		 * The decision in this case is final and is NULL (no match).
+		 */
+		return NULL;
+	}
+
+	if (!eroot && action == E_CANMATCH && score.canmatch_exten) {
+		q->status = STATUS_SUCCESS;
+		return score.canmatch_exten;
+	}
+
+	if (eroot) {
+		/* found entry, now look for the right priority */
+		if (q->status < STATUS_NO_PRIORITY)
+			q->status = STATUS_NO_PRIORITY;
+		e = NULL;
+		if (action == E_FINDLABEL && label ) {
+			if (q->status < STATUS_NO_LABEL)
+				q->status = STATUS_NO_LABEL;
+			e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
+		} else {
+			e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+		}
+		if (e) {	/* found a valid match */
+			q->status = STATUS_SUCCESS;
+			q->foundcontext = context;
+			return e;
+		}
+	}
+
+#ifdef NOTNOW2
 	/* scan the list trying to match extension and CID */
 	eroot = NULL;
 	while ( (eroot = ast_walk_context_extensions(tmp, eroot)) ) {
@@ -1037,6 +1614,14 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		if (q->status < STATUS_NO_PRIORITY)
 			q->status = STATUS_NO_PRIORITY;
 		e = NULL;
+		if (action == E_FINDLABEL && label ) {
+			if (q->status < STATUS_NO_LABEL)
+				q->status = STATUS_NO_LABEL;
+			e = ast_hashtab_lookup(eroot->peer_label_tree, &pattern);
+		} else {
+			e = ast_hashtab_lookup(eroot->peer_tree, &pattern);
+		}
+#ifdef NOTNOW
 		while ( (e = ast_walk_extension_priorities(eroot, e)) ) {
 			/* Match label or priority */
 			if (action == E_FINDLABEL) {
@@ -1048,12 +1633,14 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 				break;	/* found it */
 			} /* else keep searching */
 		}
+#endif
 		if (e) {	/* found a valid match */
 			q->status = STATUS_SUCCESS;
 			q->foundcontext = context;
 			return e;
 		}
 	}
+#endif
 	/* Check alternative switches */
 	AST_LIST_TRAVERSE(&tmp->alts, sw, list) {
 		struct ast_switch *asw = pbx_findswitch(sw->name);
@@ -2751,6 +3338,10 @@ static void destroy_exten(struct ast_exten *e)
 	if (e->priority == PRIORITY_HINT)
 		ast_remove_hint(e);
 
+	if (e->peer_tree)
+		ast_hashtab_destroy(e->peer_tree,0);
+	if (e->peer_label_tree)
+		ast_hashtab_destroy(e->peer_label_tree, 0);
 	if (e->datad)
 		e->datad(e->data);
 	ast_free(e);
@@ -2830,15 +3421,21 @@ int pbx_set_autofallthrough(int newval)
 static struct ast_context *find_context_locked(const char *context)
 {
 	struct ast_context *c = NULL;
-
+	struct fake_context item;
+	strncpy(item.name, context, 256);
 	ast_rdlock_contexts();
+	c = ast_hashtab_lookup(contexts_tree,&item);
+
+#ifdef NOTNOW
+
 	while ( (c = ast_walk_contexts(c)) ) {
 		if (!strcmp(ast_get_context_name(c), context))
 			return c;
 	}
+#endif
 	ast_unlock_contexts();
 
-	return NULL;
+	return c;
 }
 
 /*!
@@ -3056,8 +3653,17 @@ int ast_context_lockmacro(const char *context)
 {
 	struct ast_context *c = NULL;
 	int ret = -1;
+	struct fake_context item;
 
 	ast_rdlock_contexts();
+
+	strncpy(item.name,context,256);
+	c = ast_hashtab_lookup(contexts_tree,&item);
+	if (c)
+		ret = 0;
+
+
+#ifdef NOTNOW
 
 	while ((c = ast_walk_contexts(c))) {
 		if (!strcmp(ast_get_context_name(c), context)) {
@@ -3066,6 +3672,7 @@ int ast_context_lockmacro(const char *context)
 		}
 	}
 
+#endif
 	ast_unlock_contexts();
 
 	/* if we found context, lock macrolock */
@@ -3084,8 +3691,15 @@ int ast_context_unlockmacro(const char *context)
 {
 	struct ast_context *c = NULL;
 	int ret = -1;
+	struct fake_context item;
 
 	ast_rdlock_contexts();
+
+	strncpy(item.name, context, 256);
+	c = ast_hashtab_lookup(contexts_tree,&item);
+	if (c)
+		ret = 0;
+#ifdef NOTNOW
 
 	while ((c = ast_walk_contexts(c))) {
 		if (!strcmp(ast_get_context_name(c), context)) {
@@ -3094,6 +3708,7 @@ int ast_context_unlockmacro(const char *context)
 		}
 	}
 
+#endif
 	ast_unlock_contexts();
 
 	/* if we found context, unlock macrolock */
@@ -3643,6 +4258,13 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 					buf, ast_get_switch_registrar(sw));
 			}
 		}
+		
+		if (option_debug && c->pattern_tree)
+		{
+			ast_cli(fd," In-mem exten Trie for Fast Extension Pattern Matching:\r\b\n");
+			cli_match_char_tree(c->pattern_tree, " ", fd);
+		}
+		
 
 		ast_unlock_context(c);
 
@@ -4038,41 +4660,64 @@ int ast_unregister_application(const char *app)
 static struct ast_context *__ast_context_create(struct ast_context **extcontexts, const char *name, const char *registrar, int existsokay)
 {
 	struct ast_context *tmp, **local_contexts;
+	struct fake_context search;
 	int length = sizeof(struct ast_context) + strlen(name) + 1;
 
+	if (!contexts_tree) {
+		contexts_tree = ast_hashtab_create(17,
+										   hashtab_compare_contexts, 
+										   ast_hashtab_resize_java,
+										   ast_hashtab_newsize_java,
+										   hashtab_hash_contexts,
+										   1);
+	}
+	
 	if (!extcontexts) {
-		ast_wrlock_contexts();
+		ast_rdlock_contexts();
 		local_contexts = &contexts;
-	} else
-		local_contexts = extcontexts;
-
-	for (tmp = *local_contexts; tmp; tmp = tmp->next) {
-		if (!strcasecmp(tmp->name, name)) {
-			if (!existsokay) {
-				ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
-				tmp = NULL;
-			}
-			if (!extcontexts)
-				ast_unlock_contexts();
+		strncpy(search.name,name,sizeof(search.name));
+		tmp = ast_hashtab_lookup(contexts_tree, &search);
+		if (!existsokay && tmp) {
+			ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
+		}
+		ast_unlock_contexts();
+		if (tmp)
 			return tmp;
+	} else { /* local contexts just in a linked list; search there for the new context; slow, linear search, but not frequent */
+		local_contexts = extcontexts;
+		for (tmp = *local_contexts; tmp; tmp = tmp->next) {
+			if (!strcasecmp(tmp->name, name)) {
+				if (!existsokay) {
+					ast_log(LOG_WARNING, "Tried to register context '%s', already in use\n", name);
+					tmp = NULL;
+				}
+				return tmp;
+			}
 		}
 	}
+	
 	if ((tmp = ast_calloc(1, length))) {
 		ast_rwlock_init(&tmp->lock);
 		ast_mutex_init(&tmp->macrolock);
 		strcpy(tmp->name, name);
 		tmp->root = NULL;
+		tmp->root_tree = NULL;
 		tmp->registrar = registrar;
-		tmp->next = *local_contexts;
 		tmp->includes = NULL;
 		tmp->ignorepats = NULL;
-		*local_contexts = tmp;
-		ast_debug(1, "Registered context '%s'\n", tmp->name);
-		ast_verb(3, "Registered extension context '%s'\n", tmp->name);
 	}
-
-	if (!extcontexts)
+	if (!extcontexts) {
+		ast_wrlock_contexts();
+		tmp->next = *local_contexts;
+		*local_contexts = tmp;
+		ast_hashtab_insert_safe(contexts_tree, tmp); /*put this context into the tree */
 		ast_unlock_contexts();
+	} else {
+		tmp->next = *local_contexts;
+		*local_contexts = tmp;
+	}
+	ast_debug(1, "Registered context '%s'\n", tmp->name);
+	ast_verb(3, "Registered extension context '%s'\n", tmp->name);
 	return tmp;
 }
 
@@ -4154,6 +4799,11 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 			lasttmp = tmp;
 			tmp = tmp->next;
 		}
+	}
+	tmp = *extcontexts;
+	while (tmp) {
+		ast_hashtab_insert_safe(contexts_tree, tmp); /*put this context into the tree */
+		tmp = tmp->next;
 	}
 	if (lasttmp) {
 		lasttmp->next = contexts;
@@ -4847,12 +5497,16 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 	struct ast_exten *el, struct ast_exten *e, int replace)
 {
 	struct ast_exten *ep;
+	struct ast_exten *eh=e;
 
 	for (ep = NULL; e ; ep = e, e = e->peer) {
 		if (e->priority >= tmp->priority)
 			break;
 	}
 	if (!e) {	/* go at the end, and ep is surely set because the list is not empty */
+		ast_hashtab_insert_safe(eh->peer_tree, tmp);
+		if (tmp->label)
+			ast_hashtab_insert_safe(eh->peer_label_tree, tmp);
 		ep->peer = tmp;
 		return 0;	/* success */
 	}
@@ -4871,12 +5525,41 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 		 */
 		tmp->next = e->next;	/* not meaningful if we are not first in the peer list */
 		tmp->peer = e->peer;	/* always meaningful */
-		if (ep)			/* We're in the peer list, just insert ourselves */
+		if (ep)	{		/* We're in the peer list, just insert ourselves */
+			ast_hashtab_remove_object_via_lookup(eh->peer_tree,e);
+			if (e->label)
+				ast_hashtab_remove_object_via_lookup(eh->peer_label_tree,e);
+			ast_hashtab_insert_safe(eh->peer_tree,tmp);
+			if (tmp->label)
+				ast_hashtab_insert_safe(eh->peer_label_tree,tmp);
 			ep->peer = tmp;
-		else if (el)		/* We're the first extension. Take over e's functions */
+		} else if (el) {		/* We're the first extension. Take over e's functions */
+			tmp->peer_tree = e->peer_tree;
+			tmp->peer_label_tree = e->peer_label_tree;
+			ast_hashtab_remove_object_via_lookup(tmp->peer_tree,e);
+			ast_hashtab_insert_safe(tmp->peer_tree,tmp);
+			if (e->label)
+				ast_hashtab_remove_object_via_lookup(tmp->peer_label_tree,e);
+			if (tmp->label)
+				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
+			ast_hashtab_remove_object_via_lookup(con->root_tree, e->exten);
+			ast_hashtab_insert_safe(con->root_tree, tmp->exten);
 			el->next = tmp;
-		else			/* We're the very first extension.  */
-			con->root = tmp;
+		} else {			/* We're the very first extension.  */
+			ast_hashtab_remove_object_via_lookup(con->root_tree,e);
+			ast_hashtab_insert_safe(con->root_tree,tmp);
+			tmp->peer_tree = e->peer_tree;
+			tmp->peer_label_tree = e->peer_label_tree;
+			ast_hashtab_remove_object_via_lookup(tmp->peer_tree,e);
+			ast_hashtab_insert_safe(tmp->peer_tree,tmp);
+			if (e->label)
+				ast_hashtab_remove_object_via_lookup(tmp->peer_label_tree,e);
+			if (tmp->label)
+			ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
+			ast_hashtab_remove_object_via_lookup(con->root_tree, e->exten);
+			ast_hashtab_insert_safe(con->root_tree, tmp->exten);
+ 			con->root = tmp;
+		}
 		if (tmp->priority == PRIORITY_HINT)
 			ast_change_hint(e,tmp);
 		/* Destroy the old one */
@@ -4886,9 +5569,22 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 	} else {	/* Slip ourselves in just before e */
 		tmp->peer = e;
 		tmp->next = e->next;	/* extension chain, or NULL if e is not the first extension */
-		if (ep)			/* Easy enough, we're just in the peer list */
+		if (ep) {			/* Easy enough, we're just in the peer list */
+			if (tmp->label)
+				ast_hashtab_insert_safe(eh->peer_label_tree, tmp);
+			ast_hashtab_insert_safe(eh->peer_tree, tmp);
 			ep->peer = tmp;
-		else {			/* we are the first in some peer list, so link in the ext list */
+		} else {			/* we are the first in some peer list, so link in the ext list */
+			tmp->peer_tree = e->peer_tree;
+			tmp->peer_label_tree = e ->peer_label_tree;
+			e->peer_tree = 0;
+			e->peer_label_tree = 0;
+			ast_hashtab_insert_safe(tmp->peer_tree,tmp);
+			if (tmp->label) {
+				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
+			}
+			ast_hashtab_remove_object_via_lookup(con->root_tree,e);
+			ast_hashtab_insert_safe(con->root_tree,tmp);
 			if (el)
 				el->next = tmp;	/* in the middle... */
 			else
@@ -4938,11 +5634,13 @@ int ast_add_extension2(struct ast_context *con,
 	 * All priorities for the same ext/pattern/cid are kept in a list,
 	 * using the 'peer' field  as a link field..
 	 */
-	struct ast_exten *tmp, *e, *el = NULL;
+	struct ast_exten *tmp, *tmp2, *e, *el = NULL;
 	int res;
 	int length;
 	char *p;
 	char expand_buf[VAR_BUF_SIZE];
+	struct ast_exten dummy_exten;
+	char dummy_name[1024];
 
 	/* if we are adding a hint, and there are global variables, and the hint
 	   contains variable references, then expand them
@@ -4994,6 +5692,17 @@ int ast_add_extension2(struct ast_context *con,
 	tmp->registrar = registrar;
 
 	ast_wrlock_context(con);
+	
+	if (con->pattern_tree) { /* usually, on initial load, the pattern_tree isn't formed until the first find_exten; so if we are adding
+								an extension, and the trie exists, then we need to incrementally add this pattern to it. */
+		strncpy(dummy_name,extension,sizeof(dummy_name));
+		dummy_exten.exten = dummy_name;
+		tmp2 = ast_hashtab_lookup(con->root_tree,&dummy_exten);
+		if (!tmp2) {
+			/* hmmm, not in the trie; */
+			add_exten_to_pattern_tree(con, tmp);
+		}
+	}
 	res = 0; /* some compilers will think it is uninitialized otherwise */
 	for (e = con->root; e; el = e, e = e->next) {   /* scan the extension list */
 		res = ext_cmp(e->exten, extension);
@@ -5023,10 +5732,50 @@ int ast_add_extension2(struct ast_context *con,
 		 * so insert in the main list right before 'e' (if any)
 		 */
 		tmp->next = e;
-		if (el)
+		if (el) {  /* there is another exten already in this context */
 			el->next = tmp;
-		else
+			tmp->peer_tree = ast_hashtab_create(13,
+							hashtab_compare_exten_numbers,
+							ast_hashtab_resize_java,
+							ast_hashtab_newsize_java,
+							hashtab_hash_priority,
+							1);
+			tmp->peer_label_tree = ast_hashtab_create(7,
+								hashtab_compare_exten_labels,
+								ast_hashtab_resize_java,
+								ast_hashtab_newsize_java,
+								hashtab_hash_labels,
+								1);
+			if (label)
+				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
+			ast_hashtab_insert_safe(tmp->peer_tree, tmp);
+
+		} else {  /* this is the first exten in this context */
+			if (!con->root_tree)
+				con->root_tree = ast_hashtab_create(27,
+													hashtab_compare_extens,
+													ast_hashtab_resize_java,
+													ast_hashtab_newsize_java,
+													hashtab_hash_extens,
+													1);
 			con->root = tmp;
+			con->root->peer_tree = ast_hashtab_create(13,
+								hashtab_compare_exten_numbers,
+								ast_hashtab_resize_java,
+								ast_hashtab_newsize_java,
+								hashtab_hash_priority,
+								1);
+			con->root->peer_label_tree = ast_hashtab_create(7,
+									hashtab_compare_exten_labels,
+									ast_hashtab_resize_java,
+									ast_hashtab_newsize_java,
+									hashtab_hash_labels,
+									1);
+			if (label)
+				ast_hashtab_insert_safe(con->root->peer_label_tree,tmp);
+			ast_hashtab_insert_safe(con->root->peer_tree, tmp);
+		}
+		ast_hashtab_insert_safe(con->root_tree, tmp);
 		ast_unlock_context(con);
 		if (tmp->priority == PRIORITY_HINT)
 			ast_add_hint(tmp);
@@ -5461,6 +6210,8 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 			break;
 		ast_wrlock_context(tmp);
 		ast_debug(1, "delete ctx %s %s\n", tmp->name, tmp->registrar);
+		ast_hashtab_remove_this_object(contexts_tree,tmp);
+		
 		next = tmp->next;
 		if (tmpl)
 			tmpl->next = next;
@@ -5479,6 +6230,14 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 			ipi = ipi->next;
 			ast_free(ipl);
 		}
+		/* destroy the hash tabs */
+		if (tmp->root_tree) {
+			ast_hashtab_destroy(tmp->root_tree, 0);
+		}
+		/* and destroy the pattern tree */
+		if (tmp->pattern_tree)
+			destroy_pattern_tree(tmp->pattern_tree);
+		
 		while ((sw = AST_LIST_REMOVE_HEAD(&tmp->alts, list)))
 			ast_free(sw);
 		for (e = tmp->root; e;) {
@@ -6489,7 +7248,7 @@ int ast_context_verify_includes(struct ast_context *con)
 	while ( (inc = ast_walk_context_includes(con, inc)) )
 		if (!ast_context_find(inc->rname)) {
 			res = -1;
-			ast_log(LOG_WARNING, "Context '%s' tries includes nonexistent context '%s'\n",
+			ast_log(LOG_WARNING, "Context '%s' tries to include nonexistent context '%s'\n",
 					ast_get_context_name(con), inc->rname);
 		}
 	return res;

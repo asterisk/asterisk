@@ -220,7 +220,7 @@ struct ast_category_template_instance {
 
 struct ast_category {
 	char name[80];
-	int ignored;			/*!< do not let user of the config see this category */
+	int ignored;			/*!< do not let user of the config see this category -- set by (!) after the category decl; a template */
 	int include_level;
 	char *file;	           /*!< the file name from whence this declaration was read */
 	int lineno;

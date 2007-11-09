@@ -123,8 +123,6 @@ static int pbx_load_module(void)
 		rfilename = alloca(strlen(config) + strlen(ast_config_AST_CONFIG_DIR) + 2);
 		sprintf(rfilename, "%s/%s", ast_config_AST_CONFIG_DIR, config);
 	}
-	ast_log(LOG_NOTICE, "AEL load process: calculated config file name '%s'.\n", rfilename);
-
 	if (access(rfilename,R_OK) != 0) {
 		ast_log(LOG_NOTICE, "File %s not found; AEL declining load\n", rfilename);
 		return AST_MODULE_LOAD_DECLINE;

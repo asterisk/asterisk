@@ -5409,18 +5409,18 @@ int do_pbx_load_module(void)
 	}
 	
 	parse_tree = ael2_parse(rfilename, &errs);
-	ast_log(LOG_NOTICE, "AEL load process: parsed config file name '%s'.\n", rfilename);
+	ast_log(LOG_DEBUG, "AEL load process: parsed config file name '%s'.\n", rfilename);
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
 	if (errs == 0 && sem_err == 0) {
-		ast_log(LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
+		ast_log(LOG_DEBUG, "AEL load process: checked config file name '%s'.\n", rfilename);
 		ast_compile_ael2(&local_contexts, parse_tree);
-		ast_log(LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
+		ast_log(LOG_DEBUG, "AEL load process: compiled config file name '%s'.\n", rfilename);
 		
 		ast_merge_contexts_and_delete(&local_contexts, registrar);
-		ast_log(LOG_NOTICE, "AEL load process: merged config file name '%s'.\n", rfilename);
+		ast_log(LOG_DEBUG, "AEL load process: merged config file name '%s'.\n", rfilename);
 		for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
 			ast_context_verify_includes(con);
-		ast_log(LOG_NOTICE, "AEL load process: verified config file name '%s'.\n", rfilename);
+		ast_log(LOG_DEBUG, "AEL load process: verified config file name '%s'.\n", rfilename);
 	} else {
 		ast_log(LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
 		destroy_pval(parse_tree); /* free up the memory */
