@@ -990,27 +990,27 @@ static struct ast_config *config_text_file_load(const char *database, const char
 
 int config_text_file_save(const char *configfile, const struct ast_config *cfg, const char *generator)
 {
-	FILE *f;
-	char fn[256];
+	FILE *f = NULL;
+	int fd = -1;
+	char fn[256], fntmp[256];
 	char date[256]="";
 	time_t t;
 	struct ast_variable *var;
 	struct ast_category *cat;
 	struct ast_comment *cmt;
+	struct stat s;
 	int blanklines = 0;
 
 	if (configfile[0] == '/') {
+		snprintf(fntmp, sizeof(fntmp), "%s.XXXXXX", configfile);
 		ast_copy_string(fn, configfile, sizeof(fn));
 	} else {
+		snprintf(fntmp, sizeof(fntmp), "%s/%s.XXXXXX", ast_config_AST_CONFIG_DIR, configfile);
 		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
 	}
 	time(&t);
 	ast_copy_string(date, ctime(&t), sizeof(date));
-#ifdef __CYGWIN__	
-	if ((f = fopen(fn, "w+"))) {
-#else
-	if ((f = fopen(fn, "w"))) {
-#endif	    
+	if ((fd = mkstemp(fntmp)) > 0 && (f = fdopen(fd, "w")) != NULL) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");
@@ -1093,12 +1093,25 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 			ast_verbose("Saved\n");
 	} else {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Unable to open for writing: %s\n", fn);
+			ast_log(LOG_DEBUG, "Unable to open for writing: %s (%s)\n", fn, strerror(errno));
 		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Unable to write (%s)", strerror(errno));
+			ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
+		if (fd > -1)
+			close(fd);
 		return -1;
 	}
+	stat(fn, &s);
+	fchmod(fd, s.st_mode);
 	fclose(f);
+	if (unlink(fn) || link(fntmp, fn)) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Unable to open for writing: %s (%s)\n", fn, strerror(errno));
+		if (option_verbose > 1)
+			ast_verbose(VERBOSE_PREFIX_2 "Unable to write %s (%s)", fn, strerror(errno));
+		unlink(fntmp);
+		return -1;
+	}
+	unlink(fntmp);
 	return 0;
 }
 
