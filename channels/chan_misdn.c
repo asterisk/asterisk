@@ -4442,6 +4442,17 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			break;
 		}
 
+
+		/*
+		 * When we are NT and overlapdial is set and if 
+		 * the number is empty, we wait for the ISDN timeout
+		 * instead of our own timer.
+		 */
+		if (ch->overlap_dial && bc->nt && !bc->dad[0] ) {
+			wait_for_digits(ch, bc, chan);
+			break;
+		}
+
 		/* 
 		 * If overlapdial we will definitely send a SETUP_ACKNOWLEDGE and wait for more 
 		 * Infos with a Interdigit Timeout.

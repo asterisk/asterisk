@@ -269,6 +269,13 @@ nttimeout=no
 ;
 method=standard
 
+
+; specify if chan_misdn should collect digits before going into the 
+; dialplan, you can choose yes=4 Seconds, no, or specify the amount
+; of seconds you need;
+; 
+overlapdial=yes
+
 ;
 ; dialplan means Type Of Number in ISDN Terms (for outgoing calls)
 ;
