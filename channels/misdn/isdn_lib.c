@@ -2743,12 +2743,14 @@ static int handle_l1(msg_t *msg)
 	case PH_DEACTIVATE | CONFIRM:
 	case PH_DEACTIVATE | INDICATION:
 		cb_log (3, stack->port, "L1: PH L1Link Down! \n");
-		
+	
+#if 0
 		for (i=0; i<=stack->b_num; i++) {
 			if (global_state == MISDN_INITIALIZED)  {
 				cb_event(EVENT_CLEANUP, &stack->bc[i], glob_mgr->user_data);
 			}
 		}
+#endif
 		
 		if (stack->nt) {
 			if (stack->nst.l1_l2(&stack->nst, msg))
@@ -2850,7 +2852,9 @@ static int handle_mgmt(msg_t *msg)
 		case SSTATUS_L1_DEACTIVATED:
 			cb_log(3, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
 			stack->l1link=0;
+#if 0
 			clear_l3(stack);
+#endif
 			break;
 
 		case SSTATUS_L2_ESTABLISHED:
@@ -3856,6 +3860,18 @@ int misdn_lib_maxports_get() { /** BE AWARE WE HAVE NO CB_LOG HERE! **/
 	return max;
 }
 
+
+void misdn_lib_nt_keepcalls( int kc)
+{
+#ifdef FEATURE_NET_KEEPCALLS
+	if (kc) {
+		struct misdn_stack *stack=get_misdn_stack();
+		for ( ; stack; stack=stack->next) {
+			stack->nst.feature |= FEATURE_NET_KEEPCALLS;
+		}
+	}
+#endif
+}
 
 void misdn_lib_nt_debug_init( int flags, char *file ) 
 {

@@ -97,6 +97,7 @@ enum misdn_cfg_elements {
 	MISDN_GEN_DYNAMIC_CRYPT,       /* int (bool) */
 	MISDN_GEN_CRYPT_PREFIX,        /* char[] */
 	MISDN_GEN_CRYPT_KEYS,          /* char[] */
+	MISDN_GEN_NTKEEPCALLS,          /* int (bool) */
 	MISDN_GEN_NTDEBUGFLAGS,          /* int */
 	MISDN_GEN_NTDEBUGFILE,          /* char[] */
 	MISDN_GEN_LAST

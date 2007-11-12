@@ -4997,7 +4997,7 @@ static int load_module(void)
 		chan_misdn_log(0, 0, "Got: %s from get_ports\n",ports);
 	
 	{
-		int ntflags=0;
+		int ntflags=0, ntkc=0;
 		char ntfile[BUFFERSIZE+1];
 		struct misdn_lib_iface iface = {
 			.cb_event = cb_events,
@@ -5013,6 +5013,9 @@ static int load_module(void)
 
 		misdn_lib_nt_debug_init(ntflags,ntfile);
 
+
+		misdn_cfg_get( 0, MISDN_GEN_NTKEEPCALLS, &ntkc, sizeof(int));
+		misdn_lib_nt_keepcalls(ntkc);
 	}
 
 	{

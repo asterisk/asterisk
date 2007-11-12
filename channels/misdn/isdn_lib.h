@@ -381,6 +381,8 @@ struct misdn_lib_iface {
 
 /***** USER IFACE **********/
 
+void misdn_lib_nt_keepcalls(int kc);
+
 void misdn_lib_nt_debug_init( int flags, char *file );
 
 int misdn_lib_init(char *portlist, struct misdn_lib_iface* iface, void *user_data);
