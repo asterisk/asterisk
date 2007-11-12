@@ -5024,7 +5024,7 @@ static int unload_module(void)
 static int load_module(void)
 {
 	int i, port;
-	int ntflags = 0;
+	int ntflags = 0, ntkc = 0;
 	char ports[256] = "";
 	char tempbuf[BUFFERSIZE + 1];
 	char ntfile[BUFFERSIZE + 1];
@@ -5091,7 +5091,9 @@ static int load_module(void)
 
 	misdn_cfg_get(0, MISDN_GEN_NTDEBUGFLAGS, &ntflags, sizeof(ntflags));
 	misdn_cfg_get(0, MISDN_GEN_NTDEBUGFILE, &ntfile, sizeof(ntfile));
+	misdn_cfg_get( 0, MISDN_GEN_NTKEEPCALLS, &ntkc, sizeof(ntkc));
 
+	misdn_lib_nt_keepcalls(ntkc);
 	misdn_lib_nt_debug_init(ntflags, ntfile);
 
 	if (ast_channel_register(&misdn_tech)) {

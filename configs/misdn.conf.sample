@@ -56,6 +56,12 @@ debug=0
 ntdebugflags=0
 ntdebugfile=/var/log/misdn-nt.log
 
+
+; some pbx systems do cut the L1 for some milliseconds, to avoid 
+; dropping running calls, we can set this flag to yes and tell
+; mISDNuser not to drop the calls on L2_RELEASE
+ntkeepcalls=no
+
 ; the big trace
 ;
 ; default value: [not set]
