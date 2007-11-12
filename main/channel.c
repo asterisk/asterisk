@@ -1709,6 +1709,8 @@ int ast_hangup(struct ast_channel *chan)
 
 	detach_spies(chan);		/* get rid of spies */
 
+	ast_autoservice_stop(chan);
+
 	if (chan->masq) {
 		if (ast_do_masquerade(chan))
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");

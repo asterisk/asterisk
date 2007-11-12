@@ -2067,6 +2067,14 @@ static int __sip_autodestruct(const void *data)
 		return 10000;	/* Reschedule this destruction so that we know that it's gone */
 	}
 
+	/* If there are packets still waiting for delivery, delay the destruction */
+	if (p->packets) {
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
+		append_history(p, "ReliableXmit", "timeout");
+		return 10000;
+	}
+
 	/* If we're destroying a subscription, dereference peer object too */
 	if (p->subscribed == MWI_NOTIFICATION && p->relatedpeer)
 		ASTOBJ_UNREF(p->relatedpeer,sip_destroy_peer);
