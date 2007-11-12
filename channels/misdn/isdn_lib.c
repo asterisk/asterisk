@@ -1561,6 +1561,11 @@ static int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_
 				bc->channel=0;
 
 			if (find_free_chan_in_stack(stack, bc, bc->channel, 0)<0){
+				if (!stack->pri && !stack->ptp)  {
+					bc->cw=1;
+					break;
+				}
+
 				cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
 				misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
 				return -1;
