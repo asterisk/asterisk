@@ -448,9 +448,9 @@ static int realtime_destroy_handler(const char *database, const char *table,
 /*!
  * \brief Asterisk callback function for the CLI status command.
  *
- * \param fd file descriptor provided by Asterisk to use with ast_cli()
- * \param argc number of arguments
- * \param argv arguments list
+ * \param e CLI command
+ * \param cmd 
+ * \param a CLI argument list
  * \return RESULT_SUCCESS
  */
 static char *handle_cli_show_sqlite_status(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a);

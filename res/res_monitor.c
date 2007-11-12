@@ -80,7 +80,7 @@ static char *monitor_descrip = "  Monitor([file_format[:urlbase],[fname_base],[o
 "          and a target mixed file name which is the same as the leg file names\n"
 "          only without the in/out designator.\n"
 "          If MONITOR_EXEC_ARGS is set, the contents will be passed on as\n"
-"          additional arguements to MONITOR_EXEC\n"
+"          additional arguments to MONITOR_EXEC\n"
 "          Both MONITOR_EXEC and the Mix flag can be set from the\n"
 "          administrator interface\n"
 "\n"
@@ -419,7 +419,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 /*!
  * \brief Start monitor
  * \param chan
- * \param data arguements passed  fname|options
+ * \param data arguments passed fname|options
  * \retval 0 on success.
  * \retval -1 on failure.
 */

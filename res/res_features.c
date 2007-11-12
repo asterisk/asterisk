@@ -2583,7 +2583,7 @@ static int action_bridge(struct mansession *s, const struct message *m)
  *  
  * Check right usage, lock parking lot, display parked calls, unlock parking lot list.
  * \retval CLI_SUCCESS on success.
- * \retval CLI_SHOWUSAGE on incorrect number of arguements.
+ * \retval CLI_SHOWUSAGE on incorrect number of arguments.
  * \retval NULL when tab completion is used.
 */
 static char *handle_parkedcalls(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)

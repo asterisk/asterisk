@@ -529,6 +529,8 @@ int ast_extension_cmp(const char *a, const char *b);
  * \param exten new extension to add
  * \param priority priority of new extension
  * \param callerid callerid of extension
+ * \param found
+ * \param combined_find_spawn 
  *
  * This adds a new extension to the asterisk extension list.
  *

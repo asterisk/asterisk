@@ -303,8 +303,8 @@ int __ast_string_field_init(struct ast_string_field_mgr *mgr,
   \param x Pointer to a structure containing fields
   \param field Name of the field to set
   \param fmt printf-style format string
-  \param args1 arguement one
-  \param args2 arguement two
+  \param args1 argument one
+  \param args2 argument two
   \return nothing
 */
 #define ast_string_field_build_va(x, field, fmt, args1, args2) \

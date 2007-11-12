@@ -117,9 +117,9 @@ static char *orig_exten(int fd, const char *chan, const char *data)
  * \brief handle for orgination app or exten.
  * \param e pointer to the CLI structure to initialize
  * \param cmd operation to execute
- * \param a structure that contains either application or extension arguements
+ * \param a structure that contains either application or extension arguments
  * \retval CLI_SUCCESS on success.
- * \retval CLI_SHOWUSAGE  on failure.
+ * \retval CLI_SHOWUSAGE on failure.
 */
 static char *handle_orig(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a)
 {

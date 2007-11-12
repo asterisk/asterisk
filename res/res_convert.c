@@ -58,9 +58,9 @@ static int split_ext(char *filename, char **name, char **ext)
 
 /*! 
  * \brief Convert a file from one format to another 
- * \param fd file descriptor
- * \param argc no arguements
- * \param argv list of arguements
+ * \param e CLI entry
+ * \param cmd command number
+ * \param a list of cli arguments
  * \retval CLI_SUCCESS on success.
  * \retval CLI_SHOWUSAGE or CLI_FAILURE on failure.
 */

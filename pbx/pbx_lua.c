@@ -868,9 +868,9 @@ static char *lua_read_extensions_file(lua_State *L, long *size)
  * \brief Load the extensions.lua file from the internal buffer
  *
  * \param L the lua_State to use
+ * \param chan channel to work on
  *
  * This function also sets up some constructs used by the extensions.lua file.
- *
  * In the event of an error, an error string will be pushed onto the lua stack.
  *
  * \retval 0 success

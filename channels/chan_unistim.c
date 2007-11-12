@@ -386,7 +386,7 @@ struct unistim_line {
 	ast_mutex_t lock;
 	/*! Like 200 */
 	char name[80];
-	/*! Like USTM/200@black */
+	/*! Like USTM/200\@black */
 	char fullname[80];
 	/*! pointer to our current connection, channel... */
 	struct unistim_subchannel *subs[MAX_SUBS];

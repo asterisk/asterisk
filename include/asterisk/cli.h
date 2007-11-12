@@ -220,6 +220,8 @@ char *ast_cli_complete(const char *word, char *const choices[], int pos);
 /*! 
  * \brief Interprets a command
  * Interpret a command s, sending output to fd
+ * \param fd pipe
+ * \param s incoming string
  * \retval 0 on success
  * \retval -1 on failure
  */
@@ -227,14 +229,16 @@ int ast_cli_command(int fd, const char *s);
 
 /*! 
  * \brief Executes multiple CLI commands
- * Interpret strings separated by '\0' and execute each one, sending output to fd
+ * Interpret strings separated by NULL and execute each one, sending output to fd
+ * \param fd pipe
  * \param size is the total size of the string
+ * \param s incoming string
  * \retval number of commands executed
  */
 int ast_cli_command_multiple(int fd, size_t size, const char *s);
 
 /*! \brief Registers a command or an array of commands
- * \param e which cli entry to register
+ * \param e which cli entry to register.
  * Register your own command
  * \retval 0 on success
  * \retval -1 on failure
@@ -252,7 +256,7 @@ int ast_cli_register_multiple(struct ast_cli_entry *e, int len);
  * \brief Unregisters a command or an array of commands
  * \param e which cli entry to unregister
  * Unregister your own command.  You must pass a completed ast_cli_entry structure
- * \return 0.
+ * \return 0
  */
 int ast_cli_unregister(struct ast_cli_entry *e);
 
@@ -280,14 +284,14 @@ int ast_cli_generatornummatches(const char *, const char *);
  *
  * The first entry (offset 0) of the result is the longest common substring
  * in the results, useful to extend the string that has been completed.
- * Subsequent entries are all possible values, followe by a NULL.
+ * Subsequent entries are all possible values, followed by a NULL.
  * All strings and the array itself are malloc'ed and must be freed
  * by the caller.
  */
 char **ast_cli_completion_matches(const char *, const char *);
 
 /*!
- * \brief Command completion for the list of active channels
+ * \brief Command completion for the list of active channels.
  *
  * This can be called from a CLI command completion function that wants to
  * complete from the list of active channels.  'rpos' is the required
