@@ -706,6 +706,7 @@ static int misdn_overlap_dial_task (const void *data)
 misdn_overlap_dial_task_disconnect:
 			hanguptone_indicate(ch);
 			ch->bc->out_cause=1;
+			ch->state=MISDN_CLEANING;
 			misdn_lib_send_event(ch->bc, EVENT_DISCONNECT);
 		}
 		ch->overlap_dial_task = -1;
@@ -5085,7 +5086,6 @@ static int load_module(void)
 
 	if (!ast_strlen_zero(ports))
 		chan_misdn_log(0, 0, "Got: %s from get_ports\n", ports);
-
 	if (misdn_lib_init(ports, &iface, NULL))
 		chan_misdn_log(0, 0, "No te ports initialized\n");
 
