@@ -103,7 +103,7 @@ ast_expr2f.o: ASTCFLAGS+=-DSTANDALONE_AEL -I../main
 
 pval.o : ASTCFLAGS+=-DSTANDALONE
 
-check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o
+check_expr: check_expr.o ast_expr2.o ast_expr2f.o strcompat.o threadstorage.o clicompat.o
 
 aelbison.c: ../res/ael/ael.tab.c
 	@cp $< $@
@@ -138,7 +138,7 @@ hashtest2.o: ASTCFLAGS+=-O0
 
 hashtest2: hashtest2.o md5.o utils.o astobj2.o sha1.o strcompat.o threadstorage.o clicompat.o
 
-hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o
+hashtest: hashtest.o md5.o hashtab.o utils.o sha1.o strcompat.o threadstorage.o clicompat.o
 
 hashtest.o : hashtest.c
 	$(CC) -g -O0 -c hashtest.c -I/usr/include -I../include
