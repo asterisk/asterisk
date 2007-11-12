@@ -4289,7 +4289,7 @@ static char *handle_show_dialplan(struct ast_cli_entry *e, int cmd, struct ast_c
 	case CLI_INIT:
 		e->command = "dialplan show";
 		e->usage = 
-			"Usage: core show dialplan [exten@][context]\n"
+			"Usage: dialplan show [exten@][context]\n"
 			"       Show dialplan\n";
 		return NULL;
 	case CLI_GENERATE:	
