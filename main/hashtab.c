@@ -246,7 +246,7 @@ struct ast_hashtab * ast_hashtab_create(int initial_buckets,
 struct ast_hashtab *ast_hashtab_dup(struct ast_hashtab *tab, void *(*obj_dup_func)(const void *obj))
 {
 	struct ast_hashtab *ht = ast_calloc(1,sizeof(struct ast_hashtab));
-	int i;
+	unsigned int i;
 	
 	ht->array = ast_calloc(tab->hash_tab_size,sizeof(struct ast_hashtab_bucket*));
 	ht->hash_tab_size = tab->hash_tab_size;
@@ -416,7 +416,7 @@ int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj)
 	return 1;
 }
 
-int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, int h)
+int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h)
 {
 	/* normally, you'd insert "safely" by checking to see if the element is
 	   already there; in this case, you must already have checked. If an element
@@ -456,7 +456,7 @@ int ast_hashtab_insert_safe(struct ast_hashtab *tab, const void *obj)
 	   it is not there. */
 	/* will force a resize if the resize func returns 1 */
 	/* returns 1 on success, 0 if there's a problem, or it's already there. */
-	int bucket = 0;
+	unsigned int bucket = 0;
 	if (tab->do_locking)
 		ast_rwlock_wrlock(&tab->lock);
 
@@ -525,7 +525,7 @@ void * ast_hashtab_lookup_with_hash(struct ast_hashtab *tab, const void *obj, un
 	return 0;
 }
 
-void * ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, int *bucket)
+void * ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, unsigned int *bucket)
 {
 	/* lookup this object in the hash table. return a ptr if found, or NULL if not */
 	unsigned int h;

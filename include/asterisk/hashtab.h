@@ -175,7 +175,7 @@ void ast_hashtab_destroy( struct ast_hashtab *tab, void (*objdestroyfunc)(void *
 int ast_hashtab_insert_immediate(struct ast_hashtab *tab, const void *obj);
 
 	/* same as the above, but h is the hash index; won't hash to find the index */
-int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, int h);
+int ast_hashtab_insert_immediate_bucket(struct ast_hashtab *tab, const void *obj, unsigned int h);
 
 
 	/* check to see if the element is already there; insert only if
@@ -194,7 +194,7 @@ void * ast_hashtab_lookup_with_hash(struct ast_hashtab *tab, const void *obj, un
 
 	/* same as the above lookup, but sets h to the key hash value if the lookup fails -- this has the modulus 
        applied, and will not be useful for long term storage if the table is resizable */
-void * ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, int *h);
+void * ast_hashtab_lookup_bucket(struct ast_hashtab *tab, const void *obj, unsigned int *h);
 
 	/* returns key stats for the table */
 void ast_hashtab_get_stats( struct ast_hashtab *tab, int *biggest_bucket_size, int *resize_count, int *num_objects, int *num_buckets);
