@@ -2703,6 +2703,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	struct ao2_iterator memi;
 
 	memset(&bridge_config, 0, sizeof(bridge_config));
+	tmpid[0] = 0;
+	meid[0] = 0;
 	time(&now);
 		
 	for (; options && *options; options++)

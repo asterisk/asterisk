@@ -196,6 +196,7 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 				char tmp2[80];
 				char tmp3[EXT_DATA_SIZE];
 
+				appdata[0] = 0; /* just in case the substitute var func isn't called */
 				if(!ast_strlen_zero(tmp))
 					pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
 				ast_verb(3, "Executing %s(\"%s\", \"%s\")\n",

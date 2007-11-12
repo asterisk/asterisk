@@ -99,6 +99,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 		return 0;
 	
 	s = ast_strdupa(data);
+	args[0] = 0;
 	appname = strsep(&s, "(");
 	if (s) {
 		endargs = strrchr(s, ')');
@@ -129,6 +130,7 @@ static int tryexec_exec(struct ast_channel *chan, void *data)
 		return 0;
 
 	s = ast_strdupa(data);
+	args[0] = 0;
 	appname = strsep(&s, "(");
 	if (s) {
 		endargs = strrchr(s, ')');

@@ -225,6 +225,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 
 	len = sizeof(*mixmonitor) + strlen(chan->name) + strlen(filename) + 2;
 
+	postprocess2[0] = 0;
 	/* If a post process system command is given attach it to the structure */
 	if (!ast_strlen_zero(post_process)) {
 		char *p1, *p2;

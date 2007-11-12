@@ -142,6 +142,7 @@ static int manager_log(struct ast_cdr *cdr)
 	ast_localtime(&cdr->end, &timeresult, NULL);
 	ast_strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
+	buf[0] = 0;
 	/* Custom fields handling */
 	if (customfields != NULL && customfields->used > 0) {
 		memset(&dummy, 0, sizeof(dummy));

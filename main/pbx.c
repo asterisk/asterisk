@@ -1652,6 +1652,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 			continue;
 		}
 		/* Substitute variables now */
+		
 		if (sw->eval)
 			pbx_substitute_variables_helper(chan, sw->data, sw->tmpdata, SWITCH_DATA_LENGTH - 1);
 
@@ -6886,7 +6887,7 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
-
+	tmp[0] = 0;
 	if (!deprecation_warning) {
 		ast_log(LOG_WARNING, "ImportVar is deprecated.  Please use Set(varname=${IMPORT(channel,variable)}) instead.\n");
 		deprecation_warning = 1;

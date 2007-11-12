@@ -535,6 +535,7 @@ static int get_mapping_weight(struct dundi_mapping *map)
 {
 	char buf[32];
 
+	buf[0] = 0;
 	if (map->weightstr) {
 		pbx_substitute_variables_helper(NULL, map->weightstr, buf, sizeof(buf) - 1);
 		if (sscanf(buf, "%d", &map->_weight) != 1)

@@ -157,7 +157,7 @@ static int acf_import(struct ast_channel *chan, const char *cmd, char *data, cha
 		AST_APP_ARG(varname);
 	);
 	AST_STANDARD_APP_ARGS(args, data);
-
+	buf[0] = 0;
 	if (!ast_strlen_zero(args.varname)) {
 		struct ast_channel *chan2 = ast_get_channel_by_name_locked(args.channel);
 		if (chan2) {
