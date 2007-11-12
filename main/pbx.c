@@ -3050,7 +3050,7 @@ static char show_function_help[] =
 "       Describe a particular dialplan function.\n";
 
 static char show_dialplan_help[] =
-"Usage: core show dialplan [exten@][context]\n"
+"Usage: dialplan show [exten@][context]\n"
 "       Show dialplan\n";
 
 static char set_global_help[] =
