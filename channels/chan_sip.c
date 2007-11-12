@@ -2423,8 +2423,16 @@ static int __sip_autodestruct(const void *data)
 		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1, TRUE);	/* Send last notification */
 		p->subscribed = NONE;
 		append_history(p, "Subscribestatus", "timeout");
-		ast_debug(3, "Re-scheduled destruction of SIP subsription %s\n", p->callid ? p->callid : "<unknown>");
+		ast_debug(3, "Re-scheduled destruction of SIP subscription %s\n", p->callid ? p->callid : "<unknown>");
 		return 10000;	/* Reschedule this destruction so that we know that it's gone */
+	}
+
+	/* If there are packets still waiting for delivery, delay the destruction */
+	if (p->packets) {
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Re-scheduled destruction of SIP call %s\n", p->callid ? p->callid : "<unknown>");
+		append_history(p, "ReliableXmit", "timeout");
+		return 10000;
 	}
 
 	if (p->subscribed == MWI_NOTIFICATION)
