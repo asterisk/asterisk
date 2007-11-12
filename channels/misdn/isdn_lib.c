@@ -779,15 +779,12 @@ static int misdn_lib_get_l1_down(struct misdn_stack *stack)
 	/* Pull Up L1 */ 
 	iframe_t act;
 	act.prim = PH_DEACTIVATE | REQUEST; 
-	act.addr = (stack->upper_id | FLG_MSG_DOWN)  ;
-
-	
+	act.addr = stack->lower_id|FLG_MSG_DOWN;
 	act.dinfo = 0;
 	act.len = 0;
 
+	cb_log(1, stack->port, "SENDING PH_DEACTIVATE | REQ\n");
 	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
-
-
 }
 
 
@@ -2003,7 +2000,16 @@ handle_event_nt(void *dat, void *arg)
 				cb_log(0, stack->port, "%% GOT L2 Activate Info. but we're activated already.. this l2 is faulty, blocking port\n");
 				cb_event(EVENT_PORT_ALARM, &stack->bc[0], glob_mgr->user_data);
 			}
-			
+
+			if (stack->ptp && !stack->restart_sent) {
+				/* make sure we restart the interface of the 
+				 * other side */
+				stack->restart_sent=1;
+				misdn_lib_send_restart(stack->port, -1);
+
+			}
+		
+			/* when we get the L2 UP, the L1 is UP definitely too*/
 			stack->l2link = 1;
 			stack->l2upcnt=0;
 			
@@ -3699,30 +3705,29 @@ int misdn_lib_send_restart(int port, int channel)
 	struct misdn_stack *stack=find_stack_by_port(port);
 	struct misdn_bchannel dummybc;
 	/*default is all channels*/
-	int max = stack->pri ? 30 : 2;
-	int i = 1;
-	
 	cb_log(0, port, "Sending Restarts on this port.\n");
 	
 	misdn_make_dummy(&dummybc, stack->port, MISDN_ID_GLOBAL, stack->nt, 0);
 
-	/*if a channel is specified we restart only this one*/
-	if (channel > 0) {
-		i=channel;
-		max=channel;
+	/*default is all channels*/
+	if (channel <0) {
+		dummybc.channel=-1;
+		cb_log(0, port, "Restarting and all Interfaces\n");
+		misdn_lib_send_event(&dummybc, EVENT_RESTART);
+
+		return 0;
 	}
 
-	for (;i<=max;i++) {
+	/*if a channel is specified we restart only this one*/
+	if (channel >0) {
 		int cnt;
-		dummybc.channel=i;
-		cb_log(0, port, "Restarting and cleaning channel %d\n",i);
+		dummybc.channel=channel;
+		cb_log(0, port, "Restarting and cleaning channel %d\n",channel);
 		misdn_lib_send_event(&dummybc, EVENT_RESTART);
-		/*do we need to wait before we get an EVENT_RESTART_ACK ?*/
-
 		/* clean up chan in stack, to be sure we don't think it's
 		 * in use anymore */
 		for (cnt=0; cnt<=stack->b_num; cnt++) {
-			if (stack->bc[cnt].channel == i) {
+			if (stack->bc[cnt].channel == channel) {
 				empty_bc(&stack->bc[cnt]);
 				clean_up_bc(&stack->bc[cnt]);
 				stack->bc[cnt].in_use=0;

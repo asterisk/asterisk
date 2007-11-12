@@ -80,6 +80,9 @@ struct misdn_stack {
 	time_t l2establish;
   
 	int l1link;
+
+	int restart_sent;
+
 	int midev;
   
 	int nt;

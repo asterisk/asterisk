@@ -2655,6 +2655,7 @@ static int misdn_hangup(struct ast_channel *ast)
 		start_bc_tones(p);
 		hanguptone_indicate(p);
 		
+		p->state=MISDN_CLEANING;
 		if (bc->need_disconnect)
 			misdn_lib_send_event( bc, EVENT_DISCONNECT);
 		break;
@@ -2690,7 +2691,8 @@ static int misdn_hangup(struct ast_channel *ast)
 		/*p->state=MISDN_CLEANING;*/
 		break;
 	case MISDN_DISCONNECTED:
-		misdn_lib_send_event( bc, EVENT_RELEASE);
+		if (bc->need_release)
+			misdn_lib_send_event( bc, EVENT_RELEASE);
 		p->state = MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
 		break;
 
@@ -2708,13 +2710,15 @@ static int misdn_hangup(struct ast_channel *ast)
 		chan_misdn_log(1, bc->port, " --> out_cause %d\n", bc->out_cause);
 
 		bc->out_cause = -1;
-		misdn_lib_send_event(bc, EVENT_RELEASE);
+		if (bc->need_release)
+			misdn_lib_send_event(bc, EVENT_RELEASE);
 		p->state = MISDN_CLEANING;
 		break;
 	default:
 		if (bc->nt) {
 			bc->out_cause = -1;
-			misdn_lib_send_event(bc, EVENT_RELEASE);
+			if (bc->need_release)
+				misdn_lib_send_event(bc, EVENT_RELEASE);
 			p->state = MISDN_CLEANING; 
 		} else {
 			if (bc->need_disconnect)
