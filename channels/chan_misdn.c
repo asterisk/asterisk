@@ -797,7 +797,6 @@ static int misdn_set_crypt_debug(int fd, int argc, char *argv[])
 	return 0;
 }
 
-
 static int misdn_port_block(int fd, int argc, char *argv[])
 {
 	int port;
@@ -872,7 +871,7 @@ static int misdn_port_up (int fd, int argc, char *argv[])
 static int misdn_port_down (int fd, int argc, char *argv[])
 {
 	int port;
-	
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	
@@ -2422,7 +2421,7 @@ static int misdn_hangup(struct ast_channel *ast)
 {
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
-	
+
 	ast_log(LOG_DEBUG, "misdn_hangup(%s)\n", ast->name);
 	
 	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
@@ -2510,7 +2509,8 @@ static int misdn_hangup(struct ast_channel *ast)
 			release_chan(bc);
 
 			p->state=MISDN_CLEANING;
-			misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
+			if (bc->need_release_complete)
+				misdn_lib_send_event( bc, EVENT_RELEASE_COMPLETE);
 			break;
 		case MISDN_HOLDED:
 		case MISDN_DIALING:
@@ -2553,7 +2553,8 @@ static int misdn_hangup(struct ast_channel *ast)
 			/*p->state=MISDN_CLEANING;*/
 			break;
 		case MISDN_DISCONNECTED:
-			misdn_lib_send_event( bc, EVENT_RELEASE);
+			if (bc->need_release)
+				misdn_lib_send_event( bc, EVENT_RELEASE);
 			p->state=MISDN_CLEANING; /* MISDN_HUNGUP_FROM_AST; */
 			break;
 
@@ -2571,13 +2572,15 @@ static int misdn_hangup(struct ast_channel *ast)
 			chan_misdn_log(1, bc->port, " --> out_cause %d\n",bc->out_cause);
 			
 			bc->out_cause=-1;
-			misdn_lib_send_event(bc,EVENT_RELEASE);
+			if (bc->need_release)
+				misdn_lib_send_event(bc,EVENT_RELEASE);
 			p->state=MISDN_CLEANING;
 			break;
 		default:
 			if (bc->nt) {
 				bc->out_cause=-1;
-				misdn_lib_send_event(bc, EVENT_RELEASE);
+				if (bc->need_release)
+					misdn_lib_send_event(bc, EVENT_RELEASE);
 				p->state=MISDN_CLEANING; 
 			} else {
 				if (bc->need_disconnect)
