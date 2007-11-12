@@ -29,6 +29,8 @@ struct misdn_stack* get_misdn_stack( void );
 
 static int set_chan_in_stack(struct misdn_stack *stack, int channel);
 
+int release_cr(struct misdn_stack *stack, mISDNuser_head_t *hh);
+
 int misdn_lib_port_is_pri(int port)
 {
 	struct misdn_stack *stack=get_misdn_stack();
@@ -1765,6 +1767,38 @@ int misdn_lib_port_up(int port, int check)
 }
 
 
+int release_cr(struct misdn_stack *stack, mISDNuser_head_t *hh)
+{
+	struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
+	struct misdn_bchannel dummybc;
+	iframe_t frm; /* fake te frm to remove callref from global callreflist */
+	frm.dinfo = hh->dinfo;
+
+	frm.addr=stack->upper_id | FLG_MSG_DOWN;
+
+	frm.prim = CC_RELEASE_CR|INDICATION;
+	cb_log(4, stack->port, " --> CC_RELEASE_CR: Faking Realease_cr for %x l3id:%x\n",frm.addr, frm.dinfo);
+	/** removing procid **/
+	if (!bc) {
+		cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", hh->dinfo);
+		make_dummy(&dummybc, stack->port, hh->dinfo, stack->nt, 0);
+		bc=&dummybc; 
+	}
+
+	if (bc) {
+		if ( (bc->l3_id & 0xff00) == 0xff00) {
+			cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", bc->l3_id&0xff);
+			stack->procids[bc->l3_id&0xff] = 0 ;
+		}
+	}
+	else cb_log(0, stack->port, "Couldnt find BC so I couldnt remove the Process!!!! this is a bad port.\n");
+
+	if (handle_cr(stack, &frm)<0) {
+	}
+
+	return 0 ;
+}
+
 int
 handle_event_nt(void *dat, void *arg)
 {
@@ -1913,43 +1947,23 @@ handle_event_nt(void *dat, void *arg)
 			break;
 
 		case CC_RELEASE|CONFIRM:
+			{
+				struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
+
+				if (bc) { 
+					cb_log(1, stack->port, "CC_RELEASE|CONFIRM (l3id:%x), sending RELEASE_COMPLETE\n", hh->dinfo);
+					misdn_lib_send_event(bc, EVENT_RELEASE_COMPLETE);
+				}
+			}
 			break;
 			
 		case CC_RELEASE|INDICATION:
 			break;
 
 		case CC_RELEASE_CR|INDICATION:
-		{
-			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
-			struct misdn_bchannel dummybc;
-			iframe_t frm; /* fake te frm to remove callref from global callreflist */
-			frm.dinfo = hh->dinfo;
-
-			frm.addr=stack->upper_id | FLG_MSG_DOWN;
-
-			frm.prim = CC_RELEASE_CR|INDICATION;
-			cb_log(4, stack->port, " --> Faking Realease_cr for %x\n",frm.addr);
-			/** removing procid **/
-			if (!bc) {
-				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", hh->dinfo);
-				make_dummy(&dummybc, stack->port, hh->dinfo, stack->nt, 0);
-				bc=&dummybc; 
-			}
-	
-			if (bc) {
-				if ( (bc->l3_id & 0xff00) == 0xff00) {
-					cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", bc->l3_id&0xff);
-					stack->procids[bc->l3_id&0xff] = 0 ;
-				}
-			}
-			else cb_log(0, stack->port, "Couldnt find BC so I couldnt remove the Process!!!! this is a bad port.\n");
-	
-			if (handle_cr(stack, &frm)<0) {
-			}
-
+			release_cr(stack, hh);
 			free_msg(msg);
 			return 0 ;
-		}
 		break;
       
 		case CC_NEW_CR|INDICATION:
@@ -2083,7 +2097,6 @@ handle_event_nt(void *dat, void *arg)
 				}
 				cb_event(event, bc, glob_mgr->user_data);
 			}
-      
 		} else {
 			cb_log(4, stack->port, "No BC found with l3id: prim %x dinfo %x\n",hh->prim, hh->dinfo);
 		}
