@@ -401,7 +401,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			AST_LIST_UNLOCK(&parkinglot);
 			ast_free(pu);
 			ast_log(LOG_WARNING, "Requested parking extension already exists: %s@%s\n", parkingexten, parking_con);
-			return -1; /* We failed to park this call, plain and simple so we need to error out */
+			return 0;	/* Continue execution if possible */
 		}
 		ast_copy_string(pu->parkingexten, parkingexten, sizeof(pu->parkingexten));
 		x = atoi(parkingexten);
