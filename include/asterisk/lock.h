@@ -791,7 +791,7 @@ typedef pthread_rwlock_t ast_rwlock_t;
 #ifdef HAVE_PTHREAD_RWLOCK_INITIALIZER
 #define AST_RWLOCK_INIT_VALUE PTHREAD_RWLOCK_INITIALIZER
 #else
-#define AST_RWLOCK_INIT_VALUE NULL
+#define AST_RWLOCK_INIT_VALUE { 0 }
 #endif
 
 #ifdef DEBUG_THREADS
