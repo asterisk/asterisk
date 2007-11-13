@@ -16826,7 +16826,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		sip_poke_noanswer(peer);	/* Immediately unreachable, network problems */
 	else {
 		peer->pokeexpire = ast_sched_replace(peer->pokeexpire, sched, 
-			DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
+			peer->maxms * 2, sip_poke_noanswer, peer);
 	}
 
 	return 0;
@@ -17769,7 +17769,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, str
 			if (!strcasecmp(v->value, "no")) {
 				peer->maxms = 0;
 			} else if (!strcasecmp(v->value, "yes")) {
-				peer->maxms = DEFAULT_MAXMS;
+				peer->maxms = default_qualify ? default_qualify : DEFAULT_MAXMS;
 			} else if (sscanf(v->value, "%d", &peer->maxms) != 1) {
 				ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 				peer->maxms = 0;
