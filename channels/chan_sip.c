@@ -1863,12 +1863,12 @@ static int map_s_x(const struct _map_x_s *table, const char *s, int errorvalue)
 
 /*! \brief Interface structure with callbacks used to connect to RTP module */
 static struct ast_rtp_protocol sip_rtp = {
-	type: "SIP",
-	get_rtp_info: sip_get_rtp_peer,
-	get_vrtp_info: sip_get_vrtp_peer,
-	get_trtp_info: sip_get_trtp_peer,
-	set_rtp_peer: sip_set_rtp_peer,
-	get_codec: sip_get_codec,
+	.type = "SIP",
+	.get_rtp_info = sip_get_rtp_peer,
+	.get_vrtp_info = sip_get_vrtp_peer,
+	.get_trtp_info = sip_get_trtp_peer,
+	.set_rtp_peer = sip_set_rtp_peer,
+	.get_codec = sip_get_codec,
 };
 
 #define sip_pvt_lock(x) ast_mutex_lock(&x->pvt_lock)
@@ -2119,7 +2119,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 		switch (errno) {
 			case EBADF: 		/* Bad file descriptor - seems like this is generated when the host exist, but doesn't accept the UDP packet */
 			case EHOSTUNREACH: 	/* Host can't be reached */
-			case ENETDOWN: 		/* Inteface down */
+			case ENETDOWN: 		/* Interface down */
 			case ENETUNREACH:	/* Network failure */
 				res = XMIT_ERROR;	/* Don't bother with trying to transmit again */
 		}
