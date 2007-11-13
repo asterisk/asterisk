@@ -1107,13 +1107,16 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 			specif = 1;
 		}
 		
-		if (already && (m2=already_in_tree(m1,buf))) {
+		if (already && (m2=already_in_tree(m1,buf)) && m2->next_char) {
 			if (!(*(s1+1)))  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
 								a shorter pattern might win if the longer one doesn't match */
-				m1->exten = e1;
+				m2->exten = e1;
 			m1 = m2->next_char; /* m1 points to the node to compare against */
 		} else {
-			m1 = add_pattern_node(con, m1, buf, pattern, already,specif); /* m1 is the node just added */
+			if (m2) {
+				m1 = m2;
+			} else 
+				m1 = add_pattern_node(con, m1, buf, pattern, already,specif); /* m1 is the node just added */
 			if (!(*(s1+1)))
 				m1->exten = e1;
 			already = 0;
