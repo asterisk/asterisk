@@ -2260,7 +2260,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 
 	u = ast_module_user_add(chan);
 
-	if (park)
+	if (data)
 		park = atoi((char *)data);
 
 	AST_LIST_LOCK(&parkinglot);
