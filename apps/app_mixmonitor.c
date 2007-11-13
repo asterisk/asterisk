@@ -332,7 +332,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (args.options) {
+	if (args.argc > 1 && args.options) {
 		char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
 
 		ast_app_parse_options(mixmonitor_opts, &flags, opts, args.options);
@@ -378,7 +378,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	}
 
 	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
-	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
+	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.argc > 2 ? args.post_process : "");
 
 	ast_module_user_remove(u);
 
