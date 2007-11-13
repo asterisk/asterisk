@@ -1555,7 +1555,7 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	score.total_specificity = 0;
 	score.exten = 0;
 	score.total_length = 0;
-	if (!tmp->pattern_tree)
+	if (!tmp->pattern_tree && tmp->root_tree)
 	{
 		create_match_char_tree(tmp);
 #ifdef NEED_DEBUG
