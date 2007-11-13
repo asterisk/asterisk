@@ -1569,7 +1569,7 @@ static int try_firmware(char *s)
 		ast_log(LOG_WARNING, "Cannot open '%s': %s\n", s, strerror(errno));
 		return -1;
 	}
-	fd = open(s2, O_RDWR | O_CREAT | O_EXCL);
+	fd = open(s2, O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
 		ast_log(LOG_WARNING, "Cannot open '%s' for writing: %s\n", s2, strerror(errno));
 		close(ifd);

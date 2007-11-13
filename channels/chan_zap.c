@@ -9479,7 +9479,7 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 		if (ast_strlen_zero(argv[4]))
 			return RESULT_SHOWUSAGE;
 
-		myfd = open(argv[4], O_CREAT|O_WRONLY);
+		myfd = open(argv[4], O_CREAT|O_WRONLY, 0600);
 		if (myfd < 0) {
 			ast_cli(fd, "Unable to open '%s' for writing\n", argv[4]);
 			return RESULT_SUCCESS;
