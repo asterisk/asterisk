@@ -220,7 +220,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 {
 	pthread_t thread;
 	struct mixmonitor *mixmonitor;
-	char postprocess2[1024];
+	char postprocess2[1024] = "";
 	size_t len;
 
 	len = sizeof(*mixmonitor) + strlen(chan->name) + strlen(filename) + 2;
