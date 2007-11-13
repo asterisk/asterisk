@@ -138,7 +138,8 @@ static char *descrip = "ParkedCall(exten): "
 "Used to connect to a parked call.  This application is always\n"
 "registered internally and does not need to be explicitly added\n"
 "into the dialplan, although you should include the 'parkedcalls'\n"
-"context.\n";
+"context.  If no extension is provided, then the first available\n"
+"parked call will be acquired.\n";
 
 static char *parkcall = "Park";
 
@@ -2254,22 +2255,17 @@ static int park_exec(struct ast_channel *chan, void *data)
 	struct ast_channel *peer=NULL;
 	struct parkeduser *pu;
 	struct ast_context *con;
-
-	int park;
+	int park = 0;
 	struct ast_bridge_config config;
 
-	if (!data) {
-		ast_log(LOG_WARNING, "Parkedcall requires an argument (extension number)\n");
-		return -1;
-	}
-	
 	u = ast_module_user_add(chan);
 
-	park = atoi((char *)data);
+	if (park)
+		park = atoi((char *)data);
 
 	AST_LIST_LOCK(&parkinglot);
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&parkinglot, pu, list) {
-		if (pu->parkingnum == park) {
+		if (!data || pu->parkingnum == park) {
 			AST_LIST_REMOVE_CURRENT(list);
 			break;
 		}

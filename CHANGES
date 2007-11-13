@@ -255,6 +255,9 @@ Call Features (res_features) Changes
      features.conf.  This means that features can be written a single time, and
      then mapped into groups of features for different key mappings or easier
      access control.
+  * Updated the ParkedCall application to allow you to not specify a parking
+     extension.  If you don't specify a parking space to pick up, it will grab
+     the first one available.
 
 Language Support Changes
 ------------------------
