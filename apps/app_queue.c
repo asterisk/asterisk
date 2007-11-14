@@ -1242,7 +1242,8 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 	struct member *m;
 	struct ao2_iterator mem_iter;
 	char *interface = NULL;
-	char *tmp, *tmp_name;
+	const char *tmp_name;
+	char *tmp;
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
 
 	/* Static queues override realtime. */
@@ -1300,7 +1301,7 @@ static struct call_queue *find_queue_by_name_rt(const char *queuename, struct as
 		if ((tmp = strchr(v->name, '_'))) {
 			ast_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
 			tmp_name = tmpbuf;
-			tmp = tmp_name;
+			tmp = tmpbuf;
 			while ((tmp = strchr(tmp, '_')))
 				*tmp++ = '-';
 		} else
@@ -2664,7 +2665,7 @@ static void send_agent_complete(const struct queue_ent *qe, const char *queuenam
 	const struct ast_channel *peer, const struct member *member, time_t callstart,
 	char *vars, size_t vars_len, enum agent_complete_reason rsn)
 {
-	const char *reason;
+	const char *reason = NULL;	/* silence dumb compilers */
 
 	if (!qe->parent->eventwhencalled)
 		return;

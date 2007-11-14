@@ -259,14 +259,16 @@ struct ast_variable *ast_variable_new(const char *name, const char *value, const
 {
 	struct ast_variable *variable;
 	int name_len = strlen(name) + 1;	
+	int val_len = strlen(value) + 1;	
+	int fn_len = strlen(filename) + 1;	
 
-	if ((variable = ast_calloc(1, name_len + strlen(value) + 1 + strlen(filename) + 1 + sizeof(*variable)))) {
-		variable->name = variable->stuff;
-		variable->value = variable->stuff + name_len;		
-		variable->file = variable->stuff + name_len + strlen(value) + 1;
-		strcpy(variable->name,name);
-		strcpy(variable->value,value);
-		strcpy(variable->file,filename);
+	if ((variable = ast_calloc(1, name_len + val_len + fn_len + sizeof(*variable)))) {
+		char *dst = variable->stuff;	/* writable space starts here */
+		variable->name = strcpy(dst, name);
+		dst += name_len;
+		variable->value = strcpy(dst, value);
+		dst += fn_len;
+		variable->file = strcpy(dst, value);
 	}
 	return variable;
 }
@@ -1721,7 +1723,7 @@ static void clear_config_maps(void)
 	ast_mutex_unlock(&config_lock);
 }
 
-static int append_mapping(char *name, char *driver, char *database, char *table)
+static int append_mapping(const char *name, const char *driver, const char *database, const char *table)
 {
 	struct ast_config_map *map;
 	int length;
@@ -1772,7 +1774,9 @@ int read_config_maps(void)
 	}
 
 	for (v = ast_variable_browse(config, "settings"); v; v = v->next) {
-		stringp = v->value;
+		char buf[512];
+		ast_copy_string(buf, v->value, sizeof(buf));
+		stringp = buf;
 		driver = strsep(&stringp, ",");
 
 		if ((tmp = strchr(stringp, '\"')))

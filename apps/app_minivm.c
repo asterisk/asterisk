@@ -458,7 +458,7 @@ static double global_volgain;	/*!< Volume gain for voicmemail via e-mail */
 #define DEFAULT_CHARSET		"ISO-8859-1"
 
 /* Forward declarations */
-static char *message_template_parse_filebody(char *filename);
+static char *message_template_parse_filebody(const char *filename);
 static char *message_template_parse_emailbody(const char *body);
 static int create_vmaccount(char *name, struct ast_variable *var, int realtime);
 static struct minivm_account *find_user_realtime(const char *domain, const char *username);
@@ -2182,7 +2182,7 @@ static void timezone_destroy_list(void)
 }
 
 /*! \brief Add time zone to memory list */
-static int timezone_add(char *zonename, char *config)
+static int timezone_add(const char *zonename, const char *config)
 {
 
 	struct minivm_zone *newzone;
@@ -2220,7 +2220,7 @@ static int timezone_add(char *zonename, char *config)
 }
 
 /*! \brief Read message template from file */
-static char *message_template_parse_filebody(char *filename) {
+static char *message_template_parse_filebody(const char *filename) {
 	char buf[BUFSIZ * 6];
 	char readbuf[BUFSIZ];
 	char filenamebuf[BUFSIZ];

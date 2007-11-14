@@ -277,8 +277,8 @@ static char *convert(const char *lastname)
  *           '1' for selected entry from directory
  *           '*' for skipped entry from directory
  */
-static int play_mailbox_owner(struct ast_channel *chan, char *context,
-		char *dialcontext, char *ext, char *name, int readext,
+static int play_mailbox_owner(struct ast_channel *chan, const char *context,
+		const char *dialcontext, const char *ext, const char *name, int readext,
 		int fromappvm)
 {
 	int res = 0;

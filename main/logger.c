@@ -174,11 +174,11 @@ AST_THREADSTORAGE(verbose_buf);
 AST_THREADSTORAGE(log_buf);
 #define LOG_BUF_INIT_SIZE       256
 
-static int make_components(char *s, int lineno)
+static int make_components(const char *s, int lineno)
 {
 	char *w;
 	int res = 0;
-	char *stringp = s;
+	char *stringp = ast_strdupa(s);
 
 	while ((w = strsep(&stringp, ","))) {
 		w = ast_skip_blanks(w);
@@ -204,7 +204,7 @@ static int make_components(char *s, int lineno)
 	return res;
 }
 
-static struct logchannel *make_logchannel(char *channel, char *components, int lineno)
+static struct logchannel *make_logchannel(const char *channel, const char *components, int lineno)
 {
 	struct logchannel *chan;
 	char *facility;

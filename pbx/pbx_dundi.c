@@ -4219,7 +4219,7 @@ static void prune_mappings(void)
 	AST_LIST_UNLOCK(&peers);
 }
 
-static void append_permission(struct permissionlist *permlist, char *s, int allow)
+static void append_permission(struct permissionlist *permlist, const char *s, int allow)
 {
 	struct permission *perm;
 
@@ -4234,7 +4234,7 @@ static void append_permission(struct permissionlist *permlist, char *s, int allo
 
 #define MAX_OPTS 128
 
-static void build_mapping(char *name, char *value)
+static void build_mapping(const char *name, const char *value)
 {
 	char *t, *fields[MAX_OPTS];
 	struct dundi_mapping *map;

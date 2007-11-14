@@ -1652,7 +1652,7 @@ static void copy_file(char *frompath, char *topath)
 {
 	char frompath2[PATH_MAX], topath2[PATH_MAX];
 	struct ast_variable *tmp,*var = NULL;
-	char *origmailbox = NULL, *context = NULL, *macrocontext = NULL, *exten = NULL, *priority = NULL, *callerchan = NULL, *callerid = NULL, *origdate = NULL, *origtime = NULL, *category = NULL, *duration = NULL;
+	const char *origmailbox = NULL, *context = NULL, *macrocontext = NULL, *exten = NULL, *priority = NULL, *callerchan = NULL, *callerid = NULL, *origdate = NULL, *origtime = NULL, *category = NULL, *duration = NULL;
 	ast_filecopy(frompath, topath, NULL);
 	snprintf(frompath2, sizeof(frompath2), "%s.txt", frompath);
 	snprintf(topath2, sizeof(topath2), "%s.txt", topath);
@@ -7400,7 +7400,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static struct ast_vm_user *find_or_create(char *context, char *mbox)
+static struct ast_vm_user *find_or_create(const char *context, const char *mbox)
 {
 	struct ast_vm_user *vmu;
 
@@ -7425,7 +7425,7 @@ static struct ast_vm_user *find_or_create(char *context, char *mbox)
 	return vmu;
 }
 
-static int append_mailbox(char *context, char *mbox, char *data)
+static int append_mailbox(const char *context, const char *mbox, const char *data)
 {
 	/* Assumes lock is already held */
 	char *tmp;

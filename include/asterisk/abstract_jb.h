@@ -193,7 +193,7 @@ void ast_jb_destroy(struct ast_channel *chan);
  *
  * \return zero if the property was set to the configuration, -1 if not.
  */
-int ast_jb_read_conf(struct ast_jb_conf *conf, char *varname, char *value);
+int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *value);
 
 
 /*!

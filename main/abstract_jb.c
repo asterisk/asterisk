@@ -562,10 +562,10 @@ static long get_now(struct ast_jb *jb, struct timeval *tv)
 }
 
 
-int ast_jb_read_conf(struct ast_jb_conf *conf, char *varname, char *value)
+int ast_jb_read_conf(struct ast_jb_conf *conf, const char *varname, const char *value)
 {
 	int prefixlen = sizeof(AST_JB_CONF_PREFIX) - 1;
-	char *name;
+	const char *name;
 	int tmp;
 	
 	if (strncasecmp(AST_JB_CONF_PREFIX, varname, prefixlen))

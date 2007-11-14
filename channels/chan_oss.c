@@ -212,7 +212,7 @@ END_CONFIG
  * Likely we will come up with a better way of doing config file parsing.
  */
 #define M_START(var, val) \
-        char *__s = var; char *__val = val;
+        const char *__s = var; const char *__val = val;
 #define M_END(x)   x;
 #define M_F(tag, f)			if (!strcasecmp((__s), tag)) { f; } else
 #define M_BOOL(tag, dst)	M_F(tag, (dst) = ast_true(__val) )
@@ -1413,7 +1413,7 @@ static char *console_active(struct ast_cli_entry *e, int cmd, struct ast_cli_arg
 /*!
  * \brief store the boost factor
  */
-static void store_boost(struct chan_oss_pvt *o, char *s)
+static void store_boost(struct chan_oss_pvt *o, const char *s)
 {
 	double boost = 0;
 	if (sscanf(s, "%lf", &boost) != 1) {
@@ -1472,7 +1472,7 @@ static struct ast_cli_entry cli_oss[] = {
  * invalid or dangerous values (the string is used as argument for
  * system("mixer %s")
  */
-static void store_mixer(struct chan_oss_pvt *o, char *s)
+static void store_mixer(struct chan_oss_pvt *o, const char *s)
 {
 	int i;
 
@@ -1491,7 +1491,7 @@ static void store_mixer(struct chan_oss_pvt *o, char *s)
 /*!
  * store the callerid components
  */
-static void store_callerid(struct chan_oss_pvt *o, char *s)
+static void store_callerid(struct chan_oss_pvt *o, const char *s)
 {
 	ast_callerid_split(s, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
 }

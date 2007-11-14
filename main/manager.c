@@ -2973,9 +2973,9 @@ static void xml_copy_escape(struct ast_str **out, const char *src, int mode)
 static void xml_translate(struct ast_str **out, char *in, struct ast_variable *vars, enum output_format format)
 {
 	struct ast_variable *v;
-	char *dest = NULL;
+	const char *dest = NULL;
 	char *var, *val;
-	char *objtype = NULL;
+	const char *objtype = NULL;
 	int in_data = 0;	/* parsing data */
 	int inobj = 0;
 	int xml = (format == FORMAT_XML);

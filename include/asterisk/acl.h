@@ -56,7 +56,7 @@ struct ast_ha {
 void ast_free_ha(struct ast_ha *ha);
 
 /*! \brief Append ACL entry to host access list. */
-struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int *error);
+struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error);
 
 /*! \brief Check IP address with host access list */
 int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);

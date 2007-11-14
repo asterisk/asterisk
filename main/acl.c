@@ -120,7 +120,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 	return ret;    			/* Return start of list */
 }
 
-struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path, int *error)
+struct ast_ha *ast_append_ha(const char *sense, const char *stuff, struct ast_ha *path, int *error)
 {
 	struct ast_ha *ha;
 	char *nm;

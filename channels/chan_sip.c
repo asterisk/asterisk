@@ -1572,7 +1572,7 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 static void clear_sip_domains(void);
 
 /*--- SIP realm authentication */
-static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);
+static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, const char *configuration, int lineno);
 static int clear_realm_authentication(struct sip_auth *authlist);	/* Clear realm authentication list (at reload) */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);
 
@@ -1686,7 +1686,7 @@ static char *sip_prune_realtime(struct ast_cli_entry *e, int cmd, struct ast_cli
 /*--- Internal UA client handling (outbound registrations) */
 static void ast_sip_ouraddrfor(struct in_addr *them, struct sockaddr_in *us);
 static void sip_registry_destroy(struct sip_registry *reg);
-static int sip_register(char *value, int lineno);
+static int sip_register(const char *value, int lineno);
 static const char *regstate2str(enum sipregistrystate regstate) attribute_const;
 static int sip_reregister(const void *data);
 static int __sip_do_register(struct sip_registry *r);
@@ -5248,7 +5248,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 }
 
 /*! \brief Parse register=> line in sip.conf and add to registry */
-static int sip_register(char *value, int lineno)
+static int sip_register(const char *value, int lineno)
 {
 	struct sip_registry *reg;
 	int portnum = 0;
@@ -12545,8 +12545,11 @@ static char *sip_notify(struct ast_cli_entry *e, int cmd, struct ast_cli_args *a
 
 		initreqprep(&req, p, SIP_NOTIFY);
 
-		for (var = varlist; var; var = var->next)
-			add_header(&req, var->name, ast_unescape_semicolon(var->value));
+		for (var = varlist; var; var = var->next) {
+			char buf[512];
+			ast_copy_string(buf, var->value, sizeof(buf));
+			add_header(&req, var->name, ast_unescape_semicolon(buf));
+		}
 
 		/* Recalculate our side, and recalculate Call ID */
 		ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip);
@@ -17236,7 +17239,7 @@ static void clear_sip_domains(void)
 
 
 /*! \brief Add realm authentication in list */
-static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno)
+static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, const char *configuration, int lineno)
 {
 	char authcopy[256];
 	char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;

@@ -88,7 +88,7 @@ char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid)
 	return os;
 }
 
-int dundi_str_to_eid(dundi_eid *eid, char *s)
+int dundi_str_to_eid(dundi_eid *eid, const char *s)
 {
 	unsigned int eid_int[6];
 	int x;
@@ -100,7 +100,7 @@ int dundi_str_to_eid(dundi_eid *eid, char *s)
 	return 0;
 }
 
-int dundi_str_short_to_eid(dundi_eid *eid, char *s)
+int dundi_str_short_to_eid(dundi_eid *eid, const char *s)
 {
 	unsigned int eid_int[6];
 	int x;

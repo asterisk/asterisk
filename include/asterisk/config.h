@@ -50,16 +50,18 @@ enum {
 /*! \brief Structure for variables, used for configurations and for channel variables 
 */
 struct ast_variable {
-	char *name;
-	char *value;
+	const char *name;
+	const char *value;
+	struct ast_variable *next;
+
 	char *file;
+
 	int lineno;
 	int object;		/*!< 0 for variable, 1 for object */
 	int blanklines; 	/*!< Number of blanklines following entry */
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_comment *trailing; /*!< the last object in the list will get assigned any trailing comments when EOF is hit */
-	struct ast_variable *next;
 	char stuff[0];
 };
 

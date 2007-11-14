@@ -2847,8 +2847,10 @@ static struct skinny_device *build_device(const char *cat, struct ast_variable *
 				if (!(sd = ast_calloc(1, sizeof(*sd)))) {
 					return NULL;
 				} else {
-					char *stringp, *exten, *context, *label;
-					stringp = v->value;
+					char buf[256];
+					char *stringp = buf, *exten, *context, *label;
+
+					ast_copy_string(buf, v->value, sizeof(buf));
 					exten = strsep(&stringp, ",");
 					if ((context = strchr(exten, '@'))) {
 						*context++ = '\0';

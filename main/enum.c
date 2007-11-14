@@ -594,7 +594,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 }
 
 /*! \brief Add enum tree to linked list */
-static struct enum_search *enum_newtoplev(char *s)
+static struct enum_search *enum_newtoplev(const char *s)
 {
 	struct enum_search *tmp;
 

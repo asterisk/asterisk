@@ -267,7 +267,7 @@ static const struct ast_channel_tech agent_tech = {
  * @return The just created agent.
  * \sa agent_pvt, agents.
  */
-static struct agent_pvt *add_agent(char *agent, int pending)
+static struct agent_pvt *add_agent(const char *agent, int pending)
 {
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,

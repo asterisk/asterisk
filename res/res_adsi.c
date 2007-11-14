@@ -70,7 +70,8 @@ static int maxretries = DEFAULT_ADSI_MAX_RETRIES;
 static char intro[ADSI_MAX_INTRO][20];
 static int aligns[ADSI_MAX_INTRO];
 
-static char speeddial[ADSI_MAX_SPEED_DIAL][3][20];
+#define	SPEEDDIAL_MAX_LEN	20
+static char speeddial[ADSI_MAX_SPEED_DIAL][3][SPEEDDIAL_MAX_LEN];
 
 static int alignment = 0;
 
@@ -988,7 +989,7 @@ static int _ast_adsi_unload_session(struct ast_channel *chan)
 	return 0;
 }
 
-static int str2align(char *s)
+static int str2align(const char *s)
 {
 	if (!strncasecmp(s, "l", 1))
 		return ADSI_JUST_LEFT;
@@ -1048,7 +1049,9 @@ static void adsi_load(void)
 		
 	x = 0;
 	for (v = ast_variable_browse(conf, "speeddial"); v; v = v->next) {
-		char *stringp = v->value;
+		char buf[3 * SPEEDDIAL_MAX_LEN];
+		char *stringp = buf;
+		ast_copy_string(buf, v->value, sizeof(buf));
 		name = strsep(&stringp, ",");
 		sname = strsep(&stringp, ",");
 		if (!sname) 

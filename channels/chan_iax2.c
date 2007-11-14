@@ -6287,7 +6287,7 @@ static int iax2_append_register(const char *hostname, const char *username,
 	return 0;
 }
 
-static int iax2_register(char *value, int lineno)
+static int iax2_register(const char *value, int lineno)
 {
 	char copy[256];
 	char *username, *hostname, *secret;
@@ -9592,7 +9592,7 @@ static int start_network_thread(void)
 	return 0;
 }
 
-static struct iax2_context *build_context(char *context)
+static struct iax2_context *build_context(const char *context)
 {
 	struct iax2_context *con;
 
@@ -9602,7 +9602,7 @@ static struct iax2_context *build_context(char *context)
 	return con;
 }
 
-static int get_auth_methods(char *value)
+static int get_auth_methods(const char *value)
 {
 	int methods = 0;
 	if (strstr(value, "rsa"))

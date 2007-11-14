@@ -325,7 +325,7 @@ static int say_datetime(struct ast_channel *chan, time_t t, const char *ints, co
 /*
  * remap the 'say' functions to use those in this file
  */
-static int say_init_mode(char *mode) {
+static int say_init_mode(const char *mode) {
 	if (!strcmp(mode, say_new)) {
 		if (say_cfg == NULL) {
 			ast_log(LOG_ERROR, "There is no say.conf file to use new mode\n");
