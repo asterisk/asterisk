@@ -1468,10 +1468,14 @@ int ast_hangup(struct ast_channel *chan)
 	manager_event(EVENT_FLAG_CALL, "Hangup",
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
+			"CallerIDNum: %s\r\n"
+			"CallerIDName: %s\r\n"
 			"Cause: %d\r\n"
 			"Cause-txt: %s\r\n",
 			chan->name,
 			chan->uniqueid,
+			S_OR(chan->cid.cid_num, "<unknown"),
+			S_OR(chan->cid.cid_name, "<unknown"),
 			chan->hangupcause,
 			ast_cause2str(chan->hangupcause)
 			);
