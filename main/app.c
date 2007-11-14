@@ -705,8 +705,13 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 		for (x = 0; x < fmtcnt; x++) {
 			if (!others[x])
 				break;
-			if (res > 0)
-				ast_stream_rewind(others[x], totalsilence ? totalsilence - 200 : 200);
+			/*!\note
+			 * If we ended with silence, trim all but the first 200ms of silence
+			 * off the recording.  However, if we ended with '#', we don't want
+			 * to trim ANY part of the recording.
+			 */
+			if (res > 0 && totalsilence)
+				ast_stream_rewind(others[x], totalsilence - 200);
 			ast_truncstream(others[x]);
 			ast_closestream(others[x]);
 		}
@@ -721,7 +726,9 @@ static int __ast_play_and_record(struct ast_channel *chan, const char *playfile,
 			realfiles[x] = ast_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
 			if (!others[x] || !realfiles[x])
 				break;
-			ast_stream_rewind(others[x], totalsilence ? totalsilence - 200 : 200);
+			/*!\note Same logic as above. */
+			if (totalsilence)
+				ast_stream_rewind(others[x], totalsilence - 200);
 			ast_truncstream(others[x]);
 			/* add the original file too */
 			while ((fr = ast_readframe(realfiles[x]))) {
