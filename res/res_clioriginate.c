@@ -182,15 +182,15 @@ static struct ast_cli_entry cli_cliorig[] = {
 /*! \brief Unload orginate module */
 static int unload_module(void)
 {
-	ast_cli_unregister_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));
-	return 0;
+	return ast_cli_unregister_multiple(cli_cliorig, ARRAY_LEN(cli_cliorig));
 }
 
 /*! \brief Load orginate module */
 static int load_module(void)
 {
-	ast_cli_register_multiple(cli_cliorig, sizeof(cli_cliorig) / sizeof(struct ast_cli_entry));
-	return AST_MODULE_LOAD_SUCCESS;
+	int res;
+	res = ast_cli_register_multiple(cli_cliorig, ARRAY_LEN(cli_cliorig));
+	return res ? AST_MODULE_LOAD_DECLINE : AST_MODULE_LOAD_SUCCESS;
 }
 
 AST_MODULE_INFO_STANDARD(ASTERISK_GPL_KEY, "Call origination from the CLI");
