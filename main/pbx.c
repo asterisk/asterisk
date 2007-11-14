@@ -892,7 +892,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 	for (p=tree; p; p=p->alt_char) {
 		if (p->x[0] == 'N' && p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
 				if (*(str+1))
@@ -907,7 +907,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 			}
 		} else if (p->x[0] == 'Z' && p->x[1] == 0 && *str >= '1' && *str <= '9' ) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
 				if (*(str+1))
@@ -922,7 +922,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 			}
 		} else if (p->x[0] == 'X' && p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
 				if (*(str+1))
@@ -936,15 +936,27 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 				return;
 			}
 		} else if (p->x[0] == '.' && p->x[1] == 0) {
-			update_scoreboard(score, length+1, spec+11, p->exten, '.', callerid);
+			/* how many chars will the . match against? */
+			int i = 0;
+			while (*str++) {
+				i++;
+			}
+			if (p->exten)
+				update_scoreboard(score, length+i, spec+(i*p->specificity), p->exten, '.', callerid);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
-				new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
 			}
 			return;
 		} else if (p->x[0] == '!' && p->x[1] == 0) {
-			update_scoreboard(score, length+1, spec+11, p->exten, '!', callerid);
+			/* how many chars will the . match against? */
+			int i = 0;
+			while (*str++) {
+				i++;
+			}
+			if (p->exten)
+				update_scoreboard(score, length+1, spec+(p->specificity*i), p->exten, '!', callerid);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
-				new_find_extension("/", score, p->next_char, length+1, spec+p->specificity, callerid);
+				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
 			}
 			return;
 		} else if (p->x[0] == '/' && p->x[1] == 0) {
@@ -954,7 +966,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 			}
 		} else if (index(p->x, *str)) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+8, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
 
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
@@ -1006,15 +1018,15 @@ struct match_char *add_pattern_node(struct ast_context *con, struct match_char *
 	m->x = strdup(pattern);
 	m->is_pattern = is_pattern;
 	if (specificity == 1 && is_pattern && pattern[0] == 'N')
-		m->specificity = 8;
+		m->specificity = 98;
 	else if (specificity == 1 && is_pattern && pattern[0] == 'Z')
-		m->specificity = 9;
+		m->specificity = 99;
 	else if (specificity == 1 && is_pattern && pattern[0] == 'X')
-		m->specificity = 10;
+		m->specificity = 100;
 	else if (specificity == 1 && is_pattern && pattern[0] == '.')
-		m->specificity = 11;
+		m->specificity = 200;
 	else if (specificity == 1 && is_pattern && pattern[0] == '!')
-		m->specificity = 11;
+		m->specificity = 200;
 	else
 		m->specificity = specificity;
 	
@@ -4260,9 +4272,16 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		if (option_debug && c->pattern_tree)
 		{
 			ast_cli(fd,"\r\n     In-mem exten Trie for Fast Extension Pattern Matching:\r\n\r\n");
+
+			ast_cli(fd,"\r\n           Explanation: Node Contents Format = <char(s) to match>:<pattern?>:<specif>:[matched extension]\r\n");
+			ast_cli(fd,    "                        Where <char(s) to match> is a set of chars, any one of which should match the current character\r\n");
+			ast_cli(fd,    "                              <pattern?>: Y if this a pattern match (eg. _XZN[5-7]), N otherwise\r\n");
+			ast_cli(fd,    "                              <specif>: an assigned 'exactness' number for this matching char. The lower the number, the more exact the match\r\n");
+			ast_cli(fd,    "                              [matched exten]: If all chars matched to this point, which extension this matches. In form: EXTEN:<exten string> \r\n");
+			ast_cli(fd,    "                        In general, you match a trie node to a string character, from left to right. All possible matching chars\r\n");
+			ast_cli(fd,    "                        are in a string vertically, separated by an unbroken string of '+' characters.\r\n\r\n");
 			cli_match_char_tree(c->pattern_tree, " ", fd);
 		}
-		
 
 		ast_unlock_context(c);
 
