@@ -855,7 +855,7 @@ static void log_match_char_tree(struct match_char *node, char *prefix)
 	
 	ast_log(LOG_DEBUG,"%s%s:%c:%d:%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN":"");
 	strcpy(my_prefix,prefix);
-	strcat(my_prefix,"+-----------------");
+	strcat(my_prefix,"+       ");
 	if (node->next_char)
 		print_match_char_tree(node->next_char, my_prefix);
 	if (node->alt_char)
@@ -867,9 +867,9 @@ static void cli_match_char_tree(struct match_char *node, char *prefix, int fd)
 {
 	char my_prefix[1024];
 	
-	ast_cli(fd, "%s%s:%c:%d:%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN":"");
+	ast_cli(fd, "%s%s:%c:%d:%s%s\n", prefix, node->x, node->is_pattern ? 'Y':'N', node->specificity, node->exten? "EXTEN:":"", node->exten ? node->exten->exten : "");
 	strcpy(my_prefix,prefix);
-	strcat(my_prefix,"+-----------------");
+	strcat(my_prefix,"+       ");
 	if (node->next_char)
 		cli_match_char_tree(node->next_char, my_prefix, fd);
 	if (node->alt_char)
@@ -1106,7 +1106,7 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 			buf[1] = 0;
 			specif = 1;
 		}
-		
+		m2 = 0;
 		if (already && (m2=already_in_tree(m1,buf)) && m2->next_char) {
 			if (!(*(s1+1)))  /* if this is the end of the pattern, but not the end of the tree, then mark this node with the exten...
 								a shorter pattern might win if the longer one doesn't match */
@@ -4259,7 +4259,7 @@ static int show_dialplan_helper(int fd, const char *context, const char *exten, 
 		
 		if (option_debug && c->pattern_tree)
 		{
-			ast_cli(fd," In-mem exten Trie for Fast Extension Pattern Matching:\r\b\n");
+			ast_cli(fd,"\r\n     In-mem exten Trie for Fast Extension Pattern Matching:\r\n\r\n");
 			cli_match_char_tree(c->pattern_tree, " ", fd);
 		}
 		
