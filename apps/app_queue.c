@@ -94,6 +94,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/stringfields.h"
 #include "asterisk/event.h"
 #include "asterisk/astobj2.h"
+#include "asterisk/strings.h"
 
 enum {
 	QUEUE_STRATEGY_RINGALL = 0,
@@ -402,7 +403,7 @@ struct call_queue {
 		AST_STRING_FIELD(sound_reporthold);
 	);
 	/*! Sound files: Custom announce, no default */
-	char sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS][80];
+	struct ast_str *sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS];
 	unsigned int dead:1;
 	unsigned int joinempty:2;
 	unsigned int eventwhencalled:2;
@@ -871,9 +872,13 @@ static void init_queue(struct call_queue *q)
 	ast_string_field_set(q, sound_lessthan, "queue-less-than");
 	ast_string_field_set(q, sound_reporthold, "queue-reporthold");
 
-	ast_copy_string(q->sound_periodicannounce[0], "queue-periodic-announce", sizeof(q->sound_periodicannounce[0]));
-	for (i = 1; i < MAX_PERIODIC_ANNOUNCEMENTS; i++)
-		q->sound_periodicannounce[i][0]='\0';
+	if ((q->sound_periodicannounce[0] = ast_str_create(32)))
+		ast_str_set(&q->sound_periodicannounce[0], 0, "queue-periodic-announce");
+
+	for (i = 1; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
+		if (q->sound_periodicannounce[i])
+			ast_str_set(&q->sound_periodicannounce[i], 0, "%s", "");
+	}
 }
 
 static void clear_queue(struct call_queue *q)
@@ -1057,13 +1062,15 @@ static void queue_set_param(struct call_queue *q, const char *param, const char 
 			unsigned int i = 0;
 
 			while ((s = strsep(&buf, ",|"))) {
-				ast_copy_string(q->sound_periodicannounce[i], s, sizeof(q->sound_periodicannounce[i]));
+				if (!q->sound_periodicannounce[i])
+					q->sound_periodicannounce[i] = ast_str_create(16);
+				ast_str_set(&q->sound_periodicannounce[i], 0, s);
 				i++;
 				if (i == MAX_PERIODIC_ANNOUNCEMENTS)
 					break;
 			}
 		} else {
-			ast_copy_string(q->sound_periodicannounce[0], val, sizeof(q->sound_periodicannounce[0]));
+			ast_str_set(&q->sound_periodicannounce[0], 0, val);
 		}
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);
@@ -1196,9 +1203,16 @@ static void free_members(struct call_queue *q, int all)
 static void destroy_queue(void *obj)
 {
 	struct call_queue *q = obj;
+	int i;
+
 	ast_debug(0, "Queue destructor called for queue '%s'!\n", q->name);
+
 	free_members(q, 1);
 	ast_string_field_free_memory(q);
+	for (i = 0; i < MAX_PERIODIC_ANNOUNCEMENTS; i++) {
+		if (q->sound_periodicannounce[i])
+			free(q->sound_periodicannounce[i]);
+	}
 	ao2_ref(q->members, -1);
 }
 
@@ -2115,12 +2129,14 @@ static int say_periodic_announcement(struct queue_ent *qe, int ringing)
 	ast_verb(3, "Playing periodic announcement\n");
 
 	/* Check to make sure we have a sound file. If not, reset to the first sound file */
-	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || ast_strlen_zero(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound])) {
+	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || 
+		!qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound] ||
+		ast_strlen_zero(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]->str)) {
 		qe->last_periodic_announce_sound = 0;
 	}
 	
 	/* play the announcement */
-	res = play_file(qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]);
+	res = play_file(qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]->str);
 
 	if ((res > 0 && !valid_exit(qe, res)) || res < 0)
 		res = 0;
