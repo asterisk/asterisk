@@ -107,7 +107,7 @@ struct ast_hashtab_iter
 /* some standard, default routines for general use */
 
 /*! \brief For sizing the hash table, tells if num is prime or not */
-int isPrime(int num);
+int ast_is_prime(int num);
 
 /*! 
  * \brief assumes a and b are char * 
