@@ -2103,17 +2103,11 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 		return -1;
 
 	AST_RWLIST_WRLOCK(&acf_root);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&acf_root, cur, acflist) {
-		if (cur == acf) {
-			AST_RWLIST_REMOVE_CURRENT(acflist);
-			ast_verb(2, "Unregistered custom function %s\n", acf->name);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+	if ((cur = AST_RWLIST_REMOVE(&acf_root, acf, acflist)))
+		ast_verb(2, "Unregistered custom function %s\n", cur->name);
 	AST_RWLIST_UNLOCK(&acf_root);
 
-	return acf ? 0 : -1;
+	return cur ? 0 : -1;
 }
 
 int __ast_custom_function_register(struct ast_custom_function *acf, struct ast_module *mod)

@@ -1250,20 +1250,7 @@ int ast_channel_datastore_add(struct ast_channel *chan, struct ast_datastore *da
 
 int ast_channel_datastore_remove(struct ast_channel *chan, struct ast_datastore *datastore)
 {
-	struct ast_datastore *datastore2 = NULL;
-	int res = -1;
-
-	/* Find our position and remove ourselves */
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore2, entry) {
-		if (datastore2 == datastore) {
-			AST_LIST_REMOVE_CURRENT(entry);
-			res = 0;
-			break;
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END;
-
-	return res;
+	return AST_LIST_REMOVE(&chan->datastores, datastore, entry) ? 0 : -1;
 }
 
 struct ast_datastore *ast_channel_datastore_find(struct ast_channel *chan, const struct ast_datastore_info *info, const char *uid)
