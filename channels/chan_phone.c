@@ -1155,7 +1155,7 @@ static int restart_monitor()
 	return 0;
 }
 
-static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
+static struct phone_pvt *mkif(const char *iface, int mode, int txgain, int rxgain)
 {
 	/* Make a phone_pvt structure for this interface */
 	struct phone_pvt *tmp;
@@ -1258,7 +1258,7 @@ static struct ast_channel *phone_request(const char *type, int format, void *dat
 }
 
 /* parse gain value from config file */
-static int parse_gain_value(char *gain_type, char *value)
+static int parse_gain_value(const char *gain_type, const char *value)
 {
 	float gain;
 

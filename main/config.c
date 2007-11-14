@@ -267,7 +267,7 @@ struct ast_variable *ast_variable_new(const char *name, const char *value, const
 		variable->name = strcpy(dst, name);
 		dst += name_len;
 		variable->value = strcpy(dst, value);
-		dst += fn_len;
+		dst += val_len;
 		variable->file = strcpy(dst, filename);
 	}
 	return variable;

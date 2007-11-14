@@ -232,7 +232,8 @@ static int load_odbc_config(void)
 	static char *cfg = "res_odbc.conf";
 	struct ast_config *config;
 	struct ast_variable *v;
-	char *cat, *dsn, *username, *password, *sanitysql;
+	char *cat;
+	const char *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit;
 	int connect = 0, res = 0;
 	struct ast_flags config_flags = { 0 };
@@ -581,7 +582,8 @@ static int reload(void)
 	static char *cfg = "res_odbc.conf";
 	struct ast_config *config;
 	struct ast_variable *v;
-	char *cat, *dsn, *username, *password, *sanitysql;
+	char *cat;
+	const char *dsn, *username, *password, *sanitysql;
 	int enabled, pooling, limit;
 	int connect = 0, res = 0;
 	struct ast_flags config_flags = { CONFIG_FLAG_FILEUNCHANGED };

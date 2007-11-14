@@ -2650,7 +2650,7 @@ static int aji_create_client(char *label, struct ast_variable *var, int debug)
 		else if (!strcasecmp(var->name, "autoregister"))
 			ast_set2_flag(client, ast_true(var->value), AJI_AUTOREGISTER);
 		else if (!strcasecmp(var->name, "buddy"))
-				aji_create_buddy(var->value, client);
+			aji_create_buddy((char *)var->value, client);
 		else if (!strcasecmp(var->name, "priority"))
 			client->priority = atoi(var->value);
 		else if (!strcasecmp(var->name, "status")) {

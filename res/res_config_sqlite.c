@@ -215,7 +215,7 @@ struct rt_multi_cfg_entry_args {
  * \retval 0 on success
  * \retval 1 if an allocation error occurred
  */
-static int set_var(char **var, char *name, char *value);
+static int set_var(char **var, const char *name, const char *value);
 
 /*!
  * \brief Load the configuration file.
@@ -587,7 +587,7 @@ static char *sql_get_config_table =
 "	WHERE filename = '%q' AND commented = 0"
 "	ORDER BY cat_metric ASC, var_metric ASC;";
 
-static int set_var(char **var, char *name, char *value)
+static int set_var(char **var, const char *name, const char *value)
 {
 	if (*var)
 		ast_free(*var);

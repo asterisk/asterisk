@@ -12246,7 +12246,7 @@ static int build_channels(struct zt_chan_conf conf, int iscrv, const char *value
 static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int reload, int skipchannels)
 {
 	struct zt_pvt *tmp;
-	char *ringc; /* temporary string for parsing the dring number. */
+	const char *ringc; /* temporary string for parsing the dring number. */
 	int y;
 	int found_pseudo = 0;
         char zapchan[MAX_CHANLIST_LEN] = {};
@@ -12785,9 +12785,9 @@ static int process_zap(struct zt_chan_conf *confp, struct ast_variable *v, int r
 				}
 			} else if (!strcasecmp(v->name, "pritimer")) {
 #ifdef PRI_GETSET_TIMERS
-				char *timerc, *c;
+				char tmp[20], *timerc, *c = tmp;
 				int timer, timeridx;
-				c = v->value;
+				ast_copy_string(tmp, v->value, sizeof(tmp));
 				timerc = strsep(&c, ",");
 				if (timerc) {
 					timer = atoi(c);
