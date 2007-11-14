@@ -51,27 +51,20 @@ static AST_RWLIST_HEAD_STATIC(imagers, ast_imager);
 
 int ast_image_register(struct ast_imager *img)
 {
-	ast_verb(2, "Registered format '%s' (%s)\n", img->name, img->desc);
 	AST_RWLIST_WRLOCK(&imagers);
 	AST_RWLIST_INSERT_HEAD(&imagers, img, list);
 	AST_RWLIST_UNLOCK(&imagers);
+	ast_verb(2, "Registered format '%s' (%s)\n", img->name, img->desc);
 	return 0;
 }
 
 void ast_image_unregister(struct ast_imager *img)
 {
-	struct ast_imager *i;
-	
 	AST_RWLIST_WRLOCK(&imagers);
-	AST_RWLIST_TRAVERSE_SAFE_BEGIN(&imagers, i, list) {	
-		if (i == img) {
-			AST_RWLIST_REMOVE_CURRENT(list);
-			break;
-		}
-	}
-	AST_RWLIST_TRAVERSE_SAFE_END;
+	img = AST_RWLIST_REMOVE(&imagers, img, list);
 	AST_RWLIST_UNLOCK(&imagers);
-	if (i)
+
+	if (img)
 		ast_verb(2, "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
 
@@ -216,6 +209,6 @@ struct ast_cli_entry cli_image[] = {
 
 int ast_image_init(void)
 {
-	ast_cli_register_multiple(cli_image, sizeof(cli_image) / sizeof(struct ast_cli_entry));
+	ast_cli_register_multiple(cli_image, ARRAY_LEN(cli_image));
 	return 0;
 }
