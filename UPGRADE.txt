@@ -98,7 +98,7 @@ Formats:
 
 * format_wav: The GAIN preprocessor definition and source code that used it
   is removed.  This change was made in response to user complaints of
-  choppiness or the clipping of loud signal peaks.  To increasing the volume
+  choppiness or the clipping of loud signal peaks.  To increase the volume
   of voicemail messages, use the 'volgain' option in voicemail.conf
 
 Channel Drivers:
