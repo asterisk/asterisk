@@ -4171,6 +4171,29 @@ static int sla_station_exec(struct ast_channel *chan, void *data)
 			trunk_ref->state = SLA_TRUNK_STATE_UP;
 			ast_device_state_changed("SLA:%s_%s", station->name, trunk_ref->trunk->name);
 		}
+	} else if (trunk_ref->state == SLA_TRUNK_STATE_RINGING) {
+		struct sla_ringing_trunk *ringing_trunk;
+
+		ast_mutex_lock(&sla.lock);
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&sla.ringing_trunks, ringing_trunk, entry) {
+			if (ringing_trunk->trunk == trunk_ref->trunk) {
+				AST_LIST_REMOVE_CURRENT(&sla.ringing_trunks, entry);
+				break;
+			}
+		}
+		AST_LIST_TRAVERSE_SAFE_END
+		ast_mutex_unlock(&sla.lock);
+
+		if (ringing_trunk) {
+			ast_answer(ringing_trunk->trunk->chan);
+			sla_change_trunk_state(ringing_trunk->trunk, SLA_TRUNK_STATE_UP, ALL_TRUNK_REFS, NULL);
+
+			free(ringing_trunk);
+
+			/* Queue up reprocessing ringing trunks, and then ringing stations again */
+			sla_queue_event(SLA_EVENT_RINGING_TRUNK);
+			sla_queue_event(SLA_EVENT_DIAL_STATE);
+		}
 	}
 
 	trunk_ref->chan = chan;
