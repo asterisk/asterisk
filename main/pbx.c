@@ -359,6 +359,8 @@ static int hashtab_compare_extens(const void *ah_a, const void *ah_b)
 	/* but if they are the same, do the cidmatch values match? */
 	if (ac->matchcid && bc->matchcid) {
 		return strcmp(ac->cidmatch,bc->cidmatch);
+	} else if (!ac->matchcid && !bc->matchcid) {
+		return 0; /* if there's no matchcid on either side, then this is a match */
 	} else {
 		return 1; /* if there's matchcid on one but not the other, they are different */
 	}
@@ -1015,7 +1017,7 @@ struct match_char *already_in_tree(struct match_char *current, char *pat)
 struct match_char *add_pattern_node(struct ast_context *con, struct match_char *current, char *pattern, int is_pattern, int already, int specificity)
 {
 	struct match_char *m = ast_calloc(1,sizeof(struct match_char));
-	m->x = strdup(pattern);
+	m->x = ast_strdup(pattern);
 	m->is_pattern = is_pattern;
 	if (specificity == 1 && is_pattern && pattern[0] == 'N')
 		m->specificity = 98;
@@ -1081,6 +1083,7 @@ struct match_char *add_exten_to_pattern_tree(struct ast_context *con, struct ast
 	while( *s1 ) {
 		if (pattern && *s1 == '[' && *(s1-1) != '\\') {
 			char *s2 = buf;
+			buf[0] = 0;
 			while (*s1 != ']' && *(s1-1) != '\\' ) {
 				if (*s1 == '\\') {
 					if (*(s1+1) == ']') {
@@ -1514,12 +1517,12 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 	const char *label, const char *callerid, enum ext_match_t action)
 {
 	int x, res;
-	struct ast_context *tmp;
-	struct ast_exten *e, *eroot;
-	struct ast_include *i;
-	struct ast_sw *sw;
-	struct ast_exten pattern;
-	struct scoreboard score;
+	struct ast_context *tmp=0;
+	struct ast_exten *e=0, *eroot=0;
+	struct ast_include *i = 0;
+	struct ast_sw *sw = 0;
+	struct ast_exten pattern = {0};
+	struct scoreboard score = {0};
 
 	pattern.label = label;
 	pattern.priority = priority;
@@ -4689,7 +4692,7 @@ static struct ast_context *__ast_context_create(struct ast_context **extcontexts
 										   ast_hashtab_resize_java,
 										   ast_hashtab_newsize_java,
 										   hashtab_hash_contexts,
-										   1);
+										   0);
 	}
 	
 	if (!extcontexts) {
@@ -5659,7 +5662,7 @@ int ast_add_extension2(struct ast_context *con,
 	int length;
 	char *p;
 	char expand_buf[VAR_BUF_SIZE];
-	struct ast_exten dummy_exten;
+	struct ast_exten dummy_exten = {0};
 	char dummy_name[1024];
 
 	/* if we are adding a hint, and there are global variables, and the hint
@@ -5717,10 +5720,14 @@ int ast_add_extension2(struct ast_context *con,
 								an extension, and the trie exists, then we need to incrementally add this pattern to it. */
 		strncpy(dummy_name,extension,sizeof(dummy_name));
 		dummy_exten.exten = dummy_name;
+		dummy_exten.matchcid = 0;
+		dummy_exten.cidmatch = 0;
+		ast_log(LOG_NOTICE,"Adding exten %s to context %s; about to lookup in root_tree hashtab %x\n", extension, con->name, (unsigned int)con->root);
 		tmp2 = ast_hashtab_lookup(con->root_tree,&dummy_exten);
 		if (!tmp2) {
 			/* hmmm, not in the trie; */
 			add_exten_to_pattern_tree(con, tmp);
+			ast_hashtab_insert_safe(con->root_tree, tmp); /* for the sake of completeness */
 		}
 	}
 	res = 0; /* some compilers will think it is uninitialized otherwise */
@@ -5759,13 +5766,13 @@ int ast_add_extension2(struct ast_context *con,
 							ast_hashtab_resize_java,
 							ast_hashtab_newsize_java,
 							hashtab_hash_priority,
-							1);
+							0);
 			tmp->peer_label_tree = ast_hashtab_create(7,
 								hashtab_compare_exten_labels,
 								ast_hashtab_resize_java,
 								ast_hashtab_newsize_java,
 								hashtab_hash_labels,
-								1);
+								0);
 			if (label)
 				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
 			ast_hashtab_insert_safe(tmp->peer_tree, tmp);
@@ -5777,20 +5784,20 @@ int ast_add_extension2(struct ast_context *con,
 													ast_hashtab_resize_java,
 													ast_hashtab_newsize_java,
 													hashtab_hash_extens,
-													1);
+													0);
 			con->root = tmp;
 			con->root->peer_tree = ast_hashtab_create(13,
 								hashtab_compare_exten_numbers,
 								ast_hashtab_resize_java,
 								ast_hashtab_newsize_java,
 								hashtab_hash_priority,
-								1);
+								0);
 			con->root->peer_label_tree = ast_hashtab_create(7,
 									hashtab_compare_exten_labels,
 									ast_hashtab_resize_java,
 									ast_hashtab_newsize_java,
 									hashtab_hash_labels,
-									1);
+									0);
 			if (label)
 				ast_hashtab_insert_safe(con->root->peer_label_tree,tmp);
 			ast_hashtab_insert_safe(con->root->peer_tree, tmp);
