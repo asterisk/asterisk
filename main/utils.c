@@ -1244,7 +1244,7 @@ static int add_string_pool(struct ast_string_field_mgr *mgr,
  *	This must be done before destroying the object.
  */
 int __ast_string_field_init(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, size_t size)
+	struct ast_string_field_pool **pool_head, int size)
 {
 	const char **p = (const char **)pool_head + 1;
 	struct ast_string_field_pool *cur = *pool_head;

@@ -230,7 +230,7 @@ void __ast_string_field_ptr_build_va(struct ast_string_field_mgr *mgr,
 
 /*! \internal \brief internal version of ast_string_field_init */
 int __ast_string_field_init(struct ast_string_field_mgr *mgr,
-	struct ast_string_field_pool **pool_head, size_t needed);
+	struct ast_string_field_pool **pool_head, int needed);
 
 /*!
   \brief Set a field to a simple string value
