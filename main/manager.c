@@ -2487,6 +2487,7 @@ static struct mansession *find_session(unsigned long ident)
 		ast_mutex_lock(&s->__lock);
 		if (s->sessiontimeout && (s->managerid == ident) && !s->needdestroy) {
 			s->inuse++;
+			ast_mutex_unlock(&s->__lock);
 			break;
 		}
 		ast_mutex_unlock(&s->__lock);
