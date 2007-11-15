@@ -12297,6 +12297,12 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	    !strcasecmp(c, "application/vnd.nortelnetworks.digits")) {
 		unsigned int duration = 0;
 
+		if (!p->owner) {	/* not a PBX call */
+			transmit_response(p, "481 Call leg/transaction does not exist", req);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return;
+		}
+
 		/* Try getting the "signal=" part */
 		if (ast_strlen_zero(c = get_body(req, "Signal")) && ast_strlen_zero(c = get_body(req, "d"))) {
 			ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
@@ -12311,11 +12317,6 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		if (!duration)
 			duration = 100; /* 100 ms */
 
-		if (!p->owner) {	/* not a PBX call */
-			transmit_response(p, "481 Call leg/transaction does not exist", req);
-			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
-			return;
-		}
 
 		if (ast_strlen_zero(buf)) {
 			transmit_response(p, "200 OK", req);
@@ -12358,14 +12359,16 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 	} else if (!strcasecmp(c, "application/dtmf")) {
 		unsigned int duration = 0;
 
-		get_msg_text(buf, sizeof(buf), req);
-		duration = 100; /* 100 ms */
-
-		if (!p->owner) {	/* not a PBX call */	
+		if (!p->owner) {	/* not a PBX call */
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
 			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 			return;
 		}
+
+
+
+		get_msg_text(buf, sizeof(buf), req);
+		duration = 100; /* 100 ms */
 
 		if (ast_strlen_zero(buf)) {
 			transmit_response(p, "200 OK", req);
