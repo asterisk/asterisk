@@ -1586,10 +1586,13 @@ struct ast_exten *pbx_find_extension(struct ast_channel *chan,
 		return NULL;
 	}
 
-	if (!eroot && action == E_CANMATCH && score.canmatch_exten) {
+	if (!eroot && (action == E_CANMATCH || action == E_MATCHMORE) && score.canmatch_exten) {
 		q->status = STATUS_SUCCESS;
 		return score.canmatch_exten;
 	}
+
+	if (action == E_MATCHMORE && eroot)
+		return NULL;  /* according to the code, complete matches are null matches in MATCHMORE mode */
 
 	if (eroot) {
 		/* found entry, now look for the right priority */
