@@ -5444,6 +5444,8 @@ static int find_sdp(struct sip_request *req)
 	char *boundary;
 	unsigned int x;
 	int boundaryisquoted = FALSE;
+	int found_application_sdp = FALSE;
+	int found_end_of_headers = FALSE;
 
 	content_type = get_header(req, "Content-Type");
 
@@ -5476,31 +5478,36 @@ static int find_sdp(struct sip_request *req)
 	   at the beginning */
 	boundary = ast_strdupa(search - 2);
 	boundary[0] = boundary[1] = '-';
-
 	/* Remove final quote */
 	if (boundaryisquoted)
 		boundary[strlen(boundary) - 1] = '\0';
 
-	/* search for the boundary marker, but stop when there are not enough
-	   lines left for it, the Content-Type header and at least one line of
-	   body */
-	for (x = 0; x < (req->lines - 2); x++) {
-		if (!strncasecmp(req->line[x], boundary, strlen(boundary)) &&
-		    !strcasecmp(req->line[x + 1], "Content-Type: application/sdp")) {
-			x += 2;
-			req->sdp_start = x;
+	/* search for the boundary marker, the empty line delimiting headers from
+	   sdp part and the end boundry if it exists */
 
-			/* search for the end of the body part */
-			for ( ; x < req->lines; x++) {
-				if (!strncasecmp(req->line[x], boundary, strlen(boundary)))
-					break;
+	for (x = 0; x < (req->lines ); x++) {
+		if(!strncasecmp(req->line[x], boundary, strlen(boundary))){
+			if(found_application_sdp && found_end_of_headers){
+				req->sdp_end = x-1;
+				return 1;
 			}
-			req->sdp_end = x;
-			return 1;
+			found_application_sdp = FALSE;
+		}
+		if(!strcasecmp(req->line[x], "Content-Type: application/sdp"))
+			found_application_sdp = TRUE;
+		
+		if(strlen(req->line[x]) == 0 ){
+			if(found_application_sdp && !found_end_of_headers){
+				req->sdp_start = x;
+				found_end_of_headers = TRUE;
+			}
 		}
 	}
-
-	return 0;
+	if(found_application_sdp && found_end_of_headers) {
+		req->sdp_end = x;
+		return TRUE;
+	}
+	return FALSE;
 }
 
 /*! \brief Process SIP SDP offer, select formats and activate RTP channels
