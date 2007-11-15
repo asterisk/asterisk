@@ -1131,7 +1131,7 @@ int setup_bc(struct misdn_bchannel *bc)
 /** IFACE **/
 int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, int port, int bidx,  char *msn, int firsttime)
 {
-	unsigned char buff[1025];
+	unsigned char buff[1025] = "";
 	iframe_t *frm = (iframe_t *)buff;
 	int ret;
   
