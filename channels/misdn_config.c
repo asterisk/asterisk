@@ -435,7 +435,7 @@ static int _enum_array_map (void)
 	return 0;
 }
 
-static int get_cfg_position (char *name, int type)
+static int get_cfg_position (const char *name, int type)
 {
 	int i;
 
@@ -861,11 +861,12 @@ int misdn_cfg_get_next_port_spin (int port)
 	return (p > 0) ? p : misdn_cfg_get_next_port(0);
 }
 
-static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type type, int boolint_def)
+static int _parse (union misdn_cfg_pt *dest, const char *value, enum misdn_cfg_type type, int boolint_def)
 {
 	int re = 0;
 	int len, tmp;
 	char *valtmp;
+	char *tmp2 = ast_strdupa(value);
 
 	switch (type) {
 	case MISDN_CTYPE_STR:
@@ -905,7 +906,7 @@ static int _parse (union misdn_cfg_pt *dest, char *value, enum misdn_cfg_type ty
 		}
 		break;
 	case MISDN_CTYPE_MSNLIST:
-		for (valtmp = strsep(&value, ","); valtmp; valtmp = strsep(&value, ",")) {
+		for (valtmp = strsep(&tmp2, ","); valtmp; valtmp = strsep(&tmp2, ",")) {
 			if ((len = strlen(valtmp))) {
 				struct msn_list *ml = ast_malloc(sizeof(*ml));
 				ml->msn = ast_calloc(len+1, sizeof(char));
@@ -961,10 +962,10 @@ static void _build_port_config (struct ast_variable *v, char *cat)
 
 	for (; v; v = v->next) {
 		if (!strcasecmp(v->name, "ports")) {
-			char *token;
+			char *token, *tmp = ast_strdupa(v->value);
 			char ptpbuf[BUFFERSIZE] = "";
 			int start, end;
-			for (token = strsep(&v->value, ","); token; token = strsep(&v->value, ","), *ptpbuf = 0) { 
+			for (token = strsep(&tmp, ","); token; token = strsep(&tmp, ","), *ptpbuf = 0) { 
 				if (!*token)
 					continue;
 				if (sscanf(token, "%d-%d%s", &start, &end, ptpbuf) >= 2) {

@@ -1362,7 +1362,7 @@ static int update_common_options(struct ast_variable *v, struct call_options *op
 	return 0;
 }
 
-static struct oh323_user *build_user(char *name, struct ast_variable *v, struct ast_variable *alt, int realtime)
+static struct oh323_user *build_user(const char *name, struct ast_variable *v, struct ast_variable *alt, int realtime)
 {
 	struct oh323_user *user;
 	struct ast_ha *oldha;
@@ -1446,7 +1446,7 @@ static struct oh323_user *realtime_user(const call_details_t *cd)
 {
 	struct ast_variable *var, *tmp;
 	struct oh323_user *user;
-	char *username;
+	const char *username;
 
 	if (userbyalias)
 		var = ast_load_realtime("h323", "name", username = cd->call_source_aliases, NULL);

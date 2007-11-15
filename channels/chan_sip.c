@@ -9951,7 +9951,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
  * Note that ast_sip_ouraddrfor() still rewrites p->ourip
  * if you specify externip/seternaddr/stunaddr.
  */
-static void check_via_response(struct sip_pvt *p, struct sip_request *req)
+static attribute_unused void check_via_response(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[256];
 	char *cur, *opts;
