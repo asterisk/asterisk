@@ -421,7 +421,7 @@ struct ast_channel {
 	    							directly, use ast_softhangup() */
 	time_t	whentohangup;				/*!< Non-zero, set to actual time when channel is to be hung up */
 	pthread_t blocker;				/*!< If anyone is blocking, this is them */
-	ast_mutex_t lock;				/*!< Lock, can be used to lock a channel for some operations - see ast_channel_lock() */
+	ast_mutex_t lock_dont_use;				/*!< Lock, can be used to lock a channel for some operations - see ast_channel_lock() */
 	const char *blockproc;				/*!< Procedure causing blocking */
 
 	const char *appl;				/*!< Current application */

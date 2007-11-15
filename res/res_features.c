@@ -2449,17 +2449,17 @@ static char mandescr_bridge[] =
 static void do_bridge_masquerade(struct ast_channel *chan, struct ast_channel *tmpchan)
 {
 	ast_moh_stop(chan);
-	ast_mutex_lock(&chan->lock);
+	ast_channel_lock(chan);
 	ast_setstate(tmpchan, chan->_state);
 	tmpchan->readformat = chan->readformat;
 	tmpchan->writeformat = chan->writeformat;
 	ast_channel_masquerade(tmpchan, chan);
-	ast_mutex_lock(&tmpchan->lock);
+	ast_channel_lock(tmpchan);
 	ast_do_masquerade(tmpchan);
 	/* when returning from bridge, the channel will continue at the next priority */
 	ast_explicit_goto(tmpchan, chan->context, chan->exten, chan->priority + 1);
-	ast_mutex_unlock(&tmpchan->lock);
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(tmpchan);
+	ast_channel_unlock(chan);
 }
 
 /*!
@@ -2490,9 +2490,9 @@ static int action_bridge(struct mansession *s, const struct message *m)
 		chana = ast_get_channel_by_name_prefix_locked(channela, strlen(channela));
 		chanb = ast_get_channel_by_name_prefix_locked(channelb, strlen(channelb));
 		if (chana)
-			ast_mutex_unlock(&chana->lock);
+			ast_channel_unlock(chana);
 		if (chanb)
-			ast_mutex_unlock(&chanb->lock);
+			ast_channel_unlock(chanb);
 
 		/* send errors if any of the channels could not be found/locked */
 		if (!chana) {
@@ -3186,7 +3186,7 @@ static int bridge_exec(struct ast_channel *chan, void *data)
 		ast_module_user_remove(u);
 		return 0;
 	}
-	ast_mutex_unlock(&current_dest_chan->lock);
+	ast_channel_unlock(current_dest_chan);
 
 	/* answer the channel if needed */
 	if (current_dest_chan->_state != AST_STATE_UP)

@@ -778,7 +778,7 @@ struct ast_channel *ast_channel_alloc(int needqueue, int state, const char *cid_
 	headp = &tmp->varshead;
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 	
-	ast_mutex_init(&tmp->lock);
+	ast_mutex_init(&tmp->lock_dont_use);
 	
 	AST_LIST_HEAD_INIT_NOLOCK(&tmp->datastores);
 	
@@ -1136,7 +1136,7 @@ void ast_channel_free(struct ast_channel *chan)
 	if (chan->pbx)
 		ast_log(LOG_WARNING, "PBX may not have been terminated properly on '%s'\n", chan->name);
 	free_cid(&chan->cid);
-	ast_mutex_destroy(&chan->lock);
+	ast_mutex_destroy(&chan->lock_dont_use);
 	/* Close pipes if appropriate */
 	if ((fd = chan->alertpipe[0]) > -1)
 		close(fd);
@@ -2883,13 +2883,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			if (!chan->tech->get_base_channel || chan == chan->tech->get_base_channel(chan))
 				res = chan->tech->write(chan, f);
 			else {
-				while (chan->tech->get_base_channel && (((base = chan->tech->get_base_channel(chan)) && ast_mutex_trylock(&base->lock)) || base == NULL)) {
-					ast_mutex_unlock(&chan->lock);
+				while (chan->tech->get_base_channel && (((base = chan->tech->get_base_channel(chan)) && ast_channel_trylock(base)) || base == NULL)) {
+					ast_channel_unlock(chan);
 					usleep(1);
-					ast_mutex_lock(&chan->lock);
+					ast_channel_lock(chan);
 				}
 				res = base->tech->write(base, f);
-				ast_mutex_unlock(&base->lock);
+				ast_channel_unlock(base);
 			}
 		} else
 			res = 0;
@@ -3541,7 +3541,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* We need the clone's lock, too */
 	ast_channel_lock(clone);
 
-	ast_debug(2, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock);
+	ast_debug(2, "Got clone lock for masquerade on '%s' at %p\n", clone->name, &clone->lock_dont_use);
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
@@ -4670,12 +4670,12 @@ int ast_channel_unlock(struct ast_channel *chan)
 		return 0;
 	}
 
-	res = ast_mutex_unlock(&chan->lock);
+	res = ast_mutex_unlock(&chan->lock_dont_use);
 
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock.reentrancy))
+		if ((count = chan->lock_dont_use.reentrancy))
 			ast_debug(3, ":::=== Still have %d locks (recursive)\n", count);
 #endif
 		if (!res)
@@ -4700,12 +4700,12 @@ int ast_channel_lock(struct ast_channel *chan)
 
 	ast_debug(4, "====:::: Locking AST channel %s\n", chan->name);
 
-	res = ast_mutex_lock(&chan->lock);
+	res = ast_mutex_lock(&chan->lock_dont_use);
 
 	if (option_debug > 3) {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock.reentrancy))
+		if ((count = chan->lock_dont_use.reentrancy))
 			ast_debug(4, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)
@@ -4729,12 +4729,12 @@ int ast_channel_trylock(struct ast_channel *chan)
 
 	ast_debug(3, "====:::: Trying to lock AST channel %s\n", chan->name);
 
-	res = ast_mutex_trylock(&chan->lock);
+	res = ast_mutex_trylock(&chan->lock_dont_use);
 
 	if (option_debug > 2) {
 #ifdef DEBUG_THREADS
 		int count = 0;
-		if ((count = chan->lock.reentrancy))
+		if ((count = chan->lock_dont_use.reentrancy))
 			ast_debug(3, ":::=== Now have %d locks (recursive)\n", count);
 #endif
 		if (!res)

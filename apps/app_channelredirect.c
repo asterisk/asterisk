@@ -81,7 +81,7 @@ static int asyncgoto_exec(struct ast_channel *chan, void *data)
 
 	res = ast_parseable_goto(chan2, args.label);
 
-	ast_mutex_unlock(&chan2->lock);
+	ast_channel_unlock(chan2);
 quit:
 
 	return res;

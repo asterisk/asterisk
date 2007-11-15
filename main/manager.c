@@ -1759,7 +1759,7 @@ static int action_sendtext(struct mansession *s, const struct message *m)
 	}
 
 	res = ast_sendtext(c, textmsg);
-	ast_mutex_unlock(&c->lock);
+	ast_channel_unlock(c);
 	
 	if (res > 0)
 		astman_send_ack(s, m, "Success");

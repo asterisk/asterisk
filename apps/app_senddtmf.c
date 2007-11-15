@@ -102,13 +102,13 @@ static int manager_play_dtmf(struct mansession *s, const struct message *m)
 	}
 	if (!digit) {
 		astman_send_error(s, m, "No digit specified");
-		ast_mutex_unlock(&chan->lock);
+		ast_channel_unlock(chan);
 		return 0;
 	}
 
 	ast_senddigit(chan, *digit, 0);
 
-	ast_mutex_unlock(&chan->lock);
+	ast_channel_unlock(chan);
 	astman_send_ack(s, m, "DTMF successfully queued");
 	
 	return 0;

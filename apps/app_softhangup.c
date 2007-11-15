@@ -104,11 +104,11 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Soft hanging %s up.\n", c->name);
 			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 			if (!ast_test_flag(&flags, OPTION_ALL)) {
-				ast_mutex_unlock(&c->lock);
+				ast_channel_unlock(c);
 				break;
 			}
 		}
-		ast_mutex_unlock(&c->lock);
+		ast_channel_unlock(c);
 	}
 
 	return 0;
