@@ -9096,6 +9096,18 @@ static void *iax2_process_thread(void *data)
 		handle_deferred_full_frames(thread);
 	}
 
+	/*!\note For some reason, idle threads are exiting without being removed
+	 * from an idle list, which is causing memory corruption.  Forcibly remove
+	 * it from the list, if it's there.
+	 */
+	AST_LIST_LOCK(&idle_list);
+	AST_LIST_REMOVE(&idle_list, thread, list);
+	AST_LIST_UNLOCK(&idle_list);
+
+	AST_LIST_LOCK(&dynamic_list);
+	AST_LIST_REMOVE(&dynamic_list, thread, list);
+	AST_LIST_UNLOCK(&dynamic_list);
+
 	/* I am exiting here on my own volition, I need to clean up my own data structures
 	* Assume that I am no longer in any of the lists (idle, active, or dynamic)
 	*/
