@@ -13192,15 +13192,27 @@ static void check_pendings(struct sip_pvt *p)
 			transmit_request(p, SIP_CANCEL, p->ocseq, XMIT_RELIABLE, FALSE);
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
-		else 
+		else {
+			/* We have a pending outbound invite, don't send someting
+				new in-transaction */
+			if (p->pendinginvite)
+				return;
+
+			/* Perhaps there is an SD change INVITE outstanding */
 			transmit_request_with_auth(p, SIP_BYE, 0, XMIT_RELIABLE, TRUE);
+		}
 		ast_clear_flag(&p->flags[0], SIP_PENDINGBYE);	
 		sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
 	} else if (ast_test_flag(&p->flags[0], SIP_NEEDREINVITE)) {
-		ast_debug(2, "Sending pending reinvite on '%s'\n", p->callid);
-		/* Didn't get to reinvite yet, so do it now */
-		transmit_reinvite_with_sdp(p, FALSE);
-		ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+		/* if we can't REINVITE, hold it for later */
+		if (p->pendinginvite || p->invitestate == INV_CALLING || p->invitestate == INV_PROCEEDING || p->invitestate == INV_EARLY_MEDIA) {
+			ast_debug(2, "NOT Sending pending reinvite (yet) on '%s'\n", p->callid);
+		} else {
+			ast_debug(2, "Sending pending reinvite on '%s'\n", p->callid);
+			/* Didn't get to reinvite yet, so do it now */
+			transmit_reinvite_with_sdp(p, FALSE);
+			ast_clear_flag(&p->flags[0], SIP_NEEDREINVITE);	
+		}
 	}
 }
 
