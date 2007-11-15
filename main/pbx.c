@@ -5722,7 +5722,6 @@ int ast_add_extension2(struct ast_context *con,
 		dummy_exten.exten = dummy_name;
 		dummy_exten.matchcid = 0;
 		dummy_exten.cidmatch = 0;
-		ast_log(LOG_NOTICE,"Adding exten %s to context %s; about to lookup in root_tree hashtab %x\n", extension, con->name, (unsigned int)con->root);
 		tmp2 = ast_hashtab_lookup(con->root_tree,&dummy_exten);
 		if (!tmp2) {
 			/* hmmm, not in the trie; */
