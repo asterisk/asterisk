@@ -796,6 +796,7 @@ struct sip_auth {
 #define SIP_DTMF_INBAND		(1 << 16)	/*!< DP: DTMF Support: Inband audio, only for ULAW/ALAW - "inband" */
 #define SIP_DTMF_INFO		(2 << 16)	/*!< DP: DTMF Support: SIP Info messages - "info" */
 #define SIP_DTMF_AUTO		(3 << 16)	/*!< DP: DTMF Support: AUTO switch between rfc2833 and in-band DTMF */
+#define SIP_DTMF_SHORTINFO      (4 << 16)       /*!< DP: DTMF Support: SIP Info messages - "info" - short variant */
 
 /* NAT settings - see nat2str() */
 #define SIP_NAT			(3 << 18)	/*!< DP: four settings, uses two bits */
@@ -1742,7 +1743,7 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 static int add_header_contentLength(struct sip_request *req, int len);
 static int add_line(struct sip_request *req, const char *line);
 static int add_text(struct sip_request *req, const char *text);
-static int add_digit(struct sip_request *req, char digit, unsigned int duration);
+static int add_digit(struct sip_request *req, char digit, unsigned int duration, int mode);
 static int add_vidupdate(struct sip_request *req);
 static void add_route(struct sip_request *req, struct sip_route *route);
 static int copy_header(struct sip_request *req, const struct sip_request *orig, const char *field);
@@ -4385,6 +4386,7 @@ static int sip_senddigit_end(struct ast_channel *ast, char digit, unsigned int d
 	sip_pvt_lock(p);
 	switch (ast_test_flag(&p->flags[0], SIP_DTMF)) {
 	case SIP_DTMF_INFO:
+	case SIP_DTMF_SHORTINFO:
 		transmit_info_with_digit(p, digit, duration);
 		break;
 	case SIP_DTMF_RFC2833:
@@ -4550,7 +4552,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	}
 	sip_pvt_lock(i);
 
-	tmp->tech = ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO ?  &sip_tech_info : &sip_tech;
+	tmp->tech = ( ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_INFO || ast_test_flag(&i->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO) ?  &sip_tech_info : &sip_tech;
 
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
@@ -6763,16 +6765,35 @@ static int add_text(struct sip_request *req, const char *text)
 	return 0;
 }
 
-/*! \brief Add DTMF INFO tone to sip message */
-/* Always adds default duration 250 ms, regardless of what came in over the line */
-static int add_digit(struct sip_request *req, char digit, unsigned int duration)
+/*! \brief Add DTMF INFO tone to sip message 
+	Mode = 	0 for application/dtmf-relay (Cisco)
+		1 for application/dtmf
+*/
+static int add_digit(struct sip_request *req, char digit, unsigned int duration, int mode)
 {
 	char tmp[256];
-
-	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=%u\r\n", digit, duration);
-	add_header(req, "Content-Type", "application/dtmf-relay");
-	add_header_contentLength(req, strlen(tmp));
-	add_line(req, tmp);
+	int event;
+	if (mode) {
+		/* Application/dtmf short version used by some implementations */
+		if (digit == '*')
+			event = 10;
+		else if (digit == '#')
+			event = 11;
+		else if ((digit >= 'A') && (digit <= 'D'))
+			event = 12 + digit - 'A';
+		else
+			event = atoi(&digit);
+		snprintf(tmp, sizeof(tmp), "%d\r\n", event);
+		add_header(req, "Content-Type", "application/dtmf");
+		add_header_contentLength(req, strlen(tmp));
+		add_line(req, tmp);
+	} else {
+		/* Application/dtmf-relay as documented by Cisco */
+		snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=%u\r\n", digit, duration);
+		add_header(req, "Content-Type", "application/dtmf-relay");
+		add_header_contentLength(req, strlen(tmp));
+		add_line(req, tmp);
+	}
 	return 0;
 }
 
@@ -8479,7 +8500,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, const char digit, unsigne
 	struct sip_request req;
 
 	reqprep(&req, p, SIP_INFO, 0, 1);
-	add_digit(&req, digit, duration);
+	add_digit(&req, digit, duration, (ast_test_flag(&p->flags[0], SIP_DTMF) == SIP_DTMF_SHORTINFO));
 	return send_request(p, &req, XMIT_RELIABLE, p->ocseq);
 }
 
@@ -10944,6 +10965,7 @@ static void  print_group(int fd, ast_group_t group, int crlf)
 static struct _map_x_s dtmfstr[] = {
 	{ SIP_DTMF_RFC2833,     "rfc2833" },
 	{ SIP_DTMF_INFO,        "info" },
+	{ SIP_DTMF_SHORTINFO,   "shortinfo" },
 	{ SIP_DTMF_INBAND,      "inband" },
 	{ SIP_DTMF_AUTO,        "auto" },
 	{ -1,                   NULL }, /* terminator */
@@ -12333,6 +12355,49 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 		}
 		transmit_response(p, "200 OK", req);
 		return;
+	} else if (!strcasecmp(c, "application/dtmf")) {
+		unsigned int duration = 0;
+
+		get_msg_text(buf, sizeof(buf), req);
+		duration = 100; /* 100 ms */
+
+		if (!p->owner) {	/* not a PBX call */	
+			transmit_response(p, "481 Call leg/transaction does not exist", req);
+			sip_scheddestroy(p, DEFAULT_TRANS_TIMEOUT);
+			return;
+		}
+
+		if (ast_strlen_zero(buf)) {
+			transmit_response(p, "200 OK", req);
+			return;
+		}
+		event = atoi(buf);
+		if (event == 16) {
+			/* send a FLASH event */
+			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH, };
+			ast_queue_frame(p->owner, &f);
+			if (sipdebug)
+				ast_verbose("* DTMF-relay event received: FLASH\n");
+		} else {
+			/* send a DTMF event */
+			struct ast_frame f = { AST_FRAME_DTMF, };
+			if (event < 10) {
+				f.subclass = '0' + event;
+			} else if (event < 11) {
+				f.subclass = '*';
+			} else if (event < 12) {
+				f.subclass = '#';
+			} else if (event < 16) {
+				f.subclass = 'A' + (event - 12);
+			}
+			f.len = duration;
+			ast_queue_frame(p->owner, &f);
+			if (sipdebug)
+				ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
+		}
+		transmit_response(p, "200 OK", req);
+		return;
+
 	} else if (!strcasecmp(c, "application/media_control+xml")) {
 		/* Eh, we'll just assume it's a fast picture update for now */
 		if (p->owner)
@@ -17086,6 +17151,8 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(&flags[0], SIP_DTMF_RFC2833);
 		else if (!strcasecmp(v->value, "info"))
 			ast_set_flag(&flags[0], SIP_DTMF_INFO);
+		else if (!strcasecmp(v->value, "shortinfo"))
+			ast_set_flag(&flags[0], SIP_DTMF_SHORTINFO);
 		else if (!strcasecmp(v->value, "auto"))
 			ast_set_flag(&flags[0], SIP_DTMF_AUTO);
 		else {
@@ -18773,6 +18840,10 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	if (!strcasecmp(mode,"info")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
 		ast_set_flag(&p->flags[0], SIP_DTMF_INFO);
+		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
+	} else if (!strcasecmp(mode,"shortinfo")) {
+		ast_clear_flag(&p->flags[0], SIP_DTMF);
+		ast_set_flag(&p->flags[0], SIP_DTMF_SHORTINFO);
 		p->jointnoncodeccapability &= ~AST_RTP_DTMF;
 	} else if (!strcasecmp(mode,"rfc2833")) {
 		ast_clear_flag(&p->flags[0], SIP_DTMF);
