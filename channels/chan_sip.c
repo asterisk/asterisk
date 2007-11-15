@@ -13810,7 +13810,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		gettag(req, "To", tag, sizeof(tag));
 		ast_string_field_set(p, theirtag, tag);
 	}
-	check_via_response(p, req);
+	/* This needs to be configurable on a channel/peer/user level,
+	   not mandatory for all communication. Sadly enough, NAT implementations
+	   are not so stable so we can always rely on these headers. 
+		Temporarily disabled, while waiting for fix.
+	   Fix assigned to Rizzo :-)
+	*/
+	/* check_via_response(p, req); */
 	if (p->relatedpeer && p->method == SIP_OPTIONS) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
