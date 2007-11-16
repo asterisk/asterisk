@@ -825,13 +825,18 @@ static void pbx_destroy(struct ast_pbx *p)
  */
 
 
-static void update_scoreboard(struct scoreboard *board, int length, int spec, struct ast_exten *exten, char last, const char *callerid)
+static void update_scoreboard(struct scoreboard *board, int length, int spec, struct ast_exten *exten, char last, const char *callerid, int deleted)
 {
 	/* doing a matchcid() check here would be easy and cheap, but...
 	   unfortunately, it only works if an extension can have only one 
 	   cid to match. That's not real life. CID patterns need to exist 
 	   in the tree for this sort of thing to work properly. */
 
+	/* if this extension is marked as deleted, then skip this -- if it never shows
+	   on the scoreboard, it will never be found */
+	if (deleted)
+		return;
+	
 	if (length > board->total_length) {
 		board->total_specificity = spec;
 		board->total_length = length;
@@ -891,7 +896,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 	for (p=tree; p; p=p->alt_char) {
 		if (p->x[0] == 'N' && p->x[1] == 0 && *str >= '2' && *str <= '9' ) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
 				if (*(str+1))
@@ -906,7 +911,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 			}
 		} else if (p->x[0] == 'Z' && p->x[1] == 0 && *str >= '1' && *str <= '9' ) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
 				if (*(str+1))
@@ -921,7 +926,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 			}
 		} else if (p->x[0] == 'X' && p->x[1] == 0 && *str >= '0' && *str <= '9' ) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted);
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
 				if (*(str+1))
@@ -941,7 +946,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 				i++;
 			}
 			if (p->exten)
-				update_scoreboard(score, length+i, spec+(i*p->specificity), p->exten, '.', callerid);
+				update_scoreboard(score, length+i, spec+(i*p->specificity), p->exten, '.', callerid, p->deleted);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
 			}
@@ -953,7 +958,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 				i++;
 			}
 			if (p->exten)
-				update_scoreboard(score, length+1, spec+(p->specificity*i), p->exten, '!', callerid);
+				update_scoreboard(score, length+1, spec+(p->specificity*i), p->exten, '!', callerid, p->deleted);
 			if (p->next_char && p->next_char->x[0] == '/' && p->next_char->x[1] == 0) {
 				new_find_extension("/", score, p->next_char, length+i, spec+(p->specificity*i), callerid);
 			}
@@ -965,7 +970,7 @@ void new_find_extension(const char *str, struct scoreboard *score, struct match_
 			}
 		} else if (index(p->x, *str)) {
 			if (p->exten) /* if a shorter pattern matches along the way, might as well report it */
-				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid);
+				update_scoreboard(score, length+1, spec+p->specificity, p->exten,0,callerid, p->deleted);
 
 
 			if (p->next_char && ( *(str+1) || (p->next_char->x[0] == '/' && p->next_char->x[1] == 0))) {
@@ -1154,7 +1159,10 @@ void create_match_char_tree(struct ast_context *con)
 #endif
 	t1 = ast_hashtab_start_traversal(con->root_tree);
 	while( (e1 = ast_hashtab_next(t1)) ) {
-		add_exten_to_pattern_tree(con, e1);
+		if (e1->exten)
+			add_exten_to_pattern_tree(con, e1);
+		else
+			ast_log(LOG_ERROR,"Attempt to create extension with no extension name.\n");
 	}
 	ast_hashtab_end_traversal(t1);
 }
@@ -3594,6 +3602,50 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 
 	ast_wrlock_context(con);
 
+	/* Handle this is in the new world */
+
+	if (con->pattern_tree) {
+		/* find this particular extension */
+		struct ast_exten ex, *exten2;
+		char dummy_name[1024];
+		ex.exten = dummy_name;
+		ex.matchcid = 0;
+		ast_copy_string(dummy_name,extension, sizeof(dummy_name));
+		exten = ast_hashtab_lookup(con->root_tree, &ex);
+		if (exten) {
+			if (priority == 0)
+			{
+				/* success, this exten is in this pattern tree. */
+				struct match_char *x = add_exten_to_pattern_tree(con, exten);
+				if (x->exten) { /* this test for safety purposes */
+					x->deleted = 1; /* with this marked as deleted, it will never show up in the scoreboard, and therefore never be found */
+					x->exten = 0; /* get rid of what will become a bad pointer */
+					ast_hashtab_remove_this_object(con->root_tree, exten);
+					ast_log(LOG_NOTICE,"Removed extension %s from context %s table\n",
+							exten->exten, con->name);
+				} else {
+					ast_log(LOG_WARNING,"Trying to delete an exten from a context, but the pattern tree node returned isn't a full extension\n");
+				}
+			} else {
+				ex.priority = priority;
+				exten2 = ast_hashtab_lookup(exten->peer_tree, &ex);
+				if (exten2) {
+					ast_hashtab_remove_this_object(exten->peer_tree, exten2);
+					ast_log(LOG_NOTICE,"Removed priority %d from extension %s context %s table\n",
+							priority, exten->exten, con->name);
+				} else {
+					ast_log(LOG_ERROR,"Could not find priority %d of exten %s in context %s!\n",
+							priority, exten->exten, con->name);
+				}
+			}
+		} else {
+			/* hmmm? this exten is not in this pattern tree? */
+			ast_log(LOG_WARNING,"Cannot find extension %s in pattern tree in context %s\n",
+					extension, con->name);
+		}
+	}
+	
+
 	/* scan the extension list to find matching extension-registrar */
 	for (exten = con->root; exten; prev_exten = exten, exten = exten->next) {
 		if (!strcmp(exten->exten, extension) &&
@@ -5565,7 +5617,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			if (tmp->label)
 				ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
 			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
-			ast_hashtab_insert_safe(con->root_tree, tmp->exten);
+			ast_hashtab_insert_safe(con->root_tree, tmp);
 			el->next = tmp;
 		} else {			/* We're the very first extension.  */
 			ast_hashtab_remove_object_via_lookup(con->root_tree,e);
@@ -5579,7 +5631,7 @@ static int add_pri(struct ast_context *con, struct ast_exten *tmp,
 			if (tmp->label)
 			ast_hashtab_insert_safe(tmp->peer_label_tree,tmp);
 			ast_hashtab_remove_object_via_lookup(con->root_tree, e);
-			ast_hashtab_insert_safe(con->root_tree, tmp->exten);
+			ast_hashtab_insert_safe(con->root_tree, tmp);
  			con->root = tmp;
 		}
 		if (tmp->priority == PRIORITY_HINT)
