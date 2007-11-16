@@ -34,6 +34,8 @@ extern char ast_config_AST_KEY_DIR[PATH_MAX];
 extern char ast_config_AST_PID[PATH_MAX];
 extern char ast_config_AST_SOCKET[PATH_MAX];
 extern char ast_config_AST_RUN_DIR[PATH_MAX];
+extern char ast_config_AST_RUN_GROUP[PATH_MAX];
+extern char ast_config_AST_RUN_USER[PATH_MAX];
 extern char ast_config_AST_CTL_PERMISSIONS[PATH_MAX];
 extern char ast_config_AST_CTL_OWNER[PATH_MAX];
 extern char ast_config_AST_CTL_GROUP[PATH_MAX];
