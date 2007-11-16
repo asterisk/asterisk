@@ -2384,7 +2384,9 @@ static int process_message(struct mansession *s, const struct message *m)
 	ast_debug(1, "Manager received command '%s'\n", action);
 
 	if (ast_strlen_zero(action)) {
+		ast_mutex_lock(&s->__lock);
 		astman_send_error(s, m, "Missing action in request");
+		ast_mutex_unlock(&s->__lock);
 		return 0;
 	}
 
@@ -2399,7 +2401,9 @@ static int process_message(struct mansession *s, const struct message *m)
 		(!strcasecmp(action, "Login") || !strcasecmp(action, "Challenge"))) {
 		if (check_manager_session_inuse(user)) {
 			sleep(1);
+			ast_mutex_lock(&s->__lock);
 			astman_send_error(s, m, "Login Already In Use");
+			ast_mutex_lock(&s->__lock);
 			return -1;
 		}
 	}
