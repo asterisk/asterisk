@@ -2091,6 +2091,13 @@ static void *do_parking_thread(void *ignore)
 					char *cp = strrchr(peername, '-');
 					if (cp) 
 						*cp = 0;
+					char peername_flat[AST_MAX_EXTENSION]; /* using something like Zap/52 for an extension name is NOT a good idea */
+					ast_copy_string(peername_flat,peername,sizeof(peername_flat));
+					int i;
+					for(i=0; peername_flat[i] && i < AST_MAX_EXTENSION; i++) {
+						if (peername_flat[i] == '/') 
+							peername_flat[i]= '0';
+					}
 					con = ast_context_find(parking_con_dial);
 					if (!con) {
 						con = ast_context_create(NULL, parking_con_dial, registrar);
@@ -2099,23 +2106,16 @@ static void *do_parking_thread(void *ignore)
 					}
 					if (con) {
 						char returnexten[AST_MAX_EXTENSION];
-						char peername_flat[AST_MAX_EXTENSION]; /* using something like Zap/52 for an extension name is NOT a good idea */
-						int i;
-						ast_copy_string(peername_flat,peername,sizeof(peername_flat));
-						for(i=0; peername_flat[i] && i < AST_MAX_EXTENSION; i++) {
-							if (peername_flat[i] == '/') 
-								peername_flat[i]= '0';
-						}
 						snprintf(returnexten, sizeof(returnexten), "%s,,t", peername);
 						ast_add_extension2(con, 1, peername_flat, 1, NULL, NULL, "Dial", ast_strdup(returnexten), ast_free_ptr, registrar);
 					}
 					if (comebacktoorigin) { 
-						set_c_e_p(chan, parking_con_dial, peername, 1);
+						set_c_e_p(chan, parking_con_dial, peername_flat, 1);
 					} else {
 						ast_log(LOG_WARNING, "now going to parkedcallstimeout,s,1 | ps is %d\n",pu->parkingnum);
 						snprintf(parkingslot, sizeof(parkingslot), "%d", pu->parkingnum);
 						pbx_builtin_setvar_helper(pu->chan, "PARKINGSLOT", parkingslot);
-						set_c_e_p(chan, "parkedcallstimeout", peername, 1);
+						set_c_e_p(chan, "parkedcallstimeout", peername_flat, 1);
 					}
 				} else {
 					/* They've been waiting too long, send them back to where they came.  Theoretically they
