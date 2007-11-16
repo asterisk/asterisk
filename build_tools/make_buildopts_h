@@ -21,5 +21,14 @@ then
 	echo "#define AST_DEVMODE 1"
 	TMP="${TMP} AST_DEVMODE"
 fi
-BUILDSUM=`echo ${TMP} | md5sum`
-echo "#define AST_BUILDOPT_SUM {0x${BUILDSUM:0:8}, 0x${BUILDSUM:8:8}, 0x${BUILDSUM:16:8}, 0x${BUILDSUM:24:8}}"
+
+case ${OSARCH} in
+*BSD)
+	BUILDSUM=`echo ${TMP} | md5`
+	echo "#define AST_BUILDOPT_SUM {0x0, 0x0, 0x0, 0x0} /* dummy */"
+	;;
+*)
+	BUILDSUM=`echo ${TMP} | md5sum`
+	echo "#define AST_BUILDOPT_SUM {0x${BUILDSUM:0:8}, 0x${BUILDSUM:8:8}, 0x${BUILDSUM:16:8}, 0x${BUILDSUM:24:8}}"
+	;;
+esac
