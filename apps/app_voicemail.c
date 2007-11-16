@@ -4168,6 +4168,8 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 	struct vm_state *dstvms;
 #endif
 	char username[70]="";
+	char fn[PATH_MAX]; /* for playback of name greeting */
+	char ecodes[16] = "#";
 	int res = 0, cmd = 0;
 	struct ast_vm_user *receiver = NULL, *vmtmp;
 	AST_LIST_HEAD_NOLOCK_STATIC(extensions, ast_vm_user);
@@ -4280,6 +4282,22 @@ static int forward_message(struct ast_channel *chan, char *context, struct vm_st
 				valid_extensions = 0;
 				break;
 			}
+
+			/* play name if available, else play extension number */
+			snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, receiver->context, s);
+ 			RETRIEVE(fn, -1, s, receiver->context);
+			if (ast_fileexists(fn, NULL, NULL) > 0) {
+				res = ast_stream_and_wait(chan, fn, ecodes);
+				if (res) {
+					DISPOSE(fn, -1);
+					return res;
+				}
+			} else {
+				/* Dispose just in case */
+				DISPOSE(fn, -1);
+				res = ast_say_digit_str(chan, s, ecodes, chan->language);
+			}
+
 			s = strsep(&stringp, "*");
 		}
 		/* break from the loop of reading the extensions */
