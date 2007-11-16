@@ -3757,17 +3757,9 @@ static int queue_function_qac(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	lu = ast_module_user_add(chan);
-	
-	AST_LIST_LOCK(&queues);
-	AST_LIST_TRAVERSE(&queues, q, list) {
-		if (!strcasecmp(q->name, data)) {
-			ast_mutex_lock(&q->lock);
-			break;
-		}
-	}
-	AST_LIST_UNLOCK(&queues);
 
-	if (q) {
+	if((q = load_realtime_queue(data))) {
+		ast_mutex_lock(&q->lock);
 		mem_iter = ao2_iterator_init(q->members, 0);
 		while ((m = ao2_iterator_next(&mem_iter))) {
 			/* Count the agents who are logged in and presently answering calls */
