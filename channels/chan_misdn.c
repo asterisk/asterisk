@@ -2856,6 +2856,7 @@ static struct ast_frame *misdn_read(struct ast_channel *ast)
 		return NULL;
 	}
 
+	tmp->frame.frametype = AST_FRAME_VOICE;
 	tmp->frame.subclass = AST_FORMAT_ALAW;
 	tmp->frame.datalen = len;
 	tmp->frame.samples = len;
